@@ -1,0 +1,18 @@
+# Secrets: nie committen (Abgabe-Repo ist öffentlich)
+.env
+.env.*
+!.env.example
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Lokale Laufzeit
+.orchestrator/runtime/
+.DS_Store
+*.log
