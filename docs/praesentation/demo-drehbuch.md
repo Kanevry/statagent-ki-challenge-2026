@@ -67,9 +67,11 @@ Ablauf (im Browser auf `/uc3/freigaben`, Reiter „Erledigt“, gleich im Termin
   - Freigabe mit Vor- und Nachname im Protokoll (F26). „Team“ wird abgelehnt (`shared/py/plattform/freigabe.py`, `pruefe_name`).
 - Die Uhrzeit liest Bernhard nicht vor: Das Protokoll zeigt sie ohne Zeitzone (15:53 statt 16:53 Wien), Hinweis an b-uc3-84.
 
-**Live-Änderung nur nach bestandener Probe.** Meldet b-uc3-84 einen Fix für die Probe, probt E5 B2 erneut auf der Kopie der Abgabe-DB (`statistik_probe`) bis `vorschlag zeigen` und `ablehnen`. Erst wenn das dreimal hintereinander klappt, kommt B2 als Live-Teil zurück in dieses Drehbuch:
+**Live-Änderung B2, sobald !50 auf main ist.** Mit dem Stand von !50 (feat/uc3-betrieb, 4cbcf47, behebt Rolle und Abbruch bei P08) hat E5 B2 am 05.11.2026 18:20 bis 18:25 dreimal hintereinander gegen `statistik_probe` geprobt: drei gültige Vorschläge (34, 35, 36), Rolle datenmanagement, `R5_alter.geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`. `vorschlag zeigen 34` zeigt Regel-Diff und Probe 2025-03 mit gleichem Gesamtbestand. Ist !50 beim Freeze auf main, kommt nach dem Rückblick (ab 6:50) live dazu:
 
-`uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2025-03`
+`uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2025-03`, dann `uv run uc3 vorschlag zeigen <id>` und `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`.
+
+Kommt „Kein Vorschlag“, sendet Bernhard denselben Satz einmal neu. Kommt er wieder, bleibt es beim Rückblick.
 
 Bis dahin gilt: Nennt die Jury nach Szene 10 eine Regel, sagt Bernhard: „Das zeige ich Ihnen an einer Änderung, die ich heute schon freigegeben habe“ und bleibt bei Vorschlag 24.
 
