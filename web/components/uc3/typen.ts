@@ -7,6 +7,11 @@ export type Ergebnisstand = "vorlaeufig" | "endgueltig";
 /** Ein Lauf aus `meta.lauf`. Große Zahlen (bigint) sind hier schon `number`. */
 export interface Lauf {
   id: number;
+  /**
+   * Lauf, aus dem Prüftreffer, Regelwirkung und Revision stammen: bei einem veröffentlichten Monat der Lauf, der
+   * veröffentlicht hat (wie `_veroeffentlichender_lauf` in qualitaetsbericht.py), sonst `id`.
+   */
+  quelleId: number;
   /** Berichtsmonat = Lieferung, „JJJJ-MM“. Ein Lauf rechnet genau eine Lieferung. */
   lieferung: string;
   /** „v1“ (Fachbeschreibung) oder „v2“ (nach Änderungsaufträgen). */

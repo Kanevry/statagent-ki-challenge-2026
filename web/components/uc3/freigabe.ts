@@ -589,7 +589,7 @@ export function entscheidungArgv(e: Entscheidung): string[] {
 }
 
 /** Fester Satz für jeden Fehler, den die CLI nicht als bekannten fachlichen Fehler meldet (auch Git-Fehler). */
-export const GRUND_UNBEKANNT = "Bitte die Fachabteilung oder das Team fragen.";
+export const GRUND_UNBEKANNT = "Die Entscheidung ist nicht gespeichert. Bitte später noch einmal versuchen.";
 
 /**
  * Bekannte fachliche Fehler der CLI (stderr „nicht freigegeben: …“ bzw. „nicht abgelehnt: …“) → fester Satz.
@@ -688,7 +688,7 @@ export function erstelleFreigabeAntwort({
     if (lauf.code === 1) {
       const grund = kurzerGrund(lauf.stderr);
       const meldung =
-        grund === GRUND_UNBEKANNT ? `Die Entscheidung wurde nicht gespeichert. ${GRUND_UNBEKANNT}` : "Die Entscheidung ist nicht gespeichert.";
+        grund === GRUND_UNBEKANNT ? GRUND_UNBEKANNT : "Die Entscheidung ist nicht gespeichert.";
       return fehler(409, meldung, grund);
     }
     console.warn(`[uc3/freigabe] CLI beendet mit Exit ${lauf.code}`);

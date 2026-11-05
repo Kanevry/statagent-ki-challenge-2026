@@ -24,7 +24,7 @@ type Zustand =
 
 const BEISPIELE = [
   "Beschäftigte in Wien im März 2025",
-  "Männer und Frauen im Oktober 2025 je Bundesland",
+  "Beschäftigte im Oktober 2025 je Bundesland",
   "Beschäftigte 2025",
 ] as const;
 
@@ -67,7 +67,16 @@ function herunterladen(antwort: UcAntwort) {
   URL.revokeObjectURL(url);
 }
 
-export function FragenFormular({ definitionen }: { definitionen: readonly Definition[] }) {
+/** Satz für die Online-Demo, in der nichts gerechnet und nichts geändert wird (KIC_ONLINE_LESEND=1). */
+const NUR_ANSEHEN = "Online nur zum Ansehen: Fragen an die Daten stellen Sie in der lokalen Anwendung.";
+
+export function FragenFormular({
+  definitionen,
+  nurLesen = false,
+}: {
+  definitionen: readonly Definition[];
+  nurLesen?: boolean;
+}) {
   const [frage, setFrage] = useState("");
   const [eingabeFehler, setEingabeFehler] = useState<string | undefined>();
   const [zustand, setZustand] = useState<Zustand>({ art: "leer" });
@@ -116,6 +125,11 @@ export function FragenFormular({ definitionen }: { definitionen: readonly Defini
 
   return (
     <div className="flex max-w-4xl flex-col gap-8">
+      {nurLesen && (
+        <Fliesstext groesse={14} ton="gedaempft">
+          {NUR_ANSEHEN}
+        </Fliesstext>
+      )}
       <form onSubmit={absenden} className="flex flex-col gap-4" aria-label="Frage an die Daten">
         <div className="flex flex-col gap-4 md:flex-row md:items-end">
           <Feld
@@ -128,9 +142,10 @@ export function FragenFormular({ definitionen }: { definitionen: readonly Defini
             hinweis="Nennen Sie einen Monat. Enter sendet die Frage."
             fehler={eingabeFehler}
             onChange={(e) => setFrage(e.target.value)}
+            disabled={nurLesen}
             className="min-w-0 flex-1"
           />
-          <Knopf type="submit" className="min-h-11 md:mb-6" disabled={zustand.art === "laedt"}>
+          <Knopf type="submit" className="min-h-11 md:mb-6" disabled={nurLesen || zustand.art === "laedt"}>
             Fragen
           </Knopf>
         </div>
@@ -143,11 +158,12 @@ export function FragenFormular({ definitionen }: { definitionen: readonly Defini
               <li key={beispiel}>
                 <button
                   type="button"
+                  disabled={nurLesen}
                   onClick={() => {
                     setFrage(beispiel);
                     void senden(beispiel);
                   }}
-                  className="min-h-11 rounded-full border border-line bg-white px-4 py-2 text-left font-sans text-14 text-ink hover:border-gruen hover:text-gruen focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen"
+                  className="min-h-11 rounded-full border border-line bg-white px-4 py-2 text-left font-sans text-14 text-ink hover:border-gruen hover:text-gruen disabled:cursor-not-allowed disabled:text-slate disabled:hover:border-line focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen"
                 >
                   {beispiel}
                 </button>

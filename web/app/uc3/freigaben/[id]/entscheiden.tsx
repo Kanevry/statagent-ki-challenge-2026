@@ -5,7 +5,9 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode 
 import { Feld, Fliesstext, Knopf, Status, Ueberschrift } from "@kic/ui/basis";
 import {
   FreigabeKarte,
+  formatZahl,
   formatZeit,
+  HerkunftChip,
   pruefeName,
   type FreigabeAntwort,
   type FreigabeEintrag,
@@ -44,9 +46,11 @@ export type EntscheidenProps = {
   /** Inhalt der Zone 2 ohne Probe (Satz, Hinweis, Regeländerung in Worten). */
   ohneProbe: ReactNode;
   entscheidung?: FreigabeEntscheidung;
+  /** Online-Demo (KIC_ONLINE_LESEND=1): nur ansehen, ohne Namensfeld und ohne Knopf. */
+  nurLesen?: boolean;
 };
 
-export function Entscheiden({ vorschlagId, eintrag, zahlen, diff, ohneProbe, entscheidung }: EntscheidenProps) {
+export function Entscheiden({ vorschlagId, eintrag, zahlen, diff, ohneProbe, entscheidung, nurLesen = false }: EntscheidenProps) {
   const router = useRouter();
   const [nichtAngewendet, setNichtAngewendet] = useState(false);
 
@@ -58,6 +62,10 @@ export function Entscheiden({ vorschlagId, eintrag, zahlen, diff, ohneProbe, ent
   }
   const onFreigeben = (name: string) => entscheiden({ name, entscheidung: "ja" });
   const onAblehnen = (name: string, begruendung: string) => entscheiden({ name, entscheidung: "nein", begruendung });
+
+  if (nurLesen && !entscheidung) {
+    return <NurAnsehen eintrag={eintrag} zahlen={zahlen} diff={diff} ohneProbe={ohneProbe} />;
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -90,6 +98,52 @@ export function Entscheiden({ vorschlagId, eintrag, zahlen, diff, ohneProbe, ent
         </Status>
       )}
     </div>
+  );
+}
+
+/** Zone 1 und 2 der Freigabe zum Ansehen; Zone 3 sagt, wo die Freigabe stattfindet. */
+function NurAnsehen({
+  eintrag,
+  zahlen,
+  diff,
+  ohneProbe,
+}: Pick<EntscheidenProps, "eintrag" | "zahlen" | "diff" | "ohneProbe">) {
+  return (
+    <article className="flex flex-col gap-6 rounded border border-line bg-white p-6" data-zustand="nur-ansehen">
+      <Zone titel="Das wurde gesagt">
+        <blockquote className="border-l-2 border-line pl-4">
+          <Fliesstext>{`„${eintrag.anweisung}“`}</Fliesstext>
+        </blockquote>
+        <Fliesstext groesse={14} ton="gedaempft">
+          {eintrag.name}
+          {" · "}
+          <time dateTime={eintrag.zeit}>{formatZeit(eintrag.zeit)}</time>
+        </Fliesstext>
+      </Zone>
+      <Zone titel="Das ändert sich">
+        {zahlen ? (
+          <>
+            <Fliesstext>{zahlen.satz}</Fliesstext>
+            <p className="font-mono text-32 tabular-nums text-ink">
+              {`${formatZahl(zahlen.vorher)} → ${formatZahl(zahlen.nachher)}`}
+            </p>
+            <HerkunftChip {...zahlen.beleg} />
+          </>
+        ) : (
+          ohneProbe
+        )}
+        {diff && (
+          <pre className="max-w-full overflow-x-auto rounded border border-line bg-paper p-2 font-mono text-12 text-ink">
+            {diff}
+          </pre>
+        )}
+      </Zone>
+      <Zone titel="Freigabe mit Vor- und Nachname">
+        <Status art="info">
+          Online nur zum Ansehen: Freigeben oder Ablehnen geht nur in der lokalen Anwendung, mit Vor- und Nachnamen.
+        </Status>
+      </Zone>
+    </article>
   );
 }
 

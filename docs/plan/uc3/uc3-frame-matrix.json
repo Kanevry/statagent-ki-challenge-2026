@@ -146,5 +146,5 @@
     "390x844"
   ],
   "screenshots": "docs/plan/uc3/ui-abnahme/",
-  "abnahme_bericht": "docs/plan/uc3/ui-abnahme/README.md (05.11.2026, gegen statagent-db am m5)"
+  "abnahme_bericht": "docs/plan/uc3/ui-abnahme/README.md (05.11.2026, gegen die lokale UC3-Datenbank)"
 }

@@ -133,7 +133,7 @@ const TITEL: Record<string, string> = {
   P04: "Im Geburtsdatum steht der Monat 13.",
   P05: "Das Geburtsdatum fehlt oder ist ungültig.",
   P06: "Das Alter kann nicht stimmen.",
-  P07: "Beschäftigte ab 75 Jahren.",
+  P07: "Sehr alte Beschäftigte, das Alter ist aber möglich.",
   P08: "Beginn oder Ende war kein gültiges Datum.",
   P09: "Der Beginn liegt nach dem Ende.",
   P10: "Bundesland oder Branche wurde leer geliefert.",
@@ -170,16 +170,13 @@ const FRAGT_NACH = "Die Fachabteilung soll das klären.";
 /**
  * Ein Satz je Prüfregel (Nummer vor dem Unterstrich) statt des Rohtexts aus pruefung_treffer.massnahme, der
  * Kürzel wie „(E02)“, Pfeile oder Formeln trägt. Unbekannte Regeln fallen auf den Rohtext zurück.
+ * Nur Regeln, deren Maßnahme nicht von Parametern abhängt. P04–P07, P10 und P11 (Ersatztag, Altersgrenzen,
+ * „unbekannt“, Zielabschnitt) nehmen den gespeicherten Text des Treffers: Nach einer Live-Änderung der Regel
+ * erklärt die Seite so die Regel, mit der gerechnet wurde, nicht eine alte Fassung (Review !51 Runde 2, Punkt 4).
  */
 const MASSNAHME: Record<string, (l: MassnahmeLage) => string> = {
   P01: () => "Doppelte Zeilen sind zu einer zusammengefasst, jedes Verhältnis zählt einmal.",
   P03: () => "Beginn und Ende sind für die ganze Lieferung zurückgetauscht.",
-  P04: () => "Das Alter wird aus dem Geburtsjahr gerechnet, der Geburtstag gilt als unbekannt.",
-  P05: () => "Das Alter gilt als unbekannt, das Verhältnis zählt.",
-  P06: () => "Das Alter gilt als unbekannt, das Verhältnis zählt.",
-  P07: () => "Nichts zu tun, sie zählen in der Altersgruppe 75 und mehr.",
-  P10: () => "Sie zählen unter „unbekannt“.",
-  P11: () => "Sie zählen zur Branche Herstellung von Waren (Abschnitt C).",
   P13: () => "Der Monat ist angehalten, die Fachabteilung soll klären, warum die Gruppen fehlen.",
   P14: (l) =>
     l.einstufung === "nicht-erklaerbar"
@@ -206,9 +203,17 @@ const MASSNAHME: Record<string, (l: MassnahmeLage) => string> = {
     }`,
 };
 
-/** Rohtext als Satz: Pfeil als „Zugeordnet zu“, Großbuchstabe vorn, Punkt hinten. */
-function rohAlsSatz(roh: string): string {
-  let s = roh.split(/\s+/).join(" ").trim();
+/**
+ * Rohtext als Satz: Klammern mit Regelkürzeln wie „(R5 ersatz:07-01)“ oder „(E03, R5)“ fallen weg, „u.“ wird „und“,
+ * Pfeil als „Zugeordnet zu“, Großbuchstabe vorn, Punkt hinten.
+ */
+export function rohAlsSatz(roh: string): string {
+  let s = roh
+    .replace(/\s*\((?:[A-Z]\d+[^)]*)\)/g, "")
+    .replace(/\bu\. /g, "und ")
+    .split(/\s+/)
+    .join(" ")
+    .trim();
   if (!s) return "";
   if (s.startsWith("→")) s = `Zugeordnet zu${s.slice(1)}`;
   s = s.replaceAll("→", "zu");
@@ -418,7 +423,7 @@ export function sqlBestandMitVormonat(lauf: Lauf, vormonat: Lauf | null): string
   ].join("\n");
 }
 
-export function sqlKennzahlen(lauf: Pick<Lauf, "id">): string {
+export function sqlKennzahlen(lauf: Pick<Lauf, "id" | "quelleId">): string {
   return [
     "SELECT lieferung, gelesen, gezaehlt, fortgeschrieben, nicht_gezaehlt, ausgeschlossen, ergebnis_status",
     "FROM meta.lauf",
@@ -436,13 +441,13 @@ export function sqlDeterminismus(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "r
 }
 
 /** Abfrage des Treffers (liefert alle gezeigten Angaben) und darunter die Prüfabfrage der Regel. */
-export function sqlTreffer(lauf: Pick<Lauf, "id">, t: Pick<Treffer, "regelId" | "ebene" | "belegSql">): string {
+export function sqlTreffer(lauf: Pick<Lauf, "id" | "quelleId">, t: Pick<Treffer, "regelId" | "ebene" | "belegSql">): string {
   const kopf = [
     "SELECT r.name, p.anzahl, p.umfang, coalesce(p.einstufung, 'nicht-erklaerbar') AS einstufung, p.massnahme, p.anhalten,",
     "       ARRAY(SELECT q.nr FROM meta.rueckfrage q WHERE q.antwort IS NULL",
     "             AND (q.nr = p.details ->> 'rueckfrage' OR q.regel_name = r.name)) AS offene_rueckfragen",
     "FROM meta.pruefung_treffer p JOIN meta.regel r ON r.id = p.regel_id",
-    `WHERE p.lauf_id = ${literal(lauf.id)} AND p.regel_id = ${literal(t.regelId)} AND p.ebene = ${literal(t.ebene)};`,
+    `WHERE p.lauf_id = ${literal(lauf.quelleId)} AND p.regel_id = ${literal(t.regelId)} AND p.ebene = ${literal(t.ebene)};`,
   ];
   return t.belegSql ? [...kopf, "", "-- Prüfabfrage der Regel, mit der die Anzahl gerechnet wurde:", t.belegSql.trim()].join("\n") : kopf.join("\n");
 }
@@ -450,28 +455,28 @@ export function sqlTreffer(lauf: Pick<Lauf, "id">, t: Pick<Treffer, "regelId" | 
 const UMGESCHICHTET =
   "EXISTS (SELECT 1 FROM meta.revision g WHERE g.lauf_id = r.lauf_id AND g.berichtsmonat = r.berichtsmonat AND g.gliederung <> 'insgesamt' AND g.differenz <> 0)";
 
-export function sqlRevision(lauf: Pick<Lauf, "id">, berichtsmonat: string): string {
+export function sqlRevision(lauf: Pick<Lauf, "id" | "quelleId">, berichtsmonat: string): string {
   return [
     "SELECT r.berichtsmonat, r.veroeffentlicht, r.aktuell, r.differenz, r.status_vorher, u.ursache, u.anzahl,",
     `       ${UMGESCHICHTET} AS umgeschichtet`,
     "FROM meta.revision r",
     "LEFT JOIN meta.revision_ursache u ON u.lauf_id = r.lauf_id AND u.berichtsmonat = r.berichtsmonat",
-    `WHERE r.lauf_id = ${literal(lauf.id)} AND r.gliederung = 'insgesamt' AND r.berichtsmonat = ${literal(berichtsmonat)}`,
+    `WHERE r.lauf_id = ${literal(lauf.quelleId)} AND r.gliederung = 'insgesamt' AND r.berichtsmonat = ${literal(berichtsmonat)}`,
     "ORDER BY u.anzahl DESC;",
   ].join("\n");
 }
 
-export function sqlKeineRevision(lauf: Pick<Lauf, "id">): string {
+export function sqlKeineRevision(lauf: Pick<Lauf, "id" | "quelleId">): string {
   return [
     "SELECT count(*) AS monate_mit_revisionsbedarf",
     "FROM meta.revision r",
-    `WHERE r.lauf_id = ${literal(lauf.id)} AND r.gliederung = 'insgesamt'`,
+    `WHERE r.lauf_id = ${literal(lauf.quelleId)} AND r.gliederung = 'insgesamt'`,
     `  AND (r.differenz <> 0 OR ${UMGESCHICHTET});`,
   ].join("\n");
 }
 
 /** Was der Befehl veroeffentlichen prüft: Regeln ohne Freigabe, Freigabe des Regelstands, offene Rückfragen. */
-export function sqlVeroeffentlichen(lauf: Pick<Lauf, "id" | "lieferung" | "regelsatz" | "regelstand">): string {
+export function sqlVeroeffentlichen(lauf: Pick<Lauf, "id" | "quelleId" | "lieferung" | "regelsatz" | "regelstand">): string {
   const l = literal(lauf.lieferung);
   return [
     "SELECT (SELECT count(*) FROM meta.regel",
@@ -480,7 +485,7 @@ export function sqlVeroeffentlichen(lauf: Pick<Lauf, "id" | "lieferung" | "regel
     "       EXISTS (SELECT 1 FROM meta.regelstand_freigabe",
     `               WHERE regelsatz = ${literal(lauf.regelsatz)} AND lieferung = ${l} AND regelstand = ${literal(lauf.regelstand)}) AS regelstand_freigegeben,`,
     `       (SELECT fortgeschrieben FROM meta.lauf WHERE id = ${literal(lauf.id)}) AS fortgeschrieben,`,
-    `       (SELECT count(*) FROM meta.pruefung_treffer WHERE lauf_id = ${literal(lauf.id)} AND anhalten) AS anhaltende_treffer;`,
+    `       (SELECT count(*) FROM meta.pruefung_treffer WHERE lauf_id = ${literal(lauf.quelleId)} AND anhalten) AS anhaltende_treffer;`,
   ].join("\n");
 }
 
@@ -649,8 +654,8 @@ export async function ladeLaufDetail(sql: Sql, lieferung: string, regelsatz = "v
   ]);
   if (!lauf) return null;
   const [treffer, revisionen, regionen, determinismus] = await Promise.all([
-    ladeTreffer(sql, lauf.id),
-    ladeRevisionen(sql, lauf.id),
+    ladeTreffer(sql, lauf.quelleId),
+    ladeRevisionen(sql, lauf.quelleId),
     ladeRegionen(sql, lauf),
     ladeDeterminismus(sql, lauf),
   ]);

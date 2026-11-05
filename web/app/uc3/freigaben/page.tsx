@@ -87,8 +87,8 @@ export default async function FreigabenSeite({
           Die Agenten schlagen Änderungen nur vor. Gerechnet wird damit erst, wenn ein Mensch sie mit Vor- und
           Nachnamen freigibt.
         </Fliesstext>
-        <ul className="grid gap-4 sm:grid-cols-3" aria-label="Begriffe auf dieser Seite">
-          {(["Freigabe", "Regelsatz", "Probe"] as const).map((wort) => (
+        <ul className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5" aria-label="Begriffe auf dieser Seite">
+          {(["Freigabe", "Regelsatz", "Probe", "Regelstand", "Ergebnis-Hash"] as const).map((wort) => (
             <li key={wort} className="font-sans text-14 font-semibold text-ink">
               <Fachbegriff wort={wort} />
             </li>

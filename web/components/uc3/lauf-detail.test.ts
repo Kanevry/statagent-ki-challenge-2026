@@ -14,6 +14,7 @@ import {
   trefferTitel,
   ursachenSatz,
   type Treffer,
+  rohAlsSatz,
 } from "./lauf-detail";
 
 function treffer(teil: Partial<Treffer>): Treffer {
@@ -143,5 +144,25 @@ describe("Lauf-Detail: Regelsatz, Veröffentlichen, Revisionsbedarf", () => {
   it("zählt eine Umschichtung bei gleicher Summe als Revisionsbedarf", () => {
     expect(hatRevisionsbedarf({ differenz: 0, umgeschichtet: true })).toBe(true);
     expect(hatRevisionsbedarf({ differenz: 0, umgeschichtet: false })).toBe(false);
+  });
+});
+
+describe("massnahmeSatz nach einer Live-Änderung (Review !51 Runde 2, Punkt 4)", () => {
+  it("nimmt bei P07 den gespeicherten Text, damit eine neue Altersgrenze nicht als 75 erscheint", () => {
+    const satz = massnahmeSatz({
+      name: "P07_alter_hoch_plausibel",
+      massnahme: "gezählt, Zeile 80 u. mehr",
+      einstufung: "erklaert-plausibel",
+      anhalten: false,
+    });
+    expect(satz).toBe("Gezählt, Zeile 80 und mehr.");
+  });
+
+  it("entfernt Regelkürzel in Klammern aus dem gespeicherten Text", () => {
+    expect(
+      rohAlsSatz(
+        "Geburtstag unbekannt: 1. Juli des Geburtsjahres als Ersatztag (R5 ersatz:07-01), Alter in vollendeten Jahren am Stichtag (E03, R5)",
+      ),
+    ).toBe("Geburtstag unbekannt: 1. Juli des Geburtsjahres als Ersatztag, Alter in vollendeten Jahren am Stichtag.");
   });
 });

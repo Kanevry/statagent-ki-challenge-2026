@@ -50,6 +50,12 @@ function mehrzahl(n: number, eins: string, viele: string): string {
   return `${formatZahl(n)} ${n === 1 ? eins : viele}`;
 }
 
+/** Nach einem Doppelpunkt beginnt der eingesetzte Text einheitlich groß (Review !51 Runde 2, Punkt 6). */
+function gross(text: string | null | undefined): string {
+  const t = (text ?? "").trim();
+  return t ? t[0].toLocaleUpperCase("de-AT") + t.slice(1) : "";
+}
+
 export default async function Bericht({ params, searchParams }: Props) {
   const { lieferung } = await params;
   if (!istMonat(lieferung)) notFound();
@@ -333,11 +339,11 @@ function AuffaelligkeitenAbschnitt({ b }: { b: Qualitaetsbericht }) {
                 <Einstufung a={a} />
                 <p className="font-sans text-14 text-ink">{`${a.nr}. ${a.satz}`}</p>
                 <p className="font-sans text-12 text-slate">
-                  {`Umfang: ${a.umfang}${a.anhalten ? " · hält den Monat an" : ""}${
+                  {`Umfang: ${gross(a.umfang)}${a.anhalten ? " · hält den Monat an" : ""}${
                     a.rueckfragen.length ? ` · Rückfrage ${a.rueckfragen.join(", ")}` : ""
                   }`}
                 </p>
-                <p className="font-sans text-14 text-ink">{`Maßnahme: ${a.massnahme}`}</p>
+                <p className="font-sans text-14 text-ink">{`Maßnahme: ${gross(a.massnahme)}`}</p>
                 <span className={regelName}>{a.regel}</span>
                 <Pruefabfrage a={a} />
               </li>
@@ -379,8 +385,8 @@ function RueckfragenAbschnitt({ b }: { b: Qualitaetsbericht }) {
               <Fliesstext>{r.frage}</Fliesstext>
               <Fliesstext groesse={14} ton="gedaempft">
                 {r.offen
-                  ? `Bis zur Antwort gilt: ${r.vorschlag}`
-                  : `Antwort${r.antwortAm ? ` vom ${r.antwortAm}` : ""}: ${r.antwort ?? ""}`}
+                  ? `Bis zur Antwort gilt: ${gross(r.vorschlag)}`
+                  : `Antwort${r.antwortAm ? ` vom ${r.antwortAm}` : ""}: ${gross(r.antwort)}`}
               </Fliesstext>
               {r.regelName && <span className={regelName}>{r.regelName}</span>}
             </li>
@@ -414,12 +420,12 @@ function AnnahmenAbschnitt({ b }: { b: Qualitaetsbericht }) {
                     {"Betrifft in diesem Monat "}
                     <span className="font-mono tabular-nums">{formatZahl(a.wirkungSaetze)}</span>
                     {" Sätze."}
-                    {gesamt.has(a.wirkungSaetze) && " Das ist die Gesamtzahl, die die Regel durchläuft, nicht nur veränderte Sätze."}
+                    {gesamt.has(a.wirkungSaetze) && " Diese Zahl umfasst alle geprüften Sätze, nicht nur die geänderten."}
                   </>
                 )}
               </Fliesstext>
               {a.begruendung && (
-                <Fliesstext groesse={14} ton="gedaempft">{`Begründung: ${a.begruendung}`}</Fliesstext>
+                <Fliesstext groesse={14} ton="gedaempft">{`Begründung: ${gross(a.begruendung)}`}</Fliesstext>
               )}
               <span className={regelName}>
                 {[a.nr !== a.regelName ? a.nr : null, a.regelName, a.rueckfrage ? `Rückfrage ${a.rueckfrage}` : null]
@@ -502,7 +508,7 @@ function RevisionAbschnitt({ b }: { b: Qualitaetsbericht }) {
                   {", Differenz "}
                   <span className="font-mono tabular-nums">{formatDifferenz(z.differenz)}</span>
                 </p>
-                <p className="font-sans text-12 text-slate">{`Hauptursache: ${z.hauptursache ?? "nicht ermittelt"}`}</p>
+                <p className="font-sans text-12 text-slate">{`Hauptursache: ${gross(z.hauptursache ?? "nicht ermittelt")}`}</p>
               </li>
             ))}
           </ul>

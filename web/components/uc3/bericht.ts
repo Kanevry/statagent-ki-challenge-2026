@@ -1,7 +1,7 @@
 import { formatZahl } from "@kic/ui/bausteine";
 import { literal } from "./beleg";
 import { lies, type Lesung, type Sql } from "./db";
-import { ladeMassgeblichenLauf, ladeMonatslaeufe, MASSGEBLICH_SQL } from "./laeufe";
+import { ladeMassgeblichenLauf, ladeMonatslaeufe, MASSGEBLICH_SQL, quelleSql } from "./laeufe";
 import { massnahmeSatz } from "./lauf-detail";
 import { monatName, verschieben } from "./monat";
 import type { Lauf, Monatslauf } from "./typen";
@@ -233,7 +233,10 @@ function zahl(wert: unknown): number {
 // --- SQL der Belege (angezeigte Fassung mit Literalen; ausgeführt wird die parametrisierte) ------------
 
 function massgeblichMitLiteral(regelsatz: string): string {
-  return MASSGEBLICH_SQL.replace("$1", literal(regelsatz)).replace("SELECT DISTINCT ON (lieferung) *", "SELECT DISTINCT ON (lieferung) id, lieferung");
+  return MASSGEBLICH_SQL.replace("$1", literal(regelsatz)).replace(
+    "SELECT DISTINCT ON (lieferung) *",
+    `SELECT DISTINCT ON (lieferung) id, lieferung,\n  ${quelleSql("meta.lauf").split("\n").join("\n  ")} AS quelle_id`,
+  );
 }
 
 /** Alle Monate: Auffälligkeiten, davon nicht erklärbar, Revisionsbedarf ja/nein. */
@@ -246,10 +249,10 @@ export function sqlBerichtsliste(regelsatz = "v1"): string {
       .join("\n"),
     ")",
     "SELECT m.lieferung,",
-    "  (SELECT count(*) FROM meta.pruefung_treffer p WHERE p.lauf_id = m.id AND p.anzahl > 0) AS auffaelligkeiten,",
-    "  (SELECT count(*) FROM meta.pruefung_treffer p WHERE p.lauf_id = m.id AND p.anzahl > 0",
+    "  (SELECT count(*) FROM meta.pruefung_treffer p WHERE p.lauf_id = m.quelle_id AND p.anzahl > 0) AS auffaelligkeiten,",
+    "  (SELECT count(*) FROM meta.pruefung_treffer p WHERE p.lauf_id = m.quelle_id AND p.anzahl > 0",
     "     AND coalesce(p.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar') AS nicht_erklaerbar,",
-    "  EXISTS (SELECT 1 FROM meta.revision v WHERE v.lauf_id = m.id AND v.differenz <> 0) AS revisionsbedarf",
+    "  EXISTS (SELECT 1 FROM meta.revision v WHERE v.lauf_id = m.quelle_id AND v.differenz <> 0) AS revisionsbedarf",
     "FROM massgeblich m ORDER BY m.lieferung;",
   ].join("\n");
 }
@@ -272,7 +275,7 @@ export function sqlBerichtsuebersicht(regelsatz = "v1"): string {
     "SELECT (SELECT count(*) FROM massgeblich) AS monate_mit_bericht, q.nr AS offene_rueckfrage, q.titel,",
     "       count(DISTINCT m.lieferung) AS monate_wartend",
     "FROM massgeblich m",
-    "JOIN meta.pruefung_treffer t ON t.lauf_id = m.id AND t.anzahl > 0 AND coalesce(t.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar'",
+    "JOIN meta.pruefung_treffer t ON t.lauf_id = m.quelle_id AND t.anzahl > 0 AND coalesce(t.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar'",
     "JOIN meta.regel r ON r.id = t.regel_id",
     `JOIN meta.rueckfrage q ON ${OFFENE_RUECKFRAGE}`,
     "GROUP BY q.nr, q.titel ORDER BY monate_wartend DESC, q.nr;",
@@ -285,13 +288,13 @@ export function sqlOhneRueckfrage(regelsatz = "v1"): string {
     massgeblichCte(regelsatz),
     "SELECT count(DISTINCT m.lieferung) AS monate_mit_weiterem_offenen",
     "FROM massgeblich m",
-    "JOIN meta.pruefung_treffer t ON t.lauf_id = m.id AND t.anzahl > 0 AND coalesce(t.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar'",
+    "JOIN meta.pruefung_treffer t ON t.lauf_id = m.quelle_id AND t.anzahl > 0 AND coalesce(t.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar'",
     "JOIN meta.regel r ON r.id = t.regel_id",
     `WHERE NOT EXISTS (SELECT 1 FROM meta.rueckfrage q WHERE ${OFFENE_RUECKFRAGE});`,
   ].join("\n");
 }
 
-export function sqlUeberblick(lauf: Pick<Lauf, "id">): string {
+export function sqlUeberblick(lauf: Pick<Lauf, "id" | "quelleId">): string {
   return [
     "SELECT lieferung, gelesen, gezaehlt, gezaehlt - fortgeschrieben AS gezaehlt_aus_lieferung,",
     "       fortgeschrieben, nicht_gezaehlt, ausgeschlossen, korrigiert",
@@ -299,17 +302,17 @@ export function sqlUeberblick(lauf: Pick<Lauf, "id">): string {
   ].join("\n");
 }
 
-export function sqlAuffaelligkeiten(lauf: Pick<Lauf, "id">): string {
+export function sqlAuffaelligkeiten(lauf: Pick<Lauf, "id" | "quelleId">): string {
   return [
     "SELECT r.name, t.ebene, t.anzahl, t.umfang, coalesce(t.einstufung, 'nicht-erklaerbar') AS einstufung, t.anhalten",
     "FROM meta.pruefung_treffer t JOIN meta.regel r ON r.id = t.regel_id",
-    `WHERE t.lauf_id = ${literal(lauf.id)} AND t.anzahl > 0`,
+    `WHERE t.lauf_id = ${literal(lauf.quelleId)} AND t.anzahl > 0`,
     "ORDER BY r.reihenfolge, r.name;",
   ].join("\n");
 }
 
-export function sqlRueckfragen(lauf: Pick<Lauf, "id" | "lieferung">): string {
-  const id = literal(lauf.id);
+export function sqlRueckfragen(lauf: Pick<Lauf, "id" | "quelleId" | "lieferung">): string {
+  const id = literal(lauf.quelleId);
   return [
     "SELECT q.nr, q.titel, q.lieferungen, q.antwort IS NOT NULL AS beantwortet",
     "FROM meta.rueckfrage q",
@@ -323,12 +326,12 @@ export function sqlRueckfragen(lauf: Pick<Lauf, "id" | "lieferung">): string {
   ].join("\n");
 }
 
-export function sqlAnnahmen(lauf: Pick<Lauf, "id" | "lieferung">, quelle: Qualitaetsbericht["annahmenQuelle"]): string {
+export function sqlAnnahmen(lauf: Pick<Lauf, "id" | "quelleId" | "lieferung">, quelle: Qualitaetsbericht["annahmenQuelle"]): string {
   if (quelle === "meta.annahme") {
     return [
       "SELECT a.nr, a.regel_name,",
       "  (SELECT sum(w.saetze) FROM meta.regel_wirkung w JOIN meta.regel r ON r.id = w.regel_id",
-      `   WHERE w.lauf_id = ${literal(lauf.id)} AND r.name = a.regel_name) AS wirkung_saetze`,
+      `   WHERE w.lauf_id = ${literal(lauf.quelleId)} AND r.name = a.regel_name) AS wirkung_saetze`,
       "FROM meta.annahme a",
       `WHERE a.lieferungen IS NULL OR ${literal(lauf.lieferung)} = ANY (a.lieferungen)`,
       "ORDER BY length(a.nr), a.nr;",
@@ -337,12 +340,12 @@ export function sqlAnnahmen(lauf: Pick<Lauf, "id" | "lieferung">, quelle: Qualit
   return [
     "SELECT r.name, r.typ, w.saetze",
     "FROM meta.regel_wirkung w JOIN meta.regel r ON r.id = w.regel_id",
-    `WHERE w.lauf_id = ${literal(lauf.id)} AND w.saetze > 0 AND r.typ <> 'pruefung'`,
+    `WHERE w.lauf_id = ${literal(lauf.quelleId)} AND w.saetze > 0 AND r.typ <> 'pruefung'`,
     "ORDER BY array_position(ARRAY['einlese', 'zuordnung', 'zaehl'], r.typ), r.reihenfolge, r.name;",
   ].join("\n");
 }
 
-export function sqlRevision(lauf: Pick<Lauf, "id">): string {
+export function sqlRevision(lauf: Pick<Lauf, "id" | "quelleId">): string {
   return [
     "SELECT v.berichtsmonat, v.veroeffentlicht, v.aktuell, v.differenz, u.ursache, u.anzahl AS ursache_anzahl,",
     "       EXISTS (SELECT 1 FROM meta.revision g WHERE g.lauf_id = v.lauf_id AND g.berichtsmonat = v.berichtsmonat",
@@ -351,17 +354,17 @@ export function sqlRevision(lauf: Pick<Lauf, "id">): string {
     "LEFT JOIN LATERAL (SELECT ursache, anzahl FROM meta.revision_ursache u",
     "  WHERE u.lauf_id = v.lauf_id AND u.berichtsmonat = v.berichtsmonat",
     "  ORDER BY abs(anzahl) DESC, ursache LIMIT 1) u ON true",
-    `WHERE v.lauf_id = ${literal(lauf.id)} AND v.gliederung = 'insgesamt'`,
+    `WHERE v.lauf_id = ${literal(lauf.quelleId)} AND v.gliederung = 'insgesamt'`,
     "ORDER BY v.berichtsmonat;",
   ].join("\n");
 }
 
 /** Wirkung der Regel, die eine Annahme umsetzt, im maßgeblichen Lauf. */
-export function sqlAnnahmeWirkung(lauf: Pick<Lauf, "id">, regelName: string): string {
+export function sqlAnnahmeWirkung(lauf: Pick<Lauf, "id" | "quelleId">, regelName: string): string {
   return [
     "SELECT r.name, r.beschreibung, sum(w.saetze) AS saetze",
     "FROM meta.regel_wirkung w JOIN meta.regel r ON r.id = w.regel_id",
-    `WHERE w.lauf_id = ${literal(lauf.id)} AND r.name = ${literal(regelName)}`,
+    `WHERE w.lauf_id = ${literal(lauf.quelleId)} AND r.name = ${literal(regelName)}`,
     "GROUP BY r.name, r.beschreibung;",
   ].join("\n");
 }
@@ -395,13 +398,13 @@ export function leseBerichtsliste(regelsatz = "v1"): Promise<Lesung<Berichtszeil
     ]);
     const mitRevision = new Set(revision.map((z) => Number(z.lauf_id)));
     return monate.map((monat) => {
-      const eigene = offen.filter((z) => Number(z.lauf_id) === monat.id);
+      const eigene = offen.filter((z) => Number(z.lauf_id) === monat.quelleId);
       const wartet = [...new Set(eigene.map((z) => z.nr).filter((n): n is string => Boolean(n)))].sort(
         (a, b) => a.length - b.length || a.localeCompare(b),
       );
       return {
         monat,
-        revisionsbedarf: mitRevision.has(monat.id),
+        revisionsbedarf: mitRevision.has(monat.quelleId),
         wartet,
         ohneRueckfrage: eigene.filter((z) => !z.nr).length,
       };
@@ -449,7 +452,7 @@ async function ladeAnnahmen(sql: Sql, lauf: Lauf, ausTabelle: boolean): Promise<
     >`
       SELECT a.nr, a.rueckfrage, a.satz, a.begruendung, a.regel_name,
              (SELECT sum(w.saetze) FROM meta.regel_wirkung w JOIN meta.regel r ON r.id = w.regel_id
-              WHERE w.lauf_id = ${lauf.id} AND r.name = a.regel_name) AS wirkung_saetze,
+              WHERE w.lauf_id = ${lauf.quelleId} AND r.name = a.regel_name) AS wirkung_saetze,
              (SELECT q.beleg_sql FROM meta.rueckfrage q WHERE q.nr = a.rueckfrage) AS beleg_sql
       FROM meta.annahme a
       WHERE a.lieferungen IS NULL OR ${lauf.lieferung} = ANY (a.lieferungen)
@@ -472,7 +475,7 @@ async function ladeAnnahmen(sql: Sql, lauf: Lauf, ausTabelle: boolean): Promise<
            (SELECT q.nr FROM meta.rueckfrage q WHERE q.regel_name = r.name ORDER BY length(q.nr), q.nr LIMIT 1) AS rueckfrage,
            (SELECT q.beleg_sql FROM meta.rueckfrage q WHERE q.regel_name = r.name ORDER BY length(q.nr), q.nr LIMIT 1) AS beleg_sql
     FROM meta.regel_wirkung w JOIN meta.regel r ON r.id = w.regel_id
-    WHERE w.lauf_id = ${lauf.id} AND w.saetze > 0 AND r.typ <> 'pruefung'
+    WHERE w.lauf_id = ${lauf.quelleId} AND w.saetze > 0 AND r.typ <> 'pruefung'
     ORDER BY array_position(ARRAY['einlese', 'zuordnung', 'zaehl'], r.typ), r.reihenfolge, r.name`;
   return zeilen.map((z) => ({
     nr: z.name,
@@ -493,12 +496,12 @@ export function leseQualitaetsbericht(lieferung: string, regelsatz = "v1"): Prom
     const [vormonat, kennzahl, gelaufen, treffer, rueckfragen, annahmeDa, revision] = await Promise.all([
       ladeMassgeblichenLauf(sql, verschieben(lieferung, -1), regelsatz),
       sql<{ korrigiert: string | null }[]>`SELECT korrigiert FROM meta.lauf WHERE id = ${lauf.id}`,
-      sql<{ n: string }[]>`SELECT count(*) AS n FROM meta.pruefung_treffer WHERE lauf_id = ${lauf.id}`,
+      sql<{ n: string }[]>`SELECT count(*) AS n FROM meta.pruefung_treffer WHERE lauf_id = ${lauf.quelleId}`,
       sql<TrefferZeile[]>`
         SELECT t.ebene, t.anzahl, t.umfang, coalesce(t.einstufung, 'nicht-erklaerbar') AS einstufung, t.massnahme, t.anhalten, t.beleg_sql,
                t.details ->> 'rueckfrage' AS rueckfrage, r.name, r.beschreibung, r.parameter ->> 'satz' AS satz_vorlage
         FROM meta.pruefung_treffer t JOIN meta.regel r ON r.id = t.regel_id
-        WHERE t.lauf_id = ${lauf.id} AND t.anzahl > 0
+        WHERE t.lauf_id = ${lauf.quelleId} AND t.anzahl > 0
         ORDER BY r.reihenfolge, r.name, array_position(ARRAY['satz', 'aggregat', 'lieferung'], t.ebene)`,
       sql<RueckfrageZeile[]>`
         SELECT nr, titel, lieferungen, frage, vorschlag, regel_name, antwort, antwort_am
@@ -526,7 +529,7 @@ export function leseQualitaetsbericht(lieferung: string, regelsatz = "v1"): Prom
           WHERE u.lauf_id = v.lauf_id AND u.berichtsmonat = v.berichtsmonat
           ORDER BY abs(anzahl) DESC, ursache LIMIT 1
         ) u ON true
-        WHERE v.lauf_id = ${lauf.id} AND v.gliederung = 'insgesamt'
+        WHERE v.lauf_id = ${lauf.quelleId} AND v.gliederung = 'insgesamt'
         ORDER BY v.berichtsmonat`,
     ]);
     const ausTabelle = Boolean(annahmeDa[0]?.da);

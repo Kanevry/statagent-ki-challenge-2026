@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Akzent, Fliesstext, knopfKlassen, Leerzustand, Ueberschrift } from "@kic/ui/basis";
 import { formatDifferenz, formatZahl, HerkunftChip, type FreigabeEntscheidung } from "@kic/ui/bausteine";
+import { nurLesend } from "@/components/uc3/cli";
 import { leerSatz } from "@/components/uc3/db";
 import { Fachbegriff } from "@/components/uc3/fachbegriff";
 import type { Uc3Begriff } from "@/components/uc3/glossar";
@@ -95,6 +96,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
 
       <div className="flex max-w-3xl flex-col gap-6">
         <Entscheiden
+          nurLesen={nurLesend()}
           vorschlagId={v.id}
           eintrag={{
             anweisung: v.anweisung,

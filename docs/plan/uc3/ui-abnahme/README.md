@@ -1,11 +1,11 @@
 # UI-Abnahme UC3 (lokal, gefüllte Datenbank)
 
 Die CI hat keine UC3-Datenbank. Der Job `playwright` misst dort nur die Leerzustände der UC3-Seiten. Diese Abnahme
-misst die gefüllten Seiten gegen die maßgebliche UC3-Datenbank (statagent-db am m5, 24 Monate Regelsatz v1),
+misst die gefüllten Seiten gegen die maßgebliche UC3-Datenbank (lokale UC3-Datenbank, 24 Monate Regelsatz v1),
 lokal mit dem Dev-Server. Nachstellen: Dev-Server mit `UC3_DATABASE_URL` auf diese Datenbank starten, dann
 `node docs/plan/uc3/ui-abnahme/abnahme.mjs http://localhost:<port>`.
 
-Gemessen am 05.11.2026 gegen 16:35, Stand des Branches `feat/uc3-web-fragen-74` nach Commit 2a53ca9.
+Gemessen am 05.11.2026 gegen 16:47 (Review !51 Runde 2), 22 von 24 Monaten veröffentlicht.
 Rohdaten: `messung.json`. Screenshots: `<seite>-1440.jpg` (1440×900) und `<seite>-390.jpg` (390×844), jeweils
 der sichtbare Ausschnitt oben.
 

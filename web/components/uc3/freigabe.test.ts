@@ -105,7 +105,7 @@ describe("POST /api/uc3/freigabe", () => {
     expect(antwort.status).toBe(409);
     const daten = await antwort.json();
     expect(daten).toEqual({
-      fehler: `Die Entscheidung wurde nicht gespeichert. ${GRUND_UNBEKANNT}`,
+      fehler: GRUND_UNBEKANNT,
       grund: GRUND_UNBEKANNT,
     });
     const text = JSON.stringify(daten);

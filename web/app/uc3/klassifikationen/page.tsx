@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Fliesstext, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
 import { Begriff, HerkunftChip } from "@kic/ui/bausteine";
+import { datum } from "@/components/uc3/bericht";
 import { laufBeleg } from "@/components/uc3/beleg";
 import { leerSatz } from "@/components/uc3/db";
 import { Fachbegriff } from "@/components/uc3/fachbegriff";
@@ -36,7 +37,7 @@ const UMSTEIGESCHLUESSEL = "Eine Tabelle, die sagt, welcher alte Code zu welchem
 
 function Freigabe({ regel }: { regel: Zuordnungsregel }) {
   if (!regel.freigegebenVon) return <Status art="warnung">noch ohne Freigabe</Status>;
-  const am = regel.freigegebenAm ? ` am ${new Date(regel.freigegebenAm).toLocaleDateString("de-AT")}` : "";
+  const am = regel.freigegebenAm ? ` am ${datum(regel.freigegebenAm)}` : "";
   return <Status art="ok">{`freigegeben von ${regel.freigegebenVon}${am}`}</Status>;
 }
 
@@ -69,6 +70,15 @@ function Liste({ satz, sql, quelle, children }: { satz: string; sql: string; que
 
 const codeZelle = "font-mono text-14 text-ink tabular-nums";
 
+/** Häufigster Wert einer Liste, bei Gleichstand der zuerst gesehene; `null` bei leerer Liste. */
+function haeufigster(werte: readonly string[]): string | null {
+  const zaehlung = new Map<string, number>();
+  for (const w of werte) zaehlung.set(w, (zaehlung.get(w) ?? 0) + 1);
+  let bester: string | null = null;
+  for (const [w, n] of zaehlung) if (bester === null || n > (zaehlung.get(bester) ?? 0)) bester = w;
+  return bester;
+}
+
 export default async function Klassifikationen() {
   const lesung = await leseKlassifikationen();
 
@@ -93,6 +103,8 @@ export default async function Klassifikationen() {
   const worte2003 = uebergangsWorte(uebergaenge.filter((u) => u.versionAlt === "2003" && u.versionNeu === "2008"));
   const zahl2003 = zaehleUebergangsWorte(worte2003);
   const aufgeteilt2003 = worte2003.filter((w) => w.wort === "aufgeteilt");
+  // Ziel der zusammengelegten 2003er Codes aus stat.uebergang, nicht als Konstante (Review !51 Runde 2, Punkt 4).
+  const ziel2003 = haeufigster(worte2003.filter((w) => w.wort === "zusammengelegt").flatMap((w) => w.ziele));
   const qZahlen = qualifikationsZahlen(qualifikationen);
   const kategorien = [...new Set(qualifikationen.map((q) => q.kategorie))];
   const ersteGruppe = altersgruppen[0];
@@ -157,9 +169,9 @@ export default async function Klassifikationen() {
                 worte2003.length > 0 && (
                   <>
                     <Fliesstext groesse={14} ton="gedaempft" className="max-w-3xl">
-                      {`Laut Umsteigeschlüssel von ÖNACE 2003 auf 2008 gehen ${zahl2003.zusammengelegt} dieser Codes ganz in C auf.${
+                      {`Laut Umsteigeschlüssel von ÖNACE 2003 auf 2008 gehen ${zahl2003.zusammengelegt} dieser Codes ganz in ${ziel2003 ?? "einen Abschnitt"} auf.${
                         aufgeteilt2003.length > 0
-                          ? ` ${aufgeteilt2003.map((w) => `${w.codeAlt} ist auf ${w.ziele.join(" und ")} aufgeteilt`).join(", ")}. Wir zählen ${aufgeteilt2003.length === 1 ? "ihn" : "sie"} nach der Mehrheit unter C.`
+                          ? ` ${aufgeteilt2003.map((w) => `${w.codeAlt} ist auf ${w.ziele.join(" und ")} aufgeteilt`).join(", ")}. Wir zählen ${aufgeteilt2003.length === 1 ? "ihn" : "sie"} nach der Zuordnungsregel unter ${haeufigster(regel.zuordnungen.filter((z) => z.geliefert.startsWith("D") && z.geliefert.length === 2).map((z) => z.code)) ?? "dem zugeordneten Abschnitt"}.`
                           : ""
                       }`}
                     </Fliesstext>
