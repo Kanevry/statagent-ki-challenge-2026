@@ -6,12 +6,12 @@ const zelle = "py-2 pr-4 align-top font-sans text-14 text-ink";
 const zahlZelle = `${zelle} text-right tabular-nums`;
 
 /** Bestand je Bundesland mit Summenzeile. Ab 768 px eine Tabelle, darunter eine Liste mit denselben Angaben. */
-export function Bundeslaender({ regionen, stichtag }: { regionen: readonly Region[]; stichtag: string }) {
+export function Bundeslaender({ regionen, wann }: { regionen: readonly Region[]; wann: string }) {
   const summe = regionen.reduce((s, r) => s + r.anzahl, 0);
   return (
     <>
       <table className="hidden w-full max-w-xl border-collapse md:table">
-        <caption className="sr-only">{`Beschäftigungsverhältnisse am ${stichtag} je Bundesland`}</caption>
+        <caption className="sr-only">{`Beschäftigungsverhältnisse ${wann} je Bundesland`}</caption>
         <thead>
           <tr>
             <th scope="col" className={kopf}>

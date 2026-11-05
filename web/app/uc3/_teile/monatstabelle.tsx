@@ -7,6 +7,7 @@ import { monatName } from "@/components/uc3/monat";
 import { monatsStand, vormonatIn } from "@/components/uc3/monatsstand";
 import { laufPfad } from "@/components/uc3/navigation";
 import type { Monatslauf } from "@/components/uc3/typen";
+import { imZeitraum, zeitraumArtAus } from "@/components/uc3/zeitraum";
 
 /** Stand eines Monats als Symbol und Wort. */
 export function MonatsStatus({ monat }: { monat: Monatslauf }) {
@@ -60,11 +61,12 @@ const monatsLink = "text-ink underline underline-offset-4 hover:text-gruen";
  */
 export function Monatstabelle({ monate, regelsatz = "v1" }: { monate: readonly Monatslauf[]; regelsatz?: string }) {
   const regelstandOben = gemeinsamerRegelstand(monate) !== null;
+  const wann = imZeitraum(zeitraumArtAus(monate[0]?.zeitraumArt));
   return (
     <>
       <table className="hidden w-full border-collapse md:table">
         <caption className="sr-only">
-          Beschäftigungsverhältnisse am Stichtag je Monat, mit Abrechnung der gelesenen Sätze und Beleg
+          {`Beschäftigungsverhältnisse ${wann} je Monat, mit Abrechnung der gelesenen Sätze und Beleg`}
         </caption>
         <thead>
           <tr>
@@ -72,7 +74,7 @@ export function Monatstabelle({ monate, regelsatz = "v1" }: { monate: readonly M
               Monat
             </th>
             <th scope="col" className={`${kopf} text-right`}>
-              Beschäftigungs&shy;verhältnisse am Stichtag
+              Beschäftigungs&shy;verhältnisse {wann}
             </th>
             <th scope="col" className={`${kopf} text-right`}>
               zum Vormonat
@@ -134,7 +136,7 @@ export function Monatstabelle({ monate, regelsatz = "v1" }: { monate: readonly M
             </div>
             <p className="font-sans text-14 text-ink">
               <span className="font-mono tabular-nums text-20">{formatZahl(monat.gezaehlt)}</span>
-              {" Beschäftigungsverhältnisse am Stichtag, zum Vormonat "}
+              {` Beschäftigungsverhältnisse ${wann}, zum Vormonat `}
               <span className="font-mono tabular-nums">
                 <Vormonat monat={monat} monate={monate} />
               </span>

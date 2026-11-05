@@ -7,6 +7,7 @@ import { StandPunkt } from "@/components/uc3/beleg-link";
 import { monatName } from "@/components/uc3/monat";
 import { laufPfad } from "@/components/uc3/navigation";
 import type { Monatslauf } from "@/components/uc3/typen";
+import { imZeitraum, zeitraumArtAus } from "@/components/uc3/zeitraum";
 
 // Monatsliste (UI-Regie v1): Monat · Beschäftigungsverhältnisse · zum Vormonat · Stand. Der Monatsname führt zur
 // Monatsseite (zugleich Qualitätsbericht); ein Beleg für die ganze Zeitreihe steht im Kopf. Stand
@@ -58,7 +59,7 @@ export function Monatsliste({
       </div>
 
       <table className="hidden w-full border-collapse md:table">
-        <caption className="sr-only">Beschäftigungsverhältnisse am Stichtag je Monat</caption>
+        <caption className="sr-only">{`Beschäftigungsverhältnisse ${imZeitraum(zeitraumArtAus(monate[0]?.zeitraumArt))} je Monat`}</caption>
         <thead>
           <tr>
             <th scope="col" className={kopf}>Monat</th>
