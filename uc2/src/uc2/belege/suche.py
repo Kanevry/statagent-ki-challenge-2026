@@ -11,6 +11,7 @@ Artikel nach dem Stichtag sind ausgeschlossen; je Artikel zählt nur der beste A
 
 from __future__ import annotations
 
+import importlib
 import sys
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
@@ -183,6 +184,30 @@ def vektor_stand(verbindung: psycopg.Connection[Any]) -> tuple[int, list[str]]:
     return int(zeilen[0]), list(zeilen[1])
 
 
+def _einbetter_fehler() -> tuple[type[BaseException], ...]:
+    """Fehler, bei denen die Suche auf volltext zurückfällt: fehlendes Extra (ImportError, auch
+    `plattform.embeddings.EmbeddingsFehlen`) und Modell nicht im Cache (`plattform.embeddings.ModellFehlt`).
+    Andere Fehler laufen durch."""
+    try:
+        modul = importlib.import_module("plattform.embeddings")
+    except ImportError:
+        return (ImportError,)
+    modell_fehlt = getattr(modul, "ModellFehlt", None)
+    if isinstance(modell_fehlt, type) and issubclass(modell_fehlt, BaseException):
+        return (ImportError, modell_fehlt)
+    return (ImportError,)
+
+
+def _grund_einbetter(fehler: BaseException) -> str:
+    if isinstance(fehler, ImportError):
+        fehlt = fehler.name or str(fehler)
+        return f"Einbetter nicht ladbar, {fehlt} fehlt (Extra `einbettung` installieren)"
+    return (
+        f"Embedding-Modell nicht im Cache ({type(fehler).__name__}); einmal "
+        "`uv run python -m plattform.embeddings laden` ausführen"
+    )
+
+
 def _lies_vektoren(
     zeilen: list[tuple[Any, ...]], dimension: int
 ) -> tuple[list[str], np.ndarray[Any, Any]] | str:
@@ -234,9 +259,8 @@ def suche(
         elif einbetter is None and einbetter_fabrik is not None:
             try:
                 einbetter = einbetter_fabrik()
-            except ImportError as fehler:
-                fehlt = fehler.name or str(fehler)
-                grund = f"Einbetter nicht ladbar, {fehlt} fehlt (Extra `einbettung` installieren)"
+            except _einbetter_fehler() as fehler:
+                grund = _grund_einbetter(fehler)
         if grund is None and einbetter is None:
             grund = "kein Einbetter"
         elif grund is None and einbetter is not None and modelle != [einbetter.modell_id]:
@@ -249,13 +273,18 @@ def suche(
                 (stichtag,),
             ).fetchall()
             if zeilen:
-                dimension = einbetter.dimension()
-                gelesen = _lies_vektoren(zeilen, dimension)
-                abfrage = np.empty(0)
-                if not isinstance(gelesen, str):
-                    abfrage = np.asarray(
-                        einbetter.einbetten([abfrage_text(frage)], "abfrage")[0], dtype=np.float64
-                    )
+                # dimension() und einbetten() laden das Modell erst hier (plattform.embeddings): fehlt das
+                # Extra oder das Modell im Cache, gilt derselbe Rückfall wie beim Bau des Einbetters.
+                try:
+                    dimension = einbetter.dimension()
+                    gelesen = _lies_vektoren(zeilen, dimension)
+                    abfrage = np.empty(0)
+                    if not isinstance(gelesen, str):
+                        abfrage = np.asarray(
+                            einbetter.einbetten([abfrage_text(frage)], "abfrage")[0], dtype=np.float64
+                        )
+                except _einbetter_fehler() as fehler:
+                    gelesen = _grund_einbetter(fehler)
                 if isinstance(gelesen, str):
                     grund = gelesen
                 elif abfrage.shape != (dimension,) or not np.isfinite(abfrage).all():
