@@ -102,9 +102,9 @@ export function frontmatterListe(text: string | undefined): string[] {
     .filter((t) => t !== "");
 }
 
-/** Monatsnamen ausgeschrieben, Januar zuerst. */
+/** Monatsnamen ausgeschrieben (österreichisch), Jänner zuerst. */
 export const MONATSNAMEN = [
-  "Januar",
+  "Jänner",
   "Februar",
   "März",
   "April",

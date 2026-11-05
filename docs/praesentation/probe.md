@@ -27,7 +27,7 @@ Gehört zu GitLab #90, Epic #26. Wird am Fr 06.11.2026 ab 06:00 ausgefüllt.
 | Stufe der Demo | 1 Web-UI (nur bei `/uc3` auf main) / 2 CLI / 3 Video |
 | Stand (Commit) | |
 | D4 gezeigt (Entscheid 06:45) | ja / nein (bei nein endet die Demo um 9:00) |
-| D2 Live-Änderung (Entscheid 06:45) | B2 Ersatztag Geburtsmonat 13 / Ersatz B1, B3 oder B4. Auftrag 1 ist abgegeben und wird nur als Rückblick gezeigt |
+| D2 Live-Änderung (Entscheid 06:45) | B2 Geburtsmonat 13 mit Jahresdifferenz / Ersatz B1, B3 oder B4. Auftrag 1 ist abgegeben und wird nur als Rückblick gezeigt |
 | D3 freie Fragen | nein, nur die acht geprüften (ja erst, wenn der Folge-MR von bb auf main ist) |
 | Zahlen in den Szenen gegen `abgabe/` abgeglichen | ja / nein |
 

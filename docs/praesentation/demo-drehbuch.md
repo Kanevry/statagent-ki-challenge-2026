@@ -51,13 +51,13 @@ Standard ist Oktober 2025, weil Szene 3 diesen Monat zeigt. Alternative ist Mär
 **Auftrag 1 ist schon abgegeben.** „Dienstvertrag und freien Dienstvertrag zusammen ausweisen“ wurde am 05.11.2026 um 16:54 freigegeben und steckt in der Abgabe (Regelsatz v2). Ihn live noch einmal auszuführen hieße, eine schon gültige Änderung zu wiederholen. Einen Reset gibt es nicht. Deshalb zeigt D2 zwei Dinge:
 
 1. **Rückblick, 20 Sekunden:** die Freigabe von Auftrag 1 im Protokoll. Gesamt bleibt 392.236, die Kategorien verschieben sich, zum Beispiel Angestellte (Qualifikation) von 0 auf 236.961 (F19). Bernhard liest die Zahlen vom Bildschirm.
-2. **Live, 70 Sekunden:** eine neue Änderung, die nicht abgegeben ist. Standard ist Fragenkatalog B2, der Ersatztag bei Geburtsmonat 13. Er passt zu Szene 8 und zur offenen Rückfrage R1. Nennt die Jury nach Szene 10 eine eigene Regel, nimmt Bernhard ihre, wenn sie einer der Übungen B1 bis B4 entspricht. Sonst bleibt es bei B2.
+2. **Live, 70 Sekunden:** eine neue Änderung, die nicht abgegeben ist. Standard ist Fragenkatalog B2: bei Geburtsmonat 13 nur mit der Differenz der Jahre rechnen. Er passt zu Szene 8 und zur offenen Rückfrage R1. Nennt die Jury nach Szene 10 eine eigene Regel, nimmt Bernhard ihre, wenn sie einer der Übungen B1 bis B4 entspricht. Sonst bleibt es bei B2.
 
 Ablauf (im Browser auf `/uc3/freigaben`, gleich im Terminal):
 
 1. 6:15 Rückblick: `uv run uc3 protokoll --zeigen`, Eintrag der Freigabe von Auftrag 1 zeigen.
 2. 6:35 Auftrag stellen. Der Agent erzeugt nur einen Vorschlag und ändert nichts:
-   `uv run uc3 agent "Setze bei Geburtsmonat 13 den Ersatztag auf den 1. Jänner des Geburtsjahres." --probe 2025-03`
+   `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre." --probe 2025-03`
 3. 7:00 Vorschlag ansehen: `uv run uc3 vorschlag zeigen <id>`
 4. 7:20 Freigeben mit Vor- und Nachnamen: `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`
 5. 7:35 Protokoll zeigen: `uv run uc3 protokoll --zeigen`
@@ -166,7 +166,7 @@ Jeder Punkt wird abgehakt, sobald er geprüft ist. Uhrzeit nur aus der Uhr (`TZ=
 - [ ] D1: Monat gewählt (2025-10 oder 2025-03) und in `probe.md` eingetragen.
 - [ ] D3: Die acht geprüften Fragen auf `/uc3/fragen` und mit `uv run uc3 frage "…"` geprobt, jede Zahl gegen die Sollzahl der Tabelle. Folge-MR von bb auf main? Wenn nein, keine freien Fragen. SQL A1 bis A3 als Rückfall bereit, `<regelstand>` eingesetzt.
 - [ ] D4: Sollwert 7.498 (F18) gegen die Abfrage im Belegregister geprüft. Testmodus-Ansage bereit.
-- [ ] Übungsauftrag aus D2 (B2, Ersatztag Geburtsmonat 13) nur bis `vorschlag zeigen <id>` gelaufen, dann `ablehnen <id>` mit der Begründung „Übung vor der Jury“. Nie `freigabe` geübt.
+- [ ] Übungsauftrag aus D2 (B2, Geburtsmonat 13 mit Jahresdifferenz) nur bis `vorschlag zeigen <id>` gelaufen, dann `ablehnen <id>` mit der Begründung „Übung vor der Jury“. Nie `freigabe` geübt.
 - [ ] Protokolleintrag der Freigabe von Auftrag 1 (05.11.2026 16:54) gefunden, Fenster für den Rückblick bereit.
 - [ ] Entscheid D4 um 06:45 getroffen und in `probe.md` eingetragen.
 - [ ] Freeze um 07:00 (Europe/Vienna) bestätigt. Danach keine Änderung mehr.

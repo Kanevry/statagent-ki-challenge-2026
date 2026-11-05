@@ -9,7 +9,7 @@ const FORMAT = new Intl.NumberFormat("de-DE");
 
 // Monatsnamen für Achse (kurz) und Bildbeschreibung (lang); die Tabelle trägt Monate als Daten (JJJJ-MM).
 const KURZ = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
-const LANG = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+const LANG = ["Jänner", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
 /** `2025-10` wird `Okt 2025` (kurz) bzw. `Oktober 2025` (lang); andere Formen bleiben, wie sie sind. */
 export function monatText(monat: string, lang = false): string {

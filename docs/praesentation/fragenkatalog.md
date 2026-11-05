@@ -196,15 +196,15 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Freigabe:** `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`
 
-### B2 Ersatztag bei Geburtsmonat 13 ändern
+### B2 Geburtsmonat 13: nur mit der Differenz der Jahre rechnen
 
-**Satz der Jury:** „Rechnen Sie bei Geburtsmonat 13 mit dem 1. Jänner statt mit dem 1. Juli.“
+**Satz der Jury:** „Rechnen Sie bei Geburtsmonat 13 nur mit der Differenz der Jahre, nicht mit dem 1. Juli.“
 
-**Befehl:** `uv run uc3 agent "Setze bei Geburtsmonat 13 den Ersatztag auf den 1. Jänner des Geburtsjahres." --probe 2024-08`
+**Befehl:** `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre." --probe 2025-03`
 
-**Was der Vorschlag ändert:** Regel `R5_alter`, Parameter `geburtsmonat_13` von `ersatz:07-01` auf `ersatz:01-01`.
+**Was der Vorschlag ändert:** Regel `R5_alter`, Parameter `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`. Der Agent darf für diesen Parameter nur `jahresdifferenz` oder `unbekannt` vorschlagen (`uc3/statagent/agenten/koordinator.py`, Zeile 81). Einen anderen Ersatztag wie den 1. Jänner weist er ab.
 
-**Erwartete Wirkung:** Für 08/2024 bleibt der Beispielbericht exakt, weil jeder Ersatztag von Jänner bis August Tab13 trifft (F4). Der Gesamtbestand ändert sich nie, nur das Alter einzelner Verhältnisse mit Monat 13. In Monaten, deren Stichtag vor dem 1. Juli liegt, verschiebt sich das Alter dieser Verhältnisse um ein Jahr. Zweite Probe: `--probe 2025-03`. Der Vorschlag zeigt dann die verschobenen Altersgruppen.
+**Erwartete Wirkung:** Der Gesamtbestand ändert sich nie, nur das Alter einzelner Verhältnisse mit Monat 13. Für August 2024 gilt Jahresdifferenz gleich Ersatztag 1. Juli, der Beispielbericht bleibt exakt (F4). Im März 2025 liegt der Stichtag vor dem 1. Juli: Mit Jahresdifferenz sind diese Verhältnisse ein Jahr älter, der Vorschlag zeigt verschobene Altersgruppen.
 
 **Wozu die Übung dient:** Sie zeigt, dass die offene Frage R1 an die Fachabteilung ein Regelparameter ist und keine Programmänderung.
 

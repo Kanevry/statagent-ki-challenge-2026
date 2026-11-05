@@ -29,7 +29,7 @@ Eine Zahl gilt als belegt, wenn beide Quellen sie liefern oder wenn eine Quelle 
 | F15 | 15 Regeln; 24 Prüfregeln; 23 Monate | 5 | Regelsatz v1 in `meta.regel`. Von 24 Lieferungen hat nur 2024-08 einen Vergleichsbericht (Beispielbericht, F1). Für die übrigen 23 Monate wachen die 24 Prüfregeln P01 bis P24. Die Zahl 23 ist 24 minus 1 | `uv run uc3 regeln zeigen`; `docs/plan/uc3/annahmen.md`, Lesehinweise | 05.11.2026 |
 | F16 | (keine Zahl) zwei Läufe, derselbe Hash | keine Szene (ohne Zahl) | Determinismus | `uv run uc3 laeufe` zeigt den Ergebnis-Hash je Lauf; `uc3/README.md` | 05.11.2026 |
 | F17 | 313.154; 394.200; 81.046 | 3 | Oktober 2025: bereinigter Bestand der Lieferung (313.154) gegen Vormonat (394.200). Differenz 394.200 − 313.154 = 81.046. Das ist nicht die Zahl 78.949 (F11): Sie zählt Verhältnisse, die in der Lieferung gar nicht vorkommen. 81.046 vergleicht Bestände | Lauf: Qualitätsbericht 2025-10, Zeile 5 (Status, Prüfung P15: „313.154 gegen 394.200 (−20,6 %)“); `docs/plan/uc3/2025-10-abgleich.md` Zeile B8 („81.046“) | 05.11.2026 |
-| F18 | 7.498 | 9, Demo D4 | Sollwert: Beschäftigungsverhältnisse in Wien, ÖNACE 2025 Abschnitt R (Gesundheits- und Sozialwesen), Stichtag 31.03.2025, Lieferung 2025-03. Herkunft: unabhängiges Orakel der Review-Bank (Sheet v1). `uc3 frage` liefert 7.498, gleich dem Orakel (Jury-Probe bb, 05.11.2026 17:15, #74) | Orakel: Review-Bank, Sheet v1. Lauf: Abfrage A10 (Spalten geprüft gegen `uc3/db/030_bereinigt_stat.sql`) | 05.11.2026 |
+| F18 | 7.498 | 9, Demo D4 | Sollwert: Beschäftigungsverhältnisse in Wien, ÖNACE 2025 Abschnitt R (Gesundheits- und Sozialwesen), Stichtag 31.03.2025, Lieferung 2025-03. Gemessen am 05.11.2026 17:15 von lead-session-orchestrator-bb mit `uv run uc3 frage "Wie viele Beschäftigte gab es im März 2025 in Wien im Gesundheits- und Sozialwesen?"`, Stand !61 (991a47f), m5-DB, Regelsatz v1: 7.498 (#74 note_271969) | Lauf: `uc3 frage` wie links. Orakel: Review-Bank, Sheet v1, gleich. Gegenrechnung von Hand: Abfrage A10 | 05.11.2026 |
 | F19 | 392.236; 0 → 236.961; 1.142 → 0 | Demo D2 (Rückblick) | Vorschlag uc3/24 „Dienstvertrag und freien Dienstvertrag zusammen ausweisen“, Probe 2024-08: Gesamt bleibt 392.236 (F14). Angestellte (Qualifikation) 0 → 236.961, Angestellte (freier Dienstvertrag) 1.142 → 0 | Aufnahme der Freigabe-Seite aus MR !51. Nicht neu aus dem Lauf gerechnet. Vor dem Freeze mit `uv run uc3 vorschlag zeigen <id>` abgleichen | 05.11.2026 |
 | F20 | 24 Monatswerte | 3 | Beschäftigungsverhältnisse am Stichtag, August 2024 bis Juli 2026 (24 Säulen des Diagramms in Szene 3, Achse ab 0). Oktober 2025 steht bereinigt bei 313.154 (F17) und vorläufig bei 390.900 (F11) | `abgabe/qualitaetsberichte/<Monat>.md` Abschnitt 1, Zeile „Beschäftigungsverhältnisse am Stichtag“, je Monat der Lieferung | 05.11.2026 |
 
@@ -113,7 +113,10 @@ SELECT lieferung, count(DISTINCT vvh_id) FROM roh.lieferung
  GROUP BY 1;
 
 -- A10 Sollwert Demo-Frage (F18): Wien, ÖNACE 2025 Abschnitt R, Stichtag 31.03.2025. Sollwert 7.498.
---     Skizze auf der Ergebnis-Tabelle des Laufs, noch nicht ausgeführt. <regelstand> wie im Fragenkatalog.
+--     Gemessen am 05.11.2026 17:15 von lead-session-orchestrator-bb mit
+--     uv run uc3 frage "Wie viele Beschäftigte gab es im März 2025 in Wien im Gesundheits- und Sozialwesen?"
+--     Stand !61 (991a47f), m5-DB, Regelsatz v1: Ergebnis 7.498, gleich Orakel (#74 note_271969).
+--     Die SQL unten ist die Gegenrechnung von Hand. <regelstand> wie im Fragenkatalog.
 SELECT sum(s.wert) AS beschaeftigungsverhaeltnisse
   FROM stat.stat_beschaeftigte s
   JOIN stat.klass_region r ON r.version = 'BL' AND r.code = s.region
