@@ -606,14 +606,18 @@ _REGELSATZ_NAME = re.compile(
 _ZAHLWORT = {"eins": "1", "zwei": "2", "drei": "3"}
 _V1_WORT = re.compile(r"(?<!\w)v1(?!\w)|regelsatz\s*(?:1|eins)(?!\w)", re.IGNORECASE)
 _V2_ZIEL = r"(?:(?:dem|den|der|die|des)\s+)?(?:regelsatz\s*(?:v?2|zwei)(?!\w)|v2(?!\w)|(?:änderungs|aenderungs)auftr)"
-#: „ohne die Änderungsaufträge“, „vor Umsetzung der Änderungsaufträge“, „nicht nach v2“: gerade nicht der Regelsatz v2.
+#: Optional zwischen dem Wort und den Änderungsaufträgen: „vor der Umsetzung der …“, „ohne Berücksichtigung der …“.
+_V2_UMSETZUNG = r"(?:(?:der|die)\s+)?(?:(?:umsetzung|berücksichtigung|beruecksichtigung|anwendung)\s+)?"
+#: „ohne die Änderungsaufträge“, „bevor die Änderungsaufträge …“, „nicht nach v2“: gerade nicht der Regelsatz v2.
 _V2_VERNEINT = re.compile(
-    rf"(?<!\w)(?:ohne|vor|nicht|statt|außer|ausser)\s+(?:(?:der|die)\s+)?"
-    rf"(?:(?:umsetzung|berücksichtigung|beruecksichtigung|anwendung)\s+)?(?:(?:nach|im|in|laut)\s+)?{_V2_ZIEL}",
+    rf"(?<!\w)(?:ohne|vor|bevor|nicht|statt|außer|ausser)\s+{_V2_UMSETZUNG}(?:(?:nach|im|in|laut)\s+)?{_V2_ZIEL}",
     re.IGNORECASE,
 )
-#: „vor und nach den Änderungsaufträgen“, „mit und ohne v2“: beide Regelsätze zugleich.
-_V2_BEIDE = re.compile(rf"(?<!\w)(?:vor\s+und\s+nach|mit\s+(?:und|oder)\s+ohne)\s+{_V2_ZIEL}", re.IGNORECASE)
+#: „vor und nach den Änderungsaufträgen“, „vor oder nach Umsetzung der …“, „mit und ohne v2“: beide Regelsätze zugleich.
+_V2_BEIDE = re.compile(
+    rf"(?<!\w)(?:vor\s+(?:und|oder)\s+nach|mit\s+(?:und|oder)\s+ohne)\s+{_V2_UMSETZUNG}{_V2_ZIEL}",
+    re.IGNORECASE,
+)
 #: Die Angabe des Regelsatzes in der Frage. Sie ist weder Bezug noch Merkmal und darf die Gliederung nicht verdecken.
 _REGELSATZ_ANGABE = re.compile(
     r"(?:(?<!\w)(?:nach|laut|gemäß|im|in|und)\s+)?(?:(?<!\w)(?:dem|den|der)\s+)?"
@@ -643,7 +647,11 @@ def _kein_regelsatz(conn: Verbindung, frage: str, regelsatz: str) -> dict[str, A
         "SELECT DISTINCT regelsatz FROM meta.lauf WHERE status IN ('fertig', 'unveraendert') ORDER BY 1"
     ).fetchall()
     gerechnet = [str(z["regelsatz"]) for z in zeilen]
-    vorhanden = f" Es gibt Zahlen im Regelsatz {_aufzaehlung(gerechnet)}." if gerechnet else ""
+    vorhanden = ""
+    if len(gerechnet) == 1:
+        vorhanden = f" Es gibt Zahlen im Regelsatz {gerechnet[0]}."
+    elif gerechnet:
+        vorhanden = f" Zahlen gibt es in den Regelsätzen {_aufzaehlung(gerechnet)}."
     text = f"Im Regelsatz {regelsatz} ist noch kein Monat gerechnet.{vorhanden}"
     return _antwort(fragetyp(frage), text, hinweise=[text])
 
@@ -710,7 +718,10 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
         text = f"Die Datenanfrage zeigt immer nur einen Regelsatz. Fragen Sie je einmal. {beispiel}"
         return _antwort(typ, text, hinweise=[text])
     if _ZEITREIHE.search(frage.lower()):
-        text = f"Im Regelsatz {regelsatz} zeigt die Datenanfrage nur einen Monat auf einmal, keinen Verlauf. {beispiel}"
+        text = (
+            f"Einen Verlauf zeigt die Datenanfrage im Regelsatz {regelsatz} nicht. Fragen Sie nach einem Monat oder "
+            f"Zeitraum, zum Beispiel „Beschäftigte März bis Juni 2025 nach Regelsatz {regelsatz}“."
+        )
         return _antwort(typ, text, hinweise=[text])
     if (
         jahr is not None

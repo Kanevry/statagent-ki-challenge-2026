@@ -310,7 +310,10 @@ def test_zwei_bundeslaender_bekommen_den_passenden_satz(mit_v2: Verbindung) -> N
 
 def test_zeitreihe_sagt_nur_ein_monat(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Zeitreihe der Beschäftigten 2024 nach v2")
-    assert daten["zahlen"] == [] and "nur einen Monat auf einmal, keinen Verlauf" in daten["text"]
+    assert (
+        daten["zahlen"] == []
+        and "Einen Verlauf zeigt die Datenanfrage im Regelsatz v2 nicht." in daten["text"]
+    )
 
 
 # Fix-Liste !230, B8: zwei Sätze, und die Absage ist keine Rückfrage.
@@ -376,3 +379,37 @@ def test_uc4_mehrere_werte_ohne_wort_und_als_schalter(mit_v2: Verbindung) -> Non
     v1 = uc4_antwort(mit_v2, frage)["zahlen"]
     v2 = uc4_antwort(mit_v2, frage, "v2")["zahlen"]
     assert len(v1) == 3 and len(v2) == 3 and [z["wert"] for z in v1] != [z["wert"] for z in v2]
+
+
+# Bank 49: „bevor“ fehlte bei der Verneinung, „vor oder nach“ und „Umsetzung“ bei beiden Regelsätzen.
+def test_bevor_ist_eine_verneinung(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "Beschäftigte im August 2024, bevor die Änderungsaufträge umgesetzt wurden")
+    assert daten["zahlen"] == [] and daten["text"].startswith("Ohne Änderungsaufträge gilt Regelsatz v1.")
+
+
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte im August 2024 vor oder nach den Änderungsaufträgen",
+        "Beschäftigte im August 2024 vor und nach Umsetzung der Änderungsaufträge",
+    ],
+)
+def test_vor_oder_nach_mit_umsetzung_fragt_beide(mit_v2: Verbindung, frage: str) -> None:
+    daten = antwort_frage(mit_v2, frage)
+    assert daten["zahlen"] == [] and "nur einen Regelsatz" in daten["text"]
+
+
+# Bank 49: Ein einzelner gerechneter Regelsatz steht in der Einzahl.
+def test_regelsatz_ohne_lauf_einzahl(conn: Verbindung) -> None:
+    conn.execute("DELETE FROM meta.lauf WHERE regelsatz <> 'v1'")
+    conn.execute(
+        "INSERT INTO meta.lauf (lieferung, regelsatz, regelstand, status) VALUES ('2024-08', 'v1', 'x', 'fertig')"
+    )
+    text = antwort_frage(conn, "Beschäftigte im August 2024 im Regelsatz v3")["text"]
+    assert text == "Im Regelsatz v3 ist noch kein Monat gerechnet. Es gibt Zahlen im Regelsatz v1."
+
+
+# Bank 49: Der Satz zur Zeitreihe verweist auf einen Zeitraum, den es im Regelsatz v2 auch gibt.
+def test_beispiel_der_zeitreihen_absage_rechnet(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "Beschäftigte August bis September 2024 nach Regelsatz v2")
+    assert daten["zahlen"]
