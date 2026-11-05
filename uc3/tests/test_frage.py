@@ -195,13 +195,14 @@ def test_nullbestand_ohne_rate() -> None:
 
 
 # Fängt: eine mehrdeutige Frage („Beschäftigte 2025“) liefert eine Zahl statt einer Rückfrage.
-@pytest.mark.parametrize("frage", ["Beschäftigte 2025", "Fluktuation 2025", "Wie viele Frauen?"])
+@pytest.mark.parametrize("frage", ["Beschäftigte 2025", "Fluktuation 2025"])
 def test_rueckfrage_statt_zahl(gerechnet: Verbindung, frage: str) -> None:
     daten = antwort_frage(gerechnet, frage)
     assert daten["rueckfrage"] is True and daten["typ"] == "rueckfrage"
     assert daten["zahlen"] == [] and daten["belege"] == [] and daten["text"].rstrip().endswith(("?", "“."))
     if frage == "Beschäftigte 2025":
         assert "Dezember 2025" in daten["text"] and "Zeitreihe" in daten["text"]
+        assert "„Beschäftigte Jahresdurchschnitt 2025“" in daten["text"]
 
 
 # Fängt: „Was ist ÖNACE C?“ erfindet die Bezeichnung oder nennt die Version nicht.
@@ -759,3 +760,38 @@ def test_notizen_nach_verstanden(gerechnet: Verbindung) -> None:
     daten = antwort_frage(gerechnet, "Wie haben sich die Beschäftigten im letzten Jahr entwickelt?")
     assert daten["text"].startswith("Verstanden: Jänner 2025 bis Dezember 2025")
     assert daten["text"].index("„Letztes Jahr“ heißt hier 2025.") > daten["text"].index("alle.")
+
+
+# --- Zeiträume der Alltagssprache (Owner 05.11., „Sommer“) ------------------------------------------------------
+
+
+# Fängt: eine Jahreszeit ergibt keine Zahl, der Durchschnitt fehlt oder ist falsch gerundet, „Durchschnitt“ wird
+# trotz Zeitraum abgesagt, oder der Text sagt nicht, welche Monate gemeint sind.
+def test_jahreszeit_monate_und_durchschnitt(gerechnet: Verbindung) -> None:
+    for monat in ("2024-10", "2024-11"):
+        lauf_ausfuehren(gerechnet, monat, "v1")
+    soll = [_bestand(gerechnet, m)[()] for m in ("2024-09", "2024-10", "2024-11")]
+    mittel = (2 * sum(soll) + 3) // 6
+    for frage in (
+        "Wie viele Beschäftigte gab es im Herbst 2024?",
+        "Durchschnitt der Beschäftigten im Herbst 2024",
+    ):
+        daten = antwort_frage(gerechnet, frage)
+        assert [z["wert"] for z in daten["zahlen"]] == [*soll, mittel], frage
+        assert "Herbst 2024 heißt hier September bis November 2024." in daten["text"]
+        assert f"Im Durchschnitt waren es {mittel:,} (".replace(",", ".") in daten["text"]
+    quartal = antwort_frage(gerechnet, "Beschäftigte im 4. Quartal 2024")
+    assert [z["wert"] for z in quartal["zahlen"]][:2] == soll[1:]
+    assert "Für 1 Monat im Zeitraum gibt es noch keinen Lauf: Dezember 2024." in quartal["text"]
+
+
+# Fängt: ohne Zeitangabe kommt eine Rückfrage statt der Zahl des jüngsten Monats; ein Monat ohne Lieferung nennt
+# nicht, welche Monate es gibt.
+def test_ohne_zeitangabe_juengster_monat_und_vorhandene_monate(gerechnet: Verbindung) -> None:
+    frauen = antwort_frage(gerechnet, "Wie viele Frauen?")
+    je = _bestand(gerechnet, "2024-09", "geschlecht")
+    assert [z["wert"] for z in frauen["zahlen"]] == [je[("W",)]]
+    assert "Ohne Zeitangabe zeigen wir den jüngsten Monat: September 2024." in (frauen["text"])
+    vorher = antwort_frage(gerechnet, "Beschäftigte Juli 2024")
+    assert "Daten gibt es nur für August 2024 bis Juli 2026." in vorher["text"]
+    assert "Meinen Sie „Beschäftigte im August 2024“?" in vorher["text"]

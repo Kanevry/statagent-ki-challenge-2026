@@ -29,12 +29,19 @@ from statagent.uc4 import (
     _OENACE_CODE,
     _ZAHL_MONAT,
     MERKMALE,
-    MONATSNAMEN,
     Merkmal,
     _codes,
     _deutsch,
     _gliederung,
     _monat_anzeige,
+)
+from statagent.zeitraum import (
+    KEIN_JAHR,
+    MONATSNAMEN,
+    tag_hinweis,
+    umschreiben,
+    unklar,
+    zeitraum_anzeige,
 )
 
 UC = "uc3"
@@ -109,7 +116,7 @@ def monate_lesen(frage: str) -> list[str]:
 
 def jahr_ohne_monat(frage: str) -> str | None:
     """Eine Jahreszahl, die nicht Teil einer Monatsangabe ist (``Beschäftigte 2025``)."""
-    text = frage.lower()
+    text = KEIN_JAHR.sub(" ", frage.lower())  # „ÖNACE 2008“ ist kein Zeitraum
     for muster in (_NAME_MONAT, _ZAHL_MONAT, _ISO):
         text = muster.sub(" ", text)
     treffer = _JAHR.search(text)
@@ -237,47 +244,50 @@ _ORT_KETTE = re.compile(
     re.IGNORECASE,
 )
 _MONATSWORT = "|".join(sorted(map(re.escape, MONATSNAMEN), key=len, reverse=True))
-_VON_BIS_JAHR = re.compile(rf"\b({_MONATSWORT})\.?\s+bis\s+({_MONATSWORT})\.?\s+(\d{{4}})", re.IGNORECASE)
 _LETZTES_JAHR = re.compile(r"\b(?:im\s+)?letzte[nms]?\s+jahr(?:es)?\b", re.IGNORECASE)
-_ENDE_JAHR = re.compile(r"\bende\s+(\d{4})\b", re.IGNORECASE)
 _AKTUELL = re.compile(r"\b(aktuell|derzeit|zurzeit|momentan|jetzt)\b", re.IGNORECASE)
 KATEGORIE = _merkmal("Beschäftigungskategorie")
 
 
-def normalisieren(frage: str) -> tuple[str, list[str]]:
-    """Zeitangaben der Alltagssprache in Monate übersetzen; dazu Sätze, die das Verstandene offenlegen.
-
-    „März bis Juni 2025“: das Jahr gilt für beide Monate; „November bis Februar 2025“ beginnt im Vorjahr.
-    „letztes Jahr“ ist das Jahr vor der letzten Lieferung. „Ende 2025“ ist Dezember 2025.
-    """
-    notizen: list[str] = []
-
-    def von_bis(t: re.Match[str]) -> str:
-        erster, zweiter, jahr = t.group(1), t.group(2), int(t.group(3))
-        anfang = jahr - 1 if MONATSNAMEN[erster.lower()] > MONATSNAMEN[zweiter.lower()] else jahr
-        if anfang != jahr:
-            notizen.append(f"„{t.group(0)}“ heißt hier {erster} {anfang} bis {zweiter} {jahr}.")
-        return f"{erster} {anfang} bis {zweiter} {jahr}"
-
-    frage = _VON_BIS_JAHR.sub(von_bis, frage)
-    if _LETZTES_JAHR.search(frage):
-        jahr = str(int(LETZTE_LIEFERUNG[:4]) - 1)
-        frage = _LETZTES_JAHR.sub(f" {jahr} ", frage)
-        notizen.append(f"„Letztes Jahr“ heißt hier {jahr}.")
-    treffer = _ENDE_JAHR.search(frage)
-    if treffer:
-        frage = _ENDE_JAHR.sub(lambda t: f"Dezember {t.group(1)}", frage)
-        notizen.append(f"„Ende {treffer.group(1)}“ heißt hier Dezember {treffer.group(1)}.")
+def normalisieren(frage: str, letzter: str = LETZTE_LIEFERUNG) -> tuple[str, list[str]]:
+    """Zeitangaben der Alltagssprache in Monate übersetzen; dazu Sätze, die das Verstandene offenlegen."""
+    frage, notizen, _ = _normalisieren(frage, letzter)
     return frage, notizen
 
 
-def nicht_auswertbar(frage: str) -> str | None:
-    """Absagetext, wenn die Frage Einzeldaten oder ein Merkmal verlangt, das es nicht gibt; sonst None."""
+def _normalisieren(frage: str, letzter: str) -> tuple[str, list[str], bool]:
+    """Wie ``normalisieren``, dazu ob ein Durchschnitt über mehrere Monate gemeint ist.
+
+    Jahreszeiten, Quartale, Halbjahre, Bereiche („März bis Juni 2025“, „November bis Februar 2025“ beginnt im
+    Vorjahr), „Anfang/Mitte/Ende 2025“, Monate ohne Jahr und „letzten Monat“ übersetzt ``statagent.zeitraum``
+    (``letzter`` ist der jüngste Monat mit Daten). „letztes Jahr“ ist das Jahr vor der letzten Lieferung.
+    „Jahresdurchschnitt 2025“ wird zu Jänner bis Dezember 2025; eine bloße Jahreszahl bleibt (Rückfrage, #74 AC2).
+    """
+    frage, notizen, mittel = umschreiben(frage, letzter)
+    if _LETZTES_JAHR.search(frage):
+        vorjahr = str(int(LETZTE_LIEFERUNG[:4]) - 1)  # das Jahr vor der letzten Lieferung der Aufgabe
+        frage = _LETZTES_JAHR.sub(f" {vorjahr} ", frage)
+        notizen.append(f"„Letztes Jahr“ heißt hier {vorjahr}.")
+    jahr = jahr_ohne_monat(frage)
+    if mittel and jahr is not None and not monate_lesen(frage):
+        frage = re.sub(rf"(?<!\d){jahr}(?!\d)", f"Jänner {jahr} bis Dezember {jahr}", frage, count=1)
+        notizen.append(f"Gemeint ist der Durchschnitt der Monate Jänner bis Dezember {jahr}.")
+    return frage, notizen, mittel
+
+
+def nicht_auswertbar(frage: str, mittel: bool = False) -> str | None:
+    """Absagetext, wenn die Frage Einzeldaten oder ein Merkmal verlangt, das es nicht gibt; sonst None.
+
+    ``mittel``: die Frage nennt einen Zeitraum aus mehreren Monaten, ein Durchschnitt über die Monate ist dann
+    gemeint und auswertbar (das Durchschnittsalter bleibt abgesagt).
+    """
     text = frage.lower()
     kennung = any((t.group(1) or "") not in _MENGENWORT for t in _LANGE_ZAHL.finditer(text))
     if _PERSON.search(text) or kennung:
         return "Einzeldaten gibt StatAgent nicht heraus, auch nicht zu einer einzelnen Person. " + KANN
     for muster, grund in NICHT_AUSGEWERTET:
+        if mittel and grund.startswith("Durchschnitte") and "median" not in text:
+            continue
         if muster.search(text):
             return f"{grund} Darum gibt es hier keine Zahl. {KANN}"
     return None
@@ -494,7 +504,11 @@ def _ohne_lieferung(monat: str) -> bool:
 
 def _kein_lauf_text(monat: str) -> str:
     if _ohne_lieferung(monat):
-        return f"Für {_monat_anzeige(monat)} gibt es keine Lieferung, also auch keine Zahl."
+        return (
+            f"Für {_monat_anzeige(monat)} gibt es keine Lieferung, also auch keine Zahl. Daten gibt es nur für "
+            f"{zeitraum_anzeige(ERSTE_LIEFERUNG, LETZTE_LIEFERUNG)}. Meinen Sie "
+            f"„Beschäftigte im {_monat_anzeige(min(max(monat, ERSTE_LIEFERUNG), LETZTE_LIEFERUNG))}“?"
+        )
     return (
         f"{_monat_anzeige(monat)} ist noch nicht gerechnet. Was tun: den Lauf für den Monat starten "
         f"(uc3 lauf --lieferung {monat}) und dann noch einmal fragen."
@@ -665,6 +679,7 @@ def _bestand_antwort(
     bis: str,
     gruppen: tuple[Merkmal, ...],
     typ: str,
+    mittel: bool = False,
 ) -> dict[str, Any]:
     definition, einheit = _definition_bestand(conn)
     filter_, etiketten = _filter(conn, frage, bis, gruppen)
@@ -791,6 +806,26 @@ def _bestand_antwort(
         )
     gezaehlte_staende = [s for s in staende if str(s["monat"]) not in ohne_stichtag]
     text = _text_bestand(typ, gezaehlt, gruppen, labels, zusatz)
+    je_monat = sorted({str(z["monat"]) for z in gezaehlt})
+    if mittel and len(je_monat) > 1:
+        if gruppen:
+            text += " Einen Durchschnitt gibt es hier nur ohne Aufteilung."
+        else:
+            summe = sum(int(z["wert"]) for z in gezaehlt)
+            durchschnitt = (2 * summe + len(je_monat)) // (2 * len(je_monat))  # kaufmännisch gerundet
+            zeitraum = zeitraum_anzeige(je_monat[0], je_monat[-1])
+            zahlen.append(
+                {
+                    "bezeichnung": f"Beschäftigungsverhältnisse{zusatz}, Durchschnitt {zeitraum}",
+                    "wert": durchschnitt,
+                    "einheit": einheit,
+                    "beleg": len(belege) - 1,
+                }
+            )
+            text += (
+                f" Im Durchschnitt waren es {_deutsch(durchschnitt)} "
+                f"(Mittelwert der {_anzahl_monate(len(je_monat))}, auf ganze Zahlen gerundet)."
+            )
     if "anteil" in frage.lower() and gruppen == (GESCHLECHT,) and von == bis:
         summe = sum(int(z["wert"]) for z in zahlen)
         anteile = []
@@ -1164,8 +1199,9 @@ def _rueckfrage_monat(typ: str, jahr: str | None) -> dict[str, Any]:
     if jahr is not None:
         return _rueckfrage(
             f"Die Statistik zählt am letzten Tag jedes Monats, für {jahr} gibt es also zwölf Werte. "
-            f"Meinen Sie {was} für einen Monat, zum Beispiel „{beispiel} Dezember {jahr}“, "
-            f"oder alle Monate als Zeitreihe, „Zeitreihe 01/{jahr} bis 12/{jahr}“?"
+            f"Meinen Sie {was} für einen Monat, zum Beispiel „{beispiel} Dezember {jahr}“, den Durchschnitt, "
+            f"„{beispiel} Jahresdurchschnitt {jahr}“, oder alle Monate als Zeitreihe, "
+            f"„Zeitreihe 01/{jahr} bis 12/{jahr}“?"
         )
     return _rueckfrage(f"Für welchen Monat möchten Sie {was} wissen? Zum Beispiel „{beispiel} März 2025“.")
 
@@ -1176,25 +1212,36 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     Wirft nie: Was sich nicht beantworten lässt (Zeitlimit, verweigerte Abfrage, zu viele Zahlen, ein Merkmal,
     das es nicht gibt), kommt als Textantwort ohne Zahl und ohne interne Details zurück.
     """
-    frage, notizen = normalisieren(frage)
+    try:
+        letzter = _letzter_monat(conn, regelsatz)
+    except psycopg.Error:
+        return _antwort(fragetyp(frage), NICHT_LESBAR, hinweise=[NICHT_LESBAR])
+    grund = unklar(frage)
+    if grund is not None:
+        return _antwort(fragetyp(frage), grund, hinweise=[grund])
+    hinweis_tag = tag_hinweis(frage)
+    frage, notizen, mittel = _normalisieren(frage, letzter or LETZTE_LIEFERUNG)
+    if hinweis_tag:
+        notizen.insert(0, hinweis_tag)
     typ = fragetyp(frage)
-    absage = nicht_auswertbar(frage)
+    absage = nicht_auswertbar(frage, mittel=mittel and len(set(monate_lesen(frage))) > 1)
     if absage is not None:
         return _antwort(typ, absage, hinweise=[absage])
     try:
         if (
-            typ != "definition"
+            typ in ("bestand", "geschlecht", "fluktuation")
             and not monate_lesen(frage)
             and jahr_ohne_monat(frage) is None
-            and _AKTUELL.search(frage)
+            and letzter is not None
         ):
-            letzter = _letzter_monat(conn, regelsatz)
-            if letzter is not None:
-                frage = f"{frage} {_monat_anzeige(letzter)}"
+            frage = f"{frage} {_monat_anzeige(letzter)}"
+            if _AKTUELL.search(frage):
                 notizen.append(
                     f"„Aktuell“ heißt hier der zuletzt gerechnete Monat, {_monat_anzeige(letzter)}."
                 )
-        daten = _antwort_frage(conn, frage, regelsatz, typ)
+            else:
+                notizen.append(f"Ohne Zeitangabe zeigen wir den jüngsten Monat: {_monat_anzeige(letzter)}.")
+        daten = _antwort_frage(conn, frage, regelsatz, typ, mittel)
     except _KeineZahl as grund:
         return _antwort(typ, str(grund), hinweise=[str(grund)])
     except (psycopg.Error, AbfrageVerweigert):
@@ -1206,7 +1253,9 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     return daten
 
 
-def _antwort_frage(conn: Verbindung, frage: str, regelsatz: str, typ: str) -> dict[str, Any]:
+def _antwort_frage(
+    conn: Verbindung, frage: str, regelsatz: str, typ: str, mittel: bool = False
+) -> dict[str, Any]:
     if typ == "definition":
         daten = _definition_antwort(conn, frage)
         if not daten["rueckfrage"]:
@@ -1234,7 +1283,7 @@ def _antwort_frage(conn: Verbindung, frage: str, regelsatz: str, typ: str) -> di
         gruppen: tuple[Merkmal, ...] = (
             (GESCHLECHT,) if _geschlecht_gegliedert(text) else tuple(g for g in (_gliederung(frage),) if g)
         )
-        return _bestand_antwort(conn, frage, regelsatz, von, bis, gruppen, "zeitreihe")
+        return _bestand_antwort(conn, frage, regelsatz, von, bis, gruppen, "zeitreihe", mittel)
     if typ == "fluktuation" and len(monate) > 1:
         return _rueckfrage_monat(typ, monate[-1][:4])
     if len(monate) != 1:
