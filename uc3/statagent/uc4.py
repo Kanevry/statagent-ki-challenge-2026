@@ -30,6 +30,7 @@ from statagent.zeitraum import (
     MONATSNAMEN,
     NAME_MONAT,
     ZAHL_MONAT,
+    ZEITREIHE_WORT,
     Zeitraum,
     monat_anzeige,
     monate,
@@ -272,6 +273,32 @@ def _vorschlag(letzter: str) -> str:
     return f"Meinen Sie „Beschäftigte im {_monat_anzeige(letzter)}“?"
 
 
+def jahr_rueckfrage(was: str, beispiel: str, jahr: str) -> str:
+    """Rückfrage zu einer bloßen Jahreszahl (#74 AC2), gleich in ``uc3 frage`` und in UC4."""
+    return (
+        f"Die Statistik zählt am letzten Tag jedes Monats, für {jahr} gibt es also zwölf Werte. "
+        f"Meinen Sie {was} für einen Monat, zum Beispiel „{beispiel} Dezember {jahr}“, den Durchschnitt, "
+        f"„{beispiel} Jahresdurchschnitt {jahr}“, oder alle Monate als Zeitreihe, "
+        f"„Zeitreihe 01/{jahr} bis 12/{jahr}“?"
+    )
+
+
+def _fortgeschrieben_hinweis(monat: str, anzahl: int, fluktuation: bool = False) -> str:
+    text = (
+        f"{_monat_anzeige(monat)} enthält {_deutsch(anzahl)} fortgeschriebene Beschäftigungsverhältnisse: "
+        "Sie fehlten in der Lieferung und wurden aus der Lieferung des Vormonats übernommen."
+    )
+    if fluktuation:
+        text += " Zu- und Abgänge dieses Teils fehlen, die Fluktuation ist dadurch zu niedrig."
+    return text
+
+
+def _fortgeschrieben(conn: Verbindung, lauf_id: int) -> int:
+    """Fortgeschriebene Beschäftigungsverhältnisse des Laufs (Regel E07)."""
+    zeile = conn.execute("SELECT fortgeschrieben FROM meta.lauf WHERE id = %s", (lauf_id,)).fetchone()
+    return int(str(zeile["fortgeschrieben"])) if zeile is not None else 0
+
+
 def _mit_notizen(daten: dict[str, Any], notizen: list[str]) -> dict[str, Any]:
     if notizen:
         daten["text"] = " ".join([*notizen, daten["text"]])
@@ -287,10 +314,10 @@ def antwort_daten(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     die Summe als eigene Abfrage dazu. Mehrere Monate: je Monat eine Zahl und der Durchschnitt als eigene
     Abfrage. Der Text sagt in einem Satz, welche Monate gemeint sind, und was außerhalb der Daten liegt.
     """
-    grund = unklar(frage)
+    erster, letzter = _datenbereich(conn, regelsatz)
+    grund = unklar(frage, letzter)
     if grund is not None:
         return _leer(grund)
-    erster, letzter = _datenbereich(conn, regelsatz)
     zeitraum = zeitraum_lesen(frage, letzter)
     notizen: list[str] = [h for h in (tag_hinweis(frage),) if h]
     if zeitraum is None:
@@ -300,20 +327,36 @@ def antwort_daten(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         notizen.append(f"Ohne Zeitangabe zeigen wir den jüngsten Monat: {_monat_anzeige(letzter)}.")
     else:
         satz = zeitraum.erklaerung()
-        if satz:
+        # Wer eine Zeitreihe zu einem Jahr fragt, meint die Monate; der Satz zum Durchschnitt passt dann nicht.
+        if satz and not (zeitraum.art == "jahr" and ZEITREIHE_WORT.search(frage.lower())):
             notizen.append(satz)
-    von, bis = zeitraum.von, zeitraum.bis
+    gefragte = zeitraum.monatsliste
+    liste = gefragte
     if erster is not None and letzter is not None:
         vorhanden = zeitraum_anzeige(erster, letzter)
-        if bis < erster or von > letzter:
-            gefragt = zeitraum_anzeige(von, bis)
-            return _leer(f"Für {gefragt} gibt es keine Daten, nur für {vorhanden}. {_vorschlag(letzter)}")
-        if von < erster or bis > letzter:
-            von, bis = max(von, erster), min(bis, letzter)
-            notizen.append(
-                f"Daten gibt es nur für {vorhanden}, darum zählt hier {zeitraum_anzeige(von, bis)}."
+        liste = [m for m in gefragte if erster <= m <= letzter]
+        aufgezaehlt = zeitraum.art == "liste"
+        if not liste:
+            gefragt = (
+                _aufzaehlung([_monat_anzeige(m) for m in gefragte])
+                if aufgezaehlt
+                else zeitraum_anzeige(zeitraum.von, zeitraum.bis)
             )
-    liste = [m for m in zeitraum.monatsliste if von <= m <= bis]
+            return _leer(f"Für {gefragt} gibt es keine Daten, nur für {vorhanden}. {_vorschlag(letzter)}")
+        # Eine bloße Jahreszahl meint zwölf Werte: nachfragen wie in uc3 frage (#74 AC2).
+        if (
+            zeitraum.art == "jahr"
+            and not DURCHSCHNITT_WORT.search(frage)
+            and not ZEITREIHE_WORT.search(frage.lower())
+        ):
+            return _leer(jahr_rueckfrage("die Zahl der Beschäftigten", "Beschäftigte", zeitraum.von[:4]))
+        if len(liste) < len(gefragte):
+            zaehlt = (
+                _aufzaehlung([_monat_anzeige(m) for m in liste])
+                if aufgezaehlt
+                else zeitraum_anzeige(liste[0], liste[-1])
+            )
+            notizen.append(f"Daten gibt es nur für {vorhanden}, darum zählt hier {zaehlt}.")
     if len(liste) == 1:
         return _mit_notizen(_monat_antwort(conn, frage, liste[0], regelsatz), notizen)
     # Aufgezählte Monate („Jänner und Juli 2025“) bekommen nur mit Durchschnittswort einen Durchschnitt.
@@ -431,6 +474,9 @@ def _monat_antwort(conn: Verbindung, frage: str, monat: str, regelsatz: str) -> 
         )
         saetze.append(f"Zusammen sind das {_deutsch(summe)}.")
     saetze.append(f"Die Zahl ist {status}." if len(zahlen) == 1 else f"Die Zahlen sind {status}.")
+    anzahl_fort = _fortgeschrieben(conn, stand.lauf_id)
+    if anzahl_fort:
+        saetze.append(_fortgeschrieben_hinweis(monat, anzahl_fort))
     if _FRAGT_NACH_PERSONEN.search(frage.lower()):
         saetze.append("Gezählt werden Beschäftigungsverhältnisse, eine Person kann mehrere haben.")
     if weise.zeitraum_art != STICHTAG:
@@ -470,7 +516,8 @@ def _zeitraum_antwort(
     zahlen: list[dict[str, Any]] = []
     werte: list[tuple[str, int]] = []
     ohne_lauf: list[str] = []
-    staende: set[str] = set()
+    staende: dict[str, str] = {}  # Monat → Stand des Laufs
+    fortgeschrieben: list[str] = []
     etiketten: list[str] | None = None
     oenace_codes: dict[str, str] | None = None
     weise: _Zaehlweise | None = None
@@ -510,7 +557,10 @@ def _zeitraum_antwort(
             )
         abfrage = _abfrage(stand, monat, weise, filter_, None)
         teilabfragen.append(abfrage)
-        staende.add(stand.ergebnis_status)
+        staende[monat] = stand.ergebnis_status
+        anzahl_fort = _fortgeschrieben(conn, stand.lauf_id)
+        if anzahl_fort:
+            fortgeschrieben.append(_fortgeschrieben_hinweis(monat, anzahl_fort))
         belege.append(
             {
                 "uc": "uc3",
@@ -562,7 +612,7 @@ def _zeitraum_antwort(
                 "ref": "Durchschnitt der Monatsabfragen oben",
                 "regelstand": None,
                 "lauf": None,
-                "stand": None,
+                "stand": "endgueltig" if set(staende.values()) == {"endgueltig"} else "vorlaeufig",
             }
         )
         gezaehlte = [m for m, _ in werte]
@@ -591,12 +641,14 @@ def _zeitraum_antwort(
             f"Eine Aufteilung nach {gruppe.name} gibt es je Monat, zum Beispiel "
             f"„Beschäftigte nach {gruppe.name} im {_monat_anzeige(werte[-1][0])}“."
         )
-    status = sorted(_STATUS_TEXT.get(s, s) for s in staende)
+    status = sorted({_STATUS_TEXT.get(s, s) for s in staende.values()})
+    offen = [_monat_anzeige(m) for m, s in staende.items() if s != "endgueltig"]
     saetze.append(
         f"Die Zahlen sind {status[0]}."
         if len(status) == 1
-        else f"Die Zahlen sind teils {', teils '.join(status)}."
+        else f"Die Zahlen sind teils {', teils '.join(status)} (vorläufig: {', '.join(offen)})."
     )
+    saetze.extend(fortgeschrieben)
     if _FRAGT_NACH_PERSONEN.search(frage.lower()):
         saetze.append("Gezählt werden Beschäftigungsverhältnisse, eine Person kann mehrere haben.")
     if not stichtag:

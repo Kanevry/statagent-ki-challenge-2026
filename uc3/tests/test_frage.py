@@ -795,3 +795,35 @@ def test_ohne_zeitangabe_juengster_monat_und_vorhandene_monate(gerechnet: Verbin
     vorher = antwort_frage(gerechnet, "Beschäftigte Juli 2024")
     assert "Daten gibt es nur für August 2024 bis Juli 2026." in vorher["text"]
     assert "Meinen Sie „Beschäftigte im August 2024“?" in vorher["text"]
+
+
+# Fängt: Der Durchschnitt wird in Python gerechnet, sein Beleg zeigt auf eine Monatsabfrage, das SQL liefert also
+# nicht die gezeigte Zahl; bei einer Lücke steht „X bis Y“ auf einem Durchschnitt, der einen Monat auslässt.
+def test_durchschnitt_eigene_abfrage_und_luecke(gerechnet: Verbindung) -> None:
+    for monat in ("2024-10", "2024-11"):
+        lauf_ausfuehren(gerechnet, monat, "v1")
+    daten = antwort_frage(gerechnet, "Beschäftigte im Herbst 2024")
+    mittel = daten["zahlen"][-1]
+    beleg = daten["belege"][mittel["beleg"]]
+    assert beleg is not daten["belege"][daten["zahlen"][0]["beleg"]]
+    zeile = gerechnet.execute(beleg["sql"].encode()).fetchone()
+    assert zeile is not None and int(str(zeile["wert"])) == mittel["wert"]
+    assert mittel["bezeichnung"].endswith("Durchschnitt September bis November 2024")
+    assert beleg["stand"] == "vorlaeufig"
+
+    gerechnet.execute("UPDATE meta.lauf SET status = 'abgebrochen' WHERE lieferung = '2024-10'")
+    soll = [_bestand(gerechnet, m)[()] for m in ("2024-09", "2024-11")]
+    luecke = antwort_frage(gerechnet, "Beschäftigte im Herbst 2024")["zahlen"]
+    assert [z["wert"] for z in luecke] == [*soll, (2 * sum(soll) + 2) // 4]
+    assert luecke[-1]["bezeichnung"].endswith("Durchschnitt September 2024 und November 2024")
+
+
+# Fängt: Ein Jahr vor dem Monat oder „letzten Jahres“ wird zum jüngsten Monat (Prüfung !169); ohne eindeutiges Jahr
+# kommt eine Zahl statt einer Rückfrage.
+def test_jahr_vor_dem_monat_und_unklares_jahr(gerechnet: Verbindung) -> None:
+    soll = _bestand(gerechnet, "2024-09")[()]
+    for frage in ("Wie viele Beschäftigte gab es 2024 im September?", "September in 2024"):
+        daten = antwort_frage(gerechnet, frage)
+        assert [z["wert"] for z in daten["zahlen"]] == [soll], frage
+    unklar_jahr = antwort_frage(gerechnet, "Beschäftigte 2023 und 2024 im September")
+    assert unklar_jahr["zahlen"] == [] and "nicht eindeutig" in unklar_jahr["text"]
