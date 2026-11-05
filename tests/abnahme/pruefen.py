@@ -117,12 +117,18 @@ def abzug(sha: str, werkzeug: str) -> Path:
         )
         subprocess.run(["git", "-C", str(ziel), "checkout", "-q", "--detach", sha], check=True)
         subprocess.run(["uv", "sync", "--frozen", "--all-packages", "-q"], cwd=ziel, check=True, env=UMGEBUNG)
-        subprocess.run(
-            ["pnpm", "install", "--frozen-lockfile", "--offline", "--ignore-scripts", "--silent"],
-            cwd=ziel,
-            check=True,
-            env=UMGEBUNG,
+        node_ok = any(
+            subprocess.run(
+                ["pnpm", "install", "--frozen-lockfile", "--ignore-scripts", "--silent", *weise],
+                cwd=ziel,
+                env=UMGEBUNG,
+                capture_output=True,
+            ).returncode
+            == 0
+            for weise in (["--offline"], ["--prefer-offline"])
         )
+        if not node_ok:
+            print("Hinweis: pnpm install gescheitert; vitest-Prüfsätze werden Lauf-Fehler", file=sys.stderr)
         (ziel / ".fertig").write_text(sha)
     shutil.rmtree(ziel / "tests" / "abnahme", ignore_errors=True)
     subprocess.run(["git", "-C", str(ziel), "checkout", "-q", werkzeug, "--", "tests/abnahme"], check=True)
