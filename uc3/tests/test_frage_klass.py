@@ -140,8 +140,8 @@ def test_oenace_unterklasse_statt_abschnitt(tief: Verbindung) -> None:
     assert daten["typ"] == "definition"
     assert "Der Code C 10.11-0 ist eine Unterklasse der ÖNACE und heißt „Erfundene Unterklasse 2025“." in text
     assert "In ÖNACE 2008 hieß er „Erfundene Unterklasse 2008“." in text
-    assert "Klasse Erfundene Klasse 2025 (C 10.11)" in text
-    assert "(C 10.1)" in text and "(C 10)" in text and "(C)." in text
+    assert "Er gehört zur Abteilung Erfundene Abteilung 2025 (C 10), Abschnitt" in text
+    assert "(C 10.11)" not in text and "(C 10.1)" not in text  # Klasse und Gruppe wiederholen nur den Namen
     assert "Ab ÖNACE 2025 ist er aufgeteilt auf" in text
     assert " und 2 weitere." in text  # fünf Übergänge, drei gezeigt
     assert "Die Statistik zählt nach Abschnitt, nicht nach Unterklasse." in text
@@ -156,8 +156,8 @@ def test_pfad_nur_einmal_ausser_der_code_wandert(tief: Verbindung) -> None:
     assert gleich.count("gehört") == 1
     wandert = antwort_frage(tief, "Was ist ÖNACE 58.21-0?")["text"]
     assert "Der Code J 58.21-0 / K 58.21-0 ist eine Unterklasse der ÖNACE" in wandert
-    assert "In ÖNACE 2008 gehört er zu: Abschnitt" in wandert
-    assert "In ÖNACE 2025 gehört er zu: Abschnitt" in wandert
+    assert "In ÖNACE 2008 gehört er zum Abschnitt" in wandert
+    assert "In ÖNACE 2025 gehört er zum Abschnitt" in wandert
 
 
 def test_belege_sind_ausfuehrbar_und_zeigen_die_zeilen_der_antwort(tief: Verbindung) -> None:

@@ -518,6 +518,15 @@ def _pfad_codes(pfad: list[dict[str, Any]]) -> tuple[str, ...]:
     return tuple(str(p["code"]) for p in pfad)
 
 
+def _oben(pfad: list[dict[str, Any]]) -> str:
+    """Nur die zwei obersten Ebenen: Klasse und Gruppe wiederholen fast immer denselben Namen."""
+    je_ebene = {str(p["ebene"]): f"{p['bezeichnung']} ({p['code']})" for p in pfad}
+    abschnitt, abteilung = je_ebene.get("1"), je_ebene.get("2")
+    if abteilung and abschnitt:
+        return f"zur Abteilung {abteilung}, Abschnitt {abschnitt}"
+    return f"zum Abschnitt {abschnitt}" if abschnitt else f"zu: {klass._pfad_text(pfad)}"
+
+
 def _oenace_text(tief: TieferCode, daten: dict[str, Any]) -> str:
     codes = " / ".join(str(c) for c in daten["codes"])
     namen = daten["bezeichnungen"]
@@ -543,8 +552,8 @@ def _oenace_text(tief: TieferCode, daten: dict[str, Any]) -> str:
     # Der Pfad nur einmal (jüngste Fassung), außer der Code wandert zwischen den Fassungen.
     je_pfad = {_pfad_codes(n["pfad"]): n for n in namen if n["pfad"]}
     for n in je_pfad.values():
-        fassung = f"In ÖNACE {n['version']} gehört er zu" if len(je_pfad) > 1 else "Er gehört zu"
-        saetze.append(f"{fassung}: {klass._pfad_text(n['pfad'])}.")
+        fassung = f"In ÖNACE {n['version']} gehört er" if len(je_pfad) > 1 else "Er gehört"
+        saetze.append(f"{fassung} {_oben(n['pfad'])}.")
     saetze += _oenace_uebergaenge(tief, daten)
     saetze.append(f"Die Statistik zählt nach Abschnitt, nicht nach {ebene}.")
     return " ".join(saetze)

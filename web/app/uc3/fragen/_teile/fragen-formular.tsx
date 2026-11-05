@@ -275,8 +275,8 @@ function Antwort({
 
   if (istRueckfrage(antwort, rueckfrage)) {
     const text = rueckfrage ?? antwort.text;
-    // Eine Erklärung nennt Namen in Anführungszeichen; als Knopf taugt nur, was wirklich eine Frage ist (#189).
-    const vorschlaege = rueckfrageVorschlaege(text).filter((v) => rueckfrage !== null || v.endsWith("?"));
+    // Eine Erklärung nennt Namen in Anführungszeichen; als Knopf taugt nur eine Frage oder ein Beispiel mit Zeitangabe (#189).
+    const vorschlaege = rueckfrageVorschlaege(text).filter((v) => rueckfrage !== null || v.endsWith("?") || /\b20\d{2}\b/.test(v));
     return (
       <div className="flex flex-col gap-4">
         <p className="font-sans text-20 text-pretty text-ink">{text}</p>
