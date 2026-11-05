@@ -41,3 +41,7 @@
 	# ein unbekannter Wert lässt Caddy nicht starten (fail-closed)
 	import /etc/caddy/inhalt/{$INHALT}.caddy
 }
+
+# Vorführ-Instanz (scripts/vorfuehrung.sh): eine eigene Adresse mit Basic-Auth aus einem Fragment, das nur auf dem Server
+# liegt. Ohne Datei passt das Muster auf nichts, dann bleibt es bei der öffentlichen Demo oben; sie ändert sich dadurch nicht.
+import /etc/caddy-vorfuehrung/*.caddy

@@ -1,0 +1,115 @@
+# Vorführ-Instanz (Live-Demo am Tisch), Start nur über scripts/vorfuehrung.sh. Eigenes Compose-Projekt: `deploy.sh up`
+# mit --remove-orphans berührt sie nicht, und die öffentliche Demo bleibt lesend. Zugang nur über Caddy mit Basic-Auth
+# (Fragment von scripts/vorfuehrung.sh, nie im Repo). Kein Dienst veröffentlicht Ports.
+#
+# Eigene Datenbank in eigenem Netz: Die Kopie enthält roh und bereinigt, die öffentliche App erreicht sie nicht.
+# UC1 und UC2 liest die Instanz lesend aus der öffentlichen db (Rolle kic_app), UC3 schreibt nur in die eigene Kopie.
+name: ki-challenge-vorfuehrung
+
+services:
+  vorfuehrung-db:
+    # gleicher Digest wie docker-compose.prod.yml
+    image: postgres:16-bookworm@sha256:14952ad1d751328359b3b0512475d2760c8ddf968f0615bd911155010dc9901a
+    restart: unless-stopped
+    # Grenze, damit ein Lauf die öffentliche Demo auf demselben Server nicht verdrängt
+    mem_limit: 3g
+    shm_size: 1g
+    security_opt: ["no-new-privileges:true"]
+    command:
+      - postgres
+      - -c
+      - shared_buffers=768MB
+      - -c
+      - effective_cache_size=2GB
+      - -c
+      - work_mem=64MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_parallel_workers_per_gather=2
+    environment:
+      POSTGRES_USER: statistik
+      POSTGRES_DB: statistik_vorfuehrung
+      POSTGRES_PASSWORD: ${VORFUEHRUNG_DB_PASSWORD:?VORFUEHRUNG_DB_PASSWORD fehlt, zuerst scripts/vorfuehrung.sh init}
+    volumes:
+      - db_daten:/var/lib/postgresql/data
+      # Dumps: <basis>/vorfuehrung/daten, außerhalb von repo/
+      - ../../daten:/daten:ro
+      - ./sql:/deploy-sql:ro
+    networks: [intern]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U statistik -d statistik_vorfuehrung"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  vorfuehrung-app:
+    image: ki-challenge-vorfuehrung:aktuell
+    restart: unless-stopped
+    init: true
+    mem_limit: 2g
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/web/.next/cache:uid=1001,gid=1001,mode=0700
+      # Code-Vorschläge der Agenten (Rolle reporting) legt die Freigabe hier ab; weg mit jedem Reset
+      - /app/uc3/erzeugt:uid=1001,gid=1001,mode=0700
+    volumes:
+      - app_protokoll:/app/var/protokoll
+      # Git-Verzeichnis des eigenen Checkouts: die Freigabe committet hierher. Kein Remote, also kein Push.
+      - ${VORFUEHRUNG_GIT:?VORFUEHRUNG_GIT fehlt, zuerst scripts/vorfuehrung.sh init}:/app/.git
+      - ${UC2_NAMENSLISTE:-/dev/null}:/etc/kic/uc2-namensliste:ro
+    depends_on:
+      vorfuehrung-db:
+        condition: service_healthy
+    networks:
+      intern: {}
+      # Caddy und die lesende db der öffentlichen Demo; das Netz legt deploy/docker-compose.prod.yml an
+      oeffentlich: {}
+    environment:
+      # Öffnet Auftrag, Lauf und Freigabe. KIC_ONLINE_LESEND steht bewusst nicht hier.
+      KIC_VORFUEHRUNG: "1"
+      # plattform.llm: echtes Modell nur mit Tagesbudget (#100), Protokoll im eigenen Volume
+      KIC_ONLINE: "1"
+      LLM_TAGESBUDGET_AUFRUFE: "${VORFUEHRUNG_TAGESBUDGET:?VORFUEHRUNG_TAGESBUDGET fehlt, zuerst scripts/vorfuehrung.sh init}"
+      PLATTFORM_PROTOKOLL: /app/var/protokoll/modellaufrufe.jsonl
+      LLM_PROVIDER: azure
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL:?AZURE_OPENAI_BASE_URL fehlt, zuerst scripts/vorfuehrung.sh init}
+      AZURE_OPENAI_MODEL: ${AZURE_OPENAI_MODEL:?AZURE_OPENAI_MODEL fehlt, zuerst scripts/vorfuehrung.sh init}
+      AZURE_API_KEY: ${AZURE_API_KEY:?AZURE_API_KEY fehlt, zuerst scripts/vorfuehrung.sh init}
+      UC4_KETTE: ${UC4_KETTE:-uc3}
+      UC4_MODELLWAHL: ${UC4_MODELLWAHL:-}
+      RATENLIMIT_PRO_MINUTE: ${RATENLIMIT_PRO_MINUTE:-}
+      PUBLIC_URL: https://${VORFUEHRUNG_DOMAIN:?VORFUEHRUNG_DOMAIN fehlt, zuerst scripts/vorfuehrung.sh init}
+      # Die Abgabe-DB ist das nie: eigener Container, eigene Kopie
+      UC3_DATABASE_URL: postgresql://statistik:${VORFUEHRUNG_DB_PASSWORD}@vorfuehrung-db:5432/statistik_vorfuehrung
+      UC1_DATABASE_URL: postgresql://kic_app:${KIC_APP_DB_PASSWORD:?KIC_APP_DB_PASSWORD fehlt in .env.server}@db:5432/lotse
+      UC2_DATABASE_URL: postgresql://kic_app:${KIC_APP_DB_PASSWORD}@db:5432/healthpolicy
+      UC2_NAMENSLISTE: /etc/kic/uc2-namensliste
+      # Commit-Identität nur für diese Instanz. /app gehört root, das Git-Verzeichnis dem App-Nutzer, deshalb
+      # safe.directory; der Freigebende steht im Trailer Freigegeben-von.
+      GIT_CONFIG_COUNT: "3"
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: /app
+      GIT_CONFIG_KEY_1: user.name
+      GIT_CONFIG_VALUE_1: StatAgent Vorführung
+      GIT_CONFIG_KEY_2: user.email
+      GIT_CONFIG_VALUE_2: vorfuehrung@example.invalid
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+networks:
+  intern: {}
+  oeffentlich:
+    external: true
+    name: ki-challenge_default
+
+volumes:
+  db_daten:
+  app_protokoll:
