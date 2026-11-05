@@ -310,9 +310,8 @@ def test_zwei_bundeslaender_bekommen_den_passenden_satz(mit_v2: Verbindung) -> N
 
 def test_zeitreihe_sagt_nur_ein_monat(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Zeitreihe der Beschäftigten 2024 nach v2")
-    assert (
-        daten["zahlen"] == []
-        and "Einen Verlauf zeigt die Datenanfrage im Regelsatz v2 nicht." in daten["text"]
+    assert daten["zahlen"] == [] and daten["text"].startswith(
+        "Fragen Sie im Regelsatz v2 nach einem Monat oder Zeitraum, "
     )
 
 

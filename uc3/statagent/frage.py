@@ -719,8 +719,8 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
         return _antwort(typ, text, hinweise=[text])
     if _ZEITREIHE.search(frage.lower()):
         text = (
-            f"Einen Verlauf zeigt die Datenanfrage im Regelsatz {regelsatz} nicht. Fragen Sie nach einem Monat oder "
-            f"Zeitraum, zum Beispiel „Beschäftigte März bis Juni 2025 nach Regelsatz {regelsatz}“."
+            f"Fragen Sie im Regelsatz {regelsatz} nach einem Monat oder Zeitraum, "
+            f"zum Beispiel „Beschäftigte März bis Juni 2025 nach Regelsatz {regelsatz}“."
         )
         return _antwort(typ, text, hinweise=[text])
     if (
