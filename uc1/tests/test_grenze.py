@@ -34,6 +34,9 @@ def test_vorpruefung_faengt_englische_symptomfrage() -> None:
     [
         "Meine Mutter ist chronisch krank und kommt allein nicht mehr zurecht.",
         "Ich möchte weniger arbeiten, um meinen Vater nach dem Schlaganfall zu pflegen.",
+        "Mein Mann hatte einen Schlaganfall und braucht jetzt den ganzen Tag jemanden.",
+        "Er hat einen Schlaganfall gehabt und braucht Pflege. Bekommt er Pflegegeld?",
+        "Sie hat 2023 einen Schlaganfall erlitten und braucht jetzt Pflege.",
         "Welche Kosten übernimmt die Kasse für Medikamente?",
         "Ich brauche nach meiner Hüftoperation einen Rollstuhl. Zahlt das die Krankenkasse?",
     ],
@@ -150,3 +153,20 @@ def test_medizinisch_nur_ohne_sv_bezug() -> None:
     assert grenze.medizinisch("Mein Knie schmerzt, bekomme ich Krankengeld?") is None
     assert grenze.medizinisch("Wie backe ich einen Apfelstrudel?") is None
     assert grenze.sv_bezug("Wer zahlt die Reha?") and not grenze.sv_bezug("Wie backe ich einen Apfelstrudel?")
+
+
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Er hat einen Schlaganfall, was soll ich tun?",
+        "Mein Vater hat gerade einen Schlaganfall!",
+        # Review !155: akut, auch über „und“ oder ein Satzende hinweg
+        "Verdacht auf Schlaganfall und jetzt hängt sein Mundwinkel, was tun?",
+        "Ich glaube Schlaganfall. Jetzt kann er nicht mehr sprechen.",
+        "Schlaganfall? Er kann jetzt nicht mehr reden",
+    ],
+)
+def test_schlaganfall_in_der_gegenwart_bleibt_notfall(frage: str) -> None:
+    """Fängt einen akuten Schlaganfall, der seit der Sperre für die Vergangenheit durchrutscht (#155)."""
+    befund = grenze.vorpruefung(frage)
+    assert befund is not None and befund.notfall

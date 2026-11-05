@@ -1156,3 +1156,165 @@ def test_leistungsfrage_ohne_erkannte_leistung_bleibt_normale_abstinenz() -> Non
     )
     assert not a.grenze and a.verhalten == "abstinenz"
     assert "keine Frage zur Sozialversicherung" not in a.text and "wenden Sie sich an" in a.text
+
+
+# ---------------------------------------------------------------- Träger aus der Antwort (#155)
+
+
+def test_status_aus_aussage_vor_status_in_der_frage() -> None:
+    """Fängt den ersten Tabelleneintrag, der gewinnt, auch wenn er nur in einer Frage steht: „Ruhegenuss von
+    der BVAEB … ist dafür die PVA zuständig?“ ergab PVA statt BVAEB (Dev-Set x02)."""
+    text = "Mein Vater bekommt seinen Ruhegenuss von der BVAEB. Ist für sein Pflegegeld die PVA zuständig?"
+    assert kern.erkenne_status(text) == "bvaeb"
+    assert kern.erkenne_status("Ist die PVA zuständig?") == "pva"
+
+
+PFLEGEKARENZ = treffer(
+    301,
+    "§ 21c. (1) Personen, die eine Pflegekarenz vereinbart haben, gebührt für die Dauer der Pflegekarenz "
+    "ein Pflegekarenzgeld.",
+    gesetz="BPGG",
+    nummer="21c",
+)
+KARENZ_AUSSAGE = {
+    "text": "Für die Dauer einer vereinbarten Pflegekarenz bekommen Sie Pflegekarenzgeld.",
+    "abschnitt_id": 301,
+    "zitat": "Personen, die eine Pflegekarenz vereinbart haben, gebührt für die Dauer der Pflegekarenz ein "
+    "Pflegekarenzgeld.",
+}
+
+
+def test_stelle_folgt_aus_der_zitierten_leistung(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt die PVA als Stelle, wenn Pflegegeld und Pflegekarenzgeld erkannt sind, die Antwort aber nur das
+    Pflegekarenzgeld (BPGG § 21c) trägt: Zuständig ist dann allein das Sozialministeriumservice."""
+    regeln = kern.deckung_regeln() | {"schwelle": 0.0}
+    monkeypatch.setattr(kern, "deckung_regeln", lambda: regeln)
+    text = "Ich will weniger arbeiten, um meine Mutter in Wien zu pflegen. Ihre Pension kommt von der PVA."
+    modell = Skript(
+        [analyse(person="angehoerige", status="pva", bundesland="wien")], [antwort_mit(KARENZ_AUSSAGE)]
+    )
+    a = kern.frage(
+        text, modell=modell, suche_fn=FesteSuche([PFLEGEKARENZ]), speicher=kern.SpeicherImSpeicher()
+    )
+    assert a.verhalten == "antwort", a.text
+    assert {"pflegegeld", "pflegekarenzgeld"} <= set(a.leistungen)
+    assert [s["stelle"] for s in a.traeger] == ["SMS"]
+    assert "Pensionsversicherungsanstalt" not in a.text
+
+
+def test_stelle_der_zitierten_leistung_auch_ohne_erkannte_leistung(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt eine Antwort aus dem Krankengeld (ASVG § 141) ohne Stelle, weil kein Auslöser die Leistung
+    erkannt hatte: Die ÖGK steht dann mit Fundstelle da (#155, Nennt die Antwort keine Stelle …)."""
+    regeln = kern.deckung_regeln() | {"schwelle": 0.0}
+    monkeypatch.setattr(kern, "deckung_regeln", lambda: regeln)
+    asvg_141 = treffer(
+        402,
+        "§ 141. (1) Das Krankengeld gebührt in der Höhe von 50 vom Hundert der Bemessungsgrundlage für den "
+        "Kalendertag.",
+        gesetz="ASVG",
+        nummer="141",
+    )
+    aussage = {
+        "text": "Das Krankengeld beträgt die Hälfte der Bemessungsgrundlage für jeden Kalendertag.",
+        "abschnitt_id": 402,
+        "zitat": "Das Krankengeld gebührt in der Höhe von 50 vom Hundert der Bemessungsgrundlage für den "
+        "Kalendertag.",
+    }
+    leer = {"lage": "", "leistungen": [], "angaben": {}, "begriffe": []}
+    a = kern.frage(
+        "Wie viel Geld bekomme ich, wenn ich länger ausfalle? Ich bin angestellt.",
+        modell=Skript([leer], [antwort_mit(aussage)]),
+        suche_fn=FesteSuche([asvg_141]),
+        speicher=kern.SpeicherImSpeicher(),
+    )
+    assert a.verhalten == "antwort", a.text
+    assert [(s["stelle"], s["fundstelle"]) for s in a.traeger] == [("OEGK", "ASVG § 138")]
+    assert "krankengeld" in a.leistungen
+
+
+def test_zitierte_unfallnorm_macht_keinen_arbeitsunfall() -> None:
+    """Fängt die AUVA, die über eine zitierte Unfallnorm (ASVG § 175) ohne Auslöser kommt: `nur_regel` soll
+    genau das verhindern (Sturz im Spital, Aufnahme v8; Review !155)."""
+    assert kern.stellen_der_antwort([_aussage_aus("ASVG", "175")], "angestellt") == ([], [])
+    getragen, stellen = kern.stellen_der_antwort(
+        [_aussage_aus("ASVG", "175")], "angestellt", ["unfallversicherung"]
+    )
+    assert getragen == ["unfallversicherung"] and [s["stelle"] for s in stellen] == ["AUVA"]
+
+
+def _aussage_aus(gesetz: str, nummer: str) -> kern.Aussage:
+    return kern.Aussage(
+        text="t",
+        zitat="z",
+        abschnitt_id=1,
+        schluessel=f"{gesetz} § {nummer}",
+        stand=None,
+        betrag=False,
+        hinweis_hoehe=False,
+        treffer={"gesetz": gesetz, "nummer": nummer, "art": "PARA"},
+    )
+
+
+@pytest.mark.parametrize(
+    ("gesetz", "nummer", "status", "stelle"),
+    [
+        ("GSVG", "106", None, "SVS"),  # Krankengeld nach GSVG: Versicherte der SVS
+        ("ASVG", "141", None, "OEGK"),  # Krankengeld nach ASVG: ÖGK
+        ("ASVG", "141", "bvaeb", "BVAEB"),  # ein genannter Status geht vor
+        ("ASVG", "302", None, "PVA"),  # Rehabilitation der Pensionsversicherung
+    ],
+)
+def test_status_aus_dem_gesetz_der_zitierten_norm(
+    gesetz: str, nummer: str, status: str | None, stelle: str
+) -> None:
+    """Fängt eine Antwort ohne Stelle, weil der Status offen blieb, obwohl die zitierte Norm ihn festlegt."""
+    _, stellen = kern.stellen_der_antwort([_aussage_aus(gesetz, nummer)], status)
+    assert [s["stelle"] for s in stellen] == [stelle]
+
+
+def test_ohne_status_keine_stelle_bei_gemischten_gesetzen() -> None:
+    """Fängt „Zuständig: ÖGK“ für Krankengeld, wenn die Antwort ASVG und GSVG zitiert und der Status offen
+    ist: Für Selbständige wäre die ÖGK falsch, also keine Stelle (Review !155)."""
+    zitate = [_aussage_aus("ASVG", "141"), _aussage_aus("GSVG", "106")]
+    assert kern.stellen_der_antwort(zitate, None) == (["krankengeld"], [])
+    assert kern.stellen_der_antwort([_aussage_aus("BPGG", "4"), _aussage_aus("ANL", "1")], "pva")[0] == [
+        "pflegegeld"
+    ]
+
+
+def test_zweiter_versuch_wenn_die_pruefung_alles_verwirft() -> None:
+    """Fängt eine Abstinenz, obwohl die richtige Quelle vorlag und nur die Zitate des ersten Versuchs nicht
+    wörtlich waren (Dev-Set x08): ein zweiter Antwort-Aufruf mit den Gründen, höchstens einer."""
+    falsch = GUELTIG | {"zitat": "Pflegegeld gibt es, wenn man ständig Hilfe braucht und das lange dauert."}
+    modell = Mitschnitt(
+        [analyse(person="angehoerige", status="pva", bundesland="wien")],
+        [antwort_mit(falsch), antwort_mit(GUELTIG)],
+    )
+    a = kern.frage(
+        PFLEGE, modell=modell, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher()
+    )
+    assert a.verhalten == "antwort" and len(a.aussagen) == 1
+    assert modell.aufrufe == 3  # Analyse, Antwort, zweiter Versuch
+    assert "nicht wörtlich" in modell.nachrichten[-1][-1]["content"]
+    assert a.verworfen and a.verworfen[0]["grund"].startswith("Zitat steht nicht wörtlich")
+
+    ohne = Skript([analyse(person="angehoerige", status="pva", bundesland="wien")], [antwort_mit()])
+    b = kern.frage(PFLEGE, modell=ohne, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher())
+    assert b.verhalten == "abstinenz" and ohne.aufrufe == 2  # keine Aussage: kein zweiter Versuch
+
+
+def test_sprachbefund_kostet_nur_die_betroffene_aussage(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt eine ganze Antwort, die zur Ersatzantwort wird, weil eine von zwei Aussagen einen Sprachbefund
+    hat (Dev-Set x07, satz_lang): Die geprüfte Aussage bleibt, die andere fällt mit Grund weg."""
+    regeln = kern.deckung_regeln() | {"schwelle": 0.0}
+    monkeypatch.setattr(kern, "deckung_regeln", lambda: regeln)
+    schlecht = GUELTIG | {"text": "Als KI sage ich: Pflegegeld bekommt, wer ständig Betreuung braucht."}
+    modell = Skript(
+        [analyse(person="angehoerige", status="pva", bundesland="wien")], [antwort_mit(GUELTIG, schlecht)]
+    )
+    a = kern.frage(
+        PFLEGE, modell=modell, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher()
+    )
+    assert a.verhalten == "antwort" and [x.text for x in a.aussagen] == [GUELTIG["text"]]
+    assert "Als KI" not in a.text
+    assert any(v["grund"].startswith("Sprachprüfung") for v in a.verworfen)

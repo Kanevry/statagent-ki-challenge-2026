@@ -18,6 +18,11 @@
 #   `formular` (`fuer_stelle`: nur für diese Stellen, sonst kein fremdes Formular), `unterlagen`,
 #   `antrag` (Art für `lotse antrag`, Issue #32), `nur_regel: true` (zählt nur über `ausloeser`, nie über das
 #   Analyse-Modell).
+#   `normen`: Normbereiche, die zur Leistung gehören ({gesetz, von, bis}, Paragraphen einschließlich, „21c“
+#   liegt zwischen 21 und 22). Zitiert eine geprüfte Aussage eine dieser Normen, folgt die zuständige Stelle aus
+#   dieser Leistung, nicht aus einer erkannten Nachbarleistung (Held-out #39, #155). Bereiche nach den
+#   Überschriften im Korpus; Verfahrensrecht (BPGG §§ 22–27 gilt für alle Pflegegeld-Leistungen) nur dort, wo
+#   es die Leistung eindeutig macht.
 
 felder:
   status:
@@ -87,6 +92,9 @@ leistungen:
     bereich: pflegegeld
     gesetze: [BPGG]
     suchanfrage: "Pflegegeld Anspruchsvoraussetzungen Pflegebedarf ständiger Betreuung und Hilfe Antragstellung"
+    normen:
+      - {gesetz: BPGG, von: "3", bis: "21"}   # Anspruch, Stufen, Beginn, Ruhen, Auszahlung
+      - {gesetz: BPGG, von: "22", bis: "27"}  # Entscheidungsträger, Antrag, Begutachtung, Bescheid
     angebote:
       suchanfrage: "Pflege zu Hause Unterstützung Betreuung Heimhilfe Förderung Pflegegeld Antrag"
       # Dateien mit diesem Teilstring gelten nur für das genannte Bundesland (FSW = Fonds Soziales Wien).
@@ -118,6 +126,8 @@ leistungen:
     stelle_fest: {stelle: SMS, fundstelle: "BPGG § 21c"}
     gesetze: [BPGG, AlVG]
     suchanfrage: "Pflegekarenzgeld Pflegekarenz Pflegeteilzeit Familienhospizkarenz"
+    normen:
+      - {gesetz: BPGG, von: "21c", bis: "21f"}  # 3b. Abschnitt Pflegekarenzgeld
     unterlagen: []
   rehabilitation:
     name: {de: "Rehabilitation und Kur", en: "rehabilitation and spa treatment"}
@@ -133,6 +143,10 @@ leistungen:
     bereich: pension
     gesetze_aus_status: true
     suchanfrage: "Rehabilitation medizinische Maßnahmen Festigung der Gesundheit Kuraufenthalt Gesundheitsvorsorge"
+    normen:
+      - {gesetz: ASVG, von: "300", bis: "307h"}  # Rehabilitation und Gesundheitsvorsorge der Pensionsversicherung
+      - {gesetz: GSVG, von: "157", bis: "162"}
+      - {gesetz: BSVG, von: "150", bis: "152"}
     angebote:
       suchanfrage: "Antrag Kur Rehabilitation Aufenthalt"
     antrag: reha  # Entwurf über `lotse antrag reha` (#32, formulare/kur-reha.felder.json)
@@ -157,6 +171,10 @@ leistungen:
     bereich: krankenversicherung
     gesetze_aus_status: true
     suchanfrage: "Krankengeld Arbeitsunfähigkeit infolge Krankheit Dauer des Krankengeldanspruches"
+    normen:
+      - {gesetz: ASVG, von: "138", bis: "143"}   # Krankengeld: Anspruch, Dauer, Höhe, Versagung, Ruhen
+      - {gesetz: GSVG, von: "104a", bis: "107"}  # Unterstützungsleistung und Krankengeld
+      - {gesetz: B-KUVG, von: "85", bis: "85b"}
     unterlagen: []  # im Korpus keine Unterlagenliste belegt
   wochengeld:
     name: {de: "Wochengeld", en: "maternity allowance (Wochengeld)"}
@@ -173,6 +191,10 @@ leistungen:
     bereich: krankenversicherung
     gesetze_aus_status: true
     suchanfrage: "Wochengeld Mutterschaft Entbindung Leistungen aus dem Versicherungsfall der Mutterschaft"
+    normen:
+      - {gesetz: ASVG, von: "162", bis: "168"}
+      - {gesetz: GSVG, von: "102", bis: "102b"}
+      - {gesetz: BSVG, von: "97", bis: "98"}
     unterlagen: []  # im Korpus keine Unterlagenliste belegt
   unfallversicherung:
     name: {de: "Unfallversicherung", en: "accident insurance (Unfallversicherung)"}
@@ -188,8 +210,9 @@ leistungen:
       - 'berufskrankheit'
       - 'unfallversicherung'
       - '(?:auf dem|am) (?:heim)?weg (?:von der|zur|zu der|in die|nach der) arbeit'
-      - '(?:bei|in) der arbeit\b.{0,40}(?:gest(?:ü|u)rzt|verletzt|verungl(?:ü|u)ckt|unfall)'
-      - '(?:gest(?:ü|u)rzt|verletzt|verungl(?:ü|u)ckt)\b.{0,20}(?:bei|in) der arbeit\b'
+      # Arbeitsplatz in Bürgersprache: „in der Firma“, „im Betrieb“, „am Arbeitsplatz“, „auf der Baustelle“ (#155).
+      - '(?:(?:bei|in) der arbeit|in der firma|im betrieb|am arbeitsplatz|auf der baustelle)\b.{0,40}(?:gest(?:ü|u)rzt|verletzt|verungl(?:ü|u)ckt|unfall|ausgerutscht)'
+      - '(?:gest(?:ü|u)rzt|verletzt|verungl(?:ü|u)ckt|ausgerutscht)\b.{0,20}(?:(?:bei|in) der arbeit|in der firma|im betrieb|am arbeitsplatz|auf der baustelle)\b'
       - 'accident at work'
       - 'work(?:place)?[- ]accident'
       - 'commuting accident'
@@ -211,4 +234,8 @@ leistungen:
         zitat: "2. die Sozialversicherungsanstalt der Selbständigen für a) die nach § 3 des Bauern-Sozialversicherungsgesetzes in der Unfallversicherung pflichtversicherten selbständig Erwerbstätigen"
     gesetze: [ASVG]
     suchanfrage: "Arbeitsunfall Wegunfall Weg zur oder von der Arbeitsstätte Unfallversicherung Berufskrankheit"
+    normen:
+      - {gesetz: ASVG, von: "28", bis: "28"}     # sachliche Zuständigkeit AUVA, SVS
+      - {gesetz: ASVG, von: "172", bis: "222"}   # Dritter Teil Unfallversicherung
+      - {gesetz: BSVG, von: "148", bis: "149t"}  # Unfallversicherung der Bäuerinnen und Bauern (SVS)
     unterlagen: []  # im Korpus keine Unterlagenliste belegt
