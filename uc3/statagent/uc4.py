@@ -709,7 +709,8 @@ def uc4_antwort(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str
         and _adapter_liest_gleich(conn, frage, regelsatz)
     ):
         return antwort_daten(conn, frage, regelsatz)
-    if daten["typ"] == "fluktuation" and daten["zahlen"]:
+    # Die Kurzfassung nur bei der Fluktuation selbst: Bei „Zugänge“ ist die Zahl der Zugänge gefragt.
+    if daten["typ"] == "fluktuation" and daten["zahlen"] and "fluktu" in frage.lower():
         return _fluktuation_kurz(daten)
     return {
         **weg.als_ucantwort(daten),
@@ -747,6 +748,12 @@ def _fluktuation_kurz(daten: dict[str, Any]) -> dict[str, Any]:
     anfang = f"Fluktuation, ÖNACE {branche.group(1)} " if branche else "Fluktuation, alle Wirtschaftsbereiche"
     treffer = [z for z in daten["zahlen"] if str(z["bezeichnung"]).startswith(anfang)]
     verweis = "Die Zahlen je Branche stehen unter Fragen an die Daten."
+    if not treffer and branche:
+        genannt = re.search(r"gefragt war die Branche \S ([^,]+), sie steht", text)
+        wo = genannt.group(1) if genannt else branche.group(1)
+        return _leer(
+            f"In der Branche {wo} gab es am Stichtag keine Beschäftigten, darum gibt es keine Fluktuation. {verweis}"
+        )
     if not treffer:
         return _leer(f"Für {wann} gibt es keine Gesamtzahl zur Fluktuation. {verweis}")
     zahl = treffer[0]

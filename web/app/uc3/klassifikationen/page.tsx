@@ -42,7 +42,7 @@ const titel = "font-sans text-16 font-semibold text-ink";
 const textLink = "inline-flex min-h-11 items-center font-sans text-14 text-ink underline underline-offset-4 hover:text-gruen";
 
 function pfad(regelsatz: Regelsatz): string {
-  return `/uc3/klassifikationen${regelsatz === "v2" ? "?regelsatz=v2" : ""}#regeln`;
+  return `/uc3/klassifikationen${regelsatz === "v1" ? "" : `?regelsatz=${regelsatz}`}#regeln`;
 }
 
 // ---------------------------------------------------------------------------------------------------------------

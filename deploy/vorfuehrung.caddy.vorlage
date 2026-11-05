@@ -1,0 +1,25 @@
+# Vorführ-Instanz: nur mit Basic-Auth, alle Methoden, weil Auftrag, Lauf und Freigabe schreiben. Die Platzhalter ersetzt
+# scripts/vorfuehrung.sh, das Ergebnis liegt nur auf dem Server unter <basis>/vorfuehrung/caddy/ (nur der Hash, nie der Wert).
+@@DOMAIN@@ {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=2592000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), geolocation=(), payment=()"
+		X-Robots-Tag "noindex, nofollow"
+	}
+	header -Server
+
+	basic_auth {
+		vorfuehrung @@HASH@@
+	}
+
+	# Keine Antwort-Grenze: Ein Agentenlauf hält keine Anfrage offen (Start und Abfrage, /api/uc3/auftrag), aber
+	# Freigabe und Fragen dürfen dauern, bis das Programm antwortet.
+	reverse_proxy vorfuehrung-app:3000 {
+		lb_try_duration 5s
+	}
+}

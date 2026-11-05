@@ -109,14 +109,16 @@ Voraussetzung ist die Datenbank des Veranstalters auf Port 5433. Im Ordner des S
 `DB_PORT=5433 docker compose up -d`, dann warten, bis `docker logs statagent-db` „fertig“ meldet. Danach im Repo:
 
 ```bash
-uv run uc3 db init                          # Schemas, Klassifikationen, Regelsatz v1 (wiederholbar, löscht nichts)
+uv run uc3 db init                          # Schemas, Klassifikationen, Regelsätze (wiederholbar, löscht nichts)
 uv run uc3 lauf --alle                      # 24 Einzelläufe 2024-08 bis 2026-07, in zeitlicher Reihenfolge
 uv run uc3 eichen --lieferung 2024-08       # Vergleich mit dem Beispielbericht, Tab1 bis Tab13
 uv run uc3 berichte --alle && uv run uc3 sheet   # 24 Qualitätsberichte und Aggregations-Sheet nach abgabe/
 ```
 
 Das Ergebnis des Eichens ist die Zeile „Zellen 2880, abweichend 0“ (`uc3/README.md`). Alle Befehle und die Regeln
-dazu stehen in `uc3/README.md`. Der Lauf braucht kein Netz und kein Sprachmodell.
+dazu stehen in `uc3/README.md`. Der Lauf braucht kein Netz und kein Sprachmodell. Die Änderungsaufträge (Regelsatz v2)
+und die Ministeriums-Lieferung auf einer frischen Datenbank nachrechnen: `abgabe/README.md`, Abschnitt „Auf einer frischen
+Datenbank nachrechnen“.
 
 **Nachweis des Jury-Wegs:** Die Abnahme in einer frischen Umgebung steht in `docs/abnahme/66.md`, mit Befehlen,
 Zahlen und Ausgaben. Gemessen wurden alle 24 Läufe nacheinander auf einer frisch geladenen Datenbank: 24 von 24

@@ -86,20 +86,20 @@ export default async function Monate({ searchParams }: Props) {
 
   if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
   if (lesung.daten.monate.length === 0) {
-    const ohneV2 = lesung.ok && regelsatz === "v2";
+    const ohneLauf = lesung.ok && regelsatz !== "v1";
     return (
       <>
         <Ueberschrift stufe={2} als="h1">
-          {ohneV2 ? "Mit Regelsatz v2 ist noch kein Monat gerechnet." : "Noch kein Monat ist gerechnet."}
+          {ohneLauf ? `Mit Regelsatz ${regelsatz} ist noch kein Monat gerechnet.` : "Noch kein Monat ist gerechnet."}
         </Ueberschrift>
         <Leerzustand
           satz={
-            ohneV2
+            ohneLauf
                 ? "Die Monate entstehen, sobald eine Änderung mit Namen freigegeben und gerechnet ist."
                 : "Der erste Lauf beginnt mit August 2024."
           }
           aktion={
-            ohneV2 ? (
+            ohneLauf ? (
               <Link href={uebersichtPfad("v1")} className={knopfKlassen("sekundaer")}>
                 Monate mit Regelsatz v1 ansehen
               </Link>
@@ -115,7 +115,7 @@ export default async function Monate({ searchParams }: Props) {
   const angehalten = await angehalteneMonate(monate, regelsatz);
   const vorfuehren = angehalten.at(-1)?.monat;
   const wieViele = angehalten.length;
-  const beideRegelsaetze = regelsaetze.includes("v2") || regelsatz === "v2";
+  const beideRegelsaetze = regelsaetze.includes("v2") || regelsatz !== "v1";
   const andere = beideRegelsaetze ? await leseMonatsuebersicht(regelsatz === "v1" ? "v2" : "v1") : null;
   const andereZahl = andere?.ok ? (andere.daten.monate.find((m) => m.lieferung === letzter.lieferung)?.gezaehlt ?? null) : null;
   const zeilen: Zeile[] = monate.map((monat) => {
@@ -135,7 +135,7 @@ export default async function Monate({ searchParams }: Props) {
         </Ueberschrift>
         <div className="flex flex-wrap items-baseline gap-x-3 font-sans text-16 text-slate">
           <span>
-            {regelsatz === "v2" ? `${monatName(letzter.lieferung)}: ` : `Ende ${monatName(letzter.lieferung)}: `}
+            {regelsatz !== "v1" ? `${monatName(letzter.lieferung)}: ` : `Ende ${monatName(letzter.lieferung)}: `}
             <span className="tabular-nums text-ink">{formatZahl(letzter.gezaehlt)}</span>
             {" Beschäftigungsverhältnisse"}
           </span>
