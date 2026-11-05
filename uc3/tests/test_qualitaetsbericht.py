@@ -569,3 +569,48 @@ def test_im_zeitraum_laesst_den_bezugstag_des_alters_stehen() -> None:
     assert im_zeitraum(alter, "Monat") == alter
     assert im_zeitraum(kopf, "Monat") == "-- _bestand: Verhältnisse im Berichtsmonat nach Abschnittswahl"
     assert im_zeitraum(kopf, "Stichtag") == kopf
+
+
+def test_bericht_nennt_den_oenace_wechsel_nur_im_ersten_monat(conn: Verbindung) -> None:
+    # Fängt: Der Monat mit neuer ÖNACE-Version sagt nicht, dass Abschnitte nur wegen der Umstellung anders heißen
+    # (Forensik: 189.171 Merkmalsänderungen zu 12/2024). Die Fixture hat den Wechsel erst 2025; hier auf 10/2024 gelegt.
+    from statagent.berichte import qualitaetsbericht
+
+    lauf = pytest.importorskip("statagent.lauf")
+    for lieferung in ("2024-08", "2024-09", "2024-10"):
+        lauf.lauf_ausfuehren(conn, lieferung, regelsatz="v1", gestartet_von=None)
+    with conn.transaction():
+        conn.execute("UPDATE stat.klass_oenace SET gueltig_bis = DATE '2024-09-30' WHERE version = '2008'")
+        conn.execute(
+            """INSERT INTO stat.klass_oenace (version, code, bezeichnung, ebene, gueltig_von)
+               SELECT 'T', 'Y', bezeichnung, 1, DATE '2024-10-01' FROM stat.klass_oenace
+               WHERE version = '2008' AND code = 'C'"""
+        )
+        # Die Fixture-Lieferungen haben kaum gemeinsame Verhältnisse: dieselben Zeilen auch in die Lieferung davor.
+        conn.execute(
+            """CREATE TEMP TABLE beide AS SELECT * FROM bereinigt.abschnitt
+               WHERE lieferung = '2024-10' AND regelsatz = 'v1' AND oenace = 'C' AND beginn <= DATE '2024-09-30'
+                 AND (ende IS NULL OR ende >= DATE '2024-09-30')"""
+        )
+        conn.execute("UPDATE beide SET lieferung = '2024-09'")
+        conn.execute(
+            """DELETE FROM bereinigt.abschnitt a USING beide b
+               WHERE a.lieferung = '2024-09' AND a.regelsatz = 'v1' AND a.vvh_id = b.vvh_id"""
+        )
+        conn.execute("INSERT INTO bereinigt.abschnitt SELECT * FROM beide")
+        geaendert = conn.execute(
+            """UPDATE bereinigt.abschnitt a SET oenace = 'Y' FROM beide b
+               WHERE a.lieferung = '2024-10' AND a.regelsatz = 'v1' AND a.vvh_id = b.vvh_id"""
+        ).rowcount
+    assert geaendert > 0
+    w = qualitaetsbericht.bericht_daten(conn, "2024-10")["oenace_wechsel"]
+    assert (w["version_alt"], w["version_neu"], w["vormonat"]) == ("2008", "T", "2024-09")
+    assert 0 < w["anders"] <= w["gesamt"]
+    assert w["nur_buchstabe"] == w["beispiel"]["anzahl"]
+    assert (w["beispiel"]["alt"], w["beispiel"]["neu"]) == ("C", "Y")
+    text = qualitaetsbericht.bericht_erzeugen(conn, "2024-10")
+    assert "**Wechsel der ÖNACE:**" in text
+    assert "keine echte Entwicklung" in text
+    assert "```sql\nWITH vorher AS" in text
+    assert qualitaetsbericht.bericht_daten(conn, "2024-09")["oenace_wechsel"] is None
+    assert "Wechsel der ÖNACE" not in qualitaetsbericht.bericht_erzeugen(conn, "2024-09")
