@@ -986,30 +986,40 @@ def test_arbeit_allein_ist_kein_arbeitsunfall(text: str) -> None:
     [
         (None, "AUVA", "ASVG § 28 Z 1"),
         ("angestellt", "AUVA", "ASVG § 28 Z 1"),
-        ("svs", "SVS", "ASVG § 28 Z 2"),
+        ("svs", "SVS", "ASVG § 28 Z 2 lit. a und b"),
+        ("bvaeb", "BVAEB", "B-KUVG § 9 Abs. 1"),
     ],
 )
 def test_unfallversicherung_zustaendig_auva_selbstaendige_svs(
     status: str | None, stelle: str, fundstelle: str
 ) -> None:
-    """Fängt g21 (AUVA fehlte als Stelle) und Selbständige, die nach ASVG § 28 Z 2 zur SVS gehören."""
+    """Fängt g21 (AUVA fehlte als Stelle), Selbständige, die nach ASVG § 28 Z 2 lit. a und b zur SVS gehören
+    (das Zitat nannte nur lit. a), und Beamte, die die AUVA statt der BVAEB bekamen (#151)."""
     eintrag = kern.zustaendige_stelle("unfallversicherung", status)
     assert eintrag is not None and eintrag["stelle"] == stelle and eintrag["fundstelle"] == fundstelle
     assert eintrag["zitat"]
+    if status == "svs":
+        assert (
+            "b) die nach § 8 Abs. 1 Z 3 lit. a pflichtversicherten selbständig Erwerbstätigen"
+            in eintrag["zitat"]
+        )
     if stelle == "AUVA":
         assert eintrag["name"] == "Allgemeine Unfallversicherungsanstalt (AUVA)"
 
 
 @pytest.mark.daten
 def test_unfallversicherung_zitate_stehen_in_asvg_28(conn: psycopg.Connection) -> None:
-    """Fängt ein Zuständigkeits-Zitat zur Unfallversicherung, das nicht wörtlich in ASVG § 28 steht."""
-    zeilen = conn.execute(
-        "SELECT a.text FROM lotse.abschnitt a JOIN lotse.dokument d ON d.id = a.dokument_id "
-        "WHERE d.gesetz = 'ASVG' AND d.nummer = '28' ORDER BY d.inkrafttreten DESC LIMIT 1"
-    ).fetchall()
-    assert zeilen, "ASVG § 28 fehlt im Korpus"
+    """Fängt ein Zuständigkeits-Zitat zur Unfallversicherung, das nicht wörtlich in seiner Fundstelle steht
+    (ASVG § 28, für die BVAEB B-KUVG § 9)."""
     leistung = kern.leistungen()["unfallversicherung"]
     for eintrag in [leistung["stelle_fest"], *leistung["stelle_je_status"].values()]:
+        gesetz, nummer = str(eintrag["fundstelle"]).split(" § ")[0], str(eintrag["fundstelle"]).split()[2]
+        zeilen = conn.execute(
+            "SELECT a.text FROM lotse.abschnitt a JOIN lotse.dokument d ON d.id = a.dokument_id "
+            "WHERE d.gesetz = %s AND d.nummer = %s ORDER BY d.inkrafttreten DESC LIMIT 1",
+            (gesetz, nummer),
+        ).fetchall()
+        assert zeilen, f"{gesetz} § {nummer} fehlt im Korpus"
         assert kern.zitat_gueltig(eintrag["zitat"], zeilen[0][0]), eintrag["zitat"]
 
 
@@ -1361,24 +1371,3 @@ def test_aussage_ohne_schwelle_wird_verworfen() -> None:
     }
     aussagen, verworfen = kern.pruefe_aussagen([schwach], [treffer()])
     assert aussagen == [] and "Schwelle" in verworfen[0]["grund"]
-
-
-@pytest.mark.parametrize(
-    ("status", "stelle", "fundstelle"),
-    [
-        (None, "AUVA", "ASVG § 28 Z 1"),
-        ("angestellt", "AUVA", "ASVG § 28 Z 1"),
-        ("svs", "SVS", "ASVG § 28 Z 2 lit. a und b"),
-        ("bvaeb", "BVAEB", "B-KUVG § 9 Abs. 1"),
-    ],
-)
-def test_unfallversicherung_stelle_je_status(status: str | None, stelle: str, fundstelle: str) -> None:
-    """Fängt die AUVA für Beamtinnen und Beamte (Dienstunfall: BVAEB nach B-KUVG § 9 Abs. 1) und ein
-    SVS-Zitat, das nur die Bäuerinnen und Bauern nennt, obwohl Z 2 lit. b auch Selbständige erfasst (#151)."""
-    eintrag = kern.zustaendige_stelle("unfallversicherung", status)
-    assert eintrag is not None and (eintrag["stelle"], eintrag["fundstelle"]) == (stelle, fundstelle)
-    if status == "svs":
-        assert (
-            "b) die nach § 8 Abs. 1 Z 3 lit. a pflichtversicherten selbständig Erwerbstätigen"
-            in eintrag["zitat"]
-        )
