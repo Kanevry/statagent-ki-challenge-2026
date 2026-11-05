@@ -270,7 +270,7 @@ def main() -> int:
         p
         for p in alle
         if (not a.id or p["id"] == a.id)
-        and (not a.bereich or p["datei"] == f"{a.bereich}.toml")
+        and (not a.bereich or p["datei"].split(".")[0].split("-")[0] == a.bereich)
         and (a.schwer or not p.get("schwer"))
     ]
     zeilen = [
