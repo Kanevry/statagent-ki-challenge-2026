@@ -73,3 +73,8 @@ it("in der Vorführung fragt die Freigabe den Server nicht", () => {
   renderHook(() => useEntscheidung("mock-wartezeiten", "vorfuehrung", true));
   expect(f).not.toHaveBeenCalled();
 });
+
+it("live behauptet vor dem Start-Ereignis nicht „ohne Sprachmodell“", () => {
+  render(<PanelBuehne fallId="15" modus="live" />);
+  expect(screen.getByTestId("uc2-modell-satz").textContent).toBe("Die Verhandlung startet.");
+});

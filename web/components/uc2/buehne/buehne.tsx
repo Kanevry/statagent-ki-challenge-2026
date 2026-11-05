@@ -120,6 +120,8 @@ export function modellSatz(modus: Modus, z: FallZustand): string {
   if (modus === "live" && akteur?.modell && akteur.provider !== "mock") {
     return `Die Sätze der Gruppen schreibt eine KI (${akteur.provider ?? ""} ${akteur.modell}). Die Zahlen rechnet der Experte ohne KI.`;
   }
+  // Live, aber das Ereignis „start“ mit den Modellen ist noch nicht da: nichts behaupten (Review !101).
+  if (modus === "live" && !akteur) return "Die Verhandlung startet.";
   return "Aufgezeichnete Verhandlung mit Beispiel-Belegen, ohne Sprachmodell.";
 }
 
