@@ -18,8 +18,9 @@ from typing import Any
 from statagent import konfig
 from statagent.agenten.plattform_bruecke import VERTRAG_TYP, sha256_datei
 from statagent.agenten.regelaenderung import einspielen
+from statagent.bereinigung import bereinigen
 from statagent.db import Verbindung
-from statagent.ergebnis import monatswerte
+from statagent.ergebnis import monat_verschieben, monatswerte
 from statagent.lauf import lauf_ausfuehren
 from statagent.regeln import eine, regeln_laden
 
@@ -275,6 +276,11 @@ def _wert(w: object) -> str:
     return json.dumps(w, ensure_ascii=False)
 
 
+#: Keine Zahl ändert sich im Probemonat: Das kann richtig sein und heißt nicht, dass die Regel nichts tut.
+KEINE_AENDERUNG_TEXT = (
+    "In diesem Monat ändert sich keine Zahl. Das kann richtig sein: Eine Prüfregel ändert nie eine Zahl, und der "
+    "Ersatztag bei Geburtsmonat 13 wirkt nur in manchen Monaten. Zum Vergleich einen anderen Monat wählen."
+)
 #: So viele geänderte Ausprägungen zeigt die Probe je Merkmal, die größten zuerst (vor der Jury lesbar).
 PROBE_ZEILEN = 8
 
@@ -343,6 +349,7 @@ def diff_text(vorschlag: Vorschlag) -> str:
             zeilen.append(f"Probe {monat}: {p.get('hinweis', '')}")
             continue
         vg, ng = int(p["vorher"]["gesamt"]), int(p["nachher"]["gesamt"])
+        keine_aenderung = vg == ng and p["vorher"].get("je_merkmal") == p["nachher"].get("je_merkmal")
         zeilen.append(
             f"Probe {monat}: gesamt {vg} → {ng} ({ng - vg:+d}), Zellen ≠ 0: "
             f"{p['vorher']['zellen']} → {p['nachher']['zellen']}"
@@ -351,6 +358,8 @@ def diff_text(vorschlag: Vorschlag) -> str:
             vm, nm = p["vorher"]["je_merkmal"].get(merkmal, {}), p["nachher"]["je_merkmal"].get(merkmal, {})
             if vm != nm:
                 zeilen.append(f"  {merkmal}: {_geaenderte_codes(vm, nm)}")
+        if keine_aenderung:
+            zeilen.append(f"  {KEINE_AENDERUNG_TEXT}")
     return "\n".join(zeilen)
 
 
@@ -382,6 +391,36 @@ def _zahlen(conn: Verbindung, lieferung: str, regelsatz: str) -> dict[str, Any]:
     }
 
 
+def _vormonat_sicherstellen(conn: Verbindung, lieferung: str, regelsatz: str) -> None:
+    """Bereinigt in der Probe-Transaktion den Vormonat, wenn der Monat Fortschreibungen braucht.
+
+    Regel E07 ergänzt ausgefallene Verhältnisse aus den bereinigten Abschnitten des Vormonats im selben Regelsatz. Ein
+    neuer Regelsatz hat keine, die Fortgeschriebenen fehlten: 2025-03 zeigte −1.470 bei einer reinen Altersänderung.
+    Ob ein Monat das braucht, sagt ein früherer Lauf in irgendeinem Regelsatz. Nur die Bereinigung läuft, kein ganzer
+    Lauf mit Prüfungen (der kostete rund 4 Minuten je Probe). Alles wird mit der Probe zurückgerollt.
+    """
+    vormonat = monat_verschieben(lieferung, -1)
+    z = conn.execute(
+        """SELECT EXISTS (SELECT 1 FROM meta.lauf WHERE lieferung = %s AND fortgeschrieben > 0) AS noetig,
+                  EXISTS (SELECT 1 FROM bereinigt.abschnitt WHERE lieferung = %s AND regelsatz = %s) AS da""",
+        (lieferung, vormonat, regelsatz),
+    ).fetchone()
+    if z is None or not z["noetig"] or z["da"]:
+        return
+    lauf = conn.execute(
+        "INSERT INTO meta.lauf (lieferung, regelsatz, gestartet_von) VALUES (%s, %s, 'probe') RETURNING id",
+        (vormonat, regelsatz),
+    ).fetchone()
+    assert lauf is not None
+    bereinigen(
+        conn,
+        lauf_id=int(str(lauf["id"])),
+        lieferung=vormonat,
+        regelsatz=regelsatz,
+        regeln=regeln_laden(conn, regelsatz, vormonat),
+    )
+
+
 def probe_rechnen(conn: Verbindung, vorschlag_id: int, lieferung: str) -> dict[str, Any]:
     """Rechnet den Probemonat vorher (Basisregelsatz) und nachher (mit Vorschlag) und speichert die Zahlen.
 
@@ -400,6 +439,7 @@ def probe_rechnen(conn: Verbindung, vorschlag_id: int, lieferung: str) -> dict[s
             )
         gerechnet: dict[str, Any] = {}
         with contextlib.suppress(_Zurueckrollen), conn.transaction():
+            _vormonat_sicherstellen(conn, lieferung, v.regelsatz_basis)
             gerechnet["vorher"] = _zahlen(conn, lieferung, v.regelsatz_basis)
             einspielen(
                 conn,
@@ -411,6 +451,7 @@ def probe_rechnen(conn: Verbindung, vorschlag_id: int, lieferung: str) -> dict[s
                 anweisung=v.anweisung,
                 begruendung=v.begruendung,
             )
+            _vormonat_sicherstellen(conn, lieferung, v.regelsatz_ziel)
             gerechnet["nachher"] = _zahlen(conn, lieferung, v.regelsatz_ziel)
             raise _Zurueckrollen
         ergebnis = {

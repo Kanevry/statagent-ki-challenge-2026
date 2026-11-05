@@ -553,6 +553,9 @@ def agent(
             f" ({v.regelsatz_basis} bleibt unverändert)",
             f"Wirkung: {wirkung}",
         ]
+    if erg.korrekturen:
+        zeilen.append(f"Korrekturen bis zum Vorschlag ({len(erg.korrekturen)}):")
+        zeilen += [f"  {k}" for k in erg.korrekturen]
     if erg.rueckfrage:
         zeilen.append(f"Rückfrage: {erg.rueckfrage}")
     if erg.abgelehnt:

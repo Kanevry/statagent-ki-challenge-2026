@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -220,6 +222,13 @@ def _zwei_ausschluesse(v: Vorschlag) -> bool:
 #: Zusatz (nur mit --auftraege): Stellen, die die zehn Aufträge nicht abdecken. Stichprobe 20:5x, Review 9b.
 ZUSATZ: tuple[Auftrag, ...] = (
     Auftrag(
+        "N_angehalten_10_prozent",
+        "Ein Monat wird schon angehalten, wenn in einem Bundesland mehr als 10 % fehlen.",
+        lambda v: (
+            v.typ == "regel_aendern" and all(str(a["regel_name"]).startswith("P") for a in v.aenderungen)
+        ),
+    ),
+    Auftrag(
         "K_ohne_maenner",
         "Männer werden nicht mehr gezählt.",
         lambda v: _ausschluss(v, {"geschlecht"}, {"M"}),
@@ -248,7 +257,13 @@ def _git_kopf(repo: Path) -> str:
 
 
 def _stand(conn: Verbindung, regelsatz: str, monat: str) -> str:
-    return regelstand(conn, regeln_laden(conn, regelsatz, monat))
+    """Regelstand plus Parameter der Prüfregeln: Der Regelstand allein lässt Prüfregeln aus, Auftrag J könnte sonst
+    bei den Hash-Prüfungen nie durchfallen (Review 29)."""
+    regeln = regeln_laden(conn, regelsatz, monat)
+    pruefregeln = sorted(
+        (r.name, json.dumps(r.parameter, sort_keys=True)) for r in regeln if r.typ == "pruefung"
+    )
+    return f"{regelstand(conn, regeln)}:{hashlib.sha256(repr(pruefregeln).encode()).hexdigest()[:16]}"
 
 
 def _zahlen(v: Vorschlag, monat: str) -> str:
@@ -280,8 +295,8 @@ _OFFEN: dict[str, int] = {}
 
 def _fehlertext(fehler: Exception) -> str:
     """Kurzer Fehlertext für die CSV im Repo: bei der Datenbank nur die Art, weil die Meldung Rechnernamen tragen kann."""
-    if isinstance(fehler, psycopg.Error):
-        return type(fehler).__name__
+    if isinstance(fehler, psycopg.Error | subprocess.SubprocessError | OSError):
+        return type(fehler).__name__  # Meldung kann Rechnernamen oder lokale Pfade tragen
     return f"{type(fehler).__name__}: {str(fehler).splitlines()[0][:160] if str(fehler) else ''}"
 
 
@@ -495,7 +510,8 @@ def main() -> int:
                 except psycopg.OperationalError as fehler:
                     # Verbindung weg (Tunnel), kein Urteil über den Agenten: neu verbinden und den Lauf wiederholen.
                     print(
-                        f"{_jetzt()} {auftrag.kurz} Lauf {nummer}: Verbindung verloren ({fehler})", flush=True
+                        f"{_jetzt()} {auftrag.kurz} Lauf {nummer}: Verbindung verloren ({type(fehler).__name__})",
+                        flush=True,
                     )
                     conn = _neu_verbinden(url)
                     if "id" in _OFFEN:

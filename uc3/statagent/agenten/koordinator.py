@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
@@ -96,7 +96,7 @@ class Ergebnis:
 
 # --- Zulässige Werte je Regel-Art (was der Zählcode versteht; Werte selbst stehen in meta.regel) -------
 
-_TAG = re.compile(r"^(monatserster|monatsletzter|tag:\d{1,2})$")
+_TAG = re.compile(r"^(monatserster|monatsletzter|tag:(?:0?[1-9]|[12]\d|3[01]))$")
 #: ``geburtsmonat_13``, wie zaehlung.py es versteht: jahresdifferenz, unbekannt oder ``ersatz:MM-TT``. Das
 #: Ersatzdatum geht dort in ``make_date(geburtsjahr, MM, TT)``; zulässig ist darum nur ein Tag, den es in
 #: jedem Jahr gibt (kein 29.02., kein 31. in Monaten mit 30 Tagen).
@@ -182,6 +182,18 @@ def _bestand_pruefen(regel: str, p: dict[str, Any]) -> None:
         raise VorschlagUngueltig(
             f"{regel}: bei zeitraum_art Monat ist von monatserster und bis monatsletzter, nicht {von!r} und {bis!r}"
         )
+
+
+def _aenderungsnamen(g: GeprueftVorschlag) -> set[str]:
+    """Namen der Regeln im Vorschlag, bei Parameteränderungen auch ``Regel.Parameter``."""
+    namen: set[str] = set()
+    for a in g.aenderungen:
+        name = str(a.get("regel_name") or a["regel"]["name"])
+        namen.add(name)
+        if "parameter_alt" in a:
+            alt, neu = dict(a["parameter_alt"]), dict(a["parameter_neu"])
+            namen |= {f"{name}.{k}" for k in set(alt) | set(neu) if alt.get(k) != neu.get(k)}
+    return namen
 
 
 def _mehrere_aenderungen(g: GeprueftVorschlag) -> str:
@@ -894,13 +906,15 @@ def kontext_bauen(
     return kontext
 
 
-def _freigegebene_vorschlaege(conn: Verbindung, n: int = 12) -> list[dict[str, Any]]:
-    """Die jüngsten freigegebenen Regelvorschläge (Nummer, Anweisung, Regelsatz) für eine Rücknahme."""
+def _freigegebene_vorschlaege(conn: Verbindung, basis: str, n: int = 12) -> list[dict[str, Any]]:
+    """Die Vorschläge, die sich zurücknehmen lassen: freigegeben, angewendet und im aktuellen Stand. Andere stehen
+    nicht in der Liste, sonst rät das Modell eine davon (Probe e6: „Nimm Vorschlag undefined zurück“ traf uc3/26)."""
     zeilen = conn.execute(
         """SELECT id, rolle, typ, regelsatz_ziel, left(anweisung, 200) AS anweisung FROM meta.vorschlag
            WHERE status = 'freigegeben' AND angewendet_am IS NOT NULL AND typ <> 'code_datei'
+             AND regelsatz_ziel = %s
            ORDER BY id DESC LIMIT %s""",
-        (n,),
+        (basis, n),
     ).fetchall()
     return [dict(z) for z in zeilen]
 
@@ -917,15 +931,16 @@ def ruecknahme_pruefen(conn: Verbindung, vorschlag_id: int, basis: str) -> Gepru
         (vorschlag_id,),
     ).fetchone()
     if z is None or z["status"] != "freigegeben" or z["angewendet_am"] is None:
-        raise VorschlagUngueltig(f"Vorschlag uc3/{vorschlag_id} ist nicht freigegeben und angewendet")
+        raise VorschlagUngueltig(
+            f"Vorschlag {vorschlag_id} kann man nicht zurücknehmen: Er ist nicht freigegeben und nicht angewendet."
+        )
     if z["typ"] == "code_datei":
         raise VorschlagUngueltig(
             "Eine Code-Datei ändert keine Regel; zurücknehmen heißt, sie nicht mehr zu starten"
         )
     if str(z["regelsatz_ziel"]) != basis:
         raise VorschlagUngueltig(
-            f"Vorschlag uc3/{vorschlag_id} steht in {z['regelsatz_ziel']}, der aktuelle Stand ist {basis}; "
-            "zurückgenommen wird nur vom Stand aus, der ihn enthält"
+            f"Vorschlag {vorschlag_id} kann man hier nicht zurücknehmen: Er gehört nicht zum aktuellen Stand."
         )
     regeln = _regeln(conn, basis)
     aenderungen: list[dict[str, Any]] = []
@@ -969,6 +984,9 @@ _RUECKNAHME_WORT = re.compile(
 )
 
 
+_VORSCHLAG_NUMMER = re.compile(r"vorschlag\s*(?:uc3/|nr\.?\s*)?(\d+)", re.IGNORECASE)
+
+
 def ruecknahme_gemeint(anweisung: str) -> bool:
     """True, wenn die Anweisung eine Rücknahme ausdrücklich verlangt (zurücknehmen, rückgängig, wie vorher …)."""
     return bool(_RUECKNAHME_WORT.search(anweisung))
@@ -978,7 +996,13 @@ def ruecknahme_gemeint(anweisung: str) -> bool:
 #: 15 nicht mehr zählen“ die Rolle qs (Vorschlag an P13) und für „Monat 13 → Jänner“ qs (Rückfrage zu P04).
 #: Reihenfolge = Vorrang. Diktat-tauglich: Kleinschreibung, Zahlwörter.
 _WEICHE: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("qs", re.compile(r"anhalt|schwelle|prozent|warn|melde[nt]?\b|prüfregel|pruefregel", re.IGNORECASE)),
+    (
+        "qs",
+        re.compile(
+            r"anhalt|angehalten|schwelle|prozent|%|warn|melde[nt]?\b|prüfregel|pruefregel|prüfung|pruefung",
+            re.IGNORECASE,
+        ),
+    ),
     (
         "klassifikation",
         re.compile(
@@ -1031,7 +1055,7 @@ def agent_ausfuehren(
     basis = regelsatz_basis or produktions_regelsatz(conn)
     ergebnis.regelsatz_basis = basis
     modell_aufruf = complete or plattform_bruecke.lade_complete()
-    freigegeben = _freigegebene_vorschlaege(conn)
+    freigegeben = _freigegebene_vorschlaege(conn, basis)
     koordinator_inhalt = anweisung
     if freigegeben:
         koordinator_inhalt += "\nKontext (JSON): " + json.dumps(
@@ -1056,12 +1080,20 @@ def agent_ausfuehren(
             koordination.rueckfrage or "Welche Rolle ist gemeint? Bitte genauer beschreiben."
         )
         return ergebnis
+    if ruecknahme_gemeint(anweisung) and koordination.ruecknahme_von is None and not freigegeben:
+        ergebnis.rueckfrage = (
+            "Im aktuellen Stand gibt es keinen freigegebenen Vorschlag, den man zurücknehmen kann."
+        )
+        return ergebnis
 
     rolle = ROLLEN[koordination.rolle]
     if koordination.ruecknahme_von is not None and ruecknahme_gemeint(anweisung):
         ergebnis.rolle = rolle.name
+        # Nennt die Anweisung eine Nummer, gilt sie, nicht die Wahl des Modells.
+        genannt = _VORSCHLAG_NUMMER.search(anweisung)
+        ziel_vorschlag = int(genannt.group(1)) if genannt else koordination.ruecknahme_von
         try:
-            g = ruecknahme_pruefen(conn, koordination.ruecknahme_von, basis)
+            g = ruecknahme_pruefen(conn, ziel_vorschlag, basis)
         except VorschlagUngueltig as fehler:
             ergebnis.abgelehnt = str(fehler)
             return ergebnis
@@ -1077,6 +1109,7 @@ def agent_ausfuehren(
     versucht: set[str] = set()
     nachgefasst = False
     mehrere_bestaetigt = False
+    vor_nachfrage = ""
     while True:
         ergebnis.rolle = rolle.name
         versucht.add(rolle.name)
@@ -1182,7 +1215,9 @@ def agent_ausfuehren(
                         "wenn die Anweisung so nicht umsetzbar ist."
                         + (
                             f" Schlage {fehler.regel} nicht noch einmal vor. Soll etwas zusammengelegt oder "
-                            "ausgeschlossen werden: typ regel_neu, neue_regeln mit art gruppierung oder ausschluss."
+                            "ausgeschlossen werden: typ regel_neu, neue_regeln mit art gruppierung oder ausschluss. "
+                            "Steht die Anweisung schon so in der Regel, antworte mit einer Rückfrage, die das sagt, "
+                            "und ändere nichts anderes."
                             if isinstance(fehler, AendertNichts)
                             else ""
                         ),
@@ -1195,6 +1230,7 @@ def agent_ausfuehren(
                 # 21:50: „Alter am Ersten“ änderte auch geburtsmonat_13). Sind wirklich alle verlangt, kommt derselbe
                 # Vorschlag wieder und gilt.
                 mehrere_bestaetigt = True
+                vor_nachfrage = namen
                 ergebnis.korrekturen.append(f"Mehrere Änderungen, nachgefragt: {namen}")
                 nachrichten = [
                     *nachrichten,
@@ -1210,6 +1246,15 @@ def agent_ausfuehren(
             break
         if not umleiten:
             break
+    if vor_nachfrage:
+        # Was nach der Nachfrage wegfiel, steht offen da: der Mensch prüft vor der Freigabe, ob es gemeint war
+        # (Review 29: „Beamte und Kinder unter 15“ kann so still zu einer Regel schrumpfen).
+        weg = [n for n in vor_nachfrage.split(", ") if n not in _aenderungsnamen(g)]
+        if weg:
+            g = replace(
+                g,
+                begruendung=f"{g.begruendung} Im ersten Entwurf auch: {', '.join(weg)}; auf Nachfrage weggelassen.",
+            )
     return _anlegen(conn, ergebnis, rolle, g, probe_lieferung)
 
 

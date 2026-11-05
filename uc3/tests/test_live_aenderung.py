@@ -29,8 +29,10 @@ from statagent.agenten.koordinator import (
 )
 from statagent.agenten.regelaenderung import regelsatz_sicherstellen
 from statagent.agenten.vorschlag import (
+    KEINE_AENDERUNG_TEXT,
     VorschlagFehler,
     _geaenderte_codes,
+    diff_text,
     vorschlag_lesen,
     vorschlag_schema_einrichten,
 )
@@ -704,3 +706,132 @@ def test_aendert_nichts_nennt_die_regel_in_der_korrektur(live_conn: Verbindung) 
     assert erg.vorschlag_id is not None, erg.abgelehnt
     zweite_runde = [n for z, n in modell.aufrufe if z == "agent.klassifikation"][1]
     assert "Schlage R6_beschaeftigungskategorie nicht noch einmal vor" in zweite_runde[-1]["content"]
+
+
+@pytest.mark.parametrize("tag", ["tag:0", "tag:00", "tag:32", "tag:99"])
+def test_unmoeglicher_tag_ist_eine_meldung(live_conn: Verbindung, tag: str) -> None:
+    # Fängt (Review 29): tag:0 passierte die Prüfung und warf in zaehlung.py einen ValueError, Traceback vor der Jury.
+    antwort = _aendern("R2_R4_stichtag_eigene_lieferung", {"von": tag, "bis": tag})
+    erg = agent_ausfuehren(
+        live_conn, "Stichtag am Tag", complete=_modell("datenmanagement", antwort), probe_lieferung=MONAT
+    )
+    assert erg.vorschlag_id is None and erg.abgelehnt is not None and "passt nicht" in erg.abgelehnt
+
+
+@pytest.mark.parametrize(
+    "satz",
+    [
+        "Ein Monat wird schon angehalten, wenn in einem Bundesland mehr als 10 % fehlen.",
+        "Die Prüfung soll bei 2 Prozent melden.",
+    ],
+)
+def test_wort_weiche_kennt_angehalten_prozent_und_pruefung(satz: str) -> None:
+    assert rolle_nach_worten(satz) == "qs"
+
+
+def test_was_nach_der_nachfrage_wegfaellt_steht_in_der_begruendung(live_conn: Verbindung) -> None:
+    # Fängt (Review 29): „Beamte und Kinder unter 15“ schrumpft auf Nachfrage still zu einer Regel.
+    beide = _neu_mehrere(
+        ("ausschluss", "R8_ohne_beamte", {"merkmal": "qualifikation", "werte": ["Beamte"]}),
+        ("ausschluss", "R9_ohne_kinder", {"merkmal": "alter", "werte": ["0-14"]}),
+    )
+    nur_eine = _neu("ausschluss", "R8_ohne_beamte", {"merkmal": "qualifikation", "werte": ["Beamte"]})
+    erg = agent_ausfuehren(
+        live_conn, "Beamte und Kinder nicht zählen", complete=_modell("klassifikation", beide, nur_eine)
+    )
+    assert erg.vorschlag_id is not None, erg.abgelehnt
+    assert (
+        "Im ersten Entwurf auch: R9_ohne_kinder" in vorschlag_lesen(live_conn, erg.vorschlag_id).begruendung
+    )
+
+
+def test_aendert_nichts_erlaubt_die_ehrliche_rueckfrage(live_conn: Verbindung) -> None:
+    # Fängt (Review 29): „Alter am Monatsletzten“ steht schon so; die Korrektur darf nicht in eine fremde Änderung
+    # treiben, die Rolle sagt, dass es schon so ist.
+    gleich = _aendern("R5_alter", {"bezug": "bis"})
+    modell = _modell(
+        "datenmanagement", gleich, {"rueckfrage": "Das steht schon so in R5_alter. Was soll sich ändern?"}
+    )
+    erg = agent_ausfuehren(live_conn, "Alter am Monatsletzten rechnen", complete=modell)
+    assert erg.vorschlag_id is None and erg.rueckfrage is not None and "schon so" in erg.rueckfrage
+    zweite = [n for z, n in modell.aufrufe if z == "agent.datenmanagement"][1]
+    assert "antworte mit einer Rückfrage" in zweite[-1]["content"]
+
+
+def test_hinweis_wenn_sich_im_probemonat_nichts_aendert(live_conn: Verbindung) -> None:
+    antwort = _aendern("P15_bestand_vs_vormonat", {"schwelle": 0.03})
+    erg = agent_ausfuehren(
+        live_conn, "Anhalten ab 3 Prozent", complete=_modell("qs", antwort), probe_lieferung=MONAT
+    )
+    assert erg.vorschlag_id is not None, erg.abgelehnt
+    assert KEINE_AENDERUNG_TEXT in diff_text(vorschlag_lesen(live_conn, erg.vorschlag_id))
+
+
+def test_probe_rechnet_den_vormonat_wenn_der_monat_fortschreibung_braucht(conn: Verbindung) -> None:
+    # Fängt (Messung 22:40): in 2025-03 zeigte die Probe −1.470 bei einer reinen Altersänderung, weil die
+    # Fortgeschriebenen im neuen Regelsatz fehlten. Der Vormonat im Ziel bleibt nach dem Rückroll nicht stehen.
+    vorschlag_schema_einrichten(conn)
+    vormonat, monat = "2024-09", "2024-10"
+    lauf_ausfuehren(conn, vormonat, "v1", reihenfolge_pruefen=False)
+    lauf_ausfuehren(conn, monat, "v1", reihenfolge_pruefen=False)
+    with conn.transaction():
+        conn.execute(
+            "UPDATE meta.lauf SET fortgeschrieben = 5 WHERE lieferung = %s AND regelsatz = 'v1'", (monat,)
+        )
+    antwort = _aendern("R5_alter", {"max_plausibel": 111})
+    erg = agent_ausfuehren(conn, "Alter", complete=_modell("datenmanagement", antwort), probe_lieferung=monat)
+    assert erg.vorschlag_id is not None, erg.abgelehnt
+    laeufe = conn.execute("SELECT count(*) AS n FROM meta.lauf WHERE regelsatz = 'v2'").fetchone()
+    zeilen = conn.execute("SELECT count(*) AS n FROM bereinigt.abschnitt WHERE regelsatz = 'v2'").fetchone()
+    assert laeufe is not None and laeufe["n"] == 0 and zeilen is not None and zeilen["n"] == 0
+    assert vorschlag_lesen(conn, erg.vorschlag_id).probe[monat]["nachher"]["gesamt"] > 0
+
+
+def test_ruecknahme_liste_nur_aus_dem_aktuellen_stand(live_conn: Verbindung, repo: Path) -> None:
+    # Fängt (Probe e6): „Nimm Vorschlag undefined zurück“ traf uc3/26 aus dem Regelsatz ministerium.
+    conn = live_conn
+    erg = agent_ausfuehren(
+        conn, "Alter", complete=_modell("datenmanagement", _aendern("R5_alter", {"max_plausibel": 100}))
+    )
+    assert erg.vorschlag_id is not None
+    assert freigabe_ausfuehren(conn, erg.vorschlag_id, NAME, repo, freigeben=plattform_freigeben).angewendet
+    zweite = agent_ausfuehren(
+        conn,
+        "Alter",
+        complete=_modell("datenmanagement", _aendern("R5_alter", {"max_plausibel": 90})),
+        regelsatz_basis=None,
+    )
+    assert zweite.vorschlag_id is not None
+    assert freigabe_ausfuehren(
+        conn, zweite.vorschlag_id, NAME, repo, freigeben=plattform_freigeben
+    ).angewendet
+    modell = SequenzModell(
+        {"agent.koordinator": [{"rolle": "datenmanagement", "ruecknahme_von": erg.vorschlag_id}]}
+    )
+    r = agent_ausfuehren(conn, "Nimm die letzte Änderung zurück", complete=modell, regelsatz_basis=None)
+    inhalt = modell.aufrufe[0][1][1]["content"]
+    assert f'"id": {zweite.vorschlag_id}' in inhalt and f'"id": {erg.vorschlag_id},' not in inhalt
+    assert (
+        r.abgelehnt
+        == f"Vorschlag {erg.vorschlag_id} kann man hier nicht zurücknehmen: Er gehört nicht zum aktuellen Stand."
+    )
+
+
+def test_genannte_nummer_gilt_nicht_die_wahl_des_modells(live_conn: Verbindung, repo: Path) -> None:
+    conn = live_conn
+    erg = agent_ausfuehren(
+        conn, "Alter", complete=_modell("datenmanagement", _aendern("R5_alter", {"max_plausibel": 100}))
+    )
+    assert erg.vorschlag_id is not None
+    assert freigabe_ausfuehren(conn, erg.vorschlag_id, NAME, repo, freigeben=plattform_freigeben).angewendet
+    modell = SequenzModell({"agent.koordinator": [{"rolle": "datenmanagement", "ruecknahme_von": 999999}]})
+    r = agent_ausfuehren(
+        conn, f"Nimm Vorschlag {erg.vorschlag_id} zurück", complete=modell, regelsatz_basis=None
+    )
+    assert r.vorschlag_id is not None, r.abgelehnt
+
+
+def test_ohne_ruecknehmbaren_vorschlag_gibt_es_eine_rueckfrage(live_conn: Verbindung) -> None:
+    modell = SequenzModell({"agent.koordinator": [{"rolle": "datenmanagement", "auftrag": "x"}]})
+    r = agent_ausfuehren(live_conn, "Nimm Vorschlag undefined zurück", complete=modell)
+    assert r.vorschlag_id is None and r.rueckfrage is not None and "keinen freigegebenen" in r.rueckfrage
