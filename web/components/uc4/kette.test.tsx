@@ -62,7 +62,7 @@ it("gesperrt (403/405): ein Satz, keine Meldung je Station", async () => {
   fetchMit(() => new Response("", { status: 405 }));
   render(<Kette kette={["uc3", "uc2", "uc1"]} fragenOffen mitModell />);
   await userEvent.type(screen.getByLabelText("Ihre Frage"), "Frage{Enter}");
-  await waitFor(() => expect(screen.getAllByText("Fragen sind hier gerade nicht offen.").length).toBeGreaterThan(0));
+  await waitFor(() => expect(screen.getAllByText("Fragen sind hier gerade nicht offen.")).toHaveLength(1));
   expect(document.querySelectorAll('[data-zustand="fehlt"]')).toHaveLength(0);
 });
 

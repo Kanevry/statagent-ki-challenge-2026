@@ -269,10 +269,10 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
       )}
 
       <p role="status" aria-live="polite" className="sr-only">
-        {lauf.art === "laeuft" ? "Die Frage läuft durch die Kette." : lauf.art === "fertig" ? "Alle Stationen haben geantwortet." : lauf.art === "fehler" ? lauf.meldung : ""}
+        {lauf.art === "laeuft" ? "Die Frage läuft durch die Kette." : lauf.art === "fertig" ? "Alle Stationen haben geantwortet." : ""}
       </p>
 
-      {lauf.art === "fehler" && !lauf.stationen && <p className="font-sans text-16 text-ink">{lauf.meldung}</p>}
+      {lauf.art === "fehler" && !lauf.stationen && <p role="alert" className="font-sans text-16 text-ink">{lauf.meldung}</p>}
 
       <section aria-label="Stationen der Kette">
         <ol className={kette.length === 1 ? "grid max-w-2xl gap-6" : "grid gap-6 lg:grid-cols-3"}>
@@ -282,7 +282,7 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
         </ol>
       </section>
 
-      {lauf.art === "fehler" && lauf.stationen && <p className="font-sans text-16 text-ink">{lauf.meldung}</p>}
+      {lauf.art === "fehler" && lauf.stationen && <p role="alert" className="font-sans text-16 text-ink">{lauf.meldung}</p>}
       {lauf.art === "fertig" && (
         <p className="font-sans text-14 text-slate">
           Fertig in {sekunden(lauf.dauerMs)} s.{" "}
