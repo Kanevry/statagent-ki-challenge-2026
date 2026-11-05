@@ -1,0 +1,68 @@
+[project]
+name = "uc2"
+version = "0.1.0"
+description = "HealthPolicy Simulator (KI Challenge 2026, UC2): Belege, Akteure, Experte, Verhandlung"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+    "pyyaml>=6.0.2",
+    "psycopg[binary]>=3.2",
+    "numpy>=2.1",
+    "jsonschema>=4.23",
+    "plattform",
+]
+
+[project.optional-dependencies]
+# Nur auf Hosts, die Vektoren rechnen (m5: Korpus, M4: Abfrage). CI und Tests laufen ohne torch.
+einbettung = [
+    "sentence-transformers>=6.1.0",
+    "transformers>=5.22",
+    "torch>=2.9",
+]
+
+[tool.uv.sources]
+# E0-Kern (Modell-Schalter, Protokoll, Freigabe) aus dem Workspace
+plattform = { workspace = true }
+
+[project.scripts]
+uc2 = "uc2.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "types-PyYAML",
+    "types-jsonschema",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/uc2"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["sentence_transformers.*", "torch.*", "transformers.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "daten: braucht echte Daten außerhalb des Repos (svbox, data); CI läuft mit -m 'not daten'",
+]

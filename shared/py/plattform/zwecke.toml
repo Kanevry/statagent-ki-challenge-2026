@@ -1,0 +1,50 @@
+# Routing des Modell-Schalters (plattform.llm, Vertrag M).
+#
+# Je Zweck: vorzug (Provider ohne Argument und ohne LLM_PROVIDER), groesse (fast|chat), kette (Fallback-
+# Reihenfolge) und erlaubt (Provider, die ein Aufrufer anfordern darf; mock ist immer erlaubt).
+# Vorrang: Argument provider > LLM_PROVIDER > vorzug. Unbekannte Zwecke nutzen [standard].
+# UC3-Zwecke führen claude bewusst nicht in erlaubt: die Abgabe rechnet nur mit azure/mistral/ollama.
+
+[standard]
+vorzug = "azure"
+groesse = "fast"
+kette = ["azure", "mistral", "ollama"]
+erlaubt = ["azure", "mistral", "ollama"]
+
+[smoke]
+vorzug = "azure"
+groesse = "fast"
+kette = ["azure", "mistral", "ollama"]
+erlaubt = ["azure", "mistral", "ollama", "claude"]
+
+# UC3 StatAgent
+["qs.einstufung"]
+vorzug = "azure"
+groesse = "fast"
+kette = ["azure", "mistral", "ollama"]
+erlaubt = ["azure", "mistral", "ollama"]
+
+["agent.koordinator"]
+vorzug = "azure"
+groesse = "chat"
+kette = ["azure", "mistral", "ollama"]
+erlaubt = ["azure", "mistral", "ollama"]
+
+["frage.sql"]
+vorzug = "azure"
+groesse = "fast"
+kette = ["azure", "mistral", "ollama"]
+erlaubt = ["azure", "mistral", "ollama"]
+
+# UC1 / UC2 (Zusatz): claude als Qualitätsmodus erlaubt, Standard bleibt azure
+["uc1.lotse"]
+vorzug = "azure"
+groesse = "chat"
+kette = ["azure", "mistral", "ollama"]
+erlaubt = ["azure", "mistral", "ollama", "claude"]
+
+["uc2.panel"]
+vorzug = "azure"
+groesse = "chat"
+kette = ["azure", "mistral", "ollama"]
+erlaubt = ["azure", "mistral", "ollama", "claude"]
