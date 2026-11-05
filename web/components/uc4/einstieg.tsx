@@ -137,14 +137,17 @@ async function stelleFrage(frage: string): Promise<Zustand> {
   } catch {
     return { art: "fehler", meldung: "Keine Verbindung zum Server." };
   }
-  // Online lässt der Proxy bis zum Ratenlimit (#100) nur GET und HEAD durch.
+  // Sperrt der Proxy POST (403/405), gilt der Demo-Hinweis. 429 (Ratenlimit oder Tagesbudget, #100) bringt seinen
+  // Hinweis im Feld `fehler` mit.
   if (antwort.status === 403 || antwort.status === 405) return { art: "fehler", meldung: GESPERRT };
   const daten: unknown = await antwort.json().catch(() => null);
   if (!antwort.ok) {
     const meldung =
       daten && typeof daten === "object" && "fehler" in daten && typeof daten.fehler === "string"
         ? daten.fehler
-        : "Die Kette hat nicht geantwortet.";
+        : antwort.status === 429
+          ? "Gerade sind zu viele Fragen unterwegs. Bitte später noch einmal fragen."
+          : "Die Kette hat nicht geantwortet.";
     return { art: "fehler", meldung };
   }
   const geprueft = ergebnisSchema.safeParse(daten);

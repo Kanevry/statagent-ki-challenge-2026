@@ -8,6 +8,9 @@ Je Schritt genau eine ``Routerschritt``-Zeile in ``router.jsonl`` (neben ``model
 Modellaufrufe trägt): UC, Stufe ab 1, Hash der Frage, Dauer, Modell, Anzahl Belege und Zahlen, protokoll_id;
 nie Frage- oder Antworttext, bei einem Fehler nur dessen Grund. Nicht aus ``plattform/__init__.py`` importiert
 (R2).
+
+Die CLI ``frage`` prüft ohne ``--mock`` vorab das Tagesbudget von ``plattform.llm`` (#100): ist nichts frei,
+endet sie mit Exit 3 (``BUDGET_ERSCHOEPFT``) und ruft keinen Adapter.
 """
 
 from __future__ import annotations
@@ -38,6 +41,8 @@ _SCHREIBSPERRE = threading.Lock()
 
 ENTRY_POINT_GRUPPE = "kic.uc_antwort"
 STANDARD_KETTE: tuple[str, ...] = ("uc3", "uc2", "uc1")
+#: Exit-Code von ``frage``, wenn das Tagesbudget von ``plattform.llm`` verbraucht ist (Web-App: 429).
+BUDGET_ERSCHOEPFT = 3
 
 _REGISTRY: dict[str, Adapter] = {}
 
@@ -247,6 +252,18 @@ def main(argv: list[str] | None = None) -> int:
     frage.add_argument("--json", action="store_true", help="Ergebnis als JSON drucken")
     frage.add_argument("--mock", action="store_true", help="Mock-Adapter statt Registry und Entry-Points")
     args = parser.parse_args(argv)
+
+    # Erst hier laden: wer nur antwortform oder router importiert, zieht plattform.llm nicht nach (R2).
+    if not args.mock:
+        from .llm import budget_status
+
+        if budget_status()["frei"] == 0:
+            meldung = "Das Tageskontingent für Modellaufrufe ist aufgebraucht."
+            if args.json:
+                print(json.dumps({"fehler": "budget_erschoepft", "meldung": meldung}, ensure_ascii=False))
+            else:
+                print(meldung, file=sys.stderr)
+            return BUDGET_ERSCHOEPFT
 
     ergebnis = durchreichen(args.frage, adapter=mock_adapter() if args.mock else None)
     if args.json:
