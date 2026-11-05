@@ -227,3 +227,23 @@ def test_vertrag_ucantwort(gerechnet: Verbindung, frage: str) -> None:
     antwortform = pytest.importorskip("plattform.antwortform")
     antwortform.UcAntwort.model_validate(uc4_antwort(gerechnet, frage))
     assert set(als_ucantwort(antwort_frage(gerechnet, frage))) >= {"text", "belege", "zahlen"}
+
+
+# Fängt (Owner 05.11., „Winter 2025 in Wien im Gesundheits- und Sozialwesen“): Bei einem Zeitraum über den ÖNACE-Wechsel
+# stand als einziger Satz der Station „Winter 2025 heißt hier …“; die Absage muss der erste Satz sein.
+def test_zeitraum_ueber_oenace_wechsel_absage_ist_der_erste_satz(
+    gerechnet: Verbindung, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from statagent import frage as weg
+
+    monkeypatch.setattr(
+        weg,
+        "_oenace_version",
+        lambda _conn, monat: ("2008", "2008-01") if monat < "2024-09" else ("2025", "2024-09"),
+    )
+    daten = uc4_antwort(
+        gerechnet,
+        "Wie viele Beschäftigte gab es von 08/2024 bis 09/2024 in Wien im Gesundheits- und Sozialwesen",
+    )
+    assert daten["zahlen"] == []
+    assert daten["text"].startswith("Die Wirtschaftsbereiche (ÖNACE) wurden neu eingeteilt")
