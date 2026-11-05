@@ -249,9 +249,10 @@ def _hat_laeufe(conn: Verbindung, regelsatz: str) -> bool:
 def ziel_bestimmen(conn: Verbindung, basis: str, gewuenscht: str | None = None) -> str:
     """Ziel-Regelsatz einer Zählregel-Änderung; das entscheidet der Code, nicht das Modell.
 
-    Ein Regelsatz mit Läufen oder freigegebenen Regeln (v1, v2 der Abgabe) ändert sich nie in place: das Ziel ist
-    dann der nächste freie v<Zahl>. Nur ein bestehender Entwurf (Regelsatz ohne Läufe, nicht die Basis) darf weitere
-    Änderungen sammeln, wenn die Anweisung ihn ausdrücklich nennt (so entstand v2 aus Auftrag 1 und 2).
+    Ein Regelsatz mit Läufen (v1, v2 der Abgabe) ändert sich nie in place: das Ziel ist dann der nächste freie
+    v<Zahl>. Nur ein bestehender Entwurf (Regelsatz ohne Läufe, nicht die Basis, auch mit schon freigegebenen
+    Änderungen) darf weitere Änderungen sammeln, wenn die Anweisung ihn ausdrücklich nennt (so entstand v2 aus
+    Auftrag 1 und 2). Beim Freigeben prüft anwenden.ziel_gesperrt das noch einmal.
     """
     if (
         gewuenscht

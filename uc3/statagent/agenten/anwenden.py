@@ -17,6 +17,7 @@ genau dem freigegebenen entspricht (Technische Regel 6d).
 from __future__ import annotations
 
 import ast
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -93,6 +94,26 @@ def datei_ablegen(v: Vorschlag, repo_pfad: Path) -> bool:
     return True
 
 
+def ziel_gesperrt(conn: Verbindung, v: Vorschlag) -> str | None:
+    """Grund, warum die Regeländerung nicht in ihren Ziel-Regelsatz darf, sonst None.
+
+    Ein Zählregelsatz mit gerechneten Monaten (v1, v2 der Abgabe) ändert sich nie in place; das prüft der
+    Koordinator beim Vorschlagen, und hier noch einmal beim Freigeben, weil ein alter offener Vorschlag sein
+    Ziel aus einer Zeit vor den Läufen haben kann (Zweitmeinung zu #80).
+    """
+    if v.typ == "code_datei" or not re.fullmatch(r"v\d+", v.regelsatz_ziel):
+        return None
+    z = conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM meta.lauf WHERE regelsatz = %s) AS da", (v.regelsatz_ziel,)
+    ).fetchone()
+    if z is not None and z["da"]:
+        return (
+            f"Regelsatz {v.regelsatz_ziel} hat gerechnete Monate und ändert sich nicht mehr; der Vorschlag ist älter "
+            "als diese Läufe. Bitte die Anweisung neu stellen (das Ziel wird dann ein neuer Regelsatz)."
+        )
+    return None
+
+
 def anwenden(conn: Verbindung, vorschlag_id: int, *, repo_pfad: Path | None = None) -> Vorschlag:
     """Wendet einen freigegebenen Vorschlag an (eigene Transaktion, wiederholbar).
 
@@ -106,6 +127,8 @@ def anwenden(conn: Verbindung, vorschlag_id: int, *, repo_pfad: Path | None = No
             raise VorschlagFehler(f"Vorschlag uc3/{v.id} ist {v.status}; angewendet wird nur nach Freigabe")
         if v.angewendet_am is not None:
             return v
+        if (grund := ziel_gesperrt(conn, v)) is not None:
+            raise VorschlagFehler(grund)
         if v.typ == "code_datei":
             if repo_pfad is None:
                 raise VorschlagFehler("Code-Dateien brauchen den Repo-Pfad")
@@ -158,6 +181,8 @@ def freigabe_ausfuehren(
     v = vorschlag_lesen(conn, vorschlag_id)
     if v.status != "offen":
         raise VorschlagFehler(f"Vorschlag uc3/{v.id} ist bereits {v.zustand}")
+    if (grund := ziel_gesperrt(conn, v)) is not None:
+        raise VorschlagFehler(grund)  # vor dem Commit: nichts wird freigegeben
     protokoll_id = _bereit_fuer_plattform(conn, v)
     funktion = freigeben or plattform_bruecke.lade_freigabe()
 

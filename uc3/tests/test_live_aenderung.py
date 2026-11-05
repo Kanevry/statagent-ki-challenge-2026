@@ -27,7 +27,7 @@ from statagent.agenten.koordinator import (
     ziel_bestimmen,
 )
 from statagent.agenten.regelaenderung import regelsatz_sicherstellen
-from statagent.agenten.vorschlag import vorschlag_lesen, vorschlag_schema_einrichten
+from statagent.agenten.vorschlag import VorschlagFehler, vorschlag_lesen, vorschlag_schema_einrichten
 from statagent.db import Verbindung
 from statagent.lauf import lauf_ausfuehren
 from statagent.regeln import regeln_laden, regelstand
@@ -446,3 +446,25 @@ def test_gruppierung_nach_kategorie_heisst_qualifikation(live_conn: Verbindung) 
     assert erg.vorschlag_id is not None, erg.abgelehnt
     regel = vorschlag_lesen(live_conn, erg.vorschlag_id).aenderungen[0]["regel"]
     assert regel["parameter"]["merkmal"] == "qualifikation"
+
+
+def test_alter_vorschlag_mit_ziel_eines_gerechneten_regelsatzes_wird_nicht_freigegeben(
+    live_conn: Verbindung, repo: Path
+) -> None:
+    # Fängt (Zweitmeinung astra): ein offener Vorschlag mit Ziel v2 aus der Zeit vor den v2-Läufen hätte bei
+    # Freigabe v2, also die Abgabe, in place geändert.
+    conn = live_conn
+    erg = agent_ausfuehren(
+        conn,
+        "Live-Änderung",
+        complete=_modell("datenmanagement", _aendern("R5_alter", {"max_plausibel": 100})),
+    )
+    assert erg.vorschlag_id is not None and erg.regelsatz_ziel == "v2"
+    with conn.transaction():
+        regelsatz_sicherstellen(conn, "v2", "v1")
+    lauf_ausfuehren(conn, MONAT, "v2", reihenfolge_pruefen=False)
+    stand, kopf = _stand(conn, "v2"), git(repo, "rev-parse", "HEAD")
+    with pytest.raises(VorschlagFehler, match="gerechnete Monate"):
+        freigabe_ausfuehren(conn, erg.vorschlag_id, NAME, repo, freigeben=plattform_freigeben)
+    assert _stand(conn, "v2") == stand and git(repo, "rev-parse", "HEAD") == kopf
+    assert vorschlag_lesen(conn, erg.vorschlag_id).status == "offen"

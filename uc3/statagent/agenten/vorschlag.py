@@ -27,7 +27,7 @@ from statagent.regeln import eine, regeln_laden
 ERZEUGT_RELATIV = "uc3/erzeugt"
 DDL = konfig.DB_VERZEICHNIS / "140_vorschlag.sql"
 #: Merkmale, deren Summen die Probe zeigt (Zellen mit vielen Ausprägungen wie Alter bleiben außen vor).
-PROBE_MERKMALE = ("qualifikation", "geschlecht", "region")
+PROBE_MERKMALE = ("qualifikation", "geschlecht", "region", "oenace")
 #: Altersgruppen der Probe: macht Änderungen an R5_alter sichtbar (Geburtsmonat 13, Plausibilitätsgrenzen).
 ALTERSGRUPPEN = ((0, 14), (15, 24), (25, 34), (35, 44), (45, 54), (55, 64), (65, 74), (75, 999))
 
