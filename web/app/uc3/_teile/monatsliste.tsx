@@ -59,7 +59,7 @@ export function Monatsliste({
       </div>
 
       <table className="hidden w-full border-collapse md:table">
-        <caption className="sr-only">{`Beschäftigungsverhältnisse ${imZeitraum(zeitraumArtAus(monate[0]?.zeitraumArt))} je Monat`}</caption>
+        <caption className="sr-only">{`Beschäftigungsverhältnisse ${imZeitraum(zeitraumArtAus(zeilen[0]?.monat.zeitraumArt))} je Monat`}</caption>
         <thead>
           <tr>
             <th scope="col" className={kopf}>Monat</th>
