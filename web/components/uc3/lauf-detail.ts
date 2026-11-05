@@ -36,6 +36,9 @@ export interface Treffer {
 /** Felder aus meta.pruefung_treffer.details, die die Seite liest; alles andere bleibt unbeachtet. */
 export interface TrefferDetails {
   anteil?: number;
+  /** P15/P17: Wert dieses Monats und des Vormonats (bei P16 steht in „vormonat“ der Monat als Text). */
+  aktuell?: number;
+  vormonat?: number | string;
   rueckfrage?: string;
   auspraegungen?: { code: string; gliederung: string; aktuell: number; vormonat: number }[];
 }
@@ -333,6 +336,21 @@ export function trefferTitel(t: Pick<Treffer, "name" | "beschreibung" | "satz" |
   return erster || t.name;
 }
 
+/**
+ * Titel ohne die Klammer mit Messwerten (UI-Regie v1): Steht „({umfang})“ in der Satzvorlage, endet der Titel mit
+ * dem Satz davor, und die Messwerte stehen getrennt für die aufgeklappte Zeile.
+ */
+export function titelUndMesswerte(
+  t: Pick<Treffer, "name" | "beschreibung" | "satz" | "anzahl" | "umfang">,
+  lieferung: string,
+): { titel: string; messwerte: string | null } {
+  if (t.satz?.includes("({umfang})")) {
+    const titel = trefferTitel({ ...t, satz: t.satz.replace(/\s*\(\{umfang\}\)/, "") }, lieferung);
+    return { titel, messwerte: t.umfang?.trim() || null };
+  }
+  return { titel: trefferTitel(t, lieferung), messwerte: null };
+}
+
 /** Steht der Umfang schon im Titel (Vorlage mit {umfang}), wird er nicht noch einmal gezeigt. */
 export function umfangImTitel(t: Pick<Treffer, "satz">): boolean {
   return Boolean(t.satz?.includes("{umfang}"));
@@ -410,10 +428,46 @@ export function haltSatz(
         ? `${im} fehlt eine Gruppe ganz, die es im ${vm} noch gab. ${deshalb}`
         : `${im} fehlen ${formatZahl(n)} Gruppen ganz, die es im ${vm} noch gab. ${deshalb}`;
     }
-    case "zeilenzahl_vs_vormonat":
-      return `${im} weicht die Lieferung um ${formatZahl(n)} ${n === 1 ? "Zeile" : "Zeilen"} von der vorigen ab. ${deshalb}`;
+    case "zeilenzahl_vs_vormonat": {
+      const r = richtung(t);
+      const art = r === "kleiner" ? "weniger" : r === "groesser" ? "mehr" : null;
+      return art
+        ? `${im} hat die Lieferung ${formatZahl(n)} ${n === 1 ? "Zeile" : "Zeilen"} ${art} als die vorige. ${deshalb}`
+        : `${im} weicht die Lieferung um ${formatZahl(n)} ${n === 1 ? "Zeile" : "Zeilen"} von der vorigen ab. ${deshalb}`;
+    }
     default:
       return `${im} hält die Prüfung „${trefferTitel(t, lieferung).replace(/\.$/, "")}“ den Monat an.`;
+  }
+}
+
+/** Richtung einer Mengen-Prüfung aus details (aktuell gegen vormonat), sonst null. */
+function richtung(t: { details?: TrefferDetails | null }): "kleiner" | "groesser" | null {
+  const a = t.details?.aktuell;
+  const v = t.details?.vormonat;
+  if (typeof a !== "number" || typeof v !== "number" || a === v) return null;
+  return a < v ? "kleiner" : "groesser";
+}
+
+/** Haltegrund in wenigen Wörtern für die Monatsübersicht („jedes fünfte fehlt“, „freie Dienstverträge fehlen“). */
+export function haltKurz(
+  t: Pick<Treffer, "art" | "anzahl"> & { details?: TrefferDetails | null },
+  fdCodes: readonly string[] = [],
+): string {
+  switch (t.art) {
+    case "verhaeltnisse_verschwunden": {
+      const anteil = anteilWort(t.details?.anteil);
+      return anteil?.startsWith("jedes") ? `${anteil} Beschäftigungsverhältnis fehlt` : "Beschäftigungsverhältnisse fehlen";
+    }
+    case "auspraegung_verschwunden": {
+      const g = fehlendeGruppen([t], fdCodes);
+      return g?.nurFreieDienstvertraege ? "freie Dienstverträge fehlen" : "ganze Gruppen fehlen";
+    }
+    case "bestand_vs_vormonat":
+      return "Bestand stark gesunken";
+    case "zeilenzahl_vs_vormonat":
+      return richtung(t) === "groesser" ? "Lieferung deutlich größer" : richtung(t) === "kleiner" ? "Lieferung deutlich kleiner" : "Lieferung deutlich anders";
+    default:
+      return "eine Prüfung hält an";
   }
 }
 
@@ -433,8 +487,14 @@ export function ausLieferung(lauf: Pick<Lauf, "gezaehlt" | "fortgeschrieben">): 
 }
 
 /** „425.151 gelesene Zeilen = 387.180 gezählt + 36.308 nicht gezählt + 1.663 ausgeschlossen.“ (ohne Übernommene) */
-export function abrechnungSatz(lauf: Pick<Lauf, "gelesen" | "gezaehlt" | "fortgeschrieben" | "nichtGezaehlt" | "ausgeschlossen">): string {
-  return `${formatZahl(lauf.gelesen)} gelesene Zeilen = ${formatZahl(ausLieferung(lauf))} gezählt + ${formatZahl(lauf.nichtGezaehlt)} nicht gezählt + ${formatZahl(lauf.ausgeschlossen)} ausgeschlossen.`;
+export function abrechnungSatz(
+  lauf: Pick<Lauf, "gelesen" | "gezaehlt" | "fortgeschrieben" | "nichtGezaehlt" | "ausgeschlossen">,
+  gehtAuf = true,
+): string {
+  const teile = `${formatZahl(ausLieferung(lauf))} gezählt + ${formatZahl(lauf.nichtGezaehlt)} nicht gezählt + ${formatZahl(lauf.ausgeschlossen)} ausgeschlossen`;
+  return gehtAuf
+    ? `${formatZahl(lauf.gelesen)} gelesene Zeilen = ${teile}.`
+    : `${formatZahl(lauf.gelesen)} gelesene Zeilen ≠ ${teile}. Die Abrechnung geht nicht auf.`;
 }
 
 export function determinismusSatz(d: Determinismus): string {
@@ -571,6 +631,7 @@ export function sqlDeterminismus(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "r
 export function sqlTreffer(lauf: Pick<Lauf, "id" | "quelleId">, t: Pick<Treffer, "regelId" | "ebene" | "belegSql">): string {
   const kopf = [
     "SELECT r.name, p.anzahl, p.umfang, coalesce(p.einstufung, 'nicht-erklaerbar') AS einstufung, p.massnahme, p.anhalten,",
+    "       p.details,",
     "       ARRAY(SELECT q.nr FROM meta.rueckfrage q WHERE q.antwort IS NULL",
     "             AND (q.nr = p.details ->> 'rueckfrage' OR q.regel_name = r.name)) AS offene_rueckfragen",
     "FROM meta.pruefung_treffer p JOIN meta.regel r ON r.id = p.regel_id",

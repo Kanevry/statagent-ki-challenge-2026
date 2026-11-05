@@ -1,293 +1,377 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Fliesstext, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
-import { HerkunftChip } from "@kic/ui/bausteine";
-import { datum } from "@/components/uc3/bericht";
-import { laufBeleg } from "@/components/uc3/beleg";
+import { Fliesstext, Leerzustand, Ueberschrift } from "@kic/ui/basis";
+import { formatZahl } from "@kic/ui/bausteine";
+import { BelegLink, StandPunkt } from "@/components/uc3/beleg-link";
+import { leseRegeln, REGEL_TYPEN, sqlRegeln, type Regel, type RegelTyp } from "@/components/uc3/bericht";
+import { DatenFehler } from "@/components/uc3/daten-fehler";
 import { leerSatz } from "@/components/uc3/db";
-import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import {
-  kategorieSaetze,
+  datumLang,
+  gegenueberSaetze,
+  gegenueberstellung,
   leseKlassifikationen,
-  qualifikationsZahlen,
-  regelSatz,
+  qualifikationsStaende,
+  regelKlartext,
   SQL_ALTERSGRUPPEN,
   SQL_BUNDESLAENDER,
   SQL_GESCHLECHT,
-  SQL_QUALIFIKATION_ZAHLEN,
   SQL_QUALIFIKATIONEN,
-  sqlAbschnittBestand,
   sqlAbschnitte,
+  sqlAbschnittUebergaenge,
   sqlKategorieAuftrag,
   sqlKategorieRegel,
-  sqlUebergaenge,
-  sqlWechselzahlen,
-  sqlZuordnungsregel,
-  uebergangsWorte,
-  wechselSatz,
-  wechselzahlen,
-  zaehleUebergangsWorte,
-  type Zuordnungsregel,
+  type Klassifikationsdaten,
 } from "@/components/uc3/klassifikation";
-import { Abschnittstabelle } from "./_teile/abschnittstabelle";
+import { monatName } from "@/components/uc3/monat";
+import { regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/navigation";
+import { alltag } from "@/components/uc3/sprache";
+import { Gegenueberstellung } from "./_teile/gegenueberstellung";
 
-// Klassifikationen (#18, Frame XlcSB): Branchen ÖNACE 2008 gegen 2025, wie gelieferte Codes zugeordnet werden und
-// die kleinen Code-Listen. Liest die UC3-Datenbank; ohne Datenbank zeigt die Seite den Leerzustand (HTTP 200).
+// Regeln und Klassifikationen (UI-Regie v1, #18): oben ÖNACE 2008 gegen 2025 als Gegenüberstellung nach Namen,
+// darunter die Qualifikationen je Regelsatz, dann alle Regeln nach Art (Anker #regeln, Ziel von
+// /uc3/berichte/regeln). Die kleinen Code-Listen liegen hinter „Weitere Listen“. Nur lesend; ohne Datenbank zeigt
+// jeder Teil seinen Leerzustand (HTTP 200).
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Klassifikationen · StatAgent" };
+export const metadata: Metadata = { title: "Regeln und Klassifikationen · StatAgent" };
 
-const UMSTEIGESCHLUESSEL = "Eine Tabelle, die sagt, welcher alte Code zu welchem neuen Code gehört.";
+type Props = { searchParams: Promise<{ regelsatz?: string | string[] }> };
 
-function Freigabe({ regel }: { regel: Zuordnungsregel }) {
-  if (!regel.freigegebenVon) return <Status art="warnung">noch ohne Freigabe</Status>;
-  const am = regel.freigegebenAm ? ` am ${datum(regel.freigegebenAm)}` : "";
-  return <Status art="ok">{`freigegeben von ${regel.freigegebenVon}${am}`}</Status>;
+const titel = "font-sans text-16 font-semibold text-ink";
+const textLink = "inline-flex min-h-11 items-center font-sans text-14 text-ink underline underline-offset-4 hover:text-gruen";
+
+function pfad(regelsatz: Regelsatz): string {
+  return `/uc3/klassifikationen${regelsatz === "v2" ? "?regelsatz=v2" : ""}#regeln`;
 }
 
-function Regelpunkt({ satz, name, status, children }: { satz: string; name?: string; status?: ReactNode; children: ReactNode }) {
+// ---------------------------------------------------------------------------------------------------------------
+// ÖNACE 2008 → 2025 und Qualifikationen
+
+function Branchen({ daten }: { daten: Klassifikationsdaten }) {
+  const zeilen = gegenueberstellung(daten.abschnitte, daten.abschnittUebergaenge);
+  const saetze = gegenueberSaetze(zeilen);
   return (
-    <li className="flex flex-col items-start gap-2 border-b border-line py-4">
-      <p className="max-w-3xl font-sans text-16 text-ink">{satz}</p>
-      {(name || status) && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          {name && <span className="break-all font-mono text-12 text-slate">{`Regel ${name}`}</span>}
-          {status}
+    <>
+      <header className="flex max-w-4xl flex-col gap-3">
+        <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
+          {saetze.haupt}
+        </Ueberschrift>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="font-sans text-16 text-slate">{saetze.unter}</span>
+          <span className="font-sans text-14 text-slate">
+            Neuen Namen und Teilung ordnet die Seite aus dem Umsteigeschlüssel zu: Nachfolger ist, wer mindestens ein
+            Viertel der Unterklassen bekommt.
+          </span>
+          <BelegLink
+            quelle="stat.klass_oenace, stat.uebergang"
+            verweis="Gezählt je Branchenname; neuer Name und Teilung aus dem Umsteigeschlüssel (Nachfolger mit mindestens 25 % der Unterklassen)"
+            sql={`-- Abschnitte beider Fassungen, daraus gleich und anderer Buchstabe je Name\n${sqlAbschnitte()}\n\n-- Umsteigeschlüssel je Abschnitt, daraus neuer Name und Teilung\n${sqlAbschnittUebergaenge()}`}
+          />
         </div>
-      )}
-      {children}
+      </header>
+
+      <section aria-labelledby="branchen-titel" className="flex flex-col gap-3">
+        <h2 id="branchen-titel" className={titel}>
+          Branchen 2008 und 2025
+        </h2>
+        <Gegenueberstellung zeilen={zeilen} />
+        <div className="flex max-w-4xl flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="font-sans text-14 text-slate">
+            {daten.abschnittUebergaenge.length > 0
+              ? "Neue Namen und Teilungen kommen aus dem Umsteigeschlüssel von Statistik Austria."
+              : "Der Umsteigeschlüssel von ÖNACE 2008 auf 2025 ist noch nicht geladen."}
+          </span>
+          <BelegLink quelle="stat.uebergang" sql={`${sqlAbschnitte()}\n\n${sqlAbschnittUebergaenge()}`} />
+        </div>
+      </section>
+    </>
+  );
+}
+
+function Qualifikationen({ daten }: { daten: Klassifikationsdaten }) {
+  const stand = daten.kategorieStand;
+  if (!stand) return null;
+  const staende = qualifikationsStaende(stand, daten.qualifikationen);
+  const sql = stand.auftrag ? `${sqlKategorieRegel(stand.regelsatz)}\n\n${sqlKategorieAuftrag(stand)}` : sqlKategorieRegel(stand.regelsatz);
+  return (
+    <section aria-labelledby="qualifikation-titel" className="flex max-w-4xl flex-col gap-2">
+      <h2 id="qualifikation-titel" className={titel}>
+        Qualifikationen je Regelsatz
+      </h2>
+      <ul className="flex flex-col">
+        {staende.map((s) => (
+          <li key={s.regelsatz} className="flex flex-col gap-1 border-b border-line py-3">
+            <p className="max-w-3xl font-sans text-16 text-ink">{s.satz}</p>
+            <div className="flex flex-wrap items-center gap-x-4">
+              {s.status && (
+                <StandPunkt
+                  stand={s.status}
+                  wort={s.freigabe ?? (s.status === "offen" ? "wartet auf Freigabe" : undefined)}
+                  className="text-slate"
+                />
+              )}
+              {s.auftrag && (
+                <Link href={`/uc3/freigaben/${s.auftrag.vorschlagId}`} className={textLink}>
+                  {`${s.auftrag.titel} ansehen`}
+                </Link>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        {staende.length > 1 && (
+          <span className="font-sans text-14 text-slate">
+            {`Die Monate sind mit Regelsatz ${stand.regelsatz} gerechnet. Regelsatz ${staende[1]!.regelsatz} zeigen Sie mit dem Umschalter auf der Seite `}
+            <Link href={uebersichtPfad(staende[1]!.regelsatz)} className="text-ink underline underline-offset-4 hover:text-gruen">
+              Monate
+            </Link>
+            .
+          </span>
+        )}
+        <BelegLink quelle="meta.regel" sql={sql} />
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Regeln
+
+const GRUPPEN: Record<RegelTyp, string> = {
+  einlese: "Einlesen",
+  zuordnung: "Zuordnen",
+  zaehl: "Zählen",
+  pruefung: "Prüfen",
+};
+
+function gueltigkeit(r: Regel): string {
+  return r.gueltigBis
+    ? `von ${monatName(r.gueltigAb)} bis ${monatName(r.gueltigBis)}`
+    : `ab der Lieferung ${monatName(r.gueltigAb)}`;
+}
+
+function Angabe({ wort, children }: { wort: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="font-sans text-12 text-slate">{wort}</dt>
+      <dd className="font-sans text-14 text-ink">{children}</dd>
+    </div>
+  );
+}
+
+function Regelpunkt({ regel }: { regel: Regel }) {
+  return (
+    <li id={regel.name} data-regel={regel.name} className="flex scroll-mt-24 flex-col gap-1 border-b border-line py-3">
+      <p className="max-w-3xl font-sans text-16 text-ink">{regelKlartext(regel.beschreibung)}</p>
+      <div className="flex flex-wrap items-center gap-x-4">
+        {regel.freigegebenVon ? (
+          <StandPunkt
+            stand="freigegeben"
+            wort={`freigegeben von ${regel.freigegebenVon}${regel.freigegebenAm ? ` am ${datumLang(regel.freigegebenAm)}` : ""}`}
+            className="text-slate"
+          />
+        ) : (
+          <StandPunkt stand="offen" wort="noch ohne Freigabe" className="text-slate" />
+        )}
+        <details className="group">
+          <summary className="inline-flex min-h-11 cursor-pointer list-none items-center font-sans text-14 text-slate underline decoration-line underline-offset-4 hover:text-ink [&::-webkit-details-marker]:hidden">
+            Begründung und Grundlage
+          </summary>
+          <dl className="mb-2 flex max-w-3xl flex-col gap-2 border-l border-line pl-4">
+            <Angabe wort="Ganze Regel">{alltag(regel.beschreibung)}</Angabe>
+            <Angabe wort="Begründung">{alltag(regel.begruendung)}</Angabe>
+            <Angabe wort="Grundlage">{alltag(regel.grundlage)}</Angabe>
+            <Angabe wort="Gilt">{gueltigkeit(regel)}</Angabe>
+            <Angabe wort="Name in der Datenbank">{regel.name}</Angabe>
+          </dl>
+        </details>
+      </div>
     </li>
   );
 }
 
-function Liste({ satz, sql, quelle, children }: { satz: string; sql: string; quelle: string; children: ReactNode }) {
+function RegelsatzWahl({ aktiv }: { aktiv: Regelsatz }) {
+  const punkte: Array<[Regelsatz, string]> = [
+    ["v1", "Regelsatz v1: nach der Fachbeschreibung."],
+    ["v2", "Regelsatz v2: mit den freigegebenen Änderungsaufträgen."],
+  ];
   return (
-    <details className="border-b border-line py-3">
-      <summary className="cursor-pointer font-sans text-16 text-ink underline-offset-4 hover:underline">{satz}</summary>
-      <div className="mt-3 flex flex-col items-start gap-3">
-        {children}
-        <HerkunftChip quelle={quelle} sql={sql} />
-      </div>
-    </details>
+    <nav aria-label="Regelsatz" className="flex items-center gap-2 font-sans text-14 text-slate">
+      <span>Regelsatz</span>
+      <ul className="flex overflow-hidden rounded-md border border-line">
+        {punkte.map(([wert, erklaerung]) => (
+          <li key={wert}>
+            <Link
+              href={pfad(wert)}
+              title={erklaerung}
+              aria-current={wert === aktiv ? "page" : undefined}
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center px-3 ${wert === aktiv ? "bg-ink text-white" : "text-ink hover:bg-paper"}`}
+            >
+              {wert}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
-const codeZelle = "font-mono text-14 text-ink tabular-nums";
-
-/** Häufigster Wert einer Liste, bei Gleichstand der zuerst gesehene; `null` bei leerer Liste. */
-function haeufigster(werte: readonly string[]): string | null {
-  const zaehlung = new Map<string, number>();
-  for (const w of werte) zaehlung.set(w, (zaehlung.get(w) ?? 0) + 1);
-  let bester: string | null = null;
-  for (const [w, n] of zaehlung) if (bester === null || n > (zaehlung.get(bester) ?? 0)) bester = w;
-  return bester;
-}
-
-export default async function Klassifikationen() {
-  const lesung = await leseKlassifikationen();
-
-  if (!lesung.ok || lesung.daten.abschnitte.length === 0) {
-    return (
-      <>
-        <Ueberschrift stufe={2} als="h1">
-          Klassifikationen
-        </Ueberschrift>
-        <Leerzustand
-          satz={lesung.ok ? "Die Code-Listen sind noch nicht geladen. Sie kommen mit dem Startpaket in die Datenbank." : leerSatz(lesung.grund)}
-        />
-      </>
-    );
-  }
-
-  const { abschnitte, uebergaenge, regeln, bestand, bundeslaender, geschlechter, qualifikationen, altersgruppen, kategorieStand } =
-    lesung.daten;
-  const zahlen = wechselzahlen(abschnitte);
-  const nameNeu = (code: string) => abschnitte.find((a) => a.code === code)?.neu?.bezeichnung;
-  const umsteiger2025 = uebergaenge.filter((u) => u.versionNeu === "2025").length;
-  const worte2003 = uebergangsWorte(uebergaenge.filter((u) => u.versionAlt === "2003" && u.versionNeu === "2008"));
-  const zahl2003 = zaehleUebergangsWorte(worte2003);
-  const aufgeteilt2003 = worte2003.filter((w) => w.wort === "aufgeteilt");
-  // Ziel der zusammengelegten 2003er Codes aus stat.uebergang, nicht als Konstante (Review !51 Runde 2, Punkt 4).
-  const ziel2003 = haeufigster(worte2003.filter((w) => w.wort === "zusammengelegt").flatMap((w) => w.ziele));
-  const qZahlen = qualifikationsZahlen(qualifikationen);
-  const kategorie = kategorieStand ? kategorieSaetze(kategorieStand, qualifikationen, bestand?.alt.regelsatz ?? null) : null;
-  const ersteGruppe = altersgruppen[0];
-  const bekannteGruppen = altersgruppen.filter((g) => g.von >= 0);
+async function Regeln({ regelsatz }: { regelsatz: Regelsatz }) {
+  const lesung = await leseRegeln(regelsatz);
+  const regeln = lesung.ok ? lesung.daten : [];
+  const freigegeben = regeln.filter((r) => r.freigegebenVon).length;
+  const freigabe =
+    freigegeben === regeln.length
+      ? "Alle sind mit Namen freigegeben."
+      : freigegeben === 0
+        ? "Noch keine ist mit Namen freigegeben."
+        : `${formatZahl(freigegeben)} davon ${freigegeben === 1 ? "ist" : "sind"} mit Namen freigegeben.`;
 
   return (
-    <>
-      <header className="flex max-w-4xl flex-col gap-4">
-        <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
-          {wechselSatz(zahlen)}
+    <section id="regeln" aria-labelledby="regeln-titel" className="flex max-w-4xl scroll-mt-24 flex-col gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <Ueberschrift stufe={3} als="h2" id="regeln-titel">
+          Regeln
         </Ueberschrift>
-        <HerkunftChip quelle="stat.klass_oenace" sql={sqlWechselzahlen()} />
-        <Fliesstext>
-          {`Bis Dezember 2024 gilt ÖNACE 2008. ${zahlen.verschoben} Abschnitte heißen gleich, tragen aber einen anderen Buchstaben, ${zahlen.neu} sind neu zugeschnitten. Wir vergleichen die Abschnitte über ihren Namen, nicht über den Buchstaben.`}
-        </Fliesstext>
-      </header>
+        <RegelsatzWahl aktiv={regelsatz} />
+      </div>
+      {regeln.length === 0 ? (
+        <Leerzustand
+          satz={lesung.ok ? `Für den Regelsatz ${regelsatz} ist noch keine Regel angelegt.` : leerSatz(lesung.grund)}
+        />
+      ) : (
+        <>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <Fliesstext className="max-w-3xl">
+              {`${formatZahl(regeln.length)} Regeln bestimmen in Regelsatz ${regelsatz}, wie wir einlesen, zuordnen, zählen und prüfen. ${freigabe} Jede Regel steht in der Datenbank, nicht im Programmcode.`}
+            </Fliesstext>
+            <BelegLink quelle="meta.regel" regelstand={`Regelsatz ${regelsatz}`} sql={sqlRegeln(regelsatz)} />
+          </div>
+          {REGEL_TYPEN.map((typ) => {
+            const gruppe = regeln.filter((r) => r.typ === typ);
+            if (gruppe.length === 0) return null;
+            return (
+              <details key={typ} className="group border-b border-line">
+                <summary className="flex min-h-11 cursor-pointer list-none items-baseline gap-2 py-3 font-sans text-16 font-semibold text-ink [&::-webkit-details-marker]:hidden">
+                  <h3 id={`gruppe-${typ}`} className="font-sans text-16 font-semibold text-ink">
+                    {GRUPPEN[typ]}
+                  </h3>
+                  <span className="font-normal tabular-nums text-slate">{`${formatZahl(gruppe.length)} ${gruppe.length === 1 ? "Regel" : "Regeln"}`}</span>
+                  <span aria-hidden="true" className="ml-auto text-slate transition-transform group-open:rotate-90">
+                    ›
+                  </span>
+                </summary>
+                <ul className="flex flex-col pb-2">
+                  {gruppe.map((r) => (
+                    <Regelpunkt key={r.id} regel={r} />
+                  ))}
+                </ul>
+              </details>
+            );
+          })}
+        </>
+      )}
+    </section>
+  );
+}
 
-      <Begriffsliste
-        worte={["Klassifikation", "ÖNACE", "Klassifikationswechsel", "Regel"]}
-        weitere={[{ wort: "Umsteigeschlüssel", erklaerung: UMSTEIGESCHLUESSEL }]}
-        label="Begriffe auf dieser Seite"
-        className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4"
-      />
+// ---------------------------------------------------------------------------------------------------------------
+// Weitere Listen
 
-      <section aria-labelledby="wechsel-titel" className="flex flex-col gap-4">
-        <Ueberschrift stufe={3} als="h2" id="wechsel-titel">
-          Mit dem Klassifikationswechsel steht dieselbe Branche oft unter einem anderen Buchstaben.
-        </Ueberschrift>
-        <Fliesstext className="max-w-3xl">
-          {umsteiger2025 === 0
-            ? "In der Datenbank liegt noch kein Umsteigeschlüssel von ÖNACE 2008 auf 2025. Deshalb rechnen wir Branchenzahlen nicht um: Über den Jahreswechsel vergleichen wir nur die Summe, die Bundesländer und das Geschlecht."
-            : "Über den Jahreswechsel vergleichen wir Branchen nur mit dem Umsteigeschlüssel. Die Summe, die Bundesländer und das Geschlecht bleiben direkt vergleichbar."}
-        </Fliesstext>
-        <div className="flex flex-wrap gap-2">
-          <HerkunftChip quelle="stat.klass_oenace" sql={sqlAbschnitte()} />
-          {bestand &&
-            [bestand.alt, bestand.neu].map((lauf) => (
-              <HerkunftChip key={lauf.lieferung} {...laufBeleg(lauf, { sql: sqlAbschnittBestand(bestand.alt, bestand.neu) })} />
-            ))}
-        </div>
-        {bestand && (
-          <Fliesstext groesse={14} ton="gedaempft">
-            Die Zahlen sind Beschäftigungsverhältnisse am Stichtag, jeweils aus dem maßgeblichen Lauf des Monats. Je Monat nennt ein Beleg Lieferung, Regelstand und Lauf.
-          </Fliesstext>
-        )}
-        <Abschnittstabelle zeilen={abschnitte} bestand={bestand?.werte ?? null} />
-      </section>
+function Liste({ titel: name, quelle, sql, children }: { titel: string; quelle: string; sql: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2 border-b border-line py-3 last:border-b-0">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+        <h3 className="font-sans text-14 font-semibold text-ink">{name}</h3>
+        <BelegLink quelle={quelle} sql={sql} />
+      </div>
+      {children}
+    </div>
+  );
+}
 
-      <section aria-labelledby="zuordnung-titel" className="flex flex-col gap-2">
-        <Ueberschrift stufe={3} als="h2" id="zuordnung-titel">
-          Jeden gelieferten Code ordnen wir nach einer Regel zu, auch leere und unbekannte.
-        </Ueberschrift>
-        <ul className="flex flex-col">
-          {regeln.map((regel) => (
-            <Regelpunkt key={regel.id} satz={regelSatz(regel, nameNeu)} name={regel.name} status={<Freigabe regel={regel} />}>
-              <HerkunftChip quelle="stat.quellzuordnung" sql={sqlZuordnungsregel(regel.id)} />
-              {regel.zuordnungen.some((z) => z.geliefert.startsWith("D") && z.geliefert.length === 2) &&
-                worte2003.length > 0 && (
-                  <>
-                    <Fliesstext groesse={14} ton="gedaempft" className="max-w-3xl">
-                      {`Laut Umsteigeschlüssel von ÖNACE 2003 auf 2008 gehen ${zahl2003.zusammengelegt} dieser Codes ganz in ${ziel2003 ?? "einen Abschnitt"} auf.${
-                        aufgeteilt2003.length > 0
-                          ? ` ${aufgeteilt2003.map((w) => `${w.codeAlt} ist auf ${w.ziele.join(" und ")} aufgeteilt`).join(", ")}. Wir zählen ${aufgeteilt2003.length === 1 ? "ihn" : "sie"} nach der Zuordnungsregel unter ${haeufigster(regel.zuordnungen.filter((z) => z.geliefert.startsWith("D") && z.geliefert.length === 2).map((z) => z.code)) ?? "dem zugeordneten Abschnitt"}.`
-                          : ""
-                      }`}
-                    </Fliesstext>
-                    <HerkunftChip quelle="stat.uebergang" sql={sqlUebergaenge()} />
-                  </>
-                )}
-            </Regelpunkt>
-          ))}
-          {kategorieStand && kategorie && (
-            <Regelpunkt satz={kategorie.regel} name={kategorieStand.regelName}>
-              <div className="flex flex-wrap gap-2">
-                <HerkunftChip quelle="meta.regel" sql={sqlKategorieRegel(kategorieStand.regelsatz)} />
-                <HerkunftChip quelle="stat.klass_qualifikation" sql={SQL_QUALIFIKATION_ZAHLEN} />
-              </div>
-              {kategorie.auftrag && kategorieStand.auftrag && (
-                <div className="flex flex-col items-start gap-2">
-                  <Status art={kategorieStand.auftrag.status === "offen" ? "warnung" : kategorieStand.auftrag.status === "freigegeben" ? "ok" : "info"}>
-                    {kategorieStand.auftrag.status === "offen"
-                      ? "Auftrag wartet auf Freigabe"
-                      : kategorieStand.auftrag.status === "freigegeben"
-                        ? `Freigegeben als Regelsatz ${kategorieStand.auftrag.regelsatzZiel}`
-                        : "Auftrag abgelehnt"}
-                  </Status>
-                  <p className="max-w-3xl font-sans text-16 text-ink">{kategorie.auftrag}</p>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <HerkunftChip quelle="meta.vorschlag" sql={sqlKategorieAuftrag(kategorieStand)} />
-                    <Link
-                      href={`/uc3/freigaben/${kategorieStand.auftrag.vorschlagId}`}
-                      className="inline-flex min-h-11 items-center font-sans text-14 font-semibold text-gruen underline underline-offset-4"
-                    >
-                      Auftrag und Probe ansehen
-                    </Link>
-                  </div>
-                </div>
-              )}
-              {kategorie.zahlen && bestand && (
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <Fliesstext groesse={14} ton="gedaempft">
-                    {kategorie.zahlen}
-                  </Fliesstext>
-                  <HerkunftChip {...laufBeleg(bestand.alt, { sql: sqlAbschnittBestand(bestand.alt, bestand.neu) })} />
-                </div>
-              )}
-            </Regelpunkt>
-          )}
-        </ul>
-      </section>
-
-      <section aria-labelledby="listen-titel" className="flex max-w-3xl flex-col gap-2">
-        <Ueberschrift stufe={3} als="h2" id="listen-titel">
-          Die übrigen Listen ändern sich im Berichtszeitraum nicht.
-        </Ueberschrift>
-
-        <Liste
-          satz={`${bundeslaender.length} Codes für das Bundesland, davon einer für unbekannt.`}
-          sql={SQL_BUNDESLAENDER}
-          quelle="stat.klass_region"
-        >
-          <ul className="grid w-full grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2">
+function WeitereListen({ daten }: { daten: Klassifikationsdaten }) {
+  const { bundeslaender, geschlechter, qualifikationen, altersgruppen } = daten;
+  return (
+    <details className="max-w-4xl border-y border-line">
+      <summary className="flex min-h-11 cursor-pointer items-center font-sans text-16 text-ink underline-offset-4 hover:underline">
+        Weitere Listen: Bundesland, Geschlecht, Qualifikation und Alter
+      </summary>
+      <div className="flex flex-col pb-3">
+        <Liste titel={`Bundesland, ${bundeslaender.length} Codes`} quelle="stat.klass_region" sql={SQL_BUNDESLAENDER}>
+          <ul className="grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2">
             {bundeslaender.map((b) => (
               <li key={b.code} className="flex gap-3 font-sans text-14 text-ink">
-                <span className={`${codeZelle} w-6 text-right`}>{b.code}</span>
+                <span className="w-8 shrink-0 text-right tabular-nums text-slate">{b.code}</span>
                 <span>{b.bezeichnung}</span>
               </li>
             ))}
           </ul>
         </Liste>
-
-        <Liste
-          satz={`${geschlechter.length} Codes für das Geschlecht, davon einer für unbekannt.`}
-          sql={SQL_GESCHLECHT}
-          quelle="stat.klass_geschlecht"
-        >
+        <Liste titel={`Geschlecht, ${geschlechter.length} Codes`} quelle="stat.klass_geschlecht" sql={SQL_GESCHLECHT}>
           <ul className="flex flex-col gap-1">
             {geschlechter.map((g) => (
               <li key={g.code} className="flex gap-3 font-sans text-14 text-ink">
-                <span className={`${codeZelle} w-6`}>{g.code}</span>
+                <span className="w-8 shrink-0 text-right text-slate">{g.code}</span>
                 <span>{g.bezeichnung}</span>
               </li>
             ))}
           </ul>
         </Liste>
-
-        <Liste
-          satz={`${qZahlen.qualifikationen} Qualifikationen in ${qZahlen.kategorien} Beschäftigungskategorien, dazu ein Code für unbekannt.`}
-          sql={SQL_QUALIFIKATIONEN}
-          quelle="stat.klass_qualifikation"
-        >
-          <ul className="flex w-full flex-col">
+        <Liste titel={`Qualifikation, ${qualifikationen.length} Codes`} quelle="stat.klass_qualifikation" sql={SQL_QUALIFIKATIONEN}>
+          <ul className="flex flex-col gap-1">
             {qualifikationen.map((q) => (
-              <li key={q.code} className="flex flex-col border-b border-line py-2 last:border-b-0 sm:flex-row sm:gap-4">
-                <span className={`${codeZelle} sm:w-36 sm:shrink-0`}>{q.code}</span>
-                <span className="font-sans text-14 text-ink sm:flex-1">{q.bezeichnung}</span>
-                <span className="font-sans text-14 text-slate">{`Kategorie: ${q.kategorie}`}</span>
+              <li key={q.code} className="flex flex-col font-sans text-14 sm:flex-row sm:gap-3">
+                <span className="text-ink sm:flex-1">{q.bezeichnung}</span>
+                <span className="text-slate">{`Beschäftigungskategorie ${q.kategorie}`}</span>
               </li>
             ))}
           </ul>
         </Liste>
-
-        <Liste
-          satz={`${altersgruppen.length} Altersgruppen für den Bericht, von „${bekannteGruppen[0]?.gruppe ?? ""}“ bis „${bekannteGruppen.at(-1)?.gruppe ?? ""}“${ersteGruppe && ersteGruppe.von < 0 ? ", dazu unbekannt" : ""}.`}
-          sql={SQL_ALTERSGRUPPEN}
-          quelle="stat.klass_alter"
-        >
+        <Liste titel={`Alter, ${altersgruppen.length} Gruppen`} quelle="stat.klass_alter" sql={SQL_ALTERSGRUPPEN}>
           <ul className="flex flex-wrap gap-x-4 gap-y-1">
             {altersgruppen.map((g) => (
               <li key={g.gruppe} className="font-sans text-14 text-ink">
                 {g.gruppe}
-                {g.von >= 0 && g.von !== g.bis && (
-                  <span className="font-mono text-12 tabular-nums text-slate">{` (${g.von} bis ${g.bis} Jahre)`}</span>
-                )}
               </li>
             ))}
           </ul>
         </Liste>
-      </section>
+      </div>
+    </details>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+
+export default async function RegelnUndKlassifikationen({ searchParams }: Props) {
+  const regelsatz = regelsatzAus((await searchParams).regelsatz);
+  // Die Klassifikationen hängen nicht am Regelsatz; der Auftrag für die Qualifikationen geht von v1 aus.
+  const lesung = await leseKlassifikationen("v1");
+  if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
+  const daten = lesung.daten.abschnitte.length > 0 ? lesung.daten : null;
+
+  return (
+    <>
+      {daten ? (
+        <>
+          <Branchen daten={daten} />
+          <Qualifikationen daten={daten} />
+        </>
+      ) : (
+        <header className="flex max-w-4xl flex-col gap-3">
+          <Ueberschrift stufe={2} als="h1">
+            Regeln und Klassifikationen
+          </Ueberschrift>
+          <Leerzustand
+            satz="Die Code-Listen sind noch nicht geladen. Sie kommen mit dem Startpaket in die Datenbank."
+          />
+        </header>
+      )}
+      <Regeln regelsatz={regelsatz} />
+      {daten && <WeitereListen daten={daten} />}
     </>
   );
 }
