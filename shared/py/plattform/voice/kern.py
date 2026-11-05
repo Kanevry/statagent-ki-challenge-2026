@@ -64,7 +64,9 @@ MAX_GEMELDETE_ANRUFE = 1000
 _ROLLEN = frozenset({"system", "user", "assistant"})
 _MODELLNAME = "plattform-voice"
 _NICHT_EINGERICHTET = "Voice ist nicht eingerichtet."
-_BUDGET_MELDUNG = "Das Tagesbudget für Modellaufrufe ist erschöpft. Bitte morgen wieder oder per Text fragen."
+#: Gesprochen und als 429-Text, wenn das Tagesbudget von plattform.llm verbraucht ist (#100).
+BUDGET_MELDUNG = "Für heute sind keine Antworten mehr frei. Bitte morgen wieder fragen."
+_BUDGET_MELDUNG = BUDGET_MELDUNG
 
 #: Bekannte Vapi-Endgründe; ein Eintrag mit ``-`` am Ende gilt als Präfix. Alles andere wird ``sonstiges``.
 ENDGRUENDE: tuple[str, ...] = (
@@ -370,15 +372,21 @@ def voice_protokoll_datei() -> Path:
 
 
 def endgrund(roh: object) -> str | None:
-    """Endgrund aus der Allowlist ``ENDGRUENDE``; Unbekanntes oder lange Ziffernfolgen → ``sonstiges``."""
+    """Endgrund aus der Allowlist ``ENDGRUENDE``; Unbekanntes oder lange Ziffernfolgen → ``sonstiges``.
+
+    Präfix-Einträge (Ende ``-`` oder ``.``) ergeben nur ihre feste Kategorie ohne den Anhang, etwa
+    ``pipeline-error-openai-llm-failed`` → ``pipeline-error``: der Anhang ist frei und kommt nie ins Log.
+    """
     if roh is None or roh == "":
         return None
     wert = str(roh).strip().lower()
     if not _ENDGRUND_ZEICHEN.fullmatch(wert) or _LANGE_ZIFFERN.search(wert):
         return "sonstiges"
     for eintrag in ENDGRUENDE:
-        if wert == eintrag or (eintrag.endswith(("-", ".")) and wert.startswith(eintrag)):
+        if wert == eintrag:
             return wert
+        if eintrag.endswith(("-", ".")) and wert.startswith(eintrag):
+            return eintrag.rstrip("-.")
     return "sonstiges"
 
 
@@ -420,15 +428,18 @@ def _anrufende_schreiben(uc: VoiceUc, nachricht: Mapping[str, Any]) -> bool:
     ziel = voice_protokoll_datei()
     text = json.dumps(zeile, ensure_ascii=False, sort_keys=True) + "\n"
     with _PROTOKOLLSPERRE:
-        if call_id_hash is not None:
-            if call_id_hash in _GEMELDET or _schon_im_protokoll(ziel, call_id_hash):
-                return False
-            _GEMELDET[call_id_hash] = None
-            while len(_GEMELDET) > MAX_GEMELDETE_ANRUFE:
-                _GEMELDET.popitem(last=False)
+        if call_id_hash is not None and (
+            call_id_hash in _GEMELDET or _schon_im_protokoll(ziel, call_id_hash)
+        ):
+            return False
         ziel.parent.mkdir(parents=True, exist_ok=True)
         with ziel.open("a", encoding="utf-8") as datei:
             datei.write(text)
+        # Erst nach dem Schreiben merken: scheitert es, darf Vapis Wiederholung die Zeile nachliefern.
+        if call_id_hash is not None:
+            _GEMELDET[call_id_hash] = None
+            while len(_GEMELDET) > MAX_GEMELDETE_ANRUFE:
+                _GEMELDET.popitem(last=False)
     return True
 
 
@@ -438,6 +449,8 @@ def _anrufende_schreiben(uc: VoiceUc, nachricht: Mapping[str, Any]) -> bool:
 def _uc_aus_anfrage(koerper: Mapping[str, Any]) -> VoiceUc:
     metadaten = koerper.get("metadata")
     wert = metadaten.get("uc") if isinstance(metadaten, Mapping) else None
+    if wert == "uc4":
+        return "uc4"
     for bekannt in get_args(Uc):
         if wert == bekannt:
             uc: Uc = bekannt

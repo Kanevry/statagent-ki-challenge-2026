@@ -165,3 +165,25 @@ def test_smoke_ohne_assistant_id_oder_schluessel_ohne_anfrage(umgebung, monkeypa
     assert main(["smoke", "--assistant-id", "a"], transport=mitschnitt.transport()) == 1
     assert mitschnitt.anfragen == []
     assert "VAPI_API_KEY" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("mit_antwort", [False, True], ids=["nur-budget", "teil-und-budget"])
+def test_uc4_budget_mitten_in_der_kette_wird_gesagt(monkeypatch, mit_antwort):
+    """Fängt (Review !38, #119): fehlend mit BudgetErschoepft verworfen, der Anrufer hört OHNE_ANTWORT."""
+    from plattform import router
+    from plattform.voice import uc4
+
+    antworten = (
+        [UcAntwort(text="Es waren 387.180.", belege=[], zahlen=[], uc="uc3", modell="mock")]
+        if mit_antwort
+        else []
+    )
+    ergebnis = router.Ergebnis(
+        antworten=antworten, fehlend=[router.Fehlend(uc="uc2", grund="BudgetErschoepft")]
+    )
+    monkeypatch.setattr(uc4, "durchreichen", lambda frage, adapter=None: ergebnis)
+
+    gesagt = uc4.uc4_antwort()([{"role": "user", "content": "Wie viele?"}], None).text
+    assert gesagt.endswith(kern.BUDGET_MELDUNG)
+    assert OHNE_ANTWORT not in gesagt
+    assert ("387.180" in gesagt) is mit_antwort
