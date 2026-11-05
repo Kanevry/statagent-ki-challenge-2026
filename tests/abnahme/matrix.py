@@ -564,9 +564,6 @@ def abhaken(kid: str, belege: dict[str, dict], ja: bool) -> int:
     if k["state"] == "closed":
         print(f"{kid}: Issue geschlossen, Matrix-Eintrag genügt, kein Haken", file=sys.stderr)
         return 0
-    if k["art"] != "checkbox":
-        print(f"{kid}: Textkriterium, nichts abzuhaken (Kommentar genügt)", file=sys.stderr)
-        return 2
     s, b, grund = stand(k | {"nach_abgabe": False}, belege)
     if s != "bestanden" or not b:
         print(f"{kid}: Stand {s} ({grund}), nicht abgehakt", file=sys.stderr)
@@ -584,7 +581,7 @@ def abhaken(kid: str, belege: dict[str, dict], ja: bool) -> int:
     if not ja:
         print(f"Trockenlauf {kid}: abgehakt={k['abgehakt']}, Zeile {k['zeile'] + 1}\n{kommentar}")
         return 0
-    if not k["abgehakt"]:
+    if k["art"] == "checkbox" and not k["abgehakt"]:
         zeilen = issue["description"].split("\n")
         zeilen[k["zeile"]] = re.sub(r"\[ \]", "[x]", zeilen[k["zeile"]], count=1)
         glab_schreiben("PUT", f"issues/{iid}", "description", "\n".join(zeilen))
@@ -593,6 +590,9 @@ def abhaken(kid: str, belege: dict[str, dict], ja: bool) -> int:
         glab_schreiben("POST", f"issues/{iid}/notes", "body", kommentar)
     nach = glab_json(f"projects/{PROJEKT}/issues/{iid}")
     neu_k = next(x for x in kriterien(nach) if x["id"] == kid)
+    if k["art"] != "checkbox":
+        print(f"{kid}: Textkriterium, Beleg-Kommentar gesetzt (kein Haken)")
+        return 0
     andere = [x["wortlaut"] for x in kriterien(nach) if x["id"] != kid]
     vorher = [x["wortlaut"] for x in kriterien(issue) if x["id"] != kid]
     print(f"{kid}: abgehakt={neu_k['abgehakt']}, übrige Kriterien unverändert={andere == vorher}")
@@ -678,6 +678,17 @@ def main() -> int:
                 f.write(json.dumps(b, ensure_ascii=False) + "\n")
         print(f"{len(neu)} Belege angehängt")
         return 0
+    if a.befehl == "abhaken" and a.arg == "alle":
+        # Alle gültig bestandenen Kriterien in offenen Issues; wiederholbar (Marke je Beleg im Kommentar).
+        fehler = 0
+        for k in zeilen:
+            if k["state"] == "opened" and stand(k, belege)[0] == "bestanden":
+                try:
+                    fehler += abhaken(k["id"], belege, a.ja) != 0
+                except RuntimeError as e:
+                    print(f"{k['id']}: {e}", file=sys.stderr)
+                    fehler += 1
+        return 1 if fehler else 0
     if a.befehl == "abhaken":
         return abhaken(a.arg, belege, a.ja)
     if a.befehl == "befunde":
