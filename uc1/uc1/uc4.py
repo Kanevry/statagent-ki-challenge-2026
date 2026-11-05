@@ -75,7 +75,8 @@ class Kontext(BaseModel):
 # --------------------------------------------------------------------------------------------------------
 # Zahlen (ohne Modell)
 
-_ZAHL_IM_TEXT = re.compile(r"\d+(?:[.,]\d+)*")
+# Mit Vorzeichen, wenn es direkt vor der Zahl steht und nicht an einem Wort hängt („2025-03“ bleibt 2025, 03).
+_ZAHL_IM_TEXT = re.compile(r"(?:(?<![\w.,])[-−+])?\d+(?:[.,]\d+)*")
 
 
 def anzeige(zahl: Zahl) -> str:
@@ -93,7 +94,9 @@ def anzeige(zahl: Zahl) -> str:
 
 
 def _zahlen_in(text: str) -> list[str]:
-    return _ZAHL_IM_TEXT.findall(text)
+    """Zahlen samt Vorzeichen: „−“ und „-“ gelten gleich, „+“ fällt weg. Sonst bestand „+0,5“ im Text gegen
+    „-0,5“ im Kontext (Review !68)."""
+    return [z.replace("−", "-").lstrip("+") for z in _ZAHL_IM_TEXT.findall(text)]
 
 
 def erlaubte_zahlen(kontext: Kontext) -> set[str]:

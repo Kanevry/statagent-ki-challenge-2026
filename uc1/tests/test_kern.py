@@ -930,3 +930,17 @@ def test_formular_der_pva_nicht_bei_anderer_stelle(status: str) -> None:
     pva = kern.zustaendige_stelle("pflegegeld", "pva")
     assert pva is not None
     assert any("PAL080" in s for s in kern.naechste_schritte(["pflegegeld"], [pva], [], "de"))
+
+
+@pytest.mark.parametrize(
+    ("text", "belegt"),
+    [
+        ("Level 1 pays EUR 200 a month.", False),  # Ziffernfolge 200 steckt in 200,80, der Betrag nicht
+        ("Level 1 pays 200.80 euros a month.", True),
+        ("Level 2 pays 369.30 euros a month.", True),
+    ],
+)
+def test_englischer_betrag_muss_wertgleich_im_zitat_stehen(text: str, belegt: bool) -> None:
+    """Fängt „EUR 200“, das gegen „200,80 Euro“ bestand, weil nur Ziffernfolgen verglichen wurden
+    (Review !68)."""
+    assert kern.ziffern_belegt(text, BPGG_5) is belegt

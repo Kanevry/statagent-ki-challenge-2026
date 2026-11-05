@@ -196,3 +196,13 @@ def test_router_adapter_ohne_kontext_ohne_modell() -> None:
     modell = modell_mit("darf nicht kommen")
     a = uc4.router_adapter(FRAGE, [], modell=modell)
     assert a.text == uc4.KEIN_KONTEXT and a.zahlen == [] and modell.aufrufe == []
+
+
+def test_vorzeichen_der_zahl_zaehlt() -> None:
+    """Fängt „+0,5“ im Modellsatz gegen „-0,5“ im Kontext: Die Zahlenprüfung ignorierte das Vorzeichen."""
+    ktx = eine_zahl()
+    ktx["zahlen"][0]["wert"] = -0.5
+    a = uc4.antwort(FRAGE, ktx, modell=modell_mit("Die Wartezeit stieg um +0,5 Tage."))
+    assert "+0,5" not in a["text"] and "-0,5" in a["text"]
+    a = uc4.antwort(FRAGE, ktx, modell=modell_mit("Die Wartezeit änderte sich um -0,5 Tage."))
+    assert a["text"].startswith("Die Wartezeit änderte sich um -0,5 Tage.")

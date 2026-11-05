@@ -27,6 +27,7 @@ import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import date
+from decimal import Decimal
 from functools import cache
 from pathlib import Path
 from typing import Any, Literal, Protocol
@@ -540,14 +541,32 @@ def betrag_belegt(betrag: str, zitat: str) -> bool:
     return bool(wert) and wert in {z.replace(".", "") for z in _ZAHL.findall(normalisiere(zitat))}
 
 
-_ZIFFERN = re.compile(r"\d+")
+_ZAHLWORT = re.compile(r"\d+(?:[.,]\d+)*")
+
+
+def _zahlwerte(token: str) -> set[Decimal]:
+    """Mögliche Werte einer Zahl in deutscher oder englischer Schreibweise. „200,80“ und „200.80“ sind 200,8;
+    „1.200“ und „1,200“ können 1200 oder 1,2 sein. Bei Datumsangaben wie „01.01.2015“ zählen auch die
+    Teile."""
+    teile = re.split(r"[.,]", token)
+    if len(teile) == 1:
+        return {Decimal(token)}
+    werte = {Decimal(f"{''.join(teile[:-1])}.{teile[-1]}")}
+    if all(len(t) == 3 for t in teile[1:]):
+        werte.add(Decimal("".join(teile)))
+    if len(teile) >= 3:
+        werte.update(Decimal(t) for t in teile)
+    return werte
 
 
 def ziffern_belegt(text: str, zitat: str) -> bool:
-    """Steht jede Ziffernfolge der Aussage auch im Zitat? Für englische Aussagen, die keine Deckungsprüfung
-    haben: „200.80 euros“ und „200,80 Euro“ teilen die Folgen 200 und 80 (Review !68)."""
-    im_zitat = set(_ZIFFERN.findall(normalisiere(zitat)))
-    return all(z in im_zitat for z in _ZIFFERN.findall(text))
+    """Steht jede Zahl der Aussage wertgleich im Zitat? Für englische Aussagen, die keine Deckungsprüfung
+    haben. Ganze Zahlen statt Ziffernfolgen: „EUR 200“ ist nicht durch „200,80 Euro“ belegt, „200.80 euros“
+    schon (Review !68)."""
+    im_zitat: set[Decimal] = set()
+    for z in _ZAHLWORT.findall(normalisiere(zitat)):
+        im_zitat |= _zahlwerte(z)
+    return all(_zahlwerte(z) & im_zitat for z in _ZAHLWORT.findall(text))
 
 
 def zitat_gueltig(zitat: str, abschnitt_text: str) -> bool:
