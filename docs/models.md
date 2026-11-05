@@ -8,7 +8,7 @@ Zahlen rechnet nie ein Modell, sondern der Code ohne Sprachmodell. An das Modell
 | Provider | Einsatz | Modell (Standard) | Zugang |
 |---|---|---|---|
 | `azure` | Standard, Pflicht für die UC3-Agenten | `AZURE_OPENAI_MODEL` (gpt-5-4-mini) | OpenAI-kompatibler Endpunkt `/openai/v1` (we-16), `AZURE_API_KEY` |
-| `mistral` | EU-Zweitanbieter, Live-Austausch | `fast`: `MISTRAL_MODEL_FAST` (mistral-small-latest), `chat`: `MISTRAL_MODEL_CHAT` (mistral-large-latest) | `MISTRAL_BASE_URL`, `MISTRAL_API_KEY` |
+| `mistral` | EU-Zweitanbieter, Live-Austausch | `fast`: `MISTRAL_MODEL_FAST` (mistral-small-latest), `chat`: `MISTRAL_MODEL_CHAT` (mistral-large-latest; gemessen 05.11. 16:2x in der Modellliste neben `mistral-large-4`, beide antworten) | `MISTRAL_BASE_URL`, `MISTRAL_API_KEY` |
 | `ollama` | Offline-Notnagel (lokaler Rechner) | `OLLAMA_MODEL` (qwen3:8b) | `OLLAMA_BASE_URL` (http://localhost:11434/v1) |
 | `claude` | Nur UC1/UC2-Qualitätsmodus und Vergleiche, nie UC3 | `CLAUDE_MODEL` (claude-opus-5-5) | Claude-Code-CLI im Abo, ohne `ANTHROPIC_API_KEY` |
 | `mock` | Tests, CI, Jury ohne Netz | Fixtures `shared/py/plattform/fixtures/<zweck>.json` | keiner |
@@ -108,3 +108,11 @@ mit einem langen Text über `EMBEDDINGS_MAX_TOKEN` Token, jeweils mit Stapel und
 | 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | mps | langer Text (8533 Wörter, abgeschnitten) | 16 | 2048 | 1.2 s | 768 | 1 | 0.60 s | 1.7 | 2128 MiB (mps-Treiber nach dem Lauf) |
 
 Gemessen auf dem Apple M5 Max (Kopf 068d98e plus mps-Untergrenze), PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.7. Hochgerechnet brauchen 14.244 kurze Texte auf cpu rund 2,2 Minuten.
+
+### Smoke 2026-11-05T16:17:39+01:00
+
+| Zeit | Provider | Modell | Version | Dauer | Ergebnis |
+|---|---|---|---|---|---|
+| 2026-11-05T16:17:39+01:00 | azure | gpt-5-4-mini | gpt-5.4-mini-2026-03-17 | 0.9 s | ok ('bereit') |
+| 2026-11-05T16:17:39+01:00 | mistral | mistral-small-latest | mistral-small-latest | 1.4 s | ok ('bereit') |
+| 2026-11-05T16:17:39+01:00 | claude | claude-opus-5-5 | claude-opus-5-5 | 12.7 s | ok ('bereit') |
