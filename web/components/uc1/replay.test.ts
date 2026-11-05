@@ -30,3 +30,19 @@ describe("Replay pflege", () => {
     expect(antrag?.befuellt).toContainEqual({ feld: "Vorname", wert: "Maria" });
   });
 });
+
+describe("Aussagen der Aufnahme", () => {
+  // Fängt: eine Aussage, die eine Schwelle aus dem Wortlaut verschärft oder weglässt („ab 65 Stunden“ statt „mehr als
+  // 65 Stunden“, „bei sechs Monaten“ statt „voraussichtlich mindestens sechs Monate“); die Jury sieht sie online.
+  const EINSCHRAENKUNGEN = ["mehr als", "weniger als", "mindestens", "höchstens", "voraussichtlich"];
+  const aussagen = pflege.schritte.flatMap((s) => s.antwort.aussagen);
+
+  it("übernimmt jede Einschränkung aus dem Zitat in den Aussagetext", () => {
+    expect(aussagen.length).toBeGreaterThan(0);
+    for (const a of aussagen) {
+      for (const wort of EINSCHRAENKUNGEN) {
+        if (a.zitat.toLowerCase().includes(wort)) expect(a.text.toLowerCase(), `${a.text} | ${wort}`).toContain(wort);
+      }
+    }
+  });
+});

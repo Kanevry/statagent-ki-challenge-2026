@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 // Relativ statt "@/…": vitest.config.ts (E0) kennt den Alias nicht, so bleibt die Datei in Tests ladbar.
 import { findeRepoWurzel } from "../../lib/plattform/modell";
 import { abbilden, frageSchema, type FrageEingabe } from "./antwort";
-import { istHttps, sitzungCookie } from "./sitzung-cookie";
+import { istHttps, sitzungCookie, sitzungPasst } from "./sitzung-cookie";
 
 // POST /api/uc1/frage (#35): reicht die Situation an `lotse frage --json` weiter, als Subprozess mit argv (keine
 // Shell). web/ ruft nie ein Modell direkt. Nur für den Server: die Seite importiert antwort.ts, nie diese Datei.
@@ -105,6 +105,9 @@ function leseEingabe(text: string): FrageEingabe | { meldung: string } {
   return eingabe.success ? eingabe.data : { meldung: eingabe.error.issues[0]?.message ?? UNGUELTIG };
 }
 
+/** Fortsetzung eines Gesprächs, das nicht zu diesem Browser gehört (Review !69). */
+export const FREMDES_GESPRAECH = "Dieses Gespräch gehört nicht zu diesem Browser. Bitte erzählen Sie die Situation neu.";
+
 export interface LotseOptionen {
   ausfuehren?: Ausfuehren;
   umgebung?: Readonly<Record<string, string | undefined>>;
@@ -114,7 +117,9 @@ export interface LotseOptionen {
 
 /**
  * Handler für POST /api/uc1/frage mit eigener Lauf-Zählung. Vor dem Subprozess: `KIC_ONLINE_LESEND=1` → 403,
- * Body über 4 KiB → 413, ungültige Eingabe → 400, schon `maxLaeufe` offen → 429. Danach: Exit ≠ 0 (auf main
+ * Body über 4 KiB → 413, ungültige Eingabe → 400, `sitzung` ohne passendes Sitzungs-Cookie → 403 (sonst setzte
+ * die Antwort das Cookie auf eine fremde Sitzung und /api/uc1/antrag gäbe deren Angaben heraus), schon `maxLaeufe`
+ * offen → 429. Danach: Exit ≠ 0 (auf main
  * meldet `lotse frage` Exit 2, solange der Kern fehlt), Timeout oder kaputtes JSON → 503. 403 und 503 tragen
  * `replay: true`, damit die Seite das aufgezeichnete Beispiel anbietet. Frage und stderr werden nie geloggt.
  */
@@ -168,6 +173,7 @@ export function erstelleLotseAntwort({
     }
     const eingabe = leseEingabe(body);
     if ("meldung" in eingabe) return fehler(400, eingabe.meldung);
+    if (eingabe.sitzung && !sitzungPasst(anfrage, eingabe.sitzung)) return fehler(403, FREMDES_GESPRAECH);
 
     if (offen >= maxLaeufe) return fehler(429, "Gerade sind viele Anfragen unterwegs. Bitte gleich noch einmal.");
     offen += 1;

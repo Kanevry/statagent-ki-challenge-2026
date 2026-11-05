@@ -17,8 +17,8 @@ export function entwurfSatz(anzahl: number): string {
   return `Der Lotse hat ${angaben} aus Ihrem Gespräch eingetragen. Bitte prüfen Sie jede Angabe, bevor Sie den Antrag verwenden.`;
 }
 
-/** Der eine wahre Satz zur Prüfung: wo der Name steht und dass nichts gespeichert oder abgeschickt wird. */
-export const PRUEF_SATZ = "Ihr Name steht nur auf diesem Entwurf und gilt in dieser Sitzung, gespeichert oder abgeschickt wird nichts.";
+/** Der eine wahre Satz zur Prüfung: der Name bleibt in der Seite; das PDF liegt ohne ihn auf dem Server (Review !69). */
+export const PRUEF_SATZ = "Ihr Name wird nicht gespeichert und nicht verschickt. Er steht nicht im PDF.";
 
 export type EntwurfPruefungProps = {
   antrag: WebAntrag;

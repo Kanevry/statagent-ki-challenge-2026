@@ -164,7 +164,7 @@ export type OffeneGruppe = {
   /** Nummer des ersten Punkts der Gruppe; die Nummerierung läuft über alle Gruppen durch. */
   start: number;
   punkte: OffenerPunkt[];
-  /** Ein Beleg je Gruppe: Wortlaute der Seite, jeder nur einmal. */
+  /** Ein Beleg je Gruppe: Wortlaute der Seite, jeder nur einmal und je auf eigener Zeile (Review !69). */
   wortlaut: string | null;
 };
 
@@ -183,7 +183,7 @@ export function offenNachSeite(punkte: readonly OffenerPunkt[]): OffeneGruppe[] 
   return seiten.map((seite) => {
     const gruppe = nachSeite.get(seite) ?? [];
     const wortlaute = [...new Set(gruppe.flatMap((p) => (p.beleg ? [p.beleg.wortlaut] : [])))];
-    const eintrag = { seite, start, punkte: gruppe, wortlaut: wortlaute.length > 0 ? wortlaute.join(" · ") : null };
+    const eintrag = { seite, start, punkte: gruppe, wortlaut: wortlaute.length > 0 ? wortlaute.join("\n") : null };
     start += gruppe.length;
     return eintrag;
   });

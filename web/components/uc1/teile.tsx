@@ -110,17 +110,12 @@ export function einmal(liste: readonly string[]): string[] {
 export const OHNE_STELLE = "Die zuständige Stelle steht in diesen Quellen nicht fest.";
 
 /**
- * Fundstelle einer Zuständigkeit. Den Beleg-Chip gibt es nur, wenn das Zitat genau zu dieser Fundstelle gehört;
- * sonst steht die Fundstelle als Text, damit sie nicht belegt wirkt.
+ * Fundstelle einer Zuständigkeit, nur als Beleg-Chip mit Zitat zu genau dieser Fundstelle. Ohne Zitat steht nichts:
+ * eine nackte Paragraphennummer wirkt belegt, ohne es zu sein (Review !69).
  */
 export function Fundstelle({ fundstelle, zitat }: { fundstelle: string | null; zitat: string | null }) {
-  if (!fundstelle) return null;
-  if (zitat) return <BelegChip quelle={fundstelle} zitat={zitat} />;
-  return (
-    <Fliesstext groesse={14} ton="gedaempft" data-uc1-fundstelle-ohne-zitat="">
-      {`Fundstelle: ${fundstelle}`}
-    </Fliesstext>
-  );
+  if (!fundstelle || !zitat) return null;
+  return <BelegChip quelle={fundstelle} zitat={zitat} />;
 }
 
 /** Text mit Notrufnummern (1450, 144) als antippbare tel:-Links; jede Nummer steht genau einmal. */

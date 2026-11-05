@@ -103,7 +103,11 @@ function AntragVorbereitet({
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <Fliesstext className="font-semibold">{name}</Fliesstext>
                       {gruppe.seite !== null && gruppe.wortlaut && (
-                        <BelegChip quelle={`${antrag.kurz}, S. ${gruppe.seite}`} zitat={gruppe.wortlaut} />
+                        <BelegChip
+                          quelle={`${antrag.kurz}, S. ${gruppe.seite}`}
+                          zitat={gruppe.wortlaut}
+                          className="[&_blockquote]:whitespace-pre-line"
+                        />
                       )}
                     </div>
                     <ol start={gruppe.start} className="flex list-decimal flex-col gap-3 pl-6 font-sans text-16 text-ink">

@@ -70,7 +70,7 @@ describe("offenNachSeite", () => {
     ]);
     expect(gruppen.map((g) => [g.seite, g.start, g.punkte.map((p) => p.id), g.wortlaut])).toEqual([
       [1, 1, ["c"], "„Y“"],
-      [2, 2, ["a", "d", "e"], "„X“ · „Z“"],
+      [2, 2, ["a", "d", "e"], "„X“\n„Z“"],
       [null, 5, ["b"], null],
     ]);
   });

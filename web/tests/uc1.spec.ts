@@ -38,7 +38,9 @@ const OPTIONEN = ERSTE.rueckfrage_optionen ?? [];
 /** Überschrift der Leistungen, wie die Seite sie bildet: „Pflegegeld kommt …“, „Zwei Leistungen kommen für Sie in Frage“. */
 const LEISTUNGEN_TITEL = leistungenTitel(LETZTE.leistungen);
 /** Zuständigkeiten mit Leistung und Fundstelle. */
-const ZUSTAENDIG = LETZTE.traeger.filter((t): t is Traeger & { leistung: string } => Boolean(t.leistung && t.fundstelle));
+const ZUSTAENDIG = LETZTE.traeger.filter(
+  (t): t is Traeger & { leistung: string; fundstelle: string } => Boolean(t.leistung && t.fundstelle),
+);
 const TERMIN = "Einen Termin vereinbaren Sie direkt bei der Stelle.";
 
 /** Die zwölf Schlüssel des Anti-Schablonen-Gates, wie in slop.spec.ts (Katalog: docs/design.md). */
@@ -115,7 +117,7 @@ test("/uc1 liefert 200 mit Leer-Zustand: leeres Feld, Beispiele, keine Antwort",
   await expect(feld).toHaveAttribute("placeholder", /Ein Satz reicht/);
   await expect(page.getByRole("button", { name: "Mein Kind braucht eine Zahnspange." })).toBeVisible();
   await expect(page.locator("[data-uc1-antwort]")).toHaveCount(0);
-  await expect(page.getByText("Geburtsdatum, Adresse und Telefonnummer blendet der Lotse vorher aus, Namen nicht.")).toBeVisible();
+  await expect(page.getByText("Geburtsdatum, Adresse und Telefonnummer blendet der Lotse aus, wenn er sie erkennt. Namen bleiben stehen.", { exact: false })).toBeVisible();
   await bild(page, "uc1-leer");
   await axePruefen(page);
   await gateMessen(page, "/uc1 leer");
@@ -175,7 +177,7 @@ test("/uc1?beispiel=pflege spielt ohne Netz in drei Schritten bis zum Antrag mit
     const zeile = stelle.locator(`[data-uc1-stelle-leistung="${t.leistung}"]`);
     await expect(zeile).toHaveCount(1);
     await expect(zeile.locator('[data-baustein="herkunft"]')).toHaveCount(t.zitat ? 1 : 0);
-    if (!t.zitat) await expect(zeile).toContainText(`Fundstelle: ${t.fundstelle}`);
+    if (!t.zitat) await expect(zeile).not.toContainText(t.fundstelle);
   }
   // Quellen hinter „Details“, Zusammenfassung 44 px.
   const quellen = page.locator("[data-uc1-quellen]");

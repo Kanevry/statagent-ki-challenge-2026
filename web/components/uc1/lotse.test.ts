@@ -198,4 +198,24 @@ describe("POST /api/uc1/frage", () => {
     );
     expect(https.headers.get("set-cookie")).toMatch(/; Secure$/);
   });
+
+  // Fängt: eine fremde oder erratene Sitzungs-UUID im Body; die Antwort setzte das Cookie darauf, danach gäbe
+  // /api/uc1/antrag Name, Geburtsdatum und Adresse dieser Sitzung heraus (Review !69).
+  it("403 ohne Lauf, wenn die Sitzung nicht zum Cookie passt; mit passendem Cookie läuft es", async () => {
+    const sitzung = KERN.sitzung_id;
+    const ausfuehren = vi.fn<Ausfuehren>(async () => ({ code: 0, stdout: JSON.stringify(KERN) }));
+    const mit = (cookie: string | null) =>
+      new Request("http://localhost/api/uc1/frage", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) },
+        body: JSON.stringify({ text: "Ja", sitzung }),
+      });
+    for (const cookie of [null, "uc1_sitzung=3f1c2a9e-0000-4000-8000-000000000999"]) {
+      const antwort = await handler(ausfuehren)(mit(cookie));
+      expect(antwort.status).toBe(403);
+      expect(antwort.headers.get("set-cookie")).toBeNull();
+    }
+    expect(ausfuehren).not.toHaveBeenCalled();
+    expect((await handler(ausfuehren)(mit(`uc1_sitzung=${sitzung}`))).status).toBe(200);
+  });
 });
