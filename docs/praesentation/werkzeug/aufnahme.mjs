@@ -15,17 +15,20 @@ const BROWSER = "e5-screens";
 const BASIS_URL = (process.env.BASIS_URL || "http://localhost:3000").replace(/\/+$/, "");
 const SCREENS = resolve(dirname(fileURLToPath(import.meta.url)), "..", "screens");
 
-// Bild, Route, optionale Aktion. Aktionen ändern nichts: "folge" liest den ersten passenden Link und navigiert
+// Bild, Route, optionale Aktion; je Szene der Präsentation mindestens ein Bild (Feld folie in quellen.json, #88). Aktionen ändern nichts: "folge" liest den ersten passenden Link und navigiert
 // dorthin (kein Klick auf Knöpfe), "scroll" rollt das Element unter den App-Kopf. Seiten mit der Fehlermeldung
 // "Die Zahlen ließen sich gerade nicht lesen" brechen die Aufnahme ab (Stand 05.11. 17:38: alle UC3-Seiten).
 // Teilmenge: NUR=SC01,SC06 BASIS_URL=<url> node docs/praesentation/werkzeug/aufnahme.mjs
 const ALLE_ZIELE = [
   { bild: "SC01", route: "/uc3" },
-  { bild: "SC02", route: "/uc3/berichte/regeln", scroll: '[data-regel="R4_stichtag_eigene_lieferung"]' },
+  { bild: "SC02", route: "/uc3/berichte/regeln", scroll: '[data-regel="R6_beschaeftigungskategorie"]' },
+  { bild: "SC03", route: "/uc4" },
+  { bild: "SC04", route: "/uc3/berichte/2024-08" },
+  { bild: "SC05", route: "/uc3/klassifikationen" },
   { bild: "SC06", route: "/uc3/berichte/2025-03" },
   { bild: "SC07", route: "/uc3/berichte/2025-10" },
   { bild: "SC08", route: "/uc3/berichte/regeln", scroll: '[data-regel="R5_alter"]' },
-  { bild: "SC09", route: "/uc3/berichte/2025-03", scroll: "#abschnitt-3" },
+  { bild: "SC09", route: "/" },
   { bild: "SC10", route: "/uc3/freigaben?reiter=erledigt", folge: 'main a[href^="/uc3/freigaben/"]' },
   { bild: "SC11", route: "/uc4" },
   { bild: "SC12", route: "/uc3/freigaben", folge: 'main a[href^="/uc3/freigaben/"]', scroll: "#verschiebung" },

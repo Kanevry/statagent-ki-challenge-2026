@@ -200,7 +200,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Satz der Jury:** „Rechnen Sie bei Geburtsmonat 13 nur mit der Differenz der Jahre, nicht mit dem 1. Juli.“
 
-**Befehl:** `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre." --probe 2025-03`
+**Befehl:** `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2025-03`. Geprobt am 05.11.2026 18:20 bis 18:25 mit dem Stand von !50: 3 von 3 gültige Vorschläge.
 
 **Was der Vorschlag ändert:** Regel `R5_alter`, Parameter `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`. Der Agent darf für diesen Parameter nur `jahresdifferenz` oder `unbekannt` vorschlagen (`uc3/statagent/agenten/koordinator.py`, Zeile 81). Einen anderen Ersatztag wie den 1. Jänner weist er ab.
 

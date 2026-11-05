@@ -1,8 +1,8 @@
 [
   {
     "bild": "SC01",
-    "motiv": "Läufe-Übersicht, 24 Monate mit Status",
-    "folie": 2,
+    "motiv": "Monatsläufe: 24 Monate mit Status",
+    "folie": 3,
     "quelle": "oberflaeche",
     "route": "/uc3",
     "commit": null,
@@ -10,12 +10,12 @@
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38)"
+    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
   },
   {
     "bild": "SC02",
-    "motiv": "Eine Regel mit Gültigkeit, Begründung, Freigabe",
-    "folie": 3,
+    "motiv": "Eine Regel mit Gültigkeit, Begründung und Freigabe",
+    "folie": 4,
     "quelle": "oberflaeche",
     "route": "/uc3/berichte/regeln",
     "commit": null,
@@ -23,50 +23,50 @@
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38); Ziel: Regel R4_stichtag_eigene_lieferung"
+    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
   },
   {
     "bild": "SC03",
-    "motiv": "Terminal uc3 lauf --lieferung 2024-08",
-    "folie": 4,
-    "quelle": "terminal",
-    "route": null,
+    "motiv": "Gemeinsamer Einstieg: eine Frage an alle drei",
+    "folie": 1,
+    "quelle": "oberflaeche",
+    "route": "/uc4",
     "commit": null,
     "lauf": null,
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "entfällt in v4: Terminal-Motiv, keine Webseite zeigt den Aufruf uc3 lauf"
+    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
   },
   {
     "bild": "SC04",
-    "motiv": "Zellvergleich 2.880 von 2.880",
+    "motiv": "Qualitätsbericht August 2024, der Monat der Vorlage",
     "folie": 5,
-    "quelle": "terminal",
-    "route": null,
+    "quelle": "oberflaeche",
+    "route": "/uc3/berichte/2024-08",
     "commit": null,
     "lauf": null,
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "entfällt in v4: keine Webseite zeigt den Zellvergleich 2.880 von 2.880"
+    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
   },
   {
     "bild": "SC05",
-    "motiv": "Aggregations-Sheet Tab1",
-    "folie": 5,
-    "quelle": "datei",
-    "route": null,
+    "motiv": "Zwei Branchenlisten mit Gültigkeit",
+    "folie": 7,
+    "quelle": "oberflaeche",
+    "route": "/uc3/klassifikationen",
     "commit": null,
     "lauf": null,
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "entfällt in v4: das Aggregations-Sheet ist eine Datei, keine Webseite zeigt Tab1"
+    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
   },
   {
     "bild": "SC06",
-    "motiv": "Qualitätsbericht 2025-03 mit Einstufungen",
+    "motiv": "Qualitätsbericht März 2025 mit Auffälligkeiten",
     "folie": 6,
     "quelle": "oberflaeche",
     "route": "/uc3/berichte/2025-03",
@@ -75,12 +75,12 @@
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38)"
+    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
   },
   {
     "bild": "SC07",
-    "motiv": "Qualitätsbericht 2025-10, Lauf angehalten",
-    "folie": 6,
+    "motiv": "Qualitätsbericht Oktober 2025, Monat angehalten",
+    "folie": 3,
     "quelle": "oberflaeche",
     "route": "/uc3/berichte/2025-10",
     "commit": null,
@@ -88,12 +88,12 @@
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38)"
+    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
   },
   {
     "bild": "SC08",
     "motiv": "Regel R5_alter als Daten",
-    "folie": 7,
+    "folie": 8,
     "quelle": "oberflaeche",
     "route": "/uc3/berichte/regeln",
     "commit": null,
@@ -101,25 +101,25 @@
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38); Ziel: Regel R5_alter"
+    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
   },
   {
     "bild": "SC09",
-    "motiv": "Rückfrage R1 an die Fachabteilung",
-    "folie": 7,
+    "motiv": "Übersicht: drei Use Cases, ein Kern",
+    "folie": 2,
     "quelle": "oberflaeche",
-    "route": "/uc3/berichte/2025-03",
+    "route": "/",
     "commit": null,
     "lauf": null,
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38); Ziel: Abschnitt 3 Rückfragen"
+    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
   },
   {
     "bild": "SC10",
-    "motiv": "Protokoll mit Freigabe, Name, Zeit, Wirkung",
-    "folie": 9,
+    "motiv": "Erledigte Freigabe mit Name und Wirkung",
+    "folie": 10,
     "quelle": "oberflaeche",
     "route": "/uc3/freigaben?reiter=erledigt",
     "commit": null,
@@ -127,12 +127,12 @@
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38); Ziel: erste erledigte Freigabe"
+    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
   },
   {
     "bild": "SC11",
-    "motiv": "Gemeinsamer Einstieg (UC4) mit dem Wechsel der Use Cases im App-Kopf",
-    "folie": 10,
+    "motiv": "Gemeinsamer Einstieg mit Antwort und Beleg",
+    "folie": 9,
     "quelle": "oberflaeche",
     "route": "/uc4",
     "commit": "4495de3cf9f53fc73d218d8968cf00ac24252e7b",
@@ -145,7 +145,7 @@
   {
     "bild": "SC12",
     "motiv": "Agent-Vorschlag mit Diff vor der Freigabe",
-    "folie": 8,
+    "folie": 4,
     "quelle": "oberflaeche",
     "route": "/uc3/freigaben",
     "commit": null,
@@ -153,6 +153,6 @@
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38); Ziel: erster offener Vorschlag, Abschnitt Verschiebung"
+    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
   }
 ]

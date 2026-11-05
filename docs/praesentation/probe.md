@@ -27,7 +27,7 @@ Gehört zu GitLab #90, Epic #26. Wird am Fr 06.11.2026 ab 06:00 ausgefüllt.
 | Stufe der Demo | 1 Web-UI (nur bei `/uc3` auf main) / 2 CLI / 3 Video |
 | Stand (Commit) | |
 | D4 gezeigt (Entscheid 06:45) | ja / nein (bei nein endet die Demo um 9:00) |
-| D2 (Entscheid 06:45) | Rückblick auf Vorschlag 24 allein / plus B2 live (nur nach dreimal bestandener Probe gegen `statistik_probe`). Probe 05.11. 17:56 bis 17:58: B1, B2, B3 ohne Vorschlag oder abgebrochen |
+| D2 (Entscheid 06:45) | Rückblick auf Vorschlag 24 allein / plus B2 live, wenn !50 beim Freeze auf main ist. Probe 05.11. 17:56 bis 17:58 auf main 321a7176: B1, B2, B3 ohne Vorschlag oder abgebrochen. Probe 18:20 bis 18:25 mit !50 (4cbcf47): B2 3 von 3 gültig (Vorschläge 34 bis 36) |
 | D3 freie Fragen | nein, nur die acht geprüften (ja erst, wenn der Folge-MR von bb auf main ist) |
 | Zahlen in den Szenen gegen `abgabe/` abgeglichen | ja / nein |
 

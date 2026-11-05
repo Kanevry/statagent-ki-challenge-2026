@@ -1,7 +1,9 @@
 """Erzeugt docs/praesentation/screens-manifest.md aus quellen.json und den PNGs SC01–SC12 (GitLab #88).
 
-Ohne Option: Manifest schreiben und Stand melden. Mit --check: Exit 0 nur, wenn alle 12 Bilder
-vorhanden, gültig (PNG, Breite >= 1920) und vollständig belegt sind. Nur Standardbibliothek.
+Ohne Option: Manifest schreiben und Stand melden. Mit --check: Exit 0 nur, wenn alle nicht
+entfallenen Bilder vorhanden, gültig (PNG, Breite >= 1920) und vollständig belegt sind (#134).
+Entfallen ist ein Eintrag mit art "offen" und einem Hinweis, der mit „entfällt“ beginnt.
+Alle Ausgaben gehen nach stdout, der Exit-Code ist das Urteil. Nur Standardbibliothek.
 """
 
 from __future__ import annotations
@@ -21,6 +23,9 @@ PNG_SIGNATUR = b"\x89PNG\r\n\x1a\n"
 QUELLEN = {"oberflaeche", "terminal", "datei", "pen"}
 ARTEN_GUELTIG = {"live", "testdaten", "aufzeichnung"}
 ARTEN = ARTEN_GUELTIG | {"offen"}
+# Wörter im Hinweis, die einem als live ausgegebenen Bild widersprechen (ohne Groß-/Kleinschreibung).
+NICHT_LIVE = ("mock", "testdaten", "aufzeichnung")
+# Pflichtschlüssel in quellen.json. pen_frame ist seit 05.11. optional (UI-Regie ersetzt Pen-Frames).
 FELDER = (
     "bild",
     "motiv",
@@ -29,7 +34,6 @@ FELDER = (
     "route",
     "commit",
     "lauf",
-    "pen_frame",
     "art",
     "aufgenommen_am",
     "hinweis",
@@ -50,11 +54,39 @@ def standard_wurzel() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-def png_lesen(pfad: Path) -> Bildinfo:
+def bild_pfad(screens: Path, bild: Any) -> Path | None:
+    """Pfad zu <bild>.png innerhalb von screens/, oder None bei unzulässigem Bildnamen.
+
+    Abgelehnt werden Nicht-Strings, leere Namen, Trenner, `..` und alles, was aufgelöst
+    außerhalb von screens/ landet. Geprüft wird vor jedem Dateizugriff.
+    """
+    if not isinstance(bild, str) or not bild or bild in {".", ".."}:
+        return None
+    if "/" in bild or "\\" in bild or ".." in bild or Path(bild).is_absolute():
+        return None
+    basis = screens.resolve()
+    pfad = (basis / f"{bild}.png").resolve()
+    if not pfad.is_relative_to(basis) or pfad.parent != basis:
+        return None
+    return pfad
+
+
+def ist_entfallen(eintrag: dict[str, Any]) -> bool:
+    """Entfallen: art offen und Hinweis beginnt mit „entfällt“."""
+    hinweis = str(eintrag.get("hinweis") or "").strip().casefold()
+    return eintrag.get("art") == "offen" and hinweis.startswith("entfällt")
+
+
+def png_lesen(pfad: Path | None) -> Bildinfo:
     """Prüft die PNG-Signatur und liest Breite und Höhe aus dem IHDR-Chunk."""
+    if pfad is None:
+        return Bildinfo(vorhanden=False, fehler="Bildname unzulässig, nicht gelesen")
     if not pfad.is_file():
         return Bildinfo(vorhanden=False)
-    daten = pfad.read_bytes()
+    try:
+        daten = pfad.read_bytes()
+    except OSError as fehler:
+        return Bildinfo(vorhanden=True, fehler=f"nicht lesbar ({fehler.strerror})")
     sha = hashlib.sha256(daten).hexdigest()
     if len(daten) < 24 or daten[:8] != PNG_SIGNATUR:
         return Bildinfo(vorhanden=True, sha256=sha, fehler="keine PNG-Signatur")
@@ -68,10 +100,10 @@ def eintrag_befunde(eintrag: dict[str, Any], info: Bildinfo) -> list[str]:
     """Befunde für --check zu einem Bild."""
     befunde: list[str] = []
     bild = eintrag.get("bild", "?")
-    if not info.vorhanden:
-        befunde.append(f"{bild}: Datei fehlt")
-    elif info.fehler:
+    if info.fehler:
         befunde.append(f"{bild}: {info.fehler}")
+    elif not info.vorhanden:
+        befunde.append(f"{bild}: Datei fehlt")
     elif info.breite is not None and info.breite < MIN_BREITE:
         befunde.append(f"{bild}: Breite {info.breite} < {MIN_BREITE}")
     if not eintrag.get("route") and not eintrag.get("quelle"):
@@ -83,9 +115,11 @@ def eintrag_befunde(eintrag: dict[str, Any], info: Bildinfo) -> list[str]:
     art = eintrag.get("art")
     if art not in ARTEN_GUELTIG:
         befunde.append(f"{bild}: art {art} ist nicht live, testdaten oder aufzeichnung")
-    hinweis = str(eintrag.get("hinweis") or "")
-    if art == "live" and ("Testdaten" in hinweis or "Aufzeichnung" in hinweis):
-        befunde.append(f"{bild}: art live, aber hinweis nennt Testdaten oder Aufzeichnung")
+    if art in ARTEN_GUELTIG and not eintrag.get("lauf"):
+        befunde.append(f"{bild}: lauf fehlt")
+    hinweis = str(eintrag.get("hinweis") or "").casefold()
+    if art == "live" and any(wort in hinweis for wort in NICHT_LIVE):
+        befunde.append(f"{bild}: art live, aber hinweis nennt Mock, Testdaten oder Aufzeichnung")
     return befunde
 
 
@@ -93,7 +127,10 @@ def quellen_laden(pfad: Path) -> tuple[list[dict[str, Any]], list[str]]:
     befunde: list[str] = []
     if not pfad.is_file():
         return [], [f"{pfad.name}: fehlt"]
-    daten = json.loads(pfad.read_text(encoding="utf-8"))
+    try:
+        daten = json.loads(pfad.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as fehler:
+        return [], [f"{pfad.name}: nicht lesbar ({fehler})"]
     if not isinstance(daten, list):
         return [], [f"{pfad.name}: ist keine Liste"]
     erwartet = [f"SC{n:02d}" for n in range(1, ANZAHL + 1)]
@@ -142,8 +179,10 @@ def manifest_schreiben(
         else:
             sha = "–"
         vorhanden = "ja" if info.vorhanden else "nein"
+        if ist_entfallen(eintrag):
+            vorhanden = f"{vorhanden} (entfällt)"
         if info.fehler:
-            vorhanden = f"ja ({info.fehler})"
+            vorhanden = f"{vorhanden} ({info.fehler})"
         commit = eintrag.get("commit")
         zeilen.append(
             "| "
@@ -180,13 +219,24 @@ def main(argv: list[str] | None = None) -> int:
     screens = praes / "screens"
 
     eintraege, befunde = quellen_laden(screens / "quellen.json")
-    infos = {str(e.get("bild")): png_lesen(screens / f"{e.get('bild')}.png") for e in eintraege}
+    infos = {str(e.get("bild")): png_lesen(bild_pfad(screens, e.get("bild"))) for e in eintraege}
+    aktiv = [e for e in eintraege if not ist_entfallen(e)]
+    entfallen = len(eintraege) - len(aktiv)
+    # Auch entfallene Einträge dürfen keinen unzulässigen Bildnamen tragen.
+    befunde += [
+        f"{e.get('bild', '?')}: {infos[str(e.get('bild'))].fehler}"
+        for e in eintraege
+        if ist_entfallen(e) and infos[str(e.get("bild"))].fehler
+    ]
     pruef: dict[str, list[str]] = {
-        str(e.get("bild")): eintrag_befunde(e, infos[str(e.get("bild"))]) for e in eintraege
+        str(e.get("bild")): eintrag_befunde(e, infos[str(e.get("bild"))]) for e in aktiv
     }
-    vorhanden = sum(1 for i in infos.values() if i.vorhanden)
+    soll = ANZAHL - entfallen
+    vorhanden = sum(1 for e in aktiv if infos[str(e.get("bild"))].vorhanden)
     gueltig = sum(1 for b in pruef.values() if not b)
-    stand = f"Stand: {vorhanden}/{ANZAHL} vorhanden, {gueltig}/{ANZAHL} gültig"
+    stand = f"Stand: {vorhanden}/{soll} vorhanden, {gueltig}/{soll} gültig"
+    if entfallen:
+        stand += f", {entfallen} entfallen"
 
     if not args.check:
         manifest_schreiben(praes / "screens-manifest.md", eintraege, infos, stand)
@@ -199,7 +249,7 @@ def main(argv: list[str] | None = None) -> int:
     for befund in alle:
         print(befund)
     print(f"screens_manifest --check: {stand}, {len(alle)} Befunde")
-    return 0 if not alle and gueltig == ANZAHL else 1
+    return 0 if not alle and gueltig == soll else 1
 
 
 if __name__ == "__main__":
