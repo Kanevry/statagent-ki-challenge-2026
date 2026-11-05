@@ -83,7 +83,7 @@ services:
       # Bleibt "1", auch wenn KIC_ONLINE_LESEND für Fragen wegfällt.
       KIC_ONLINE: "1"
       # Pflicht: Tagesbudget der Modellaufrufe, ganze Zahl ab 1 (Fehlversuche zählen mit)
-      LLM_TAGESBUDGET_AUFRUFE: ${LLM_TAGESBUDGET_AUFRUFE:?LLM_TAGESBUDGET_AUFRUFE fehlt in .env.server (ganze Zahl ab 1, #100)}
+      LLM_TAGESBUDGET_AUFRUFE: "${LLM_TAGESBUDGET_AUFRUFE:?LLM_TAGESBUDGET_AUFRUFE fehlt in .env.server, ganze Zahl ab 1}"
       # online nur azure oder mistral (claude und ollama laufen nur lokal); ohne Schlüssel mock.
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL:-}
