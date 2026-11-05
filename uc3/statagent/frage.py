@@ -447,6 +447,35 @@ def als_webantwort(daten: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+#: Wörter, die eine Frage nach dem Bestand erkennen lassen.
+_BEZUG = re.compile(
+    r"beschäftig|beschaeftig|verhältnis|verhaeltnis|arbeit|leute|personen|menschen|\bjobs?\b|\bstellen\b"
+    r"|wie\s*viele?\b|anzahl|bestand|\bstand\b|aktuell|derzeit|zurzeit|momentan|jetzt"
+)
+
+
+def _ohne_bezug(conn: Verbindung, frage: str, letzter: str) -> bool:
+    """Weder ein Wort zum Bestand noch ein Merkmal, und außer der Zeitangabe stehen andere Wörter da.
+
+    „März 2025“ allein bleibt eine Frage nach dem Bestand, „asdf im März 2025“ nicht. ``_filter`` sagt ab, wenn nach
+    „in“ ein unbekanntes Wort steht („in Wein“, „in Vienna“), auch bei einer bloßen Jahreszahl.
+    """
+    text = frage.lower()
+    genannt = monate_lesen(frage)
+    if _filter(conn, frage, genannt[-1] if genannt else letzter, ())[0]:
+        return False
+    if _BEZUG.search(text) or _gliederung(frage) is not None:
+        return False
+    jahr = jahr_ohne_monat(frage)
+    if not genannt and jahr is None:
+        return True
+    for muster in (_NAME_MONAT, _ZAHL_MONAT, _ISO):
+        text = muster.sub(" ", text)
+    if jahr is not None:
+        text = text.replace(jahr, " ")
+    return any(w not in _FUNKTIONSWORT and w != "bitte" for w in re.findall(r"[\wäöüß-]+", text))
+
+
 def _rueckfrage(text: str) -> dict[str, Any]:
     return _antwort("rueckfrage", text)
 
@@ -1244,6 +1273,12 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     if absage is not None:
         return _antwort(typ, absage, hinweise=[absage])
     try:
+        # Unsinn bekommt keinen Bestand und keine Rückfrage zu einem Monat, sondern die Absage (Kette stoppt, #176).
+        if typ == "bestand" and _ohne_bezug(conn, frage, letzter or LETZTE_LIEFERUNG):
+            genannt = monate_lesen(frage)
+            vorschlag = f" Meinen Sie „Beschäftigte im {_monat_anzeige(genannt[-1])}“?" if genannt else ""
+            text = f"Das kann StatAgent nicht beantworten. {KANN}{vorschlag}"
+            return _antwort(typ, text, hinweise=[text])
         if (
             typ in ("bestand", "geschlecht", "fluktuation")
             and not monate_lesen(frage)
