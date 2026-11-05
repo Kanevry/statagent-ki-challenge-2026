@@ -38,7 +38,10 @@ Alles, was aus dem Index an ein Modell oder in die Anzeige geht, läuft vorher d
      Nachnamen).
    - `kuerzel`: Autorenkürzel am Ende eines Teils, `… Satzende. abc` oder `… (abc)` → „[Kürzel]“ (nicht
      Agenturkürzel wie „(red)“).
-2. **Namensliste** (`Namensliste`, Datei aus Env `UC2_NAMENSLISTE`, nie im Repo).
+2. **Namensliste** (`Namensliste`, Datei aus Env `UC2_NAMENSLISTE`, nie im Repo). Fail-closed: fehlt sie
+   oder ist sie leer, wirft `Namensliste.lade` `NamenslisteFehlt` (nur Muster schützen 93,8 % der
+   Recall-Stichprobe, unter der PRD-Grenze von 95 %). Nur Tests schalten mit `UC2_NAMEN_OHNE_LISTE=1`
+   oder `erlaube_ohne_liste=True` auf „nur Muster“.
 3. **Bekannte Namen im selben Artikel:** Ist ein voller Name erkannt, wird im ganzen Artikel (Titel und
    alle Abschnitte) auch der Nachname allein maskiert, ebenso der Genitiv („Mustermanns Vorschlag“).
 
@@ -71,6 +74,10 @@ if TYPE_CHECKING:
     from uc2.belege.suche import Beleg
 
 NAMENSLISTE_ENV = "UC2_NAMENSLISTE"
+OHNE_LISTE_ENV = "UC2_NAMEN_OHNE_LISTE"
+"""Nur in Tests auf `1`: ohne Namensliste nur Muster statt `NamenslisteFehlt`. Außerhalb setzt ihn nichts."""
+GENITIV_ENDUNGEN = ("’s", "'s", "’S", "'S", "s", "S")
+"""Genitiv nach einem Namen, auch in Großschrift („MUSTERFRAUS“, „MUSTERFRAU’S“)."""
 
 # --- Bausteine -------------------------------------------------------------------------------------------
 
@@ -400,6 +407,17 @@ class NamenslisteImRepo(ValueError):
     """Namensliste (oder Ziel von `namen sammeln`) liegt in einem Git-Checkout."""
 
 
+class NamenslisteFehlt(RuntimeError):
+    """Keine oder eine leere Namensliste: ohne sie maskieren die Muster allein zu wenig (fail-closed)."""
+
+    def __init__(self, grund: str) -> None:
+        super().__init__(
+            f"{grund}. Ohne Namensliste ist der Personenschutz zu schwach (nur Muster: 93,8 % Recall, "
+            f"Grenze 95 %). Erzeugen: uv run uc2 namen sammeln --aus-index --autoren <datei> "
+            f"--ausgabe <pfad außerhalb des Repos>, dann {NAMENSLISTE_ENV}=<pfad> setzen."
+        )
+
+
 def _git_wurzel(ordner: Path) -> Path | None:
     try:
         ergebnis = subprocess.run(
@@ -459,23 +477,35 @@ class Namensliste:
         return len(self.eintraege)
 
     @classmethod
-    def lade(cls, pfad: Path | None = None) -> Namensliste:
-        """Aus `pfad` oder Env `UC2_NAMENSLISTE`; fehlt die Datei, nur Muster (Warnung auf stderr).
+    def lade(cls, pfad: Path | None = None, *, erlaube_ohne_liste: bool = False) -> Namensliste:
+        """Aus `pfad` oder Env `UC2_NAMENSLISTE`, fail-closed.
 
-        Eine Datei innerhalb eines Git-Checkouts wird abgelehnt (`NamenslisteImRepo`).
+        Fehlt die Angabe oder die Datei, oder hat sie keinen Eintrag, folgt `NamenslisteFehlt`. Nur mit
+        `erlaube_ohne_liste=True` oder Env `UC2_NAMEN_OHNE_LISTE=1` (beides nur in Tests) kommt dann eine
+        leere Liste (nur Muster, Hinweis auf stderr). Eine Datei innerhalb eines Git-Checkouts wird
+        abgelehnt (`NamenslisteImRepo`).
         """
+        ohne = erlaube_ohne_liste or os.environ.get(OHNE_LISTE_ENV) == "1"
         if pfad is None:
             env = os.environ.get(NAMENSLISTE_ENV)
             if not env:
-                print(f"Warnung: {NAMENSLISTE_ENV} nicht gesetzt, Schutz nur mit Mustern", file=sys.stderr)
-                return cls()
+                return cls._ohne_liste(f"{NAMENSLISTE_ENV} nicht gesetzt", ohne)
             pfad = Path(env)
         pruefe_ausserhalb_repo(pfad)
         if not pfad.is_file():
-            print(f"Warnung: Namensliste {pfad} fehlt, Personenschutz nur mit Mustern", file=sys.stderr)
-            return cls()
+            return cls._ohne_liste(f"Namensliste {pfad} fehlt", ohne)
         stat = pfad.stat()
-        return _lade_datei(str(pfad.resolve()), stat.st_mtime_ns, stat.st_size)
+        liste = _lade_datei(str(pfad.resolve()), stat.st_mtime_ns, stat.st_size)
+        if not liste:
+            return cls._ohne_liste(f"Namensliste {pfad} ist leer", ohne)
+        return liste
+
+    @classmethod
+    def _ohne_liste(cls, grund: str, erlaubt: bool) -> Namensliste:
+        if not erlaubt:
+            raise NamenslisteFehlt(grund)
+        print(f"Hinweis: {grund}, Schutz nur mit Mustern ({OHNE_LISTE_ENV})", file=sys.stderr)
+        return cls()
 
     def finde(self, text: str) -> list[tuple[int, int, Namenseintrag]]:
         return _finde(self._index, text)
@@ -524,18 +554,20 @@ def _baue_index(namen: Iterable[tuple[str, Any]]) -> dict[str, list[tuple[str, A
 
 
 def _finde(index: Mapping[str, list[tuple[str, Any]]], text: str) -> list[tuple[int, int, Any]]:
-    """Fundstellen als ganzes Wort (kein `\\w` davor und danach); `s`/`’s`/`'` danach (Genitiv) zählt mit."""
+    """Fundstellen als ganzes Wort (kein `\\w` davor und danach); Genitiv danach zählt mit
+    (`GENITIV_ENDUNGEN`, auch großgeschrieben, sowie ein Apostroph allein)."""
     funde: list[tuple[int, int, Any]] = []
     if not index:
         return funde
     for wort in _WORT.finditer(text):
         kopf = wort.group(0)
-        kandidaten = [*index.get(kopf, ()), *(index.get(kopf[:-1], ()) if kopf.endswith("s") else ())]
+        genitiv = index.get(kopf[:-1], ()) if kopf.endswith(("s", "S")) else ()
+        kandidaten = [*index.get(kopf, ()), *genitiv]
         for name, wert in kandidaten:
             ende = wort.start() + len(name)
             if not text.startswith(name, wort.start()):
                 continue
-            for endung in ("’s", "'s", "s", "’", "'", ""):
+            for endung in (*GENITIV_ENDUNGEN, "’", "'", ""):
                 if text.startswith(endung, ende) and not _ist_wortzeichen(text, ende + len(endung)):
                     funde.append((wort.start(), ende + len(endung), wert))
                     break
@@ -754,7 +786,9 @@ def _zusatz_funde(teil: int, text: str, institutionen: Institutionen) -> list[Fu
             continue  # „Vitamin D, Vitamin C“, „Typ A, Typ B“
         for e in eintraege:
             start = m.start("liste") + e.start()
-            funde.append(Fund(teil, start, m.start("liste") + e.end(), "", "autorenliste", PERSON))
+            ende = m.start("liste") + e.end()
+            # Nachname als Fundname: so gilt er artikelweit als bekannt und geht in `sammle_namen`
+            funde.append(Fund(teil, start, ende, e.group("n"), "autorenliste", PERSON))
     for m in ZUSATZ["kuerzel"].finditer(text):
         gruppe = "k1" if m.group("k1") else "k2"
         if m.group(gruppe) not in _AGENTUREN_KLEIN and m.group(gruppe) not in STOPP:
@@ -803,6 +837,15 @@ def _bekannte_namen(funde: Iterable[Fund]) -> dict[str, Rolle]:
     return rollen
 
 
+def _genitiv_stamm(name: str, bekannt_falt: set[str]) -> str | None:
+    """Name ohne Genitivendung, wenn er so (ohne Groß-/Kleinschreibung) bekannt ist, sonst None."""
+    for endung in (*GENITIV_ENDUNGEN, "’", "'"):
+        stamm = name[: -len(endung)]
+        if name.endswith(endung) and stamm.casefold() in bekannt_falt:
+            return stamm
+    return None
+
+
 def _rolle_aus_liste(eintrag: Namenseintrag, institutionen: Institutionen) -> Rolle:
     iid = institutionen.id_von(eintrag.institution) if eintrag.institution else None
     return Rolle(geschlecht_der_funktion(eintrag.funktion), iid)
@@ -843,11 +886,13 @@ def erkenne(
         muster.extend(_abhaengige_funde(nr, text, set(rollen), locker))
     rollen.update({k: v for k, v in _bekannte_namen(muster).items() if k not in rollen})
     index = _baue_index(rollen.items())
+    rollen_falt = {n.casefold() for n in rollen}
     for nr, text in enumerate(teile):
         for start, ende, rolle in _finde(index, text):
             name = text[start:ende]
-            gen = name.endswith(("s", "’", "'")) and name.rstrip("s’'") in rollen
-            name = name.rstrip("s’'") if gen else name
+            stamm = _genitiv_stamm(name, rollen_falt)
+            gen = stamm is not None
+            name = stamm if stamm is not None else name
             muster.append(Fund(nr, start, ende, name, "bekannt", rolle, "gen" if gen else "nom"))
     # gleiche Person, beste Rolle: ein Fund ohne Institution übernimmt die Rolle des bekannten Namens
     # (auch in anderer Schreibung, etwa ganz in Großbuchstaben)

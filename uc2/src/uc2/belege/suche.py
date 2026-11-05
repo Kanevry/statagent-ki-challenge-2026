@@ -440,7 +440,9 @@ class Beleg:
     - `beleg_id` (= `abschnitt_id`, stabil, zitierbar), `artikel_id`, `medium`, `datum` (JJJJ-MM-TT),
       `monat` (JJJJ-MM);
     - `titel` maskiert; `text_modell` maskiert mit Zitaten (für das Modell, nur über `als_datenblock`);
-      `text_anzeige` maskiert, direkte Zitate als „[Zitat]“ (für Oberfläche und Protokoll);
+      `text_anzeige` maskiert, direkte Zitate als „[Zitat]“ (nur lokal, `als_dict(mit_text=True)`);
+    - `zitat` (belegter Satz, höchstens `ZITAT_ZEICHEN` Zeichen) und `pdf_seite`: online gehen nur Zitatfelder
+      hinaus, nie ein ganzer Abschnitt (Entscheid Lead 58, Owner-Klick #8705; `als_dict()` ohne Argument);
     - Rangteile: `rang = relevanz · gewicht_alter · faktor_institution`, dazu `ts`, `cos`,
       `rang_volltext`, `rang_vektor` (RRF-Eingänge) zum Nachrechnen mit `tests/pruefe_rang.py`.
     """
@@ -465,11 +467,19 @@ class Beleg:
     zitat: str = ""
     """Belegter Satz aus `text_anzeige`, höchstens `ZITAT_ZEICHEN` Zeichen (siehe dort, warum)."""
 
-    def als_dict(self, anzeige: bool = False) -> dict[str, Any]:
-        """Alle Felder; mit `anzeige=True` ohne `text_modell` (Zitate bleiben dann draußen)."""
+    def als_dict(self, *, mit_text: bool = False, fuer_modell: bool = False) -> dict[str, Any]:
+        """Standard (Online-Grenze): Kennung, Quelle, Titel, `pdf_seite`, `zitat` und Rangteile, ohne Texte.
+
+        `mit_text=True` fügt `text_anzeige` hinzu (ganzer Abschnitt, Zitate als „[Zitat]“), zusätzlich
+        `fuer_modell=True` auch `text_modell` (mit Zitaten). Beides nur lokal, nie für Oberfläche oder API.
+        """
+        if fuer_modell and not mit_text:
+            raise ValueError("fuer_modell=True verlangt mit_text=True")
         daten = asdict(self)
-        if anzeige:
+        if not fuer_modell:
             del daten["text_modell"]
+        if not mit_text:
+            del daten["text_anzeige"]
         return daten
 
 
@@ -556,6 +566,7 @@ def suche_belege(
     akteur: AkteurFuerBelege,
     frage: str,
     runde: int,
+    *,
     stichtag: date | None = None,
     regeln: Regeln | None = None,
     einbetter: Einbetter | None = None,
@@ -565,6 +576,7 @@ def suche_belege(
     k: int | None = None,
 ) -> Belegsuche:
     """Wie `belege_fuer_akteur`, dazu Modus und Abfrage (für `uc2 suche --akteur --json` und das Orakel)."""
+    liste = namen if namen is not None else Namensliste.lade()  # fail-closed vor jeder Abfrage
     regeln = regeln or lade_regeln()
     stichtag = stichtag or regeln.stichtag_standard
     institutionen = lade_institutionen(regeln=regeln)
@@ -580,7 +592,6 @@ def suche_belege(
         einbetter_fabrik=einbetter_fabrik,
         institution=akteur.institution,
     )
-    liste = namen if namen is not None else Namensliste.lade()
     belege = maskiere_treffer(verbindung, treffer, liste, frage)
     log.info(
         "belege akteur=%s runde=%s stichtag=%s modus=%s n=%d schluessel=%s",
@@ -599,6 +610,7 @@ def belege_fuer_akteur(
     akteur: AkteurFuerBelege,
     frage: str,
     runde: int,
+    *,
     stichtag: date | None = None,
     regeln: Regeln | None = None,
     einbetter: Einbetter | None = None,
@@ -612,10 +624,19 @@ def belege_fuer_akteur(
     - Endrang wie `suche`, mit `institution = akteur.institution`: Belege, deren Abschnitt die Institution
       trägt, bekommen den `institutionsfaktor` (1,5) als letzten Faktor.
     - Personenschutz: Titel und Text laufen durch `uc2.belege.namen.maskiere_artikel` (Namen aus Titel und
-      allen Abschnitten des Artikels; Muster plus `namen`, ohne `namen` die Liste aus `UC2_NAMENSLISTE`).
+      allen Abschnitten des Artikels; Muster plus `namen`, ohne `namen` die Liste aus `UC2_NAMENSLISTE`;
+      fehlt sie, wirft `Namensliste.lade` `NamenslisteFehlt`, fail-closed).
     - `runde` geht nur in Protokoll und Cache-Schlüssel (`cache_schluessel`) ein, nicht in die Auswahl.
-    - Fürs Modell: `uc2.belege.namen.als_datenblock(belege)`; für die Anzeige `Beleg.text_anzeige`.
+    - Fürs Modell: `uc2.belege.namen.als_datenblock(belege)`; für Anzeige und API `Beleg.als_dict()`.
     """
     return suche_belege(
-        verbindung, akteur, frage, runde, stichtag, regeln, einbetter, einbetter_fabrik, namen
+        verbindung,
+        akteur,
+        frage,
+        runde,
+        stichtag=stichtag,
+        regeln=regeln,
+        einbetter=einbetter,
+        einbetter_fabrik=einbetter_fabrik,
+        namen=namen,
     ).belege

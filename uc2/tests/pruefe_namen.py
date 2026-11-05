@@ -6,8 +6,9 @@ Lauf-Modus (#43): `python uc2/tests/pruefe_namen.py --lauf <json|txt> --namensli
 
 Im Lauf-Modus zählt der Scan nur Treffer gegen die beiden Listen (Index-Namensliste und Autor:in-Liste,
 eine Zeile je Name, nur das Feld vor einem TAB, `#` kommentiert): ganze Wörter (kein Wortzeichen davor oder
-danach), Groß-/Kleinschreibung beachtet. Bei JSON werden alle Zeichenketten gescannt, bei Text die ganze
-Datei. Ausgegeben werden nur Zahlen je Liste; `--zeige` nennt die getroffenen Namen (nie in Berichte).
+danach), Schreibung wie in der Liste oder ganz in Großbuchstaben, ein Genitiv (s, S, ’s) zählt mit. Bei
+JSON werden alle Zeichenketten gescannt, bei Text die ganze Datei. Ausgegeben werden nur Zahlen je Liste;
+`--zeige` nennt die getroffenen Namen (nie in Berichte).
 Exit 1 bei mindestens einem Treffer, 2 bei fehlender Liste, sonst 0.
 
 Meldet je Datei:Zeile Treffer gegen (a) eine externe Namensliste (Datei außerhalb des Repos, Pfad über
@@ -208,22 +209,39 @@ def texte_aus(pfad: Path) -> list[str]:
 _WORTANFANG = re.compile(r"(?<!\w)\w+")
 
 
+_WORTZEICHEN = re.compile(r"\w")
+_GENITIV = ("’s", "'s", "’S", "'S", "s", "S")
+"""Genitiv nach dem Namen zählt mit, auch in Großschrift („MUSTERFRAUS“)."""
+
+
 def zaehle_namen(texte: Sequence[str], namen: Sequence[str]) -> dict[str, int]:
-    """Treffer je Name: ganzes Wort, Groß-/Kleinschreibung beachtet (Index über das erste Wort, schnell)."""
-    index: dict[str, list[str]] = {}
+    """Treffer je Name (Index über das erste Wort, schnell): ganzes Wort, Schreibung wie in der Liste oder
+    ganz in Großbuchstaben, mit oder ohne Genitivendung (`_GENITIV`). „Musterfrau“ trifft also auch
+    „MUSTERFRAU“, „Musterfraus“ und „MUSTERFRAUS“; sonst gilt Groß-/Kleinschreibung."""
+    index: dict[str, list[tuple[str, str]]] = {}
     for name in set(namen):
-        kopf = _WORTANFANG.match(name)
-        if kopf is not None:
-            index.setdefault(kopf.group(0), []).append(name)
+        for variante in {name, name.upper()}:
+            kopf = _WORTANFANG.match(variante)
+            if kopf is not None:
+                index.setdefault(kopf.group(0), []).append((variante, name))
     zahlen: dict[str, int] = {}
     for text in texte:
         for wort in _WORTANFANG.finditer(text):
-            for name in index.get(wort.group(0), ()):
-                ende = wort.start() + len(name)
-                if text.startswith(name, wort.start()) and not (
-                    ende < len(text) and re.match(r"\w", text[ende])
-                ):
-                    zahlen[name] = zahlen.get(name, 0) + 1
+            kopf = wort.group(0)
+            kandidaten = [*index.get(kopf, ())]
+            if kopf.endswith(("s", "S")):
+                kandidaten.extend(index.get(kopf[:-1], ()))
+            for variante, name in kandidaten:
+                ende = wort.start() + len(variante)
+                if not text.startswith(variante, wort.start()):
+                    continue
+                for endung in (*_GENITIV, ""):
+                    nach = ende + len(endung)
+                    if text.startswith(endung, ende) and not (
+                        nach < len(text) and _WORTZEICHEN.match(text[nach])
+                    ):
+                        zahlen[name] = zahlen.get(name, 0) + 1
+                        break
     return zahlen
 
 

@@ -216,7 +216,10 @@ exakten Wert um etwa 3e-9 abweicht. Die Suche liest `ts` deshalb jetzt als `floa
 | nur aus dem Index (Muster) | 0 Treffer | 28 Treffer, 6 verschiedene Namen: 159 von 165 Autor:in-Namen im Fließtext maskiert (96,4 %) |
 | Index plus Autor:in-Werte (`uc2 namen sammeln --aus-index --autoren …`, 4.097 Namen) | 0 Treffer | 0 Treffer |
 
-Im Betrieb gilt die zweite Zeile: `UC2_NAMENSLISTE` zeigt auf die gemeinsame Liste außerhalb des Repos. Die erste Zeile
+Im Betrieb gilt die zweite Zeile: `UC2_NAMENSLISTE` zeigt auf die gemeinsame Liste außerhalb des Repos. Fehlt sie oder
+ist sie leer, bricht die Suche ab (fail-closed, `NamenslisteFehlt`, CLI Exit 2), weil die Muster allein nur 167 von 178
+Fundstellen der Recall-Stichprobe schützen (93,8 % < 95 %); die Deploy-Lane muss die Liste deshalb außerhalb des Repos auf
+den Online-Server legen und `UC2_NAMENSLISTE` dort setzen. Die erste Zeile
 misst, wie viel die Muster allein leisten. Der Abgleich mit der Autor:in-Liste ist in der zweiten Zeile nicht mehr
 unabhängig, weil die Liste selbst in die Maskierung eingeht. Unabhängig bleibt die Recall-Stichprobe mit einem
 Gutachter mit frischem Kontext (Akzeptanz S2, ≥ 50 Namen, ≥ 95 % maskiert).
