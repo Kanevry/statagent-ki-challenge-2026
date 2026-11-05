@@ -27,6 +27,7 @@ from statagent.uc4 import (
     _ISO,
     _NAME_MONAT,
     _OENACE_CODE,
+    _OENACE_LISTE,
     _ZAHL_MONAT,
     MERKMALE,
     Merkmal,
@@ -384,6 +385,11 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
         for t in _OENACE_CODE.finditer(text):
             if t.group(1).upper() in codes:
                 gefunden[t.group(1).upper()] = t.group(0)
+        # „ÖNACE C und F“: alle Buchstaben, sonst zählte nur der erste, ohne Hinweis.
+        for liste in _OENACE_LISTE.finditer(text):
+            for t in re.finditer(r"(?<!\w)[a-z](?!\w)", liste.group(1)):
+                if t.group(0).upper() in codes:
+                    gefunden.setdefault(t.group(0).upper(), liste.group(0))
         for muster, anfaenge in BRANCHEN:
             t = muster.search(text)
             if not t:
@@ -553,7 +559,13 @@ def _status_text(staende: list[dict[str, Any]]) -> str:
 
 
 #: Anfang der Absage bei zwei Werten eines Merkmals; UC4 zeigt in diesem Fall je Wert eine Zahl (#125).
-MEHRERE_WERTE = "Die Frage nennt mehrere Werte"
+_MEHRZAHL = {
+    "Bundesland": "Bundesländer",
+    "Geschlecht": "Geschlechter",
+    "ÖNACE-Abschnitt": "Branchen",
+    "Beschäftigungskategorie": "Beschäftigungskategorien",
+}
+MEHRERE_WERTE = tuple(f"Die Frage nennt mehrere {w}:" for w in _MEHRZAHL.values())
 
 
 class _KeineZahl(Exception):
@@ -639,7 +651,7 @@ def _filter(
         if len(werte) > 1:
             namen = " und ".join(codes[c] for c in werte)
             raise _KeineZahl(
-                f"{MEHRERE_WERTE} für {merkmal.name}: {namen}. Eine Zahl für alle zusammen wäre "
+                f"Die Frage nennt mehrere {_MEHRZAHL[merkmal.name]}: {namen}. Eine Zahl für alle zusammen wäre "
                 f"missverständlich. Bitte getrennt fragen oder alle auf einmal mit „je {merkmal.name}“."
             )
         filter_.append((merkmal, werte[0]))

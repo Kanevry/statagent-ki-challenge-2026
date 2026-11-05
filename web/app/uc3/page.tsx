@@ -9,6 +9,7 @@ import { abrechnung, leseMonatsuebersicht, MASSGEBLICH_SQL } from "@/components/
 import { haltKurz, haltTreffer, leseLaufDetail, sqlTreffer } from "@/components/uc3/lauf-detail";
 import { monatName, verschieben } from "@/components/uc3/monat";
 import { laufPfad, regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/navigation";
+import { regelsatzSatz } from "./_teile/regelsatz-satz";
 import type { Monatslauf } from "@/components/uc3/typen";
 import { Monatsgrafik } from "./_teile/monatsgrafik";
 import { Monatsliste, type Zeile } from "./_teile/monatsliste";
@@ -114,6 +115,9 @@ export default async function Monate({ searchParams }: Props) {
   const angehalten = await angehalteneMonate(monate, regelsatz);
   const vorfuehren = angehalten.at(-1)?.monat;
   const wieViele = angehalten.length;
+  const beideRegelsaetze = regelsaetze.includes("v2") || regelsatz === "v2";
+  const andere = beideRegelsaetze ? await leseMonatsuebersicht(regelsatz === "v1" ? "v2" : "v1") : null;
+  const andereZahl = andere?.ok ? (andere.daten.monate.find((m) => m.lieferung === letzter.lieferung)?.gezaehlt ?? null) : null;
   const zeilen: Zeile[] = monate.map((monat) => {
     const davor = monate.find((m) => m.lieferung === verschieben(monat.lieferung, -1));
     return { monat, vormonat: davor ? davor.gezaehlt : null, gehtAuf: abrechnung(monat).gehtAuf };
@@ -131,12 +135,18 @@ export default async function Monate({ searchParams }: Props) {
         </Ueberschrift>
         <div className="flex flex-wrap items-baseline gap-x-3 font-sans text-16 text-slate">
           <span>
-            {`Ende ${monatName(letzter.lieferung)}: `}
+            {regelsatz === "v2" ? `${monatName(letzter.lieferung)}: ` : `Ende ${monatName(letzter.lieferung)}: `}
             <span className="tabular-nums text-ink">{formatZahl(letzter.gezaehlt)}</span>
             {" Beschäftigungsverhältnisse"}
           </span>
           <BelegLink {...bestandBeleg(letzter)} />
         </div>
+        {beideRegelsaetze && (
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <p className="max-w-2xl font-sans text-16 text-pretty text-slate">{regelsatzSatz(regelsatz, andereZahl)}</p>
+            <RegelsatzWahl aktiv={regelsatz} />
+          </div>
+        )}
       </header>
 
       <Monatsgrafik monate={monate} regelsatz={regelsatz} />
@@ -186,12 +196,7 @@ export default async function Monate({ searchParams }: Props) {
               Alle Läufe, je Monat mit Qualitätsbericht
             </h2>
           }
-          rechts={
-            <>
-              {(regelsaetze.includes("v2") || regelsatz === "v2") && <RegelsatzWahl aktiv={regelsatz} />}
-              <BelegLink quelle="meta.lauf" sql={sqlZeitreihe(regelsatz)} />
-            </>
-          }
+          rechts={<BelegLink quelle="meta.lauf" sql={sqlZeitreihe(regelsatz)} />}
         />
       </section>
     </>

@@ -564,7 +564,7 @@ def test_nicht_auswertbar_ehrlich_abgesagt(gerechnet: Verbindung, frage: str, gr
 )
 def test_zwei_werte_eines_merkmals_abgesagt(gerechnet: Verbindung, frage: str) -> None:
     daten = antwort_frage(gerechnet, frage)
-    assert daten["zahlen"] == [] and "mehrere Werte" in daten["text"]
+    assert daten["zahlen"] == [] and "Die Frage nennt mehrere" in daten["text"]
 
 
 # Fängt: „von März bis Juni 2025“ liest nur Juni; „entwickelt“ ist keine Zeitreihe; „letztes Jahr“ bleibt offen.
@@ -719,7 +719,7 @@ def test_unbekannter_ort_abgesagt(gerechnet: Verbindung, frage: str) -> None:
 # Fängt: „ÖNACE C und ÖNACE F“ liefert nur C.
 def test_zwei_oenace_codes_abgesagt(gerechnet: Verbindung) -> None:
     daten = antwort_frage(gerechnet, "Beschäftigte in ÖNACE C und ÖNACE F im August 2024")
-    assert daten["zahlen"] == [] and "mehrere Werte" in daten["text"]
+    assert daten["zahlen"] == [] and "Die Frage nennt mehrere" in daten["text"]
 
 
 # Fängt: freie Dienstverträge werden fälschlich als nicht vorhanden abgesagt; sie sind die FD-Qualifikationen.
