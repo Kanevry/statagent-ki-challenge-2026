@@ -222,6 +222,17 @@ cmd_pruefen() {
     code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 -X POST -d x=1 "https://$DOMAIN$pfad") || code=000
     if [[ $code == 403 ]]; then echo "pruefen: POST $pfad abgewiesen (403, lesend)"; else echo "pruefen: POST $pfad liefert $code statt 403" >&2; fehler=1; fi
   done
+  # Die zwei Frage-Wege (#150): POST kommt an der Kante vorbei (Antwort nicht der Satz von Caddy; ein leerer Body
+  # endet in der App mit 400 oder 403, ohne Modellaufruf), PUT, DELETE und OPTIONS weist Caddy ab.
+  local methode antwort
+  for pfad in /api/uc3/frage /api/uc4/frage; do
+    antwort=$(curl -sS --max-time 20 -X POST -H 'content-type: application/json' -d '{}' "https://$DOMAIN$pfad") || antwort=""
+    if [[ $antwort == *"Die Online-Demo ist lesend."* ]]; then echo "pruefen: POST $pfad an der Kante gesperrt" >&2; fehler=1; else echo "pruefen: POST $pfad erreicht die App"; fi
+    for methode in PUT DELETE OPTIONS; do
+      code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 -X "$methode" "https://$DOMAIN$pfad") || code=000
+      if [[ $code == 403 ]]; then echo "pruefen: $methode $pfad abgewiesen (403)"; else echo "pruefen: $methode $pfad liefert $code statt 403" >&2; fehler=1; fi
+    done
+  done
 
   # auf dem Server: jeder Dienst läuft und meldet healthy
   local zustand
