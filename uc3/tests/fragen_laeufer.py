@@ -22,15 +22,17 @@ from statagent.db import Verbindung, verbinden
 from statagent.frage import als_webantwort, antwort_frage
 from statagent.uc4 import uc4_antwort
 
-#: Nur die Kopie: Der Läufer liest zwar nur, aber die Abgabe-Datenbank bleibt unberührt.
-ERLAUBTE_DB = "statistik_probe"
+#: Nur Kopien: Der Läufer liest zwar nur, aber die Abgabe-Datenbank bleibt unberührt. „kic_vorlage“ ist die Ersatz-DB
+#: auf dem CI-Server (Dump vom 05.11. 22:05, Zugang nur lesend), solange der m5 weg ist.
+ERLAUBTE_DB = frozenset({"statistik_probe", "kic_vorlage"})
 
 
 def datenbank_pruefen(conn: Verbindung) -> None:
     zeile = conn.execute("SELECT current_database() AS name").fetchone()
     name = str(zeile["name"]) if zeile else ""
-    if name != ERLAUBTE_DB:
-        raise SystemExit(f"Der Läufer läuft nur gegen {ERLAUBTE_DB}, nicht gegen {name}.")
+    if name not in ERLAUBTE_DB:
+        raise SystemExit(f"Der Läufer läuft nur gegen {sorted(ERLAUBTE_DB)}, nicht gegen {name}.")
+    print(f"Datenbank: {name}", file=sys.stderr, flush=True)
 
 
 def _fragen(conn: Verbindung, zeile: Zeile, soll: Soll) -> list[tuple[str, Urteil]]:

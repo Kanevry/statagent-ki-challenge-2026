@@ -1,6 +1,6 @@
 """Fragen-Katalog gegen die echten Daten (nur auf dem m5, CI wählt ``daten`` ab).
 
-Die Datenbank kommt aus ``UC3_DATABASE_URL`` und muss ``statistik_probe`` sein. Es wird nur gelesen.
+Die Datenbank kommt aus ``UC3_DATABASE_URL`` und muss eine Kopie sein (``ERLAUBTE_DB``). Es wird nur gelesen.
 """
 
 from __future__ import annotations
@@ -20,8 +20,8 @@ def ergebnisse() -> list[tuple[Zeile, str, Urteil]]:
     try:
         with db.verbinden() as conn:
             name = conn.execute("SELECT current_database() AS name").fetchone()
-            if not name or name["name"] != ERLAUBTE_DB:
-                pytest.skip(f"läuft nur gegen {ERLAUBTE_DB}")
+            if not name or name["name"] not in ERLAUBTE_DB:
+                pytest.skip(f"läuft nur gegen {sorted(ERLAUBTE_DB)}")
             werte = laufen(conn, katalog_lesen())
     except psycopg.OperationalError as fehler:
         pytest.skip(f"keine Datenbank: {fehler}")
