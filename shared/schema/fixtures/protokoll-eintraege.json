@@ -1,0 +1,26 @@
+[
+  {
+    "id": 41,
+    "zeit": "2026-11-05T09:12:30.512000+00:00",
+    "uc": "uc3",
+    "akteur": "agent",
+    "name": "regel-agent",
+    "anweisung": "Prüfregel P07 (Beschäftigungsbeginn vor Geburtsdatum) ab 2025-01 als Fehler statt Warnung führen",
+    "wirkung": "Regel P07 Version 2 vorgeschlagen; betrifft 0 veröffentlichte Monate",
+    "status": "offen",
+    "modell": "gpt-5-mini",
+    "ref": "regel:P07@2"
+  },
+  {
+    "id": 42,
+    "zeit": "2026-11-05T09:20:04+01:00",
+    "uc": "uc3",
+    "akteur": "mensch",
+    "name": "Erika Musterfrau",
+    "anweisung": "Lieferung 2025-03 freigeben",
+    "wirkung": "Lieferung 2025-03 an das Ministerium freigegeben",
+    "status": "freigegeben",
+    "modell": null,
+    "ref": "lieferung:2025-03"
+  }
+]
