@@ -64,9 +64,15 @@ def test_suche_volltext_und_hybrid_mit_mock(pg_test: psycopg.Connection[Any], ex
     # Mock-Kosinus ist Zufall: geprüft werden Vereinigung der Kandidaten und Zusammensetzung der Relevanz.
     nach_titel = {t.titel: t for t in treffer}
     assert nach_titel["Wartezeit beim Facharzt wird kürzer"].ts > 0
+    assert nach_titel["Wartezeit beim Facharzt wird kürzer"].rang_volltext == 1
     assert len(treffer) > 1  # Vektor-Kandidaten ohne Volltexttreffer kommen dazu
     for t in treffer:
-        assert abs(t.relevanz - (0.7 * max(t.cos, 0.0) + 0.3 * t.ts)) < 1e-12
+        erwartet = 0.0
+        if t.rang_volltext is not None:
+            erwartet += regeln.gewicht_volltext / (regeln.rrf_k + t.rang_volltext)
+        if t.rang_vektor is not None:
+            erwartet += regeln.gewicht_vektor / (regeln.rrf_k + t.rang_vektor)
+        assert abs(t.relevanz - erwartet) < 1e-12
     assert len({t.artikel_id for t in treffer}) == len(treffer)
 
     _, frueh = suche(pg_test, "Wartezeit Facharzt", regeln, modus="volltext", stichtag=date(2026, 8, 30))

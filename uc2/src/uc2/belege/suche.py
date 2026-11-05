@@ -2,7 +2,9 @@
 
 Kandidaten sind die Vereinigung der besten `kandidaten` nach Volltext und nach Kosinus. Relevanz:
 volltext = ts_norm (`ts_rank_cd(Abschnitt || Titel, …, 32)`, liegt in [0, 1)), vektor = max(cos, 0),
-hybrid = gewicht_vektor · max(cos, 0) + gewicht_volltext · ts_norm.
+hybrid (fusion rrf) = gewicht_volltext/(rrf_k + rang_volltext) + gewicht_vektor/(rrf_k + rang_vektor),
+Ränge je Verfahren über Artikel (bester Abschnitt) in dessen Kandidatenliste; fehlt ein Rang, entfällt
+der Summand. hybrid (fusion summe) = gewicht_vektor · max(cos, 0) + gewicht_volltext · ts_norm.
 Endrang = Relevanz · 0,5^(Alter/Halbwertszeit).
 Artikel nach dem Stichtag sind ausgeschlossen; je Artikel zählt nur der beste Abschnitt.
 """
@@ -33,6 +35,10 @@ class Kandidat:
     text: str
     ts: float
     cos: float
+    in_volltext: bool = False
+    """Steht in der Volltext-Kandidatenliste."""
+    in_vektor: bool = False
+    """Steht in der Vektor-Kandidatenliste."""
 
 
 @dataclass(frozen=True)
@@ -48,6 +54,8 @@ class Treffer:
     medium: str
     titel: str
     ausschnitt: str
+    rang_volltext: int | None = None
+    rang_vektor: int | None = None
 
     def als_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -65,27 +73,72 @@ def relevanz(modus: str, cos: float, ts: float, regeln: Regeln) -> float:
     return regeln.gewicht_vektor * max(cos, 0.0) + regeln.gewicht_volltext * ts
 
 
+def _treffer(kand: Kandidat, rel: float, stichtag: date, regeln: Regeln, **raenge: int | None) -> Treffer:
+    gewicht = gewicht_alter(kand.artikeldatum, stichtag, regeln.halbwertszeit_tage)
+    return Treffer(
+        abschnitt_id=kand.abschnitt_id,
+        artikel_id=kand.artikel_id,
+        relevanz=rel,
+        cos=kand.cos,
+        ts=kand.ts,
+        gewicht_alter=gewicht,
+        rang=rel * gewicht,
+        artikeldatum=kand.artikeldatum.isoformat(),
+        medium=kand.medium,
+        titel=kand.titel,
+        ausschnitt=" ".join(kand.text.split())[:AUSSCHNITT_ZEICHEN],
+        **raenge,
+    )
+
+
+def _artikelraenge(kandidaten: list[Kandidat], wert: str) -> tuple[dict[str, int], dict[str, Kandidat]]:
+    """Bester Abschnitt je Artikel nach `wert` (ts oder cos) und Artikelrang 1, 2, …; Gleichstand nach ID."""
+    bester: dict[str, Kandidat] = {}
+    for kand in sorted(kandidaten, key=lambda c: (-getattr(c, wert), c.abschnitt_id)):
+        bester.setdefault(kand.artikel_id, kand)
+    reihe = sorted(bester.values(), key=lambda c: (-getattr(c, wert), c.artikel_id))
+    return {c.artikel_id: n for n, c in enumerate(reihe, start=1)}, bester
+
+
+def bewerte_rrf(kandidaten: list[Kandidat], stichtag: date, regeln: Regeln, k: int) -> list[Treffer]:
+    """Gewichtete RRF über Artikelränge, dann Altersgewicht; Gleichstand nach artikel_id."""
+    gueltig = [c for c in kandidaten if c.artikeldatum <= stichtag]
+    rang_t, bester_t = _artikelraenge([c for c in gueltig if c.in_volltext], "ts")
+    rang_v, bester_v = _artikelraenge([c for c in gueltig if c.in_vektor], "cos")
+    treffer: list[Treffer] = []
+    for artikel_id in sorted(set(rang_t) | set(rang_v)):
+        rel = 0.0
+        if artikel_id in rang_t:
+            rel += regeln.gewicht_volltext / (regeln.rrf_k + rang_t[artikel_id])
+        if artikel_id in rang_v:
+            rel += regeln.gewicht_vektor / (regeln.rrf_k + rang_v[artikel_id])
+        kand = bester_t.get(artikel_id) or bester_v[artikel_id]
+        treffer.append(
+            _treffer(
+                kand,
+                rel,
+                stichtag,
+                regeln,
+                rang_volltext=rang_t.get(artikel_id),
+                rang_vektor=rang_v.get(artikel_id),
+            )
+        )
+    reihe = sorted(treffer, key=lambda t: (-t.rang, t.artikel_id))
+    return [t for t in reihe if t.rang > 0][:k]
+
+
 def bewerte(kandidaten: list[Kandidat], modus: str, stichtag: date, regeln: Regeln, k: int) -> list[Treffer]:
-    """Endrang je Kandidat, bester Abschnitt je Artikel, Top k; Gleichstand nach abschnitt_id."""
+    """Endrang je Kandidat, bester Abschnitt je Artikel, Top k; Gleichstand nach abschnitt_id.
+
+    Hybrid mit `fusion: rrf` geht an `bewerte_rrf`.
+    """
+    if modus == "hybrid" and regeln.fusion == "rrf":
+        return bewerte_rrf(kandidaten, stichtag, regeln, k)
     bester: dict[str, Treffer] = {}
     for kand in sorted(kandidaten, key=lambda c: c.abschnitt_id):
         if kand.artikeldatum > stichtag:
             continue
-        rel = relevanz(modus, kand.cos, kand.ts, regeln)
-        gewicht = gewicht_alter(kand.artikeldatum, stichtag, regeln.halbwertszeit_tage)
-        treffer = Treffer(
-            abschnitt_id=kand.abschnitt_id,
-            artikel_id=kand.artikel_id,
-            relevanz=rel,
-            cos=kand.cos,
-            ts=kand.ts,
-            gewicht_alter=gewicht,
-            rang=rel * gewicht,
-            artikeldatum=kand.artikeldatum.isoformat(),
-            medium=kand.medium,
-            titel=kand.titel,
-            ausschnitt=" ".join(kand.text.split())[:AUSSCHNITT_ZEICHEN],
-        )
+        treffer = _treffer(kand, relevanz(modus, kand.cos, kand.ts, regeln), stichtag, regeln)
         alt = bester.get(kand.artikel_id)
         if alt is None or treffer.rang > alt.rang:
             bester[kand.artikel_id] = treffer
@@ -187,7 +240,8 @@ def suche(
                 VOLLTEXT_SQL.format(abfrage=ts_abfrage), {"frage": frage, "stichtag": stichtag, "n": n}
             )
         ]
-    kandidaten_ids = sorted(set(volltext_ids) | set(vektor_ids))
+    volltext_menge, vektor_menge = set(volltext_ids), set(vektor_ids)
+    kandidaten_ids = sorted(volltext_menge | vektor_menge)
     if not kandidaten_ids:
         return modus, []
     kandidaten = [
@@ -200,6 +254,8 @@ def suche(
             text=str(z[5]),
             ts=float(z[6]),
             cos=cos_je_id.get(str(z[0]), 0.0),
+            in_volltext=str(z[0]) in volltext_menge,
+            in_vektor=str(z[0]) in vektor_menge,
         )
         for z in verbindung.execute(
             DETAIL_SQL.format(abfrage=ts_abfrage), {"frage": frage, "ids": kandidaten_ids}

@@ -13,6 +13,7 @@ from uc2 import pfade
 
 MODI = ("volltext", "vektor", "hybrid")
 VERKNUEPFUNGEN = ("oder", "und")
+FUSIONEN = ("rrf", "summe")
 
 
 @dataclass(frozen=True)
@@ -26,6 +27,8 @@ class Regeln:
     gewicht_volltext: float
     kandidaten: int
     volltext_verknuepfung: str
+    fusion: str
+    rrf_k: float
     k: int
     institutionsfaktor: float
 
@@ -51,6 +54,9 @@ def lade_regeln(pfad: Path | None = None) -> Regeln:
             f"regeln.yaml: suche.volltext_verknuepfung muss einer von {VERKNUEPFUNGEN} sein, "
             f"nicht {verknuepfung!r}"
         )
+    fusion = str(suche.get("fusion", "rrf"))
+    if fusion not in FUSIONEN:
+        raise ValueError(f"regeln.yaml: suche.fusion muss einer von {FUSIONEN} sein, nicht {fusion!r}")
     return Regeln(
         stichtag_standard=_datum(roh["stichtag_standard"]),
         halbwertszeit_tage=float(roh["halbwertszeit_tage"]),
@@ -61,6 +67,8 @@ def lade_regeln(pfad: Path | None = None) -> Regeln:
         gewicht_volltext=float(suche["gewicht_volltext"]),
         kandidaten=int(suche["kandidaten"]),
         volltext_verknuepfung=verknuepfung,
+        fusion=fusion,
+        rrf_k=float(suche.get("rrf_k", 60)),
         k=int(suche["k"]),
         institutionsfaktor=float(roh["institutionsfaktor"]),
     )

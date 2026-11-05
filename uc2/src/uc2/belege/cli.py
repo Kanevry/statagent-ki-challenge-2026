@@ -72,6 +72,7 @@ def _suche(args: argparse.Namespace) -> int:
     for n, t in enumerate(treffer, start=1):
         print(
             f"{n:2d}. rang={t.rang:.4f} relevanz={t.relevanz:.4f} cos={t.cos:.4f} ts={t.ts:.4f} "
+            f"rang_volltext={t.rang_volltext} rang_vektor={t.rang_vektor} "
             f"gewicht_alter={t.gewicht_alter:.4f} | {t.artikeldatum} {t.medium} | {t.titel}"
             f"\n    {t.ausschnitt}"
         )
