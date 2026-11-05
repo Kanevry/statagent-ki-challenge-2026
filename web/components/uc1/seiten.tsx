@@ -6,6 +6,7 @@ import { Fliesstext, Knopf, knopfKlassen, Leerzustand } from "@kic/ui/basis";
 import { Antworten, BeispielStart } from "./antworten";
 import { useLotse, type Wechsel } from "./lotse-kontext";
 import { Situation, SITUATION_FELD_ID } from "./situation";
+import { leistungName } from "./leistungen";
 import { Kopf } from "./teile";
 
 const linkKnopf =
@@ -28,8 +29,15 @@ function SituationKurz({ text, aendern, neu }: { text: string; aendern: () => vo
   );
 }
 
-function anzahlText(anzahl: number): string {
-  return `${anzahl === 1 ? "1 Leistung" : `${anzahl} Leistungen`} erkannt. Jede Angabe hat eine Quelle.`;
+/**
+ * Konkrete Überschrift: „Pflegegeld kommt für Sie in Frage“, bei mehreren „A und B kommen für Sie in Frage“. Die
+ * Person („für Ihre Mutter“) nennt der Kern nicht sicher, deshalb immer „für Sie“.
+ */
+export function leistungenTitel(ids: readonly string[]): string {
+  const namen = ids.map(leistungName);
+  const letzter = namen.at(-1) ?? "";
+  if (namen.length <= 1) return `${letzter} kommt für Sie in Frage`;
+  return `${namen.slice(0, -1).join(", ")} und ${letzter} kommen für Sie in Frage`;
 }
 
 /**
@@ -84,9 +92,9 @@ export function StartSeite({ beispiel }: { beispiel: boolean }) {
       <BeispielStart aktiv={beispiel} />
       <SituationKurz text={situation} aendern={aendern} neu={neu} />
       {rueckfrage ? (
-        <Kopf titel="Eine Angabe fehlt noch" unter="Bitte beantworten Sie die Frage. Dann geht es weiter." schritt={1} />
+        <Kopf titel="Eine Angabe fehlt noch" schritt={1} />
       ) : anzahl > 0 ? (
-        <Kopf titel="Das kommt für Sie in Frage" unter={anzahlText(anzahl)} schritt={2} />
+        <Kopf titel={leistungenTitel(letzte.leistungen)} schritt={2} />
       ) : (
         <Kopf titel="Die Antwort des Lotsen" unter="Jede Angabe hat eine Quelle, wenn es eine gibt." schritt={1} />
       )}
@@ -98,14 +106,14 @@ export function StartSeite({ beispiel }: { beispiel: boolean }) {
 /** /uc1/leistungen: dieselben Antworten, solange die Seite offen ist; sonst ein Leerzustand. */
 export function LeistungenSeite() {
   const { verlauf, lage } = useLotse();
-  const anzahl = verlauf.at(-1)?.antwort.leistungen.length ?? 0;
+  const leistungen = verlauf.at(-1)?.antwort.leistungen ?? [];
   return (
     <>
-      <Kopf
-        titel="Das kommt für Sie in Frage"
-        unter={anzahl > 0 ? anzahlText(anzahl) : "Hier stehen die Leistungen zu Ihrer Situation."}
-        schritt={anzahl > 0 ? 2 : 1}
-      />
+      {leistungen.length > 0 ? (
+        <Kopf titel={leistungenTitel(leistungen)} schritt={2} />
+      ) : (
+        <Kopf titel="Ihre Leistungen" unter="Hier stehen die Leistungen zu Ihrer Situation." schritt={1} />
+      )}
       {verlauf.length === 0 && lage.art !== "laden" && lage.art !== "fehler" ? (
         <Leerzustand
           satz="Erst eine Situation erzählen, dann stehen hier die passenden Leistungen."

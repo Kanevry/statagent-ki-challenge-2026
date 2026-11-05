@@ -40,6 +40,10 @@ export const traegerSchema = z.object({
 });
 export type Traeger = z.infer<typeof traegerSchema>;
 
+/** Antwortknopf einer Rückfrage: `text` steht auf dem Knopf, `antwort` geht als Nachricht hinaus. */
+export const rueckfrageOptionSchema = z.object({ text: z.string().min(1), antwort: z.string().min(1) });
+export type RueckfrageOption = z.infer<typeof rueckfrageOptionSchema>;
+
 /** Aussage im Rohformat des Kerns; `treffer`, `deckung` und alles Unbekannte fallen beim Parsen weg. */
 const rohAussageSchema = z.object({
   text: z.string(),
@@ -58,6 +62,7 @@ export const rohAntwortSchema = z.object({
   sitzung_id: z.string().min(1),
   aussagen: z.array(rohAussageSchema),
   rueckfrage: textOderNull,
+  rueckfrage_optionen: z.array(rueckfrageOptionSchema).default([]),
   traeger: z.array(traegerSchema).default([]),
   naechste_schritte: z.array(z.string()).default([]),
   leistungen: z.array(z.string()).default([]),
@@ -90,6 +95,8 @@ export const webAntwortSchema = z.object({
   verhalten: z.enum(VERHALTEN),
   sitzung_id: z.string(),
   rueckfrage: z.string().nullable(),
+  /** Antwortknöpfe der Rückfrage; ältere Aufnahmen haben keine. */
+  rueckfrage_optionen: z.array(rueckfrageOptionSchema).default([]),
   aussagen: z.array(aussageSchema),
   traeger: z.array(traegerSchema),
   naechste_schritte: z.array(z.string()),
@@ -137,14 +144,10 @@ export function quelleAnzeige(quelle: string): string {
   return `${sauber || "Dokument"}${seite}`;
 }
 
-const W_WOERTER = /^(wer|wen|wem|wessen|was|wie|wo|wann|warum|weshalb|wieso|welche[rsnm]?|wohin|woher|wof(ü|ue)r|wozu|womit|wieviel)$/;
-const PRAEPOSITIONEN = new Set(["von", "an", "bei", "mit", "für", "in", "ab", "seit", "zu", "um", "auf", "aus", "nach", "über", "unter", "durch", "gegen"]);
-
-/** Passen „Ja / Nein / Weiß nicht“? Nur bei Fragen, die mit dem Verb beginnen („Bekommt sie …?“). */
-export function jaNeinFrage(frage: string): boolean {
-  const erstes = frage.trim().split(/\s+/)[0]?.toLowerCase().replace(/[^\p{L}]/gu, "") ?? "";
-  if (!erstes) return false;
-  return !W_WOERTER.test(erstes) && !PRAEPOSITIONEN.has(erstes);
+/** Erster Satz einer Rückfrage („Wer zahlt die Pension?“); der Rest erklärt nur, was die Knöpfe schon zeigen. */
+export function ersterSatz(text: string): string {
+  const treffer = /^.*?[?!.](?=\s|$)/s.exec(text.trim());
+  return (treffer ? treffer[0] : text).trim();
 }
 
 const MONATE = ["Jänner", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];

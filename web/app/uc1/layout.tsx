@@ -1,14 +1,13 @@
 import type { ReactNode } from "react";
 import { UcBereich } from "@kic/ui/shell";
 import { LotseAnbieter } from "@/components/uc1/lotse-kontext";
-import { UC1_NAVIGATION } from "@/components/uc1/navigation";
 
-// UC1 SV KI-Lotse (#35): Unter-Navigation der Shell, darunter die Seiten. Der Anbieter hält Antworten und Sitzung
-// über alle Seiten unter /uc1, damit „Leistungen“ nach dem Seitenwechsel dieselben Antworten zeigt. Die Abgrenzung
-// (keine Diagnose) steht genau einmal: bei der Antwort (antworten.tsx).
+// UC1 SV KI-Lotse (#35): keine Tab-Leiste (Urteil ui-regie-32), die Führung trägt der Schrittzeiger mit drei Schritten.
+// Der Anbieter hält Antworten und Sitzung über alle Seiten unter /uc1, damit „Leistungen“ und „Antrag“ nach dem
+// Seitenwechsel dieselben Antworten zeigen. Die Abgrenzung (keine Diagnose) steht genau einmal: bei der Antwort.
 export default function Uc1Layout({ children }: { children: ReactNode }) {
   return (
-    <UcBereich uc="uc1" nav={UC1_NAVIGATION}>
+    <UcBereich uc="uc1">
       <LotseAnbieter>{children}</LotseAnbieter>
     </UcBereich>
   );

@@ -1,9 +1,7 @@
-import type { Metadata } from "next";
-import { StelleSeite } from "@/components/uc1/antrag-ansicht";
+import { redirect } from "next/navigation";
 
-// /uc1/stelle, Schritt 4: die zuständige Stelle mit Fundstelle und den passenden nächsten Schritten. Keine Buchung.
-export const metadata: Metadata = { title: "Stelle · KI-Lotse · OneShotAndy" };
-
+// /uc1/stelle gibt es nicht mehr als eigene Seite (Urteil ui-regie-32): die zuständige Stelle steht im Antrag.
+// Alte Links führen dorthin, kein toter Link.
 export default function Uc1Stelle() {
-  return <StelleSeite />;
+  redirect("/uc1/antrag");
 }

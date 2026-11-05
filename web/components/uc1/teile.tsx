@@ -1,7 +1,6 @@
 "use client";
 
-import { Fliesstext, Status, Ueberschrift } from "@kic/ui/basis";
-import { ModellPille } from "@kic/ui/bausteine";
+import { Fliesstext, Ueberschrift } from "@kic/ui/basis";
 import { BelegChip } from "./beleg-chip";
 import { formatStand, quelleAnzeige, telefonTeile, type Aussage, type WebAntwort } from "./antwort";
 import { modellText, useLotse } from "./lotse-kontext";
@@ -10,10 +9,12 @@ import { modellText, useLotse } from "./lotse-kontext";
 
 const fokus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen";
 
-export const SCHRITTE = ["Situation", "Leistungen", "Antrag", "Stelle"] as const;
+/** Die drei Schritte; die zuständige Stelle steht im Antrag (rechte Spalte), keine eigene Seite. */
+export const SCHRITTE = ["Situation", "Leistungen", "Antrag"] as const;
+export type Schritt = 1 | 2 | 3;
 
-/** Schrittzeiger 1 Situation · 2 Leistungen · 3 Antrag · 4 Stelle; der aktuelle Schritt trägt aria-current. */
-export function Schrittzeiger({ aktiv }: { aktiv: 1 | 2 | 3 | 4 }) {
+/** Schrittzeiger 1 Situation, 2 Leistungen, 3 Antrag; der aktuelle Schritt trägt aria-current. */
+export function Schrittzeiger({ aktiv }: { aktiv: Schritt }) {
   return (
     <ol aria-label="Ihre Schritte" className="flex flex-wrap gap-x-4 gap-y-1 font-sans text-14">
       {SCHRITTE.map((name, i) => {
@@ -36,49 +37,59 @@ export function Schrittzeiger({ aktiv }: { aktiv: 1 | 2 | 3 | 4 }) {
 /** id der h1 jeder UC1-Seite; nach einer neuen Antwort springt der Fokus dorthin (tabIndex -1). */
 export const KOPF_ID = "uc1-kopf";
 
-/** Kopfzeile einer UC1-Seite: Titel, Unterzeile, darunter der Schrittzeiger. */
-export function Kopf({ titel, unter, schritt }: { titel: string; unter: string; schritt: 1 | 2 | 3 | 4 }) {
+/** Kopfzeile einer UC1-Seite: Titel, wenn nötig eine Unterzeile, darunter der Schrittzeiger. */
+export function Kopf({ titel, unter, schritt }: { titel: string; unter?: string; schritt: Schritt }) {
   return (
     <div className="flex max-w-3xl flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Ueberschrift stufe={2} als="h1" id={KOPF_ID} tabIndex={-1} className="focus-visible:outline-none">
           {titel}
         </Ueberschrift>
-        <Fliesstext ton="gedaempft">{unter}</Fliesstext>
+        {unter && <Fliesstext ton="gedaempft">{unter}</Fliesstext>}
       </div>
       <Schrittzeiger aktiv={schritt} />
     </div>
   );
 }
 
-/** Text der KI-Kennzeichnung; im Replay mit dem Modell der Aufnahme statt des Modells im Kopf der Seite. */
-export function kennzeichnungText(modell: string | null, aufgezeichnet: boolean): string {
-  if (!modell) return "Antwort vom Programm, ohne Sprachmodell";
-  return aufgezeichnet
-    ? `Antwort von einer KI, geprüft gegen die Quellen. Aufgezeichnet mit ${modell}`
-    : `Antwort von einer KI, geprüft gegen die Quellen (Modell ${modell})`;
+/**
+ * Text der KI-Kennzeichnung (AI Act Art. 50), eine Zeile: live mit dem Modell, im Replay mit Datum und Modell der
+ * Aufnahme und dem Hinweis auf erfundene Personenangaben.
+ */
+export function kennzeichnungText(modell: string | null, aufnahme: string | null): string {
+  const kopf = modell ? "KI-Antwort, geprüft gegen die Quellen." : "Antwort vom Programm, ohne Sprachmodell.";
+  if (aufnahme) {
+    const mit = modell ? ` mit ${modell}` : "";
+    return `${kopf} Aufgezeichnet am ${aufnahme}${mit}. Personenangaben erfunden.`;
+  }
+  return modell ? `${kopf} Modell ${modell}.` : kopf;
+}
+
+/** Ruhige graue Zeile; ersetzt Aufnahme-Banner und Modell-Pille. */
+function Kennzeichnung({ text }: { text: string }) {
+  return (
+    <Fliesstext groesse={14} ton="gedaempft" data-testid="uc1-ki">
+      {text}
+    </Fliesstext>
+  );
 }
 
 /**
- * KI-Kennzeichnung an jeder Antwort (AI Act Art. 50) mit dem Modell, das geantwortet hat. Im Replay steht im Kopf der
- * App „Modell nicht erreichbar“; deshalb nennt die Kennzeichnung dann das Modell der Aufnahme.
+ * KI-Kennzeichnung direkt unter jeder Antwort mit dem Modell, das geantwortet hat. Im Replay steht im Kopf der App
+ * „Modell nicht erreichbar“; deshalb nennt die Zeile dann das Modell der Aufnahme.
  */
 export function KiKennzeichnung({ antwort }: { antwort: Pick<WebAntwort, "modell" | "provider"> }) {
   const { aufnahme } = useLotse();
-  return <ModellPille data-testid="uc1-ki">{kennzeichnungText(modellText(antwort), aufnahme !== null)}</ModellPille>;
+  return <Kennzeichnung text={kennzeichnungText(modellText(antwort), aufnahme)} />;
 }
 
-/** Kennzeichnung einer Seite, deren Inhalt aus Modell oder Aufnahme stammt (Antrag, Stelle): Modell der letzten Antwort. */
+/** Kennzeichnung einer Seite, deren Inhalt aus Modell oder Aufnahme stammt (Antrag): Modell der letzten Antwort. */
 export function SeitenKennzeichnung() {
   const { verlauf, aufnahme, aufnahmeModell } = useLotse();
   const letzte = verlauf.at(-1)?.antwort;
   if (!letzte) return null;
   const modell = aufnahme !== null ? aufnahmeModell : modellText(letzte);
-  return (
-    <div>
-      <ModellPille data-testid="uc1-ki">{kennzeichnungText(modell, aufnahme !== null)}</ModellPille>
-    </div>
-  );
+  return <Kennzeichnung text={kennzeichnungText(modell, aufnahme)} />;
 }
 
 /** Beleg einer Aussage des Lotsen: Zitat, Quelle und, wenn bekannt, der Stand der Fassung. */
@@ -109,16 +120,6 @@ export function Fundstelle({ fundstelle, zitat }: { fundstelle: string | null; z
     <Fliesstext groesse={14} ton="gedaempft" data-uc1-fundstelle-ohne-zitat="">
       {`Fundstelle: ${fundstelle}`}
     </Fliesstext>
-  );
-}
-
-/** Kennzeichnung des aufgezeichneten Beispiels; steht auf jeder Seite, solange es zu sehen ist. */
-export function AufnahmeHinweis({ aufnahme }: { aufnahme: string | null }) {
-  if (!aufnahme) return null;
-  return (
-    <Status art="info" data-testid="uc1-aufnahme">
-      {`Aufgezeichnetes Beispiel vom ${aufnahme}, keine Live-Antwort. Alle Personenangaben sind erfunden.`}
-    </Status>
   );
 }
 

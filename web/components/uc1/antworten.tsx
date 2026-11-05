@@ -4,24 +4,28 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, type FormEvent } from "react";
 import { Akzent, Fliesstext, Knopf, knopfKlassen, Status, Ueberschrift } from "@kic/ui/basis";
-import { jaNeinFrage, traegerName, type WebAntwort } from "./antwort";
+import { ersterSatz, traegerName, type Aussage, type WebAntwort } from "./antwort";
 import { antragLeistung, leistungName } from "./leistungen";
 import { useLotse, type Lage, type Wechsel } from "./lotse-kontext";
 import { GESPERRT } from "./situation";
-import { AufnahmeHinweis, Beleg, einmal, Fundstelle, KiKennzeichnung, KOPF_ID, MitTelefon, OHNE_STELLE } from "./teile";
+import { StelleKasten, stellenGruppen } from "./stelle";
+import { Beleg, Fundstelle, KiKennzeichnung, KOPF_ID, MitTelefon, OHNE_STELLE } from "./teile";
 
-// Antworten des Lotsen (Pen-Frame B1gvr): Rückfrage mit Schnellantworten, Leistungen mit „Antrag vorbereiten“, Aussagen mit Beleg,
-// zuständige Stelle und nächste Schritte. Eine Einschätzung wie „sehr wahrscheinlich“ rechnet der Kern nicht,
-// deshalb steht sie hier nicht.
+// Antworten des Lotsen (#35, Urteil ui-regie-32): Rückfrage mit Antwortknöpfen, Leistungen mit Begründung und
+// „Antrag vorbereiten“, daneben die zuständige Stelle, Quellen hinter „Details“. Eine Einschätzung wie „sehr
+// wahrscheinlich“ rechnet der Kern nicht, deshalb steht sie hier nicht.
 
-const SCHNELL = ["Ja", "Nein", "Weiß nicht"] as const;
-
-/** Feld der aktiven Rückfrage; nach einer neuen Rückfrage springt der Fokus dorthin. */
+/** Feld der aktiven Rückfrage; nach einer neuen Rückfrage ohne Knöpfe springt der Fokus dorthin. */
 export const RUECKFRAGE_FELD_ID = "uc1-rueckfrage";
+
+const FELD =
+  "h-11 rounded border border-slate bg-white px-4 font-sans text-16 text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen";
 
 function Rueckfrage({ antwort, aktiv }: { antwort: WebAntwort; aktiv: boolean }) {
   const { antworten, antwortEntwurf, setAntwortEntwurf, lage, spielt } = useLotse();
   const frage = antwort.rueckfrage ?? antwort.text;
+  const optionen = antwort.rueckfrage_optionen;
+  const mitKnoepfen = aktiv && optionen.length > 0;
   const laedt = lage.art === "laden";
   // Während eine Aufnahme läuft, geht keine Antwort live hinaus (sonst mit der aufgezeichneten Sitzung).
   const gesperrt = laedt || spielt;
@@ -33,51 +37,54 @@ function Rueckfrage({ antwort, aktiv }: { antwort: WebAntwort; aktiv: boolean })
     if (!gesperrt) void antworten(antwortEntwurf);
   }
 
+  if (!aktiv) return <Fliesstext className="font-semibold"><MitTelefon text={frage} /></Fliesstext>;
+
   return (
-    <Akzent art="ki" className="flex flex-col gap-4 bg-white py-4 pr-4">
-      <Fliesstext className={aktiv ? "font-semibold md:text-20" : "font-semibold"}><MitTelefon text={frage} /></Fliesstext>
-      {aktiv && (
-        <form onSubmit={absenden} noValidate className="flex flex-col gap-4">
-          {jaNeinFrage(frage) && (
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Schnellantwort">
-              {SCHNELL.map((wort) => (
-                <Knopf
-                  key={wort}
-                  art="sekundaer"
-                  aria-disabled={gesperrt}
-                  className={GESPERRT}
-                  onClick={() => {
-                    if (!gesperrt) void antworten(wort);
-                  }}
-                >
-                  {wort}
-                </Knopf>
-              ))}
-            </div>
-          )}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <div className="flex flex-1 flex-col gap-2">
-              <label htmlFor={feldId} className="font-sans text-14 font-semibold text-ink">
-                Ihre Antwort
-              </label>
-              <input
-                id={feldId}
-                value={antwortEntwurf}
-                maxLength={1000}
-                readOnly={spielt}
-                aria-invalid={fehler ? true : undefined}
-                onChange={(e) => setAntwortEntwurf(e.target.value)}
-                className="h-11 rounded border border-slate bg-white px-4 font-sans text-16 text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen"
-              />
-            </div>
-            <Knopf type="submit" aria-disabled={gesperrt} className={GESPERRT}>
-              Antworten
-            </Knopf>
+    <div className="flex max-w-3xl flex-col gap-6">
+      {mitKnoepfen ? (
+        // Mit Knöpfen reicht der erste Satz; die Erklärung zeigen die Knöpfe selbst.
+        <fieldset className="flex flex-col gap-4" data-uc1-optionen="">
+          <legend className="mb-4 font-sans text-20 font-semibold text-ink">{ersterSatz(frage)}</legend>
+          <div className="flex flex-wrap gap-2">
+            {optionen.map((option) => (
+              <Knopf
+                key={option.text}
+                art="sekundaer"
+                aria-disabled={gesperrt}
+                className={GESPERRT}
+                onClick={() => {
+                  if (!gesperrt) void antworten(option.antwort);
+                }}
+              >
+                {option.text}
+              </Knopf>
+            ))}
           </div>
-          {fehler && <Status art="fehler">{fehler}</Status>}
-        </form>
+        </fieldset>
+      ) : (
+        <Fliesstext className="font-semibold md:text-20"><MitTelefon text={frage} /></Fliesstext>
       )}
-    </Akzent>
+      <form onSubmit={absenden} noValidate className="flex flex-col gap-2">
+        <label htmlFor={feldId} className="font-sans text-14 font-semibold text-ink">
+          {mitKnoepfen ? "Oder selbst schreiben" : "Ihre Antwort"}
+        </label>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <input
+            id={feldId}
+            value={antwortEntwurf}
+            maxLength={1000}
+            readOnly={spielt}
+            aria-invalid={fehler ? true : undefined}
+            onChange={(e) => setAntwortEntwurf(e.target.value)}
+            className={`${FELD} sm:flex-1`}
+          />
+          <Knopf type="submit" art={mitKnoepfen ? "sekundaer" : "primaer"} aria-disabled={gesperrt} className={GESPERRT}>
+            Antworten
+          </Knopf>
+        </div>
+        {fehler && <Status art="fehler">{fehler}</Status>}
+      </form>
+    </div>
   );
 }
 
@@ -102,60 +109,83 @@ function AntragKnopf({ art }: { art: string }) {
   );
 }
 
-/** Leistungen, Aussagen mit Beleg und nächste Schritte. Die Überschrift „Das kommt für Sie in Frage“ trägt die Seite. */
-function Ergebnis({ antwort, letzte }: { antwort: WebAntwort; letzte: boolean }) {
+/** Erste Aussage, die die Leistung beim Namen nennt („Pflegegeld gibt es ab 65 Stunden monatlich.“), sonst keine. */
+export function begruendungFuer(id: string, aussagen: readonly Aussage[]): Aussage | undefined {
+  const namen = [leistungName(id), id].map((n) => n.toLowerCase());
+  return aussagen.find((a) => namen.some((n) => a.text.toLowerCase().includes(n)));
+}
+
+/** Eine Leistung: Begründung mit Beleg (sonst die Stelle mit Fundstelle) und die Hauptaktion. */
+function LeistungKarte({ id, antwort, letzte }: { id: string; antwort: WebAntwort; letzte: boolean }) {
   const { aufgezeichnet } = useLotse();
+  const begruendung = begruendungFuer(id, antwort.aussagen);
+  const stellen = antwort.traeger.filter((t) => !t.leistung || t.leistung === id);
+  const art = antwort.antraege.find((a) => antragLeistung(a) === id);
+  // Im Beispiel gibt es nur die aufgezeichneten Anträge; für die anderen steht ein ehrlicher Satz.
+  const ohneAufnahme = art !== undefined && aufgezeichnet !== null && !aufgezeichnet.includes(art);
+  return (
+    <li data-uc1-leistung={id} className="flex flex-col items-start gap-3 rounded border border-line bg-white p-4 md:p-6">
+      <Ueberschrift stufe={3} als="h2">
+        {leistungName(id)}
+      </Ueberschrift>
+      {begruendung ? (
+        <div className="flex flex-col items-start gap-1" data-uc1-begruendung="">
+          <Fliesstext><MitTelefon text={begruendung.text} /></Fliesstext>
+          <Beleg aussage={begruendung} />
+        </div>
+      ) : stellen.length === 0 ? (
+        <Fliesstext groesse={14} ton="gedaempft" data-uc1-ohne-stelle="">
+          {OHNE_STELLE}
+        </Fliesstext>
+      ) : (
+        stellen.map((stelle, i) => (
+          <div key={`${i}-${traegerName(stelle)}`} className="flex flex-col items-start gap-1">
+            <Fliesstext groesse={14}>{`Zuständig: ${traegerName(stelle)}.`}</Fliesstext>
+            <Fundstelle fundstelle={stelle.fundstelle} zitat={stelle.zitat} />
+          </div>
+        ))
+      )}
+      {art &&
+        (letzte && ohneAufnahme ? (
+          <Fliesstext groesse={14} ton="gedaempft" data-uc1-ohne-aufnahme={art}>
+            Dafür gibt es einen Antrag. Im Beispiel ist er nicht aufgezeichnet. Im echten Gespräch füllt der Lotse ihn auch
+            aus.
+          </Fliesstext>
+        ) : letzte ? (
+          <AntragKnopf art={art} />
+        ) : (
+          <Fliesstext groesse={14} ton="gedaempft">
+            Dafür gibt es einen Antrag.
+          </Fliesstext>
+        ))}
+    </li>
+  );
+}
+
+const ZUSAMMENFASSUNG =
+  "inline-flex min-h-11 cursor-pointer items-center font-sans text-14 font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen";
+
+/** Leistungen mit Begründung, daneben (Desktop) die zuständige Stelle, die Quellen aufklappbar darunter. */
+function Ergebnis({ antwort, letzte }: { antwort: WebAntwort; letzte: boolean }) {
   return (
     <div className="flex flex-col gap-6">
-      {antwort.leistungen.length > 0 && (
-        <ul className="flex flex-col gap-4" aria-label="Erkannte Leistungen">
-          {antwort.leistungen.map((id) => {
-            const stellen = antwort.traeger.filter((t) => !t.leistung || t.leistung === id);
-            const art = antwort.antraege.find((a) => antragLeistung(a) === id);
-            // Im Beispiel gibt es nur die aufgezeichneten Anträge; für die anderen steht ein ehrlicher Satz.
-            const ohneAufnahme = art !== undefined && aufgezeichnet !== null && !aufgezeichnet.includes(art);
-            return (
-              <li key={id} data-uc1-leistung={id} className="flex flex-col gap-2 rounded border border-line bg-white p-4 md:p-6">
-                <Ueberschrift stufe={3} als="h2">
-                  {leistungName(id)}
-                </Ueberschrift>
-                {stellen.length === 0 ? (
-                  <Fliesstext groesse={14} ton="gedaempft" data-uc1-ohne-stelle="">
-                    {OHNE_STELLE}
-                  </Fliesstext>
-                ) : (
-                  stellen.map((stelle, i) => (
-                    <div key={`${i}-${traegerName(stelle)}`} className="flex flex-col items-start gap-1">
-                      <Fliesstext groesse={14}>{`Zuständig: ${traegerName(stelle)}.`}</Fliesstext>
-                      <Fundstelle fundstelle={stelle.fundstelle} zitat={stelle.zitat} />
-                    </div>
-                  ))
-                )}
-                {art &&
-                  (letzte && ohneAufnahme ? (
-                    <Fliesstext groesse={14} ton="gedaempft" data-uc1-ohne-aufnahme={art}>
-                      Dafür gibt es einen Antrag. Im Beispiel ist er nicht aufgezeichnet. Im echten Gespräch füllt der Lotse
-                      ihn auch aus.
-                    </Fliesstext>
-                  ) : letzte ? (
-                    <AntragKnopf art={art} />
-                  ) : (
-                    <Fliesstext groesse={14} ton="gedaempft">
-                      Dafür gibt es einen Antrag.
-                    </Fliesstext>
-                  ))}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        {antwort.leistungen.length > 0 ? (
+          <ul className="flex min-w-0 flex-col gap-4" aria-label="Erkannte Leistungen">
+            {antwort.leistungen.map((id) => (
+              <LeistungKarte key={id} id={id} antwort={antwort} letzte={letzte} />
+            ))}
+          </ul>
+        ) : (
+          <Fliesstext className="whitespace-pre-line"><MitTelefon text={antwort.text} /></Fliesstext>
+        )}
+        {letzte && <StelleKasten gruppen={stellenGruppen(antwort.traeger, [])} className="self-start" />}
+      </div>
 
       {antwort.aussagen.length > 0 && (
-        <section className="flex flex-col gap-4" aria-label="Was in den Quellen steht">
-          <Ueberschrift stufe={3} als="h2">
-            Was in den Quellen steht
-          </Ueberschrift>
-          <ul className="flex flex-col gap-4">
+        <details className="max-w-3xl border-t border-line pt-2" data-uc1-quellen="">
+          <summary className={ZUSAMMENFASSUNG}>Details: Quellen</summary>
+          <ul className="flex flex-col gap-4 pt-2" aria-label="Was in den Quellen steht">
             {antwort.aussagen.map((aussage, i) => (
               <li key={`${aussage.quelle}-${i}`} className="flex flex-col items-start gap-2 border-b border-line pb-4">
                 <Fliesstext><MitTelefon text={aussage.text} /></Fliesstext>
@@ -168,21 +198,7 @@ function Ergebnis({ antwort, letzte }: { antwort: WebAntwort; letzte: boolean })
               </li>
             ))}
           </ul>
-        </section>
-      )}
-
-      {antwort.naechste_schritte.length > 0 && (
-        <section className="flex flex-col gap-2" aria-label="So geht es weiter">
-          <Ueberschrift stufe={3} als="h2">
-            So geht es weiter
-          </Ueberschrift>
-          <ol className="flex list-decimal flex-col gap-1 pl-6 font-sans text-16 text-ink">
-            {/* Gleicher Text kommt bei zwei Anträgen zweimal (Ich kann den Antrag … vorausfüllen.): nur einmal zeigen. */}
-            {einmal(antwort.naechste_schritte).map((schritt) => (
-              <li key={schritt}><MitTelefon text={schritt} /></li>
-            ))}
-          </ol>
-        </section>
+        </details>
       )}
     </div>
   );
@@ -190,12 +206,13 @@ function Ergebnis({ antwort, letzte }: { antwort: WebAntwort; letzte: boolean })
 
 function AntwortBlock({ wechsel, letzte, onAendern }: { wechsel: Wechsel; letzte: boolean; onAendern?: () => void }) {
   const { antwort, eingabe } = wechsel;
-  // Bei einer Antwort mit Aussagen stehen Text und Aussagen doppelt; dann zeigt die Seite die gegliederte Form.
-  const zeigeText = antwort.verhalten !== "rueckfrage" && !(antwort.verhalten === "antwort" && antwort.aussagen.length > 0);
+  // Bei einer Antwort mit Leistungen trägt die gegliederte Form den Inhalt; der Fließtext stünde doppelt.
+  const zeigeText = antwort.verhalten === "abstinenz" || antwort.verhalten === "uebergabe";
   return (
     <article className="flex flex-col gap-4" data-uc1-antwort={antwort.verhalten}>
-      <Fliesstext groesse={14} ton="gedaempft">{`Sie: ${eingabe}`}</Fliesstext>
-      {zeigeText && <Fliesstext className="whitespace-pre-line"><MitTelefon text={antwort.text} /></Fliesstext>}
+      {/* Die Eingabe steht nur im eingeklappten Verlauf; oben steht die Situation schon kurz über der Antwort. */}
+      {!letzte && <Fliesstext groesse={14} ton="gedaempft">{`Sie: ${eingabe}`}</Fliesstext>}
+      {zeigeText && <Fliesstext className="max-w-3xl whitespace-pre-line"><MitTelefon text={antwort.text} /></Fliesstext>}
       {antwort.verhalten === "rueckfrage" && <Rueckfrage antwort={antwort} aktiv={letzte} />}
       {antwort.verhalten === "uebergabe" && antwort.uebergabe_an && (
         <Akzent art="warnung">
@@ -217,7 +234,7 @@ function AntwortBlock({ wechsel, letzte, onAendern }: { wechsel: Wechsel; letzte
       )}
       {antwort.verhalten === "antwort" && <Ergebnis antwort={antwort} letzte={letzte} />}
       {antwort.hinweise.length > 0 && (
-        <ul className="flex flex-col gap-1">
+        <ul className="flex max-w-3xl flex-col gap-1">
           {antwort.hinweise.map((hinweis, i) => (
             <li key={`${i}-${hinweis}`}>
               <Status art="info"><MitTelefon text={hinweis} /></Status>
@@ -225,9 +242,7 @@ function AntwortBlock({ wechsel, letzte, onAendern }: { wechsel: Wechsel; letzte
           ))}
         </ul>
       )}
-      <div>
-        <KiKennzeichnung antwort={antwort} />
-      </div>
+      <KiKennzeichnung antwort={antwort} />
     </article>
   );
 }
@@ -242,7 +257,7 @@ function ansage(lage: Lage, verlauf: readonly Wechsel[]): string {
 }
 
 /**
- * Setzt nach einer neuen Antwort den Fokus auf die neue Hauptaussage: bei einer Rückfrage auf das Antwortfeld,
+ * Setzt nach einer neuen Antwort den Fokus auf die neue Hauptaussage: bei einer Rückfrage ohne Knöpfe auf das Antwortfeld,
  * sonst auf die Überschrift der Seite. Beim ersten Anzeigen (Seitenwechsel) bleibt der Fokus, wo er ist.
  */
 function useFokusNachAntwort(verlauf: readonly Wechsel[], lage: Lage): void {
@@ -253,7 +268,9 @@ function useFokusNachAntwort(verlauf: readonly Wechsel[], lage: Lage): void {
       return;
     }
     bekannt.current = verlauf.length;
-    const rueckfrage = verlauf.at(-1)?.antwort.verhalten === "rueckfrage";
+    const neue = verlauf.at(-1)?.antwort;
+    // Rückfrage ohne Knöpfe: ins Antwortfeld. Mit Knöpfen auf die Überschrift, dann liest man zuerst die Frage.
+    const rueckfrage = neue?.verhalten === "rueckfrage" && neue.rueckfrage_optionen.length === 0;
     // Ein Frame Pause: die Seite tauscht erst die Ansicht (Eingabe, Rückfrage, Ergebnis), dann gibt es das Ziel.
     const rahmen = requestAnimationFrame(() => {
       const ziel = (rueckfrage && document.getElementById(RUECKFRAGE_FELD_ID)) || document.getElementById(KOPF_ID);
@@ -271,20 +288,19 @@ export interface AntwortenProps {
 }
 
 /**
- * Verlauf mit Live-Region, Replay-Kennzeichnung und Fehler mit „Beispiel ansehen“. Hauptaussage ist die letzte
+ * Verlauf mit Live-Region, KI-Kennzeichnung je Antwort und Fehler mit „Beispiel ansehen“. Hauptaussage ist die letzte
  * Antwort; frühere Schritte stehen eingeklappt unter „Bisheriges Gespräch“.
  */
 export function Antworten({ onAendern, situationFehler = false }: AntwortenProps = {}) {
-  const { verlauf, lage, aufnahme, beispielAbspielen } = useLotse();
+  const { verlauf, lage, beispielAbspielen } = useLotse();
   useFokusNachAntwort(verlauf, lage);
   const frueher = verlauf.slice(0, -1);
   const letzte = verlauf.at(-1);
   return (
-    <section aria-label="Antworten des Lotsen" aria-busy={lage.art === "laden"} className="flex max-w-3xl flex-col gap-6">
+    <section aria-label="Antworten des Lotsen" aria-busy={lage.art === "laden"} className="flex w-full max-w-6xl flex-col gap-6">
       <p role="status" aria-live="polite" className="sr-only">
         {ansage(lage, verlauf)}
       </p>
-      <AufnahmeHinweis aufnahme={aufnahme} />
       {lage.art === "fehler" && lage.replay && (
         <div className="flex flex-col items-start gap-4" data-testid="uc1-fehler">
           <Status art="fehler">{lage.meldung}</Status>

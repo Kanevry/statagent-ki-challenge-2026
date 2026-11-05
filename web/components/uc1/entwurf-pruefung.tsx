@@ -84,7 +84,7 @@ export function EntwurfPruefung({ antrag, live, pdf, ebene }: EntwurfPruefungPro
           <label htmlFor={feldId} className="font-sans text-14 font-semibold text-ink">
             Ihr Vor- und Nachname
           </label>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+          <div className="flex flex-col items-start gap-3">
             <input
               id={feldId}
               name="pruef-name"
@@ -94,7 +94,7 @@ export function EntwurfPruefung({ antrag, live, pdf, ebene }: EntwurfPruefungPro
               aria-invalid={nameFehler ? true : undefined}
               aria-describedby={[satzId, nameFehler && fehlerId].filter(Boolean).join(" ")}
               onChange={(e) => setName(e.target.value)}
-              className={`h-11 w-full min-w-0 rounded border sm:flex-1 bg-white px-4 font-sans text-16 text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen ${nameFehler ? "border-err-fg" : "border-slate"}`}
+              className={`h-11 w-full min-w-0 rounded border bg-white px-4 font-sans text-16 text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen ${nameFehler ? "border-err-fg" : "border-slate"}`}
             />
             <Knopf type="submit" className="min-h-11" disabled={!pruefung.gueltig}>
               Entwurf als geprüft markieren

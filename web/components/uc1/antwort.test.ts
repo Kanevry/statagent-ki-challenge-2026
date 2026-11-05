@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatStand, jaNeinFrage, quelleAnzeige, telefonTeile } from "./antwort";
+import { abbilden, ersterSatz, formatStand, quelleAnzeige, telefonTeile } from "./antwort";
 
 describe("quelleAnzeige", () => {
   // Fängt: ein roher Dateipfad des Kerns („Anträge und Formulare/….pdf“) auf der Seite.
@@ -10,13 +10,21 @@ describe("quelleAnzeige", () => {
   });
 });
 
-describe("jaNeinFrage", () => {
-  // Fängt: „Ja / Nein“ als Antwort auf eine offene Frage wie „Von wem bekommt die Person ihre Pension?“.
-  it("nur bei Fragen, die mit dem Verb beginnen", () => {
-    expect(jaNeinFrage("Von wem bekommt die Person ihre Pension? Zum Beispiel PVA.")).toBe(false);
-    expect(jaNeinFrage("Wer braucht die Hilfe: Sie selbst oder jemand aus Ihrer Familie?")).toBe(false);
-    expect(jaNeinFrage("In welchem Bundesland wohnt die Person?")).toBe(false);
-    expect(jaNeinFrage("Bekommt Ihre Mutter eine Pension?")).toBe(true);
+describe("ersterSatz", () => {
+  // Fängt: die ganze Erklärung der Rückfrage als Überschrift über den Antwortknöpfen.
+  it("nimmt nur den ersten Satz, Abkürzungen ohne Leerzeichen danach bleiben", () => {
+    expect(ersterSatz("Wer zahlt die Pension? Meist ist das die PVA. Sie können auch sagen: keine Pension.")).toBe("Wer zahlt die Pension?");
+    expect(ersterSatz("Wohnt sie in Wien")).toBe("Wohnt sie in Wien");
+  });
+});
+
+describe("abbilden: rueckfrage_optionen", () => {
+  const roh = { text: "t", verhalten: "rueckfrage", sitzung_id: "s", aussagen: [], rueckfrage: "Wer zahlt die Pension?" };
+  // Fängt: ältere Kern-Ausgaben ohne das Feld würden sonst als unerwartetes Format abgelehnt.
+  it("fehlt das Feld, ist es leer; vorhandene Knöpfe kommen durch", () => {
+    expect(abbilden(roh)?.rueckfrage_optionen).toEqual([]);
+    const knopf = { text: "Pensionsversicherung (PVA)", antwort: "Die Pension kommt von der PVA." };
+    expect(abbilden({ ...roh, rueckfrage_optionen: [knopf] })?.rueckfrage_optionen).toEqual([knopf]);
   });
 });
 
