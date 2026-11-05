@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from .basis import VoruebergehenderFehler
+from .basis import SchluesselFehlt
 from .openai_basis import OpenAiKompatibel
 
 #: ``aufwand`` des Vertrags → ``reasoning_effort`` der Chat-Completions-API.
@@ -19,7 +19,8 @@ class AzureProvider(OpenAiKompatibel):
     def basis_url(self) -> str:
         url = os.environ.get("AZURE_OPENAI_BASE_URL", "").rstrip("/")
         if not url:
-            raise VoruebergehenderFehler("azure: AZURE_OPENAI_BASE_URL nicht belegt")
+            # Fehlkonfiguration wie ein fehlender Schlüssel: auf Stufe 1 KonfigFehler, später übersprungen.
+            raise SchluesselFehlt("azure: AZURE_OPENAI_BASE_URL nicht belegt")
         return url if url.endswith("/openai/v1") else url + "/openai/v1"
 
     def standard_modell(self, groesse: str) -> str:

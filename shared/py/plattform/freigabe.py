@@ -183,6 +183,27 @@ def _vorhandener_commit(repo_pfad: Path | str, kennung: str) -> str | None:
     return None
 
 
+def _pruefe_wiederverwendung(
+    repo_pfad: Path | str, commit_hash: str, name: str, typ: str, ref: str | None
+) -> None:
+    """Ein vorhandener Commit zum Vorschlag gilt nur, wenn er denselben Freigebenden (und bei datei denselben
+    Inhalt) trägt; sonst nennten DB und Git verschiedene Menschen bzw. Dateistände."""
+    im_commit = _git(
+        repo_pfad, "log", "-1", "--format=%(trailers:key=Freigegeben-von,valueonly)", commit_hash
+    )
+    if im_commit.strip() != name:
+        raise VorschlagUngueltig(
+            f"Commit {commit_hash[:12]} zu diesem Vorschlag nennt einen anderen Freigebenden"
+        )
+    if typ == "datei" and ref:
+        try:
+            freigegeben = _git(repo_pfad, "rev-parse", f"{commit_hash}:{ref}")
+        except GitFehler as fehler:
+            raise VorschlagUngueltig(f"Commit {commit_hash[:12]} enthält {ref} nicht") from fehler
+        if _git(repo_pfad, "hash-object", "--", ref) != freigegeben:
+            raise VorschlagUngueltig(f"{ref} weicht vom Stand im Commit {commit_hash[:12]} ab")
+
+
 def _pruefe_autocommit(conn: psycopg.Connection) -> None:
     """autocommit=True und keine offene Transaktion: sonst wäre die Freigabe nur ein Savepoint."""
     from psycopg import pq
@@ -257,11 +278,18 @@ def freigeben(
             raise ValueError("objekt_typ fehlt und vorschlag_typ ist keiner von " + ", ".join(OBJEKT_TYPEN))
         ziel_ref = objekt_ref if objekt_ref is not None else ref
         if typ == "datei":
-            if not ziel_ref:
-                raise ValueError("objekt_typ datei braucht objekt_ref (Pfad relativ zum Repo)")
+            if not ref:
+                raise ValueError("objekt_typ datei braucht einen Vorschlag mit ref (Pfad relativ zum Repo)")
+            if ziel_ref != ref:
+                # pruefe_freigegeben sucht über ref; eine andere Datei freizugeben, hieße R6d zu umgehen.
+                raise ValueError(
+                    f"objekt_ref {ziel_ref!r} muss bei datei dem ref des Vorschlags {ref!r} entsprechen"
+                )
             _pruefe_datei_im_repo(repo_pfad, ziel_ref)
         freigabe = _freigabe_schreiben(conn, vorschlag_id, name, "ja", None, typ, ziel_ref)
         commit_hash = _vorhandener_commit(repo_pfad, kennung)
+        if commit_hash is not None:
+            _pruefe_wiederverwendung(repo_pfad, commit_hash, name, typ, ziel_ref)
         if commit_hash is None:
             betreff = " ".join(anweisung.split())
             trailer = [

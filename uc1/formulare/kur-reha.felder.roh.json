@@ -1,0 +1,1592 @@
+{
+  "datei": "Antrag Kur und Reha.pdf",
+  "seiten": 2,
+  "zusammenfassung": {
+    "felder_gesamt": 91,
+    "widgets_gesamt": 116,
+    "je_typ": {
+      "/Btn": 45,
+      "/Tx": 46
+    },
+    "je_art": {
+      "checkbox": 45,
+      "text": 46
+    },
+    "pflicht": 0,
+    "nur_lesen": 0,
+    "mit_wert": 0,
+    "mit_tooltip": 0,
+    "ohne_seite": 0,
+    "need_appearances": false,
+    "xfa": false
+  },
+  "felder": [
+    {
+      "name": "VSNR_1",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1,
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "Geschlecht",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/m",
+        "/w"
+      ]
+    },
+    {
+      "name": "VSNR_2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "Versicherte(r)",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 44
+    },
+    {
+      "name": "Versicherte(r) beschäftigt",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 44
+    },
+    {
+      "name": "zuständiger SV-träger",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 40
+    },
+    {
+      "name": "Patient(in)",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 44
+    },
+    {
+      "name": "Personenstand",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8392704,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 15
+    },
+    {
+      "name": "Telefonnummer",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8392704,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 15
+    },
+    {
+      "name": "Anschrift Patient(in)",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 44
+    },
+    {
+      "name": "Pensionsversicherung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Arbeitslosenversicherung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Unfallversicherung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Bundesamt",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Sozialhilfeträger",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "öffentlich-rechtl. DVH",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Pensionsantrag",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "freiwillig versichert",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Pflegegeld",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Anschrift",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 38
+    },
+    {
+      "name": "Pensionsversicherungsträger",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 35
+    },
+    {
+      "name": "Geschäftsstelle AMS",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 38
+    },
+    {
+      "name": "Unfallversicherungsanstalt",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 50
+    },
+    {
+      "name": "Von welcher Stelle",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 42
+    },
+    {
+      "name": "Bei welcher Anstalt2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 42
+    },
+    {
+      "name": "Bei welcher Anstalt1",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 42
+    },
+    {
+      "name": "Stufe1",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 1
+    },
+    {
+      "name": "Stufe2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 25
+    },
+    {
+      "name": "Von welcher Anstalt2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 35
+    },
+    {
+      "name": "Bei welcher Anstalt4",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 35
+    },
+    {
+      "name": "Bei welcher Anstalt3",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 35
+    },
+    {
+      "name": "Von welcher Anstalt",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 26
+    },
+    {
+      "name": "zuletzt beschäftigt bis",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 29
+    },
+    {
+      "name": "Pensionsbezug",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Pflegegeld1",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Aufenthalt innerhalb von  Jahren",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Verwandschaftsverhältnis",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 25
+    },
+    {
+      "name": "Wann1",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 20
+    },
+    {
+      "name": "Wo1",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 21
+    },
+    {
+      "name": "Wo2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 21
+    },
+    {
+      "name": "Von welcher Stelle2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 52
+    },
+    {
+      "name": "Geburtsjahr",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 4
+    },
+    {
+      "name": "Vorname",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 21
+    },
+    {
+      "name": "Gewicht",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "RR",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 15
+    },
+    {
+      "name": "Rehabilitation",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Atemwegserkrankungen",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Neurol. Formenkreis",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Rheumat. Formenkreis",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Ort",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 43
+    },
+    {
+      "name": "heimfähig",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "kurfähig",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "benötigt Diät",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Größe",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 13
+    },
+    {
+      "name": "gehfähig",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "mit Hilfsmittel",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Rollstuhl",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Begleitperson",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Transport",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "fremde Hilfe",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "für die Anreise",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/j"
+      ]
+    },
+    {
+      "name": "für den Aufenthalt",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/j"
+      ]
+    },
+    {
+      "name": "Rettungswagen",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/j"
+      ]
+    },
+    {
+      "name": "Ambulanzwagen",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/j"
+      ]
+    },
+    {
+      "name": "priv. PKW, Taxi",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/j"
+      ]
+    },
+    {
+      "name": "Diätart",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 19
+    },
+    {
+      "name": "PKW priv., Taxi",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 19
+    },
+    {
+      "name": "Familienname",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 34
+    },
+    {
+      "name": "Aktuelle Vorgeschichte",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8392704,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 270
+    },
+    {
+      "name": "Antragsrelevante Diagnose",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8392704,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 180
+    },
+    {
+      "name": "Befunde",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8392704,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 180
+    },
+    {
+      "name": "Wann2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 20
+    },
+    {
+      "name": "freiwillig versichert1",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "pensions- unfallversichert",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/j",
+        "/n"
+      ]
+    },
+    {
+      "name": "Landaufenthalt",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Amb",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Kur/GVA",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Erholung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Genesung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Sonstige Erkrankungen",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 52
+    },
+    {
+      "name": "Stoffwechselerkrankungen",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Hauterkrankungen",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Herz-/Kreislauf",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Onkologie",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Sonstige",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Psychische Erkrankungen",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "Bewegungs-/Stützapparat",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/n"
+      ]
+    },
+    {
+      "name": "andere wichtige Hinweise",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 4096,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null
+    },
+    {
+      "name": "Begründung",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null
+    },
+    {
+      "name": "Datum",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null
+    },
+    {
+      "name": "Datum1",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null
+    }
+  ]
+}
