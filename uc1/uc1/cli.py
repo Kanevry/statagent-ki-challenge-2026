@@ -10,9 +10,12 @@ BEFEHLE: dict[str, tuple[str, str]] = {
     "db-init": ("uc1.db", "DDL der Datenbank lotse einspielen"),
     "ingest": ("uc1.ingest", "Korpus svbox/uc1 in die Datenbank lotse einlesen (#29)"),
     "suche": ("uc1.suche", "Abschnitte zu einer Frage suchen (#29)"),
+    "vektoren": ("uc1.vektoren", "Vollindex dichter Vektoren: export, berechnen, import, status (#29)"),
     "eval": ("uc1.eval", "Lotse-Set messen: Recall@5, Zitiertreue, Träger, Verhalten (#30)"),
     "frage": ("uc1.kern", "Eine Frage an den Lotsen stellen (#31)"),
+    "uc4": ("uc1.uc4", "UC4-Antwort in einfacher Sprache über Zahlen und Belege aus UC3/UC2 (#107)"),
     "antrag": ("uc1.antrag", "Antrag als Entwurf vorausfüllen (#32)"),
+    "termin": ("uc1.termin", "Belegte Stelle und Terminentwurf (ICS), nichts wird gebucht (#81)"),
     "serve": ("uc1.api", "Dienst uc1.api:app auf 127.0.0.1:8101 starten (#34)"),
 }
 
