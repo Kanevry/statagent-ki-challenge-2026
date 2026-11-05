@@ -20,8 +20,8 @@ Code gibt ein Mensch mit Vor- und Nachnamen frei.
 |---|---|---|---|
 | **UC3 StatAgent** (bewertet) | Statistikprozess für die synthetische Beschäftigtenstatistik: 24 Monatslieferungen einlesen, nach Regeln bereinigen, zählen, prüfen, Qualitätsbericht und Aggregations-Sheet. Eigene Agenten setzen Änderungsaufträge um, ein Mensch gibt frei. | Gebaut. Die Seiten unter `/uc3` zeigen Läufe, Berichte, Klassifikationen, Freigaben und Datenanfragen, jede Zahl mit Beleg. | `uc3/README.md`, Ergebnisse in `abgabe/` |
 | UC1 SV KI-Lotse | Hilft bei Fragen zu Gesundheit und Sozialversicherung, mit Quelle an jeder Antwort | Gebaut. Auf `/uc1` erzählt man seine Lage, der Lotse fragt bei Bedarf nach und antwortet mit einem Zitat als Beleg an jeder Aussage. Er nennt Antrag, zuständige Stelle und Termin. `/uc1?beispiel=pflege` spielt einen aufgezeichneten Fall ohne Netz ab. Der Lotse ist auch an `/uc4` angeschlossen. | `uc1/`, `docs/plan/uc1/` |
-| UC2 HealthPolicy Simulator | Mehrere Akteure verhandeln politische, organisatorische und finanzielle Entscheidungen | Gebaut. Auf `/uc2` verhandeln Interessenvertretungen in Runden mit Moderator, mit Beleg aus dem Pressespiegel, wo es einen gibt; sonst ist die Haltung als Modellannahme markiert. Ein Mensch gibt das Ergebnis mit Namen frei, vorher heißt es „Entwurf“. | `uc2/README.md` |
-| UC4 Gemeinsamer Einstieg | Eine Frage läuft nacheinander durch UC3, UC2 und UC1 (nicht bewertet) | Seite `/uc4` mit Modellwahl (Azure, Mistral, Claude oder Testbetrieb). UC3 liefert die Zahl, UC2 die Abwägung, UC1 die Erklärung. | `/uc4` in der App |
+| UC2 HealthPolicy Simulator | Mehrere Akteure verhandeln politische, organisatorische und finanzielle Entscheidungen | Gebaut. Auf `/uc2` verhandeln Interessenvertretungen in Runden mit Moderator, mit Beleg aus dem Pressespiegel, wo es einen gibt; sonst ist die Haltung als Modellannahme markiert. Ein Mensch gibt das Ergebnis mit Namen frei, vorher heißt es „Entwurf“. Online zeigt `/uc2` eine aufgezeichnete Verhandlung; erfundene Beispielbelege sind dort als solche gekennzeichnet. | `uc2/README.md` |
+| UC4 Gemeinsamer Einstieg | Eine Frage läuft nacheinander durch UC3, UC2 und UC1 (nicht bewertet) | Seite `/uc4`, lokal mit Modellwahl (Azure, Mistral, Claude oder Testbetrieb), online mit Azure oder Testbetrieb. UC3 liefert die Zahl, UC2 die Abwägung, UC1 die Erklärung; jede Antwort erscheint, sobald sie da ist. | `/uc4` in der App |
 
 Gemeinsamer Kern in `shared/`:
 
@@ -126,9 +126,11 @@ fertig in rund 7 Minuten, das Ergebnis gleich dem früheren Lauf.
 ### Online-Demo
 
 Eine öffentliche Demo läuft unter https://ki-challenge.gotzendorfer.at (Adresse und Aufbau: `deploy/README.md`).
-Man kann dort Fragen stellen: auf `/uc3/fragen` an die Daten und auf `/uc4`, wo online nur UC3 antwortet. Die Zahl
-kommt aus der Datenbank, ohne Sprachmodell, mit Beleg. Alles andere ist dort nur zum Ansehen: Freigaben, Läufe und
-Verhandlungen nimmt der Server nicht an (403). Je Internetanschluss gehen höchstens 10 Fragen in der Minute.
+Man kann dort Fragen stellen: auf `/uc3/fragen` an die Daten (ohne Sprachmodell) und auf `/uc4`, wo UC3, UC2 und UC1
+nacheinander antworten, mit dem Modell Azure `gpt-5.4-mini`. Die Zahl kommt immer aus der Datenbank, mit Beleg.
+Alles andere ist dort nur zum Ansehen: Freigaben, Läufe und neue Verhandlungen nimmt der Server nicht an (403).
+Standardmäßig gehen je Internetanschluss höchstens 10 Fragen in der Minute, und für den ganzen Tag gibt es ein
+festes Kontingent an Modellaufrufen.
 
 ## Abhängigkeiten und Voraussetzungen
 
@@ -179,10 +181,10 @@ Die Angaben stimmen mit `docs/models.md` überein. Das ist dort die Hauptquelle,
   **Nie in der UC3-Zählung.**
 - **Embeddings:** `google/embeddinggemma-2`, lokal. Die Gewichte sind nicht im Repo (siehe Lizenzen).
 - **Ohne Schlüssel** läuft alles mit `LLM_PROVIDER=mock`. Der UC3-Monatslauf braucht ohnehin kein Modell.
-- **Online-Demo:** Dort gibt es heute keine Modellschlüssel. Fragen beantwortet nur UC3, und UC3 braucht kein
-  Modell. Kommen Schlüssel dazu, gelten zwei Grenzen: ein Ratenlimit je IP und ein Tagesbudget für Modellaufrufe,
-  das auch bei gleichzeitigen Fragen nicht überschritten wird. Ohne Tagesbudget ruft die App online kein echtes
-  Modell, sie lehnt den Aufruf vorher ab.
+- **Online-Demo:** Dort läuft Azure `gpt-5.4-mini` mit zwei Grenzen: ein Ratenlimit je IP und ein Tagesbudget für
+  Modellaufrufe, das auch bei gleichzeitigen Fragen nicht überschritten wird. Ohne Tagesbudget ruft die App online
+  kein echtes Modell, sie lehnt den Aufruf vorher ab. Ist das Budget aufgebraucht, sagt die Seite das und nennt den
+  nächsten Tag.
 
 ## Grenzen und offene Punkte
 
@@ -197,7 +199,8 @@ Die Angaben stimmen mit `docs/models.md` überein. Das ist dort die Hauptquelle,
   sagt das auch so.
 - **UC4:** Die drei Antworten kommen nacheinander. Mit einem echten Modell dauert die ganze Frage einige Sekunden
   bis gut eine Minute; die Seite zeigt jede Antwort, sobald sie da ist. Fällt ein Bereich aus, nennt die Seite ihn
-  als „fehlt“ und zeigt die anderen. Online antwortet nur UC3 (ohne Modell).
+  als „fehlt“ und zeigt die anderen. Online kann UC2 statt echter Presse-Belege gekennzeichnete Beispielbelege
+  zeigen, solange dort die Namensliste zur Maskierung von Personennamen fehlt.
 - **Voice:** Server und Sprechknopf sind gebaut. Ein Anruf geht erst nach der Einrichtung (Tunnel, Vapi-Konto mit
   Zahlungsmittel, Schlüssel). Die Tunnel-Adresse wechselt bei jedem Start, danach muss der Assistent neu
   eingetragen werden (`docs/voice.md`). Vapi ist ein US-Dienst. Der Text-Weg ersetzt Voice vollständig.
