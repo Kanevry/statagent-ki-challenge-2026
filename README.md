@@ -36,7 +36,7 @@ bash scripts/install-hooks.sh         # gitleaks als pre-commit-Hook
 uv sync --all-packages                # Python-Workspace (shared/py, uc*)
 pnpm install                          # TS-Workspace (web, shared/ui)
 pnpm dev                              # Next.js auf http://localhost:3000, lädt ../.env.local
-uv run pytest -q                      # Python-Tests (lokal inkl. pytest.mark.daten)
+uv run pytest -q                      # shared/py; je UC: cd ucN && uv run pytest -q (lokal inkl. daten)
 pnpm typecheck && pnpm test           # tsgo und Vitest in allen TS-Paketen
 ```
 
