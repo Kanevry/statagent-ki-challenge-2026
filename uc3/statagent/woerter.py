@@ -17,6 +17,11 @@ from statagent.zeitraum import MONATSNAMEN
 _WORT = re.compile(r"[a-zäöüß]+(?:-[a-zäöüß]+)*\d*")
 
 
+#: Eine kurze Zahl ohne Monat und ohne Datum schränkt etwas ein, das wir nicht kennen („ab 50“, „unter 25“, „50+“).
+#: Ausgenommen: „31.“ vor einem Monat, Zahlen mit Punkt oder Komma, Jahre und lange Mengen („über 10000“).
+_LOSE_ZAHL = re.compile(r"(?<![\d.,/-])\d{1,3}(?![\d.,/-]|\.\d)(?!\.)")
+
+
 def _liste(text: str) -> frozenset[str]:
     return frozenset(text.split())
 
@@ -86,5 +91,12 @@ def unbekanntes_wort(frage: str, erkannt: list[str]) -> str | None:
     for treffer in _WORT.finditer(text):
         wort = treffer.group(0)
         if len(wort) > 1 and wort not in BEKANNT and not all(t in BEKANNT or len(t) < 2 for t in wort.split("-")):
-            return wort
-    return None
+            return _wie_getippt(frage, wort)
+    zahl = _LOSE_ZAHL.search(text)
+    return zahl.group(0) if zahl else None
+
+
+def _wie_getippt(frage: str, wort: str) -> str:
+    """Das Wort so, wie es in der Frage steht („Kindern“, nicht „kindern“)."""
+    fund = re.search(re.escape(wort), frage, re.IGNORECASE)
+    return fund.group(0) if fund else wort

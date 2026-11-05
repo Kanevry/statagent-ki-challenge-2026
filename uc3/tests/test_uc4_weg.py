@@ -196,7 +196,9 @@ def test_mehrere_zahlen_ohne_alle(gerechnet: Verbindung) -> None:
     daten = uc4_antwort(gerechnet, "Zeitreihe 08/2024 bis 09/2024")
     assert len(daten["zahlen"]) == 2 and ": alle" not in daten["text"]
     werte = [f"{z['wert']:,}".replace(",", ".") for z in daten["zahlen"]]
-    assert daten["text"].startswith(f"Von {werte[0]} auf {werte[1]} Beschäftigungsverhältnisse")
+    assert daten["text"].startswith(
+        f"Von {werte[0]} im August 2024 auf {werte[1]} Beschäftigungsverhältnisse im September 2024."
+    )
 
 
 # Fängt (#176): Eine Frage nach einer Person ergab den Gesamtbestand.

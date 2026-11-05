@@ -700,7 +700,7 @@ def _filter(
     if _FLUKTUATION.search(frage.lower()):
         erkannt += ["höchste", "höchsten", "hoechste", "am höchsten"]
     fremd = unbekanntes_wort(frage, erkannt)
-    if fremd in _VERNEINUNG:
+    if fremd is not None and fremd.lower() in _VERNEINUNG:
         raise _KeineZahl(
             f"Eine Zahl für alle außer einer Gruppe rechnet StatAgent nicht. Bitte nach allen und nach der Gruppe "
             f"einzeln fragen. {KANN}"
@@ -864,7 +864,10 @@ def _bestand_antwort(
             code_neu = next(code for m, code in filter_ if m is OENACE)
             verstanden = verstanden.replace(f"Branche {code_neu} ", "Branche ", 1)
     if len(_monate(von, bis)) > 120:
-        raise _KeineZahl("Der Zeitraum ist für eine Antwort zu lang. Bitte höchstens zehn Jahre auf einmal fragen.")
+        raise _KeineZahl(
+            f"Daten gibt es nur für {zeitraum_anzeige(ERSTE_LIEFERUNG, LETZTE_LIEFERUNG)}. "
+            "Bitte einen Zeitraum darin nennen."
+        )
     # Ein Ergebnis über HOECHSTENS_ZEILEN liest sql_lesen nur abgeschnitten: dann je Monat eine Abfrage.
     abfragen: list[tuple[str, list[dict[str, Any]]]] = []
     sql_text = ""
@@ -1084,11 +1087,9 @@ def _antwortsatz(zeilen: list[dict[str, Any]], zusatz: str, text: str) -> tuple[
         )
         erster = re.match(r"Am .*?Beschäftigungsverhältnisse[^.]*\.", text)
         return satz, erster.group(0) if erster else ""
-    durchgehend = monate == _monate(monate[0], monate[-1])
-    zeit = zeitraum_anzeige(monate[0], monate[-1]) if durchgehend else _aufzaehlung([_monat_anzeige(m) for m in monate])
     satz = (
-        f"Von {_deutsch(je_monat[monate[0]])} auf {_deutsch(je_monat[monate[-1]])} "
-        f"Beschäftigungsverhältnisse{zusatz}, {zeit}."
+        f"Von {_deutsch(je_monat[monate[0]])} im {_monat_anzeige(monate[0])} auf {_deutsch(je_monat[monate[-1]])} "
+        f"Beschäftigungsverhältnisse{zusatz} im {_monat_anzeige(monate[-1])}."
     )
     return satz, ""
 

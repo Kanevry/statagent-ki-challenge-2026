@@ -7,6 +7,7 @@ Spalten:
 
 - `soll`: `zahl`, `rueckfrage`, `absage` oder `definition`.
 - `monate`: die Monate mit Daten, die zur Frage gehören (`von..bis` oder eine Liste). Leer: keine Zahl möglich.
+- Die Zeilen `A…` stammen aus der Prüfung von !227. Zum Alter gilt vorerst die Absage; sobald !227 in main ist, gilt dort die Zahl.
 - `filter`: `region`, `geschlecht`, `kategorie`, `oenace` (Buchstabe), `branche` (Name, `%` als Platzhalter, gilt je
   ÖNACE-Version), `freier_dv`.
 - `optionen`: `mittel` (Durchschnitt muss dabei sein), `muss` (Rückfrage oder Absage reichen nicht), `auch=…` (weitere
@@ -432,3 +433,26 @@ Zeitraum, wie alle Angaben ohne Jahr.
 | C058 | zeit:relativ,zeit:unklar,form:amtlich,blind2 | rueckfrage | - | - | auch=absage | Bestand der Beschäftigten zum Ende des vorigen Quartals |
 | C059 | form:anderes_thema,merkmal:branche,zeit:jahr,blind2 | absage | - | - | auch=rueckfrage | Wie viele Arbeitsunfälle gab es im Bau im Jahr 2025? |
 | C060 | merkmal:einkommen,form:amtlich,zeit:monat,blind2 | absage | - | - | auch=rueckfrage | Bruttomonatsverdienst der unselbständig Beschäftigten, Stand Oktober 2025 |
+| A001 | form:menge,merkmal:bundesland | zahl | 2026-07 | region=9 | muss | Gab es im Juli 2026 über 20.000 Beschäftigte in Wien? |
+| A002 | form:menge,merkmal:bundesland | zahl | 2026-07 | region=7 | muss | Gab es im Juli 2026 unter 40.000 Beschäftigte in Tirol? |
+| A003 | form:menge | absage | - | - | auch=rueckfrage | Lag die Zahl im Juli 2026 über 20,5 Prozent? |
+| A004 | merkmal:alter,zeit:ohne | absage | - | - | auch=rueckfrage | Beschäftigte unter 25 |
+| A005 | merkmal:alter | absage | - | - | auch=rueckfrage | Über-50-Jährige im Juli 2026 |
+| A006 | merkmal:alter | absage | - | - | auch=rueckfrage | Unter-25-Jährige im Juli 2026 |
+| A007 | merkmal:alter | absage | - | - | auch=rueckfrage | 30 Jahre alt oder älter im Juli 2026 |
+| A008 | merkmal:dauer | absage | - | - | auch=rueckfrage | Beschäftigte ab 2 Jahren Dauer im Juli 2026 |
+| A009 | merkmal:dauer | absage | - | - | auch=rueckfrage | Beschäftigte bis 25 Jahre Betriebszugehörigkeit im Juli 2026 |
+| A010 | merkmal:dauer | absage | - | - | auch=rueckfrage | Beschäftigte, die über 2 Jahre dabei sind, im Juli 2026 |
+| A011 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte unter 10 in Wien im Juli 2026 |
+| A012 | merkmal:unbekannt | absage | - | - | auch=rueckfrage | Beschäftigte in Altersheimen im Juli 2026 |
+| A013 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte ab 50 im Juli 2026 |
+| A014 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte bis 25 im Juli 2026 |
+| A015 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte zwischen 25 und 34 im Juli 2026 |
+| A016 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte 50 Jahre und älter im Juli 2026 |
+| A017 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte 50+ im Juli 2026 |
+| A018 | merkmal:alter,form:vergleich | absage | - | - | auch=rueckfrage | Vergleich unter 25 und über 50 im Juli 2026 |
+| A019 | merkmal:alter,form:gliederung | absage | - | - | auch=rueckfrage | Frauen über 50 nach Bundesland im Juli 2026 |
+| A020 | merkmal:alter,form:gliederung | absage | - | - | auch=rueckfrage | Beschäftigte nach Altersstufen im Juli 2026 |
+| A021 | merkmal:alter,form:fluktuation | absage | - | - | auch=rueckfrage | Fluktuation nach Altersgruppe im Oktober 2024 |
+| A022 | merkmal:alter | absage | - | - | auch=rueckfrage | Altersgruppen im Juli 2026 |
+| A023 | merkmal:alter | absage | - | - | auch=rueckfrage | Altersverteilung im Juli 2026 |

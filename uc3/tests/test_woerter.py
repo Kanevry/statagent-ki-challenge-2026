@@ -15,11 +15,15 @@ from statagent.woerter import unbekanntes_wort
     [
         ("Wie viele Beschäftigte gab es im März 2025 in Wien?", ["wien"], None),
         ("Bitte zeigen Sie mir die Zeitreihe der Beschäftigten", [], None),
-        ("Wie viele Beschäftigte mit Kindern gab es im März 2025?", [], "kindern"),
-        ("Wie viele Betriebe gab es im März 2025?", [], "betriebe"),
-        ("How many employees were there in März 2025?", [], "how"),
+        ("Wie viele Beschäftigte mit Kindern gab es im März 2025?", [], "Kindern"),
+        ("Wie viele Betriebe gab es im März 2025?", [], "Betriebe"),
+        ("How many employees were there in März 2025?", [], "How"),
         ("Beschäftigte außer Wien im März 2025", ["wien"], "außer"),
-        ("Wie viele Arbeitslose gab es im März 2025?", [], "arbeitslose"),
+        ("Beschäftigte ab 50 im März 2025", [], "50"),
+        ("Wie viele Beschäftigte gab es am 31. März 2025?", [], None),
+        ("Gab es im März 2025 über 20.000 Beschäftigte?", [], None),
+        ("Gab es im März 2025 über 10000 Beschäftigte?", [], None),
+        ("Wie viele Arbeitslose gab es im März 2025?", [], "Arbeitslose"),
     ],
 )
 def test_unbekanntes_wort(frage: str, erkannt: list[str], erwartet: str | None) -> None:
