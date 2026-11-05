@@ -70,6 +70,13 @@ class Ergebnis:
 # --- Zulässige Werte je Regel-Art (was der Zählcode versteht; Werte selbst stehen in meta.regel) -------
 
 _TAG = re.compile(r"^(monatserster|monatsletzter|tag:\d{1,2})$")
+#: ``geburtsmonat_13``, wie zaehlung.py es versteht: jahresdifferenz, unbekannt oder ``ersatz:MM-TT``. Das
+#: Ersatzdatum geht dort in ``make_date(geburtsjahr, MM, TT)``; zulässig ist darum nur ein Tag, den es in
+#: jedem Jahr gibt (kein 29.02., kein 31. in Monaten mit 30 Tagen).
+_GEBURTSMONAT_13 = re.compile(
+    r"^(jahresdifferenz|unbekannt"
+    r"|ersatz:(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31))$"
+)
 _ZULAESSIG: dict[tuple[str, str], Any] = {
     ("dimension", "qualifikation"): {"code", "beschaeftigungskategorie"},
     ("bestand", "zeitraum_art"): {"Stichtag", "Monat"},
@@ -78,7 +85,7 @@ _ZULAESSIG: dict[tuple[str, str], Any] = {
     ("bestand", "lieferung"): {"eigene"},
     ("abschnittswahl", "ordnung"): {"spaetester_beginn"},
     ("alter", "bezug"): {"bis", "von"},
-    ("alter", "geburtsmonat_13"): {"jahresdifferenz", "unbekannt"},
+    ("alter", "geburtsmonat_13"): _GEBURTSMONAT_13,
     ("klassifikationsversion", "nach"): {"berichtsmonat"},
     # sonderauswertung.personentage verweigert jeden anderen Wert
     ("personentage", "datenstand"): {"juengste_lieferung_je_tag"},
@@ -216,6 +223,30 @@ def _ohne_kennungen(*teile: object) -> None:
             raise VorschlagUngueltig(
                 f"Der Vorschlag nennt „{wort}“; Einzeldaten gehören nicht in Vorschläge."
             )
+
+
+#: Konkrete Kennung in einer Anweisung: Kennungswort, optional ``_ID``/``-ID``/``Nr.``, optional ``:``/``=``/``#``,
+#: dann eine Zahl ab zwei Stellen („VVH_ID 859975“, „PERSON_ID: 1001049“, „Person 1001049“, „Verhältnis 12345“).
+#: Zahlen ohne Kennungswort (Jahre, Monate wie 2025-03, Grenzen wie 110 oder 200 Tage) bleiben erlaubt.
+_KENNUNG_IN_ANWEISUNG = re.compile(
+    r"\b(?:vvh|person|\w*verh(?:ä|ae)ltnis(?:ses)?|id)(?:[_-]?id)?\s*(?:nr\.?|nummer)?\s*[:=#]?\s*#?\d{2,}\b",
+    re.IGNORECASE,
+)
+
+
+def anweisung_pruefen(anweisung: str) -> str | None:
+    """Grund für die Ablehnung, wenn die Anweisung eine konkrete Kennung nennt, sonst None.
+
+    Läuft vor dem ersten Modellaufruf: eine solche Anweisung erreicht weder Modell noch Protokoll. Der Grund
+    nennt die Kennung nicht.
+    """
+    if _KENNUNG_IN_ANWEISUNG.search(anweisung):
+        return (
+            "Die Anweisung enthält eine Kennung (etwa VVH_ID, PERSON_ID oder die Nummer einer Person oder "
+            "eines Verhältnisses); sie geht nicht an das Modell und nicht ins Protokoll. Bitte ohne "
+            "Einzeldaten formulieren."
+        )
+    return None
 
 
 @dataclass(frozen=True)
@@ -395,6 +426,10 @@ def agent_ausfuehren(
     Mit ``probe_lieferung`` rechnet das Programm gleich die Probe für diesen Monat.
     """
     ergebnis = Ergebnis(anweisung=anweisung)
+    grund = anweisung_pruefen(anweisung)
+    if grund is not None:
+        ergebnis.abgelehnt = grund
+        return ergebnis
     modell_aufruf = complete or plattform_bruecke.lade_complete()
     try:
         koordination = _aufruf(
