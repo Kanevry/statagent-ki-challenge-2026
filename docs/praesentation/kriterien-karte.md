@@ -1,0 +1,17 @@
+# Kriterien-Karte StatAgent (Use Case 3)
+
+Sechs Bereiche, je 20 Punkte, zusammen 120. Rechts steht, was wir zeigen und wo man es nachprüft.
+„(mit !13)“ heißt: Die Datei kommt mit dem Merge Request !13 (UC3-Kern) auf `main`.
+
+| Bereich | Was wir zeigen | Beleg | Fundstelle im Repo | Folie |
+|---|---|---|---|---|
+| 1 Datenmanagement | Jede Lieferung wird nach Regeln aus der Datenbank eingelesen und bereinigt. Kein Verhältnis geht verloren. | 24 Lieferungen, 10.152.292 Zeilen (F3). Acht Datenfehler gefunden, z. B. Spaltentausch 2025-06 mit 388.115 Zeilen ohne Beginn (F10). | `uc3/db/030_bereinigt_stat.sql`, `uc3/statagent/bereinigung.py` (mit !13) | 2, 3, 6 |
+| 2 Klassifikation | Wirtschaftszweig und Bundesland laufen über Zuordnungstabellen. Der Wechsel der ÖNACE-Version ist erfasst. | ÖNACE-2003-Altcodes: 50 Verhältnisse nach Abschnitt C (F6). Wechsel ab 2025-01: 189.170 von 386.299 mit anderem Code (F13). | `uc3/db/020_stat_metadaten.sql`, `uc3/db/100_klass_daten.sql` (mit !13) | 6 |
+| 3 Qualitätssicherung | Wir rechnen den Beispielbericht nach und prüfen jede Lieferung mit 24 Prüfregeln. | 2.880 von 2.880 Zellen exakt (F1). Brücke 392.284 − 48 = 392.236 (F2). Prüfregeln P01 bis P24 (F15). | `uc3/tests/test_goldenset.py`, `uc3/pruefkatalog.csv`, `uc3/statagent/pruefungen.py` (mit !13) | 5, 6, 7 |
+| 4 Reporting | Je Monat ein Qualitätsbericht und eine Spalte im Aggregations-Sheet. Abweichungen zu Veröffentlichtem stehen als Revisionsbedarf. | Revisionsbedarf Dezember 2024: −260 Verhältnisse (F12). Kernzahlen 08/2024: 392.236 gesamt, 211.603 Männer, 180.633 Frauen (F14). | `abgabe/qualitaetsberichte/2024-08.md`, `abgabe/aggregationen_v1.xlsx`, `uc3/statagent/revision.py` (mit !13) | 5, 9 |
+| 5 Weiterentwicklung und Betrieb | Eine Änderung per Sprache wird zum Vorschlag, wird geprobt und erst mit Namen freigegeben. Das Modell ist austauschbar. | Regelsatz v1 mit 15 Regeln und 24 Prüfregeln, jede mit Freigabe (F15). Zwei Läufe, derselbe Hash (F16). | `uc3/statagent/agenten/koordinator.py`, `abgabe/protokoll.md`, `abgabe/modelle.md` (mit !13); `.gitlab-ci.yml`, `deploy/README.md` | 3, 4, 8 |
+| 6 Bedienbarkeit | Eine Oberfläche mit Freigabe-Karte (Name, Zeitpunkt) und eine Befehlszeile mit `--help`. Datenanfragen laufen mit sichtbarem SQL. | Datenanfragen mit Antwortweg und SQL: Fragenkatalog Teil A. Drei Datenanfragen und fünf geübte Änderungen vorbereitet. | `shared/ui/src/bausteine/freigabe-karte.tsx`, `shared/ui/src/shell/app-shell.tsx`, `uc3/statagent/cli.py` (mit !13), `docs/praesentation/fragenkatalog.md` | 4, 8 |
+
+## So benutzen wir die Karte am Tisch
+
+Die Karte liegt ausgedruckt vor der Jury: Bei jeder Frage zeigen wir auf die Zeile des Bereichs, nennen die Zahl mit Kennung und öffnen die Fundstelle. Datenanfragen und Live-Änderungen suchen wir im Fragenkatalog (`docs/praesentation/fragenkatalog.md`).

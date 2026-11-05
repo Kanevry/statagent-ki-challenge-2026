@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-05
 **Author:** Bernhard Götzendorfer + Claude (AI-assisted planning, Steuerung: autonomous)
-**Status:** Draft
+**Status:** umgesetzt als 11 Folien, gültig ist `storyboard.md` (Zeiten, Folien, Bilder) und `belegregister.md` (Zahlen). Abweichungen zum Storyboard unten: Folie 6 zeigt den Spaltentausch 2025-06 statt der Revision, die Revision steht auf Folie 9; Feature-Stopp ist Fr 07:00.
 **Appetite:** 1 Tag (Do 05.11. nachmittags bis Fr 06.11. 08:30, Feature-Stopp Fr 07:00)
 **Parent Project:** StatAgent, KI Challenge 2026, Use Case 3
 
@@ -30,7 +30,7 @@ Anwendung und Verantwortung.
 | Claim | Quelle / Befehl | Ergebnis | Gemessen |
 |-------|-----------------|----------|----------|
 | Fachjury 15 min: Präsentation, Live-Änderung, Datenanfragen; Abgabe Fr 09:00 | Vault `vor-ort-05-11.md` § 1 und § 5 (Blätter und `Use Case 3 StatAgent.docx`) | bestätigt | 2026-11-05 10:40 |
-| Golden Set 08/2024 wird exakt reproduziert | Lead-Gegenrechnung `ki-challenge-goldenset-2024-08.md` § 3 (`compare.py` gegen `beispielbericht_2024-08.xlsx`) | 2.880 / 2.880 Zellen, 0 Abweichungen | 2026-11-05 auf m5 `statagent-db` |
+| Golden Set 08/2024 wird exakt reproduziert | Lead-Gegenrechnung `ki-challenge-goldenset-2024-08.md` § 3 (`compare.py` gegen `beispielbericht_2024-08.xlsx`) | 2.880 / 2.880 Zellen, 0 Abweichungen | 2026-11-05 auf einer separaten Datenbankinstanz |
 | Gefundene Datenfehler (Monat 13, Alter > 74, ÖNACE 2003, BL/ÖNACE leer, Dubletten 2025-03, FD fehlen 2025-03, Teil-Lieferung 2025-10, Revision 12/2024) | dieselbe Datei § 2, § 4, § 7 bis § 9, SQL je Befund | Zahlen siehe Storyboard S6 | 2026-11-05 |
 | Pen-Datei hat freien Bereich unter y = 3900 | Pencil-MCP `Get(document, depth 0)` | tiefster Frame endet bei y = 3900 (S7 · Protokoll); Story-Frame endet bei y = 3854 | 2026-11-05 |
 | Design-Entscheide: Richtung B „Kontrollraum“, B1 Lichtkarte, Gelb = Warnfarbe, Mint = Beleg, Name „StatAgent by Bernhard Götzendorfer“ | Vault `show-und-design.md` § 8 (Owner-Entscheide 05.11. 09:45) und Pen-Variablen (`night`, `ink`, `mint`, `ki-violett`, `warn`, `beleg`, `font-head` Space Grotesk, `font-body` Inter, `font-mono` JetBrains Mono) | bestätigt | 2026-11-05 |
