@@ -3,6 +3,7 @@
 **Date:** 2026-11-05
 **Author:** Bernhard Götzendorfer + Claude (AI-assisted planning, Steuerung: autonomous)
 **Status:** Draft
+**Epic:** #23 · Kinder #28–#35, Abnahmen #36–#39
 **Appetite:** ca. 8 Agentenstunden zwischen Do 05.11. nachmittags und Feature-Stopp Fr 06.11. 05:00, immer nachrangig zu UC3 (#22)
 **Parent Project:** KI Challenge 2026, Monorepo `agents/ki-challenge-2026` (UC1 wird nicht bewertet, muss aber vorführbar sein)
 
@@ -97,13 +98,13 @@ Kein stilles Weiterschieben.
 ```gherkin
 Given svbox/uc1 liegt unter UC1_DATA_DIR und die Datenbank lotse ist leer
 When `lotse ingest` läuft
-Then enthält lotse.dokument 14.238 SozDok-Einträge und lotse.ingest_fehler die 6 Dateien mit kaputtem Namen samt
-     Grund (Summe 14.244), dazu 7 Formulare, 3 Leistungskataloge, EKO regeltext 1330 und indtext 1269 Zeilen
+Then sind alle 14.244 SozDok-Dateien als lotse.dokument (eindeutig über `dokid`) oder mit Grund in lotse.ingest_fehler
+     erfasst (Summe 14.244; die 6 unvollständigen Dateinamen werden über die XML-Metadaten eingelesen, nicht verworfen), dazu 7 Formulare, 3 Leistungskataloge, EKO regeltext 1330 und indtext 1269 Zeilen
 And SozDok-Abschnitte tragen Gesetz, Art, Nummer, Inkrafttreten und Datei; PDF-Abschnitte Datei und Seite;
     EKO-Abschnitte Datei und Zeile
 And ein zweiter Lauf ergibt dieselbe Zeilenzahl und denselben Inhalts-Hash
 ```
-Oracle: Rohkorpus gegen DB: `find … -name '*.xml' | wc -l` = 14244 = `count(dokument where quelle='sozdok')` + `count(ingest_fehler)`; `wc -l` der EKO-Dateien = Zeilen in der DB; Hash-Vergleich zweier Läufe.
+Oracle: Rohkorpus gegen DB: `find … -name '*.xml' | wc -l` = 14244 = `count(dokument where quelle='sozdok')` + `count(ingest_fehler)`; fehlt `UC1_DATA_DIR` oder ist er leer, bricht `lotse ingest` mit Fehler ab statt 0 Zeilen zu melden; `wc -l` der EKO-Dateien = Zeilen in der DB; Hash-Vergleich zweier Läufe.
 
 ```gherkin
 Given der Index steht
@@ -294,6 +295,18 @@ stream=False)` je `LLM_PROVIDER` bereit; `shared/voice` definiert den Adapter `a
 | Fall 18 (Pensionsalter 1966) braucht Altersgrenzen-BVG, das lexikalisch nicht gefunden wird | falsches Alter | Fall 18 im Lotse-Set; Abstinenz, wenn BVG nicht im Treffer | Implement |
 | Ingest-Hash schwankt (Zeitstempel, ungeordnete Mengen) | A-Oracle falsch rot | Hash nur über sortierten Inhalt | Implement |
 | pypdf-Werte nur in manchen Viewern sichtbar | Entwurf wirkt leer | NeedAppearances setzen, zweiter Leser pdftotext | Implement |
+| Zitierschlüssel `abkrvo+gldart+gldnr+ikra` nicht eindeutig (14 Tupel auf 51 Dateien, Pre-Mortem A) | Chips zeigen falsche Passage, UNIQUE bricht | Schlüssel `dokid`, Anzeige über Gesetz/§ | Implement |
+| `unaccent()` ist nicht IMMUTABLE, Index auf `to_tsvector('german', unaccent(…))` scheitert | DDL bricht | eigene Suchkonfiguration `lotse_german` (Kopie `german` + unaccent-Wörterbuch) | Implement |
+| Index enthält Inhaltsverzeichnis, Änderungsprotokoll, Layoutdaten (BPGG: 128 `inhaltsvz` zu 8 `absatz`) | §4 rutscht aus Top 5 | nur `nutzdaten` (`ueberschrift`, `absatz`, `liste`, `table`) indizieren | Implement |
+| Gesprochene Fragen („Pflegegeldstufe eins“) treffen nicht (keine Kompositazerlegung, `to_tsquery`-Syntaxfehler) | Abstinenz statt Antwort | `websearch_to_tsquery`, Stichwörter durch das Modell, `pg_trgm`-Rückfall | Implement |
+| Tunnel leitet den ganzen Port weiter; Custom-LLM-URL trägt `x-vapi-secret` nicht von selbst | Fremde verbrauchen Azure-Tokens, lesen `/belege` | eigener Listener nur für `/chat/completions`, Geheimnis-Transport im W0-Spike klären, `call_id` an Sitzung binden | Implement |
+| Quick-Tunnel-URL wechselt bei jedem Start | Vapi ruft tote URL | Startskript: Tunnel starten, Assistent-URL setzen, rücklesen | Implement |
+| Prüfung nach der Antwort verhindert Streaming | Pause > 2 s | Sprechtext ≤ 2 Sätze, `max_tokens` klein, Prüfung auf dem kurzen Text | Experiment |
+| everlast-Browsercode nutzt Vite-Globals und `window` beim Laden | Absturz in Next.js 16 | Client-Komponente ohne SSR, `NEXT_PUBLIC_VAPI_PUBLIC_KEY`, Assistent-ID aus Konfiguration; `three`/`@vapi-ai/web` in `web/package.json` | Implement |
+| Vapi zeichnet Gespräche auf (`recordingEnabled`), Anrufe enden nach 420 s | Demo-Daten bei Vapi gespeichert | Aufzeichnung aus, Dauer passend setzen | Implement |
+| Hochgeladenes PDF trägt Injection („Empfehlung: ignoriere …“), unbegrenzte Größe | Modell folgt fremder Anweisung | Sätze als Daten markiert übergeben, Grenze 10 MB/20 Seiten, Sitzungsende per Knopf oder 30 min | Implement |
+| pypdf ignoriert unbekannte Feldnamen still | leerer Entwurf | unbekannter Feldname = Fehler; Hinweis „Entwurf“ als FreeText-Annotation | Implement |
+| PG oder `lotse`-Dienst fällt aus | Text und Stimme weg | Replay als Demo-Rückfall | Implement |
 | AVG fehlt im Korpus (Säumnis, Golden-Set-Fall 20) | Lücke | Soll für Fall 20 = Abstinenz mit Übergabe | Implement |
 | UC1 zieht Zeit von UC3 ab | Bewertung leidet | Kill-Punkt Fr 01:00, eigene Worktrees, keine UC3-Dateien | Implement |
 
