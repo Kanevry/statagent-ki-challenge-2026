@@ -46,3 +46,16 @@ Gemessen mit `uv run python -m plattform.llm smoke` (eine kurze Anfrage je Provi
 | 2026-11-05T13:22:33+01:00 | azure | gpt-5-4-mini | gpt-5.4-mini-2026-03-17 | 0.9 s | ok ('bereit') |
 | 2026-11-05T13:22:33+01:00 | mistral | - | - | 0.2 s | ProviderFehler: alle Stufen gescheitert (mistral): mistral: RateLimitError |
 | 2026-11-05T13:22:33+01:00 | claude | claude-opus-5-5 | claude-opus-5-5 | 17.8 s | ok ('bereit') |
+
+## Embeddings
+
+Einziges Embedding-Modell der Plattform: `google/embeddinggemma-2` über `plattform.embeddings` (lokal,
+sentence-transformers als Extra `plattform[embeddings]`, nicht in CI), Revision fest im Code. Ohne pgvector
+speichern die UCs `float4[]` und rechnen Cosinus in SQL oder numpy. Prototyp mit 200 Texten; hochskalieren
+(UC1, UC2) erst danach. Zweiter Rechner (Apple M4 Pro): nicht gemessen, zum Messzeitpunkt ausgelastet.
+
+#### Bench 2026-11-05T14:11:20+01:00
+
+| Zeit | Host | Modell | Revision | Gerät | Ladezeit | Dimension | n | Dauer | Texte/s |
+|---|---|---|---|---|---|---|---|---|---|
+| 2026-11-05T14:11:20+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | mps | 5.3 s | 768 | 200 | 4.62 s | 43 |
