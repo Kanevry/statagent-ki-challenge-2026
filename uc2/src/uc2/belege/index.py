@@ -14,7 +14,7 @@ import psycopg
 
 from uc2 import pfade
 from uc2.belege.extraktion import lies_jsonl
-from uc2.belege.vektoren import datei_hash, ids_hash
+from uc2.belege.vektoren import datei_hash, eingabe_texte, eingaben_hash, ids_hash
 
 
 @dataclass(frozen=True)
@@ -33,10 +33,19 @@ def wende_sql_an(verbindung: psycopg.Connection[Any]) -> None:
         verbindung.execute(datei.read_text(encoding="utf-8").encode("utf-8"))
 
 
+class VektorenPassenNicht(RuntimeError):
+    """Die Vektoren wurden aus anderen Texten gebildet als denen in `abschnitte.jsonl`; nie still laden."""
+
+
 def lade_vektoren(
-    extrakt: Path, abschnitt_ids: list[str]
+    extrakt: Path, abschnitt_ids: list[str], eingaben: list[str]
 ) -> tuple[np.ndarray[Any, Any] | None, dict[str, Any], str | None]:
-    """Vektoren nur, wenn Prüfsummen und Form zu `abschnitte.jsonl` passen; sonst (None, {}, Meldung)."""
+    """Vektoren nur, wenn Prüfsummen und Form zu `abschnitte.jsonl` passen; sonst (None, {}, Meldung).
+
+    `eingaben` sind die Modell-Eingaben je Abschnitt (`eingabe_texte`). Die IDs allein reichen nicht:
+    `<artikel_id>-nn` bleibt gleich, wenn ein Abschnitt neu geschnitten wird. Weicht der Eingabe-Hash ab oder
+    fehlt er (vektoren.json vor diesem Feld), bricht das Laden mit `VektorenPassenNicht` ab.
+    """
     npy, meta_pfad = extrakt / "vektoren.npy", extrakt / "vektoren.json"
     if not npy.exists() or not meta_pfad.exists():
         return None, {}, "keine vektoren.npy/vektoren.json im Extrakt: Index ohne Vektoren"
@@ -52,6 +61,16 @@ def lade_vektoren(
                 f"{len(abschnitt_ids)} "
                 "Abschnitte, z. B. Probelauf mit --grenze): Index ohne Vektoren"
             ),
+        )
+    if "eingaben_sha256" not in meta:
+        raise VektorenPassenNicht(
+            f"{meta_pfad} hat keinen Eingabe-Hash (eingaben_sha256, älteres Format): "
+            "Texte und Vektoren lassen sich nicht abgleichen, bitte neu einbetten (uc2 einbetten)"
+        )
+    if meta["eingaben_sha256"] != eingaben_hash(eingaben):
+        raise VektorenPassenNicht(
+            f"{meta_pfad}: die Vektoren stammen aus anderen Abschnittstexten als abschnitte.jsonl "
+            "(gleiche IDs, anderer Text, etwa nach neuer Zerlegung): bitte neu einbetten (uc2 einbetten)"
         )
     if meta.get("npy_sha256") != datei_hash(npy):
         return None, {}, "vektoren.npy weicht von der Prüfsumme in vektoren.json ab: Index ohne Vektoren"
@@ -87,44 +106,67 @@ def inhalt_hash(verbindung: psycopg.Connection[Any], md5s: list[str]) -> str:
     return h.hexdigest()
 
 
+QUELLE_SQL = (
+    "insert into uc2.quelle (md5, datei, ausgabedatum, seiten, uebersprungen, grund) "
+    "values (%s, %s, %s, %s, %s, %s) on conflict (md5) "
+)
+
+
+def _quellzeile(q: dict[str, Any]) -> tuple[Any, ...]:
+    return (
+        q["md5"],
+        q["datei"],
+        date.fromisoformat(q["ausgabedatum"]),
+        q["seiten"],
+        q["uebersprungen"],
+        q["grund"],
+    )
+
+
 def indexiere(extrakt: Path, verbindung: psycopg.Connection[Any]) -> IndexErgebnis:
     quellen = [
         q
         for q in lies_jsonl(extrakt / "quellen.jsonl")
         if not str(q.get("grund") or "").startswith("dublette")
     ]
+    # Lesefehler: Die Quelle bleibt, wie sie in PG steht (Artikel, Abschnitte, Quellzeile); neu ist sie nur
+    # als übersprungen eingetragen. Ein vorübergehender pdftotext-Fehler darf schon indexierte Artikel nicht
+    # löschen, und eine unlesbare PDF soll den Lauf über die übrigen nicht verhindern. Sichtbar bleibt sie in
+    # der Meldung, in quellen.jsonl/abweichungen.jsonl und im Prüfskript (liest die PDF selbst).
+    lesefehler = [q for q in quellen if str(q.get("grund") or "").startswith("lesefehler")]
+    gelesen = [q for q in quellen if q["md5"] not in {f["md5"] for f in lesefehler}]
     artikel = lies_jsonl(extrakt / "artikel.jsonl")
     abschnitte = lies_jsonl(extrakt / "abschnitte.jsonl")
-    matrix, meta, meldung = lade_vektoren(extrakt, [a["abschnitt_id"] for a in abschnitte])
+    matrix, meta, meldung = lade_vektoren(
+        extrakt, [a["abschnitt_id"] for a in abschnitte], eingabe_texte(artikel, abschnitte)
+    )
+    if lesefehler:
+        hinweis = (
+            f"{len(lesefehler)} Quelle(n) mit Lesefehler, bestehender Index für sie unverändert: "
+            + ", ".join(sorted(q["datei"] for q in lesefehler))
+        )
+        meldung = f"{meldung}; {hinweis}" if meldung else hinweis
     modell = str(meta["modell_id"]) if matrix is not None else None
     md5s = sorted(q["md5"] for q in quellen)
+    neu_md5s = sorted(q["md5"] for q in gelesen)
 
     with verbindung.transaction():
         wende_sql_an(verbindung)
         verbindung.execute(
             "delete from uc2.abschnitt where artikel_id in "
             "(select artikel_id from uc2.artikel where quelle_md5 = any(%s))",
-            (md5s,),
+            (neu_md5s,),
         )
-        verbindung.execute("delete from uc2.artikel where quelle_md5 = any(%s)", (md5s,))
+        verbindung.execute("delete from uc2.artikel where quelle_md5 = any(%s)", (neu_md5s,))
         with verbindung.cursor() as cur:
             cur.executemany(
-                "insert into uc2.quelle (md5, datei, ausgabedatum, seiten, uebersprungen, grund) "
-                "values (%s, %s, %s, %s, %s, %s) on conflict (md5) do update set datei = excluded.datei, "
+                QUELLE_SQL + "do update set datei = excluded.datei, "
                 "ausgabedatum = excluded.ausgabedatum, seiten = excluded.seiten, "
                 "uebersprungen = excluded.uebersprungen, grund = excluded.grund",
-                [
-                    (
-                        q["md5"],
-                        q["datei"],
-                        date.fromisoformat(q["ausgabedatum"]),
-                        q["seiten"],
-                        q["uebersprungen"],
-                        q["grund"],
-                    )
-                    for q in quellen
-                ],
+                [_quellzeile(q) for q in gelesen],
             )
+            if lesefehler:
+                cur.executemany(QUELLE_SQL + "do nothing", [_quellzeile(q) for q in lesefehler])
             cur.executemany(
                 "insert into uc2.artikel (artikel_id, quelle_md5, pdf_seite, zeitungsseite, artikeldatum, "
                 "medium, "

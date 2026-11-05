@@ -5,8 +5,8 @@ durch Formfeed getrennt. Leitfaden ist das Inhaltsverzeichnis: je Eintrag wird a
 die Startzeile `<Medium> vom TT.MM.JJJJ` gesucht, der Text läuft bis zum Feldblock (`Quelle …`). Seiten
 ohne Kopfzeile „Pressespiegel“ sind Layout-Kopien des Zeitungsscans und werden verworfen.
 
-Datenschutz: Die Zeile `Autor:in` wird nie gelesen, gespeichert oder ausgegeben, ebenso Sprecherzeilen
-von Radio-Beiträgen (`Name (Sender) (17 Sekunden)`).
+Datenschutz: Eine Zeile mit `Autor:in` (auch mitten in der Zeile) wird nie gelesen, gespeichert oder
+ausgegeben, ebenso Sprecherzeilen von Radio-Beiträgen (`Name (Sender) (17 Sekunden)`).
 """
 
 from __future__ import annotations
@@ -24,7 +24,8 @@ STARTZEILE_RE = re.compile(r"^(\S.*?) vom (\d{2}\.\d{2}\.\d{4})$")
 FELDBLOCK_RE = re.compile(r"^(?:Sender|Quelle)\s{2,}\S")
 FELD_RE = re.compile(r"^(Sender|Quelle|Typ)\s{2,}(\S.*)$")
 FOLGEFELD_RE = re.compile(r"^(?:Mutation|Typ|Land|Sprache|Adresse)\s{2,}\S|^\S+$")
-GESCHUETZT = "Autor:in"
+GESCHUETZT_RE = re.compile(r"Autor:in(\s|$)")
+"""Feld `Autor:in` an beliebiger Stelle der Zeile (zweispaltiger Feldblock); „Autor:innen“ trifft nicht."""
 SPRECHERZEILE_RE = re.compile(r"\(\d+ Sekunden\)$")
 TRANSKRIPT_RE = re.compile(r"^\(\d\d:\d\d:\d\d\)")
 RADIO_BEIWERK = (
@@ -108,7 +109,7 @@ def inhaltszeilen(zeilen: list[str]) -> list[str]:
             kopf_gesehen = True
             if s == KOPFZEILE:
                 continue
-        if FUSSZEILE_RE.search(s) or s.startswith(GESCHUETZT):
+        if FUSSZEILE_RE.search(s) or GESCHUETZT_RE.search(s):
             continue
         ergebnis.append(s)
     return ergebnis
