@@ -23,11 +23,20 @@ ZITAT_QUELLEN = ("zitat", "ausschnitt", "text_anzeige", "text")
 """Woraus `zitat` entsteht, in dieser Reihenfolge."""
 _MERKMALE = frozenset(BELEG_FELDER) - {"beleg_id"} | VOLLTEXT_FELDER
 SCHALTER = "KIC_VOLLTEXT_ONLINE"
+ONLINE_SCHALTER = ("KIC_ONLINE", "KIC_ONLINE_LESEND")
+"""Mit einem dieser Schalter auf `1` gilt die Ausgabe als öffentlich (Online-Demo)."""
+FREIGABE_OEFFENTLICH = ("entscheidung", "zeit")
+"""Von der Freigabe eines Berichts gehen öffentlich nur Entscheidung und Zeit hinaus, nie Name oder Grund."""
 
 
 def volltext_online() -> bool:
     """`KIC_VOLLTEXT_ONLINE=1` schaltet den Volltext frei; gelesen bei jeder Anfrage."""
     return os.environ.get(SCHALTER) == "1"
+
+
+def oeffentlich() -> bool:
+    """`True`, wenn `KIC_ONLINE=1` oder `KIC_ONLINE_LESEND=1` gesetzt ist; gelesen bei jeder Anfrage."""
+    return any(os.environ.get(name, "").strip() == "1" for name in ONLINE_SCHALTER)
 
 
 def kuerze(text: str, n: int = MAX_ZEICHEN) -> str:
@@ -96,3 +105,19 @@ def daten_fuer_ausgabe(knoten: Any, volltext: bool | None = None) -> Any:
 def ereignis_fuer_ausgabe(ereignis: Mapping[str, Any], volltext: bool | None = None) -> dict[str, Any]:
     """Ein Ereignis aus `uc2.ereignis` für SSE: Kopf unverändert, `daten` gefiltert."""
     return {**ereignis, "daten": daten_fuer_ausgabe(ereignis.get("daten") or {}, volltext)}
+
+
+def bericht_fuer_ausgabe(
+    bericht: Mapping[str, Any], volltext: bool | None = None, anonym: bool | None = None
+) -> Any:
+    """Der Bericht eines Falls für die Ausgabe: Belegfilter, dazu der Personenschutz der Freigabe.
+
+    Öffentlich (`oeffentlich()`) bleibt von `freigabe` nur „freigegeben am <Zeit>“ bzw. „abgelehnt am <Zeit>“:
+    `name` und `begruendung` fallen weg. Lokal bleibt die Freigabe vollständig.
+    """
+    aus = daten_fuer_ausgabe(bericht, volltext)
+    versteckt = oeffentlich() if anonym is None else anonym
+    freigabe = aus.get("freigabe") if isinstance(aus, dict) else None
+    if versteckt and isinstance(freigabe, dict):
+        aus["freigabe"] = {k: v for k, v in freigabe.items() if k in FREIGABE_OEFFENTLICH}
+    return aus

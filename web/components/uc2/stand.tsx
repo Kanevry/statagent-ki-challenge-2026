@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Fliesstext, Status, Ueberschrift, type StatusArt } from "@kic/ui/basis";
 import { abbruchSatz, akteurName, kategorieWort, themaKurz } from "./namen";
 import { endstand, zwischenstand, type FallZustand, type ThemaStand } from "./zustand";
@@ -28,7 +29,8 @@ export function zusammenfassung(themen: ThemaStand[], titel: (id: string) => str
     .join(" ");
 }
 
-export function Stand({ zustand }: { zustand: FallZustand }) {
+/** `marke` steht neben der Überschrift, z. B. „Entwurf“, solange das Ergebnis nicht freigegeben ist. */
+export function Stand({ zustand, marke }: { zustand: FallZustand; marke?: ReactNode }) {
   const ende = endstand(zustand);
   const zwischen = zwischenstand(zustand);
   const themen = ende ?? zwischen?.themen;
@@ -48,9 +50,12 @@ export function Stand({ zustand }: { zustand: FallZustand }) {
   return (
     <section className="flex flex-col gap-4 border-t border-line pt-6" aria-labelledby="uc2-stand" data-spur="stand" data-fertig={fertig ? "ja" : "nein"}>
       <div className="flex flex-col gap-1">
-        <Ueberschrift stufe={3} als="h2" id="uc2-stand">
-          {ueberschrift}
-        </Ueberschrift>
+        <div className="flex flex-wrap items-center gap-3">
+          <Ueberschrift stufe={3} als="h2" id="uc2-stand">
+            {ueberschrift}
+          </Ueberschrift>
+          {marke}
+        </div>
         <Fliesstext data-teil="zusammenfassung">{zusammenfassung(themen, titelVon)}</Fliesstext>
         {fertig && zustand.ergebnis && (
           <Fliesstext groesse={14} ton="gedaempft" data-teil="schluss">

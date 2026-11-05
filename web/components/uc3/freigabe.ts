@@ -994,8 +994,9 @@ const AN_DEN_AGENTEN = /^(Ändere|Ändern|Setze|Lege|Nutze|Verwende|Schreibe|Erz
  * Spaltennamen und ohne die Sätze an den Agenten (Sichtprüfung bb, #18). Bleibt nichts übrig, steht der Rohtext da.
  */
 export function auftragsZitat(anweisung: string): string {
-  const doppelpunkt = anweisung.indexOf(":");
-  const rumpf = (doppelpunkt > 0 && doppelpunkt < 120 ? anweisung.slice(doppelpunkt + 1) : anweisung)
+  // Nur ein erkannter Titel „Auftrag N, …:“ fällt weg; jeder andere Doppelpunkt gehört zum Auftrag (Review !77).
+  const rumpf = anweisung
+    .replace(/^\s*Auftrag \d+[^:]{0,80}:/, "")
     .replace(/\s*\([^)]*(?:\.csv|Spalte|[A-Z]{4,})[^)]*\)/g, "")
     .trim();
   const saetze = rumpf.split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ])/);

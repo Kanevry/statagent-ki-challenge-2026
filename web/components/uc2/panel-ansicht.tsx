@@ -8,7 +8,7 @@ import { FehlerKarte } from "./fehler-karte";
 import { klartext, akteurName, modellText, THEMEN } from "./namen";
 import { ModeratorSpur } from "./moderator-spur";
 import { PersonaSpur } from "./persona-spur";
-import { Stand } from "./stand";
+import { StandMitFreigabe } from "./freigabe";
 import type { Verbindung } from "./use-ereignisstrom";
 import { Verlauf } from "./verlauf";
 import { aktuelleRunde, type FallZustand } from "./zustand";
@@ -139,7 +139,7 @@ export function PanelAnsicht({ zustand, verbindung, fallId, modelle, neuLaedt = 
         <Status art="info">Die Verbindung wird neu aufgebaut.</Status>
       )}
 
-      <Stand zustand={zustand} />
+      <StandMitFreigabe zustand={zustand} fallId={fallId} modus={modus} />
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-6">

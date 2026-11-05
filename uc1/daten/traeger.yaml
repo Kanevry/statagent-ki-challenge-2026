@@ -1,0 +1,118 @@
+# Entscheidungstabelle: Status bzw. Pensionsträger → zuständige Stelle und Suchgebiet (Issue #31).
+#
+# Quelle Pflegegeld: BPGG § 22 Abs. 1 (Fassung ab 2026-05-20, lotse.abschnitt 14171), wörtlich:
+#   Z 1: „der für die Gewährung der Vollrente, Pension oder des Sonderruhegeldes zuständige
+#         Sozialversicherungsträger“
+#   Z 3: „§ 3 Abs. 1 Z 4 lit. a bis i und k sowie Z 9 die Versicherungsanstalt öffentlich Bediensteter“
+#   Z 5: „§ 3 Abs. 1 Z 1 lit. e und g, Z 5, Z 6, Z 8 und Z 10 sowie § 3a die Pensionsversicherungsanstalt“
+# Krankenversicherung (Krankengeld, Wochengeld, Kur): der Krankenversicherungsträger des Status; Fundstelle
+# ist die jeweilige Leistungsnorm (ASVG § 138/§ 162, GSVG § 102, B-KUVG). Rehabilitation von Pensionistinnen
+# und Pensionisten: der Pensionsversicherungsträger (ASVG § 300, GSVG § 157).
+#
+# `erkennen`: reguläre Ausdrücke (ohne Groß-/Kleinschreibung) für die Angabe in Bürgersprache; der erste
+# Eintrag in Dateireihenfolge, der passt, gewinnt.
+# `gesetze`: Gesetzesfilter der Suche, sobald der Status bekannt ist (Review N1/N2: die Status-Rückfrage
+# setzt Träger UND Suchgebiet). BPGG gilt für alle, weil das Pflegegeld bundesweit einheitlich ist.
+# `stellen`: zuständige Stelle je Bereich (pflegegeld | pension | krankenversicherung).
+# `verfahren`: Verfahrensrecht gilt für alle Versicherten, unabhängig vom Status (#31): Bescheid, Klage und
+# Fristen regelt das ASGG; das Verfahren in Leistungssachen der Siebente Teil des ASVG (§§ 354–368), auf den
+# GSVG § 194, BSVG § 182 und B-KUVG § 129 verweisen. `gesetze` kommen bei jedem Status in den Gesetzesfilter
+# der Frage-Suche, `paragraphen` nur mit dem genannten Bereich (von, bis; beide eingeschlossen), wenn der
+# Status das Gesetz sonst nicht enthält.
+
+verfahren:
+  gesetze: [ASGG]
+  paragraphen:
+    ASVG: [354, 368]
+
+stellen:
+  PVA:
+    name: "Pensionsversicherungsanstalt (PVA)"
+  SVS:
+    name: "Sozialversicherungsanstalt der Selbständigen (SVS)"
+  BVAEB:
+    name: "Versicherungsanstalt öffentlich Bediensteter, Eisenbahnen und Bergbau (BVAEB)"
+  OEGK:
+    name: "Österreichische Gesundheitskasse (ÖGK)"
+  SMS:
+    name: "Sozialministeriumservice"
+
+status:
+  pva:
+    bezeichnung: "Pension von der Pensionsversicherungsanstalt (PVA)"
+    erkennen:
+      - '\bpva\b'
+      - 'pensionsversicherungsanstalt'
+    gesetze: [BPGG, ASVG]
+    stellen:
+      pflegegeld:
+        stelle: PVA
+        fundstelle: "BPGG § 22 Abs. 1 Z 1"
+        zitat: "der für die Gewährung der Vollrente, Pension oder des Sonderruhegeldes zuständige Sozialversicherungsträger"
+      pension: {stelle: PVA, fundstelle: "ASVG § 300"}
+      krankenversicherung: {stelle: OEGK, fundstelle: "ASVG § 138"}
+  svs:
+    bezeichnung: "Pension oder Versicherung bei der SVS (Selbständige, Bäuerinnen und Bauern)"
+    erkennen:
+      - '\bsvs\b'
+      - 'sozialversicherung(?:sanstalt)? der selbst(?:ä|a)ndigen'
+      - '(?<!un)selbst(?:ä|a)ndig'
+      - '\bb(?:ä|a)uer(?:in)?\b'
+      - 'landwirt'
+      - '\bsva\b'
+    gesetze: [BPGG, GSVG, BSVG]
+    stellen:
+      pflegegeld:
+        stelle: SVS
+        fundstelle: "BPGG § 22 Abs. 1 Z 1"
+        zitat: "der für die Gewährung der Vollrente, Pension oder des Sonderruhegeldes zuständige Sozialversicherungsträger"
+      pension: {stelle: SVS, fundstelle: "GSVG § 157"}
+      krankenversicherung: {stelle: SVS, fundstelle: "GSVG § 102"}
+  bvaeb:
+    bezeichnung: "Beamtin oder Beamter, Eisenbahn oder Bergbau (BVAEB)"
+    erkennen:
+      - 'bvaeb'
+      - '\bbva\b'
+      - 'beamt'
+      - '(?:ö|o)ffentlich(?:en)? bedienstet'
+      - 'eisenbahn'
+      - 'bergbau'
+    gesetze: [BPGG, B-KUVG]
+    stellen:
+      pflegegeld:
+        stelle: BVAEB
+        fundstelle: "BPGG § 22 Abs. 1 Z 3"
+        zitat: "§ 3 Abs. 1 Z 4 lit. a bis i und k sowie Z 9 die Versicherungsanstalt öffentlich Bediensteter"
+      pension: {stelle: BVAEB, fundstelle: "B-KUVG"}
+      krankenversicherung: {stelle: BVAEB, fundstelle: "B-KUVG"}
+  angestellt:
+    bezeichnung: "unselbständig beschäftigt (Arbeiterin, Angestellte), versichert bei der ÖGK"
+    erkennen:
+      - 'angestellt'
+      - '\barbeiter(?:in)?\b'
+      - 'unselbst(?:ä|a)ndig'
+      - 'dienstnehmer'
+      - '(?:ö|o)gk'
+      - 'gesundheitskasse'
+    gesetze: [BPGG, ASVG, FLAG, AlVG, KBGG]
+    stellen:
+      pflegegeld:
+        stelle: PVA
+        fundstelle: "BPGG § 22 Abs. 1 Z 5"
+        zitat: "§ 3 Abs. 1 Z 1 lit. e und g, Z 5, Z 6, Z 8 und Z 10 sowie § 3a die Pensionsversicherungsanstalt"
+      pension: {stelle: PVA, fundstelle: "ASVG § 300"}
+      krankenversicherung: {stelle: OEGK, fundstelle: "ASVG § 138"}
+  keine_pension:
+    bezeichnung: "keine Pension und keine eigene Versicherung"
+    erkennen:
+      - 'keine (?:eigene )?pension'
+      - 'ohne pension'
+      - 'nicht versichert'
+    gesetze: [BPGG, ASVG]
+    stellen:
+      pflegegeld:
+        stelle: PVA
+        fundstelle: "BPGG § 22 Abs. 1 Z 5"
+        zitat: "§ 3 Abs. 1 Z 1 lit. e und g, Z 5, Z 6, Z 8 und Z 10 sowie § 3a die Pensionsversicherungsanstalt"
+      pension: {stelle: PVA, fundstelle: "ASVG § 300"}
+      krankenversicherung: {stelle: OEGK, fundstelle: "ASVG § 138"}

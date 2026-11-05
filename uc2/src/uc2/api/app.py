@@ -10,7 +10,13 @@ Echte Modelle nur mit `UC2_API_ECHTE_MODELLE=1`, sonst 403; Standard ist `mock`.
 startet ein echtes Modell zusätzlich nur mit gültigem Tagesbudget (`LLM_TAGESBUDGET_AUFRUFE`, Logik in
 `plattform.llm`, !36), sonst 503. Der Lauf selbst bricht in `plattform.llm.complete` ebenso fail-closed ab.
 
-Jede Ausgabe läuft durch `uc2.api.belegfilter` (online nur Zitatfelder je Beleg). Eine PG-Verbindung je
+Eine Ausnahme vom Lesen ist `POST /faelle/{id}/freigabe` (Freigabe des Berichts mit Namen,
+`uc2.verhandlung.freigabe`): nur für fertige Fälle, mit denselben Sperren wie der Start. `KIC_ONLINE_LESEND=1`
+ergibt 403 vor dem Body, dazu ein Ratenlimit je IP, eine Body-Grenze und feste Sätze.
+
+Jede Ausgabe läuft durch `uc2.api.belegfilter` (online nur Zitatfelder je Beleg; öffentlich, also mit
+`KIC_ONLINE=1` oder `KIC_ONLINE_LESEND=1`, steht von der Freigabe nur „freigegeben/abgelehnt am <Zeit>“,
+ohne Name und ohne Begründung). Eine PG-Verbindung je
 Anfrage, beim SSE-Strom für dessen Dauer. Fehler gehen als JSON mit festen, einfachen Sätzen hinaus: keine
 Env-Namen, Pfade, SQL oder Exception-Texte (SEC-009); Einzelheiten nur ins Server-Log.
 """
@@ -31,23 +37,26 @@ from typing import Any, Literal
 import psycopg
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from plattform.llm import KonfigFehler, budget_status  # type: ignore[import-untyped]  # kein py.typed
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from uc2 import db
-from uc2.api.belegfilter import daten_fuer_ausgabe, ereignis_fuer_ausgabe
+from uc2.api.belegfilter import bericht_fuer_ausgabe, ereignis_fuer_ausgabe
 from uc2.api.start import Lauf, Startauftrag, Starter, StartFehler, UnterprozessStarter
 from uc2.verhandlung.belege import lade_namensliste
 from uc2.verhandlung.bericht import bericht
 from uc2.verhandlung.cli import MAX_FRAGE, FrageFehler, pruefe_frage
 from uc2.verhandlung.fall import FALL_ID, bekannte_faelle
+from uc2.verhandlung.freigabe import MAX_BEGRUENDUNG, FreigabeFehler, entscheide
 from uc2.verhandlung.speicher import lies_ereignisse, lies_fall, wirksamer_status
 
 PORT = 8102
 ECHTE_MODELLE = "UC2_API_ECHTE_MODELLE"
 ONLINE = "KIC_ONLINE"
+ONLINE_LESEND = "KIC_ONLINE_LESEND"
 RATE_S = 60.0
 """Höchstens ein Start je Client-IP in diesem Abstand (Sekunden)."""
 NACHLADEN_S = 0.5
@@ -55,6 +64,10 @@ WARTEZEICHEN_S = 15.0
 """Kommentarzeile im Strom, wenn so lange nichts kam (hält Proxys offen)."""
 ENDSTATUS = ("fertig", "abgebrochen")
 LISTE_MAX = 200
+FREIGABE_PRO_MINUTE = 10
+"""Höchstens so viele Freigabe-Anfragen je Client-IP und Minute (gleitendes Fenster, im Speicher)."""
+MAX_BODY = 4 * 1024
+"""Größe des Freigabe-Bodys in Bytes; gezählt beim Lesen, auch ohne Content-Length."""
 
 Verbinder = Callable[[], psycopg.Connection[Any]]
 
@@ -65,6 +78,18 @@ GESPERRT = "Echte Modelle sind hier gesperrt."
 OHNE_NAMENSLISTE = "Belege aus dem Index sind ohne Namensliste gesperrt."
 ZU_OFT = "Bitte warte eine Minute, bevor du den nächsten Fall startest."
 START_GESCHEITERT = "Der Lauf konnte nicht starten."
+FREIGABE_GESPERRT = "Freigeben ist in der Online-Demo gesperrt."
+FREIGABE_ZU_OFT = "Bitte warte eine Minute, bevor du noch einmal freigibst."
+BODY_ZU_GROSS = "Die Anfrage ist zu groß."
+FREIGABE_ANFRAGE = "Die Anfrage passt nicht: Name, Entscheidung oder Begründung sind ungültig."
+FREIGABE_STATUS = {
+    "name": 422,
+    "begruendung": 422,
+    "entscheidung": 422,
+    "kein_fall": 404,
+    "nicht_fertig": 409,
+    "entschieden": 409,
+}
 
 _log = logging.getLogger(__name__)
 
@@ -76,6 +101,33 @@ class FallStart(BaseModel):
     frage: str | None = Field(default=None, max_length=MAX_FRAGE * 4)
     provider: Literal["mock", "claude", "azure"] = "mock"
     belege: Literal["fixture", "index"] = "fixture"
+
+
+class FreigabeEingabe(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(max_length=200)
+    entscheidung: Literal["freigegeben", "abgelehnt"]
+    begruendung: str | None = Field(default=None, max_length=MAX_BEGRUENDUNG * 4)
+
+
+class _ZuGross(Exception):
+    pass
+
+
+async def _lese_body(request: Request, grenze: int) -> bytes:
+    """Body mit harter Grenze; gezählt wird beim Lesen, auch ohne Content-Length (gestreamte Anfragen)."""
+    laenge = request.headers.get("content-length", "")
+    if laenge.isdigit() and int(laenge) > grenze:
+        raise _ZuGross
+    stuecke: list[bytes] = []
+    gelesen = 0
+    async for stueck in request.stream():
+        gelesen += len(stueck)
+        if gelesen > grenze:
+            raise _ZuGross
+        stuecke.append(stueck)
+    return b"".join(stuecke)
 
 
 def _standard_verbinde() -> psycopg.Connection[Any]:
@@ -124,6 +176,8 @@ def erstelle_app(
     sperre = threading.Lock()
     aktiv: list[Lauf] = []
     letzte_starts: dict[str, float] = {}
+    freigabe_zeiten: dict[str, list[float]] = {}
+    freigabe_sperre = threading.Lock()
 
     app = FastAPI(title="uc2 HealthPolicy Simulator", version="0.1.0")
 
@@ -131,6 +185,12 @@ def erstelle_app(
     async def _db_weg(_: Request, fehler: Exception) -> JSONResponse:
         _log.error("Datenbank nicht erreichbar: %s", fehler)
         return JSONResponse({"detail": "Die Datenbank ist gerade nicht erreichbar."}, status_code=503)
+
+    @app.exception_handler(RequestValidationError)
+    async def _anfrage_ungueltig(request: Request, fehler: RequestValidationError) -> JSONResponse:
+        # Die Standardantwort gibt die Eingabe zurück; nach außen gehen nur feste Sätze (SEC-009).
+        _log.info("Anfrage ungültig: %s", request.url.path)
+        return JSONResponse({"detail": "Die Anfrage passt nicht."}, status_code=422)
 
     @app.exception_handler(Exception)
     async def _intern(_: Request, fehler: Exception) -> JSONResponse:
@@ -223,7 +283,48 @@ def erstelle_app(
         with closing(verbinde_pg()) as v:
             _fall_oder_404(v, fall_id)
             daten = bericht(v, fall_id)
-        return daten_fuer_ausgabe(jsonable_encoder(daten))
+        return bericht_fuer_ausgabe(jsonable_encoder(daten))
+
+    def _freigabe_zu_oft(ip: str) -> bool:
+        """Zählt die Anfrage; `True`, wenn das Fenster schon voll ist. Räumt abgelaufene Einträge weg."""
+        with freigabe_sperre:
+            jetzt = uhr()
+            veraltet = [
+                k for k, zeiten in freigabe_zeiten.items() if not zeiten or jetzt - zeiten[-1] >= RATE_S
+            ]
+            for alt in veraltet:
+                del freigabe_zeiten[alt]
+            zeiten = [t for t in freigabe_zeiten.get(ip, []) if jetzt - t < RATE_S]
+            if len(zeiten) >= FREIGABE_PRO_MINUTE:
+                freigabe_zeiten[ip] = zeiten
+                return True
+            freigabe_zeiten[ip] = [*zeiten, jetzt]
+            return False
+
+    def _entscheide(fall_id: int, eingabe: FreigabeEingabe) -> datetime:
+        with closing(verbinde_pg()) as v:
+            return entscheide(v, fall_id, eingabe.name, eingabe.entscheidung, eingabe.begruendung)
+
+    @app.post("/faelle/{fall_id}/freigabe")
+    async def freigabe(fall_id: int, request: Request) -> dict[str, Any]:
+        if os.environ.get(ONLINE_LESEND, "").strip() == "1":
+            raise HTTPException(403, FREIGABE_GESPERRT)
+        ip = request.client.host if request.client else "unbekannt"
+        if _freigabe_zu_oft(ip):
+            raise HTTPException(429, FREIGABE_ZU_OFT)
+        try:
+            roh = await _lese_body(request, MAX_BODY)
+        except _ZuGross as fehler:
+            raise HTTPException(413, BODY_ZU_GROSS) from fehler
+        try:
+            eingabe = FreigabeEingabe.model_validate_json(roh)
+        except ValidationError as fehler:
+            raise HTTPException(422, FREIGABE_ANFRAGE) from fehler
+        try:
+            zeitpunkt = await run_in_threadpool(_entscheide, fall_id, eingabe)
+        except FreigabeFehler as fehler:
+            raise HTTPException(FREIGABE_STATUS.get(fehler.art, 422), str(fehler)) from fehler
+        return {"zeitpunkt": zeitpunkt.isoformat()}
 
     @app.get("/faelle/{fall_id}/ereignisse")
     def ereignisse(

@@ -381,4 +381,12 @@ describe("Auftragszitat (Sichtprüfung bb, #18)", () => {
     );
     expect(auftraggeber({ gesagtVon: null, anweisung })).toBe("Änderungsauftrag aus der Aufgabenstellung");
   });
+
+  // Fehler (Review !77 Runde 2): jeder Doppelpunkt in den ersten 120 Zeichen schnitt den Anfang ab.
+  it("schneidet nur einen erkannten Titel „Auftrag N …:“ ab", () => {
+    expect(auftragsZitat("Fasse Gruppen zusammen: Die Gesamtzahl bleibt gleich.")).toBe(
+      "Fasse Gruppen zusammen: Die Gesamtzahl bleibt gleich.",
+    );
+    expect(auftragsZitat("Auftrag 2, ganzes Monat: Gezählt wird das ganze Monat.")).toBe("Gezählt wird das ganze Monat.");
+  });
 });
