@@ -46,3 +46,45 @@ Gemessen mit `uv run python -m plattform.llm smoke` (eine kurze Anfrage je Provi
 | 2026-11-05T13:22:33+01:00 | azure | gpt-5-4-mini | gpt-5.4-mini-2026-03-17 | 0.9 s | ok ('bereit') |
 | 2026-11-05T13:22:33+01:00 | mistral | - | - | 0.2 s | ProviderFehler: alle Stufen gescheitert (mistral): mistral: RateLimitError |
 | 2026-11-05T13:22:33+01:00 | claude | claude-opus-5-5 | claude-opus-5-5 | 17.8 s | ok ('bereit') |
+
+## Embeddings
+
+Einziges Embedding-Modell der Plattform: `google/embeddinggemma-2` über `plattform.embeddings` (lokal,
+sentence-transformers als Extra `plattform[embeddings]`, nicht in CI), Revision fest im Code. Ohne pgvector
+speichern die UCs `float4[]` und rechnen Cosinus in SQL oder numpy. Prototyp mit 200 Texten; hochskalieren
+(UC1, UC2) erst danach. Der Apple M4 Pro wird nicht gemessen (Regel: schwere Läufe nur auf dem Apple M5 Max
+oder in CI); auf dem M5 Max misst der Bench auch `cpu` als Näherung für Rechner ohne Grafikbeschleunigung.
+
+Nutzungsbedingungen: Für die Gewichte von embeddinggemma-2 gelten die Gemma Terms of Use
+(https://ai.google.dev/gemma/terms). Die Gewichte liegen nicht im Repo und werden nicht mit ihm verteilt.
+`uv run python -m plattform.embeddings laden` holt sie aus Hugging Face in den lokalen Cache; wer lädt,
+akzeptiert die Bedingungen dort. Ohne diesen Schritt lädt `einbetten` nichts aus dem Netz, sondern bricht
+mit `ModellFehlt` ab.
+
+| Umgebung | Standard | Regel |
+|---|---|---|
+| `EMBEDDINGS_STAPEL` | 16 | Texte je Vorwärtslauf, 1 bis 256; `bench --stapel` überschreibt für den Lauf |
+| `EMBEDDINGS_MAX_TOKEN` | 2048 | Token je Text, 1 bis 8192; längere Texte schneidet das Modell ab |
+| `EMBEDDINGS_GERAET` | `cpu` | `cpu`, `cuda` oder `mps`; `mps` nur mit `PYTORCH_MPS_HIGH_WATERMARK_RATIO` > 0, sonst Fehler; fehlt `PYTORCH_MPS_LOW_WATERMARK_RATIO`, gilt die obere Grenze auch als untere |
+| `EMBEDDINGS_DOWNLOAD` | leer | `1`: fehlende Revision beim Laden aus Hugging Face holen (wie `laden`) |
+
+Die Texte gehen in Scheiben zu höchstens 256 ins Modell, danach wird der Speicher von `mps` bzw. `cuda`
+geleert; `entladen()` gibt das Modell frei. Der Bench misst je Gerät eine Zeile mit kurzen Sätzen und eine
+mit einem langen Text über `EMBEDDINGS_MAX_TOKEN` Token, jeweils mit Stapel und Spitzenspeicher.
+
+#### Bench 2026-11-05T14:11:20+01:00
+
+| Zeit | Host | Modell | Revision | Gerät | Ladezeit | Dimension | n | Dauer | Texte/s |
+|---|---|---|---|---|---|---|---|---|---|
+| 2026-11-05T14:11:20+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | mps | 5.3 s | 768 | 200 | 4.62 s | 43 |
+
+#### Bench 2026-11-05T14:47:52+01:00
+
+| Zeit | Host | Modell | Revision | Gerät | Eingabe | Stapel | Max. Token | Ladezeit | Dimension | n | Dauer | Texte/s | Spitzenspeicher |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | cpu | kurze Sätze | 16 | 2048 | 0.9 s | 768 | 1000 | 9.08 s | 110 | 2238 MiB (RSS-Spitze) |
+| 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | cpu | langer Text (8533 Wörter, abgeschnitten) | 16 | 2048 | 0.9 s | 768 | 1 | 2.23 s | 0.4 | 2325 MiB (RSS-Spitze) |
+| 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | mps | kurze Sätze | 16 | 2048 | 1.2 s | 768 | 1000 | 5.07 s | 197 | 2063 MiB (mps-Treiber) |
+| 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | mps | langer Text (8533 Wörter, abgeschnitten) | 16 | 2048 | 1.2 s | 768 | 1 | 0.60 s | 1.7 | 2128 MiB (mps-Treiber) |
+
+Gemessen auf dem Apple M5 Max (Kopf 068d98e plus mps-Untergrenze), PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.7. Hochgerechnet brauchen 14.244 kurze Texte auf cpu rund 2,2 Minuten.
