@@ -58,7 +58,10 @@ def test_vertrag_pydantic_und_json_schema(demo: UcAntwort) -> None:
     experte = [b for b in demo.belege if b.quelle == "uc2.experte"]
     assert len(experte) == 1 and experte[0].ref == "beispiel-wartezeiten" and experte[0].sql is None
     bezeichnungen = {z.bezeichnung for z in demo.zahlen if demo.belege[z.beleg].quelle == "uc2.experte"}
-    assert {"Wartezeitänderung (Modus)", "Mehrkosten in % der Gesundheitsausgaben (Modus)"} <= bezeichnungen
+    assert {
+        "Wartezeitänderung (wahrscheinlichster Wert)",
+        "Mehrkosten in % der Gesundheitsausgaben (wahrscheinlichster Wert)",
+    } <= bezeichnungen
 
 
 def test_mock_zweimal_gleiches_ergebnis(demo: UcAntwort) -> None:

@@ -44,12 +44,12 @@ _KATEGORIE = {
     "konsens": "alle dafür",
     "mehrheit": "Mehrheit dafür",
     "abgelehnt": "Mehrheit dagegen",
-    "offener_konflikt": "offen",
+    "offener_konflikt": "noch strittig",
 }
 _ZIELPRUEFUNG = {
-    "erfüllt": "erfüllt, das Ziel hält unter allen Annahmen",
-    "nicht erfüllt": "nicht erfüllt, das Ziel wird unter keiner Annahme erreicht",
-    "offen": "offen, das Ziel hält nur unter einem Teil der Annahmen",
+    "erfüllt": "Ja, unter allen durchgerechneten Annahmen",
+    "nicht erfüllt": "Nein, unter keiner der durchgerechneten Annahmen",
+    "offen": "Das ist offen, es hängt von den Annahmen ab",
 }
 _WORT = {1: "einer", 2: "zwei", 3: "drei", 4: "vier", 5: "fünf", 6: "sechs"}
 
@@ -117,20 +117,24 @@ def _experte_zahlen(voll: dict[str, Any], s: _Sammlung) -> dict[str, Zahl]:
     z = voll["zielpruefung"]
     ziel = voll["ziel"]
     zahlen = {
-        "wartezeit": s.zahl("Wartezeitänderung (Modus)", k["wartezeit_aenderung_prozent"]["modus"], "%", idx),
+        "wartezeit": s.zahl(
+            "Wartezeitänderung (wahrscheinlichster Wert)", k["wartezeit_aenderung_prozent"]["modus"], "%", idx
+        ),
         "wartezeit_min": s.zahl(
-            "Wartezeitänderung (Minimum)", k["wartezeit_aenderung_prozent"]["min"], "%", idx
+            "Wartezeitänderung (günstigster Fall)", k["wartezeit_aenderung_prozent"]["min"], "%", idx
         ),
         "wartezeit_max": s.zahl(
-            "Wartezeitänderung (Maximum)", k["wartezeit_aenderung_prozent"]["max"], "%", idx
+            "Wartezeitänderung (ungünstigster Fall)", k["wartezeit_aenderung_prozent"]["max"], "%", idx
         ),
         "kosten": s.zahl(
-            "Mehrkosten in % der Gesundheitsausgaben (Modus)",
+            "Mehrkosten in % der Gesundheitsausgaben (wahrscheinlichster Wert)",
             k["kosten_aenderung_prozent"]["modus"],
             "%",
             idx,
         ),
-        "kosten_mio": s.zahl("Mehrkosten (Modus)", k["mehrkosten_mio_eur"]["modus"], "Mio EUR", idx),
+        "kosten_mio": s.zahl(
+            "Mehrkosten pro Jahr (wahrscheinlichster Wert)", k["mehrkosten_mio_eur"]["modus"], "Mio EUR", idx
+        ),
         "ziel_wartezeit": s.zahl(
             "Ziel Wartezeitänderung", ziel["wartezeit_aenderung_prozent_hoechstens"], "%", idx
         ),
@@ -138,9 +142,9 @@ def _experte_zahlen(voll: dict[str, Any], s: _Sammlung) -> dict[str, Zahl]:
             "Ziel Mehrkosten höchstens", ziel["kosten_aenderung_prozent_hoechstens"], "%", idx
         ),
         "ecken_erreicht": s.zahl(
-            "Zielprüfung: Annahme-Kombinationen mit erreichtem Ziel", z["ecken_erreicht"], None, idx
+            "Durchgerechnete Annahmen, bei denen das Ziel erreicht wird", z["ecken_erreicht"], None, idx
         ),
-        "ecken": s.zahl("Zielprüfung: Annahme-Kombinationen gesamt", z["ecken"], None, idx),
+        "ecken": s.zahl("Durchgerechnete Annahmen insgesamt", z["ecken"], None, idx),
     }
     for m in voll["massnahmen"]:
         # Katalog-Einheiten sind Sätze („% zusätzliche … Kassenstellen“); in der Zahl steht nur das Kürzel.
@@ -205,7 +209,7 @@ def _akteur_zeile(
 ) -> str:
     positionen = ergebnis.positionen.get(akteur.id, {})
     if akteur.id in ergebnis.ohne_zug:
-        return f"- {akteur.name}: ohne gültige Antwort des Modells, keine Position."
+        return f"- {akteur.name}: hat keine gültige Antwort geliefert und bleibt ohne Position."
     themen = [t["id"] for t in ergebnis.auftrag["themen"] if t["id"] in positionen]
     dafuer = [titel[t] for t in themen if positionen[t].wert >= 1]
     dagegen = [titel[t] for t in themen if positionen[t].wert <= -1]
@@ -232,7 +236,7 @@ def _akteur_zeile(
         chips = ", ".join(f"{b.medium} ({b.datum.strftime('%Y-%m')})" for b in zitiert)
         zeile += f" Belege: {chips}."
     else:
-        zeile += f" {MODELLANNAHME}: kein Beleg im Pressespiegel."
+        zeile += f" {MODELLANNAHME}: kein Beleg in der Presse, die Haltung folgt nur aus dem Rollenprofil."
     return zeile
 
 
@@ -245,35 +249,38 @@ def _text(
     s: _Sammlung,
 ) -> str:
     n = len(ergebnis.teilnehmer)
+    runden = _WORT.get(ergebnis.runden, "mehreren")
     zeilen = [
-        f"Kurzverhandlung im Panel (Simulation mit {_WORT.get(n, 'mehreren')} Akteuren, "
-        f"{_WORT.get(ergebnis.runden, 'mehreren')} Runde{'n' if ergebnis.runden > 1 else ''})."
+        f"{_WORT.get(n, 'Mehrere').capitalize()} Interessenvertretungen haben in {runden} "
+        f"Runde{'n' if ergebnis.runden > 1 else ''} über die Frage verhandelt. Das ist eine Simulation mit "
+        "KI-Rollen, keine echte Verhandlung."
     ]
     if kontext:
         teile = [f"{z.bezeichnung} {_zahl_text(z)} ({_herkunft(b)})" for z, b in kontext]
-        zeilen.append(f"Ausgangslage aus dem Kontext: {'; '.join(teile)}.")
+        zeilen.append(f"Ausgangslage, Zahlen aus der Statistik: {'; '.join(teile)}.")
     massnahmen = [f"{m['name']} {_zahl_text(ez[f'massnahme_{m["id"]}'])}" for m in voll["massnahmen"]]
-    zeilen.append(f"Das Paket: {', '.join(massnahmen)}.")
+    zeilen.append(f"Durchgerechnete Maßnahmen: {', '.join(massnahmen)}.")
     pruefung = voll["zielpruefung"]["ergebnis"]
     entscheidend = voll["entscheidend"]["annahme"]
     beschreibung = {a["id"]: a["beschreibung"] for a in voll["annahmen"]}
     erreicht, ecken = _zahl_text(ez["ecken_erreicht"]), _zahl_text(ez["ecken"])
     experte = (
-        f"Der Experte (Rechenmodell, kein Sprachmodell) rechnet mit {_zahl_text(ez['wartezeit'])} Wartezeit "
-        f"(Spanne {_zahl_text(ez['wartezeit_min'])} bis {_zahl_text(ez['wartezeit_max'])}) bei "
-        f"{_zahl_text(ez['kosten'])} Mehrkosten, das sind {_zahl_text(ez['kosten_mio'])}. "
-        f"Ziel: {_zahl_text(ez['ziel_wartezeit'])} Wartezeit bei höchstens {_zahl_text(ez['ziel_kosten'])} "
-        f"Mehrkosten. Zielprüfung: {_ZIELPRUEFUNG.get(pruefung, pruefung)} ({erreicht} "
-        f"von {ecken} Annahme-Kombinationen)."
+        "Ein Rechenmodell ohne KI schätzt die Wirkung im fünften Jahr: Wartezeit "
+        f"{_zahl_text(ez['wartezeit'])}, je nach Annahmen zwischen {_zahl_text(ez['wartezeit_min'])} und "
+        f"{_zahl_text(ez['wartezeit_max'])}. Mehrkosten {_zahl_text(ez['kosten'])} der Gesundheitsausgaben, "
+        f"das sind {_zahl_text(ez['kosten_mio'])} pro Jahr. Das Ziel ist {_zahl_text(ez['ziel_wartezeit'])} "
+        f"Wartezeit bei höchstens {_zahl_text(ez['ziel_kosten'])} Mehrkosten. Wird es erreicht? "
+        f"{_ZIELPRUEFUNG.get(pruefung, pruefung)} ({erreicht} von {ecken} durchgerechneten Annahmen "
+        "erreichen es)."
     )
     if entscheidend in beschreibung:
-        experte += f" Am meisten hängt das Ergebnis an der Annahme: {beschreibung[entscheidend]}."
+        experte += f" Am meisten hängt das Ergebnis davon ab: {beschreibung[entscheidend]}."
     zeilen.append(experte)
     titel = {t["id"]: t["titel"] for t in ergebnis.auftrag["themen"]}
     einordnung = [
         f"{titel[t]}: {_KATEGORIE.get(e.kategorie, e.kategorie)}" for t, e in ergebnis.klassifikation.items()
     ]
-    zeilen.append(f"Ergebnis je Thema: {'; '.join(einordnung)}.")
+    zeilen.append(f"So stehen die Beteiligten zu den Vorschlägen: {'; '.join(einordnung)}.")
     zeilen.append("Wer ist dafür, wer dagegen:")
     zeilen += [_akteur_zeile(akteure[aid], ergebnis, titel, s) for aid in ergebnis.teilnehmer]
     bedingungen = [
@@ -285,7 +292,7 @@ def _text(
     if bedingungen:
         zeilen.append(f"Bedingungen: {'; '.join(bedingungen)}.")
     if ergebnis.notiz:
-        zeilen.append(f"Moderator: {ergebnis.notiz}")
+        zeilen.append(f"Einschätzung der Moderation: {ergebnis.notiz}")
     return "\n".join(bereinige(z, s.zahlen) for z in zeilen)
 
 
