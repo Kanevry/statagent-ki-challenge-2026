@@ -129,3 +129,50 @@ die neue Fassung einen neuen Auftrag. `uv run uc3 protokoll` zeigt die Lieferung
 genau auf der Schwelle (im Test `mindesttage = 30` auf einen Monat, entspricht 199/200 auf zwölf Monate), zwei
 überlappende Verhältnisse derselben Person (Tage einmal gezählt) und ein Verhältnis mit Altcode DA, das nur mit
 passendem Parameter mitzählt.
+
+## Prüfabfrage, Regelstand und Mengenvergleich (Lieferung 2026-07)
+
+Die amtliche Lieferung ist am 05.11.2026 um 19:35 entstanden (`uv run uc3 ministerium --name "Bernhard Götzendorfer"`,
+Commit `1b0f799`, Vorschlag uc3/28). Vorher lief dieselbe Rechnung trocken in einer read-only-Sitzung gegen die
+Abgabe-Datenbank: 32.741 Personen, sha256 gleich dem Soll unten, keine frühere Lieferung.
+
+**Regelstand:** Die Lieferung rechnet auf den bereinigten Abschnitten des Regelsatzes v1
+(`bereinigung_regelsatz: v1`). Der jüngste Lauf v1 jeder Lieferung 2024-08 bis 2026-07 hat den Regelstand-Hash
+`c3ecc447f8384fea` (meta.protokoll, Einträge „Berichtsmonat … (v1) veröffentlichen“; Qualitätsbericht 2026-07:
+Lauf 121, Ergebnis-Hash `0f1f7def0db7…`). In `meta.ausgabe` steht die Lieferung mit Protokoll-ID 28 und dem
+Datenstand je Monat (2025-08 aus 2025-09, die Teil-Lieferung 2025-10 übersprungen). Die Definition selbst ist die Regel `M01_personentage_ministerium`
+(meta.regel 663, Regelsatz `ministerium`), freigegeben mit Commit `08e63c0`.
+
+Readback in der Abgabe-Datenbank (nur lesend):
+
+```sql
+-- Lieferung, Personen, sha256, Datenstand und Freigabe
+SELECT a.berichtsmonat, a.datei, a.zeilen, a.sha256, a.freigegeben_von, a.protokoll_id,
+       a.datenstand -> 'uebersprungen' AS uebersprungen
+FROM meta.ausgabe a
+WHERE a.art = 'ministerium' AND a.berichtsmonat = '2026-07';
+
+-- Regelstand des jüngsten v1-Laufs je Lieferung, auf dem die Lieferung rechnet (Soll: genau ein Wert,
+-- c3ecc447f8384fea; die Läufe 1 bis 48 sind ältere Entwicklungsläufe mit anderem Regelstand)
+SELECT DISTINCT j.regelstand
+FROM (SELECT DISTINCT ON (l.lieferung) l.lieferung, l.regelstand
+      FROM meta.lauf l
+      WHERE l.regelsatz = 'v1' AND l.status IN ('fertig', 'unveraendert')
+        AND l.lieferung BETWEEN '2025-08' AND '2026-07'
+      ORDER BY l.lieferung, l.id DESC) j;
+
+-- Definition und Freigabe der Regel
+SELECT r.id, r.name, r.art, r.parameter, r.freigegeben_von, r.freigegeben_am
+FROM meta.regel r
+WHERE r.regelsatz = 'ministerium' AND r.art = 'personentage';
+```
+
+**Mengenvergleich** (Personen, Berichtsmonat 2026-07; Varianten oben):
+
+| Vergleich | Personen | Unterschied zur Abgabe | Grund |
+|---|---|---|---|
+| Abgabe (Variante S, DA bis DN als C, Teil-Lieferung 2025-10 übersprungen) | 32.741 | 0 | amtliche Lieferung |
+| unabhängiges Orakel (Session 4f, eigener Code) | 32.741 | 0 | 0 Abweichungen bei Personen und Tagen, Kopf bytegleich |
+| ohne Altcodes | 32.713 | −28 | Personen mit ÖNACE-2003-Codes DA bis DN fallen weg |
+| wörtliche Lesart H (August 2025 aus der Teil-Lieferung) | 32.639 bzw. 32.667 | −102 bzw. −74 | Teil-Lieferung 2025-10 fehlen rund 20 % der Verhältnisse |
+| Schwelle „mehr als 200 Tage“ | 32.727 | −14 | 14 Personen mit genau 200 Tagen |

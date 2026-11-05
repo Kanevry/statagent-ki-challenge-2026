@@ -408,11 +408,21 @@ def pruefe_abgabe(
     mit_db: Annotated[
         bool, typer.Option("--mit-db", help="Blattsummen je Monat zusätzlich gegen die Datenbank prüfen")
     ] = False,
+    manifest: Annotated[
+        bool,
+        typer.Option("--manifest", help="vorher abgabe/manifest.json neu schreiben (Größe, sha256, Stand)"),
+    ] = False,
 ) -> None:
-    """Prüft die Abgabedateien unter abgabe/ (Sheet alt und neu, 24 Qualitätsberichte, Ministerium, Protokoll, Modelle)."""
+    """Prüft die Abgabedateien unter abgabe/ (Sheet alt und neu, 24 Qualitätsberichte, Ministerium, Protokoll, Modelle, Manifest)."""
+    from statagent.berichte.pruefe_abgabe import manifest_schreiben
     from statagent.berichte.pruefe_abgabe import pruefe_abgabe as pruefen
 
     extern = konfig.lieferungen_extern()
+    if manifest:
+        typer.echo(
+            f"Manifest geschrieben: {manifest_schreiben(konfig.abgabe(), konfig.REPO_WURZEL, extern)}",
+            err=True,
+        )
     if mit_db:
         with verbinden() as conn:
             erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL, conn=conn, lieferungen_dir=extern)
