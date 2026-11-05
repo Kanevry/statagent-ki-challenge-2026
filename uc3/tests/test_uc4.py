@@ -323,9 +323,9 @@ def test_vorlaeufige_und_fortgeschriebene_monate_beim_namen(vier_monate: Verbind
     )
     daten = antwort_daten(conn, "Beschäftigte im Herbst 2024")
     assert "teils endgültig, teils vorläufig (vorläufig: September 2024)" in daten["text"]
-    assert "September 2024 enthält 123 fortgeschriebene" in daten["text"]
+    assert "Im September 2024 sind 123 Beschäftigungsverhältnisse aus der Lieferung" in daten["text"]
     assert daten["belege"][-1]["stand"] == "vorlaeufig"
     einzeln = antwort_daten(conn, "Beschäftigte im September 2024")
-    assert "September 2024 enthält 123 fortgeschriebene" in einzeln["text"]
+    assert "Im September 2024 sind 123 Beschäftigungsverhältnisse aus der Lieferung" in einzeln["text"]
     conn.execute("UPDATE meta.lauf SET ergebnis_status = 'endgueltig', fortgeschrieben = 0")
     assert antwort_daten(conn, "Beschäftigte im Herbst 2024")["belege"][-1]["stand"] == "endgueltig"

@@ -140,8 +140,7 @@ _ANDERES_JAHR = re.compile(
     re.IGNORECASE,
 )
 _JAHR_OFFEN = (
-    "Das Jahr ist hier nicht eindeutig. Bitte Monat und Jahr zusammen nennen, "
-    "zum Beispiel „Beschäftigte im März 2025“."
+    "Das Jahr ist nicht eindeutig. Bitte Monat und Jahr nennen, zum Beispiel „Beschäftigte im März 2025“."
 )
 #: Zwischen zwei Teilen einer Aufzählung steht nur ein Bindewort („im Mai 2025 und im Juni“).
 _NUR_BINDEWORT = re.compile(
