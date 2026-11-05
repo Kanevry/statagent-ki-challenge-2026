@@ -17,7 +17,7 @@ Spalten:
 
 Jahreszeiten: meteorologisch, „Winter 2025“ endet 2025 (Dezember 2024 bis Februar 2025). Der jüngste Monat ist Juli 2026.
 
-Die Zeilen `B…` und `C…` schrieben Agenten, die den Lese-Code nicht kannten. Zwei Soll-Werte sind danach korrigiert: B023 „zwischen
+Die Zeilen `B…`, `C…` und `D…` schrieben Agenten, die den Lese-Code nicht kannten. Zwei Soll-Werte sind danach korrigiert: B023 „zwischen
 Dezember 2024 und Dezember 2025“ meint den ganzen Bereich, B065 „zwischen Mai und Oktober“ ohne Jahr den jüngsten solchen
 Zeitraum, wie alle Angaben ohne Jahr.
 
@@ -456,3 +456,83 @@ Zeitraum, wie alle Angaben ohne Jahr.
 | A021 | merkmal:alter,form:fluktuation | absage | - | - | auch=rueckfrage | Fluktuation nach Altersgruppe im Oktober 2024 |
 | A022 | merkmal:alter | absage | - | - | auch=rueckfrage | Altersgruppen im Juli 2026 |
 | A023 | merkmal:alter | absage | - | - | auch=rueckfrage | Altersverteilung im Juli 2026 |
+| D001 | zeit:monat,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale,form:stichwort,form:fachjury,blind3 | zahl | 2026-01 | region=6;geschlecht=W | muss | Beschäftigte Frauen Steiermark 01/2026 |
+| D002 | zeit:monat,merkmal:kategorie,merkmal:bundesland,kreuz:merkmale,form:stichwort,form:fachjury,blind3 | zahl | 2025-12 | region=3;kategorie=Beamte | muss | Beamte Niederösterreich Dezember 2025 |
+| D003 | zeit:quartal,merkmal:branche,form:stichwort,form:fachjury,blind3 | zahl | 2026-04..2026-06 | branche=Energieversorgung | mittel;muss | Energieversorgung, Durchschnitt 2. Quartal 2026 |
+| D004 | zeit:bereich,merkmal:geschlecht,form:gliederung,form:fachjury,blind3 | zahl | 2025-10..2025-12 | - | gruppe=geschlecht | Beschäftigte nach Geschlecht, Oktober 2025 bis Dezember 2025 |
+| D005 | zeit:monat,merkmal:oenace,form:stichwort,form:fachjury,blind3 | zahl | 2025-06 | oenace=H | muss | Beschäftigte ÖNACE H im Juni 2025 |
+| D006 | zeit:stichtag,merkmal:kategorie,merkmal:bundesland,kreuz:merkmale,form:stichwort,form:fachjury,blind3 | zahl | 2026-04 | region=4;kategorie=Arbeiter | muss | Arbeiter Oberösterreich, Stichtag 30.04.2026 |
+| D007 | zeit:halbjahr,merkmal:kategorie,merkmal:bundesland,kreuz:merkmale,form:fachjury,blind3 | zahl | 2026-01..2026-06 | region=2;freier_dv=1 | mittel;muss | Freie Dienstverträge Kärnten, 1. Halbjahr 2026, Monatsdurchschnitt |
+| D008 | zeit:monat,merkmal:bundesland,form:rang,form:fachjury,blind3 | zahl | 2026-07 | - | gruppe=region;auch=absage,rueckfrage | Welches Bundesland hatte im Juli 2026 die zweitmeisten Beschäftigten? |
+| D009 | zeit:monat,merkmal:kategorie,merkmal:branche,form:anteil,form:fachjury,blind3 | zahl | 2026-05 | branche=Bau | art=anteil;anteil=kategorie:Arbeiter;auch=rueckfrage,absage | Anteil der Arbeiter an den Beschäftigten im Bau, Mai 2026 |
+| D010 | zeit:monat,merkmal:branche,form:veraenderung,form:fachjury,blind3 | zahl | 2025-07,2026-07 | branche=Bau | auch=rueckfrage | Beschäftigte im Bau: Veränderung Juli 2026 zu Juli 2025 |
+| D011 | zeit:monat,merkmal:oenace,form:fluktuation,form:fachjury,blind3 | zahl | 2026-03 | oenace=Q | art=fluktuation;auch=rueckfrage | Fluktuationsrate ÖNACE Q, März 2026 |
+| D012 | zeit:relativ,merkmal:bundesland,form:fachjury,blind3 | zahl | 2026-04..2026-07 | region=5 | muss | Beschäftigte Salzburg, letzte 4 Monate |
+| D013 | zeit:jahreszeit,merkmal:bundesland,form:fachjury,blind3 | zahl | 2024-09..2024-11 | region=1 | mittel;muss | Burgenland, Herbst 2024, Durchschnitt der Beschäftigten |
+| D014 | zeit:monat,merkmal:bundesland,form:zwei_werte,form:fachjury,blind3 | zahl | 2025-12 | - | werte_je=region:7,8;auch=absage,rueckfrage | Tirol und Vorarlberg zusammen, Dezember 2025 |
+| D015 | zeit:monat,merkmal:branche,merkmal:bundesland,merkmal:geschlecht,kreuz:merkmale,form:fachjury,blind3 | zahl | 2025-09 | region=3;geschlecht=W;branche=Herstellung von Waren | muss | Frauen in der Herstellung von Waren, Niederösterreich, September 2025 |
+| D016 | zeit:relativ,merkmal:kategorie,form:journalistin,blind3 | zahl | 2026-07 | kategorie=Beamte | muss | Wie viele Beamtinnen und Beamte gibt es derzeit in Österreich? |
+| D017 | zeit:jahreszeit,merkmal:branche,form:journalistin,blind3 | zahl | 2025-06..2025-08 | branche=Beherbergung und Gastronomie | mittel;muss | Ich schreibe über den Tourismus: Wie viele Menschen waren im Sommer 2025 in Beherbergung und Gastronomie im Durchschnitt beschäftigt? |
+| D018 | zeit:seit,merkmal:branche,kreuz:wechsel,form:journalistin,blind3 | zahl | 2025-01..2026-07 | branche=Gesundheits- und Sozialwesen | muss | Wie hat sich die Zahl der Beschäftigten im Gesundheits- und Sozialwesen seit Jänner 2025 entwickelt? |
+| D019 | zeit:relativ,zeit:jahresteil,merkmal:geschlecht,merkmal:bundesland,form:journalistin,blind3 | zahl | 2025-12 | region=8;geschlecht=W | auch=rueckfrage | Wie viele Frauen waren Ende des vergangenen Jahres in Vorarlberg beschäftigt? |
+| D020 | zeit:monat,merkmal:kategorie,merkmal:branche,form:zwei_werte,form:journalistin,blind3 | zahl | 2026-06 | branche=Bau | werte_je=kategorie:Arbeiter,Angestellte;auch=absage,rueckfrage | Gibt es im Bau mehr Arbeiter oder mehr Angestellte, und wie viele sind es jeweils im Juni 2026? |
+| D021 | zeit:monat,merkmal:branche,merkmal:bundesland,kreuz:merkmale,form:journalistin,blind3 | zahl | 2026-02 | region=9;branche=Erziehung und Unterricht | muss | Wie viele Personen waren im Februar 2026 in Wien in Erziehung und Unterricht beschäftigt? |
+| D022 | zeit:jahreszeit,merkmal:bundesland,form:journalistin,blind3 | zahl | 2026-03..2026-05 | region=7 | mittel;muss | Mich interessiert die Beschäftigung in Tirol im Frühjahr 2026: Wie viele Menschen hatten dort durchschnittlich einen Job? |
+| D023 | zeit:relativ,merkmal:geschlecht,merkmal:branche,kreuz:merkmale,form:journalistin,blind3 | zahl | 2026-07 | geschlecht=M;branche=Gesundheits- und Sozialwesen | muss | Wie viele Männer arbeiten aktuell im Gesundheits- und Sozialwesen? |
+| D024 | zeit:halbjahr,merkmal:bundesland,form:journalistin,blind3 | zahl | 2026-01..2026-06 | region=6 | mittel;muss | Wie war die Beschäftigung in der Steiermark im ersten Halbjahr 2026 im Durchschnitt? |
+| D025 | zeit:monat,merkmal:geschlecht,merkmal:branche,form:anteil,form:journalistin,blind3 | zahl | 2026-06 | branche=Gesundheits- und Sozialwesen | art=anteil;anteil=geschlecht:W;auch=rueckfrage,absage | Wie hoch war der Anteil der Frauen im Gesundheits- und Sozialwesen im Juni 2026? |
+| D026 | zeit:monat,merkmal:bundesland,form:vergleich,form:journalistin,blind3 | zahl | 2026-05 | - | werte_je=region:1,2;auch=absage,rueckfrage | Ich möchte wissen, wie viele Beschäftigte es im Burgenland im Vergleich zu Kärnten im Mai 2026 gab. |
+| D027 | zeit:monat,merkmal:kategorie,form:journalistin,blind3 | zahl | 2025-09 | freier_dv=1 | muss | Wie viele Menschen mit einem freien Dienstvertrag gab es im September 2025? |
+| D028 | zeit:monat,merkmal:kategorie,merkmal:bundesland,kreuz:merkmale,form:journalistin,blind3 | zahl | 2026-03 | region=5;kategorie=Arbeiter | muss | Wie viele Arbeiterinnen und Arbeiter waren im März 2026 in Salzburg beschäftigt? |
+| D029 | zeit:bereich,merkmal:branche,form:veraenderung,form:journalistin,blind3 | zahl | 2026-01..2026-07 | branche=Energieversorgung | muss | Wie hat sich die Beschäftigung in der Energieversorgung zwischen Jänner 2026 und Juli 2026 entwickelt? |
+| D030 | zeit:quartal,merkmal:bundesland,form:gliederung,form:journalistin,blind3 | zahl | 2026-01..2026-03 | - | gruppe=region | Wie viele Beschäftigte hatte jedes Bundesland im ersten Quartal 2026? |
+| D031 | zeit:relativ,merkmal:bundesland,form:umgangssprache,form:buero,blind3 | zahl | 2026-07 | region=4 | auch=rueckfrage | Wieviele Jobs gibts grad in OÖ? |
+| D032 | zeit:relativ,merkmal:geschlecht,merkmal:branche,kreuz:merkmale,form:umgangssprache,form:buero,blind3 | zahl | 2026-07 | geschlecht=W;branche=Beherbergung und Gastronomie | auch=rueckfrage | Wie viele Frauen sind aktuell in der Gastro? |
+| D033 | zeit:jahreszeit,zeit:relativ,merkmal:bundesland,form:umgangssprache,form:buero,blind3 | zahl | 2025-06..2025-08 | region=2 | mittel;auch=rueckfrage | Zahl Beschäftigte Kärnten letzten Sommer bitte |
+| D034 | zeit:relativ,merkmal:kategorie,merkmal:bundesland,kreuz:merkmale,form:umgangssprache,form:buero,blind3 | zahl | 2026-07 | region=9;kategorie=Beamte | muss | Brauch schnell die Beamten in Wien, aktuell |
+| D035 | zeit:ohne_jahr,zeit:monat,merkmal:kategorie,merkmal:branche,kreuz:merkmale,form:umgangssprache,form:buero,blind3 | zahl | 2026-05 | branche=Bau;kategorie=Arbeiter | auch=rueckfrage | Wieviele Arbeiter gabs im Bau im Mai? |
+| D036 | zeit:ohne,merkmal:geschlecht,merkmal:bundesland,merkmal:branche,kreuz:merkmale,form:umgangssprache,form:buero,blind3 | zahl | 2026-07 | region=8;geschlecht=W;branche=Herstellung von Waren | auch=rueckfrage | Industrie Vorarlberg Frauen, wie viele? |
+| D037 | zeit:ohne,merkmal:geschlecht,merkmal:branche,form:anteil,form:umgangssprache,form:buero,blind3 | zahl | 2026-07 | branche=Bau | art=anteil;anteil=geschlecht:W;auch=rueckfrage,absage | Wie viel Prozent sind Frauen im Bau? |
+| D038 | zeit:winter,zeit:ohne_jahr,merkmal:branche,merkmal:bundesland,kreuz:merkmale,form:umgangssprache,form:buero,blind3 | zahl | 2025-12..2026-02 | region=5;branche=Beherbergung und Gastronomie | mittel;auch=rueckfrage | was gabs im Winter an Beschäftigten in Salzburg im Tourismus |
+| D039 | zeit:monat,merkmal:branche,merkmal:bundesland,kreuz:merkmale,form:umgangssprache,form:buero,blind3 | zahl | 2026-05 | region=6;branche=Gesundheits- und Sozialwesen | auch=rueckfrage | Pflege und Spitäler Steiermark Mai 2026, Zahl? |
+| D040 | zeit:relativ,merkmal:branche,merkmal:bundesland,kreuz:merkmale,form:umgangssprache,form:buero,blind3 | zahl | 2025-12 | region=7;branche=Handel% | auch=rueckfrage | Wie viele Leute im Handel in Tirol im letzten Dezember? |
+| D041 | zeit:bereich,zeit:ohne_jahr,merkmal:branche,form:umgangssprache,form:buero,blind3 | zahl | 2026-01..2026-06 | branche=Verkehr und Lagerei | mittel;auch=rueckfrage | Beschäftigte im Verkehr, Jänner bis Juni heuer, Schnitt |
+| D042 | zeit:relativ,merkmal:kategorie,merkmal:bundesland,form:gliederung,form:umgangssprache,form:buero,blind3 | zahl | 2026-07 | kategorie=Beamte | gruppe=region;auch=rueckfrage | Wie viele Beamte haben wir in jedem Bundesland? |
+| D043 | zeit:quartal,zeit:ohne_jahr,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale,form:umgangssprache,form:buero,blind3 | zahl | 2026-01..2026-03 | region=3;geschlecht=M | mittel;auch=rueckfrage | Männer in Niederösterreich, Q1 |
+| D044 | zeit:ohne,merkmal:geschlecht,merkmal:bundesland,merkmal:branche,merkmal:kategorie,kreuz:merkmale,form:umgangssprache,form:buero,blind3 | zahl | 2026-07 | region=9;geschlecht=W;branche=Bau;kategorie=Angestellte | auch=rueckfrage | Wie viele Frauen im Baugewerbe in Wien, nur Angestellte? |
+| D045 | zeit:monat,form:vergleich,form:umgangssprache,form:buero,blind3 | zahl | 2024-12,2025-12 | - | auch=rueckfrage | Beschäftigte gesamt Dezember 2024 und Dezember 2025, was ist mehr? |
+| D046 | merkmal:einkommen,merkmal:bundesland,form:fachjury,blind3 | absage | - | - | auch=rueckfrage | Medianes Bruttoeinkommen der Beschäftigten in Wien, März 2026 |
+| D047 | merkmal:arbeitszeit,merkmal:branche,form:fachjury,blind3 | absage | - | - | auch=rueckfrage | Anteil der Vollzeitbeschäftigten im Handel, Juni 2026 |
+| D048 | merkmal:staatsbuergerschaft,form:gliederung,form:fachjury,blind3 | absage | - | - | auch=rueckfrage | Beschäftigte nach Staatsangehörigkeit, Stand Juli 2026 |
+| D049 | form:anderes_thema,merkmal:betriebsgroesse,form:fachjury,blind3 | absage | - | - | auch=rueckfrage | Zahl der Betriebe mit mehr als 250 Beschäftigten, Juli 2026 |
+| D050 | form:anderes_thema,form:einzelperson,form:fachjury,blind3 | absage | - | - | auch=rueckfrage | Beschäftigte mit zwei oder mehr gleichzeitigen Dienstverhältnissen im Mai 2026 |
+| D051 | form:anderes_thema,merkmal:branche,form:fachjury,blind3 | absage | - | - | auch=rueckfrage | Saisonbeschäftigte in Beherbergung und Gastronomie im Jänner 2026 |
+| D052 | merkmal:einkommen,merkmal:geschlecht,merkmal:branche,form:fachjury,blind3 | absage | - | - | auch=rueckfrage | Gender Pay Gap im Gesundheits- und Sozialwesen 2025 |
+| D053 | form:anderes_thema,merkmal:branche,form:fachjury,blind3 | absage | - | - | auch=rueckfrage | Zahl der Arbeitgeber im Bau, Dezember 2025 |
+| D054 | merkmal:arbeitszeit,form:journalistin,blind3 | absage | - | - | auch=rueckfrage | Wie viele Menschen haben im Sommer 2025 in Österreich mehr als 40 Stunden pro Woche gearbeitet? |
+| D055 | merkmal:unbekannt,merkmal:bundesland,form:journalistin,blind3 | absage | - | - | auch=rueckfrage | Wie viele Beschäftigte sind in der Stadt Salzburg, nicht im ganzen Bundesland, im Juni 2026 tätig? |
+| D056 | form:anderes_thema,form:journalistin,blind3 | absage | - | - | auch=rueckfrage | Wie viele Menschen mit Behinderung sind in Österreich beschäftigt? |
+| D057 | merkmal:beruf,merkmal:geschlecht,merkmal:branche,form:journalistin,blind3 | absage | - | - | auch=rueckfrage | Wie viele Frauen arbeiten in Führungspositionen im Gesundheitswesen? |
+| D058 | merkmal:einkommen,merkmal:branche,form:journalistin,blind3 | absage | - | - | auch=rueckfrage | Wie hat sich das Lohnniveau in der Gastronomie seit 2024 entwickelt? |
+| D059 | form:anderes_thema,form:journalistin,blind3 | absage | - | - | auch=rueckfrage | Wie viele Beschäftigte in Österreich arbeiten im Homeoffice? |
+| D060 | merkmal:herkunft,merkmal:branche,form:journalistin,blind3 | absage | - | - | auch=rueckfrage | Wie viele Pflegekräfte aus dem Ausland arbeiten in Österreich? |
+| D061 | form:anderes_thema,zeit:monat,form:journalistin,blind3 | absage | - | - | auch=rueckfrage | Wie viele Menschen sind im Juli 2026 in Kurzarbeit? |
+| D062 | merkmal:unbekannt,merkmal:bundesland,zeit:monat,form:journalistin,blind3 | absage | - | - | auch=rueckfrage | Wie viele Beschäftigte arbeiteten im Mai 2026 in Südtirol? |
+| D063 | merkmal:einkommen,merkmal:kategorie,form:umgangssprache,form:buero,blind3 | absage | - | - | auch=rueckfrage | wie viel verdienen die Beamten im Schnitt |
+| D064 | merkmal:staatsbuergerschaft,merkmal:branche,form:umgangssprache,form:buero,blind3 | absage | - | - | auch=rueckfrage | Wie viele Ausländer arbeiten bei uns in der Gastro? |
+| D065 | form:anderes_thema,merkmal:bundesland,form:umgangssprache,form:buero,blind3 | absage | - | - | auch=rueckfrage | Wie viele Leute sind eigentlich auf Jobsuche in Tirol? |
+| D066 | form:anderes_thema,form:umgangssprache,form:buero,blind3 | absage | - | - | auch=rueckfrage | Wie viele Beschäftigte sind in der Gewerkschaft? |
+| D067 | form:anderes_thema,merkmal:betriebsgroesse,form:umgangssprache,form:buero,blind3 | absage | - | - | auch=rueckfrage | Wie viele Mitarbeiter hat die Voest? |
+| D068 | merkmal:beruf,form:umgangssprache,form:buero,blind3 | absage | - | - | auch=rueckfrage | Wie viele Lkw-Fahrer gibt es in Österreich? |
+| D069 | form:prognose,zeit:ausserhalb,merkmal:branche,form:umgangssprache,form:buero,blind3 | absage | - | - | auch=rueckfrage | Wie viele Arbeitsplätze entstehen bis 2030 im Gesundheitswesen? |
+| D070 | form:anderes_thema,merkmal:bundesland,form:umgangssprache,form:buero,blind3 | absage | - | - | auch=rueckfrage | Wie viele Beschäftigte hat Oberösterreich pro Quadratkilometer? |
+| D071 | merkmal:unbekannt,merkmal:branche,merkmal:bundesland,form:unsauber,form:buero,blind3 | rueckfrage | - | - | auch=absage | Wie viele Bauarbeiter gab es im Juli 2026 in Wien? |
+| D072 | zeit:jahr,zeit:teilweise,merkmal:bundesland,blind3 | rueckfrage | - | - | auch=absage | Wie viele Beschäftigte hatte Wien 2026? |
+| D073 | form:unsauber,merkmal:geschlecht,merkmal:kategorie,zeit:monat,blind3 | rueckfrage | - | - | auch=absage | Wie viele Frauen und Beamte gab es im Juni 2026? |
+| D074 | zeit:relativ,zeit:unklar,form:veraenderung,blind3 | zahl | 2026-06,2026-07 | - | auch=rueckfrage,absage | Wie hat sich die Beschäftigung zuletzt verändert? |
+| D075 | zeit:unklar,merkmal:branche,form:unsauber,blind3 | zahl | 2024-08..2026-07 | branche=Bau | auch=rueckfrage,absage | Beschäftigte pro Monat im Bau |
+| D076 | zeit:relativ,zeit:jahresteil,zeit:ohne_jahr,merkmal:bundesland,blind3 | zahl | 2026-01 | region=7 | auch=rueckfrage,absage | Wie viele Menschen arbeiteten Anfang des Jahres in Tirol? |
+| D077 | zeit:relativ,zeit:unklar,blind3 | zahl | 2025-07 | - | auch=rueckfrage,absage | Wie viele Beschäftigte gab es vor einem Jahr? |
+| D078 | zeit:unklar,merkmal:branche,form:unsauber,blind3 | rueckfrage | - | - | auch=absage | Wie viele Beschäftigte gab es in der Hochsaison in der Gastronomie? |
+| D079 | zeit:jahreszeit,zeit:unklar,blind3 | rueckfrage | - | - | auch=absage | Beschäftigte im Spätherbst 2025 |
+| D080 | zeit:bereich,zeit:unklar,blind3 | rueckfrage | - | - | auch=absage | Wie viele Beschäftigte gab es zwischen 2025 und 2026? |

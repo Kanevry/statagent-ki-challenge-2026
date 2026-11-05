@@ -39,7 +39,7 @@ _FUELLWOERTER = _liste(
     viel viele vieler sagen sag zeig zeige zeigen steht stehen stand
     servus grüß gott könnt könntet könntest ihr euch bräuchte bräuchten hätten würde würden nennen nenne nennt
     angeben ausgeben liefern auskunft info information interessiert interessieren eigentlich überhaupt denn wohl
-    gabs gibts betrachtet betrachten soweit wohlgemerkt jeweilig insbesondere bezogen bezug
+    brauch schnell schreibe artikel recherche gabs gibts betrachtet betrachten soweit wohlgemerkt jeweilig insbesondere bezogen bezug
     """
 )
 _SACHE = _liste(
@@ -66,7 +66,7 @@ _AUSWERTUNG = _liste(
     """
     abgang abgänge abgängen abgaenge abschnitt abschnitte abschnitten anteil anteile anteils aufgeteilt aufteilung
     bereich bereichen branche branchen bundesland bundesländer bundesländern bundeslaender durchschnitt durchschnitte
-    durchschnittlich durchschnittliche durchschnittlicher durchschnittliches durchschnittlichen verteilen verteilt
+    fluktuationsrate rate durchschnittlich durchschnittliche durchschnittlicher durchschnittliches durchschnittlichen verteilen verteilt
     verteilung gegliedert gliederung aufgeschlüsselt aufgegliedert aufschlüsselung entwicklung entwickelt entwickelte fluktuation frauenanteil gegenüber
     gegenueber geschlecht geschlechter ganz ganzen gesamt gesamte gesamten hoch insgesamt
     jahresdurchschnitt jahresmittel kategorie kategorien mittel mittelwert monatsdurchschnitt männeranteil oenace

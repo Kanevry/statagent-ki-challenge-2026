@@ -255,6 +255,8 @@ EINWOHNER: dict[str, tuple[str, ...]] = {
     "Salzburg": ("salzburger",),
 }
 _ZEITWORT_OHNE_MONAT = re.compile(r"\b(?:jahr|jahre|jahren|jahres|monat|monate|monaten|monats|zeitraum)\b", re.IGNORECASE)
+#: Fragt nach einer Änderung: Der Stand eines Monats allein wäre eine andere Antwort.
+_VERAENDERUNG = re.compile(r"\b(?:veränder\w*|veraender\w*|gestiegen|gesunken|gewachsen|stieg|sank)\b", re.IGNORECASE)
 _VERNEINUNG = frozenset({"außer", "ausser", "ohne", "nicht", "kein", "keine", "keinen", "keiner", "ausgenommen"})
 _FRAU = re.compile(r"\b(frau|frauen|weiblich\w*)\b")
 _MANN = re.compile(r"\b(mann|männer|maenner|männlich\w*|maennlich\w*)\b")
@@ -270,7 +272,7 @@ _FUNKTIONSWORT = frozenset(
     {"im", "in", "der", "den", "dem", "die", "das", "welchem", "welcher", "welchen", "welche", "diesem",
      "dieser", "diesen", "ganz", "ganzen", "gesamten", "allen", "alle", "einem", "einer", "einen", "letzten",
      "letztem", "vergangenen", "laufenden", "form", "höhe", "hoehe", "relation", "bezug", "folge", "etwa",
-     "zeit", "punkto", "und", "oder", "sowie", "hat", "hatte", "hatten", "haben", "ist", "war", "waren"}
+     "zeit", "punkto", "und", "oder", "sowie", "hat", "hatte", "hatten", "haben", "ist", "war", "waren", "nur"}
 )  # fmt: skip
 _ORT_KETTE = re.compile(
     r"\b(?:im|in der|in den|in|branche|bereich)\s+([\w-]+(?:\s*(?:,|\bund\b|\boder\b|\bsowie\b)\s*[\w-]+)*)",
@@ -284,10 +286,21 @@ KATEGORIE = _merkmal("Beschäftigungskategorie")
 
 #: Alltagsform → die Form, die der Rest des Lesens kennt. Nur, was dieselbe Bedeutung hat.
 _ALLTAG: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"\bim\s+schnitt\b", re.IGNORECASE), "im Durchschnitt"),
+    # Die Doppelnennung meint alle, darum vor der Regel, die nur die Frauen zählt.
+    (re.compile(r"\b(?:arbeiterinnen\s+und\s+arbeiter|arbeiter\s+und\s+arbeiterinnen)\b", re.IGNORECASE), "Arbeiter"),
+    (re.compile(r"\b(?:beamtinnen\s+und\s+beamte|beamte\s+und\s+beamtinnen)\b", re.IGNORECASE), "Beamte"),
+    (re.compile(r"\b(?:angestellte\s+und\s+angestellter)\b", re.IGNORECASE), "Angestellte"),
     (re.compile(r"\barbeiterinnen\b", re.IGNORECASE), "Arbeiter Frauen"),
     (re.compile(r"\bbeamtinnen\b", re.IGNORECASE), "Beamte Frauen"),
+    (re.compile(r"\bim\s+schnitt\b", re.IGNORECASE), "im Durchschnitt"),
+    (re.compile(r"(?<!\w)schnitt\b", re.IGNORECASE), "Durchschnitt"),
     (re.compile(r"\bgabs\b", re.IGNORECASE), "gab es"),
+    (re.compile(r"\bgrad\b", re.IGNORECASE), "derzeit"),
+    (re.compile(r"\b(?:in\s+jedem|jedes|jedem)\s+bundesland\b", re.IGNORECASE), "je Bundesland"),
+    (re.compile(r"\b(?:in\s+jeder|jede|jeder)\s+branche\b", re.IGNORECASE), "je Branche"),
+    (re.compile(r"\boö\b", re.IGNORECASE), "Oberösterreich"),
+    (re.compile(r"\bnö\b", re.IGNORECASE), "Niederösterreich"),
+    (re.compile(r"\bstmk\b\.?", re.IGNORECASE), "Steiermark"),
 )
 #: „Wie viel Prozent … sind Frauen“ fragt nach dem Anteil, nicht nach der Menge.
 _PROZENT_ANTEIL = re.compile(r"\b(?:wie\s*viel(?:e)?\s+)?prozent\b", re.IGNORECASE)
@@ -318,7 +331,7 @@ def _normalisieren(frage: str, letzter: str) -> tuple[str, list[str], bool]:
     „Jahresdurchschnitt 2025“ wird zu Jänner bis Dezember 2025; eine bloße Jahreszahl bleibt (Rückfrage, #74 AC2).
     """
     frage, notizen, mittel = umschreiben(frage, letzter)
-    vormonat = _VERGLEICH_VORMONAT.search(frage)
+    vormonat = _VERGLEICH_VORMONAT.search(frage) or _VERAENDERUNG.search(frage)
     genannt = monate_lesen(frage)
     if vormonat and len(set(genannt)) == 1:
         # „März 2025 gegenüber dem Vormonat“ meint zwei Monate, nicht nur den März.
@@ -360,6 +373,7 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
     """Alle in der Frage genannten Codes eines Merkmals und die Textstellen, die sie getroffen haben."""
     text = frage.lower()
     gefunden: dict[str, str] = {}
+    weitere: list[str] = []  # Weitere Wörter derselben Branche („Pflege und Spitäler“)
     for code, bezeichnung in codes.items():
         t = _treffer(text, bezeichnung)
         if t:
@@ -388,6 +402,7 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
             t = muster.search(text)
             if not t:
                 continue
+            weitere += [w.group(0) for w in muster.finditer(text)]
             branche = next(
                 (c for a in anfaenge for c, b in codes.items() if b.startswith(a)),
                 None,
@@ -400,7 +415,7 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
     # Ein Name, der in einem längeren genannten Namen steckt, zählt nicht extra.
     doppelt = {c for c in gefunden for d in gefunden if c != d and codes[c].lower() in codes[d].lower()}
     werte = [c for c in gefunden if c not in doppelt]
-    return werte, list(gefunden.values())
+    return werte, [*gefunden.values(), *weitere]
 
 
 def _wort_bekannt(wort: str, erkannt: list[str]) -> bool:
@@ -663,6 +678,22 @@ def _laufinfo(conn: Verbindung, regelsatz: str, staende: list[dict[str, Any]]) -
     return {int(str(z["id"])): (int(str(z["fortgeschrieben"])), bool(z["stichtag"])) for z in zeilen}
 
 
+def _zwei_merkmale_mit_und(frage: str, je_merkmal: list[tuple[str, str]]) -> None:
+    """„Frauen und Beamte“ nennt zwei Merkmale: Beide zugleich oder zwei Zahlen? Das rechnen wir nicht still."""
+    text = frage.lower()
+    for name_a, a in je_merkmal:
+        for name_b, b in je_merkmal:
+            if name_a != name_b and re.search(
+                rf"(?<!\w){re.escape(a.lower())}\s+(?:und|oder)\s+(?:(?:in|im|der|den|die|bei)\s+)*"
+                rf"{re.escape(b.lower())}(?!\w)",
+                text,
+            ):
+                raise _KeineZahl(
+                    f"Soll für „{a}“ und „{b}“ beides zugleich gelten, oder möchten Sie zwei Zahlen? "
+                    "Bitte getrennt fragen."
+                )
+
+
 def _filter(
     conn: Verbindung, frage: str, monat: str, ohne: tuple[Merkmal, ...]
 ) -> tuple[list[tuple[Merkmal, str]], list[str]]:
@@ -674,10 +705,12 @@ def _filter(
     filter_: list[tuple[Merkmal, str]] = []
     etiketten: list[str] = []
     erkannt: list[str] = []
+    je_merkmal: list[tuple[str, str]] = []
     for merkmal in MERKMALE:
         codes = _codes(conn, merkmal, monat)
         werte, stellen = _werte(frage, merkmal, codes)
         erkannt += stellen
+        je_merkmal += [(merkmal.name, s) for s in stellen]
         if merkmal in ohne or not werte:
             continue
         if len(werte) > 1:
@@ -688,6 +721,7 @@ def _filter(
             )
         filter_.append((merkmal, werte[0]))
         etiketten.append(codes[werte[0]])
+    _zwei_merkmale_mit_und(frage, je_merkmal)
     freier_dv = _FREIER_DV.search(frage.lower())
     if freier_dv:
         filter_.append((FREIER_DV, "true"))
@@ -1485,6 +1519,9 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
                 # „pro Jahr“, „je Quartal“: Das meint nicht den jüngsten Monat.
                 return _rueckfrage_monat(typ, None)
             frage = f"{frage} {_monat_anzeige(letzter)}"
+            if _VERAENDERUNG.search(frage):
+                frage = f"{_monat_anzeige(monat_verschieben(letzter, -1))} {frage}"
+                typ = fragetyp(frage)
             if _AKTUELL.search(frage):
                 notizen.append(
                     f"„Aktuell“ heißt hier der zuletzt gerechnete Monat, {_monat_anzeige(letzter)}."

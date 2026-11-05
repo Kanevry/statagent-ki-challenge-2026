@@ -80,3 +80,27 @@ def test_aufzaehlung_nur_die_genannten_monate(conn: Verbindung) -> None:
     daten = antwort_frage(conn, "Beschäftigte im August 2024 und im Oktober 2024")
     namen = " ".join(z["bezeichnung"] for z in daten["zahlen"])
     assert "August 2024" in namen and "Oktober 2024" in namen and "September 2024" not in namen
+
+
+# Fängt (Blind-Runde 3): „Beamtinnen und Beamte“ zählte nur die Frauen.
+def test_doppelnennung_meint_alle(conn: Verbindung) -> None:
+    lauf_ausfuehren(conn, "2024-08", "v1")
+    alle = antwort_frage(conn, "Wie viele Beamte gab es im August 2024?")
+    doppelt = antwort_frage(conn, "Wie viele Beamtinnen und Beamte gab es im August 2024?")
+    assert doppelt["zahlen"][0]["wert"] == alle["zahlen"][0]["wert"]
+
+
+# Fängt (Blind-Runde 3): „Frauen und Beamte“ wurde still als Schnittmenge gerechnet.
+def test_zwei_merkmale_mit_und_fragt_zurueck(conn: Verbindung) -> None:
+    lauf_ausfuehren(conn, "2024-08", "v1")
+    daten = antwort_frage(conn, "Wie viele Frauen und Beamte gab es im August 2024?")
+    assert daten["zahlen"] == [] and "?" in daten["text"]
+
+
+# Fängt (Blind-Runde 3): „zuletzt verändert“ nannte nur den Stand des jüngsten Monats.
+def test_veraenderung_zeigt_zwei_monate(conn: Verbindung) -> None:
+    lauf_ausfuehren(conn, "2024-08", "v1")
+    lauf_ausfuehren(conn, "2024-09", "v1")
+    daten = antwort_frage(conn, "Wie hat sich die Beschäftigung zuletzt verändert?")
+    namen = " ".join(z["bezeichnung"] for z in daten["zahlen"])
+    assert "August 2024" in namen and "September 2024" in namen
