@@ -14,6 +14,7 @@ import {
   klarerAenderungsSatz,
   zitatDoppelt,
   regionenSatz,
+  probeWirkungSatz,
   klartext,
   kurzerGrund,
   probeTitel,
@@ -608,5 +609,29 @@ describe("Zusammenlegung von Bundesländern in der Probe", () => {
   it("schweigt, wenn nichts zusammengelegt wird", () => {
     expect(regionenSatz(probe({ "1": 100, "3": 2000 }, { "1": 90, "3": 2000 }), namen)).toBeNull();
     expect(regionenSatz({}, namen)).toBeNull();
+  });
+});
+
+describe("Wirkung außerhalb der Kategorien", () => {
+  const probe = (vorher: object, nachher: object) => ({
+    "2026-06": { vorher: { je_merkmal: vorher }, nachher: { je_merkmal: nachher } },
+  });
+
+  // Fehler: Eine Änderung am Alter sagte nur „ändert die Probe keine Zahl“, obwohl sich die Altersgruppen verschieben.
+  it("nennt die größten Unterschiede, auch wenn die Kategorien gleich bleiben", () => {
+    const satz = probeWirkungSatz(
+      probe(
+        { qualifikation: { Arbeiter: 5 }, altersgruppe: { "25-34": 1000, "35-44": 2000 } },
+        { qualifikation: { Arbeiter: 5 }, altersgruppe: { "25-34": 1100, "35-44": 1900 } },
+      ),
+    );
+    expect(satz).toBe(
+      "Die Änderung zeigt sich an anderer Stelle. Altersgruppe 25-34: 1.100 statt 1.000; Altersgruppe 35-44: 1.900 statt 2.000.",
+    );
+  });
+
+  it("schweigt, wenn sich außerhalb der Kategorien nichts ändert", () => {
+    expect(probeWirkungSatz(probe({ qualifikation: { Arbeiter: 5 } }, { qualifikation: { Arbeiter: 6 } }))).toBeNull();
+    expect(probeWirkungSatz({})).toBeNull();
   });
 });

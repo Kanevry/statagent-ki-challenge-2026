@@ -25,6 +25,7 @@ import {
   zitatDoppelt,
   probeTabelleBeleg,
   probeTitel,
+  probeWirkungSatz,
   regionenSatz,
   sqlErgebnisLauf,
   sqlWirkung,
@@ -123,7 +124,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
         <p className="font-sans text-14 text-slate">{`${vorgeschlagenVon(v)}.`}</p>
         {regionen && <p className="font-sans text-16 font-semibold text-ink">{regionen}</p>}
         {tabelle ? (
-          <ProbeTabelleAnsicht vorschlag={v.id} tabelle={tabelle} />
+          <ProbeTabelleAnsicht vorschlag={v.id} tabelle={tabelle} wirkung={regionen ? null : probeWirkungSatz(v.probe, bezeichnungen)} />
         ) : (
           <p className="font-sans text-16 text-ink">{ohneProbeSatz(v)}</p>
         )}
@@ -208,7 +209,7 @@ function DetailBlock({ titel, children }: { titel: string; children: ReactNode }
  * Dienstvertrag), rechts nachher die zusammengefasste Kategorie. So sieht man, was die Änderung tut, obwohl die
  * Gesamtzahl gleich bleibt. Ein Beleg für die ganze Tabelle.
  */
-function ProbeTabelleAnsicht({ vorschlag, tabelle: t }: { vorschlag: number; tabelle: ProbeTabelle }) {
+function ProbeTabelleAnsicht({ vorschlag, tabelle: t, wirkung }: { vorschlag: number; tabelle: ProbeTabelle; wirkung: string | null }) {
   const kopf = "py-2 text-left font-sans text-14 font-medium text-slate";
   // Am Handy enger: Die vier Spalten müssen in 358 px passen, sonst ist die Spalte „nachher“ abgeschnitten.
   const wort = "py-2 pr-2 text-left font-sans text-14 font-normal text-ink sm:pr-4 sm:text-16";
@@ -268,6 +269,7 @@ function ProbeTabelleAnsicht({ vorschlag, tabelle: t }: { vorschlag: number; tab
         </span>
         <BelegLink {...probeTabelleBeleg(vorschlag, t)} />
       </div>
+      {!aendert.gesamt && !aendert.gliederung && wirkung && <p className="font-sans text-16 text-ink">{wirkung}</p>}
     </div>
   );
 }
