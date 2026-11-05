@@ -8,9 +8,10 @@ import { Status } from "../basis/status";
 import type { UcEintrag, UcId } from "../ucs";
 import { eintraegeSchema, type Eintrag } from "./eintrag";
 
-// Protokoll-Schublade (Pen-Frame yK42X): 380 px, rechts, nicht modal. Zeigt, wer was angewiesen hat und was
-// daraus wurde. Esc schließt, der Fokus kehrt zum auslösenden Element zurück. Eine Antwort, die den Vertrag
-// `Eintrag` verletzt, zeigt den Fehlerzustand statt halber Daten.
+// Protokoll-Schublade (Pen-Frame yK42X): 380 px, rechts, modal. Zeigt, wer was angewiesen hat und was daraus
+// wurde. Sie setzt unter dem Header an (`oben`), damit Modell-Badge und Knopf „Protokoll“ sichtbar bleiben.
+// Esc schließt. Den übrigen Inhalt macht die AppShell `inert` und gibt dem Knopf „Protokoll“ beim Schließen
+// den Fokus zurück. Eine Antwort, die den Vertrag `Eintrag` verletzt, zeigt den Fehlerzustand statt halber Daten.
 
 export interface ProtokollSchubladeProps {
   id: string;
@@ -18,6 +19,8 @@ export interface ProtokollSchubladeProps {
   onSchliessen: () => void;
   /** Adresse der Einträge, Standard `/api/<uc>/protokoll`. */
   quelle?: (uc: UcId) => string;
+  /** Abstand vom oberen Fensterrand in px, meist die Unterkante des Headers. */
+  oben?: number;
 }
 
 type Zustand = { art: "laden" } | { art: "ok"; eintraege: Eintrag[] } | { art: "fehler" };
@@ -66,17 +69,15 @@ function Zusammenfassung({ eintraege }: { eintraege: Eintrag[] }) {
   return <p className="font-sans text-14 text-ink">{`${anzahl}, ${warten}.`}</p>;
 }
 
-export function ProtokollSchublade({ id, uc, onSchliessen, quelle = standardQuelle }: ProtokollSchubladeProps) {
+export function ProtokollSchublade({ id, uc, onSchliessen, quelle = standardQuelle, oben = 0 }: ProtokollSchubladeProps) {
   const [zustand, setZustand] = useState<Zustand>({ art: "laden" });
   const [versuch, setVersuch] = useState(0);
   const titel = useRef<HTMLHeadingElement>(null);
   const adresse = quelle(uc.id);
 
-  // Fokus in die Schublade (auf die Überschrift, nie auf eine Aktion) und beim Schließen zurück.
+  // Fokus in die Schublade, auf die Überschrift, nie auf eine Aktion. Die Rückgabe macht die AppShell per Ref.
   useEffect(() => {
-    const vorher = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     titel.current?.focus();
-    return () => vorher?.focus();
   }, []);
 
   useEffect(() => {
@@ -104,12 +105,13 @@ export function ProtokollSchublade({ id, uc, onSchliessen, quelle = standardQuel
 
   const titelId = `${id}-titel`;
   return (
-    <aside
+    <div
       id={id}
       role="dialog"
-      aria-modal="false"
+      aria-modal="true"
       aria-labelledby={titelId}
-      className="fixed inset-y-0 right-0 z-50 flex w-[380px] max-w-full flex-col border-l border-line bg-white"
+      style={{ top: oben }}
+      className="fixed bottom-0 right-0 z-50 flex w-95 max-w-full flex-col border-l border-t border-line bg-white"
     >
       <div className="flex items-start justify-between gap-4 border-b border-line p-4">
         <div className="flex flex-col gap-1">
@@ -173,6 +175,6 @@ export function ProtokollSchublade({ id, uc, onSchliessen, quelle = standardQuel
           </>
         )}
       </div>
-    </aside>
+    </div>
   );
 }

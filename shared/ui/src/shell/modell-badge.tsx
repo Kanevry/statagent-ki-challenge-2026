@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Status } from "../basis/status";
-import { modellStatusSchema, type ModellStatus } from "./modell-status";
+import { abweichendZuletzt, modellStatusSchema, type ModellStatus } from "./modell-status";
 
 // Modell-Badge (Pen-Frame CKCV4): zeigt, welches Sprachmodell gerade antwortet, als `provider · modell`.
 // Die 2-px-Linie in Violett markiert KI (Token-Regel), der Wert steht in Mono, weil er ein Datum ist.
+// Hat laut Protokoll zuletzt ein anderer Provider oder eine Ausweichstufe geantwortet, steht das ruhig daneben
+// („zuletzt mistral (Stufe 2)“, Symbol plus Wort, kein Alarmrot): vor der Jury steht so keine falsche Angabe.
 
 type Zustand = { art: "laden" } | { art: "ok"; status: ModellStatus } | { art: "fehler" };
 
@@ -37,6 +39,7 @@ export function ModellBadge({ quelle = "/api/plattform/modell" }: { quelle?: str
     );
   }
 
+  const anders = zustand.art === "ok" ? abweichendZuletzt(zustand.status) : null;
   const wert = zustand.art === "ok" ? `${zustand.status.provider} · ${zustand.status.modell}` : "wird geprüft";
   const titel =
     zustand.art === "ok"
@@ -54,6 +57,11 @@ export function ModellBadge({ quelle = "/api/plattform/modell" }: { quelle?: str
     >
       <span className="text-slate">Modell</span>
       <span className={zustand.art === "ok" ? "font-mono text-ink" : "text-slate"}>{wert}</span>
+      {anders && (
+        <Status art="info" data-testid="modell-zuletzt">
+          {`zuletzt ${anders.provider} (Stufe ${anders.fallback_stufe})`}
+        </Status>
+      )}
     </p>
   );
 }

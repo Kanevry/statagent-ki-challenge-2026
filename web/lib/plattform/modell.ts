@@ -3,10 +3,11 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { modellStatusSchema, modellUnbekannt, type ModellStatus } from "@kic/ui/shell";
 
-// Modell-Schalter für den Badge: `uv run python -m plattform.llm status --json` als Subprozess (argv, keine
+// Modell-Schalter für den Badge: `uv run --frozen python -m plattform.llm status --json` als Subprozess (argv, keine
 // Shell), Ergebnis 30 s im Speicher. Fehler liefern `provider: "unbekannt"` und 503, nie einen geratenen Wert.
 
-export const MODELL_ARGV = ["run", "python", "-m", "plattform.llm", "status", "--json"] as const;
+// `--frozen`: der Badge-Aufruf ändert nie uv.lock und löst nichts neu auf.
+export const MODELL_ARGV = ["run", "--frozen", "python", "-m", "plattform.llm", "status", "--json"] as const;
 export const TIMEOUT_MS = 15_000;
 export const CACHE_MS = 30_000;
 /** Fehler kürzer merken, damit ein reparierter Schalter bald sichtbar wird, ohne bei jedem Aufruf neu zu starten. */
@@ -20,7 +21,7 @@ export interface ModellAntwort {
 /** Läuft ein Kommando und liefert stdout; wirft bei Exit ≠ 0 oder Timeout. */
 export type Ausfuehren = (befehl: string, argv: readonly string[], optionen: { cwd: string; timeout: number }) => Promise<string>;
 
-const standardAusfuehren: Ausfuehren = (befehl, argv, { cwd, timeout }) =>
+export const standardAusfuehren: Ausfuehren = (befehl, argv, { cwd, timeout }) =>
   new Promise((aufloesen, ablehnen) => {
     execFile(befehl, [...argv], { cwd, timeout, maxBuffer: 64 * 1024, env: process.env }, (fehler, stdout) => {
       if (fehler) ablehnen(fehler);

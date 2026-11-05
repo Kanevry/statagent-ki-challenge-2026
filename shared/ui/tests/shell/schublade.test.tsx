@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import fixture from "../../../schema/fixtures/protokoll-eintraege.json";
 import { AppShell } from "../../src/shell/app-shell";
@@ -35,6 +35,28 @@ describe("Protokoll-Schublade", () => {
 
     await nutzer.keyboard("{Escape}");
     expect(schublade.isConnected).toBe(false);
+    expect(document.activeElement).toBe(knopf);
+  });
+
+  it("ist modal: aria-modal, übriger Inhalt inert, Fokus kommt auch ohne Klick-Fokus an den Knopf zurück", async () => {
+    antworte({ "/api/uc3/protokoll": [] });
+    const nutzer = userEvent.setup();
+    const { container } = render(<AppShell pfad="/uc3">inhalt</AppShell>);
+    const geruest = container.querySelector("[data-shell-geruest]")!;
+    const knopf = screen.getByRole("button", { name: "Protokoll" });
+
+    // Safari fokussiert Buttons beim Klick nicht: Öffnen per Ereignis, ohne dass der Knopf je Fokus hatte.
+    document.body.focus();
+    act(() => knopf.click());
+    const schublade = screen.getByRole("dialog", { name: "Protokoll StatAgent" });
+    expect(schublade.getAttribute("aria-modal")).toBe("true");
+    expect(geruest.hasAttribute("inert")).toBe(true);
+    expect(geruest.contains(schublade)).toBe(false);
+    await screen.findByText("Für StatAgent gibt es noch keine Einträge.");
+
+    await nutzer.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(geruest.hasAttribute("inert")).toBe(false);
     expect(document.activeElement).toBe(knopf);
   });
 

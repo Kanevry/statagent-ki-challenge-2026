@@ -5,21 +5,19 @@ import { Fliesstext, knopfKlassen, Leerzustand, Ueberschrift } from "@kic/ui/bas
 import { UcBereich } from "@kic/ui/shell";
 import { ucs, type UcEintrag } from "@kic/ui/ucs";
 
-// Leerer UC-Bereich als Fallback für /uc1 /uc2 /uc3, solange ein UC noch keine eigene Route hat.
-// Nur Registry-IDs mit status "leer"; alles andere ist 404. Legt ein UC web/app/<uc>/ an und setzt seinen
-// Registry-Eintrag auf "aktiv", gewinnt seine statische Route und dieser Fallback erzeugt die Seite nicht mehr.
+// Leerer UC-Bereich als Fallback für /uc1 /uc2 /uc3, solange ein UC noch keine eigene Route hat. Erzeugt die
+// Seite für alle Registry-UCs (Lead-Entscheid 58), alles andere ist 404. Legt ein UC web/app/<uc>/ an,
+// gewinnt seine statische Route gegen diesen Fallback; an der Registry ändert er dafür nichts.
 export const dynamicParams = false;
 
-const leere = (): UcEintrag[] => ucs.filter((uc) => uc.status === "leer");
-
 export function generateStaticParams(): Array<{ uc: string }> {
-  return leere().map((uc) => ({ uc: uc.id }));
+  return ucs.map((uc) => ({ uc: uc.id }));
 }
 
 type Props = { params: Promise<{ uc: string }> };
 
 function finde(id: string): UcEintrag | undefined {
-  return leere().find((uc) => uc.id === id);
+  return ucs.find((uc) => uc.id === id);
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

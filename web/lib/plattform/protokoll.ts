@@ -4,13 +4,25 @@ import { z } from "zod";
 import fixture from "../../../shared/schema/fixtures/protokoll-eintraege.json";
 
 // Referenz für GET /api/<uc>/protokoll. Der Fallback-Handler web/app/api/[uc]/protokoll/route.ts liefert damit
-// die Fixture, bis ein UC seinen eigenen Handler unter web/app/api/<uc>/protokoll/route.ts anlegt. Ein echter
-// Handler ersetzt nur `quelle` (Datenbank lesend oder UC-CLI mit --json) und behält Prüfung und Antwortform.
+// in Entwicklung die Fixture, in Produktion eine leere Liste (die Schublade zeigt dann ihren Leerzustand), bis
+// ein UC seinen eigenen Handler unter web/app/api/<uc>/protokoll/route.ts anlegt. Ein echter Handler ersetzt
+// nur `quelle` (Datenbank lesend oder UC-CLI mit --json) und behält Prüfung und Antwortform.
 
 /** Fixture beim Laden gegen den Vertrag geprüft: eine kaputte Fixture fällt sofort auf. */
 export const fixtureEintraege: Eintrag[] = eintraegeSchema.parse(fixture);
 
 const statusParam = z.enum(eintragStatus);
+
+/**
+ * Darf der Fallback die Fixture zeigen? Nur außerhalb von Produktion oder mit `KIC_FIXTURE=1`: erfundene
+ * Einträge dürfen vor der Jury nie wie ein echtes Protokoll aussehen.
+ */
+export function fixtureErlaubt(umgebung: Readonly<Record<string, string | undefined>> = process.env): boolean {
+  return umgebung.NODE_ENV !== "production" || umgebung.KIC_FIXTURE === "1";
+}
+
+/** Standardquelle des Fallbacks: Fixture nur, wenn `fixtureErlaubt()`, sonst nichts. */
+export const fallbackQuelle = (): readonly Eintrag[] => (fixtureErlaubt() ? fixtureEintraege : []);
 
 export function istUcId(wert: string): wert is UcId {
   return ucs.some((uc) => uc.id === wert);
@@ -27,7 +39,7 @@ export function filtereEintraege(eintraege: readonly Eintrag[], uc: UcId, status
 export async function protokollAntwort(
   anfrage: Request,
   uc: string,
-  quelle: (uc: UcId) => Promise<readonly Eintrag[]> | readonly Eintrag[] = () => fixtureEintraege,
+  quelle: (uc: UcId) => Promise<readonly Eintrag[]> | readonly Eintrag[] = fallbackQuelle,
 ): Promise<Response> {
   if (!istUcId(uc)) return Response.json({ fehler: `Unbekannter Bereich: ${uc}` }, { status: 404 });
   const roh = new URL(anfrage.url).searchParams.get("status");

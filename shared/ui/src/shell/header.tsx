@@ -1,7 +1,7 @@
 "use client";
 
-import type { KeyboardEvent } from "react";
-import { Knopf } from "../basis/knopf";
+import type { KeyboardEvent, Ref } from "react";
+import { knopfKlassen } from "../basis/knopf";
 import { fokus, klassen } from "../basis/klassen";
 import type { UcEintrag } from "../ucs";
 import { StandardVerweis, type Verweis } from "./kontext";
@@ -21,6 +21,10 @@ export interface AppHeaderProps {
   Verweis?: Verweis;
   ucs?: readonly UcEintrag[];
   modellQuelle?: string;
+  /** Ref auf den Knopf „Protokoll“: die Shell gibt ihm beim Schließen der Schublade den Fokus zurück. */
+  protokollKnopfRef?: Ref<HTMLButtonElement>;
+  /** Ref auf `<header>`: die Schublade setzt unter seiner Unterkante an. */
+  kopfRef?: Ref<HTMLElement>;
 }
 
 function springe(ereignis: KeyboardEvent<HTMLElement>) {
@@ -47,10 +51,12 @@ export function AppHeader({
   Verweis = StandardVerweis,
   ucs,
   modellQuelle,
+  protokollKnopfRef,
+  kopfRef,
 }: AppHeaderProps) {
   const tabs = appTabs(ucs);
   return (
-    <header className="border-b border-line bg-white">
+    <header ref={kopfRef} className="border-b border-line bg-white">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-2 md:px-8">
         <nav aria-label="Bereiche" className="-mx-2 overflow-x-auto">
           <ul className="flex items-center gap-1 whitespace-nowrap" onKeyDown={springe}>
@@ -82,15 +88,18 @@ export function AppHeader({
         </nav>
         <div className="flex items-center gap-4">
           <ModellBadge quelle={modellQuelle} />
-          <Knopf
-            art="sekundaer"
+          {/* Natives <button> mit Knopf-Klassen, weil der Fokus per Ref zurückkommen muss (Knopf reicht keinen Ref). */}
+          <button
+            ref={protokollKnopfRef}
+            type="button"
+            className={knopfKlassen("sekundaer")}
             onClick={onProtokoll}
             aria-expanded={protokollOffen}
             aria-controls={protokollOffen ? schubladeId : undefined}
             data-protokoll-knopf=""
           >
             Protokoll
-          </Knopf>
+          </button>
         </div>
       </div>
     </header>

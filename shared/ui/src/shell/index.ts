@@ -5,7 +5,7 @@ export { akteure, eintraegeSchema, eintragSchema, eintragStatus, type Akteur, ty
 export { AppHeader, type AppHeaderProps } from "./header";
 export { ShellAnbieter, useShell, type ShellWert, type Verweis, type VerweisProps } from "./kontext";
 export { ModellBadge } from "./modell-badge";
-export { modellStatusSchema, modellUnbekannt, type ModellStatus } from "./modell-status";
+export { abweichendZuletzt, modellStatusSchema, modellUnbekannt, zuletztSchema, type ModellStatus, type Zuletzt } from "./modell-status";
 export { appTabs, istAktiv, protokollUc, zeigtHeader, type AppTab } from "./navigation";
 export { ProtokollSchublade, type ProtokollSchubladeProps } from "./protokoll-schublade";
 export { UcBereich, type UcBereichProps } from "./uc-bereich";
