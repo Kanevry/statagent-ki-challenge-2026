@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Backup-Video der Demo (#90, Rückfallstufe 3): D1 Qualitätsbericht, D2 Rückblick auf Vorschlag 24, D3 drei geprüfte
+// Backup-Video der Demo (#90, Rückfallstufe 3): D1 Qualitätsbericht, D2 Rückblick auf die drei Aufträge, D3 drei geprüfte
 // Datenanfragen. Nimmt mit Playwright (recordVideo) auf und wandelt mit ffmpeg in MP4 (H.264, 1920 × 1080).
 //
 // Aufruf aus web/ (dort liegt @playwright/test):
@@ -125,7 +125,16 @@ try {
   await warte(6000);
   await rolle(page, 6, 4000);
 
-  // D2 Rückblick: Vorschlag 24 (Auftrag 1), freigegeben mit Namen (F19, F26)
+  // D2 Rückblick: die drei Aufträge der Aufgabe (Vorschläge 24 bis 26), jeder mit Namen freigegeben (F26)
+  await oeffne(page, "/uc3/freigaben", "D2 Rückblick: die drei Aufträge der Aufgabe, jeder mit Vor- und Nachnamen freigegeben");
+  await page.locator("#erledigt-titel").waitFor({ timeout: 20000 });
+  for (const id of [24, 25, 26]) {
+    await page.locator(`a[href="/uc3/freigaben/${id}"]`).first().waitFor({ timeout: 20000 });
+  }
+  await warte(6000);
+  await rolle(page, 3, 3000);
+
+  // D2 Vorschlag 24 (Auftrag 1) im Detail, Zahlen vorher und nachher (F19)
   await oeffne(page, "/uc3/freigaben/24", "D2 Änderung per Sprache: Vorschlag 24, Zahlen vorher und nachher, freigegeben mit Namen");
   await warte(6000);
   await rolle(page, 6, 4000);
@@ -142,7 +151,14 @@ try {
     await warte(800);
     await page.locator('form[aria-label="Frage an die Daten"] button[type="submit"]').click();
     const ergebnis = page.locator('section[aria-labelledby="ergebnis-titel"]');
-    await ergebnis.getByText(f.soll, { exact: false }).first().waitFor({ timeout: 45000 });
+    const soll = ergebnis.getByText(f.soll, { exact: false });
+    await soll.first().waitFor({ state: "attached", timeout: 45000 });
+    // Steht die Sollzahl nur im ganzen Antwortsatz unter „Details“ (etwa die Summen von Männern und Frauen),
+    // klappt die Aufnahme „Details“ auf, damit die Zahl im Bild ist.
+    if ((await soll.locator("visible=true").count()) === 0) {
+      await ergebnis.locator("summary", { hasText: /^Details$/ }).last().click();
+    }
+    await soll.locator("visible=true").first().waitFor({ timeout: 15000 });
     await warte(9000);
     await rolle(page, 2, 2500);
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }));

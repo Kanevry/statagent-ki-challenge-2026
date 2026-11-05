@@ -15,8 +15,9 @@ Er prüft die Antwortzeit-Uhr und die Vapi-Turn-Latenz aus `GET /call/{id}`.
 Der PRD verlangt mindestens 10 Wechsel und dieselben sichtbaren Quellen im Text- und Sprachpfad.
 Beleg: `docs/plan/uc1/2026-11-05-prd-e2-uc1-ki-lotse.md`, § 3 E und A1.
 
-Feature-Stopp: **Fr 06.11.2026 07:00 Europe/Vienna**. Abgabe: **Fr 06.11.2026 09:00 Europe/Vienna**.
-Nach 07:00 wird kein Feature mehr gebaut. Fehlende Teile werden als fehlend gezeigt.
+Merge-Stopp: **Fr 06.11.2026 06:30 Europe/Vienna** (letzter Merge auf main). Feature-Stopp: **Fr 06.11.2026 07:00 Europe/Vienna**.
+Abgabe: **Fr 06.11.2026 09:00 Europe/Vienna**.
+Nach 06:30 wird nichts mehr gemergt, nach 07:00 kein Feature mehr gebaut. Fehlende Teile werden als fehlend gezeigt.
 Die ursprünglichen Qualitätskriterien bleiben bestehen. Ein Fallback ist kein bestandener Voice-Nachweis.
 
 ## Stand im Checkout
@@ -62,7 +63,7 @@ Diese genaue Bedingung steht in `web/app/uc1/page.tsx`.
 ## Ablauf für den Owner am Vorführtag
 
 1. Vor Beginn den Stand prüfen. Voice nur versuchen, wenn die UC1-Anbindung gebaut und gemessen ist.
-   Nach dem hier belegten Stand direkt den Fallback wählen. Nach 07:00 keinen Featurebau beginnen.
+   Nach dem hier belegten Stand direkt den Fallback wählen. Nach 06:30 nichts mehr mergen, nach 07:00 keinen Featurebau beginnen.
 2. Bei belegtem Voice-Weg am Rechner im Veranstaltungs-WLAN das Pflege-Szenario sprechen.
    Rückfragen beantworten und je Antwort mindestens eine sichtbare Quelle öffnen.
 3. Bei diesem Voice-Lauf mindestens 10 Wechsel mit der Antwortzeit-Uhr messen.

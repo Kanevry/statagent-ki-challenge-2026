@@ -1395,3 +1395,19 @@ def test_streifende_aussagen_werden_zur_abstinenz() -> None:
         PFLEGE, modell=mit_leistung, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher()
     )
     assert b.verhalten == "antwort"
+
+
+@pytest.mark.parametrize(
+    ("text", "unfall"),
+    [
+        ("Ich bin in der Mittagspause zum Arzt gegangen und auf dem Gehsteig ausgerutscht.", True),
+        ("Ich habe mich während der Dienstreise am Bahnhof verletzt.", True),
+        ("Zählt das noch zur Arbeit, wenn ich am Heimweg einkaufe?", True),
+        ("Ich bin beim Joggen ausgerutscht. Bekomme ich Krankengeld?", False),
+        ("Meine Mutter ist im Altersheim gestürzt.", False),
+    ],
+)
+def test_unfall_ausloeser_fuer_dienstzeit(text: str, unfall: bool) -> None:
+    """Fängt einen Unfall in der Mittagspause oder auf Dienstreise ohne Auslöser: Die Unfallversicherung ist
+    `nur_regel`, ohne Auslöser fehlt die Stelle (Dev-Set x16, #162). Private Stürze bleiben draußen."""
+    assert ("unfallversicherung" in kern.regel_analyse(text)[0]) is unfall

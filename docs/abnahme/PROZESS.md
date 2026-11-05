@@ -19,6 +19,7 @@ bestanden, verschoben oder als Restmangel entschieden.
 | Lauf | `docs/abnahme/laeufe/<zeit>-<sha>.jsonl`, eine Datei je Lauf, nie geändert | `pruefen.py` |
 | Hand-Beleg | `docs/abnahme/belege.jsonl` | Prüfer (Mess-Agents nur als Vorschlag) |
 | Entscheid | `docs/abnahme/entscheide.jsonl` (verschoben oder Restmangel, mit Quelle) | Lead oder Owner, eingetragen von der Abnahme |
+| Verworfener Beleg | `docs/abnahme/verworfen.jsonl` (Lauf, IDs, Grund, wer): ein Werkzeugfehler hat ihn verfälscht; die Laufdatei bleibt unverändert | Abnahme |
 | Matrix, Zähler, Tor | `docs/abnahme/matrix-<bereich>.md`, `matrix.py zaehler`, `matrix.py tor` | erzeugt, nie von Hand |
 | Jury-Raster UC3 | `docs/abnahme/raster-uc3.csv` (Bewertungsbereich je Issue), Tabelle oben in `matrix-uc3.md` | Abnahme |
 
@@ -37,6 +38,8 @@ bash tests/abnahme/schwer_pruefrechner.sh <bundle> <main-sha> <werkzeug-sha> <is
    gitleaks-Prüfsätze), mit `uv sync --frozen` und `pnpm install` (erst offline, dann mit Netz; scheitert beides,
    werden die vitest-Prüfsätze Lauf-Fehler). Prüfwerkzeug ist `tests/abnahme` aus dem Abnahme-Commit. Beide SHAs
    stehen im Laufmanifest.
+   Neben den Abzügen liegen wie beim Jury-Weg `../svbox` (Startpaket) und `../lieferungen` (Einzeldaten, nie im
+   Repo) als Links auf die Ordner neben dem Haupt-Checkout (`pruefen.nachbarn_verlinken`).
 2. Im Abzug gibt es keine `.env.local`. Datenbank-Variablen zeigen auf einen gesperrten Port, `LLM_PROVIDER` ist
    gesperrt. Was eine DB, Docker, einen Browser oder ein Modell braucht, ist `schwer = true` und läuft nur auf
    dem Prüfrechner gegen die Prüf-DB (Port 5444), nie gegen eine Bau-DB.
@@ -134,6 +137,12 @@ Nicht übernommen, mit Grund:
 - Schwerer Lauf 18:26 auf frischer Prüf-DB (main 27e54816): Golden Set grün; Abrechnung 2024-08 392284 = 392236 + 48
   + 0; 24 Läufe hash-gleich mit dem Manifest der UC3-Lane; DB-Zeitreihe = Orakel in 24/24 Monaten; Sheet v1 = Orakel
   in 1051 Zellen.
+- Entscheid #16 (Einzeldaten nur SV-Box): 22-1 und 20-AC1 messen Validator und Beleg (sha256, Zeilen) gegen das
+  Orakel Variante S, nicht die CSV im Checkout; die CSV selbst prüft 71-AC2 am externen Ort, nur Kennzahlen in der
+  Ausgabe. 22-1 hat einen schweren Teil: aktive Regelsätze v2 und ministerium auf frischer DB (Jury-Probe 4d, B1).
+- Schwerer Lauf 20:01 (main 71ba5c82) brach nach den 24 Läufen am eigenen Prüf-Klon-Schutz ab: auf dem
+  Prüfrechner läuft `pruefen.py` im Klon selbst. Seitdem entscheidet die Marke, und `--ort` im eigenen Baum wird
+  nur geprüft (Kopf = main), nicht erneut zurückgesetzt.
 - Agent-Vorschläge mit Platzhaltern (`<Pfad zu …>`) ergaben über Syntaxfehler falsch „nicht bestanden“; ein Vorschlag
   startete `docker compose` auf dem Bau-Port 5433. Seitdem: Platzhalter, Syntaxfehler, Bau-Ports und Docker machen
   einen Prüfsatz ungültig.
