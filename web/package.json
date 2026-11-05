@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@kic/ui": "workspace:*",
+    "@vapi-ai/web": "^3.1.0",
     "next": "16.4.5",
     "postgres": "^4.0.0",
     "react": "^19.3.1",
