@@ -9,7 +9,14 @@ from pathlib import Path
 
 import psycopg
 import pytest
-from plattform.freigabe import GitFehler, NameUngueltig, NichtFreigegeben, freigeben, pruefe_freigegeben
+from plattform.freigabe import (
+    GitFehler,
+    NameUngueltig,
+    NichtFreigegeben,
+    VorschlagUngueltig,
+    freigeben,
+    pruefe_freigegeben,
+)
 from plattform.protokoll import ddl_einspielen, schreibe
 
 SPERRNAMEN = json.loads((Path(__file__).with_name("sperrnamen.json")).read_text(encoding="utf-8"))
@@ -143,7 +150,16 @@ def test_wiederholung_legt_keinen_zweiten_commit_an(conn, repo):
     """Fängt: zweiter Commit für denselben Vorschlag nach abgebrochener DB-Transaktion."""
     vorschlag_id = _vorschlag(conn)
     _git(
-        repo, "commit", "--allow-empty", "-q", "-m", "früher", "--trailer", f"Vorschlag: test/{vorschlag_id}"
+        repo,
+        "commit",
+        "--allow-empty",
+        "-q",
+        "-m",
+        "früher",
+        "--trailer",
+        "Freigegeben-von: Bernhard Götzendorfer",
+        "--trailer",
+        f"Vorschlag: test/{vorschlag_id}",
     )
     vorher = _git(repo, "rev-parse", "HEAD")
 
@@ -197,6 +213,42 @@ def test_offene_transaktion_wird_abgelehnt(conn, repo):
     vorschlag_id = _vorschlag(conn)
     with conn.transaction(), pytest.raises(ValueError, match="offene Transaktion"):
         freigeben(conn, vorschlag_id, "Bernhard Götzendorfer", repo)
+
+
+def test_datei_freigabe_verlangt_objekt_ref_gleich_ref(conn, repo):
+    """Fängt: Freigabe committet Datei B, pruefe_freigegeben prüft aber das schon eingecheckte A (R6d)."""
+    (repo / "erzeugt").mkdir()
+    for datei in ("a.py", "b.py"):
+        (repo / "erzeugt" / datei).write_text(f"{datei}\n", encoding="utf-8")
+    vorschlag_id = _vorschlag(conn, ref="erzeugt/a.py")
+
+    with pytest.raises(ValueError, match="ref des Vorschlags"):
+        freigeben(
+            conn, vorschlag_id, "Bernhard Götzendorfer", repo, objekt_typ="datei", objekt_ref="erzeugt/b.py"
+        )
+    assert _commits(repo) == 0
+    assert _status(conn, vorschlag_id) == "offen"
+
+
+def test_wiederverwendung_nur_mit_gleichem_freigebenden(conn, repo):
+    """Fängt: Retry übernimmt einen Commit mit anderem Namen, DB und Git nennen verschiedene Menschen."""
+    vorschlag_id = _vorschlag(conn)
+    _git(
+        repo,
+        "commit",
+        "--allow-empty",
+        "-q",
+        "-m",
+        "früher",
+        "--trailer",
+        "Freigegeben-von: Anna Huber",
+        "--trailer",
+        f"Vorschlag: test/{vorschlag_id}",
+    )
+
+    with pytest.raises(VorschlagUngueltig):
+        freigeben(conn, vorschlag_id, "Bernhard Götzendorfer", repo)
+    assert _status(conn, vorschlag_id) == "offen"
 
 
 def test_verbindung_ohne_autocommit_wird_abgelehnt(repo):
