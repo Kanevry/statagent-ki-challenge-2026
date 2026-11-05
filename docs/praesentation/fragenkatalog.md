@@ -380,13 +380,29 @@ Viertens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Paramet
 
 ### C16 Läuft der gemeinsame Einstieg schon?
 
-**Kurzantwort (Tagesstand 05.11.2026, vor Fr 07:00 aktualisieren):** Auf main ist der UC3-Adapter registriert (Entry-Point `kic.uc_antwort`). UC2 liegt auf dem Branch `feat/uc2-antwort`. UC1 ist nach #31 geplant. Die Szene 9 zeigt das Zielbild, nicht den Tagesstand. Was heute läuft, zeigen wir an UC3: `uv run uc3 antwort "Beschäftigte in Wien im März 2025"`. Sollwert der Demo-Frage für UC3: 7.498 (F18).
+**Kurzantwort:** Die Szenen zeigen das Zielbild: eine Frage, drei Antworten. Was davon heute wirklich läuft, steht im Abschnitt „Stand“ darunter. Bernhard sagt nur, was dort steht. Sicher ist: Die Zahl kommt aus UC3, ohne Sprachmodell und mit Beleg, Sollwert 7.498 (F18).
 
-**Antwortweg:** `uv run uc3 antwort "…"`, in der Oberfläche die Seite `/uc4`. Laufen die Modelle online im Testmodus, sagen wir das an.
+**Antwortweg:** In der Oberfläche die Seite `/uc4`, im Terminal `uv run uc3 antwort "Beschäftigte in Wien im März 2025"`. Laufen die Modelle im Testbetrieb, sagt Bernhard „Testbetrieb“ an.
 
-**Fundstelle:** `uc3/pyproject.toml` (Abschnitt `kic.uc_antwort`), `uc3/statagent/uc4.py`, siehe C12.
+**Fundstelle:** `shared/py/plattform/router.py` (Router), Entry-Points `kic.uc_antwort` in `uc1/pyproject.toml`, `uc2/pyproject.toml`, `uc3/pyproject.toml`; `web/app/uc4/page.tsx`, `web/app/api/uc4/frage/route.ts`; siehe C12.
 
-**Pflege:** Diese Antwort vor Fr 07:00 mit dem Stand auf main abgleichen und das Datum neu setzen.
+#### Stand (was vom Zielbild auf main ist)
+
+Gemessen am 05.11.2026 18:54 auf main `1a8c645`, nur aus dem Code. Was im Betrieb läuft, ergänzt der Prüfpunkt um 20:00 und Fr 05:00. Nicht gemessen heißt: nicht behaupten.
+
+| Teil des Zielbilds | Stand auf main | Beleg |
+|---|---|---|
+| Gemeinsamer Router | im Code | `shared/py/plattform/router.py` |
+| Seite `/uc4` und Schnittstelle | im Code | `web/app/uc4/page.tsx`, `web/app/api/uc4/frage/route.ts` |
+| UC3-Adapter (StatAgent) | registriert | `uc3/pyproject.toml`, `statagent.uc4:antwort` |
+| UC2-Adapter (Simulator) | registriert | `uc2/pyproject.toml`, `uc2.antwort:antwort` |
+| UC1-Adapter (Lotse) | registriert | `uc1/pyproject.toml`, `uc1.uc4:router_adapter` |
+| Freigabe mit Namen in UC2 | im Code | `uc2/src/uc2/verhandlung/freigabe.py`, `web/app/api/uc2/faelle/[id]/freigabe/route.ts` |
+| Freigabe mit Namen in UC1 | nicht gefunden | keine Fundstelle auf main |
+| Wien-Frage liefert drei Antworten | noch nicht gemessen | Prüfpunkt 20:00 |
+| Online-Demo | Testbetrieb, keine KI angeschlossen | Kopf der Seite, gesehen 18:5x |
+
+**Pflege:** Vor Fr 07:00 mit dem Stand auf main abgleichen, Uhrzeit und Commit neu setzen.
 
 ### C17 Wo seht ihr, dass die KI nichts erfindet?
 
