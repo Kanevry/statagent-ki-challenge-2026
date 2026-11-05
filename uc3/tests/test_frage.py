@@ -140,12 +140,9 @@ def test_maenner_frauen_je_bundesland_gleich_gegenrechnung(gerechnet: Verbindung
     daten = antwort_frage(gerechnet, GESCHLECHT)
     _pflichtfelder(daten)
     erwartet = _bestand(gerechnet, "2024-08", "geschlecht, region")
-    assert len(daten["zahlen"]) == len(erwartet)
-    assert (
-        sum(z["wert"] for z in daten["zahlen"])
-        == sum(erwartet.values())
-        == _bestand(gerechnet, "2024-08")[()]
-    )
+    zeilen = [z for z in daten["zahlen"] if not z["bezeichnung"].endswith(", Alle Bundesländer")]
+    assert len(zeilen) == len(erwartet)
+    assert sum(z["wert"] for z in zeilen) == sum(erwartet.values()) == _bestand(gerechnet, "2024-08")[()]
     namen = {
         str(z["code"]): str(z["bezeichnung"])
         for z in gerechnet.execute("SELECT code, bezeichnung FROM stat.klass_geschlecht").fetchall()
@@ -157,6 +154,30 @@ def test_maenner_frauen_je_bundesland_gleich_gegenrechnung(gerechnet: Verbindung
     gefunden = _werte(daten, "Beschäftigungsverhältnisse")
     for (geschlecht, region), n in erwartet.items():
         assert gefunden[f"Beschäftigungsverhältnisse, {namen[geschlecht]}, {regionen[region]}"] == n
+
+
+# Fängt: Die Summenzeile weicht vom Satz im Text oder von der Gegenrechnung ab, ihr Beleg liefert sie nicht, oder sie
+# erscheint auch dort, wo man nicht addieren darf (mehrere Monate).
+def test_maenner_frauen_summe_alle_bundeslaender(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, GESCHLECHT)
+    namen = {
+        str(z["code"]): str(z["bezeichnung"])
+        for z in gerechnet.execute("SELECT code, bezeichnung FROM stat.klass_geschlecht").fetchall()
+    }
+    gefunden = _werte(daten, "Beschäftigungsverhältnisse")
+    erwartet = _bestand(gerechnet, "2024-08", "geschlecht")
+    assert erwartet
+    for (code,), n in erwartet.items():
+        assert gefunden[f"Beschäftigungsverhältnisse, {namen[code]}, Alle Bundesländer"] == n
+        assert f"{namen[code]}: {n:,}".replace(",", ".") in daten["text"]
+    summen = [z for z in daten["zahlen"] if z["bezeichnung"].endswith(", Alle Bundesländer")]
+    assert daten["zahlen"][-len(summen) :] == summen and len(summen) == len(erwartet)
+    beleg = daten["belege"][summen[0]["beleg"]]
+    assert beleg is not daten["belege"][daten["zahlen"][0]["beleg"]]
+    zeilen = gerechnet.execute(beleg["sql"].encode()).fetchall()
+    assert sorted(int(str(z["wert"])) for z in zeilen) == sorted(erwartet.values())
+    reihe = antwort_frage(gerechnet, "Zeitreihe Männer und Frauen je Bundesland 08/2024 bis 09/2024")
+    assert not any("Alle Bundesländer" in z["bezeichnung"] for z in reihe["zahlen"])
 
 
 # Fängt: Zu- oder Abgänge falsch zugeordnet, Bezugsbestand nicht der veröffentlichte, oder eine Rate trotz

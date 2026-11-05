@@ -804,6 +804,24 @@ def _bestand_antwort(
                 anteile.append(f"{name} {_komma(wert)} Prozent")
         if anteile:
             text += " Anteil an allen: " + ", ".join(anteile) + "."
+    if gruppen == (GESCHLECHT, BUNDESLAND) and von == bis:
+        # Summe je Geschlecht für die letzte Tabellenzeile, als eigene Abfrage mit eigenem Beleg. Nur für einen Monat:
+        # Bestände mehrerer Monate darf man nicht addieren.
+        summen_sql = bestand_sql(conn, regelsatz, von, bis, filter_, (GESCHLECHT,))
+        summen = _lesen(conn, summen_sql)
+        belege.append(_beleg(summen_sql, _staende(summen)))
+        namen_geschlecht = _codes(conn, GESCHLECHT, von)
+        zahlen.extend(
+            {
+                "bezeichnung": f"Beschäftigungsverhältnisse{zusatz}, "
+                f"{namen_geschlecht.get(str(z['g0']), str(z['g0']))}, Alle Bundesländer",
+                "wert": int(z["wert"]),
+                "einheit": einheit,
+                "beleg": len(belege) - 1,
+            }
+            for z in summen
+            if z["g0"] is not None
+        )
     return _antwort(
         typ,
         " ".join(
