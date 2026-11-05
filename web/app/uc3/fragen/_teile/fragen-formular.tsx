@@ -236,6 +236,22 @@ export function FragenFormular({
               <Antwort ergebnis={zustand.ergebnis} definitionen={definitionen} onFolgefrage={fragen} />
             )}
           </div>
+          {zustand.art !== "laedt" && (
+            <div className="flex flex-col border-t border-line pt-4">
+              <p className="font-sans text-14 text-slate" id="noch-eine-frage">
+                Noch eine Frage:
+              </p>
+              <ul aria-labelledby="noch-eine-frage" className="flex flex-col">
+                {BEISPIELE.filter((b) => b !== frage.trim()).map((beispiel) => (
+                  <li key={beispiel}>
+                    <button type="button" onClick={() => fragen(beispiel)} className={`${textLink} text-16 text-ink`}>
+                      {beispiel}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
       )}
     </div>
