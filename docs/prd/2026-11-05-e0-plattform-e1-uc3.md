@@ -174,7 +174,8 @@ der Modell-Badge liest `GET /api/plattform/modell` (E0-Route, führt `uv run pyt
 - Tokens Klarton+ aus der Pen-Datei (per Pencil-MCP `get_style`) nach `shared/ui/src/tokens.css` als Tailwind-4
   `@theme`: ink #0B1F2A, paper #F4F7F5, klar-grün #007A50, ki-violett #5B3DF5 (nur Label und 2-px-Linie), beleg-gelb
   #F5D54F (nur Fläche), navy #001E50, slate #475256. Schriften Space Grotesk, Inter, JetBrains Mono. Typo-Skala
-  56/32/20/16/14/12, Abstände 4/8/16/24/32/48/64. Hell, kein Dark Mode. Keine SV-Logos.
+  56/32/28/20/16/14/13/12/11 (28, 13, 11 aus den Pen-Frames, Entscheid Lead 05.11.), Abstände 4/8/16/24/32/48/64.
+  Hell, kein Dark Mode. Keine SV-Logos. Die Pen-Datei hat 17 helle Farben (Variablen l-*); sie gilt (MR !5).
 - Eigene, ruhige Elemente nach den Pen-Frames; keine shadcn-Defaults ohne Anpassung. Status immer Symbol plus Wort.
   Glossar-Untertitel je Fachbegriff. Je Screen eine Hauptaussage und eine Hauptaktion.
 - Anti-Schablonen-Gate: `measureSlop({root:'body'})` (impeccable-Katalog, Apache-2.0; die Skript-Datei hat keinen
@@ -292,7 +293,8 @@ Oracle: `git log --format=%(trailers)` des echten Repos (Test gegen Wegwerf-Repo
 ```gherkin
 Given shared/ui/src/tokens.css und `shared/ui/tokens.snapshot.json` (exportiert aus Pencil `get_style`, Zeitstempel im Kopf)
 When ein Vitest die `--color-*`, `--font-*` und `--text-*`-Werte des `@theme` parst
-Then 7 Farben, 3 Schriften und die Skala 56/32/20/16/14/12 stimmen genau mit dem Snapshot überein, keine weitere `--text-*`
+Then die Farben der Pen-Datei, 3 Schriften und die Skala 56/32/28/20/16/14/13/12/11 stimmen genau mit dem Snapshot
+     überein, keine weitere `--text-*` (Skala und Farben nachgezogen, Entscheid Lead 05.11.)
 ```
 Oracle: Vitest gegen den Pencil-Snapshot; den Snapshot erzeugt Pencil, nicht der Autor.
 

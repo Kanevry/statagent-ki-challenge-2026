@@ -6,4 +6,12 @@ export { Knopf, knopfKlassen, type KnopfArt, type KnopfProps } from "./knopf";
 export { Leerzustand, type LeerzustandProps } from "./leerzustand";
 export { Status, type StatusArt, type StatusProps } from "./status";
 export { Tabelle, type Spalte, type TabelleProps } from "./tabelle";
-export { Fliesstext, Ueberschrift, Zahl, type FliesstextProps, type UeberschriftProps, type ZahlProps } from "./text";
+export {
+  Fliesstext,
+  formatiereZahl,
+  Ueberschrift,
+  Zahl,
+  type FliesstextProps,
+  type UeberschriftProps,
+  type ZahlProps,
+} from "./text";

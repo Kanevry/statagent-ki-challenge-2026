@@ -5,7 +5,7 @@
     "zeitstempel": "2026-11-05T12:18:24Z",
     "werkzeug": "Pencil-MCP execute: GetVariables() für Farben und Schriften; Get()-Zählung der Text-Knoten in den Klarton+-Frames ab x=12000 für die Größen",
     "auswahl": "Nur die hellen Klarton+-Variablen (Präfix l-) und die drei font-*-Variablen. Die dunklen Variablen der Richtungen A bis C (night, ink-2, text, mint, ...) gehören nicht dazu, Klarton+ hat keinen Dark Mode.",
-    "groessen_hinweis": "Die Pen-Datei hat keine Größen-Variablen. textgroessen ist die Skala laut Vertrag D, jede Stufe kommt in den Klarton+-Frames vor; textgroessen_im_canvas ist die gemessene Verteilung (Größe in px: Anzahl Text-Knoten)."
+    "groessen_hinweis": "Die Pen-Datei hat keine Größen-Variablen. textgroessen ist die Skala laut Vertrag D plus die gemessenen Pen-Größen 28, 13, 11 (Entscheid Lead 05.11.), jede Stufe kommt in den Klarton+-Frames vor; textgroessen_im_canvas ist die gemessene Verteilung (Größe in px: Anzahl Text-Knoten)."
   },
   "farben": {
     "l-paper": "#F4F7F5",
@@ -31,7 +31,7 @@
     "font-body": "Inter",
     "font-mono": "JetBrains Mono"
   },
-  "textgroessen": [56, 32, 20, 16, 14, 12],
+  "textgroessen": [56, 32, 28, 20, 16, 14, 13, 12, 11],
   "textgroessen_im_canvas": {
     "11": 63,
     "12": 137,

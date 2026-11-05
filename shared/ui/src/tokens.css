@@ -43,17 +43,24 @@
   --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
 
-  /* Typo-Skala, genau sechs Stufen; Klasse text-<px>, z. B. text-56 */
+  /* Typo-Skala, genau neun Stufen; Klasse text-<px>, z. B. text-56. 28, 13 und 11 sind die in den
+     Pen-Frames gemessenen Zwischengrößen (Entscheid Lead 05.11.: Skala erweitern statt Frames normalisieren). */
   --text-56: 3.5rem;
   --text-56--line-height: 1.05;
   --text-32: 2rem;
   --text-32--line-height: 1.15;
+  --text-28: 1.75rem;
+  --text-28--line-height: 1.2;
   --text-20: 1.25rem;
   --text-20--line-height: 1.35;
   --text-16: 1rem;
   --text-16--line-height: 1.5;
   --text-14: 0.875rem;
   --text-14--line-height: 1.45;
+  --text-13: 0.8125rem;
+  --text-13--line-height: 1.45;
   --text-12: 0.75rem;
   --text-12--line-height: 1.4;
+  --text-11: 0.6875rem;
+  --text-11--line-height: 1.4;
 }
