@@ -31,12 +31,14 @@ from statagent.uc4 import (
     _ZAHL_MONAT,
     MERKMALE,
     Merkmal,
+    _adapter_liest_gleich,
     _aufzaehlung,
     _codes,
     _deutsch,
     _fortgeschrieben_hinweis,
     _gliederung,
     _monat_anzeige,
+    antwort_daten,
     jahr_rueckfrage,
 )
 from statagent.zeitraum import (
@@ -240,7 +242,7 @@ _KEIN_MERKMAL_STAMM = (
     "österreich", "oesterreich", "vergleich", "jahr", "monat", "zeitraum", "schnitt", "gesamt", "summe",
     "detail", "bundesl", "wirtschaftsbereich", "wirtschaftszweig", "abschnitt", "önace", "oenace",
     "berichtsmonat", "stichtag", "verlauf", "lauf", "bereich", "branche", "sektor", "prozent", "vormonat",
-    "vorjahr", "zahl", "tabelle", "beschäftigungskategorie", "kategorie", "geschlecht", "alter",
+    "vorjahr", "zahl", "tabelle", "beschäftigungskategorie", "kategorie", "geschlecht", "alter", "regelsatz",
 )  # fmt: skip
 _FUNKTIONSWORT = frozenset(
     {"im", "in", "der", "den", "dem", "die", "das", "welchem", "welcher", "welchen", "welche", "diesem",
@@ -531,6 +533,38 @@ _BEZUG = re.compile(
     r"beschäftig|beschaeftig|verhältnis|verhaeltnis|arbeit|leute|personen|menschen|\bjobs?\b|\bstellen\b"
     r"|wie\s*viele?\b|anzahl|bestand|\bstand\b|aktuell|derzeit|zurzeit|momentan|jetzt"
 )
+
+
+#: Die Frage meint den Regelsatz v2 (Änderungsaufträge, Zählung je Monat). Standard bleibt v1.
+_V2_WORT = re.compile(
+    r"(?<!\w)v2(?!\w)|regelsatz\s*(?:2|zwei)(?!\w)|änderungsauftr|aenderungsauftr|ganze[nmr]?\s+monat",
+    re.IGNORECASE,
+)
+
+
+def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str, Any]:
+    """Antwort in einem Regelsatz, der nicht am Stichtag zählt: über ``statagent.uc4.antwort_daten``, das die Zählweise
+    und die Kategorien aus den Regeln liest. Was der Adapter nicht lesen kann, bekommt eine Absage statt einer Zahl.
+    """
+    typ = fragetyp(frage)
+    if typ == "fluktuation":
+        return _rueckfrage(
+            f"Die Fluktuation vergleicht zwei Stichtage und gibt es darum nur im Regelsatz v1, nicht in {regelsatz}. "
+            "Zum Beispiel „Fluktuation im Oktober 2025“."
+        )
+    absage = nicht_auswertbar(frage, mittel=True)
+    if absage is not None:
+        return _antwort(typ, absage, hinweise=[absage])
+    if "anteil" in frage.lower() or not _adapter_liest_gleich(conn, frage, regelsatz):
+        text = (
+            f"Im Regelsatz {regelsatz} gibt es Zahlen nach Monat, Bundesland, Geschlecht, Branche und "
+            "Beschäftigungskategorie. Diese Einschränkung kann die Datenanfrage dort nicht lesen. "
+            "Zum Beispiel „Beschäftigte in Wien im Juli 2026 nach Regelsatz v2“."
+        )
+        return _antwort(typ, text, hinweise=[text])
+    daten = antwort_daten(conn, frage, regelsatz)
+    text = f"Nach Regelsatz {regelsatz}: {daten['text']}" if daten["zahlen"] else daten["text"]
+    return _antwort(typ, text, belege=daten["belege"], zahlen=daten["zahlen"])
 
 
 def _ohne_bezug(conn: Verbindung, frage: str, letzter: str) -> bool:
@@ -1358,6 +1392,10 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     grund = unklar(frage, letzter or LETZTE_LIEFERUNG)
     if grund is not None:
         return _rueckfrage(grund)
+    if regelsatz == "v1" and _V2_WORT.search(frage):
+        regelsatz = "v2"
+    if _letzter_monat(conn, regelsatz) is not None and regelsatz != "v1":
+        return _regelsatz_antwort(conn, frage, regelsatz)
     hinweis_tag = tag_hinweis(frage)
     frage, notizen, mittel = _normalisieren(frage, letzter or LETZTE_LIEFERUNG)
     if hinweis_tag:
