@@ -175,7 +175,7 @@ def test_router_adapter_haelt_jede_zahl_an_ihrem_beleg() -> None:
         zahlen=[uc4.Zahl(bezeichnung="Wartezeit im Szenario", wert=17.2, einheit="Tage", beleg=0)],
         uc="uc2",
     )
-    a = uc4.router_adapter(FRAGE, [uc3, uc2], modell=modell_mit("Die Wartezeit liegt bei 19,6 Tagen."))
+    a = uc4.router_adapter(FRAGE, [uc3, uc2])
     assert a.uc == "uc1"
     assert [b.uc for b in a.belege] == ["uc3", "uc3", "uc2"]
     assert [(z.wert, z.beleg) for z in a.zahlen] == [(19.6, 0), (23.1, 1), (17.2, 2)]
@@ -192,9 +192,8 @@ def test_router_findet_den_adapter_ueber_den_entry_point() -> None:
 
 def test_router_adapter_ohne_kontext_ohne_modell() -> None:
     """Fängt einen Modellaufruf ohne Kontext (die Kette davor lieferte nichts): fester Satz, keine Zahl."""
-    modell = modell_mit("darf nicht kommen")
-    a = uc4.router_adapter(FRAGE, [], modell=modell)
-    assert a.text == uc4.KEIN_KONTEXT and a.zahlen == [] and modell.aufrufe == []
+    a = uc4.router_adapter(FRAGE, [])
+    assert a.text == uc4.KEIN_KONTEXT and a.zahlen == []
 
 
 def test_vorzeichen_der_zahl_zaehlt() -> None:
@@ -279,17 +278,15 @@ BELEG_UC3 = uc4.Beleg(
     uc="uc3", quelle="stat.stat_beschaeftigte", monat="2025-10", lieferung="2025-10", stand="vorlaeufig"
 )
 ZAHL_UC3 = uc4.Zahl(bezeichnung="Beschäftigungsverhältnisse", wert=390900, einheit="Anzahl", beleg=0)
+ZAHL_WIEN = ZAHL_UC3.model_copy(
+    update={"bezeichnung": "Beschäftigungsverhältnisse (Wien, Gesundheits- und Sozialwesen)", "wert": 7498}
+)
 
 
 def _kette_kontext(*zahlen: uc4.Zahl) -> list[uc4.UcAntwort]:
     """UC3 mit Zahl und Beleg, UC2 reicht beides weiter wie uc2.antwort.adapter."""
     gezeigt = list(zahlen or (ZAHL_UC3,))
-    uc3 = uc4.UcAntwort(
-        text="Am 31.10.2025 gab es 390.900 Beschäftigungsverhältnisse.",
-        belege=[BELEG_UC3],
-        zahlen=gezeigt,
-        uc="uc3",
-    )
+    uc3 = uc4.UcAntwort(text="Am 31.10.2025 gab es 390.900.", belege=[BELEG_UC3], zahlen=gezeigt, uc="uc3")
     presse = uc4.Beleg(uc="uc2", quelle="presse: Kurier", monat="2026-09", ref="b1")
     uc2 = uc4.UcAntwort(
         text="Mehr Personal heißt meist kürzere Wartezeiten.",
@@ -300,178 +297,115 @@ def _kette_kontext(*zahlen: uc4.Zahl) -> list[uc4.UcAntwort]:
     return [uc3, uc2]
 
 
-ARZT_MODELL = "Mit mehr Personal warten Sie oft kürzer."
-ARZT = f"{uc4.KETTE_ANFANG} {ARZT_MODELL}"
-BELEGSATZ = "Grundlage ist die Zahl von StatAgent: 390.900."
-
-
-def test_kette_zahl_von_uc3_und_uc2_steht_einmal_und_oben_die_bedeutung() -> None:
-    """Fängt den Live-Fund vom 05.11.: Dieselbe Zahl aus UC3 und UC2 zählte als zwei Zahlen, das Modell
-    durfte deshalb
-    keine Ziffer schreiben und die Station begann mit „Im Oktober gab es Beschäftigungsverhältnisse.“."""
-    a = uc4.router_adapter(
-        "Wie viele Beschäftigte gab es im Oktober 2025?", _kette_kontext(), modell=modell_mit(ARZT_MODELL)
+def test_kette_verschiedene_fragen_ergeben_verschiedenen_text() -> None:
+    """Fängt den Vorbehalt des Leads: Ein fester Satz, der für jede Frage gleich klingt, sagt nichts zum
+    Arzttermin."""
+    wien = uc4.router_adapter("Wien?", _kette_kontext(ZAHL_WIEN))
+    alle = uc4.router_adapter("Oktober?", _kette_kontext())
+    assert wien.text == (
+        "Für Ihren nächsten Arzttermin in Wien heißt das: Mit mehr Personal im Gesundheits- und Sozialwesen "
+        "warten "
+        "Sie meist kürzer und werden oft besser betreut. Mit weniger Personal warten Sie meist länger. "
+        "Grundlage ist die Zahl von StatAgent: 7.498."
     )
-    assert a.text == f"{ARZT} {BELEGSATZ}"
+    assert alle.text == (
+        "Für Ihren nächsten Arzttermin heißt das: Diese Zahl sagt allein wenig über Ärzte und Pflege. Mehr "
+        "Beschäftigte bringen meist mehr Beiträge für die Krankenversicherung und damit mehr Geld für Ihre "
+        "Versorgung. Weniger Beschäftigte bringen weniger. Grundlage ist die Zahl von StatAgent: 390.900."
+    )
+
+
+@pytest.mark.parametrize(
+    ("bezeichnung", "erwartet"),
+    [
+        ("Beschäftigungsverhältnisse (Tirol)", "Arzttermin in Tirol heißt das: Diese Zahl sagt allein wenig"),
+        (
+            "Beschäftigungsverhältnisse (Wien, Frauen, Gesundheits- und Sozialwesen)",
+            "in Wien heißt das: Mit mehr",
+        ),
+        (
+            "Beschäftigungsverhältnisse (Frauen, Gesundheits- und Sozialwesen)",
+            "Arzttermin heißt das: Mit mehr",
+        ),
+        ("Beschäftigungsverhältnisse (Tirol, Bau)", "in Tirol heißt das: Diese Zahl sagt allein wenig"),
+        ("Fluktuation, alle Wirtschaftsbereiche", "heißt das: Wechselt das Personal oft"),
+    ],
+)
+def test_kette_text_folgt_dem_was_die_zahl_zaehlt(bezeichnung: str, erwartet: str) -> None:
+    """Fängt falsche Zuordnung: Bau bekäme den Satz übers Gesundheitswesen, Fluktuation den über mehr
+    Personal."""
+    zahl = ZAHL_UC3.model_copy(update={"bezeichnung": bezeichnung})
+    assert erwartet in uc4.router_adapter("Frage?", _kette_kontext(zahl)).text
+
+
+@pytest.mark.parametrize(("wert", "wort"), [(-22.24, "kürzer"), (3.0, "länger")])
+def test_kette_paket_sagt_die_richtung_aus_dem_rechenmodell(wert: float, wort: str) -> None:
+    """Fängt „warten kürzer“, wenn das Rechenmodell für das Paket längere Wartezeiten ergibt."""
+    uc3, uc2 = _kette_kontext(ZAHL_WIEN)
+    uc2.belege.append(uc4.Beleg(uc="uc2", quelle="uc2.experte", ref="paket"))
+    uc2.zahlen.append(
+        uc4.Zahl(bezeichnung="Wartezeitänderung (wahrscheinlichster Wert)", wert=wert, einheit="%", beleg=2)
+    )
+    text = uc4.router_adapter("Wartezeiten?", [uc3, uc2]).text
+    assert f"laut Rechenmodell meist {wort}." in text and "22,24" not in text
+    assert text.endswith("Grundlage ist die Zahl von StatAgent: 7.498.")
+
+
+def test_kette_zahl_von_uc3_und_uc2_steht_einmal() -> None:
+    """Fängt den Live-Fund vom 05.11.: Dieselbe Zahl aus UC3 und UC2 stand zweimal in der Antwort."""
+    a = uc4.router_adapter("Oktober?", _kette_kontext())
     assert [(z.wert, z.beleg) for z in a.zahlen] == [(390900, 0)]
     assert [b.quelle for b in a.belege] == ["stat.stat_beschaeftigte", "presse: Kurier"]
 
 
-@pytest.mark.parametrize(
-    "satz",
-    [
-        "Im Oktober gab es Beschäftigungsverhältnisse.",
-        "In Wien gab es im Gesundheits- und Sozialwesen Beschäftigungsverhältnisse.",
-        "Die Statistik nennt Beschäftigungsverhältnisse als Zahl.",
-        "Im Oktober gab es 390.900 Beschäftigungsverhältnisse.",
-        "Es gab rund vierhunderttausend Stellen.",
-        "Sie warten meist kürzer.",
-        "Mehr Personal heißt meist kürzere Wartezeiten.",
-        "Mit weniger Personal warten Sie oft länger und werden schwieriger betreut.",
-        "Mit weniger Personal werden Sie weniger betreut.",
-        "Mit weniger Personal warten Sie oft länger und merken oft mehr Verzögerung.",
-        "Mit mehr Personal warten Sie meist länger.",
-    ],
-)
-def test_kette_satz_ohne_aussage_faellt_weg_und_der_feste_satz_steht_da(satz: str) -> None:
-    """Fängt die sinnlosen Sätze aus dem Live-Test, ein Zahlenecho, das Echo des Simulators und einen Satz
-    ohne
-    Bedingung, der klingt, als folge er aus der Zahl (UI-Regie 05.11.): Es bleibt der feste Satz mit Beleg."""
-    a = uc4.router_adapter(
-        "Wie viele Beschäftigte gab es im Oktober 2025?", _kette_kontext(), modell=modell_mit(satz)
-    )
-    assert a.text == f"{uc4.KETTE_ANFANG} {uc4.KETTE_FESTER_SATZ} {BELEGSATZ}"
+def test_kette_ohne_modell_und_ohne_ki_kennzeichnung(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt einen Modellaufruf in der Kette (Entscheid Lead: 4 statt 5 je Frage) und „Mit KI geschrieben“
+    über Fixtext."""
 
+    def kein_modell(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("Modell in der Kette gerufen")
 
-def test_kette_anfang_steht_genau_einmal() -> None:
-    """Fängt den Probelauf: Das Modell wiederholt den Simulator, der Arzttermin kommt nie vor, oder der
-    Anfang doppelt."""
-    frage = "Wie viele Beschäftigte gab es im Oktober 2025?"
-    ohne = uc4.router_adapter(
-        frage, _kette_kontext(), modell=modell_mit("Mit mehr Personal kommen Sie oft schneller dran.")
-    )
-    mit = uc4.router_adapter(
-        frage,
-        _kette_kontext(),
-        modell=modell_mit(f"{uc4.KETTE_ANFANG} Mit mehr Personal kommen Sie oft schneller dran."),
-    )
-    assert (
-        ohne.text
-        == mit.text
-        == f"{uc4.KETTE_ANFANG} Mit mehr Personal kommen Sie oft schneller dran. {BELEGSATZ}"
-    )
-
-
-def test_kette_modellfehler_ergibt_festen_satz_mit_belegzahl() -> None:
-    """Fängt: Fällt das Modell aus, steht nur die nackte Zahl auf der Station."""
-
-    def kaputt(nachrichten: Any, schema: Any, provider: Any) -> Any:
-        raise RuntimeError("Modell aus")
-
-    a = uc4.router_adapter("Wie viele Beschäftigte?", _kette_kontext(), modell=kaputt)
-    assert a.text == f"{uc4.KETTE_ANFANG} {uc4.KETTE_FESTER_SATZ} {BELEGSATZ}"
+    monkeypatch.setattr(uc4, "standard_modell", kein_modell)
+    assert uc4.router_adapter("Oktober?", _kette_kontext()).modell is None
 
 
 def test_kette_englische_frage_bekommt_deutsche_antwort() -> None:
     """Fängt den Live-Fund: Station 3 antwortet englisch, der Rest der Seite deutsch."""
-    gesehen: list[str] = []
-
-    def modell(nachrichten: list[dict[str, str]], schema: Any, provider: Any) -> kern.ModellErgebnis:
-        gesehen.append(nachrichten[0]["content"])
-        return kern.ModellErgebnis(
-            json={"saetze": [ARZT_MODELL]}, provider="test", modell="skript", dauer_ms=0
-        )
-
     a = uc4.router_adapter(
-        "How many employees were there in Vienna in March 2025?", _kette_kontext(), modell=modell
+        "How many employees were there in Vienna in March 2025?", _kette_kontext(ZAHL_WIEN)
     )
-    assert "Sprache: Deutsch" in gesehen[0] and a.text.startswith(ARZT)
-
-
-def test_kette_modell_sieht_die_zahl_von_uc3_nicht() -> None:
-    """Fängt das Zahlenecho an der Quelle: Mit der Zahl im Kontext schreibt das Modell sie zuerst hin."""
-    gesehen: list[str] = []
-
-    def modell(nachrichten: list[dict[str, str]], schema: Any, provider: Any) -> kern.ModellErgebnis:
-        gesehen.append(nachrichten[1]["content"])
-        return kern.ModellErgebnis(
-            json={"saetze": [ARZT_MODELL]}, provider="test", modell="skript", dauer_ms=0
-        )
-
-    uc4.router_adapter("Wie viele?", _kette_kontext(), modell=modell)
-    assert "390" not in gesehen[0] and "kürzere Wartezeiten" in gesehen[0]
+    assert a.text.startswith("Für Ihren nächsten Arzttermin in Wien heißt das:")
 
 
 def test_kette_viele_zahlen_stehen_nicht_als_liste_im_text() -> None:
     """Fängt „nach Bundesland“: neun Zahlen als Liste im Satz, die Bedeutung geht unter."""
     viele = [ZAHL_UC3.model_copy(update={"bezeichnung": f"Land {n}", "wert": n}) for n in range(1, 10)]
-    a = uc4.router_adapter(
-        "Beschäftigte nach Bundesland", _kette_kontext(*viele), modell=modell_mit(ARZT_MODELL)
-    )
-    assert a.text == f"{ARZT} {uc4.KETTE_VERWEIS}"
-    assert len(a.zahlen) == 9
+    a = uc4.router_adapter("Beschäftigte nach Bundesland", _kette_kontext(*viele))
+    assert a.text.endswith(uc4.KETTE_VERWEIS) and len(a.zahlen) == 9
 
 
 def test_kette_grenzfrage_bleibt_grenze_ohne_zahl() -> None:
     """Fängt: Die Kette umgeht die Grenzprüfung; eine Therapiefrage bekäme Zahlen statt des Grenztexts."""
-    modell = modell_mit("darf nicht kommen")
-    a = uc4.router_adapter(
-        "Welches Medikament soll ich gegen Fieber nehmen?", _kette_kontext(), modell=modell
-    )
-    assert a.zahlen == [] and modell.aufrufe == []
+    a = uc4.router_adapter("Welches Medikament soll ich gegen Fieber nehmen?", _kette_kontext())
+    assert a.zahlen == [] and "Arzttermin" not in a.text
+
+
+def test_kette_nachpruefung_bleibt(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt einen Text, der an der Nachprüfung vorbeigeht, seit kein Modell ihn schreibt."""
+    gesehen: list[str] = []
+    echt = uc4.grenze.nachpruefung
+
+    def spion(text: str) -> Any:
+        gesehen.append(text)
+        return echt(text)
+
+    monkeypatch.setattr(uc4.grenze, "nachpruefung", spion)
+    a = uc4.router_adapter("Oktober?", _kette_kontext())
+    assert gesehen == [a.text]
 
 
 def test_kette_belegsatz_nennt_keine_falsche_gliederung() -> None:
     """Fängt „Grundlage: 7.498 Beschäftigungsverhältnisse im März 2025“: Im März gab es rund 390.000, Wien und
     Branche fehlten im Satz (UI-Regie 05.11.)."""
-    wien = ZAHL_UC3.model_copy(
-        update={
-            "bezeichnung": "Beschäftigungsverhältnisse (Wien, Gesundheits- und Sozialwesen)",
-            "wert": 7498,
-        }
-    )
-    a = uc4.router_adapter("Wie viele?", _kette_kontext(wien), modell=modell_mit(ARZT_MODELL))
-    assert a.text == f"{ARZT} Grundlage ist die Zahl von StatAgent: 7.498."
-
-
-def test_kette_fester_satz_traegt_keine_ki_kennzeichnung() -> None:
-    """Fängt „Mit KI geschrieben“ unter einem festen Text: Steht der feste Satz da, hat kein Modell ihn
-    geschrieben."""
-    frage = "Wie viele Beschäftigte gab es im Oktober 2025?"
-    fest = uc4.router_adapter(frage, _kette_kontext(), modell=modell_mit("Sie werden schwieriger betreut."))
-    vom_modell = uc4.router_adapter(frage, _kette_kontext(), modell=modell_mit(ARZT_MODELL))
-    assert uc4.KETTE_FESTER_SATZ in fest.text and fest.modell is None
-    assert ARZT_MODELL in vom_modell.text and vom_modell.modell == "skript"
-
-
-def test_kette_ein_schlechter_satz_ersetzt_die_ganze_aussage() -> None:
-    """Fängt eine halbe Aussage: Nur „Mit mehr Personal …“ bleibt, die Gegenseite fehlt."""
-    modell = modell_mit(
-        "Mit mehr Personal warten Sie meist kürzer.", "Mit weniger Personal wird es schwieriger."
-    )
-    a = uc4.router_adapter("Wie viele?", _kette_kontext(), modell=modell)
-    assert a.text == f"{uc4.KETTE_ANFANG} {uc4.KETTE_FESTER_SATZ} {BELEGSATZ}"
-
-
-def test_kette_fester_satz_besteht_die_eigene_pruefung() -> None:
-    """Fängt einen festen Satz, den der Filter selbst abwiese: dann wäre die Regel und der Satz
-    auseinander."""
-    saetze = uc4.KETTE_FESTER_SATZ.replace(". ", ".|").split("|")
-    assert all(uc4._satz_erlaubt(s) for s in saetze)
-
-
-@pytest.mark.parametrize(
-    "satz",
-    [
-        "Wo mehr Personal arbeitet, kommen Sie meist schneller dran.",
-        "Mit weniger Personal warten Sie oft länger.",
-        "Wo Personal fehlt, warten Sie oft länger.",
-        "Bei mehr Fachkräften werden Sie oft besser betreut.",
-        "Mit mehr Personal nimmt sich die Praxis meist mehr Zeit für Sie.",
-    ],
-)
-def test_kette_eigene_worte_des_modells_kommen_durch(satz: str) -> None:
-    """Fängt eine zu enge Regel: Der feste Satz soll der seltene Rückfall sein, nicht die Regel (UI-Regie
-    05.11.)."""
-    a = uc4.router_adapter("Wie viele?", _kette_kontext(), modell=modell_mit(satz))
-    assert a.text == f"{uc4.KETTE_ANFANG} {satz} {BELEGSATZ}" and a.modell == "skript"
+    a = uc4.router_adapter("Wie viele?", _kette_kontext(ZAHL_WIEN))
+    assert a.text.endswith("Grundlage ist die Zahl von StatAgent: 7.498.")
