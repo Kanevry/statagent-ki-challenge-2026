@@ -80,5 +80,5 @@ Bernhard nennt sie von sich aus oder auf Nachfrage und versteckt sie nicht.
 
 - **Probe:** Fr 06:00 nach `probe.md`, Pfad A und Pfad B je einmal mit Uhr. Entscheide um 06:45: Teil 2 von D2, freie Datenfragen, Wien-Frage.
 - **Rückfall:** Hotspot wechseln, dann Terminal, dann Video (`demo-drehbuch.md`, Abschnitt „Rückfall“).
-- **Backup-Video:** Probelauf vom 05.11. 21:25 auf `main`, 2:34 Minuten. Das Endvideo entsteht bis 05:45 auf dem Stand des Freeze, Datei, Dauer und SHA-256 in `backup-video.md`. Es wird immer angesagt: „Das ist eine Aufzeichnung von heute früh.“
+- **Backup-Video:** Probelauf vom 05.11. 22:06 auf dem Stand von `main`, 2:43 Minuten. Das Endvideo entsteht bis 05:45 auf dem Stand des Freeze, Datei, Dauer und SHA-256 in `backup-video.md`. Es wird immer angesagt: „Das ist eine Aufzeichnung von heute früh.“
 - **USB-Stick:** beide Folien-PDFs und das Video (`docs/praesentation/werkzeug/README.md`).

@@ -40,7 +40,7 @@ Beleg: `README.md`, Abschnitt Lizenzen. Dauer einer Einführung: nicht gemessen.
 | Alle Anläufe rund um die drei Aufträge (05.11.2026) | 50 | 457.462 und 19.342 | | 39 bis 43 Cent |
 | Typischer Lauf (Median) aus 246 Läufen in den Proben | 2 | 15.380 und 320 | 3,0 s | 1,2 bis 1,3 Cent |
 
-- **Preis:** Azure-Preisliste (`prices.azure.com`, Region West Europe, abgerufen 05.11.2026): GPT 5.4 mini, je Million Tokens, Global 0,6733 € hinein und 4,0397 € heraus, Data Zone 0,7406 € und 4,4436 €. Die Spanne oben kommt aus diesen zwei Preisen, welcher für unsere Bereitstellung gilt, wissen wir nicht. Der Veranstalter stellt den Zugang, eine Rechnung haben wir nicht gesehen.
+- **Preis:** Azure-Preisliste (`prices.azure.com`, Region West Europe, abgerufen 05.11.2026): GPT 5.4 mini, je Million Tokens, Global 0,6733 € hinein und 4,0397 € heraus, Data Zone 0,7406 € und 4,4436 €. Die Spanne oben kommt aus diesen zwei Preisen, welcher für unsere Bereitstellung gilt, wissen wir nicht. Den Zugang stellt der Veranstalter.
 - **Tokens:** Protokoll der Modellaufrufe `var/protokoll/modellaufrufe.jsonl`, je Aufruf eine Zeile ohne Inhalt. Die Datei liegt je Arbeitsstand getrennt und nicht im Repo. Ausgewertet wurden drei davon.
 - **Nicht jeder Satz sitzt beim ersten Mal:** Auftrag 1 kam im ersten Anlauf, die Aufträge 2 und 3 brauchten mehrere. Die Zuordnung folgt aus den Zeitstempeln im Protokoll.
 - **Monatliche Betriebskosten:** nicht gemessen.
