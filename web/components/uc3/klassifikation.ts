@@ -5,6 +5,7 @@ import { ladeMassgeblichenLauf } from "./laeufe";
 import { monatsgrenzen } from "./monat";
 import { alltag } from "./sprache";
 import type { Lauf } from "./typen";
+import { bestandFilter } from "./zeitraum";
 
 /**
  * Klassifikationen für UC3 (#18, Frame XlcSB): Branchenabschnitte ÖNACE 2008 und 2025, Übergänge, Zuordnungsregeln
@@ -192,14 +193,14 @@ function stichtagsFilter(lauf: Pick<Lauf, "lieferung" | "regelstand">): string {
 
 /** SQL der Verhältnisse je Abschnitt in beiden Monaten, jeweils aus dem maßgeblichen Lauf. */
 export function sqlAbschnittBestand(
-  alt: Pick<Lauf, "lieferung" | "regelstand" | "regelsatz">,
+  alt: Pick<Lauf, "lieferung" | "regelstand" | "regelsatz" | "zeitraumArt">,
   neu: Pick<Lauf, "lieferung" | "regelstand" | "regelsatz">,
 ): string {
   return [
     "SELECT s.oenace_version, s.oenace, sum(s.wert) AS beschaeftigungsverhaeltnisse",
     "FROM stat.stat_beschaeftigte s",
     `WHERE s.regelsatz = ${literal(alt.regelsatz)}`,
-    "  AND s.zeitraum_art = 'Stichtag' AND s.variable = 'Beschaeftigungsverhaeltnisse'",
+    `  AND ${bestandFilter(alt.zeitraumArt, "s.")}`,
     `  AND (${stichtagsFilter(alt)}`,
     `    OR ${stichtagsFilter(neu)})`,
     "GROUP BY 1, 2 ORDER BY 2, 1;",
@@ -305,7 +306,7 @@ async function ladeBestand(sql: Sql): Promise<Klassifikationsdaten["bestand"]> {
     SELECT s.oenace_version, s.oenace, sum(s.wert) AS wert
     FROM stat.stat_beschaeftigte s
     WHERE s.regelsatz = ${alt.regelsatz}
-      AND s.zeitraum_art = 'Stichtag' AND s.variable = 'Beschaeftigungsverhaeltnisse'
+      AND s.zeitraum_art = ${alt.zeitraumArt} AND s.variable = 'Beschaeftigungsverhaeltnisse'
       AND ((s.regelstand = ${alt.regelstand} AND s.zeitraum_bis BETWEEN ${a.von} AND ${a.bis})
         OR (s.regelstand = ${neu.regelstand} AND s.zeitraum_bis BETWEEN ${n.von} AND ${n.bis}))
     GROUP BY 1, 2`;
