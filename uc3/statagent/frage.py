@@ -1200,7 +1200,7 @@ def _rueckfrage_monat(typ: str, jahr: str | None) -> dict[str, Any]:
             f"Zum Beispiel „Fluktuation je Wirtschaftsbereich im {monat}“."
         )
     if jahr is not None:
-        return _rueckfrage(jahr_rueckfrage(was, beispiel, jahr, ERSTE_LIEFERUNG, LETZTE_LIEFERUNG))
+        return _rueckfrage(jahr_rueckfrage(beispiel, jahr, ERSTE_LIEFERUNG, LETZTE_LIEFERUNG))
     return _rueckfrage(f"Für welchen Monat möchten Sie {was} wissen? Zum Beispiel „{beispiel} März 2025“.")
 
 

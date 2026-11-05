@@ -833,6 +833,26 @@ def test_jahr_vor_dem_monat_und_unklares_jahr(gerechnet: Verbindung) -> None:
     assert unklar_jahr["rueckfrage"] is True
 
 
+# Fängt: Ein Vorschlag der Rückfrage (auf /uc3/fragen ein Knopf) führt zu einer weiteren Rückfrage oder zu keiner Zahl.
+def test_vorschlaege_der_jahr_rueckfrage_funktionieren_als_frage(gerechnet: Verbindung) -> None:
+    for monat in ("2024-10", "2024-11"):  # die Fixture hat vier Lieferungen, Dezember fehlt
+        lauf_ausfuehren(gerechnet, monat, "v1")
+    text = antwort_frage(gerechnet, "Beschäftigte 2024")["text"]
+    vorschlaege = re.findall(r"„([^“]+)“", text)
+    assert vorschlaege == [
+        "Beschäftigte Dezember 2024",
+        "Beschäftigte Jahresdurchschnitt 2024",
+        "Zeitreihe 08/2024 bis 12/2024",
+    ]
+    soll = [_bestand(gerechnet, m)[()] for m in ("2024-08", "2024-09", "2024-10", "2024-11")]
+    monat, mittel, reihe = (antwort_frage(gerechnet, v) for v in vorschlaege)
+    assert not monat["rueckfrage"] and "Dezember 2024" in monat["text"]
+    assert [z["wert"] for z in mittel["zahlen"]] == [*soll, (2 * sum(soll) + 4) // 8] and not mittel[
+        "rueckfrage"
+    ]
+    assert [z["wert"] for z in reihe["zahlen"]] == soll and not reihe["rueckfrage"]
+
+
 # Fängt: Der Jahrgang ist kein Merkmal der Daten; die Frage gab den Gesamtbestand ohne Hinweis (Prüfung !169).
 @pytest.mark.parametrize(
     "frage", ["Beschäftigte Jahrgang 1990 im September 2024", "Geburtsjahr 1990 im September 2024"]

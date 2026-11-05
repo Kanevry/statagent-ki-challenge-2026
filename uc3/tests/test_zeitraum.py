@@ -245,6 +245,8 @@ def test_unklar_und_tag() -> None:
         "Jahresdurchschnitt 2025 und März",
         "2025 und im März",
         "2024 im März und im April 2025",
+        "Vergleich Juli mit 2025",
+        "Beschäftigte im Juli mit 2024 vergleichen",
         "2024 im Herbst 2025",
         # gegen die Lesereihenfolge
         "im Juli und August",
@@ -273,6 +275,7 @@ def test_jahr_nicht_zuzuordnen_fragt_zurueck(frage: str) -> None:
         ("Jahrgang 2025 im März", ()),
         ("Beschäftigte im März PLZ 2025", ()),
         ("Betriebe mit 2025 Mitarbeitern im März", ()),
+        ("mit 2025 Mitarbeitern im März", ()),
         ("Beschäftigte im März mit 2025 Euro", ()),
     ],
 )
@@ -294,6 +297,9 @@ def test_ohne_jahr_keine_rueckfrage(frage: str, nur: tuple[str, ...]) -> None:
         ("Sommer 2025 im Vergleich zum Vorjahr", "„Beschäftigte im Juni 2025 und im Juni 2024“"),
         ("Juli 2026 im Vergleich zum Vorjahr", "„Beschäftigte im Juli 2026 und im Juli 2025“"),
         ("März 2025 und 2026", "„Beschäftigte im März 2025 und im März 2026“"),
+        ("Juli 2026 verglichen mit 2025", "„Beschäftigte im Juli 2026 und im Juli 2025“"),
+        ("März 2026 im Vergleich mit 2025", "„Beschäftigte im März 2026 und im März 2025“"),
+        ("März 2026 mit 2025 vergleichen", "„Beschäftigte im März 2026 und im März 2025“"),
         ("Sommer 2024 und 2025", "„Beschäftigte im Juni 2024 und im Juni 2025“"),
     ],
 )
@@ -326,7 +332,7 @@ def test_jahr_rueckfrage_aus_vorhandenen_monaten() -> None:
     from statagent.uc4 import jahr_rueckfrage
 
     def text(jahr: str) -> str:
-        return jahr_rueckfrage("die Zahl der Beschäftigten", "Beschäftigte", jahr, "2024-08", "2026-07")
+        return jahr_rueckfrage("Beschäftigte", jahr, "2024-08", "2026-07")
 
     assert "zwölf Werte" in text("2025") and "„Beschäftigte Dezember 2025“" in text("2025")
     assert "„Zeitreihe 01/2025 bis 12/2025“" in text("2025")
@@ -334,6 +340,10 @@ def test_jahr_rueckfrage_aus_vorhandenen_monaten() -> None:
     assert "„Zeitreihe 01/2026 bis 07/2026“" in text("2026") and "Dezember 2026" not in text("2026")
     assert "5 Werte, August bis Dezember 2024" in text("2024") and "„Zeitreihe 08/2024 bis 12/2024“" in text(
         "2024"
+    )
+    assert text("2026").endswith(
+        "Meinen Sie einen Monat („Beschäftigte Juli 2026“), den Durchschnitt („Beschäftigte Jahresdurchschnitt 2026“) "
+        "oder alle Monate („Zeitreihe 01/2026 bis 07/2026“)?"
     )
     assert text("2023").startswith("Für 2023 gibt es keine Daten, nur für August 2024 bis Juli 2026.")
 
