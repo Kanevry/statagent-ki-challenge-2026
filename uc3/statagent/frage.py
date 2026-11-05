@@ -156,7 +156,7 @@ KANN = (
 #: Signalwörter für Merkmale, die es in den Daten der Anfrage nicht gibt: lieber ehrlich absagen als eine Zahl
 #: ohne diese Einschränkung zu liefern. Sprachverständnis, kein Rechenregelwerk (docs/plan/uc3/annahmen.md).
 ALTER_GRUND = (
-    "Das Durchschnittsalter und Geburtsjahrgänge wertet StatAgent bei Datenanfragen nicht aus. Es gibt Zahlen zu "
+    "Das Durchschnittsalter und Geburtsjahrgänge wertet StatAgent nicht aus. Es gibt Zahlen zu "
     "einem Alter oder einer Spanne, zum Beispiel „Beschäftigte unter 25 Jahren im Juli 2026“."
 )
 NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
@@ -288,9 +288,10 @@ def _normalisieren(frage: str, letzter: str) -> tuple[str, list[str], bool]:
 
 # --- Alter: Spalte stat.stat_beschaeftigte.alter (Regel R5), Altersgruppen aus stat.klass_alter wie im Sheet ------
 ALTERSGRUPPE = Merkmal(
-    "Altersgruppe",
+    "Alter",
     "(SELECT a.berichtsgruppe FROM stat.klass_alter a WHERE a.code = s.alter)",
-    "SELECT DISTINCT berichtsgruppe AS code, berichtsgruppe AS bezeichnung FROM stat.klass_alter",
+    "SELECT DISTINCT berichtsgruppe AS code, CASE WHEN berichtsgruppe ~ '^[0-9]+$' THEN berichtsgruppe || ' Jahre'"
+    " ELSE berichtsgruppe END AS bezeichnung FROM stat.klass_alter",
     ("alter",),
 )
 _ALTER_GRUPPEN = re.compile(
@@ -365,7 +366,8 @@ def nicht_auswertbar(frage: str, mittel: bool = False) -> str | None:
         if mittel and grund.startswith("Durchschnitte") and "median" not in text:
             continue
         if muster.search(text):
-            return f"{grund} Darum gibt es hier keine Zahl. {KANN}"
+            # Das Beispiel der Alters-Absage sagt schon, was geht.
+            return grund if grund is ALTER_GRUND else f"{grund} Darum gibt es hier keine Zahl. {KANN}"
     return None
 
 
@@ -459,7 +461,7 @@ def _verstanden(
     if "Alter" in gefiltert:
         teile.append(f"Alter {gefiltert['Alter'][1]}")
     if ALTERSGRUPPE in gruppen:
-        teile.append("je Altersgruppe")
+        teile.append("je Alter")
     return "Verstanden: " + ", ".join(teile) + "."
 
 
@@ -998,6 +1000,20 @@ def _bestand_antwort(
                 anteile.append(f"{name} {_komma(wert)} Prozent")
         if anteile:
             text += " Anteil an allen: " + ", ".join(anteile) + "."
+    if gruppen == (ALTERSGRUPPE,) and von == bis:
+        # Summe aller Alter für die letzte Tabellenzeile, als eigene Abfrage mit eigenem Beleg.
+        alle_sql = bestand_sql(conn, regelsatz, von, bis, filter_, ())
+        alle = _lesen(conn, alle_sql)
+        belege.append(_beleg(alle_sql, _staende(alle)))
+        zahlen.extend(
+            {
+                "bezeichnung": f"Beschäftigungsverhältnisse{zusatz}, Alle Altersstufen",
+                "wert": int(z["wert"]),
+                "einheit": einheit,
+                "beleg": len(belege) - 1,
+            }
+            for z in alle
+        )
     if gruppen == (GESCHLECHT, BUNDESLAND) and von == bis:
         # Summe je Geschlecht für die letzte Tabellenzeile, als eigene Abfrage mit eigenem Beleg. Nur für einen Monat:
         # Bestände mehrerer Monate darf man nicht addieren.
@@ -1443,7 +1459,7 @@ def _aufteilung(frage: str) -> Merkmal | None:
         return _gliederung(frage)
     if _gliederung(frage) is not None or _geschlecht_gegliedert(text):
         raise _KeineZahl(
-            "Die Altersgruppen gibt es nur ohne eine zweite Aufteilung. Bitte getrennt fragen, zum Beispiel "
+            "Die Zahlen je Alter gibt es nur ohne eine zweite Aufteilung. Bitte getrennt fragen, zum Beispiel "
             "„Frauen nach Altersgruppe im Juli 2026“."
         )
     return ALTERSGRUPPE

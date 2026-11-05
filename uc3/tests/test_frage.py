@@ -540,8 +540,6 @@ def test_verstanden_satz(gerechnet: Verbindung) -> None:
 @pytest.mark.parametrize(
     ("frage", "grund"),
     [
-        ("Wie viele Beschäftigte sind Jahrgang 1990 im August 2024?", "Geburtsjahrgänge"),
-        ("Durchschnittsalter der Beschäftigten im August 2024", "Alter"),
         ("Wie viele Jobs hatte Person 1234567 im August 2024?", "Einzeldaten"),
         ("Beschäftigte in Atlantis im August 2024", "„Atlantis“"),
         ("Beschäftigte im Bergbaubetrieb im August 2024", "„Bergbaubetrieb“"),
@@ -914,16 +912,22 @@ def test_alter_und_spanne(gerechnet: Verbindung, frage: str, von: int, bis: int,
 # Fängt: Die Altersgruppen weichen vom Bestand ab oder eine zweite Aufteilung fällt still weg.
 def test_altersgruppen(gerechnet: Verbindung) -> None:
     daten = antwort_frage(gerechnet, "Beschäftigte nach Altersgruppe im August 2024")
-    assert sum(z["wert"] for z in daten["zahlen"]) == _bestand(gerechnet, "2024-08")[()]
-    alter = next(z["bezeichnung"].rsplit(", ", 1)[-1] for z in daten["zahlen"] if z["wert"])
-    zeile = next(z for z in daten["zahlen"] if z["bezeichnung"].endswith(f", {alter}"))
-    assert alter.isdigit() and zeile["wert"] == _im_alter(gerechnet, "2024-08", int(alter), int(alter))
+    gesamt = _bestand(gerechnet, "2024-08")[()]
+    summe = daten["zahlen"][-1]
+    assert summe["bezeichnung"].endswith(", Alle Altersstufen") and summe["wert"] == gesamt
+    assert sum(z["wert"] for z in daten["zahlen"][:-1]) == gesamt
+    assert "je Alter" in daten["text"]
+    assert daten["belege"][summe["beleg"]] is not daten["belege"][daten["zahlen"][0]["beleg"]]
+    wort = next(z["bezeichnung"].rsplit(", ", 1)[-1] for z in daten["zahlen"][:-1] if z["wert"])
+    zeile = next(z for z in daten["zahlen"] if z["bezeichnung"].endswith(f", {wort}"))
+    alter = int(wort.removesuffix(" Jahre"))
+    assert zeile["wert"] == _im_alter(gerechnet, "2024-08", alter, alter)
     for frage in (
         "Männer und Frauen je Altersgruppe im August 2024",
         "Beschäftigte nach Altersgruppe je Bundesland im August 2024",
     ):
         absage = antwort_frage(gerechnet, frage)
-        assert absage["zahlen"] == [] and "ohne eine zweite Aufteilung" in absage["text"]
+        assert absage["zahlen"] == [] and "Die Zahlen je Alter gibt es nur ohne" in absage["text"]
 
 
 # Fängt: Mehrere Altersangaben ergeben still die erste; das Durchschnittsalter bleibt abgesagt.
@@ -939,6 +943,7 @@ def test_altersgruppen(gerechnet: Verbindung) -> None:
 def test_alter_nicht_eindeutig_keine_zahl(gerechnet: Verbindung, frage: str) -> None:
     daten = antwort_frage(gerechnet, frage)
     assert daten["zahlen"] == [] and "Durchschnittsalter" in daten["text"]
+    assert "StatAgent beantwortet" not in daten["text"]
 
 
 # Fängt: Der Jahrgang ist kein Merkmal der Daten; die Frage gab den Gesamtbestand ohne Hinweis (Prüfung !169).
