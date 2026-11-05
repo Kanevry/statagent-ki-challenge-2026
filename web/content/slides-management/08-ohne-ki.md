@@ -18,8 +18,8 @@ belege: [F16, F28]
 
 Wie lange dauert das bei Ihnen heute?
 
-Herkunft: Messung auf einem frischen Klon am 5. November 2026, Abnahmebericht Abschnitt 3
+Herkunft: Messung auf einer frischen Datenbank am 5. November 2026, Abnahmebericht Abschnitt 3
 
 ## Sprechernotizen
 
-Jetzt zu den Zahlen, nach denen Sie vermutlich fragen wollen. Alle 24 Monatslieferungen, zusammen gut zehn Millionen Zeilen, rechnet das Programm nach den alten Regeln in 8,4 Minuten, nach den neuen in knapp 13 Minuten. Gemessen auf einem frischen Klon, ohne Netz. Dabei fällt kein einziger Modellaufruf an, auch nicht bei einer Frage an die Daten. Und wir haben das 72-mal wiederholt: 72-mal genau dasselbe Ergebnis. Was ich Ihnen nicht sagen kann, ist die Ersparnis. Wir wissen nicht, wie lange der Prozess bisher dauert. Darum frage ich Sie: Wie lange dauert das bei Ihnen heute?
+Jetzt zu den Zahlen, nach denen Sie vermutlich fragen wollen. Alle 24 Monatslieferungen, zusammen gut zehn Millionen Zeilen, rechnet das Programm nach den alten Regeln in 8,4 Minuten, nach den neuen in knapp 13 Minuten. Gemessen auf einer frischen Datenbank ohne Netz. Dabei fällt kein einziger Modellaufruf an, auch nicht bei einer Frage an die Daten. Und wir haben 72 Monatsläufe wiederholt: 72-mal genau dasselbe Ergebnis. Was ich Ihnen nicht sagen kann, ist die Ersparnis. Wir wissen nicht, wie lange der Prozess bisher dauert. Darum frage ich Sie: Wie lange dauert das bei Ihnen heute?

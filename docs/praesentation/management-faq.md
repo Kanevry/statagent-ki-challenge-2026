@@ -46,8 +46,8 @@ Beleg: `README.md`, Abschnitt Lizenzen. Dauer einer Einführung: nicht gemessen.
 - **Monatliche Betriebskosten:** nicht gemessen.
 
 **7. Wie viel Zeit spart das Statistik-Team?**
-„Das wissen wir nicht, wir kennen die Dauer Ihres Prozesses nicht. Wie lange dauert das bei Ihnen heute? Von uns kann ich Ihnen die gemessene Dauer sagen: Alle 24 Lieferungen dauern bei uns 8,4 Minuten nach den alten Regeln und knapp 13 Minuten nach den neuen, gemessen auf einem frischen Klon.“
-Beleg: frischer Klon ohne Netz, main `87de2b0`: Regelsatz v1 504 s, v2 770 s; auf einem belasteten Rechner `uc3 lauf --alle` v1 13:08 und 13:39 Minuten (F28). Zeitersparnis: nicht gemessen. Keine Schätzung nennen.
+„Das wissen wir nicht, wir kennen die Dauer Ihres Prozesses nicht. Wie lange dauert das bei Ihnen heute? Von uns kann ich Ihnen die gemessene Dauer sagen: Alle 24 Lieferungen dauern bei uns 8,4 Minuten nach den alten Regeln und knapp 13 Minuten nach den neuen, gemessen auf einer frischen Datenbank ohne Netz.“
+Beleg: frische Datenbank ohne Netz, Stand `f7b985e`: Regelsatz v1 504 s, v2 770 s; frischer Klon unter Last, main `87de2b0`: 793 s und 1169 s (F28). Zeitersparnis: nicht gemessen. Keine Schätzung nennen.
 
 **8. Wie schnell kommt die Antwort auf eine Datenfrage?**
 „Innerhalb von Sekunden, mit der Abfrage dazu.“
@@ -80,8 +80,8 @@ Beleg: `kriterien-karte.md`, Fragenkatalog C14. Vor dem Freeze mit `main` abglei
 
 **14. Muss das nicht lokal und offline laufen?**
 „Es läuft lokal wie gefordert, und zusätzlich auf einem Server, den wir selbst betreiben. Sie können es selbst nachbauen. Die Abgabezahlen sind auf der eigenen Datenbank gerechnet, online läuft nur die Vorführung.“
-Dazu, wenn gefragt: „Der ganze Weg ab einem frischen Klon dauert rund 24 Minuten auf einem ruhigen Rechner, 34 Minuten unter Last.“
-Beleg: Messung des Jury-Wegs durch die Review-Bank am 05.11.2026, main `87de2b0`, frischer Klon, ohne Netz: Hash und Regelstand 24 von 24 je Regelsatz, 2.880 Zellen ohne Abweichung, Ministerium 32.741, `pruefe-abgabe` Exit 0 (F30).
+Dazu, wenn gefragt: „Der ganze Weg ab einem frischen Klon dauerte 36 Minuten, auf einer frischen Datenbank im vorhandenen Klon 24 Minuten, jeweils mit den Datentests.“
+Beleg: Messung des Jury-Wegs durch die Review-Bank am 05.11.2026, frischer Klon auf main `87de2b0`, ohne Netz: Hash und Regelstand 24 von 24 je Regelsatz, 2.880 Zellen ohne Abweichung, Ministerium 32.741, `pruefe-abgabe` Exit 0 (F30).
 Nur wenn gefragt: Neu erzeugte Sheets und Berichte weichen byteweise ab (Status, Lauf-IDs, Kommentare), die Zellwerte nicht.
 
 **15. Was passiert, wenn das Modell ausfällt?**
