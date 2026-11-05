@@ -9,6 +9,8 @@ import { alsCsv, istRueckfrage } from "@/components/uc3/antwort";
 import {
   antwortTabelle,
   ersterSatz,
+  kopfSagtVerstanden,
+  kopfSatz,
   rueckfrageVorschlaege,
   teileBezeichnung,
   verstandenSatz,
@@ -302,6 +304,7 @@ function Antwort({
   const verstanden = verstandenSatz(antwort);
   const [beleg] = antwort.belege;
   const eine = antwort.zahlen.length === 1 ? antwort.zahlen[0] : undefined;
+  const kopf = eine ? null : kopfSatz(antwort.text);
   // Vorläufig, sobald irgendein Beleg vorläufig ist; veröffentlicht nur, wenn alle Belege endgültig sind (Review !104).
   const staende = antwort.belege.map((b) => b.stand);
   const stand = staende.includes("vorlaeufig")
@@ -320,10 +323,10 @@ function Antwort({
           <p className="font-sans text-16 text-ink">{teileBezeichnung(eine.bezeichnung).was}</p>
         </div>
       ) : (
-        <p className="font-sans text-20 font-semibold text-pretty text-ink">{ersterSatz(antwort.text)}</p>
+        <p className="font-sans text-20 font-semibold text-pretty text-ink">{kopf}</p>
       )}
 
-      {verstanden && <p className="font-sans text-16 text-slate">{verstanden}</p>}
+      {verstanden && !(kopf && kopfSagtVerstanden(kopf)) && <p className="font-sans text-16 text-slate">{verstanden}</p>}
 
       {!eine && <Tabelle antwort={antwort} />}
 
