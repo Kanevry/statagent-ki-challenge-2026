@@ -2,7 +2,7 @@
 
 (a) Fixture-Lieferungen (CI): Treffer der Fallen aus test_lauf_fixture (Volldublette 1005, DK → C 1008,
     leer → UNB/0 1007, Alter 153 Jahre 1011, Spaltentausch 2024-10, Erstlieferung 2024-08).
-(b) `-m daten`: gegen die Datenbank mit allen 24 Lieferungen (UC3_DATEN_URL, Standard m5-Tunnel), in einer
+(b) `-m daten`: gegen die Datenbank mit allen 24 Lieferungen (UC3_DATEN_URL, Standard: Tunnel auf localhost:15433), in einer
     Transaktion, die am Ende zurückgerollt wird. Soll-Zahlen aus der unabhängigen Gegenrechnung.
 """
 
@@ -251,7 +251,7 @@ def test_2025_10_unvollstaendige_lieferung_haelt_an(daten: Verbindung) -> None:
 
 def test_blattsummen_folgen_der_beschaeftigungskategorie(conn: Verbindung) -> None:
     # Fängt: Nach Auftrag 1 (R6 zählt nach Beschäftigungskategorie) prüfte P21 die Zellen gegen die fünf
-    # Qualifikationscodes; nur „Beamte“ traf, jeder v2-Monat hielt an (m5-Lauf 05.11., Summe 13.187 statt Bestand).
+    # Qualifikationscodes; nur „Beamte“ traf, jeder v2-Monat hielt an (Lauf 05.11., Summe 13.187 statt Bestand).
     import json
 
     from statagent.agenten.regelaenderung import regelsatz_sicherstellen

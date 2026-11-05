@@ -38,7 +38,7 @@ fehlt der Beleg, und `pruefe-abgabe` meldet die Lieferung als offen.
 
 ## Stand der Zahlen
 
-Alle 24 Monate sind vorläufig, solange Regelsatz v1 nicht mit Namen freigegeben ist
-(`uv run uc3 regeln freigeben --regelsatz v1 --name "Vor- und Nachname"`, danach `uv run uc3 veroeffentlichen --alle --name …`).
-2025-03 und 2025-10 enthalten zusätzlich fortgeschriebene Verhältnisse (Regel E07). Das Sheet nennt sie im Blatt
-Hinweise und im Kommentar der Monatsspalte, der Qualitätsbericht in § 1.
+Regelsatz v1 ist mit Namen freigegeben, 22 der 24 Monate sind veröffentlicht und damit endgültig.
+2025-03 und 2025-10 bleiben vorläufig: In diesen Lieferungen fehlt ein Teil der Verhältnisse, wir haben ihn einmal
+aus der Vorlieferung übernommen (Regel E07) und warten auf die Antwort der Fachabteilung (Rückfragen R3 und R4).
+Das Sheet nennt diese Monate im Blatt Hinweise und im Kommentar der Monatsspalte, der Qualitätsbericht in § 1.

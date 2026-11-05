@@ -391,6 +391,33 @@ def beleg_text(regel: Regel, auswertung: Auswertung, dateiname: str, sha256: str
     return "\n".join(zeilen)
 
 
+#: Die Sollwerte in docs/plan/uc3 (annahmen.md A13, ministerium-oracle.md Soll-sha256) gelten für die Abgabe 07/2026.
+ABGABE_MONAT = "2026-07"
+
+
+def soll_pruefen(repo_pfad: Path, berichtsmonat: str, zeilen: int, sha256: str) -> None:
+    """Vor dem Schreiben: Für den Abgabemonat müssen Personenzahl und sha256 den dokumentierten Sollwerten entsprechen.
+
+    Die erste Freigabe einer Lieferung ist endgültig; ein Abweichen fällt deshalb hier auf, nicht erst in
+    ``pruefe-abgabe`` nach dem Commit (Review 69, Punkt 2). Andere Monate (etwa eine Live-Änderung) prüft das nicht.
+    """
+    if berichtsmonat != ABGABE_MONAT:
+        return
+    from statagent.berichte.pruefe_abgabe import ministerium_soll, ministerium_soll_sha256
+
+    soll_zeilen, soll_sha = ministerium_soll(repo_pfad), ministerium_soll_sha256(repo_pfad)
+    if soll_zeilen is None or soll_sha is None:
+        raise RegelFehler(
+            "Sollwerte für die Abgabe fehlen (A13 in docs/plan/uc3/annahmen.md, Soll-sha256 in ministerium-oracle.md)"
+        )
+    if zeilen != soll_zeilen:
+        raise RegelFehler(
+            f"{zeilen:,} Personen statt Soll {soll_zeilen:,} (A13); nichts geschrieben".replace(",", ".")
+        )
+    if sha256 != soll_sha:
+        raise RegelFehler(f"sha256 {sha256[:12]}… statt Soll {soll_sha[:12]}… (Orakel); nichts geschrieben")
+
+
 def ministerium_schreiben(
     conn: Verbindung,
     berichtsmonat: str,
@@ -435,6 +462,7 @@ def ministerium_schreiben(
             ) from None
     inhalt = auswertung.csv([str(f) for f in wert(regel, "felder")], str(wert(regel, "trennzeichen")))
     sha = hashlib.sha256(inhalt.encode("utf-8")).hexdigest()
+    soll_pruefen(wurzel, berichtsmonat, len(auswertung.zeilen), sha)
     _bisherige_lieferung(conn, berichtsmonat, sha)
     datei.parent.mkdir(parents=True, exist_ok=True)
     beleg.parent.mkdir(parents=True, exist_ok=True)

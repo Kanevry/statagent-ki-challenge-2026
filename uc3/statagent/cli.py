@@ -500,8 +500,12 @@ def agent(
     anweisung: Annotated[str, typer.Argument(help="Änderungsauftrag in Sprache")],
     regelsatz_basis: Annotated[str, typer.Option(help="Regelsatz, von dem der Vorschlag ausgeht")] = "v1",
     probe: Annotated[
-        str | None, typer.Option(help="Probemonat JJJJ-MM: Zahlen vorher/nachher gleich mitrechnen")
+        str | None,
+        typer.Option(
+            help="Probemonat JJJJ-MM: Zahlen vorher/nachher gleich mitrechnen (Standard: jüngster gerechneter Monat)"
+        ),
     ] = None,
+    ohne_probe: Annotated[bool, typer.Option("--ohne-probe", help="keine Probe rechnen")] = False,
     als_json: JsonOption = False,
 ) -> None:
     """Gibt einen Änderungsauftrag an den Koordinator-Agenten (erzeugt einen Vorschlag, ändert nichts)."""
@@ -519,6 +523,13 @@ def agent(
         modell_fehler = (PlattformFehlt, LlmFehler)
 
     with verbinden() as conn:
+        if probe is None and not ohne_probe:
+            # Die Probe zeigt die Wirkung am jüngsten gerechneten Monat; 2024-08 (Erstlieferung) zeigt bei
+            # Auftrag 2 nur +48 und unterschätzt die Wirkung (Sichtprüfung UI, 05.11.).
+            gerechnet = [
+                m for m in lieferungen(conn) if ergebnis.letzter_lauf(conn, m, regelsatz_basis) is not None
+            ]
+            probe = max(gerechnet) if gerechnet else None
         try:
             erg = agent_ausfuehren(conn, anweisung, regelsatz_basis=regelsatz_basis, probe_lieferung=probe)
         except modell_fehler as fehler:

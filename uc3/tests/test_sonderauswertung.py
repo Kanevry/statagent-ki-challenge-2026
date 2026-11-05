@@ -340,3 +340,23 @@ def test_lieferung_nur_mit_abgabe_definition(
         )
     assert not (tmp_path / "extern").exists() and not (tmp_path / "abgabe").exists()
     assert _ausgaben(conn) == []
+
+
+def test_abgabemonat_schreibt_nur_mit_sollwerten(tmp_path: Path) -> None:
+    # Fängt: Die erste Freigabe der Ministeriums-Lieferung ist endgültig; eine falsche Zahl (32.713 ohne Altcodes)
+    # fiel bisher erst nach dem Commit in pruefe-abgabe auf (Review 69, Punkt 2).
+    from statagent.sonderauswertung import ABGABE_MONAT, soll_pruefen
+
+    (tmp_path / "docs" / "plan" / "uc3").mkdir(parents=True)
+    (tmp_path / "docs" / "plan" / "uc3" / "annahmen.md").write_text(
+        "| A13 | Ministerium | **32.741 Personen** |\n", encoding="utf-8"
+    )
+    (tmp_path / "docs" / "plan" / "uc3" / "ministerium-oracle.md").write_text(
+        "Soll-sha256: `" + "a" * 64 + "`\n", encoding="utf-8"
+    )
+    soll_pruefen(tmp_path, ABGABE_MONAT, 32741, "a" * 64)
+    soll_pruefen(tmp_path, "2026-06", 1, "b" * 64)  # andere Monate prüft das nicht
+    with pytest.raises(RegelFehler, match="32.713 Personen statt Soll 32.741"):
+        soll_pruefen(tmp_path, ABGABE_MONAT, 32713, "a" * 64)
+    with pytest.raises(RegelFehler, match="sha256"):
+        soll_pruefen(tmp_path, ABGABE_MONAT, 32741, "b" * 64)
