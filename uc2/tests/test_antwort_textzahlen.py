@@ -120,3 +120,85 @@ def test_wort_der_bezeichnung_gilt_als_einheit() -> None:
         bereinige("Rund 135.790 Beschäftigte arbeiten dort.", z) == "Rund 135.790 Beschäftigte arbeiten dort."
     )
     assert ERSATZ in bereinige("Es gibt 135.790 fehlende Stellen.", z)
+
+
+# --- Review-Bank 69 zu !73 ------------------------------------------------------------------------------
+
+
+PROFIL = [
+    "Patientenlenkung über Hausärztinnen, Hausärzte und 1450",
+    "Gesundheitshotline 1450 stärken",
+    "digitale Versorgung über ELGA, 1450 und Telemedizin ausbauen",
+]
+
+
+@pytest.mark.parametrize(
+    ("text", "bleibt"),
+    [
+        ("Es fehlen 1450 Pflegekräfte.", False),
+        ("Dafür fehlen 1450 im Land.", False),
+        ("Über 1450 Pflegekräfte fehlen.", False),
+        ("Die Hotline 1450 hilft.", True),
+        ("Die Gesundheitshotline 1450 hilft.", True),
+        ("Ruf das Telefon 1450 an.", True),
+        ("Die Rufnummer 1450 hilft.", True),
+        ("Lenkung über 1450 entlastet.", True),
+        # Wortlaut aus dem Profil, Komma und „und“ dazwischen zählen nicht
+        ("Lenkung über Hausärzte und 1450 entlastet.", True),
+        ("Versorgung über ELGA, 1450 und Telemedizin.", True),
+        ("Es fehlen Ärzte und 1450 im Land.", False),
+    ],
+)
+def test_profilzahl_nur_mit_bezeichnung_aus_dem_profil(text: str, bleibt: bool) -> None:
+    from uc2.antwort.textzahlen import profilzahlen
+
+    assert (freie_zahlen(text, [], profilzahlen(PROFIL)) == []) is bleibt
+
+
+@pytest.mark.parametrize(
+    ("text", "frei"),
+    [
+        ("Es fehlen 2025 zusätzliche Pflegekräfte.", ["2025"]),
+        ("Es fehlen 2025.", ["2025"]),
+        ("Das gilt bis 2030.", []),
+        ("Das war im Jahr 2025 so.", []),
+        ("Stand März 2025.", []),
+        ("2025 wurde gestritten.", []),
+        ("Danach: 2025 gab es Streit.", []),
+        ("Zwischen 2025 und 2030 steigt es.", []),
+        ("2025 zusätzliche Pflegekräfte fehlen.", ["2025"]),
+    ],
+)
+def test_jahr_nur_mit_zeitkontext(text: str, frei: list[str]) -> None:
+    assert freie_zahlen(text, ZAHLEN) == frei
+
+
+@pytest.mark.parametrize(
+    ("text", "frei"),
+    [
+        ("Es gibt 135.790 Gesundheitszentren.", ["135.790"]),
+        ("Es gibt 135.790 Sozialwesen.", ["135.790"]),
+        ("Es gibt 135.790 Beschäftigte.", []),
+        ("Es gibt 135.790 Personen.", []),
+        ("Dort arbeiten 135.790 Menschen.", []),
+    ],
+)
+def test_einheit_nur_ueber_feste_aliasse(text: str, frei: list[str]) -> None:
+    assert freie_zahlen(text, ZAHLEN) == frei
+
+
+def test_gleiche_einheit_anderer_begriff_passt_nicht() -> None:
+    ziel = [
+        Zahl(bezeichnung="Ziel Wartezeitänderung", wert=-20, einheit="%", beleg=0),
+        Zahl(bezeichnung="Ziel Mehrkosten höchstens", wert=5, einheit="%", beleg=0),
+    ]
+    assert freie_zahlen("Das bringt −20 % Mehrkosten.", ziel) == ["−20 %"]
+    assert freie_zahlen("Die Mehrkosten sinken um −20 %.", ziel) == ["−20 %"]
+    assert freie_zahlen("Das bringt −20 % Wartezeit.", ziel) == []
+    assert freie_zahlen("Das Ziel ist −20 % Wartezeit bei höchstens 5 % Mehrkosten.", ziel) == []
+    assert freie_zahlen("Das Ziel ist −20 % Mehrkosten bei höchstens 5 % Wartezeit.", ziel) == [
+        "−20 %",
+        "5 %",
+    ]
+    # ohne Kennwort im Satzteil entscheidet nur Wert, Vorzeichen und Einheit
+    assert freie_zahlen("Das Ziel liegt bei −20 %.", ziel) == []

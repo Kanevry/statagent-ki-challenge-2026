@@ -486,3 +486,35 @@ def test_budget_erschoepft_in_der_akteursrunde(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(uc2.modelle, "complete", nur_ein_aufruf)
     ergebnis = durchreichen(DEMO, kette=("uc2",), adapter={"uc2": antwort})
     assert [(f.uc, f.grund) for f in ergebnis.fehlend] == [("uc2", "BudgetErschoepft")]
+
+
+def _budget_bei(monkeypatch: pytest.MonkeyPatch, trifft: Any) -> None:
+    """`BudgetErschoepft` für jeden Aufruf, bei dem `trifft(rolle, nummer)` gilt; sonst der Mock."""
+    echt = uc2.modelle.complete
+    gezaehlt: dict[str, int] = {}
+
+    def complete(nachrichten: list[dict[str, str]], **kw: Any) -> Any:
+        erste = next(n["content"] for n in nachrichten if n["role"] == "user")
+        rolle = str((lies_kontext(erste) or {}).get("rolle"))
+        gezaehlt[rolle] = gezaehlt.get(rolle, 0) + 1
+        if trifft(rolle, gezaehlt[rolle]):
+            raise BudgetErschoepft("Das Tageskontingent für Modellaufrufe ist aufgebraucht.")
+        return echt(nachrichten, **kw)
+
+    monkeypatch.setattr(uc2.modelle, "complete", complete)
+
+
+def test_budget_erschoepft_bei_einem_akteur_trotz_zwei_gueltigen(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review-Bank 69: Zwei gültige Züge reichen für ein Ergebnis, der Budgetfehler geht trotzdem weiter."""
+    _budget_bei(monkeypatch, lambda rolle, n: rolle == "akteur" and n % 3 == 0)
+    with pytest.raises(BudgetErschoepft):
+        antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")])
+    ergebnis = durchreichen(PRAES, kette=("uc2",), adapter={"uc2": antwort})
+    assert [(f.uc, f.grund) for f in ergebnis.fehlend] == [("uc2", "BudgetErschoepft")]
+
+
+def test_budget_erschoepft_in_der_notiz(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review-Bank 69: Scheitert die Notiz am Budget, gibt es kein Ergebnis ohne Notiz, sondern den Fehler."""
+    _budget_bei(monkeypatch, lambda rolle, n: rolle == "moderator_notiz")
+    with pytest.raises(BudgetErschoepft):
+        antwort(DEMO, [_uc3()])

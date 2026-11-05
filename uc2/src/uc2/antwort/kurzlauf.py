@@ -16,8 +16,9 @@ laufen bei echten Providern parallel. Mit einer Frist (`frist_bis`) folgt nach d
 weitere Runde und keine Notiz mehr. So sind es höchstens 1 + Akteure + 1 Aufrufe (Auftrag, Züge, Notiz),
 zuzüglich der Wiederholungen bei ungültigen Antworten.
 
-`BudgetErschoepft` aus `plattform.llm` geht unverändert an den Aufrufer, damit der Router den Grund
-`BudgetErschoepft` meldet (Hinweis aus #100 in Web und Voice).
+`BudgetErschoepft` aus `plattform.llm` geht immer an den Aufrufer, damit der Router den Grund
+`BudgetErschoepft` meldet (Hinweis aus #100 in Web und Voice): auch wenn genug Akteure gültig sind und auch
+aus der Notiz. Ein Ergebnis ohne Hinweis auf das erschöpfte Budget gibt es nicht (Review zu !73).
 """
 
 from __future__ import annotations
@@ -253,7 +254,7 @@ class _Kurzlauf:
                 )
 
             ergebnisse = _zuege({aid: functools.partial(zug, aid) for aid in teilnehmer}, parallel)
-            budget_aus = any(erg.fehler == ["BudgetErschoepft"] for erg in ergebnisse.values())
+            budget_aus |= any(erg.fehler == ["BudgetErschoepft"] for erg in ergebnisse.values())
             jetzt = {}
             gueltig: dict[str, dict[str, Any]] = {}
             letzte_befunde, ohne_beleg = [], []
@@ -295,18 +296,19 @@ class _Kurzlauf:
             gelaufen = runde
             if budget_aus or self.frist_um():
                 break
+        if budget_aus:
+            # Immer weiter, auch bei genug gültigen Zügen; die Ursache verschluckt `fuehre_zug_aus`, Typ und
+            # Meldung wie in plattform.llm.
+            raise BudgetErschoepft("Das Tageskontingent für Modellaufrufe ist aufgebraucht.")
         mit_position = [aid for aid in teilnehmer if aid in letzter_zug]
         if len(mit_position) < MIN_TEILNEHMER:
-            if budget_aus:
-                # Die Ursache verschluckt `fuehre_zug_aus`; Typ und Meldung wie in plattform.llm.
-                raise BudgetErschoepft("Das Tageskontingent für Modellaufrufe ist aufgebraucht.")
             raise KurzlaufFehler(
                 f"nur {len(mit_position)} von {len(teilnehmer)} Akteuren mit gültigem Zug "
                 f"(mindestens {MIN_TEILNEHMER} nötig)"
             )
         klass = klassifikation(jetzt, teilnehmer, themen)
         notiz = None
-        if self.mit_notiz and not budget_aus and not self.frist_um():
+        if self.mit_notiz and not self.frist_um():
             notiz = self._notiz(auftrag, teilnehmer, gelaufen, jetzt, aend, klass, letzte_befunde, ohne_beleg)
         return Kurzergebnis(
             auftrag=auftrag,
@@ -332,7 +334,9 @@ class _Kurzlauf:
         befunde: list[dict[str, Any]],
         ohne_beleg: list[dict[str, str]],
     ) -> str | None:
-        """Notiz des Moderators zur letzten Runde; fehlt sie (ungültig), entfällt sie, ohne Ersatztext."""
+        """Notiz des Moderators zur letzten Runde; fehlt sie (ungültig), entfällt sie, ohne Ersatztext.
+
+        Ein erschöpftes Budget ist kein ungültiger Text: `BudgetErschoepft` geht weiter an den Aufrufer."""
         nachrichten = prompts.notiz_nachrichten(
             frage=self.frage,
             auftrag=auftrag,
@@ -346,8 +350,8 @@ class _Kurzlauf:
         )
         try:
             antwort = rufe(self.rm_moderator, mit_alltagsregel(nachrichten), prompts.NOTIZ_SCHEMA)
-        except UngueltigeAntwort:
-            # Auch bei erschöpftem Budget: Die Abwägung steht, nur die Notiz entfällt.
+        except UngueltigeAntwort as fehler:
+            _budget_weiter(fehler)
             return None
         self.modelle.add(modellname(antwort.provider, antwort.modell))
         return str(antwort.json["notiz"])
