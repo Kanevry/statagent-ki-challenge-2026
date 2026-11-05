@@ -1,6 +1,6 @@
 # Fragenkatalog der Fachjury
 
-Der Katalog hilft am Tisch, wenn die Fachjury nachfragt. Er enthält die drei Datenanfragen der Aufgabenstellung, fünf geübte Live-Änderungen und die Fragen, die wir erwarten.
+Der Katalog hilft am Tisch, wenn die Fachjury nachfragt. Er enthält die drei Datenanfragen der Aufgabenstellung, vier geübte Live-Änderungen und die Fragen, die wir erwarten.
 
 Regel: Jede Antwort ist in unter 30 Sekunden lesbar. Aufbau je Frage: Frage, Kurzantwort, Antwortweg, Fundstelle im Repo, Zahlen mit Kennung F….
 
@@ -193,11 +193,13 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Satz der Jury:** „Rechnen Sie bei Geburtsmonat 13 nur mit der Differenz der Jahre, nicht mit dem 1. Juli.“
 
-**Befehl:** `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2025-03`. Geprobt am 05.11.2026 18:20 bis 18:25 mit dem Stand von !50: 3 von 3 gültige Vorschläge.
+**Befehl:** `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2026-06`. Der Vorschlag selbst ist am 05.11.2026 18:20 bis 18:25 mit dem Stand von !50 geprobt, 3 von 3 gültig, damals mit 2025-03. Diesen Monat nicht mehr nehmen, siehe unten.
 
 **Was der Vorschlag ändert:** Regel `R5_alter`, Parameter `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`. Der Agent darf für diesen Parameter nur `jahresdifferenz` oder `unbekannt` vorschlagen (`uc3/statagent/agenten/koordinator.py`, Zeile 81). Einen anderen Ersatztag wie den 1. Jänner weist er ab.
 
-**Erwartete Wirkung:** Der Gesamtbestand ändert sich nie, nur das Alter einzelner Verhältnisse mit Monat 13. Für August 2024 gilt Jahresdifferenz gleich Ersatztag 1. Juli, der Beispielbericht bleibt exakt (F4). Im März 2025 liegt der Stichtag vor dem 1. Juli: Mit Jahresdifferenz sind diese Verhältnisse ein Jahr älter, der Vorschlag zeigt verschobene Altersgruppen.
+**Erwartete Wirkung:** Der Gesamtbestand ändert sich nie, nur das Alter einzelner Verhältnisse mit Monat 13. Für August 2024 gilt Jahresdifferenz gleich Ersatztag 1. Juli, der Beispielbericht bleibt exakt (F4). Im Juni 2026 liegt der Stichtag vor dem 1. Juli: Mit Jahresdifferenz sind diese Verhältnisse ein Jahr älter, der Vorschlag zeigt wenige verschobene Altersgruppen, der Gesamtbestand bleibt 403.301 (einmal gemessen von der UC3-Lane, 05.11.2026 22:40, Commit d888e09, bis zum Vorschlag). Dreimal gegen die Vorführ-Instanz ist noch offen. Juli bis Dezember zeigen keinen Unterschied, das ist fachlich richtig.
+
+**Falle:** Mit `--probe 2025-03` zeigt die Probe 396.762 → 395.292 (−1.470), obwohl sich nur das Alter ändert. In der Probe fehlen die Fortschreibungen von 2025-03 und 2025-10. Der Fix kommt mit !150, die Abgabe ist nicht betroffen.
 
 **Wozu die Übung dient:** Sie zeigt, dass die offene Frage R1 an die Fachabteilung ein Regelparameter ist und keine Programmänderung.
 
@@ -207,11 +209,11 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Satz der Jury:** „Halten Sie einen Monat schon bei 3 Prozent Bestandsrückgang an, nicht erst bei 5.“
 
-**Befehl:** `uv run uc3 agent "Halte einen Monat schon an, wenn der Bestand um mehr als 3 Prozent unter dem Vormonat liegt." --probe 2025-10`
+**Befehl:** `uv run uc3 agent "Halte einen Monat schon an, wenn der Bestand um mehr als 3 Prozent unter dem Vormonat liegt." --probe 2026-07`
 
 **Was der Vorschlag ändert:** Prüfregel `P15_bestand_vs_vormonat` (Typ `pruefung`), Parameter `schwelle` von 0.05 auf 0.03.
 
-**Erwartete Wirkung:** Der Bestand ändert sich nicht, eine Prüfregel ändert keine Zahl. Es ändert sich nur, welche Monate anhalten. Teil-Lieferung 2025-10 hält ohnehin an (P15, P16, P17, F11). Welche weiteren Monate die neue Schwelle träfe, zeigt die Probe live.
+**Erwartete Wirkung:** Der Bestand ändert sich nicht, eine Prüfregel ändert keine Zahl. Im Juli 2026 bleibt die Gesamtzahl 407.604 (einmal gemessen von der UC3-Lane, 05.11.2026, Commit d888e09, mit fast gleichem Satz). Die Probe zeigt also keinen Unterschied. Das sagen wir dazu: Es ändert sich nur, welche Monate anhalten, und das sieht man in dieser Probe nicht. Nicht mit `--probe 2025-10` proben, dort fehlen in der Probe die Fortschreibungen (siehe B2).
 
 **Freigabe:** `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`
 
@@ -227,21 +229,15 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Freigabe:** `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`
 
-### B5 Gegenprobe: Schwelle für verschwundene Ausprägungen anheben, ablehnen
+### B5 Nicht vorführen: Schwelle für verschwundene Ausprägungen anheben
 
-**Satz der Jury:** „Melden Sie eine verschwundene Ausprägung erst, wenn sie vorher mehr als 2.000 Verhältnisse hatte.“
+**Satz der Jury, falls er kommt:** „Melden Sie eine verschwundene Ausprägung erst, wenn sie vorher mehr als 2.000 Verhältnisse hatte.“
 
-**Befehl:** `uv run uc3 agent "Melde eine verschwundene Ausprägung erst, wenn sie im Vormonat mehr als 2000 Verhältnisse hatte." --probe 2025-03`
+**Warum nicht als Übung:** Die Probe zeigt nur Zahlen, keine Treffer der Prüfregeln. Dass etwas nicht mehr gemeldet würde, sieht man dort in keinem Monat. Aus dem Code gelesen von der UC3-Lane, nicht gemessen.
 
-**Was der Vorschlag ändert:** Prüfregel `P13_auspraegung_verschwunden`, Parameter `schwelle` von 100 auf 2000.
+**Was wir sagen:** „Eine Prüfregel ändert keine Zahl, die Probe zeigt also keinen Unterschied. Diese Änderung würde ich ablehnen: Die 1.492 freien Dienstverträge vom März 2025 (F9) würden nicht mehr gemeldet.“
 
-**Erwartete Wirkung:** Die freien Dienstverträge in 2025-03 (AngestellteFD 1.131, ArbeiterFD 361, zusammen 1.492, F9) liegen jeweils unter 2.000. Die Prüfregel würde den Monat nicht mehr anhalten. Das ist eine Änderung, die wir nicht wollen.
-
-**Was wir sagen:** Die Probe zeigt die Folge, bevor etwas gilt. Wir lehnen ab:
-
-`uv run uc3 ablehnen <id> --name "Bernhard Götzendorfer" --begruendung "Schwelle würde den Ausfall der freien Dienstverträge nicht mehr melden"`
-
-**Wozu die Übung dient:** Sie zeigt, dass der Mensch nein sagen kann und die Ablehnung im Protokoll steht (`uv run uc3 protokoll --zeigen`).
+**Wenn die Jury das Nein sehen will:** Satz mit `--probe 2026-07` tippen, dann `uv run uc3 ablehnen <id> --name "Bernhard Götzendorfer" --begruendung "Schwelle würde den Ausfall der freien Dienstverträge nicht mehr melden"`. Die Ablehnung steht im Protokoll (`uv run uc3 protokoll --zeigen`).
 
 ## Teil C: Weitere Fragen der Fachjury
 

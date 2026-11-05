@@ -27,6 +27,7 @@ Die Zeiten sind Richtwerte, gemessen wird in der Probe. Wichtig ist die Reihenfo
 - **Online über Hotspot** (Owner 05.11.2026). Vorführ-Adresse mit Passwort, Modell Azure. Einen Lauf ohne Netz gibt es nicht. Die Adresse meldet die Lane Vorführung, sie steht nicht im Repo.
 - **Datenbank der Vorführung:** eine eigene Kopie der Abgabe-Datenbank, nie `statistik` selbst, auch nach 09:00 nicht. Die Abgabezahlen sind auf der eigenen Datenbank gerechnet, online läuft nur die Vorführung. So bleibt die Abgabe jederzeit nachrechenbar.
 - **Klickwege für D1 und D2:** Beide laufen im Browser auf der Vorführ-Adresse. Wörtlich trägt sie Bernhard hier ein, sobald die Lane Vorführung Pfad und Texte gemeldet hat (`docs/betrieb/vorfuehrung.md`). Bis dahin zeigt dieses Drehbuch den Weg im Terminal.
+- **Was die Zahlen im D2 zeigen:** D1 läuft vor D2. Die Zahlen nachher kommen aus der Probe auf dem Vorschlag, ein Monat auf dem neuen Regelsatz wird live nicht gerechnet. Offene Vorschläge nacheinander ablehnen, zwei können auf denselben neuen Regelsatz zielen (#169).
 - **Zwischen zwei Durchläufen:** Zurücksetzen nach `docs/betrieb/vorfuehrung.md`, damit die Proben nicht in der Vorführung stehen.
 
 ## Schritte
@@ -74,14 +75,14 @@ Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „
 - Sagt Bernhard (Entwurf, Wortlaut stimmt er um 07:00 ab, FAQ Frage 11): „Die drei Aufträge der Aufgabe habe ich in Sätzen gestellt, die Agenten schrieben Vorschläge. Die Freigaben hat in meinem Auftrag eine KI-Sitzung eingegeben, ich habe sie um 18:22 mit meinem Namen bestätigt. Das steht offen im Protokoll.“
 - Sagt Bernhard (bei 1): „Der Gesamtbestand bleibt bei 392.236. Die Kategorien verschieben sich, zum Beispiel Angestellte von 0 auf 236.961.“
 
-**Teil 2, live per Sprache (6:00–9:30):** Laut Aufgabenstellung gibt die Jury eine kleine, unbekannte Änderung vor. Bernhard fragt: „Nennen Sie mir eine Regel, die ich jetzt ändern soll.“ Er wiederholt den Wunsch der Jury in einem Satz und tippt diesen Satz. Die fünf geübten Änderungen im Fragenkatalog Teil B decken die naheliegenden Wünsche ab (Altersgrenze, Geburtsmonat 13, Schwelle Bestandsrückgang, Spaltentausch, Gegenprobe). Nennt die Jury nichts, nimmt Bernhard B2.
+**Teil 2, live per Sprache (6:00–9:30):** Laut Aufgabenstellung gibt die Jury eine kleine, unbekannte Änderung vor. Bernhard fragt: „Nennen Sie mir eine Regel, die ich jetzt ändern soll.“ Er wiederholt den Wunsch der Jury in einem Satz und tippt diesen Satz. Die vier geübten Änderungen im Fragenkatalog Teil B decken die naheliegenden Wünsche ab (Altersgrenze, Geburtsmonat 13, Schwelle Bestandsrückgang, Spaltentausch). Nennt die Jury nichts, nimmt Bernhard B2.
 
-1. Im Terminal tippen: `uv run uc3 agent "<Satz>" --probe JJJJ-MM` und Enter. Im Satz den Zielwert nennen. Ersatz B2: `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2025-03`. Der Agent schreibt einen Vorschlag.
+1. Im Terminal tippen: `uv run uc3 agent "<Satz>" --probe JJJJ-MM` und Enter. Im Satz den Zielwert nennen. Ersatz B2: `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2026-06`. Der Agent schreibt einen Vorschlag. Solange der Fix aus !150 nicht auf main ist, nie mit `--probe 2025-03` oder `--probe 2025-10` proben: Dort zeigt die Probe eine falsche Gesamtzahl.
 2. `uv run uc3 vorschlag zeigen <id>`: Regel-Unterschied und Zahlen vorher und nachher. Bei B2: `R5_alter`, `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`.
 3. `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`, dann `uv run uc3 protokoll --zeigen`.
 
 - Sagt Bernhard (bei 1): „Ich sage dem Agenten in einem Satz, was er ändern soll.“
-- Sagt Bernhard (bei 2): „Hier ist, was sich ändern würde, vorher und nachher. Wirksam wird es erst mit meinem Namen.“ Bei B2 zusätzlich: „Der Gesamtbestand bleibt gleich, im März 2025 verschieben sich Altersgruppen.“
+- Sagt Bernhard (bei 2): „Hier ist, was sich ändern würde, vorher und nachher. Wirksam wird es erst mit meinem Namen.“ Bei B2 zusätzlich: „Der Gesamtbestand bleibt gleich, im Juni 2026 wechseln wenige Verhältnisse die Altersgruppe.“
 - Rückfall Agent: Kommt „Kein Vorschlag“, sendet Bernhard den Satz einmal neu und nennt den Zielwert ausdrücklich. Kommt er wieder, sagt er „Das zeige ich Ihnen mit einer geübten Änderung“ und nimmt B2. Scheitert auch das, bleibt es beim Rückblick aus Teil 1.
 - Will die Jury etwas, das eine neue Regel oder Code braucht (keine Änderung eines Parameters), sagt Bernhard: „Das wäre eine neue Regel. Der Agent schlägt sie vor, freigeben würde ich sie erst nach einer Probe.“ und nimmt B2.
 - Azure antwortet nicht: Hotspot wechseln (10 s), Satz noch einmal. Geht es dann nicht, reicht Teil 1 als Beleg, und Bernhard sagt das offen.
@@ -92,7 +93,7 @@ Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „
 - Freigabe mit Vor- und Nachname, „Team“ wird abgelehnt (`shared/py/plattform/freigabe.py`, `pruefe_name`).
 - Eintrag im Protokoll (F26).
 
-**Stand der Proben:** 05.11.2026 17:56 bis 17:58 auf main 321a7176: B1, B2, B3 ohne Vorschlag oder abgebrochen. 18:20 bis 18:25 mit dem Code von !50: B2 dreimal von drei gültig.
+**Stand der Proben:** 05.11.2026 17:56 bis 17:58 auf main 321a7176: B1, B2, B3 ohne Vorschlag oder abgebrochen. 18:20 bis 18:25 mit dem Code von !50: B2 dreimal von drei gültig. Das war mit 2025-03. Am selben Abend maß die UC3-Lane dort 396.762 → 395.292 (−1.470) bei einer reinen Altersänderung: In der Probe fehlen die Fortschreibungen von 2025-03 und 2025-10, der Fix kommt mit !150, die Abgabe ist nicht betroffen. Mit 2026-06 bleibt die Gesamtzahl bei 403.301 (einmal gemessen von der UC3-Lane, 22:40, Commit d888e09, bis zum Vorschlag), dreimal gegen die Vorführ-Instanz ist noch offen. Juli bis Dezember zeigen bei B2 keinen Unterschied, das ist fachlich richtig.
 
 - Nie `freigabe` üben: Es committet ins Repo, einen Reset gibt es nicht. Proben nur gegen `statistik_probe`.
 - Entscheid in `probe.md` (Fr 06:45): Teil 1 allein oder Teil 1 und Teil 2.
@@ -184,7 +185,7 @@ Jeder Punkt wird abgehakt, sobald er geprüft ist. Uhrzeit nur aus der Uhr (`TZ=
 - [ ] D1: Monat gewählt (2025-10 oder 2025-03) und in `probe.md` eingetragen.
 - [ ] D3: Die acht geprüften Fragen auf `/uc3/fragen` und mit `uv run uc3 frage "…"` geprobt, jede Zahl gegen die Sollzahl der Tabelle. SQL A1 bis A3 als Rückfall bereit, `<regelstand>` eingesetzt.
 - [ ] D4: Sollwert 7.498 (F18) gegen die Abfrage im Belegregister geprüft. Testmodus-Ansage bereit.
-- [ ] D2: `uv run uc3 vorschlag zeigen 24` und `uv run uc3 protokoll --zeigen` laufen auf dem Vortragsrechner. B2 nur, wenn es nach dem Fix der UC3-Lane dreimal gegen `statistik_probe` geklappt hat. Nie `freigabe` geübt.
+- [ ] D2: `uv run uc3 vorschlag zeigen 24` und `uv run uc3 protokoll --zeigen` laufen auf dem Vortragsrechner. B2 nur, wenn es mit `--probe 2026-06` dreimal gegen `statistik_vorfuehrung` geklappt hat. Nie `freigabe` geübt.
 - [ ] Datenbank: `UC3_DATABASE_URL` zeigt auf `statistik_vorfuehrung`, nicht auf `statistik`. Prüfung ohne Wert: Datenbankname im Kopf der App oder `uv run uc3 laeufe` liefert die 24 Läufe der Kopie. Checkout steht auf einem Demo-Branch, der für diesen Lauf frisch ab main angelegt ist.
 - [ ] Protokolleintrag der Freigabe von Auftrag 1 (05.11.2026 16:54) gefunden, Fenster für den Rückblick bereit.
 - [ ] Entscheid D4 um 06:45 getroffen und in `probe.md` eingetragen.
