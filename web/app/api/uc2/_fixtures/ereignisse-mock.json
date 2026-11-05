@@ -1,0 +1,4216 @@
+[
+ {
+  "seq": 1,
+  "runde": null,
+  "art": "start",
+  "akteur": null,
+  "daten": {
+   "fall": "wartezeiten",
+   "frage": "Wie können die Wartezeiten auf Facharzttermine innerhalb von fünf Jahren um 20 % reduziert werden, ohne die Gesundheitsausgaben um mehr als 5 % zu erhöhen?",
+   "modelle": {
+    "akteur": {
+     "zweck": "uc2.panel",
+     "modell": "mock-fixture",
+     "aufwand": null,
+     "provider": "mock"
+    },
+    "moderator": {
+     "zweck": "uc2.panel",
+     "modell": "mock-fixture",
+     "aufwand": null,
+     "provider": "mock"
+    }
+   },
+   "stichtag": "2026-09-30",
+   "max_runden": 5,
+   "belegquelle": "fixture",
+   "max_akteure": 6
+  },
+  "zeit": "2026-11-05T16:04:59.263150+01:00"
+ },
+ {
+  "seq": 2,
+  "runde": null,
+  "art": "experte",
+  "akteur": null,
+  "daten": {
+   "paket": "beispiel-wartezeiten",
+   "beschreibung": "Fachärztliche Kassenstellen +3 % und digitale Triage vor 20 % der fachärztlichen Kontakte",
+   "entscheidend": "entscheidend: ρ₀ (Auslastung der fachärztlichen Kassenversorgung im Ausgangsjahr (Nachfrage/Kapazität), Typ A): bei Min 0,70 Wartezeit −16,02 %, Kosten 0,21 %, Ziel verfehlt; bei Max 0,95 Wartezeit −53,37 %, Kosten 0,21 %, Ziel erreicht",
+   "zielpruefung": "offen",
+   "modus_erreicht": true,
+   "mehrkosten_mio_eur": {
+    "max": 250.0,
+    "min": 58.9,
+    "modus": 128.2
+   },
+   "kosten_aenderung_prozent": {
+    "max": 0.41,
+    "min": 0.1,
+    "modus": 0.21
+   },
+   "wartezeit_aenderung_prozent": {
+    "max": -8.62,
+    "min": -62.75,
+    "modus": -22.24
+   }
+  },
+  "zeit": "2026-11-05T16:04:59.264489+01:00"
+ },
+ {
+  "seq": 3,
+  "runde": null,
+  "art": "auftrag",
+  "akteur": "moderator",
+  "daten": {
+   "ziel": "Wie können die Wartezeiten auf Facharzttermine innerhalb von fünf Jahren um 20 % reduziert werden, ohne die Gesundheitsausgaben um mehr als 5 % zu erhöhen?",
+   "modell": "mock-fixture",
+   "regeln": [
+    "Jede Haltung stützt sich auf einen übergebenen Beleg oder ist als Modellannahme benannt.",
+    "Zahlen nur mit Quelle experte oder einer Beleg-ID.",
+    "Ab Runde 2 geht jeder Zug auf mindestens einen anderen Teilnehmer ein.",
+    "Rote Linien gelten; Zugeständnisse nur gegen ausdrückliche Bedingungen."
+   ],
+   "themen": [
+    {
+     "id": "kassenstellen",
+     "titel": "Zusätzliche Kassenstellen",
+     "beschreibung": "Zusätzliche Kassenstellen im Umfang des Pakets (% zusätzliche fachärztliche Kassenstellen gegenüber dem Bestand)"
+    },
+    {
+     "id": "triage",
+     "titel": "Digitale Facharzt-Triage",
+     "beschreibung": "Digitale Facharzt-Triage im Umfang des Pakets (% der fachärztlichen Kontakte, denen eine digitale Triage vorgeschaltet wird)"
+    },
+    {
+     "id": "finanzierung",
+     "titel": "Gegenfinanzierung der Mehrkosten",
+     "beschreibung": "Wer trägt die Mehrkosten im Budget von Bund, Ländern und Krankenversicherung"
+    },
+    {
+     "id": "patientenlenkung",
+     "titel": "Patientenlenkung über Hotline und Primärversorgung",
+     "beschreibung": "Lenkung der Facharzttermine über Gesundheitshotline, Terminvergabe und Primärversorgung"
+    }
+   ],
+   "provider": "mock",
+   "kriterien": [
+    "Wirkung Wartezeit",
+    "Kosten",
+    "Akzeptanz",
+    "Umsetzbarkeit",
+    "Versorgungsqualität"
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.267902+01:00"
+ },
+ {
+  "seq": 4,
+  "runde": null,
+  "art": "auswahl",
+  "akteur": "moderator",
+  "daten": {
+   "akteure": [
+    {
+     "akteur": "aerztekammer",
+     "belegzahl": 5,
+     "eingeladen": true,
+     "begruendung": "Gewählt (Rang 3): 5 Belege zum Fall, 2 Themenbezüge."
+    },
+    {
+     "akteur": "finanzministerium",
+     "belegzahl": 3,
+     "eingeladen": true,
+     "begruendung": "Gewählt (Rang 6): 3 Belege zum Fall, 2 Themenbezüge."
+    },
+    {
+     "akteur": "gesetzgeber",
+     "belegzahl": 1,
+     "eingeladen": false,
+     "begruendung": "Nicht gewählt (Rang 13): 1 Belege zum Fall, 0 Themenbezüge; die Obergrenze von 6 Akteuren ist mit stärker belegten Akteuren erreicht."
+    },
+    {
+     "akteur": "gesundheitsministerium",
+     "belegzahl": 6,
+     "eingeladen": true,
+     "begruendung": "Gewählt (Rang 2): 6 Belege zum Fall, 2 Themenbezüge."
+    },
+    {
+     "akteur": "krankenanstalten",
+     "belegzahl": 3,
+     "eingeladen": false,
+     "begruendung": "Nicht gewählt (Rang 8): 3 Belege zum Fall, 1 Themenbezüge; die Obergrenze von 6 Akteuren ist mit stärker belegten Akteuren erreicht."
+    },
+    {
+     "akteur": "laender",
+     "belegzahl": 4,
+     "eingeladen": false,
+     "begruendung": "Nicht gewählt (Rang 9): 4 Belege zum Fall, 0 Themenbezüge; die Obergrenze von 6 Akteuren ist mit stärker belegten Akteuren erreicht."
+    },
+    {
+     "akteur": "patienten",
+     "belegzahl": 5,
+     "eingeladen": true,
+     "begruendung": "Gewählt (Rang 4): 5 Belege zum Fall, 2 Themenbezüge."
+    },
+    {
+     "akteur": "pflege",
+     "belegzahl": 1,
+     "eingeladen": false,
+     "begruendung": "Nicht gewählt (Rang 12): 1 Belege zum Fall, 1 Themenbezüge; die Obergrenze von 6 Akteuren ist mit stärker belegten Akteuren erreicht."
+    },
+    {
+     "akteur": "pharma",
+     "belegzahl": 0,
+     "eingeladen": false,
+     "begruendung": "Nicht gewählt (Rang 14): 0 Belege zum Fall, 0 Themenbezüge; die Obergrenze von 6 Akteuren ist mit stärker belegten Akteuren erreicht."
+    },
+    {
+     "akteur": "public_health",
+     "belegzahl": 2,
+     "eingeladen": false,
+     "begruendung": "Nicht gewählt (Rang 10): 2 Belege zum Fall, 1 Themenbezüge; die Obergrenze von 6 Akteuren ist mit stärker belegten Akteuren erreicht."
+    },
+    {
+     "akteur": "sozialpartner",
+     "belegzahl": 2,
+     "eingeladen": false,
+     "begruendung": "Nicht gewählt (Rang 7): 2 Belege zum Fall, 2 Themenbezüge; die Obergrenze von 6 Akteuren ist mit stärker belegten Akteuren erreicht."
+    },
+    {
+     "akteur": "sv",
+     "belegzahl": 6,
+     "eingeladen": true,
+     "begruendung": "Gewählt (Rang 1): 6 Belege zum Fall, 3 Themenbezüge."
+    },
+    {
+     "akteur": "vertragsaerzte",
+     "belegzahl": 4,
+     "eingeladen": true,
+     "begruendung": "Gewählt (Rang 5): 4 Belege zum Fall, 2 Themenbezüge."
+    },
+    {
+     "akteur": "wahlaerzte",
+     "belegzahl": 4,
+     "eingeladen": false,
+     "begruendung": "Nicht gewählt (Rang 11): 4 Belege zum Fall, 0 Themenbezüge; die Obergrenze von 6 Akteuren ist mit stärker belegten Akteuren erreicht."
+    }
+   ],
+   "max_akteure": 6
+  },
+  "zeit": "2026-11-05T16:04:59.275526+01:00"
+ },
+ {
+  "seq": 5,
+  "runde": 1,
+  "art": "runde",
+  "akteur": null,
+  "daten": {
+   "phase": "position",
+   "teilnehmer": [
+    "aerztekammer",
+    "finanzministerium",
+    "gesundheitsministerium",
+    "patienten",
+    "sv",
+    "vertragsaerzte"
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.275998+01:00"
+ },
+ {
+  "seq": 6,
+  "runde": 1,
+  "art": "belege",
+  "akteur": "aerztekammer",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "31e8d18812a7-007-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-18",
+     "monat": "2026-09",
+     "titel": "Kammer fordert attraktivere Kassenverträge",
+     "pdf_seite": null,
+     "zitat": "Die Ärztekammer sieht den Ärztemangel im Kassenbereich als Folge unattraktiver Verträge. Sie fordert höhere Honorare, flexible Arbeitszeitmodelle und weniger Dokumentationspflichten."
+    },
+    {
+     "beleg_id": "9ab8157bb3b1-008-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-05",
+     "monat": "2026-09",
+     "titel": "Ärztekammer skeptisch gegenüber Pflichtlenkung",
+     "pdf_seite": null,
+     "zitat": "Eine verpflichtende Lenkung aller Patienten über eine Hotline lehnt die Ärztekammer ab. Sie befürchtet zusätzliche Hürden für chronisch Kranke. Die Patientenvertretung sieht in einer freiwilligen Lenkung Chancen."
+    },
+    {
+     "beleg_id": "b835bdccb3c8-009-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-20",
+     "monat": "2026-08",
+     "titel": "Gesamtvertrag: Verhandlungen stocken",
+     "pdf_seite": null,
+     "zitat": "Die Ärztekammer verlangt eine Erhöhung der Tarife für fachärztliche Leistungen, bevor neue Stellen besetzt werden können."
+    },
+    {
+     "beleg_id": "ed63ed9e0deb-010-01",
+     "medium": "Regionalanzeiger",
+     "datum": "2026-07-14",
+     "monat": "2026-07",
+     "titel": "Wahlarztsystem als Ventil",
+     "pdf_seite": null,
+     "zitat": "Eine Abschaffung würde die Wartezeiten aus ihrer Sicht weiter verlängern."
+    },
+    {
+     "beleg_id": "47ede0b32189-011-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-06-30",
+     "monat": "2026-06",
+     "titel": "Spitalsärzte klagen über volle Ambulanzen",
+     "pdf_seite": null,
+     "zitat": "Spitalsärzte berichten von überfüllten Ambulanzen, weil Termine im niedergelassenen Bereich fehlen. Die Krankenanstalten wünschen sich eine bessere Abstimmung mit den Kassenpraxen."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.299284+01:00"
+ },
+ {
+  "seq": 7,
+  "runde": 1,
+  "art": "zug",
+  "akteur": "aerztekammer",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 1,
+      "beleg_ids": [
+       "31e8d18812a7-007-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Kassenstellen durch bessere Honorare und weniger Bürokratie attraktiv machen. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "47ede0b32189-011-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen Kassenstellen durch bessere Honorare und weniger Bürokratie attraktiv machen und Gesamtverträge brauchen die Zustimmung der Sozialversicherung.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": -1,
+      "beleg_ids": [
+       "31e8d18812a7-007-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema berührt unsere Grenze: keine Abschaffung des Wahlarztsystems.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 1,
+      "beleg_ids": [
+       "31e8d18812a7-007-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: verbindliche, bundesweit einheitliche Patientenlenkung einführen.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": []
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.299925+01:00"
+ },
+ {
+  "seq": 8,
+  "runde": 1,
+  "art": "belege",
+  "akteur": "finanzministerium",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "79ba84c07c6e-017-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-08",
+     "monat": "2026-09",
+     "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
+     "pdf_seite": null,
+     "zitat": "Bund, Länder und Sozialversicherung beraten über eine Finanzierung aus einer Hand. Das Finanzministerium besteht auf der Ausgabenobergrenze, die Länder wollen Planungshoheit über die Spitäler behalten."
+    },
+    {
+     "beleg_id": "515bfa0c6262-004-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-28",
+     "monat": "2026-08",
+     "titel": "Gebarung der Kassen unter Druck",
+     "pdf_seite": null,
+     "zitat": "Das Finanzministerium lehnt zusätzliche Bundesmittel ohne Gegenfinanzierung ab. Die Kassen wollen dennoch keine Leistungen kürzen."
+    },
+    {
+     "beleg_id": "ab275863e008-020-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-08-17",
+     "monat": "2026-08",
+     "titel": "Keine höheren Beiträge",
+     "pdf_seite": null,
+     "zitat": "Zusätzliche Ausgaben müssten durch Kostendämpfung an anderer Stelle gedeckt werden."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.300381+01:00"
+ },
+ {
+  "seq": 9,
+  "runde": 1,
+  "art": "zug",
+  "akteur": "finanzministerium",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 0,
+      "beleg_ids": [
+       "ab275863e008-020-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen Ausgabendynamik im Gesundheitswesen dämpfen und Defizitverfahren und Fiskalregeln der Europäischen Union. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "515bfa0c6262-004-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen Ausgabendynamik im Gesundheitswesen dämpfen und Defizitverfahren und Fiskalregeln der Europäischen Union.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 1,
+      "beleg_ids": [
+       "79ba84c07c6e-017-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Fiskalregeln und Budgetpfad einhalten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 0,
+      "beleg_ids": [
+       "ab275863e008-020-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen Ausgabendynamik im Gesundheitswesen dämpfen und keine Ausweitung des Defizits für das Gesundheitswesen.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": []
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.300670+01:00"
+ },
+ {
+  "seq": 10,
+  "runde": 1,
+  "art": "belege",
+  "akteur": "gesundheitsministerium",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "fcfc027ce213-012-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-25",
+     "monat": "2026-09",
+     "titel": "Patientenanwaltschaft verlangt Terminobergrenze",
+     "pdf_seite": null,
+     "zitat": "Die Patientenvertretung verlangt eine Obergrenze für die Wartezeit auf Kassentermine. Das Gesundheitsministerium prüft eine Terminservicestelle nach ausländischem Vorbild."
+    },
+    {
+     "beleg_id": "cc25450aedaa-022-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-19",
+     "monat": "2026-09",
+     "titel": "Digitale Ersteinschätzung evaluieren",
+     "pdf_seite": null,
+     "zitat": "Eine digitale Ersteinschätzung vor dem Facharzttermin kann Überweisungen vermeiden, sagen Gesundheitsökonomen. Sie raten zu einer begleitenden Evaluierung, bevor das Angebot flächendeckend kommt."
+    },
+    {
+     "beleg_id": "c22f87ab3139-015-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-12",
+     "monat": "2026-09",
+     "titel": "Gruppenpraxen sollen leichter möglich werden",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium will Gruppenpraxen und Primärversorgungseinheiten rechtlich erleichtern. Vertragsärzte begrüßen das, verlangen aber eine faire Abgeltung längerer Öffnungszeiten."
+    },
+    {
+     "beleg_id": "fac632294cff-003-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-10",
+     "monat": "2026-09",
+     "titel": "Gesundheitshotline soll Termine vermitteln",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium und die Sozialversicherung planen, dass die Gesundheitshotline künftig auch Facharzttermine vermittelt. Eine digitale Ersteinschätzung soll vor dem Termin klären, wie dringend ein Anliegen ist."
+    },
+    {
+     "beleg_id": "79ba84c07c6e-017-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-08",
+     "monat": "2026-09",
+     "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
+     "pdf_seite": null,
+     "zitat": "Bund, Länder und Sozialversicherung beraten über eine Finanzierung aus einer Hand. Das Finanzministerium besteht auf der Ausgabenobergrenze, die Länder wollen Planungshoheit über die Spitäler behalten."
+    },
+    {
+     "beleg_id": "6237cadbc584-023-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-03",
+     "monat": "2026-09",
+     "titel": "Novelle zur Terminvergabe in Begutachtung",
+     "pdf_seite": null,
+     "zitat": "Eine Gesetzesnovelle zur Terminvergabe geht in Begutachtung. Sie soll die Zuständigkeit für eine Terminservicestelle klären und eine Wirkungsfolgenabschätzung enthalten."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.301126+01:00"
+ },
+ {
+  "seq": 11,
+  "runde": 1,
+  "art": "zug",
+  "akteur": "gesundheitsministerium",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 0,
+      "beleg_ids": [
+       "cc25450aedaa-022-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen gemeinsame Planung und Finanzierung aus einer Hand mit Ländern und Sozialversicherung umsetzen und Krankenanstalten sind Landessache, der Bund braucht die Länder. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 1,
+      "beleg_ids": [
+       "79ba84c07c6e-017-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: digitale Versorgung über ELGA, 1450 und Telemedizin ausbauen.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 0,
+      "beleg_ids": [
+       "c22f87ab3139-015-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen gemeinsame Planung und Finanzierung aus einer Hand mit Ländern und Sozialversicherung umsetzen und Krankenanstalten sind Landessache, der Bund braucht die Länder.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "79ba84c07c6e-017-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Gesundheitsversorgungszentren und Primärversorgungseinheiten ausbauen.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": []
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.301731+01:00"
+ },
+ {
+  "seq": 12,
+  "runde": 1,
+  "art": "belege",
+  "akteur": "patienten",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "fcfc027ce213-012-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-25",
+     "monat": "2026-09",
+     "titel": "Patientenanwaltschaft verlangt Terminobergrenze",
+     "pdf_seite": null,
+     "zitat": "Die Patientenvertretung verlangt eine Obergrenze für die Wartezeit auf Kassentermine. Das Gesundheitsministerium prüft eine Terminservicestelle nach ausländischem Vorbild."
+    },
+    {
+     "beleg_id": "74ae27909bd4-002-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-15",
+     "monat": "2026-09",
+     "titel": "Wartezeit auf Facharzttermine bleibt lang",
+     "pdf_seite": null,
+     "zitat": "Patientinnen und Patienten warten in mehreren Fächern viele Wochen auf einen Kassentermin. Die Patientenvertretung fordert eine verbindliche Terminservicestelle. Die Krankenversicherung verweist auf unbesetzte Kassenstellen."
+    },
+    {
+     "beleg_id": "9ab8157bb3b1-008-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-05",
+     "monat": "2026-09",
+     "titel": "Ärztekammer skeptisch gegenüber Pflichtlenkung",
+     "pdf_seite": null,
+     "zitat": "Eine verpflichtende Lenkung aller Patienten über eine Hotline lehnt die Ärztekammer ab. Sie befürchtet zusätzliche Hürden für chronisch Kranke. Die Patientenvertretung sieht in einer freiwilligen Lenkung Chancen."
+    },
+    {
+     "beleg_id": "007f2b90aa6d-013-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-03",
+     "monat": "2026-08",
+     "titel": "Sorge vor Zweiklassenmedizin",
+     "pdf_seite": null,
+     "zitat": "Wer es sich leisten kann, weicht zum Wahlarzt aus. Die Patientenvertretung warnt vor einer Zweiklassenmedizin, wenn Kassentermine knapp bleiben."
+    },
+    {
+     "beleg_id": "c7e7a1b753b2-014-01",
+     "medium": "Regionalanzeiger",
+     "datum": "2026-07-21",
+     "monat": "2026-07",
+     "titel": "Telemedizin auf dem Land gefragt",
+     "pdf_seite": null,
+     "zitat": "In ländlichen Regionen nutzen Patientinnen und Patienten telemedizinische Angebote häufiger. Die Patientenvertretung fordert, dass diese Angebote als Kassenleistung gelten."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.302379+01:00"
+ },
+ {
+  "seq": 13,
+  "runde": 1,
+  "art": "zug",
+  "akteur": "patienten",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 0,
+      "beleg_ids": [
+       "007f2b90aa6d-013-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen kürzere Wartezeiten auf Kassentermine und Operationen und keine zusätzlichen Kosten für Versicherte ohne soziale Staffelung. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "9ab8157bb3b1-008-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen kürzere Wartezeiten auf Kassentermine und Operationen und keine Entscheidungsmacht über Verträge oder Budgets.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 0,
+      "beleg_ids": [
+       "fcfc027ce213-012-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen kürzere Wartezeiten auf Kassentermine und Operationen und keine Entscheidungsmacht über Verträge oder Budgets.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "007f2b90aa6d-013-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Gesundheitshotline 1450 mit verbindlichem Termin als Ergebnis.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": []
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.302714+01:00"
+ },
+ {
+  "seq": 14,
+  "runde": 1,
+  "art": "belege",
+  "akteur": "sv",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "3b23f309efd0-001-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-22",
+     "monat": "2026-09",
+     "titel": "Kasse will mehr Facharztstellen ausschreiben",
+     "pdf_seite": null,
+     "zitat": "Die Sozialversicherung kündigt an, zusätzliche fachärztliche Kassenstellen auszuschreiben. Vor allem in ländlichen Bezirken bleiben Stellen bisher unbesetzt. Die Vertragsärzte verlangen dafür bessere Honorare und weniger Bürokratie."
+    },
+    {
+     "beleg_id": "74ae27909bd4-002-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-15",
+     "monat": "2026-09",
+     "titel": "Wartezeit auf Facharzttermine bleibt lang",
+     "pdf_seite": null,
+     "zitat": "Patientinnen und Patienten warten in mehreren Fächern viele Wochen auf einen Kassentermin. Die Patientenvertretung fordert eine verbindliche Terminservicestelle. Die Krankenversicherung verweist auf unbesetzte Kassenstellen."
+    },
+    {
+     "beleg_id": "fac632294cff-003-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-10",
+     "monat": "2026-09",
+     "titel": "Gesundheitshotline soll Termine vermitteln",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium und die Sozialversicherung planen, dass die Gesundheitshotline künftig auch Facharzttermine vermittelt. Eine digitale Ersteinschätzung soll vor dem Termin klären, wie dringend ein Anliegen ist."
+    },
+    {
+     "beleg_id": "515bfa0c6262-004-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-28",
+     "monat": "2026-08",
+     "titel": "Gebarung der Kassen unter Druck",
+     "pdf_seite": null,
+     "zitat": "Das Finanzministerium lehnt zusätzliche Bundesmittel ohne Gegenfinanzierung ab. Die Kassen wollen dennoch keine Leistungen kürzen."
+    },
+    {
+     "beleg_id": "c79b2f3f10a7-005-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-08-12",
+     "monat": "2026-08",
+     "titel": "Streit um Erstattung für Wahlarztbesuche",
+     "pdf_seite": null,
+     "zitat": "Die Sozialversicherung prüft, die Erstattung für Wahlarztbesuche an eine Versorgungspflicht zu knüpfen. Die Vertretung der Wahlärzte warnt vor einem Rückzug aus der Versorgung."
+    },
+    {
+     "beleg_id": "ae6b911ced1e-006-01",
+     "medium": "Regionalanzeiger",
+     "datum": "2026-07-30",
+     "monat": "2026-07",
+     "titel": "Ambulanzen und Kassen ringen um Patientenströme",
+     "pdf_seite": null,
+     "zitat": "Die Bundesländer wollen Spitalsambulanzen entlasten und Patienten in den niedergelassenen Bereich lenken. Die Sozialversicherung verlangt, dass das Geld der Leistung folgt."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.303141+01:00"
+ },
+ {
+  "seq": 15,
+  "runde": 1,
+  "art": "zug",
+  "akteur": "sv",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 2,
+      "beleg_ids": [
+       "ae6b911ced1e-006-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Wartezeiten auf Termine bei Kassenärztinnen und Kassenärzten senken. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "ae6b911ced1e-006-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen Wartezeiten auf Termine bei Kassenärztinnen und Kassenärzten senken und Einnahmen hängen an Beiträgen und damit an der Beschäftigungslage.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": -2,
+      "beleg_ids": [
+       "c79b2f3f10a7-005-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema berührt unsere Grenze: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "74ae27909bd4-002-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Patientenlenkung über die Gesundheitshotline 1450 und die Primärversorgung stärken.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": []
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.303596+01:00"
+ },
+ {
+  "seq": 16,
+  "runde": 1,
+  "art": "belege",
+  "akteur": "vertragsaerzte",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "3b23f309efd0-001-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-22",
+     "monat": "2026-09",
+     "titel": "Kasse will mehr Facharztstellen ausschreiben",
+     "pdf_seite": null,
+     "zitat": "Die Sozialversicherung kündigt an, zusätzliche fachärztliche Kassenstellen auszuschreiben. Vor allem in ländlichen Bezirken bleiben Stellen bisher unbesetzt. Die Vertragsärzte verlangen dafür bessere Honorare und weniger Bürokratie."
+    },
+    {
+     "beleg_id": "31e8d18812a7-007-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-18",
+     "monat": "2026-09",
+     "titel": "Kammer fordert attraktivere Kassenverträge",
+     "pdf_seite": null,
+     "zitat": "Die Ärztekammer sieht den Ärztemangel im Kassenbereich als Folge unattraktiver Verträge. Sie fordert höhere Honorare, flexible Arbeitszeitmodelle und weniger Dokumentationspflichten."
+    },
+    {
+     "beleg_id": "c22f87ab3139-015-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-12",
+     "monat": "2026-09",
+     "titel": "Gruppenpraxen sollen leichter möglich werden",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium will Gruppenpraxen und Primärversorgungseinheiten rechtlich erleichtern. Vertragsärzte begrüßen das, verlangen aber eine faire Abgeltung längerer Öffnungszeiten."
+    },
+    {
+     "beleg_id": "7a273bf03088-016-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-08-25",
+     "monat": "2026-08",
+     "titel": "Mehr Kompetenzen für Gesundheitsberufe",
+     "pdf_seite": null,
+     "zitat": "Pflegekräfte sollen in Primärversorgungseinheiten mehr Aufgaben übernehmen dürfen. Die Pflegevertretung sieht darin eine Aufwertung, die Vertragsärzte eine Entlastung bei Routinetätigkeiten."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.303969+01:00"
+ },
+ {
+  "seq": 17,
+  "runde": 1,
+  "art": "zug",
+  "akteur": "vertragsaerzte",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 2,
+      "beleg_ids": [
+       "3b23f309efd0-001-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "3b23f309efd0-001-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen digitale Werkzeuge, die Zeit sparen statt Zeit kosten und Honorare legt der Gesamtvertrag fest.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 1,
+      "beleg_ids": [
+       "7a273bf03088-016-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "3b23f309efd0-001-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Primärversorgungseinheiten mit fairer Finanzierung.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": []
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.304233+01:00"
+ },
+ {
+  "seq": 18,
+  "runde": 1,
+  "art": "moderator_notiz",
+  "akteur": "moderator",
+  "daten": {
+   "notiz": "Runde 1: 0 Positionsänderungen. Offen bleiben: finanzierung, kassenstellen, triage.",
+   "widersprueche": [],
+   "code_widersprueche": [],
+   "belege_eingefordert": [],
+   "haltungen_ohne_beleg": []
+  },
+  "zeit": "2026-11-05T16:04:59.308210+01:00"
+ },
+ {
+  "seq": 19,
+  "runde": 1,
+  "art": "runde_ende",
+  "akteur": null,
+  "daten": {
+   "aenderungen": [],
+   "klassifikation": {
+    "triage": "offener_konflikt",
+    "finanzierung": "offener_konflikt",
+    "kassenstellen": "offener_konflikt",
+    "patientenlenkung": "mehrheit"
+   },
+   "zwischenergebnis": {
+    "offen": [
+     "kassenstellen",
+     "triage",
+     "finanzierung"
+    ],
+    "moderator": "Runde 1: 0 Positionsänderungen. Offen bleiben: finanzierung, kassenstellen, triage.",
+    "einigungen": [
+     {
+      "thema": "patientenlenkung",
+      "kategorie": "mehrheit"
+     }
+    ],
+    "positionen": {
+     "sv": {
+      "triage": 0,
+      "finanzierung": -2,
+      "kassenstellen": 2,
+      "patientenlenkung": 2
+     },
+     "patienten": {
+      "triage": 0,
+      "finanzierung": 0,
+      "kassenstellen": 0,
+      "patientenlenkung": 2
+     },
+     "aerztekammer": {
+      "triage": 0,
+      "finanzierung": -1,
+      "kassenstellen": 1,
+      "patientenlenkung": 1
+     },
+     "vertragsaerzte": {
+      "triage": 0,
+      "finanzierung": 1,
+      "kassenstellen": 2,
+      "patientenlenkung": 2
+     },
+     "finanzministerium": {
+      "triage": 0,
+      "finanzierung": 1,
+      "kassenstellen": 0,
+      "patientenlenkung": 0
+     },
+     "gesundheitsministerium": {
+      "triage": 1,
+      "finanzierung": 0,
+      "kassenstellen": 0,
+      "patientenlenkung": 2
+     }
+    },
+    "bedingungen": [],
+    "gescheitert": [],
+    "zugestaendnisse": []
+   }
+  },
+  "zeit": "2026-11-05T16:04:59.308561+01:00"
+ },
+ {
+  "seq": 20,
+  "runde": 2,
+  "art": "runde",
+  "akteur": null,
+  "daten": {
+   "phase": "debatte",
+   "teilnehmer": [
+    "aerztekammer",
+    "finanzministerium",
+    "gesundheitsministerium",
+    "patienten",
+    "sv",
+    "vertragsaerzte"
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.308906+01:00"
+ },
+ {
+  "seq": 21,
+  "runde": 2,
+  "art": "belege",
+  "akteur": "aerztekammer",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "31e8d18812a7-007-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-18",
+     "monat": "2026-09",
+     "titel": "Kammer fordert attraktivere Kassenverträge",
+     "pdf_seite": null,
+     "zitat": "Die Ärztekammer sieht den Ärztemangel im Kassenbereich als Folge unattraktiver Verträge. Sie fordert höhere Honorare, flexible Arbeitszeitmodelle und weniger Dokumentationspflichten."
+    },
+    {
+     "beleg_id": "9ab8157bb3b1-008-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-05",
+     "monat": "2026-09",
+     "titel": "Ärztekammer skeptisch gegenüber Pflichtlenkung",
+     "pdf_seite": null,
+     "zitat": "Eine verpflichtende Lenkung aller Patienten über eine Hotline lehnt die Ärztekammer ab. Sie befürchtet zusätzliche Hürden für chronisch Kranke. Die Patientenvertretung sieht in einer freiwilligen Lenkung Chancen."
+    },
+    {
+     "beleg_id": "b835bdccb3c8-009-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-20",
+     "monat": "2026-08",
+     "titel": "Gesamtvertrag: Verhandlungen stocken",
+     "pdf_seite": null,
+     "zitat": "Die Ärztekammer verlangt eine Erhöhung der Tarife für fachärztliche Leistungen, bevor neue Stellen besetzt werden können."
+    },
+    {
+     "beleg_id": "ed63ed9e0deb-010-01",
+     "medium": "Regionalanzeiger",
+     "datum": "2026-07-14",
+     "monat": "2026-07",
+     "titel": "Wahlarztsystem als Ventil",
+     "pdf_seite": null,
+     "zitat": "Eine Abschaffung würde die Wartezeiten aus ihrer Sicht weiter verlängern."
+    },
+    {
+     "beleg_id": "47ede0b32189-011-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-06-30",
+     "monat": "2026-06",
+     "titel": "Spitalsärzte klagen über volle Ambulanzen",
+     "pdf_seite": null,
+     "zitat": "Spitalsärzte berichten von überfüllten Ambulanzen, weil Termine im niedergelassenen Bereich fehlen. Die Krankenanstalten wünschen sich eine bessere Abstimmung mit den Kassenpraxen."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.333258+01:00"
+ },
+ {
+  "seq": 22,
+  "runde": 2,
+  "art": "zug",
+  "akteur": "aerztekammer",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 1,
+      "beleg_ids": [
+       "31e8d18812a7-007-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Kassenstellen durch bessere Honorare und weniger Bürokratie attraktiv machen. Wir gehen auf die Position von finanzministerium ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten. Nach eigener Schätzung fehlen dafür rund 300 Stellen.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "47ede0b32189-011-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen Kassenstellen durch bessere Honorare und weniger Bürokratie attraktiv machen und Gesamtverträge brauchen die Zustimmung der Sozialversicherung. Wir gehen auf die Position von finanzministerium ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": -1,
+      "beleg_ids": [
+       "31e8d18812a7-007-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema berührt unsere Grenze: keine Abschaffung des Wahlarztsystems. Wir gehen auf die Position von finanzministerium ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 1,
+      "beleg_ids": [
+       "31e8d18812a7-007-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: verbindliche, bundesweit einheitliche Patientenlenkung einführen. Wir gehen auf die Position von finanzministerium ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "finanzministerium"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.333779+01:00"
+ },
+ {
+  "seq": 23,
+  "runde": 2,
+  "art": "zahl_ohne_beleg",
+  "akteur": "aerztekammer",
+  "daten": {
+   "fund": "300 Stellen",
+   "thema": "kassenstellen"
+  },
+  "zeit": "2026-11-05T16:04:59.334203+01:00"
+ },
+ {
+  "seq": 24,
+  "runde": 2,
+  "art": "belege",
+  "akteur": "finanzministerium",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "79ba84c07c6e-017-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-08",
+     "monat": "2026-09",
+     "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
+     "pdf_seite": null,
+     "zitat": "Bund, Länder und Sozialversicherung beraten über eine Finanzierung aus einer Hand. Das Finanzministerium besteht auf der Ausgabenobergrenze, die Länder wollen Planungshoheit über die Spitäler behalten."
+    },
+    {
+     "beleg_id": "515bfa0c6262-004-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-28",
+     "monat": "2026-08",
+     "titel": "Gebarung der Kassen unter Druck",
+     "pdf_seite": null,
+     "zitat": "Das Finanzministerium lehnt zusätzliche Bundesmittel ohne Gegenfinanzierung ab. Die Kassen wollen dennoch keine Leistungen kürzen."
+    },
+    {
+     "beleg_id": "ab275863e008-020-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-08-17",
+     "monat": "2026-08",
+     "titel": "Keine höheren Beiträge",
+     "pdf_seite": null,
+     "zitat": "Zusätzliche Ausgaben müssten durch Kostendämpfung an anderer Stelle gedeckt werden."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.334565+01:00"
+ },
+ {
+  "seq": 25,
+  "runde": 2,
+  "art": "zug",
+  "akteur": "finanzministerium",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 0,
+      "beleg_ids": [
+       "ab275863e008-020-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen Ausgabendynamik im Gesundheitswesen dämpfen und Defizitverfahren und Fiskalregeln der Europäischen Union. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "515bfa0c6262-004-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen Ausgabendynamik im Gesundheitswesen dämpfen und Defizitverfahren und Fiskalregeln der Europäischen Union. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 0,
+      "beleg_ids": [
+       "79ba84c07c6e-017-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen Fiskalregeln und Budgetpfad einhalten und keine Mehrausgaben ohne Gegenfinanzierung. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": "Bewegung von +1 auf +0 mit Blick auf sv"
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 1,
+      "beleg_ids": [
+       "ab275863e008-020-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Ausgabendynamik im Gesundheitswesen dämpfen. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": "Bewegung von +0 auf +1 mit Blick auf sv"
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "sv"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.334869+01:00"
+ },
+ {
+  "seq": 26,
+  "runde": 2,
+  "art": "belege",
+  "akteur": "gesundheitsministerium",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "fcfc027ce213-012-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-25",
+     "monat": "2026-09",
+     "titel": "Patientenanwaltschaft verlangt Terminobergrenze",
+     "pdf_seite": null,
+     "zitat": "Die Patientenvertretung verlangt eine Obergrenze für die Wartezeit auf Kassentermine. Das Gesundheitsministerium prüft eine Terminservicestelle nach ausländischem Vorbild."
+    },
+    {
+     "beleg_id": "cc25450aedaa-022-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-19",
+     "monat": "2026-09",
+     "titel": "Digitale Ersteinschätzung evaluieren",
+     "pdf_seite": null,
+     "zitat": "Eine digitale Ersteinschätzung vor dem Facharzttermin kann Überweisungen vermeiden, sagen Gesundheitsökonomen. Sie raten zu einer begleitenden Evaluierung, bevor das Angebot flächendeckend kommt."
+    },
+    {
+     "beleg_id": "c22f87ab3139-015-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-12",
+     "monat": "2026-09",
+     "titel": "Gruppenpraxen sollen leichter möglich werden",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium will Gruppenpraxen und Primärversorgungseinheiten rechtlich erleichtern. Vertragsärzte begrüßen das, verlangen aber eine faire Abgeltung längerer Öffnungszeiten."
+    },
+    {
+     "beleg_id": "fac632294cff-003-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-10",
+     "monat": "2026-09",
+     "titel": "Gesundheitshotline soll Termine vermitteln",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium und die Sozialversicherung planen, dass die Gesundheitshotline künftig auch Facharzttermine vermittelt. Eine digitale Ersteinschätzung soll vor dem Termin klären, wie dringend ein Anliegen ist."
+    },
+    {
+     "beleg_id": "79ba84c07c6e-017-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-08",
+     "monat": "2026-09",
+     "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
+     "pdf_seite": null,
+     "zitat": "Bund, Länder und Sozialversicherung beraten über eine Finanzierung aus einer Hand. Das Finanzministerium besteht auf der Ausgabenobergrenze, die Länder wollen Planungshoheit über die Spitäler behalten."
+    },
+    {
+     "beleg_id": "6237cadbc584-023-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-03",
+     "monat": "2026-09",
+     "titel": "Novelle zur Terminvergabe in Begutachtung",
+     "pdf_seite": null,
+     "zitat": "Eine Gesetzesnovelle zur Terminvergabe geht in Begutachtung. Sie soll die Zuständigkeit für eine Terminservicestelle klären und eine Wirkungsfolgenabschätzung enthalten."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.335306+01:00"
+ },
+ {
+  "seq": 27,
+  "runde": 2,
+  "art": "zug",
+  "akteur": "gesundheitsministerium",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 0,
+      "beleg_ids": [
+       "cc25450aedaa-022-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen gemeinsame Planung und Finanzierung aus einer Hand mit Ländern und Sozialversicherung umsetzen und Krankenanstalten sind Landessache, der Bund braucht die Länder. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 1,
+      "beleg_ids": [
+       "79ba84c07c6e-017-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: digitale Versorgung über ELGA, 1450 und Telemedizin ausbauen. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 0,
+      "beleg_ids": [
+       "c22f87ab3139-015-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen gemeinsame Planung und Finanzierung aus einer Hand mit Ländern und Sozialversicherung umsetzen und Krankenanstalten sind Landessache, der Bund braucht die Länder. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "79ba84c07c6e-017-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Gesundheitsversorgungszentren und Primärversorgungseinheiten ausbauen. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "sv"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.335688+01:00"
+ },
+ {
+  "seq": 28,
+  "runde": 2,
+  "art": "belege",
+  "akteur": "patienten",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "fcfc027ce213-012-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-25",
+     "monat": "2026-09",
+     "titel": "Patientenanwaltschaft verlangt Terminobergrenze",
+     "pdf_seite": null,
+     "zitat": "Die Patientenvertretung verlangt eine Obergrenze für die Wartezeit auf Kassentermine. Das Gesundheitsministerium prüft eine Terminservicestelle nach ausländischem Vorbild."
+    },
+    {
+     "beleg_id": "74ae27909bd4-002-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-15",
+     "monat": "2026-09",
+     "titel": "Wartezeit auf Facharzttermine bleibt lang",
+     "pdf_seite": null,
+     "zitat": "Patientinnen und Patienten warten in mehreren Fächern viele Wochen auf einen Kassentermin. Die Patientenvertretung fordert eine verbindliche Terminservicestelle. Die Krankenversicherung verweist auf unbesetzte Kassenstellen."
+    },
+    {
+     "beleg_id": "9ab8157bb3b1-008-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-05",
+     "monat": "2026-09",
+     "titel": "Ärztekammer skeptisch gegenüber Pflichtlenkung",
+     "pdf_seite": null,
+     "zitat": "Eine verpflichtende Lenkung aller Patienten über eine Hotline lehnt die Ärztekammer ab. Sie befürchtet zusätzliche Hürden für chronisch Kranke. Die Patientenvertretung sieht in einer freiwilligen Lenkung Chancen."
+    },
+    {
+     "beleg_id": "007f2b90aa6d-013-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-03",
+     "monat": "2026-08",
+     "titel": "Sorge vor Zweiklassenmedizin",
+     "pdf_seite": null,
+     "zitat": "Wer es sich leisten kann, weicht zum Wahlarzt aus. Die Patientenvertretung warnt vor einer Zweiklassenmedizin, wenn Kassentermine knapp bleiben."
+    },
+    {
+     "beleg_id": "c7e7a1b753b2-014-01",
+     "medium": "Regionalanzeiger",
+     "datum": "2026-07-21",
+     "monat": "2026-07",
+     "titel": "Telemedizin auf dem Land gefragt",
+     "pdf_seite": null,
+     "zitat": "In ländlichen Regionen nutzen Patientinnen und Patienten telemedizinische Angebote häufiger. Die Patientenvertretung fordert, dass diese Angebote als Kassenleistung gelten."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.336191+01:00"
+ },
+ {
+  "seq": 29,
+  "runde": 2,
+  "art": "zug",
+  "akteur": "patienten",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 1,
+      "beleg_ids": [
+       "007f2b90aa6d-013-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: kürzere Wartezeiten auf Kassentermine und Operationen. Wir gehen auf die Position von finanzministerium ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": "Bewegung von +0 auf +1 mit Blick auf finanzministerium"
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "9ab8157bb3b1-008-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen kürzere Wartezeiten auf Kassentermine und Operationen und keine Entscheidungsmacht über Verträge oder Budgets. Wir gehen auf die Position von finanzministerium ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 0,
+      "beleg_ids": [
+       "fcfc027ce213-012-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen kürzere Wartezeiten auf Kassentermine und Operationen und keine Entscheidungsmacht über Verträge oder Budgets. Wir gehen auf die Position von finanzministerium ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "007f2b90aa6d-013-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Gesundheitshotline 1450 mit verbindlichem Termin als Ergebnis. Wir gehen auf die Position von finanzministerium ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "finanzministerium"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.336530+01:00"
+ },
+ {
+  "seq": 30,
+  "runde": 2,
+  "art": "belege",
+  "akteur": "sv",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "3b23f309efd0-001-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-22",
+     "monat": "2026-09",
+     "titel": "Kasse will mehr Facharztstellen ausschreiben",
+     "pdf_seite": null,
+     "zitat": "Die Sozialversicherung kündigt an, zusätzliche fachärztliche Kassenstellen auszuschreiben. Vor allem in ländlichen Bezirken bleiben Stellen bisher unbesetzt. Die Vertragsärzte verlangen dafür bessere Honorare und weniger Bürokratie."
+    },
+    {
+     "beleg_id": "74ae27909bd4-002-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-15",
+     "monat": "2026-09",
+     "titel": "Wartezeit auf Facharzttermine bleibt lang",
+     "pdf_seite": null,
+     "zitat": "Patientinnen und Patienten warten in mehreren Fächern viele Wochen auf einen Kassentermin. Die Patientenvertretung fordert eine verbindliche Terminservicestelle. Die Krankenversicherung verweist auf unbesetzte Kassenstellen."
+    },
+    {
+     "beleg_id": "fac632294cff-003-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-10",
+     "monat": "2026-09",
+     "titel": "Gesundheitshotline soll Termine vermitteln",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium und die Sozialversicherung planen, dass die Gesundheitshotline künftig auch Facharzttermine vermittelt. Eine digitale Ersteinschätzung soll vor dem Termin klären, wie dringend ein Anliegen ist."
+    },
+    {
+     "beleg_id": "515bfa0c6262-004-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-28",
+     "monat": "2026-08",
+     "titel": "Gebarung der Kassen unter Druck",
+     "pdf_seite": null,
+     "zitat": "Das Finanzministerium lehnt zusätzliche Bundesmittel ohne Gegenfinanzierung ab. Die Kassen wollen dennoch keine Leistungen kürzen."
+    },
+    {
+     "beleg_id": "c79b2f3f10a7-005-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-08-12",
+     "monat": "2026-08",
+     "titel": "Streit um Erstattung für Wahlarztbesuche",
+     "pdf_seite": null,
+     "zitat": "Die Sozialversicherung prüft, die Erstattung für Wahlarztbesuche an eine Versorgungspflicht zu knüpfen. Die Vertretung der Wahlärzte warnt vor einem Rückzug aus der Versorgung."
+    },
+    {
+     "beleg_id": "ae6b911ced1e-006-01",
+     "medium": "Regionalanzeiger",
+     "datum": "2026-07-30",
+     "monat": "2026-07",
+     "titel": "Ambulanzen und Kassen ringen um Patientenströme",
+     "pdf_seite": null,
+     "zitat": "Die Bundesländer wollen Spitalsambulanzen entlasten und Patienten in den niedergelassenen Bereich lenken. Die Sozialversicherung verlangt, dass das Geld der Leistung folgt."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.337130+01:00"
+ },
+ {
+  "seq": 31,
+  "runde": 2,
+  "art": "zug",
+  "akteur": "sv",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 2,
+      "beleg_ids": [
+       "ae6b911ced1e-006-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Wartezeiten auf Termine bei Kassenärztinnen und Kassenärzten senken. Wir gehen auf die Position von finanzministerium ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "ae6b911ced1e-006-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen Wartezeiten auf Termine bei Kassenärztinnen und Kassenärzten senken und Einnahmen hängen an Beiträgen und damit an der Beschäftigungslage. Wir gehen auf die Position von finanzministerium ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": -1,
+      "beleg_ids": [
+       "c79b2f3f10a7-005-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema berührt unsere Grenze: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern. Wir gehen auf die Position von finanzministerium ein.",
+      "zugestaendnis": "Bewegung von -2 auf -1 mit Blick auf finanzministerium"
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "74ae27909bd4-002-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Patientenlenkung über die Gesundheitshotline 1450 und die Primärversorgung stärken. Wir gehen auf die Position von finanzministerium ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "finanzministerium"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.337560+01:00"
+ },
+ {
+  "seq": 32,
+  "runde": 2,
+  "art": "belege",
+  "akteur": "vertragsaerzte",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "3b23f309efd0-001-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-22",
+     "monat": "2026-09",
+     "titel": "Kasse will mehr Facharztstellen ausschreiben",
+     "pdf_seite": null,
+     "zitat": "Die Sozialversicherung kündigt an, zusätzliche fachärztliche Kassenstellen auszuschreiben. Vor allem in ländlichen Bezirken bleiben Stellen bisher unbesetzt. Die Vertragsärzte verlangen dafür bessere Honorare und weniger Bürokratie."
+    },
+    {
+     "beleg_id": "31e8d18812a7-007-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-18",
+     "monat": "2026-09",
+     "titel": "Kammer fordert attraktivere Kassenverträge",
+     "pdf_seite": null,
+     "zitat": "Die Ärztekammer sieht den Ärztemangel im Kassenbereich als Folge unattraktiver Verträge. Sie fordert höhere Honorare, flexible Arbeitszeitmodelle und weniger Dokumentationspflichten."
+    },
+    {
+     "beleg_id": "c22f87ab3139-015-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-12",
+     "monat": "2026-09",
+     "titel": "Gruppenpraxen sollen leichter möglich werden",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium will Gruppenpraxen und Primärversorgungseinheiten rechtlich erleichtern. Vertragsärzte begrüßen das, verlangen aber eine faire Abgeltung längerer Öffnungszeiten."
+    },
+    {
+     "beleg_id": "7a273bf03088-016-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-08-25",
+     "monat": "2026-08",
+     "titel": "Mehr Kompetenzen für Gesundheitsberufe",
+     "pdf_seite": null,
+     "zitat": "Pflegekräfte sollen in Primärversorgungseinheiten mehr Aufgaben übernehmen dürfen. Die Pflegevertretung sieht darin eine Aufwertung, die Vertragsärzte eine Entlastung bei Routinetätigkeiten."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.338056+01:00"
+ },
+ {
+  "seq": 33,
+  "runde": 2,
+  "art": "zug",
+  "akteur": "vertragsaerzte",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 1,
+      "beleg_ids": [
+       "3b23f309efd0-001-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": "Bewegung von +2 auf +1 mit Blick auf sv"
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "3b23f309efd0-001-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Wir wägen ab zwischen digitale Werkzeuge, die Zeit sparen statt Zeit kosten und Honorare legt der Gesamtvertrag fest. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 1,
+      "beleg_ids": [
+       "7a273bf03088-016-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "3b23f309efd0-001-01"
+      ],
+      "bedingungen": [],
+      "begruendung": "Das Thema stützt unser Ziel: Primärversorgungseinheiten mit fairer Finanzierung. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "sv"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.338392+01:00"
+ },
+ {
+  "seq": 34,
+  "runde": 2,
+  "art": "moderator_notiz",
+  "akteur": "moderator",
+  "daten": {
+   "notiz": "Runde 2: 5 Positionsänderungen. Offen bleiben: finanzierung, triage. Der Code meldet 1 Auffälligkeiten; ich bitte um Klärung.",
+   "widersprueche": [
+    {
+     "art": "zahl_ohne_beleg",
+     "thema": "kassenstellen",
+     "akteur": "aerztekammer",
+     "beschreibung": "fund: 300 Stellen"
+    }
+   ],
+   "code_widersprueche": [
+    {
+     "art": "zahl_ohne_beleg",
+     "thema": "kassenstellen",
+     "akteur": "aerztekammer",
+     "beschreibung": "fund: 300 Stellen"
+    }
+   ],
+   "belege_eingefordert": [],
+   "haltungen_ohne_beleg": []
+  },
+  "zeit": "2026-11-05T16:04:59.341976+01:00"
+ },
+ {
+  "seq": 35,
+  "runde": 2,
+  "art": "runde_ende",
+  "akteur": null,
+  "daten": {
+   "aenderungen": [
+    {
+     "alt": 1,
+     "neu": 0,
+     "runde": 2,
+     "thema": "finanzierung",
+     "akteur": "finanzministerium",
+     "begruendung": "Wir wägen ab zwischen Fiskalregeln und Budgetpfad einhalten und keine Mehrausgaben ohne Gegenfinanzierung. Wir gehen auf die Position von sv ein."
+    },
+    {
+     "alt": 0,
+     "neu": 1,
+     "runde": 2,
+     "thema": "patientenlenkung",
+     "akteur": "finanzministerium",
+     "begruendung": "Das Thema stützt unser Ziel: Ausgabendynamik im Gesundheitswesen dämpfen. Wir gehen auf die Position von sv ein."
+    },
+    {
+     "alt": 0,
+     "neu": 1,
+     "runde": 2,
+     "thema": "kassenstellen",
+     "akteur": "patienten",
+     "begruendung": "Das Thema stützt unser Ziel: kürzere Wartezeiten auf Kassentermine und Operationen. Wir gehen auf die Position von finanzministerium ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten."
+    },
+    {
+     "alt": -2,
+     "neu": -1,
+     "runde": 2,
+     "thema": "finanzierung",
+     "akteur": "sv",
+     "begruendung": "Das Thema berührt unsere Grenze: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern. Wir gehen auf die Position von finanzministerium ein."
+    },
+    {
+     "alt": 2,
+     "neu": 1,
+     "runde": 2,
+     "thema": "kassenstellen",
+     "akteur": "vertragsaerzte",
+     "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten."
+    }
+   ],
+   "klassifikation": {
+    "triage": "offener_konflikt",
+    "finanzierung": "offener_konflikt",
+    "kassenstellen": "mehrheit",
+    "patientenlenkung": "konsens"
+   },
+   "zwischenergebnis": {
+    "offen": [
+     "triage",
+     "finanzierung"
+    ],
+    "moderator": "Runde 2: 5 Positionsänderungen. Offen bleiben: finanzierung, triage. Der Code meldet 1 Auffälligkeiten; ich bitte um Klärung.",
+    "einigungen": [
+     {
+      "thema": "kassenstellen",
+      "kategorie": "mehrheit"
+     },
+     {
+      "thema": "patientenlenkung",
+      "kategorie": "konsens"
+     }
+    ],
+    "positionen": {
+     "sv": {
+      "triage": 0,
+      "finanzierung": -1,
+      "kassenstellen": 2,
+      "patientenlenkung": 2
+     },
+     "patienten": {
+      "triage": 0,
+      "finanzierung": 0,
+      "kassenstellen": 1,
+      "patientenlenkung": 2
+     },
+     "aerztekammer": {
+      "triage": 0,
+      "finanzierung": -1,
+      "kassenstellen": 1,
+      "patientenlenkung": 1
+     },
+     "vertragsaerzte": {
+      "triage": 0,
+      "finanzierung": 1,
+      "kassenstellen": 1,
+      "patientenlenkung": 2
+     },
+     "finanzministerium": {
+      "triage": 0,
+      "finanzierung": 0,
+      "kassenstellen": 0,
+      "patientenlenkung": 1
+     },
+     "gesundheitsministerium": {
+      "triage": 1,
+      "finanzierung": 0,
+      "kassenstellen": 0,
+      "patientenlenkung": 2
+     }
+    },
+    "bedingungen": [],
+    "gescheitert": [],
+    "zugestaendnisse": [
+     {
+      "thema": "finanzierung",
+      "akteur": "finanzministerium",
+      "zugestaendnis": "Bewegung von +1 auf +0 mit Blick auf sv"
+     },
+     {
+      "thema": "patientenlenkung",
+      "akteur": "finanzministerium",
+      "zugestaendnis": "Bewegung von +0 auf +1 mit Blick auf sv"
+     },
+     {
+      "thema": "kassenstellen",
+      "akteur": "patienten",
+      "zugestaendnis": "Bewegung von +0 auf +1 mit Blick auf finanzministerium"
+     },
+     {
+      "thema": "finanzierung",
+      "akteur": "sv",
+      "zugestaendnis": "Bewegung von -2 auf -1 mit Blick auf finanzministerium"
+     },
+     {
+      "thema": "kassenstellen",
+      "akteur": "vertragsaerzte",
+      "zugestaendnis": "Bewegung von +2 auf +1 mit Blick auf sv"
+     }
+    ]
+   }
+  },
+  "zeit": "2026-11-05T16:04:59.342364+01:00"
+ },
+ {
+  "seq": 36,
+  "runde": 3,
+  "art": "runde",
+  "akteur": null,
+  "daten": {
+   "phase": "verhandlung",
+   "teilnehmer": [
+    "aerztekammer",
+    "finanzministerium",
+    "gesundheitsministerium",
+    "patienten",
+    "sv",
+    "vertragsaerzte"
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.342707+01:00"
+ },
+ {
+  "seq": 37,
+  "runde": 3,
+  "art": "belege",
+  "akteur": "aerztekammer",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "31e8d18812a7-007-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-18",
+     "monat": "2026-09",
+     "titel": "Kammer fordert attraktivere Kassenverträge",
+     "pdf_seite": null,
+     "zitat": "Die Ärztekammer sieht den Ärztemangel im Kassenbereich als Folge unattraktiver Verträge. Sie fordert höhere Honorare, flexible Arbeitszeitmodelle und weniger Dokumentationspflichten."
+    },
+    {
+     "beleg_id": "9ab8157bb3b1-008-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-05",
+     "monat": "2026-09",
+     "titel": "Ärztekammer skeptisch gegenüber Pflichtlenkung",
+     "pdf_seite": null,
+     "zitat": "Eine verpflichtende Lenkung aller Patienten über eine Hotline lehnt die Ärztekammer ab. Sie befürchtet zusätzliche Hürden für chronisch Kranke. Die Patientenvertretung sieht in einer freiwilligen Lenkung Chancen."
+    },
+    {
+     "beleg_id": "b835bdccb3c8-009-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-20",
+     "monat": "2026-08",
+     "titel": "Gesamtvertrag: Verhandlungen stocken",
+     "pdf_seite": null,
+     "zitat": "Die Ärztekammer verlangt eine Erhöhung der Tarife für fachärztliche Leistungen, bevor neue Stellen besetzt werden können."
+    },
+    {
+     "beleg_id": "ed63ed9e0deb-010-01",
+     "medium": "Regionalanzeiger",
+     "datum": "2026-07-14",
+     "monat": "2026-07",
+     "titel": "Wahlarztsystem als Ventil",
+     "pdf_seite": null,
+     "zitat": "Eine Abschaffung würde die Wartezeiten aus ihrer Sicht weiter verlängern."
+    },
+    {
+     "beleg_id": "47ede0b32189-011-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-06-30",
+     "monat": "2026-06",
+     "titel": "Spitalsärzte klagen über volle Ambulanzen",
+     "pdf_seite": null,
+     "zitat": "Spitalsärzte berichten von überfüllten Ambulanzen, weil Termine im niedergelassenen Bereich fehlen. Die Krankenanstalten wünschen sich eine bessere Abstimmung mit den Kassenpraxen."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.366392+01:00"
+ },
+ {
+  "seq": 38,
+  "runde": 3,
+  "art": "zug",
+  "akteur": "aerztekammer",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 1,
+      "beleg_ids": [
+       "31e8d18812a7-007-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Kassenverträge an der Kammer vorbei"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Kassenstellen durch bessere Honorare und weniger Bürokratie attraktiv machen. Wir gehen auf die Position von gesundheitsministerium ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "47ede0b32189-011-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Abschaffung des Wahlarztsystems"
+      ],
+      "begruendung": "Wir wägen ab zwischen Kassenstellen durch bessere Honorare und weniger Bürokratie attraktiv machen und Gesamtverträge brauchen die Zustimmung der Sozialversicherung. Wir gehen auf die Position von gesundheitsministerium ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": -1,
+      "beleg_ids": [
+       "31e8d18812a7-007-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Abschaffung des Wahlarztsystems"
+      ],
+      "begruendung": "Das Thema berührt unsere Grenze: keine Abschaffung des Wahlarztsystems. Wir gehen auf die Position von gesundheitsministerium ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 1,
+      "beleg_ids": [
+       "31e8d18812a7-007-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Primärversorgungseinheiten ohne ärztliche Leitung"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: verbindliche, bundesweit einheitliche Patientenlenkung einführen. Wir gehen auf die Position von gesundheitsministerium ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "gesundheitsministerium"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.366828+01:00"
+ },
+ {
+  "seq": 39,
+  "runde": 3,
+  "art": "belege",
+  "akteur": "finanzministerium",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "79ba84c07c6e-017-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-08",
+     "monat": "2026-09",
+     "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
+     "pdf_seite": null,
+     "zitat": "Bund, Länder und Sozialversicherung beraten über eine Finanzierung aus einer Hand. Das Finanzministerium besteht auf der Ausgabenobergrenze, die Länder wollen Planungshoheit über die Spitäler behalten."
+    },
+    {
+     "beleg_id": "515bfa0c6262-004-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-28",
+     "monat": "2026-08",
+     "titel": "Gebarung der Kassen unter Druck",
+     "pdf_seite": null,
+     "zitat": "Das Finanzministerium lehnt zusätzliche Bundesmittel ohne Gegenfinanzierung ab. Die Kassen wollen dennoch keine Leistungen kürzen."
+    },
+    {
+     "beleg_id": "ab275863e008-020-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-08-17",
+     "monat": "2026-08",
+     "titel": "Keine höheren Beiträge",
+     "pdf_seite": null,
+     "zitat": "Zusätzliche Ausgaben müssten durch Kostendämpfung an anderer Stelle gedeckt werden."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.367330+01:00"
+ },
+ {
+  "seq": 40,
+  "runde": 3,
+  "art": "zug",
+  "akteur": "finanzministerium",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 0,
+      "beleg_ids": [
+       "ab275863e008-020-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+      ],
+      "begruendung": "Wir wägen ab zwischen Ausgabendynamik im Gesundheitswesen dämpfen und Defizitverfahren und Fiskalregeln der Europäischen Union. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "515bfa0c6262-004-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+      ],
+      "begruendung": "Wir wägen ab zwischen Ausgabendynamik im Gesundheitswesen dämpfen und Defizitverfahren und Fiskalregeln der Europäischen Union. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 0,
+      "beleg_ids": [
+       "79ba84c07c6e-017-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Mehrausgaben ohne Gegenfinanzierung"
+      ],
+      "begruendung": "Wir wägen ab zwischen Fiskalregeln und Budgetpfad einhalten und keine Mehrausgaben ohne Gegenfinanzierung. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 1,
+      "beleg_ids": [
+       "ab275863e008-020-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Ausgabendynamik im Gesundheitswesen dämpfen. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "sv"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.367646+01:00"
+ },
+ {
+  "seq": 41,
+  "runde": 3,
+  "art": "belege",
+  "akteur": "gesundheitsministerium",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "fcfc027ce213-012-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-25",
+     "monat": "2026-09",
+     "titel": "Patientenanwaltschaft verlangt Terminobergrenze",
+     "pdf_seite": null,
+     "zitat": "Die Patientenvertretung verlangt eine Obergrenze für die Wartezeit auf Kassentermine. Das Gesundheitsministerium prüft eine Terminservicestelle nach ausländischem Vorbild."
+    },
+    {
+     "beleg_id": "cc25450aedaa-022-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-19",
+     "monat": "2026-09",
+     "titel": "Digitale Ersteinschätzung evaluieren",
+     "pdf_seite": null,
+     "zitat": "Eine digitale Ersteinschätzung vor dem Facharzttermin kann Überweisungen vermeiden, sagen Gesundheitsökonomen. Sie raten zu einer begleitenden Evaluierung, bevor das Angebot flächendeckend kommt."
+    },
+    {
+     "beleg_id": "c22f87ab3139-015-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-12",
+     "monat": "2026-09",
+     "titel": "Gruppenpraxen sollen leichter möglich werden",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium will Gruppenpraxen und Primärversorgungseinheiten rechtlich erleichtern. Vertragsärzte begrüßen das, verlangen aber eine faire Abgeltung längerer Öffnungszeiten."
+    },
+    {
+     "beleg_id": "fac632294cff-003-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-10",
+     "monat": "2026-09",
+     "titel": "Gesundheitshotline soll Termine vermitteln",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium und die Sozialversicherung planen, dass die Gesundheitshotline künftig auch Facharzttermine vermittelt. Eine digitale Ersteinschätzung soll vor dem Termin klären, wie dringend ein Anliegen ist."
+    },
+    {
+     "beleg_id": "79ba84c07c6e-017-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-08",
+     "monat": "2026-09",
+     "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
+     "pdf_seite": null,
+     "zitat": "Bund, Länder und Sozialversicherung beraten über eine Finanzierung aus einer Hand. Das Finanzministerium besteht auf der Ausgabenobergrenze, die Länder wollen Planungshoheit über die Spitäler behalten."
+    },
+    {
+     "beleg_id": "6237cadbc584-023-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-03",
+     "monat": "2026-09",
+     "titel": "Novelle zur Terminvergabe in Begutachtung",
+     "pdf_seite": null,
+     "zitat": "Eine Gesetzesnovelle zur Terminvergabe geht in Begutachtung. Sie soll die Zuständigkeit für eine Terminservicestelle klären und eine Wirkungsfolgenabschätzung enthalten."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.368113+01:00"
+ },
+ {
+  "seq": 42,
+  "runde": 3,
+  "art": "zug",
+  "akteur": "gesundheitsministerium",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 0,
+      "beleg_ids": [
+       "cc25450aedaa-022-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine neuen Selbstbehalte beim Arztbesuch, die einkommensschwache Versicherte treffen"
+      ],
+      "begruendung": "Wir wägen ab zwischen gemeinsame Planung und Finanzierung aus einer Hand mit Ländern und Sozialversicherung umsetzen und Krankenanstalten sind Landessache, der Bund braucht die Länder. Wir gehen auf die Position von aerztekammer ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 1,
+      "beleg_ids": [
+       "79ba84c07c6e-017-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine neuen Selbstbehalte beim Arztbesuch, die einkommensschwache Versicherte treffen"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: digitale Versorgung über ELGA, 1450 und Telemedizin ausbauen. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 0,
+      "beleg_ids": [
+       "c22f87ab3139-015-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine neuen Selbstbehalte beim Arztbesuch, die einkommensschwache Versicherte treffen"
+      ],
+      "begruendung": "Wir wägen ab zwischen gemeinsame Planung und Finanzierung aus einer Hand mit Ländern und Sozialversicherung umsetzen und Krankenanstalten sind Landessache, der Bund braucht die Länder. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "79ba84c07c6e-017-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: Mittel aus dem Gesundheitsreformfonds zweckgebunden einsetzen"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Gesundheitsversorgungszentren und Primärversorgungseinheiten ausbauen. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "aerztekammer"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.368610+01:00"
+ },
+ {
+  "seq": 43,
+  "runde": 3,
+  "art": "belege",
+  "akteur": "patienten",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "fcfc027ce213-012-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-25",
+     "monat": "2026-09",
+     "titel": "Patientenanwaltschaft verlangt Terminobergrenze",
+     "pdf_seite": null,
+     "zitat": "Die Patientenvertretung verlangt eine Obergrenze für die Wartezeit auf Kassentermine. Das Gesundheitsministerium prüft eine Terminservicestelle nach ausländischem Vorbild."
+    },
+    {
+     "beleg_id": "74ae27909bd4-002-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-15",
+     "monat": "2026-09",
+     "titel": "Wartezeit auf Facharzttermine bleibt lang",
+     "pdf_seite": null,
+     "zitat": "Patientinnen und Patienten warten in mehreren Fächern viele Wochen auf einen Kassentermin. Die Patientenvertretung fordert eine verbindliche Terminservicestelle. Die Krankenversicherung verweist auf unbesetzte Kassenstellen."
+    },
+    {
+     "beleg_id": "9ab8157bb3b1-008-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-05",
+     "monat": "2026-09",
+     "titel": "Ärztekammer skeptisch gegenüber Pflichtlenkung",
+     "pdf_seite": null,
+     "zitat": "Eine verpflichtende Lenkung aller Patienten über eine Hotline lehnt die Ärztekammer ab. Sie befürchtet zusätzliche Hürden für chronisch Kranke. Die Patientenvertretung sieht in einer freiwilligen Lenkung Chancen."
+    },
+    {
+     "beleg_id": "007f2b90aa6d-013-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-03",
+     "monat": "2026-08",
+     "titel": "Sorge vor Zweiklassenmedizin",
+     "pdf_seite": null,
+     "zitat": "Wer es sich leisten kann, weicht zum Wahlarzt aus. Die Patientenvertretung warnt vor einer Zweiklassenmedizin, wenn Kassentermine knapp bleiben."
+    },
+    {
+     "beleg_id": "c7e7a1b753b2-014-01",
+     "medium": "Regionalanzeiger",
+     "datum": "2026-07-21",
+     "monat": "2026-07",
+     "titel": "Telemedizin auf dem Land gefragt",
+     "pdf_seite": null,
+     "zitat": "In ländlichen Regionen nutzen Patientinnen und Patienten telemedizinische Angebote häufiger. Die Patientenvertretung fordert, dass diese Angebote als Kassenleistung gelten."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.369082+01:00"
+ },
+ {
+  "seq": 44,
+  "runde": 3,
+  "art": "zug",
+  "akteur": "patienten",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 1,
+      "beleg_ids": [
+       "007f2b90aa6d-013-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine zusätzlichen Kosten für Versicherte ohne soziale Staffelung"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: kürzere Wartezeiten auf Kassentermine und Operationen. Wir gehen auf die Position von aerztekammer ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "9ab8157bb3b1-008-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine neuen Selbstbehalte, die einkommensschwache Versicherte vom Arztbesuch abhalten"
+      ],
+      "begruendung": "Wir wägen ab zwischen kürzere Wartezeiten auf Kassentermine und Operationen und keine Entscheidungsmacht über Verträge oder Budgets. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 0,
+      "beleg_ids": [
+       "fcfc027ce213-012-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine neuen Selbstbehalte, die einkommensschwache Versicherte vom Arztbesuch abhalten"
+      ],
+      "begruendung": "Wir wägen ab zwischen kürzere Wartezeiten auf Kassentermine und Operationen und keine Entscheidungsmacht über Verträge oder Budgets. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "007f2b90aa6d-013-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: Patientenlenkung ohne Gebühren beim Erstkontakt"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Gesundheitshotline 1450 mit verbindlichem Termin als Ergebnis. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "aerztekammer"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.369468+01:00"
+ },
+ {
+  "seq": 45,
+  "runde": 3,
+  "art": "belege",
+  "akteur": "sv",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "3b23f309efd0-001-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-22",
+     "monat": "2026-09",
+     "titel": "Kasse will mehr Facharztstellen ausschreiben",
+     "pdf_seite": null,
+     "zitat": "Die Sozialversicherung kündigt an, zusätzliche fachärztliche Kassenstellen auszuschreiben. Vor allem in ländlichen Bezirken bleiben Stellen bisher unbesetzt. Die Vertragsärzte verlangen dafür bessere Honorare und weniger Bürokratie."
+    },
+    {
+     "beleg_id": "74ae27909bd4-002-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-15",
+     "monat": "2026-09",
+     "titel": "Wartezeit auf Facharzttermine bleibt lang",
+     "pdf_seite": null,
+     "zitat": "Patientinnen und Patienten warten in mehreren Fächern viele Wochen auf einen Kassentermin. Die Patientenvertretung fordert eine verbindliche Terminservicestelle. Die Krankenversicherung verweist auf unbesetzte Kassenstellen."
+    },
+    {
+     "beleg_id": "fac632294cff-003-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-10",
+     "monat": "2026-09",
+     "titel": "Gesundheitshotline soll Termine vermitteln",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium und die Sozialversicherung planen, dass die Gesundheitshotline künftig auch Facharzttermine vermittelt. Eine digitale Ersteinschätzung soll vor dem Termin klären, wie dringend ein Anliegen ist."
+    },
+    {
+     "beleg_id": "515bfa0c6262-004-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-28",
+     "monat": "2026-08",
+     "titel": "Gebarung der Kassen unter Druck",
+     "pdf_seite": null,
+     "zitat": "Das Finanzministerium lehnt zusätzliche Bundesmittel ohne Gegenfinanzierung ab. Die Kassen wollen dennoch keine Leistungen kürzen."
+    },
+    {
+     "beleg_id": "c79b2f3f10a7-005-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-08-12",
+     "monat": "2026-08",
+     "titel": "Streit um Erstattung für Wahlarztbesuche",
+     "pdf_seite": null,
+     "zitat": "Die Sozialversicherung prüft, die Erstattung für Wahlarztbesuche an eine Versorgungspflicht zu knüpfen. Die Vertretung der Wahlärzte warnt vor einem Rückzug aus der Versorgung."
+    },
+    {
+     "beleg_id": "ae6b911ced1e-006-01",
+     "medium": "Regionalanzeiger",
+     "datum": "2026-07-30",
+     "monat": "2026-07",
+     "titel": "Ambulanzen und Kassen ringen um Patientenströme",
+     "pdf_seite": null,
+     "zitat": "Die Bundesländer wollen Spitalsambulanzen entlasten und Patienten in den niedergelassenen Bereich lenken. Die Sozialversicherung verlangt, dass das Geld der Leistung folgt."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.369891+01:00"
+ },
+ {
+  "seq": 46,
+  "runde": 3,
+  "art": "zug",
+  "akteur": "sv",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 2,
+      "beleg_ids": [
+       "ae6b911ced1e-006-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Wartezeiten auf Termine bei Kassenärztinnen und Kassenärzten senken. Wir gehen auf die Position von aerztekammer ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "ae6b911ced1e-006-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Kürzung des Leistungskatalogs zur Sanierung der Gebarung"
+      ],
+      "begruendung": "Wir wägen ab zwischen Wartezeiten auf Termine bei Kassenärztinnen und Kassenärzten senken und Einnahmen hängen an Beiträgen und damit an der Beschäftigungslage. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 0,
+      "beleg_ids": [
+       "c79b2f3f10a7-005-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern"
+      ],
+      "begruendung": "Wir wägen ab zwischen einheitlichen Leistungskatalog über alle Krankenversicherungsträger erreichen und neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": "Bewegung von -1 auf +0 mit Blick auf aerztekammer"
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "74ae27909bd4-002-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Kürzung des Leistungskatalogs zur Sanierung der Gebarung"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Patientenlenkung über die Gesundheitshotline 1450 und die Primärversorgung stärken. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "aerztekammer"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.370226+01:00"
+ },
+ {
+  "seq": 47,
+  "runde": 3,
+  "art": "belege",
+  "akteur": "vertragsaerzte",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "3b23f309efd0-001-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-22",
+     "monat": "2026-09",
+     "titel": "Kasse will mehr Facharztstellen ausschreiben",
+     "pdf_seite": null,
+     "zitat": "Die Sozialversicherung kündigt an, zusätzliche fachärztliche Kassenstellen auszuschreiben. Vor allem in ländlichen Bezirken bleiben Stellen bisher unbesetzt. Die Vertragsärzte verlangen dafür bessere Honorare und weniger Bürokratie."
+    },
+    {
+     "beleg_id": "31e8d18812a7-007-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-18",
+     "monat": "2026-09",
+     "titel": "Kammer fordert attraktivere Kassenverträge",
+     "pdf_seite": null,
+     "zitat": "Die Ärztekammer sieht den Ärztemangel im Kassenbereich als Folge unattraktiver Verträge. Sie fordert höhere Honorare, flexible Arbeitszeitmodelle und weniger Dokumentationspflichten."
+    },
+    {
+     "beleg_id": "c22f87ab3139-015-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-12",
+     "monat": "2026-09",
+     "titel": "Gruppenpraxen sollen leichter möglich werden",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium will Gruppenpraxen und Primärversorgungseinheiten rechtlich erleichtern. Vertragsärzte begrüßen das, verlangen aber eine faire Abgeltung längerer Öffnungszeiten."
+    },
+    {
+     "beleg_id": "7a273bf03088-016-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-08-25",
+     "monat": "2026-08",
+     "titel": "Mehr Kompetenzen für Gesundheitsberufe",
+     "pdf_seite": null,
+     "zitat": "Pflegekräfte sollen in Primärversorgungseinheiten mehr Aufgaben übernehmen dürfen. Die Pflegevertretung sieht darin eine Aufwertung, die Vertragsärzte eine Entlastung bei Routinetätigkeiten."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.370728+01:00"
+ },
+ {
+  "seq": 48,
+  "runde": 3,
+  "art": "zug",
+  "akteur": "vertragsaerzte",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 1,
+      "beleg_ids": [
+       "3b23f309efd0-001-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: zusätzliche Öffnungszeiten nur mit Abgeltung"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Wir gehen auf die Position von aerztekammer ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "3b23f309efd0-001-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Mehrleistungen ohne Honorar"
+      ],
+      "begruendung": "Wir wägen ab zwischen digitale Werkzeuge, die Zeit sparen statt Zeit kosten und Honorare legt der Gesamtvertrag fest. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 1,
+      "beleg_ids": [
+       "7a273bf03088-016-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Mehrleistungen ohne Honorar"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "3b23f309efd0-001-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Mehrleistungen ohne Honorar"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Primärversorgungseinheiten mit fairer Finanzierung. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "aerztekammer"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.371096+01:00"
+ },
+ {
+  "seq": 49,
+  "runde": 3,
+  "art": "moderator_notiz",
+  "akteur": "moderator",
+  "daten": {
+   "notiz": "Runde 3: 1 Positionsänderungen. Offen bleiben: finanzierung, triage.",
+   "widersprueche": [],
+   "code_widersprueche": [],
+   "belege_eingefordert": [],
+   "haltungen_ohne_beleg": []
+  },
+  "zeit": "2026-11-05T16:04:59.374360+01:00"
+ },
+ {
+  "seq": 50,
+  "runde": 3,
+  "art": "runde_ende",
+  "akteur": null,
+  "daten": {
+   "aenderungen": [
+    {
+     "alt": -1,
+     "neu": 0,
+     "runde": 3,
+     "thema": "finanzierung",
+     "akteur": "sv",
+     "begruendung": "Wir wägen ab zwischen einheitlichen Leistungskatalog über alle Krankenversicherungsträger erreichen und neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern. Wir gehen auf die Position von aerztekammer ein."
+    }
+   ],
+   "klassifikation": {
+    "triage": "offener_konflikt",
+    "finanzierung": "offener_konflikt",
+    "kassenstellen": "mehrheit",
+    "patientenlenkung": "konsens"
+   },
+   "zwischenergebnis": {
+    "offen": [
+     "triage",
+     "finanzierung"
+    ],
+    "moderator": "Runde 3: 1 Positionsänderungen. Offen bleiben: finanzierung, triage.",
+    "einigungen": [
+     {
+      "thema": "kassenstellen",
+      "kategorie": "mehrheit"
+     },
+     {
+      "thema": "patientenlenkung",
+      "kategorie": "konsens"
+     }
+    ],
+    "positionen": {
+     "sv": {
+      "triage": 0,
+      "finanzierung": 0,
+      "kassenstellen": 2,
+      "patientenlenkung": 2
+     },
+     "patienten": {
+      "triage": 0,
+      "finanzierung": 0,
+      "kassenstellen": 1,
+      "patientenlenkung": 2
+     },
+     "aerztekammer": {
+      "triage": 0,
+      "finanzierung": -1,
+      "kassenstellen": 1,
+      "patientenlenkung": 1
+     },
+     "vertragsaerzte": {
+      "triage": 0,
+      "finanzierung": 1,
+      "kassenstellen": 1,
+      "patientenlenkung": 2
+     },
+     "finanzministerium": {
+      "triage": 0,
+      "finanzierung": 0,
+      "kassenstellen": 0,
+      "patientenlenkung": 1
+     },
+     "gesundheitsministerium": {
+      "triage": 1,
+      "finanzierung": 0,
+      "kassenstellen": 0,
+      "patientenlenkung": 2
+     }
+    },
+    "bedingungen": [
+     {
+      "thema": "kassenstellen",
+      "akteur": "aerztekammer",
+      "bedingung": "Wahrung von: keine Kassenverträge an der Kammer vorbei"
+     },
+     {
+      "thema": "triage",
+      "akteur": "aerztekammer",
+      "bedingung": "Wahrung von: keine Abschaffung des Wahlarztsystems"
+     },
+     {
+      "thema": "finanzierung",
+      "akteur": "aerztekammer",
+      "bedingung": "Wahrung von: keine Abschaffung des Wahlarztsystems"
+     },
+     {
+      "thema": "patientenlenkung",
+      "akteur": "aerztekammer",
+      "bedingung": "Wahrung von: keine Primärversorgungseinheiten ohne ärztliche Leitung"
+     },
+     {
+      "thema": "kassenstellen",
+      "akteur": "finanzministerium",
+      "bedingung": "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+     },
+     {
+      "thema": "triage",
+      "akteur": "finanzministerium",
+      "bedingung": "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+     },
+     {
+      "thema": "finanzierung",
+      "akteur": "finanzministerium",
+      "bedingung": "Wahrung von: keine Mehrausgaben ohne Gegenfinanzierung"
+     },
+     {
+      "thema": "patientenlenkung",
+      "akteur": "finanzministerium",
+      "bedingung": "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+     },
+     {
+      "thema": "kassenstellen",
+      "akteur": "gesundheitsministerium",
+      "bedingung": "Wahrung von: keine neuen Selbstbehalte beim Arztbesuch, die einkommensschwache Versicherte treffen"
+     },
+     {
+      "thema": "triage",
+      "akteur": "gesundheitsministerium",
+      "bedingung": "Wahrung von: keine neuen Selbstbehalte beim Arztbesuch, die einkommensschwache Versicherte treffen"
+     },
+     {
+      "thema": "finanzierung",
+      "akteur": "gesundheitsministerium",
+      "bedingung": "Wahrung von: keine neuen Selbstbehalte beim Arztbesuch, die einkommensschwache Versicherte treffen"
+     },
+     {
+      "thema": "patientenlenkung",
+      "akteur": "gesundheitsministerium",
+      "bedingung": "Wahrung von: Mittel aus dem Gesundheitsreformfonds zweckgebunden einsetzen"
+     },
+     {
+      "thema": "kassenstellen",
+      "akteur": "patienten",
+      "bedingung": "Wahrung von: keine zusätzlichen Kosten für Versicherte ohne soziale Staffelung"
+     },
+     {
+      "thema": "triage",
+      "akteur": "patienten",
+      "bedingung": "Wahrung von: keine neuen Selbstbehalte, die einkommensschwache Versicherte vom Arztbesuch abhalten"
+     },
+     {
+      "thema": "finanzierung",
+      "akteur": "patienten",
+      "bedingung": "Wahrung von: keine neuen Selbstbehalte, die einkommensschwache Versicherte vom Arztbesuch abhalten"
+     },
+     {
+      "thema": "patientenlenkung",
+      "akteur": "patienten",
+      "bedingung": "Wahrung von: Patientenlenkung ohne Gebühren beim Erstkontakt"
+     },
+     {
+      "thema": "kassenstellen",
+      "akteur": "sv",
+      "bedingung": "Wahrung von: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern"
+     },
+     {
+      "thema": "triage",
+      "akteur": "sv",
+      "bedingung": "Wahrung von: keine Kürzung des Leistungskatalogs zur Sanierung der Gebarung"
+     },
+     {
+      "thema": "finanzierung",
+      "akteur": "sv",
+      "bedingung": "Wahrung von: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern"
+     },
+     {
+      "thema": "patientenlenkung",
+      "akteur": "sv",
+      "bedingung": "Wahrung von: keine Kürzung des Leistungskatalogs zur Sanierung der Gebarung"
+     },
+     {
+      "thema": "kassenstellen",
+      "akteur": "vertragsaerzte",
+      "bedingung": "Wahrung von: zusätzliche Öffnungszeiten nur mit Abgeltung"
+     },
+     {
+      "thema": "triage",
+      "akteur": "vertragsaerzte",
+      "bedingung": "Wahrung von: keine Mehrleistungen ohne Honorar"
+     },
+     {
+      "thema": "finanzierung",
+      "akteur": "vertragsaerzte",
+      "bedingung": "Wahrung von: keine Mehrleistungen ohne Honorar"
+     },
+     {
+      "thema": "patientenlenkung",
+      "akteur": "vertragsaerzte",
+      "bedingung": "Wahrung von: keine Mehrleistungen ohne Honorar"
+     }
+    ],
+    "gescheitert": [],
+    "zugestaendnisse": [
+     {
+      "thema": "finanzierung",
+      "akteur": "sv",
+      "zugestaendnis": "Bewegung von -1 auf +0 mit Blick auf aerztekammer"
+     }
+    ]
+   }
+  },
+  "zeit": "2026-11-05T16:04:59.374669+01:00"
+ },
+ {
+  "seq": 51,
+  "runde": 4,
+  "art": "runde",
+  "akteur": null,
+  "daten": {
+   "phase": "kompromiss",
+   "teilnehmer": [
+    "aerztekammer",
+    "finanzministerium",
+    "gesundheitsministerium",
+    "patienten",
+    "sv",
+    "vertragsaerzte"
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.375158+01:00"
+ },
+ {
+  "seq": 52,
+  "runde": 4,
+  "art": "belege",
+  "akteur": "aerztekammer",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "31e8d18812a7-007-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-18",
+     "monat": "2026-09",
+     "titel": "Kammer fordert attraktivere Kassenverträge",
+     "pdf_seite": null,
+     "zitat": "Die Ärztekammer sieht den Ärztemangel im Kassenbereich als Folge unattraktiver Verträge. Sie fordert höhere Honorare, flexible Arbeitszeitmodelle und weniger Dokumentationspflichten."
+    },
+    {
+     "beleg_id": "9ab8157bb3b1-008-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-05",
+     "monat": "2026-09",
+     "titel": "Ärztekammer skeptisch gegenüber Pflichtlenkung",
+     "pdf_seite": null,
+     "zitat": "Eine verpflichtende Lenkung aller Patienten über eine Hotline lehnt die Ärztekammer ab. Sie befürchtet zusätzliche Hürden für chronisch Kranke. Die Patientenvertretung sieht in einer freiwilligen Lenkung Chancen."
+    },
+    {
+     "beleg_id": "b835bdccb3c8-009-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-20",
+     "monat": "2026-08",
+     "titel": "Gesamtvertrag: Verhandlungen stocken",
+     "pdf_seite": null,
+     "zitat": "Die Ärztekammer verlangt eine Erhöhung der Tarife für fachärztliche Leistungen, bevor neue Stellen besetzt werden können."
+    },
+    {
+     "beleg_id": "ed63ed9e0deb-010-01",
+     "medium": "Regionalanzeiger",
+     "datum": "2026-07-14",
+     "monat": "2026-07",
+     "titel": "Wahlarztsystem als Ventil",
+     "pdf_seite": null,
+     "zitat": "Eine Abschaffung würde die Wartezeiten aus ihrer Sicht weiter verlängern."
+    },
+    {
+     "beleg_id": "47ede0b32189-011-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-06-30",
+     "monat": "2026-06",
+     "titel": "Spitalsärzte klagen über volle Ambulanzen",
+     "pdf_seite": null,
+     "zitat": "Spitalsärzte berichten von überfüllten Ambulanzen, weil Termine im niedergelassenen Bereich fehlen. Die Krankenanstalten wünschen sich eine bessere Abstimmung mit den Kassenpraxen."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.399664+01:00"
+ },
+ {
+  "seq": 53,
+  "runde": 4,
+  "art": "zug",
+  "akteur": "aerztekammer",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 1,
+      "beleg_ids": [
+       "31e8d18812a7-007-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Kassenverträge an der Kammer vorbei"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Kassenstellen durch bessere Honorare und weniger Bürokratie attraktiv machen. Wir gehen auf die Position von gesundheitsministerium ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "47ede0b32189-011-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Abschaffung des Wahlarztsystems"
+      ],
+      "begruendung": "Wir wägen ab zwischen Kassenstellen durch bessere Honorare und weniger Bürokratie attraktiv machen und Gesamtverträge brauchen die Zustimmung der Sozialversicherung. Wir gehen auf die Position von gesundheitsministerium ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": -1,
+      "beleg_ids": [
+       "31e8d18812a7-007-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Abschaffung des Wahlarztsystems"
+      ],
+      "begruendung": "Das Thema berührt unsere Grenze: keine Abschaffung des Wahlarztsystems. Wir gehen auf die Position von gesundheitsministerium ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 1,
+      "beleg_ids": [
+       "31e8d18812a7-007-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Primärversorgungseinheiten ohne ärztliche Leitung"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: verbindliche, bundesweit einheitliche Patientenlenkung einführen. Wir gehen auf die Position von gesundheitsministerium ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "gesundheitsministerium"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.400142+01:00"
+ },
+ {
+  "seq": 54,
+  "runde": 4,
+  "art": "belege",
+  "akteur": "finanzministerium",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "79ba84c07c6e-017-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-08",
+     "monat": "2026-09",
+     "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
+     "pdf_seite": null,
+     "zitat": "Bund, Länder und Sozialversicherung beraten über eine Finanzierung aus einer Hand. Das Finanzministerium besteht auf der Ausgabenobergrenze, die Länder wollen Planungshoheit über die Spitäler behalten."
+    },
+    {
+     "beleg_id": "515bfa0c6262-004-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-28",
+     "monat": "2026-08",
+     "titel": "Gebarung der Kassen unter Druck",
+     "pdf_seite": null,
+     "zitat": "Das Finanzministerium lehnt zusätzliche Bundesmittel ohne Gegenfinanzierung ab. Die Kassen wollen dennoch keine Leistungen kürzen."
+    },
+    {
+     "beleg_id": "ab275863e008-020-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-08-17",
+     "monat": "2026-08",
+     "titel": "Keine höheren Beiträge",
+     "pdf_seite": null,
+     "zitat": "Zusätzliche Ausgaben müssten durch Kostendämpfung an anderer Stelle gedeckt werden."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.400552+01:00"
+ },
+ {
+  "seq": 55,
+  "runde": 4,
+  "art": "zug",
+  "akteur": "finanzministerium",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 0,
+      "beleg_ids": [
+       "ab275863e008-020-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+      ],
+      "begruendung": "Wir wägen ab zwischen Ausgabendynamik im Gesundheitswesen dämpfen und Defizitverfahren und Fiskalregeln der Europäischen Union. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "515bfa0c6262-004-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+      ],
+      "begruendung": "Wir wägen ab zwischen Ausgabendynamik im Gesundheitswesen dämpfen und Defizitverfahren und Fiskalregeln der Europäischen Union. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 0,
+      "beleg_ids": [
+       "79ba84c07c6e-017-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Mehrausgaben ohne Gegenfinanzierung"
+      ],
+      "begruendung": "Wir wägen ab zwischen Fiskalregeln und Budgetpfad einhalten und keine Mehrausgaben ohne Gegenfinanzierung. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 1,
+      "beleg_ids": [
+       "ab275863e008-020-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Ausgabendynamik im Gesundheitswesen dämpfen. Wir gehen auf die Position von sv ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "sv"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.400873+01:00"
+ },
+ {
+  "seq": 56,
+  "runde": 4,
+  "art": "belege",
+  "akteur": "gesundheitsministerium",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "fcfc027ce213-012-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-25",
+     "monat": "2026-09",
+     "titel": "Patientenanwaltschaft verlangt Terminobergrenze",
+     "pdf_seite": null,
+     "zitat": "Die Patientenvertretung verlangt eine Obergrenze für die Wartezeit auf Kassentermine. Das Gesundheitsministerium prüft eine Terminservicestelle nach ausländischem Vorbild."
+    },
+    {
+     "beleg_id": "cc25450aedaa-022-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-19",
+     "monat": "2026-09",
+     "titel": "Digitale Ersteinschätzung evaluieren",
+     "pdf_seite": null,
+     "zitat": "Eine digitale Ersteinschätzung vor dem Facharzttermin kann Überweisungen vermeiden, sagen Gesundheitsökonomen. Sie raten zu einer begleitenden Evaluierung, bevor das Angebot flächendeckend kommt."
+    },
+    {
+     "beleg_id": "c22f87ab3139-015-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-12",
+     "monat": "2026-09",
+     "titel": "Gruppenpraxen sollen leichter möglich werden",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium will Gruppenpraxen und Primärversorgungseinheiten rechtlich erleichtern. Vertragsärzte begrüßen das, verlangen aber eine faire Abgeltung längerer Öffnungszeiten."
+    },
+    {
+     "beleg_id": "fac632294cff-003-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-10",
+     "monat": "2026-09",
+     "titel": "Gesundheitshotline soll Termine vermitteln",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium und die Sozialversicherung planen, dass die Gesundheitshotline künftig auch Facharzttermine vermittelt. Eine digitale Ersteinschätzung soll vor dem Termin klären, wie dringend ein Anliegen ist."
+    },
+    {
+     "beleg_id": "79ba84c07c6e-017-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-08",
+     "monat": "2026-09",
+     "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
+     "pdf_seite": null,
+     "zitat": "Bund, Länder und Sozialversicherung beraten über eine Finanzierung aus einer Hand. Das Finanzministerium besteht auf der Ausgabenobergrenze, die Länder wollen Planungshoheit über die Spitäler behalten."
+    },
+    {
+     "beleg_id": "6237cadbc584-023-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-03",
+     "monat": "2026-09",
+     "titel": "Novelle zur Terminvergabe in Begutachtung",
+     "pdf_seite": null,
+     "zitat": "Eine Gesetzesnovelle zur Terminvergabe geht in Begutachtung. Sie soll die Zuständigkeit für eine Terminservicestelle klären und eine Wirkungsfolgenabschätzung enthalten."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.401342+01:00"
+ },
+ {
+  "seq": 57,
+  "runde": 4,
+  "art": "zug",
+  "akteur": "gesundheitsministerium",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 0,
+      "beleg_ids": [
+       "cc25450aedaa-022-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine neuen Selbstbehalte beim Arztbesuch, die einkommensschwache Versicherte treffen"
+      ],
+      "begruendung": "Wir wägen ab zwischen gemeinsame Planung und Finanzierung aus einer Hand mit Ländern und Sozialversicherung umsetzen und Krankenanstalten sind Landessache, der Bund braucht die Länder. Wir gehen auf die Position von aerztekammer ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 1,
+      "beleg_ids": [
+       "79ba84c07c6e-017-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine neuen Selbstbehalte beim Arztbesuch, die einkommensschwache Versicherte treffen"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: digitale Versorgung über ELGA, 1450 und Telemedizin ausbauen. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 0,
+      "beleg_ids": [
+       "c22f87ab3139-015-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine neuen Selbstbehalte beim Arztbesuch, die einkommensschwache Versicherte treffen"
+      ],
+      "begruendung": "Wir wägen ab zwischen gemeinsame Planung und Finanzierung aus einer Hand mit Ländern und Sozialversicherung umsetzen und Krankenanstalten sind Landessache, der Bund braucht die Länder. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "79ba84c07c6e-017-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: Mittel aus dem Gesundheitsreformfonds zweckgebunden einsetzen"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Gesundheitsversorgungszentren und Primärversorgungseinheiten ausbauen. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "aerztekammer"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.401702+01:00"
+ },
+ {
+  "seq": 58,
+  "runde": 4,
+  "art": "belege",
+  "akteur": "patienten",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "fcfc027ce213-012-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-25",
+     "monat": "2026-09",
+     "titel": "Patientenanwaltschaft verlangt Terminobergrenze",
+     "pdf_seite": null,
+     "zitat": "Die Patientenvertretung verlangt eine Obergrenze für die Wartezeit auf Kassentermine. Das Gesundheitsministerium prüft eine Terminservicestelle nach ausländischem Vorbild."
+    },
+    {
+     "beleg_id": "74ae27909bd4-002-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-15",
+     "monat": "2026-09",
+     "titel": "Wartezeit auf Facharzttermine bleibt lang",
+     "pdf_seite": null,
+     "zitat": "Patientinnen und Patienten warten in mehreren Fächern viele Wochen auf einen Kassentermin. Die Patientenvertretung fordert eine verbindliche Terminservicestelle. Die Krankenversicherung verweist auf unbesetzte Kassenstellen."
+    },
+    {
+     "beleg_id": "9ab8157bb3b1-008-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-05",
+     "monat": "2026-09",
+     "titel": "Ärztekammer skeptisch gegenüber Pflichtlenkung",
+     "pdf_seite": null,
+     "zitat": "Eine verpflichtende Lenkung aller Patienten über eine Hotline lehnt die Ärztekammer ab. Sie befürchtet zusätzliche Hürden für chronisch Kranke. Die Patientenvertretung sieht in einer freiwilligen Lenkung Chancen."
+    },
+    {
+     "beleg_id": "007f2b90aa6d-013-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-03",
+     "monat": "2026-08",
+     "titel": "Sorge vor Zweiklassenmedizin",
+     "pdf_seite": null,
+     "zitat": "Wer es sich leisten kann, weicht zum Wahlarzt aus. Die Patientenvertretung warnt vor einer Zweiklassenmedizin, wenn Kassentermine knapp bleiben."
+    },
+    {
+     "beleg_id": "c7e7a1b753b2-014-01",
+     "medium": "Regionalanzeiger",
+     "datum": "2026-07-21",
+     "monat": "2026-07",
+     "titel": "Telemedizin auf dem Land gefragt",
+     "pdf_seite": null,
+     "zitat": "In ländlichen Regionen nutzen Patientinnen und Patienten telemedizinische Angebote häufiger. Die Patientenvertretung fordert, dass diese Angebote als Kassenleistung gelten."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.402221+01:00"
+ },
+ {
+  "seq": 59,
+  "runde": 4,
+  "art": "zug",
+  "akteur": "patienten",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 1,
+      "beleg_ids": [
+       "007f2b90aa6d-013-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine zusätzlichen Kosten für Versicherte ohne soziale Staffelung"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: kürzere Wartezeiten auf Kassentermine und Operationen. Wir gehen auf die Position von aerztekammer ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "9ab8157bb3b1-008-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine neuen Selbstbehalte, die einkommensschwache Versicherte vom Arztbesuch abhalten"
+      ],
+      "begruendung": "Wir wägen ab zwischen kürzere Wartezeiten auf Kassentermine und Operationen und keine Entscheidungsmacht über Verträge oder Budgets. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 0,
+      "beleg_ids": [
+       "fcfc027ce213-012-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine neuen Selbstbehalte, die einkommensschwache Versicherte vom Arztbesuch abhalten"
+      ],
+      "begruendung": "Wir wägen ab zwischen kürzere Wartezeiten auf Kassentermine und Operationen und keine Entscheidungsmacht über Verträge oder Budgets. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "007f2b90aa6d-013-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: Patientenlenkung ohne Gebühren beim Erstkontakt"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Gesundheitshotline 1450 mit verbindlichem Termin als Ergebnis. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "aerztekammer"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.402549+01:00"
+ },
+ {
+  "seq": 60,
+  "runde": 4,
+  "art": "belege",
+  "akteur": "sv",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "3b23f309efd0-001-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-22",
+     "monat": "2026-09",
+     "titel": "Kasse will mehr Facharztstellen ausschreiben",
+     "pdf_seite": null,
+     "zitat": "Die Sozialversicherung kündigt an, zusätzliche fachärztliche Kassenstellen auszuschreiben. Vor allem in ländlichen Bezirken bleiben Stellen bisher unbesetzt. Die Vertragsärzte verlangen dafür bessere Honorare und weniger Bürokratie."
+    },
+    {
+     "beleg_id": "74ae27909bd4-002-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-09-15",
+     "monat": "2026-09",
+     "titel": "Wartezeit auf Facharzttermine bleibt lang",
+     "pdf_seite": null,
+     "zitat": "Patientinnen und Patienten warten in mehreren Fächern viele Wochen auf einen Kassentermin. Die Patientenvertretung fordert eine verbindliche Terminservicestelle. Die Krankenversicherung verweist auf unbesetzte Kassenstellen."
+    },
+    {
+     "beleg_id": "fac632294cff-003-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-10",
+     "monat": "2026-09",
+     "titel": "Gesundheitshotline soll Termine vermitteln",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium und die Sozialversicherung planen, dass die Gesundheitshotline künftig auch Facharzttermine vermittelt. Eine digitale Ersteinschätzung soll vor dem Termin klären, wie dringend ein Anliegen ist."
+    },
+    {
+     "beleg_id": "515bfa0c6262-004-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-08-28",
+     "monat": "2026-08",
+     "titel": "Gebarung der Kassen unter Druck",
+     "pdf_seite": null,
+     "zitat": "Das Finanzministerium lehnt zusätzliche Bundesmittel ohne Gegenfinanzierung ab. Die Kassen wollen dennoch keine Leistungen kürzen."
+    },
+    {
+     "beleg_id": "c79b2f3f10a7-005-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-08-12",
+     "monat": "2026-08",
+     "titel": "Streit um Erstattung für Wahlarztbesuche",
+     "pdf_seite": null,
+     "zitat": "Die Sozialversicherung prüft, die Erstattung für Wahlarztbesuche an eine Versorgungspflicht zu knüpfen. Die Vertretung der Wahlärzte warnt vor einem Rückzug aus der Versorgung."
+    },
+    {
+     "beleg_id": "ae6b911ced1e-006-01",
+     "medium": "Regionalanzeiger",
+     "datum": "2026-07-30",
+     "monat": "2026-07",
+     "titel": "Ambulanzen und Kassen ringen um Patientenströme",
+     "pdf_seite": null,
+     "zitat": "Die Bundesländer wollen Spitalsambulanzen entlasten und Patienten in den niedergelassenen Bereich lenken. Die Sozialversicherung verlangt, dass das Geld der Leistung folgt."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.402978+01:00"
+ },
+ {
+  "seq": 61,
+  "runde": 4,
+  "art": "zug",
+  "akteur": "sv",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 2,
+      "beleg_ids": [
+       "ae6b911ced1e-006-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Wartezeiten auf Termine bei Kassenärztinnen und Kassenärzten senken. Wir gehen auf die Position von aerztekammer ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "ae6b911ced1e-006-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Kürzung des Leistungskatalogs zur Sanierung der Gebarung"
+      ],
+      "begruendung": "Wir wägen ab zwischen Wartezeiten auf Termine bei Kassenärztinnen und Kassenärzten senken und Einnahmen hängen an Beiträgen und damit an der Beschäftigungslage. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 0,
+      "beleg_ids": [
+       "c79b2f3f10a7-005-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern"
+      ],
+      "begruendung": "Wir wägen ab zwischen einheitlichen Leistungskatalog über alle Krankenversicherungsträger erreichen und neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "74ae27909bd4-002-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Kürzung des Leistungskatalogs zur Sanierung der Gebarung"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Patientenlenkung über die Gesundheitshotline 1450 und die Primärversorgung stärken. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "aerztekammer"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.403348+01:00"
+ },
+ {
+  "seq": 62,
+  "runde": 4,
+  "art": "belege",
+  "akteur": "vertragsaerzte",
+  "daten": {
+   "belege": [
+    {
+     "beleg_id": "3b23f309efd0-001-01",
+     "medium": "Musterzeitung Süd",
+     "datum": "2026-09-22",
+     "monat": "2026-09",
+     "titel": "Kasse will mehr Facharztstellen ausschreiben",
+     "pdf_seite": null,
+     "zitat": "Die Sozialversicherung kündigt an, zusätzliche fachärztliche Kassenstellen auszuschreiben. Vor allem in ländlichen Bezirken bleiben Stellen bisher unbesetzt. Die Vertragsärzte verlangen dafür bessere Honorare und weniger Bürokratie."
+    },
+    {
+     "beleg_id": "31e8d18812a7-007-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-18",
+     "monat": "2026-09",
+     "titel": "Kammer fordert attraktivere Kassenverträge",
+     "pdf_seite": null,
+     "zitat": "Die Ärztekammer sieht den Ärztemangel im Kassenbereich als Folge unattraktiver Verträge. Sie fordert höhere Honorare, flexible Arbeitszeitmodelle und weniger Dokumentationspflichten."
+    },
+    {
+     "beleg_id": "c22f87ab3139-015-01",
+     "medium": "Fachdienst Gesundheit",
+     "datum": "2026-09-12",
+     "monat": "2026-09",
+     "titel": "Gruppenpraxen sollen leichter möglich werden",
+     "pdf_seite": null,
+     "zitat": "Das Gesundheitsministerium will Gruppenpraxen und Primärversorgungseinheiten rechtlich erleichtern. Vertragsärzte begrüßen das, verlangen aber eine faire Abgeltung längerer Öffnungszeiten."
+    },
+    {
+     "beleg_id": "7a273bf03088-016-01",
+     "medium": "Beispielblatt",
+     "datum": "2026-08-25",
+     "monat": "2026-08",
+     "titel": "Mehr Kompetenzen für Gesundheitsberufe",
+     "pdf_seite": null,
+     "zitat": "Pflegekräfte sollen in Primärversorgungseinheiten mehr Aufgaben übernehmen dürfen. Die Pflegevertretung sieht darin eine Aufwertung, die Vertragsärzte eine Entlastung bei Routinetätigkeiten."
+    }
+   ]
+  },
+  "zeit": "2026-11-05T16:04:59.403972+01:00"
+ },
+ {
+  "seq": 63,
+  "runde": 4,
+  "art": "zug",
+  "akteur": "vertragsaerzte",
+  "daten": {
+   "zug": {
+    "themen": [
+     {
+      "thema": "kassenstellen",
+      "haltung": 1,
+      "beleg_ids": [
+       "3b23f309efd0-001-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: zusätzliche Öffnungszeiten nur mit Abgeltung"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Wir gehen auf die Position von aerztekammer ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "triage",
+      "haltung": 0,
+      "beleg_ids": [
+       "3b23f309efd0-001-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Mehrleistungen ohne Honorar"
+      ],
+      "begruendung": "Wir wägen ab zwischen digitale Werkzeuge, die Zeit sparen statt Zeit kosten und Honorare legt der Gesamtvertrag fest. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "finanzierung",
+      "haltung": 1,
+      "beleg_ids": [
+       "7a273bf03088-016-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Mehrleistungen ohne Honorar"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     },
+     {
+      "thema": "patientenlenkung",
+      "haltung": 2,
+      "beleg_ids": [
+       "3b23f309efd0-001-01"
+      ],
+      "bedingungen": [
+       "Wahrung von: keine Mehrleistungen ohne Honorar"
+      ],
+      "begruendung": "Das Thema stützt unser Ziel: Primärversorgungseinheiten mit fairer Finanzierung. Wir gehen auf die Position von aerztekammer ein.",
+      "zugestaendnis": null
+     }
+    ],
+    "zahlen": [
+     {
+      "wert": -22.24,
+      "quelle": "experte",
+      "einheit": "%"
+     },
+     {
+      "wert": 0.21,
+      "quelle": "experte",
+      "einheit": "%"
+     }
+    ],
+    "bezug_auf": [
+     "aerztekammer"
+    ]
+   },
+   "modell": "mock-fixture",
+   "provider": "mock",
+   "versuche": 1,
+   "fallback_stufe": 1
+  },
+  "zeit": "2026-11-05T16:04:59.404300+01:00"
+ },
+ {
+  "seq": 64,
+  "runde": 4,
+  "art": "moderator_notiz",
+  "akteur": "moderator",
+  "daten": {
+   "notiz": "Runde 4: 0 Positionsänderungen. Offen bleiben: finanzierung, triage.",
+   "widersprueche": [],
+   "code_widersprueche": [],
+   "belege_eingefordert": [],
+   "haltungen_ohne_beleg": []
+  },
+  "zeit": "2026-11-05T16:04:59.407567+01:00"
+ },
+ {
+  "seq": 65,
+  "runde": 4,
+  "art": "runde_ende",
+  "akteur": null,
+  "daten": {
+   "aenderungen": [],
+   "klassifikation": {
+    "triage": "offener_konflikt",
+    "finanzierung": "offener_konflikt",
+    "kassenstellen": "mehrheit",
+    "patientenlenkung": "konsens"
+   },
+   "zwischenergebnis": {
+    "offen": [
+     "triage",
+     "finanzierung"
+    ],
+    "moderator": "Runde 4: 0 Positionsänderungen. Offen bleiben: finanzierung, triage.",
+    "einigungen": [
+     {
+      "thema": "kassenstellen",
+      "kategorie": "mehrheit"
+     },
+     {
+      "thema": "patientenlenkung",
+      "kategorie": "konsens"
+     }
+    ],
+    "positionen": {
+     "sv": {
+      "triage": 0,
+      "finanzierung": 0,
+      "kassenstellen": 2,
+      "patientenlenkung": 2
+     },
+     "patienten": {
+      "triage": 0,
+      "finanzierung": 0,
+      "kassenstellen": 1,
+      "patientenlenkung": 2
+     },
+     "aerztekammer": {
+      "triage": 0,
+      "finanzierung": -1,
+      "kassenstellen": 1,
+      "patientenlenkung": 1
+     },
+     "vertragsaerzte": {
+      "triage": 0,
+      "finanzierung": 1,
+      "kassenstellen": 1,
+      "patientenlenkung": 2
+     },
+     "finanzministerium": {
+      "triage": 0,
+      "finanzierung": 0,
+      "kassenstellen": 0,
+      "patientenlenkung": 1
+     },
+     "gesundheitsministerium": {
+      "triage": 1,
+      "finanzierung": 0,
+      "kassenstellen": 0,
+      "patientenlenkung": 2
+     }
+    },
+    "bedingungen": [
+     {
+      "thema": "kassenstellen",
+      "akteur": "aerztekammer",
+      "bedingung": "Wahrung von: keine Kassenverträge an der Kammer vorbei"
+     },
+     {
+      "thema": "triage",
+      "akteur": "aerztekammer",
+      "bedingung": "Wahrung von: keine Abschaffung des Wahlarztsystems"
+     },
+     {
+      "thema": "finanzierung",
+      "akteur": "aerztekammer",
+      "bedingung": "Wahrung von: keine Abschaffung des Wahlarztsystems"
+     },
+     {
+      "thema": "patientenlenkung",
+      "akteur": "aerztekammer",
+      "bedingung": "Wahrung von: keine Primärversorgungseinheiten ohne ärztliche Leitung"
+     },
+     {
+      "thema": "kassenstellen",
+      "akteur": "finanzministerium",
+      "bedingung": "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+     },
+     {
+      "thema": "triage",
+      "akteur": "finanzministerium",
+      "bedingung": "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+     },
+     {
+      "thema": "finanzierung",
+      "akteur": "finanzministerium",
+      "bedingung": "Wahrung von: keine Mehrausgaben ohne Gegenfinanzierung"
+     },
+     {
+      "thema": "patientenlenkung",
+      "akteur": "finanzministerium",
+      "bedingung": "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+     },
+     {
+      "thema": "kassenstellen",
+      "akteur": "gesundheitsministerium",
+      "bedingung": "Wahrung von: keine neuen Selbstbehalte beim Arztbesuch, die einkommensschwache Versicherte treffen"
+     },
+     {
+      "thema": "triage",
+      "akteur": "gesundheitsministerium",
+      "bedingung": "Wahrung von: keine neuen Selbstbehalte beim Arztbesuch, die einkommensschwache Versicherte treffen"
+     },
+     {
+      "thema": "finanzierung",
+      "akteur": "gesundheitsministerium",
+      "bedingung": "Wahrung von: keine neuen Selbstbehalte beim Arztbesuch, die einkommensschwache Versicherte treffen"
+     },
+     {
+      "thema": "patientenlenkung",
+      "akteur": "gesundheitsministerium",
+      "bedingung": "Wahrung von: Mittel aus dem Gesundheitsreformfonds zweckgebunden einsetzen"
+     },
+     {
+      "thema": "kassenstellen",
+      "akteur": "patienten",
+      "bedingung": "Wahrung von: keine zusätzlichen Kosten für Versicherte ohne soziale Staffelung"
+     },
+     {
+      "thema": "triage",
+      "akteur": "patienten",
+      "bedingung": "Wahrung von: keine neuen Selbstbehalte, die einkommensschwache Versicherte vom Arztbesuch abhalten"
+     },
+     {
+      "thema": "finanzierung",
+      "akteur": "patienten",
+      "bedingung": "Wahrung von: keine neuen Selbstbehalte, die einkommensschwache Versicherte vom Arztbesuch abhalten"
+     },
+     {
+      "thema": "patientenlenkung",
+      "akteur": "patienten",
+      "bedingung": "Wahrung von: Patientenlenkung ohne Gebühren beim Erstkontakt"
+     },
+     {
+      "thema": "kassenstellen",
+      "akteur": "sv",
+      "bedingung": "Wahrung von: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern"
+     },
+     {
+      "thema": "triage",
+      "akteur": "sv",
+      "bedingung": "Wahrung von: keine Kürzung des Leistungskatalogs zur Sanierung der Gebarung"
+     },
+     {
+      "thema": "finanzierung",
+      "akteur": "sv",
+      "bedingung": "Wahrung von: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern"
+     },
+     {
+      "thema": "patientenlenkung",
+      "akteur": "sv",
+      "bedingung": "Wahrung von: keine Kürzung des Leistungskatalogs zur Sanierung der Gebarung"
+     },
+     {
+      "thema": "kassenstellen",
+      "akteur": "vertragsaerzte",
+      "bedingung": "Wahrung von: zusätzliche Öffnungszeiten nur mit Abgeltung"
+     },
+     {
+      "thema": "triage",
+      "akteur": "vertragsaerzte",
+      "bedingung": "Wahrung von: keine Mehrleistungen ohne Honorar"
+     },
+     {
+      "thema": "finanzierung",
+      "akteur": "vertragsaerzte",
+      "bedingung": "Wahrung von: keine Mehrleistungen ohne Honorar"
+     },
+     {
+      "thema": "patientenlenkung",
+      "akteur": "vertragsaerzte",
+      "bedingung": "Wahrung von: keine Mehrleistungen ohne Honorar"
+     }
+    ],
+    "gescheitert": [],
+    "zugestaendnisse": []
+   }
+  },
+  "zeit": "2026-11-05T16:04:59.407886+01:00"
+ },
+ {
+  "seq": 66,
+  "runde": null,
+  "art": "ergebnis",
+  "akteur": null,
+  "daten": {
+   "runden": 4,
+   "abbruch": "Runde 4 ohne Positionsänderung",
+   "aenderungen": [
+    {
+     "alt": 1,
+     "neu": 0,
+     "runde": 2,
+     "thema": "finanzierung",
+     "akteur": "finanzministerium",
+     "begruendung": "Wir wägen ab zwischen Fiskalregeln und Budgetpfad einhalten und keine Mehrausgaben ohne Gegenfinanzierung. Wir gehen auf die Position von sv ein."
+    },
+    {
+     "alt": 0,
+     "neu": 1,
+     "runde": 2,
+     "thema": "patientenlenkung",
+     "akteur": "finanzministerium",
+     "begruendung": "Das Thema stützt unser Ziel: Ausgabendynamik im Gesundheitswesen dämpfen. Wir gehen auf die Position von sv ein."
+    },
+    {
+     "alt": 0,
+     "neu": 1,
+     "runde": 2,
+     "thema": "kassenstellen",
+     "akteur": "patienten",
+     "begruendung": "Das Thema stützt unser Ziel: kürzere Wartezeiten auf Kassentermine und Operationen. Wir gehen auf die Position von finanzministerium ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten."
+    },
+    {
+     "alt": -2,
+     "neu": -1,
+     "runde": 2,
+     "thema": "finanzierung",
+     "akteur": "sv",
+     "begruendung": "Das Thema berührt unsere Grenze: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern. Wir gehen auf die Position von finanzministerium ein."
+    },
+    {
+     "alt": 2,
+     "neu": 1,
+     "runde": 2,
+     "thema": "kassenstellen",
+     "akteur": "vertragsaerzte",
+     "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten."
+    },
+    {
+     "alt": -1,
+     "neu": 0,
+     "runde": 3,
+     "thema": "finanzierung",
+     "akteur": "sv",
+     "begruendung": "Wir wägen ab zwischen einheitlichen Leistungskatalog über alle Krankenversicherungsträger erreichen und neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern. Wir gehen auf die Position von aerztekammer ein."
+    }
+   ],
+   "klassifikation": {
+    "triage": {
+     "ablehnend": [],
+     "enthalten": [
+      "aerztekammer",
+      "finanzministerium",
+      "patienten",
+      "sv",
+      "vertragsaerzte"
+     ],
+     "kategorie": "offener_konflikt",
+     "minderheit": [],
+     "zustimmend": [
+      "gesundheitsministerium"
+     ]
+    },
+    "finanzierung": {
+     "ablehnend": [
+      "aerztekammer"
+     ],
+     "enthalten": [
+      "finanzministerium",
+      "gesundheitsministerium",
+      "patienten",
+      "sv"
+     ],
+     "kategorie": "offener_konflikt",
+     "minderheit": [],
+     "zustimmend": [
+      "vertragsaerzte"
+     ]
+    },
+    "kassenstellen": {
+     "ablehnend": [],
+     "enthalten": [
+      "finanzministerium",
+      "gesundheitsministerium"
+     ],
+     "kategorie": "mehrheit",
+     "minderheit": [],
+     "zustimmend": [
+      "aerztekammer",
+      "patienten",
+      "sv",
+      "vertragsaerzte"
+     ]
+    },
+    "patientenlenkung": {
+     "ablehnend": [],
+     "enthalten": [],
+     "kategorie": "konsens",
+     "minderheit": [],
+     "zustimmend": [
+      "aerztekammer",
+      "finanzministerium",
+      "gesundheitsministerium",
+      "patienten",
+      "sv",
+      "vertragsaerzte"
+     ]
+    }
+   }
+  },
+  "zeit": "2026-11-05T16:04:59.408442+01:00"
+ }
+]
