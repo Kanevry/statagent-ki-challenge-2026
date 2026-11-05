@@ -24,7 +24,15 @@ from statagent.agenten import werkzeuge
 from statagent.agenten.werkzeuge import AbfrageVerweigert, sql_lesen
 from statagent.db import Verbindung, verbinden
 from statagent.ergebnis import letzter_lauf, monat_verschieben, monatserster, monatsletzter
-from statagent.frage import als_ucantwort, antwort_frage, fragetyp, jahr_ohne_monat, monate_lesen, rate
+from statagent.frage import (
+    als_ucantwort,
+    als_webantwort,
+    antwort_frage,
+    fragetyp,
+    jahr_ohne_monat,
+    monate_lesen,
+    rate,
+)
 from statagent.lauf import lauf_ausfuehren
 
 ZEITREIHE = "Zeitreihe der Beschäftigten 08/2024–07/2026"
@@ -301,7 +309,9 @@ def test_cli_frage_json(gerechnet: Verbindung, arbeits_db: str, monkeypatch: pyt
     monkeypatch.setattr(cli, "verbinden", lambda: verbinden(arbeits_db))
     ergebnis = CliRunner().invoke(cli.app, ["frage", FLUKTUATION, "--json"])
     assert ergebnis.exit_code == 0, ergebnis.output
-    erwartet = json.loads(json.dumps(antwort_frage(gerechnet, FLUKTUATION), ensure_ascii=False, default=str))
+    erwartet = json.loads(
+        json.dumps(als_webantwort(antwort_frage(gerechnet, FLUKTUATION)), ensure_ascii=False, default=str)
+    )
     assert json.loads(ergebnis.output) == erwartet
     text = CliRunner().invoke(cli.app, ["frage", FLUKTUATION])
     assert text.exit_code == 0 and "SQL [0]: WITH bestand AS" in text.output and "Definition: " in text.output
@@ -452,3 +462,37 @@ def test_sprache_status_und_monate_ohne_lieferung(gerechnet: Verbindung) -> None
         assert daten["zahlen"] == [] and "Für Juli 2024 gibt es keine Lieferung" in daten["text"]
     reihe = antwort_frage(gerechnet, "Zeitreihe 06/2024 bis 09/2024")
     assert any("2 Monate im Zeitraum gibt es keine Lieferung" in h for h in reihe["hinweise"])
+
+
+# Fängt: `frage --json` liefert Felder außerhalb der Antwortform; die Webseite /uc3/fragen (!51) entfernt nur
+# definition und rueckfrage, prüft den Rest streng (.strict()) und lehnte sonst jede Antwort ab.
+@pytest.mark.parametrize(
+    ("frage", "art"),
+    [
+        ("Beschäftigte August 2024", "zahl"),
+        ("Zeitreihe 08/2024 bis 09/2024", "zahl"),
+        ("Beschäftigte 2025", "rueckfrage"),
+        ("Zeitreihe nach ÖNACE 08/2024 bis 03/2025", "absage"),
+        ("Beschäftigte Juli 2024", "absage"),
+    ],
+)
+def test_cli_json_ist_antwortform_der_webseite(
+    gerechnet: Verbindung, arbeits_db: str, monkeypatch: pytest.MonkeyPatch, frage: str, art: str
+) -> None:
+    from typer.testing import CliRunner
+
+    from statagent import cli
+
+    antwortform = pytest.importorskip("plattform.antwortform")
+    monkeypatch.setattr(cli, "verbinden", lambda: verbinden(arbeits_db))
+    ergebnis = CliRunner().invoke(cli.app, ["frage", "--json", "--", frage])
+    assert ergebnis.exit_code == 0, ergebnis.output
+    daten = json.loads(ergebnis.output)
+    definition, rueckfrage = daten.pop("definition"), daten.pop("rueckfrage")
+    antwortform.UcAntwort.model_validate(daten)
+    assert definition is None or isinstance(definition, str)
+    if art == "rueckfrage":
+        assert isinstance(rueckfrage, str) and rueckfrage == daten["text"] and daten["zahlen"] == []
+    else:
+        assert rueckfrage is None
+    assert (art == "zahl") == bool(daten["zahlen"])

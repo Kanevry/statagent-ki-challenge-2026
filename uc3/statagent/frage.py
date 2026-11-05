@@ -169,6 +169,22 @@ def als_ucantwort(daten: dict[str, Any]) -> dict[str, Any]:
     return {k: daten[k] for k in UC_FELDER}
 
 
+def als_webantwort(daten: dict[str, Any]) -> dict[str, Any]:
+    """JSON für die Webseite /uc3/fragen (``uc3 frage --json``): UcAntwort plus ``definition`` und ``rueckfrage``.
+
+    Die Seite prüft den Rest streng gegen ``ucAntwortSchema`` (shared/ui/src/antwortform.ts, ``.strict()``), darum
+    keine weiteren Felder. Einheit und Stand stehen je Zahl und je Beleg; Hinweise, die noch nicht im Text stehen,
+    kommen an den Text. ``rueckfrage`` ist der Text der Rückfrage oder None.
+    """
+    text = " ".join([daten["text"], *(h for h in daten["hinweise"] if h not in daten["text"])])
+    return {
+        **als_ucantwort(daten),
+        "text": text,
+        "definition": daten["definition"],
+        "rueckfrage": text if daten["rueckfrage"] else None,
+    }
+
+
 def _rueckfrage(text: str) -> dict[str, Any]:
     return _antwort("rueckfrage", text)
 

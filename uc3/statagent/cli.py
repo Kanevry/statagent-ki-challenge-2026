@@ -618,7 +618,7 @@ def frage(
     als_json: JsonOption = False,
 ) -> None:
     """Beantwortet eine Datenanfrage aus der Datenbank, mit sichtbarer Abfrage und Definition (#74)."""
-    from statagent.frage import antwort_frage
+    from statagent.frage import als_webantwort, antwort_frage
 
     with verbinden() as conn:
         daten = antwort_frage(conn, text, regelsatz)
@@ -633,7 +633,8 @@ def frage(
         zeilen.append("Stand: " + ", ".join(f"{k} {v}" for k, v in s.items()))
     for nummer, beleg in enumerate(daten["belege"]):
         zeilen.append(f"SQL [{nummer}]: {beleg['sql']}")
-    _ausgabe(daten, als_json, "\n".join(zeilen))
+    # --json ist die Antwortform der Webseite (#74, !51); die Textausgabe zeigt zusätzlich Einheit und Stand.
+    _ausgabe(als_webantwort(daten) if als_json else daten, als_json, "\n".join(zeilen))
 
 
 @app.command("klass")
