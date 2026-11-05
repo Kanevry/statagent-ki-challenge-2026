@@ -1,28 +1,31 @@
 import type { Metadata } from "next";
-import { Fliesstext, Ueberschrift } from "@kic/ui/basis";
 import { UcBereich } from "@kic/ui/shell";
 import { findeUc } from "@kic/ui/ucs";
-import { Einstieg } from "@/components/uc4/einstieg";
-import { KETTE } from "@/lib/plattform/uc4-ergebnis";
+import { Kette } from "@/components/uc4/kette";
+import { uc4Einstellung } from "@/lib/plattform/uc4";
 
-// UC4 Gemeinsamer Einstieg (#98, nicht bewertet): oben die Hauptaussage, dann das Frage-Feld, darunter die
-// Karten der Kette uc3 → uc2 → uc1. Die Seite rechnet nichts; Antworten kommen über POST /api/uc4/frage.
+// UC4 Gemeinsamer Einstieg (#98, nicht bewertet): eine Frage, die Stationen der Kette antworten nacheinander. Die
+// Seite rechnet nichts; die Antworten kommen als Strom über POST /api/uc4/frage. Was online nicht geht (Kette kürzer,
+// Modellwahl ohne Wirkung, Fragen zu), wird nicht angeboten.
 export const metadata: Metadata = { title: `${findeUc("uc4").name} · OneShotAndy` };
+export const dynamic = "force-dynamic";
 
 export default function GemeinsamerEinstieg() {
-  const namen = KETTE.map((uc) => findeUc(uc).name);
-  const kette = `${namen.slice(0, -1).join(", ")} und ${namen.at(-1)}`;
+  const { kette, fragenOffen, mitModell } = uc4Einstellung();
+  const voll = kette.length > 1;
   return (
     <UcBereich uc="uc4">
-      <div className="flex max-w-3xl flex-col gap-2">
-        <Ueberschrift stufe={2} als="h1">
-          {`Eine Frage läuft nacheinander durch ${kette}.`}
-        </Ueberschrift>
-        <Fliesstext ton="gedaempft">
-          Jeder Bereich sieht die Antworten davor. Jede Zahl zeigt, woher sie kommt.
-        </Fliesstext>
+      <div className="flex max-w-4xl flex-col gap-3 pt-4">
+        <h1 className="font-display text-56 font-bold text-ink text-balance">
+          {voll ? "Eine Frage, drei Antworten." : `Eine Frage an ${findeUc(kette[0]!).name}.`}
+        </h1>
+        <p className="font-sans text-20 text-slate">
+          {voll
+            ? "StatAgent rechnet die Zahl, der Simulator wägt ab, der Lotse sagt, was es für Sie heißt."
+            : "Das Programm rechnet die Antwort aus den Daten und zeigt, woher jede Zahl kommt."}
+        </p>
       </div>
-      <Einstieg />
+      <Kette kette={kette} fragenOffen={fragenOffen} mitModell={mitModell} />
     </UcBereich>
   );
 }
