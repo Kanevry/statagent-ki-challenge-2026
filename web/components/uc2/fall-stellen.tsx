@@ -8,6 +8,7 @@ import type { Vorbereitung } from "../../app/api/uc2/_lib/vorbereitung";
 import { AKTEUR_KURZ, akteurName, datumText } from "./namen";
 import { MOCK_FALL_ID, MOCK_FEHLER_ID, MERKE_FALL } from "./konstanten";
 import { Schritte } from "./schritte";
+import { Vorfuehrhinweis } from "./vorfuehrung";
 
 // U2-0 Fall stellen (Pen bhI7X): Frage und Rahmen oben, dann die Auswahl der Akteure (höchstens 6, mit Belegzahl),
 // Moderator und Experte, ein Start-Knopf. Der Blick geht von der Frage über die Auswahl zum einen grünen Knopf.
@@ -26,7 +27,8 @@ type Zustand = { art: "bereit" } | { art: "laedt" } | { art: "fehler"; meldung: 
 export function FallStellen({ vorbereitung }: { vorbereitung: Vorbereitung }) {
   const router = useRouter();
   const gruppeId = useId();
-  const { fall, akteure, quelle } = vorbereitung;
+  const { fall, akteure, modus } = vorbereitung;
+  const vorfuehrung = modus === "vorfuehrung";
   const vorschlag = akteure.filter((a) => a.vorgeschlagen).map((a) => a.akteur);
   const [gewaehlt, setGewaehlt] = useState<string[]>(vorschlag);
   const [zustand, setZustand] = useState<Zustand>({ art: "bereit" });
@@ -98,13 +100,7 @@ export function FallStellen({ vorbereitung }: { vorbereitung: Vorbereitung }) {
 
       <Schritte aktiv={1} />
 
-      {quelle === "mock" && (
-        <div data-testid="uc2-mock-hinweis">
-          <Status art="info">
-            Der Panel-Dienst ist gerade nicht erreichbar. Es läuft die aufgezeichnete Verhandlung, ohne Sprachmodell.
-          </Status>
-        </div>
-      )}
+      {vorfuehrung && <Vorfuehrhinweis />}
 
       <section aria-labelledby={`${gruppeId}-fall`} className="flex flex-col gap-4 border-t border-line pt-6">
         <Ueberschrift stufe={3} als="h2" id={`${gruppeId}-fall`}>
@@ -116,7 +112,7 @@ export function FallStellen({ vorbereitung }: { vorbereitung: Vorbereitung }) {
         <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             ...RAHMEN,
-            { name: "Presse bis", wert: datumText(fall.stichtag) },
+            { name: "Presseartikel bis", wert: datumText(fall.stichtag) },
           ].map((z) => (
             <div key={z.name} className="flex flex-col">
               <dt className="font-sans text-12 text-slate">{z.name}</dt>
@@ -178,7 +174,7 @@ export function FallStellen({ vorbereitung }: { vorbereitung: Vorbereitung }) {
           })}
         </ul>
         {zuWenig && <Status art="warnung">Wähle mindestens zwei Gruppen, sonst gibt es nichts zu verhandeln.</Status>}
-        {quelle === "mock" && weichtAb && (
+        {vorfuehrung && weichtAb && (
           <Status art="info">Die aufgezeichnete Verhandlung hat immer dieselben sechs am Tisch, egal was hier gewählt ist.</Status>
         )}
       </section>

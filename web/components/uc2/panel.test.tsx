@@ -29,7 +29,7 @@ it("zeigt Akteur, Haltung als Zahl und Wort, Herkunft-Chip mit Medium und Monat 
   expect(zeile.querySelector('[data-teil="haltung-wort"]')?.textContent).toBe("eher dafür");
 
   const chip = kammer.querySelector('[data-baustein="herkunft"] button')!;
-  expect(chip.querySelector('[data-teil="medium"]')?.textContent).toBe("Fachdienst Gesundheit");
+  expect(chip.querySelector('[data-teil="medium"]')?.textContent).toBe("Fachdienst Gesundheit (Beispiel)");
   expect(chip.querySelector('[data-teil="monat"]')?.textContent).toMatch(/^\d{2}\/\d{4}$/);
 
   const moderator = document.querySelector('[data-spur="moderator"]')!;
@@ -38,6 +38,24 @@ it("zeigt Akteur, Haltung als Zahl und Wort, Herkunft-Chip mit Medium und Monat 
   // Die Moderator-Spur steht außerhalb der Persona-Karten.
   expect(document.querySelector('[data-akteur] [data-spur="moderator"]')).toBeNull();
   expect(document.querySelector('[data-spur="experte"]')?.textContent).toContain("Zahlen geprüft");
+});
+
+it("genau ein Modellhinweis: live die Angabe des Laufs, in der Vorführung nur der Hinweis auf die Aufzeichnung", () => {
+  const { unmount } = zeige(fertig, "mock-wartezeiten", { modus: "vorfuehrung" });
+  expect(screen.getAllByTestId("uc2-vorfuehrung")).toHaveLength(1);
+  expect(screen.queryByTestId("uc2-modell")).toBeNull();
+  expect(document.body.textContent).not.toContain("mock-fixture");
+  unmount();
+  zeige(ableiten(mockEreignisse(MOCK_ABBRUCH)!), "42", { modus: "live" });
+  expect(screen.queryByTestId("uc2-vorfuehrung")).toBeNull();
+  expect(screen.getByTestId("uc2-modell").textContent).toContain("azure · gpt-5-4-mini");
+});
+
+it("erfundene Medien tragen in der Anzeige den Zusatz (Beispiel)", () => {
+  zeige(fertig);
+  const medien = [...document.querySelectorAll('[data-baustein="herkunft"] [data-teil="medium"]')].map((m) => m.textContent ?? "");
+  expect(medien.length).toBeGreaterThan(10);
+  for (const m of medien) expect(m).toMatch(/ \(Beispiel\)$/);
 });
 
 it("markiert, wer sich bewegt hat und wer fest blieb, und zeigt am Ende, was gilt", () => {

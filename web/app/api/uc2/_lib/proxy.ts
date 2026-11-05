@@ -1,6 +1,8 @@
 // Durchreichen an die Python-Schnittstelle `uc2.api` (Port 8102). `web/` ruft nie ein Modell: die Handler leiten
 // nur weiter oder liefern im Mock-Modus den aufgezeichneten Fall.
 
+import { istMockId } from "./mock";
+
 export const STANDARD_API = "http://localhost:8102";
 
 export function apiUrl(): string {
@@ -11,6 +13,18 @@ export function apiUrl(): string {
 export function mockErzwungen(): boolean {
   return process.env.UC2_MOCK === "1";
 }
+
+/**
+ * Betriebsart eines Falls, vom Server bestimmt statt von der Seite geraten: "vorfuehrung" = aufgezeichnete Verhandlung
+ * ohne Sprachmodell (Kennung mock-… oder UC2_MOCK=1), "live" = Lauf der Python-API.
+ */
+export type Modus = "vorfuehrung" | "live";
+
+export function modusFuer(fallId: string | null): Modus {
+  return mockErzwungen() || (fallId !== null && istMockId(fallId)) ? "vorfuehrung" : "live";
+}
+
+export const MODUS_KOPF = "x-uc2-modus";
 
 /** Fall-Kennungen kommen aus der URL und gehen in einen Pfad: nur harmlose Zeichen. */
 export function gueltigeId(id: string): boolean {

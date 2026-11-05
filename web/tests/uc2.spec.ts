@@ -51,6 +51,9 @@ test("Fall stellen, Start, Strom bis fertig: Personas, Stand und Moderator-Spur"
   await page.goto("/uc2");
   await expect(page.getByRole("heading", { level: 1, name: "Frage an das Panel" })).toBeVisible();
   await expect(page.getByRole("checkbox")).toHaveCount(14);
+  await expect(page.getByText("Presseartikel bis")).toBeVisible();
+  await expect(page.getByTestId("uc2-vorfuehrung")).toHaveText("Vorführmodus: Es läuft eine aufgezeichnete Verhandlung ohne Sprachmodell.");
+  await expect(page.getByText("nicht erreichbar")).toHaveCount(0);
   await slopNull(page);
   await ohneStriche(page);
 
@@ -66,6 +69,11 @@ test("Fall stellen, Start, Strom bis fertig: Personas, Stand und Moderator-Spur"
   await expect(page.locator('[data-spur="stand"][data-fertig="ja"]')).toContainText("Am Ende gilt");
   await expect(page.locator('[data-spur="moderator"]')).toContainText("denkt mit");
   await expect(page.locator('[data-akteur="aerztekammer"] [data-baustein="herkunft"]').first()).toContainText(/\d{2}\/\d{4}/);
+  await expect(page.locator('[data-teil="medium"]').first()).toContainText("(Beispiel)");
+  // Genau ein Modellhinweis auf der Seite, und der sagt: keine KI.
+  await expect(page.getByTestId("uc2-vorfuehrung")).toHaveCount(1);
+  await expect(page.getByTestId("uc2-modell")).toHaveCount(0);
+  await expect(page.locator("main")).not.toContainText("mock-fixture");
 
   await page.locator('[data-akteur="aerztekammer"] [data-baustein="herkunft"] button').first().click();
   const zitat = await page.locator('[data-teil="zitat"]').first().innerText();

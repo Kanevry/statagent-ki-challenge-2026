@@ -6,12 +6,13 @@ import { useEffect, useState } from "react";
 import { knopfKlassen, Leerzustand } from "@kic/ui/basis";
 import type { ModellWahl } from "../../app/api/uc2/_lib/vorbereitung";
 import { MERKE_FALL } from "./konstanten";
+import type { Modus } from "../../app/api/uc2/_lib/proxy";
 import { PanelAnsicht } from "./panel-ansicht";
 import { useEreignisstrom } from "./use-ereignisstrom";
 
 // Verdrahtung: Strom lesen, bei Modellfehler einen neuen Versuch starten. Die Ansicht selbst ist rein (panel-ansicht).
 
-function PanelLauf({ fallId, modelle, akteureIgnoriert }: { fallId: string; modelle: ModellWahl[]; akteureIgnoriert: boolean }) {
+function PanelLauf({ fallId, modelle, akteureIgnoriert, modus }: { fallId: string; modelle: ModellWahl[]; akteureIgnoriert: boolean; modus: Modus }) {
   const router = useRouter();
   const { zustand, verbindung, neuVerbinden } = useEreignisstrom(fallId);
   const [laedt, setLaedt] = useState(false);
@@ -71,12 +72,23 @@ function PanelLauf({ fallId, modelle, akteureIgnoriert }: { fallId: string; mode
       onNeu={neuStarten}
       onNeuVerbinden={neuVerbinden}
       akteureIgnoriert={akteureIgnoriert}
+      modus={modus}
     />
   );
 }
 
 /** Seite des Panels: ohne Fall in der Adresse führt sie zum zuletzt gestarteten Fall oder zeigt den Leerzustand. */
-export function PanelSeite({ fallId, modelle, akteureIgnoriert = false }: { fallId: string | null; modelle: ModellWahl[]; akteureIgnoriert?: boolean }) {
+export function PanelSeite({
+  fallId,
+  modelle,
+  akteureIgnoriert = false,
+  modus = "live",
+}: {
+  fallId: string | null;
+  modelle: ModellWahl[];
+  akteureIgnoriert?: boolean;
+  modus?: Modus;
+}) {
   const router = useRouter();
   useEffect(() => {
     if (fallId) return;
@@ -105,5 +117,5 @@ export function PanelSeite({ fallId, modelle, akteureIgnoriert = false }: { fall
       />
     );
   }
-  return <PanelLauf key={fallId} fallId={fallId} modelle={modelle} akteureIgnoriert={akteureIgnoriert} />;
+  return <PanelLauf key={fallId} fallId={fallId} modelle={modelle} akteureIgnoriert={akteureIgnoriert} modus={modus} />;
 }

@@ -18,7 +18,7 @@ const akteure = [
 ].map(([akteur, belegzahl, vorgeschlagen]) => ({ akteur, belegzahl, vorgeschlagen })) as Vorbereitung["akteure"];
 
 const vorbereitung: Vorbereitung = {
-  quelle: "mock",
+  modus: "vorfuehrung",
   fall: { id: "wartezeiten", frage: "Wie können die Wartezeiten sinken?", stichtag: "2026-09-30", paket: "Paket A", maxAkteure: 6 },
   akteure,
   modelle: [],
@@ -38,7 +38,18 @@ it("zeigt die Frage, die Akteure mit Belegzahl und den Hinweis auf den aufgezeic
   expect(screen.getByLabelText(/Ärztekammer/).closest("label")?.textContent).toContain("5 Belege");
   expect(screen.getByLabelText(/Pharma/).closest("label")?.textContent).toContain("0 Belege");
   expect(screen.getByTestId("uc2-zaehler").textContent).toContain("6 von 6 gewählt");
-  expect(screen.getByTestId("uc2-mock-hinweis")).toBeTruthy();
+  expect(screen.getByText("Presseartikel bis")).toBeTruthy();
+});
+
+it("Vorführmodus: ein ruhiger Hinweis, kein Fehlertext; live: kein Hinweis", () => {
+  const { unmount } = render(<FallStellen vorbereitung={vorbereitung} />);
+  expect(screen.getAllByTestId("uc2-vorfuehrung")).toHaveLength(1);
+  expect(screen.getByTestId("uc2-vorfuehrung").textContent).toBe("Vorführmodus: Es läuft eine aufgezeichnete Verhandlung ohne Sprachmodell.");
+  expect(document.body.textContent).not.toContain("nicht erreichbar");
+  expect(document.querySelector("[role=alert]")).toBeNull();
+  unmount();
+  render(<FallStellen vorbereitung={{ ...vorbereitung, modus: "live" }} />);
+  expect(screen.queryByTestId("uc2-vorfuehrung")).toBeNull();
 });
 
 it("lässt höchstens sechs Haken zu und gibt den Platz frei, wenn einer herausgenommen wird", async () => {

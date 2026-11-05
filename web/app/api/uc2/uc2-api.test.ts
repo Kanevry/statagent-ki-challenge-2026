@@ -1,6 +1,7 @@
 import { GET as ereignisse } from "./faelle/[id]/ereignisse/route";
 import { GET as bericht } from "./faelle/[id]/route";
 import { GET as liste, POST as starten } from "./faelle/route";
+import { GET as modell } from "./modell/route";
 
 // Der Mock-Handler liefert SSE wie die echte Schnittstelle (id, event, data, Ende mit "event: ende"); ohne erreichbare
 // API und mit UC2_MOCK=1 antworten die Handler mit dem aufgezeichneten Fall; echte Fälle gehen durch.
@@ -30,6 +31,7 @@ it("liefert den aufgezeichneten Fall als SSE und endet mit event: ende", async (
   const antwort = await ereignisse(new Request("http://x/api/uc2/faelle/mock-wartezeiten/ereignisse"), ctx("mock-wartezeiten"));
   expect(antwort.status).toBe(200);
   expect(antwort.headers.get("content-type")).toContain("text/event-stream");
+  expect(antwort.headers.get("x-uc2-modus")).toBe("vorfuehrung");
   const text = await antwort.text();
   expect(text).toContain("event: ende");
   const teile = bloecke(text);
@@ -81,7 +83,8 @@ it("Bericht und Liste kommen im Mock-Modus aus dem aufgezeichneten Fall", async 
 it("POST /faelle startet im Mock-Modus mit 202, prüft den Body und kennt ollama nur, wenn es eingerichtet ist", async () => {
   const ok = await post({ provider: "azure" });
   expect(ok.status).toBe(202);
-  expect(await ok.json()).toEqual({ fall_id: "mock-wartezeiten", status: "laeuft", quelle: "mock" });
+  expect(await ok.json()).toEqual({ fall_id: "mock-wartezeiten", status: "laeuft", modus: "vorfuehrung" });
+  expect(ok.headers.get("x-uc2-modus")).toBe("vorfuehrung");
   expect((await post(null, "kein json")).status).toBe(400);
   expect((await post({ provider: "gpt" })).status).toBe(400);
   expect((await post({ akteure: ["a", "b", "c", "d", "e", "f", "g"] })).status).toBe(400);
@@ -91,6 +94,13 @@ it("POST /faelle startet im Mock-Modus mit 202, prüft den Body und kennt ollama
   expect((await post({ provider: "ollama" })).status).toBe(202);
 });
 
+it("GET /api/uc2/modell meldet im Vorführmodus Testbetrieb ohne KI, im Format des Modell-Status", async () => {
+  const antwort = await modell();
+  expect(antwort.status).toBe(200);
+  expect(antwort.headers.get("x-uc2-modus")).toBe("vorfuehrung");
+  expect(await antwort.json()).toEqual({ provider: "Testbetrieb", modell: "keine KI angeschlossen", version: null, quelle: "uc2-vorfuehrung" });
+});
+
 describe("ohne UC2_MOCK", () => {
   beforeEach(() => vi.stubEnv("UC2_MOCK", ""));
 
@@ -98,7 +108,7 @@ describe("ohne UC2_MOCK", () => {
     vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("fetch failed"))));
     const antwort = await post({});
     expect(antwort.status).toBe(202);
-    expect(((await antwort.json()) as { quelle: string }).quelle).toBe("mock");
+    expect(((await antwort.json()) as { modus: string }).modus).toBe("vorfuehrung");
     expect((await liste()).status).toBe(200);
   });
 
@@ -119,8 +129,15 @@ describe("ohne UC2_MOCK", () => {
 
     const strom = await ereignisse(new Request("http://x/", { headers: { "last-event-id": "4" } }), ctx("17"));
     expect(strom.headers.get("content-type")).toContain("text/event-stream");
+    expect(strom.headers.get("x-uc2-modus")).toBe("live");
     expect(await strom.text()).toContain("event: ende");
     expect(String(abruf.mock.calls.at(-1)?.[0])).toContain("/faelle/17/ereignisse?seq=4");
+  });
+
+  it("GET /api/uc2/modell meldet ohne erreichbare API ebenfalls Testbetrieb, nie einen erfundenen Provider", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("fetch failed"))));
+    const body = (await (await modell()).json()) as { provider: string; modell: string };
+    expect(body).toMatchObject({ provider: "Testbetrieb", modell: "keine KI angeschlossen" });
   });
 
   it("gibt 409 der API weiter und meldet 502, wenn der Strom eines echten Falls nicht zu erreichen ist", async () => {

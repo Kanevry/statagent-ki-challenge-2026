@@ -12,6 +12,8 @@ import type { Verbindung } from "./use-ereignisstrom";
 import { Verlauf } from "./verlauf";
 import { aktuelleRunde, type FallZustand } from "./zustand";
 import { Schritte } from "./schritte";
+import { Vorfuehrhinweis } from "./vorfuehrung";
+import type { Modus } from "../../app/api/uc2/_lib/proxy";
 
 // U2-1 Das Panel verhandelt (Pen f1ct2) und U2-1a Modellfehler (Pen NjP7Q), als reine Ansicht auf einen Zustand.
 // Reihenfolge, damit der Blick geführt wird: Titel und Schritt, wer spricht, was gilt (Stand), die Personas links,
@@ -51,13 +53,16 @@ export interface PanelAnsichtProps {
   onNeuVerbinden?: () => void;
   /** Die API hat die Auswahl der Gruppen von U2-0 abgelehnt; der Moderator hat selbst gewählt. */
   akteureIgnoriert?: boolean;
+  /** Vom Server bestimmt: "vorfuehrung" = Aufzeichnung ohne Sprachmodell, "live" = Lauf der Python-API. */
+  modus?: Modus;
 }
 
-export function PanelAnsicht({ zustand, verbindung, fallId, modelle, neuLaedt = false, neuMeldung = null, onNeu, onNeuVerbinden, akteureIgnoriert = false }: PanelAnsichtProps): ReactNode {
+export function PanelAnsicht({ zustand, verbindung, fallId, modelle, neuLaedt = false, neuMeldung = null, onNeu, onNeuVerbinden, akteureIgnoriert = false, modus = "live" }: PanelAnsichtProps): ReactNode {
   const aktiverSchritt = zustand.status === "fertig" ? 3 : 2;
-  const aufgezeichnet = fallId.startsWith("mock-");
+  const vorfuehrung = modus === "vorfuehrung";
   const verloren = verbindung === "unterbrochen" && zustand.status !== "fertig" && zustand.status !== "abgebrochen";
-  const modell = zustand.modelle?.akteur;
+  // Genau ein Modellhinweis: live die Angabe des Laufs, in der Vorführung der Hinweis auf die Aufzeichnung.
+  const modell = vorfuehrung ? undefined : zustand.modelle?.akteur;
 
   return (
     <div className="flex flex-col gap-6" data-fall={fallId} data-status={zustand.status}>
@@ -71,6 +76,7 @@ export function PanelAnsicht({ zustand, verbindung, fallId, modelle, neuLaedt = 
               {klartext(zustand.frage)}
             </Fliesstext>
           )}
+          {vorfuehrung && <Vorfuehrhinweis />}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             {modell && (
               <p className="inline-flex items-center gap-2 border-l-2 border-violett pl-2 font-sans text-12" data-testid="uc2-modell">
@@ -78,7 +84,6 @@ export function PanelAnsicht({ zustand, verbindung, fallId, modelle, neuLaedt = 
                 <span className="font-mono text-ink">{[modell.provider, modell.modell].filter(Boolean).join(" · ")}</span>
               </p>
             )}
-            {aufgezeichnet && <Status art="info">Aufgezeichnete Verhandlung, ohne Sprachmodell</Status>}
             {akteureIgnoriert && (
               <Status art="info" data-testid="uc2-akteure-hinweis">
                 Deine Auswahl der Gruppen wurde nicht übernommen. Der Moderator hat selbst gewählt.

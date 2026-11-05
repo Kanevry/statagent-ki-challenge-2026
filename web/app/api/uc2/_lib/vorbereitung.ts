@@ -1,9 +1,9 @@
 import { mockBerichtRoh, mockFall } from "./mock";
-import { mockErzwungen, ruftApi } from "./proxy";
+import { mockErzwungen, ruftApi, type Modus } from "./proxy";
 
 // Alles, was die Startseite (U2-0) vor dem ersten Klick braucht: der Fall, die Auswahl der Akteure mit Belegzahl und
 // welche Modelle wählbar sind. Die Liste der möglichen Akteure kennt die API erst nach einem Lauf; bis dahin kommt sie
-// aus dem aufgezeichneten Fall (`quelle` sagt, woher sie stammt).
+// aus dem aufgezeichneten Fall (`modus` sagt, ob live oder Vorführung läuft).
 
 export interface AkteurAuswahl {
   akteur: string;
@@ -21,7 +21,8 @@ export interface ModellWahl {
 }
 
 export interface Vorbereitung {
-  quelle: "api" | "mock";
+  /** "vorfuehrung": keine Python-API, es läuft die aufgezeichnete Verhandlung ohne Sprachmodell. */
+  modus: Modus;
   fall: { id: string; frage: string; stichtag: string; paket: string; maxAkteure: number };
   akteure: AkteurAuswahl[];
   modelle: ModellWahl[];
@@ -57,7 +58,7 @@ export async function ladeVorbereitung(): Promise<Vorbereitung> {
   const teilnahme = (mockBerichtRoh.teilnahme ?? []) as { akteur: string; belegzahl: number; eingeladen: boolean }[];
   const erfahren = (mockBerichtRoh.experte ?? {}) as { beschreibung?: string };
   return {
-    quelle: api ? "api" : "mock",
+    modus: api ? "live" : "vorfuehrung",
     fall: {
       id: String(mockFall.fall_name ?? "wartezeiten"),
       frage: String(mockFall.frage ?? ""),

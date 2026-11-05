@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MOCK_FALL, mockListe } from "../_lib/mock";
-import { fehler, mockErzwungen, ruftApi } from "../_lib/proxy";
+import { fehler, MODUS_KOPF, mockErzwungen, ruftApi } from "../_lib/proxy";
 import { ollamaKonfiguriert } from "../_lib/vorbereitung";
 
 // POST /api/uc2/faelle  {fall?, frage?, provider?, belege?, akteure?}: startet einen Fall, 202 {fall_id, status}.
@@ -62,13 +62,16 @@ export async function POST(anfrage: Request): Promise<Response> {
       ignoriert = true;
     }
     if (antwort) {
-      const kopf = new Headers({ "content-type": antwort.headers.get("content-type") ?? "application/json", ...KEIN_CACHE });
+      const kopf = new Headers({ "content-type": antwort.headers.get("content-type") ?? "application/json", [MODUS_KOPF]: "live", ...KEIN_CACHE });
       if (ignoriert) kopf.set("x-uc2-akteure", "ignoriert");
       return new Response(antwort.body, { status: antwort.status, headers: kopf });
     }
   }
 
-  return Response.json({ fall_id: MOCK_FALL, status: "laeuft", quelle: "mock" }, { status: 202, headers: KEIN_CACHE });
+  return Response.json(
+    { fall_id: MOCK_FALL, status: "laeuft", modus: "vorfuehrung" },
+    { status: 202, headers: { ...KEIN_CACHE, [MODUS_KOPF]: "vorfuehrung" } },
+  );
 }
 
 export async function GET(): Promise<Response> {

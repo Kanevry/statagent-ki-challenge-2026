@@ -1,5 +1,5 @@
 import { istMockId, mockEreignisse, mockStrom, mockTakt } from "../../../_lib/mock";
-import { fehler, gueltigeId, mockErzwungen, ruftApi, SSE_KOPF } from "../../../_lib/proxy";
+import { fehler, gueltigeId, mockErzwungen, MODUS_KOPF, ruftApi, SSE_KOPF } from "../../../_lib/proxy";
 
 // GET /api/uc2/faelle/{id}/ereignisse?seq=n: Server-Sent Events. `id: seq`, `event: art`, `data: json`, Wiederaufnahme
 // über `Last-Event-ID` oder `?seq=`, Ende mit `event: ende`. Echte Fälle reichen den Strom der Python-API unverändert
@@ -22,7 +22,7 @@ export async function GET(anfrage: Request, { params }: { params: Promise<{ id: 
   if (istMockId(id) || mockErzwungen()) {
     const ereignisse = mockEreignisse(id);
     if (!ereignisse) return fehler(404, "Fall nicht gefunden.");
-    return new Response(mockStrom(ereignisse, ab, mockTakt(), anfrage.signal), { headers: SSE_KOPF });
+    return new Response(mockStrom(ereignisse, ab, mockTakt(), anfrage.signal), { headers: { ...SSE_KOPF, [MODUS_KOPF]: "vorfuehrung" } });
   }
 
   const kopf: Record<string, string> = { accept: "text/event-stream" };
@@ -35,5 +35,5 @@ export async function GET(anfrage: Request, { params }: { params: Promise<{ id: 
   });
   if (!antwort) return fehler(502, "Die Schnittstelle des Panels ist nicht erreichbar.");
   if (!antwort.ok || !antwort.body) return fehler(antwort.status === 404 ? 404 : 502, "Der Strom des Falls ist nicht verfügbar.");
-  return new Response(antwort.body, { status: 200, headers: SSE_KOPF });
+  return new Response(antwort.body, { status: 200, headers: { ...SSE_KOPF, [MODUS_KOPF]: "live" } });
 }
