@@ -654,7 +654,7 @@ def _bewegung_fehlertext(fehler: psycopg.Error, monat: str) -> str:
         # Die Funktion kommt erst mit `uc3 db init` in eine bestehende Datenbank (uc3/db/160_bewegung.sql).
         return (
             "Die Datenbank kennt die Zählung der Zu- und Abgänge noch nicht. Was tun: einmal `uc3 db init` "
-            "ausführen, das ändert keine Daten."
+            "ausführen. Freigegebene Regeln und gerechnete Zahlen bleiben dabei unverändert."
         )
     meldung = fehler.diag.message_primary or ""
     if "lokalen Auswertung" in meldung:
