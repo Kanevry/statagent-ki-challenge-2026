@@ -8,7 +8,7 @@ Zahlen rechnet nie ein Modell, sondern der Code ohne Sprachmodell. An das Modell
 | Provider | Einsatz | Modell (Standard) | Zugang |
 |---|---|---|---|
 | `azure` | Standard, Pflicht für die UC3-Agenten | `AZURE_OPENAI_MODEL` (gpt-5-4-mini) | OpenAI-kompatibler Endpunkt `/openai/v1` (we-16), `AZURE_API_KEY` |
-| `mistral` | EU-Zweitanbieter, Live-Austausch | `fast`: `MISTRAL_MODEL_FAST` (mistral-small-latest), `chat`: `MISTRAL_MODEL_CHAT` (mistral-large-latest) | `MISTRAL_BASE_URL`, `MISTRAL_API_KEY` |
+| `mistral` | EU-Zweitanbieter, Live-Austausch | `fast`: `MISTRAL_MODEL_FAST` (mistral-small-latest), `chat`: `MISTRAL_MODEL_CHAT` (mistral-large-latest; gemessen 05.11. 16:2x in der Modellliste neben `mistral-large-4`, beide antworten) | `MISTRAL_BASE_URL`, `MISTRAL_API_KEY` |
 | `ollama` | Offline-Notnagel (lokaler Rechner) | `OLLAMA_MODEL` (qwen3:8b) | `OLLAMA_BASE_URL` (http://localhost:11434/v1) |
 | `claude` | Nur UC1/UC2-Qualitätsmodus und Vergleiche, nie UC3 | `CLAUDE_MODEL` (claude-opus-5-5) | Claude-Code-CLI im Abo, ohne `ANTHROPIC_API_KEY` |
 | `mock` | Tests, CI, Jury ohne Netz | Fixtures `shared/py/plattform/fixtures/<zweck>.json` | keiner |
@@ -26,6 +26,26 @@ Zahlen rechnet nie ein Modell, sondern der Code ohne Sprachmodell. An das Modell
 - Jeder Aufruf schreibt genau eine Protokollzeile (`var/protokoll/modellaufrufe.jsonl` oder
   `PLATTFORM_PROTOKOLL`): Provider, Modell, Version, Zweck, Prompt-Hash, Dauer, Tokens, Fallback-Stufe,
   Aufwand, Fehler. Nie den Inhalt; bei Fehlern nur Typ und (Schema) Prüfregel mit Ort.
+
+## Tagesbudget und Ratenlimit
+
+Für die öffentliche Online-Demo (#100) gelten zwei Grenzen. `LLM_TAGESBUDGET_AUFRUFE` (ganze Zahl ab 1, leer =
+kein Budget) begrenzt die Modellaufrufe je UTC-Tag. Gezählt werden die Zeilen des Tages in
+`modellaufrufe.jsonl` mit einem Sprachmodell-Provider, auch Fehlversuche; Zeilen von `router` und `lokal` zählen
+nicht. So stimmt die Zahl auch über die Python-Prozesse, die die Web-App je Anfrage startet. Ist das Budget
+verbraucht, wirft `complete` vor jedem Provider-Aufruf `BudgetErschoepft` und schreibt keine Zeile;
+`python -m plattform.router frage` endet dann mit Exit 3 und `{"fehler": "budget_erschoepft"}`, die Route
+`POST /api/uc4/frage` antwortet mit 429. `status --json` nennt den Stand im Feld `budget`
+(`grenze`, `verbraucht`, `frei`). Davor begrenzt die Web-App jede Client-IP auf `RATENLIMIT_PRO_MINUTE`
+Fragen je Minute (Standard 10, gleitendes Fenster, 429 mit `Retry-After`). Prüfen und Schreiben des Budgets sind
+nicht atomar: gleichzeitige Anfragen an der Grenze können sie um wenige Aufrufe überschreiten.
+
+Online ist das Budget Pflicht (fail-closed, Review !36). Das Prod-Compose setzt `KIC_ONLINE=1` und verlangt
+`LLM_TAGESBUDGET_AUFRUFE` beim Start (`${…:?}`, Invariante in `deploy/compose-invarianten.jq`). Ist
+`KIC_ONLINE=1` gesetzt, das Budget aber leer, und steht in der Kette ein echter Provider, wirft `complete` vor dem
+Aufruf `KonfigFehler`; `mock` läuft weiter. Mit Budget öffnet `complete` das Protokoll vor dem Aufruf zum
+Anhängen: Ist es nicht beschreibbar (etwa `read_only` ohne Volume), gibt es `KonfigFehler` statt eines Aufrufs,
+der nicht gezählt würde.
 
 ## Prüfen
 
@@ -88,3 +108,11 @@ mit einem langen Text über `EMBEDDINGS_MAX_TOKEN` Token, jeweils mit Stapel und
 | 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | mps | langer Text (8533 Wörter, abgeschnitten) | 16 | 2048 | 1.2 s | 768 | 1 | 0.60 s | 1.7 | 2128 MiB (mps-Treiber nach dem Lauf) |
 
 Gemessen auf dem Apple M5 Max (Kopf 068d98e plus mps-Untergrenze), PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.7. Hochgerechnet brauchen 14.244 kurze Texte auf cpu rund 2,2 Minuten.
+
+### Smoke 2026-11-05T16:17:39+01:00
+
+| Zeit | Provider | Modell | Version | Dauer | Ergebnis |
+|---|---|---|---|---|---|
+| 2026-11-05T16:17:39+01:00 | azure | gpt-5-4-mini | gpt-5.4-mini-2026-03-17 | 0.9 s | ok ('bereit') |
+| 2026-11-05T16:17:39+01:00 | mistral | mistral-small-latest | mistral-small-latest | 1.4 s | ok ('bereit') |
+| 2026-11-05T16:17:39+01:00 | claude | claude-opus-5-5 | claude-opus-5-5 | 12.7 s | ok ('bereit') |
