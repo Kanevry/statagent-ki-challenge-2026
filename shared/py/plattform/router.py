@@ -74,7 +74,8 @@ def durchreichen(
     antworten: list[UcAntwort] = []
     fehlend: list[str] = []
     frage_hash = _frage_hash(frage)
-    for stufe, uc in enumerate(kette):
+    # Stufe zählt ab 1 wie in plattform.llm (dort: Stufe 1 = gewählter Provider), hier: Stufe 1 = erster UC.
+    for stufe, uc in enumerate(kette, start=1):
         start = time.monotonic()
         antwort: UcAntwort | None = None
         fehler: str | None = None

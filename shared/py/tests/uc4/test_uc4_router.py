@@ -1,9 +1,11 @@
 """Router UC4 (#97): Reihenfolge, Kontext, Protokoll ohne Fragetext, fehlende Adapter, R2."""
 
+import json
 import subprocess
 import sys
 
 import pytest
+from plattform.llm import complete, kern
 from plattform.router import durchreichen, mock_adapter
 
 
@@ -35,6 +37,20 @@ def test_drei_protokollzeilen_ohne_fragetext(protokoll):
     text = protokoll.read_text(encoding="utf-8")
     assert len(text.splitlines()) == 3
     assert text.count("ping-7f3a") == 0
+    # Stufe zählt ab 1 wie in plattform.llm (#97): uc3 = 1, uc2 = 2, uc1 = 3
+    assert [json.loads(z)["fallback_stufe"] for z in text.splitlines()] == [1, 2, 3]
+
+
+def test_router_zeilen_uebernehmen_den_modell_badge_nicht(protokoll):
+    """Fängt: nach einer UC4-Frage zeigt der Badge „router · keins“ statt des zuletzt antwortenden Modells."""
+    complete([{"role": "user", "content": "x"}], provider="mock", zweck="smoke")
+    durchreichen("Wie viele Beschäftigte?", adapter=mock_adapter())
+    zeile_embeddings = {"provider": "lokal", "modell": "google/embeddinggemma-2", "fehler": None}
+    with protokoll.open("a", encoding="utf-8") as datei:
+        datei.write(json.dumps(zeile_embeddings) + "\n")
+
+    zuletzt = kern.letzter_erfolg()
+    assert zuletzt is not None and zuletzt["provider"] == "mock"
 
 
 def test_fehlender_adapter_steht_in_fehlend_und_kette_laeuft_weiter(protokoll):
