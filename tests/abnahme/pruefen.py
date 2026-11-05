@@ -68,6 +68,11 @@ UMGEBUNG_FEHLT = re.compile(
 )
 
 
+# „<Pfad zu svbox/uc3>“, „<24 Monate>“: Vorschläge mit Platzhaltern sind keine Prüfsätze
+# (gemessen 05.11. 18:12: sie ergaben über einen Syntaxfehler fälschlich „nicht bestanden“).
+PLATZHALTER = re.compile(r"<[^<>|;&$'\"]*[A-Za-zÄÖÜäöüß]{3,}[^<>|;&$'\"]*>")
+
+
 def pruefsatz_fehler(p: dict) -> str:
     """Leer, wenn der Prüfsatz formal gültig ist; sonst warum nicht."""
     if p.get("art") == "hand":
@@ -79,6 +84,13 @@ def pruefsatz_fehler(p: dict) -> str:
     for feld in ("id", "hash", "befehl"):
         if not p.get(feld):
             return f"Feld {feld} fehlt"
+    if re.search(r"\b5433\b|\b5434\b|docker\s+(compose|run|rm|volume)|compose\s+(up|down)", p["befehl"]):
+        return "Befehl berührt Docker oder einen Bau-Port (5433/5434); Docker steuert nur 66_jury_weg.sh"
+    if PLATZHALTER.search(p["befehl"]):
+        return f"Befehl enthält einen Platzhalter: {PLATZHALTER.search(p['befehl']).group(0)}"
+    syntax = subprocess.run(["bash", "-n", "-c", p["befehl"]], capture_output=True, text=True)
+    if syntax.returncode != 0:
+        return f"Befehl ist kein gültiges bash: {syntax.stderr.strip()[:120]}"
     if not isinstance(p.get("erwartet", []), list):
         return "erwartet muss eine Liste sein"
     for r in p.get("erwartet", []):

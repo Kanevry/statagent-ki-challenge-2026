@@ -27,6 +27,7 @@ while true; do
         uv run python tests/abnahme/matrix.py befunde --bereich "$b" --ja | tail -1
       done
       uv run python tests/abnahme/matrix.py abhaken alle --ja | grep -c abgehakt=True | sed 's/^/abgehakt (Bestand): /'
+      uv run python tests/abnahme/matrix.py haken pruefen --ja | tail -1
       letzter="$sha"
     else
       echo "$(TZ=Europe/Vienna date '+%H:%M') Lauf gescheitert, nächster Versuch" >&2

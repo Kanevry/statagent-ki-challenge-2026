@@ -599,6 +599,49 @@ def abhaken(kid: str, belege: dict[str, dict], ja: bool) -> int:
     return 0 if neu_k["abgehakt"] and andere == vorher else 1
 
 
+def haken_pruefen(zeilen: list[dict], belege: dict[str, dict], ja: bool) -> int:
+    """Haken in offenen Issues, die nicht (mehr) belegt sind, werden entfernt, mit Kommentar.
+
+    Entfernt wird ein Haken, wenn es nie einen Abnahme-Beleg gab (Bau-Lane hakt nie selbst ab) oder wenn der
+    jüngste gültige Beleg „nicht bestanden“ sagt (Rückfall). Ein nur veralteter Beleg lässt den Haken stehen,
+    bis der nächste Lauf neu urteilt.
+    """
+    entfernt = 0
+    for k in zeilen:
+        if k["state"] != "opened" or k["art"] != "checkbox" or not k["abgehakt"]:
+            continue
+        s, b, grund = stand(k, belege)
+        hat_beleg = bool(b) and not ist_vorschlag(b) and b.get("hash") == k["hash"]
+        if s == "bestanden" or (hat_beleg and s in ("nicht geprüft", "nach Abgabe")):
+            continue
+        warum = (
+            "Rückfall: " + grund
+            if hat_beleg
+            else "Haken ohne Beleg der Abnahme (die Bau-Lane hakt nicht selbst ab)"
+        )
+        marke = f"<!-- abnahme-haken-weg:{k['id']}:{k['hash']}:{s} -->"
+        text = (
+            f"Abnahme {k['id']}: **Haken entfernt**. {warum}.\n\n"
+            f"Stand: {s}. Der Haken kommt zurück, sobald ein Lauf es auf main bestanden misst.\n{marke}"
+        )
+        print(f"{k['id']}: {warum[:120]}")
+        if not ja:
+            continue
+        issue = glab_json(f"projects/{PROJEKT}/issues/{k['iid']}")
+        frisch = next((x for x in kriterien(issue) if x["id"] == k["id"]), None)
+        if not frisch or frisch["hash"] != k["hash"] or not frisch["abgehakt"]:
+            continue
+        zeilen_text = issue["description"].split("\n")
+        zeilen_text[frisch["zeile"]] = re.sub(r"\[[xX]\]", "[ ]", zeilen_text[frisch["zeile"]], count=1)
+        glab_schreiben("PUT", f"issues/{k['iid']}", "description", "\n".join(zeilen_text))
+        notizen = glab_json(f"projects/{PROJEKT}/issues/{k['iid']}/notes?per_page=100")
+        if not any(marke in (n.get("body") or "") for n in notizen):
+            glab_schreiben("POST", f"issues/{k['iid']}/notes", "body", text)
+        entfernt += 1
+    print(f"{entfernt} Haken entfernt")
+    return 0
+
+
 def befunde(zeilen: list[dict], belege: dict[str, dict], wahl: str | None, ja: bool) -> int:
     """Ein Kommentar je Issue mit allen nicht bestandenen Kriterien; nur wenn sich der Befund geändert hat."""
     je_issue: dict[int, list[tuple[dict, dict]]] = {}
@@ -642,7 +685,7 @@ def befunde(zeilen: list[dict], belege: dict[str, dict], wahl: str | None, ja: b
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument(
-        "befehl", choices=("schreiben", "zaehler", "liste", "einlesen", "abhaken", "befunde", "tor")
+        "befehl", choices=("schreiben", "zaehler", "liste", "einlesen", "abhaken", "befunde", "tor", "haken")
     )
     ap.add_argument("arg", nargs="?")
     ap.add_argument("--bereich", choices=BEREICHE)
@@ -693,6 +736,8 @@ def main() -> int:
         return abhaken(a.arg, belege, a.ja)
     if a.befehl == "befunde":
         return befunde(zeilen, belege, a.bereich, a.ja)
+    if a.befehl == "haken":  # matrix.py haken pruefen [--ja]
+        return haken_pruefen(zeilen, belege, a.ja)
     if a.befehl == "tor":
         return tor(zeilen, belege)
 
