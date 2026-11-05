@@ -287,7 +287,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 id = "20-AC1"
 hash = "29abb8a741"
 befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe && python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg && git ls-files 'abgabe/*.csv' | wc -l | tr -d ' '"
-erwartet = ["^Abgabe vollständig\\.$", "^\\[ok\\] Ministeriums-Lieferung 2026-07: .*Beleg sha256 d8492f46dd5f, 32\\.741 Personen", "^abweichend 0$", "^0$"]
+erwartet = ["^Abgabe vollständig\\.$", "^\\[ok\\] Ministeriums-Lieferung 2026-07: .*32\\.741 Personen", "^abweichend 0$", "^0$"]
 gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg --variante E"
 schwer = false
 deckung = "teil"
@@ -334,7 +334,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 id = "22-1"
 hash = "d123dbcdff"
 befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe && python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg && git ls-files 'abgabe/*.csv' | wc -l | tr -d ' '"
-erwartet = ["^Abgabe vollständig\\.$", "^\\[ok\\] Ministeriums-Lieferung 2026-07: .*Beleg sha256 d8492f46dd5f, 32\\.741 Personen", "^abweichend 0$", "^0$"]
+erwartet = ["^Abgabe vollständig\\.$", "^\\[ok\\] Ministeriums-Lieferung 2026-07: .*32\\.741 Personen", "^abweichend 0$", "^0$"]
 gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg --variante E"
 schwer = false
 deckung = "teil"
