@@ -347,9 +347,9 @@ describe("Probe für Auftrag 1 (Umverteilung)", () => {
     expect(probeJeKategorie(probe, kategorien)).toEqual({
       lieferung: "2024-08",
       zeilen: [
-        { kategorie: "Angestellte", vorher: 236961, nachher: 236961, vorherTeile: [235819, 1142] },
-        { kategorie: "Arbeiter", vorher: 141713, nachher: 141713, vorherTeile: [141331, 382] },
-        { kategorie: "Beamte", vorher: 13562, nachher: 13562, vorherTeile: [13562] },
+        { kategorie: "Angestellte", vorher: 236961, nachher: 236961, vorherTeile: [{ wort: "Angestellte mit Dienstvertrag", wert: 235819 }, { wort: "Angestellte freier Dienstvertrag", wert: 1142 }] },
+        { kategorie: "Arbeiter", vorher: 141713, nachher: 141713, vorherTeile: [{ wort: "Arbeiter mit Dienstvertrag", wert: 141331 }, { wort: "Arbeiter freier Dienstvertrag", wert: 382 }] },
+        { kategorie: "Beamte", vorher: 13562, nachher: 13562, vorherTeile: [{ wort: "Beamte", wert: 13562 }] },
       ],
       gesamt: { vorher: 392236, nachher: 392236 },
     });

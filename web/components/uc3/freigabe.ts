@@ -1095,8 +1095,8 @@ export interface ProbeKategorie {
   kategorie: string;
   vorher: number;
   nachher: number;
-  /** Vorher getrennt gezählte Codes dieser Kategorie (z. B. Dienstvertrag 235.819, freier Dienstvertrag 1.142). */
-  vorherTeile: number[];
+  /** Vorher getrennt gezählte Gruppen dieser Kategorie, z. B. „Angestellte mit Dienstvertrag“ 235.819. */
+  vorherTeile: { wort: string; wert: number }[];
 }
 
 export interface ProbeTabelle {
@@ -1124,8 +1124,13 @@ export function probeJeKategorie(probe: unknown, kategorien: Kategorien): ProbeT
   for (const [code, wert] of Object.entries(v)) {
     const e = eintrag(code);
     e.vorher += zahl(wert);
-    if (zahl(wert) !== 0) e.vorherTeile.push(zahl(wert));
+    if (zahl(wert) === 0) continue;
+    const k = kategorien[code];
+    const wort = !k || k.frei === null || code === k.kategorie ? (k?.kategorie ?? code) : `${k.kategorie} ${k.frei ? "freier Dienstvertrag" : "mit Dienstvertrag"}`;
+    e.vorherTeile.push({ wort, wert: zahl(wert) });
   }
+  // Dienstvertrag vor freiem Dienstvertrag, damit die Zeilen wie in der Aufgabe gelesen werden.
+  for (const e of je.values()) e.vorherTeile.sort((a, b) => Number(a.wort.includes("freier")) - Number(b.wort.includes("freier")));
   for (const [code, wert] of Object.entries(n)) eintrag(code).nachher += zahl(wert);
   const zeilen = [...je.values()]
     .filter((z) => z.vorher !== 0 || z.nachher !== 0)

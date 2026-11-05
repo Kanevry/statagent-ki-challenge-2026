@@ -245,17 +245,22 @@ async function Regeln({ regelsatz }: { regelsatz: Regelsatz }) {
             const gruppe = regeln.filter((r) => r.typ === typ);
             if (gruppe.length === 0) return null;
             return (
-              <section key={typ} aria-labelledby={`gruppe-${typ}`} className="flex flex-col pt-4">
-                <h3 id={`gruppe-${typ}`} className="flex items-baseline gap-2 border-b border-ink pb-2 font-sans text-16 font-semibold text-ink">
-                  {GRUPPEN[typ]}
-                  <span className="font-normal text-slate">{`${formatZahl(gruppe.length)} ${gruppe.length === 1 ? "Regel" : "Regeln"}`}</span>
-                </h3>
-                <ul className="flex flex-col">
+              <details key={typ} className="group border-b border-line">
+                <summary className="flex min-h-11 cursor-pointer list-none items-baseline gap-2 py-3 font-sans text-16 font-semibold text-ink [&::-webkit-details-marker]:hidden">
+                  <h3 id={`gruppe-${typ}`} className="font-sans text-16 font-semibold text-ink">
+                    {GRUPPEN[typ]}
+                  </h3>
+                  <span className="font-normal tabular-nums text-slate">{`${formatZahl(gruppe.length)} ${gruppe.length === 1 ? "Regel" : "Regeln"}`}</span>
+                  <span aria-hidden="true" className="ml-auto text-slate transition-transform group-open:rotate-90">
+                    ›
+                  </span>
+                </summary>
+                <ul className="flex flex-col pb-2">
                   {gruppe.map((r) => (
                     <Regelpunkt key={r.id} regel={r} />
                   ))}
                 </ul>
-              </section>
+              </details>
             );
           })}
         </>

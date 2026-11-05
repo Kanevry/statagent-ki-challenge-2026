@@ -35,7 +35,7 @@ import {
   sqlRegionen,
   sqlRevision,
   sqlTreffer,
-  trefferTitel,
+  titelUndMesswerte,
   umschichtungSatz,
   ursachenSatz,
   type LaufDetail,
@@ -58,7 +58,7 @@ function Rechnung({ detail }: { detail: LaufDetail }) {
   const { lauf } = detail;
   const stand = lauf.ergebnisStand === "endgueltig" ? "veröffentlicht" : "vorläufig";
   const teil = "uc3-rechnung-teil inline-flex flex-col";
-  const zahl = "font-sans text-32 font-semibold tabular-nums text-ink md:text-40";
+  const zahl = "font-sans text-32 font-semibold leading-none tabular-nums text-ink md:text-56";
   const wort = "font-sans text-14 text-slate";
   return (
     <div className="flex flex-col gap-2">
@@ -143,18 +143,20 @@ function TrefferZeile({ detail, t }: { detail: LaufDetail; t: Treffer }) {
   const { lauf } = detail;
   const massnahme = massnahmeSatz(t, { fehlendeGruppen: fehlendeGruppen(detail.treffer, detail.fdCodes) });
   const status = einstufungStatus(t.einstufung, t.offeneRueckfragen);
+  const { titel, messwerte } = titelUndMesswerte(t, lauf.lieferung);
   return (
     <li className="border-b border-line" data-regel={t.name}>
       <details className="group">
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 py-3 [&::-webkit-details-marker]:hidden">
           <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${t.anhalten ? "bg-gelb" : "bg-slate"}`} />
-          <span className="flex-1 font-sans text-16 text-ink">{alltag(trefferTitel(t, lauf.lieferung))}</span>
+          <span className="flex-1 font-sans text-16 text-ink">{alltag(titel)}</span>
           <span className="font-sans text-16 tabular-nums text-ink">{formatZahl(t.anzahl)}</span>
           <span aria-hidden="true" className="font-sans text-14 text-slate transition-transform group-open:rotate-90">
             ›
           </span>
         </summary>
         <div className="flex flex-col items-start gap-2 pb-4 pl-5">
+          {messwerte && <p className="font-sans text-14 tabular-nums text-ink">{alltag(messwerte)}</p>}
           <p className="font-sans text-14 text-slate">{status.wort}{t.anhalten ? ", hält den Monat an" : ""}</p>
           {massnahme && <p className="font-sans text-16 text-ink">{`Was wir tun: ${alltag(massnahme)}`}</p>}
           <BelegLink {...laufBeleg(lauf, { quelle: "meta.pruefung_treffer", sql: sqlTreffer(lauf, t) })} />
@@ -270,6 +272,40 @@ function AnnahmeZeile({ a }: { a: Annahme }) {
   );
 }
 
+type Marke = { id: string; text: string; anzahl: number | null };
+
+function marken(detail: LaufDetail, bericht: Qualitaetsbericht | null): Marke[] {
+  return [
+    { id: "ueberblick", text: "Überblick", anzahl: null },
+    { id: "auffaelligkeiten", text: "Auffälligkeiten", anzahl: sortiereTreffer(detail.treffer).length },
+    { id: "rueckfragen", text: "Rückfragen", anzahl: bericht?.rueckfragen.length ?? 0 },
+    { id: "annahmen", text: "Annahmen", anzahl: bericht?.annahmen.length ?? 0 },
+    { id: "revisionsbedarf", text: "Revisionsbedarf", anzahl: detail.revisionen.filter(hatRevisionsbedarf).length },
+  ];
+}
+
+/** Die fünf Abschnitte der Vorlage als Sprungmarken: ab lg schmal und mitlaufend rechts, darunter im Fluss. */
+function Sprungmarken({ liste, seitlich }: { liste: readonly Marke[]; seitlich: boolean }) {
+  return (
+    <nav
+      aria-label="Abschnitte des Qualitätsberichts"
+      className={
+        seitlich
+          ? "sticky top-24 flex flex-col gap-1 border-l border-line pl-4 font-sans text-14"
+          : "flex max-w-4xl flex-wrap gap-x-6 gap-y-1 border-t border-line pt-4 font-sans text-14 lg:hidden"
+      }
+    >
+      {seitlich && <p className="pb-1 font-sans text-12 font-semibold text-slate">Qualitätsbericht</p>}
+      {liste.map((m) => (
+        <a key={m.id} href={`#${m.id}`} className={`inline-flex min-h-11 items-center justify-between gap-3 ${link}`}>
+          <span>{m.text}</span>
+          {m.anzahl !== null && <span className="tabular-nums text-slate">{formatZahl(m.anzahl)}</span>}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 function Abschnitte({ detail, bericht }: { detail: LaufDetail; bericht: Qualitaetsbericht | null }) {
   const { lauf, revisionen, regionen, determinismus } = detail;
   const tag = stichtag(lauf.lieferung);
@@ -279,19 +315,7 @@ function Abschnitte({ detail, bericht }: { detail: LaufDetail; bericht: Qualitae
   const annahmen = bericht?.annahmen ?? [];
   return (
     <>
-      <nav aria-label="Abschnitte des Qualitätsberichts" className="flex max-w-4xl flex-wrap gap-x-6 gap-y-1 border-t border-line pt-4 font-sans text-14">
-        {[
-          ["ueberblick", "Überblick"],
-          ["auffaelligkeiten", "Auffälligkeiten"],
-          ["rueckfragen", "Rückfragen"],
-          ["annahmen", "Annahmen"],
-          ["revisionsbedarf", "Revisionsbedarf"],
-        ].map(([id, text]) => (
-          <a key={id} href={`#${id}`} className={`inline-flex min-h-11 items-center ${link}`}>
-            {text}
-          </a>
-        ))}
-      </nav>
+      <Sprungmarken liste={marken(detail, bericht)} seitlich={false} />
 
       <Abschnitt id="ueberblick" titel="Überblick">
         <div className="flex flex-wrap items-baseline gap-x-3">
@@ -435,7 +459,8 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
   const stand = halt ? "angehalten" : lauf.ergebnisStand === "endgueltig" ? "veroeffentlicht" : "vorlaeufig";
 
   return (
-    <>
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_13rem] lg:gap-12">
+      <div className="flex min-w-0 flex-col gap-10">
       <header className="flex max-w-4xl flex-col gap-4">
         <p className="flex flex-wrap items-center gap-x-3 font-sans text-14 text-slate">
           <span>{name}</span>
@@ -460,6 +485,10 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
       <Auffaelligkeiten detail={detail} />
       <Abschnitte detail={detail} bericht={bericht} />
       <Weiter detail={detail} />
-    </>
+      </div>
+      <aside className="hidden lg:block">
+        <Sprungmarken liste={marken(detail, bericht)} seitlich />
+      </aside>
+    </div>
   );
 }

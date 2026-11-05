@@ -192,53 +192,60 @@ function DetailBlock({ titel, children }: { titel: string; children: ReactNode }
   );
 }
 
-/** Probe als kleine Tabelle „vorher | nachher“ je Beschäftigungskategorie, dazu Gesamt; ein Beleg für alles. */
+/**
+ * Probe als Tabelle (UI-Regie v1): links vorher die getrennt gezählten Gruppen (Dienstvertrag und freier
+ * Dienstvertrag), rechts nachher die zusammengefasste Kategorie. So sieht man, was die Änderung tut, obwohl die
+ * Gesamtzahl gleich bleibt. Ein Beleg für die ganze Tabelle.
+ */
 function ProbeTabelleAnsicht({ vorschlag, tabelle: t }: { vorschlag: number; tabelle: ProbeTabelle }) {
+  const kopf = "py-2 text-left font-sans text-14 font-medium text-slate";
+  const wort = "py-2 pr-4 text-left font-sans text-16 font-normal text-ink";
+  const zahlZ = "py-2 pr-6 text-right font-sans text-16 tabular-nums text-ink";
+  const gleich = t.gesamt.vorher === t.gesamt.nachher;
   return (
     <div className="flex flex-col gap-2">
-      <table className="w-full max-w-md border-collapse">
+      <table className="w-full max-w-2xl border-collapse">
         <caption className="sr-only">{`${probeTitel(t.lieferung)}: Beschäftigungsverhältnisse vorher und nachher`}</caption>
         <thead>
           <tr className="border-b border-line">
-            <th scope="col" className="py-2 pr-6 text-left font-sans text-14 font-medium text-slate">
-              <span className="sr-only">Kategorie</span>
-            </th>
-            <th scope="col" className={kopfZelle}>
+            <th scope="col" colSpan={2} className={kopf}>
               vorher
             </th>
-            <th scope="col" className={kopfZelle}>
+            <th scope="col" colSpan={2} className={`${kopf} border-l border-line pl-4`}>
               nachher
             </th>
           </tr>
         </thead>
         <tbody>
-          {t.zeilen.map((z) => (
-            <tr key={z.kategorie} className="border-b border-line text-16 text-ink">
-              <th scope="row" className="py-2 pr-6 text-left font-sans font-normal">
-                {z.kategorie}
-              </th>
-              <td className={zelle}>
-                {z.vorherTeile.length > 1 ? (
-                  <span title="vorher getrennt gezählt: Dienstvertrag und freier Dienstvertrag">
-                    {z.vorherTeile.map((t) => formatZahl(t)).join(" + ")}
-                  </span>
-                ) : (
-                  formatZahl(z.vorher)
+          {t.zeilen.flatMap((z) => {
+            const teile = z.vorherTeile.length > 0 ? z.vorherTeile : [{ wort: z.kategorie, wert: z.vorher }];
+            return teile.map((teil, i) => (
+              <tr key={`${z.kategorie}-${teil.wort}`} className={i === teile.length - 1 ? "border-b border-line" : ""}>
+                <td className={wort}>{teil.wort}</td>
+                <td className={zahlZ}>{formatZahl(teil.wert)}</td>
+                {i === 0 && (
+                  <>
+                    <th scope="row" rowSpan={teile.length} className={`${wort} border-l border-line pl-4 align-middle`}>
+                      {z.kategorie}
+                    </th>
+                    <td rowSpan={teile.length} className={`${zahlZ} pr-0 align-middle`}>
+                      {formatZahl(z.nachher)}
+                    </td>
+                  </>
                 )}
-              </td>
-              <td className={zelle}>{formatZahl(z.nachher)}</td>
-            </tr>
-          ))}
-          <tr className="text-16 font-semibold text-ink">
-            <th scope="row" className="py-2 pr-6 text-left font-sans">
-              Gesamt
-            </th>
-            <td className={zelle}>{formatZahl(t.gesamt.vorher)}</td>
-            <td className={zelle}>{formatZahl(t.gesamt.nachher)}</td>
+              </tr>
+            ));
+          })}
+          <tr className="font-semibold">
+            <td className={`${wort} font-semibold`}>Gesamt</td>
+            <td className={`${zahlZ} font-semibold`}>{formatZahl(t.gesamt.vorher)}</td>
+            <td className={`${wort} border-l border-line pl-4 font-semibold`}>Gesamt</td>
+            <td className={`${zahlZ} pr-0 font-semibold`}>{formatZahl(t.gesamt.nachher)}</td>
           </tr>
         </tbody>
       </table>
-      <div>
+      <div className="flex flex-wrap items-baseline gap-x-4">
+        {gleich && <span className="font-sans text-16 text-ink">Gesamt bleibt gleich, nur die Gliederung ändert sich.</span>}
         <BelegLink {...probeTabelleBeleg(vorschlag, t)} />
       </div>
     </div>

@@ -333,6 +333,21 @@ export function trefferTitel(t: Pick<Treffer, "name" | "beschreibung" | "satz" |
   return erster || t.name;
 }
 
+/**
+ * Titel ohne die Klammer mit Messwerten (UI-Regie v1): Steht „({umfang})“ in der Satzvorlage, endet der Titel mit
+ * dem Satz davor, und die Messwerte stehen getrennt für die aufgeklappte Zeile.
+ */
+export function titelUndMesswerte(
+  t: Pick<Treffer, "name" | "beschreibung" | "satz" | "anzahl" | "umfang">,
+  lieferung: string,
+): { titel: string; messwerte: string | null } {
+  if (t.satz?.includes("({umfang})")) {
+    const titel = trefferTitel({ ...t, satz: t.satz.replace(/\s*\(\{umfang\}\)/, "") }, lieferung);
+    return { titel, messwerte: t.umfang?.trim() || null };
+  }
+  return { titel: trefferTitel(t, lieferung), messwerte: null };
+}
+
 /** Steht der Umfang schon im Titel (Vorlage mit {umfang}), wird er nicht noch einmal gezeigt. */
 export function umfangImTitel(t: Pick<Treffer, "satz">): boolean {
   return Boolean(t.satz?.includes("{umfang}"));
