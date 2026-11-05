@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { Fliesstext, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
-import { Begriff, HerkunftChip } from "@kic/ui/bausteine";
+import { HerkunftChip } from "@kic/ui/bausteine";
 import { datum } from "@/components/uc3/bericht";
 import { laufBeleg } from "@/components/uc3/beleg";
 import { leerSatz } from "@/components/uc3/db";
-import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import {
+  kategorieSaetze,
   leseKlassifikationen,
   qualifikationsZahlen,
   regelSatz,
@@ -17,6 +19,8 @@ import {
   SQL_QUALIFIKATIONEN,
   sqlAbschnittBestand,
   sqlAbschnitte,
+  sqlKategorieAuftrag,
+  sqlKategorieRegel,
   sqlUebergaenge,
   sqlWechselzahlen,
   sqlZuordnungsregel,
@@ -95,7 +99,7 @@ export default async function Klassifikationen() {
     );
   }
 
-  const { abschnitte, uebergaenge, regeln, bestand, bundeslaender, geschlechter, qualifikationen, altersgruppen } =
+  const { abschnitte, uebergaenge, regeln, bestand, bundeslaender, geschlechter, qualifikationen, altersgruppen, kategorieStand } =
     lesung.daten;
   const zahlen = wechselzahlen(abschnitte);
   const nameNeu = (code: string) => abschnitte.find((a) => a.code === code)?.neu?.bezeichnung;
@@ -106,7 +110,7 @@ export default async function Klassifikationen() {
   // Ziel der zusammengelegten 2003er Codes aus stat.uebergang, nicht als Konstante (Review !51 Runde 2, Punkt 4).
   const ziel2003 = haeufigster(worte2003.filter((w) => w.wort === "zusammengelegt").flatMap((w) => w.ziele));
   const qZahlen = qualifikationsZahlen(qualifikationen);
-  const kategorien = [...new Set(qualifikationen.map((q) => q.kategorie))];
+  const kategorie = kategorieStand ? kategorieSaetze(kategorieStand, qualifikationen, bestand?.alt.regelsatz ?? null) : null;
   const ersteGruppe = altersgruppen[0];
   const bekannteGruppen = altersgruppen.filter((g) => g.von >= 0);
 
@@ -122,20 +126,16 @@ export default async function Klassifikationen() {
         </Fliesstext>
       </header>
 
-      <ul className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Begriffe auf dieser Seite">
-        {(["Klassifikation", "ÖNACE", "Klassifikationswechsel", "Regel"] as const).map((wort) => (
-          <li key={wort} className="font-sans text-14 font-semibold text-ink">
-            <Fachbegriff wort={wort} />
-          </li>
-        ))}
-        <li className="font-sans text-14 font-semibold text-ink">
-          <Begriff wort="Umsteigeschlüssel" erklaerung={UMSTEIGESCHLUESSEL} untertitel />
-        </li>
-      </ul>
+      <Begriffsliste
+        worte={["Klassifikation", "ÖNACE", "Klassifikationswechsel", "Regel"]}
+        weitere={[{ wort: "Umsteigeschlüssel", erklaerung: UMSTEIGESCHLUESSEL }]}
+        label="Begriffe auf dieser Seite"
+        className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      />
 
       <section aria-labelledby="wechsel-titel" className="flex flex-col gap-4">
         <Ueberschrift stufe={3} als="h2" id="wechsel-titel">
-          Mit dem Klassifikationswechsel meint derselbe Buchstabe oft eine andere Branche.
+          Mit dem Klassifikationswechsel steht dieselbe Branche oft unter einem anderen Buchstaben.
         </Ueberschrift>
         <Fliesstext className="max-w-3xl">
           {umsteiger2025 === 0
@@ -180,14 +180,43 @@ export default async function Klassifikationen() {
                 )}
             </Regelpunkt>
           ))}
-          <Regelpunkt
-            satz={`Die ${qZahlen.qualifikationen} gelieferten Qualifikationen fassen wir zu ${qZahlen.kategorien} Beschäftigungskategorien zusammen. Ein freier Dienstvertrag zählt zu seiner Kategorie.`}
-            status={
-              <span className="font-sans text-12 text-slate">So steht es in der Liste der Qualifikationen.</span>
-            }
-          >
-            <HerkunftChip quelle="stat.klass_qualifikation" sql={SQL_QUALIFIKATION_ZAHLEN} />
-          </Regelpunkt>
+          {kategorieStand && kategorie && (
+            <Regelpunkt satz={kategorie.regel} name={kategorieStand.regelName}>
+              <div className="flex flex-wrap gap-2">
+                <HerkunftChip quelle="meta.regel" sql={sqlKategorieRegel(kategorieStand.regelsatz)} />
+                <HerkunftChip quelle="stat.klass_qualifikation" sql={SQL_QUALIFIKATION_ZAHLEN} />
+              </div>
+              {kategorie.auftrag && kategorieStand.auftrag && (
+                <div className="flex flex-col items-start gap-2">
+                  <Status art={kategorieStand.auftrag.status === "offen" ? "warnung" : kategorieStand.auftrag.status === "freigegeben" ? "ok" : "info"}>
+                    {kategorieStand.auftrag.status === "offen"
+                      ? "Auftrag wartet auf Freigabe"
+                      : kategorieStand.auftrag.status === "freigegeben"
+                        ? `Freigegeben als Regelsatz ${kategorieStand.auftrag.regelsatzZiel}`
+                        : "Auftrag abgelehnt"}
+                  </Status>
+                  <p className="max-w-3xl font-sans text-16 text-ink">{kategorie.auftrag}</p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <HerkunftChip quelle="meta.vorschlag" sql={sqlKategorieAuftrag(kategorieStand)} />
+                    <Link
+                      href={`/uc3/freigaben/${kategorieStand.auftrag.vorschlagId}`}
+                      className="inline-flex min-h-11 items-center font-sans text-14 font-semibold text-gruen underline underline-offset-4"
+                    >
+                      Auftrag und Probe ansehen
+                    </Link>
+                  </div>
+                </div>
+              )}
+              {kategorie.zahlen && bestand && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <Fliesstext groesse={14} ton="gedaempft">
+                    {kategorie.zahlen}
+                  </Fliesstext>
+                  <HerkunftChip {...laufBeleg(bestand.alt, { sql: sqlAbschnittBestand(bestand.alt, bestand.neu) })} />
+                </div>
+              )}
+            </Regelpunkt>
+          )}
         </ul>
       </section>
 
@@ -227,7 +256,7 @@ export default async function Klassifikationen() {
         </Liste>
 
         <Liste
-          satz={`${qualifikationen.length} Qualifikationen in ${kategorien.length} Beschäftigungskategorien, jeweils mit einem Code für unbekannt.`}
+          satz={`${qZahlen.qualifikationen} Qualifikationen in ${qZahlen.kategorien} Beschäftigungskategorien, dazu ein Code für unbekannt.`}
           sql={SQL_QUALIFIKATIONEN}
           quelle="stat.klass_qualifikation"
         >

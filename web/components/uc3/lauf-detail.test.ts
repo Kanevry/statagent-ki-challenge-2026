@@ -3,6 +3,7 @@ import {
   abrechnungSatz,
   bestandSatz,
   einstufungStatus,
+  fehlendeGruppen,
   haltSatz,
   haltTreffer,
   hatRevisionsbedarf,
@@ -13,6 +14,7 @@ import {
   sortiereTreffer,
   trefferTitel,
   ursachenSatz,
+  weiterSatz,
   type Treffer,
   rohAlsSatz,
 } from "./lauf-detail";
@@ -39,24 +41,24 @@ describe("Lauf-Detail: Sätze", () => {
   // Fehler: eine negative Differenz erscheint als „um -4.410 … kleiner“.
   it("Revision mit negativer Differenz sagt „kleiner“ mit Betrag", () => {
     const satz = revisionSatz({ berichtsmonat: "2025-08", veroeffentlicht: 393712, aktuell: 389302, differenz: -4410, statusVorher: "vorlaeufig" });
-    expect(satz).toContain("August 2025 um 4.410 Verhältnisse kleiner als bisher gezeigt (389.302 statt 393.712)");
+    expect(satz).toContain("August 2025 um 4.410 Beschäftigungsverhältnisse kleiner als bisher gezeigt (389.302 statt 393.712)");
     expect(satz).not.toContain("-");
   });
 
   // Fehler: „1 Verhältnisse“ und „ist/sind“ falsch im Singular.
   it("Singular bei genau einem Verhältnis", () => {
     expect(revisionSatz({ berichtsmonat: "2025-02", veroeffentlicht: 10, aktuell: 11, differenz: 1, statusVorher: "endgueltig" })).toContain(
-      "um 1 Verhältnis größer als veröffentlicht",
+      "um 1 Beschäftigungsverhältnis größer als veröffentlicht",
     );
     expect(ursachenSatz([{ ursache: "nicht_mehr_enthalten", anzahl: 1 }, { ursache: "merkmal_geaendert", anzahl: 0 }])).toBe(
-      "Gründe: 1 Verhältnis ist in der neuen Lieferung nicht mehr enthalten.",
+      "Gründe: 1 Beschäftigungsverhältnis ist in der neuen Lieferung nicht mehr enthalten.",
     );
   });
 
   // Fehler: die Abrechnung nimmt den Bestand samt Fortgeschriebenen und geht dann nicht auf.
   it("Abrechnung zählt ohne die aus dem Vormonat übernommenen Verhältnisse", () => {
     expect(abrechnungSatz({ gelesen: 345078, gezaehlt: 390900, fortgeschrieben: 77746, nichtGezaehlt: 31924, ausgeschlossen: 0 })).toBe(
-      "345.078 gelesene Sätze = 313.154 gezählt + 31.924 nicht gezählt + 0 ausgeschlossen.",
+      "345.078 gelesene Zeilen = 313.154 gezählt + 31.924 nicht gezählt + 0 ausgeschlossen.",
     );
   });
 
@@ -73,12 +75,58 @@ describe("Lauf-Detail: Auffälligkeiten", () => {
   it("Überschrift eines angehaltenen Monats nimmt die fehlenden Verhältnisse", () => {
     const liste = [
       treffer({ art: "zeilenzahl_vs_vormonat", anzahl: 89026, anhalten: true }),
-      treffer({ art: "verhaeltnisse_verschwunden", anzahl: 78949, anhalten: true }),
+      treffer({ art: "verhaeltnisse_verschwunden", anzahl: 78949, anhalten: true, details: { anteil: 0.200277, rueckfrage: "R3" } }),
       treffer({ art: "sprung_aggregat", anzahl: 2 }),
     ];
     const t = haltTreffer(liste);
     expect(t && haltSatz(t, "2025-10")).toBe(
-      "Im Oktober 2025 fehlen 78.949 Verhältnisse des Vormonats, deshalb ist der Monat angehalten.",
+      "Im Oktober 2025 fehlt jedes fünfte Beschäftigungsverhältnis aus dem September 2025, zusammen 78.949. Deshalb ist der Monat angehalten.",
+    );
+  });
+
+  // Fehler (Sichtprüfung bb, #18): März nannte „2 Gruppen“ ohne Namen, P16 dieselben 1.492 „Einzelfälle wie Stornos“,
+  // und jede anhaltende Prüfung nannte eine andere Bedingung zum Weitergehen.
+  it("März: fehlende freie Dienstverträge mit Namen, P16 rechnet sie heraus, ein Haltesatz je Rückfrage", () => {
+    const p13 = treffer({
+      name: "P13_auspraegung_verschwunden",
+      art: "auspraegung_verschwunden",
+      anzahl: 2,
+      anhalten: true,
+      details: {
+        rueckfrage: "R4",
+        auspraegungen: [
+          { code: "AngestellteFD", gliederung: "qualifikation", aktuell: 0, vormonat: 1131 },
+          { code: "ArbeiterFD", gliederung: "qualifikation", aktuell: 0, vormonat: 361 },
+        ],
+      },
+    });
+    expect(haltSatz(p13, "2025-03", ["AngestellteFD", "ArbeiterFD"])).toBe(
+      "Im März 2025 fehlen alle freien Dienstverträge (Februar 2025: 1.492). Deshalb ist der Monat angehalten.",
+    );
+    const gruppen = fehlendeGruppen([p13], ["AngestellteFD", "ArbeiterFD"]);
+    expect(
+      massnahmeSatz(
+        { name: "P16_verhaeltnisse_verschwunden", massnahme: "keine (Einzelfälle, z. B. Stornos)", einstufung: "erklaert-plausibel", anhalten: false },
+        { fehlendeGruppen: gruppen },
+      ),
+    ).toBe("1.492 davon sind die fehlenden freien Dienstverträge, die übrigen sind Einzelfälle wie Stornos.");
+    const halt = (name: string) =>
+      massnahmeSatz({ name, massnahme: "Monat angehalten", einstufung: "erklaert-datenproblem", anhalten: true, details: { rueckfrage: "R3" } });
+    expect(new Set(["P15_x", "P16_x", "P17_x"].map(halt))).toEqual(
+      new Set(["Der Monat ist angehalten, bis die Fachabteilung Rückfrage R3 beantwortet."]),
+    );
+    // Fehler (Review !77, Punkt 2): fehlt nur ArbeiterFD, stand trotzdem „alle freien Dienstverträge“.
+    const nurArbeiter = treffer({
+      art: "auspraegung_verschwunden",
+      anzahl: 1,
+      anhalten: true,
+      details: { auspraegungen: [{ code: "ArbeiterFD", gliederung: "qualifikation", aktuell: 0, vormonat: 361 }] },
+    });
+    expect(haltSatz(nurArbeiter, "2025-03", ["AngestellteFD", "ArbeiterFD"])).toBe(
+      "Im März 2025 fehlen freie Dienstverträge, im Februar 2025 waren es 361 (ArbeiterFD). Deshalb ist der Monat angehalten.",
+    );
+    expect(weiterSatz({ lieferung: "2025-10", fortgeschrieben: 77746 }, ["R3"])).toBe(
+      "Wir übernehmen 77.746 Beschäftigungsverhältnisse aus der Lieferung September 2025 (Regel E07). Der Monat bleibt vorläufig, bis die Fachabteilung Rückfrage R3 beantwortet.",
     );
   });
 
