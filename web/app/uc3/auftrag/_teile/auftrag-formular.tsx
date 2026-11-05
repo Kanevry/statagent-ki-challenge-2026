@@ -31,7 +31,7 @@ function Ergebnis({ stand, jetzt }: { stand: AuftragStand; jetzt: number }) {
     return (
       <p role="status" className="font-sans text-16 text-ink">
         {stand.art === "agent"
-          ? `Die Agenten arbeiten und rechnen die Probe, seit ${dauer}. Das kann einige Minuten dauern.`
+          ? `Die Agenten arbeiten und rechnen die Zahlen nach, seit ${dauer}. Das kann einige Minuten dauern.`
           : `${monatName(stand.text)} wird gerechnet, seit ${dauer}.`}
       </p>
     );
@@ -103,14 +103,15 @@ export function AuftragFormular({ monate, regelsatz }: { monate: readonly string
   }, [abfragen]);
 
   useEffect(() => {
-    if (!laeuft) return;
+    // Auch wenn schon die erste Abfrage scheiterte: Sonst bliebe die Seite ohne Stand und fragte nie wieder.
+    if (!laeuft && !netzWeg) return;
     const abfrage = setInterval(() => void abfragen(), ABFRAGE_MS);
-    const uhr = setInterval(() => setJetzt(Date.now()), 1000);
+    const uhr = laeuft ? setInterval(() => setJetzt(Date.now()), 1000) : undefined;
     return () => {
       clearInterval(abfrage);
       clearInterval(uhr);
     };
-  }, [laeuft, abfragen]);
+  }, [laeuft, netzWeg, abfragen]);
 
   async function starten(body: Record<string, string>) {
     setMeldung(null);
@@ -142,7 +143,7 @@ export function AuftragFormular({ monate, regelsatz }: { monate: readonly string
     <div className="flex max-w-3xl flex-col gap-8">
       <header className="flex flex-col gap-3">
         <Ueberschrift stufe={2} als="h1">
-          Was soll sich ändern?
+          Änderung in einem Satz
         </Ueberschrift>
         <p className="font-sans text-16 text-slate">
           Die Agenten schreiben daraus einen Vorschlag mit den Zahlen vorher und nachher. Wirksam wird er erst, wenn ein
@@ -152,7 +153,7 @@ export function AuftragFormular({ monate, regelsatz }: { monate: readonly string
 
       <form onSubmit={auftragSenden} className="flex flex-col gap-3">
         <label htmlFor={satzId} className="font-sans text-14 font-semibold text-ink">
-          Auftrag in einem Satz
+          Auftrag
         </label>
         <textarea
           id={satzId}
@@ -170,7 +171,11 @@ export function AuftragFormular({ monate, regelsatz }: { monate: readonly string
       </form>
 
       {meldung && <Status art="fehler">{meldung}</Status>}
-      {netzWeg && <p className="font-sans text-14 text-slate">Die Verbindung ist kurz weg. Der Auftrag läuft weiter.</p>}
+      {netzWeg && (
+        <p className="font-sans text-14 text-slate">
+          {laeuft ? "Die Verbindung ist kurz weg. Der Auftrag läuft weiter." : "Die Verbindung ist kurz weg. Die Seite versucht es weiter."}
+        </p>
+      )}
       {stand && (
         <section aria-label="Stand des Auftrags" className="flex flex-col gap-2 border-t border-line pt-4">
           {stand.art === "agent" && <p className="font-sans text-14 text-slate">Auftrag: {stand.text}</p>}

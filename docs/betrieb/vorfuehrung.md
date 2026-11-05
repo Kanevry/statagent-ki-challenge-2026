@@ -66,6 +66,8 @@ Nicht gemessen: Die Instanz ist noch nicht aufgesetzt.
 | Durchlauf 2, D1 bis D4 | nicht gemessen |
 | Seitenlast über Hotspot | nicht gemessen |
 | Live-Änderung über Hotspot | nicht gemessen (`uc3 agent` mit Probe auf einer Abgabe-Kopie: 42 bis 110 s, Lane Live-Änderung) |
+| Basisregelsatz von `uc3 agent` auf dem vorgeführten Stand | nicht gemessen |
+| App-Neustart nach einer Freigabe, dann ein Lauf (Code-Vorschläge liegen im tmpfs, DB und Git bleiben) | nicht gemessen |
 
 ## Reserve: lokal
 

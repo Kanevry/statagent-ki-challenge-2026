@@ -132,7 +132,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
           <p className="font-sans text-14 text-slate">
             {"Im Protokoll als Commit "}
             <span className="font-mono tabular-nums text-ink">{v.commitHash.slice(0, 10)}</span>
-            {", mit dem Namen im Trailer „Freigegeben-von“."}
+            {", mit dem Namen der Person, die freigegeben hat."}
           </p>
         )}
         {ergebnis && v.status === "freigegeben" && (

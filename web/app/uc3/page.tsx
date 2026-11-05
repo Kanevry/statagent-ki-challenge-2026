@@ -85,20 +85,20 @@ export default async function Monate({ searchParams }: Props) {
 
   if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
   if (lesung.daten.monate.length === 0) {
-    const ohneV2 = lesung.ok && regelsatz === "v2";
+    const ohneLauf = lesung.ok && regelsatz !== "v1";
     return (
       <>
         <Ueberschrift stufe={2} als="h1">
-          {ohneV2 ? "Mit Regelsatz v2 ist noch kein Monat gerechnet." : "Noch kein Monat ist gerechnet."}
+          {ohneLauf ? `Mit Regelsatz ${regelsatz} ist noch kein Monat gerechnet.` : "Noch kein Monat ist gerechnet."}
         </Ueberschrift>
         <Leerzustand
           satz={
-            ohneV2
+            ohneLauf
                 ? "Die Monate entstehen, sobald eine Änderung mit Namen freigegeben und gerechnet ist."
                 : "Der erste Lauf beginnt mit August 2024."
           }
           aktion={
-            ohneV2 ? (
+            ohneLauf ? (
               <Link href={uebersichtPfad("v1")} className={knopfKlassen("sekundaer")}>
                 Monate mit Regelsatz v1 ansehen
               </Link>

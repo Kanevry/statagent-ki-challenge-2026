@@ -471,8 +471,8 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
   if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
   if (lesung.daten === null) {
     const satz =
-      regelsatz === "v2"
-        ? `Für ${name} gibt es mit Regelsatz v2 noch keinen Lauf. Er entsteht, sobald die freigegebene Änderung gerechnet ist.`
+      regelsatz !== "v1"
+        ? `Für ${name} gibt es mit Regelsatz ${regelsatz} noch keinen Lauf. Er entsteht, sobald die freigegebene Änderung gerechnet ist.`
         : `Für ${name} gibt es noch keinen Lauf.`;
     return (
       <>
@@ -482,8 +482,8 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
         <Leerzustand
           satz={satz}
           aktion={
-            <Link href={regelsatz === "v2" ? laufPfad(lieferung) : "/uc3"} className={knopfKlassen("sekundaer")}>
-              {regelsatz === "v2" ? `${name} mit Regelsatz v1 ansehen` : "Alle Monate ansehen"}
+            <Link href={regelsatz !== "v1" ? laufPfad(lieferung) : "/uc3"} className={knopfKlassen("sekundaer")}>
+              {regelsatz !== "v1" ? `${name} mit Regelsatz v1 ansehen` : "Alle Monate ansehen"}
             </Link>
           }
         />

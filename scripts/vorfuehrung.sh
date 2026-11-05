@@ -34,6 +34,8 @@ lade_ziel() {
   [[ $HOST =~ ^[A-Za-z0-9._-]+$ ]] || { echo "DEPLOY_HOST ungültig" >&2; exit 2; }
   [[ $BASIS =~ ^/[A-Za-z0-9._/-]+$ && $BASIS != *..* ]] || { echo "DEPLOY_BASIS ungültig" >&2; exit 2; }
   [[ $DOMAIN =~ ^[a-z0-9.-]+$ && $V_DOMAIN =~ ^[a-z0-9.-]+$ ]] || { echo "Domain ungültig" >&2; exit 2; }
+  # dieselbe Adresse hieße: Basic-Auth und Schreibwege auf der öffentlichen Demo
+  [[ $V_DOMAIN != "$DOMAIN" ]] || { echo "VORFUEHRUNG_DOMAIN darf nicht die öffentliche Adresse sein" >&2; exit 2; }
   V_BASIS=$BASIS/vorfuehrung
 }
 
@@ -112,9 +114,28 @@ EOF
 
   sed -e "s/@@DOMAIN@@/$V_DOMAIN/" "$REPO_ROOT/deploy/vorfuehrung.caddy.vorlage" |
     awk -v h="$hash" '{ i = index($0, "@@HASH@@"); if (i) print substr($0, 1, i - 1) h substr($0, i + 8); else print }' |
-    remote "umask 022 && cat > $V_BASIS/caddy/vorfuehrung.caddy.neu && mv $V_BASIS/caddy/vorfuehrung.caddy.neu $V_BASIS/caddy/vorfuehrung.caddy"
+    remote "umask 022 && cat > $V_BASIS/caddy/vorfuehrung.caddy.neu"
   remote "chmod 755 $V_BASIS $V_BASIS/caddy"
-  echo "init: Caddy-Fragment geschrieben (nur der Hash)"
+  # Das Muster im Caddyfile trifft nur *.caddy. Scharf wird das Fragment erst nach bestandener Prüfung im Caddy-Container:
+  # Ein kaputtes Fragment ließe Caddy beim nächsten Neustart nicht starten, dann wäre auch die öffentliche Demo weg.
+  remote bash -s -- "$BASIS" "$V_BASIS" <<'EOF'
+haupt() {
+  set -euo pipefail
+  local basis=$1 v=$2
+  cd "$basis/repo/deploy"
+  if ! docker compose --env-file "$basis/.env.server" -f docker-compose.prod.yml exec -T caddy sh -c \
+    'cat /etc/caddy/Caddyfile >/tmp/pruefung.caddyfile && echo "import /etc/caddy-vorfuehrung/vorfuehrung.caddy.neu" >>/tmp/pruefung.caddyfile && caddy validate --config /tmp/pruefung.caddyfile --adapter caddyfile' \
+    </dev/null >"$v/caddy-pruefung.log" 2>&1; then
+    tail -n 5 "$v/caddy-pruefung.log" >&2
+    rm -f "$v/caddy/vorfuehrung.caddy.neu"
+    echo "init: Fragment besteht die Prüfung nicht (oder Caddy kennt das Volume noch nicht: zuerst scripts/deploy.sh up von main), nichts scharf" >&2
+    return 1
+  fi
+  mv "$v/caddy/vorfuehrung.caddy.neu" "$v/caddy/vorfuehrung.caddy"
+}
+haupt "$@"
+EOF
+  echo "init: Caddy-Fragment geprüft und scharf (nur der Hash)"
 }
 
 cmd_up() {
@@ -234,10 +255,11 @@ haupt() {
   "${compose[@]}" stop vorfuehrung-app </dev/null
   "${psql[@]}" -c 'drop database if exists statistik_vorfuehrung with (force)' </dev/null
   "${psql[@]}" -c 'create database statistik_vorfuehrung template statistik_vorfuehrung_vorlage' </dev/null
-  git -c safe.directory=* -C "$v/checkout" reset -q --mixed ausgangsstand
-  chown -R 1001:1001 "$v/checkout/.git"
+  # Das .git beschreibt der Container-Nutzer: Git liest dort auch Einstellungen, die Programme starten. Darum nie als root.
+  als_app() { HOME=/nonexistent setpriv --reuid=1001 --regid=1001 --clear-groups git -c 'safe.directory=*' -C "$v/checkout" "$@"; }
+  als_app reset -q --mixed ausgangsstand
   "${compose[@]}" up -d --wait --wait-timeout 180 --force-recreate vorfuehrung-app </dev/null
-  echo "reset: Commits seit Ausgangsstand: $(git -c safe.directory=* -C "$v/checkout" rev-list --count ausgangsstand..HEAD)"
+  echo "reset: Commits seit Ausgangsstand: $(als_app rev-list --count ausgangsstand..HEAD)"
   "${compose[@]}" exec -T vorfuehrung-db psql -X -q -At -U statistik -d statistik_vorfuehrung \
     -c "select 'reset: Läufe ' || (select count(*) from meta.lauf) || ', offene Vorschläge ' || (select count(*) from meta.vorschlag where status = 'offen')" </dev/null
   echo "reset: fertig in $((SECONDS - start)) s"
@@ -255,7 +277,9 @@ haupt() {
   local compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
   echo "Revision: $(cat "$v/repo/REVISION" 2>/dev/null || echo unbekannt)"
   "${compose[@]}" ps --format 'table {{.Service}}\t{{.Status}}' </dev/null
-  git -c safe.directory=* -C "$v/checkout" log --format='%h %s | %(trailers:key=Freigegeben-von,valueonly,separator=%x2C)' ausgangsstand~0..HEAD
+  # als Container-Nutzer, nie als root (wie in reset)
+  HOME=/nonexistent setpriv --reuid=1001 --regid=1001 --clear-groups git -c 'safe.directory=*' -C "$v/checkout" \
+    log --format='%h %s | %(trailers:key=Freigegeben-von,valueonly,separator=%x2C)' ausgangsstand~0..HEAD
   "${compose[@]}" exec -T vorfuehrung-db psql -X -q -At -U statistik -d statistik_vorfuehrung \
     -c "select 'Läufe ' || (select count(*) from meta.lauf) || ', Vorschläge ' || (select count(*) from meta.vorschlag) || ', offen ' || (select count(*) from meta.vorschlag where status = 'offen')" </dev/null
   df -h --output=avail "$basis" | tail -n 1 | sed 's/^/Platte frei: /'
