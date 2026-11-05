@@ -209,9 +209,8 @@ KETTE_GESUNDHEIT = (
     "Mit weniger Personal warten Sie meist länger."
 )
 KETTE_ANDERE_BRANCHEN = (
-    "Diese Zahl sagt allein wenig über Ärzte und Pflege. Mehr Beschäftigte bringen meist mehr Beiträge für "
-    "die "
-    "Krankenversicherung und damit mehr Geld für Ihre Versorgung. Weniger Beschäftigte bringen weniger."
+    "Diese Zahl sagt allein wenig über Ärzte und Pflege. "
+    "Fragen Sie nach dem Gesundheits- und Sozialwesen, dann wird es konkreter."
 )
 KETTE_FLUKTUATION = (
     "Wechselt das Personal oft, treffen Sie öfter auf neue Gesichter und erklären Ihre Lage öfter neu. "
@@ -272,8 +271,8 @@ def _belegsatz(kontext: Kontext) -> str | None:
         ohne_einheit = not z.einheit or z.einheit.casefold() in _EINHEIT_OHNE_WORT
         teile.append(anzeige(z) if ohne_einheit else f"{anzeige(z)} {z.einheit}")
     if len(teile) == 1:
-        return f"Grundlage ist die Zahl von StatAgent: {teile[0]}."
-    return f"Grundlage sind die Zahlen von StatAgent: {'; '.join(teile)}."
+        return f"Die Zahl von StatAgent: {teile[0]}."
+    return f"Die Zahlen von StatAgent: {'; '.join(teile)}."
 
 
 def _gliederung(zahl: Zahl) -> set[str]:
@@ -301,10 +300,11 @@ def kette_text(kontext: Kontext) -> str:
     )
     if paket is not None:
         wirkung = KETTE_PAKET.format(wort="kürzer" if paket.wert < 0 else "länger")
-    elif any(z.bezeichnung.startswith("Fluktuation") for z in uc3):
-        wirkung = KETTE_FLUKTUATION
-    elif not uc3 or any("gesundheit" in teil.casefold() for teil in set().union(*teile)):
+    elif not uc3:
         wirkung = KETTE_GESUNDHEIT
+    elif any("gesundheit" in z.bezeichnung.casefold() for z in uc3):
+        fluktuation = any(z.bezeichnung.startswith("Fluktuation") for z in uc3)
+        wirkung = KETTE_FLUKTUATION if fluktuation else KETTE_GESUNDHEIT
     else:
         wirkung = KETTE_ANDERE_BRANCHEN
     anfang = f"Für Ihren nächsten Arzttermin{f' in {region}' if region else ''} heißt das:"

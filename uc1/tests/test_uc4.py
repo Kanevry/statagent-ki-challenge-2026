@@ -306,12 +306,12 @@ def test_kette_verschiedene_fragen_ergeben_verschiedenen_text() -> None:
         "Für Ihren nächsten Arzttermin in Wien heißt das: Mit mehr Personal im Gesundheits- und Sozialwesen "
         "warten "
         "Sie meist kürzer und werden oft besser betreut. Mit weniger Personal warten Sie meist länger. "
-        "Grundlage ist die Zahl von StatAgent: 7.498."
+        "Die Zahl von StatAgent: 7.498."
     )
     assert alle.text == (
-        "Für Ihren nächsten Arzttermin heißt das: Diese Zahl sagt allein wenig über Ärzte und Pflege. Mehr "
-        "Beschäftigte bringen meist mehr Beiträge für die Krankenversicherung und damit mehr Geld für Ihre "
-        "Versorgung. Weniger Beschäftigte bringen weniger. Grundlage ist die Zahl von StatAgent: 390.900."
+        "Für Ihren nächsten Arzttermin heißt das: Diese Zahl sagt allein wenig über Ärzte und Pflege. "
+        "Fragen Sie nach dem Gesundheits- und Sozialwesen, dann wird es konkreter. "
+        "Die Zahl von StatAgent: 390.900."
     )
 
 
@@ -328,7 +328,9 @@ def test_kette_verschiedene_fragen_ergeben_verschiedenen_text() -> None:
             "Arzttermin heißt das: Mit mehr",
         ),
         ("Beschäftigungsverhältnisse (Tirol, Bau)", "in Tirol heißt das: Diese Zahl sagt allein wenig"),
-        ("Fluktuation, alle Wirtschaftsbereiche", "heißt das: Wechselt das Personal oft"),
+        ("Fluktuation, ÖNACE R Gesundheits- und Sozialwesen", "heißt das: Wechselt das Personal oft"),
+        ("Fluktuation, alle Wirtschaftsbereiche", "heißt das: Diese Zahl sagt allein wenig"),
+        ("Fluktuation, ÖNACE F Bau", "heißt das: Diese Zahl sagt allein wenig"),
     ],
 )
 def test_kette_text_folgt_dem_was_die_zahl_zaehlt(bezeichnung: str, erwartet: str) -> None:
@@ -348,7 +350,7 @@ def test_kette_paket_sagt_die_richtung_aus_dem_rechenmodell(wert: float, wort: s
     )
     text = uc4.router_adapter("Wartezeiten?", [uc3, uc2]).text
     assert f"laut Rechenmodell meist {wort}." in text and "22,24" not in text
-    assert text.endswith("Grundlage ist die Zahl von StatAgent: 7.498.")
+    assert text.endswith("Die Zahl von StatAgent: 7.498.")
 
 
 def test_kette_zahl_von_uc3_und_uc2_steht_einmal() -> None:
@@ -406,6 +408,13 @@ def test_kette_nachpruefung_bleibt(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_kette_belegsatz_nennt_keine_falsche_gliederung() -> None:
     """Fängt „Grundlage: 7.498 Beschäftigungsverhältnisse im März 2025“: Im März gab es rund 390.000, Wien und
-    Branche fehlten im Satz (UI-Regie 05.11.)."""
+    Branche fehlten im Satz. „Grundlage“ stimmt auch nicht, die festen Sätze folgen nicht aus der Zahl."""
     a = uc4.router_adapter("Wie viele?", _kette_kontext(ZAHL_WIEN))
-    assert a.text.endswith("Grundlage ist die Zahl von StatAgent: 7.498.")
+    assert a.text.endswith("Die Zahl von StatAgent: 7.498.") and "Grundlage" not in a.text
+
+
+def test_kette_mehrere_zahlen_stehen_in_der_mehrzahl() -> None:
+    """Fängt „Die Zahl von StatAgent: 1; 2“, wenn eine Frage zwei Werte liefert."""
+    zwei = [ZAHL_UC3.model_copy(update={"bezeichnung": f"Land {n}", "wert": n}) for n in (1, 2)]
+    a = uc4.router_adapter("Zwei?", _kette_kontext(*zwei))
+    assert a.text.endswith("Die Zahlen von StatAgent: 1; 2.")
