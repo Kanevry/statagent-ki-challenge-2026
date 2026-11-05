@@ -50,7 +50,8 @@ def baue() -> str:
         "# Sprech-Skript Management: 10 Minuten",
         "",
         "Erzeugt aus den Sprechernotizen in `web/content/slides-management/` mit "
-        "`docs/praesentation/werkzeug/skript_management.py`. Änderungen gehören in die Folien, nicht hierher. "
+        "`docs/praesentation/werkzeug/skript_management.py`. "
+        "Änderungen gehören in die Folien, nicht hierher. "
         "Folien: `/praesentation/management`, Antworten für die 5 Minuten danach: `management-faq.md`.",
         "",
         "Das Zeichen „→“ steht vor dem Satz, der mit dem Klick kommt. "
