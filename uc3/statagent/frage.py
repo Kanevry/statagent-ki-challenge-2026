@@ -41,7 +41,7 @@ from statagent.uc4 import (
     _monat_anzeige,
     jahr_rueckfrage,
 )
-from statagent.woerter import unbekanntes_wort
+from statagent.woerter import BEKANNT, unbekanntes_wort
 from statagent.zeitraum import (
     KEIN_JAHR,
     MONATSNAMEN,
@@ -437,7 +437,7 @@ def _wort_bekannt(wort: str, erkannt: list[str]) -> bool:
     („Produktionslauf“, „Hausverwaltung“) ist damit unbekannt.
     """
     klein = wort.lower().strip("-")
-    if not klein or klein.isdigit() or klein in MONATSNAMEN or klein in _FUNKTIONSWORT:
+    if not klein or klein.isdigit() or klein in MONATSNAMEN or klein in _FUNKTIONSWORT or klein in BEKANNT:
         return True
     if any(klein.startswith(stamm) for stamm in _KEIN_MERKMAL_STAMM):
         return True

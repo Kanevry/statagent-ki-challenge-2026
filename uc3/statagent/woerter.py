@@ -39,7 +39,7 @@ _FUELLWOERTER = _liste(
     viel viele vieler sagen sag zeig zeige zeigen steht stehen stand
     servus grüß gott könnt könntet könntest ihr euch bräuchte bräuchten hätten würde würden nennen nenne nennt
     angeben ausgeben liefern auskunft info information interessiert interessieren eigentlich überhaupt denn wohl
-    brauch schnell schreibe artikel recherche gabs gibts betrachtet betrachten soweit wohlgemerkt jeweilig insbesondere bezogen bezug
+    also hinweg brauch schnell schreibe artikel recherche gabs gibts betrachtet betrachten soweit wohlgemerkt jeweilig insbesondere bezogen bezug
     """
 )
 _SACHE = _liste(
