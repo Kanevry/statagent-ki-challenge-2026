@@ -83,7 +83,9 @@ und die Probe zeigt bisher eine falsche Gesamtzahl.
 scripts/vorfuehrung.sh reset
 ```
 
-Neue Arbeitskopie aus der Vorlage, Freigabe-Commits weg, App neu gestartet, auch ein laufender Auftrag endet damit. Die Vorlage
+Neue Arbeitskopie aus der Vorlage, Freigabe-Commits weg, App neu gestartet, auch ein laufender Auftrag endet damit. Jede Probe
+eines Auftrags hinterlässt tote Zeilen (auf einer Kopie nach rund 100 Proben 23 statt 8 GB, Lane Live-Änderung), deshalb direkt vor
+der Vorführung immer `reset`. Die Vorlage bleibt dabei sauber, die Platte zeigt `status`. Die Vorlage
 und das Tagesbudget bleiben. Danach kann die Vorführung noch einmal laufen, etwa 09:00 und später fürs Management.
 
 Eine Freigabe, die bleiben soll (die Pensionen, Fr 07:00), würde `reset` mit zurücknehmen. Deshalb direkt danach:
@@ -94,27 +96,37 @@ scripts/vorfuehrung.sh festschreiben   # heutiger Stand wird Vorlage, der Commit
 
 Das ersetzt die Vorlage. Zurück geht es nur mit `daten <dump>`. Also nur auf einem geprüften Stand, nie nach einer Probe.
 Ein späteres `up` legt den Checkout neu an: Der Freigabe-Commit ist dann weg, die Freigabe in der Datenbank bleibt.
-Bricht `reset` oder `festschreiben` mitten ab, bleibt die App gestoppt: den Befehl wiederholen.
+Bricht `daten`, `reset` oder `festschreiben` mitten ab, startet das Skript die App wieder; danach den Befehl wiederholen.
 
 ## Messungen
 
-Gemessen am 05.11.2026 auf der echten Adresse, im Browser, ohne Drosselung, nicht über einen Hotspot. Freigaben mit einem
-Probe-Namen, danach `reset`.
+Gemessen am 05.11.2026 auf der echten Adresse im Browser, mit dem Stand aus !229. Freigaben mit einem Probe-Namen, vor jedem
+Durchlauf `reset`.
 
-| Messung | Ergebnis |
+| Messung | Durchlauf 1 (23:00) | Durchlauf 2 (23:06, gedrosselt) |
+|---|---|---|
+| Ganzer Durchlauf D1 bis D4 | 349,7 s | 358,3 s |
+| Seite `/uc3` | 1,8 s | 1,8 s |
+| D1 Lauf Oktober 2025 | 101,2 s | 96,2 s |
+| D1 Monatsseite | 0,7 s | 0,6 s |
+| D2 Vorschlag (Geburtsmonat 13, Juni 2026) | 144,6 s | 147,6 s |
+| D2 Freigabe mit Name | 3,1 s | 5,8 s |
+| D2 Rücknahme, Vorschlag | 85,7 s | 90,8 s |
+| D2 Rücknahme, Freigabe | 2,3 s | 3,7 s |
+| D3 Datenanfrage (7.498) | 5,0 s | 5,8 s |
+| D4 `/uc4` | 4,3 s | 4,6 s |
+
+Gedrosselt heißt: 4 Mbit/s herunter, 1 Mbit/s hinauf, 150 ms im Browser. Beide Durchläufe liefen ohne Fehler und ohne Abriss.
+Das ersetzt keine Messung über einen echten Hotspot, die steht aus und liegt bei der Probe um 07:00.
+
+| Weitere Messung | Ergebnis |
 |---|---|
-| D1 Lauf Oktober 2025 im Browser | 92,9 s und 102,0 s; 397.514, Hash `63f106818887`, gleich wie auf der Rechen-Datenbank |
-| D2 Vorschlag (Geburtsmonat 13, Juli 2026) | 141,9 s und 140,1 s |
-| D2 Freigabe mit Name | 3,4 s, Commit mit Trailer im Checkout gelesen |
-| D2 Rücknahme | 89,4 s Vorschlag, 2,4 s Freigabe |
-| D3 Datenanfrage | nicht belegt, Prüfung war zu schwach |
-| D4 `/uc4` | 4,3 s |
-| Ein ganzer Durchlauf | 337,8 s, ohne D3-Beleg; zweiter Durchlauf mit dem neuen Stand steht aus |
-| Reset | 52 s und 51 s |
+| Lauf Oktober 2025 gegen die Rechen-Datenbank | gleich: 397.514, Hash `63f106818887` |
+| Reset | 51 bis 53 s, fünfmal |
 | Erster Monat auf einem neuen Regelsatz (2024-08) | 41 s |
-| Basisregelsatz von `uc3 agent` auf dem vorgeführten Stand | v2, Ziel v3, nach Rücknahme Ziel v4 |
-| App-Neustart nach einer Freigabe, dann ein Lauf | läuft, kein Fehler; ein Code-Vorschlag ist dabei nicht geprüft |
-| Seitenlast und Live-Änderung über Hotspot | nicht gemessen |
+| Basisregelsatz von `uc3 agent` | v2, Ziel v3, nach Rücknahme Ziel v4 |
+| App-Neustart nach einer Freigabe, dann ein Lauf | läuft; ein Code-Vorschlag ist dabei nicht geprüft |
+| `pensionen-freigeben`, `festschreiben`, `reset`, zurück mit `daten` | nicht gemessen |
 
 ## Reserve: lokal
 
