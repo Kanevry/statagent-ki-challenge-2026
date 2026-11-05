@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { knopfKlassen } from "@kic/ui/basis";
 import type { Modus } from "../../../app/api/uc2/_lib/proxy";
-import { FreigabeBericht, type Entscheidung } from "../freigabe";
+import { FreigabeBericht, useEntscheidung } from "../freigabe";
 import { akteurName, klartext, monatText, themaKurz } from "../namen";
 import { endstand, type FallZustand } from "../zustand";
 import { Brett } from "./brett";
@@ -84,6 +83,16 @@ export function PanelBuehne({ fallId, modus }: { fallId: string; modus: Modus })
         <div className="h-1 w-full overflow-hidden rounded-full bg-line" aria-hidden="true">
           <div className="h-full bg-gruen transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${Math.round(w.anteil * 100)}%` }} />
         </div>
+        {/* KI-Kennzeichnung ab dem ersten Zug, nicht erst im Abschluss (AI Act Art. 50, Review !101). */}
+        <ModellZeile modus={modus} zustand={z} />
+        {w.verbindung === "unterbrochen" && (
+          <p role="alert" className="flex flex-wrap items-center gap-3 font-sans text-16 text-ink">
+            Die Verbindung ist unterbrochen. Was schon da war, bleibt stehen.
+            <button type="button" onClick={w.neuVerbinden} className={knopfKlassen("sekundaer")}>
+              Neu verbinden
+            </button>
+          </p>
+        )}
       </header>
 
       <Sitzreihe gruppen={z.teilnehmer} sprecher={sprecher} moderator={buehne.art === "moderator"} experte={buehne.art === "experte"} />
@@ -102,6 +111,23 @@ export function PanelBuehne({ fallId, modus }: { fallId: string; modus: Modus })
 
       {(fertig || w.pausiert) && <Verlauf zustand={fertig ? z : w.gesamt} />}
     </div>
+  );
+}
+
+/** Woher die Sätze der Gruppen kommen: aufgezeichnet ohne Modell oder das Modell des Laufs. */
+export function modellSatz(modus: Modus, z: FallZustand): string {
+  const akteur = z.modelle?.akteur;
+  if (modus === "live" && akteur?.modell && akteur.provider !== "mock") {
+    return `Die Sätze der Gruppen schreibt eine KI (${akteur.provider ?? ""} ${akteur.modell}). Die Zahlen rechnet der Experte ohne KI.`;
+  }
+  return "Aufgezeichnete Verhandlung mit Beispiel-Belegen, ohne Sprachmodell.";
+}
+
+function ModellZeile({ modus, zustand }: { modus: Modus; zustand: FallZustand }) {
+  return (
+    <p className="font-sans text-12 text-slate" data-testid="uc2-modell-satz">
+      {modellSatz(modus, zustand)}
+    </p>
   );
 }
 
@@ -345,16 +371,13 @@ function Ergebnis({ zustand: z }: { zustand: FallZustand }) {
 }
 
 function Abschluss({ fallId, modus, zustand: z, onVonVorn }: { fallId: string; modus: Modus; zustand: FallZustand; onVonVorn: () => void }) {
-  const [entscheidung, setEntscheidung] = useState<Entscheidung | null>(null);
+  const [entscheidung, setEntscheidung] = useEntscheidung(fallId, modus, z.status === "fertig");
   return (
     <section className="flex flex-col gap-4 border-t border-line pt-8">
       <div className="max-w-2xl">
         <FreigabeBericht fallId={fallId} modus={modus} entscheidung={entscheidung} onEntschieden={setEntscheidung} />
       </div>
       <p className="font-sans text-14 text-slate">
-        {modus === "live" && z.modelle?.akteur?.modell && z.modelle.akteur.provider !== "mock"
-          ? `Die Gruppen sprechen mit ${z.modelle.akteur.provider ?? ""} ${z.modelle.akteur.modell}. `
-          : "Aufgezeichnete Verhandlung mit Beispiel-Belegen, ohne Sprachmodell. "}
         <button type="button" onClick={onVonVorn} className="min-h-11 text-gruen underline underline-offset-4">
           Noch einmal ansehen
         </button>

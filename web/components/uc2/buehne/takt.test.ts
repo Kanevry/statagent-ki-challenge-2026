@@ -1,6 +1,6 @@
 import ereignisseJson from "../../../app/api/uc2/_fixtures/ereignisse-mock.json";
 import { ableiten } from "../zustand";
-import { buehneAus, ersterSatz, hauptaussage, taktMs, type RohEreignis } from "./takt";
+import { buehneAus, ersterSatz, hauptaussage, naechsterIndex, taktMs, wartezeit, type RohEreignis } from "./takt";
 
 const alle = ereignisseJson as unknown as (RohEreignis & Record<string, unknown>)[];
 
@@ -49,4 +49,19 @@ it("Takt: Sprecher stehen länger als Rundenbeginn, Belege ohne Pause, doppeltes
   expect(taktMs("belege", 1)).toBe(0);
   expect(taktMs("zahl_ohne_beleg", 1)).toBe(0);
   expect(taktMs("zug", 2)).toBe(Math.round(taktMs("zug", 1) / 2));
+});
+
+it("Prüfhinweise kommen mit dem Sprecher, zu dem sie gehören (Ereignis 23 mit Zug 22, nicht mit Zug 25)", () => {
+  // Nach Ereignis 21 (Belege der Ärztekammer) steht der Index bei 21.
+  const bisHier = naechsterIndex(alle, 21);
+  expect(alle[bisHier - 1]!.seq).toBe(24); // Zug 22, Hinweis 23 und Belege 24 sind gezeigt, Zug 25 noch nicht.
+  const gezeigt = alle.slice(0, bisHier);
+  const z = ableiten(gezeigt);
+  expect(buehneAus(gezeigt, z).akteur).toBe("aerztekammer");
+  expect(z.hinweise.some((h) => h.akteur === "aerztekammer" && h.runde === 2)).toBe(true);
+});
+
+it("die Wartezeit hängt am letzten Auftritt, nicht an nachgereichten Belegen", () => {
+  expect(wartezeit(alle, 24, 1)).toBe(taktMs("zug", 1));
+  expect(wartezeit(alle, 0, 1)).toBe(0);
 });

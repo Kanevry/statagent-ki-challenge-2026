@@ -22,6 +22,28 @@ export function taktMs(art: string | undefined, tempo: number): number {
   return basis === 0 ? 0 : Math.round(basis / Math.max(tempo, 0.25));
 }
 
+/**
+ * Nächster Stand der Wiedergabe ab `ab`: genau ein Ereignis mit eigener Bühne plus alle Ereignisse ohne Bühne direkt
+ * danach. So stehen Prüfhinweise und Belege beim Sprecher, zu dem sie gehören (der Hinweis aus Ereignis 23 kommt mit
+ * dem Zug 22), und nicht beim nächsten (Review !101).
+ */
+export function naechsterIndex(liste: readonly { art: string }[], ab: number): number {
+  let i = ab;
+  while (i < liste.length && taktMs(liste[i]!.art, 1) === 0) i++;
+  if (i < liste.length) i++;
+  while (i < liste.length && taktMs(liste[i]!.art, 1) === 0) i++;
+  return i;
+}
+
+/** Wie lange die Bühne auf dem zuletzt gezeigten Auftritt steht: Takt des letzten Ereignisses mit eigener Bühne. */
+export function wartezeit(liste: readonly { art: string }[], index: number, tempo: number): number {
+  for (let i = index - 1; i >= 0; i--) {
+    const ms = taktMs(liste[i]!.art, tempo);
+    if (ms > 0) return ms;
+  }
+  return 0;
+}
+
 export interface RohEreignis {
   seq: number;
   art: string;

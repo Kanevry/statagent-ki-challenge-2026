@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { EREIGNIS_ARTEN } from "../typen";
 import { ableiten, type FallZustand } from "../zustand";
 import type { Verbindung } from "../use-ereignisstrom";
-import { taktMs, type RohEreignis } from "./takt";
+import { naechsterIndex, wartezeit, type RohEreignis } from "./takt";
 
 // Liest den Ereignisstrom eines Falls (SSE) in eine Liste und spielt sie im Lesetakt ab. Der Zustand entsteht immer
 // aus den bisher gezeigten Ereignissen (ableiten), so sieht Live, Aufzeichnung und Wiederholung gleich aus.
@@ -96,14 +96,8 @@ export function useWiedergabe(fallId: string): Wiedergabe {
     // Neue Ereignisse dürfen den laufenden Takt nicht neu starten (sie kommen alle 150 ms); darum liest der Timer die
     // Liste über eine Referenz und hängt nur davon ab, ob überhaupt etwas Neues da ist.
     if (pausiert || !mehr) return;
-    const liste = listeRef.current;
-    const warten = index === 0 ? 0 : taktMs(liste[index - 1]?.art, tempo);
-    const uhr = setTimeout(() => {
-      const jetzt = listeRef.current;
-      let naechster = index + 1;
-      while (naechster < jetzt.length && taktMs(jetzt[naechster - 1]?.art, 1) === 0) naechster++;
-      setIndex(Math.min(naechster, jetzt.length));
-    }, warten);
+    const warten = wartezeit(listeRef.current, index, tempo);
+    const uhr = setTimeout(() => setIndex(naechsterIndex(listeRef.current, index)), warten);
     return () => clearTimeout(uhr);
   }, [index, mehr, pausiert, tempo]);
 
@@ -121,11 +115,7 @@ export function useWiedergabe(fallId: string): Wiedergabe {
     anteil: ereignisse.length === 0 ? 0 : index / ereignisse.length,
     umschalten: () => setPausiert((p) => !p),
     setTempo,
-    weiter: () => {
-      let naechster = index + 1;
-      while (naechster < ereignisse.length && taktMs(ereignisse[naechster - 1]?.art, 1) === 0) naechster++;
-      setIndex(Math.min(naechster, ereignisse.length));
-    },
+    weiter: () => setIndex(naechsterIndex(ereignisse, index)),
     zumEnde: () => setIndex(ereignisse.length),
     vonVorn: () => {
       setIndex(0);

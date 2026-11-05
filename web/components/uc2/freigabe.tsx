@@ -292,24 +292,17 @@ export function FreigabeBericht({ fallId, modus, entscheidung, onEntschieden, sp
 }
 
 /**
- * "Am Ende gilt" mit Freigabe: Marke "Entwurf" am Ergebnis, bis entschieden ist (nach einer Ablehnung "Abgelehnt"), darunter die Karte. Live liest die
- * Seite eine frühere Entscheidung aus dem Bericht der API; in der Vorführung bleibt alles in der Seite.
+ * Entscheidung zum Fall: live liest sie eine frühere Freigabe aus dem Bericht der API (sonst zeigte ein schon
+ * freigegebener Bericht nach Neuladen wieder das Formular, und Speichern endete mit 409); in der Vorführung bleibt
+ * alles in der Seite.
  */
-export function StandMitFreigabe({
-  zustand,
-  fallId,
-  modus,
-  speichern,
-}: {
-  zustand: FallZustand;
-  fallId: string;
-  modus: Modus;
-  speichern?: Speichern;
-}) {
+export function useEntscheidung(
+  fallId: string,
+  modus: Modus,
+  fertig: boolean,
+): [Entscheidung | null, (e: Entscheidung) => void] {
   const [entscheidung, setEntscheidung] = useState<Entscheidung | null>(null);
-  const fertig = zustand.status === "fertig" && endstand(zustand) !== null;
   const vorfuehrung = modus === "vorfuehrung";
-
   useEffect(() => {
     if (!fertig || vorfuehrung) return;
     let abgebrochen = false;
@@ -326,6 +319,26 @@ export function StandMitFreigabe({
       abgebrochen = true;
     };
   }, [fertig, vorfuehrung, fallId]);
+  return [entscheidung, setEntscheidung];
+}
+
+/**
+ * "Am Ende gilt" mit Freigabe: Marke "Entwurf" am Ergebnis, bis entschieden ist (nach einer Ablehnung "Abgelehnt"), darunter die Karte. Live liest die
+ * Seite eine frühere Entscheidung aus dem Bericht der API; in der Vorführung bleibt alles in der Seite.
+ */
+export function StandMitFreigabe({
+  zustand,
+  fallId,
+  modus,
+  speichern,
+}: {
+  zustand: FallZustand;
+  fallId: string;
+  modus: Modus;
+  speichern?: Speichern;
+}) {
+  const fertig = zustand.status === "fertig" && endstand(zustand) !== null;
+  const [entscheidung, setEntscheidung] = useEntscheidung(fallId, modus, fertig);
 
   const marke = !fertig ? undefined : !entscheidung ? <EntwurfMarke /> : entscheidung.art === "abgelehnt" ? <AbgelehntMarke /> : undefined;
 
