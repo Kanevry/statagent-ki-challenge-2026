@@ -80,6 +80,59 @@ Interviewer-Name steht im Fließtext.
 **Betrieb:** Ohne `HF_HUB_OFFLINE=1` fragt sentence-transformers bei jedem Laden den Hub nach Dateien ab. Für den Demo-Betrieb
 ohne Netz `HF_HUB_OFFLINE=1` setzen; das Modell liegt im Cache.
 
+## 3b. Lauf v4 nach dem Review !32 (m5, 05.11. 14:58–15:07 CET)
+
+Code `bbd4470` (Fix-Liste der Review-Bank). Neu im Prüfskript sind ein Seitentext-Abgleich je Artikel, eine
+Dubletten-Ausnahme nur mit eigenem Textbeleg, „Artikel ohne Abschnitt = 0“, höchstens 1 Abweichung je Ausgabe und
+„Autor:in“ an jeder Stelle der Zeile. Der Lauf hat neu extrahiert, neu eingebettet und zweimal indexiert.
+
+| Prüfung (pruefe_index.py, 187 PDF) | Ergebnis |
+|---|---|
+| md5 | 187 Dateien, 186 eindeutig = 186 in PG |
+| Inhaltsverzeichnis | 186 Ausgaben, 0 Abweichungen; 10 Text-Dubletten-Ausnahmen, alle mit Textbeleg (erwartet 10) |
+| Seitentext | 2.915 Artikel gegen ihre PDF-Seite, 0 Abweichungen, 0 ohne Startzeile |
+| Artikel ohne Abschnitt | 0 |
+| Autor:in | 0 Abschnitte und 0 Titel mit Autor:in-Zeile; 165 von 395 Autor:in-Werten im Fließtext (622 Abschnitte, für #43) |
+| Text-Hash-Dubletten | 0 |
+| Vektoren | 7.806 |
+
+v4 ist inhaltlich gleich v3:
+- zweimal Inhalts-Hash `e79db68f…`;
+- `abschnitte.jsonl` und `vektoren.npy` bitgleich zu v3 (sha256 je gleich), `max_seq_length = 1024` verändert also keinen Vektor;
+- neu ist nur `eingaben_sha256` in `vektoren.json`. Der eingespielte v3-Index auf dem M4 gilt damit weiter.
+- Dump `healthpolicy-uc2-v4.dump` auf dem m5, sha256 `a0f5f189…`.
+
+**Stichprobe v4** (Seed 20261106, 10 Zufallsartikel, Gutachter mit frischem Kontext gegen `pdftotext` der PDF-Seiten)
+
+Geprüft wurden:
+- Start nach Startzeile und Titel;
+- Titel, Medium und Datum;
+- Vollständigkeit bis zum Feldblock, auch über Seitenwechsel;
+- keine Kopf- oder Fußzeile, kein Feldblock, keine Layout-Kopie und keine Autor:in-Zeile.
+
+| artikel_id | PDF-Seite | Abschnitte | Urteil |
+|---|---|---|---|
+| daf32afaf321-005 | 10 | 3 | ok |
+| 14e28e515192-013 | 28 | 3 | ok |
+| 1f5717670522-015 | 40 | 3 | ok |
+| 301253469019-010 | 37 | 1 | ok |
+| 4ed0c27ce1fc-003 | 10 | 2 | ok |
+| 054b6543bc63-005 | 15 | 2 | ok |
+| cb28586bf327-002 | 4 | 3 | ok |
+| 665e4657cd04-008 | 28 | 1 | ok |
+| 858ae9b66ed1-011 | 32 | 2 | ok |
+| 5b8e6f785f39-032 | 98 | 15 | ok (im zweiten Durchgang mit den Seiten 98–108 nachgeprüft, vollständig bis zum Feldblock auf S. 104) |
+
+Ergebnis **10/10 ok**. Radio und TV sind in dieser Stichprobe nicht vertreten. Den Rundfunkzweig deckt die Seitentext-Prüfung über alle 2.915 Artikel ab.
+
+Grenzfälle für den Personenschutz (#43), so im PDF-Textfluss und daher im Text:
+- Bylines im ersten Absatz und eigene Zeilen „Von …“;
+- Mitarbeit-Zeilen;
+- E-Mail-Adressen mit Klarnamen am Textende;
+- Bildunterschriften und Fotocredits;
+- Zitatkästen mit Namensnennung;
+- Privatpersonen mit Vollnamen, Alter, Wohnort und Gesundheitsangaben.
+
 ## 4. Suchgüte (Vollbestand, 10 Fragen, k = 8)
 
 Methode:
@@ -126,3 +179,64 @@ Die Gewichte sind deshalb Startwerte in `regeln.yaml` und werden mit den Fällen
 | M3 | Index nur auf dem m5 bauen, Dump auf den M4 | Lead 13:24, M4 überlastet; Demo darf nicht vom Tunnel abhängen | Index auf dem M4, PG über den Tunnel |
 | M4 | Abfrage-Embedding zur Laufzeit lokal (CPU) | Lead 13:3x: klein, erlaubt; 25 ms je Frage | Abfragen über den m5 |
 | M5 | Autor:in-Namen im Fließtext als Eingabe für #43 | Akzeptanz #40 verlangt „keine Zeile Autor:in“; Namen maskiert #43 | Autor:innen schon in #40 maskieren (doppelte Maskierungslogik) |
+
+## 6. Belegsuche je Akteur und Personenschutz (#43, 05.11.2026)
+
+Gemessen auf dem M4 gegen `healthpolicy` (Index v3, 7.806 Abschnitte), lesend, mit `UC2_EINBETTUNG=mock`. Die Suche fällt
+damit auf Volltext zurück, weil die Vektoren im Index von embeddinggemma-2 stammen. Die Namensliste liegt außerhalb des
+Repos (`UC2_NAMENSLISTE`). Echte Namen stehen hier nicht.
+
+**Rang.** `rang = relevanz × 0,5^((Stichtag − Artikeldatum)/120) × f`. f ist 1,5, wenn `abschnitt.institutionen` die
+Institution des Akteurs enthält, sonst 1,0. Der Faktor ist auch bei RRF der letzte.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Kalibrier-Fixture: zwei textgleiche Artikel, Jänner und September, Stichtag 2026-09-30 | September vorne, Verhältnis 0,5^(Δ/120) auf 1e-9 |
+| `pruefe_rang.py`, Fixture: Volltext, dazu Hybrid mit Mock-Vektoren und Institution | grün; ein verfälschter Rang (× 1 + 1e-6) ergibt Exit 1 |
+| `pruefe_rang.py` am Index: 2 Volltextfragen und eine Akteursfrage | jeweils 8 Treffer, 0 Abweichungen |
+
+Das Orakel hat dabei eine echte Abweichung gefunden. psycopg liefert `real` (float4) als gerundete Dezimalzahl, die vom
+exakten Wert um etwa 3e-9 abweicht. Die Suche liest `ts` deshalb jetzt als `float8`.
+
+**Personenschutz.**
+
+| Messung | Wert |
+|---|---|
+| `uc2 namen sammeln --aus-index` (Titel und alle Abschnitte) | 3.853 Namen (1.982 einzelne Nachnamen, 1.871 mehrteilig), 4,2 s |
+| Lauf mit 10 Fragen × 3 Akteuren (`aerztekammer`, `sv`, `laender`), k = 8 | 30 Aufrufe, 240 Belege aus 62 Artikeln, 1,7 s gesamt, höchstens 0,08 s je Aufruf |
+| `pruefe_namen.py --lauf` gegen die Index-Liste (Titel, `text_modell`, `text_anzeige`, Datenblock) | 0 Treffer |
+| Unabhängiger Musterscan aus `pruefe_namen.py` auf denselben Texten | 0 Personennamen; 2 Funde des Zuschreibungsmusters sind ein Substantiv |
+
+**Ganzer Index gegen beide Listen.** Alle 2.915 Artikel wurden maskiert, Titel und Abschnitte je als ein Artikel, zusammen
+21.442 Texte (Modell- und Anzeigeform). Die zweite Liste sind die 395 Autor:in-Werte, die unabhängig von der Laufzeit aus den
+187 PDFs gelesen wurden (`autor_werte` im Prüfskript, Lauf auf dem m5).
+
+| Laufzeit-Namensliste | gegen Index-Liste (3.853) | gegen Autor:in-Liste (395) |
+|---|---|---|
+| nur aus dem Index (Muster) | 0 Treffer | 28 Treffer, 6 verschiedene Namen: 159 von 165 Autor:in-Namen im Fließtext maskiert (96,4 %) |
+| Index plus Autor:in-Werte (`uc2 namen sammeln --aus-index --autoren …`, 4.097 Namen) | 0 Treffer | 0 Treffer |
+
+Im Betrieb gilt die zweite Zeile: `UC2_NAMENSLISTE` zeigt auf die gemeinsame Liste außerhalb des Repos. Die erste Zeile
+misst, wie viel die Muster allein leisten. Der Abgleich mit der Autor:in-Liste ist in der zweiten Zeile nicht mehr
+unabhängig, weil die Liste selbst in die Maskierung eingeht. Unabhängig bleibt die Recall-Stichprobe mit einem
+Gutachter mit frischem Kontext (Akzeptanz S2, ≥ 50 Namen, ≥ 95 % maskiert).
+
+**Grenzen der Muster** (für die Recall-Stichprobe):
+- Ein Nachname allein, ohne Funktion, Titel, Vorname oder Zuschreibung im selben Artikel, wird nur über die Namensliste
+  erkannt. Fehlt er dort, bleibt er stehen.
+- Eine Zuschreibung mit Name vor dem Verb („Musterfrau sagt …“) wird nicht als Muster erkannt, sondern nur als bekannter
+  Name.
+- Vornamen außerhalb der Liste (`VORNAMEN_ALLE`, rund 250) machen aus „<Vorname> <Nachname>“ keinen Treffer. Es greifen
+  dann nur Funktion, Titel oder Zuschreibung.
+- Bei transitiven Verben („kritisiert“, „fordert“, „warnt“) zählt ein Name ohne Vorname nur direkt nach einem Zitat.
+- Ganz großgeschriebene Namen ohne Vorname (Bylines), Initialen-Kürzel wie „(mm)“ und Namen in Komposita („Musterfrau-Plan“)
+  werden nicht erkannt.
+- Der Substantivtest beim Sammeln verwirft Nachnamen, die zugleich Allgemeinwörter sind (Artikel oder flektiertes
+  Adjektiv davor in über 15 % der Vorkommen, Substantivendung, öfter klein als groß). Im eigenen Artikel werden sie über
+  die Muster trotzdem maskiert, in anderen Artikeln nur, wenn dort ebenfalls ein Muster greift.
+- Eine Funktion mit eindeutiger Person („Präsidentin der Ärztekammer“) bleibt als Rolle bestehen. Das ist so gewollt,
+  identifiziert die Person aber über die Funktion.
+
+**Befund für #44.** Die Abfrage aus Frage, Institution und 3 `themen_interesse` zieht die Belege stark zu den Themen des
+Akteurs. Über 10 Fragen waren es je Akteur nur 24 bis 30 verschiedene Artikel unter 80 Belegen. Ob die Themen in die
+Abfrage gehören oder nur die Frage, sollte mit den Fällen aus #44 gemessen werden.

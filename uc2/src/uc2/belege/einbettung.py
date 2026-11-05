@@ -162,6 +162,9 @@ def einbetter(batch_size: int = 32) -> Einbetter:
         return MockEinbetter()
     if art != "gemma":
         raise ValueError(f"UC2_EINBETTUNG muss gemma oder mock sein, nicht {art!r}")
+    # Gleiche Tokengrenze wie der Gemma-Rückfall (MAX_TOKEN); plattform.embeddings nimmt sonst 2048.
+    # Kein Abschnitt erreicht die Grenze (höchstens ca. 1.500 Zeichen), die Vektoren sind gleich.
+    os.environ.setdefault("EMBEDDINGS_MAX_TOKEN", str(MAX_TOKEN))
     try:
         plattform = importlib.import_module("plattform.embeddings")
     except ImportError:

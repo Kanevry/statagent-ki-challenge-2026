@@ -45,6 +45,7 @@ class Modellaufruf:
     aufwand: str | None = None
     fehler: str | None = None
     zeit: str = ""
+    anzahl_texte: int | None = None
 
 
 def protokoll_datei() -> Path:
