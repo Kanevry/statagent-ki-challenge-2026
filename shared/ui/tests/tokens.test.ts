@@ -64,7 +64,7 @@ describe("Design-Tokens gegen Pencil-Snapshot", () => {
     }
   });
 
-  it("Skala genau 56/32/20/16/14/12 px, keine weitere --text-*", () => {
+  it("Skala genau 56/32/28/20/16/14/13/12/11 px, keine weitere --text-*", () => {
     const groessen = mitPraefix("--text-").filter(([name]) => !name.endsWith("--line-height"));
     const px = Object.fromEntries(
       groessen.map(([name, wert]) => {
