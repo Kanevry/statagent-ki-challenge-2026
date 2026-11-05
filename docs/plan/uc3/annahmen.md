@@ -359,3 +359,4 @@ SELECT id, name, gueltig_ab_lieferung, aktiv, freigegeben_von IS NOT NULL AS fre
 | Nr. | Änderung | Regel | Wirkung |
 |---|---|---|---|
 | A14 | Datenanfrage „über 50“ heißt in vollendeten Jahren **51 Jahre und älter**, „ab 50“ heißt 50 Jahre und älter (Entscheid Review-Bank). Die Antwort nennt die Grenze im Verstanden-Satz. Grenzen unter 14 Jahren gelten nicht als Altersgrenze und werden abgesagt. | keine Zählregel: Sprachverständnis der Datenanfrage (`uc3/statagent/frage.py`) | keine Zahl der Abgabe ändert sich; wer „über 50“ fragt, sieht das Altersjahr 50 nicht mitgezählt |
+| A15 | Datenanfrage im Regelsatz v2: Alter und Altersgruppen werden abgesagt, weil der Weg über die Regeln nur Monat, Bundesland, Geschlecht, Branche und Beschäftigungskategorie liest (Review !230). | keine Zählregel: Sprachverständnis der Datenanfrage (`uc3/statagent/frage.py`) | keine Zahl der Abgabe ändert sich |

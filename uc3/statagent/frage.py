@@ -180,7 +180,7 @@ NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
     # „den ganzen Monat“, österreichisch „das ganze Monat“: gemeint ist durchgehend. Beide Zählweisen zählen etwas anderes.
     (
         re.compile(
-            r"\b(?:den|die|das|ein)\s+(?:ganze[ns]?|gesamte[ns]?)\s+monat|\bganze\s+monate"
+            r"(?<!über\s)(?<!ueber\s)\b(?:den|die|das|ein|des)\s+(?:ganze[ns]?|gesamte[ns]?)\s+monat|\bganze\s+monate"
             r"|\bganzes\s+monat\s+(?:beschäftigt|gearbeitet|angestellt|tätig|dabei)|\bdurchgehend\s+beschäftigt"
         ),
         DURCHGEHEND_GRUND,
@@ -590,23 +590,56 @@ _BEZUG = re.compile(
 
 #: Die Frage meint den Regelsatz v2 (Änderungsaufträge, Zählung je Monat). Standard bleibt v1.
 _V2_WORT = re.compile(
-    r"(?<!\w)v2(?!\w)|regelsatz\s*(?:2|zwei)(?!\w)|änderungsauftr|aenderungsauftr|im\s+(?:ganzen|gesamten)\s+monat|(?<!\w)ganzes\s+monat",
+    r"(?<!\w)v2(?!\w)|regelsatz\s*(?:2|zwei)(?!\w)|änderungsauftr|aenderungsauftr|im\s+(?:ganzen|gesamten)\s+monat"
+    r"|(?<!\w)ganzes\s+monat|(?:über|ueber)\s+(?:das|den)\s+(?:ganze[ns]?|gesamte[ns]?)\s+monat",
     re.IGNORECASE,
 )
+#: Ein genannter Regelsatz, auch einer, den es noch nicht gibt: „Regelsatz v3“, „v3“, „Regelsatz drei“.
+_REGELSATZ_NAME = re.compile(
+    r"(?<!\w)regelsatz\s*(?:v?(\d+)|(eins|zwei|drei))(?!\w)|(?<!\w)v(\d+)(?!\w)", re.IGNORECASE
+)
+_ZAHLWORT = {"eins": "1", "zwei": "2", "drei": "3"}
 _V1_WORT = re.compile(r"(?<!\w)v1(?!\w)|regelsatz\s*(?:1|eins)(?!\w)", re.IGNORECASE)
-#: „ohne Änderungsaufträge“, „nicht nach v2“: Das Wort meint gerade nicht den Regelsatz v2.
+_V2_ZIEL = r"(?:(?:dem|den|der|die|des)\s+)?(?:regelsatz\s*(?:v?2|zwei)(?!\w)|v2(?!\w)|(?:änderungs|aenderungs)auftr)"
+#: „ohne die Änderungsaufträge“, „vor Umsetzung der Änderungsaufträge“, „nicht nach v2“: gerade nicht der Regelsatz v2.
 _V2_VERNEINT = re.compile(
-    r"(?<!\w)(?:ohne|vor|nicht|statt|außer)\s+(?:(?:nach|im|in|laut)\s+)?(?:(?:dem|den|der)\s+)?"
-    r"(?:regelsatz\s*(?:v?2|zwei)(?!\w)|v2(?!\w)|(?:änderungs|aenderungs)auftr)",
+    rf"(?<!\w)(?:ohne|vor|nicht|statt|außer|ausser)\s+(?:umsetzung\s+)?(?:(?:nach|im|in|laut)\s+)?{_V2_ZIEL}",
     re.IGNORECASE,
 )
+#: „vor und nach den Änderungsaufträgen“, „mit und ohne v2“: beide Regelsätze zugleich.
+_V2_BEIDE = re.compile(rf"(?<!\w)(?:vor\s+und\s+nach|mit\s+(?:und|oder)\s+ohne)\s+{_V2_ZIEL}", re.IGNORECASE)
 #: Die Angabe des Regelsatzes in der Frage. Sie ist weder Bezug noch Merkmal und darf die Gliederung nicht verdecken.
-_V2_ANGABE = re.compile(
+_REGELSATZ_ANGABE = re.compile(
     r"(?:(?<!\w)(?:nach|laut|gemäß|im|in|und)\s+)?(?:(?<!\w)(?:dem|den|der)\s+)?"
-    r"(?:regelsatz\s*(?:v?2|zwei)(?!\w)|(?<!\w)v2(?!\w)|(?:änderungs|aenderungs)auftr\w*)",
+    r"(?:regelsatz\s*(?:v?\d+|eins|zwei|drei)(?!\w)|(?<!\w)v\d+(?!\w)|(?:änderungs|aenderungs)auftr\w*)",
     re.IGNORECASE,
 )
-_V2_UND_GLIEDERUNG = re.compile(r"(?<!\w)nach\s+(?:regelsatz\s*)?v2\s+und\s+(?:nach\s+)?", re.IGNORECASE)
+_REGELSATZ_UND_GLIEDERUNG = re.compile(
+    r"(?<!\w)nach\s+(?:regelsatz\s*)?v\d+\s+und\s+(?:nach\s+)?", re.IGNORECASE
+)
+
+
+def _regelsatz_der_frage(frage: str) -> str | None:
+    """Der Regelsatz, den die Frage außer v1 meint; ein unbekannter Name geht vor v2, damit er nicht still wegfällt."""
+    namen = {
+        f"v{treffer.group(1) or treffer.group(3) or _ZAHLWORT[treffer.group(2).lower()]}"
+        for treffer in _REGELSATZ_NAME.finditer(frage)
+    }
+    andere = sorted(namen - {"v1", "v2"})
+    if andere:
+        return andere[0]
+    return "v2" if _V2_WORT.search(frage) else None
+
+
+def _kein_regelsatz(conn: Verbindung, frage: str, regelsatz: str) -> dict[str, Any]:
+    """Der genannte Regelsatz hat keinen fertigen Lauf: Absage mit seinem Namen statt still der v1-Zahl."""
+    zeilen = conn.execute(
+        "SELECT DISTINCT regelsatz FROM meta.lauf WHERE status IN ('fertig', 'unveraendert') ORDER BY 1"
+    ).fetchall()
+    gerechnet = [str(z["regelsatz"]) for z in zeilen]
+    vorhanden = f" Es gibt Zahlen im Regelsatz {_aufzaehlung(gerechnet)}." if gerechnet else ""
+    text = f"Den Regelsatz {regelsatz} gibt es in der Datenanfrage nicht.{vorhanden}"
+    return _antwort(fragetyp(frage), text, hinweise=[text])
 
 
 def _gliederung_ohne_nach(conn: Verbindung, frage: str, letzter: str) -> str:
@@ -626,45 +659,67 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
     und die Kategorien aus den Regeln liest. Was der Adapter nicht lesen kann, bekommt eine Absage statt einer Zahl.
     """
     typ = fragetyp(frage)
+    if _V2_VERNEINT.search(frage) and not _V2_BEIDE.search(frage):
+        text = (
+            "Ohne Änderungsaufträge gilt Regelsatz v1. Fragen Sie ohne diese Angabe, "
+            "zum Beispiel „Beschäftigte in Wien im Juli 2026“."
+        )
+        return _antwort(typ, text, hinweise=[text])
     if typ == "fluktuation":
-        return _rueckfrage(
-            f"Die Fluktuation vergleicht zwei Stichtage und gibt es darum nur im Regelsatz v1, nicht in {regelsatz}. "
+        text = (
+            f"Die Fluktuation vergleicht zwei Stichtage. Es gibt sie nur im Regelsatz v1, nicht in {regelsatz}. "
             "Zum Beispiel „Fluktuation im Oktober 2025“."
         )
-    absage = nicht_auswertbar(frage, mittel=True)
+        return _antwort(typ, text, hinweise=[text])
+    letzter = _letzter_monat(conn, regelsatz) or LETZTE_LIEFERUNG
+    # Zeitangaben wie „März bis Juni 2025“ sind erst nach dem Übersetzen mehrere Monate.
+    genannt = set(monate_lesen(_normalisieren(frage, letzter)[0]))
+    jahr = jahr_ohne_monat(frage)
+    # Ein Durchschnitt braucht mehrere Monate oder ein Jahr; zu einem einzelnen Monat sagt auch v1 ab.
+    absage = nicht_auswertbar(frage, mittel=len(genannt) > 1 or (not genannt and jahr is not None))
     if absage is not None:
         return _antwort(typ, absage, hinweise=[absage])
-    beispiel = "Zum Beispiel „Beschäftigte in Wien im Juli 2026 nach Regelsatz v2“."
+    beispiel = f"Zum Beispiel „Beschäftigte in Wien im Juli 2026 nach Regelsatz {regelsatz}“."
     nicht_lesbar = (
         f"Im Regelsatz {regelsatz} gibt es nur Zahlen nach Monat, Bundesland, Geschlecht, Branche und "
         f"Beschäftigungskategorie. {beispiel}"
     )
     if "anteil" in frage.lower():
         return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
-    if _V2_VERNEINT.search(frage):
+    beide = _V1_WORT.search(frage) is not None or _V2_BEIDE.search(frage) is not None
+    frage = _V1_WORT.sub(" ", _REGELSATZ_ANGABE.sub(" ", _REGELSATZ_UND_GLIEDERUNG.sub("nach ", frage)))
+    erster = _erster_monat(conn, regelsatz) or letzter
+    # Der Grund aus der Prüfung passt zur Frage („mehrere Bundesländer“), die allgemeine Liste widerspräche ihr.
+    frage = _gliederung_ohne_nach(conn, frage, letzter)
+    ohne_bezug = _ohne_bezug(conn, frage, letzter)
+    if ohne_bezug and not genannt and jahr is None:
+        if regelsatz != "v2":
+            return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
         text = (
-            "Ohne Änderungsaufträge gilt Regelsatz v1. Fragen Sie ohne diese Angabe, "
-            "zum Beispiel „Beschäftigte in Wien im Juli 2026“."
-        )
-        return _antwort(typ, text, hinweise=[text])
-    beide = _V1_WORT.search(frage) is not None
-    frage = _V1_WORT.sub(" ", _V2_ANGABE.sub(" ", _V2_UND_GLIEDERUNG.sub("nach ", frage)))
-    letzter = _letzter_monat(conn, regelsatz) or LETZTE_LIEFERUNG
-    try:
-        frage = _gliederung_ohne_nach(conn, frage, letzter)
-        ohne_bezug = _ohne_bezug(conn, frage, letzter)
-    except _KeineZahl:
-        ohne_bezug = True
-    if ohne_bezug and not monate_lesen(frage) and jahr_ohne_monat(frage) is None:
-        text = (
-            f"Im Regelsatz {regelsatz} zählt ein Verhältnis, wenn es irgendwann im Monat bestand. "
+            "Im Regelsatz v2 zählt ein Verhältnis, wenn es irgendwann im Monat bestand. "
             f"Im Regelsatz v1 zählt der letzte Tag des Monats. {beispiel}"
         )
         return _antwort(typ, text, hinweise=[text])
     if beide:
         text = f"Die Datenanfrage zeigt immer nur einen Regelsatz. Fragen Sie je einmal. {beispiel}"
         return _antwort(typ, text, hinweise=[text])
-    if ohne_bezug or not _adapter_liest_gleich(conn, frage, regelsatz):
+    if _ZEITREIHE.search(frage.lower()):
+        text = f"Im Regelsatz {regelsatz} gibt es Zahlen nur für einen Monat. {beispiel}"
+        return _antwort(typ, text, hinweise=[text])
+    if (
+        jahr is not None
+        and not genannt
+        and "durchschnitt" not in frage.lower()
+        and erster[:4] <= jahr <= letzter[:4]
+    ):
+        monat = min(max(f"{jahr}-03", erster), letzter)
+        return _rueckfrage(
+            f"Für welchen Monat {jahr} möchten Sie die Zahl im Regelsatz {regelsatz} wissen? "
+            f"Zum Beispiel „Beschäftigte im {_monat_anzeige(monat)} nach Regelsatz {regelsatz}“."
+        )
+    if ohne_bezug:
+        return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
+    if not _adapter_liest_gleich(conn, frage, regelsatz):
         return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
     daten = antwort_daten(conn, frage, regelsatz)
     text = f"Nach Regelsatz {regelsatz}: {daten['text']}" if daten["zahlen"] else daten["text"]
@@ -1514,10 +1569,17 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     grund = unklar(frage, letzter or LETZTE_LIEFERUNG)
     if grund is not None:
         return _rueckfrage(grund)
-    if regelsatz == "v1" and _V2_WORT.search(frage):
-        regelsatz = "v2"
-    if _letzter_monat(conn, regelsatz) is not None and regelsatz != "v1":
-        return _regelsatz_antwort(conn, frage, regelsatz)
+    try:
+        if regelsatz == "v1":
+            regelsatz = _regelsatz_der_frage(frage) or regelsatz
+        if regelsatz != "v1":
+            if _letzter_monat(conn, regelsatz) is None:
+                return _kein_regelsatz(conn, frage, regelsatz)
+            return _regelsatz_antwort(conn, frage, regelsatz)
+    except _KeineZahl as fehler:
+        return _antwort(fragetyp(frage), str(fehler), hinweise=[str(fehler)])
+    except (psycopg.Error, AbfrageVerweigert):
+        return _antwort(fragetyp(frage), NICHT_LESBAR, hinweise=[NICHT_LESBAR])
     hinweis_tag = tag_hinweis(frage)
     frage, notizen, mittel = _normalisieren(frage, letzter or LETZTE_LIEFERUNG)
     if hinweis_tag:

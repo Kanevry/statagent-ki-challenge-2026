@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import psycopg
 import pytest
 
+from statagent import frage as frage_modul
 from statagent.agenten.regelaenderung import regelsatz_sicherstellen
 from statagent.db import Verbindung
 from statagent.ergebnis import letzter_lauf, monatserster, monatsletzter
@@ -180,6 +182,8 @@ def test_gliederung_neben_v2_bleibt(mit_v2: Verbindung) -> None:
         "Beschäftigte vor den Änderungsaufträgen im August 2024",
         "Beschäftigte im August 2024 nicht nach v2",
         "Beschäftigte im August 2024 statt nach Regelsatz v2",
+        "Beschäftigte im August 2024 ohne die Änderungsaufträge",
+        "Beschäftigte im August 2024 vor Umsetzung der Änderungsaufträge",
     ],
 )
 def test_verneinung_von_v2_gibt_keine_v2_zahl(mit_v2: Verbindung, frage: str) -> None:
@@ -216,3 +220,112 @@ def test_blosses_gliederungswort_teilt_auf(mit_v2: Verbindung) -> None:
 def test_bundesland_mit_wert_bleibt_filter(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "August 2024 v2 Bundesland Wien")
     assert len(daten["zahlen"]) == 1
+
+
+# Fix-Liste !230, B1: „vor und nach“ und „mit und ohne“ meinen beide Regelsätze.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte im August 2024 vor und nach den Änderungsaufträgen",
+        "Beschäftigte im August 2024 mit und ohne v2",
+    ],
+)
+def test_vor_und_nach_fragt_beide(mit_v2: Verbindung, frage: str) -> None:
+    daten = antwort_frage(mit_v2, frage)
+    assert daten["zahlen"] == [] and "nur einen Regelsatz" in daten["text"]
+
+
+# Fix-Liste !230, B2: Ein Regelsatz ohne Lauf fiel still auf die v1-Zahl zurück.
+@pytest.mark.parametrize(
+    "frage",
+    ["Beschäftigte im August 2024 im Regelsatz v3", "Beschäftigte im August 2024 nach v3", "Regelsatz drei"],
+)
+def test_regelsatz_ohne_lauf_sagt_mit_namen_ab(mit_v2: Verbindung, frage: str) -> None:
+    daten = antwort_frage(mit_v2, frage)
+    assert (
+        daten["zahlen"] == [] and "Den Regelsatz v3 gibt es" in daten["text"] and "v1 und v2" in daten["text"]
+    )
+
+
+# Fix-Liste !230, B2: Hat der Regelsatz einen Lauf, nimmt ihn derselbe Weg wie v2 (nach einer Änderung im Betrieb).
+def test_regelsatz_mit_lauf_nimmt_den_weg(mit_v2: Verbindung, monkeypatch: pytest.MonkeyPatch) -> None:
+    gefragt: list[str] = []
+
+    def antwort(_conn: Verbindung, _frage: str, regelsatz: str) -> dict[str, str]:
+        gefragt.append(regelsatz)
+        return {"text": "gefragt"}
+
+    monkeypatch.setattr(frage_modul, "_letzter_monat", lambda _conn, _regelsatz: "2024-08")
+    monkeypatch.setattr(frage_modul, "_regelsatz_antwort", antwort)
+    assert antwort_frage(mit_v2, "Beschäftigte im August 2024 im Regelsatz v3") == {"text": "gefragt"}
+    assert gefragt == ["v3"]
+
+
+# Fix-Liste !230, B3: „Wirft nie“ galt für den v2-Weg nicht.
+def test_datenbankfehler_im_v2_weg_wirft_nicht(mit_v2: Verbindung, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fehler(*_args: object) -> None:
+        raise psycopg.OperationalError("weg")
+
+    monkeypatch.setattr(frage_modul, "antwort_daten", fehler)
+    daten = antwort_frage(mit_v2, "Beschäftigte im August 2024 nach Regelsatz v2")
+    assert daten["zahlen"] == [] and daten["text"] == frage_modul.NICHT_LESBAR
+
+
+# Fix-Liste !230, B4: Ein Durchschnitt zu einem einzelnen Monat bekam die Monatszahl.
+def test_durchschnitt_zu_einem_monat_sagt_ab(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "Durchschnittliche Beschäftigte im August 2024 nach v2")
+    assert daten["zahlen"] == [] and "Durchschnitte" in daten["text"]
+
+
+# Fix-Liste !230, B5: Die Rückfrage zum Jahr sprach vom letzten Tag und zeigte Beispiele ohne v2.
+def test_jahr_nach_v2_fragt_nach_dem_monat(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "Beschäftigte 2024 nach v2")
+    assert (
+        daten["zahlen"] == []
+        and "Regelsatz v2 wissen" in daten["text"]
+        and "nach Regelsatz v2“" in daten["text"]
+    )
+    assert "letzten Tag" not in daten["text"]
+
+
+# Fix-Liste !230, B6: „während des ganzen Monats“ meint durchgehend, „über das ganze Monat“ unsere v2-Zählung.
+def test_waehrend_des_ganzen_monats_sagt_ab(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "Wie viele waren während des ganzen Monats August 2024 beschäftigt?")
+    assert daten["zahlen"] == [] and daten["text"].startswith("Wie lange jemand im Monat")
+
+
+def test_ueber_das_ganze_monat_meint_v2(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "Beschäftigte im August 2024, gezählt über das ganze Monat")
+    assert [z["wert"] for z in daten["zahlen"]] == [_summe(mit_v2, "v2", "Monat")]
+
+
+# Fix-Liste !230, B7: Der Satz „nur Zahlen nach Bundesland“ widersprach einer Frage nach zwei Bundesländern.
+def test_zwei_bundeslaender_bekommen_den_passenden_satz(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "Beschäftigte in Wien und Tirol im August 2024 nach v2")
+    assert daten["zahlen"] == [] and "mehrere" in daten["text"] and "nur Zahlen nach" not in daten["text"]
+
+
+def test_zeitreihe_sagt_nur_ein_monat(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "Zeitreihe der Beschäftigten 2024 nach v2")
+    assert daten["zahlen"] == [] and "nur für einen Monat" in daten["text"]
+
+
+# Fix-Liste !230, B8: zwei Sätze, und die Absage ist keine Rückfrage.
+def test_fluktuation_absage_in_zwei_saetzen(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "Fluktuation im August 2024 nach Regelsatz v2")
+    assert daten["text"].startswith(
+        "Die Fluktuation vergleicht zwei Stichtage. Es gibt sie nur im Regelsatz v1"
+    )
+    assert not daten["rueckfrage"]
+
+
+# Gegenfall zu B4: Über mehrere Monate bleibt der Durchschnitt erlaubt, auch wenn der Zeitraum erst übersetzt wird.
+def test_durchschnitt_ueber_einen_zeitraum_sagt_nicht_durchschnitte_ab(mit_v2: Verbindung) -> None:
+    text = antwort_frage(mit_v2, "Durchschnitt August bis September 2024 nach v2")["text"]
+    assert "Durchschnitte rechnet" not in text
+
+
+# Fix-Liste !230, B7: Auch ein Verlauf zweier Bundesländer bekommt den Grund statt der Erklärung zum Regelsatz.
+def test_verlauf_zweier_bundeslaender_bekommt_den_grund(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "Wie hat sich Wien gegenüber Tirol nach v2 entwickelt?")
+    assert daten["zahlen"] == [] and "irgendwann im Monat" not in daten["text"]
