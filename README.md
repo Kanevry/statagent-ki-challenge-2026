@@ -19,7 +19,7 @@ Code gibt ein Mensch mit Vor- und Nachnamen frei.
 | Raum | Was er tut | Stand | Details |
 |---|---|---|---|
 | **UC3 StatAgent** (bewertet) | Statistikprozess für die synthetische Beschäftigtenstatistik: 24 Monatslieferungen einlesen, nach Regeln bereinigen, zählen, prüfen, Qualitätsbericht und Aggregations-Sheet. Eigene Agenten setzen Änderungsaufträge um, ein Mensch gibt frei. | Gebaut. Die Seiten unter `/uc3` zeigen Läufe, Berichte, Klassifikationen, Freigaben und Datenanfragen, jede Zahl mit Beleg. | `uc3/README.md`, Ergebnisse in `abgabe/` |
-| UC1 SV KI-Lotse | Hilft bei Fragen zu Gesundheit und Sozialversicherung, mit Quelle an jeder Antwort | Der Lotse-Kern antwortet mit einem Zitat als Beleg an jeder Aussage und nennt Antrag, zuständige Stelle und Termin. Er ist an `/uc4` angeschlossen. | `uc1/`, `docs/plan/uc1/` |
+| UC1 SV KI-Lotse | Hilft bei Fragen zu Gesundheit und Sozialversicherung, mit Quelle an jeder Antwort | Gebaut. Auf `/uc1` erzählt man seine Lage, der Lotse fragt bei Bedarf nach und antwortet mit einem Zitat als Beleg an jeder Aussage. Er nennt Antrag, zuständige Stelle und Termin. `/uc1?beispiel=pflege` spielt einen aufgezeichneten Fall ohne Netz ab. Der Lotse ist auch an `/uc4` angeschlossen. | `uc1/`, `docs/plan/uc1/` |
 | UC2 HealthPolicy Simulator | Mehrere Akteure verhandeln politische, organisatorische und finanzielle Entscheidungen | Gebaut. Auf `/uc2` verhandeln Interessenvertretungen in Runden mit Moderator, mit Beleg aus dem Pressespiegel, wo es einen gibt; sonst ist die Haltung als Modellannahme markiert. Ein Mensch gibt das Ergebnis mit Namen frei, vorher heißt es „Entwurf“. | `uc2/README.md` |
 | UC4 Gemeinsamer Einstieg | Eine Frage läuft nacheinander durch UC3, UC2 und UC1 (nicht bewertet) | Seite `/uc4` mit Modellwahl (Azure, Mistral, Claude oder Testbetrieb). UC3 liefert die Zahl, UC2 die Abwägung, UC1 die Erklärung. | `/uc4` in der App |
 
@@ -95,7 +95,7 @@ uv sync --all-packages && pnpm install  # Python- und TypeScript-Workspace
 pnpm dev                                # App auf http://localhost:3000
 ```
 
-Die Seiten `/`, `/uc2`, `/uc4` und `/praesentation` laufen damit lokal. Mit `LLM_PROVIDER=mock` antworten Modelle
+Die Seiten `/`, `/uc1`, `/uc2`, `/uc4` und `/praesentation` laufen damit lokal. Mit `LLM_PROVIDER=mock` antworten Modelle
 mit festen Platzhaltern. Zahlen aus der Datenbank bleiben gleich. Die Seiten unter `/uc3` und die Zahl auf `/uc4`
 brauchen die UC3-Datenbank mit gerechneten Läufen (nächster Abschnitt).
 
@@ -190,7 +190,9 @@ Die Angaben stimmen mit `docs/models.md` überein. Das ist dort die Hauptquelle,
   Repo. Einzige Ausnahme: Die Rückfragen in `abgabe/rueckfragen/` nennen als Beispiel einige synthetische
   Kennungen (`VVH_ID`), damit die Fachabteilung den Fall findet. Personenbezogene Daten gibt es keine. An ein Modell
   gehen nie Einzeldaten, nur Schema, Aggregate und Prüfergebnisse.
-- **UC1:** Der Lotse antwortet über `/uc4`. Eine eigene Seite `/uc1` ist noch nicht auf `main`.
+- **UC1:** Der Lotse ersetzt keine Beratung. Er gibt keine Diagnose und keine Therapie- oder Medikamentenempfehlung;
+  bei solchen Fragen verweist er an Ärztin, Arzt oder die Gesundheitsberatung 1450, im Notfall an 144. Eine
+  Aussage ohne passendes Zitat aus der Quelle lässt er weg.
 - **UC2:** Die Akteure spielt ein Sprachmodell. Das ist eine Simulation, keine echte Verhandlung, und die Seite
   sagt das auch so.
 - **UC4:** Die drei Antworten kommen nacheinander. Mit einem echten Modell dauert die ganze Frage einige Sekunden
