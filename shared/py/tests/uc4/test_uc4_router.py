@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 from plattform import router
+from plattform.antwortform import UcAntwort
 from plattform.llm import complete, kern
 from plattform.router import durchreichen, main, mock_adapter, registriere
 
@@ -267,9 +268,8 @@ def test_strom_meldet_start_stationen_antworten_und_ende_in_reihenfolge(protokol
 
 def test_strom_meldet_fehlende_station_mit_grund(protokoll):
     ereignisse: list[dict] = []
-    uc3 = {"text": "7.498 Beschäftigte.", "belege": [], "zahlen": [], "uc": "uc3"}
     durchreichen(
-        "Wie viele?", kette=("uc3", "uc2"), adapter={"uc3": lambda f, k: uc3}, melden=ereignisse.append
+        "Wie viele?", kette=("uc3", "uc2"), adapter={"uc3": mock_adapter()["uc3"]}, melden=ereignisse.append
     )
     assert ereignisse[-2] == {"art": "fehlt", "uc": "uc2", "stufe": 2, "grund": "kein_adapter"}
     assert ereignisse[-1]["fehlend"] == [{"uc": "uc2", "grund": "kein_adapter"}]
@@ -325,7 +325,7 @@ def test_strom_meldet_jede_station_bevor_die_naechste_laeuft(protokoll):
     def adapter(uc: str):
         def antworten(frage, kontext):
             ablauf.append(f"rechnet {uc}")
-            return {"text": f"{uc}.", "belege": [], "zahlen": [], "uc": uc}
+            return mock_adapter()[uc](frage, kontext)
 
         return antworten
 
@@ -363,3 +363,52 @@ def test_strom_zeile_wird_sofort_geflusht(monkeypatch):
     monkeypatch.setattr(router.sys, "stdout", Ausgabe())
     router._zeile({"art": "start", "kette": ["uc3"]})
     assert aufrufe == ["write", "flush"]
+
+
+def _ohne_zahl(frage, kontext):
+    return UcAntwort(
+        text="Bitte nennen Sie einen Monat, zum Beispiel März 2025.", belege=[], zahlen=[], uc="uc3"
+    )
+
+
+def _darf_nicht_laufen(frage, kontext):
+    raise AssertionError("Station nach einer Antwort ohne Zahl wurde gerufen")
+
+
+def test_ohne_zahl_von_uc3_ruft_die_kette_keine_weitere_station(protokoll):
+    """Fängt: Bei Unsinn wägen Simulator und Lotse trotzdem ab und kosten Modellaufrufe (Live 05.11.)."""
+    ereignisse = []
+    ergebnis = durchreichen(
+        "asdf qwer zzz blub",
+        adapter={"uc3": _ohne_zahl, "uc2": _darf_nicht_laufen, "uc1": _darf_nicht_laufen},
+        melden=ereignisse.append,
+    )
+    assert [a.uc for a in ergebnis.antworten] == ["uc3"] and ergebnis.fehlend == []
+    assert [e["art"] for e in ereignisse] == ["start", "station", "antwort", "ende"]
+    # Die Abnahme zählt je Frage eine Zeile je Station (tests/abnahme/95_kette.py).
+    assert [(s["uc"], s["fehler"]) for s in _schritte(protokoll)] == [
+        ("uc3", None),
+        ("uc2", "keine_zahl"),
+        ("uc1", "keine_zahl"),
+    ]
+
+
+def test_faellt_uc3_aus_haelt_die_kette_auch_an(protokoll):
+    """Fängt: Bei einem Ausfall der Statistik wägen die Stationen ohne Zahl ab und ein Fehler bleibt unbemerkt."""
+
+    def kaputt(frage, kontext):
+        raise RuntimeError("Datenbank weg")
+
+    ergebnis = durchreichen(
+        "Wie viele Beschäftigte?",
+        adapter={"uc3": kaputt, "uc2": _darf_nicht_laufen, "uc1": _darf_nicht_laufen},
+    )
+    assert ergebnis.antworten == [] and [(f.uc, f.grund) for f in ergebnis.fehlend] == [
+        ("uc3", "RuntimeError")
+    ]
+
+
+def test_kette_ohne_uc3_haelt_nicht_an(protokoll):
+    """Fängt: Eine gekürzte Kette ohne Statistik (--kette uc2,uc1) antwortet gar nicht mehr."""
+    ergebnis = durchreichen("Wie viele Beschäftigte?", kette=("uc2", "uc1"), adapter=mock_adapter())
+    assert [a.uc for a in ergebnis.antworten] == ["uc2", "uc1"]

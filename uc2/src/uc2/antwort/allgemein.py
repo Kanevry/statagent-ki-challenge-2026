@@ -14,6 +14,7 @@ alle anderen Rollen beantwortet weiter der Szenario-Mock.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from plattform.llm import kern as _kern  # type: ignore[import-untyped]
@@ -27,28 +28,45 @@ ROLLE_AUFTRAG = "moderator_auftrag_allgemein"
 MAX_THEMEN = 3
 HINWEIS = (
     "Zu dieser Frage gibt es kein Rechenmodell. Zahlen gibt es nur unter `kontext_zahlen`: Sie kommen "
-    "aus der amtlichen Statistik (UC3) und tragen ihre Herkunft. Andere Zahlen nennst du nicht."
+    "aus der amtlichen Statistik (UC3) und tragen ihre Herkunft. Andere Zahlen nennst du nicht. Wiederhole auch "
+    "diese Zahlen nicht: Sie stehen schon bei der Statistik. Sag, was mehr oder weniger Personal aus deiner Sicht heißt."
 )
 
 MOCK_THEMEN: tuple[dict[str, str], ...] = (
     {
         "id": "versorgung",
-        "titel": "Versorgung im Alltag",
-        "beschreibung": "Ob Menschen rasch Hilfe in Praxis, Spital und Pflege bekommen",
+        "titel": "Mehr Personal in der Versorgung",
+        "beschreibung": "Ob es in Praxis, Spital und Pflege mehr Fachkräfte braucht, damit Menschen rasch Hilfe bekommen",
     },
     {
         "id": "personal",
-        "titel": "Personal und Arbeitsbedingungen",
-        "beschreibung": "Genug Fachkräfte in Gesundheit und Pflege, Bezahlung, Ausbildung und Belastung",
+        "titel": "Bessere Arbeitsbedingungen",
+        "beschreibung": "Bezahlung, Ausbildung und Belastung, damit Fachkräfte in Gesundheit und Pflege bleiben",
     },
     {
         "id": "finanzierung",
-        "titel": "Kosten und Finanzierung",
-        "beschreibung": "Wer die Kosten trägt: Krankenversicherung, Bund und Länder",
+        "titel": "Mehr öffentliches Geld dafür",
+        "beschreibung": "Ob Krankenversicherung, Bund und Länder dafür mehr bezahlen sollen",
     },
 )
 """Feste Themen für allgemeine Fragen (UC4): gelten für Mock und echte Modelle, damit der Kurzlauf ohne
-Auftragsaufruf auskommt (Laufzeit: gemessen 38,5 s mit Auftragsaufruf bei azure, Route-Frist 60 s)."""
+Auftragsaufruf auskommt (Laufzeit: gemessen 38,5 s mit Auftragsaufruf bei azure, Route-Frist 60 s). Die Titel sind
+Vorschläge, weil im Text „Dafür bei …“ davor steht; „Dafür bei Versorgung im Alltag“ sagte niemandem etwas."""
+
+ROLLE_KERN = "moderator_kern"
+KERN_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {"mehr": {"type": "string"}, "weniger": {"type": "string"}},
+    "required": ["mehr", "weniger"],
+    "additionalProperties": False,
+}
+KERN_ZEICHEN = 170
+"""Längster Kernsatz: Die Station zeigt die erste Zeile nur bis 320 Zeichen ganz (web/components/uc4/kette.tsx)."""
+FESTER_KERN = (
+    "Mehr Personal heißt meist kürzere Wartezeiten und mehr Betreuung, kostet aber mehr.",
+    "Weniger Personal heißt meist längere Wartezeiten und mehr Druck auf die Beschäftigten.",
+)
+"""Kernsätze, wenn das Modell keinen brauchbaren Text liefert oder die Frist um ist: allgemein, ohne Zahl."""
 
 ROLLE_NOTIZ = "moderator_notiz"
 _ZAHLWORT = {2: "zwei", 3: "drei", 4: "vier", 5: "fünf", 6: "sechs"}
@@ -84,10 +102,43 @@ def auftrag_nachrichten(frage: str, experte: dict[str, Any]) -> list[dict[str, s
 
 
 def fester_auftrag(frage: str) -> dict[str, Any]:
-    """Auftrag für allgemeine Fragen ohne Modellaufruf: feste Themen, Kriterien und Regeln, Ziel = Frage."""
+    """Auftrag für allgemeine Fragen ohne Modellaufruf: feste Themen, Kriterien und Regeln.
+
+    Das Ziel sagt, worum es geht; mit der Frage allein („Wie viele Beschäftigte gab es?“) gibt es nichts abzuwägen.
+    """
     from uc2.verhandlung import prompts
 
-    return {**_mock_auftrag({"frage": frage}), "kriterien": list(prompts.KRITERIEN)}
+    return {
+        **_mock_auftrag({"frage": frage}),
+        "ziel": f"Abwägen, was mehr oder weniger Personal bedeutet. Anlass ist die Frage: {frage}",
+        "kriterien": list(prompts.KRITERIEN),
+    }
+
+
+def kern_nachrichten(frage: str, lage: dict[str, Any], stimmen: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """Moderator schreibt aus den Haltungen die zwei Sätze, die oben auf der Station stehen. Keine Zahlen darin."""
+    kontext = {"rolle": ROLLE_KERN, "frage": frage}
+    text = (
+        f"# Frage\n{frage}\n\n# Ausgangslage\n{json.dumps(lage, ensure_ascii=False, indent=1, sort_keys=True)}\n\n"
+        f"# Haltungen der Interessenvertretungen\n{json.dumps(stimmen, ensure_ascii=False, indent=1)}\n\n"
+        "# Aufgabe\nSag Menschen ohne Fachwissen in zwei Sätzen, was die Abwägung ergibt. `mehr`: Was mehr Personal "
+        "bedeutet, beginnt mit „Mehr Personal“. `weniger`: Was weniger Personal bedeutet, beginnt mit „Weniger "
+        "Personal“. Geht es um die ganze Wirtschaft und nicht ums Gesundheitswesen, schreibe „Mehr Beschäftigte“ und "
+        "„Weniger Beschäftigte“ und sage, was das für die Beiträge zur Krankenversicherung und die Versorgung heißt. "
+        "Je Satz höchstens 15 Wörter und etwas Greifbares: Wartezeit, Betreuung, Kosten, Belastung. Wo die "
+        "Vertretungen sich widersprechen, sag es im Satz. Das sind allgemeine Zusammenhänge, schreibe „heißt meist“, "
+        "keine Vorhersage. Keine Zahlen, weder als Ziffern noch als Wörter. Wiederhole die Zahl aus der Statistik "
+        f"nicht.\n\n{kontext_block(kontext)}"
+    )
+    return [{"role": "system", "content": prompts.MODERATOR_SYSTEM}, {"role": "user", "content": text}]
+
+
+def kern_text(daten: dict[str, Any]) -> str | None:
+    """Die zwei Sätze als eine Zeile, oder `None`, wenn einer fehlt, zu lang ist oder eine Ziffer trägt."""
+    saetze = [" ".join(str(daten.get(feld) or "").split()) for feld in ("mehr", "weniger")]
+    if not all(saetze) or any(len(s) > KERN_ZEICHEN or re.search(r"\d", s) for s in saetze):
+        return None
+    return " ".join(s if s.endswith((".", "!", "?")) else f"{s}." for s in saetze)
 
 
 def _mock_auftrag(k: dict[str, Any]) -> dict[str, Any]:
@@ -150,6 +201,15 @@ class KurzMock(SzenarioMock):
                 daten["notiz"] = mock_notiz(k)
                 roh.text = json.dumps(daten, ensure_ascii=False, sort_keys=True)
             return roh
+        if k is not None and k.get("rolle") == ROLLE_KERN:
+            kern = json.dumps(dict(zip(("mehr", "weniger"), FESTER_KERN, strict=True)), ensure_ascii=False)
+            return Rohantwort(
+                text=kern,
+                modell=modell,
+                version="kurz-1",
+                tokens_in=sum(len(n["content"].split()) for n in nachrichten),
+                tokens_out=len(kern.split()),
+            )
         if k is None or k.get("rolle") != ROLLE_AUFTRAG:
             return super().rufe(nachrichten, schema=schema, modell=modell, aufwand=aufwand, zweck=zweck)
         text = json.dumps(_mock_auftrag(k), ensure_ascii=False, sort_keys=True)

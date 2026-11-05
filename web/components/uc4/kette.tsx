@@ -26,8 +26,8 @@ import { Stimme } from "./stimme";
 
 const ROLLE: Record<KettenUc, string> = {
   uc3: "rechnet die Zahl aus den Daten, ohne KI",
-  uc2: "wägt ab, was das für die Versorgung heißt",
-  uc1: "sagt in einfachen Worten, was es für Sie heißt",
+  uc2: "wägt ab, was mehr oder weniger Personal bedeutet",
+  uc1: "sagt, was das für Ihren nächsten Arzttermin heißt",
 };
 
 const BEISPIELE = [
@@ -62,9 +62,14 @@ async function fehlerAusAntwort(antwort: Response): Promise<string> {
   return antwort.status === 429 ? "Gerade sind zu viele Fragen unterwegs. Bitte gleich noch einmal." : "Die Kette hat nicht geantwortet.";
 }
 
+/** Die Kette hielt an (Station 1 ohne Zahl): Der Router meldet für die Stationen danach nichts, sie warten noch. */
+function istGestoppt(lauf: Lauf): boolean {
+  return lauf.art === "fertig" && Object.values(lauf.stationen).some((s) => s.art === "wartet");
+}
+
 /** Was der Screenreader am Ende hört: wie viele Stationen geantwortet haben, nicht pauschal „alle“. */
 function fertigSatz(stationen: Record<string, Station>): string {
-  const alle = Object.values(stationen);
+  const alle = Object.values(stationen).filter((s) => s.art !== "wartet");
   const mit = alle.filter((s) => s.art === "antwort").length;
   if (mit === alle.length) return mit === 1 ? "Die Station hat geantwortet." : `Alle ${mit} Stationen haben geantwortet.`;
   return `${mit} von ${alle.length} Stationen haben geantwortet.`;
@@ -212,6 +217,8 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
   }
 
   const stationen = lauf.art === "leer" ? leereStationen(kette) : (lauf.stationen ?? leereStationen(kette));
+  const gestoppt = istGestoppt(lauf);
+  const gezeigteKette = gestoppt ? kette.filter((uc) => stationen[uc]?.art !== "wartet") : kette;
   const modelle = [
     ...new Set(
       Object.values(stationen)
@@ -302,15 +309,15 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
       {lauf.art === "fehler" && !lauf.stationen && <p role="alert" className="font-sans text-16 text-ink">{lauf.meldung}</p>}
 
       <section aria-label="Stationen der Kette">
-        <ol className={kette.length === 1 ? "grid max-w-2xl gap-6" : "grid gap-6 lg:grid-cols-3"}>
-          {kette.map((uc, i) => (
-            <StationKarte key={uc} uc={uc} nr={i + 1} station={stationen[uc] ?? { art: "wartet" }} jetzt={jetzt} vorher={i > 0 ? kette[i - 1] : undefined} gestellt={lauf.art !== "leer"} />
+        <ol className={gezeigteKette.length === 1 ? "grid max-w-2xl gap-6" : "grid gap-6 lg:grid-cols-3"}>
+          {gezeigteKette.map((uc, i) => (
+            <StationKarte key={uc} uc={uc} nr={i + 1} station={stationen[uc] ?? { art: "wartet" }} jetzt={jetzt} vorher={i > 0 ? kette[i - 1] : undefined} gestellt={lauf.art !== "leer"} gestoppt={gestoppt} />
           ))}
         </ol>
       </section>
 
       {lauf.art === "fehler" && lauf.stationen && <p role="alert" className="font-sans text-16 text-ink">{lauf.meldung}</p>}
-      {lauf.art === "fertig" && (
+      {lauf.art === "fertig" && !gestoppt && (
         <p className="font-sans text-14 text-slate">
           Fertig in {sekunden(lauf.dauerMs)} s.{" "}
           {modelle.length > 0 ? `Die Sätze schreibt ${modelle.join(" und ")}, die Zahlen rechnet der Code.` : "Die Zahlen rechnet der Code."}
@@ -328,6 +335,7 @@ function StationKarte({
   jetzt,
   vorher,
   gestellt,
+  gestoppt,
 }: {
   uc: KettenUc;
   nr: number;
@@ -335,6 +343,7 @@ function StationKarte({
   jetzt: number;
   vorher?: KettenUc;
   gestellt: boolean;
+  gestoppt: boolean;
 }) {
   const name = findeUc(uc).name;
   const aktiv = station.art === "laeuft";
@@ -375,24 +384,58 @@ function StationKarte({
         </p>
       )}
 
-      {station.art === "fehlt" && <p className="font-sans text-16 text-slate">{grundText(station.grund)} Die Kette lief ohne diese Station weiter.</p>}
+      {station.art === "fehlt" && (
+        <p className="font-sans text-16 text-slate">
+          {grundText(station.grund)}
+          {gestoppt ? "" : " Die Kette lief ohne diese Station weiter."}
+        </p>
+      )}
 
-      {station.art === "antwort" && <Antwort kern={station.kern} antwort={station.antwort} dauerMs={station.dauerMs} />}
+      {station.art === "antwort" && <Antwort kern={station.kern} antwort={station.antwort} dauerMs={station.dauerMs} erste={!vorher} />}
     </li>
   );
 }
 
-/** Der Kernsatz endet bei langen Sätzen mit „…“; ist die ganze Antwort kurz, steht sie lieber ganz da (Jury 05.11.). */
+/** Die erste Zeile ist die Kernaussage der Station; sie steht ganz da, solange sie kurz genug ist (Jury 05.11.). */
 const GANZ_BIS = 320;
+/** Mehr Belege stehen in der ganzen Antwort; oben reicht, dass man sieht, worauf sich die Aussage stützt. */
+const BELEGE_OBEN = 2;
 
-function Antwort({ kern, antwort, dauerMs }: { kern: string; antwort: UcAntwort; dauerMs: number }) {
+/**
+ * Belege der Stationen nach der ersten: Die Zahl steht schon mit Beleg bei Station 1 (#164). Der Lotse zeigt den Beleg
+ * der Zahl aus seinem Satz, der Simulator seine eigenen Quellen, ohne Rechenmodell und ohne die weitergereichte Zahl.
+ */
+function belegeOben(antwort: UcAntwort): UcAntwort["belege"] {
+  if (antwort.uc === "uc1") {
+    const beleg = antwort.zahlen[0] && antwort.belege[antwort.zahlen[0].beleg];
+    return beleg ? [beleg] : [];
+  }
+  const eigene = antwort.belege.filter((b) => b.uc === antwort.uc && b.quelle !== "uc2.experte");
+  return eigene.filter((b, i) => eigene.findIndex((x) => x.quelle === b.quelle && x.monat === b.monat) === i).slice(0, BELEGE_OBEN);
+}
+
+function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcAntwort; dauerMs: number; erste: boolean }) {
   const text = antwort.text.trim();
-  const gezeigt = kern.trim().endsWith("…") && text.length <= GANZ_BIS ? text : kern;
+  const ersteZeile = text.split("\n", 1)[0]!.trim();
+  const gezeigt = ersteZeile.length <= GANZ_BIS ? ersteZeile : kern;
   const mehr = text !== gezeigt.trim();
   return (
     <div className="flex flex-col gap-3" data-uc4-antwort="">
       <p className="font-display text-20 font-medium text-ink text-pretty">{gezeigt}</p>
-      {antwort.zahlen.length > 0 && (
+      {!erste && belegeOben(antwort).map((beleg, i) => (
+        <HerkunftChip
+          key={`${beleg.quelle}-${i}`}
+          quelle={beleg.quelle}
+          lieferung={beleg.lieferung}
+          monat={beleg.monat}
+          regelstand={beleg.regelstand}
+          sql={beleg.sql}
+          lauf={beleg.lauf}
+          verweis={beleg.ref}
+          stand={beleg.stand}
+        />
+      ))}
+      {erste && antwort.zahlen.length > 0 && (
         <ul className="flex flex-col gap-2">
           {antwort.zahlen.map((zahl, i) => {
             const beleg = antwort.belege[zahl.beleg];
@@ -423,7 +466,7 @@ function Antwort({ kern, antwort, dauerMs }: { kern: string; antwort: UcAntwort;
       {mehr && (
         <details>
           <summary className="inline-flex min-h-11 cursor-pointer items-center font-sans text-14 text-gruen underline underline-offset-4">Ganze Antwort</summary>
-          <p className="mt-1 font-sans text-16 text-ink">{antwort.text}</p>
+          <p className="mt-1 whitespace-pre-line font-sans text-16 text-ink">{antwort.text}</p>
         </details>
       )}
       <ModellPille data-testid="uc4-modell">

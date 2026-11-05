@@ -8,7 +8,10 @@ UC2 liefert in der Kette uc3 → uc2 → uc1 die Abwägung der Akteure mit Beleg
   bekommt nur die Ausgangslage aus dem Kontext (UC3-Zahlen mit Beleg, `uc2.antwort.allgemein`).
 
 In beiden Wegen: Kurzverhandlung (`uc2.antwort.kurzlauf`, Standard eine Runde mit höchstens 3 Akteuren und
-einer Frist von 25 s); der Code schreibt den Text. Zahlen kommen nur vom Experten oder aus dem Kontext. Jede
+einer Frist von 25 s); der Code schreibt den Text. Die erste Zeile ist die Kernaussage, die oben auf der Station
+steht: Was mehr oder weniger Personal bedeutet (allgemeine Frage, Moderator, sonst feste Sätze), oder was das
+durchgerechnete Paket bringt und kostet (Fall). Die Zahl von UC3 steht dort nicht, sie steht schon bei UC3 (#164).
+Zahlen kommen nur vom Experten oder aus dem Kontext. Jede
 Zeile läuft durch `bereinige` (`uc2.antwort.textzahlen`: jede Zifferngruppe muss mit Wert, Vorzeichen und
 Einheit zu `zahlen` passen); danach prüft `freie_zahlen` den ganzen Text und wirft `FreieZahl`, statt eine
 unbelegte Zahl auszuliefern.
@@ -48,6 +51,7 @@ from uc2.verhandlung.pruefungen import experten_ergebniswerte
 from . import allgemein
 from .kurzlauf import FRIST_S, KURZ_MAX_AKTEURE, KURZ_RUNDEN, Kurzergebnis, KurzlaufFehler, kurzverhandlung
 from .textzahlen import ERSATZ as ERSATZ  # Wiederexport: Tests und Aufrufer lesen ihn hier
+from .textzahlen import ERSATZ as _ERSATZ
 from .textzahlen import bereinige, freie_zahlen, profilzahlen, sichtbare_einheit
 
 QUELLE_EXPERTE = "uc2.experte"
@@ -370,6 +374,16 @@ def _abwaegung(ergebnis: Kurzergebnis, akteure: dict[str, Akteur], s: _Sammlung,
     return zeilen
 
 
+def _kernzeile(ergebnis: Kurzergebnis, ez: dict[str, Zahl]) -> str:
+    """Erste Zeile der Antwort, was die Station oben zeigt; ohne Zahlenecho von UC3 (#164)."""
+    if ez:
+        return (
+            "Das durchgerechnete Paket mit mehr Personal bringt laut Rechenmodell: "
+            f"Wartezeit {_zahl_text(ez['wartezeit'])}, Mehrkosten {_zahl_text(ez['kosten_mio'])} pro Jahr."
+        )
+    return ergebnis.kern or " ".join(allgemein.FESTER_KERN)
+
+
 def _einleitung(ergebnis: Kurzergebnis) -> str:
     n = len(ergebnis.teilnehmer)
     runden = "einer Runde" if ergebnis.runden == 1 else f"{_WORT.get(ergebnis.runden, 'mehreren')} Runden"
@@ -403,6 +417,15 @@ def _experte_text(voll: dict[str, Any], ez: dict[str, Zahl]) -> list[str]:
     if entscheidend in beschreibung:
         experte += f" Am meisten hängt das Ergebnis davon ab: {beschreibung[entscheidend]}."
     return [f"Durchgerechnete Maßnahmen: {', '.join(massnahmen)}.", experte]
+
+
+def _ohne_entfernte_zahl(zeile: str) -> str:
+    """Ein Satz, aus dem die Prüfung eine Zahl genommen hat, fällt ganz weg: „lag bei (Zahl ohne Beleg entfernt).“
+    sagt niemandem etwas. Die Zeile selbst (etwa mit dem Akteursnamen) bleibt, solange ein Satz übrig ist."""
+    if _ERSATZ not in zeile:
+        return zeile
+    saetze = re.split(r"(?<=[.!?])\s+", zeile)
+    return " ".join(satz for satz in saetze if _ERSATZ not in satz)
 
 
 # --- Adapter ------------------------------------------------------------------------------------------
@@ -489,12 +512,13 @@ def _antwort(
             notiz=fall is not None,
             # Allgemeine Fragen: feste Themen statt Auftragsaufruf (gemessen 38,5 s mit Aufruf bei azure).
             fester_auftrag=allgemein.fester_auftrag(frage) if fall is None else None,
+            kern=fall is None,
         )
     except KurzlaufFehler as fehler:
         raise AntwortFehler(f"Panel: {fehler}") from fehler
 
     beispiel = isinstance(quelle, FixtureQuelle)
-    zeilen = [_ausgangslage(kontextzahlen), _einleitung(ergebnis)]
+    zeilen = [_kernzeile(ergebnis, ez), _ausgangslage(kontextzahlen), _einleitung(ergebnis)]
     if voll is not None:
         zeilen += _experte_text(voll, ez)
     zeilen += _abwaegung(ergebnis, akteure, s, beispiel)
@@ -508,7 +532,7 @@ def _antwort(
         for feld in ("ziele", "interessen", "restriktionen", "budgetvorgaben", "prioritaeten", "rote_linien")
         for t in getattr(akteure[aid], feld)
     )
-    text = "\n".join(bereinige(z, s.zahlen, profil) for z in zeilen)
+    text = "\n".join(_ohne_entfernte_zahl(bereinige(z, s.zahlen, profil)) for z in zeilen)
     frei = freie_zahlen(text, s.zahlen, profil)
     if frei:
         raise FreieZahl(f"Zahl ohne Eintrag in zahlen: {', '.join(frei)}")

@@ -16,7 +16,7 @@ class FakeQuelle {
   onopen: (() => void) | null = null;
   onerror: (() => void) | null = null;
   private hoerer = new Map<string, ((e: MessageEvent<string>) => void)[]>();
-  constructor(_url: string) {
+  constructor(public url: string) {
     FakeQuelle.letzte = this;
   }
   addEventListener(art: string, f: (e: MessageEvent<string>) => void) {
@@ -77,4 +77,20 @@ it("in der Vorführung fragt die Freigabe den Server nicht", () => {
 it("live behauptet vor dem Start-Ereignis nicht „ohne Sprachmodell“", () => {
   render(<PanelBuehne fallId="15" modus="live" />);
   expect(screen.getByTestId("uc2-modell-satz").textContent).toBe("Die Verhandlung startet.");
+});
+
+it("„Zum Ergebnis“ zeigt mit einem Klick das Ende, auch wenn die Aufzeichnung noch nicht ganz da ist", async () => {
+  // Fängt den Live-Test 05.11.: Der Klick sprang nur bis zum bisher Angekommenen, es brauchte drei Klicks.
+  render(<PanelBuehne fallId="mock-wartezeiten" modus="vorfuehrung" />);
+  const erste = FakeQuelle.letzte!;
+  act(() => erste.sende(alle.slice(0, 10)));
+  await userEvent.click(screen.getByRole("button", { name: "Zum Ergebnis" }));
+
+  const zweite = FakeQuelle.letzte!;
+  expect(zweite).not.toBe(erste);
+  expect(zweite.url).toContain("sofort=1");
+  expect(zweite.url).toContain(`seq=${alle[9]!.seq}`);
+  act(() => zweite.sende(alle.slice(10)));
+  await waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("Ergebnis nach"));
+  expect(screen.queryByRole("button", { name: "Zum Ergebnis" })).toBeNull();
 });

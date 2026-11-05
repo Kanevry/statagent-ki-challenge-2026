@@ -44,7 +44,7 @@ from uc2.verhandlung.lauf import MIN_TEILNEHMER, Zugergebnis, fuehre_zug_aus, zw
 from uc2.verhandlung.matrix import Einordnung, Position, Runde, aenderungen, klassifikation, werte
 from uc2.verhandlung.pruefungen import haltungen_ohne_beleg, pruefe
 
-from .allgemein import mock_einhaengen, mock_zuruecksetzen
+from .allgemein import KERN_SCHEMA, kern_nachrichten, kern_text, mock_einhaengen, mock_zuruecksetzen
 
 KURZ_MAX_AKTEURE = 3
 """Standard-Höchstzahl der Akteure für UC4 (Laufzeit); erlaubt sind bis `KURZ_GRENZE_AKTEURE`."""
@@ -92,6 +92,8 @@ class Kurzergebnis:
     """Letzter gültiger Zug je Akteur (mit Bedingungen und Zugeständnissen)."""
     ohne_zug: list[str] = field(default_factory=list)
     """Teilnehmer, die in keiner Runde einen gültigen Zug geliefert haben."""
+    kern: str | None = None
+    """Zwei Sätze des Moderators: was mehr und was weniger Personal bedeutet. `None`: keiner brauchbar oder Frist um."""
 
 
 AuftragNachrichten = Callable[[str, dict[str, Any]], list[dict[str, str]]]
@@ -145,9 +147,11 @@ class _Kurzlauf:
         frist_bis: float | None,
         mit_notiz: bool,
         fester_auftrag: dict[str, Any] | None = None,
+        mit_kern: bool = False,
     ) -> None:
         self.frist_bis = frist_bis
         self.mit_notiz = mit_notiz
+        self.mit_kern = mit_kern
         self.fester_auftrag = fester_auftrag
         self.auftrag_nachrichten = auftrag_nachrichten
         self.frage = frage
@@ -159,8 +163,12 @@ class _Kurzlauf:
         self.stichtag = stichtag
         self.max_akteure = max_akteure
         self.runden = runden
-        self.rm_moderator: Rollenmodell = rollenmodell("moderator", provider)
         self.rm_akteur: Rollenmodell = rollenmodell("akteur", provider)
+        # Im Kurzlauf auch der Moderator mit dem Aufwand der Akteure: Mit „hoch“ dauerte der Auftrag allein 42,8 s
+        # (Azure, Fall Wartezeiten, 05.11.), die Web-Route bricht nach 60 s ab.
+        self.rm_moderator: Rollenmodell = replace(
+            rollenmodell("moderator", provider), aufwand=self.rm_akteur.aufwand
+        )
         self.modelle: set[str] = set()
 
     def frist_um(self) -> bool:
@@ -310,6 +318,7 @@ class _Kurzlauf:
         notiz = None
         if self.mit_notiz and not self.frist_um():
             notiz = self._notiz(auftrag, teilnehmer, gelaufen, jetzt, aend, klass, letzte_befunde, ohne_beleg)
+        kern = self._kern(auftrag, mit_position, jetzt) if self.mit_kern and not self.frist_um() else None
         return Kurzergebnis(
             auftrag=auftrag,
             teilnehmer=teilnehmer,
@@ -321,7 +330,30 @@ class _Kurzlauf:
             modelle=sorted(self.modelle),
             zuege=letzter_zug,
             ohne_zug=[aid for aid in teilnehmer if aid not in letzter_zug],
+            kern=kern,
         )
+
+    def _kern(self, auftrag: dict[str, Any], teilnehmer: list[str], jetzt: Runde) -> str | None:
+        """Kernsätze aus den Haltungen; fehlen sie, setzt der Adapter feste Sätze. Budget geht weiter an den Aufrufer."""
+        titel = {t["id"]: t["titel"] for t in auftrag["themen"]}
+        stimmen = [
+            {
+                "vertretung": self.akteure[aid].name,
+                "thema": titel.get(thema, thema),
+                "haltung": position.wert,
+                "begruendung": position.begruendung,
+            }
+            for aid in teilnehmer
+            for thema, position in jetzt.get(aid, {}).items()
+        ]
+        nachrichten = kern_nachrichten(self.frage, self.experte, stimmen)
+        try:
+            antwort = rufe(self.rm_moderator, mit_alltagsregel(nachrichten), KERN_SCHEMA)
+        except UngueltigeAntwort as fehler:
+            _budget_weiter(fehler)
+            return None
+        self.modelle.add(modellname(antwort.provider, antwort.modell))
+        return kern_text(antwort.json)
 
     def _notiz(
         self,
@@ -372,6 +404,7 @@ def kurzverhandlung(
     frist_bis: float | None = None,
     notiz: bool = True,
     fester_auftrag: dict[str, Any] | None = None,
+    kern: bool = False,
 ) -> Kurzergebnis:
     """Kurzverhandlung ohne PG; mit Provider `mock` über den Szenario-Mock deterministisch.
 
@@ -379,7 +412,8 @@ def kurzverhandlung(
     `experte_werte` die Zahlen, gegen die `pruefe` Züge mit Quelle `experte` abgleicht.
     `auftrag_nachrichten` baut den Auftrag des Moderators (Fall oder allgemeine Frage, siehe Moduldoku).
     `frist_bis` ist ein Zeitpunkt auf `time.monotonic()`; `None` heißt ohne Frist. `notiz=False` spart den
-    Aufruf für die Notiz der Moderation, wenn der Aufrufer sie nicht zeigt.
+    Aufruf für die Notiz der Moderation, wenn der Aufrufer sie nicht zeigt. `kern=True` lässt den Moderator am Ende die
+    zwei Kernsätze schreiben (ein Aufruf mehr, allgemeine Fragen).
     """
     if not 1 <= runden <= 2:
         raise ValueError("Kurzlauf: runden muss 1 oder 2 sein")
@@ -402,6 +436,7 @@ def kurzverhandlung(
         frist_bis=frist_bis,
         mit_notiz=notiz,
         fester_auftrag=fester_auftrag,
+        mit_kern=kern,
     )
     if provider != "mock":
         return lauf.verhandle()

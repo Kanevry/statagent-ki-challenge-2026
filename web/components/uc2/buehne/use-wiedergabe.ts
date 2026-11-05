@@ -39,7 +39,10 @@ export function useWiedergabe(fallId: string): Wiedergabe {
   const [index, setIndex] = useState(0);
   const [pausiert, setPausiert] = useState(false);
   const [tempo, setTempo] = useState(1);
+  const [amEnde, setAmEnde] = useState(false);
   const letzte = useRef(0);
+  // Beim Neuverbinden nach „Zum Ergebnis“: Der Rest der Aufzeichnung kommt ohne Takt (?sofort=1).
+  const sofort = useRef(false);
 
   useEffect(() => {
     if (typeof EventSource === "undefined") {
@@ -47,8 +50,10 @@ export function useWiedergabe(fallId: string): Wiedergabe {
       return;
     }
     setVerbindung("verbindet");
-    const ab = letzte.current > 0 ? `?seq=${letzte.current}` : "";
-    const quelle = new EventSource(`/api/uc2/faelle/${encodeURIComponent(fallId)}/ereignisse${ab}`);
+    const abfrage = new URLSearchParams();
+    if (letzte.current > 0) abfrage.set("seq", String(letzte.current));
+    if (sofort.current) abfrage.set("sofort", "1");
+    const quelle = new EventSource(`/api/uc2/faelle/${encodeURIComponent(fallId)}/ereignisse${abfrage.size ? `?${abfrage}` : ""}`);
     quelle.onopen = () => setVerbindung("offen");
     quelle.onerror = () => {
       if (quelle.readyState !== EventSource.CLOSED) {
@@ -101,6 +106,11 @@ export function useWiedergabe(fallId: string): Wiedergabe {
     return () => clearTimeout(uhr);
   }, [index, mehr, pausiert, tempo]);
 
+  // Nach „Zum Ergebnis“ läuft der Stand mit allem mit, was noch ankommt: Ein Klick reicht (Live-Test 05.11.: drei).
+  useEffect(() => {
+    if (amEnde) setIndex(ereignisse.length);
+  }, [amEnde, ereignisse.length]);
+
   const gezeigt = useMemo(() => ereignisse.slice(0, index), [ereignisse, index]);
   const zustand = useMemo(() => ableiten(gezeigt), [gezeigt]);
   const gesamt = useMemo(() => ableiten(ereignisse), [ereignisse]);
@@ -116,8 +126,15 @@ export function useWiedergabe(fallId: string): Wiedergabe {
     umschalten: () => setPausiert((p) => !p),
     setTempo,
     weiter: () => setIndex(naechsterIndex(ereignisse, index)),
-    zumEnde: () => setIndex(ereignisse.length),
+    zumEnde: () => {
+      setAmEnde(true);
+      if (verbindung !== "zu") {
+        sofort.current = true;
+        setVersuch((v) => v + 1);
+      }
+    },
     vonVorn: () => {
+      setAmEnde(false);
       setIndex(0);
       setPausiert(false);
     },

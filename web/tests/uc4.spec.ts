@@ -100,6 +100,7 @@ test("Frage absenden: Stationen antworten in Reihenfolge uc3, uc2, uc1, jede mit
   expect(accept).toContain("application/x-ndjson");
   await expect(page.locator("[data-uc4-antwort]")).toHaveCount(3);
   await expect(page.locator('[data-uc-karte="uc3"] [data-baustein="herkunft"]')).toHaveCount(1);
+  await expect(page.locator("[data-zahl]")).toHaveCount(1);
   await expect(page.getByText(/Fertig in/)).toBeVisible();
 
   await gateMessen(page);
