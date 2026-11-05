@@ -1,0 +1,286 @@
+{
+  "hinweis": "Erfundene Belege für Tests und Läufe mit echtem Modell vor #43. Keine echten Pressetexte, keine Personen, Medien erfunden.",
+  "belege": [
+    {
+      "beleg_id": "3b23f309efd0-001-01",
+      "akteure": [
+        "sv",
+        "vertragsaerzte"
+      ],
+      "medium": "Musterzeitung Süd",
+      "datum": "2026-09-22",
+      "titel": "Kasse will mehr Facharztstellen ausschreiben",
+      "text": "Die Sozialversicherung kündigt an, zusätzliche fachärztliche Kassenstellen auszuschreiben. Vor allem in ländlichen Bezirken bleiben Stellen bisher unbesetzt. Die Vertragsärzte verlangen dafür bessere Honorare und weniger Bürokratie."
+    },
+    {
+      "beleg_id": "74ae27909bd4-002-01",
+      "akteure": [
+        "sv",
+        "patienten"
+      ],
+      "medium": "Beispielblatt",
+      "datum": "2026-09-15",
+      "titel": "Wartezeit auf Facharzttermine bleibt lang",
+      "text": "Patientinnen und Patienten warten in mehreren Fächern viele Wochen auf einen Kassentermin. Die Patientenvertretung fordert eine verbindliche Terminservicestelle. Die Krankenversicherung verweist auf unbesetzte Kassenstellen."
+    },
+    {
+      "beleg_id": "fac632294cff-003-01",
+      "akteure": [
+        "sv",
+        "gesundheitsministerium"
+      ],
+      "medium": "Fachdienst Gesundheit",
+      "datum": "2026-09-10",
+      "titel": "Gesundheitshotline soll Termine vermitteln",
+      "text": "Das Gesundheitsministerium und die Sozialversicherung planen, dass die Gesundheitshotline künftig auch Facharzttermine vermittelt. Eine digitale Ersteinschätzung soll vor dem Termin klären, wie dringend ein Anliegen ist."
+    },
+    {
+      "beleg_id": "515bfa0c6262-004-01",
+      "akteure": [
+        "sv",
+        "finanzministerium"
+      ],
+      "medium": "Musterzeitung Süd",
+      "datum": "2026-08-28",
+      "titel": "Gebarung der Kassen unter Druck",
+      "text": "Die Krankenversicherungsträger erwarten für das kommende Jahr einen Abgang. Das Finanzministerium lehnt zusätzliche Bundesmittel ohne Gegenfinanzierung ab. Die Kassen wollen dennoch keine Leistungen kürzen."
+    },
+    {
+      "beleg_id": "c79b2f3f10a7-005-01",
+      "akteure": [
+        "sv",
+        "wahlaerzte"
+      ],
+      "medium": "Beispielblatt",
+      "datum": "2026-08-12",
+      "titel": "Streit um Erstattung für Wahlarztbesuche",
+      "text": "Die Sozialversicherung prüft, die Erstattung für Wahlarztbesuche an eine Versorgungspflicht zu knüpfen. Die Vertretung der Wahlärzte warnt vor einem Rückzug aus der Versorgung."
+    },
+    {
+      "beleg_id": "ae6b911ced1e-006-01",
+      "akteure": [
+        "sv",
+        "laender"
+      ],
+      "medium": "Regionalanzeiger",
+      "datum": "2026-07-30",
+      "titel": "Ambulanzen und Kassen ringen um Patientenströme",
+      "text": "Die Bundesländer wollen Spitalsambulanzen entlasten und Patienten in den niedergelassenen Bereich lenken. Die Sozialversicherung verlangt, dass das Geld der Leistung folgt."
+    },
+    {
+      "beleg_id": "31e8d18812a7-007-01",
+      "akteure": [
+        "aerztekammer",
+        "vertragsaerzte"
+      ],
+      "medium": "Fachdienst Gesundheit",
+      "datum": "2026-09-18",
+      "titel": "Kammer fordert attraktivere Kassenverträge",
+      "text": "Die Ärztekammer sieht den Ärztemangel im Kassenbereich als Folge unattraktiver Verträge. Sie fordert höhere Honorare, flexible Arbeitszeitmodelle und weniger Dokumentationspflichten."
+    },
+    {
+      "beleg_id": "9ab8157bb3b1-008-01",
+      "akteure": [
+        "aerztekammer",
+        "patienten"
+      ],
+      "medium": "Beispielblatt",
+      "datum": "2026-09-05",
+      "titel": "Ärztekammer skeptisch gegenüber Pflichtlenkung",
+      "text": "Eine verpflichtende Lenkung aller Patienten über eine Hotline lehnt die Ärztekammer ab. Sie befürchtet zusätzliche Hürden für chronisch Kranke. Die Patientenvertretung sieht in einer freiwilligen Lenkung Chancen."
+    },
+    {
+      "beleg_id": "b835bdccb3c8-009-01",
+      "akteure": [
+        "aerztekammer"
+      ],
+      "medium": "Musterzeitung Süd",
+      "datum": "2026-08-20",
+      "titel": "Gesamtvertrag: Verhandlungen stocken",
+      "text": "Die Verhandlungen über den Gesamtvertrag stocken. Die Ärztekammer verlangt eine Erhöhung der Tarife für fachärztliche Leistungen, bevor neue Stellen besetzt werden können."
+    },
+    {
+      "beleg_id": "ed63ed9e0deb-010-01",
+      "akteure": [
+        "aerztekammer",
+        "wahlaerzte"
+      ],
+      "medium": "Regionalanzeiger",
+      "datum": "2026-07-14",
+      "titel": "Wahlarztsystem als Ventil",
+      "text": "Nach Ansicht der Ärztekammer ist das Wahlarztsystem ein Ventil für ein überlastetes Kassensystem. Eine Abschaffung würde die Wartezeiten aus ihrer Sicht weiter verlängern."
+    },
+    {
+      "beleg_id": "47ede0b32189-011-01",
+      "akteure": [
+        "aerztekammer",
+        "krankenanstalten"
+      ],
+      "medium": "Fachdienst Gesundheit",
+      "datum": "2026-06-30",
+      "titel": "Spitalsärzte klagen über volle Ambulanzen",
+      "text": "Spitalsärzte berichten von überfüllten Ambulanzen, weil Termine im niedergelassenen Bereich fehlen. Die Krankenanstalten wünschen sich eine bessere Abstimmung mit den Kassenpraxen."
+    },
+    {
+      "beleg_id": "fcfc027ce213-012-01",
+      "akteure": [
+        "patienten",
+        "gesundheitsministerium"
+      ],
+      "medium": "Beispielblatt",
+      "datum": "2026-09-25",
+      "titel": "Patientenanwaltschaft verlangt Terminobergrenze",
+      "text": "Die Patientenvertretung verlangt eine Obergrenze für die Wartezeit auf Kassentermine. Das Gesundheitsministerium prüft eine Terminservicestelle nach ausländischem Vorbild."
+    },
+    {
+      "beleg_id": "007f2b90aa6d-013-01",
+      "akteure": [
+        "patienten",
+        "wahlaerzte"
+      ],
+      "medium": "Musterzeitung Süd",
+      "datum": "2026-08-03",
+      "titel": "Sorge vor Zweiklassenmedizin",
+      "text": "Wer es sich leisten kann, weicht zum Wahlarzt aus. Die Patientenvertretung warnt vor einer Zweiklassenmedizin, wenn Kassentermine knapp bleiben."
+    },
+    {
+      "beleg_id": "c7e7a1b753b2-014-01",
+      "akteure": [
+        "patienten"
+      ],
+      "medium": "Regionalanzeiger",
+      "datum": "2026-07-21",
+      "titel": "Telemedizin auf dem Land gefragt",
+      "text": "In ländlichen Regionen nutzen Patientinnen und Patienten telemedizinische Angebote häufiger. Die Patientenvertretung fordert, dass diese Angebote als Kassenleistung gelten."
+    },
+    {
+      "beleg_id": "c22f87ab3139-015-01",
+      "akteure": [
+        "vertragsaerzte",
+        "gesundheitsministerium"
+      ],
+      "medium": "Fachdienst Gesundheit",
+      "datum": "2026-09-12",
+      "titel": "Gruppenpraxen sollen leichter möglich werden",
+      "text": "Das Gesundheitsministerium will Gruppenpraxen und Primärversorgungseinheiten rechtlich erleichtern. Vertragsärzte begrüßen das, verlangen aber eine faire Abgeltung längerer Öffnungszeiten."
+    },
+    {
+      "beleg_id": "7a273bf03088-016-01",
+      "akteure": [
+        "vertragsaerzte",
+        "pflege"
+      ],
+      "medium": "Beispielblatt",
+      "datum": "2026-08-25",
+      "titel": "Mehr Kompetenzen für Gesundheitsberufe",
+      "text": "Pflegekräfte sollen in Primärversorgungseinheiten mehr Aufgaben übernehmen dürfen. Die Pflegevertretung sieht darin eine Aufwertung, die Vertragsärzte eine Entlastung bei Routinetätigkeiten."
+    },
+    {
+      "beleg_id": "79ba84c07c6e-017-01",
+      "akteure": [
+        "gesundheitsministerium",
+        "laender",
+        "finanzministerium"
+      ],
+      "medium": "Musterzeitung Süd",
+      "datum": "2026-09-08",
+      "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
+      "text": "Bund, Länder und Sozialversicherung beraten über eine Finanzierung aus einer Hand. Das Finanzministerium besteht auf der Ausgabenobergrenze, die Länder wollen Planungshoheit über die Spitäler behalten."
+    },
+    {
+      "beleg_id": "0857532bbbde-018-01",
+      "akteure": [
+        "laender",
+        "krankenanstalten"
+      ],
+      "medium": "Regionalanzeiger",
+      "datum": "2026-09-01",
+      "titel": "Länder wollen Ambulanzen entlasten",
+      "text": "Mehrere Bundesländer planen neue Erstversorgungsambulanzen vor den Spitälern. Die Krankenanstalten erhoffen sich weniger Fälle, die auch im niedergelassenen Bereich behandelt werden könnten."
+    },
+    {
+      "beleg_id": "04cbf36c2c63-019-01",
+      "akteure": [
+        "laender"
+      ],
+      "medium": "Beispielblatt",
+      "datum": "2026-07-08",
+      "titel": "Ländliche Versorgung im Strukturplan",
+      "text": "Im regionalen Strukturplan sollen ländliche Versorgungslücken ausdrücklich ausgewiesen werden. Die Länder fordern dafür einen Beitrag der Krankenversicherung."
+    },
+    {
+      "beleg_id": "ab275863e008-020-01",
+      "akteure": [
+        "finanzministerium",
+        "sozialpartner"
+      ],
+      "medium": "Fachdienst Gesundheit",
+      "datum": "2026-08-17",
+      "titel": "Keine höheren Beiträge",
+      "text": "Das Finanzministerium und die Sozialpartner lehnen höhere Krankenversicherungsbeiträge ab. Zusätzliche Ausgaben müssten durch Kostendämpfung an anderer Stelle gedeckt werden."
+    },
+    {
+      "beleg_id": "15fa56366b81-021-01",
+      "akteure": [
+        "krankenanstalten",
+        "public_health"
+      ],
+      "medium": "Musterzeitung Süd",
+      "datum": "2026-08-09",
+      "titel": "Ambulantisierung braucht Steuerung",
+      "text": "Fachleute für Versorgungsforschung empfehlen, die Verlagerung von Leistungen aus dem Spital mit klaren Versorgungspfaden zu begleiten. Ohne Evaluierung bleibe die Wirkung auf die Wartezeit unklar."
+    },
+    {
+      "beleg_id": "cc25450aedaa-022-01",
+      "akteure": [
+        "public_health",
+        "gesundheitsministerium"
+      ],
+      "medium": "Beispielblatt",
+      "datum": "2026-09-19",
+      "titel": "Digitale Ersteinschätzung evaluieren",
+      "text": "Eine digitale Ersteinschätzung vor dem Facharzttermin kann Überweisungen vermeiden, sagen Gesundheitsökonomen. Sie raten zu einer begleitenden Evaluierung, bevor das Angebot flächendeckend kommt."
+    },
+    {
+      "beleg_id": "6237cadbc584-023-01",
+      "akteure": [
+        "gesetzgeber",
+        "gesundheitsministerium"
+      ],
+      "medium": "Fachdienst Gesundheit",
+      "datum": "2026-09-03",
+      "titel": "Novelle zur Terminvergabe in Begutachtung",
+      "text": "Eine Gesetzesnovelle zur Terminvergabe geht in Begutachtung. Sie soll die Zuständigkeit für eine Terminservicestelle klären und eine Wirkungsfolgenabschätzung enthalten."
+    },
+    {
+      "beleg_id": "e8881fc0a446-024-01",
+      "akteure": [
+        "sozialpartner"
+      ],
+      "medium": "Regionalanzeiger",
+      "datum": "2026-07-27",
+      "titel": "Krankenstand und Wartezeit",
+      "text": "Lange Wartezeiten auf Facharzttermine verlängern nach Ansicht der Sozialpartner Krankenstände. Betriebe hätten ein Interesse an rascheren Terminen, lehnen aber höhere Lohnnebenkosten ab."
+    },
+    {
+      "beleg_id": "bec22097e5b8-025-01",
+      "akteure": [
+        "wahlaerzte"
+      ],
+      "medium": "Musterzeitung Süd",
+      "datum": "2026-06-18",
+      "titel": "Wahlärzte gegen Versorgungspflicht",
+      "text": "Eine Versorgungspflicht für Wahlärzte sei ein Eingriff in die Berufsfreiheit, heißt es aus deren Vertretung. Freiwillige Kooperationen mit der Kasse seien der bessere Weg."
+    },
+    {
+      "beleg_id": "cec989e2e701-026-01",
+      "akteure": [
+        "krankenanstalten"
+      ],
+      "medium": "Beispielblatt",
+      "datum": "2026-10-12",
+      "titel": "Nach dem Stichtag: Spitalsbudget erhöht",
+      "text": "Dieser erfundene Beleg liegt nach dem Stichtag und darf in der Verhandlung nicht auftauchen."
+    }
+  ]
+}
