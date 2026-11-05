@@ -279,6 +279,25 @@ ENTSCHEIDE = WURZEL / "docs" / "abnahme" / "entscheide.jsonl"
 LAEUFE = WURZEL / "docs" / "abnahme" / "laeufe"
 
 
+VERWORFEN = WURZEL / "docs" / "abnahme" / "verworfen.jsonl"
+
+
+def verworfene_belege() -> set[tuple[str, str]]:
+    """(Lauf-ID, Kriterium) aus `verworfen.jsonl`: Belege, die ein Werkzeugfehler verfälscht hat.
+
+    Laufdateien werden nie geändert; ein verworfener Beleg bleibt dort sichtbar und zählt nur nicht. Jede
+    Zeile nennt Lauf, IDs, Grund und wer verworfen hat.
+    """
+    if not VERWORFEN.exists():
+        return set()
+    paare = set()
+    for z in VERWORFEN.read_text(encoding="utf-8").splitlines():
+        if z.strip():
+            e = json.loads(z)
+            paare |= {(e["lauf"], i) for i in e["ids"]}
+    return paare
+
+
 def belege_lesen() -> dict[str, list[dict]]:
     """Alle Belege je Kriterium, nach Messzeit aufsteigend (bei gleicher Zeit in Lesereihenfolge).
 
@@ -292,9 +311,12 @@ def belege_lesen() -> dict[str, list[dict]]:
         zeilen = [json.loads(z) for z in datei.read_text().splitlines() if z.strip()]
         if zeilen and zeilen[-1].get("abgeschlossen"):
             quellen.append([z for z in zeilen if "id" in z])
+    verworfen = verworfene_belege()
     alle: dict[str, list[dict]] = {}
     for quelle in quellen:
         for b in quelle:
+            if (b.get("pruefer", "").removeprefix("lauf "), b["id"]) in verworfen:
+                continue
             alle.setdefault(b["id"], []).append(b)
     for liste in alle.values():
         liste.sort(key=lambda b: str(b.get("zeit", "")))

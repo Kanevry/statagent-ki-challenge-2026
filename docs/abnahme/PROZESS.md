@@ -19,6 +19,7 @@ bestanden, verschoben oder als Restmangel entschieden.
 | Lauf | `docs/abnahme/laeufe/<zeit>-<sha>.jsonl`, eine Datei je Lauf, nie geändert | `pruefen.py` |
 | Hand-Beleg | `docs/abnahme/belege.jsonl` | Prüfer (Mess-Agents nur als Vorschlag) |
 | Entscheid | `docs/abnahme/entscheide.jsonl` (verschoben oder Restmangel, mit Quelle) | Lead oder Owner, eingetragen von der Abnahme |
+| Verworfener Beleg | `docs/abnahme/verworfen.jsonl` (Lauf, IDs, Grund, wer): ein Werkzeugfehler hat ihn verfälscht; die Laufdatei bleibt unverändert | Abnahme |
 | Matrix, Zähler, Tor | `docs/abnahme/matrix-<bereich>.md`, `matrix.py zaehler`, `matrix.py tor` | erzeugt, nie von Hand |
 | Jury-Raster UC3 | `docs/abnahme/raster-uc3.csv` (Bewertungsbereich je Issue), Tabelle oben in `matrix-uc3.md` | Abnahme |
 

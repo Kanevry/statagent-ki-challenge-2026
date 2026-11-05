@@ -8,6 +8,7 @@ Kommentar je Kriterium; die Marke enthält weder SHA noch Zeit.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -192,3 +193,27 @@ def test_pruefklon_als_eigener_ort_wird_nur_geprueft(tmp_path: Path, monkeypatch
 def test_ordner_ohne_marke_wird_nicht_zurueckgesetzt(tmp_path: Path) -> None:
     with pytest.raises(SystemExit, match="ohne Marke"):
         pruefen.zuruecksetzen(tmp_path, KOPF, KOPF)
+
+
+def test_verworfener_beleg_zaehlt_nicht(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ein Beleg aus verworfen.jsonl fällt aus der Matrix, die Laufdatei bleibt unverändert."""
+    laeufe = tmp_path / "laeufe"
+    laeufe.mkdir()
+    lauf = laeufe / "2026-11-05T2011-abc.jsonl"
+    beleg = {"pruefer": "lauf 2026-11-05T2011-abc", "zeit": "2026-11-05 20:11"}
+    zeilen = [
+        {"lauf": "2026-11-05T2011-abc"},
+        {"id": "1-1", "stand": "nicht bestanden", **beleg},
+        {"id": "1-2", "stand": "bestanden", **beleg},
+        {"abgeschlossen": True},
+    ]
+    lauf.write_text("".join(json.dumps(z) + "\n" for z in zeilen))
+    verworfen = tmp_path / "verworfen.jsonl"
+    eintrag = {"lauf": "2026-11-05T2011-abc", "ids": ["1-1"], "grund": "x", "wer": "y"}
+    verworfen.write_text(json.dumps(eintrag) + "\n")
+    monkeypatch.setattr(matrix, "LAEUFE", laeufe)
+    monkeypatch.setattr(matrix, "BELEGE", tmp_path / "belege.jsonl")
+    monkeypatch.setattr(matrix, "VERWORFEN", verworfen)
+    belege = matrix.belege_lesen()
+    assert "1-1" not in belege
+    assert belege["1-2"][0]["stand"] == "bestanden"
