@@ -91,7 +91,11 @@ def unbekanntes_wort(frage: str, erkannt: list[str]) -> str | None:
         text = text.replace(stelle.lower(), " ")
     for treffer in _WORT.finditer(text):
         wort = treffer.group(0)
-        if len(wort) > 1 and wort not in BEKANNT and not all(t in BEKANNT or len(t) < 2 for t in wort.split("-")):
+        if (
+            len(wort) > 1
+            and wort not in BEKANNT
+            and not all(t in BEKANNT or len(t) < 2 for t in wort.split("-"))
+        ):
             return _wie_getippt(frage, wort)
     zahl = _LOSE_ZAHL.search(text)
     return zahl.group(0) if zahl else None

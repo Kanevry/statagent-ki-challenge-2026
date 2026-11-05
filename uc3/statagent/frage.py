@@ -238,7 +238,9 @@ FREIER_DV = Merkmal(
 BRANCHEN: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
     (re.compile(r"\bbau(?:s|e|en|gewerbe|branche|wirtschaft)?\b"), ("Bau",)),
     (
-        re.compile(r"\b(gastro|gastronomie|gastgewerbe|beherbergung|hotellerie|hotels?|restaurants?|tourismus)\b"),
+        re.compile(
+            r"\b(gastro|gastronomie|gastgewerbe|beherbergung|hotellerie|hotels?|restaurants?|tourismus)\b"
+        ),
         ("Beherbergung",),
     ),
     (re.compile(r"\bhandels?\b"), ("Handel",)),
@@ -278,9 +280,13 @@ EINWOHNER: dict[str, tuple[str, ...]] = {
     "Kärnten": ("kärntner",),
     "Salzburg": ("salzburger",),
 }
-_ZEITWORT_OHNE_MONAT = re.compile(r"\b(?:jahr|jahre|jahren|jahres|monat|monate|monaten|monats|zeitraum)\b", re.IGNORECASE)
+_ZEITWORT_OHNE_MONAT = re.compile(
+    r"\b(?:jahr|jahre|jahren|jahres|monat|monate|monaten|monats|zeitraum)\b", re.IGNORECASE
+)
 #: Fragt nach einer Änderung: Der Stand eines Monats allein wäre eine andere Antwort.
-_VERAENDERUNG = re.compile(r"\b(?:veränder\w*|veraender\w*|gestiegen|gesunken|gewachsen|stieg|sank)\b", re.IGNORECASE)
+_VERAENDERUNG = re.compile(
+    r"\b(?:veränder\w*|veraender\w*|gestiegen|gesunken|gewachsen|stieg|sank)\b", re.IGNORECASE
+)
 _MONATSWORT = "|".join(sorted(map(re.escape, MONATSNAMEN), key=len, reverse=True))
 #: „im Monat nach Dezember 2025“, „vor Juni“, „nach dem Ende des Winters“: Der Monat in der Frage ist nicht der gemeinte.
 _ZEITBEZUG = re.compile(
@@ -293,7 +299,9 @@ _ZAEHLT_ANDERES = re.compile(
     r"\bwie\s*viele\s+(?:der\s+|von\s+den\s+)?(?:bundesl\w*|branchen|wirtschaftsbereich\w*|abschnitte|kategorien|monate)\b",
     re.IGNORECASE,
 )
-_VERNEINUNG = frozenset({"außer", "ausser", "ohne", "nicht", "kein", "keine", "keinen", "keiner", "ausgenommen"})
+_VERNEINUNG = frozenset(
+    {"außer", "ausser", "ohne", "nicht", "kein", "keine", "keinen", "keiner", "ausgenommen"}
+)
 _FRAU = re.compile(r"\b(frau|frauen|weiblich\w*)\b")
 _MANN = re.compile(r"\b(mann|männer|maenner|männlich\w*|maennlich\w*)\b")
 #: Wortstämme nach „im/in/Branche“, die kein Merkmal meinen („in den Wirtschaftsbereichen“, „in Prozent“).
@@ -324,7 +332,10 @@ KATEGORIE = _merkmal("Beschäftigungskategorie")
 #: Alltagsform → die Form, die der Rest des Lesens kennt. Nur, was dieselbe Bedeutung hat.
 _ALLTAG: tuple[tuple[re.Pattern[str], str], ...] = (
     # Die Doppelnennung meint alle, darum vor der Regel, die nur die Frauen zählt.
-    (re.compile(r"\b(?:arbeiterinnen\s+und\s+arbeiter|arbeiter\s+und\s+arbeiterinnen)\b", re.IGNORECASE), "Arbeiter"),
+    (
+        re.compile(r"\b(?:arbeiterinnen\s+und\s+arbeiter|arbeiter\s+und\s+arbeiterinnen)\b", re.IGNORECASE),
+        "Arbeiter",
+    ),
     (re.compile(r"\b(?:beamtinnen\s+und\s+beamte|beamte\s+und\s+beamtinnen)\b", re.IGNORECASE), "Beamte"),
     (re.compile(r"\b(?:angestellte\s+und\s+angestellter)\b", re.IGNORECASE), "Angestellte"),
     (re.compile(r"\barbeiterinnen\b", re.IGNORECASE), "Arbeiter Frauen"),
@@ -516,7 +527,9 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
     if merkmal is OENACE:
         for t in _OENACE_CODE.finditer(text):
             if t.group(1).upper() not in codes:
-                raise _KeineZahl(f"Einen ÖNACE-Abschnitt {t.group(1).upper()} gibt es in diesem Monat nicht. {KANN}")
+                raise _KeineZahl(
+                    f"Einen ÖNACE-Abschnitt {t.group(1).upper()} gibt es in diesem Monat nicht. {KANN}"
+                )
             gefunden[t.group(1).upper()] = t.group(0)
         # „ÖNACE C und F“: alle Buchstaben, sonst zählte nur der erste, ohne Hinweis.
         for liste in _OENACE_LISTE.finditer(text):
@@ -887,7 +900,9 @@ def _filter(
             f"einzeln fragen. {KANN}"
         )
     if fremd is not None:
-        raise _KeineZahl(f"Das Wort „{fremd[:40]}“ kann ich in dieser Frage nicht einordnen, darum keine Zahl. {KANN}")
+        raise _KeineZahl(
+            f"Das Wort „{fremd[:40]}“ kann ich in dieser Frage nicht einordnen, darum keine Zahl. {KANN}"
+        )
     return filter_, etiketten
 
 
@@ -1019,7 +1034,9 @@ def _bestand_antwort(
     if nur:
         # Nur die genannten Monate: „bis“ stimmte hier nicht.
         verstanden = verstanden.replace(
-            f"{_monat_anzeige(von)} bis {_monat_anzeige(bis)}", _aufzaehlung([_monat_anzeige(m) for m in nur]), 1
+            f"{_monat_anzeige(von)} bis {_monat_anzeige(bis)}",
+            _aufzaehlung([_monat_anzeige(m) for m in nur]),
+            1,
         )
     if any(m is FREIER_DV for m, _ in filter_) and regelsatz != "v1":
         raise _KeineZahl(
@@ -1031,7 +1048,11 @@ def _bestand_antwort(
         v_von, v_bis = _oenace_version(conn, von), _oenace_version(conn, bis)
         if v_von and v_bis and v_von[0] != v_bis[0]:
             letzter_alt = monat_verschieben(v_bis[1], -1)
-            ueber = None if OENACE in gruppen else _branche_ueber_wechsel(conn, frage, filter_, letzter_alt, v_bis[1])
+            ueber = (
+                None
+                if OENACE in gruppen
+                else _branche_ueber_wechsel(conn, frage, filter_, letzter_alt, v_bis[1])
+            )
             if ueber is None:
                 raise _KeineZahl(
                     f"Für diesen Zeitraum gibt es keine gemeinsame Zahl, weil die Wirtschaftsbereiche im "
@@ -1188,9 +1209,7 @@ def _bestand_antwort(
                 f"(Mittelwert der {_anzahl_monate(len(je_monat))}, auf ganze Zahlen gerundet)."
             )
             text += f" {durchschnitts_satz}"
-            antwortsatz = (
-                f"Im Durchschnitt waren es {_deutsch(durchschnitt)} Beschäftigungsverhältnisse{zusatz}, {zeitraum}."
-            )
+            antwortsatz = f"Im Durchschnitt waren es {_deutsch(durchschnitt)} Beschäftigungsverhältnisse{zusatz}, {zeitraum}."
             ersetzt = durchschnitts_satz
     if "anteil" in frage.lower() and gruppen == (GESCHLECHT,) and von == bis:
         summe = sum(int(z["wert"]) for z in zahlen)
@@ -1322,7 +1341,11 @@ def _text_bestand(
                 f"auf {_deutsch(je_monat[letzter])}."
             )
             if len(monate) <= MONATE_IM_TEXT and not gruppen:
-                text += " Je Monat: " + ", ".join(f"{_monat_anzeige(m)} {_deutsch(je_monat[m])}" for m in monate) + "."
+                text += (
+                    " Je Monat: "
+                    + ", ".join(f"{_monat_anzeige(m)} {_deutsch(je_monat[m])}" for m in monate)
+                    + "."
+                )
         if gruppen:
             text += f" Aufgeteilt nach {', '.join(g.name for g in gruppen)}, eine Zahl je Monat und Gruppe."
         return text

@@ -46,7 +46,9 @@ def _fragen(conn: Verbindung, zeile: Zeile, soll: Soll) -> list[tuple[str, Urtei
                 ergebnisse.append((weg, urteilen(zeile, soll, antwort, kern_satz(antwort["text"]))))
         except Exception as fehler:  # Ein Absturz ist für die Jury so schlimm wie eine falsche Zahl.
             conn.rollback()
-            ergebnisse.append((weg, Urteil("falsch", f"Absturz: {type(fehler).__name__}: {fehler}", ziel=False)))
+            ergebnisse.append(
+                (weg, Urteil("falsch", f"Absturz: {type(fehler).__name__}: {fehler}", ziel=False))
+            )
     return ergebnisse
 
 

@@ -23,7 +23,9 @@ _FESTE_ZAHLEN = frozenset({1000})
 _GROSSE_ZAHL = re.compile(r"(?<![\d.,])\d{1,3}(?:\.\d{3})+(?![\d])")
 _RUECKFRAGE = re.compile(r"\?")
 #: Sätze, die vom Kern nichts aussagen; in der Kette darf keiner davon als Einziges stehen bleiben.
-_NUR_DEFINITION = re.compile(r"heißt hier|^Gemeint ist|^Ohne Zeitangabe|^Mit (?:den )?\w+ (?:ist|sind) hier|^Verstanden:")
+_NUR_DEFINITION = re.compile(
+    r"heißt hier|^Gemeint ist|^Ohne Zeitangabe|^Mit (?:den )?\w+ (?:ist|sind) hier|^Verstanden:"
+)
 
 
 # --- Katalog ----------------------------------------------------------------------------------------------------
@@ -271,7 +273,8 @@ def _soll_fluktuation(conn: Any, zeile: Zeile) -> Soll:
         ).fetchall()
     }
     bestand = {
-        str(z["gruppe"]): int(z["wert"]) for z in _bestand(conn, Zeile(**{**zeile.__dict__, "filter": {}}), "oenace")
+        str(z["gruppe"]): int(z["wert"])
+        for z in _bestand(conn, Zeile(**{**zeile.__dict__, "filter": {}}), "oenace")
     }
     codes = None
     if "branche" in zeile.filter:
@@ -356,16 +359,22 @@ def urteilen(zeile: Zeile, soll: Soll, antwort: dict[str, Any], kern: str | None
         if zeile.soll == "definition":
             if "text" in zeile.optionen and zeile.optionen["text"] not in text:
                 return Urteil(ausgang, f"Text fehlt: {zeile.optionen['text']}", mangel, False)
-            return Urteil("richtig", "", mangel) if ausgang == "absage" else Urteil(ausgang, "", mangel, False)
+            return (
+                Urteil("richtig", "", mangel) if ausgang == "absage" else Urteil(ausgang, "", mangel, False)
+            )
         if zeile.soll == ausgang:
             return Urteil("richtig", "", mangel)
         erlaubt = zeile.soll in ("rueckfrage", "absage") or ausgang in zeile.auch
         return Urteil(ausgang, "" if erlaubt else "Zahl erwartet", mangel, erlaubt)
     if "frei" in zeile.optionen and zeile.soll == "zahl":
-        return Urteil("richtig", "", mangel)  # Tabelle, die der Katalog nicht nachrechnet (Summe prüft test_frage).
+        return Urteil(
+            "richtig", "", mangel
+        )  # Tabelle, die der Katalog nicht nachrechnet (Summe prüft test_frage).
     if zeile.soll != "zahl" and "zahl" not in zeile.auch:
         wert = zahlen[0].get("wert")
-        return Urteil("falsch", f"Zahl statt {zeile.soll}: {wert} ({zahlen[0].get('bezeichnung')})", ziel=False)
+        return Urteil(
+            "falsch", f"Zahl statt {zeile.soll}: {wert} ({zahlen[0].get('bezeichnung')})", ziel=False
+        )
     if not soll.pflicht:
         return Urteil("falsch", f"Zahl, obwohl es im Soll keine gibt: {zahlen[0].get('wert')}", ziel=False)
     werte = [float(z["wert"]) for z in zahlen if z.get("wert") is not None]
@@ -388,7 +397,9 @@ def urteilen(zeile: Zeile, soll: Soll, antwort: dict[str, Any], kern: str | None
             if z not in _FESTE_ZAHLEN and not any(_gleich(float(z), w) for w in bekannt)
         ]
         if im_text:
-            return Urteil("falsch", f"Zahl im Text, die nicht zur Frage gehört: {_deutsch(im_text[0])}", ziel=False)
+            return Urteil(
+                "falsch", f"Zahl im Text, die nicht zur Frage gehört: {_deutsch(im_text[0])}", ziel=False
+            )
     if "text" in zeile.optionen and zeile.optionen["text"] not in text:
         return Urteil("falsch", f"Hinweis fehlt im Text: {zeile.optionen['text']}", ziel=False)
     if kern is not None and not re.search(r"\d[\d.,]*", _ohne_monatsangabe(kern)):

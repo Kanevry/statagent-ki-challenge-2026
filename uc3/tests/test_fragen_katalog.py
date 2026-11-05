@@ -35,7 +35,9 @@ def test_keine_falsche_zahl(ergebnisse: list[tuple[Zeile, str, Urteil]]) -> None
 
 
 def test_verstandene_frage_bekommt_die_zahl(ergebnisse: list[tuple[Zeile, str, Urteil]]) -> None:
-    offen = [f"{z.id} [{w}] {z.frage}: {u.urteil}" for z, w, u in ergebnisse if z.muss and u.urteil != "richtig"]
+    offen = [
+        f"{z.id} [{w}] {z.frage}: {u.urteil}" for z, w, u in ergebnisse if z.muss and u.urteil != "richtig"
+    ]
     assert not offen, "\n".join(offen)
 
 

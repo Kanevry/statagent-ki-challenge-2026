@@ -271,9 +271,12 @@ def test_vertrag_ucantwort(gerechnet: Verbindung, frage: str) -> None:
 # Fängt (Owner 05.11., „Winter 2025 in Wien im Gesundheits- und Sozialwesen“): Über den ÖNACE-Wechsel gab es nur den Satz
 # „Winter 2025 heißt hier …“. Gleicher Name in beiden Versionen heißt: die Zahl, mit dem Abschnitt je Monat.
 def test_branche_ueber_oenace_wechsel_zeigt_die_zahl(gerechnet: Verbindung) -> None:
-    daten = uc4_antwort(gerechnet, "Beschäftigte in Wien im Gesundheits- und Sozialwesen von 08/2024 bis 03/2025")
+    daten = uc4_antwort(
+        gerechnet, "Beschäftigte in Wien im Gesundheits- und Sozialwesen von 08/2024 bis 03/2025"
+    )
     soll = [
-        _direkt_monat(gerechnet, monat, " AND region = '9' AND oenace = 'Q'") for monat in ("2024-08", "2024-09")
+        _direkt_monat(gerechnet, monat, " AND region = '9' AND oenace = 'Q'")
+        for monat in ("2024-08", "2024-09")
     ]
     assert _werte(daten)[:2] == soll
     sql_text = " ".join(b["sql"] for b in daten["belege"])

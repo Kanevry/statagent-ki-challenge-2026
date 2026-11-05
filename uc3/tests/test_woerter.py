@@ -114,7 +114,10 @@ def test_veraenderung_zeigt_zwei_monate(conn: Verbindung) -> None:
 # Fängt (Katalog): „in Wien, aktuell“ und „in Wien, nach Geschlecht“ galten hinter dem Komma als unbekannter Ort.
 @pytest.mark.parametrize(
     "frage",
-    ["Die Beamten in Wien, aktuell", "Beschäftigte in Wien, nach Geschlecht aufgeschlüsselt, im September 2024"],
+    [
+        "Die Beamten in Wien, aktuell",
+        "Beschäftigte in Wien, nach Geschlecht aufgeschlüsselt, im September 2024",
+    ],
 )
 def test_bekanntes_wort_hinter_dem_komma(conn: Verbindung, frage: str) -> None:
     lauf_ausfuehren(conn, "2024-08", "v1")
