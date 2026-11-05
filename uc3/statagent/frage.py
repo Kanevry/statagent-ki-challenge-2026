@@ -159,7 +159,15 @@ ALTER_GRUND = (
     "Das Durchschnittsalter und Geburtsjahrgänge wertet StatAgent nicht aus. Es gibt Zahlen zu "
     "einem Alter oder einer Spanne, zum Beispiel „Beschäftigte unter 25 Jahren im Juli 2026“."
 )
+DURCHGEHEND_GRUND = f"Wie lange jemand im Monat beschäftigt war, wertet StatAgent nicht aus. {KANN}"
 NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
+    # „den ganzen Monat beschäftigt“ meint durchgehend. Beide Zählweisen zählen etwas anderes (letzter Tag, irgendwann).
+    (
+        re.compile(
+            r"\b(?:den|die)\s+(?:ganzen|gesamten)\s+monat|\bganze\s+monate|\bdurchgehend\s+beschäftigt"
+        ),
+        DURCHGEHEND_GRUND,
+    ),
     # Dauer vor Alter prüfen: „seit über 2 Jahren beschäftigt“ ist keine Altersfrage, aber genauso nicht in den Daten.
     (
         re.compile(
@@ -366,8 +374,10 @@ def nicht_auswertbar(frage: str, mittel: bool = False) -> str | None:
         if mittel and grund.startswith("Durchschnitte") and "median" not in text:
             continue
         if muster.search(text):
-            # Das Beispiel der Alters-Absage sagt schon, was geht.
-            return grund if grund is ALTER_GRUND else f"{grund} Darum gibt es hier keine Zahl. {KANN}"
+            # Diese beiden Absagen sagen schon selbst, was geht.
+            if grund is ALTER_GRUND or grund is DURCHGEHEND_GRUND:
+                return grund
+            return f"{grund} Darum gibt es hier keine Zahl. {KANN}"
     return None
 
 
@@ -539,9 +549,17 @@ _BEZUG = re.compile(
 
 #: Die Frage meint den Regelsatz v2 (Änderungsaufträge, Zählung je Monat). Standard bleibt v1.
 _V2_WORT = re.compile(
-    r"(?<!\w)v2(?!\w)|regelsatz\s*(?:2|zwei)(?!\w)|änderungsauftr|aenderungsauftr|ganze[nmr]?\s+monat",
+    r"(?<!\w)v2(?!\w)|regelsatz\s*(?:2|zwei)(?!\w)|änderungsauftr|aenderungsauftr|im\s+(?:ganzen|gesamten)\s+monat",
     re.IGNORECASE,
 )
+_V1_WORT = re.compile(r"(?<!\w)v1(?!\w)|regelsatz\s*(?:1|eins)(?!\w)", re.IGNORECASE)
+#: Die Angabe des Regelsatzes in der Frage. Sie ist weder Bezug noch Merkmal und darf die Gliederung nicht verdecken.
+_V2_ANGABE = re.compile(
+    r"(?:(?<!\w)(?:nach|laut|gemäß|im|in|und)\s+)?(?:(?<!\w)(?:dem|den|der)\s+)?"
+    r"(?:regelsatz\s*(?:v?2|zwei)(?!\w)|(?<!\w)v2(?!\w)|(?:änderungs|aenderungs)auftr\w*)",
+    re.IGNORECASE,
+)
+_V2_UND_GLIEDERUNG = re.compile(r"(?<!\w)nach\s+(?:regelsatz\s*)?v2\s+und\s+(?:nach\s+)?", re.IGNORECASE)
 
 
 def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str, Any]:
@@ -557,13 +575,31 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
     absage = nicht_auswertbar(frage, mittel=True)
     if absage is not None:
         return _antwort(typ, absage, hinweise=[absage])
-    if "anteil" in frage.lower() or not _adapter_liest_gleich(conn, frage, regelsatz):
+    beispiel = "Zum Beispiel „Beschäftigte in Wien im Juli 2026 nach Regelsatz v2“."
+    nicht_lesbar = (
+        f"Im Regelsatz {regelsatz} gibt es nur Zahlen nach Monat, Bundesland, Geschlecht, Branche und "
+        f"Beschäftigungskategorie. {beispiel}"
+    )
+    if "anteil" in frage.lower():
+        return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
+    beide = _V1_WORT.search(frage) is not None
+    frage = _V1_WORT.sub(" ", _V2_ANGABE.sub(" ", _V2_UND_GLIEDERUNG.sub("nach ", frage)))
+    letzter = _letzter_monat(conn, regelsatz) or LETZTE_LIEFERUNG
+    try:
+        ohne_bezug = _ohne_bezug(conn, frage, letzter)
+    except _KeineZahl:
+        ohne_bezug = True
+    if ohne_bezug and not monate_lesen(frage) and jahr_ohne_monat(frage) is None:
         text = (
-            f"Im Regelsatz {regelsatz} gibt es Zahlen nach Monat, Bundesland, Geschlecht, Branche und "
-            "Beschäftigungskategorie. Diese Einschränkung kann die Datenanfrage dort nicht lesen. "
-            "Zum Beispiel „Beschäftigte in Wien im Juli 2026 nach Regelsatz v2“."
+            f"Im Regelsatz {regelsatz} zählt ein Verhältnis, wenn es irgendwann im Monat bestand. "
+            f"Im Regelsatz v1 zählt der letzte Tag des Monats. {beispiel}"
         )
         return _antwort(typ, text, hinweise=[text])
+    if beide:
+        text = f"Die Datenanfrage zeigt immer nur einen Regelsatz. Fragen Sie je einmal. {beispiel}"
+        return _antwort(typ, text, hinweise=[text])
+    if ohne_bezug or not _adapter_liest_gleich(conn, frage, regelsatz):
+        return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
     daten = antwort_daten(conn, frage, regelsatz)
     text = f"Nach Regelsatz {regelsatz}: {daten['text']}" if daten["zahlen"] else daten["text"]
     return _antwort(typ, text, belege=daten["belege"], zahlen=daten["zahlen"])

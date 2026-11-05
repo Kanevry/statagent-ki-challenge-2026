@@ -97,12 +97,76 @@ def test_ohne_v2_wort_bleibt_v1(mit_v2: Verbindung) -> None:
     ("frage", "wort"),
     [
         ("Fluktuation im August 2024 nach Regelsatz v2", "nur im Regelsatz v1"),
-        ("Frauenanteil im August 2024 nach Regelsatz v2", "nicht lesen"),
-        ("Beschäftigte unter 25 Jahren im August 2024 nach Regelsatz v2", "nicht lesen"),
-        ("Beschäftigte nach Altersgruppe im August 2024 nach Regelsatz v2", "nicht lesen"),
+        ("Frauenanteil im August 2024 nach Regelsatz v2", "gibt es nur Zahlen nach"),
+        ("Beschäftigte unter 25 Jahren im August 2024 nach Regelsatz v2", "gibt es nur Zahlen nach"),
+        ("Beschäftigte nach Altersgruppe im August 2024 nach Regelsatz v2", "gibt es nur Zahlen nach"),
         ("Person 1234567 im August 2024 nach Regelsatz v2", "Einzeldaten"),
     ],
 )
 def test_v2_absagen(mit_v2: Verbindung, frage: str, wort: str) -> None:
     daten = antwort_frage(mit_v2, frage)
     assert daten["zahlen"] == [] and wort in daten["text"]
+
+
+# Fängt: „Was ist Regelsatz v2?“ bekam die Monatszahl, obwohl niemand nach einer Zahl gefragt hat.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Was ist Regelsatz v2?",
+        "Regelsatz v2",
+        "Welche Änderungsaufträge gibt es?",
+        "Wurde der Änderungsauftrag umgesetzt?",
+        "Was steht im Änderungsauftrag?",
+        "Was ist der Unterschied zwischen v1 und v2?",
+        "Wie unterscheiden sich die Zahlen in v1 und v2?",
+    ],
+)
+def test_frage_ohne_zahlwunsch_bekommt_die_erklaerung(mit_v2: Verbindung, frage: str) -> None:
+    daten = antwort_frage(mit_v2, frage)
+    assert daten["zahlen"] == []
+    assert "irgendwann im Monat" in daten["text"] and "letzte Tag des Monats" in daten["text"]
+
+
+# Gegenfall: Monat und Merkmal ohne Wort zum Bestand bleiben eine Frage nach der Zahl.
+@pytest.mark.parametrize(
+    "frage",
+    ["August 2024 nach Regelsatz v2", "Frauen im August 2024 nach Regelsatz v2", "Regelsatz v2 August 2024"],
+)
+def test_monat_und_v2_bleibt_eine_zahl(mit_v2: Verbindung, frage: str) -> None:
+    assert antwort_frage(mit_v2, frage)["zahlen"]
+
+
+# Fängt: Ein unbekanntes Wort neben Monat und v2 bekam trotzdem den ganzen Bestand.
+def test_unsinn_mit_v2_bekommt_keine_zahl(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "asdf im August 2024 nach Regelsatz v2")
+    assert daten["zahlen"] == [] and "gibt es nur Zahlen nach" in daten["text"]
+
+
+# Fängt: Wer zu einem Monat beide Regelsätze nennt, bekam still nur einen oder eine Absage ohne Weg.
+def test_beide_regelsaetze_einzeln_fragen(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "Vergleiche August 2024 in v1 und v2")
+    assert daten["zahlen"] == [] and "nur einen Regelsatz" in daten["text"]
+
+
+# Fängt: „den ganzen Monat beschäftigt“ meint durchgehend; v2 zählt aber „irgendwann im Monat“, also etwas anderes.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Wie viele waren den ganzen Monat August 2024 beschäftigt?",
+        "Wie viele Beschäftigte haben ganze Monate gearbeitet im August 2024?",
+        "Wie viele waren im August 2024 durchgehend beschäftigt?",
+        "Wie viele waren den ganzen Monat August 2024 nach Regelsatz v2 beschäftigt?",
+    ],
+)
+def test_durchgehend_beschaeftigt_gibt_keine_zahl(mit_v2: Verbindung, frage: str) -> None:
+    daten = antwort_frage(mit_v2, frage)
+    assert daten["zahlen"] == [] and daten["text"].startswith(
+        "Wie lange jemand im Monat beschäftigt war, wertet"
+    )
+    assert "Darum gibt es" not in daten["text"] and "StatAgent beantwortet" in daten["text"]
+
+
+# Fängt: Die v2-Angabe verdeckte die Gliederung, die Aufteilung fiel still weg.
+def test_gliederung_neben_v2_bleibt(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "Beschäftigte im August 2024 nach v2 und Bundesland")
+    assert len(daten["zahlen"]) > 1
