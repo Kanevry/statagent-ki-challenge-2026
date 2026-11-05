@@ -46,12 +46,14 @@ uhr = lambda s: bool(re.search(r"\b\d{1,2}:\d{2}\b", s))
 print("start_ende", int(uhr(feld("Start (Uhr)")) and uhr(feld("Ende (Uhr)"))))
 g = re.match(r"(\d{1,2}):(\d{2})\b", feld("Gesamtdauer Ist"))
 print("gesamt_le_10min", int(bool(g) and 0 < int(g[1]) * 60 + int(g[2]) <= 600))
-ab = 0
+ab = zeilen = 0
 for z in t.splitlines():
     c = [x.strip() for x in z.strip().strip("|").split("|")]
-    if len(c) == 7 and re.fullmatch(r"\d+|8[a-e]", c[0]) and c[4] and c[5] and c[6]:
-        ab += 1
+    if len(c) == 7 and re.fullmatch(r"\d+|8[a-e]", c[0]):
+        zeilen += 1
+        ab += bool(c[4] and c[5] and c[6])
 print("abschnitte_gefuellt", ab)
+print("abschnitte_alle_gefuellt", int(zeilen >= 15 and ab == zeilen))
 pf = 0
 for z in t.splitlines():
     c = [x.strip() for x in z.strip().strip("|").split("|")]
@@ -61,12 +63,12 @@ print("pflichtschritte_bestaetigt", pf)
 m = re.search(r"Ergebnis: (\d) von 5 bestätigt", t)
 print("ergebnis", m.group(1) if m else "offen")
 ' '''
-erwartet = ['^start_ende 1$', '^gesamt_le_10min 1$', '^abschnitte_gefuellt 15$', '^pflichtschritte_bestaetigt 5$', '^ergebnis 5$']
+erwartet = ['^start_ende 1$', '^gesamt_le_10min 1$', '^abschnitte_alle_gefuellt 1$', '^pflichtschritte_bestaetigt 5$', '^ergebnis 5$']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #90, Kriterium 90-1 (Wortlaut: Start/Ende, Abschnittszeiten, Gesamtdauer höchstens 10:00, 5/5 Schritte vom Lead bestätigt); 15 Abschnitte und 5 Pflichtschritte stehen in probe.md"
+quelle = "Issue #90, Kriterium 90-1 (Wortlaut: Start/Ende, Abschnittszeiten, Gesamtdauer höchstens 10:00, 5/5 Schritte vom Lead bestätigt); Abschnitte und Pflichtschritte wie in probe.md (15, mit !215 19 für Pfad A und B; Gesamtdauer Ist ist dann Pfad B)"
 befund = "probe.md ist nicht ausgefüllt: Start, Ende, Gesamtdauer, Abschnittszeiten oder die Bestätigung der fünf Pflichtschritte durch den Lead fehlen, oder die Gesamtdauer liegt über 10:00."
-grund = "probe.md hat Start, Ende, 15 Abschnittszeiten und eine Gesamtdauer von höchstens 10:00, und der Lead hat 5 von 5 Pflichtschritten bestätigt."
+grund = "probe.md hat Start, Ende, alle Abschnittszeiten und eine Gesamtdauer von höchstens 10:00, und der Lead hat 5 von 5 Pflichtschritten bestätigt."
 
 [[pruefung]]
 id = "90-1"
