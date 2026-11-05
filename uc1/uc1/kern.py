@@ -482,7 +482,9 @@ def _antwort_prompt(sprache: Sprache, stil: Stil, modus: Modus = "text") -> str:
         "hängt das System selbst an.\n"
         "9. Einfach, aber mit den Wörtern des Zitats: kurzer Hauptsatz, aktiv, zuerst die Leistung. "
         "Amtsdeutsch sagst du einfacher, nur wo die Bedeutung gleich bleibt. Wähle das Zitat so, dass es "
-        "genau den Teil enthält, den deine Aussage sagt. Keine Personen, die nicht im Zitat stehen. "
+        "genau den Teil enthält, den deine Aussage sagt, und bis zum Satzende reicht. Steht im Zitat eine "
+        "Bedingung (wenn, sofern, bei Vorliegen, nach Abs.), gehört sie in die Aussage. Keine Personen, die "
+        "nicht im Zitat stehen. "
         "Keine Floskeln (kein „gerne“, „bitte beachten Sie“, „zusammenfassend“), keine Gedankenstriche, "
         "kein „zudem“ oder "
         "„darüber hinaus“, keine Aufzählung in einem Satz."
@@ -523,6 +525,51 @@ def zitat_gueltig(zitat: str, abschnitt_text: str) -> bool:
     if len(kern.split()) < MIN_WOERTER and len(kern) < MIN_ZEICHEN:
         return False
     return zitat_treu(kern, normalisiere(abschnitt_text))
+
+
+# Zitat bis zum Satzende (Sichtprüfung #35): Ein Zitat, das mitten im Satz endet, kann das Gegenteil der
+# Aussage lesen lassen („… erhalten für die Dauer von vier Wochen“ ohne „… kein Arbeitslosengeld.“).
+_ABKUERZUNG = re.compile(
+    r"(?:^|[\s(])(?:Abs|Art|Z|Nr|lit|bzw|vgl|ca|idF|iVm|gem|Pkt|bzgl|insb|usw|etc|Dr|Mag|[a-zA-Z])$"
+)
+ZITAT_VERLAENGERUNG = 300  # höchstens so viele Zeichen über das Modell-Zitat hinaus
+
+
+def _satzende(text: str, ab: int) -> int | None:
+    """Index direkt nach dem nächsten Satzende ab Position ``ab`` (``;``, ``!``, ``?`` oder ein Punkt vor
+    Großbuchstabe bzw. Textende, nicht nach einer Abkürzung wie „Abs.“), sonst None."""
+    for i in range(ab, min(len(text), ab + ZITAT_VERLAENGERUNG)):
+        zeichen = text[i]
+        danach = text[i + 1 : i + 3]
+        if zeichen in ";!?" and (not danach or danach[0] == " "):
+            return i + 1
+        satzpunkt = zeichen == "." and (not danach or (danach[0] == " " and danach[1:2].isupper()))
+        if satzpunkt and not _ABKUERZUNG.search(text[max(0, i - 6) : i]):
+            return i + 1
+    return None
+
+
+def vervollstaendige_zitat(zitat: str, abschnitt_text: str) -> str:
+    """Verlängert ein gültiges Zitat bis zum Satzende im Abschnitt; eine angerissene Aufzählung am Ende
+    („…; Stufe 2:“) fällt weg. Liefert das Zitat unverändert, wenn es nichts zu tun gibt oder das Ergebnis
+    nicht mehr gültig wäre."""
+    kern = " ".join(normalisiere(zitat).split())
+    voll = " ".join(normalisiere(abschnitt_text).split())
+    anfang = voll.find(kern)
+    if anfang < 0 or not kern:
+        return zitat
+    ende = anfang + len(kern)
+    if kern.endswith(":"):
+        schnitt = max(kern.rfind("; "), kern.rfind(". "))
+        neu = kern[: schnitt + 1] if schnitt > 0 else kern
+    elif kern[-1] in ".;!?":
+        return zitat
+    else:
+        stop = _satzende(voll, ende)
+        if stop is None:
+            return zitat
+        neu = voll[anfang:stop]
+    return neu if neu != kern and zitat_gueltig(neu, abschnitt_text) else zitat
 
 
 # Deckung: Aussage gegen Zitat und Kontext (daten/deckung.yaml). Grob gestammt: eine Endung ab, Rest ≥ 4.
@@ -636,6 +683,7 @@ def pruefe_aussagen(
                 }
             )
             continue
+        zitat = vervollstaendige_zitat(zitat, t.text)
         stand = stand_von(t)
         hat_betrag = bool(betraege(text))
         gueltig.append(
@@ -926,6 +974,10 @@ def naechste_schritte(
             schritte.append(tx["schritt_unterlage"].format(text=unterlage["text"], quelle=quelle))
         if leistung.get("antrag") and formular:
             schritte.append(tx["schritt_antrag"].format(**formular))
+    # Hilfe im Alltag nur, wenn eine erkannte Leistung sie vorsieht (daten/leistungen.yaml `alltagshilfe`);
+    # sonst schickte ein Katalogtreffer z. B. beim Arbeitslosengeld zum Pflegegeld-Antrag (Sichtprüfung #35).
+    if not any(leistungen()[lid].get("alltagshilfe") for lid in leistung_ids):
+        angebote = []
     # Ein Angebot aus demselben Formular wie der Antrag wäre doppelt; je Datei nur ein Schritt.
     formulare = {(leistungen()[lid].get("formular") or {}).get("datei") for lid in leistung_ids}
     dateien = list(dict.fromkeys(t.datei for t in angebote if t.datei not in formulare))

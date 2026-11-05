@@ -20,8 +20,8 @@ felder:
     rang: 1
     bezeichnung: {de: "wer die Pension zahlt", en: "who pays the pension"}
     rueckfrage:
-      de: "Von wem bekommt die Person ihre Pension? Zum Beispiel PVA, SVS oder BVAEB. Sie können auch sagen: keine Pension."
-      en: "Who pays the person's pension? For example PVA, SVS or BVAEB. You can also say: no pension."
+      de: "Wer zahlt die Pension? Meist ist das die Pensionsversicherung (PVA), sonst die Versicherung für Selbständige (SVS) oder die für Beamte und Bahn (BVAEB). Sie können auch sagen: keine Pension."
+      en: "Who pays the pension? Usually the pension insurance (PVA), otherwise the insurance for the self-employed (SVS) or for civil servants and railways (BVAEB). You can also say: no pension."
   person:
     rang: 2
     bezeichnung: {de: "wer die Hilfe braucht", en: "who needs the help"}
@@ -56,6 +56,8 @@ felder:
 
 leistungen:
   pflegegeld:
+    # Hilfe im Alltag (Kataloge, FSW): nur hier als nächster Schritt, Sichtprüfung #35
+    alltagshilfe: true
     name: {de: "Pflegegeld", en: "care allowance (Pflegegeld)"}
     lage: "Pflegebedarf"
     ausloeser:
@@ -86,6 +88,8 @@ leistungen:
       - text: "Kopien Ihrer Befunde von Arzt, Ärztin oder Krankenhaus"
         quelle: "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 2"
   pflegekarenzgeld:
+    # Hilfe im Alltag (Kataloge, FSW): nur hier als nächster Schritt, Sichtprüfung #35
+    alltagshilfe: true
     name: {de: "Pflegekarenzgeld", en: "care leave allowance (Pflegekarenzgeld)"}
     lage: "Pflege einer angehörigen Person neben der Arbeit"
     ausloeser:

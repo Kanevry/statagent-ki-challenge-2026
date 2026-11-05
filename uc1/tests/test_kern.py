@@ -312,7 +312,9 @@ def test_pflege_szenario_zwei_wechsel_buendel() -> None:
     assert zweite.traeger[0]["stelle"] == "PVA"
     assert any("PAL080" in s for s in zweite.naechste_schritte)
     assert any("FSW-Antrag auf Förderung, S. 1" in s for s in zweite.naechste_schritte)
-    assert speicher.belege == [(erste.sitzung_id, 101, GUELTIG["zitat"])]
+    # Zitat bis zum Satzende verlängert (Sichtprüfung #35)
+    voll = kern.vervollstaendige_zitat(GUELTIG["zitat"], BPGG_4)
+    assert speicher.belege == [(erste.sitzung_id, 101, voll)]
 
 
 def test_ohne_gueltige_aussage_abstinenz_und_uebergabe() -> None:
@@ -375,7 +377,7 @@ def test_englische_frage_englische_antwort_deutsches_zitat() -> None:
         speicher=kern.SpeicherImSpeicher(),
     )
     assert a.sprache == "en" and "(BPGG § 4)." in a.text and "Next steps:" in a.text
-    assert a.aussagen[0].zitat == GUELTIG["zitat"]
+    assert a.aussagen[0].zitat == kern.vervollstaendige_zitat(GUELTIG["zitat"], BPGG_4)
 
 
 def test_stil_einfach_kurze_saetze() -> None:
@@ -716,3 +718,48 @@ def test_em_dash_aus_dem_modell_geht_nicht_raus() -> None:
     )
     assert a.verhalten == "antwort" and "—" not in a.text
     assert a.text.startswith("Pflegegeld gibt es: bei ständigem Pflegebedarf (BPGG § 4).")
+
+
+ALVG_11 = (
+    "(1) Arbeitslose, deren Dienstverhältnis infolge eigenen Verschuldens beendet worden ist oder die "
+    "ihr Dienstverhältnis freiwillig gelöst haben, erhalten für die Dauer von vier Wochen, gerechnet vom "
+    "Tage der Beendigung des Dienstverhältnisses an, kein Arbeitslosengeld. Abs. 2 bleibt unberührt."
+)
+
+
+def test_zitat_endet_am_satzende_nicht_mitten_im_satz() -> None:
+    """Fängt ein Zitat, das vor dem entscheidenden Satzteil abbricht und das Gegenteil lesen lässt
+    („… für die Dauer von vier Wochen“ ohne „kein Arbeitslosengeld“, Sichtprüfung #35)."""
+    zitat = "die ihr Dienstverhältnis freiwillig gelöst haben, erhalten für die Dauer von vier Wochen"
+    neu = kern.vervollstaendige_zitat(zitat, ALVG_11)
+    assert neu.endswith("kein Arbeitslosengeld.")
+    assert kern.zitat_gueltig(neu, ALVG_11)
+
+
+def test_zitat_ohne_angerissene_aufzaehlung() -> None:
+    """Fängt ein Zitat, das mit dem Anfang des nächsten Listenpunkts endet („…; Stufe 2:“)."""
+    text = (
+        "Stufe 1: für Personen, deren Pflegebedarf durchschnittlich mehr als 65 Stunden monatlich beträgt; "
+        "Stufe 2: für Personen, deren Pflegebedarf durchschnittlich mehr als 95 Stunden monatlich beträgt;"
+    )
+    zitat = text.split(" für Personen, deren Pflegebedarf durchschnittlich mehr als 95")[0]
+    assert kern.vervollstaendige_zitat(zitat, text).endswith("65 Stunden monatlich beträgt;")
+
+
+def test_hilfe_im_alltag_nur_bei_pflege() -> None:
+    """Fängt einen Katalogtreffer, der ohne Pflege-Leistung als „Hilfe im Alltag“ in die nächsten Schritte
+    rutscht (Arbeitslosengeld schickte zum Pflegegeld-Antrag, Sichtprüfung #35)."""
+    angebot = treffer(
+        900,
+        "Pflege und Betreuung zu Hause",
+        gesetz=None,
+        nummer=None,
+        quelle="katalog",
+        datei="Anträge und Formulare/fsw.pdf",
+        seite=5,
+    )
+    assert not any(
+        "Hilfe im Alltag" in s for s in kern.naechste_schritte(["krankengeld"], [], [angebot], "de")
+    )
+    assert not any("Hilfe im Alltag" in s for s in kern.naechste_schritte([], [], [angebot], "de"))
+    assert any("Hilfe im Alltag" in s for s in kern.naechste_schritte(["pflegegeld"], [], [angebot], "de"))
