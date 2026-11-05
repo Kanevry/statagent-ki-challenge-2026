@@ -557,3 +557,15 @@ def test_v2_texte_folgen_der_monatszaehlung_und_r10_nur_mit_verweis() -> None:
     )
     v1 = "\n".join(_md_revision(revision | {"veroeffentlicht_gibt_es": True}))
     assert "| Berichtsmonat | veröffentlicht |" in v1 and "| 2025-08 | 10 (vorläufig) |" in v1
+
+
+def test_im_zeitraum_laesst_den_bezugstag_des_alters_stehen() -> None:
+    # Fängt: In v2 stand „Alter in vollendeten Jahren im Berichtsmonat“, das Alter gilt aber am Stichtag
+    # (Review 5a, 05.11.); der Kopf des Bestands-Belegs folgt dagegen dem Zählzeitraum.
+    from statagent.berichte.qualitaetsbericht import im_zeitraum
+
+    alter = "Alter in vollendeten Jahren am Stichtag (E03, R5)"
+    kopf = "-- _bestand: Verhältnisse am Stichtag nach Abschnittswahl"
+    assert im_zeitraum(alter, "Monat") == alter
+    assert im_zeitraum(kopf, "Monat") == "-- _bestand: Verhältnisse im Berichtsmonat nach Abschnittswahl"
+    assert im_zeitraum(kopf, "Stichtag") == kopf

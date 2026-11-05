@@ -288,10 +288,18 @@ def _hat_tabelle(conn: Verbindung, name: str) -> bool:
 ZEITRAUM_TEXT = {"Stichtag": "am Stichtag", "Monat": "im Berichtsmonat (mindestens ein Tag)"}
 
 
+#: „am Stichtag“ als Zählzeitraum, nicht als Bezugstag des Alters („… vollendeten Jahren am Stichtag“).
+_AM_STICHTAG_ZAEHLUNG = re.compile(r"(?<!Jahren )am Stichtag")
+
+
 def im_zeitraum(text: str, art: str) -> str:
     """Gespeicherte Befundtexte (Satzvorlagen und Umfang der Prüfregeln) sagen „am Stichtag“. Zählt der
     Regelsatz über den Monat, heißt es im Bericht „im Berichtsmonat“; die freigegebenen Regeln bleiben gleich."""
-    return text.replace("am Stichtag", "im Berichtsmonat") if art == "Monat" else text
+    if art != "Monat":
+        return text
+    # Das Alter gilt weiter am Stichtag („Alter in vollendeten Jahren am Stichtag“, Review 5a); nur der Zählzeitraum
+    # wechselt. Der Kopf des Bestands-Belegs („-- _bestand: Verhältnisse am Stichtag …“) folgt dem Zeitraum.
+    return _AM_STICHTAG_ZAEHLUNG.sub("im Berichtsmonat", text)
 
 
 def zeitraum_text(art: str) -> str:
@@ -662,7 +670,7 @@ def _auffaelligkeiten_daten(
                 "massnahme": im_zeitraum(als_satz(t["massnahme"]), art),
                 "anhalten": bool(t["anhalten"]),
                 "rueckfragen": _rueckfrage_spalte(t, rueckfragen, lieferung, ausfall),
-                "beleg_sql": str(t["beleg_sql"] or "").strip() or None,
+                "beleg_sql": im_zeitraum(str(t["beleg_sql"] or "").strip(), art) or None,
             }
         )
     return aus

@@ -154,7 +154,7 @@ def _eine_zeile(k: Kontext, abfrage: Abfrage | str, params: Mapping[str, Any]) -
     return zeile
 
 
-_BESTAND_KOPF = "_bestand: Verhältnisse am Stichtag nach Abschnittswahl (statagent.zaehlung) im Lauf {lauf}"
+_BESTAND_KOPF = "_bestand: Verhältnisse {zeitraum} nach Abschnittswahl (statagent.zaehlung) im Lauf {lauf}"
 
 
 def _saetze(
@@ -179,7 +179,8 @@ def _saetze(
     z = _eine_zeile(k, abfrage, params)
     n = _int(z["n"])
     beispiele = [int(v) for v in z["beispiele"]] if isinstance(z["beispiele"], list) else []
-    kopf = _BESTAND_KOPF.format(lauf=k.lauf_id) if bestand else None
+    zeitraum = "im Berichtsmonat" if k.zeitraum_art == "Monat" else "am Stichtag"
+    kopf = _BESTAND_KOPF.format(zeitraum=zeitraum, lauf=k.lauf_id) if bestand else None
     return Befund(
         anzahl=n,
         umfang=f"{_n(n)} {einheit}",
