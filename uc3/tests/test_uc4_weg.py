@@ -298,3 +298,17 @@ def test_winter_ganz_ausserhalb_fragt_nach_dem_nachbarn(gerechnet: Verbindung) -
     assert daten["zahlen"] == []
     assert daten["text"].startswith("Für Dezember 2023 bis Februar 2024 gibt es keine Zahl")
     assert "Winter 2024/25, also Dezember 2024 bis Februar 2025?" in daten["text"]
+
+
+# Fängt: Ein Monat ohne Lieferung zeigte in der Station nur „Verstanden: Juli 2024.“
+def test_ohne_zahl_ist_verstanden_nicht_der_erste_satz(gerechnet: Verbindung) -> None:
+    daten = uc4_antwort(gerechnet, "Beschäftigte im Juli 2024")
+    assert daten["zahlen"] == [] and not daten["text"].startswith("Verstanden")
+    assert daten["text"].startswith("Für Juli 2024 gibt es keine Lieferung")
+
+
+# Fängt: „im Durchschnitt“ galt nach „im“ als unbekanntes Merkmal und ergab die Absage.
+def test_im_durchschnitt_ist_kein_merkmal(gerechnet: Verbindung) -> None:
+    lauf_ausfuehren(gerechnet, "2024-10", "v1")
+    daten = uc4_antwort(gerechnet, "Wie viele Personen waren im Herbst 2024 in Wien im Schnitt beschäftigt?")
+    assert daten["zahlen"] and daten["text"].startswith("Im Durchschnitt waren es")

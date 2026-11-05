@@ -264,6 +264,7 @@ _KEIN_MERKMAL_STAMM = (
     "detail", "bundesl", "wirtschaftsbereich", "wirtschaftszweig", "abschnitt", "önace", "oenace",
     "berichtsmonat", "stichtag", "verlauf", "lauf", "bereich", "branche", "sektor", "prozent", "vormonat",
     "vorjahr", "zahl", "tabelle", "beschäftigungskategorie", "kategorie", "geschlecht", "beschäftigung",
+    "durchschnitt",
 )  # fmt: skip
 _FUNKTIONSWORT = frozenset(
     {"im", "in", "der", "den", "dem", "die", "das", "welchem", "welcher", "welchen", "welche", "diesem",

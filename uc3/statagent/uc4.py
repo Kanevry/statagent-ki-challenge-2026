@@ -730,6 +730,10 @@ def _text_fuer_kette(text: str, daten: dict[str, Any]) -> str:
     """
     text = _ALLE.sub("", text)
     satz = daten.get("antwortsatz")
+    if not daten["zahlen"] and text.startswith("Verstanden:"):
+        # Ohne Zahl ist die Aussage der zweite Satz; „Verstanden“ allein sagt der Station nichts.
+        ende = text.find(". ") + 1
+        return f"{text[ende:].strip()} {text[:ende]}".strip() if ende else text
     if not satz or not daten["zahlen"]:
         return text
     ersetzt = daten.get("ersetzt") or ""
