@@ -165,7 +165,7 @@ NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
     (
         re.compile(
             r"\b(alter|altersgruppen?|lebensalter)\b(?!\s+(regel|regeln|version|fassung|stand|zählung|lieferung))"
-            r"|durchschnittsalter|jahre alt|\b\d{1,3}-?jährig|jugendlich"
+            r"|durchschnittsalter|jahre alt|\b\d{1,3}-?jährig|jugendlich|jahrgang|jahrgänge|geburtsjahr"
             r"|\b(unter|über|ueber|ab|bis)\s+\d{1,3}\s*(jahre|jahren)\b"
         ),
         "Das Alter wertet StatAgent bei Datenanfragen nicht aus.",
@@ -1193,13 +1193,14 @@ def _rueckfrage_monat(typ: str, jahr: str | None) -> dict[str, Any]:
         "bestand": ("die Zahl der Beschäftigten", "Beschäftigte"),
     }[typ]
     if typ == "fluktuation":
-        monat = f"Dezember {jahr}" if jahr else "März 2025"
+        im_jahr = min(f"{jahr}-12", LETZTE_LIEFERUNG) if jahr else ""
+        monat = _monat_anzeige(im_jahr) if jahr and im_jahr >= f"{jahr}-01" else "März 2025"
         return _rueckfrage(
             "Die Fluktuation gibt es je Monat, ganz Österreich, je Wirtschaftsbereich. Für welchen Monat? "
             f"Zum Beispiel „Fluktuation je Wirtschaftsbereich im {monat}“."
         )
     if jahr is not None:
-        return _rueckfrage(jahr_rueckfrage(was, beispiel, jahr))
+        return _rueckfrage(jahr_rueckfrage(was, beispiel, jahr, ERSTE_LIEFERUNG, LETZTE_LIEFERUNG))
     return _rueckfrage(f"Für welchen Monat möchten Sie {was} wissen? Zum Beispiel „{beispiel} März 2025“.")
 
 
@@ -1215,7 +1216,7 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         return _antwort(fragetyp(frage), NICHT_LESBAR, hinweise=[NICHT_LESBAR])
     grund = unklar(frage, letzter or LETZTE_LIEFERUNG)
     if grund is not None:
-        return _antwort(fragetyp(frage), grund, hinweise=[grund])
+        return _rueckfrage(grund)
     hinweis_tag = tag_hinweis(frage)
     frage, notizen, mittel = _normalisieren(frage, letzter or LETZTE_LIEFERUNG)
     if hinweis_tag:

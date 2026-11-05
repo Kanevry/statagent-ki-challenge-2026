@@ -273,13 +273,24 @@ def _vorschlag(letzter: str) -> str:
     return f"Meinen Sie „Beschäftigte im {_monat_anzeige(letzter)}“?"
 
 
-def jahr_rueckfrage(was: str, beispiel: str, jahr: str) -> str:
-    """Rückfrage zu einer bloßen Jahreszahl (#74 AC2), gleich in ``uc3 frage`` und in UC4."""
+def jahr_rueckfrage(was: str, beispiel: str, jahr: str, erster: str, letzter: str) -> str:
+    """Rückfrage zu einer bloßen Jahreszahl (#74 AC2), gleich in ``uc3 frage`` und in UC4.
+
+    Anzahl und Beispiele kommen aus den vorhandenen Monaten ``erster`` bis ``letzter``: 2026 hat keinen Dezember.
+    """
+    von, bis = max(f"{jahr}-01", erster), min(f"{jahr}-12", letzter)
+    if von > bis:
+        return (
+            f"Für {jahr} gibt es keine Daten, nur für {zeitraum_anzeige(erster, letzter)}. "
+            f"Meinen Sie „{beispiel} {_monat_anzeige(letzter)}“?"
+        )
+    anzahl = len(monate(von, bis))
+    werte = "zwölf Werte" if anzahl == 12 else f"{anzahl} Werte, {zeitraum_anzeige(von, bis)}"
     return (
-        f"Die Statistik zählt am letzten Tag jedes Monats, für {jahr} gibt es also zwölf Werte. "
-        f"Meinen Sie {was} für einen Monat, zum Beispiel „{beispiel} Dezember {jahr}“, den Durchschnitt, "
+        f"Die Statistik zählt am letzten Tag jedes Monats, für {jahr} gibt es also {werte}. "
+        f"Meinen Sie {was} für einen Monat, zum Beispiel „{beispiel} {_monat_anzeige(bis)}“, den Durchschnitt, "
         f"„{beispiel} Jahresdurchschnitt {jahr}“, oder alle Monate als Zeitreihe, "
-        f"„Zeitreihe 01/{jahr} bis 12/{jahr}“?"
+        f"„Zeitreihe {von[5:7]}/{jahr} bis {bis[5:7]}/{jahr}“?"
     )
 
 
@@ -349,7 +360,11 @@ def antwort_daten(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
             and not DURCHSCHNITT_WORT.search(frage)
             and not ZEITREIHE_WORT.search(frage.lower())
         ):
-            return _leer(jahr_rueckfrage("die Zahl der Beschäftigten", "Beschäftigte", zeitraum.von[:4]))
+            return _leer(
+                jahr_rueckfrage(
+                    "die Zahl der Beschäftigten", "Beschäftigte", zeitraum.von[:4], erster, letzter
+                )
+            )
         if len(liste) < len(gefragte):
             zaehlt = (
                 _aufzaehlung([_monat_anzeige(m) for m in liste])

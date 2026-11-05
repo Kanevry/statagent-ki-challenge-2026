@@ -139,6 +139,7 @@ _ANDERES_JAHR = re.compile(
     r"|ein\s+jahr\s+(?:zuvor|davor|früher|frueher))",
     re.IGNORECASE,
 )
+_VIER_ZIFFERN = re.compile(r"\d{4}")
 _JAHR_OFFEN = (
     "Das Jahr ist nicht eindeutig. Bitte Monat und Jahr nennen, zum Beispiel „Beschäftigte im März 2025“."
 )
@@ -174,14 +175,17 @@ _HALBJAHR_SAISON = re.compile(r"(?<!\w)(sommer|winter)(halbjahr|saison)\w*", re.
 _BEREICHSWORT = re.compile(r"(?<!\w)(?:bis|zwischen)(?!\w)|[–—-]", re.IGNORECASE)
 #: Jahreszahlen, die kein Zeitraum sind („ÖNACE 2008“, „Version 2025“).
 KEIN_JAHR = re.compile(
-    r"(?:önace|oenace|nace|version|fassung|klassifikation|plz|postleitzahl|jahrgang)[\s-]*(?:19|20)\d{2}",
+    r"(?:önace|oenace|nace|version|fassung|klassifikation|plz|postleitzahl|jahrgang|geburtsjahr)[\s-]*(?:19|20)\d{2}"
+    r"|(?<!\w)(?:über|ueber|mehr als|weniger als|unter|mit)\s+(?:19|20)\d{2}(?!\d)",
     re.IGNORECASE,
 )
 
 
 def _folgejahr(t: re.Match[str]) -> int | None:
     folge = _FOLGEJAHR.match(t.string, t.end())
-    return int(folge.group(1)) if folge else None
+    if folge is None or any(k.start() <= folge.start(1) < k.end() for k in KEIN_JAHR.finditer(t.string)):
+        return None
+    return int(folge.group(1))
 
 
 def monat_anzeige(monat: str) -> str:
@@ -529,6 +533,15 @@ def _grenzt_an(frage: str, z: Zeitraum, start: int, ende: int) -> bool:
     return _JAHR_NEBEN.fullmatch(zwischen) is not None
 
 
+def _beide_monate(monat: str, jahr: int) -> str:
+    """Rückfrage mit dem genannten Monat und demselben Monat im anderen Jahr (sonst ein Jahr davor)."""
+    anderer = _monat(jahr, int(monat[5:7])) if jahr != int(monat[:4]) else verschieben(monat, -12)
+    return (
+        "Bitte beide Monate mit Jahr nennen, "
+        f"zum Beispiel „Beschäftigte im {monat_anzeige(monat)} und im {monat_anzeige(anderer)}“."
+    )
+
+
 def _aufloesen(frage: str, letzter: str | None) -> tuple[list[Zeitraum], list[tuple[int, int]], str | None]:
     """Weist Teilen ohne Jahr das Jahr zu, das die Frage nennt.
 
@@ -542,15 +555,25 @@ def _aufloesen(frage: str, letzter: str | None) -> tuple[list[Zeitraum], list[tu
     explizit = [(a, e, m) for a, e, m in _explizit(frage) if not any(a < z.ende and e > z.start for z in roh)]
     freie = _freie_jahre(frage, roh, explizit, letzter)
     if not roh and not explizit:
-        return roh, [], (_JAHR_OFFEN if len({j for j, _, _ in freie}) > 1 else None)
-    relativ = [z for z in roh if z.art in ("aktuell", "letzte_monate")]
-    if relativ and freie:
-        wort = relativ[0].wort
+        jahre = sorted({j for j, _, _ in freie})
+        if len(jahre) < 2:
+            return roh, [], None
         return (
             roh,
             [],
             (
-                f"{wort[:1].upper()}{wort[1:]} und ein Jahr passen nicht zusammen. "
+                "Die Frage nennt mehrere Jahre. Meinen Sie alle Monate als Zeitreihe, "
+                f"zum Beispiel „Zeitreihe 01/{jahre[0]} bis 12/{jahre[-1]}“?"
+            ),
+        )
+    relativ = [z for z in roh if z.art in ("aktuell", "letzte_monate")]
+    if relativ and freie:
+        was = "Der letzte Monat" if relativ[0].art == "aktuell" else "Die letzten Monate"
+        return (
+            roh,
+            [],
+            (
+                f"{was} und ein Jahr passen nicht zusammen. "
                 "Bitte Monat und Jahr nennen, zum Beispiel „Beschäftigte im Dezember 2025“."
             ),
         )
@@ -589,12 +612,26 @@ def _aufloesen(frage: str, letzter: str | None) -> tuple[list[Zeitraum], list[tu
             if kandidat.bis >= alle[i + 1].von:
                 return roh, [], _JAHR_OFFEN
             alle[i] = kandidat
+
+    # Ohne eigenes Jahr dürfen die Teile nicht gegen die Lesereihenfolge laufen („im Juli und August“).
+    def ohne_eigenes(z: Zeitraum) -> bool:
+        return bool(z.wort) and not _VIER_ZIFFERN.search(z.wort)
+
+    reihe = [z for z in alle if z.art not in ("aktuell", "letzte_monate")]
+    for links, rechts in zip(reihe, reihe[1:], strict=False):
+        if (ohne_eigenes(links) or ohne_eigenes(rechts)) and links.von >= rechts.von:
+            return roh, [], _JAHR_OFFEN
     genannt = {int(m[:4]) for z in alle if kennt_jahr(z) for m in (z.von, z.bis)}
     if any(z.ohne_jahr for z in alle):
         return roh, [], (_JAHR_OFFEN if genannt or freie else None)
-    # Ein Jahr, das zu keinem Teil gehört und auch sonst nicht genannt ist: „März 2025 und 2026“.
-    if any(j not in genannt for n, (j, _, _) in enumerate(freie) if n not in benutzt):
-        return roh, [], _JAHR_OFFEN
+    # Eine Jahresangabe, die zu keinem Teil gehört: „März 2025 und 2026“, „März 2025 im Vergleich zum Vorjahr“.
+    # Auch eine gleiche Zahl zählt nur, wenn sie direkt daneben steht („2025 im März 2025“).
+    for n, (j, a, e) in enumerate(freie):
+        if n not in benutzt and not any(
+            kennt_jahr(z) and j in (int(z.von[:4]), int(z.bis[:4])) and _grenzt_an(frage, z, a, e)
+            for z in alle
+        ):
+            return roh, [], _beide_monate(next(z.von for z in alle if kennt_jahr(z)), j)
     teile = [z for z in alle if z.wort]
     return teile, [(a, e) for _, a, e in freie], None
 
