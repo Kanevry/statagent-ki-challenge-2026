@@ -57,9 +57,10 @@ felder:
 
 leistungen:
   pflegegeld:
-    # Hilfe im Alltag (Kataloge, FSW): nur hier als nächster Schritt, Sichtprüfung #35
-    alltagshilfe: true
     name: {de: "Pflegegeld", en: "care allowance (Pflegegeld)"}
+    # Hilfe im Alltag (Kataloge, FSW): nur hier als nächster Schritt, Sichtprüfung #35. `name` bleibt die
+    # erste Zeile je Leistung, die UC1-Seite liest die Namen daraus (web/components/uc1/leistungen.test.ts).
+    alltagshilfe: true
     lage: "Pflegebedarf"
     ausloeser:
       - 'pflege(?!karenz|teilzeit)'
@@ -91,9 +92,8 @@ leistungen:
       - text: "Kopien Ihrer Befunde von Arzt, Ärztin oder Krankenhaus"
         quelle: "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 2"
   pflegekarenzgeld:
-    # Hilfe im Alltag (Kataloge, FSW): nur hier als nächster Schritt, Sichtprüfung #35
-    alltagshilfe: true
     name: {de: "Pflegekarenzgeld", en: "care leave allowance (Pflegekarenzgeld)"}
+    alltagshilfe: true
     lage: "Pflege einer angehörigen Person neben der Arbeit"
     ausloeser:
       - 'pflegekarenz'
