@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Blockiert Commits mit Secrets (öffentliches Abgabe-Repo). Nie mit --no-verify umgehen.
+set -euo pipefail
+exec gitleaks git --pre-commit --staged --redact --no-banner
