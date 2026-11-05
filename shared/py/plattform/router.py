@@ -153,10 +153,61 @@ def _als_antwort(roh: object, uc: str) -> UcAntwort:
     return antwort
 
 
+#: Abkürzungen, nach deren Punkt kein Satz endet (kleingeschrieben, ohne Punkt).
+_ABKUERZUNGEN = frozenset(
+    {
+        "z",
+        "b",
+        "ca",
+        "bzw",
+        "vgl",
+        "inkl",
+        "exkl",
+        "nr",
+        "abs",
+        "art",
+        "lt",
+        "gem",
+        "u",
+        "a",
+        "n",
+        "g",
+        "d",
+        "h",
+        "s",
+        "o",
+        "ä",
+        "usw",
+        "etc",
+        "evtl",
+        "ggf",
+        "max",
+        "min",
+        "mio",
+        "mrd",
+        "rd",
+    }
+)
+_SATZENDE = re.compile(r"[.!?]\s+(?=[A-ZÄÖÜ])")
+
+
 def kern_satz(text: str, grenze: int = KERN_ZEICHEN) -> str:
-    """Erster Satz von ``text`` (bis ``.``, ``!`` oder ``?`` vor Leerraum), gekürzt auf ``grenze`` Zeichen."""
+    """Erster Satz der ersten Zeile, gekürzt auf ``grenze`` Zeichen.
+
+    Ein Satz endet bei ``.``, ``!`` oder ``?`` vor Leerraum und Großbuchstaben, nicht nach einer Tageszahl
+    („31. März“) und nicht nach einer Abkürzung („z. B.“, „ca.“, „a. n. g.“), Review !96.
+    """
     erste_zeile = text.strip().split("\n", 1)[0].strip()
-    satz = re.split(r"(?<=[.!?])\s", erste_zeile, maxsplit=1)[0]
+    satz = erste_zeile
+    for treffer in _SATZENDE.finditer(erste_zeile):
+        davor = re.search(r"(\w+)$", erste_zeile[: treffer.start()])
+        wort = davor.group(1) if davor else ""
+        if erste_zeile[treffer.start()] == "." and (
+            (wort.isdigit() and len(wort) <= 2) or wort.lower() in _ABKUERZUNGEN
+        ):
+            continue
+        satz = erste_zeile[: treffer.start() + 1]
+        break
     if len(satz) <= grenze:
         return satz
     gekuerzt = satz[: grenze - 1].rsplit(" ", 1)[0].rstrip(" ,;:")

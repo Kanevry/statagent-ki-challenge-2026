@@ -304,9 +304,61 @@ def test_strom_mit_erschoepftem_budget_meldet_fehler_als_eine_zeile(protokoll, m
             "Am 31.03.2025 gab es 7.498 Verhältnisse; vorläufig.",
         ),
         ("Erste Zeile ohne Punkt\nZweite Zeile.", "Erste Zeile ohne Punkt"),
+        ("Das sind z. B. Pflegekräfte in Wien. Mehr folgt.", "Das sind z. B. Pflegekräfte in Wien."),
+        ("Es sind ca. 7.500 Stellen. Mehr folgt.", "Es sind ca. 7.500 Stellen."),
+        ("Stichtag ist der 31. März 2025. Mehr folgt.", "Stichtag ist der 31. März 2025."),
+        ("Code a. n. g. Gesundheit zählt mit. Mehr folgt.", "Code a. n. g. Gesundheit zählt mit."),
+        ("Erst das. danach klein weiter. Ende.", "Erst das. danach klein weiter."),
         ("wort " * 40, ("wort " * 27).strip() + "…"),
     ],
 )
 def test_kern_ist_der_erste_satz_hoechstens_140_zeichen(text, kern):
     assert router.kern_satz(text) == kern
     assert len(router.kern_satz(text)) <= router.KERN_ZEICHEN
+
+
+def test_strom_meldet_jede_station_bevor_die_naechste_laeuft(protokoll):
+    """Fängt (Review !96): Ereignisse gesammelt und erst am Ende ausgegeben statt sofort beim Eintreten."""
+    ablauf: list[str] = []
+
+    def adapter(uc: str):
+        def antworten(frage, kontext):
+            ablauf.append(f"rechnet {uc}")
+            return {"text": f"{uc}.", "belege": [], "zahlen": [], "uc": uc}
+
+        return antworten
+
+    durchreichen(
+        "x",
+        adapter={uc: adapter(uc) for uc in ("uc3", "uc2", "uc1")},
+        melden=lambda e: ablauf.append(f"{e['art']} {e.get('uc', '')}".strip()),
+    )
+    assert ablauf == [
+        "start",
+        "station uc3",
+        "rechnet uc3",
+        "antwort uc3",
+        "station uc2",
+        "rechnet uc2",
+        "antwort uc2",
+        "station uc1",
+        "rechnet uc1",
+        "antwort uc1",
+        "ende",
+    ]
+
+
+def test_strom_zeile_wird_sofort_geflusht(monkeypatch):
+    """Fängt: Zeilen bleiben im Puffer von stdout, wenn stdout eine Pipe ist (Web-Route)."""
+    aufrufe: list[str] = []
+
+    class Ausgabe:
+        def write(self, text: str) -> None:
+            aufrufe.append("write")
+
+        def flush(self) -> None:
+            aufrufe.append("flush")
+
+    monkeypatch.setattr(router.sys, "stdout", Ausgabe())
+    router._zeile({"art": "start", "kette": ["uc3"]})
+    assert aufrufe == ["write", "flush"]

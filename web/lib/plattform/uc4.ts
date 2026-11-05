@@ -1,4 +1,4 @@
-import { execFile, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { findeRepoWurzel } from "./modell";
 import { erstelleRatenlimit, grenzeAus, type PruefeRatenlimit } from "./ratenlimit";
@@ -43,14 +43,72 @@ export type Ausfuehren = (
   optionen: { cwd: string; timeout: number; maxBuffer: number; zusatz?: Readonly<Record<string, string>> },
 ) => Promise<Lauf>;
 
+/** Nach SIGTERM an die Prozessgruppe so lange warten, dann SIGKILL. */
+export const NACHFRIST_MS = 2_000;
+
+/**
+ * Startet den Router in einer eigenen Prozessgruppe (detached). `uv run` startet Python als Kind; ein Signal nur an
+ * uv ließe Python als Waise weiterrechnen und stdout offen halten, dann käme „close“ nie und der Lauf-Slot bliebe
+ * belegt (Review !96). `beenden` schickt SIGTERM an die Gruppe und nach `NACHFRIST_MS` SIGKILL.
+ */
+function starteGruppe(befehl: string, argv: readonly string[], cwd: string, zusatz: Readonly<Record<string, string>>) {
+  // stderr verworfen: es kann Pfade, Umgebungswerte oder die Frage enthalten; nach außen gehen nur Exit-Codes.
+  const kind = spawn(befehl, [...argv], {
+    cwd,
+    env: { ...process.env, ...zusatz },
+    stdio: ["ignore", "pipe", "ignore"],
+    detached: true,
+  });
+  let beendet = false;
+  let abgebrochen = false;
+  kind.once("close", () => (beendet = true));
+  const gruppe = (signal: NodeJS.Signals) => {
+    if (kind.pid === undefined) return;
+    try {
+      process.kill(-kind.pid, signal);
+    } catch {
+      // Gruppe schon leer (ESRCH): nichts mehr zu beenden
+    }
+  };
+  const beenden = () => {
+    // Nach „close“ ist die Gruppe leer; ein Signal an eine später neu vergebene Gruppen-ID wäre falsch.
+    if (abgebrochen || beendet) return;
+    abgebrochen = true;
+    gruppe("SIGTERM");
+    // Ein Enkel, der SIGTERM ignoriert, bekommt SIGKILL, auch wenn uv schon weg ist.
+    setTimeout(() => gruppe("SIGKILL"), NACHFRIST_MS).unref();
+  };
+  return { kind, beenden, abgebrochen: () => abgebrochen };
+}
+
 export const standardAusfuehren: Ausfuehren = (befehl, argv, { cwd, timeout, maxBuffer, zusatz = {} }) =>
   new Promise((aufloesen, ablehnen) => {
-    execFile(befehl, [...argv], { cwd, timeout, maxBuffer, env: { ...process.env, ...zusatz } }, (fehler, stdout) => {
-      if (!fehler) aufloesen({ code: 0, stdout });
-      // Regulärer Exit ≠ 0 (z. B. 1 = keine Antwort): der Aufrufer entscheidet. Timeout und maxBuffer setzen
-      // `killed` bzw. einen Text-Code und gelten als Fehler.
-      else if (typeof fehler.code === "number" && !fehler.killed) aufloesen({ code: fehler.code, stdout });
-      else ablehnen(fehler);
+    const { kind, beenden } = starteGruppe(befehl, argv, cwd, zusatz);
+    const stuecke: Buffer[] = [];
+    let groesse = 0;
+    let grund: Error | null = null;
+    const abbruch = (name: string) => {
+      if (grund) return;
+      grund = Object.assign(new Error(name), { name });
+      beenden();
+    };
+    kind.stdout.on("data", (stueck: Buffer) => {
+      groesse += stueck.length;
+      if (groesse > maxBuffer) abbruch("MaxBufferError");
+      else stuecke.push(stueck);
+    });
+    const uhr = setTimeout(() => abbruch("TimeoutError"), timeout);
+    kind.once("error", (fehler) => {
+      clearTimeout(uhr);
+      ablehnen(fehler);
+    });
+    kind.once("close", (code) => {
+      clearTimeout(uhr);
+      // Regulärer Exit ≠ 0 (z. B. 1 = keine Antwort): der Aufrufer entscheidet. Timeout, maxBuffer und ein Ende
+      // durch Signal gelten als Fehler.
+      if (grund) ablehnen(grund);
+      else if (code === null) ablehnen(Object.assign(new Error("Signal"), { name: "SignalError" }));
+      else aufloesen({ code, stdout: Buffer.concat(stuecke).toString("utf8") });
     });
   });
 
@@ -69,17 +127,13 @@ export type StromStarten = (
 ) => StromLauf;
 
 export const standardStromStarten: StromStarten = (befehl, argv, { cwd, timeout, zusatz = {} }) => {
-  // stderr verworfen: es kann Pfade, Umgebungswerte oder die Frage enthalten (wie beim Ergebnis-Weg nur Exit-Codes).
-  const kind = spawn(befehl, [...argv], { cwd, env: { ...process.env, ...zusatz }, stdio: ["ignore", "pipe", "ignore"] });
-  const abbrechen = () => {
-    if (kind.exitCode === null && kind.signalCode === null) kind.kill("SIGKILL");
-  };
-  const uhr = setTimeout(abbrechen, timeout);
+  const { kind, beenden, abgebrochen } = starteGruppe(befehl, argv, cwd, zusatz);
+  const uhr = setTimeout(beenden, timeout);
   const ende = new Promise<number | null>((aufloesen) => {
     kind.once("error", () => aufloesen(null));
-    kind.once("close", (code) => aufloesen(code));
+    kind.once("close", (code) => aufloesen(abgebrochen() ? null : code));
   }).finally(() => clearTimeout(uhr));
-  return { zeilen: createInterface({ input: kind.stdout, crlfDelay: Infinity }), ende, abbrechen };
+  return { zeilen: createInterface({ input: kind.stdout, crlfDelay: Infinity }), ende, abbrechen: beenden };
 };
 
 /** argv für eine Frage; `--` davor, damit eine Frage wie „-h“ kein Schalter des Routers wird. */
@@ -288,6 +342,7 @@ export function erstelleFrageAntwort({
     frage: string,
     gewaehlt: Modellwahl | undefined,
     freigeben: () => void,
+    signal: AbortSignal,
   ): Promise<Response> {
     const { modell, argv, zusatz } = laufParameter(frage, gewaehlt);
     const startArgv = [...argv.slice(0, ROUTER_ARGV.length), "--strom", ...argv.slice(ROUTER_ARGV.length)];
@@ -299,6 +354,11 @@ export function erstelleFrageAntwort({
       console.warn(`[uc4/frage] Router nicht startbar (${(grund as Error).name ?? "Fehler"})`);
       return fehler(502, "Die Kette hat nicht geantwortet. Bitte später noch einmal fragen.");
     }
+    // Bricht der Client ab, endet der Router sofort, auch schon vor der ersten Zeile (Review !96).
+    const beiAbbruch = () => lauf.abbrechen();
+    if (signal.aborted) beiAbbruch();
+    else signal.addEventListener("abort", beiAbbruch, { once: true });
+    const loesen = () => signal.removeEventListener("abort", beiAbbruch);
     const leser = lauf.zeilen[Symbol.asyncIterator]();
     const naechstes = async (): Promise<StromEreignis | "kaputt" | null> => {
       for (;;) {
@@ -323,6 +383,7 @@ export function erstelleFrageAntwort({
       // Nur eine kaputte Zeile bricht ab; sonst endet der Router gerade selbst (Budget, Startfehler).
       if (erstes === "kaputt") lauf.abbrechen();
       const code = await lauf.ende;
+      loesen();
       freigeben();
       if (erstes !== null && erstes !== "kaputt" && erstes.art === "fehler" && erstes.fehler === BUDGET_MELDUNG) {
         return budgetAntwort();
@@ -334,9 +395,11 @@ export function erstelleFrageAntwort({
     const kodierer = new TextEncoder();
     const zeile = (ereignis: StromEreignis) => kodierer.encode(`${JSON.stringify(ereignis)}\n`);
     let fertig = false;
+    let endeGesehen = false;
     const schliessen = () => {
       if (fertig) return;
       fertig = true;
+      loesen();
       freigeben();
     };
     const strom = new ReadableStream<Uint8Array>({
@@ -344,7 +407,18 @@ export function erstelleFrageAntwort({
         steuerung.enqueue(zeile({ ...erstes, modell: modell ?? null }));
       },
       async pull(steuerung) {
-        const ereignis = await naechstes();
+        let ereignis: Awaited<ReturnType<typeof naechstes>>;
+        try {
+          ereignis = await naechstes();
+        } catch (grund) {
+          // Lesefehler der Pipe: Router beenden, Seite bekommt einen Abschluss, Slot wird frei (Review !96).
+          console.warn(`[uc4/frage] Strom nicht lesbar (${(grund as Error).name ?? "Fehler"})`);
+          lauf.abbrechen();
+          steuerung.enqueue(zeile({ art: "fehler", fehler: "Die Kette ist mit einem Fehler abgebrochen." }));
+          steuerung.close();
+          schliessen();
+          return;
+        }
         if (ereignis === "kaputt") {
           console.warn("[uc4/frage] Strom-Zeile verletzt den Vertrag");
           lauf.abbrechen();
@@ -355,7 +429,8 @@ export function erstelleFrageAntwort({
         }
         if (ereignis === null) {
           const code = await lauf.ende;
-          if (code !== 0 && code !== 1) {
+          // Ohne „ende“-Zeile bliebe die Seite auf „läuft“, auch bei Exit 0 oder 1 (Review !96).
+          if (!endeGesehen) {
             console.warn(`[uc4/frage] Strom endet ohne Abschluss (Exit ${code ?? "abgebrochen"})`);
             const meldung =
               code === null ? "Die Kette hat nicht rechtzeitig geantwortet." : "Die Kette ist mit einem Fehler abgebrochen.";
@@ -365,6 +440,7 @@ export function erstelleFrageAntwort({
           schliessen();
           return;
         }
+        if (ereignis.art === "ende") endeGesehen = true;
         steuerung.enqueue(zeile(ereignis));
       },
       cancel() {
@@ -433,7 +509,7 @@ export function erstelleFrageAntwort({
         }
       };
       try {
-        return await fuehreStromAus(eingabe.frage, eingabe.modell, freigeben);
+        return await fuehreStromAus(eingabe.frage, eingabe.modell, freigeben, anfrage.signal);
       } catch (grund) {
         freigeben();
         throw grund;

@@ -5,6 +5,7 @@ import {
   erstelleFrageAntwort,
   ROUTER_ARGV,
   standardAusfuehren,
+  standardStromStarten,
   uc4Einstellung,
   type Ausfuehren,
   type StromStarten,
@@ -439,11 +440,106 @@ describe("POST /api/uc4/frage, Strom der Stationen", () => {
     expect((await handler(stromAnfrage({ frage: "x" }))).status).toBe(200);
   });
 
+  it("EOF ohne ende-Zeile bei Exit 1 endet mit einer fehler-Zeile (Seite bleibt nicht auf „läuft“)", async () => {
+    const { starten } = stromAus([zeilen.start, zeilen.station], 1);
+    const ereignisse = await lies(await frageAntwort(stromAnfrage({ frage: "x" }), optionen(starten)));
+    expect(ereignisse.at(-1)).toEqual({ art: "fehler", fehler: "Die Kette ist mit einem Fehler abgebrochen." });
+  });
+
+  it("ein Lesefehler der Pipe beendet den Router, schreibt fehler und gibt den Slot frei", async () => {
+    const abbrechen = vi.fn();
+    const starten = vi.fn<StromStarten>(() => ({
+      zeilen: (async function* () {
+        yield zeilen.start;
+        throw new Error("EPIPE");
+      })(),
+      ende: Promise.resolve(null),
+      abbrechen,
+    }));
+    const handler = erstelleFrageAntwort(optionen(starten, { maxLaeufe: 1 }));
+    const ereignisse = await lies(await handler(stromAnfrage({ frage: "x" })));
+    expect(ereignisse.at(-1)).toEqual({ art: "fehler", fehler: "Die Kette ist mit einem Fehler abgebrochen." });
+    expect(abbrechen).toHaveBeenCalled();
+    expect((await handler(stromAnfrage({ frage: "x" }))).status).toBe(200);
+  });
+
+  it("bricht der Client vor der ersten Zeile ab, endet der Router und der Slot wird frei", async () => {
+    let weiter: () => void = () => {};
+    let ende: (code: number | null) => void = () => {};
+    const abbrechen = vi.fn(() => {
+      weiter();
+      ende(null);
+    });
+    const haengt = {
+      zeilen: (async function* () {
+        await new Promise<void>((los) => (weiter = los));
+      })(),
+      ende: new Promise<number | null>((aufloesen) => (ende = aufloesen)),
+      abbrechen,
+    };
+    const normal = stromAus([zeilen.start, zeilen.ende]);
+    const starten = vi.fn<StromStarten>().mockReturnValueOnce(haengt).mockImplementation(normal.starten);
+    const handler = erstelleFrageAntwort(optionen(starten, { maxLaeufe: 1 }));
+    const steuerung = new AbortController();
+    const antwort = handler(new Request(stromAnfrage({ frage: "x" }), { signal: steuerung.signal }));
+    await vi.waitFor(() => expect(starten).toHaveBeenCalledTimes(1));
+    steuerung.abort();
+    expect((await antwort).status).toBe(502);
+    expect(abbrechen).toHaveBeenCalled();
+    expect((await handler(stromAnfrage({ frage: "x" }))).status).toBe(200);
+  });
+
   it("Stufe A: --kette uc3 und kein Modell im Start", async () => {
     const { starten } = stromAus([JSON.stringify({ art: "start", kette: ["uc3"] }), zeilen.ende]);
     const umgebung = { KIC_ONLINE: "1", KIC_ONLINE_LESEND: "1", KIC_ONLINE_FRAGEN: "1", UC4_KETTE: "uc3" };
     const antwort = await frageAntwort(stromAnfrage({ frage: "x", modell: "mock" }), optionen(starten, { umgebung }));
     expect((await lies(antwort))[0]).toEqual({ art: "start", kette: ["uc3"], modell: null });
     expect(starten.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--strom", "--kette", "uc3", "--", "x"]);
+  });
+});
+
+// Echter Prozess (Review !96): `uv run` startet Python als Kind. Fängt ab: ein Abbruch oder Timeout beendet nur den
+// direkten Prozess, der Enkel rechnet als Waise weiter und hält stdout offen.
+describe("standardStromStarten mit echtem Prozess", () => {
+  const ENKEL = 'sleep 30 & echo "$!"; wait';
+  const lebt = (pid: number) => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  it("abbrechen beendet die ganze Prozessgruppe samt Enkel, ende löst auf", async () => {
+    const lauf = standardStromStarten("sh", ["-c", ENKEL], { cwd: ".", timeout: 30_000 });
+    const { value } = await lauf.zeilen[Symbol.asyncIterator]().next();
+    const enkel = Number(value);
+    expect(lebt(enkel)).toBe(true);
+    lauf.abbrechen();
+    expect(await lauf.ende).toBeNull();
+    await vi.waitFor(() => expect(lebt(enkel)).toBe(false), { timeout: 3_000 });
+  });
+
+  it("auch der Ergebnis-Weg (standardAusfuehren) beendet beim Timeout den Enkel", async () => {
+    const pidDatei = `${process.env.TMPDIR ?? "/tmp"}/uc4-enkel-${process.pid}.pid`;
+    await expect(
+      standardAusfuehren("sh", ["-c", `sleep 30 & echo "$!" > ${pidDatei}; wait`], {
+        cwd: ".",
+        timeout: 300,
+        maxBuffer: 1024,
+      }),
+    ).rejects.toThrow("TimeoutError");
+    const { readFileSync, rmSync } = await import("node:fs");
+    const enkel = Number(readFileSync(pidDatei, "utf8"));
+    rmSync(pidDatei);
+    await vi.waitFor(() => expect(lebt(enkel)).toBe(false), { timeout: 3_000 });
+  });
+
+  it("der Timeout beendet die Gruppe ebenfalls", async () => {
+    const lauf = standardStromStarten("sh", ["-c", ENKEL], { cwd: ".", timeout: 300 });
+    const { value } = await lauf.zeilen[Symbol.asyncIterator]().next();
+    expect(await lauf.ende).toBeNull();
+    await vi.waitFor(() => expect(lebt(Number(value))).toBe(false), { timeout: 3_000 });
   });
 });

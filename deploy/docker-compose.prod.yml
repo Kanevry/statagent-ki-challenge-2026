@@ -66,6 +66,8 @@ services:
         VAPI_PUBLIC_KEY: ${VAPI_PUBLIC_KEY:-}
     image: ki-challenge-app:aktuell
     restart: unless-stopped
+    # tini als PID 1: räumt beendete Router-Prozesse (uv, Python) ab, die die Route als eigene Gruppe startet
+    init: true
     # läuft als Nutzer app (uid 1001), braucht keine Linux-Capabilities; Code gehört root, Dateisystem schreibgeschützt
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
