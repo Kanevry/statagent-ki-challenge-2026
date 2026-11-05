@@ -30,15 +30,33 @@ const SCHLUESSEL = [
 ] as const;
 
 /**
- * Routen, die noch nicht gebaut sind: Route -> Begründung. Das ist der EINZIGE Weg, eine Route
- * auszunehmen. Eine Route hier MUSS 404 liefern; sobald sie gebaut ist, wird der Test rot und verlangt,
- * den Eintrag zu streichen. Mit ABGABE=1 muss die Liste leer sein.
+ * Routen, die noch nicht gebaut sind: Route -> Begründung. Eine Route hier darf 404 liefern. Liefert sie 200,
+ * wird sie trotzdem gemessen (0 Treffer Pflicht) und der Test hängt den Hinweis „aus NOCH_OFFEN streichen“ an,
+ * statt rot zu werden, damit die Liste keine fremde Lane sperrt. Mit ABGABE=1 muss die Liste leer sein und jede
+ * Route 200 liefern.
  */
 const NOCH_OFFEN: Record<string, string> = {
   "/": "Landing-Session baut die Startseite noch",
 };
 
 const ROUTEN: string[] = ["/", ...ucs.map((uc) => uc.route), "/praesentation", "/_bausteine"];
+const MAX_SEITEN = 40;
+
+/** Gültiger Modell-Status mit abweichendem „zuletzt“, damit der Hinweis im Badge mitgemessen wird. */
+const MODELL_STATUS = {
+  provider: "azure",
+  modell: "gpt-5",
+  version: "2026-08-01",
+  quelle: "env",
+  zuletzt: {
+    provider: "mistral",
+    modell: "mistral-large",
+    version: null,
+    fallback_stufe: 2,
+    zweck: "regel_entwurf",
+    zeit: "2026-11-05T09:12:00+01:00",
+  },
+};
 
 type Messung = { counts: Record<string, unknown>; samples?: unknown };
 
@@ -51,12 +69,12 @@ async function vorbereiten(page: Page): Promise<void> {
   });
 }
 
-async function messen(page: Page): Promise<Messung> {
+async function messen(page: Page, root = "body"): Promise<Messung> {
   await page.addScriptTag({ path: MESSSKRIPT });
-  return page.evaluate(() => {
+  return page.evaluate((wurzel) => {
     // @ts-expect-error measureSlop kommt aus dem eingespielten Skript
-    return measureSlop({ root: "body" }) as Messung;
-  });
+    return measureSlop({ root: wurzel }) as Messung;
+  }, root);
 }
 
 async function anhaengen(testInfo: TestInfo, name: string, messung: Messung): Promise<void> {
@@ -71,20 +89,32 @@ function fehlendeSchluessel(counts: Record<string, unknown>): string[] {
   return SCHLUESSEL.filter((k) => !Object.keys(counts).includes(k));
 }
 
-function anhangName(route: string): string {
-  return `slop${route === "/" ? "-start" : route.replaceAll("/", "-")}`;
+function anhangName(route: string, zustand = ""): string {
+  return `slop${route === "/" ? "-start" : route.replaceAll("/", "-")}${zustand}`;
 }
 
-/** Misst eine Route: HTTP 200, alle zwölf Schlüssel vorhanden und 0. */
-async function pruefeRoute(page: Page, testInfo: TestInfo, route: string): Promise<void> {
-  const antwort = await page.goto(route);
-  expect(antwort?.status(), `HTTP-Status von ${route}`).toBe(200);
+/** Misst die gerade geladene Seite: alle zwölf Schlüssel vorhanden und 0. Sammelt Verstöße, ohne abzubrechen. */
+async function pruefeSeite(page: Page, testInfo: TestInfo, ort: string, zustand = ""): Promise<void> {
   await vorbereiten(page);
   const messung = await messen(page);
-  await anhaengen(testInfo, anhangName(route), messung);
-  expect(fehlendeSchluessel(messung.counts), "Schlüssel fehlen im Messergebnis").toEqual([]);
+  await anhaengen(testInfo, anhangName(ort, zustand), messung);
+  expect.soft(fehlendeSchluessel(messung.counts), `Schlüssel fehlen im Messergebnis (${ort}${zustand})`).toEqual([]);
   const treffer = Object.fromEntries(SCHLUESSEL.map((k) => [k, messung.counts[k]]).filter(([, v]) => v !== 0));
-  expect(treffer, `Treffer auf ${route}`).toEqual({});
+  expect.soft(treffer, `Treffer auf ${ort}${zustand}`).toEqual({});
+}
+
+/** Interne Seitenlinks (gleicher Ursprung, ohne API, Dateien und Anker) als Pfade. */
+async function interneLinks(page: Page): Promise<string[]> {
+  const pfade = await page.$$eval('a[href^="/"]', (links) =>
+    links.map((a) => {
+      const url = new URL((a as HTMLAnchorElement).href);
+      return url.origin === location.origin ? url.pathname : "";
+    }),
+  );
+  return [...new Set(pfade)]
+    .filter((p) => p !== "")
+    .map((p) => (p.length > 1 ? p.replace(/\/+$/, "") : p))
+    .filter((p) => !p.startsWith("/api/") && !p.startsWith("/_next/") && !/\.[a-z0-9]{2,5}$/i.test(p));
 }
 
 test.use({ reducedMotion: "reduce" });
@@ -100,35 +130,89 @@ test.describe("Messfunktion", () => {
       expect(messung.counts[k], `Positiv-Fixture trifft ${k} nicht`).toBeGreaterThanOrEqual(1);
     }
   });
+
+  test("root body erfasst ein Muster im Header vor main, root main nicht", async ({ page }) => {
+    await page.goto(`file://${FIXTURE}`);
+    const ausMain = await messen(page, "main");
+    const ausBody = await messen(page, "body");
+    expect(ausMain.counts.kickersMono).toBe(1);
+    expect(ausBody.counts.kickersMono).toBe(2);
+  });
+
+  test.describe("ohne reduzierte Bewegung", () => {
+    test.use({ reducedMotion: "no-preference" });
+
+    test("Positiv-Fixture trifft pulsingDecor", async ({ page }) => {
+      await page.goto(`file://${FIXTURE}`);
+      const messung = await messen(page);
+      expect(messung.counts.pulsingDecor).toBeGreaterThanOrEqual(1);
+    });
+  });
 });
 
 test.describe("NOCH_OFFEN", () => {
-  test("ist vor der Abgabe leer", () => {
+  test("ist mit ABGABE=1 leer", () => {
     test.skip(!ABGABE, "Pflicht erst mit ABGABE=1");
     expect(Object.keys(NOCH_OFFEN), "Routen ungemessen").toEqual([]);
   });
-
-  for (const route of Object.keys(NOCH_OFFEN)) {
-    test(`${route} ist noch nicht gebaut`, async ({ page }) => {
-      const antwort = await page.goto(route);
-      expect(antwort?.status(), `Route ${route} gebaut, aus NOCH_OFFEN streichen`).toBe(404);
-    });
-  }
 });
 
 test.describe("Anti-Schablonen-Gate", () => {
-  for (const route of ROUTEN.filter((r) => !(r in NOCH_OFFEN))) {
-    test(`${route}: 0 Treffer in zwölf Schlüsseln, auch auf Unterseiten`, async ({ page }, testInfo) => {
-      await pruefeRoute(page, testInfo, route);
+  test("Breitensuche über alle Routen und Unterseiten: 0 Treffer in zwölf Schlüsseln", async ({ page }, testInfo) => {
+    test.setTimeout(900_000);
+    const besucht = new Set<string>();
+    const gemessen: string[] = [];
+    const uebersprungen: string[] = [];
+    const warteschlange: string[] = [...ROUTEN];
 
-      // Unterseiten eines UC (z. B. /uc3/lauf) über die Links der Seite mitnehmen.
-      if (route.startsWith("/uc")) {
-        const unterseiten = await page.$$eval(
-          `a[href^="${route}/"]`,
-          (links) => [...new Set(links.map((a) => new URL((a as HTMLAnchorElement).href).pathname))],
-        );
-        for (const unterseite of unterseiten) await pruefeRoute(page, testInfo, unterseite);
+    while (warteschlange.length > 0 && gemessen.length < MAX_SEITEN) {
+      const route = warteschlange.shift() as string;
+      if (besucht.has(route)) continue;
+      besucht.add(route);
+
+      const antwort = await page.goto(route);
+      const status = antwort?.status();
+      const offen = route in NOCH_OFFEN && !ABGABE;
+      if (offen && status === 404) {
+        uebersprungen.push(`${route} (404, NOCH_OFFEN)`);
+        continue;
       }
+      expect.soft(status, `HTTP-Status von ${route}`).toBe(200);
+      if (status !== 200 || !(antwort?.headers()["content-type"] ?? "").includes("text/html")) continue;
+      if (offen) {
+        testInfo.annotations.push({ type: "Hinweis", description: `${route} ist gebaut: aus NOCH_OFFEN streichen` });
+      }
+
+      await pruefeSeite(page, testInfo, route);
+      gemessen.push(route);
+      for (const link of await interneLinks(page)) {
+        if (!besucht.has(link)) warteschlange.push(link);
+      }
+    }
+
+    await testInfo.attach("seiten", {
+      body: JSON.stringify(
+        { gemessen, uebersprungen, ungeprueftWegenGrenze: warteschlange.filter((r) => !besucht.has(r)) },
+        null,
+        2,
+      ),
+      contentType: "application/json",
     });
-  }
+    expect(gemessen.length, "Keine Seite gemessen").toBeGreaterThan(0);
+  });
+
+  test("/uc3 mit Modell-Hinweis „zuletzt“ und geöffneter Protokoll-Schublade", async ({ page }, testInfo) => {
+    await page.route("**/api/plattform/modell", (route) => route.fulfill({ json: MODELL_STATUS }));
+    const antwort = await page.goto("/uc3");
+    expect(antwort?.status(), "HTTP-Status von /uc3").toBe(200);
+    await vorbereiten(page);
+    await page.getByTestId("modell-zuletzt").first().waitFor({ state: "attached" });
+    await pruefeSeite(page, testInfo, "/uc3", "-badge-zuletzt");
+
+    await page.getByRole("button", { name: "Protokoll", exact: true }).click();
+    const schublade = page.getByRole("dialog");
+    await schublade.waitFor({ state: "visible" });
+    await expect(schublade.getByText("Protokoll wird geladen.")).toHaveCount(0);
+    await pruefeSeite(page, testInfo, "/uc3", "-protokoll-offen");
+  });
 });

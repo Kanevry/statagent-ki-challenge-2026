@@ -197,10 +197,11 @@ function measureSlop(opts) {
     if (!labelled) { c.sparklesNonAi++; note('sparklesNonAi', icon.parentElement || icon); }
   }
 
-  const text = squash(root.innerText || root.textContent);
+  // Nur sichtbarer Text (innerText): ein Rückfall auf textContent würde versteckten Text mitzählen.
+  const text = squash(root.innerText || '');
   const words = text ? text.split(' ').length : 0;
   const emDashes = (text.match(/\u2014/g) || []).length;
-  const headings = Array.from(root.querySelectorAll('h1,h2,h3')).filter(shown).map((h) => squash(h.innerText || h.textContent));
+  const headings = Array.from(root.querySelectorAll('h1,h2,h3')).filter(shown).map((h) => squash(h.innerText || ''));
   const questionHeadings = headings.filter((h) => /\?\s*$/.test(h)).length;
   const dotLines = Array.from(root.querySelectorAll('*')).filter((el) => ownText(el) && (squash(el.textContent).split('·').length - 1) >= 2 && squash(el.textContent).length <= 160 && shown(el)).length;
 

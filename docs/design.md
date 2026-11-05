@@ -59,17 +59,27 @@ pnpm --filter web exec playwright install chromium   # einmalig, falls der Brows
 pnpm --filter web run test:slop
 ```
 
-Playwright startet den Dev-Server selbst (Port 3210, `LLM_PROVIDER=mock`, `KIC_BAUSTEINE=1`) und beendet ihn
-danach. Ein bereits laufender Server auf Port 3210 wird lokal wiederverwendet. Berichte: `web/playwright-report/`
-(HTML) und `web/test-results/slop-report.json`.
+Playwright startet den Dev-Server selbst (Port 3210, `LLM_PROVIDER=mock`, `KIC_BAUSTEINE=1`, `KIC_FIXTURE=1`) und
+beendet ihn danach. `reuseExistingServer` ist `false`: Ein Server, der schon auf Port 3210 läuft, wird nie
+mitgemessen, der Start schlägt dann fehl. Berichte: `web/playwright-report/` (HTML) und
+`web/test-results/slop-report.json`.
 
 ## Regel zu `NOCH_OFFEN`
 
 Routen, die noch nicht gebaut sind, stehen in der Liste `NOCH_OFFEN` in `web/tests/slop.spec.ts`, mit Begründung.
-Die Liste ist der einzige Weg, eine Route auszunehmen, und sie reinigt sich selbst: Eine Route in `NOCH_OFFEN`
-muss 404 liefern. Ist sie gebaut, wird der Test rot („Route gebaut, aus NOCH_OFFEN streichen“). Mit `ABGABE=1`
-verlangt ein eigener Test eine leere Liste; vor der Abgabe (Fr 06.11.2026 09:00) läuft das Gate so.
+Eine Route in der Liste darf 404 liefern. Liefert sie 200, wird sie gemessen (0 Treffer Pflicht) und der Lauf
+hängt den Hinweis „aus NOCH_OFFEN streichen“ an die Testannotationen, wird aber nicht rot. So sperrt die Liste
+keine fremde Lane. Hart wird es nur mit `ABGABE=1`: Dann muss `NOCH_OFFEN` leer sein und jede Route 200 liefern.
+`ABGABE=1` wird ab dem Feature-Stopp (Fr 05:00) als CI-Variable im Job `playwright` gesetzt.
 
-Unterseiten eines UC (z. B. `/uc3/lauf`) misst das Gate über die Links der UC-Seite mit. Gemessen wird nach
-`document.fonts.ready` mit `reducedMotion: reduce`; der Bericht enthält je Seite Werte und Beispiele (`samples`).
-In der CI läuft der Produktions-Build (`next build && next start`), lokal der Dev-Server.
+## Was gemessen wird
+
+- **Breitensuche:** Startrouten sind `/`, die UC-Routen, `/praesentation` und `/_bausteine`. Von jeder gemessenen
+  Seite folgt das Gate den Links mit gleichem Ursprung (`a[href^="/"]`, ohne `/api/`, Dateien und Anker), mit
+  Besucht-Menge und höchstens 40 Seiten je Viewport. Die Seitenliste hängt als Anhang `seiten` am Bericht.
+- **Zustände nach Interaktion:** Auf `/uc3` wird je Viewport auch gemessen, wenn der Modell-Badge den Hinweis
+  „zuletzt“ zeigt (Antwort per `page.route` vorgegeben) und wenn die Protokoll-Schublade offen ist
+  (`KIC_FIXTURE=1` füllt sie). Der Fehlerzustand des Badges ist im Lauf ohne vorgegebene Antwort abgedeckt.
+- Gemessen wird nur sichtbarer Text (`innerText`), nach `document.fonts.ready` mit `reducedMotion: reduce`; der
+  Bericht enthält je Seite Werte und Beispiele (`samples`). `pulsingDecor` prüft die Positiv-Fixture zusätzlich
+  ohne reduzierte Bewegung. In der CI läuft der Produktions-Build (`next build && next start`), lokal der Dev-Server.

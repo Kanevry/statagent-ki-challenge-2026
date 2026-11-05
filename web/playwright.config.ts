@@ -40,6 +40,7 @@ export default defineConfig({
     timeout: IN_CI ? 420_000 : 180_000,
     stdout: "ignore",
     stderr: "pipe",
-    env: { LLM_PROVIDER: "mock", KIC_BAUSTEINE: "1" },
+    // KIC_FIXTURE: die Protokoll-Schublade zeigt Einträge, damit sie gefüllt gemessen wird.
+    env: { LLM_PROVIDER: "mock", KIC_BAUSTEINE: "1", KIC_FIXTURE: "1" },
   },
 });
