@@ -39,7 +39,8 @@ gitleaks:
 
 python:
   stage: test
-  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+  # nicht -slim: plattform.freigabe und der Protokoll-Export rufen git auf
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm
   services:
     - name: postgres:16
       alias: db
@@ -66,6 +67,8 @@ python:
     - uv run python -c "import plattform"
     - uv run ruff check .
     - uv run ruff format --check .
+    # Typprüfung des gemeinsamen Pakets (UC-Pakete hängen sich mit ihrem Pfad an, z. B. uc3/statagent)
+    - uv run mypy shared/py/plattform
     - uv run pytest -q -m "not daten"
 
 web:

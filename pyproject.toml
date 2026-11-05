@@ -16,7 +16,12 @@ plattform = { workspace = true }
 members = ["shared/py", "uc*"]
 
 [dependency-groups]
-dev = ["pytest>=8.4", "ruff>=0.14"]
+dev = [
+    "mypy>=1.18",
+    "pytest>=8.4",
+    "ruff>=0.14",
+    "types-jsonschema>=4.26.0.20261006",
+]
 
 [tool.ruff]
 line-length = 110
@@ -25,6 +30,9 @@ extend-exclude = [".uv-cache", "web", "shared/ui", "*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
 
 [tool.pytest.ini_options]
 # importlib: gleichnamige Testdateien in uc1/tests und uc2/tests kollidieren sonst („import file mismatch“).
