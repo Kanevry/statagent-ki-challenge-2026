@@ -226,7 +226,7 @@ def _blatt(wb: Any, name: str) -> Worksheet:
     """Blatt nach seinem maskierten Namen (``Pensionen JJJJ``)."""
     for ws in wb.worksheets:
         if _maske(ws.title) == name:
-            return ws  # type: ignore[no-any-return]
+            return ws
     raise PensionFehler(f"Blatt „{name}“ fehlt.")
 
 
