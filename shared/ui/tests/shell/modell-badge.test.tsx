@@ -177,3 +177,13 @@ describe("Modell der Seite", () => {
     expect(screen.getByTestId("modell-badge").textContent).toBe("Modell:azure · gpt-5-4-mini");
   });
 });
+
+
+// Fängt ab (Modellwahl /uc4): Die Seite schickt den gewählten Anbieter mit jeder Anfrage, der Badge zeigt aber
+// weiter die globale Einstellung.
+it("eine gewählte Vorgabe gilt auch gegen den gemessenen Anbieter", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json(gewaehlt)));
+  render(<ModellBadge vorgabe={{ provider: "mistral", gewaehlt: true }} />);
+  expect(screen.getByTestId("modell-badge").textContent).toBe("Modell:mistral");
+  expect(screen.getByTestId("modell-badge").getAttribute("title")).toBe("Auf dieser Seite gewählt");
+});

@@ -213,8 +213,48 @@ AKTEUR_SYSTEM = (
     "nur, wenn die Zahl so im Text dieses Belegs steht. Übernimm aus Belegen nie mehr als sieben Wörter "
     "am Stück. "
     "Keine Namen von Personen oder Parteien. Begründungen, Bedingungen und Zugeständnisse stehen im "
-    "Protokoll: Schreibe sie klar und ohne Gedankenstriche; Fachsprache ist erlaubt."
+    "Protokoll: Schreibe sie klar und ohne Gedankenstriche; Fachsprache ist erlaubt. Du vertrittst die "
+    "Interessen deiner Institution, auch wenn die anderen schon zustimmen."
 )
+
+GRENZEN = (
+    ("rote_linien", "Rote Linien"),
+    ("budgetvorgaben", "Budgetvorgaben"),
+    ("restriktionen", "Restriktionen"),
+    ("prioritaeten", "Prioritäten"),
+)
+"""Felder der Akteursdatei, die im Akteurs-Prompt als verbindliche Grenzen stehen (#127)."""
+
+HALTUNGSREGELN = (
+    "Berührt ein Vorschlag eine deiner roten Linien oder Budgetvorgaben, ist deine Haltung höchstens 0. "
+    "Höher geht sie nur, wenn eine Bedingung den Konflikt auflöst. Diese Bedingung steht dann in "
+    "`bedingungen`.",
+    "Zustimmung (+1 oder +2) begründest du mit den Interessen deiner Institution. Kostet ein Vorschlag "
+    "Geld, sagst du, wer zahlt.",
+    "Deine Haltung änderst du nur, wenn ein anderer Teilnehmer ein konkretes Zugeständnis macht oder eine "
+    "deiner Bedingungen erfüllt. Dass die anderen schon zustimmen, ist kein Grund.",
+    "Fragt der Moderator nach einem Gegenargument oder nach den Kosten, antwortest du darauf in deiner "
+    "Begründung.",
+)
+"""Regeln gegen Herdenverhalten im Akteurs-Prompt (PRD § 5, #127)."""
+
+KONSENSREGELN = (
+    "Stehen auf einem Thema alle Teilnehmer bei +1 oder +2, forderst du für die nächste Runde mindestens "
+    "ein Gegenargument oder eine offene Kostenfrage ein. Richte die Frage bevorzugt an Teilnehmer, deren "
+    "rote Linien oder Budgetvorgaben das Thema berühren. Nenne Teilnehmer und Thema in der Notiz, denn "
+    "die Teilnehmer lesen nur die Notiz.",
+    "Eine schnelle Einigung nennst du in der Notiz als Risiko.",
+    "Du erzwingst keinen Streit. Du prüfst aber, ob die Einigung an Bedingungen hängt, und nennst sie.",
+    "Zeigt der Experte Mehrkosten, fragst du, wer sie trägt und wie sie gegenfinanziert werden.",
+)
+"""Regeln des Moderators gegen schnelle Einigung (PRD § 5, #127)."""
+
+
+def einigung_hinweis(runde: int, themen: Sequence[str]) -> str:
+    """Hinweis aus dem Code für die Moderator-Notiz; leer, wenn kein Thema ohne Gegenstimme ist."""
+    if not themen:
+        return ""
+    return f"Einigung ohne Gegenstimme in Runde {runde} bei Themen: {', '.join(themen)}."
 
 
 def auftrag_nachrichten(frage: str, experte: dict[str, Any]) -> list[dict[str, str]]:
@@ -267,8 +307,9 @@ def _aufgabe(runde: int) -> str:
     phase = PHASEN[runde]
     if phase == "position":
         return (
-            "Runde 1 (Position): Lege unabhängig von den anderen deine Ausgangshaltung zu jedem Thema des "
-            "Auftrags fest. `bezug_auf` bleibt leer."
+            "Runde 1 (Position): Lege deine Ausgangshaltung zu jedem Thema des Auftrags allein aus der Sicht "
+            "deiner Institution fest. Ob die anderen zustimmen könnten, spielt keine Rolle. `bezug_auf` "
+            "bleibt leer."
         )
     if phase == "debatte":
         return (
@@ -287,6 +328,15 @@ def _aufgabe(runde: int) -> str:
         "Prüfe Kompromisse, ohne deine roten Linien zu verletzen, und gehe auf mindestens einen anderen "
         "Teilnehmer ein."
     )
+
+
+def _grenzen_text(profil: dict[str, Any]) -> str:
+    teile = ["# Deine verbindlichen Grenzen\nDiese Punkte aus deiner Akteursdatei gelten in jeder Runde."]
+    for feld, titel in GRENZEN:
+        eintraege = profil.get(feld) or []
+        teile.append(f"{titel}:\n" + ("\n".join(f"- {e}" for e in eintraege) or "- (keine)"))
+    teile.append("# Regeln für deine Haltung\n" + "\n".join(f"- {r}" for r in HALTUNGSREGELN))
+    return "\n\n".join(teile)
 
 
 def akteur_nachrichten(
@@ -327,8 +377,13 @@ def akteur_nachrichten(
         + "\n".join(f"- {r}" for r in auftrag["regeln"])
         + f"\nThemen:\n{_themen_text(auftrag['themen'])}",
         f"# Deine Akteursdatei ({akteur.id})\nName: {akteur.name}\nRolle: {akteur.rolle}\n"
-        + "\n".join(f"{k}: {'; '.join(v)}" for k, v in profil.items() if isinstance(v, list))
+        + "\n".join(
+            f"{k}: {'; '.join(v)}"
+            for k, v in profil.items()
+            if isinstance(v, list) and k not in dict(GRENZEN)
+        )
         + f"\n\n{akteur.auftrag}",
+        _grenzen_text(profil),
         f"# Experte zum Paket (Code, kein Sprachmodell)\n{_json(experte)}",
     ]
     if vorrunde is not None:
@@ -357,7 +412,17 @@ def notiz_nachrichten(
     klassifikation: dict[str, str],
     code_widersprueche: Sequence[dict[str, Any]],
     haltungen_ohne_beleg: Sequence[dict[str, str]],
+    einigung_ohne_gegenstimme: Sequence[str] = (),
+    grenzen: dict[str, dict[str, list[str]]] | None = None,
+    kosten: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
+    """Moderator-Notiz einer Runde.
+
+    `einigung_ohne_gegenstimme`: Themen, auf denen der Code nur Haltungen ab +1 zählt (#127).
+    `grenzen`: rote Linien und Budgetvorgaben je Teilnehmer, damit der Moderator Gegenfragen gezielt stellt.
+    `kosten`: Mehrkosten laut Experte (Code) für die Frage nach der Gegenfinanzierung.
+    """
+    hinweis = einigung_hinweis(runde, einigung_ohne_gegenstimme)
     kontext = {
         "rolle": "moderator_notiz",
         "frage": frage,
@@ -369,6 +434,8 @@ def notiz_nachrichten(
         "klassifikation": klassifikation,
         "code_widersprueche": list(code_widersprueche),
         "haltungen_ohne_beleg": list(haltungen_ohne_beleg),
+        "einigung_ohne_gegenstimme": list(einigung_ohne_gegenstimme),
+        "kosten": kosten,
     }
     text = (
         f"# Frage\n{frage}\n\n# Themen\n{_themen_text(auftrag['themen'])}\n\n"
@@ -377,10 +444,15 @@ def notiz_nachrichten(
         f"# Einordnung je Thema (Code)\n{_json(klassifikation)}\n\n"
         f"# Vom Code gefundene Widersprüche\n{_json(list(code_widersprueche))}\n\n"
         f"# Haltungen ohne Beleg\n{_json(list(haltungen_ohne_beleg))}\n\n"
+        f"# Hinweis aus dem Code\n{hinweis or 'Kein Thema ohne Gegenstimme.'}\n\n"
+        f"# Rote Linien und Budgetvorgaben der Teilnehmer\n{_json(grenzen or {})}\n\n"
+        f"# Kosten laut Experte (Code)\n{_json(kosten or {})}\n\n"
         "# Aufgabe\nSchreibe deine Notiz zu dieser Runde (wer bewegt sich, wo liegt der Konflikt). Fordere "
         "Belege ein, wo Haltungen ohne Beleg stehen, und melde Widersprüche (Zahl ≠ Experte, Haltung passt "
-        "nicht zur Begründung). Übernimm die vom Code gefundenen Widersprüche.\n\n"
-        f"{kontext_block(kontext)}"
+        "nicht zur Begründung). Übernimm die vom Code gefundenen Widersprüche.\n"
+        "Regeln gegen schnelle Einigung:\n"
+        + "\n".join(f"- {r}" for r in KONSENSREGELN)
+        + f"\n\n{kontext_block(kontext)}"
     )
     return [{"role": "system", "content": MODERATOR_SYSTEM}, {"role": "user", "content": text}]
 

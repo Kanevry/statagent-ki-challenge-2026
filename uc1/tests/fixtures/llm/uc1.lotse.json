@@ -1,0 +1,44 @@
+{
+  "modell": "mock",
+  "version": "fixture",
+  "antworten": [
+    {
+      "json": {
+        "lage": "Pflegebedarf",
+        "leistungen": [
+          "pflegegeld"
+        ],
+        "angaben": {
+          "status": "pva",
+          "person": "angehoerige",
+          "bundesland": "wien"
+        },
+        "begriffe": [
+          "Pflegegeld",
+          "Pflegebedarf",
+          "Anspruchsvoraussetzungen"
+        ],
+        "antrag": {
+          "person_vorname": null,
+          "person_familienname": null,
+          "antragsteller_vorname": null,
+          "antragsteller_familienname": null,
+          "antragsteller_beziehung": null
+        }
+      }
+    },
+    {
+      "json": {
+        "aussagen": [
+          {
+            "text": "Pflegegeld bekommt, wer wegen einer Behinderung ständig Betreuung und Hilfe braucht.",
+            "abschnitt_id": 101,
+            "zitat": "Das Pflegegeld gebührt bei Zutreffen der übrigen Anspruchsvoraussetzungen, wenn auf Grund einer körperlichen, geistigen oder psychischen Behinderung oder einer Sinnesbehinderung der ständige Betreuungs- und Hilfsbedarf"
+          }
+        ],
+        "verhalten": "antwort",
+        "uebergabe_an": null
+      }
+    }
+  ]
+}
