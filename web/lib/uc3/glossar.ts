@@ -23,6 +23,11 @@ export const UC3_GLOSSAR = {
   vorläufig: "Die Zahl kann sich noch ändern, bis ein Mensch den Monat freigibt.",
   fortgeschrieben: "Fehlen Verhältnisse in einer Lieferung, übernehmen wir sie aus dem Vormonat und sagen das dazu.",
   Abrechnung: "Jeder gelesene Satz ist entweder gezählt, nicht gezählt oder ausgeschlossen; keiner geht verloren.",
+  ÖNACE: "Die österreichische Liste der Wirtschaftszweige, nach der wir Branchen zählen.",
+  "Ergebnis-Hash": "Ein Fingerabdruck aller Zahlen eines Laufs: gleiche Daten und Regeln ergeben denselben Fingerabdruck.",
+  Probe: "Der Agent rechnet die geänderte Regel vorab, damit Sie die Wirkung vor der Freigabe sehen.",
+  Regelsatz: "Eine Fassung aller Regeln: v1 nach der Fachbeschreibung, v2 mit den Änderungsaufträgen.",
+  Sätze: "Zeilen der Lieferung; ein Satz beschreibt einen Zeitabschnitt eines Beschäftigungsverhältnisses.",
 } as const satisfies Record<string, string>;
 
 export type Uc3Begriff = keyof typeof UC3_GLOSSAR;

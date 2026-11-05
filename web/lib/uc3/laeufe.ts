@@ -107,7 +107,7 @@ export async function ladeMonatslaeufe(sql: Sql, regelsatz = "v1"): Promise<Mona
       SELECT bool_or(p.anhalten) AS angehalten,
              array_agg(r.name ORDER BY r.name) FILTER (WHERE p.anhalten) AS anhaltende_regeln,
              count(*) FILTER (WHERE p.anzahl > 0) AS auffaelligkeiten,
-             count(*) FILTER (WHERE p.anzahl > 0 AND p.einstufung = 'nicht-erklaerbar') AS nicht_erklaerbar
+             count(*) FILTER (WHERE p.anzahl > 0 AND coalesce(p.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar') AS nicht_erklaerbar
       FROM meta.pruefung_treffer p
       JOIN meta.regel r ON r.id = p.regel_id
       WHERE p.lauf_id = m.id
