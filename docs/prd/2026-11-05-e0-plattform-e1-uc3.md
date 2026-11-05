@@ -42,7 +42,7 @@ die Bau-Sessions der vier Tabs als erste Nutzer der Verträge.
 | `.env.example` zeigt alten Endpunkt | `grep we-01 .env.example` | 1 Treffer (we-01 statt we-16), kein LLM_PROVIDER | 2026-11-05 12:30 |
 | Zweiter Postgres auf 5432 | `lsof -iTCP:5432` | postgres PID 1089 lauscht; `.env.example` hat keine DB-URL | 2026-11-05 13:0x |
 | CI-Vorschlag passt nicht zum Workspace | `.gitlab-ci.yml:66-70` | `cd web`, Cache-Key `web/pnpm-lock.yaml`, `uv sync` ohne `--all-packages`, CI-Postgres leer | 2026-11-05 13:0x |
-| measureSlop-Schlüssel | `grep -n kickers ~/.claude/skills/product-ux-audit/scripts/slop-measure.js` | `kickersMono`, `kickersCaps` (kein `kickers`), `root` Standard `main`, kein Export | 2026-11-05 13:0x |
+| measureSlop-Schlüssel | `grep -n kickers web/tests/lib/slop-measure.js` | `kickersMono`, `kickersCaps` (kein `kickers`), `root` Standard `main` | 2026-11-05 13:0x |
 | `cloudflared` vorhanden | `which cloudflared` | /opt/homebrew/bin/cloudflared | 2026-11-05 13:0x |
 | Modell-Konzept Owner | Lead-Nachricht 13:0x („ok passt. so machen wirs“) | azure Pflicht UC3, mistral Zweitanbieter Live-Austausch, ollama Notnagel m5, claude Qualitätsmodus UC1/UC2; Azure-Limit 200.000 Token/s, Mistral-Budget 10 € | 2026-11-05 13:0x |
 
@@ -179,8 +179,8 @@ der Modell-Badge liest `GET /api/plattform/modell` (E0-Route, führt `uv run pyt
   Hell, kein Dark Mode. Keine SV-Logos. Die Pen-Datei hat 17 helle Farben (Variablen l-*); sie gilt (MR !5).
 - Eigene, ruhige Elemente nach den Pen-Frames; keine shadcn-Defaults ohne Anpassung. Status immer Symbol plus Wort.
   Glossar-Untertitel je Fachbegriff. Je Screen eine Hauptaussage und eine Hauptaktion.
-- Anti-Schablonen-Gate: `measureSlop({root:'body'})` (impeccable-Katalog, Apache-2.0; die Skript-Datei hat keinen
-  Lizenzkopf und keinen Export, beides wird beim Übernehmen ergänzt, Laden per `addScriptTag`) als Playwright-Test
+- Anti-Schablonen-Gate: `measureSlop({root:'body'})` (`web/tests/lib/slop-measure.js`, Laden per `addScriptTag`)
+  als Playwright-Test
   gegen jede Route, Desktop 1440×900 und Mobil 390×844, Ziel 0 Treffer in den zwölf Schlüsseln kickersMono,
   kickersCaps, iconTiles, shadowCards, ghostCards, gradientText, glassBlur, lightOrbs, pulsingDecor, sparklesNonAi,
   emDashes, questionHeadings. `genericFontShare` ist ausgenommen und dokumentiert (Inter ist Vertrag). Eine
@@ -371,7 +371,7 @@ Given alle Routen der App, measureSlop aus dem Repo (Quelle und Lizenz im Kopf) 
 When `pnpm test:slop` läuft (Playwright, 1440×900 und 390×844, `root:'body'`)
 Then jede Route meldet 0 Treffer in den zwölf Schlüsseln, und die Positiv-Fixture meldet ≥ 1 in jedem Schlüssel
 ```
-Oracle: Playwright-Report; der Katalog stammt aus impeccable, die Positiv-Fixture belegt, dass das Gate misst.
+Oracle: Playwright-Report; die Positiv-Fixture belegt, dass das Gate misst.
 
 ### E1 (Schärfung der Kinder #13–#20, je Issue ein Kommentar mit AC, Oracle, Welle)
 ```gherkin
