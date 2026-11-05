@@ -221,11 +221,15 @@ def antwort_daten(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     bezeichnung, einheit = _variable(conn)
     status = _STATUS_TEXT.get(stand.ergebnis_status, stand.ergebnis_status)
     beleg = {
+        "uc": "uc3",
         "quelle": QUELLE,
         "lieferung": stand.lieferung,
         "monat": monat,
         "sql": sql_text,
         "ref": f"meta.lauf/{stand.lauf_id} regelstand {stand.regelstand} {stand.ergebnis_status}",
+        "regelstand": stand.regelstand,
+        "lauf": stand.ergebnis_hash,
+        "stand": stand.ergebnis_status,
     }
     zusatz = f" ({', '.join(etiketten)})" if etiketten else ""
     stichtag = monatsletzter(monat).strftime("%d.%m.%Y")
@@ -270,4 +274,4 @@ def antwort(frage: str, kontext: list[Any]) -> Any:
         ) from fehler
     with verbinden() as conn:
         daten = antwort_daten(conn, frage)
-    return UcAntwort(**daten)
+    return UcAntwort.model_validate(daten)
