@@ -1,3 +1,4 @@
+import * as registry from "@kic/ui/ucs";
 import { ucs, type UcId } from "@kic/ui/ucs";
 import Link from "next/link";
 import type { CSSProperties } from "react";
@@ -9,13 +10,27 @@ import s from "./seite.module.css";
 const REIHENFOLGE: UcId[] = ["uc3", "uc1", "uc2"];
 
 /**
+ * UC4 steht in der Registry der Plattform nicht in `ucs`, sondern in `bereiche` (= `ucs` plus `einstieg`,
+ * #98). Gesucht wird in `bereiche`, falls die Registry sie exportiert, sonst in `ucs`; so erscheint der
+ * Link, sobald die Plattform den Eintrag führt, ohne dass die Landing vorher bricht.
+ */
+export function findeEinstieg(
+  quelle: Record<string, unknown> = registry as unknown as Record<string, unknown>,
+): { id: string; route: string } | undefined {
+  const liste = (Array.isArray(quelle.bereiche) ? quelle.bereiche : quelle.ucs) as
+    | readonly { id: string; route: string }[]
+    | undefined;
+  return liste?.find((b) => b.id === "uc4");
+}
+
+/**
  * Use Case 4 „Gemeinsamer Einstieg“ (Epic #95) als verdeckter Eintrag: geschwärzt wie eine
  * Hochrisiko-Akte, `<details>` deckt ihn auf (ohne JavaScript, Tastatur und Screenreader inklusive).
- * Der Link erscheint erst, wenn die Registry (shared/ui/src/ucs.ts) einen Eintrag uc4 führt.
+ * Der Link erscheint erst, wenn die Registry (shared/ui/src/ucs.ts) einen Eintrag uc4 führt (`findeEinstieg`).
  */
 function UseCaseVier({ index }: { index: number }) {
   const t = USE_CASES.uc4;
-  const eintrag = ucs.find((uc) => (uc.id as string) === "uc4");
+  const eintrag = findeEinstieg();
   return (
     <li className={`${s.zeile} ${a.uc} ${a.ucVier}`} style={{ "--i": index } as CSSProperties}>
       <details className={a.akte}>
