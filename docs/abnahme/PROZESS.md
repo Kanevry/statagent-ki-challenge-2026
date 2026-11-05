@@ -1,6 +1,6 @@
 # Abnahme-Prozess: jedes Kriterium mit Beleg, jede Stunde wiederholbar
 
-Entwurf v0.1, 05.11.2026 17:40 (Europe/Vienna), b-abnahme-30. Zur Prüfung durch Fable 5.1 und Astra (Codex).
+Entwurf v0.1, 05.11.2026 17:22 (Europe/Vienna), b-abnahme-30. Zur Prüfung durch Fable 5.1 und Astra (Codex).
 
 ## Ziel
 
