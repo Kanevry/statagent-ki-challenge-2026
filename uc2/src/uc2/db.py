@@ -1,7 +1,9 @@
 """PG-Verbindung für UC2: eigene DB `healthpolicy` auf PG 5433 (Tests: `healthpolicy_test`).
 
-Die Verbindung kommt aus den `PG*`-Variablen (lokal 5433, CI 5432); fehlt eine, gelten die
-Standardwerte der Challenge (`statistik`/`statistik` auf localhost:5433).
+Reihenfolge: `UC2_DATABASE_URL` (Vertrag E0, `.env.example`) gewinnt; sonst die `PG*`-Variablen (lokal 5433,
+CI 5432) mit `UC2_DB`; fehlt etwas, gelten die Standardwerte der Challenge (`statistik`/`statistik` auf
+localhost:5433, DB `healthpolicy`). Ein ausdrücklich übergebener DB-Name (Tests, Verwaltung) ersetzt nur den
+DB-Namen, Host und Zugang bleiben.
 """
 
 from __future__ import annotations
@@ -24,6 +26,12 @@ def verbindungs_parameter(dbname: str | None = None) -> dict[str, str]:
     }
 
 
+def conninfo(dbname: str | None = None) -> str:
+    url = os.environ.get("UC2_DATABASE_URL")
+    if url:
+        return make_conninfo(url, dbname=dbname) if dbname else make_conninfo(url)
+    return make_conninfo("", **verbindungs_parameter(dbname))
+
+
 def verbinde(dbname: str | None = None, autocommit: bool = False) -> psycopg.Connection[tuple[object, ...]]:
-    conninfo = make_conninfo("", **verbindungs_parameter(dbname))
-    return psycopg.connect(conninfo, autocommit=autocommit)
+    return psycopg.connect(conninfo(dbname), autocommit=autocommit)

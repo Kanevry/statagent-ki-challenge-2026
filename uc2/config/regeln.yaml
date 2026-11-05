@@ -1,0 +1,45 @@
+# Regeln für Belege (#40) und Suche: Werte als Daten, nicht als Konstanten im Code.
+# Die Werte sind Startwerte; sie werden nach der Prototyp-Messung der Suche angepasst.
+version: 1
+
+# Stichtag der Simulation: Artikel nach diesem Tag gelten als unbekannt und werden ausgeschlossen.
+stichtag_standard: 2026-09-30
+
+# Altersgewicht = 0,5 ^ ((Stichtag - Artikeldatum) / Halbwertszeit). Nach 120 Tagen zählt ein Beleg halb.
+halbwertszeit_tage: 120
+
+# Zerlegung in Abschnitte: bis max_zeichen bleibt ein Artikel ganz; länger wird an Absatz- und
+# Satzgrenzen geteilt, aufeinanderfolgende Abschnitte überlappen um etwa `ueberlappung` Zeichen.
+abschnitt:
+  max_zeichen: 1500
+  ueberlappung: 200
+
+suche:
+  # volltext | vektor | hybrid
+  modus: hybrid
+  # Fusion im Modus hybrid:
+  #   rrf   = gewichtete Reciprocal Rank Fusion über Artikelränge:
+  #           gewicht_volltext / (rrf_k + rang_volltext) + gewicht_vektor / (rrf_k + rang_vektor);
+  #           fehlt ein Rang, entfällt der Summand.
+  #   summe = gewicht_vektor * max(cos, 0) + gewicht_volltext * ts_norm (rohe Werte, schlecht skaliert:
+  #           cos liegt eng bei ~0,8, ts bei 0,0x).
+  # Messung Vollbestand 2026 (10 Fragen, k = 8, blind bewertet, 142 Paare; docs/plan/uc2/belege-messung.md):
+  #   Modus                        P@8>=1  P@8=2  nDCG@8
+  #   Volltext ODER                0,825   0,600  0,772
+  #   Vektor                       0,700   0,388  0,605
+  #   Hybrid summe 0,7 cos/0,3 ts  0,738   0,425  0,618
+  #   Hybrid rrf k=60, 0,6 Volltext 0,850   0,600  0,804   → Standard
+  fusion: rrf
+  rrf_k: 60
+  gewicht_volltext: 0.6
+  gewicht_vektor: 0.4
+  # Verknüpfung der Suchwörter im Volltext: oder (ein passendes Wort genügt, mehr Treffer heben ts)
+  # | und (alle Wörter nötig, websearch_to_tsquery). Natürliche Fragen finden mit `und` oft nichts.
+  volltext_verknuepfung: oder
+  # Kandidaten je Verfahren (Volltext und Vektor), danach Vereinigung und Endrang
+  kandidaten: 200
+  # Treffer in der Ausgabe (je Artikel höchstens ein Abschnitt)
+  k: 8
+
+# Faktor für Belege, die die Institution des fragenden Akteurs nennen (#43, hier noch ungenutzt).
+institutionsfaktor: 1.5
