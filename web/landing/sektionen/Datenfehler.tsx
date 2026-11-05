@@ -128,20 +128,19 @@ export default function Datenfehler({ tabelle }: { tabelle: BefundTabelle }) {
             </p>
 
             <BefundZeilen zeilen={tabelle.zeilen.slice(0, ERSTE)} />
-            {tabelle.zeilen.length > ERSTE && (
-              <details className={a.mehr}>
-                <summary>{`Alle ${tabelle.zeilen.length} Befunde und Begriffe`}</summary>
-                <BefundZeilen zeilen={tabelle.zeilen.slice(ERSTE)} />
-                <dl className={a.glossar}>
-                  {DATENFEHLER.glossar.map((g) => (
-                    <div key={g.begriff}>
-                      <dt>{g.begriff}</dt>
-                      <dd>{g.erklaerung}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </details>
-            )}
+            {/* Begriffe immer anbieten, weitere Zeilen nur, wenn es mehr als ERSTE gibt (Review !110). */}
+            <details className={a.mehr}>
+              <summary>{DATENFEHLER.mehr(Math.max(0, tabelle.zeilen.length - ERSTE))}</summary>
+              {tabelle.zeilen.length > ERSTE && <BefundZeilen zeilen={tabelle.zeilen.slice(ERSTE)} />}
+              <dl className={a.glossar}>
+                {DATENFEHLER.glossar.map((g) => (
+                  <div key={g.begriff}>
+                    <dt>{g.begriff}</dt>
+                    <dd>{g.erklaerung}</dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
           </div>
         </Einblenden>
       </div>
