@@ -31,11 +31,15 @@ describe("GET /api/plattform/voice-config", () => {
     expect(antwort.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("ist ohne PUBLIC_URL nicht aktiv", async () => {
+  // Fängt ab (Geld, Lead a7): ausgeschaltet lieferte die Route den öffentlichen Schlüssel trotzdem aus.
+  it("ist ohne PUBLIC_URL nicht aktiv und liefert weder Schlüssel noch Assistent", async () => {
     vi.stubEnv("VAPI_PUBLIC_KEY", "pk-oeffentlich");
     vi.stubEnv("VAPI_ASSISTANT_ID", "asst-1");
     vi.stubEnv("PUBLIC_URL", "");
-    expect((await lies()).body.aktiv).toBe(false);
+    const { body, text } = await lies();
+    expect(body).toEqual({ publicKey: null, assistantId: null, aktiv: false });
+    expect(text).not.toContain("pk-oeffentlich");
+    expect(text).not.toContain("asst-1");
   });
 
   // Fängt ab (#120): Ohne Standard-Assistenten blieb auch ein Raum mit eigenem Assistenten aus.
@@ -52,7 +56,9 @@ describe("GET /api/plattform/voice-config", () => {
     vi.stubEnv("VAPI_ASSISTANT_ID", "asst-1");
     vi.stubEnv("PUBLIC_URL", "https://beispiel.example.org");
     vi.stubEnv("KIC_ONLINE_LESEND", "1");
-    expect((await lies()).body.aktiv).toBe(false);
+    const { body, text } = await lies();
+    expect(body).toEqual({ publicKey: null, assistantId: null, aktiv: false });
+    expect(text).not.toContain("pk-oeffentlich");
   });
 
   it("liefert null statt leerer Werte und ist dann nicht aktiv", async () => {

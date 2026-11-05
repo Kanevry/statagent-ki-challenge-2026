@@ -234,6 +234,19 @@ cmd_pruefen() {
     done
   done
 
+  # Voice aus heißt: kein Vapi-Schlüssel im Body (#108 b, Lead a7 05.11.). Mit dem öffentlichen Schlüssel könnte
+  # jeder abgerechnete Anrufe starten, auch wenn der Sprechknopf aus ist.
+  local voice
+  voice=$(curl -sS --max-time 20 "https://$DOMAIN/api/plattform/voice-config") || voice=""
+  if [[ $voice == *'"aktiv":true'* ]]; then
+    echo "pruefen: Voice ist aktiv (Schlüssel wird ausgeliefert, nur nach Freigabe des Leads)"
+  elif [[ $voice == *'"aktiv":false'* && $voice == *'"publicKey":null'* && $voice == *'"assistantId":null'* ]]; then
+    echo "pruefen: Voice aus, kein Schlüssel ausgeliefert"
+  else
+    echo "pruefen: voice-config liefert bei Voice aus einen Schlüssel oder ist nicht lesbar" >&2
+    fehler=1
+  fi
+
   # auf dem Server: jeder Dienst läuft und meldet healthy
   local zustand
   if ! zustand=$(remote bash -s -- "$BASIS" "$ENV_DATEI" <<'EOF'
