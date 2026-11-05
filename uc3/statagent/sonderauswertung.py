@@ -39,6 +39,7 @@ from typing import Any
 from statagent import ergebnis, konfig
 from statagent.db import Verbindung, lieferungen, tupelzeilen
 from statagent.regeln import Regel, RegelFehler, eine, name_pruefen, regeln_laden, wert
+from statagent.zeit import zeit_text
 
 #: Parameter, die die Art ``personentage`` liest (jeder ist Pflicht, siehe ``regeln.wert``). Die Agenten prüfen
 #: neue Auswertungsregeln gegen diese Liste (agenten/koordinator.py).
@@ -294,9 +295,9 @@ def _bisherige_lieferung(conn: Verbindung, berichtsmonat: str, sha256: str) -> N
             return
         raise LieferungBereitsFreigegeben(
             f"Ministeriums-Lieferung {berichtsmonat} ist bereits freigegeben von {protokoll['name']} am "
-            f"{protokoll['zeit']:%d.%m.%Y %H:%M} (meta.protokoll); meta.ausgabe fehlt, bitte nachtragen statt neu freigeben"
+            f"{zeit_text(protokoll['zeit'])} (meta.protokoll); meta.ausgabe fehlt, bitte nachtragen statt neu freigeben"
         )
-    am = f"{vorher['freigegeben_am']:%d.%m.%Y %H:%M}"
+    am = zeit_text(vorher["freigegeben_am"])
     if vorher["sha256"] == sha256:
         raise LieferungBereitsFreigegeben(
             f"Ministeriums-Lieferung {berichtsmonat} ist bereits freigegeben von {vorher['freigegeben_von']} am {am}"

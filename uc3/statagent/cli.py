@@ -18,6 +18,7 @@ import typer
 from statagent import ergebnis, konfig
 from statagent.db import lieferungen, schema_einrichten, verbinden
 from statagent.regeln import NameUngueltig, RegelFehler, regeln_freigeben, regeln_laden
+from statagent.zeit import zeit_text
 
 app = typer.Typer(
     help="StatAgent: Monatsbetrieb der Beschäftigtenstatistik. Die KI schreibt Code, das Programm rechnet.",
@@ -132,7 +133,7 @@ def regeln_zeigen(
         f"{r.id:>4} {r.typ:<9} {r.name:<34} {json.dumps(r.parameter, ensure_ascii=False)}\n"
         f"     {r.beschreibung}\n     Grundlage: {r.grundlage} · "
         + (
-            f"freigegeben von {r.freigegeben_von} am {r.freigegeben_am:%d.%m.%Y %H:%M}"
+            f"freigegeben von {r.freigegeben_von} am {zeit_text(r.freigegeben_am)}"
             if r.freigegeben_am
             else "NICHT freigegeben"
         )
@@ -594,7 +595,7 @@ def freigabe(
         "ref": v.ref,
         "protokoll_id": v.protokoll_id,
     }
-    zeit = f"{v.freigegeben_am:%d.%m.%Y %H:%M}" if v.freigegeben_am else "?"
+    zeit = zeit_text(v.freigegeben_am)
     zeilen = [
         f"{erg.name} hat Vorschlag uc3/{erg.vorschlag_id} am {zeit} freigegeben.",
         f"Festgehalten in Commit {erg.commit_hash or 'ohne Commit'} und Protokolleintrag {v.protokoll_id}.",
