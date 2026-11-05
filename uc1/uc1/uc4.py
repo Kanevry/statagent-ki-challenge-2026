@@ -115,11 +115,12 @@ def erlaubte_zahlen(kontext: Kontext) -> set[str]:
 
 # Ausgeschriebene Zahlen („sieben tausend vierhundert achtundneunzig“, /uc4-Probelauf Szene 8) prüft der
 # Server nicht gegen den Kontext; ein Satz damit fällt weg wie ein Satz mit falscher Ziffer. Grundzahlen als
-# ganzes Wort, Zehner, hundert, tausend, Million und Milliarde auch als Teil („achtundneunzig“). „ein“,
-# „eine“, „one“ und Ordnungszahlen („zweite“) zählen nicht, sie stehen in fast jedem Satz.
+# ganzes Wort, Zehner, hundert, tausend, Million und Milliarde auch als Teil („achtundneunzig“). „eins“ und
+# „zero“ zählen (Review !93, #151); „ein“, „eine“, „one“ und Ordnungszahlen („zweite“) nicht, sie stehen in
+# fast jedem Satz.
 _ZAHLWORT = re.compile(
-    r"\b(?:null|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|(?:drei|vier|fünf|sech|sieb|acht"
-    r"|neun)zehn|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|(?:thir|four|fif|six|seven|eigh"
+    r"\b(?:null|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|(?:drei|vier|fünf|sech|sieb"
+    r"|acht|neun)zehn|zero|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|(?:thir|four|fif|six|seven|eigh"
     r"|nine)teen|(?:twen|thir|for|fif|six|seven|eigh|nine)ty)\b"
     r"|zwanzig|dreißig|dreissig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig"
     r"|hundert|tausend|million|milliard|\b(?:hundred|thousand|billion)",

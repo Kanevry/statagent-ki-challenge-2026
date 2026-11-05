@@ -219,6 +219,31 @@ describe("Freigabe-Waage", () => {
     expect(waageBeleg(1, w!).sql).toContain("probe->'2025-10'->'vorher'->>'gesamt'");
   });
 
+  // Fehler, den das fängt: „25-34 (altersgruppe)“ und „C (oenace)“ auf der Seite, ein ÖNACE-Abschnitt als Hauptzeile
+  // oder rund 30 Zeilen mehr bei jeder Stichtags-Änderung (!150, #168).
+  it("zeigt Altersgruppe und Branche lesbar und nur, wenn sich die Grundgliederung nicht ändert", () => {
+    const probeMit = (vorher: Record<string, Record<string, number>>, nachher: Record<string, Record<string, number>>, gesamtNachher = 100) => ({
+      "2025-10": {
+        lieferung: "2025-10",
+        vorher: { gesamt: 100, je_merkmal: vorher },
+        nachher: { gesamt: gesamtNachher, je_merkmal: nachher },
+      },
+    });
+    const nurAlter = waage(probeMit({ altersgruppe: { "25-34": 40, "35-44": 60 } }, { altersgruppe: { "25-34": 45, "35-44": 55 } }))!;
+    expect(nurAlter.weitere.map((z) => z.bezeichnung)).toEqual(["25-34 (Altersgruppe)", "35-44 (Altersgruppe)"]);
+    const nurBranche = waage(probeMit({ oenace: { C: 10 } }, { oenace: { C: 20 } }, 110))!;
+    expect(nurBranche.haupt.bezeichnung).toBe("Abschnitt C (Branche)");
+    const mitKategorie = waage(
+      probeMit(
+        { qualifikation: { Arbeiter: 50 }, oenace: { C: 10 }, altersgruppe: { "25-34": 40 } },
+        { qualifikation: { Arbeiter: 55 }, oenace: { C: 500 }, altersgruppe: { "25-34": 400 } },
+        105,
+      ),
+    )!;
+    expect(mitKategorie.haupt.merkmal).toBe("qualifikation");
+    expect(mitKategorie.weitere).toHaveLength(0);
+  });
+
   it("Fehler: Gesamtzahl ändert sich unbemerkt. Hauptzeile ist die Kategorie, dazu eine Zeile zur Gesamtzahl", () => {
     const monat = probe["2025-10"];
     const mitZuwachs = {
@@ -403,6 +428,8 @@ describe("Auftragszitat (Sichtprüfung bb, #18)", () => {
       "In der Statistik wird nicht mehr unterschieden. Die Beschäftigungskategorie hat nur noch drei Ausprägungen. Die Änderung gilt rückwirkend.",
     );
     expect(auftraggeber({ gesagtVon: null, anweisung })).toBe("Änderungsauftrag aus der Aufgabenstellung");
+    // Fehler, den das fängt: „Ohne Namen erfasst“ liest sich vor der Jury wie ein Mangel.
+    expect(auftraggeber({ gesagtVon: null, anweisung: "Bitte die Region anders ausweisen." })).toBe("Änderungsauftrag");
   });
 
   // Fehler (Review !77 Runde 2): jeder Doppelpunkt in den ersten 120 Zeichen schnitt den Anfang ab.

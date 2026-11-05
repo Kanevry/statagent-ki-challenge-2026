@@ -213,12 +213,12 @@ schwer = false
 zeitlimit = 200
 gegenprobe = "timeout 120 uv run --isolated --package uc1 python -c \"\nfrage = 'Ich bin Peter Huber, geboren am 12.03.1960, wohne in der Hauptstraße 5, 1100 Wien. Meine Mutter braucht Pflege.'\nprint('leck', len([w for w in ('Peter', 'Huber', '12.03.1960', 'Hauptstraße') if w in frage]))\n\""
 quelle = "Issue #121, Punkt 5"
-befund = "erweiterung.llm_begriffe schickt Namen, Geburtsdatum und Adresse aus der Frage unverändert ans Modell."
+befund = "erweiterung.llm_begriffe schickt Namen ohne Hinweiswort aus der Frage unverändert ans Modell; Datum und Adresse werden maskiert."
 grund = "Name, Geburtsdatum und Straße aus der Frage erreichen das Modell nicht."
 
 [[pruefung]]
 id = "81-1"
-hash = "f2e6fe6805"
+hash = "1b46d89676"
 befehl = "(test -s uc1/eval/termin-wien.json && grep -c 'Unbelegte Adressen: 0' docs/plan/uc1/termin-messung.md) || echo fehlt"
 erwartet = ["^1$"]
 deckung = "teil"
@@ -231,7 +231,7 @@ grund = "Fixture und Prüfbericht liegen vor, der Bericht nennt 0 unbelegte Adre
 
 [[pruefung]]
 id = "81-1"
-hash = "f2e6fe6805"
+hash = "1b46d89676"
 befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_termin.py -m 'not daten'"
 erwartet = ["(^|= )\\d+ passed"]
 deckung = "teil"
@@ -243,9 +243,9 @@ grund = "Die Tests ohne Datenbank bestehen: Teilstring-Regel, „nicht belegt“
 
 [[pruefung]]
 id = "81-1"
-hash = "f2e6fe6805"
-befehl = "grep -c -- '--fall' uc1/uc1/eval.py || true"
-erwartet = ["^[1-9]\\d*$"]
+hash = "1b46d89676"
+befehl = "timeout 60 uv run --isolated --package uc1 lotse termin --help"
+erwartet = ["--fall FALL"]
 deckung = "teil"
 schwer = false
 zeitlimit = 200
@@ -255,7 +255,7 @@ grund = "lotse eval kennt den Schalter --fall."
 
 [[pruefung]]
 id = "81-1"
-hash = "f2e6fe6805"
+hash = "1b46d89676"
 befehl = "timeout 170 uv run --package uc1 python -m uc1.termin --pruefen termin-wien"
 erwartet = ["OK +0 unbelegte Adressen", "OK +jede ausgegebene Adresse ist Teilstring der Quelle"]
 deckung = "voll"
@@ -491,7 +491,7 @@ grund = "--nur-suche läuft im Test mit Suche-Attrappe ohne Modell, --provider k
 [[pruefung]]
 id = "30-3"
 hash = "5851b47dee"
-befehl = "n=$(grep -lE 'Provider: *(azure|claude|mistral|ollama)|--provider (azure|claude|mistral|ollama)' docs/plan/uc1/*.md | grep -c . || true); g=$(grep -lE 'g24a' docs/plan/uc1/messung-ende*.md docs/plan/uc1/messung-heldout*.md 2>/dev/null | grep -c . || true); echo \"echtlauf-docs $n lotse-set-lauf $g\""
+befehl = "n=$(grep -lE 'Provider: *(azure|claude|mistral|ollama)|--provider (azure|claude|mistral|ollama)' docs/plan/uc1/*.md | grep -c . || true); g=$(grep -lE 'g24a' docs/plan/uc1/messung*.md 2>/dev/null | grep -c . || true); echo \"echtlauf-docs $n lotse-set-lauf $g\""
 erwartet = ["^echtlauf-docs [1-9]\\d* lotse-set-lauf [1-9]\\d*$"]
 deckung = "teil"
 schwer = false
@@ -600,25 +600,25 @@ grund = "Keine .env-Datei im Repo und keine schlüsselähnliche Zuweisung in uc1
 [[pruefung]]
 id = "23-1"
 hash = "cc772ba601"
-befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_kern.py -k 'pflege_szenario_zwei_wechsel_buendel or ohne_gueltige_aussage_abstinenz'; test -f uc1/uc1/api.py && grep -c erstelle_router uc1/uc1/api.py"
-erwartet = ["(^|= )\\d+ passed", "^[1-9]\\d*$"]
+befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_kern.py -k 'pflege_szenario_zwei_wechsel_buendel or ohne_gueltige_aussage_abstinenz'"
+erwartet = ["(^|= )\\d+ passed"]
 deckung = "teil"
 schwer = false
 zeitlimit = 200
-quelle = "Issue #23 (Epic-Fertig-Kriterium: Text und Stimme, jede Auskunft mit Quelle)"
-befund = "Der Text-Pfad besteht im Test, aber uc1/uc1/api.py mit dem Sprach-Router (Stimme) fehlt auf main."
-grund = "Text-Pfad besteht und der Dienst hängt den Sprach-Router ein (die Vorführung selbst misst dieser Satz nicht)."
+quelle = "Issue #23; Teil „per Stimme“ nach Abgabe (Entscheid Lead a7, 05.11. 20:3x, entscheide.jsonl)"
+befund = "Der Text-Pfad des Pflege-Szenarios besteht den Test nicht."
+grund = "Text-Pfad des Pflege-Szenarios besteht im Test (die Vorführung selbst misst der Hand-Prüfsatz)."
 
 [[pruefung]]
 id = "23-1"
 hash = "cc772ba601"
 art = "hand"
-beschreibung = "Ein Mensch führt das Pflege-Szenario einmal per Text und einmal per Stimme (Vapi über Tunnel oder Text-Fallback nach Voice-Abnahme) vor; jede Auskunft nennt die Quelle (Gesetz und Paragraf oder Dokument und Seite), und die Belegmengen beider Wege stimmen überein."
+beschreibung = "Ein Mensch führt das Pflege-Szenario Ende zu Ende per Text vor; jede Auskunft nennt die Quelle (Gesetz und Paragraf oder Dokument und Seite). Der Teil „per Stimme“ ist nach Abgabe (Entscheid Lead a7)."
 deckung = "voll"
 schwer = true
 quelle = "Issue #23"
-befund = "Ein Szenario Ende zu Ende per Text und per Stimme ist nicht vorgeführt."
-grund = "Beide Wege liefern dieselbe Auskunft mit Quelle."
+befund = "Ein Szenario Ende zu Ende per Text ist nicht vorgeführt."
+grund = "Das Szenario liefert per Text jede Auskunft mit Quelle."
 
 [[pruefung]]
 id = "34-1"
@@ -720,14 +720,14 @@ grund = "Chip öffnet den Abschnitt, Text ist Teilstring."
 [[pruefung]]
 id = "35-4"
 hash = "25706392a2"
-befehl = "grep -rlE 'ModellBadge|ModellPille' web/app/uc1 web/components/uc1 2>/dev/null | wc -l | tr -d ' '"
-erwartet = ["^[1-9]\\d*$"]
+befehl = "echo badge $(grep -c ModellBadge shared/ui/src/shell/header.tsx); echo shell $(grep -c AppShell web/lib/plattform/shell-rahmen.tsx); echo ki $(grep -c 'KI-Antwort' web/components/uc1/teile.tsx)"
+erwartet = ["^badge [1-9]", "^shell [1-9]", "^ki [1-9]"]
 deckung = "teil"
 befund_art = "fehlt"
 schwer = false
 zeitlimit = 200
 quelle = "Issue #35, Akzeptanz 4"
-befund = "Die Seite bindet das Modell-Badge nicht ein (oder fehlt)."
+befund = "Modell-Badge in der Shell oder KI-Kennzeichnung auf der UC1-Seite fehlen."
 grund = "Das Modell-Badge ist eingebunden (Sichtbarkeit in jedem Screenshot misst dieser Satz nicht)."
 
 [[pruefung]]

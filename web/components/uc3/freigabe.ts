@@ -411,7 +411,21 @@ export interface Waage {
   gesamtNachher: number;
 }
 
-const MERKMALE: Record<string, string> = { qualifikation: "Qualifikation", geschlecht: "Geschlecht", region: "Region" };
+const MERKMALE: Record<string, string> = {
+  qualifikation: "Qualifikation",
+  geschlecht: "Geschlecht",
+  region: "Region",
+  altersgruppe: "Altersgruppe",
+  oenace: "Branche",
+};
+
+/** Merkmale, die nur zählen, wenn sich die Grundgliederung nicht ändert: Sonst stünden rund 30 Zeilen mehr da. */
+const NUR_OHNE_GRUNDGLIEDERUNG: ReadonlySet<string> = new Set(["altersgruppe", "oenace"]);
+
+/** Name eines Codes; ein ÖNACE-Abschnitt heißt je Fassung anders, darum nur „Abschnitt C“ statt eines Namens. */
+function codeName(merkmal: string, code: string, bezeichnungen: Bezeichnungen): string {
+  return bezeichnungen[merkmal]?.[code] ?? (merkmal === "oenace" ? `Abschnitt ${code}` : code);
+}
 
 type ProbeZahlen = { gesamt?: unknown; je_merkmal?: unknown };
 
@@ -463,18 +477,19 @@ export function waage(probe: unknown, bezeichnungen: Bezeichnungen = {}): Waage 
       const vorher = zahl(v[code]);
       const nachher = zahl(n[code]);
       if (vorher === nachher) continue;
-      const name = bezeichnungen[merkmal]?.[code] ?? code;
       zeilen.push({
         merkmal,
         code,
-        bezeichnung: `${name} (${MERKMALE[merkmal] ?? merkmal})`,
+        bezeichnung: `${codeName(merkmal, code, bezeichnungen)} (${MERKMALE[merkmal] ?? merkmal})`,
         vorher,
         nachher,
         differenz: nachher - vorher,
       });
     }
   }
-  zeilen.sort((a, b) => Math.abs(b.differenz) - Math.abs(a.differenz) || a.bezeichnung.localeCompare(b.bezeichnung));
+  const grundgliederung = zeilen.filter((z) => !NUR_OHNE_GRUNDGLIEDERUNG.has(z.merkmal));
+  const gezeigt = grundgliederung.length > 0 ? grundgliederung : zeilen;
+  gezeigt.sort((a, b) => Math.abs(b.differenz) - Math.abs(a.differenz) || a.bezeichnung.localeCompare(b.bezeichnung));
   const gesamtVorher = zahl(monat.vorher.gesamt);
   const gesamtNachher = zahl(monat.nachher.gesamt);
   const gesamt: WaageZeile = {
@@ -486,11 +501,11 @@ export function waage(probe: unknown, bezeichnungen: Bezeichnungen = {}): Waage 
     differenz: gesamtNachher - gesamtVorher,
   };
   const gesamtBekannt = monat.vorher.gesamt !== undefined && monat.nachher.gesamt !== undefined && gesamtVorher > 0;
-  const umverteilung = zeilen.length > 0 && gesamtBekannt && gesamtVorher === gesamtNachher;
+  const umverteilung = gezeigt.length > 0 && gesamtBekannt && gesamtVorher === gesamtNachher;
   if (umverteilung) {
-    return { lieferung: monat.lieferung, haupt: gesamt, weitere: zeilen, gesamt, umverteilung, gesamtVorher, gesamtNachher };
+    return { lieferung: monat.lieferung, haupt: gesamt, weitere: gezeigt, gesamt, umverteilung, gesamtVorher, gesamtNachher };
   }
-  const [haupt = gesamt, ...weitere] = zeilen;
+  const [haupt = gesamt, ...weitere] = gezeigt;
   return { lieferung: monat.lieferung, haupt, weitere, gesamt, umverteilung, gesamtVorher, gesamtNachher };
 }
 
@@ -1011,7 +1026,7 @@ export function auftragsZitat(anweisung: string): string {
 /** Wer den Auftrag gegeben hat: Name aus dem Protokoll, sonst die Herkunft „Auftrag N“ der Aufgabenstellung. */
 export function auftraggeber(v: Pick<Vorschlag, "gesagtVon" | "anweisung">): string {
   if (v.gesagtVon) return `Gesagt von ${v.gesagtVon}`;
-  return /^Auftrag \d+\b/.test(v.anweisung.trim()) ? "Änderungsauftrag aus der Aufgabenstellung" : "Ohne Namen erfasst";
+  return /^Auftrag \d+\b/.test(v.anweisung.trim()) ? "Änderungsauftrag aus der Aufgabenstellung" : "Änderungsauftrag";
 }
 
 // ---------------------------------------------------------------------------------------------------------------

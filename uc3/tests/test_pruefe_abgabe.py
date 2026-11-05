@@ -452,3 +452,30 @@ def test_ministeriums_csv_muss_zum_manifest_passen(tmp_path: Path) -> None:
         "ministerium_2026-07.csv weicht vom Manifest ab"
         in _pruefen(abgabe, tmp_path, manifest_neu=False)[MANIFEST]
     )
+
+
+def _bericht_mit_rueckfrage(antwort: str) -> str:
+    kopf = "| Nr. | Gestellt am | Frage (kurz) | Antwort der Fachabteilung | Umgesetzt als Regel |"
+    zeile = f"| R1 | noch nicht gestellt | Geburtsmonat 13? | {antwort} | R5 |"
+    return _bericht().replace(
+        UEBERSCHRIFTEN[2], f"{UEBERSCHRIFTEN[2]}\n\n{kopf}\n| --- | --- | --- | --- | --- |\n{zeile}\n", 1
+    )
+
+
+@pytest.mark.parametrize(
+    ("antwort", "mangel"),
+    [
+        ("Noch offen. Bis zur Antwort gilt: Wir rechnen mit dem 1. Juli.", False),
+        ("Beantwortet am 01.01.2026: 1. Juli.", False),
+        ("Noch offen.", True),
+        ("", True),
+    ],
+)
+def test_rueckfrage_braucht_antwort_oder_annahme(antwort: str, mangel: bool) -> None:
+    # Fängt: Rückfrage ohne Antwort und ohne die Annahme, mit der bis dahin gerechnet wird (#72 AC2).
+    treffer = [
+        m for m in bericht_maengel(_bericht_mit_rueckfrage(antwort)) if "ohne Antwort oder Annahme" in m
+    ]
+    assert bool(treffer) is mangel
+    if mangel:
+        assert "R1" in treffer[0]

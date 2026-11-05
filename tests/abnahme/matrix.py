@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -56,13 +57,29 @@ FORTSETZUNG = re.compile(r"^\s{2,}\S")  # eingerückte Folgezeile gehört zum Kr
 AC_MARKE = re.compile(r"^\**\s*(AC\d+[a-z]?)\s*:")  # „**AC1:**“ ergibt die feste ID <iid>-AC1
 
 # Was nie in Datei, Issue oder Nachricht darf (öffentliches Repo): Pfade auf Rechnern, Rechnernamen,
-# Hostnamen, IP-Adressen außer Loopback, Zugangsdaten in URLs.
+# Hostnamen, IP-Adressen außer Loopback, Zugangsdaten in URLs. Konkrete Rechner- und Nutzernamen stehen
+# nicht im Repo, sondern je Zeile ein Regex in der Datei aus ABNAHME_SPERRNAMEN
+# (Standard: .config/kic-abnahme/sperrnamen im Home-Verzeichnis).
+_SPERRDATEI = Path(
+    os.environ.get("ABNAHME_SPERRNAMEN", Path.home() / ".config" / "kic-abnahme" / "sperrnamen")
+)
+
+
+def _sperrnamen() -> str:
+    if not _SPERRDATEI.is_file():
+        # Ohne Datei filtert schwaerzen keine Rechnernamen (allgemeine Muster greifen trotzdem; Review 4d).
+        print("Warnung: Sperrliste fehlt, Rechnernamen ungefiltert (ABNAHME_SPERRNAMEN)", file=sys.stderr)
+        return r"(?!)"
+    zeilen = [z.strip() for z in _SPERRDATEI.read_text().splitlines() if z.strip() and not z.startswith("#")]
+    return "|".join(f"(?:{z})" for z in zeilen) or r"(?!)"
+
+
+_RECHNER = re.compile(_sperrnamen())
 VERBOTEN = re.compile(
-    r"(/Users/|/home/|~/|(?<!\.env)\.local\b|m5-remote|win-wsl|\b[mM][45]\b|bernhardg"
-    r"|\b(?!127\.0\.0\.1\b|0\.0\.0\.0\b)\d{1,3}(?:\.\d{1,3}){3}\b|://[^@\s/]+:[^@\s/]+@)"
+    r"(/Users/|/home/|~/|(?<!\.env)\.local\b|\b(?!127\.0\.0\.1\b|0\.0\.0\.0\b)\d{1,3}(?:\.\d{1,3}){3}\b"
+    r"|://[^@\s/]+:[^@\s/]+@|" + _RECHNER.pattern + ")"
 )
 _PFAD = re.compile(r"(?:/Users/|/home/|~/)[^\s'\"`|)\]]*")
-_RECHNER = re.compile(r"\b(?:m5-remote|win-wsl|[mM][45])\b|bernhardg\S*")
 
 
 def schwaerzen(text: str) -> str:
@@ -264,6 +281,25 @@ ENTSCHEIDE = WURZEL / "docs" / "abnahme" / "entscheide.jsonl"
 LAEUFE = WURZEL / "docs" / "abnahme" / "laeufe"
 
 
+VERWORFEN = WURZEL / "docs" / "abnahme" / "verworfen.jsonl"
+
+
+def verworfene_belege() -> set[tuple[str, str]]:
+    """(Lauf-ID, Kriterium) aus `verworfen.jsonl`: Belege, die ein Werkzeugfehler verfälscht hat.
+
+    Laufdateien werden nie geändert; ein verworfener Beleg bleibt dort sichtbar und zählt nur nicht. Jede
+    Zeile nennt Lauf, IDs, Grund und wer verworfen hat.
+    """
+    if not VERWORFEN.exists():
+        return set()
+    paare = set()
+    for z in VERWORFEN.read_text(encoding="utf-8").splitlines():
+        if z.strip():
+            e = json.loads(z)
+            paare |= {(e["lauf"], i) for i in e["ids"]}
+    return paare
+
+
 def belege_lesen() -> dict[str, list[dict]]:
     """Alle Belege je Kriterium, nach Messzeit aufsteigend (bei gleicher Zeit in Lesereihenfolge).
 
@@ -277,9 +313,12 @@ def belege_lesen() -> dict[str, list[dict]]:
         zeilen = [json.loads(z) for z in datei.read_text().splitlines() if z.strip()]
         if zeilen and zeilen[-1].get("abgeschlossen"):
             quellen.append([z for z in zeilen if "id" in z])
+    verworfen = verworfene_belege()
     alle: dict[str, list[dict]] = {}
     for quelle in quellen:
         for b in quelle:
+            if (b.get("pruefer", "").removeprefix("lauf "), b["id"]) in verworfen:
+                continue
             alle.setdefault(b["id"], []).append(b)
     for liste in alle.values():
         liste.sort(key=lambda b: str(b.get("zeit", "")))
@@ -433,7 +472,10 @@ def tor(zeilen: list[dict], belege: dict[str, list[dict]]) -> int:
         if s not in ("nicht geprüft", "nicht bestanden"):
             continue
         e = entscheide.get(k["id"])
-        (entschieden if e and e.get("hash") == k["hash"] else offen).append((k, s, grund, e))
+        # Ein Teilentscheid (umfang = teil, z. B. 23-1: nur „per Stimme“ nach Abgabe) entscheidet das
+        # Kriterium nicht: der übrige Teil wird weiter gemessen.
+        ganz = e and e.get("hash") == k["hash"] and e.get("umfang") != "teil"
+        (entschieden if ganz else offen).append((k, s, grund, e))
     for k, s, _grund, e in entschieden:
         print(f"entschieden {k['teil']} {k['id']}: {s}; {e['entscheid']} ({e['wer']}, {e['quelle']})")
     for k, s, grund, _ in offen:

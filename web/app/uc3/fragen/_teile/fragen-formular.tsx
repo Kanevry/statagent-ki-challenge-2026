@@ -9,6 +9,9 @@ import { alsCsv, istRueckfrage } from "@/components/uc3/antwort";
 import {
   antwortTabelle,
   ersterSatz,
+  istSummenzeile,
+  kopfSagtVerstanden,
+  kopfSatz,
   rueckfrageVorschlaege,
   teileBezeichnung,
   verstandenSatz,
@@ -302,6 +305,7 @@ function Antwort({
   const verstanden = verstandenSatz(antwort);
   const [beleg] = antwort.belege;
   const eine = antwort.zahlen.length === 1 ? antwort.zahlen[0] : undefined;
+  const kopf = eine ? null : kopfSatz(antwort.text);
   // Vorläufig, sobald irgendein Beleg vorläufig ist; veröffentlicht nur, wenn alle Belege endgültig sind (Review !104).
   const staende = antwort.belege.map((b) => b.stand);
   const stand = staende.includes("vorlaeufig")
@@ -320,10 +324,10 @@ function Antwort({
           <p className="font-sans text-16 text-ink">{teileBezeichnung(eine.bezeichnung).was}</p>
         </div>
       ) : (
-        <p className="font-sans text-20 font-semibold text-pretty text-ink">{ersterSatz(antwort.text)}</p>
+        <p className="font-sans text-20 font-semibold text-pretty text-ink">{kopf}</p>
       )}
 
-      {verstanden && <p className="font-sans text-16 text-slate">{verstanden}</p>}
+      {verstanden && !(kopf && kopfSagtVerstanden(kopf)) && <p className="font-sans text-16 text-slate">{verstanden}</p>}
 
       {!eine && <Tabelle antwort={antwort} />}
 
@@ -372,7 +376,7 @@ function Tabelle({ antwort }: { antwort: UcAntwort }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full max-w-3xl border-collapse">
-        <caption className="sr-only">{`Zahlen zu: ${ersterSatz(antwort.text)}`}</caption>
+        <caption className="sr-only">{`Zahlen zu: ${kopfSatz(antwort.text)}`}</caption>
         <thead>
           <tr className="border-b border-line">
             <th scope="col" className="py-2 pr-6 text-left">
@@ -387,8 +391,11 @@ function Tabelle({ antwort }: { antwort: UcAntwort }) {
         </thead>
         <tbody>
           {t.zeilen.map((z) => (
-            <tr key={z.titel} className="border-b border-line font-sans text-14 text-ink">
-              <th scope="row" className="py-2 pr-6 text-left font-normal">
+            <tr
+              key={z.titel}
+              className={`border-b border-line font-sans text-14 text-ink ${istSummenzeile(z.titel) ? "font-semibold" : ""}`}
+            >
+              <th scope="row" className={`py-2 pr-6 text-left ${istSummenzeile(z.titel) ? "font-semibold" : "font-normal"}`}>
                 {z.titel}
               </th>
               {z.werte.map((w, i) => (

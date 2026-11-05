@@ -35,6 +35,24 @@ export function ersterSatz(text: string): string {
   return satz;
 }
 
+/**
+ * Kopfsatz einer Antwort mit Tabelle: der erste Satz ohne Angaben, die nichts eingrenzen („Branche: alle“).
+ * Aus „Verstanden: Oktober 2025, je Bundesland, Branche: alle.“ wird „Verstanden: Oktober 2025, je Bundesland.“
+ */
+export function kopfSatz(text: string): string {
+  return ersterSatz(text).replace(/,\s*[^,:.]+:\s*alle(?=[,.]|$)/g, "");
+}
+
+/** Steht „Verstanden“ schon im Kopfsatz, entfällt die zweite Zeile „Verstanden: …“ darunter. */
+export function kopfSagtVerstanden(kopf: string): boolean {
+  return kopf.startsWith("Verstanden");
+}
+
+/** Summenzeile einer Tabelle, etwa „Alle Bundesländer“ oder „alle Wirtschaftsbereiche (Summe der Zeilen)“. */
+export function istSummenzeile(titel: string): boolean {
+  return /^alle\b/i.test(titel.trim());
+}
+
 export type AntwortTabelle = {
   /** Spaltentitel, etwa „Männer“ und „Frauen“; eine Spalte „Wert“, wenn nichts zu teilen ist. */
   spalten: { titel: string; einheit: string | null }[];

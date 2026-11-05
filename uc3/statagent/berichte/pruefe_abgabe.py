@@ -273,10 +273,36 @@ def bericht_maengel(
             maengel.append("ungültige Einstufung " + ", ".join(f"„{e}“" for e in falsch))
     if len(struktur.abschnitte) > 2:
         maengel += _verweis_maengel(zeilen, struktur.abschnitte[1], struktur.abschnitte[2])
+        maengel += _rueckfrage_status_maengel(zeilen, struktur.abschnitte[2])
     return maengel
 
 
 _RUECKFRAGE_NR = re.compile(r"\bR\d+\b")
+_RUECKFRAGE_ZEILE = re.compile(r"^\|\s*R\d+\s*\|")
+ANTWORT_SPALTE = "Antwort der Fachabteilung"
+NOCH_OFFEN = "noch offen"
+ANNAHME_BIS_ANTWORT = "Bis zur Antwort gilt"
+
+
+def _rueckfrage_status_maengel(zeilen: list[str], rueckfragen: str) -> list[str]:
+    """Jede Rückfrage in § 3 hat eine Antwort oder einen Annahmestatus („Bis zur Antwort gilt: …“) (#72 AC2).
+
+    Mangel sind eine leere Antwortspalte und ein „Noch offen“ ohne die Annahme, mit der bis zur Antwort gerechnet wird.
+    """
+    spalte: int | None = None
+    ohne_status: list[str] = []
+    for zeile in _abschnitt(zeilen, rueckfragen) or []:
+        if not zeile.startswith("|"):
+            continue
+        zellen = [z.strip() for z in _ZELLGRENZE.split(zeile.strip().strip("|"))]
+        if ANTWORT_SPALTE in zellen:
+            spalte = zellen.index(ANTWORT_SPALTE)
+        elif _RUECKFRAGE_ZEILE.match(zeile):
+            antwort = zellen[spalte] if spalte is not None and spalte < len(zellen) else ""
+            offen = antwort.lower().startswith(NOCH_OFFEN) and ANNAHME_BIS_ANTWORT not in antwort
+            if not antwort or offen:
+                ohne_status.append(zellen[0])
+    return [f"§ 3: {', '.join(ohne_status)} ohne Antwort oder Annahme"] if ohne_status else []
 
 
 def _verweis_maengel(zeilen: list[str], auffaellig: str, rueckfragen: str) -> list[str]:

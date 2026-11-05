@@ -80,10 +80,14 @@ Daten an Vapi gehen. Ohne öffentliche Adresse (`PUBLIC_URL` leer) erreicht Vapi
 
 ### Qualitätssicherung
 
-Jeder Merge Request durchläuft die CI: Secret-Scan, ruff, mypy, pytest, TypeScript-Prüfung, Vitest, ein
-Produktions-Build der App und ein **Anti-Schablonen-Gate**. Das Gate misst jede Seite auf Desktop und Mobil
-gegen zwölf Muster generischer, maschinell zusammengesetzter Oberflächen und verlangt 0 Treffer
-(`docs/design.md`).
+Jeder Merge Request durchläuft die CI: Secret-Scan, ruff, mypy, pytest, TypeScript-Prüfung, ESLint, Vitest, ein
+Produktions-Build der App und Browser-Tests mit Playwright auf Desktop und Mobil. Dazu gehören:
+
+- ein **Anti-Schablonen-Gate**: Es misst jede Seite gegen zwölf Muster generischer, maschinell zusammengesetzter
+  Oberflächen und verlangt 0 Treffer (`docs/design.md`).
+- eine **Prüfung der Barrierefreiheit** mit axe (WCAG 2.1 AA): Schwere Verstöße lassen die Pipeline scheitern.
+- eine **gefüllte UC3-Testdatenbank** aus erfundenen Mini-Lieferungen, damit die Seiten unter `/uc3` mit Daten
+  geprüft werden und nicht nur im leeren Zustand.
 
 ## Ausführung
 
@@ -101,7 +105,8 @@ brauchen die UC3-Datenbank mit gerechneten Läufen (nächster Abschnitt).
 
 ### Beispiellauf UC3 (Jury-Weg)
 
-Voraussetzung ist die Datenbank des Veranstalters auf Port 5433 (siehe nächster Abschnitt). Dann:
+Voraussetzung ist die Datenbank des Veranstalters auf Port 5433. Im Ordner des Startpakets:
+`DB_PORT=5433 docker compose up -d`, dann warten, bis `docker logs statagent-db` „fertig“ meldet. Danach im Repo:
 
 ```bash
 uv run uc3 db init                          # Schemas, Klassifikationen, Regelsatz v1 (wiederholbar, löscht nichts)
@@ -115,13 +120,16 @@ dazu stehen in `uc3/README.md`. Der Lauf braucht kein Netz und kein Sprachmodell
 
 **Nachweis des Jury-Wegs:** Die Abnahme in einer frischen Umgebung steht in `docs/abnahme/66.md`, mit Befehlen,
 Zahlen und Ausgaben. Gemessen wurden alle 24 Läufe nacheinander auf einer frisch geladenen Datenbank: 24 von 24
-fertig in rund 7 Minuten, das Ergebnis gleich dem früheren Lauf.
+fertig in rund 7 Minuten, das Ergebnis gleich dem früheren Lauf. Auf einer frischen Datenbank entstehen dieselben
+Zahlen und Ergebnis-Hashes wie bei uns; der Status bleibt dort „vorläufig“, weil Freigaben und Veröffentlichung mit
+Namen in unserer Team-Datenbank stehen. Den Nachweis dafür enthält `abgabe/protokoll.md`.
 
 ### Tests
 
 - `uv run pytest -q` für den gemeinsamen Kern, je Use Case `cd ucN && uv run pytest -q`
 - `pnpm typecheck && pnpm test` für den TypeScript-Teil
-- UC3 gegen die echten Daten: `uv run pytest -q -m daten uc3/tests` (Golden Set mit 2.880 Zellen)
+- UC3 gegen die echten Daten (Datenbank mit gerechneten Läufen, Golden Set mit 2.880 Zellen):
+  `UC3_DATEN_URL=postgresql://statistik:statistik@localhost:5433/statistik uv run pytest -q -m daten uc3/tests`.
 
 ### Online-Demo
 

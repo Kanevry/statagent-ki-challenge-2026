@@ -268,3 +268,9 @@ def test_gleiche_zahl_aus_zwei_ucs_steht_einmal_ohne_einheit_anzahl() -> None:
     )
     assert [(z["wert"], z["beleg"]) for z in a["zahlen"]] == [(7498, 0), (7498, 1)]
     assert len(a["belege"]) == 2
+
+
+@pytest.mark.parametrize("satz", ["Es sind eins komma fünf Prozent.", "There were zero cases."])
+def test_eins_und_zero_sind_zahlwoerter(satz: str) -> None:
+    """Fängt „eins“ und „zero“, die als ausgeschriebene Zahl ungeprüft durchgingen (Review !93, #151)."""
+    assert uc4.hat_zahlwort(satz)

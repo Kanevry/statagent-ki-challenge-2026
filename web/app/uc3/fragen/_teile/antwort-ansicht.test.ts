@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { antwortTabelle, ersterSatz, rueckfrageVorschlaege, verstandenSatz } from "./antwort-ansicht";
+import { antwortTabelle, ersterSatz, istSummenzeile, kopfSagtVerstanden, kopfSatz, rueckfrageVorschlaege, verstandenSatz } from "./antwort-ansicht";
 
 const beleg = { uc: "uc3" as const, quelle: "stat.stat_beschaeftigte", lieferung: "2025-03", monat: "2025-03" };
 
@@ -32,6 +32,26 @@ describe("Antwort-Ansicht (UI-Regie v1)", () => {
     expect(f.spalten).toEqual([{ titel: "Fluktuation", einheit: "%" }, { titel: "Zugänge", einheit: null }]);
     expect(f.zeilen).toEqual([{ titel: "ÖNACE A Land- und Forstwirtschaft, Fischerei", werte: [18.33, 579] }]);
     expect(antwortTabelle([])).toEqual({ spalten: [{ titel: "Wert", einheit: null }], zeilen: [] });
+  });
+
+  // Fehler, den das fängt: Kopf „…, Branche: alle, Beschäftigungskategorie: alle.“ und darunter noch einmal
+  // „Verstanden: Oktober 2025“ (Live-Prüfung UI-Regie 05.11. 20:00).
+  it("kürzt den Kopfsatz und sagt „Verstanden“ nur einmal", () => {
+    const text =
+      "Verstanden: Oktober 2025, je Bundesland, je Geschlecht, Branche: alle, Beschäftigungskategorie: alle. Wien 47.922.";
+    const kopf = kopfSatz(text);
+    expect(kopf).toBe("Verstanden: Oktober 2025, je Bundesland, je Geschlecht.");
+    expect(kopfSagtVerstanden(kopf)).toBe(true);
+    expect(kopfSatz("Verstanden: März 2025, Branche: Bau.")).toBe("Verstanden: März 2025, Branche: Bau.");
+    expect(kopfSagtVerstanden(kopfSatz("Im März 2025 gab es 7.498 Beschäftigungsverhältnisse."))).toBe(false);
+  });
+
+  // Fehler, den das fängt: Die Summe sieht aus wie eine Zeile mehr, oder Allentsteig wird fett.
+  it("erkennt die Summenzeile", () => {
+    expect(istSummenzeile("Alle Bundesländer")).toBe(true);
+    expect(istSummenzeile("alle Wirtschaftsbereiche (Summe der Zeilen)")).toBe(true);
+    expect(istSummenzeile("Wien")).toBe(false);
+    expect(istSummenzeile("Allentsteig")).toBe(false);
   });
 
   it("liest die Vorschläge einer Rückfrage", () => {

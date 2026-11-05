@@ -214,6 +214,10 @@ leistungen:
       # Arbeitsplatz in Bürgersprache: „in der Firma“, „im Betrieb“, „am Arbeitsplatz“, „auf der Baustelle“ (#155).
       - '(?:(?:bei|in) der arbeit|in der firma|im betrieb|am arbeitsplatz|auf der baustelle)\b.{0,40}(?:gest(?:ü|u)rzt|verletzt|verungl(?:ü|u)ckt|unfall|ausgerutscht)'
       - '(?:gest(?:ü|u)rzt|verletzt|verungl(?:ü|u)ckt|ausgerutscht)\b.{0,20}(?:(?:bei|in) der arbeit|in der firma|im betrieb|am arbeitsplatz|auf der baustelle)\b'
+      # Zeit im Dienst und die Frage, ob es als Arbeit zählt (#162: Mittagspause, Dienstreise, Arbeitszeit).
+      - '(?:in der|während der) (?:arbeitszeit|mittagspause|dienstzeit|dienstreise)\b.{0,60}(?:gest(?:ü|u)rzt|ausgerutscht|verletzt|verungl(?:ü|u)ckt|unfall)'
+      - '(?:z(?:ä|a)hlt|gilt) das (?:noch )?(?:zur|als) arbeit'
+      - 'arbeitsweg|dienstweg|dienstunfall'
       - 'accident at work'
       - 'work(?:place)?[- ]accident'
       - 'commuting accident'
