@@ -456,12 +456,15 @@ cmd_sichern() {
   local db=${1:-} schuetzen=${2:-} modus=${3:-direkt}
   if [[ -n $db ]]; then pruefe_name "$db"; fi
   if [[ -n $schuetzen ]]; then pruefe_datei "$schuetzen"; fi
-  remote bash -s -- "$BASIS" "$ENV_DATEI" "$db" "$schuetzen" "$modus" <<'EOF'
+  # ssh fügt die Argumente zu einem Befehlstext zusammen und verliert dabei leere: "-" steht für „keins“
+  remote bash -s -- "$BASIS" "$ENV_DATEI" "${db:--}" "${schuetzen:--}" "$modus" <<'EOF'
 haupt() {
   set -euo pipefail
   umask 077
   cd "$1/repo/deploy"
   local compose=(docker compose --env-file "$2" -f docker-compose.prod.yml) db=$3 schuetzen=$4 modus=$5 behalten=5
+  if [ "$db" = - ]; then db=""; fi
+  if [ "$schuetzen" = - ]; then schuetzen=""; fi
   local ziel="$1/daten/sicherung" liste d da stempel datei alt
   mkdir -p "$ziel"
   # eine Sicherung zur Zeit; .teil-Reste eines Abbruchs räumt der Trap weg
