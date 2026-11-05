@@ -67,7 +67,11 @@ python:
     - uv run python -c "import plattform"
     - uv run ruff check .
     - uv run ruff format --check .
-    - uv run pytest -q -m "not daten"
+    # Typprüfung des gemeinsamen Pakets (UC-Pakete hängen sich mit ihrem Pfad an, z. B. uc3/statagent)
+    - uv run mypy shared/py/plattform
+    - uv run pytest -q -m "not daten" shared/py/tests
+    # je UC im eigenen Ordner mit eigener pytest-Config (gleichnamige Tests, Paket heißt wie der Ordner)
+    - for d in uc1 uc2 uc3; do if [ -d "$d/tests" ]; then (cd "$d" && uv run pytest -q -m "not daten") || exit 1; fi; done
 
 web:
   extends: .pnpm
@@ -90,6 +94,10 @@ playwright:
   extends: .pnpm
   stage: test
   image: mcr.microsoft.com/playwright:v1.64.1-noble
+  before_script:
+    # das Playwright-Image hat Node, aber kein corepack
+    - npm install -g pnpm@10.34.5
+    - pnpm config set store-dir .pnpm-store
   script:
     - pnpm install --frozen-lockfile
     - pnpm --filter web run test:slop

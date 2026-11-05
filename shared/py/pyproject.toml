@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Nur lokal (M4/m5), nicht in CI: torch macht jede Pipeline Minuten länger (#67).
+# Nur lokal, nicht in CI: torch macht jede Pipeline Minuten länger (#67).
 embeddings = ["sentence-transformers>=5.1"]
 
 [build-system]
