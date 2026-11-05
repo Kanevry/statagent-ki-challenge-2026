@@ -12,6 +12,7 @@ import {
   isoZeit,
   aenderungKurz,
   klarerAenderungsSatz,
+  zitatDoppelt,
   klartext,
   kurzerGrund,
   probeTitel,
@@ -568,7 +569,7 @@ describe("Sichtbarer Satz auf der Freigabe (#168)", () => {
   it("steht bei Rücknahme und Ausschluss, nicht bei einer normalen Änderung", () => {
     expect(
       klarerAenderungsSatz({ typ: "regel_aendern", aenderungen: [{ regel_name: "X1", aktiv_neu: false }] }),
-    ).toBe("Die Regel X1 wird abgeschaltet, sie wird nicht gelöscht.");
+    ).toBe("Die Regel wird abgeschaltet, sie wird nicht gelöscht.");
     expect(
       klarerAenderungsSatz({
         typ: "regel_neu",
@@ -578,5 +579,14 @@ describe("Sichtbarer Satz auf der Freigabe (#168)", () => {
     expect(
       klarerAenderungsSatz({ typ: "regel_aendern", aenderungen: [{ regel_name: "X1", parameter_alt: { a: 1 }, parameter_neu: { a: 2 } }] }),
     ).toBeNull();
+  });
+});
+
+describe("Überschrift und Zitat der Freigabe", () => {
+  // Fehler: „Beamte zählen nicht mehr mit“ stand als Überschrift und direkt darunter noch einmal als Zitat.
+  it("zeigt das Zitat nur, wenn es mehr sagt als die Überschrift", () => {
+    expect(zitatDoppelt("Beamte zählen nicht mehr mit", "Beamte zählen nicht mehr mit.")).toBe(true);
+    expect(zitatDoppelt("Rechne bei Geburtsmonat 13 nur …", "Rechne bei Geburtsmonat 13 nur mit der Differenz.")).toBe(false);
+    expect(zitatDoppelt("Dienstvertrag zusammen", "In der Statistik wird nicht mehr unterschieden.")).toBe(false);
   });
 });

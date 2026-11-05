@@ -435,7 +435,7 @@ export function klarerAenderungsSatz(
   const teile = v.aenderungen.flatMap((roh) => {
     const a = objekt(roh) as Aenderung;
     if (v.typ === "regel_aendern" && a.aktiv_neu === false) {
-      return [`Die Regel ${String(a.regel_name ?? "")} wird abgeschaltet, sie wird nicht gelöscht.`];
+      return ["Die Regel wird abgeschaltet, sie wird nicht gelöscht."];
     }
     const satz = v.typ === "regel_neu" ? regelNeuSatz(objekt(a.regel), bezeichnungen) : null;
     return satz ? [satz] : [];
@@ -1128,6 +1128,12 @@ export function kurzZeit(iso: string): string {
 }
 
 /** Titel und Nummer eines Auftrags: „Auftrag 1, Dienstvertrag …: …“ → Nummer 1, Titel „Dienstvertrag …“. */
+/** Sagt das Zitat dasselbe wie die Überschrift? Eine gekürzte Überschrift („… …“) zählt nicht, dort trägt das Zitat den Rest. */
+export function zitatDoppelt(titel: string, zitat: string): boolean {
+  const glatt = (t: string) => t.trim().replace(/[.!?]$/, "").toLowerCase();
+  return !titel.endsWith("…") && glatt(titel) === glatt(alltag(zitat));
+}
+
 export function auftragKopf(anweisung: string): { nummer: string | null; titel: string } {
   const treffer = /^\s*Auftrag (\d+)\s*,?\s*([^:]{0,100}):/.exec(anweisung);
   if (treffer) {

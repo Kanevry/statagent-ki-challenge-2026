@@ -143,7 +143,7 @@ export function AuftragFormular({ monate, regelsatz }: { monate: readonly string
     <div className="flex max-w-3xl flex-col gap-8">
       <header className="flex flex-col gap-3">
         <Ueberschrift stufe={2} als="h1">
-          Änderung in einem Satz
+          Ein Auftrag in einem Satz
         </Ueberschrift>
         <p className="font-sans text-16 text-slate">
           Die Agenten schreiben daraus einen Vorschlag mit den Zahlen vorher und nachher. Wirksam wird er erst, wenn ein
@@ -161,6 +161,7 @@ export function AuftragFormular({ monate, regelsatz }: { monate: readonly string
           maxLength={1000}
           value={satz}
           onChange={(e) => setSatz(e.target.value)}
+          placeholder="Zum Beispiel: Beamte zählen nicht mehr mit"
           className={`rounded border border-slate bg-white px-4 py-2 font-sans text-16 text-ink ${fokus}`}
         />
         <div>
