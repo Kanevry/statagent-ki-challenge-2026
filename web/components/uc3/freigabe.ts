@@ -1111,7 +1111,10 @@ export interface ProbeTabelle {
  * ihrer Kategorie zugeordnet; ein Code, der selbst eine Kategorie ist (Regelsatz v2), steht unter sich selbst.
  * Ohne gerechnete Probe null.
  */
-/** Ändert die Probe überhaupt etwas? Eine Zahl je Kategorie, die Gliederung (getrennt gezählte Gruppen) oder Gesamt. */
+/**
+ * Ändert die Probe etwas an den Beschäftigungskategorien (je_merkmal.qualifikation) oder an der Gesamtzahl? Andere
+ * Merkmale (Bundesland, Alter) prüft diese Funktion nicht; der Satz auf der Seite nennt deshalb die Kategorien.
+ */
 export function probeAendert(t: ProbeTabelle): { gliederung: boolean; gesamt: boolean } {
   const gliederung = t.zeilen.some((z) => z.vorher !== z.nachher || z.vorherTeile.length > 1);
   return { gliederung, gesamt: t.gesamt.vorher !== t.gesamt.nachher };
