@@ -90,6 +90,26 @@ def _aendern(
         "SELECT id, parameter FROM meta.regel WHERE regelsatz = %s AND name = %s AND aktiv FOR UPDATE",
         (ziel, name),
     ).fetchone()
+    if a.get("aktiv_neu") is False:
+        # Rücknahme einer neu angelegten Regel: abschalten statt löschen (meta.regel_historie behält sie).
+        if z is None:
+            weg = conn.execute(
+                "SELECT id FROM meta.regel WHERE regelsatz = %s AND name = %s AND NOT aktiv ORDER BY id DESC",
+                (ziel, name),
+            ).fetchone()
+            if weg is None:
+                raise RegelKonflikt(f"Regel {name} fehlt im Regelsatz {ziel}")
+            return int(str(weg["id"]))  # schon abgeschaltet
+        if z["parameter"] != a["parameter_alt"]:
+            raise RegelKonflikt(
+                f"Regel {name} in {ziel} hat inzwischen andere Parameter; bitte neu vorschlagen"
+            )
+        conn.execute(
+            """UPDATE meta.regel r SET aktiv = false, grundlage = r.grundlage || '; ' || %(h)s,
+                      freigegeben_von = NULL, freigegeben_am = NULL WHERE r.id = %(id)s""",
+            {"h": herkunft, "id": z["id"]},
+        )
+        return int(str(z["id"]))
     if z is None:
         raise RegelKonflikt(f"Regel {name} fehlt im Regelsatz {ziel}")
     regel_id = int(str(z["id"]))

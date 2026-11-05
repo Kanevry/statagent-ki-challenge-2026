@@ -205,12 +205,12 @@ def test_mehrdeutige_anweisung_gibt_rueckfrage(agent_conn: Verbindung) -> None:
     assert _anzahl(agent_conn, "SELECT count(*) AS n FROM meta.vorschlag") == 0
 
 
-def test_beamte_ausschliessen_ohne_passende_regelart_wird_begruendet_abgelehnt(
+def test_ausschluss_in_falscher_form_wird_begruendet_abgelehnt(
     agent_conn: Verbindung,
 ) -> None:
-    """Gewählte Lösung: „Beamte ausschließen“ braucht eine Ausschlussregel. Eine solche Regel-Art kennt der
-    Zählcode nicht; eine neue Art wäre neuer Programmcode und damit ein Entwicklungsauftrag. Der Code lehnt
-    den Vorschlag deshalb mit Begründung ab, statt eine wirkungslose Regel anzulegen."""
+    """„Beamte ausschließen“ ist eine Zählregel der Art ausschluss (#80, test_live_aenderung.py). Nennt das Modell
+    die Parameter in einer Form, die der Zählcode nicht liest, legt der Code keine wirkungslose Regel an: nach den
+    Korrekturrunden lehnt er mit der verlangten Form ab."""
     modell = FakeModell(
         {
             "agent.koordinator": {"rolle": "klassifikation", "auftrag": "Beamte nicht zählen"},
@@ -234,7 +234,7 @@ def test_beamte_ausschliessen_ohne_passende_regelart_wird_begruendet_abgelehnt(
     ergebnis = agent_ausfuehren(agent_conn, BEAMTE, complete=modell)
     assert ergebnis.vorschlag_id is None
     assert ergebnis.abgelehnt is not None and "ausschluss" in ergebnis.abgelehnt
-    assert "Entwicklungsauftrag" in ergebnis.abgelehnt
+    assert "merkmal, werte" in ergebnis.abgelehnt
     assert _anzahl(agent_conn, "SELECT count(*) AS n FROM meta.vorschlag") == 0
 
 

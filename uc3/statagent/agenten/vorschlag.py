@@ -28,6 +28,16 @@ ERZEUGT_RELATIV = "uc3/erzeugt"
 DDL = konfig.DB_VERZEICHNIS / "140_vorschlag.sql"
 #: Merkmale, deren Summen die Probe zeigt (Zellen mit vielen Ausprägungen wie Alter bleiben außen vor).
 PROBE_MERKMALE = ("qualifikation", "geschlecht", "region")
+#: Altersgruppen der Probe: macht Änderungen an R5_alter sichtbar (Geburtsmonat 13, Plausibilitätsgrenzen).
+ALTERSGRUPPEN = ((0, 14), (15, 24), (25, 34), (35, 44), (45, 54), (55, 64), (65, 74), (75, 999))
+
+
+def altersgruppe(alter: int) -> str:
+    """Altersgruppe einer Zelle; -1 (unbekannt oder unplausibel) heißt „unbekannt“."""
+    for von, bis in ALTERSGRUPPEN:
+        if von <= alter <= bis:
+            return f"{von}+" if bis == 999 else f"{von}-{bis}"
+    return "unbekannt"
 
 
 class VorschlagFehler(RuntimeError):
@@ -123,6 +133,9 @@ def wirkung_text(typ: str, aenderungen: list[dict[str, Any]], ziel: str) -> str:
     if typ == "regel_aendern":
         teile = []
         for a in aenderungen:
+            if a.get("aktiv_neu") is False:
+                teile.append(f"{a['regel_name']} wird abgeschaltet")
+                continue
             for k in sorted(set(a["parameter_alt"]) | set(a["parameter_neu"])):
                 alt, neu = a["parameter_alt"].get(k), a["parameter_neu"].get(k)
                 if alt != neu:
@@ -274,6 +287,11 @@ def diff_text(vorschlag: Vorschlag) -> str:
         for a in v.aenderungen:
             alt, neu = dict(a["parameter_alt"]), dict(a["parameter_neu"])
             zeilen.append(f"Regel {a['regel_name']}:")
+            if a.get("aktiv_neu") is False:
+                zeilen.append("  In Worten: die Regel wird abgeschaltet (nicht gelöscht).")
+                zeilen.append(f"  - {a['regel_name']} aktiv = true")
+                zeilen.append(f"  + {a['regel_name']} aktiv = false")
+                continue
             for k in sorted(set(alt) | set(neu)):
                 if alt.get(k) == neu.get(k):
                     continue
@@ -310,7 +328,7 @@ def diff_text(vorschlag: Vorschlag) -> str:
             f"Probe {monat}: gesamt {vg} → {ng} ({ng - vg:+d}), Zellen ≠ 0: "
             f"{p['vorher']['zellen']} → {p['nachher']['zellen']}"
         )
-        for merkmal in PROBE_MERKMALE:
+        for merkmal in (*PROBE_MERKMALE, "altersgruppe"):
             vm, nm = p["vorher"]["je_merkmal"].get(merkmal, {}), p["nachher"]["je_merkmal"].get(merkmal, {})
             if vm != nm:
                 zeilen.append(f"  {merkmal}: {_wert(vm)} → {_wert(nm)}")
@@ -324,7 +342,7 @@ class _Zurueckrollen(Exception):
 def _zahlen(conn: Verbindung, lieferung: str, regelsatz: str) -> dict[str, Any]:
     lauf = lauf_ausfuehren(conn, lieferung, regelsatz, reihenfolge_pruefen=False, gestartet_von="probe")
     variable = str(eine(regeln_laden(conn, regelsatz, lieferung), "zaehl", "bestand").parameter["variable"])
-    je_merkmal: dict[str, dict[str, int]] = {m: defaultdict(int) for m in PROBE_MERKMALE}
+    je_merkmal: dict[str, dict[str, int]] = {m: defaultdict(int) for m in (*PROBE_MERKMALE, "altersgruppe")}
     zellen = 0
     zeitraum_art = ""
     for z in monatswerte(conn, lieferung, regelsatz):
@@ -335,6 +353,7 @@ def _zahlen(conn: Verbindung, lieferung: str, regelsatz: str) -> dict[str, Any]:
         zeitraum_art = str(z["zeitraum_art"])
         for m in PROBE_MERKMALE:
             je_merkmal[m][str(z[m])] += wert
+        je_merkmal["altersgruppe"][altersgruppe(int(str(z["alter"])))] += wert
     return {
         "regelsatz": regelsatz,
         "zeitraum_art": zeitraum_art,

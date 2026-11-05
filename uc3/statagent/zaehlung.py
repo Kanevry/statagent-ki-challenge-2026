@@ -36,6 +36,8 @@ class Zaehlung:
     alter_unbekannt: int  # Verhältnisse mit Alter unbekannt (-1)
     zellen: int
     ergebnis_hash: str
+    #: Verhältnisse im Bestand, die eine Ausschlussregel nicht zählt (gehen in „nicht gezählt“, nie verloren)
+    ausgeschlossen_merkmal: int = 0
 
 
 def _tag(token: str, berichtsmonat: str) -> date:
@@ -65,6 +67,86 @@ _ORDNUNG = {
         "a.geburtsdatum NULLS LAST, a.geburtsjahr NULLS LAST, a.person_id NULLS LAST, a.roh_zeilen"
     ),
 }
+
+
+#: Merkmale, die eine Ausschluss- oder Gruppierungsregel ansprechen kann, und ihre Spalte in ``_bestand``.
+#: ``qualifikation`` meint den Wert in der Statistik (nach R6, also Code oder Beschäftigungskategorie).
+MERKMAL_SPALTE = {"region": "bundesland", "geschlecht": "geschlecht", "oenace": "oenace"}
+AUSSCHLUSS_MERKMALE = (*MERKMAL_SPALTE, "qualifikation", "beschaeftigungskategorie", "alter")
+GRUPPIERUNG_MERKMALE = (*MERKMAL_SPALTE, "qualifikation")
+_ALTERSSPANNE = re.compile(r"^(\d{1,3})-(\d{1,3})$")
+_ZUORDNUNG = re.compile(r"^([^=]{1,40})=([^=]{1,40})$")
+
+
+def _zaehlregel(regeln: list[Regel], art: str) -> Regel | None:
+    """Optionale Zählregel (Ausschluss, Gruppierung): fehlt sie, zählt der Regelsatz wie bisher."""
+    treffer = [r for r in regeln if r.typ == "zaehl" and r.art == art]
+    if len(treffer) > 1:
+        raise RegelFehler(
+            f"mehrere aktive zaehl-Regeln der Art '{art}': {', '.join(r.name for r in treffer)}"
+        )
+    return treffer[0] if treffer else None
+
+
+def ausschluss_bedingung(regel: Regel, qual_ausdruck: sql.Composable) -> sql.Composable:
+    """SQL-Bedingung auf ``_bestand b``: wahr für Verhältnisse, die nach der Ausschlussregel nicht zählen.
+
+    Parameter: ``merkmal`` (siehe AUSSCHLUSS_MERKMALE) und ``werte`` (Liste von Ausprägungen; beim Alter
+    Spannen ``von-bis`` in vollendeten Jahren, beide eingeschlossen).
+    """
+    merkmal, werte = str(wert(regel, "merkmal")), wert(regel, "werte")
+    if not (isinstance(werte, list) and werte and all(isinstance(w, str) and w for w in werte)):
+        raise RegelFehler(f"{regel.name}: werte muss eine nicht leere Liste von Texten sein")
+    if merkmal == "alter":
+        teile = []
+        for w in werte:
+            t = _ALTERSSPANNE.match(w)
+            if t is None or int(t.group(1)) > int(t.group(2)):
+                raise RegelFehler(f"{regel.name}: Altersspanne {w!r} hat nicht die Form von-bis")
+            teile.append(
+                sql.SQL("b.alter_jahre BETWEEN {} AND {}").format(
+                    sql.Literal(int(t.group(1))), sql.Literal(int(t.group(2)))
+                )
+            )
+        return sql.SQL("(") + sql.SQL(" OR ").join(teile) + sql.SQL(")")
+    if merkmal in MERKMAL_SPALTE:
+        ausdruck: sql.Composable = sql.SQL("b.{}").format(sql.Identifier(MERKMAL_SPALTE[merkmal]))
+    elif merkmal == "qualifikation":
+        ausdruck = qual_ausdruck
+    elif merkmal == "beschaeftigungskategorie":
+        ausdruck = sql.SQL(
+            "(SELECT k.beschaeftigungskategorie FROM stat.klass_qualifikation k WHERE k.code = b.qualifikation)"
+        )
+    else:
+        raise RegelFehler(f"{regel.name}: merkmal {merkmal!r} (erlaubt: {', '.join(AUSSCHLUSS_MERKMALE)})")
+    return sql.SQL("{} = ANY({})").format(ausdruck, sql.Literal(list(werte)))
+
+
+def gruppierung_zuordnung(regel: Regel) -> tuple[str, dict[str, str]]:
+    """Merkmal und Zuordnung ``Ausprägung → Gruppe`` einer Gruppierungsregel (``zuordnung``: ["9=Ost", …])."""
+    merkmal, zuordnung = str(wert(regel, "merkmal")), wert(regel, "zuordnung")
+    if merkmal not in GRUPPIERUNG_MERKMALE:
+        raise RegelFehler(f"{regel.name}: merkmal {merkmal!r} (erlaubt: {', '.join(GRUPPIERUNG_MERKMALE)})")
+    if not (isinstance(zuordnung, list) and zuordnung):
+        raise RegelFehler(f"{regel.name}: zuordnung muss eine nicht leere Liste 'Ausprägung=Gruppe' sein")
+    ergebnis: dict[str, str] = {}
+    for eintrag in zuordnung:
+        t = _ZUORDNUNG.match(str(eintrag).strip())
+        if t is None:
+            raise RegelFehler(f"{regel.name}: Eintrag {eintrag!r} hat nicht die Form Ausprägung=Gruppe")
+        code, gruppe = t.group(1).strip(), t.group(2).strip()
+        if ergebnis.get(code, gruppe) != gruppe:
+            raise RegelFehler(f"{regel.name}: Ausprägung {code!r} ist zwei Gruppen zugeordnet")
+        ergebnis[code] = gruppe
+    return merkmal, ergebnis
+
+
+def _gruppiert(ausdruck: sql.Composable, zuordnung: dict[str, str]) -> sql.Composable:
+    faelle = [
+        sql.SQL("WHEN {} THEN {}").format(sql.Literal(c), sql.Literal(g))
+        for c, g in sorted(zuordnung.items())
+    ]
+    return sql.SQL("(CASE {} {} ELSE {} END)").format(ausdruck, sql.SQL(" ").join(faelle), ausdruck)
 
 
 def zaehlen(
@@ -109,6 +191,21 @@ def zaehlen(
     else:
         raise RegelFehler(f"{r_dim.name}: qualifikation muss 'code' oder 'beschaeftigungskategorie' sein")
 
+    # Optionale Regeln (nur in Regelsätzen, die sie enthalten; ohne sie zählt der Code wie bisher).
+    r_aus = _zaehlregel(regeln, "ausschluss")
+    r_grp = _zaehlregel(regeln, "gruppierung")
+    ausdruck: dict[str, sql.Composable] = {
+        "region": sql.SQL("b.bundesland"),
+        "oenace": sql.SQL("b.oenace"),
+        "geschlecht": sql.SQL("b.geschlecht"),
+        "qualifikation": qual_ausdruck,
+    }
+    if r_grp is not None:
+        g_merkmal, g_zuordnung = gruppierung_zuordnung(r_grp)
+        ausdruck[g_merkmal] = _gruppiert(ausdruck[g_merkmal], g_zuordnung)
+    filter_ = sql.SQL("WHERE NOT b.ausgeschlossen") if r_aus is not None else sql.SQL("")
+    filter_geliefert = sql.SQL("AND NOT b.ausgeschlossen") if r_aus is not None else sql.SQL("")
+
     if praefix not in ("_", "_rev_", "_alt_"):
         raise ValueError(f"unzulässiges Tabellen-Präfix {praefix!r}")
     t_bestand, t_zellen = sql.Identifier(f"{praefix}bestand"), sql.Identifier(f"{praefix}zellen")
@@ -152,17 +249,38 @@ def zaehlen(
             "amin": int(wert(r_alter, "min_plausibel")),
         },
     )
+    if r_aus is not None:
+        # Ausgeschlossene bleiben im Bestand (Abrechnung, Prüfungen); nur die Zellen lassen sie weg.
+        conn.execute(
+            sql.SQL("ALTER TABLE {} ADD COLUMN ausgeschlossen boolean NOT NULL DEFAULT false").format(
+                t_bestand
+            )
+        )
+        conn.execute(
+            sql.SQL("UPDATE {} b SET ausgeschlossen = true WHERE {}").format(
+                t_bestand, ausschluss_bedingung(r_aus, qual_ausdruck)
+            )
+        )
     conn.execute(
         sql.SQL(
             """
             CREATE TEMP TABLE {t_zellen} ON COMMIT DROP AS
             SELECT %(art)s::text AS zeitraum_art, %(von)s::date AS zeitraum_von, %(bis)s::date AS zeitraum_bis,
-                   b.bundesland AS region, b.oenace, b.oenace_version, b.geschlecht,
+                   {region} AS region, {oenace} AS oenace, b.oenace_version, {geschlecht} AS geschlecht,
                    {qual} AS qualifikation, b.alter_jahre AS alter, %(var)s::text AS variable, count(*)::bigint AS wert
-            FROM {t_bestand} b {join}
+            FROM {t_bestand} b {join} {filter}
             GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
             """
-        ).format(qual=qual_ausdruck, join=qual_join, t_bestand=t_bestand, t_zellen=t_zellen),
+        ).format(
+            region=ausdruck["region"],
+            oenace=ausdruck["oenace"],
+            geschlecht=ausdruck["geschlecht"],
+            qual=ausdruck["qualifikation"],
+            join=qual_join,
+            filter=filter_,
+            t_bestand=t_bestand,
+            t_zellen=t_zellen,
+        ),
         {"art": zr.art, "von": zr.von, "bis": zr.bis, "var": variable},
     )
     # Nur gelieferte Abschnitte (ohne Fortschreibung E07): Prüfungen erkennen daran einen Lieferausfall.
@@ -172,12 +290,21 @@ def zaehlen(
         sql.SQL(
             """
             CREATE TEMP TABLE {t_geliefert} ON COMMIT DROP AS
-            SELECT b.bundesland AS region, b.oenace, b.oenace_version, b.geschlecht, {qual} AS qualifikation,
-                   b.alter_jahre AS alter, count(*)::bigint AS wert
-            FROM {t_bestand} b {join} WHERE b.herkunft = 'geliefert'
+            SELECT {region} AS region, {oenace} AS oenace, b.oenace_version, {geschlecht} AS geschlecht,
+                   {qual} AS qualifikation, b.alter_jahre AS alter, count(*)::bigint AS wert
+            FROM {t_bestand} b {join} WHERE b.herkunft = 'geliefert' {filter}
             GROUP BY 1, 2, 3, 4, 5, 6
             """
-        ).format(qual=qual_ausdruck, join=qual_join, t_bestand=t_bestand, t_geliefert=t_geliefert)
+        ).format(
+            region=ausdruck["region"],
+            oenace=ausdruck["oenace"],
+            geschlecht=ausdruck["geschlecht"],
+            qual=ausdruck["qualifikation"],
+            join=qual_join,
+            filter=filter_geliefert,
+            t_bestand=t_bestand,
+            t_geliefert=t_geliefert,
+        )
     )
     # Temporäre Tabellen haben keine Statistik; ohne ANALYZE plant PostgreSQL Anti-Joins als verschachtelte Schleifen.
     conn.execute(sql.SQL("CREATE INDEX ON {} (vvh_id)").format(t_bestand))
@@ -186,7 +313,7 @@ def zaehlen(
     kennzahlen = conn.execute(
         sql.SQL(
             """
-        SELECT (SELECT count(*) FROM {t_bestand}) AS gezaehlt, count(*) AS zellen, coalesce(sum(wert), 0) AS summe,
+        SELECT (SELECT count(*) FROM {t_bestand} b {filter}) AS gezaehlt, count(*) AS zellen, coalesce(sum(wert), 0) AS summe,
                encode(sha256(convert_to(coalesce(string_agg(
                  concat_ws('|', zeitraum_art, zeitraum_von, zeitraum_bis, region, oenace, oenace_version, geschlecht,
                            qualifikation, alter, variable, wert),
@@ -195,7 +322,7 @@ def zaehlen(
                    qualifikation COLLATE "C", alter, variable COLLATE "C"), ''), 'UTF8')), 'hex') AS hash
         FROM {t_zellen}
         """
-        ).format(t_bestand=t_bestand, t_zellen=t_zellen)
+        ).format(t_bestand=t_bestand, t_zellen=t_zellen, filter=filter_)
     ).fetchone()
     assert kennzahlen is not None
     gezaehlt = int(str(kennzahlen["gezaehlt"]))
@@ -230,4 +357,13 @@ def zaehlen(
         alter_unbekannt=int(str(abschnitte["alter_unbekannt"])),
         zellen=int(str(kennzahlen["zellen"])),
         ergebnis_hash=str(kennzahlen["hash"]),
+        ausgeschlossen_merkmal=_anzahl_ausgeschlossen(conn, t_bestand) if r_aus is not None else 0,
     )
+
+
+def _anzahl_ausgeschlossen(conn: Verbindung, t_bestand: sql.Identifier) -> int:
+    z = conn.execute(
+        sql.SQL("SELECT count(*) AS n FROM {} WHERE ausgeschlossen").format(t_bestand)
+    ).fetchone()
+    assert z is not None
+    return int(str(z["n"]))

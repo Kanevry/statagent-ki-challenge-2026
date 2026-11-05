@@ -117,14 +117,21 @@ def lauf_ausfuehren(
                 conn, lieferung=lieferung, berichtsmonat=lieferung, regelsatz=regelsatz, regeln=regeln
             )
             # Abrechnung aus unabhängig gezählten Größen: roh.lieferung, Verdichtung, Bestand, Abschnittszählung.
-            mehrfach_abschnitte = zl.aktive_abschnitte - zl.gezaehlt
-            nicht_gezaehlt = zl.nicht_aktiv + mehrfach_abschnitte
+            # Eine Ausschlussregel (z. B. „ohne Beamte“) zählt Verhältnisse nicht; verloren geht keines, sie stehen
+            # unter „nicht gezählt“. Ohne Ausschlussregel ist zl.ausgeschlossen_merkmal 0.
+            mehrfach_abschnitte = zl.aktive_abschnitte - zl.gezaehlt - zl.ausgeschlossen_merkmal
+            nicht_gezaehlt = zl.nicht_aktiv + mehrfach_abschnitte + zl.ausgeschlossen_merkmal
             if b.abschnitte != zl.aktive_abschnitte + zl.nicht_aktiv:
                 raise RegelFehler("Abschnitte aus der Bereinigung ≠ aktive + nicht aktive Abschnitte")
             unabhaengig = _bestand_aus_roh(conn, lieferung, regelsatz, regeln, zl.zeitraum, b.spaltentausch)
-            if unabhaengig is not None and unabhaengig != zl.gezaehlt:
+            if unabhaengig is not None and unabhaengig != zl.gezaehlt + zl.ausgeschlossen_merkmal:
                 raise RegelFehler(
                     f"Gegenrechnung aus roh.lieferung ergibt {unabhaengig} Verhältnisse, gezählt sind {zl.gezaehlt}"
+                    + (
+                        f" und ausgeschlossen {zl.ausgeschlossen_merkmal}"
+                        if zl.ausgeschlossen_merkmal
+                        else ""
+                    )
                 )
             if b.gelesen + b.fortgeschrieben != zl.gezaehlt + nicht_gezaehlt + b.ausgeschlossen:
                 raise RegelFehler(
@@ -140,6 +147,7 @@ def lauf_ausfuehren(
                 "bestand": zl.gezaehlt,
                 "abschnittswahl": zl.mehrfach,
                 "alter": zl.alter_unbekannt,
+                "ausschluss": zl.ausgeschlossen_merkmal,
             }
             for r in (r for r in regeln if r.typ == "zaehl"):
                 conn.execute(

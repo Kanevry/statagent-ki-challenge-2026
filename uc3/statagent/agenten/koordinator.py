@@ -46,7 +46,14 @@ from statagent.agenten.werkzeuge import (
     sql_lesen,
 )
 from statagent.db import Verbindung
+from statagent.regeln import Regel, RegelFehler
 from statagent.sonderauswertung import PERSONENTAGE_PARAMETER
+from statagent.zaehlung import (
+    AUSSCHLUSS_MERKMALE,
+    GRUPPIERUNG_MERKMALE,
+    ausschluss_bedingung,
+    gruppierung_zuordnung,
+)
 
 
 class VorschlagUngueltig(ValueError):
@@ -73,6 +80,10 @@ class Ergebnis:
     modell: str | None = None
     provider: str | None = None
     aufrufe: list[dict[str, str | None]] = field(default_factory=list)
+    #: Prüfmeldungen, die an die Rolle zurückgingen (Reparaturrunde), in Reihenfolge
+    korrekturen: list[str] = field(default_factory=list)
+    regelsatz_basis: str | None = None
+    regelsatz_ziel: str | None = None
 
 
 # --- Zulässige Werte je Regel-Art (was der Zählcode versteht; Werte selbst stehen in meta.regel) -------
@@ -95,6 +106,8 @@ _ZULAESSIG: dict[tuple[str, str], Any] = {
     ("alter", "bezug"): {"bis", "von"},
     ("alter", "geburtsmonat_13"): _GEBURTSMONAT_13,
     ("klassifikationsversion", "nach"): {"berichtsmonat"},
+    ("ausschluss", "merkmal"): set(AUSSCHLUSS_MERKMALE),
+    ("gruppierung", "merkmal"): set(GRUPPIERUNG_MERKMALE),
     # sonderauswertung.personentage verweigert jeden anderen Wert
     ("personentage", "datenstand"): {"juengste_lieferung_je_tag"},
     ("personentage", "angehaltene_lieferungen"): {"ueberspringen", "verwenden"},
@@ -123,8 +136,44 @@ _AUSWERTUNG_PARAMETER_TEXT: dict[str, dict[str, str]] = {
 }
 assert all(set(t) == _AUSWERTUNG_PARAMETER[a] for a, t in _AUSWERTUNG_PARAMETER_TEXT.items())
 _V_REGELSATZ = re.compile(r"v\d+")
+
+#: Zählregel-Arten, die der Zählcode kennt, die aber nicht in jedem Regelsatz stehen (zaehlung.py: ohne sie zählt
+#: der Code wie bisher). Eine Rolle darf sie in einem neuen Regelsatz anlegen; v1 und v2 bleiben so bitgleich.
+#: Live-Probe 05.11.: „Beamte ausschließen“ und „Bundesländer zusammenlegen“ hatten keine Regel-Art.
+NEUE_ZAEHL_ARTEN: dict[str, dict[str, str]] = {
+    "ausschluss": {
+        "merkmal": "eines von "
+        + ", ".join(AUSSCHLUSS_MERKMALE)
+        + " (region = Bundesland als Code 0-9 laut klassifikation.bundesland; qualifikation = Wert wie in der "
+        "Statistik, also nach R6)",
+        "werte": "Liste der Ausprägungen, die nicht gezählt werden, genau wie in bekannte_werte; "
+        "beim Alter Spannen 'von-bis' in vollendeten Jahren, z. B. '0-14'",
+    },
+    "gruppierung": {
+        "merkmal": "eines von "
+        + ", ".join(GRUPPIERUNG_MERKMALE)
+        + " (region = Bundesland als Code 0-9 laut klassifikation.bundesland, z. B. 9 = Wien)",
+        "zuordnung": "Liste 'Ausprägung=Gruppe', z. B. ['3=Ostregion', '9=Ostregion']; Ausprägungen genau wie in "
+        "bekannte_werte; nicht genannte Ausprägungen bleiben, wie sie sind",
+    },
+}
 #: Auswertungs-Regelsatz (z. B. ``ministerium``): eigene Regeln, keine Monatsläufe. Wie der CHECK in 140_vorschlag.sql.
 _AUSWERTUNG_REGELSATZ = re.compile(r"[a-z][a-z0-9_]{2,40}")
+
+
+def _bestand_pruefen(regel: str, p: dict[str, Any]) -> None:
+    """Stichtag heißt ein Tag (von = bis), ganzes Monat heißt Monatserster bis Monatsletzter (Live-Probe 05.11.:
+    „am 15.“ wurde zu Stichtag mit von = monatsletzter)."""
+    art, von, bis = p.get("zeitraum_art"), p.get("von"), p.get("bis")
+    if art == "Stichtag" and von != bis:
+        raise VorschlagUngueltig(
+            f"{regel}: bei zeitraum_art Stichtag sind von und bis derselbe Tag (z. B. beide tag:15), nicht "
+            f"{von!r} und {bis!r}"
+        )
+    if art == "Monat" and (von, bis) != ("monatserster", "monatsletzter"):
+        raise VorschlagUngueltig(
+            f"{regel}: bei zeitraum_art Monat ist von monatserster und bis monatsletzter, nicht {von!r} und {bis!r}"
+        )
 
 
 def _gleicher_typ(alt: object, neu: object) -> bool:
@@ -165,6 +214,139 @@ def _regeln(conn: Verbindung, regelsatz: str) -> dict[str, dict[str, Any]]:
         "SELECT name, typ, art, parameter FROM meta.regel WHERE regelsatz = %s AND aktiv", (regelsatz,)
     ).fetchall()
     return {str(z["name"]): dict(z) for z in zeilen}
+
+
+def _v_nummer(regelsatz: str) -> int:
+    return int(regelsatz[1:]) if _V_REGELSATZ.fullmatch(regelsatz) else -1
+
+
+def produktions_regelsatz(conn: Verbindung) -> str:
+    """Der aktuelle Stand: jüngster Zählregelsatz v<Zahl> mit mindestens einer freigegebenen Regel (sonst v1).
+
+    Von hier geht eine neue Änderung aus. Nach der Abgabe ist das v2; nach einer freigegebenen Live-Änderung der
+    Regelsatz, in dem sie steht (eine Rücknahme geht dann von dort aus).
+    """
+    # Auch angewendete Vorschläge zählen: nach der Rücknahme einer neuen Regel trägt der neue Regelsatz nur die
+    # abgeschaltete Regel mit Freigabe.
+    zeilen = conn.execute(
+        """SELECT regelsatz FROM meta.regel WHERE aktiv AND freigegeben_von IS NOT NULL
+           UNION SELECT regelsatz_ziel FROM meta.vorschlag WHERE status = 'freigegeben' AND angewendet_am IS NOT NULL"""
+    ).fetchall()
+    kandidaten = [str(z["regelsatz"]) for z in zeilen if _V_REGELSATZ.fullmatch(str(z["regelsatz"]))]
+    return max(kandidaten, key=_v_nummer) if kandidaten else "v1"
+
+
+def _hat_laeufe(conn: Verbindung, regelsatz: str) -> bool:
+    z = conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM meta.lauf WHERE regelsatz = %s) AS da", (regelsatz,)
+    ).fetchone()
+    return bool(z and z["da"])
+
+
+def ziel_bestimmen(conn: Verbindung, basis: str, gewuenscht: str | None = None) -> str:
+    """Ziel-Regelsatz einer Zählregel-Änderung; das entscheidet der Code, nicht das Modell.
+
+    Ein Regelsatz mit Läufen oder freigegebenen Regeln (v1, v2 der Abgabe) ändert sich nie in place: das Ziel ist
+    dann der nächste freie v<Zahl>. Nur ein bestehender Entwurf (Regelsatz ohne Läufe, nicht die Basis) darf weitere
+    Änderungen sammeln, wenn die Anweisung ihn ausdrücklich nennt (so entstand v2 aus Auftrag 1 und 2).
+    """
+    if (
+        gewuenscht
+        and _V_REGELSATZ.fullmatch(gewuenscht)
+        and gewuenscht != basis
+        and regelsatz_vorhanden(conn, gewuenscht)
+        and not _hat_laeufe(conn, gewuenscht)
+    ):
+        return gewuenscht
+    zeilen = conn.execute(
+        """SELECT regelsatz FROM meta.regel UNION SELECT regelsatz FROM meta.lauf
+           UNION SELECT regelsatz_ziel FROM meta.vorschlag WHERE status = 'freigegeben'"""
+    ).fetchall()
+    hoechste = max([_v_nummer(str(z["regelsatz"])) for z in zeilen] + [_v_nummer(basis), 1])
+    return f"v{hoechste + 1}"
+
+
+def bekannte_werte(conn: Verbindung, basis: str) -> dict[str, list[str]]:
+    """Ausprägungen je Merkmal, wie sie in der Statistik des Basisregelsatzes stehen (Aggregate, keine Einzeldaten).
+
+    Grundlage für Ausschluss und Gruppierung: das Modell nennt Werte nur aus dieser Liste (Live-Probe: „Wien“
+    statt Code „9“ hätte nichts ausgeschlossen).
+    """
+    werte: dict[str, list[str]] = {}
+    lauf = conn.execute(
+        """SELECT max(id) AS id FROM meta.lauf WHERE regelsatz = %s AND status IN ('fertig', 'unveraendert')""",
+        (basis,),
+    ).fetchone()
+    lauf_id = None if lauf is None else lauf["id"]
+    if lauf_id is not None:
+        for merkmal in ("region", "geschlecht", "oenace", "qualifikation"):
+            zeilen = conn.execute(
+                f"SELECT DISTINCT {merkmal} AS w FROM stat.stat_beschaeftigte WHERE lauf_id = %s ORDER BY 1".encode(),
+                (lauf_id,),
+            ).fetchall()
+            werte[merkmal] = [str(z["w"]) for z in zeilen]
+    kat = conn.execute(
+        "SELECT DISTINCT beschaeftigungskategorie AS w FROM stat.klass_qualifikation ORDER BY 1"
+    ).fetchall()
+    werte["beschaeftigungskategorie"] = [str(z["w"]) for z in kat]
+    codes = conn.execute("SELECT code AS w FROM stat.klass_qualifikation ORDER BY 1").fetchall()
+    werte.setdefault("qualifikation", [])
+    werte["qualifikation"] = sorted(set(werte["qualifikation"]) | {str(z["w"]) for z in codes})
+    return werte
+
+
+def _regel_aus(name: str, art: str, parameter: dict[str, Any]) -> Regel:
+    return Regel(
+        id=0,
+        regelsatz="",
+        name=name,
+        typ="zaehl",
+        art=art,
+        reihenfolge=100,
+        parameter=parameter,
+        beschreibung="",
+        grundlage="",
+        gueltig_ab_lieferung="2024-08",
+        gueltig_bis_lieferung=None,
+        freigegeben_von=None,
+        freigegeben_am=None,
+    )
+
+
+def _neue_zaehlart_pruefen(
+    conn: Verbindung, name: str, art: str, parameter: dict[str, Any], basis: str
+) -> None:
+    """Parameter einer Ausschluss- oder Gruppierungsregel: vollständig, in der Form des Zählcodes, bekannte Werte."""
+    erwartet = set(NEUE_ZAEHL_ARTEN[art])
+    fehlt, unbekannt = sorted(erwartet - set(parameter)), sorted(set(parameter) - erwartet)
+    if fehlt or unbekannt:
+        raise VorschlagUngueltig(
+            f"{name}: die Art {art} braucht genau die Parameter {', '.join(sorted(erwartet))}"
+            + (f" (es fehlt {', '.join(fehlt)})" if fehlt else "")
+            + (f" (unbekannt: {', '.join(unbekannt)})" if unbekannt else "")
+        )
+    regel = _regel_aus(name, art, parameter)
+    merkmal = str(parameter["merkmal"])
+    try:
+        if art == "ausschluss":
+            from psycopg import sql
+
+            ausschluss_bedingung(regel, sql.SQL("b.qualifikation"))
+            genannt = [str(w) for w in parameter["werte"]]
+        else:
+            _, zuordnung = gruppierung_zuordnung(regel)
+            genannt = sorted(zuordnung)
+    except RegelFehler as fehler:
+        raise VorschlagUngueltig(str(fehler)) from None
+    if merkmal == "alter":
+        return
+    bekannt = bekannte_werte(conn, basis).get(merkmal, [])
+    fremd = [w for w in genannt if w not in bekannt]
+    if fremd:
+        raise VorschlagUngueltig(
+            f"{name}: {', '.join(repr(w) for w in fremd)} gibt es beim Merkmal {merkmal} nicht "
+            f"(bekannt: {', '.join(bekannt)})"
+        )
 
 
 def _ziel_pruefen(conn: Verbindung, ziel: str) -> bool:
@@ -315,16 +497,27 @@ class GeprueftVorschlag:
 
 
 def vorschlag_pruefen(
-    conn: Verbindung, rolle: Rolle, antwort: VorschlagAntwort, *, regelsatz_basis: str = "v1"
+    conn: Verbindung,
+    rolle: Rolle,
+    antwort: VorschlagAntwort,
+    *,
+    regelsatz_basis: str = "v1",
+    regelsatz_ziel: str | None = None,
 ) -> GeprueftVorschlag:
-    """Prüft den Modellvorschlag gegen die Datenbank. Werte vorher liest der Code selbst, nie das Modell."""
+    """Prüft den Modellvorschlag gegen die Datenbank. Werte vorher liest der Code selbst, nie das Modell.
+
+    ``regelsatz_ziel``: vom Code bestimmtes Ziel (``ziel_bestimmen``); es ersetzt jedes v<Zahl>-Ziel des Modells.
+    Ein Auswertungs-Regelsatz (z. B. ``ministerium``) bleibt, wie das Modell ihn nennt.
+    """
     if antwort.typ is None:
         raise VorschlagUngueltig("Die Antwort enthält weder Vorschlag noch Rückfrage")
     if antwort.typ not in rolle.typen:
         raise VorschlagUngueltig(f"Die Rolle {rolle.name} darf keine Vorschläge vom Typ {antwort.typ} machen")
     if not antwort.begruendung.strip():
         raise VorschlagUngueltig("Ein Vorschlag braucht eine Begründung")
-    ziel = antwort.regelsatz_ziel
+    ziel = antwort.regelsatz_ziel.strip() or "v2"
+    if _V_REGELSATZ.fullmatch(ziel):
+        ziel = regelsatz_ziel or ziel_bestimmen(conn, regelsatz_basis, ziel)
     auswertung = _ziel_pruefen(conn, ziel)
     if auswertung:
         # Ein Auswertungs-Regelsatz trägt nur eigene Regeln; Basis = Ziel, damit einspielen nichts kopiert.
@@ -372,8 +565,13 @@ def vorschlag_pruefen(
                     raise VorschlagUngueltig(f"{a.regel_name}: Parameter {k!r} kennt die Regel nicht")
                 _wert_pruefen(str(r["art"]), k, alt[k], w, a.regel_name)
             neu = {**alt, **neu_teil}
+            if str(r["art"]) == "bestand":
+                _bestand_pruefen(a.regel_name, neu)
             if neu == alt:
-                raise VorschlagUngueltig(f"{a.regel_name}: der Vorschlag ändert nichts")
+                raise VorschlagUngueltig(
+                    f"{a.regel_name}: der Vorschlag ändert nichts (die Werte stehen schon so in der Regel; "
+                    "vermutlich ist eine andere Regel gemeint, z. B. eine Zählregel statt einer Prüfregel)"
+                )
             aenderungen.append({"regel_name": a.regel_name, "parameter_alt": alt, "parameter_neu": neu})
     elif antwort.typ == "regel_neu":
         if not antwort.neue_regeln:
@@ -385,6 +583,13 @@ def vorschlag_pruefen(
                 raise RolleUnzustaendig(f"Die Rolle {rolle.name} darf keine {n.typ}-Regeln anlegen", n.typ)
             gleiche_art = [r for r in regeln.values() if r["typ"] == n.typ and r["art"] == n.art]
             parameter = _parameter(n.parameter)
+            if n.typ == "zaehl" and not auswertung and n.art in NEUE_ZAEHL_ARTEN and not gleiche_art:
+                _neue_zaehlart_pruefen(conn, n.name, n.art, parameter, basis)
+                for k, w in parameter.items():
+                    _wert_pruefen(n.art, k, None, w, n.name)
+                regel = n.model_dump(exclude={"parameter"}) | {"parameter": parameter}
+                aenderungen.append({"regel": regel})
+                continue
             if n.typ == "zaehl" and gleiche_art:
                 raise VorschlagUngueltig(
                     f"Zählregeln gibt es je Art und Regelsatz genau einmal; {basis} hat schon "
@@ -462,34 +667,154 @@ def _aufruf[M: BaseModel](
     return _antwort_lesen(antwort, format_)
 
 
+#: Was eine Rolle über die zulässigen Werte der bestehenden Zählregeln wissen muss (Live-Probe 05.11.: „monat_15“
+#: statt „tag:15“). Abgeleitet aus _ZULAESSIG, damit Prüfung und Kontext dieselbe Liste haben.
+def _zulaessige_werte_text() -> dict[str, str]:
+    text: dict[str, str] = {}
+    for (art, schluessel), erlaubt in sorted(_ZULAESSIG.items()):
+        if isinstance(erlaubt, set):
+            text[f"{art}.{schluessel}"] = " | ".join(sorted(erlaubt))
+        elif erlaubt is _TAG:
+            text[f"{art}.{schluessel}"] = (
+                "monatserster | monatsletzter | tag:N (N = Tag im Monat, z. B. tag:15)"
+            )
+        elif erlaubt is _GEBURTSMONAT_13:
+            text[f"{art}.{schluessel}"] = "jahresdifferenz | unbekannt | ersatz:MM-TT (z. B. ersatz:01-01)"
+    return text
+
+
+#: Wegweiser vom Begriff der Anweisung zur Regel (Live-Probe 05.11.: P06 statt R5_alter, E03 statt R5_alter).
+_WEGWEISER = {
+    "Stichtag, Zeitraum, ganzes Monat, Monatserster/-letzter, Tag im Monat": "zaehl-Regel der Art bestand; "
+    "Stichtag am Tag N: zeitraum_art Stichtag und von = bis = tag:N; ganzes Monat: zeitraum_art Monat, von "
+    "monatserster, bis monatsletzter",
+    "Bundesland, Region": "Merkmal region, Codes laut klassifikation.bundesland (z. B. 9 = Wien)",
+    "Alter, Plausibilitätsgrenze des Alters, Geburtsmonat 13, Alter am Monatsersten/-letzten": "zaehl-Regel der "
+    "Art alter (R5_alter); P04/P06/P07 sind Prüfregeln und ändern keine Zahl",
+    "Beschäftigungskategorie statt Qualifikation (DV/FD zusammen)": "zaehl-Regel der Art dimension",
+    "welcher Abschnitt eines Verhältnisses zählt": "zaehl-Regel der Art abschnittswahl",
+    "ÖNACE-Version": "zaehl-Regel der Art klassifikationsversion",
+    "Ausprägungen nicht zählen (ohne Beamte, ohne ein Bundesland, nur ab einem Alter)": "neue zaehl-Regel der Art "
+    "ausschluss",
+    "Ausprägungen zusammenlegen (Bundesländer zu Regionen, Kategorien zusammen)": "neue zaehl-Regel der Art "
+    "gruppierung",
+    "Schwellen, ab wann ein Monat angehalten oder gemeldet wird": "Prüfregel (typ pruefung), Rolle qs",
+}
+
+
 def kontext_bauen(
-    conn: Verbindung, regelsatz_basis: str = "v1", lieferung: str | None = None
+    conn: Verbindung,
+    regelsatz_basis: str = "v1",
+    lieferung: str | None = None,
+    regelsatz_ziel: str | None = None,
 ) -> dict[str, Any]:
-    """Was eine Rolle sehen darf: Regeln, Schema, Klassifikation der Qualifikation, Lauf-Aggregate.
+    """Was eine Rolle sehen darf: Regeln, Schema, Klassifikationen, Lauf-Aggregate, zulässige und bekannte Werte.
 
     Mit ``lieferung`` zusätzlich die festen Rohdaten-Kennzahlen dieser Lieferung (``roh_kennzahlen``);
     roh.* und bereinigt.* sind für freie Abfragen gesperrt.
     """
     kontext: dict[str, Any] = {
         "regelsatz_basis": regelsatz_basis,
+        "regelsatz_ziel": regelsatz_ziel or ziel_bestimmen(conn, regelsatz_basis),
+        "wegweiser": _WEGWEISER,
         "regeln": regeln_lesen(conn, regelsatz_basis),
     }
-    if regelsatz_basis != "v2" and regelsatz_vorhanden(conn, "v2"):
-        kontext["regeln_v2"] = regeln_lesen(conn, "v2")
-    kontext["klassifikation"] = klassifikation_lesen(conn, "qualifikation")
+    kontext["zulaessige_werte"] = _zulaessige_werte_text()
+    kontext["bekannte_werte"] = bekannte_werte(conn, regelsatz_basis)
+    kontext["klassifikation"] = klassifikation_lesen(conn, "qualifikation") | klassifikation_lesen(
+        conn, "bundesland"
+    )
+    kontext["neue_zaehlregel_arten"] = {
+        art: {"typ": "zaehl", "parameter_pflicht": text} for art, text in NEUE_ZAEHL_ARTEN.items()
+    }
     kontext["neue_regel_arten"] = {
         art: {"typ": "zaehl", "parameter_pflicht": text} for art, text in _AUSWERTUNG_PARAMETER_TEXT.items()
     }
     kontext["schema"] = schema_lesen(conn)
+    # Nur Läufe der Basis (alle Regelsätze sprengten den Kontext); der Name ist geprüft (v<Zahl> oder Auswertung).
+    filter_rs = (
+        f"AND regelsatz = '{regelsatz_basis}'"
+        if _V_REGELSATZ.fullmatch(regelsatz_basis) or _AUSWERTUNG_REGELSATZ.fullmatch(regelsatz_basis)
+        else ""
+    )
     kontext["laeufe"] = sql_lesen(
         conn,
-        """SELECT DISTINCT ON (regelsatz, lieferung) regelsatz, lieferung, gezaehlt, ergebnis_status
-           FROM meta.lauf WHERE status IN ('fertig', 'unveraendert')
-           ORDER BY regelsatz, lieferung, id DESC""",
+        f"""SELECT DISTINCT ON (regelsatz, lieferung) regelsatz, lieferung, gezaehlt, ergebnis_status
+            FROM meta.lauf WHERE status IN ('fertig', 'unveraendert') {filter_rs}
+            ORDER BY regelsatz, lieferung, id DESC""",
     )["zeilen"]
     if lieferung is not None:
         kontext["roh_kennzahlen"] = roh_kennzahlen(conn, lieferung)
     return kontext
+
+
+def _freigegebene_vorschlaege(conn: Verbindung, n: int = 12) -> list[dict[str, Any]]:
+    """Die jüngsten freigegebenen Regelvorschläge (Nummer, Anweisung, Regelsatz) für eine Rücknahme."""
+    zeilen = conn.execute(
+        """SELECT id, rolle, typ, regelsatz_ziel, left(anweisung, 200) AS anweisung FROM meta.vorschlag
+           WHERE status = 'freigegeben' AND angewendet_am IS NOT NULL AND typ <> 'code_datei'
+           ORDER BY id DESC LIMIT %s""",
+        (n,),
+    ).fetchall()
+    return [dict(z) for z in zeilen]
+
+
+def ruecknahme_pruefen(conn: Verbindung, vorschlag_id: int, basis: str) -> GeprueftVorschlag:
+    """Rücknahme eines freigegebenen Regelvorschlags als neuer Vorgang: der Code rechnet die Umkehrung.
+
+    Geänderte Parameter gehen auf den Stand vor dem Vorschlag zurück, neu angelegte Regeln werden abgeschaltet.
+    Ziel ist ein neuer Regelsatz; Basis ist der aktuelle Stand, der den Vorschlag enthalten muss. Nichts wird
+    gelöscht, die Historie bleibt.
+    """
+    z = conn.execute(
+        """SELECT id, status, angewendet_am, typ, regelsatz_ziel, aenderungen FROM meta.vorschlag WHERE id = %s""",
+        (vorschlag_id,),
+    ).fetchone()
+    if z is None or z["status"] != "freigegeben" or z["angewendet_am"] is None:
+        raise VorschlagUngueltig(f"Vorschlag uc3/{vorschlag_id} ist nicht freigegeben und angewendet")
+    if z["typ"] == "code_datei":
+        raise VorschlagUngueltig(
+            "Eine Code-Datei ändert keine Regel; zurücknehmen heißt, sie nicht mehr zu starten"
+        )
+    if str(z["regelsatz_ziel"]) != basis:
+        raise VorschlagUngueltig(
+            f"Vorschlag uc3/{vorschlag_id} steht in {z['regelsatz_ziel']}, der aktuelle Stand ist {basis}; "
+            "zurückgenommen wird nur vom Stand aus, der ihn enthält"
+        )
+    regeln = _regeln(conn, basis)
+    aenderungen: list[dict[str, Any]] = []
+    roh = z["aenderungen"]
+    for a in roh if isinstance(roh, list) else []:
+        if z["typ"] == "regel_aendern":
+            name = str(a["regel_name"])
+            jetzt = regeln.get(name)
+            if jetzt is None or dict(jetzt["parameter"]) != a["parameter_neu"]:
+                raise VorschlagUngueltig(
+                    f"{name} hat in {basis} nicht mehr den Stand des Vorschlags; bitte neu"
+                )
+            aenderungen.append(
+                {"regel_name": name, "parameter_alt": a["parameter_neu"], "parameter_neu": a["parameter_alt"]}
+            )
+        else:
+            name = str(a["regel"]["name"])
+            jetzt = regeln.get(name)
+            if jetzt is None:
+                raise VorschlagUngueltig(f"{name} ist in {basis} nicht mehr aktiv")
+            p = dict(jetzt["parameter"])
+            aenderungen.append(
+                {"regel_name": name, "parameter_alt": p, "parameter_neu": p, "aktiv_neu": False}
+            )
+    begruendung = (
+        f"Rücknahme von Vorschlag uc3/{vorschlag_id} als neuer Vorgang: dieselben Regeln wie vor dem Vorschlag. "
+        "Nichts wird gelöscht; der Vorschlag und seine Freigabe bleiben im Protokoll."
+    )
+    return GeprueftVorschlag(
+        "regel_aendern", ziel_bestimmen(conn, basis), basis, aenderungen, None, begruendung
+    )
+
+
+#: Wie oft eine Rolle einen vom Programm abgelehnten Vorschlag korrigieren darf (Reparaturrunde).
+REPARATURRUNDEN = 2
 
 
 def agent_ausfuehren(
@@ -497,25 +822,39 @@ def agent_ausfuehren(
     anweisung: str,
     *,
     complete: CompleteFunktion | None = None,
-    regelsatz_basis: str = "v1",
+    regelsatz_basis: str | None = "v1",
     probe_lieferung: str | None = None,
 ) -> Ergebnis:
     """Setzt eine Anweisung in Sprache in einen offenen Vorschlag um (oder fragt zurück).
 
     ``complete`` ist der Modell-Schalter (Standard: ``plattform.llm.complete``); Tests geben einen Fake.
-    Mit ``probe_lieferung`` rechnet das Programm gleich die Probe für diesen Monat.
+    ``regelsatz_basis=None`` heißt: vom aktuellen Stand aus (``produktions_regelsatz``). Das Ziel ist immer ein
+    neuer Regelsatz (``ziel_bestimmen``). Lehnt das Programm einen Vorschlag ab, bekommt die Rolle die Meldung
+    und darf bis zu ``REPARATURRUNDEN`` Mal korrigieren. Mit ``probe_lieferung`` rechnet das Programm gleich die
+    Probe für diesen Monat.
     """
     ergebnis = Ergebnis(anweisung=anweisung)
     grund = anweisung_pruefen(anweisung)
     if grund is not None:
         ergebnis.abgelehnt = grund
         return ergebnis
+    basis = regelsatz_basis or produktions_regelsatz(conn)
+    ergebnis.regelsatz_basis = basis
     modell_aufruf = complete or plattform_bruecke.lade_complete()
+    freigegeben = _freigegebene_vorschlaege(conn)
+    koordinator_inhalt = anweisung
+    if freigegeben:
+        koordinator_inhalt += "\nKontext (JSON): " + json.dumps(
+            {"aktueller_regelsatz": basis, "freigegeben": freigegeben}, ensure_ascii=False, default=str
+        )
     try:
         koordination = _aufruf(
             modell_aufruf,
             ergebnis,
-            [{"role": "system", "content": koordinator_prompt()}, {"role": "user", "content": anweisung}],
+            [
+                {"role": "system", "content": koordinator_prompt()},
+                {"role": "user", "content": koordinator_inhalt},
+            ],
             Koordination,
             KOORDINATOR_ZWECK,
         )
@@ -529,7 +868,18 @@ def agent_ausfuehren(
         return ergebnis
 
     rolle = ROLLEN[koordination.rolle]
-    kontext = kontext_bauen(conn, regelsatz_basis, probe_lieferung)
+    if koordination.ruecknahme_von is not None:
+        ergebnis.rolle = rolle.name
+        try:
+            g = ruecknahme_pruefen(conn, koordination.ruecknahme_von, basis)
+        except VorschlagUngueltig as fehler:
+            ergebnis.abgelehnt = str(fehler)
+            return ergebnis
+        return _anlegen(conn, ergebnis, rolle, g, probe_lieferung)
+
+    ziel = ziel_bestimmen(conn, basis)
+    ergebnis.regelsatz_ziel = ziel
+    kontext = kontext_bauen(conn, basis, probe_lieferung, ziel)
     versucht: set[str] = set()
     while True:
         ergebnis.rolle = rolle.name
@@ -542,42 +892,71 @@ def agent_ausfuehren(
                 f"Kontext (JSON):\n{json.dumps(kontext, ensure_ascii=False, default=str)}",
             },
         ]
-        try:
-            antwort = _aufruf(modell_aufruf, ergebnis, nachrichten, VorschlagAntwort, rolle.zweck)
-        except (ValidationError, ValueError) as fehler:
-            ergebnis.abgelehnt = (
-                f"Antwort der Rolle {rolle.name} passt nicht zum Format ({type(fehler).__name__})"
-            )
-            return ergebnis
-        ergebnis.modell, ergebnis.provider = ergebnis.aufrufe[-1]["modell"], ergebnis.aufrufe[-1]["provider"]
-        if antwort.rueckfrage:
-            ergebnis.rueckfrage = antwort.rueckfrage
-            return ergebnis
-        try:
-            g = vorschlag_pruefen(conn, rolle, antwort, regelsatz_basis=regelsatz_basis)
-        except RolleUnzustaendig as fehler:
-            # Der Koordinator hat die falsche Rolle gewählt (Live-Probe 05.11.: Geburtsmonat 13 ging an qs, die
-            # keine Zählregeln ändern darf). Einmal die Rolle fragen, die diesen Regeltyp ändern darf.
-            zustaendig = next(
-                (
-                    r
-                    for r in ROLLEN.values()
-                    if fehler.typ in r.regeltypen and antwort.typ in r.typen and r.name not in versucht
-                ),
-                None,
-            )
-            if zustaendig is None:
-                ergebnis.abgelehnt = str(fehler)
+        runde = 0
+        umleiten = False
+        while True:
+            try:
+                antwort = _aufruf(modell_aufruf, ergebnis, nachrichten, VorschlagAntwort, rolle.zweck)
+            except (ValidationError, ValueError) as fehler:
+                ergebnis.abgelehnt = (
+                    f"Antwort der Rolle {rolle.name} passt nicht zum Format ({type(fehler).__name__})"
+                )
                 return ergebnis
-            rolle = zustaendig
-            continue
-        except VorschlagUngueltig as fehler:
-            ergebnis.abgelehnt = str(fehler)
-            return ergebnis
-        break
+            ergebnis.modell = ergebnis.aufrufe[-1]["modell"]
+            ergebnis.provider = ergebnis.aufrufe[-1]["provider"]
+            if antwort.rueckfrage:
+                ergebnis.rueckfrage = antwort.rueckfrage
+                return ergebnis
+            try:
+                g = vorschlag_pruefen(conn, rolle, antwort, regelsatz_basis=basis, regelsatz_ziel=ziel)
+            except RolleUnzustaendig as fehler:
+                # Der Koordinator hat die falsche Rolle gewählt (Live-Probe 05.11.: Geburtsmonat 13 ging an qs, die
+                # keine Zählregeln ändern darf). Einmal die Rolle fragen, die diesen Regeltyp ändern darf.
+                zustaendig = next(
+                    (
+                        r
+                        for r in ROLLEN.values()
+                        if fehler.typ in r.regeltypen and antwort.typ in r.typen and r.name not in versucht
+                    ),
+                    None,
+                )
+                if zustaendig is None:
+                    ergebnis.abgelehnt = str(fehler)
+                    return ergebnis
+                rolle = zustaendig
+                umleiten = True
+                break
+            except VorschlagUngueltig as fehler:
+                if runde >= REPARATURRUNDEN:
+                    ergebnis.abgelehnt = str(fehler)
+                    return ergebnis
+                runde += 1
+                ergebnis.korrekturen.append(str(fehler))
+                # Reparaturrunde: die Rolle sieht ihre Antwort und die Meldung des Programms und korrigiert.
+                nachrichten = [
+                    *nachrichten,
+                    {"role": "assistant", "content": antwort.model_dump_json()},
+                    {
+                        "role": "user",
+                        "content": f"Das Programm hat den Vorschlag nicht angenommen: {fehler}. Korrigiere den "
+                        "Vorschlag (andere Regel, zulässiger Wert, bekannte Ausprägung) oder stelle eine Rückfrage, "
+                        "wenn die Anweisung so nicht umsetzbar ist.",
+                    },
+                ]
+                continue
+            break
+        if not umleiten:
+            break
+    return _anlegen(conn, ergebnis, rolle, g, probe_lieferung)
+
+
+def _anlegen(
+    conn: Verbindung, ergebnis: Ergebnis, rolle: Rolle, g: GeprueftVorschlag, probe_lieferung: str | None
+) -> Ergebnis:
+    ergebnis.regelsatz_ziel = g.regelsatz_ziel
     ergebnis.vorschlag_id = vorschlag_anlegen(
         conn,
-        anweisung=anweisung,
+        anweisung=ergebnis.anweisung,
         rolle=rolle.name,
         typ=g.typ,
         regelsatz_ziel=g.regelsatz_ziel,

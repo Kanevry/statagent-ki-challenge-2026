@@ -498,7 +498,10 @@ def _entscheidung_fehler() -> tuple[type[BaseException], ...]:
 @app.command("agent")
 def agent(
     anweisung: Annotated[str, typer.Argument(help="Änderungsauftrag in Sprache")],
-    regelsatz_basis: Annotated[str, typer.Option(help="Regelsatz, von dem der Vorschlag ausgeht")] = "v1",
+    regelsatz_basis: Annotated[
+        str | None,
+        typer.Option(help="Regelsatz, von dem der Vorschlag ausgeht (Standard: aktueller Stand, z. B. v2)"),
+    ] = None,
     probe: Annotated[
         str | None,
         typer.Option(
@@ -522,7 +525,10 @@ def agent(
     else:
         modell_fehler = (PlattformFehlt, LlmFehler)
 
+    from statagent.agenten.koordinator import produktions_regelsatz
+
     with verbinden() as conn:
+        regelsatz_basis = regelsatz_basis or produktions_regelsatz(conn)
         if probe is None and not ohne_probe:
             # Die Probe zeigt die Wirkung am jüngsten gerechneten Monat; 2024-08 (Erstlieferung) zeigt bei
             # Auftrag 2 nur +48 und unterschätzt die Wirkung (Sichtprüfung UI, 05.11.).
@@ -546,7 +552,8 @@ def agent(
         wirkung = wirkung_text(v.typ, v.aenderungen, v.regelsatz_ziel)
         daten |= {"regelsatz_ziel": v.regelsatz_ziel, "wirkung": wirkung}
         zeilen += [
-            f"Vorschlag uc3/{v.id} (Rolle {v.rolle}), offen, Ziel-Regelsatz {v.regelsatz_ziel}",
+            f"Vorschlag uc3/{v.id} (Rolle {v.rolle}), offen, Regelsatz {v.regelsatz_basis} → {v.regelsatz_ziel}"
+            f" ({v.regelsatz_basis} bleibt unverändert)",
             f"Wirkung: {wirkung}",
         ]
     if erg.rueckfrage:
