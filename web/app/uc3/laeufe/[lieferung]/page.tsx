@@ -5,12 +5,12 @@ import { Fliesstext, knopfKlassen, Leerzustand, Status, Ueberschrift } from "@ki
 import { formatZahl, HerkunftChip } from "@kic/ui/bausteine";
 import { abrechnungBeleg, laufBeleg } from "@/components/uc3/beleg";
 import { leerSatz } from "@/components/uc3/db";
-import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { Begriffsliste, Fachbegriff } from "@/components/uc3/fachbegriff";
 import { abrechnung } from "@/components/uc3/laeufe";
 import {
   abrechnungSatz,
+  ausLieferung,
   bestandSatz,
-  bleibtVorlaeufigSatz,
   determinismusSatz,
   haltSatz,
   haltTreffer,
@@ -29,6 +29,7 @@ import {
   sqlVeroeffentlichen,
   umschichtungSatz,
   ursachenSatz,
+  weiterSatz,
   type LaufDetail,
 } from "@/components/uc3/lauf-detail";
 import { istMonat, monatName, stichtag, verschieben } from "@/components/uc3/monat";
@@ -65,12 +66,12 @@ function LaufStatus({ lauf, angehalten }: { lauf: Lauf; angehalten: boolean }) {
   return <Status art="info">vorläufig</Status>;
 }
 
-function Kennzahl({ wort, wert, zusatz }: { wort: string; wert: number; zusatz?: string }) {
+/** Eine Kachel der Bestandsrechnung; `zeichen` steht vor dem Wort („+“, „=“), damit die Rechnung lesbar bleibt. */
+function Kennzahl({ wort, wert, zeichen, gross = false }: { wort: string; wert: number; zeichen?: string; gross?: boolean }) {
   return (
-    <div className="flex flex-col gap-1 border-t border-line pt-2">
-      <dt className="font-sans text-14 text-slate">{wort}</dt>
-      <dd className="font-mono text-32 tabular-nums text-ink">{formatZahl(wert)}</dd>
-      {zusatz && <dd className="font-sans text-12 text-slate">{zusatz}</dd>}
+    <div className={`flex flex-col gap-1 border-t pt-2 ${gross ? "border-ink" : "border-line"}`}>
+      <dt className="font-sans text-14 text-slate">{zeichen ? `${zeichen} ${wort}` : wort}</dt>
+      <dd className={`font-mono tabular-nums text-ink ${gross ? "text-32 font-semibold" : "text-32"}`}>{formatZahl(wert)}</dd>
     </div>
   );
 }
@@ -178,7 +179,7 @@ function SoGehtEsWeiter({ detail, angehalten }: { detail: LaufDetail; angehalten
           <code className="block w-full overflow-x-auto break-all bg-paper py-2 font-mono text-14 text-ink">{befehl}</code>
         </>
       ) : wartet ? (
-        <Fliesstext>{bleibtVorlaeufigSatz(veroeffentlichen.wartetAuf)}</Fliesstext>
+        <Fliesstext>{weiterSatz(lauf, veroeffentlichen.wartetAuf)}</Fliesstext>
       ) : (
         <Fliesstext>
           {veroeffentlichen.regelnOhneFreigabe > 0
@@ -207,7 +208,7 @@ function Detail({ detail }: { detail: LaufDetail }) {
           {`Monatslauf ${name}, Stichtag ${tag}${lauf.regelsatz === "v1" ? "" : `, gerechnet mit Regelsatz ${lauf.regelsatz}`}`}
         </Fliesstext>
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
-          {halt ? haltSatz(halt, lauf.lieferung) : bestandSatz(lauf, vormonat)}
+          {halt ? haltSatz(halt, lauf.lieferung, detail.fdCodes) : bestandSatz(lauf, vormonat)}
         </Ueberschrift>
         {halt ? (
           <HerkunftChip {...laufBeleg(lauf, { quelle: "meta.pruefung_treffer", sql: sqlTreffer(lauf, halt) })} />
@@ -233,33 +234,30 @@ function Detail({ detail }: { detail: LaufDetail }) {
 
       <section aria-labelledby="zahlen-titel" className="flex max-w-4xl flex-col gap-4">
         <Ueberschrift stufe={3} als="h2" id="zahlen-titel">
-          Jeder gelesene Satz ist gezählt, nicht gezählt oder ausgeschlossen.
+          {lauf.fortgeschrieben > 0
+            ? `So entsteht der Bestand am ${tag}: aus der Lieferung plus aus dem Vormonat übernommen.`
+            : `So entsteht der Bestand am ${tag}: jede gelesene Zeile ist gezählt, nicht gezählt oder ausgeschlossen.`}
         </Ueberschrift>
-        <ul className="grid gap-4 sm:grid-cols-2" aria-label="Begriffe in diesem Abschnitt">
-          {(lauf.fortgeschrieben > 0
-            ? (["Abrechnung", "Sätze", "fortgeschrieben", "vorläufig"] as const)
-            : (["Abrechnung", "Sätze", "vorläufig"] as const)).map((wort) => (
-            <li key={wort} className="font-sans text-14 font-semibold text-ink">
-              <Fachbegriff wort={wort} />
-            </li>
-          ))}
-        </ul>
+        <Begriffsliste worte={(lauf.fortgeschrieben > 0
+            ? (["Stichtag", "Abrechnung", "fortgeschrieben", "vorläufig"] as const)
+            : (["Stichtag", "Abrechnung", "vorläufig"] as const))} label="Begriffe in diesem Abschnitt" className="grid gap-4 sm:grid-cols-2" />
         {halt && (
           <div className="flex flex-col items-start gap-2">
             <Fliesstext>{bestandSatz(lauf, vormonat)}</Fliesstext>
             <HerkunftChip {...bestandChip} />
           </div>
         )}
-        <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <Kennzahl wort="gelesen" wert={lauf.gelesen} />
-          <Kennzahl
-            wort="gezählt am Stichtag"
-            wert={lauf.gezaehlt}
-            zusatz={lauf.fortgeschrieben > 0 ? `davon ${formatZahl(lauf.fortgeschrieben)} aus dem Vormonat übernommen` : undefined}
-          />
-          <Kennzahl wort="nicht gezählt" wert={lauf.nichtGezaehlt} />
-          <Kennzahl wort="ausgeschlossen" wert={lauf.ausgeschlossen} />
-        </dl>
+        {lauf.fortgeschrieben > 0 ? (
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Kennzahl wort="aus der Lieferung" wert={ausLieferung(lauf)} />
+            <Kennzahl wort={`aus ${monatName(verschieben(lauf.lieferung, -1))} übernommen`} wert={lauf.fortgeschrieben} zeichen="+" />
+            <Kennzahl wort="Bestand am Stichtag" wert={lauf.gezaehlt} zeichen="=" gross />
+          </dl>
+        ) : (
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Kennzahl wort="Bestand am Stichtag" wert={lauf.gezaehlt} gross />
+          </dl>
+        )}
         <HerkunftChip {...kennzahlChip} />
         <div className="flex flex-col items-start gap-2">
           <Fliesstext>{abrechnungSatz(lauf)}</Fliesstext>
@@ -280,14 +278,8 @@ function Detail({ detail }: { detail: LaufDetail }) {
             ? "In diesem Monat ist keine Prüfung auffällig."
             : `In diesem Monat ${treffer.length === 1 ? "ist eine Prüfung" : `sind ${formatZahl(treffer.length)} Prüfungen`} auffällig.`}
         </Ueberschrift>
-        <ul className="grid gap-4 sm:grid-cols-2" aria-label="Begriffe in diesem Abschnitt">
-          {(["Auffälligkeit", "Einstufung"] as const).map((wort) => (
-            <li key={wort} className="font-sans text-14 font-semibold text-ink">
-              <Fachbegriff wort={wort} />
-            </li>
-          ))}
-        </ul>
-        {treffer.length > 0 && <Auffaelligkeiten lauf={lauf} treffer={treffer} />}
+        <Begriffsliste worte={["Auffälligkeit", "Einstufung"] as const} label="Begriffe in diesem Abschnitt" className="grid gap-4 sm:grid-cols-2" />
+        {treffer.length > 0 && <Auffaelligkeiten lauf={lauf} treffer={treffer} fdCodes={detail.fdCodes} />}
       </section>
 
       <section aria-labelledby="revision-titel" className="flex max-w-4xl flex-col gap-4">
@@ -321,7 +313,7 @@ function Detail({ detail }: { detail: LaufDetail }) {
 
       <section aria-labelledby="land-titel" className="flex max-w-4xl flex-col gap-4">
         <Ueberschrift stufe={3} als="h2" id="land-titel">
-          {`So verteilen sich die Verhältnisse am ${tag} auf die Bundesländer.`}
+          {`So verteilen sich die Beschäftigungsverhältnisse am ${tag} auf die Bundesländer.`}
         </Ueberschrift>
         {regionen.length === 0 ? (
           <Leerzustand satz={`Für ${name} liegen keine Zahlen je Bundesland vor.`} />

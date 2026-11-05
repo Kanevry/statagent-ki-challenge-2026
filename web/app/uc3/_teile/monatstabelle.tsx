@@ -134,7 +134,7 @@ export function Monatstabelle({ monate, regelsatz = "v1" }: { monate: readonly M
             </div>
             <p className="font-sans text-14 text-ink">
               <span className="font-mono tabular-nums text-20">{formatZahl(monat.gezaehlt)}</span>
-              {" Verhältnisse am Stichtag, zum Vormonat "}
+              {" Beschäftigungsverhältnisse am Stichtag, zum Vormonat "}
               <span className="font-mono tabular-nums">
                 <Vormonat monat={monat} monate={monate} />
               </span>

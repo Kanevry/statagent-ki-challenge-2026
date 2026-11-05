@@ -107,7 +107,7 @@ export function monatslaufAus(z: MonatslaufZeile): Monatslauf {
   };
 }
 
-/** Abrechnung eines Laufs: Sätze aus der Lieferung = gezählt (ohne Fortgeschriebene) + nicht gezählt + ausgeschlossen. */
+/** Abrechnung eines Laufs: Zeilen aus der Lieferung = gezählt (ohne Fortgeschriebene) + nicht gezählt + ausgeschlossen. */
 export function abrechnung(lauf: Lauf): { ausLieferung: number; gehtAuf: boolean } {
   const ausLieferung = lauf.gezaehlt - lauf.fortgeschrieben;
   return { ausLieferung, gehtAuf: lauf.gelesen === ausLieferung + lauf.nichtGezaehlt + lauf.ausgeschlossen };
