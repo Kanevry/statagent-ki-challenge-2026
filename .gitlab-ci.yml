@@ -1,7 +1,6 @@
-# Vorschlag des Leads (lead-session-orchestrator-09, 2026-11-05) für agents/ki-challenge-2026 (Repo-Wurzel = app/).
-# Stack laut vault ki-challenge/uc3-architektur.md: Python 3.12+ mit uv (pipeline/), Next.js 16.4 (web/).
+# agents/ki-challenge-2026: Monorepo (pnpm-Workspace web + shared/ui, uv-Workspace shared/py + uc*).
 # Nur MR-Pipelines (plus manuelle Web-Pipelines), kein Deploy. Tests mit LLM_PROVIDER=mock, kein Schlüssel in CI.
-# Übernahme durch die Bau-Session: Datei als .gitlab-ci.yml in app/ legen, Pfade prüfen, einmal per MR laufen lassen.
+# Golden-Set- und DB-Tests mit echten Daten tragen pytest.mark.daten und laufen nur lokal (CI-Postgres ist leer).
 
 workflow:
   rules:
@@ -13,6 +12,19 @@ stages: [check, test]
 
 default:
   interruptible: true
+
+.pnpm:
+  image: node:24-bookworm-slim
+  variables:
+    LLM_PROVIDER: mock
+  before_script:
+    - corepack enable
+    - corepack prepare pnpm@10.34.5 --activate
+    - pnpm config set store-dir .pnpm-store
+  cache:
+    key:
+      files: [pnpm-lock.yaml]
+    paths: [.pnpm-store]
 
 gitleaks:
   stage: check
@@ -40,39 +52,52 @@ python:
     PGDATABASE: statistik
     PGUSER: statistik
     PGPASSWORD: statistik
+    # leere Test-DB für Contract-Tests (meta.protokoll, meta.freigabe), keine echten Daten
+    PLATTFORM_TEST_DATABASE_URL: postgresql://statistik:statistik@db:5432/statistik
     LLM_PROVIDER: mock
     UV_CACHE_DIR: .uv-cache
+    UV_LINK_MODE: copy
   cache:
     key:
       files: [uv.lock]
     paths: [.uv-cache]
   script:
-    - uv sync --frozen
+    - uv sync --frozen --all-packages
+    - uv run python -c "import plattform"
     - uv run ruff check .
     - uv run ruff format --check .
-    # Fixture-Lieferung (20 Zeilen) aus tests/, keine 10-Mio-Läufe in CI
-    - uv run pytest -q
-  rules:
-    - exists: [pyproject.toml]
+    - uv run pytest -q -m "not daten"
 
 web:
+  extends: .pnpm
   stage: test
-  image: node:24-bookworm-slim
-  variables:
-    LLM_PROVIDER: mock
-  before_script:
-    - corepack enable
-    - corepack prepare pnpm@10.34.5 --activate
-    - cd web
-  cache:
-    key:
-      files: [web/pnpm-lock.yaml]
-    paths: [web/.pnpm-store]
   script:
-    - pnpm config set store-dir .pnpm-store
     - pnpm install --frozen-lockfile
-    - pnpm exec next typegen
-    - timeout -k 5 300 pnpm exec tsgo --noEmit
-    - pnpm exec vitest --run
+    - pnpm -r exec tsgo --noEmit
+    - pnpm -r --if-present run test
+
+web-build:
+  extends: .pnpm
+  stage: test
+  script:
+    - pnpm install --frozen-lockfile
+    # standalone-Build für den Deploy-Container (#68)
+    - pnpm --filter web run build
+    - test -f web/.next/standalone/web/server.js
+
+playwright:
+  extends: .pnpm
+  stage: test
+  image: mcr.microsoft.com/playwright:v1.64.1-noble
+  script:
+    - pnpm install --frozen-lockfile
+    - pnpm --filter web run test:slop
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - web/playwright-report/
+      - web/test-results/
   rules:
-    - exists: [web/package.json]
+    # Anti-Schablonen-Gate (#62) hängt sich mit web/playwright.config.ts ein
+    - exists: [web/playwright.config.ts]
