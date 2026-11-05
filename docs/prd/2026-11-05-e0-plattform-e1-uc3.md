@@ -146,6 +146,25 @@ der Modell-Badge liest `GET /api/plattform/modell` (E0-Route, führt `uv run pyt
 - Datenweg: Route-Handler lesen die UC-Datenbank lesend (postgres.js) oder starten die UC-CLI als Subprozess mit
   `--json`. Streaming (Chat, Voice) geht an die FastAPI des UC (Port 810N), nie an das Modell direkt.
 
+### UC4-Antwortform und Router (Vertrag A, Epic #95, #96, #97)
+- `plattform.antwortform.UcAntwort` (pydantic, `extra=forbid`, `strict`) = zod `@kic/ui/antwortform`, Schema-Datei
+  `shared/schema/uc-antwort.json` (erzeugt, Contract-Tests beidseitig). `?` heißt: darf fehlen oder null sein.
+  ```
+  UcAntwort { text, belege: Beleg[], zahlen: Zahl[], uc: uc1|uc2|uc3, modell?, protokoll_id? }
+  Beleg     { uc: uc1|uc2|uc3, quelle, lieferung?, monat?, sql?, ref?, regelstand?, lauf?, stand?: endgueltig|vorlaeufig }
+  Zahl      { bezeichnung, wert: int | endliche float, einheit?, beleg: int (Index in belege) }
+  ```
+  `Beleg.uc` ist der liefernde UC (zitiert UC2 eine UC3-Zahl, bleibt `uc3`). UC3 setzt `regelstand` (Version aus
+  `meta.regel`), `lauf` (`meta.lauf.ergebnis_hash`) und `stand` (`vorlaeufig` z. B. für 2025-10). Zahlen sind
+  streng: kein String, kein bool, kein NaN oder Infinity.
+- `plattform.router.durchreichen(frage, kette=uc3→uc2→uc1)` → `Ergebnis { antworten: UcAntwort[], fehlend:
+  {uc, grund}[] }`, `grund` = `kein_adapter` | `ungueltige_antwort` | Fehlertyp. Adapter aus der Registry oder der
+  Entry-Point-Gruppe `kic.uc_antwort`, Signatur `antwort(frage, kontext: UcAntwort[]) -> UcAntwort | dict`; der
+  Kontext ist eine tiefe Kopie. Je Schritt eine Zeile in `var/protokoll/router.jsonl` (`PLATTFORM_ROUTER_PROTOKOLL`):
+  uc, stufe (ab 1), frage_hash, dauer_ms, modell, anzahl_belege, anzahl_zahlen, protokoll_id, fehler; nie Frage-
+  oder Antworttext, nie in `modellaufrufe.jsonl` (das trägt nur Modellaufrufe, Vertrag M).
+- Web: `POST /api/uc4/frage` startet `python -m plattform.router frage --json` als Subprozess (#98).
+
 ### Voice (Vertrag V, Konzept nach everlast, Code neu)
 
 - `plattform.voice.erstelle_router(antwort)` mit `antwort(nachrichten, sitzung) -> {text, belege: list[Beleg]}`
@@ -218,7 +237,7 @@ der Modell-Badge liest `GET /api/plattform/modell` (E0-Route, führt `uv run pyt
 - Ein TS-Modell-Schalter oder direkte Modellaufrufe aus `web/` (eine Implementierung in Python genügt)
 - Eigene Vapi-Tool-Calls (Freigabe per Sprache über Vapi): Live-Änderung per Sprache läuft über den Text-/Voice-Weg
   des UC3-Agenten, nicht über Vapi-Tools
-- Deploy (Vercel) und Docker-Build der Web-App: Demo läuft lokal am M4
+- Deploy über Vercel: die Vorführung läuft lokal. Zusätzlich gibt es seit 05.11. ein Online-Deploy per Docker auf einem eigenen Server (#68, Owner-Wort 13:20, `deploy/README.md`)
 - Inhalte von UC1, UC2, Slides (eigene Tabs #23, #24, #26) und Abgabe-Ablauf (#27)
 - Code-Übernahme aus everlast: nur Konzept und Verträge, Code entsteht neu (Repo ist öffentlich)
 
