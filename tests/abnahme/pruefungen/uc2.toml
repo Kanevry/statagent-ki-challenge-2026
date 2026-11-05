@@ -72,34 +72,34 @@ quelle = "Issue #24, Fertig wenn"
 # ---------------------------------------------------------------- 47-AC1
 [[pruefung]]
 id = "47-AC1"
-hash = "6c84cdb900"
-befehl = "test -s docs/plan/uc2/modell-fallback.md && grep -c 'ollama · lokal · Fallback' docs/plan/uc2/modell-fallback.md || true"
+hash = "d2ba4e29cd"
+befehl = "test -s docs/plan/uc2/modell-fallback.md && grep -c 'ollama · lokal · Ersatz' docs/plan/uc2/modell-fallback.md || true"
 erwartet = ["^[1-9]\\d*$"]
 deckung = "teil"
 befund_art = "fehlt"
 schwer = false
 zeitlimit = 20
-gegenprobe = "grep -c 'ollama · lokal · Fallbackxyz' docs/plan/uc2/modell-fallback.md || true"
+gegenprobe = "grep -c 'ollama · lokal · Ersatzxyz' docs/plan/uc2/modell-fallback.md || true"
 quelle = "Issue #47, AC1"
-befund = "Der Testbericht docs/plan/uc2/modell-fallback.md fehlt oder nennt die Beschriftung „ollama · lokal · Fallback“ nicht."
+befund = "Der Testbericht docs/plan/uc2/modell-fallback.md fehlt oder nennt die Beschriftung „ollama · lokal · Ersatz“ nicht."
 grund = "Der Testbericht liegt unter dem verlangten Pfad und nennt die verlangte Beschriftung."
 
 [[pruefung]]
 id = "47-AC1"
-hash = "6c84cdb900"
-befehl = "grep -c 'ollama · lokal · Fallback' web/app/api/uc2/_lib/vorbereitung.ts || true"
+hash = "d2ba4e29cd"
+befehl = "grep -c 'ollama · lokal · Ersatz' web/app/api/uc2/_lib/vorbereitung.ts || true"
 erwartet = ["^[1-9]\\d*$"]
 deckung = "teil"
 schwer = false
 zeitlimit = 20
-gegenprobe = "grep -c 'ollama · lokal · Fallbackzzz' web/app/api/uc2/_lib/vorbereitung.ts || true"
-quelle = "Issue #47, AC1 (Wortlaut „ollama · lokal · Fallback“)"
-befund = "Die Oberfläche beschriftet den Notnagel „ollama · lokal · Ersatz“ statt wie im Kriterium „ollama · lokal · Fallback“ (Testbericht sagt Fallback)."
-grund = "Die Beschriftung des Ollama-Notnagels in der Oberfläche lautet wörtlich „ollama · lokal · Fallback“."
+gegenprobe = "grep -c 'ollama · lokal · Ersatzzzz' web/app/api/uc2/_lib/vorbereitung.ts || true"
+quelle = "Issue #47, AC1 (Wortlaut „ollama · lokal · Ersatz“)"
+befund = "Die Oberfläche oder der Testbericht nennen den Notnagel nicht „ollama · lokal · Ersatz“."
+grund = "Die Beschriftung des Ollama-Notnagels in der Oberfläche lautet wörtlich „ollama · lokal · Ersatz“."
 
 [[pruefung]]
 id = "47-AC1"
-hash = "6c84cdb900"
+hash = "d2ba4e29cd"
 befehl = "timeout 200 pnpm --dir web exec vitest --run components/uc2/fall.test.tsx components/uc2/freigabe.test.tsx"
 erwartet = ["^\\s*Tests\\s+\\d+ passed \\(\\d+\\)"]
 deckung = "teil"
@@ -112,9 +112,9 @@ grund = "Im Abbruch-Fixture bleiben die Runden stehen, Ollama ist ohne Einrichtu
 
 [[pruefung]]
 id = "47-AC1"
-hash = "6c84cdb900"
+hash = "d2ba4e29cd"
 art = "hand"
-beschreibung = "Ein Mensch öffnet /uc2/panel?fall=mock-abbruch (Desktop 1440x900 und Mobil 390x844) und vergleicht mit dem Pen-Frame NjP7Q: Band mit Abbruch-Text, Runden 1 und 2 bleiben, Erneut-Knopf, Modellwahl mit dem Ollama-Eintrag („ollama · lokal · Fallback“ laut Kriterium). Ohne erreichbaren lokalen Dienst muss eine sichtbare Fehlermeldung stehen. Das Ergebnis des Screenshotvergleichs wird festgehalten."
+beschreibung = "Ein Mensch öffnet /uc2/panel?fall=mock-abbruch (Desktop 1440x900 und Mobil 390x844) und vergleicht mit dem Pen-Frame NjP7Q: Band mit Abbruch-Text, Runden 1 und 2 bleiben, Erneut-Knopf, Modellwahl mit dem Ollama-Eintrag („ollama · lokal · Ersatz“ laut Kriterium). Ohne erreichbaren lokalen Dienst muss eine sichtbare Fehlermeldung stehen. Das Ergebnis des Screenshotvergleichs wird festgehalten."
 quelle = "Issue #47, AC1"
 
 # ---------------------------------------------------------------- 87-1 (Scope-Abgleich)

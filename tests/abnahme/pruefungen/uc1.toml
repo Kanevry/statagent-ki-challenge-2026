@@ -218,7 +218,7 @@ grund = "Name, Geburtsdatum und Straße aus der Frage erreichen das Modell nicht
 
 [[pruefung]]
 id = "81-1"
-hash = "f2e6fe6805"
+hash = "1b46d89676"
 befehl = "(test -s uc1/eval/termin-wien.json && grep -c 'Unbelegte Adressen: 0' docs/plan/uc1/termin-messung.md) || echo fehlt"
 erwartet = ["^1$"]
 deckung = "teil"
@@ -231,7 +231,7 @@ grund = "Fixture und Prüfbericht liegen vor, der Bericht nennt 0 unbelegte Adre
 
 [[pruefung]]
 id = "81-1"
-hash = "f2e6fe6805"
+hash = "1b46d89676"
 befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_termin.py -m 'not daten'"
 erwartet = ["(^|= )\\d+ passed"]
 deckung = "teil"
@@ -243,9 +243,9 @@ grund = "Die Tests ohne Datenbank bestehen: Teilstring-Regel, „nicht belegt“
 
 [[pruefung]]
 id = "81-1"
-hash = "f2e6fe6805"
-befehl = "grep -c -- '--fall' uc1/uc1/eval.py || true"
-erwartet = ["^[1-9]\\d*$"]
+hash = "1b46d89676"
+befehl = "timeout 60 uv run --isolated --package uc1 lotse termin --help"
+erwartet = ["--fall FALL"]
 deckung = "teil"
 schwer = false
 zeitlimit = 200
@@ -255,7 +255,7 @@ grund = "lotse eval kennt den Schalter --fall."
 
 [[pruefung]]
 id = "81-1"
-hash = "f2e6fe6805"
+hash = "1b46d89676"
 befehl = "timeout 170 uv run --package uc1 python -m uc1.termin --pruefen termin-wien"
 erwartet = ["OK +0 unbelegte Adressen", "OK +jede ausgegebene Adresse ist Teilstring der Quelle"]
 deckung = "voll"

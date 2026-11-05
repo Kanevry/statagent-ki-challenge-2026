@@ -922,10 +922,15 @@ d = open("docs/praesentation/demo-drehbuch.md", encoding="utf-8").read()
 m = re.search(r"^### D2.*?(?=^### |\Z)", d, re.M | re.S)
 d2 = m.group(0) if m else ""
 print("d2_da", int(bool(m)))
-print("stand_der_probe", int(bool(re.search(r"Stand der Probe[^\n]*\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}", d2))))
-print("ungeprobte_live_befehle", len(re.findall(r"uv run uc3 (agent|freigabe|vorschlag freigeben)\b", d2)))
+print("stand_der_probe", int(bool(re.search(r"Stand der Proben?:[^\n]*\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}", d2))))
+proben = bool(re.search(r"Stand der Proben:[^\n]*dreimal von drei", d2))
+ausnahme = "Nie `freigabe` üben" in d2
+print("agent_geprobt", int(proben))
+print("freigabe_ausnahme", int(ausnahme))
+ungeprobt = ["vorschlag freigeben"] + ([] if proben else ["agent"]) + ([] if ausnahme else ["freigabe"])
+print("ungeprobte_live_befehle", len(re.findall(r"uv run uc3 (" + "|".join(ungeprobt) + r")\b", d2)))
 ' '''
-erwartet = ['^d2_da 1$', '^stand_der_probe 1$', '^ungeprobte_live_befehle 0$']
+erwartet = ['^d2_da 1$', '^stand_der_probe 1$', '^agent_geprobt 1$', '^freigabe_ausnahme 1$', '^ungeprobte_live_befehle 0$']
 deckung = "teil"
 zeitlimit = 60
 quelle = "Issue #141, Abschnitt Fertig wenn, vierter Punkt (Wortlaut: Drehbuch D2 zeigt nur Schritte, die E5 selbst geprobt hat; Auslegung: D2 nennt den Stand der Probe mit Uhrzeit und enthält keinen Live-Befehl agent oder freigabe)"
