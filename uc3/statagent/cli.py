@@ -697,9 +697,7 @@ def frage(
 def klass(
     begriff: Annotated[
         str,
-        typer.Argument(
-            help="oenace, region, qualifikation, beschaeftigungskategorie, geschlecht oder alter"
-        ),
+        typer.Argument(help="oenace, region, qualifikation, beschaeftigungskategorie, geschlecht oder alter"),
     ] = "oenace",
     code: Annotated[str | None, typer.Argument(help="z. B. C; ohne Code: Versionen und Codes")] = None,
     version: Annotated[str | None, typer.Option("--version", help="nur diese Version, z. B. 2025")] = None,
@@ -734,13 +732,17 @@ def export_online(
         ),
     ] = "pg_dump",
     rolle: Annotated[str, typer.Option("--rolle", help="Rolle, die Leserechte bekommt")] = "kic_app",
+    ohne_beispiele: Annotated[
+        bool,
+        typer.Option("--ohne-beispiele", help="Beispiel-Kennungen (beispiele) in meta.* im Export leeren"),
+    ] = False,
     als_json: JsonOption = False,
 ) -> None:
     """Dump der Schemata stat und meta für den Online-Server, ohne roh und bereinigt, mit Leserechten."""
     from statagent.export_online import ExportFehler, exportieren
 
     try:
-        erg = exportieren(ziel, konfig.datenbank_url(), pg_dump, rolle)
+        erg = exportieren(ziel, konfig.datenbank_url(), pg_dump, rolle, ohne_beispiele=ohne_beispiele)
     except (ExportFehler, OSError) as fehler:
         typer.echo(f"Export gescheitert, keine Datei geschrieben: {fehler}", err=True)
         raise typer.Exit(1) from fehler
@@ -751,6 +753,7 @@ def export_online(
         "tabellen": erg.tabellen,
         "entfernt": erg.entfernt,
         "rolle": rolle,
+        "geleert": erg.geleert,
     }
     zeilen = [
         f"Geschrieben: {erg.pfad} ({erg.groesse / 1_048_576:.1f} MB)",
@@ -758,6 +761,10 @@ def export_online(
         f"sha256: {erg.sha256}",
         f"Leserechte für {rolle} angehängt.",
     ]
+    if ohne_beispiele:
+        zeilen.append(
+            "Beispiele geleert: " + (", ".join(f"{t} {n} Zeilen" for t, n in erg.geleert.items()) or "keine")
+        )
     if erg.entfernt:
         zeilen.append("Für PostgreSQL 16 auskommentiert: " + ", ".join(sorted(set(erg.entfernt))))
     _ausgabe(daten, als_json, "\n".join(zeilen))

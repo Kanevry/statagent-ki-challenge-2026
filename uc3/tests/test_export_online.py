@@ -65,3 +65,19 @@ def test_dump_stat_meta_mit_grants_spielt_ein(admin_url: str, test_db: str, tmp_
         with psycopg.connect(admin_url, autocommit=True) as admin:
             admin.execute(sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(name)))
             admin.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(sql.Identifier(rolle)))
+
+
+def test_ohne_beispiele_leert_nur_die_beispiel_spalten(test_db: str, tmp_path: Path) -> None:
+    # Fängt: Beispiel-Kennungen (synthetische VVH_IDs aus meta.rueckfrage.beispiele) landen trotz Schalter auf dem
+    # öffentlichen Online-Server, oder der Schalter verschiebt Spalten im COPY-Block (Lead-Entscheid 05.11.).
+    if shutil.which("pg_dump") is None:
+        pytest.skip("pg_dump nicht installiert")
+    with psycopg.connect(test_db) as conn:
+        r1 = conn.execute("SELECT beispiele::text, titel FROM meta.rueckfrage WHERE nr = 'R1'").fetchone()
+    assert r1 is not None and r1[0] != "[]"
+    erg = exportieren(tmp_path / "ohne.sql", test_db, ohne_beispiele=True)
+    inhalt = (tmp_path / "ohne.sql").read_text(encoding="utf-8")
+    block = inhalt.split("COPY meta.rueckfrage ", 1)[1].split("\n\\.\n", 1)[0]
+    zeile_r1 = next(z for z in block.splitlines()[1:] if z.startswith("R1\t"))
+    assert r1[0] not in zeile_r1 and "\t[]\t" in zeile_r1 and r1[1] in zeile_r1
+    assert erg.geleert.get("meta.rueckfrage", 0) >= 1

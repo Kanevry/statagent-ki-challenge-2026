@@ -37,6 +37,14 @@ _VERBOTEN = re.compile(
 )
 _TABELLE = re.compile(r"^CREATE (?:UNLOGGED )?TABLE\s+\"?([a-z_]+)\"?\.")
 _ENTFERNEN = re.compile(r"^(?:SET transaction_timeout\b|\\restrict\b|\\unrestrict\b)")
+#: Spalten mit Beispiel-Kennungen (synthetische VVH_IDs); mit ``ohne_beispiele`` im Export leer (``[]``).
+#: Lead-Entscheid 05.11.: online erst, wenn der Veranstalter die Veröffentlichung von SV-Box-Daten bestätigt.
+BEISPIEL_SPALTEN = {
+    "meta.pruefung_treffer": "beispiele",
+    "meta.revision_ursache": "beispiele",
+    "meta.rueckfrage": "beispiele",
+}
+_COPY_KOPF = re.compile(r"^COPY ([a-z_]+\.[a-z_]+) \((.*)\) FROM stdin;$")
 _PG_ENV = {
     "host": "PGHOST",
     "port": "PGPORT",
@@ -57,6 +65,7 @@ class ExportErgebnis:
     sha256: str
     tabellen: dict[str, int] = field(default_factory=dict)
     entfernt: list[str] = field(default_factory=list)
+    geleert: dict[str, int] = field(default_factory=dict)  # Zeilen mit geleerten Beispielen je Tabelle
 
 
 def _kurz(zeile: str) -> str:
@@ -108,7 +117,11 @@ def befehl(pg_dump: str | list[str]) -> list[str]:
 
 
 def exportieren(
-    ziel: Path, url: str, pg_dump: str | list[str] = "pg_dump", rolle: str = STANDARD_ROLLE
+    ziel: Path,
+    url: str,
+    pg_dump: str | list[str] = "pg_dump",
+    rolle: str = STANDARD_ROLLE,
+    ohne_beispiele: bool = False,
 ) -> ExportErgebnis:
     """Schreibt den Dump nach ``ziel``. Bei Fehler oder verbotenem Schema ist ``ziel`` danach gelöscht."""
     anhang = grants(rolle)
@@ -118,6 +131,9 @@ def exportieren(
     tabellen: Counter[str] = Counter()
     entfernt: list[str] = []
     verboten: list[str] = []
+    geleert: Counter[str] = Counter()
+    spalte_index: int | None = None  # im COPY-Block einer Tabelle mit Beispiel-Spalte: deren Position
+    copy_tabelle = ""
 
     def schreiben(f: BinaryIO, text: str) -> None:
         daten = text.encode("utf-8")
@@ -138,6 +154,20 @@ def exportieren(
                 assert prozess.stdout is not None and prozess.stderr is not None
                 for roh in prozess.stdout:
                     zeile = roh.decode("utf-8")
+                    if spalte_index is not None:
+                        if zeile.rstrip("\n") == "\\.":
+                            spalte_index = None
+                        else:
+                            felder = zeile.rstrip("\n").split("\t")  # COPY-Text: Tabs in Werten sind escaped
+                            if felder[spalte_index] not in ("\\N", "[]"):
+                                felder[spalte_index] = "[]"
+                                geleert[copy_tabelle] += 1
+                            zeile = "\t".join(felder) + "\n"
+                    elif ohne_beispiele and (kopf := _COPY_KOPF.match(zeile.rstrip("\n"))):
+                        spalten = [c.strip().strip('"') for c in kopf.group(2).split(",")]
+                        spalte = BEISPIEL_SPALTEN.get(kopf.group(1))
+                        if spalte in spalten:
+                            spalte_index, copy_tabelle = spalten.index(spalte), kopf.group(1)
                     if _ENTFERNEN.match(zeile):
                         entfernt.append(_kurz(zeile))
                         zeile = f"-- entfernt für PostgreSQL 16: {_kurz(zeile)}\n"
@@ -171,4 +201,5 @@ def exportieren(
         sha256=pruefsumme.hexdigest(),
         tabellen={s: tabellen.get(s, 0) for s in SCHEMATA},
         entfernt=entfernt,
+        geleert=dict(geleert),
     )
