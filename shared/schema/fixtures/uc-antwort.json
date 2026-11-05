@@ -1,0 +1,23 @@
+{
+  "text": "Im März 2025 waren 412.345 Personen unselbständig beschäftigt (erfundener Wert).",
+  "belege": [
+    {
+      "quelle": "roh.lieferung",
+      "lieferung": "2025-03",
+      "monat": "2025-03",
+      "sql": "SELECT count(*) FROM roh.lieferung WHERE lieferung = '2025-03'",
+      "ref": null
+    }
+  ],
+  "zahlen": [
+    {
+      "bezeichnung": "Beschäftigte",
+      "wert": 412345,
+      "einheit": "Personen",
+      "beleg": 0
+    }
+  ],
+  "uc": "uc3",
+  "modell": null,
+  "protokoll_id": null
+}

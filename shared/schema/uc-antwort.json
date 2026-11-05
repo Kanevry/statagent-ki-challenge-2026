@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Beleg": {
+      "additionalProperties": false,
+      "description": "Herkunft einer Aussage, z. B. ``quelle=\"roh.lieferung\"``, ``lieferung=\"2025-03\"``.",
+      "properties": {
+        "quelle": {
+          "title": "Quelle",
+          "type": "string"
+        },
+        "lieferung": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Lieferung"
+        },
+        "monat": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Monat"
+        },
+        "sql": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sql"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ref"
+        }
+      },
+      "required": [
+        "quelle",
+        "lieferung",
+        "monat",
+        "sql",
+        "ref"
+      ],
+      "title": "Beleg",
+      "type": "object"
+    },
+    "Zahl": {
+      "additionalProperties": false,
+      "description": "Eine Zahl der Antwort; ``beleg`` ist der Index in ``UcAntwort.belege``.",
+      "properties": {
+        "bezeichnung": {
+          "title": "Bezeichnung",
+          "type": "string"
+        },
+        "wert": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Wert"
+        },
+        "einheit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Einheit"
+        },
+        "beleg": {
+          "title": "Beleg",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "bezeichnung",
+        "wert",
+        "einheit",
+        "beleg"
+      ],
+      "title": "Zahl",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Antwort eines Use Case in der UC4-Kette (Schema: ``shared/schema/uc-antwort.json``).",
+  "properties": {
+    "text": {
+      "title": "Text",
+      "type": "string"
+    },
+    "belege": {
+      "items": {
+        "$ref": "#/$defs/Beleg"
+      },
+      "title": "Belege",
+      "type": "array"
+    },
+    "zahlen": {
+      "items": {
+        "$ref": "#/$defs/Zahl"
+      },
+      "title": "Zahlen",
+      "type": "array"
+    },
+    "uc": {
+      "enum": [
+        "uc1",
+        "uc2",
+        "uc3"
+      ],
+      "title": "Uc",
+      "type": "string"
+    },
+    "modell": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Modell"
+    },
+    "protokoll_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Protokoll Id"
+    }
+  },
+  "required": [
+    "text",
+    "belege",
+    "zahlen",
+    "uc",
+    "modell",
+    "protokoll_id"
+  ],
+  "title": "UcAntwort",
+  "type": "object"
+}
