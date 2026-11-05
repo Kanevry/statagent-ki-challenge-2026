@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Negativ-Fixture Anti-Schablonen-Gate</title>
+<!--
+  Alle zwölf Muster der Positiv-Fixture, aber unsichtbar: in display:none, in visibility:hidden und hinter dem
+  Attribut hidden. Sichtbar ist nur ein neutraler Satz. measureSlop muss in jedem Schlüssel 0 liefern; sonst
+  würde verstecktes Markup (z. B. ein geschlossenes Menü) das Gate rot machen.
+-->
+<style>
+  body { margin: 0; padding: 24px; font-family: Inter, sans-serif; background: #fff; }
+  section { position: relative; margin-bottom: 40px; }
+  .weg { display: none; }
+  .unsichtbar { visibility: hidden; }
+  .mono { font-family: ui-monospace, monospace; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px; }
+  .caps { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 8px; }
+  .kachel { width: 48px; height: 48px; background: #e0e7ff; display: block; }
+  .schattenkarte { width: 300px; height: 100px; border-radius: 16px; background: #fff; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+  .geisterkarte { width: 300px; height: 100px; border: 1px solid rgba(0,0,0,0.2); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+  .verlauf { font-size: 32px; font-weight: 700; background-image: linear-gradient(90deg, #6366f1, #ec4899); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .glas { width: 300px; height: 100px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: rgba(255,255,255,0.3); }
+  .orb { position: absolute; top: 0; right: 0; width: 200px; height: 200px; border-radius: 50%; background: #a78bfa; filter: blur(60px); }
+  .puls { width: 12px; height: 12px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+</style>
+</head>
+<body>
+<main>
+  <p>Sichtbar ist nur dieser Satz.</p>
+
+  <div class="weg">
+    <section><p class="mono">Monatsbericht</p><h2>Überschrift mit Mono-Label</h2></section>
+    <section><p class="caps">Beschäftigte</p><h2>Überschrift mit Versal-Label</h2></section>
+    <section>
+      <span class="kachel"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#4f46e5"/></svg></span>
+      <h3>Karte mit Icon-Kachel</h3>
+    </section>
+    <section><div class="schattenkarte">Karte mit weichem Schatten</div></section>
+    <section><div class="geisterkarte">Karte mit Haarlinie und Schatten</div></section>
+    <section><span class="verlauf">Verlaufstext</span></section>
+    <section><div class="glas">Milchglas</div></section>
+    <section><div class="orb"></div><p>Fläche mit Lichtkugel</p></section>
+    <section><div class="puls"></div></section>
+    <section><svg class="lucide-sparkles" width="24" height="24" viewBox="0 0 24 24"><path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#facc15"/></svg></section>
+    <section><p>Schnell — einfach — sicher.</p></section>
+    <section><h2>Was kann das Ganze?</h2></section>
+  </div>
+
+  <div class="unsichtbar">
+    <section><p class="mono">Monatsbericht</p><h2>Überschrift mit Mono-Label</h2></section>
+    <section><div class="schattenkarte">Karte mit weichem Schatten</div></section>
+    <section><span class="verlauf">Verlaufstext</span></section>
+    <section><div class="glas">Milchglas</div></section>
+    <section><p>Schnell — einfach — sicher.</p></section>
+    <section><h2>Was kann das Ganze?</h2></section>
+  </div>
+
+  <div hidden>
+    <section><p class="caps">Beschäftigte</p><h2>Überschrift mit Versal-Label</h2></section>
+    <section><div class="puls"></div></section>
+    <section><p>Schnell — einfach — sicher.</p></section>
+  </div>
+</main>
+</body>
+</html>

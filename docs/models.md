@@ -83,7 +83,7 @@ mit `ModellFehlt` ab.
 
 Die Texte gehen in Scheiben zu höchstens 256 ins Modell, danach wird der Speicher von `mps` bzw. `cuda`
 geleert; `entladen()` gibt das Modell frei. Der Bench misst je Gerät eine Zeile mit kurzen Sätzen und eine
-mit einem langen Text über `EMBEDDINGS_MAX_TOKEN` Token, jeweils mit Stapel und Spitzenspeicher.
+mit einem langen Text über `EMBEDDINGS_MAX_TOKEN` Token, jeweils mit Stapel und Speicher (cpu: RSS-Spitze; mps: Belegung des Treibers nach dem Lauf, torch misst dort keine Spitze).
 
 #### Bench 2026-11-05T14:11:20+01:00
 
@@ -93,11 +93,11 @@ mit einem langen Text über `EMBEDDINGS_MAX_TOKEN` Token, jeweils mit Stapel und
 
 #### Bench 2026-11-05T14:47:52+01:00
 
-| Zeit | Host | Modell | Revision | Gerät | Eingabe | Stapel | Max. Token | Ladezeit | Dimension | n | Dauer | Texte/s | Spitzenspeicher |
+| Zeit | Host | Modell | Revision | Gerät | Eingabe | Stapel | Max. Token | Ladezeit | Dimension | n | Dauer | Texte/s | Speicher |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | cpu | kurze Sätze | 16 | 2048 | 0.9 s | 768 | 1000 | 9.08 s | 110 | 2238 MiB (RSS-Spitze) |
 | 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | cpu | langer Text (8533 Wörter, abgeschnitten) | 16 | 2048 | 0.9 s | 768 | 1 | 2.23 s | 0.4 | 2325 MiB (RSS-Spitze) |
-| 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | mps | kurze Sätze | 16 | 2048 | 1.2 s | 768 | 1000 | 5.07 s | 197 | 2063 MiB (mps-Treiber) |
-| 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | mps | langer Text (8533 Wörter, abgeschnitten) | 16 | 2048 | 1.2 s | 768 | 1 | 0.60 s | 1.7 | 2128 MiB (mps-Treiber) |
+| 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | mps | kurze Sätze | 16 | 2048 | 1.2 s | 768 | 1000 | 5.07 s | 197 | 2063 MiB (mps-Treiber nach dem Lauf) |
+| 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | mps | langer Text (8533 Wörter, abgeschnitten) | 16 | 2048 | 1.2 s | 768 | 1 | 0.60 s | 1.7 | 2128 MiB (mps-Treiber nach dem Lauf) |
 
 Gemessen auf dem Apple M5 Max (Kopf 068d98e plus mps-Untergrenze), PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.7. Hochgerechnet brauchen 14.244 kurze Texte auf cpu rund 2,2 Minuten.
