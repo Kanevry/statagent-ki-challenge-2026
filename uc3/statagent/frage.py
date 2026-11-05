@@ -1189,6 +1189,16 @@ def _rueckfrage_monat(typ: str, jahr: str | None) -> dict[str, Any]:
     return _rueckfrage(f"Für welchen Monat möchten Sie {was} wissen? Zum Beispiel „{beispiel} März 2025“.")
 
 
+def _pensionsfrage(conn: Verbindung, frage: str, notizen: list[str]) -> dict[str, Any]:
+    """Pensionen sind eine eigene Statistik mit eigenen Merkmalen (#77), kein Fall der Beschäftigtenstatistik."""
+    try:
+        daten = pensionsantwort(conn, frage)
+    except (psycopg.Error, AbfrageVerweigert):
+        return _antwort("pensionen", NICHT_LESBAR, hinweise=[NICHT_LESBAR])
+    daten["text"] = " ".join([*notizen, daten["text"]])
+    return daten
+
+
 def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str, Any]:
     """Beantwortet eine Datenanfrage ohne Sprachmodell; mehrdeutige Fragen bekommen eine Rückfrage.
 
@@ -1196,14 +1206,9 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     das es nicht gibt), kommt als Textantwort ohne Zahl und ohne interne Details zurück.
     """
     frage, notizen = normalisieren(frage)
-    typ = fragetyp(frage)
     if ist_pensionsfrage(frage) and not _PERSON.search(frage.lower()):
-        try:
-            pension = pensionsantwort(conn, frage)
-        except (psycopg.Error, AbfrageVerweigert):
-            return _antwort(typ, NICHT_LESBAR, hinweise=[NICHT_LESBAR])
-        pension["text"] = " ".join([*notizen, pension["text"]])
-        return pension
+        return _pensionsfrage(conn, frage, notizen)
+    typ = fragetyp(frage)
     absage = nicht_auswertbar(frage)
     if absage is not None:
         return _antwort(typ, absage, hinweise=[absage])
