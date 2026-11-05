@@ -222,7 +222,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:25"
 [[pruefung]]
 id = "16-AC4"
 hash = "a571160318"
-befehl = "ls abgabe/qualitaetsberichte/*.md | wc -l | tr -d ' '; timeout 170 uv run --package statagent statagent pruefe-abgabe | grep -E '^\\[ok\\] Qualitätsberichte'"
+befehl = "ls abgabe/qualitaetsberichte/*.md | wc -l | tr -d ' '; STATAGENT_ABGABE=abgabe timeout 170 uv run --package statagent statagent pruefe-abgabe | grep -E '^\\[ok\\] Qualitätsberichte'"
 erwartet = ["^24$", "^\\[ok\\] Qualitätsberichte 2024-08 bis 2026-07: 24 Berichte mit 5 Abschnitten"]
 schwer = false
 deckung = "teil"
@@ -244,7 +244,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "17-AC2"
 hash = "5efcdcf25c"
-befehl = "timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
+befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
 erwartet = ["Abgabe vollständig"]
 schwer = false
 deckung = "teil"
@@ -286,13 +286,27 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "20-AC1"
 hash = "29abb8a741"
-befehl = "ls abgabe/manifest.json; timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
-erwartet = ["Abgabe vollständig"]
+befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe && python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg && git ls-files 'abgabe/*.csv' | wc -l | tr -d ' '"
+erwartet = ["^Abgabe vollständig\\.$", "^\\[ok\\] Ministeriums-Lieferung 2026-07: .*32\\.741 Personen", "^abweichend 0$", "^0$"]
+gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg --variante E"
 schwer = false
 deckung = "teil"
+quelle = "Entscheid #16 (Einzeldaten nur SV-Box): CSV extern, im Repo der Beleg; Orakel ministerium-varianten.csv Variante S"
+grund = "Validator meldet Abgabe vollständig; Beleg der Ministeriums-CSV (sha256, Zeilen) gleich Orakel Variante S, keine CSV im Repo (die CSV selbst prüft 71-AC2)"
+befund = "Validator oder Ministeriums-Beleg weicht ab (Exit, sha256 oder CSV im Repo)"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
+
+[[pruefung]]
+id = "20-AC1"
+hash = "29abb8a741"
+befehl = "python3 tests/abnahme/p/uc3_manifest.py abgabe/manifest.json"
+erwartet = ["^manifest_abweichend 0$"]
+schwer = false
+deckung = "voll"
 befund_art = "fehlt"
-befund = "abgabe/manifest.json (Dateiname, Groesse, SHA256, Regelsatz, Stand) gibt es nicht, und der Validator meldet fehlende Ministeriumsdatei und Sheet neu; der Validator endet erwartungsgemaess nicht mit Exit 0. Die 24 Berichte sind ok."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+grund = "abgabe/manifest.json nennt je Datei Name, Größe, SHA256, Regelsatz und Stand, und die Werte stimmen (Ministerium über den Beleg)"
+befund = "abgabe/manifest.json fehlt oder Einträge stimmen nicht (Name, Größe, SHA256, Regelsatz, Stand); Lane uc3"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
 
 [[pruefung]]
 id = "20-AC2"
@@ -319,12 +333,28 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "22-1"
 hash = "d123dbcdff"
-befehl = "timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
-erwartet = ["Abgabe vollständig"]
+befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe && python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg && git ls-files 'abgabe/*.csv' | wc -l | tr -d ' '"
+erwartet = ["^Abgabe vollständig\\.$", "^\\[ok\\] Ministeriums-Lieferung 2026-07: .*32\\.741 Personen", "^abweichend 0$", "^0$"]
+gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg --variante E"
 schwer = false
 deckung = "teil"
-befund = "Die Abgabedateien sind nicht vollstaendig: ministerium_2026-07.csv und aggregationen_v2.xlsx fehlen, das Manifest fehlt; das ist ein Epic-Kriterium (Kinder #17 und #20 offen)."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+quelle = "Entscheid #16 (Einzeldaten nur SV-Box): CSV extern, im Repo der Beleg"
+grund = "Abgabedateien vollständig (Validator), Ministerium per Beleg und sha256 belegt"
+befund = "Validator oder Ministeriums-Beleg weicht ab (Exit, sha256 oder CSV im Repo)"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
+
+[[pruefung]]
+id = "22-1"
+hash = "d123dbcdff"
+befehl = "timeout 120 uv run --package statagent python tests/abnahme/p/uc3_db.py regelsaetze v1 v2 ministerium"
+erwartet = ["^regelsaetze_ohne_aktive_regel 0$"]
+schwer = true
+deckung = "teil"
+befund_art = "fehlt"
+quelle = "Jury-Probe 4d 05.11. 20:03, Hürde B1: db init lädt nur Regelsatz v1"
+grund = "Auf der frisch nach README aufgebauten Prüf-DB sind die Regelsätze v1, v2 und ministerium aktiv, also sind Sheet v2 und Ministerium per CLI nachrechenbar"
+befund = "Auf frischer DB fehlen aktive Regeln für v2 oder ministerium; Sheet v2 und Ministerium sind dort nicht per CLI reproduzierbar (B1, Lane uc3)"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
 
 [[pruefung]]
 id = "22-3"
@@ -392,13 +422,15 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "71-AC2"
 hash = "cb305a3298"
-befehl = "test -e abgabe/ministerium_2026-07.csv && echo DA || echo FEHLT"
-erwartet = ["^DA$"]
-schwer = true
-deckung = "teil"
-befund_art = "fehlt"
-befund = "Die CSV mit PERSON_ID liegt bewusst nicht im öffentlichen Repo (nur außerhalb, SV-Box; Beleg im Repo). Kopf, Sortierung und TAGE 200 bis 365 sind nur am externen Ort messbar: erste Zeile muss PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE sein."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+befehl = "python3 tests/abnahme/p/uc3_ministerium.py && grep -cE '^\\| Freigegeben von \\| [A-ZÄÖÜ][a-zäöüß]+ [A-ZÄÖÜ]' abgabe/ministerium_2026-07.beleg.md"
+erwartet = ["^kopf_wie_vorlage ja$", "^person_id_eindeutig_aufsteigend ja$", "^tage_200_bis_365 ja$", "^unbekannt_wie_orakel ja$", "^sha256_wie_beleg ja$", "^abweichend 0$", "^1$"]
+gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --variante E"
+schwer = false
+deckung = "voll"
+quelle = "Entscheid #16: CSV extern (../lieferungen neben dem Checkout), im Repo der Beleg; Orakel Variante S"
+grund = "CSV am externen Ort: Vorlagenkopf, Semikolon, PERSON_ID eindeutig aufsteigend, TAGE 200 bis 365, Unbekannt wie Orakel, sha256 = Beleg; Freigabe mit Vor- und Nachnamen im Beleg (Zeitpunkt prüfen die Kriterien von #55)"
+befund = "Ministeriums-CSV am externen Ort verletzt Form oder passt nicht zum Beleg (Lane uc3)"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
 
 [[pruefung]]
 id = "71-AC3"

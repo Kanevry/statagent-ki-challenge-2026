@@ -4,6 +4,7 @@
     $P abrechnung 2024-08 [--regelsatz v1]
     $P zeitreihe --orakel tests/abnahme/orakel/zeitreihe.csv --spalte v1_sheet_mit_e07
     $P laeufe --manifest docs/plan/uc3/laufmanifest-v1.csv
+    $P regelsaetze v1 v2 ministerium
 
 Die Adresse kommt aus UC3_DATABASE_URL; der Prüflauf setzt sie nur auf die Prüf-DB (Port 5444).
 Je Monat zählt der jüngste Lauf mit Status fertig oder unveraendert. Monatssumme = gezaehlt; die
@@ -83,6 +84,25 @@ def laeufe(manifest: str, regelsatz: str) -> int:
     return 0 if gleich == len(soll) == len(ist) and nach == 0 else 1
 
 
+REGELN_AKTIV = """
+select count(*) filter (where aktiv), count(*) filter (where aktiv and freigegeben_von is not null)
+from meta.regel where regelsatz = %s
+"""
+
+
+def regelsaetze(namen: list[str]) -> int:
+    """Aktive und freigegebene Regeln je Regelsatz; auf frischer Prüf-DB zeigt das, ob `db init` sie lädt."""
+    leer = 0
+    with psycopg.connect(os.environ["UC3_DATABASE_URL"], connect_timeout=5) as verbindung:
+        verbindung.read_only = True
+        for name in namen:
+            aktiv, frei = verbindung.execute(REGELN_AKTIV, (name,)).fetchone()
+            print(f"regelsatz {name} aktiv {aktiv} freigegeben {frei}")
+            leer += aktiv == 0
+    print(f"regelsaetze_ohne_aktive_regel {leer}")
+    return 0 if leer == 0 else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     unter = ap.add_subparsers(dest="befehl", required=True)
@@ -95,7 +115,11 @@ def main() -> int:
     a3.add_argument("--manifest", required=True)
     for p in (a1, a2, a3):
         p.add_argument("--regelsatz", default="v1")
+    a4 = unter.add_parser("regelsaetze")
+    a4.add_argument("namen", nargs="+")
     a = ap.parse_args()
+    if a.befehl == "regelsaetze":
+        return regelsaetze(a.namen)
     if a.befehl == "abrechnung":
         return abrechnung(a.lieferung, a.regelsatz)
     if a.befehl == "zeitreihe":

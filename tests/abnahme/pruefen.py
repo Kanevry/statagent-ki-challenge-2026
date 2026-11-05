@@ -129,6 +129,7 @@ def abzug(sha: str, werkzeug: str) -> Path:
         subprocess.run(
             ["git", "clone", "-q", "--shared", "--no-checkout", str(WURZEL), str(ziel)], check=True
         )
+        (ziel / MARKE_KLON).write_text("Prüf-Klon der Abnahme; wird vor jedem Lauf hart zurückgesetzt.\n")
         subprocess.run(["git", "-C", str(ziel), "checkout", "-q", "--detach", sha], check=True)
         subprocess.run(["uv", "sync", "--frozen", "--all-packages", "-q"], cwd=ziel, check=True, env=UMGEBUNG)
         node_ok = any(
@@ -144,8 +145,30 @@ def abzug(sha: str, werkzeug: str) -> Path:
         if not node_ok:
             print("Hinweis: pnpm install gescheitert; vitest-Prüfsätze werden Lauf-Fehler", file=sys.stderr)
         (ziel / ".fertig").write_text(sha)
+    if not (ziel / MARKE_KLON).exists():  # Abzüge von vor der Marke (unter ABZUEGE, also eigene Prüf-Klone)
+        (ziel / MARKE_KLON).write_text("Prüf-Klon der Abnahme; wird vor jedem Lauf hart zurückgesetzt.\n")
+    nachbarn_verlinken()
     zuruecksetzen(ziel, sha, werkzeug)
     return ziel
+
+
+NACHBARN = ("svbox", "lieferungen")  # Startpaket und externe Lieferungen (Einzeldaten), nie im Repo
+
+
+def nachbarn_verlinken() -> None:
+    """Legt neben die Abzüge dieselben Nachbarordner wie neben den Haupt-Checkout (Jury-Weg: ../svbox/uc3).
+
+    statagent sucht Startpaket und Lieferungen neben dem Haupt-Checkout (konfig.startpaket,
+    konfig.lieferungen_extern); ohne die Links meldet pruefe-abgabe „Vorlage nicht gefunden“ (Lauf 19:53).
+    """
+    gemeinsam = matrix.git("rev-parse", "--path-format=absolute", "--git-common-dir").stdout.strip()
+    basis = Path(gemeinsam).parent.parent
+    for name in NACHBARN:
+        quelle, link = basis / name, ABZUEGE / name
+        if not quelle.is_dir():
+            print(f"Hinweis: {name}/ fehlt neben dem Haupt-Checkout", file=sys.stderr)
+        elif not link.exists():
+            link.symlink_to(quelle)
 
 
 def urteil(p: dict, code: int, stdout: str, stderr: str = "") -> tuple[str, str]:
@@ -227,6 +250,9 @@ def ausfuehren(befehl: str, ort: Path, sekunden: int) -> tuple[int, str, str, fl
     return code, out, err, time.monotonic() - start
 
 
+MARKE_KLON = (
+    ".kic-abnahme-pruefklon"  # nur Verzeichnisse mit dieser Datei werden hart zurückgesetzt (Review 4d)
+)
 ORT: Path | None = None  # Prüf-Klon des laufenden Laufs, wird in Ausgaben durch <pruefklon> ersetzt
 
 
@@ -245,10 +271,39 @@ def zuruecksetzen(ort: Path, sha: str, werkzeug: str) -> None:
     Grund (Review 4d, 19:00): ein Prüfsatz schrieb abgabe/protokoll.md in den Klon; der nächste checkout
     scheiterte still. Umgebungen (.venv, node_modules) sind ignoriert und bleiben.
     """
+    # Nur ein markierter Prüf-Klon wird hart zurückgesetzt. Auf dem Prüfrechner liegt pruefen.py im Klon
+    # selbst, deshalb entscheidet die Marke, nicht der Pfad (20:01: Ablehnung des Pfads verhinderte den Lauf).
+    if not (ort / MARKE_KLON).exists():
+        wer = (
+            "der eigene Arbeitsbaum ohne Marke"
+            if WURZEL.resolve().is_relative_to(ort.resolve())
+            else "ohne Marke"
+        )
+        raise SystemExit(f"Abbruch: {ort} ist {wer} {MARKE_KLON}, wird nicht zurückgesetzt")
     subprocess.run(["git", "-C", str(ort), "checkout", "-q", "-f", "--detach", sha], check=True)
-    subprocess.run(["git", "-C", str(ort), "clean", "-fdq", "-e", ".fertig"], check=True)
+    subprocess.run(["git", "-C", str(ort), "clean", "-fdq", "-e", ".fertig", "-e", MARKE_KLON], check=True)
     shutil.rmtree(ort / "tests" / "abnahme", ignore_errors=True)
     subprocess.run(["git", "-C", str(ort), "checkout", "-q", werkzeug, "--", "tests/abnahme"], check=True)
+
+
+def ort_vorbereiten(ort: Path, sha: str, werkzeug: str) -> None:
+    """Bereitet den Checkout für `--ort` vor.
+
+    Auf dem Prüfrechner läuft pruefen.py im Prüf-Klon selbst; schwer_pruefrechner.sh hat ihn vorher hart
+    zurückgesetzt. Dann wird nur geprüft (Marke da, Kopf = main-SHA), nicht erneut zurückgesetzt: ein
+    Zurücksetzen würde tests/abnahme unter dem laufenden Skript ersetzen. Ohne Marke bleibt der eigene
+    Arbeitsbaum tabu (Abbruch 20:01 auf main 71ba5c82, Folge des Schutzes aus Review 4d).
+    """
+    if ort.resolve() != WURZEL.resolve():
+        zuruecksetzen(ort, sha, werkzeug)
+        return
+    if not (ort / MARKE_KLON).exists():
+        raise SystemExit(f"Abbruch: {ort} ist der eigene Arbeitsbaum, kein Prüf-Klon")
+    kopf = subprocess.run(
+        ["git", "-C", str(ort), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    if not kopf.startswith(sha):
+        raise SystemExit(f"Abbruch: Prüf-Klon steht auf {kopf[:8]}, nicht auf main {sha[:8]}")
 
 
 def main() -> int:
@@ -279,7 +334,7 @@ def main() -> int:
             print("--ort braucht --sha und --werkzeug", file=sys.stderr)
             return 2
         sha, werkzeug, ort = a.sha, a.werkzeug, a.ort.resolve()
-        zuruecksetzen(ort, sha, werkzeug)
+        ort_vorbereiten(ort, sha, werkzeug)
     else:
         subprocess.run(["git", "-C", str(WURZEL), "fetch", "-q", "origin", "main"], check=True)
         sha = matrix.git("rev-parse", "origin/main").stdout.strip()
@@ -302,6 +357,10 @@ def main() -> int:
         if (not a.id or p["id"] == a.id)
         and (not a.bereich or p["datei"].split(".")[0].split("-")[0] == a.bereich)
         and (a.schwer or not p.get("schwer"))
+        # Der schwere Lauf urteilt nur Kriterien mit schwerem Teil (alle ihre Teile). Rein leichte Kriterien
+        # misst der leichte Lauf: auf dem Prüfrechner fehlen glab und Nachbarordner, ein Urteil von dort
+        # würde ein jüngeres leichtes Urteil überdecken (Lauf 20:11: 134-4 nur dort nicht bestanden).
+        and (not a.schwer or p["id"] in hat_schwer)
     ]
     zeilen = [
         {
