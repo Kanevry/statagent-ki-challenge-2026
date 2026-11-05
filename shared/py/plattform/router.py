@@ -41,6 +41,9 @@ _SCHREIBSPERRE = threading.Lock()
 
 ENTRY_POINT_GRUPPE = "kic.uc_antwort"
 STANDARD_KETTE: tuple[str, ...] = ("uc3", "uc2", "uc1")
+#: UCs, deren Adapter kein Sprachmodell aufrufen (UC3 rechnet nur mit SQL, R2). Eine Kette nur aus ihnen
+#: braucht kein Tagesbudget, etwa die Online-Demo ohne Modell (``UC4_KETTE=uc3``).
+OHNE_MODELL: frozenset[str] = frozenset({"uc3"})
 #: Exit-Code von ``frage``, wenn das Tagesbudget von ``plattform.llm`` verbraucht ist (Web-App: 429).
 BUDGET_ERSCHOEPFT = 3
 
@@ -244,6 +247,15 @@ def mock_adapter() -> dict[str, Adapter]:
     return {"uc3": _mock_uc3, "uc2": _mock_uc2, "uc1": _mock_uc1}
 
 
+def kette_lesen(text: str) -> tuple[str, ...]:
+    """``uc3,uc1`` → ``("uc3", "uc1")``: nur bekannte UCs, keine Doppelten, Reihenfolge der Standardkette."""
+    teile = [teil.strip() for teil in text.split(",") if teil.strip()]
+    unbekannt = sorted(set(teile) - set(STANDARD_KETTE))
+    if not teile or unbekannt or len(set(teile)) != len(teile):
+        raise argparse.ArgumentTypeError(f"ungültige Kette: {text!r} (erlaubt: {','.join(STANDARD_KETTE)})")
+    return tuple(uc for uc in STANDARD_KETTE if uc in teile)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m plattform.router")
     befehle = parser.add_subparsers(dest="befehl", required=True)
@@ -251,10 +263,17 @@ def main(argv: list[str] | None = None) -> int:
     frage.add_argument("frage")
     frage.add_argument("--json", action="store_true", help="Ergebnis als JSON drucken")
     frage.add_argument("--mock", action="store_true", help="Mock-Adapter statt Registry und Entry-Points")
+    frage.add_argument(
+        "--kette",
+        type=kette_lesen,
+        default=STANDARD_KETTE,
+        help="Komma-Liste in Kettenreihenfolge, Teilmenge von uc3,uc2,uc1 (Standard: alle drei)",
+    )
     args = parser.parse_args(argv)
+    kette: tuple[str, ...] = args.kette
 
     # Erst hier laden: wer nur antwortform oder router importiert, zieht plattform.llm nicht nach (R2).
-    if not args.mock:
+    if not args.mock and not set(kette) <= OHNE_MODELL:
         from .llm import budget_status
 
         if budget_status()["frei"] == 0:
@@ -265,7 +284,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(meldung, file=sys.stderr)
             return BUDGET_ERSCHOEPFT
 
-    ergebnis = durchreichen(args.frage, adapter=mock_adapter() if args.mock else None)
+    ergebnis = durchreichen(args.frage, kette=kette, adapter=mock_adapter() if args.mock else None)
     if args.json:
         print(ergebnis.model_dump_json(indent=2))
     else:

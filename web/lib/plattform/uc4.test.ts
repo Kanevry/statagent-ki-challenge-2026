@@ -5,6 +5,7 @@ import {
   erstelleFrageAntwort,
   ROUTER_ARGV,
   standardAusfuehren,
+  uc4Einstellung,
   type Ausfuehren,
   type FrageOptionen,
 } from "./uc4";
@@ -269,5 +270,56 @@ describe("POST /api/uc4/frage, Modellwahl", () => {
     expect(antwort.status).toBe(400);
     expect(await antwort.json()).toEqual({ fehler: "Dieses Modell gibt es hier nicht." });
     expect(ausfuehren).not.toHaveBeenCalled();
+  });
+});
+
+// Online-Demo Stufe A (Lead c0, 05.11.): Fragen offen, aber ohne Modell, nur UC3. Fängt ab: Fragen bleiben trotz
+// KIC_ONLINE_FRAGEN gesperrt, UC2/UC1 laufen online mit Mock-Texten mit, „Testbetrieb“ ersetzt die echte UC3-Zahl
+// durch die Mock-Zahl, ein Tippfehler in UC4_KETTE öffnet die volle Kette mit Modellaufrufen.
+describe("POST /api/uc4/frage, Online-Stufe A", () => {
+  const stufeA = { KIC_ONLINE: "1", KIC_ONLINE_LESEND: "1", KIC_ONLINE_FRAGEN: "1", UC4_KETTE: "uc3" };
+  const mitUmgebung = (ausfuehren: Ausfuehren, umgebung: Record<string, string>): FrageOptionen => ({
+    ausfuehren,
+    umgebung,
+    wurzel: () => "/repo",
+    ratenlimit: offen,
+  });
+
+  it("KIC_ONLINE_FRAGEN=1 öffnet Fragen trotz KIC_ONLINE_LESEND=1 und fragt nur UC3, ohne Modellwahl", async () => {
+    const ausfuehren = liefert(JSON.stringify({ antworten: [ergebnis.antworten[0]], fehlend: [] }));
+    const antwort = await frageAntwort(anfrage({ frage: "Wie viele?", modell: "mock" }), mitUmgebung(ausfuehren, stufeA));
+    expect(antwort.status).toBe(200);
+    expect(ausfuehren.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--kette", "uc3", "--", "Wie viele?"]);
+    expect(ausfuehren.mock.calls[0]?.[2].zusatz).toBeUndefined();
+  });
+
+  it("ohne Modell in der Kette wird auch ein nicht freigegebenes Modell nicht abgelehnt, sondern ignoriert", async () => {
+    const ausfuehren = liefert(JSON.stringify({ antworten: [ergebnis.antworten[0]], fehlend: [] }));
+    const antwort = await frageAntwort(anfrage({ frage: "Wie viele?", modell: "claude" }), mitUmgebung(ausfuehren, stufeA));
+    expect(antwort.status).toBe(200);
+    expect(ausfuehren.mock.calls[0]?.[2].zusatz).toBeUndefined();
+  });
+
+  it("ein ungültiger Wert in UC4_KETTE fällt auf nur UC3 zurück", async () => {
+    const ausfuehren = liefert(JSON.stringify({ antworten: [ergebnis.antworten[0]], fehlend: [] }));
+    await frageAntwort(anfrage({ frage: "Wie viele?" }), mitUmgebung(ausfuehren, { UC4_KETTE: "uc3,uc9" }));
+    expect(ausfuehren.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--kette", "uc3", "--", "Wie viele?"]);
+  });
+
+  it("UC4_KETTE hält die Standardreihenfolge, leer heißt volle Kette ohne --kette", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    await frageAntwort(anfrage({ frage: "x" }), mitUmgebung(ausfuehren, { UC4_KETTE: "uc1, uc3" }));
+    await frageAntwort(anfrage({ frage: "x" }), mitUmgebung(ausfuehren, {}));
+    expect(ausfuehren.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--kette", "uc3,uc1", "--", "x"]);
+    expect(ausfuehren.mock.calls[1]?.[1]).toEqual([...ROUTER_ARGV, "--", "x"]);
+  });
+
+  it("uc4Einstellung sagt der Seite Kette, ob Fragen offen sind und ob ein Modell läuft", () => {
+    expect(uc4Einstellung(stufeA)).toEqual({ kette: ["uc3"], fragenOffen: true, mitModell: false });
+    expect(uc4Einstellung({ KIC_ONLINE_LESEND: "1" })).toEqual({
+      kette: ["uc3", "uc2", "uc1"],
+      fragenOffen: false,
+      mitModell: true,
+    });
   });
 });

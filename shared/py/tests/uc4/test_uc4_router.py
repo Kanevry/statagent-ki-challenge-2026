@@ -170,3 +170,39 @@ def test_r2_uc3_lauf_importiert_weder_router_noch_llm():
     verboten = re.compile(r"plattform\.(llm|router)\b|from plattform import [^\n]*\b(llm|router)\b")
     treffer = [str(d.relative_to(WURZEL)) for d in dateien if verboten.search(d.read_text("utf-8"))]
     assert treffer == []
+
+
+# --- --kette (Online-Demo Stufe A: nur UC3, ohne Modell) ----------------------------------------------------
+
+
+def test_cli_kette_uc3_fragt_nur_uc3(protokoll, capsys):
+    """Fängt: `--kette uc3` lässt UC2 und UC1 trotzdem laufen (online kämen Mock-Texte)."""
+    assert main(["frage", "--json", "--mock", "--kette", "uc3", "--", "Wie viele?"]) == 0
+    ausgabe = json.loads(capsys.readouterr().out)
+    assert [a["uc"] for a in ausgabe["antworten"]] == ["uc3"]
+    assert ausgabe["fehlend"] == []
+
+
+def test_cli_kette_haelt_die_standardreihenfolge(protokoll, capsys):
+    assert main(["frage", "--json", "--mock", "--kette", "uc1,uc3", "--", "Wie viele?"]) == 0
+    assert [a["uc"] for a in json.loads(capsys.readouterr().out)["antworten"]] == ["uc3", "uc1"]
+
+
+@pytest.mark.parametrize("kette", ["", "uc4", "uc3,uc3", "uc3,x"])
+def test_cli_ungueltige_kette_bricht_ab(protokoll, kette):
+    with pytest.raises(SystemExit) as abbruch:
+        main(["frage", "--json", "--mock", "--kette", kette, "--", "Wie viele?"])
+    assert abbruch.value.code == 2
+
+
+def test_cli_kette_nur_uc3_braucht_kein_budget(protokoll, monkeypatch, capsys):
+    """Fängt: Stufe A online (kein Modell) sperrt, sobald das Tagesbudget aus Stufe B verbraucht ist."""
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "1")
+    complete([{"role": "user", "content": "x"}], zweck="smoke")
+    uc3 = {"text": "7.498", "belege": [], "zahlen": [], "uc": "uc3"}
+    monkeypatch.setattr(router, "_REGISTRY", {"uc3": lambda f, k: uc3})
+
+    assert main(["frage", "--json", "--kette", "uc3", "--", "Wie viele?"]) == 0
+    assert [a["uc"] for a in json.loads(capsys.readouterr().out)["antworten"]] == ["uc3"]
+    assert main(["frage", "--json", "--", "Wie viele?"]) == 3

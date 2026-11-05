@@ -80,8 +80,17 @@ services:
       db:
         condition: service_healthy
     environment:
-      # Online-Demo ist lesend (#68): Caddy lässt nur GET/HEAD durch; das Flag sagt es auch der App
+      # Online-Demo ist lesend (#68): Caddy lässt nur GET/HEAD durch (und POST auf die zwei Frage-Wege); das Flag
+      # sagt es auch der App. Freigaben, Läufe, UC2-Fälle und Voice bleiben damit immer zu.
       KIC_ONLINE_LESEND: "1"
+      # Stufe A: "1" öffnet nur die Fragen (/api/uc3/frage, /api/uc4/frage); leer = gesperrt (403)
+      KIC_ONLINE_FRAGEN: ${KIC_ONLINE_FRAGEN:-}
+      # Stationen auf /uc4: "uc3" = nur die Zahl, ohne Modell (Stufe A); leer = uc3, uc2, uc1 (Stufe B)
+      UC4_KETTE: ${UC4_KETTE-uc3}
+      # Stufe B: erlaubte Modellwahl auf /uc4 (Komma-Liste, z. B. azure); leer = nur Testbetrieb
+      UC4_MODELLWAHL: ${UC4_MODELLWAHL:-}
+      # Fragen je IP und Minute (Standard der App: 10)
+      RATENLIMIT_PRO_MINUTE: ${RATENLIMIT_PRO_MINUTE:-}
       # Online-Merker für plattform.llm (#100): ohne LLM_TAGESBUDGET_AUFRUFE ruft die App kein echtes Modell.
       # Bleibt "1", auch wenn KIC_ONLINE_LESEND für Fragen wegfällt.
       KIC_ONLINE: "1"

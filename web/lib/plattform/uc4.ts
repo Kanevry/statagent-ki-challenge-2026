@@ -44,8 +44,61 @@ export const standardAusfuehren: Ausfuehren = (befehl, argv, { cwd, timeout, max
   });
 
 /** argv für eine Frage; `--` davor, damit eine Frage wie „-h“ kein Schalter des Routers wird. */
-export function routerArgv(frage: string, mock: boolean): string[] {
-  return [...ROUTER_ARGV, ...(mock ? ["--mock"] : []), "--", frage];
+export function routerArgv(frage: string, mock: boolean, kette?: readonly KettenUc[]): string[] {
+  return [...ROUTER_ARGV, ...(mock ? ["--mock"] : []), ...(kette ? ["--kette", kette.join(",")] : []), "--", frage];
+}
+
+export const STANDARD_KETTE = ["uc3", "uc2", "uc1"] as const;
+export type KettenUc = (typeof STANDARD_KETTE)[number];
+/** UCs ohne Sprachmodell (UC3 rechnet nur mit SQL); wie `OHNE_MODELL` in `plattform.router`. */
+const OHNE_MODELL: ReadonlySet<KettenUc> = new Set(["uc3"]);
+
+type Umgebung = Readonly<Record<string, string | undefined>>;
+
+/**
+ * Kette aus `UC4_KETTE` (Komma-Liste, Teilmenge von uc3,uc2,uc1, Reihenfolge der Standardkette). Leer: alle drei.
+ * Ein ungültiger Wert fällt auf „nur uc3“ zurück: ohne Modell, also ohne Kosten (fail-closed).
+ */
+export function ketteAus(umgebung: Umgebung): readonly KettenUc[] {
+  const roh = (umgebung.UC4_KETTE ?? "").trim();
+  if (roh === "") return STANDARD_KETTE;
+  const teile = roh.split(",").map((teil) => teil.trim());
+  const gueltig =
+    teile.length > 0 &&
+    new Set(teile).size === teile.length &&
+    teile.every((teil): teil is KettenUc => (STANDARD_KETTE as readonly string[]).includes(teil));
+  if (!gueltig) {
+    console.warn("[uc4/frage] UC4_KETTE ungültig, es fragt nur UC3");
+    return ["uc3"];
+  }
+  return STANDARD_KETTE.filter((uc) => teile.includes(uc));
+}
+
+/** Ruft die Kette ein Sprachmodell auf? Nein, wenn sie nur aus UCs ohne Modell besteht (Online-Stufe A). */
+export function ketteMitModell(kette: readonly KettenUc[]): boolean {
+  return kette.some((uc) => !OHNE_MODELL.has(uc));
+}
+
+/**
+ * Dürfen Fragen gestellt werden? Online-Demo lesend (`KIC_ONLINE_LESEND=1`) sperrt sie, außer `KIC_ONLINE_FRAGEN=1`
+ * gibt Fragen frei (Stufe A); Freigaben und alles andere Schreibende bleiben dann gesperrt.
+ */
+export function fragenOffen(umgebung: Umgebung): boolean {
+  return umgebung.KIC_ONLINE_LESEND !== "1" || umgebung.KIC_ONLINE_FRAGEN === "1";
+}
+
+export interface Uc4Einstellung {
+  /** Stationen in Kettenreihenfolge; online in Stufe A nur ["uc3"]. */
+  kette: readonly KettenUc[];
+  fragenOffen: boolean;
+  /** Ruft eine Frage ein Modell auf? Nein: Modellwahl ausblenden, sie wirkt dann nicht. */
+  mitModell: boolean;
+}
+
+/** Für die Seite /uc4 (serverseitig): was die Route mit der aktuellen Umgebung tut. */
+export function uc4Einstellung(umgebung: Umgebung = process.env): Uc4Einstellung {
+  const kette = ketteAus(umgebung);
+  return { kette, fragenOffen: fragenOffen(umgebung), mitModell: ketteMitModell(kette) };
 }
 
 /** Größter Request-Body; eine Frage mit 500 Zeichen braucht als JSON höchstens rund 3 KiB (UTF-8, Escapes). */
@@ -142,7 +195,7 @@ export interface FrageOptionen {
 
 /**
  * Baut den Handler für POST /api/uc4/frage mit eigener Lauf-Zählung. Sperren in dieser Reihenfolge, alle vor dem
- * Subprozess: `KIC_ONLINE_LESEND=1` → 403 (Online-Demo, zweite Sperre hinter dem Proxy, #100), Ratenlimit je IP
+ * Subprozess: `KIC_ONLINE_LESEND=1` ohne `KIC_ONLINE_FRAGEN=1` → 403 (Online-Demo, zweite Sperre hinter dem Proxy), Ratenlimit je IP
  * → 429 mit `Retry-After`, Body > 4 KiB → 413, ungültige Frage → 400, schon `maxLaeufe` Läufe offen → 429. Der Slot
  * wird in `finally` frei, auch nach Fehlern. Nach dem Lauf: Exit 3 (Tagesbudget erschöpft) → 429.
  */
@@ -156,9 +209,19 @@ export function erstelleFrageAntwort({
 }: FrageOptionen = {}): (anfrage: Request) => Promise<Response> {
   let offen = 0;
 
-  async function fuehreAus(frage: string, modell: Modellwahl | undefined): Promise<Response> {
+  const kette = ketteAus(umgebung);
+  const mitModell = ketteMitModell(kette);
+
+  async function fuehreAus(frage: string, gewaehlt: Modellwahl | undefined): Promise<Response> {
+    // Ohne Modell in der Kette (Stufe A, nur UC3) wirkt keine Modellwahl: auch „Testbetrieb“ darf die echte Zahl
+    // nicht durch die Mock-Zahl ersetzen.
+    const modell = mitModell ? gewaehlt : undefined;
     // „Testbetrieb“ nimmt die festen Antworten des Routers (wie die Online-Demo), sonst fehlten Vorlagen je Zweck.
-    const argv = routerArgv(frage, umgebung.UC4_ADAPTER === "mock" || modell === "mock");
+    const argv = routerArgv(
+      frage,
+      umgebung.UC4_ADAPTER === "mock" || modell === "mock",
+      kette === STANDARD_KETTE ? undefined : kette,
+    );
     // Gewähltes Modell als LLM_PROVIDER nur für diesen Lauf; ohne Wahl gilt die Einstellung der App.
     const zusatz = modell ? { LLM_PROVIDER: modell } : undefined;
     let lauf: Lauf;
@@ -195,7 +258,7 @@ export function erstelleFrageAntwort({
   }
 
   return async function frageAntwort(anfrage: Request): Promise<Response> {
-    if (umgebung.KIC_ONLINE_LESEND === "1") return fehler(403, "Fragen sind in der Online-Demo noch gesperrt.");
+    if (!fragenOffen(umgebung)) return fehler(403, "Fragen sind in der Online-Demo noch gesperrt.");
     const gedrosselt = ratenlimit(anfrage, jetzt());
     if (gedrosselt) return gedrosselt;
 
@@ -208,7 +271,7 @@ export function erstelleFrageAntwort({
     }
     const eingabe = leseFrage(text);
     if ("meldung" in eingabe) return fehler(400, eingabe.meldung);
-    if (eingabe.modell && !modellErlaubt(eingabe.modell, umgebung)) return fehler(400, NICHT_FREIGEGEBEN);
+    if (mitModell && eingabe.modell && !modellErlaubt(eingabe.modell, umgebung)) return fehler(400, NICHT_FREIGEGEBEN);
 
     if (offen >= maxLaeufe) return fehler(429, "Gerade laufen schon genug Fragen. Bitte gleich noch einmal fragen.");
     offen += 1;
