@@ -19,7 +19,9 @@ const SEITEN = [
 export function BelegSzene({ folie, aktiv, takt }: SzeneProps) {
   const anzahl = zahlWert(folie.daten.zahl);
   const zeilen = tabelle(folie)?.zeilen ?? [];
-  const [zaehler = "", ergebnis, satz] = absatzTexte(folie);
+  const texte = absatzTexte(folie);
+  // `ohne_zaehler: ja`: die Zählzeile entfällt, wenn der Titel sie schon sagt.
+  const [zaehler = "", ergebnis, satz] = folie.daten.ohne_zaehler === "ja" ? ["", ...texte] : texte;
   const [, zahl = "", rest = ""] = /^([\d.]+)(.*)$/.exec(zaehler) ?? [];
   const [monatKopf = "", monatUnter = ""] = zeilen[2] ?? [];
   const monate = zahlWert(monatKopf);

@@ -4,17 +4,19 @@ Jedes Bild wird von einer zweiten Person oder einem unabhängigen Prüfer angese
 
 | Bild | Prüfer | Datum | Sichtbare Tokens/Schlüssel (ja/nein) | Echte Gesundheits- oder Sozialdaten (ja/nein) | Befund | Status (offen/ok) |
 |---|---|---|---|---|---|---|
-| SC01 | | | | | Kein Bild, die UC3-Seiten zeigten online nur die Meldung, dass die Zahlen nicht lesbar sind (05.11. 17:38). | offen |
-| SC02 | | | | | Kein Bild, die UC3-Seiten zeigten online nur die Meldung, dass die Zahlen nicht lesbar sind (05.11. 17:38). | offen |
-| SC03 | | | | | Kein Bild, das Motiv entfällt, weil keine Webseite den Aufruf uc3 lauf zeigt. | offen |
-| SC04 | | | | | Kein Bild, das Motiv entfällt, weil keine Webseite den Zellvergleich zeigt. | offen |
-| SC05 | | | | | Kein Bild, das Motiv entfällt, weil das Aggregations-Sheet eine Datei und keine Webseite ist. | offen |
-| SC06 | | | | | Kein Bild, die UC3-Seiten zeigten online nur die Meldung, dass die Zahlen nicht lesbar sind (05.11. 17:38). | offen |
-| SC07 | | | | | Kein Bild, die UC3-Seiten zeigten online nur die Meldung, dass die Zahlen nicht lesbar sind (05.11. 17:38). | offen |
-| SC08 | | | | | Kein Bild, die UC3-Seiten zeigten online nur die Meldung, dass die Zahlen nicht lesbar sind (05.11. 17:38). | offen |
-| SC09 | | | | | Kein Bild, die UC3-Seiten zeigten online nur die Meldung, dass die Zahlen nicht lesbar sind (05.11. 17:38). | offen |
-| SC10 | | | | | Kein Bild, die UC3-Seiten zeigten online nur die Meldung, dass die Zahlen nicht lesbar sind (05.11. 17:38). | offen |
-| SC11 | Agent ui-developer (Vorprüfung) | 2026-11-05 | nein | nein | Desktop zeigt die UC4-Seite mit Kopfleiste, Eingabefeld und drei leeren Karten der Kette, keine Fehlermeldung. Die Kopfleiste zeigt noch „Modell wird geprüft“. Die zweite Person fehlt noch. | offen |
-| SC12 | | | | | Kein Bild, die UC3-Seiten zeigten online nur die Meldung, dass die Zahlen nicht lesbar sind (05.11. 17:38). | offen |
+| SC01 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC02 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC03 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Neu aufgenommen 05.11.2026 23:13 auf main 11b5ff5, oben rechts steht das Modell. Desktop bei 900 px angesehen. Mobil-Bild nicht angesehen | ok |
+| SC04 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC05 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC06 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC07 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC08 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC09 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC10 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC11 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Neu aufgenommen 05.11.2026 23:11 auf main 11b5ff5. Desktop bei 1100 px angesehen. Mobil-Bild nicht angesehen | ok |
+| SC12 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
 
-Offene Befunde: 12
+Offene Befunde: 0
+
+Die Bilder in `screens/mobil/` sind nicht angesehen.

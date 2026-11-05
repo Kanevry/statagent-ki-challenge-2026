@@ -1,6 +1,6 @@
 # Fragenkatalog der Fachjury
 
-Der Katalog hilft am Tisch, wenn die Fachjury nachfragt. Er enthält die drei Datenanfragen der Aufgabenstellung, fünf geübte Live-Änderungen und die Fragen, die wir erwarten.
+Der Katalog hilft am Tisch, wenn die Fachjury nachfragt. Er enthält die drei Datenanfragen der Aufgabenstellung, vier geübte Live-Änderungen und die Fragen, die wir erwarten.
 
 Regel: Jede Antwort ist in unter 30 Sekunden lesbar. Aufbau je Frage: Frage, Kurzantwort, Antwortweg, Fundstelle im Repo, Zahlen mit Kennung F….
 
@@ -25,16 +25,9 @@ Nur diese Fragen werden vorgeführt, wörtlich so getippt. Jede Zahl ist gegen e
 
 Gegenprobe mit ehrlicher Absage: „Entwicklung im Bau seit August 2024“. Das Programm sagt ab, weil die Branchen ab 2025 nach ÖNACE 2025 gezählt werden (F13).
 
-Nicht vorführen, solange der Folge-MR von bb fehlt, weil die Antwort heute still eine andere Frage beantwortet:
+Freie Fragen, Stand 05.11.2026 (Testserver, `main` `fd936b3`): Zwei Werte eines Merkmals („Wien und Tirol“), „Durchschnittsalter“, Fluktuation mit Filter und Fragen nach einer Person sagt das Programm ehrlich ab.
 
-- Branchen in Umgangssprache („Gastronomie“, „Gesundheitswesen“, „Handel“).
-- Zwei Werte eines Merkmals („Wien und Tirol“, „Arbeiter und Angestellte“).
-- Alter („unter 25“, „Durchschnittsalter“) und „freie Dienstverträge“.
-- Zeiträume („von März bis Juni 2025“).
-- Fluktuation mit Filter („in Wien“), für August 2024 oder mit „am höchsten“.
-- Fragen nach einer einzelnen Person.
-
-In der Tabelle steht „Beschäftigte“, weil die Jury so fragt. Gezählt werden Beschäftigungsverhältnisse; so sagt es Bernhard auch.
+Nicht vorführen: Alter wie „unter 25“, die Frage liefert still die Gesamtzahl. Dazu, was eine Zahl liefert, aber nicht gegen das Orakel geprüft ist: Branchen in Umgangssprache („Gastronomie“), „freie Dienstverträge“ und Zeiträume („von März bis Juni 2025“). Um 06:45 neu messen.
 
 ## Gemeinsame Bausteine für das SQL
 
@@ -200,11 +193,15 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Satz der Jury:** „Rechnen Sie bei Geburtsmonat 13 nur mit der Differenz der Jahre, nicht mit dem 1. Juli.“
 
-**Befehl:** `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2025-03`. Geprobt am 05.11.2026 18:20 bis 18:25 mit dem Stand von !50: 3 von 3 gültige Vorschläge.
+**Befehl:** `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2026-06`. Der Vorschlag selbst ist am 05.11.2026 18:20 bis 18:25 mit dem Stand von !50 geprobt, 3 von 3 gültig, damals mit 2025-03. Diesen Monat nicht mehr nehmen, siehe unten.
 
 **Was der Vorschlag ändert:** Regel `R5_alter`, Parameter `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`. Der Agent darf für diesen Parameter nur `jahresdifferenz` oder `unbekannt` vorschlagen (`uc3/statagent/agenten/koordinator.py`, Zeile 81). Einen anderen Ersatztag wie den 1. Jänner weist er ab.
 
-**Erwartete Wirkung:** Der Gesamtbestand ändert sich nie, nur das Alter einzelner Verhältnisse mit Monat 13. Für August 2024 gilt Jahresdifferenz gleich Ersatztag 1. Juli, der Beispielbericht bleibt exakt (F4). Im März 2025 liegt der Stichtag vor dem 1. Juli: Mit Jahresdifferenz sind diese Verhältnisse ein Jahr älter, der Vorschlag zeigt verschobene Altersgruppen.
+**Erwartete Wirkung:** Der Gesamtbestand ändert sich nie, nur das Alter einzelner Verhältnisse mit Monat 13. Für August 2024 gilt Jahresdifferenz gleich Ersatztag 1. Juli, der Beispielbericht bleibt exakt (F4). Im Juni 2026 liegt der Stichtag vor dem 1. Juli: Mit Jahresdifferenz sind diese Verhältnisse ein Jahr älter, der Vorschlag zeigt wenige verschobene Altersgruppen, der Gesamtbestand bleibt 403.301 (einmal gemessen von der UC3-Lane, 05.11.2026 22:40, Commit d888e09, bis zum Vorschlag). Juli bis Dezember zeigen keinen Unterschied, das ist fachlich richtig.
+
+**Auf der Seite:** Die Tabelle von „Vorher und nachher ansehen“ zählt Beschäftigungskategorien. In Juni und Juli 2026 zeigt sie überall gleiche Werte und den Satz „Bei den Beschäftigungskategorien ändert die Probe keine Zahl, die Gesamtzahl bleibt gleich“ (im Browser gemessen, Lane Vorführung; der Vorschlag dauert rund 145 s). Das ist kein Fehler, sieht aber nach nichts aus: B2 nur nehmen, wenn die Jury genau das wünscht.
+
+**Falle:** Mit `--probe 2025-03` zeigt die Probe 396.762 → 395.292 (−1.470), obwohl sich nur das Alter ändert. In der Probe fehlen die Fortschreibungen von 2025-03 und 2025-10. Der Fix kommt mit !150, die Abgabe ist nicht betroffen.
 
 **Wozu die Übung dient:** Sie zeigt, dass die offene Frage R1 an die Fachabteilung ein Regelparameter ist und keine Programmänderung.
 
@@ -214,11 +211,11 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Satz der Jury:** „Halten Sie einen Monat schon bei 3 Prozent Bestandsrückgang an, nicht erst bei 5.“
 
-**Befehl:** `uv run uc3 agent "Halte einen Monat schon an, wenn der Bestand um mehr als 3 Prozent unter dem Vormonat liegt." --probe 2025-10`
+**Befehl:** `uv run uc3 agent "Halte einen Monat schon an, wenn der Bestand um mehr als 3 Prozent unter dem Vormonat liegt." --probe 2026-07`
 
 **Was der Vorschlag ändert:** Prüfregel `P15_bestand_vs_vormonat` (Typ `pruefung`), Parameter `schwelle` von 0.05 auf 0.03.
 
-**Erwartete Wirkung:** Der Bestand ändert sich nicht, eine Prüfregel ändert keine Zahl. Es ändert sich nur, welche Monate anhalten. Teil-Lieferung 2025-10 hält ohnehin an (P15, P16, P17, F11). Welche weiteren Monate die neue Schwelle träfe, zeigt die Probe live.
+**Erwartete Wirkung:** Der Bestand ändert sich nicht, eine Prüfregel ändert keine Zahl. Im Juli 2026 bleibt die Gesamtzahl 407.604 (einmal gemessen von der UC3-Lane, 05.11.2026, Commit d888e09, mit fast gleichem Satz). Die Probe zeigt also keinen Unterschied. Das sagen wir dazu: Es ändert sich nur, welche Monate anhalten, und das sieht man in dieser Probe nicht. Nicht mit `--probe 2025-10` proben, dort fehlen in der Probe die Fortschreibungen (siehe B2).
 
 **Freigabe:** `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`
 
@@ -234,21 +231,15 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Freigabe:** `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`
 
-### B5 Gegenprobe: Schwelle für verschwundene Ausprägungen anheben, ablehnen
+### B5 Nicht vorführen: Schwelle für verschwundene Ausprägungen anheben
 
-**Satz der Jury:** „Melden Sie eine verschwundene Ausprägung erst, wenn sie vorher mehr als 2.000 Verhältnisse hatte.“
+**Satz der Jury, falls er kommt:** „Melden Sie eine verschwundene Ausprägung erst, wenn sie vorher mehr als 2.000 Verhältnisse hatte.“
 
-**Befehl:** `uv run uc3 agent "Melde eine verschwundene Ausprägung erst, wenn sie im Vormonat mehr als 2000 Verhältnisse hatte." --probe 2025-03`
+**Warum nicht als Übung:** Die Probe zeigt nur Zahlen, keine Treffer der Prüfregeln. Dass etwas nicht mehr gemeldet würde, sieht man dort in keinem Monat. Aus dem Code gelesen von der UC3-Lane, nicht gemessen.
 
-**Was der Vorschlag ändert:** Prüfregel `P13_auspraegung_verschwunden`, Parameter `schwelle` von 100 auf 2000.
+**Was wir sagen:** „Eine Prüfregel ändert keine Zahl, die Probe zeigt also keinen Unterschied. Diese Änderung würde ich ablehnen: Die 1.492 freien Dienstverträge vom März 2025 (F9) würden nicht mehr gemeldet.“
 
-**Erwartete Wirkung:** Die freien Dienstverträge in 2025-03 (AngestellteFD 1.131, ArbeiterFD 361, zusammen 1.492, F9) liegen jeweils unter 2.000. Die Prüfregel würde den Monat nicht mehr anhalten. Das ist eine Änderung, die wir nicht wollen.
-
-**Was wir sagen:** Die Probe zeigt die Folge, bevor etwas gilt. Wir lehnen ab:
-
-`uv run uc3 ablehnen <id> --name "Bernhard Götzendorfer" --begruendung "Schwelle würde den Ausfall der freien Dienstverträge nicht mehr melden"`
-
-**Wozu die Übung dient:** Sie zeigt, dass der Mensch nein sagen kann und die Ablehnung im Protokoll steht (`uv run uc3 protokoll --zeigen`).
+**Wenn die Jury das Nein sehen will:** Satz mit `--probe 2026-07` tippen, dann `uv run uc3 ablehnen <id> --name "Bernhard Götzendorfer" --begruendung "Schwelle würde den Ausfall der freien Dienstverträge nicht mehr melden"`. Die Ablehnung steht im Protokoll (`uv run uc3 protokoll --zeigen`).
 
 ## Teil C: Weitere Fragen der Fachjury
 
@@ -278,7 +269,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C4 Läuft das auch lokal und offline?
 
-**Kurzantwort:** Ja. Die Rechnung läuft in PostgreSQL 16 und Python auf dem eigenen Rechner. Kein Befehl von `uc3 lauf` ruft ein Sprachmodell auf (F16). Nur die Agenten brauchen ein Modell. Dafür gibt es den Schalter `LLM_PROVIDER=ollama` für den Betrieb ohne Netz.
+**Kurzantwort:** Es läuft lokal wie gefordert, und zusätzlich auf einem Server, den wir selbst betreiben. Die Abgabezahlen sind auf der eigenen Datenbank gerechnet, online läuft nur die Vorführung. Kein Befehl von `uc3 lauf` ruft ein Sprachmodell auf (F16). Nur die Agenten brauchen ein Modell. Sie können es selbst nachbauen: ab einem frischen Klon 36 Minuten, auf einer frischen Datenbank im vorhandenen Klon 24 Minuten, jeweils mit den Datentests (F30).
 
 **Antwortweg:** `uv run uc3 lauf --lieferung 2024-08` ohne Netz zeigen.
 
@@ -361,7 +352,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 **Kurzantwort:** Wir nennen fünf Grenzen offen.
 Erstens sind die Daten synthetisch.
 Zweitens hängt das Alter bei Geburtsmonat 13 vor Juli von der Antwort der Fachabteilung auf Rückfrage R1 ab (F4).
-Drittens sind die Pensionsmeldungen der Träger nicht eingelesen.
+Drittens fehlen bei den Pensionen die öffentlich Bediensteten, die frühere BVA meldet keine. Die Zahlen sind vorläufig, bis sie mit Namen freigegeben sind.
 Viertens zählen wir auf ÖNACE-Abschnitt und Bundesland, nicht bis zum 5-Steller und nicht nach Bezirk oder Gemeinde. Die Tabelle für weitere Ebenen ist angelegt.
 Fünftens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parameter und lässt sich ändern (F5).
 
@@ -389,7 +380,7 @@ Fünftens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parame
 
 #### Stand (was vom Zielbild auf main ist)
 
-Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.2026 19:40 und 20:00 auf der Online-Demo (POST `/api/uc4/frage` mit der Wien-Frage), dazu der Prüfpunkt des Leads um 20:00. Vor Fr 07:00 noch einmal messen. Nicht gemessen heißt: nicht behaupten.
+Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.2026 23:04 bis 23:08 auf der Online-Demo, main `11b5ff5` (POST `/api/uc4/frage`), dazu der Prüfpunkt des Leads um 20:00. Fr 05:00 noch einmal messen. Nicht gemessen heißt: nicht behaupten.
 
 | Teil des Zielbilds | Stand auf main | Beleg |
 |---|---|---|
@@ -400,10 +391,13 @@ Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.
 | UC1-Adapter (Lotse) | registriert | `uc1/pyproject.toml`, `uc1.uc4:router_adapter` |
 | Freigabe mit Namen in UC2 | im Code | `uc2/src/uc2/verhandlung/freigabe.py`, `web/app/api/uc2/faelle/[id]/freigabe/route.ts` |
 | Freigabe mit Namen in UC1 | nicht gefunden | keine Fundstelle auf main |
-| Wien-Frage liefert drei Antworten | online ja: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator und Lotse mit Modell gpt-5-4-mini, beide mit dem Beleg aus UC3; nichts fehlt; 9 bis 15 s | gemessen 19:40, 19:58 (Lead) und 20:00 |
+| Wien-Frage liefert drei Antworten | online ja: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator mit Modell gpt-5-4-mini, Lotse fester Text, beide mit dem Beleg aus UC3; nichts fehlt; 9 bis 12 s | gemessen 23:04, zweimal |
+| Frage ohne Zahl | „Wie heißt der Hund von Pippi Langstrumpf?“: Die Kette stoppt bei StatAgent, ohne Zahl, 3 s | gemessen 23:06 |
+| Frage mit „Wartezeiten“ | Mit Wien und März 2025: Der Simulator rechnet über das Rechenmodell, Wartezeit −22,2 %, 128,2 Mio. Euro pro Jahr, 22 s. Nicht vorführen. Ohne Monat und Ort: StatAgent fragt zurück, welchen Begriff es erklären soll, die Kette stoppt | gemessen 23:06 und 23:08 |
+| „Zugänge Oktober 2024“ | Öffentliche Adresse: keine Zahl, Hinweis auf die lokale Auswertung. Vorführ-Instanz nicht gemessen | gemessen 23:07 und 23:08 |
 | Live-Änderung per Agent (D2 Teil 2) | Endserie läuft, MR !150 Stand 20:00 noch rot; Teil 2 nur, wenn beim Freeze auf main | Prüfpunkt Lead 20:00 |
 | Klassifikation bis 5-Steller und Gemeinden | kommt gegen 23:00 als Klassifikation; gezählt wird weiter nach Abschnitt und Bundesland (Rohdaten haben nur das) | Prüfpunkt Lead 20:00 |
-| Pensionsmeldungen der Träger | nicht eingelesen | Prüfpunkt Lead 20:00, C14 |
+| Pensionsmeldungen der Träger | eingelesen: 28 von 28 Dateien, 9 Formate, 394 Summen ohne Abweichung. Online 2025 im Jahresdurchschnitt 2.584.909, vorläufig | `docs/uc3/pensionen-pruefbericht.md`, online gemessen 23:16 |
 | Lotse, verdeckter Test | Trefferquote 8 von 10, Träger richtig 6 von 10, Grenzen erkannt 3 von 8; Verbesserung eingespielt, Nachmessung offen | Prüfpunkt Lead 20:00 |
 | Simulator ohne passenden Zeitungsartikel | sagt offen „Modellannahme“, erfindet keinen Beleg | Prüfpunkt Lead 20:00, Messung E0 19:50 |
 | Online-Demo, Budget | 1.000 Modellaufrufe je Tag | Prüfpunkt Lead 20:00 |
@@ -419,6 +413,14 @@ Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.
 **Antwortweg:** `uv run uc3 vorschlag zeigen <id>` (Regel-Unterschied, Zahlen vorher und nachher), `uv run uc3 protokoll --zeigen`. Danach `uc3/statagent/lauf.py` auf Importe prüfen: kein `plattform.llm`.
 
 **Fundstelle:** `uc3/statagent/agenten/koordinator.py`, `uc3/statagent/cli.py` (Befehl `agent`, Import von `plattform.llm` nur dort), `abgabe/modelle.md`.
+
+### C18 Warum stimmt die Summe von v2 nicht mit v1 überein?
+
+**Kurzantwort:** v2 trägt beide Aufträge zusammen. Deshalb stimmt die Summe gegen v1 nicht je Kategorie allein. August 2024: Arbeiter +28, Angestellte +19, Beamte +1, zusammen +48 (392.284 statt 392.236). Das kommt ganz aus Auftrag 2 (ganzes Monat statt Stichtag). Auftrag 1 allein lässt die Monatssumme in allen 24 Monaten gleich. Ein eigenes Sheet nur mit Auftrag 1 gibt es bewusst nicht.
+
+**Antwortweg:** `abgabe/aggregationen_v1.xlsx` und `abgabe/aggregationen_v2.xlsx` nebeneinander.
+
+**Fundstelle:** Blatt `Beschaeftigungskategorie` beider Sheets, Spalte 2024-08 (nachgerechnet 05.11.2026); `docs/plan/uc3/aenderungsauftraege-matrix.md`.
 
 ## Wenn eine Frage nicht im Katalog steht
 

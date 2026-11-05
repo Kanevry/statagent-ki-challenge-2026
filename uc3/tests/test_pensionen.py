@@ -15,6 +15,7 @@ from statagent import konfig, pensionen
 from statagent.db import Verbindung
 from statagent.pensionen import FormatUnbekannt, PensionFehler
 from statagent.regeln import NameUngueltig, regeln_laden, regelstand
+from statagent.uc4 import uc4_antwort
 
 MAENNLICH = {"Männer", "Witwer", "M", "m", "männlich"}
 T12 = ["geminderte Arbeitsfähigkeit/Erwerbsunfähigkeit", "Alter", "Witwen/Witwer", "Waisen"]
@@ -487,6 +488,20 @@ def test_frage_vor_dem_laden_sagt_das(conn: Verbindung) -> None:
     antwort = frage_modul.antwort_frage(conn, "Wie viele Pensionen gab es 2025?")
     assert antwort["zahlen"] == [] and antwort["text"] == pensionen.NICHT_GELADEN
     assert "uv run" not in antwort["text"]
+
+
+def test_uc4_nennt_die_pensionszahl_nicht_die_beschaeftigten(conn: Verbindung, ordner: Path) -> None:
+    # Fängt: /uc4 läuft bei Pensionen in den Beschäftigtenpfad und nennt dort eine Zahl oder gar nichts (!192, !214).
+    pensionen.laden(conn, ordner)
+    gesamt = conn.execute(
+        """SELECT sum(s.wert)::bigint AS n FROM stat.stat_pensionen s
+           JOIN stat.klass_pensionsart a ON a.code = s.pensionsart
+           WHERE s.zeitraum_von = '2025-01-01' AND a.uebergeordnet = 'T12'"""
+    ).fetchone()
+    assert gesamt is not None
+    antwort = uc4_antwort(conn, "Wie viele Pensionen gab es 2025?")
+    assert [z["wert"] for z in antwort["zahlen"]] == [gesamt["n"]]
+    assert antwort["belege"][0]["quelle"] == "stat.stat_pensionen"
 
 
 def test_anhang_b_haelt_auch_mit_pensionsdaten(conn: Verbindung, ordner: Path) -> None:

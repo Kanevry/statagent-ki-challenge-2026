@@ -13,6 +13,11 @@ nie Frage- oder Antworttext, bei einem Fehler nur dessen Grund. Nicht aus ``plat
 Seite /uc4 zeigt die Stationen nacheinander): ``start`` (kette), ``station`` (läuft), ``antwort`` (mit
 ``kern``, dem ersten Satz, höchstens 140 Zeichen) oder ``fehlt`` (Grund), am Ende ``ende`` (fehlend, Dauer).
 
+Liefert die Station ``ZAHLEN_STATION`` keine Zahl (Rückfrage, Absage, Fehler), hält die Kette an: Ohne Zahl
+haben die Stationen danach nichts abzuwägen, und jeder Aufruf kostet Modellbudget. Die übrigen Stationen
+melden kein Ereignis, stehen nicht in ``fehlend`` (es fehlt nichts) und bekommen im Protokoll eine Zeile mit
+``fehler=GESTOPPT``.
+
 Die CLI ``frage`` prüft ohne ``--mock`` vorab das Tagesbudget von ``plattform.llm`` (#100): ist nichts frei,
 endet sie mit Exit 3 (``BUDGET_ERSCHOEPFT``) und ruft keinen Adapter.
 """
@@ -49,6 +54,10 @@ STANDARD_KETTE: tuple[str, ...] = ("uc3", "uc2", "uc1")
 #: UCs, deren Adapter kein Sprachmodell aufrufen (UC3 rechnet nur mit SQL, R2). Eine Kette nur aus ihnen
 #: braucht kein Tagesbudget, etwa die Online-Demo ohne Modell (``UC4_KETTE=uc3``).
 OHNE_MODELL: frozenset[str] = frozenset({"uc3"})
+#: Station, ohne deren Zahl die Kette anhält (siehe Moduldoku).
+ZAHLEN_STATION = "uc3"
+#: Grund im Protokoll für eine Station, die wegen fehlender Zahl nicht gerufen wurde.
+GESTOPPT = "keine_zahl"
 #: Exit-Code von ``frage``, wenn das Tagesbudget von ``plattform.llm`` verbraucht ist (Web-App: 429).
 BUDGET_ERSCHOEPFT = 3
 
@@ -252,8 +261,24 @@ def durchreichen(
     beginn = time.monotonic()
     if melden:
         melden({"art": "start", "kette": list(kette)})
+    gestoppt = False
     # Stufe zählt ab 1 wie Vertrag M (plattform.llm: Stufe 1 = gewählter Provider), hier: Stufe 1 = erster UC.
     for stufe, uc in enumerate(kette, start=1):
+        if gestoppt:
+            _schritt_schreiben(
+                Routerschritt(
+                    uc=uc,
+                    stufe=stufe,
+                    frage_hash=frage_hash,
+                    dauer_ms=0,
+                    modell=None,
+                    anzahl_belege=0,
+                    anzahl_zahlen=0,
+                    protokoll_id=None,
+                    fehler=GESTOPPT,
+                )
+            )
+            continue
         if melden:
             melden({"art": "station", "uc": uc, "stufe": stufe, "zustand": "laeuft"})
         if pause_s:
@@ -302,6 +327,7 @@ def durchreichen(
                         "antwort": antwort.model_dump(mode="json"),
                     }
                 )
+        gestoppt = uc == ZAHLEN_STATION and (antwort is None or not antwort.zahlen)
     ergebnis = Ergebnis(antworten=antworten, fehlend=fehlend)
     if melden:
         melden(

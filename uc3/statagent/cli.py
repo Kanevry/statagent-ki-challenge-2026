@@ -739,11 +739,23 @@ def klass(
         str,
         typer.Argument(help="oenace, region, qualifikation, beschaeftigungskategorie, geschlecht oder alter"),
     ] = "oenace",
-    code: Annotated[str | None, typer.Argument(help="z. B. C; ohne Code: Versionen und Codes")] = None,
-    version: Annotated[str | None, typer.Option("--version", help="nur diese Version, z. B. 2025")] = None,
+    code: Annotated[
+        str | None,
+        typer.Argument(
+            help='z. B. C, "C 10.11-0", 10.11 oder bei Region 1, 101 (Bezirk), 10101 (Gemeinde);'
+            " ohne Code: Versionen und Codes"
+        ),
+    ] = None,
+    version: Annotated[
+        str | None, typer.Option("--version", help="nur diese Version, z. B. 2025 oder Stand 2015-01-01")
+    ] = None,
     unterklassen: Annotated[
         int, typer.Option(help="bei ÖNACE zusätzlich so viele Unterklassen-Übergänge zeigen")
     ] = 0,
+    ebene: Annotated[
+        int | None,
+        typer.Option(help="bei ÖNACE ohne Code: Codes dieser Ebene zeigen (1 Abschnitt bis 5 Unterklasse)"),
+    ] = None,
     regelsatz: Annotated[str, typer.Option()] = "v1",
     als_json: JsonOption = False,
 ) -> None:
@@ -753,7 +765,7 @@ def klass(
 
     with verbinden() as conn:
         try:
-            daten = erklaeren(conn, begriff, code, version, regelsatz, unterklassen)
+            daten = erklaeren(conn, begriff, code, version, regelsatz, unterklassen, ebene)
         except KlassFehler as fehler:
             typer.echo(str(fehler), err=True)
             raise typer.Exit(1) from fehler

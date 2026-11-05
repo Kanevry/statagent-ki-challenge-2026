@@ -7,6 +7,7 @@
 #   scripts/vorfuehrung.sh up [REF]       Stand REF (Standard HEAD) bauen und starten, Git-Checkout neu aus REF, Caddy neu laden
 #   scripts/vorfuehrung.sh daten DATEI    pg_dump -Fc (lokale Datei) hochladen, als Vorlage einspielen, Arbeitskopie anlegen
 #   scripts/vorfuehrung.sh reset          Ausgangsstand: Arbeitskopie neu aus der Vorlage, Freigabe-Commits weg, App neu
+#   scripts/vorfuehrung.sh pensionen-freigeben "Vor- und Nachname"   Freigabe der Pensionen in der Instanz, Commit im eigenen Checkout
 #   scripts/vorfuehrung.sh festschreiben  heutiger Stand wird Ausgangsstand (etwa nach der Freigabe der Pensionen), reset behält ihn
 #   scripts/vorfuehrung.sh pruefen        von außen: ohne Zugang 401, mit Zugang Seiten, öffentliche Demo weiter gesperrt
 #   scripts/vorfuehrung.sh status         Container, Revision, Regelsatz, Läufe, Commits
@@ -216,7 +217,9 @@ haupt() {
   exec 9>"$v/.lock"
   flock -w 300 9 || { echo "daten: ein anderer Vorgang läuft seit über 5 Minuten" >&2; return 1; }
   cd "$v/repo/deploy"
-  local compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  # global, weil der EXIT-Trap nach dem Ende von haupt läuft; ein Abbruch darf die App nicht gestoppt lassen
+  compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  trap 'rc=$?; if [ "$rc" -ne 0 ]; then echo "abgebrochen (rc $rc), App wird wieder gestartet" >&2; "${compose[@]}" up -d vorfuehrung-app </dev/null || true; fi' EXIT
   local psql=("${compose[@]}" exec -T vorfuehrung-db psql -X -q -At -v ON_ERROR_STOP=1 -U statistik -d postgres)
   "${compose[@]}" stop vorfuehrung-app </dev/null
   "${compose[@]}" up -d --wait vorfuehrung-db </dev/null
@@ -248,7 +251,9 @@ haupt() {
   exec 9>"$v/.lock"
   flock -w 300 9 || { echo "reset: ein anderer Vorgang läuft seit über 5 Minuten" >&2; return 1; }
   cd "$v/repo/deploy"
-  local compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  # global, weil der EXIT-Trap nach dem Ende von haupt läuft; ein Abbruch darf die App nicht gestoppt lassen
+  compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  trap 'rc=$?; if [ "$rc" -ne 0 ]; then echo "abgebrochen (rc $rc), App wird wieder gestartet" >&2; "${compose[@]}" up -d vorfuehrung-app </dev/null || true; fi' EXIT
   local psql=("${compose[@]}" exec -T vorfuehrung-db psql -X -q -At -v ON_ERROR_STOP=1 -U statistik -d postgres)
   "${psql[@]}" -c "select 1 from pg_database where datname = 'statistik_vorfuehrung_vorlage'" </dev/null | grep -q 1 ||
     { echo "reset: keine Vorlage, zuerst scripts/vorfuehrung.sh daten" >&2; return 1; }
@@ -269,6 +274,27 @@ haupt "$@"
 EOF
 }
 
+cmd_pensionen_freigeben() {
+  local name=${1:?pensionen-freigeben braucht Vor- und Nachnamen}
+  # Prüft die CLI noch einmal; base64, weil ssh die Argumente zu einem Befehlstext zusammenfügt und Leerzeichen verlöre
+  remote bash -s -- "$BASIS" "$V_BASIS" "$(printf '%s' "$name" | base64 | tr -d '\n')" <<'EOF'
+haupt() {
+  set -euo pipefail
+  local basis=$1 v=$2 name
+  name=$(printf '%s' "$3" | base64 -d)
+  exec 9>"$v/.lock"
+  flock -w 300 9 || { echo "pensionen-freigeben: ein anderer Vorgang läuft seit über 5 Minuten" >&2; return 1; }
+  cd "$v/repo/deploy"
+  # In der App: nur dort stimmen Datenbank, Git-Identität und Checkout
+  docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml \
+    exec -T vorfuehrung-app uv run --frozen --package statagent uc3 pensionen freigeben --name "$name" </dev/null
+  HOME=/nonexistent setpriv --reuid=1001 --regid=1001 --clear-groups git -c 'safe.directory=*' -C "$v/checkout" \
+    log -1 --format='pensionen-freigeben: Commit %h | %(trailers:key=Freigegeben-von,valueonly,separator=%x2C)'
+}
+haupt "$@"
+EOF
+}
+
 cmd_festschreiben() {
   remote bash -s -- "$BASIS" "$V_BASIS" <<'EOF'
 haupt() {
@@ -277,7 +303,9 @@ haupt() {
   exec 9>"$v/.lock"
   flock -w 300 9 || { echo "festschreiben: ein anderer Vorgang läuft seit über 5 Minuten" >&2; return 1; }
   cd "$v/repo/deploy"
-  local compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  # global, weil der EXIT-Trap nach dem Ende von haupt läuft; ein Abbruch darf die App nicht gestoppt lassen
+  compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  trap 'rc=$?; if [ "$rc" -ne 0 ]; then echo "abgebrochen (rc $rc), App wird wieder gestartet" >&2; "${compose[@]}" up -d vorfuehrung-app </dev/null || true; fi' EXIT
   local psql=("${compose[@]}" exec -T vorfuehrung-db psql -X -q -At -v ON_ERROR_STOP=1 -U statistik -d postgres)
   als_app() { HOME=/nonexistent setpriv --reuid=1001 --regid=1001 --clear-groups git -c 'safe.directory=*' -C "$v/checkout" "$@"; }
   # App weg, sonst scheitert die Kopie an offenen Verbindungen. Erst die neue Vorlage bauen, dann die alte ersetzen:
@@ -360,11 +388,12 @@ case "${1:-}" in
   up) lade_ziel; cmd_up "${2:-}" ;;
   daten) lade_ziel; cmd_daten "${2:-}" ;;
   reset) lade_ziel; cmd_reset ;;
+  pensionen-freigeben) lade_ziel; cmd_pensionen_freigeben "${2:-}" ;;
   festschreiben) lade_ziel; cmd_festschreiben ;;
   pruefen) lade_ziel; cmd_pruefen ;;
   status) lade_ziel; cmd_status ;;
   *)
-    sed -n '2,15p' "$0"
+    sed -n '2,16p' "$0"
     exit 2
     ;;
 esac

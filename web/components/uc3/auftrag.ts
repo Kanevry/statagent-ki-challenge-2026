@@ -14,7 +14,7 @@ export const LAUF_TIMEOUT_MS = 20 * 60_000;
 const REGELSATZ = /^v[1-9][0-9]{0,2}$/;
 const MAX_MELDUNG = 400;
 
-export type AuftragEingabe = { art: "agent"; anweisung: string } | { art: "lauf"; lieferung: string; regelsatz: string };
+export type AuftragEingabe = { art: "agent"; anweisung: string; probe?: string } | { art: "lauf"; lieferung: string; regelsatz: string };
 
 export type AuftragStand = {
   id: number;
@@ -37,6 +37,16 @@ export function vorfuehrungOffen(umgebung: Readonly<Record<string, string | unde
   return umgebung.KIC_VORFUEHRUNG === "1" && umgebung.KIC_ONLINE_LESEND !== "1";
 }
 
+/**
+ * Monate, die `uc3 lauf` mit diesem Regelsatz annimmt: Er rechnet in zeitlicher Reihenfolge, also alle schon gerechneten
+ * und der erste fehlende. Ein neuer Regelsatz beginnt deshalb beim ersten Monat. Neueste zuerst.
+ */
+export function rechenbareMonate(alle: readonly string[], gerechnet: ReadonlySet<string>): string[] {
+  const aufsteigend = [...alle].sort();
+  const luecke = aufsteigend.findIndex((m) => !gerechnet.has(m));
+  return (luecke < 0 ? aufsteigend : aufsteigend.slice(0, luecke + 1)).reverse();
+}
+
 function json(status: number, daten: unknown): Response {
   return Response.json(daten, { status, headers: { "cache-control": "no-store" } });
 }
@@ -48,7 +58,7 @@ function fehler(status: number, meldung: string): Response {
 /** Argumente nach `uc3`; `--` hält einen Satz, der mit einem Strich beginnt, von den Optionen fern. */
 export function auftragArgv(eingabe: AuftragEingabe): string[] {
   return eingabe.art === "agent"
-    ? ["agent", "--json", "--", eingabe.anweisung]
+    ? ["agent", "--json", ...(eingabe.probe ? ["--probe", eingabe.probe] : []), "--", eingabe.anweisung]
     : ["lauf", "--lieferung", eingabe.lieferung, "--regelsatz", eingabe.regelsatz, "--json"];
 }
 
@@ -61,12 +71,15 @@ export function leseEingabe(text: string): AuftragEingabe | { meldung: string } 
     return { meldung: "Die Anfrage braucht JSON." };
   }
   if (typeof daten !== "object" || daten === null) return { meldung: "Die Anfrage braucht JSON." };
-  const { art, anweisung, lieferung, regelsatz } = daten as Record<string, unknown>;
+  const { art, anweisung, lieferung, regelsatz, probe } = daten as Record<string, unknown>;
   if (art === "agent") {
     const satz = typeof anweisung === "string" ? anweisung.trim() : "";
     if (!satz) return { meldung: "Bitte schreiben Sie den Auftrag in einem Satz." };
     if (satz.length > MAX_ANWEISUNG) return { meldung: `Der Auftrag ist länger als ${MAX_ANWEISUNG} Zeichen.` };
-    return { art, anweisung: satz };
+    // Ohne Probemonat nimmt `uc3 agent` den jüngsten gerechneten Monat
+    if (probe === undefined || probe === "") return { art, anweisung: satz };
+    if (typeof probe !== "string" || !istMonat(probe)) return { meldung: "Bitte wählen Sie einen Monat für die Probe." };
+    return { art, anweisung: satz, probe };
   }
   if (art === "lauf") {
     if (typeof lieferung !== "string" || !istMonat(lieferung)) return { meldung: "Bitte wählen Sie einen Monat." };

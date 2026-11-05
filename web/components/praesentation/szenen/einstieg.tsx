@@ -25,7 +25,7 @@ export function Einstieg({ folie, aktiv, takt }: SzeneProps) {
   const belegt = new Set(frontmatterListe(folie.daten.belegt));
   return (
     <>
-      <Kopf titel={kopfzeile(folie)} t={0.05} />
+      <Kopf titel={kopfzeile(folie)} t={0.05} ohneUc={folie.daten.ohne_uc === "ja"} />
       <p className={k("s9-frage")}>
         <Getippt text={frage} aktiv={aktiv} start={400} ms={9} />
       </p>
