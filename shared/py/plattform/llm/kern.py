@@ -500,23 +500,27 @@ def _budget_grenze() -> int | None:
 
 
 def _verbraucht_heute() -> int:
-    """Zeilen der Sprachmodell-Provider mit UTC-Datum von heute in der Protokolldatei.
+    """``complete``-Aufrufe der Sprachmodell-Provider mit UTC-Datum von heute in der Protokolldatei.
 
-    Die Datei ist der Zähler, weil die Web-App je Anfrage einen eigenen Python-Prozess startet. Zeilen von
-    ``router`` und ``lokal`` (Embeddings) sind keine Modellaufrufe und zählen nicht; Fehlversuche schon,
-    denn auch sie belasten das Kontingent.
+    Einheit ist der ``complete``-Aufruf (eine Protokollzeile je Aufruf); Ausweichstufen und die
+    Schema-Wiederholung können dabei mehr Anfragen an Anbieter auslösen. Die Datei ist der Zähler, weil die
+    Web-App je Anfrage einen eigenen Python-Prozess startet. Zeilen von ``router`` und ``lokal`` (Embeddings)
+    zählen nicht; Fehlversuche schon, denn auch sie belasten das Kontingent. Gelesen wird von hinten: die
+    Datei wächst in zeitlicher Folge, beim ersten Eintrag vor heute endet die Zählung.
     """
     datei = protokoll_datei()
     if not datei.is_file():
         return 0
     heute = datetime.now(UTC).date()
     anzahl = 0
-    for zeile in datei.read_text(encoding="utf-8").splitlines():
+    for zeile in reversed(datei.read_text(encoding="utf-8").splitlines()):
         try:
             eintrag = json.loads(zeile)
             tag = datetime.fromisoformat(eintrag["zeit"]).astimezone(UTC).date()
         except (json.JSONDecodeError, KeyError, TypeError, ValueError):
             continue
+        if tag < heute:
+            break
         if tag == heute and eintrag.get("provider") in FABRIKEN:
             anzahl += 1
     return anzahl
@@ -564,8 +568,8 @@ def _pruefe_budget(kette: list[str]) -> None:
     - Mit Budget: Protokoll muss beschreibbar sein (``KonfigFehler``), heute verbraucht ≥ Grenze:
       ``BudgetErschoepft``.
 
-    Prüfen und Schreiben sind nicht atomar: laufen zwei Aufrufe gleichzeitig an der Grenze, kann einer
-    darüber gehen. Das Ratenlimit der Web-App hält diese Überschreitung klein.
+    Prüfen und Schreiben sind nicht atomar: gleichzeitig laufende Aufrufe an der Grenze können sie um so viele
+    Aufrufe überschreiten, wie gerade laufen. Das Ratenlimit der Web-App hält diese Überschreitung klein.
     """
     grenze = _budget_grenze()
     if grenze is None:
