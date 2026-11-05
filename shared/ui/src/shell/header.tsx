@@ -77,7 +77,7 @@ export function AppHeader({
           </div>
           <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-3 min-[1400px]:shrink-0">
             {/* Handy: ohne Modell-Badge (ab sm wieder da), dann steht „Protokoll“ in der Zeile der Marke */}
-            {zeigtModell(pfad, ucs) && (
+            {zeigtModell(pfad) && (
               <div className="max-sm:hidden">
                 <ModellBadge quelle={modellQuelle} vorgabe={seitenModell} />
               </div>
