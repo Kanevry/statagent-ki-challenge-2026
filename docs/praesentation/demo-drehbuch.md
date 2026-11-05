@@ -77,7 +77,7 @@ Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „
 
 **Teil 2, live per Sprache (6:00–9:30):** Laut Aufgabenstellung gibt die Jury eine kleine, unbekannte Änderung vor. Bernhard fragt: „Nennen Sie mir eine Regel, die ich jetzt ändern soll.“ Er wiederholt den Wunsch der Jury in einem Satz und tippt diesen Satz. Die vier geübten Änderungen im Fragenkatalog Teil B decken die naheliegenden Wünsche ab (Altersgrenze, Geburtsmonat 13, Schwelle Bestandsrückgang, Spaltentausch). Nennt die Jury nichts, nimmt Bernhard den Standard-Satz unten.
 
-**Standard-Satz:** „Beamte zählen nicht mehr mit“, Monat Juli 2026. Die Seite zeigt: Gesamt 407.604 → 395.315, „Gesamt ändert sich um −12.289“, Beamte 12.289 → 0, Angestellte und Arbeiter gleich. Der Vorschlag dauert 2 bis 2,5 Minuten. Rücknahme: neuer Auftrag „Nimm Vorschlag <n> zurück“, +12.289, 93 s. Zweimal gemessen von der UI-Regie, zuletzt auf dem Instanz-Stand 04060ad, 2 min 34 s. Der Satz braucht !150: Ausschluss und Rücknahme stehen noch nicht auf main. Ist !150 beim Merge-Stopp nicht auf main, gilt um 06:45 Teil 1 allein.
+**Standard-Satz:** „Beamte zählen nicht mehr mit“, Monat Juli 2026. Die Seite zeigt: Gesamt 407.604 → 395.315, „Gesamt ändert sich um −12.289“, Beamte 12.289 → 0, Angestellte und Arbeiter gleich. Der Vorschlag dauert rund 2,5 Minuten. Rücknahme: neuer Auftrag „Nimm Vorschlag <n> zurück“, +12.289, 93 s. Zweimal gemessen von der UI-Regie, zuletzt auf dem Instanz-Stand 04060ad, 2 min 34 s. Der Satz braucht !150: Ausschluss und Rücknahme stehen noch nicht auf main. Ist !150 beim Merge-Stopp nicht auf main, gilt um 06:45 Teil 1 allein.
 
 1. `/uc3/auftrag`: Satz tippen, Monat für die Zahlen wählen, „Vorschlag schreiben lassen“. Im Satz den Zielwert nennen. Bei einer Änderung an Geburtsmonat 13 Juni 2026 wählen. Reserve im Terminal: `uv run uc3 agent "<Satz>" --probe JJJJ-MM`, zum Beispiel B2: `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2026-06`. Der Agent schreibt einen Vorschlag. Solange der Fix aus !150 nicht auf main ist, nie mit `--probe 2025-03` oder `--probe 2025-10` proben: Dort zeigt die Probe eine falsche Gesamtzahl.
 2. „Vorher und nachher ansehen, dann entscheiden“: Regel-Unterschied und Zahlen vorher und nachher. Reserve: `uv run uc3 vorschlag zeigen <id>`. Bei B2: `R5_alter`, `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`.
@@ -128,12 +128,12 @@ Zusatz (12:00–13:00), eine ehrliche Absage, nur wenn Zeit bleibt: „Entwicklu
 **Nicht vorführen:**
 
 - Fragen nach Bezirken, Gemeinden oder tiefen ÖNACE-Codes: „Welche Bezirke hat Tirol?“ liefert die Zahl für Tirol statt einer Liste, „C 10.11-0“ antwortet nur zu Abschnitt C (#189).
-- Alter wie „unter 25“. Die Frage liefert still die Gesamtzahl 399.027, ohne Hinweis. Gemeldet an die UC3-Lane.
 - Was eine Zahl liefert, aber nicht gegen das Orakel geprüft ist: Branchen in Umgangssprache („Gastronomie“, „Gesundheitswesen“, „Handel“), „freie Dienstverträge“, Zeiträume („von März bis Juni 2025“).
 
-**Stand der freien Fragen** (gemessen 05.11.2026 auf dem Testserver, Stand `main` `fd936b3`, um 06:45 neu messen):
+**Stand der freien Fragen** (online gemessen 06.11.2026 00:46, Stand `main` `2005e01`, um 06:45 neu messen):
 
-- Sagt ehrlich ab: zwei Werte eines Merkmals („Wien und Tirol“, „Arbeiter und Angestellte“), „Durchschnittsalter“, Fluktuation mit Filter („in Wien“) oder für August 2024, Fragen nach einer einzelnen Person.
+- Neu seit !227, Alter: „Wie viele Beschäftigte unter 25 Jahren gab es im Juli 2026?“ 41.626, in Wien 8.352. „Wie viele 30-Jährige gab es im August 2024?“ 9.017. „Beschäftigte ab 50 Jahren im Juli 2026“ 124.728. Nicht gegen das Orakel belegt, Entscheid um 06:45. Falle: „über 50“ heißt 51 Jahre und älter (115.451).
+- Sagt ehrlich ab: zwei Werte eines Merkmals („Wien und Tirol“, „Arbeiter und Angestellte“), „Durchschnittsalter“, „ab 50“ ohne „Jahren“, Fluktuation mit Filter („in Wien“) oder für August 2024, Fragen nach einer einzelnen Person. Neu gemessen sind davon „Wien und Tirol“, „Durchschnittsalter“ und „ab 50“, der Rest stammt vom Stand `fd936b3`.
 - Holpert: „Welche Branche hat die höchste Fluktuation“ sagt ab, aber mit „Das Wort ‚hat‘ kenne ich nicht“.
 
 Fragt die Jury so etwas, sagt Bernhard: „Das zeige ich Ihnen mit einer Abfrage aus dem Katalog“ und nimmt die passende SQL aus Teil A oder eine Frage aus der Tabelle.

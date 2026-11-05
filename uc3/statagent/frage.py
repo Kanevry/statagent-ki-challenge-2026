@@ -24,7 +24,7 @@ from statagent.berichte.sheet import STICHTAG, STICHTAG_VARIABLE
 from statagent.db import Verbindung
 from statagent.ergebnis import letzter_lauf, monat_verschieben, monatserster, monatsletzter
 from statagent.pensionen import PensionFehler, ist_pensionsfrage, pensionsantwort
-from statagent.regeln import Regel, regeln_laden, regelstand
+from statagent.regeln import Regel, RegelFehler, regeln_laden, regelstand
 from statagent.uc4 import (
     _ISO,
     _NAME_MONAT,
@@ -33,12 +33,14 @@ from statagent.uc4 import (
     _ZAHL_MONAT,
     MERKMALE,
     Merkmal,
+    _adapter_liest_gleich,
     _aufzaehlung,
     _codes,
     _deutsch,
     _fortgeschrieben_hinweis,
     _gliederung,
     _monat_anzeige,
+    antwort_daten,
     jahr_rueckfrage,
 )
 from statagent.zeitraum import (
@@ -159,6 +161,10 @@ ALTER_GRUND = (
     "Das Durchschnittsalter und Geburtsjahrgänge wertet StatAgent nicht aus. Es gibt Zahlen zu "
     "einem Alter oder einer Spanne, zum Beispiel „Beschäftigte unter 25 Jahren im Juli 2026“."
 )
+DURCHGEHEND_GRUND = f"Wie lange jemand im Monat beschäftigt war, wertet StatAgent nicht aus. {KANN}"
+DURCHSCHNITT_GRUND = (
+    "Durchschnitte gibt es nur über mehrere Monate, zum Beispiel „Durchschnitt März bis Juni 2025“."
+)
 DAUER_GRUND = f"Wie lange ein Beschäftigungsverhältnis schon besteht, wertet StatAgent nicht aus. {KANN}"
 #: Mehrere, unmögliche oder nicht eindeutige Altersangaben: hier geht es nicht um das Durchschnittsalter.
 ALTER_UNKLAR = (
@@ -176,6 +182,14 @@ _ALTER_GRENZE_MUSTER = (
 _ALTER_GRENZE = re.compile(_ALTER_GRENZE_MUSTER)
 _ALTER_FACHLICH_NICHT = re.compile(r"durchschnittsalter|\bwie alt\b|jahrgang|jahrgänge|geburtsjahr")
 NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
+    # „den ganzen Monat“, österreichisch „das ganze Monat“: gemeint ist durchgehend. Beide Zählweisen zählen etwas anderes.
+    (
+        re.compile(
+            r"(?<!über\s)(?<!ueber\s)\b(?:den|die|das|ein|des)\s+(?:ganze[ns]?|gesamte[ns]?)\s+monats?\b|\bganze\s+monate\b"
+            r"|\bganzes\s+monat\s+(?:beschäftigt|gearbeitet|angestellt|tätig|dabei)|\bdurchgehend\s+beschäftigt"
+        ),
+        DURCHGEHEND_GRUND,
+    ),
     # Dauer vor Alter prüfen: „seit über 2 Jahren beschäftigt“ ist keine Altersfrage, aber genauso nicht in den Daten.
     (
         re.compile(
@@ -198,7 +212,7 @@ NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
     ),
     (
         re.compile(r"durchschnitt|mittelwert|median"),
-        "Durchschnitte rechnet StatAgent bei Datenanfragen nicht.",
+        DURCHSCHNITT_GRUND,
     ),
     (re.compile(r"\blohn|löhne|gehalt|gehälter|einkommen|verdienst"), "Einkommen sind nicht in den Daten."),
     (re.compile(r"teilzeit|vollzeit|arbeitszeit|stunden"), "Die Arbeitszeit ist nicht in den Daten."),
@@ -261,7 +275,7 @@ _KEIN_MERKMAL_STAMM = (
     "österreich", "oesterreich", "vergleich", "jahr", "monat", "zeitraum", "schnitt", "gesamt", "summe",
     "detail", "bundesl", "wirtschaftsbereich", "wirtschaftszweig", "abschnitt", "önace", "oenace",
     "berichtsmonat", "stichtag", "verlauf", "lauf", "bereich", "branche", "sektor", "prozent", "vormonat",
-    "vorjahr", "zahl", "tabelle", "beschäftigungskategorie", "kategorie", "geschlecht",
+    "vorjahr", "zahl", "tabelle", "beschäftigungskategorie", "kategorie", "geschlecht", "regelsatz",
 )  # fmt: skip
 #: Nur als ganzes Wort: „Altersheim“ und „Altersteilzeit“ sind keine Merkmale.
 _KEIN_MERKMAL_WORT = frozenset({"alter", "alters", "altersgruppe", "altersgruppen", "altersverteilung"})
@@ -396,10 +410,12 @@ def nicht_auswertbar(frage: str, mittel: bool = False) -> str | None:
         if mittel and grund.startswith("Durchschnitte") and "median" not in text:
             continue
         if muster.search(text):
+            if grund is DURCHGEHEND_GRUND:
+                return grund  # sagt schon selbst, was geht
             if grund is ALTER_GRUND:
                 # Das Beispiel der Alters-Absage sagt schon, was geht.
                 return ALTER_GRUND if _ALTER_FACHLICH_NICHT.search(text) else ALTER_UNKLAR
-            if grund is DAUER_GRUND:
+            if grund is DAUER_GRUND or grund is DURCHSCHNITT_GRUND:
                 return grund  # sagt schon selbst, was geht
             return f"{grund} Darum gibt es hier keine Zahl. {KANN}"
     return None
@@ -575,6 +591,156 @@ _BEZUG = re.compile(
     r"beschäftig|beschaeftig|verhältnis|verhaeltnis|arbeit|leute|personen|menschen|\bjobs?\b|\bstellen\b"
     r"|wie\s*viele?\b|anzahl|bestand|\bstand\b|aktuell|derzeit|zurzeit|momentan|jetzt"
 )
+
+
+#: Die Frage meint den Regelsatz v2 (Änderungsaufträge, Zählung je Monat). Standard bleibt v1.
+_V2_WORT = re.compile(
+    r"(?<!\w)v2(?!\w)|regelsatz\s*(?:2|zwei)(?!\w)|änderungsauftr|aenderungsauftr|im\s+(?:ganzen|gesamten)\s+monats?\b"
+    r"|(?<!\w)ganzes\s+monats?\b|(?:über|ueber)\s+(?:das|den)\s+(?:ganze[ns]?|gesamte[ns]?)\s+monats?\b",
+    re.IGNORECASE,
+)
+#: Ein genannter Regelsatz, auch einer, den es noch nicht gibt: „Regelsatz v3“, „v3“, „Regelsatz drei“.
+_REGELSATZ_NAME = re.compile(
+    r"(?<!\w)regelsatz\s*(?:v?(\d+)|(eins|zwei|drei))(?!\w)|(?<!\w)v(\d+)(?!\w)", re.IGNORECASE
+)
+_ZAHLWORT = {"eins": "1", "zwei": "2", "drei": "3"}
+_V1_WORT = re.compile(r"(?<!\w)v1(?!\w)|regelsatz\s*(?:1|eins)(?!\w)", re.IGNORECASE)
+_V2_ZIEL = r"(?:(?:dem|den|der|die|des)\s+)?(?:regelsatz\s*(?:v?2|zwei)(?!\w)|v2(?!\w)|(?:änderungs|aenderungs)auftr)"
+#: Optional zwischen dem Wort und den Änderungsaufträgen: „vor der Umsetzung der …“, „ohne Berücksichtigung der …“.
+_V2_UMSETZUNG = r"(?:(?:der|die)\s+)?(?:(?:umsetzung|berücksichtigung|beruecksichtigung|anwendung)\s+)?"
+#: „ohne die Änderungsaufträge“, „bevor die Änderungsaufträge …“, „nicht nach v2“: gerade nicht der Regelsatz v2.
+_V2_VERNEINT = re.compile(
+    rf"(?<!\w)(?:ohne|vor|bevor|nicht|statt|außer|ausser)\s+{_V2_UMSETZUNG}(?:(?:nach|im|in|laut)\s+)?{_V2_ZIEL}",
+    re.IGNORECASE,
+)
+#: „vor und nach den Änderungsaufträgen“, „vor oder nach Umsetzung der …“, „mit und ohne v2“: beide Regelsätze zugleich.
+_V2_BEIDE = re.compile(
+    rf"(?<!\w)(?:vor\s+(?:und|oder)\s+nach|mit\s+(?:und|oder)\s+ohne)\s+{_V2_UMSETZUNG}{_V2_ZIEL}",
+    re.IGNORECASE,
+)
+#: Die Angabe des Regelsatzes in der Frage. Sie ist weder Bezug noch Merkmal und darf die Gliederung nicht verdecken.
+_REGELSATZ_ANGABE = re.compile(
+    r"(?:(?<!\w)(?:nach|laut|gemäß|im|in|und)\s+)?(?:(?<!\w)(?:dem|den|der)\s+)?"
+    r"(?:regelsatz\s*(?:v?\d+|eins|zwei|drei)(?!\w)|(?<!\w)v\d+(?!\w)|(?:änderungs|aenderungs)auftr\w*)",
+    re.IGNORECASE,
+)
+_REGELSATZ_UND_GLIEDERUNG = re.compile(
+    r"(?<!\w)nach\s+(?:regelsatz\s*)?v\d+\s+und\s+(?:nach\s+)?", re.IGNORECASE
+)
+
+
+def _regelsatz_der_frage(frage: str) -> str | None:
+    """Der Regelsatz, den die Frage außer v1 meint; ein unbekannter Name geht vor v2, damit er nicht still wegfällt."""
+    namen = {
+        f"v{treffer.group(1) or treffer.group(3) or _ZAHLWORT[treffer.group(2).lower()]}"
+        for treffer in _REGELSATZ_NAME.finditer(frage)
+    }
+    andere = sorted(namen - {"v1", "v2"})
+    if andere:
+        return andere[0]
+    return "v2" if _V2_WORT.search(frage) else None
+
+
+def _kein_regelsatz(conn: Verbindung, frage: str, regelsatz: str) -> dict[str, Any]:
+    """Der genannte Regelsatz hat keinen fertigen Lauf: Hinweis mit seinem Namen statt still der v1-Zahl."""
+    zeilen = conn.execute(
+        "SELECT DISTINCT regelsatz FROM meta.lauf WHERE status IN ('fertig', 'unveraendert') ORDER BY 1"
+    ).fetchall()
+    gerechnet = [str(z["regelsatz"]) for z in zeilen]
+    vorhanden = ""
+    if len(gerechnet) == 1:
+        vorhanden = f" Es gibt Zahlen im Regelsatz {gerechnet[0]}."
+    elif gerechnet:
+        vorhanden = f" Zahlen gibt es in den Regelsätzen {_aufzaehlung(gerechnet)}."
+    text = f"Im Regelsatz {regelsatz} ist noch kein Monat gerechnet.{vorhanden}"
+    return _antwort(fragetyp(frage), text, hinweise=[text])
+
+
+def _gliederung_ohne_nach(conn: Verbindung, frage: str, letzter: str) -> str:
+    """„Juli 2026 v2 Bundesland“: Das bloße Wort meint die Aufteilung, sonst fiele sie still weg."""
+    genannt = monate_lesen(frage)
+    if _gliederung(frage) is not None or _filter(conn, frage, genannt[-1] if genannt else letzter, ())[0]:
+        return frage
+    for merkmal in MERKMALE:
+        for wort in merkmal.gliederung:
+            if re.search(rf"(?<!\w){wort}", frage, re.IGNORECASE):
+                return re.sub(rf"(?<!\w)({wort})", r"nach \1", frage, count=1, flags=re.IGNORECASE)
+    return frage
+
+
+def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str, Any]:
+    """Antwort in einem Regelsatz, der nicht am Stichtag zählt: über ``statagent.uc4.antwort_daten``, das die Zählweise
+    und die Kategorien aus den Regeln liest. Was der Adapter nicht lesen kann, bekommt eine Absage statt einer Zahl.
+    """
+    typ = fragetyp(frage)
+    if _V2_VERNEINT.search(frage) and not _V2_BEIDE.search(frage):
+        text = (
+            "Ohne Änderungsaufträge gilt Regelsatz v1. Fragen Sie ohne diese Angabe, "
+            "zum Beispiel „Beschäftigte in Wien im Juli 2026“."
+        )
+        return _antwort(typ, text, hinweise=[text])
+    if typ == "fluktuation":
+        text = (
+            f"Die Fluktuation vergleicht zwei Stichtage. Es gibt sie nur im Regelsatz v1, nicht in {regelsatz}. "
+            "Zum Beispiel „Fluktuation im Oktober 2025“."
+        )
+        return _antwort(typ, text, hinweise=[text])
+    letzter = _letzter_monat(conn, regelsatz) or LETZTE_LIEFERUNG
+    # Zeitangaben wie „März bis Juni 2025“ sind erst nach dem Übersetzen mehrere Monate.
+    genannt = set(monate_lesen(_normalisieren(frage, letzter)[0]))
+    jahr = jahr_ohne_monat(frage)
+    # Ein Durchschnitt braucht mehrere Monate oder ein Jahr; zu einem einzelnen Monat sagt auch v1 ab.
+    absage = nicht_auswertbar(frage, mittel=len(genannt) > 1 or (not genannt and jahr is not None))
+    if absage is not None:
+        return _antwort(typ, absage, hinweise=[absage])
+    beispiel = f"Zum Beispiel „Beschäftigte in Wien im Juli 2026 nach Regelsatz {regelsatz}“."
+    nicht_lesbar = (
+        f"Im Regelsatz {regelsatz} gibt es nur Zahlen nach Monat, Bundesland, Geschlecht, Branche und "
+        f"Beschäftigungskategorie. {beispiel}"
+    )
+    if "anteil" in frage.lower():
+        return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
+    beide = _V1_WORT.search(frage) is not None or _V2_BEIDE.search(frage) is not None
+    frage = _V1_WORT.sub(" ", _REGELSATZ_ANGABE.sub(" ", _REGELSATZ_UND_GLIEDERUNG.sub("nach ", frage)))
+    erster = _erster_monat(conn, regelsatz) or letzter
+    # Der Grund aus der Prüfung passt zur Frage („mehrere Bundesländer“), die allgemeine Liste widerspräche ihr.
+    frage = _gliederung_ohne_nach(conn, frage, letzter)
+    ohne_bezug = _ohne_bezug(conn, frage, letzter)
+    if ohne_bezug and not genannt and jahr is None:
+        if regelsatz != "v2":
+            return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
+        text = (
+            "Im Regelsatz v2 zählt ein Verhältnis, wenn es irgendwann im Monat bestand. "
+            f"Im Regelsatz v1 zählt der letzte Tag des Monats. {beispiel}"
+        )
+        return _antwort(typ, text, hinweise=[text])
+    if beide:
+        text = f"Die Datenanfrage zeigt immer nur einen Regelsatz. Fragen Sie je einmal. {beispiel}"
+        return _antwort(typ, text, hinweise=[text])
+    if _ZEITREIHE.search(frage.lower()):
+        text = (
+            f"Fragen Sie im Regelsatz {regelsatz} nach einem Monat oder Zeitraum, "
+            f"zum Beispiel „Beschäftigte März bis Juni 2025 nach Regelsatz {regelsatz}“."
+        )
+        return _antwort(typ, text, hinweise=[text])
+    if (
+        jahr is not None
+        and not genannt
+        and "durchschnitt" not in frage.lower()
+        and erster[:4] <= jahr <= letzter[:4]
+    ):
+        monat = min(max(f"{jahr}-03", erster), letzter)
+        return _rueckfrage(
+            f"Für welchen Monat {jahr} möchten Sie die Zahl im Regelsatz {regelsatz} wissen? "
+            f"Zum Beispiel „Beschäftigte im {_monat_anzeige(monat)} nach Regelsatz {regelsatz}“."
+        )
+    if ohne_bezug:
+        return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
+    if not _adapter_liest_gleich(conn, frage, regelsatz):
+        return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
+    daten = antwort_daten(conn, frage, regelsatz)
+    text = f"Nach Regelsatz {regelsatz}: {daten['text']}" if daten["zahlen"] else daten["text"]
+    return _antwort(typ, text, belege=daten["belege"], zahlen=daten["zahlen"])
 
 
 def _ohne_bezug(conn: Verbindung, frage: str, letzter: str) -> bool:
@@ -1432,6 +1598,17 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     grund = unklar(frage, letzter or LETZTE_LIEFERUNG)
     if grund is not None:
         return _rueckfrage(grund)
+    try:
+        if regelsatz == "v1":
+            regelsatz = _regelsatz_der_frage(frage) or regelsatz
+        if regelsatz != "v1":
+            if _letzter_monat(conn, regelsatz) is None:
+                return _kein_regelsatz(conn, frage, regelsatz)
+            return _regelsatz_antwort(conn, frage, regelsatz)
+    except _KeineZahl as fehler:
+        return _antwort(fragetyp(frage), str(fehler), hinweise=[str(fehler)])
+    except (psycopg.Error, AbfrageVerweigert, RegelFehler):
+        return _antwort(fragetyp(frage), NICHT_LESBAR, hinweise=[NICHT_LESBAR])
     hinweis_tag = tag_hinweis(frage)
     frage, notizen, mittel = _normalisieren(frage, letzter or LETZTE_LIEFERUNG)
     if hinweis_tag:
