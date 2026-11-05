@@ -3,7 +3,7 @@ import { lies, type Lesung, type Sql } from "./db";
 /**
  * Pensionsstatistik 2018 bis 2025 (#77) für den Abschnitt auf /uc3/klassifikationen. Nur lesend. Die Summen über die Träger
  * bildet die Abfrage aus `stat.stat_pensionen`; Tabelle 13 ist ein Teil der Alterspensionen und wird nicht zu Tabelle 12 addiert.
- * Vor dem Laden (`uv run uc3 pensionen laden`) fehlen die Zeilen, und der Abschnitt sagt das.
+ * Vor dem Laden (`uv run uc3 pensionen laden`) fehlen die Zeilen, und der Abschnitt bleibt weg.
  */
 
 export interface PensionsJahr {

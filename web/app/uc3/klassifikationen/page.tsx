@@ -353,8 +353,8 @@ function WeitereListen({ daten }: { daten: Klassifikationsdaten }) {
 
 async function Pensionen() {
   const lesung = await lesePensionen();
-  // Fehlt die Datenbank, sagt das schon der Rest der Seite; hier bleibt der Abschnitt dann weg.
-  if (!lesung.ok) return null;
+  // Ohne Datenbank oder vor dem Laden gibt es hier nichts zu zeigen, und online kann niemand laden.
+  if (!lesung.ok || lesung.daten.jahre.length === 0) return null;
   const { jahre, vorlaeufig } = lesung.daten;
   return (
     <details className="max-w-4xl border-b border-line">
@@ -362,42 +362,36 @@ async function Pensionen() {
         Pensionen 2018 bis 2025
       </summary>
       <div className="flex flex-col gap-2 pb-3">
-        {jahre.length === 0 ? (
-          <Fliesstext>Die Meldungen der Träger sind noch nicht geladen. Sie kommen mit „uv run uc3 pensionen laden“.</Fliesstext>
-        ) : (
-          <>
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <Fliesstext>
-                Jahresdurchschnitte aus den Meldungen der Träger{vorlaeufig ? ", vorläufig" : ""}. Vorzeitige
-                Alterspensionen sind ein Teil der Pensionen. Zum 1.1.2020 wurden Träger zusammengelegt; die Reihe ist nicht
-                geglättet.
-              </Fliesstext>
-              <BelegLink quelle="stat.stat_pensionen" sql={SQL_PENSIONEN} />
-            </div>
-            <table className="w-full font-sans text-14 text-ink">
-              <thead>
-                <tr className="border-b border-line text-left text-slate">
-                  <th scope="col" className="py-1 pr-2 font-normal">Jahr</th>
-                  <th scope="col" className="py-1 pr-2 text-right font-normal">Insgesamt</th>
-                  <th scope="col" className="py-1 pr-2 text-right font-normal">{"Un\u00adselbst\u00adändige"}</th>
-                  <th scope="col" className="py-1 pr-2 text-right font-normal">{"Selbst\u00adändige"}</th>
-                  <th scope="col" className="py-1 text-right font-normal">{"Vor\u00adzeitige"}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jahre.map((j) => (
-                  <tr key={j.jahr} className="border-b border-line last:border-b-0">
-                    <th scope="row" className="py-1 pr-2 text-left font-normal">{j.jahr}</th>
-                    <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.insgesamt)}</td>
-                    <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.unselbstaendige)}</td>
-                    <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.selbstaendige)}</td>
-                    <td className="py-1 text-right tabular-nums">{formatZahl(j.vorzeitig)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+          <Fliesstext>
+            Durchschnitt je Jahr aus den Meldungen der Träger{vorlaeufig ? ", vorläufig" : ""}. Die vorzeitigen
+            Alterspensionen sind in „Insgesamt“ enthalten. Zum 1. Jänner 2020 wurden Träger zusammengelegt, die Zahlen sind
+            deshalb nicht angepasst.
+          </Fliesstext>
+          <BelegLink quelle="stat.stat_pensionen" sql={SQL_PENSIONEN} />
+        </div>
+        <table className="w-full font-sans text-14 text-ink">
+          <thead>
+            <tr className="border-b border-line text-left text-slate">
+              <th scope="col" className="py-1 pr-2 font-normal">Jahr</th>
+              <th scope="col" className="py-1 pr-2 text-right font-normal">Insgesamt</th>
+              <th scope="col" className="py-1 pr-2 text-right font-normal">{"Un\u00adselbst\u00adändige"}</th>
+              <th scope="col" className="py-1 pr-2 text-right font-normal">{"Selbst\u00adändige"}</th>
+              <th scope="col" className="py-1 text-right font-normal">{"Vor\u00adzeitige"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {jahre.map((j) => (
+              <tr key={j.jahr} className="border-b border-line last:border-b-0">
+                <th scope="row" className="py-1 pr-2 text-left font-normal">{j.jahr}</th>
+                <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.insgesamt)}</td>
+                <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.unselbstaendige)}</td>
+                <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.selbstaendige)}</td>
+                <td className="py-1 text-right tabular-nums">{formatZahl(j.vorzeitig)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </details>
   );
