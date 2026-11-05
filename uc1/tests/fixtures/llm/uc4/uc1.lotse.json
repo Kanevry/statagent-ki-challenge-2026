@@ -1,0 +1,16 @@
+{
+  "modell": "mock",
+  "version": "fixture",
+  "antworten": [
+    {
+      "json": {
+        "saetze": [
+          "Sie kommen jetzt schneller zu einer Rehabilitation.",
+          "Im August 2026 lag die mittlere Wartezeit (Median) bei 19,6 Tagen.",
+          "Im Juli waren es noch 23,1 Tage.",
+          "Die Wartezeit ist also kürzer geworden."
+        ]
+      }
+    }
+  ]
+}

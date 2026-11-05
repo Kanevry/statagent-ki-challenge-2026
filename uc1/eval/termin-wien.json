@@ -1,0 +1,20 @@
+{
+  "fall": "termin-wien",
+  "beschreibung": "Synthetische Wiener Pflegesituation (erfunden, keine echte Person) für Issue #81.",
+  "lage": "Meine Mutter ist 82, bekommt eine Pension von der PVA und wohnt in 1100 Wien. Sie kommt zu Hause allein nicht mehr zurecht. Ich möchte eine Beratung und einen Termin, am liebsten vormittags.",
+  "leistung": "pflegegeld",
+  "anliegen": "beratung",
+  "angaben": {
+    "person": "angehoerige",
+    "alter": "82",
+    "status": "pva",
+    "bundesland": "wien",
+    "plz": "1100",
+    "zeitpraeferenz": "vormittag"
+  },
+  "wunsch": {
+    "datum": "2026-11-17",
+    "zeitpraeferenz": "vormittag"
+  },
+  "erstellt": "2026-11-05T09:00:00Z"
+}

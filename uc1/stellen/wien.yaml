@@ -1,0 +1,37 @@
+# Wiener Stellen für Beratung und Termin (Issue #81). Hier stehen NUR Suchanfragen und Namensanker,
+# keine Adressen: die Adresse liest termin.stellen_finden regelbasiert aus dem Seitentext der Quelle.
+#
+# `anker`: wörtlicher Text (normiert), hinter dem die Adresse auf der Seite steht.
+# `datei`: Teilstring des Quellpfads, damit der Anker nicht in einem fremden Formular gesucht wird.
+# `ort`: Ort der Adresse muss passen (Schutz gegen die Nachbarspalte).
+# `traeger`: Schlüssel aus daten/traeger.yaml `stellen`; dann gilt die Stelle als zuständig, wenn der
+#   Kern (zustaendige_stelle) für Leistung und Status denselben Träger liefert.
+# `anliegen`: wofür die Stelle passt; der Terminentwurf nimmt die erste belegte Stelle zum Anliegen.
+bundesland: wien
+stellen:
+  - id: fsw_beratungszentrum
+    name: "Fonds Soziales Wien, Beratungszentrum Pflege und Betreuung"
+    anker: "Beratungszentrum Pflege- und Betreuung"
+    suchanfrage: "Beratungszentrum Pflege und Betreuung Fonds Soziales Wien"
+    datei: "Bedarfsmeldung-Senior_innen-Wohngemeinschaft"
+    ort: Wien
+    rolle: "Beratung zu Pflege und Betreuung zu Hause, in Wien"
+    anliegen: [beratung]
+  - id: pva_landesstelle_wien
+    name: "Pensionsversicherungsanstalt, Landesstelle Wien"
+    anker: "Landesstelle Wien"
+    suchanfrage: "persönlich Terminvereinbarung Landesstelle Wien Pflegegeld"
+    datei: "PAL080"
+    ort: Wien
+    traeger: PVA
+    rolle: "Antrag auf Pflegegeld. Persönlich nur mit Termin, den Sie vorher telefonisch vereinbaren"
+    anliegen: [pflegegeld, beratung]
+  - id: pva_hauptstelle
+    name: "Pensionsversicherungsanstalt, Hauptstelle"
+    anker: "Pensionsversicherungsanstalt Hauptstelle"
+    suchanfrage: "Antrag auf Pflegegeld Pensionsversicherungsanstalt Hauptstelle"
+    datei: "PAL080"
+    ort: Wien
+    traeger: PVA
+    rolle: "Diese Adresse steht auf dem Antrag auf Pflegegeld (PAL080)"
+    anliegen: [pflegegeld]

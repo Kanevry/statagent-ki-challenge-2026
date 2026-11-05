@@ -1,0 +1,159 @@
+# Leistungen, die der Lotse als Bündel kennt (Issue #31). Daten, nicht Code: Auslöser, Pflichtangaben,
+# Rückfragen, Suchgebiet, Formular und Unterlagen stehen hier.
+#
+# Quellen: Normen im Korpus lotse (Überschriften, z. B. „BPGG § 4 Anspruchsvoraussetzungen“,
+# „ASVG § 138 Krankengeld“, „ASVG § 162 Wochengeld“, „ASVG § 155 Maßnahmen zur Festigung der Gesundheit“,
+# „ASVG § 300 Rehabilitation“, „BPGG § 21c Pflegekarenzgeld“); Formulare unter
+# „Anträge und Formulare/“ in UC1_DATA_DIR (PAL080 = Antrag auf Pflegegeld der PVA).
+#
+# felder: Pflichtangaben mit Rückfragetext. `rang` legt die Reihenfolge der Rückfragen fest (klein zuerst):
+#   der Status bzw. Pensionsträger zuerst, weil er Träger und Suchgebiet zugleich setzt (Review N2).
+#   `werte`: Wert → reguläre Ausdrücke; Feld `status` erkennt seine Werte aus traeger.yaml.
+# leistungen: `ausloeser` (reguläre Ausdrücke, ohne Groß-/Kleinschreibung), `pflicht` (Felder),
+#   `bereich` (Spalte in traeger.yaml), `gesetze` (fest) oder `gesetze_aus_status: true`,
+#   `suchanfrage` (Fachbegriffe für die SozDok-Suche), `angebote` (Suche in Katalogen und Formularen,
+#   `regional`: Dateien nur für ein Bundesland), `stelle_fest` (Stelle unabhängig vom Status),
+#   `formular`, `unterlagen`, `antrag` (Art für `lotse antrag`, Issue #32).
+
+felder:
+  status:
+    rang: 1
+    bezeichnung: {de: "wer die Pension zahlt", en: "who pays the pension"}
+    rueckfrage:
+      de: "Von wem bekommt die Person ihre Pension? Zum Beispiel PVA, SVS oder BVAEB. Sie können auch sagen: keine Pension."
+      en: "Who pays the person's pension? For example PVA, SVS or BVAEB. You can also say: no pension."
+  person:
+    rang: 2
+    bezeichnung: {de: "wer die Hilfe braucht", en: "who needs the help"}
+    rueckfrage:
+      de: "Wer braucht die Hilfe: Sie selbst oder jemand aus Ihrer Familie?"
+      en: "Who needs the help: you or someone in your family?"
+    werte:
+      angehoerige:
+        - '\b(?:meine?[mnrs]?|unsere?[mnrs]?)\s+(?:mutter|mama|vater|papa|mann|frau|ehemann|ehefrau|partner(?:in)?|lebensgef(?:ä|a)hrt(?:e|in)|oma|opa|gro(?:ß|ss)mutter|gro(?:ß|ss)vater|kind|sohn|tochter|schwester|bruder|schwiegermutter|schwiegervater|tante|onkel)\b'
+        - '\bmy\s+(?:mother|mum|mom|father|dad|husband|wife|partner|child|son|daughter|grandmother|grandfather)\b'
+        - '\b(?:sie|er) ist (?:pensionist|pensionär|in pension)'
+      selbst:
+        # „ich bin“ nicht vor einer Rolle für eine andere Person (#32: „Ich bin Case-Managerin“, „ich bin ihr Sohn“)
+        - '\bich (?:brauche|bin(?!\s+(?:ihr|sein|ihre|seine|die|der)?\s*(?:case|sozialarbeiter|betreuer|sohn|tochter|enkel|ehe|bruder|schwester|neffe|nichte))|kann|komme)\b'
+        - '\bi (?:need|am|can)\b'
+  bundesland:
+    rang: 3
+    bezeichnung: {de: "Bundesland", en: "province"}
+    rueckfrage:
+      de: "In welchem Bundesland wohnt die Person?"
+      en: "In which Austrian province does the person live?"
+    werte:
+      wien: ['\bwien\b', '\bvienna\b']
+      niederoesterreich: ['nieder(?:ö|o)sterreich', '\bn(?:ö|oe)\b']
+      oberoesterreich: ['ober(?:ö|o)sterreich', '\bo(?:ö|oe)\b']
+      steiermark: ['steiermark', '\bgraz\b']
+      tirol: ['\btirol\b', 'innsbruck']
+      kaernten: ['k(?:ä|a)rnten', 'klagenfurt']
+      salzburg: ['salzburg']
+      vorarlberg: ['vorarlberg', 'bregenz']
+      burgenland: ['burgenland', 'eisenstadt']
+
+leistungen:
+  pflegegeld:
+    name: {de: "Pflegegeld", en: "care allowance (Pflegegeld)"}
+    lage: "Pflegebedarf"
+    ausloeser:
+      - 'pflege(?!karenz|teilzeit)'
+      - 'pflegebed(?:ü|u)rftig'
+      - 'allein nicht (?:mehr )?zurecht'
+      - 'nicht mehr (?:allein|alleine|selbst(?:ständig)?) (?:zurecht|versorgen|anziehen|waschen|kochen|einkaufen)'
+      - 'hilfe im alltag'
+      - '(?<!kinder)betreuung'
+      - 'chronisch krank'
+      - '\bcare\b'
+      - 'cannot cope'
+      - "can't cope"
+    pflicht: [person, status, bundesland]
+    bereich: pflegegeld
+    gesetze: [BPGG]
+    suchanfrage: "Pflegegeld Anspruchsvoraussetzungen Pflegebedarf ständiger Betreuung und Hilfe Antragstellung"
+    angebote:
+      suchanfrage: "Pflege zu Hause Unterstützung Betreuung Heimhilfe Förderung Pflegegeld Antrag"
+      # Dateien mit diesem Teilstring gelten nur für das genannte Bundesland (FSW = Fonds Soziales Wien).
+      regional:
+        wien: ["fsw-", "FSW-", "_Wien"]
+    antrag: pflegegeld  # Entwurf über `lotse antrag pflegegeld` (#32, formulare/pal080.felder.json)
+    formular:
+      bezeichnung: "Antrag auf Pflegegeld (PAL080) der PVA"
+      datei: "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf"
+    unterlagen:
+      - text: "Kopien Ihrer Befunde von Arzt, Ärztin oder Krankenhaus"
+        quelle: "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 2"
+  pflegekarenzgeld:
+    name: {de: "Pflegekarenzgeld", en: "care leave allowance (Pflegekarenzgeld)"}
+    lage: "Pflege einer angehörigen Person neben der Arbeit"
+    ausloeser:
+      - 'pflegekarenz'
+      - 'pflegeteilzeit'
+      - 'familienhospiz'
+      - 'weniger arbeiten.{0,40}pfleg'
+      - 'freistell'
+      - 'karenz.{0,40}pfleg'
+      - 'care leave'
+    pflicht: []
+    bereich: pflegegeld
+    stelle_fest: {stelle: SMS, fundstelle: "BPGG § 21c"}
+    gesetze: [BPGG, AlVG]
+    suchanfrage: "Pflegekarenzgeld Pflegekarenz Pflegeteilzeit Familienhospizkarenz"
+    unterlagen: []
+  rehabilitation:
+    name: {de: "Rehabilitation und Kur", en: "rehabilitation and spa treatment"}
+    lage: "Erholung nach Krankheit oder Operation"
+    ausloeser:
+      - '\breha\b'
+      - 'rehabilitation'
+      - '\bkur\b'
+      - 'kuraufenthalt'
+      - 'nach (?:der|meiner|seiner|ihrer) (?:operation|op)\b'
+      - '\brehab\b'
+    pflicht: [status]
+    bereich: pension
+    gesetze_aus_status: true
+    suchanfrage: "Rehabilitation medizinische Maßnahmen Festigung der Gesundheit Kuraufenthalt Gesundheitsvorsorge"
+    angebote:
+      suchanfrage: "Antrag Kur Rehabilitation Aufenthalt"
+    antrag: reha  # Entwurf über `lotse antrag reha` (#32, formulare/kur-reha.felder.json)
+    formular:
+      bezeichnung: "Antrag auf Kur und Rehabilitation"
+      datei: "Anträge und Formulare/Antrag Kur und Reha.pdf"
+    unterlagen:
+      - text: "die wichtigen Befunde Ihrer Ärztin oder Ihres Arztes"
+        quelle: "Anträge und Formulare/Antrag Kur und Reha.pdf, S. 2"
+  krankengeld:
+    name: {de: "Krankengeld", en: "sickness benefit (Krankengeld)"}
+    lage: "Arbeitsunfähigkeit durch Krankheit"
+    ausloeser:
+      - 'krankenstand'
+      - 'krankgeschrieben'
+      - 'krank geschrieben'
+      - 'arbeitsunf(?:ä|a)hig'
+      - 'krankengeld'
+      - 'sick leave'
+      - 'sickness benefit'
+    pflicht: [status]
+    bereich: krankenversicherung
+    gesetze_aus_status: true
+    suchanfrage: "Krankengeld Arbeitsunfähigkeit infolge Krankheit Dauer des Krankengeldanspruches"
+    unterlagen: []  # im Korpus keine Unterlagenliste belegt
+  wochengeld:
+    name: {de: "Wochengeld", en: "maternity allowance (Wochengeld)"}
+    lage: "Schwangerschaft und Geburt"
+    ausloeser:
+      - 'schwanger'
+      - 'wochengeld'
+      - 'mutterschutz'
+      - 'geburt'
+      - 'entbindung'
+      - 'pregnan'
+      - 'maternity'
+    pflicht: [status]
+    bereich: krankenversicherung
+    gesetze_aus_status: true
+    suchanfrage: "Wochengeld Mutterschaft Entbindung Leistungen aus dem Versicherungsfall der Mutterschaft"
+    unterlagen: []  # im Korpus keine Unterlagenliste belegt
