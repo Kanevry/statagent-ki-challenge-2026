@@ -34,8 +34,30 @@ scripts/vorfuehrung.sh pruefen             # ohne Zugang 401, mit Zugang Seiten,
 ```
 
 Den Dump zieht man auf dem Rechner mit der Rechen-Datenbank aus der Abgabe-DB, die dabei nur gelesen wird:
-`docker exec statagent-db pg_dump -U statistik -d statistik -Fc -Z 4 > <dump>`. Vor der Vorführung (Fr 06:00 bis 06:30, nach den
-letzten Läufen) einmal neu ziehen und `daten` wiederholen. Ein neuer Stand: `up <ref>`, danach `reset`.
+`docker exec statagent-db pg_dump -U statistik -d statistik -Fc -Z 4 > <dump>`. Ein neuer Stand: `up <ref>`, danach `reset`.
+
+## Ablauf Freitag früh (05:57 bis 07:00)
+
+Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset` jede spätere Freigabe zurücknimmt.
+`statistik` wird dabei nur gelesen und bekommt die Pensionen bis nach 09:00 nicht. Server-Schritte startet nur der Lead.
+
+1. **Ab 05:57, neuer Dump mit Pensionen, nach den letzten Läufen.** Auf dem Rechner mit der Rechen-Datenbank, mit einem
+   Code-Stand ab !214:
+   ```bash
+   scripts/vorfuehrung-db.sh --ersetzen statistik statistik_vorfuehrung_pensionen
+   # mit UC3_DATABASE_URL auf diese Kopie und gesetztem STATAGENT_STARTPAKET:
+   uv run uc3 db init && uv run uc3 pensionen laden && uv run uc3 pensionen pruefen
+   docker exec statagent-db pg_dump -U statistik -Fc -d statistik_vorfuehrung_pensionen > <dump>
+   psql "<kopie>" -X -q -At -v schema=stat -f deploy/sql/inhaltshash.sql | grep GESAMT   # dasselbe für meta, beide notieren
+   ```
+   Probe am 05.11. mit einem Zwischenstand von !214: 2 min 33 s bis zum fertigen Dump, 457 MB.
+2. **Stand und Daten auf den Server.** `scripts/vorfuehrung.sh up <ref>` mit dem Stand, der vorgeführt wird, dann
+   `scripts/vorfuehrung.sh daten <dump>`. `daten` gibt die GESAMT-Zeilen aus, sie müssen denen aus Schritt 1 gleichen.
+3. **Probe.** `scripts/vorfuehrung.sh pruefen`, danach einmal D1 bis D4 im Browser, dann `scripts/vorfuehrung.sh reset`.
+4. **07:00, Freigabe.** Der Owner gibt die Pensionen mit seinem Namen frei, bis dahin steht dort „vorläufig“.
+5. **Direkt danach:** `scripts/vorfuehrung.sh festschreiben`. Keine Probe dazwischen, sonst wird sie mit festgeschrieben.
+6. **Gegenprobe.** `scripts/vorfuehrung.sh reset`: Es meldet 0 Commits seit dem Ausgangsstand, und die Freigabe steht danach
+   noch auf der Seite. Das ist der Stand für die Vorführung um 09:00.
 
 ## Vorführen
 
@@ -54,6 +76,14 @@ scripts/vorfuehrung.sh reset
 
 Neue Arbeitskopie aus der Vorlage, Freigabe-Commits weg, App neu gestartet, auch ein laufender Auftrag endet damit. Die Vorlage
 und das Tagesbudget bleiben. Danach kann die Vorführung noch einmal laufen, etwa 09:00 und später fürs Management.
+
+Eine Freigabe, die bleiben soll (die Pensionen, Fr 07:00), würde `reset` mit zurücknehmen. Deshalb direkt danach:
+
+```bash
+scripts/vorfuehrung.sh festschreiben   # heutiger Stand wird Vorlage, der Commit gehört zum neuen Ausgangsstand
+```
+
+Das ersetzt die Vorlage. Zurück geht es nur mit `daten <dump>`. Also nur auf einem geprüften Stand, nie nach einer Probe.
 
 ## Messungen
 
