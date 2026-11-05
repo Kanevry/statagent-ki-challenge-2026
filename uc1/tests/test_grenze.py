@@ -34,6 +34,13 @@ def test_vorpruefung_faengt_englische_symptomfrage() -> None:
     [
         "Meine Mutter ist chronisch krank und kommt allein nicht mehr zurecht.",
         "Ich möchte weniger arbeiten, um meinen Vater nach dem Schlaganfall zu pflegen.",
+        "Mein Mann hatte einen Schlaganfall und braucht jetzt den ganzen Tag jemanden.",
+        "Er hat einen Schlaganfall gehabt und braucht Pflege. Bekommt er Pflegegeld?",
+        "Sie hat 2023 einen Schlaganfall erlitten und braucht jetzt Pflege.",
+        "Er ist seit dem Unfall gelähmt, bekommt er Pflegegeld?",
+        "Seit dem Schlaganfall kann sie nicht mehr sprechen. Bekommt sie Pflegegeld?",
+        "My husband had a heart attack in 2022. Can he get rehabilitation benefits?",
+        "Er hat einen Herzinfarkt gehabt und ist wieder gesund. Bekommt er Reha?",
         "Welche Kosten übernimmt die Kasse für Medikamente?",
         "Ich brauche nach meiner Hüftoperation einen Rollstuhl. Zahlt das die Krankenkasse?",
     ],
@@ -96,3 +103,90 @@ def test_leistungsfrage_mit_krankheitswort_ist_keine_grenze(frage: str) -> None:
     """Fängt zu weite Muster: eine Leistungsfrage, die eine Krankheit nur nennt (z. B. „nach einem
     Herzinfarkt“), darf weder Notfall noch Grenze auslösen."""
     assert grenze.vorpruefung(frage) is None
+
+
+# --- Held-out #39, #155: Verweis je Grenzart, Therapiefragen, Leistungsfragen mit „ist das“ ---------------
+
+
+def test_medikamentenfrage_verweist_auf_apotheke() -> None:
+    """Fängt einen Verweis ohne Apotheke bei einer Medikamentenfrage (falsches Verweisziel im Held-out)."""
+    befund = grenze.vorpruefung("Welches Schmerzmittel soll ich nehmen?")
+    assert befund is not None and befund.art == "medikament"
+    assert "Apotheke" in befund.uebergabe_an() and "1450" in befund.uebergabe_an()
+    assert "Apotheke" in befund.text() and "pharmacist" in befund.text("en")
+
+
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Was kann ich gegen meine Rückenschmerzen tun?",
+        "Welche Übungen helfen bei Arthrose am besten? Welche Übung soll ich machen?",
+        "Gibt es Hausmittel gegen Husten?",
+        "What can I do about my back pain?",
+    ],
+)
+def test_therapiefrage_ist_grenze(frage: str) -> None:
+    """Fängt eine Therapiefrage, die inhaltlich beantwortet statt übergeben wird."""
+    befund = grenze.vorpruefung(frage)
+    assert befund is not None and befund.art in ("therapie", "symptom")
+    assert "Arzt" in befund.uebergabe_an()
+
+
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Was kann ich gegen den Bescheid zum Pflegegeld tun?",
+        "Ich habe Rückenschmerzen. Ist das ein Grund für eine Reha?",
+        "Meine Mutter hat Atemnot nach Covid, ist das ein Anspruch auf Reha?",
+        "Zahlt die Kasse Physiotherapie bei Rückenschmerzen?",
+    ],
+)
+def test_leistungsfrage_mit_beschwerde_ist_keine_grenze(frage: str) -> None:
+    """Fängt eine pauschale Ablehnung, wo eine Antwort mit Antrag erwartet ist."""
+    befund = grenze.vorpruefung(frage)
+    assert befund is None or befund.art == "notfall"
+    assert grenze.medizinisch(frage) is None
+
+
+def test_medizinisch_nur_ohne_sv_bezug() -> None:
+    """Fängt eine medizinische Frage, die ohne Leistung aus Gesetzestexten beantwortet würde, und eine
+    Leistungsfrage, die fälschlich als medizinisch gilt."""
+    befund = grenze.medizinisch("Mein Knie schmerzt seit Wochen beim Gehen.")
+    assert befund is not None and befund.art == "medizinisch" and not befund.notfall
+    assert "Arzt" in befund.uebergabe_an() and "1450" in befund.text()
+    assert grenze.medizinisch("Mein Knie schmerzt, bekomme ich Krankengeld?") is None
+    assert grenze.medizinisch("Wie backe ich einen Apfelstrudel?") is None
+    assert grenze.sv_bezug("Wer zahlt die Reha?") and not grenze.sv_bezug("Wie backe ich einen Apfelstrudel?")
+
+
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Er hat einen Schlaganfall, was soll ich tun?",
+        "Mein Vater hat gerade einen Schlaganfall!",
+        # Review !155: akut, auch über „und“ oder ein Satzende hinweg
+        "Verdacht auf Schlaganfall und jetzt hängt sein Mundwinkel, was tun?",
+        "Ich glaube Schlaganfall. Jetzt kann er nicht mehr sprechen.",
+        "Schlaganfall? Er kann jetzt nicht mehr reden",
+        # #163: Akutzeichen nach einem vergangenen Schlaganfall und ohne das Wort
+        "Meine Frau hatte einen Schlaganfall und kann jetzt nicht mehr sprechen.",
+        "Sein Mundwinkel hängt und er redet komisch.",
+        "Mein Vater ist plötzlich auf der rechten Seite gelähmt!",
+        # Zweitmeinung astra (#163): Angehörige als Subjekt, Alltagssprache, Englisch, Selbsttötung
+        "Meine Mutter hat einen Schlaganfall! Wer zahlt den Rettungswagen?",
+        "Mein Mann hat einen Herzinfarkt! Wer zahlt den Rettungswagen?",
+        "My dad is having a stroke. Does insurance cover the ambulance?",
+        "Mein Vater kann plötzlich nicht sprechen. Zahlt die Kasse den Transport?",
+        "My mum’s face has started drooping. Does insurance cover the ambulance?",
+        "Mein Mann bekommt kaum Luft. Zahlt die Kasse den Transport?",
+        "My husband can’t breathe. Does insurance cover the ambulance?",
+        "Mein Vater ist nicht ansprechbar. Wer zahlt den Rettungswagen?",
+        "My dad is unresponsive. Does insurance cover the ambulance?",
+        "Ich will mich töten. Bekomme ich noch Krankengeld?",
+        "I want to kill myself. Can I still get sickness benefit?",
+    ],
+)
+def test_schlaganfall_in_der_gegenwart_bleibt_notfall(frage: str) -> None:
+    """Fängt einen akuten Schlaganfall, der seit der Sperre für die Vergangenheit durchrutscht (#155)."""
+    befund = grenze.vorpruefung(frage)
+    assert befund is not None and befund.notfall

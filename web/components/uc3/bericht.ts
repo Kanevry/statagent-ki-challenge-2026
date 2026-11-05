@@ -2,7 +2,7 @@ import { formatZahl } from "@kic/ui/bausteine";
 import { literal } from "./beleg";
 import { lies, type Lesung, type Sql } from "./db";
 import { ladeMassgeblichenLauf, ladeMonatslaeufe, MASSGEBLICH_SQL, quelleSql } from "./laeufe";
-import { fehlendeGruppen, ladeFdCodes, massnahmeSatz, trefferTitel, type TrefferDetails } from "./lauf-detail";
+import { fehlendeGruppen, ladeFdCodes, massnahmeSatz, type TrefferDetails } from "./lauf-detail";
 import { monatName, verschieben } from "./monat";
 import { alltag, alltagOder } from "./sprache";
 import type { Lauf, Monatslauf } from "./typen";

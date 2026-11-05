@@ -58,3 +58,39 @@ export function grundText(grund: string): string {
   if (grund === "ZweckFehler") return "Mit diesem Modell gesperrt";
   return "Antwort fehlgeschlagen";
 }
+
+// Strom der Stationen (`plattform.router frage --strom`, POST /api/uc4/frage mit `Accept: application/x-ndjson`):
+// eine JSON-Zeile je Ereignis, in dieser Reihenfolge: start, je Station „station“ und dann „antwort“ oder „fehlt“,
+// zum Schluss „ende“. Bricht die Kette ab, ist „fehler“ die letzte Zeile.
+const stufe = z.number().int().min(1);
+const dauer = z.number().int().min(0);
+
+export const stromEreignisSchema = z.discriminatedUnion("art", [
+  z
+    .object({
+      art: z.literal("start"),
+      kette: z.array(z.enum(KETTE)).min(1),
+      /** Gewähltes Modell; null, wenn die Kette kein Modell ruft oder die App-Einstellung gilt. */
+      modell: z.string().nullable().optional(),
+    })
+    .strict(),
+  z.object({ art: z.literal("station"), uc: z.enum(KETTE), stufe, zustand: z.literal("laeuft") }).strict(),
+  z
+    .object({
+      art: z.literal("antwort"),
+      uc: z.enum(KETTE),
+      stufe,
+      dauer_ms: dauer,
+      /** Hauptaussage: erster Satz der Antwort, höchstens 140 Zeichen. */
+      kern: z.string(),
+      antwort: ucAntwortSchema,
+    })
+    .strict(),
+  z.object({ art: z.literal("fehlt"), uc: z.enum(KETTE), stufe, grund: z.string() }).strict(),
+  z.object({ art: z.literal("ende"), fehlend: z.array(fehlendSchema), dauer_ms: dauer }).strict(),
+  z.object({ art: z.literal("fehler"), fehler: z.string() }).strict(),
+]);
+
+export type StromEreignis = z.infer<typeof stromEreignisSchema>;
+/** Content-Type des Stroms; als `Accept` geschickt, schaltet die Route vom Ergebnis auf den Strom. */
+export const STROM_TYP = "application/x-ndjson";

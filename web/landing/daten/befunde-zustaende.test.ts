@@ -12,10 +12,11 @@ vi.mock("postgres", () => ({
   },
 }));
 
-const { ladeBefunde } = await import("./befunde");
+const { befundeZwischenspeicherLeeren, ladeBefunde, ZWISCHENSPEICHER_MS } = await import("./befunde");
 
 const urlVorher = process.env.UC3_DATABASE_URL;
 beforeEach(() => {
+  befundeZwischenspeicherLeeren();
   process.env.UC3_DATABASE_URL = "postgres://nutzer:pw@db.invalid:5433/statistik";
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -52,5 +53,29 @@ describe("ladeBefunde mit erreichbarer Datenbank", () => {
     expect(t.quelle).toBe("datenbank");
     expect(t.zeilen).toHaveLength(50);
     expect(t.anzahl).toBe(120);
+  });
+});
+
+// Landing rendert je Anfrage (force-dynamic): Fängt ab, dass jede Anfrage eine eigene Verbindung öffnet, dass ein
+// Ausfall der Datenbank 60 s lang Beispieldaten festschreibt, oder dass ein alter Stand nie abläuft.
+describe("ladeBefunde merkt sich einen Stand aus der Datenbank 60 s", () => {
+  it("liefert innerhalb von 60 s den gemerkten Stand, danach frisch; Beispieldaten merkt es nicht", async () => {
+    zustand.anzahl = 0;
+    zustand.zeilen = [];
+    expect((await ladeBefunde(0)).quelle).toBe("beispieldaten");
+    zustand.anzahl = 2;
+    zustand.zeilen = [treffer(1), treffer(2)];
+    expect((await ladeBefunde(1)).anzahl).toBe(2);
+    zustand.anzahl = 3;
+    zustand.zeilen = [treffer(1), treffer(2), treffer(3)];
+    expect((await ladeBefunde(ZWISCHENSPEICHER_MS)).anzahl).toBe(2);
+    expect((await ladeBefunde(ZWISCHENSPEICHER_MS + 2)).anzahl).toBe(3);
+  });
+
+  it("meldet eine leere Treffertabelle im Log", async () => {
+    zustand.anzahl = 0;
+    zustand.zeilen = [];
+    await ladeBefunde();
+    expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).toContain("meta.pruefung_treffer ist leer");
   });
 });

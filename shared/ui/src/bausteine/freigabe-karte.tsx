@@ -103,7 +103,16 @@ function Waagschale({
 
 function Diff({ text }: { text: string }) {
   return (
-    <pre className="flex max-w-full flex-col gap-1 overflow-x-auto rounded-lg bg-paper p-3 font-mono text-12 text-ink">
+    // tabIndex 0: lange Zeilen scrollen waagrecht; so erreicht man den Bereich auch per Tastatur (axe
+    // scrollable-region-focusable, Antrag #135).
+    <pre
+      tabIndex={0}
+      aria-label="Änderung, Zeilen mit Plus kommen dazu, Zeilen mit Minus fallen weg"
+      className={klassen(
+        "flex max-w-full flex-col gap-1 overflow-x-auto rounded-lg bg-paper p-3 font-mono text-12 text-ink",
+        fokus,
+      )}
+    >
       {text.split("\n").map((zeile, index) => (
         <span
           key={index}

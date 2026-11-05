@@ -68,20 +68,24 @@ export function AppHeader({
   const kopfMarke = marke(pfad, ucs);
   return (
     <header ref={kopfRef} className="border-b border-line bg-white">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 px-4 pt-3 pb-1 md:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 px-4 pt-3 md:px-8">
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
           <div className="flex min-w-0 flex-col gap-0.5" data-marke="">
             <p className="font-display text-20 font-bold text-navy">{kopfMarke.name}</p>
-            <p className="font-sans text-12 text-slate">{kopfMarke.zeile}</p>
+            {/* Handy (unter sm): ohne diese Zeile, der Kopf nahm bei 390 px rund 250 von 844 px (UI-Regie 05.11.) */}
+            <p className="font-sans text-12 text-slate max-sm:hidden">{kopfMarke.zeile}</p>
           </div>
           <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-3 min-[1400px]:shrink-0">
-            <ModellBadge quelle={modellQuelle} vorgabe={seitenModell} />
+            {/* Handy: ohne Modell-Badge (ab sm wieder da), dann steht „Protokoll“ in der Zeile der Marke */}
+            <div className="max-sm:hidden">
+              <ModellBadge quelle={modellQuelle} vorgabe={seitenModell} />
+            </div>
             {/* Natives <button>, weil der Fokus per Ref zurückkommen muss (Knopf reicht keinen Ref). */}
             <button
               ref={protokollKnopfRef}
               type="button"
               className={klassen(
-                "inline-flex min-h-11 items-center gap-2 rounded-lg border border-line px-3 py-2 font-sans text-14 text-ink hover:bg-paper",
+                "inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 font-sans text-14 text-ink hover:bg-paper",
                 fokus,
               )}
               onClick={onProtokoll}
@@ -94,7 +98,7 @@ export function AppHeader({
             </button>
           </div>
         </div>
-        <nav aria-label="Bereiche" className="-mx-1 p-1">
+        <nav aria-label="Bereiche" className="-mx-1 -mb-px px-1">
           <ul className="flex flex-wrap items-center gap-1" onKeyDown={springe}>
             {tabs.map((tab) => {
               const aktiv = istAktiv(tab.href, pfad);
@@ -105,8 +109,8 @@ export function AppHeader({
                     aria-current={aktiv ? "page" : undefined}
                     data-tab={tab.schluessel}
                     className={klassen(
-                      "inline-flex min-h-11 items-center gap-2 rounded-lg px-3.5 py-2 font-sans text-14",
-                      aktiv ? "bg-gruen font-bold text-white" : "text-ink hover:bg-paper",
+                      "inline-flex min-h-11 items-center gap-2 border-b-2 px-3 py-2 font-sans text-14",
+                      aktiv ? "border-gruen font-semibold text-ink" : "border-transparent text-slate hover:text-ink",
                       fokus,
                     )}
                   >
@@ -114,9 +118,6 @@ export function AppHeader({
                       {tab.kuerzel && <span className="max-sm:hidden">{tab.kuerzel}</span>}
                       {tab.name}
                     </span>
-                    {tab.bewertet && (
-                      <span className="rounded bg-mint px-1.5 py-0.5 text-12 font-normal text-ink">bewertet</span>
-                    )}
                   </Verweis>
                 </li>
               );

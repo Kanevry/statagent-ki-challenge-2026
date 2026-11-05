@@ -4,6 +4,11 @@
 # Alle Muster sind reguläre Ausdrücke, geprüft ohne Groß-/Kleinschreibung auf dem normalisierten Text.
 # Eine Regel greift, wenn eines ihrer `muster` passt UND (falls angegeben) eines ihrer `und`-Muster.
 # Die erste greifende Regel in Dateireihenfolge entscheidet; `notfall` steht deshalb vorn.
+# `ausser_sv: true`: die Regel greift nicht, wenn die Frage einen Sozialversicherungsbezug hat (`sv_bezug`, z. B.
+# „Was kann ich gegen den Bescheid tun?“ ist keine Therapiefrage).
+# `medizinisch`: Arten, deren `muster` (ohne `und`) eine Frage als medizinisch kennzeichnen. Erkennt der Kern dann
+# keine Leistung und hat die Frage keinen `sv_bezug`, übergibt er an Ärztin, Arzt oder 1450 statt zu antworten
+# (Held-out #39, #155). `verweise`: Übergabeziel je Grenzart, `grenze` gilt für alle übrigen.
 #
 # Quellen der Rufnummern: 144 Rettung (Notruf), 1450 Gesundheitsberatung (telefonische Gesundheitsberatung
 # der Länder und der Sozialversicherung). Die Muster sind ein Rauchtest; die Abnahme prüft eine frische
@@ -23,22 +28,40 @@ vorpruefung:
       - 'atemnot'
       - 'keine luft'
       - 'kriege? kaum luft'
+      # Alltagssprache (Zweitmeinung astra zu #163): „bekommt kaum Luft“, „nicht ansprechbar“.
+      - '\b(?:bekomme?|bekommt|kriegt) (?:kaum|keine) luft\b'
+      - '\b(?:ist|bin|sind) (?:gerade |jetzt )?nicht (?:mehr )?ansprechbar\b'
+      - '\b(?:is|am|are) (?:currently |now )?unresponsive\b'
       # Herzinfarkt nur akut; „Krankengeld nach einem Herzinfarkt“ ist eine Leistungsfrage.
       - 'herzinfarkt.{0,30}(?:jetzt|gerade|akut|soeben)'
       - '(?:jetzt|gerade|akut|soeben).{0,30}herzinfarkt'
-      - '\b(?:ich habe|habe ich|er hat|hat er|sie hat|hat sie) (?:\w+ )?einen herzinfarkt'
+      - '\b(?:ich habe|habe ich|(?:er|sie|(?:mein|meine|unser|unsere) (?:mann|frau|vater|mutter|sohn|tochter|bruder|schwester|oma|opa)) hat|hat (?:er|sie)) (?:\w+ )?einen herzinfarkt(?!\s+(?:gehabt|erlitten))'
       - 'bewusstlos'
       - 'ohnm(?:ä|a)cht'
-      - 'schlaganfall.{0,30}(?:jetzt|gerade|akut|soeben)'
+      # Schlaganfall nur akut. Ein vergangener („hatte einen Schlaganfall und braucht jetzt Hilfe“, „nach dem
+      # Schlaganfall“) ist eine Pflegefrage (Dev-Set x03, #155); die Sperre gilt nur für diese Vergangenheitsformen,
+      # „Verdacht auf Schlaganfall und jetzt …“ bleibt Notfall (Review !155). Die Gegenwart („er hat einen
+      # Schlaganfall“) greift immer, außer im Perfekt („gehabt“, „erlitten“).
+      - '(?<!hatte einen )(?<!nach dem )(?<!nach einem )schlaganfall(?!\s+(?:gehabt|erlitten)).{0,30}(?:jetzt|gerade|akut|soeben)'
       - '(?:jetzt|gerade|akut|soeben).{0,30}schlaganfall'
+      - '\b(?:ich habe|habe ich|(?:er|sie|(?:mein|meine|unser|unsere) (?:mann|frau|vater|mutter|sohn|tochter|bruder|schwester|oma|opa)) hat|hat (?:er|sie)) (?:\w+ )?einen schlaganfall(?!\s+(?:gehabt|erlitten))'
+      - '\b(?:is|am|are) having (?:a |another )?stroke\b'
+      # Akutzeichen eines Schlaganfalls, unabhängig vom Wort (#163): Sprache weg „jetzt“ oder „plötzlich“, hängender
+      # Mundwinkel, plötzliche Lähmung oder Taubheit. „Seit dem Unfall gelähmt“ bleibt eine Leistungsfrage.
+      - '\b(?:kann|könnte|konnte) (?:\w+ )?(?:jetzt|plötzlich|auf einmal|seit eben|gerade) (?:\w+ )?nicht (?:mehr )?(?:richtig )?(?:sprechen|reden)'
+      - 'mundwinkel\w* (?:\w+ )?h(?:ä|a)ng|h(?:ä|a)ng\w* (?:\w+ ){0,3}mundwinkel'
+      - '(?:pl(?:ö|o)tzlich|auf einmal)\w* (?:\w+ ){0,4}(?:gel(?:ä|a)hmt|l(?:ä|a)hmung|taub|nicht mehr bewegen)'
+      - "\\b(?:face|mouth) (?:is |has (?:just )?started )?droop|\\bsuddenly (?:can['’]t|cannot) (?:speak|talk|move)"
       - 'umbringen'
+      - '\bich (?:will|möchte|werde) mich (?:selbst )?(?:töten|umbringen)\b'
+      - '\bi (?:want to|am going to) kill myself\b'
       - 'suizid'
       - 'nicht mehr leben'
       - 'chest pain'
-      - "can't breathe"
+      - "can['’]t breathe"
       - 'cannot breathe'
       - 'short(?:ness)? of breath'
-      - 'heart attack'
+      - '(?<!had a )(?<!after a )(?<!after the )heart attack'
       - 'unconscious'
       - 'suicid'
   - art: injection
@@ -102,6 +125,16 @@ vorpruefung:
       - 'mean'
       - 'interpret'
       - 'serious'
+  - art: therapie
+    ausser_sv: true
+    muster:
+      - 'was (?:kann|soll|sollte) ich (?:gegen|bei) .{0,60}(?:tun|machen|nehmen)'
+      - 'hausmittel'
+      - 'wie (?:behandle|heile|lindere|bek(?:ä|ae)mpfe) ich'
+      - 'welche (?:behandlung|therapie|(?:ü|ue)bung)(?:en)? (?:hilft|helfen|ist am besten|soll ich|sollte ich|empfehlen sie)'
+      - 'what (?:can|should) i (?:do|take) (?:for|about|against)'
+      - 'how (?:do|can|should) i (?:treat|cure|relieve)'
+      - 'which (?:treatment|therapy|exercise)s? (?:helps?|should i|is best)'
   - art: symptom
     muster:
       - 'schmerz'
@@ -136,7 +169,8 @@ vorpruefung:
       - 'was fehlt'
       - 'was habe ich'
       - 'was hat (?:er|sie)'
-      - '\bist das\b'
+      # „Ist das ein Grund für Reha?“ ist eine Leistungsfrage, keine Deutungsfrage (Held-out #39).
+      - '\bist das\b(?!\s+(?:auch\s+)?(?:ein(?:e|en)?\s+)?(?:grund|anspruch|fall|leistung|voraussetzung|antrag)\b)'
       - 'was bedeute'
       - 'was ist das'
       - 'woher kommt'
@@ -166,6 +200,21 @@ nachpruefung:
       - '\bihre werte sind\b'
       - '\byour (?:results|values) (?:are|show)\b'
 
+# Sozialversicherungsbezug einer Frage: Kosten, Kasse, Antrag, Anspruch, Geldleistung.
+sv_bezug:
+  - 'zahl|kosten|(?:ü|u)bernimmt|kasse|versicher|antrag|anspruch|leistung|bekomm|zusteh|steht\s.{0,30}\bzu\b'
+  - 'geld\b|geldes|zuschuss|f(?:ö|o)rder|pension|rente|bescheid|ablehnung|einspruch|klage|beschwerde|selbstbehalt'
+  - 'rezept|krankenstand|krankschreib|reha\b|kur\b|pflegegeld|pflegestufe'
+  - '\bpay|cost|cover|insurance|claim|benefit|entitled|allowance|sick leave|pension'
+
+medizinisch:
+  arten: [medikament, befund, symptom, therapie]
+
+verweise:
+  notfall: "Rettung 144; Gesundheitsberatung 1450"
+  medikament: "Ärztin oder Arzt; Apotheke; Gesundheitsberatung 1450"
+  grenze: "Ärztin oder Arzt; Gesundheitsberatung 1450; Rettung 144"
+
 # Grenztexte: Notfall zuerst die Handlung (144), dann wer ich bin, dann wohin sonst. Kurze Sätze.
 texte:
   notfall:
@@ -188,6 +237,16 @@ texte:
       no diagnosis, no view on test results, no treatment and no medication. Please ask your doctor. For
       advice by phone, call 1450 at any time. In an emergency, call 144. You can ask me about care
       allowance, rehabilitation or sickness benefit.
+  medikament:
+    de: >-
+      Dabei kann ich nicht helfen. Ich bin ein KI-Lotse für Leistungen der Sozialversicherung. Ich empfehle
+      kein Medikament und keine Dosis. Fragen Sie bitte Ihre Ärztin, Ihren Arzt oder in der Apotheke. Rat am
+      Telefon gibt es Tag und Nacht unter 1450. Im Notfall rufen Sie 144. Zu Rezeptgebühr oder Kosten von
+      Medikamenten können Sie mich fragen.
+    en: >-
+      I cannot help with that. I am an AI guide for social insurance benefits. I do not recommend medication
+      or doses. Please ask your doctor or a pharmacist. For advice by phone, call 1450 at any time. In an
+      emergency, call 144. You can ask me about prescription charges or the cost of medication.
   injection:
     de: >-
       Meine Regeln kann ich nicht abschalten. Ich bin ein KI-Lotse für Leistungen der Sozialversicherung. Ich

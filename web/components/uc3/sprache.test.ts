@@ -47,4 +47,9 @@ describe("alltag", () => {
     expect(alltag("Unbekannt (UNB bzw. 0), Satz zählt.")).toBe("Unbekannt (UNB bzw. 0), Zeile zählt.");
     expect(alltag("1.663 Sätze, Regelsatz v2")).toBe("1.663 Zeilen, Regelsatz v2");
   });
+
+  // Fehler: „zu einem Satz verdichtet“ wurde „zu einem Zeile verdichtet“.
+  it("passt den Artikel an: einem Satz wird einer Zeile", () => {
+    expect(alltag("zu einem Satz verdichtet, der Satz zählt")).toBe("zu einer Zeile verdichtet, die Zeile zählt");
+  });
 });

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   abschnitteNachName,
+  aenderungsSatz,
+  datumLang,
+  gegenueberSaetze,
+  gegenueberstellung,
+  qualifikationsStaende,
+  regelKlartext,
   kategorieSaetze,
   uebergangsWorte,
   vergleicheAbschnitte,
@@ -92,12 +98,12 @@ describe("kategorieSaetze", () => {
     const s = kategorieSaetze(
       {
         ...stand,
-        auftrag: { ...auftrag, status: "freigegeben", von: "Bernhard Götzendorfer", am: "2026-11-05T15:53:49.778Z" },
+        auftrag: { ...auftrag, status: "freigegeben", von: "Erika Muster", am: "2026-11-05T15:53:49.778Z" },
       },
       liste,
       "v1",
     );
-    expect(s.auftrag).toContain("von Bernhard Götzendorfer am 5. November 2026 um 16:53 Uhr");
+    expect(s.auftrag).toContain("von Erika Muster am 5. November 2026 um 16:53 Uhr");
     expect(s.auftrag).toContain("zu 3 Beschäftigungskategorien zusammen: Angestellte, Arbeiter und Beamte");
   });
 });
@@ -112,5 +118,114 @@ describe("abschnitteNachName", () => {
     expect(zeilen.find((z) => z.bezeichnung.startsWith("Information"))?.vergleich).toBe("entfaellt");
     expect(zeilen.find((z) => z.bezeichnung.startsWith("Telekommunikation"))?.vergleich).toBe("neu");
     expect(zeilen.at(-1)?.codeAlt).toBe("UNB");
+  });
+});
+
+describe("gegenueberstellung", () => {
+  const alt08 = [
+    { code: "A", bezeichnung: "Land- und Forstwirtschaft, Fischerei" },
+    { code: "J", bezeichnung: "Information und Kommunikation" },
+    { code: "K", bezeichnung: "Erbringung von Finanz- und Versicherungsdienstleistungen" },
+    { code: "M", bezeichnung: "Erbringung von freiberuflichen, wissenschaftlichen und technischen Dienstleistungen" },
+    { code: "UNB", bezeichnung: "Wirtschaftszweig unbekannt" },
+  ];
+  const neu25 = [
+    { code: "A", bezeichnung: "Land- und Forstwirtschaft, Fischerei" },
+    { code: "J", bezeichnung: "Verlagswesen, Rundfunk" },
+    { code: "K", bezeichnung: "Telekommunikation, Softwareentwicklung" },
+    { code: "L", bezeichnung: "Erbringung von Finanz- und Versicherungsdienstleistungen" },
+    { code: "N", bezeichnung: "Erbringung von wissenschaftlichen und technischen Dienstleistungen" },
+    { code: "UNB", bezeichnung: "Wirtschaftszweig unbekannt" },
+  ];
+  // Unterklassen je Abschnittspaar wie im Umsteigeschlüssel: J geht großteils nach J und K, ein Rest nach N.
+  const uebergaenge = [
+    { alt: "A", neu: "A", unterklassen: 41 },
+    { alt: "J", neu: "J", unterklassen: 19 },
+    { alt: "J", neu: "K", unterklassen: 12 },
+    { alt: "J", neu: "N", unterklassen: 3 },
+    { alt: "K", neu: "L", unterklassen: 20 },
+    { alt: "M", neu: "N", unterklassen: 21 },
+    { alt: "M", neu: "M", unterklassen: 2 },
+  ];
+
+  // Fehler, den das fängt: ohne Umsteigeschlüssel stünde „Information und Kommunikation“ als weggefallen da und
+  // J/K 2025 als neu; ein Rest von 3 Unterklassen nach N würde J fälschlich in drei Abschnitte teilen.
+  it("zeigt J als Teilung in J und K und M als Umbenennung nach N", () => {
+    const zeilen = gegenueberstellung(vergleicheAbschnitte(alt08, neu25), uebergaenge);
+    const nach = (code: string) => zeilen.find((z) => z.alt?.code === code);
+    expect(nach("J")?.art).toBe("geteilt");
+    expect(nach("J")?.neu.map((n) => n.code)).toEqual(["J", "K"]);
+    expect(nach("M")).toMatchObject({ art: "umbenannt", neu: [{ code: "N" }] });
+    expect(nach("K")).toMatchObject({ art: "gewechselt", neu: [{ code: "L" }] });
+    expect(zeilen.some((z) => z.art === "neu")).toBe(false);
+    expect(zeilen.at(-1)?.alt?.code).toBe("UNB");
+    expect(aenderungsSatz(nach("J")!)).toBe(
+      "Teilt sich ab Jänner 2025 in zwei Abschnitte: J „Verlagswesen, Rundfunk“ und K „Telekommunikation, Softwareentwicklung“.",
+    );
+    expect(gegenueberSaetze(zeilen)).toEqual({
+      haupt: "Ab Jänner 2025 gilt ÖNACE 2025 mit 5 statt 4 Abschnitten. Wir vergleichen die Branchen über ihren Namen.",
+      unter: "1 Branche behält Buchstabe und Namen, 1 steht unter einem anderen Buchstaben, 1 heißt anders und eine teilt sich.",
+    });
+  });
+
+  it("lässt ohne Umsteigeschlüssel weggefallene und neue Abschnitte getrennt stehen", () => {
+    const zeilen = gegenueberstellung(vergleicheAbschnitte(alt08, neu25), []);
+    expect(zeilen.find((z) => z.alt?.code === "J")?.art).toBe("entfaellt");
+    expect(zeilen.filter((z) => z.art === "neu").map((z) => z.neu[0]?.code)).toEqual(["N", "K", "J"]);
+  });
+});
+
+describe("regelKlartext", () => {
+  // Fehler, den das fängt: Regelcodes und Tabellennamen im Fließtext („Einleseregel E01“, „stat.…“).
+  it("nimmt Codes, Tabellen und Spaltennamen aus dem ersten Satz", () => {
+    expect(regelKlartext("Sätze, bei denen die Einleseregel E01 BEGINN und ENDE getauscht hat. Rest.")).toBe(
+      "Zeilen, bei denen die Einleseregel BEGINN und ENDE getauscht hat.",
+    );
+    expect(
+      regelKlartext("Der Wirtschaftszweig wird nach der ÖNACE-Version ausgewiesen (Gültigkeit in stat.klass_oenace): bis 12/2024 ÖNACE 2008."),
+    ).toBe("Der Wirtschaftszweig wird nach der ÖNACE-Version ausgewiesen: bis Dezember 2024 ÖNACE 2008.");
+    expect(regelKlartext("Zeilen, die zu einem Satz verdichtet wurden (Summe roh_zeilen − 1).")).toBe(
+      "Zeilen, die zu einer Zeile verdichtet wurden.",
+    );
+  });
+
+  it("schreibt das Datum mit Monatsnamen", () => {
+    expect(datumLang("05.11.2026")).toBe("5. November 2026");
+    expect(datumLang("")).toBe("");
+  });
+});
+
+describe("qualifikationsStaende", () => {
+  const liste = [
+    { code: "AngestellteDV", bezeichnung: "Angestellte (Dienstvertrag)", kategorie: "Angestellte", freierDienstvertrag: false },
+    { code: "ArbeiterDV", bezeichnung: "Arbeiter (Dienstvertrag)", kategorie: "Arbeiter", freierDienstvertrag: false },
+    { code: "UNB", bezeichnung: "Qualifikation unbekannt", kategorie: "Unbekannt", freierDienstvertrag: null },
+  ];
+  // Fehler, den das fängt: der Regelsatz aus dem Auftrag fehlt oder trägt die Freigabe ohne Wiener Zeit.
+  it("nennt je Regelsatz einen Satz und die Freigabe mit Name und Wiener Zeit", () => {
+    const staende = qualifikationsStaende(
+      {
+        regelsatz: "v1",
+        regelId: 13,
+        regelName: "R6_beschaeftigungskategorie",
+        spalte: "code",
+        regelVon: "Erika Muster",
+        regelAm: "2026-11-05T15:12:58.688Z",
+        auftrag: {
+          vorschlagId: 24,
+          titel: "Auftrag 1, Dienstvertrag und freier Dienstvertrag zusammen",
+          status: "freigegeben",
+          regelsatzZiel: "v2",
+          zielSpalte: "beschaeftigungskategorie",
+          von: "Erika Muster",
+          am: "2026-11-05T15:53:49.778Z",
+        },
+      },
+      liste,
+    );
+    expect(staende.map((s) => s.regelsatz)).toEqual(["v1", "v2"]);
+    expect(staende[0]?.satz).toBe("Regelsatz v1 zählt die 2 Qualifikationen einzeln, so wie sie geliefert werden.");
+    expect(staende[1]?.freigabe).toBe("freigegeben von Erika Muster am 5. November 2026 um 16:53 Uhr");
+    expect(staende[1]?.auftrag).toEqual({ titel: "Auftrag 1", vorschlagId: 24 });
   });
 });

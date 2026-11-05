@@ -66,13 +66,20 @@ PLAUSIBEL_BIS = date(9000, 1, 1)
 
 Verhalten = Literal["antwort", "abstinenz", "uebergabe", "rueckfrage"]
 # Empfänger der Übergabe bei Grenzantworten, wie sie die Grenztexte in daten/grenzen.yaml nennen.
-UEBERGABE_NOTFALL = "Rettung 144; Gesundheitsberatung 1450"
-UEBERGABE_GRENZE = "Ärztin oder Arzt; Gesundheitsberatung 1450; Rettung 144"
 Stil = Literal["standard", "einfach"]
 Sprache = Literal["de", "en"]
 Modus = Literal["text", "sprache"]  # sprache: ohne Analyse-Aufruf, kurzer Sprechtext (Voice, Ziel ≤ 2,0 s)
 MAX_AUSSAGEN_SPRACHE = 2
 AUFWAND_SPRACHE = "niedrig"  # reasoning_effort low; plattform.llm.complete kennt kein max_tokens
+# Zweiter Antwort-Aufruf, wenn die Server-Prüfung jede Aussage verwirft (#155: Abstinenz, obwohl die richtige
+# Quelle vorlag). Die Gründe gehen ohne Aussagetext an das Modell zurück, höchstens ein weiterer Aufruf.
+NOCHMAL_HINWEIS = (
+    "Die Prüfung hat alle Aussagen deines ersten Versuchs verworfen. Gründe: {gruende}. Antworte noch einmal "
+    "aus denselben Daten. Kopiere jedes Zitat Zeichen für Zeichen aus dem Abschnitt, mindestens ein ganzer "
+    "Satz. Die Aussage sagt nur, was im Zitat steht, mit dessen Bedingungen, in kurzen Sätzen. Eine Aussage, "
+    "die die Frage nur streift, ist keine Antwort. Beantworten die Daten die Frage nicht, gib keine Aussage "
+    "zurück."
+)
 
 # --------------------------------------------------------------------------------------------------------
 # Daten
@@ -114,19 +121,34 @@ def _passt(text: str, liste: Sequence[str]) -> bool:
     return any(m.search(text) for m in _muster(tuple(liste)))
 
 
+_SATZGRENZE = re.compile(r"(?<=[.!?])\s+")
+
+
 def erkenne_status(text: str) -> str | None:
-    """Status bzw. Pensionsträger aus Bürgersprache; erster Eintrag der Tabelle, der passt."""
-    for schluessel, eintrag in traeger_tabelle()["status"].items():
-        if _passt(text, eintrag["erkennen"]):
-            return str(schluessel)
+    """Status bzw. Pensionsträger aus Bürgersprache; erster Eintrag der Tabelle, der passt.
+
+    Aussagesätze gehen vor Fragesätzen: „Er bekommt seinen Ruhegenuss von der BVAEB. … ist dafür die PVA
+    zuständig?“ nennt die BVAEB als Status, die PVA nur als Vermutung (Dev-Set x02, #155)."""
+    saetze = _SATZGRENZE.split(text)
+    aussagen = " ".join(s for s in saetze if not s.rstrip().endswith("?"))
+    for teil in (aussagen, text):
+        for schluessel, eintrag in traeger_tabelle()["status"].items():
+            if teil and _passt(teil, eintrag["erkennen"]):
+                return str(schluessel)
     return None
 
 
 def zustaendige_stelle(leistung_id: str, status: str | None) -> dict[str, str] | None:
-    """Zuständige Stelle mit Fundstelle aus der Entscheidungstabelle (BPGG § 22 für Pflegegeld)."""
+    """Zuständige Stelle mit Fundstelle aus der Entscheidungstabelle (BPGG § 22 für Pflegegeld).
+
+    Reihenfolge: ``stelle_je_status`` der Leistung für den bekannten Status (Unfallversicherung: SVS nach
+    ASVG § 28 Z 2), sonst ``stelle_fest``, sonst die Stelle des Status für den Bereich der Leistung."""
     leistung = leistungen()[leistung_id]
     tabelle = traeger_tabelle()
-    eintrag: dict[str, Any] | None = leistung.get("stelle_fest")
+    je_status: dict[str, Any] = leistung.get("stelle_je_status") or {}
+    eintrag: dict[str, Any] | None = je_status.get(status) if status else None
+    if eintrag is None:
+        eintrag = leistung.get("stelle_fest")
     if eintrag is None:
         if status is None:
             return None
@@ -144,6 +166,58 @@ def zustaendige_stelle(leistung_id: str, status: str | None) -> dict[str, str] |
     if eintrag.get("zitat"):
         ergebnis["zitat"] = str(eintrag["zitat"])
     return ergebnis
+
+
+def _norm_schluessel(nummer: str) -> tuple[int, str]:
+    """„21c“ → (21, "c"): Paragraphen mit Buchstaben liegen hinter der Zahl (21 < 21a < 21c < 22)."""
+    m = re.match(r"\s*(\d+)\s*([a-z]*)", str(nummer).lower())
+    return (int(m.group(1)), m.group(2)) if m else (-1, "")
+
+
+def leistung_der_norm(gesetz: str | None, nummer: str | None, art: str | None = "PARA") -> list[str]:
+    """Leistungen, zu deren ``normen`` (leistungen.yaml) der Paragraph gehört; leer für fremde Normen, andere
+    Gliederungsarten (Anlage, Artikel) und PDFs."""
+    if not gesetz or not nummer or (art or "").upper() != "PARA":
+        return []
+    schluessel = _norm_schluessel(nummer)
+    if schluessel[0] < 0:
+        return []
+    return [
+        lid
+        for lid, e in leistungen().items()
+        if any(
+            str(n["gesetz"]) == gesetz
+            and _norm_schluessel(str(n["von"])) <= schluessel <= _norm_schluessel(str(n["bis"]))
+            for n in e.get("normen") or []
+        )
+    ]
+
+
+def stellen_der_antwort(
+    aussagen: Sequence[Aussage], status: str | None, erkannt: Sequence[str] = ()
+) -> tuple[list[str], list[dict[str, str]]]:
+    """Leistungen, die die geprüften Aussagen tragen (über ihre zitierten Normen), und deren Stellen (#155).
+
+    Fehlt der Status, folgt er aus dem Gesetz der zitierten Normen (``status_aus_gesetz`` in traeger.yaml),
+    aber nur, wenn alle zitierten Gesetze der Leistung auf denselben Status zeigen (ASVG und GSVG: offen).
+    Ein genannter Status geht vor. Leistungen mit ``nur_regel`` zählen nur, wenn ein Auslöser sie erkannt hat:
+    Eine zitierte Unfallnorm macht einen Sturz nicht zum Arbeitsunfall (Aufnahme v8, Review !155).
+    Liefert ([], []), wenn keine Aussage eine Norm einer Leistung zitiert."""
+    aus_gesetz: dict[str, str] = traeger_tabelle().get("status_aus_gesetz") or {}
+    gesetze: dict[str, set[str]] = {}
+    for a in aussagen:
+        gesetz = a.treffer.get("gesetz")
+        for lid in leistung_der_norm(gesetz, a.treffer.get("nummer"), a.treffer.get("art")):
+            if leistungen()[lid].get("nur_regel") and lid not in erkannt:
+                continue
+            gesetze.setdefault(lid, set()).add(str(gesetz))
+    stellen = []
+    for lid, gs in gesetze.items():
+        abgeleitet = {aus_gesetz.get(g) for g in gs}
+        st = status or (abgeleitet.pop() if len(abgeleitet) == 1 else None)
+        if (stelle := zustaendige_stelle(lid, st)) is not None:
+            stellen.append(stelle)
+    return list(gesetze), stellen
 
 
 def regel_analyse(text: str) -> tuple[list[str], dict[str, str]]:
@@ -181,7 +255,9 @@ def regel_antrag(text: str) -> dict[str, str]:
     sauber = normalisiere(text)
     werte: dict[str, str] = {}
     m = re.search(regeln["geburtsdatum"], sauber, re.IGNORECASE)
-    if m and (datum := _datum_tmj(*m.groups())):
+    # Zwei Alternativen in der Regel (Hinweis vor oder nach dem Datum): die belegten drei Gruppen zählen.
+    teile = [g for g in m.groups() if g is not None][:3] if m else []
+    if len(teile) == 3 and (datum := _datum_tmj(*teile)):
         werte["person.geburtsdatum"] = datum
     if m := re.search(regeln["telefon"], sauber, re.IGNORECASE):
         werte["person.telefon"] = " ".join((m.group(1) or m.group(2)).split())
@@ -278,6 +354,8 @@ class LotseAntwort:
     sitzung_id: str
     aussagen: list[Aussage] = field(default_factory=list)
     rueckfrage: str | None = None
+    # Antwortknöpfe zur Rückfrage (daten/leistungen.yaml felder.<feld>.optionen): {text, antwort}
+    rueckfrage_optionen: list[dict[str, str]] = field(default_factory=list)
     traeger: list[dict[str, str]] = field(default_factory=list)
     naechste_schritte: list[str] = field(default_factory=list)
     belege: list[dict[str, Any]] = field(default_factory=list)
@@ -402,8 +480,11 @@ ANTWORT_SCHEMA: dict[str, Any] = {
         },
         "verhalten": {"type": "string", "enum": ["antwort", "abstinenz", "uebergabe"]},
         "uebergabe_an": {"type": ["string", "null"]},
+        # Beantworten die Aussagen die gestellte Frage selbst? false: Abstinenz statt Aussagen zu einem
+        # Nachbarthema (Dev-Set x19, x20: Landesstelle und Honorarordnung zu Termin und Privattarif, #162).
+        "beantwortet": {"type": "boolean"},
     },
-    "required": ["aussagen", "verhalten", "uebergabe_an"],
+    "required": ["aussagen", "verhalten", "uebergabe_an", "beantwortet"],
     "additionalProperties": False,
 }
 
@@ -434,8 +515,10 @@ def _analyse_prompt() -> str:
 _TREUE = (
     "Jede Aussage gibt nur wieder, was ihr Zitat sagt, nahe am Wortlaut des Zitats. Keine Zusätze, die "
     "nicht im Zitat stehen: keine Fristen, Ausnahmen, Vollmachten, Personen, Zuständigkeiten oder Folgen. "
-    "Was das Zitat nicht sagt, lässt du weg. Das System verwirft Aussagen mit Wörtern, die das Zitat nicht "
-    "deckt."
+    "Was das Zitat nicht sagt, lässt du weg. Steht im Zitat eine Bedingung (wenn, sofern, soweit, falls, "
+    "unter der Voraussetzung, bei Vorliegen), nennt die Aussage sie auch, selbst wenn sie erst nach dem "
+    "zitierten Teil im Satz steht. Das System verwirft Aussagen mit Wörtern, die das Zitat nicht deckt, und "
+    "Aussagen ohne die Bedingung des Zitats."
 )
 
 
@@ -475,7 +558,8 @@ def _antwort_prompt(sprache: Sprache, stil: Stil, modus: Modus = "text") -> str:
             f"4. {_TREUE}\n"
             "5. Euro-Beträge nur, wenn sie wörtlich im Zitat stehen. Keine Diagnose, keine Therapie- und "
             "keine Medikamentenempfehlung. Keine Paragraphennummern im Satz.\n"
-            "6. Beantworten die Abschnitte die Frage nicht: verhalten abstinenz, aussagen leer.\n"
+            "6. Beantworten die Abschnitte die Frage nicht: verhalten abstinenz, aussagen leer, beantwortet "
+            "false. Sonst beantwortet true.\n"
             f"7. Sprache: {sprachname}. Antworte knapp."
         )
     stilregel = (
@@ -498,15 +582,17 @@ def _antwort_prompt(sprache: Sprache, stil: Stil, modus: Modus = "text") -> str:
         "Katalogen und Formularen (Datei und Seite in quelle). Ist einer davon dabei, ist genau eine Aussage "
         "dazu Pflicht: welche Unterstützung man dort beantragen kann, mit Zitat aus diesem Abschnitt.\n"
         "6. Beantworten die Abschnitte die Frage nicht: verhalten abstinenz, aussagen leer, uebergabe_an die "
-        "zuständige Stelle. Muss die Stelle im Einzelfall entscheiden: verhalten uebergabe.\n"
+        "zuständige Stelle. Muss die Stelle im Einzelfall entscheiden: verhalten uebergabe. beantwortet ist "
+        "true nur, wenn deine Aussagen genau das beantworten, was gefragt ist; Aussagen zu einem "
+        "Nachbarthema (eine Adresse statt eines Termins, Kassentarife statt eines Privattarifs) beantworten "
+        "sie nicht.\n"
         f"7. Sprache der Aussagen: {sprachname}. {stilregel}\n"
         "8. Keine Paragraphennummern und keine Kontaktaufforderungen im Aussagetext; Quelle und Stelle "
         "hängt das System selbst an.\n"
         "9. Einfach, aber mit den Wörtern des Zitats: kurzer Hauptsatz, aktiv, zuerst die Leistung. "
         "Amtsdeutsch sagst du einfacher, nur wo die Bedeutung gleich bleibt. Wähle das Zitat so, dass es "
-        "genau den Teil enthält, den deine Aussage sagt, und bis zum Satzende reicht. Steht im Zitat eine "
-        "Bedingung (wenn, sofern, bei Vorliegen, nach Abs.), gehört sie in die Aussage. Keine Personen, die "
-        "nicht im Zitat stehen. "
+        "genau den Teil enthält, den deine Aussage sagt, und bis zum Satzende reicht. Auch eine Bedingung "
+        "nach Abs. gehört in die Aussage. Keine Personen, die nicht im Zitat stehen. "
         "Keine Floskeln (kein „gerne“, „bitte beachten Sie“, „zusammenfassend“), keine Gedankenstriche, "
         "kein „zudem“ oder "
         "„darüber hinaus“, keine Aufzählung in einem Satz."
@@ -567,6 +653,92 @@ def ziffern_belegt(text: str, zitat: str) -> bool:
     for z in _ZAHLWORT.findall(normalisiere(zitat)):
         im_zitat |= _zahlwerte(z)
     return all(_zahlwerte(z) & im_zitat for z in _ZAHLWORT.findall(text))
+
+
+# Bedingung aus dem Zitat (Review !69, Sichtprüfung #35): „Familienmitglieder können Pflegegeld ohne
+# Bevollmächtigung beantragen“ zu einem Zitat mit „…, wenn kein Zweifel über Bestand und Umfang der
+# Vertretungsbefugnis besteht.“ Das Zitat ist das bis zum Satzende verlängerte, die Bedingung zählt also auch,
+# wenn sie erst nach dem Teil steht, den die Aussage sagt. Lexikalisch: „wer … braucht“ trägt die Bedingung
+# als Relativsatz („Pflegegeld bekommt, wer ständig Hilfe braucht“, BPGG § 4 „wenn …“).
+_BEDINGUNG_ZITAT = re.compile(
+    r"\b(?:wenn|sofern|soweit|falls|unter der voraussetzung|bei vorliegen)\b", re.IGNORECASE
+)
+_BEDINGUNG_AUSSAGE: dict[str, re.Pattern[str]] = {
+    "de": re.compile(r"\b(?:wenn|sofern|soweit|falls|nur|bei|unter|wer)\b", re.IGNORECASE),
+    "en": re.compile(r"\b(?:if|only|provided|when|unless|as long as|subject to|under|who)\b", re.IGNORECASE),
+}
+
+
+def bedingung_fehlt(aussage: str, zitat: str, sprache: str = "de") -> bool:
+    """True, wenn das Zitat eine Bedingung enthält und die Aussage keine trägt."""
+    if not _BEDINGUNG_ZITAT.search(zitat):
+        return False
+    return not _BEDINGUNG_AUSSAGE.get(sprache, _BEDINGUNG_AUSSAGE["de"]).search(aussage)
+
+
+# Zahlwort und Ziffer gelten als dieselbe Zahl („sechs Monate“ im Zitat, „6 Monate“ in der Aussage).
+_ZAHLWOERTER: dict[str, tuple[str, str]] = {
+    w: (str(i), e)
+    for i, (w, e) in enumerate(
+        zip(
+            [
+                "null",
+                "eins",
+                "zwei",
+                "drei",
+                "vier",
+                "fünf",
+                "sechs",
+                "sieben",
+                "acht",
+                "neun",
+                "zehn",
+                "elf",
+                "zwölf",
+            ],
+            [
+                "zero",
+                "one",
+                "two",
+                "three",
+                "four",
+                "five",
+                "six",
+                "seven",
+                "eight",
+                "nine",
+                "ten",
+                "eleven",
+                "twelve",
+            ],
+            strict=True,
+        )
+    )
+} | {"ein": ("1", "one")}
+
+
+def schwelle_fehlt(aussage: str, zitat: str, sprache: str = "de") -> str | None:
+    """Das Schwellenwort aus dem Zitat („mehr als“, „mindestens“, „voraussichtlich“ …), das die Aussage nicht
+    trägt, obwohl sie die Zahl dahinter nennt („ab 65 Stunden“ zu „mehr als 65 Stunden“); None, wenn nichts
+    fehlt (``schwellen`` und ``zahl`` in daten/deckung.yaml, #151)."""
+    regeln = deckung_regeln()
+    zahl = re.compile(str(regeln["zahl"]), re.IGNORECASE)
+    formen: dict[str, list[str]] = regeln["schwellen"].get(sprache) or regeln["schwellen"]["de"]
+    for wort, muster in formen.items():
+        for m in re.finditer(rf"\b{re.escape(wort)}\b", zitat, re.IGNORECASE):
+            # die erste Zahl in den drei Wörtern nach dem Schwellenwort („voraussichtlich mindestens sechs“)
+            danach = zitat[m.end() :].split()[:3]
+            wert = next((w.strip(".,;:()") for w in danach if zahl.fullmatch(w.strip(".,;:()"))), None)
+            if wert is None:
+                continue
+            gleich = {wert.lower(), *_ZAHLWOERTER.get(wert.lower(), ())}
+            if not any(
+                re.search(rf"(?<![\w,.]){re.escape(g)}(?![\w,])", aussage, re.IGNORECASE) for g in gleich
+            ):
+                continue
+            if not any(re.search(f, aussage, re.IGNORECASE) for f in muster):
+                return wort
+    return None
 
 
 def zitat_gueltig(zitat: str, abschnitt_text: str) -> bool:
@@ -710,6 +882,7 @@ def pruefe_aussagen(
         gedeckt: float | None = None
         if t is not None and text and sprache == "de":
             gedeckt = deckung(text, zitat, t.kontext)
+        voll = vervollstaendige_zitat(zitat, t.text) if t is not None else zitat
         if t is None:
             grund = "abschnitt_id gehört nicht zu den Treffern"
         elif not text:
@@ -729,6 +902,10 @@ def pruefe_aussagen(
         elif gedeckt is not None and gedeckt < schwelle:
             # Verwerfen statt kürzen: eine Kürzung ohne Modell könnte nur das Zitat selbst wiederholen.
             grund = f"Aussage geht über das Zitat hinaus (Deckung {gedeckt:.2f} < {schwelle:.2f})"
+        elif bedingung_fehlt(text, voll, sprache):
+            grund = "Aussage lässt die Bedingung aus dem Zitat weg"
+        elif (ohne_schwelle := schwelle_fehlt(text, voll, sprache)) is not None:
+            grund = f"Aussage lässt die Schwelle „{ohne_schwelle}“ aus dem Zitat weg"
         if grund or t is None:
             verworfen.append(
                 {
@@ -740,7 +917,7 @@ def pruefe_aussagen(
                 }
             )
             continue
-        zitat = vervollstaendige_zitat(zitat, t.text)
+        zitat = voll
         stand = stand_von(t)
         hat_betrag = bool(betraege(text))
         gueltig.append(
@@ -1054,7 +1231,9 @@ def naechste_schritte(
         schritte.append(tx["schritt_angebot"].format(schluessel=kurze_quelle(t.zitierschluessel())))
     for stelle in traeger[:1]:
         schritte.append(tx["schritt_stelle"].format(name=stelle["name"]))
-    return schritte
+    # Gleiche Schritte nur einmal, Reihenfolge bleibt (Pflegegeld und Reha brachten das Antragsangebot
+    # doppelt).
+    return list(dict.fromkeys(schritte))
 
 
 def setze_sprechtext(aussagen: Sequence[Aussage], *, sprache: str) -> str:
@@ -1106,6 +1285,13 @@ def setze_text(
 _SPRACHE_ERLAUBT = {"mittel_lang"}  # das Mittel prüft der Stil, nicht jede Antwort
 
 
+def _ohne_sprachbefund(aussagen: Sequence[Aussage]) -> tuple[list[Aussage], list[Aussage]]:
+    """Teilt in Aussagen ohne und mit eigenem Sprachbefund. Eine zu lange Aussage kostet so nicht die ganze
+    Antwort (Dev-Set x07, #155); was bleibt, prüft ``_sprachbefunde`` danach als Ganzes."""
+    gut = [a for a in aussagen if not _sprachbefunde([a])]
+    return gut, [a for a in aussagen if a not in gut]
+
+
 def _sprachbefunde(aussagen: Sequence[Aussage]) -> list[str]:
     """Arten der Sprachbefunde, die nach ``glaette`` im Modelltext der Aussagen bleiben."""
     if not aussagen:
@@ -1128,9 +1314,15 @@ def _ersatz_text(traeger: Sequence[dict[str, str]], schritte: Sequence[str], spr
     return "\n".join(zeilen)
 
 
-def _abstinenz_text(traeger: Sequence[dict[str, str]], sprache: str, modell_aus: bool) -> str:
+def _abstinenz_text(
+    traeger: Sequence[dict[str, str]], sprache: str, modell_aus: bool, fachfremd: bool = False
+) -> str:
+    """Abstinenz mit Verweis. ``fachfremd``: keine Leistung erkannt und kein Sozialversicherungsbezug; dann
+    sagt der Text das ausdrücklich, statt an die Sozialversicherung zu verweisen (Held-out #39, #155)."""
     tx = texte(sprache)
     teile = [tx["modell_aus"]] if modell_aus else []
+    if fachfremd:
+        return " ".join([*teile, tx["fachfremd"]])
     teile.append(tx["abstinenz"])
     teile.append(tx["uebergabe"].format(name=traeger[0]["name"]) if traeger else tx["uebergabe_beratung"])
     teile.append(tx["ki_hinweis"])
@@ -1223,7 +1415,17 @@ def _analysiere(
     antrag.update(regel_antrag(text))
     if erweiterung != "aus" and not ergebnis_.begriffe:
         ergebnis_.begriffe = erw.thesaurus_begriffe(verlauf_text)
-    erkannt = list(dict.fromkeys([*zustand.get("leistungen", []), *modell_leistungen, *regel_leistungen]))
+    # Leistungen mit `nur_regel: true` (z. B. Unfallversicherung) zählen nur über ihre Auslöser: Das Modell
+    # deutete „nach einem Sturz im Spital“ als Arbeitsunfall und nannte die AUVA (Aufnahme v8).
+    modell_leistungen = [lid for lid in modell_leistungen if not leistungen()[lid].get("nur_regel")]
+    # Reihenfolge: Sitzung, dann Leistungen mit `nur_regel` (enge Auslöser), dann Modell, dann übrige Regeln.
+    # Die erste Leistung bestimmt Lage und Suchvorrang. Dev-Set #155: x12 (Arbeitsunfall erkannt, das Modell
+    # schlug Reha und Krankengeld dazu vor, die Antwort glitt auf die Reha ab) braucht die Unfallversicherung
+    # vorn; x04 (Pflegekarenz auf Englisch) braucht das Modell vor der breiten Pflegegeld-Regel („care“).
+    eng = [lid for lid in regel_leistungen if leistungen()[lid].get("nur_regel")]
+    erkannt = list(
+        dict.fromkeys([*zustand.get("leistungen", []), *eng, *modell_leistungen, *regel_leistungen])
+    )
     ergebnis_.leistungen = erkannt
     if not ergebnis_.lage and erkannt:
         ergebnis_.lage = str(leistungen()[erkannt[0]]["lage"])
@@ -1319,6 +1521,35 @@ def kern_belege(
     ).treffer
 
 
+def _antwort_aufruf(
+    modell_fn: ModellFn,
+    nachrichten: list[dict[str, str]],
+    provider: str | None,
+    antwort: LotseAntwort,
+    streifend_verwerfen: bool = False,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Ein Antwort-Aufruf; liefert (rohe Aussagen, Modell aus). Ein KonfigFehler bricht ab.
+
+    ``streifend_verwerfen``: Meldet das Modell ``beantwortet: false``, gilt die Antwort als Abstinenz. Nur
+    ohne erkannte Leistung (Dev-Set #162): Mit Leistung hielt das Modell auch passende Antworten für
+    unvollständig, weil es nicht weiß, dass der Kern Stelle und Schritte anhängt (Verhalten 14/20)."""
+    try:
+        ergebnis = modell_fn(nachrichten, ANTWORT_SCHEMA, provider)
+    except Exception as fehler:
+        from plattform.llm import KonfigFehler
+
+        if isinstance(fehler, KonfigFehler):
+            raise
+        antwort.hinweise.append(f"Antwort ohne Modell ({type(fehler).__name__})")
+        return [], True
+    antwort.modell, antwort.provider = ergebnis.modell, ergebnis.provider
+    if streifend_verwerfen and ergebnis.json.get("beantwortet") is False and ergebnis.json.get("aussagen"):
+        # Das Modell sagt selbst, dass die Aussagen die Frage nur streifen: Abstinenz (#162).
+        antwort.hinweise.append("Antwort-Modell: Aussagen beantworten die Frage nicht")
+        return [], False
+    return list(ergebnis.json.get("aussagen") or []), False
+
+
 def frage(
     text: str,
     *,
@@ -1387,6 +1618,14 @@ def frage(
     antwort.antraege = [str(a) for lid in erkannt if (a := leistungen()[lid].get("antrag"))]
     dauer["analyse"] = _ms(t0)
 
+    # 2b. Medizinische Frage ohne erkannte Leistung und ohne Sozialversicherungsbezug: übergeben statt aus
+    # Gesetzestexten antworten (Held-out #39, #155). Mit erkannter Leistung bleibt es eine Leistungsfrage.
+    if not erkannt:
+        befund = grenze.medizinisch(text)
+        if befund is not None:
+            zustand["verlauf"] = verlauf_vorher
+            return _grenzantwort(antwort, befund, zustand, speicher, dauer, gesamt)
+
     # 3. Rückfrage, falls Pflichtangaben fehlen
     # Jedes Feld wird höchstens einmal erfragt; bleibt es offen, folgt die Antwort mit Vorbehalt.
     offen = fehlende_felder(erkannt, angaben)
@@ -1394,6 +1633,10 @@ def frage(
     if ungefragt and int(zustand.get("rueckfragen", 0)) < MAX_RUECKFRAGEN:
         feld_ = ungefragt[0]
         antwort.rueckfrage = str(felder()[feld_]["rueckfrage"][sprache_])
+        antwort.rueckfrage_optionen = [
+            {"text": str(o["text"][sprache_]), "antwort": str(o["antwort"][sprache_])}
+            for o in felder()[feld_].get("optionen") or []
+        ]
         antwort.text = antwort.rueckfrage
         antwort.verhalten = "rueckfrage"
         zustand["rueckfragen"] = int(zustand.get("rueckfragen", 0)) + 1
@@ -1419,40 +1662,28 @@ def frage(
     roh_aussagen: list[dict[str, Any]] = []
     modell_aus = False
     angebot_ids = [t.abschnitt_id for t in angebote]
+    nachrichten: list[dict[str, str]] = []
     if treffer:
         daten_block = [_datenzeile(t, t.abschnitt_id in angebot_ids, modus) for t in treffer]
-        try:
-            ergebnis = modell_fn(
-                [
-                    {"role": "system", "content": _antwort_prompt(sprache_, stil, modus)},
-                    {
-                        "role": "user",
-                        "content": "<frage>"
-                        + maskiere_personendaten(verlauf_text)
-                        + "</frage>\n<lage>"
-                        + json.dumps(
-                            {"lage": lage, "leistungen": erkannt, "angaben": angaben, "stellen": traeger},
-                            ensure_ascii=False,
-                        )
-                        + "</lage>\n"
-                        + _angebot_hinweis(treffer, angebot_ids)
-                        + "<daten>"
-                        + json.dumps(daten_block, ensure_ascii=False)
-                        + "</daten>",
-                    },
-                ],
-                ANTWORT_SCHEMA,
-                provider,
-            )
-            roh_aussagen = list(ergebnis.json.get("aussagen") or [])
-            antwort.modell, antwort.provider = ergebnis.modell, ergebnis.provider
-        except Exception as fehler:
-            from plattform.llm import KonfigFehler
-
-            if isinstance(fehler, KonfigFehler):
-                raise
-            modell_aus = True
-            antwort.hinweise.append(f"Antwort ohne Modell ({type(fehler).__name__})")
+        nachrichten = [
+            {"role": "system", "content": _antwort_prompt(sprache_, stil, modus)},
+            {
+                "role": "user",
+                "content": "<frage>"
+                + maskiere_personendaten(verlauf_text)
+                + "</frage>\n<lage>"
+                + json.dumps(
+                    {"lage": lage, "leistungen": erkannt, "angaben": angaben, "stellen": traeger},
+                    ensure_ascii=False,
+                )
+                + "</lage>\n"
+                + _angebot_hinweis(treffer, angebot_ids)
+                + "<daten>"
+                + json.dumps(daten_block, ensure_ascii=False)
+                + "</daten>",
+            },
+        ]
+        roh_aussagen, modell_aus = _antwort_aufruf(modell_fn, nachrichten, provider, antwort, not erkannt)
     dauer["antwort"] = _ms(t0)
 
     # 6./7. Zitate und Beträge prüfen
@@ -1460,12 +1691,37 @@ def frage(
     aussagen, verworfen = pruefe_aussagen(
         roh_aussagen, treffer, sprache=sprache_, angebot_ids=angebot_ids, hoechstens=hoechstens
     )
+    # Alles verworfen, obwohl Treffer da waren: ein zweiter Versuch mit den Gründen (#155). Nicht im
+    # Sprachmodus (Latenz) und nicht, wenn das Modell gar keine Aussage geliefert hat (echte Abstinenz).
+    if not aussagen and verworfen and not modell_aus and modus != "sprache":
+        gruende = "; ".join(dict.fromkeys(str(v["grund"]) for v in verworfen))
+        hinweis = {"role": "user", "content": NOCHMAL_HINWEIS.format(gruende=gruende)}
+        roh_2, _ = _antwort_aufruf(modell_fn, [*nachrichten, hinweis], provider, antwort, not erkannt)
+        aussagen, verworfen_2 = pruefe_aussagen(
+            roh_2, treffer, sprache=sprache_, angebot_ids=angebot_ids, hoechstens=hoechstens
+        )
+        verworfen = [*verworfen, *verworfen_2]
+        antwort.hinweise.append(f"Zweiter Antwort-Aufruf nach Prüfung: {len(aussagen)} Aussagen")
     antwort.verworfen = verworfen
-    antwort.angebot_zitiert = any(a.angebot for a in aussagen)
     dauer["pruefung"] = _ms(t0)
 
     # Sprachprüfung des Modelltexts (uc1.sprache): ``glaette`` behebt Striche und Floskeln, was danach noch
     # gemeldet wird (KI-Selbstbezug, Kaskade, Schablone, zu langer Satz), geht nicht raus (Review !68).
+    # Zuerst je Aussage: nur die betroffenen fallen weg; dann der Rest als Ganzes (Kaskade über Sätze).
+    gut, mit_befund = _ohne_sprachbefund(aussagen)
+    if gut and mit_befund:
+        antwort.verworfen += [
+            {
+                "abschnitt_id": a.abschnitt_id,
+                "grund": "Sprachprüfung: " + ", ".join(_sprachbefunde([a])),
+                "zitat": a.zitat[:200],
+                "text": a.text[:200],
+                "deckung": a.deckung,
+            }
+            for a in mit_befund
+        ]
+        aussagen = gut
+    antwort.angebot_zitiert = any(a.angebot for a in aussagen)
     sprachbefunde = _sprachbefunde(aussagen)
     if sprachbefunde:
         antwort.hinweise.append("Sprachprüfung: " + ", ".join(sprachbefunde))
@@ -1489,7 +1745,22 @@ def frage(
         antwort.uebergabe_an = traeger[0]["name"] if traeger else None
         antwort.naechste_schritte = schritte
     elif aussagen:
-        schritte = naechste_schritte(erkannt, traeger, angebote, sprache_)
+        # Die Stelle folgt aus der Leistung, deren Normen die Antwort zitiert, nicht aus einer erkannten
+        # Nachbarleistung (#155). Zitiert keine Aussage eine Norm einer Leistung oder hat keine davon eine
+        # Stelle (Status offen), bleibt es bei der Analyse. Bewusst: Eine Leistung, die nur über ein PDF-Zitat
+        # vorkommt, bringt ihre Stelle dann nicht mit; die Antwort nennt die Stelle der zitierten Norm.
+        getragen, stellen = stellen_der_antwort(aussagen, angaben.get("status"), erkannt)
+        if getragen and stellen:
+            antwort.leistungen = list(dict.fromkeys([*erkannt, *getragen]))
+            antwort.antraege = [
+                str(a) for lid in antwort.leistungen if (a := leistungen()[lid].get("antrag"))
+            ]
+            erkannt_antwort = list(getragen)
+            traeger = stellen
+            antwort.traeger = traeger
+        else:
+            erkannt_antwort = list(erkannt)
+        schritte = naechste_schritte(erkannt_antwort, traeger, angebote, sprache_)
         # Offene Pflichtfelder nach 3 Rückfragen: Antwort mit Vorbehalt.
         if modus == "sprache":
             fertig = setze_sprechtext(aussagen, sprache=sprache_)
@@ -1498,7 +1769,8 @@ def frage(
         antwort.verhalten = "antwort"
         antwort.naechste_schritte = schritte
     else:
-        fertig = _abstinenz_text(traeger, sprache_, modell_aus)
+        fachfremd = not erkannt and not grenze.sv_bezug(verlauf_text)
+        fertig = _abstinenz_text(traeger, sprache_, modell_aus, fachfremd=fachfremd)
         antwort.verhalten = "abstinenz"
 
     # Sprache glätten (daten/sprache.yaml), vor der Nachprüfung, damit die den Text prüft, der rausgeht.
@@ -1547,7 +1819,7 @@ def _grenzantwort(
     # Jeder Grenztext verweist an Rettung, Gesundheitsberatung bzw. Ärztin oder Arzt (daten/grenzen.yaml) und
     # zählt deshalb als Übergabe, so wie der Klassifizierer ihn liest (Review !25, #31).
     antwort.verhalten = "uebergabe"
-    antwort.uebergabe_an = UEBERGABE_NOTFALL if befund.notfall else UEBERGABE_GRENZE
+    antwort.uebergabe_an = befund.uebergabe_an()
     antwort.grenze = True
     antwort.grenze_art = befund.art
     antwort.aussagen, antwort.belege, antwort.naechste_schritte = [], [], []

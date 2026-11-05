@@ -18,10 +18,10 @@ Code gibt ein Mensch mit Vor- und Nachnamen frei.
 
 | Raum | Was er tut | Stand | Details |
 |---|---|---|---|
-| **UC3 StatAgent** (bewertet) | Statistikprozess für die synthetische Beschäftigtenstatistik: 24 Monatslieferungen einlesen, nach Regeln bereinigen, zählen, prüfen, Qualitätsbericht und Aggregations-Sheet. Eigene Agenten setzen Änderungsaufträge um, ein Mensch gibt frei. | gebaut und gemergt | `uc3/README.md`, Ergebnisse in `abgabe/` |
-| UC1 SV KI-Lotse | Chatbot zu Gesundheit und Sozialversicherung mit Quelle an jeder Antwort | Gerüst: Datenbank, Einbettung und Prüfset (`uc1/`). Der Chat ist nicht gebaut. | `docs/plan/uc1/` |
-| UC2 HealthPolicy Simulator | Mehrere Akteure sollen politische, organisatorische und finanzielle Entscheidungen verhandeln | Belege aus dem Pressespiegel, Akteure und Wirkungsmodell sind da. Die Verhandlung fehlt. | `uc2/README.md` |
-| UC4 Gemeinsamer Einstieg | Eine Frage läuft nacheinander durch UC3, UC2 und UC1 (nicht bewertet) | Seite `/uc4`, Schnittstelle `POST /api/uc4/frage` und Router sind gemergt. Angeschlossen ist nur UC3. | `/uc4` in der App |
+| **UC3 StatAgent** (bewertet) | Statistikprozess für die synthetische Beschäftigtenstatistik: 24 Monatslieferungen einlesen, nach Regeln bereinigen, zählen, prüfen, Qualitätsbericht und Aggregations-Sheet. Eigene Agenten setzen Änderungsaufträge um, ein Mensch gibt frei. | Gebaut. Die Seiten unter `/uc3` zeigen Läufe, Berichte, Klassifikationen, Freigaben und Datenanfragen, jede Zahl mit Beleg. | `uc3/README.md`, Ergebnisse in `abgabe/` |
+| UC1 SV KI-Lotse | Hilft bei Fragen zu Gesundheit und Sozialversicherung, mit Quelle an jeder Antwort | Gebaut. Auf `/uc1` erzählt man seine Lage, der Lotse fragt bei Bedarf nach und antwortet mit einem Zitat als Beleg an jeder Aussage. Er nennt Antrag, zuständige Stelle und Termin. `/uc1?beispiel=pflege` spielt einen aufgezeichneten Fall ohne Netz ab. Der Lotse ist auch an `/uc4` angeschlossen. | `uc1/`, `docs/plan/uc1/` |
+| UC2 HealthPolicy Simulator | Mehrere Akteure verhandeln politische, organisatorische und finanzielle Entscheidungen | Gebaut. Auf `/uc2` verhandeln Interessenvertretungen in Runden mit Moderator, mit Beleg aus dem Pressespiegel, wo es einen gibt; sonst ist die Haltung als Modellannahme markiert. Ein Mensch gibt das Ergebnis mit Namen frei, vorher heißt es „Entwurf“. Online zeigt `/uc2` eine aufgezeichnete Verhandlung; erfundene Beispielbelege sind dort als solche gekennzeichnet. | `uc2/README.md` |
+| UC4 Gemeinsamer Einstieg | Eine Frage läuft nacheinander durch UC3, UC2 und UC1 (nicht bewertet) | Seite `/uc4`, lokal mit Modellwahl (Azure, Mistral, Claude oder Testbetrieb), online mit Azure oder Testbetrieb. UC3 liefert die Zahl, UC2 die Abwägung, UC1 die Erklärung; jede Antwort erscheint, sobald sie da ist. | `/uc4` in der App |
 
 Gemeinsamer Kern in `shared/`:
 
@@ -33,7 +33,8 @@ Gemeinsamer Kern in `shared/`:
 - **Voice** `plattform.voice` und der Sprechknopf `VoiceKnopf` in `@kic/ui`: Sprachzugang über Vapi, siehe
   „Datenfluss Voice“. Ein Anruf braucht ein eingerichtetes Vapi-Konto.
 - **Oberfläche** `@kic/ui`: Design-Tokens, ruhige Bausteine, Herkunft-Chip an jeder Zahl („SQL ansehen“),
-  Freigabe-Karte, Protokoll-Schublade, Header mit Modell-Anzeige.
+  Freigabe-Karte, Protokoll-Schublade, Header mit Modell-Anzeige. Diese Teile sehen in allen drei Bereichen gleich
+  aus: Beleg an der Zahl, Freigabe mit Namen, sichtbares Modell.
 
 ### Wie UC3 rechnet
 
@@ -79,10 +80,14 @@ Daten an Vapi gehen. Ohne öffentliche Adresse (`PUBLIC_URL` leer) erreicht Vapi
 
 ### Qualitätssicherung
 
-Jeder Merge Request durchläuft die CI: Secret-Scan, ruff, mypy, pytest, TypeScript-Prüfung, Vitest, ein
-Produktions-Build der App und ein **Anti-Schablonen-Gate**. Das Gate misst jede Seite auf Desktop und Mobil
-gegen zwölf Muster generischer, maschinell zusammengesetzter Oberflächen und verlangt 0 Treffer
-(`docs/design.md`).
+Jeder Merge Request durchläuft die CI: Secret-Scan, ruff, mypy, pytest, TypeScript-Prüfung, ESLint, Vitest, ein
+Produktions-Build der App und Browser-Tests mit Playwright auf Desktop und Mobil. Dazu gehören:
+
+- ein **Anti-Schablonen-Gate**: Es misst jede Seite gegen zwölf Muster generischer, maschinell zusammengesetzter
+  Oberflächen und verlangt 0 Treffer (`docs/design.md`).
+- eine **Prüfung der Barrierefreiheit** mit axe (WCAG 2.1 AA): Schwere Verstöße lassen die Pipeline scheitern.
+- eine **gefüllte UC3-Testdatenbank** aus erfundenen Mini-Lieferungen, damit die Seiten unter `/uc3` mit Daten
+  geprüft werden und nicht nur im leeren Zustand.
 
 ## Ausführung
 
@@ -94,12 +99,14 @@ uv sync --all-packages && pnpm install  # Python- und TypeScript-Workspace
 pnpm dev                                # App auf http://localhost:3000
 ```
 
-Die Seiten `/`, `/uc4` und `/praesentation` laufen damit lokal. Mit `LLM_PROVIDER=mock` antworten Modelle mit
-festen Platzhaltern. Zahlen aus der Datenbank bleiben gleich.
+Die Seiten `/`, `/uc1`, `/uc2`, `/uc4` und `/praesentation` laufen damit lokal. Mit `LLM_PROVIDER=mock` antworten Modelle
+mit festen Platzhaltern. Zahlen aus der Datenbank bleiben gleich. Die Seiten unter `/uc3` und die Zahl auf `/uc4`
+brauchen die UC3-Datenbank mit gerechneten Läufen (nächster Abschnitt).
 
 ### Beispiellauf UC3 (Jury-Weg)
 
-Voraussetzung ist die Datenbank des Veranstalters auf Port 5433 (siehe nächster Abschnitt). Dann:
+Voraussetzung ist die Datenbank des Veranstalters auf Port 5433. Im Ordner des Startpakets:
+`DB_PORT=5433 docker compose up -d`, dann warten, bis `docker logs statagent-db` „fertig“ meldet. Danach im Repo:
 
 ```bash
 uv run uc3 db init                          # Schemas, Klassifikationen, Regelsatz v1 (wiederholbar, löscht nichts)
@@ -111,20 +118,27 @@ uv run uc3 berichte --alle && uv run uc3 sheet   # 24 Qualitätsberichte und Agg
 Das Ergebnis des Eichens ist die Zeile „Zellen 2880, abweichend 0“ (`uc3/README.md`). Alle Befehle und die Regeln
 dazu stehen in `uc3/README.md`. Der Lauf braucht kein Netz und kein Sprachmodell.
 
-**Nachweis des Jury-Wegs:** Die Abnahme in einer frischen Umgebung ist in Issue #66 und im Merge Request !56
-(`docs/abnahme/66.md`) festgehalten. Dort stehen Befehle, Zahlen und Ausgaben. Sie sind hier nicht wiederholt.
+**Nachweis des Jury-Wegs:** Die Abnahme in einer frischen Umgebung steht in `docs/abnahme/66.md`, mit Befehlen,
+Zahlen und Ausgaben. Gemessen wurden alle 24 Läufe nacheinander auf einer frisch geladenen Datenbank: 24 von 24
+fertig in rund 7 Minuten, das Ergebnis gleich dem früheren Lauf. Auf einer frischen Datenbank entstehen dieselben
+Zahlen und Ergebnis-Hashes wie bei uns; der Status bleibt dort „vorläufig“, weil Freigaben und Veröffentlichung mit
+Namen in unserer Team-Datenbank stehen. Den Nachweis dafür enthält `abgabe/protokoll.md`.
 
 ### Tests
 
 - `uv run pytest -q` für den gemeinsamen Kern, je Use Case `cd ucN && uv run pytest -q`
 - `pnpm typecheck && pnpm test` für den TypeScript-Teil
-- UC3 gegen die echten Daten: `uv run pytest -q -m daten uc3/tests` (Golden Set mit 2.880 Zellen)
+- UC3 gegen die echten Daten (Datenbank mit gerechneten Läufen, Golden Set mit 2.880 Zellen):
+  `UC3_DATEN_URL=postgresql://statistik:statistik@localhost:5433/statistik uv run pytest -q -m daten uc3/tests`.
 
 ### Online-Demo
 
-Eine öffentliche, nur lesende Demo läuft unter https://ki-challenge.gotzendorfer.at (Adresse und Aufbau:
-`deploy/README.md`). Dort sind keine Modellschlüssel eingetragen, die Seite nutzt `LLM_PROVIDER=mock`. Schreibende
-Anfragen (POST) blockt der Server mit 403.
+Eine öffentliche Demo läuft unter https://ki-challenge.gotzendorfer.at (Adresse und Aufbau: `deploy/README.md`).
+Man kann dort Fragen stellen: auf `/uc3/fragen` an die Daten (ohne Sprachmodell) und auf `/uc4`, wo UC3, UC2 und UC1
+nacheinander antworten, mit dem Modell Azure `gpt-5.4-mini`. Die Zahl kommt immer aus der Datenbank, mit Beleg.
+Alles andere ist dort nur zum Ansehen: Freigaben, Läufe und neue Verhandlungen nimmt der Server nicht an (403).
+Standardmäßig gehen je Internetanschluss höchstens 10 Fragen in der Minute, und für den ganzen Tag gibt es ein
+festes Kontingent an Modellaufrufen.
 
 ## Abhängigkeiten und Voraussetzungen
 
@@ -158,7 +172,7 @@ Schlüsselnamen und Erklärungen: `.env.example`. **Werte stehen nie im Repo.** 
 | Claude | `CLAUDE_MODEL` (läuft über die Claude-Code-CLI im Abo, kein API-Schlüssel) |
 | Datenbanken | `UC1_DATABASE_URL`, `UC2_DATABASE_URL`, `UC3_DATABASE_URL` |
 | UC3 | `STATAGENT_STARTPAKET`, `STATAGENT_ABGABE` (siehe `uc3/README.md`) |
-| UC4 und Online | `UC4_ADAPTER`, `KIC_ONLINE_LESEND`, `KIC_ONLINE` (setzt nur das Prod-Compose) |
+| UC4 und Online | `UC4_ADAPTER`, `UC4_KETTE` (welche Bereiche auf `/uc4` antworten), `UC4_MODELLWAHL`, `KIC_ONLINE_LESEND`, `KIC_ONLINE_FRAGEN` (Fragen online erlaubt), `KIC_ONLINE` (setzt nur das Prod-Compose) |
 | Grenzen für Modellaufrufe | `LLM_TAGESBUDGET_AUFRUFE` (Aufrufe je Tag, online Pflicht), `RATENLIMIT_PRO_MINUTE` (Fragen je IP und Minute), `PLATTFORM_PROTOKOLL` (Ort des Modellprotokolls, dort wird gezählt) |
 | Voice | `VAPI_API_KEY`, `VAPI_PUBLIC_KEY`, `VAPI_WEBHOOK_SECRET`, `VAPI_CUSTOM_LLM_KEY`, `VAPI_ASSISTANT_ID`, `PUBLIC_URL`; optional `VOICE_RATENLIMIT_PRO_MINUTE`, `VOICE_ANTWORT_TIMEOUT_S`, `PLATTFORM_VOICE_PROTOKOLL` |
 
@@ -169,15 +183,16 @@ Die Angaben stimmen mit `docs/models.md` überein. Das ist dort die Hauptquelle,
 - **Azure OpenAI `gpt-5.4-mini`** (Deployment `gpt-5-4-mini`, Modell des Veranstalters, Endpunkt in der EU) ist
   **Pflicht und Standard für alle UC3-Agenten**.
 - **Mistral (EU)** ist der Zweitanbieter, zum Beispiel für den Wechsel vor der Jury. Das Projektbudget beträgt
-  10 € (Issue #54). Der Testlauf in `docs/models.md` war ok.
+  10 €. Der Testlauf in `docs/models.md` war ok.
 - **Ollama** läuft lokal ohne Netz und ist ein Notnagel für den Offline-Betrieb.
 - **Claude Opus 5.5** läuft über die CLI und ist nur ein Qualitätsmodus für UC1 und UC2 und für Vergleiche.
   **Nie in der UC3-Zählung.**
 - **Embeddings:** `google/embeddinggemma-2`, lokal. Die Gewichte sind nicht im Repo (siehe Lizenzen).
 - **Ohne Schlüssel** läuft alles mit `LLM_PROVIDER=mock`. Der UC3-Monatslauf braucht ohnehin kein Modell.
-- **Online-Demo:** Dort gibt es heute keine Modellschlüssel, sie nutzt `mock`. Kommen Schlüssel dazu, gelten zwei
-  Grenzen (Issue #100): ein Ratenlimit je IP und ein Tagesbudget für Modellaufrufe. Ohne Tagesbudget ruft die App
-  online kein echtes Modell, sie lehnt den Aufruf vorher ab.
+- **Online-Demo:** Dort läuft Azure `gpt-5.4-mini` mit zwei Grenzen: ein Ratenlimit je IP und ein Tagesbudget für
+  Modellaufrufe, das auch bei gleichzeitigen Fragen nicht überschritten wird. Ohne Tagesbudget ruft die App online
+  kein echtes Modell, sie lehnt den Aufruf vorher ab. Ist das Budget aufgebraucht, sagt die Seite das und bittet,
+  am nächsten Tag wieder zu fragen.
 
 ## Grenzen und offene Punkte
 
@@ -185,17 +200,20 @@ Die Angaben stimmen mit `docs/models.md` überein. Das ist dort die Hauptquelle,
   Repo. Einzige Ausnahme: Die Rückfragen in `abgabe/rueckfragen/` nennen als Beispiel einige synthetische
   Kennungen (`VVH_ID`), damit die Fachabteilung den Fall findet. Personenbezogene Daten gibt es keine. An ein Modell
   gehen nie Einzeldaten, nur Schema, Aggregate und Prüfergebnisse.
-- **UC1:** Der Chat-Lotse ist nicht gebaut. Es gibt Datenbank, Einbettung und ein Prüfset.
-- **UC2:** Die Verhandlung der Akteure fehlt. Belege, Akteure und Wirkungsmodell stehen.
-- **UC4:** Angeschlossen ist nur UC3. Für UC1 und UC2 fehlt der Anschluss, die Antwort nennt sie dann als
-  „fehlend“. Online ist die Frage gesperrt (403).
+- **UC1:** Der Lotse ersetzt keine Beratung. Er gibt keine Diagnose und keine Therapie- oder Medikamentenempfehlung;
+  bei solchen Fragen verweist er an Ärztin, Arzt oder die Gesundheitsberatung 1450, im Notfall an 144. Eine
+  Aussage ohne passendes Zitat aus der Quelle lässt er weg.
+- **UC2:** Die Akteure spielt ein Sprachmodell. Das ist eine Simulation, keine echte Verhandlung. Die Antwort auf
+  `/uc4` sagt das in einem eigenen Satz.
+- **UC4:** Die drei Antworten kommen nacheinander. Mit Azure dauerte die ganze Frage am 05.11. gemessen 5 bis 7
+  Sekunden; die Seite wartet höchstens drei Minuten und zeigt jede Antwort, sobald sie da ist. Fällt ein Bereich
+  aus, nennt die Seite ihn als „fehlt“ und zeigt die anderen. Online kann UC2 statt echter Presse-Belege
+  gekennzeichnete Beispielbelege zeigen, solange dort die Namensliste zur Maskierung von Personennamen fehlt.
 - **Voice:** Server und Sprechknopf sind gebaut. Ein Anruf geht erst nach der Einrichtung (Tunnel, Vapi-Konto mit
   Zahlungsmittel, Schlüssel). Die Tunnel-Adresse wechselt bei jedem Start, danach muss der Assistent neu
   eingetragen werden (`docs/voice.md`). Vapi ist ein US-Dienst. Der Text-Weg ersetzt Voice vollständig.
 - **UC3 Rückfragen:** Offene Fragen an die Fachabteilung stehen in `abgabe/rueckfragen/`. Für Berichtsmonate vor
   Juli hängt das Alter bei Geburtsmonat 13 von der Antwort auf Rückfrage R1 ab.
-- **Jury-Weg:** Der Befund 66-6 im Abnahmeprotokoll betrifft `lauf --alle` auf einer frischen Datenbank. Wer sicher
-  gehen will, beginnt mit dem Einzellauf `uv run uc3 lauf --lieferung 2024-08`.
 
 ## Vorab Entstandenes
 

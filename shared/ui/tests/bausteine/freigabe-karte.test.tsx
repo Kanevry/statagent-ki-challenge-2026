@@ -51,12 +51,11 @@ it("hält die Reihenfolge Titel, Zitat, Diff, Waage, Beleg, Freigabe und benennt
 });
 
 // Fängt ab: ein Modell, das nur in den Details steht, statt wie im Frame FgY98 als Pille im Kopf.
-it("zeigt das Modell als Pille im Kopf, mit Punkt und dem Wort austauschbar", () => {
+it("zeigt das Modell als ruhige Zeile im Kopf, mit dem Wort austauschbar", () => {
   karte({ eintrag: { ...eintrag, modell: "azure · gpt-5-4-mini" } });
   const pille = document.querySelector('[data-baustein="modell"]');
   expect(pille?.textContent).toBe("Modell:azure · gpt-5-4-mini· austauschbar");
-  expect(pille?.className).toContain("bg-violett-bg");
-  expect(pille?.querySelector('[aria-hidden="true"]')).not.toBeNull();
+  expect(pille?.className).toContain("text-slate");
 });
 
 // Fängt ab: ein Diff, der erst nach dem Aufklappen sichtbar wird (Frame FgY98 zeigt ihn offen), und Farbe als

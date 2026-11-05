@@ -48,7 +48,7 @@ from uc2.verhandlung.pruefungen import experten_ergebniswerte
 from . import allgemein
 from .kurzlauf import FRIST_S, KURZ_MAX_AKTEURE, KURZ_RUNDEN, Kurzergebnis, KurzlaufFehler, kurzverhandlung
 from .textzahlen import ERSATZ as ERSATZ  # Wiederexport: Tests und Aufrufer lesen ihn hier
-from .textzahlen import bereinige, freie_zahlen, profilzahlen
+from .textzahlen import bereinige, freie_zahlen, profilzahlen, sichtbare_einheit
 
 QUELLE_EXPERTE = "uc2.experte"
 QUELLE_PRESSE = "presse"
@@ -216,7 +216,8 @@ def _zahl_text(zahl: Zahl) -> str:
     ganz = isinstance(wert, int) or float(wert).is_integer()
     stellen = 0 if ganz else (1 if round(float(wert), 1) == wert else 2)
     text = zahl_de(float(wert), stellen)
-    return f"{text} {zahl.einheit}" if zahl.einheit else text
+    einheit = sichtbare_einheit(zahl.einheit)
+    return f"{text} {einheit}" if einheit else text
 
 
 def _monat_text(monat: str) -> str:

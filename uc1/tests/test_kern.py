@@ -209,9 +209,9 @@ def test_ein_wort_zitat_wird_verworfen() -> None:
 def test_zitat_mit_zeilenumbruch_wird_akzeptiert() -> None:
     """Fängt eine Prüfung, die Leerraum (Zeilenumbruch aus PDF oder Modell) nicht normalisiert."""
     zitat = "Das Pflegegeld gebührt\nbei Zutreffen der übrigen\n  Anspruchsvoraussetzungen"
-    gueltig, _ = kern.pruefe_aussagen(
-        [{"text": "Pflegegeld.", "abschnitt_id": 101, "zitat": zitat}], [treffer()]
-    )
+    # Die Aussage trägt die Bedingung, die im verlängerten Zitat steht („wenn …“).
+    aussage = "Pflegegeld gebührt, wenn die Anspruchsvoraussetzungen zutreffen."
+    gueltig, _ = kern.pruefe_aussagen([{"text": aussage, "abschnitt_id": 101, "zitat": zitat}], [treffer()])
     assert len(gueltig) == 1 and gueltig[0].stand == "2015-01-01"
 
 
@@ -394,7 +394,8 @@ def test_nachpruefung_ersetzt_diagnose_im_modelltext(monkeypatch: pytest.MonkeyP
     # Deckung aus: sonst verwirft schon die Deckungsprüfung „Grippe“, und die Nachprüfung bliebe ungetestet.
     regeln = kern.deckung_regeln() | {"schwelle": 0.0}
     monkeypatch.setattr(kern, "deckung_regeln", lambda: regeln)
-    diagnose = GUELTIG | {"text": "Sie haben eine Grippe und brauchen Pflegegeld."}
+    # Mit Bedingung („wenn“ steht im Zitat), sonst verwirft schon die Bedingungsprüfung die Aussage.
+    diagnose = GUELTIG | {"text": "Sie haben eine Grippe und brauchen Pflegegeld, wenn Hilfe nötig ist."}
     modell = Skript([analyse(person="angehoerige", status="pva", bundesland="wien")], [antwort_mit(diagnose)])
     a = kern.frage(
         PFLEGE, modell=modell, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher()
@@ -944,3 +945,469 @@ def test_englischer_betrag_muss_wertgleich_im_zitat_stehen(text: str, belegt: bo
     """Fängt „EUR 200“, das gegen „200,80 Euro“ bestand, weil nur Ziffernfolgen verglichen wurden
     (Review !68)."""
     assert kern.ziffern_belegt(text, BPGG_5) is belegt
+
+
+# ---------------------------------------------------------------- Unfallversicherung (Endmessung g21)
+
+G21 = "Ich bin auf dem Heimweg von der Arbeit gestürzt. Ist das ein Arbeitsunfall und wer zahlt?"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        G21,
+        "Ich bin am Weg zur Arbeit mit dem Rad gestürzt.",
+        "Ich habe mich bei der Arbeit an der Hand verletzt.",
+        "Is a fall on my way home from work an accident at work?",
+    ],
+)
+def test_arbeits_und_wegunfall_erkennt_unfallversicherung(text: str) -> None:
+    """Fängt Endmessung g21: der Heimweg-Sturz fand keine Leistung, der Lotse nannte PVA/ÖGK statt AUVA."""
+    leistungen, _ = kern.regel_analyse(text)
+    assert leistungen == ["unfallversicherung"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Ich möchte weniger arbeiten, um meinen Vater zu pflegen.",
+        "Ich pflege meinen Mann und habe aufgehört zu arbeiten.",
+        "Ich will mich von der Arbeit freistellen lassen.",
+    ],
+)
+def test_arbeit_allein_ist_kein_arbeitsunfall(text: str) -> None:
+    """Fängt einen Auslöser, der schon bei „Arbeit“ allein die Unfallversicherung erkennt."""
+    leistungen, _ = kern.regel_analyse(text)
+    assert "unfallversicherung" not in leistungen
+
+
+@pytest.mark.parametrize(
+    ("status", "stelle", "fundstelle"),
+    [
+        (None, "AUVA", "ASVG § 28 Z 1"),
+        ("angestellt", "AUVA", "ASVG § 28 Z 1"),
+        ("svs", "SVS", "ASVG § 28 Z 2 lit. a und b"),
+        ("bvaeb", "BVAEB", "B-KUVG § 9 Abs. 1"),
+    ],
+)
+def test_unfallversicherung_zustaendig_auva_selbstaendige_svs(
+    status: str | None, stelle: str, fundstelle: str
+) -> None:
+    """Fängt g21 (AUVA fehlte als Stelle), Selbständige, die nach ASVG § 28 Z 2 lit. a und b zur SVS gehören
+    (das Zitat nannte nur lit. a), und Beamte, die die AUVA statt der BVAEB bekamen (#151)."""
+    eintrag = kern.zustaendige_stelle("unfallversicherung", status)
+    assert eintrag is not None and eintrag["stelle"] == stelle and eintrag["fundstelle"] == fundstelle
+    assert eintrag["zitat"]
+    if status == "svs":
+        assert (
+            "b) die nach § 8 Abs. 1 Z 3 lit. a pflichtversicherten selbständig Erwerbstätigen"
+            in eintrag["zitat"]
+        )
+    if stelle == "AUVA":
+        assert eintrag["name"] == "Allgemeine Unfallversicherungsanstalt (AUVA)"
+
+
+@pytest.mark.daten
+def test_unfallversicherung_zitate_stehen_in_asvg_28(conn: psycopg.Connection) -> None:
+    """Fängt ein Zuständigkeits-Zitat zur Unfallversicherung, das nicht wörtlich in seiner Fundstelle steht
+    (ASVG § 28, für die BVAEB B-KUVG § 9)."""
+    leistung = kern.leistungen()["unfallversicherung"]
+    for eintrag in [leistung["stelle_fest"], *leistung["stelle_je_status"].values()]:
+        gesetz, nummer = str(eintrag["fundstelle"]).split(" § ")[0], str(eintrag["fundstelle"]).split()[2]
+        zeilen = conn.execute(
+            "SELECT a.text FROM lotse.abschnitt a JOIN lotse.dokument d ON d.id = a.dokument_id "
+            "WHERE d.gesetz = %s AND d.nummer = %s ORDER BY d.inkrafttreten DESC LIMIT 1",
+            (gesetz, nummer),
+        ).fetchall()
+        assert zeilen, f"{gesetz} § {nummer} fehlt im Korpus"
+        assert kern.zitat_gueltig(eintrag["zitat"], zeilen[0][0]), eintrag["zitat"]
+
+
+# ---------------------------------------------------------------- Bedingung aus dem Zitat (Review !69)
+
+BPGG_25 = (
+    "Überdies kann ein Antrag auf Zuerkennung oder Erhöhung des Pflegegeldes auch durch Familienmitglieder "
+    "oder Haushaltsangehörige ohne Nachweis der Bevollmächtigung gestellt werden, wenn kein Zweifel über "
+    "Bestand und Umfang der Vertretungsbefugnis besteht."
+)
+# Das Zitat endet vor der Bedingung; der Kern verlängert es bis zum Satzende, dort steht „wenn …“.
+ZITAT_25 = (
+    "Überdies kann ein Antrag auf Zuerkennung oder Erhöhung des Pflegegeldes auch durch Familienmitglieder "
+    "oder Haushaltsangehörige ohne Nachweis der Bevollmächtigung gestellt werden"
+)
+
+
+def test_aussage_ohne_bedingung_des_zitats_wird_verworfen() -> None:
+    """Fängt „Familienmitglieder können Pflegegeld ohne Bevollmächtigung beantragen“, obwohl das Zitat nur
+    gilt, „wenn kein Zweifel über Bestand und Umfang der Vertretungsbefugnis besteht“ (Review !69)."""
+    roh = [
+        {
+            "text": "Familienmitglieder können Pflegegeld ohne Bevollmächtigung beantragen.",
+            "abschnitt_id": 125,
+            "zitat": ZITAT_25,
+        }
+    ]
+    gueltig, verworfen = kern.pruefe_aussagen(roh, [treffer(125, BPGG_25, nummer="25")])
+    assert gueltig == [] and verworfen[0]["grund"] == "Aussage lässt die Bedingung aus dem Zitat weg"
+
+
+def test_aussage_mit_bedingung_des_zitats_bleibt() -> None:
+    """Fängt eine Bedingungsprüfung, die auch eine Aussage verwirft, die die Bedingung nennt."""
+    roh = [
+        {
+            "text": "Familienmitglieder können Pflegegeld ohne Bevollmächtigung beantragen, wenn kein "
+            "Zweifel an der Vertretungsbefugnis besteht.",
+            "abschnitt_id": 125,
+            "zitat": ZITAT_25,
+        }
+    ]
+    gueltig, verworfen = kern.pruefe_aussagen(roh, [treffer(125, BPGG_25, nummer="25")])
+    assert len(gueltig) == 1 and verworfen == []
+    assert gueltig[0].zitat.endswith("Vertretungsbefugnis besteht.")
+
+
+# ---------------------------------------------------------------- Nächste Schritte
+
+
+def test_antragsangebot_bei_zwei_antraegen_nur_einmal() -> None:
+    """Fängt „Ich kann den Antrag für Sie vorausfüllen“ zweimal, wenn Pflegegeld und Reha erkannt sind."""
+    traeger = [kern.zustaendige_stelle(lid, "pva") for lid in ("pflegegeld", "rehabilitation")]
+    schritte = kern.naechste_schritte(["pflegegeld", "rehabilitation"], [t for t in traeger if t], [], "de")
+    antrag = kern.texte("de")["schritt_antrag"]
+    assert schritte.count(antrag) == 1
+    assert len(schritte) == len(set(schritte))
+    assert schritte.index(antrag) < schritte.index("Stellen Sie den Antrag auf Kur und Rehabilitation.")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Sie heißt Maria Beispiel, ist am 12.03.1942 geboren und wohnt in Wien.",
+        "Maria Beispiel, geboren am 12.03.1942, wohnt in Wien.",
+        "Maria Beispiel, geb. 12. 3. 1942, wohnt in Wien.",
+    ],
+)
+def test_geburtsdatum_vor_oder_nach_dem_hinweis(text: str) -> None:
+    """Fängt „ist am 12.03.1942 geboren“: Seit der Maskierung liefert nur die Regel das Geburtsdatum, und sie
+    kannte nur den Hinweis vor dem Datum (Aufnahme v6: Antrag ohne Geburtsdatum)."""
+    assert kern.regel_antrag(text)["person.geburtsdatum"] == "12.03.1942"
+
+
+def test_status_antwortknoepfe_werden_erkannt() -> None:
+    """Fängt einen Antwortknopf der Rückfrage, dessen Nachricht der Kern nicht als Status erkennt: Der Knopf
+    „Selbständige (SVS)“ schickte dann eine Antwort ins Leere und die Rückfrage käme wieder."""
+    optionen = kern.felder()["status"]["optionen"]
+    erkannt = [kern.erkenne_status(o["antwort"]["de"]) for o in optionen]
+    assert erkannt == ["pva", "svs", "bvaeb", "keine_pension"]
+    assert all(kern.erkenne_status(o["antwort"]["en"]) for o in optionen)
+
+
+def test_unfallversicherung_nur_ueber_ausloeser_nicht_ueber_das_modell() -> None:
+    """Fängt einen Sturz zu Hause, den das Analyse-Modell als Arbeitsunfall deutet: Die Seite zeigte dann
+    „Unfallversicherung, zuständig AUVA“ neben dem Pflegegeld (Aufnahme v8)."""
+    daten = analyse(status="pva") | {"leistungen": ["pflegegeld", "unfallversicherung"]}
+    modell = Skript([daten], [antwort_mit(GUELTIG)])
+    a = kern.frage(
+        "Meine Mutter war nach einem Sturz im Spital und kommt allein nicht zurecht. "
+        "Sie hat Pension von der PVA.",
+        modell=modell,
+        suche_fn=FesteSuche([treffer()]),
+        speicher=kern.SpeicherImSpeicher(),
+    )
+    assert "unfallversicherung" not in a.leistungen and "pflegegeld" in a.leistungen
+    assert all(t["stelle"] != "AUVA" for t in a.traeger)
+
+
+def _ohne_leistung() -> dict[str, Any]:
+    return {
+        "lage": "",
+        "leistungen": [],
+        "angaben": {"status": None, "person": None, "bundesland": None},
+        "begriffe": [],
+    }
+
+
+def test_medizinische_frage_ohne_leistung_wird_uebergeben() -> None:
+    """Fängt eine medizinische Frage ohne Leistung, die aus Gesetzestexten beantwortet statt an Ärztin,
+    Arzt oder 1450 übergeben wird (Held-out #39, #155)."""
+    modell = Skript([_ohne_leistung()], [])
+    a = kern.frage(
+        "Mein Knie schmerzt seit Wochen beim Gehen.",
+        modell=modell,
+        suche_fn=FesteSuche([treffer()]),
+        speicher=kern.SpeicherImSpeicher(),
+    )
+    assert a.grenze and a.grenze_art == "medizinisch" and a.aussagen == []
+    assert a.verhalten == "uebergabe" == klassifiziere_verhalten(a.text)
+    assert a.uebergabe_an is not None and "Arzt" in a.uebergabe_an and "1450" in a.text
+
+
+def test_fachfremde_frage_sagt_keine_sozialversicherungsfrage() -> None:
+    """Fängt eine Abstinenz ohne den Hinweis, dass es keine Sozialversicherungsfrage ist (Held-out #39)."""
+    modell = Skript([_ohne_leistung()], [antwort_mit(verhalten="abstinenz")])
+    a = kern.frage(
+        "Wie backe ich einen Apfelstrudel?",
+        modell=modell,
+        suche_fn=FesteSuche([treffer()]),
+        speicher=kern.SpeicherImSpeicher(),
+    )
+    assert a.verhalten == "abstinenz" and not a.grenze
+    assert "keine Frage zur Sozialversicherung" in a.text and "Sozialversicherung oder" not in a.text
+
+
+def test_leistungsfrage_ohne_erkannte_leistung_bleibt_normale_abstinenz() -> None:
+    """Fängt eine Frage mit Sozialversicherungsbezug, die als fachfremd oder medizinisch abgewiesen wird."""
+    modell = Skript([_ohne_leistung()], [antwort_mit(verhalten="abstinenz")])
+    a = kern.frage(
+        "Zahlt die Kasse Physiotherapie bei Rückenschmerzen?",
+        modell=modell,
+        suche_fn=FesteSuche([treffer()]),
+        speicher=kern.SpeicherImSpeicher(),
+    )
+    assert not a.grenze and a.verhalten == "abstinenz"
+    assert "keine Frage zur Sozialversicherung" not in a.text and "wenden Sie sich an" in a.text
+
+
+# ---------------------------------------------------------------- Träger aus der Antwort (#155)
+
+
+def test_status_aus_aussage_vor_status_in_der_frage() -> None:
+    """Fängt den ersten Tabelleneintrag, der gewinnt, auch wenn er nur in einer Frage steht: „Ruhegenuss von
+    der BVAEB … ist dafür die PVA zuständig?“ ergab PVA statt BVAEB (Dev-Set x02)."""
+    text = "Mein Vater bekommt seinen Ruhegenuss von der BVAEB. Ist für sein Pflegegeld die PVA zuständig?"
+    assert kern.erkenne_status(text) == "bvaeb"
+    assert kern.erkenne_status("Ist die PVA zuständig?") == "pva"
+
+
+PFLEGEKARENZ = treffer(
+    301,
+    "§ 21c. (1) Personen, die eine Pflegekarenz vereinbart haben, gebührt für die Dauer der Pflegekarenz "
+    "ein Pflegekarenzgeld.",
+    gesetz="BPGG",
+    nummer="21c",
+)
+KARENZ_AUSSAGE = {
+    "text": "Für die Dauer einer vereinbarten Pflegekarenz bekommen Sie Pflegekarenzgeld.",
+    "abschnitt_id": 301,
+    "zitat": "Personen, die eine Pflegekarenz vereinbart haben, gebührt für die Dauer der Pflegekarenz ein "
+    "Pflegekarenzgeld.",
+}
+
+
+def test_stelle_folgt_aus_der_zitierten_leistung(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt die PVA als Stelle, wenn Pflegegeld und Pflegekarenzgeld erkannt sind, die Antwort aber nur das
+    Pflegekarenzgeld (BPGG § 21c) trägt: Zuständig ist dann allein das Sozialministeriumservice."""
+    regeln = kern.deckung_regeln() | {"schwelle": 0.0}
+    monkeypatch.setattr(kern, "deckung_regeln", lambda: regeln)
+    text = "Ich will weniger arbeiten, um meine Mutter in Wien zu pflegen. Ihre Pension kommt von der PVA."
+    modell = Skript(
+        [analyse(person="angehoerige", status="pva", bundesland="wien")], [antwort_mit(KARENZ_AUSSAGE)]
+    )
+    a = kern.frage(
+        text, modell=modell, suche_fn=FesteSuche([PFLEGEKARENZ]), speicher=kern.SpeicherImSpeicher()
+    )
+    assert a.verhalten == "antwort", a.text
+    assert {"pflegegeld", "pflegekarenzgeld"} <= set(a.leistungen)
+    assert [s["stelle"] for s in a.traeger] == ["SMS"]
+    assert "Pensionsversicherungsanstalt" not in a.text
+
+
+def test_stelle_der_zitierten_leistung_auch_ohne_erkannte_leistung(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt eine Antwort aus dem Krankengeld (ASVG § 141) ohne Stelle, weil kein Auslöser die Leistung
+    erkannt hatte: Die ÖGK steht dann mit Fundstelle da (#155, Nennt die Antwort keine Stelle …)."""
+    regeln = kern.deckung_regeln() | {"schwelle": 0.0}
+    monkeypatch.setattr(kern, "deckung_regeln", lambda: regeln)
+    asvg_141 = treffer(
+        402,
+        "§ 141. (1) Das Krankengeld gebührt in der Höhe von 50 vom Hundert der Bemessungsgrundlage für den "
+        "Kalendertag.",
+        gesetz="ASVG",
+        nummer="141",
+    )
+    aussage = {
+        "text": "Das Krankengeld beträgt die Hälfte der Bemessungsgrundlage für jeden Kalendertag.",
+        "abschnitt_id": 402,
+        "zitat": "Das Krankengeld gebührt in der Höhe von 50 vom Hundert der Bemessungsgrundlage für den "
+        "Kalendertag.",
+    }
+    leer = {"lage": "", "leistungen": [], "angaben": {}, "begriffe": []}
+    a = kern.frage(
+        "Wie viel Geld bekomme ich, wenn ich länger ausfalle? Ich bin angestellt.",
+        modell=Skript([leer], [antwort_mit(aussage)]),
+        suche_fn=FesteSuche([asvg_141]),
+        speicher=kern.SpeicherImSpeicher(),
+    )
+    assert a.verhalten == "antwort", a.text
+    assert [(s["stelle"], s["fundstelle"]) for s in a.traeger] == [("OEGK", "ASVG § 138")]
+    assert "krankengeld" in a.leistungen
+
+
+def test_zitierte_unfallnorm_macht_keinen_arbeitsunfall() -> None:
+    """Fängt die AUVA, die über eine zitierte Unfallnorm (ASVG § 175) ohne Auslöser kommt: `nur_regel` soll
+    genau das verhindern (Sturz im Spital, Aufnahme v8; Review !155)."""
+    assert kern.stellen_der_antwort([_aussage_aus("ASVG", "175")], "angestellt") == ([], [])
+    getragen, stellen = kern.stellen_der_antwort(
+        [_aussage_aus("ASVG", "175")], "angestellt", ["unfallversicherung"]
+    )
+    assert getragen == ["unfallversicherung"] and [s["stelle"] for s in stellen] == ["AUVA"]
+
+
+def _aussage_aus(gesetz: str, nummer: str) -> kern.Aussage:
+    return kern.Aussage(
+        text="t",
+        zitat="z",
+        abschnitt_id=1,
+        schluessel=f"{gesetz} § {nummer}",
+        stand=None,
+        betrag=False,
+        hinweis_hoehe=False,
+        treffer={"gesetz": gesetz, "nummer": nummer, "art": "PARA"},
+    )
+
+
+@pytest.mark.parametrize(
+    ("gesetz", "nummer", "status", "stelle"),
+    [
+        ("GSVG", "106", None, "SVS"),  # Krankengeld nach GSVG: Versicherte der SVS
+        ("ASVG", "141", None, "OEGK"),  # Krankengeld nach ASVG: ÖGK
+        ("ASVG", "141", "bvaeb", "BVAEB"),  # ein genannter Status geht vor
+        ("ASVG", "302", None, "PVA"),  # Rehabilitation der Pensionsversicherung
+    ],
+)
+def test_status_aus_dem_gesetz_der_zitierten_norm(
+    gesetz: str, nummer: str, status: str | None, stelle: str
+) -> None:
+    """Fängt eine Antwort ohne Stelle, weil der Status offen blieb, obwohl die zitierte Norm ihn festlegt."""
+    _, stellen = kern.stellen_der_antwort([_aussage_aus(gesetz, nummer)], status)
+    assert [s["stelle"] for s in stellen] == [stelle]
+
+
+def test_ohne_status_keine_stelle_bei_gemischten_gesetzen() -> None:
+    """Fängt „Zuständig: ÖGK“ für Krankengeld, wenn die Antwort ASVG und GSVG zitiert und der Status offen
+    ist: Für Selbständige wäre die ÖGK falsch, also keine Stelle (Review !155)."""
+    zitate = [_aussage_aus("ASVG", "141"), _aussage_aus("GSVG", "106")]
+    assert kern.stellen_der_antwort(zitate, None) == (["krankengeld"], [])
+    assert kern.stellen_der_antwort([_aussage_aus("BPGG", "4"), _aussage_aus("ANL", "1")], "pva")[0] == [
+        "pflegegeld"
+    ]
+
+
+def test_zweiter_versuch_wenn_die_pruefung_alles_verwirft() -> None:
+    """Fängt eine Abstinenz, obwohl die richtige Quelle vorlag und nur die Zitate des ersten Versuchs nicht
+    wörtlich waren (Dev-Set x08): ein zweiter Antwort-Aufruf mit den Gründen, höchstens einer."""
+    falsch = GUELTIG | {"zitat": "Pflegegeld gibt es, wenn man ständig Hilfe braucht und das lange dauert."}
+    modell = Mitschnitt(
+        [analyse(person="angehoerige", status="pva", bundesland="wien")],
+        [antwort_mit(falsch), antwort_mit(GUELTIG)],
+    )
+    a = kern.frage(
+        PFLEGE, modell=modell, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher()
+    )
+    assert a.verhalten == "antwort" and len(a.aussagen) == 1
+    assert modell.aufrufe == 3  # Analyse, Antwort, zweiter Versuch
+    assert "nicht wörtlich" in modell.nachrichten[-1][-1]["content"]
+    assert a.verworfen and a.verworfen[0]["grund"].startswith("Zitat steht nicht wörtlich")
+
+    ohne = Skript([analyse(person="angehoerige", status="pva", bundesland="wien")], [antwort_mit()])
+    b = kern.frage(PFLEGE, modell=ohne, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher())
+    assert b.verhalten == "abstinenz" and ohne.aufrufe == 2  # keine Aussage: kein zweiter Versuch
+
+
+def test_sprachbefund_kostet_nur_die_betroffene_aussage(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt eine ganze Antwort, die zur Ersatzantwort wird, weil eine von zwei Aussagen einen Sprachbefund
+    hat (Dev-Set x07, satz_lang): Die geprüfte Aussage bleibt, die andere fällt mit Grund weg."""
+    regeln = kern.deckung_regeln() | {"schwelle": 0.0}
+    monkeypatch.setattr(kern, "deckung_regeln", lambda: regeln)
+    schlecht = GUELTIG | {"text": "Als KI sage ich: Pflegegeld bekommt, wer ständig Betreuung braucht."}
+    modell = Skript(
+        [analyse(person="angehoerige", status="pva", bundesland="wien")], [antwort_mit(GUELTIG, schlecht)]
+    )
+    a = kern.frage(
+        PFLEGE, modell=modell, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher()
+    )
+    assert a.verhalten == "antwort" and [x.text for x in a.aussagen] == [GUELTIG["text"]]
+    assert "Als KI" not in a.text
+    assert any(v["grund"].startswith("Sprachprüfung") for v in a.verworfen)
+
+
+# ---------------------------------------------------------------- Schwellen aus dem Zitat (#151)
+
+STUFE_1 = (
+    "Anspruch auf Pflegegeld besteht in Höhe der Stufe 1: für Personen, deren Pflegebedarf nach Abs. 1 "
+    "durchschnittlich mehr als 65 Stunden monatlich beträgt;"
+)
+
+
+@pytest.mark.parametrize(
+    ("aussage", "sprache_", "fehlt"),
+    [
+        ("Pflegegeld gibt es ab 65 Stunden monatlich.", "de", "mehr als"),
+        ("Pflegegeld der Stufe 1 gibt es bei mehr als 65 Stunden im Monat.", "de", None),
+        ("Care allowance level 1 needs 65 hours of care a month.", "en", "mehr als"),
+        ("Care allowance level 1 needs more than 65 hours of care a month.", "en", None),
+        ("Für Stufe 1 braucht es einen großen Pflegebedarf.", "de", None),  # keine Zahl, keine Schwelle
+    ],
+)
+def test_schwelle_aus_dem_zitat_muss_in_der_aussage_stehen(
+    aussage: str, sprache_: str, fehlt: str | None
+) -> None:
+    """Fängt „ab 65 Stunden“ statt „mehr als 65 Stunden“: eine abgeschwächte Schwelle ist eine falsche
+    Rechtsaussage (Review !69, #151)."""
+    assert kern.schwelle_fehlt(aussage, STUFE_1, sprache_) == fehlt
+
+
+def test_aussage_ohne_schwelle_wird_verworfen() -> None:
+    """Fängt die Aufnahme-Aussage „bei sechs Monaten Pflegebedarf“ zu „voraussichtlich mindestens sechs
+    Monate“, die durch die Prüfung ging (#151)."""
+    zitat = (
+        "Das Pflegegeld gebührt bei Zutreffen der übrigen Anspruchsvoraussetzungen, wenn auf Grund einer "
+        "körperlichen, geistigen oder psychischen Behinderung oder einer Sinnesbehinderung der ständige "
+        "Betreuungs- und Hilfsbedarf (Pflegebedarf) voraussichtlich mindestens sechs Monate andauern wird."
+    )
+    schwach = {
+        "text": "Pflegegeld gibt es, wenn der Pflegebedarf sechs Monate dauert.",
+        "abschnitt_id": 101,
+        "zitat": zitat,
+    }
+    aussagen, verworfen = kern.pruefe_aussagen([schwach], [treffer()])
+    assert aussagen == [] and "Schwelle" in verworfen[0]["grund"]
+
+
+def test_streifende_aussagen_werden_zur_abstinenz() -> None:
+    """Fängt wörtlich richtige, aber themenfremde Aussagen als Antwort, wenn keine Leistung erkannt ist und
+    das Modell selbst meldet, dass sie die Frage nicht beantworten (Dev-Set x19, x20: Landesstelle statt
+    Arzttermin, #162). Mit erkannter Leistung bleibt die Antwort: Das Modell weiß nicht, dass der Kern die
+    Stelle anhängt, und meldete dort auch passende Antworten als unvollständig."""
+    streift = antwort_mit(GUELTIG) | {"beantwortet": False}
+    leer = {"lage": "", "leistungen": [], "angaben": {}, "begriffe": []}
+    modell = Skript([leer], [streift])
+    a = kern.frage(
+        "Welche Ärztin in meiner Nähe hat diese Woche einen Termin frei?",
+        modell=modell,
+        suche_fn=FesteSuche([treffer()]),
+        speicher=kern.SpeicherImSpeicher(),
+    )
+    assert a.verhalten == "abstinenz" and a.aussagen == [] and modell.aufrufe == 2
+    assert "Antwort-Modell: Aussagen beantworten die Frage nicht" in a.hinweise
+
+    mit_leistung = Skript([analyse(person="angehoerige", status="pva", bundesland="wien")], [streift])
+    b = kern.frage(
+        PFLEGE, modell=mit_leistung, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher()
+    )
+    assert b.verhalten == "antwort"
+
+
+@pytest.mark.parametrize(
+    ("text", "unfall"),
+    [
+        ("Ich bin in der Mittagspause zum Arzt gegangen und auf dem Gehsteig ausgerutscht.", True),
+        ("Ich habe mich während der Dienstreise am Bahnhof verletzt.", True),
+        ("Zählt das noch zur Arbeit, wenn ich am Heimweg einkaufe?", True),
+        ("Ich bin beim Joggen ausgerutscht. Bekomme ich Krankengeld?", False),
+        ("Meine Mutter ist im Altersheim gestürzt.", False),
+    ],
+)
+def test_unfall_ausloeser_fuer_dienstzeit(text: str, unfall: bool) -> None:
+    """Fängt einen Unfall in der Mittagspause oder auf Dienstreise ohne Auslöser: Die Unfallversicherung ist
+    `nur_regel`, ohne Auslöser fehlt die Stelle (Dev-Set x16, #162). Private Stürze bleiben draußen."""
+    assert ("unfallversicherung" in kern.regel_analyse(text)[0]) is unfall

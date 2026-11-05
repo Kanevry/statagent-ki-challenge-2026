@@ -4,9 +4,37 @@ Der Katalog hilft am Tisch, wenn die Fachjury nachfragt. Er enthält die drei Da
 
 Regel: Jede Antwort ist in unter 30 Sekunden lesbar. Aufbau je Frage: Frage, Kurzantwort, Antwortweg, Fundstelle im Repo, Zahlen mit Kennung F….
 
-Die Kennungen F1 bis F16 stehen im Belegregister `belegregister.md`.
+Die Kennungen F1 bis F25 stehen im Belegregister `belegregister.md`.
 
-Stand der Befehle: `uv run uc3 frage` ist noch nicht fertig (#74). Bis dahin läuft jede Datenanfrage als SQL mit `psql` gegen die UC3-Datenbank. Der Befehl `uv run uc3 antwort "…"` beantwortet einfache Fragen zu einem Monat, zum Beispiel „Beschäftigte in Wien im März 2025“, ohne Sprachmodell.
+Stand der Befehle: `uv run uc3 frage "…"` und die Seite `/uc3/fragen` sind mit MR !61 auf main (#74). Sie rechnen die Antwort ohne Sprachmodell und zeigen Abfrage und Definition. Das SQL unten ist der Rückfall mit `psql`.
+
+## Die acht geprüften Fragen
+
+Nur diese Fragen werden vorgeführt, wörtlich so getippt. Jede Zahl ist gegen eigenes SQL und das unabhängige Orakel nachgerechnet (Prüfung im Team, 05.11.2026 17:15 bis 17:19, #74). Freie Fragen der Jury werden nicht eingetippt, solange der Folge-MR von bb („nie still falsch“) nicht auf main ist. Dann bietet Bernhard eine Frage aus dieser Liste an oder nimmt das SQL aus Teil A.
+
+| Nr. | Frage | Sollzahl | Kennung |
+|---|---|---|---|
+| 1 | „Zeigen Sie mir die Zeitreihe der Beschäftigten, jeweils zum Monatsletzten.“ | 24 Werte, erster Wert August 2024 392.236, letzter Wert Juli 2026 399.027 | F14, F21 |
+| 2 | „Wie viele Männer und Frauen sind im August 2024 je Bundesland beschäftigt?“ | Männer 211.603, Frauen 180.633 | F14 |
+| 3 | „Männer und Frauen im Juli 2026“ | Männer 213.129, Frauen 185.898 | F22 |
+| 4 | „Wie hoch ist die Fluktuation je Wirtschaftsbereich im Oktober 2024?“ | 3,42 % (12.215 Zugänge, 14.557 Abgänge, Bestand 391.033) | F23 |
+| 5 | „Wie viele Beschäftigte gab es im März 2025 in Wien im Gesundheits- und Sozialwesen?“ | 7.498, vorläufig | F18 |
+| 6 | „Beschäftigte nach Branche im Juli 2026“ | 23 Werte, Summe 399.027, Bau 28.548 | F24 |
+| 7 | „Was ist ÖNACE R?“ | ÖNACE 2025: Gesundheits- und Sozialwesen; ÖNACE 2008: Kunst, Unterhaltung und Erholung | F13 |
+| 8 | „Zeitreihe Bau 2025“ | Werte 23.809 bis 24.679 | F25 |
+
+Gegenprobe mit ehrlicher Absage: „Entwicklung im Bau seit August 2024“. Das Programm sagt ab, weil die Branchen ab 2025 nach ÖNACE 2025 gezählt werden (F13).
+
+Nicht vorführen, solange der Folge-MR von bb fehlt, weil die Antwort heute still eine andere Frage beantwortet:
+
+- Branchen in Umgangssprache („Gastronomie“, „Gesundheitswesen“, „Handel“).
+- Zwei Werte eines Merkmals („Wien und Tirol“, „Arbeiter und Angestellte“).
+- Alter („unter 25“, „Durchschnittsalter“) und „freie Dienstverträge“.
+- Zeiträume („von März bis Juni 2025“).
+- Fluktuation mit Filter („in Wien“), für August 2024 oder mit „am höchsten“.
+- Fragen nach einer einzelnen Person.
+
+In der Tabelle steht „Beschäftigte“, weil die Jury so fragt. Gezählt werden Beschäftigungsverhältnisse; so sagt es Bernhard auch.
 
 ## Gemeinsame Bausteine für das SQL
 
@@ -32,7 +60,7 @@ In den Abfragen unten steht dafür `<regelstand>`. Beim Üben zuerst diese Abfra
 
 **Kurzantwort:** Das ist eine Summe über alle Zellen des jeweiligen Stichtags. Jeder Monat kommt aus seiner eigenen Lieferung. Monate mit auffälliger Lieferung stehen als vorläufig im Ergebnis, nicht als Lücke.
 
-**Antwortweg:** psql mit diesem SQL.
+**Antwortweg:** `/uc3/fragen` oder `uv run uc3 frage` mit Frage 1 der Liste oben. Rückfall: psql mit diesem SQL.
 
 ```sql
 SELECT zeitraum_bis           AS stichtag,
@@ -61,7 +89,7 @@ ORDER BY zeitraum_bis;
 
 **Kurzantwort:** Die Zahlen kommen aus derselben Tabelle, gegliedert nach `region` und `geschlecht`. Die Summe stimmt mit dem Gesamtbestand überein. Die Zeile „Bundesland unbekannt“ bleibt sichtbar.
 
-**Antwortweg:** psql mit diesem SQL. Für einen anderen Monat das Datum und `stand` tauschen.
+**Antwortweg:** `/uc3/fragen` oder `uv run uc3 frage` mit Frage 2 (August 2024) oder Frage 3 (Juli 2026). Rückfall: psql mit diesem SQL. Für einen anderen Monat das Datum und `stand` tauschen.
 
 ```sql
 SELECT r.bezeichnung AS bundesland,
@@ -82,7 +110,7 @@ ORDER BY r.code;
 
 **Fundstelle im Repo:** `uc3/db/020_stat_metadaten.sql` (Klassifikationen), `uc3/db/100_klass_daten.sql` (Codes), `uc3/statagent/uc4.py` (gleiche Abfrage ohne Sprachmodell).
 
-**Zahlen (08/2024, F14):** gesamt 392.236 · Männer 211.603 · Frauen 180.633 · Wien 90.799 · Niederösterreich 64.505. Alle übrigen Bundesländer: Ergebnis live aus der Abfrage.
+**Zahlen (08/2024, F14):** gesamt 392.236 · Männer 211.603 · Frauen 180.633 · Wien 90.799 · Niederösterreich 64.505. Alle übrigen Bundesländer: Ergebnis live aus der Abfrage. Juli 2026: Männer 213.129, Frauen 185.898 (F22).
 
 ### A3 Fluktuation je Branche zwischen zwei Stichtagen
 
@@ -90,7 +118,7 @@ ORDER BY r.code;
 
 **Kurzantwort:** Ein Zugang ist ein Verhältnis, das am zweiten Stichtag besteht und am ersten nicht. Ein Abgang ist das Gegenteil. Gerechnet wird aus den bereinigten Zeitabschnitten einer Lieferung, die beide Stichtage enthält. Beide Stichtage haben dann dieselbe ÖNACE-Version. Ein Branchenwechsel bei bleibendem Verhältnis zählt weder als Zugang noch als Abgang.
 
-**Antwortweg:** psql mit diesem SQL. Es nimmt die Lieferung 2024-10 mit den Stichtagen 30.09. und 31.10.2024.
+**Antwortweg:** `/uc3/fragen` oder `uv run uc3 frage` mit Frage 4 der Liste oben, Sollzahl 3,42 % (F23). Rückfall: psql mit diesem SQL. Es nimmt die Lieferung 2024-10 mit den Stichtagen 30.09. und 31.10.2024.
 
 ```sql
 WITH st(tag) AS (VALUES (DATE '2024-09-30'), (DATE '2024-10-31')),
@@ -168,15 +196,15 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Freigabe:** `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`
 
-### B2 Ersatztag bei Geburtsmonat 13 ändern
+### B2 Geburtsmonat 13: nur mit der Differenz der Jahre rechnen
 
-**Satz der Jury:** „Rechnen Sie bei Geburtsmonat 13 mit dem 1. Jänner statt mit dem 1. Juli.“
+**Satz der Jury:** „Rechnen Sie bei Geburtsmonat 13 nur mit der Differenz der Jahre, nicht mit dem 1. Juli.“
 
-**Befehl:** `uv run uc3 agent "Setze bei Geburtsmonat 13 den Ersatztag auf den 1. Jänner des Geburtsjahres." --probe 2024-08`
+**Befehl:** `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2025-03`. Geprobt am 05.11.2026 18:20 bis 18:25 mit dem Stand von !50: 3 von 3 gültige Vorschläge.
 
-**Was der Vorschlag ändert:** Regel `R5_alter`, Parameter `geburtsmonat_13` von `ersatz:07-01` auf `ersatz:01-01`.
+**Was der Vorschlag ändert:** Regel `R5_alter`, Parameter `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`. Der Agent darf für diesen Parameter nur `jahresdifferenz` oder `unbekannt` vorschlagen (`uc3/statagent/agenten/koordinator.py`, Zeile 81). Einen anderen Ersatztag wie den 1. Jänner weist er ab.
 
-**Erwartete Wirkung:** Für 08/2024 bleibt der Beispielbericht exakt, weil jeder Ersatztag von Jänner bis August Tab13 trifft (F4). Der Gesamtbestand ändert sich nie, nur das Alter einzelner Verhältnisse mit Monat 13. In Monaten, deren Stichtag vor dem 1. Juli liegt, verschiebt sich das Alter dieser Verhältnisse um ein Jahr. Zweite Probe: `--probe 2025-03`. Der Vorschlag zeigt dann die verschobenen Altersgruppen.
+**Erwartete Wirkung:** Der Gesamtbestand ändert sich nie, nur das Alter einzelner Verhältnisse mit Monat 13. Für August 2024 gilt Jahresdifferenz gleich Ersatztag 1. Juli, der Beispielbericht bleibt exakt (F4). Im März 2025 liegt der Stichtag vor dem 1. Juli: Mit Jahresdifferenz sind diese Verhältnisse ein Jahr älter, der Vorschlag zeigt verschobene Altersgruppen.
 
 **Wozu die Übung dient:** Sie zeigt, dass die offene Frage R1 an die Fachabteilung ein Regelparameter ist und keine Programmänderung.
 
@@ -288,13 +316,13 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Fundstelle:** `uc3/db/030_bereinigt_stat.sql` (Trigger `stat_besch_endgueltig`), `abgabe/qualitaetsberichte/2025-01.md`.
 
-### C9 Wie gehen Sie mit dem Wechsel der ÖNACE-Version um?
+### C9 Wie behandelt ihr den ÖNACE-Wechsel?
 
-**Kurzantwort:** Der Wirtschaftszweig wird nach der Version ausgewiesen, die im Berichtsmonat gilt: bis 12/2024 ÖNACE 2008, ab 01/2025 ÖNACE 2025. Der Wechsel gilt ab Lieferung 2025-01, auch rückwirkend für Dezember 2024 (F13). Branchen vergleichen wir nur innerhalb derselben Version. Die Sprungprüfung P14 vergleicht ÖNACE nicht über den Wechsel.
+**Kurzantwort:** Klassifikationen tragen eine Gültigkeit (`stat.klass_oenace`, Spalten `version`, `gueltig_von`, `gueltig_bis`). Der Wirtschaftszweig wird nach der Version ausgewiesen, die im Berichtsmonat gilt: bis 12/2024 ÖNACE 2008, ab 01/2025 ÖNACE 2025. Das regelt Regel `R7_oenace_nach_berichtsmonat`. Der Wechsel gilt ab Lieferung 2025-01, auch rückwirkend für Dezember 2024 (F13). Alte ÖNACE-2003-Codes (DA bis DN) gehen über Regel `Q01_oenace_2003_unterabschnitte` auf Abschnitt C, in 08/2024 sind das 50 Verhältnisse (F6). Branchen vergleichen wir nur innerhalb derselben Version. Die Sprungprüfung P14 vergleicht ÖNACE nicht über den Wechsel.
 
-**Antwortweg:** `uv run uc3 regeln zeigen`, Regel `R7_oenace_nach_berichtsmonat`.
+**Antwortweg:** `uv run uc3 regeln zeigen`, Regeln `R7_oenace_nach_berichtsmonat` und `Q01_oenace_2003_unterabschnitte`.
 
-**Fundstelle:** `uc3/db/110_regelsatz_v1.sql`, `uc3/db/120_pruefregeln_v1.sql`, `uc3/db/020_stat_metadaten.sql` (Tabelle `stat.uebergang`).
+**Fundstelle:** `uc3/db/110_regelsatz_v1.sql` (Q01 ab Zeile 52, R7 ab Zeile 88), `uc3/db/120_pruefregeln_v1.sql`, `uc3/db/020_stat_metadaten.sql` (Tabellen `stat.klass_oenace` und `stat.uebergang`), `docs/plan/uc3/annahmen.md` (A3).
 
 ### C10 Warum löschen Sie nichts?
 
@@ -322,7 +350,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C13 Was habt ihr bei der Teil-Lieferung 2025-10 gemacht?
 
-**Kurzantwort:** Die Lieferung hatte 345.078 Zeilen statt rund 430.000. Von 394.200 am 30.09.2025 offenen Verhältnissen fehlten 78.949 (20,0 Prozent), 78.733 davon sind in 2025-11 wieder da (F11). Der Lauf hält an, schreibt 77.746 Verhältnisse fort und weist 390.900 als vorläufig aus (F11).
+**Kurzantwort:** Die Lieferung hatte 345.078 Zeilen statt rund 430.000. Der bereinigte Bestand lag bei 313.154 gegen 394.200 im Vormonat, die Differenz ist 81.046 (F17). Von 394.200 am 30.09.2025 offenen Verhältnissen fehlten 78.949 in der Lieferung (20,0 Prozent), 78.733 davon sind in 2025-11 wieder da (F11). Beide Zahlen messen Verschiedenes: Die erste vergleicht Bestände, die zweite zählt Verhältnisse, die gar nicht vorkommen. Der Lauf hält an, schreibt 77.746 Verhältnisse fort und weist 390.900 als vorläufig aus (F11).
 
 **Antwortweg:** Qualitätsbericht 2025-10, Prüfregeln P15, P16, P17.
 
@@ -330,15 +358,67 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C14 Was löst die Lösung nicht?
 
-**Kurzantwort:** Wir nennen vier Grenzen offen.
+**Kurzantwort:** Wir nennen fünf Grenzen offen.
 Erstens sind die Daten synthetisch.
 Zweitens hängt das Alter bei Geburtsmonat 13 vor Juli von der Antwort der Fachabteilung auf Rückfrage R1 ab (F4).
-Drittens sind `uv run uc3 frage` und `klass` noch nicht fertig (#74, #75). Datenanfragen laufen bis dahin als SQL aus diesem Katalog.
-Viertens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parameter und lässt sich ändern (F5).
+Drittens sind die Pensionsmeldungen der Träger nicht eingelesen.
+Viertens zählen wir auf ÖNACE-Abschnitt und Bundesland, nicht bis zum 5-Steller und nicht nach Bezirk oder Gemeinde. Die Tabelle für weitere Ebenen ist angelegt.
+Fünftens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parameter und lässt sich ändern (F5).
 
 **Antwortweg:** `uc3/README.md`, Abschnitt Grenzen, und Rückfrage R1 zeigen.
 
 **Fundstelle:** `uc3/README.md`, `abgabe/rueckfragen/R1.md`, `docs/plan/uc3/annahmen.md`.
+
+### C15 Ihr habt die Regeln am Bericht abgestimmt, ist das nicht zirkulär?
+
+**Kurzantwort:** Nein. Die Regeln kommen aus der Fachbeschreibung. Nur zwei Lücken schließt der Bericht selbst: Geburtsmonat 13 und die Altersgrenze (`docs/plan/uc3/annahmen.md` A4 und A5, F4, F5). Für die übrigen 23 Monate gibt es keinen Vergleichsbericht. Dort laufen 24 Prüfregeln (F15). Die Gegenrechnung lief unabhängig und ohne den UC3-Code, direkt auf den Rohdaten (Belegregister, Abfragen A1 bis A9).
+
+**Antwortweg:** `uv run uc3 eichen --lieferung 2024-08` (F1), danach `docs/plan/uc3/annahmen.md` A4 und A5 zeigen und `uv run uc3 regeln zeigen`.
+
+**Fundstelle:** `docs/plan/uc3/annahmen.md`, `uc3/pruefkatalog.csv`, `docs/praesentation/belegregister.md`.
+
+**Zahlen:** 2.880 von 2.880 Zellen (F1), 23 Monate ohne Vergleichsbericht und 24 Prüfregeln (F15).
+
+### C16 Läuft der gemeinsame Einstieg schon?
+
+**Kurzantwort:** Die Szenen zeigen das Zielbild: eine Frage, drei Antworten. Was davon heute wirklich läuft, steht im Abschnitt „Stand“ darunter. Bernhard sagt nur, was dort steht. Sicher ist: Die Zahl kommt aus UC3, ohne Sprachmodell und mit Beleg, Sollwert 7.498 (F18).
+
+**Antwortweg:** In der Oberfläche die Seite `/uc4`, im Terminal `uv run uc3 antwort "Beschäftigte in Wien im März 2025"`. Laufen die Modelle im Testbetrieb, sagt Bernhard „Testbetrieb“ an.
+
+**Fundstelle:** `shared/py/plattform/router.py` (Router), Entry-Points `kic.uc_antwort` in `uc1/pyproject.toml`, `uc2/pyproject.toml`, `uc3/pyproject.toml`; `web/app/uc4/page.tsx`, `web/app/api/uc4/frage/route.ts`; siehe C12.
+
+#### Stand (was vom Zielbild auf main ist)
+
+Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.2026 19:40 und 20:00 auf der Online-Demo (POST `/api/uc4/frage` mit der Wien-Frage), dazu der Prüfpunkt des Leads um 20:00. Vor Fr 07:00 noch einmal messen. Nicht gemessen heißt: nicht behaupten.
+
+| Teil des Zielbilds | Stand auf main | Beleg |
+|---|---|---|
+| Gemeinsamer Router | im Code | `shared/py/plattform/router.py` |
+| Seite `/uc4` und Schnittstelle | im Code | `web/app/uc4/page.tsx`, `web/app/api/uc4/frage/route.ts` |
+| UC3-Adapter (StatAgent) | registriert | `uc3/pyproject.toml`, `statagent.uc4:antwort` |
+| UC2-Adapter (Simulator) | registriert | `uc2/pyproject.toml`, `uc2.antwort:antwort` |
+| UC1-Adapter (Lotse) | registriert | `uc1/pyproject.toml`, `uc1.uc4:router_adapter` |
+| Freigabe mit Namen in UC2 | im Code | `uc2/src/uc2/verhandlung/freigabe.py`, `web/app/api/uc2/faelle/[id]/freigabe/route.ts` |
+| Freigabe mit Namen in UC1 | nicht gefunden | keine Fundstelle auf main |
+| Wien-Frage liefert drei Antworten | online ja: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator und Lotse mit Modell gpt-5-4-mini, beide mit dem Beleg aus UC3; nichts fehlt; 9 bis 15 s | gemessen 19:40, 19:58 (Lead) und 20:00 |
+| Live-Änderung per Agent (D2 Teil 2) | Endserie läuft, MR !150 Stand 20:00 noch rot; Teil 2 nur, wenn beim Freeze auf main | Prüfpunkt Lead 20:00 |
+| Klassifikation bis 5-Steller und Gemeinden | kommt gegen 23:00 als Klassifikation; gezählt wird weiter nach Abschnitt und Bundesland (Rohdaten haben nur das) | Prüfpunkt Lead 20:00 |
+| Pensionsmeldungen der Träger | nicht eingelesen | Prüfpunkt Lead 20:00, C14 |
+| Lotse, verdeckter Test | Trefferquote 8 von 10, Träger richtig 6 von 10, Grenzen erkannt 3 von 8; Verbesserung eingespielt, Nachmessung offen | Prüfpunkt Lead 20:00 |
+| Simulator ohne passenden Zeitungsartikel | sagt offen „Modellannahme“, erfindet keinen Beleg | Prüfpunkt Lead 20:00, Messung E0 19:50 |
+| Online-Demo, Budget | 1.000 Modellaufrufe je Tag | Prüfpunkt Lead 20:00 |
+| Alle Seiten online | /, /uc1, /uc2, /uc3, /uc3/fragen, /uc4, /praesentation je HTTP 200 | Prüfpunkt Lead, gemessen 19:58 |
+| Online-Demo | mit KI: Azure gpt-5-4-mini (seit 19:17 laut Betrieb); `/uc4` wählt das Modell je Frage | Antwort der Wien-Frage, gemessen 19:40 |
+
+**Pflege:** Vor Fr 07:00 mit dem Stand auf main abgleichen, Uhrzeit und Commit neu setzen.
+
+### C17 Wo seht ihr, dass die KI nichts erfindet?
+
+**Kurzantwort:** Der Agent schreibt nur Vorschläge. Die Wirkung wird vorab gerechnet und gezeigt. Wirksam wird eine Änderung erst mit der Freigabe durch eine Person mit Namen. Im Lauf kommt `plattform.llm` nie vor: `uv run uc3 lauf` importiert es nicht, die Zahlen entstehen allein durch Code und Regeln (F16).
+
+**Antwortweg:** `uv run uc3 vorschlag zeigen <id>` (Regel-Unterschied, Zahlen vorher und nachher), `uv run uc3 protokoll --zeigen`. Danach `uc3/statagent/lauf.py` auf Importe prüfen: kein `plattform.llm`.
+
+**Fundstelle:** `uc3/statagent/agenten/koordinator.py`, `uc3/statagent/cli.py` (Befehl `agent`, Import von `plattform.llm` nur dort), `abgabe/modelle.md`.
 
 ## Wenn eine Frage nicht im Katalog steht
 

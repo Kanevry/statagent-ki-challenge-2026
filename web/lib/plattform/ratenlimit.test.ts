@@ -15,7 +15,8 @@ it("N=3: die vierte Anfrage einer IP in der Minute bekommt 429, eine andere IP n
   const gesperrt = pruefe(von("203.0.113.7"), 10_000);
   expect(gesperrt?.status).toBe(429);
   expect(gesperrt?.headers.get("retry-after")).toBe("50");
-  expect(typeof (await gesperrt?.json()).fehler).toBe("string");
+  expect(gesperrt).not.toBeNull();
+  expect(typeof (await gesperrt!.json()).fehler).toBe("string");
 
   expect(pruefe(von("198.51.100.2"), 10_000)).toBeNull();
   expect(pruefe(von("203.0.113.7"), FENSTER_MS)).toBeNull();

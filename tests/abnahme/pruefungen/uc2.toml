@@ -1,0 +1,468 @@
+# Prüfsätze UC2. Vorschläge von b-abnahme-30/agent-uc2 05.11. 18:0x, gesichtet von b-abnahme-30.
+
+# Prüfsatz-Vorschläge Bereich uc2 (Abnahme, Jury-Sicht). Erzeugt 05.11. von b-abnahme-30/messer-uc2.
+# Soll steht im Kriterium, nicht im Code. Stand von main gelesen über origin/main (1195302); offene MRs (!73, !75, !97) zählen nicht.
+# Hinweis pytest: uc2/pyproject.toml setzt addopts = "-q"; ein zweites -q unterdrückt die Schlusszeile, deshalb steht hier keins.
+
+# ---------------------------------------------------------------- 24-1 (Epic #24)
+[[pruefung]]
+id = "24-1"
+hash = "03d1a46bea"
+befehl = "timeout 200 uv run --isolated --package uc2 pytest -p no:cacheprovider uc2/tests/test_verhandlung_matrix.py"
+erwartet = ["(^|= )\\d+ passed"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "timeout 200 uv run --isolated --package uc2 pytest -p no:cacheprovider uc2/tests/test_verhandlung_matrix.py -k test_gibt_es_nicht"
+quelle = "Issue #24, Fertig wenn"
+befund = "Die Einordnung je Thema (Konsens, Mehrheit mit Minderheit, offener Konflikt, abgelehnt) rechnet an den Grenzfällen falsch."
+grund = "Die Regeln für Konsens, Mehrheit und Minderheit sind an den Grenzfällen geprüft; das ist nur ein Teil des Szenarios."
+
+[[pruefung]]
+id = "24-1"
+hash = "03d1a46bea"
+befehl = '''timeout 60 uv run --isolated --package uc2 python -I -c "
+import json,pathlib
+b=json.loads(pathlib.Path('web/app/api/uc2/_fixtures/bericht-mock.json').read_text())
+e=json.loads(pathlib.Path('web/app/api/uc2/_fixtures/ereignisse-mock.json').read_text())
+k=list(b['klassifikation'].values())
+print('konsens',sum(v['kategorie']=='konsens' for v in k),'mehrheit',sum(v['kategorie']=='mehrheit' for v in k),'minderheit',sum(len(v['minderheit']) for v in k),'belege',sum(x['art']=='belege' for x in e),'ergebnis',sum(x['art']=='ergebnis' for x in e))
+"'''
+erwartet = ["^konsens [1-9]\\d* mehrheit [1-9]\\d* minderheit [1-9]\\d* belege [1-9]\\d* ergebnis 1$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 90
+gegenprobe = "timeout 60 uv run --isolated --package uc2 python -I -c \"print('konsens 0 mehrheit 0 minderheit 0 belege 0 ergebnis 0')\""
+quelle = "Issue #24, Fertig wenn (Konsens/Mehrheit/Minderheit und Belege)"
+befund = "Der aufgezeichnete Vorführfall (Demo-Rückfall) zeigt keine Minderheit: in keinem Thema steht ein Akteur gegen die Mehrheit."
+grund = "Der aufgezeichnete Fall enthält Konsens, Mehrheit, mindestens eine benannte Minderheit, Belegereignisse und genau ein Ergebnis."
+
+[[pruefung]]
+id = "24-1"
+hash = "03d1a46bea"
+befehl = "timeout 200 pnpm --dir web exec vitest --run app/api/uc2/uc2-api.test.ts components/uc2/zustand.test.ts"
+erwartet = ["^\\s*Tests\\s+\\d+ passed \\(\\d+\\)"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "timeout 200 pnpm --dir web exec vitest --run app/api/uc2/gibt-es-nicht.test.ts"
+quelle = "Issue #24, Fertig wenn (vorführbar, Replay als Demo-Rückfall)"
+befund = "Der aufgezeichnete Fall wird nicht mehr als Ereignisstrom bis zum Ende ausgeliefert oder der Zustand der Oberfläche verarbeitet ihn falsch."
+grund = "Der Replay des aufgezeichneten Falls läuft über die Schnittstelle bis zum Ereignis ende und die Oberfläche verarbeitet die Ereignisse."
+
+[[pruefung]]
+id = "24-1"
+hash = "03d1a46bea"
+befehl = "LLM_PROVIDER=mock timeout 280 uv run --isolated --package uc2 uc2 verhandlung --fall wartezeiten --belege fixture --json"
+erwartet = ['"kategorie":\s*"konsens"', '"kategorie":\s*"mehrheit"', '"minderheit":\s*\["', '"ergebnis"']
+deckung = "teil"
+schwer = true
+zeitlimit = 300
+quelle = "Issue #24, Fertig wenn"
+befund = "Ein frischer Mock-Lauf des Szenarios Wartezeiten liefert keinen Bericht mit Konsens, Mehrheit, Minderheit und Ergebnis."
+grund = "Das Szenario läuft frisch ohne Modell durch und der JSON-Bericht enthält Konsens, Mehrheit, eine Minderheit und ein Ergebnis."
+
+[[pruefung]]
+id = "24-1"
+hash = "03d1a46bea"
+art = "hand"
+beschreibung = "Ein Mensch öffnet /uc2/panel für das Szenario Wartezeiten (Replay und, wenn möglich, frischer Lauf mit mock) und prüft: Der Lauf ist vorführbar bis zum Ergebnis; das Protokoll (Markdown oder JSON) liegt vor; je Thema steht Konsens, Mehrheit mit benannter Minderheit oder offener Konflikt; jede Aussage zeigt einen Beleg."
+quelle = "Issue #24, Fertig wenn"
+
+# ---------------------------------------------------------------- 47-AC1
+[[pruefung]]
+id = "47-AC1"
+hash = "d2ba4e29cd"
+befehl = "test -s docs/plan/uc2/modell-fallback.md && grep -c 'ollama · lokal · Ersatz' docs/plan/uc2/modell-fallback.md || true"
+erwartet = ["^[1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 20
+gegenprobe = "grep -c 'ollama · lokal · Ersatzxyz' docs/plan/uc2/modell-fallback.md || true"
+quelle = "Issue #47, AC1"
+befund = "Der Testbericht docs/plan/uc2/modell-fallback.md fehlt oder nennt die Beschriftung „ollama · lokal · Ersatz“ nicht."
+grund = "Der Testbericht liegt unter dem verlangten Pfad und nennt die verlangte Beschriftung."
+
+[[pruefung]]
+id = "47-AC1"
+hash = "d2ba4e29cd"
+befehl = "grep -c 'ollama · lokal · Ersatz' web/app/api/uc2/_lib/vorbereitung.ts || true"
+erwartet = ["^[1-9]\\d*$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 20
+gegenprobe = "grep -c 'ollama · lokal · Ersatzzzz' web/app/api/uc2/_lib/vorbereitung.ts || true"
+quelle = "Issue #47, AC1 (Wortlaut „ollama · lokal · Ersatz“)"
+befund = "Die Oberfläche oder der Testbericht nennen den Notnagel nicht „ollama · lokal · Ersatz“."
+grund = "Die Beschriftung des Ollama-Notnagels in der Oberfläche lautet wörtlich „ollama · lokal · Ersatz“."
+
+[[pruefung]]
+id = "47-AC1"
+hash = "d2ba4e29cd"
+befehl = "timeout 200 pnpm --dir web exec vitest --run components/uc2/fall.test.tsx components/uc2/freigabe.test.tsx"
+erwartet = ["^\\s*Tests\\s+\\d+ passed \\(\\d+\\)"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "timeout 200 pnpm --dir web exec vitest --run components/uc2/gibt-es-nicht.test.tsx"
+quelle = "Issue #47, AC1"
+befund = "Im Modellfehler-Fixture gehen die fertigen Runden verloren, der Ollama-Knopf verhält sich falsch oder die Meldung ohne lokalen Dienst fehlt."
+grund = "Im Abbruch-Fixture bleiben die Runden stehen, Ollama ist ohne Einrichtung gesperrt mit sichtbarer Meldung und mit Einrichtung wählbar, eine 422-Ablehnung zeigt eine klare Meldung."
+
+[[pruefung]]
+id = "47-AC1"
+hash = "d2ba4e29cd"
+art = "hand"
+beschreibung = "Ein Mensch öffnet /uc2/panel?fall=mock-abbruch (Desktop 1440x900 und Mobil 390x844) und vergleicht mit dem Pen-Frame NjP7Q: Band mit Abbruch-Text, Runden 1 und 2 bleiben, Erneut-Knopf, Modellwahl mit dem Ollama-Eintrag („ollama · lokal · Ersatz“ laut Kriterium). Ohne erreichbaren lokalen Dienst muss eine sichtbare Fehlermeldung stehen. Das Ergebnis des Screenshotvergleichs wird festgehalten."
+quelle = "Issue #47, AC1"
+
+# ---------------------------------------------------------------- 87-1 (Scope-Abgleich)
+[[pruefung]]
+id = "87-1"
+hash = "a4a7627667"
+befehl = '''f=docs/plan/uc2/scope-abgleich.md; n=0; m=0; if [ -s "$f" ]; then for k in 'strategische Vorteile' 'Verhandlungsmacht' 'Koalition' 'Abh.ngigkeit' 'Anreiz' 'Blockade'; do grep -qiE "^\|.*$k.*(umgesetzt|teilweise|zurückgestellt)" "$f" && n=$((n+1)); done; m=$(grep -iE '^\|.*(umgesetzt|teilweise|zurückgestellt)' "$f" | grep -vci 'status'); fi; echo "themen $n zeilen $m"'''
+erwartet = ["^themen 6 zeilen 6$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 20
+gegenprobe = "echo 'themen 5 zeilen 7'"
+quelle = "Issue #87, erstes Kriterium (genau 6 Zeilen mit Status umgesetzt/teilweise/zurückgestellt)"
+befund = "docs/plan/uc2/scope-abgleich.md fehlt oder hat nicht genau 6 Tabellenzeilen für die sechs genannten Themen mit Status."
+grund = "Die Datei enthält genau die sechs Themenzeilen, jede mit einem der drei Status."
+
+[[pruefung]]
+id = "87-1"
+hash = "a4a7627667"
+befehl = '''f=docs/plan/uc2/scope-abgleich.md; if [ -s "$f" ]; then echo "begruendung $(grep -ciE 'Spieltheorie' "$f") verweise $(grep -cE '^\|.*(#[0-9]+|uc2/|web/|docs/)' "$f")"; else echo "datei fehlt"; fi'''
+erwartet = ["^begruendung [1-9]\\d* verweise [6-9]$|^begruendung [1-9]\\d* verweise \\d{2,}$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 20
+gegenprobe = "echo 'datei fehlt'"
+quelle = "Issue #87, erstes Kriterium (Issue-/Dateiverweis, Spieltheoriemodus zurückgestellt)"
+befund = "scope-abgleich.md fehlt, nennt den zurückgestellten Spieltheoriemodus nicht oder hat weniger als 6 Zeilen mit Issue- oder Dateiverweis."
+grund = "Der Spieltheoriemodus steht als zurückgestellt in der Datei und mindestens 6 Tabellenzeilen tragen einen Issue- oder Dateiverweis."
+
+# ---------------------------------------------------------------- 87-2 (Abgrenzung Koalition / Spieltheorie)
+[[pruefung]]
+id = "87-2"
+hash = "36372fd9ae"
+befehl = '''f=docs/plan/uc2/scope-abgleich.md; if [ -s "$f" ]; then echo "fundstellen $(grep -ciE 'Spieltheor|BATNA|Koalition' "$f") bewertung $(grep -ciE 'Fundstelle' "$f")"; else echo "datei fehlt"; fi'''
+erwartet = ["^fundstellen [1-9]\\d* bewertung [1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 20
+gegenprobe = "echo 'datei fehlt'"
+quelle = "Issue #87, zweites Kriterium (Fundstellenbewertung in derselben Datei)"
+befund = "Die Datei mit der Fundstellenbewertung zu Spieltheorie, BATNA und Koalition fehlt oder bewertet keine Fundstelle."
+grund = "Die Scope-Datei führt Fundstellen zu Spieltheorie, BATNA oder Koalition auf und bewertet sie."
+
+[[pruefung]]
+id = "87-2"
+hash = "36372fd9ae"
+befehl = '''grep -rniE '(Spieltheorie|BATNA)[^.|]*(ist |sind |wurde |wird )?(implementiert|umgesetzt|vorhanden|enthalten|verfügbar)' README.md uc2/README.md docs/plan/uc2 web/content web/landing 2>/dev/null | grep -vciE 'nicht|zurückgestellt|kein|ohne|Defer|Out-of-Scope' || true'''
+erwartet = ["^0$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 30
+gegenprobe = "echo 3"
+quelle = "Issue #87, zweites Kriterium (0 Aussagen, ein formaler Spieltheoriemodus sei implementiert)"
+befund = "In README, UC2-README, UC2-Plan oder Web-Texten steht eine Aussage, ein formaler Spieltheoriemodus sei umgesetzt."
+grund = "Keine Textstelle behauptet einen implementierten Spieltheoriemodus (Suche per Muster, nicht jede Formulierung abgedeckt)."
+
+[[pruefung]]
+id = "87-2"
+hash = "36372fd9ae"
+art = "hand"
+beschreibung = "Ein Mensch prüft in docs/plan/uc2/scope-abgleich.md und im UC2-Limitations-Text (README): Die Matrix trennt belegte Koalitionsereignisse (#85) klar von numerischen spieltheoretischen Auszahlungen oder Optimierung, und jede Fundstelle zu Spieltheorie, BATNA oder Koalition ist bewertet (kein Text sagt, ein Spieltheoriemodus sei umgesetzt)."
+quelle = "Issue #87, zweites Kriterium"
+
+# ---------------------------------------------------------------- 87-3 (SozDok, Historie)
+[[pruefung]]
+id = "87-3"
+hash = "ee53d2f5ef"
+befehl = '''f=docs/plan/uc2/scope-abgleich.md; if [ -s "$f" ]; then echo "rechtstexte $(grep -c 'svbox/uc2/Rechtstexte' "$f") sozdok $(grep -ci 'SozDok' "$f") i25 $(grep -c '#25' "$f") i84 $(grep -c '#84' "$f")"; else echo "datei fehlt"; fi'''
+erwartet = ["^rechtstexte [1-9]\\d* sozdok [1-9]\\d* i25 [1-9]\\d* i84 [1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 20
+gegenprobe = "echo 'datei fehlt'"
+quelle = "Issue #87, drittes Kriterium"
+befund = "In docs/plan/uc2/scope-abgleich.md fehlt die Scope-Zeile zu svbox/uc2/Rechtstexte (SozDok) mit Verweis auf #25 oder der Verweis auf #84."
+grund = "Die Scope-Datei nennt Rechtstexte/SozDok als nicht indizierte Quelle mit Link auf #25 und führt die historische Pressearbeit über #84."
+
+[[pruefung]]
+id = "87-3"
+hash = "ee53d2f5ef"
+art = "hand"
+beschreibung = "Ein Mensch prüft in docs/plan/uc2/scope-abgleich.md, dass die zusätzliche Zeile SozDok als bereitgestellte, bisher nicht indizierte Quelle ausweist (Status getrennt von der Spieltheorie-Zeile) und dass die historische Pressearbeit ausdrücklich über #84 weitergeführt wird, also zwei getrennte Statusangaben und beide Verweise vorhanden sind."
+quelle = "Issue #87, drittes Kriterium"
+
+# ================================================================ nach Abgabe (prio::nach-abgabe)
+# ---------------------------------------------------------------- 84-1 (historisches Sample)
+[[pruefung]]
+id = "84-1"
+hash = "6a5c0c621d"
+befehl = '''f=uc2/config/historisches-sample.json; if [ -s "$f" ]; then echo "sha $(grep -cE '[0-9a-f]{64}' "$f") g1 $(grep -c '2008' "$f") g2 $(grep -c '2020' "$f") g3 $(grep -c '2024' "$f") g4 $(grep -c '2025' "$f")"; else echo "datei fehlt"; fi'''
+erwartet = ["^sha ([4-9]|\\d{2,}) g1 [1-9]\\d* g2 [1-9]\\d* g3 [1-9]\\d* g4 [1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 20
+gegenprobe = "echo 'datei fehlt'"
+quelle = "Issue #84, Projekt-AC (Archivgruppen 2008–2019, 2020–2023, 2024, 2025 mit SHA-256)"
+befund = "uc2/config/historisches-sample.json fehlt oder nennt nicht je Archivgruppe eine Datei mit SHA-256."
+grund = "Das Manifest führt für jede der vier Archivgruppen mindestens eine Datei mit SHA-256."
+
+[[pruefung]]
+id = "84-1"
+hash = "6a5c0c621d"
+befehl = '''f=docs/plan/uc2/historie-messung.md; if [ -s "$f" ]; then echo "artikel $(grep -ci 'Artikel' "$f") laufzeit $(grep -ci 'Laufzeit' "$f") fehler $(grep -ci 'Fehler' "$f")"; else echo "datei fehlt"; fi'''
+erwartet = ["^artikel [1-9]\\d* laufzeit [1-9]\\d* fehler [1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 20
+gegenprobe = "echo 'datei fehlt'"
+quelle = "Issue #84, Projekt-AC (Messbericht)"
+befund = "docs/plan/uc2/historie-messung.md fehlt oder nennt Artikelanzahl, Laufzeit und Fehler pro Datei nicht."
+grund = "Der Messbericht liegt vor und führt Artikelanzahl, Laufzeit und Fehler auf."
+
+[[pruefung]]
+id = "84-1"
+hash = "6a5c0c621d"
+art = "hand"
+beschreibung = "Ein Mensch (mit Zugang zu den Pressespiegel-Archiven) führt zweimal `uv run uc2 index --manifest uc2/config/historisches-sample.json` aus und prüft: Das zweite Mal verändert 0 Inhaltshashes; nicht lesbare PDFs sind im Bericht als solche ausgewiesen und nicht als importiert gezählt; Artikelanzahl, Laufzeit und Fehler stehen je Datei in docs/plan/uc2/historie-messung.md. Läuft nur mit Datenbank und lokalen Archivdaten (nicht im Repo)."
+quelle = "Issue #84, Projekt-AC"
+
+# ---------------------------------------------------------------- 84-2 (historische Positionen)
+[[pruefung]]
+id = "84-2"
+hash = "bff60238d3"
+befehl = "grep -lE '^historische[_ ]positionen' uc2/akteure/*.md | wc -l | tr -d ' '"
+erwartet = ["^14$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 20
+gegenprobe = "ls uc2/akteure/*.md | wc -l | tr -d ' ' | sed 's/14/13/'"
+quelle = "Issue #84, Projekt-AC (14 Akteursdateien mit Feld historische Positionen)"
+befund = "Nicht alle 14 Akteursdateien haben das Feld historische Positionen (Schlüssel historische_positionen)."
+grund = "Alle 14 Akteursdateien führen das Feld historische Positionen."
+
+[[pruefung]]
+id = "84-2"
+hash = "bff60238d3"
+befehl = "test -s uc2/tests/pruefe_historie.py && echo da || echo fehlt"
+erwartet = ["^da$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 20
+gegenprobe = "test -s uc2/tests/gibt-es-nicht.py && echo da || echo fehlt"
+quelle = "Issue #84, Projekt-AC"
+befund = "uc2/tests/pruefe_historie.py fehlt (prüft Datum, Institution, Quell-ID und PDF-Seite)."
+grund = "Das Prüfskript für historische Positionen liegt vor."
+
+[[pruefung]]
+id = "84-2"
+hash = "bff60238d3"
+art = "hand"
+beschreibung = "Ein Mensch prüft: Mindestens 3 verschiedene Institutionen haben je mindestens 1 belegte Position vor 2026 (datierte Beleg-ID); die übrigen Akteure tragen ausdrücklich „keine belegte historische Position“; `uc2/tests/pruefe_historie.py` prüft Datum, Institution, Quell-ID und PDF-Seite gegen den Index (braucht Datenbank). Die 3 ist laut Kriterium eine Projektschwelle, kein offizielles Soll."
+quelle = "Issue #84, Projekt-AC"
+
+# ---------------------------------------------------------------- 84-3 (Rang, Personenschutz)
+[[pruefung]]
+id = "84-3"
+hash = "a650d3b343"
+befehl = "timeout 250 uv run --isolated --package uc2 pytest -p no:cacheprovider uc2/tests/pruefe_historie.py"
+erwartet = ["(^|= )\\d+ passed"]
+deckung = "teil"
+schwer = true
+zeitlimit = 280
+quelle = "Issue #84, Projekt-AC (gleiche Textrelevanz: aktueller Beleg höher bei gleichem Institutionsfaktor)"
+befund = "pruefe_historie.py fehlt oder zeigt, dass bei gleicher Textrelevanz der Beleg vor 2026 nicht niedriger als der von 2026 rangiert."
+grund = "Das Prüfskript ordnet bei gleicher Textrelevanz und gleichem Institutionsfaktor den aktuellen Beleg höher ein."
+
+[[pruefung]]
+id = "84-3"
+hash = "a650d3b343"
+art = "hand"
+beschreibung = "Ein Mensch prüft in einem protokollierten Szenariolauf mit historischen Belegen: Namensscan der Ausgabe ergibt 0 Treffer (derselbe Personenschutz wie bei aktuellen Belegen); Benchmark und spätere Skalierung verweisen auf #67, es wird kein weiteres Embedding-Modell eingeführt."
+quelle = "Issue #84, Projekt-AC"
+
+# ---------------------------------------------------------------- 85-1 (Koalitionen, Fixture)
+[[pruefung]]
+id = "85-1"
+hash = "c50434ac2e"
+befehl = '''f=uc2/tests/fixtures/koalitionen.json; if [ -s "$f" ]; then uv run --isolated --package uc2 python -I -c "import json,sys; d=json.load(open(sys.argv[1])); f=d if isinstance(d,list) else d.get('faelle',d); print('faelle',len(f))" "$f"; else echo "datei fehlt"; fi'''
+erwartet = ["^faelle 3$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 60
+gegenprobe = "echo 'faelle 2'"
+quelle = "Issue #85, Projekt-AC (1 positiver, 2 negative Fälle)"
+befund = "uc2/tests/fixtures/koalitionen.json fehlt oder enthält nicht genau 3 Fälle (1 positiv, 2 negativ)."
+grund = "Die Fixture enthält genau 3 Fälle; die Aufteilung 1 positiv und 2 negativ prüft das Prüfskript."
+
+[[pruefung]]
+id = "85-1"
+hash = "c50434ac2e"
+befehl = "timeout 250 uv run --isolated --package uc2 pytest -p no:cacheprovider uc2/tests/pruefe_koalitionen.py"
+erwartet = ["(^|= )\\d+ passed"]
+deckung = "voll"
+schwer = true
+zeitlimit = 280
+quelle = "Issue #85, Projekt-AC (genau 1 Ereignis koalition im positiven, 0 in beiden negativen Fällen)"
+befund = "Das Prüfskript pruefe_koalitionen.py fehlt oder findet im positiven Fall nicht genau 1 und in den negativen nicht 0 Koalitionsereignisse."
+grund = "Der Lauf erzeugt im positiven Fall genau 1 Ereignis koalition und in beiden negativen Fällen 0."
+
+# ---------------------------------------------------------------- 85-2 (Referenzen)
+[[pruefung]]
+id = "85-2"
+hash = "eaba96cb9e"
+befehl = '''f=uc2/protokolle/koalitionen-fixture.json; if [ -s "$f" ]; then uv run --isolated --package uc2 python -I -c "import json,sys; json.load(open(sys.argv[1])); print('json ok koalition', open(sys.argv[1]).read().count('koalition'))" "$f"; else echo "datei fehlt"; fi'''
+erwartet = ["^json ok koalition [1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 60
+gegenprobe = "echo 'datei fehlt'"
+quelle = "Issue #85, Projekt-AC (aufgezeichnete Ausgabe unter uc2/protokolle/koalitionen-fixture.json)"
+befund = "uc2/protokolle/koalitionen-fixture.json fehlt oder ist kein gültiges JSON mit Koalitionsereignis."
+grund = "Die aufgezeichnete Ausgabe liegt als gültiges JSON mit mindestens einem Koalitionsereignis vor."
+
+[[pruefung]]
+id = "85-2"
+hash = "eaba96cb9e"
+art = "hand"
+beschreibung = "Ein Mensch (oder das Prüfskript mit Datenbank) prüft: Jedes Koalitionsereignis nennt Fall, Runde, Thema, mindestens 2 Akteurs-IDs und die auslösenden Zug-IDs; ein Anti-Join gegen vorhandene Ereignisse und Positionen ergibt 0 verwaiste Referenzen; zwei Mock-Replays liefern identische Koalitionsdaten ohne Zeitstempel."
+quelle = "Issue #85, Projekt-AC"
+
+# ---------------------------------------------------------------- 85-3 (Anzeige)
+[[pruefung]]
+id = "85-3"
+hash = "8c87c67738"
+befehl = "grep -rl 'keine belegte Koalition' web/components/uc2 web/app/uc2 uc2/src 2>/dev/null | grep -v test | wc -l | tr -d ' '"
+erwartet = ["^[1-9]\\d*$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 30
+gegenprobe = "grep -rl 'keine belegte Koalition zzz' web/components/uc2 2>/dev/null | wc -l | tr -d ' '"
+quelle = "Issue #85, Projekt-AC (bei 0 Ereignissen „keine belegte Koalition“)"
+befund = "Die UC2-Ansicht und der Export kennen den Text „keine belegte Koalition“ für den Fall ohne Koalitionsereignis nicht."
+grund = "Die Oberfläche oder der Export enthält den vorgesehenen Leertext „keine belegte Koalition“."
+
+[[pruefung]]
+id = "85-3"
+hash = "8c87c67738"
+befehl = "test -s docs/plan/uc2/koalitionen-messung.md && echo da || echo fehlt"
+erwartet = ["^da$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 20
+gegenprobe = "test -s docs/plan/uc2/gibt-es-nicht.md && echo da || echo fehlt"
+quelle = "Issue #85, Projekt-AC (Screenshot und Exportvergleich in docs/plan/uc2/koalitionen-messung.md)"
+befund = "docs/plan/uc2/koalitionen-messung.md fehlt (Screenshot und Exportvergleich)."
+grund = "Der Messbericht zu den Koalitionen liegt vor."
+
+[[pruefung]]
+id = "85-3"
+hash = "8c87c67738"
+art = "hand"
+beschreibung = "Ein Mensch vergleicht in der UC2-Ansicht und in den Markdown/JSON-Protokollen: Beide zeigen exakt die gespeicherten Koalitionen samt Begründungsbezug, bei 0 Ereignissen den Text „keine belegte Koalition“; die Oberfläche folgt den Pen-Frames von #47 und #48 und fügt kein zusätzliches freies Diagramm hinzu. Screenshot und Exportvergleich stehen in docs/plan/uc2/koalitionen-messung.md."
+quelle = "Issue #85, Projekt-AC"
+
+# ---------------------------------------------------------------- 86-1 (Handlungsempfehlungen, Protokoll)
+[[pruefung]]
+id = "86-1"
+hash = "634db0cf3d"
+befehl = "timeout 120 uv run --isolated --package uc2 uc2 protokoll --help"
+erwartet = ["--fall", "--format"]
+deckung = "teil"
+schwer = false
+zeitlimit = 150
+gegenprobe = "timeout 120 uv run --isolated --package uc2 uc2 gibt-es-nicht --help"
+quelle = "Issue #86, Projekt-AC (uv run uc2 protokoll --fall <fixture> --format md|json)"
+befund = "Der Befehl uc2 protokoll mit --fall und --format existiert nicht."
+grund = "Der Befehl uc2 protokoll ist vorhanden und kennt --fall und --format."
+
+[[pruefung]]
+id = "86-1"
+hash = "634db0cf3d"
+befehl = "timeout 250 uv run --isolated --package uc2 pytest -p no:cacheprovider uc2/tests/pruefe_empfehlungen.py"
+erwartet = ["(^|= )\\d+ passed"]
+deckung = "teil"
+schwer = true
+zeitlimit = 280
+quelle = "Issue #86, Projekt-AC (100 % der Empfehlungseinträge gegen Endmatrix und Expertenoutput, 0 verwaiste Referenzen)"
+befund = "pruefe_empfehlungen.py fehlt oder findet Empfehlungseinträge ohne Gegenstück in Endmatrix oder Expertenoutput."
+grund = "Alle Empfehlungseinträge stimmen mit Endmatrix und Expertenoutput überein, es gibt 0 verwaiste Referenzen."
+
+[[pruefung]]
+id = "86-1"
+hash = "634db0cf3d"
+art = "hand"
+beschreibung = "Ein Mensch erzeugt Markdown und JSON mit `uv run uc2 protokoll --fall <fixture> --format md` und `--format json` (braucht Datenbank) und prüft, dass jede Handlungsempfehlung Thema, Maßnahme, tragende Institutionen, Konsens-/Mehrheitsstatus, offene Bedingungen und Beleg- oder Annahmen-IDs enthält."
+quelle = "Issue #86, Projekt-AC"
+
+# ---------------------------------------------------------------- 86-2 (drei Fixtures)
+[[pruefung]]
+id = "86-2"
+hash = "a82c893f58"
+befehl = "grep -rl 'keine tragfähige gemeinsame Empfehlung' uc2/src web/components/uc2 web/app/uc2 2>/dev/null | grep -v test | wc -l | tr -d ' '"
+erwartet = ["^[1-9]\\d*$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 30
+gegenprobe = "grep -rl 'keine tragfähige gemeinsame Empfehlung zzz' uc2/src 2>/dev/null | wc -l | tr -d ' '"
+quelle = "Issue #86, Projekt-AC (Konfliktfall: „keine tragfähige gemeinsame Empfehlung“)"
+befund = "Weder Protokoll-Code noch Oberfläche kennen den Text „keine tragfähige gemeinsame Empfehlung“ für den Konfliktfall."
+grund = "Der Leertext für den reinen Konfliktfall ist im Code vorhanden."
+
+[[pruefung]]
+id = "86-2"
+hash = "a82c893f58"
+befehl = '''f=docs/plan/uc2/empfehlungen-messung.md; if [ -s "$f" ]; then echo "konsens $(grep -ci 'Konsens' "$f") mehrheit $(grep -ci 'Mehrheit' "$f") konflikt $(grep -ci 'keine tragfähige gemeinsame Empfehlung' "$f") drei $(grep -c '3/3' "$f")"; else echo "datei fehlt"; fi'''
+erwartet = ["^konsens [1-9]\\d* mehrheit [1-9]\\d* konflikt [1-9]\\d* drei [1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 20
+gegenprobe = "echo 'datei fehlt'"
+quelle = "Issue #86, Projekt-AC (3/3 Fälle in docs/plan/uc2/empfehlungen-messung.md)"
+befund = "docs/plan/uc2/empfehlungen-messung.md fehlt oder dokumentiert nicht 3/3 Fälle (Konsens, Mehrheit, Konflikt)."
+grund = "Der Messbericht nennt die drei Fälle und das Ergebnis 3/3."
+
+[[pruefung]]
+id = "86-2"
+hash = "a82c893f58"
+art = "hand"
+beschreibung = "Ein Mensch prüft mit den drei Fixtures (Konsens, Mehrheit mit Minderheit, nur offene Konflikte): Nur die ersten beiden ergeben begründete Maßnahmenempfehlungen; der Konfliktfall zeigt „keine tragfähige gemeinsame Empfehlung“ plus offene Bedingungen; der Mehrheitsfall nennt Minderheit und Vorbehalte."
+quelle = "Issue #86, Projekt-AC"
+
+# ---------------------------------------------------------------- 86-3 (Zahlen, Freigabe)
+[[pruefung]]
+id = "86-3"
+hash = "2e48f84622"
+befehl = "timeout 250 uv run --isolated --package uc2 pytest -p no:cacheprovider uc2/tests/pruefe_empfehlungen.py -k zahl"
+erwartet = ["(^|= )\\d+ passed"]
+deckung = "teil"
+schwer = true
+zeitlimit = 280
+quelle = "Issue #86, Projekt-AC (0 ungestützte Zahlen)"
+befund = "pruefe_empfehlungen.py fehlt oder meldet Zahlen in Empfehlungen, die der Expertenoutput nicht stützt."
+grund = "Jede Zahl in den Empfehlungen entspricht dem Expertenoutput (Einheit, Spanne) oder ist als Annahme gekennzeichnet."
+
+[[pruefung]]
+id = "86-3"
+hash = "2e48f84622"
+art = "hand"
+beschreibung = "Ein Mensch prüft: Jede behauptete Zahl in den Handlungsempfehlungen entspricht dem Expertenoutput inklusive Einheit und Spanne oder ist als unbelegte Annahme gekennzeichnet; der Export läuft weiterhin nur über die Freigabe (#55) mit Vor- und Nachnamen, es gibt keine zweite Freigabelogik."
+quelle = "Issue #86, Projekt-AC"

@@ -21,9 +21,9 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --froze
 COPY web web
 # ganz shared/: web importiert neben @kic/ui auch shared/schema (Fixtures, JSON-Verträge)
 COPY shared shared
-# VAPI_PUBLIC_KEY wird beim Build in den Browser-Code geschrieben (next.config.ts), alle anderen Schlüssel nicht
-ARG VAPI_PUBLIC_KEY=""
-RUN mkdir -p web/public && VAPI_PUBLIC_KEY="$VAPI_PUBLIC_KEY" pnpm --filter web build
+# Kein Schlüssel beim Build: der Vapi-Schlüssel kommt zur Laufzeit über /api/plattform/voice-config (nur bei aktivem
+# Voice), nie in den Browser-Code des Builds.
+RUN mkdir -p web/public && pnpm --filter web build
 
 # --- Python-Workspace ----------------------------------------------------------------------------------------------
 FROM ${UV_IMAGE} AS py-bau
