@@ -149,6 +149,29 @@ def urteil(p: dict, code: int, stdout: str, stderr: str = "") -> tuple[str, str]
     return "nicht bestanden", p.get("befund", "") + (" " if p.get("befund") else "") + ", ".join(teile)
 
 
+PRUEF_DB_PORT = 5444  # Prüf-DB kic-abnahme; 5433 (Bau-DB) und 5434 (fremd) sind tabu
+
+
+def db_umgebung(datei: Path) -> str:
+    """Übernimmt *_DATABASE_URL aus `datei`; Fehlertext, wenn eine davon nicht zur Prüf-DB führt."""
+    from urllib.parse import urlsplit
+
+    for zeile in datei.read_text().splitlines():
+        if "=" not in zeile or zeile.lstrip().startswith("#"):
+            continue
+        name, wert = (t.strip().strip("'\"") for t in zeile.split("=", 1))
+        if not name.endswith("DATABASE_URL"):
+            continue
+        teile = urlsplit(wert)
+        if teile.port != PRUEF_DB_PORT or teile.hostname not in ("localhost", "127.0.0.1"):
+            return f"{name} zeigt nicht auf die lokale Prüf-DB (Port {PRUEF_DB_PORT})"
+        UMGEBUNG[name] = wert
+    UMGEBUNG.pop("PGHOST", None)
+    UMGEBUNG["PGPORT"] = str(PRUEF_DB_PORT)
+    UMGEBUNG["DB_PORT"] = str(PRUEF_DB_PORT)
+    return ""
+
+
 def hand_teil(p: dict, k: dict, belege: dict[str, dict], sha: str) -> dict:
     """Hand-Prüfsatz: zählt als voller Teil, wenn der Prüfer einen gültigen Hand-Beleg abgelegt hat."""
     b = belege.get(p["id"])
@@ -196,24 +219,47 @@ def main() -> int:
     ap.add_argument("--schwer", action="store_true")
     ap.add_argument("--gegenprobe", action="store_true")
     ap.add_argument("--ohne-datei", action="store_true", help="nur anzeigen, keinen Lauf ablegen")
+    ap.add_argument("--ort", type=Path, help="vorbereiteter Checkout (Prüfrechner) statt eigenem Abzug")
+    ap.add_argument("--sha", help="main-SHA des vorbereiteten Checkouts (mit --ort)")
+    ap.add_argument("--werkzeug", help="Abnahme-Commit für tests/abnahme (mit --ort)")
+    ap.add_argument("--cache", type=Path, help="Issue-Abzug als JSON (Prüfrechner ohne glab)")
+    ap.add_argument(
+        "--db-env", type=Path, help="KEY=VALUE-Datei mit *_DATABASE_URL der Prüf-DB (nur --schwer)"
+    )
     a = ap.parse_args()
 
-    subprocess.run(["git", "-C", str(WURZEL), "fetch", "-q", "origin", "main"], check=True)
-    sha = matrix.git("rev-parse", "origin/main").stdout.strip()
-    issues = matrix.issues_holen(None)
+    if a.db_env:
+        fehler = db_umgebung(a.db_env)
+        if fehler:
+            print(f"Abbruch vor jedem Lauf: {fehler}", file=sys.stderr)
+            return 3
+    issues = matrix.issues_holen(a.cache)
     kriterien = {k["id"]: k for k in matrix.alle_kriterien(issues)}
-    werkzeug = matrix.git("rev-parse", "HEAD").stdout.strip()
-    if matrix.git("status", "--porcelain", "--", "tests/abnahme").stdout.strip():
-        print(
-            "Hinweis: tests/abnahme hat nicht committete Änderungen; der Lauf nutzt den Commit", werkzeug[:8]
-        )
-    ort = abzug(sha, werkzeug)
+    if a.ort:
+        if not (a.sha and a.werkzeug):
+            print("--ort braucht --sha und --werkzeug", file=sys.stderr)
+            return 2
+        sha, werkzeug, ort = a.sha, a.werkzeug, a.ort.resolve()
+        subprocess.run(["git", "-C", str(ort), "checkout", "-q", "--detach", sha], check=True)
+        shutil.rmtree(ort / "tests" / "abnahme", ignore_errors=True)
+        subprocess.run(["git", "-C", str(ort), "checkout", "-q", werkzeug, "--", "tests/abnahme"], check=True)
+    else:
+        subprocess.run(["git", "-C", str(WURZEL), "fetch", "-q", "origin", "main"], check=True)
+        sha = matrix.git("rev-parse", "origin/main").stdout.strip()
+        werkzeug = matrix.git("rev-parse", "HEAD").stdout.strip()
+        if matrix.git("status", "--porcelain", "--", "tests/abnahme").stdout.strip():
+            print("Hinweis: tests/abnahme hat nicht committete Änderungen; der Lauf nutzt", werkzeug[:8])
+        ort = abzug(sha, werkzeug)
     zeit = matrix.jetzt()
     lauf_id = zeit.replace(" ", "T").replace(":", "") + "-" + sha[:8]
 
+    alle = pruefsaetze(ort)
+    # Kriterien mit schwerem Teil: ein leichter Lauf darf sie nur abwerten (nicht bestanden),
+    # sonst schweigt er, damit er ein Urteil des schweren Laufs nicht mit „nicht geprüft“ überdeckt.
+    hat_schwer = {p["id"] for p in alle if p.get("schwer")}
     wahl = [
         p
-        for p in pruefsaetze(ort)
+        for p in alle
         if (not a.id or p["id"] == a.id)
         and (not a.bereich or p["datei"] == f"{a.bereich}.toml")
         and (a.schwer or not p.get("schwer"))
@@ -269,6 +315,9 @@ def main() -> int:
             s = "bestanden"
         else:
             s = "nicht geprüft"
+        if not a.schwer and kid in hat_schwer and s != "nicht bestanden":
+            print(f"{'(schwer offen)':16} {kid:12} leichte Teile ohne Befund, Urteil aus dem schweren Lauf")
+            continue
         grund = " | ".join(
             r["grund"] for r in rs if r["grund"] and (s != "nicht bestanden" or r["stand"] == s)
         )
