@@ -20,8 +20,6 @@ from pathlib import Path
 
 NAMENSLISTE_ENV = "UC2_NAMENSLISTE"
 
-_GROSS = r"[A-ZÄÖÜ][a-zäöüß]+(?:-[A-ZÄÖÜ][a-zäöüß]+)?"
-
 _VORNAMEN_TEXT = """
     Alexander Alois Andreas Anton Benjamin Bernhard Christian Christoph Daniel David Dominik Elias Erich
     Erwin Ewald Fabian Ferdinand Florian Franz Friedrich Georg Gerald Gerhard Gernot Gottfried Günter
@@ -41,23 +39,51 @@ _VORNAMEN_TEXT = """
 VORNAMEN: frozenset[str] = frozenset(_VORNAMEN_TEXT.split())
 """Häufige Vornamen in Österreich (rund 170); Wörter, die auch deutsche Substantive sind, fehlen."""
 
-PARTEIEN = (
-    r"ÖVP|SPÖ|FPÖ|NEOS|KPÖ|BZÖ|Grünen?|Bierpartei|MFG|Team Stronach|Liste Pilz|JETZT|Volkspartei"
-    r"|Sozialdemokrat\w*|Freiheitlich\w*"
+_GROSSBUCHSTABEN = "".join(c for c in map(chr, range(0x41, 0x250)) if c.isupper())
+_NAME = r"(?P<name>[" + re.escape(_GROSSBUCHSTABEN) + r"][^\W\d_]+(?:['’-][^\W\d_]+)?)"
+"""Großwort: beginnt mit einem lateinischen Großbuchstaben (auch É, Ö, Ł …), auch ganz in Großbuchstaben."""
+
+_STOPP_TEXT = """
+    der die das den dem des ein eine einer einen einem eines und oder aber sowie im in am an auf aus bei
+    für mit nach von vom zu zum zur über unter vor durch gegen ohne um als wie wenn weil dass ist sind war
+    hat haben wird werden kann soll muss nicht kein keine auch noch nur schon sich sie er es wir ihr ihre
+    sein seine dies diese dieser dieses jede jeder jedes alle beide hier dort heute damals bisher
+    herr frau minister ministerin präsident präsidentin direktor direktorin sprecher sprecherin primar
+    primaria primarius obmann obfrau dr mag prof
+    """
+
+STOPPWOERTER: frozenset[str] = frozenset(_STOPP_TEXT.split())
+"""Großwörter nach Titel oder Funktion, die kein Name sind (Satzanfang, Artikel, Funktionswörter).
+
+Bewusst eine feste Liste statt der Substantive aus den gescannten Dateien: sonst würde ein Name in einer
+Datei sich selbst freistellen. Funktionsbezeichnungen ohne Großwort danach („die Gesundheitsministerin
+fordert …“) sind ohnehin kein Treffer, weil das Muster ein großgeschriebenes Folgewort verlangt."""
+
+_TITEL = (
+    r"(?<![\w.])(?:Univ\.-Prof|Priv\.-Doz|Dipl\.-Ing|DDr|MMag|Prim|Dr|Mag|Prof|Ing|DI)"
+    r"(?:\.(?:in|a|ª)|in|ª)?\.?"
+)
+_FUNKTION = (
+    r"(?<![\w])(?:Herr|Frau|Obmann|Obfrau|Primari(?:a|us)|Primar"
+    r"|[^\W\d_]*(?:[Mm]inister|[Pp]räsident|[Dd]irektor|[Ss]precher)(?:in)?)"
 )
 
+PARTEIEN_OHNE_FALL = (
+    r"ÖVP|SPÖ|FPÖ|NEOS|KPÖ|BZÖ|MFG|Bierpartei|Team Stronach|Liste Pilz|Volkspartei"
+    r"|Sozialdemokrat[^\W\d_]*|Freiheitlich[^\W\d_]*"
+)
+"""Parteien, die ohne Rücksicht auf Groß-/Kleinschreibung gesucht werden (`Neos`, `övp`), mit Genitiv-s."""
+PARTEIEN_GROSS = r"Grünen?|JETZT"
+"""Nur in dieser Schreibung: `grüne`/`jetzt` sind Allgemeinwörter."""
+
 MUSTER: tuple[tuple[str, re.Pattern[str]], ...] = (
-    (
-        "titel",
-        re.compile(
-            r"(?<![\w.])(?:Univ\.-Prof|Priv\.-Doz|Dipl\.-Ing|DDr|MMag|Prim|Dr|Mag|Prof|Ing|DI)\.?"
-            r"(?:\s+(?:Dr|Mag|med|rer|nat|phil|iur)\.)*\s+" + _GROSS
-        ),
-    ),
-    ("titel", re.compile(_GROSS + r",?\s+(?:MBA|MSc|BSc|PhD|MPH|LL\.M\.?)(?![\w])")),
-    ("zuschreibung", re.compile(r"\b(?:sagt|so|betont|meint|kritisiert)\s+" + _GROSS)),
-    ("vorname", re.compile(r"\b(?:" + "|".join(sorted(VORNAMEN)) + r")\s+" + _GROSS)),
-    ("partei", re.compile(r"(?<![\w])(?:" + PARTEIEN + r")(?![\w])")),
+    ("titel", re.compile(_TITEL + r"(?:\s*(?:Dr|Mag|med|rer|nat|phil|iur|univ)\.(?:in|a)?)*\s*" + _NAME)),
+    ("titel", re.compile(_NAME + r",?\s+(?:MBA|MSc|BSc|PhD|MPH|LL\.M\.?)(?![\w])")),
+    ("funktion", re.compile(_FUNKTION + r"\s+" + _NAME)),
+    ("zuschreibung", re.compile(r"(?<![\w])(?:sagt|so|betont|meint|kritisiert)\s+" + _NAME)),
+    ("vorname", re.compile(r"(?<![\w])(?:" + "|".join(sorted(VORNAMEN)) + r")\s+" + _NAME)),
+    ("partei", re.compile(r"(?<![\w])(?:" + PARTEIEN_OHNE_FALL + r")s?(?![\w])", re.IGNORECASE)),
+    ("partei", re.compile(r"(?<![\w])(?:" + PARTEIEN_GROSS + r")s?(?![\w])")),
 )
 
 
@@ -91,22 +117,49 @@ def lade_namensliste(pfad: Path | None = None) -> tuple[list[str], str | None]:
     return namen, None
 
 
-def scanne_text(text: str, datei: str, namen: Sequence[str] = ()) -> list[Treffer]:
-    """Alle Treffer je Zeile; `namen` sind ganze Wörter, Groß-/Kleinschreibung egal."""
-    listen_muster = (
-        re.compile(r"(?<![\w])(?:" + "|".join(re.escape(n) for n in namen) + r")(?![\w])", re.IGNORECASE)
-        if namen
-        else None
-    )
-    treffer: list[Treffer] = []
+def absaetze(text: str) -> list[tuple[str, list[int]]]:
+    """Absätze (durch Leerzeilen getrennt) mit normalisiertem Leerraum und Zeilennummer je Zeichen.
+
+    So werden auch Namen gefunden, die über einen Zeilenumbruch laufen (`Dr.` / `Musterfrau`).
+    """
+    ergebnis: list[tuple[str, list[int]]] = []
+    teile: list[str] = []
+    zeilen: list[int] = []
     for nr, zeile in enumerate(text.splitlines(), start=1):
-        for art, muster in MUSTER:
-            treffer.extend(Treffer(datei, nr, art, m.group(0)) for m in muster.finditer(zeile))
-        if listen_muster is not None:
-            treffer.extend(
-                Treffer(datei, nr, "namensliste", m.group(0)) for m in listen_muster.finditer(zeile)
-            )
-    return treffer
+        if not zeile.strip():
+            if teile:
+                ergebnis.append(("".join(teile), zeilen))
+                teile, zeilen = [], []
+            continue
+        for wort in zeile.split():
+            if teile:
+                teile.append(" ")
+                zeilen.append(nr)
+            teile.append(wort)
+            zeilen.extend([nr] * len(wort))
+    if teile:
+        ergebnis.append(("".join(teile), zeilen))
+    return ergebnis
+
+
+def scanne_text(text: str, datei: str, namen: Sequence[str] = ()) -> list[Treffer]:
+    """Alle Treffer je Absatz, gemeldet mit der Zeile des Fundbeginns.
+
+    `namen` (externe Liste) sind ganze Wörter, Groß-/Kleinschreibung egal.
+    """
+    muster = list(MUSTER)
+    if namen:
+        liste = "|".join(re.escape(n) for n in namen)
+        muster.append(("namensliste", re.compile(r"(?<![\w])(?:" + liste + r")(?![\w])", re.IGNORECASE)))
+    treffer: list[Treffer] = []
+    for absatz, zeilen in absaetze(text):
+        for art, regel in muster:
+            for m in regel.finditer(absatz):
+                name = m.groupdict().get("name")
+                if name is not None and name.casefold() in STOPPWOERTER:
+                    continue
+                treffer.append(Treffer(datei, zeilen[m.start()], art, m.group(0)))
+    return sorted(treffer, key=lambda t: t.zeile)
 
 
 def scanne_dateien(dateien: Iterable[Path], namen: Sequence[str] = ()) -> list[Treffer]:

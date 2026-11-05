@@ -84,9 +84,25 @@ def lade_schema(name: str) -> dict[str, Any]:
     return schema
 
 
+def _lies_text(pfad: Path) -> str:
+    """Datei als UTF-8; Lese- und Kodierungsfehler werden zu `AkteurFehler`."""
+    try:
+        return pfad.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as fehler:
+        raise AkteurFehler(f"{pfad.name}: nicht lesbar ({fehler})") from None
+
+
+def _lies_yaml(pfad: Path) -> Any:
+    """YAML-Datei laden; Lese- und Syntaxfehler werden zu `AkteurFehler`."""
+    try:
+        return yaml.safe_load(_lies_text(pfad))
+    except yaml.YAMLError as fehler:
+        raise AkteurFehler(f"{pfad.name}: kein gültiges YAML ({fehler})") from None
+
+
 def lies_akteursdatei(pfad: Path) -> tuple[dict[str, Any], str]:
     """Frontmatter (als dict) und Body einer Akteursdatei; `AkteurFehler` bei kaputtem Format."""
-    text = pfad.read_text(encoding="utf-8")
+    text = _lies_text(pfad)
     zeilen = text.splitlines(keepends=True)
     if not zeilen or zeilen[0].strip() != "---":
         raise AkteurFehler(f"{pfad.name}: Frontmatter fehlt (erste Zeile muss '---' sein)")
@@ -106,7 +122,7 @@ def lies_akteursdatei(pfad: Path) -> tuple[dict[str, Any], str]:
 def lade_institutionen(config: Path | None = None) -> list[str]:
     """IDs aus `institutionen.yaml` in fester Reihenfolge."""
     pfad = (config or pfade.CONFIG) / "institutionen.yaml"
-    daten = yaml.safe_load(pfad.read_text(encoding="utf-8"))
+    daten = _lies_yaml(pfad)
     eintraege = daten.get("institutionen") if isinstance(daten, dict) else None
     if not isinstance(eintraege, list):
         raise AkteurFehler(f"{pfad.name}: Liste 'institutionen' fehlt")
@@ -169,7 +185,7 @@ def lade_akteure(verzeichnis: Path | None = None, config: Path | None = None) ->
 def lies_modellrollen(config: Path | None = None) -> dict[str, Any]:
     """Rohdaten aus `modellrollen.yaml`."""
     pfad = (config or pfade.CONFIG) / "modellrollen.yaml"
-    daten = yaml.safe_load(pfad.read_text(encoding="utf-8"))
+    daten = _lies_yaml(pfad)
     if not isinstance(daten, dict) or not isinstance(daten.get("rollen"), dict):
         raise AkteurFehler(f"{pfad.name}: Zuordnung 'rollen' fehlt")
     return daten
@@ -181,10 +197,15 @@ def lade_modellrollen(config: Path | None = None) -> dict[str, Modellrolle]:
     for name, eintrag in lies_modellrollen(config)["rollen"].items():
         if not isinstance(eintrag, dict) or not isinstance(eintrag.get("sprachmodell"), bool):
             raise AkteurFehler(f"Rolle {name}: Feld 'sprachmodell' (true/false) fehlt")
+        roh = eintrag.get("provider") or {}
+        if not isinstance(roh, dict):
+            raise AkteurFehler(f"Rolle {name}: 'provider' ist keine Zuordnung")
         provider: dict[str, ProviderModell] = {}
-        for pname, angabe in (eintrag.get("provider") or {}).items():
+        for pname, angabe in roh.items():
             if not isinstance(angabe, dict) or not isinstance(angabe.get("modell"), str):
                 raise AkteurFehler(f"Rolle {name}: Provider {pname} ohne 'modell'")
+            if any(not isinstance(angabe.get(f), str | None) for f in ("aufwand", "modell_env")):
+                raise AkteurFehler(f"Rolle {name}: Provider {pname}: 'aufwand'/'modell_env' müssen Text sein")
             provider[str(pname)] = ProviderModell(
                 modell=angabe["modell"],
                 aufwand=angabe.get("aufwand"),

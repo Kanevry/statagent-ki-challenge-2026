@@ -1,21 +1,40 @@
 from __future__ import annotations
 
+import importlib.util
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
 
 from uc2 import pfade
 from uc2.akteure import namensscan
-from uc2.akteure.laden import lade_akteure, lade_institutionen, lade_modellrollen
+from uc2.akteure.laden import AkteurFehler, lade_akteure, lade_institutionen, lade_modellrollen
 from uc2.akteure.pruefen import pruefe, pruefe_zug
 
 PRUEFSKRIPT = Path(__file__).with_name("pruefe_namen.py")
 ERFUNDEN = (
     "Laut Bericht äußerte sich Mag. Erika Musterfrau knapp.\nDas sei falsch, sagt Huber.\nDie ÖVP schweigt.\n"
+)
+
+
+def _skript_scanner() -> Callable[..., list[Any]]:
+    spec = importlib.util.spec_from_file_location("pruefe_namen", PRUEFSKRIPT)
+    assert spec is not None and spec.loader is not None
+    modul = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = modul  # dataclass braucht das Modul in sys.modules
+    spec.loader.exec_module(modul)
+    scanner: Callable[..., list[Any]] = modul.scanne_text
+    return scanner
+
+
+# Laufzeit und Prüfskript sind getrennt umgesetzt; beide müssen dieselben Formen finden.
+SCANNER = pytest.mark.parametrize(
+    "scanne", [namensscan.scanne_text, _skript_scanner()], ids=["laufzeit", "pruefskript"]
 )
 
 
@@ -76,6 +95,51 @@ def test_namensscan_laufzeit_erkennt_erfundene_namen_und_parteien() -> None:
     assert [t.text for t in liste] == ["musterfrau"]  # ganzes Wort, Groß-/Kleinschreibung egal
 
 
+@SCANNER
+@pytest.mark.parametrize(
+    ("text", "art", "fund"),
+    [
+        ("Laut Mag.a Musterfrau", "titel", "Mag.a Musterfrau"),
+        ("mit Dr.in Beispielhuber", "titel", "Dr.in Beispielhuber"),
+        ("von Prof.in Probe", "titel", "Prof.in Probe"),
+        ("durch DIin Musterfrau", "titel", "DIin Musterfrau"),
+        ("durch Magª Musterfrau", "titel", "Magª Musterfrau"),
+        ("bei Dr. ÖZTÜRK-PROBE", "titel", "Dr. ÖZTÜRK-PROBE"),
+        ("bei Dr. Élodie", "titel", "Dr. Élodie"),
+        ("laut Herr Mustermann", "funktion", "Herr Mustermann"),
+        ("laut Frau Beispielhuber", "funktion", "Frau Beispielhuber"),
+        ("die Gesundheitsministerin Musterfrau", "funktion", "Gesundheitsministerin Musterfrau"),
+        ("der Finanzminister Probe", "funktion", "Finanzminister Probe"),
+        ("Primaria Musterfrau", "funktion", "Primaria Musterfrau"),
+        ("Primar Probe", "funktion", "Primar Probe"),
+        ("Kammerpräsidentin Beispiel", "funktion", "Kammerpräsidentin Beispiel"),
+        ("Obmann Probe und Obfrau Muster", "funktion", "Obfrau Muster"),
+        ("Spitalsdirektor Probe", "funktion", "Spitalsdirektor Probe"),
+        ("Pressesprecherin Musterfrau", "funktion", "Pressesprecherin Musterfrau"),
+        ("Die Neos sind dagegen", "partei", "Neos"),
+        ("der ÖVPs Linie", "partei", "ÖVPs"),
+        ("auch övp", "partei", "övp"),
+        ("Das sagt Dr.\nMusterfrau.", "titel", "Dr. Musterfrau"),
+        ("Das betont\n  Probehuber.", "zuschreibung", "betont Probehuber"),
+    ],
+)
+def test_namensscan_erkennt_jede_form(
+    scanne: Callable[..., list[Any]], text: str, art: str, fund: str
+) -> None:
+    assert (art, fund) in {(t.art, t.text) for t in scanne(text, "x.md")}
+
+
+@SCANNER
+def test_namensscan_zeile_ueber_umbruch_und_keine_falschtreffer(scanne: Callable[..., list[Any]]) -> None:
+    treffer = scanne("Erste Zeile.\nDas betont\nProbehuber.\n", "x.md")
+    assert [(t.zeile, t.art) for t in treffer] == [(2, "zuschreibung")]
+    harmlos = (
+        "Die Gesundheitsministerin fordert Kassenstellen. Der Kammerpräsident Und die Frau Die.\n"
+        "Herr der Lage, grüne Wiese, jetzt. Dr. Der Ordination."
+    )
+    assert scanne(harmlos, "x.md") == []
+
+
 def test_pruefskript_meldet_treffer_und_ist_auf_akteuren_sauber(tmp_path: Path) -> None:
     datei = tmp_path / "erfunden.md"
     datei.write_text(ERFUNDEN, encoding="utf-8")
@@ -103,6 +167,23 @@ def test_pruefskript_meldet_treffer_und_ist_auf_akteuren_sauber(tmp_path: Path) 
     assert (sauber.returncode, sauber.stdout) == (0, "")
 
 
+def test_kaputte_modellrollen_werden_gemeldet_statt_traceback(kopie: tuple[Path, Path]) -> None:
+    akteure, config = kopie
+    pfad = config / "modellrollen.yaml"
+    pfad.write_text("rollen: [moderator\n  akteur: {", encoding="utf-8")
+    fehler = pruefe(akteure, config).fehler
+    assert any(f.startswith("modellrollen.yaml: kein gültiges YAML") for f in fehler)
+    pfad.write_text(
+        "luecke: x\nrollen:\n  moderator: {sprachmodell: true, provider: [azure]}\n", encoding="utf-8"
+    )
+    assert (
+        "modellrollen.yaml: Rolle 'moderator': 'provider' ist keine Zuordnung"
+        in pruefe(akteure, config).fehler
+    )
+    with pytest.raises(AkteurFehler, match="'provider' ist keine Zuordnung"):
+        lade_modellrollen(config)
+
+
 def test_zugschema_akzeptiert_gueltigen_und_lehnt_haltung_3_ab() -> None:
     zug = {
         "themen": [
@@ -110,7 +191,7 @@ def test_zugschema_akzeptiert_gueltigen_und_lehnt_haltung_3_ab() -> None:
                 "thema": "Kassenstellen",
                 "haltung": 1,
                 "begruendung": "Mehr Kassenstellen senken die Wartezeit laut Experte.",
-                "beleg_ids": ["presse-2026-09:12"],
+                "beleg_ids": ["3f2a9c1b7d4e-012-01", "3f2a9c1b7d4e-012"],
                 "bedingungen": ["Gegenfinanzierung durch den Bund"],
                 "zugestaendnis": None,
             }
@@ -121,3 +202,10 @@ def test_zugschema_akzeptiert_gueltigen_und_lehnt_haltung_3_ab() -> None:
     assert pruefe_zug(zug) == []
     zug["themen"][0]["haltung"] = 3  # type: ignore[index]
     assert pruefe_zug(zug) == ["zug: themen/0/haltung: 3 is greater than the maximum of 2"]
+
+
+def test_zugschema_lehnt_quelle_ohne_beleg_id_ab() -> None:
+    zug = {"themen": [], "bezug_auf": [], "zahlen": [{"wert": 1, "einheit": "%", "quelle": "geschaetzt"}]}
+    assert [f for f in pruefe_zug(zug) if "zahlen/0/quelle" in f]
+    zug["zahlen"][0]["quelle"] = "3f2a9c1b7d4e-012-01"  # type: ignore[index]
+    assert not [f for f in pruefe_zug(zug) if "zahlen/0/quelle" in f]

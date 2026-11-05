@@ -152,8 +152,13 @@ def pruefe_namen(akteure: Path, config: Path, ergebnis: Ergebnis) -> None:
     if hinweis:
         ergebnis.hinweise.append(hinweis)
     dateien = [*sorted(akteure.glob("*.md")), config / "modellrollen.yaml"]
-    vorhandene = [p for p in dateien if p.is_file()]
-    ergebnis.fehler.extend(f"Namensscan: {t}" for t in namensscan.scanne_dateien(vorhandene, namen))
+    for pfad in (p for p in dateien if p.is_file()):
+        try:
+            text = pfad.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as fehler:
+            ergebnis.fehler.append(f"Namensscan: {pfad.name} nicht lesbar ({fehler})")
+            continue
+        ergebnis.fehler.extend(f"Namensscan: {t}" for t in namensscan.scanne_text(text, str(pfad), namen))
 
 
 def pruefe(akteure: Path | None = None, config: Path | None = None) -> Ergebnis:
