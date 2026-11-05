@@ -22,7 +22,6 @@ import {
   sqlAbschnittUebergaenge,
   sqlKategorieAuftrag,
   sqlKategorieRegel,
-  sqlWechselzahlen,
   type Klassifikationsdaten,
 } from "@/components/uc3/klassifikation";
 import { monatName } from "@/components/uc3/monat";
@@ -60,7 +59,11 @@ function Branchen({ daten }: { daten: Klassifikationsdaten }) {
         </Ueberschrift>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="font-sans text-16 text-slate">{saetze.unter}</span>
-          <BelegLink quelle="stat.klass_oenace" sql={sqlWechselzahlen()} />
+          <BelegLink
+            quelle="stat.klass_oenace, stat.uebergang"
+            verweis="Gezählt je Branchenname; neuer Name und Teilung aus dem Umsteigeschlüssel (Nachfolger mit mindestens 25 % der Unterklassen)"
+            sql={`-- Abschnitte beider Fassungen, daraus gleich und anderer Buchstabe je Name\n${sqlAbschnitte()}\n\n-- Umsteigeschlüssel je Abschnitt, daraus neuer Name und Teilung\n${sqlAbschnittUebergaenge()}`}
+          />
         </div>
       </header>
 

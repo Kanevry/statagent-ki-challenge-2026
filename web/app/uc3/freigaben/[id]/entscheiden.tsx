@@ -41,7 +41,7 @@ export type EntscheidenProps = {
 const textKnopf =
   "inline-flex min-h-11 items-center font-sans text-14 font-medium text-ink underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy";
 
-/** „Freigegeben von Bernhard Götzendorfer am 05.11. um 16:53.“ */
+/** „Freigegeben von Erika Muster am 05.11. um 16:53.“ */
 function EntschiedenSatz({ e, zeitText }: { e: FreigabeEntscheidung; zeitText?: string }) {
   const zeit = zeitText ?? formatZeit(e.zeit);
   const [tag = zeit, uhr] = zeit.replace(",", "").split(" ");

@@ -5,7 +5,7 @@ import { formatZahl } from "@kic/ui/bausteine";
 import { bestandBeleg, laufBeleg, literal } from "@/components/uc3/beleg";
 import { BelegLink } from "@/components/uc3/beleg-link";
 import { DatenFehler } from "@/components/uc3/daten-fehler";
-import { leseMonatsuebersicht, MASSGEBLICH_SQL } from "@/components/uc3/laeufe";
+import { abrechnung, leseMonatsuebersicht, MASSGEBLICH_SQL } from "@/components/uc3/laeufe";
 import { haltKurz, haltTreffer, leseLaufDetail, sqlTreffer } from "@/components/uc3/lauf-detail";
 import { monatName, verschieben } from "@/components/uc3/monat";
 import { laufPfad, regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/navigation";
@@ -116,7 +116,7 @@ export default async function Monate({ searchParams }: Props) {
   const wieViele = angehalten.length;
   const zeilen: Zeile[] = monate.map((monat) => {
     const davor = monate.find((m) => m.lieferung === verschieben(monat.lieferung, -1));
-    return { monat, vormonat: davor ? davor.gezaehlt : null };
+    return { monat, vormonat: davor ? davor.gezaehlt : null, gehtAuf: abrechnung(monat).gehtAuf };
   });
 
   return (

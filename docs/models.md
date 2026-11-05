@@ -38,9 +38,10 @@ verbraucht, wirft `complete` vor jedem Provider-Aufruf `BudgetErschoepft` und sc
 `python -m plattform.router frage` endet dann mit Exit 3 und `{"fehler": "budget_erschoepft"}`, die Route
 `POST /api/uc4/frage` antwortet mit 429. `status --json` nennt den Stand im Feld `budget`
 (`grenze`, `verbraucht`, `frei`). Davor begrenzt die Web-App jede Client-IP auf `RATENLIMIT_PRO_MINUTE`
-Fragen je Minute (Standard 10, gleitendes Fenster, 429 mit `Retry-After`). Prüfen und Schreiben des Budgets sind
-nicht atomar: gleichzeitig laufende Aufrufe an der Grenze können sie um so viele Aufrufe überschreiten, wie gerade
-laufen.
+Fragen je Minute (Standard 10, gleitendes Fenster, 429 mit `Retry-After`). Prüfen und Reservieren des Budgets
+sind atomar: Jeder Aufruf reserviert unter einer Dateisperre eine Einheit in `budget-reservierungen.jsonl` neben
+dem Protokoll, gezählt wird das Maximum aus Reservierungen und Protokollzeilen von heute. Auch gleichzeitige
+Aufrufe überschreiten die Grenze nicht; ein Aufruf, der danach scheitert, bleibt verbraucht.
 
 Online ist das Budget Pflicht (fail-closed, Review !36). Das Prod-Compose setzt `KIC_ONLINE=1` und verlangt
 `LLM_TAGESBUDGET_AUFRUFE` beim Start (`${…:?}`, Invariante in `deploy/compose-invarianten.jq`). Ist
