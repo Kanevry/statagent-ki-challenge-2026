@@ -128,7 +128,7 @@ fertig in rund 7 Minuten, das Ergebnis gleich dem früheren Lauf.
 Eine öffentliche Demo läuft unter https://ki-challenge.gotzendorfer.at (Adresse und Aufbau: `deploy/README.md`).
 Man kann dort Fragen stellen: auf `/uc3/fragen` an die Daten und auf `/uc4`, wo online nur UC3 antwortet. Die Zahl
 kommt aus der Datenbank, ohne Sprachmodell, mit Beleg. Alles andere ist dort nur zum Ansehen: Freigaben, Läufe und
-Verhandlungen nimmt der Server nicht an (403). Je Gerät gehen 10 Fragen in der Minute.
+Verhandlungen nimmt der Server nicht an (403). Je Internetanschluss gehen höchstens 10 Fragen in der Minute.
 
 ## Abhängigkeiten und Voraussetzungen
 
