@@ -1318,3 +1318,46 @@ def test_sprachbefund_kostet_nur_die_betroffene_aussage(monkeypatch: pytest.Monk
     assert a.verhalten == "antwort" and [x.text for x in a.aussagen] == [GUELTIG["text"]]
     assert "Als KI" not in a.text
     assert any(v["grund"].startswith("Sprachprüfung") for v in a.verworfen)
+
+
+# ---------------------------------------------------------------- Schwellen aus dem Zitat (#151)
+
+STUFE_1 = (
+    "Anspruch auf Pflegegeld besteht in Höhe der Stufe 1: für Personen, deren Pflegebedarf nach Abs. 1 "
+    "durchschnittlich mehr als 65 Stunden monatlich beträgt;"
+)
+
+
+@pytest.mark.parametrize(
+    ("aussage", "sprache_", "fehlt"),
+    [
+        ("Pflegegeld gibt es ab 65 Stunden monatlich.", "de", "mehr als"),
+        ("Pflegegeld der Stufe 1 gibt es bei mehr als 65 Stunden im Monat.", "de", None),
+        ("Care allowance level 1 needs 65 hours of care a month.", "en", "mehr als"),
+        ("Care allowance level 1 needs more than 65 hours of care a month.", "en", None),
+        ("Für Stufe 1 braucht es einen großen Pflegebedarf.", "de", None),  # keine Zahl, keine Schwelle
+    ],
+)
+def test_schwelle_aus_dem_zitat_muss_in_der_aussage_stehen(
+    aussage: str, sprache_: str, fehlt: str | None
+) -> None:
+    """Fängt „ab 65 Stunden“ statt „mehr als 65 Stunden“: eine abgeschwächte Schwelle ist eine falsche
+    Rechtsaussage (Review !69, #151)."""
+    assert kern.schwelle_fehlt(aussage, STUFE_1, sprache_) == fehlt
+
+
+def test_aussage_ohne_schwelle_wird_verworfen() -> None:
+    """Fängt die Aufnahme-Aussage „bei sechs Monaten Pflegebedarf“ zu „voraussichtlich mindestens sechs
+    Monate“, die durch die Prüfung ging (#151)."""
+    zitat = (
+        "Das Pflegegeld gebührt bei Zutreffen der übrigen Anspruchsvoraussetzungen, wenn auf Grund einer "
+        "körperlichen, geistigen oder psychischen Behinderung oder einer Sinnesbehinderung der ständige "
+        "Betreuungs- und Hilfsbedarf (Pflegebedarf) voraussichtlich mindestens sechs Monate andauern wird."
+    )
+    schwach = {
+        "text": "Pflegegeld gibt es, wenn der Pflegebedarf sechs Monate dauert.",
+        "abschnitt_id": 101,
+        "zitat": zitat,
+    }
+    aussagen, verworfen = kern.pruefe_aussagen([schwach], [treffer()])
+    assert aussagen == [] and "Schwelle" in verworfen[0]["grund"]

@@ -669,6 +669,21 @@ def bedingung_fehlt(aussage: str, zitat: str, sprache: str = "de") -> bool:
     return not _BEDINGUNG_AUSSAGE.get(sprache, _BEDINGUNG_AUSSAGE["de"]).search(aussage)
 
 
+def schwelle_fehlt(aussage: str, zitat: str, sprache: str = "de") -> str | None:
+    """Das Schwellenwort aus dem Zitat („mehr als“, „mindestens“, „voraussichtlich“ …), das eine Aussage mit
+    Zahl nicht trägt; None, wenn nichts fehlt (``schwellen`` in daten/deckung.yaml, #151)."""
+    regeln = deckung_regeln()
+    if not re.search(str(regeln["zahl_aussage"]), aussage, re.IGNORECASE):
+        return None
+    formen: dict[str, list[str]] = regeln["schwellen"].get(sprache) or regeln["schwellen"]["de"]
+    for wort, muster in formen.items():
+        if re.search(rf"\b{re.escape(wort)}\b", zitat, re.IGNORECASE) and not any(
+            re.search(m, aussage, re.IGNORECASE) for m in muster
+        ):
+            return wort
+    return None
+
+
 def zitat_gueltig(zitat: str, abschnitt_text: str) -> bool:
     """Teilstring nach normalisiere() und Leerraum-Normalisierung, mindestens 6 Wörter oder 30 Zeichen."""
     kern = normalisiere(zitat).strip("\"'„“”‚‘’ ").strip(".…").strip()
@@ -832,6 +847,8 @@ def pruefe_aussagen(
             grund = f"Aussage geht über das Zitat hinaus (Deckung {gedeckt:.2f} < {schwelle:.2f})"
         elif bedingung_fehlt(text, voll, sprache):
             grund = "Aussage lässt die Bedingung aus dem Zitat weg"
+        elif (schwelle := schwelle_fehlt(text, voll, sprache)) is not None:
+            grund = f"Aussage lässt die Schwelle „{schwelle}“ aus dem Zitat weg"
         if grund or t is None:
             verworfen.append(
                 {

@@ -41,6 +41,12 @@ vorpruefung:
       - '(?<!hatte einen )(?<!nach dem )(?<!nach einem )schlaganfall(?!\s+(?:gehabt|erlitten)).{0,30}(?:jetzt|gerade|akut|soeben)'
       - '(?:jetzt|gerade|akut|soeben).{0,30}schlaganfall'
       - '\b(?:ich habe|habe ich|er hat|hat er|sie hat|hat sie) (?:\w+ )?einen schlaganfall(?!\s+(?:gehabt|erlitten))'
+      # Akutzeichen eines Schlaganfalls, unabhängig vom Wort (#163): Sprache weg „jetzt“ oder „plötzlich“, hängender
+      # Mundwinkel, plötzliche Lähmung oder Taubheit. „Seit dem Unfall gelähmt“ bleibt eine Leistungsfrage.
+      - '\b(?:kann|könnte|konnte) (?:\w+ )?(?:jetzt|plötzlich|auf einmal|seit eben|gerade) (?:\w+ )?nicht mehr (?:richtig )?(?:sprechen|reden)'
+      - 'mundwinkel\w* (?:\w+ )?h(?:ä|a)ng|h(?:ä|a)ng\w* (?:\w+ ){0,3}mundwinkel'
+      - '(?:pl(?:ö|o)tzlich|auf einmal)\w* (?:\w+ ){0,4}(?:gel(?:ä|a)hmt|l(?:ä|a)hmung|taub|nicht mehr bewegen)'
+      - "(?:face|mouth) (?:is )?droop|suddenly (?:can't|cannot) (?:speak|talk|move)"
       - 'umbringen'
       - 'suizid'
       - 'nicht mehr leben'
