@@ -716,11 +716,18 @@ def uc4_antwort(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str
     return {
         **weg.als_ucantwort(daten),
         "text": _text_fuer_kette(weg.als_webantwort(daten)["text"], daten),
+        "zahlen": _durchschnitt_zuerst(daten["zahlen"]),
     }
 
 
 #: Teile des „Verstanden“-Satzes, die nichts eingrenzen.
 _ALLE = re.compile(r",\s+(?:Bundesland|Geschlecht|Branche|Beschäftigungskategorie): alle")
+
+
+def _durchschnitt_zuerst(zahlen: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Die folgenden Stationen nehmen die erste Zahl als Hauptzahl: Beim Zeitraum ist das der Durchschnitt."""
+    mittel = [z for z in zahlen if ", Durchschnitt " in str(z["bezeichnung"])]
+    return [*mittel, *(z for z in zahlen if z not in mittel)]
 
 
 def _text_fuer_kette(text: str, daten: dict[str, Any]) -> str:

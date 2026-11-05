@@ -314,3 +314,11 @@ def test_im_durchschnitt_ist_kein_merkmal(gerechnet: Verbindung) -> None:
     lauf_ausfuehren(gerechnet, "2024-10", "v1")
     daten = uc4_antwort(gerechnet, "Wie viele Personen waren im Herbst 2024 in Wien im Schnitt beschäftigt?")
     assert daten["zahlen"] and daten["text"].startswith("Im Durchschnitt waren es")
+
+
+# Fängt (Bild /uc4): Station 2 und 3 zeigten beim Zeitraum den ersten Monat als Hauptzahl, nicht den Durchschnitt.
+def test_durchschnitt_steht_zuerst(gerechnet: Verbindung) -> None:
+    lauf_ausfuehren(gerechnet, "2024-10", "v1")
+    daten = uc4_antwort(gerechnet, "Wie viele Beschäftigte gab es im Herbst 2024?")
+    assert ", Durchschnitt " in daten["zahlen"][0]["bezeichnung"]
+    assert {z["beleg"] for z in daten["zahlen"]} <= set(range(len(daten["belege"])))

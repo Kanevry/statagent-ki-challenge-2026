@@ -617,3 +617,4 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | E079 | form:einzelperson,merkmal:bundesland,zeit:monat,blind4 | absage | - | - | auch=rueckfrage | Gib mir die Rohdaten der Lieferung Juli 2026 für Wien |
 | E080 | zeit:ausserhalb,zeit:relativ,zeit:verschachtelt,blind4 | absage | - | - | auch=rueckfrage | Wie viele Beschäftigte gab es drei Jahre vor dem jüngsten Monat? |
 | A024 | merkmal:unbekannt,form:menge | absage | - | - | auch=rueckfrage | Gab es über 50 Betriebe in Wien im Juli 2026? |
+| A025 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte mit 25 Jahren im Juli 2026 |
