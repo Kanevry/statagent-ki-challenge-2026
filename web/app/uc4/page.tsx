@@ -16,7 +16,7 @@ export default function GemeinsamerEinstieg() {
   return (
     <UcBereich uc="uc4">
       <div className="flex max-w-4xl flex-col gap-3 pt-4">
-        <h1 className="font-display text-56 font-bold text-ink text-balance">
+        <h1 className="font-display text-32 font-bold text-ink text-balance sm:text-56">
           {voll ? "Eine Frage, drei Antworten." : `Eine Frage an ${findeUc(kette[0]!).name}.`}
         </h1>
         <p className="font-sans text-20 text-slate">
