@@ -109,11 +109,11 @@ test("/uc1?beispiel=pflege spielt ohne Netz bis zu Antrag und Stelle", async ({ 
   await expect(ki).toHaveCount(PFLEGE.schritte.length);
   await expect(ki.first()).toContainText("Antwort von einer KI");
 
-  // Beleg-Chip in der Optik des HerkunftChip: aufklappen zeigt das Zitat wörtlich.
+  // Beleg über den gemeinsamen HerkunftChip: aufklappen zeigt das Zitat wörtlich.
   const chip = page.locator('[data-baustein="herkunft"]').first().getByRole("button", { name: /Zitat ansehen/ });
   await chip.click();
   await expect(chip).toHaveAttribute("aria-expanded", "true");
-  const zitat = page.locator("[data-uc1-zitat]").first();
+  const zitat = page.locator('[data-baustein="herkunft"] blockquote').first();
   await expect(zitat).toBeVisible();
   const text = (await zitat.textContent()) ?? "";
   expect(ZITATE).toContain(text.trim());

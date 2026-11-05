@@ -229,7 +229,15 @@ function schritteFuer(schritte: readonly string[], stelle: Pick<Traeger, "name" 
 export function StelleSeite() {
   const { verlauf, antrag, aufnahme } = useLotse();
   const letzte = verlauf.at(-1)?.antwort;
-  const stellen: Traeger[] = [...(letzte?.verhalten === "antwort" ? letzte.traeger : [])];
+  // Dieselbe Stelle für zwei Leistungen (Pflegegeld und Reha bei der PVA) nur einmal, mit beiden Fundstellen.
+  const stellen: Traeger[] = [];
+  for (const t of letzte?.verhalten === "antwort" ? letzte.traeger : []) {
+    const da = stellen.find((s) => traegerName(s) === traegerName(t));
+    if (!da) stellen.push({ ...t });
+    else if (t.fundstelle && !da.fundstelle?.includes(t.fundstelle)) {
+      da.fundstelle = da.fundstelle ? `${da.fundstelle}; ${t.fundstelle}` : t.fundstelle;
+    }
+  }
   if (antrag.art === "bereit") {
     for (const a of antrag.antraege) {
       if (a.stelle && !stellen.some((s) => traegerName(s) === a.stelle?.name)) {
@@ -276,8 +284,8 @@ export function StelleSeite() {
                       So geht es weiter
                     </Ueberschrift>
                     <ol className="flex list-decimal flex-col gap-1 pl-6 font-sans text-16 text-ink">
-                      {passend.map((s) => (
-                        <li key={s}>{s}</li>
+                      {passend.map((s, i) => (
+                        <li key={`${i}-${s}`}>{s}</li>
                       ))}
                     </ol>
                   </div>

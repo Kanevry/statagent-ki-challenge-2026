@@ -118,8 +118,8 @@ function Ergebnis({ antwort, letzte }: { antwort: WebAntwort; letzte: boolean })
                 <Ueberschrift stufe={3} als="h2">
                   {leistungName(id)}
                 </Ueberschrift>
-                {stellen.map((stelle) => (
-                  <Fliesstext key={traegerName(stelle)} groesse={14}>
+                {stellen.map((stelle, i) => (
+                  <Fliesstext key={`${i}-${traegerName(stelle)}`} groesse={14}>
                     {`Zuständig: ${traegerName(stelle)}${stelle.fundstelle ? ` (${stelle.fundstelle})` : ""}.`}
                   </Fliesstext>
                 ))}
@@ -169,8 +169,9 @@ function Ergebnis({ antwort, letzte }: { antwort: WebAntwort; letzte: boolean })
             So geht es weiter
           </Ueberschrift>
           <ol className="flex list-decimal flex-col gap-1 pl-6 font-sans text-16 text-ink">
-            {antwort.naechste_schritte.map((schritt) => (
-              <li key={schritt}><MitTelefon text={schritt} /></li>
+            {antwort.naechste_schritte.map((schritt, i) => (
+              // Gleicher Text kann zweimal vorkommen (zwei Anträge: „Ich kann den Antrag … vorausfüllen.“).
+              <li key={`${i}-${schritt}`}><MitTelefon text={schritt} /></li>
             ))}
           </ol>
         </section>
@@ -209,8 +210,8 @@ function AntwortBlock({ wechsel, letzte, onAendern }: { wechsel: Wechsel; letzte
       {antwort.verhalten === "antwort" && <Ergebnis antwort={antwort} letzte={letzte} />}
       {antwort.hinweise.length > 0 && (
         <ul className="flex flex-col gap-1">
-          {antwort.hinweise.map((hinweis) => (
-            <li key={hinweis}>
+          {antwort.hinweise.map((hinweis, i) => (
+            <li key={`${i}-${hinweis}`}>
               <Status art="info"><MitTelefon text={hinweis} /></Status>
             </li>
           ))}
