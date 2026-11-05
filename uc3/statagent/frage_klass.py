@@ -128,9 +128,19 @@ def _ohne_codes(frage: str, codes: list[TieferCode]) -> str:
     return " ".join([*teile, text[start:]])
 
 
+_EINORDNUNG = re.compile(r"zu welche[mr]|gehört|gehoert|was bedeutet|was heißt|was heisst|was ist|was war")
+#: Ohne das Wort ÖNACE und ohne Punkt können „E 07“, „A 13“, „R 10“ und „U 25“ auch Regeln, Annahmen oder Alter sein.
+_ÖNACE_WORT = re.compile(r"(?i)(?<!\w)(?:önace|oenace|nace)(?!\w)")
+
+
 def _fragt_nach_zahl(frage: str, rest: str) -> bool:
     text = frage.lower()
-    if any(m.search(text) for m in (_ZAHLEN_FRAGE, _FLUKTUATION, _GESCHLECHT, _BUNDESLAND, _ZEITREIHE)):
+    if _ZAHLEN_FRAGE.search(text):
+        return True
+    # „Zu welchem Bundesland gehört der Bezirk 701?“ fragt nach der Einordnung, nicht nach einer Zahl.
+    if _EINORDNUNG.search(text):
+        return False
+    if any(m.search(text) for m in (_FLUKTUATION, _GESCHLECHT, _BUNDESLAND, _ZEITREIHE)):
         return True
     if _DEFINITION.search(text):
         return False
@@ -160,6 +170,14 @@ def tiefer_code_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
         befunde = [_nachsehen(conn, c) for c in codes]
     except (psycopg.Error, AbfrageVerweigert, _Abgeschnitten):
         return _antwort(typ, NICHT_LESBAR, hinweise=[NICHT_LESBAR])
+    if not _ÖNACE_WORT.search(frage):
+        befunde = [
+            b
+            for b in befunde
+            if b.tief.art != OENACE or "." in b.tief.code or b.daten is not None or b.mehrdeutig
+        ]
+        if not befunde:
+            return None
     if _fragt_nach_zahl(frage, rest):
         text = _absage_text(befunde, monate_lesen(rest))
         belege = [b for befund in befunde for b in befund.belege]
@@ -171,7 +189,57 @@ def tiefer_code_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
 
 #: „Welche Bezirke hat Tirol?“, „Wie viele Gemeinden hat der Bezirk Weiz?“: eine Frage nach der Liste, nicht nach Personen.
 _LISTEN_FRAGE = re.compile(r"(?i)(?<!\w)(welche|wie\s*viele)\s+(bezirke|gemeinden)(?!\w)")
-_JAHR = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
+_JAHR = re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)")
+#: Eine Frage nach Beschäftigten oder einem Vergleich ist keine Frage nach der Liste; sie nimmt den normalen Weg.
+_KEINE_LISTE = re.compile(
+    r"(?i)beschäftig|beschaeftig|personen|menschen|leute|verhältnis|verhaeltnis|meisten|wenigsten|mehr als|weniger als"
+)
+#: Füllwörter einer Listenfrage; was danach übrig bleibt, ist ein Ort, den die Antwort kennen muss.
+_FUELLWOERTER = frozenset(
+    [
+        "welche",
+        "wie",
+        "viele",
+        "bezirke",
+        "gemeinden",
+        "hat",
+        "haben",
+        "hatte",
+        "hatten",
+        "gibt",
+        "gab",
+        "es",
+        "in",
+        "im",
+        "am",
+        "der",
+        "die",
+        "das",
+        "den",
+        "dem",
+        "des",
+        "von",
+        "vom",
+        "bezirk",
+        "bundesland",
+        "österreich",
+        "oesterreich",
+        "insgesamt",
+        "stand",
+        "jahr",
+        "heute",
+        "derzeit",
+        "aktuell",
+        "jetzt",
+        "ganz",
+        "zum",
+        "zur",
+        "denn",
+        "alle",
+        "sind",
+        "waren",
+    ]
+)
 #: So viele Gemeinden nennt eine Antwort einzeln, der Rest steht als „und N weitere“ da.
 LISTE_MAX = 40
 
@@ -179,6 +247,8 @@ LISTE_MAX = 40
 def _liste_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
     treffer = _LISTEN_FRAGE.search(frage)
     if not treffer:
+        return None
+    if _KEINE_LISTE.search(frage):
         return None
     was = treffer.group(2).lower()
     text = frage.lower()
@@ -209,8 +279,12 @@ def _liste_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
     # Nur was die Antwort braucht: Alle Gemeinden auf einmal lägen über der Zeilengrenze von sql_lesen.
     bezirke_sql = (
         sql.SQL(
-            "SELECT code, bezeichnung, uebergeordnet FROM stat.klass_region"
-            " WHERE version = {v} AND ebene = 'bezirk' ORDER BY code"
+            # Nur Bezirke mit Gemeinden: Der Sammelcode 900 „Wien(Stadt)“ steht neben den 23 Wiener Bezirken, ohne eigene.
+            "SELECT b.code, b.bezeichnung, b.uebergeordnet, count(g.code) AS gemeinden"
+            " FROM stat.klass_region b JOIN stat.klass_region g"
+            " ON g.version = b.version AND g.ebene = 'gemeinde' AND g.uebergeordnet = b.code"
+            " WHERE b.version = {v} AND b.ebene = 'bezirk'"
+            " GROUP BY b.code, b.bezeichnung, b.uebergeordnet ORDER BY b.code"
         )
         .format(v=v)
         .as_string(conn)
@@ -230,21 +304,6 @@ def _liste_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
             stand=stand_angabe,
             belege=[_beleg(quelle, abfrage, f"{quelle}/{stand}")],
         )
-
-    def gemeinden_zahl(bezirk_codes: list[str] | None) -> tuple[int, str]:
-        bedingung = (
-            sql.SQL(" AND uebergeordnet IN ({})").format(sql.SQL(", ").join(map(sql.Literal, bezirk_codes)))
-            if bezirk_codes is not None
-            else sql.SQL("")
-        )
-        abfrage = (
-            sql.SQL(
-                "SELECT count(*) AS n FROM stat.klass_region WHERE version = {v} AND ebene = 'gemeinde'{b}"
-            )
-            .format(v=v, b=bedingung)
-            .as_string(conn)
-        )
-        return int(_lesen(conn, abfrage)[0]["n"]), abfrage
 
     bezirk: dict[str, Any] | None = None
     code = re.search(r"(?i)bezirk\w*\s+(\d{3})(?!\d)", frage)
@@ -269,7 +328,7 @@ def _liste_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
             land_name = next(
                 (b["bezeichnung"] for b in bundeslaender if b["code"] == bezirk["uebergeordnet"]), ""
             )
-            satz = f"{name} ({bezirk['code']}) ist selbst ein Bezirk, er gehört zu {land_name}."
+            satz = f"{name} ({bezirk['code']}) ist selbst ein Bezirk und gehört zum Bundesland {land_name}."
             return antwort(satz, f"Bezirk {bezirk['code']}: {name}")
         gemeinden_sql = (
             sql.SQL(
@@ -287,25 +346,37 @@ def _liste_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
         return antwort(satz, f"Gemeinden im Bezirk {bezirk['code']}: {len(unter)}", gemeinden_sql)
     if land is not None:
         unter_bezirke = [b for b in bezirke if b["uebergeordnet"] == land["code"]]
+        name = f"Das Bundesland {land['bezeichnung']}"
+        anzahl_g = sum(int(b["gemeinden"]) for b in unter_bezirke)
+        # Wien: Jeder Gemeindebezirk ist in der Quelle zugleich Bezirk und Gemeinde.
+        gleich = " Dort zählt jeder Bezirk als eine Gemeinde." if anzahl_g == len(unter_bezirke) else ""
         if was == "bezirke":
             namen = [_genannt(region_name(b["bezeichnung"]), b["code"]) for b in unter_bezirke]
             anzahl = (
                 f"{len(unter_bezirke)} Bezirk" if len(unter_bezirke) == 1 else f"{len(unter_bezirke)} Bezirke"
             )
-            satz = f"{land['bezeichnung']} hat {anzahl} {klammer}: {', '.join(namen)}."
+            satz = f"{name} hat {anzahl} {klammer}: {', '.join(namen)}.{gleich}"
             return antwort(satz, f"Bezirke in {land['bezeichnung']}: {len(unter_bezirke)}")
-        anzahl_g, abfrage = gemeinden_zahl([str(b["code"]) for b in unter_bezirke])
         satz = (
-            f"{land['bezeichnung']} hat {anzahl_g} Gemeinden {klammer}. "
-            "Alle stehen auf der Seite Klassifikationen."
+            f"{name} hat {anzahl_g} Gemeinden {klammer}.{gleich} Alle stehen auf der Seite Klassifikationen."
         )
-        return antwort(satz, f"Gemeinden in {land['bezeichnung']}: {anzahl_g}", abfrage)
-    anzahl_alle, abfrage = gemeinden_zahl(None)
+        return antwort(satz, f"Gemeinden in {land['bezeichnung']}: {anzahl_g}")
+    # Bleibt ein Wort übrig, ist ein Ort gemeint, den es nicht gibt: nicht still die Summe von Österreich nennen.
+    woerter = re.findall(r"[^\W\d_][\w.-]*", frage.lower())
+    unbekannt = [w for w in woerter if w not in _FUELLWOERTER]
+    if unbekannt:
+        ort_wort = " ".join(frage.split()[-len(unbekannt) :]).rstrip("?!. ")
+        satz = (
+            f"„{ort_wort}“ kenne ich nicht als Bundesland oder Bezirk. "
+            "Fragen Sie zum Beispiel: „Welche Bezirke hat Tirol?“"
+        )
+        return _antwort("definition", satz, hinweise=[satz])
+    anzahl_alle = sum(int(b["gemeinden"]) for b in bezirke)
     satz = (
         f"Österreich hat {len(bezirke)} Bezirke und {anzahl_alle} Gemeinden {klammer}. "
-        "Alle stehen auf der Seite Klassifikationen."
+        "Wien zählt dabei mit seinen Gemeindebezirken. Alle stehen auf der Seite Klassifikationen."
     )
-    return antwort(satz, f"Österreich: {len(bezirke)} Bezirke, {anzahl_alle} Gemeinden", abfrage)
+    return antwort(satz, f"Österreich: {len(bezirke)} Bezirke, {anzahl_alle} Gemeinden")
 
 
 # --- Datenbank ------------------------------------------------------------------------------------------------

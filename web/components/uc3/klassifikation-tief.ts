@@ -323,6 +323,8 @@ function kinderRoh(sql: Sql, art: Art, fassung: string, unter: string) {
         SELECT k.code, k.bezeichnung, k.ebene, k.uebergeordnet, k.ebene = 'bezirk' AS hat_kinder
         FROM stat.klass_region k
         WHERE k.version = ${fassung} AND k.uebergeordnet = ${unter}
+          -- Der Sammelcode 900 „Wien(Stadt)“ steht neben den 23 Wiener Bezirken und hat keine Gemeinden.
+          AND (k.ebene <> 'bezirk' OR EXISTS (SELECT 1 FROM stat.klass_region c WHERE c.version = k.version AND c.uebergeordnet = k.code))
         ORDER BY k.code COLLATE "C"`;
 }
 
@@ -363,7 +365,9 @@ function sucheRoh(sql: Sql, art: Art, fassung: string, suche: string) {
   return sql<RohTreffer[]>`
     SELECT k.code, k.bezeichnung, k.ebene, k.uebergeordnet, count(*) OVER () AS gesamt, k.ebene <> 'gemeinde' AS hat_kinder
     FROM stat.klass_region k
-    WHERE ((k.version = ${fassung} AND k.ebene IN ('bezirk', 'gemeinde')) OR (k.ebene = 'bundesland' AND k.code <> '0'))
+    WHERE ((k.version = ${fassung} AND (k.ebene = 'gemeinde' OR (k.ebene = 'bezirk'
+            AND EXISTS (SELECT 1 FROM stat.klass_region c WHERE c.version = k.version AND c.uebergeordnet = k.code))))
+        OR (k.ebene = 'bundesland' AND k.code <> '0'))
       AND (k.code LIKE ${`${roh}%`}
         OR (${mitNamen}::boolean AND regexp_replace(k.bezeichnung, '[[:space:]]', '', 'g') ILIKE ${`%${dicht}%`}))
     ORDER BY

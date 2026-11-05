@@ -3,9 +3,12 @@
 # die vor !193 geladen wurden: ÖNACE 2008 und 2025 Ebenen 2 bis 5, Bezirke und Gemeinden je Stand, Übergänge der
 # Gemeinden und Bezirke. Keine Rohdaten, keine Läufe, keine Zählung, kein Regelstand; nur öffentliche Nachschlagedaten.
 #
-#   uc3/db/klass_online.sh [--container NAME] QUELLE ZIELORDNER
+#   uc3/db/klass_online.sh [--container NAME] QUELLE ZIELORDNER      Quelle im Docker-Container
+#   uc3/db/klass_online.sh --url ADRESSE QUELLE ZIELORDNER            Quelle über psql, ADRESSE ohne Datenbanknamen
+#                                                                     (postgres://nutzer:passwort@rechner:port)
 #
-# QUELLE (eine Datenbank mit geladenen Klassifikationen) wird nur gelesen. Ergebnis, gleich bei gleichen Daten:
+# QUELLE (eine Datenbank mit geladenen Klassifikationen) wird nur gelesen. Sie entsteht auch ohne Rechen-Datenbank aus dem
+# Startpaket: leere Datenbank anlegen, dann statagent.db.schema_einrichten. Ergebnis, gleich bei gleichen Daten:
 #   klass-online.sql.gz, .sha256      für `scripts/deploy.sh daten DB klass-online.sql.gz` (Transaktion kommt von dort;
 #                                     von Hand: psql --single-transaction). Ersetzt nur diese Zeilen, mehrfach einspielbar.
 #                                     Stimmt am Ende ein Prüfwert nicht, bricht sie ab und nichts bleibt.
@@ -13,14 +16,22 @@
 set -euo pipefail
 
 container=statagent-db
+url=""
 if [[ ${1:-} == --container ]]; then container=${2:?--container braucht einen Namen}; shift 2; fi
+if [[ ${1:-} == --url ]]; then url=${2:?--url braucht eine Adresse}; shift 2; fi
 quelle=${1:?QUELLE fehlt}
 ziel=${2:?ZIELORDNER fehlt}
 [[ $quelle =~ ^[a-z][a-z0-9_]{0,62}$ ]] || { echo "ungültiger Name: $quelle" >&2; exit 2; }
 command -v docker >/dev/null || PATH=/usr/local/bin:/opt/homebrew/bin:$PATH
 mkdir -p "$ziel"
 
-psql_q() { docker exec -i "$container" psql -X -q -At -v ON_ERROR_STOP=1 -U statistik -d "$quelle" "$@"; }
+psql_q() {
+  if [[ -n $url ]]; then
+    psql "$url/$quelle" -X -q -At -v ON_ERROR_STOP=1 "$@"
+  else
+    docker exec -i "$container" psql -X -q -At -v ON_ERROR_STOP=1 -U statistik -d "$quelle" "$@"
+  fi
+}
 # Feste Sortierung mit COLLATE "C": gleiche Daten ergeben auf jedem Rechner dieselbe Datei.
 SP_OENACE='version, code, bezeichnung, ebene, uebergeordnet, gueltig_von, gueltig_bis'
 SP_REGION='version, code, bezeichnung, ebene, uebergeordnet, gueltig_von, gueltig_bis'

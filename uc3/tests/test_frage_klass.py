@@ -341,7 +341,10 @@ def test_welche_bezirke_nennt_die_liste_statt_einer_zahl(tief: Verbindung) -> No
     """Fängt den gemessenen Fehler: „Welche Bezirke hat Tirol?“ antwortete mit 36.320 Verhältnissen."""
     land = _bundesland_9(tief)
     daten = antwort_frage(tief, f"Welche Bezirke hat {land}?")
-    assert f"{land} hat 1 Bezirk (Stand 1. Jänner 2012): Erfundener Bezirk (101)." in daten["text"]
+    assert (
+        f"Das Bundesland {land} hat 1 Bezirk (Stand 1. Jänner 2012): Erfundener Bezirk (101)."
+        in daten["text"]
+    )
     assert daten["zahlen"] == []
 
 
@@ -366,3 +369,52 @@ def test_welche_bezirke_ohne_geladene_ebene(tief: Verbindung) -> None:
         antwort_frage(tief, "Welche Bezirke hat Tirol?")["text"]
         == "Die Bezirke sind in dieser Fassung nicht dabei. Die Statistik zählt nach Bundesland."
     )
+
+
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Welche Bezirke haben die meisten Beschäftigten im März 2025?",
+        "Wie viele Gemeinden haben mehr als 10000 Beschäftigte?",
+    ],
+)
+def test_frage_nach_beschaeftigten_ist_keine_liste(tief: Verbindung, frage: str) -> None:
+    """Fängt: Die Frage nach Beschäftigten bekam die Zahl der Gemeinden als Antwort."""
+    assert "(Stand 1." not in antwort_frage(tief, frage)["text"]
+
+
+def test_unbekannter_ort_nennt_nicht_oesterreich(tief: Verbindung) -> None:
+    """Fängt: „Wie viele Gemeinden hat Bayern?“ antwortete mit der Summe von Österreich."""
+    text = antwort_frage(tief, "Wie viele Gemeinden hat Bayern?")["text"]
+    assert "Österreich hat" not in text
+    assert "„Bayern“ kenne ich nicht als Bundesland oder Bezirk." in text
+    assert "Österreich hat 1 Bezirke" in antwort_frage(tief, "Wie viele Gemeinden gibt es?")["text"]
+
+
+def test_bezirk_ohne_gemeinden_zaehlt_nicht(tief: Verbindung) -> None:
+    """Fängt den Wiener Sammelcode 900: „hat 0 Gemeinden: .“ und ein Bezirk zu viel."""
+    tief.execute(
+        "INSERT INTO stat.klass_region (version, code, bezeichnung, ebene, uebergeordnet, gueltig_von) "
+        "VALUES ('2012-01-01', '100', 'Sammelcode', 'bezirk', '9', '2012-01-01')"
+    )
+    land = _bundesland_9(tief)
+    text = antwort_frage(tief, f"Welche Bezirke hat {land}?")["text"]
+    assert "Sammelcode" not in text and "hat 1 Bezirk " in text
+    assert "Dort zählt jeder Bezirk als eine Gemeinde." in text
+
+
+@pytest.mark.parametrize(
+    "frage", ["Zu welchem Bundesland gehört der Bezirk 101?", "Was bedeutet ÖNACE C 10.11 seit 2025?"]
+)
+def test_einordnung_ist_keine_zahlenfrage(tief: Verbindung, frage: str) -> None:
+    """Fängt: Eine Frage nach der Einordnung bekam die Absage „keine Zahl“."""
+    text = antwort_frage(tief, frage)["text"]
+    assert "keine Zahl" not in text and "Der Code" in text
+
+
+@pytest.mark.parametrize(
+    "frage", ["Was besagt Regel E 07?", "Was ist Annahme A 13?", "Beschäftigte U 25 im März 2025"]
+)
+def test_regelcode_mit_leerzeichen_ist_kein_oenace_code(tief: Verbindung, frage: str) -> None:
+    """Fängt: „Regel E 07“ bekam „Den Code E 07 gibt es in der ÖNACE nicht“."""
+    assert frage_klass.tiefer_code_antwort(tief, frage) is None
