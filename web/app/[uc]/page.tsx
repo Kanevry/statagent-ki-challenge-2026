@@ -6,12 +6,18 @@ import { UcBereich } from "@kic/ui/shell";
 import { ucs, type UcEintrag } from "@kic/ui/ucs";
 
 // Leerer UC-Bereich als Fallback für /uc1 /uc2 /uc3, solange ein UC noch keine eigene Route hat. Erzeugt die
-// Seite für alle Registry-UCs (Lead-Entscheid 58), alles andere ist 404. Legt ein UC web/app/<uc>/ an,
-// gewinnt seine statische Route gegen diesen Fallback; an der Registry ändert er dafür nichts.
+// Seite für alle Registry-UCs ohne eigene Route (Lead-Entscheid 58), alles andere ist 404. Legt ein UC
+// web/app/<uc>/ an, gewinnt seine statische Route nur im Dev-Server von selbst. Im Build muss er zusätzlich in
+// EIGENE_ROUTE stehen: sonst wird /<uc> hier vorgerendert, und eine dynamische Seite des UC antwortet mit 500
+// (gemessen !51, Pipeline 41479). Eine feste Liste statt fs.existsSync, weil Turbopack bei variablen Pfaden das
+// ganze Projekt traced. An der Registry ändert ein UC dafür nichts.
 export const dynamicParams = false;
 
+/** UCs mit eigenem Ordner unter web/app/<uc>/; uc1 und uc2 tragen sich ein, sobald sie einen anlegen. */
+const EIGENE_ROUTE = new Set<string>(["uc3"]);
+
 export function generateStaticParams(): Array<{ uc: string }> {
-  return ucs.map((uc) => ({ uc: uc.id }));
+  return ucs.filter((uc) => !EIGENE_ROUTE.has(uc.id)).map((uc) => ({ uc: uc.id }));
 }
 
 type Props = { params: Promise<{ uc: string }> };
