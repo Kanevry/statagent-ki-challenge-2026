@@ -37,8 +37,9 @@ schwellen:
     "mindestens": ['\bat least\b', '\bminimum\b']
     "höchstens": ['\bat most\b', '\bup to\b', '\bmaximum\b']
     "voraussichtlich": ['\bexpected\b', '\blikely\b', '\bprobabl', '\banticipated\b']
-# Zahl in der Aussage: Ziffern oder ein Zahlwort; nur dann wird die Schwelle verlangt.
-zahl_aussage: '\d|\b(?:eins?|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|dreißig|hundert|one|two|three|four|five|six|seven|eight|nine|ten|twelve|twenty|thirty|hundred)\b'
+# Zahl hinter dem Schwellenwort im Zitat (Ziffern oder Zahlwort). Die Schwelle wird nur verlangt, wenn die
+# Aussage genau diese Zahl nennt; „Stufe 1“ in der Aussage zieht „mehr als 65“ aus dem Zitat nicht nach sich.
+zahl: '\d+(?:[.,]\d+)*|eins?|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|dreißig|hundert'
 
 # Gleichwertige Schreibweisen: Steht die rechte Form in Zitat oder Kontext, gilt das linke Wort als gedeckt.
 gleich:
