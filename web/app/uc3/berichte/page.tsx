@@ -13,6 +13,7 @@ import {
 } from "@/components/uc3/bericht";
 import { aufzaehlen, trefferTitel } from "@/components/uc3/lauf-detail";
 import { leerSatz } from "@/components/uc3/db";
+import { alltag } from "@/components/uc3/sprache";
 import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import { monatName } from "@/components/uc3/monat";
 import { berichtPfad, regelsatzAus } from "@/components/uc3/navigation";
@@ -62,7 +63,7 @@ function kopfSaetze(zeilen: readonly Berichtszeile[], ueberall: readonly OffeneR
       `${aufzaehlen(halten.map((z) => monatName(z.lieferung)))} ${halten.length === 1 ? "wartet" : "warten"} auf die Fachabteilung (${nrn.join(", ")}).`,
     );
   }
-  for (const q of ueberall) saetze.push(`In jedem Monat offen: ${q.titel.replace(/\.$/, "")} (${q.nr}).`);
+  for (const q of ueberall) saetze.push(`In jedem Monat offen: ${alltag(q.titel).replace(/\.$/, "")} (${q.nr}).`);
   return saetze;
 }
 

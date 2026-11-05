@@ -4,6 +4,7 @@ import { lies, type Lesung, type Sql } from "./db";
 import { ladeMassgeblichenLauf, ladeMonatslaeufe, MASSGEBLICH_SQL, quelleSql } from "./laeufe";
 import { massnahmeSatz, trefferTitel } from "./lauf-detail";
 import { monatName, verschieben } from "./monat";
+import { alltag, alltagOder } from "./sprache";
 import type { Lauf, Monatslauf } from "./typen";
 
 /**
@@ -569,8 +570,8 @@ async function ladeAnnahmen(sql: Sql, lauf: Lauf, ausTabelle: boolean): Promise<
     return zeilen.map((z) => ({
       nr: z.nr,
       rueckfrage: z.rueckfrage,
-      satz: z.satz,
-      begruendung: z.begruendung,
+      satz: alltag(z.satz),
+      begruendung: alltag(z.begruendung),
       regelName: z.regel_name,
       wirkungSaetze: z.wirkung_saetze === null ? null : zahl(z.wirkung_saetze),
       wirkungQuelle: z.wirkung_quelle,
@@ -591,8 +592,8 @@ async function ladeAnnahmen(sql: Sql, lauf: Lauf, ausTabelle: boolean): Promise<
   return zeilen.map((z) => ({
     nr: z.name,
     rueckfrage: z.rueckfrage,
-    satz: ersterSatz(z.beschreibung),
-    begruendung: ersterSatz(z.begruendung),
+    satz: alltag(ersterSatz(z.beschreibung)),
+    begruendung: alltag(ersterSatz(z.begruendung)),
     regelName: z.name,
     wirkungSaetze: zahl(z.saetze),
     wirkungQuelle: "regel" as const,
@@ -675,21 +676,24 @@ export function leseQualitaetsbericht(lieferung: string, regelsatz = "v1"): Prom
         nr: i + 1,
         ebene: EBENEN[t.ebene] ?? t.ebene,
         regel: t.name,
-        satz: befundSatz(
-          { anzahl: zahl(t.anzahl), umfang: t.umfang, vorlage: t.satz_vorlage, beschreibung: t.beschreibung, regel: t.name },
-          lieferung,
+        satz: alltag(
+          befundSatz(
+            { anzahl: zahl(t.anzahl), umfang: t.umfang, vorlage: t.satz_vorlage, beschreibung: t.beschreibung, regel: t.name },
+            lieferung,
+          ),
         ),
         anzahl: zahl(t.anzahl),
-        umfang: t.umfang?.trim() || `${formatZahl(zahl(t.anzahl))} Sätze`,
+        umfang: alltag(t.umfang?.trim() || `${formatZahl(zahl(t.anzahl))} Sätze`),
         einstufung: einstufungAus(t.einstufung),
-        massnahme:
+        massnahme: alltag(
           massnahmeSatz({
             name: t.name,
             massnahme: t.massnahme,
             einstufung: einstufungAus(t.einstufung).code,
             anhalten: Boolean(t.anhalten),
           }) ?? "",
-        massnahmeRoh: t.massnahme,
+        ),
+        massnahmeRoh: alltagOder(t.massnahme),
         anhalten: Boolean(t.anhalten),
         rueckfragen: verweiseVon(t),
         offeneRueckfragen: verweiseVon(t).filter((nr) => rueckfragen.some((r) => r.nr === nr && !r.antwort)),
@@ -699,10 +703,10 @@ export function leseQualitaetsbericht(lieferung: string, regelsatz = "v1"): Prom
         .filter((r) => rueckfrageBetrifft({ nr: r.nr, lieferungen: r.lieferungen, regelName: r.regel_name }, lieferung, verweise))
         .map((r) => ({
           nr: r.nr,
-          titel: r.titel,
-          frage: alsSatz(r.frage),
-          vorschlag: alsSatz(r.vorschlag),
-          antwort: r.antwort,
+          titel: alltag(r.titel),
+          frage: alltag(alsSatz(r.frage)),
+          vorschlag: alltag(alsSatz(r.vorschlag)),
+          antwort: alltagOder(r.antwort),
           antwortAm: r.antwort_am ? datum(r.antwort_am) : null,
           regelName: r.regel_name,
           offen: !r.antwort,
@@ -721,7 +725,7 @@ export function leseQualitaetsbericht(lieferung: string, regelsatz = "v1"): Prom
             zahl(z.differenz) === 0
               ? "Umschichtung zwischen Gruppen, insgesamt unverändert"
               : z.ursache
-            ? `${URSACHEN[z.ursache] ?? z.ursache} (${formatZahl(zahl(z.ursache_anzahl))} Verhältnisse)`
+            ? `${URSACHEN[z.ursache] ?? z.ursache} (${formatZahl(zahl(z.ursache_anzahl))} Beschäftigungsverhältnisse)`
             : null,
         })),
       revisionGeprueft: revision.length,
