@@ -306,15 +306,15 @@ test("Fehler bei der Antwort auf eine Rückfrage steht an der Rückfrage", async
   await expect(page.locator('[data-uc1-antwort="rueckfrage"]')).toContainText("Bitte höchstens 1000 Zeichen.");
 });
 
-test("Lotse nicht erreichbar: Hinweis und „Beispiel ansehen“ spielt die Aufnahme", async ({ page }) => {
+test("Lotse nicht erreichbar: ruhiger Hinweis und „Aufgezeichnetes Gespräch ansehen“ spielt die Aufnahme", async ({ page }) => {
   await page.route("**/api/uc1/frage", (route) =>
     route.fulfill({ status: 503, json: { fehler: "Der Lotse ist gerade nicht erreichbar.", replay: true } }),
   );
   await page.goto("/uc1");
   await page.getByLabel("Ihre Situation").fill("Ich war drei Wochen im Spital und soll zur Reha.");
   await page.getByRole("button", { name: "Senden" }).click();
-  await expect(page.getByTestId("uc1-fehler")).toContainText("Der Lotse ist gerade nicht erreichbar.");
-  await page.getByRole("button", { name: "Beispiel ansehen" }).click();
+  await expect(page.getByTestId("uc1-fehler")).toContainText("Der Lotse antwortet gerade nicht.");
+  await page.getByTestId("uc1-fehler").getByRole("button", { name: "Aufgezeichnetes Gespräch ansehen" }).click();
   await expect(page.locator('[data-uc1-antwort="antwort"]')).toHaveCount(1, { timeout: 15_000 });
 });
 
