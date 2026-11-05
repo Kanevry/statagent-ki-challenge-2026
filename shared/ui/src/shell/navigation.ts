@@ -1,4 +1,4 @@
-import { ucs as registry, type UcEintrag, type UcId } from "../ucs";
+import { bereiche as registry, type BereichId, type UcEintrag } from "../ucs";
 
 // Reine Navigationslogik der Shell (ohne React, ohne Next), damit Header, Schublade und Tests dieselbe Regel nutzen.
 
@@ -12,12 +12,13 @@ export interface AppTab {
 }
 
 // Kurze Tab-Namen nach Pen-Frame nas8Y. Fehlt ein Eintrag, steht der Name aus der Registry im Tab.
-const tabNamen: Partial<Record<UcId, string>> = {
+const tabNamen: Partial<Record<BereichId, string>> = {
   uc1: "KI-Lotse",
   uc2: "HealthPolicy",
+  uc4: "Einstieg",
 };
 
-/** Tabs in Header-Reihenfolge: Übersicht, die UCs aus der Registry, Präsentation. */
+/** Tabs in Header-Reihenfolge: Übersicht, die Bereiche aus der Registry, Präsentation. */
 export function appTabs(ucs: readonly UcEintrag[] = registry): AppTab[] {
   return [
     { schluessel: "uebersicht", href: "/", label: "Übersicht", bewertet: false },
