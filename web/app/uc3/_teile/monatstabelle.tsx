@@ -7,7 +7,7 @@ import { monatName } from "@/components/uc3/monat";
 import { monatsStand, vormonatIn } from "@/components/uc3/monatsstand";
 import { laufPfad } from "@/components/uc3/navigation";
 import type { Monatslauf } from "@/components/uc3/typen";
-import { imZeitraum, zeitraumArtAus } from "@/components/uc3/zeitraum";
+import { bestandJeMonat, imZeitraum, zeitraumArtAus } from "@/components/uc3/zeitraum";
 
 /** Stand eines Monats als Symbol und Wort. */
 export function MonatsStatus({ monat }: { monat: Monatslauf }) {
@@ -61,12 +61,13 @@ const monatsLink = "text-ink underline underline-offset-4 hover:text-gruen";
  */
 export function Monatstabelle({ monate, regelsatz = "v1" }: { monate: readonly Monatslauf[]; regelsatz?: string }) {
   const regelstandOben = gemeinsamerRegelstand(monate) !== null;
-  const wann = imZeitraum(zeitraumArtAus(monate[0]?.zeitraumArt));
+  const art = zeitraumArtAus(monate[0]?.zeitraumArt);
+  const wann = imZeitraum(art);
   return (
     <>
       <table className="hidden w-full border-collapse md:table">
         <caption className="sr-only">
-          {`Beschäftigungsverhältnisse ${wann} je Monat, mit Abrechnung der gelesenen Sätze und Beleg`}
+          {`${bestandJeMonat(art)}, mit Abrechnung der gelesenen Sätze und Beleg`}
         </caption>
         <thead>
           <tr>

@@ -29,6 +29,11 @@ export function imZeitraum(art: ZeitraumArt): string {
   return art === "Monat" ? "im Monat" : "am Stichtag";
 }
 
+/** Tabellentitel über alle Monate. „im Monat je Monat“ wäre doppelt, deshalb trägt nur der Stichtag ein Zeitwort. */
+export function bestandJeMonat(art: ZeitraumArt): string {
+  return art === "Monat" ? "Beschäftigungsverhältnisse je Monat" : "Beschäftigungsverhältnisse am Stichtag je Monat";
+}
+
 /** Spaltenname im Beleg, passend zum Text darüber. */
 export function bestandSpalte(art: ZeitraumArt): string {
   return art === "Monat" ? "bestand_im_monat" : "bestand_am_stichtag";

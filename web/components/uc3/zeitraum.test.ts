@@ -3,7 +3,7 @@ import { sqlBestand, sqlMonatszeile } from "./beleg";
 import { sqlAbschnittBestand } from "./klassifikation";
 import { bestandSatz, sqlBestandMitVormonat, sqlKennzahlen, sqlRegionen } from "./lauf-detail";
 import type { Lauf } from "./typen";
-import { bestandFilter, imZeitraum, imZeitraumText, zeitraumArtAus } from "./zeitraum";
+import { bestandFilter, bestandJeMonat, imZeitraum, imZeitraumText, zeitraumArtAus } from "./zeitraum";
 
 const lauf = (zeitraumArt: "Stichtag" | "Monat", regelsatz: string, gezaehlt: number) =>
   ({ id: 1, quelleId: 1, lieferung: "2026-07", regelsatz, regelstand: "abc", zeitraumArt, gezaehlt }) as Lauf;
@@ -23,6 +23,8 @@ describe("Zeitraumart je Regelsatz", () => {
     expect(bestandSatz(v2, null)).toBe("Im Juli 2026 bestanden 407.604 Beschäftigungsverhältnisse.");
     expect(imZeitraum("Stichtag")).toBe("am Stichtag");
     expect(imZeitraum("Monat")).toBe("im Monat");
+    expect(bestandJeMonat("Stichtag")).toBe("Beschäftigungsverhältnisse am Stichtag je Monat");
+    expect(bestandJeMonat("Monat")).toBe("Beschäftigungsverhältnisse je Monat");
   });
 
   // Fängt: fester Filter auf 'Stichtag'; für v2 liefert der Beleg dann NULL statt 407.604.
