@@ -1,0 +1,358 @@
+# End-zu-End-Dev-Set für den UC1 KI-Lotsen (Issue #155).
+#
+# Zweck: Zwei Fehlerklassen im eigenen Set messen.
+#   1. Träger falsch durch Nachbarleistung (x01 bis x12): Die Frage gehört zu Leistung A, der Lotse erkennt oder
+#      beantwortet aber die Nachbarleistung B und nennt deren Stelle. Nachbarpaare: Pflegegeld und Pflegekarenzgeld,
+#      Krankengeld und Wochengeld, Rehabilitation (Pensionsversicherung, SVS) und Krankenversicherung,
+#      Unfallversicherung und Krankenversicherung. Dazu wechselt der Status (PVA, SVS, BVAEB, angestellt bei der ÖGK),
+#      weil er die Stelle ändert.
+#   2. Abstinenz trotz Treffer (x13 bis x18): klare Sachfragen, deren Antwort eindeutig in einer Norm des Korpus steht,
+#      in Bürgersprache ohne den Fachbegriff des Gesetzes gestellt.
+#   Dazu zwei Kontrollfälle (x19, x20): Fragen zur Sozialversicherung, deren Antwort nicht im Korpus steht
+#   (verhalten_soll: abstinenz, keine Quellen, keine Stelle).
+#
+# Herkunft: Ein Subagent, ein Durchgang, 2026-11-05. Jede Norm unter erwartete_quellen wurde im Korpus
+# (svbox/uc1/Rechtstexte) geöffnet und gelesen; soll_text und erwarteter_traeger folgen aus dem Normtext.
+#
+# Unabhängigkeit: Entstanden ohne Einsicht in das verdeckte Held-out-Set, das eingefrorene Test-Set (lotse-set.yaml),
+# die Messberichte und den Laufzeitordner. dev-set.yaml und dev-set-2.yaml wurden nur gelesen, um Dubletten zu
+# vermeiden; keine Frage daraus ist übernommen. Alle Personas sind erfunden.
+#
+# Grenzen: n = 20, ein Autor, selbst formulierte Fragen. Das Set ist für Fehlersuche und Vorher-Nachher-Vergleiche
+# gedacht, nicht für belastbare Prozentwerte. Die Zuordnung zur Stelle folgt dem Gesetz und den Kürzeln aus
+# daten/traeger.yaml (Entscheidungsträger-Namen: Pflegekarenzgeld entscheidet nach BPGG § 21d das Bundesamt für
+# Soziales und Behindertenwesen, kurz Sozialministeriumservice, Kürzel SMS). Die Persona enthält alles, wonach der Lotse
+# fragen kann (wer die Hilfe braucht, Status, Bundesland), weil die Messung jede Rückfrage nur mit „Ich bin <persona>.“
+# beantwortet. Kur (ASVG § 155, § 307d) ist als Träger nicht eindeutig (Kranken- und Pensionsversicherung können
+# beide gewähren); die Kur-Frage x18 steht deshalb mit einer Pensionistin, bei der § 307d die Pensionsversicherung nennt.
+
+faelle:
+  # ------------------------------------------------------------------ Träger falsch durch Nachbarleistung
+  - id: x01
+    art: szenario
+    golden_nr: null
+    persona: "Tochter, 49, Vollzeit angestellt bei der ÖGK versichert; meine Mutter Gerda, 83, bekommt ihre Pension von der PVA und wohnt in Salzburg"
+    frage: "Meine Mutter schafft Kochen und Waschen nicht mehr allein, und ich arbeite den ganzen Tag. Das Geld für ihre Hilfe soll sie selbst bekommen, nicht ich. Wo beantrage ich das?"
+    sprache: de
+    erwarteter_traeger: PVA
+    erwartete_quellen:
+      - {gesetz: BPGG, art: PARA, nummer: "22"}
+      - {gesetz: BPGG, art: PARA, nummer: "4"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Das ist Pflegegeld für die Mutter (nicht Pflegekarenzgeld für die Tochter): Voraussetzung ist ein ständiger Betreuungs- und Hilfsbedarf von voraussichtlich mindestens sechs Monaten (BPGG § 4 Abs. 1). Zuständig ist der Träger, der die Pension zahlt, hier die PVA (BPGG § 22 Abs. 1 Z 1)."
+    belegt_durch:
+      - "Rechtstexte/BPGG=PARA=22=32=2026-05-19=2026-05-20.xml"
+      - "Rechtstexte/BPGG=PARA=4=12=2015-01-13=2015-01-01.xml"
+
+  - id: x02
+    art: szenario
+    golden_nr: null
+    persona: "Sohn, 57, Maurer; mein Vater Franz, 86, ist Volksschullehrer im Ruhestand und bekommt seinen Ruhegenuss von der BVAEB, er wohnt in Innsbruck, Tirol"
+    frage: "Mein Vater war sein Leben lang Lehrer und ist schon lange im Ruhestand. Er kann sich nicht mehr allein anziehen und nicht mehr kochen. Wo bekommt er Geld für die Pflege, ist dafür die PVA zuständig?"
+    sprache: de
+    erwarteter_traeger: BVAEB
+    erwartete_quellen:
+      - {gesetz: BPGG, art: PARA, nummer: "22"}
+      - {gesetz: BPGG, art: PARA, nummer: "3"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Pflegegeld. Bezieher eines Ruhegenusses nach dem Landeslehrer-Dienstrechtsgesetz gehören zum Personenkreis § 3 Abs. 1 Z 4 lit. b; dafür entscheidet die Versicherungsanstalt öffentlich Bediensteter (BVAEB), nicht die PVA (BPGG § 22 Abs. 1 Z 3)."
+    belegt_durch:
+      - "Rechtstexte/BPGG=PARA=22=32=2026-05-19=2026-05-20.xml"
+      - "Rechtstexte/BPGG=PARA=3=32=2026-05-19=2026-05-20.xml"
+
+  - id: x03
+    art: szenario
+    golden_nr: null
+    persona: "Ehefrau, 50, angestellt bei der ÖGK versichert; mein Mann Peter, 54, hatte einen Schlaganfall und braucht Hilfe; wir wohnen in Wien"
+    frage: "Mein Mann hatte einen Schlaganfall und braucht jetzt den ganzen Tag jemanden. Ich möchte drei Monate unbezahlt zu Hause bleiben und ihn versorgen. Bekomme ich in der Zeit irgendwo Geld, damit wir die Miete zahlen können?"
+    sprache: de
+    erwarteter_traeger: SMS
+    erwartete_quellen:
+      - {gesetz: BPGG, art: PARA, nummer: "21c"}
+      - {gesetz: BPGG, art: PARA, nummer: "21d"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Pflegekarenzgeld (nicht Pflegegeld): Wer eine Pflegekarenz mit dem Dienstgeber vereinbart, bekommt für die Dauer, höchstens drei Monate, Pflegekarenzgeld (BPGG § 21c Abs. 1), Voraussetzung sind drei Monate Vollversicherung im karenzierten Arbeitsverhältnis (Abs. 2). Der Antrag geht an das Bundesamt für Soziales und Behindertenwesen, also das Sozialministeriumservice (BPGG § 21d Abs. 1 und 2)."
+    belegt_durch:
+      - "Rechtstexte/BPGG=PARA=21c=109=2023-07-21=2023-11-01.xml"
+      - "Rechtstexte/BPGG=PARA=21d=109=2023-07-21=2023-11-01.xml"
+
+  - id: x04
+    art: szenario
+    golden_nr: null
+    persona: "Sohn, 41, angestellt bei der ÖGK versichert; mein Vater Karl, 78, bekommt Pension und Pflegegeld von der PVA; wir wohnen in Linz, Oberösterreich"
+    frage: "My father already gets his care allowance from the PVA. I want to cut my own working hours in half for a few months to look after him. Do I have to ask the PVA for money for my reduced salary too?"
+    sprache: en
+    erwarteter_traeger: SMS
+    erwartete_quellen:
+      - {gesetz: BPGG, art: PARA, nummer: "21c"}
+      - {gesetz: BPGG, art: PARA, nummer: "21d"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Nein, nicht bei der PVA: Wer eine Pflegeteilzeit vereinbart, bekommt ein aliquotes Pflegekarenzgeld für höchstens drei Monate (BPGG § 21c Abs. 1). Entschieden wird vom Bundesamt für Soziales und Behindertenwesen (Sozialministeriumservice), dort wird auch der Antrag eingebracht (BPGG § 21d Abs. 1 und 2). Das Pflegegeld des Vaters bleibt davon getrennt."
+    belegt_durch:
+      - "Rechtstexte/BPGG=PARA=21c=109=2023-07-21=2023-11-01.xml"
+      - "Rechtstexte/BPGG=PARA=21d=109=2023-07-21=2023-11-01.xml"
+
+  - id: x05
+    art: szenario
+    golden_nr: null
+    persona: "Hilde, 74, Pensionistin, Pension von der PVA, wohnt in Graz, Steiermark"
+    frage: "Seit meiner Hüftoperation bin ich sehr schwach auf den Beinen. Meine Ärztin meint, ich soll ein paar Wochen in ein Rehazentrum. Wer zahlt das, und bin ich in meinem Alter überhaupt noch dran?"
+    sprache: de
+    erwarteter_traeger: PVA
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "300"}
+      - {gesetz: ASVG, art: PARA, nummer: "302"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Zuständig ist die Pensionsversicherung (PVA), nicht die Krankenkasse: Sie trifft Vorsorge für die Rehabilitation auch von Beziehern einer Alterspension; für diese umfasst sie die medizinische Rehabilitation, etwa Unterbringung in einer Reha-Einrichtung oder ambulante Reha (ASVG § 300 Abs. 1, § 302 Abs. 1 Z 1 und 1a). Antrag auf dem Formular Kur und Reha."
+    belegt_durch:
+      - "Rechtstexte/ASVG=PARA=300=62=2026-07-29=2026-07-30.xml"
+      - "Rechtstexte/ASVG=PARA=302=8=2019-01-09=2019-01-01.xml"
+      - "Anträge und Formulare/Antrag Kur und Reha.pdf"
+
+  - id: x06
+    art: szenario
+    golden_nr: null
+    persona: "Ernst, 51, selbständiger Installateur, bei der SVS versichert, wohnt im Burgenland"
+    frage: "Nach meinem Bandscheibenvorfall macht mein Rücken die Arbeit auf Baustellen kaum noch mit. Zahlt mir jemand eine Reha, damit ich meinen Beruf wieder ausüben kann, und an wen wende ich mich?"
+    sprache: de
+    erwarteter_traeger: SVS
+    erwartete_quellen:
+      - {gesetz: GSVG, art: PARA, nummer: "157"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Für Selbständige trifft der Versicherungsträger nach dem GSVG, also die SVS, Vorsorge für die Rehabilitation von Versicherten, deren Arbeitskraft durch eine körperliche Beeinträchtigung herabgesunken ist (GSVG § 157 Abs. 1). Ziel ist, die Erwerbsfähigkeit für die bisherige Tätigkeit wiederherzustellen (Abs. 3). Nicht die PVA und nicht die ÖGK."
+    belegt_durch:
+      - "Rechtstexte/GSVG=PARA=157=62=2026-07-29=2026-07-30.xml"
+
+  - id: x07
+    art: szenario
+    golden_nr: null
+    persona: "Thomas, 46, Lokführer bei der ÖBB, Eisenbahner, bei der BVAEB versichert, wohnt in Kärnten"
+    frage: "Ich bin seit zwei Wochen nach einem Bandscheibenvorfall krankgeschrieben, und ab nächster Woche zahlt mir mein Dienstgeber kein Gehalt mehr. Bekomme ich dann Geld von meiner Kasse, und von welcher?"
+    sprache: de
+    erwarteter_traeger: BVAEB
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "138"}
+      - {gesetz: ASVG, art: PARA, nummer: "143"}
+      - {gesetz: B-KUVG, art: PARA, nummer: "85"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Krankengeld ab dem vierten Tag der Arbeitsunfähigkeit (ASVG § 138 Abs. 1). Es ruht, solange mehr als 50 Prozent des Entgelts weitergezahlt werden (ASVG § 143 Abs. 1 Z 3), und fließt erst, wenn die Gehaltsfortzahlung endet. Für BVAEB-Versicherte gelten die Krankengeld-Regeln des ASVG mit eigener Bemessungsgrundlage (B-KUVG § 85); die Stelle ist die BVAEB, nicht die ÖGK."
+    belegt_durch:
+      - "Rechtstexte/ASVG=PARA=138=14=2026-03-31=2026-04-01.xml"
+      - "Rechtstexte/ASVG=PARA=143=54=2018-08-14=2018-07-01.xml"
+      - "Rechtstexte/B-KUVG=PARA=85=2=2015-01-13=2014-01-01.xml"
+
+  - id: x08
+    art: szenario
+    golden_nr: null
+    persona: "Martin, 44, selbständiger Tischler mit eigener Tischlerei, bei der SVS versichert, wohnt in der Steiermark"
+    frage: "Ich habe eine kleine Tischlerei mit sechs Mitarbeitern und bin nach einer Operation seit vier Wochen ausgefallen. Ab wann gibt es von der Versicherung etwas, und ist das so wie bei meinen angestellten Leuten?"
+    sprache: de
+    erwarteter_traeger: SVS
+    erwartete_quellen:
+      - {gesetz: GSVG, art: PARA, nummer: "104a"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Für Selbständige gibt es kein prozentuales Krankengeld wie bei Angestellten, sondern eine tägliche Unterstützungsleistung in fester Höhe ab dem 43. Tag der Arbeitsunfähigkeit, rückwirkend ab dem 4. Tag, höchstens 20 Wochen je Krankheit; sie steht Betrieben mit weniger als 25 Dienstnehmern zu, deren Betrieb von der eigenen Arbeitsleistung abhängt (GSVG § 104a Abs. 1 und 2). Zuständig ist die SVS, nicht die ÖGK."
+    belegt_durch:
+      - "Rechtstexte/GSVG=PARA=104a=242_100=2022-06-28=2022-07-01.xml"
+
+  - id: x09
+    art: szenario
+    golden_nr: null
+    persona: "Sophie, 31, angestellt bei der ÖGK versichert, schwanger, wohnt in Wien"
+    frage: "I am pregnant and have been on sick leave for weeks because of back pain. My maternity protection starts in three weeks. Will the sick pay just continue until then and after, or does something change?"
+    sprache: en
+    erwarteter_traeger: OEGK
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "165"}
+      - {gesetz: ASVG, art: PARA, nummer: "162"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Es ändert sich etwas: Wochengeld gibt es für die letzten acht Wochen vor der voraussichtlichen Entbindung (ASVG § 162 Abs. 1). Trifft es mit Krankengeld zusammen, gebührt nur das Wochengeld (ASVG § 165 Abs. 1). Die Krankenkasse (ÖGK) bleibt die Stelle."
+    belegt_durch:
+      - "Rechtstexte/ASVG=PARA=165=30=2017-01-18=2017-01-19.xml"
+      - "Rechtstexte/ASVG=PARA=162=64=2024-07-04=2023-11-01.xml"
+
+  - id: x10
+    art: szenario
+    golden_nr: null
+    persona: "Nadine, 33, selbständige Fußpflegerin, bei der SVS versichert, schwanger, wohnt in Niederösterreich"
+    frage: "Ich habe eine kleine Fußpflege-Praxis und arbeite allein. Im Frühling kommt mein Baby. Gibt es für die Zeit rund um die Geburt Geld oder Hilfe für den Betrieb, und wer ist dafür zuständig?"
+    sprache: de
+    erwarteter_traeger: SVS
+    erwartete_quellen:
+      - {gesetz: GSVG, art: PARA, nummer: "102"}
+      - {gesetz: GSVG, art: PARA, nummer: "102a"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Selbständige Frauen, die in der Krankenversicherung nach dem GSVG pflichtversichert sind, haben Anspruch auf Betriebshilfe oder Wochengeld (GSVG § 102 Abs. 5). Die Leistung gebührt acht Wochen vor und acht Wochen nach der Entbindung, bei Früh-, Mehrlings- oder Kaiserschnittgeburt zwölf Wochen danach; Wochengeld wird gezahlt, wenn ständig eine Hilfskraft zur Entlastung eingesetzt wird (GSVG § 102a Abs. 1 und 3). Zuständig ist die SVS, nicht die ÖGK."
+    belegt_durch:
+      - "Rechtstexte/GSVG=PARA=102=106=2024-07-19=2024-07-20.xml"
+      - "Rechtstexte/GSVG=PARA=102a=237=2021-12-30=2021-12-31.xml"
+
+  - id: x11
+    art: szenario
+    golden_nr: null
+    persona: "Josef, 52, selbständiger Dachdecker, bei der SVS versichert, wohnt in Tirol"
+    frage: "Ich bin selbständiger Dachdecker und bei der Arbeit bei einem Kunden vom Gerüst gestürzt. Das Handgelenk ist gebrochen, und ich kann wochenlang nicht arbeiten. Ist das ein Fall für die Krankenkasse oder für eine Unfallversicherung, und wer ist dafür zuständig?"
+    sprache: de
+    erwarteter_traeger: SVS
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "28"}
+      - {gesetz: ASVG, art: PARA, nummer: "175"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Das ist ein Arbeitsunfall (ASVG § 175 Abs. 1), also ein Fall der Unfallversicherung. Für selbständig Erwerbstätige, die nach § 8 Abs. 1 Z 3 lit. a pflichtversichert sind, ist die SVS sachlich zuständig, nicht die AUVA (ASVG § 28 Z 2 lit. b)."
+    belegt_durch:
+      - "Rechtstexte/ASVG=PARA=28=106=2024-07-19=2020-01-01.xml"
+      - "Rechtstexte/ASVG=PARA=175=110=2024-07-19=2025-01-01.xml"
+      - "Rechtstexte/ASVG=PARA=8=14=2026-03-31=2026-04-01.xml"
+
+  - id: x12
+    art: szenario
+    golden_nr: null
+    persona: "Lukas, 29, Lagerarbeiter, angestellt bei der ÖGK versichert, wohnt in Oberösterreich"
+    frage: "Ich bin in der Firma beim Ausladen von der Rampe gestürzt und habe mir den Knöchel gebrochen. Ich mache mir Sorgen, dass etwas zurückbleibt. Welche Stelle ist für so einen Unfall zuständig, meine Krankenkasse oder jemand anderer?"
+    sprache: de
+    erwarteter_traeger: AUVA
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "28"}
+      - {gesetz: ASVG, art: PARA, nummer: "175"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Ein Unfall im örtlichen, zeitlichen und ursächlichen Zusammenhang mit der Beschäftigung ist ein Arbeitsunfall (ASVG § 175 Abs. 1). Dafür ist die Unfallversicherung zuständig, für Beschäftigte die Allgemeine Unfallversicherungsanstalt, AUVA (ASVG § 28 Z 1); sie leistet Unfallheilbehandlung und Entschädigung, bei bleibender Minderung der Erwerbsfähigkeit ab 20 Prozent eine Versehrtenrente (ASVG § 172, § 173, § 203)."
+    belegt_durch:
+      - "Rechtstexte/ASVG=PARA=28=106=2024-07-19=2020-01-01.xml"
+      - "Rechtstexte/ASVG=PARA=175=110=2024-07-19=2025-01-01.xml"
+      - "Rechtstexte/ASVG=PARA=203=61=2010-08-18=2010-09-01.xml"
+
+  # ------------------------------------------------------------------ Abstinenz trotz Treffer
+  - id: x13
+    art: szenario
+    golden_nr: null
+    persona: "Anna, 34, angestellt bei der ÖGK versichert, wohnt in Wien"
+    frage: "Ich liege seit einer Woche mit Lungenentzündung im Bett, bekomme aber von meiner Firma weiter mein volles Gehalt. Zahlt mir die Kasse trotzdem noch etwas dazu?"
+    sprache: de
+    erwarteter_traeger: OEGK
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "143"}
+      - {gesetz: ASVG, art: PARA, nummer: "138"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Nein, solange das Gehalt zu mehr als 50 Prozent weitergezahlt wird, ruht der Anspruch auf Krankengeld; bei genau 50 Prozent ruht er zur Hälfte (ASVG § 143 Abs. 1 Z 3). Krankengeld gibt es grundsätzlich erst ab dem vierten Tag der Arbeitsunfähigkeit (ASVG § 138 Abs. 1)."
+    belegt_durch:
+      - "Rechtstexte/ASVG=PARA=143=54=2018-08-14=2018-07-01.xml"
+      - "Rechtstexte/ASVG=PARA=138=14=2026-03-31=2026-04-01.xml"
+
+  - id: x14
+    art: szenario
+    golden_nr: null
+    persona: "Selina, 29, angestellt bei der ÖGK versichert, schwanger mit Zwillingen, wohnt in der Steiermark"
+    frage: "Ich erwarte im Jänner Zwillinge. Wie lange bekomme ich nach der Geburt Geld von der Kasse, und ist das anders als bei einem einzelnen Kind?"
+    sprache: de
+    erwarteter_traeger: OEGK
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "162"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Wochengeld gibt es die letzten acht Wochen vor der voraussichtlichen Entbindung, am Tag der Entbindung und danach acht Wochen; bei Mehrlingsgeburten (auch Früh- und Kaiserschnittgeburten) verlängert sich der Zeitraum nach der Geburt auf zwölf Wochen (ASVG § 162 Abs. 1)."
+    belegt_durch:
+      - "Rechtstexte/ASVG=PARA=162=64=2024-07-04=2023-11-01.xml"
+
+  - id: x15
+    art: szenario
+    golden_nr: null
+    persona: "Tochter von Berta; meine Mutter Berta, 79, war Bäuerin, bekommt ihre Pension von der SVS und wohnt in Niederösterreich"
+    frage: "Meine Mutter braucht schon seit dem Frühjahr jeden Tag Hilfe, aber wir haben den Antrag erst gestern abgegeben. Bekommt sie das Geld auch für die Monate davor nachbezahlt?"
+    sprache: de
+    erwarteter_traeger: SVS
+    erwartete_quellen:
+      - {gesetz: BPGG, art: PARA, nummer: "9"}
+      - {gesetz: BPGG, art: PARA, nummer: "22"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Nein. Das Pflegegeld gebührt mit Beginn des Monats, der auf die Antragstellung folgt (BPGG § 9 Abs. 1), nicht rückwirkend ab Beginn des Pflegebedarfs. Zuständig ist der Träger, der die Pension zahlt, hier die SVS (BPGG § 22 Abs. 1 Z 1)."
+    belegt_durch:
+      - "Rechtstexte/BPGG=PARA=9=58_111=2011-07-29=2012-01-01.xml"
+      - "Rechtstexte/BPGG=PARA=22=32=2026-05-19=2026-05-20.xml"
+
+  - id: x16
+    art: szenario
+    golden_nr: null
+    persona: "Ibrahim, 42, Angestellter bei der ÖGK versichert, wohnt in Wien"
+    frage: "Ich bin in der Mittagspause zum Zahnarzt gegangen und auf dem Gehsteig ausgerutscht, Knie verdreht. Mein Chef wusste vorher von dem Termin. Zählt das noch zur Arbeit, oder ist das mein Privatpech?"
+    sprache: de
+    erwarteter_traeger: AUVA
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "175"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Es zählt als Arbeitsunfall: Unfälle auf dem Weg von der Arbeitsstätte oder der Wohnung zu einer Zahnbehandlung und zurück sind versichert, wenn der Dienstgeber den Arztbesuch vor Antritt des Weges erfahren hat (ASVG § 175 Abs. 2 Z 2). Zuständig ist die Unfallversicherung (AUVA)."
+    belegt_durch:
+      - "Rechtstexte/ASVG=PARA=175=110=2024-07-19=2025-01-01.xml"
+
+  - id: x17
+    art: szenario
+    golden_nr: null
+    persona: "Peter, 52, angestellt bei der ÖGK versichert, wohnt in Kärnten"
+    frage: "Ich werde wohl länger krank sein. Wie viel von meinem Gehalt zahlt mir die Kasse dann, und wird das nach ein paar Wochen mehr oder weniger?"
+    sprache: de
+    erwarteter_traeger: OEGK
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "141"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Das Krankengeld beträgt mindestens 50 Prozent der Bemessungsgrundlage für den Kalendertag und erhöht sich ab dem 43. Tag der Erkrankung auf 60 Prozent (ASVG § 141 Abs. 1 und 2); satzungsmäßig kann es bei Angehörigen auf höchstens 75 Prozent steigen (Abs. 3 und 4)."
+    belegt_durch:
+      - "Rechtstexte/ASVG=PARA=141=142=2004-12-15=2005-01-01.xml"
+
+  - id: x18
+    art: szenario
+    golden_nr: null
+    persona: "Waltraud, 66, Pensionistin, Pension von der PVA, wohnt im Burgenland"
+    frage: "Ich war schon dreimal auf Kur und möchte wieder fahren. Habe ich ein Recht darauf, dass meine Versicherung das jedes Mal genehmigt, und muss ich etwas dazubezahlen?"
+    sprache: de
+    erwarteter_traeger: PVA
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "307d"}
+      - {gesetz: ASVG, art: PARA, nummer: "155"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Einen Rechtsanspruch gibt es nicht: Die Pensionsversicherung kann einen Aufenthalt in Kurorten oder Kuranstalten gewähren, unter Bedachtnahme auf ihre finanzielle Leistungsfähigkeit und die Auslastung der Einrichtungen (ASVG § 307d Abs. 1 und 2). Bei einer Unterbringung auf Rechnung des Trägers ist eine Zuzahlung zu leisten, und zwar bei Antritt im Voraus (ASVG § 155 Abs. 3, nach § 307d Abs. 2 entsprechend anzuwenden)."
+    belegt_durch:
+      - "Rechtstexte/ASVG=PARA=307d=106=2024-07-19=2024-07-20.xml"
+      - "Rechtstexte/ASVG=PARA=155=106=2024-07-19=2024-07-20.xml"
+
+  # ------------------------------------------------------------------ Kontrollfälle: Antwort steht nicht im Korpus
+  - id: x19
+    art: szenario
+    golden_nr: null
+    persona: "Ayse, 36, angestellt bei der ÖGK versichert, wohnt in Graz, Steiermark"
+    frage: "Welche Hautärztin mit Kassenvertrag in Graz hat diese Woche noch einen freien Termin für mich?"
+    sprache: de
+    erwarteter_traeger: null
+    erwartete_quellen: []
+    verhalten_soll: abstinenz
+    grenze: false
+    soll_text: "Tagesaktuelle Termine einzelner Praxen stehen weder in Gesetzen noch in Formularen des Korpus. Der Lotse sagt, dass er das nicht beantworten kann, und darf höchstens allgemein auf die Suche nach Vertragsärzten verweisen, ohne eine Praxis oder einen Termin zu nennen."
+    belegt_durch: []
+
+  - id: x20
+    art: szenario
+    golden_nr: null
+    persona: "Robert, 45, angestellt bei der ÖGK versichert, wohnt in Tirol"
+    frage: "Ich habe bei einem privaten Versicherer einen Zusatztarif für Zahnspangen abgeschlossen. Zahlt mein Tarif auch eine Spange für Erwachsene, und wie viel?"
+    sprache: de
+    erwarteter_traeger: null
+    erwartete_quellen: []
+    verhalten_soll: abstinenz
+    grenze: false
+    soll_text: "Die Bedingungen eines privaten Zusatztarifs sind Vertragsinhalt des Versicherers und stehen nicht im Korpus. Der Lotse nennt keine Leistung und keinen Betrag aus dem Privatvertrag und verweist auf die Polizze beziehungsweise den Versicherer; zur gesetzlichen Kassenleistung darf er nur ausdrücklich getrennt etwas sagen."
+    belegt_durch: []
