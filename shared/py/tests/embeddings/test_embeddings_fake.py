@@ -183,6 +183,26 @@ def test_mps_untergrenze_folgt_der_oberen(umgebung, monkeypatch):
         embeddings.einbetten(["1"], zweck="test")
 
 
+def test_nur_gemessene_revision(umgebung, monkeypatch):
+    """Fängt: EMBEDDINGS_REVISION=main lädt still einen ungemessenen Stand mit anderen Vektoren."""
+    monkeypatch.setenv("EMBEDDINGS_REVISION", "main")
+    with pytest.raises(ValueError, match="nicht gemessen"):
+        embeddings.einbetten(["1"], zweck="test")
+    assert umgebung.geladen == []
+
+
+def test_wechsel_gibt_das_alte_modell_vorher_frei(umgebung, monkeypatch):
+    """Fängt: beim Wechsel (hier max_token) liegen kurz zwei Modelle im Speicher."""
+    monkeypatch.setenv("EMBEDDINGS_GERAET", "mps")
+    monkeypatch.setenv("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "0.7")
+    monkeypatch.delenv("PYTORCH_MPS_LOW_WATERMARK_RATIO", raising=False)
+    embeddings.einbetten(["1"], zweck="test")
+    monkeypatch.setenv("EMBEDDINGS_MAX_TOKEN", "512")
+    embeddings.einbetten(["2"], zweck="test")
+    # Scheibe 1, Freigabe des alten Modells, Scheibe 2
+    assert umgebung.geleert == ["mps", "mps", "mps"]
+
+
 def test_geraete_cache_wird_je_scheibe_geleert(umgebung, monkeypatch):
     """Fängt: der Zwischenspeicher von mps/cuda wächst über alle Scheiben eines großen Aufrufs."""
     monkeypatch.setenv("EMBEDDINGS_GERAET", "mps")

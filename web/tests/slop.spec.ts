@@ -6,7 +6,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { ucs } from "../../shared/ui/src/ucs";
+import { bereiche } from "../../shared/ui/src/ucs";
 
 const hier = path.dirname(fileURLToPath(import.meta.url));
 const MESSSKRIPT = path.join(hier, "lib", "slop-measure.js");
@@ -39,8 +39,9 @@ const SCHLUESSEL = [
  */
 const NOCH_OFFEN: Record<string, string> = {};
 
-const ROUTEN: string[] = ["/", ...ucs.map((uc) => uc.route), "/praesentation", "/_bausteine"];
-const MAX_SEITEN = 40;
+const ROUTEN: string[] = ["/", ...bereiche.map((uc) => uc.route), "/praesentation", "/_bausteine"];
+// 120 je Viewport: UC-Unterseiten (z. B. je Lieferung) sollen das Gate nicht über die Grenze treiben (Lead 58)
+const MAX_SEITEN = 120;
 
 /** Gültiger Modell-Status mit abweichendem „zuletzt“, damit der Hinweis im Badge mitgemessen wird. */
 const MODELL_STATUS = {
