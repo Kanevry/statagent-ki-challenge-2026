@@ -845,8 +845,14 @@ export function entscheidungArgv(e: Entscheidung): string[] {
     : ["ablehnen", String(e.id), "--name", e.name, "--begruendung", e.begruendung, "--json"];
 }
 
-/** Fester Satz für jeden Fehler, den die CLI nicht als bekannten fachlichen Fehler meldet (auch Git-Fehler). */
-export const GRUND_UNBEKANNT = "Die Entscheidung ist nicht gespeichert. Bitte später noch einmal versuchen.";
+/**
+ * Fester Satz für jeden Fehler, den die CLI nicht als bekannten fachlichen Fehler meldet (auch Git-Fehler). Die
+ * Freigabe-Karte (@kic/ui) setzt selbst „Nicht gespeichert.“ davor, deshalb sagt der Satz das nicht noch einmal
+ * (Abnahme 135-12).
+ */
+export const GRUND_UNBEKANNT = "Bitte später noch einmal versuchen.";
+/** Satz, wenn die CLI nicht startet oder unerwartet endet; die Karte setzt „Nicht gespeichert.“ davor. */
+export const DIENST_NICHT_ERREICHBAR = "Der Dienst antwortet gerade nicht. Bitte gleich noch einmal versuchen.";
 
 /**
  * Bekannte fachliche Fehler der CLI (stderr „nicht freigegeben: …“ bzw. „nicht abgelehnt: …“) → fester Satz.
@@ -936,7 +942,7 @@ export function erstelleFreigabeAntwort({
       lauf = await uc3(entscheidungArgv(e), { ausfuehren, ...(wurzel ? { wurzel } : {}) });
     } catch (grund) {
       console.warn(`[uc3/freigabe] CLI nicht erreichbar (${(grund as Error).name ?? "Fehler"})`);
-      return fehler(502, "Die Entscheidung konnte nicht gespeichert werden. Bitte gleich noch einmal versuchen.");
+      return fehler(502, DIENST_NICHT_ERREICHBAR);
     }
     const erfolg = lauf.code === 0 || lauf.code === 1 ? erfolgAus(lauf.stdout, e.entscheidung) : null;
     if (erfolg && (lauf.code === 0 || erfolg.angewendet === false)) {
@@ -945,11 +951,11 @@ export function erstelleFreigabeAntwort({
     if (lauf.code === 1) {
       const grund = kurzerGrund(lauf.stderr);
       const meldung =
-        grund === GRUND_UNBEKANNT ? GRUND_UNBEKANNT : "Die Entscheidung ist nicht gespeichert.";
+        grund === GRUND_UNBEKANNT ? GRUND_UNBEKANNT : "Die Angaben passen nicht.";
       return fehler(409, meldung, grund);
     }
     console.warn(`[uc3/freigabe] CLI beendet mit Exit ${lauf.code}`);
-    return fehler(502, "Die Entscheidung konnte nicht gespeichert werden. Bitte gleich noch einmal versuchen.");
+    return fehler(502, DIENST_NICHT_ERREICHBAR);
   }
 
   return async function freigabeAntwort(anfrage: Request): Promise<Response> {
