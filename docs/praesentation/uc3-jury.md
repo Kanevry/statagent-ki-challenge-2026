@@ -41,7 +41,7 @@ Die Aufgabe sagt „per Sprache“. Bei uns tippt Bernhard den Wunsch der Jury a
 | Männer und Frauen | Frage 2 (August 2024, je Bundesland) | Männer 211.603, Frauen 180.633 | F14 |
 | Fluktuation je Wirtschaftsbereich | Frage 4 (Oktober 2024) | 3,42 %, 12.215 Zugänge, 14.557 Abgänge | F23 |
 
-Die Antwort zeigt Zahl oder Tabelle und die Abfrage, unter „Details“ den ganzen Satz und die Definition. Bei Männern und Frauen stehen die Summen dort, also „Details“ aufklappen. Ein Sprachmodell rechnet hier nichts. Freie Fragen der Jury nur, wenn der Stand um 06:45 sie trägt (Eintrag in `probe.md`).
+Die Antwort zeigt Zahl oder Tabelle mit Summenzeile und die Abfrage, unter „Details“ den ganzen Satz und die Definition. Ein Sprachmodell rechnet hier nichts. Freie Fragen der Jury nur, wenn der Stand um 06:45 sie trägt (Eintrag in `probe.md`).
 
 ## Pfad B: Management, 10 Minuten Folien, 5 Minuten Fragen
 

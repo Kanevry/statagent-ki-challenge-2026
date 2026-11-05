@@ -28,7 +28,7 @@ Gehört zu GitLab #90, Epic #26. Wird am Fr 06.11.2026 ab 06:00 ausgefüllt.
 | D4 und Folie 9 (Entscheid 06:45) | ja / nein, die Wien-Frage läuft echt, nicht im Testmodus |
 | D2 Teil 2 (Entscheid 06:45) | ja / nein. Stand der Proben: `demo-drehbuch.md`, D2 |
 | Datenbank der Vorführung | Kopie des Abgabe-Stands, geprüft um ____ von ____. Nie `statistik` |
-| D3 freie Fragen | nein, nur die acht geprüften (ja erst, wenn der Folge-MR von bb auf main ist) |
+| D3 freie Fragen (Entscheid 06:45) | ja / nein, Stand neu gemessen (`demo-drehbuch.md`, D3) |
 | Zahlen in den Szenen gegen `abgabe/` abgeglichen | ja / nein |
 
 ### Abschnittszeiten

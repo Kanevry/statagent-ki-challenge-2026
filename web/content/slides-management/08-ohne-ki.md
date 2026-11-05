@@ -12,7 +12,7 @@ belege: [F16, F28]
 
 | Zahl | Text |
 |---|---|
-| 13 Minuten | für alle 24 Lieferungen, gemessen |
+| 13 min | für alle 24 Lieferungen, gemessen |
 | 0 | Modellaufrufe im Monatslauf und bei Fragen an die Daten |
 | 72 von 72 | Wiederholungen mit genau demselben Ergebnis |
 

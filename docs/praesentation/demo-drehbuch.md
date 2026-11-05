@@ -101,7 +101,7 @@ Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „
 
 Drei Anfragen der Aufgabenstellung, je etwa 25 Sekunden: Zeitreihe, Männer und Frauen je Bundesland, Fluktuation je Branche. Alle drei stammen aus der Liste der acht geprüften Fragen unten.
 
-**Nur geprüfte Fragen.** Vorgeführt werden ausschließlich die acht Fragen aus der Tabelle, wörtlich so getippt. Jede ist gegen eigenes SQL und das unabhängige Orakel nachgerechnet (Prüfung im Team, 05.11.2026 17:15 bis 17:19, #74). Freie Fragen der Jury tippt Bernhard nicht ein, solange der Folge-MR von bb („nie still falsch“) nicht auf main ist. Dann bietet er eine Frage aus der Liste an. Der Stand wird um 06:45 geprüft und in `probe.md` eingetragen.
+**Nur geprüfte Fragen.** Vorgeführt werden ausschließlich die acht Fragen aus der Tabelle, wörtlich so getippt. Jede ist gegen eigenes SQL und das unabhängige Orakel nachgerechnet (Prüfung im Team, 05.11.2026 17:15 bis 17:19, #74). Ob Bernhard freie Fragen der Jury eintippt, wird um 06:45 entschieden und in `probe.md` eingetragen. Sonst bietet er eine Frage aus der Liste an.
 
 - Klickweg: Seite `/uc3/fragen`, Frage ins Feld tippen. Die Antwort zeigt die Zahl oder Tabelle und „Abfrage ansehen“. Den ganzen Antwortsatz und die Definition zeigt „Details“.
 - Terminal (Stufe 2): `uv run uc3 frage "…"` mit demselben Text.
@@ -122,21 +122,20 @@ Drei Anfragen der Aufgabenstellung, je etwa 25 Sekunden: Zeitreihe, Männer und 
 
 Zusatz (12:00–13:00), eine ehrliche Absage, nur wenn Zeit bleibt: „Entwicklung im Bau seit August 2024“. Das Programm sagt ab, weil die Branchen ab 2025 nach ÖNACE 2025 gezählt werden (F13). Sagt Bernhard: „Hier sagt das Programm ehrlich nein, statt zwei verschiedene Einteilungen zu vergleichen.“
 
-**Nicht vorführen**, solange der Folge-MR von bb fehlt. Diese Fragen liefern heute eine Antwort auf eine andere Frage ohne Hinweis:
+**Stand der freien Fragen** (gemessen 05.11.2026 auf dem Testserver, Stand `main` `fd936b3`, um 06:45 neu messen):
 
-- Branchen in Umgangssprache, etwa „Gastronomie“, „Gesundheitswesen“ oder „Handel“.
-- Zwei Werte eines Merkmals, etwa „Wien und Tirol“ oder „Arbeiter und Angestellte“.
-- Alter, etwa „unter 25“ oder „Durchschnittsalter“, und „freie Dienstverträge“.
-- Zeiträume wie „von März bis Juni 2025“.
-- Fluktuation mit Filter („in Wien“), für August 2024 oder mit „am höchsten“.
-- Fragen nach einer einzelnen Person.
+- Sagt ehrlich ab: zwei Werte eines Merkmals („Wien und Tirol“, „Arbeiter und Angestellte“), „Durchschnittsalter“, Fluktuation mit Filter („in Wien“) oder für August 2024, Fragen nach einer einzelnen Person.
+- Liefert eine Zahl, nicht gegen das Orakel geprüft: Branchen in Umgangssprache („Gastronomie“, „Gesundheitswesen“, „Handel“), „freie Dienstverträge“, Zeiträume („von März bis Juni 2025“).
+- Holpert: „Welche Branche hat die höchste Fluktuation“ sagt ab, aber mit „Das Wort ‚hat‘ kenne ich nicht“.
+
+**Nicht vorführen:** Alter wie „unter 25“. Die Frage liefert still die Gesamtzahl 399.027, ohne Hinweis. Gemeldet an die UC3-Lane.
 
 Fragt die Jury so etwas, sagt Bernhard: „Das zeige ich Ihnen mit einer Abfrage aus dem Katalog“ und nimmt die passende SQL aus Teil A oder eine Frage aus der Tabelle.
 
 - Jury muss sehen:
   - Die Zahl, die Abfrage und die Definition auf dem Bildschirm.
   - Frage 1: erste Zeile 392.236 (F14). Der Oktober 2025 steht als vorläufig (F11).
-  - Frage 2: die Tabelle je Bundesland. Die Summen Männer 211.603 und Frauen 180.633 (F14) stehen im Satz unter „Details“. Bernhard klappt es auf.
+  - Frage 2: die Tabelle je Bundesland mit Summenzeile: Männer 211.603, Frauen 180.633 (F14).
   - Frage 4: Fluktuation 3,42 % mit Zugängen und Abgängen (F23). Nie zwei Monate mit verschiedener ÖNACE-Version Abschnitt gegen Abschnitt vergleichen (F13).
 - Weicht eine Zahl von der Sollzahl ab, sagt Bernhard nichts dazu und wechselt auf die SQL aus dem Fragenkatalog. Die Abweichung kommt danach ins Probe-Protokoll.
 
@@ -181,7 +180,7 @@ Jeder Punkt wird abgehakt, sobald er geprüft ist. Uhrzeit nur aus der Uhr (`TZ=
 - [ ] Keine Secrets sichtbar. Umgebungsvariablen nicht im Terminal anzeigen, keine `.env.local` öffnen.
 - [ ] Zahlen in den Szenen gegen `abgabe/` abgeglichen.
 - [ ] D1: Monat gewählt (2025-10 oder 2025-03) und in `probe.md` eingetragen.
-- [ ] D3: Die acht geprüften Fragen auf `/uc3/fragen` und mit `uv run uc3 frage "…"` geprobt, jede Zahl gegen die Sollzahl der Tabelle. Folge-MR von bb auf main? Wenn nein, keine freien Fragen. SQL A1 bis A3 als Rückfall bereit, `<regelstand>` eingesetzt.
+- [ ] D3: Die acht geprüften Fragen auf `/uc3/fragen` und mit `uv run uc3 frage "…"` geprobt, jede Zahl gegen die Sollzahl der Tabelle. SQL A1 bis A3 als Rückfall bereit, `<regelstand>` eingesetzt.
 - [ ] D4: Sollwert 7.498 (F18) gegen die Abfrage im Belegregister geprüft. Testmodus-Ansage bereit.
 - [ ] D2: `uv run uc3 vorschlag zeigen 24` und `uv run uc3 protokoll --zeigen` laufen auf dem Vortragsrechner. B2 nur, wenn es nach dem Fix der UC3-Lane dreimal gegen `statistik_probe` geklappt hat. Nie `freigabe` geübt.
 - [ ] Datenbank: `UC3_DATABASE_URL` zeigt auf `statistik_vorfuehrung`, nicht auf `statistik`. Prüfung ohne Wert: Datenbankname im Kopf der App oder `uv run uc3 laeufe` liefert die 24 Läufe der Kopie. Checkout steht auf einem Demo-Branch, der für diesen Lauf frisch ab main angelegt ist.

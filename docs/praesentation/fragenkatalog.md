@@ -25,16 +25,9 @@ Nur diese Fragen werden vorgeführt, wörtlich so getippt. Jede Zahl ist gegen e
 
 Gegenprobe mit ehrlicher Absage: „Entwicklung im Bau seit August 2024“. Das Programm sagt ab, weil die Branchen ab 2025 nach ÖNACE 2025 gezählt werden (F13).
 
-Nicht vorführen, solange der Folge-MR von bb fehlt, weil die Antwort heute still eine andere Frage beantwortet:
+Freie Fragen, Stand 05.11.2026 (Testserver, `main` `fd936b3`): Zwei Werte eines Merkmals („Wien und Tirol“), „Durchschnittsalter“, Fluktuation mit Filter und Fragen nach einer Person sagt das Programm ehrlich ab. Branchen in Umgangssprache („Gastronomie“), „freie Dienstverträge“ und Zeiträume („von März bis Juni 2025“) liefern eine Zahl, die nicht gegen das Orakel geprüft ist.
 
-- Branchen in Umgangssprache („Gastronomie“, „Gesundheitswesen“, „Handel“).
-- Zwei Werte eines Merkmals („Wien und Tirol“, „Arbeiter und Angestellte“).
-- Alter („unter 25“, „Durchschnittsalter“) und „freie Dienstverträge“.
-- Zeiträume („von März bis Juni 2025“).
-- Fluktuation mit Filter („in Wien“), für August 2024 oder mit „am höchsten“.
-- Fragen nach einer einzelnen Person.
-
-In der Tabelle steht „Beschäftigte“, weil die Jury so fragt. Gezählt werden Beschäftigungsverhältnisse; so sagt es Bernhard auch.
+Nicht vorführen: Alter wie „unter 25“, die Frage liefert still die Gesamtzahl.
 
 ## Gemeinsame Bausteine für das SQL
 
