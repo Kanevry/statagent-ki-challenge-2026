@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Akzent, Fliesstext, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
 import { formatDifferenz, formatZahl, formatZeit, HerkunftChip } from "@kic/ui/bausteine";
 import { leerSatz } from "@/components/uc3/db";
-import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import {
   aenderungKurz,
   gesamtZeile,
@@ -87,13 +87,11 @@ export default async function FreigabenSeite({
           Die Agenten schlagen Änderungen nur vor. Gerechnet wird damit erst, wenn ein Mensch sie mit Vor- und
           Nachnamen freigibt.
         </Fliesstext>
-        <ul className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5" aria-label="Begriffe auf dieser Seite">
-          {(["Freigabe", "Regelsatz", "Probe", "Regelstand", "Ergebnis-Hash"] as const).map((wort) => (
-            <li key={wort} className="font-sans text-14 font-semibold text-ink">
-              <Fachbegriff wort={wort} />
-            </li>
-          ))}
-        </ul>
+        <Begriffsliste
+          worte={["Freigabe", "Regelsatz", "Probe", "Regelstand", "Ergebnis-Hash"]}
+          label="Begriffe auf dieser Seite"
+          className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5"
+        />
       </header>
 
       <div className="flex max-w-3xl flex-col gap-6">

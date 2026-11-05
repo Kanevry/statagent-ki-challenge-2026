@@ -5,7 +5,7 @@ import { Akzent, Fliesstext, knopfKlassen, Leerzustand, Ueberschrift } from "@ki
 import { formatDifferenz, formatZahl, HerkunftChip, type FreigabeEntscheidung } from "@kic/ui/bausteine";
 import { nurLesend } from "@/components/uc3/cli";
 import { leerSatz } from "@/components/uc3/db";
-import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { Begriffsliste, Fachbegriff } from "@/components/uc3/fachbegriff";
 import type { Uc3Begriff } from "@/components/uc3/glossar";
 import { laufBeleg } from "@/components/uc3/beleg";
 import {
@@ -184,13 +184,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
           <Fliesstext groesse={14}>{`Begründung des Agenten: ${v.begruendung}`}</Fliesstext>
         </Akzent>
 
-        <ul className="grid gap-4 sm:grid-cols-2" aria-label="Begriffe auf dieser Seite">
-          {begriffe.map((wort) => (
-            <li key={wort} className="font-sans text-14 font-semibold text-ink">
-              <Fachbegriff wort={wort} />
-            </li>
-          ))}
-        </ul>
+        <Begriffsliste worte={begriffe} label="Begriffe auf dieser Seite" className="grid gap-4 sm:grid-cols-2" />
 
         {ergebnis && (
           <div className="flex flex-col gap-2">
