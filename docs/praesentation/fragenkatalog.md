@@ -27,7 +27,9 @@ Gegenprobe mit ehrlicher Absage: „Entwicklung im Bau seit August 2024“. Das 
 
 Freie Fragen, Stand 05.11.2026 (Testserver, `main` `fd936b3`): Zwei Werte eines Merkmals („Wien und Tirol“), „Durchschnittsalter“, Fluktuation mit Filter und Fragen nach einer Person sagt das Programm ehrlich ab.
 
-Nicht vorführen: Alter wie „unter 25“, die Frage liefert still die Gesamtzahl. Dazu, was eine Zahl liefert, aber nicht gegen das Orakel geprüft ist: Branchen in Umgangssprache („Gastronomie“), „freie Dienstverträge“ und Zeiträume („von März bis Juni 2025“). Um 06:45 neu messen.
+Alter geht seit !227, online gemessen 06.11.2026 00:45 auf main `2005e01`: „Wie viele Beschäftigte unter 25 Jahren gab es im Juli 2026?“ 41.626, „Wie viele 30-Jährige gab es im August 2024?“ 9.017, „Beschäftigte ab 50 Jahren im Juli 2026“ 124.728. Falle: „über 50“ heißt 51 Jahre und älter (115.451), „ab 50“ ohne „Jahren“ sagt ab. Gegen das Orakel ist das nicht belegt, Entscheid um 06:45.
+
+Nicht vorführen, weil eine Zahl kommt, aber nicht gegen das Orakel geprüft ist: Branchen in Umgangssprache („Gastronomie“), „freie Dienstverträge“ und Zeiträume („von März bis Juni 2025“). Um 06:45 neu messen.
 
 ## Gemeinsame Bausteine für das SQL
 
