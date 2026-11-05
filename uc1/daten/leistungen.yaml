@@ -16,7 +16,8 @@
 #   `regional`: Dateien nur für ein Bundesland), `stelle_fest` (Stelle unabhängig vom Status),
 #   `stelle_je_status` (Ausnahmen von `stelle_fest` je Status, z. B. SVS für die Unfallversicherung),
 #   `formular` (`fuer_stelle`: nur für diese Stellen, sonst kein fremdes Formular), `unterlagen`,
-#   `antrag` (Art für `lotse antrag`, Issue #32).
+#   `antrag` (Art für `lotse antrag`, Issue #32), `nur_regel: true` (zählt nur über `ausloeser`, nie über das
+#   Analyse-Modell).
 
 felder:
   status:
@@ -180,6 +181,7 @@ leistungen:
     # Beamtinnen und Beamte (Dienstunfall, B-KUVG, BVAEB) sind nicht abgebildet; sie bekommen die AUVA.
     # „Arbeit“ allein löst nicht aus, nur Unfall, Weg oder Verletzung im Zusammenhang mit der Arbeit.
     lage: "Arbeitsunfall, Wegunfall oder Berufskrankheit"
+    nur_regel: true  # „Sturz“ allein ist kein Arbeitsunfall; das Modell deutete ihn so (Aufnahme v8)
     ausloeser:
       - 'arbeitsunf(?:ä|a)ll'
       - 'wegunf(?:ä|a)ll'

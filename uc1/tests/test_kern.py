@@ -1090,3 +1090,19 @@ def test_status_antwortknoepfe_werden_erkannt() -> None:
     erkannt = [kern.erkenne_status(o["antwort"]["de"]) for o in optionen]
     assert erkannt == ["pva", "svs", "bvaeb", "keine_pension"]
     assert all(kern.erkenne_status(o["antwort"]["en"]) for o in optionen)
+
+
+def test_unfallversicherung_nur_ueber_ausloeser_nicht_ueber_das_modell() -> None:
+    """Fängt einen Sturz zu Hause, den das Analyse-Modell als Arbeitsunfall deutet: Die Seite zeigte dann
+    „Unfallversicherung, zuständig AUVA“ neben dem Pflegegeld (Aufnahme v8)."""
+    daten = analyse(status="pva") | {"leistungen": ["pflegegeld", "unfallversicherung"]}
+    modell = Skript([daten], [antwort_mit(GUELTIG)])
+    a = kern.frage(
+        "Meine Mutter war nach einem Sturz im Spital und kommt allein nicht zurecht. "
+        "Sie hat Pension von der PVA.",
+        modell=modell,
+        suche_fn=FesteSuche([treffer()]),
+        speicher=kern.SpeicherImSpeicher(),
+    )
+    assert "unfallversicherung" not in a.leistungen and "pflegegeld" in a.leistungen
+    assert all(t["stelle"] != "AUVA" for t in a.traeger)

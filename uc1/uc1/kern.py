@@ -1260,6 +1260,9 @@ def _analysiere(
     antrag.update(regel_antrag(text))
     if erweiterung != "aus" and not ergebnis_.begriffe:
         ergebnis_.begriffe = erw.thesaurus_begriffe(verlauf_text)
+    # Leistungen mit `nur_regel: true` (z. B. Unfallversicherung) zählen nur über ihre Auslöser: Das Modell
+    # deutete „nach einem Sturz im Spital“ als Arbeitsunfall und nannte die AUVA (Aufnahme v8).
+    modell_leistungen = [lid for lid in modell_leistungen if not leistungen()[lid].get("nur_regel")]
     erkannt = list(dict.fromkeys([*zustand.get("leistungen", []), *modell_leistungen, *regel_leistungen]))
     ergebnis_.leistungen = erkannt
     if not ergebnis_.lage and erkannt:
