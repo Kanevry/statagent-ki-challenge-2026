@@ -20,8 +20,10 @@ export interface BefundZeile {
 export interface BefundTabelle {
   /** „datenbank“: aus meta.pruefung_treffer; „beispieldaten“: Fixture der Gegenrechnung, weil die DB fehlt */
   quelle: "datenbank" | "beispieldaten";
+  /** Nur bei „beispieldaten“: keine Verbindung zur UC3-DB oder Verbindung ohne Prüftreffer */
+  grund?: "keine-verbindung" | "keine-treffer";
   zeilen: BefundZeile[];
-  /** Zeilenzahl; bei „datenbank“ = select count(*) from meta.pruefung_treffer */
+  /** Zeilenzahl; bei „datenbank“ = select count(*) from meta.pruefung_treffer (kann größer sein als zeilen.length) */
   anzahl: number;
   /** Zeitpunkt der Abfrage, ISO-8601 */
   stand: string;

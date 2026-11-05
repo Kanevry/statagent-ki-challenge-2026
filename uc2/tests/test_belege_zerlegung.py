@@ -3,7 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from uc2.belege.extraktion import extrahiere, lies_jsonl
-from uc2.belege.zerlegung import ohne_sprecher, seiten_aus_text, verbinde_zeilen, zerlege_ausgabe
+from uc2.belege.zerlegung import (
+    inhaltszeilen,
+    ohne_sprecher,
+    seiten_aus_text,
+    verbinde_zeilen,
+    zerlege_ausgabe,
+)
 
 
 def test_inhaltsverzeichnis_mit_umbruch_ueber_zwei_seiten(ausgabe_text: str) -> None:
@@ -47,6 +53,16 @@ def test_autorin_wird_nie_uebernommen(ausgabe_text: str) -> None:
     for artikel in zerlege_ausgabe(ausgabe_text).artikel:
         assert "Autor:in" not in repr(artikel)
         assert "Musterfrau" not in repr(artikel)
+
+
+def test_autorin_auch_mitten_in_der_zeile() -> None:
+    zeilen = [
+        "Pressespiegel",
+        "Typ              Tageszeitungen        Autor:in         Max Beispiel",
+        "Autor:in",
+        "Die Autor:innen der Studie empfehlen mehr Kassenstellen.",
+    ]
+    assert inhaltszeilen(zeilen) == ["Die Autor:innen der Studie empfehlen mehr Kassenstellen."]
 
 
 def test_silbentrennung() -> None:

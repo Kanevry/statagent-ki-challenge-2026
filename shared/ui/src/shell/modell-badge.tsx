@@ -9,26 +9,45 @@ import { abweichendZuletzt, modellStatusSchema, type ModellStatus } from "./mode
 // Hat laut Protokoll zuletzt ein anderer Provider oder eine Ausweichstufe geantwortet, steht das ruhig daneben
 // („zuletzt mistral (Stufe 2)“, Symbol plus Wort, kein Alarmrot): vor der Jury steht so keine falsche Angabe.
 
+/** Der Status wird alle 30 s und beim Zurückkehren in den Tab neu gelesen, damit „zuletzt“ nicht veraltet. */
+const NEULADEN_MS = 30_000;
+
 type Zustand = { art: "laden" } | { art: "ok"; status: ModellStatus } | { art: "fehler" };
 
 export function ModellBadge({ quelle = "/api/plattform/modell" }: { quelle?: string }) {
   const [zustand, setZustand] = useState<Zustand>({ art: "laden" });
 
   useEffect(() => {
-    const abbruch = new AbortController();
-    fetch(quelle, { signal: abbruch.signal, cache: "no-store" })
-      .then(async (antwort) => {
-        const geprueft = modellStatusSchema.safeParse(await antwort.json());
-        if (!antwort.ok || !geprueft.success || geprueft.data.provider === "unbekannt") {
-          setZustand({ art: "fehler" });
-          return;
-        }
-        setZustand({ art: "ok", status: geprueft.data });
-      })
-      .catch(() => {
-        if (!abbruch.signal.aborted) setZustand({ art: "fehler" });
-      });
-    return () => abbruch.abort();
+    let abbruch = new AbortController();
+    const laden = () => {
+      abbruch.abort();
+      abbruch = new AbortController();
+      const signal = abbruch.signal;
+      fetch(quelle, { signal, cache: "no-store" })
+        .then(async (antwort) => {
+          const geprueft = modellStatusSchema.safeParse(await antwort.json());
+          if (signal.aborted) return;
+          if (!antwort.ok || !geprueft.success || geprueft.data.provider === "unbekannt") {
+            setZustand({ art: "fehler" });
+            return;
+          }
+          setZustand({ art: "ok", status: geprueft.data });
+        })
+        .catch(() => {
+          if (!signal.aborted) setZustand({ art: "fehler" });
+        });
+    };
+    const beiSichtbar = () => {
+      if (document.visibilityState === "visible") laden();
+    };
+    laden();
+    const takt = setInterval(laden, NEULADEN_MS);
+    document.addEventListener("visibilitychange", beiSichtbar);
+    return () => {
+      clearInterval(takt);
+      document.removeEventListener("visibilitychange", beiSichtbar);
+      abbruch.abort();
+    };
   }, [quelle]);
 
   if (zustand.art === "fehler") {

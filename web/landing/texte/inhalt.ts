@@ -12,6 +12,7 @@ import {
   BUNDESLAENDER_2024_08,
   GOLDEN_SET,
   LIEFERUNGEN,
+  BEFUNDE,
   SUMME_ZEILEN,
   SZENE_BEFUNDE,
   zahl,
@@ -83,7 +84,16 @@ export const HERO = {
   titel: "StatAgent",
   autor: "by Bernhard Götzendorfer",
   leitmotiv: ["Hochrisikodaten", "Vertrauen", "Glaubwürdigkeit"] as const,
-  satz: `Eine Beschäftigtenstatistik aus ${zahl(ANZAHL_LIEFERUNGEN)} Monatslieferungen. Die KI schreibt den Code, das Programm rechnet, ein Mensch gibt jede Zahl frei.`,
+  satz: `Eine Beschäftigtenstatistik aus ${zahl(ANZAHL_LIEFERUNGEN)} Monatslieferungen. Agenten schreiben Code und Regeln, das Programm rechnet, ein Mensch gibt mit Namen frei.`,
+  /** Ergebnis auf einen Blick (Roast K3); Zahlen aus fakten.ts, Herkunft in `ergebnisQuelle`. */
+  ergebnis: [
+    { wert: zahl(ANZAHL_LIEFERUNGEN), text: "Lieferungen" },
+    { wert: zahl(SUMME_ZEILEN), text: "Zeilen" },
+    { wert: zahl(BEFUNDE.length), text: "Befunde" },
+    { wert: `${zahl(GOLDEN_SET.zellenExakt)} von ${zahl(GOLDEN_SET.zellenGesamt)}`, text: "Zellen exakt" },
+  ],
+  ergebnisBereich: "Ergebnis auf einen Blick",
+  ergebnisQuelle: "Gegenrechnung gegen den Beispielbericht, Stand 05.11.2026. Kein Befund wird gelöscht.",
   hinweis: `Weiter nach unten: in ${ZAHLWORT[4]} Schritten von den Rohdaten zur belegten Zahl.`,
   schritteBereich: "Die vier Schritte",
   springeZu: "Springe zu Schritt",
@@ -97,6 +107,8 @@ export interface SchrittText {
   /** Zeile unter der Kennzahl */
   einheit: string;
   text: string;
+  /** Glossar-Untertitel je Fachbegriff (PRD Vertrag D, Roast K9) */
+  glossar: { begriff: string; erklaerung: string }[];
 }
 
 const tl = SZENE_BEFUNDE.teilLieferung2025_10;
@@ -110,6 +122,12 @@ export const SCHRITT_TEXTE: Record<SchrittId, SchrittText> = {
     kennzahl: SUMME_ZEILEN,
     einheit: `Zeilen in ${zahl(ANZAHL_LIEFERUNGEN)} Lieferungen`,
     text: `${monatJahr(ERSTE)} bis ${monatJahr(LETZTE)}. Jede Säule ist eine Lieferung. Die Daten sind synthetisch, aber so groß und so fehlerhaft wie echte.`,
+    glossar: [
+      {
+        begriff: "Lieferung",
+        erklaerung: "der monatliche Datenabzug der Sozialversicherung, eine Zeile je Beschäftigungsverhältnis und Zeitabschnitt",
+      },
+    ],
   },
   pruefen: {
     marke: "Prüfen",
@@ -117,6 +135,10 @@ export const SCHRITT_TEXTE: Record<SchrittId, SchrittText> = {
     kennzahl: tl.fehlen,
     einheit: `Verhältnisse fehlen im ${monatJahr(tl.lieferung)}`,
     text: `Das ist rund jedes ${ORDNUNGSZAHL[Math.round(100 / tl.anteilProzent)]}. Im ${monatJahr(fd.lieferung)} fehlen alle ${zahl(fd.verhaeltnisse)} freien Dienstverträge, dazu kommen ${zahl(dub.zeilen)} doppelte Zeilen. Wir löschen nichts: Jeder Befund wird markiert, eingestuft und als Rückfrage gestellt.`,
+    glossar: [
+      { begriff: "Verhältnis", erklaerung: "kurz für Beschäftigungsverhältnis, also eine Anstellung; eine Person kann mehrere haben" },
+      { begriff: "Freier Dienstvertrag", erklaerung: "Arbeit ohne Anstellung, aber sozialversichert" },
+    ],
   },
   zaehlen: {
     marke: "Zählen",
@@ -124,6 +146,9 @@ export const SCHRITT_TEXTE: Record<SchrittId, SchrittText> = {
     kennzahl: GOLDEN_SET.bestand,
     einheit: `Beschäftigungsverhältnisse am ${datumLang(GOLDEN_SET.stichtag)}`,
     text: `Verteilt auf ${ZAHLWORT[LAENDER.length]} Bundesländer. ${zahl(UNBEKANNT?.anzahl ?? 0)} ohne Bundesland zählen mit und bleiben sichtbar.`,
+    glossar: [
+      { begriff: "Stichtag", erklaerung: "gezählt wird, wer am letzten Tag des Monats beschäftigt ist" },
+    ],
   },
   belegen: {
     marke: "Belegen",
@@ -131,12 +156,15 @@ export const SCHRITT_TEXTE: Record<SchrittId, SchrittText> = {
     kennzahl: GOLDEN_SET.zellenExakt,
     einheit: `von ${zahl(GOLDEN_SET.zellenGesamt)} Zellen exakt`,
     text: "So viele Zellen stimmen mit dem Beispielbericht überein. Zu jeder Zahl gehört die Abfrage, die sie erzeugt.",
+    glossar: [
+      { begriff: "Beispielbericht", erklaerung: "die amtliche Vorlage der Aufgabe mit 13 Tabellen für August 2024" },
+    ],
   },
 };
 
 export const BELEG = {
   sql: GOLDEN_SET.belegSql,
-  unterschrift: `Die Abfrage hinter ${zahl(GOLDEN_SET.bestand)}`,
+  unterschrift: `Diese Abfrage ergibt ${zahl(GOLDEN_SET.bestand)}, genau so, wie sie hier steht.`,
   tabelle: `Beschäftigungsverhältnisse am ${GOLDEN_SET.stichtag} nach Bundesland`,
   spalteLand: "Bundesland",
   spalteAnzahl: "Anzahl",
@@ -148,8 +176,8 @@ export const ANSATZ = {
   einleitung: `${ZAHLWORT[5].replace(/^./, (c) => c.toUpperCase())} Regeln, an die sich das ganze Projekt hält. Sie machen jede Zahl nachprüfbar.`,
   punkte: [
     {
-      titel: "Die KI schreibt Code, das Programm rechnet",
-      text: "Ein Sprachmodell hilft uns beim Schreiben des Codes. Die Zahlen rechnet dieser Code allein, ohne Sprachmodell. Zwei Läufe mit denselben Daten und Regeln liefern dieselben Zahlen.",
+      titel: "Agenten schreiben Code, das Programm rechnet",
+      text: "Eigene Agenten setzen Änderungsaufträge um: Sie schreiben Code und Regeln. Die Zahlen rechnet dieser Code allein, ohne Sprachmodell. Zwei Läufe mit denselben Daten und Regeln liefern dieselben Zahlen.",
     },
     {
       titel: "Regeln sind Daten",
@@ -157,7 +185,7 @@ export const ANSATZ = {
     },
     {
       titel: "Ein Mensch gibt frei, mit Namen",
-      text: "Jede Regeländerung und jede Lieferung trägt Vor- und Nachnamen und Zeitpunkt. Eine Freigabe mit „Team“ als Namen lehnt das System ab.",
+      text: "Ein Agent schlägt jede Änderung vor, ein Mensch gibt sie mit Vor- und Nachnamen frei, das Protokoll hält Auftrag, Vorschlag und Freigabe fest. Auch jede Lieferung wird so freigegeben. Eine Freigabe mit „Team“ als Namen lehnt das System ab.",
       beispiel: "Freigegeben-von: Bernhard Götzendorfer",
     },
     {
@@ -165,8 +193,8 @@ export const ANSATZ = {
       text: "Zu jedem Wert im Bericht gehört die Abfrage, die ihn erzeugt hat. Wer nachrechnen will, kann das Zeile für Zeile.",
     },
     {
-      titel: "Lokal und offline",
-      text: "Die Daten liegen in PostgreSQL auf dem eigenen Rechner. Das Sprachmodell sieht Regeln und Schemata, nie Einzeldaten.",
+      titel: "Statistikdaten bleiben lokal",
+      text: "Die Statistikdaten von StatAgent liegen in PostgreSQL auf dem eigenen Rechner und verlassen ihn nicht. Das Sprachmodell sieht nur Regeln und Schemata, nie Einzeldaten.",
     },
   ],
   modell: {
@@ -188,7 +216,19 @@ export const DATENFEHLER = {
   beschriftung: "Befunde der Prüfung mit Lieferung, Anzahl der Sätze und Einstufung",
   spalten: { befund: "Befund", lieferung: "Lieferung", saetze: "Sätze", einstufung: "Einstufung" },
   rueckfrage: "Rückfrage",
-  beispieldaten: "Beispieldaten aus der Gegenrechnung vom 05.11.2026. Die UC3-Datenbank ist hier nicht verbunden.",
+  beispieldaten:
+    "Beispieldaten, kein Live-Stand: Gegenrechnung vom 05.11.2026. In der Anwendung entsteht diese Liste bei jeder Lieferung neu aus der Prüfung.",
+  keineTreffer:
+    "Beispieldaten, kein Live-Stand: In dieser Datenbank liegt noch kein Prüflauf. Gezeigt wird die Gegenrechnung vom 05.11.2026.",
+  /** Hinweis, wenn die Datenbank mehr Treffer hat, als die Tabelle zeigt */
+  auswahl: (gezeigt: number, gesamt: number) =>
+    `Gezeigt werden ${zahl(gezeigt)} von ${zahl(gesamt)} Treffern, nicht erklärbare zuerst, dann nach Anzahl.`,
+  /** Glossar zur Spalte Einstufung (Roast K9) */
+  glossar: [
+    { begriff: "erklärt, plausibel", erklaerung: "ungewohnt, aber richtig; wird gezählt und vermerkt" },
+    { begriff: "erklärt, Datenproblem", erklaerung: "Fehler mit bekannter Ursache und fester Behandlung" },
+    { begriff: "nicht erklärbar", erklaerung: "geht als Rückfrage an die Fachabteilung, der Monat bleibt vorläufig" },
+  ],
   datenbank: "Live aus der UC3-Datenbank, Stand",
 } as const;
 
@@ -219,7 +259,7 @@ export const USE_CASES = {
     name: "Gemeinsamer Einstieg",
     plakette: "neu",
     text: "Kein viertes Produkt, sondern die Verbindung der drei. Eine Frage läuft durch alle Räume: StatAgent liefert die geprüften Zahlen mit Beleg, das Panel verhandelt daraus eine Position, der KI-Lotse erklärt in einfacher Sprache, was das im Alltag bedeutet.",
-    beispiel: "„Wie entwickeln sich die Wartezeiten, und was heißt das für mich?“",
+    beispiel: "„Wie entwickelt sich die Beschäftigung im Gesundheits- und Sozialwesen in meinem Bundesland, und was heißt das für mich?“",
     beispielLabel: "Beispielfrage",
     schritte: ["StatAgent: Zahlen mit Beleg", "Panel: Position", "KI-Lotse: einfache Sprache"],
     inArbeit: "Entsteht gerade",

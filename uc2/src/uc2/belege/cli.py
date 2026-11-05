@@ -40,10 +40,14 @@ def _einbetten(args: argparse.Namespace) -> int:
 
 
 def _index(args: argparse.Namespace) -> int:
-    from uc2.belege.index import indexiere
+    from uc2.belege.index import VektorenPassenNicht, indexiere
 
-    with db.verbinde(args.db) as verbindung:
-        ergebnis = indexiere(args.extrakt, verbindung)
+    try:
+        with db.verbinde(args.db) as verbindung:
+            ergebnis = indexiere(args.extrakt, verbindung)
+    except VektorenPassenNicht as fehler:
+        print(f"Abbruch: {fehler}", file=sys.stderr)
+        return 1
     if ergebnis.meldung:
         print(f"Hinweis: {ergebnis.meldung}", file=sys.stderr)
     print(
@@ -54,15 +58,22 @@ def _index(args: argparse.Namespace) -> int:
 
 
 def _suche(args: argparse.Namespace) -> int:
-    from uc2.belege.einbettung import Einbetter, einbetter
+    from uc2.belege.einbettung import einbetter
     from uc2.belege.suche import suche
 
     regeln = lade_regeln()
     modus = args.modus or regeln.modus
-    e: Einbetter | None = einbetter() if modus != "volltext" else None
     with db.verbinde(args.db) as verbindung:
+        # Der Einbetter (torch, Modell) lädt erst, wenn der Index Vektoren hat; ohne das Extra `einbettung`
+        # fällt `suche` mit Hinweis auf volltext zurück.
         genutzt, treffer = suche(
-            verbindung, args.frage, regeln, modus=modus, k=args.k, stichtag=args.stichtag, einbetter=e
+            verbindung,
+            args.frage,
+            regeln,
+            modus=modus,
+            k=args.k,
+            stichtag=args.stichtag,
+            einbetter_fabrik=einbetter,
         )
     if args.json:
         ausgabe: dict[str, Any] = {"modus": genutzt, "treffer": [t.als_dict() for t in treffer]}
@@ -79,6 +90,17 @@ def _suche(args: argparse.Namespace) -> int:
     return 0
 
 
+MAX_BATCH = 64
+
+
+def _batch(wert: str) -> int:
+    """1 bis 64 (Review-Bank 4f): begrenzt den Speicher je Modellaufruf bei Abschnitten bis 1.024 Token."""
+    zahl = int(wert)
+    if not 1 <= zahl <= MAX_BATCH:
+        raise argparse.ArgumentTypeError(f"--batch muss zwischen 1 und {MAX_BATCH} liegen, nicht {zahl}")
+    return zahl
+
+
 def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     p = sub.add_parser("extrahiere", help="Pressespiegel-PDFs → JSONL (Stufe 1)")
     p.add_argument("--quelle", type=Path, default=pfade.presse())
@@ -90,7 +112,7 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     p = sub.add_parser("einbetten", help="Abschnitte → vektoren.npy/vektoren.json (Stufe 2)")
     p.add_argument("--extrakt", type=Path, default=pfade.arbeit() / "extrakt")
-    p.add_argument("--batch", type=int, default=32)
+    p.add_argument("--batch", type=_batch, default=32, help=f"Texte je Modellaufruf, höchstens {MAX_BATCH}")
     p.add_argument("--grenze", type=int, default=None, help="nur die ersten N Abschnitte (Probelauf)")
     p.set_defaults(func=_einbetten)
 

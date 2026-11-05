@@ -24,7 +24,7 @@ import {
 import { SCHRITTE, type FortschrittSpeicher, type KartenDaten, type SzeneVariante } from "../vertrag";
 import { ersatzKarte } from "./karteErsatz";
 import { berechneLayout, planePartikel, PUNKT_STIL, standardRaender, type SzeneLayout } from "./layout";
-import { bauePartikel } from "./partikel";
+import { bauePartikelStart, bauePartikelZiele, type PartikelStart } from "./partikel";
 import { FRAGMENT, VERTEX } from "./shader";
 import { linienZustand, RUHE_P } from "./zeitplan";
 
@@ -34,10 +34,13 @@ export interface SzeneOptionen {
   variante: SzeneVariante;
   reduziert: boolean;
   /**
-   * Lädt die echten Kartendaten (mindestens planePartikel(variante).kartenPartikel Punkte). Die
-   * Partikel werden erst gebaut, wenn die Karte da ist; bei Fehler mit der Ersatz-Karte.
+   * Lädt die echten Kartendaten (mindestens planePartikel(variante).kartenPartikel Punkte). Schritt 1
+   * und 2 stehen sofort; Karte und Tabelle entstehen, wenn die Daten da sind (bei Fehler mit der
+   * Ersatz-Karte), in kleinen Häppchen im Leerlauf.
    */
   ladeKarte?: () => Promise<KartenDaten>;
+  /** Schon erzeugter WebGL2-Kontext des Canvas (spart einen zweiten Kontext für die Prüfung). */
+  kontext?: WebGL2RenderingContext;
   /** Ohne Ladeanimation starten (mobil: vorher stand das statische Bild der Säulen). */
   ohneLaden?: boolean;
   /** Wird nach dem ersten gezeichneten Bild mit Partikeln einmal aufgerufen. */
@@ -66,6 +69,13 @@ export const LADEN_MS = 1200;
 export const GLAETTUNG_S = 0.12;
 /** Amplitude des Leerlauf-Atmens in CSS-Pixeln */
 export const ATMEN_PX = 0.5;
+/**
+ * Karte und Tabelle rechnet der Motor in Häppchen im Leerlauf. Spätestens ab diesem Fortschritt
+ * rechnet er den Rest sofort, damit Schritt 3 (ab SCHRITTE[2].von) fertige Ziele hat.
+ */
+export const ZIELE_SPAETESTENS_P = 0.15;
+/** Rechenzeit je Häppchen in ms (Long Tasks bleiben weit unter 50 ms) */
+const HAEPPCHEN_MS = 8;
 
 const FARBE = {
   papier: new Color("#F4F7F5"),
@@ -164,6 +174,7 @@ export function starteSzene(o: SzeneOptionen): SzeneHandle | null {
   try {
     renderer = new WebGLRenderer({
       canvas,
+      context: o.kontext,
       alpha: true,
       antialias: true,
       premultipliedAlpha: true,
@@ -239,7 +250,8 @@ export function starteSzene(o: SzeneOptionen): SzeneHandle | null {
   scan.renderOrder = 3;
   szene.add(...linien, punkte, scan);
 
-  // Die Partikel entstehen erst mit der Karte (ein Aufbau statt zwei); ohne Lader die Ersatz-Karte.
+  // Schritt 1 und 2 entstehen sofort; Karte und Tabelle (Ziele) erst mit den Kartendaten, in
+  // Häppchen im Leerlauf. Ohne Lader die Ersatz-Karte.
   const kartenPunkte = planePartikel(variante).kartenPartikel;
   let karte: KartenDaten | null = o.ladeKarte ? null : ersatzKarte(kartenPunkte);
   let erstesBild = false;
@@ -248,29 +260,90 @@ export function starteSzene(o: SzeneOptionen): SzeneHandle | null {
   let hoehe = 0;
   let zerstoert = false;
   let neuZeichnen = true;
+  /** Shader fertig übersetzt (compileAsync); vorher kein Bild, damit nichts blockiert */
+  let bereit = false;
+  let start: PartikelStart | null = null;
+  let zielAttribute: BufferAttribute[] = [];
+  let ziele: Generator<void, void, void> | null = null;
+  let zieleFertig = false;
+  const mitIdle = typeof window.requestIdleCallback === "function";
+  let auftrag = 0;
+
+  function auftragAbbrechen() {
+    if (!auftrag) return;
+    if (mitIdle) window.cancelIdleCallback(auftrag);
+    else window.clearTimeout(auftrag);
+    auftrag = 0;
+  }
+
+  function zieleStarten() {
+    auftragAbbrechen();
+    zieleFertig = false;
+    ziele = start && layout && karte ? bauePartikelZiele(start, layout, karte) : null;
+    if (ziele) zielePlanen();
+  }
+
+  function zielePlanen() {
+    if (auftrag || !ziele || zerstoert) return;
+    auftrag = mitIdle
+      ? window.requestIdleCallback(haeppchen, { timeout: 120 })
+      : window.setTimeout(() => haeppchen(), 0);
+  }
+
+  function haeppchen(frist?: IdleDeadline) {
+    auftrag = 0;
+    if (zerstoert || !ziele) return;
+    const budget = frist && !frist.didTimeout ? Math.max(4, Math.min(HAEPPCHEN_MS, frist.timeRemaining())) : HAEPPCHEN_MS;
+    if (!zieleRechnen(budget)) zielePlanen();
+  }
+
+  /** Rechnet Ziele bis das Budget (ms) verbraucht ist; true, wenn alle Ziele stehen. */
+  function zieleRechnen(budget: number): boolean {
+    if (!ziele) return zieleFertig;
+    const bis = performance.now() + budget;
+    do {
+      if (ziele.next().done) {
+        ziele = null;
+        zieleFertig = true;
+        auftragAbbrechen();
+        for (const a of zielAttribute) a.needsUpdate = true;
+        neuZeichnen = true;
+        anfordern();
+        canvas.dispatchEvent(new CustomEvent(LAYOUT_EVENT, { detail: layout, bubbles: true }));
+        return true;
+      }
+    } while (performance.now() < bis);
+    return false;
+  }
 
   function aufbauen() {
-    if (breite < 2 || hoehe < 2 || !karte) return;
+    if (breite < 2 || hoehe < 2) return;
     // Vollflächig (Sticky-Bühne mit Texten links bzw. unten) oder eigene Spalte (reduziert)
     const rect = canvas.getBoundingClientRect();
     const vollflaechig = rect.width >= window.innerWidth * 0.9 && rect.height >= window.innerHeight * 0.85;
-    layout = berechneLayout(breite, hoehe, variante, karte.meta, standardRaender(breite, hoehe, variante, vollflaechig));
-    const puffer = bauePartikel(layout, karte);
+    // Säulen, Befunde und Tabelle hängen nicht von der Kartenmeta ab; die Karte schon.
+    layout = berechneLayout(breite, hoehe, variante, karte?.meta ?? null, standardRaender(breite, hoehe, variante, vollflaechig));
+    start = bauePartikelStart(layout);
+    const puffer = start.puffer;
     const g = new BufferGeometry();
     g.setAttribute("position", new BufferAttribute(puffer.position, 2));
     g.setAttribute("aPruef", new BufferAttribute(puffer.pruef, 2));
-    g.setAttribute("aKarte", new BufferAttribute(puffer.karte, 2));
-    g.setAttribute("aTabelle", new BufferAttribute(puffer.tabelle, 2));
+    const aKarte = new BufferAttribute(puffer.karte, 2);
+    const aTabelle = new BufferAttribute(puffer.tabelle, 2);
+    const aStil = new BufferAttribute(puffer.stil, 2);
+    zielAttribute = [aKarte, aTabelle, aStil];
+    g.setAttribute("aKarte", aKarte);
+    g.setAttribute("aTabelle", aTabelle);
     g.setAttribute("aZufall", new BufferAttribute(puffer.zufall, 4));
     g.setAttribute("aInfo", new BufferAttribute(puffer.info, 4));
     g.setAttribute("aDichte", new BufferAttribute(puffer.dichte, 1));
-    g.setAttribute("aStil", new BufferAttribute(puffer.stil, 2));
+    g.setAttribute("aStil", aStil);
     const alt = punkte.geometry;
     punkte.geometry = g;
     alt.dispose();
 
     setzeLinien(achsen, achsenPunkte(layout));
-    setzeLinien(grenzen, grenzenPunkte(layout, karte));
+    setzeLinien(grenzen, karte ? grenzenPunkte(layout, karte) : []);
     setzeLinien(tabAchse, tabellenAchsePunkte(layout));
     hohlIds.forEach((id, k) => setzeLinien(hohl[k], umrissPunkte(layout!, id)));
     const sl = layout.saeulen;
@@ -280,7 +353,9 @@ export function starteSzene(o: SzeneOptionen): SzeneHandle | null {
     scan.scale.set(2, pl.unten - pl.oben, 1);
     scan.position.set(pl.von, (pl.oben + pl.unten) / 2, 0);
     neuZeichnen = true;
-    canvas.dispatchEvent(new CustomEvent(LAYOUT_EVENT, { detail: layout, bubbles: true }));
+    // Ziele neu; das Layout-Event folgt, sobald sie stehen (dann mit Kartenmeta)
+    zieleStarten();
+    if (zielP() > ZIELE_SPAETESTENS_P) zieleRechnen(Infinity);
   }
 
   function groesseAnwenden(w: number, h: number) {
@@ -301,8 +376,11 @@ export function starteSzene(o: SzeneOptionen): SzeneHandle | null {
     anfordern();
   }
 
-  function zeichnen(p: number) {
-    if (!layout) return;
+  function zeichnen(pRoh: number) {
+    if (!layout || !bereit) return;
+    // Ohne fertige Ziele steht die Szene höchstens am Ende von Schritt 2 (danach wären die
+    // Kartenziele noch 0); sobald sie stehen, gleitet sie weiter.
+    const p = zieleFertig ? pRoh : Math.min(pRoh, SCHRITTE[2].von);
     const lz = linienZustand(p, layout.pruefLinie.von, layout.pruefLinie.bis);
     uniforms.uFortschritt.value = p;
     uniforms.uScan.value = lz.scanX;
@@ -353,8 +431,21 @@ export function starteSzene(o: SzeneOptionen): SzeneHandle | null {
     const dt = letzt ? Math.min(0.05, (t - letzt) / 1000) : 1 / 60;
     letzt = t;
     const ziel = zielP();
+    // Spätestens jetzt fertig rechnen (Karte geladen, Nutzer nähert sich Schritt 3)
+    if (ziele && ziel > ZIELE_SPAETESTENS_P) zieleRechnen(Infinity);
+    // Reduziert ohne Gleiten: lieber kurz warten als vom Standbild Schritt 2 zur Karte springen
+    const warten = !bereit || (reduziert && !zieleFertig && ziel >= SCHRITTE[2].von);
+    if (warten) {
+      letzt = 0;
+      return;
+    }
     pGlatt = reduziert ? ziel : daempfe(pGlatt, ziel, v, GLAETTUNG_S, dt);
     if (Math.abs(pGlatt - ziel) < 1e-5) pGlatt = ziel;
+    // Ohne Ziele wartet die Glättung am Ende von Schritt 2 und gleitet danach weiter (kein Sprung)
+    if (!zieleFertig && pGlatt > SCHRITTE[2].von) {
+      pGlatt = SCHRITTE[2].von;
+      v.v = 0;
+    }
     // Laden nur zählen, solange etwas gezeigt wird
     if (layout) ladeZeit = Math.min(LADEN_MS, ladeZeit + dt * 1000);
     uniforms.uLaden.value = ladeZeit / LADEN_MS;
@@ -403,6 +494,17 @@ export function starteSzene(o: SzeneOptionen): SzeneHandle | null {
   canvas.addEventListener("webglcontextlost", kontextVerloren);
   canvas.addEventListener("webglcontextrestored", kontextZurueck);
 
+  // Shader ohne Blockieren übersetzen (KHR_parallel_shader_compile, sonst kurze Wartezeit)
+  renderer
+    .compileAsync(szene, kamera)
+    .catch(() => undefined)
+    .then(() => {
+      if (zerstoert) return;
+      bereit = true;
+      neuZeichnen = true;
+      anfordern();
+    });
+
   const startRect = canvas.getBoundingClientRect();
   if (startRect.width > 0 && startRect.height > 0) groesseAnwenden(startRect.width, startRect.height);
 
@@ -414,6 +516,7 @@ export function starteSzene(o: SzeneOptionen): SzeneHandle | null {
       .then((k) => {
         if (zerstoert) return;
         karte = k;
+        // Neu mit Kartenmeta (Säulen bleiben gleich), dann Ziele in Häppchen
         aufbauen();
         anfordern();
       });
@@ -422,6 +525,8 @@ export function starteSzene(o: SzeneOptionen): SzeneHandle | null {
   return {
     zerstoeren() {
       zerstoert = true;
+      auftragAbbrechen();
+      ziele = null;
       cancelAnimationFrame(raf);
       abmelden();
       ro.disconnect();

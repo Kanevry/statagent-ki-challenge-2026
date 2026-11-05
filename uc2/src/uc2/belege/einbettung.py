@@ -11,6 +11,7 @@ import hashlib
 import importlib
 import logging
 import os
+import sys
 import time
 from collections.abc import Callable
 from typing import Any, Protocol
@@ -21,6 +22,10 @@ log = logging.getLogger(__name__)
 
 GEMMA_MODELL = "google/embeddinggemma-2"
 GEMMA_REVISION = "f9972ac22e696a105c482202646979e33e4b5a1e"
+GEMMA_GROESSE = "ca. 1,2 GB Gewichte (float32)"
+"""Erwartete Ladegröße für die Logzeile; Schätzung, nicht gemessen."""
+MAX_TOKEN = 1024
+"""Längere Eingaben schneidet das Modell ab; ein Abschnitt hat höchstens ca. 1.500 Zeichen."""
 MOCK_DIMENSION = 768
 
 
@@ -93,6 +98,10 @@ class GemmaEinbetter:
 
         self.batch_size = batch_size
         self.geraet = _geraet()
+        print(
+            f"Lade Einbettungsmodell {GEMMA_MODELL} @ {GEMMA_REVISION} ({GEMMA_GROESSE}) auf {self.geraet}",
+            file=sys.stderr,
+        )
         self._modell: Any = SentenceTransformer(
             GEMMA_MODELL,
             revision=GEMMA_REVISION,
@@ -100,6 +109,7 @@ class GemmaEinbetter:
             model_kwargs={"torch_dtype": torch.float32},
             config_kwargs={"vision_config": None, "audio_config": None},
         )
+        self._modell.max_seq_length = MAX_TOKEN
 
     def dimension(self) -> int:
         # sentence-transformers ≥ 6.2 heißt es get_embedding_dimension; der alte Name warnt nur noch.

@@ -12,6 +12,7 @@ Artikel nach dem Stichtag sind ausgeschlossen; je Artikel zählt nur der beste A
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import date
 from typing import Any
@@ -182,6 +183,26 @@ def vektor_stand(verbindung: psycopg.Connection[Any]) -> tuple[int, list[str]]:
     return int(zeilen[0]), list(zeilen[1])
 
 
+def _lies_vektoren(
+    zeilen: list[tuple[Any, ...]], dimension: int
+) -> tuple[list[str], np.ndarray[Any, Any]] | str:
+    """IDs und Matrix aus (abschnitt_id, vektor, dim); bei Verstoß der Grund als Text, nie still weiter.
+
+    Geprüft: Spalte `dim` = Dimension des Einbetters, Bytelänge = dim × 4 (float32), alle Werte endlich.
+    """
+    falsche_dim = sum(1 for z in zeilen if z[2] != dimension)
+    if falsche_dim:
+        return f"{falsche_dim} Vektoren mit dim ≠ {dimension} (Dimension des Einbetters)"
+    falsche_laenge = sum(1 for z in zeilen if len(bytes(z[1])) != dimension * 4)
+    if falsche_laenge:
+        return f"{falsche_laenge} Vektoren mit Bytelänge ≠ {dimension * 4}"
+    matrix = np.vstack([np.frombuffer(bytes(z[1]), dtype="<f4") for z in zeilen]).astype(np.float64)
+    nicht_endlich = int((~np.isfinite(matrix).all(axis=1)).sum())
+    if nicht_endlich:
+        return f"{nicht_endlich} Vektoren mit NaN/Inf"
+    return [str(z[0]) for z in zeilen], matrix
+
+
 def suche(
     verbindung: psycopg.Connection[Any],
     frage: str,
@@ -190,8 +211,13 @@ def suche(
     k: int | None = None,
     stichtag: date | None = None,
     einbetter: Einbetter | None = None,
+    einbetter_fabrik: Callable[[], Einbetter] | None = None,
 ) -> tuple[str, list[Treffer]]:
-    """Gibt den tatsächlich genutzten Modus und die Treffer zurück (Rückfall auf volltext wird gemeldet)."""
+    """Gibt den tatsächlich genutzten Modus und die Treffer zurück (Rückfall auf volltext wird gemeldet).
+
+    `einbetter_fabrik` wird nur aufgerufen, wenn der Index Vektoren hat und kein `einbetter` übergeben ist;
+    fehlt dafür das Extra `einbettung` (ImportError, etwa torch), fällt die Suche auf volltext zurück.
+    """
     modus = modus or regeln.modus
     k = k or regeln.k
     stichtag = stichtag or regeln.stichtag_standard
@@ -205,32 +231,45 @@ def suche(
         grund = None
         if anzahl == 0:
             grund = "Index ohne Vektoren"
-        elif einbetter is None:
+        elif einbetter is None and einbetter_fabrik is not None:
+            try:
+                einbetter = einbetter_fabrik()
+            except ImportError as fehler:
+                fehlt = fehler.name or str(fehler)
+                grund = f"Einbetter nicht ladbar, {fehlt} fehlt (Extra `einbettung` installieren)"
+        if grund is None and einbetter is None:
             grund = "kein Einbetter"
-        elif modelle != [einbetter.modell_id]:
+        elif grund is None and einbetter is not None and modelle != [einbetter.modell_id]:
             grund = f"Vektoren im Index von {modelle}, Abfrage mit {einbetter.modell_id}"
-        if grund is not None or einbetter is None:
-            print(f"Hinweis: Modus {modus} nicht möglich ({grund}), Rückfall auf volltext.", file=sys.stderr)
-            modus = "volltext"
-        else:
+        if grund is None and einbetter is not None:
             zeilen = verbindung.execute(
-                "select s.abschnitt_id, s.vektor from uc2.abschnitt s join uc2.artikel a using (artikel_id) "
-                "where s.vektor is not null and a.artikeldatum <= %s order by s.abschnitt_id",
+                "select s.abschnitt_id, s.vektor, s.dim from uc2.abschnitt s join uc2.artikel a "
+                "using (artikel_id) where s.vektor is not null and a.artikeldatum <= %s "
+                "order by s.abschnitt_id",
                 (stichtag,),
             ).fetchall()
             if zeilen:
-                ids = [str(z[0]) for z in zeilen]
-                matrix = np.vstack([np.frombuffer(bytes(z[1]), dtype="<f4") for z in zeilen]).astype(
-                    np.float64
-                )
-                abfrage = np.asarray(
-                    einbetter.einbetten([abfrage_text(frage)], "abfrage")[0], dtype=np.float64
-                )
-                normen = np.linalg.norm(matrix, axis=1) * np.linalg.norm(abfrage)
-                cos = (matrix @ abfrage) / np.where(normen == 0, 1.0, normen)
-                beste = np.argsort(-cos, kind="stable")[:n]
-                cos_je_id = {ids[i]: float(cos[i]) for i in range(len(ids))}
-                vektor_ids = [ids[i] for i in beste]
+                dimension = einbetter.dimension()
+                gelesen = _lies_vektoren(zeilen, dimension)
+                abfrage = np.empty(0)
+                if not isinstance(gelesen, str):
+                    abfrage = np.asarray(
+                        einbetter.einbetten([abfrage_text(frage)], "abfrage")[0], dtype=np.float64
+                    )
+                if isinstance(gelesen, str):
+                    grund = gelesen
+                elif abfrage.shape != (dimension,) or not np.isfinite(abfrage).all():
+                    grund = f"Abfragevektor mit Form {abfrage.shape} oder NaN/Inf"
+                else:
+                    ids, matrix = gelesen
+                    normen = np.linalg.norm(matrix, axis=1) * np.linalg.norm(abfrage)
+                    cos = (matrix @ abfrage) / np.where(normen == 0, 1.0, normen)
+                    beste = np.argsort(-cos, kind="stable")[:n]
+                    cos_je_id = {ids[i]: float(cos[i]) for i in range(len(ids))}
+                    vektor_ids = [ids[i] for i in beste]
+        if grund is not None:
+            print(f"Hinweis: Modus {modus} nicht möglich ({grund}), Rückfall auf volltext.", file=sys.stderr)
+            modus = "volltext"
 
     volltext_ids: list[str] = []
     if modus in ("volltext", "hybrid"):
