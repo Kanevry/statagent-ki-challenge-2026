@@ -13,11 +13,13 @@ dependencies = [
 
 [project.scripts]
 statagent = "statagent.cli:app"
+# Vertrag O/P des PRD: jede UC-CLI ist als `uv run <uc>` aufrufbar.
+uc3 = "statagent.cli:app"
 
 [dependency-groups]
 dev = [
-  "pytest>=8",
-  "ruff>=0.6",
+  "pytest>=8.4",
+  "ruff>=0.14",
   "mypy>=1.10",
 ]
 
