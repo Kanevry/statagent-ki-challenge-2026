@@ -62,16 +62,22 @@ FRAGE_PERSONENDATEN = (
 """Fester Satz bei Ablehnung; er wiederholt die Eingabe nie (API 422, CLI stderr)."""
 _ANF = "[\"'„“”»«‚‘’]?"
 KENNUNG = re.compile(
-    r"(?<!\d)(?:\d{8,}|\d{4}[ /-]?\d{6}|\d{4}[ /-]?\d{2}\.\d{2}\.\d{2})(?!\d)"
+    r"(?<!\d)(?:\d{8,}|\d{4}[ /-]?\d{6}|\d{4}[ /-]?\d{2}\.\d{2}\.(?:\d{4}|\d{2})"
+    r"|\d{4} \d{2} \d{2} \d{2})(?!\d)"
     rf"|\b(?:PERSON|VVH)[_ -]?ID\s*[:=#]?\s*{_ANF}\s*\d"
     rf"|\b(?:SV|Sozialversicherungs|Versicherungs)-?(?:Nummer|Nr\.?)\s*[:=#]?\s*{_ANF}\s*\d",
     re.IGNORECASE,
 )
 """Kennung: Ziffernfolge ab 8 Stellen, Sozialversicherungsnummer (4 Ziffern plus Geburtsdatum TTMMJJ, auch mit
-Trenner oder als TT.MM.JJ) oder eine Ziffer direkt nach „PERSON_ID“, „VVH_ID“ oder „SV-Nummer“, auch in
-Anführungszeichen (kurze IDs)."""
-DATUM = re.compile(r"(?<!\d)(?:\d{1,2}\.\s?\d{1,2}\.\s?(?:\d{4}|\d{2})|\d{4}-\d{1,2}-\d{1,2})(?!\d)")
-"""Datum TT.MM.JJJJ, TT.MM.JJ oder JJJJ-MM-TT; zählt nur zusammen mit `GEBURT`."""
+Trenner, als TT.MM.JJ(JJ) oder in Paaren „01 02 80“) oder eine Ziffer direkt nach „PERSON_ID“, „VVH_ID“
+oder „SV-Nummer“, auch in Anführungszeichen (kurze IDs)."""
+_MONATE = "Jänner|Januar|Feber|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember"
+DATUM = re.compile(
+    r"(?<!\d)(?:\d{1,2}\.\s?\d{1,2}\.\s?(?:\d{4}|\d{2})|\d{4}-\d{1,2}-\d{1,2})(?!\d)"
+    rf"|(?<!\d)\d{{1,2}}\.\s?(?:{_MONATE})\s+\d{{2,4}}(?!\d)",
+    re.IGNORECASE,
+)
+"""Datum TT.MM.JJJJ, TT.MM.JJ, JJJJ-MM-TT oder „1. Februar 1980“; zählt nur zusammen mit `GEBURT`."""
 GEBURT = re.compile(r"\bgeb(?:oren|urtsdatum|urtstag|\.)", re.IGNORECASE)
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 

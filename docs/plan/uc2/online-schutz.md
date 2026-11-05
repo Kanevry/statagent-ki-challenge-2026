@@ -40,25 +40,25 @@ wurde. Deshalb zählt im Modelltext nur ein Name mit Beleg:
   Pressetext-Muster (Byline, Bildnachweis, Kürzel, Alter, Literatur) laufen hier nicht.
 - Mehrteilige Einträge der Namensliste werden immer maskiert. Ein so erkannter Nachname gilt danach im
   ganzen Text.
-- Ein Einzelwort der Liste wird je Vorkommen entschieden. Es wird maskiert, wenn alle diese Bedingungen
-  gelten:
-  - Es ist großgeschrieben, auch am Satzanfang.
+- Ein Einzelwort der Liste wird maskiert, wenn alle diese Bedingungen gelten:
+  - Es ist großgeschrieben.
   - Es steht nicht im Fachwortschatz der eigenen Akteurs-, Fall-, Paket- und Config-Dateien.
-  - Es hat keine Substantiv- oder Adjektivendung, etwa auf „-ung“, „-ene“ oder „-rte“.
-  - Es steht an dieser Stelle nicht nach einem Artikel oder Determinativ („die“, „kein“, „unser“, „zur“),
-    auch nicht über bis zu zwei flektierte Adjektive („die lange Wartezeit“). Präpositionen und Konjunktionen
-    („für“, „aber“) zählen nicht als Ausnahme.
+  - Es hat keine Substantiv- oder Adjektivendung, etwa auf „-ung“, „-ene“ oder „-rte“, und ist kein Stoppwort.
+- Die Stellung im Satz zählt nicht: Satzanfang, nach „aber“ oder „für“, nach einem Artikel („die X“, auch im
+  Relativsatz „…, die X vorschlägt“) und vor einem Bindestrich („X-Pläne“) wird gleich maskiert.
 - Ein so erkannter Name gilt danach im ganzen Text.
+- Die Zahlbefunde (`zahl_ohne_beleg`, `zahl_widerspruch`) tragen die maskierte Einheit.
 
-Messung (Review 5a zu !97, 05.11.): Die Maske ändert keinen von 2.000 Modelltexten des Qualitätslaufs 4
+Messung (Review 5a und 4d zu !97, 05.11.): Die Maske ändert keinen von 2.000 Modelltexten des Qualitätslaufs 4
 (claude) und keinen von 234 Modelltexten der Vorführ-Aufzeichnung, mit der Index-Liste und mit der
 Server-Liste. Namensscan (`uc2/tests/pruefe_namen.py --lauf`) über alle Ereignisse des Laufs: 0 Treffer mit
 der Server-Liste. Die Index-Liste trifft nur „Austria“ in Institutionsnamen.
 
 ## Was nicht geschützt ist
 
-- Ein Einzelname aus der Liste direkt nach einem Artikel oder Determinativ bleibt stehen, wenn ihn kein
-  Muster und keine andere Stelle im selben Text belegt.
+- Ein Name, der zugleich ein gängiges Hauptwort ist (im Fachwortschatz, mit Substantivendung wie „-ung“
+  oder als Stoppwort), bleibt als Einzelwort stehen, wenn ihn kein Muster (Funktion, Titel, Vorname,
+  Zuschreibung) und kein voller Name im selben Text belegt.
 - Kleingeschriebene Namen und Namen in IDs (Thema, Akteur, Beleg) prüft der Schutz nicht. IDs sind durch
   Schema und Code-Prüfung auf feste Werte begrenzt.
 - **Fälle, die vor diesem Stand angelegt wurden, sind nicht maskiert.** Die Ausgabeschicht maskiert nicht

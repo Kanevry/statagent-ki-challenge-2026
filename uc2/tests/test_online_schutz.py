@@ -66,6 +66,10 @@ DEMO_FRAGEN = (
         ("Das reicht, aber Quastlberger fordert mehr.", "Das reicht, aber eine Person fordert mehr."),
         ("Das Geld reicht nicht für Quastlberger.", "Das Geld reicht nicht für eine Person."),
         ("Gestern bestätigte Quastlberger die Zahl.", "Gestern bestätigte eine Person die Zahl."),
+        # Review 4d zu !97: keine Ausnahme nach Artikel, Verb oder Relativpronomen, auch nicht vor Bindestrich
+        ("Das bestätigte Quastlberger.", "Das bestätigte eine Person."),
+        ("Dem stimmte Quastlberger zu.", "Dem stimmte eine Person zu."),
+        ("Das hatte aber Quastlberger gesagt.", "Das hatte aber eine Person gesagt."),
         (
             "Die Kasse zahlt mehr für Betroffene. Wie Quastlberger sagte, fehlt Geld.",
             "Die Kasse zahlt mehr für Betroffene. Wie eine Person sagte, fehlt Geld.",
@@ -112,6 +116,19 @@ def test_test_env_und_leere_liste_gelten_nicht_fuer_echte_provider(monkeypatch: 
     with pytest.raises(SchutzFehler, match="leere Liste"):
         pruefe_liste(Namensliste(), "claude")
     assert pruefe_liste(Namensliste(), "mock") == Namensliste()
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Was kostet die Reform, die Quastlberger vorschlägt?",
+        "Die Quastlberger-Pläne kosten viel.",
+        "Die Quastlberger hat das gesagt.",
+    ],
+)
+def test_name_nach_artikel_und_vor_bindestrich_wird_maskiert(text: str) -> None:
+    assert "Quastlberger" not in maskiere_modelltext(text, LISTE)
+    assert "Quastlberger" not in pruefe_frage(text, LISTE)
 
 
 def test_namensschutz_maskiert_notiz_auftrag_auswahl_und_einheit() -> None:
@@ -210,6 +227,9 @@ def test_unter_acht_woertern_bleibt_die_begruendung() -> None:
         "Wartet die Versicherte 1234 01.02.80 länger?",
         'Wie lange wartet PERSON_ID: "4711"?',
         "Wie lange wartet VVH_ID „815“?",
+        "Wartet die Versicherte 1234 01.02.1980 länger?",
+        "Wartet die Versicherte 1234 01 02 80 länger?",
+        "Wartet eine Frau, geboren am 1. Februar 1980, länger?",
     ],
 )
 def test_frage_mit_kennung_geburtsdatum_oder_email_wird_abgelehnt(frage: str) -> None:
@@ -267,6 +287,10 @@ def _lauf_mit_namen_und_zitat(
         uebernahme.append(" ".join(beleg.text.split()[:9]))
         thema = erg.zug["themen"][0]
         thema["begruendung"] += f"{ZUSATZ} Laut Beleg: {uebernahme[0]}"
+        # Review 4d: Die Einheit geht über den Befund zahl_widerspruch nach außen.
+        erg.zug["zahlen"].append(
+            {"wert": 4711.5, "einheit": "Stellen laut Felix Probst", "quelle": "experte"}
+        )
         return erg
 
     monkeypatch.setattr(lauf_modul, "fuehre_zug_aus", mit_namen)
@@ -284,7 +308,12 @@ def test_namen_und_zitat_erscheinen_weder_in_ereignis_noch_bericht_noch_sse(
     assert begruendung.endswith(
         "Das sagt eine Person, und eine Person fordert mehr Stellen. Laut Beleg: [Zitat]"
     )
-    assert any(e["art"] == "zitat" for e in ereignisse)  # Hinweis bleibt
+    zitat = next(e for e in ereignisse if e["art"] == "zitat")  # Hinweis bleibt, ohne die Wörter
+    assert set(zitat["daten"]) == {"thema", "beleg_id", "wortzahl"}
+    widerspruch = next(
+        e for e in ereignisse if e["art"] == "zahl_widerspruch" and e["daten"]["wert"] == 4711.5
+    )
+    assert widerspruch["daten"]["einheit"] == "Stellen laut einer Person"
     fall = lies_fall(pg_test, fall_id)
     assert fall is not None and fall["frage"] == "Was sagt eine Person zu den Wartezeiten?"
     positionen = pg_test.execute(

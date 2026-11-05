@@ -1017,43 +1017,14 @@ def fachwortschatz() -> frozenset[str]:
     return frozenset(worte)
 
 
-_DETERMINATIV_TEXT = """
-    der die das den dem des ein eine einen einem einer eines kein keine keinen keinem keiner keines
-    unser unsere unseren unserem unserer unseres dieser diese dieses diesem diesen jeder jede jedes jedem
-    jeden im am zum zur vom beim ins
-    """
-_DETERMINATIV = frozenset(_DETERMINATIV_TEXT.split())
-"""Echte Artikel und Determinative, auch mit Präposition verschmolzen („zur“). Reine Präpositionen und
-Konjunktionen („für“, „nach“, „aber“) zählen nicht: Nach ihnen steht ein Name so oft wie ein Hauptwort."""
-_ADJEKTIVE_MAX = 2
-"""Höchstens so viele flektierte Adjektive zwischen Determinativ und Wort („die lange teure Wartezeit“)."""
-
-
-def _nach_determinativ(text: str, start: int) -> bool:
-    """Das Wort bei `start` steht nach einem Determinativ, direkt oder über flektierte Adjektive („die lange
-    Wartezeit“). Entschieden wird je Vorkommen, nicht für den ganzen Text."""
-    pos = start
-    for _ in range(_ADJEKTIVE_MAX + 1):
-        davor = _wort_davor(text, pos)
-        if davor is None:
-            return False
-        vorher, pos = davor
-        vfalt = vorher.casefold()
-        if vfalt in _DETERMINATIV:
-            return True
-        adjektiv = (
-            vorher[:1].islower() and vfalt.endswith(_ADJEKTIV_ENDUNG) and vfalt not in _ZUSCHREIBUNG_WORTE
-        )
-        if not adjektiv:
-            return False
-    return False
-
-
 def _einzelwort_als_name(text: str, start: int, ende: int) -> bool:
-    """Ein einzelnes Wort aus der Namensliste zählt an dieser Stelle als Name, wenn es großgeschrieben ist und
-    kein gängiges Hauptwort ist: nicht im `fachwortschatz`, ohne Substantiv- oder Adjektivendung, kein
-    Stoppwort und an dieser Stelle nicht nach einem Determinativ (`_nach_determinativ`). Der Satzanfang zählt
-    mit (#137, Review 5a): Dort steht ein Name genauso wie mitten im Satz."""
+    """Ein einzelnes Wort aus der Namensliste zählt als Name, wenn es großgeschrieben ist und kein gängiges
+    Hauptwort ist: nicht im `fachwortschatz`, ohne Substantiv- oder Adjektivendung, kein Stoppwort.
+
+    Die Stellung im Satz zählt nicht (#137, Review 5a und 4d): Ein Name steht am Satzanfang, nach „aber“, nach
+    einem Artikel („die X“, auch umgangssprachlich und im Relativsatz „…, die X vorschlägt“) und vor einem
+    Bindestrich („X-Pläne“). Eine Ausnahme nach Artikeln ließ Namen durch; ohne sie änderte die Maske keinen
+    von 2.234 Modelltexten (Lauf 4 und Vorführ-Aufzeichnung, Index- und Server-Liste)."""
     stamm = _WORT.match(text[start:ende])
     if stamm is None or not stamm.group(0)[0].isupper():
         return False
@@ -1061,9 +1032,7 @@ def _einzelwort_als_name(text: str, start: int, ende: int) -> bool:
     falt = kern.casefold()
     if not ist_namenswort(kern) or falt in fachwortschatz():
         return False
-    if SUBSTANTIV_ENDUNG.search(falt) or falt.endswith(ABGELEITETE_ENDUNGEN):
-        return False
-    return not _nach_determinativ(text, start)
+    return not (SUBSTANTIV_ENDUNG.search(falt) or falt.endswith(ABGELEITETE_ENDUNGEN))
 
 
 def maskiere_modelltext(
@@ -1080,8 +1049,8 @@ def maskiere_modelltext(
       (nominalisierte Adjektive, die als Nachname gesammelt wurden), und Modelltext ist kein Pressetext.
     - Ist ein Name erkannt, gilt er (bei vollen Namen auch der Nachname) im ganzen Text als bekannt.
 
-    Grenze: Ein Einzelname aus der Liste direkt nach einem Determinativ („die …“, „unser …“) bleibt stehen,
-    wenn ihn kein Muster und keine andere Stelle im selben Text belegt.
+    Grenze: Ein Name, der auch ein gängiges Hauptwort ist (Fachwortschatz, Substantivendung, Stoppwort),
+    bleibt als Einzelwort stehen, wenn ihn kein Muster und kein voller Name im selben Text belegt.
     """
     if not text:
         return text
