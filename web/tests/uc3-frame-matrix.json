@@ -89,7 +89,7 @@
         "fehler": "bawCX",
         "demo": "Xw9fE"
       },
-      "abnahme": "Leerzustand entspricht; Karte per Test, im Browser erst mit Probe"
+      "abnahme": "entspricht: Karte im Browser mit offenem Vorschlag und Probe, 1440 und 390 (Auftrag, Probe vorher und nachher, Name, ein Hauptknopf; Enter löst nichts aus). Vereinfacht gegen die Pen-Frames, Pen ist laut Owner nur Ausgangsbasis. 390 ohne Überlauf erst mit !200."
     },
     {
       "screen": "S5",
