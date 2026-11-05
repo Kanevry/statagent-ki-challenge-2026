@@ -310,6 +310,10 @@ SELECT min(c), max(c) FROM (SELECT count(*) c FROM roh.lieferung WHERE vvh_id ~ 
 
 ---
 
+## Datenanfragen: Sprachverständnis
+
+Die Synonym- und Signalwortlisten in `uc3/statagent/frage.py` (Branchennamen, Geschlecht, nicht ausgewertete Merkmale, Füllwörter) sind Sprachverständnis, kein Rechenregelwerk: Sie entscheiden nur, welche Frage verstanden wurde, nie, wie gezählt wird.
+
 ## Anhang: Stand der Regelfreigabe
 
 ```sql
