@@ -1,6 +1,6 @@
 # Demo-Drehbuch (nach Szene 10, 5:05–9:30)
 
-Gehört zu GitLab #90, Epic #26. Zahlen tragen ihre Kennung aus dem Belegregister (F1 bis F19).
+Gehört zu GitLab #90, Epic #26. Zahlen tragen ihre Kennung aus dem Belegregister (F1 bis F25).
 
 Feature-Stopp und Freeze für Code, Präsentation und Demo: **Fr 06.11.2026 07:00 (Europe/Vienna)**. Nach dem Freeze ändert niemand mehr etwas. Die Demo läuft auf dem Stand vom Freeze.
 
@@ -22,7 +22,7 @@ Die Demo dauert 4:25 (5:05–9:30). Eine eigene Überleitung gibt es nicht. Szen
 
 - **Live heißt: auf dem Rechner von Bernhard.** Stufe 1 ist der lokale Stand mit dem Modell Azure.
 - **Die öffentliche Demo läuft im Testmodus.** Dort zeigt der Kopf „Modell mock · mock“, und `/uc3` zeigt den Leerzustand. Sie ist keine Live-Demo des Agenten. Wird sie gezeigt, sagt Bernhard vorher „Testmodus“ an.
-- **Bedingung für die Web-Oberfläche:** Die Seite `/uc3` liegt noch in MR !51. Nur wenn sie bis zum Freeze auf main ist, wird die Web-Oberfläche gezeigt. Sonst ist der CLI-Weg (Stufe 2) der Standard. Der Stand wird um 06:45 geprüft und in `probe.md` eingetragen.
+- **Web-Oberfläche:** `/uc3` (MR !51) und `uc3 frage` mit `/uc3/fragen` (MR !61) sind seit dem 05.11.2026 auf main. Die Web-Oberfläche ist damit Stufe 1, sofern sie auf dem Rechner von Bernhard Daten zeigt. Der Stand wird um 06:45 geprüft und in `probe.md` eingetragen.
 
 ## Schritte
 
@@ -79,17 +79,46 @@ Ablauf mit den Befehlen (im Terminal, in der Web-UI nur bei `/uc3` auf main, gle
 
 ### D3 Datenanfragen (7:45–9:00)
 
-Drei Anfragen, je etwa 25 Sekunden: Zeitreihe, Männer und Frauen je Bundesland, Fluktuation je Branche.
+Drei Anfragen der Aufgabenstellung, je etwa 25 Sekunden: Zeitreihe, Männer und Frauen je Bundesland, Fluktuation je Branche. Alle drei stammen aus der Liste der acht geprüften Fragen unten.
 
-- Befehl (nur wenn MR !61 bis zum Freeze auf main ist): `uv run uc3 frage "…"`. Heute ist `frage` noch nicht fertig (`uc3/statagent/cli.py`, Hinweis #74).
-- Sonst: SQL mit `psql` gegen die UC3-Datenbank. Die fertigen Abfragen stehen in `docs/praesentation/fragenkatalog.md`, Teil A1, A2 und A3.
-- Sagt Bernhard: „Drei Fragen an die Daten. Die SQL sehen Sie hier vollständig. Die Summen stimmen mit dem Beispielbericht überein.“
+**Nur geprüfte Fragen.** Vorgeführt werden ausschließlich die acht Fragen aus der Tabelle, wörtlich so getippt. Jede ist gegen eigenes SQL und das unabhängige Orakel nachgerechnet (Prüfung lead-session-orchestrator-bb, 05.11.2026 17:15 bis 17:19, #74). Freie Fragen der Jury tippt Bernhard nicht ein, solange der Folge-MR von bb („nie still falsch“) nicht auf main ist. Dann bietet er eine Frage aus der Liste an. Der Stand wird um 06:45 geprüft und in `probe.md` eingetragen.
+
+- Klickweg: Seite `/uc3/fragen`, Frage ins Feld tippen. Die Antwort zeigt die Zahl, die Abfrage und die Definition.
+- Terminal (Stufe 2): `uv run uc3 frage "…"` mit demselben Text.
+- Letzter Rückfall: SQL mit `psql` aus dem Fragenkatalog, Teil A1 bis A3.
+- Sagt Bernhard: „Drei Fragen an die Daten. Das Programm rechnet die Antwort ohne KI und zeigt Ihnen die Abfrage dazu.“
+- Bernhard sagt „Beschäftigungsverhältnisse“, auch wenn die getippte Frage „Beschäftigte“ sagt. Gezählt werden Verhältnisse, nicht Personen.
+
+| Nr. | Frage, wörtlich so tippen | Sollzahl für Bernhard | Kennung | In D3 |
+|---|---|---|---|---|
+| 1 | „Zeigen Sie mir die Zeitreihe der Beschäftigten, jeweils zum Monatsletzten.“ | 24 Werte, erster Wert August 2024 392.236, letzter Wert Juli 2026 399.027 | F14, F21 | ja |
+| 2 | „Wie viele Männer und Frauen sind im August 2024 je Bundesland beschäftigt?“ | Männer 211.603, Frauen 180.633 | F14 | ja |
+| 3 | „Männer und Frauen im Juli 2026“ | Männer 213.129, Frauen 185.898 | F22 | Reserve |
+| 4 | „Wie hoch ist die Fluktuation je Wirtschaftsbereich im Oktober 2024?“ | 3,42 % (12.215 Zugänge, 14.557 Abgänge, Bestand 391.033) | F23 | ja |
+| 5 | „Wie viele Beschäftigte gab es im März 2025 in Wien im Gesundheits- und Sozialwesen?“ | 7.498, vorläufig | F18 | Reserve, sonst D4 |
+| 6 | „Beschäftigte nach Branche im Juli 2026“ | 23 Werte, Summe 399.027, Bau 28.548 | F24 | Reserve |
+| 7 | „Was ist ÖNACE R?“ | ÖNACE 2025: Gesundheits- und Sozialwesen; ÖNACE 2008: Kunst, Unterhaltung und Erholung | F13 | Reserve |
+| 8 | „Zeitreihe Bau 2025“ | Werte 23.809 bis 24.679 | F25 | Reserve |
+
+Gegenprobe für eine ehrliche Absage, nur wenn Zeit bleibt: „Entwicklung im Bau seit August 2024“. Das Programm sagt ab, weil die Branchen ab 2025 nach ÖNACE 2025 gezählt werden (F13). Sagt Bernhard: „Hier sagt das Programm ehrlich nein, statt zwei verschiedene Einteilungen zu vergleichen.“
+
+**Nicht vorführen**, solange der Folge-MR von bb fehlt. Diese Fragen liefern heute eine Antwort auf eine andere Frage ohne Hinweis:
+
+- Branchen in Umgangssprache, etwa „Gastronomie“, „Gesundheitswesen“ oder „Handel“.
+- Zwei Werte eines Merkmals, etwa „Wien und Tirol“ oder „Arbeiter und Angestellte“.
+- Alter, etwa „unter 25“ oder „Durchschnittsalter“, und „freie Dienstverträge“.
+- Zeiträume wie „von März bis Juni 2025“.
+- Fluktuation mit Filter („in Wien“), für August 2024 oder mit „am höchsten“.
+- Fragen nach einer einzelnen Person.
+
+Fragt die Jury so etwas, sagt Bernhard: „Das zeige ich Ihnen mit einer Abfrage aus dem Katalog“ und nimmt die passende SQL aus Teil A oder eine Frage aus der Tabelle.
+
 - Jury muss sehen:
-  - Die SQL im Klartext, bei `frage` zusätzlich den Antwortweg.
-  - A1 Zeitreihe: erste Zeile 392.236 (F2). Der Oktober 2025 steht als vorläufig mit 390.900 (F11).
-  - A2 Männer und Frauen je Bundesland. Zur Kontrolle für Bernhard (Stand 08/2024): gesamt 392.236, Männer 211.603, Frauen 180.633 (F14). Wien 90.799, Niederösterreich 64.505 (F14).
-  - A3 Fluktuation je Branche: Zugänge, Abgänge, Saldo. Ergebnis live. Nie zwei Monate mit verschiedener ÖNACE-Version Abschnitt gegen Abschnitt vergleichen (F13).
-- Die Zahlen oben gelten für den Stichtag 31.08.2024. Läuft die Anfrage auf einem anderen Monat, steht der Monat sichtbar in der SQL.
+  - Die Zahl, die Abfrage und die Definition auf dem Bildschirm.
+  - Frage 1: erste Zeile 392.236 (F14). Der Oktober 2025 steht als vorläufig (F11).
+  - Frage 2: Männer 211.603, Frauen 180.633, je Bundesland gegliedert (F14).
+  - Frage 4: Fluktuation 3,42 % mit Zugängen und Abgängen (F23). Nie zwei Monate mit verschiedener ÖNACE-Version Abschnitt gegen Abschnitt vergleichen (F13).
+- Weicht eine Zahl von der Sollzahl ab, sagt Bernhard nichts dazu und wechselt auf die SQL aus dem Fragenkatalog. Die Abweichung kommt danach ins Probe-Protokoll.
 
 ### D4 Gemeinsamer Einstieg (9:00–9:30)
 
@@ -135,7 +164,7 @@ Jeder Punkt wird abgehakt, sobald er geprüft ist. Uhrzeit nur aus der Uhr (`TZ=
 - [ ] Keine Secrets sichtbar. Umgebungsvariablen nicht im Terminal anzeigen, keine `.env.local` öffnen.
 - [ ] Zahlen in den Szenen gegen `abgabe/` abgeglichen.
 - [ ] D1: Monat gewählt (2025-10 oder 2025-03) und in `probe.md` eingetragen.
-- [ ] D3: MR !61 auf main? Dann `uv run uc3 frage "…"` je Anfrage geprobt. Sonst SQL A1 bis A3 aus dem Fragenkatalog bereit, `<regelstand>` eingesetzt.
+- [ ] D3: Die acht geprüften Fragen auf `/uc3/fragen` und mit `uv run uc3 frage "…"` geprobt, jede Zahl gegen die Sollzahl der Tabelle. Folge-MR von bb auf main? Wenn nein, keine freien Fragen. SQL A1 bis A3 als Rückfall bereit, `<regelstand>` eingesetzt.
 - [ ] D4: Sollwert 7.498 (F18) gegen die Abfrage im Belegregister geprüft. Testmodus-Ansage bereit.
 - [ ] Übungsauftrag aus D2 (Dienstvertrag und freier Dienstvertrag) nur bis `vorschlag zeigen <id>` gelaufen, dann `ablehnen <id>` mit der Begründung „Übung vor der Jury“. Nie `freigabe` geübt.
 - [ ] Entscheid D4 um 06:45 getroffen und in `probe.md` eingetragen.

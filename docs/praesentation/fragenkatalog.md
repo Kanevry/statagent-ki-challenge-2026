@@ -4,9 +4,37 @@ Der Katalog hilft am Tisch, wenn die Fachjury nachfragt. Er enthält die drei Da
 
 Regel: Jede Antwort ist in unter 30 Sekunden lesbar. Aufbau je Frage: Frage, Kurzantwort, Antwortweg, Fundstelle im Repo, Zahlen mit Kennung F….
 
-Die Kennungen F1 bis F19 stehen im Belegregister `belegregister.md`.
+Die Kennungen F1 bis F25 stehen im Belegregister `belegregister.md`.
 
-Stand der Befehle: `uv run uc3 frage` ist noch nicht fertig (#74). Es kommt mit MR !61, sobald das auf main ist. Bis dahin läuft jede Datenanfrage als SQL mit `psql` gegen die UC3-Datenbank. Der Befehl `uv run uc3 antwort "…"` beantwortet einfache Fragen zu einem Monat, zum Beispiel „Beschäftigte in Wien im März 2025“, ohne Sprachmodell.
+Stand der Befehle: `uv run uc3 frage "…"` und die Seite `/uc3/fragen` sind mit MR !61 auf main (#74). Sie rechnen die Antwort ohne Sprachmodell und zeigen Abfrage und Definition. Das SQL unten ist der Rückfall mit `psql`.
+
+## Die acht geprüften Fragen
+
+Nur diese Fragen werden vorgeführt, wörtlich so getippt. Jede Zahl ist gegen eigenes SQL und das unabhängige Orakel nachgerechnet (lead-session-orchestrator-bb, 05.11.2026 17:15 bis 17:19, #74). Freie Fragen der Jury werden nicht eingetippt, solange der Folge-MR von bb („nie still falsch“) nicht auf main ist. Dann bietet Bernhard eine Frage aus dieser Liste an oder nimmt das SQL aus Teil A.
+
+| Nr. | Frage | Sollzahl | Kennung |
+|---|---|---|---|
+| 1 | „Zeigen Sie mir die Zeitreihe der Beschäftigten, jeweils zum Monatsletzten.“ | 24 Werte, erster Wert August 2024 392.236, letzter Wert Juli 2026 399.027 | F14, F21 |
+| 2 | „Wie viele Männer und Frauen sind im August 2024 je Bundesland beschäftigt?“ | Männer 211.603, Frauen 180.633 | F14 |
+| 3 | „Männer und Frauen im Juli 2026“ | Männer 213.129, Frauen 185.898 | F22 |
+| 4 | „Wie hoch ist die Fluktuation je Wirtschaftsbereich im Oktober 2024?“ | 3,42 % (12.215 Zugänge, 14.557 Abgänge, Bestand 391.033) | F23 |
+| 5 | „Wie viele Beschäftigte gab es im März 2025 in Wien im Gesundheits- und Sozialwesen?“ | 7.498, vorläufig | F18 |
+| 6 | „Beschäftigte nach Branche im Juli 2026“ | 23 Werte, Summe 399.027, Bau 28.548 | F24 |
+| 7 | „Was ist ÖNACE R?“ | ÖNACE 2025: Gesundheits- und Sozialwesen; ÖNACE 2008: Kunst, Unterhaltung und Erholung | F13 |
+| 8 | „Zeitreihe Bau 2025“ | Werte 23.809 bis 24.679 | F25 |
+
+Gegenprobe mit ehrlicher Absage: „Entwicklung im Bau seit August 2024“. Das Programm sagt ab, weil die Branchen ab 2025 nach ÖNACE 2025 gezählt werden (F13).
+
+Nicht vorführen, solange der Folge-MR von bb fehlt, weil die Antwort heute still eine andere Frage beantwortet:
+
+- Branchen in Umgangssprache („Gastronomie“, „Gesundheitswesen“, „Handel“).
+- Zwei Werte eines Merkmals („Wien und Tirol“, „Arbeiter und Angestellte“).
+- Alter („unter 25“, „Durchschnittsalter“) und „freie Dienstverträge“.
+- Zeiträume („von März bis Juni 2025“).
+- Fluktuation mit Filter („in Wien“), für August 2024 oder mit „am höchsten“.
+- Fragen nach einer einzelnen Person.
+
+In der Tabelle steht „Beschäftigte“, weil die Jury so fragt. Gezählt werden Beschäftigungsverhältnisse; so sagt es Bernhard auch.
 
 ## Gemeinsame Bausteine für das SQL
 
@@ -32,7 +60,7 @@ In den Abfragen unten steht dafür `<regelstand>`. Beim Üben zuerst diese Abfra
 
 **Kurzantwort:** Das ist eine Summe über alle Zellen des jeweiligen Stichtags. Jeder Monat kommt aus seiner eigenen Lieferung. Monate mit auffälliger Lieferung stehen als vorläufig im Ergebnis, nicht als Lücke.
 
-**Antwortweg:** psql mit diesem SQL.
+**Antwortweg:** `/uc3/fragen` oder `uv run uc3 frage` mit Frage 1 der Liste oben. Rückfall: psql mit diesem SQL.
 
 ```sql
 SELECT zeitraum_bis           AS stichtag,
@@ -61,7 +89,7 @@ ORDER BY zeitraum_bis;
 
 **Kurzantwort:** Die Zahlen kommen aus derselben Tabelle, gegliedert nach `region` und `geschlecht`. Die Summe stimmt mit dem Gesamtbestand überein. Die Zeile „Bundesland unbekannt“ bleibt sichtbar.
 
-**Antwortweg:** psql mit diesem SQL. Für einen anderen Monat das Datum und `stand` tauschen.
+**Antwortweg:** `/uc3/fragen` oder `uv run uc3 frage` mit Frage 2 (August 2024) oder Frage 3 (Juli 2026). Rückfall: psql mit diesem SQL. Für einen anderen Monat das Datum und `stand` tauschen.
 
 ```sql
 SELECT r.bezeichnung AS bundesland,
@@ -82,7 +110,7 @@ ORDER BY r.code;
 
 **Fundstelle im Repo:** `uc3/db/020_stat_metadaten.sql` (Klassifikationen), `uc3/db/100_klass_daten.sql` (Codes), `uc3/statagent/uc4.py` (gleiche Abfrage ohne Sprachmodell).
 
-**Zahlen (08/2024, F14):** gesamt 392.236 · Männer 211.603 · Frauen 180.633 · Wien 90.799 · Niederösterreich 64.505. Alle übrigen Bundesländer: Ergebnis live aus der Abfrage.
+**Zahlen (08/2024, F14):** gesamt 392.236 · Männer 211.603 · Frauen 180.633 · Wien 90.799 · Niederösterreich 64.505. Alle übrigen Bundesländer: Ergebnis live aus der Abfrage. Juli 2026: Männer 213.129, Frauen 185.898 (F22).
 
 ### A3 Fluktuation je Branche zwischen zwei Stichtagen
 
@@ -90,7 +118,7 @@ ORDER BY r.code;
 
 **Kurzantwort:** Ein Zugang ist ein Verhältnis, das am zweiten Stichtag besteht und am ersten nicht. Ein Abgang ist das Gegenteil. Gerechnet wird aus den bereinigten Zeitabschnitten einer Lieferung, die beide Stichtage enthält. Beide Stichtage haben dann dieselbe ÖNACE-Version. Ein Branchenwechsel bei bleibendem Verhältnis zählt weder als Zugang noch als Abgang.
 
-**Antwortweg:** psql mit diesem SQL. Es nimmt die Lieferung 2024-10 mit den Stichtagen 30.09. und 31.10.2024.
+**Antwortweg:** `/uc3/fragen` oder `uv run uc3 frage` mit Frage 4 der Liste oben, Sollzahl 3,42 % (F23). Rückfall: psql mit diesem SQL. Es nimmt die Lieferung 2024-10 mit den Stichtagen 30.09. und 31.10.2024.
 
 ```sql
 WITH st(tag) AS (VALUES (DATE '2024-09-30'), (DATE '2024-10-31')),
