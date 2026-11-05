@@ -94,19 +94,32 @@ curl -sN 'localhost:8102/faelle/<fall_id>/ereignisse?seq=0'
 
 ## UC4-Adapter (#103)
 
-`uc2.antwort.antwort(frage, kontext) -> UcAntwort` (Entry-Point `kic.uc_antwort: uc2`) beantwortet eine
-Frage aus der Kette uc3 → uc2 → uc1, ohne PG:
+`uc2.antwort.antwort(frage, kontext) -> UcAntwort` (Entry-Point `kic.uc_antwort: uc2`) liefert in der Kette
+uc3 → uc2 → uc1 die Abwägung der Akteure mit Beleg, ohne in PG zu schreiben:
 
-- Fall per Stichwort aus `faelle/*.yaml` (sonst `wartezeiten`), der Experte rechnet dessen Paket.
-- Zahlen aus `kontext` (etwa UC3) gehen samt Beleg in die Antwort und als `kontext_zahlen` ans Panel.
-- Kurzverhandlung: Moderator, höchstens 4 Akteure, Runde 1 Position und Runde 2 Debatte, über
-  `plattform.llm` (Zweck `uc2.panel`). Mit `LLM_PROVIDER=mock` deterministisch.
-- Belege: `quelle=presse` je Akteur mit Medium im Text, sonst „Modellannahme“; Experte als
-  `quelle=uc2.experte`, `ref=<paket>`. Belegquelle `FixtureQuelle`, unmaskiert nur mit mock.
-- Den Text schreibt der Code. Zahlen ohne Eintrag in `zahlen` werden ersetzt, bleibt eine übrig, wirft der
-  Adapter `FreieZahl`. Modellfehler werfen; der Router meldet UC2 dann als fehlend.
-- `protokoll_id` ist `None`, weil der Kurzlauf nicht in PG schreibt.
+- **Stichwortregel** (`waehle_fall`): Ein Fall aus `faelle/*.yaml` passt, wenn sein Stichwort in der Frage
+  steht. Stichwort ist die Fall-ID ohne die letzten zwei Buchstaben (`wartezeiten` → `wartezeit`).
+- **Frage mit Fall** (Wartezeiten): Der Experte rechnet das Paket des Falls; Text und `zahlen` nennen das
+  Rechenmodell (Beleg `quelle=uc2.experte`, `ref=<paket>`).
+- **Allgemeine Frage** (kein Fall, etwa Beschäftigte in Wien): kein Rechenmodell, keine Paketzahlen. Der
+  Moderator bekommt nur die Ausgangslage aus dem Kontext (`uc2.antwort.allgemein`).
+- Kurzverhandlung in beiden Fällen: Moderator mit Auftrag, höchstens 4 Akteure, Positionsrunde und Debatte,
+  über `plattform.llm` (Zweck `uc2.panel`). Mit `LLM_PROVIDER=mock` deterministisch (`KurzMock`).
+- Zahlen aus `kontext` (UC3) gehen mit ihrem Beleg unverändert in `zahlen` und `belege`.
+- Belege: `IndexQuelle` mit Maskierung, wenn `UC2_NAMENSLISTE` geladen ist und `uc2.abschnitt` Zeilen hat,
+  sonst `FixtureQuelle`. Je zitiertem Artikel ein Beleg `quelle="presse: <Medium>"` (Fixture:
+  `"beispielbeleg (erfunden): <Medium>"`), `monat`, `ref=<Beleg-ID>`. Ohne Beleg steht im Text
+  „Modellannahme“. Echte Provider nur mit maskierter Quelle (`pruefe_freigabe`).
+- Den Text schreibt der Code: Ausgangszahl mit Herkunft, wer dafür und wer dagegen ist, was das im Alltag
+  heißt. Den Schluss für den Einzelnen schreibt UC1. Zahlen ohne Eintrag in `zahlen` werden ersetzt (Erkennung
+  aus `uc2.verhandlung.pruefungen`, plus die Einheiten der Antwort wie „Personen“), bleibt eine übrig, wirft
+  der Adapter `FreieZahl`. Modellfehler werfen; der Router meldet UC2 dann als fehlend.
+- `modell` nennt das antwortende Modell, bei mock `mock`. `protokoll_id` ist `None`.
 
 ```bash
 LLM_PROVIDER=mock uv run python -c "from uc2.antwort import antwort; print(antwort('Wie entwickeln sich die Wartezeiten?', []).text)"
+# Router über Entry-Points (an der Wurzel; uc3 braucht `uv sync --all-packages` und UC3_DATABASE_URL):
+LLM_PROVIDER=mock uv run python -m plattform.router frage --json -- "Wie viele Menschen arbeiten im März 2025 in Wien?"
 ```
+
+`--mock` am Router nimmt dessen eigene Mock-Adapter (`plattform.router.mock_adapter`), nicht diesen Adapter.

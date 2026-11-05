@@ -1,12 +1,16 @@
 """UC4-Adapter `antwort(frage, kontext) -> UcAntwort` für UC2 (#103, Epic #95).
 
-Ablauf: Fall zur Frage wählen (Stichwort aus der Fall-ID, sonst `STANDARD_FALL`), Experte rechnet das
-Paket des Falls, Zahlen aus dem Kontext (z. B. UC3) gehen mit ihren Belegen als Eingabe ans Panel, die
-Kurzverhandlung (`uc2.antwort.kurzlauf`) bildet Positionen, der Code schreibt daraus den Text.
+UC2 liefert in der Kette uc3 → uc2 → uc1 die Abwägung der Akteure mit Beleg. Zwei Wege:
 
-Zahlen kommen nur vom Experten oder aus dem Kontext. Text aus Modellen (Begründungen, Moderator-Notiz)
-läuft durch `bereinige`; danach prüft `freie_zahlen` den ganzen Text mit dem Zahlenmuster aus
-`uc2.verhandlung.pruefungen` und wirft `FreieZahl`, statt eine unbelegte Zahl auszuliefern.
+- **Frage mit Fall** (Stichwortregel `waehle_fall`, z. B. „Wartezeiten“): Der Experte rechnet das Paket des
+  Falls, das Panel verhandelt mit dessen Zahlen, der Text nennt das Rechenmodell.
+- **Allgemeine Frage** (kein Fall passt, z. B. Beschäftigte in Wien): Kein Rechenmodell. Der Moderator
+  bekommt nur die Ausgangslage aus dem Kontext (UC3-Zahlen mit Beleg, `uc2.antwort.allgemein`).
+
+In beiden Wegen: Kurzverhandlung (`uc2.antwort.kurzlauf`) mit höchstens 4 Akteuren, Positionsrunde und
+Debatte; der Code schreibt den Text. Zahlen kommen nur vom Experten oder aus dem Kontext. Text aus Modellen
+läuft durch `bereinige`; danach prüft `freie_zahlen` den ganzen Text und wirft `FreieZahl`, statt eine
+unbelegte Zahl auszuliefern.
 
 `protokoll_id` bleibt `None`: Der Kurzlauf schreibt nicht in PG (Begründung in `uc2.antwort.kurzlauf`).
 Fehler werfen (`AntwortFehler` und Unterklassen, `ModellKonfigFehler`, `BelegFehler`); der Router zählt
@@ -15,43 +19,71 @@ den UC dann als fehlend. Es gibt keinen Ersatztext.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import contextlib
+import re
+from collections.abc import Iterator, Sequence
+from datetime import date
 from pathlib import Path
 from typing import Any
+
+import psycopg
 
 # plattform hat keinen py.typed-Marker (E0); wie in uc2.modelle.
 from plattform.antwortform import Beleg, UcAntwort, Zahl  # type: ignore[import-untyped]
 
 from uc2.akteure.laden import Akteur, lade_akteure
+from uc2.db import conninfo
 from uc2.experte.modell import ergebnis as experte_ergebnis
 from uc2.experte.modell import lade_paket, zahl_de
 from uc2.modelle import waehle_provider
 from uc2.verhandlung import prompts
 from uc2.verhandlung.belege import Beleg as PresseBeleg
-from uc2.verhandlung.belege import Belegquelle, FixtureQuelle
+from uc2.verhandlung.belege import Belegquelle, FixtureQuelle, IndexQuelle, hat_index, lade_namensliste
 from uc2.verhandlung.fall import Falldefinition, bekannte_faelle, lade_fall
-from uc2.verhandlung.pruefungen import TOLERANZ, ZAHL_MUSTER, experten_werte, zahlen_im_text
+from uc2.verhandlung.pruefungen import (
+    EINHEIT,
+    JAHRE,
+    ZIFFERN,
+    experten_ergebniswerte,
+    gleich,
+    zahlwert,
+)
 
+from . import allgemein
 from .kurzlauf import KURZ_MAX_AKTEURE, KURZ_RUNDEN, Kurzergebnis, KurzlaufFehler, kurzverhandlung
 
-STANDARD_FALL = "wartezeiten"
-"""Fall ohne Stichworttreffer; sein Paket ist `pakete/beispiel-wartezeiten.yaml`."""
 QUELLE_EXPERTE = "uc2.experte"
 QUELLE_PRESSE = "presse"
+QUELLE_BEISPIEL = "beispielbeleg (erfunden)"
+"""Quelle eines Fixture-Belegs: Medium und Text sind erfunden, nur zur Vorführung ohne Index."""
 MODELLANNAHME = "Modellannahme"
 ERSATZ = "(Zahl ohne Beleg entfernt)"
+VERBINDUNG_TIMEOUT_S = 3
 _KATEGORIE = {
     "konsens": "alle dafür",
     "mehrheit": "Mehrheit dafür",
     "abgelehnt": "Mehrheit dagegen",
     "offener_konflikt": "noch strittig",
 }
+_ALLTAG = {
+    "konsens": "Hier sind sich alle einig. Eine Änderung ist am ehesten zu erwarten",
+    "mehrheit": "Die meisten sind dafür. Eine Änderung ist möglich, braucht aber noch Zustimmung",
+    "abgelehnt": "Die meisten sind dagegen. Eine Änderung ist derzeit unwahrscheinlich",
+    "offener_konflikt": "Hier gibt es Streit. Rasch wird sich wohl nichts ändern",
+}
 _ZIELPRUEFUNG = {
     "erfüllt": "Ja, unter allen durchgerechneten Annahmen",
     "nicht erfüllt": "Nein, unter keiner der durchgerechneten Annahmen",
     "offen": "Das ist offen, es hängt von den Annahmen ab",
 }
-_WORT = {1: "einer", 2: "zwei", 3: "drei", 4: "vier", 5: "fünf", 6: "sechs"}
+_STAND = {"endgueltig": "endgültig", "vorlaeufig": "vorläufig, die Zahl kann sich noch ändern"}
+_MONAT = (
+    "Jänner", "Februar", "März", "April", "Mai", "Juni",
+    "Juli", "August", "September", "Oktober", "November", "Dezember",
+)  # fmt: skip
+_WORT = {1: "eine", 2: "zwei", 3: "drei", 4: "vier", 5: "fünf", 6: "sechs"}
+_GEDANKENSTRICH = re.compile(r"\s*[–—]\s*")
+_HOECHSTENS_KONTEXT_IM_TEXT = 3
 
 
 class AntwortFehler(RuntimeError):
@@ -65,18 +97,24 @@ class FreieZahl(AntwortFehler):
 # --- Fall und Zahlen ----------------------------------------------------------------------------------
 
 
-def _stichwort(fall_id: str) -> str:
-    # Einfache Regel: Fall-ID ohne Endung (`wartezeiten` → `wartezeit`), damit auch der Singular trifft.
+def stichwort(fall_id: str) -> str:
+    """Stichwort eines Falls: Fall-ID ohne die letzten zwei Buchstaben (`wartezeiten` → `wartezeit`).
+
+    So trifft auch der Singular. Bindestrich und Unterstrich gelten als Leerzeichen.
+    """
     return fall_id[: max(4, len(fall_id) - 2)].replace("-", " ").replace("_", " ")
 
 
-def waehle_fall(frage: str, ordner: Path | None = None) -> Falldefinition:
-    """Erster Fall (alphabetisch), dessen Stichwort in der Frage steht, sonst `STANDARD_FALL`."""
+def waehle_fall(frage: str, ordner: Path | None = None) -> Falldefinition | None:
+    """Stichwortregel: erster Fall (alphabetisch), dessen `stichwort` in der Frage steht, sonst None.
+
+    None heißt allgemeine Frage: Der Adapter rechnet dann kein Paket.
+    """
     text = frage.casefold()
     for fall_id in bekannte_faelle(ordner):
-        if _stichwort(fall_id) in text:
+        if stichwort(fall_id) in text:
             return lade_fall(fall_id, ordner)
-    return lade_fall(STANDARD_FALL, ordner)
+    return None
 
 
 class _Sammlung:
@@ -108,6 +146,22 @@ def _kontextzahlen(kontext: Sequence[UcAntwort], s: _Sammlung) -> list[tuple[Zah
             neu = s.zahl(zahl.bezeichnung, zahl.wert, zahl.einheit, s.beleg(beleg))
             uebernommen.append((neu, beleg))
     return uebernommen
+
+
+def _kontext_fuer_prompt(kontextzahlen: list[tuple[Zahl, Beleg]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "bezeichnung": z.bezeichnung,
+            "wert": z.wert,
+            "einheit": z.einheit,
+            "uc": b.uc,
+            "quelle": b.quelle,
+            "lieferung": b.lieferung,
+            "monat": b.monat,
+            "stand": b.stand,
+        }
+        for z, b in kontextzahlen
+    ]
 
 
 def _experte_zahlen(voll: dict[str, Any], s: _Sammlung) -> dict[str, Zahl]:
@@ -157,48 +211,113 @@ def _experte_zahlen(voll: dict[str, Any], s: _Sammlung) -> dict[str, Zahl]:
 # --- Zahlen im Text -----------------------------------------------------------------------------------
 
 
-def _belegt(wert: float, zahlen: Sequence[Zahl]) -> bool:
-    return any(abs(wert - abs(float(z.wert))) <= TOLERANZ for z in zahlen)
+def _einheit_muster(zahlen: Sequence[Zahl]) -> re.Pattern[str]:
+    """`EINHEIT` aus `uc2.verhandlung.pruefungen` plus die Einheiten der Antwort (etwa „Personen“)."""
+    eigene = sorted({z.einheit for z in zahlen if z.einheit}, key=len, reverse=True)
+    if not eigene:
+        return EINHEIT
+    zusatz = "|".join(re.escape(e) for e in eigene)
+    return re.compile(rf"{EINHEIT.pattern}|\s?(?:{zusatz})")
 
 
 def freie_zahlen(text: str, zahlen: Sequence[Zahl]) -> list[str]:
-    """Fundstellen des Zahlenmusters, deren Betrag (auf 0,05) in keiner `Zahl` steht."""
-    return [fund for fund, wert in zahlen_im_text(text) if not _belegt(wert, zahlen)]
+    """Zahlen mit Einheit, deren Betrag (auf 0,05) in keiner `Zahl` steht, oder die nicht lesbar sind.
+
+    Zahlerkennung aus `uc2.verhandlung.pruefungen` (`ZIFFERN`, `zahlwert`: Tausenderpunkt, Dezimalkomma,
+    Jahreszahlen 2000 bis 2040 entfallen). Als Einheit gilt `EINHEIT` und jede Einheit aus `zahlen`, damit
+    auch „412.345 Personen“ geprüft wird.
+    """
+    einheit = _einheit_muster(zahlen)
+    frei = []
+    for m in ZIFFERN.finditer(text):
+        nach = einheit.match(text, m.end())
+        if nach is None:
+            continue
+        gruppe = m.group(0)
+        if gruppe.isdigit() and int(gruppe) in JAHRE:
+            continue
+        wert = zahlwert(gruppe)
+        if wert is None or not any(gleich(wert, float(z.wert)) for z in zahlen):
+            frei.append(gruppe + nach.group(0))
+    return frei
 
 
 def bereinige(text: str, zahlen: Sequence[Zahl]) -> str:
-    """Freie Zahlen in Modell- oder Datentext durch `ERSATZ` ersetzen."""
+    """Freie Zahlen in Modell- oder Datentext durch `ERSATZ` ersetzen, Gedankenstriche durch Kommas."""
     for fund in freie_zahlen(text, zahlen):
         text = text.replace(fund, ERSATZ)
-    return text
+    return _GEDANKENSTRICH.sub(", ", text)
 
 
 def _zahl_text(zahl: Zahl) -> str:
-    """Deutsch formatiert. Tausenderpunkt nur, wenn das Zahlenmuster die Einheit nicht erfasst.
-
-    Sonst läse das Muster „1.250 Mio“ als 1,25 und hielte die belegte Zahl für frei.
-    """
+    """Deutsch formatiert, mit Tausenderpunkt („135.790 Personen“, „1.250 Mio EUR“)."""
     wert = zahl.wert
     ganz = isinstance(wert, int) or float(wert).is_integer()
     stellen = 0 if ganz else (1 if round(float(wert), 1) == wert else 2)
     text = zahl_de(float(wert), stellen)
-    if zahl.einheit and ZAHL_MUSTER.match(f"1 {zahl.einheit}"):
-        text = text.replace(".", "")
     return f"{text} {zahl.einheit}" if zahl.einheit else text
 
 
+def _monat_text(monat: str) -> str:
+    """`2025-03` → „März 2025“; anderes bleibt, wie es ist."""
+    treffer = re.fullmatch(r"(\d{4})-(\d{2})", monat)
+    if treffer is None or not 1 <= int(treffer.group(2)) <= 12:
+        return monat
+    return f"{_MONAT[int(treffer.group(2)) - 1]} {treffer.group(1)}"
+
+
 def _herkunft(beleg: Beleg) -> str:
-    teile = [beleg.uc.upper()]
+    teile = [f"Statistik {beleg.uc.upper()}", f"Tabelle {beleg.quelle}"]
     if beleg.monat:
-        teile.append(f"Monat {beleg.monat}")
+        teile.append(f"Monat {_monat_text(beleg.monat)}")
     if beleg.lieferung:
         teile.append(f"Lieferung {beleg.lieferung}")
     if beleg.stand:
-        teile.append(beleg.stand)
+        teile.append(_STAND.get(beleg.stand, beleg.stand))
     return ", ".join(teile)
 
 
+# --- Belegquelle --------------------------------------------------------------------------------------
+
+
+@contextlib.contextmanager
+def belegquelle() -> Iterator[Belegquelle]:
+    """`IndexQuelle` mit Maskierung, wenn `UC2_NAMENSLISTE` geladen ist und der Index Abschnitte hat.
+
+    Sonst `FixtureQuelle` (erfundene Belege). Die Verbindung zu `healthpolicy` lebt nur für diese Antwort;
+    ist die Datenbank nicht erreichbar, gilt das als „kein Index“.
+    """
+    namen = lade_namensliste()
+    if namen is None:
+        yield FixtureQuelle()
+        return
+    try:
+        verbindung = psycopg.connect(conninfo(), autocommit=True, connect_timeout=VERBINDUNG_TIMEOUT_S)
+    except psycopg.OperationalError:
+        yield FixtureQuelle()
+        return
+    with verbindung:
+        if hat_index(verbindung):
+            yield IndexQuelle(verbindung, namen=namen)
+        else:
+            yield FixtureQuelle()
+
+
+def _presse_beleg(b: PresseBeleg, beispiel: bool) -> Beleg:
+    """Beleg mit Herkunft: Quelle nennt Medium (bei Fixture als erfundenes Beispiel), `ref` die Beleg-ID."""
+    quelle = f"{QUELLE_BEISPIEL if beispiel else QUELLE_PRESSE}: {b.medium}"
+    return Beleg(uc="uc2", quelle=quelle, monat=b.datum.strftime("%Y-%m"), ref=b.beleg_id)
+
+
 # --- Text ---------------------------------------------------------------------------------------------
+
+
+def _namen_statt_ids(text: str, akteure: dict[str, Akteur]) -> str:
+    """Akteurs-IDs in Modelltext („Position von sv“) durch den Namen ersetzen."""
+    muster = re.compile(
+        r"(?<![\w-])(" + "|".join(map(re.escape, sorted(akteure, key=len, reverse=True))) + r")(?![\w-])"
+    )
+    return muster.sub(lambda m: akteure[m.group(1)].name, text)
 
 
 def _akteur_zeile(
@@ -206,6 +325,8 @@ def _akteur_zeile(
     ergebnis: Kurzergebnis,
     titel: dict[str, str],
     s: _Sammlung,
+    beispiel: bool,
+    akteure: dict[str, Akteur],
 ) -> str:
     positionen = ergebnis.positionen.get(akteur.id, {})
     if akteur.id in ergebnis.ohne_zug:
@@ -215,14 +336,15 @@ def _akteur_zeile(
     dagegen = [titel[t] for t in themen if positionen[t].wert <= -1]
     teile = []
     if dafuer:
-        teile.append(f"dafür bei {', '.join(dafuer)}")
+        teile.append(f"Dafür bei {', '.join(dafuer)}.")
     if dagegen:
-        teile.append(f"dagegen bei {', '.join(dagegen)}")
+        teile.append(f"Dagegen bei {', '.join(dagegen)}.")
     if not teile:
-        teile.append("unentschieden")
-    zeile = f"- {akteur.name}: {'; '.join(teile)}."
+        teile.append("Unentschieden.")
+    zeile = f"- {akteur.name}: {' '.join(teile)}"
     if themen:
-        zeile += f" Begründung: {positionen[themen[0]].begruendung}"
+        grund = _namen_statt_ids(positionen[themen[0]].begruendung, akteure)
+        zeile += f" Grund: {grund}"
     # Belege: nur IDs, die der Akteur zitiert hat und die ihm die Belegquelle gegeben hat.
     erlaubt = ergebnis.belege.get(akteur.id, {})
     zitiert: list[PresseBeleg] = []
@@ -232,34 +354,69 @@ def _akteur_zeile(
                 zitiert.append(erlaubt[bid])
     if zitiert:
         for b in zitiert:
-            s.beleg(Beleg(uc="uc2", quelle=QUELLE_PRESSE, monat=b.datum.strftime("%Y-%m"), ref=b.beleg_id))
-        chips = ", ".join(f"{b.medium} ({b.datum.strftime('%Y-%m')})" for b in zitiert)
-        zeile += f" Belege: {chips}."
+            s.beleg(_presse_beleg(b, beispiel))
+        art = "Beispielbeleg, erfunden" if beispiel else "Beleg"
+        # Alle zitierten Belege stehen in `belege`; im Text steht jedes Medium mit Monat nur einmal.
+        chips = "; ".join(
+            dict.fromkeys(f"{b.medium}, {_monat_text(b.datum.strftime('%Y-%m'))}" for b in zitiert)
+        )
+        zeile += f" {art}: {chips}."
     else:
-        zeile += f" {MODELLANNAHME}: kein Beleg in der Presse, die Haltung folgt nur aus dem Rollenprofil."
+        zeile += (
+            f" {MODELLANNAHME}: Dazu gibt es keinen Zeitungsartikel. Die Haltung folgt nur aus der "
+            "Beschreibung der Rolle."
+        )
     return zeile
 
 
-def _text(
-    voll: dict[str, Any],
-    ez: dict[str, Zahl],
-    kontext: list[tuple[Zahl, Beleg]],
-    ergebnis: Kurzergebnis,
-    akteure: dict[str, Akteur],
-    s: _Sammlung,
-) -> str:
-    n = len(ergebnis.teilnehmer)
-    runden = _WORT.get(ergebnis.runden, "mehreren")
-    zeilen = [
-        f"{_WORT.get(n, 'Mehrere').capitalize()} Interessenvertretungen haben in {runden} "
-        f"Runde{'n' if ergebnis.runden > 1 else ''} über die Frage verhandelt. Das ist eine Simulation mit "
-        "KI-Rollen, keine echte Verhandlung."
+def _ausgangslage(kontext: list[tuple[Zahl, Beleg]]) -> str:
+    if not kontext:
+        return "Zu dieser Frage liegt keine Zahl aus der Statistik vor."
+    gezeigt = kontext[:_HOECHSTENS_KONTEXT_IM_TEXT]
+    teile = [f"{z.bezeichnung}: {_zahl_text(z)} ({_herkunft(b)})" for z, b in gezeigt]
+    text = f"Die Zahl aus der Statistik: {'; '.join(teile)}."
+    if len(kontext) > len(gezeigt):
+        text += " Weitere Zahlen stehen in der Liste der Zahlen."
+    return text
+
+
+def _abwaegung(ergebnis: Kurzergebnis, akteure: dict[str, Akteur], s: _Sammlung, beispiel: bool) -> list[str]:
+    """Wer dafür, wer dagegen, mit Gründen und Belegen, und was das im Alltag heißt."""
+    titel = {t["id"]: t["titel"] for t in ergebnis.auftrag["themen"]}
+    zeilen = ["Wer ist dafür, wer dagegen:"]
+    zeilen += [
+        _akteur_zeile(akteure[aid], ergebnis, titel, s, beispiel, akteure) for aid in ergebnis.teilnehmer
     ]
-    if kontext:
-        teile = [f"{z.bezeichnung} {_zahl_text(z)} ({_herkunft(b)})" for z, b in kontext]
-        zeilen.append(f"Ausgangslage, Zahlen aus der Statistik: {'; '.join(teile)}.")
+    einordnung = [
+        f"{titel[t]}: {_KATEGORIE.get(e.kategorie, e.kategorie)}" for t, e in ergebnis.klassifikation.items()
+    ]
+    zeilen.append(f"So stehen die Beteiligten zu den Themen: {'; '.join(einordnung)}.")
+    alltag = [
+        f"{titel[t]}: {_ALLTAG.get(e.kategorie, e.kategorie)}." for t, e in ergebnis.klassifikation.items()
+    ]
+    zeilen.append(f"Was das im Alltag heißt: {' '.join(alltag)}")
+    bedingungen = [
+        f"{akteure[aid].name}: {b}"
+        for aid in ergebnis.teilnehmer
+        for t in ergebnis.zuege.get(aid, {}).get("themen", [])
+        for b in t["bedingungen"]
+    ]
+    if bedingungen:
+        zeilen.append(f"Bedingungen: {'; '.join(bedingungen)}.")
+    return zeilen
+
+
+def _einleitung(ergebnis: Kurzergebnis) -> str:
+    n = len(ergebnis.teilnehmer)
+    runden = "einer Runde" if ergebnis.runden == 1 else f"{_WORT.get(ergebnis.runden, 'mehreren')} Runden"
+    return (
+        f"{_WORT.get(n, 'Mehrere').capitalize()} Interessenvertretungen haben die Frage in {runden} "
+        "abgewogen. Das ist eine Simulation: Die Rollen spielt eine KI, es ist keine echte Verhandlung."
+    )
+
+
+def _experte_text(voll: dict[str, Any], ez: dict[str, Zahl]) -> list[str]:
     massnahmen = [f"{m['name']} {_zahl_text(ez[f'massnahme_{m["id"]}'])}" for m in voll["massnahmen"]]
-    zeilen.append(f"Durchgerechnete Maßnahmen: {', '.join(massnahmen)}.")
     pruefung = voll["zielpruefung"]["ergebnis"]
     entscheidend = voll["entscheidend"]["annahme"]
     beschreibung = {a["id"]: a["beschreibung"] for a in voll["annahmen"]}
@@ -275,25 +432,7 @@ def _text(
     )
     if entscheidend in beschreibung:
         experte += f" Am meisten hängt das Ergebnis davon ab: {beschreibung[entscheidend]}."
-    zeilen.append(experte)
-    titel = {t["id"]: t["titel"] for t in ergebnis.auftrag["themen"]}
-    einordnung = [
-        f"{titel[t]}: {_KATEGORIE.get(e.kategorie, e.kategorie)}" for t, e in ergebnis.klassifikation.items()
-    ]
-    zeilen.append(f"So stehen die Beteiligten zu den Vorschlägen: {'; '.join(einordnung)}.")
-    zeilen.append("Wer ist dafür, wer dagegen:")
-    zeilen += [_akteur_zeile(akteure[aid], ergebnis, titel, s) for aid in ergebnis.teilnehmer]
-    bedingungen = [
-        f"{akteure[aid].name}: {b}"
-        for aid in ergebnis.teilnehmer
-        for t in ergebnis.zuege.get(aid, {}).get("themen", [])
-        for b in t["bedingungen"]
-    ]
-    if bedingungen:
-        zeilen.append(f"Bedingungen: {'; '.join(bedingungen)}.")
-    if ergebnis.notiz:
-        zeilen.append(f"Einschätzung der Moderation: {ergebnis.notiz}")
-    return "\n".join(bereinige(z, s.zahlen) for z in zeilen)
+    return [f"Durchgerechnete Maßnahmen: {', '.join(massnahmen)}.", experte]
 
 
 # --- Adapter ------------------------------------------------------------------------------------------
@@ -307,56 +446,79 @@ def antwort(
     quelle: Belegquelle | None = None,
     max_akteure: int = KURZ_MAX_AKTEURE,
     runden: int = KURZ_RUNDEN,
+    stichtag: date | None = None,
 ) -> UcAntwort:
-    """UC2-Antwort zur Frage: verhandelte Position des Panels, Zahlen vom Experten und aus dem Kontext.
+    """UC2-Antwort zur Frage: Abwägung der Akteure mit Beleg, Zahlen nur aus Kontext und Rechenmodell.
 
     `kontext` sind die bisherigen Antworten der Kette (z. B. UC3). Provider: Argument > `LLM_PROVIDER` >
-    `modellrollen.yaml`. Belegquelle: `FixtureQuelle`, sofern nicht übergeben; eine unmaskierte Quelle
-    (`IndexQuelle` vor #43) ist nur mit `mock` erlaubt (`pruefe_freigabe`).
+    `modellrollen.yaml`. Belegquelle: `belegquelle()`, sofern nicht übergeben; eine unmaskierte Quelle geht
+    nur an `mock` (`pruefe_freigabe` in `kurzverhandlung`). `stichtag` begrenzt das Datum der Belege
+    (Standard: Stichtag des Falls, bei allgemeinen Fragen heute).
     """
     if not frage.strip():
         raise AntwortFehler("leere Frage")
     gewaehlt = waehle_provider(provider)
-    quelle = quelle or FixtureQuelle()
-    fall = waehle_fall(frage)
-    voll = experte_ergebnis(lade_paket(fall.paket))
+    if quelle is not None:
+        return _antwort(frage, kontext, gewaehlt, quelle, max_akteure, runden, stichtag)
+    with belegquelle() as gefunden:
+        return _antwort(frage, kontext, gewaehlt, gefunden, max_akteure, runden, stichtag)
 
+
+def _antwort(
+    frage: str,
+    kontext: list[UcAntwort],
+    provider: str,
+    quelle: Belegquelle,
+    max_akteure: int,
+    runden: int,
+    stichtag: date | None,
+) -> UcAntwort:
+    fall = waehle_fall(frage)
     s = _Sammlung()
     kontextzahlen = _kontextzahlen(kontext, s)
-    ez = _experte_zahlen(voll, s)
+    kontext_prompt = _kontext_fuer_prompt(kontextzahlen)
+    # Kontextzahlen gelten im Kurzlauf als vorgegeben: Mit Quelle `experte` sind sie kein Widerspruch.
+    werte = {float(z.wert) for z, _ in kontextzahlen}
 
-    experte = prompts.experte_kurz(voll)
-    if kontextzahlen:
-        experte["kontext_zahlen"] = [
-            {
-                "bezeichnung": z.bezeichnung,
-                "wert": z.wert,
-                "einheit": z.einheit,
-                "uc": b.uc,
-                "quelle": b.quelle,
-                "lieferung": b.lieferung,
-                "monat": b.monat,
-            }
-            for z, b in kontextzahlen
-        ]
-    werte = sorted({*experten_werte(voll), *(float(z.wert) for z, _ in kontextzahlen)})
+    voll: dict[str, Any] | None = None
+    ez: dict[str, Zahl] = {}
+    if fall is not None:
+        voll = experte_ergebnis(lade_paket(fall.paket))
+        ez = _experte_zahlen(voll, s)
+        experte = prompts.experte_kurz(voll)
+        if kontext_prompt:
+            experte["kontext_zahlen"] = kontext_prompt
+        werte |= set(experten_ergebniswerte(voll))
+        auftrag_nachrichten = prompts.auftrag_nachrichten
+    else:
+        experte = allgemein.ausgangslage(kontext_prompt)
+        auftrag_nachrichten = allgemein.auftrag_nachrichten
+
     akteure = {a.id: a for a in lade_akteure()}
     try:
         ergebnis = kurzverhandlung(
             frage=frage,
             experte=experte,
-            experte_werte=werte,
+            experte_werte=sorted(werte),
             akteure=list(akteure.values()),
             quelle=quelle,
-            provider=gewaehlt,
-            stichtag=fall.stichtag,
+            provider=provider,
+            stichtag=stichtag or (fall.stichtag if fall is not None else date.today()),
             max_akteure=max_akteure,
             runden=runden,
+            auftrag_nachrichten=auftrag_nachrichten,
         )
     except KurzlaufFehler as fehler:
         raise AntwortFehler(f"Panel: {fehler}") from fehler
 
-    text = _text(voll, ez, kontextzahlen, ergebnis, akteure, s)
+    beispiel = isinstance(quelle, FixtureQuelle)
+    zeilen = [_ausgangslage(kontextzahlen), _einleitung(ergebnis)]
+    if voll is not None:
+        zeilen += _experte_text(voll, ez)
+    zeilen += _abwaegung(ergebnis, akteure, s, beispiel)
+    if voll is not None and ergebnis.notiz:
+        zeilen.append(f"Einschätzung der Moderation: {_namen_statt_ids(ergebnis.notiz, akteure)}")
+    text = "\n".join(bereinige(z, s.zahlen) for z in zeilen)
     frei = freie_zahlen(text, s.zahlen)
     if frei:
         raise FreieZahl(f"Zahl ohne Eintrag in zahlen: {', '.join(frei)}")
