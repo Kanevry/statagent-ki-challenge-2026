@@ -148,3 +148,28 @@ describe("ModellBadge nach Frames CKCV4 und nas8Y", () => {
     expect(chip.querySelector("[data-status-symbol=warnung]")).not.toBeNull();
   });
 });
+
+// Fängt ab (Lead 58, UC2-Sichtprüfung): Die Seite läuft im Testbetrieb, der Header zeigt aber die globale
+// Einstellung „azure · gpt-5“. Die Seite meldet ihr Modell über SeitenModell; beim Verlassen gilt wieder global.
+describe("Modell der Seite", () => {
+  it("SeitenModell mock schlägt die globale Angabe, nach dem Verlassen gilt sie wieder", async () => {
+    const { AppShell } = await import("../../src/shell/app-shell");
+    const { SeitenModell } = await import("../../src/shell/seiten-modell");
+    const { TESTBETRIEB_TEXT } = await import("../../src/shell/modell-badge");
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json(gewaehlt)));
+    const { rerender } = render(
+      <AppShell pfad="/uc2">
+        <SeitenModell provider="mock" />
+      </AppShell>,
+    );
+    expect((await screen.findByTestId("modell-badge")).textContent).toBe(TESTBETRIEB_TEXT);
+    rerender(<AppShell pfad="/uc2">ohne Angabe</AppShell>);
+    expect(await screen.findByText("azure · gpt-5")).toBeTruthy();
+  });
+
+  it("vorgabe mit echtem Modell zeigt Anbieter und Modell der Seite", () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json(gewaehlt)));
+    render(<ModellBadge vorgabe={{ provider: "mistral", modell: "mistral-large-latest" }} />);
+    expect(screen.getByTestId("modell-badge").textContent).toBe("Modell:mistral · mistral-large-latest");
+  });
+});
