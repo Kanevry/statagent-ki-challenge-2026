@@ -123,10 +123,16 @@ def erkenne_status(text: str) -> str | None:
 
 
 def zustaendige_stelle(leistung_id: str, status: str | None) -> dict[str, str] | None:
-    """Zuständige Stelle mit Fundstelle aus der Entscheidungstabelle (BPGG § 22 für Pflegegeld)."""
+    """Zuständige Stelle mit Fundstelle aus der Entscheidungstabelle (BPGG § 22 für Pflegegeld).
+
+    Reihenfolge: ``stelle_je_status`` der Leistung für den bekannten Status (Unfallversicherung: SVS nach
+    ASVG § 28 Z 2), sonst ``stelle_fest``, sonst die Stelle des Status für den Bereich der Leistung."""
     leistung = leistungen()[leistung_id]
     tabelle = traeger_tabelle()
-    eintrag: dict[str, Any] | None = leistung.get("stelle_fest")
+    je_status: dict[str, Any] = leistung.get("stelle_je_status") or {}
+    eintrag: dict[str, Any] | None = je_status.get(status) if status else None
+    if eintrag is None:
+        eintrag = leistung.get("stelle_fest")
     if eintrag is None:
         if status is None:
             return None
@@ -434,8 +440,10 @@ def _analyse_prompt() -> str:
 _TREUE = (
     "Jede Aussage gibt nur wieder, was ihr Zitat sagt, nahe am Wortlaut des Zitats. Keine Zusätze, die "
     "nicht im Zitat stehen: keine Fristen, Ausnahmen, Vollmachten, Personen, Zuständigkeiten oder Folgen. "
-    "Was das Zitat nicht sagt, lässt du weg. Das System verwirft Aussagen mit Wörtern, die das Zitat nicht "
-    "deckt."
+    "Was das Zitat nicht sagt, lässt du weg. Steht im Zitat eine Bedingung (wenn, sofern, soweit, falls, "
+    "unter der Voraussetzung, bei Vorliegen), nennt die Aussage sie auch, selbst wenn sie erst nach dem "
+    "zitierten Teil im Satz steht. Das System verwirft Aussagen mit Wörtern, die das Zitat nicht deckt, und "
+    "Aussagen ohne die Bedingung des Zitats."
 )
 
 
@@ -504,9 +512,8 @@ def _antwort_prompt(sprache: Sprache, stil: Stil, modus: Modus = "text") -> str:
         "hängt das System selbst an.\n"
         "9. Einfach, aber mit den Wörtern des Zitats: kurzer Hauptsatz, aktiv, zuerst die Leistung. "
         "Amtsdeutsch sagst du einfacher, nur wo die Bedeutung gleich bleibt. Wähle das Zitat so, dass es "
-        "genau den Teil enthält, den deine Aussage sagt, und bis zum Satzende reicht. Steht im Zitat eine "
-        "Bedingung (wenn, sofern, bei Vorliegen, nach Abs.), gehört sie in die Aussage. Keine Personen, die "
-        "nicht im Zitat stehen. "
+        "genau den Teil enthält, den deine Aussage sagt, und bis zum Satzende reicht. Auch eine Bedingung "
+        "nach Abs. gehört in die Aussage. Keine Personen, die nicht im Zitat stehen. "
         "Keine Floskeln (kein „gerne“, „bitte beachten Sie“, „zusammenfassend“), keine Gedankenstriche, "
         "kein „zudem“ oder "
         "„darüber hinaus“, keine Aufzählung in einem Satz."
@@ -567,6 +574,27 @@ def ziffern_belegt(text: str, zitat: str) -> bool:
     for z in _ZAHLWORT.findall(normalisiere(zitat)):
         im_zitat |= _zahlwerte(z)
     return all(_zahlwerte(z) & im_zitat for z in _ZAHLWORT.findall(text))
+
+
+# Bedingung aus dem Zitat (Review !69, Sichtprüfung #35): „Familienmitglieder können Pflegegeld ohne
+# Bevollmächtigung beantragen“ zu einem Zitat mit „…, wenn kein Zweifel über Bestand und Umfang der
+# Vertretungsbefugnis besteht.“ Das Zitat ist das bis zum Satzende verlängerte, die Bedingung zählt also auch,
+# wenn sie erst nach dem Teil steht, den die Aussage sagt. Lexikalisch: „wer … braucht“ trägt die Bedingung
+# als Relativsatz („Pflegegeld bekommt, wer ständig Hilfe braucht“, BPGG § 4 „wenn …“).
+_BEDINGUNG_ZITAT = re.compile(
+    r"\b(?:wenn|sofern|soweit|falls|unter der voraussetzung|bei vorliegen)\b", re.IGNORECASE
+)
+_BEDINGUNG_AUSSAGE: dict[str, re.Pattern[str]] = {
+    "de": re.compile(r"\b(?:wenn|sofern|soweit|falls|nur|bei|unter|wer)\b", re.IGNORECASE),
+    "en": re.compile(r"\b(?:if|only|provided|when|unless|as long as|subject to|under|who)\b", re.IGNORECASE),
+}
+
+
+def bedingung_fehlt(aussage: str, zitat: str, sprache: str = "de") -> bool:
+    """True, wenn das Zitat eine Bedingung enthält und die Aussage keine trägt."""
+    if not _BEDINGUNG_ZITAT.search(zitat):
+        return False
+    return not _BEDINGUNG_AUSSAGE.get(sprache, _BEDINGUNG_AUSSAGE["de"]).search(aussage)
 
 
 def zitat_gueltig(zitat: str, abschnitt_text: str) -> bool:
@@ -710,6 +738,7 @@ def pruefe_aussagen(
         gedeckt: float | None = None
         if t is not None and text and sprache == "de":
             gedeckt = deckung(text, zitat, t.kontext)
+        voll = vervollstaendige_zitat(zitat, t.text) if t is not None else zitat
         if t is None:
             grund = "abschnitt_id gehört nicht zu den Treffern"
         elif not text:
@@ -729,6 +758,8 @@ def pruefe_aussagen(
         elif gedeckt is not None and gedeckt < schwelle:
             # Verwerfen statt kürzen: eine Kürzung ohne Modell könnte nur das Zitat selbst wiederholen.
             grund = f"Aussage geht über das Zitat hinaus (Deckung {gedeckt:.2f} < {schwelle:.2f})"
+        elif bedingung_fehlt(text, voll, sprache):
+            grund = "Aussage lässt die Bedingung aus dem Zitat weg"
         if grund or t is None:
             verworfen.append(
                 {
@@ -740,7 +771,7 @@ def pruefe_aussagen(
                 }
             )
             continue
-        zitat = vervollstaendige_zitat(zitat, t.text)
+        zitat = voll
         stand = stand_von(t)
         hat_betrag = bool(betraege(text))
         gueltig.append(
@@ -1054,7 +1085,9 @@ def naechste_schritte(
         schritte.append(tx["schritt_angebot"].format(schluessel=kurze_quelle(t.zitierschluessel())))
     for stelle in traeger[:1]:
         schritte.append(tx["schritt_stelle"].format(name=stelle["name"]))
-    return schritte
+    # Gleiche Schritte nur einmal, Reihenfolge bleibt (Pflegegeld und Reha brachten das Antragsangebot
+    # doppelt).
+    return list(dict.fromkeys(schritte))
 
 
 def setze_sprechtext(aussagen: Sequence[Aussage], *, sprache: str) -> str:

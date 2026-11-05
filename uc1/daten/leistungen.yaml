@@ -3,7 +3,8 @@
 #
 # Quellen: Normen im Korpus lotse (Überschriften, z. B. „BPGG § 4 Anspruchsvoraussetzungen“,
 # „ASVG § 138 Krankengeld“, „ASVG § 162 Wochengeld“, „ASVG § 155 Maßnahmen zur Festigung der Gesundheit“,
-# „ASVG § 300 Rehabilitation“, „BPGG § 21c Pflegekarenzgeld“); Formulare unter
+# „ASVG § 300 Rehabilitation“, „BPGG § 21c Pflegekarenzgeld“, „ASVG § 28 Sachliche Zuständigkeit der
+# Träger der Unfallversicherung“, „ASVG § 175 Arbeitsunfall“); Formulare unter
 # „Anträge und Formulare/“ in UC1_DATA_DIR (PAL080 = Antrag auf Pflegegeld der PVA).
 #
 # felder: Pflichtangaben mit Rückfragetext. `rang` legt die Reihenfolge der Rückfragen fest (klein zuerst):
@@ -13,6 +14,7 @@
 #   `bereich` (Spalte in traeger.yaml), `gesetze` (fest) oder `gesetze_aus_status: true`,
 #   `suchanfrage` (Fachbegriffe für die SozDok-Suche), `angebote` (Suche in Katalogen und Formularen,
 #   `regional`: Dateien nur für ein Bundesland), `stelle_fest` (Stelle unabhängig vom Status),
+#   `stelle_je_status` (Ausnahmen von `stelle_fest` je Status, z. B. SVS für die Unfallversicherung),
 #   `formular` (`fuer_stelle`: nur für diese Stellen, sonst kein fremdes Formular), `unterlagen`,
 #   `antrag` (Art für `lotse antrag`, Issue #32).
 
@@ -163,4 +165,41 @@ leistungen:
     bereich: krankenversicherung
     gesetze_aus_status: true
     suchanfrage: "Wochengeld Mutterschaft Entbindung Leistungen aus dem Versicherungsfall der Mutterschaft"
+    unterlagen: []  # im Korpus keine Unterlagenliste belegt
+  unfallversicherung:
+    name: {de: "Unfallversicherung", en: "accident insurance (Unfallversicherung)"}
+    # Endmessung g21 (Heimweg von der Arbeit gestürzt) nannte PVA/ÖGK statt AUVA. Zuständig ist nach ASVG § 28
+    # Z 1 die AUVA, für Selbständige und Bäuerinnen und Bauern nach Z 2 die SVS (`stelle_je_status`).
+    # Beamtinnen und Beamte (Dienstunfall, B-KUVG, BVAEB) sind nicht abgebildet; sie bekommen die AUVA.
+    # „Arbeit“ allein löst nicht aus, nur Unfall, Weg oder Verletzung im Zusammenhang mit der Arbeit.
+    lage: "Arbeitsunfall, Wegunfall oder Berufskrankheit"
+    ausloeser:
+      - 'arbeitsunf(?:ä|a)ll'
+      - 'wegunf(?:ä|a)ll'
+      - 'berufskrankheit'
+      - 'unfallversicherung'
+      - '(?:auf dem|am) (?:heim)?weg (?:von der|zur|zu der|in die|nach der) arbeit'
+      - '(?:bei|in) der arbeit\b.{0,40}(?:gest(?:ü|u)rzt|verletzt|verungl(?:ü|u)ckt|unfall)'
+      - '(?:gest(?:ü|u)rzt|verletzt|verungl(?:ü|u)ckt)\b.{0,20}(?:bei|in) der arbeit\b'
+      - 'accident at work'
+      - 'work(?:place)?[- ]accident'
+      - 'commuting accident'
+      - 'occupational (?:disease|illness)'
+      - 'on (?:the|my) way (?:to|from|home from) work'
+      - '(?:injured|hurt|fell) at work'
+      - 'accident insurance'
+    pflicht: []
+    bereich: unfallversicherung
+    stelle_fest:
+      stelle: AUVA
+      fundstelle: "ASVG § 28 Z 1"
+      zitat: "Zur Durchführung der Unfallversicherung sind sachlich zuständig: 1. die Allgemeine Unfallversicherungsanstalt, soweit nicht der unter Z 2 genannte Versicherungsträger zuständig ist"
+    # Vorrang vor `stelle_fest`, wenn der Status bekannt ist (uc1.kern.zustaendige_stelle).
+    stelle_je_status:
+      svs:
+        stelle: SVS
+        fundstelle: "ASVG § 28 Z 2"
+        zitat: "2. die Sozialversicherungsanstalt der Selbständigen für a) die nach § 3 des Bauern-Sozialversicherungsgesetzes in der Unfallversicherung pflichtversicherten selbständig Erwerbstätigen"
+    gesetze: [ASVG]
+    suchanfrage: "Arbeitsunfall Wegunfall Weg zur oder von der Arbeitsstätte Unfallversicherung Berufskrankheit"
     unterlagen: []  # im Korpus keine Unterlagenliste belegt
