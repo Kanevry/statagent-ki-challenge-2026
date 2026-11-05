@@ -93,10 +93,19 @@ def bewerte(kandidaten: list[Kandidat], modus: str, stichtag: date, regeln: Rege
     return [t for t in reihe if t.rang > 0][:k]
 
 
+# Abfrage je Verknüpfung als feste SQL-Bausteine; die Frage geht nur als Parameter hinein.
+# `oder`: Lexeme aus plainto_tsquery (gequotet, gestemmt) mit `|` statt `&` verknüpft.
+ABFRAGE_SQL = {
+    # to_tsquery('simple', …) übernimmt die schon gestemmten Lexeme unverändert (Funktion statt Cast,
+    # weil der Baustein in FROM steht).
+    "oder": "to_tsquery('simple', replace(plainto_tsquery('german', %(frage)s)::text, '&', '|'))",
+    "und": "websearch_to_tsquery('german', %(frage)s)",
+}
+
 VOLLTEXT_SQL = """
 select s.abschnitt_id
 from uc2.abschnitt s join uc2.artikel a using (artikel_id),
-     websearch_to_tsquery('german', %(frage)s) q
+     {abfrage} q
 where (s.tsv @@ q or a.tsv @@ q) and a.artikeldatum <= %(stichtag)s
 order by ts_rank_cd(s.tsv || a.tsv, q, 32) desc, s.abschnitt_id
 limit %(n)s
@@ -106,7 +115,7 @@ DETAIL_SQL = """
 select s.abschnitt_id, s.artikel_id, a.artikeldatum, a.medium, a.titel, s.text,
        case when (s.tsv || a.tsv) @@ q then ts_rank_cd(s.tsv || a.tsv, q, 32) else 0 end
 from uc2.abschnitt s join uc2.artikel a using (artikel_id),
-     websearch_to_tsquery('german', %(frage)s) q
+     {abfrage} q
 where s.abschnitt_id = any(%(ids)s)
 """
 
@@ -134,6 +143,7 @@ def suche(
     k = k or regeln.k
     stichtag = stichtag or regeln.stichtag_standard
     n = regeln.kandidaten
+    ts_abfrage = ABFRAGE_SQL[regeln.volltext_verknuepfung]
 
     cos_je_id: dict[str, float] = {}
     vektor_ids: list[str] = []
@@ -173,7 +183,9 @@ def suche(
     if modus in ("volltext", "hybrid"):
         volltext_ids = [
             str(z[0])
-            for z in verbindung.execute(VOLLTEXT_SQL, {"frage": frage, "stichtag": stichtag, "n": n})
+            for z in verbindung.execute(
+                VOLLTEXT_SQL.format(abfrage=ts_abfrage), {"frage": frage, "stichtag": stichtag, "n": n}
+            )
         ]
     kandidaten_ids = sorted(set(volltext_ids) | set(vektor_ids))
     if not kandidaten_ids:
@@ -189,6 +201,8 @@ def suche(
             ts=float(z[6]),
             cos=cos_je_id.get(str(z[0]), 0.0),
         )
-        for z in verbindung.execute(DETAIL_SQL, {"frage": frage, "ids": kandidaten_ids})
+        for z in verbindung.execute(
+            DETAIL_SQL.format(abfrage=ts_abfrage), {"frage": frage, "ids": kandidaten_ids}
+        )
     ]
     return modus, bewerte(kandidaten, modus, stichtag, regeln, k)

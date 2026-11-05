@@ -20,6 +20,9 @@ suche:
   # Hybrid-Relevanz = gewicht_vektor * max(cos, 0) + gewicht_volltext * ts_norm
   gewicht_vektor: 0.7
   gewicht_volltext: 0.3
+  # Verknüpfung der Suchwörter im Volltext: oder (ein passendes Wort genügt, mehr Treffer heben ts)
+  # | und (alle Wörter nötig, websearch_to_tsquery). Natürliche Fragen finden mit `und` oft nichts.
+  volltext_verknuepfung: oder
   # Kandidaten je Verfahren (Volltext und Vektor), danach Vereinigung und Endrang
   kandidaten: 200
   # Treffer in der Ausgabe (je Artikel höchstens ein Abschnitt)

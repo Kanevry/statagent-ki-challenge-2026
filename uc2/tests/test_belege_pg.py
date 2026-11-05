@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -70,3 +71,23 @@ def test_suche_volltext_und_hybrid_mit_mock(pg_test: psycopg.Connection[Any], ex
 
     _, frueh = suche(pg_test, "Wartezeit Facharzt", regeln, modus="volltext", stichtag=date(2026, 8, 30))
     assert frueh == []  # Artikel vom 31.08. liegt nach dem Stichtag
+
+
+def test_volltext_oder_findet_teiltreffer_und_nicht(pg_test: psycopg.Connection[Any], extrakt: Path) -> None:
+    regeln = lade_regeln()
+    indexiere(extrakt, pg_test)
+    frage = "Augenarzt Facharzt"  # „Augenarzt“ steht nicht im Fixture, „Facharzt“ im Titel
+    _, oder = suche(pg_test, frage, replace(regeln, volltext_verknuepfung="oder"), modus="volltext")
+    _, und = suche(pg_test, frage, replace(regeln, volltext_verknuepfung="und"), modus="volltext")
+    assert [t.titel for t in oder] == ["Wartezeit beim Facharzt wird kürzer"]
+    assert und == []
+
+
+def test_volltext_oder_mehr_passende_woerter_hoeher(pg_test: psycopg.Connection[Any], extrakt: Path) -> None:
+    regeln = replace(lade_regeln(), volltext_verknuepfung="oder")
+    indexiere(extrakt, pg_test)
+    _, eins = suche(pg_test, "Augenarzt Facharzt", regeln, modus="volltext")
+    _, zwei = suche(pg_test, "Facharzt Termin Kassenstellen", regeln, modus="volltext")
+    assert 0 < eins[0].ts < zwei[0].ts < 1
+    _, sonderzeichen = suche(pg_test, "Facharzt' & | ! :* (", regeln, modus="volltext")
+    assert [t.titel for t in sonderzeichen] == ["Wartezeit beim Facharzt wird kürzer"]

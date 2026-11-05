@@ -13,6 +13,12 @@ FIXTURES = Path(__file__).parent / "fixtures"
 TEST_DB = "healthpolicy_test"
 
 
+@pytest.fixture(autouse=True)
+def nur_mock_einbettung(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Kein Test lädt je das echte Embedding-Modell."""
+    monkeypatch.setenv("UC2_EINBETTUNG", "mock")
+
+
 @pytest.fixture
 def ausgabe_text() -> str:
     """Erfundene Ausgabe im Format von `pdftotext -layout` (9 Seiten, 3 Artikel, 2 Layout-Kopien)."""

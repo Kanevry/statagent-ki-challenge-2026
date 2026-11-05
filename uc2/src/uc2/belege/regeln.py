@@ -12,6 +12,7 @@ import yaml
 from uc2 import pfade
 
 MODI = ("volltext", "vektor", "hybrid")
+VERKNUEPFUNGEN = ("oder", "und")
 
 
 @dataclass(frozen=True)
@@ -24,6 +25,7 @@ class Regeln:
     gewicht_vektor: float
     gewicht_volltext: float
     kandidaten: int
+    volltext_verknuepfung: str
     k: int
     institutionsfaktor: float
 
@@ -43,6 +45,12 @@ def lade_regeln(pfad: Path | None = None) -> Regeln:
     modus = str(suche["modus"])
     if modus not in MODI:
         raise ValueError(f"regeln.yaml: suche.modus muss einer von {MODI} sein, nicht {modus!r}")
+    verknuepfung = str(suche.get("volltext_verknuepfung", "oder"))
+    if verknuepfung not in VERKNUEPFUNGEN:
+        raise ValueError(
+            f"regeln.yaml: suche.volltext_verknuepfung muss einer von {VERKNUEPFUNGEN} sein, "
+            f"nicht {verknuepfung!r}"
+        )
     return Regeln(
         stichtag_standard=_datum(roh["stichtag_standard"]),
         halbwertszeit_tage=float(roh["halbwertszeit_tage"]),
@@ -52,6 +60,7 @@ def lade_regeln(pfad: Path | None = None) -> Regeln:
         gewicht_vektor=float(suche["gewicht_vektor"]),
         gewicht_volltext=float(suche["gewicht_volltext"]),
         kandidaten=int(suche["kandidaten"]),
+        volltext_verknuepfung=verknuepfung,
         k=int(suche["k"]),
         institutionsfaktor=float(roh["institutionsfaktor"]),
     )
