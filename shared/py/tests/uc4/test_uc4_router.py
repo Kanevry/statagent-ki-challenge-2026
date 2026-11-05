@@ -5,6 +5,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from plattform import router
@@ -118,6 +119,21 @@ def test_registry_ohne_explizite_adapter(protokoll):
     registriere("uc3", mock_adapter()["uc3"])
     ergebnis = durchreichen("Wie viele Beschäftigte?", kette=("uc3",))
     assert [a.uc for a in ergebnis.antworten] == ["uc3"]
+
+
+def test_entry_point_wird_ohne_registry_geladen(protokoll, monkeypatch):
+    """Fängt: Gruppe oder Name falsch abgefragt, Adapter aus installierten UC-Paketen werden nie gefunden."""
+    gefragt = []
+
+    def entry_points(group, name):
+        gefragt.append((group, name))
+        return [SimpleNamespace(load=lambda: mock_adapter()["uc3"])] if name == "uc3" else []
+
+    monkeypatch.setattr(router, "entry_points", entry_points)
+    ergebnis = durchreichen("Wie viele Beschäftigte?", kette=("uc3", "uc2"))
+    assert gefragt == [("kic.uc_antwort", "uc3"), ("kic.uc_antwort", "uc2")]
+    assert [a.uc for a in ergebnis.antworten] == ["uc3"]
+    assert [(f.uc, f.grund) for f in ergebnis.fehlend] == [("uc2", "kein_adapter")]
 
 
 def test_cli_mock_liefert_json_mit_drei_antworten(protokoll, capsys):
