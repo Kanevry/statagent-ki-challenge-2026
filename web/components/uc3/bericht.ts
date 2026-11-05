@@ -184,6 +184,8 @@ const ABKUERZUNG = /(?:(?:^|[\s(])[A-Za-zÄÖÜäöü]|\bNr|\bca|\bbzw|\binkl|\b
 const ZAHL_AM_ENDE = /(?:^|[\s(])\d+$/;
 const MONAT_DANACH = /^ (?:Jänner|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\b/;
 // … oder nach Artikel oder Präposition („mit dem 1. Tag“, „ab 15. Juli“).
+// Typische Satzanfänge: davor endet der Satz auch nach „bis 110.“ (Review !77, Folge).
+const SATZANFANG = /^ (?:Die|Der|Das|Den|Dem|Des|Ein|Eine|Einen|Wir|Sie|Es|Er|Man|Im|In|Bei|Für|Nach|Mit|Ohne|Dann|Danach|Damit|Dies|Diese|Dieser|Dieses|Auch|Nur|So|Wenn|Weil)\b/;
 const ORDINAL_DAVOR = /(?:^|\s)(?:dem|den|der|die|das|am|vom|zum|zur|im|ab|bis|seit|einem|einen|eine)\s+\d+$/i;
 
 /** Erster Satz eines Textes; Abkürzungen wie „z. B.“, „Nr. 1“ oder „der 1. Juli“ beenden keinen Satz. */
@@ -195,7 +197,13 @@ export function ersterSatz(text: string): string {
     const rest = s.slice(i + 1);
     if (rest !== "" && !/^ [A-ZÄÖÜ„]/.test(rest)) continue;
     if (zeichen === "." && ABKUERZUNG.test(s.slice(0, i))) continue;
-    if (zeichen === "." && ZAHL_AM_ENDE.test(s.slice(0, i)) && (MONAT_DANACH.test(rest) || ORDINAL_DAVOR.test(s.slice(0, i)))) continue;
+    if (
+      zeichen === "." &&
+      ZAHL_AM_ENDE.test(s.slice(0, i)) &&
+      (MONAT_DANACH.test(rest) || (ORDINAL_DAVOR.test(s.slice(0, i)) && !SATZANFANG.test(rest)))
+    ) {
+      continue;
+    }
     return s.slice(0, i + 1);
   }
   return s;

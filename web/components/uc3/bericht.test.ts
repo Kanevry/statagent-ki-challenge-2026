@@ -85,5 +85,6 @@ describe("ersterSatz nach Zahlen (Review !77, Punkt 7)", () => {
   it("endet nach einer Zahl, außer vor einem Monatsnamen", () => {
     expect(ersterSatz("Die obere Grenze ist 110. Die ILO zählt anders.")).toBe("Die obere Grenze ist 110.");
     expect(ersterSatz("Wir rechnen mit dem 1. Juli des Jahres. Danach mehr.")).toBe("Wir rechnen mit dem 1. Juli des Jahres.");
+    expect(ersterSatz("Gezählt wird ein Alter bis 110. Die ILO zählt anders.")).toBe("Gezählt wird ein Alter bis 110.");
   });
 });
