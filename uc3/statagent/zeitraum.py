@@ -176,7 +176,9 @@ _BEREICHSWORT = re.compile(r"(?<!\w)(?:bis|zwischen)(?!\w)|[–—-]", re.IGNORE
 #: Jahreszahlen, die kein Zeitraum sind („ÖNACE 2008“, „Version 2025“).
 KEIN_JAHR = re.compile(
     r"(?:önace|oenace|nace|version|fassung|klassifikation|plz|postleitzahl|jahrgang|geburtsjahr)[\s-]*(?:19|20)\d{2}"
-    r"|(?<!\w)(?:über|ueber|mehr als|weniger als|unter|mit)\s+(?:19|20)\d{2}(?!\d)",
+    r"|(?<!\w)(?:über|ueber|mehr als|weniger als|unter)\s+(?:19|20)\d{2}(?!\d)"
+    # „mit“ nur mit Mengenwort: „März 2026 mit 2025 vergleichen“ meint ein Jahr.
+    r"|(?<!\w)mit\s+(?:19|20)\d{2}\s+(?:mitarbeiter|beschäftigte|personen|leute|euro)",
     re.IGNORECASE,
 )
 
