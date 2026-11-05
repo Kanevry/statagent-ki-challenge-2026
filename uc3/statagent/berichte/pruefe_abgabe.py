@@ -27,10 +27,10 @@ from statagent.berichte.sheet import (
     BLATT_GESCHLECHT,
     BLATT_KATEGORIE,
     OENACE_PRAEFIX,
-    STICHTAG,
     STICHTAG_VARIABLE,
     VORLAGE_DATEI,
     _blatt_lesen,
+    zaehl_zeitraum,
 )
 from statagent.db import Verbindung
 from statagent.ergebnis import monat_verschieben
@@ -307,13 +307,15 @@ def _ist_zahl(wert: object) -> bool:
 
 
 def _db_gesamt(conn: Verbindung, monat: str, regelsatz: str) -> int | None:
-    """Beschäftigungsverhältnisse am Stichtag des maßgeblichen Laufs (Muster `sheet.sheet_schreiben`)."""
+    """Beschäftigungsverhältnisse des maßgeblichen Laufs im Zählzeitraum der Bestandsregel (wie `sheet_schreiben`;
+    v2 zählt über das ganze Monat)."""
     if ergebnis.letzter_lauf(conn, monat, regelsatz) is None:
         return None
+    art = zaehl_zeitraum(conn, regelsatz, monat)
     return sum(
         int(str(z["wert"]))
         for z in ergebnis.monatswerte(conn, monat, regelsatz)
-        if z["zeitraum_art"] == STICHTAG and z["variable"] == STICHTAG_VARIABLE
+        if z["zeitraum_art"] == art and z["variable"] == STICHTAG_VARIABLE
     )
 
 

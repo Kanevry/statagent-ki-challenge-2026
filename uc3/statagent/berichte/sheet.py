@@ -174,6 +174,11 @@ def _unbekannt_codes(conn: Verbindung, regelsatz: str) -> dict[tuple[str, str], 
     return {(str(z["merkmal"]), str(z["version"])): str(z["code"]) for z in zeilen}
 
 
+def zaehl_zeitraum(conn: Verbindung, regelsatz: str, monat: str) -> str:
+    """Zeitraumart der Bestandsregel des Regelsatzes: v1 „Stichtag“, nach Auftrag 2 „Monat“ (Regeln als Daten)."""
+    return str(regel_wert(eine(regeln_laden(conn, regelsatz, monat), "zaehl", "bestand"), "zeitraum_art"))
+
+
 def _gerechnete_monate(conn: Verbindung, regelsatz: str) -> list[str]:
     zeilen = conn.execute(
         """
@@ -256,7 +261,7 @@ def sheet_schreiben(
             letztes_ende = ende
         # Zeitraumart aus der Bestandsregel des Regelsatzes: v1 zählt am Stichtag, v2 über das ganze Monat
         # (Auftrag 2). Fest „Stichtag“ ergab für v2 lauter Nullen.
-        art = str(regel_wert(eine(regeln_laden(conn, regelsatz, monat), "zaehl", "bestand"), "zeitraum_art"))
+        art = zaehl_zeitraum(conn, regelsatz, monat)
         zeitraum_arten.add(art)
         zellen = [
             z
