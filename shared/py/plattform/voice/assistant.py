@@ -60,6 +60,8 @@ def assistant_konfiguration(public_url: str | None) -> dict[str, Any]:
             "chunkPlan": {"enabled": True, "formatPlan": {"enabled": False}},
         },
         "recordingEnabled": False,
+        # Geld (Review !66): kein Anruf länger als zwei Minuten, auch wenn niemand auflegt.
+        "maxDurationSeconds": 120,
         "artifactPlan": {"recordingEnabled": False},
         "server": {"url": f"{basis}/vapi/webhook"},
         "serverMessages": ["end-of-call-report"],

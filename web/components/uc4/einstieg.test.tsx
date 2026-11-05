@@ -26,6 +26,11 @@ function antworte(status: number, body: unknown) {
 
 afterEach(() => vi.unstubAllGlobals());
 
+/** Bodies der POSTs an /api/uc4/frage; der Sprechknopf holt daneben seine Konfiguration. */
+function fragen(abruf: ReturnType<typeof antworte>): unknown[] {
+  return abruf.mock.calls.filter(([adresse]) => adresse === "/api/uc4/frage").map(([, optionen]) => JSON.parse(String(optionen?.body)));
+}
+
 const karten = () => Array.from(document.querySelectorAll<HTMLElement>("[data-uc-karte]"));
 
 it("Enter schickt ab; Karten stehen in Kettenreihenfolge, jede Zahl mit Herkunft, fehlender UC mit Grund", async () => {
@@ -36,7 +41,7 @@ it("Enter schickt ab; Karten stehen in Kettenreihenfolge, jede Zahl mit Herkunft
 
   await user.type(screen.getByLabelText("Frage an die Kette"), "Wie viele Beschäftigte?{Enter}");
   expect(await screen.findByText("Einfach erklärt.")).toBeTruthy();
-  expect(JSON.parse(String(abruf.mock.calls[0]?.[1]?.body))).toEqual({ frage: "Wie viele Beschäftigte?" });
+  expect(fragen(abruf)).toEqual([{ frage: "Wie viele Beschäftigte?" }]);
 
   expect(karten().map((k) => [k.dataset.ucKarte, k.dataset.zustand])).toEqual([
     ["uc3", "antwort"],
@@ -47,7 +52,7 @@ it("Enter schickt ab; Karten stehen in Kettenreihenfolge, jede Zahl mit Herkunft
   expect(zahlen).toHaveLength(1);
   for (const zahl of zahlen) expect(zahl.querySelector('[data-baustein="herkunft"]')).not.toBeNull();
   expect(within(karten()[1]!).getByText("Noch nicht angeschlossen")).toBeTruthy();
-  expect(screen.getByRole("status").textContent).toBe("2 Antworten da, es fehlt HealthPolicy Simulator.");
+  expect(document.querySelector("[data-uc4-ansage]")?.textContent).toBe("2 Antworten da, es fehlt HealthPolicy Simulator.");
 });
 
 it("ein gesperrter POST zeigt in jeder Karte den Hinweis auf die Online-Demo", async () => {

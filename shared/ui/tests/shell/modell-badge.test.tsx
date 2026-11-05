@@ -167,9 +167,13 @@ describe("Modell der Seite", () => {
     expect(await screen.findByText("azure · gpt-5")).toBeTruthy();
   });
 
-  it("vorgabe mit echtem Modell zeigt Anbieter und Modell der Seite", () => {
+  // Fängt ab (Review !66): Die Seite meldet einen Anbieter, den der Server gar nicht nutzt, und der Badge zeigt
+  // ihn trotzdem. Eine Vorgabe gilt nur für Testbetrieb oder wenn sie zum gemessenen Anbieter passt.
+  it("eine fremde Vorgabe gilt nicht, eine passende schon", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json(gewaehlt)));
-    render(<ModellBadge vorgabe={{ provider: "mistral", modell: "mistral-large-latest" }} />);
-    expect(screen.getByTestId("modell-badge").textContent).toBe("Modell:mistral · mistral-large-latest");
+    const { rerender } = render(<ModellBadge vorgabe={{ provider: "mistral", modell: "mistral-large-latest" }} />);
+    expect(await screen.findByText("azure · gpt-5")).toBeTruthy();
+    rerender(<ModellBadge vorgabe={{ provider: "azure", modell: "gpt-5-4-mini" }} />);
+    expect(screen.getByTestId("modell-badge").textContent).toBe("Modell:azure · gpt-5-4-mini");
   });
 });

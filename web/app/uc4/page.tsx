@@ -3,7 +3,6 @@ import { Fliesstext, Ueberschrift } from "@kic/ui/basis";
 import { UcBereich } from "@kic/ui/shell";
 import { findeUc } from "@kic/ui/ucs";
 import { Einstieg } from "@/components/uc4/einstieg";
-import { Stimme } from "@/components/uc4/stimme";
 import { KETTE } from "@/lib/plattform/uc4-ergebnis";
 
 // UC4 Gemeinsamer Einstieg (#98, nicht bewertet): oben die Hauptaussage, dann das Frage-Feld, darunter die
@@ -24,7 +23,6 @@ export default function GemeinsamerEinstieg() {
         </Fliesstext>
       </div>
       <Einstieg />
-      <Stimme />
     </UcBereich>
   );
 }

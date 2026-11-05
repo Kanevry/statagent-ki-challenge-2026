@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Feld, Fliesstext, Knopf, Status, Ueberschrift, Zahl } from "@kic/ui/basis";
 import { HerkunftChip, ModellPille } from "@kic/ui/bausteine";
 import { TESTBETRIEB_TEXT } from "@kic/ui/shell";
+import { Stimme } from "./stimme";
 import { findeUc } from "@kic/ui/ucs";
 import type { Beleg, UcAntwort } from "@kic/ui/antwortform";
 import {
@@ -210,7 +211,10 @@ export function Einstieg() {
         </Knopf>
       </form>
 
-      <p role="status" aria-live="polite" className="sr-only">
+      {/* Am Frage-Feld, vor den Karten: auch auf dem Handy direkt unter der Eingabe (Review !66). */}
+      <Stimme />
+
+      <p role="status" aria-live="polite" className="sr-only" data-uc4-ansage="">
         {ansage(zustand)}
       </p>
 

@@ -69,6 +69,21 @@ test("/uc4 liefert 200 und zeigt Hauptaussage, Frage-Feld und drei leere Karten"
   await expect(page.locator('[data-zustand="leer"]')).toHaveCount(3);
 });
 
+// Fängt ab (Review !66): Der Sprechknopf steht unter den drei Karten statt am Frage-Feld (auf 390 px unter drei
+// gestapelten Karten).
+test("der Sprechknopf steht am Frage-Feld, vor den Karten", async ({ page }) => {
+  await page.goto("/uc4");
+  const vorDenKarten = await page.evaluate(() => {
+    const stimme = document.querySelector("[data-uc4-stimme]");
+    const karte = document.querySelector("[data-uc-karte]");
+    const feld = document.querySelector('input[name="frage"]');
+    if (!stimme || !karte || !feld) return null;
+    const vor = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return vor(feld, stimme) && vor(stimme, karte);
+  });
+  expect(vorDenKarten).toBe(true);
+});
+
 test("Frage absenden: drei Karten in Reihenfolge uc3, uc2, uc1, jede Zahl mit HerkunftChip, Gate 0", async ({ page }) => {
   let gesendet: unknown = null;
   await page.route("**/api/uc4/frage", async (route) => {

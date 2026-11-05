@@ -194,9 +194,9 @@ export function VoiceKnopf({
 
   const wert = konfig.art === "ok" ? konfig.wert : null;
   const assistantId = assistantIdProp || wert?.assistantId || null;
-  // `aktiv` sagt, ob der Server Voice überhaupt zulässt (Schlüssel, Assistent, PUBLIC_URL für den
-  // Custom-LLM-Weg). Ohne `aktiv === true` bleibt der Knopf aus, auch mit eigenem Assistenten des Raums:
-  // lokal ohne Tunnel darf kein Anruf starten (Review !41).
+  // `aktiv` sagt, ob der Server Voice überhaupt zulässt (öffentlicher Schlüssel und PUBLIC_URL für den
+  // Custom-LLM-Weg, online nicht im Lesemodus; #120, Review !66). Den Assistenten prüft der Knopf selbst: Prop des
+  // Raums oder Standard aus der Konfiguration. Ohne `aktiv === true` bleibt der Knopf aus (Review !41).
   const eingerichtet = Boolean(ladeSdk && wert?.publicKey && assistantId && wert.aktiv === true);
 
   const beenden = useCallback(() => {

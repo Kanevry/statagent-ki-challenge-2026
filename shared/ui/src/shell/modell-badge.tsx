@@ -68,7 +68,12 @@ export function ModellBadge({
     };
   }, [quelle]);
 
-  if (vorgabe) {
+  // Die Seite darf nur Testbetrieb melden oder den Anbieter bestätigen, den der Server wirklich meldet; sonst
+  // zeigte der Badge einen erfundenen Anbieter (Review !66).
+  const vorgabeGilt =
+    vorgabe !== null &&
+    (vorgabe.provider === "mock" || (zustand.art === "ok" && zustand.status.provider === vorgabe.provider));
+  if (vorgabe && vorgabeGilt) {
     const seiteMock = vorgabe.provider === "mock";
     return (
       <ModellPille aria-live="polite" title="Angabe dieser Seite" data-testid="modell-badge" data-modell-seite="">
