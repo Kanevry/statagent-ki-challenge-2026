@@ -594,9 +594,7 @@ def test_kern_haelt_das_budget_nicht_zurueck(monkeypatch: pytest.MonkeyPatch) ->
 def test_fallfrage_nennt_oben_wirkung_und_kosten_ohne_entfernte_zahl(demo: UcAntwort) -> None:
     """Fängt eine Kernzeile, aus der die Zahlenprüfung die Kosten streicht („(Zahl ohne Beleg entfernt)“)."""
     erste = demo.text.splitlines()[0]
-    assert erste.startswith(
-        "Das durchgerechnete Paket mit mehr Personal bringt laut Rechenmodell: Wartezeit "
-    )
+    assert erste.startswith("Das durchgerechnete Maßnahmenpaket bringt laut Rechenmodell: Wartezeit ")
     assert "Mehrkosten" in erste and ERSATZ not in erste
 
 

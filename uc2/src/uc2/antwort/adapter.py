@@ -380,7 +380,7 @@ def _kernzeile(ergebnis: Kurzergebnis, ez: dict[str, Zahl]) -> str:
     """Erste Zeile der Antwort, was die Station oben zeigt; ohne Zahlenecho von UC3 (#164)."""
     if ez:
         return (
-            "Das durchgerechnete Paket mit mehr Personal bringt laut Rechenmodell: "
+            "Das durchgerechnete Maßnahmenpaket bringt laut Rechenmodell: "
             f"Wartezeit {_zahl_text(ez['wartezeit'])}, Mehrkosten {_zahl_text(ez['kosten_mio'])} pro Jahr."
         )
     return ergebnis.kern or " ".join(allgemein.FESTER_KERN)

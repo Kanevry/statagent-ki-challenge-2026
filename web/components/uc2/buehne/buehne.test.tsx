@@ -101,6 +101,6 @@ it("„Zum Ergebnis“ wirkt auch, wenn beim Klick noch nichts angekommen ist", 
   await userEvent.click(screen.getByRole("button", { name: "Zum Ergebnis" }));
   const quelle = FakeQuelle.letzte!;
   for (const ereignis of alle) act(() => quelle.sende([ereignis]));
-  act(() => quelle.sende([{ art: "ende", status: "fertig" }]));
+  act(() => quelle.sende([{ art: "ende" }]));
   await waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("Ergebnis nach"));
 });
