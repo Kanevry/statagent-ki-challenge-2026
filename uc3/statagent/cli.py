@@ -307,9 +307,9 @@ def berichte(
         # Ohne fertigen Lauf entstünde ein leerer Bericht über der Abgabe (Jury-Probe 4d, B2).
         ohne_lauf = [m for m in monate if ergebnis.letzter_lauf(conn, m, regelsatz) is None]
         if not monate or ohne_lauf:
-            welche = ", ".join(ohne_lauf) if ohne_lauf else "keiner"
+            fuer = f" für {', '.join(ohne_lauf)}" if ohne_lauf else ""
             typer.echo(
-                f"nicht geschrieben: Regelsatz {regelsatz} hat für {welche} keinen fertigen Lauf"
+                f"nicht geschrieben: Regelsatz {regelsatz} hat{fuer} keinen fertigen Lauf"
                 f" (zuerst uv run uc3 lauf --regelsatz {regelsatz})",
                 err=True,
             )
