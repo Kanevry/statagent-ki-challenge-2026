@@ -1,0 +1,75 @@
+# Dev-Set für die Suche (Review Architektur § 4, Issue #30). Eigene Themen, nicht aus lotse-set.yaml
+# und keine Paraphrasen davon. Abgestimmt wird nur hier; lotse-set.yaml ist das Test-Set (höchstens
+# 3 Blicke, testset-blicke.json).
+#
+# Ein Treffer zählt, wenn (Gesetz, Art, Nummer) unter erwartete_quellen steht oder die Überschrift
+# (kontext) eines SozDok-Treffers ueberschrift_regex erfüllt (ohne Groß-/Kleinschreibung). So zählen
+# parallele Normen anderer Träger (GSVG, BSVG, B-KUVG) mit.
+# Grenzen: n=12, ein Prüfer hat Fragen und Normen festgelegt; kurze Fragen mit klarer Norm.
+
+faelle:
+  - id: d01
+    frage: "Ich möchte für ein paar Monate weniger arbeiten, um meinen Vater nach dem Schlaganfall zu pflegen. Bekomme ich in der Zeit Geld?"
+    erwartete_quellen:
+      - {gesetz: BPGG, art: PARA, nummer: "21c"}
+    ueberschrift_regex: "Pflegekarenzgeld"
+  - id: d02
+    frage: "Meine Mutter liegt seit drei Wochen im Spital. Bekommt sie das Pflegegeld weiter?"
+    erwartete_quellen:
+      - {gesetz: BPGG, art: PARA, nummer: "12"}
+    ueberschrift_regex: null
+  - id: d03
+    frage: "Meine Pension ist so niedrig, dass ich kaum davon leben kann. Gibt es einen Zuschlag?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "292"}
+      - {gesetz: ASVG, art: PARA, nummer: "293"}
+    ueberschrift_regex: "Ausgleichszulage|Richtsätze"
+  - id: d04
+    frage: "Ich bin selbständig. Muss ich beim Arzt etwas dazuzahlen?"
+    erwartete_quellen:
+      - {gesetz: GSVG, art: PARA, nummer: "86"}
+    ueberschrift_regex: null
+  - id: d05
+    frage: "Ich brauche nach meiner Hüftoperation einen Rollstuhl. Zahlt das die Krankenkasse?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "154"}
+      - {gesetz: ASVG, art: PARA, nummer: "137"}
+    ueberschrift_regex: "Heilbehelfe|Hilfsmittel|körperlichen Gebrechen"
+  - id: d06
+    frage: "Meine Zahnprothese ist kaputt. Bekomme ich für eine neue etwas von der Kasse?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "153"}
+    ueberschrift_regex: "Zahnersatz"
+  - id: d07
+    frage: "Mein Mann ist gestorben. Bekomme ich jetzt eine Pension von ihm?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "258"}
+    ueberschrift_regex: "Witwen"
+  - id: d08
+    frage: "Mein Kind ist 17 und sein Vater ist gestorben. Bekommt es Geld und wie lange?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "260"}
+      - {gesetz: ASVG, art: PARA, nummer: "252"}
+    ueberschrift_regex: "Waisen"
+  - id: d09
+    frage: "Ich habe mich bei der Arbeit an der Hand verletzt und kann sie nicht mehr richtig bewegen. Bekomme ich eine Rente?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "203"}
+    ueberschrift_regex: "Versehrtenrente"
+  - id: d10
+    frage: "Ist meine Lebensgefährtin bei mir in der Krankenversicherung mitversichert?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "123"}
+    ueberschrift_regex: "Anspruchsberechtigung für Angehörige"
+  - id: d11
+    frage: "Ich pflege meinen Mann zu Hause und habe deshalb aufgehört zu arbeiten. Kann ich trotzdem Pensionszeiten sammeln?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "18b"}
+      - {gesetz: ASVG, art: PARA, nummer: "18a"}
+    ueberschrift_regex: "Selbstversicherung in der Pensionsversicherung für Zeiten der Pflege"
+  - id: d12
+    frage: "Mein Kind ist todkrank und ich will mich von der Arbeit freistellen lassen, um bei ihm zu sein. Gibt es finanzielle Hilfe?"
+    erwartete_quellen:
+      - {gesetz: BPGG, art: PARA, nummer: "21c"}
+      - {gesetz: FLAG, art: PARA, nummer: "38j"}
+    ueberschrift_regex: "Familienhospizkarenz|Pflegekarenzgeld"

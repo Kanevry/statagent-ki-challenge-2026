@@ -10,6 +10,8 @@ import psycopg
 
 Quelle = Literal["sozdok", "formular", "katalog", "eko", "befund"]
 Suchweg = Literal["volltext", "dicht", "hybrid", "auto"]
+# Weg, über den ein Treffer kam; trgm ist der Rückfall über pg_trgm.
+TrefferWeg = Literal["volltext", "trgm", "dicht", "hybrid"]
 
 
 @dataclass(frozen=True)
@@ -38,13 +40,14 @@ class Treffer:
     kontext: str  # z. B. "BPGG § 4 Pflegebedarf"
     text: str
     score: float
-    weg: str  # "volltext" | "trgm" | "dicht" | "hybrid"
+    weg: TrefferWeg
 
     def zitierschluessel(self) -> str:
         """Anzeigeform für Herkunft-Chips: Gesetz und Paragraph, sonst Datei und Seite oder Zeile."""
         if self.gesetz and self.nummer:
-            zeichen = "Art." if (self.art or "").upper() == "ART" else "§"
-            return f"{self.gesetz} {zeichen} {self.nummer}"
+            # "§" nur bei Paragraphen; andere Gliederungsarten (ZIFF, ZAHL, ANL ...) bleiben als Text.
+            zeichen = {"PARA": "§", "ART": "Art."}.get((self.art or "").upper(), self.art or "")
+            return " ".join(teil for teil in (self.gesetz, zeichen, self.nummer) if teil)
         if self.seite is not None:
             return f"{self.datei}, S. {self.seite}"
         if self.zeile is not None:
