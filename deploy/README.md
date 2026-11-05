@@ -74,6 +74,14 @@ jedem `up` und `daten`: Es entzieht PUBLIC das Anlegen und Schreiben, bricht ab,
 Schreibrecht (auch auf Spalten, Sequenzen oder über eine Rolle) oder CREATE hat, und prüft in jeder Datenbank als
 `kic_app`, dass Anlegen mit „permission denied“ scheitert (#108a). Gemessen 05.11.: online 0 Schreibrechte.
 
+## Vorführ-Instanz
+
+Für die Live-Demo am Tisch läuft neben der öffentlichen Demo eine zweite Instanz mit Passwort, die schreiben darf: eigenes
+Compose-Projekt (`deploy/docker-compose.vorfuehrung.yml`), eigene DB mit Rohdaten in eigenem Netz, eigener Git-Checkout,
+Start nur über `scripts/vorfuehrung.sh`. An der öffentlichen Demo ändert sich nur, dass Caddy ein Fragment aus
+`<basis>/vorfuehrung/caddy/` importiert; ohne Datei importiert es nichts. `deploy-check` prüft auch diese Instanz
+(`deploy/vorfuehrung-invarianten.jq`). Betrieb: `docs/betrieb/vorfuehrung.md`.
+
 ## Schalter in `.env.server`
 
 | Schlüssel | Werte | Wirkung |
