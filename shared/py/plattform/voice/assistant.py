@@ -8,6 +8,7 @@ Die Konfiguration trägt keine Schlüssel. Erst ``synchronisiere`` setzt ``serve
 from __future__ import annotations
 
 import copy
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -91,3 +92,48 @@ def synchronisiere(
         raise SyncFehler(f"Vapi-API antwortete {antwort.status_code}")
     kennung = antwort.json().get("id") if antwort.content else None
     return str(kennung or assistant_id or "")
+
+
+SMOKE_FRAGE = "Wie viele Beschäftigte gab es im März 2025?"
+
+
+@dataclass(frozen=True, slots=True)
+class SmokeErgebnis:
+    """Ergebnis von ``smoke``: Chat-ID und der Anfang der Antwort (höchstens 200 Zeichen)."""
+
+    chat_id: str
+    antwort: str
+
+
+def smoke(
+    *,
+    api_key: str | None,
+    assistant_id: str,
+    frage: str = SMOKE_FRAGE,
+    transport: httpx.BaseTransport | None = None,
+) -> SmokeErgebnis:
+    """Eine Textfrage über ``POST /chat`` der Vapi-API an den Assistant (Außenwirkung: nur mit Freigabe)."""
+    if not api_key:
+        raise SyncFehler("VAPI_API_KEY ist nicht gesetzt")
+    with httpx.Client(
+        base_url=VAPI_API,
+        transport=transport,
+        timeout=30.0,
+        headers={"Authorization": f"Bearer {api_key}"},
+    ) as client:
+        antwort = client.post("/chat", json={"assistantId": assistant_id, "input": frage})
+    if antwort.is_error:
+        raise SyncFehler(f"Vapi-API antwortete {antwort.status_code}")
+    try:
+        koerper = antwort.json()
+    except ValueError as fehler:
+        raise SyncFehler("Vapi-API lieferte kein JSON") from fehler
+    ausgabe = koerper.get("output") if isinstance(koerper, dict) else None
+    texte = [
+        str(n["content"]).strip()
+        for n in (ausgabe if isinstance(ausgabe, list) else [])
+        if isinstance(n, dict) and n.get("role") == "assistant" and str(n.get("content") or "").strip()
+    ]
+    if not texte:
+        raise SyncFehler("Vapi-Antwort enthält keine Assistenten-Nachricht")
+    return SmokeErgebnis(chat_id=str(koerper.get("id", "")), antwort=" ".join(texte)[:200])

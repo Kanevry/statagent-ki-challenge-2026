@@ -1,4 +1,4 @@
-"""Tunnel-Middleware (Vertrag V): über die Tunnel-Domain nur ``/chat/completions*`` und ``/vapi/webhook``.
+"""Tunnel-Middleware (Vertrag V): über die Tunnel-Domain nur ``/chat/completions`` und ``/vapi/webhook``.
 
 Eine Anfrage gilt als Tunnel-Anfrage, wenn ihr Host gleich dem Host aus ``PUBLIC_URL`` ist oder der Header
 ``CF-Connecting-IP`` vorhanden ist (cloudflared setzt ihn). Alles andere bekommt dort 404, lokal bleibt die
@@ -23,7 +23,7 @@ def tunnel_host(public_url: str | None) -> str | None:
 
 
 def tunnel_pfad_erlaubt(pfad: str) -> bool:
-    return pfad == "/vapi/webhook" or pfad == "/chat/completions" or pfad.startswith("/chat/completions/")
+    return pfad in ("/chat/completions", "/vapi/webhook")
 
 
 class TunnelFilter:

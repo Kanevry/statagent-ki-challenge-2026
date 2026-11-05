@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import time
 from collections import OrderedDict
 from pathlib import Path
 
@@ -48,6 +49,9 @@ def umgebung(tmp_path, monkeypatch):
     monkeypatch.setenv("PLATTFORM_PROTOKOLL", str(tmp_path / "modellaufrufe.jsonl"))
     monkeypatch.delenv("PUBLIC_URL", raising=False)
     monkeypatch.setattr(kern, "_SITZUNGEN", OrderedDict())
+    monkeypatch.setattr(kern, "_GEMELDET", OrderedDict())
+    for name in ("VOICE_ANTWORT_TIMEOUT_S", "VOICE_RATENLIMIT_PRO_MINUTE"):
+        monkeypatch.delenv(name, raising=False)
     return tmp_path
 
 
@@ -137,9 +141,15 @@ def test_leere_variable_gilt_als_fehlend_503(client, monkeypatch):
     )
 
 
-def test_fallback_token_im_pfad(client):
-    assert client.post(f"/chat/completions/{SCHLUESSEL}", json=ANFRAGE).status_code == 200
-    assert client.post("/chat/completions/falsch", json=ANFRAGE).status_code == 401
+def test_token_im_pfad_gibt_es_nicht(client):
+    # Vapi hängt /chat/completions an die Basis-URL; ein Token im Pfad landete in Proxy-Logs.
+    assert client.post(f"/chat/completions/{SCHLUESSEL}", json=ANFRAGE).status_code == 404
+
+
+def test_503_nennt_keinen_variablennamen(client, monkeypatch):
+    monkeypatch.delenv("VAPI_CUSTOM_LLM_KEY")
+    antwort_http = client.post("/chat/completions", json=ANFRAGE, headers=_bearer())
+    assert antwort_http.json() == {"detail": "Voice ist nicht eingerichtet."}
 
 
 def test_belege_liegen_je_call_id_fuer_die_ui_ohne_doppelte(client):
@@ -224,15 +234,16 @@ def _bericht() -> dict:
 
 @pytest.fixture
 def body_zaehler(monkeypatch):
-    """Zählt jedes Lesen des Request-Bodys (``json`` liest über ``body``)."""
+    """Zählt jedes Lesen des Request-Bodys (``body`` und ``json`` lesen über ``stream``)."""
     zaehler = {"gelesen": 0}
-    original = Request.body
+    original = Request.stream
 
     async def zaehlend(self):
         zaehler["gelesen"] += 1
-        return await original(self)
+        async for stueck in original(self):
+            yield stueck
 
-    monkeypatch.setattr(Request, "body", zaehlend)
+    monkeypatch.setattr(Request, "stream", zaehlend)
     return zaehler
 
 
@@ -300,7 +311,6 @@ def test_tunnel_host_sperrt_andere_pfade(client):
 def test_tunnel_host_laesst_chat_und_webhook_durch(client):
     host = {"Host": "tunnel.example.org"}
     assert client.post("/chat/completions", json=ANFRAGE, headers={**host, **_bearer()}).status_code == 200
-    assert client.post(f"/chat/completions/{SCHLUESSEL}", json=ANFRAGE, headers=host).status_code == 200
     webhook = client.post(
         "/vapi/webhook", json={"message": {"type": "x"}}, headers={**host, "x-vapi-secret": SECRET}
     )
@@ -330,7 +340,8 @@ def test_tunnel_host_aus_public_url_der_umgebung(umgebung, monkeypatch):
 
 
 def test_aehnlicher_pfad_ist_ueber_tunnel_gesperrt(client):
-    assert client.post("/chat/completionsX", headers={"Host": "tunnel.example.org"}).status_code == 404
+    for pfad in ("/chat/completionsX", "/chat/completions/x", "/vapi/webhook/x"):
+        assert client.post(pfad, headers={"Host": "tunnel.example.org"}).status_code == 404
 
 
 # --- R2 ---------------------------------------------------------------------------------------------
@@ -342,3 +353,140 @@ def test_r2_plattform_laedt_voice_nicht():
         [sys.executable, "-c", code], capture_output=True, text=True, timeout=60, check=True
     )
     assert lauf.stdout.strip() == "[]"
+
+
+def test_r2_plattform_voice_laedt_plattform_llm_nicht():
+    code = (
+        "import sys, plattform.voice; "
+        "print('plattform.llm' in sys.modules, 'plattform.router' in sys.modules)"
+    )
+    lauf = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=60, check=True
+    )
+    assert lauf.stdout.strip() == "False False"
+
+
+# --- Review !38: Signatur, Grenzen, Endgrund, Ratenlimit, Budget, Idempotenz ------------------------
+
+
+def _app(antwortfunktion, **optionen) -> TestClient:
+    app = FastAPI()
+    app.include_router(erstelle_router(antwortfunktion, **optionen))
+    return TestClient(app)
+
+
+def test_uc_ist_optional_und_kommt_sonst_aus_metadata(umgebung, antwort):
+    client = _app(antwort)
+    client.post("/chat/completions", json={**ANFRAGE, "metadata": {"uc": "uc1"}}, headers=_bearer())
+    client.post("/chat/completions", json={**ANFRAGE, "call": {"id": "b"}, "metadata": {}}, headers=_bearer())
+    assert [s.uc for _, s in antwort.aufrufe] == ["uc1", "unbekannt"]
+
+
+def test_body_ueber_256_kib_per_content_length_413(client, antwort):
+    gross = json.dumps({**ANFRAGE, "fuell": "x" * (kern.MAX_BODY_BYTES + 1)})
+    antwort_http = client.post(
+        "/chat/completions", content=gross, headers={**_bearer(), "Content-Type": "application/json"}
+    )
+    assert antwort_http.status_code == 413
+    assert antwort.aufrufe == []
+
+
+def test_body_ueber_256_kib_ohne_content_length_beim_lesen_413(client, antwort):
+    def stuecke():
+        yield b'{"fuell": "'
+        for _ in range(9):
+            yield b"x" * 32 * 1024
+        yield b'"}'
+
+    antwort_http = client.post("/chat/completions", content=stuecke(), headers=_bearer())
+    assert "content-length" not in {k.lower() for k in antwort_http.request.headers}
+    assert antwort_http.status_code == 413
+    assert antwort.aufrufe == []
+
+
+def test_webhook_body_ueber_grenze_413(client):
+    gross = json.dumps({"message": {"type": "x", "fuell": "x" * (kern.MAX_BODY_BYTES + 1)}})
+    antwort_http = client.post(
+        "/vapi/webhook", content=gross, headers={"x-vapi-secret": SECRET, "Content-Type": "application/json"}
+    )
+    assert antwort_http.status_code == 413
+
+
+def test_antwort_ohne_ergebnis_in_der_frist_504(umgebung, monkeypatch):
+    monkeypatch.setenv("VOICE_ANTWORT_TIMEOUT_S", "0.05")
+
+    def langsam(nachrichten, sitzung):
+        time.sleep(0.5)
+        return VoiceAntwort(text="zu spät")
+
+    assert _app(langsam).post("/chat/completions", json=ANFRAGE, headers=_bearer()).status_code == 504
+
+
+def test_budget_erschoepft_wird_429_mit_meldung(umgebung):
+    class LlmFehler(Exception):
+        pass
+
+    class BudgetErschoepft(LlmFehler):
+        pass
+
+    def ohne_budget(nachrichten, sitzung):
+        raise BudgetErschoepft("Tagesbudget 100 erreicht")
+
+    antwort_http = _app(ohne_budget).post("/chat/completions", json=ANFRAGE, headers=_bearer())
+    assert antwort_http.status_code == 429
+    assert "Tagesbudget" in antwort_http.json()["detail"]
+
+
+def test_andere_fehler_aus_antwort_bleiben_500(umgebung):
+    def kaputt(nachrichten, sitzung):
+        raise RuntimeError("x")
+
+    app = FastAPI()
+    app.include_router(erstelle_router(kaputt))
+    antwort_http = TestClient(app, raise_server_exceptions=False).post(
+        "/chat/completions", json=ANFRAGE, headers=_bearer()
+    )
+    assert antwort_http.status_code == 500
+
+
+def test_gueltige_aufrufe_je_ip_begrenzt(umgebung, antwort, monkeypatch):
+    monkeypatch.setenv("VOICE_RATENLIMIT_PRO_MINUTE", "2")
+    client = _app(antwort)
+    codes = [client.post("/chat/completions", json=ANFRAGE, headers=_bearer()).status_code for _ in range(3)]
+    assert codes == [200, 200, 429]
+    assert len(antwort.aufrufe) == 2
+
+
+@pytest.mark.parametrize(
+    ("roh", "erwartet"),
+    [
+        ("customer-ended-call", "customer-ended-call"),
+        ("pipeline-error-openai-llm-failed", "pipeline-error-openai-llm-failed"),
+        ("call.in-progress.error-vapifault-transport-never-connected", None),
+        ("pipeline-error-+43 664 1234567", "sonstiges"),
+        ("pipeline-error-436641234567", "sonstiges"),
+        ("Herr Mustermann legte auf", "sonstiges"),
+        ("frei-erfunden", "sonstiges"),
+        (None, None),
+    ],
+)
+def test_endgrund_nur_aus_allowlist(roh, erwartet):
+    assert kern.endgrund(roh) == (roh if erwartet is None and roh else erwartet)
+
+
+def test_webhook_zweiter_bericht_desselben_anrufs_schreibt_keine_zeile(client, umgebung, monkeypatch):
+    kopf = {"x-vapi-secret": SECRET}
+    assert client.post("/vapi/webhook", json=_bericht(), headers=kopf).json() == {"status": "ok"}
+    assert client.post("/vapi/webhook", json=_bericht(), headers=kopf).json() == {"status": "doppelt"}
+    # Nach einem Neustart (leere Menge im Speicher) hilft der Abgleich mit der Datei
+    monkeypatch.setattr(kern, "_GEMELDET", OrderedDict())
+    assert client.post("/vapi/webhook", json=_bericht(), headers=kopf).json() == {"status": "doppelt"}
+    assert len((umgebung / "voice.jsonl").read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_webhook_endgrund_mit_telefonnummer_landet_nicht_im_log(client, umgebung):
+    bericht = _bericht()
+    bericht["message"]["endedReason"] = "pipeline-error-+436641234567"
+    client.post("/vapi/webhook", json=bericht, headers={"x-vapi-secret": SECRET})
+    zeile = (umgebung / "voice.jsonl").read_text(encoding="utf-8")
+    assert "6641234567" not in zeile and json.loads(zeile)["endgrund"] == "sonstiges"

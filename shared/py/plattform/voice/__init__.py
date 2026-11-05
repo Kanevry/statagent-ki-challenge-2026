@@ -2,7 +2,7 @@
 
 Konzept nach einem vorab entstandenen Projekt des Teams, Code hier neu. Einbinden in eine UC-FastAPI::
 
-    app.include_router(erstelle_router(antwort, uc="uc3"))
+    app.include_router(erstelle_router(antwort, uc="uc3"))  # uc optional
     app.add_middleware(TunnelFilter)
 
 Text-Fallback ohne Vapi: ``text_antwort(antwort, frage, uc)``. Nicht aus ``plattform/__init__.py`` importiert
@@ -12,8 +12,10 @@ Text-Fallback ohne Vapi: ``text_antwort(antwort, frage, uc)``. Nicht aus ``platt
 from .kern import (
     Antwortfunktion,
     Fehlversuche,
+    Ratenlimit,
     Sitzung,
     VoiceAntwort,
+    VoiceUc,
     erstelle_router,
     gesprochener_text,
     sitzungs_belege,
@@ -25,9 +27,11 @@ from .tunnel import TunnelFilter
 __all__ = [
     "Antwortfunktion",
     "Fehlversuche",
+    "Ratenlimit",
     "Sitzung",
     "TunnelFilter",
     "VoiceAntwort",
+    "VoiceUc",
     "erstelle_router",
     "gesprochener_text",
     "sitzungs_belege",
