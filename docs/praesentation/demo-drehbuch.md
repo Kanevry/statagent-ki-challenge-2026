@@ -21,7 +21,7 @@ Die Demo dauert 4:25 (5:05–9:30). Eine eigene Überleitung gibt es nicht. Szen
 ## Wo die Demo läuft
 
 - **Live heißt: auf dem Rechner von Bernhard.** Stufe 1 ist der lokale Stand mit dem Modell Azure.
-- **Datenbank der Vorführung:** Die ganze Demo läuft gegen die eigene Kopie `statistik_vorfuehrung`, nie gegen die Abgabe-Datenbank `statistik`, auch nach 09:00 nicht (Entscheid Lead, 05.11.2026). Auf dem Vortragsrechner zeigt `UC3_DATABASE_URL` auf diese Kopie. Die Kopie entsteht nach dem Merge-Stopp aus dem Abgabe-Stand; die Daten sind dieselben, alle Sollzahlen gelten. So bleibt die Abgabe jederzeit nachrechenbar.
+- **Datenbank der Vorführung:** Die ganze Demo läuft gegen die eigene Kopie `statistik_vorfuehrung`, nie gegen die Abgabe-Datenbank `statistik`, auch nach 09:00 nicht (Entscheid Lead, 05.11.2026). Auf dem Vortragsrechner zeigt `UC3_DATABASE_URL` auf diese Kopie. Infra zieht die Kopie frisch am Fr 06.11.2026 zwischen 06:00 und 06:30 aus `statistik` (Abgabe-Stand); die Daten sind dieselben, alle Sollzahlen gelten, Übungsvorschläge aus den Proben sind nicht darin. So bleibt die Abgabe jederzeit nachrechenbar.
 - **Die öffentliche Demo läuft im Testmodus.** Dort zeigt der Kopf „Modell mock · mock“, und `/uc3` zeigt den Leerzustand. Sie ist keine Live-Demo des Agenten. Wird sie gezeigt, sagt Bernhard vorher „Testmodus“ an.
 - **Web-Oberfläche:** `/uc3` (MR !51) und `uc3 frage` mit `/uc3/fragen` (MR !61) sind seit dem 05.11.2026 auf main. Die Web-Oberfläche ist damit Stufe 1, sofern sie auf dem Rechner von Bernhard Daten zeigt. Der Stand wird um 06:45 geprüft und in `probe.md` eingetragen.
 
@@ -74,7 +74,7 @@ Ablauf (im Browser auf `/uc3/freigaben`, Reiter „Erledigt“, gleich im Termin
 
 Kommt „Kein Vorschlag“, sendet Bernhard denselben Satz einmal neu. Kommt er wieder, bleibt es beim Rückblick.
 
-Datenbank: Agent, Vorschlag und Freigabe von B2 laufen nur gegen `statistik_vorfuehrung` (`UC3_DATABASE_URL` auf die Kopie), nie gegen `statistik`. Die Freigabe schreibt einen Commit ins Repo; deshalb läuft D2 auf einem eigenen Demo-Branch im Checkout des Vortragsrechners, der Commit wird nicht gepusht. Geprobt wird vorher nur auf `statistik_probe`.
+Datenbank: Agent, Vorschlag und Freigabe von B2 laufen nur gegen `statistik_vorfuehrung` (`UC3_DATABASE_URL` auf die Kopie), nie gegen `statistik`. Die Freigabe schreibt einen Commit ins Repo; deshalb läuft D2 auf einem eigenen Demo-Branch im Checkout des Vortragsrechners, der Commit wird nie gepusht. Geprobt wird vorher nur auf `statistik_probe`.
 
 Bis dahin gilt: Nennt die Jury nach Szene 10 eine Regel, sagt Bernhard: „Das zeige ich Ihnen an einer Änderung, die ich heute schon freigegeben habe“ und bleibt bei Vorschlag 24.
 
