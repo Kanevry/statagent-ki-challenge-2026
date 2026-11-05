@@ -8,6 +8,7 @@ import {
   annahmeSatz,
   leseQualitaetsbericht,
   sqlAnnahmen,
+  sqlAnnahmePruefung,
   sqlAnnahmeWirkung,
   sqlAuffaelligkeiten,
   sqlRevision,
@@ -18,9 +19,9 @@ import {
 } from "@/components/uc3/bericht";
 import { bestandBeleg, laufBeleg } from "@/components/uc3/beleg";
 import { leerSatz } from "@/components/uc3/db";
-import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import { abrechnung } from "@/components/uc3/laeufe";
-import { aufzaehlen, wartetSatz } from "@/components/uc3/lauf-detail";
+import { aufzaehlen, haltSatz, haltTreffer, leseLaufDetail, sqlTreffer, wartetSatz, weiterSatz } from "@/components/uc3/lauf-detail";
 import { istMonat, monatName, stichtag } from "@/components/uc3/monat";
 import { berichtPfad, berichtslistePfad, laufPfad, regelsatzAus } from "@/components/uc3/navigation";
 import { MonatsStatus } from "../../_teile/monatstabelle";
@@ -60,7 +61,10 @@ export default async function Bericht({ params, searchParams }: Props) {
   const { lieferung } = await params;
   if (!istMonat(lieferung)) notFound();
   const regelsatz = regelsatzAus((await searchParams).regelsatz);
-  const lesung = await leseQualitaetsbericht(lieferung, regelsatz);
+  // Der Lauf-Detail-Leser liefert Haltegrund und den einen Weg weiter, damit Bericht und Lauf-Seite gleich sprechen.
+  const [lesung, detailLesung] = await Promise.all([leseQualitaetsbericht(lieferung, regelsatz), leseLaufDetail(lieferung, regelsatz)]);
+  const detail = detailLesung.ok ? detailLesung.daten : null;
+  const halt = detail ? haltTreffer(detail.treffer) : null;
   const titel = `Qualitätsbericht ${monatName(lieferung)}${regelsatz === "v2" ? ", Regelsatz v2" : ""}`;
 
   if (!lesung.ok || lesung.daten === null) {
@@ -107,8 +111,15 @@ export default async function Bericht({ params, searchParams }: Props) {
           {titel}
         </Fliesstext>
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
-          {hauptsatz(lieferung, auffaelligkeiten)}
+          {halt ? haltSatz(halt, lieferung) : hauptsatz(lieferung, auffaelligkeiten)}
         </Ueberschrift>
+        {halt && detail ? (
+          <>
+            <HerkunftChip {...laufBeleg(detail.lauf, { quelle: "meta.pruefung_treffer", sql: sqlTreffer(detail.lauf, halt) })} />
+            <Fliesstext>{weiterSatz(detail.lauf, detail.veroeffentlichen.wartetAuf)}</Fliesstext>
+            <Fliesstext>{hauptsatz(lieferung, auffaelligkeiten)}</Fliesstext>
+          </>
+        ) : null}
         <HerkunftChip {...laufBeleg(lauf, { quelle: "meta.pruefung_treffer", sql: sqlAuffaelligkeiten(lauf) })} />
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <MonatsStatus monat={monat} />
@@ -118,7 +129,7 @@ export default async function Bericht({ params, searchParams }: Props) {
             }`}
           </Fliesstext>
         </div>
-        {anhaltend.length > 0 && (
+        {anhaltend.length > 0 && !halt && (
           <Fliesstext>
             {`Der Monat ist angehalten, weil ${mehrzahl(anhaltend.length, "Prüfung", "Prüfungen")} angeschlagen ${
               anhaltend.length === 1 ? "hat" : "haben"
@@ -140,15 +151,7 @@ export default async function Bericht({ params, searchParams }: Props) {
         </Fliesstext>
       </header>
 
-      <ul className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Begriffe auf dieser Seite">
-        {(["Qualitätsbericht", "Regelstand", "Auffälligkeit", "Einstufung", "Rückfrage", "Annahme", "Revisionsbedarf", "Sätze"] as const).map(
-          (wort) => (
-            <li key={wort} className="font-sans text-14 font-semibold text-ink">
-              <Fachbegriff wort={wort} />
-            </li>
-          ),
-        )}
-      </ul>
+      <Begriffsliste worte={["Qualitätsbericht", "Regelstand", "Auffälligkeit", "Einstufung", "Rückfrage", "Annahme", "Revisionsbedarf", "Zeile"] as const} label="Begriffe auf dieser Seite" className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4" />
 
       <UeberblickAbschnitt b={b} />
       <AuffaelligkeitenAbschnitt b={b} />
@@ -413,8 +416,16 @@ function AnnahmenAbschnitt({ b }: { b: Qualitaetsbericht }) {
             <li key={a.nr} className="flex flex-col gap-2 border-b border-line py-4">
               <Fliesstext className="font-medium">{annahmeSatz(a.satz)}</Fliesstext>
               <Fliesstext groesse={14}>
-                {a.wirkungSaetze === null || a.wirkungSaetze === 0 ? (
+                {a.wirkungSaetze === null ? (
+                  "Für diese Annahme gibt es in diesem Monat keine eindeutige Zahl, weil sie sich keiner einzelnen Prüfung zuordnen lässt."
+                ) : a.wirkungSaetze === 0 ? (
                   "In diesem Monat hat die Regel keinen Satz verändert."
+                ) : a.wirkungQuelle === "pruefung" ? (
+                  <>
+                    {"Betrifft in diesem Monat "}
+                    <span className="font-mono tabular-nums">{formatZahl(a.wirkungSaetze)}</span>
+                    {` ${a.wirkungSaetze === 1 ? "Beschäftigungsverhältnis" : "Beschäftigungsverhältnisse"}, so viele findet die Prüfung (${a.wirkungRegel}).`}
+                  </>
                 ) : (
                   <>
                     {"Betrifft in diesem Monat "}
@@ -432,10 +443,17 @@ function AnnahmenAbschnitt({ b }: { b: Qualitaetsbericht }) {
                   .filter(Boolean)
                   .join(" · ")}
               </span>
-              {a.regelName && (
+              {a.wirkungQuelle === "pruefung" && a.wirkungRegel ? (
                 <HerkunftChip
-                  {...laufBeleg(lauf, { quelle: "meta.regel_wirkung", sql: sqlAnnahmeWirkung(lauf, a.regelName), stand: null })}
+                  {...laufBeleg(lauf, { quelle: "meta.pruefung_treffer", sql: sqlAnnahmePruefung(lauf, a.wirkungRegel), stand: null })}
                 />
+              ) : (
+                a.wirkungQuelle === "regel" &&
+                a.wirkungRegel && (
+                  <HerkunftChip
+                    {...laufBeleg(lauf, { quelle: "meta.regel_wirkung", sql: sqlAnnahmeWirkung(lauf, a.wirkungRegel), stand: null })}
+                  />
+                )
               )}
             </li>
           ))}

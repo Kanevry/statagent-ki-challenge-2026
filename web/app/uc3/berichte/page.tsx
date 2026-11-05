@@ -9,10 +9,11 @@ import {
   sqlBerichtsuebersicht,
   sqlOhneRueckfrage,
   type Berichtszeile,
+  type OffeneRueckfrage,
 } from "@/components/uc3/bericht";
-import { aufzaehlen } from "@/components/uc3/lauf-detail";
+import { aufzaehlen, trefferTitel } from "@/components/uc3/lauf-detail";
 import { leerSatz } from "@/components/uc3/db";
-import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import { monatName } from "@/components/uc3/monat";
 import { berichtPfad, regelsatzAus } from "@/components/uc3/navigation";
 import { MonatsStatus } from "../_teile/monatstabelle";
@@ -39,13 +40,39 @@ function monateText(n: number): string {
   return n === 1 ? "einem Monat" : `${formatZahl(n)} Monaten`;
 }
 
+/** Klartext einer Prüfung ohne Punkt am Ende, z. B. „Gruppen haben sich stark gegenüber dem Vormonat verändert“. */
+function pruefungText(name: string): string {
+  return trefferTitel({ name, beschreibung: "", satz: null, anzahl: 0, umfang: null }, "").replace(/\.$/, "");
+}
+
+/**
+ * Kopf der Übersicht aus den Daten: Monate, deren Veröffentlichung an einer eigenen Rückfrage hängt, namentlich;
+ * Rückfragen, die jeden Monat betreffen, mit ihrem Titel. Etwa: „März 2025 und Oktober 2025 warten auf die
+ * Fachabteilung (R4, R3). In jedem Monat offen: Kurze Zweitmeldungen derselben Person (R8).“
+ */
+function kopfSaetze(zeilen: readonly Berichtszeile[], ueberall: readonly OffeneRueckfrage[]): string[] {
+  const allgemein = new Set(ueberall.map((q) => q.nr));
+  const halten = zeilen
+    .map((z) => ({ lieferung: z.monat.lieferung, nrn: z.haeltAn.filter((nr) => !allgemein.has(nr)) }))
+    .filter((z) => z.nrn.length > 0);
+  const saetze: string[] = [];
+  if (halten.length > 0) {
+    const nrn = [...new Set(halten.flatMap((z) => z.nrn))];
+    saetze.push(
+      `${aufzaehlen(halten.map((z) => monatName(z.lieferung)))} ${halten.length === 1 ? "wartet" : "warten"} auf die Fachabteilung (${nrn.join(", ")}).`,
+    );
+  }
+  for (const q of ueberall) saetze.push(`In jedem Monat offen: ${q.titel.replace(/\.$/, "")} (${q.nr}).`);
+  return saetze;
+}
+
 type Props = { searchParams: Promise<{ regelsatz?: string | string[] }> };
 
 export default async function Berichte({ searchParams }: Props) {
   const regelsatz = regelsatzAus((await searchParams).regelsatz);
   const lesung = await leseBerichtsliste(regelsatz);
 
-  if (!lesung.ok || lesung.daten.length === 0) {
+  if (!lesung.ok || lesung.daten.zeilen.length === 0) {
     return (
       <>
         <Ueberschrift stufe={2} als="h1">
@@ -58,18 +85,24 @@ export default async function Berichte({ searchParams }: Props) {
     );
   }
 
-  const zeilen = lesung.daten;
+  const { zeilen, offeneRueckfragen } = lesung.daten;
   const nichtErklaerbar = zeilen.filter((z) => z.monat.nichtErklaerbar > 0).length;
   const mitRevision = zeilen.filter((z) => z.revisionsbedarf).length;
-  const ueberall = rueckfragenInAllenMonaten(zeilen);
-  const weitere = zeilen.filter((z) => z.ohneRueckfrage > 0).length;
+  const ueberall = rueckfragenInAllenMonaten(zeilen, offeneRueckfragen);
+  const saetze = kopfSaetze(zeilen, ueberall);
+  const weitere = zeilen.filter((z) => z.ohneRueckfrage.length > 0).length;
+  // Je Prüfung die Monate, in denen sie nicht erklärbar ist und keine Rückfrage hat.
+  const ohneJePruefung = [...new Set(zeilen.flatMap((z) => z.ohneRueckfrage))].map((name) => ({
+    name,
+    monate: zeilen.filter((z) => z.ohneRueckfrage.includes(name)).map((z) => z.monat.lieferung),
+  }));
   const n = formatZahl(zeilen.length);
   const kopfsatz =
-    ueberall.length > 0
-      ? `Für alle ${n} Monate liegt ein Qualitätsbericht vor, in jedem Monat wartet die Rückfrage ${aufzaehlen(ueberall)} auf eine Antwort der Fachabteilung.`
+    saetze.length > 0
+      ? saetze.join(" ")
       : nichtErklaerbar === 0
         ? `Für alle ${n} Monate liegt ein Qualitätsbericht vor, alle Auffälligkeiten sind erklärt.`
-        : `Für alle ${n} Monate liegt ein Qualitätsbericht vor, in ${monateText(nichtErklaerbar)} wartet eine Auffälligkeit auf eine Erklärung.`;
+        : `Für alle ${n} Monate liegt ein Qualitätsbericht vor, kein Monat wartet auf die Fachabteilung.`;
 
   return (
     <>
@@ -78,15 +111,20 @@ export default async function Berichte({ searchParams }: Props) {
           {kopfsatz}
         </Ueberschrift>
         <HerkunftChip quelle="meta.rueckfrage" sql={sqlBerichtsuebersicht(regelsatz)} />
-        {ueberall.length > 0 && (
+        {saetze.length > 0 && (
           <Fliesstext>
-            {`Bis die Antwort da ist, bleibt diese Auffälligkeit in jedem Monat „nicht erklärbar“. Das ist so gewollt: Das Programm rät nicht, ein Mensch muss es klären.`}
+            {`Für alle ${n} Monate liegt ein Qualitätsbericht vor. Was an einer offenen Rückfrage hängt, bleibt „nicht erklärbar“, bis die Antwort da ist. Das ist so gewollt: Das Programm rät nicht, ein Mensch muss es klären.`}
           </Fliesstext>
         )}
         {weitere > 0 && (
           <div className="flex flex-col items-start gap-2">
             <Fliesstext>
-              {`In ${monateText(weitere)} ist zusätzlich etwas nicht erklärbar, wozu noch keine Rückfrage gestellt ist. Der Bericht des Monats nennt es.`}
+              {`In ${monateText(weitere)} ist eine Auffälligkeit nicht erklärbar, zu der noch keine Rückfrage gestellt ist. ${ohneJePruefung
+                .map(
+                  (p) =>
+                    `${p.monate.length === 1 ? `Im ${monatName(p.monate[0])}` : `In ${monateText(p.monate.length)}`}: ${pruefungText(p.name)} (${p.name.split("_")[0]}).`,
+                )
+                .join(" ")} Der Bericht des Monats nennt die Zahlen.`}
             </Fliesstext>
             <HerkunftChip quelle="meta.pruefung_treffer" sql={sqlOhneRueckfrage(regelsatz)} />
           </div>
@@ -103,13 +141,7 @@ export default async function Berichte({ searchParams }: Props) {
         </Fliesstext>
       </header>
 
-      <ul className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Begriffe auf dieser Seite">
-        {(["Qualitätsbericht", "Auffälligkeit", "Revisionsbedarf", "Regel"] as const).map((wort) => (
-          <li key={wort} className="font-sans text-14 font-semibold text-ink">
-            <Fachbegriff wort={wort} />
-          </li>
-        ))}
-      </ul>
+      <Begriffsliste worte={["Qualitätsbericht", "Auffälligkeit", "Revisionsbedarf", "Regel"] as const} label="Begriffe auf dieser Seite" className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4" />
 
       <section aria-labelledby="liste-titel" className="flex flex-col gap-4">
         <Ueberschrift stufe={3} als="h2" id="liste-titel">

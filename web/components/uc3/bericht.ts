@@ -2,7 +2,7 @@ import { formatZahl } from "@kic/ui/bausteine";
 import { literal } from "./beleg";
 import { lies, type Lesung, type Sql } from "./db";
 import { ladeMassgeblichenLauf, ladeMonatslaeufe, MASSGEBLICH_SQL, quelleSql } from "./laeufe";
-import { massnahmeSatz } from "./lauf-detail";
+import { massnahmeSatz, trefferTitel } from "./lauf-detail";
 import { monatName, verschieben } from "./monat";
 import type { Lauf, Monatslauf } from "./typen";
 
@@ -45,8 +45,15 @@ export interface Annahme {
   satz: string;
   begruendung: string;
   regelName: string | null;
-  /** Sätze, auf die die umsetzende Regel im maßgeblichen Lauf wirkt; `null` ohne Wirkungszeile. */
+  /**
+   * Wirkung im maßgeblichen Lauf: bei „regel“ die Sätze aus meta.regel_wirkung der umsetzenden Regel, bei
+   * „pruefung“ die Beschäftigungsverhältnisse der einen Prüfung, an der die Annahme hängt. `null`, wenn sich
+   * die Zahl nicht eindeutig zuordnen lässt (etwa F7 und F8 teilen sich R5_alter): lieber keine Zahl als eine falsche.
+   */
   wirkungSaetze: number | null;
+  wirkungQuelle: "regel" | "pruefung" | null;
+  /** Regel oder Prüfung, die die Zahl liefert. */
+  wirkungRegel: string | null;
   /** Beleg-Abfrage der zugehörigen Rückfrage (meta.rueckfrage.beleg_sql). */
   belegSql: string | null;
 }
@@ -54,7 +61,7 @@ export interface Annahme {
 export interface Rueckfrage {
   nr: string;
   titel: string;
-  /** Erster Satz der Frage. */
+  /** Die ganze Frage, ungekürzt. */
   frage: string;
   vorschlag: string;
   antwort: string | null;
@@ -99,19 +106,45 @@ export interface Qualitaetsbericht {
 export interface Berichtszeile {
   monat: Monatslauf;
   revisionsbedarf: boolean;
-  /** Offene Rückfragen, auf die ein nicht erklärbarer Treffer des Monats wartet (z. B. R8). */
+  /**
+   * Alle offenen Rückfragen, auf die der Monat wartet: die Fortschreibung (E07), anhaltende Prüfungen und
+   * nicht erklärbare Treffer (z. B. März 2025: R4 und R8).
+   */
   wartet: string[];
-  /** Nicht erklärbare Treffer ohne offene Rückfrage. */
-  ohneRueckfrage: number;
+  /** Davon die, an denen die Veröffentlichung hängt (Fortschreibung, anhaltende Prüfung), wie auf der Lauf-Seite. */
+  haeltAn: string[];
+  /** Prüfungen (Regelname) mit nicht erklärbarem Treffer, zu dem keine offene Rückfrage besteht. */
+  ohneRueckfrage: string[];
 }
 
-/** Offene Rückfrage, auf die ein nicht erklärbarer Treffer wartet (Bedingung je Treffer t mit Regel r). */
+export interface OffeneRueckfrage {
+  nr: string;
+  titel: string;
+  lieferungen: string;
+}
+
+export interface Berichtsliste {
+  zeilen: Berichtszeile[];
+  offeneRueckfragen: OffeneRueckfrage[];
+}
+
+/** Offene Rückfrage, an der ein Treffer t mit Regel r hängt. */
 const OFFENE_RUECKFRAGE = "q.antwort IS NULL AND (q.nr = t.details ->> 'rueckfrage' OR q.regel_name = r.name)";
 
-/** Rückfragen, auf die in jedem Monat etwas wartet; leer, wenn keine alle Monate betrifft. */
-export function rueckfragenInAllenMonaten(zeilen: readonly Pick<Berichtszeile, "wartet">[]): string[] {
+/**
+ * Offene Rückfragen, die laut `lieferungen` jeden Monat der Liste betreffen und in mindestens einem Monat eine
+ * Auffälligkeit offen halten (R8). R1 und R6 gelten auch für alle Monate, halten aber nichts offen.
+ */
+export function rueckfragenInAllenMonaten(
+  zeilen: readonly (Pick<Berichtszeile, "wartet"> & { monat: Pick<Monatslauf, "lieferung"> })[],
+  offen: readonly OffeneRueckfrage[],
+): OffeneRueckfrage[] {
   if (zeilen.length === 0) return [];
-  return zeilen[0].wartet.filter((nr) => zeilen.every((z) => z.wartet.includes(nr)));
+  return offen.filter(
+    (q) =>
+      zeilen.some((z) => z.wartet.includes(q.nr)) &&
+      zeilen.every((z) => rueckfrageBetrifft({ nr: q.nr, lieferungen: q.lieferungen, regelName: null }, z.monat.lieferung)),
+  );
 }
 
 export interface Regel {
@@ -143,10 +176,10 @@ export function einstufungAus(code: string | null | undefined): Einstufung {
   return EINSTUFUNGEN[(code ?? "") as EinstufungCode] ?? EINSTUFUNGEN["nicht-erklaerbar"];
 }
 
-// Abkürzungen, nach denen ein Punkt keinen Satz beendet.
-const ABKUERZUNG = /(?:(?:^|[\s(])[A-Za-zÄÖÜäöü]|\bNr|\bca|\bbzw|\binkl|\bvgl|\bAbs|\bbzgl|\busw|\bggf)$/;
+// Abkürzungen und Ordinalzahlen („1.“, „15.“), nach denen ein Punkt keinen Satz beendet.
+const ABKUERZUNG = /(?:(?:^|[\s(])(?:[A-Za-zÄÖÜäöü]|\d+)|\bNr|\bca|\bbzw|\binkl|\bvgl|\bAbs|\bbzgl|\busw|\bggf)$/;
 
-/** Erster Satz eines Textes; Abkürzungen wie „z. B.“ oder „Nr. 1“ beenden keinen Satz. */
+/** Erster Satz eines Textes; Abkürzungen wie „z. B.“, „Nr. 1“ oder „der 1. Juli“ beenden keinen Satz. */
 export function ersterSatz(text: string): string {
   const s = text.split(/\s+/).join(" ").trim();
   for (let i = 0; i < s.length; i++) {
@@ -233,7 +266,12 @@ function zahl(wert: unknown): number {
 // --- SQL der Belege (angezeigte Fassung mit Literalen; ausgeführt wird die parametrisierte) ------------
 
 function massgeblichMitLiteral(regelsatz: string): string {
-  return MASSGEBLICH_SQL.replace("$1", literal(regelsatz)).replace(
+  return massgeblichMit(literal(regelsatz));
+}
+
+/** Maßgeblicher Lauf je Monat mit Quelle der Prüftreffer; `ausdruck` ist „$1“ (ausgeführt) oder ein Literal (Beleg). */
+function massgeblichMit(ausdruck: string): string {
+  return MASSGEBLICH_SQL.replace("$1", ausdruck).replace(
     "SELECT DISTINCT ON (lieferung) *",
     `SELECT DISTINCT ON (lieferung) id, lieferung,\n  ${quelleSql("meta.lauf").split("\n").join("\n  ")} AS quelle_id`,
   );
@@ -257,10 +295,10 @@ export function sqlBerichtsliste(regelsatz = "v1"): string {
   ].join("\n");
 }
 
-function massgeblichCte(regelsatz: string): string {
+function massgeblichCte(ausdruck: string): string {
   return [
     "WITH massgeblich AS (",
-    massgeblichMitLiteral(regelsatz)
+    massgeblichMit(ausdruck)
       .split("\n")
       .map((z) => `  ${z}`)
       .join("\n"),
@@ -268,30 +306,56 @@ function massgeblichCte(regelsatz: string): string {
   ].join("\n");
 }
 
-/** Zahl der Monate mit Bericht und je offener Rückfrage die Zahl der Monate, in denen ein Treffer auf sie wartet. */
-export function sqlBerichtsuebersicht(regelsatz = "v1"): string {
+/**
+ * Je Monat jede offene Rückfrage, auf die er wartet: aus der Fortschreibung (E07, wie die Lauf-Seite), aus einer
+ * anhaltenden Prüfung oder aus einem nicht erklärbaren Treffer. `haelt_an` heißt: an ihr hängt die Veröffentlichung.
+ * Mit `ausdruck` „$1“ ausgeführt, mit Literal als Beleg gezeigt; so ist der Beleg genau die Abfrage der Seite.
+ */
+function wartetSql(ausdruck: string): string {
   return [
-    massgeblichCte(regelsatz),
-    "SELECT (SELECT count(*) FROM massgeblich) AS monate_mit_bericht, q.nr AS offene_rueckfrage, q.titel,",
-    "       count(DISTINCT m.lieferung) AS monate_wartend",
-    "FROM massgeblich m",
-    "JOIN meta.pruefung_treffer t ON t.lauf_id = m.quelle_id AND t.anzahl > 0 AND coalesce(t.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar'",
-    "JOIN meta.regel r ON r.id = t.regel_id",
-    `JOIN meta.rueckfrage q ON ${OFFENE_RUECKFRAGE}`,
-    "GROUP BY q.nr, q.titel ORDER BY monate_wartend DESC, q.nr;",
+    massgeblichCte(ausdruck) + ",",
+    "wartet AS (",
+    "  SELECT m.lieferung, q.nr, true AS haelt_an",
+    "  FROM massgeblich m JOIN meta.lauf l ON l.id = m.id",
+    "  JOIN meta.rueckfrage q ON q.antwort IS NULL AND q.regel_name LIKE 'E07%' AND strpos(q.lieferungen, m.lieferung) > 0",
+    "  WHERE l.fortgeschrieben > 0",
+    "  UNION ALL",
+    "  SELECT m.lieferung, q.nr, t.anhalten",
+    "  FROM massgeblich m",
+    "  JOIN meta.pruefung_treffer t ON t.lauf_id = m.quelle_id AND t.anzahl > 0",
+    "    AND (t.anhalten OR coalesce(t.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar')",
+    "  JOIN meta.regel r ON r.id = t.regel_id",
+    `  JOIN meta.rueckfrage q ON ${OFFENE_RUECKFRAGE}`,
+    ")",
+    "SELECT w.lieferung, w.nr, bool_or(w.haelt_an) AS haelt_an, q.titel, q.lieferungen",
+    "FROM wartet w JOIN meta.rueckfrage q ON q.nr = w.nr",
+    "GROUP BY w.lieferung, w.nr, q.titel, q.lieferungen",
+    "ORDER BY w.lieferung, length(w.nr), w.nr;",
   ].join("\n");
 }
 
-/** Monate mit einem nicht erklärbaren Treffer, an dem keine offene Rückfrage hängt. */
-export function sqlOhneRueckfrage(regelsatz = "v1"): string {
+/** Prüfungen mit nicht erklärbarem Treffer ohne offene Rückfrage: Monate je Prüfung und insgesamt (Zeile „alle“). */
+function ohneRueckfrageSql(ausdruck: string): string {
   return [
-    massgeblichCte(regelsatz),
-    "SELECT count(DISTINCT m.lieferung) AS monate_mit_weiterem_offenen",
+    massgeblichCte(ausdruck),
+    "SELECT coalesce(r.name, 'alle') AS pruefung, count(DISTINCT m.lieferung) AS monate,",
+    "       array_agg(DISTINCT m.lieferung ORDER BY m.lieferung) AS lieferungen",
     "FROM massgeblich m",
     "JOIN meta.pruefung_treffer t ON t.lauf_id = m.quelle_id AND t.anzahl > 0 AND coalesce(t.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar'",
     "JOIN meta.regel r ON r.id = t.regel_id",
-    `WHERE NOT EXISTS (SELECT 1 FROM meta.rueckfrage q WHERE ${OFFENE_RUECKFRAGE});`,
+    `WHERE NOT EXISTS (SELECT 1 FROM meta.rueckfrage q WHERE ${OFFENE_RUECKFRAGE})`,
+    "GROUP BY ROLLUP (r.name) ORDER BY r.name NULLS FIRST;",
   ].join("\n");
+}
+
+/** Offene Rückfragen je Monat (Kopf und Spalte „wartet auf Antwort“ der Übersicht). */
+export function sqlBerichtsuebersicht(regelsatz = "v1"): string {
+  return wartetSql(literal(regelsatz));
+}
+
+/** Monate mit einem nicht erklärbaren Treffer, an dem keine offene Rückfrage hängt, je Prüfung und insgesamt. */
+export function sqlOhneRueckfrage(regelsatz = "v1"): string {
+  return ohneRueckfrageSql(literal(regelsatz));
 }
 
 export function sqlUeberblick(lauf: Pick<Lauf, "id" | "quelleId">): string {
@@ -327,16 +391,7 @@ export function sqlRueckfragen(lauf: Pick<Lauf, "id" | "quelleId" | "lieferung">
 }
 
 export function sqlAnnahmen(lauf: Pick<Lauf, "id" | "quelleId" | "lieferung">, quelle: Qualitaetsbericht["annahmenQuelle"]): string {
-  if (quelle === "meta.annahme") {
-    return [
-      "SELECT a.nr, a.regel_name,",
-      "  (SELECT sum(w.saetze) FROM meta.regel_wirkung w JOIN meta.regel r ON r.id = w.regel_id",
-      `   WHERE w.lauf_id = ${literal(lauf.quelleId)} AND r.name = a.regel_name) AS wirkung_saetze`,
-      "FROM meta.annahme a",
-      `WHERE a.lieferungen IS NULL OR ${literal(lauf.lieferung)} = ANY (a.lieferungen)`,
-      "ORDER BY length(a.nr), a.nr;",
-    ].join("\n");
-  }
+  if (quelle === "meta.annahme") return annahmenSql(literal(lauf.lieferung), literal(lauf.quelleId));
   return [
     "SELECT r.name, r.typ, w.saetze",
     "FROM meta.regel_wirkung w JOIN meta.regel r ON r.id = w.regel_id",
@@ -356,6 +411,59 @@ export function sqlRevision(lauf: Pick<Lauf, "id" | "quelleId">): string {
     "  ORDER BY abs(anzahl) DESC, ursache LIMIT 1) u ON true",
     `WHERE v.lauf_id = ${literal(lauf.id)} AND v.gliederung = 'insgesamt'`,
     "ORDER BY v.berichtsmonat;",
+  ].join("\n");
+}
+
+/**
+ * Annahmen des Monats mit ihrer Wirkung (`$1` Lieferung, `$2` Quelle der Prüftreffer; als Beleg mit Literalen).
+ * Reihenfolge: (1) gehört die Regel nur zu dieser Annahme des Monats und hat eine Wirkungszeile, gilt
+ * meta.regel_wirkung; (2) ist die Regel selbst eine Prüfung mit Treffern auf Ebene Satz, gilt deren Anzahl;
+ * (3) hängt genau eine Prüfung über die Rückfrage an der Annahme, gilt deren Anzahl (F7 → P04, F8 → P06);
+ * sonst keine Zahl.
+ */
+function annahmenSql(lieferung: string, quelleId: string): string {
+  return [
+    "WITH a AS (",
+    "  SELECT a.*, count(*) OVER (PARTITION BY a.regel_name) AS annahmen_je_regel",
+    "  FROM meta.annahme a",
+    `  WHERE a.lieferungen IS NULL OR ${lieferung} = ANY (a.lieferungen)`,
+    "), p AS (",
+    "  SELECT a.nr, r.name, r.name = a.regel_name AS eigene_regel, sum(t.anzahl) AS anzahl",
+    "  FROM a",
+    `  JOIN meta.pruefung_treffer t ON t.lauf_id = ${quelleId} AND t.anzahl > 0 AND t.ebene = 'satz'`,
+    "  JOIN meta.regel r ON r.id = t.regel_id AND (r.name = a.regel_name OR t.details ->> 'rueckfrage' = a.rueckfrage)",
+    "  GROUP BY a.nr, r.name, a.regel_name",
+    "), e AS (",
+    "  SELECT a.*,",
+    "    (SELECT sum(w.saetze) FROM meta.regel_wirkung w JOIN meta.regel r ON r.id = w.regel_id",
+    `     WHERE w.lauf_id = ${quelleId} AND r.name = a.regel_name) AS regel_saetze,`,
+    "    (SELECT p.anzahl FROM p WHERE p.nr = a.nr AND p.eigene_regel) AS eigene_pruefung,",
+    "    (SELECT count(*) FROM p WHERE p.nr = a.nr) AS pruefungen,",
+    "    (SELECT min(p.name) FROM p WHERE p.nr = a.nr) AS pruefung,",
+    "    (SELECT min(p.anzahl) FROM p WHERE p.nr = a.nr) AS pruefung_anzahl",
+    "  FROM a",
+    ")",
+    "SELECT e.nr, e.rueckfrage, e.satz, e.begruendung, e.regel_name,",
+    "  CASE WHEN e.annahmen_je_regel = 1 AND e.regel_saetze IS NOT NULL THEN 'regel'",
+    "       WHEN e.eigene_pruefung IS NOT NULL OR e.pruefungen = 1 THEN 'pruefung' END AS wirkung_quelle,",
+    "  CASE WHEN e.annahmen_je_regel = 1 AND e.regel_saetze IS NOT NULL THEN e.regel_name",
+    "       WHEN e.eigene_pruefung IS NOT NULL THEN e.regel_name",
+    "       WHEN e.pruefungen = 1 THEN e.pruefung END AS wirkung_regel,",
+    "  CASE WHEN e.annahmen_je_regel = 1 AND e.regel_saetze IS NOT NULL THEN e.regel_saetze",
+    "       WHEN e.eigene_pruefung IS NOT NULL THEN e.eigene_pruefung",
+    "       WHEN e.pruefungen = 1 THEN e.pruefung_anzahl END AS wirkung_saetze,",
+    "  (SELECT q.beleg_sql FROM meta.rueckfrage q WHERE q.nr = e.rueckfrage) AS beleg_sql",
+    "FROM e ORDER BY length(e.nr), e.nr;",
+  ].join("\n");
+}
+
+/** Beschäftigungsverhältnisse einer Prüfung auf Ebene Satz im maßgeblichen Lauf (Wirkung einer Annahme). */
+export function sqlAnnahmePruefung(lauf: Pick<Lauf, "id" | "quelleId">, pruefung: string): string {
+  return [
+    "SELECT r.name, sum(t.anzahl) AS beschaeftigungsverhaeltnisse",
+    "FROM meta.pruefung_treffer t JOIN meta.regel r ON r.id = t.regel_id",
+    `WHERE t.lauf_id = ${literal(lauf.quelleId)} AND r.name = ${literal(pruefung)} AND t.ebene = 'satz'`,
+    "GROUP BY r.name;",
   ].join("\n");
 }
 
@@ -380,35 +488,40 @@ export function sqlRegeln(regelsatz = "v1"): string {
 
 // --- Lesen --------------------------------------------------------------------------------------------
 
-/** Übersicht aller Monate mit Revisionsbedarf je Monat. */
-export function leseBerichtsliste(regelsatz = "v1"): Promise<Lesung<Berichtszeile[]>> {
+/** Übersicht aller Monate mit Revisionsbedarf und offenen Rückfragen je Monat. */
+export function leseBerichtsliste(regelsatz = "v1"): Promise<Lesung<Berichtsliste>> {
   return lies(async (sql) => {
-    const [monate, revision, offen] = await Promise.all([
+    const [monate, revision, wartet, ohne] = await Promise.all([
       ladeMonatslaeufe(sql, regelsatz),
       sql<{ lauf_id: number }[]>`
         SELECT DISTINCT v.lauf_id FROM meta.revision v
         WHERE v.differenz <> 0 AND v.lauf_id IN (
           SELECT id FROM meta.lauf WHERE regelsatz = ${regelsatz} AND status IN ('fertig', 'unveraendert'))`,
-      sql<{ lauf_id: number; nr: string | null }[]>`
-        SELECT t.lauf_id, q.nr
-        FROM meta.pruefung_treffer t JOIN meta.regel r ON r.id = t.regel_id
-        LEFT JOIN meta.rueckfrage q ON q.antwort IS NULL AND (q.nr = t.details ->> 'rueckfrage' OR q.regel_name = r.name)
-        WHERE t.anzahl > 0 AND coalesce(t.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar' AND t.lauf_id IN (
-          SELECT id FROM meta.lauf WHERE regelsatz = ${regelsatz} AND status IN ('fertig', 'unveraendert'))`,
+      // Feste Abfragetexte aus diesem Modul, der Regelsatz geht als Parameter $1 hinein.
+      sql.unsafe<{ lieferung: string; nr: string; haelt_an: boolean; titel: string; lieferungen: string }[]>(
+        wartetSql("$1"),
+        [regelsatz],
+      ),
+      sql.unsafe<{ pruefung: string; monate: string; lieferungen: string[] }[]>(ohneRueckfrageSql("$1"), [regelsatz]),
     ]);
     const mitRevision = new Set(revision.map((z) => Number(z.lauf_id)));
-    return monate.map((monat) => {
-      const eigene = offen.filter((z) => Number(z.lauf_id) === monat.quelleId);
-      const wartet = [...new Set(eigene.map((z) => z.nr).filter((n): n is string => Boolean(n)))].sort(
-        (a, b) => a.length - b.length || a.localeCompare(b),
-      );
+    const nachNr = (a: string, b: string) => a.length - b.length || a.localeCompare(b);
+    const zeilen = monate.map((monat) => {
+      const eigene = wartet.filter((z) => z.lieferung === monat.lieferung);
       return {
         monat,
         revisionsbedarf: mitRevision.has(monat.id),
-        wartet,
-        ohneRueckfrage: eigene.filter((z) => !z.nr).length,
+        wartet: [...new Set(eigene.map((z) => z.nr))].sort(nachNr),
+        haeltAn: [...new Set(eigene.filter((z) => z.haelt_an).map((z) => z.nr))].sort(nachNr),
+        ohneRueckfrage: ohne
+          .filter((z) => z.pruefung !== "alle" && (z.lieferungen ?? []).includes(monat.lieferung))
+          .map((z) => z.pruefung),
       };
     });
+    const offeneRueckfragen = [...new Map(wartet.map((z) => [z.nr, { nr: z.nr, titel: z.titel, lieferungen: z.lieferungen }])).values()].sort(
+      (a, b) => nachNr(a.nr, b.nr),
+    );
+    return { zeilen, offeneRueckfragen };
   });
 }
 
@@ -439,24 +552,20 @@ type RueckfrageZeile = {
 
 async function ladeAnnahmen(sql: Sql, lauf: Lauf, ausTabelle: boolean): Promise<Annahme[]> {
   if (ausTabelle) {
-    const zeilen = await sql<
+    // Fester Abfragetext aus diesem Modul, Lieferung und Lauf gehen als Parameter hinein.
+    const zeilen = await sql.unsafe<
       {
         nr: string;
         rueckfrage: string | null;
         satz: string;
         begruendung: string;
         regel_name: string | null;
+        wirkung_quelle: "regel" | "pruefung" | null;
+        wirkung_regel: string | null;
         wirkung_saetze: string | null;
         beleg_sql: string | null;
       }[]
-    >`
-      SELECT a.nr, a.rueckfrage, a.satz, a.begruendung, a.regel_name,
-             (SELECT sum(w.saetze) FROM meta.regel_wirkung w JOIN meta.regel r ON r.id = w.regel_id
-              WHERE w.lauf_id = ${lauf.quelleId} AND r.name = a.regel_name) AS wirkung_saetze,
-             (SELECT q.beleg_sql FROM meta.rueckfrage q WHERE q.nr = a.rueckfrage) AS beleg_sql
-      FROM meta.annahme a
-      WHERE a.lieferungen IS NULL OR ${lauf.lieferung} = ANY (a.lieferungen)
-      ORDER BY length(a.nr), a.nr`;
+    >(annahmenSql("$1", "$2"), [lauf.lieferung, lauf.quelleId]);
     return zeilen.map((z) => ({
       nr: z.nr,
       rueckfrage: z.rueckfrage,
@@ -464,6 +573,8 @@ async function ladeAnnahmen(sql: Sql, lauf: Lauf, ausTabelle: boolean): Promise<
       begruendung: z.begruendung,
       regelName: z.regel_name,
       wirkungSaetze: z.wirkung_saetze === null ? null : zahl(z.wirkung_saetze),
+      wirkungQuelle: z.wirkung_quelle,
+      wirkungRegel: z.wirkung_regel,
       belegSql: z.beleg_sql,
     }));
   }
@@ -484,6 +595,8 @@ async function ladeAnnahmen(sql: Sql, lauf: Lauf, ausTabelle: boolean): Promise<
     begruendung: ersterSatz(z.begruendung),
     regelName: z.name,
     wirkungSaetze: zahl(z.saetze),
+    wirkungQuelle: "regel" as const,
+    wirkungRegel: z.name,
     belegSql: z.beleg_sql,
   }));
 }
@@ -587,7 +700,7 @@ export function leseQualitaetsbericht(lieferung: string, regelsatz = "v1"): Prom
         .map((r) => ({
           nr: r.nr,
           titel: r.titel,
-          frage: ersterSatz(r.frage),
+          frage: alsSatz(r.frage),
           vorschlag: alsSatz(r.vorschlag),
           antwort: r.antwort,
           antwortAm: r.antwort_am ? datum(r.antwort_am) : null,
