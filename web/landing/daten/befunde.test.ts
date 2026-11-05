@@ -32,7 +32,7 @@ describe("ladeBefunde", () => {
 });
 
 describe("zeileAusTreffer", () => {
-  it("liest Lieferung und Regelnamen aus den JSON-Zeilen und markiert fehlende Einstufung als offen", () => {
+  it("liest Lieferung und Regelnamen aus den JSON-Zeilen und markiert fehlende Einstufung als nicht eingestuft", () => {
     const z = zeileAusTreffer({
       anzahl: "78949",
       umfang: null,
@@ -46,7 +46,7 @@ describe("zeileAusTreffer", () => {
       befund: "Bestandsrückgang über 5 %",
       lieferung: "2025-10",
       saetze: "78.949",
-      einstufungText: "offen · Lauf angehalten",
+      einstufungText: "nicht eingestuft · Lauf angehalten",
       beleg: "select count(*) from roh.lieferung",
     });
   });
