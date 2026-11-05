@@ -33,6 +33,13 @@ if timeout 1800 ssh -o ConnectTimeout=10 "$PRUEFRECHNER" "bash $PRUEFRECHNER_DIR
   $PRUEFRECHNER_DIR/issues.json" > "$tmp/lauf.log" 2>&1; then
   datei="$(tail -1 "$tmp/lauf.log")"
   timeout 120 scp -q -o ConnectTimeout=10 "$PRUEFRECHNER:$PRUEFRECHNER_DIR/repo/docs/abnahme/laeufe/$datei" "docs/abnahme/laeufe/${datei%.jsonl}-schwer.jsonl"
+  # Der Prüfrechner kennt die Sperrnamen nicht: die Laufdatei hier mit der vollen Liste schwärzen.
+  uv run python -c "import json,sys; sys.path.insert(0,'tests/abnahme'); import matrix; \
+p=sys.argv[1]; z=[json.loads(l) for l in open(p) if l.strip()]; \
+r=lambda x: matrix.schwaerzen(x) if isinstance(x,str) else [r(y) for y in x] if isinstance(x,list) else \
+{k: r(v) for k,v in x.items()} if isinstance(x,dict) else x; \
+open(p,'w').write(''.join(json.dumps(r(e),ensure_ascii=False)+'\\n' for e in z))" \
+    "docs/abnahme/laeufe/${datei%.jsonl}-schwer.jsonl"
   grep -E '^(Lauf|lauf_alle_exit)' "$tmp/lauf.log"
   echo "$sha" > "$stand_datei"
 else

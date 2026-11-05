@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -56,13 +57,27 @@ FORTSETZUNG = re.compile(r"^\s{2,}\S")  # eingerückte Folgezeile gehört zum Kr
 AC_MARKE = re.compile(r"^\**\s*(AC\d+[a-z]?)\s*:")  # „**AC1:**“ ergibt die feste ID <iid>-AC1
 
 # Was nie in Datei, Issue oder Nachricht darf (öffentliches Repo): Pfade auf Rechnern, Rechnernamen,
-# Hostnamen, IP-Adressen außer Loopback, Zugangsdaten in URLs.
+# Hostnamen, IP-Adressen außer Loopback, Zugangsdaten in URLs. Konkrete Rechner- und Nutzernamen stehen
+# nicht im Repo, sondern je Zeile ein Regex in der Datei aus ABNAHME_SPERRNAMEN
+# (Standard: .config/kic-abnahme/sperrnamen im Home-Verzeichnis).
+_SPERRDATEI = Path(
+    os.environ.get("ABNAHME_SPERRNAMEN", Path.home() / ".config" / "kic-abnahme" / "sperrnamen")
+)
+
+
+def _sperrnamen() -> str:
+    if not _SPERRDATEI.is_file():
+        return r"(?!)"  # ohne Datei: kein Name (die allgemeinen Muster greifen trotzdem)
+    zeilen = [z.strip() for z in _SPERRDATEI.read_text().splitlines() if z.strip() and not z.startswith("#")]
+    return "|".join(f"(?:{z})" for z in zeilen) or r"(?!)"
+
+
+_RECHNER = re.compile(_sperrnamen())
 VERBOTEN = re.compile(
-    r"(/Users/|/home/|~/|(?<!\.env)\.local\b|m5-remote|win-wsl|\b[mM][45]\b|bernhardg"
-    r"|\b(?!127\.0\.0\.1\b|0\.0\.0\.0\b)\d{1,3}(?:\.\d{1,3}){3}\b|://[^@\s/]+:[^@\s/]+@)"
+    r"(/Users/|/home/|~/|(?<!\.env)\.local\b|\b(?!127\.0\.0\.1\b|0\.0\.0\.0\b)\d{1,3}(?:\.\d{1,3}){3}\b"
+    r"|://[^@\s/]+:[^@\s/]+@|" + _RECHNER.pattern + ")"
 )
 _PFAD = re.compile(r"(?:/Users/|/home/|~/)[^\s'\"`|)\]]*")
-_RECHNER = re.compile(r"\b(?:m5-remote|win-wsl|[mM][45])\b|bernhardg\S*")
 
 
 def schwaerzen(text: str) -> str:
