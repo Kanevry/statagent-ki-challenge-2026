@@ -43,6 +43,8 @@ ANNAHMEN = Path("docs") / "plan" / "uc3" / "annahmen.md"
 #: Soll-sha256 der Ministeriums-CSV (Zeile „Soll-sha256: `…`“ mit Herleitung).
 ORAKEL = Path("docs") / "plan" / "uc3" / "ministerium-oracle.md"
 _SOLL_SHA = re.compile(r"^Soll-sha256: `([0-9a-f]{64})`", re.MULTILINE)
+#: Erste Zeile „Beschäftigungsverhältnisse …“ im Überblick (§ 1) mit ihrer Zahl.
+_BESTAND_UEBERBLICK = re.compile(r"^\| Beschäftigungsverhältnisse[^|]*\| ([\d.]+) \|", re.MULTILINE)
 _SOLL_A13 = re.compile(r"^\| A13 \|.*?\*\*([\d.]+) Personen\*\*", re.MULTILINE)
 #: Blätter der Veranstaltervorlage, falls die Vorlage nicht greifbar ist (CI ohne Startpaket).
 VORLAGE_BLAETTER = [
@@ -246,7 +248,10 @@ def bericht_maengel(
     if len([z for z in zeilen if z.strip()]) < MINDEST_ZEILEN:
         maengel.append(f"weniger als {MINDEST_ZEILEN} Zeilen (leer)")
     titel = next((z for z in zeilen if z.startswith("# ")), "")
-    if monat is not None and titel != struktur.titel.replace(MONAT_PLATZHALTER, monat):
+    if (bestand := _BESTAND_UEBERBLICK.search(text)) and bestand.group(1) == "0":
+        maengel.append("Bestand im Überblick ist 0 (Zählzeitraum des Regelsatzes nicht beachtet?)")
+    # Ein Zusatz hinter dem Titel ist erlaubt (Berichte zu Regelsatz v2 nennen den Regelsatz).
+    if monat is not None and not titel.startswith(struktur.titel.replace(MONAT_PLATZHALTER, monat)):
         maengel.append(f"Titel „{titel[2:]}“ passt nicht zu {monat}")
     vorhanden = [u for u in zeilen if u.startswith("## ") and u in struktur.abschnitte]
     fehlend = [u for u in struktur.abschnitte if u not in vorhanden]
@@ -415,9 +420,13 @@ def _punkt_sheet(pfad: Path, name: str, blaetter: list[str] | None, conn: Verbin
     )
 
 
-def _punkt_berichte(abgabe_dir: Path, struktur: BerichtStruktur) -> Punkt:
-    name = "Qualitätsberichte 2024-08 bis 2026-07"
-    ordner = abgabe_dir / "qualitaetsberichte"
+def _punkt_berichte(
+    abgabe_dir: Path,
+    struktur: BerichtStruktur,
+    ordner_name: str = "qualitaetsberichte",
+    name: str = "Qualitätsberichte 2024-08 bis 2026-07",
+) -> Punkt:
+    ordner = abgabe_dir / ordner_name
     fehlend: list[str] = []
     mangelhaft: list[str] = []
     for monat in berichtsmonate():
@@ -609,6 +618,15 @@ def pruefe_abgabe(
         [
             _punkt_sheet(abgabe_dir / "aggregationen_v1.xlsx", "Aggregations-Sheet v1", soll, conn),
             _punkt_berichte(abgabe_dir, struktur),
+            *(
+                [
+                    _punkt_berichte(
+                        abgabe_dir, struktur, "qualitaetsberichte_v2", "Qualitätsberichte v2 (Aufträge 1+2)"
+                    )
+                ]
+                if (abgabe_dir / "qualitaetsberichte_v2").is_dir()
+                else []
+            ),
             vorlage_punkt,
             _punkt_ministerium(
                 abgabe_dir,

@@ -382,3 +382,12 @@ def test_ministerium_zeilenzahl_im_beleg_muss_der_sollzahl_a13_entsprechen(tmp_p
     assert "Ministeriums-Lieferung 2026-07" not in _pruefen(abgabe, tmp_path)
     (tmp_path / "docs" / "plan" / "uc3" / "annahmen.md").unlink()
     assert "Sollzahl nicht gefunden" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]
+
+
+def test_bericht_mit_bestand_null_ist_mangelhaft() -> None:
+    # Fängt: v2-Berichte zeigten in § 1 „Beschäftigungsverhältnisse … | 0“, weil der Bericht fest am Stichtag
+    # zählte, und pruefe-abgabe ließ das durch (Review 69, Runde 3).
+    text = "# Qualitätsbericht\n\n| Beschäftigungsverhältnisse am Stichtag | 0 |\n"
+    assert any("Bestand im Überblick ist 0" in m for m in bericht_maengel(text))
+    gut = "# Qualitätsbericht\n\n| Beschäftigungsverhältnisse im Berichtsmonat | 407.604 |\n"
+    assert not any("Bestand im Überblick" in m for m in bericht_maengel(gut))

@@ -68,6 +68,11 @@ def _tabelle_vorhanden(conn: Verbindung, name: str) -> bool:
     return bool(z and z["da"])
 
 
+def _zelle(text: object) -> str:
+    """Text für eine Tabellenzelle: eine Zeile, `|` maskiert (sonst bricht die Markdown-Tabelle um)."""
+    return " ".join(str(text or "").split()).replace("|", "\\|")
+
+
 def _zeit(wert: object) -> str:
     return zeit_text(wert, ersatz="")
 
@@ -97,7 +102,7 @@ def protokoll_erzeugen(conn: Verbindung, repo: Path | None = None) -> str:
             "|---|---|---|---|---|---|",
         ]
         zeilen += [
-            f"| {zeit_text(datetime.fromisoformat(c.datum), ersatz=c.datum)} | {c.anweisung} | {c.freigegeben_von} | {c.vorschlag} | {c.modell} | `{c.hash[:10]}` |"
+            f"| {zeit_text(datetime.fromisoformat(c.datum), ersatz=c.datum)} | {_zelle(c.anweisung)} | {c.freigegeben_von} | {c.vorschlag} | {c.modell} | `{c.hash[:10]}` |"
             for c in commits
         ]
     else:
@@ -116,7 +121,7 @@ def protokoll_erzeugen(conn: Verbindung, repo: Path | None = None) -> str:
                 "|---|---|---|---|---|---|---|---|---|",
             ]
             zeilen += [
-                f"| {v['id']} | {_zeit(v['erstellt_am'])} | {v['anweisung']} | {v['rolle']} | {v['typ']} |"
+                f"| {v['id']} | {_zeit(v['erstellt_am'])} | {_zelle(v['anweisung'])} | {v['rolle']} | {v['typ']} |"
                 f" {v['status']} | {v['freigegeben_von'] or ''} | {_zeit(v['freigegeben_am'])} |"
                 f" {v['modell'] or ''}@{v['provider'] or ''} |"
                 for v in vorschlaege

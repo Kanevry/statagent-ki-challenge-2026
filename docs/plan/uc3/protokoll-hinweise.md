@@ -1,3 +1,3 @@
-- Regelsatz v1 und die Veröffentlichung der Monate 2024-08 bis 2026-07 hat Bernhard Götzendorfer am 05.11.2026 selbst freigegeben.
+- Regelsatz v1 und die Veröffentlichung von 22 Monaten (2024-08 bis 2026-07 ohne 2025-03 und 2025-10, die vorläufig bleiben) hat Bernhard Götzendorfer am 05.11.2026 selbst freigegeben.
 - Die Freigaben der Vorschläge uc3/24, uc3/25 und uc3/26 und des Regelsatzes v2 hat am 05.11.2026 die Lead-Session im Auftrag von Bernhard Götzendorfer eingegeben (Delegation des Owners am 05.11.2026 gegen 16:14 Uhr).
 - Alle Zeitpunkte in diesem Protokoll sind Wiener Zeit.

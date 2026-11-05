@@ -6,8 +6,10 @@ Läufe mit denselben Daten und Regeln liefern dieselben Dateien. Prüfen: `cd uc
 | Datei | Inhalt | Erzeugt mit |
 |---|---|---|
 | `aggregationen_v1.xlsx` | Aggregations-Sheet nach Vorlage, 24 Berichtsmonate 2024-08 bis 2026-07, Regelsatz v1 | `uv run uc3 lauf --alle`, dann `uv run uc3 sheet` |
+| `aggregationen_v2.xlsx` | Aggregations-Sheet nach den Änderungsaufträgen 1 und 2 (Regelsatz v2): gezählt über das ganze Monat, Kategorien Arbeiter, Angestellte, Beamte | `uv run uc3 lauf --alle --regelsatz v2`, dann `uv run uc3 sheet --regelsatz v2` |
 | `qualitaetsberichte/JJJJ-MM.md` | 24 Qualitätsberichte nach Vorlage (Überblick, Auffälligkeiten mit SQL, Rückfragen, Regeln, Revisionsbedarf) | `uv run uc3 berichte --alle` |
-| `rueckfragen/R1.md` … `R9.md` | Rückfragen an die Fachabteilung nach Vorlage, Satzzahl und Beispiel-IDs aus der Datenbank gemessen | `uv run uc3 rueckfragen` |
+| `qualitaetsberichte_v2/JJJJ-MM.md` | 24 Qualitätsberichte zu Regelsatz v2 | `uv run uc3 berichte --alle --regelsatz v2` |
+| `rueckfragen/R1.md` … `R10.md` | Rückfragen an die Fachabteilung nach Vorlage, Satzzahl und Beispiel-IDs aus der Datenbank gemessen | `uv run uc3 rueckfragen` |
 | `protokoll.md` | Protokoll aller Änderungen und Freigaben (Anweisung, Änderung, Name, Zeitpunkt, Commit) | `uv run uc3 protokoll` |
 | `modelle.md` | verwendete Modelle | von Hand |
 | `ministerium_2026-07.beleg.md` | Beleg zur Ministeriums-Lieferung (Auftrag 3): Datei, sha256, Zeilen, Definition, Datenstand, Befehl, Freigabe | `uv run uc3 ministerium --monat 2026-07 --name "Vor- und Nachname"` |
@@ -33,8 +35,8 @@ ohne Datei ab (Exit 1, Meldung mit Soll und Ist) und gibt beide Parameter und di
 vergleicht die Zeilenzahl im Beleg mit der Sollzahl aus Annahme A13 (`docs/plan/uc3/annahmen.md`) und die sha256
 im Beleg mit der Soll-sha256 aus `docs/plan/uc3/ministerium-oracle.md` (unabhängiges Orakel, CSV mit LF).
 
-Die Lieferung entsteht erst, wenn die Definition (Regelsatz `ministerium`) mit Namen freigegeben ist. Bis dahin
-fehlt der Beleg, und `pruefe-abgabe` meldet die Lieferung als offen.
+Die Definition (Regelsatz `ministerium`, Vorschlag uc3/26) ist mit Namen freigegeben. Die Lieferung folgt mit
+`uv run uc3 ministerium --monat 2026-07 --name …`; bis dahin meldet `pruefe-abgabe` den Beleg als offen.
 
 ## Stand der Zahlen
 
