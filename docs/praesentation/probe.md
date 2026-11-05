@@ -9,7 +9,7 @@ Gehört zu GitLab #90, Epic #26. Wird am Fr 06.11.2026 ab 06:00 ausgefüllt.
 - **Bedingung für die Web-Oberfläche:** Die Seite `/uc3` liegt in MR !51. Nur wenn sie bis zum Freeze auf main ist, wird die Web-Oberfläche gezeigt (Stufe 1). Sonst ist der CLI-Weg (Stufe 2) der Standard. Der Stand wird um 06:45 geprüft und in der Tabelle unten eingetragen.
 - **Live heißt auf dem Rechner von Bernhard** (Modell Azure). Die öffentliche Demo läuft im Testmodus und wird so angesagt.
 - **Üben ohne Folgen:** Den Änderungsauftrag aus D2 nur bis `vorschlag zeigen <id>` üben, dann `ablehnen <id>`. Nie `freigabe` üben (siehe Demo-Drehbuch, D2).
-- Das Soll kommt aus der Folienliste (Summe 9:40, 20 s Puffer bis 10:00) und aus `docs/praesentation/demo-drehbuch.md`.
+- Das Soll kommt aus der Szenenfolge (10 Szenen, Präsentation 0:00–5:05) und aus `docs/praesentation/demo-drehbuch.md` (Demo 5:05–9:30). Danach folgen Live-Änderung und Datenanfragen der Jury bis etwa 15:00. Sie gehören nicht zu diesem Durchlauf.
 
 ## 1. Durchlauf
 
@@ -19,12 +19,17 @@ Gehört zu GitLab #90, Epic #26. Wird am Fr 06.11.2026 ab 06:00 ausgefüllt.
 | Start (Uhr) | |
 | Ende (Uhr) | |
 | Gesamtdauer Ist | |
-| Soll | 9:40, Obergrenze 10:00 |
-| Gesamtdauer ≤ 10:00 | ja / nein |
+| Soll | Präsentation 5:05, mit Demo 9:30 |
+| Präsentation ≤ 5:05 | ja / nein |
+| Gesamtdauer mit Demo ≤ 9:30 | ja / nein |
+| D1 Monat | 2025-10 / 2025-03 |
 | `/uc3` (MR !51) beim Freeze auf main | ja / nein (bei nein ist Stufe 2 der Standard) |
 | Stufe der Demo | 1 Web-UI (nur bei `/uc3` auf main) / 2 CLI / 3 Video |
 | Stand (Commit) | |
-| Zahlen auf Folien gegen `abgabe/` abgeglichen | ja / nein |
+| D4 gezeigt (Entscheid 06:45) | ja / nein (bei nein endet die Demo um 9:00) |
+| D2 (Entscheid 06:45) | Rückblick auf Vorschlag 24 allein / plus B2 live (nur nach dreimal bestandener Probe gegen `statistik_probe`). Probe 05.11. 17:56 bis 17:58: B1, B2, B3 ohne Vorschlag oder abgebrochen |
+| D3 freie Fragen | nein, nur die acht geprüften (ja erst, wenn der Folge-MR von bb auf main ist) |
+| Zahlen in den Szenen gegen `abgabe/` abgeglichen | ja / nein |
 
 ### Abschnittszeiten
 
@@ -32,22 +37,20 @@ Ist-Dauer ist das Ende minus der Start des Abschnitts. Beide Uhrzeiten eintragen
 
 | Nr | Abschnitt | Soll-Fenster | Soll-Dauer | Start Ist | Ende Ist | Dauer Ist |
 |---|---|---|---|---|---|---|
-| 1 | Folie 1 StatAgent | 0:00–0:30 | 0:30 | | | |
-| 2 | Folie 2 Eine falsche Zahl kostet Vertrauen | 0:30–1:15 | 0:45 | | | |
-| 3 | Folie 3 Einlesen, rechnen, freigeben | 1:15–2:00 | 0:45 | | | |
-| 4 | Folie 4 Was wo läuft | 2:00–2:45 | 0:45 | | | |
-| 5 | Folie 5 2.880 von 2.880 | 2:45–3:15 | 0:30 | | | |
-| 6 | Folie 6 Acht Datenfehler, nichts gelöscht | 3:15–4:15 | 1:00 | | | |
-| 7 | Folie 7 Geburtsmonat 13 | 4:15–5:00 | 0:45 | | | |
-| 8a | Folie 8 Überleitung | 5:00–5:15 | 0:15 | | | |
-| 8b | D1 Lauf 2025-03 und Qualitätsbericht | 5:15–6:20 | 1:05 | | | |
-| 8c | D2 Änderung per Sprache mit Freigabe | 6:20–7:40 | 1:20 | | | |
-| 8d | D3 Datenanfrage Männer und Frauen je Bundesland | 7:40–8:20 | 0:40 | | | |
-| 8e | UC-Wechsel im App-Header | 8:20–8:30 | 0:10 | | | |
-| 9 | Folie 9 Was wir nicht anfassen | 8:30–9:00 | 0:30 | | | |
-| 10 | Folie 10 Ein Kern, ein Einstieg | 9:00–9:25 | 0:25 | | | |
-| 11 | Folie 11 Jede Zahl nachrechenbar | 9:25–9:40 | 0:15 | | | |
-| D4 | Optional UC4 „Wartezeiten“ (Entscheid 06:45) | keine eigene Zeit | | gezeigt: ja / nein | | |
+| 1 | Szene 1 Gleichung „1 + 2 + 3 = 4“ | 0:00–0:15 | 0:15 | | | |
+| 2 | Szene 2 Drei Menschen, drei Fragen | 0:15–0:45 | 0:30 | | | |
+| 3 | Szene 3 Eine falsche Zahl kostet Vertrauen | 0:45–1:45 | 1:00 | | | |
+| 4 | Szene 4 Aus Aufgabe 3 wurde der Kern für alle drei | 1:45–2:20 | 0:35 | | | |
+| 5 | Szene 5 Wir rechnen den offiziellen Bericht nach | 2:20–2:50 | 0:30 | | | |
+| 6 | Szene 6 Acht Arten von Fehlern gefunden. Nichts gelöscht | 2:50–3:25 | 0:35 | | | |
+| 7 | Szene 7 Im Januar 2025 wechselt die Branchenliste | 3:25–3:50 | 0:25 | | | |
+| 8 | Szene 8 Das Alter bei Geburtsmonat 13 nachgerechnet | 3:50–4:25 | 0:35 | | | |
+| 9 | Szene 9 Eine Frage, drei Antworten, jede mit Beleg | 4:25–4:55 | 0:30 | | | |
+| 10 | Szene 10 Jede Zahl nachrechenbar. Jede Änderung mit Namen | 4:55–5:05 | 0:10 | | | |
+| D1 | Demo D1 Lauf und Qualitätsbericht | 5:05–6:15 | 1:10 | | | |
+| D2 | Demo D2 Rückblick auf die Freigabe von Auftrag 1 | 6:15–7:45 | 1:30 | | | |
+| D3 | Demo D3 Datenanfragen | 7:45–9:00 | 1:15 | | | |
+| D4 | Demo D4 Gemeinsamer Einstieg, Wien-Frage in `/uc4` (Entscheid 06:45) | 9:00–9:30 | 0:30 | | | |
 
 ### Pflichtschritte
 
@@ -55,9 +58,9 @@ Alle fünf müssen im Durchlauf vorkommen. Die Spalte „vom Lead bestätigt“ 
 
 | Nr | Pflichtschritt | Wo im Ablauf | Uhr (Ist) | Vom Lead bestätigt (Name, Uhr) |
 |---|---|---|---|---|
-| 1 | Lösung | Folien 3 bis 5 | | |
-| 2 | Fehlerbeispiel | Folie 6 und D1 | | |
-| 3 | Eine begründete Annahme | Folie 7 | | |
+| 1 | Lösung | Szenen 4 und 5 | | |
+| 2 | Fehlerbeispiel | Szenen 3 und 6 und D1 | | |
+| 3 | Eine begründete Annahme | Szene 8 | | |
 | 4 | Live-Änderung mit Vorher/Nachher | D2 | | |
 | 5 | Eine Datenfrage | D3 | | |
 
@@ -85,7 +88,7 @@ Der Metadatenbericht steht in `docs/praesentation/backup-video.md`, Abschnitt �
 Das Live-Modell wird absichtlich nicht verfügbar gemacht. Gemessen werden zwei Wege getrennt:
 
 - Weg (a): Wechsel auf die Aufzeichnung. Das ist der Nachweis für #90. Ziel: höchstens 30 Sekunden.
-- Weg (b): Stufe 2 im Terminal mit `LLM_PROVIDER=mock`. Damit laufen nur D1 und D3, denn sie brauchen kein Modell. Für D2 gibt es keinen Mock-Weg, weil die Fixture `agent.koordinator.json` fehlt (`shared/py/plattform/llm/mock.py`, Zeile 56). D2 geht ohne Modell auf die Aufzeichnung, das ist Weg (a). Weg (b) wird zusätzlich protokolliert und ersetzt Weg (a) nicht.
+- Weg (b): Stufe 2 im Terminal mit `LLM_PROVIDER=mock`. Damit laufen nur D1 und D3 (D3 über SQL), denn sie brauchen kein Modell. Für D2 gibt es keinen Mock-Weg, weil die Fixture `agent.koordinator.json` fehlt (`shared/py/plattform/llm/mock.py`, Zeile 56). D2 geht ohne Modell auf die Aufzeichnung, das ist Weg (a). Weg (b) wird zusätzlich protokolliert und ersetzt Weg (a) nicht.
 
 | Feld | Wert |
 |---|---|
