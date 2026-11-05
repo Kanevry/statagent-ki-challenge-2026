@@ -285,6 +285,11 @@ def test_maenner_frauen_gegen_orakel(antworten: dict[str, dict[str, Any]], je_bu
         for geschlecht, spalte in (("Männer", "maenner"), ("Frauen", "frauen")):
             zusatz = f", {BUNDESLAENDER[code]}" if je_bundesland else ""
             soll[f"Beschäftigungsverhältnisse, {geschlecht}{zusatz}"] = int(je_code[code][spalte])
+    if je_bundesland:  # Summenzeile je Geschlecht (!189), letzte Zeile der Tabelle
+        for geschlecht, spalte in (("Männer", "maenner"), ("Frauen", "frauen")):
+            soll[f"Beschäftigungsverhältnisse, {geschlecht}, Alle Bundesländer"] = int(
+                je_code["Insgesamt"][spalte]
+            )
     assert _zahlen(antworten[frage]) == soll
 
 
