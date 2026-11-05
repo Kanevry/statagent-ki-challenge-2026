@@ -35,7 +35,7 @@ const ROUTEN = [
   ["freigaben", "/uc3/freigaben"],
   ["freigaben-erledigt", "/uc3/freigaben?reiter=erledigt"],
   ["fragen", "/uc3/fragen"],
-  ["fragen-antwort", "/uc3/fragen", "Beschäftigte in Wien im März 2025"],
+  ["fragen-antwort", "/uc3/fragen", "Beschäftigte in Wien im Gesundheits- und Sozialwesen im März 2025"],
 ];
 const VIEWPORTS = [
   ["1440", { width: 1440, height: 900 }],

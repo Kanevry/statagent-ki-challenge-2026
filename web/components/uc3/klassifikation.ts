@@ -287,6 +287,7 @@ export interface Klassifikationsdaten {
   geschlechter: Abschnitt[];
   qualifikationen: Qualifikation[];
   altersgruppen: Altersgruppe[];
+  kategorieStand: KategorieStand | null;
 }
 
 const zahl = (wert: unknown): number => Number(wert ?? 0);
@@ -347,7 +348,7 @@ async function ladeRegeln(sql: Sql, regelsatz: string): Promise<Zuordnungsregel[
 /** Alles für die Seite in einem `lies()`-Aufruf mit parallelen Abfragen. */
 export function leseKlassifikationen(regelsatz = "v1"): Promise<Lesung<Klassifikationsdaten>> {
   return lies(async (sql) => {
-    const [oenace, uebergaenge, regeln, bestand, bundeslaender, geschlechter, qualifikationen, altersgruppen] =
+    const [oenace, uebergaenge, regeln, bestand, bundeslaender, geschlechter, qualifikationen, altersgruppen, kategorieStand] =
       await Promise.all([
         sql<{ version: string; code: string; bezeichnung: string }[]>`
           SELECT version, code, bezeichnung FROM stat.klass_oenace
@@ -365,6 +366,7 @@ export function leseKlassifikationen(regelsatz = "v1"): Promise<Lesung<Klassifik
         sql<{ berichtsgruppe: string; von: number; bis: number }[]>`
           SELECT berichtsgruppe, min(code) AS von, max(code) AS bis
           FROM stat.klass_alter GROUP BY berichtsgruppe ORDER BY min(code)`,
+        ladeKategorieStand(sql, regelsatz),
       ]);
     const nach = (version: string) =>
       oenace.filter((o) => o.version === version).map(({ code, bezeichnung }) => ({ code, bezeichnung }));
@@ -387,6 +389,7 @@ export function leseKlassifikationen(regelsatz = "v1"): Promise<Lesung<Klassifik
         freierDienstvertrag: q.freier_dienstvertrag,
       })),
       altersgruppen: altersgruppen.map((g) => ({ gruppe: g.berichtsgruppe, von: zahl(g.von), bis: zahl(g.bis) })),
+      kategorieStand,
     };
   });
 }
@@ -417,10 +420,10 @@ function zieleJeMerkmal(zuordnungen: readonly Zuordnung[]): string {
 export function regelSatz(regel: Zuordnungsregel, bezeichnung: (code: string) => string | undefined): string {
   const geliefert = new Set(regel.zuordnungen.map((z) => z.geliefert));
   if (geliefert.size === 1 && geliefert.has("<leer>")) {
-    return `Ist ein Feld leer, zählen wir den Satz als unbekannt: ${zieleJeMerkmal(regel.zuordnungen)}.`;
+    return `Ist ein Feld leer, zählen wir die Zeile unter unbekannt: ${zieleJeMerkmal(regel.zuordnungen)}.`;
   }
   if (geliefert.size === 1 && geliefert.has("<sonst>")) {
-    return `Kennt keine Liste den gelieferten Wert, zählen wir den Satz ebenfalls als unbekannt (${zieleJeMerkmal(regel.zuordnungen)}) und melden ihn als Auffälligkeit.`;
+    return `Kennt keine Liste den gelieferten Wert, zählen wir die Zeile ebenfalls unter unbekannt (${zieleJeMerkmal(regel.zuordnungen)}) und melden ihn als Auffälligkeit.`;
   }
   const ziele = new Set(regel.zuordnungen.map((z) => z.code));
   const merkmale = new Set(regel.zuordnungen.map((z) => z.merkmal));
@@ -446,3 +449,200 @@ export const SQL_QUALIFIKATION_ZAHLEN = [
   "       count(DISTINCT beschaeftigungskategorie) AS kategorien",
   "FROM stat.klass_qualifikation WHERE code <> 'UNB';",
 ].join("\n");
+
+// ---------------------------------------------------------------------------------------------------------------
+// Zählregel der Beschäftigungskategorie: Stand je Regelsatz und der Auftrag, der sie ändert (meta.regel, meta.vorschlag)
+
+export interface KategorieAuftrag {
+  vorschlagId: number;
+  /** Teil der Anweisung vor dem ersten Doppelpunkt, etwa „Auftrag 1, Dienstvertrag und freier Dienstvertrag zusammen“. */
+  titel: string;
+  status: "offen" | "freigegeben" | "abgelehnt";
+  regelsatzZiel: string;
+  /** Spalte, nach der der Ziel-Regelsatz zählt (aktive Regel, sonst laut Vorschlag). */
+  zielSpalte: string | null;
+  /** Freigabe oder Ablehnung: Name und Zeitpunkt (ISO). */
+  von: string | null;
+  am: string | null;
+}
+
+export interface KategorieStand {
+  regelsatz: string;
+  regelId: number;
+  regelName: string;
+  /** Spalte von stat.klass_qualifikation, nach der gezählt wird: „code“ (einzeln) oder „beschaeftigungskategorie“. */
+  spalte: string;
+  auftrag: KategorieAuftrag | null;
+}
+
+/** Abfrage hinter der Zählregel der Qualifikation in einem Regelsatz (für den Beleg). */
+export function sqlKategorieRegel(regelsatz: string): string {
+  return [
+    "SELECT id, regelsatz, name, parameter->>'qualifikation' AS spalte, freigegeben_von, freigegeben_am",
+    "FROM meta.regel",
+    `WHERE regelsatz = ${literal(regelsatz)} AND aktiv AND parameter ? 'qualifikation'`,
+    "ORDER BY id DESC LIMIT 1;",
+  ].join("\n");
+}
+
+/** Abfrage hinter dem Auftrag, der diese Regel ändert, mit Freigabe in Wiener Zeit (für den Beleg). */
+export function sqlKategorieAuftrag(stand: Pick<KategorieStand, "regelsatz" | "regelName" | "regelId">): string {
+  return [
+    "SELECT v.id, split_part(v.anweisung, ':', 1) AS auftrag, v.status, v.regelsatz_ziel,",
+    "       v.freigegeben_von, v.freigegeben_am AT TIME ZONE 'Europe/Vienna' AS freigegeben_wien,",
+    "       v.abgelehnt_von, v.abgelehnt_am AT TIME ZONE 'Europe/Vienna' AS abgelehnt_wien,",
+    "       (SELECT n.parameter->>'qualifikation' FROM meta.regel n",
+    `         WHERE n.ersetzt_regel_id = ${literal(stand.regelId)} AND n.regelsatz = v.regelsatz_ziel AND n.aktiv) AS ziel_spalte`,
+    "FROM meta.vorschlag v",
+    `WHERE v.regelsatz_basis = ${literal(stand.regelsatz)}`,
+    "  AND EXISTS (SELECT 1 FROM jsonb_array_elements(v.aenderungen) a",
+    `              WHERE a->>'regel_name' = ${literal(stand.regelName)})`,
+    "ORDER BY v.id DESC LIMIT 1;",
+  ].join("\n");
+}
+
+function isoText(wert: unknown): string | null {
+  if (wert instanceof Date) return wert.toISOString();
+  return typeof wert === "string" && wert ? wert : null;
+}
+
+async function ladeKategorieStand(sql: Sql, regelsatz: string): Promise<KategorieStand | null> {
+  const [r] = await sql<{ id: number; name: string; spalte: string | null }[]>`
+    SELECT id, name, parameter->>'qualifikation' AS spalte FROM meta.regel
+    WHERE regelsatz = ${regelsatz} AND aktiv AND parameter ? 'qualifikation'
+    ORDER BY id DESC LIMIT 1`;
+  if (!r?.spalte) return null;
+  const stand: KategorieStand = { regelsatz, regelId: Number(r.id), regelName: r.name, spalte: r.spalte, auftrag: null };
+  const [da] = await sql`SELECT to_regclass('meta.vorschlag') IS NOT NULL AS da`;
+  if (!da?.da) return stand;
+  const [v] = await sql<
+    {
+      id: number;
+      anweisung: string;
+      status: string;
+      regelsatz_ziel: string;
+      freigegeben_von: string | null;
+      freigegeben_am: Date | null;
+      abgelehnt_von: string | null;
+      abgelehnt_am: Date | null;
+      ziel_spalte: string | null;
+      vorschlag_spalte: string | null;
+    }[]
+  >`
+    SELECT v.id, v.anweisung, v.status, v.regelsatz_ziel, v.freigegeben_von, v.freigegeben_am,
+           v.abgelehnt_von, v.abgelehnt_am,
+           (SELECT n.parameter->>'qualifikation' FROM meta.regel n
+             WHERE n.ersetzt_regel_id = ${stand.regelId} AND n.regelsatz = v.regelsatz_ziel AND n.aktiv
+             ORDER BY n.id DESC LIMIT 1) AS ziel_spalte,
+           (SELECT a->'parameter_neu'->>'qualifikation' FROM jsonb_array_elements(v.aenderungen) a
+             WHERE a->>'regel_name' = ${stand.regelName} LIMIT 1) AS vorschlag_spalte
+    FROM meta.vorschlag v
+    WHERE v.regelsatz_basis = ${regelsatz}
+      AND EXISTS (SELECT 1 FROM jsonb_array_elements(v.aenderungen) a WHERE a->>'regel_name' = ${stand.regelName})
+    ORDER BY v.id DESC LIMIT 1`;
+  if (!v) return stand;
+  const status = v.status === "freigegeben" || v.status === "abgelehnt" ? v.status : "offen";
+  stand.auftrag = {
+    vorschlagId: Number(v.id),
+    titel: v.anweisung.split(":")[0]?.trim() || v.anweisung,
+    status,
+    regelsatzZiel: v.regelsatz_ziel,
+    zielSpalte: v.ziel_spalte ?? v.vorschlag_spalte,
+    von: status === "freigegeben" ? v.freigegeben_von : status === "abgelehnt" ? v.abgelehnt_von : null,
+    am: isoText(status === "freigegeben" ? v.freigegeben_am : status === "abgelehnt" ? v.abgelehnt_am : null),
+  };
+  return stand;
+}
+
+const WIEN = new Intl.DateTimeFormat("de-AT", {
+  timeZone: "Europe/Vienna",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** „5. November 2026 um 16:53 Uhr“ in Wiener Zeit. */
+export function wienerZeit(iso: string): string {
+  const teile = Object.fromEntries(WIEN.formatToParts(new Date(iso)).map((t) => [t.type, t.value]));
+  return `${teile.day}. ${teile.month} ${teile.year} um ${teile.hour}:${teile.minute} Uhr`;
+}
+
+/** Wie ein Regelsatz die Qualifikationen zählt, als Satz aus der Spalte der Zählregel. */
+function zaehltSatz(regelsatz: string, spalte: string | null, liste: readonly Qualifikation[]): string {
+  const bekannt = liste.filter((q) => q.code !== UNBEKANNT);
+  const kategorien = [...new Set(bekannt.map((q) => q.kategorie))];
+  const und = (xs: string[]) => (xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} und ${xs.at(-1)}`);
+  if (spalte === "code") {
+    return `In Regelsatz ${regelsatz} zählen wir die ${bekannt.length} gelieferten Qualifikationen einzeln, wie geliefert: ${und(bekannt.map((q) => q.bezeichnung))}.`;
+  }
+  if (spalte === "beschaeftigungskategorie") {
+    return `In Regelsatz ${regelsatz} fassen wir die ${bekannt.length} Qualifikationen zu ${kategorien.length} Beschäftigungskategorien zusammen: ${und(kategorien)}. Dienstvertrag und freier Dienstvertrag zählen gemeinsam.`;
+  }
+  return `In Regelsatz ${regelsatz} zählen wir die Qualifikation nach der Spalte „${spalte ?? "unbekannt"}“.`;
+}
+
+/**
+ * Sätze zur Zählregel der Qualifikation, alles aus der Datenbank: wie der Regelsatz der Seite zählt, ob ein Auftrag
+ * das ändert und in welchem Stand er ist (mit Name und Wiener Zeit), und mit welchem Regelsatz die Zahlen der Seite
+ * gerechnet sind. Kein fester Text über den Freigabestand.
+ */
+export function kategorieSaetze(
+  stand: KategorieStand,
+  liste: readonly Qualifikation[],
+  zahlenRegelsatz: string | null,
+): { regel: string; auftrag: string | null; zahlen: string | null } {
+  const regel = zaehltSatz(stand.regelsatz, stand.spalte, liste);
+  const a = stand.auftrag;
+  const kurz = a ? (a.titel.split(",")[0]?.trim() ?? a.titel) : "";
+  let auftrag: string | null = null;
+  if (a?.status === "offen") {
+    auftrag = `„${a.titel}“ wartet auf Freigabe. Gezählt wird mit Regelsatz ${stand.regelsatz}, bis ${kurz} freigegeben ist.`;
+  } else if (a?.status === "freigegeben") {
+    const wer = a.von && a.am ? ` von ${a.von} am ${wienerZeit(a.am)}` : "";
+    auftrag = `„${a.titel}“ ist als Regelsatz ${a.regelsatzZiel} freigegeben${wer}. ${zaehltSatz(a.regelsatzZiel, a.zielSpalte, liste)}`;
+  } else if (a?.status === "abgelehnt") {
+    const wer = a.von && a.am ? ` von ${a.von} am ${wienerZeit(a.am)}` : "";
+    auftrag = `„${a.titel}“ ist abgelehnt${wer}. Gezählt wird weiter mit Regelsatz ${stand.regelsatz}.`;
+  }
+  const zahlen = zahlenRegelsatz ? `Die Zahlen auf dieser Seite sind mit Regelsatz ${zahlenRegelsatz} gerechnet.` : null;
+  return { regel, auftrag, zahlen };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// ÖNACE-Abschnitte nach Namen: eine Zeile je Branche, daneben ihr Buchstabe 2008 und 2025
+
+export type NamensVergleich = "gleich" | "gewechselt" | "neu" | "entfaellt";
+
+export interface NamensZeile {
+  bezeichnung: string;
+  codeAlt: string | null;
+  codeNeu: string | null;
+  vergleich: NamensVergleich;
+}
+
+/**
+ * Ordnet die Abschnitte nach ihrem Namen statt nach dem Buchstaben: „Gesundheits- und Sozialwesen“ steht einmal da,
+ * 2008 unter Q und 2025 unter R. Alphabetisch nach Namen, „unbekannt“ am Ende.
+ */
+export function abschnitteNachName(zeilen: readonly AbschnittZeile[]): NamensZeile[] {
+  const nachName = new Map<string, { codeAlt: string | null; codeNeu: string | null }>();
+  const eintrag = (name: string) =>
+    nachName.get(name) ?? nachName.set(name, { codeAlt: null, codeNeu: null }).get(name)!;
+  for (const z of zeilen) {
+    if (z.alt) eintrag(z.alt.bezeichnung).codeAlt = z.alt.code;
+    if (z.neu) eintrag(z.neu.bezeichnung).codeNeu = z.neu.code;
+  }
+  const ergebnis: NamensZeile[] = [...nachName].map(([bezeichnung, { codeAlt, codeNeu }]) => ({
+    bezeichnung,
+    codeAlt,
+    codeNeu,
+    vergleich: !codeAlt ? "neu" : !codeNeu ? "entfaellt" : codeAlt === codeNeu ? "gleich" : "gewechselt",
+  }));
+  const unbekannt = (z: NamensZeile) => z.codeAlt === UNBEKANNT || z.codeNeu === UNBEKANNT;
+  return ergebnis.sort(
+    (a, b) => Number(unbekannt(a)) - Number(unbekannt(b)) || a.bezeichnung.localeCompare(b.bezeichnung, "de"),
+  );
+}

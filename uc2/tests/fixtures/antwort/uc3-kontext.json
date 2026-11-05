@@ -1,0 +1,22 @@
+{
+  "text": "Im Oktober 2025 waren 398.765 Personen beschäftigt (erfundener Wert, vorläufig).",
+  "belege": [
+    {
+      "uc": "uc3",
+      "quelle": "stat.beschaeftigte_monat",
+      "lieferung": "2025-10",
+      "monat": "2025-10",
+      "sql": "SELECT sum(anzahl) FROM stat.beschaeftigte_monat WHERE monat = '2025-10'",
+      "ref": null,
+      "regelstand": "v1",
+      "lauf": null,
+      "stand": "vorlaeufig"
+    }
+  ],
+  "zahlen": [
+    {"bezeichnung": "Beschäftigte", "wert": 398765, "einheit": "Personen", "beleg": 0}
+  ],
+  "uc": "uc3",
+  "modell": null,
+  "protokoll_id": null
+}

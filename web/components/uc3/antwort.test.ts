@@ -52,6 +52,14 @@ describe("POST /api/uc3/frage", () => {
     expect(aus).not.toHaveBeenCalled();
   });
 
+  // Fehler: Mit KIC_ONLINE_FRAGEN=1 (E0, Stufe A) blieben Fragen online trotzdem gesperrt.
+  it("KIC_ONLINE_FRAGEN=1 gibt Fragen in der lesenden Online-Demo frei", async () => {
+    const aus = folge(ok(wien));
+    const antwort = await handler(aus, { KIC_ONLINE_LESEND: "1", KIC_ONLINE_FRAGEN: "1" })(anfrage({ frage: "Beschäftigte in Wien im März 2025" }));
+    expect(antwort.status).toBe(200);
+    expect(aus).toHaveBeenCalledTimes(1);
+  });
+
   it("Fehler: Frage „-h“ wird ein Schalter. `--` steht direkt vor der Frage, nach --json", async () => {
     const aus = folge(ok(ohneMonat));
     await handler(aus)(anfrage({ frage: "-h" }));

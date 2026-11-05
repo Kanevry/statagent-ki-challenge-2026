@@ -4,7 +4,7 @@ import { Fliesstext, knopfKlassen, Leerzustand, Ueberschrift } from "@kic/ui/bas
 import { formatZahl, formatZeit, HerkunftChip } from "@kic/ui/bausteine";
 import { bestandBeleg } from "@/components/uc3/beleg";
 import { leerSatz } from "@/components/uc3/db";
-import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { Begriffsliste, Fachbegriff } from "@/components/uc3/fachbegriff";
 import { leseMonatsuebersicht, sqlRegelFreigaben } from "@/components/uc3/laeufe";
 import { monatName } from "@/components/uc3/monat";
 import { berichtPfad, laufPfad, regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/navigation";
@@ -130,17 +130,11 @@ export default async function Monatslaeufe({ searchParams }: Props) {
         {(regelsaetze.includes("v2") || regelsatz === "v2") && <RegelsatzWahl aktiv={regelsatz} />}
       </header>
 
-      <ul className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Begriffe auf dieser Seite">
-        {(["Stichtag", "Beschäftigungsverhältnis", "Abrechnung", "Sätze", "vorläufig"] as const).map((wort) => (
-          <li key={wort} className="font-sans text-14 font-semibold text-ink">
-            <Fachbegriff wort={wort} />
-          </li>
-        ))}
-      </ul>
+      <Begriffsliste worte={["Stichtag", "Beschäftigungsverhältnis", "Abrechnung", "Zeile", "vorläufig"] as const} label="Begriffe auf dieser Seite" className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3" />
 
       <section aria-labelledby="monate-titel" className="flex flex-col gap-4">
         <Ueberschrift stufe={3} als="h2" id="monate-titel">
-          Jeder Monat wird aus seiner eigenen Lieferung gerechnet, jeder gelesene Satz ist abgerechnet.
+          Jeder Monat wird aus seiner eigenen Lieferung gerechnet, jede gelesene Zeile ist abgerechnet.
         </Ueberschrift>
         {regelstand && (
           <Fliesstext groesse={14} ton="gedaempft">

@@ -22,9 +22,12 @@ type Zustand =
   | { art: "fehler"; satz: string }
   | { art: "fertig"; ergebnis: Ergebnis };
 
+// Je ein Beispiel für eine Zahl, eine Tabelle, eine Kennzahl über den Bestand und eine Rückfrage statt einer
+// geratenen Zahl; alle am 05.11. gegen `uc3 frage --json` auf der UC3-Datenbank geprüft (Sichtprüfung bb, #18).
 const BEISPIELE = [
-  "Beschäftigte in Wien im März 2025",
-  "Beschäftigte im Oktober 2025 je Bundesland",
+  "Beschäftigte in Wien im Gesundheits- und Sozialwesen im März 2025",
+  "Männer und Frauen im Oktober 2025 je Bundesland",
+  "Fluktuation je Wirtschaftsbereich im März 2025",
   "Beschäftigte 2025",
 ] as const;
 
@@ -67,7 +70,7 @@ function herunterladen(antwort: UcAntwort) {
   URL.revokeObjectURL(url);
 }
 
-/** Satz für die Online-Demo, in der nichts gerechnet und nichts geändert wird (KIC_ONLINE_LESEND=1). */
+/** Satz für die Online-Demo, wenn Fragen gesperrt sind (KIC_ONLINE_LESEND=1 ohne KIC_ONLINE_FRAGEN=1). */
 const NUR_ANSEHEN = "Online nur zum Ansehen: Fragen an die Daten stellen Sie in der lokalen Anwendung.";
 
 export function FragenFormular({

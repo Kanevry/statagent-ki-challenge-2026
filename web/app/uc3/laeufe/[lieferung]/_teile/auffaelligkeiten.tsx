@@ -3,18 +3,20 @@ import { HerkunftChip, WarnChip } from "@kic/ui/bausteine";
 import { laufBeleg } from "@/components/uc3/beleg";
 import {
   einstufungStatus,
+  fehlendeGruppen,
   massnahmeSatz,
   sqlTreffer,
   trefferTitel,
   umfangImTitel,
+  type FehlendeGruppen,
   type Treffer,
 } from "@/components/uc3/lauf-detail";
 import type { Lauf } from "@/components/uc3/typen";
 
-/** Eine Auffälligkeit: Titel als Satz, Einstufung als Symbol und Wort, Maßnahme, Beleg. Einzeldaten (Verhältnis-Nummern) zeigt das Web nie. */
-function Eintrag({ lauf, treffer }: { lauf: Lauf; treffer: Treffer }) {
+/** Eine Auffälligkeit: Titel als Satz, Einstufung als Symbol und Wort, Maßnahme, Beleg. Einzeldaten (Nummern der Beschäftigungsverhältnisse) zeigt das Web nie. */
+function Eintrag({ lauf, treffer, gruppen }: { lauf: Lauf; treffer: Treffer; gruppen: FehlendeGruppen | null }) {
   const status = einstufungStatus(treffer.einstufung, treffer.offeneRueckfragen);
-  const massnahme = massnahmeSatz(treffer);
+  const massnahme = massnahmeSatz(treffer, { fehlendeGruppen: gruppen });
   return (
     <li className="flex flex-col gap-2 border-b border-line py-4" data-regel={treffer.name}>
       <div className="flex flex-wrap items-center gap-2">
@@ -36,11 +38,12 @@ function Eintrag({ lauf, treffer }: { lauf: Lauf; treffer: Treffer }) {
   );
 }
 
-export function Auffaelligkeiten({ lauf, treffer }: { lauf: Lauf; treffer: readonly Treffer[] }) {
+export function Auffaelligkeiten({ lauf, treffer, fdCodes }: { lauf: Lauf; treffer: readonly Treffer[]; fdCodes: readonly string[] }) {
+  const gruppen = fehlendeGruppen(treffer, fdCodes);
   return (
     <ul className="flex flex-col" aria-label="Auffälligkeiten">
       {treffer.map((t) => (
-        <Eintrag key={`${t.regelId}-${t.ebene}`} lauf={lauf} treffer={t} />
+        <Eintrag key={`${t.regelId}-${t.ebene}`} lauf={lauf} treffer={t} gruppen={gruppen} />
       ))}
     </ul>
   );
