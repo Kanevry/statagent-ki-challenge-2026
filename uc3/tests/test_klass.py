@@ -86,6 +86,13 @@ def test_code_c_zeigt_altcodes_aus_quellzuordnung(conn: Verbindung) -> None:
     daten = erklaeren(conn, "oenace", "C")
     q01 = [q for q in daten["quellzuordnungen"] if q["regel"] == "Q01_oenace_2003_unterabschnitte"]
     assert {q["geliefert"] for q in q01} >= {"DA", "DN"}
-    assert {"2003", "2008"} <= {u["version_alt"] for u in daten["uebergaenge"]}
+    versionen = {u["version_alt"] for u in daten["uebergaenge"]}
+    assert "2003" in versionen
+    # 2008 → 2025 kommt aus dem Umsteiger im Startpaket; der fehlt in der CI (dort nur der Hinweis).
+    umsteiger = conn.execute(
+        "SELECT count(*) AS n FROM stat.uebergang WHERE klassifikation = 'oenace' AND version_alt = '2008'"
+    ).fetchone()
+    if umsteiger is not None and int(str(umsteiger["n"])) > 0:
+        assert "2008" in versionen
     if daten["verhaeltnisse"] is None:
         assert "noch keinen veröffentlichten Monat" in text(daten)
