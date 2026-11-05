@@ -1,6 +1,6 @@
 # UC3 StatAgent: Annahmen der Zählung
 
-Stand 05.11.2026. Regelsatz `v1` (`meta.regel`, Ids 40 bis 52). GitLab #14 (AC4). Rückfragen an den Veranstalter stehen in GitLab #72; hier nur mit Nummer.
+Stand 05.11.2026. Regelsatz `v1` (`meta.regel`; Regeln immer über `name` ansprechen, die Ids hängen von der Datenbank ab). GitLab #14 (AC4). Rückfragen an den Veranstalter stehen in GitLab #72; hier nur mit Nummer.
 
 ## Lesehinweise
 
@@ -108,10 +108,11 @@ SELECT count(*) FROM roh.lieferung WHERE lieferung='2024-08'
 ```sql
 SELECT oenace, count(*) FROM roh.lieferung WHERE lieferung='2024-08' AND oenace ~ '^D[A-Z]$' GROUP BY 1 ORDER BY 1;
 SELECT count(*) FROM roh.lieferung WHERE lieferung='2024-08' AND oenace='C' AND AKTIV('2024-08-31');  -- 62154
-SELECT count(*) FROM stat.quellzuordnung WHERE regel_id = 45;  -- 26
+SELECT count(*) FROM stat.quellzuordnung q JOIN meta.regel g ON g.id = q.regel_id
+ WHERE g.regelsatz = 'v1' AND g.name = 'Q01_oenace_2003_unterabschnitte';  -- 28 (14 Codes × 2 Versionen)
 ```
 
-**Verworfene Alternativen.** Altcodes als „unbekannt": Tab3 des Beispielberichts würde nicht stimmen. DE ebenfalls nach C: DE enthält teils Verlagswesen (J), eine pauschale Zuordnung wäre geraten.
+**Verworfene Alternativen.** Altcodes als „unbekannt": Tab3 des Beispielberichts würde nicht stimmen. DE und DN gehen nach derselben Mehrheitsregel nach C (DE: 25 von 32 Sechsstellern nach C, 6 nach J; DN: 48 von 61); beide kommen in keiner der 24 Lieferungen vor, die Zuordnung ändert also keine Zahl (Review !13).
 
 **Offene Rückfrage.** F5 (Nummer laut `meta.regel`, Text in GitLab #72 zu prüfen).
 
@@ -313,7 +314,7 @@ SELECT min(c), max(c) FROM (SELECT count(*) c FROM roh.lieferung WHERE vvh_id ~ 
 
 ```sql
 SELECT id, name, gueltig_ab_lieferung, aktiv, freigegeben_von IS NOT NULL AS freigegeben FROM meta.regel ORDER BY id;
--- Ergebnis 05.11.2026: 13 Regeln (Ids 40 bis 52), alle aktiv, gueltig_ab 2024-08, freigegeben: f
+-- Ergebnis 05.11.2026: 14 Regeln (13 + E06_ende_ungueltig), alle aktiv, gueltig_ab 2024-08, freigegeben: f
 ```
 
 ## Abweichungen der Messung von den übernommenen Zahlen

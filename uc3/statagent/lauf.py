@@ -1,20 +1,23 @@
 """Monatsbetrieb: ein Lauf verarbeitet genau eine Lieferung (Fachbeschreibung § 2a).
 
 Ablauf: Vorprüfung (Lieferung vorhanden, Vormonat gelaufen) → Regeln laden und Regelstand bilden →
-Bereinigung → Zählung → Prüfungen (falls vorhanden) → Ergebnis schreiben oder als unverändert erkennen.
+Bereinigung → Zählung → Revisionsbedarf der Vormonate → Prüfungen → Ergebnis vorläufig schreiben oder als
+unverändert erkennen. Endgültig wird ein Monat erst durch `veroeffentlichen` mit Namen (Technische Regel 7).
 Der Lauf braucht kein Sprachmodell und importiert keines (Technische Regeln 1 und 2).
 """
 
 from __future__ import annotations
 
 import importlib
+import importlib.util
 from dataclasses import asdict, dataclass
 from typing import Any
 
 from statagent import ergebnis
 from statagent.bereinigung import bereinigen
 from statagent.db import Verbindung, lieferungen
-from statagent.regeln import Regel, RegelFehler, regeln_laden, regelstand
+from statagent.regeln import Regel, RegelFehler, name_pruefen, regeln_laden, regelstand
+from statagent.revision import revision_berechnen
 from statagent.zaehlung import zaehlen
 
 
@@ -47,10 +50,9 @@ def _pruefungen_ausfuehren(
     conn: Verbindung, lauf_id: int, lieferung: str, regelsatz: str, regeln: list[Regel]
 ) -> list[str]:
     """Führt die Prüfregeln aus, wenn das Modul vorhanden ist. Liefert Namen der Regeln, die anhalten."""
-    try:
-        modul = importlib.import_module("statagent.pruefungen")
-    except ModuleNotFoundError:
+    if importlib.util.find_spec("statagent.pruefungen") is None:
         return []
+    modul = importlib.import_module("statagent.pruefungen")  # Fehler im Modul selbst schlagen durch
     anhalten: list[str] = modul.pruefungen_ausfuehren(
         conn, lauf_id=lauf_id, lieferung=lieferung, regelsatz=regelsatz, regeln=regeln
     )
@@ -104,7 +106,11 @@ def lauf_ausfuehren(
             zl = zaehlen(
                 conn, lieferung=lieferung, berichtsmonat=lieferung, regelsatz=regelsatz, regeln=regeln
             )
-            nicht_gezaehlt = b.abschnitte - zl.gezaehlt
+            # Abrechnung aus unabhängig gezählten Größen: roh.lieferung, Verdichtung, Bestand, Abschnittszählung.
+            mehrfach_abschnitte = zl.aktive_abschnitte - zl.gezaehlt
+            nicht_gezaehlt = zl.nicht_aktiv + mehrfach_abschnitte
+            if b.abschnitte != zl.aktive_abschnitte + zl.nicht_aktiv:
+                raise RegelFehler("Abschnitte aus der Bereinigung ≠ aktive + nicht aktive Abschnitte")
             if b.gelesen != zl.gezaehlt + nicht_gezaehlt + b.ausgeschlossen:
                 raise RegelFehler(
                     "Abrechnung geht nicht auf: gelesen ≠ gezählt + nicht gezählt + ausgeschlossen"
@@ -115,15 +121,21 @@ def lauf_ausfuehren(
                     "INSERT INTO meta.regel_wirkung (lauf_id, regel_id, saetze) VALUES (%s, %s, %s)",
                     (lauf_id, regel_id, saetze),
                 )
-            zaehl_regeln = [r for r in regeln if r.typ == "zaehl"]
-            for r in zaehl_regeln:
+            wirkung_zaehl = {
+                "bestand": zl.gezaehlt,
+                "abschnittswahl": zl.mehrfach,
+                "alter": zl.alter_unbekannt,
+            }
+            for r in (r for r in regeln if r.typ == "zaehl"):
                 conn.execute(
                     "INSERT INTO meta.regel_wirkung (lauf_id, regel_id, saetze) VALUES (%s, %s, %s)",
-                    (lauf_id, r.id, zl.gezaehlt),
+                    (lauf_id, r.id, wirkung_zaehl.get(r.art, zl.gezaehlt)),
                 )
 
+            revision_berechnen(conn, lauf_id=lauf_id, lieferung=lieferung, regelsatz=regelsatz, regeln=regeln)
             anhalten = _pruefungen_ausfuehren(conn, lauf_id, lieferung, regelsatz, regeln)
-            ergebnis_status = "endgueltig" if alle_frei and not anhalten else "vorlaeufig"
+            # Ein Lauf schreibt vorläufig; endgültig wird ein Monat erst durch `veroeffentlichen` mit Namen.
+            ergebnis_status = "vorlaeufig"
 
             vorher = conn.execute(
                 """SELECT status, count(*) AS n, max(lauf_id) AS lauf_id FROM stat.stat_beschaeftigte
@@ -143,16 +155,46 @@ def lauf_ausfuehren(
             hash_vorher = _hash_bestehend(
                 conn, regelsatz, stand, zl.zeitraum.art, zl.zeitraum.von, zl.zeitraum.bis
             )
-            if "endgueltig" in status_vorher:
-                if hash_vorher != zl.ergebnis_hash:
-                    raise LaufFehler(
-                        "Veröffentlichter Monat würde sich ändern (gleicher Regelstand, anderes Ergebnis). "
-                        "Das darf nicht passieren; Abweichungen gehören als Revisionsbedarf in den Bericht."
+            veroeffentlicht = _veroeffentlichter_stand(conn, regelsatz, zl.zeitraum)
+            stand_ergebnis, hash_ergebnis = stand, zl.ergebnis_hash
+            if veroeffentlicht is not None:
+                # Veröffentlichtes bleibt unverändert, gleich unter welchem Regelstand (Fachbeschreibung § 4 Nr. 4).
+                v_stand, v_wert = veroeffentlicht
+                stand_ergebnis = v_stand
+                hash_ergebnis = (
+                    _hash_bestehend(
+                        conn, regelsatz, v_stand, zl.zeitraum.art, zl.zeitraum.von, zl.zeitraum.bis
                     )
+                    or ""
+                )
                 lauf_status = "unveraendert"
                 ergebnis_status = "endgueltig"
-                meldung_teile.append("bereits veröffentlicht, Ergebnis identisch")
-            elif status_vorher and hash_vorher == zl.ergebnis_hash and ergebnis_status == "vorlaeufig":
+                if v_stand == stand and hash_vorher != zl.ergebnis_hash:
+                    raise LaufFehler(
+                        "Gleicher Regelstand, anderes Ergebnis als veröffentlicht: der Lauf ist nicht deterministisch."
+                    )
+                if v_stand == stand:
+                    meldung_teile.append("bereits veröffentlicht, Ergebnis identisch")
+                else:
+                    meldung_teile.append(
+                        f"veröffentlicht unter Regelstand {v_stand} bleibt; Regelstand {stand} ergäbe "
+                        f"{zl.gezaehlt} statt {v_wert} ({zl.gezaehlt - v_wert:+d}), siehe Revisionsbedarf"
+                    )
+                    conn.execute(
+                        """INSERT INTO meta.revision (lauf_id, berichtsmonat, gliederung, schluessel,
+                             veroeffentlicht, aktuell, status_vorher) VALUES (%s, %s, 'insgesamt', 'AT', %s, %s,
+                             'endgueltig')""",
+                        (lauf_id, lieferung, v_wert, zl.gezaehlt),
+                    )
+                conn.execute(
+                    """UPDATE meta.lauf SET (freigegeben_von, freigegeben_am) = (
+                         SELECT freigegeben_von, freigegeben_am FROM meta.lauf
+                         WHERE lieferung = %s AND regelsatz = %s AND regelstand = %s AND freigegeben_von IS NOT NULL
+                         ORDER BY id DESC LIMIT 1)
+                       WHERE id = %s""",
+                    (lieferung, regelsatz, v_stand, lauf_id),
+                )
+            elif status_vorher and hash_vorher == zl.ergebnis_hash:
                 lauf_status = "unveraendert"
                 meldung_teile.append("Ergebnis identisch mit vorigem Lauf")
             else:
@@ -160,7 +202,7 @@ def lauf_ausfuehren(
                     conn.execute(
                         """DELETE FROM stat.stat_beschaeftigte
                            WHERE regelsatz = %s AND regelstand = %s AND zeitraum_art = %s
-                             AND zeitraum_von = %s AND zeitraum_bis = %s AND status <> 'endgueltig'""",
+                             AND zeitraum_von = %s AND zeitraum_bis = %s AND status = 'vorlaeufig'""",
                         (regelsatz, stand, zl.zeitraum.art, zl.zeitraum.von, zl.zeitraum.bis),
                     )
                 conn.execute(
@@ -176,7 +218,7 @@ def lauf_ausfuehren(
             conn.execute(
                 """UPDATE meta.lauf SET beendet_am = now(), status = %s, ergebnis_status = %s, gelesen = %s,
                      gezaehlt = %s, nicht_gezaehlt = %s, ausgeschlossen = %s, korrigiert = %s, ergebnis_hash = %s,
-                     zellen = %s, meldung = %s
+                     zellen = %s, meldung = %s, regelstand = %s
                    WHERE id = %s""",
                 (
                     lauf_status,
@@ -186,9 +228,10 @@ def lauf_ausfuehren(
                     nicht_gezaehlt,
                     b.ausgeschlossen,
                     b.korrigiert,
-                    zl.ergebnis_hash,
+                    hash_ergebnis,
                     zl.zellen,
                     meldung,
+                    stand_ergebnis,
                     lauf_id,
                 ),
             )
@@ -196,7 +239,7 @@ def lauf_ausfuehren(
         with conn.transaction():
             conn.execute(
                 "UPDATE meta.lauf SET beendet_am = now(), status = 'abgebrochen', meldung = %s WHERE id = %s",
-                (f"{type(fehler).__name__}: {fehler}", lauf_id),
+                (_meldung_ohne_daten(fehler), lauf_id),
             )
         raise
 
@@ -204,7 +247,7 @@ def lauf_ausfuehren(
         lauf_id=lauf_id,
         lieferung=lieferung,
         regelsatz=regelsatz,
-        regelstand=stand,
+        regelstand=stand_ergebnis,
         status=lauf_status,
         ergebnis_status=ergebnis_status,
         gelesen=b.gelesen,
@@ -212,10 +255,36 @@ def lauf_ausfuehren(
         nicht_gezaehlt=nicht_gezaehlt,
         ausgeschlossen=b.ausgeschlossen,
         korrigiert=b.korrigiert,
-        ergebnis_hash=zl.ergebnis_hash,
+        ergebnis_hash=hash_ergebnis,
         zellen=zl.zellen,
         meldung=meldung,
     )
+
+
+def _meldung_ohne_daten(fehler: BaseException) -> str:
+    """Fehlertext für meta.lauf: eigene Fehler im Wortlaut, Datenbankfehler nur Klasse und SQLSTATE.
+
+    PostgreSQL-Meldungen können Werte aus Sätzen enthalten (DETAIL „Failing row contains …“); die gehören nicht
+    ins Protokoll.
+    """
+    if isinstance(fehler, (LaufFehler, RegelFehler)):
+        return f"{type(fehler).__name__}: {fehler}"
+    sqlstate = getattr(fehler, "sqlstate", None)
+    return f"{type(fehler).__name__}" + (f" (SQLSTATE {sqlstate})" if sqlstate else "")
+
+
+def _veroeffentlichter_stand(conn: Verbindung, regelsatz: str, zeitraum: Any) -> tuple[str, int] | None:
+    """Regelstand und Gesamtwert des veröffentlichten Ergebnisses für (Regelsatz, Berichtszeitraum), falls vorhanden."""
+    z = conn.execute(
+        """SELECT regelstand, sum(wert) AS wert FROM stat.stat_beschaeftigte
+           WHERE regelsatz = %s AND zeitraum_art = %s AND zeitraum_von = %s AND zeitraum_bis = %s
+             AND status = 'endgueltig'
+           GROUP BY regelstand ORDER BY min(lauf_id) LIMIT 1""",
+        (regelsatz, zeitraum.art, zeitraum.von, zeitraum.bis),
+    ).fetchone()
+    if z is None:
+        return None
+    return str(z["regelstand"]), int(str(z["wert"]))
 
 
 def _hash_bestehend(
@@ -238,3 +307,53 @@ def _hash_bestehend(
     if z is None or int(str(z["n"])) == 0:
         return None
     return str(z["hash"])
+
+
+def veroeffentlichen(
+    conn: Verbindung,
+    lieferung: str,
+    regelsatz: str,
+    name: str,
+    *,
+    trotz_anhalten: bool = False,
+) -> int:
+    """Gibt das Ergebnis des letzten Laufs eines Monats mit Namen frei: vorläufig → endgültig.
+
+    Voraussetzungen: alle für die Lieferung geltenden Regeln sind freigegeben, und keine Prüfregel hat den
+    Monat angehalten (außer ausdrücklich `trotz_anhalten`). Liefert die Zahl der veröffentlichten Zellen.
+    """
+    person = name_pruefen(name)
+    stand = ergebnis.letzter_lauf(conn, lieferung, regelsatz)
+    if stand is None:
+        raise LaufFehler(f"Kein Lauf für {lieferung} ({regelsatz}): zuerst `lauf --lieferung {lieferung}`")
+    offen = [r.name for r in regeln_laden(conn, regelsatz, lieferung) if not r.freigegeben]
+    if offen:
+        raise LaufFehler(
+            f"{len(offen)} Regeln ohne Freigabe ({', '.join(offen[:4])} …): zuerst `regeln freigeben`"
+        )
+    angehalten = conn.execute(
+        """SELECT g.name FROM meta.pruefung_treffer t JOIN meta.regel g ON g.id = t.regel_id
+           WHERE t.lauf_id = %s AND t.anhalten ORDER BY g.reihenfolge""",
+        (stand.lauf_id,),
+    ).fetchall()
+    if angehalten and not trotz_anhalten:
+        namen = ", ".join(str(z["name"]) for z in angehalten)
+        raise LaufFehler(f"{lieferung} ist angehalten durch {namen}; bleibt vorläufig (Rückfrage offen)")
+    with conn.transaction():
+        cur = conn.execute(
+            """UPDATE stat.stat_beschaeftigte SET status = 'endgueltig'
+               WHERE regelsatz = %s AND regelstand = %s AND status = 'vorlaeufig'
+                 AND zeitraum_bis BETWEEN %s AND %s""",
+            (
+                regelsatz,
+                stand.regelstand,
+                ergebnis.monatserster(lieferung),
+                ergebnis.monatsletzter(lieferung),
+            ),
+        )
+        conn.execute(
+            """UPDATE meta.lauf SET ergebnis_status = 'endgueltig', freigegeben_von = %s, freigegeben_am = now()
+               WHERE id = %s""",
+            (person, stand.lauf_id),
+        )
+        return cur.rowcount

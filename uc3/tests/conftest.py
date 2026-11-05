@@ -21,7 +21,7 @@ from psycopg import sql
 from statagent.db import Verbindung, schema_einrichten, verbinden
 
 FIXTURES = Path(__file__).parent / "fixtures"
-LIEFERUNGEN = ("2024-08", "2024-09", "2024-10")
+LIEFERUNGEN = ("2024-08", "2024-09", "2024-10", "2024-11")
 ROH_SPALTEN = "lieferung, vvh_id, person_id, geburtsdatum, geschlecht, beginn, ende, qual, oenace, bundesland"
 
 

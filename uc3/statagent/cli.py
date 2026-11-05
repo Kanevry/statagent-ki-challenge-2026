@@ -265,6 +265,39 @@ def eichen(
 # --- noch nicht umgesetzte Befehle (eigene Issues) ---------------------------------------------------------
 
 
+@app.command("veroeffentlichen")
+def veroeffentlichen(
+    name: Annotated[str, typer.Option(help="Vor- und Nachname der freigebenden Person")],
+    lieferung: Annotated[str | None, typer.Option(help="Berichtsmonat JJJJ-MM")] = None,
+    alle: Annotated[
+        bool, typer.Option("--alle", help="alle gerechneten Monate, die nicht angehalten sind")
+    ] = False,
+    regelsatz: Annotated[str, typer.Option()] = "v1",
+) -> None:
+    """Gibt einen gerechneten Monat mit Namen frei: vorläufig → endgültig (danach unveränderlich)."""
+    from statagent.lauf import LaufFehler
+    from statagent.lauf import veroeffentlichen as veroeffentlichen_ausfuehren
+
+    with verbinden() as conn:
+        if alle:
+            monate = [m for m in lieferungen(conn) if ergebnis.letzter_lauf(conn, m, regelsatz) is not None]
+        elif lieferung:
+            monate = [lieferung]
+        else:
+            typer.echo("Bitte --lieferung JJJJ-MM oder --alle angeben.", err=True)
+            raise typer.Exit(2)
+        fehler = 0
+        for monat in monate:
+            try:
+                n = veroeffentlichen_ausfuehren(conn, monat, regelsatz, name)
+                typer.echo(f"{monat}: {n} Zellen endgültig, freigegeben von {' '.join(name.split())}")
+            except (LaufFehler, NameUngueltig) as f:
+                fehler += 1
+                typer.echo(f"{monat}: nicht veröffentlicht: {f}", err=True)
+    if fehler and not alle:
+        raise typer.Exit(1)
+
+
 @app.command("berichte")
 def berichte(lieferung: Annotated[str | None, typer.Option(help="Berichtsmonat JJJJ-MM")] = None) -> None:
     """Qualitätsbericht je Berichtsmonat aus der Vorlage erzeugen bzw. anzeigen."""

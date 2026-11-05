@@ -36,13 +36,14 @@ class LaufStand:
 
 
 def letzter_lauf(conn: Verbindung, lieferung: str, regelsatz: str = "v1") -> LaufStand | None:
-    """Der jüngste erfolgreiche Lauf (fertig oder unveraendert) einer Lieferung und eines Regelsatzes."""
+    """Der maßgebliche Lauf einer Lieferung und eines Regelsatzes: der jüngste veröffentlichte (endgültige),
+    sonst der jüngste erfolgreiche (fertig oder unveraendert)."""
     zeile = conn.execute(
         """
         SELECT id, lieferung, regelsatz, regelstand, ergebnis_status, ergebnis_hash
         FROM meta.lauf
         WHERE lieferung = %s AND regelsatz = %s AND status IN ('fertig', 'unveraendert')
-        ORDER BY id DESC LIMIT 1
+        ORDER BY (ergebnis_status = 'endgueltig') DESC, id DESC LIMIT 1
         """,
         (lieferung, regelsatz),
     ).fetchone()

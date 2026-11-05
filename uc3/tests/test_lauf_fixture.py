@@ -54,7 +54,7 @@ def test_fixture_lieferungen_sind_geladen(conn: Verbindung) -> None:
         z["lieferung"]: z["n"]
         for z in conn.execute("SELECT lieferung, count(*) AS n FROM roh.lieferung GROUP BY 1").fetchall()
     }
-    assert zeilen == {"2024-08": 16, "2024-09": 5, "2024-10": 9}
+    assert zeilen == {"2024-08": 16, "2024-09": 5, "2024-10": 9, "2024-11": 8}
     leer = _zaehle(conn, "SELECT count(*) AS n FROM roh.lieferung WHERE oenace = '' OR ende = ''")
     assert leer == 0
 
@@ -69,8 +69,8 @@ def test_schema_zweimal_einrichten_verliert_nichts(conn: Verbindung) -> None:
     schema_einrichten(conn)
     nachher = {t: _zaehle(conn, f"SELECT count(*) AS n FROM {t}") for t in vorher}
     assert nachher == vorher
-    assert vorher["meta.regel"] == 13
-    assert vorher["roh.lieferung"] == 30
+    assert vorher["meta.regel"] >= 13  # Regelsatz v1: mindestens die 13 Einlese-, Zuordnungs- und Zählregeln
+    assert vorher["roh.lieferung"] == 38
 
 
 def _lauf_zeile(conn: Verbindung) -> int:
@@ -132,13 +132,14 @@ def test_freigabe_lehnt_ungueltigen_namen_ab(conn: Verbindung, name: str) -> Non
 # --- braucht statagent.lauf ------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("lieferung", ["2024-08", "2024-09", "2024-10"])
+@pytest.mark.parametrize("lieferung", ["2024-08", "2024-09", "2024-10", "2024-11"])
 def test_lauf_zaehlt_und_rechnet_ab(conn: Verbindung, lieferung: str) -> None:
     # Fängt: falsche Stichtagslogik, Dublette doppelt gezählt, Abschnittswahl, UNB/'0', DK->C, Monat 13,
-    # Alter > 100, nicht vertauschte Spalten (2024-10), Abrechnung gelesen != gezählt+nicht+ausgeschlossen.
+    # Alter > 100, nicht vertauschte Spalten (2024-10), zwei aktive Abschnitte, Alter 80 plausibel, ungültiges ENDE
+    # inkl. 'today' (2024-11, sonst nicht deterministisch), Abrechnung gelesen != gezählt+nicht+ausgeschlossen.
     lauf = pytest.importorskip("statagent.lauf")
     # Lieferungen laufen in zeitlicher Reihenfolge (Fachbeschreibung § 2a): Vormonate zuerst rechnen.
-    for vorher in ("2024-08", "2024-09"):
+    for vorher in ("2024-08", "2024-09", "2024-10"):
         if vorher < lieferung:
             lauf.lauf_ausfuehren(conn, vorher, regelsatz="v1", gestartet_von=None)
     erg = lauf.lauf_ausfuehren(conn, lieferung, regelsatz="v1", gestartet_von=None)
@@ -173,15 +174,26 @@ def test_zweiter_lauf_ist_unveraendert_mit_gleichem_hash(conn: Verbindung) -> No
 
 
 def test_nach_freigabe_ist_lauf_endgueltig_und_zeilen_sind_geschuetzt(conn: Verbindung) -> None:
-    # Fängt: Ergebnis bleibt trotz Freigabe vorläufig oder wird endgültig, ohne dass der Trigger schützt.
+    # Fängt: Veröffentlichung ohne Regelfreigabe, Ergebnis bleibt nach Veröffentlichung vorläufig,
+    # oder endgültige Zeilen sind nicht durch den Trigger geschützt.
     lauf = pytest.importorskip("statagent.lauf")
     regeln = pytest.importorskip("statagent.regeln")
     vorlaeufig = lauf.lauf_ausfuehren(conn, "2024-08", regelsatz="v1", gestartet_von=None)
     assert vorlaeufig.ergebnis_status == "vorlaeufig"
-    assert regeln.regeln_freigeben(conn, regelsatz="v1", name="Erika Musterfrau") == 13
+    with pytest.raises(lauf.LaufFehler, match="ohne Freigabe"):
+        lauf.veroeffentlichen(conn, "2024-08", "v1", "Erika Musterfrau")
+    conn.rollback()
+    offen = conn.execute(
+        b"SELECT count(*) AS n FROM meta.regel WHERE regelsatz = 'v1' AND aktiv AND freigegeben_von IS NULL"
+    ).fetchone()
+    assert offen is not None
+    assert regeln.regeln_freigeben(conn, regelsatz="v1", name="Erika Musterfrau") == offen["n"]
+    conn.commit()
+    assert lauf.veroeffentlichen(conn, "2024-08", "v1", "Erika Musterfrau") > 0
     conn.commit()
     endgueltig = lauf.lauf_ausfuehren(conn, "2024-08", regelsatz="v1", gestartet_von=None)
     assert endgueltig.ergebnis_status == "endgueltig"
+    assert endgueltig.status == "unveraendert"
     assert endgueltig.gezaehlt == 12
     conn.commit()
     with pytest.raises(psycopg.errors.RaiseException, match="unveränderlich"):

@@ -22,7 +22,9 @@ from statagent import konfig
 from statagent.db import Verbindung
 from statagent.ergebnis import monatswerte
 
-#: Beschäftigungskategorien des Berichts: ALLE = Arbeiter, Angestellte, Beamte; AB = Angestellte, Beamte.
+#: Spaltengruppen des Beispielberichts (Layout des Veranstalters, keine Zählregel): ALLE = Arbeiter, Angestellte,
+#: Beamte; AB = „Angestellte und Beamte“ in Tab3–Tab13. Welche Qualifikation zu welcher Kategorie gehört, kommt aus
+#: stat.klass_qualifikation; `klassen_laden` prüft, dass es diese Kategorien dort gibt.
 ALLE = ("Arbeiter", "Angestellte", "Beamte")
 AB = ("Angestellte", "Beamte")
 
@@ -45,7 +47,9 @@ class Spec:
 
     bereich: str  # "region" (Tab1..Tab12) oder "alter" (Tab13)
     region: str | None  # Bezeichnung laut klass_region ("Österreich" = alle), nur bereich "region"
-    zeile: str | None  # Wirtschaftszweig: "alle", "eingereiht", "UNB" oder Abschnittscode; bzw. Altersgruppe
+    zeile: (
+        str | None
+    )  # Wirtschaftszweig: "alle", "eingereiht", "unbekannt" oder Abschnittscode; bzw. Altersgruppe
     kategorien: tuple[str, ...]
     geschlecht: str | None
 
@@ -90,6 +94,8 @@ class Klassen:
     kategorie_je_qualifikation: Mapping[str, str]
     region_je_bezeichnung: Mapping[str, str]
     altersgruppe_je_alter: Mapping[int, str]
+    #: Code(s) für „Wirtschaftszweig unbekannt“ laut stat.quellzuordnung (geliefert '<leer>'), keine Konstante.
+    oenace_unbekannt: frozenset[str]
 
 
 def klassen_laden(conn: Verbindung) -> Klassen:
@@ -109,7 +115,18 @@ def klassen_laden(conn: Verbindung) -> Klassen:
         int(str(z["code"])): str(z["berichtsgruppe"])
         for z in conn.execute("SELECT code, berichtsgruppe FROM stat.klass_alter").fetchall()
     }
-    return Klassen(qualifikation, region, alter)
+    fehlend = set(ALLE) - set(qualifikation.values())
+    if fehlend:
+        raise ValueError(
+            f"Kategorien des Berichtslayouts fehlen in stat.klass_qualifikation: {sorted(fehlend)}"
+        )
+    unbekannt = frozenset(
+        str(z["code"])
+        for z in conn.execute(
+            "SELECT DISTINCT code FROM stat.quellzuordnung WHERE merkmal = 'oenace' AND geliefert = '<leer>'"
+        ).fetchall()
+    )
+    return Klassen(qualifikation, region, alter, unbekannt)
 
 
 # --------------------------------------------------------------------------------------------- Soll (xlsx)
@@ -139,7 +156,7 @@ def _wirtschaftszeile(label: str) -> str:
     if label.startswith("davon"):
         return "eingereiht"
     if label == "Wirtschaftszweig unbekannt":
-        return "UNB"
+        return "unbekannt"
     return label
 
 
@@ -239,17 +256,19 @@ class Aggregator:
             wert
             for (reg, oenace, ges, kat), wert in self._region.items()
             if (code is None or reg == code)
-            and self._zeile_passt(spec.zeile, oenace)
+            and self._zeile_passt(spec.zeile, oenace, self._klassen.oenace_unbekannt)
             and ges in geschlechter
             and kat in spec.kategorien
         )
 
     @staticmethod
-    def _zeile_passt(zeile: str | None, oenace: str) -> bool:
+    def _zeile_passt(zeile: str | None, oenace: str, unbekannt: frozenset[str]) -> bool:
         if zeile == "alle":
             return True
         if zeile == "eingereiht":
-            return oenace != "UNB"
+            return oenace not in unbekannt
+        if zeile == "unbekannt":
+            return oenace in unbekannt
         return oenace == zeile
 
 

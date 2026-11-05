@@ -13,7 +13,7 @@ from psycopg import sql
 
 from statagent.db import Verbindung
 from statagent.ergebnis import monat_verschieben, monatserster, monatsletzter
-from statagent.regeln import Regel, RegelFehler, eine, hoechstens_eine
+from statagent.regeln import Regel, RegelFehler, eine, hoechstens_eine, wert
 
 MERKMALE = ("geschlecht", "qualifikation", "oenace", "bundesland")
 
@@ -46,23 +46,61 @@ def oenace_version(conn: Verbindung, regeln: list[Regel], stichtag: date) -> str
     return str(zeilen[0]["version"])
 
 
-def _spaltentausch_noetig(conn: Verbindung, lieferung: str, regel: Regel | None) -> bool:
+def _gueltig(spalte: str) -> str:
+    """SQL-Ausdruck: Text entspricht dem Datumsmuster der Regel E03 und ist ein gültiges Datum."""
+    return f"({spalte} ~ %(muster)s AND pg_input_is_valid({spalte}, 'date'))"
+
+
+def _spaltentausch_noetig(conn: Verbindung, lieferung: str, regel: Regel | None, muster: str) -> bool:
     if regel is None:
         return False
-    p = regel.parameter
     z = conn.execute(
-        """
+        f"""
         SELECT avg((beginn IS NULL)::int)::float AS leer,
-               avg((pg_input_is_valid(beginn, 'date') AND pg_input_is_valid(ende, 'date')
-                    AND beginn::date > ende::date)::int)::float AS nach_ende
-        FROM roh.lieferung WHERE lieferung = %s
-        """,
-        (lieferung,),
+               avg(({_gueltig("beginn")} AND {_gueltig("ende")} AND beginn::date > ende::date)::int)::float
+                 AS nach_ende
+        FROM roh.lieferung WHERE lieferung = %(l)s
+        """.encode(),
+        {"l": lieferung, "muster": muster},
     ).fetchone()
     if z is None or z["leer"] is None:
         return False
     leer, nach_ende = float(str(z["leer"])), float(str(z["nach_ende"]))
-    return leer > float(p["anteil_beginn_leer_min"]) and nach_ende > float(p["anteil_beginn_nach_ende_min"])
+    return leer > float(wert(regel, "anteil_beginn_leer_min")) and nach_ende > float(
+        wert(regel, "anteil_beginn_nach_ende_min")
+    )
+
+
+def _zuordnungen_pruefen(conn: Verbindung, regeln: list[Regel]) -> list[int]:
+    """IDs der Zuordnungsregeln (aller Regelsätze) mit dem Namen einer aktiven Zuordnungsregel.
+
+    Nur deren Zeilen in stat.quellzuordnung greifen (Identitätszeilen ohne Regel greifen immer). Prüft zugleich,
+    dass Regeln mit `codes`/`ziel` genau diese Zeilen in der Quellzuordnung haben.
+    """
+    aktive = [r for r in regeln if r.typ == "zuordnung"]
+    namen = [r.name for r in aktive]
+    ids = [
+        int(str(z["id"]))
+        for z in conn.execute("SELECT id FROM meta.regel WHERE name = ANY(%s)", (namen,)).fetchall()
+    ]
+    for r in aktive:
+        if "codes" not in r.parameter:
+            continue
+        z = conn.execute(
+            """SELECT coalesce(array_agg(DISTINCT q.geliefert ORDER BY q.geliefert), '{}') AS geliefert,
+                      coalesce(array_agg(DISTINCT q.code), '{}') AS ziele
+               FROM stat.quellzuordnung q JOIN meta.regel g ON g.id = q.regel_id
+               WHERE g.name = %s AND q.merkmal = %s""",
+            (r.name, wert(r, "merkmal")),
+        ).fetchone()
+        assert z is not None
+        geliefert = sorted(str(c) for c in z["geliefert"]) if isinstance(z["geliefert"], list) else []
+        ziele = [str(c) for c in z["ziele"]] if isinstance(z["ziele"], list) else []
+        if geliefert != sorted(str(c) for c in wert(r, "codes")) or ziele != [str(wert(r, "ziel"))]:
+            raise RegelFehler(
+                f"{r.name}: stat.quellzuordnung ({z['geliefert']} → {z['ziele']}) passt nicht zu den Parametern"
+            )
+    return ids
 
 
 def bereinigen(
@@ -71,12 +109,15 @@ def bereinigen(
     """Baut bereinigt.abschnitt für (lieferung, regelsatz) neu auf. Läuft in der Transaktion des Aufrufers."""
     r_tausch = hoechstens_eine(regeln, "einlese", "spaltentausch")
     r_dublette = hoechstens_eine(regeln, "einlese", "dublette")
-    r_datum = hoechstens_eine(regeln, "einlese", "datum")
+    r_datum = eine(regeln, "einlese", "datum")
     r_beginn = hoechstens_eine(regeln, "einlese", "ersatz_beginn")
+    r_ende = hoechstens_eine(regeln, "einlese", "ersatz_ende")
     r_qz = eine(regeln, "einlese", "quellzuordnung")
+    muster = str(wert(r_datum, "muster"))
     stichtag = monatsletzter(lieferung)
     version = oenace_version(conn, regeln, stichtag)
-    tausch = _spaltentausch_noetig(conn, lieferung, r_tausch)
+    tausch = _spaltentausch_noetig(conn, lieferung, r_tausch, muster)
+    qz_ids = _zuordnungen_pruefen(conn, regeln)
 
     gelesen_z = conn.execute(
         "SELECT count(*) AS n FROM roh.lieferung WHERE lieferung = %s", (lieferung,)
@@ -87,7 +128,7 @@ def bereinigen(
 
     beginn_spalte, ende_spalte = ("ende", "beginn") if tausch else ("beginn", "ende")
     if r_dublette is not None:
-        if r_dublette.parameter.get("vergleich") != "alle_felder":
+        if wert(r_dublette, "vergleich") != "alle_felder":
             raise RegelFehler(f"{r_dublette.name}: nicht unterstützter Vergleich {r_dublette.parameter}")
         quelle = sql.SQL(
             """SELECT vvh_id, person_id, geburtsdatum, geschlecht, beginn, ende, qual, oenace, bundesland,
@@ -102,10 +143,33 @@ def bereinigen(
                FROM roh.lieferung WHERE lieferung = %(l)s"""
         )
 
-    monat13 = r_datum is not None and r_datum.parameter.get("geburtsmonat_13") == "geburtsjahr_behalten"
-    fenster_monate = int(r_beginn.parameter.get("fenster_monate", 3)) if r_beginn else 0
-    fensterbeginn = monatserster(monat_verschieben(lieferung, -(fenster_monate - 1))) if r_beginn else None
-    qz_quelle = str(r_qz.parameter.get("quelle", "zvd"))
+    monat13 = wert(r_datum, "geburtsmonat_13") == "geburtsjahr_behalten"
+    muster13 = str(wert(r_datum, "muster_monat_13")) if monat13 else "^$"
+    fensterbeginn = (
+        monatserster(monat_verschieben(lieferung, -(int(wert(r_beginn, "fenster_monate")) - 1)))
+        if r_beginn
+        else None
+    )
+    if r_ende is not None and wert(r_ende, "ersatz") != "laeuft":
+        raise RegelFehler(f"{r_ende.name}: nicht unterstützter Ersatz {r_ende.parameter}")
+    qz_quelle = str(wert(r_qz, "quelle"))
+
+    # Fehlt eine Einleseregel, die ein vorhandener Fehler bräuchte, bricht der Lauf ab statt still zu raten.
+    luecken = conn.execute(
+        f"""SELECT count(*) FILTER (WHERE NOT coalesce({_gueltig(beginn_spalte)}, false)) AS beginn,
+                   count(*) FILTER (WHERE {ende_spalte} IS NOT NULL AND NOT {_gueltig(ende_spalte)}) AS ende
+            FROM roh.lieferung WHERE lieferung = %(l)s""".encode(),
+        {"l": lieferung, "muster": muster},
+    ).fetchone()
+    assert luecken is not None
+    if int(str(luecken["beginn"])) and r_beginn is None:
+        raise RegelFehler(
+            f"{luecken['beginn']} Sätze ohne gültigen BEGINN, aber keine Regel der Art ersatz_beginn"
+        )
+    if int(str(luecken["ende"])) and r_ende is None:
+        raise RegelFehler(
+            f"{luecken['ende']} Sätze mit ungültigem ENDE, aber keine Regel der Art ersatz_ende"
+        )
 
     joins = []
     codes = {}
@@ -117,8 +181,10 @@ def bereinigen(
             sql.SQL(
                 """LEFT JOIN stat.quellzuordnung {q} ON {q}.quelle = %(qz)s AND {q}.merkmal = {m}
                      AND {q}.version = {v} AND {q}.geliefert = coalesce(t.{f}, '<leer>')
+                     AND ({q}.regel_id IS NULL OR {q}.regel_id = ANY(%(qz_ids)s::int[]))
                    LEFT JOIN stat.quellzuordnung {s} ON {s}.quelle = %(qz)s AND {s}.merkmal = {m}
-                     AND {s}.version = {v} AND {s}.geliefert = '<sonst>'"""
+                     AND {s}.version = {v} AND {s}.geliefert = '<sonst>'
+                     AND ({s}.regel_id IS NULL OR {s}.regel_id = ANY(%(qz_ids)s::int[]))"""
             ).format(
                 q=sql.Identifier(f"q_{m}"),
                 s=sql.Identifier(f"s_{m}"),
@@ -136,22 +202,25 @@ def bereinigen(
 
     tausch_name = sql.Literal(r_tausch.name if (r_tausch and tausch) else None)
     beginn_name = sql.Literal(r_beginn.name if r_beginn else None)
+    ende_name = sql.Literal(r_ende.name if r_ende else None)
     abfrage = sql.SQL(
         """
         WITH r AS ({quelle}),
         t AS (
           SELECT r.*,
             {beginn_t} AS beginn_t, {ende_t} AS ende_t,
-            CASE WHEN pg_input_is_valid(r.geburtsdatum, 'date') THEN r.geburtsdatum::date END AS geb,
-            CASE WHEN pg_input_is_valid(r.geburtsdatum, 'date') THEN 'gueltig'
-                 WHEN %(m13)s AND r.geburtsdatum ~ '^\\d{{4}}-13-\\d{{2}}$' THEN 'monat_13'
+            CASE WHEN r.geburtsdatum ~ %(muster)s AND pg_input_is_valid(r.geburtsdatum, 'date')
+                 THEN r.geburtsdatum::date END AS geb,
+            CASE WHEN r.geburtsdatum ~ %(muster)s AND pg_input_is_valid(r.geburtsdatum, 'date') THEN 'gueltig'
+                 WHEN %(m13)s AND r.geburtsdatum ~ %(muster13)s THEN 'monat_13'
                  ELSE 'ungueltig' END AS geb_status
           FROM r
         ),
         u AS (
           SELECT t.*,
-            CASE WHEN pg_input_is_valid(t.beginn_t, 'date') THEN t.beginn_t::date END AS beg,
-            CASE WHEN pg_input_is_valid(t.ende_t, 'date') THEN t.ende_t::date END AS end_d
+            CASE WHEN t.beginn_t ~ %(muster)s AND pg_input_is_valid(t.beginn_t, 'date') THEN t.beginn_t::date END
+              AS beg,
+            CASE WHEN t.ende_t ~ %(muster)s AND pg_input_is_valid(t.ende_t, 'date') THEN t.ende_t::date END AS end_d
           FROM t
         ),
         z AS (
@@ -172,7 +241,8 @@ def bereinigen(
                z.end_d,
                z.c_qualifikation, z.c_oenace, %(ver)s, z.c_bundesland, z.roh_zeilen,
                array_remove(ARRAY[{tausch_name}::text,
-                                  CASE WHEN z.beg IS NULL THEN {beginn_name}::text END]
+                                  CASE WHEN z.beg IS NULL THEN {beginn_name}::text END,
+                                  CASE WHEN z.ende_t IS NOT NULL AND z.end_d IS NULL THEN {ende_name}::text END]
                             || coalesce((SELECT array_agg(g.name ORDER BY g.name) FROM meta.regel g
                                          WHERE g.id = ANY(z.qz_regeln)), '{{}}'), NULL),
                z.oenace, z.bundesland
@@ -193,6 +263,7 @@ def bereinigen(
         joins=sql.SQL("\n").join(joins),
         tausch_name=tausch_name,
         beginn_name=beginn_name,
+        ende_name=ende_name,
     )
 
     conn.execute(
@@ -208,6 +279,9 @@ def bereinigen(
             "fb": fensterbeginn,
             "ver": version,
             "qz": qz_quelle,
+            "qz_ids": qz_ids,
+            "muster": muster,
+            "muster13": muster13,
         },
     )
 

@@ -93,6 +93,13 @@ def eine(regeln: list[Regel], typ: str, art: str) -> Regel:
     return treffer[0]
 
 
+def wert(regel: Regel, schluessel: str) -> Any:
+    """Pflichtparameter einer Regel; fehlt er, ist der Regelsatz unvollständig (kein stiller Standardwert)."""
+    if schluessel not in regel.parameter:
+        raise RegelFehler(f"{regel.name}: Parameter '{schluessel}' fehlt")
+    return regel.parameter[schluessel]
+
+
 def hoechstens_eine(regeln: list[Regel], typ: str, art: str) -> Regel | None:
     """Höchstens eine aktive Regel dieser Art (Einleseregeln sind abschaltbar)."""
     treffer = [r for r in regeln if r.typ == typ and r.art == art]
@@ -106,11 +113,12 @@ def hoechstens_eine(regeln: list[Regel], typ: str, art: str) -> Regel | None:
 def regelstand(conn: Verbindung, regeln: list[Regel]) -> str:
     """Kurzer Hash über alles, was das Ergebnis bestimmt: aktive Regeln, Quellzuordnung, ÖNACE-Gültigkeit.
 
-    Freigabe-Felder gehören nicht dazu: eine Freigabe ändert keine Zahl.
+    Freigabe-Felder und Prüfregeln gehören nicht dazu: beide ändern keine Zahl.
     """
     teile: list[Any] = [
         [r.typ, r.name, r.art, r.reihenfolge, r.parameter, r.gueltig_ab_lieferung, r.gueltig_bis_lieferung]
         for r in sorted(regeln, key=lambda r: (r.typ, r.reihenfolge, r.name))
+        if r.typ != "pruefung"  # Prüfregeln melden, sie ändern keine Zahl
     ]
     qz = conn.execute(
         """SELECT quelle, merkmal, version, geliefert, code FROM stat.quellzuordnung

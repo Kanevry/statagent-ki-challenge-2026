@@ -1,8 +1,8 @@
 """Schritt 3: Bestand eines Berichtsmonats zählen (Zählregeln aus meta.regel, Typ ``zaehl``).
 
 Erzeugt zwei temporäre Tabellen in der laufenden Transaktion:
-``_bestand`` (je Verhältnis eine Zeile mit den Merkmalen des gewählten Abschnitts und dem Alter) und
-``_zellen`` (Long-Format wie stat.stat_beschaeftigte, ohne Status/Stand). Prüfungen lesen beide.
+``<praefix>bestand`` (Standard ``_bestand``; je Verhältnis eine Zeile mit den Merkmalen des gewählten Abschnitts und dem Alter) und
+``<praefix>zellen`` (Long-Format wie stat.stat_beschaeftigte, ohne Status/Stand). Prüfungen lesen beide.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from psycopg import sql
 
 from statagent.db import Verbindung
 from statagent.ergebnis import monatserster, monatsletzter
-from statagent.regeln import Regel, RegelFehler, eine
+from statagent.regeln import Regel, RegelFehler, eine, wert
 
 
 @dataclass(frozen=True)
@@ -30,6 +30,10 @@ class Zaehlung:
     zeitraum: Zeitraum
     variable: str
     gezaehlt: int  # Verhältnisse (je VVH_ID einmal)
+    aktive_abschnitte: int  # Abschnitte, die im Berichtszeitraum bestehen (vor der Abschnittswahl)
+    nicht_aktiv: int  # Abschnitte ohne Bestand im Berichtszeitraum
+    mehrfach: int  # Verhältnisse mit mehr als einem aktiven Abschnitt
+    alter_unbekannt: int  # Verhältnisse mit Alter unbekannt (-1)
     zellen: int
     ergebnis_hash: str
 
@@ -47,23 +51,30 @@ def _tag(token: str, berichtsmonat: str) -> date:
 
 
 def zeitraum(regeln: list[Regel], berichtsmonat: str) -> Zeitraum:
-    p = eine(regeln, "zaehl", "bestand").parameter
-    von, bis = _tag(str(p["von"]), berichtsmonat), _tag(str(p["bis"]), berichtsmonat)
+    r = eine(regeln, "zaehl", "bestand")
+    von, bis = _tag(str(wert(r, "von")), berichtsmonat), _tag(str(wert(r, "bis")), berichtsmonat)
     if von > bis:
         raise RegelFehler(f"Berichtszeitraum {von} nach {bis}")
-    return Zeitraum(art=str(p["zeitraum_art"]), von=von, bis=bis)
+    return Zeitraum(art=str(wert(r, "zeitraum_art")), von=von, bis=bis)
 
 
 _ORDNUNG = {
     "spaetester_beginn": sql.SQL(
         'a.beginn DESC, a.ende DESC NULLS FIRST, a.qualifikation COLLATE "C", a.oenace COLLATE "C", '
-        'a.bundesland COLLATE "C", a.geschlecht COLLATE "C", a.geburtsdatum_status COLLATE "C"'
+        'a.bundesland COLLATE "C", a.geschlecht COLLATE "C", a.geburtsdatum_status COLLATE "C", '
+        "a.geburtsdatum NULLS LAST, a.geburtsjahr NULLS LAST, a.person_id NULLS LAST, a.roh_zeilen"
     ),
 }
 
 
 def zaehlen(
-    conn: Verbindung, *, lieferung: str, berichtsmonat: str, regelsatz: str, regeln: list[Regel]
+    conn: Verbindung,
+    *,
+    lieferung: str,
+    berichtsmonat: str,
+    regelsatz: str,
+    regeln: list[Regel],
+    praefix: str = "_",
 ) -> Zaehlung:
     """Zählt den Bestand des Berichtsmonats aus bereinigt.abschnitt der Lieferung (Transaktion des Aufrufers)."""
     r_bestand = eine(regeln, "zaehl", "bestand")
@@ -71,21 +82,20 @@ def zaehlen(
     r_alter = eine(regeln, "zaehl", "alter")
     r_dim = eine(regeln, "zaehl", "dimension")
     zr = zeitraum(regeln, berichtsmonat)
-    variable = str(r_bestand.parameter.get("variable", "Beschaeftigungsverhaeltnisse"))
+    variable = str(wert(r_bestand, "variable"))
 
-    ordnung = _ORDNUNG.get(str(r_wahl.parameter.get("ordnung")))
+    ordnung = _ORDNUNG.get(str(wert(r_wahl, "ordnung")))
     if ordnung is None:
         raise RegelFehler(f"{r_wahl.name}: unbekannte Ordnung {r_wahl.parameter.get('ordnung')!r}")
 
-    pa = r_alter.parameter
-    bezug = {"bis": zr.bis, "von": zr.von}.get(str(pa.get("bezug", "bis")))
+    bezug = {"bis": zr.bis, "von": zr.von}.get(str(wert(r_alter, "bezug")))
     if bezug is None:
         raise RegelFehler(f"{r_alter.name}: bezug muss 'bis' oder 'von' sein")
-    monat13 = str(pa.get("geburtsmonat_13", "unbekannt"))
+    monat13 = str(wert(r_alter, "geburtsmonat_13"))
     if monat13 not in ("jahresdifferenz", "unbekannt"):
         raise RegelFehler(f"{r_alter.name}: geburtsmonat_13 muss 'jahresdifferenz' oder 'unbekannt' sein")
 
-    dim = str(r_dim.parameter.get("qualifikation", "code"))
+    dim = str(wert(r_dim, "qualifikation"))
     if dim == "code":
         qual_ausdruck = sql.SQL("b.qualifikation")
         qual_join = sql.SQL("")
@@ -95,12 +105,15 @@ def zaehlen(
     else:
         raise RegelFehler(f"{r_dim.name}: qualifikation muss 'code' oder 'beschaeftigungskategorie' sein")
 
-    conn.execute("DROP TABLE IF EXISTS _bestand")
-    conn.execute("DROP TABLE IF EXISTS _zellen")
+    if praefix not in ("_", "_rev_", "_alt_"):
+        raise ValueError(f"unzulässiges Tabellen-Präfix {praefix!r}")
+    t_bestand, t_zellen = sql.Identifier(f"{praefix}bestand"), sql.Identifier(f"{praefix}zellen")
+    conn.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(t_bestand))
+    conn.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(t_zellen))
     conn.execute(
         sql.SQL(
             """
-            CREATE TEMP TABLE _bestand ON COMMIT DROP AS
+            CREATE TEMP TABLE {t_bestand} ON COMMIT DROP AS
             WITH w AS (
               SELECT DISTINCT ON (a.vvh_id) a.*
               FROM bereinigt.abschnitt a
@@ -119,7 +132,7 @@ def zaehlen(
                      THEN extract(year FROM %(bezug)s::date)::int - w.geburtsjahr
               END AS alter_roh) x
             """
-        ).format(ordnung=ordnung),
+        ).format(ordnung=ordnung, t_bestand=t_bestand),
         {
             "l": lieferung,
             "rs": regelsatz,
@@ -127,43 +140,68 @@ def zaehlen(
             "bis": zr.bis,
             "bezug": bezug,
             "m13": monat13,
-            "amax": int(pa.get("max_plausibel", 200)),
-            "amin": int(pa.get("min_plausibel", 0)),
+            "amax": int(wert(r_alter, "max_plausibel")),
+            "amin": int(wert(r_alter, "min_plausibel")),
         },
     )
     conn.execute(
         sql.SQL(
             """
-            CREATE TEMP TABLE _zellen ON COMMIT DROP AS
+            CREATE TEMP TABLE {t_zellen} ON COMMIT DROP AS
             SELECT %(art)s::text AS zeitraum_art, %(von)s::date AS zeitraum_von, %(bis)s::date AS zeitraum_bis,
                    b.bundesland AS region, b.oenace, b.oenace_version, b.geschlecht,
                    {qual} AS qualifikation, b.alter_jahre AS alter, %(var)s::text AS variable, count(*)::bigint AS wert
-            FROM _bestand b {join}
+            FROM {t_bestand} b {join}
             GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
             """
-        ).format(qual=qual_ausdruck, join=qual_join),
+        ).format(qual=qual_ausdruck, join=qual_join, t_bestand=t_bestand, t_zellen=t_zellen),
         {"art": zr.art, "von": zr.von, "bis": zr.bis, "var": variable},
     )
     kennzahlen = conn.execute(
-        """
-        SELECT (SELECT count(*) FROM _bestand) AS gezaehlt, count(*) AS zellen, coalesce(sum(wert), 0) AS summe,
+        sql.SQL(
+            """
+        SELECT (SELECT count(*) FROM {t_bestand}) AS gezaehlt, count(*) AS zellen, coalesce(sum(wert), 0) AS summe,
                encode(sha256(convert_to(coalesce(string_agg(
                  concat_ws('|', zeitraum_art, zeitraum_von, zeitraum_bis, region, oenace, oenace_version, geschlecht,
                            qualifikation, alter, variable, wert),
                  E'\\n' ORDER BY zeitraum_art COLLATE "C", zeitraum_von, zeitraum_bis, region COLLATE "C",
                    oenace COLLATE "C", oenace_version COLLATE "C", geschlecht COLLATE "C",
                    qualifikation COLLATE "C", alter, variable COLLATE "C"), ''), 'UTF8')), 'hex') AS hash
-        FROM _zellen
+        FROM {t_zellen}
         """
+        ).format(t_bestand=t_bestand, t_zellen=t_zellen)
     ).fetchone()
     assert kennzahlen is not None
     gezaehlt = int(str(kennzahlen["gezaehlt"]))
     if int(str(kennzahlen["summe"])) != gezaehlt:
         raise RegelFehler(f"Zellensumme {kennzahlen['summe']} ≠ gezählte Verhältnisse {gezaehlt}")
+    # Unabhängig von der Abschnittswahl gezählt (Abrechnung, Qualitätsbericht § 1).
+    abschnitte = conn.execute(
+        sql.SQL(
+            """
+            SELECT count(*) FILTER (WHERE a.beginn <= %(bis)s AND (a.ende IS NULL OR a.ende >= %(von)s)) AS aktiv,
+                   count(*) FILTER (WHERE NOT (a.beginn <= %(bis)s AND (a.ende IS NULL OR a.ende >= %(von)s)))
+                     AS nicht_aktiv,
+                   (SELECT count(*) FROM (
+                      SELECT a2.vvh_id FROM bereinigt.abschnitt a2
+                      WHERE a2.lieferung = %(l)s AND a2.regelsatz = %(rs)s
+                        AND a2.beginn <= %(bis)s AND (a2.ende IS NULL OR a2.ende >= %(von)s)
+                      GROUP BY a2.vvh_id HAVING count(*) > 1) m) AS mehrfach,
+                   (SELECT count(*) FROM {t_bestand} WHERE alter_jahre = -1) AS alter_unbekannt
+            FROM bereinigt.abschnitt a WHERE a.lieferung = %(l)s AND a.regelsatz = %(rs)s
+            """
+        ).format(t_bestand=t_bestand),
+        {"l": lieferung, "rs": regelsatz, "von": zr.von, "bis": zr.bis},
+    ).fetchone()
+    assert abschnitte is not None
     return Zaehlung(
         zeitraum=zr,
         variable=variable,
         gezaehlt=gezaehlt,
+        aktive_abschnitte=int(str(abschnitte["aktiv"])),
+        nicht_aktiv=int(str(abschnitte["nicht_aktiv"])),
+        mehrfach=int(str(abschnitte["mehrfach"])),
+        alter_unbekannt=int(str(abschnitte["alter_unbekannt"])),
         zellen=int(str(kennzahlen["zellen"])),
         ergebnis_hash=str(kennzahlen["hash"]),
     )

@@ -2,7 +2,8 @@
 -- beispielbericht_2024-08.xlsx (2.880 Zellen Tab1–Tab13 exakt). Jeder Wert steht in `parameter`;
 -- der Code (statagent/regeln.py) kennt nur die Arten. Neue Regeln kommen ohne Freigabe an:
 -- `statagent regeln freigeben --regelsatz v1 --name "Vorname Nachname"` gibt sie mit Namen frei.
--- Idempotent: bestehende Regeln werden nie überschrieben (Änderungen nur über neue Regelzeilen).
+-- Idempotent: noch nicht freigegebene Entwürfe werden auf diesen Stand gebracht, freigegebene Regeln nie
+-- (sie ändert nur ein Vorschlag mit Freigabe).
 
 INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, beschreibung, begruendung, grundlage) VALUES
 
@@ -19,8 +20,8 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  'Anhang A Nr. 1; Fachbeschreibung § 2; Lead-Gegenrechnung § 7; Rückfrage R3'),
 
 ('v1', 'E03_datum_pruefen', 'einlese', 'datum', 30,
- '{"format": "JJJJ-MM-TT", "geburtsmonat_13": "geburtsjahr_behalten"}',
- 'BEGINN, ENDE und GEBURTSDATUM werden nur als Datum übernommen, wenn sie gültig sind. Ein Geburtsdatum mit Monat 13 bleibt als Geburtsjahr erhalten (Status monat_13), andere ungültige Geburtsdaten gelten als unbekannt.',
+ '{"muster": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "muster_monat_13": "^[0-9]{4}-13-[0-9]{2}$", "geburtsmonat_13": "geburtsjahr_behalten"}',
+ 'BEGINN, ENDE und GEBURTSDATUM werden nur als Datum übernommen, wenn sie dem Muster JJJJ-MM-TT entsprechen und ein gültiges Datum sind (Wörter wie „today“ oder „infinity“ gelten nicht, sonst wäre ein Lauf nicht reproduzierbar). Ein Geburtsdatum mit Monat 13 bleibt als Geburtsjahr erhalten (Status monat_13), andere ungültige Geburtsdaten gelten als unbekannt.',
  'Lieferungen enthalten 336–444 Geburtsdaten je Monat mit Monat 13 (z. B. 1963-13-09), in 2024-08 370 am Stichtag. Das Jahr ist plausibel und wird für Alter und Ministeriums-Lieferung gebraucht.',
  'Fachbeschreibung § 2 (Format JJJJ-MM-TT); Forensik Nr. 7; Rückfrage R1'),
 
@@ -30,6 +31,12 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  'Anhang A Nr. 1 (kein Verhältnis geht verloren). Die Lieferung ist ein Vollabzug über drei Monate (Fachbeschreibung § 2); ein Verhältnis ohne BEGINN bestand also spätestens seit Fensterbeginn. Nach Regel E01 bisher 0 Fälle.',
  'Fachbeschreibung § 2; Anhang A Nr. 1, 2'),
 
+('v1', 'E06_ende_ungueltig', 'einlese', 'ersatz_ende', 45,
+ '{"ersatz": "laeuft"}',
+ 'Ein ENDE, das geliefert, aber kein gültiges Datum ist, wird als „Verhältnis läuft“ übernommen und der Satz als korrigiert markiert. Das Verhältnis zählt, die Prüfregel meldet den Satz.',
+ 'Anhang A Nr. 1 (kein Verhältnis geht verloren) und Nr. 2 (jede Zuordnung festhalten). Ein unlesbares ENDE belegt kein Ende; das Verhältnis besteht laut Lieferung (Vollabzug). Bisher 0 Fälle in 24 Lieferungen.',
+ 'Fachbeschreibung § 2 (ENDE leer = Verhältnis läuft); Anhang A Nr. 1, 2'),
+
 ('v1', 'E05_quellzuordnung', 'einlese', 'quellzuordnung', 50,
  '{"tabelle": "stat.quellzuordnung", "quelle": "zvd"}',
  'GESCHLECHT, QUAL, OENACE und BUNDESLAND werden über stat.quellzuordnung auf Klassifikationscodes geführt. Ein leeres oder unbekanntes Feld führt auf die Ausprägung „unbekannt“ des Merkmals; der Satz zählt.',
@@ -37,9 +44,9 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  'Fachbeschreibung § 3, § 4 Nr. 8; Anhang B'),
 
 ('v1', 'Q01_oenace_2003_unterabschnitte', 'zuordnung', 'quellzuordnung', 51,
- '{"merkmal": "oenace", "von_version": "2003", "codes": ["DA","DB","DC","DD","DF","DG","DH","DI","DJ","DK","DL","DM","DN"], "ziel": "C"}',
+ '{"merkmal": "oenace", "von_version": "2003", "codes": ["DA","DB","DC","DD","DE","DF","DG","DH","DI","DJ","DK","DL","DM","DN"], "ziel": "C"}',
  'ÖNACE-2003-Unterabschnitte DA bis DN (Sachgütererzeugung) werden dem Abschnitt C „Herstellung von Waren“ zugeordnet, in ÖNACE 2008 und 2025. D allein bleibt D (Energieversorgung).',
- 'Jede Lieferung enthält rund 50 Sätze mit diesen Altcodes. Laut Umsteiger OENACE2003_OENACE2008 gehen die 6-Steller dieser Unterabschnitte mehrheitlich nach C (DA 49 von 49). Der Beispielbericht weist C = 62.204 = 62.154 Sätze mit C + 50 Sätze mit D[A-M] aus. DE (Verlagswesen teils J) ist bewusst nicht zugeordnet und würde als unbekannter Code gemeldet.',
+ 'Jede Lieferung enthält rund 50 Sätze mit diesen Altcodes. Laut Umsteiger OENACE2003_OENACE2008 gehen die 6-Steller dieser Unterabschnitte mehrheitlich nach C (DA 49 von 49). Der Beispielbericht weist C = 62.204 = 62.154 Sätze mit C + 50 Sätze mit D[A-M] aus. Regel: jeder Unterabschnitt geht auf den Abschnitt, auf den die Mehrheit seiner 6-Steller führt; das gilt auch für DE (25 von 32 nach C, 6 nach J Verlagswesen, 1 nach R) und DN (48 von 61 nach C). DE und DN kommen in keiner der 24 Lieferungen vor (gemessen 05.11.), die Zuordnung ändert also heute keine Zahl.',
  'Fachbeschreibung § 4 Nr. 8; beispielbericht_2024-08.xlsx Tab3; Rückfrage F5'),
 
 ('v1', 'Q02_leer_unbekannt', 'zuordnung', 'quellzuordnung', 52,
@@ -84,7 +91,10 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  'Fachbeschreibung § 4 Nr. 6.',
  'Fachbeschreibung § 4 Nr. 6')
 
-ON CONFLICT (regelsatz, name) DO NOTHING;
+ON CONFLICT (regelsatz, name) DO UPDATE
+  SET typ = EXCLUDED.typ, art = EXCLUDED.art, reihenfolge = EXCLUDED.reihenfolge, parameter = EXCLUDED.parameter,
+      beschreibung = EXCLUDED.beschreibung, begruendung = EXCLUDED.begruendung, grundlage = EXCLUDED.grundlage
+  WHERE meta.regel.freigegeben_von IS NULL;  -- nur Entwürfe; freigegebene Regeln ändert nur eine Freigabe
 
 -- Quellzuordnung (Anhang B). Identität für jeden Klassifikationscode, dazu Altcodes, leer und sonst.
 INSERT INTO stat.quellzuordnung (quelle, merkmal, version, geliefert, klassifikation, code, regel_id)
@@ -103,7 +113,7 @@ INSERT INTO stat.quellzuordnung (quelle, merkmal, version, geliefert, klassifika
 SELECT 'zvd', 'oenace', v.version, c.code, 'klass_oenace', 'C',
        (SELECT id FROM meta.regel WHERE regelsatz = 'v1' AND name = 'Q01_oenace_2003_unterabschnitte')
 FROM (VALUES ('2008'), ('2025')) AS v (version),
-     unnest(ARRAY['DA','DB','DC','DD','DF','DG','DH','DI','DJ','DK','DL','DM','DN']) AS c (code)
+     unnest(ARRAY['DA','DB','DC','DD','DE','DF','DG','DH','DI','DJ','DK','DL','DM','DN']) AS c (code)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO stat.quellzuordnung (quelle, merkmal, version, geliefert, klassifikation, code, regel_id)
