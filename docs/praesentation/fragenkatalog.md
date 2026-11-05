@@ -10,7 +10,7 @@ Stand der Befehle: `uv run uc3 frage "…"` und die Seite `/uc3/fragen` sind mit
 
 ## Die acht geprüften Fragen
 
-Nur diese Fragen werden vorgeführt, wörtlich so getippt. Jede Zahl ist gegen eigenes SQL und das unabhängige Orakel nachgerechnet (lead-session-orchestrator-bb, 05.11.2026 17:15 bis 17:19, #74). Freie Fragen der Jury werden nicht eingetippt, solange der Folge-MR von bb („nie still falsch“) nicht auf main ist. Dann bietet Bernhard eine Frage aus dieser Liste an oder nimmt das SQL aus Teil A.
+Nur diese Fragen werden vorgeführt, wörtlich so getippt. Jede Zahl ist gegen eigenes SQL und das unabhängige Orakel nachgerechnet (Prüfung im Team, 05.11.2026 17:15 bis 17:19, #74). Freie Fragen der Jury werden nicht eingetippt, solange der Folge-MR von bb („nie still falsch“) nicht auf main ist. Dann bietet Bernhard eine Frage aus dieser Liste an oder nimmt das SQL aus Teil A.
 
 | Nr. | Frage | Sollzahl | Kennung |
 |---|---|---|---|

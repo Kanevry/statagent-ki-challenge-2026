@@ -29,11 +29,11 @@ Anwendung und Verantwortung.
 ### Evidence Baseline
 | Claim | Quelle / Befehl | Ergebnis | Gemessen |
 |-------|-----------------|----------|----------|
-| Fachjury 15 min: Präsentation, Live-Änderung, Datenanfragen; Abgabe Fr 09:00 | Vault `vor-ort-05-11.md` § 1 und § 5 (Blätter und `Use Case 3 StatAgent.docx`) | bestätigt | 2026-11-05 10:40 |
+| Fachjury 15 min: Präsentation, Live-Änderung, Datenanfragen; Abgabe Fr 09:00 | Unterlagen vor Ort am 05.11. (Blätter und `Use Case 3 StatAgent.docx`) | bestätigt | 2026-11-05 10:40 |
 | Golden Set 08/2024 wird exakt reproduziert | Lead-Gegenrechnung `ki-challenge-goldenset-2024-08.md` § 3 (`compare.py` gegen `beispielbericht_2024-08.xlsx`) | 2.880 / 2.880 Zellen, 0 Abweichungen | 2026-11-05 auf einer separaten Datenbankinstanz |
 | Gefundene Datenfehler (Monat 13, Alter > 74, ÖNACE 2003, BL/ÖNACE leer, Dubletten 2025-03, FD fehlen 2025-03, Teil-Lieferung 2025-10, Revision 12/2024) | dieselbe Datei § 2, § 4, § 7 bis § 9, SQL je Befund | Zahlen siehe Storyboard S6 | 2026-11-05 |
 | Pen-Datei hat freien Bereich unter y = 3900 | Pencil-MCP `Get(document, depth 0)` | tiefster Frame endet bei y = 3900 (S7 · Protokoll); Story-Frame endet bei y = 3854 | 2026-11-05 |
-| Design-Entscheide: Richtung B „Kontrollraum“, B1 Lichtkarte, Gelb = Warnfarbe, Mint = Beleg, Name „StatAgent by Bernhard Götzendorfer“ | Vault `show-und-design.md` § 8 (Owner-Entscheide 05.11. 09:45) und Pen-Variablen (`night`, `ink`, `mint`, `ki-violett`, `warn`, `beleg`, `font-head` Space Grotesk, `font-body` Inter, `font-mono` JetBrains Mono) | bestätigt | 2026-11-05 |
+| Design-Entscheide: Richtung B „Kontrollraum“, B1 Lichtkarte, Gelb = Warnfarbe, Mint = Beleg, Name „StatAgent by Bernhard Götzendorfer“ | Owner-Entscheide 05.11. 09:45 und Pen-Variablen (`night`, `ink`, `mint`, `ki-violett`, `warn`, `beleg`, `font-head` Space Grotesk, `font-body` Inter, `font-mono` JetBrains Mono) | bestätigt | 2026-11-05 |
 | Web-UI, Agent-Laufzeit, 24 Läufe stehen am Fr für die Demo | Issues #14 bis #18 (status::in-progress) | **Hypothese**, hängt an E1 | 2026-11-05 11:15 |
 
 ## 2. Solution & Scope
@@ -124,18 +124,18 @@ Oracle: Lead stellt in der Jury-Simulation drei Fragen aus dem Katalog und eine 
 ### External Acceptance
 | Criterion | Oracle | Owner | Not before | Pass condition | Fallback if it cannot run |
 |-----------|--------|-------|------------|----------------|---------------------------|
-| Probelauf ≤ 10 min und Jury-Simulation | Stoppuhr, Lead-Protokoll | lead-session-orchestrator-09 | 2026-11-05 20:00 | ≤ 10:00, keine Pflichtlücke | Owner hält den Probelauf allein und notiert Zeit |
+| Probelauf ≤ 10 min und Jury-Simulation | Stoppuhr, Lead-Protokoll | Lead | 2026-11-05 20:00 | ≤ 10:00, keine Pflichtlücke | Owner hält den Probelauf allein und notiert Zeit |
 | Backup-Video der Demo | Abspieltest offline | Owner | 2026-11-06 07:00 | Video zeigt D1–D3 | Screenshots der Web-UI als Bildfolge im Deck |
 
 ## 4. Technical Notes
 
 ### Affected Files
-- `docs/praesentation/2026-11-05-prd-e5-praesentation.md` — dieses Dokument (Storyboard)
-- `docs/praesentation/skript-fachjury.md` — Sprechtext mit Zeitmarken, Finale-Fassung
-- `docs/praesentation/demo-drehbuch.md` — D1–D3, Fallbacks, Checkliste
-- `docs/praesentation/fragenkatalog.md` — Fragen, Kurzantworten, Fundstellen
-- `docs/praesentation/kriterien-karte.md` — 120-Punkte-Raster mit Belegen
-- `design/ki-challenge.pen` (außerhalb des Abgabe-Repos) — Slide-Frames ab y = 4400
+- `docs/praesentation/2026-11-05-prd-e5-praesentation.md`: dieses Dokument (Storyboard)
+- `docs/praesentation/skript-fachjury.md`: Sprechtext mit Zeitmarken, Finale-Fassung
+- `docs/praesentation/demo-drehbuch.md`: D1–D3, Fallbacks, Checkliste
+- `docs/praesentation/fragenkatalog.md`: Fragen, Kurzantworten, Fundstellen
+- `docs/praesentation/kriterien-karte.md`: 120-Punkte-Raster mit Belegen
+- `design/ki-challenge.pen` (außerhalb des Abgabe-Repos): Slide-Frames ab y = 4400
 
 ### Architecture
 Slides als Top-Level-Frames „P01 · …“ bis „P15 · …“ in Pen, Reihen à 4 Folien (x = 0, 2000, 4000, 6000; y = 4400,

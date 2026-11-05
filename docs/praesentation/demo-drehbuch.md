@@ -48,7 +48,7 @@ Standard ist Oktober 2025, weil Szene 3 diesen Monat zeigt. Alternative ist Mär
 
 ### D2 Änderung per Sprache: Rückblick auf eine echte Freigabe (6:15–7:45)
 
-**Stand der Probe (05.11.2026 17:56 bis 17:58, Azure, Kopie der Abgabe-DB):** Keine Live-Änderung ging durch. B2 (Geburtsmonat 13, drei Versuche), B3 und B1 endeten mit „Kein Vorschlag“ (falsche Rolle oder falscher Parameter) oder mit dem Abbruch der Probe bei Prüfregel P08. Der Fehler liegt bei b-uc3-84. Deshalb zeigt D2 nur, was geprobt ist: die echte Freigabe von Auftrag 1.
+**Stand der Probe (05.11.2026 17:56 bis 17:58, Azure, Kopie der Abgabe-DB):** Keine Live-Änderung ging durch. B2 (Geburtsmonat 13, drei Versuche), B3 und B1 endeten mit „Kein Vorschlag“ (falsche Rolle oder falscher Parameter) oder mit dem Abbruch der Probe bei Prüfregel P08. Der Fehler liegt im UC3-Code und ist an die UC3-Lane gemeldet. Deshalb zeigt D2 nur, was geprobt ist: die echte Freigabe von Auftrag 1.
 
 **Auftrag 1 ist abgegeben.** „Dienstvertrag und freien Dienstvertrag zusammen ausweisen“ hat Bernhard am 5. November 2026 freigegeben (Vorschlag 24, Regelsatz v2, F19, F26). Er steckt in der Abgabe. Ihn live noch einmal auszuführen hieße, eine schon gültige Änderung zu wiederholen; einen Reset gibt es nicht.
 
@@ -65,9 +65,9 @@ Ablauf (im Browser auf `/uc3/freigaben`, Reiter „Erledigt“, gleich im Termin
   - Regel-Diff von Vorschlag 24 (Regel `R6_beschaeftigungskategorie`).
   - Zahlen vorher und nachher: Gesamt gleich, Kategorien verschoben (F19).
   - Freigabe mit Vor- und Nachname im Protokoll (F26). „Team“ wird abgelehnt (`shared/py/plattform/freigabe.py`, `pruefe_name`).
-- Die Uhrzeit liest Bernhard nicht vor: Das Protokoll zeigt sie ohne Zeitzone (15:53 statt 16:53 Wien), Hinweis an b-uc3-84.
+- Die Uhrzeit liest Bernhard nicht vor: Das Protokoll zeigt sie ohne Zeitzone (15:53 statt 16:53 Wien), Hinweis an die UC3-Lane.
 
-**Live-Änderung nur nach bestandener Probe.** Meldet b-uc3-84 einen Fix für die Probe, probt E5 B2 erneut auf der Kopie der Abgabe-DB (`statistik_probe`) bis `vorschlag zeigen` und `ablehnen`. Erst wenn das dreimal hintereinander klappt, kommt B2 als Live-Teil zurück in dieses Drehbuch:
+**Live-Änderung nur nach bestandener Probe.** Meldet die UC3-Lane einen Fix für die Probe, probt E5 B2 erneut auf der Kopie der Abgabe-DB (`statistik_probe`) bis `vorschlag zeigen` und `ablehnen`. Erst wenn das dreimal hintereinander klappt, kommt B2 als Live-Teil zurück in dieses Drehbuch:
 
 `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2025-03`
 
@@ -80,7 +80,7 @@ Bis dahin gilt: Nennt die Jury nach Szene 10 eine Regel, sagt Bernhard: „Das z
 
 Drei Anfragen der Aufgabenstellung, je etwa 25 Sekunden: Zeitreihe, Männer und Frauen je Bundesland, Fluktuation je Branche. Alle drei stammen aus der Liste der acht geprüften Fragen unten.
 
-**Nur geprüfte Fragen.** Vorgeführt werden ausschließlich die acht Fragen aus der Tabelle, wörtlich so getippt. Jede ist gegen eigenes SQL und das unabhängige Orakel nachgerechnet (Prüfung lead-session-orchestrator-bb, 05.11.2026 17:15 bis 17:19, #74). Freie Fragen der Jury tippt Bernhard nicht ein, solange der Folge-MR von bb („nie still falsch“) nicht auf main ist. Dann bietet er eine Frage aus der Liste an. Der Stand wird um 06:45 geprüft und in `probe.md` eingetragen.
+**Nur geprüfte Fragen.** Vorgeführt werden ausschließlich die acht Fragen aus der Tabelle, wörtlich so getippt. Jede ist gegen eigenes SQL und das unabhängige Orakel nachgerechnet (Prüfung im Team, 05.11.2026 17:15 bis 17:19, #74). Freie Fragen der Jury tippt Bernhard nicht ein, solange der Folge-MR von bb („nie still falsch“) nicht auf main ist. Dann bietet er eine Frage aus der Liste an. Der Stand wird um 06:45 geprüft und in `probe.md` eingetragen.
 
 - Klickweg: Seite `/uc3/fragen`, Frage ins Feld tippen. Die Antwort zeigt die Zahl, die Abfrage und die Definition.
 - Terminal (Stufe 2): `uv run uc3 frage "…"` mit demselben Text.
@@ -165,7 +165,7 @@ Jeder Punkt wird abgehakt, sobald er geprüft ist. Uhrzeit nur aus der Uhr (`TZ=
 - [ ] D1: Monat gewählt (2025-10 oder 2025-03) und in `probe.md` eingetragen.
 - [ ] D3: Die acht geprüften Fragen auf `/uc3/fragen` und mit `uv run uc3 frage "…"` geprobt, jede Zahl gegen die Sollzahl der Tabelle. Folge-MR von bb auf main? Wenn nein, keine freien Fragen. SQL A1 bis A3 als Rückfall bereit, `<regelstand>` eingesetzt.
 - [ ] D4: Sollwert 7.498 (F18) gegen die Abfrage im Belegregister geprüft. Testmodus-Ansage bereit.
-- [ ] D2: `uv run uc3 vorschlag zeigen 24` und `uv run uc3 protokoll --zeigen` laufen auf dem Vortragsrechner. B2 nur, wenn es nach dem Fix von b-uc3-84 dreimal gegen `statistik_probe` geklappt hat. Nie `freigabe` geübt.
+- [ ] D2: `uv run uc3 vorschlag zeigen 24` und `uv run uc3 protokoll --zeigen` laufen auf dem Vortragsrechner. B2 nur, wenn es nach dem Fix der UC3-Lane dreimal gegen `statistik_probe` geklappt hat. Nie `freigabe` geübt.
 - [ ] Protokolleintrag der Freigabe von Auftrag 1 (05.11.2026 16:54) gefunden, Fenster für den Rückblick bereit.
 - [ ] Entscheid D4 um 06:45 getroffen und in `probe.md` eingetragen.
 - [ ] Freeze um 07:00 (Europe/Vienna) bestätigt. Danach keine Änderung mehr.

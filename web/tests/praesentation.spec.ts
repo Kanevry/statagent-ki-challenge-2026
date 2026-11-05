@@ -1,7 +1,7 @@
 /**
  * /praesentation Folienschau (#59, Lane E5) im Browser, je Projekt der Konfiguration (desktop 1440×900, mobil 390×844).
  * Die Folien kommen aus web/content/slides/; der Test liest dieselben Dateien und findet Szenen über `szene:` im
- * Frontmatter bzw. `data-szene` im DOM, nie über feste Foliennummern. Läuft in der CI, lokal nicht auf dem M4.
+ * Frontmatter bzw. `data-szene` im DOM, nie über feste Foliennummern. Läuft in der CI, nicht lokal.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
