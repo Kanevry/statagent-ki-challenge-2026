@@ -125,9 +125,10 @@ fertig in rund 7 Minuten, das Ergebnis gleich dem früheren Lauf.
 
 ### Online-Demo
 
-Eine öffentliche, nur lesende Demo läuft unter https://ki-challenge.gotzendorfer.at (Adresse und Aufbau:
-`deploy/README.md`). Dort sind keine Modellschlüssel eingetragen, die Seite nutzt `LLM_PROVIDER=mock`. Schreibende
-Anfragen (POST) blockt der Server mit 403.
+Eine öffentliche Demo läuft unter https://ki-challenge.gotzendorfer.at (Adresse und Aufbau: `deploy/README.md`).
+Man kann dort Fragen stellen: auf `/uc3/fragen` an die Daten und auf `/uc4`, wo online nur UC3 antwortet. Die Zahl
+kommt aus der Datenbank, ohne Sprachmodell, mit Beleg. Alles andere ist dort nur zum Ansehen: Freigaben, Läufe und
+Verhandlungen nimmt der Server nicht an (403). Je Gerät gehen 10 Fragen in der Minute.
 
 ## Abhängigkeiten und Voraussetzungen
 
@@ -161,7 +162,7 @@ Schlüsselnamen und Erklärungen: `.env.example`. **Werte stehen nie im Repo.** 
 | Claude | `CLAUDE_MODEL` (läuft über die Claude-Code-CLI im Abo, kein API-Schlüssel) |
 | Datenbanken | `UC1_DATABASE_URL`, `UC2_DATABASE_URL`, `UC3_DATABASE_URL` |
 | UC3 | `STATAGENT_STARTPAKET`, `STATAGENT_ABGABE` (siehe `uc3/README.md`) |
-| UC4 und Online | `UC4_ADAPTER`, `KIC_ONLINE_LESEND`, `KIC_ONLINE` (setzt nur das Prod-Compose) |
+| UC4 und Online | `UC4_ADAPTER`, `UC4_KETTE` (welche Bereiche auf `/uc4` antworten), `UC4_MODELLWAHL`, `KIC_ONLINE_LESEND`, `KIC_ONLINE_FRAGEN` (Fragen online erlaubt), `KIC_ONLINE` (setzt nur das Prod-Compose) |
 | Grenzen für Modellaufrufe | `LLM_TAGESBUDGET_AUFRUFE` (Aufrufe je Tag, online Pflicht), `RATENLIMIT_PRO_MINUTE` (Fragen je IP und Minute), `PLATTFORM_PROTOKOLL` (Ort des Modellprotokolls, dort wird gezählt) |
 | Voice | `VAPI_API_KEY`, `VAPI_PUBLIC_KEY`, `VAPI_WEBHOOK_SECRET`, `VAPI_CUSTOM_LLM_KEY`, `VAPI_ASSISTANT_ID`, `PUBLIC_URL`; optional `VOICE_RATENLIMIT_PRO_MINUTE`, `VOICE_ANTWORT_TIMEOUT_S`, `PLATTFORM_VOICE_PROTOKOLL` |
 
@@ -178,9 +179,10 @@ Die Angaben stimmen mit `docs/models.md` überein. Das ist dort die Hauptquelle,
   **Nie in der UC3-Zählung.**
 - **Embeddings:** `google/embeddinggemma-2`, lokal. Die Gewichte sind nicht im Repo (siehe Lizenzen).
 - **Ohne Schlüssel** läuft alles mit `LLM_PROVIDER=mock`. Der UC3-Monatslauf braucht ohnehin kein Modell.
-- **Online-Demo:** Dort gibt es heute keine Modellschlüssel, sie nutzt `mock`. Kommen Schlüssel dazu, gelten zwei
-  Grenzen: ein Ratenlimit je IP und ein Tagesbudget für Modellaufrufe. Ohne Tagesbudget ruft die App
-  online kein echtes Modell, sie lehnt den Aufruf vorher ab.
+- **Online-Demo:** Dort gibt es heute keine Modellschlüssel. Fragen beantwortet nur UC3, und UC3 braucht kein
+  Modell. Kommen Schlüssel dazu, gelten zwei Grenzen: ein Ratenlimit je IP und ein Tagesbudget für Modellaufrufe,
+  das auch bei gleichzeitigen Fragen nicht überschritten wird. Ohne Tagesbudget ruft die App online kein echtes
+  Modell, sie lehnt den Aufruf vorher ab.
 
 ## Grenzen und offene Punkte
 
@@ -192,8 +194,8 @@ Die Angaben stimmen mit `docs/models.md` überein. Das ist dort die Hauptquelle,
 - **UC2:** Die Akteure spielt ein Sprachmodell. Das ist eine Simulation, keine echte Verhandlung, und die Seite
   sagt das auch so.
 - **UC4:** Die drei Antworten kommen nacheinander. Mit einem echten Modell dauert die ganze Frage einige Sekunden
-  bis gut eine Minute. Fällt ein Bereich aus, nennt die Seite ihn als „fehlt“ und zeigt die anderen. Online ist die
-  Frage gesperrt (403).
+  bis gut eine Minute; die Seite zeigt jede Antwort, sobald sie da ist. Fällt ein Bereich aus, nennt die Seite ihn
+  als „fehlt“ und zeigt die anderen. Online antwortet nur UC3 (ohne Modell).
 - **Voice:** Server und Sprechknopf sind gebaut. Ein Anruf geht erst nach der Einrichtung (Tunnel, Vapi-Konto mit
   Zahlungsmittel, Schlüssel). Die Tunnel-Adresse wechselt bei jedem Start, danach muss der Assistent neu
   eingetragen werden (`docs/voice.md`). Vapi ist ein US-Dienst. Der Text-Weg ersetzt Voice vollständig.
