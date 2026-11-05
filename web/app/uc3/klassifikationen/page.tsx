@@ -393,8 +393,8 @@ async function Pensionen() {
           </tbody>
         </table>
         <Fliesstext>
-          Nicht enthalten sind die öffentlich Bediensteten, die frühere BVA meldet keine Pensionen. Bei „Vorzeitige“ fehlt 2018
-          und 2019 das Notariat, es meldet diese Art nicht.
+          Öffentlich Bedienstete fehlen in allen Jahren, die frühere BVA meldet keine Pensionen. Bei „Vorzeitige“ fehlt 2018 und
+          2019 das Notariat, es meldet diese Art nicht.
         </Fliesstext>
       </div>
     </details>
