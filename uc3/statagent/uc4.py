@@ -285,8 +285,8 @@ def jahr_rueckfrage(was: str, beispiel: str, jahr: str) -> str:
 
 def _fortgeschrieben_hinweis(monat: str, anzahl: int, fluktuation: bool = False) -> str:
     text = (
-        f"{_monat_anzeige(monat)} enthält {_deutsch(anzahl)} fortgeschriebene Beschäftigungsverhältnisse: "
-        "Sie fehlten in der Lieferung und wurden aus der Lieferung des Vormonats übernommen."
+        f"Im {_monat_anzeige(monat)} sind {_deutsch(anzahl)} Beschäftigungsverhältnisse aus der Lieferung des "
+        "Vormonats übernommen, weil sie in der Lieferung fehlten."
     )
     if fluktuation:
         text += " Zu- und Abgänge dieses Teils fehlen, die Fluktuation ist dadurch zu niedrig."

@@ -397,12 +397,15 @@ def test_fortgeschriebene_ausgewiesen(gerechnet: Verbindung) -> None:
     gerechnet.execute("UPDATE meta.lauf SET fortgeschrieben = 1234 WHERE lieferung = '2024-09'")
     fluktuation = antwort_frage(gerechnet, FLUKTUATION)
     assert any(
-        "1.234 fortgeschriebene" in h and "Zu- und Abgänge dieses Teils fehlen" in h
+        "1.234 Beschäftigungsverhältnisse aus der Lieferung" in h
+        and "Zu- und Abgänge dieses Teils fehlen" in h
         for h in fluktuation["hinweise"]
     )
     reihe = antwort_frage(gerechnet, ZEITREIHE)
-    assert any(h.startswith("September 2024 enthält 1.234 fortgeschriebene") for h in reihe["hinweise"])
-    assert not any("August 2024 enthält" in h for h in reihe["hinweise"])
+    assert any(
+        h.startswith("Im September 2024 sind 1.234 Beschäftigungsverhältnisse") for h in reihe["hinweise"]
+    )
+    assert not any("Im August 2024 sind" in h for h in reihe["hinweise"])
 
 
 # Fängt: nach einer Regeländerung (Stichtag am 15.) rechnet stat.bewegung_oenace mit ihren eingebauten Regeln
