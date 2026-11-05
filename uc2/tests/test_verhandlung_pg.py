@@ -10,12 +10,16 @@ import psycopg
 import pytest
 
 import uc2.modelle
+from uc2.belege.namen import Namenseintrag, Namensliste
 from uc2.modelle import ModellKonfigFehler
 from uc2.verhandlung.belege import BelegFehler, FixtureQuelle, IndexQuelle
 from uc2.verhandlung.bericht import bericht
 from uc2.verhandlung.fall import FallFehler, lade_fall
 from uc2.verhandlung.lauf import Laufoptionen, Verhandlung
 from uc2.verhandlung.speicher import lies_ereignisse, lies_fall, wirksamer_status
+
+SCHUTZLISTE = Namensliste((Namenseintrag("Felix Probst"),))
+"""Erfundene Liste: Echte Provider laufen nur mit Namensliste (#137, fail-closed vor dem Prüfpunkt)."""
 
 
 @pytest.fixture(autouse=True)
@@ -85,7 +89,7 @@ def test_kaputter_mock_zug_ergibt_ungueltige_ausgabe_und_lauf_endet_fertig(
 
 def test_index_quelle_mit_echtem_provider_wird_verweigert(pg_test: psycopg.Connection[Any]) -> None:
     """Ohne Namensliste ist die Index-Quelle nicht maskiert; der Lauf bricht vor der Anlage ab."""
-    optionen = Laufoptionen(provider="claude", quelle=IndexQuelle(pg_test, namen=None))
+    optionen = Laufoptionen(provider="claude", quelle=IndexQuelle(pg_test, namen=None), namen=SCHUTZLISTE)
     with pytest.raises(BelegFehler, match="nicht maskiert"):
         Verhandlung(pg_test, lade_fall("wartezeiten"), optionen).fuehre_aus()
 
@@ -125,7 +129,9 @@ def test_echter_provider_online_ohne_budget_bricht_vor_dem_ersten_aufruf_ab(
     monkeypatch.setattr(uc2.modelle, "complete", gezaehlt)
     monkeypatch.setattr(kern, "provider_instanz", kein_provider)
     angelegt: list[int] = []
-    optionen = Laufoptionen(provider="claude", quelle=FixtureQuelle(), bei_anlage=angelegt.append)
+    optionen = Laufoptionen(
+        provider="claude", quelle=FixtureQuelle(), bei_anlage=angelegt.append, namen=SCHUTZLISTE
+    )
     with pytest.raises(ModellKonfigFehler, match="LLM_TAGESBUDGET_AUFRUFE"):
         Verhandlung(pg_test, lade_fall("wartezeiten"), optionen).fuehre_aus()
     assert aufrufe == ["claude"]
