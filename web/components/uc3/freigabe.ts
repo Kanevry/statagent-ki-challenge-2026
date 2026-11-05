@@ -1026,7 +1026,7 @@ export function auftragsZitat(anweisung: string): string {
 /** Wer den Auftrag gegeben hat: Name aus dem Protokoll, sonst die Herkunft „Auftrag N“ der Aufgabenstellung. */
 export function auftraggeber(v: Pick<Vorschlag, "gesagtVon" | "anweisung">): string {
   if (v.gesagtVon) return `Gesagt von ${v.gesagtVon}`;
-  return /^Auftrag \d+\b/.test(v.anweisung.trim()) ? "Änderungsauftrag aus der Aufgabenstellung" : "Ohne Namen erfasst";
+  return /^Auftrag \d+\b/.test(v.anweisung.trim()) ? "Änderungsauftrag aus der Aufgabenstellung" : "Änderungsauftrag";
 }
 
 // ---------------------------------------------------------------------------------------------------------------

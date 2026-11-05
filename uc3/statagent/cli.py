@@ -16,7 +16,7 @@ from typing import Annotated, Any, NoReturn
 import typer
 
 from statagent import ergebnis, konfig
-from statagent.db import lieferungen, schema_einrichten, verbinden
+from statagent.db import abgabe_regelsaetze_einrichten, lieferungen, schema_einrichten, verbinden
 from statagent.regeln import NameUngueltig, RegelFehler, regeln_freigeben, regeln_laden
 from statagent.zeit import zeit_text
 
@@ -52,9 +52,10 @@ def _fehlt(issue: str, was: str) -> NoReturn:
 
 @db_app.command("init")
 def db_init(als_json: JsonOption = False) -> None:
-    """Legt Schemas bereinigt/meta/stat, Klassifikationen und Regelsatz v1 an (idempotent, nichts wird gelöscht)."""
+    """Legt Schemas, Klassifikationen und die Regelsätze v1, v2 und ministerium an (idempotent, nichts wird gelöscht)."""
     with verbinden() as conn:
         dateien = schema_einrichten(conn)
+        dateien += abgabe_regelsaetze_einrichten(conn)
     _ausgabe({"angewendet": dateien}, als_json, "angewendet: " + ", ".join(dateien))
 
 
@@ -303,6 +304,16 @@ def berichte(
         else:
             typer.echo("Bitte --lieferung JJJJ-MM oder --alle angeben.", err=True)
             raise typer.Exit(2)
+        # Ohne fertigen Lauf entstünde ein leerer Bericht über der Abgabe (Jury-Probe 4d, B2).
+        ohne_lauf = [m for m in monate if ergebnis.letzter_lauf(conn, m, regelsatz) is None]
+        if not monate or ohne_lauf:
+            fuer = f" für {', '.join(ohne_lauf)}" if ohne_lauf else ""
+            typer.echo(
+                f"nicht geschrieben: Regelsatz {regelsatz} hat{fuer} keinen fertigen Lauf"
+                f" (zuerst uv run uc3 lauf --regelsatz {regelsatz})",
+                err=True,
+            )
+            raise typer.Exit(1)
         if als_json:
             daten = [bericht_daten(conn, monat, regelsatz) for monat in monate]
             typer.echo(json.dumps(daten if alle else daten[0], ensure_ascii=False, default=str, indent=2))
@@ -361,7 +372,11 @@ def sheet(regelsatz: Annotated[str, typer.Option()] = "v1") -> None:
     except ModuleNotFoundError:
         _fehlt("#16", "sheet")
     with verbinden() as conn:
-        erg = sheet_schreiben(conn, regelsatz)
+        try:
+            erg = sheet_schreiben(conn, regelsatz)
+        except ValueError as fehler:
+            typer.echo(f"nicht geschrieben: {fehler}", err=True)
+            raise typer.Exit(1) from fehler
     typer.echo(f"Sheet geschrieben: {getattr(erg, 'pfad', erg)}")
 
 
