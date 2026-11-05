@@ -7,7 +7,8 @@
     "dev": "dotenv -o -e ../.env.local -- next dev",
     "build": "next build",
     "start": "dotenv -o -e ../.env.local -- next start",
-    "test": "vitest --run"
+    "test": "vitest --run",
+    "test:slop": "playwright test"
   },
   "dependencies": {
     "@kic/ui": "workspace:*",
@@ -15,6 +16,7 @@
     "postgres": "^4.0.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "three": "^0.187.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -27,6 +29,7 @@
     "@types/node": "^24",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.187.0",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "@vitejs/plugin-react": "^6.2.1",
     "dotenv-cli": "^11.1.0",

@@ -36,3 +36,6 @@ var/
 .DS_Store
 *.log
 docs/plan-uc3-stand-1050.md
+.claude/filescopes/
+.claude/wave-scope.json
+.orchestrator/wave-dispatch-scopes.*.json
