@@ -1,9 +1,12 @@
 import { z } from "zod";
+import { rohAntragSchema } from "./antrag";
 import { webAntwortSchema, type WebAntwort } from "./antwort";
 
 // Replay (#35): ein echt aufgezeichneter Durchlauf des Lotsen, ohne Netz abgespielt. Die Aufnahme trägt einen
-// SHA-256 über alle Belege (Zitat, Quelle, Stand); die Seite rechnet ihn beim Abspielen nach und zeigt bei
-// Abweichung keine Antwort, damit niemand ein von Hand geändertes Zitat für eine Quelle hält.
+// SHA-256 über die Zitat-Belege der Aussagen (Zitat, Quelle, Stand), nicht über `traeger` und nicht über `antrag`; die Seite rechnet ihn beim Abspielen nach und zeigt bei
+// Abweichung keine Antwort, damit niemand ein von Hand geändertes Zitat für eine Quelle hält. `antrag` ist die rohe
+// Ausgabe von `lotse antrag … --json` derselben Sitzung (ohne `pdf`); sie läuft durch dieselbe Abbildung wie live.
+// Alle Personenangaben der Aufnahme sind erfunden.
 
 export const replaySchema = z.object({
   szenario: z.string(),
@@ -24,6 +27,7 @@ export const replaySchema = z.object({
     )
     .min(1),
   belege_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  antrag: rohAntragSchema.optional(),
 });
 export type Replay = z.infer<typeof replaySchema>;
 export type ReplaySchritt = Replay["schritte"][number];

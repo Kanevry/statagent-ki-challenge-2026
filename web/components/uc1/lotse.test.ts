@@ -37,7 +37,7 @@ const KERN = {
     { abschnitt_id: 1, zitat: "…", quelle: "FSW-Antrag auf Förderung, S. 5", stand: null },
   ],
   rueckfrage: null,
-  traeger: [{ leistung: "pflegegeld", name: "Pensionsversicherungsanstalt (PVA)" }],
+  traeger: [{ leistung: "pflegegeld", name: "Pensionsversicherungsanstalt (PVA)", status: "pva", intern: "GEHEIM_TRAEGER" }],
   naechste_schritte: ["Antrag stellen."],
   modell: "gpt-5-4-mini",
   provider: "azure",
@@ -107,11 +107,12 @@ describe("POST /api/uc1/frage", () => {
     expect(ausfuehren).not.toHaveBeenCalled();
   });
 
-  // Fängt: zod-Fehlertexte (englisch, intern) im Client und Läufe mit leerem oder falschem Text.
+  // Fängt: zod-Fehlertexte (englisch, intern) im Client und Läufe mit leerem oder falschem Text; Steuerzeichen
+  // wie \u0000, die der Kern mit Exit ≠ 0 abbricht (503 statt 400).
   it("400 mit deutschem Satz bei leerem Text, fehlendem Feld und kaputter Sitzung", async () => {
     const ausfuehren = vi.fn<Ausfuehren>();
     const h = handler(ausfuehren);
-    for (const body of [{ text: "  " }, { frage: "Hallo" }, "kein json", { text: "Ja", sitzung: "abc" }, { text: "x".repeat(1001) }]) {
+    for (const body of [{ text: "  " }, { frage: "Hallo" }, "kein json", { text: "Ja", sitzung: "abc" }, { text: "x".repeat(1001) }, { text: "Hallo\u0000Welt" }]) {
       const antwort = await h(anfrage(body));
       expect(antwort.status).toBe(400);
       const { fehler } = (await antwort.json()) as { fehler: string };
@@ -156,7 +157,8 @@ describe("POST /api/uc1/frage", () => {
     }
   });
 
-  // Fängt: Volltext der Treffer, Deckung und verworfene Aussagen im Browser; Dateipfad statt Kurzform als Quelle.
+  // Fängt: Volltext der Treffer, Deckung und verworfene Aussagen im Browser; Dateipfad statt Kurzform als Quelle;
+  // unbekannte Schlüssel in `traeger`, die ungeprüft durchgereicht würden.
   it("200 bildet auf die Web-Form ab: ohne treffer, deckung, verworfen; Quelle aus belege", async () => {
     let argv: readonly string[] = [];
     const antwort = await handler(async (_b, a) => {
@@ -165,7 +167,7 @@ describe("POST /api/uc1/frage", () => {
     })(anfrage({ text: "Mutter 84", stil: "einfach" }));
     expect(antwort.status).toBe(200);
     const roh = await antwort.text();
-    expect(roh).not.toMatch(/treffer|deckung|verworfen|GEHEIMER|\.pdf|angaben|dauer_ms/);
+    expect(roh).not.toMatch(/treffer|deckung|verworfen|GEHEIMER|\.pdf|angaben|dauer_ms|GEHEIM_TRAEGER|"status"/);
     const daten = JSON.parse(roh);
     expect(daten.aussagen.map((a: { quelle: string }) => a.quelle)).toEqual(["BPGG § 4", "FSW-Antrag auf Förderung, S. 5"]);
     expect(daten.aussagen[0]).toEqual({

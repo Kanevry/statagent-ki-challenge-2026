@@ -1,9 +1,9 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Fliesstext, Ueberschrift } from "@kic/ui/basis";
+import { Fliesstext, Status, Ueberschrift } from "@kic/ui/basis";
 import { ModellPille } from "@kic/ui/bausteine";
-import { formatStand, quelleAnzeige, type Aussage, type WebAntwort } from "./antwort";
+import { formatStand, quelleAnzeige, telefonTeile, type Aussage, type WebAntwort } from "./antwort";
 
 // Kleine Teile der UC1-Seiten, nur aus Token-Klassen und Bausteinen von @kic/ui.
 
@@ -32,12 +32,15 @@ export function Schrittzeiger({ aktiv }: { aktiv: 1 | 2 | 3 | 4 }) {
   );
 }
 
+/** id der h1 jeder UC1-Seite; nach einer neuen Antwort springt der Fokus dorthin (tabIndex -1). */
+export const KOPF_ID = "uc1-kopf";
+
 /** Kopfzeile einer UC1-Seite: Titel, Unterzeile, darunter der Schrittzeiger. */
 export function Kopf({ titel, unter, schritt }: { titel: string; unter: string; schritt: 1 | 2 | 3 | 4 }) {
   return (
     <div className="flex max-w-3xl flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Ueberschrift stufe={2} als="h1">
+        <Ueberschrift stufe={2} als="h1" id={KOPF_ID} tabIndex={-1} className="focus-visible:outline-none">
           {titel}
         </Ueberschrift>
         <Fliesstext ton="gedaempft">{unter}</Fliesstext>
@@ -56,11 +59,15 @@ export function KiKennzeichnung({ antwort }: { antwort: Pick<WebAntwort, "modell
   return <ModellPille data-testid="uc1-ki">{`Antwort von einer KI, geprüft gegen die Quellen (Modell ${modell})`}</ModellPille>;
 }
 
-/** „Beleg anzeigen“: zeigt das Zitat wörtlich, die Quelle und den Stand der Fassung. Mehr Text gibt es nicht. */
+/** „Beleg anzeigen“ zu einer Aussage des Lotsen. */
 export function Beleg({ aussage }: { aussage: Aussage }) {
+  return <BelegKnopf quelle={quelleAnzeige(aussage.quelle)} zitat={aussage.zitat} stand={aussage.stand} />;
+}
+
+/** „Beleg anzeigen“: zeigt den Wortlaut, die Quelle und, wenn bekannt, den Stand der Fassung. Mehr Text gibt es nicht. */
+export function BelegKnopf({ quelle, zitat, stand }: { quelle: string; zitat: string; stand?: string | null }) {
   const bereich = useId();
   const [offen, setOffen] = useState(false);
-  const quelle = quelleAnzeige(aussage.quelle);
   return (
     <div className="flex max-w-full flex-col items-start gap-2" data-uc1-beleg="">
       <button
@@ -68,7 +75,7 @@ export function Beleg({ aussage }: { aussage: Aussage }) {
         aria-expanded={offen}
         aria-controls={offen ? bereich : undefined}
         onClick={() => setOffen(!offen)}
-        className={`inline-flex min-h-8 items-center gap-1.5 rounded-full bg-gruen-bg px-2.5 py-1 text-left font-sans text-12 text-gruen hover:underline ${fokus}`}
+        className={`inline-flex min-h-11 items-center gap-1.5 rounded-full bg-gruen-bg px-2.5 py-1 text-left font-sans text-12 text-gruen hover:underline ${fokus}`}
       >
         <span>{offen ? "Beleg ausblenden" : "Beleg anzeigen"}</span>
         <span>{`(${quelle})`}</span>
@@ -76,13 +83,44 @@ export function Beleg({ aussage }: { aussage: Aussage }) {
       {offen && (
         <figure id={bereich} className="flex flex-col gap-2 border-l-2 border-gruen bg-white py-2 pl-4 pr-2">
           <blockquote className="font-sans text-14 text-ink" data-uc1-zitat="">
-            {`„${aussage.zitat}“`}
+            {`„${zitat}“`}
           </blockquote>
           <figcaption className="font-sans text-12 text-slate">
-            {aussage.stand ? `${quelle}. Stand der Fassung: ${formatStand(aussage.stand)}` : quelle}
+            {stand ? `${quelle}. Stand: ${formatStand(stand)}` : quelle}
           </figcaption>
         </figure>
       )}
     </div>
+  );
+}
+
+/** Kennzeichnung des aufgezeichneten Beispiels; steht auf jeder Seite, solange es zu sehen ist. */
+export function AufnahmeHinweis({ aufnahme }: { aufnahme: string | null }) {
+  if (!aufnahme) return null;
+  return (
+    <Status art="info" data-testid="uc1-aufnahme">
+      {`Aufgezeichnetes Beispiel vom ${aufnahme}, keine Live-Antwort. Alle Personenangaben sind erfunden.`}
+    </Status>
+  );
+}
+
+/** Text mit Notrufnummern (1450, 144) als antippbare tel:-Links; jede Nummer steht genau einmal. */
+export function MitTelefon({ text }: { text: string }) {
+  return (
+    <>
+      {telefonTeile(text).map((teil, i) =>
+        teil.tel ? (
+          <a
+            key={i}
+            href={`tel:${teil.tel}`}
+            className={`inline-flex min-h-11 items-center font-semibold text-gruen underline hover:no-underline ${fokus}`}
+          >
+            {teil.text}
+          </a>
+        ) : (
+          <span key={i}>{teil.text}</span>
+        ),
+      )}
+    </>
   );
 }

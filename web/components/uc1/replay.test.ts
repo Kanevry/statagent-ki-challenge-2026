@@ -1,12 +1,13 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
+import { abbildenAntrag } from "./antrag";
 import pflege from "./fixtures/pflege.json";
 import { belegeHash, pruefeReplay } from "./replay";
 
 describe("Replay pflege", () => {
   // Fängt: eine andere Hash-Formel als beim Aufnehmen (Schlüsselreihenfolge, Leerzeichen, Unicode).
   it("reproduziert den Beleg-Hash der Aufnahme", async () => {
-    expect(await belegeHash(pflege.schritte)).toBe("58a54821560309917bff750a1451c12d7065311571cdeb3901a1aae5b6b8833b");
+    expect(await belegeHash(pflege.schritte)).toBe("e37f5efbde8796101f5f5166796a9d6d6fa6fcd46a722dea24d29ddaba7a019b");
     expect(await pruefeReplay(pflege)).toMatchObject({ ok: true });
   });
 
@@ -17,5 +18,15 @@ describe("Replay pflege", () => {
     if (!aussage) throw new Error("Fixture ohne Aussage");
     aussage.zitat += " ";
     expect(await pruefeReplay(kopie)).toEqual({ ok: false, grund: "hash" });
+  });
+
+  // Fängt: ein Replay-Schema, das den Antrag verwirft (Feld fehlt im Schema) oder an der Abbildung scheitert, und
+  // einen Antrag aus einer anderen Sitzung als das Gespräch der Aufnahme.
+  it("trägt den Antrag derselben Sitzung, und er bildet ab", async () => {
+    const pruefung = await pruefeReplay(pflege);
+    if (!pruefung.ok) throw new Error("Aufnahme ungültig");
+    const antrag = abbildenAntrag(pruefung.replay.antrag);
+    expect(antrag?.sitzung_id).toBe(pruefung.replay.schritte.at(-1)?.antwort.sitzung_id);
+    expect(antrag?.befuellt).toContainEqual({ feld: "Vorname", wert: "Maria" });
   });
 });

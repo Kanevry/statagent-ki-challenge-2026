@@ -11,7 +11,7 @@ import { expect, test, type Page } from "@playwright/test";
 const hier = path.dirname(fileURLToPath(import.meta.url));
 const MESSSKRIPT = path.join(hier, "lib", "slop-measure.js");
 const PFLEGE = JSON.parse(readFileSync(path.join(hier, "../components/uc1/fixtures/pflege.json"), "utf8")) as {
-  schritte: Array<{ eingabe: { text: string }; antwort: { aussagen: Array<{ zitat: string }> } }>;
+  schritte: Array<{ eingabe: { text: string }; antwort: { aussagen: Array<{ zitat: string }> } & Record<string, unknown> }>;
 };
 const ZITATE = PFLEGE.schritte.flatMap((s) => s.antwort.aussagen.map((a) => a.zitat));
 
@@ -71,36 +71,93 @@ test("/uc1 liefert 200 mit Leer-Zustand: leeres Feld, Beispiele, keine Antwort",
   await gateMessen(page, "/uc1 leer");
 });
 
-test("/uc1?beispiel=pflege spielt ohne Netz bis zu den Leistungen, Beleg zeigt das Zitat", async ({ page }) => {
+test("/uc1?beispiel=pflege spielt ohne Netz bis zu Antrag und Stelle", async ({ page }) => {
   await page.route("**/api/**", (route) => route.abort());
   await page.goto("/uc1?beispiel=pflege");
 
-  await expect(page.getByTestId("uc1-aufnahme")).toContainText("Aufgezeichnetes Beispiel vom");
-  await expect(page.getByTestId("uc1-aufnahme")).toContainText("keine Live-Antwort");
-  await expect(page.getByLabel("Ihre Situation")).toHaveValue(PFLEGE.schritte[0]?.eingabe.text ?? "");
+  const aufnahme = page.getByTestId("uc1-aufnahme");
+  await expect(aufnahme).toContainText("Aufgezeichnetes Beispiel vom");
+  await expect(aufnahme).toContainText("keine Live-Antwort");
+  await expect(aufnahme).toContainText("Alle Personenangaben sind erfunden.");
 
+  // Rückfrage als Hauptaussage, die Situation nur klein darüber, das große Eingabefeld ist weg.
   await expect(page.locator('[data-uc1-antwort="rueckfrage"]')).toHaveCount(1);
+  await expect(page.getByTestId("uc1-situation-kurz")).toContainText(PFLEGE.schritte[0]?.eingabe.text ?? "");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Eine Angabe fehlt noch");
+  await expect(page.getByLabel("Ihre Situation")).toHaveCount(0);
+  // Während die Aufnahme läuft, geht nichts live hinaus.
+  await expect(page.getByRole("button", { name: "Antworten" })).toHaveAttribute("aria-disabled", "true");
   await bild(page, "uc1-schritt-1-rueckfrage");
 
+  // Leistungen als Hauptaussage oben, der Fokus steht auf der neuen Überschrift.
   await expect(page.locator('[data-uc1-antwort="antwort"]')).toHaveCount(1, { timeout: 15_000 });
+  const titel = page.getByRole("heading", { level: 1 });
+  await expect(titel).toHaveText("Das kommt für Sie in Frage");
+  await expect(titel).toBeFocused();
   await expect(page.locator('[data-uc1-leistung="pflegegeld"]')).toBeVisible();
   await expect(page.getByRole("heading", { name: "Pflegegeld" })).toBeVisible();
   await bild(page, "uc1-schritt-2-leistungen");
 
-  // KI-Kennzeichnung an jeder Antwort, mit Modellname
+  // KI-Kennzeichnung an jeder Antwort, mit Modellname (frühere Schritte eingeklappt, aber vorhanden)
   const ki = page.getByTestId("uc1-ki");
   await expect(ki).toHaveCount(PFLEGE.schritte.length);
-  await expect(ki.last()).toContainText("Antwort von einer KI");
+  await expect(ki.first()).toContainText("Antwort von einer KI");
 
   await page.getByRole("button", { name: /Beleg anzeigen/ }).first().click();
   const zitat = page.locator("[data-uc1-zitat]").first();
   await expect(zitat).toBeVisible();
   const text = (await zitat.textContent()) ?? "";
   expect(ZITATE).toContain(text.replace(/^„|“$/g, ""));
-  await bild(page, "uc1-schritt-3-beleg");
-
+  await bild(page, "uc1-schritt-2-beleg");
   await axePruefen(page);
   await gateMessen(page, "/uc1?beispiel=pflege");
+
+  // „ändern“ bringt das Eingabefeld mit der Situation zurück.
+  await page.getByRole("button", { name: "ändern" }).click();
+  await expect(page.getByLabel("Ihre Situation")).toHaveValue(PFLEGE.schritte[0]?.eingabe.text ?? "");
+  await page.getByRole("button", { name: "Zurück zur Antwort" }).click();
+
+  // Schritt 3: Antrag aus der Aufnahme, ohne Netz.
+  await page.getByRole("button", { name: "Antrag vorbereiten" }).click();
+  await expect(page).toHaveURL(/\/uc1\/antrag$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Pflegegeld: Antrag vorbereitet");
+  await expect(page.getByTestId("uc1-aufnahme")).toContainText("Beispiel");
+  await expect(page.getByRole("cell", { name: "Maria" })).toBeVisible();
+  await expect(page.getByText("bitte ergänzen").first()).toBeVisible();
+  await expect(page.getByText("Abgeschickt wird nichts. Sie prüfen, unterschreiben und senden selbst.")).toBeVisible();
+  // Im Replay gibt es kein PDF und nichts, was etwas abschickt.
+  await expect(page.getByRole("link", { name: "Antrag als PDF speichern" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /abschicken|absenden|einreichen/i })).toHaveCount(0);
+  await bild(page, "uc1-schritt-3-antrag");
+  await axePruefen(page);
+  await gateMessen(page, "/uc1/antrag (Beispiel)");
+
+  // Schritt 4: zuständige Stelle mit Beleg.
+  await page.getByRole("link", { name: "Weiter zur zuständigen Stelle" }).click();
+  await expect(page).toHaveURL(/\/uc1\/stelle$/);
+  await expect(page.locator("[data-uc1-stelle]").first()).toContainText("Pensionsversicherungsanstalt");
+  await expect(page.getByText("Einen Termin vereinbaren Sie direkt bei der Stelle.")).toBeVisible();
+  await bild(page, "uc1-schritt-4-stelle");
+  await axePruefen(page);
+  await gateMessen(page, "/uc1/stelle (Beispiel)");
+});
+
+test("Fehler bei der Antwort auf eine Rückfrage steht an der Rückfrage", async ({ page }) => {
+  let aufrufe = 0;
+  await page.route("**/api/uc1/frage", (route) => {
+    aufrufe += 1;
+    return aufrufe === 1
+      ? route.fulfill({ status: 200, json: PFLEGE.schritte[0]?.antwort })
+      : route.fulfill({ status: 400, json: { fehler: "Bitte höchstens 1000 Zeichen." } });
+  });
+  await page.goto("/uc1");
+  await page.getByLabel("Ihre Situation").fill("Meine Mutter kommt allein nicht mehr zurecht.");
+  await page.getByRole("button", { name: "Senden" }).click();
+  const feld = page.getByLabel("Ihre Antwort");
+  await expect(feld).toBeFocused();
+  await feld.fill("Sie bekommt eine Pension.");
+  await page.getByRole("button", { name: "Antworten" }).click();
+  await expect(page.locator('[data-uc1-antwort="rueckfrage"]')).toContainText("Bitte höchstens 1000 Zeichen.");
 });
 
 test("Lotse nicht erreichbar: Hinweis und „Beispiel ansehen“ spielt die Aufnahme", async ({ page }) => {

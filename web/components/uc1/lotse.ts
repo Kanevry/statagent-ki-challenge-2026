@@ -56,19 +56,20 @@ export function lotseArgv({ text, sitzung, stil, sprache }: FrageEingabe): strin
   ];
 }
 
-type Status = 400 | 403 | 413 | 429 | 503;
+export type Status = 400 | 403 | 404 | 413 | 429 | 503;
 
-function fehler(status: Status, meldung: string, replay = false): Response {
+/** JSON-Fehler mit deutschem Satz, nie gecacht; `replay: true` bietet der Seite das aufgezeichnete Beispiel an. */
+export function fehler(status: Status, meldung: string, replay = false): Response {
   return Response.json(replay ? { fehler: meldung, replay: true } : { fehler: meldung }, {
     status,
     headers: { "cache-control": "no-store" },
   });
 }
 
-class ZuGross extends Error {}
+export class ZuGross extends Error {}
 
 /** Liest den Body und bricht ab, sobald er `grenze` Bytes überschreitet (auch ohne Content-Length). */
-async function leseBody(anfrage: Request, grenze: number): Promise<string> {
+export async function leseBody(anfrage: Request, grenze: number): Promise<string> {
   const laenge = Number(anfrage.headers.get("content-length") ?? "");
   if (Number.isFinite(laenge) && laenge > grenze) throw new ZuGross();
   if (!anfrage.body) return "";

@@ -5,6 +5,11 @@ import { z } from "zod";
 // Node-Abhängigkeit: Route (Abbildung) und Seite (Prüfung der Antwort, Replay) nutzen dieselben Schemas.
 
 export const MAX_TEXT = 1000;
+/** Zahl mit Tausenderpunkt („1.000“), ohne Intl: de-AT trennt je nach ICU mit Leerzeichen. */
+export function tausender(zahl: number): string {
+  return String(zahl).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
 export const VERHALTEN = ["antwort", "abstinenz", "uebergabe", "rueckfrage"] as const;
 export type Verhalten = (typeof VERHALTEN)[number];
 
@@ -14,7 +19,9 @@ export const frageSchema = z.object({
     .string()
     .trim()
     .min(1, "Bitte schreiben Sie kurz, was los ist.")
-    .max(MAX_TEXT, `Bitte höchstens ${MAX_TEXT} Zeichen.`),
+    .max(MAX_TEXT, `Bitte höchstens ${tausender(MAX_TEXT)} Zeichen.`)
+    // Steuerzeichen (außer Zeilenumbruch und Tab) bricht der Kern sonst mit Exit ≠ 0 ab: das wäre 503 statt 400.
+    .refine((text) => !/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(text), "Der Text enthält unlesbare Zeichen."),
   sitzung: z.uuid("Die Sitzung ist ungültig.").optional(),
   stil: z.enum(["standard", "einfach"], "Der Stil ist ungültig.").default("standard"),
   sprache: z.enum(["de", "en"], "Die Sprache ist ungültig.").optional(),
@@ -22,6 +29,16 @@ export const frageSchema = z.object({
 export type FrageEingabe = z.infer<typeof frageSchema>;
 
 const textOderNull = z.string().nullable().optional().transform((wert) => wert ?? null);
+
+/** Zuständige Stelle; nur diese Schlüssel gehen an den Browser, alles andere aus dem Kern fällt weg. */
+export const traegerSchema = z.object({
+  leistung: textOderNull,
+  stelle: textOderNull,
+  name: z.string().min(1),
+  fundstelle: textOderNull,
+  zitat: textOderNull,
+});
+export type Traeger = z.infer<typeof traegerSchema>;
 
 /** Aussage im Rohformat des Kerns; `treffer`, `deckung` und alles Unbekannte fallen beim Parsen weg. */
 const rohAussageSchema = z.object({
@@ -41,7 +58,7 @@ export const rohAntwortSchema = z.object({
   sitzung_id: z.string().min(1),
   aussagen: z.array(rohAussageSchema),
   rueckfrage: textOderNull,
-  traeger: z.array(z.record(z.string(), z.string())).default([]),
+  traeger: z.array(traegerSchema).default([]),
   naechste_schritte: z.array(z.string()).default([]),
   leistungen: z.array(z.string()).default([]),
   antraege: z.array(z.string()).default([]),
@@ -74,7 +91,7 @@ export const webAntwortSchema = z.object({
   sitzung_id: z.string(),
   rueckfrage: z.string().nullable(),
   aussagen: z.array(aussageSchema),
-  traeger: z.array(z.record(z.string(), z.string())),
+  traeger: z.array(traegerSchema),
   naechste_schritte: z.array(z.string()),
   leistungen: z.array(z.string()),
   antraege: z.array(z.string()),
@@ -130,13 +147,33 @@ export function jaNeinFrage(frage: string): boolean {
   return !W_WOERTER.test(erstes) && !PRAEPOSITIONEN.has(erstes);
 }
 
-/** „2026-05-20“ → „20.05.2026“; alles andere bleibt, wie es ist. */
+const MONATE = ["Jänner", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+
+/** „2015-01-01“ → „1. Jänner 2015“ (österreichische Monatsnamen); alles andere bleibt, wie es ist. */
 export function formatStand(iso: string): string {
   const treffer = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  return treffer ? `${treffer[3]}.${treffer[2]}.${treffer[1]}` : iso;
+  const monat = treffer ? MONATE[Number(treffer[2]) - 1] : undefined;
+  return treffer && monat ? `${Number(treffer[3])}. ${monat} ${treffer[1]}` : iso;
+}
+
+/** Notrufnummern, die im Text als antippbarer Link stehen. */
+export const NOTRUFE = ["1450", "144"] as const;
+
+/** Zerlegt einen Text in Teile; Notrufnummern als eigene Teile (`tel`), jede Stelle genau einmal. */
+export function telefonTeile(text: string): Array<{ text: string; tel?: string }> {
+  const teile: Array<{ text: string; tel?: string }> = [];
+  let rest = 0;
+  for (const treffer of text.matchAll(/(?<![\d/.,])(1450|144)(?![\d/.,]\d|\d)/g)) {
+    const start = treffer.index ?? 0;
+    if (start > rest) teile.push({ text: text.slice(rest, start) });
+    teile.push({ text: treffer[0], tel: treffer[0] });
+    rest = start + treffer[0].length;
+  }
+  if (rest < text.length) teile.push({ text: text.slice(rest) });
+  return teile;
 }
 
 /** Name einer zuständigen Stelle aus einem Träger-Eintrag des Kerns. */
-export function traegerName(eintrag: Readonly<Record<string, string>>): string {
-  return eintrag.name ?? eintrag.stelle ?? Object.values(eintrag).join(", ");
+export function traegerName(eintrag: Pick<Traeger, "name" | "stelle">): string {
+  return eintrag.name || eintrag.stelle || "";
 }

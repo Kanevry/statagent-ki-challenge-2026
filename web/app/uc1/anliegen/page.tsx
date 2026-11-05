@@ -17,8 +17,8 @@ export default function Uc1Anliegen() {
       <Leerzustand
         satz="Frühere Anliegen zeigt diese Seite noch nicht."
         aktion={
-          <Link href="/uc1" className={knopfKlassen("sekundaer")}>
-            Zu Meine Situation
+          <Link href="/uc1" className={knopfKlassen("sekundaer", "min-h-11")}>
+            Zur Situation
           </Link>
         }
       />

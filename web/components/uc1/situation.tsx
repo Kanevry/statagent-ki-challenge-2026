@@ -1,8 +1,8 @@
 "use client";
 
-import { useId, type FormEvent } from "react";
+import { useId, type FormEvent, type ReactNode } from "react";
 import { Fliesstext, Knopf, Status } from "@kic/ui/basis";
-import { MAX_TEXT } from "./antwort";
+import { MAX_TEXT, tausender } from "./antwort";
 import { useLotse } from "./lotse-kontext";
 
 // Eingabe der Situation (Pen-Frames KN6mU, ytfvF): Feld, Senden, Sprache, Einfache Sprache, Beispiele,
@@ -11,21 +11,29 @@ import { useLotse } from "./lotse-kontext";
 export const SITUATION_FELD_ID = "uc1-situation";
 
 export const BEISPIELE = [
+  "Meine Mutter kommt allein nicht mehr zurecht.",
   "Ich war drei Wochen im Spital und soll zur Reha.",
   "Mein Kind braucht eine Zahnspange.",
   "Ich möchte etwas für meine Gesundheit tun, was zahlt die Kasse?",
 ] as const;
 
 const fokus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen";
+/** Gesperrt per aria-disabled statt disabled: der Knopf behält den Fokus, Screenreader hören „nicht verfügbar“. */
+export const GESPERRT = "min-h-11 aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
+/** Tippziel mindestens 44 px (WCAG 2.5.5); `knopfKlassen` hat 40 px Höhe, min-h hebt sie an. */
+export const TIPP = "min-h-11";
 
-export function Situation() {
-  const { entwurf, setEntwurf, einstellungen, setEinstellungen, erzaehlen, lage, aufnahme } = useLotse();
+/** `zusatz`: weitere Aktion neben „Senden“, z. B. „Zurück zur Antwort“ beim Ändern. */
+export function Situation({ zusatz }: { zusatz?: ReactNode } = {}) {
+  const { entwurf, setEntwurf, einstellungen, setEinstellungen, erzaehlen, lage, spielt } = useLotse();
   const hinweisId = useId();
   const laedt = lage.art === "laden";
+  // Während eine Aufnahme läuft, geht nichts live hinaus (sonst mit der aufgezeichneten Sitzung).
+  const gesperrt = laedt || spielt;
 
   function absenden(ereignis: FormEvent<HTMLFormElement>) {
     ereignis.preventDefault();
-    if (laedt) return;
+    if (gesperrt) return;
     void erzaehlen(entwurf);
   }
 
@@ -42,20 +50,21 @@ export function Situation() {
           maxLength={MAX_TEXT}
           value={entwurf}
           onChange={(e) => setEntwurf(e.target.value)}
-          readOnly={aufnahme !== null && laedt}
+          readOnly={spielt}
           aria-describedby={hinweisId}
           placeholder="Was ist los? Ein Satz reicht, zum Beispiel: „Ich war drei Wochen im Spital und soll zur Reha.“"
           className={`w-full resize-y rounded border border-slate bg-white p-4 font-sans text-16 text-ink placeholder:text-slate ${fokus}`}
         />
         <p id={hinweisId} className="font-sans text-12 text-slate">
-          {`Höchstens ${MAX_TEXT} Zeichen. Rückfragen kommen nur, wenn etwas fehlt.`}
+          {`Höchstens ${tausender(MAX_TEXT)} Zeichen.`}
         </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        <Knopf type="submit" disabled={laedt}>
+        <Knopf type="submit" aria-disabled={gesperrt} className={GESPERRT}>
           {laedt ? "Der Lotse liest" : "Senden"}
         </Knopf>
+        {zusatz}
         <fieldset className="flex items-center gap-1 rounded border border-line bg-white p-1">
           <legend className="sr-only">Sprache der Antwort</legend>
           {(
@@ -67,7 +76,7 @@ export function Situation() {
             <label
               key={wert}
               lang={wert}
-              className={`inline-flex h-8 cursor-pointer items-center rounded px-3 font-sans text-14 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-gruen ${
+              className={`inline-flex h-11 cursor-pointer items-center rounded px-3 font-sans text-14 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-gruen ${
                 einstellungen.sprache === wert ? "bg-gruen-bg font-semibold text-gruen" : "text-slate"
               }`}
             >
@@ -83,7 +92,7 @@ export function Situation() {
             </label>
           ))}
         </fieldset>
-        <label className="inline-flex cursor-pointer items-center gap-2 font-sans text-14 text-ink">
+        <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 font-sans text-14 text-ink">
           <input
             type="checkbox"
             checked={einstellungen.einfach}
@@ -117,10 +126,9 @@ export function Situation() {
       </div>
 
       <Fliesstext groesse={12} ton="gedaempft">
-        Der Lotse nennt Leistungen und Wege und stellt keine Diagnose. Ihr Text geht an ein Sprachmodell und wird
-        für diese Sitzung gespeichert. Schreiben Sie bitte keinen Namen und keine Versicherungsnummer hinein.
+        Ihr Text geht an ein Sprachmodell und wird für dieses Gespräch gespeichert. Ihre Versicherungsnummer tragen Sie bitte erst selbst im Formular ein.
       </Fliesstext>
-      {lage.art === "fehler" && !lage.replay && <Status art="fehler">{lage.meldung}</Status>}
+      {lage.art === "fehler" && !lage.replay && lage.ort === "situation" && <Status art="fehler">{lage.meldung}</Status>}
     </form>
   );
 }
