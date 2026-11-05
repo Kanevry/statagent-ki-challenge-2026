@@ -266,6 +266,26 @@ def zuruecksetzen(ort: Path, sha: str, werkzeug: str) -> None:
     subprocess.run(["git", "-C", str(ort), "checkout", "-q", werkzeug, "--", "tests/abnahme"], check=True)
 
 
+def ort_vorbereiten(ort: Path, sha: str, werkzeug: str) -> None:
+    """Bereitet den Checkout für `--ort` vor.
+
+    Auf dem Prüfrechner läuft pruefen.py im Prüf-Klon selbst; schwer_pruefrechner.sh hat ihn vorher hart
+    zurückgesetzt. Dann wird nur geprüft (Marke da, Kopf = main-SHA), nicht erneut zurückgesetzt: ein
+    Zurücksetzen würde tests/abnahme unter dem laufenden Skript ersetzen. Ohne Marke bleibt der eigene
+    Arbeitsbaum tabu (Abbruch 20:01 auf main 71ba5c82, Folge des Schutzes aus Review 4d).
+    """
+    if ort.resolve() != WURZEL.resolve():
+        zuruecksetzen(ort, sha, werkzeug)
+        return
+    if not (ort / MARKE_KLON).exists():
+        raise SystemExit(f"Abbruch: {ort} ist der eigene Arbeitsbaum, kein Prüf-Klon")
+    kopf = subprocess.run(
+        ["git", "-C", str(ort), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    if not kopf.startswith(sha):
+        raise SystemExit(f"Abbruch: Prüf-Klon steht auf {kopf[:8]}, nicht auf main {sha[:8]}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--bereich")
@@ -294,7 +314,7 @@ def main() -> int:
             print("--ort braucht --sha und --werkzeug", file=sys.stderr)
             return 2
         sha, werkzeug, ort = a.sha, a.werkzeug, a.ort.resolve()
-        zuruecksetzen(ort, sha, werkzeug)
+        ort_vorbereiten(ort, sha, werkzeug)
     else:
         subprocess.run(["git", "-C", str(WURZEL), "fetch", "-q", "origin", "main"], check=True)
         sha = matrix.git("rev-parse", "origin/main").stdout.strip()
