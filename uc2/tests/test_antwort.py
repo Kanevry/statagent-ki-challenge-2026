@@ -21,14 +21,20 @@ from plattform.llm import BudgetErschoepft
 from plattform.router import durchreichen, mock_adapter
 
 import uc2.modelle
-from uc2.akteure.laden import Akteur
+from uc2.akteure.laden import Akteur, lade_akteure
 from uc2.antwort import AntwortFehler, FreieZahl, antwort, belegquelle, bereinige, freie_zahlen, kurzlauf
 from uc2.antwort import adapter as adapter_modul
 from uc2.antwort.adapter import ERSATZ, MODELLANNAHME, QUELLE_BEISPIEL, waehle_fall
-from uc2.antwort.allgemein import MOCK_THEMEN, mock_notiz
+from uc2.antwort.allgemein import (
+    FESTER_KERN,
+    KERN_SCHEMA,
+    MOCK_THEMEN,
+    TEILNEHMER,
+    fester_auftrag,
+    mock_notiz,
+)
 from uc2.modelle import Modellantwort, UngueltigeAntwort
 from uc2.modelle.kontext import lies_kontext
-from uc2.verhandlung import prompts
 from uc2.verhandlung.belege import BELEG_ID, Beleg, BelegFehler, FixtureQuelle, IndexQuelle
 from uc2.verhandlung.lauf import Zugergebnis
 
@@ -133,7 +139,7 @@ def test_kontextzahl_geht_als_eingabe_ans_panel(monkeypatch: pytest.MonkeyPatch)
 def test_keine_freie_zahl_im_text(demo: UcAntwort) -> None:
     # Der Szenario-Mock nennt in Runde 2 bewusst „rund 300 Stellen“ ohne Quelle.
     assert freie_zahlen(demo.text, demo.zahlen) == []
-    assert "300 Stellen" not in demo.text and ERSATZ in demo.text
+    assert "300 Stellen" not in demo.text and ERSATZ not in demo.text
     assert bereinige("fehlen rund 300 Stellen, Wartezeit −22,24 %", demo.zahlen) == (
         f"fehlen rund {ERSATZ}, Wartezeit −22,24 %"
     )
@@ -239,8 +245,8 @@ def test_praesentation_kontextzahl_mit_beleg_und_ohne_rechenmodell(praes: UcAntw
     assert beleg == uc3.belege[0] and beleg.quelle == "stat.stat_beschaeftigte"
     assert (beleg.lieferung, beleg.monat) == ("2025-03", "2025-03")
     assert not [b for b in praes.belege if b.quelle == "uc2.experte"]
-    assert "Rechenmodell" not in praes.text and "Wartezeit" not in praes.text
-    assert praes.text.startswith(
+    assert "Rechenmodell" not in praes.text
+    assert praes.text.splitlines()[1].startswith(
         "Die Zahl aus der Statistik: Beschäftigte (Wien, Gesundheits- und Sozialwesen): "
     )
     assert "135.790 Personen (laut Beschäftigtenstatistik, März 2025, endgültig)." in praes.text
@@ -372,7 +378,7 @@ def test_praesentation_ohne_auftrag_und_notizaufruf(monkeypatch: pytest.MonkeyPa
     aufrufe = _zaehle_aufrufe(monkeypatch)
     antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")])
     rollen = [r for r, _ in aufrufe]
-    assert rollen == ["akteur", "akteur", "akteur"]
+    assert rollen == ["akteur", "akteur", "akteur", "moderator_kern"]
 
 
 def test_frist_um_keine_weitere_runde_und_keine_notiz(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -405,8 +411,11 @@ def test_akteurszuege_laufen_bei_echtem_provider_parallel(monkeypatch: pytest.Mo
         )
 
     def moderator(rm: Any, nachrichten: Any, schema: Any) -> Modellantwort:
-        assert schema is prompts.AUFTRAG_SCHEMA
-        daten = {"themen": [dict(t) for t in MOCK_THEMEN], "regeln": ["r"], "ziel": "z"}
+        assert schema is KERN_SCHEMA
+        daten = {
+            "mehr": "Mehr Personal heißt meist kürzer warten.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        }
         return Modellantwort(daten, json.dumps(daten), "azure", "m", 1)
 
     monkeypatch.setattr(kurzlauf, "fuehre_zug_aus", zug)
@@ -518,3 +527,187 @@ def test_budget_erschoepft_in_der_notiz(monkeypatch: pytest.MonkeyPatch) -> None
     _budget_bei(monkeypatch, lambda rolle, n: rolle == "moderator_notiz")
     with pytest.raises(BudgetErschoepft):
         antwort(DEMO, [_uc3()])
+
+
+def _kern_aus_modell(monkeypatch: pytest.MonkeyPatch, antwort_oder_fehler: Any) -> None:
+    """Züge wie gehabt aus dem Mock, nur der Moderator-Aufruf für die Kernsätze liefert
+    `antwort_oder_fehler`."""
+    echt = kurzlauf.rufe
+
+    def rufe(rm: Any, nachrichten: Any, schema: Any) -> Any:
+        if schema is not KERN_SCHEMA:
+            return echt(rm, nachrichten, schema)
+        if isinstance(antwort_oder_fehler, Exception):
+            raise antwort_oder_fehler
+        return Modellantwort(antwort_oder_fehler, json.dumps(antwort_oder_fehler), "mock", "m", 1)
+
+    monkeypatch.setattr(kurzlauf, "rufe", rufe)
+
+
+def test_erste_zeile_sagt_was_personal_bedeutet_ohne_zahlenecho(praes: UcAntwort) -> None:
+    """Fängt #164: Die Station zeigt oben die Zahl von StatAgent statt einer Aussage zu mehr oder weniger
+    Personal."""
+    erste = praes.text.splitlines()[0]
+    assert erste == " ".join(FESTER_KERN)
+    assert "135.790" not in erste and "Statistik" not in erste
+
+
+def test_modellkern_steht_oben(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt einen Kernsatz des Modells, der gar nicht in die Antwort kommt (immer nur die festen Sätze)."""
+    _kern_aus_modell(
+        monkeypatch,
+        {"mehr": "Mehr Personal heißt kürzer warten", "weniger": "Weniger Personal heißt länger warten."},
+    )
+    text = antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")]).text
+    assert text.splitlines()[0] == "Mehr Personal heißt kürzer warten. Weniger Personal heißt länger warten."
+
+
+@pytest.mark.parametrize(
+    "kern",
+    [
+        {"mehr": "Mehr Personal heißt 135.790 Stellen.", "weniger": "Weniger Personal heißt länger warten."},
+        {"mehr": "", "weniger": "Weniger Personal heißt länger warten."},
+        {"mehr": "Mehr Personal " * 20, "weniger": "Weniger Personal heißt länger warten."},
+        UngueltigeAntwort("kaputt", "json $"),
+        {
+            "mehr": "Mehr Personal heißt mehr Beiträge zur Krankenversicherung.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
+        {
+            "mehr": "Mehr Personal heißt kürzer warten, aber wer es zahlt, ist umstritten.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
+        {"mehr": "Mehr Personal heißt höhere Kosten.", "weniger": "Weniger Personal heißt länger warten."},
+        {
+            "mehr": "Mehr Beschäftigte heißt kürzer warten.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
+        {
+            "mehr": "Mehr Personal heißt zwanzig Tage weniger Wartezeit.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
+        {
+            "mehr": "Mehr Personal heißt dreihundert Termine mehr.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
+        {
+            "mehr": "Mehr Personal heißt die Hälfte der Wartezeit.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
+    ],
+    ids=[
+        "ziffer",
+        "leer",
+        "zu-lang",
+        "modellfehler",
+        "beitraege",
+        "wer-zahlt",
+        "kosten",
+        "falscher-anfang",
+        "zahlwort",
+        "zahlwort-hundert",
+        "haelfte",
+    ],
+)
+def test_unbrauchbarer_kern_ergibt_feste_saetze(monkeypatch: pytest.MonkeyPatch, kern: Any) -> None:
+    """Fängt: Bei einer Ziffer, einem leeren oder überlangen Satz oder einem Modellfehler bleibt die Zeile
+    leer oder die
+    Kette verliert den Simulator."""
+    _kern_aus_modell(monkeypatch, kern)
+    text = antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")]).text
+    assert text.splitlines()[0] == " ".join(FESTER_KERN)
+
+
+def test_kern_haelt_das_budget_nicht_zurueck(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt: Das Tagesbudget endet beim Kernsatz, die Seite zeigt feste Sätze statt des Budget-Hinweises
+    (#100)."""
+    fehler = UngueltigeAntwort("Budget", "BudgetErschoepft")
+    fehler.__cause__ = BudgetErschoepft("aus")
+    _kern_aus_modell(monkeypatch, fehler)
+    with pytest.raises(BudgetErschoepft):
+        antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")])
+
+
+def test_fallfrage_nennt_oben_wirkung_und_kosten_ohne_entfernte_zahl(demo: UcAntwort) -> None:
+    """Fängt eine Kernzeile, aus der die Zahlenprüfung die Kosten streicht („(Zahl ohne Beleg entfernt)“)."""
+    erste = demo.text.splitlines()[0]
+    assert erste.startswith("Das durchgerechnete Maßnahmenpaket bringt laut Rechenmodell: Wartezeit ")
+    assert erste.endswith("Wartezeit −22,2 %, Mehrkosten 128,2 Mio. Euro pro Jahr.") and ERSATZ not in erste
+
+
+def test_fester_auftrag_nennt_das_ziel_der_abwaegung() -> None:
+    """Fängt ein Ziel, das nur die Frage wiederholt: Bei „Wie viele …?“ gibt es dann nichts abzuwägen."""
+    assert fester_auftrag(PRAES)["ziel"].startswith("Abwägen, was mehr oder weniger Personal bedeutet.")
+
+
+def test_satz_mit_entfernter_zahl_faellt_ganz_weg() -> None:
+    """Fängt den Probelauf 05.11.: „… lag im März 2025 bei (Zahl ohne Beleg entfernt).“ in der ganzen
+    Antwort."""
+    zeile = f"- Bundesländer: Dafür. Die Zahl lag bei {ERSATZ}. Das hilft den Regionen."
+    assert adapter_modul._ohne_entfernte_zahl(zeile) == "- Bundesländer: Dafür. Das hilft den Regionen."
+
+
+def _rollen_mit_aufwand(rolle: str, provider: str) -> Any:
+    from dataclasses import replace
+
+    return replace(
+        uc2.modelle.rollenmodell(rolle, provider), aufwand="hoch" if rolle == "moderator" else "niedrig"
+    )
+
+
+def test_moderator_im_kurzlauf_rechnet_nicht_mit_hohem_aufwand(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt den Probelauf 05.11.: Auftrag mit Aufwand „hoch“ dauert 42,8 s, die ganze Kette 49,8 s."""
+    aufwand: list[Any] = []
+    echt = kurzlauf.rufe
+
+    def rufe(rm: Any, nachrichten: Any, schema: Any) -> Any:
+        aufwand.append(rm.aufwand)
+        return echt(rm, nachrichten, schema)
+
+    monkeypatch.setattr(kurzlauf, "rufe", rufe)
+    monkeypatch.setattr(kurzlauf, "rollenmodell", _rollen_mit_aufwand)
+    antwort(DEMO, [_uc3()])
+    assert aufwand and set(aufwand) == {"niedrig"}
+
+
+def test_allgemeine_frage_waegen_aerzte_versicherte_und_kassen_ab(praes: UcAntwort) -> None:
+    """Fängt Runden ohne Kasse oder Ärzte: Folie 9 verspricht die Sicht von Kassen, Ärzten, Versicherten."""
+    namen = {a.id: a.name for a in lade_akteure()}
+    zeilen = _akteurszeilen(praes.text)
+    assert {z[2:].split(":", 1)[0] for z in zeilen} >= {namen["aerztekammer"], namen["sv"]}
+    assert len(zeilen) == len(TEILNEHMER)
+
+
+def test_feste_kernsaetze_und_prompt_sagen_nichts_ueber_geld() -> None:
+    """Fängt den Widerspruch zur Lotsen-Karte: Über Beiträge oder Kosten gibt es ohne Rechenmodell keinen
+    Beleg."""
+    from uc2.antwort.allgemein import kern_text
+
+    assert kern_text(dict(zip(("mehr", "weniger"), FESTER_KERN, strict=True))) == " ".join(FESTER_KERN)
+
+
+def test_kern_mit_ein_und_eine_bleibt() -> None:
+    """Fängt einen zu breiten Zahlwort-Filter: „eine“ steht in fast jedem Satz, dann käme nur noch Fixtext."""
+    from uc2.antwort.allgemein import kern_text
+
+    kern = {
+        "mehr": "Mehr Personal heißt meist eine kürzere Wartezeit.",
+        "weniger": "Weniger Personal heißt länger warten.",
+    }
+    assert kern_text(kern) is not None
+
+
+def test_zeile_einer_vertretung_ist_deutsch(praes: UcAntwort) -> None:
+    """Fängt „Dafür bei Bessere Arbeitsbedingungen, Mehr öffentliches Geld dafür.“ (Review !210)."""
+    assert "Dafür bei „" not in praes.text and "dafür." not in praes.text
+    zeilen = [z for z in _akteurszeilen(praes.text) if "Dafür bei: " in z]
+    assert zeilen and all("„" in z for z in zeilen)
+    assert adapter_modul._titelliste(["A"]) == "„A“"
+    assert adapter_modul._titelliste(["A", "B", "C"]) == "„A“, „B“ und „C“"
+
+
+def test_antwort_nennt_kennzahl_mit_einer_schreibweise(demo: UcAntwort) -> None:
+    """Fängt −22,2 % oben und −22,24 % darunter in derselben Antwort, auch aus Modelltext (Review !210)."""
+    assert "22,24" not in demo.text and "62,75" not in demo.text
+    assert "−22,2 %" in demo.text and ERSATZ not in demo.text
+    assert "128,2 Mio. Euro" in demo.text and "Mio EUR" not in demo.text

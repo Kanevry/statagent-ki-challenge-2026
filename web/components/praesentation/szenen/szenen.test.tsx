@@ -53,7 +53,7 @@ describe("Hilfen", () => {
 });
 
 it("die zehn Folien laufen alle als Szene; Takte in falsche-zahl, kern, beleg, fehler, annahme und einstieg", () => {
-  expect(folien.map((f) => f.szene)).toEqual(Object.keys(SZENEN));
+  expect(folien.map((f) => f.szene)).toEqual(Object.keys(SZENEN).filter((id) => id !== "zahlen"));
   expect(Object.entries(SZENEN).filter(([, e]) => e.takte > 0).map(([id, e]) => [id, e.takte])).toEqual([
     ["falsche-zahl", 3],
     ["kern", 3],

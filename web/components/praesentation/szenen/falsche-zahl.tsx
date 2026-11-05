@@ -63,7 +63,7 @@ export function FalscheZahl({ folie, takt }: SzeneProps) {
             <div
               key={r.monat}
               className={k("s3-saeule", i === bruch && "s3-okt")}
-              style={vars({ i, h: hoehe(r.zahl), ...(i === bruch ? { hg: hoehe(zahlWert(geliefert)) } : {}) })}
+              style={vars({ i, h: hoehe(r.zahl), ...(i === bruch ? { hg: hoehe(geliefert ? zahlWert(geliefert) : r.zahl) } : {}) })}
             >
               <div className={k("s3-fuellung")} />
               {i === bruch && (
@@ -102,12 +102,7 @@ export function FalscheZahl({ folie, takt }: SzeneProps) {
             )}
           </p>
         )}
-        {geliefert && (
-          <p className={k("s3-r2")}>
-            {geliefert}
-            {vergleich && ` ${vergleich}`}
-          </p>
-        )}
+        {(geliefert || vergleich) && <p className={k("s3-r2")}>{[geliefert, vergleich].filter(Boolean).join(" ")}</p>}
         {vorlaeufig && <p className={k("s3-r3")}>{vorlaeufig}</p>}
       </div>
       <ol className={k("s3-takte")}>
