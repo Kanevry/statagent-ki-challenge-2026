@@ -65,3 +65,15 @@ it("die Wartezeit hängt am letzten Auftritt, nicht an nachgereichten Belegen", 
   expect(wartezeit(alle, 24, 1)).toBe(taktMs("zug", 1));
   expect(wartezeit(alle, 0, 1)).toBe(0);
 });
+
+it("die Hauptaussage beginnt mit einem Großbuchstaben, auch nach abgeschnittenem Vorspann", () => {
+  const zug = {
+    runde: 3,
+    themen: {
+      kassenstellen: { thema: "kassenstellen", haltung: -1, beleg_ids: [], bedingungen: [], begruendung: "Das Thema berührt unsere Grenze: keine Mehrausgaben ohne Gegenfinanzierung.", zugestaendnis: null },
+    },
+    zahlen: [],
+    bezugAuf: [],
+  };
+  expect(hauptaussage(zug, undefined)!.satz).toBe("Keine Mehrausgaben ohne Gegenfinanzierung.");
+});
