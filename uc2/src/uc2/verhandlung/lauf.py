@@ -45,6 +45,16 @@ ABBRUCH_INTERN = "Der Lauf ist an einem internen Fehler gescheitert."
 _log = logging.getLogger(__name__)
 
 
+def kosten_fuer_moderator(experte: dict[str, Any]) -> dict[str, Any]:
+    """Mehrkosten laut Rechenmodell für die Moderator-Notiz (#127).
+
+    `experte` ist `prompts.experte_kurz(...)`: Die berechneten Werte stehen unter `vom_rechenmodell_berechnet`
+    (Review !47); ohne diese Ebene gilt die oberste Ebene. Leer, wenn das Rechenmodell keine Kosten liefert.
+    """
+    quelle = experte.get("vom_rechenmodell_berechnet", experte)
+    return {k: quelle[k] for k in ("mehrkosten_mio_eur", "kosten_aenderung_prozent") if k in quelle}
+
+
 class VerhandlungsFehler(RuntimeError):
     """Der Moderator liefert keinen verwertbaren Auftrag; der Fall wird abgebrochen."""
 
@@ -582,11 +592,7 @@ class Verhandlung:
                 }
                 for aid in teilnehmer
             },
-            kosten={
-                k: self.experte[k]
-                for k in ("mehrkosten_mio_eur", "kosten_aenderung_prozent")
-                if k in self.experte
-            },
+            kosten=kosten_fuer_moderator(self.experte),
         )
         try:
             antwort = rufe(self.rm_moderator, nachrichten, prompts.NOTIZ_SCHEMA)

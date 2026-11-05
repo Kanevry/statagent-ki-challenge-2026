@@ -75,3 +75,16 @@ def test_moderator_prompt_ab_runde_zwei_fordert_gegenargument_und_nennt_hinweis_
     assert "mindestens ein Gegenargument oder eine offene Kostenfrage" in text
     assert "Einigung ohne Gegenstimme in Runde 2 bei Themen: fachaerzte." in text
     assert "keine Beitragserhöhung" in text and "gegenfinanziert" in text
+
+
+def test_moderator_bekommt_kosten_aus_dem_rechenmodell() -> None:
+    """Review !76: die Kosten liegen in experte_kurz unter vom_rechenmodell_berechnet, nicht oben."""
+    from uc2.experte.modell import ergebnis, lade_paket
+    from uc2.verhandlung.fall import lade_fall
+    from uc2.verhandlung.lauf import kosten_fuer_moderator
+    from uc2.verhandlung.prompts import experte_kurz
+
+    kurz = experte_kurz(ergebnis(lade_paket(lade_fall("wartezeiten").paket)))
+    kosten = kosten_fuer_moderator(kurz)
+    assert set(kosten) == {"mehrkosten_mio_eur", "kosten_aenderung_prozent"}
+    assert kosten["mehrkosten_mio_eur"] == kurz["vom_rechenmodell_berechnet"]["mehrkosten_mio_eur"]
