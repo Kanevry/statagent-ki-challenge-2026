@@ -11,11 +11,11 @@ const REIHENFOLGE: UcId[] = ["uc3", "uc1", "uc2"];
 /**
  * Use Case 4 „Gemeinsamer Einstieg“ (Epic #95) als verdeckter Eintrag: geschwärzt wie eine
  * Hochrisiko-Akte, `<details>` deckt ihn auf (ohne JavaScript, Tastatur und Screenreader inklusive).
- * Der Link erscheint erst, wenn die Registry eine Route für uc4 führt.
+ * Der Link erscheint erst, wenn die Registry (shared/ui/src/ucs.ts) einen Eintrag uc4 führt.
  */
 function UseCaseVier({ index }: { index: number }) {
   const t = USE_CASES.uc4;
-  const eintrag = ucs.find((uc) => (uc.id as string) === "uc4" && (uc.status as string) === "aktiv");
+  const eintrag = ucs.find((uc) => (uc.id as string) === "uc4");
   return (
     <li className={`${s.zeile} ${a.uc} ${a.ucVier}`} style={{ "--i": index } as CSSProperties}>
       <details className={a.akte}>
