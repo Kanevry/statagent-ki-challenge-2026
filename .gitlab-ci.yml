@@ -39,7 +39,8 @@ gitleaks:
 
 python:
   stage: test
-  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+  # nicht -slim: plattform.freigabe und der Protokoll-Export rufen git auf
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm
   services:
     - name: postgres:16
       alias: db
