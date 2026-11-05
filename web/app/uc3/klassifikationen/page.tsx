@@ -25,6 +25,7 @@ import {
   type Klassifikationsdaten,
 } from "@/components/uc3/klassifikation";
 import { monatName } from "@/components/uc3/monat";
+import { lesePensionen, SQL_PENSIONEN } from "@/components/uc3/pensionen";
 import { regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/navigation";
 import { alltag } from "@/components/uc3/sprache";
 import { Gegenueberstellung } from "./_teile/gegenueberstellung";
@@ -346,6 +347,58 @@ function WeitereListen({ daten }: { daten: Klassifikationsdaten }) {
 
 // ---------------------------------------------------------------------------------------------------------------
 
+async function Pensionen() {
+  const lesung = await lesePensionen();
+  // Fehlt die Datenbank, sagt das schon der Rest der Seite; hier bleibt der Abschnitt dann weg.
+  if (!lesung.ok) return null;
+  const { jahre, vorlaeufig } = lesung.daten;
+  return (
+    <details className="max-w-4xl border-b border-line">
+      <summary className="flex min-h-11 cursor-pointer items-center font-sans text-16 text-ink underline-offset-4 hover:underline">
+        Pensionen 2018 bis 2025
+      </summary>
+      <div className="flex flex-col gap-2 pb-3">
+        {jahre.length === 0 ? (
+          <Fliesstext>Die Meldungen der Träger sind noch nicht geladen. Sie kommen mit „uv run uc3 pensionen laden“.</Fliesstext>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <Fliesstext>
+                Jahresdurchschnitte aus den Meldungen der Träger{vorlaeufig ? ", vorläufig" : ""}. Vorzeitige
+                Alterspensionen sind ein Teil der Pensionen. Zum 1.1.2020 wurden Träger zusammengelegt; die Reihe ist nicht
+                geglättet.
+              </Fliesstext>
+              <BelegLink quelle="stat.stat_pensionen" sql={SQL_PENSIONEN} />
+            </div>
+            <table className="w-full font-sans text-14 text-ink">
+              <thead>
+                <tr className="border-b border-line text-left text-slate">
+                  <th scope="col" className="py-1 pr-2 font-normal">Jahr</th>
+                  <th scope="col" className="py-1 pr-2 text-right font-normal">Insgesamt</th>
+                  <th scope="col" className="py-1 pr-2 text-right font-normal">Unselbständige</th>
+                  <th scope="col" className="py-1 pr-2 text-right font-normal">Selbständige</th>
+                  <th scope="col" className="py-1 text-right font-normal">Vorzeitige</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jahre.map((j) => (
+                  <tr key={j.jahr} className="border-b border-line last:border-b-0">
+                    <th scope="row" className="py-1 pr-2 text-left font-normal">{j.jahr}</th>
+                    <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.insgesamt)}</td>
+                    <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.unselbstaendige)}</td>
+                    <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.selbstaendige)}</td>
+                    <td className="py-1 text-right tabular-nums">{formatZahl(j.vorzeitig)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </div>
+    </details>
+  );
+}
+
 export default async function RegelnUndKlassifikationen({ searchParams }: Props) {
   const regelsatz = regelsatzAus((await searchParams).regelsatz);
   // Die Klassifikationen hängen nicht am Regelsatz; der Auftrag für die Qualifikationen geht von v1 aus.
@@ -361,6 +414,7 @@ export default async function RegelnUndKlassifikationen({ searchParams }: Props)
           <Qualifikationen daten={daten} />
           <Branchen daten={daten} />
           <WeitereListen daten={daten} />
+          <Pensionen />
         </>
       ) : (
         <section aria-labelledby="listen-titel" className="flex max-w-4xl flex-col gap-3">
