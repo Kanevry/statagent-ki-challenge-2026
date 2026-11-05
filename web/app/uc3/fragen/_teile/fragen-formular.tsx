@@ -9,6 +9,7 @@ import { alsCsv, istRueckfrage } from "@/components/uc3/antwort";
 import {
   antwortTabelle,
   ersterSatz,
+  istSummenzeile,
   kopfSagtVerstanden,
   kopfSatz,
   rueckfrageVorschlaege,
@@ -375,7 +376,7 @@ function Tabelle({ antwort }: { antwort: UcAntwort }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full max-w-3xl border-collapse">
-        <caption className="sr-only">{`Zahlen zu: ${ersterSatz(antwort.text)}`}</caption>
+        <caption className="sr-only">{`Zahlen zu: ${kopfSatz(antwort.text)}`}</caption>
         <thead>
           <tr className="border-b border-line">
             <th scope="col" className="py-2 pr-6 text-left">
@@ -390,8 +391,11 @@ function Tabelle({ antwort }: { antwort: UcAntwort }) {
         </thead>
         <tbody>
           {t.zeilen.map((z) => (
-            <tr key={z.titel} className="border-b border-line font-sans text-14 text-ink">
-              <th scope="row" className="py-2 pr-6 text-left font-normal">
+            <tr
+              key={z.titel}
+              className={`border-b border-line font-sans text-14 text-ink ${istSummenzeile(z.titel) ? "font-semibold" : ""}`}
+            >
+              <th scope="row" className={`py-2 pr-6 text-left ${istSummenzeile(z.titel) ? "font-semibold" : "font-normal"}`}>
                 {z.titel}
               </th>
               {z.werte.map((w, i) => (

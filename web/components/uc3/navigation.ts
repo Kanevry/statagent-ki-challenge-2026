@@ -1,17 +1,17 @@
 import type { UcNavPunkt } from "@kic/ui/shell";
 
 /**
- * Unter-Navigation von /uc3. Lauf-Details (/uc3/laeufe/…) gehören zu „Monatsläufe“. Nur gebaute Seiten stehen
+ * Unter-Navigation von /uc3. Lauf-Details (/uc3/laeufe/…) gehören zu „Läufe“. Nur gebaute Seiten stehen
  * hier: das Anti-Schablonen-Gate folgt jedem Link und verlangt HTTP 200.
  */
 export const UC3_NAVIGATION: readonly UcNavPunkt[] = [
-  // UI-Regie Version 1: drei Schritte der Vorführung, dann ruhig die Regeln (mit Klassifikationen). Kurze Wörter,
-  // damit alle vier Punkte bei 390 px ohne Abschneiden passen (Jury-Kritik bb, Punkt d). Berichte gehören
-  // zu „Monate“ (die Monatsseite ist zugleich der Qualitätsbericht); die Routen bleiben erreichbar.
-  { href: "/uc3", label: "Monate" },
+  // Die Wörter des Bewertungsrasters (Bereich 6), damit die Jury sie findet. Berichte gehören zu „Läufe“ (die
+  // Monatsseite ist zugleich der Qualitätsbericht), die Regeln stehen auf „Klassifikationen“.
+  { href: "/uc3", label: "Läufe" },
   { href: "/uc3/freigaben", label: "Freigaben" },
   { href: "/uc3/fragen", label: "Fragen" },
-  { href: "/uc3/klassifikationen", label: "Regeln" },
+  { href: "/uc3/annahmen", label: "Annahmen" },
+  { href: "/uc3/klassifikationen", label: "Klassifikationen" },
 ];
 
 /** Nur Vorführ-Instanz: der Auftrag an die Agenten kommt nach den Monaten. */

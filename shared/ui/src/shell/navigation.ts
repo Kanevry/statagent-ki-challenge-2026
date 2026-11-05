@@ -42,6 +42,17 @@ export function appTabs(ucs: readonly UcEintrag[] = registry): AppTab[] {
   ];
 }
 
+// Auf UC3 entstehen die Zahlen ohne Sprachmodell; Agent und Modell stehen dort beim Vorschlag und im Protokoll.
+const OHNE_MODELL_ANZEIGE = ["/uc3"];
+
+/**
+ * Zeigt der Header auf diesem Pfad das Modell? Aus dem Pfad statt über `SeitenModell`, weil dessen Effekt erst nach
+ * dem Laden wirkt: Der Server schickte sonst „Modell: wird geprüft“, und die Pille verschwände sichtbar.
+ */
+export function zeigtModell(pfad: string): boolean {
+  return !OHNE_MODELL_ANZEIGE.some((route) => istAktiv(route, pfad));
+}
+
 export interface Marke {
   /** Produktname in der ersten Zeile. */
   name: string;
