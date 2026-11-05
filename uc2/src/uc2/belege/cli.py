@@ -70,20 +70,27 @@ def _akteur(akteur_id: str) -> Any:
 def _suche(args: argparse.Namespace) -> int:
     """Ausgabe immer maskiert in Anzeigeform (Namen als Rolle, Zitate als [Zitat]); keine Rohform.
 
+    Fail-closed: ohne Namensliste (`UC2_NAMENSLISTE`) Meldung auf stderr und Exit 2 (`NamenslisteFehlt`).
+
     JSON (`--json`, Eingabe für `tests/pruefe_rang.py`): `{"modus", "frage" (tatsächliche Abfrage),
     "stichtag", "institution" (oder null), "k", "treffer": [...]}`; je Treffer `abschnitt_id`, `artikel_id`,
     `artikeldatum`, `medium`, `titel`, `ausschnitt`, `relevanz`, `ts`, `cos`, `rang_volltext`,
     `rang_vektor`, `gewicht_alter`, `faktor_institution`, `rang`. Mit `--akteur` zusätzlich `akteur`,
-    `runde` und je Treffer die Felder von `Beleg` (ohne `text_modell`).
+    `runde` und je Treffer die Felder von `Beleg.als_dict()` (Online-Grenze: `zitat` statt Abschnittstext,
+    weder `text_anzeige` noch `text_modell`).
     """
     from uc2.belege.einbettung import einbetter
-    from uc2.belege.namen import Namensliste
+    from uc2.belege.namen import Namensliste, NamenslisteFehlt, NamenslisteImRepo
     from uc2.belege.suche import maskiere_treffer, suche, suche_belege
 
     regeln = lade_regeln()
     modus = args.modus or regeln.modus
     stichtag = args.stichtag or regeln.stichtag_standard
-    namen = Namensliste.lade()
+    try:
+        namen = Namensliste.lade()
+    except (NamenslisteFehlt, NamenslisteImRepo) as fehler:
+        print(f"Abbruch: {fehler}", file=sys.stderr)
+        return 2
     ausgabe: dict[str, Any]
     with db.verbinde(args.db) as verbindung:
         # Der Einbetter (torch, Modell) lädt erst, wenn der Index Vektoren hat; ohne das Extra `einbettung`
@@ -110,7 +117,7 @@ def _suche(args: argparse.Namespace) -> int:
                 "akteur": args.akteur,
                 "runde": args.runde,
                 "treffer": [
-                    {"abschnitt_id": b.beleg_id, "artikeldatum": b.datum, **b.als_dict(anzeige=True)}
+                    {"abschnitt_id": b.beleg_id, "artikeldatum": b.datum, **b.als_dict()}
                     for b in ergebnis.belege
                 ],
             }
@@ -146,7 +153,7 @@ def _suche(args: argparse.Namespace) -> int:
     anzahl = len(ausgabe["treffer"])
     print(f"Modus {ausgabe['modus']}, {anzahl} Treffer (maskiert), Abfrage: {ausgabe['frage']}")
     for n, t in enumerate(ausgabe["treffer"], start=1):
-        text = t.get("text_anzeige", t.get("ausschnitt", ""))
+        text = t.get("zitat", t.get("ausschnitt", ""))
         print(
             f"{n:2d}. rang={t['rang']:.4f} relevanz={t['relevanz']:.4f} cos={t['cos']:.4f} ts={t['ts']:.4f} "
             f"rang_volltext={t['rang_volltext']} rang_vektor={t['rang_vektor']} "

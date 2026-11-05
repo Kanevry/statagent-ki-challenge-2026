@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from uc2.belege.namen import (
     BLOCK_ENDE,
     Namenseintrag,
     Namensliste,
+    NamenslisteFehlt,
     NamenslisteImRepo,
     als_datenblock,
     maskiere,
@@ -145,17 +147,52 @@ def test_namensliste_tab_format_kommentar_grossschreibung(tmp_path: Path) -> Non
     )
 
 
-def test_namensliste_fehlt_warnt_und_im_repo_abgelehnt(
+def test_namensliste_fehlt_fail_closed_schalter_nur_muster_und_im_repo_abgelehnt(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.delenv("UC2_NAMEN_OHNE_LISTE")  # Testschalter aus conftest: hier die echte Regel
+    monkeypatch.delenv("UC2_NAMENSLISTE", raising=False)
+    with pytest.raises(NamenslisteFehlt, match="uv run uc2 namen sammeln --aus-index --autoren"):
+        Namensliste.lade()
     monkeypatch.setenv("UC2_NAMENSLISTE", str(tmp_path / "fehlt.txt"))
-    assert len(Namensliste.lade()) == 0
-    assert "Warnung" in capsys.readouterr().err
+    with pytest.raises(NamenslisteFehlt, match="fehlt"):
+        Namensliste.lade()
+    leer = tmp_path / "leer.txt"
+    leer.write_text("# nur Kommentar\n\n", "utf-8")
+    with pytest.raises(NamenslisteFehlt, match="leer"):
+        Namensliste.lade(leer)
+    # Schalter: nur Muster (als Parameter oder Env), mit Hinweis
+    assert len(Namensliste.lade(erlaube_ohne_liste=True)) == 0
+    monkeypatch.setenv("UC2_NAMEN_OHNE_LISTE", "1")
+    assert len(Namensliste.lade(leer)) == 0
+    assert "nur mit Mustern" in capsys.readouterr().err
+    assert maskiere("Gestern traf Anita Musterfrau die Kassen.", None, Namensliste.lade()) == (
+        "Gestern traf eine Person die Kassen."
+    )
     with pytest.raises(NamenslisteImRepo):
         Namensliste.lade(pfade.UC2_WURZEL / "namen.txt")
     with pytest.raises(NamenslisteImRepo):
         schreibe_namensliste(pfade.UC2_WURZEL / "tests" / "namen.txt", [Namenseintrag("Max Mustermann")])
     assert not (pfade.UC2_WURZEL / "tests" / "namen.txt").exists()
+
+
+@pytest.mark.parametrize("vorname", ["MARIA", "ZENOBIA"])  # ZENOBIA: kein Vornamen-Muster, nur die Liste
+def test_genitiv_in_grossschrift_maskiert(tmp_path: Path, vorname: str) -> None:
+    datei = tmp_path / "namen.txt"
+    datei.write_text(f"{vorname} MUSTERFRAU\n", "utf-8")
+    text = f"Im Ressort liegt MUSTERFRAUS Plan. Dann {vorname} MUSTERFRAUS Büro, auch MUSTERFRAU’S Team."
+    ergebnis = maskiere(text, None, Namensliste.lade(datei))
+    assert "MUSTERFRAU" not in ergebnis and vorname not in ergebnis, ergebnis
+    assert ergebnis.count("Person") == 3, ergebnis
+
+
+def test_literaturangabe_nachname_artikelweit_und_gesammelt() -> None:
+    titel = "Studie zu Wartezeiten"
+    text = "Quelle: Mustermann AB, Beispielfrau C, (Hrsg). Später betont Mustermann die Ergebnisse."
+    _, maskiert = maskiere_artikel([titel, text], None, None)
+    assert "Mustermann" not in maskiert and "Beispielfrau" not in maskiert, maskiert
+    namen = {e.name for e in sammle_namen([[titel, text]])}
+    assert {"Mustermann", "Beispielfrau"} <= namen
 
 
 def test_zitate_anzeige() -> None:
@@ -219,3 +256,6 @@ def test_pruefe_namen_lauf_zaehlt_beide_listen(tmp_path: Path, capsys: pytest.Ca
     ausgabe = capsys.readouterr().out
     assert "namensliste: 1 Treffer" in ausgabe and "autoren: 1 Treffer" in ausgabe
     assert "Musterfrau" not in ausgabe  # ohne --zeige nur Zahlen
+    for treffer in ("MUSTERFRAUS Plan", "Musterfraus Plan", "MUSTERFRAU blieb", "Musterfrau’s Plan"):
+        lauf.write_text(json.dumps({"text": treffer}), "utf-8")
+        assert pruefe_namen.main(argumente) == 1, treffer  # Genitiv und Großschrift zählen

@@ -10,7 +10,7 @@ import math
 import sys
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import psycopg
@@ -19,9 +19,9 @@ import pytest
 from uc2 import pfade
 from uc2.akteure.laden import lade_akteure
 from uc2.belege.einbettung import MockEinbetter, dokument_text
-from uc2.belege.namen import BLOCK_BEGINN, Namensliste, als_datenblock
+from uc2.belege.namen import BLOCK_BEGINN, Namensliste, NamenslisteFehlt, als_datenblock
 from uc2.belege.regeln import lade_regeln
-from uc2.belege.suche import belege_fuer_akteur
+from uc2.belege.suche import ZITAT_ZEICHEN, belege_fuer_akteur
 from uc2.cli import main
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -107,7 +107,14 @@ def test_institutionsfaktor_letzter_faktor_und_belege_maskiert(
     regeln = lade_regeln()
     akteur = next(a for a in lade_akteure() if a.id == "aerztekammer")
     belege = belege_fuer_akteur(
-        pg_test, akteur, "Kassenstellen", 1, STICHTAG, regeln, MockEinbetter(), namen=Namensliste()
+        pg_test,
+        akteur,
+        "Kassenstellen",
+        1,
+        stichtag=STICHTAG,
+        regeln=regeln,
+        einbetter=MockEinbetter(),
+        namen=Namensliste(),
     )
     assert [(b.artikel_id, b.faktor_institution) for b in belege] == [("sep", 1.0), ("jan", 1.5)]
     alter = 0.5 ** ((SEPTEMBER - JAENNER).days / regeln.halbwertszeit_tage)
@@ -125,3 +132,35 @@ def test_institutionsfaktor_letzter_faktor_und_belege_maskiert(
     pfad, lauf = _suche_json(tmp_path, capsys, "Kassenstellen", "--akteur", "aerztekammer")
     assert (lauf["modus"], lauf["institution"]) == ("hybrid", "aerztekammer")
     assert pruefe_rang.main([str(pfad), "--db", "healthpolicy_test"]) == 0
+
+    # Online-Grenze (Entscheid Lead 58): nur Zitatfelder, kein ganzer Abschnitt, in API und CLI
+    for daten in [*(b.als_dict() for b in belege), *lauf["treffer"]]:
+        assert not {"text_modell", "text_anzeige"} & set(daten)
+        assert all(len(w) <= ZITAT_ZEICHEN for w in daten.values() if isinstance(w, str)), daten
+        assert daten["zitat"] and daten["pdf_seite"] == 1
+    assert "Wir brauchen mehr Geld" not in pfad.read_text(encoding="utf-8")
+    assert set(belege[0].als_dict(mit_text=True)) - set(belege[0].als_dict()) == {"text_anzeige"}
+    assert "„Wir brauchen" in belege[0].als_dict(mit_text=True, fuer_modell=True)["text_modell"]
+    with pytest.raises(ValueError):
+        belege[0].als_dict(fuer_modell=True)
+
+
+def test_suche_ohne_namensliste_fail_closed(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("UC2_NAMEN_OHNE_LISTE")  # Testschalter aus conftest aus: echte Regel
+    monkeypatch.delenv("UC2_NAMENSLISTE", raising=False)
+    capsys.readouterr()
+    argumente = ["suche", "Kassenstellen", "--akteur", "aerztekammer", "--db", "healthpolicy_test", "--json"]
+    assert main(argumente) == 2
+    fehler = capsys.readouterr()
+    assert fehler.out == "" and "Traceback" not in fehler.err
+    assert "uv run uc2 namen sammeln --aus-index" in fehler.err
+    with pytest.raises(NamenslisteFehlt):
+        belege_fuer_akteur(
+            cast(psycopg.Connection[Any], None),
+            next(a for a in lade_akteure() if a.id == "aerztekammer"),
+            "Kassenstellen",
+            1,
+            einbetter=MockEinbetter(),
+        )
