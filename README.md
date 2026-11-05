@@ -88,6 +88,14 @@ Stand: 05.11.2026, Nachmittag. Der Endabgleich mit dem gemergten Stand folgt vor
 Das Voice-Konzept (Vapi Custom LLM, Webhook, Text-Fallback) folgt einem vorab entstandenen Projekt des Teams;
 übernommen sind nur Konzept und Schnittstellen, der Code ist hier neu entstanden.
 
+## Lizenz
+
+Der eigene Code dieses Repos steht unter der MIT-Lizenz (`LICENSE`). Nach den Teilnahmebedingungen der
+KI Challenge 2026 stehen die Ergebnisse (dieses Repository) neben dem Team auch dem Dachverband der
+österreichischen Sozialversicherungsträger uneingeschränkt zur Verfügung. Ausgenommen von der MIT-Lizenz sind
+die Daten des Veranstalters (sie liegen nicht im Repo) und die Gewichte fremder Modelle, etwa
+`google/embeddinggemma-2` unter den Gemma Terms of Use; sie werden getrennt geladen und hier nicht verteilt.
+
 ## Für Entwickler
 
 Aufbau, Arbeitsteilung und Regeln für Änderungen: `docs/entwicklung.md`. Schnittstellen der Plattform:
