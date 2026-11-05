@@ -41,10 +41,12 @@ from statagent.agenten.werkzeuge import (
     AbfrageVerweigert,
     klassifikation_lesen,
     regeln_lesen,
+    roh_kennzahlen,
     schema_lesen,
     sql_lesen,
 )
 from statagent.db import Verbindung
+from statagent.sonderauswertung import PERSONENTAGE_PARAMETER
 
 
 class VorschlagUngueltig(ValueError):
@@ -78,7 +80,17 @@ _ZULAESSIG: dict[tuple[str, str], Any] = {
     ("alter", "bezug"): {"bis", "von"},
     ("alter", "geburtsmonat_13"): {"jahresdifferenz", "unbekannt"},
     ("klassifikationsversion", "nach"): {"berichtsmonat"},
+    # sonderauswertung.personentage verweigert jeden anderen Wert
+    ("personentage", "datenstand"): {"juengste_lieferung_je_tag"},
+    ("personentage", "angehaltene_lieferungen"): {"ueberspringen", "verwenden"},
 }
+
+#: Zählregel-Arten eines Auswertungs-Regelsatzes und die Parameter, die der Auswertungscode liest
+#: (``wert(regel, …)`` in sonderauswertung.py; dort gibt es keine eigene Liste). Nur was der Code kann.
+_AUSWERTUNG_PARAMETER: dict[str, frozenset[str]] = {"personentage": PERSONENTAGE_PARAMETER}
+_V_REGELSATZ = re.compile(r"v\d+")
+#: Auswertungs-Regelsatz (z. B. ``ministerium``): eigene Regeln, keine Monatsläufe. Wie der CHECK in 140_vorschlag.sql.
+_AUSWERTUNG_REGELSATZ = re.compile(r"[a-z][a-z0-9_]{2,40}")
 
 
 def _gleicher_typ(alt: object, neu: object) -> bool:
@@ -118,16 +130,83 @@ def _regeln(conn: Verbindung, regelsatz: str) -> dict[str, dict[str, Any]]:
     return {str(z["name"]): dict(z) for z in zeilen}
 
 
-def _ziel_pruefen(conn: Verbindung, ziel: str) -> None:
-    if not re.fullmatch(r"v\d+", ziel):
-        raise VorschlagUngueltig(f"Regelsatz {ziel!r} hat nicht die Form v<Zahl>")
+def _ziel_pruefen(conn: Verbindung, ziel: str) -> bool:
+    """Prüft das Ziel. True = Auswertungs-Regelsatz (eigene Regeln), False = Zählregelsatz v<Zahl>."""
+    if _V_REGELSATZ.fullmatch(ziel):
+        z = conn.execute(
+            "SELECT count(*) AS n FROM meta.lauf WHERE regelsatz = %s AND ergebnis_status = 'endgueltig'",
+            (ziel,),
+        ).fetchone()
+        if z is not None and int(str(z["n"])) > 0:
+            raise VorschlagUngueltig(
+                f"Regelsatz {ziel} hat veröffentlichte Monate; die bleiben unverändert. Bitte einen neuen Regelsatz."
+            )
+        return False
+    if not _AUSWERTUNG_REGELSATZ.fullmatch(ziel):
+        raise VorschlagUngueltig(
+            f"Regelsatz {ziel!r} hat weder die Form v<Zahl> noch die eines Auswertungs-Regelsatzes "
+            "(a-z, dann 2 bis 40 Zeichen aus a-z, 0-9, _)"
+        )
+    # Keine Monatsläufe: geschützt ist hier, was schon freigegeben ist.
     z = conn.execute(
-        "SELECT count(*) AS n FROM meta.lauf WHERE regelsatz = %s AND ergebnis_status = 'endgueltig'", (ziel,)
+        """SELECT count(*) AS n FROM meta.regel
+           WHERE regelsatz = %s AND aktiv AND freigegeben_von IS NOT NULL""",
+        (ziel,),
     ).fetchone()
     if z is not None and int(str(z["n"])) > 0:
         raise VorschlagUngueltig(
-            f"Regelsatz {ziel} hat veröffentlichte Monate; die bleiben unverändert. Bitte einen neuen Regelsatz."
+            f"Auswertungs-Regelsatz {ziel} hat freigegebene Regeln; die ändern sich nicht ohne neue Freigabe. "
+            "Bitte einen neuen Auswertungs-Regelsatz."
         )
+    return True
+
+
+def _art_unbekannt(typ: str, art: str, arten: list[str]) -> VorschlagUngueltig:
+    return VorschlagUngueltig(
+        f"Eine {typ}-Regel der Art {art!r} kennt das Programm nicht (vorhanden: "
+        f"{', '.join(arten)}). Eine neue Art braucht neuen Code im Programm; das ist ein "
+        "Entwicklungsauftrag, kein Regelvorschlag."
+    )
+
+
+def _auswertung_parameter_pruefen(conn: Verbindung, name: str, art: str, parameter: dict[str, Any]) -> None:
+    """Parameter einer neuen Auswertungsregel: vollständig, wie der Auswertungscode sie liest."""
+    erwartet = _AUSWERTUNG_PARAMETER[art]
+    fehlt, unbekannt = sorted(erwartet - set(parameter)), sorted(set(parameter) - erwartet)
+    if fehlt:
+        raise VorschlagUngueltig(f"{name}: der Art {art} fehlen die Parameter {', '.join(fehlt)}")
+    if unbekannt:
+        raise VorschlagUngueltig(f"{name}: Parameter {', '.join(unbekannt)} kennt die Art {art} nicht")
+    rs = parameter["bereinigung_regelsatz"]
+    if not (isinstance(rs, str) and _V_REGELSATZ.fullmatch(rs) and regelsatz_vorhanden(conn, rs)):
+        raise VorschlagUngueltig(f"{name}.bereinigung_regelsatz: Regelsatz {rs!r} gibt es nicht")
+    for k, kleinster in (("monate", 1), ("mindesttage", 0)):
+        w = parameter[k]
+        if isinstance(w, bool) or not isinstance(w, int) or w < kleinster:
+            raise VorschlagUngueltig(f"{name}.{k}: ganze Zahl ab {kleinster} erwartet, nicht {w!r}")
+    for k in ("qualifikationen", "felder"):
+        if not (isinstance(parameter[k], list) and parameter[k]):
+            raise VorschlagUngueltig(f"{name}.{k}: nicht leere Liste erwartet")
+    altcodes = parameter["altcodes_als_abschnitt"]
+    if not (isinstance(altcodes, list) and all(isinstance(c, str) and c for c in altcodes)):
+        raise VorschlagUngueltig(f"{name}.altcodes_als_abschnitt: Liste von Codes erwartet (leer = keine)")
+    listen = {"monate", "mindesttage", "qualifikationen", "felder", "altcodes_als_abschnitt"}
+    for k in sorted(erwartet - listen):
+        if not isinstance(parameter[k], str):
+            raise VorschlagUngueltig(f"{name}.{k}: Text erwartet, nicht {parameter[k]!r}")
+
+
+def _ohne_auswertungsfelder(aenderungen: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """``felder`` einer neuen Auswertungsregel nennt Spalten der Lieferung (Auftrag 3 verlangt PERSON_ID), keine
+    Werte; für die Kennungsprüfung bleiben sie außen vor."""
+    ergebnis: list[dict[str, Any]] = []
+    for a in aenderungen:
+        regel = a.get("regel")
+        if isinstance(regel, dict) and regel.get("art") in _AUSWERTUNG_PARAMETER:
+            parameter = {k: w for k, w in dict(regel["parameter"]).items() if k != "felder"}
+            a = {**a, "regel": {**regel, "parameter": parameter}}
+        ergebnis.append(a)
+    return ergebnis
 
 
 def _ohne_kennungen(*teile: object) -> None:
@@ -160,10 +239,14 @@ def vorschlag_pruefen(
     if not antwort.begruendung.strip():
         raise VorschlagUngueltig("Ein Vorschlag braucht eine Begründung")
     ziel = antwort.regelsatz_ziel
-    _ziel_pruefen(conn, ziel)
-    basis = ziel if regelsatz_vorhanden(conn, ziel) else regelsatz_basis
-    if not regelsatz_vorhanden(conn, basis):
-        raise VorschlagUngueltig(f"Basisregelsatz {basis} gibt es nicht")
+    auswertung = _ziel_pruefen(conn, ziel)
+    if auswertung:
+        # Ein Auswertungs-Regelsatz trägt nur eigene Regeln; Basis = Ziel, damit einspielen nichts kopiert.
+        basis = ziel
+    else:
+        basis = ziel if regelsatz_vorhanden(conn, ziel) else regelsatz_basis
+        if not regelsatz_vorhanden(conn, basis):
+            raise VorschlagUngueltig(f"Basisregelsatz {basis} gibt es nicht")
     regeln = _regeln(conn, basis)
     aenderungen: list[dict[str, Any]] = []
     datei: CodeDateiEntwurf | None = None
@@ -196,24 +279,27 @@ def vorschlag_pruefen(
             if n.typ not in rolle.regeltypen:
                 raise VorschlagUngueltig(f"Die Rolle {rolle.name} darf keine {n.typ}-Regeln anlegen")
             gleiche_art = [r for r in regeln.values() if r["typ"] == n.typ and r["art"] == n.art]
-            if not gleiche_art:
-                arten = sorted({str(r["art"]) for r in regeln.values() if r["typ"] == n.typ})
-                raise VorschlagUngueltig(
-                    f"Eine {n.typ}-Regel der Art {n.art!r} kennt das Programm nicht (vorhanden: "
-                    f"{', '.join(arten)}). Eine neue Art braucht neuen Code im Programm; das ist ein "
-                    "Entwicklungsauftrag, kein Regelvorschlag."
-                )
-            if n.typ == "zaehl":
-                raise VorschlagUngueltig(
-                    f"Zählregeln gibt es je Art genau einmal; bitte {gleiche_art[0]['name']} ändern"
-                )
             parameter = _parameter(n.parameter)
-            bekannt = set().union(*(set(dict(r["parameter"])) for r in gleiche_art))
-            unbekannt = sorted(set(parameter) - bekannt)
-            if unbekannt:
+            if n.typ == "zaehl" and gleiche_art:
                 raise VorschlagUngueltig(
-                    f"{n.name}: Parameter {', '.join(unbekannt)} kennt die Art {n.art} nicht"
+                    f"Zählregeln gibt es je Art und Regelsatz genau einmal; {basis} hat schon "
+                    f"{gleiche_art[0]['name']}. Bitte diese ändern"
                 )
+            if n.typ == "zaehl" and auswertung:
+                # Im Auswertungs-Regelsatz nur Arten, die der Auswertungscode rechnet.
+                if n.art not in _AUSWERTUNG_PARAMETER:
+                    raise _art_unbekannt(n.typ, n.art, sorted(_AUSWERTUNG_PARAMETER))
+                _auswertung_parameter_pruefen(conn, n.name, n.art, parameter)
+            else:
+                if not gleiche_art:
+                    arten = sorted({str(r["art"]) for r in regeln.values() if r["typ"] == n.typ})
+                    raise _art_unbekannt(n.typ, n.art, arten)
+                bekannt = set().union(*(set(dict(r["parameter"])) for r in gleiche_art))
+                unbekannt = sorted(set(parameter) - bekannt)
+                if unbekannt:
+                    raise VorschlagUngueltig(
+                        f"{n.name}: Parameter {', '.join(unbekannt)} kennt die Art {n.art} nicht"
+                    )
             for k, w in parameter.items():
                 _wert_pruefen(n.art, k, None, w, n.name)
             regel = n.model_dump(exclude={"parameter"}) | {"parameter": parameter}
@@ -231,7 +317,9 @@ def vorschlag_pruefen(
             raise VorschlagUngueltig(f"Code-Datei: {fehler}") from None
         datei = CodeDateiEntwurf(name=d.name, endung=endung, rumpf=d.inhalt)
 
-    _ohne_kennungen(aenderungen, antwort.begruendung, None if datei is None else datei.rumpf)
+    _ohne_kennungen(
+        _ohne_auswertungsfelder(aenderungen), antwort.begruendung, None if datei is None else datei.rumpf
+    )
     return GeprueftVorschlag(antwort.typ, ziel, basis, aenderungen, datei, antwort.begruendung.strip())
 
 
@@ -266,8 +354,14 @@ def _aufruf[M: BaseModel](
     return _antwort_lesen(antwort, format_)
 
 
-def kontext_bauen(conn: Verbindung, regelsatz_basis: str = "v1") -> dict[str, Any]:
-    """Was eine Rolle sehen darf: Regeln, Schema, Klassifikation der Qualifikation, Lauf-Aggregate."""
+def kontext_bauen(
+    conn: Verbindung, regelsatz_basis: str = "v1", lieferung: str | None = None
+) -> dict[str, Any]:
+    """Was eine Rolle sehen darf: Regeln, Schema, Klassifikation der Qualifikation, Lauf-Aggregate.
+
+    Mit ``lieferung`` zusätzlich die festen Rohdaten-Kennzahlen dieser Lieferung (``roh_kennzahlen``);
+    roh.* und bereinigt.* sind für freie Abfragen gesperrt.
+    """
     kontext: dict[str, Any] = {
         "regelsatz_basis": regelsatz_basis,
         "regeln": regeln_lesen(conn, regelsatz_basis),
@@ -282,6 +376,8 @@ def kontext_bauen(conn: Verbindung, regelsatz_basis: str = "v1") -> dict[str, An
            FROM meta.lauf WHERE status IN ('fertig', 'unveraendert')
            ORDER BY regelsatz, lieferung, id DESC""",
     )["zeilen"]
+    if lieferung is not None:
+        kontext["roh_kennzahlen"] = roh_kennzahlen(conn, lieferung)
     return kontext
 
 
@@ -319,7 +415,7 @@ def agent_ausfuehren(
 
     rolle = ROLLEN[koordination.rolle]
     ergebnis.rolle = rolle.name
-    kontext = kontext_bauen(conn, regelsatz_basis)
+    kontext = kontext_bauen(conn, regelsatz_basis, probe_lieferung)
     nachrichten = [
         {"role": "system", "content": rolle.system_prompt},
         {

@@ -183,8 +183,9 @@ def test_sql_lesen_ist_nur_lesend_und_begrenzt(agent_conn: Verbindung) -> None:
         sql_lesen(agent_conn, "WITH x AS (DELETE FROM meta.regel RETURNING 1) SELECT count(*) FROM x")
     assert _anzahl(agent_conn, "SELECT count(*) AS n FROM meta.regel") == regeln
 
-    erlaubt = sql_lesen(agent_conn, "SELECT qual, count(*) AS n FROM roh.lieferung GROUP BY qual ORDER BY 1")
-    assert erlaubt["spalten"] == ["qual", "n"] and not erlaubt["abgeschnitten"]
+    # roh.* ist für freie Abfragen gesperrt (Review !13 Punkt 2); erlaubt bleibt ein Aggregat auf meta.*.
+    erlaubt = sql_lesen(agent_conn, "SELECT regelsatz, count(*) AS n FROM meta.regel GROUP BY 1 ORDER BY 1")
+    assert erlaubt["spalten"] == ["regelsatz", "n"] and not erlaubt["abgeschnitten"]
     viel = sql_lesen(agent_conn, "SELECT g FROM generate_series(1, 500) g")
     assert len(viel["zeilen"]) == 200 and viel["abgeschnitten"]
     assert not any(

@@ -210,10 +210,14 @@ def lauf(
                 raise typer.Exit(1) from fehler
             ergebnisse.append(e.als_dict())
             if not als_json:
+                # Abrechnung: gelesen = geliefert gezählt + nicht gezählt + ausgeschlossen; fortgeschriebene
+                # Verhältnisse (E07) zählen mit, stehen aber nicht in der Lieferung und deshalb getrennt.
+                geliefert = e.gezaehlt - e.fortgeschrieben
+                fort = f" (+ {e.fortgeschrieben:,} fortgeschrieben, E07)" if e.fortgeschrieben else ""
                 typer.echo(
                     f"{e.lieferung} [{e.regelsatz}] {e.status:<12} {e.ergebnis_status:<10} "
-                    f"gezählt {e.gezaehlt:>7,}  gelesen {e.gelesen:>7,} = {e.gezaehlt:,} + {e.nicht_gezaehlt:,} "
-                    f"nicht gezählt + {e.ausgeschlossen:,} ausgeschlossen  hash {e.ergebnis_hash[:12]}"
+                    f"gezählt {e.gezaehlt:>7,}  gelesen {e.gelesen:>7,} = {geliefert:,} + {e.nicht_gezaehlt:,} "
+                    f"nicht gezählt + {e.ausgeschlossen:,} ausgeschlossen{fort}  hash {e.ergebnis_hash[:12]}"
                     + (f"  ({e.meldung})" if e.meldung else "")
                 )
                 sys.stdout.flush()

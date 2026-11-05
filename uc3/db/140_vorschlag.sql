@@ -11,8 +11,9 @@ CREATE TABLE IF NOT EXISTS meta.vorschlag (
   anweisung        text NOT NULL,                          -- wörtlich, wie der Mensch sie gegeben hat
   rolle            text NOT NULL CHECK (rolle IN ('datenmanagement', 'klassifikation', 'qs', 'reporting')),
   typ              text NOT NULL CHECK (typ IN ('regel_neu', 'regel_aendern', 'code_datei')),
-  regelsatz_ziel   text NOT NULL CHECK (regelsatz_ziel ~ '^v[0-9]+$'),
-  regelsatz_basis  text NOT NULL CHECK (regelsatz_basis ~ '^v[0-9]+$'),
+  -- v<Zahl> (Zählregelsatz mit Monatsläufen) oder ein Auswertungs-Regelsatz wie 'ministerium' (Auftrag 3)
+  regelsatz_ziel   text NOT NULL CHECK (regelsatz_ziel ~ '^(v[0-9]+|[a-z][a-z0-9_]{2,40})$'),
+  regelsatz_basis  text NOT NULL CHECK (regelsatz_basis ~ '^(v[0-9]+|[a-z][a-z0-9_]{2,40})$'),
   -- regel_aendern: [{regel_name, parameter_alt, parameter_neu}]; regel_neu: [{regel: {...}}];
   -- code_datei: [{pfad, inhalt_sha256}] (Pfad relativ zur Repo-Wurzel)
   aenderungen      jsonb NOT NULL CHECK (jsonb_typeof(aenderungen) = 'array' AND jsonb_array_length(aenderungen) > 0),
@@ -40,3 +41,13 @@ CREATE TABLE IF NOT EXISTS meta.vorschlag (
 CREATE UNIQUE INDEX IF NOT EXISTS vorschlag_protokoll_idx ON meta.vorschlag (protokoll_id)
   WHERE protokoll_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS vorschlag_status_idx ON meta.vorschlag (status, id);
+
+-- Upgrade bestehender Datenbanken: CREATE TABLE IF NOT EXISTS ändert dort nichts, die alten CHECKs ließen nur
+-- v<Zahl> zu. Namen sind die von Postgres vergebenen (<tabelle>_<spalte>_check). Idempotent: läuft bei jedem
+-- `uc3 db init` erneut und ersetzt die Bedingung durch dieselbe.
+ALTER TABLE meta.vorschlag DROP CONSTRAINT IF EXISTS vorschlag_regelsatz_ziel_check;
+ALTER TABLE meta.vorschlag ADD CONSTRAINT vorschlag_regelsatz_ziel_check
+  CHECK (regelsatz_ziel ~ '^(v[0-9]+|[a-z][a-z0-9_]{2,40})$');
+ALTER TABLE meta.vorschlag DROP CONSTRAINT IF EXISTS vorschlag_regelsatz_basis_check;
+ALTER TABLE meta.vorschlag ADD CONSTRAINT vorschlag_regelsatz_basis_check
+  CHECK (regelsatz_basis ~ '^(v[0-9]+|[a-z][a-z0-9_]{2,40})$');

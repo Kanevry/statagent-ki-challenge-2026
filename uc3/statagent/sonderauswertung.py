@@ -33,6 +33,25 @@ from statagent import ergebnis, konfig
 from statagent.db import Verbindung, lieferungen, tupelzeilen
 from statagent.regeln import Regel, RegelFehler, eine, name_pruefen, regeln_laden, wert
 
+#: Parameter, die die Art ``personentage`` liest (jeder ist Pflicht, siehe ``regeln.wert``). Die Agenten prüfen
+#: neue Auswertungsregeln gegen diese Liste (agenten/koordinator.py).
+PERSONENTAGE_PARAMETER = frozenset(
+    {
+        "monate",
+        "qualifikationen",
+        "oenace",
+        "altcodes_als_abschnitt",
+        "mindesttage",
+        "datenstand",
+        "angehaltene_lieferungen",
+        "bereinigung_regelsatz",
+        "geburtsjahr_unplausibel",
+        "felder",
+        "datei",
+        "trennzeichen",
+    }
+)
+
 
 class NichtFreigegeben(RuntimeError):
     """Eine Auswertung startet nur mit freigegebener Definition (Technische Regel 6d)."""
