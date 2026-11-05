@@ -2,6 +2,13 @@
 """Eigenständiger Namens- und Parteienscan (Prüfskript, importiert keinen uc2-Laufzeitcode).
 
 Aufruf: `python uc2/tests/pruefe_namen.py <dateien…> [--namensliste <datei>]`
+Lauf-Modus (#43): `python uc2/tests/pruefe_namen.py --lauf <json|txt> --namensliste <datei> --autoren <datei>`
+
+Im Lauf-Modus zählt der Scan nur Treffer gegen die beiden Listen (Index-Namensliste und Autor:in-Liste,
+eine Zeile je Name, nur das Feld vor einem TAB, `#` kommentiert): ganze Wörter (kein Wortzeichen davor oder
+danach), Groß-/Kleinschreibung beachtet. Bei JSON werden alle Zeichenketten gescannt, bei Text die ganze
+Datei. Ausgegeben werden nur Zahlen je Liste; `--zeige` nennt die getroffenen Namen (nie in Berichte).
+Exit 1 bei mindestens einem Treffer, 2 bei fehlender Liste, sonst 0.
 
 Meldet je Datei:Zeile Treffer gegen (a) eine externe Namensliste (Datei außerhalb des Repos, Pfad über
 `--namensliste` oder Env `UC2_NAMENSLISTE`; fehlt sie, nur ein Hinweis) und (b) Muster: akademischer Titel
@@ -13,6 +20,7 @@ dieselbe Logik getrennt um, damit dieses Skript ein unabhängiges Orakel bleibt.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -164,11 +172,97 @@ def scanne_text(text: str, datei: str, namen: Sequence[str] = ()) -> list[Treffe
     return sorted(treffer, key=lambda t: t.zeile)
 
 
+def lies_liste(pfad: Path) -> list[str]:
+    """Namen einer Liste: erstes Feld vor einem TAB, ohne Leer- und `#`-Zeilen."""
+    namen = []
+    for zeile in pfad.read_text(encoding="utf-8").splitlines():
+        if not zeile.strip() or zeile.lstrip().startswith("#"):
+            continue
+        name = zeile.split("\t")[0].strip()
+        if name:
+            namen.append(name)
+    return namen
+
+
+def texte_aus(pfad: Path) -> list[str]:
+    """Alle Zeichenketten einer JSON-Datei (rekursiv), sonst der ganze Text."""
+    roh = pfad.read_text(encoding="utf-8")
+    if pfad.suffix != ".json":
+        return [roh]
+    gefunden: list[str] = []
+
+    def sammle(wert: object) -> None:
+        if isinstance(wert, str):
+            gefunden.append(wert)
+        elif isinstance(wert, dict):
+            for v in wert.values():
+                sammle(v)
+        elif isinstance(wert, list):
+            for v in wert:
+                sammle(v)
+
+    sammle(json.loads(roh))
+    return gefunden
+
+
+_WORTANFANG = re.compile(r"(?<!\w)\w+")
+
+
+def zaehle_namen(texte: Sequence[str], namen: Sequence[str]) -> dict[str, int]:
+    """Treffer je Name: ganzes Wort, Groß-/Kleinschreibung beachtet (Index über das erste Wort, schnell)."""
+    index: dict[str, list[str]] = {}
+    for name in set(namen):
+        kopf = _WORTANFANG.match(name)
+        if kopf is not None:
+            index.setdefault(kopf.group(0), []).append(name)
+    zahlen: dict[str, int] = {}
+    for text in texte:
+        for wort in _WORTANFANG.finditer(text):
+            for name in index.get(wort.group(0), ()):
+                ende = wort.start() + len(name)
+                if text.startswith(name, wort.start()) and not (
+                    ende < len(text) and re.match(r"\w", text[ende])
+                ):
+                    zahlen[name] = zahlen.get(name, 0) + 1
+    return zahlen
+
+
+def lauf(lauf_datei: Path, listen: dict[str, Path | None], zeige: bool) -> int:
+    texte = texte_aus(lauf_datei)
+    summe = 0
+    for art, pfad in listen.items():
+        if pfad is None:
+            print(f"{art}: nicht angegeben", file=sys.stderr)
+            continue
+        if not pfad.is_file():
+            print(f"{art}: Datei {pfad} fehlt", file=sys.stderr)
+            return 2
+        namen = lies_liste(pfad)
+        zahlen = zaehle_namen(texte, namen)
+        treffer = sum(zahlen.values())
+        summe += treffer
+        print(f"{art}: {treffer} Treffer, {len(zahlen)} verschiedene Namen, Liste {len(namen)} Namen")
+        if zeige:
+            for name, n in sorted(zahlen.items()):
+                print(f"  {art}: {name} ×{n}")
+    print(f"{summe} Treffer in {len(texte)} Texten aus {lauf_datei}", file=sys.stderr)
+    return 1 if summe else 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Namens- und Parteienscan (UC2)")
-    parser.add_argument("dateien", nargs="+", type=Path)
+    parser.add_argument("dateien", nargs="*", type=Path)
     parser.add_argument("--namensliste", type=Path, default=None, help=f"sonst Env {NAMENSLISTE_ENV}")
+    parser.add_argument("--lauf", type=Path, default=None, help="Lauf-Ausgabe (json|txt) gegen beide Listen")
+    parser.add_argument("--autoren", type=Path, default=None, help="Autor:in-Liste (nur mit --lauf)")
+    parser.add_argument("--zeige", action="store_true", help="getroffene Namen ausgeben (nur lokal)")
     args = parser.parse_args(argv)
+    if args.lauf is not None:
+        if args.namensliste is None and args.autoren is None:
+            parser.error("--lauf braucht --namensliste und/oder --autoren")
+        return lauf(args.lauf, {"namensliste": args.namensliste, "autoren": args.autoren}, args.zeige)
+    if not args.dateien:
+        parser.error("Dateien oder --lauf angeben")
     namen, hinweis = lade_namensliste(args.namensliste)
     if hinweis:
         print(hinweis, file=sys.stderr)

@@ -1,4 +1,4 @@
-"""Befehle `extrahiere`, `einbetten`, `index`, `suche` (eingehängt von `uc2.cli`)."""
+"""Befehle `extrahiere`, `einbetten`, `index`, `suche`, `namen sammeln` (eingehängt von `uc2.cli`)."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from typing import Any
 
 from uc2 import db, pfade
 from uc2.belege.regeln import MODI, lade_regeln
+from uc2.belege.suche import AUSSCHNITT_ZEICHEN
 
 
 def _extrahiere(args: argparse.Namespace) -> int:
@@ -57,36 +58,151 @@ def _index(args: argparse.Namespace) -> int:
     return 0
 
 
+def _akteur(akteur_id: str) -> Any:
+    from uc2.akteure.laden import lade_akteure
+
+    for akteur in lade_akteure():
+        if akteur.id == akteur_id:
+            return akteur
+    raise SystemExit(f"Akteur {akteur_id!r} unbekannt")
+
+
 def _suche(args: argparse.Namespace) -> int:
+    """Ausgabe immer maskiert in Anzeigeform (Namen als Rolle, Zitate als [Zitat]); keine Rohform.
+
+    JSON (`--json`, Eingabe für `tests/pruefe_rang.py`): `{"modus", "frage" (tatsächliche Abfrage),
+    "stichtag", "institution" (oder null), "k", "treffer": [...]}`; je Treffer `abschnitt_id`, `artikel_id`,
+    `artikeldatum`, `medium`, `titel`, `ausschnitt`, `relevanz`, `ts`, `cos`, `rang_volltext`,
+    `rang_vektor`, `gewicht_alter`, `faktor_institution`, `rang`. Mit `--akteur` zusätzlich `akteur`,
+    `runde` und je Treffer die Felder von `Beleg` (ohne `text_modell`).
+    """
     from uc2.belege.einbettung import einbetter
-    from uc2.belege.suche import suche
+    from uc2.belege.namen import Namensliste
+    from uc2.belege.suche import maskiere_treffer, suche, suche_belege
 
     regeln = lade_regeln()
     modus = args.modus or regeln.modus
+    stichtag = args.stichtag or regeln.stichtag_standard
+    namen = Namensliste.lade()
+    ausgabe: dict[str, Any]
     with db.verbinde(args.db) as verbindung:
         # Der Einbetter (torch, Modell) lädt erst, wenn der Index Vektoren hat; ohne das Extra `einbettung`
         # fällt `suche` mit Hinweis auf volltext zurück.
-        genutzt, treffer = suche(
-            verbindung,
-            args.frage,
-            regeln,
-            modus=modus,
-            k=args.k,
-            stichtag=args.stichtag,
-            einbetter_fabrik=einbetter,
-        )
+        if args.akteur:
+            ergebnis = suche_belege(
+                verbindung,
+                _akteur(args.akteur),
+                args.frage,
+                args.runde,
+                stichtag=stichtag,
+                regeln=regeln,
+                einbetter_fabrik=einbetter,
+                namen=namen,
+                modus=modus,
+                k=args.k,
+            )
+            ausgabe = {
+                "modus": ergebnis.modus,
+                "frage": ergebnis.abfrage,
+                "stichtag": stichtag.isoformat(),
+                "institution": ergebnis.institution,
+                "k": args.k or regeln.k_je_akteur,
+                "akteur": args.akteur,
+                "runde": args.runde,
+                "treffer": [
+                    {"abschnitt_id": b.beleg_id, "artikeldatum": b.datum, **b.als_dict(anzeige=True)}
+                    for b in ergebnis.belege
+                ],
+            }
+        else:
+            genutzt, treffer = suche(
+                verbindung,
+                args.frage,
+                regeln,
+                modus=modus,
+                k=args.k,
+                stichtag=stichtag,
+                einbetter_fabrik=einbetter,
+            )
+            belege = maskiere_treffer(verbindung, treffer, namen)
+            ausgabe = {
+                "modus": genutzt,
+                "frage": args.frage,
+                "stichtag": stichtag.isoformat(),
+                "institution": None,
+                "k": args.k or regeln.k,
+                "treffer": [
+                    {
+                        **t.als_dict(),
+                        "titel": b.titel,
+                        "ausschnitt": " ".join(b.text_anzeige.split())[:AUSSCHNITT_ZEICHEN],
+                    }
+                    for t, b in zip(treffer, belege, strict=True)
+                ],
+            }
     if args.json:
-        ausgabe: dict[str, Any] = {"modus": genutzt, "treffer": [t.als_dict() for t in treffer]}
         print(json.dumps(ausgabe, ensure_ascii=False, indent=2))
         return 0
-    print(f"Modus {genutzt}, {len(treffer)} Treffer")
-    for n, t in enumerate(treffer, start=1):
+    anzahl = len(ausgabe["treffer"])
+    print(f"Modus {ausgabe['modus']}, {anzahl} Treffer (maskiert), Abfrage: {ausgabe['frage']}")
+    for n, t in enumerate(ausgabe["treffer"], start=1):
+        text = t.get("text_anzeige", t.get("ausschnitt", ""))
         print(
-            f"{n:2d}. rang={t.rang:.4f} relevanz={t.relevanz:.4f} cos={t.cos:.4f} ts={t.ts:.4f} "
-            f"rang_volltext={t.rang_volltext} rang_vektor={t.rang_vektor} "
-            f"gewicht_alter={t.gewicht_alter:.4f} | {t.artikeldatum} {t.medium} | {t.titel}"
-            f"\n    {t.ausschnitt}"
+            f"{n:2d}. rang={t['rang']:.4f} relevanz={t['relevanz']:.4f} cos={t['cos']:.4f} ts={t['ts']:.4f} "
+            f"rang_volltext={t['rang_volltext']} rang_vektor={t['rang_vektor']} "
+            f"gewicht_alter={t['gewicht_alter']:.4f} faktor_institution={t['faktor_institution']:.2f} "
+            f"| {t['artikeldatum']} {t['medium']} | {t['titel']}"
+            f"\n    {' '.join(text.split())[:AUSSCHNITT_ZEICHEN]}"
         )
+    return 0
+
+
+def _namen_sammeln(args: argparse.Namespace) -> int:
+    """Namensliste schreiben: Muster über alle Titel und Abschnitte des Index plus externe Autor:in-Liste."""
+    import time
+
+    from uc2.belege.namen import (
+        Namenseintrag,
+        NamenslisteImRepo,
+        lies_namenszeilen,
+        pruefe_ausserhalb_repo,
+        sammle_namen,
+        schreibe_namensliste,
+    )
+
+    beginn = time.monotonic()
+    try:
+        pruefe_ausserhalb_repo(args.ausgabe)
+    except NamenslisteImRepo as fehler:
+        print(f"Abbruch: {fehler}", file=sys.stderr)
+        return 1
+    if not args.aus_index and args.autoren is None:
+        print("Abbruch: --aus-index oder --autoren angeben", file=sys.stderr)
+        return 2
+    eintraege: list[Namenseintrag] = []
+    aus_index = 0
+    if args.aus_index:
+        artikel: dict[str, list[str]] = {}
+        with db.verbinde(args.db) as verbindung:
+            for artikel_id, titel, text in verbindung.execute(
+                "select a.artikel_id, a.titel, s.text from uc2.artikel a "
+                "join uc2.abschnitt s using (artikel_id) order by a.artikel_id, s.nr"
+            ):
+                artikel.setdefault(str(artikel_id), [str(titel)]).append(str(text))
+        gesammelt = sammle_namen(artikel.values())
+        aus_index = len(gesammelt)
+        eintraege.extend(gesammelt)
+    autoren = 0
+    if args.autoren is not None:
+        liste = lies_namenszeilen(args.autoren.read_text(encoding="utf-8"))
+        autoren = len(liste)
+        eintraege.extend(Namenseintrag(e.name) for e in liste)
+    anzahl = schreibe_namensliste(args.ausgabe, eintraege)
+    # Nur Zahlen, nie Namen ausgeben
+    print(
+        f"namen={anzahl} aus_index={aus_index} autoren={autoren} dauer_s={time.monotonic() - beginn:.1f} "
+        f"→ {args.ausgabe}"
+    )
     return 0
 
 
@@ -128,4 +244,15 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     p.add_argument("--stichtag", type=date.fromisoformat, default=None)
     p.add_argument("--db", default=None)
     p.add_argument("--json", action="store_true")
+    p.add_argument("--akteur", default=None, help="Akteurs-ID: Abfrage, k und Institutionsfaktor je Akteur")
+    p.add_argument("--runde", type=int, default=1, help="nur mit --akteur, geht ins Protokoll")
     p.set_defaults(func=_suche)
+
+    p = sub.add_parser("namen", help="Personenschutz: Namensliste außerhalb des Repos")
+    namen_sub = p.add_subparsers(dest="namen_befehl", metavar="BEFEHL", required=True)
+    q = namen_sub.add_parser("sammeln", help="Namen per Muster aus dem Index und aus einer Autor:in-Liste")
+    q.add_argument("--ausgabe", type=Path, required=True, help="Zieldatei außerhalb des Repos")
+    q.add_argument("--aus-index", action="store_true", help="Titel und Abschnitte des Index durchsuchen")
+    q.add_argument("--autoren", type=Path, default=None, help="Datei mit einer Autor:in je Zeile")
+    q.add_argument("--db", default=None)
+    q.set_defaults(func=_namen_sammeln)

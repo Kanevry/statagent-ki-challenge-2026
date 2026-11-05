@@ -5,23 +5,32 @@ volltext = ts_norm (`ts_rank_cd(Abschnitt || Titel, …, 32)`, liegt in [0, 1)),
 hybrid (fusion rrf) = gewicht_volltext/(rrf_k + rang_volltext) + gewicht_vektor/(rrf_k + rang_vektor),
 Ränge je Verfahren über Artikel (bester Abschnitt) in dessen Kandidatenliste; fehlt ein Rang, entfällt
 der Summand. hybrid (fusion summe) = gewicht_vektor · max(cos, 0) + gewicht_volltext · ts_norm.
-Endrang = Relevanz · 0,5^(Alter/Halbwertszeit).
+Endrang = Relevanz · 0,5^(Alter/Halbwertszeit) · f, als letzter Faktor auch bei RRF (#43): f =
+`institutionsfaktor` aus `regeln.yaml`, wenn `abschnitt.institutionen` des gewählten Abschnitts die
+Institution des fragenden Akteurs enthält, sonst 1,0 (ohne Institution immer 1,0).
 Artikel nach dem Stichtag sind ausgeschlossen; je Artikel zählt nur der beste Abschnitt.
+Nachrechnen ohne Laufzeitcode: `uc2/tests/pruefe_rang.py`.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
+import logging
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from datetime import date
-from typing import Any
+from typing import Any, Protocol
 
 import numpy as np
 import psycopg
 
 from uc2.belege.einbettung import Einbetter, abfrage_text
-from uc2.belege.regeln import Regeln
+from uc2.belege.namen import Namensliste, lade_institutionen, maskiere_artikel, zitate_anzeige
+from uc2.belege.regeln import Regeln, lade_regeln
+
+log = logging.getLogger(__name__)
 
 AUSSCHNITT_ZEICHEN = 200
 
@@ -40,6 +49,8 @@ class Kandidat:
     """Steht in der Volltext-Kandidatenliste."""
     in_vektor: bool = False
     """Steht in der Vektor-Kandidatenliste."""
+    institutionen: tuple[str, ...] = ()
+    """Institutions-Tags des Abschnitts (`abschnitt.institutionen`)."""
 
 
 @dataclass(frozen=True)
@@ -57,6 +68,10 @@ class Treffer:
     ausschnitt: str
     rang_volltext: int | None = None
     rang_vektor: int | None = None
+    faktor_institution: float = 1.0
+    """Letzter Faktor des Endrangs: `rang = relevanz · gewicht_alter · faktor_institution`."""
+    institution: str | None = None
+    """Institution des fragenden Akteurs, gegen die `faktor_institution` bestimmt wurde."""
 
     def als_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -74,8 +89,23 @@ def relevanz(modus: str, cos: float, ts: float, regeln: Regeln) -> float:
     return regeln.gewicht_vektor * max(cos, 0.0) + regeln.gewicht_volltext * ts
 
 
-def _treffer(kand: Kandidat, rel: float, stichtag: date, regeln: Regeln, **raenge: int | None) -> Treffer:
+def faktor_institution(institutionen: tuple[str, ...], institution: str | None, regeln: Regeln) -> float:
+    """`institutionsfaktor`, wenn der Abschnitt die Institution des Akteurs trägt, sonst 1,0."""
+    if institution is not None and institution in institutionen:
+        return regeln.institutionsfaktor
+    return 1.0
+
+
+def _treffer(
+    kand: Kandidat,
+    rel: float,
+    stichtag: date,
+    regeln: Regeln,
+    institution: str | None = None,
+    **raenge: int | None,
+) -> Treffer:
     gewicht = gewicht_alter(kand.artikeldatum, stichtag, regeln.halbwertszeit_tage)
+    faktor = faktor_institution(kand.institutionen, institution, regeln)
     return Treffer(
         abschnitt_id=kand.abschnitt_id,
         artikel_id=kand.artikel_id,
@@ -83,11 +113,13 @@ def _treffer(kand: Kandidat, rel: float, stichtag: date, regeln: Regeln, **raeng
         cos=kand.cos,
         ts=kand.ts,
         gewicht_alter=gewicht,
-        rang=rel * gewicht,
+        rang=rel * gewicht * faktor,
         artikeldatum=kand.artikeldatum.isoformat(),
         medium=kand.medium,
         titel=kand.titel,
         ausschnitt=" ".join(kand.text.split())[:AUSSCHNITT_ZEICHEN],
+        faktor_institution=faktor,
+        institution=institution,
         **raenge,
     )
 
@@ -101,8 +133,13 @@ def _artikelraenge(kandidaten: list[Kandidat], wert: str) -> tuple[dict[str, int
     return {c.artikel_id: n for n, c in enumerate(reihe, start=1)}, bester
 
 
-def bewerte_rrf(kandidaten: list[Kandidat], stichtag: date, regeln: Regeln, k: int) -> list[Treffer]:
-    """Gewichtete RRF über Artikelränge, dann Altersgewicht; Gleichstand nach artikel_id."""
+def bewerte_rrf(
+    kandidaten: list[Kandidat], stichtag: date, regeln: Regeln, k: int, institution: str | None = None
+) -> list[Treffer]:
+    """Gewichtete RRF über Artikelränge, dann Alter und Institutionsfaktor; Gleichstand nach artikel_id.
+
+    Der Faktor gilt für den gewählten Abschnitt (bester nach ts, sonst bester nach cos).
+    """
     gueltig = [c for c in kandidaten if c.artikeldatum <= stichtag]
     rang_t, bester_t = _artikelraenge([c for c in gueltig if c.in_volltext], "ts")
     rang_v, bester_v = _artikelraenge([c for c in gueltig if c.in_vektor], "cos")
@@ -120,6 +157,7 @@ def bewerte_rrf(kandidaten: list[Kandidat], stichtag: date, regeln: Regeln, k: i
                 rel,
                 stichtag,
                 regeln,
+                institution,
                 rang_volltext=rang_t.get(artikel_id),
                 rang_vektor=rang_v.get(artikel_id),
             )
@@ -128,18 +166,25 @@ def bewerte_rrf(kandidaten: list[Kandidat], stichtag: date, regeln: Regeln, k: i
     return [t for t in reihe if t.rang > 0][:k]
 
 
-def bewerte(kandidaten: list[Kandidat], modus: str, stichtag: date, regeln: Regeln, k: int) -> list[Treffer]:
+def bewerte(
+    kandidaten: list[Kandidat],
+    modus: str,
+    stichtag: date,
+    regeln: Regeln,
+    k: int,
+    institution: str | None = None,
+) -> list[Treffer]:
     """Endrang je Kandidat, bester Abschnitt je Artikel, Top k; Gleichstand nach abschnitt_id.
 
     Hybrid mit `fusion: rrf` geht an `bewerte_rrf`.
     """
     if modus == "hybrid" and regeln.fusion == "rrf":
-        return bewerte_rrf(kandidaten, stichtag, regeln, k)
+        return bewerte_rrf(kandidaten, stichtag, regeln, k, institution)
     bester: dict[str, Treffer] = {}
     for kand in sorted(kandidaten, key=lambda c: c.abschnitt_id):
         if kand.artikeldatum > stichtag:
             continue
-        treffer = _treffer(kand, relevanz(modus, kand.cos, kand.ts, regeln), stichtag, regeln)
+        treffer = _treffer(kand, relevanz(modus, kand.cos, kand.ts, regeln), stichtag, regeln, institution)
         alt = bester.get(kand.artikel_id)
         if alt is None or treffer.rang > alt.rang:
             bester[kand.artikel_id] = treffer
@@ -167,7 +212,9 @@ limit %(n)s
 
 DETAIL_SQL = """
 select s.abschnitt_id, s.artikel_id, a.artikeldatum, a.medium, a.titel, s.text,
-       case when (s.tsv || a.tsv) @@ q then ts_rank_cd(s.tsv || a.tsv, q, 32) else 0 end
+       -- float8: exakter float4-Wert; als real käme er als gerundete Dezimalzahl an (Abweichung ~3e-9)
+       (case when (s.tsv || a.tsv) @@ q then ts_rank_cd(s.tsv || a.tsv, q, 32) else 0 end)::float8,
+       s.institutionen
 from uc2.abschnitt s join uc2.artikel a using (artikel_id),
      {abfrage} q
 where s.abschnitt_id = any(%(ids)s)
@@ -212,8 +259,12 @@ def suche(
     stichtag: date | None = None,
     einbetter: Einbetter | None = None,
     einbetter_fabrik: Callable[[], Einbetter] | None = None,
+    institution: str | None = None,
 ) -> tuple[str, list[Treffer]]:
     """Gibt den tatsächlich genutzten Modus und die Treffer zurück (Rückfall auf volltext wird gemeldet).
+
+    `institution` (ID aus `institutionen.yaml`) ist die Institution des fragenden Akteurs; Abschnitte mit
+    diesem Tag bekommen den Institutionsfaktor als letzten Faktor des Endrangs. Ohne sie ist f = 1,0.
 
     `einbetter_fabrik` wird nur aufgerufen, wenn der Index Vektoren hat und kein `einbetter` übergeben ist;
     fehlt dafür das Extra `einbettung` (ImportError, etwa torch), fällt die Suche auf volltext zurück.
@@ -295,9 +346,202 @@ def suche(
             cos=cos_je_id.get(str(z[0]), 0.0),
             in_volltext=str(z[0]) in volltext_menge,
             in_vektor=str(z[0]) in vektor_menge,
+            institutionen=tuple(str(i) for i in (z[7] or ())),
         )
         for z in verbindung.execute(
             DETAIL_SQL.format(abfrage=ts_abfrage), {"frage": frage, "ids": kandidaten_ids}
         )
     ]
-    return modus, bewerte(kandidaten, modus, stichtag, regeln, k)
+    return modus, bewerte(kandidaten, modus, stichtag, regeln, k, institution)
+
+
+# --- Belege je Akteur (#43, Schnittstelle für #44) -------------------------------------------------------
+
+THEMEN_IN_ABFRAGE = 3
+"""Höchstens so viele `themen_interesse` des Akteurs gehen in die Abfrage."""
+
+
+class AkteurFuerBelege(Protocol):
+    """Was `belege_fuer_akteur` vom Akteur braucht; `uc2.akteure.laden.Akteur` erfüllt es."""
+
+    @property
+    def id(self) -> str: ...
+
+    @property
+    def institution(self) -> str: ...
+
+    @property
+    def themen_interesse(self) -> Sequence[str]: ...
+
+
+@dataclass(frozen=True)
+class Beleg:
+    """Ein maskierter Beleg für einen Akteurszug (#44) oder die Anzeige.
+
+    Felder für einen dünnen Adapter auf `belege_fuer(akteur, frage, runde, stichtag) -> list[Beleg]`:
+    - `beleg_id` (= `abschnitt_id`, stabil, zitierbar), `artikel_id`, `medium`, `datum` (JJJJ-MM-TT),
+      `monat` (JJJJ-MM);
+    - `titel` maskiert; `text_modell` maskiert mit Zitaten (für das Modell, nur über `als_datenblock`);
+      `text_anzeige` maskiert, direkte Zitate als „[Zitat]“ (für Oberfläche und Protokoll);
+    - Rangteile: `rang = relevanz · gewicht_alter · faktor_institution`, dazu `ts`, `cos`,
+      `rang_volltext`, `rang_vektor` (RRF-Eingänge) zum Nachrechnen mit `tests/pruefe_rang.py`.
+    """
+
+    beleg_id: str
+    artikel_id: str
+    medium: str
+    datum: str
+    monat: str
+    titel: str
+    text_modell: str
+    text_anzeige: str
+    rang: float
+    relevanz: float
+    gewicht_alter: float
+    faktor_institution: float
+    ts: float
+    cos: float
+    rang_volltext: int | None
+    rang_vektor: int | None
+
+    def als_dict(self, anzeige: bool = False) -> dict[str, Any]:
+        """Alle Felder; mit `anzeige=True` ohne `text_modell` (Zitate bleiben dann draußen)."""
+        daten = asdict(self)
+        if anzeige:
+            del daten["text_modell"]
+        return daten
+
+
+@dataclass(frozen=True)
+class Belegsuche:
+    """Ergebnis von `suche_belege`: genutzter Modus, tatsächliche Abfrage und Belege."""
+
+    modus: str
+    abfrage: str
+    stichtag: date
+    institution: str
+    belege: list[Beleg]
+
+
+def belege_abfrage(frage: str, akteur: AkteurFuerBelege, institutionsname: str) -> str:
+    """Abfrage = Frage + Name der Institution + die ersten (bis zu 3) `themen_interesse` des Akteurs."""
+    return " ".join([frage, institutionsname, *list(akteur.themen_interesse)[:THEMEN_IN_ABFRAGE]])
+
+
+def cache_schluessel(akteur_id: str, frage: str, runde: int, stichtag: date) -> str:
+    """Schlüssel für einen Belege-Cache je Akteur, Frage, Runde und Stichtag (sha256, ohne Inhalt)."""
+    roh = json.dumps([akteur_id, frage, runde, stichtag.isoformat()], ensure_ascii=False)
+    return hashlib.sha256(roh.encode("utf-8")).hexdigest()
+
+
+ARTIKELTEXT_SQL = """
+select artikel_id, abschnitt_id, text, institutionen from uc2.abschnitt
+where artikel_id = any(%(ids)s) order by artikel_id, nr
+"""
+
+
+def maskiere_treffer(
+    verbindung: psycopg.Connection[Any], treffer: Sequence[Treffer], namen: Namensliste | None
+) -> list[Beleg]:
+    """Treffer → maskierte Belege. Namen werden über Titel und alle Abschnitte des Artikels erkannt."""
+    teile_je_artikel: dict[str, list[tuple[str, str, list[str]]]] = {}
+    for z in verbindung.execute(ARTIKELTEXT_SQL, {"ids": sorted({t.artikel_id for t in treffer})}):
+        teile_je_artikel.setdefault(str(z[0]), []).append((str(z[1]), str(z[2]), list(z[3] or [])))
+    belege: list[Beleg] = []
+    for t in treffer:
+        abschnitte = teile_je_artikel.get(t.artikel_id, [])
+        teile = [t.titel, *(text for _, text, _ in abschnitte)]
+        nr = 1 + next(i for i, (aid, _, _) in enumerate(abschnitte) if aid == t.abschnitt_id)
+        tags = sorted({i for _, _, inst in abschnitte for i in inst})
+        titel, text = maskiere_artikel(teile, tags, namen, nur=(0, nr))
+        belege.append(
+            Beleg(
+                beleg_id=t.abschnitt_id,
+                artikel_id=t.artikel_id,
+                medium=t.medium,
+                datum=t.artikeldatum,
+                monat=t.artikeldatum[:7],
+                titel=titel,
+                text_modell=text,
+                text_anzeige=zitate_anzeige(text),
+                rang=t.rang,
+                relevanz=t.relevanz,
+                gewicht_alter=t.gewicht_alter,
+                faktor_institution=t.faktor_institution,
+                ts=t.ts,
+                cos=t.cos,
+                rang_volltext=t.rang_volltext,
+                rang_vektor=t.rang_vektor,
+            )
+        )
+    return belege
+
+
+def suche_belege(
+    verbindung: psycopg.Connection[Any],
+    akteur: AkteurFuerBelege,
+    frage: str,
+    runde: int,
+    stichtag: date | None = None,
+    regeln: Regeln | None = None,
+    einbetter: Einbetter | None = None,
+    einbetter_fabrik: Callable[[], Einbetter] | None = None,
+    namen: Namensliste | None = None,
+    modus: str | None = None,
+    k: int | None = None,
+) -> Belegsuche:
+    """Wie `belege_fuer_akteur`, dazu Modus und Abfrage (für `uc2 suche --akteur --json` und das Orakel)."""
+    regeln = regeln or lade_regeln()
+    stichtag = stichtag or regeln.stichtag_standard
+    institutionen = lade_institutionen(regeln=regeln)
+    abfrage = belege_abfrage(frage, akteur, institutionen.namen.get(akteur.institution, akteur.institution))
+    genutzt, treffer = suche(
+        verbindung,
+        abfrage,
+        regeln,
+        modus=modus,
+        k=k or regeln.k_je_akteur,
+        stichtag=stichtag,
+        einbetter=einbetter,
+        einbetter_fabrik=einbetter_fabrik,
+        institution=akteur.institution,
+    )
+    liste = namen if namen is not None else Namensliste.lade()
+    belege = maskiere_treffer(verbindung, treffer, liste)
+    log.info(
+        "belege akteur=%s runde=%s stichtag=%s modus=%s n=%d schluessel=%s",
+        akteur.id,
+        runde,
+        stichtag.isoformat(),
+        genutzt,
+        len(belege),
+        cache_schluessel(akteur.id, frage, runde, stichtag)[:12],
+    )
+    return Belegsuche(genutzt, abfrage, stichtag, akteur.institution, belege)
+
+
+def belege_fuer_akteur(
+    verbindung: psycopg.Connection[Any],
+    akteur: AkteurFuerBelege,
+    frage: str,
+    runde: int,
+    stichtag: date | None = None,
+    regeln: Regeln | None = None,
+    einbetter: Einbetter | None = None,
+    einbetter_fabrik: Callable[[], Einbetter] | None = None,
+    namen: Namensliste | None = None,
+) -> list[Beleg]:
+    """Die k besten maskierten Belege für einen Akteur (k = `suche.k_je_akteur` aus `regeln.yaml`, 8).
+
+    - Abfrage = `frage` + Name der Institution des Akteurs (aus `institutionen.yaml`) + die ersten bis zu
+      3 `themen_interesse`, mit Leerzeichen verbunden (`belege_abfrage`).
+    - Endrang wie `suche`, mit `institution = akteur.institution`: Belege, deren Abschnitt die Institution
+      trägt, bekommen den `institutionsfaktor` (1,5) als letzten Faktor.
+    - Personenschutz: Titel und Text laufen durch `uc2.belege.namen.maskiere_artikel` (Namen aus Titel und
+      allen Abschnitten des Artikels; Muster plus `namen`, ohne `namen` die Liste aus `UC2_NAMENSLISTE`).
+    - `runde` geht nur in Protokoll und Cache-Schlüssel (`cache_schluessel`) ein, nicht in die Auswahl.
+    - Fürs Modell: `uc2.belege.namen.als_datenblock(belege)`; für die Anzeige `Beleg.text_anzeige`.
+    """
+    return suche_belege(
+        verbindung, akteur, frage, runde, stichtag, regeln, einbetter, einbetter_fabrik, namen
+    ).belege
