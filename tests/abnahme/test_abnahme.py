@@ -151,10 +151,11 @@ def test_bau_db_wird_verweigert(tmp_path: Path) -> None:
 
 
 def test_eigener_arbeitsbaum_wird_nie_zurueckgesetzt() -> None:
-    with pytest.raises(SystemExit, match="eigene Arbeitsbaum"):
+    assert not (pruefen.WURZEL / pruefen.MARKE_KLON).exists()
+    with pytest.raises(SystemExit, match="eigene Arbeitsbaum ohne Marke"):
         pruefen.zuruecksetzen(pruefen.WURZEL, KOPF, KOPF)
 
 
 def test_ordner_ohne_marke_wird_nicht_zurueckgesetzt(tmp_path: Path) -> None:
-    with pytest.raises(SystemExit, match="keine Marke"):
+    with pytest.raises(SystemExit, match="ohne Marke"):
         pruefen.zuruecksetzen(tmp_path, KOPF, KOPF)

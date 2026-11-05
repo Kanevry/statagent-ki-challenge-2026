@@ -251,10 +251,15 @@ def zuruecksetzen(ort: Path, sha: str, werkzeug: str) -> None:
     Grund (Review 4d, 19:00): ein Prüfsatz schrieb abgabe/protokoll.md in den Klon; der nächste checkout
     scheiterte still. Umgebungen (.venv, node_modules) sind ignoriert und bleiben.
     """
-    if ort.resolve() == WURZEL.resolve() or WURZEL.resolve().is_relative_to(ort.resolve()):
-        raise SystemExit(f"Abbruch: {ort} ist der eigene Arbeitsbaum, kein Prüf-Klon")
+    # Nur ein markierter Prüf-Klon wird hart zurückgesetzt. Auf dem Prüfrechner liegt pruefen.py im Klon
+    # selbst, deshalb entscheidet die Marke, nicht der Pfad (20:01: Ablehnung des Pfads verhinderte den Lauf).
     if not (ort / MARKE_KLON).exists():
-        raise SystemExit(f"Abbruch: {ort} trägt keine Marke {MARKE_KLON}, wird nicht zurückgesetzt")
+        wer = (
+            "der eigene Arbeitsbaum ohne Marke"
+            if WURZEL.resolve().is_relative_to(ort.resolve())
+            else "ohne Marke"
+        )
+        raise SystemExit(f"Abbruch: {ort} ist {wer} {MARKE_KLON}, wird nicht zurückgesetzt")
     subprocess.run(["git", "-C", str(ort), "checkout", "-q", "-f", "--detach", sha], check=True)
     subprocess.run(["git", "-C", str(ort), "clean", "-fdq", "-e", ".fertig", "-e", MARKE_KLON], check=True)
     shutil.rmtree(ort / "tests" / "abnahme", ignore_errors=True)
