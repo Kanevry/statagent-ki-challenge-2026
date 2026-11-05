@@ -7,7 +7,7 @@ Spalten:
 
 - `soll`: `zahl`, `rueckfrage`, `absage` oder `definition`.
 - `monate`: die Monate mit Daten, die zur Frage gehören (`von..bis` oder eine Liste). Leer: keine Zahl möglich.
-- Die Zeilen `A…` stammen aus der Prüfung von !227.
+- Die Zeilen `A…` und `V…` stammen aus der Prüfung von !227 und !230.
 - `filter`: `region`, `geschlecht`, `kategorie`, `oenace` (Buchstabe), `branche` (Name, `%` als Platzhalter, gilt je
   ÖNACE-Version), `freier_dv`, `alter` (`von-bis`).
 - `optionen`: `mittel` (Durchschnitt muss dabei sein), `muss` (Rückfrage oder Absage reichen nicht), `auch=…` (weitere
@@ -215,11 +215,11 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | M074 | merkmal:alter | zahl | 2025-03 | alter=30-30 | muss | Wie viele 30-Jährige arbeiteten im März 2025? |
 | M075 | merkmal:alter | absage | - | - | auch=rueckfrage | Wie hoch ist das Durchschnittsalter im März 2025? |
 | M076 | merkmal:alter | zahl | 2025-03 | - | frei | Beschäftigte nach Alter im März 2025 |
-| M080 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;auch=absage,rueckfrage | Wie viele Beschäftigte gab es im März 2025 im Regelsatz v2? |
-| M081 | merkmal:regelsatz | zahl | 2025-03 | - | auch=absage,rueckfrage | Wie viele Beschäftigte gab es im März 2025 im Regelsatz v1? |
-| M082 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;auch=absage,rueckfrage | Beschäftigte März 2025 nach v2 |
-| M083 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;aufruf=v2;auch=absage,rueckfrage | Wie viele Beschäftigte gab es im März 2025? |
-| M084 | merkmal:regelsatz,merkmal:kategorie | zahl | 2025-03 | kategorie=Arbeiter | regelsatz=v2;auch=absage,rueckfrage | Wie viele Arbeiter gab es im März 2025 im Regelsatz v2? |
+| M080 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;muss | Wie viele Beschäftigte gab es im März 2025 im Regelsatz v2? |
+| M081 | merkmal:regelsatz | zahl | 2025-03 | - | muss | Wie viele Beschäftigte gab es im März 2025 im Regelsatz v1? |
+| M082 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;muss | Beschäftigte März 2025 nach v2 |
+| M083 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;aufruf=v2;muss | Wie viele Beschäftigte gab es im März 2025? |
+| M084 | merkmal:regelsatz,merkmal:kategorie | zahl | 2025-03 | kategorie=Arbeiter | regelsatz=v2;muss | Wie viele Arbeiter gab es im März 2025 im Regelsatz v2? |
 | M085 | merkmal:regelsatz,merkmal:kategorie | absage | - | - | auch=rueckfrage | Freie Dienstverträge im März 2025 im Regelsatz v2 |
 | M086 | merkmal:regelsatz,merkmal:unbekannt | absage | - | - | auch=rueckfrage | Beschäftigte im März 2025 im Regelsatz v9 |
 | K001 | kreuz:merkmale | zahl | 2025-03 | region=9;geschlecht=W;branche=Bau | muss | Wie viele Frauen arbeiteten im März 2025 in Wien im Bau? |
@@ -622,3 +622,13 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | A027 | merkmal:alter | zahl | 2026-07 | alter=0-24 | muss | Wie viele Beschäftigte unter 25 Jahren gab es im Juli 2026? |
 | A028 | merkmal:alter | zahl | 2026-07 | alter=50-130 | muss | Wie viele Beschäftigte ab 50 Jahren gab es im Juli 2026? |
 | A029 | merkmal:regelsatz | zahl | 2026-07 | - | muss | Beschäftigte nach alter Regel im Juli 2026 |
+| V001 | merkmal:regelsatz,form:anderes_thema | absage | - | - | auch=rueckfrage | Frauen ohne Kinder im Juli 2026 nach v2 |
+| V002 | merkmal:regelsatz,form:anderes_thema | absage | - | - | auch=rueckfrage | Beschäftigte mit Kindern im Juli 2026 nach v2 |
+| V003 | merkmal:regelsatz,form:anderes_thema | absage | - | - | auch=rueckfrage | Betriebe im Juli 2026 nach v2 |
+| V004 | merkmal:regelsatz,merkmal:geschlecht | zahl | 2026-07 | geschlecht=W | regelsatz=v2;muss | Frauen im Juli 2026 nach v2 |
+| V005 | form:anderes_thema | absage | - | - | auch=rueckfrage | Frauen ohne Kinder im Juli 2026 |
+| V006 | merkmal:regelsatz,zeit:jahreszeit | zahl | 2025-06..2025-08 | - | regelsatz=v2;auch=rueckfrage,absage | Beschäftigte im Sommer 2025 nach Regelsatz v2 |
+| V007 | merkmal:regelsatz,zeit:bereich | zahl | 2025-03..2025-06 | - | regelsatz=v2;muss | Beschäftigte März bis Juni 2025 nach Regelsatz v2 |
+| V008 | merkmal:regelsatz,merkmal:bundesland | zahl | 2026-07 | region=9 | regelsatz=v2;muss | Beschäftigte in Wien im Juli 2026, gezählt über das ganze Monat |
+| V009 | merkmal:regelsatz,merkmal:bundesland | zahl | 2026-07 | region=9 | regelsatz=v2;muss | Beschäftigte in Wien im Juli 2026 nach den Änderungsaufträgen |
+| V010 | merkmal:regelsatz,zeit:unklar | rueckfrage | - | - | auch=absage | Beschäftigte vor Juni 2026 nach v2 |

@@ -75,7 +75,7 @@ _AUSWERTUNG = _liste(
     zugang zugänge zugängen zugaenge veränderung veraenderung verändert stieg sank gestiegen gesunken gewachsen
     vormonat vormonats vorjahr
     beschäftigungskategorie beschäftigungskategorien über ueber unter alter alters altersgruppe altersgruppen
-    altersverteilung
+    altersverteilung regelsatz v1 eins ganze ganzes gesamtes
     """
 )
 BEKANNT = _FUELLWOERTER | _SACHE | _ZEIT | _AUSWERTUNG | frozenset(MONATSNAMEN)

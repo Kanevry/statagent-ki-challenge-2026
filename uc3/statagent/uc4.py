@@ -707,6 +707,8 @@ def uc4_antwort(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str
         daten["typ"] in ("bestand", "geschlecht")
         and daten["text"].startswith(weg.MEHRERE_WERTE)
         and "anteil" not in frage.lower()
+        # Nennt die Frage selbst einen Regelsatz, rechnet ``regelsatz`` hier noch v1: lieber die Absage als die v1-Zahlen.
+        and (regelsatz != "v1" or weg._regelsatz_der_frage(frage) is None)
         and _adapter_liest_gleich(conn, frage, regelsatz)
     ):
         return antwort_daten(conn, frage, regelsatz)

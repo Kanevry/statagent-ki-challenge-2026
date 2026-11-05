@@ -123,3 +123,25 @@ def test_bekanntes_wort_hinter_dem_komma(conn: Verbindung, frage: str) -> None:
     lauf_ausfuehren(conn, "2024-08", "v1")
     lauf_ausfuehren(conn, "2024-09", "v1")
     assert antwort_frage(conn, frage)["zahlen"]
+
+
+# Fängt (ui-regie, Bank): Im v2-Weg fiel „ohne Kinder“ still weg, die Antwort war die Zahl aller Frauen.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Frauen ohne Kinder im September 2024",
+        "Frauen ohne Kinder im September 2024 nach v2",
+        "Beschäftigte mit Kindern im September 2024 nach v2",
+        "Betriebe im September 2024 nach v2",
+    ],
+)
+def test_unbekanntes_wort_auch_im_v2_weg(conn: Verbindung, frage: str) -> None:
+    for monat in ("2024-08", "2024-09"):
+        lauf_ausfuehren(conn, monat, "v1")
+        lauf_ausfuehren(conn, monat, "v2")
+    assert antwort_frage(conn, frage)["zahlen"] == []
+
+
+def test_regelsatz_angabe_ist_kein_unbekanntes_wort() -> None:
+    assert unbekanntes_wort("Beschäftigte im März 2025 im Regelsatz v1", []) is None
+    assert unbekanntes_wort("Beschäftigte über das ganze Monat März 2025", []) is None
