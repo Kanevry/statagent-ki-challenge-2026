@@ -1,0 +1,5 @@
+@import "tailwindcss";
+@import "@kic/ui/tokens.css";
+
+/* Klassen aus den gemeinsamen Bausteinen mitnehmen (Tailwind 4 scannt sonst nur web/). */
+@source "../../shared/ui/src";
