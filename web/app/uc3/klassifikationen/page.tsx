@@ -59,6 +59,10 @@ function Branchen({ daten }: { daten: Klassifikationsdaten }) {
         </Ueberschrift>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="font-sans text-16 text-slate">{saetze.unter}</span>
+          <span className="font-sans text-14 text-slate">
+            Neuen Namen und Teilung ordnet die Seite aus dem Umsteigeschlüssel zu: Nachfolger ist, wer mindestens ein
+            Viertel der Unterklassen bekommt.
+          </span>
           <BelegLink
             quelle="stat.klass_oenace, stat.uebergang"
             verweis="Gezählt je Branchenname; neuer Name und Teilung aus dem Umsteigeschlüssel (Nachfolger mit mindestens 25 % der Unterklassen)"

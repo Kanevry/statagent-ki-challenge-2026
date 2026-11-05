@@ -242,7 +242,7 @@ function ProbeTabelleAnsicht({ vorschlag, tabelle: t }: { vorschlag: number; tab
             ? `Gesamt ändert sich um ${formatDifferenz(t.gesamt.nachher - t.gesamt.vorher)}.`
             : aendert.gliederung
               ? "Gesamt bleibt gleich, nur die Gliederung ändert sich."
-              : `Die ${probeTitel(t.lieferung)} ändert keine Zahl.`}
+              : "Bei den Beschäftigungskategorien ändert die Probe keine Zahl, die Gesamtzahl bleibt gleich."}
         </span>
         <BelegLink {...probeTabelleBeleg(vorschlag, t)} />
       </div>
