@@ -1212,6 +1212,33 @@ export interface ProbeTabelle {
  * Ohne gerechnete Probe null.
  */
 /**
+ * Wo sich eine Probe zeigt, wenn die Kategorien-Tabelle gleich bleibt: etwa bei einer Änderung am Alter, die nur die
+ * Altersgruppen verschiebt. Die größten Unterschiede je `je_merkmal`, ohne erfundene Zahlen. Keine Verschiebung: null.
+ */
+export function probeWirkungSatz(probe: unknown, bezeichnungen: Bezeichnungen = {}): string | null {
+  const [monat] = probeMonate(probe);
+  if (!monat) return null;
+  const vm = objekt(monat.vorher.je_merkmal);
+  const nm = objekt(monat.nachher.je_merkmal);
+  const zeilen = Object.keys(vm)
+    .filter((merkmal) => merkmal !== "qualifikation")
+    .flatMap((merkmal) => {
+      const v = objekt(vm[merkmal]);
+      const n = objekt(nm[merkmal]);
+      return [...new Set([...Object.keys(v), ...Object.keys(n)])]
+        .map((code) => ({ merkmal, code, vorher: zahl(v[code]), nachher: zahl(n[code]) }))
+        .filter((z) => z.vorher !== z.nachher);
+    })
+    .sort((a, b) => Math.abs(b.nachher - b.vorher) - Math.abs(a.nachher - a.vorher));
+  if (zeilen.length === 0) return null;
+  const wort = (z: (typeof zeilen)[number]) =>
+    `${MERKMALE[z.merkmal] ?? z.merkmal} ${codeName(z.merkmal, z.code, bezeichnungen)}: ${formatZahl(z.nachher)} statt ${formatZahl(z.vorher)}`;
+  const gezeigt = zeilen.slice(0, 3).map(wort).join("; ");
+  const rest = zeilen.length - 3;
+  return `Die Änderung zeigt sich an anderer Stelle. ${gezeigt}${rest > 0 ? `; dazu ${formatZahl(rest)} ${rest === 1 ? "weitere Zeile" : "weitere Zeilen"}` : ""}.`;
+}
+
+/**
  * Legt die Probe Bundesländer zusammen? Die Tabelle zeigt nur Beschäftigungskategorien, also sagt es dieser Satz, mit
  * den Zahlen aus `je_merkmal.region`. Die neue Gruppe („Ost“) steht in keiner Klassifikation und heißt wie im Vorschlag.
  */
