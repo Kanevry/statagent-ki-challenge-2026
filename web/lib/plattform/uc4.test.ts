@@ -61,7 +61,7 @@ describe("POST /api/uc4/frage", () => {
     expect(daten.antworten.map((a) => a.uc)).toEqual(["uc3", "uc2", "uc1"]);
     expect(ausfuehren).toHaveBeenCalledWith("uv", [...ROUTER_ARGV, "--", "Wie viele Beschäftigte gab es 2025-03?"], {
       cwd: "/repo",
-      timeout: 60_000,
+      timeout: 180_000,
       maxBuffer: 1024 * 1024,
     });
   });
@@ -215,5 +215,59 @@ describe("standardAusfuehren", () => {
     await expect(
       standardAusfuehren(process.execPath, ["-e", "setTimeout(() => {}, 5000)"], { ...optionen, timeout: 200 }),
     ).rejects.toThrow();
+  });
+});
+
+// Fängt ab (Modellwahl auf /uc4, Lead c0): das gewählte Modell kommt nicht beim Router an, ein beliebiger Wert
+// gelangt als LLM_PROVIDER in den Subprozess, oder ohne Wahl wird die Einstellung der App überschrieben.
+describe("POST /api/uc4/frage, Modellwahl", () => {
+  const optionen = (ausfuehren: Ausfuehren): FrageOptionen => ({ ausfuehren, umgebung: {}, wurzel: () => "/repo", ratenlimit: offen });
+
+  it("reicht die Wahl als LLM_PROVIDER nur an diesen Lauf weiter", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    const antwort = await frageAntwort(anfrage({ frage: "Wie viele?", modell: "mistral" }), optionen(ausfuehren));
+    expect(antwort.status).toBe(200);
+    expect(ausfuehren.mock.calls[0]?.[2].zusatz).toEqual({ LLM_PROVIDER: "mistral" });
+  });
+
+  it("Testbetrieb nimmt die festen Antworten des Routers (--mock)", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    await frageAntwort(anfrage({ frage: "Wie viele?", modell: "mock" }), optionen(ausfuehren));
+    expect(ausfuehren.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--mock", "--", "Wie viele?"]);
+    expect(ausfuehren.mock.calls[0]?.[2].zusatz).toEqual({ LLM_PROVIDER: "mock" });
+  });
+
+  it("ohne Wahl bleibt die Einstellung der App", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    await frageAntwort(anfrage({ frage: "Wie viele?" }), optionen(ausfuehren));
+    expect(ausfuehren.mock.calls[0]?.[2].zusatz).toBeUndefined();
+  });
+
+  // Fängt ab (Review !72, Geld): online hebelte die Wahl LLM_PROVIDER=mock des Compose aus und rief bezahlte Anbieter.
+  it("online (KIC_ONLINE=1) nur Testbetrieb und die Anbieter aus UC4_MODELLWAHL", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    const online = (modell: string, liste?: string) =>
+      frageAntwort(anfrage({ frage: "Wie viele?", modell }), {
+        ausfuehren,
+        umgebung: { KIC_ONLINE: "1", ...(liste === undefined ? {} : { UC4_MODELLWAHL: liste }) },
+        wurzel: () => "/repo",
+        ratenlimit: offen,
+      });
+    const claude = await online("claude");
+    expect(claude.status).toBe(400);
+    expect(await claude.json()).toEqual({ fehler: "Dieses Modell ist hier nicht freigegeben." });
+    expect(ausfuehren).not.toHaveBeenCalled();
+    expect((await online("mock")).status).toBe(200);
+    expect((await online("azure", "azure, mistral")).status).toBe(200);
+    expect((await online("claude", "azure, mistral")).status).toBe(400);
+    expect(ausfuehren).toHaveBeenCalledTimes(2);
+  });
+
+  it("lehnt ein unbekanntes Modell mit 400 ab, ohne Subprozess", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    const antwort = await frageAntwort(anfrage({ frage: "Wie viele?", modell: "gpt; rm -rf" }), optionen(ausfuehren));
+    expect(antwort.status).toBe(400);
+    expect(await antwort.json()).toEqual({ fehler: "Dieses Modell gibt es hier nicht." });
+    expect(ausfuehren).not.toHaveBeenCalled();
   });
 });

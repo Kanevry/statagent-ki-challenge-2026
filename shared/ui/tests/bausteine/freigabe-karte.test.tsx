@@ -122,6 +122,17 @@ it("zeigt einen Fehler und bleibt offen, wenn der Server ablehnt", async () => {
   expect(knopf.disabled).toBe(false);
 });
 
+// Fängt ab (Antrag #135): Die Route beginnt ihre Meldung schon mit „Nicht gespeichert“, die Karte setzt es davor.
+it("setzt „Nicht gespeichert.“ nur einmal davor", async () => {
+  const user = userEvent.setup();
+  const { knopf, feld } = karte({
+    onFreigeben: () => Promise.reject(new Error("Nicht gespeichert: Die Datenbank ist nur lesbar.")),
+  });
+  await user.type(feld, "Bernhard Götzendorfer");
+  await user.click(knopf);
+  expect((await screen.findByRole("alert")).textContent).toBe("Nicht gespeichert: Die Datenbank ist nur lesbar.");
+});
+
 // Fängt ab: eine Live-Region, die erst mit dem Ergebnis entsteht (Screenreader melden sie oft nicht),
 // und ein Fokus, der mit dem verschwundenen Knopf im Nichts landet.
 it("setzt das Ergebnis in die schon vorhandene Live-Region und fokussiert sie", async () => {

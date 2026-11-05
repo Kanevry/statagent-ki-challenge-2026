@@ -1,6 +1,6 @@
 # UC1 KI-Lotse: Spikes (#28)
 
-Stand 2026-11-05, Rechner A (M4, Demo-Rechner), pypdf 6.21.4, cloudflared (Homebrew).
+Stand 2026-11-05, Rechner A (Demo-Rechner), pypdf 6.21.4, cloudflared (Homebrew).
 Skripte unter `uc1/spikes/`, Befehle aus `uc1/`. Temporäre Dateien lagen unter `/tmp/b-uc1-spikes/`, PDFs
 kommen nicht ins Repo.
 
@@ -8,7 +8,7 @@ kommen nicht ins Repo.
 
 **Ziel:** Feldmetadaten beider Antragsformulare lesen und klären, ob das Vorausfüllen mit pypdf trägt.
 
-**Befehle** (2026-11-05 13:08 CET, M4):
+**Befehle** (2026-11-05 13:08 CET, Rechner A):
 
 ```sh
 UC1_DATA_DIR=…/svbox/uc1 uv run python spikes/formularfelder.py   # -> uc1/formulare/*.felder.roh.json
@@ -71,7 +71,7 @@ Formulare. pypdf erzeugt die Appearance-Streams der Textfelder selbst, darum sie
 **Ziel:** Trägt ein cloudflared-Quick-Tunnel einen OpenAI-kompatiblen SSE-Endpunkt mit Bearer-Token, und
 wie schnell ist er?
 
-**Befehle** (Tunnel offen von 2026-11-05 13:10:33 bis 13:13:15 CET, M4; das Token wurde mit
+**Befehle** (Tunnel offen von 2026-11-05 13:10:33 bis 13:13:15 CET, Rechner A; das Token wurde mit
 `secrets.token_urlsafe` zur Laufzeit erzeugt und nach der Messung gelöscht):
 
 ```sh
@@ -85,8 +85,8 @@ cloudflared tunnel --url http://127.0.0.1:8199 --no-autoupdate > /tmp/b-uc1-spik
 
 | Weg | connect p50 | TTFB p50 | TTFB p95 | gesamt p50 | gesamt p95 |
 |---|---|---|---|---|---|
-| lokal `http://127.0.0.1:8199` (M4, 13:10:51) | 0,2 ms | 0,4 ms | 0,6 ms | 0,5 ms | 0,6 ms |
-| Tunnel `https://…trycloudflare.com` vom M4 (13:12:38, Edge `vie05`) | 24,6 ms | 149,0 ms | 242,3 ms | 151,7 ms | 244,6 ms |
+| lokal `http://127.0.0.1:8199` (Rechner A, 13:10:51) | 0,2 ms | 0,4 ms | 0,6 ms | 0,5 ms | 0,6 ms |
+| Tunnel `https://…trycloudflare.com` von Rechner A (13:12:38, Edge `vie05`) | 24,6 ms | 149,0 ms | 242,3 ms | 151,7 ms | 244,6 ms |
 
 Funktion über den Tunnel: Der Stream kommt vollständig an (4 `data:`-Chunks und `data: [DONE]`). Ohne
 Token kommt 401, mit GET 404. Für `POST /upload` kam beim ersten Lauf **400 von Cloudflare** statt 404.
@@ -94,14 +94,14 @@ Ursache: Der Echo-Server ließ den Request-Body bei der 404 ungelesen, cloudflar
 Keep-alive-Verbindung weiter, und der Body-Rest verdarb die nächste Anfrage. Nach der Korrektur (die
 Verbindung wird nach Fehlerantworten geschlossen) kam zweimal 404, danach wieder 200 und 401.
 
-**Nicht gemessen: von m5.** Jede ssh-Form, die das Wegwerf-Token nach m5 bringt, ohne es in der
+**Nicht gemessen: von Rechner B.** Jede ssh-Form, die das Wegwerf-Token nach Rechner B bringt, ohne es in der
 Befehlszeile zu zeigen, wurde vom Grenz-Hook abgewiesen: stdin-Umleitung, lokale Skriptdatei, Heredoc und
-`-K` mit Pfad auf m5. Ein einfacher ssh-Inline-Befehl ging durch. Die Messung vom M4 über die öffentliche
-URL läuft trotzdem über die Cloudflare-Edge (Weg Client → vie05 → cloudflared auf dem M4 → 127.0.0.1). Sie
+`-K` mit Pfad auf Rechner B. Ein einfacher ssh-Inline-Befehl ging durch. Die Messung von Rechner A über die öffentliche
+URL läuft trotzdem über die Cloudflare-Edge (Weg Client → vie05 → cloudflared auf Rechner A → 127.0.0.1). Sie
 enthält aber nicht die Netzstrecke eines zweiten Rechners.
 
 **Machbar: ja**, mit Vorbehalt. Rund 150 ms TTFB-Aufschlag (p95 rund 245 ms) liegt weit unter der Latenz
-eines LLM-Aufrufs. Für Vapi ist das tragbar. Der Wert von m5 und von Vapi selbst steht noch aus.
+eines LLM-Aufrufs. Für Vapi ist das tragbar. Der Wert von Rechner B und von Vapi selbst steht noch aus.
 
 **Folgerungen für #34/#61 (Voice):**
 
@@ -113,7 +113,7 @@ eines LLM-Aufrufs. Für Vapi ist das tragbar. Der Wert von m5 und von Vapi selbs
   selbst, ein Test mit zwei Anfragen hintereinander über den Tunnel deckt es auf.
 - Den Token-Vergleich mit `hmac.compare_digest` machen und das Token nie loggen. Der Standard-Log von
   `http.server` schrieb beim 400 den Body-Rest ins Log. Ein Log ohne Inhalte ist also aktiv herzustellen.
-- Vom M4 aus war die URL beim ersten Abruf direkt nach dem Start noch leer, vermutlich wegen DNS (13:10:51).
+- Von Rechner A aus war die URL beim ersten Abruf direkt nach dem Start noch leer, vermutlich wegen DNS (13:10:51).
   Knapp 2 Minuten später (13:12:38) ging sie, dazwischen gab es keinen weiteren Versuch. Das Startskript wartet, bis ein Gesundheitsabruf über die öffentliche URL gelingt.
 
 ## Spike 3: E0-Schnittstellen (festgehalten, nicht gemessen)

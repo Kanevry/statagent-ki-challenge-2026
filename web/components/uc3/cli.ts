@@ -58,3 +58,11 @@ export function uc3(argv: readonly string[], optionen: Uc3Optionen = {}): Promis
 export function nurLesend(umgebung: Readonly<Record<string, string | undefined>> = process.env): boolean {
   return umgebung.KIC_ONLINE_LESEND === "1";
 }
+
+/**
+ * Fragen an die Daten online gesperrt? Nur, wenn die Demo lesend ist und `KIC_ONLINE_FRAGEN=1` sie nicht freigibt
+ * (E0, Stufe A ohne Modell: `uc3 frage` rechnet ohne Sprachmodell). Freigaben bleiben mit `nurLesend` zu.
+ */
+export function fragenGesperrt(umgebung: Readonly<Record<string, string | undefined>> = process.env): boolean {
+  return nurLesend(umgebung) && umgebung.KIC_ONLINE_FRAGEN !== "1";
+}

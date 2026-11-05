@@ -1,0 +1,42 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//OneShotAndy//SV KI-Lotse UC1 Terminentwurf//DE
+CALSCALE:GREGORIAN
+BEGIN:VTIMEZONE
+TZID:Europe/Vienna
+BEGIN:DAYLIGHT
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+TZNAME:CEST
+DTSTART:19700329T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+TZNAME:CET
+DTSTART:19701025T030000
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:termin-wien-3f0532636d892f99@lotse.invalid
+DTSTAMP:20261105T090000Z
+DTSTART;TZID=Europe/Vienna:20261117T080000
+DTEND;TZID=Europe/Vienna:20261117T120000
+SUMMARY:Terminentwurf
+STATUS:TENTATIVE
+TRANSP:TRANSPARENT
+CLASS:PRIVATE
+LOCATION:Guglgasse 7-9\, 1030 Wien
+DESCRIPTION:Das ist ein Terminentwurf\, nicht gebucht. Den Termin vereinbar
+ en Sie selbst mit der Stelle.\nDatum und Uhrzeit sind Ihr Wunsch. Die Stel
+ le hat noch nichts zugesagt.\n\nStelle: Fonds Soziales Wien\, Beratungszen
+ trum Pflege und Betreuung\nAufgabe: Beratung zu Pflege und Betreuung zu Ha
+ use\, in Wien\n\nCheckliste:\nUnterlagen:\n- Kopien Ihrer Befunde von Arzt
+ \, Ärztin oder Krankenhaus (Antrag PAL080\, S. 2)\n- Antrag auf Pflegegel
+ d (PAL080) der PVA\nNähe:\n- Ihr Wohnort: 1100 Wien. Die Stelle: Guglgass
+ e 7-9\, 1030 Wien.\nZeitpräferenz:\n- Ihr Wunsch: vormittags (08:00 bis 1
+ 2:00)\n\nQuelle: FSW-Bedarfsmeldung Senioren-WG\, S. 1
+END:VEVENT
+END:VCALENDAR

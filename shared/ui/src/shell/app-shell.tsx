@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useSta
 import { fokus, klassen } from "../basis/klassen";
 import type { BereichId, UcEintrag } from "../ucs";
 import { AppHeader } from "./header";
-import { ShellAnbieter, StandardVerweis, type ShellWert, type Verweis } from "./kontext";
+import { ShellAnbieter, StandardVerweis, type SeitenModellWert, type ShellWert, type Verweis } from "./kontext";
 import { protokollUc, zeigtHeader } from "./navigation";
 import { ProtokollSchublade } from "./protokoll-schublade";
 
@@ -53,9 +53,13 @@ export function AppShell({ pfad, Verweis = StandardVerweis, children, ucs, model
     warOffen.current = offen;
   }, [offen]);
 
+  const [seitenModell, setzeSeitenModell] = useState<SeitenModellWert | null>(null);
   const oeffneProtokoll = useCallback(() => setOffen(true), []);
   const schliesse = useCallback(() => setOffen(false), []);
-  const wert = useMemo<ShellWert>(() => ({ pfad, Verweis, oeffneProtokoll }), [pfad, Verweis, oeffneProtokoll]);
+  const wert = useMemo<ShellWert>(
+    () => ({ pfad, Verweis, oeffneProtokoll, setzeSeitenModell }),
+    [pfad, Verweis, oeffneProtokoll],
+  );
 
   if (!zeigtHeader(pfad)) return <ShellAnbieter wert={wert}>{children}</ShellAnbieter>;
 
@@ -77,6 +81,7 @@ export function AppShell({ pfad, Verweis = StandardVerweis, children, ucs, model
           Verweis={Verweis}
           ucs={ucs}
           modellQuelle={modellQuelle}
+          seitenModell={seitenModell}
           protokollOffen={offen}
           onProtokoll={() => setOffen((o) => !o)}
           schubladeId={schubladeId}

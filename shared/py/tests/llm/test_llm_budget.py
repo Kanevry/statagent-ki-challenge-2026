@@ -140,3 +140,35 @@ def test_budget_mit_schreibgeschuetztem_ordner_ist_konfigfehler(tmp_path, monkey
             complete(NACHRICHT, zweck="smoke")
     finally:
         ordner.chmod(0o700)
+
+
+# --- Folge Review !36 (#118) ----------------------------------------------------------------------
+
+
+def test_status_json_nennt_budget(protokoll, monkeypatch, capsys):
+    """Fängt: status --json ohne Feld budget, die Web-App und der Lead sehen den Stand nicht."""
+    from plattform.llm.__main__ import main
+
+    monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "3")
+    complete(NACHRICHT, zweck="smoke")
+    assert main(["status", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["budget"] == {"grenze": 3, "verbraucht": 1, "frei": 2}
+
+
+def test_zeit_mit_offset_ueber_mitternacht_zaehlt_nach_utc(protokoll, monkeypatch):
+    """Fängt: Zeilen mit +01:00 kurz nach Mitternacht landen am falschen UTC-Tag (zu viel oder zu wenig)."""
+
+    class FesteZeit(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 11, 5, 23, 45, tzinfo=UTC)
+
+    monkeypatch.setattr(kern, "datetime", FesteZeit)
+    zeilen = [
+        {"provider": "mock", "zeit": "2026-11-05T00:30:00+01:00"},  # 04.11. 23:30 UTC, gestern
+        {"provider": "mock", "zeit": "2026-11-05T01:30:00+01:00"},  # 05.11. 00:30 UTC, heute
+        {"provider": "mock", "zeit": "2026-11-06T00:30:00+01:00"},  # 05.11. 23:30 UTC, heute
+    ]
+    protokoll.write_text("".join(json.dumps(z) + "\n" for z in zeilen), encoding="utf-8")
+    monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "10")
+    assert budget_status() == {"grenze": 10, "verbraucht": 2, "frei": 8}

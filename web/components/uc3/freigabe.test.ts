@@ -1,18 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
 import { UC3_ARGV, type Ausfuehren, type CliLauf } from "./cli";
 import {
+  auftraggeber,
+  auftragsZitat,
   entscheidungArgv,
   ergebnisPfad,
   erstelleFreigabeAntwort,
   gesamtZeile,
   GRUND_UNBEKANNT,
+  gruppenSatz,
   isoZeit,
   klartext,
   kurzerGrund,
+  probeTitel,
+  umverteilung,
   vorschlagId,
   waage,
   waageBeleg,
   waageSatz,
+  wirkungJeKategorie,
 } from "./freigabe";
 
 // Nie die echte CLI: jeder Handler bekommt ein gefälschtes `ausfuehren` (die Prozessgrenze); der Aufbau des
@@ -193,7 +199,7 @@ describe("Freigabe-Waage", () => {
     expect(w!.umverteilung).toBe(true);
     // Nicht „Arbeiter 0 → 210.000“ groß: das läse sich wie 210.000 zusätzliche Verhältnisse.
     expect(w!.haupt).toMatchObject({ merkmal: "gesamt", vorher: 410587, nachher: 410587, differenz: 0 });
-    expect(waageSatz(w!)).toBe("Im Oktober 2025 verteilen sich die 410.587 Verhältnisse neu, gesamt bleibt 410.587.");
+    expect(waageSatz(w!)).toBe("Im Oktober 2025 verteilen sich die 410.587 Beschäftigungsverhältnisse neu, gesamt bleibt 410.587.");
     // Alle verschobenen Kategorien stehen darunter, unveränderte (Geschlecht) nicht.
     expect(w!.weitere).toHaveLength(6);
     expect(w!.weitere.map((z) => z.merkmal)).not.toContain("geschlecht");
@@ -282,5 +288,105 @@ describe("Hilfen", () => {
     expect(entscheidungArgv({ id: 3, name: "Anna Beispiel", entscheidung: "ja" })).toEqual([
       "freigabe", "3", "--name", "Anna Beispiel", "--json",
     ]);
+  });
+});
+
+describe("Probe für Auftrag 1 (Umverteilung)", () => {
+  // Probe wie in meta.vorschlag id 24: Monat nur als Schlüssel des jsonb, ohne Feld „lieferung“.
+  const probe = {
+    "2024-08": {
+      vorher: {
+        gesamt: 392236,
+        je_merkmal: {
+          qualifikation: { Beamte: 13562, ArbeiterDV: 141331, ArbeiterFD: 382, AngestellteDV: 235819, AngestellteFD: 1142 },
+        },
+      },
+      nachher: {
+        gesamt: 392236,
+        je_merkmal: { qualifikation: { Beamte: 13562, Arbeiter: 141713, Angestellte: 236961 } },
+      },
+    },
+  };
+  const kategorien = {
+    ArbeiterDV: { kategorie: "Arbeiter", frei: false },
+    ArbeiterFD: { kategorie: "Arbeiter", frei: true },
+    AngestellteDV: { kategorie: "Angestellte", frei: false },
+    AngestellteFD: { kategorie: "Angestellte", frei: true },
+    Beamte: { kategorie: "Beamte", frei: false },
+  };
+
+  // Fehler, den das fängt: Monat aus dem Feld „lieferung“ statt aus dem Schlüssel; dann fehlt „Probe für August 2024“.
+  it("nimmt den Probemonat aus dem Schlüssel", () => {
+    const w = waage(probe);
+    expect(w?.lieferung).toBe("2024-08");
+    expect(probeTitel(w?.lieferung ?? "")).toBe("Probe für August 2024");
+  });
+
+  // Fehler, den das fängt: groß stand „Δ 0“, die eigentliche Änderung (Zusammenlegung) fehlte.
+  it("sagt je Kategorie, woraus sie besteht", () => {
+    const u = umverteilung(probe, kategorien);
+    expect(u?.gruppen.map((g) => gruppenSatz(g))).toEqual([
+      "Angestellte 236.961 = 235.819 mit Dienstvertrag + 1.142 freie Dienstverträge",
+      "Arbeiter 141.713 = 141.331 mit Dienstvertrag + 382 freie Dienstverträge",
+    ]);
+    expect(u?.bleibt).toEqual([{ code: "Beamte", wert: 13562 }]);
+    expect(u?.gesamt).toBe(392236);
+  });
+
+  it("erfindet keine Zusammensetzung, wenn die Summe nicht stimmt", () => {
+    const falsch = structuredClone(probe);
+    falsch["2024-08"].nachher.je_merkmal.qualifikation.Arbeiter = 141700;
+    expect(umverteilung(falsch, kategorien)).toBeNull();
+  });
+});
+
+describe("wirkungJeKategorie", () => {
+  // Orakel Juli 2026, Regelsatz v1: Arbeiter 143.076, Angestellte 243.817, Beamte 12.134 (zusammen 399.027).
+  it("fasst die Codes des v1-Laufs je Kategorie zusammen", () => {
+    const lauf = { regelsatz: "v1" } as never;
+    const zeilen = wirkungJeKategorie(
+      {
+        monat: "2026-07",
+        basis: {
+          lauf,
+          je: { AngestellteDV: 242665, AngestellteFD: 1152, ArbeiterDV: 142684, ArbeiterFD: 392, Beamte: 12134 },
+          gesamt: 399027,
+        },
+        ziel: { lauf, je: {}, gesamt: 0 },
+        auchImZiel: [],
+      },
+      {
+        ArbeiterDV: { kategorie: "Arbeiter", frei: false },
+        ArbeiterFD: { kategorie: "Arbeiter", frei: true },
+        AngestellteDV: { kategorie: "Angestellte", frei: false },
+        AngestellteFD: { kategorie: "Angestellte", frei: true },
+        Beamte: { kategorie: "Beamte", frei: false },
+      },
+    );
+    expect(zeilen.map((z) => [z.kategorie, z.basis])).toEqual([
+      ["Angestellte", 243817],
+      ["Arbeiter", 143076],
+      ["Beamte", 12134],
+    ]);
+  });
+});
+
+describe("Auftragszitat (Sichtprüfung bb, #18)", () => {
+  // Fehler: das Zitat zeigte die Arbeitsanweisung an den Agenten samt Dateinamen und Spaltennamen.
+  it("zeigt nur den fachlichen Auftrag", () => {
+    const anweisung =
+      "Auftrag 1, Dienstvertrag und freier Dienstvertrag zusammen: In der Statistik wird nicht mehr unterschieden. Die Beschäftigungskategorie hat nur noch drei Ausprägungen (siehe Spalte BESCHAEFTIGUNGSKATEGORIE in qualifikation.csv). Die Änderung gilt rückwirkend. Ändere dafür nur die Zählregel. Ziel ist der neue Regelsatz v2.";
+    expect(auftragsZitat(anweisung)).toBe(
+      "In der Statistik wird nicht mehr unterschieden. Die Beschäftigungskategorie hat nur noch drei Ausprägungen. Die Änderung gilt rückwirkend.",
+    );
+    expect(auftraggeber({ gesagtVon: null, anweisung })).toBe("Änderungsauftrag aus der Aufgabenstellung");
+  });
+
+  // Fehler (Review !77 Runde 2): jeder Doppelpunkt in den ersten 120 Zeichen schnitt den Anfang ab.
+  it("schneidet nur einen erkannten Titel „Auftrag N …:“ ab", () => {
+    expect(auftragsZitat("Fasse Gruppen zusammen: Die Gesamtzahl bleibt gleich.")).toBe(
+      "Fasse Gruppen zusammen: Die Gesamtzahl bleibt gleich.",
+    );
+    expect(auftragsZitat("Auftrag 2, ganzes Monat: Gezählt wird das ganze Monat.")).toBe("Gezählt wird das ganze Monat.");
   });
 });
