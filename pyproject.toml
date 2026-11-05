@@ -35,9 +35,9 @@ select = ["E", "F", "I", "UP", "B"]
 python_version = "3.12"
 
 [tool.pytest.ini_options]
-# importlib: gleichnamige Testdateien in uc1/tests und uc2/tests kollidieren sonst („import file mismatch“).
-addopts = ["--import-mode=importlib"]
-testpaths = ["shared/py/tests", "uc1/tests", "uc2/tests", "uc3/tests"]
+# Nur das gemeinsame Paket. Jeder UC testet in seinem eigenen Ordner mit eigener pytest-Config
+# (CI: Schleife im Job python). Ein gemeinsamer Lauf mit importlib verdeckte die Pakete uc1/uc2.
+testpaths = ["shared/py/tests"]
 markers = [
   "daten: braucht die echten Daten in PostgreSQL 5433 (nur lokal; CI läuft mit -m 'not daten')",
 ]
