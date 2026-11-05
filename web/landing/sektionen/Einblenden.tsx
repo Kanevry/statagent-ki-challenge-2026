@@ -2,6 +2,34 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
+/** Ein Beobachter für alle Abschnitte statt einem je Instanz. */
+let beobachter: IntersectionObserver | null = null;
+
+function gemeinsamerBeobachter(): IntersectionObserver {
+  beobachter ??= new IntersectionObserver(
+    (eintraege) => {
+      for (const e of eintraege) {
+        if (!e.isIntersecting) continue;
+        (e.target as HTMLElement).dataset.einblenden = "sichtbar";
+        beobachter?.unobserve(e.target);
+      }
+    },
+    { rootMargin: "0px 0px -12% 0px" },
+  );
+  return beobachter;
+}
+
+/**
+ * Lage ohne erzwungenes Layout: Beim Laden ganz oben und ohne Sprungmarke liegen alle Abschnitte
+ * unter der Sticky-Szene (mindestens 360 vh), also sicher unterhalb des Viewports. Nur sonst wird
+ * gemessen (die Abschnitte stehen in einer Hülle mit `content-visibility: auto`, eine Messung
+ * würde sie sofort layouten).
+ */
+function unterhalbDesViewports(el: HTMLElement): boolean {
+  if (window.scrollY === 0 && !window.location.hash) return true;
+  return el.getBoundingClientRect().top >= window.innerHeight;
+}
+
 /**
  * Blendet einen Abschnitt einmalig ein, sobald er in den Viewport kommt. Ohne JS, mit reduzierter
  * Bewegung oder wenn der Abschnitt beim Laden schon sichtbar ist, bleibt alles sofort sichtbar:
@@ -15,20 +43,13 @@ export default function Einblenden({ children, className }: { children: ReactNod
     const el = ref.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    if (el.getBoundingClientRect().top < window.innerHeight) return;
+    if (!unterhalbDesViewports(el)) return;
 
     el.dataset.einblenden = "wartet";
-    const beobachter = new IntersectionObserver(
-      (eintraege) => {
-        if (!eintraege.some((e) => e.isIntersecting)) return;
-        el.dataset.einblenden = "sichtbar";
-        beobachter.disconnect();
-      },
-      { rootMargin: "0px 0px -12% 0px" },
-    );
-    beobachter.observe(el);
+    const b = gemeinsamerBeobachter();
+    b.observe(el);
     return () => {
-      beobachter.disconnect();
+      b.unobserve(el);
       delete el.dataset.einblenden;
     };
   }, []);
