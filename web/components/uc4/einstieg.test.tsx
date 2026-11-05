@@ -123,3 +123,20 @@ it("Modell je Karte als Modell-Pille, ohne Modell ein ruhiger Satz ohne Pille", 
   expect(ohne.getAttribute("data-baustein")).toBeNull();
   expect(ohne.textContent).toBe("Ohne KI gerechnet, nur mit Code.");
 });
+
+// Fängt ab (Modellwahl, Lead c0): die Wahl kommt nicht im POST an, „Wie eingestellt“ schickt trotzdem ein Modell,
+// und eine von StatAgent abgelehnte Wahl (ZweckFehler) steht als „Antwort fehlgeschlagen“ da.
+it("schickt die Modellwahl mit, ohne Wahl kein Feld modell, gesperrte Wahl mit lesbarem Grund", async () => {
+  const user = userEvent.setup();
+  const abruf = antworte(200, { antworten: [], fehlend: [{ uc: "uc3", grund: "ZweckFehler" }, { uc: "uc2", grund: "kein_adapter" }, { uc: "uc1", grund: "kein_adapter" }] });
+  render(<Einstieg />);
+  await user.type(screen.getByLabelText("Frage an die Kette"), "x{Enter}");
+  await screen.findByText("Mit diesem Modell gesperrt");
+  expect(JSON.parse(String(abruf.mock.calls[0]?.[1]?.body))).toEqual({ frage: "x" });
+
+  await user.click(screen.getByRole("radio", { name: "Claude" }));
+  await user.click(screen.getByRole("button", { name: "Frage stellen" }));
+  await screen.findByText("Mit diesem Modell gesperrt");
+  expect(JSON.parse(String(abruf.mock.calls[1]?.[1]?.body))).toEqual({ frage: "x", modell: "claude" });
+  expect(screen.queryByText("Antwort fehlgeschlagen")).toBeNull();
+});

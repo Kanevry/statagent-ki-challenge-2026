@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Feld, Fliesstext, Knopf, Status, Ueberschrift, Zahl } from "@kic/ui/basis";
 import { HerkunftChip, ModellPille } from "@kic/ui/bausteine";
-import { TESTBETRIEB_TEXT } from "@kic/ui/shell";
+import { SeitenModell, TESTBETRIEB_TEXT } from "@kic/ui/shell";
 import { findeUc } from "@kic/ui/ucs";
 import type { Beleg, UcAntwort } from "@kic/ui/antwortform";
 import {
@@ -12,6 +12,9 @@ import {
   grundText,
   KETTE,
   MAX_FRAGE,
+  MODELL_NAMEN,
+  MODELLWAHL,
+  type Modellwahl,
   type Ergebnis,
   type Fehlend,
   type KettenUc,
@@ -141,13 +144,13 @@ function ansage(zustand: Zustand): string {
   return `${zahl} da, es fehlt ${fehlend.map((f) => findeUc(f.uc).name).join(" und ")}.`;
 }
 
-async function stelleFrage(frage: string): Promise<Zustand> {
+async function stelleFrage(frage: string, modell: Modellwahl | null): Promise<Zustand> {
   let antwort: Response;
   try {
     antwort = await fetch("/api/uc4/frage", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ frage }),
+      body: JSON.stringify(modell ? { frage, modell } : { frage }),
       cache: "no-store",
     });
   } catch {
@@ -172,8 +175,52 @@ async function stelleFrage(frage: string): Promise<Zustand> {
     : { art: "fehler", meldung: "Die Antwort kam nicht im erwarteten Format." };
 }
 
+// Modellwahl (Lead c0, Szene 8): Wer antwortet, lässt sich hier umschalten. Der Wert geht als LLM_PROVIDER an den
+// Router; „Wie eingestellt“ nimmt die Einstellung der App. StatAgent rechnet ohne Claude (Abgaberegel), seine Karte
+// sagt das dann selbst.
+function ModellAuswahl({
+  wahl,
+  onWahl,
+  gesperrt,
+}: {
+  wahl: Modellwahl | null;
+  onWahl: (wahl: Modellwahl | null) => void;
+  gesperrt: boolean;
+}) {
+  const optionen: { wert: Modellwahl | null; name: string }[] = [
+    { wert: null, name: "Wie eingestellt" },
+    ...MODELLWAHL.map((wert) => ({ wert, name: MODELL_NAMEN[wert] })),
+  ];
+  return (
+    <fieldset className="flex max-w-3xl flex-col gap-2" disabled={gesperrt} data-modell-auswahl="">
+      <legend className="font-sans text-14 font-semibold text-ink">Welches Modell antwortet?</legend>
+      <div className="flex flex-wrap gap-2">
+        {optionen.map(({ wert, name }) => (
+          <label
+            key={name}
+            className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-line bg-white px-3 font-sans text-14 text-ink has-[:checked]:border-violett has-[:checked]:bg-violett-bg has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
+          >
+            <input
+              type="radio"
+              name="modell"
+              className="size-4 accent-violett"
+              checked={wahl === wert}
+              onChange={() => onWahl(wert)}
+            />
+            {name}
+          </label>
+        ))}
+      </div>
+      <Fliesstext groesse={14} ton="gedaempft">
+        Die Zahlen rechnet immer der Code. Das Modell schreibt nur die Sätze dazu.
+      </Fliesstext>
+    </fieldset>
+  );
+}
+
 export function Einstieg() {
   const [frage, setFrage] = useState("");
+  const [modell, setModell] = useState<Modellwahl | null>(null);
   const [eingabeFehler, setEingabeFehler] = useState<string | undefined>();
   const [zustand, setZustand] = useState<Zustand>({ art: "leer" });
   const laedt = zustand.art === "laden";
@@ -188,7 +235,7 @@ export function Einstieg() {
     }
     setEingabeFehler(undefined);
     setZustand({ art: "laden" });
-    setZustand(await stelleFrage(geprueft.data.frage));
+    setZustand(await stelleFrage(geprueft.data.frage, modell));
   }
 
   return (
@@ -209,6 +256,9 @@ export function Einstieg() {
           {laedt ? "Frage läuft" : "Frage stellen"}
         </Knopf>
       </form>
+
+      <ModellAuswahl wahl={modell} onWahl={setModell} gesperrt={laedt} />
+      {modell && <SeitenModell provider={modell} />}
 
       <p role="status" aria-live="polite" className="sr-only">
         {ansage(zustand)}

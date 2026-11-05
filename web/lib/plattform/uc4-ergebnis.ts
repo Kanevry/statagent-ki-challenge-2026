@@ -27,8 +27,21 @@ export const ergebnisSchema = z
   })
   .strict();
 
+/** Modelle, die man auf /uc4 wählen kann; der Wert geht als LLM_PROVIDER an den Router (plattform.llm). */
+export const MODELLWAHL = ["azure", "mistral", "claude", "mock"] as const;
+export type Modellwahl = (typeof MODELLWAHL)[number];
+/** Beschriftung der Wahl, für Menschen ohne Fachwissen. */
+export const MODELL_NAMEN: Record<Modellwahl, string> = {
+  azure: "Azure",
+  mistral: "Mistral",
+  claude: "Claude",
+  mock: "Testbetrieb",
+};
+
 export const frageSchema = z.object({
   frage: z.string().trim().min(1, "Bitte eine Frage eingeben.").max(MAX_FRAGE, `Höchstens ${MAX_FRAGE} Zeichen.`),
+  /** Ohne Angabe gilt LLM_PROVIDER der App. */
+  modell: z.enum(MODELLWAHL, { message: "Dieses Modell gibt es hier nicht." }).optional(),
 });
 
 export type Fehlend = z.infer<typeof fehlendSchema>;
@@ -41,5 +54,7 @@ export const BUDGET_MELDUNG = "Für heute sind keine Antworten mehr frei. Bitte 
 export function grundText(grund: string): string {
   if (grund === "kein_adapter") return "Noch nicht angeschlossen";
   if (grund === "BudgetErschoepft") return BUDGET_MELDUNG;
+  // plattform.llm lehnt einen Anbieter ab, den der Zweck nicht erlaubt (StatAgent nie mit Claude).
+  if (grund === "ZweckFehler") return "Mit diesem Modell gesperrt";
   return "Antwort fehlgeschlagen";
 }

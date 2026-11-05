@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { findeRepoWurzel } from "./modell";
 import { erstelleRatenlimit, grenzeAus, type PruefeRatenlimit } from "./ratenlimit";
-import { BUDGET_MELDUNG, ergebnisSchema, frageSchema } from "./uc4-ergebnis";
+import { BUDGET_MELDUNG, ergebnisSchema, frageSchema, type Modellwahl } from "./uc4-ergebnis";
 
 export { BUDGET_MELDUNG };
 
@@ -27,12 +27,12 @@ export interface Lauf {
 export type Ausfuehren = (
   befehl: string,
   argv: readonly string[],
-  optionen: { cwd: string; timeout: number; maxBuffer: number },
+  optionen: { cwd: string; timeout: number; maxBuffer: number; zusatz?: Readonly<Record<string, string>> },
 ) => Promise<Lauf>;
 
-export const standardAusfuehren: Ausfuehren = (befehl, argv, { cwd, timeout, maxBuffer }) =>
+export const standardAusfuehren: Ausfuehren = (befehl, argv, { cwd, timeout, maxBuffer, zusatz = {} }) =>
   new Promise((aufloesen, ablehnen) => {
-    execFile(befehl, [...argv], { cwd, timeout, maxBuffer, env: process.env }, (fehler, stdout) => {
+    execFile(befehl, [...argv], { cwd, timeout, maxBuffer, env: { ...process.env, ...zusatz } }, (fehler, stdout) => {
       if (!fehler) aufloesen({ code: 0, stdout });
       // Regulärer Exit ≠ 0 (z. B. 1 = keine Antwort): der Aufrufer entscheidet. Timeout und maxBuffer setzen
       // `killed` bzw. einen Text-Code und gelten als Fehler.
@@ -99,7 +99,7 @@ async function leseBody(anfrage: Request, grenze: number): Promise<string> {
 }
 
 /** Frage aus dem Body oder eine feste deutsche Meldung (keine zod-Texte an den Client). */
-function leseFrage(text: string): { frage: string } | { meldung: string } {
+function leseFrage(text: string): { frage: string; modell?: Modellwahl } | { meldung: string } {
   let roh: unknown;
   try {
     roh = JSON.parse(text);
@@ -111,7 +111,9 @@ function leseFrage(text: string): { frage: string } | { meldung: string } {
   }
   // Ab hier tragen nur noch die eigenen deutschen Meldungen aus frageSchema (leer, zu lang).
   const eingabe = frageSchema.safeParse(roh);
-  return eingabe.success ? { frage: eingabe.data.frage } : { meldung: eingabe.error.issues[0]?.message ?? UNGUELTIG };
+  return eingabe.success
+    ? { frage: eingabe.data.frage, modell: eingabe.data.modell }
+    : { meldung: eingabe.error.issues[0]?.message ?? UNGUELTIG };
 }
 
 export interface FrageOptionen {
@@ -140,11 +142,14 @@ export function erstelleFrageAntwort({
 }: FrageOptionen = {}): (anfrage: Request) => Promise<Response> {
   let offen = 0;
 
-  async function fuehreAus(frage: string): Promise<Response> {
-    const argv = routerArgv(frage, umgebung.UC4_ADAPTER === "mock");
+  async function fuehreAus(frage: string, modell: Modellwahl | undefined): Promise<Response> {
+    // „Testbetrieb“ nimmt die festen Antworten des Routers (wie die Online-Demo), sonst fehlten Vorlagen je Zweck.
+    const argv = routerArgv(frage, umgebung.UC4_ADAPTER === "mock" || modell === "mock");
+    // Gewähltes Modell als LLM_PROVIDER nur für diesen Lauf; ohne Wahl gilt die Einstellung der App.
+    const zusatz = modell ? { LLM_PROVIDER: modell } : undefined;
     let lauf: Lauf;
     try {
-      lauf = await ausfuehren("uv", argv, { cwd: wurzel(), timeout: TIMEOUT_MS, maxBuffer: MAX_BUFFER });
+      lauf = await ausfuehren("uv", argv, { cwd: wurzel(), timeout: TIMEOUT_MS, maxBuffer: MAX_BUFFER, zusatz });
     } catch (grund) {
       // Nur die Art des Fehlers loggen: stderr und Meldung können Pfade, Umgebungswerte oder die Frage enthalten.
       console.warn(`[uc4/frage] Router nicht erreichbar (${(grund as Error).name ?? "Fehler"})`);
@@ -193,7 +198,7 @@ export function erstelleFrageAntwort({
     if (offen >= maxLaeufe) return fehler(429, "Gerade laufen schon genug Fragen. Bitte gleich noch einmal fragen.");
     offen += 1;
     try {
-      return await fuehreAus(eingabe.frage);
+      return await fuehreAus(eingabe.frage, eingabe.modell);
     } finally {
       offen -= 1;
     }

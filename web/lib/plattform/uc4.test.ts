@@ -217,3 +217,37 @@ describe("standardAusfuehren", () => {
     ).rejects.toThrow();
   });
 });
+
+// Fängt ab (Modellwahl auf /uc4, Lead c0): das gewählte Modell kommt nicht beim Router an, ein beliebiger Wert
+// gelangt als LLM_PROVIDER in den Subprozess, oder ohne Wahl wird die Einstellung der App überschrieben.
+describe("POST /api/uc4/frage, Modellwahl", () => {
+  const optionen = (ausfuehren: Ausfuehren): FrageOptionen => ({ ausfuehren, umgebung: {}, wurzel: () => "/repo", ratenlimit: offen });
+
+  it("reicht die Wahl als LLM_PROVIDER nur an diesen Lauf weiter", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    const antwort = await frageAntwort(anfrage({ frage: "Wie viele?", modell: "mistral" }), optionen(ausfuehren));
+    expect(antwort.status).toBe(200);
+    expect(ausfuehren.mock.calls[0]?.[2].zusatz).toEqual({ LLM_PROVIDER: "mistral" });
+  });
+
+  it("Testbetrieb nimmt die festen Antworten des Routers (--mock)", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    await frageAntwort(anfrage({ frage: "Wie viele?", modell: "mock" }), optionen(ausfuehren));
+    expect(ausfuehren.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--mock", "--", "Wie viele?"]);
+    expect(ausfuehren.mock.calls[0]?.[2].zusatz).toEqual({ LLM_PROVIDER: "mock" });
+  });
+
+  it("ohne Wahl bleibt die Einstellung der App", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    await frageAntwort(anfrage({ frage: "Wie viele?" }), optionen(ausfuehren));
+    expect(ausfuehren.mock.calls[0]?.[2].zusatz).toBeUndefined();
+  });
+
+  it("lehnt ein unbekanntes Modell mit 400 ab, ohne Subprozess", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    const antwort = await frageAntwort(anfrage({ frage: "Wie viele?", modell: "gpt; rm -rf" }), optionen(ausfuehren));
+    expect(antwort.status).toBe(400);
+    expect(await antwort.json()).toEqual({ fehler: "Dieses Modell gibt es hier nicht." });
+    expect(ausfuehren).not.toHaveBeenCalled();
+  });
+});
