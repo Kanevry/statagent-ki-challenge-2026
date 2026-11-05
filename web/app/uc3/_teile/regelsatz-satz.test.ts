@@ -6,6 +6,7 @@ describe("Satz neben dem Regelsatz-Schalter", () => {
   it("sagt, was jeder zählt, und nennt die andere Zahl", () => {
     expect(regelsatzSatz("v1", 407604)).toContain("Regelsatz v2 zählt das ganze Monat: 407.604.");
     expect(regelsatzSatz("v2", 399027)).toContain("Regelsatz v1 zählt am Monatsletzten: 399.027.");
+    expect(regelsatzSatz("v3", 399027)).toBe("Das ist Regelsatz v3, mit einer freigegebenen Änderung. Regelsatz v1 zählt am Monatsletzten: 399.027.");
   });
 
   it("erfindet keine Zahl, wenn der andere Regelsatz den Monat nicht gerechnet hat", () => {

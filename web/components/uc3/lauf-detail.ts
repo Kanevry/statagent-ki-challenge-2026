@@ -4,6 +4,7 @@ import { lies, type Lesung, type Sql } from "./db";
 import { ladeMassgeblichenLauf } from "./laeufe";
 import { monatName, monatsgrenzen, stichtag, verschieben } from "./monat";
 import type { Lauf } from "./typen";
+import { bestandFilter, bestandSpalte, imZeitraumText, type ZeitraumArt } from "./zeitraum";
 
 // Lauf-Detail /uc3/laeufe/[lieferung] (#18, Frames fFDc8 und P6gBQD): Leser, Sätze und Beleg-Abfragen eines Monats.
 // Jede Abfrage, die ein Beleg ZEIGT, liefert genau die Zahl, die daneben steht; ausgeführt wird die parametrisierte
@@ -471,9 +472,10 @@ export function haltKurz(
   }
 }
 
-/** Überschrift eines Monats, der nicht angehalten ist: Bestand am Stichtag und Veränderung zum Vormonat. */
-export function bestandSatz(lauf: Pick<Lauf, "lieferung" | "gezaehlt">, vormonat: Pick<Lauf, "lieferung" | "gezaehlt"> | null): string {
-  const kopf = `Am ${stichtag(lauf.lieferung)} bestanden ${formatZahl(lauf.gezaehlt)} Beschäftigungsverhältnisse`;
+/** Überschrift eines Monats, der nicht angehalten ist: Bestand (Stichtag oder ganzes Monat) und Veränderung zum Vormonat. */
+export function bestandSatz(lauf: Pick<Lauf, "lieferung" | "gezaehlt" | "zeitraumArt">, vormonat: Pick<Lauf, "lieferung" | "gezaehlt"> | null): string {
+  const wann = lauf.zeitraumArt === "Monat" ? `Im ${monatName(lauf.lieferung)}` : `Am ${stichtag(lauf.lieferung)}`;
+  const kopf = `${wann} bestanden ${formatZahl(lauf.gezaehlt)} Beschäftigungsverhältnisse`;
   if (!vormonat) return `${kopf}.`;
   const d = lauf.gezaehlt - vormonat.gezaehlt;
   const vm = monatName(vormonat.lieferung);
@@ -592,8 +594,6 @@ export function umschichtungSatz(r: Pick<Revision, "berichtsmonat">): string {
 // ---------------------------------------------------------------------------------------------------------------
 // Beleg-Abfragen (Anzeige)
 
-const BESTAND_FILTER = "zeitraum_art = 'Stichtag' AND variable = 'Beschaeftigungsverhaeltnisse'";
-
 /** Bestand dieses Monats und des Vormonats, je mit dem Regelstand ihres maßgeblichen Laufs. */
 export function sqlBestandMitVormonat(lauf: Lauf, vormonat: Lauf | null): string {
   const teil = (l: Lauf) => {
@@ -603,16 +603,16 @@ export function sqlBestandMitVormonat(lauf: Lauf, vormonat: Lauf | null): string
   return [
     "SELECT to_char(zeitraum_bis, 'YYYY-MM') AS monat, sum(wert) AS beschaeftigungsverhaeltnisse",
     "FROM stat.stat_beschaeftigte",
-    `WHERE regelsatz = ${literal(lauf.regelsatz)} AND ${BESTAND_FILTER}`,
+    `WHERE regelsatz = ${literal(lauf.regelsatz)} AND ${bestandFilter(lauf.zeitraumArt)}`,
     `  AND (${[vormonat, lauf].filter((l): l is Lauf => l !== null).map(teil).join("\n       OR ")})`,
     "GROUP BY 1 ORDER BY 1;",
   ].join("\n");
 }
 
-export function sqlKennzahlen(lauf: Pick<Lauf, "id" | "quelleId">): string {
+export function sqlKennzahlen(lauf: Pick<Lauf, "id" | "quelleId" | "zeitraumArt">): string {
   return [
     "SELECT lieferung, gezaehlt - fortgeschrieben AS aus_der_lieferung, fortgeschrieben AS uebernommen,",
-    "       gezaehlt AS bestand_am_stichtag, gelesen, nicht_gezaehlt, ausgeschlossen, ergebnis_status",
+    `       gezaehlt AS ${bestandSpalte(lauf.zeitraumArt)}, gelesen, nicht_gezaehlt, ausgeschlossen, ergebnis_status`,
     "FROM meta.lauf",
     `WHERE id = ${literal(lauf.id)};`,
   ].join("\n");
@@ -678,7 +678,7 @@ export function sqlVeroeffentlichen(lauf: Pick<Lauf, "id" | "quelleId" | "liefer
 }
 
 /** Bestand je Bundesland; ROLLUP liefert die Summenzeile (Bundesland leer) gleich mit. */
-export function sqlRegionen(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "regelstand">): string {
+export function sqlRegionen(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "regelstand" | "zeitraumArt">): string {
   const { von, bis } = monatsgrenzen(lauf.lieferung);
   return [
     "SELECT s.region, k.bezeichnung, sum(s.wert) AS beschaeftigungsverhaeltnisse",
@@ -686,7 +686,7 @@ export function sqlRegionen(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "regels
     "LEFT JOIN stat.klass_region k ON k.code = s.region AND k.ebene = 'bundesland'",
     "  AND k.gueltig_von <= s.zeitraum_bis AND (k.gueltig_bis IS NULL OR k.gueltig_bis >= s.zeitraum_bis)",
     `WHERE s.regelsatz = ${literal(lauf.regelsatz)} AND s.regelstand = ${literal(lauf.regelstand)}`,
-    `  AND s.${BESTAND_FILTER.replace(" AND ", " AND s.")}`,
+    `  AND ${bestandFilter(lauf.zeitraumArt, "s.")}`,
     `  AND s.zeitraum_bis BETWEEN ${literal(von)} AND ${literal(bis)}`,
     "GROUP BY ROLLUP ((s.region, k.bezeichnung))",
     "ORDER BY grouping(s.region), s.region = '0', 3 DESC;",
@@ -713,7 +713,7 @@ interface TrefferZeile {
   details: TrefferDetails | null;
 }
 
-async function ladeTreffer(sql: Sql, laufId: number): Promise<Treffer[]> {
+async function ladeTreffer(sql: Sql, laufId: number, art: ZeitraumArt): Promise<Treffer[]> {
   const zeilen = await sql<TrefferZeile[]>`
     SELECT p.regel_id, r.name, r.art, r.beschreibung, r.parameter->>'satz' AS satz, p.ebene, p.anzahl, p.umfang,
            coalesce(p.einstufung, 'nicht-erklaerbar') AS einstufung, p.massnahme, p.anhalten, p.beleg_sql, p.details,
@@ -728,14 +728,14 @@ async function ladeTreffer(sql: Sql, laufId: number): Promise<Treffer[]> {
       name: z.name,
       art: z.art ?? "",
       beschreibung: z.beschreibung ?? "",
-      satz: z.satz,
+      satz: z.satz === null ? null : imZeitraumText(z.satz, art),
       ebene: z.ebene,
       anzahl: zahl(z.anzahl),
-      umfang: z.umfang,
+      umfang: z.umfang === null ? null : imZeitraumText(z.umfang, art),
       einstufung: z.einstufung,
-      massnahme: z.massnahme,
+      massnahme: z.massnahme === null ? null : imZeitraumText(z.massnahme, art),
       anhalten: z.anhalten,
-      belegSql: z.beleg_sql,
+      belegSql: z.beleg_sql === null ? null : imZeitraumText(z.beleg_sql, art),
       offeneRueckfragen: z.offene_rueckfragen ?? [],
       details: z.details ?? null,
     })),
@@ -775,7 +775,7 @@ async function ladeRegionen(sql: Sql, lauf: Lauf): Promise<Region[]> {
     LEFT JOIN stat.klass_region k ON k.code = s.region AND k.ebene = 'bundesland'
       AND k.gueltig_von <= s.zeitraum_bis AND (k.gueltig_bis IS NULL OR k.gueltig_bis >= s.zeitraum_bis)
     WHERE s.regelsatz = ${lauf.regelsatz} AND s.regelstand = ${lauf.regelstand}
-      AND s.zeitraum_art = 'Stichtag' AND s.variable = 'Beschaeftigungsverhaeltnisse'
+      AND s.zeitraum_art = ${lauf.zeitraumArt} AND s.variable = 'Beschaeftigungsverhaeltnisse'
       AND s.zeitraum_bis BETWEEN ${von} AND ${bis}
     GROUP BY s.region, k.bezeichnung
     ORDER BY s.region = '0', 3 DESC`;
@@ -855,7 +855,7 @@ export async function ladeLaufDetail(sql: Sql, lieferung: string, regelsatz = "v
   ]);
   if (!lauf) return null;
   const [treffer, revisionen, regionen, determinismus, fdCodes] = await Promise.all([
-    ladeTreffer(sql, lauf.quelleId),
+    ladeTreffer(sql, lauf.quelleId, lauf.zeitraumArt),
     ladeRevisionen(sql, lauf.id),
     ladeRegionen(sql, lauf),
     ladeDeterminismus(sql, lauf),

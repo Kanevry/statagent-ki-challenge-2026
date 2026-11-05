@@ -234,14 +234,18 @@ test.describe("Anti-Schablonen-Gate", () => {
     expect(gemessen.length, "Keine Seite gemessen").toBeGreaterThan(0);
   });
 
-  test("/uc3 mit Modell-Hinweis „zuletzt“ und geöffneter Protokoll-Schublade", async ({ page }, testInfo) => {
+  test("/uc1 mit Modell-Hinweis „zuletzt“, /uc3 mit geöffneter Protokoll-Schublade", async ({ page }, testInfo) => {
     await page.route("**/api/plattform/modell", (route) => route.fulfill({ json: MODELL_STATUS }));
+    // /uc3 zeigt im Header kein Modell, darum wird der Hinweis auf /uc1 gemessen.
+    const uc1 = await page.goto("/uc1");
+    expect(uc1?.status(), "HTTP-Status von /uc1").toBe(200);
+    await vorbereiten(page);
+    await page.getByTestId("modell-zuletzt").first().waitFor({ state: "attached" });
+    await pruefeSeite(page, testInfo, "/uc1", "-badge-zuletzt");
+
     const antwort = await page.goto("/uc3");
     expect(antwort?.status(), "HTTP-Status von /uc3").toBe(200);
     await vorbereiten(page);
-    await page.getByTestId("modell-zuletzt").first().waitFor({ state: "attached" });
-    await pruefeSeite(page, testInfo, "/uc3", "-badge-zuletzt");
-
     await page.getByRole("button", { name: "Protokoll", exact: true }).click();
     const schublade = page.getByRole("dialog");
     await schublade.waitFor({ state: "visible" });

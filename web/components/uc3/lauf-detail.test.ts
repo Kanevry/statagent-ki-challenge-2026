@@ -65,7 +65,7 @@ describe("Lauf-Detail: Sätze", () => {
 
   // Fehler: Rückgang zum Vormonat erscheint als „-12 mehr“.
   it("Bestand mit Rückgang sagt „weniger“", () => {
-    expect(bestandSatz({ lieferung: "2025-03", gezaehlt: 100 }, { lieferung: "2025-02", gezaehlt: 112 })).toBe(
+    expect(bestandSatz({ lieferung: "2025-03", gezaehlt: 100, zeitraumArt: "Stichtag" }, { lieferung: "2025-02", gezaehlt: 112 })).toBe(
       "Am 31.03.2025 bestanden 100 Beschäftigungsverhältnisse, 12 weniger als im Februar 2025.",
     );
   });
@@ -171,10 +171,11 @@ describe("massnahmeSatz und einstufungStatus", () => {
 
 describe("Lauf-Detail: Regelsatz, Veröffentlichen, Revisionsbedarf", () => {
   // Fehler: ?regelsatz=x oder ?regelsatz=v3 landet ungeprüft in der Abfrage.
-  it("lässt nur v1 und v2 zu, alles andere ist v1", () => {
+  it("lässt nur v<Zahl> zu, alles andere ist v1", () => {
     expect(regelsatzAus("v2")).toBe("v2");
     expect(regelsatzAus(undefined)).toBe("v1");
-    expect(regelsatzAus("v3")).toBe("v1");
+    expect(regelsatzAus("v3")).toBe("v3");
+    expect(regelsatzAus("v3;x")).toBe("v1");
     expect(regelsatzAus(["v2", "v2"])).toBe("v1");
   });
 

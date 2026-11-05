@@ -1,0 +1,36 @@
+{
+  "2025-01": {
+    "v1": {
+      "anders": 189170,
+      "beispiel": {
+        "alt": "O",
+        "anzahl": 61906,
+        "name": "Öffentliche Verwaltung, Verteidigung; Sozialversicherung",
+        "neu": "P"
+      },
+      "beleg_sql": "WITH vorher AS (SELECT DISTINCT ON (vvh_id) vvh_id, oenace FROM bereinigt.abschnitt WHERE lieferung = '2024-12' AND regelsatz = 'v1' AND beginn <= DATE '2024-12-31' AND (ende IS NULL OR ende >= DATE '2024-12-31') ORDER BY vvh_id, beginn DESC),\n     nachher AS (SELECT DISTINCT ON (vvh_id) vvh_id, oenace FROM bereinigt.abschnitt WHERE lieferung = '2025-01' AND regelsatz = 'v1' AND beginn <= DATE '2024-12-31' AND (ende IS NULL OR ende >= DATE '2024-12-31') ORDER BY vvh_id, beginn DESC)\nSELECT v.oenace AS alt, n.oenace AS neu, count(*) AS verhaeltnisse\nFROM vorher v JOIN nachher n USING (vvh_id)\nGROUP BY 1, 2 ORDER BY 3 DESC",
+      "gesamt": 386299,
+      "nur_buchstabe": 150418,
+      "stichtag": "31. Dezember 2024",
+      "version_alt": "2008",
+      "version_neu": "2025",
+      "vormonat": "2024-12"
+    },
+    "v2": {
+      "anders": 189170,
+      "beispiel": {
+        "alt": "O",
+        "anzahl": 61906,
+        "name": "Öffentliche Verwaltung, Verteidigung; Sozialversicherung",
+        "neu": "P"
+      },
+      "beleg_sql": "WITH vorher AS (SELECT DISTINCT ON (vvh_id) vvh_id, oenace FROM bereinigt.abschnitt WHERE lieferung = '2024-12' AND regelsatz = 'v2' AND beginn <= DATE '2024-12-31' AND (ende IS NULL OR ende >= DATE '2024-12-31') ORDER BY vvh_id, beginn DESC),\n     nachher AS (SELECT DISTINCT ON (vvh_id) vvh_id, oenace FROM bereinigt.abschnitt WHERE lieferung = '2025-01' AND regelsatz = 'v2' AND beginn <= DATE '2024-12-31' AND (ende IS NULL OR ende >= DATE '2024-12-31') ORDER BY vvh_id, beginn DESC)\nSELECT v.oenace AS alt, n.oenace AS neu, count(*) AS verhaeltnisse\nFROM vorher v JOIN nachher n USING (vvh_id)\nGROUP BY 1, 2 ORDER BY 3 DESC",
+      "gesamt": 386299,
+      "nur_buchstabe": 150418,
+      "stichtag": "31. Dezember 2024",
+      "version_alt": "2008",
+      "version_neu": "2025",
+      "vormonat": "2024-12"
+    }
+  }
+}
