@@ -257,7 +257,7 @@ def test_ablehnen_und_ruecknahme_stellen_den_stand_wieder_her(
 def test_ruecknahme_nur_vom_stand_der_den_vorschlag_enthaelt(live_conn: Verbindung) -> None:
     zurueck = SequenzModell({"agent.koordinator": [{"rolle": "datenmanagement", "ruecknahme_von": 999}]})
     erg = agent_ausfuehren(live_conn, "Nimm Vorschlag 999 zurück", complete=zurueck)
-    assert erg.vorschlag_id is None and erg.abgelehnt is not None and "noch nicht wirksam" in erg.abgelehnt
+    assert erg.vorschlag_id is None and erg.abgelehnt is not None and "nicht wirksam" in erg.abgelehnt
 
 
 def test_widerspruch_zu_frueherer_regel_ist_keine_ruecknahme(live_conn: Verbindung) -> None:
@@ -816,7 +816,7 @@ def test_ruecknahme_liste_nur_aus_dem_aktuellen_stand(live_conn: Verbindung, rep
     assert f'"id": {zweite.vorschlag_id}' in inhalt and f'"id": {erg.vorschlag_id},' not in inhalt
     assert (
         r.abgelehnt is not None
-        and f"Vorschlag {erg.vorschlag_id} stammt aus einem anderen Stand" in r.abgelehnt
+        and f"Vorschlag {erg.vorschlag_id} gehört zu einem anderen Regelsatz" in r.abgelehnt
     )
 
 

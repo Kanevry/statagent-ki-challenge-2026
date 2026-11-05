@@ -279,7 +279,7 @@ def _wert(w: object) -> str:
 #: Keine Zahl ändert sich im Probemonat: Das kann richtig sein und heißt nicht, dass die Regel nichts tut.
 KEINE_AENDERUNG_TEXT = (
     "In diesem Monat ändert sich keine Zahl. Das kann richtig sein: Eine Prüfregel ändert nie eine Zahl, und der "
-    "Ersatztag bei Geburtsmonat 13 wirkt nur in manchen Monaten. Zum Vergleich einen anderen Monat wählen."
+    "Ersatztag bei Geburtsmonat 13 wirkt nur in manchen Monaten. Wählen Sie zum Vergleich einen anderen Monat."
 )
 #: So viele geänderte Ausprägungen zeigt die Probe je Merkmal, die größten zuerst (vor der Jury lesbar).
 PROBE_ZEILEN = 8

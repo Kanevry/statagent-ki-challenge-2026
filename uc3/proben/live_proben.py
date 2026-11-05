@@ -226,14 +226,25 @@ def _zwei_ausschluesse(v: Vorschlag) -> bool:
     )
 
 
+def _nicht_unempfindlicher(v: Vorschlag) -> bool:
+    """„Schon angehalten“ darf eine Schwelle nur senken. Ein Anheben macht die Prüfung unempfindlicher, das Gegenteil
+    (Nachprobe 00:0x: P16 von 1 % auf 10 %). Eine Schwelle je Bundesland gibt es nicht; richtig ist auch eine Rückfrage,
+    die zählt das Skript aber als kein Vorschlag, also nicht bestanden."""
+    if v.typ != "regel_aendern" or not v.aenderungen:
+        return False
+    for a in v.aenderungen:
+        alt, neu = a["parameter_alt"].get("schwelle"), a["parameter_neu"].get("schwelle")
+        if not str(a["regel_name"]).startswith("P") or alt is None or neu is None or neu >= alt:
+            return False
+    return True
+
+
 #: Zusatz (nur mit --auftraege): Stellen, die die zehn Aufträge nicht abdecken. Stichprobe 20:5x, Review 9b.
 ZUSATZ: tuple[Auftrag, ...] = (
     Auftrag(
         "N_angehalten_10_prozent",
         "Ein Monat wird schon angehalten, wenn in einem Bundesland mehr als 10 % fehlen.",
-        lambda v: (
-            v.typ == "regel_aendern" and all(str(a["regel_name"]).startswith("P") for a in v.aenderungen)
-        ),
+        _nicht_unempfindlicher,
     ),
     Auftrag(
         "K_ohne_maenner",

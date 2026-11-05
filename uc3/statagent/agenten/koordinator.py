@@ -940,7 +940,7 @@ def ruecknahme_pruefen(conn: Verbindung, vorschlag_id: int, basis: str) -> Gepru
     ).fetchone()
     if z is None or z["status"] != "freigegeben" or z["angewendet_am"] is None:
         raise VorschlagUngueltig(
-            f"Vorschlag {vorschlag_id} ist noch nicht wirksam, darum gibt es nichts zurückzunehmen."
+            f"Vorschlag {vorschlag_id} ist nicht wirksam, darum gibt es nichts zurückzunehmen."
         )
     if z["typ"] == "code_datei":
         raise VorschlagUngueltig(
@@ -948,8 +948,8 @@ def ruecknahme_pruefen(conn: Verbindung, vorschlag_id: int, basis: str) -> Gepru
         )
     if str(z["regelsatz_ziel"]) != basis:
         raise VorschlagUngueltig(
-            f"Zurücknehmen geht nur für Änderungen, die in {basis} dazugekommen sind. Vorschlag {vorschlag_id} stammt "
-            "aus einem anderen Stand."
+            f"Zurücknehmen geht nur für Änderungen aus dem aktuellen Regelsatz {basis}. Vorschlag {vorschlag_id} gehört zu "
+            "einem anderen Regelsatz."
         )
     regeln = _regeln(conn, basis)
     aenderungen: list[dict[str, Any]] = []
