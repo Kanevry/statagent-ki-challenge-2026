@@ -105,9 +105,9 @@ it("Zahl mit beleg = 1 zeigt den zweiten Beleg, durchgereichte Zahl trägt „vo
 
   const panel = (await screen.findAllByText("von StatAgent")).map((el) => el.closest("[data-uc-karte]"));
   expect(panel.map((k) => k?.getAttribute("data-uc-karte"))).toEqual(["uc2"]);
-  const chip = within(karten()[1]!).getByRole("button", { name: /ansehen$/ });
+  const chip = within(karten()[1]!).getByRole("button", { name: /^Beleg, / });
   expect(chip.textContent).toBe(
-    "stat.beschaeftigte_monat Monat 2025-02 aus Lieferung 2025-03 · Regelstand v2 · Lauf abcdef01 · SQL ansehen",
+    "Beleg, stat.beschaeftigte_monat, Monat 2025-02 aus Lieferung 2025-03, Regelstand v2, Lauf abcdef01",
   );
   expect(within(karten()[2]!).getByText("Antwort fehlgeschlagen")).toBeTruthy();
 });
