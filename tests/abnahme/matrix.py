@@ -518,10 +518,13 @@ def abhaken(kid: str, belege: dict[str, dict], ja: bool) -> int:
     """
     iid = int(kid.split("-")[0])
     issue = glab_json(f"projects/{PROJEKT}/issues/{iid}")
-    k = next((k for k in kriterien(issue) if k["id"] == kid), None)
+    k = next((k for k in alle_kriterien([issue]) if k["id"] == kid), None)
     if not k:
         print(f"{kid}: kein solches Kriterium", file=sys.stderr)
         return 2
+    if k["state"] == "closed":
+        print(f"{kid}: Issue geschlossen, Matrix-Eintrag genügt, kein Haken", file=sys.stderr)
+        return 0
     if k["art"] != "checkbox":
         print(f"{kid}: Textkriterium, nichts abzuhaken (Kommentar genügt)", file=sys.stderr)
         return 2
