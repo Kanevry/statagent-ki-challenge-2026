@@ -9,7 +9,7 @@ import { EntwurfPruefung } from "./entwurf-pruefung";
 import { antragLeistung, antragName, leistungName } from "./leistungen";
 import { useLotse } from "./lotse-kontext";
 import { BelegChip } from "./beleg-chip";
-import { AufnahmeHinweis, Kopf } from "./teile";
+import { AufnahmeHinweis, einmal, Fundstelle, Kopf, OHNE_STELLE, SeitenKennzeichnung } from "./teile";
 
 // Schritt 3 „Antrag vorbereitet“ (Pen-Frame ZHSFO) und Schritt 4 „Stelle“. Der Lotse füllt aus, was im Gespräch
 // gesagt wurde; abgeschickt wird nichts (`eingereicht: false` aus dem Kern).
@@ -34,7 +34,7 @@ function StelleText({ stelle }: { stelle: Pick<Traeger, "name" | "fundstelle" | 
   return (
     <div className="flex flex-col items-start gap-2">
       <Fliesstext className="font-semibold">{stelle.name}</Fliesstext>
-      {stelle.zitat && stelle.fundstelle && <BelegChip quelle={stelle.fundstelle} zitat={stelle.zitat} />}
+      <Fundstelle fundstelle={stelle.fundstelle} zitat={stelle.zitat} />
     </div>
   );
 }
@@ -173,6 +173,7 @@ export function AntragSeite() {
           {antrag.art === "laden" ? "Der Lotse füllt den Antrag aus." : antrag.art === "fehler" ? antrag.meldung : ""}
         </p>
         <AufnahmeHinweis aufnahme={aufnahme} />
+        <SeitenKennzeichnung />
         {antrag.art === "laden" && <Fliesstext ton="gedaempft">Der Lotse füllt den Antrag aus. Das dauert einen Moment.</Fliesstext>}
         {antrag.art === "fehler" && (
           <div className="flex flex-col items-start gap-4" data-testid="uc1-antrag-fehler">
@@ -191,6 +192,15 @@ export function AntragSeite() {
         {antrag.art === "bereit" &&
           antrag.antraege.map((a) => (
             <AntragVorbereitet key={`${a.art}-${a.sitzung_id}`} antrag={a} live={aufnahme === null} mitTitel={!einer} />
+          ))}
+        {antrag.art === "bereit" &&
+          antrag.fehler.map((f) => (
+            <div key={f.art} className="flex flex-col items-start gap-4" data-testid="uc1-antrag-fehler" data-uc1-antrag-fehler={f.art}>
+              <Status art="fehler">{`Antrag auf ${antragName(f.art)}: ${f.meldung}`}</Status>
+              <Knopf art="sekundaer" className="min-h-11" onClick={() => void antragVorbereiten([f.art])}>
+                {`${antragName(f.art)} noch einmal versuchen`}
+              </Knopf>
+            </div>
           ))}
         {antrag.art === "bereit" && ohneAufnahme.length > 0 && (
           <Fliesstext groesse={14} ton="gedaempft" data-testid="uc1-ohne-aufnahme">
@@ -218,33 +228,51 @@ export function AntragSeite() {
   );
 }
 
-/** Die passenden nächsten Schritte: die, die die Stelle beim Namen oder Kürzel nennen; sonst alle. */
-function schritteFuer(schritte: readonly string[], stelle: Pick<Traeger, "name" | "stelle">): string[] {
-  const namen = [stelle.name, stelle.stelle].filter((n): n is string => Boolean(n));
+/** Die passenden nächsten Schritte: die, die die Stelle beim Namen oder Kürzel nennen; sonst alle. Jeder nur einmal. */
+function schritteFuer(schritte: readonly string[], stelle: Pick<StellenGruppe, "name" | "kurz">): string[] {
+  const namen = [stelle.name, stelle.kurz].filter((n): n is string => Boolean(n));
   const passend = schritte.filter((s) => namen.some((n) => s.includes(n)));
-  return passend.length > 0 ? passend : [...schritte];
+  return einmal(passend.length > 0 ? passend : schritte);
+}
+
+/** Eine Stelle mit allen Leistungen, für die sie zuständig ist; je Leistung die eigene Fundstelle mit eigenem Zitat. */
+interface StellenGruppe {
+  name: string;
+  kurz: string | null;
+  leistungen: Array<Pick<Traeger, "leistung" | "fundstelle" | "zitat">>;
+}
+
+/** Stellen aus der Antwort (traeger) und aus vorbereiteten Anträgen, gleiche Stelle einmal. */
+function stellenGruppen(traeger: readonly Traeger[], antraege: readonly WebAntrag[]): StellenGruppe[] {
+  const gruppen: StellenGruppe[] = [];
+  const dazu = (name: string, kurz: string | null, eintrag: StellenGruppe["leistungen"][number]) => {
+    let gruppe = gruppen.find((g) => g.name === name);
+    if (!gruppe) {
+      gruppe = { name, kurz, leistungen: [] };
+      gruppen.push(gruppe);
+    }
+    // Dieselbe Leistung nur einmal; ein Eintrag mit Zitat ersetzt einen ohne.
+    const da = gruppe.leistungen.findIndex((l) => l.leistung === eintrag.leistung && l.fundstelle === eintrag.fundstelle);
+    if (da < 0) gruppe.leistungen.push(eintrag);
+    else if (!gruppe.leistungen[da]?.zitat && eintrag.zitat) gruppe.leistungen[da] = eintrag;
+  };
+  for (const t of traeger) dazu(traegerName(t), t.stelle, { leistung: t.leistung, fundstelle: t.fundstelle, zitat: t.zitat });
+  for (const a of antraege) {
+    if (!a.stelle) continue;
+    const leistung = antragLeistung(a.art);
+    // Nennt die Antwort die Leistung schon bei dieser Stelle, kommt sie aus dem Antrag nicht doppelt dazu.
+    if (gruppen.some((g) => g.name === a.stelle?.name && g.leistungen.some((l) => l.leistung === leistung))) continue;
+    dazu(a.stelle.name, a.stelle.kurz ?? null, { leistung, fundstelle: a.stelle.fundstelle ?? null, zitat: a.stelle.zitat ?? null });
+  }
+  return gruppen;
 }
 
 /** /uc1/stelle: Schritt 4, die zuständige Stelle aus der Antwort (traeger) oder aus dem Antrag. */
 export function StelleSeite() {
   const { verlauf, antrag, aufnahme } = useLotse();
   const letzte = verlauf.at(-1)?.antwort;
-  // Dieselbe Stelle für zwei Leistungen (Pflegegeld und Reha bei der PVA) nur einmal, mit beiden Fundstellen.
-  const stellen: Traeger[] = [];
-  for (const t of letzte?.verhalten === "antwort" ? letzte.traeger : []) {
-    const da = stellen.find((s) => traegerName(s) === traegerName(t));
-    if (!da) stellen.push({ ...t });
-    else if (t.fundstelle && !da.fundstelle?.includes(t.fundstelle)) {
-      da.fundstelle = da.fundstelle ? `${da.fundstelle}; ${t.fundstelle}` : t.fundstelle;
-    }
-  }
-  if (antrag.art === "bereit") {
-    for (const a of antrag.antraege) {
-      if (a.stelle && !stellen.some((s) => traegerName(s) === a.stelle?.name)) {
-        stellen.push({ leistung: antragLeistung(a.art), stelle: a.stelle.kurz, name: a.stelle.name, fundstelle: a.stelle.fundstelle, zitat: a.stelle.zitat });
-      }
-    }
-  }
+  const mitAntwort = letzte?.verhalten === "antwort";
+  const stellen = stellenGruppen(mitAntwort ? letzte.traeger : [], antrag.art === "bereit" ? antrag.antraege : []);
   const schritte = letzte?.naechste_schritte ?? [];
   return (
     <>
@@ -254,7 +282,17 @@ export function StelleSeite() {
         schritt={4}
       />
       <AufnahmeHinweis aufnahme={aufnahme} />
-      {stellen.length === 0 ? (
+      <SeitenKennzeichnung />
+      {stellen.length === 0 && mitAntwort ? (
+        <Leerzustand
+          satz={`${OHNE_STELLE} Fragen Sie bei Ihrer Sozialversicherung nach.`}
+          aktion={
+            <Link href="/uc1" className={knopfKlassen("sekundaer", "min-h-11")}>
+              Zurück zur Antwort
+            </Link>
+          }
+        />
+      ) : stellen.length === 0 ? (
         <Leerzustand
           satz="Erst eine Situation erzählen, dann steht hier die zuständige Stelle."
           aktion={
@@ -269,23 +307,34 @@ export function StelleSeite() {
             const passend = schritteFuer(schritte, stelle);
             return (
               <section
-                key={traegerName(stelle)}
-                aria-label={traegerName(stelle)}
+                key={stelle.name}
+                aria-label={stelle.name}
                 data-uc1-stelle=""
                 className="flex flex-col gap-4 rounded border border-line bg-white p-4 md:p-6"
               >
-                {stelle.leistung && (
-                  <Fliesstext groesse={14} ton="gedaempft">{`Für ${leistungName(stelle.leistung)}`}</Fliesstext>
+                <Fliesstext className="font-semibold">{stelle.name}</Fliesstext>
+                {stelle.leistungen.length > 0 && (
+                  <ul className="flex flex-col gap-3" aria-label="Zuständig für">
+                    {stelle.leistungen.map((l) => (
+                      <li
+                        key={`${l.leistung ?? ""}-${l.fundstelle ?? ""}`}
+                        data-uc1-stelle-leistung={l.leistung ?? ""}
+                        className="flex flex-col items-start gap-1 border-b border-line pb-3 last:border-b-0 last:pb-0"
+                      >
+                        {l.leistung && <Fliesstext groesse={14} className="font-semibold">{leistungName(l.leistung)}</Fliesstext>}
+                        <Fundstelle fundstelle={l.fundstelle} zitat={l.zitat} />
+                      </li>
+                    ))}
+                  </ul>
                 )}
-                <StelleText stelle={stelle} />
                 {passend.length > 0 && (
                   <div className="flex flex-col gap-2">
                     <Ueberschrift stufe={3} als="h2">
                       So geht es weiter
                     </Ueberschrift>
                     <ol className="flex list-decimal flex-col gap-1 pl-6 font-sans text-16 text-ink">
-                      {passend.map((s, i) => (
-                        <li key={`${i}-${s}`}>{s}</li>
+                      {passend.map((s) => (
+                        <li key={s}>{s}</li>
                       ))}
                     </ol>
                   </div>

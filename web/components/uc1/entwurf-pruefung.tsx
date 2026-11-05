@@ -1,24 +1,14 @@
 "use client";
 
-import { useId, useState } from "react";
-import { Fliesstext, Knopf, knopfKlassen, Status } from "@kic/ui/basis";
-import { FreigabeKarte, formatZeit } from "@kic/ui/bausteine";
+import { useId, useState, type FormEvent } from "react";
+import { Fliesstext, Knopf, knopfKlassen, Status, Ueberschrift } from "@kic/ui/basis";
+import { formatZeit, pruefeName } from "@kic/ui/bausteine";
 import type { WebAntrag } from "./antrag";
-import { antragName } from "./leistungen";
+import { pruefungSchluessel, useLotse } from "./lotse-kontext";
 
-// Abschluss des vorausgefüllten Antrags: Ein Mensch prüft den Entwurf und gibt ihn mit Vor- und Nachnamen frei
-// (FreigabeKarte aus @kic/ui, Namensregel wie in UC3). Die Prüfung lebt nur im Zustand dieser Seite; gespeichert
-// und abgeschickt wird nichts. Das PDF (nur live) gibt es erst nach der Freigabe.
-
-export type EntwurfStand =
-  | { art: "offen" }
-  | { art: "geprueft"; name: string; zeit: string }
-  | { art: "abgelehnt"; name: string; zeit: string; begruendung: string };
-
-/** „Antrag auf Pflegegeld (PAL080) als Entwurf vorausfüllen“. */
-export function entwurfAnweisung(antrag: Pick<WebAntrag, "art" | "code">): string {
-  return `Antrag auf ${antragName(antrag.art)}${antrag.code ? ` (${antrag.code})` : ""} als Entwurf vorausfüllen`;
-}
+// Abschluss des vorausgefüllten Antrags: Ein Mensch markiert den Entwurf mit Vor- und Nachnamen als geprüft
+// (Namensregel `pruefeName` aus @kic/ui, wie in UC3). Die Prüfung liegt im LotseAnbieter je Antrag und Sitzung und
+// gilt deshalb über alle Unterseiten; gespeichert und abgeschickt wird nichts. Das PDF (nur live) gibt es erst danach.
 
 /** Satz in Bürgersprache zur Zahl der eingetragenen Angaben. */
 export function entwurfSatz(anzahl: number): string {
@@ -26,6 +16,9 @@ export function entwurfSatz(anzahl: number): string {
   const angaben = anzahl === 1 ? "eine Angabe" : `${anzahl} Angaben`;
   return `Der Lotse hat ${angaben} aus Ihrem Gespräch eingetragen. Bitte prüfen Sie jede Angabe, bevor Sie den Antrag verwenden.`;
 }
+
+/** Der eine wahre Satz zur Prüfung: wo der Name steht und dass nichts gespeichert oder abgeschickt wird. */
+export const PRUEF_SATZ = "Ihr Name steht nur auf diesem Entwurf und gilt in dieser Sitzung, gespeichert oder abgeschickt wird nichts.";
 
 export type EntwurfPruefungProps = {
   antrag: WebAntrag;
@@ -37,66 +30,86 @@ export type EntwurfPruefungProps = {
 };
 
 export function EntwurfPruefung({ antrag, live, pdf, ebene }: EntwurfPruefungProps) {
-  const hinweisId = useId();
-  const [stand, setStand] = useState<EntwurfStand>({ art: "offen" });
-  // Neue Runde nach einer Ablehnung: die Karte beginnt dann wieder leer.
-  const [runde, setRunde] = useState(0);
-  // Zeitpunkt, zu dem der Entwurf auf dieser Seite vorliegt; steht in der Karte unter der Anweisung.
-  const [erstellt] = useState(() => new Date().toISOString());
-  const geprueft = stand.art === "geprueft";
+  const basisId = useId();
+  const { pruefungen, setPruefung } = useLotse();
+  const [name, setName] = useState("");
+  const geprueft = pruefungen[pruefungSchluessel(antrag)];
+  const pruefung = pruefeName(name);
+  // Der Grund für den gesperrten Knopf steht schon beim Tippen da.
+  const nameFehler = name.trim() && !pruefung.gueltig ? pruefung.grund : undefined;
+  const feldId = `${basisId}-name`;
+  const satzId = `${basisId}-satz`;
+  const fehlerId = `${basisId}-fehler`;
+  const pdfHinweisId = `${basisId}-pdf`;
+  const titelId = `${basisId}-titel`;
 
-  function freigeben(name: string) {
-    const zeit = new Date().toISOString();
-    setStand({ art: "geprueft", name, zeit });
-    return { zeitpunkt: zeit };
-  }
-
-  function ablehnen(name: string, begruendung: string) {
-    const zeit = new Date().toISOString();
-    setStand({ art: "abgelehnt", name, zeit, begruendung });
-    return { zeitpunkt: zeit };
+  function markieren(ereignis: FormEvent<HTMLFormElement>) {
+    ereignis.preventDefault();
+    if (!pruefung.gueltig) return;
+    setPruefung(antrag, { name: pruefung.name, zeit: new Date().toISOString() });
+    setName("");
   }
 
   return (
-    <section aria-label="Entwurf prüfen" className="flex max-w-3xl flex-col gap-4" data-uc1-pruefung={stand.art}>
-      <FreigabeKarte
-        key={runde}
-        eintrag={{ anweisung: entwurfAnweisung(antrag), name: "Ihre Anfrage", zeit: erstellt }}
-        vorher={0}
-        nachher={antrag.befuellt.length}
-        groesse="Angaben"
-        satz={entwurfSatz(antrag.befuellt.length)}
-        onFreigeben={freigeben}
-        onAblehnen={ablehnen}
-        ebene={ebene}
-      />
+    <section
+      aria-labelledby={titelId}
+      className="flex max-w-3xl flex-col gap-4 rounded border border-line bg-white p-4 md:p-6"
+      data-uc1-pruefung={geprueft ? "geprueft" : "offen"}
+    >
+      <Ueberschrift stufe={3} als={ebene} id={titelId}>
+        Entwurf prüfen
+      </Ueberschrift>
+      <Fliesstext groesse={14}>{entwurfSatz(antrag.befuellt.length)}</Fliesstext>
 
-      <div className="flex flex-col items-start gap-2">
+      <div aria-live="polite">
         {geprueft ? (
           <Status art="ok" data-testid="uc1-entwurf-stand">
-            {`Entwurf geprüft von ${stand.name}, ${formatZeit(stand.zeit)}`}
+            {`Entwurf geprüft von ${geprueft.name}, ${formatZeit(geprueft.zeit)}`}
           </Status>
         ) : (
           <Status art="warnung" data-testid="uc1-entwurf-stand">
             Entwurf nicht geprüft
           </Status>
         )}
-        <Fliesstext groesse={14} ton="gedaempft">
-          Die Prüfung gilt für diesen Entwurf auf diesem Gerät. Abgeschickt wird nichts.
-        </Fliesstext>
-        {stand.art === "abgelehnt" && (
-          <Knopf
-            art="sekundaer"
-            className="min-h-11"
-            onClick={() => {
-              setStand({ art: "offen" });
-              setRunde((n) => n + 1);
-            }}
-          >
-            Noch einmal prüfen
-          </Knopf>
-        )}
       </div>
+
+      {geprueft ? (
+        <div>
+          <Knopf art="sekundaer" className="min-h-11" onClick={() => setPruefung(antrag, null)}>
+            Prüfung zurücknehmen
+          </Knopf>
+        </div>
+      ) : (
+        <form onSubmit={markieren} noValidate className="flex flex-col gap-2">
+          <label htmlFor={feldId} className="font-sans text-14 font-semibold text-ink">
+            Ihr Vor- und Nachname
+          </label>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+            <input
+              id={feldId}
+              name="pruef-name"
+              type="text"
+              autoComplete="name"
+              value={name}
+              aria-invalid={nameFehler ? true : undefined}
+              aria-describedby={[satzId, nameFehler && fehlerId].filter(Boolean).join(" ")}
+              onChange={(e) => setName(e.target.value)}
+              className={`h-11 w-full min-w-0 rounded border sm:flex-1 bg-white px-4 font-sans text-16 text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen ${nameFehler ? "border-err-fg" : "border-slate"}`}
+            />
+            <Knopf type="submit" className="min-h-11" disabled={!pruefung.gueltig}>
+              Entwurf als geprüft markieren
+            </Knopf>
+          </div>
+          {nameFehler && (
+            <Status id={fehlerId} art="fehler">
+              {nameFehler}
+            </Status>
+          )}
+        </form>
+      )}
+      <Fliesstext id={satzId} groesse={14} ton="gedaempft">
+        {PRUEF_SATZ}
+      </Fliesstext>
 
       {live ? (
         <div className="flex flex-col items-start gap-2">
@@ -106,10 +119,10 @@ export function EntwurfPruefung({ antrag, live, pdf, ebene }: EntwurfPruefungPro
             </a>
           ) : (
             <>
-              <Knopf className="min-h-11" disabled aria-describedby={hinweisId}>
+              <Knopf className="min-h-11" disabled aria-describedby={pdfHinweisId}>
                 Antrag als PDF speichern
               </Knopf>
-              <Fliesstext id={hinweisId} groesse={14} ton="gedaempft">
+              <Fliesstext id={pdfHinweisId} groesse={14} ton="gedaempft">
                 Erst prüfen, dann speichern.
               </Fliesstext>
             </>

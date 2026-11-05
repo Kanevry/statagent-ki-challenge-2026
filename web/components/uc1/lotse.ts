@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 // Relativ statt "@/…": vitest.config.ts (E0) kennt den Alias nicht, so bleibt die Datei in Tests ladbar.
 import { findeRepoWurzel } from "../../lib/plattform/modell";
 import { abbilden, frageSchema, type FrageEingabe } from "./antwort";
+import { istHttps, sitzungCookie } from "./sitzung-cookie";
 
 // POST /api/uc1/frage (#35): reicht die Situation an `lotse frage --json` weiter, als Subprozess mit argv (keine
 // Shell). web/ ruft nie ein Modell direkt. Nur für den Server: die Seite importiert antwort.ts, nie diese Datei.
@@ -125,7 +126,7 @@ export function erstelleLotseAntwort({
 }: LotseOptionen = {}): (anfrage: Request) => Promise<Response> {
   let offen = 0;
 
-  async function fuehreAus(eingabe: FrageEingabe): Promise<Response> {
+  async function fuehreAus(eingabe: FrageEingabe, https: boolean): Promise<Response> {
     let lauf: Lauf;
     try {
       lauf = await ausfuehren("uv", lotseArgv(eingabe), { cwd: wurzel(), timeout: TIMEOUT_MS, maxBuffer: MAX_BUFFER });
@@ -147,7 +148,11 @@ export function erstelleLotseAntwort({
       console.warn("[uc1/frage] Lotse-Ausgabe verletzt den Vertrag");
       return fehler(503, NICHT_ERREICHBAR, true);
     }
-    return Response.json(antwort, { headers: { "cache-control": "no-store" } });
+    // Die Sitzung bindet Antrag und PDF an diesen Browser (sitzung-cookie.ts).
+    const cookie = sitzungCookie(antwort.sitzung_id, https);
+    return Response.json(antwort, {
+      headers: { "cache-control": "no-store", ...(cookie ? { "set-cookie": cookie } : {}) },
+    });
   }
 
   return async function lotseAntwort(anfrage: Request): Promise<Response> {
@@ -167,7 +172,7 @@ export function erstelleLotseAntwort({
     if (offen >= maxLaeufe) return fehler(429, "Gerade sind viele Anfragen unterwegs. Bitte gleich noch einmal.");
     offen += 1;
     try {
-      return await fuehreAus(eingabe);
+      return await fuehreAus(eingabe, istHttps(anfrage));
     } finally {
       offen -= 1;
     }

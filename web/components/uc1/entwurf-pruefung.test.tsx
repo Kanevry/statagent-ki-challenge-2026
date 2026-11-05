@@ -1,8 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import { abbildenAntrag } from "./antrag";
-import { entwurfAnweisung, EntwurfPruefung } from "./entwurf-pruefung";
+import { EntwurfPruefung, PRUEF_SATZ } from "./entwurf-pruefung";
+import { LotseAnbieter } from "./lotse-kontext";
 import pflege from "./fixtures/pflege.json";
 
 const antrag = abbildenAntrag(pflege.antrag);
@@ -13,57 +15,80 @@ function stand(): string {
   return screen.getByTestId("uc1-entwurf-stand").textContent ?? "";
 }
 
-describe("EntwurfPruefung", () => {
-  // Fängt: eine Anweisung ohne Formularcode oder mit der ID statt des Leistungsnamens.
-  it("nennt Leistung und Formular in der Anweisung", () => {
-    expect(entwurfAnweisung(antrag)).toBe("Antrag auf Pflegegeld (PAL080) als Entwurf vorausfüllen");
-  });
+/** Prüfung im Anbieter; „Seite wechseln“ hängt sie aus und wieder ein, wie „Weiter zur Stelle“ und zurück. */
+function Seite({ live = true }: { live?: boolean }) {
+  const [sichtbar, setSichtbar] = useState(true);
+  return (
+    <LotseAnbieter>
+      <button type="button" onClick={() => setSichtbar((s) => !s)}>
+        Seite wechseln
+      </button>
+      {sichtbar && antrag && <EntwurfPruefung antrag={antrag} live={live} pdf={PDF} ebene="h2" />}
+    </LotseAnbieter>
+  );
+}
 
-  // Fängt: ein PDF, das vor der Prüfung speicherbar ist, „Team“ als Name, und einen Entwurf, der nach der
-  // Freigabe nicht als geprüft mit Namen dasteht.
-  it("gibt das PDF erst nach der Freigabe mit Vor- und Nachnamen frei", async () => {
+describe("EntwurfPruefung", () => {
+  // Fängt: ein PDF, das vor der Prüfung speicherbar ist, „Team“ als Name, ein Entwurf, der danach nicht mit Namen als
+  // geprüft dasteht, und Bedienelemente unter 44 px.
+  it("gibt das PDF erst nach der Prüfung mit Vor- und Nachnamen frei", async () => {
     const nutzer = userEvent.setup();
-    render(<EntwurfPruefung antrag={antrag} live pdf={PDF} ebene="h2" />);
+    render(<Seite />);
     expect(stand()).toBe("Entwurf nicht geprüft");
     expect(screen.queryByRole("link", { name: "Antrag als PDF speichern" })).toBeNull();
     expect((screen.getByRole("button", { name: "Antrag als PDF speichern" }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText("Erst prüfen, dann speichern.")).toBeTruthy();
+    expect(screen.getByText(PRUEF_SATZ)).toBeTruthy();
 
-    const feld = screen.getByLabelText("Vor- und Nachname");
-    const freigeben = screen.getByRole("button", { name: "Freigeben" }) as HTMLButtonElement;
+    const feld = screen.getByLabelText("Ihr Vor- und Nachname");
+    const markieren = screen.getByRole("button", { name: "Entwurf als geprüft markieren" }) as HTMLButtonElement;
+    expect(feld.className).toContain("h-11");
+    expect(markieren.className).toContain("min-h-11");
     await nutzer.type(feld, "Team");
-    expect(freigeben.disabled).toBe(true);
+    expect(markieren.disabled).toBe(true);
+    expect(screen.getByText("Bitte Vor- und Nachname eingeben.")).toBeTruthy();
     await nutzer.clear(feld);
     await nutzer.type(feld, "Maria Huber");
-    await nutzer.click(freigeben);
+    await nutzer.click(markieren);
 
     expect(stand()).toMatch(/^Entwurf geprüft von Maria Huber, /);
     expect(screen.getByRole("link", { name: "Antrag als PDF speichern" }).getAttribute("href")).toBe(PDF);
     expect(document.querySelector("[data-uc1-pruefung]")?.getAttribute("data-uc1-pruefung")).toBe("geprueft");
   });
 
-  // Fängt: eine Ablehnung, die den Entwurf als geprüft stehen lässt oder das PDF freigibt, und eine Sackgasse danach.
-  it("setzt den Entwurf nach einer Ablehnung zurück und lässt neu prüfen", async () => {
+  // Fängt: eine Prüfung, die beim Seitenwechsel verloren geht und das PDF wieder sperrt (lokaler Zustand).
+  it("bleibt nach einem Seitenwechsel in der Sitzung erhalten", async () => {
     const nutzer = userEvent.setup();
-    render(<EntwurfPruefung antrag={antrag} live pdf={PDF} ebene="h2" />);
-    await nutzer.type(screen.getByLabelText("Vor- und Nachname"), "Maria Huber");
-    await nutzer.click(screen.getByRole("button", { name: "Ablehnen" }));
-    await nutzer.type(screen.getByLabelText(/Begründung der Ablehnung/), "Geburtsdatum stimmt nicht.");
-    await nutzer.click(screen.getByRole("button", { name: "Ablehnung speichern" }));
-
-    expect(stand()).toBe("Entwurf nicht geprüft");
-    expect(screen.queryByRole("link", { name: "Antrag als PDF speichern" })).toBeNull();
-    await nutzer.click(screen.getByRole("button", { name: "Noch einmal prüfen" }));
-    expect((screen.getByLabelText("Vor- und Nachname") as HTMLInputElement).value).toBe("");
+    render(<Seite />);
+    await nutzer.type(screen.getByLabelText("Ihr Vor- und Nachname"), "Maria Huber");
+    await nutzer.click(screen.getByRole("button", { name: "Entwurf als geprüft markieren" }));
+    await nutzer.click(screen.getByRole("button", { name: "Seite wechseln" }));
+    expect(screen.queryByTestId("uc1-entwurf-stand")).toBeNull();
+    await nutzer.click(screen.getByRole("button", { name: "Seite wechseln" }));
+    expect(stand()).toMatch(/^Entwurf geprüft von Maria Huber, /);
+    expect(screen.getByRole("link", { name: "Antrag als PDF speichern" })).toBeTruthy();
   });
 
-  // Fängt: eine Karte, die im aufgezeichneten Beispiel fehlt oder dort ein PDF anbietet.
+  // Fängt: eine Prüfung, die sich nicht zurücknehmen lässt, oder ein PDF, das danach freigegeben bleibt.
+  it("lässt die Prüfung zurücknehmen und sperrt das PDF wieder", async () => {
+    const nutzer = userEvent.setup();
+    render(<Seite />);
+    await nutzer.type(screen.getByLabelText("Ihr Vor- und Nachname"), "Maria Huber");
+    await nutzer.click(screen.getByRole("button", { name: "Entwurf als geprüft markieren" }));
+    const zurueck = screen.getByRole("button", { name: "Prüfung zurücknehmen" });
+    expect(zurueck.className).toContain("min-h-11");
+    await nutzer.click(zurueck);
+    expect(stand()).toBe("Entwurf nicht geprüft");
+    expect(screen.queryByRole("link", { name: "Antrag als PDF speichern" })).toBeNull();
+    expect((screen.getByLabelText("Ihr Vor- und Nachname") as HTMLInputElement).value).toBe("");
+  });
+
+  // Fängt: eine Prüfung, die im aufgezeichneten Beispiel fehlt oder dort ein PDF anbietet.
   it("funktioniert im Beispiel ohne PDF", async () => {
     const nutzer = userEvent.setup();
-    render(<EntwurfPruefung antrag={antrag} live={false} pdf={PDF} ebene="h2" />);
+    render(<Seite live={false} />);
     expect(screen.queryByRole("button", { name: "Antrag als PDF speichern" })).toBeNull();
-    await nutzer.type(screen.getByLabelText("Vor- und Nachname"), "Maria Huber");
-    await nutzer.click(screen.getByRole("button", { name: "Freigeben" }));
+    await nutzer.type(screen.getByLabelText("Ihr Vor- und Nachname"), "Maria Huber");
+    await nutzer.click(screen.getByRole("button", { name: "Entwurf als geprüft markieren" }));
     expect(stand()).toMatch(/^Entwurf geprüft von Maria Huber/);
     expect(screen.queryByRole("link", { name: "Antrag als PDF speichern" })).toBeNull();
   });

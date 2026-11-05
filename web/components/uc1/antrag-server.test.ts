@@ -10,10 +10,13 @@ const WURZEL = path.resolve("/repo");
 const ORDNER = path.join(WURZEL, "uc1", "laufzeit", "antraege");
 const KERN = { ...pflege.antrag, pdf: path.join(ORDNER, `pflegegeld-${SITZUNG}-entwurf.pdf`) };
 
-function post(body: unknown): Request {
+const COOKIE = `uc1_sitzung=${SITZUNG}`;
+const FREMD = "uc1_sitzung=0b7e2f10-1111-4222-8333-444455556666";
+
+function post(body: unknown, cookie: string | null = COOKIE): Request {
   return new Request("http://localhost/api/uc1/antrag", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 }
@@ -84,12 +87,25 @@ describe("POST /api/uc1/antrag", () => {
     expect(text).not.toMatch(/\.pdf|laufzeit|sha256|Anträge und Formulare/);
     expect(JSON.parse(text).befuellt).toContainEqual({ feld: "Vorname", wert: "Maria" });
   });
+
+  // Fängt: ein Antrag, der ohne Cookie oder mit dem Cookie einer anderen Sitzung vorbereitet wird (fremde UUID im Netz).
+  it("403 mit deutschem Satz ohne oder mit fremdem Sitzungs-Cookie, ohne Subprozess", async () => {
+    const ausfuehren = vi.fn<Ausfuehren>(async () => ({ code: 0, stdout: JSON.stringify(KERN) }));
+    const h = handler(ausfuehren);
+    for (const cookie of [null, FREMD, `andere=1; uc1_sitzung=`]) {
+      const antwort = await h(post({ art: "pflegegeld", sitzung: SITZUNG }, cookie));
+      expect(antwort.status, String(cookie)).toBe(403);
+      expect(((await antwort.json()) as { fehler: string }).fehler).toMatch(/^Dieser Antrag gehört nicht zu Ihrem Gespräch/);
+    }
+    expect(ausfuehren).not.toHaveBeenCalled();
+    expect((await h(post({ art: "pflegegeld", sitzung: SITZUNG }, `andere=1; ${COOKIE}`))).status).toBe(200);
+  });
 });
 
 describe("GET /api/uc1/antrag/pdf", () => {
-  const pdf = (abfrage: string, optionen: PdfOptionen = {}) =>
+  const pdf = (abfrage: string, optionen: PdfOptionen = {}, cookie: string | null = COOKIE) =>
     erstelleAntragPdf({ umgebung: {}, wurzel: () => WURZEL, ...optionen })(
-      new Request(`http://localhost/api/uc1/antrag/pdf?${abfrage}`),
+      new Request(`http://localhost/api/uc1/antrag/pdf?${abfrage}`, { headers: cookie ? { cookie } : {} }),
     );
 
   // Fängt: ein Pfad aus dem Ordner der Entwürfe heraus, wenn Art oder Sitzung „../“ enthalten.
@@ -107,6 +123,17 @@ describe("GET /api/uc1/antrag/pdf", () => {
     expect((await pdf("art=pflegegeld&sitzung=nicht-uuid", { lesen })).status).toBe(400);
     expect((await pdf("art=pflegegeld", { lesen })).status).toBe(400);
     expect((await pdf(`art=pflegegeld&sitzung=${SITZUNG}`, { lesen, umgebung: { KIC_ONLINE_LESEND: "1" } })).status).toBe(403);
+    expect(lesen).not.toHaveBeenCalled();
+  });
+
+  // Fängt: ein Entwurf mit Personenangaben, den jemand ohne oder mit fremdem Cookie über die UUID abholt.
+  it("403 ohne oder mit fremdem Sitzungs-Cookie, ohne zu lesen", async () => {
+    const lesen = vi.fn<NonNullable<PdfOptionen["lesen"]>>(async () => new TextEncoder().encode("%PDF-1.7"));
+    for (const cookie of [null, FREMD]) {
+      const antwort = await pdf(`art=pflegegeld&sitzung=${SITZUNG}`, { lesen }, cookie);
+      expect(antwort.status, String(cookie)).toBe(403);
+      expect(((await antwort.json()) as { fehler: string }).fehler).toMatch(/^Dieser Antrag gehört nicht zu Ihrem Gespräch/);
+    }
     expect(lesen).not.toHaveBeenCalled();
   });
 

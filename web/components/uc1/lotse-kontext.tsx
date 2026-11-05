@@ -7,7 +7,8 @@ import { formatAufnahme, pruefeReplay } from "./replay";
 import pflege from "./fixtures/pflege.json";
 
 // Zustand des Lotsen für alle Seiten unter /uc1 (liegt im Layout, damit „Leistungen“, „Antrag“ und
-// „Stelle“ nach dem Seitenwechsel dieselben Antworten zeigen). Die Sitzung lebt nur im React-Zustand.
+// „Stelle“ nach dem Seitenwechsel dieselben Antworten zeigen). Die Sitzung lebt nur im React-Zustand, auch die
+// Prüfung eines Antrags-Entwurfs: sie gilt je Antrag und Sitzung über alle Unterseiten, gespeichert wird sie nicht.
 
 export interface Wechsel {
   eingabe: string;
@@ -23,11 +24,29 @@ export type Lage =
   | { art: "bereit" }
   | { art: "fehler"; meldung: string; replay: boolean; ort: FehlerOrt };
 
+/** Ein Antrag, der nicht vorbereitet werden konnte; die anderen bleiben stehen. */
+export interface AntragFehler {
+  art: string;
+  meldung: string;
+  replay: boolean;
+}
+
 export type AntragLage =
   | { art: "leer" }
   | { art: "laden" }
-  | { art: "bereit"; antraege: readonly WebAntrag[] }
+  | { art: "bereit"; antraege: readonly WebAntrag[]; fehler: readonly AntragFehler[] }
   | { art: "fehler"; meldung: string; replay: boolean };
+
+/** Prüfung eines Entwurfs durch einen Menschen: Name und Zeitpunkt, nur im Zustand der Seite. */
+export interface EntwurfGeprueft {
+  name: string;
+  zeit: string;
+}
+
+/** Schlüssel einer Prüfung: je Antrag und Sitzung. */
+export function pruefungSchluessel(antrag: Pick<WebAntrag, "art" | "sitzung_id">): string {
+  return `${antrag.art}:${antrag.sitzung_id}`;
+}
 
 export interface Einstellungen {
   sprache: "de" | "en";
@@ -41,6 +60,8 @@ interface LotseWert {
   aufnahme: string | null;
   /** Im Replay die Anträge, für die es eine Aufnahme gibt; live `null`. */
   aufgezeichnet: readonly string[] | null;
+  /** Im Replay Anbieter und Modell der Aufnahme („azure, gpt-5-4-mini“); live `null`. */
+  aufnahmeModell: string | null;
   /** Wahr, solange die Aufnahme abgespielt wird; Eingaben sind dann gesperrt. */
   spielt: boolean;
   entwurf: string;
@@ -57,8 +78,15 @@ interface LotseWert {
   /** Alles zurück auf Anfang (Knopf „Neue Situation“). */
   neuBeginnen: () => void;
   antrag: AntragLage;
-  /** Bereitet die Anträge der letzten Antwort vor: live über /api/uc1/antrag, im Replay aus der Aufnahme. */
+  /**
+   * Bereitet die genannten Anträge vor: live über /api/uc1/antrag, im Replay aus der Aufnahme. Schon vorbereitete
+   * Anträge derselben Sitzung bleiben stehen; scheitert ein Antrag, bleiben die anderen.
+   */
   antragVorbereiten: (arten: readonly string[]) => Promise<void>;
+  /** Prüfungen der Entwürfe, Schlüssel aus `pruefungSchluessel`. */
+  pruefungen: Readonly<Record<string, EntwurfGeprueft>>;
+  /** Setzt (Name) oder nimmt (`null`) die Prüfung eines Entwurfs zurück. */
+  setPruefung: (antrag: Pick<WebAntrag, "art" | "sitzung_id">, pruefung: EntwurfGeprueft | null) => void;
 }
 
 const LotseKontext = createContext<LotseWert | null>(null);
@@ -128,11 +156,19 @@ async function antragSenden(art: string, sitzung: string): Promise<{ antrag: Web
     : { meldung: "Der Antrag kam in einem unerwarteten Format.", replay: true };
 }
 
+/** „azure, gpt-5-4-mini“ aus einer Antwort; ohne Modell `null`. */
+export function modellText(antwort: Pick<WebAntwort, "modell" | "provider"> | undefined): string | null {
+  if (!antwort?.modell) return null;
+  return antwort.provider ? `${antwort.provider}, ${antwort.modell}` : antwort.modell;
+}
+
 export function LotseAnbieter({ children }: { children: ReactNode }) {
   const [verlauf, setVerlauf] = useState<readonly Wechsel[]>([]);
   const [lage, setLage] = useState<Lage>({ art: "leer" });
   const [aufnahme, setAufnahme] = useState<string | null>(null);
   const [aufgezeichnet, setAufgezeichnet] = useState<readonly string[] | null>(null);
+  const [aufnahmeModell, setAufnahmeModell] = useState<string | null>(null);
+  const [pruefungen, setPruefungen] = useState<Readonly<Record<string, EntwurfGeprueft>>>({});
   const [spielt, setSpielt] = useState(false);
   const [entwurf, setEntwurf] = useState("");
   const [antwortEntwurf, setAntwortEntwurf] = useState("");
@@ -149,11 +185,13 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
       const sitzung = neu ? undefined : verlauf.at(-1)?.antwort.sitzung_id;
       setAufnahme(null);
       setAufgezeichnet(null);
+      setAufnahmeModell(null);
       setSpielt(false);
       aufnahmeAntrag.current = null;
       if (neu) {
         setVerlauf([]);
         setAntrag({ art: "leer" });
+        setPruefungen({});
       }
       setLage({ art: "laden" });
       const ergebnis = await frageSenden(text, sitzung, einstellungen);
@@ -175,12 +213,14 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
     setAntwortEntwurf("");
     setEntwurf("");
     setAntrag({ art: "leer" });
+    setPruefungen({});
     setLage({ art: "laden" });
     const pruefung = await pruefeReplay(pflege);
     if (nummer !== ablauf.current) return;
     if (!pruefung.ok) {
       setAufnahme(null);
       setAufgezeichnet(null);
+      setAufnahmeModell(null);
       setSpielt(false);
       aufnahmeAntrag.current = null;
       setLage({
@@ -198,6 +238,7 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
     aufnahmeAntrag.current = replay.antrag ?? null;
     setAufgezeichnet(replay.antrag ? [replay.antrag.art] : []);
     setAufnahme(formatAufnahme(replay.aufgenommen));
+    setAufnahmeModell(modellText(replay.schritte.at(-1)?.antwort));
     setSpielt(true);
     const erster = replay.schritte[0]?.eingabe;
     if (erster) setEinstellungen({ sprache: erster.sprache ?? "de", einfach: erster.stil === "einfach" });
@@ -222,10 +263,12 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
     setVerlauf([]);
     setAufnahme(null);
     setAufgezeichnet(null);
+    setAufnahmeModell(null);
     setSpielt(false);
     setEntwurf("");
     setAntwortEntwurf("");
     setAntrag({ art: "leer" });
+    setPruefungen({});
     setLage({ art: "leer" });
   }, []);
 
@@ -233,32 +276,48 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
     async (arten: readonly string[]) => {
       const nummer = ablauf.current;
       const sitzung = verlauf.at(-1)?.antwort.sitzung_id ?? "";
+      // Schon vorbereitete Anträge derselben Sitzung, die nicht neu angefragt sind, bleiben stehen.
+      const behalten =
+        antrag.art === "bereit" ? antrag.antraege.filter((a) => a.sitzung_id === sitzung && !arten.includes(a.art)) : [];
       if (aufnahme !== null) {
         const roh = aufnahmeAntrag.current;
         const abgebildet = roh && arten.includes(roh.art) ? abbildenAntrag(roh) : null;
         setAntrag(
           abgebildet
-            ? { art: "bereit", antraege: [abgebildet] }
+            ? { art: "bereit", antraege: [...behalten, abgebildet], fehler: [] }
             : { art: "fehler", meldung: "Für dieses Beispiel ist kein Antrag aufgezeichnet.", replay: false },
         );
         return;
       }
       setAntrag({ art: "laden" });
-      const fertig: WebAntrag[] = [];
-      // Nacheinander: die Route lässt höchstens zwei Läufe gleichzeitig zu.
+      const fertig: WebAntrag[] = [...behalten];
+      const fehler: AntragFehler[] = [];
+      // Nacheinander: die Route lässt höchstens zwei Läufe gleichzeitig zu. Ein Fehler hält die anderen nicht auf.
       for (const art of arten) {
         const ergebnis = await antragSenden(art, sitzung);
         if (nummer !== ablauf.current) return;
-        if ("meldung" in ergebnis) {
-          setAntrag({ art: "fehler", meldung: ergebnis.meldung, replay: ergebnis.replay });
-          return;
-        }
-        fertig.push(ergebnis.antrag);
+        if ("meldung" in ergebnis) fehler.push({ art, meldung: ergebnis.meldung, replay: ergebnis.replay });
+        else fertig.push(ergebnis.antrag);
       }
-      setAntrag({ art: "bereit", antraege: fertig });
+      const erster = fehler[0];
+      setAntrag(
+        fertig.length === 0 && erster
+          ? { art: "fehler", meldung: erster.meldung, replay: fehler.some((f) => f.replay) }
+          : { art: "bereit", antraege: fertig, fehler },
+      );
     },
-    [verlauf, aufnahme],
+    [verlauf, aufnahme, antrag],
   );
+
+  const setPruefung = useCallback((eintrag: Pick<WebAntrag, "art" | "sitzung_id">, pruefung: EntwurfGeprueft | null) => {
+    const schluessel = pruefungSchluessel(eintrag);
+    setPruefungen((alt) => {
+      const neu = { ...alt };
+      if (pruefung) neu[schluessel] = pruefung;
+      else delete neu[schluessel];
+      return neu;
+    });
+  }, []);
 
   const wert = useMemo<LotseWert>(
     () => ({
@@ -266,6 +325,7 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
       lage,
       aufnahme,
       aufgezeichnet,
+      aufnahmeModell,
       spielt,
       entwurf,
       setEntwurf,
@@ -279,8 +339,10 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
       neuBeginnen,
       antrag,
       antragVorbereiten,
+      pruefungen,
+      setPruefung,
     }),
-    [verlauf, lage, aufnahme, aufgezeichnet, spielt, entwurf, antwortEntwurf, einstellungen, fragen, beispielAbspielen, neuBeginnen, antrag, antragVorbereiten],
+    [verlauf, lage, aufnahme, aufgezeichnet, aufnahmeModell, spielt, entwurf, antwortEntwurf, einstellungen, fragen, beispielAbspielen, neuBeginnen, antrag, antragVorbereiten, pruefungen, setPruefung],
   );
 
   return <LotseKontext.Provider value={wert}>{children}</LotseKontext.Provider>;

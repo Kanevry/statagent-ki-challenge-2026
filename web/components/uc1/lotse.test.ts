@@ -182,4 +182,20 @@ describe("POST /api/uc1/frage", () => {
     expect(daten).toMatchObject({ verhalten: "antwort", modell: "gpt-5-4-mini", antraege: ["pflegegeld"] });
     expect(argv).toContain("einfach");
   });
+
+  // Fängt: eine Antwort ohne Sitzungs-Cookie (dann scheitert jeder Antrag mit 403) oder ein Cookie, das Skripte lesen
+  // können, für alle Pfade gilt oder über http als Secure verloren geht.
+  it("setzt das Sitzungs-Cookie HttpOnly, SameSite=Strict, nur für /api/uc1, Secure nur bei https", async () => {
+    const lauf: Ausfuehren = async () => ({ code: 0, stdout: JSON.stringify(KERN) });
+    const http = (await handler(lauf)(anfrage({ text: "Mutter 84" }))).headers.get("set-cookie");
+    expect(http).toBe(`uc1_sitzung=${KERN.sitzung_id}; HttpOnly; SameSite=Strict; Path=/api/uc1; Max-Age=86400`);
+    const https = await handler(lauf)(
+      new Request("http://localhost/api/uc1/frage", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-forwarded-proto": "https" },
+        body: JSON.stringify({ text: "Mutter 84" }),
+      }),
+    );
+    expect(https.headers.get("set-cookie")).toMatch(/; Secure$/);
+  });
 });

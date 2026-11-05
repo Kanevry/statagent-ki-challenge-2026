@@ -4,6 +4,7 @@ import { Fliesstext, Status, Ueberschrift } from "@kic/ui/basis";
 import { ModellPille } from "@kic/ui/bausteine";
 import { BelegChip } from "./beleg-chip";
 import { formatStand, quelleAnzeige, telefonTeile, type Aussage, type WebAntwort } from "./antwort";
+import { modellText, useLotse } from "./lotse-kontext";
 
 // Kleine Teile der UC1-Seiten, nur aus Token-Klassen und Bausteinen von @kic/ui.
 
@@ -50,13 +51,34 @@ export function Kopf({ titel, unter, schritt }: { titel: string; unter: string; 
   );
 }
 
-/** KI-Kennzeichnung an jeder Antwort (AI Act Art. 50) mit dem Modell, das geantwortet hat. */
+/** Text der KI-Kennzeichnung; im Replay mit dem Modell der Aufnahme statt des Modells im Kopf der Seite. */
+export function kennzeichnungText(modell: string | null, aufgezeichnet: boolean): string {
+  if (!modell) return "Antwort vom Programm, ohne Sprachmodell";
+  return aufgezeichnet
+    ? `Antwort von einer KI, geprüft gegen die Quellen. Aufgezeichnet mit ${modell}`
+    : `Antwort von einer KI, geprüft gegen die Quellen (Modell ${modell})`;
+}
+
+/**
+ * KI-Kennzeichnung an jeder Antwort (AI Act Art. 50) mit dem Modell, das geantwortet hat. Im Replay steht im Kopf der
+ * App „Modell nicht erreichbar“; deshalb nennt die Kennzeichnung dann das Modell der Aufnahme.
+ */
 export function KiKennzeichnung({ antwort }: { antwort: Pick<WebAntwort, "modell" | "provider"> }) {
-  if (!antwort.modell) {
-    return <ModellPille data-testid="uc1-ki">Antwort vom Programm, ohne Sprachmodell</ModellPille>;
-  }
-  const modell = antwort.provider ? `${antwort.provider}, ${antwort.modell}` : antwort.modell;
-  return <ModellPille data-testid="uc1-ki">{`Antwort von einer KI, geprüft gegen die Quellen (Modell ${modell})`}</ModellPille>;
+  const { aufnahme } = useLotse();
+  return <ModellPille data-testid="uc1-ki">{kennzeichnungText(modellText(antwort), aufnahme !== null)}</ModellPille>;
+}
+
+/** Kennzeichnung einer Seite, deren Inhalt aus Modell oder Aufnahme stammt (Antrag, Stelle): Modell der letzten Antwort. */
+export function SeitenKennzeichnung() {
+  const { verlauf, aufnahme, aufnahmeModell } = useLotse();
+  const letzte = verlauf.at(-1)?.antwort;
+  if (!letzte) return null;
+  const modell = aufnahme !== null ? aufnahmeModell : modellText(letzte);
+  return (
+    <div>
+      <ModellPille data-testid="uc1-ki">{kennzeichnungText(modell, aufnahme !== null)}</ModellPille>
+    </div>
+  );
 }
 
 /** Beleg einer Aussage des Lotsen: Zitat, Quelle und, wenn bekannt, der Stand der Fassung. */
@@ -66,6 +88,28 @@ export function Beleg({ aussage }: { aussage: Aussage }) {
       zitat={aussage.zitat}
       fassung={aussage.stand ? formatStand(aussage.stand) : null}
     />;
+}
+
+/** Gleiche Einträge nur einmal, die Reihenfolge bleibt (erstes Vorkommen zählt). */
+export function einmal(liste: readonly string[]): string[] {
+  return [...new Set(liste)];
+}
+
+/** Satz, wenn der Kern keine belegte Stelle nennt (er nennt eine Stelle nur mit Beleg). */
+export const OHNE_STELLE = "Die zuständige Stelle steht in diesen Quellen nicht fest.";
+
+/**
+ * Fundstelle einer Zuständigkeit. Den Beleg-Chip gibt es nur, wenn das Zitat genau zu dieser Fundstelle gehört;
+ * sonst steht die Fundstelle als Text, damit sie nicht belegt wirkt.
+ */
+export function Fundstelle({ fundstelle, zitat }: { fundstelle: string | null; zitat: string | null }) {
+  if (!fundstelle) return null;
+  if (zitat) return <BelegChip quelle={fundstelle} zitat={zitat} />;
+  return (
+    <Fliesstext groesse={14} ton="gedaempft" data-uc1-fundstelle-ohne-zitat="">
+      {`Fundstelle: ${fundstelle}`}
+    </Fliesstext>
+  );
 }
 
 /** Kennzeichnung des aufgezeichneten Beispiels; steht auf jeder Seite, solange es zu sehen ist. */

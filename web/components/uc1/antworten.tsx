@@ -8,7 +8,7 @@ import { jaNeinFrage, traegerName, type WebAntwort } from "./antwort";
 import { antragLeistung, leistungName } from "./leistungen";
 import { useLotse, type Lage, type Wechsel } from "./lotse-kontext";
 import { GESPERRT } from "./situation";
-import { AufnahmeHinweis, Beleg, KiKennzeichnung, KOPF_ID, MitTelefon } from "./teile";
+import { AufnahmeHinweis, Beleg, einmal, Fundstelle, KiKennzeichnung, KOPF_ID, MitTelefon, OHNE_STELLE } from "./teile";
 
 // Antworten des Lotsen (Pen-Frame B1gvr): Rückfrage mit Schnellantworten, Leistungen mit „Antrag vorbereiten“, Aussagen mit Beleg,
 // zuständige Stelle und nächste Schritte. Eine Einschätzung wie „sehr wahrscheinlich“ rechnet der Kern nicht,
@@ -81,7 +81,8 @@ function Rueckfrage({ antwort, aktiv }: { antwort: WebAntwort; aktiv: boolean })
   );
 }
 
-function AntragKnopf({ antwort }: { antwort: WebAntwort }) {
+/** Startet nur den Antrag dieser Leistung; die anderen Anträge der Antwort bleiben, wie sie sind. */
+function AntragKnopf({ art }: { art: string }) {
   const { antragVorbereiten, spielt } = useLotse();
   const router = useRouter();
   return (
@@ -91,7 +92,7 @@ function AntragKnopf({ antwort }: { antwort: WebAntwort }) {
         className={GESPERRT}
         onClick={() => {
           if (spielt) return;
-          void antragVorbereiten(antwort.antraege);
+          void antragVorbereiten([art]);
           router.push("/uc1/antrag");
         }}
       >
@@ -118,11 +119,18 @@ function Ergebnis({ antwort, letzte }: { antwort: WebAntwort; letzte: boolean })
                 <Ueberschrift stufe={3} als="h2">
                   {leistungName(id)}
                 </Ueberschrift>
-                {stellen.map((stelle, i) => (
-                  <Fliesstext key={`${i}-${traegerName(stelle)}`} groesse={14}>
-                    {`Zuständig: ${traegerName(stelle)}${stelle.fundstelle ? ` (${stelle.fundstelle})` : ""}.`}
+                {stellen.length === 0 ? (
+                  <Fliesstext groesse={14} ton="gedaempft" data-uc1-ohne-stelle="">
+                    {OHNE_STELLE}
                   </Fliesstext>
-                ))}
+                ) : (
+                  stellen.map((stelle, i) => (
+                    <div key={`${i}-${traegerName(stelle)}`} className="flex flex-col items-start gap-1">
+                      <Fliesstext groesse={14}>{`Zuständig: ${traegerName(stelle)}.`}</Fliesstext>
+                      <Fundstelle fundstelle={stelle.fundstelle} zitat={stelle.zitat} />
+                    </div>
+                  ))
+                )}
                 {art &&
                   (letzte && ohneAufnahme ? (
                     <Fliesstext groesse={14} ton="gedaempft" data-uc1-ohne-aufnahme={art}>
@@ -130,7 +138,7 @@ function Ergebnis({ antwort, letzte }: { antwort: WebAntwort; letzte: boolean })
                       ihn auch aus.
                     </Fliesstext>
                   ) : letzte ? (
-                    <AntragKnopf antwort={antwort} />
+                    <AntragKnopf art={art} />
                   ) : (
                     <Fliesstext groesse={14} ton="gedaempft">
                       Dafür gibt es einen Antrag.
@@ -169,9 +177,9 @@ function Ergebnis({ antwort, letzte }: { antwort: WebAntwort; letzte: boolean })
             So geht es weiter
           </Ueberschrift>
           <ol className="flex list-decimal flex-col gap-1 pl-6 font-sans text-16 text-ink">
-            {antwort.naechste_schritte.map((schritt, i) => (
-              // Gleicher Text kann zweimal vorkommen (zwei Anträge: „Ich kann den Antrag … vorausfüllen.“).
-              <li key={`${i}-${schritt}`}><MitTelefon text={schritt} /></li>
+            {/* Gleicher Text kommt bei zwei Anträgen zweimal (Ich kann den Antrag … vorausfüllen.): nur einmal zeigen. */}
+            {einmal(antwort.naechste_schritte).map((schritt) => (
+              <li key={schritt}><MitTelefon text={schritt} /></li>
             ))}
           </ol>
         </section>

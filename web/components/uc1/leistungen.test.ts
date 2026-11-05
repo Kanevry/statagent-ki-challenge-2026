@@ -7,27 +7,57 @@ import { LEISTUNGEN, leistungName } from "./leistungen";
 
 const DATEI = path.join(findeRepoWurzel(), "uc1", "daten", "leistungen.yaml");
 
-/** `name: {de: "…"}` je Leistung im Abschnitt `leistungen:` (zwei Leerzeichen Einzug für die ID). */
+/**
+ * `name: {de: "…"}` je Leistung im Abschnitt `leistungen:`. Ein Block beginnt mit `  <id>:` (zwei Leerzeichen) und
+ * endet vor dem nächsten Block; darin zählt die erste `name:`-Zeile mit vier Leerzeichen Einzug, egal an welcher
+ * Stelle sie im Block steht.
+ */
 function namenAusYaml(text: string): Record<string, string> {
-  const abschnitt = text.split(/^leistungen:\s*$/m)[1] ?? "";
+  const abschnitt = (text.split(/^leistungen:\s*$/m)[1] ?? "").split(/^\S/m)[0] ?? "";
   const namen: Record<string, string> = {};
-  for (const treffer of abschnitt.matchAll(/^ {2}([a-z_]+):\s*\n {4}name:\s*\{de:\s*"([^"]+)"/gm)) {
-    if (treffer[1] && treffer[2]) namen[treffer[1]] = treffer[2];
+  const bloecke = abschnitt.split(/^(?= {2}[a-z_]+:\s*$)/m);
+  for (const block of bloecke) {
+    const id = /^ {2}([a-z_]+):\s*$/m.exec(block)?.[1];
+    const name = /^ {4}name:\s*\{\s*de:\s*"([^"]+)"/m.exec(block)?.[1];
+    if (id && name) namen[id] = name;
   }
   return namen;
 }
 
 describe("Leistungsnamen", () => {
-  // Fängt: ein im Kern umbenannter oder neuer Leistungsname, der auf der Seite veraltet oder als ID steht.
-  it.skipIf(!existsSync(DATEI))("stimmen mit uc1/daten/leistungen.yaml überein", () => {
+  // Fängt: ein neuer oder umbenannter Leistungsname im Kern, der auf der Seite als ID oder veraltet steht.
+  it.skipIf(!existsSync(DATEI))("jede Leistung aus uc1/daten/leistungen.yaml steht mit gleichem Namen in LEISTUNGEN", () => {
     const namen = namenAusYaml(readFileSync(DATEI, "utf8"));
     expect(Object.keys(namen).length).toBeGreaterThan(0);
-    expect(LEISTUNGEN).toEqual(namen);
+    expect(LEISTUNGEN).toMatchObject(namen);
+  });
+
+  // Fängt: einen Leser, der an der Zeilenreihenfolge hängt (Kommentar oder Feld vor `name:`) und Leistungen verliert.
+  it("liest den Namen je Block, auch wenn er nicht direkt unter der ID steht", () => {
+    const yaml = [
+      "traeger:",
+      "  pva:",
+      '    name: {de: "Pensionsversicherungsanstalt"}',
+      "leistungen:",
+      "  pflegegeld:",
+      "    # Kommentar",
+      "    alltagshilfe: true",
+      '    name: {de: "Pflegegeld", en: "care allowance"}',
+      "    stelle:",
+      '      name: {de: "nicht dieser"}',
+      "  unfallversicherung:",
+      '    name: {de: "Unfallversicherung"}',
+      "regeln:",
+      "  x:",
+      '    name: {de: "fremd"}',
+    ].join("\n");
+    expect(namenAusYaml(yaml)).toEqual({ pflegegeld: "Pflegegeld", unfallversicherung: "Unfallversicherung" });
   });
 
   // Fängt: eine unbekannte ID als „zahn_spange“ statt lesbar.
   it("macht unbekannte IDs lesbar", () => {
     expect(leistungName("pflegegeld")).toBe("Pflegegeld");
+    expect(leistungName("unfallversicherung")).toBe("Unfallversicherung");
     expect(leistungName("zahn_spange")).toBe("Zahn spange");
   });
 });

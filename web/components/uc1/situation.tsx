@@ -126,7 +126,7 @@ export function Situation({ zusatz }: { zusatz?: ReactNode } = {}) {
       </div>
 
       <Fliesstext groesse={12} ton="gedaempft">
-        Ihr Text geht an ein Sprachmodell und wird für dieses Gespräch gespeichert. Ihre Versicherungsnummer tragen Sie bitte erst selbst im Formular ein.
+        Ihr Text geht an ein Sprachmodell und wird für dieses Gespräch gespeichert. Geburtsdatum, Adresse und Telefonnummer blendet der Lotse vorher aus, Namen nicht. Die Versicherungsnummer tragen Sie erst selbst im Formular ein.
       </Fliesstext>
       {lage.art === "fehler" && !lage.replay && lage.ort === "situation" && <Status art="fehler">{lage.meldung}</Status>}
     </form>

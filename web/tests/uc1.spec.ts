@@ -10,10 +10,28 @@ import { expect, test, type Page } from "@playwright/test";
 
 const hier = path.dirname(fileURLToPath(import.meta.url));
 const MESSSKRIPT = path.join(hier, "lib", "slop-measure.js");
+type Traeger = { leistung: string | null; name: string; fundstelle: string | null; zitat?: string | null };
 const PFLEGE = JSON.parse(readFileSync(path.join(hier, "../components/uc1/fixtures/pflege.json"), "utf8")) as {
-  schritte: Array<{ eingabe: { text: string }; antwort: { aussagen: Array<{ zitat: string }> } & Record<string, unknown> }>;
+  schritte: Array<{
+    eingabe: { text: string };
+    antwort: {
+      aussagen: Array<{ zitat: string }>;
+      modell: string | null;
+      provider: string | null;
+      naechste_schritte: string[];
+      traeger: Traeger[];
+    } & Record<string, unknown>;
+  }>;
 };
+// Alles Erwartete kommt aus der Aufnahme: ein Tausch der Fixture braucht hier keine Änderung.
 const ZITATE = PFLEGE.schritte.flatMap((s) => s.antwort.aussagen.map((a) => a.zitat));
+const LETZTE = PFLEGE.schritte.at(-1)?.antwort;
+if (!LETZTE) throw new Error("Aufnahme ohne Schritte");
+const AUFNAHME_MODELL = `Aufgezeichnet mit ${[LETZTE.provider, LETZTE.modell].filter(Boolean).join(", ")}`;
+/** Nächste Schritte, wie die Seite sie zeigt: gleiche nur einmal, Reihenfolge wie in der Aufnahme. */
+const SCHRITTE_EINMAL = [...new Set(LETZTE.naechste_schritte)];
+/** Zuständigkeiten mit Leistung, je Leistung die erste Fundstelle. */
+const ZUSTAENDIG = LETZTE.traeger.filter((t): t is Traeger & { leistung: string } => Boolean(t.leistung && t.fundstelle));
 
 /** Die zwölf Schlüssel des Anti-Schablonen-Gates, wie in slop.spec.ts (Katalog: docs/design.md). */
 const SCHLUESSEL = [
@@ -66,6 +84,7 @@ test("/uc1 liefert 200 mit Leer-Zustand: leeres Feld, Beispiele, keine Antwort",
   await expect(feld).toHaveAttribute("placeholder", /Ein Satz reicht/);
   await expect(page.getByRole("button", { name: "Mein Kind braucht eine Zahnspange." })).toBeVisible();
   await expect(page.locator("[data-uc1-antwort]")).toHaveCount(0);
+  await expect(page.getByText("Geburtsdatum, Adresse und Telefonnummer blendet der Lotse vorher aus, Namen nicht.")).toBeVisible();
   await bild(page, "uc1-leer");
   await axePruefen(page);
   await gateMessen(page, "/uc1 leer");
@@ -88,6 +107,8 @@ test("/uc1?beispiel=pflege spielt ohne Netz bis zu Antrag und Stelle", async ({ 
   await expect(page.getByLabel("Ihre Situation")).toHaveCount(0);
   // Während die Aufnahme läuft, geht nichts live hinaus.
   await expect(page.getByRole("button", { name: "Antworten" })).toHaveAttribute("aria-disabled", "true");
+  // KI-Kennzeichnung schon an der Rückfrage, mit dem Modell der Aufnahme (der Kopf der App sagt im Replay „nicht erreichbar“).
+  await expect(page.locator('[data-uc1-antwort="rueckfrage"]').getByTestId("uc1-ki")).toContainText(AUFNAHME_MODELL);
   await bild(page, "uc1-schritt-1-rueckfrage");
 
   // Leistungen als Hauptaussage oben, der Fokus steht auf der neuen Überschrift.
@@ -97,17 +118,30 @@ test("/uc1?beispiel=pflege spielt ohne Netz bis zu Antrag und Stelle", async ({ 
   await expect(titel).toBeFocused();
   await expect(page.locator('[data-uc1-leistung="pflegegeld"]')).toBeVisible();
   await expect(page.getByRole("heading", { name: "Pflegegeld" })).toBeVisible();
-  // Für Reha gibt es keine Aufnahme: kein Knopf, der ins Leere führt, sondern ein ehrlicher Satz.
-  const reha = page.locator('[data-uc1-leistung="rehabilitation"]');
-  await expect(reha).toBeVisible();
-  await expect(reha).toContainText("Im Beispiel ist er nicht aufgezeichnet.");
-  await expect(reha.getByRole("button", { name: "Antrag vorbereiten" })).toHaveCount(0);
   await bild(page, "uc1-schritt-2-leistungen");
 
   // KI-Kennzeichnung an jeder Antwort, mit Modellname (frühere Schritte eingeklappt, aber vorhanden)
   const ki = page.getByTestId("uc1-ki");
   await expect(ki).toHaveCount(PFLEGE.schritte.length);
   await expect(ki.first()).toContainText("Antwort von einer KI");
+  await expect(page.locator('[data-uc1-antwort="antwort"]').getByTestId("uc1-ki")).toContainText(AUFNAHME_MODELL);
+
+  // Gleiche nächste Schritte (zwei Anträge) stehen nur einmal, in der Reihenfolge der Aufnahme.
+  await expect(
+    page.locator('[data-uc1-antwort="antwort"]').getByRole("region", { name: "So geht es weiter" }).getByRole("listitem"),
+  ).toHaveText(SCHRITTE_EINMAL);
+
+  // Fundstelle und Zitat paarweise: einen Beleg-Chip gibt es nur, wo das Zitat zu genau dieser Fundstelle gehört.
+  for (const t of ZUSTAENDIG) {
+    const karte = page.locator(`[data-uc1-leistung="${t.leistung}"]`);
+    if (t.zitat) {
+      await expect(karte.locator('[data-baustein="herkunft"]')).toHaveCount(1);
+      await expect(karte.locator('[data-baustein="herkunft"]')).toContainText(t.fundstelle ?? "");
+    } else {
+      await expect(karte.getByText(`Fundstelle: ${t.fundstelle}`)).toBeVisible();
+      await expect(karte.locator('[data-baustein="herkunft"]')).toHaveCount(0);
+    }
+  }
 
   // Beleg über den gemeinsamen HerkunftChip: aufklappen zeigt das Zitat wörtlich.
   const chip = page.locator('[data-baustein="herkunft"]').first().getByRole("button", { name: /Zitat ansehen/ });
@@ -134,6 +168,7 @@ test("/uc1?beispiel=pflege spielt ohne Netz bis zu Antrag und Stelle", async ({ 
   await expect(page.getByRole("cell", { name: "Maria" })).toBeVisible();
   await expect(page.getByText("bitte ergänzen").first()).toBeVisible();
   await expect(page.getByText("Abgeschickt wird nichts. Sie prüfen, unterschreiben und senden selbst.")).toBeVisible();
+  await expect(page.getByTestId("uc1-ki")).toContainText(AUFNAHME_MODELL);
   // Im Replay gibt es kein PDF und nichts, was etwas abschickt.
   await expect(page.getByRole("link", { name: "Antrag als PDF speichern" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /abschicken|absenden|einreichen/i })).toHaveCount(0);
@@ -141,17 +176,20 @@ test("/uc1?beispiel=pflege spielt ohne Netz bis zu Antrag und Stelle", async ({ 
   await axePruefen(page);
   await gateMessen(page, "/uc1/antrag (Beispiel)");
 
-  // Freigabe des Entwurfs: erst nach Vor- und Nachnamen gilt er als geprüft. „Maria Muster“ lehnt die Namensregel
-  // ab (Platzhalter „muster“), deshalb ein echter Name.
+  // Prüfung des Entwurfs: erst nach Vor- und Nachnamen gilt er als geprüft. „Maria Muster“ lehnt die Namensregel
+  // ab (Platzhalter „muster“), deshalb ein echter Name. Feld und Knopf sind mindestens 44 px hoch.
   const stand = page.getByTestId("uc1-entwurf-stand");
   await expect(stand).toHaveText("Entwurf nicht geprüft");
-  await expect(page.getByText("Die Prüfung gilt für diesen Entwurf auf diesem Gerät. Abgeschickt wird nichts.")).toBeVisible();
-  const name = page.getByLabel("Vor- und Nachname");
+  await expect(page.getByText("Ihr Name steht nur auf diesem Entwurf und gilt in dieser Sitzung")).toBeVisible();
+  const name = page.getByLabel("Ihr Vor- und Nachname");
+  const markieren = page.getByRole("button", { name: "Entwurf als geprüft markieren" });
+  for (const ziel of [name, markieren]) expect((await ziel.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   await name.fill("Team");
-  await expect(page.getByRole("button", { name: "Freigeben" })).toBeDisabled();
+  await expect(markieren).toBeDisabled();
   await name.fill("Maria Huber");
-  await page.getByRole("button", { name: "Freigeben" }).click();
+  await markieren.click();
   await expect(stand).toContainText("Entwurf geprüft von Maria Huber");
+  await expect(page.getByRole("button", { name: "Prüfung zurücknehmen" })).toBeVisible();
   await bild(page, "uc1-schritt-3-geprueft");
   await axePruefen(page);
   await gateMessen(page, "/uc1/antrag (geprüft)");
@@ -161,9 +199,22 @@ test("/uc1?beispiel=pflege spielt ohne Netz bis zu Antrag und Stelle", async ({ 
   await expect(page).toHaveURL(/\/uc1\/stelle$/);
   await expect(page.locator("[data-uc1-stelle]").first()).toContainText("Pensionsversicherungsanstalt");
   await expect(page.getByText("Einen Termin vereinbaren Sie direkt bei der Stelle.")).toBeVisible();
+  await expect(page.getByTestId("uc1-ki")).toContainText(AUFNAHME_MODELL);
+  // Die Stelle steht einmal, darunter je Leistung die eigene Fundstelle; ein Chip nur mit Zitat zu genau dieser Stelle.
+  for (const t of ZUSTAENDIG) {
+    const zeile = page.locator(`[data-uc1-stelle-leistung="${t.leistung}"]`);
+    await expect(zeile).toHaveCount(1);
+    await expect(zeile.locator('[data-baustein="herkunft"]')).toHaveCount(t.zitat ? 1 : 0);
+    if (!t.zitat) await expect(zeile).toContainText(`Fundstelle: ${t.fundstelle}`);
+  }
   await bild(page, "uc1-schritt-4-stelle");
   await axePruefen(page);
   await gateMessen(page, "/uc1/stelle (Beispiel)");
+
+  // Die Prüfung gilt in der Sitzung: zurück zum Antrag steht sie noch da.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/uc1\/antrag$/);
+  await expect(page.getByTestId("uc1-entwurf-stand")).toContainText("Entwurf geprüft von Maria Huber");
 });
 
 test("Fehler bei der Antwort auf eine Rückfrage steht an der Rückfrage", async ({ page }) => {

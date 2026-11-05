@@ -14,6 +14,7 @@ import {
   type Ausfuehren,
   type Lauf,
 } from "./lotse";
+import { FREMDE_SITZUNG, sitzungPasst } from "./sitzung-cookie";
 
 // POST /api/uc1/antrag und GET /api/uc1/antrag/pdf (#35). Gleiches Muster wie /api/uc1/frage: Subprozess mit argv
 // (keine Shell), feste deutsche Sätze, Online-Demo und Ausfall mit `replay: true`. Nur für den Server.
@@ -51,7 +52,7 @@ function leseEingabe(text: string): AntragEingabe | { meldung: string } {
 
 /**
  * Handler für POST /api/uc1/antrag. `KIC_ONLINE_LESEND=1` → 403, Body über 1 KiB → 413, ungültige Art oder Sitzung
- * → 400, schon `maxLaeufe` offen → 429; Exit ≠ 0, Timeout oder Vertragsbruch → 503. Die Antwort ist die Web-Form
+ * → 400, Cookie `uc1_sitzung` fehlt oder passt nicht → 403, schon `maxLaeufe` offen → 429; Exit ≠ 0, Timeout oder Vertragsbruch → 503. Die Antwort ist die Web-Form
  * aus antrag.ts: ohne PDF-Pfad, Formulardatei und Hash.
  */
 export function erstelleAntragAntwort({
@@ -98,6 +99,7 @@ export function erstelleAntragAntwort({
     }
     const eingabe = leseEingabe(body);
     if ("meldung" in eingabe) return fehler(400, eingabe.meldung);
+    if (!sitzungPasst(anfrage, eingabe.sitzung)) return fehler(403, FREMDE_SITZUNG);
     if (offen >= maxLaeufe) return fehler(429, "Gerade sind viele Anfragen unterwegs. Bitte gleich noch einmal.");
     offen += 1;
     try {
@@ -139,7 +141,8 @@ const standardLesen = async (datei: string, ordner: string): Promise<Uint8Array>
 
 /**
  * Handler für GET /api/uc1/antrag/pdf?art=<art>&sitzung=<uuid>: der vom Kern erzeugte Entwurf als Download.
- * `KIC_ONLINE_LESEND=1` → 403, ungültige Art oder Sitzung → 400, Datei fehlt → 404.
+ * `KIC_ONLINE_LESEND=1` → 403, ungültige Art oder Sitzung → 400, Cookie `uc1_sitzung` fehlt oder passt nicht → 403,
+ * Datei fehlt → 404.
  */
 export function erstelleAntragPdf({
   umgebung = process.env,
@@ -156,6 +159,7 @@ export function erstelleAntragPdf({
     const basis = wurzel();
     const datei = antragPdfPfad(basis, art, sitzung);
     if (!datei) return fehler(400, "Art oder Sitzung des Antrags ist ungültig.");
+    if (!sitzungPasst(anfrage, sitzung)) return fehler(403, FREMDE_SITZUNG);
     let inhalt: Uint8Array;
     try {
       inhalt = await lesen(datei, antragOrdner(basis));
