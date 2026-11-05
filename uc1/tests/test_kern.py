@@ -1374,21 +1374,24 @@ def test_aussage_ohne_schwelle_wird_verworfen() -> None:
 
 
 def test_streifende_aussagen_werden_zur_abstinenz() -> None:
-    """Fängt wörtlich richtige, aber themenfremde Aussagen als Antwort, wenn das Modell selbst meldet, dass
-    sie die Frage nicht beantworten (Dev-Set x19, x20: Landesstelle statt Arzttermin, #162). Ohne das Feld
-    (alte Aufnahmen, Mock) gilt die Antwort wie bisher."""
+    """Fängt wörtlich richtige, aber themenfremde Aussagen als Antwort, wenn keine Leistung erkannt ist und
+    das Modell selbst meldet, dass sie die Frage nicht beantworten (Dev-Set x19, x20: Landesstelle statt
+    Arzttermin, #162). Mit erkannter Leistung bleibt die Antwort: Das Modell weiß nicht, dass der Kern die
+    Stelle anhängt, und meldete dort auch passende Antworten als unvollständig."""
     streift = antwort_mit(GUELTIG) | {"beantwortet": False}
-    modell = Skript([analyse(person="angehoerige", status="pva", bundesland="wien")], [streift])
+    leer = {"lage": "", "leistungen": [], "angaben": {}, "begriffe": []}
+    modell = Skript([leer], [streift])
     a = kern.frage(
-        PFLEGE, modell=modell, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher()
+        "Welche Ärztin in meiner Nähe hat diese Woche einen Termin frei?",
+        modell=modell,
+        suche_fn=FesteSuche([treffer()]),
+        speicher=kern.SpeicherImSpeicher(),
     )
     assert a.verhalten == "abstinenz" and a.aussagen == [] and modell.aufrufe == 2
     assert "Antwort-Modell: Aussagen beantworten die Frage nicht" in a.hinweise
 
-    ohne_feld = Skript(
-        [analyse(person="angehoerige", status="pva", bundesland="wien")], [antwort_mit(GUELTIG)]
-    )
+    mit_leistung = Skript([analyse(person="angehoerige", status="pva", bundesland="wien")], [streift])
     b = kern.frage(
-        PFLEGE, modell=ohne_feld, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher()
+        PFLEGE, modell=mit_leistung, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher()
     )
     assert b.verhalten == "antwort"

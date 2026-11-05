@@ -1526,8 +1526,13 @@ def _antwort_aufruf(
     nachrichten: list[dict[str, str]],
     provider: str | None,
     antwort: LotseAntwort,
+    streifend_verwerfen: bool = False,
 ) -> tuple[list[dict[str, Any]], bool]:
-    """Ein Antwort-Aufruf; liefert (rohe Aussagen, Modell aus). Ein KonfigFehler bricht ab."""
+    """Ein Antwort-Aufruf; liefert (rohe Aussagen, Modell aus). Ein KonfigFehler bricht ab.
+
+    ``streifend_verwerfen``: Meldet das Modell ``beantwortet: false``, gilt die Antwort als Abstinenz. Nur
+    ohne erkannte Leistung (Dev-Set #162): Mit Leistung hielt das Modell auch passende Antworten für
+    unvollständig, weil es nicht weiß, dass der Kern Stelle und Schritte anhängt (Verhalten 14/20)."""
     try:
         ergebnis = modell_fn(nachrichten, ANTWORT_SCHEMA, provider)
     except Exception as fehler:
@@ -1538,7 +1543,7 @@ def _antwort_aufruf(
         antwort.hinweise.append(f"Antwort ohne Modell ({type(fehler).__name__})")
         return [], True
     antwort.modell, antwort.provider = ergebnis.modell, ergebnis.provider
-    if ergebnis.json.get("beantwortet") is False and ergebnis.json.get("aussagen"):
+    if streifend_verwerfen and ergebnis.json.get("beantwortet") is False and ergebnis.json.get("aussagen"):
         # Das Modell sagt selbst, dass die Aussagen die Frage nur streifen: Abstinenz (#162).
         antwort.hinweise.append("Antwort-Modell: Aussagen beantworten die Frage nicht")
         return [], False
@@ -1678,7 +1683,7 @@ def frage(
                 + "</daten>",
             },
         ]
-        roh_aussagen, modell_aus = _antwort_aufruf(modell_fn, nachrichten, provider, antwort)
+        roh_aussagen, modell_aus = _antwort_aufruf(modell_fn, nachrichten, provider, antwort, not erkannt)
     dauer["antwort"] = _ms(t0)
 
     # 6./7. Zitate und Beträge prüfen
@@ -1691,7 +1696,7 @@ def frage(
     if not aussagen and verworfen and not modell_aus and modus != "sprache":
         gruende = "; ".join(dict.fromkeys(str(v["grund"]) for v in verworfen))
         hinweis = {"role": "user", "content": NOCHMAL_HINWEIS.format(gruende=gruende)}
-        roh_2, _ = _antwort_aufruf(modell_fn, [*nachrichten, hinweis], provider, antwort)
+        roh_2, _ = _antwort_aufruf(modell_fn, [*nachrichten, hinweis], provider, antwort, not erkannt)
         aussagen, verworfen_2 = pruefe_aussagen(
             roh_2, treffer, sprache=sprache_, angebot_ids=angebot_ids, hoechstens=hoechstens
         )
