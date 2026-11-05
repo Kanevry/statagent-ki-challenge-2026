@@ -10,6 +10,7 @@ import {
   GRUND_UNBEKANNT,
   gruppenSatz,
   isoZeit,
+  aenderungKurz,
   klartext,
   kurzerGrund,
   probeTitel,
@@ -500,5 +501,28 @@ describe("Sätze der Freigabe-Seiten (UI-Regie v1)", () => {
       "Regeln von Regelsatz v2 für 2 Monate festgehalten, August 2024 bis September 2024",
       "Regelsatz v2 freigeben",
     ]);
+  });
+});
+
+describe("Rücknahme einer Regel (#168)", () => {
+  const ruecknahme = {
+    typ: "regel_aendern" as const,
+    regelsatzZiel: "v2",
+    aenderungen: [{ regel_name: "X1_probe", aktiv_neu: false, parameter_alt: { a: 1 }, parameter_neu: { a: 1 } }],
+  };
+
+  // Fehler, den das fängt: Gleiche Parameter ergaben keine Zeile, die Seite sagte nichts über die Rücknahme.
+  it("sagt in Worten und im Diff, dass die Regel abgeschaltet wird", () => {
+    const k = klartext(ruecknahme);
+    expect(k.worte).toEqual(["Die Regel X1_probe wird abgeschaltet, sie wird nicht gelöscht."]);
+    expect(k.diff).toBe("- X1_probe: aktiv = true\n+ X1_probe: aktiv = false");
+    expect(aenderungKurz(ruecknahme)).toBe("Regel X1_probe abschalten (Regelsatz v2)");
+    expect(aenderungSatz(ruecknahme)).toBe("Schaltet eine Regel ab im Regelsatz v2");
+  });
+
+  it("lässt eine normale Änderung unverändert", () => {
+    const normal = { ...ruecknahme, aenderungen: [{ regel_name: "X1_probe", parameter_alt: { a: 1 }, parameter_neu: { a: 2 } }] };
+    expect(klartext(normal).worte).toEqual(["In der Regel X1_probe wird „a“ von 1 auf 2 geändert."]);
+    expect(aenderungSatz(normal)).toBe("Ändert eine Regel im Regelsatz v2");
   });
 });

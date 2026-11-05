@@ -330,7 +330,7 @@ function wert(x: unknown): string {
   return typeof x === "string" ? `„${x}“` : JSON.stringify(x);
 }
 
-type Aenderung = { regel_name?: unknown; parameter_alt?: unknown; parameter_neu?: unknown; regel?: unknown; pfad?: unknown };
+type Aenderung = { regel_name?: unknown; aktiv_neu?: unknown; parameter_alt?: unknown; parameter_neu?: unknown; regel?: unknown; pfad?: unknown };
 
 function objekt(x: unknown): Record<string, unknown> {
   return typeof x === "object" && x !== null && !Array.isArray(x) ? (x as Record<string, unknown>) : {};
@@ -344,6 +344,12 @@ export function klartext(v: Pick<Vorschlag, "typ" | "aenderungen">): { worte: st
     const a = objekt(roh) as Aenderung;
     if (v.typ === "regel_aendern") {
       const regel = String(a.regel_name ?? "");
+      // Rücknahme: Die Regel bleibt mit gleichen Parametern stehen, nur `aktiv` wechselt (#168).
+      if (a.aktiv_neu === false) {
+        worte.push(`Die Regel ${regel} wird abgeschaltet, sie wird nicht gelöscht.`);
+        zeilen.push(`- ${regel}: aktiv = true`, `+ ${regel}: aktiv = false`);
+        continue;
+      }
       const alt = objekt(a.parameter_alt);
       const neu = objekt(a.parameter_neu);
       for (const k of [...new Set([...Object.keys(alt), ...Object.keys(neu)])].sort()) {
@@ -372,7 +378,8 @@ export function aenderungKurz(v: Pick<Vorschlag, "typ" | "aenderungen" | "regels
   const namen = v.aenderungen.map((roh) => {
     const a = objekt(roh) as Aenderung;
     if (v.typ === "code_datei") return `Datei ${String(a.pfad ?? "")}`;
-    return `Regel ${String(a.regel_name ?? objekt(a.regel).name ?? "")}`;
+    const name = `Regel ${String(a.regel_name ?? objekt(a.regel).name ?? "")}`;
+    return a.aktiv_neu === false ? `${name} abschalten` : name;
   });
   return v.typ === "code_datei" ? namen.join(", ") : `${namen.join(", ")} (Regelsatz ${v.regelsatzZiel})`;
 }
@@ -1069,6 +1076,8 @@ export function aenderungSatz(v: Pick<Vorschlag, "typ" | "aenderungen" | "regels
   const n = Math.max(v.aenderungen.length, 1);
   const wo = v.regelsatzZiel === "ministerium" ? "für die Ministeriums-Lieferung" : `im Regelsatz ${v.regelsatzZiel}`;
   if (v.typ === "regel_neu") return n === 1 ? `Neue Regel ${wo}` : `${formatZahl(n)} neue Regeln ${wo}`;
+  const abgeschaltet = v.aenderungen.filter((roh) => objekt(roh).aktiv_neu === false).length;
+  if (abgeschaltet === n) return n === 1 ? `Schaltet eine Regel ab ${wo}` : `Schaltet ${formatZahl(n)} Regeln ab ${wo}`;
   return n === 1 ? `Ändert eine Regel ${wo}` : `Ändert ${formatZahl(n)} Regeln ${wo}`;
 }
 
