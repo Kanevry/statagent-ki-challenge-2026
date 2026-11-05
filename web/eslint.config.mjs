@@ -1,4 +1,5 @@
-// Web-Lint (Antrag #135, Punkt 135-9): ESLint 9 Flat Config für web/ und die Quellen von @kic/ui, die web/ einbindet.
+// Web-Lint (Antrag #135, Punkt 135-9): ESLint 9 Flat Config für web/. shared/ui liegt außerhalb und hat eigene
+// vitest- und tsgo-Prüfungen; ESLint ignoriert Dateien außerhalb dieses Ordners (#152).
 // Bewusst schmal: Regeln, die echte Fehler fangen (Hooks-Regeln, Next-Fehlerregeln, TypeScript-Empfehlungen).
 // Stil regelt die Formatierung, nicht der Lint.
 import js from "@eslint/js";
