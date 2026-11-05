@@ -1,0 +1,65 @@
+{
+  "_hinweis": "Feldzuordnung 'Antrag Kur und Reha' (Issue #32). Feldnamen exakt wie reader.get_fields(); das Formular hat keine Tooltips, die Bedeutung folgt aus der Lage der Widgets (Spike #28). Wortlaut aus pdftotext -layout der genannten Seite, per Test (Marker daten) geprüft.",
+  "art": "reha",
+  "leistung": "rehabilitation",
+  "formular": {
+    "bezeichnung": "Antrag auf Rehabilitations-, Kur- bzw. Erholungsaufenthalt",
+    "datei": "Anträge und Formulare/Antrag Kur und Reha.pdf",
+    "seiten": 2,
+    "sha256": "45c4d2ae292b2167163af22f9e5b6cb7762580f850b57c6801f360240344e155",
+    "version": "DVSV – KUR1 – R/8.1",
+    "herausgeber": "Sozialversicherung (DVSV), für alle Träger",
+    "version_quelle": {"seite": 2, "wortlaut": "KUR1 – R/8.1"}
+  },
+  "formularwahl": {
+    "begruendung": "Den „Antrag Kur und Reha“ stellt die versicherte Person selbst. Seite 2 füllt die Ärztin oder der Arzt aus. „Reha_n_Unfall_052026.pdf“ passt hier nicht. Das ist der Antrag nach einem Unfall oder direkt nach dem Krankenhaus. Ihn füllt das Krankenhaus aus.",
+    "quelle": {"seite": 1, "wortlaut": "Von dem/der Versicherten (Antragsteller/in) in allen Teilen auszufüllen"},
+    "abgelehnt": {"datei": "Anträge und Formulare/Reha_n_Unfall_052026.pdf", "seite": 1,
+                  "wortlaut": "Vom antragstellenden Krankenhaus auszufüllen!"}
+  },
+  "felder": [
+    {"feld": "zuständiger SV-träger", "art": "text", "angabe": "stelle.name", "seite": 1, "beschriftung": "Zuständiger Sozialversicherungsträger:"},
+    {"feld": "Patient(in)", "art": "text", "format": "{person.familienname} {person.vorname}", "seite": 1, "beschriftung": "Patient(in): Familienname Vorname"},
+    {"feld": "Anschrift Patient(in)", "art": "text", "format": "{person.strasse} {person.hausnummer}, {person.plz} {person.ort}", "seite": 1, "beschriftung": "Anschrift"},
+    {"feld": "Telefonnummer", "art": "text", "angabe": "person.telefon", "seite": 1, "beschriftung": "Telefon Nr.:"},
+    {"feld": "Pensionsversicherung", "art": "knopf", "angabe": "person.pensionstraeger", "seite": 1,
+     "werte": {"PVA": "/j", "SVS": "/j"}, "beschriftung": "Beziehen Sie Leistungen a) aus der Pensionsversicherung: nein / ja"},
+    {"feld": "Pensionsversicherungsträger", "art": "text", "angabe": "person.pensionstraeger", "seite": 1, "beschriftung": "Pensionsversicherungsträger"},
+    {"feld": "Familienname", "art": "text", "angabe": "person.familienname", "seite": 2, "beschriftung": "Ärztliche Stellungnahme für: Familienname"},
+    {"feld": "Vorname", "art": "text", "angabe": "person.vorname", "seite": 2, "beschriftung": "Ärztliche Stellungnahme für: Vorname"},
+    {"feld": "Geburtsjahr", "art": "text", "angabe": "person.geburtsdatum", "umformung": "jahr", "seite": 2, "beschriftung": "Geburtsjahr"}
+  ],
+  "pflicht": [
+    {"id": "traeger", "text": "zuständiger Sozialversicherungsträger",
+     "felder": ["zuständiger SV-träger"], "seite": 1, "wortlaut": "Zuständiger Sozialversicherungsträger:", "annahme": false},
+    {"id": "name", "text": "Familienname und Vorname der Patientin oder des Patienten",
+     "felder": ["Patient(in)"], "seite": 1, "wortlaut": "Von dem/der Versicherten (Antragsteller/in) in allen Teilen auszufüllen", "annahme": false},
+    {"id": "versicherungsnummer", "text": "Versicherungsnummer (10 Ziffern, steht auf der e-card). Der Lotse fragt sie nicht ab",
+     "felder": ["VSNR_1"], "seite": 1, "wortlaut": "Versicherungsnummer", "annahme": false},
+    {"id": "anschrift", "text": "Anschrift der Patientin oder des Patienten (Straße, Hausnummer, Postleitzahl, Ort)",
+     "felder": ["Anschrift Patient(in)"], "seite": 1, "wortlaut": "Von dem/der Versicherten (Antragsteller/in) in allen Teilen auszufüllen", "annahme": false},
+    {"id": "personenstand", "text": "Personenstand und Telefonnummer",
+     "felder": ["Personenstand", "Telefonnummer"], "seite": 1, "wortlaut": "Personenstand:", "annahme": false},
+    {"id": "leistungen", "text": "die Fragen zu bezogenen Leistungen mit ja oder nein beantworten (Pension, AMS, Unfallversicherung, Pflegegeld)",
+     "felder": ["Pensionsversicherung", "Arbeitslosenversicherung", "Unfallversicherung", "Pflegegeld"], "seite": 1,
+     "wortlaut": "Beziehen Sie Leistungen", "annahme": false},
+    {"id": "fruehere_aufenthalte", "text": "ob es in den letzten fünf Jahren schon einen Reha-, Kur- oder Erholungsaufenthalt gab",
+     "felder": ["Aufenthalt innerhalb von  Jahren"], "seite": 1,
+     "wortlaut": "Haben Sie in den letzten fünf Jahren Rehabilitations-, Kur-, Land-, Erholungsaufenthalte", "annahme": false},
+    {"id": "unterschrift", "text": "Datum und Unterschrift der versicherten Person. Ein Case-Management kann nicht für sie unterschreiben",
+     "felder": ["Datum"], "seite": 1, "wortlaut": "Datum, Unterschrift des/der Versicherten", "lotse_fuellt_nicht": true, "annahme": false},
+    {"id": "aerztliche_stellungnahme", "text": "die ärztliche Stellungnahme auf Seite 2. Sie füllt die Ärztin oder der Arzt aus",
+     "felder": ["Aktuelle Vorgeschichte", "Antragsrelevante Diagnose", "Befunde"], "seite": 2, "wortlaut": "Ärztliche Stellungnahme",
+     "lotse_fuellt_nicht": true,
+     "annahme": true, "annahme_grund": "Seite 2 trägt keinen Pflichtvermerk; ohne Stellungnahme fehlt dem Träger die medizinische Grundlage."},
+    {"id": "aerztliche_begruendung", "text": "die ärztliche Begründung mit Datum, Unterschrift und Stempel. Der Lotse füllt sie nicht aus",
+     "felder": ["Begründung", "Datum1"], "seite": 2,
+     "wortlaut": "Begründung für die vorgeschlagene Maßnahme (Berufsbild, medizinische, berufliche oder soziale Zielsetzung)",
+     "lotse_fuellt_nicht": true,
+     "annahme": true, "annahme_grund": "Seite 2 trägt keinen Pflichtvermerk; ohne Begründung fehlt dem Träger die medizinische Grundlage."}
+  ],
+  "unterlagen": [
+    {"text": "die wichtigen Befunde Ihrer Ärztin oder Ihres Arztes", "seite": 2,
+     "wortlaut": "Befunde (allenfalls als Beilage angeschlossen)"}
+  ]
+}
