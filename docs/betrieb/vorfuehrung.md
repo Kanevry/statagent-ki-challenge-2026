@@ -56,17 +56,22 @@ Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset
 3. **Probe.** `scripts/vorfuehrung.sh pruefen`, danach einmal D1 bis D4 im Browser, dann `scripts/vorfuehrung.sh reset`.
 4. **07:00, Freigabe.** Der Owner gibt die Pensionen mit seinem Namen frei, bis dahin steht dort „vorläufig“.
 5. **Direkt danach:** `scripts/vorfuehrung.sh festschreiben`. Keine Probe dazwischen, sonst wird sie mit festgeschrieben.
-6. **Gegenprobe.** `scripts/vorfuehrung.sh reset`: Es meldet 0 Commits seit dem Ausgangsstand, und die Freigabe steht danach
-   noch auf der Seite. Das ist der Stand für die Vorführung um 09:00.
+6. **Gegenprobe.** `scripts/vorfuehrung.sh reset`. Der Beleg ist die Freigabe, die danach noch auf der Seite steht; die Meldung
+   „0 Commits“ gilt immer. Das ist der Stand für die Vorführung um 09:00.
 
 ## Vorführen
 
 1. Hotspot an, `<vorführ-adresse>` öffnen, Nutzer und Passwort eingeben.
-2. **D1 Lauf und Bericht:** `/uc3/auftrag`, unten einen Monat rechnen, dann „Monat und Qualitätsbericht ansehen“.
-3. **D2 Live-Änderung:** `/uc3/auftrag`, Satz tippen, „Vorschlag schreiben lassen“. Danach „Vorher und nachher ansehen“, Name
-   eintragen, freigeben. Die Seite nennt den Commit. Rücknahme: neuer Auftrag „Nimm Vorschlag <n> zurück“, wieder freigeben.
+2. **D1 Lauf und Bericht, vor D2:** `/uc3/auftrag`, unten einen Monat rechnen, dann „Monat und Qualitätsbericht ansehen“.
+3. **D2 Live-Änderung:** `/uc3/auftrag`, Satz tippen, Monat für die Zahlen wählen, „Vorschlag schreiben lassen“. Danach „Vorher
+   und nachher ansehen“, Name eintragen, freigeben. Die Seite nennt den Commit. Rücknahme: neuer Auftrag „Nimm Vorschlag <n>
+   zurück“, wieder freigeben.
 4. **D3 Datenanfragen:** `/uc3/fragen`.
 5. **D4 Gemeinsamer Einstieg:** `/uc4`.
+
+Die Zahlen nachher kommen in der Vorführung aus der Probe auf dem Vorschlag. Ein neuer Regelsatz rechnet Monate nur in
+zeitlicher Reihenfolge ab dem ersten Monat, alle 24 sind live nicht machbar; die Seite bietet deshalb nur rechenbare Monate an.
+Nicht jeder Auftrag ändert in jedem Monat eine Zahl: Der Auftrag zum Geburtsmonat 13 ändert im Juli 2026 keine.
 
 ## Zurück auf den Ausgangsstand
 
@@ -84,20 +89,28 @@ scripts/vorfuehrung.sh festschreiben   # heutiger Stand wird Vorlage, der Commit
 ```
 
 Das ersetzt die Vorlage. Zurück geht es nur mit `daten <dump>`. Also nur auf einem geprüften Stand, nie nach einer Probe.
+Ein späteres `up` legt den Checkout neu an: Der Freigabe-Commit ist dann weg, die Freigabe in der Datenbank bleibt.
+Bricht `reset` oder `festschreiben` mitten ab, bleibt die App gestoppt: den Befehl wiederholen.
 
 ## Messungen
 
-Nicht gemessen: Die Instanz ist noch nicht aufgesetzt.
+Gemessen am 05.11.2026 auf der echten Adresse, im Browser, ohne Drosselung, nicht über einen Hotspot. Freigaben mit einem
+Probe-Namen, danach `reset`.
 
 | Messung | Ergebnis |
 |---|---|
-| Durchlauf 1, D1 bis D4 | nicht gemessen |
-| Reset | nicht gemessen |
-| Durchlauf 2, D1 bis D4 | nicht gemessen |
-| Seitenlast über Hotspot | nicht gemessen |
-| Live-Änderung über Hotspot | nicht gemessen (`uc3 agent` mit Probe auf einer Abgabe-Kopie: 42 bis 110 s, Lane Live-Änderung) |
-| Basisregelsatz von `uc3 agent` auf dem vorgeführten Stand | nicht gemessen |
-| App-Neustart nach einer Freigabe, dann ein Lauf (Code-Vorschläge liegen im tmpfs, DB und Git bleiben) | nicht gemessen |
+| D1 Lauf Oktober 2025 im Browser | 92,9 s und 102,0 s; 397.514, Hash `63f106818887`, gleich wie auf der Rechen-Datenbank |
+| D2 Vorschlag (Geburtsmonat 13, Juli 2026) | 141,9 s und 140,1 s |
+| D2 Freigabe mit Name | 3,4 s, Commit mit Trailer im Checkout gelesen |
+| D2 Rücknahme | 89,4 s Vorschlag, 2,4 s Freigabe |
+| D3 Datenanfrage | nicht belegt, Prüfung war zu schwach |
+| D4 `/uc4` | 4,3 s |
+| Ein ganzer Durchlauf | 337,8 s, ohne D3-Beleg; zweiter Durchlauf mit dem neuen Stand steht aus |
+| Reset | 52 s und 51 s |
+| Erster Monat auf einem neuen Regelsatz (2024-08) | 41 s |
+| Basisregelsatz von `uc3 agent` auf dem vorgeführten Stand | v2, Ziel v3, nach Rücknahme Ziel v4 |
+| App-Neustart nach einer Freigabe, dann ein Lauf | läuft, kein Fehler; ein Code-Vorschlag ist dabei nicht geprüft |
+| Seitenlast und Live-Änderung über Hotspot | nicht gemessen |
 
 ## Reserve: lokal
 
