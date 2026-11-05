@@ -40,11 +40,16 @@ uv run uc3 berichte --alle && uv run uc3 sheet   # 24 Qualitätsberichte und Agg
 | `regeln zeigen` / `regeln export` | Regeln als Daten mit Parametern, Begründung, Grundlage und Freigabe |
 | `regeln freigeben --name "Vorname Nachname"` | gibt offene Regeln mit Namen und Zeitpunkt frei („Team“ wird abgelehnt) |
 | `lauf --lieferung JJJJ-MM` | ein Produktionslauf: genau eine Lieferung, nur eigene und frühere Lieferungen |
-| `laeufe` | Läufe mit Status, Abrechnung und Ergebnis-Hash |
+| `laeufe` | Läufe mit Status, Abrechnung und Ergebnis-Hash; für den Hash-Vergleich `laeufe --json` (voller Hash, die Textausgabe kürzt auf 12 Zeichen) |
 | `eichen` | Zellvergleich gegen `beispielbericht_2024-08.xlsx` |
 | `veroeffentlichen --lieferung JJJJ-MM --name "…"` | gibt einen Monat frei: vorläufig → endgültig, danach unveränderlich |
 | `berichte`, `sheet`, `pruefe-abgabe` | Qualitätsberichte, Aggregations-Sheet, Prüfung der Abgabedateien |
 | `protokoll` | Protokoll aller Änderungen: Git-Commits mit `Freigegeben-von`, Regelfreigaben, veröffentlichte Monate |
+
+Der Ergebnis-Hash eines Laufs ist SHA-256 über alle Zellen des Monats: je Zelle eine Zeile
+`zeitraum_art|zeitraum_von|zeitraum_bis|region|oenace|oenace_version|geschlecht|qualifikation|alter|variable|wert`,
+sortiert (Sortierfolge `C`) und mit Zeilenumbruch verbunden. Zwei Läufe mit denselben Daten und Regeln ergeben
+denselben Hash.
 
 ## Wie ein Lauf rechnet
 

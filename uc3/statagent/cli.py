@@ -219,13 +219,15 @@ def lauf(
             if not als_json:
                 # Abrechnung: gelesen = geliefert gezählt + nicht gezählt + ausgeschlossen; fortgeschriebene
                 # Verhältnisse (E07) zählen mit, stehen aber nicht in der Lieferung und deshalb getrennt.
+                from statagent.berichte.qualitaetsbericht import zahl
+
                 geliefert = e.gezaehlt - e.fortgeschrieben
-                fort = f" (+ {e.fortgeschrieben:,} fortgeschrieben, E07)" if e.fortgeschrieben else ""
+                fort = f" (+ {zahl(e.fortgeschrieben)} fortgeschrieben, E07)" if e.fortgeschrieben else ""
                 typer.echo(
                     f"{e.lieferung} [{e.regelsatz}] {e.status:<12} {e.ergebnis_status:<10} "
-                    f"gezählt {e.gezaehlt:>7,}  gelesen {e.gelesen:>7,} = {geliefert:,} + {e.nicht_gezaehlt:,} "
-                    f"nicht gezählt + {e.ausgeschlossen:,} ausgeschlossen{fort}  hash {e.ergebnis_hash[:12]}"
-                    + (f"  ({e.meldung})" if e.meldung else "")
+                    f"gezählt {zahl(e.gezaehlt):>7}  gelesen {zahl(e.gelesen):>7} = {zahl(geliefert)} + "
+                    f"{zahl(e.nicht_gezaehlt)} nicht gezählt + {zahl(e.ausgeschlossen)} ausgeschlossen{fort}  "
+                    f"hash {e.ergebnis_hash[:12]}" + (f"  ({e.meldung})" if e.meldung else "")
                 )
                 sys.stdout.flush()
     if als_json:
