@@ -1,5 +1,6 @@
 import { lies, type Lesung, type Sql } from "./db";
 import type { Ergebnisstand, Lauf, Monatslauf } from "./typen";
+import { zeitraumArtAus, zeitraumArtSql } from "./zeitraum";
 
 /**
  * Welcher Lauf für einen Monat gilt: der jüngste veröffentlichte, sonst der jüngste erfolgreiche. Gleiche Regel wie
@@ -33,6 +34,7 @@ export function quelleSql(alias: "m" | "l" | "meta.lauf"): string {
 /** Zeile aus meta.lauf, wie postgres.js sie liefert (bigint als Text, Zeitpunkte als Date). */
 export interface LaufZeile {
   id: number;
+  zeitraum_art?: string | null;
   lieferung: string;
   regelsatz: string;
   regelstand: string | null;
@@ -79,6 +81,7 @@ export function laufAus(z: LaufZeile): Lauf {
     lieferung: z.lieferung,
     regelsatz: z.regelsatz,
     regelstand: z.regelstand ?? "",
+    zeitraumArt: zeitraumArtAus(z.zeitraum_art),
     status: z.status,
     ergebnisStand: stand,
     gelesen: zahl(z.gelesen),
@@ -123,6 +126,7 @@ export async function ladeMonatslaeufe(sql: Sql, regelsatz = "v1"): Promise<Mona
     )
     SELECT m.*,
            ${sql.unsafe(quelleSql("m"))} AS quelle_id,
+           ${sql.unsafe(zeitraumArtSql("m"))} AS zeitraum_art,
            (SELECT count(*) FROM meta.lauf a WHERE a.lieferung = m.lieferung AND a.regelsatz = m.regelsatz) AS laeufe_gesamt,
            t.angehalten, t.anhaltende_regeln, t.auffaelligkeiten, t.nicht_erklaerbar
     FROM massgeblich m
@@ -142,7 +146,7 @@ export async function ladeMonatslaeufe(sql: Sql, regelsatz = "v1"): Promise<Mona
 /** Der maßgebliche Lauf eines Monats oder `null`. */
 export async function ladeMassgeblichenLauf(sql: Sql, lieferung: string, regelsatz = "v1"): Promise<Lauf | null> {
   const [zeile] = await sql<LaufZeile[]>`
-    SELECT l.*, ${sql.unsafe(quelleSql("l"))} AS quelle_id
+    SELECT l.*, ${sql.unsafe(quelleSql("l"))} AS quelle_id, ${sql.unsafe(zeitraumArtSql("l"))} AS zeitraum_art
     FROM meta.lauf l
     WHERE l.lieferung = ${lieferung} AND l.regelsatz = ${regelsatz} AND l.status IN ('fertig', 'unveraendert')
     ORDER BY (l.ergebnis_status = 'endgueltig') DESC, l.id DESC

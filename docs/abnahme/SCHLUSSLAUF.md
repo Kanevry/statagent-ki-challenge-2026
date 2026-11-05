@@ -1,0 +1,60 @@
+# Schlusslauf der Abnahme: Fr 06.11.2026 ab 06:30 (Abgabe-Beleg)
+
+Voller Abnahme-Lauf gegen den eingefrorenen main direkt nach dem Merge-Stopp 06:30, Anweisung Lead 05.11. 21:2x.
+Wer ihn fährt, braucht nur diese Datei und `PROZESS.md`.
+
+## Zeitplan (gemessen am 05.11.)
+
+| Schritt | Dauer | Fertig ab 06:30 |
+|---|---|---|
+| leichter Lauf (Arbeitsrechner) | rund 3 min | 06:35 |
+| schwerer Lauf (Prüfrechner, frische Prüf-DB, 24 Läufe, alle schweren Prüfsätze) | 11 bis 15 min | 06:50 |
+| Veröffentlichen, Tor, Meldung an den Lead | rund 5 min | 06:55 |
+
+Damit ist der Beleg vor dem Feature-Stopp 07:00 und vor dem Upload 08:00 fertig. Reißt die Verbindung ab, läuft der
+schwere Lauf auf dem Prüfrechner weiter. Scheitert er, reicht die Zeit bis 07:30 für einen zweiten Versuch.
+
+## Vorbereitung
+
+1. Bis 06:00: Wächter läuft (`pgrep -fl waechter.sh`), Prüf-DB ist seit dem letzten schweren Lauf unberührt.
+2. **Prüf-DB ab 06:15 reserviert.** Niemand sonst schreibt hinein. Vorher fragen alle anderen (UI-Regie) nach einem
+   Fenster; ein Fenster sperrt schwere Läufe per `mkdir /tmp/kic-abnahme-schwer.lock`, Freigabe per `rmdir`.
+3. 05:00: Vorprüfung `uv run python tests/abnahme/matrix.py tor`, offene Punkte an den Lead.
+4. Vor dem Lauf: Sperre frei (`ls -d /tmp/kic-abnahme-schwer.lock` meldet „No such file“), kein Merge mehr nach 06:30.
+   Der Lead nennt den Merge-Stopp-SHA.
+
+## Ablauf ab 06:30
+
+Im Worktree der Abnahme, Branch mit dem aktuellen Stand von `tests/abnahme`:
+
+```
+git fetch origin && git log --oneline -1 origin/main     # muss der Merge-Stopp-SHA sein
+uv run python tests/abnahme/pruefen.py                    # leicht, schreibt docs/abnahme/laeufe/<zeit>-<sha>.jsonl
+: > /tmp/kic-abnahme-schwer.letzter                       # erzwingt den schweren Lauf
+bash tests/abnahme/schwer_ausloesen.sh "$ABNAHME_PRUEFRECHNER_ENV"
+uv run python tests/abnahme/matrix.py schreiben
+uv run python tests/abnahme/matrix.py befunde --bereich uc3 --ja     # ebenso uc1, uc2, plattform
+uv run python tests/abnahme/matrix.py abhaken alle --ja
+uv run python tests/abnahme/matrix.py haken pruefen --ja
+uv run python tests/abnahme/matrix.py tor                 # Tor UC3 und E6
+uv run python tests/abnahme/matrix.py zaehler             # Meldung an den Lead
+```
+
+`ABNAHME_PRUEFRECHNER_ENV` zeigt auf die env-Datei außerhalb des Repos (Rechte 600), Pfad in der Übergabe.
+
+Danach: Sweep auf Rechnernamen und Pfade (`PROZESS.md`), Laufdateien und Matrix committen, MR an die Review-Bank, und
+Zähler, Tor-Ergebnis und die beiden Laufdateien als Abgabe-Beleg an den Lead.
+
+## Was der Beleg zeigt
+
+- Laufdatei leicht und schwer auf demselben Merge-Stopp-SHA, jede mit Manifest und Schlusszeile.
+- Tor: In UC3 und E6 ist jedes Kriterium bestanden, nach Abgabe oder per Entscheid angenommen. Offen Gebliebenes steht
+  sichtbar mit Grund in der Ausgabe von `tor`.
+- 92-3 (Transfernachweis) ist erst nach dem Upload messbar; danach einmal `pruefen.py --id 92-3`.
+
+## Fallen
+
+- Ein Befundtext kann alt sein: Bei jedem unerwarteten „nicht bestanden“ erst Befehl und Ausgabe in der Laufdatei lesen,
+  dann gegen main nachsehen, dann erst an eine Lane melden. Am 05.11. waren so über ein Dutzend Befunde falsch.
+- Rein leichte Prüfsätze laufen nie auf dem Prüfrechner, schwere nie auf dem Arbeitsrechner.
+- Verworfene Belege (`verworfen.jsonl`) melden, sie können ein altes „bestanden“ wieder gültig machen.

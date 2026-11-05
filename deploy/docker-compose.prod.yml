@@ -33,6 +33,8 @@ services:
       # Verzeichnis statt Einzeldatei: rsync ersetzt Dateien per rename, ein Datei-Mount sähe die alte Fassung
       - ./caddy:/etc/caddy:ro
       - ./platzhalter:/srv/platzhalter:ro
+      # Fragment der Vorführ-Instanz (scripts/vorfuehrung.sh), außerhalb von repo/; leer heißt: nur die öffentliche Demo
+      - ../../vorfuehrung/caddy:/etc/caddy-vorfuehrung:ro
       - caddy_data:/data
       - caddy_config:/config
 

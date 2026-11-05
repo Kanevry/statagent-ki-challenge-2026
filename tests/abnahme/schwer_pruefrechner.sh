@@ -32,7 +32,8 @@ touch "$ABNAHME_REPO/.kic-abnahme-pruefklon"
 # Hart zurücksetzen: frühere Prüfsätze können Dateien im Klon verändert haben (Review 4d, 19:00).
 git -C "$ABNAHME_REPO" checkout -q -f --detach "$sha"
 git -C "$ABNAHME_REPO" clean -fdq -e .kic-abnahme-pruefklon
-git -C "$ABNAHME_REPO" checkout -q "$werkzeug" -- tests/abnahme
+# Hand-Belege und Entscheide kommen mit dem Werkzeug: sonst überdeckt „Hand-Prüfung offen“ einen gültigen Beleg (18-AC2, 21:20).
+git -C "$ABNAHME_REPO" checkout -q "$werkzeug" -- tests/abnahme docs/abnahme/belege.jsonl docs/abnahme/entscheide.jsonl docs/abnahme/verworfen.jsonl
 for f in 66_jury_weg.sh 66_readme_weg.sh 66_ohne_netz.py 66_kanon_hash.sql 66_manifest_vergleich.py \
   compose-abnahme.override.yml; do
   cp "$ABNAHME_REPO/tests/abnahme/$f" "$HIER/$f"

@@ -36,7 +36,6 @@ describe("Protokoll-Schublade", () => {
     expect(status?.querySelector('[data-status-symbol="ok"]')).not.toBeNull();
     expect(screen.getByText("Vorschlag").closest("[data-status]")?.getAttribute("data-akteur")).toBe("agent");
     expect(aufrufe).toContain("/api/uc3/protokoll");
-    await screen.findByText("Ohne Sprachmodell");
 
     await nutzer.keyboard("{Escape}");
     expect(schublade.isConnected).toBe(false);

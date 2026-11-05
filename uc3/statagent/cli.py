@@ -325,6 +325,16 @@ def berichte(
                 typer.echo(f"{monat}: {bericht_schreiben(conn, monat, regelsatz)}")
 
 
+@app.command("oenace-wechsel")
+def oenace_wechsel() -> None:
+    """Datei für die Web-Monatsseite aus den Daten erzeugen (web/components/uc3/oenace-wechsel.json)."""
+    from statagent.berichte.oenace_wechsel import datei_schreiben
+
+    with verbinden() as conn:
+        pfad, monate = datei_schreiben(conn)
+    typer.echo(f"{pfad}: {monate} Monat(e) mit neuer ÖNACE-Version")
+
+
 @app.command("veroeffentlichen")
 def veroeffentlichen(
     name: Annotated[str, typer.Option(help="Vor- und Nachname der freigebenden Person")],

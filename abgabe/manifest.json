@@ -1,6 +1,6 @@
 {
   "abgabe": "UC3 StatAgent, Team OneShotAndy",
-  "stand": "df47c29 2026-11-05",
+  "stand": "33b4d17 2026-11-05",
   "dateien": [
     {
       "datei": ".gitignore",
@@ -13,8 +13,8 @@
     {
       "datei": "CHECKLISTE.md",
       "ort": "repo",
-      "groesse": 2745,
-      "sha256": "21cad6c6e45ff38bdab777c2f519e747c3997abdbf02ea9b241b2dfd0ed73efd",
+      "groesse": 5766,
+      "sha256": "c435d41c01f60af96f56cdf7ae4a6c967089e9159ad8aa8ad6eb96eab9c1cafa",
       "regelsatz": "-",
       "stand": "72f1bda 2026-11-05"
     },
@@ -109,10 +109,10 @@
     {
       "datei": "qualitaetsberichte/2025-01.md",
       "ort": "repo",
-      "groesse": 16915,
-      "sha256": "01079dff9d59ec9ec061984f2df913e98c8056a281b80bd83bd622df0b2de199",
+      "groesse": 18437,
+      "sha256": "3216cf43a55b8cf4dee3f353f39f812c884183553c92d18c04c5c02e5fe06f4a",
       "regelsatz": "v1",
-      "stand": "4a4f790 2026-11-05"
+      "stand": "8f7fe85 2026-11-05"
     },
     {
       "datei": "qualitaetsberichte/2025-02.md",
@@ -301,10 +301,10 @@
     {
       "datei": "qualitaetsberichte_v2/2025-01.md",
       "ort": "repo",
-      "groesse": 17099,
-      "sha256": "77d8602f771954448cd8cb31279701654920a7c9576fa1e1c11417dd9cbd48ca",
+      "groesse": 18621,
+      "sha256": "eb953d9301482608d238f3ae2333c10dd715d0bb3ff5af484f97fd0ad76f4344",
       "regelsatz": "v2",
-      "stand": "28cd60d 2026-11-05"
+      "stand": "8f7fe85 2026-11-05"
     },
     {
       "datei": "qualitaetsberichte_v2/2025-02.md",
