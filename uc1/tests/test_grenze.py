@@ -37,6 +37,8 @@ def test_vorpruefung_faengt_englische_symptomfrage() -> None:
         "Mein Mann hatte einen Schlaganfall und braucht jetzt den ganzen Tag jemanden.",
         "Er hat einen Schlaganfall gehabt und braucht Pflege. Bekommt er Pflegegeld?",
         "Sie hat 2023 einen Schlaganfall erlitten und braucht jetzt Pflege.",
+        "Er ist seit dem Unfall gelähmt, bekommt er Pflegegeld?",
+        "Seit dem Schlaganfall kann sie nicht mehr sprechen. Bekommt sie Pflegegeld?",
         "Welche Kosten übernimmt die Kasse für Medikamente?",
         "Ich brauche nach meiner Hüftoperation einen Rollstuhl. Zahlt das die Krankenkasse?",
     ],
@@ -164,6 +166,10 @@ def test_medizinisch_nur_ohne_sv_bezug() -> None:
         "Verdacht auf Schlaganfall und jetzt hängt sein Mundwinkel, was tun?",
         "Ich glaube Schlaganfall. Jetzt kann er nicht mehr sprechen.",
         "Schlaganfall? Er kann jetzt nicht mehr reden",
+        # #163: Akutzeichen nach einem vergangenen Schlaganfall und ohne das Wort
+        "Meine Frau hatte einen Schlaganfall und kann jetzt nicht mehr sprechen.",
+        "Sein Mundwinkel hängt und er redet komisch.",
+        "Mein Vater ist plötzlich auf der rechten Seite gelähmt!",
     ],
 )
 def test_schlaganfall_in_der_gegenwart_bleibt_notfall(frage: str) -> None:

@@ -669,6 +669,71 @@ def bedingung_fehlt(aussage: str, zitat: str, sprache: str = "de") -> bool:
     return not _BEDINGUNG_AUSSAGE.get(sprache, _BEDINGUNG_AUSSAGE["de"]).search(aussage)
 
 
+# Zahlwort und Ziffer gelten als dieselbe Zahl („sechs Monate“ im Zitat, „6 Monate“ in der Aussage).
+_ZAHLWOERTER: dict[str, tuple[str, str]] = {
+    w: (str(i), e)
+    for i, (w, e) in enumerate(
+        zip(
+            [
+                "null",
+                "eins",
+                "zwei",
+                "drei",
+                "vier",
+                "fünf",
+                "sechs",
+                "sieben",
+                "acht",
+                "neun",
+                "zehn",
+                "elf",
+                "zwölf",
+            ],
+            [
+                "zero",
+                "one",
+                "two",
+                "three",
+                "four",
+                "five",
+                "six",
+                "seven",
+                "eight",
+                "nine",
+                "ten",
+                "eleven",
+                "twelve",
+            ],
+            strict=True,
+        )
+    )
+} | {"ein": ("1", "one")}
+
+
+def schwelle_fehlt(aussage: str, zitat: str, sprache: str = "de") -> str | None:
+    """Das Schwellenwort aus dem Zitat („mehr als“, „mindestens“, „voraussichtlich“ …), das die Aussage nicht
+    trägt, obwohl sie die Zahl dahinter nennt („ab 65 Stunden“ zu „mehr als 65 Stunden“); None, wenn nichts
+    fehlt (``schwellen`` und ``zahl`` in daten/deckung.yaml, #151)."""
+    regeln = deckung_regeln()
+    zahl = re.compile(str(regeln["zahl"]), re.IGNORECASE)
+    formen: dict[str, list[str]] = regeln["schwellen"].get(sprache) or regeln["schwellen"]["de"]
+    for wort, muster in formen.items():
+        for m in re.finditer(rf"\b{re.escape(wort)}\b", zitat, re.IGNORECASE):
+            # die erste Zahl in den drei Wörtern nach dem Schwellenwort („voraussichtlich mindestens sechs“)
+            danach = zitat[m.end() :].split()[:3]
+            wert = next((w.strip(".,;:()") for w in danach if zahl.fullmatch(w.strip(".,;:()"))), None)
+            if wert is None:
+                continue
+            gleich = {wert.lower(), *_ZAHLWOERTER.get(wert.lower(), ())}
+            if not any(
+                re.search(rf"(?<![\w,.]){re.escape(g)}(?![\w,])", aussage, re.IGNORECASE) for g in gleich
+            ):
+                continue
+            if not any(re.search(f, aussage, re.IGNORECASE) for f in muster):
+                return wort
+    return None
+
+
 def zitat_gueltig(zitat: str, abschnitt_text: str) -> bool:
     """Teilstring nach normalisiere() und Leerraum-Normalisierung, mindestens 6 Wörter oder 30 Zeichen."""
     kern = normalisiere(zitat).strip("\"'„“”‚‘’ ").strip(".…").strip()
@@ -832,6 +897,8 @@ def pruefe_aussagen(
             grund = f"Aussage geht über das Zitat hinaus (Deckung {gedeckt:.2f} < {schwelle:.2f})"
         elif bedingung_fehlt(text, voll, sprache):
             grund = "Aussage lässt die Bedingung aus dem Zitat weg"
+        elif (ohne_schwelle := schwelle_fehlt(text, voll, sprache)) is not None:
+            grund = f"Aussage lässt die Schwelle „{ohne_schwelle}“ aus dem Zitat weg"
         if grund or t is None:
             verworfen.append(
                 {
