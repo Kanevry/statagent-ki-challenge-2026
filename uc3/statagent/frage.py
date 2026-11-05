@@ -24,7 +24,7 @@ from statagent.berichte.sheet import STICHTAG, STICHTAG_VARIABLE
 from statagent.db import Verbindung
 from statagent.ergebnis import letzter_lauf, monat_verschieben, monatserster, monatsletzter
 from statagent.pensionen import PensionFehler, ist_pensionsfrage, pensionsantwort
-from statagent.regeln import Regel, regeln_laden, regelstand
+from statagent.regeln import Regel, RegelFehler, regeln_laden, regelstand
 from statagent.uc4 import (
     _ISO,
     _NAME_MONAT,
@@ -1596,7 +1596,7 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
             return _regelsatz_antwort(conn, frage, regelsatz)
     except _KeineZahl as fehler:
         return _antwort(fragetyp(frage), str(fehler), hinweise=[str(fehler)])
-    except (psycopg.Error, AbfrageVerweigert):
+    except (psycopg.Error, AbfrageVerweigert, RegelFehler):
         return _antwort(fragetyp(frage), NICHT_LESBAR, hinweise=[NICHT_LESBAR])
     hinweis_tag = tag_hinweis(frage)
     frage, notizen, mittel = _normalisieren(frage, letzter or LETZTE_LIEFERUNG)

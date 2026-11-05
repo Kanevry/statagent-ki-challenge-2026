@@ -11,6 +11,7 @@ from statagent.db import Verbindung
 from statagent.ergebnis import letzter_lauf, monatserster, monatsletzter
 from statagent.frage import antwort_frage, nicht_auswertbar
 from statagent.lauf import lauf_ausfuehren
+from statagent.uc4 import uc4_antwort
 
 MONAT = "2024-08"
 
@@ -361,3 +362,17 @@ def test_anderes_ohne_neben_v2_ist_keine_verneinung() -> None:
 )
 def test_monatszahl_ist_nicht_durchgehend(frage: str) -> None:
     assert nicht_auswertbar(frage) != frage_modul.DURCHGEHEND_GRUND
+
+
+# Bank 49: /uc4 zeigte zu „Wien und Tirol … nach v2“ die v1-Zahlen ohne Hinweis (gemessen: 93.249 und 36.320).
+def test_uc4_mehrere_werte_nach_v2_keine_v1_zahlen(mit_v2: Verbindung) -> None:
+    daten = uc4_antwort(mit_v2, "Beschäftigte in Wien und Tirol im August 2024 nach v2")
+    assert daten["zahlen"] == [] and "mehrere" in daten["text"]
+
+
+# Gegenfall: Ohne Regelsatz in der Frage und als Schalter bleiben die Zahlen je Wert.
+def test_uc4_mehrere_werte_ohne_wort_und_als_schalter(mit_v2: Verbindung) -> None:
+    frage = "Beschäftigte in Wien und Tirol im August 2024"
+    v1 = uc4_antwort(mit_v2, frage)["zahlen"]
+    v2 = uc4_antwort(mit_v2, frage, "v2")["zahlen"]
+    assert len(v1) == 3 and len(v2) == 3 and [z["wert"] for z in v1] != [z["wert"] for z in v2]
