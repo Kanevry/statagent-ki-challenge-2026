@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { nurLesend } from "@/components/uc3/cli";
+import { fragenGesperrt } from "@/components/uc3/cli";
 import { lies } from "@/components/uc3/db";
 import { type Definition, FragenFormular } from "./_teile/fragen-formular";
 
@@ -25,5 +25,5 @@ async function leseDefinitionen(): Promise<Definition[]> {
 export default async function FragenAnDieDaten() {
   const definitionen = await leseDefinitionen();
   // Überschrift, Erklärsatz und Bühne stehen im Formular, weil sie nach der ersten Frage nach oben rücken.
-  return <FragenFormular definitionen={definitionen} nurLesen={nurLesend()} />;
+  return <FragenFormular definitionen={definitionen} nurLesen={fragenGesperrt()} />;
 }

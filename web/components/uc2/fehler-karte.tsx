@@ -3,7 +3,6 @@
 import { Fliesstext, Knopf, Status } from "@kic/ui/basis";
 import type { Modus } from "../../app/api/uc2/_lib/proxy";
 import type { ModellWahl } from "../../app/api/uc2/_lib/vorbereitung";
-import { klartext } from "./namen";
 import type { FallZustand } from "./zustand";
 
 // U2-1a Modellfehler inline (Pen NjP7Q): rotes Band über den Runden. Die fertigen Runden bleiben stehen. "Erneut

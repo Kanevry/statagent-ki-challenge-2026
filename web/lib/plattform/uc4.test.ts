@@ -61,7 +61,7 @@ describe("POST /api/uc4/frage", () => {
     expect(daten.antworten.map((a) => a.uc)).toEqual(["uc3", "uc2", "uc1"]);
     expect(ausfuehren).toHaveBeenCalledWith("uv", [...ROUTER_ARGV, "--", "Wie viele Beschäftigte gab es 2025-03?"], {
       cwd: "/repo",
-      timeout: 60_000,
+      timeout: 180_000,
       maxBuffer: 1024 * 1024,
     });
   });
