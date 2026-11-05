@@ -2,6 +2,7 @@ import { formatZahl } from "@kic/ui/bausteine";
 import { literal } from "./beleg";
 import { lies, type Lesung, type Sql } from "./db";
 import { ladeMassgeblichenLauf, ladeMonatslaeufe, MASSGEBLICH_SQL } from "./laeufe";
+import { massnahmeSatz } from "./lauf-detail";
 import { monatName, verschieben } from "./monat";
 import type { Lauf, Monatslauf } from "./typen";
 
@@ -29,6 +30,10 @@ export interface Auffaelligkeit {
   massnahme: string;
   anhalten: boolean;
   rueckfragen: string[];
+  /** Die davon noch ohne Antwort sind. */
+  offeneRueckfragen: string[];
+  /** Rohtext aus pruefung_treffer.massnahme, für den Tooltip. */
+  massnahmeRoh: string | null;
   belegSql: string | null;
 }
 
@@ -94,6 +99,19 @@ export interface Qualitaetsbericht {
 export interface Berichtszeile {
   monat: Monatslauf;
   revisionsbedarf: boolean;
+  /** Offene Rückfragen, auf die ein nicht erklärbarer Treffer des Monats wartet (z. B. R8). */
+  wartet: string[];
+  /** Nicht erklärbare Treffer ohne offene Rückfrage. */
+  ohneRueckfrage: number;
+}
+
+/** Offene Rückfrage, auf die ein nicht erklärbarer Treffer wartet (Bedingung je Treffer t mit Regel r). */
+const OFFENE_RUECKFRAGE = "q.antwort IS NULL AND (q.nr = t.details ->> 'rueckfrage' OR q.regel_name = r.name)";
+
+/** Rückfragen, auf die in jedem Monat etwas wartet; leer, wenn keine alle Monate betrifft. */
+export function rueckfragenInAllenMonaten(zeilen: readonly Pick<Berichtszeile, "wartet">[]): string[] {
+  if (zeilen.length === 0) return [];
+  return zeilen[0].wartet.filter((nr) => zeilen.every((z) => z.wartet.includes(nr)));
 }
 
 export interface Regel {
@@ -236,8 +254,7 @@ export function sqlBerichtsliste(regelsatz = "v1"): string {
   ].join("\n");
 }
 
-/** Zahl der Monate mit Bericht, mit nicht Erklärbarem und mit Revisionsbedarf. */
-export function sqlBerichtsuebersicht(regelsatz = "v1"): string {
+function massgeblichCte(regelsatz: string): string {
   return [
     "WITH massgeblich AS (",
     massgeblichMitLiteral(regelsatz)
@@ -245,12 +262,32 @@ export function sqlBerichtsuebersicht(regelsatz = "v1"): string {
       .map((z) => `  ${z}`)
       .join("\n"),
     ")",
-    "SELECT count(*) AS monate,",
-    "  count(*) FILTER (WHERE EXISTS (SELECT 1 FROM meta.pruefung_treffer p WHERE p.lauf_id = m.id",
-    "     AND p.anzahl > 0 AND p.einstufung = 'nicht-erklaerbar')) AS monate_nicht_erklaerbar,",
-    "  count(*) FILTER (WHERE EXISTS (SELECT 1 FROM meta.revision v WHERE v.lauf_id = m.id",
-    "     AND v.differenz <> 0)) AS monate_revisionsbedarf",
-    "FROM massgeblich m;",
+  ].join("\n");
+}
+
+/** Zahl der Monate mit Bericht und je offener Rückfrage die Zahl der Monate, in denen ein Treffer auf sie wartet. */
+export function sqlBerichtsuebersicht(regelsatz = "v1"): string {
+  return [
+    massgeblichCte(regelsatz),
+    "SELECT (SELECT count(*) FROM massgeblich) AS monate_mit_bericht, q.nr AS offene_rueckfrage, q.titel,",
+    "       count(DISTINCT m.lieferung) AS monate_wartend",
+    "FROM massgeblich m",
+    "JOIN meta.pruefung_treffer t ON t.lauf_id = m.id AND t.anzahl > 0 AND t.einstufung = 'nicht-erklaerbar'",
+    "JOIN meta.regel r ON r.id = t.regel_id",
+    `JOIN meta.rueckfrage q ON ${OFFENE_RUECKFRAGE}`,
+    "GROUP BY q.nr, q.titel ORDER BY monate_wartend DESC, q.nr;",
+  ].join("\n");
+}
+
+/** Monate mit einem nicht erklärbaren Treffer, an dem keine offene Rückfrage hängt. */
+export function sqlOhneRueckfrage(regelsatz = "v1"): string {
+  return [
+    massgeblichCte(regelsatz),
+    "SELECT count(DISTINCT m.lieferung) AS monate_mit_weiterem_offenen",
+    "FROM massgeblich m",
+    "JOIN meta.pruefung_treffer t ON t.lauf_id = m.id AND t.anzahl > 0 AND t.einstufung = 'nicht-erklaerbar'",
+    "JOIN meta.regel r ON r.id = t.regel_id",
+    `WHERE NOT EXISTS (SELECT 1 FROM meta.rueckfrage q WHERE ${OFFENE_RUECKFRAGE});`,
   ].join("\n");
 }
 
@@ -343,15 +380,32 @@ export function sqlRegeln(regelsatz = "v1"): string {
 /** Übersicht aller Monate mit Revisionsbedarf je Monat. */
 export function leseBerichtsliste(regelsatz = "v1"): Promise<Lesung<Berichtszeile[]>> {
   return lies(async (sql) => {
-    const [monate, revision] = await Promise.all([
+    const [monate, revision, offen] = await Promise.all([
       ladeMonatslaeufe(sql, regelsatz),
       sql<{ lauf_id: number }[]>`
         SELECT DISTINCT v.lauf_id FROM meta.revision v
         WHERE v.differenz <> 0 AND v.lauf_id IN (
           SELECT id FROM meta.lauf WHERE regelsatz = ${regelsatz} AND status IN ('fertig', 'unveraendert'))`,
+      sql<{ lauf_id: number; nr: string | null }[]>`
+        SELECT t.lauf_id, q.nr
+        FROM meta.pruefung_treffer t JOIN meta.regel r ON r.id = t.regel_id
+        LEFT JOIN meta.rueckfrage q ON q.antwort IS NULL AND (q.nr = t.details ->> 'rueckfrage' OR q.regel_name = r.name)
+        WHERE t.anzahl > 0 AND t.einstufung = 'nicht-erklaerbar' AND t.lauf_id IN (
+          SELECT id FROM meta.lauf WHERE regelsatz = ${regelsatz} AND status IN ('fertig', 'unveraendert'))`,
     ]);
     const mitRevision = new Set(revision.map((z) => Number(z.lauf_id)));
-    return monate.map((monat) => ({ monat, revisionsbedarf: mitRevision.has(monat.id) }));
+    return monate.map((monat) => {
+      const eigene = offen.filter((z) => Number(z.lauf_id) === monat.id);
+      const wartet = [...new Set(eigene.map((z) => z.nr).filter((n): n is string => Boolean(n)))].sort(
+        (a, b) => a.length - b.length || a.localeCompare(b),
+      );
+      return {
+        monat,
+        revisionsbedarf: mitRevision.has(monat.id),
+        wartet,
+        ohneRueckfrage: eigene.filter((z) => !z.nr).length,
+      };
+    });
   });
 }
 
@@ -512,9 +566,17 @@ export function leseQualitaetsbericht(lieferung: string, regelsatz = "v1"): Prom
         anzahl: zahl(t.anzahl),
         umfang: t.umfang?.trim() || `${formatZahl(zahl(t.anzahl))} Sätze`,
         einstufung: einstufungAus(t.einstufung),
-        massnahme: alsSatz(t.massnahme ?? ""),
+        massnahme:
+          massnahmeSatz({
+            name: t.name,
+            massnahme: t.massnahme,
+            einstufung: einstufungAus(t.einstufung).code,
+            anhalten: Boolean(t.anhalten),
+          }) ?? "",
+        massnahmeRoh: t.massnahme,
         anhalten: Boolean(t.anhalten),
         rueckfragen: verweiseVon(t),
+        offeneRueckfragen: verweiseVon(t).filter((nr) => rueckfragen.some((r) => r.nr === nr && !r.antwort)),
         belegSql: t.beleg_sql?.trim() || null,
       })),
       rueckfragen: rueckfragen

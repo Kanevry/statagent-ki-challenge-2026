@@ -2,7 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Fliesstext, Leerzustand, Ueberschrift } from "@kic/ui/basis";
 import { formatZahl, HerkunftChip } from "@kic/ui/bausteine";
-import { leseBerichtsliste, sqlBerichtsliste, sqlBerichtsuebersicht, type Berichtszeile } from "@/lib/uc3/bericht";
+import {
+  leseBerichtsliste,
+  rueckfragenInAllenMonaten,
+  sqlBerichtsliste,
+  sqlBerichtsuebersicht,
+  sqlOhneRueckfrage,
+  type Berichtszeile,
+} from "@/lib/uc3/bericht";
+import { aufzaehlen } from "@/lib/uc3/lauf-detail";
 import { leerSatz } from "@/lib/uc3/db";
 import { Fachbegriff } from "@/lib/uc3/fachbegriff";
 import { monatName } from "@/lib/uc3/monat";
@@ -21,6 +29,10 @@ const link = "text-ink underline underline-offset-4 hover:text-gruen";
 
 function Revision({ ja }: { ja: boolean }) {
   return <>{ja ? "ja" : "nein"}</>;
+}
+
+function wartetText(wartet: readonly string[]): string {
+  return wartet.length ? `${aufzaehlen(wartet)} ${wartet.length === 1 ? "wartet" : "warten"} auf die Fachabteilung` : "nichts";
 }
 
 function monateText(n: number): string {
@@ -46,24 +58,40 @@ export default async function Berichte() {
   const zeilen = lesung.daten;
   const nichtErklaerbar = zeilen.filter((z) => z.monat.nichtErklaerbar > 0).length;
   const mitRevision = zeilen.filter((z) => z.revisionsbedarf).length;
+  const ueberall = rueckfragenInAllenMonaten(zeilen);
+  const weitere = zeilen.filter((z) => z.ohneRueckfrage > 0).length;
+  const n = formatZahl(zeilen.length);
+  const kopfsatz =
+    ueberall.length > 0
+      ? `Für alle ${n} Monate liegt ein Qualitätsbericht vor, in jedem Monat wartet die Rückfrage ${aufzaehlen(ueberall)} auf eine Antwort der Fachabteilung.`
+      : nichtErklaerbar === 0
+        ? `Für alle ${n} Monate liegt ein Qualitätsbericht vor, alle Auffälligkeiten sind erklärt.`
+        : `Für alle ${n} Monate liegt ein Qualitätsbericht vor, in ${monateText(nichtErklaerbar)} wartet eine Auffälligkeit auf eine Erklärung.`;
 
   return (
     <>
       <header className="flex max-w-4xl flex-col gap-4">
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
-          {`Für jeden der ${formatZahl(zeilen.length)} gerechneten Monate liegt ein Qualitätsbericht vor; in ${
-            nichtErklaerbar === 0
-              ? "keinem davon"
-              : nichtErklaerbar === zeilen.length
-                ? `allen ${formatZahl(nichtErklaerbar)}`
-                : monateText(nichtErklaerbar)
-          } ist etwas nicht erklärbar.`}
+          {kopfsatz}
         </Ueberschrift>
-        <HerkunftChip quelle="meta.pruefung_treffer" sql={sqlBerichtsuebersicht()} />
+        <HerkunftChip quelle="meta.rueckfrage" sql={sqlBerichtsuebersicht()} />
+        {ueberall.length > 0 && (
+          <Fliesstext>
+            {`Bis die Antwort da ist, bleibt diese Auffälligkeit in jedem Monat „nicht erklärbar“. Das ist so gewollt: Das Programm rät nicht, ein Mensch muss es klären.`}
+          </Fliesstext>
+        )}
+        {weitere > 0 && (
+          <div className="flex flex-col items-start gap-2">
+            <Fliesstext>
+              {`In ${monateText(weitere)} ist zusätzlich etwas nicht erklärbar, wozu noch keine Rückfrage gestellt ist. Der Bericht des Monats nennt es.`}
+            </Fliesstext>
+            <HerkunftChip quelle="meta.pruefung_treffer" sql={sqlOhneRueckfrage()} />
+          </div>
+        )}
         <Fliesstext>
           {`Jeder Bericht zeigt, was gelesen und gezählt wurde, was auffiel und wie es eingestuft ist. In ${
             mitRevision === 0 ? "keinem Monat" : monateText(mitRevision)
-          } weicht eine schon gezeigte Zahl eines Vormonats ab; sie bleibt stehen und ist als Revisionsbedarf ausgewiesen.`}
+          } weicht eine schon gezeigte Zahl eines Vormonats ab. Sie bleibt stehen und ist als Revisionsbedarf ausgewiesen.`}
         </Fliesstext>
         <Fliesstext groesse={14}>
           <Link href="/uc3/berichte/regeln" className={link}>
@@ -108,6 +136,9 @@ function Liste({ zeilen }: { zeilen: readonly Berichtszeile[] }) {
               davon nicht erklärbar
             </th>
             <th scope="col" className={kopf}>
+              wartet auf Antwort
+            </th>
+            <th scope="col" className={kopf}>
               Revisionsbedarf
             </th>
             <th scope="col" className={`${kopf} pr-0`}>
@@ -116,7 +147,7 @@ function Liste({ zeilen }: { zeilen: readonly Berichtszeile[] }) {
           </tr>
         </thead>
         <tbody>
-          {zeilen.map(({ monat, revisionsbedarf }) => (
+          {zeilen.map(({ monat, revisionsbedarf, wartet }) => (
             <tr key={monat.lieferung} className="border-b border-line" data-lieferung={monat.lieferung}>
               <th scope="row" className={`${zelle} text-left font-medium`}>
                 <Link href={berichtPfad(monat.lieferung)} className={link}>
@@ -125,6 +156,7 @@ function Liste({ zeilen }: { zeilen: readonly Berichtszeile[] }) {
               </th>
               <td className={zahlZelle}>{formatZahl(monat.auffaelligkeiten)}</td>
               <td className={zahlZelle}>{formatZahl(monat.nichtErklaerbar)}</td>
+              <td className={zelle}>{wartetText(wartet)}</td>
               <td className={zelle}>
                 <Revision ja={revisionsbedarf} />
               </td>
@@ -137,7 +169,7 @@ function Liste({ zeilen }: { zeilen: readonly Berichtszeile[] }) {
       </table>
 
       <ul className="flex flex-col md:hidden" aria-label="Monate">
-        {zeilen.map(({ monat, revisionsbedarf }) => (
+        {zeilen.map(({ monat, revisionsbedarf, wartet }) => (
           <li key={monat.lieferung} className="flex flex-col gap-2 border-b border-line py-4" data-lieferung={monat.lieferung}>
             <div className="flex items-baseline justify-between gap-4">
               <Link href={berichtPfad(monat.lieferung)} className={`font-sans text-16 font-semibold ${link}`}>
@@ -149,7 +181,7 @@ function Liste({ zeilen }: { zeilen: readonly Berichtszeile[] }) {
               <span className="font-mono tabular-nums">{formatZahl(monat.auffaelligkeiten)}</span>
               {" Auffälligkeiten, davon "}
               <span className="font-mono tabular-nums">{formatZahl(monat.nichtErklaerbar)}</span>
-              {" nicht erklärbar · Revisionsbedarf "}
+              {` nicht erklärbar${wartet.length ? `, ${wartetText(wartet)}` : ""} · Revisionsbedarf `}
               <Revision ja={revisionsbedarf} />
             </p>
           </li>

@@ -28,6 +28,8 @@ export interface Treffer {
   massnahme: string | null;
   anhalten: boolean;
   belegSql: string | null;
+  /** Offene Rückfragen (meta.rueckfrage ohne Antwort), auf die der Treffer verweist. */
+  offeneRueckfragen?: string[];
 }
 
 export interface Ursache {
@@ -86,7 +88,12 @@ export function aufzaehlen(teile: readonly string[]): string {
 }
 
 /** Einstufung als Status: Art für Symbol und Farbe, Wort für den Text. */
-export function einstufungStatus(e: Einstufung | null): { art: "ok" | "warnung" | "fehler" | "info"; wort: string } {
+export function einstufungStatus(
+  e: Einstufung | null,
+  offeneRueckfragen?: readonly string[],
+): { art: "ok" | "warnung" | "fehler" | "info"; wort: string } {
+  const wartet = wartetSatz(offeneRueckfragen);
+  if (e === "nicht-erklaerbar" && wartet) return { art: "warnung", wort: `nicht erklärbar, ${wartet}` };
   switch (e) {
     case "erklaert-plausibel":
       return { art: "ok", wort: "erklärt, plausibel" };
@@ -126,6 +133,90 @@ const TITEL: Record<string, string> = {
   P23: "Frühere Monate wären mit dieser Lieferung anders.",
   P24: "Die Lieferung deckt die Vormonate nicht ganz ab.",
 };
+
+// ---------------------------------------------------------------------------------------------------------------
+// Maßnahmen in Alltagssprache
+
+export interface MassnahmeLage {
+  einstufung: Einstufung | null;
+  anhalten: boolean;
+  /** Steht im Rohtext eine Rückfrage an die Fachabteilung? */
+  rueckfrage: boolean;
+  /** Text in Klammern nach „keine (…)“, z. B. die Saisonbranchen. */
+  klammer: string | null;
+}
+
+const FRAGT_NACH = "Die Fachabteilung soll das klären.";
+
+/**
+ * Ein Satz je Prüfregel (Nummer vor dem Unterstrich) statt des Rohtexts aus pruefung_treffer.massnahme, der
+ * Kürzel wie „(E02)“, Pfeile oder Formeln trägt. Unbekannte Regeln fallen auf den Rohtext zurück.
+ */
+const MASSNAHME: Record<string, (l: MassnahmeLage) => string> = {
+  P01: () => "Doppelte Zeilen sind zu einer zusammengefasst, jedes Verhältnis zählt einmal.",
+  P03: () => "Beginn und Ende sind für die ganze Lieferung zurückgetauscht.",
+  P04: () => "Das Alter wird aus dem Geburtsjahr gerechnet, der Geburtstag gilt als unbekannt.",
+  P05: () => "Das Alter gilt als unbekannt, das Verhältnis zählt.",
+  P06: () => "Das Alter gilt als unbekannt, das Verhältnis zählt.",
+  P07: () => "Nichts zu tun, sie zählen in der Altersgruppe 75 und mehr.",
+  P10: () => "Sie zählen unter „unbekannt“.",
+  P11: () => "Sie zählen zur Branche Herstellung von Waren (Abschnitt C).",
+  P13: () => "Der Monat ist angehalten, die Fachabteilung soll klären, warum die Gruppen fehlen.",
+  P14: (l) =>
+    l.einstufung === "nicht-erklaerbar"
+      ? "Die Zahlen bleiben, wie sie geliefert sind. Die Fachabteilung soll die Veränderung erklären."
+      : `Nichts zu tun, das ist die übliche Saison${l.klammer ? ` (${l.klammer.replace(/^Saison:\s*/, "")})` : ""}.`,
+  P15: () => "Der Monat ist angehalten, bis jemand die Lieferung geprüft hat.",
+  P16: (l) =>
+    l.anhalten
+      ? "Der Monat ist angehalten, bis die fehlenden Verhältnisse nachgeliefert sind."
+      : "Nichts zu tun, es sind Einzelfälle wie Stornos.",
+  P17: () => "Der Monat ist angehalten, bis jemand geprüft hat, ob die Lieferung vollständig ist.",
+  P18: () => "Sie zählen wie geliefert. Die Fachabteilung soll den Wechsel erklären.",
+  P19: (l) =>
+    `Sie sind markiert und zählen mit, denn gezählt werden Verhältnisse, nicht Personen.${
+      l.rueckfrage ? " Die Fachabteilung soll klären, ob es doppelte Meldungen sind." : ""
+    }`,
+  P23: (l) =>
+    l.einstufung === "nicht-erklaerbar"
+      ? `Der Unterschied steht als Revisionsbedarf im Bericht. ${FRAGT_NACH}`
+      : "Der Unterschied steht als Revisionsbedarf im Bericht, veröffentlichte Zahlen bleiben.",
+  P24: (l) =>
+    `Nichts zu korrigieren, die Lieferung reicht nicht drei Monate zurück, etwa bei der ersten Lieferung.${
+      l.rueckfrage ? ` ${FRAGT_NACH}` : ""
+    }`,
+};
+
+/** Rohtext als Satz: Pfeil als „Zugeordnet zu“, Großbuchstabe vorn, Punkt hinten. */
+function rohAlsSatz(roh: string): string {
+  let s = roh.split(/\s+/).join(" ").trim();
+  if (!s) return "";
+  if (s.startsWith("→")) s = `Zugeordnet zu${s.slice(1)}`;
+  s = s.replaceAll("→", "zu");
+  s = s[0].toUpperCase() + s.slice(1);
+  return /[.!?)]$/.test(s) ? s : `${s}.`;
+}
+
+/** „Was wir tun“ als ein Satz in Alltagssprache; ohne Rohtext `null`. */
+export function massnahmeSatz(
+  t: { name: string; massnahme: string | null; einstufung: Einstufung | null; anhalten: boolean },
+): string | null {
+  const roh = t.massnahme?.trim();
+  if (!roh) return null;
+  const regel = MASSNAHME[t.name.split("_")[0] ?? ""];
+  if (!regel) return rohAlsSatz(roh);
+  return regel({
+    einstufung: t.einstufung,
+    anhalten: t.anhalten,
+    rueckfrage: /Rückfrage|an die Fachabteilung/.test(roh),
+    klammer: /^keine \((.+)\)/.exec(roh)?.[1] ?? null,
+  });
+}
+
+/** „nicht erklärbar, wartet auf Antwort der Fachabteilung (R8)“, wenn eine offene Rückfrage dranhängt. */
+export function wartetSatz(offeneRueckfragen: readonly string[] | undefined): string | null {
+  return offeneRueckfragen?.length ? `wartet auf Antwort der Fachabteilung (${aufzaehlen(offeneRueckfragen)})` : null;
+}
 
 /** Titel einer Auffälligkeit: Satzvorlage der Regel, sonst eigener Titel, sonst der erste Satz der Beschreibung. */
 export function trefferTitel(t: Pick<Treffer, "name" | "beschreibung" | "satz" | "anzahl" | "umfang">, lieferung: string): string {
@@ -303,7 +394,9 @@ export function sqlDeterminismus(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "r
 /** Abfrage des Treffers (liefert alle gezeigten Angaben) und darunter die Prüfabfrage der Regel. */
 export function sqlTreffer(lauf: Pick<Lauf, "id">, t: Pick<Treffer, "regelId" | "ebene" | "belegSql">): string {
   const kopf = [
-    "SELECT r.name, p.anzahl, p.umfang, p.einstufung, p.massnahme, p.anhalten, p.beispiele",
+    "SELECT r.name, p.anzahl, p.umfang, p.einstufung, p.massnahme, p.anhalten, p.beispiele,",
+    "       ARRAY(SELECT q.nr FROM meta.rueckfrage q WHERE q.antwort IS NULL",
+    "             AND (q.nr = p.details ->> 'rueckfrage' OR q.regel_name = r.name)) AS offene_rueckfragen",
     "FROM meta.pruefung_treffer p JOIN meta.regel r ON r.id = p.regel_id",
     `WHERE p.lauf_id = ${literal(lauf.id)} AND p.regel_id = ${literal(t.regelId)} AND p.ebene = ${literal(t.ebene)};`,
   ];
@@ -357,12 +450,16 @@ interface TrefferZeile {
   massnahme: string | null;
   anhalten: boolean;
   beleg_sql: string | null;
+  offene_rueckfragen: string[] | null;
 }
 
 async function ladeTreffer(sql: Sql, laufId: number): Promise<Treffer[]> {
   const zeilen = await sql<TrefferZeile[]>`
     SELECT p.regel_id, r.name, r.art, r.beschreibung, r.parameter->>'satz' AS satz, p.ebene, p.anzahl, p.umfang,
-           p.beispiele, p.einstufung, p.massnahme, p.anhalten, p.beleg_sql
+           p.beispiele, p.einstufung, p.massnahme, p.anhalten, p.beleg_sql,
+           ARRAY(SELECT q.nr FROM meta.rueckfrage q
+                 WHERE q.antwort IS NULL AND (q.nr = p.details ->> 'rueckfrage' OR q.regel_name = r.name)
+                 ORDER BY length(q.nr), q.nr) AS offene_rueckfragen
     FROM meta.pruefung_treffer p JOIN meta.regel r ON r.id = p.regel_id
     WHERE p.lauf_id = ${laufId} AND p.anzahl > 0`;
   return sortiereTreffer(
@@ -380,6 +477,7 @@ async function ladeTreffer(sql: Sql, laufId: number): Promise<Treffer[]> {
       massnahme: z.massnahme,
       anhalten: z.anhalten,
       belegSql: z.beleg_sql,
+      offeneRueckfragen: z.offene_rueckfragen ?? [],
     })),
   );
 }

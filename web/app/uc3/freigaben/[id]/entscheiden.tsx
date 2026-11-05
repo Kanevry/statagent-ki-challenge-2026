@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Feld, Fliesstext, Knopf, Status, Ueberschrift } from "@kic/ui/basis";
 import {
   FreigabeKarte,
@@ -131,6 +131,18 @@ function KarteOhneProbe({
   const [ergebnis, setErgebnis] = useState<FreigabeEntscheidung | null>(null);
   const pruefung = pruefeName(name);
   const entschieden = entscheidung ?? ergebnis;
+  // Fokus nach dem Umschalten (nicht beim ersten Laden): Ablehnen → Begründung, Zurück → Knopf „Ablehnen“.
+  const [fokusZiel, setFokusZiel] = useState<"begruendung" | "ablehnen" | null>(null);
+  const formular = useRef<HTMLDivElement>(null);
+  const ablehnenKnopf = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (fokusZiel === "begruendung") {
+      formular.current?.querySelector<HTMLInputElement>('[name="freigabe-begruendung"]')?.focus();
+    } else if (fokusZiel === "ablehnen") {
+      ablehnenKnopf.current?.focus();
+    }
+    if (fokusZiel) setFokusZiel(null);
+  }, [fokusZiel]);
 
   function enterSperren(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") e.preventDefault();
@@ -182,7 +194,7 @@ function KarteOhneProbe({
         }
       >
         {!entschieden && (
-          <div className="flex flex-col gap-4">
+          <div ref={formular} className="flex flex-col gap-4">
             <Feld
               label="Vor- und Nachname"
               name="freigabe-name"
@@ -217,7 +229,15 @@ function KarteOhneProbe({
                   >
                     Ablehnung speichern
                   </Knopf>
-                  <button type="button" className={unterstrichen} onClick={() => setAblehnen(false)} disabled={laeuft}>
+                  <button
+                    type="button"
+                    className={unterstrichen}
+                    onClick={() => {
+                      setAblehnen(false);
+                      setFokusZiel("ablehnen");
+                    }}
+                    disabled={laeuft}
+                  >
                     Zurück
                   </button>
                 </>
@@ -226,7 +246,16 @@ function KarteOhneProbe({
                   <Knopf disabled={!pruefung.gueltig || laeuft} onClick={() => void ausfuehren("freigegeben")}>
                     Ja, so rechnen wir ab jetzt
                   </Knopf>
-                  <button type="button" className={unterstrichen} onClick={() => setAblehnen(true)} disabled={laeuft}>
+                  <button
+                    ref={ablehnenKnopf}
+                    type="button"
+                    className={unterstrichen}
+                    onClick={() => {
+                      setAblehnen(true);
+                      setFokusZiel("begruendung");
+                    }}
+                    disabled={laeuft}
+                  >
                     Ablehnen
                   </button>
                 </>

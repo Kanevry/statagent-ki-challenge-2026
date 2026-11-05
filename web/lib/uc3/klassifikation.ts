@@ -225,10 +225,13 @@ export interface Zuordnungsregel {
 
 export function sqlZuordnungsregel(id: number, regelsatz = "v1"): string {
   return [
-    "SELECT r.name, r.freigegeben_von, r.freigegeben_am, q.merkmal, q.version, q.geliefert, q.code",
+    "SELECT r.name, r.freigegeben_von, r.freigegeben_am,",
+    "       count(DISTINCT q.geliefert) AS gelieferte_codes,",
+    "       string_agg(DISTINCT q.merkmal || ' ' || q.code, ', ') AS ziele,",
+    "       string_agg(DISTINCT q.version, ', ') AS fassungen",
     "FROM stat.quellzuordnung q JOIN meta.regel r ON r.id = q.regel_id",
     `WHERE q.regelsatz = ${literal(regelsatz)} AND q.regel_id = ${literal(id)}`,
-    "ORDER BY q.merkmal, q.version, q.geliefert;",
+    "GROUP BY r.name, r.freigegeben_von, r.freigegeben_am;",
   ].join("\n");
 }
 

@@ -56,6 +56,9 @@ export default async function Monatslaeufe() {
           {`Ende ${monatName(letzter.lieferung)} gab es ${formatZahl(letzter.gezaehlt)} Beschäftigungsverhältnisse.`}
         </Ueberschrift>
         <HerkunftChip {...bestandBeleg(letzter)} />
+        <Fliesstext ton="gedaempft">
+          Ein Programm prüft und zählt die Beschäftigtenstatistik. KI-Helfer schlagen Regeln vor, ein Mensch gibt sie frei.
+        </Fliesstext>
         <Fliesstext>
           {`${monate.length} Monate von ${monatName(erster.lieferung)} bis ${monatName(letzter.lieferung)} sind gerechnet. `}
           {angehalten.length === 0

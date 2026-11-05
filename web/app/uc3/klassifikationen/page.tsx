@@ -45,7 +45,7 @@ function Regelpunkt({ satz, name, status, children }: { satz: string; name?: str
       <p className="max-w-3xl font-sans text-16 text-ink">{satz}</p>
       {(name || status) && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          {name && <span className="font-mono text-12 text-slate">{`Regel ${name}`}</span>}
+          {name && <span className="break-all font-mono text-12 text-slate">{`Regel ${name}`}</span>}
           {status}
         </div>
       )}
@@ -127,7 +127,7 @@ export default async function Klassifikationen() {
         <Fliesstext className="max-w-3xl">
           {umsteiger2025 === 0
             ? "In der Datenbank liegt noch kein Umsteigeschlüssel von ÖNACE 2008 auf 2025. Deshalb rechnen wir Branchenzahlen nicht um: Über den Jahreswechsel vergleichen wir nur die Summe, die Bundesländer und das Geschlecht."
-            : "Über den Jahreswechsel vergleichen wir Branchen nur mit dem Umsteigeschlüssel; die Summe, die Bundesländer und das Geschlecht bleiben direkt vergleichbar."}
+            : "Über den Jahreswechsel vergleichen wir Branchen nur mit dem Umsteigeschlüssel. Die Summe, die Bundesländer und das Geschlecht bleiben direkt vergleichbar."}
         </Fliesstext>
         <div className="flex flex-wrap gap-2">
           <HerkunftChip quelle="stat.klass_oenace" sql={sqlAbschnitte()} />
@@ -162,7 +162,7 @@ export default async function Klassifikationen() {
                     <Fliesstext groesse={14} ton="gedaempft" className="max-w-3xl">
                       {`Laut Umsteigeschlüssel von ÖNACE 2003 auf 2008 gehen ${zahl2003.zusammengelegt} dieser Codes ganz in C auf.${
                         aufgeteilt2003.length > 0
-                          ? ` ${aufgeteilt2003.map((w) => `${w.codeAlt} ist auf ${w.ziele.join(" und ")} aufgeteilt`).join(", ")}; wir zählen ${aufgeteilt2003.length === 1 ? "ihn" : "sie"} nach der Mehrheit unter C.`
+                          ? ` ${aufgeteilt2003.map((w) => `${w.codeAlt} ist auf ${w.ziele.join(" und ")} aufgeteilt`).join(", ")}. Wir zählen ${aufgeteilt2003.length === 1 ? "ihn" : "sie"} nach der Mehrheit unter C.`
                           : ""
                       }`}
                     </Fliesstext>
@@ -172,7 +172,7 @@ export default async function Klassifikationen() {
             </Regelpunkt>
           ))}
           <Regelpunkt
-            satz={`Die ${qZahlen.qualifikationen} gelieferten Qualifikationen fassen wir zu ${qZahlen.kategorien} Beschäftigungskategorien zusammen; ein freier Dienstvertrag zählt zu seiner Kategorie.`}
+            satz={`Die ${qZahlen.qualifikationen} gelieferten Qualifikationen fassen wir zu ${qZahlen.kategorien} Beschäftigungskategorien zusammen. Ein freier Dienstvertrag zählt zu seiner Kategorie.`}
             status={
               <span className="font-sans text-12 text-slate">So steht es in der Liste der Qualifikationen.</span>
             }

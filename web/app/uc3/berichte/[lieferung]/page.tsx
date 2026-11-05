@@ -20,6 +20,7 @@ import { bestandBeleg, laufBeleg } from "@/lib/uc3/beleg";
 import { leerSatz } from "@/lib/uc3/db";
 import { Fachbegriff } from "@/lib/uc3/fachbegriff";
 import { abrechnung } from "@/lib/uc3/laeufe";
+import { aufzaehlen, wartetSatz } from "@/lib/uc3/lauf-detail";
 import { istMonat, monatName, stichtag } from "@/lib/uc3/monat";
 import { berichtPfad, laufPfad } from "@/lib/uc3/navigation";
 import { MonatsStatus } from "../../_teile/monatstabelle";
@@ -94,7 +95,7 @@ export default async function Bericht({ params }: Props) {
           {titel}
         </Fliesstext>
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
-          {hauptsatz(lieferung, auffaelligkeiten.length, nichtErklaerbar)}
+          {hauptsatz(lieferung, auffaelligkeiten)}
         </Ueberschrift>
         <HerkunftChip {...laufBeleg(lauf, { quelle: "meta.pruefung_treffer", sql: sqlAuffaelligkeiten(lauf) })} />
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -146,13 +147,27 @@ export default async function Bericht({ params }: Props) {
   );
 }
 
-function hauptsatz(lieferung: string, alle: number, nicht: number): string {
+function hauptsatz(lieferung: string, liste: readonly Auffaelligkeit[]): string {
   const m = monatName(lieferung);
+  const alle = liste.length;
+  const nicht = liste.filter((a) => a.einstufung.code === "nicht-erklaerbar");
+  const nrn = [...new Set(nicht.flatMap((a) => a.offeneRueckfragen))].sort();
+  const ohne = nicht.filter((a) => a.offeneRueckfragen.length === 0).length;
+  const wartend = nicht.length - ohne;
   if (alle === 0) return `Im ${m} hat keine Prüfung etwas gefunden.`;
-  if (nicht === 0) return `Im ${m} fielen ${mehrzahl(alle, "Sache", "Dinge")} auf, ${alle === 1 ? "sie ist" : "alle sind"} erklärt.`;
-  return `Im ${m} fielen ${mehrzahl(alle, "Sache", "Dinge")} auf; ${formatZahl(nicht)} davon ${
-    nicht === 1 ? "ist" : "sind"
-  } nicht erklärbar und ${nicht === 1 ? "geht" : "gehen"} an die Fachabteilung.`;
+  const kopf = `Im ${m} ${alle === 1 ? "gab es eine Auffälligkeit" : `gab es ${formatZahl(alle)} Auffälligkeiten`}`;
+  if (nicht.length === 0) return `${kopf}, ${alle === 1 ? "sie ist" : "alle sind"} erklärt.`;
+  const erklaert = alle - nicht.length;
+  const teile = [
+    ...(wartend > 0
+      ? [`${wartend === 1 ? "eine wartet" : `${formatZahl(wartend)} warten`} auf die Antwort der Fachabteilung (${aufzaehlen(nrn)})`]
+      : []),
+    ...(ohne > 0 ? [`${ohne === 1 ? "eine ist" : `${formatZahl(ohne)} sind`} noch nicht erklärbar`] : []),
+  ];
+  return `${kopf}. ${erklaert > 0 ? `${formatZahl(erklaert)} ${erklaert === 1 ? "ist" : "sind"} erklärt, ` : ""}${aufzaehlen(teile)}.`.replace(
+    /\. ([a-zäöü])/,
+    (_, c: string) => `. ${c.toUpperCase()}`,
+  );
 }
 
 function Abschnitt({ nr, name, titel, children }: { nr: number; name: string; titel: string; children: ReactNode }) {
@@ -219,7 +234,7 @@ function UeberblickAbschnitt({ b }: { b: Qualitaetsbericht }) {
         </div>
       ) : (
         <Fliesstext groesse={14} ton="gedaempft">
-          Für den Vormonat gibt es keinen Lauf; ein Vergleich ist nicht möglich.
+          Für den Vormonat gibt es keinen Lauf, deshalb fehlt der Vergleich.
         </Fliesstext>
       )}
     </Abschnitt>
@@ -227,7 +242,8 @@ function UeberblickAbschnitt({ b }: { b: Qualitaetsbericht }) {
 }
 
 function Einstufung({ a }: { a: Auffaelligkeit }) {
-  return <Status art={a.einstufung.art}>{a.einstufung.wort}</Status>;
+  const wartet = a.einstufung.code === "nicht-erklaerbar" ? wartetSatz(a.offeneRueckfragen) : null;
+  return <Status art={wartet ? "warnung" : a.einstufung.art}>{wartet ? `${a.einstufung.wort}, ${wartet}` : a.einstufung.wort}</Status>;
 }
 
 function Pruefabfrage({ a }: { a: Auffaelligkeit }) {
@@ -249,7 +265,7 @@ function AuffaelligkeitenAbschnitt({ b }: { b: Qualitaetsbericht }) {
       ? b.pruefungenGelaufen === 0
         ? "Für diesen Lauf liegen keine Prüfergebnisse vor."
         : `Keine von ${formatZahl(b.pruefungenGelaufen)} Prüfungen hat in diesem Monat etwas gefunden.`
-      : `${mehrzahl(liste.length, "Prüfung hat", "Prüfungen haben")} etwas gefunden; jede Auffälligkeit hat eine Einstufung.`;
+      : `${mehrzahl(liste.length, "Prüfung hat", "Prüfungen haben")} etwas gefunden, jede Auffälligkeit ist eingestuft.`;
   return (
     <Abschnitt nr={2} name="Auffälligkeiten" titel={titel}>
       <HerkunftChip {...laufBeleg(b.lauf, { quelle: "meta.pruefung_treffer", sql: sqlAuffaelligkeiten(b.lauf) })} />
@@ -257,7 +273,7 @@ function AuffaelligkeitenAbschnitt({ b }: { b: Qualitaetsbericht }) {
         <>
           <Fliesstext groesse={14} ton="gedaempft">
             Erklärt, plausibel: eine echte Entwicklung. Erklärt, Datenproblem: die Ursache liegt in den Daten, die
-            Maßnahme ist umgesetzt. Nicht erklärbar: geht als Rückfrage an die Fachabteilung.
+            Maßnahme ist umgesetzt. Nicht erklärbar: Das Programm rät nicht, die Fachabteilung bekommt eine Rückfrage.
           </Fliesstext>
           <table className="hidden w-full border-collapse md:table">
             <caption className="sr-only">Auffälligkeiten mit Umfang, Einstufung, Maßnahme und Rückfrage</caption>
@@ -297,7 +313,9 @@ function AuffaelligkeitenAbschnitt({ b }: { b: Qualitaetsbericht }) {
                     <Einstufung a={a} />
                     {a.anhalten && <span className="mt-1 block font-sans text-12 text-slate">hält den Monat an</span>}
                   </td>
-                  <td className={zelle}>{a.massnahme}</td>
+                  <td className={zelle} title={a.massnahmeRoh ?? undefined}>
+                    {a.massnahme}
+                  </td>
                   <td className={`${zelle} pr-0 font-mono`}>{a.rueckfragen.join(", ")}</td>
                 </tr>
               ))}
@@ -331,7 +349,7 @@ function RueckfragenAbschnitt({ b }: { b: Qualitaetsbericht }) {
   const titel =
     liste.length === 0
       ? "Für diesen Monat gibt es keine Rückfrage an die Fachabteilung."
-      : `${mehrzahl(liste.length, "Rückfrage", "Rückfragen")} an die Fachabteilung ${liste.length === 1 ? "betrifft" : "betreffen"} diesen Monat; ${
+      : `${mehrzahl(liste.length, "Rückfrage", "Rückfragen")} an die Fachabteilung ${liste.length === 1 ? "betrifft" : "betreffen"} diesen Monat, ${
           offen === 0
             ? "alle sind beantwortet"
             : offen === liste.length
@@ -419,7 +437,7 @@ function RevisionAbschnitt({ b }: { b: Qualitaetsbericht }) {
   const { revision: zeilen, revisionGeprueft } = b;
   const titel =
     zeilen.length > 0
-      ? `Für ${mehrzahl(zeilen.length, "früheren Monat", "frühere Monate")} zeigt diese Lieferung andere Zahlen; die schon gezeigten Zahlen bleiben stehen.`
+      ? `Für ${mehrzahl(zeilen.length, "früheren Monat", "frühere Monate")} zeigt diese Lieferung andere Zahlen, die schon gezeigten Zahlen bleiben stehen.`
       : revisionGeprueft > 0
         ? `Kein Revisionsbedarf: ${mehrzahl(revisionGeprueft, "geprüfter Vormonat stimmt", "geprüfte Vormonate stimmen")} mit dieser Lieferung überein.`
         : "Für diesen Monat gibt es keinen Abgleich mit früheren Monaten.";

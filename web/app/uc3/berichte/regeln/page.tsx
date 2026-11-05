@@ -56,7 +56,7 @@ export default async function Regeln() {
     <>
       <header className="flex max-w-4xl flex-col gap-4">
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
-          {`${formatZahl(regeln.length)} Regeln bestimmen, wie gelesen, zugeordnet, gezählt und geprüft wird; ${freigabeText}.`}
+          {`${formatZahl(regeln.length)} Regeln bestimmen, wie gelesen, zugeordnet, gezählt und geprüft wird, ${freigabeText}.`}
         </Ueberschrift>
         <HerkunftChip quelle="meta.regel" regelstand={`Regelsatz ${REGELSATZ}`} sql={sqlRegeln(REGELSATZ)} />
         <Fliesstext>
@@ -93,7 +93,7 @@ export default async function Regeln() {
             <HerkunftChip quelle="meta.regel" regelstand={`Regelsatz ${REGELSATZ}`} sql={sqlRegeln(REGELSATZ)} />
             <ul className="flex flex-col">
               {gruppe.map((r) => (
-                <li key={r.id} className="flex flex-col gap-2 border-b border-line py-4" data-regel={r.name}>
+                <li key={r.id} id={r.name} className="flex scroll-mt-24 flex-col gap-2 border-b border-line py-4 target:bg-paper" data-regel={r.name}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <Fliesstext className="max-w-3xl">{r.beschreibung}</Fliesstext>
                     <Status art={r.freigegebenVon ? "ok" : "warnung"}>

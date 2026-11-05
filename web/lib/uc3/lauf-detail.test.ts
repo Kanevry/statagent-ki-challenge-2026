@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   abrechnungSatz,
   bestandSatz,
+  einstufungStatus,
   haltSatz,
   haltTreffer,
+  massnahmeSatz,
   revisionSatz,
   sortiereTreffer,
   trefferTitel,
@@ -93,5 +95,22 @@ describe("Lauf-Detail: Auffälligkeiten", () => {
     expect(trefferTitel(treffer({ satz: "In {monat} fehlen {anzahl} ({umfang}).", anzahl: 1234, umfang: "x" }), "2025-10")).toBe(
       "In Oktober 2025 fehlen 1.234 (x).",
     );
+  });
+});
+
+describe("massnahmeSatz und einstufungStatus", () => {
+  // Fehler: eine Regel ohne eigenen Satz verliert ihre Maßnahme oder zeigt den Pfeil des Rohtexts.
+  it("fällt bei unbekannter Regel auf den Rohtext als Satz zurück", () => {
+    const t = { name: "P99_neu", massnahme: "→ C (Umsteiger)", einstufung: null, anhalten: false };
+    expect(massnahmeSatz(t)).toBe("Zugeordnet zu C (Umsteiger)");
+  });
+
+  // Fehler: eine nicht erklärbare Auffälligkeit mit offener Rückfrage liest sich als Alarm ohne Grund.
+  it("nennt die offene Rückfrage bei nicht erklärbar", () => {
+    expect(einstufungStatus("nicht-erklaerbar", ["R8"])).toEqual({
+      art: "warnung",
+      wort: "nicht erklärbar, wartet auf Antwort der Fachabteilung (R8)",
+    });
+    expect(einstufungStatus("nicht-erklaerbar", []).art).toBe("fehler");
   });
 });
