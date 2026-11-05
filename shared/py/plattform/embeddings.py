@@ -28,7 +28,7 @@ Umgebung (falsche Werte sind ein ``ValueError`` vor dem Laden):
 
 CLI: ``uv run python -m plattform.embeddings laden`` holt die Revision in den HF-Cache;
 ``uv run python -m plattform.embeddings bench --n 200`` misst Ladezeit, Dimension, Durchsatz und
-Spitzenspeicher (auch für einen langen Text) und trägt das Ergebnis in ``docs/models.md`` ein (Abschnitt
+Speicher (auch für einen langen Text) und trägt das Ergebnis in ``docs/models.md`` ein (Abschnitt
 „Embeddings“).
 """
 
@@ -64,6 +64,8 @@ MODELL_STANDARD = "google/embeddinggemma-2"
 REVISION_STANDARD = "f9972ac22e696a105c482202646979e33e4b5a1e"
 #: Nur dieses Modell ist vereinbart (#67); ein zweites hieße andere Vektoren in denselben Tabellen.
 ERLAUBTE_MODELLE = (MODELL_STANDARD,)
+#: Nur gemessene, feste Revisionen (40 Hex-Zeichen); ``main`` zeigte still auf den neuesten Stand.
+ERLAUBTE_REVISIONEN = (REVISION_STANDARD,)
 #: Kontextfenster laut Modellkarte (Token je Text), Obergrenze für ``EMBEDDINGS_MAX_TOKEN``.
 KONTEXT = 8192
 #: Standard für ``EMBEDDINGS_MAX_TOKEN``. Der Speicher je Vorwärtslauf wächst mit Stapel × Token;
@@ -142,7 +144,13 @@ def modellname() -> str:
 
 
 def _revision_wunsch() -> str:
-    return os.environ.get("EMBEDDINGS_REVISION", "").strip() or REVISION_STANDARD
+    revision = os.environ.get("EMBEDDINGS_REVISION", "").strip() or REVISION_STANDARD
+    if revision not in ERLAUBTE_REVISIONEN:
+        raise ValueError(
+            f"EMBEDDINGS_REVISION={revision!r} ist nicht gemessen; erlaubt: {', '.join(ERLAUBTE_REVISIONEN)} "
+            "(neue Revision nur mit neuer Messung, #67)"
+        )
+    return revision
 
 
 def _geraet_wunsch() -> str:
@@ -279,6 +287,12 @@ def _laden(einstellung: _Einstellung) -> _Geladen:
         if _GELADEN is not None and _GELADEN.schluessel == einstellung.schluessel:
             return _GELADEN
         _bibliothek("sentence_transformers")  # fehlt das Extra: abbrechen, bevor der Cache berührt wird
+        if _GELADEN is not None:
+            # das alte Modell zuerst freigeben, sonst liegen beim Wechsel kurz zwei Modelle im Speicher
+            altes_geraet = _GELADEN.geraet
+            _GELADEN = None
+            gc.collect()
+            _cache_leeren(altes_geraet)
         start = time.perf_counter()
         pfad = _snapshot(einstellung.modell, einstellung.revision)
         modell = _lade_nur_text(pfad, einstellung.geraet)
@@ -469,7 +483,9 @@ def _rss_mb(ru_maxrss: int, betriebssystem: str) -> float:
 
 def _spitzenspeicher(geraet: str) -> str:
     if geraet == "mps":
-        return f"{_bibliothek('torch').mps.driver_allocated_memory() / 2**20:.0f} MiB (mps-Treiber)"
+        # torch bietet für mps keine Spitze an: das ist die Belegung des Treibers nach dem Lauf
+        belegt = _bibliothek("torch").mps.driver_allocated_memory() / 2**20
+        return f"{belegt:.0f} MiB (mps-Treiber nach dem Lauf)"
     if geraet == "cuda":
         return f"{_bibliothek('torch').cuda.max_memory_allocated() / 2**20:.0f} MiB (cuda-Spitze)"
     resource = importlib.import_module("resource")  # nur Unix; der Bench läuft auf macOS und Linux
@@ -478,8 +494,20 @@ def _spitzenspeicher(geraet: str) -> str:
 
 def _messen(n: int, geraet: str | None) -> list[dict[str, str]]:
     """Zwei Zeilen je Gerät: ``n`` kurze Sätze und ein langer Text über ``EMBEDDINGS_MAX_TOKEN`` Token."""
+    vorher = os.environ.get("EMBEDDINGS_GERAET")
     if geraet:
         os.environ["EMBEDDINGS_GERAET"] = geraet
+    try:
+        return _messen_mit_geraet(n)
+    finally:
+        # der Bench ändert die Umgebung des Prozesses nicht dauerhaft
+        if vorher is None:
+            os.environ.pop("EMBEDDINGS_GERAET", None)
+        else:
+            os.environ["EMBEDDINGS_GERAET"] = vorher
+
+
+def _messen_mit_geraet(n: int) -> list[dict[str, str]]:
     entladen()
     for name in ("torch", "sentence_transformers", _PROZESSOR_MODUL):  # Importzeit nicht mitmessen
         _bibliothek(name)
@@ -546,7 +574,7 @@ def _bench(n: int, geraete: list[str | None], host: str, datei: Path) -> int:
     zeilen = [z for g in geraete for z in _messen(n, g)]
     kopf = (
         "| Zeit | Host | Modell | Revision | Gerät | Eingabe | Stapel | Max. Token | Ladezeit | Dimension"
-        " | n | Dauer | Texte/s | Spitzenspeicher |\n"
+        " | n | Dauer | Texte/s | Speicher |\n"
         "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n"
     )
     tabelle = "".join(
