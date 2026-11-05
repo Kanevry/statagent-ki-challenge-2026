@@ -26,6 +26,9 @@
   --color-slate: #475256;
   --color-line: #dce3df;
   --color-gruen: #007a50; /* Beleg, Hauptaktion */
+  /* Abgeleitet, nicht aus Pen: Fläche der Hauptaktion beim Überfahren (Review !45). Weiß darauf 7,0:1;
+     Grün mit 90 % Deckkraft ergab nur 4,47:1. In tests/tokens.test.ts als abgeleitet geführt. */
+  --color-gruen-dunkel: #006643;
   --color-gruen-bg: #ddf5ea;
   --color-mint: #3ddc97;
   --color-navy: #001e50;
