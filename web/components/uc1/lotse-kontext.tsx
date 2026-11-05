@@ -123,7 +123,7 @@ async function senden(url: string, body: unknown, fallback: string): Promise<{ d
     daten && typeof daten === "object" && name in daten ? (daten as Record<string, unknown>)[name] : undefined;
   const meldung = typeof feld("fehler") === "string" ? (feld("fehler") as string) : fallback;
   // Sperrt ein Proxy POST (405) ohne JSON, gilt dasselbe wie in der Online-Demo.
-  return { meldung, replay: feld("replay") === true || antwort.status === 405 };
+  return { meldung, replay: feld("replay") === true || antwort.status === 405 || antwort.status === 403 };
 }
 
 async function frageSenden(

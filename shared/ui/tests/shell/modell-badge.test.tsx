@@ -97,13 +97,12 @@ describe("ModellBadge lädt periodisch neu", () => {
 
 describe("ModellBadge nach Frames CKCV4 und nas8Y", () => {
   // Fängt ab: ein Auf-/Ab-Symbol, das eine Auswahl verspricht, die es nicht gibt.
-  it("ist eine violette Pille mit Punkt und ohne Wechsel-Symbol, der Wert steht in Mono", async () => {
+  it("ist eine ruhige Zeile ohne Fläche, Punkt oder Wechsel-Symbol (UI-Regie: keine Pillen, eine Akzentfarbe)", async () => {
     zeige({ ...gewaehlt, zuletzt: null });
-    const wert = await screen.findByText("azure · gpt-5");
-    expect(wert.className).toContain("font-mono");
+    await screen.findByText("azure · gpt-5");
     const badge = screen.getByTestId("modell-badge");
-    expect(badge.className).toContain("rounded-full");
-    expect(badge.className).toContain("bg-violett-bg");
+    expect(badge.className).toContain("text-slate");
+    expect(badge.className).not.toMatch(/bg-|rounded-full|violett/);
     expect(badge.className).not.toContain("border-l-2");
     expect(badge.querySelector("[data-piktogramm]")).toBeNull();
   });
@@ -134,18 +133,17 @@ describe("ModellBadge nach Frames CKCV4 und nas8Y", () => {
   // Fängt ab: „mock · mock“ im Badge, das niemand ohne Fachwissen versteht.
   it("sagt im Mock-Betrieb in Alltagssprache, dass keine KI angeschlossen ist", async () => {
     zeige({ provider: "mock", modell: "mock", version: null, quelle: "env", zuletzt: null });
-    await screen.findByText("Testbetrieb: keine KI angeschlossen");
-    expect(screen.getByTestId("modell-badge").textContent).toBe("Testbetrieb: keine KI angeschlossen");
+    await screen.findByText("Ohne Sprachmodell");
+    expect(screen.getByTestId("modell-badge").textContent).toBe("Ohne Sprachmodell");
     expect(screen.queryByText(/mock/)).toBeNull();
   });
 
-  it("zeigt den Fehlerzustand als Warn-Chip mit Symbol und Wort", async () => {
+  it("zeigt den Fehlerzustand als ruhige Zeile mit Wort, ohne Alarmfläche", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 500 })));
     render(<ModellBadge />);
     const chip = await screen.findByText("Modell nicht erreichbar").then((t) => t.closest("[data-testid=modell-badge]")!);
     expect(chip.textContent).toBe("Modell nicht erreichbar");
-    expect(chip.className).toContain("bg-warn-bg");
-    expect(chip.querySelector("[data-status-symbol=warnung]")).not.toBeNull();
+    expect(chip.className).not.toContain("bg-warn-bg");
   });
 });
 

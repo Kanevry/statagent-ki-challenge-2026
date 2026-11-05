@@ -198,13 +198,63 @@ def zitate(zug: dict[str, Any], belege: Sequence[Beleg], n: int = ZITAT_WOERTER)
             for kette in _ketten(_woerter(feld), n):
                 treffer = next((bid for bid, menge in quellen if kette in menge), None)
                 if treffer is not None:
-                    befunde.append(
-                        Befund(
-                            "zitat", {"thema": t["thema"], "beleg_id": treffer, "woerter": " ".join(kette)}
-                        )
-                    )
+                    # Ohne die übernommenen Wörter (#137): das Ereignis geht über SSE und Bericht nach außen.
+                    befunde.append(Befund("zitat", {"thema": t["thema"], "beleg_id": treffer, "wortzahl": n}))
                     break
     return befunde
+
+
+ZITAT_ERSATZ = "[Zitat]"
+
+
+def sperre_zitat_text(text: str, ketten: Collection[tuple[str, ...]], n: int = ZITAT_WOERTER) -> str:
+    """Jede Stelle aus mindestens `n` Wörtern, die wörtlich in `ketten` steht, wird zu „[Zitat]“.
+
+    Überlappende und aneinanderstoßende Treffer werden zu einer Stelle zusammengefasst; der Text zwischen
+    erstem und letztem Wort der Stelle fällt weg, Satzzeichen davor und danach bleiben.
+    """
+    if not ketten:
+        return text
+    woerter = list(_WORT.finditer(text))
+    gefaltet = [w.group(0).casefold() for w in woerter]
+    stellen: list[list[int]] = []
+    for i in range(len(woerter) - n + 1):
+        if tuple(gefaltet[i : i + n]) not in ketten:
+            continue
+        if stellen and i <= stellen[-1][1] + 1:
+            stellen[-1][1] = i + n - 1
+        else:
+            stellen.append([i, i + n - 1])
+    for erstes, letztes in reversed(stellen):
+        text = text[: woerter[erstes].start()] + ZITAT_ERSATZ + text[woerter[letztes].end() :]
+    return text
+
+
+def sperre_zitate(zug: dict[str, Any], belege: Sequence[Beleg], n: int = ZITAT_WOERTER) -> dict[str, Any]:
+    """Der Zug mit gesperrten Übernahmen (#137): Begründung, Bedingungen und Zugeständnis je Thema.
+
+    Gleiche Felder und gleicher Bezug (`text_modell`) wie `zitate`; das Ereignis `zitat` bleibt als Hinweis,
+    die Übernahme selbst wird nicht mehr gespeichert oder veröffentlicht.
+    """
+    ketten: set[tuple[str, ...]] = set()
+    for b in belege:
+        ketten.update(_ketten(_woerter(b.text), n))
+    if not ketten:
+        return zug
+    themen = []
+    for t in zug["themen"]:
+        zugestaendnis = t["zugestaendnis"]
+        themen.append(
+            {
+                **t,
+                "begruendung": sperre_zitat_text(t["begruendung"], ketten, n),
+                "bedingungen": [sperre_zitat_text(b, ketten, n) for b in t["bedingungen"]],
+                "zugestaendnis": (
+                    sperre_zitat_text(zugestaendnis, ketten, n) if zugestaendnis else zugestaendnis
+                ),
+            }
+        )
+    return {**zug, "themen": themen}
 
 
 def _zahl_oder_none(wert: object) -> float | None:

@@ -11,13 +11,13 @@ function zeige(pfad: string) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("AppHeader", () => {
-  it("rendert sechs Tabs aus der Registry in fester Reihenfolge, UC3 trägt „bewertet“", () => {
+  it("rendert sechs Tabs aus der Registry in fester Reihenfolge, ohne Abzeichen", () => {
     zeige("/uc3");
     const links = within(screen.getByRole("navigation", { name: "Bereiche" })).getAllByRole("link");
     expect(links.map((l) => l.getAttribute("href"))).toEqual(["/", "/uc3", "/uc1", "/uc2", "/uc4", "/praesentation"]);
-    expect(links[1]?.textContent).toBe("UC3 · StatAgentbewertet");
+    expect(links[1]?.textContent).toBe("UC3 · StatAgent");
     expect(links[4]?.textContent).toBe("UC4 · Einstieg");
-    expect(links.filter((l) => l.textContent?.includes("bewertet"))).toHaveLength(1);
+    expect(links.filter((l) => l.textContent?.includes("bewertet"))).toHaveLength(0);
   });
 
   it("markiert genau den Tab der Route mit aria-current, auch auf Unterseiten", () => {
@@ -40,23 +40,15 @@ describe("AppHeader", () => {
   });
 });
 
-describe("AppHeader nach Frame nas8Y", () => {
-  it("füllt den aktiven Tab mit Grün und weißer Fettschrift, die anderen bleiben ohne Fläche", () => {
+describe("AppHeader, ruhige Reiter (UI-Regie)", () => {
+  it("unterstreicht den aktiven Tab in Grün, ohne Fläche; die anderen bleiben ohne Unterstrich", () => {
     zeige("/uc3");
     const [uebersicht, uc3] = screen.getAllByRole("link");
-    expect(uc3?.className).toContain("bg-gruen");
-    expect(uc3?.className).toContain("text-white");
-    expect(uc3?.className).toContain("font-bold");
-    expect(uebersicht?.className).not.toContain("bg-gruen");
-    expect(uebersicht?.className).toContain("rounded-lg");
+    expect(uc3?.className).toContain("border-gruen");
+    expect(uc3?.className).not.toContain("bg-gruen");
+    expect(uebersicht?.className).toContain("border-transparent");
   });
 
-  it("setzt den Chip „bewertet“ in Mint auf UC3", () => {
-    zeige("/uc1");
-    const chip = screen.getByText("bewertet");
-    expect(chip.className).toContain("bg-mint");
-    expect(chip.closest("a")?.getAttribute("data-tab")).toBe("uc3");
-  });
 
   it("zeigt links die Marke mit zweiter Zeile und rechts den Protokoll-Knopf mit Symbol", () => {
     zeige("/uc3");
@@ -64,7 +56,7 @@ describe("AppHeader nach Frame nas8Y", () => {
     expect(kopf.querySelector("[data-marke]")?.textContent).toBe("StatAgentvon Bernhard Götzendorfer · Team OneShotAndy");
     const knopf = screen.getByRole("button", { name: "Protokoll" });
     expect(knopf.querySelector('[data-piktogramm="protokoll"]')).not.toBeNull();
-    expect(knopf.className).toContain("border-line");
+    expect(knopf.className).not.toContain("border-line");
   });
 
   it("nennt die Marke nur auf UC3 StatAgent, sonst OneShotAndy", () => {
