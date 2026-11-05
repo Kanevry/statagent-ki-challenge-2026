@@ -61,9 +61,9 @@ Quelle. Der Voice-Baustein dient zugleich UC3 („mit den Daten sprechen“).
   Gesprächsangaben; offene Pflichtfelder, Unterlagenliste und zuständige Stelle mit Quelle. Nichts wird eingereicht.
 - [ ] **Dokument-Upload:** Entlassungsbrief (PDF) lokal lesen, nur ausdrücklich dokumentierte Empfehlungen wörtlich
   zitieren („In Ihrem Dokument steht: …“) und in einen Ablauf überführen (Reha → Stelle → Antrag).
-- [ ] **Voice-Agent als gemeinsamer Baustein `shared/voice`** auf Basis everlast (Owner-Freigabe 12:4x über Lead):
-  Vapi-Assistent mit Custom LLM auf den Lotse-Endpunkt, Orb, Antwortzeit-Uhr, Transkript mit Quellen, Text-Fallback;
-  nutzbar für UC3.
+- [ ] **Voice-Anbindung UC1** an den gemeinsamen Baustein von E0 (`plattform.voice.erstelle_router(antwort)`,
+  `@kic/ui` `VoiceKnopf`; Entscheid app-c3 in #21 note_269372) auf Basis everlast (Owner-Freigabe 12:4x über Lead):
+  UC1-Antwortfunktion, Vapi-Assistent UC1, Belege je Call, Bindung Call → Sitzung, Text-Fallback.
 - [ ] **UC1-Seite im Dashboard** nach den Pen-Frames der UI-Session (e5-praesentation-05), mit E0-Bausteinen aus `shared/ui`.
 - [ ] **Messung:** Lotse-Set (12 Fragen aus dem Golden Set, 2 Szenarien, 8 Grenzfälle) mit Soll je Fall, eingefroren
   vor dem ersten `kern.py`-Commit, `lotse eval`, Ergebnis als Tabelle in `docs/plan/uc1/messung.md`. Honorarordnungen
@@ -242,7 +242,8 @@ Oracle: Playwright-Durchlauf mit Screenshots; axe ohne critical/serious; Verglei
 ## 4. Technical Notes
 
 ### Affected Files
-- `uc1/` — Python-Paket `lotse` (uv-Workspace-Mitglied unter der Wurzel-`pyproject.toml` von E0, damit test-, lint- und
+- `uc1/` — Python-Paket `uc1` (CLI-Einstieg `lotse`, Dienst `uc1.api:app` auf Port 8101; Lanes laut E0: `uc1/**`,
+  `web/app/uc1/**`, `web/app/api/uc1/**`, `web/components/uc1/**`) (uv-Workspace-Mitglied unter der Wurzel-`pyproject.toml` von E0, damit test-, lint- und
   typecheck-command und der CI-Job `python` es erfassen; typecheck-command um `uc1` erweitern):
   `ingest.py` (SozDok-XML, PDF seitenweise, EKO Latin-1), `suche.py`, `kern.py` (Gesprächszustand, Rückfragen,
   Bündel, Grenzen), `antrag.py` (pypdf), `upload.py`, `dienst.py` (HTTP: `/frage`, `/antrag`, `/upload`,
@@ -250,9 +251,12 @@ Oracle: Playwright-Durchlauf mit Screenshots; axe ohne critical/serious; Verglei
 - `uc1/db/` — DDL `lotse.dokument`, `lotse.abschnitt` (tsvector `german`), `lotse.ingest_fehler`, `lotse.sitzung`, `lotse.beleg`.
 - `uc1/formulare/*.felder.json` — Feldzuordnung je Formular als Daten.
 - `uc1/eval/lotse-set.yaml` — Lotse-Set mit Soll je Fall.
-- `shared/voice/` — Browser-Komponente (aus everlast: `orb.ts`, `turns.ts`, `hub.css`, Mikrofon-Fehlermeldungen,
-  SDK-Verdrahtung), Assistent-Konfiguration als Code (Einmal-Skript create/update; Rücklese-Diff nur, wenn `sync.ts`/`diff.ts` unverändert passen), Adapter-Vertrag.
-- `web/` (UC1-Bereich, Route laut E0, Annahme `/uc1`) — Seite nach Pen-Frames, Route-Handler als Proxy zum `lotse`-Dienst.
+- `shared/py/plattform/voice` und `shared/ui` `VoiceKnopf` — **gehören E0** (Router `POST /chat/completions`,
+  `POST /vapi/webhook`, Portierung der generischen everlast-Teile, Sprach-Pegel `eE7uh` statt Orb). UC1 liefert nur
+  `antwort(nachrichten, sitzung) -> {text, belege[]}` und die UC1-Assistent-Konfiguration.
+- DB `lotse`: zusätzlich die gemeinsame DDL `meta.protokoll`/`meta.freigabe` von E0, damit `GET /api/uc1/protokoll` liest.
+- `web/app/uc1/` — `layout.tsx` mit `<UcBereich uc="uc1" nav=[…]>`, Eintrag in `shared/ui/src/ucs.ts`, Seite nach Pen-Frames;
+  `web/app/api/uc1/` als Proxy zu `uc1.api:app`.
 - `README.md` (über E6) — „vorab entstanden: everlast-voice-interviewer (Voice-Baustein)“; Grenzen: Sprache läuft über
   Vapi/Deepgram/ElevenLabs in den USA, EU-Weg als Ausblick.
 
@@ -275,14 +279,16 @@ Extensions `unaccent`, `pg_trgm` in `lotse`. Rohdaten bleiben außerhalb des Rep
 
 ### API Changes
 Neu, lokal an 127.0.0.1; nur `/chat/completions` geht über den Tunnel und verlangt `x-vapi-secret`: `lotse`-Dienst `POST /frage`, `POST /antrag/{art}`, `POST /upload`, `POST /chat/completions`
-(Vapi), `GET /belege/{call_id}`. Schnittstellenwunsch an E0 (#21): `shared` stellt `complete(nachrichten, schema=None,
-stream=False)` je `LLM_PROVIDER` bereit; `shared/voice` definiert den Adapter `antwort(nachrichten, sitzung) -> {text, belege[]}`.
+(Vapi), `GET /belege/{call_id}`. Entschieden durch E0 (#21 note_269372): `plattform.llm.complete(nachrichten, schema=None, stream=False,
+provider=None, zweck="")`, Provider azure|claude|mistral|ollama|mock; `plattform.voice.erstelle_router(antwort)` mit
+dem Vertrag `antwort(nachrichten, sitzung) -> {text, belege[]}`. Über die Tunnel-Domain sind nur `/chat/completions`
+und `/vapi/webhook` erreichbar (Middleware nach Host/CF-Header), alles andere 404.
 
 ## 5. Risks & Dependencies
 
 | Risk | Impact | Mitigation | Triage |
 |---|---|---|---|
-| E0 legt `shared/`-Sprache und Header-Route anders fest als angenommen | Umbau Adapter | W0 wartet auf E0-Entscheid; `lotse` kapselt den Modellaufruf in einer Datei | Implement |
+| E0-Bausteine (`plattform.llm`, `plattform.voice`, `@kic/ui`) kommen später als UC1 W1/W2 | UC1 wartet | `mock` und eigene Stubs mit demselben Vertrag, Austausch in einer Datei | Implement |
 | Vapi Custom LLM braucht Streaming und öffentliches HTTPS; Tunnel im Veranstaltungs-WLAN ungemessen | Stimme fällt aus | W0-Spike misst den Weg Ende-zu-Ende; Text-Fallback Pflicht | Experiment |
 | Pause steigt über 2 s (eigener Kern langsamer als gpt-4.1-mini bei Vapi; everlast-Wert vor `waitSeconds` 0,6) | Gespräch zäh | kurzer Sprechtext (2 Sätze), Suche vor Modell, Azure statt claude im Voice-Pfad | Implement |
 | Komprimierte AcroForms (PAL080) haben unklare Feldnamen | Vorausfüllen hakt | W0-Spike zählt Felder mit pypdf, Zuordnung als JSON | Experiment |
