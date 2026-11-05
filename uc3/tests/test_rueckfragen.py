@@ -1,4 +1,4 @@
-"""Rückfragen als Dateien (GitLab #72 AC1): fünf Dateien R1–R5 nach Vorlage, nachgezählt aus der Datenbank."""
+"""Rückfragen als Dateien (GitLab #72 AC1): Dateien R1 bis R9 nach Vorlage, nachgezählt aus der Datenbank."""
 
 from __future__ import annotations
 
@@ -71,9 +71,20 @@ def test_fuenf_rueckfragen_nach_vorlage_mit_nachgezaehlten_beispielen(
 
     assert _beispiele(texte["R5"]) == ["990001", "990002"]
     assert (
-        "| Anzahl betroffener Sätze | 2 (nachgezählt, gilt); Angabe aus der Analyse weicht ab: 388.115"
-        in texte["R5"]
+        "| Anzahl betroffener Sätze | 2 Sätze, mit der Abfrage unten in dieser Datenbank nachgezählt; diese Zahl"
+        " gilt. Unsere Analyse der Lieferungen ergab: 388.115" in texte["R5"]
     )
     assert _beispiele(texte["R3"]) == ["990011", "990012", "990013", "990014"]
     assert _beispiele(texte["R4"]) == []
-    assert "| Anzahl betroffener Sätze | 0 Treffer: in dieser Datenbank nicht reproduziert" in texte["R4"]
+    assert "| Anzahl betroffener Sätze | In dieser Datenbank findet die Abfrage keinen Satz" in texte["R4"]
+
+    # Für Laien lesbar (Owner 05.11.): kein Em-Dash in keiner Datei, „·“ nur in der Kopfzeile der Vorlage,
+    # jede Datei sagt, wie wir bis zur Antwort verfahren, und erklärt die Fachbegriffe.
+    for nr, text in texte.items():
+        assert "—" not in text, nr
+        assert all("·" not in z for z in text.splitlines() if not z.startswith("Team: ")), nr
+        assert "**Unser Vorschlag zur Behandlung:** So machen wir es bis zur Antwort: " in text, nr
+        assert "**Begriffe kurz erklärt**" in text, nr
+    assert "- **Verhältnis:** ein Beschäftigungsverhältnis" in texte["R3"]
+    assert "- **Fortschreiben:**" in texte["R3"]
+    assert "- **Fortschreiben:**" not in texte["R1"]  # nur Begriffe, die im Text vorkommen
