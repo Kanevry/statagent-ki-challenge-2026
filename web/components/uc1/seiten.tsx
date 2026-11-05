@@ -34,8 +34,8 @@ function SituationKurz({ text, aendern, neu }: { text: string; aendern: () => vo
  * bei einer Rückfrage die Rückfrage mit Antwortfeld; bei einer Antwort die Leistungen (B1gvr). Die Situation steht
  * dann nur klein darüber.
  */
-export function StartSeite({ beispiel }: { beispiel: boolean }) {
-  const { verlauf, setEntwurf, neuBeginnen, spielt } = useLotse();
+export function StartSeite({ beispiel, nurAufzeichnung = false }: { beispiel: boolean; nurAufzeichnung?: boolean }) {
+  const { verlauf, setEntwurf, neuBeginnen, spielt, beispielAbspielen } = useLotse();
   // Ändern gilt für genau diesen Verlauf; kommt eine neue Antwort, ist die Eingabe wieder zu.
   const [geaendertBei, setGeaendertBei] = useState<readonly Wechsel[] | null>(null);
   const aendert = geaendertBei === verlauf;
@@ -53,6 +53,22 @@ export function StartSeite({ beispiel }: { beispiel: boolean }) {
     neuBeginnen();
     setGeaendertBei(null);
     requestAnimationFrame(() => document.getElementById(SITUATION_FELD_ID)?.focus());
+  }
+
+  // Online ohne Sprachmodell: ein Satz und eine Hauptaktion, kein Formular, das nur in einer Sperre enden würde.
+  if (nurAufzeichnung && (!letzte || aendert)) {
+    return (
+      <>
+        <BeispielStart aktiv={beispiel} />
+        <Kopf titel="Erzählen Sie, was los ist" unter="Der Lotse erkennt Leistungen der Sozialversicherung, nennt die Quelle und bereitet den Antrag vor." schritt={1} />
+        <div className="flex max-w-3xl flex-col items-start gap-4" data-testid="uc1-nur-aufzeichnung">
+          <Fliesstext>Hier sehen Sie ein aufgezeichnetes Gespräch: „Meine Mutter kommt allein nicht mehr zurecht.“ Eigene Fragen gehen, sobald das Sprachmodell online ist.</Fliesstext>
+          <Knopf className="min-h-11" disabled={spielt} onClick={() => void beispielAbspielen()}>
+            Aufgezeichnetes Gespräch ansehen
+          </Knopf>
+        </div>
+      </>
+    );
   }
 
   if (!letzte || aendert) {
