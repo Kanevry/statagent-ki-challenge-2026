@@ -31,6 +31,10 @@ class Regeln:
     rrf_k: float
     k: int
     institutionsfaktor: float
+    k_je_akteur: int = 8
+    """Belege je Akteur und Runde (`belege_fuer_akteur`)."""
+    rolle_genitiv: tuple[tuple[str, str], ...] = ()
+    """Institutions-ID → Genitivform für die Rolle beim Personenschutz („der Ärztekammer“)."""
 
 
 def _datum(wert: Any) -> date:
@@ -57,6 +61,7 @@ def lade_regeln(pfad: Path | None = None) -> Regeln:
     fusion = str(suche.get("fusion", "rrf"))
     if fusion not in FUSIONEN:
         raise ValueError(f"regeln.yaml: suche.fusion muss einer von {FUSIONEN} sein, nicht {fusion!r}")
+    genitiv: dict[str, Any] = (roh.get("personenschutz") or {}).get("rolle_genitiv") or {}
     return Regeln(
         stichtag_standard=_datum(roh["stichtag_standard"]),
         halbwertszeit_tage=float(roh["halbwertszeit_tage"]),
@@ -71,4 +76,6 @@ def lade_regeln(pfad: Path | None = None) -> Regeln:
         rrf_k=float(suche.get("rrf_k", 60)),
         k=int(suche["k"]),
         institutionsfaktor=float(roh["institutionsfaktor"]),
+        k_je_akteur=int(suche.get("k_je_akteur", suche["k"])),
+        rolle_genitiv=tuple(sorted((str(i), str(g)) for i, g in genitiv.items())),
     )

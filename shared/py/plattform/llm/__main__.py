@@ -1,4 +1,4 @@
-"""CLI: ``uv run python -m plattform.llm status [--json]`` und ``smoke [--provider ...]``.
+"""CLI: ``uv run python -m plattform.llm status [--json]`` (mit Tagesbudget) und ``smoke [--provider ...]``.
 
 ``smoke`` schickt je Provider eine kurze Anfrage ohne Fallback, misst die Dauer, druckt eine Tabelle und
 hängt das Ergebnis mit Zeitstempel an ``docs/models.md`` an. Fehlt ein Schlüssel: „nicht belegt“.
@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 
 from plattform.umgebung import lade_env_local
 
-from .kern import aktives_modell, ausfuehren
+from .kern import aktives_modell, ausfuehren, budget_status
 
 STANDARD_PROVIDER = ("azure", "mistral", "claude")
 SMOKE_NACHRICHTEN = [{"role": "user", "content": "Antworte nur mit dem Wort: bereit"}]
@@ -110,6 +110,7 @@ def main(argv: list[str] | None = None) -> int:
     lade_env_local()
     if args.befehl == "status":
         info = aktives_modell(args.zweck)
+        info["budget"] = budget_status()
         if args.json:
             print(json.dumps(info, ensure_ascii=False))
             return 0
@@ -119,6 +120,9 @@ def main(argv: list[str] | None = None) -> int:
             zuletzt.get("provider") != info["provider"] or (zuletzt.get("fallback_stufe") or 1) > 1
         ):
             zeile += f" (zuletzt {zuletzt.get('provider')}, Stufe {zuletzt.get('fallback_stufe')})"
+        budget = info["budget"]
+        if budget["grenze"] is not None:
+            zeile += f" · Tagesbudget {budget['frei']} von {budget['grenze']} frei"
         print(zeile)
         return 0
     return _smoke(args.provider, args.datei or _repo_wurzel() / "docs" / "models.md")

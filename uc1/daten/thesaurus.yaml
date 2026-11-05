@@ -1,0 +1,73 @@
+# Bürgersprache → Rechtsbegriff für die Anfrage-Erweiterung im Modus `thesaurus` (Issue #31, Review D5c/N5).
+#
+# Quelle der Fachbegriffe: Überschriften (lotse.abschnitt.kontext) im Korpus, geprüft am 2026-11-05 per
+# `kontext ILIKE '%<begriff>%'`, z. B. „ASVG § 144 Anstaltspflege“, „GSVG § 86 Kostenbeteiligung“,
+# „ASVG § 292 … Ausgleichszulage“, „BPGG § 18a … Familienhospizkarenz“, „ASVG § 137 Heilbehelfe“,
+# „ASVG § 153 Zahnbehandlung und Zahnersatz“, „ASVG § 260 Waisenpension“, „ASVG § 162 Wochengeld“.
+# Themen stammen aus dem Dev-Set (review-architektur.md § 4, d01–d12) und aus leistungen.yaml; Fragen des
+# eingefrorenen Lotse-Sets sind KEINE Vorlage.
+#
+# `buerger`: reguläre Ausdrücke (ohne Groß-/Kleinschreibung) auf der Frage; `fach`: angehängte Begriffe.
+# Höchstens 6 Begriffe gehen in die Anfrage (erweiterung.MAX_BEGRIFFE), Reihenfolge = Dateireihenfolge.
+
+eintraege:
+  - buerger: ['spital', 'krankenhaus', 'hospital']
+    fach: [Krankenanstalt, Anstaltspflege]
+  - buerger: ['krankenstand', 'krank ?geschrieben', 'sick leave']
+    fach: [Arbeitsunfähigkeit, Krankengeld]
+  - buerger: ['dazu ?zahlen', 'selbstbehalt', 'zuzahl', 'aufzahl']
+    fach: [Kostenbeteiligung]
+  - buerger: ['zuschlag zur pension', 'pension (?:ist )?(?:so |sehr |zu )?niedrig', 'mindestpension', 'kaum davon leben']
+    fach: [Ausgleichszulage, Richtsatz]
+  - buerger: ['freistell', 'todkrank', 'sterbebegleitung']
+    fach: [Familienhospizkarenz, Pflegekarenzgeld]
+  - buerger: ['weniger arbeiten', 'pflegeteilzeit', 'auszeit.{0,30}pfleg']
+    fach: [Pflegekarenz, Pflegekarenzgeld]
+  - buerger: ['\breha\b', '\brehab\b']
+    fach: [Rehabilitation]
+  - buerger: ['\bkur\b', 'kuraufenthalt']
+    fach: [Festigung der Gesundheit, Rehabilitation]
+  - buerger: ['rollstuhl', 'gehhilfe', 'kr(?:ü|u)cke', 'rollator', 'pflegebett']
+    fach: [Hilfsmittel, körperlichen Gebrechen]
+  - buerger: ['brille', 'einlagen', 'bandage', 'h(?:ö|o)rger(?:ä|a)t']
+    fach: [Heilbehelfe]
+  - buerger: ['zahnprothese', 'gebiss', 'zahnspange', 'zahnkrone', '\bz(?:ä|a)hne\b']
+    fach: [Zahnersatz, Zahnbehandlung]
+  - buerger: ['mann (?:ist )?gestorben', 'ehemann (?:ist )?verstorben', 'witwe', 'frau (?:ist )?gestorben']
+    fach: [Witwenpension, Hinterbliebenenpension]
+  - buerger: ['vater (?:ist )?gestorben', 'mutter (?:ist )?gestorben', 'waise', 'elternteil (?:ist )?gestorben']
+    fach: [Waisenpension]
+  - buerger: ['bei der arbeit verletzt', 'arbeitsunfall', 'unfall (?:in|bei) der arbeit', 'am arbeitsplatz verletzt']
+    fach: [Arbeitsunfall, Versehrtenrente]
+  - buerger: ['\brente\b']
+    fach: [Versehrtenrente]
+  - buerger: ['mitversichert', 'lebensgef(?:ä|a)hrt', 'co-insured']
+    fach: [Anspruchsberechtigung für Angehörige]
+  - buerger: ['pflege zu hause', 'kommt allein nicht', 'allein nicht (?:mehr )?zurecht', 'pflegebed(?:ü|u)rftig']
+    fach: [Pflegegeld, Pflegebedarf]
+  - buerger: ['pensionszeiten', 'versicherungszeiten', 'zeiten sammeln']
+    fach: [Selbstversicherung, Zeiten der Pflege]
+  - buerger: ['schwanger', 'mutterschutz', 'entbindung', 'pregnan']
+    fach: [Wochengeld, Mutterschaft]
+  - buerger: ['kinderbetreuung', 'karenzgeld', 'elternkarenz']
+    fach: [Kinderbetreuungsgeld]
+  - buerger: ['medikament', 'tabletten', 'rezept']
+    fach: [Heilmittel, Rezeptgebühr]
+  - buerger: ['zum arzt', 'arztbesuch', 'beim arzt', 'hausarzt']
+    fach: [Ärztliche Hilfe, Kostenbeteiligung]
+  - buerger: ['rettung', 'krankentransport', 'fahrtkosten', 'taxi']
+    fach: [Transportkosten, Fahrtkosten]
+  - buerger: ['arbeitslos', 'job verloren', 'gek(?:ü|u)ndigt']
+    fach: [Arbeitslosengeld]
+  - buerger: ['in pension gehen', 'pensionsantritt', 'pension beantragen', 'wann kann ich in pension']
+    fach: [Alterspension]
+  - buerger: ['nicht mehr arbeiten k(?:ö|o)nnen', 'kann nicht mehr arbeiten', 'arbeitsunf(?:ä|a)hig auf dauer', 'invalid']
+    fach: [Invaliditätspension]
+  - buerger: ['demenz', 'vergesslich', 'alzheimer']
+    fach: [Pflegebedarf, Erschwerniszuschlag]
+  - buerger: ['pflegestufe', 'welche stufe']
+    fach: [Pflegegeld, Pflegebedarf]
+  - buerger: ['lohn weiter', 'gehalt weiter', 'weiter bezahlt']
+    fach: [Entgeltfortzahlung]
+  - buerger: ['selbst(?:ä|a)ndig', 'eigene firma', 'gewerbe']
+    fach: [Kostenbeteiligung]

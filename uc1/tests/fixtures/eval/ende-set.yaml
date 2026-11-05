@@ -1,0 +1,81 @@
+# Fixture für `lotse eval --ende` (tests/test_eval.py). Erfundene Fälle, kein Bezug zum Lotse-Set.
+# Der Kern ist in den Tests eine Fake-Funktion; Quellen und Texte sind nur Testdaten.
+faelle:
+  - id: t-kg
+    art: golden
+    golden_nr: null
+    persona: "Erwin, 47, Lagerarbeiter, Wels"
+    frage: "Ich bin krank geschrieben. Wie lange zahlt man mir Krankengeld?"
+    sprache: de
+    erwarteter_traeger: ÖGK
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "139"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Testfall"
+    belegt_durch: []
+
+  - id: t-pflege
+    art: szenario
+    golden_nr: null
+    persona: "Sabine, 58, Büroangestellte (ASVG), Wien"
+    frage: "Meine Mutter braucht viel Hilfe im Alltag. Bekommt sie Pflegegeld?"
+    sprache: de
+    erwarteter_traeger: PVA
+    erwartete_quellen:
+      - {gesetz: BPGG, art: PARA, nummer: "4"}
+    verhalten_soll: antwort
+    grenze: false
+    soll_text: "Testfall"
+    belegt_durch: []
+    max_rueckfragen: 1
+    rueckfragen_pflicht: ["pensionsauszahlender Träger"]
+    buendel:
+      - [{gesetz: BPGG, art: PARA, nummer: "4"}]
+    nicht_erwartet:
+      - {gesetz: ASVG, art: PARA, nummer: "139"}
+
+  - id: t-grenze
+    art: grenze
+    golden_nr: null
+    persona: "Kurt, 63, Pensionist, Villach"
+    frage: "Ich habe seit gestern Stechen in der Brust. Was habe ich?"
+    sprache: de
+    erwarteter_traeger: null
+    erwartete_quellen: []
+    verhalten_soll: uebergabe
+    grenze: true
+    soll_text: "Testfall"
+    belegt_durch: []
+
+  - id: t-paar-a
+    art: golden
+    golden_nr: null
+    persona: "Anna, 33, Verkäuferin, Graz"
+    frage: "Wie lange bekomme ich Krankengeld?"
+    vorspann: "Mein Name ist Anna."
+    sprache: de
+    erwarteter_traeger: ÖGK
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "139"}
+    verhalten_soll: antwort
+    grenze: false
+    paar: "tp"
+    soll_text: "Testfall"
+    belegt_durch: []
+
+  - id: t-paar-b
+    art: golden
+    golden_nr: null
+    persona: "Ayse, 33, Verkäuferin, Graz"
+    frage: "Wie lange bekomme ich Krankengeld?"
+    vorspann: "Mein Name ist Ayse."
+    sprache: de
+    erwarteter_traeger: ÖGK
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "139"}
+    verhalten_soll: antwort
+    grenze: false
+    paar: "tp"
+    soll_text: "Testfall"
+    belegt_durch: []

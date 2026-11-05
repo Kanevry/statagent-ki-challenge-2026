@@ -1,0 +1,18 @@
+{
+  "beschreibung": "Blicke auf das Test-Set uc1/eval/lotse-set.yaml (Review D6d): höchstens 3 Läufe bis zur Abgabe. Abgestimmt wird nur auf dem Dev-Set.",
+  "grenze": 3,
+  "blicke": [
+    {
+      "n": 1,
+      "zeitpunkt": "2026-11-05T13:24+01:00",
+      "befehl": "lotse eval --nur-suche --weg volltext --grep-grundlinie --ausgabe … (vor dem Zähler, nachgetragen)",
+      "ergebnis": "Volltext 5/15, grep 4/15"
+    },
+    {
+      "n": 2,
+      "zeitpunkt": "2026-11-05T14:52+01:00",
+      "befehl": "lotse eval --nur-suche --weg volltext --erweiterung aus,thesaurus,llm --grep-grundlinie --ausgabe docs/plan/uc1/messung.md",
+      "ergebnis": "volltext+aus 6/15, volltext+thesaurus 6/15, volltext+llm 6/15, grep 4/15"
+    }
+  ]
+}
