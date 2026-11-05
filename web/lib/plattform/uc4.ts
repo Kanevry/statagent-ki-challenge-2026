@@ -23,8 +23,9 @@ export { BUDGET_MELDUNG };
 // (#100); Exit 3 heißt „Tagesbudget von plattform.llm verbraucht“ und wird wie das Ratenlimit ein 429.
 
 export const ROUTER_ARGV = ["run", "--frozen", "python", "-m", "plattform.router", "frage", "--json"] as const;
-// 180 s: Die Kette ruft nacheinander bis zu drei Adapter mit Modell auf. Gemessen am 05.11. mit Azure: UC3 1 s,
-// UC2 98 s (vier Akteure, zwei Runden), UC1 1 s. Mit 60 s brach die Route ab und die Seite zeigte gar keine Antwort.
+// 180 s ist die Obergrenze, nicht die übliche Dauer. Gemessen am 05.11. mit Azure: zuerst UC2 98 s (alter Adapter,
+// vier Akteure, zwei Runden; mit 60 s brach die Route ab und die Seite zeigte gar keine Antwort), mit dem heutigen
+// Adapter (drei Akteure parallel, eine Runde) die ganze Kette 5 bis 7 s: UC3 1 s, UC2 3 bis 5 s, UC1 1 s.
 export const TIMEOUT_MS = 180_000;
 /** Drei Antworten mit Belegen passen weit hinein; mehr ist ein Fehler, kein Ergebnis. */
 export const MAX_BUFFER = 1024 * 1024;
