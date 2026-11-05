@@ -4,8 +4,10 @@ Lädt das Fixture-Startpaket und die vier Mini-Lieferungen aus uc3/tests/fixture
 echten Personen), richtet das UC3-Schema ein und rechnet alle Lieferungen mit Regelsatz v1. Danach zeigen die
 Seiten unter /uc3 Läufe, Berichte und Prüftreffer statt eines leeren Zustands.
 
-Aufruf (Wurzel des Repos): ``UC3_DATABASE_URL=postgresql://… uv run python scripts/ci/uc3_seed.py``
-Die Datenbank muss leer sein; das Skript bricht ab, wenn schon Lieferungen geladen sind.
+Aufruf (Wurzel des Repos):
+``UC3_SEED_CI=1 UC3_DATABASE_URL=postgresql://… uv run python scripts/ci/uc3_seed.py``
+Ohne die Kennung ``UC3_SEED_CI=1`` (setzt nur der CI-Job playwright) bricht es ab, ebenso wenn schon
+Lieferungen geladen sind: der Seed läuft nie gegen eine echte Datenbank (#152).
 """
 
 from __future__ import annotations
@@ -23,6 +25,9 @@ from statagent.db import schema_einrichten, verbinden  # noqa: E402
 
 
 def main() -> int:
+    if os.environ.get("UC3_SEED_CI") != "1":
+        print("UC3_SEED_CI=1 fehlt: der Seed läuft nur im CI-Job playwright", file=sys.stderr)
+        return 2
     url = os.environ.get("UC3_DATABASE_URL", "").strip()
     if not url:
         print("UC3_DATABASE_URL fehlt", file=sys.stderr)
