@@ -17,6 +17,8 @@ function StandardVerweis(props: VerweisProps) {
 export interface SeitenModellWert {
   provider: string;
   modell?: string | null;
+  /** Die Seite schickt diesen Anbieter selbst mit jeder Anfrage (Modellwahl auf /uc4); dann gilt er immer. */
+  gewaehlt?: boolean;
 }
 
 export interface ShellWert {
