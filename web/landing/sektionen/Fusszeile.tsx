@@ -36,8 +36,6 @@ export default function Fusszeile() {
               {FUSSZEILE.repo.text}
             </a>
           </li>
-          <li>{FUSSZEILE.abgabe}</li>
-          <li>{FUSSZEILE.ablage}</li>
         </ul>
         <ul className={a.fussZeile}>
           {FUSSZEILE.hinweise.map((t) => (

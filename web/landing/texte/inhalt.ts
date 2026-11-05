@@ -317,8 +317,6 @@ export const TEAM = {
 
 export const FUSSZEILE = {
   repo: { href: "https://github.com/KIChallenge/OneShotAndy", text: "github.com/KIChallenge/OneShotAndy" },
-  abgabe: "Abgabe Fr 06.11. 09:00",
-  ablage: "SV-Box-Teamordner",
   hinweise: ["Synthetische Daten, keine echten Personen"],
   quelle: "Grenzen der Bundesländer: Statistik Austria, data.statistik.gv.at, bearbeitet von Flooh Perlot, CC BY 4.0",
 } as const;
