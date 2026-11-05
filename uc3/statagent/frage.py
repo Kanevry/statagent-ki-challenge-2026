@@ -1104,7 +1104,7 @@ def _bewegung_fehlertext(fehler: psycopg.Error, monat: str) -> str:
     if "Regelstand" in meldung:
         return "Die Einzeldaten dieses Monats wurden inzwischen mit anderen Regeln neu gerechnet." + was_tun
     if "keine bereinigten Daten" in meldung:
-        return "Für diesen Monat liegen keine bereinigten Einzeldaten vor." + was_tun
+        return "Für diesen Monat liegen die Einzeldaten nicht vor." + was_tun
     return NICHT_LESBAR
 
 
