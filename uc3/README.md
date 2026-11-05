@@ -24,7 +24,7 @@ Konfiguration über Umgebung oder `.env.local` an der Repo-Wurzel (Beispiel: `.e
 
 ```bash
 uv sync --all-packages                      # an der Repo-Wurzel
-uv run uc3 db init                          # Schemas, Klassifikationen, Regelsatz v1 (idempotent, löscht nichts)
+uv run uc3 db init                          # Schemas, Klassifikationen, Regelsätze v1, v2, ministerium (idempotent, löscht nichts)
 uv run uc3 lauf --alle                      # 24 Einzelläufe 2024-08 … 2026-07, in zeitlicher Reihenfolge
 uv run uc3 eichen --lieferung 2024-08       # Beispielbericht Tab1–Tab13: „Zellen 2880, abweichend 0“
 uv run uc3 berichte --alle && uv run uc3 sheet   # 24 Qualitätsberichte und Aggregations-Sheet nach abgabe/
