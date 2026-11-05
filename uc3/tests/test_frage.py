@@ -830,3 +830,20 @@ def test_jahr_vor_dem_monat_und_unklares_jahr(gerechnet: Verbindung) -> None:
         assert [z["wert"] for z in daten["zahlen"]] == [soll], frage
     unklar_jahr = antwort_frage(gerechnet, "Beschäftigte 2023 und 2024 im September")
     assert unklar_jahr["zahlen"] == [] and "nicht eindeutig" in unklar_jahr["text"]
+    assert unklar_jahr["rueckfrage"] is True
+
+
+# Fängt: Der Jahrgang ist kein Merkmal der Daten; die Frage gab den Gesamtbestand ohne Hinweis (Prüfung !169).
+@pytest.mark.parametrize(
+    "frage", ["Beschäftigte Jahrgang 1990 im September 2024", "Geburtsjahr 1990 im September 2024"]
+)
+def test_jahrgang_nicht_ausgewertet(gerechnet: Verbindung, frage: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert daten["zahlen"] == [] and "Das Alter wertet StatAgent" in daten["text"]
+
+
+# Fängt: Eine Menge wird als Jahr gelesen, die Frage bekommt eine Rückfrage statt der Zahl (Prüfung !169).
+def test_menge_ist_kein_jahr(gerechnet: Verbindung) -> None:
+    soll = _bestand(gerechnet, "2024-08", "region")[("9",)]
+    daten = antwort_frage(gerechnet, "Gab es im August 2024 über 2000 Beschäftigte in Wien?")
+    assert [z["wert"] for z in daten["zahlen"]] == [soll]

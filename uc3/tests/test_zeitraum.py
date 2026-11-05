@@ -95,6 +95,17 @@ TABELLE: list[tuple[str, str | None, str | None, str | None]] = [
     ("2025 im ersten Halbjahr", "2025-01", "2025-06", "halbjahr"),
     # Der jüngste Zeitraum bleibt, wenn gar kein Jahr dasteht; „ÖNACE 2008“ ist keines
     ("im März nach ÖNACE 2008", "2026-03", "2026-03", "monat"),
+    # Klassifikationsjahre hinter Komma oder „und“ sind kein gemeinsames Jahr (Prüfung !169)
+    ("Beschäftigte im März, nach ÖNACE 2025", "2026-03", "2026-03", "monat"),
+    ("im März, ÖNACE 2008", "2026-03", "2026-03", "monat"),
+    ("im März, Jahrgang 1975", "2026-03", "2026-03", "monat"),
+    ("im März und ÖNACE 2025", "2026-03", "2026-03", "monat"),
+    # Eine Menge ist kein Jahr
+    ("Gab es im August 2024 über 2000 Beschäftigte in Wien?", "2024-08", "2024-08", "monat"),
+    # In Lesereihenfolge bleiben Monate ohne Jahr
+    ("Dezember und Jänner", "2025-12", "2026-01", "liste"),
+    ("November und Dezember", "2025-11", "2025-12", "liste"),
+    ("2025 im März 2025", "2025-03", "2025-03", "monat"),
 ]  # fmt: skip
 
 
@@ -233,17 +244,13 @@ def test_unklar_und_tag() -> None:
         # Jahr und Monat als zwei Dinge
         "Jahresdurchschnitt 2025 und März",
         "2025 und im März",
-        # Jahr, das zu keinem Teil gehört
         "2024 im März und im April 2025",
-        "März 2025 und 2026",
-        "Sommer 2024 und 2025",
         "2024 im Herbst 2025",
-        # mehrere bloße Jahre
-        "Jahresdurchschnitt 2024 und 2025",
-        # Zahlen, die wie Jahre aussehen
-        "Betriebe mit 2025 Mitarbeitern im März",
-        "Beschäftigte im März mit 2025 Euro",
-        "mehr als 2025 Personen im Juni",
+        # gegen die Lesereihenfolge
+        "im Juli und August",
+        "Mai und Oktober",
+        "im Juni, Juli und August",
+        "Dezember und Jänner 2025",
         # relative Jahre, die wir nicht auflösen
         "vor zwei Jahren im März",
         "vorletztes Jahr im März",
@@ -265,6 +272,8 @@ def test_jahr_nicht_zuzuordnen_fragt_zurueck(frage: str) -> None:
         ("Klassifikation 2025 im März", ()),
         ("Jahrgang 2025 im März", ()),
         ("Beschäftigte im März PLZ 2025", ()),
+        ("Betriebe mit 2025 Mitarbeitern im März", ()),
+        ("Beschäftigte im März mit 2025 Euro", ()),
     ],
 )
 def test_ohne_jahr_keine_rueckfrage(frage: str, nur: tuple[str, ...]) -> None:
@@ -273,6 +282,60 @@ def test_ohne_jahr_keine_rueckfrage(frage: str, nur: tuple[str, ...]) -> None:
     zeitraum = zeitraum_lesen(frage, LETZTER)
     assert unklar(frage, LETZTER) is None and zeitraum is not None
     assert zeitraum.nur == nur if nur else zeitraum.von == "2026-03"
+
+
+# Fängt: Eine Jahresangabe neben einem Zeitraum fällt still weg, auch wenn die Zahl schon vorkommt (Prüfung !169).
+@pytest.mark.parametrize(
+    ("frage", "beispiel"),
+    [
+        ("März 2025 im Vergleich zum Vorjahr", "„Beschäftigte im März 2025 und im März 2024“"),
+        ("März 2025 zum Vorjahr", "„Beschäftigte im März 2025 und im März 2024“"),
+        ("März 2025 und Vorjahr", "„Beschäftigte im März 2025 und im März 2024“"),
+        ("Sommer 2025 im Vergleich zum Vorjahr", "„Beschäftigte im Juni 2025 und im Juni 2024“"),
+        ("Juli 2026 im Vergleich zum Vorjahr", "„Beschäftigte im Juli 2026 und im Juli 2025“"),
+        ("März 2025 und 2026", "„Beschäftigte im März 2025 und im März 2026“"),
+        ("Sommer 2024 und 2025", "„Beschäftigte im Juni 2024 und im Juni 2025“"),
+    ],
+)
+def test_freies_jahr_neben_einem_zeitraum_fragt_nach_beiden(frage: str, beispiel: str) -> None:
+    from statagent.zeitraum import unklar
+
+    grund = unklar(frage, LETZTER)
+    assert grund is not None and grund.startswith("Bitte beide Monate") and beispiel in grund
+
+
+# Fängt: Der Text der Rückfrage passt nicht zur Frage: „Bitte Monat und Jahr nennen“ bei zwei bloßen Jahren, oder ein
+# abgeschnittener Satzanfang bei relativen Angaben.
+def test_rueckfragetext_passt_zur_frage() -> None:
+    from statagent.zeitraum import unklar
+
+    for frage, von_bis in (
+        ("Zeitreihe 2024 bis 2026", "01/2024 bis 12/2026"),
+        ("Jahresdurchschnitt 2024 und 2025", "01/2024 bis 12/2025"),
+    ):
+        grund = unklar(frage, LETZTER)
+        assert grund is not None and f"„Zeitreihe {von_bis}“" in grund
+    assert (unklar("die letzten 3 Monate 2025", LETZTER) or "").startswith("Die letzten Monate und ein Jahr")
+    assert (unklar("letzten Monat im Vergleich zu 2025", LETZTER) or "").startswith(
+        "Der letzte Monat und ein Jahr"
+    )
+
+
+# Fängt: „für 2026 gibt es zwölf Werte“ und ein Vorschlag, der zu „keine Daten“ führt (2026 nur bis Juli, 2024 ab August).
+def test_jahr_rueckfrage_aus_vorhandenen_monaten() -> None:
+    from statagent.uc4 import jahr_rueckfrage
+
+    def text(jahr: str) -> str:
+        return jahr_rueckfrage("die Zahl der Beschäftigten", "Beschäftigte", jahr, "2024-08", "2026-07")
+
+    assert "zwölf Werte" in text("2025") and "„Beschäftigte Dezember 2025“" in text("2025")
+    assert "„Zeitreihe 01/2025 bis 12/2025“" in text("2025")
+    assert "7 Werte, Jänner bis Juli 2026" in text("2026") and "„Beschäftigte Juli 2026“" in text("2026")
+    assert "„Zeitreihe 01/2026 bis 07/2026“" in text("2026") and "Dezember 2026" not in text("2026")
+    assert "5 Werte, August bis Dezember 2024" in text("2024") and "„Zeitreihe 08/2024 bis 12/2024“" in text(
+        "2024"
+    )
+    assert text("2023").startswith("Für 2023 gibt es keine Daten, nur für August 2024 bis Juli 2026.")
 
 
 # Fängt: Das zugewiesene Jahr bleibt doppelt im Text stehen, uc3 frage liest dann ein zweites Jahr.
