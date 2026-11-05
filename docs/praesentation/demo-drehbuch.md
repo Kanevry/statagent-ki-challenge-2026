@@ -87,7 +87,7 @@ Ablauf mit den Befehlen (im Terminal, in der Web-UI nur bei `/uc3` auf main, gle
 
 ### Optional D4 Gemeinsamer Einstieg (UC4)
 
-- Eine Frage läuft durch UC3, UC2 und UC1: „Wie viele Menschen arbeiten in Wien im Gesundheits- und Sozialwesen (März 2025), und was heißt das für Wartezeiten beim Arzt?“ UC3 liefert die Zahl für ÖNACE-Abschnitt Q, Wien, 2025-03 mit Beleg, UC2 die Abwägung, UC1 die Erklärung in einfacher Sprache.
+- Eine Frage läuft durch UC3, UC2 und UC1: „Wie viele Menschen arbeiten in Wien im Gesundheits- und Sozialwesen (März 2025), und was heißt das für Wartezeiten beim Arzt?“ UC3 liefert die Zahl für ÖNACE-2025-Abschnitt R (Gesundheits- und Sozialwesen), Wien, 2025-03 mit Beleg, UC2 die Abwägung, UC1 die Erklärung in einfacher Sprache.
 - Die Frage stammt aus dem Abgleich der Review-Bank. Die Wartezeiten selbst kann UC3 nicht beantworten, es kennt nur Beschäftigte. Online antworten die Modelle bis #100 im Testmodus (mock); das wird angesagt.
 - Nur wenn `/uc4` bis zum Freeze grün ist. Sonst entfällt D4 ohne Ersatz.
 - **Entscheid am Fr 06:45.** Wer entscheidet: Lead mit Bernhard. Ergebnis in `probe.md` eintragen.
