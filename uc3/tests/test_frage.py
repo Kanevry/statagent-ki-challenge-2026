@@ -140,12 +140,9 @@ def test_maenner_frauen_je_bundesland_gleich_gegenrechnung(gerechnet: Verbindung
     daten = antwort_frage(gerechnet, GESCHLECHT)
     _pflichtfelder(daten)
     erwartet = _bestand(gerechnet, "2024-08", "geschlecht, region")
-    assert len(daten["zahlen"]) == len(erwartet)
-    assert (
-        sum(z["wert"] for z in daten["zahlen"])
-        == sum(erwartet.values())
-        == _bestand(gerechnet, "2024-08")[()]
-    )
+    zeilen = [z for z in daten["zahlen"] if not z["bezeichnung"].endswith(", Alle Bundesländer")]
+    assert len(zeilen) == len(erwartet)
+    assert sum(z["wert"] for z in zeilen) == sum(erwartet.values()) == _bestand(gerechnet, "2024-08")[()]
     namen = {
         str(z["code"]): str(z["bezeichnung"])
         for z in gerechnet.execute("SELECT code, bezeichnung FROM stat.klass_geschlecht").fetchall()
@@ -157,6 +154,30 @@ def test_maenner_frauen_je_bundesland_gleich_gegenrechnung(gerechnet: Verbindung
     gefunden = _werte(daten, "Beschäftigungsverhältnisse")
     for (geschlecht, region), n in erwartet.items():
         assert gefunden[f"Beschäftigungsverhältnisse, {namen[geschlecht]}, {regionen[region]}"] == n
+
+
+# Fängt: Die Summenzeile weicht vom Satz im Text oder von der Gegenrechnung ab, ihr Beleg liefert sie nicht, oder sie
+# erscheint auch dort, wo man nicht addieren darf (mehrere Monate).
+def test_maenner_frauen_summe_alle_bundeslaender(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, GESCHLECHT)
+    namen = {
+        str(z["code"]): str(z["bezeichnung"])
+        for z in gerechnet.execute("SELECT code, bezeichnung FROM stat.klass_geschlecht").fetchall()
+    }
+    gefunden = _werte(daten, "Beschäftigungsverhältnisse")
+    erwartet = _bestand(gerechnet, "2024-08", "geschlecht")
+    assert erwartet
+    for (code,), n in erwartet.items():
+        assert gefunden[f"Beschäftigungsverhältnisse, {namen[code]}, Alle Bundesländer"] == n
+        assert f"{namen[code]}: {n:,}".replace(",", ".") in daten["text"]
+    summen = [z for z in daten["zahlen"] if z["bezeichnung"].endswith(", Alle Bundesländer")]
+    assert daten["zahlen"][-len(summen) :] == summen and len(summen) == len(erwartet)
+    beleg = daten["belege"][summen[0]["beleg"]]
+    assert beleg is not daten["belege"][daten["zahlen"][0]["beleg"]]
+    zeilen = gerechnet.execute(beleg["sql"].encode()).fetchall()
+    assert sorted(int(str(z["wert"])) for z in zeilen) == sorted(erwartet.values())
+    reihe = antwort_frage(gerechnet, "Zeitreihe Männer und Frauen je Bundesland 08/2024 bis 09/2024")
+    assert not any("Alle Bundesländer" in z["bezeichnung"] for z in reihe["zahlen"])
 
 
 # Fängt: Zu- oder Abgänge falsch zugeordnet, Bezugsbestand nicht der veröffentlichte, oder eine Rate trotz
@@ -195,13 +216,14 @@ def test_nullbestand_ohne_rate() -> None:
 
 
 # Fängt: eine mehrdeutige Frage („Beschäftigte 2025“) liefert eine Zahl statt einer Rückfrage.
-@pytest.mark.parametrize("frage", ["Beschäftigte 2025", "Fluktuation 2025", "Wie viele Frauen?"])
+@pytest.mark.parametrize("frage", ["Beschäftigte 2025", "Fluktuation 2025"])
 def test_rueckfrage_statt_zahl(gerechnet: Verbindung, frage: str) -> None:
     daten = antwort_frage(gerechnet, frage)
     assert daten["rueckfrage"] is True and daten["typ"] == "rueckfrage"
     assert daten["zahlen"] == [] and daten["belege"] == [] and daten["text"].rstrip().endswith(("?", "“."))
     if frage == "Beschäftigte 2025":
         assert "Dezember 2025" in daten["text"] and "Zeitreihe" in daten["text"]
+        assert "„Beschäftigte Jahresdurchschnitt 2025“" in daten["text"]
 
 
 # Fängt: „Was ist ÖNACE C?“ erfindet die Bezeichnung oder nennt die Version nicht.
@@ -396,12 +418,15 @@ def test_fortgeschriebene_ausgewiesen(gerechnet: Verbindung) -> None:
     gerechnet.execute("UPDATE meta.lauf SET fortgeschrieben = 1234 WHERE lieferung = '2024-09'")
     fluktuation = antwort_frage(gerechnet, FLUKTUATION)
     assert any(
-        "1.234 fortgeschriebene" in h and "Zu- und Abgänge dieses Teils fehlen" in h
+        "1.234 Beschäftigungsverhältnisse aus der Lieferung" in h
+        and "Zu- und Abgänge dieses Teils fehlen" in h
         for h in fluktuation["hinweise"]
     )
     reihe = antwort_frage(gerechnet, ZEITREIHE)
-    assert any(h.startswith("September 2024 enthält 1.234 fortgeschriebene") for h in reihe["hinweise"])
-    assert not any("August 2024 enthält" in h for h in reihe["hinweise"])
+    assert any(
+        h.startswith("Im September 2024 sind 1.234 Beschäftigungsverhältnisse") for h in reihe["hinweise"]
+    )
+    assert not any("Im August 2024 sind" in h for h in reihe["hinweise"])
 
 
 # Fängt: nach einer Regeländerung (Stichtag am 15.) rechnet stat.bewegung_oenace mit ihren eingebauten Regeln
@@ -759,3 +784,107 @@ def test_notizen_nach_verstanden(gerechnet: Verbindung) -> None:
     daten = antwort_frage(gerechnet, "Wie haben sich die Beschäftigten im letzten Jahr entwickelt?")
     assert daten["text"].startswith("Verstanden: Jänner 2025 bis Dezember 2025")
     assert daten["text"].index("„Letztes Jahr“ heißt hier 2025.") > daten["text"].index("alle.")
+
+
+# --- Zeiträume der Alltagssprache (Owner 05.11., „Sommer“) ------------------------------------------------------
+
+
+# Fängt: eine Jahreszeit ergibt keine Zahl, der Durchschnitt fehlt oder ist falsch gerundet, „Durchschnitt“ wird
+# trotz Zeitraum abgesagt, oder der Text sagt nicht, welche Monate gemeint sind.
+def test_jahreszeit_monate_und_durchschnitt(gerechnet: Verbindung) -> None:
+    for monat in ("2024-10", "2024-11"):
+        lauf_ausfuehren(gerechnet, monat, "v1")
+    soll = [_bestand(gerechnet, m)[()] for m in ("2024-09", "2024-10", "2024-11")]
+    mittel = (2 * sum(soll) + 3) // 6
+    for frage in (
+        "Wie viele Beschäftigte gab es im Herbst 2024?",
+        "Durchschnitt der Beschäftigten im Herbst 2024",
+    ):
+        daten = antwort_frage(gerechnet, frage)
+        assert [z["wert"] for z in daten["zahlen"]] == [*soll, mittel], frage
+        assert "Herbst 2024 heißt hier September bis November 2024." in daten["text"]
+        assert f"Im Durchschnitt waren es {mittel:,} (".replace(",", ".") in daten["text"]
+    quartal = antwort_frage(gerechnet, "Beschäftigte im 4. Quartal 2024")
+    assert [z["wert"] for z in quartal["zahlen"]][:2] == soll[1:]
+    assert "Für 1 Monat im Zeitraum gibt es noch keinen Lauf: Dezember 2024." in quartal["text"]
+
+
+# Fängt: ohne Zeitangabe kommt eine Rückfrage statt der Zahl des jüngsten Monats; ein Monat ohne Lieferung nennt
+# nicht, welche Monate es gibt.
+def test_ohne_zeitangabe_juengster_monat_und_vorhandene_monate(gerechnet: Verbindung) -> None:
+    frauen = antwort_frage(gerechnet, "Wie viele Frauen?")
+    je = _bestand(gerechnet, "2024-09", "geschlecht")
+    assert [z["wert"] for z in frauen["zahlen"]] == [je[("W",)]]
+    assert "Ohne Zeitangabe zeigen wir den jüngsten Monat: September 2024." in (frauen["text"])
+    vorher = antwort_frage(gerechnet, "Beschäftigte Juli 2024")
+    assert "Daten gibt es nur für August 2024 bis Juli 2026." in vorher["text"]
+    assert "Meinen Sie „Beschäftigte im August 2024“?" in vorher["text"]
+
+
+# Fängt: Der Durchschnitt wird in Python gerechnet, sein Beleg zeigt auf eine Monatsabfrage, das SQL liefert also
+# nicht die gezeigte Zahl; bei einer Lücke steht „X bis Y“ auf einem Durchschnitt, der einen Monat auslässt.
+def test_durchschnitt_eigene_abfrage_und_luecke(gerechnet: Verbindung) -> None:
+    for monat in ("2024-10", "2024-11"):
+        lauf_ausfuehren(gerechnet, monat, "v1")
+    daten = antwort_frage(gerechnet, "Beschäftigte im Herbst 2024")
+    mittel = daten["zahlen"][-1]
+    beleg = daten["belege"][mittel["beleg"]]
+    assert beleg is not daten["belege"][daten["zahlen"][0]["beleg"]]
+    zeile = gerechnet.execute(beleg["sql"].encode()).fetchone()
+    assert zeile is not None and int(str(zeile["wert"])) == mittel["wert"]
+    assert mittel["bezeichnung"].endswith("Durchschnitt September bis November 2024")
+    assert beleg["stand"] == "vorlaeufig"
+
+    gerechnet.execute("UPDATE meta.lauf SET status = 'abgebrochen' WHERE lieferung = '2024-10'")
+    soll = [_bestand(gerechnet, m)[()] for m in ("2024-09", "2024-11")]
+    luecke = antwort_frage(gerechnet, "Beschäftigte im Herbst 2024")["zahlen"]
+    assert [z["wert"] for z in luecke] == [*soll, (2 * sum(soll) + 2) // 4]
+    assert luecke[-1]["bezeichnung"].endswith("Durchschnitt September 2024 und November 2024")
+
+
+# Fängt: Ein Jahr vor dem Monat oder „letzten Jahres“ wird zum jüngsten Monat (Prüfung !169); ohne eindeutiges Jahr
+# kommt eine Zahl statt einer Rückfrage.
+def test_jahr_vor_dem_monat_und_unklares_jahr(gerechnet: Verbindung) -> None:
+    soll = _bestand(gerechnet, "2024-09")[()]
+    for frage in ("Wie viele Beschäftigte gab es 2024 im September?", "September in 2024"):
+        daten = antwort_frage(gerechnet, frage)
+        assert [z["wert"] for z in daten["zahlen"]] == [soll], frage
+    unklar_jahr = antwort_frage(gerechnet, "Beschäftigte 2023 und 2024 im September")
+    assert unklar_jahr["zahlen"] == [] and "nicht eindeutig" in unklar_jahr["text"]
+    assert unklar_jahr["rueckfrage"] is True
+
+
+# Fängt: Ein Vorschlag der Rückfrage (auf /uc3/fragen ein Knopf) führt zu einer weiteren Rückfrage oder zu keiner Zahl.
+def test_vorschlaege_der_jahr_rueckfrage_funktionieren_als_frage(gerechnet: Verbindung) -> None:
+    for monat in ("2024-10", "2024-11"):  # die Fixture hat vier Lieferungen, Dezember fehlt
+        lauf_ausfuehren(gerechnet, monat, "v1")
+    text = antwort_frage(gerechnet, "Beschäftigte 2024")["text"]
+    vorschlaege = re.findall(r"„([^“]+)“", text)
+    assert vorschlaege == [
+        "Beschäftigte Dezember 2024",
+        "Beschäftigte Jahresdurchschnitt 2024",
+        "Zeitreihe 08/2024 bis 12/2024",
+    ]
+    soll = [_bestand(gerechnet, m)[()] for m in ("2024-08", "2024-09", "2024-10", "2024-11")]
+    monat, mittel, reihe = (antwort_frage(gerechnet, v) for v in vorschlaege)
+    assert not monat["rueckfrage"] and "Dezember 2024" in monat["text"]
+    assert [z["wert"] for z in mittel["zahlen"]] == [*soll, (2 * sum(soll) + 4) // 8] and not mittel[
+        "rueckfrage"
+    ]
+    assert [z["wert"] for z in reihe["zahlen"]] == soll and not reihe["rueckfrage"]
+
+
+# Fängt: Der Jahrgang ist kein Merkmal der Daten; die Frage gab den Gesamtbestand ohne Hinweis (Prüfung !169).
+@pytest.mark.parametrize(
+    "frage", ["Beschäftigte Jahrgang 1990 im September 2024", "Geburtsjahr 1990 im September 2024"]
+)
+def test_jahrgang_nicht_ausgewertet(gerechnet: Verbindung, frage: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert daten["zahlen"] == [] and "Das Alter wertet StatAgent" in daten["text"]
+
+
+# Fängt: Eine Menge wird als Jahr gelesen, die Frage bekommt eine Rückfrage statt der Zahl (Prüfung !169).
+def test_menge_ist_kein_jahr(gerechnet: Verbindung) -> None:
+    soll = _bestand(gerechnet, "2024-08", "region")[("9",)]
+    daten = antwort_frage(gerechnet, "Gab es im August 2024 über 2000 Beschäftigte in Wien?")
+    assert [z["wert"] for z in daten["zahlen"]] == [soll]
