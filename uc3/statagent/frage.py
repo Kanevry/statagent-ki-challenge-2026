@@ -300,8 +300,10 @@ _ALTER_HOECHST = 130
 _ALTER_MUSTER: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bim\s+alter\s+von\s+(\d{1,3})\s*(?:bis|und)\s*(\d{1,3})\b"), "spanne"),
     (re.compile(rf"\b(?:zwischen\s+)?(\d{{1,3}})\s*-?\s*(?:bis|und|–|—|-)\s*(\d{{1,3}}){_JAHRE}"), "spanne"),
-    (re.compile(rf"\b(?:unter|jünger als|juenger als)\s+(\d{{1,3}}){_JAHRE}"), "unter"),
-    (re.compile(rf"\b(?:über|ueber|älter als|aelter als)\s+(\d{{1,3}}){_JAHRE}"), "ueber"),
+    (re.compile(rf"\b(?:jünger als|juenger als)\s+(\d{{1,3}})(?:{_JAHRE})?"), "unter"),
+    (re.compile(rf"\bunter\s+(\d{{1,3}}){_JAHRE}"), "unter"),
+    (re.compile(rf"\b(?:älter als|aelter als)\s+(\d{{1,3}})(?:{_JAHRE})?"), "ueber"),
+    (re.compile(rf"\b(?:über|ueber)\s+(\d{{1,3}}){_JAHRE}"), "ueber"),
     (re.compile(rf"\bab\s+(\d{{1,3}}){_JAHRE}"), "ab"),
     (re.compile(rf"\bbis\s+(\d{{1,3}}){_JAHRE}"), "bis"),
     (re.compile(r"\bim\s+alter\s+von\s+(\d{1,3})\b"), "genau"),

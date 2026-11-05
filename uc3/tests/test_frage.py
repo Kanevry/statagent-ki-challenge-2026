@@ -897,6 +897,8 @@ def _im_alter(conn: Verbindung, monat: str, von: int, bis: int) -> int:
         ("Wie viele Beschäftigte unter 25 Jahren gab es im August 2024?", 0, 24, "Alter unter 25 Jahre"),
         ("Beschäftigte über 50 Jahren im August 2024", 51, 130, "Alter über 50 Jahre"),
         ("Beschäftigte ab 65 Jahren im August 2024", 65, 130, "Alter ab 65 Jahre"),
+        ("Beschäftigte älter als 50 im August 2024", 51, 130, "Alter über 50 Jahre"),
+        ("Beschäftigte jünger als 30 im August 2024", 0, 29, "Alter unter 30 Jahre"),
         ("Beschäftigte zwischen 25 und 34 Jahren im August 2024", 25, 34, "Alter 25 bis 34 Jahre"),
         ("25- bis 34-Jährige im August 2024", 25, 34, "Alter 25 bis 34 Jahre"),
     ],
