@@ -44,6 +44,15 @@ URSACHEN = {
 }
 TYP_REIHENFOLGE = {"einlese": 1, "zuordnung": 2, "zaehl": 3}
 BELEG_KURZ = 60
+#: Gliederungen in meta.revision (ohne „insgesamt“), mit Namen für den Bericht.
+GLIEDERUNGEN = {
+    "region": "Bundesland",
+    "geschlecht": "Geschlecht",
+    "qualifikation": "Qualifikation",
+    "oenace": "ÖNACE-Abschnitt",
+}
+#: Höchstens so viele Abweichungen je Gliederung zeigt § 5 (die größten nach Betrag).
+REVISION_ZEILEN = 5
 
 
 class BerichtFehler(RuntimeError):
@@ -124,6 +133,28 @@ def _bestand(conn: Verbindung, regelsatz: str, regelstand: str, lieferung: str) 
     return _int(zeile["n"]) if zeile else 0
 
 
+def _veroeffentlichender_lauf(conn: Verbindung, stand: ergebnis.LaufStand) -> int:
+    """Lauf, dessen Zahlen veröffentlicht sind: seine lauf_id hängt an den endgültigen Zeilen.
+
+    Rechnet ein späterer Lauf einen veröffentlichten Monat unter neuem Regelstand nach, übernimmt er nur die
+    Kennzahlen; Prüftreffer und Regelwirkung in meta.* gehören zu seinem neuen Regelstand. Für einen nicht
+    veröffentlichten Monat ist es der Lauf selbst."""
+    if stand.ergebnis_status != "endgueltig":
+        return stand.lauf_id
+    zeile = conn.execute(
+        """SELECT min(lauf_id) AS id FROM stat.stat_beschaeftigte
+           WHERE regelsatz = %s AND regelstand = %s AND status = 'endgueltig'
+             AND zeitraum_bis BETWEEN %s AND %s""",
+        (
+            stand.regelsatz,
+            stand.regelstand,
+            ergebnis.monatserster(stand.lieferung),
+            ergebnis.monatsletzter(stand.lieferung),
+        ),
+    ).fetchone()
+    return stand.lauf_id if zeile is None or zeile["id"] is None else _int(zeile["id"])
+
+
 def _dateiname(conn: Verbindung, lieferung: str) -> str:
     zeile = conn.execute(
         "SELECT datei FROM roh.ladeprotokoll WHERE lieferung = %s AND datei IS NOT NULL "
@@ -166,10 +197,16 @@ def _ueberblick(conn: Verbindung, lauf: dict[str, object], lieferung: str, regel
         ["Beschäftigungsverhältnisse am Stichtag", zahl(bestand)],
         ["Veränderung zum Vormonat", veraenderung],
     ]
+    abrechnung = "Abrechnung: gelesene Sätze = gezählte + nicht gezählte + ausgeschlossene Sätze."
     if fortgeschrieben:
-        zeilen.insert(
-            2,
+        # E07 schreibt nur Verhältnisse fort, die am Stichtag laufen; sie stecken in „gezählt“.
+        zeilen[2:2] = [
+            ["davon geliefert gezählt", zahl(gezaehlt - fortgeschrieben)],
             ["davon fortgeschrieben aus der Vorlieferung (Regel E07, vorläufig)", zahl(fortgeschrieben)],
+        ]
+        abrechnung = (
+            "Abrechnung: gelesene Sätze + fortgeschriebene Verhältnisse = gezählte + nicht gezählte"
+            " + ausgeschlossene Sätze."
         )
     aufgeht = (
         "geht auf" if gelesen + fortgeschrieben == gezaehlt + nicht + ausgeschlossen else "geht NICHT auf"
@@ -179,7 +216,7 @@ def _ueberblick(conn: Verbindung, lauf: dict[str, object], lieferung: str, regel
         "",
         *_tabelle(["Kennzahl", "Wert"], zeilen),
         "",
-        "Abrechnung: gelesene Sätze = gezählte + nicht gezählte + ausgeschlossene Sätze.",
+        abrechnung,
         "",
         f"Abrechnung in Zahlen: {zahl(gelesen)} gelesen"
         + (f" + {zahl(fortgeschrieben)} fortgeschrieben" if fortgeschrieben else "")
@@ -365,13 +402,43 @@ def _regeln(conn: Verbindung, lauf_id: int, lieferung: str, regelsatz: str) -> l
     ]
 
 
-def _revision(conn: Verbindung, lauf_id: int) -> list[str]:
+def _nachrechnung(
+    conn: Verbindung, lauf: dict[str, object], quelle_id: int, treffer_quelle: list[dict[str, object]]
+) -> list[str]:
+    """Hinweis in § 5, wenn ein späterer Lauf einen veröffentlichten Monat unter neuem Regelstand nachrechnet."""
+    lauf_id = _int(lauf["id"])
+    if lauf_id == quelle_id:
+        return []
+    aus = [
+        f"Lauf {lauf_id} hat den veröffentlichten Monat nachgerechnet. § 1 bis § 4 zeigen den veröffentlichenden"
+        f" Lauf {quelle_id}; was der neue Regelstand anders sieht, steht nur hier.",
+    ]
+    if lauf["meldung"]:
+        aus += ["", f"Meldung des Laufs {lauf_id}: {_zelle(lauf['meldung'])}."]
+    alt = {(t["name"], t["ebene"], _int(t["anzahl"]), bool(t["anhalten"])) for t in treffer_quelle}
+    neu = [
+        t
+        for t in _treffer(conn, lauf_id)
+        if (t["name"], t["ebene"], _int(t["anzahl"]), bool(t["anhalten"])) not in alt
+    ]
+    if neu:
+        teile = [
+            f"{t['name']} ({EBENEN.get(str(t['ebene']), str(t['ebene']))}, {zahl(_int(t['anzahl']))} Sätze"
+            + (", hätte angehalten)" if t["anhalten"] else ")")
+            for t in neu
+        ]
+        aus += ["", "Prüfungen, die unter dem neuen Regelstand anders treffen: " + "; ".join(teile) + "."]
+    return [*aus, ""]
+
+
+def _revision(conn: Verbindung, lauf_id: int, hinweis: list[str] | None = None) -> list[str]:
     aus = [
         ABSCHNITTE[4],
         "",
         "Weicht die aktuelle Lieferung für bereits veröffentlichte Monate ab, hier ausweisen"
         " (Veröffentlichtes bleibt unverändert).",
         "",
+        *(hinweis or []),
     ]
     kopf = ["Berichtsmonat", "veröffentlicht", "laut aktueller Lieferung", "Differenz", "Hauptursache"]
     if not _hat_tabelle(conn, "meta.revision"):
@@ -381,6 +448,15 @@ def _revision(conn: Verbindung, lauf_id: int) -> list[str]:
            FROM meta.revision WHERE lauf_id = %s AND gliederung = 'insgesamt' ORDER BY berichtsmonat""",
         (lauf_id,),
     ).fetchall()
+    # Abweichungen je Gliederung: eine Umschichtung (z. B. C +10, D −10) lässt „insgesamt“ unverändert.
+    gliederung: dict[str, list[dict[str, object]]] = {}
+    for g in conn.execute(
+        """SELECT berichtsmonat, gliederung, schluessel, veroeffentlicht, aktuell, differenz
+           FROM meta.revision WHERE lauf_id = %s AND gliederung <> 'insgesamt' AND differenz <> 0
+           ORDER BY berichtsmonat, gliederung, abs(differenz) DESC, schluessel""",
+        (lauf_id,),
+    ).fetchall():
+        gliederung.setdefault(str(g["berichtsmonat"]), []).append(g)
     ursachen: dict[str, tuple[str, int]] = {}
     if _hat_tabelle(conn, "meta.revision_ursache"):
         for u in conn.execute(
@@ -390,13 +466,16 @@ def _revision(conn: Verbindung, lauf_id: int) -> list[str]:
         ).fetchall():
             ursachen[str(u["berichtsmonat"])] = (str(u["ursache"]), _int(u["anzahl"]))
     tabelle = []
+    details: list[list[str]] = []
     for z in zeilen:
-        if _int(z["differenz"]) == 0:
-            continue
         monat = str(z["berichtsmonat"])
+        if _int(z["differenz"]) == 0 and monat not in gliederung:
+            continue
         status = " (vorläufig)" if z["status_vorher"] == "vorlaeufig" else ""
         haupt = "–"
-        if monat in ursachen:
+        if _int(z["differenz"]) == 0:
+            haupt = "Umschichtung zwischen Ausprägungen, insgesamt unverändert"
+        elif monat in ursachen:
             ursache, anzahl = ursachen[monat]
             haupt = f"{URSACHEN.get(ursache, ursache)} ({zahl(anzahl)} Verhältnisse)"
         tabelle.append(
@@ -408,14 +487,47 @@ def _revision(conn: Verbindung, lauf_id: int) -> list[str]:
                 haupt,
             ]
         )
+        gezeigt: dict[str, int] = {}
+        for g in gliederung.get(monat, []):
+            name = str(g["gliederung"])
+            gezeigt[name] = gezeigt.get(name, 0) + 1
+            if gezeigt[name] > REVISION_ZEILEN:
+                continue
+            details.append(
+                [
+                    monat,
+                    GLIEDERUNGEN.get(name, name),
+                    _zelle(g["schluessel"]),
+                    zahl(_int(g["veroeffentlicht"])),
+                    zahl(_int(g["aktuell"])),
+                    zahl_vorzeichen(_int(g["differenz"])),
+                ]
+            )
     aus += _tabelle(kopf, tabelle)
+    if details:
+        aus += [
+            "",
+            f"Abweichungen nach Gliederung (die {REVISION_ZEILEN} größten je Gliederung, nach Betrag):",
+            "",
+            *_tabelle(
+                [
+                    "Berichtsmonat",
+                    "Gliederung",
+                    "Ausprägung",
+                    "veröffentlicht",
+                    "laut aktueller Lieferung",
+                    "Differenz",
+                ],
+                details,
+            ),
+        ]
     if not zeilen:
         aus += ["", "Für diesen Lauf liegt kein Revisionsabgleich vor."]
     elif not tabelle:
         aus += [
             "",
-            f"Kein Revisionsbedarf: {len(zeilen)} geprüfte Vormonate stimmen mit der aktuellen Lieferung"
-            " überein.",
+            f"Kein Revisionsbedarf: {len(zeilen)} geprüfte Vormonate stimmen in allen Gliederungen mit der"
+            " aktuellen Lieferung überein.",
         ]
     return aus
 
@@ -430,10 +542,18 @@ def bericht_erzeugen(conn: Verbindung, lieferung: str, regelsatz: str = "v1") ->
         raise BerichtFehler(f"kein erfolgreicher Lauf für {lieferung} (Regelsatz {regelsatz})")
     lauf = conn.execute("SELECT * FROM meta.lauf WHERE id = %s", (stand.lauf_id,)).fetchone()
     assert lauf is not None
-    treffer = _treffer(conn, stand.lauf_id)
+    # Veröffentlichter Monat: § 1 bis § 4 aus dem Lauf, der veröffentlicht hat; Neues nur in § 5.
+    quelle_id = _veroeffentlichender_lauf(conn, stand)
+    quelle = (
+        lauf
+        if quelle_id == stand.lauf_id
+        else conn.execute("SELECT * FROM meta.lauf WHERE id = %s", (quelle_id,)).fetchone()
+    )
+    assert quelle is not None
+    treffer = _treffer(conn, quelle_id)
     rueckfragen = _rueckfragen(conn)
 
-    name, am = lauf.get("freigegeben_von"), lauf.get("freigegeben_am")
+    name, am = quelle.get("freigegeben_von"), quelle.get("freigegeben_am")
     freigabe = f"{name} am {datum(am)}" if name else "noch nicht freigegeben"
     kopf = [
         f"# Qualitätsbericht – Berichtsmonat {lieferung}",
@@ -443,7 +563,10 @@ def bericht_erzeugen(conn: Verbindung, lieferung: str, regelsatz: str = "v1") ->
         "",
     ]
     angehalten = [t for t in treffer if t["anhalten"]]
-    if stand.ergebnis_status != "endgueltig" or angehalten:
+    if stand.ergebnis_status == "endgueltig":
+        # Veröffentlicht ist veröffentlicht: ein Anhalten unter neuem Regelstand steht nur in § 5.
+        kopf.append(f"> **Status: endgültig**, freigegeben von {freigabe}.")
+    else:
         gruende = [
             f"Prüfung {t['name']} hat angehalten ({_zelle(t['umfang'] or zahl(_int(t['anzahl'])))})"
             for t in angehalten
@@ -454,16 +577,14 @@ def bericht_erzeugen(conn: Verbindung, lieferung: str, regelsatz: str = "v1") ->
         kopf.append(
             f"> **Status: {status.upper()}.** Grund: {'; '.join(gruende) or 'Lauf nicht freigegeben'}."
         )
-    else:
-        kopf.append("> **Status: endgültig.**")
 
     teile = [
         kopf,
-        _ueberblick(conn, lauf, lieferung, regelsatz),
-        _auffaelligkeiten(treffer, rueckfragen, _pruefungen_gelaufen(conn, stand.lauf_id)),
+        _ueberblick(conn, quelle, lieferung, regelsatz),
+        _auffaelligkeiten(treffer, rueckfragen, _pruefungen_gelaufen(conn, quelle_id)),
         _rueckfragen_abschnitt(lieferung, treffer, rueckfragen),
-        _regeln(conn, stand.lauf_id, lieferung, regelsatz),
-        _revision(conn, stand.lauf_id),
+        _regeln(conn, quelle_id, lieferung, regelsatz),
+        _revision(conn, stand.lauf_id, _nachrechnung(conn, lauf, quelle_id, treffer)),
         [
             "---",
             "",

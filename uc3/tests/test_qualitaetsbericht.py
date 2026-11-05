@@ -11,12 +11,23 @@ from statagent.berichte.qualitaetsbericht import (
     ABSCHNITTE,
     GUELTIGE_EINSTUFUNGEN,
     BerichtFehler,
+    _ueberblick,
     bericht_erzeugen,
     bericht_schreiben,
     zahl,
 )
 from statagent.db import Verbindung
-from statagent.lauf import lauf_ausfuehren
+from statagent.lauf import lauf_ausfuehren, veroeffentlichen
+from statagent.regeln import regeln_freigeben
+
+NAME = "Lena Gruber"
+
+
+def _abschnitt(text: str, nr: int) -> str:
+    """Text des Abschnitts `nr` (1–5) ohne die folgenden Abschnitte."""
+    anfang = text.index(ABSCHNITTE[nr - 1])
+    ende = text.index(ABSCHNITTE[nr]) if nr < len(ABSCHNITTE) else len(text)
+    return text[anfang:ende]
 
 
 def _laeufe(conn: Verbindung) -> int:
@@ -91,3 +102,93 @@ def test_ohne_lauf_gibt_es_keinen_bericht(conn: Verbindung) -> None:
     # Fängt: ein Bericht aus leeren Kennzahlen, wenn der Monat nie gerechnet wurde.
     with pytest.raises(BerichtFehler):
         bericht_erzeugen(conn, "2024-09")
+
+
+def test_veroeffentlichter_monat_zeigt_den_veroeffentlichenden_lauf(conn: Verbindung) -> None:
+    # Fängt: nach einem Regelwechsel zeigt der Bericht eines veröffentlichten Monats in § 2 und § 4 Treffer und
+    # Wirkung des neuen Regelstands und im Kopf „VORLÄUFIG“, obwohl § 1 die veröffentlichten Zahlen zeigt.
+    erster = lauf_ausfuehren(conn, "2024-08", "v1")
+    regeln_freigeben(conn, "v1", NAME)
+    veroeffentlichen(conn, "2024-08", "v1", NAME)
+    conn.execute(  # neuer Regelstand: ÖNACE 'D' wird wie 'C' zugeordnet (nicht freigegeben)
+        b"""UPDATE stat.quellzuordnung SET code = 'C'
+            WHERE regelsatz = 'v1' AND merkmal = 'oenace' AND version = '2008' AND geliefert = 'D'"""
+    )
+    zweiter = lauf_ausfuehren(conn, "2024-08", "v1")
+    assert zweiter.ergebnis_status == "endgueltig" and zweiter.lauf_id != erster.lauf_id
+    # Der neue Lauf sieht etwas anderes: eine Prüfung, die anhält, und eine andere Regelwirkung.
+    regel = conn.execute(
+        """INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, beschreibung, begruendung, grundlage)
+           VALUES ('v1', 'P90_testpruefung', 'pruefung', 'test', 90, 'Testprüfung', 'Test', 'Test')
+           RETURNING id"""
+    ).fetchone()
+    assert regel is not None
+    conn.execute(
+        """INSERT INTO meta.pruefung_treffer (lauf_id, regel_id, ebene, anzahl, einstufung, anhalten, beleg_sql)
+           VALUES (%s, %s, 'aggregat', 7, NULL, TRUE, 'SELECT 1')""",
+        (zweiter.lauf_id, regel["id"]),
+    )
+    wirkung = conn.execute(
+        """UPDATE meta.regel_wirkung SET saetze = 987654
+           WHERE lauf_id = %s AND regel_id = (SELECT min(regel_id) FROM meta.regel_wirkung WHERE lauf_id = %s)
+           RETURNING regel_id""",
+        (zweiter.lauf_id, zweiter.lauf_id),
+    ).fetchall()
+    assert len(wirkung) == 1
+
+    text = bericht_erzeugen(conn, "2024-08")
+    assert "VORLÄUFIG" not in text
+    assert "> **Status: endgültig**, freigegeben von Lena Gruber am " in text
+    assert f"| davon gezählt am Stichtag | {zahl(erster.gezaehlt)} |" in _abschnitt(text, 1)
+    alte_treffer = conn.execute(
+        "SELECT r.name FROM meta.pruefung_treffer t JOIN meta.regel r ON r.id = t.regel_id "
+        "WHERE t.lauf_id = %s AND t.anzahl > 0",
+        (erster.lauf_id,),
+    ).fetchall()
+    for t in alte_treffer:
+        assert str(t["name"]) in _abschnitt(text, 2)
+    assert "Testprüfung" not in _abschnitt(text, 2)
+    assert zahl(987654) not in _abschnitt(text, 4)
+    revision = _abschnitt(text, 5)
+    assert f"veröffentlichenden Lauf {erster.lauf_id}" in revision
+    assert "P90_testpruefung (Aggregat, 7 Sätze, hätte angehalten)" in revision
+    assert "Umschichtung" in revision and "| 2024-08 | ÖNACE-Abschnitt | C |" in revision
+    assert bericht_maengel(text) == []
+
+
+def test_umschichtung_ist_revisionsbedarf(conn: Verbindung) -> None:
+    # Fängt: § 5 liest nur „insgesamt“; C +10 / D −10 erscheint dann als „kein Revisionsbedarf“.
+    lauf_id = _laeufe(conn)
+    conn.execute(
+        "UPDATE meta.revision SET aktuell = veroeffentlicht WHERE lauf_id = %s AND berichtsmonat = '2024-08'",
+        (lauf_id,),
+    )
+    geaendert = conn.execute(
+        """UPDATE meta.revision SET aktuell = veroeffentlicht + CASE schluessel WHEN 'C' THEN 10 ELSE -10 END
+           WHERE lauf_id = %s AND berichtsmonat = '2024-08' AND gliederung = 'oenace' AND schluessel IN ('C', 'D')
+           RETURNING schluessel""",
+        (lauf_id,),
+    ).fetchall()
+    assert len(geaendert) == 2
+    revision = _abschnitt(bericht_erzeugen(conn, "2024-09"), 5)
+    assert "Kein Revisionsbedarf" not in revision
+    assert "Umschichtung zwischen Ausprägungen, insgesamt unverändert" in revision
+    zeilen = [z for z in revision.splitlines() if z.startswith("| 2024-08 | ÖNACE-Abschnitt |")]
+    assert [z.split(" | ")[2] for z in zeilen] == ["C", "D"]
+    assert zeilen[0].endswith("| +10 |") and zeilen[1].endswith("| -10 |")
+
+
+def test_abrechnung_nennt_fortgeschriebene_verhaeltnisse(conn: Verbindung) -> None:
+    # Fängt: mit Fortschreibung (E07) sagt die Prosa „gelesen = gezählt + …“ und die Tabelle trennt geliefert
+    # gezählte und fortgeschriebene Verhältnisse nicht.
+    lauf = dict(_lauf(conn, _laeufe(conn)))
+    lauf["fortgeschrieben"], lauf["gezaehlt"] = 5, int(str(lauf["gezaehlt"])) + 5
+    text = "\n".join(_ueberblick(conn, lauf, "2024-09", "v1"))
+    z = int(str(lauf["gezaehlt"]))
+    assert f"| davon geliefert gezählt | {zahl(z - 5)} |" in text
+    assert "| davon fortgeschrieben aus der Vorlieferung (Regel E07, vorläufig) | 5 |" in text
+    assert (
+        "Abrechnung: gelesene Sätze + fortgeschriebene Verhältnisse = gezählte + nicht gezählte"
+        " + ausgeschlossene Sätze."
+    ) in text
+    assert " + 5 fortgeschrieben = " in text and "(geht auf)" in text
