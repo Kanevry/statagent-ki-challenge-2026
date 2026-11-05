@@ -31,6 +31,7 @@ from uc2.belege.einbettung import Einbetter, einbetter
 from uc2.belege.namen import (
     NAMENSLISTE_ENV,
     Namensliste,
+    NamenslisteFehlt,
     NamenslisteImRepo,
     pruefe_ausserhalb_repo,
     zitate_anzeige,
@@ -153,7 +154,10 @@ def lade_namensliste() -> Namensliste | None:
         raise BelegFehler(str(fehler)) from fehler
     if not pfad.is_file():
         return None
-    liste = Namensliste.lade(pfad)
+    try:
+        liste = Namensliste.lade(pfad)
+    except NamenslisteFehlt:
+        return None
     return liste if len(liste) else None
 
 

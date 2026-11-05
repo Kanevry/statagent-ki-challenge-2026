@@ -81,6 +81,9 @@ def waehle_belege(verbindung: psycopg.Connection[Any], ausdruecklich: str | None
     """Belegquelle nach `--belege` oder, ohne Angabe, nach Index und Namensliste (siehe Moduldoku)."""
     namen = lade_namensliste() if ausdruecklich != "fixture" else None
     if ausdruecklich == "index":
+        if namen is None:
+            # Fail-closed (Review !43): ohne Namensliste schützen die Muster allein nur 93,8 % der Namen.
+            raise BelegFehler(f"Belege aus dem Index nur mit Namensliste. {NAMENSLISTE_ANLEITUNG}")
         return IndexQuelle(verbindung, namen=namen)
     if ausdruecklich == "fixture":
         return FixtureQuelle()

@@ -112,4 +112,5 @@ def test_standard_der_belege_index_nur_mit_index_und_namensliste(
     assert isinstance(waehle_belege(pg_test, None), IndexQuelle)
     monkeypatch.delenv("UC2_NAMENSLISTE")
     assert isinstance(waehle_belege(pg_test, None), FixtureQuelle)
-    assert isinstance(waehle_belege(pg_test, "index"), IndexQuelle)  # ausdrücklich gewinnt
+    with pytest.raises(BelegFehler, match="Namensliste"):  # fail-closed (Review !43): index braucht die Liste
+        waehle_belege(pg_test, "index")

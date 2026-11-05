@@ -279,6 +279,9 @@ class Verhandlung:
                 "zielpruefung": self.experte_voll["zielpruefung"]["ergebnis"],
                 "modus_erreicht": self.experte_voll["zielpruefung"]["modus_erreicht"],
                 "entscheidend": self.experte_voll["entscheidend"]["text"],
+                # Vollständiges Ergebnis: die Prüfung zahl_widerspruch vergleicht gegen alle Werte daraus,
+                # und pruefe_lauf.py muss dieselben Werte sehen (Qualitätslauf Fall 9, 05.11.).
+                "ergebnis": self.experte_voll,
             },
         )
         auftrag = self._auftrag(s)

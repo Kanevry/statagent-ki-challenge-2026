@@ -6,6 +6,7 @@ IDs, Fachbegriffe mit kurzer Erklärung, keine Gedankenstriche."""
 
 from __future__ import annotations
 
+import re
 from functools import cache
 from typing import Any
 
@@ -46,8 +47,14 @@ def _n(akteur_id: str) -> str:
     return _namen().get(akteur_id, akteur_id)
 
 
+def _ohne_striche(text: str) -> str:
+    """Gedankenstriche aus Presse-Titeln und Modelltext werden zu Doppelpunkt oder Komma (Owner-Vorgabe)."""
+    text = re.sub(r"\s+[—–]\s+(?=\S)", ": ", text, count=1)
+    return re.sub(r"\s*[—–]\s*", ", ", text)
+
+
 def _kurz(text: str, n: int = KURZ) -> str:
-    text = " ".join(text.split())
+    text = _ohne_striche(" ".join(text.split()))
     return text if len(text) <= n else text[: n - 1] + "…"
 
 
