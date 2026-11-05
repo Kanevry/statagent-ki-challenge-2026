@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // Prüfbilder der Seite /praesentation für die UI-Regie (#59, #141): jede Szene im Endzustand bei 1920 × 1080,
-// dazu die Handy-Ansicht 390 × 844 und die Druckansicht. Endzustand: Die Seite öffnet die nächste Szene und geht mit
-// der Pfeiltaste eine zurück; die Navigation zeigt die vorige Szene dann mit allen Takten. Die letzte Szene wird
-// mit Pfeil rechts bis zum Ende durchgeschaltet.
+// dazu die Handy-Ansicht 390 × 844 und die Druckansicht. Der Direktlink ?folie=N (N > 1) öffnet die Szene im
+// Endzustand mit allen Takten; Folie 1 läuft ihre Bewegung ab, das Skript wartet so lange.
 //
 // Aufruf: BASIS_URL=<url> AUSGABE=<ordner> node docs/praesentation/werkzeug/praesentation_bilder.mjs
 // Läuft wie aufnahme.mjs über dev-browser (eigener Browser e5-praesentation, headless) und beendet nur diesen.
@@ -21,11 +20,13 @@ const DESKTOP = { width: 1920, height: 1080, deviceScaleFactor: 1 };
 const HANDY = { width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true };
 
 const auftraege = [
-  ...Array.from({ length: SZENEN }, (_, i) =>
-    i + 1 < SZENEN
-      ? { name: `szene-${String(i + 1).padStart(2, "0")}-1920`, pfad: `/praesentation?folie=${i + 2}`, viewport: DESKTOP, taste: "ArrowLeft", mal: 1 }
-      : { name: `szene-${String(i + 1).padStart(2, "0")}-1920`, pfad: `/praesentation?folie=${i + 1}`, viewport: DESKTOP, taste: "ArrowRight", mal: 6 },
-  ),
+  ...Array.from({ length: SZENEN }, (_, i) => ({
+    name: `szene-${String(i + 1).padStart(2, "0")}-1920`,
+    pfad: `/praesentation?folie=${i + 1}`,
+    viewport: DESKTOP,
+    // Folie 1 beginnt mit Bewegung; ab Folie 2 öffnet der Direktlink den Endzustand.
+    warten: i === 0 ? 7000 : 0,
+  })),
   { name: "handy-hinweis-390", pfad: "/praesentation?folie=1", viewport: HANDY },
   { name: "handy-szene-05-390", pfad: "/praesentation?folie=5", viewport: HANDY },
   { name: "druck-1920", pfad: "/praesentation?folie=1", viewport: DESKTOP, druck: true },
@@ -46,11 +47,7 @@ for (const a of auftraege) {
   await page.waitForNetworkIdle({ idleTime: 500, concurrency: 2, timeout: 10000 }).catch(() => {});
   await page.evaluate(() => document.fonts.ready);
   await new Promise((r) => setTimeout(r, 1500));
-  for (let n = 0; n < (a.mal || 0); n++) {
-    await page.keyboard.press(a.taste);
-    await new Promise((r) => setTimeout(r, 2500));
-  }
-  if (a.mal) await new Promise((r) => setTimeout(r, 5000));
+  if (a.warten) await new Promise((r) => setTimeout(r, a.warten));
   if (dialog) throw new Error("Unerwarteter Dialog auf " + a.pfad + " (" + dialog + "), Abbruch");
   const daten = await page.screenshot({ type: "png", encoding: "base64", fullPage: Boolean(a.druck) });
   const path = await saveFile(a.name + ".png", Buffer.from(daten, "base64"));
