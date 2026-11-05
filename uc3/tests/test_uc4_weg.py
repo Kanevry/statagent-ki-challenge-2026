@@ -116,7 +116,7 @@ def test_einzelperson_keine_zahl(gerechnet: Verbindung) -> None:
     "frage",
     [
         "Wie viele Beschäftigte mit Teilzeit gab es im September 2024?",
-        "Wie viele Beschäftigte unter 25 Jahren gab es im September 2024?",
+        "Durchschnittsalter der Beschäftigten im September 2024",
         "Wie viele Beschäftigte gab es im Bergbaubetrieb im September 2024?",
     ],
 )
@@ -147,6 +147,7 @@ def test_mehrere_werte_bleiben_je_wert(gerechnet: Verbindung) -> None:
         "Beschäftigte in Wien und Tirol im Gesundheitswesen im September 2024",
         "Beschäftigte in Wien und Tirol im Bergbaubetrieb im September 2024",
         "Wie hat sich Wien gegenüber Tirol im September 2024 entwickelt?",
+        "Beschäftigte in Wien und Tirol unter 25 Jahren im September 2024",
     ],
 )
 def test_mehrere_werte_mit_ungelesener_einschraenkung(gerechnet: Verbindung, frage: str) -> None:
