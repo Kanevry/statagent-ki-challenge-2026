@@ -68,6 +68,11 @@ def _tabelle_vorhanden(conn: Verbindung, name: str) -> bool:
     return bool(z and z["da"])
 
 
+def _zahl(wert: object) -> str:
+    """Ganze Zahl mit Tausenderpunkt (392.236); sonst der Text, wie er ist."""
+    return f"{wert:,}".replace(",", ".") if isinstance(wert, int) else str(wert or "")
+
+
 def _zelle(text: object) -> str:
     """Text für eine Tabellenzelle: eine Zeile, `|` maskiert (sonst bricht die Markdown-Tabelle um)."""
     return " ".join(str(text or "").split()).replace("|", "\\|")
@@ -161,7 +166,7 @@ def protokoll_erzeugen(conn: Verbindung, repo: Path | None = None) -> str:
         ]
         zeilen += [
             f"| {z['lieferung']} | {z['regelsatz']} | {z['freigegeben_von']} | {_zeit(z['freigegeben_am'])} |"
-            f" {z['gezaehlt']} | `{str(z['ergebnis_hash'])[:12]}` |"
+            f" {_zahl(z['gezaehlt'])} | `{str(z['ergebnis_hash'])[:12]}` |"
             for z in laeufe
         ]
     else:
