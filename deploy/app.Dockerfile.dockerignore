@@ -1,0 +1,23 @@
+# Positivliste für den Build-Kontext von deploy/app.Dockerfile (#68): nur, was das Image braucht.
+# BuildKit liest diese Datei, weil sie neben dem Dockerfile liegt und dessen Namen trägt.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!pyproject.toml
+!uv.lock
+!.python-version
+!web
+!shared
+!uc1
+!uc2
+!uc3
+# auch innerhalb der erlaubten Ordner nie: Abhängigkeiten, Build-Reste, Erzeugtes, lokale Zugänge
+**/node_modules
+**/.next
+**/.venv
+**/__pycache__
+**/.pytest_cache
+uc3/erzeugt
+**/.env
+**/.env.*
