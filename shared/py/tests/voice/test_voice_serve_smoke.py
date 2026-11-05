@@ -187,3 +187,14 @@ def test_uc4_budget_mitten_in_der_kette_wird_gesagt(monkeypatch, mit_antwort):
     assert gesagt.endswith(kern.BUDGET_MELDUNG)
     assert OHNE_ANTWORT not in gesagt
     assert ("387.180" in gesagt) is mit_antwort
+
+
+def test_budget_hinweis_steht_hinter_den_belegen():
+    """Fängt (Review !55): bei einer Teilantwort hing der Beleg hinter dem Budget-Hinweis."""
+    beleg = Beleg(uc="uc3", quelle="stat.beschaeftigte_monat", lieferung="2025-03", sql="SELECT 1")
+    antwort = kern.VoiceAntwort(text=f"StatAgent: Es waren 387.180. {kern.BUDGET_MELDUNG}", belege=[beleg])
+    gesagt = kern.gesprochener_text(antwort)
+    assert gesagt == (
+        f"StatAgent: Es waren 387.180. Beleg: stat.beschaeftigte_monat 2025-03. {kern.BUDGET_MELDUNG}"
+    )
+    assert kern.gesprochener_text(kern.VoiceAntwort(text=kern.BUDGET_MELDUNG)) == kern.BUDGET_MELDUNG

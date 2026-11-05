@@ -464,6 +464,7 @@ def test_gueltige_aufrufe_je_ip_begrenzt(umgebung, antwort, monkeypatch):
         # Review !38 (#119): Präfix-Einträge ergeben nur ihre Kategorie, der freie Anhang fällt weg
         ("pipeline-error-openai-llm-failed", "pipeline-error"),
         ("pipeline-error-irgendwas-frei-erfunden", "pipeline-error"),
+        ("pipeline-error-", "pipeline-error"),
         ("call.in-progress.error-vapifault-transport-never-connected", "call"),
         ("pipeline-error-+43 664 1234567", "sonstiges"),
         ("pipeline-error-436641234567", "sonstiges"),
@@ -487,14 +488,22 @@ def test_webhook_zweiter_bericht_desselben_anrufs_schreibt_keine_zeile(client, u
 
 
 def test_webhook_wiederholung_nach_schreibfehler_schreibt_die_zeile(client, umgebung, monkeypatch):
-    """Fängt (Review !38, #119): call_id vor dem Schreiben gemerkt, der Retry von Vapi verworfen."""
+    """Fängt (Review !38/!55, #119): call_id vor dem Schreiben gemerkt, Vapis Retry als doppelt verworfen."""
     kopf = {"x-vapi-secret": SECRET}
     ziel = umgebung / "voice.jsonl"
-    monkeypatch.setenv("PLATTFORM_VOICE_PROTOKOLL", str(umgebung / "fehlt" / "datei" / "voice.jsonl"))
-    (umgebung / "fehlt").write_text("eine Datei, kein Ordner", encoding="utf-8")
+    echtes_open = Path.open
+    geworfen: list[bool] = []
+
+    def open_mit_einem_fehler(self, mode="r", *args, **kwargs):
+        if self == ziel and "a" in mode and not geworfen:
+            geworfen.append(True)
+            raise OSError("Platte voll")
+        return echtes_open(self, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", open_mit_einem_fehler)
     nicht_test_client = TestClient(client.app, raise_server_exceptions=False)
     assert nicht_test_client.post("/vapi/webhook", json=_bericht(), headers=kopf).status_code == 500
-    monkeypatch.setenv("PLATTFORM_VOICE_PROTOKOLL", str(ziel))
+    assert geworfen == [True]
     assert client.post("/vapi/webhook", json=_bericht(), headers=kopf).json() == {"status": "ok"}
     assert len(ziel.read_text(encoding="utf-8").splitlines()) == 1
 

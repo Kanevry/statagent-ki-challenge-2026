@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from plattform.antwortform import Beleg, UcAntwort
 from plattform.router import Adapter, durchreichen, mock_adapter
 
-from .kern import BUDGET_MELDUNG, Sitzung, VoiceAntwort
+from .kern import BUDGET_FEHLERNAME, BUDGET_MELDUNG, Sitzung, VoiceAntwort
 
 if TYPE_CHECKING:
     from plattform.llm.basis import Nachricht
@@ -58,7 +58,7 @@ def uc4_antwort(*, mock: bool = False) -> Callable[[list[Nachricht], Sitzung], V
         ergebnis = durchreichen(frage, adapter=adapter)
         stimme = als_voice_antwort(ergebnis.antworten)
         # Budget mitten in der Kette verbraucht (#100): sagen statt verschweigen, sonst hört man OHNE_ANTWORT.
-        if any(f.grund == "BudgetErschoepft" for f in ergebnis.fehlend):
+        if any(f.grund == BUDGET_FEHLERNAME for f in ergebnis.fehlend):
             text = BUDGET_MELDUNG if stimme.text == OHNE_ANTWORT else f"{stimme.text} {BUDGET_MELDUNG}"
             return VoiceAntwort(text=text, belege=stimme.belege)
         return stimme

@@ -66,6 +66,8 @@ _MODELLNAME = "plattform-voice"
 _NICHT_EINGERICHTET = "Voice ist nicht eingerichtet."
 #: Gesprochen und als 429-Text, wenn das Tagesbudget von plattform.llm verbraucht ist (#100).
 BUDGET_MELDUNG = "Für heute sind keine Antworten mehr frei. Bitte morgen wieder fragen."
+#: Klassenname von plattform.llm.BudgetErschoepft; der Router schreibt ihn als ``grund`` in ``fehlend``.
+BUDGET_FEHLERNAME = "BudgetErschoepft"
 _BUDGET_MELDUNG = BUDGET_MELDUNG
 
 #: Bekannte Vapi-Endgründe; ein Eintrag mit ``-`` am Ende gilt als Präfix. Alles andere wird ``sonstiges``.
@@ -177,14 +179,24 @@ def _als_voice_antwort(roh: object) -> VoiceAntwort:
 
 
 def gesprochener_text(antwort: VoiceAntwort) -> str:
-    """Text samt gesprochenen Belegen, z. B. „… 387.180. Beleg: stat.beschaeftigte 2025-03.“ (ohne SQL)."""
+    """Text samt gesprochenen Belegen, z. B. „… 387.180. Beleg: stat.beschaeftigte 2025-03.“ (ohne SQL).
+
+    Endet der Text mit dem Budget-Hinweis, kommt der Hinweis ans Ende, hinter die Belege: die Belege gehören
+    zu den Zahlen davor, nicht zum Hinweis (Review !55).
+    """
+    text = antwort.text.rstrip()
+    schluss = ""
+    if text.endswith(BUDGET_MELDUNG) and text != BUDGET_MELDUNG:
+        text, schluss = text[: -len(BUDGET_MELDUNG)].rstrip(), BUDGET_MELDUNG
     saetze: list[str] = []
     for beleg in antwort.belege:
         zeitraum = beleg.lieferung or beleg.monat
         satz = f"Beleg: {beleg.quelle} {zeitraum}." if zeitraum else f"Beleg: {beleg.quelle}."
         if satz not in saetze:
             saetze.append(satz)
-    return " ".join([antwort.text.rstrip(), *saetze]) if saetze else antwort.text
+    if not saetze and not schluss:
+        return antwort.text
+    return " ".join(teil for teil in [text, *saetze, schluss] if teil)
 
 
 def text_antwort(antwort: Antwortfunktion, frage: str, uc: Uc) -> VoiceAntwort:
@@ -215,7 +227,7 @@ def _nachrichten(roh: object) -> list[Nachricht]:
 
 def _ist_budget_erschoepft(fehler: BaseException) -> bool:
     # Per Klassenname, damit plattform.llm hier nicht geladen wird (R2).
-    return any(klasse.__name__ == "BudgetErschoepft" for klasse in type(fehler).__mro__)
+    return any(klasse.__name__ == BUDGET_FEHLERNAME for klasse in type(fehler).__mro__)
 
 
 def _stuecke(text: str) -> list[str]:
@@ -383,10 +395,10 @@ def endgrund(roh: object) -> str | None:
     if not _ENDGRUND_ZEICHEN.fullmatch(wert) or _LANGE_ZIFFERN.search(wert):
         return "sonstiges"
     for eintrag in ENDGRUENDE:
-        if wert == eintrag:
-            return wert
         if eintrag.endswith(("-", ".")) and wert.startswith(eintrag):
             return eintrag.rstrip("-.")
+        if wert == eintrag:
+            return wert
     return "sonstiges"
 
 
