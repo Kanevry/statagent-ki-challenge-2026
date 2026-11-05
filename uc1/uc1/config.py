@@ -27,4 +27,9 @@ def daten_dir() -> Path:
 
 
 def datenbank_url() -> str:
-    return os.environ.get("LOTSE_DATABASE_URL", "").strip() or STANDARD_DATENBANK_URL
+    """UC1_DATABASE_URL (Name laut CLAUDE.md/Wurzel-.env.example) vor LOTSE_DATABASE_URL vor dem Standard."""
+    for name in ("UC1_DATABASE_URL", "LOTSE_DATABASE_URL"):
+        wert = os.environ.get(name, "").strip()
+        if wert:
+            return wert
+    return STANDARD_DATENBANK_URL

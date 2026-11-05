@@ -2199,6 +2199,7 @@ version = "0.1.0"
 source = { editable = "uc1" }
 dependencies = [
     { name = "numpy" },
+    { name = "plattform" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pypdf" },
     { name = "pyyaml" },
@@ -2222,6 +2223,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "numpy", specifier = ">=2" },
+    { name = "plattform", editable = "shared/py" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pypdf", specifier = ">=5" },
     { name = "pyyaml", specifier = ">=6" },

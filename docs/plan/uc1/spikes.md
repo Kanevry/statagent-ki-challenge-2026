@@ -1,6 +1,6 @@
 # UC1 KI-Lotse: Spikes (#28)
 
-Stand 2026-11-05, Host M4 (`Bernhards-MacBook-Pro`), pypdf 6.21.4, cloudflared (Homebrew).
+Stand 2026-11-05, Rechner A (M4, Demo-Rechner), pypdf 6.21.4, cloudflared (Homebrew).
 Skripte unter `uc1/spikes/`, Befehle aus `uc1/`. Temporäre Dateien lagen unter `/tmp/b-uc1-spikes/`, PDFs
 kommen nicht ins Repo.
 
@@ -96,7 +96,7 @@ Verbindung wird nach Fehlerantworten geschlossen) kam zweimal 404, danach wieder
 
 **Nicht gemessen: von m5.** Jede ssh-Form, die das Wegwerf-Token nach m5 bringt, ohne es in der
 Befehlszeile zu zeigen, wurde vom Grenz-Hook abgewiesen: stdin-Umleitung, lokale Skriptdatei, Heredoc und
-`-K` mit Pfad auf m5. Eine einfache `ssh m5-remote '…'` ging durch. Die Messung vom M4 über die öffentliche
+`-K` mit Pfad auf m5. Ein einfacher ssh-Inline-Befehl ging durch. Die Messung vom M4 über die öffentliche
 URL läuft trotzdem über die Cloudflare-Edge (Weg Client → vie05 → cloudflared auf dem M4 → 127.0.0.1). Sie
 enthält aber nicht die Netzstrecke eines zweiten Rechners.
 

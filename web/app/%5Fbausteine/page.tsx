@@ -13,9 +13,10 @@ import {
   Ueberschrift,
   Zahl,
 } from "@kic/ui/basis";
+import { BausteineBeispiele } from "./bausteine-beispiele";
 import { bausteineSichtbar } from "./sichtbar";
 
-// Musterseite aller Basis-Elemente (#56) mit erfundenen Inhalten. Zur Laufzeit geprüft, damit
+// Musterseite aller Basis-Elemente (#56) und Bausteine (#60) mit erfundenen Inhalten. Zur Laufzeit geprüft, damit
 // KIC_BAUSTEINE auch in einem fertigen Build wirkt.
 export const dynamic = "force-dynamic";
 
@@ -179,6 +180,10 @@ export default function BausteineSeite() {
               </Fliesstext>
             </Akzent>
           </div>
+        </Abschnitt>
+
+        <Abschnitt id="bausteine" titel="Bausteine">
+          <BausteineBeispiele />
         </Abschnitt>
       </div>
     </main>

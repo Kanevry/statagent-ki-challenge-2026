@@ -21,8 +21,11 @@ def ddl_dateien() -> list[Path]:
 
 
 def init_schema(conn: psycopg.Connection) -> list[str]:
-    """Spielt alle DDL-Dateien in Namensreihenfolge ein. Die Dateien sind idempotent."""
-    eingespielt: list[str] = []
+    """Spielt zuerst meta.sql von E0 (meta.protokoll, meta.freigabe), dann uc1/db/*.sql ein. Idempotent."""
+    from plattform.protokoll import ddl_einspielen
+
+    ddl_einspielen(conn)
+    eingespielt: list[str] = ["plattform/sql/meta.sql"]
     for datei in ddl_dateien():
         conn.execute(datei.read_text(encoding="utf-8"))
         eingespielt.append(datei.name)
