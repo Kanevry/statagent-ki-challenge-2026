@@ -4,7 +4,7 @@ import { Fliesstext, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
 import { formatZahl, HerkunftChip } from "@kic/ui/bausteine";
 import { leseRegeln, REGEL_TYPEN, sqlRegeln, type Regel, type RegelTyp } from "@/components/uc3/bericht";
 import { leerSatz } from "@/components/uc3/db";
-import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import { monatName } from "@/components/uc3/monat";
 
 // Regeln des Regelsatzes v1 (#18, Frame egqhg): gruppiert nach Einlesen, Zuordnen, Zählen, Prüfen, mit
@@ -70,13 +70,7 @@ export default async function Regeln() {
         </Fliesstext>
       </header>
 
-      <ul className="grid max-w-5xl gap-4 sm:grid-cols-3" aria-label="Begriffe auf dieser Seite">
-        {(["Regel", "Regelstand", "Freigabe"] as const).map((wort) => (
-          <li key={wort} className="font-sans text-14 font-semibold text-ink">
-            <Fachbegriff wort={wort} />
-          </li>
-        ))}
-      </ul>
+      <Begriffsliste worte={["Regel", "Regelstand", "Freigabe"] as const} label="Begriffe auf dieser Seite" className="grid max-w-5xl gap-4 sm:grid-cols-3" />
 
       {REGEL_TYPEN.map((typ) => {
         const gruppe = regeln.filter((r) => r.typ === typ);
