@@ -458,10 +458,15 @@ def _fluktuation_antwort(conn: Verbindung, monat: str, regelsatz: str) -> dict[s
     beleg = _beleg(sql_text, staende, stand.ergebnis_hash)
     try:
         zeilen: list[dict[str, Any]] = sql_lesen(conn, sql_text)["zeilen"]
-    except psycopg.errors.RaiseException as fehler:
-        grund = fehler.diag.message_primary or str(fehler)
-        # Ohne Schema bereinigt (Online-Datenbank) hilft kein neuer Lauf; die Meldung der Funktion sagt das selbst.
-        nachsatz = "" if "lokalen Auswertung" in grund else " Ein neuer Lauf für den Monat behebt das."
+    except (psycopg.errors.RaiseException, psycopg.errors.UndefinedFunction) as fehler:
+        if isinstance(fehler, psycopg.errors.UndefinedFunction):
+            # Die Funktion kommt erst mit `uc3 db init` in eine bestehende Datenbank (uc3/db/160_bewegung.sql).
+            grund = "Die Datenbank kennt die Zählung der Zu- und Abgänge noch nicht"
+            nachsatz = " Einmal `uc3 db init` ausführen, das ändert keine Daten."
+        else:
+            grund = fehler.diag.message_primary or str(fehler)
+            # Ohne Schema bereinigt (Online-Datenbank) hilft kein neuer Lauf; die Meldung der Funktion sagt das selbst.
+            nachsatz = "" if "lokalen Auswertung" in grund else " Ein neuer Lauf für den Monat behebt das."
         return _antwort(
             "fluktuation",
             f"Für {_monat_anzeige(monat)} lässt sich die Fluktuation nicht berechnen: {grund}.{nachsatz}",

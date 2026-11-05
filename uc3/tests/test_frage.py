@@ -331,3 +331,12 @@ def test_fluktuation_ohne_schema_bereinigt(gerechnet: Verbindung) -> None:
     daten = antwort_frage(gerechnet, "Fluktuation je ÖNACE im September 2024")
     assert daten["typ"] == "fluktuation" and daten["zahlen"] == []
     assert "keine bereinigten Einzeldaten" in daten["text"] and daten["hinweise"]
+
+
+# Fängt: eine bestehende Datenbank ohne `uc3 db init` nach dem Merge kennt stat.bewegung_oenace nicht; `frage`
+# stürzt dann vor der Jury mit UndefinedFunction ab, statt den nächsten Schritt zu nennen.
+def test_fluktuation_ohne_bewegungsfunktion(gerechnet: Verbindung) -> None:
+    gerechnet.execute("DROP FUNCTION stat.bewegung_oenace(text, text, text, date, date)")
+    daten = antwort_frage(gerechnet, "Fluktuation je ÖNACE im September 2024")
+    assert daten["typ"] == "fluktuation" and daten["zahlen"] == []
+    assert "uc3 db init" in daten["text"] and daten["hinweise"]
