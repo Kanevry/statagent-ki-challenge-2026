@@ -1,0 +1,3 @@
+# Lokale Exporte (PDF, PNG aus Pen) bleiben aus dem öffentlichen Repo.
+*
+!.gitignore
