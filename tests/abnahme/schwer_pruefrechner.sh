@@ -1,12 +1,13 @@
 #!/bin/bash
 # Schwerer Abnahme-Lauf auf dem Prüfrechner (docs/abnahme/PROZESS.md, Abschnitt Rhythmus).
 #
-#   bash schwer_pruefrechner.sh <bundle> <main-sha> <werkzeug-sha> <issues.json>
+#   bash schwer_pruefrechner.sh <bundle> <main-sha> <werkzeug-sha> <issues.json> [<kriterium>]
 #
 # 1. Holt main und den Abnahme-Branch aus dem Bundle in ABNAHME_REPO, checkt main-SHA aus und setzt tests/abnahme
 #    aus dem Werkzeug-Commit ein; die Hilfsskripte neben abnahme.env werden aus diesem Stand erneuert.
 # 2. README-Weg auf frischer Prüf-DB (eigenes Compose-Projekt, Port 5444, Zielprüfung; die Bau-DB wird verweigert).
 # 3. pruefen.py --schwer gegen die Prüf-DB; die Laufdatei liegt danach in ABNAHME_REPO/docs/abnahme/laeufe/.
+# Mit <kriterium>: kein README-Weg, nur dieser Prüfsatz gegen die Prüf-DB des letzten Laufs (`einzeln = true`).
 # Jeder Fehler bricht ab. Konfiguration: abnahme.env neben diesem Skript (Vorlage abnahme.env.example).
 set -euo pipefail
 HIER="$(cd "$(dirname "$0")" && pwd)"
@@ -18,6 +19,7 @@ bundle="${1:?Bundle fehlt}"
 sha="${2:?main-SHA fehlt}"
 werkzeug="${3:?Werkzeug-SHA fehlt}"
 issues="${4:?Issue-Abzug fehlt}"
+nur_id="${5:-}"
 PORT="${ABNAHME_DB_PORT:-5444}"
 if [ "$PORT" != "5444" ]; then
   echo "Abbruch: Prüf-DB muss auf 5444 laufen, nicht $PORT." >&2
@@ -41,13 +43,15 @@ done
 (cd "$ABNAHME_REPO" && uv sync --frozen --all-packages -q)
 (cd "$ABNAHME_REPO" && pnpm install --frozen-lockfile --ignore-scripts --silent) || echo "Hinweis: pnpm install gescheitert, vitest-Prüfsätze werden Lauf-Fehler"
 
-echo "== readme-weg $(TZ=Europe/Vienna date '+%H:%M')"
-bash "$HIER/66_readme_weg.sh"
+if [ -z "$nur_id" ]; then
+  echo "== readme-weg $(TZ=Europe/Vienna date '+%H:%M')"
+  bash "$HIER/66_readme_weg.sh"
+fi
 
 echo "== pruefen $(TZ=Europe/Vienna date '+%H:%M')"
 mkdir -p "$HIER/abgabe"
 printf 'UC3_DATABASE_URL=postgresql://statistik:statistik@localhost:%s/statistik\nSTATAGENT_STARTPAKET=%s\nSTATAGENT_ABGABE=%s\n' \
   "$PORT" "$STARTPAKET_UC3" "$HIER/abgabe" > "$HIER/pruef-db.env"
 (cd "$ABNAHME_REPO" && uv run python tests/abnahme/pruefen.py --schwer --ort . --sha "$sha" \
-  --werkzeug "$werkzeug" --cache "$issues" --db-env "$HIER/pruef-db.env")
+  --werkzeug "$werkzeug" --cache "$issues" --db-env "$HIER/pruef-db.env" ${nur_id:+--id "$nur_id"})
 ls -t "$ABNAHME_REPO/docs/abnahme/laeufe/" | head -1
