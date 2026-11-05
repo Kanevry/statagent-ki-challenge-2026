@@ -129,6 +129,7 @@ def abzug(sha: str, werkzeug: str) -> Path:
         subprocess.run(
             ["git", "clone", "-q", "--shared", "--no-checkout", str(WURZEL), str(ziel)], check=True
         )
+        (ziel / MARKE_KLON).write_text("Prüf-Klon der Abnahme; wird vor jedem Lauf hart zurückgesetzt.\n")
         subprocess.run(["git", "-C", str(ziel), "checkout", "-q", "--detach", sha], check=True)
         subprocess.run(["uv", "sync", "--frozen", "--all-packages", "-q"], cwd=ziel, check=True, env=UMGEBUNG)
         node_ok = any(
@@ -144,6 +145,8 @@ def abzug(sha: str, werkzeug: str) -> Path:
         if not node_ok:
             print("Hinweis: pnpm install gescheitert; vitest-Prüfsätze werden Lauf-Fehler", file=sys.stderr)
         (ziel / ".fertig").write_text(sha)
+    if not (ziel / MARKE_KLON).exists():  # Abzüge von vor der Marke (unter ABZUEGE, also eigene Prüf-Klone)
+        (ziel / MARKE_KLON).write_text("Prüf-Klon der Abnahme; wird vor jedem Lauf hart zurückgesetzt.\n")
     zuruecksetzen(ziel, sha, werkzeug)
     return ziel
 
@@ -227,6 +230,9 @@ def ausfuehren(befehl: str, ort: Path, sekunden: int) -> tuple[int, str, str, fl
     return code, out, err, time.monotonic() - start
 
 
+MARKE_KLON = (
+    ".kic-abnahme-pruefklon"  # nur Verzeichnisse mit dieser Datei werden hart zurückgesetzt (Review 4d)
+)
 ORT: Path | None = None  # Prüf-Klon des laufenden Laufs, wird in Ausgaben durch <pruefklon> ersetzt
 
 
@@ -245,8 +251,12 @@ def zuruecksetzen(ort: Path, sha: str, werkzeug: str) -> None:
     Grund (Review 4d, 19:00): ein Prüfsatz schrieb abgabe/protokoll.md in den Klon; der nächste checkout
     scheiterte still. Umgebungen (.venv, node_modules) sind ignoriert und bleiben.
     """
+    if ort.resolve() == WURZEL.resolve() or WURZEL.resolve().is_relative_to(ort.resolve()):
+        raise SystemExit(f"Abbruch: {ort} ist der eigene Arbeitsbaum, kein Prüf-Klon")
+    if not (ort / MARKE_KLON).exists():
+        raise SystemExit(f"Abbruch: {ort} trägt keine Marke {MARKE_KLON}, wird nicht zurückgesetzt")
     subprocess.run(["git", "-C", str(ort), "checkout", "-q", "-f", "--detach", sha], check=True)
-    subprocess.run(["git", "-C", str(ort), "clean", "-fdq", "-e", ".fertig"], check=True)
+    subprocess.run(["git", "-C", str(ort), "clean", "-fdq", "-e", ".fertig", "-e", MARKE_KLON], check=True)
     shutil.rmtree(ort / "tests" / "abnahme", ignore_errors=True)
     subprocess.run(["git", "-C", str(ort), "checkout", "-q", werkzeug, "--", "tests/abnahme"], check=True)
 
