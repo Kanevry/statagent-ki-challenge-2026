@@ -183,8 +183,8 @@ Die Angaben stimmen mit `docs/models.md` überein. Das ist dort die Hauptquelle,
 - **Ohne Schlüssel** läuft alles mit `LLM_PROVIDER=mock`. Der UC3-Monatslauf braucht ohnehin kein Modell.
 - **Online-Demo:** Dort läuft Azure `gpt-5.4-mini` mit zwei Grenzen: ein Ratenlimit je IP und ein Tagesbudget für
   Modellaufrufe, das auch bei gleichzeitigen Fragen nicht überschritten wird. Ohne Tagesbudget ruft die App online
-  kein echtes Modell, sie lehnt den Aufruf vorher ab. Ist das Budget aufgebraucht, sagt die Seite das und nennt den
-  nächsten Tag.
+  kein echtes Modell, sie lehnt den Aufruf vorher ab. Ist das Budget aufgebraucht, sagt die Seite das und bittet,
+  am nächsten Tag wieder zu fragen.
 
 ## Grenzen und offene Punkte
 
