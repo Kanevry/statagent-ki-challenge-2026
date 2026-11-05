@@ -142,3 +142,23 @@ it("der Screenreader hört die tatsächliche Zahl der Antworten, nicht pauschal 
   await userEvent.type(screen.getByLabelText("Ihre Frage"), "Frage{Enter}");
   await waitFor(() => expect(screen.getByRole("status").textContent).toBe("1 von 2 Stationen haben geantwortet."));
 });
+
+it("die Einheit „Anzahl“ steht nicht hinter der Zahl", async () => {
+  const antwort = {
+    ...ANTWORT,
+    belege: [{ ...BELEG, quelle: "stat.beschaeftigte_monat" }],
+    zahlen: [{ bezeichnung: "Beschäftigte", wert: 7498, einheit: "Anzahl", beleg: 0 }],
+  };
+  fetchMit(() =>
+    stromAntwort([
+      { art: "start", kette: ["uc3"], modell: null },
+      { art: "antwort", uc: "uc3", stufe: 1, dauer_ms: 900, kern: "Kern.", antwort },
+      { art: "ende", fehlend: [], dauer_ms: 1000 },
+    ]),
+  );
+  render(<Kette kette={["uc3"]} fragenOffen mitModell={false} />);
+  await userEvent.type(screen.getByLabelText("Ihre Frage"), "Frage{Enter}");
+  await screen.findByText("Kern.");
+  expect(document.querySelector("[data-zahl]")?.textContent).not.toContain("Anzahl");
+  expect(document.querySelector("[data-zahl]")?.textContent).toContain("7.498");
+});

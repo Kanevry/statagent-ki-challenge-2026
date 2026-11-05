@@ -394,7 +394,7 @@ function Antwort({ kern, antwort, dauerMs }: { kern: string; antwort: UcAntwort;
                 <span className="font-sans text-14 text-slate">{zahl.bezeichnung}</span>
                 <span className="font-sans text-16 font-semibold text-ink tabular-nums">
                   {new Intl.NumberFormat("de-AT").format(zahl.wert)}
-                  {zahl.einheit ? ` ${zahl.einheit}` : ""}
+                  {zahl.einheit && zahl.einheit !== "Anzahl" ? ` ${zahl.einheit}` : ""}
                 </span>
                 {beleg && (
                   <HerkunftChip
