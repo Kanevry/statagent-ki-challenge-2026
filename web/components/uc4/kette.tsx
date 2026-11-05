@@ -228,6 +228,12 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
     ),
   ];
 
+  // Steht irgendwo fester Text, hat das Modell nicht „die Sätze“ geschrieben; die Zeile an den Karten sagt den Rest.
+  const mitFestemText = kette.some((uc, i) => {
+    const s = stationen[uc];
+    return i > 0 && s?.art === "antwort" && !s.antwort.modell;
+  });
+
   return (
     <div className="flex flex-col gap-10" data-testid="uc4-kette">
       {fragenOffen ? (
@@ -326,7 +332,7 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
       {lauf.art === "fertig" && !gestoppt && (
         <p className="font-sans text-14 text-slate">
           Fertig in {sekunden(lauf.dauerMs)} s.{" "}
-          {modelle.length > 0 ? `Die Sätze schreibt ${modelle.join(" und ")}, die Zahlen rechnet der Code.` : "Die Zahlen rechnet der Code."}
+          {modelle.length > 0 && !mitFestemText ? `Die Sätze schreibt ${modelle.join(" und ")}, die Zahlen rechnet der Code.` : "Die Zahlen rechnet der Code."}
         </p>
       )}
       {modelle.length === 1 && <SeitenModell provider={modelle[0]!} gewaehlt />}

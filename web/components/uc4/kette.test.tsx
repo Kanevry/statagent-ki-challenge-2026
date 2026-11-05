@@ -278,4 +278,6 @@ it("fester Text der Stationen danach heißt so, nicht „Mit KI geschrieben“",
   expect(zeile).toContain("Fester Text");
   expect(seite.querySelector('[data-uc-karte="uc2"] [data-testid="uc4-modell"]')!.textContent).toContain("Mit KI geschrieben");
   expect(seite.querySelector('[data-uc-karte="uc3"] [data-testid="uc4-modell"]')!.textContent).toContain("Ohne KI, nur Code");
+  // Die Schlusszeile darf dann nicht behaupten, das Modell schreibe die Sätze.
+  expect(screen.getByText(/Fertig in/).textContent).not.toContain("Die Sätze schreibt");
 });

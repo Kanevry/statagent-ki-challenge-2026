@@ -202,30 +202,31 @@ KETTE_MAX_SAETZE = 3
 #: Ab so vielen UC3-Zahlen steht im Text keine Liste, sondern der Verweis auf die Station davor.
 KETTE_MAX_ZAHLEN = 3
 KETTE_VERWEIS = "Die einzelnen Zahlen stehen mit Beleg bei StatAgent."
-#: Was der Lotse in der Kette sagen darf: Bedingung und Wirkung, sonst nichts. Eine Sperrliste reichte
-# nicht, das
-#: Modell schrieb „schwieriger betreut“ und „merken oft mehr Verzögerung“ (UI-Regie 05.11.). Keine Ziffer,
-# kein
-#: Zahlenecho und kein Satz ohne Bedingung kann hier durch.
-_KETTE_SATZ = re.compile(
-    r"^(?:(?:Mit|Bei) (?P<menge>mehr|weniger) (?:Personal|Beschäftigten|Fachkräften)"
-    r"|Wo (?P<menge2>mehr|weniger) Personal arbeitet,) "
-    r"(?:(?:warten Sie|kommen Sie) (?:meist |oft )?(?P<zeit>kürzer|länger|schneller dran|später dran)"
-    r"(?: und werden (?:meist |oft )?(?P<betreut>besser|schlechter) betreut)?"
-    r"|werden Sie (?:meist |oft )?(?P<betreut2>besser|schlechter) betreut)\.$"
-)
-_GUT_BEI_MEHR = {"kürzer", "schneller dran", "besser"}
+_WER = r"(?:\w+\s+)?(?:Personal|Beschäftigte\w*|Fachkräfte\w*)\b"
+#: Pflicht in der Kette: die Bedingung. Ohne sie klingt „Sie warten meist kürzer.“, als folge es aus der Zahl.
+_MEHR_PERSONAL = re.compile(rf"\b(?:mehr|genug)\s+{_WER}", re.IGNORECASE)
+_WENIGER_PERSONAL = re.compile(rf"\b(?:weniger|wenig)\s+{_WER}|\bfehl(?:t|en)\b", re.IGNORECASE)
+#: Pflicht: die richtige Richtung. „Mit mehr Personal warten Sie länger“ fällt weg.
+_BESSER = re.compile(r"\b(?:kürzer|schneller|rascher|früher|besser)\b", re.IGNORECASE)
+_SCHLECHTER = re.compile(r"\b(?:länger|später|schlechter)\b", re.IGNORECASE)
+#: Wiederholt nur den Simulator statt zu sagen, was die Person merkt („Mehr Personal heißt …“).
+_ECHO_SIMULATOR = re.compile(r"^(?:Mehr|Weniger)\s+\w+\b.*\b(?:heißt|bedeutet)\b", re.IGNORECASE)
+#: Sperrliste, was Probeläufe holprig oder am Thema vorbei brachten („schwieriger betreut“, UI-Regie 05.11.).
+_SCHWACH = re.compile(r"\bschwieriger\b|\bweniger betreut\b|Verzögerung|Belastung|Budget", re.IGNORECASE)
 
 
 def _satz_erlaubt(satz: str) -> bool:
-    """Passt der Satz auf ``_KETTE_SATZ`` und in die richtige Richtung? „Mit mehr Personal warten Sie
-    länger“ nicht."""
-    treffer = _KETTE_SATZ.match(satz)
-    if treffer is None:
+    """Bedingung und richtige Richtung sind Pflicht; keine Ziffer, kein Zahlwort, nichts von der
+    Sperrliste."""
+    mehr, weniger = _MEHR_PERSONAL.search(satz), _WENIGER_PERSONAL.search(satz)
+    if not (mehr or weniger) or _zahlen_in(satz) or hat_zahlwort(satz):
         return False
-    mehr = (treffer["menge"] or treffer["menge2"]) == "mehr"
-    wirkung = [w for w in (treffer["zeit"], treffer["betreut"], treffer["betreut2"]) if w]
-    return all((w in _GUT_BEI_MEHR) == mehr for w in wirkung)
+    if _ECHO_SIMULATOR.search(satz) or _SCHWACH.search(satz):
+        return False
+    falsch_herum = (mehr and not weniger and _SCHLECHTER.search(satz)) or (
+        weniger and not mehr and _BESSER.search(satz)
+    )
+    return not falsch_herum
 
 
 SCHEMA: dict[str, Any] = {
@@ -320,7 +321,8 @@ def pruefe_kette(saetze: Sequence[str], kontext: Kontext) -> tuple[list[str], bo
     """
     sauber = [" ".join(normalisiere(s).split()).removeprefix(KETTE_ANFANG).strip() for s in saetze]
     sauber = [s if s.endswith((".", "!", "?")) else f"{s}." for s in sauber if s]
-    vom_modell = bool(sauber) and len(sauber) < KETTE_MAX_SAETZE and all(_satz_erlaubt(s) for s in sauber)
+    sauber = sauber[: KETTE_MAX_SAETZE - 1]
+    vom_modell = bool(sauber) and all(_satz_erlaubt(s) for s in sauber)
     behalten = [f"{KETTE_ANFANG} {' '.join(sauber) if vom_modell else KETTE_FESTER_SATZ}"]
     belegsatz = _belegsatz(kontext)
     return ([*behalten, belegsatz] if belegsatz else behalten), vom_modell

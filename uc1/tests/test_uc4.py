@@ -458,3 +458,20 @@ def test_kette_fester_satz_besteht_die_eigene_pruefung() -> None:
     auseinander."""
     saetze = uc4.KETTE_FESTER_SATZ.replace(". ", ".|").split("|")
     assert all(uc4._satz_erlaubt(s) for s in saetze)
+
+
+@pytest.mark.parametrize(
+    "satz",
+    [
+        "Wo mehr Personal arbeitet, kommen Sie meist schneller dran.",
+        "Mit weniger Personal warten Sie oft länger.",
+        "Wo Personal fehlt, warten Sie oft länger.",
+        "Bei mehr Fachkräften werden Sie oft besser betreut.",
+        "Mit mehr Personal nimmt sich die Praxis meist mehr Zeit für Sie.",
+    ],
+)
+def test_kette_eigene_worte_des_modells_kommen_durch(satz: str) -> None:
+    """Fängt eine zu enge Regel: Der feste Satz soll der seltene Rückfall sein, nicht die Regel (UI-Regie
+    05.11.)."""
+    a = uc4.router_adapter("Wie viele?", _kette_kontext(), modell=modell_mit(satz))
+    assert a.text == f"{uc4.KETTE_ANFANG} {satz} {BELEGSATZ}" and a.modell == "skript"
