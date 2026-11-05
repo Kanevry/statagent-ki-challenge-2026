@@ -3,6 +3,7 @@ import { formatZahl } from "@kic/ui/bausteine";
 import { monatName } from "@/components/uc3/monat";
 import { laufPfad } from "@/components/uc3/navigation";
 import type { Monatslauf } from "@/components/uc3/typen";
+import { imZeitraum, zeitraumArtAus } from "@/components/uc3/zeitraum";
 
 // Zeitreihe als Linie mit Punkten (UI-Regie v1, Abnahme 1): Balken mit abgeschnittener Achse hätten eine Schwankung
 // von 2 Prozent wie ein Vielfaches aussehen lassen. Die Achse beginnt bei einem vollen Zehntausend unter dem
@@ -55,7 +56,7 @@ export function Monatsgrafik({ monate, regelsatz }: { monate: readonly Monatslau
         className="h-auto w-full"
         // Gruppe statt Bild: die Punkte sind Links, und interaktive Elemente dürfen nicht in role="img" stecken (axe).
         role="group"
-        aria-label={`Beschäftigungsverhältnisse am Stichtag von ${monatName(monate[0]!.lieferung)} bis ${monatName(monate.at(-1)!.lieferung)}, zwischen ${formatZahl(Math.min(...werte))} und ${formatZahl(Math.max(...werte))}`}
+        aria-label={`Beschäftigungsverhältnisse ${imZeitraum(zeitraumArtAus(monate[0]?.zeitraumArt))} von ${monatName(monate[0]!.lieferung)} bis ${monatName(monate.at(-1)!.lieferung)}, zwischen ${formatZahl(Math.min(...werte))} und ${formatZahl(Math.max(...werte))}`}
       >
         {hilfslinien(beginn, ende).map((wert) => (
           <g key={wert}>
