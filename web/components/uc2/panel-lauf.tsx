@@ -30,7 +30,7 @@ export function PanelSeite({ fallId, modus = "live" }: { fallId: string | null; 
   if (!fallId) {
     return (
       <div className="flex min-h-[60vh] flex-col items-start justify-center gap-6">
-        <p className="font-display text-28 font-bold text-ink">Es läuft gerade keine Verhandlung.</p>
+        <h1 className="font-display text-28 font-bold text-ink">Es läuft gerade keine Verhandlung.</h1>
         <Link href={`/uc2/panel?fall=${MOCK_FALL_ID}`} className={knopfKlassen()}>
           Verhandlung ansehen
         </Link>

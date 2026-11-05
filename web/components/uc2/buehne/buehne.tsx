@@ -42,7 +42,7 @@ export function PanelBuehne({ fallId, modus }: { fallId: string; modus: Modus })
   if (w.verbindung === "nicht-gefunden") {
     return (
       <Rahmen>
-        <p className="font-display text-28 font-bold text-ink">Diese Verhandlung gibt es nicht.</p>
+        <h1 className="font-display text-28 font-bold text-ink">Diese Verhandlung gibt es nicht.</h1>
         <Link href="/uc2" className={knopfKlassen()}>
           Zum Fall
         </Link>
@@ -55,13 +55,13 @@ export function PanelBuehne({ fallId, modus }: { fallId: string; modus: Modus })
       <header className="flex flex-col gap-3">
         <p className="max-w-3xl font-sans text-16 text-slate">{z.frage ?? "Die Verhandlung wird geladen."}</p>
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="font-display text-28 font-bold text-ink" aria-live="polite">
+          <h1 className="font-display text-28 font-bold text-ink" aria-live="polite">
             {fertig
               ? `Ergebnis nach ${z.ergebnis?.runden ?? z.runden.length} Runden`
               : rundeNr
                 ? `Runde ${rundeNr}${z.maxRunden ? ` von höchstens ${z.maxRunden}` : ""}${phase ? `: ${PHASE[phase] ?? phase}` : ""}`
                 : "Das Panel setzt sich an den Tisch"}
-          </p>
+          </h1>
           {!fertig && (
             <div className="flex items-center gap-2">
               <button type="button" onClick={w.umschalten} className={knopfKlassen("sekundaer")}>
