@@ -182,8 +182,9 @@ Die Angaben stimmen mit `docs/models.md` überein. Das ist dort die Hauptquelle,
 ## Grenzen und offene Punkte
 
 - **Daten:** Es sind nur die synthetischen Daten des Veranstalters und öffentliche Quellen. Sie liegen nicht im
-  Repo. Personenbezogene Daten gibt es keine. An ein Modell gehen nie Einzeldaten, nur Schema, Aggregate und
-  Prüfergebnisse.
+  Repo. Einzige Ausnahme: Die Rückfragen in `abgabe/rueckfragen/` nennen als Beispiel einige synthetische
+  Kennungen (`VVH_ID`), damit die Fachabteilung den Fall findet. Personenbezogene Daten gibt es keine. An ein Modell
+  gehen nie Einzeldaten, nur Schema, Aggregate und Prüfergebnisse.
 - **UC1:** Der Chat-Lotse ist nicht gebaut. Es gibt Datenbank, Einbettung und ein Prüfset.
 - **UC2:** Die Verhandlung der Akteure fehlt. Belege, Akteure und Wirkungsmodell stehen.
 - **UC4:** Angeschlossen ist nur UC3. Für UC1 und UC2 fehlt der Anschluss, die Antwort nennt sie dann als
@@ -220,7 +221,9 @@ Die Umrisse der Bundesländer auf der Startseite (`web/public/landing/oesterreic
 (data.statistik.gv.at), bearbeitet von Flooh Perlot, Lizenz CC BY 4.0. Die Quelle steht auf der Seite.
 
 Fremde Bibliotheken behalten ihre eigenen Lizenzen. Die Schriften Inter, Space Grotesk und JetBrains Mono kommen
-über `@fontsource-variable/*` unter der OFL-1.1, `three` steht unter MIT. Einzelheiten: `docs/abgabe/herkunft.md`.
+über `@fontsource-variable/*` unter der OFL-1.1, `three` steht unter MIT. Die Messfunktion des Anti-Schablonen-Gates
+(`web/tests/lib/slop-measure.js`) folgt dem impeccable-Katalog von Paul Bakaus und steht unter Apache-2.0
+(Lizenztext `web/tests/lib/LICENSE-impeccable`). Einzelheiten: `docs/abgabe/herkunft.md`.
 
 ## Für Entwickler
 
