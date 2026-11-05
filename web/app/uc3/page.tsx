@@ -115,7 +115,7 @@ export default async function Monate({ searchParams }: Props) {
   const angehalten = await angehalteneMonate(monate, regelsatz);
   const vorfuehren = angehalten.at(-1)?.monat;
   const wieViele = angehalten.length;
-  const beideRegelsaetze = regelsaetze.includes("v2") || regelsatz === "v2";
+  const beideRegelsaetze = regelsaetze.includes("v2") || regelsatz !== "v1";
   const andere = beideRegelsaetze ? await leseMonatsuebersicht(regelsatz === "v1" ? "v2" : "v1") : null;
   const andereZahl = andere?.ok ? (andere.daten.monate.find((m) => m.lieferung === letzter.lieferung)?.gezaehlt ?? null) : null;
   const zeilen: Zeile[] = monate.map((monat) => {
@@ -135,7 +135,7 @@ export default async function Monate({ searchParams }: Props) {
         </Ueberschrift>
         <div className="flex flex-wrap items-baseline gap-x-3 font-sans text-16 text-slate">
           <span>
-            {regelsatz === "v2" ? `${monatName(letzter.lieferung)}: ` : `Ende ${monatName(letzter.lieferung)}: `}
+            {regelsatz !== "v1" ? `${monatName(letzter.lieferung)}: ` : `Ende ${monatName(letzter.lieferung)}: `}
             <span className="tabular-nums text-ink">{formatZahl(letzter.gezaehlt)}</span>
             {" Beschäftigungsverhältnisse"}
           </span>
