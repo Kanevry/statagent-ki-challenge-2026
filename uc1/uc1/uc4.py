@@ -202,18 +202,31 @@ KETTE_MAX_SAETZE = 3
 #: Ab so vielen UC3-Zahlen steht im Text keine Liste, sondern der Verweis auf die Station davor.
 KETTE_MAX_ZAHLEN = 3
 KETTE_VERWEIS = "Die einzelnen Zahlen stehen mit Beleg bei StatAgent."
-#: Bedingung, ohne die ein Satz behauptet, die Zahl ändere etwas am Termin („Sie warten meist kürzer.“).
-_BEDINGUNG = re.compile(
-    r"\b(?:mehr|weniger|wenig|genug|fehlt|fehlen)\b.*\b(?:Personal|Beschäftigte\w*|Fachkräfte\w*)\b"
-    r"|\b(?:Personal|Beschäftigte\w*|Fachkräfte\w*)\b.*\b(?:fehlt|fehlen)\b",
-    re.IGNORECASE,
+#: Was der Lotse in der Kette sagen darf: Bedingung und Wirkung, sonst nichts. Eine Sperrliste reichte
+# nicht, das
+#: Modell schrieb „schwieriger betreut“ und „merken oft mehr Verzögerung“ (UI-Regie 05.11.). Keine Ziffer,
+# kein
+#: Zahlenecho und kein Satz ohne Bedingung kann hier durch.
+_KETTE_SATZ = re.compile(
+    r"^(?:(?:Mit|Bei) (?P<menge>mehr|weniger) (?:Personal|Beschäftigten|Fachkräften)"
+    r"|Wo (?P<menge2>mehr|weniger) Personal arbeitet,) "
+    r"(?:(?:warten Sie|kommen Sie) (?:meist |oft )?(?P<zeit>kürzer|länger|schneller dran|später dran)"
+    r"(?: und werden (?:meist |oft )?(?P<betreut>besser|schlechter) betreut)?"
+    r"|werden Sie (?:meist |oft )?(?P<betreut2>besser|schlechter) betreut)\.$"
 )
-#: Wiederholt nur den Simulator statt zu sagen, was die Person merkt („Mehr Personal heißt …“).
-_ECHO_SIMULATOR = re.compile(
-    r"^(?:Mehr|Weniger) (?:Personal|Beschäftigte)\b.*\b(?:heißt|bedeutet)\b", re.IGNORECASE
-)
-#: Satz, der eine Zahl ankündigt und sie nicht nennt („In Wien gab es … Beschäftigungsverhältnisse.“).
-_ANKUENDIGUNG = re.compile(r"\b(?:gab es|gibt es|waren|nennt|zählt|arbeiteten)\b", re.IGNORECASE)
+_GUT_BEI_MEHR = {"kürzer", "schneller dran", "besser"}
+
+
+def _satz_erlaubt(satz: str) -> bool:
+    """Passt der Satz auf ``_KETTE_SATZ`` und in die richtige Richtung? „Mit mehr Personal warten Sie
+    länger“ nicht."""
+    treffer = _KETTE_SATZ.match(satz)
+    if treffer is None:
+        return False
+    mehr = (treffer["menge"] or treffer["menge2"]) == "mehr"
+    wirkung = [w for w in (treffer["zeit"], treffer["betreut"], treffer["betreut2"]) if w]
+    return all((w in _GUT_BEI_MEHR) == mehr for w in wirkung)
+
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -297,27 +310,20 @@ def _belegsatz(kontext: Kontext) -> str | None:
     return f"Grundlage sind die Zahlen von StatAgent: {'; '.join(teile)}."
 
 
-def pruefe_kette(saetze: Sequence[str], kontext: Kontext) -> list[str]:
-    """Sätze für die Kette: keine Ziffer, kein Zahlwort, kein angekündigtes Zahlenecho; dazu der Belegsatz."""
-    woerter = {
-        z.bezeichnung.split()[0].strip(",:;()").casefold() for z in kontext.zahlen if z.bezeichnung.split()
-    }
-    behalten: list[str] = []
-    for satz in saetze:
-        sauber = " ".join(normalisiere(satz).split())
-        if not sauber or _zahlen_in(sauber) or hat_zahlwort(sauber):
-            continue
-        if _ANKUENDIGUNG.search(sauber) and any(w in sauber.casefold() for w in woerter):
-            continue
-        ohne_anfang = sauber.removeprefix(KETTE_ANFANG).strip()
-        if not _BEDINGUNG.search(ohne_anfang) or _ECHO_SIMULATOR.search(ohne_anfang):
-            continue
-        behalten.append(sauber if sauber.endswith((".", "!", "?")) else sauber + ".")
-    behalten = behalten[: KETTE_MAX_SAETZE - 1] or [KETTE_FESTER_SATZ]
-    if not behalten[0].startswith(KETTE_ANFANG):
-        behalten[0] = f"{KETTE_ANFANG} {behalten[0]}"
+def pruefe_kette(saetze: Sequence[str], kontext: Kontext) -> tuple[list[str], bool]:
+    """Sätze für die Kette samt Belegsatz, dazu ob sie vom Modell stammen.
+
+    Fällt ein Satz durch ``_satz_erlaubt`` oder fehlt jeder, kommt der ganze feste Satz: Eine halbe Aussage
+    („Mit mehr
+    Personal …“ ohne die Gegenseite) wäre schlechter. Dann steht in der Antwort auch kein Modell (keine
+    KI-Kennzeichnung).
+    """
+    sauber = [" ".join(normalisiere(s).split()).removeprefix(KETTE_ANFANG).strip() for s in saetze]
+    sauber = [s if s.endswith((".", "!", "?")) else f"{s}." for s in sauber if s]
+    vom_modell = bool(sauber) and len(sauber) < KETTE_MAX_SAETZE and all(_satz_erlaubt(s) for s in sauber)
+    behalten = [f"{KETTE_ANFANG} {' '.join(sauber) if vom_modell else KETTE_FESTER_SATZ}"]
     belegsatz = _belegsatz(kontext)
-    return [*behalten, belegsatz] if belegsatz else behalten
+    return ([*behalten, belegsatz] if belegsatz else behalten), vom_modell
 
 
 def _nachricht(frage: str, kontext: Kontext) -> str:
@@ -419,7 +425,12 @@ def antwort(
             raise
         # Modell aus: nur die festen Zahlensätze aus pruefe_zahlen, kein erfundener Text.
 
-    saetze = pruefe_kette(saetze, ktx) if kette else pruefe_zahlen(saetze, ktx)[0]
+    if kette:
+        saetze, vom_modell = pruefe_kette(saetze, ktx)
+        if not vom_modell:
+            modellname = None
+    else:
+        saetze = pruefe_zahlen(saetze, ktx)[0]
     text = sprache.glaette(" ".join(saetze))
     befund = grenze.nachpruefung(text)
     if befund is not None:

@@ -595,7 +595,7 @@ def test_fallfrage_nennt_oben_wirkung_und_kosten_ohne_entfernte_zahl(demo: UcAnt
     """Fängt eine Kernzeile, aus der die Zahlenprüfung die Kosten streicht („(Zahl ohne Beleg entfernt)“)."""
     erste = demo.text.splitlines()[0]
     assert erste.startswith("Das durchgerechnete Maßnahmenpaket bringt laut Rechenmodell: Wartezeit ")
-    assert "Mehrkosten" in erste and ERSATZ not in erste
+    assert erste.endswith("Wartezeit −22,2 %, Mehrkosten 128,2 Mio. Euro pro Jahr.") and ERSATZ not in erste
 
 
 def test_fester_auftrag_nennt_das_ziel_der_abwaegung() -> None:

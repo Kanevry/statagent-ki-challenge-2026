@@ -377,11 +377,14 @@ def _abwaegung(ergebnis: Kurzergebnis, akteure: dict[str, Akteur], s: _Sammlung,
 
 
 def _kernzeile(ergebnis: Kurzergebnis, ez: dict[str, Zahl]) -> str:
-    """Erste Zeile der Antwort, was die Station oben zeigt; ohne Zahlenecho von UC3 (#164)."""
+    """Erste Zeile der Antwort, was die Station oben zeigt; ohne Zahlenecho von UC3 (#164). Eine
+    Nachkommastelle
+    wie auf /uc2, damit derselbe Fall nicht mit zwei Werten dasteht."""
     if ez:
         return (
             "Das durchgerechnete Maßnahmenpaket bringt laut Rechenmodell: "
-            f"Wartezeit {_zahl_text(ez['wartezeit'])}, Mehrkosten {_zahl_text(ez['kosten_mio'])} pro Jahr."
+            f"Wartezeit {zahl_de(float(ez['wartezeit'].wert), 1)} %, "
+            f"Mehrkosten {zahl_de(float(ez['kosten_mio'].wert), 1)} Mio. Euro pro Jahr."
         )
     return ergebnis.kern or " ".join(allgemein.FESTER_KERN)
 

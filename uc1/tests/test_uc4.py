@@ -327,6 +327,10 @@ def test_kette_zahl_von_uc3_und_uc2_steht_einmal_und_oben_die_bedeutung() -> Non
         "Es gab rund vierhunderttausend Stellen.",
         "Sie warten meist kürzer.",
         "Mehr Personal heißt meist kürzere Wartezeiten.",
+        "Mit weniger Personal warten Sie oft länger und werden schwieriger betreut.",
+        "Mit weniger Personal werden Sie weniger betreut.",
+        "Mit weniger Personal warten Sie oft länger und merken oft mehr Verzögerung.",
+        "Mit mehr Personal warten Sie meist länger.",
     ],
 )
 def test_kette_satz_ohne_aussage_faellt_weg_und_der_feste_satz_steht_da(satz: str) -> None:
@@ -344,12 +348,18 @@ def test_kette_anfang_steht_genau_einmal() -> None:
     Anfang doppelt."""
     frage = "Wie viele Beschäftigte gab es im Oktober 2025?"
     ohne = uc4.router_adapter(
-        frage, _kette_kontext(), modell=modell_mit("Mit mehr Personal geht es schneller.")
+        frage, _kette_kontext(), modell=modell_mit("Mit mehr Personal kommen Sie oft schneller dran.")
     )
     mit = uc4.router_adapter(
-        frage, _kette_kontext(), modell=modell_mit(f"{uc4.KETTE_ANFANG} Mit mehr Personal geht es schneller.")
+        frage,
+        _kette_kontext(),
+        modell=modell_mit(f"{uc4.KETTE_ANFANG} Mit mehr Personal kommen Sie oft schneller dran."),
     )
-    assert ohne.text == mit.text == f"{uc4.KETTE_ANFANG} Mit mehr Personal geht es schneller. {BELEGSATZ}"
+    assert (
+        ohne.text
+        == mit.text
+        == f"{uc4.KETTE_ANFANG} Mit mehr Personal kommen Sie oft schneller dran. {BELEGSATZ}"
+    )
 
 
 def test_kette_modellfehler_ergibt_festen_satz_mit_belegzahl() -> None:
@@ -422,3 +432,29 @@ def test_kette_belegsatz_nennt_keine_falsche_gliederung() -> None:
     )
     a = uc4.router_adapter("Wie viele?", _kette_kontext(wien), modell=modell_mit(ARZT_MODELL))
     assert a.text == f"{ARZT} Grundlage ist die Zahl von StatAgent: 7.498."
+
+
+def test_kette_fester_satz_traegt_keine_ki_kennzeichnung() -> None:
+    """Fängt „Mit KI geschrieben“ unter einem festen Text: Steht der feste Satz da, hat kein Modell ihn
+    geschrieben."""
+    frage = "Wie viele Beschäftigte gab es im Oktober 2025?"
+    fest = uc4.router_adapter(frage, _kette_kontext(), modell=modell_mit("Sie werden schwieriger betreut."))
+    vom_modell = uc4.router_adapter(frage, _kette_kontext(), modell=modell_mit(ARZT_MODELL))
+    assert uc4.KETTE_FESTER_SATZ in fest.text and fest.modell is None
+    assert ARZT_MODELL in vom_modell.text and vom_modell.modell == "skript"
+
+
+def test_kette_ein_schlechter_satz_ersetzt_die_ganze_aussage() -> None:
+    """Fängt eine halbe Aussage: Nur „Mit mehr Personal …“ bleibt, die Gegenseite fehlt."""
+    modell = modell_mit(
+        "Mit mehr Personal warten Sie meist kürzer.", "Mit weniger Personal wird es schwieriger."
+    )
+    a = uc4.router_adapter("Wie viele?", _kette_kontext(), modell=modell)
+    assert a.text == f"{uc4.KETTE_ANFANG} {uc4.KETTE_FESTER_SATZ} {BELEGSATZ}"
+
+
+def test_kette_fester_satz_besteht_die_eigene_pruefung() -> None:
+    """Fängt einen festen Satz, den der Filter selbst abwiese: dann wäre die Regel und der Satz
+    auseinander."""
+    saetze = uc4.KETTE_FESTER_SATZ.replace(". ", ".|").split("|")
+    assert all(uc4._satz_erlaubt(s) for s in saetze)

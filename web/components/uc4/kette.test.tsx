@@ -268,3 +268,14 @@ it("eine Rückfrage von Station 1 steht ganz da, nicht nur ihr erster Satz", asy
   await waitFor(() => expect(seite.querySelector("[data-uc4-antwort] p")?.textContent).toBe(rueckfrage));
   expect(screen.queryByText("Ganze Antwort")).toBeNull();
 });
+
+it("fester Text der Stationen danach heißt so, nicht „Mit KI geschrieben“", async () => {
+  // Fängt die UI-Regie 05.11.: Der feste Satz des Lotsen stünde sonst über einer KI-Kennzeichnung oder hieße „nur Code“.
+  const fest = { ...UC1, modell: null };
+  const seite = await fragen(strom(UC3, UC2, fest as UcAntwort));
+  await screen.findByText(/Fertig in/);
+  const zeile = seite.querySelector('[data-uc-karte="uc1"] [data-testid="uc4-modell"]')!.textContent;
+  expect(zeile).toContain("Fester Text");
+  expect(seite.querySelector('[data-uc-karte="uc2"] [data-testid="uc4-modell"]')!.textContent).toContain("Mit KI geschrieben");
+  expect(seite.querySelector('[data-uc-karte="uc3"] [data-testid="uc4-modell"]')!.textContent).toContain("Ohne KI, nur Code");
+});
