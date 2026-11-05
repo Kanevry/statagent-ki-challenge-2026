@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fokus, klassen } from "../basis/klassen";
-import type { UcEintrag, UcId } from "../ucs";
+import type { BereichId, UcEintrag } from "../ucs";
 import { AppHeader } from "./header";
 import { ShellAnbieter, StandardVerweis, type ShellWert, type Verweis } from "./kontext";
 import { protokollUc, zeigtHeader } from "./navigation";
@@ -15,7 +15,7 @@ export interface AppShellProps {
   children: ReactNode;
   ucs?: readonly UcEintrag[];
   modellQuelle?: string;
-  protokollQuelle?: (uc: UcId) => string;
+  protokollQuelle?: (uc: BereichId) => string;
 }
 
 /**

@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import { findeUc, type UcId } from "../ucs";
+import { findeUc, type BereichId } from "../ucs";
 import { UcNavigation, type UcNavPunkt } from "./uc-navigation";
 
 export interface UcBereichProps {
-  uc: UcId;
+  uc: BereichId;
   /** Unter-Navigation des UC; leer = keine Leiste. */
   nav?: readonly UcNavPunkt[];
   children: ReactNode;

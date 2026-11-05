@@ -5,6 +5,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from plattform import router
@@ -120,11 +121,33 @@ def test_registry_ohne_explizite_adapter(protokoll):
     assert [a.uc for a in ergebnis.antworten] == ["uc3"]
 
 
+def test_entry_point_wird_ohne_registry_geladen(protokoll, monkeypatch):
+    """Fängt: Gruppe oder Name falsch abgefragt, Adapter aus installierten UC-Paketen werden nie gefunden."""
+    gefragt = []
+
+    def entry_points(group, name):
+        gefragt.append((group, name))
+        return [SimpleNamespace(load=lambda: mock_adapter()["uc3"])] if name == "uc3" else []
+
+    monkeypatch.setattr(router, "entry_points", entry_points)
+    ergebnis = durchreichen("Wie viele Beschäftigte?", kette=("uc3", "uc2"))
+    assert gefragt == [("kic.uc_antwort", "uc3"), ("kic.uc_antwort", "uc2")]
+    assert [a.uc for a in ergebnis.antworten] == ["uc3"]
+    assert [(f.uc, f.grund) for f in ergebnis.fehlend] == [("uc2", "kein_adapter")]
+
+
 def test_cli_mock_liefert_json_mit_drei_antworten(protokoll, capsys):
     assert main(["frage", "--json", "--mock", "Wie viele Beschäftigte?"]) == 0
     ausgabe = json.loads(capsys.readouterr().out)
     assert [a["uc"] for a in ausgabe["antworten"]] == ["uc3", "uc2", "uc1"]
     assert ausgabe["fehlend"] == []
+
+
+def test_cli_frage_nach_doppelstrich_ist_kein_schalter(protokoll, capsys):
+    """Die Web-Route setzt `--` vor die Frage (#98): eine Frage wie „-h“ bleibt eine Frage."""
+    assert main(["frage", "--json", "--mock", "--", "-h"]) == 0
+    ausgabe = json.loads(capsys.readouterr().out)
+    assert [a["uc"] for a in ausgabe["antworten"]] == ["uc3", "uc2", "uc1"]
 
 
 def test_r2_antwortform_und_plattform_laden_weder_router_noch_llm():
