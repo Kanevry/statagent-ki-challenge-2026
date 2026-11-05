@@ -71,6 +71,18 @@ NAMEN = ("Maria", "Musterfrau", "Max", "Mustermann", "Erika", "Beispielfrau")
         ("alter", "Erika Beispielfrau (54) aus Musterdorf wartet.", "Eine Person (54) aus Musterdorf"),
         ("alter_jaehrig", "Der 67-jährige Max Mustermann wartet.", "67-jährige eine Person wartet"),
         ("zitatkasten", "„Wir brauchen Ärzte.“ – Maria Musterfrau", "“ – eine Person"),
+        # Recall-Stichprobe (Gutachter mit frischem Kontext)
+        ("credit_bild", "Die Kasse zahlt.\nBild: AGENTUR/Max Mustermann", "Bild: [Bildnachweis]"),
+        ("apposition", "Max Mustermann, erster Vizepräsident der Ärztekammer, warnt.", "Ein Vertreter der"),
+        ("zuschreibung", "Das reicht nicht, erklärte Zeno Mustermann.", "erklärte eine Person."),
+        (
+            "autorenliste",
+            "Quelle: Mustermann AB, Beispielfrau C, (Hrsg).",
+            "Eine Person, eine Person, (Hrsg)",
+        ),
+        ("kuerzel", "Die Kasse zahlt. (mmu)", "zahlt. ([Kürzel])"),
+        ("kuerzel", "Die Kasse zahlt.\nmmu", "zahlt.\n[Kürzel]"),
+        ("vorname", "Gestern traf Anita Musterfrau die Kassen.", "traf eine Person die Kassen"),
     ],
 )
 def test_muster_maskiert_namen_zur_rolle(muster: str, text: str, erwartet: str) -> None:
@@ -91,10 +103,22 @@ def test_muster_maskiert_namen_zur_rolle(muster: str, text: str, erwartet: str) 
         "Laut Studie steigen die Kosten.",  # `laut` nur mit bekanntem Namen
         "Wien (APA) – Die Kasse zahlt.",  # Agentur-Ortsmarke
         "Wartezeiten: Die Lage bleibt angespannt.",  # Titelzeile mit Substantiv
+        "Die Kasse zahlt.\nBild: Die Kasse zahlt mehr.",  # „Bild:“ als Bildunterschrift
+        "Vitamin D, Vitamin C und Typ A, Typ B fehlen.",  # keine Autorenliste: gleiche Wörter
+        "Die Kasse spart „mit der Axt“ aus",  # kein Kürzel ohne Satzzeichen davor
+        "Die Kasse zahlt. (red)",  # Redaktionskürzel einer Agentur
     ],
 )
 def test_keine_maskierung_ohne_namen(text: str) -> None:
     assert maskiere(text, None, None) == text
+
+
+def test_zuschreibung_zwei_grosswoerter_nur_vor_satzzeichen_und_ohne_genitiv() -> None:
+    # Vorname unbekannt: das zweite Großwort zählt nur vor Satzzeichen und nicht nach einem Genitiv
+    assert "Kritik. Die Kritik" in maskiere(
+        "Das reicht, so Musterverbands Kritik. Die Kritik wächst.", None, None
+    )
+    assert "Reportern vor" in maskiere("Das reicht, sagt Mustermann Reportern vor Ort.", None, None)
 
 
 def test_voller_name_maskiert_nachnamen_im_ganzen_artikel() -> None:

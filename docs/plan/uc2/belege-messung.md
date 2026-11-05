@@ -221,6 +221,29 @@ misst, wie viel die Muster allein leisten. Der Abgleich mit der Autor:in-Liste i
 unabhängig, weil die Liste selbst in die Maskierung eingeht. Unabhängig bleibt die Recall-Stichprobe mit einem
 Gutachter mit frischem Kontext (Akzeptanz S2, ≥ 50 Namen, ≥ 95 % maskiert).
 
+**Recall-Stichprobe (Gutachter mit frischem Kontext).** 40 unmaskierte Artikel aus dem Index. Ein Gutachter ohne
+Kenntnis der Muster hat darin 178 Fundstellen zu 92 Personen markiert (Datei außerhalb des Repos). Gezählt wird eine
+Fundstelle als maskiert, wenn weder ihre Form noch der Nachname im maskierten Artikel als ganzes Wort stehen bleibt;
+eine Person zählt als voll maskiert, wenn alle ihre Fundstellen im Artikel maskiert sind (114 Paare Artikel/Person).
+Fehlalarme sind Ersetzungen zur Rolle, in deren Original kein Wort der Gutachterliste des Artikels steht. Das ist eine
+Obergrenze, weil der Gutachter nicht jede Person markiert hat.
+
+| Stand | Fundstellen mit Liste | Fundstellen ohne Liste | Personen voll (mit Liste) | Fehlalarme mit / ohne Liste |
+|---|---|---|---|---|
+| vorher (Kopf 344938f) | 169/178 (94,9 %) | 157/178 (88,2 %) | 105/114 (92,1 %) | 67 / 40 |
+| nachher | 178/178 (100 %) | 167/178 (93,8 %) | 114/114 (100 %) | 66 / 39 |
+| nachher ohne die 5 Vornamen aus der Stichprobe | 174/178 (97,8 %) | 163/178 (91,6 %) | 110/114 (96,5 %) | – |
+
+Durchgerutscht waren vorher 7 × „Vorname Nachname“, 1 × nur Nachname und 1 × ein Autorenkürzel. Ergänzt wurden nur
+allgemeine Muster: `Bild:` als Bildnachweis (das Muster `Bilder?` passte nie auf „Bild:“), ein Attribut vor der Funktion
+in der Apposition („erster Vizepräsident“), zwei Großwörter nach einer Zuschreibung („…, erklärte <Vorname> <Nachname>,“,
+bisher wurde nur das erste Wort ersetzt), Literaturangaben `Nachname AB, Nachname C`, Autorenkürzel am Ende eines Teils
+und fünf gängige Vornamen in `VORNAMEN_ALLE`. Die letzte Zeile zeigt, wie viel ohne diese fünf Vornamen bleibt: Sie
+stammen aus der Stichprobe, das 100-%-Ergebnis ist insoweit nicht unabhängig. Kürzel werden nur klein geschrieben am Ende
+eines Teils erkannt, nach Satzzeichen oder in Klammern; Kürzel mitten im Text bleiben eine Grenze. Über den ganzen
+Index (2.915 Artikel, 21.442 Texte) bleiben es 0 Treffer gegen Index- und Autor:in-Liste; die neuen festen Ersetzungen
+ergeben dort 43 × „[Kürzel]“, die Stichprobe der Treffer der neuen Muster am Index zeigte keine Allgemeinwörter.
+
 **Grenzen der Muster** (für die Recall-Stichprobe):
 - Ein Nachname allein, ohne Funktion, Titel, Vorname oder Zuschreibung im selben Artikel, wird nur über die Namensliste
   erkannt. Fehlt er dort, bleibt er stehen.
@@ -229,8 +252,9 @@ Gutachter mit frischem Kontext (Akzeptanz S2, ≥ 50 Namen, ≥ 95 % maskiert).
 - Vornamen außerhalb der Liste (`VORNAMEN_ALLE`, rund 250) machen aus „<Vorname> <Nachname>“ keinen Treffer. Es greifen
   dann nur Funktion, Titel oder Zuschreibung.
 - Bei transitiven Verben („kritisiert“, „fordert“, „warnt“) zählt ein Name ohne Vorname nur direkt nach einem Zitat.
-- Ganz großgeschriebene Namen ohne Vorname (Bylines), Initialen-Kürzel wie „(mm)“ und Namen in Komposita („Musterfrau-Plan“)
-  werden nicht erkannt.
+- Ganz großgeschriebene Namen ohne Vorname (Bylines), Initialen-Kürzel mitten im Text und Namen in Komposita
+  („Musterfrau-Plan“) werden nicht erkannt. Klein geschriebene Kürzel am Ende eines Teils („(mm)“) werden seit der
+  Recall-Stichprobe zu „[Kürzel]“.
 - Der Substantivtest beim Sammeln verwirft Nachnamen, die zugleich Allgemeinwörter sind (Artikel oder flektiertes
   Adjektiv davor in über 15 % der Vorkommen, Substantivendung, öfter klein als groß). Im eigenen Artikel werden sie über
   die Muster trotzdem maskiert, in anderen Artikeln nur, wenn dort ebenfalls ein Muster greift.
