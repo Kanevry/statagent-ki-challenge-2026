@@ -62,7 +62,7 @@ export function Monatsgrafik({ monate, regelsatz }: { monate: readonly Monatslau
             <text x={LINKS - 8} y={y(wert) + 4} textAnchor="end" className="hidden fill-slate font-sans md:inline" fontSize={12}>
               {formatZahl(wert)}
             </text>
-            <text x={LINKS + 4} y={y(wert) - 8} textAnchor="start" className="fill-slate font-sans md:hidden" fontSize={30}>
+            <text x={LINKS + 4} y={wert === ende ? y(wert) + 30 : y(wert) - 8} textAnchor="start" className="fill-slate font-sans md:hidden" fontSize={30}>
               {formatZahl(wert)}
             </text>
           </g>
