@@ -36,7 +36,6 @@ Du bist Grafikdesignerin mit Herzblut für Typografie, Raster und Farbe, gepräg
 
 ## Context Files
 
-- `docs/plan-uc3-stand-1050.md` — Plan des Teams, Stand 10:50
 - `references/sv-design-richtung.md` — Designrichtung Klarton+
 
 ## Evaluation Criteria

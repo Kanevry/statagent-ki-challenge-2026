@@ -1,7 +1,7 @@
 /**
  * /uc4 Gemeinsamer Einstieg (#98) im Browser, je Projekt der Konfiguration (desktop 1440×900, mobil 390×844).
  * Die Route POST /api/uc4/frage wird per `page.route` erfüllt: der Test prüft die Seite, nicht den Router
- * (den deckt web/lib/plattform/uc4.test.ts ab). Läuft in der CI, lokal nicht auf dem M4.
+ * (den deckt web/lib/plattform/uc4.test.ts ab). Läuft in der CI, lokal nicht auf dem Entwicklungsrechner.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";

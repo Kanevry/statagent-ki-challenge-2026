@@ -19,7 +19,13 @@ function NextVerweis({ href, children, ...rest }: VerweisProps) {
 export function ShellRahmen({ children }: { children: ReactNode }) {
   const pfad = usePathname() ?? "/";
   return (
-    <AppShell pfad={pfad} Verweis={NextVerweis}>
+    // UC2 liefert den Modell-Zustand selbst (Vorführmodus: mock, Badge „Testbetrieb: keine KI angeschlossen“);
+    // Freigabe E0 b-e0-34 für diese Zeile in !63.
+    <AppShell
+      pfad={pfad}
+      Verweis={NextVerweis}
+      modellQuelle={pfad.startsWith("/uc2") ? "/api/uc2/modell" : undefined}
+    >
       {children}
     </AppShell>
   );
