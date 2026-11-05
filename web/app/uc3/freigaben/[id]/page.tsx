@@ -16,6 +16,7 @@ import {
   ergebnisPfad,
   klartext,
   kurzZeit,
+  klarerAenderungsSatz,
   leseVorschlag,
   ohneProbeSatz,
   probeAendert,
@@ -30,6 +31,7 @@ import {
   type EchteWirkung,
   type Kategorien,
   type ProbeTabelle,
+  type Bezeichnungen,
   type Vorschlag,
 } from "@/components/uc3/freigabe";
 import { monatName } from "@/components/uc3/monat";
@@ -51,8 +53,8 @@ function entscheidungAus(v: Vorschlag): FreigabeEntscheidung | undefined {
 }
 
 /** Beleg der Regeländerung selbst: Wortlaut und Regelname stehen hier, nicht im Fließtext. */
-function aenderungBeleg(v: Vorschlag): Beleg {
-  const { worte } = klartext(v);
+function aenderungBeleg(v: Vorschlag, bezeichnungen: Bezeichnungen): Beleg {
+  const { worte } = klartext(v, bezeichnungen);
   return {
     quelle: "meta.vorschlag",
     verweis: `Vorschlag uc3/${v.id}, ${aenderungKurz(v)}`,
@@ -70,10 +72,11 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
   const lesung = await leseVorschlag(id);
 
   if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
-  const { vorschlag: v, kategorien, ergebnis, wirkung } = lesung.daten;
+  const { vorschlag: v, kategorien, ergebnis, wirkung, bezeichnungen } = lesung.daten;
   if (!v) notFound();
 
   const kopf = auftragKopf(v.anweisung);
+  const klarerSatz = klarerAenderungsSatz(v, bezeichnungen);
   const quelle = kopf.nummer ? `Änderungsauftrag ${kopf.nummer} aus der Aufgabenstellung` : auftraggeber(v);
   const gesagtAm = v.gesagtAm ?? v.erstelltAm;
   const tabelle = probeJeKategorie(v.probe, kategorien);
@@ -103,6 +106,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
             </time>
           </figcaption>
         </figure>
+        {klarerSatz && <p className="font-sans text-16 font-semibold text-pretty text-ink">{klarerSatz}</p>}
       </header>
 
       <section aria-labelledby="probe-titel" className="flex max-w-3xl flex-col gap-3">
@@ -166,7 +170,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
           </DetailBlock>
           <DetailBlock titel="Die Regeländerung">
             <div>
-              <BelegLink {...aenderungBeleg(v)} text="Regeländerung ansehen" />
+              <BelegLink {...aenderungBeleg(v, bezeichnungen)} text="Regeländerung ansehen" />
             </div>
           </DetailBlock>
         </div>
