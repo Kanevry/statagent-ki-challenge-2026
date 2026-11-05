@@ -288,6 +288,42 @@ EOF
     if [[ $zeile == *=running/healthy ]]; then echo "pruefen: ${zeile%%=*} healthy"; else echo "pruefen: $zeile" >&2; fehler=1; fi
   done
   [[ -n $zustand ]] || { echo "pruefen: keine Container gefunden" >&2; fehler=1; }
+  # UC2-Namensliste: Ist UC2_NAMENSLISTE gesetzt, muss am Host-Pfad eine nicht leere Datei liegen und im Container
+  # als Datei ankommen. Fehlt sie, legt Docker still ein Verzeichnis an und UC2 zeigt Beispielbelege. Gemessen wird
+  # nur die Zeilenzahl, nie der Inhalt (Lead a7, 05.11.).
+  local namen
+  namen=$(remote bash -s -- "$BASIS" "$ENV_DATEI" <<'EOF'
+pfad=$(sed -n 's/^UC2_NAMENSLISTE=//p' "$2" | tail -1 | tr -d "'\"")
+if [ -z "$pfad" ]; then echo leer; exit 0; fi
+if [ ! -f "$pfad" ]; then echo fehlt; exit 0; fi
+host=$(wc -l < "$pfad" | tr -d ' ')
+im=$(cd "$1/repo/deploy" && docker compose --env-file "$2" -f docker-compose.prod.yml exec -T app \
+  sh -c 'test -f /etc/kic/uc2-namensliste && wc -l < /etc/kic/uc2-namensliste' </dev/null | tr -d ' \r')
+echo "host=$host container=${im:-0}"
+EOF
+  ) || namen=unlesbar
+  local zeilen_host zeilen_app
+  case $namen in
+    leer) echo "pruefen: UC2_NAMENSLISTE nicht gesetzt, UC2 zeigt gekennzeichnete Beispielbelege" ;;
+    host=*)
+      zeilen_host=${namen#host=}
+      zeilen_host=${zeilen_host%% *}
+      zeilen_app=${namen##*container=}
+      if [[ $zeilen_host == 0 ]]; then
+        echo "pruefen: UC2-Namensliste auf dem Server ist leer" >&2
+        fehler=1
+      elif [[ $zeilen_host == "$zeilen_app" ]]; then
+        echo "pruefen: UC2-Namensliste geladen ($zeilen_app Zeilen im Container)"
+      else
+        echo "pruefen: UC2-Namensliste kommt nicht im Container an (Server $zeilen_host, Container $zeilen_app Zeilen)" >&2
+        fehler=1
+      fi
+      ;;
+    *)
+      echo "pruefen: UC2-Namensliste $namen (Pfad aus UC2_NAMENSLISTE prüfen)" >&2
+      fehler=1
+      ;;
+  esac
   # die Seiten der Demo antworten
   local pfad
   for pfad in /uc1 /uc2 /uc3 /uc4 /praesentation; do
