@@ -15,7 +15,7 @@ export type BelegChipProps = {
   className?: string;
 };
 
-/** Beleg einer Aussage: HerkunftChip mit Dokument-Symbol, „Zitat ansehen“, aufgeklappt Zitat und „Stand: …“. */
+/** Beleg einer Aussage: HerkunftChip mit Dokument-Symbol und der Quelle als Name (z. B. „BPGG § 4“), aufgeklappt Zitat und „Stand: …“. */
 export function BelegChip({ quelle, zitat, fassung, className }: BelegChipProps) {
   return <HerkunftChip quelle={quelle} zitat={zitat} fassung={fassung ?? null} className={className} />;
 }

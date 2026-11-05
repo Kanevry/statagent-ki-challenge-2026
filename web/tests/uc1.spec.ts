@@ -192,7 +192,7 @@ test("/uc1?beispiel=pflege spielt ohne Netz in drei Schritten bis zum Antrag mit
   await expect(page.getByTestId("uc1-aufnahme")).toHaveCount(0);
 
   // Beleg über den gemeinsamen HerkunftChip: aufklappen zeigt das Zitat wörtlich.
-  const chip = page.locator('[data-baustein="herkunft"]').first().getByRole("button", { name: /Zitat ansehen/ });
+  const chip = page.locator('[data-baustein="herkunft"]').first().getByRole("button");
   await chip.click();
   await expect(chip).toHaveAttribute("aria-expanded", "true");
   const zitat = page.locator('[data-baustein="herkunft"] blockquote').first();
@@ -223,7 +223,7 @@ test("/uc1?beispiel=pflege spielt ohne Netz in drei Schritten bis zum Antrag mit
   const offen = page.getByRole("region", { name: "Das ergänzen Sie selbst" });
   const seitenGruppen = await offen.locator("[data-uc1-offen-seite]").count();
   expect(seitenGruppen).toBeGreaterThan(0);
-  await expect(offen.getByText("Zitat ansehen")).toHaveCount(seitenGruppen);
+  await expect(offen.locator('[data-baustein="herkunft"] > button')).toHaveCount(seitenGruppen);
   await expect(page.getByText("Abgeschickt wird nichts. Sie prüfen, unterschreiben und senden selbst.")).toBeVisible();
   await expect(page.locator("[data-uc1-unterlagen] summary")).toHaveText("Details: Unterlagen");
   const antragStelle = page.getByRole("region", { name: "Zuständige Stelle" }).filter({ visible: true });

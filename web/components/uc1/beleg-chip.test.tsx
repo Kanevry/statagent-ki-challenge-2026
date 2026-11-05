@@ -11,7 +11,7 @@ describe("BelegChip", () => {
   it("klappt das Zitat wörtlich mit Quelle und Stand auf und wieder zu", async () => {
     const nutzer = userEvent.setup();
     render(<BelegChip quelle="BPGG § 4" zitat={ZITAT} fassung="1. Jänner 2015" />);
-    const knopf = screen.getByRole("button", { name: /BPGG § 4.*Zitat ansehen/ });
+    const knopf = screen.getByRole("button", { name: /^BPGG § 4/ });
     expect(knopf.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByText(ZITAT)).toBeNull();
 
