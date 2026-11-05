@@ -290,3 +290,11 @@ def test_keine_gemeinsame_zahl_ueber_den_wechsel(gerechnet: Verbindung, frage: s
     assert daten["zahlen"] == []
     assert daten["text"].startswith("Für diesen Zeitraum gibt es keine gemeinsame Zahl")
     assert "August bis Dezember 2024 und Jänner bis März 2025" in daten["text"]
+
+
+# Fängt: „Winter 2024“ (Dezember 2023 bis Februar 2024) sagte als ersten Satz nur, was verstanden wurde.
+def test_winter_ganz_ausserhalb_fragt_nach_dem_nachbarn(gerechnet: Verbindung) -> None:
+    daten = uc4_antwort(gerechnet, "Wie viele Beschäftigte gab es im Winter 2024?")
+    assert daten["zahlen"] == []
+    assert daten["text"].startswith("Für Dezember 2023 bis Februar 2024 gibt es keine Zahl")
+    assert "Winter 2024/25, also Dezember 2024 bis Februar 2025?" in daten["text"]

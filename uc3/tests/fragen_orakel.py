@@ -23,7 +23,7 @@ _FESTE_ZAHLEN = frozenset({1000})
 _GROSSE_ZAHL = re.compile(r"(?<![\d.,])\d{1,3}(?:\.\d{3})+(?![\d])")
 _RUECKFRAGE = re.compile(r"\?")
 #: Sätze, die vom Kern nichts aussagen; in der Kette darf keiner davon als Einziges stehen bleiben.
-_NUR_DEFINITION = re.compile(r"heißt hier|^Gemeint ist|^Ohne Zeitangabe|^Mit (?:den )?\w+ (?:ist|sind) hier")
+_NUR_DEFINITION = re.compile(r"heißt hier|^Gemeint ist|^Ohne Zeitangabe|^Mit (?:den )?\w+ (?:ist|sind) hier|^Verstanden:")
 
 
 # --- Katalog ----------------------------------------------------------------------------------------------------

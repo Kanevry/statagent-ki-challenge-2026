@@ -253,6 +253,7 @@ EINWOHNER: dict[str, tuple[str, ...]] = {
     "Kärnten": ("kärntner",),
     "Salzburg": ("salzburger",),
 }
+_VERNEINUNG = frozenset({"außer", "ausser", "ohne", "nicht", "kein", "keine", "keinen", "keiner", "ausgenommen"})
 _FRAU = re.compile(r"\b(frau|frauen|weiblich\w*)\b")
 _MANN = re.compile(r"\b(mann|männer|maenner|männlich\w*|maennlich\w*)\b")
 #: Wortstämme nach „im/in/Branche“, die kein Merkmal meinen („in den Wirtschaftsbereichen“, „in Prozent“).
@@ -593,6 +594,25 @@ def _kein_lauf_text(monat: str) -> str:
     )
 
 
+def _ausserhalb_text(von: str, bis: str) -> str:
+    """Rückfrage zu einem Zeitraum ganz außerhalb der Daten; ein Winter, der noch im Vorjahr beginnt, hat einen Nachbarn.
+
+    „Winter 2024“ heißt Dezember 2023 bis Februar 2024. Gemeint ist oft Dezember 2024 bis Februar 2025, das sagen wir.
+    """
+    zeit = zeitraum_anzeige(von, bis)
+    daten = zeitraum_anzeige(ERSTE_LIEFERUNG, LETZTE_LIEFERUNG)
+    neu_von, neu_bis = monat_verschieben(von, 12), monat_verschieben(bis, 12)
+    if von[5:7] == "12" and bis[5:7] == "02" and ERSTE_LIEFERUNG <= neu_von and neu_bis <= LETZTE_LIEFERUNG:
+        return (
+            f"Für {zeit} gibt es keine Zahl, Daten gibt es nur für {daten}. "
+            f"Meinen Sie den Winter {neu_von[:4]}/{neu_bis[2:4]}, also {zeitraum_anzeige(neu_von, neu_bis)}?"
+        )
+    return (
+        f"Für {zeit} gibt es keine Zahl, Daten gibt es nur für {daten}. "
+        f"Meinen Sie „Beschäftigte im {_monat_anzeige(LETZTE_LIEFERUNG)}“?"
+    )
+
+
 def _oenace_version(conn: Verbindung, monat: str) -> tuple[str, str] | None:
     """ÖNACE-Version (Abschnitte), die im Monat gilt, mit ihrem ersten Monat."""
     zeile = conn.execute(
@@ -656,6 +676,11 @@ def _filter(
     if _FLUKTUATION.search(frage.lower()):
         erkannt += ["höchste", "höchsten", "hoechste", "am höchsten"]
     fremd = unbekanntes_wort(frage, erkannt)
+    if fremd in _VERNEINUNG:
+        raise _KeineZahl(
+            f"Eine Zahl für alle außer einer Gruppe rechnet StatAgent nicht. Bitte nach allen und nach der Gruppe "
+            f"einzeln fragen. {KANN}"
+        )
     if fremd is not None:
         raise _KeineZahl(f"Das Wort „{fremd[:40]}“ kann ich in dieser Frage nicht einordnen, darum keine Zahl. {KANN}")
     return filter_, etiketten
@@ -786,6 +811,11 @@ def _bestand_antwort(
     definition, einheit = _definition_bestand(conn)
     filter_, etiketten = _filter(conn, frage, bis, gruppen)
     verstanden = _verstanden(von, bis, filter_, etiketten, gruppen)
+    if nur:
+        # Nur die genannten Monate: „bis“ stimmte hier nicht.
+        verstanden = verstanden.replace(
+            f"{_monat_anzeige(von)} bis {_monat_anzeige(bis)}", _aufzaehlung([_monat_anzeige(m) for m in nur]), 1
+        )
     if any(m is FREIER_DV for m, _ in filter_) and regelsatz != "v1":
         raise _KeineZahl(
             f"Freie Dienstverträge kann die Datenanfrage nur im Regelsatz v1 trennen, nicht in {regelsatz}. {KANN}"
@@ -898,16 +928,16 @@ def _bestand_antwort(
                 }
             )
     if not zahlen:
+        if bis < ERSTE_LIEFERUNG or von > LETZTE_LIEFERUNG:
+            # Ganz außerhalb der Daten: zuerst das, die Kette zeigt nur den ersten Satz.
+            return _rueckfrage(_ausserhalb_text(von, bis))
         if von == bis and not staende:
             text = _kein_lauf_text(von)
         else:
-            zeitraum = (
-                _monat_anzeige(von) if von == bis else f"{_monat_anzeige(von)} bis {_monat_anzeige(bis)}"
-            )
-            text = f"Für {zeitraum} gibt es keine Zahl."
+            text = f"Für {zeitraum_anzeige(von, bis)} gibt es keine Zahl."
         return _antwort(
             typ,
-            " ".join([verstanden, text, *hinweise]),
+            " ".join([text, verstanden, *hinweise]),
             definition=definition,
             einheit=einheit,
             stand=staende,
@@ -1030,9 +1060,11 @@ def _antwortsatz(zeilen: list[dict[str, Any]], zusatz: str, text: str) -> tuple[
         )
         erster = re.match(r"Am .*?Beschäftigungsverhältnisse[^.]*\.", text)
         return satz, erster.group(0) if erster else ""
+    durchgehend = monate == _monate(monate[0], monate[-1])
+    zeit = zeitraum_anzeige(monate[0], monate[-1]) if durchgehend else _aufzaehlung([_monat_anzeige(m) for m in monate])
     satz = (
         f"Von {_deutsch(je_monat[monate[0]])} auf {_deutsch(je_monat[monate[-1]])} "
-        f"Beschäftigungsverhältnisse{zusatz}, {zeitraum_anzeige(monate[0], monate[-1])}."
+        f"Beschäftigungsverhältnisse{zusatz}, {zeit}."
     )
     return satz, ""
 
@@ -1055,6 +1087,10 @@ def _text_bestand(
                 f"Beschäftigungsverhältnisse{zusatz} am Stichtag, {_monat_anzeige(erster)}: "
                 f"{_deutsch(je_monat[erster])}."
             )
+        elif monate != _monate(erster, letzter):
+            text = f"Beschäftigungsverhältnisse{zusatz} am Stichtag:"
+            text += " " + ", ".join(f"{_monat_anzeige(m)} {_deutsch(je_monat[m])}" for m in monate) + "."
+            return text
         else:
             text = (
                 f"Beschäftigungsverhältnisse{zusatz} am Stichtag, {_monat_anzeige(erster)} bis "
@@ -1404,9 +1440,6 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         notizen.insert(0, hinweis_tag)
     typ = fragetyp(frage)
     absage = nicht_auswertbar(frage, mittel=mittel and len(set(monate_lesen(frage))) > 1)
-    ohne_wort = not re.search(r"[a-zäöüß]{3}", frage.lower())
-    if absage is None and ohne_wort and not monate_lesen(frage) and jahr_ohne_monat(frage) is None:
-        absage = f"Das ist keine Frage, die ich verstehe. {KANN}"
     if absage is not None:
         return _antwort(typ, absage, hinweise=[absage])
     try:
