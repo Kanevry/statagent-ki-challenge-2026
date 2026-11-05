@@ -651,7 +651,7 @@ gegenprobe = "cat web/content/slides/[0-9][0-9]-*.md | grep -cE 'Vertrauen' | gr
 [[pruefung]]
 id = "134-3"
 hash = "98ea12fc35"
-befehl = '''echo "em_dashes $(grep -c '—' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"; echo "interne_verweise $(grep -ciE 'vault|lead-session|svbox|\.orchestrator|~/|mentor-konzept|lead-session-orchestrator' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"'''
+befehl = '''echo "em_dashes $(grep -c '—' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"; echo "interne_verweise $(grep -ciE 'vault|lead-session|svbox|\.orchestrator|~[/]|mentor-konzept|lead-session-orchestrator' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"'''
 erwartet = ['^em_dashes 0$', '^interne_verweise 0$']
 deckung = "teil"
 zeitlimit = 30
@@ -695,7 +695,7 @@ grund = "ruff check ist im ganzen Repo sauber und die Werkzeugdateien sind forma
 [[pruefung]]
 id = "134-7"
 hash = "af01824e7d"
-befehl = '''echo "em_dashes $(grep -c '—' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"; echo "interne_verweise $(grep -ciE 'vault|lead-session|svbox|\.orchestrator|~/|mentor-konzept|lead-session-orchestrator' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"'''
+befehl = '''echo "em_dashes $(grep -c '—' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"; echo "interne_verweise $(grep -ciE 'vault|lead-session|svbox|\.orchestrator|~[/]|mentor-konzept|lead-session-orchestrator' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"'''
 erwartet = ['^em_dashes 0$', '^interne_verweise 0$']
 deckung = "voll"
 zeitlimit = 30

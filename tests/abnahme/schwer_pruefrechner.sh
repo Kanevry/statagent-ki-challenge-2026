@@ -27,7 +27,9 @@ fi
 echo "== holen $(TZ=Europe/Vienna date '+%H:%M')"
 git -C "$ABNAHME_REPO" fetch -q "$bundle" \
   "+refs/remotes/origin/main:refs/heads/main-abnahme" "+refs/heads/test/abnahme-matrix:refs/heads/abnahme-werkzeug"
-git -C "$ABNAHME_REPO" checkout -q --detach "$sha"
+# Hart zurücksetzen: frühere Prüfsätze können Dateien im Klon verändert haben (Review 4d, 19:00).
+git -C "$ABNAHME_REPO" checkout -q -f --detach "$sha"
+git -C "$ABNAHME_REPO" clean -fdq
 git -C "$ABNAHME_REPO" checkout -q "$werkzeug" -- tests/abnahme
 for f in 66_jury_weg.sh 66_readme_weg.sh 66_ohne_netz.py 66_kanon_hash.sql 66_manifest_vergleich.py \
   compose-abnahme.override.yml; do
@@ -40,8 +42,9 @@ echo "== readme-weg $(TZ=Europe/Vienna date '+%H:%M')"
 bash "$HIER/66_readme_weg.sh"
 
 echo "== pruefen $(TZ=Europe/Vienna date '+%H:%M')"
-printf 'UC3_DATABASE_URL=postgresql://statistik:statistik@localhost:%s/statistik\nSTATAGENT_STARTPAKET=%s\n' \
-  "$PORT" "$STARTPAKET_UC3" > "$HIER/pruef-db.env"
+mkdir -p "$HIER/abgabe"
+printf 'UC3_DATABASE_URL=postgresql://statistik:statistik@localhost:%s/statistik\nSTATAGENT_STARTPAKET=%s\nSTATAGENT_ABGABE=%s\n' \
+  "$PORT" "$STARTPAKET_UC3" "$HIER/abgabe" > "$HIER/pruef-db.env"
 (cd "$ABNAHME_REPO" && uv run python tests/abnahme/pruefen.py --schwer --ort . --sha "$sha" \
   --werkzeug "$werkzeug" --cache "$issues" --db-env "$HIER/pruef-db.env")
 ls -t "$ABNAHME_REPO/docs/abnahme/laeufe/" | head -1

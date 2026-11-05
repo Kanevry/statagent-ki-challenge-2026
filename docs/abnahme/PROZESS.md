@@ -94,12 +94,12 @@ geschlossenes Issue, ein grüner MR oder ein Haken allein sind kein Beleg.
 
 | Was | Wann | Wo |
 |---|---|---|
-| leichter Lauf | bei jedem neuen origin/main (Wächter, Blick alle 5 min) | M4, Abzug |
+| leichter Lauf | bei jedem neuen origin/main (Wächter, Blick alle 5 min) | Arbeitsrechner, Abzug |
 | schwerer Lauf UC3 (Golden Set, 24 Läufe, Abgabezahlen gegen Orakel) | automatisch nach jedem leichten Lauf, wenn sich main in UC3-Pfaden (`uc3/`, `abgabe/`, `docs/plan/uc3/`, `shared/`, Lockfiles) geändert hat; höchstens einer gleichzeitig (`schwer_ausloesen.sh`, Ziel aus einer env-Datei außerhalb des Repos) | Prüfrechner, Prüf-DB 5444, rund 10 min |
 | Befunde und Haken | nach jedem Lauf mit Wechsel, durch den Prüfer | GitLab |
 | Zähler an den Lead | 19:00, 20:00, 23:00, 02:00, 05:00 | SendMessage |
 | Vorprüfung Tor | 05:00 | |
-| Schlusslauf leicht und schwer | auf dem Merge-Stopp-SHA ab 06:30 | M4 und Prüfrechner |
+| Schlusslauf leicht und schwer | auf dem Merge-Stopp-SHA ab 06:30 | Arbeitsrechner und Prüfrechner |
 
 ## Was aus den Reviews übernommen wurde
 
@@ -114,15 +114,15 @@ geschlossenes Issue, ein grüner MR oder ein Haken allein sind kein Beleg.
 | Tor zu schwach oder unerreichbar | Fable H3, Astra 4 | Tor mit Entscheiden, Entschiedenes bleibt sichtbar, Zähler mit „fehlt auf main“ |
 | Schwerer Lauf zu spät | Fable H4 | vorgezogen auf direkt nach !50 |
 | DB-Fehler als Befund | Fable H5 | Lauf-Fehler |
-| glab ohne Repo-Kontext | Fable M3 | `cwd` fest auf das Repo, Liste und doppelte iid geprüft |
+| glab ohne Repo-Kontext | Fable Mi3 | `cwd` fest auf das Repo, Liste und doppelte iid geprüft |
 | Läufe überschreiben sich | Astra 10 | eine Datei je Lauf mit Manifest und Schlusszeile |
 | Zeitlimit kann Produktfehler sein | Astra 11 | `zeitlimit_ist_befund` je Prüfsatz |
-| Auslöser Uhr statt Merge | Fable M6 | Wächter je neuem main |
+| Auslöser Uhr statt Merge | Fable Mi6 | Wächter je neuem main |
 | E6 im Zähler versteckt | Astra 15 | Zähler je Teil |
 
 Nicht übernommen, mit Grund:
 - Pfade je Beleg als Pflicht (Astra 9): ein Standard je Bereich reicht; nur Hand-Belege tragen eigene Pfade.
-- Kommentare als Quelle des Wortlauts (Astra 2): Entscheide gehören in die Beschreibung (Fable M4); der Lead
+- Kommentare als Quelle des Wortlauts (Astra 2): Entscheide gehören in die Beschreibung (Fable Mi4); der Lead
   ändert dort, der Hash kippt, die Abnahme misst neu.
 - Vollständiger Markdown-Parser, CI-Pipeline, TOML-Prüfsätze für UC1, UC2, E0, E5 heute (beide Streichlisten).
 

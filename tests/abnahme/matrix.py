@@ -55,10 +55,21 @@ PUNKT = re.compile(r"^\s{0,3}(?:[-*+]|\d+[.)])\s+(.*\S)\s*$")
 FORTSETZUNG = re.compile(r"^\s{2,}\S")  # eingerückte Folgezeile gehört zum Kriterium davor
 AC_MARKE = re.compile(r"^\**\s*(AC\d+[a-z]?)\s*:")  # „**AC1:**“ ergibt die feste ID <iid>-AC1
 
-# Was nie in eine Datei, ein Issue oder eine Nachricht darf.
+# Was nie in Datei, Issue oder Nachricht darf (öffentliches Repo): Pfade auf Rechnern, Rechnernamen,
+# Hostnamen, IP-Adressen außer Loopback, Zugangsdaten in URLs.
 VERBOTEN = re.compile(
-    r"(/Users/|/home/|(?<!\.env)\.local\b|m5-remote|win-wsl|\b(?!127\.0\.0\.1\b|0\.0\.0\.0\b)\d{1,3}(?:\.\d{1,3}){3}\b|://[^@\s/]+:[^@\s/]+@)"
+    r"(/Users/|/home/|~/|(?<!\.env)\.local\b|m5-remote|win-wsl|\b[mM][45]\b|bernhardg"
+    r"|\b(?!127\.0\.0\.1\b|0\.0\.0\.0\b)\d{1,3}(?:\.\d{1,3}){3}\b|://[^@\s/]+:[^@\s/]+@)"
 )
+_PFAD = re.compile(r"(?:/Users/|/home/|~/)[^\s'\"`|)\]]*")
+_RECHNER = re.compile(r"\b(?:m5-remote|win-wsl|[mM][45])\b|bernhardg\S*")
+
+
+def schwaerzen(text: str) -> str:
+    """Entfernt Pfade auf Rechnern, Rechnernamen, Hostnamen und fremde IPs (für Repo, Issue, Nachricht)."""
+    text = _PFAD.sub("<pfad>", text or "")
+    text = _RECHNER.sub("<rechner>", text)
+    return VERBOTEN.sub("<entfernt>", text)
 
 
 def glab_json(pfad: str, versuche: int = 3) -> object:
@@ -338,7 +349,7 @@ def stand(k: dict, belege: dict[str, list[dict]], ziel: str | None = None) -> tu
     gemessen, grund = "nicht geprüft", ""
     if b and b.get("hash") != k["hash"]:
         grund = "Kriterium seit dem Beleg geändert, neu prüfen"
-    elif b and (alt := veraltet(b, ziel or "origin/main", k["bereich"])):
+    elif b and (alt := veraltet(b, ziel or _ZIEL, k["bereich"])):
         grund = f"Beleg veraltet: {alt}; zuletzt {b['stand']} auf {b['sha']}"
     elif b and b["stand"] == "bestanden" and ist_vorschlag(b):
         grund = f"Vorschlag von {b['pruefer']}, noch nicht reproduziert"
@@ -353,6 +364,7 @@ def stand(k: dict, belege: dict[str, list[dict]], ziel: str | None = None) -> tu
 
 
 _ENTSCHEIDE: dict[str, dict] | None = None
+_ZIEL = "origin/main"  # Zielstand für die Gültigkeit; `zaehler --ziel <sha>` setzt ihn
 
 
 def _entscheide() -> dict[str, dict]:
@@ -433,7 +445,7 @@ def tor(zeilen: list[dict], belege: dict[str, list[dict]]) -> int:
 
 
 def zelle(text: str) -> str:
-    return (text or "").replace("|", "\\|").replace("\n", " ").strip()
+    return schwaerzen(text or "").replace("|", "\\|").replace("\n", " ").strip()
 
 
 def beleg_zelle(b: dict | None, grund: str) -> str:
@@ -582,7 +594,8 @@ def abhaken(kid: str, belege: dict[str, list[dict]], ja: bool) -> int:
     if s != "bestanden" or not b:
         print(f"{kid}: Stand {s} ({grund}), nicht abgehakt", file=sys.stderr)
         return 3
-    marke = f"<!-- abnahme-haken:{kid}:{b['hash']}:{b['sha']}:{b['zeit']} -->"
+    # Marke ohne SHA und Zeit: ein Kommentar je Kriterium und Wortlaut, egal wie oft neu gemessen wird.
+    marke = f"<!-- abnahme-haken:{kid}:{k['hash']}:bestanden -->"
     kommentar = (
         f"Abnahme {kid}: **bestanden** (Prüfer {b['pruefer']}, {b['zeit']}, main `{b['sha']}`)\n\n"
         f"Kriterium: {k['wortlaut']}\n\n"
@@ -592,6 +605,7 @@ def abhaken(kid: str, belege: dict[str, list[dict]], ja: bool) -> int:
         + "\nMatrix: `docs/abnahme/matrix-*.md`, erzeugt von `tests/abnahme/matrix.py`.\n"
         + marke
     )
+    kommentar = schwaerzen(kommentar.replace(marke, "")) + marke
     if not ja:
         print(f"Trockenlauf {kid}: abgehakt={k['abgehakt']}, Zeile {k['zeile'] + 1}\n{kommentar}")
         return 0
@@ -667,10 +681,8 @@ def befunde(zeilen: list[dict], belege: dict[str, list[dict]], wahl: str | None,
             je_issue.setdefault(k["iid"], []).append((k, b))
     gepostet = 0
     for iid, liste in sorted(je_issue.items()):
-        # Nur Kriterium und Befund, nie die Ausgabe: sie enthält Laufzeiten (sonst Kommentar je Lauf).
-        kern = json.dumps(
-            [(k["id"], b.get("befund_art"), b.get("grund")) for k, b in liste], ensure_ascii=False
-        )
+        # Nur Kriterium und Wortlaut: ein Kommentar je Statuswechsel, nie je Lauf (Lead a7, 19:0x).
+        kern = json.dumps(sorted((k["id"], k["hash"]) for k, _ in liste))
         marke = f"<!-- abnahme-befund:{hashlib.sha1(kern.encode()).hexdigest()[:12]} -->"
         wort = "Kriterium" if len(liste) == 1 else "Kriterien"
         teile = [f"Abnahme: **{len(liste)} {wort} nicht bestanden** (Prüfer b-abnahme)", ""]
@@ -681,7 +693,7 @@ def befunde(zeilen: list[dict], belege: dict[str, list[dict]], wahl: str | None,
             if b.get("ausgabe"):
                 teile.append(f"  Gemessen: {b['ausgabe'][:300]}")
         teile += ["", "Fix macht die Lane, der der Code gehört; abgehakt wird nur nach neuer Messung.", marke]
-        text = "\n".join(teile)
+        text = schwaerzen("\n".join(teile))
         if not ja:
             print(f"--- #{iid} (Trockenlauf)\n{text}\n")
             continue
@@ -705,6 +717,7 @@ def main() -> int:
     ap.add_argument("--bereich", choices=BEREICHE)
     ap.add_argument("--cache", type=Path, help="Issue-Abzug als JSON (zum Wiederholen ohne API)")
     ap.add_argument("--ja", action="store_true", help="abhaken wirklich ausführen")
+    ap.add_argument("--ziel", help="main-SHA, für den geurteilt wird (Standard origin/main)")
     a = ap.parse_args()
 
     issues = issues_holen(a.cache)
@@ -758,6 +771,10 @@ def main() -> int:
     sha, zeit = main_sha(), jetzt()
     if a.befehl == "schreiben":
         matrix_schreiben(zeilen, belege, sha, zeit)
+    if a.ziel:
+        global _ZIEL
+        _ZIEL = a.ziel
+        sha = a.ziel[:8]
     print(zaehler_text(zaehlen(zeilen, belege), sha, zeit))
     return 0
 

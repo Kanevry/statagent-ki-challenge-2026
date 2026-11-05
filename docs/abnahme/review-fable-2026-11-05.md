@@ -1,3 +1,5 @@
+> Die Befund-IDs der Stufe „mittel“ heißen hier Mi1 bis Mi8 (öffentliches Repo: die kurzen IDs sind auch Rechnernamen).
+
 # Review Abnahme-Prozess v0.1 (Fable 5.1, 05.11.2026 17:35 Wien)
 
 Geprüft: 01 bis 10, dazu im Checkout `tests/abnahme/matrix.py`, `docs/abnahme/belege.jsonl` (58 Belege), `all.json`
@@ -27,14 +29,14 @@ Für die Jury zählt fast nur der schwere UC3-Lauf gegen das Orakel, der im Entw
 
 ### Mittel
 
-- **M1** `beleg_pruefen` Z. 297: `bestanden` braucht Befehl oder Datei, nicht die Ausgabe. Änderung: bei `befehl` ist `ausgabe` Pflicht; bei `art=hand` sind `datei` und `pfade` Pflicht.
-- **M2** `belege_lesen` Z. 182: „jüngster“ = letzte Dateizeile, nicht jüngste `zeit`. Zwei Messer zum selben Kriterium oder vertauschte `einlesen`-Reihenfolge lassen den falschen Beleg gelten. Änderung: nach `zeit` sortieren, bei gleicher Zeit Dateireihenfolge.
-- **M3** `glab_json` Z. 61 ohne Host: glab nimmt den Host aus dem Git-Verzeichnis des Aufrufers. Aus dem Schnappschuss (`git archive`, kein `.git`) oder aus cron trifft `projects/259` den Standard-Host, also ein fremdes Projekt 259. Änderung: `cwd=WURZEL` setzen oder `--hostname` aus `git remote get-url origin`; zusätzlich `isinstance(teil, list)` prüfen (Fehlerobjekt wird sonst per `extend` zu Schlüsseln). Paginierung selbst ist korrekt; `order_by=created_at&sort=asc` macht sie gegen neue Issues während der Schleife stabil.
-- **M4** Zwei Wahrheiten: Der Hash sieht nur die Beschreibungszeile, der Messer-Brief sagt „Kommentar geht dem Alttext vor“ (06, Z. 16). Eine Nachschärfung im Kommentar ändert den Hash nicht, der Prüfsatz misst dann gegen den alten Text. Änderung: Entscheide gehören in die Beschreibung (Lead), Kommentar nur als Begründung; Prüfsatz nennt in `quelle` die Kommentar-ID.
-- **M5** Unbalancierte Code-Fence (`kriterien()` Z. 124) lässt alle folgenden Kriterien stumm verschwinden, der Zähler sinkt, `einlesen` meldet „kein solches Kriterium“. Heute 0 Fälle in 140 Issues. Änderung: Warnung auf stderr, wenn `im_code` am Ende wahr ist.
-- **M6** Rhythmus „stündlich :50“ misst meist denselben SHA. Code ändert sich nur bei Merges (:05, :25, :45). Änderung: Lauf bei jedem neuen `origin/main`, Herzschlag stündlich nur, wenn kein Merge kam. Dann gehört jeder Rückfall automatisch zu einem Merge (Nachvollziehbarkeit Kriterium → Merge → Lane gratis).
-- **M7** Jury-Sicht fehlt in der Matrix. Die Matrix liegt im öffentlichen Repo, hat aber keine Spalte zum 120-Punkte-Raster; `raster-120.md` (19-1) ist nach Abgabe geschoben. Änderung, 20 Minuten: `docs/abnahme/raster-uc3.csv` (Raster-Bereich, Kriterium-IDs) und oben in `matrix-uc3.md` eine Sechs-Zeilen-Tabelle „Bereich, bestanden/gesamt, stärkster Beleg“. Die fünf Abgabezahl-Kriterien mit Orakel-Zeile hervorheben.
-- **M8** 72 der 245 Kriterien stammen aus 40 geschlossenen Issues, alle Boxen leer. Sie füllen „nicht geprüft“ auf. Änderung: im Zähler getrennt ausweisen („davon aus geschlossenen Issues“), damit das Tor nicht an Altlasten scheitert.
+- **Mi1** `beleg_pruefen` Z. 297: `bestanden` braucht Befehl oder Datei, nicht die Ausgabe. Änderung: bei `befehl` ist `ausgabe` Pflicht; bei `art=hand` sind `datei` und `pfade` Pflicht.
+- **Mi2** `belege_lesen` Z. 182: „jüngster“ = letzte Dateizeile, nicht jüngste `zeit`. Zwei Messer zum selben Kriterium oder vertauschte `einlesen`-Reihenfolge lassen den falschen Beleg gelten. Änderung: nach `zeit` sortieren, bei gleicher Zeit Dateireihenfolge.
+- **Mi3** `glab_json` Z. 61 ohne Host: glab nimmt den Host aus dem Git-Verzeichnis des Aufrufers. Aus dem Schnappschuss (`git archive`, kein `.git`) oder aus cron trifft `projects/259` den Standard-Host, also ein fremdes Projekt 259. Änderung: `cwd=WURZEL` setzen oder `--hostname` aus `git remote get-url origin`; zusätzlich `isinstance(teil, list)` prüfen (Fehlerobjekt wird sonst per `extend` zu Schlüsseln). Paginierung selbst ist korrekt; `order_by=created_at&sort=asc` macht sie gegen neue Issues während der Schleife stabil.
+- **Mi4** Zwei Wahrheiten: Der Hash sieht nur die Beschreibungszeile, der Messer-Brief sagt „Kommentar geht dem Alttext vor“ (06, Z. 16). Eine Nachschärfung im Kommentar ändert den Hash nicht, der Prüfsatz misst dann gegen den alten Text. Änderung: Entscheide gehören in die Beschreibung (Lead), Kommentar nur als Begründung; Prüfsatz nennt in `quelle` die Kommentar-ID.
+- **Mi5** Unbalancierte Code-Fence (`kriterien()` Z. 124) lässt alle folgenden Kriterien stumm verschwinden, der Zähler sinkt, `einlesen` meldet „kein solches Kriterium“. Heute 0 Fälle in 140 Issues. Änderung: Warnung auf stderr, wenn `im_code` am Ende wahr ist.
+- **Mi6** Rhythmus „stündlich :50“ misst meist denselben SHA. Code ändert sich nur bei Merges (:05, :25, :45). Änderung: Lauf bei jedem neuen `origin/main`, Herzschlag stündlich nur, wenn kein Merge kam. Dann gehört jeder Rückfall automatisch zu einem Merge (Nachvollziehbarkeit Kriterium → Merge → Lane gratis).
+- **Mi7** Jury-Sicht fehlt in der Matrix. Die Matrix liegt im öffentlichen Repo, hat aber keine Spalte zum 120-Punkte-Raster; `raster-120.md` (19-1) ist nach Abgabe geschoben. Änderung, 20 Minuten: `docs/abnahme/raster-uc3.csv` (Raster-Bereich, Kriterium-IDs) und oben in `matrix-uc3.md` eine Sechs-Zeilen-Tabelle „Bereich, bestanden/gesamt, stärkster Beleg“. Die fünf Abgabezahl-Kriterien mit Orakel-Zeile hervorheben.
+- **Mi8** 72 der 245 Kriterien stammen aus 40 geschlossenen Issues, alle Boxen leer. Sie füllen „nicht geprüft“ auf. Änderung: im Zähler getrennt ausweisen („davon aus geschlossenen Issues“), damit das Tor nicht an Altlasten scheitert.
 
 ### Niedrig
 
@@ -50,13 +52,13 @@ Für die Jury zählt fast nur der schwere UC3-Lauf gegen das Orakel, der im Entw
 2. Herkunft: `pruefer` der Abnahme-Session oder `pruefen.py` entscheidet; Agent-Belege sind Vorschläge und Prüfsatz-Entwürfe (K2).
 3. Urteil: Exit 0 Pflicht, Regexe `re.M` auf stdout, ungültiger Regex = Lauf-Fehler, DB-Fehlermuster = Lauf-Fehler, Negativtest per Replay (K3, H5).
 4. Zuordnung über `(iid, hash)`; `abhaken` holt frisch, vergleicht `updated_at`, kein Cache (H1, H2).
-5. Zähler mit vier Ständen plus `befund fehlt|abweichend` und „davon geschlossen“ (H3, M8).
+5. Zähler mit vier Ständen plus `befund fehlt|abweichend` und „davon geschlossen“ (H3, Mi8).
 6. Tor 06:30: UC3 und E6 ohne „nicht geprüft“ ohne Lead-Entscheid; letzter schwerer Lauf auf dem Merge-Stopp-SHA startet 06:30, Ergebnis 06:45, Zahl in die Präsentation und in `matrix-uc3.md` (H3, H4).
-7. Auslöser: neuer `origin/main` statt Uhr; stündlicher Herzschlag nur ohne Merge (M6).
+7. Auslöser: neuer `origin/main` statt Uhr; stündlicher Herzschlag nur ohne Merge (Mi6).
 8. DoD je Kriterium: bestanden auf gültigem SHA, Haken, Kommentar mit Befehl/Ausgabe/SHA. Fix-MRs nennen `Abnahme: <id>` in der Beschreibung, Review-Bank prüft das (eine Zeile im Review-Brief). Damit steht Kriterium → Prüfung → Beleg → Commit.
 9. RACI: Messer messen und schlagen vor (R), Abnahme urteilt und hakt ab (A), Lane fixt (R), Lead entscheidet Kriteriumstext, `nach-abgabe`, Fragenkatalog (A). Eskalation: nicht bestanden auf Abgabezahl oder E6 sofort Lead; sonst Lane, ohne Reaktion nach 90 Minuten Lead.
-10. Kriterien, die sich nachts ändern: Lead ändert die Beschreibung, nicht nur den Kommentar (M4); Hash kippt auf „geändert“, Abnahme passt Prüfsatz an und misst neu; kein stilles Übernehmen.
-11. Reihenfolge: bis 18:30 matrix.py-Fixes K1, H1, H2, M1, M2, M3 und `einlesen` der Messer als Vorschläge, Zähler 19:00 ehrlich (fast alles „nicht geprüft“, mit Messbefehl im grund). 19:00 bis 21:00 `uc3_schwer.sh` auf dem Prüfrechner, erster Lauf, Abgabezahlen gegen Orakel. 21:00 bis 23:00 `pruefen.py` leicht mit TOML für UC3 und E6, Auslöser je SHA. 23:00 bis 02:00 UC4, UC1, UC2 als Hand-Belege der Messer mit Pfaden, E5 nach Landung. 02:00 bis 06:00 Rückfälle, Fragenkatalog. 06:30 Schlusslauf.
+10. Kriterien, die sich nachts ändern: Lead ändert die Beschreibung, nicht nur den Kommentar (Mi4); Hash kippt auf „geändert“, Abnahme passt Prüfsatz an und misst neu; kein stilles Übernehmen.
+11. Reihenfolge: bis 18:30 matrix.py-Fixes K1, H1, H2, Mi1, Mi2, Mi3 und `einlesen` der Messer als Vorschläge, Zähler 19:00 ehrlich (fast alles „nicht geprüft“, mit Messbefehl im grund). 19:00 bis 21:00 `uc3_schwer.sh` auf dem Prüfrechner, erster Lauf, Abgabezahlen gegen Orakel. 21:00 bis 23:00 `pruefen.py` leicht mit TOML für UC3 und E6, Auslöser je SHA. 23:00 bis 02:00 UC4, UC1, UC2 als Hand-Belege der Messer mit Pfaden, E5 nach Landung. 02:00 bis 06:00 Rückfälle, Fragenkatalog. 06:30 Schlusslauf.
 12. Behalten: Einzelprotokolle wie `66.md` für die vier bis sechs Jury-Kriterien (Determinismus, Golden Set, Orakel, ohne Netz), sie sind der lesbare Beleg für die Präsentation; alles andere nur in Matrix und Belegen. Messer-Agents behalten, aber mit dem Ziel „Prüfsatz-Vorschlag“, nicht „Urteil“.
 
 ## Streichliste

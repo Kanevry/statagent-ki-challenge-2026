@@ -84,7 +84,7 @@ befehl = "grep -c \"regelsatz\" web/app/uc3/berichte/page.tsx"
 erwartet = ["^[1-9]"]
 schwer = true
 deckung = "teil"
-befund = "Die Berichte-Seite liest ?regelsatz (web/app/uc3/berichte/page.tsx:45), der Beleg mit echten v2-Daten fehlt. Messen im Browser: /uc3/berichte?regelsatz=v2 gegen die m5-Datenbank, sobald die 24 v2-Läufe fertig sind."
+befund = "Die Berichte-Seite liest ?regelsatz (web/app/uc3/berichte/page.tsx:45), der Beleg mit echten v2-Daten fehlt. Messen im Browser: /uc3/berichte?regelsatz=v2 gegen die Datenbank des Prüfrechners, sobald die 24 v2-Läufe fertig sind."
 herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 
 [[pruefung]]
@@ -339,11 +339,11 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "69-AC1"
 hash = "d690038e13"
-befehl = "timeout 120 uv run --frozen --package statagent uc3 protokoll"
+befehl = "timeout 120 uv run --frozen --package statagent uc3 protokoll --zeigen"
 erwartet = ["R6_beschaeftigungskategorie", "[Ff]reigegeben"]
 schwer = true
 deckung = "teil"
-befund = "Klassifikationsversion, Anti-Join und Freigabe (Vorschlag uc3/24) liegen in der m5-Datenbank und nicht im Repo auf main; ohne Datenbankzugriff nicht messbar. Vorschlag: SQL-Anti-Join der fünf Ausgangscodes in stat.uebergang gegen die drei F"
+befund = "Klassifikationsversion, Anti-Join und Freigabe (Vorschlag uc3/24) liegen in der Datenbank des Prüfrechners und nicht im Repo auf main; ohne Datenbankzugriff nicht messbar. Vorschlag: SQL-Anti-Join der fünf Ausgangscodes in stat.uebergang gegen die drei F"
 herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 
 [[pruefung]]
@@ -354,7 +354,7 @@ erwartet = ["^DA$"]
 schwer = false
 deckung = "teil"
 befund_art = "fehlt"
-befund = "Die Datei abgabe/aggregationen_v2a.xlsx fehlt auf main (auch abgabe/aggregationen_v2.xlsx fehlt); die 24 v2-Läufe laufen laut Kommentar 271827 erst am m5. SQL-Vergleich (0 Differenzen) und v1-Hash nicht messbar."
+befund = "Die Datei abgabe/aggregationen_v2a.xlsx fehlt auf main (auch abgabe/aggregationen_v2.xlsx fehlt); die 24 v2-Läufe laufen laut Kommentar 271827 erst auf dem Prüfrechner. SQL-Vergleich (0 Differenzen) und v1-Hash nicht messbar."
 herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 
 [[pruefung]]

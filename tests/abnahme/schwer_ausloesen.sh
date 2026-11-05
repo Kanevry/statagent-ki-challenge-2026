@@ -27,12 +27,12 @@ tmp="$(mktemp -d /tmp/kic-abnahme-schwer.XXXXXX)"
 git bundle create -q "$tmp/abnahme.bundle" refs/remotes/origin/main "refs/heads/$(git rev-parse --abbrev-ref HEAD)"
 uv run python -c "import json,sys; sys.path.insert(0,'tests/abnahme'); import matrix; \
 json.dump(matrix.issues_holen(None), open('$tmp/issues.json','w'))"
-scp -q "$tmp/abnahme.bundle" "$tmp/issues.json" tests/abnahme/schwer_pruefrechner.sh "$PRUEFRECHNER:$PRUEFRECHNER_DIR/"
+timeout 600 scp -q -o ConnectTimeout=10 "$tmp/abnahme.bundle" "$tmp/issues.json" tests/abnahme/schwer_pruefrechner.sh "$PRUEFRECHNER:$PRUEFRECHNER_DIR/"
 echo "schwer: Lauf startet für main ${sha:0:8} $(TZ=Europe/Vienna date '+%H:%M')"
-if ssh "$PRUEFRECHNER" "bash $PRUEFRECHNER_DIR/schwer_pruefrechner.sh $PRUEFRECHNER_DIR/abnahme.bundle $sha $werkzeug \
+if timeout 1800 ssh -o ConnectTimeout=10 "$PRUEFRECHNER" "bash $PRUEFRECHNER_DIR/schwer_pruefrechner.sh $PRUEFRECHNER_DIR/abnahme.bundle $sha $werkzeug \
   $PRUEFRECHNER_DIR/issues.json" > "$tmp/lauf.log" 2>&1; then
   datei="$(tail -1 "$tmp/lauf.log")"
-  scp -q "$PRUEFRECHNER:$PRUEFRECHNER_DIR/repo/docs/abnahme/laeufe/$datei" "docs/abnahme/laeufe/${datei%.jsonl}-schwer.jsonl"
+  timeout 120 scp -q -o ConnectTimeout=10 "$PRUEFRECHNER:$PRUEFRECHNER_DIR/repo/docs/abnahme/laeufe/$datei" "docs/abnahme/laeufe/${datei%.jsonl}-schwer.jsonl"
   grep -E '^(Lauf|lauf_alle_exit)' "$tmp/lauf.log"
   echo "$sha" > "$stand_datei"
 else

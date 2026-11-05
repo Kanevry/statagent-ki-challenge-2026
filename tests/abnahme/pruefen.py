@@ -144,8 +144,7 @@ def abzug(sha: str, werkzeug: str) -> Path:
         if not node_ok:
             print("Hinweis: pnpm install gescheitert; vitest-Prüfsätze werden Lauf-Fehler", file=sys.stderr)
         (ziel / ".fertig").write_text(sha)
-    shutil.rmtree(ziel / "tests" / "abnahme", ignore_errors=True)
-    subprocess.run(["git", "-C", str(ziel), "checkout", "-q", werkzeug, "--", "tests/abnahme"], check=True)
+    zuruecksetzen(ziel, sha, werkzeug)
     return ziel
 
 
@@ -228,11 +227,28 @@ def ausfuehren(befehl: str, ort: Path, sekunden: int) -> tuple[int, str, str, fl
     return code, out, err, time.monotonic() - start
 
 
+ORT: Path | None = None  # Prüf-Klon des laufenden Laufs, wird in Ausgaben durch <pruefklon> ersetzt
+
+
 def auszug(text: str, grenze: int = 600) -> str:
-    """Kürzt die Ausgabe und entfernt lokale Pfade, damit nichts Rechnerspezifisches in den Beleg kommt."""
-    text = text.replace(str(ABZUEGE), "<abzug>").replace(os.environ.get("HOME", "~"), "~").strip()
-    text = matrix.VERBOTEN.sub("<entfernt>", text)
+    """Kürzt die Ausgabe und entfernt Pfade und Rechnernamen (nichts Rechnerspezifisches im Beleg)."""
+    for ort in (ORT, ABZUEGE):
+        if ort:
+            text = text.replace(str(ort), "<pruefklon>")
+    text = matrix.schwaerzen(text.strip())
     return text if len(text) <= grenze else text[: grenze // 2] + " … " + text[-grenze // 2 :]
+
+
+def zuruecksetzen(ort: Path, sha: str, werkzeug: str) -> None:
+    """Prüf-Klon hart auf main an `sha` plus Werkzeug-Commit; Reste früherer Prüfsätze werden entfernt.
+
+    Grund (Review 4d, 19:00): ein Prüfsatz schrieb abgabe/protokoll.md in den Klon; der nächste checkout
+    scheiterte still. Umgebungen (.venv, node_modules) sind ignoriert und bleiben.
+    """
+    subprocess.run(["git", "-C", str(ort), "checkout", "-q", "-f", "--detach", sha], check=True)
+    subprocess.run(["git", "-C", str(ort), "clean", "-fdq", "-e", ".fertig"], check=True)
+    shutil.rmtree(ort / "tests" / "abnahme", ignore_errors=True)
+    subprocess.run(["git", "-C", str(ort), "checkout", "-q", werkzeug, "--", "tests/abnahme"], check=True)
 
 
 def main() -> int:
@@ -263,9 +279,7 @@ def main() -> int:
             print("--ort braucht --sha und --werkzeug", file=sys.stderr)
             return 2
         sha, werkzeug, ort = a.sha, a.werkzeug, a.ort.resolve()
-        subprocess.run(["git", "-C", str(ort), "checkout", "-q", "--detach", sha], check=True)
-        shutil.rmtree(ort / "tests" / "abnahme", ignore_errors=True)
-        subprocess.run(["git", "-C", str(ort), "checkout", "-q", werkzeug, "--", "tests/abnahme"], check=True)
+        zuruecksetzen(ort, sha, werkzeug)
     else:
         subprocess.run(["git", "-C", str(WURZEL), "fetch", "-q", "origin", "main"], check=True)
         sha = matrix.git("rev-parse", "origin/main").stdout.strip()
@@ -273,6 +287,8 @@ def main() -> int:
         if matrix.git("status", "--porcelain", "--", "tests/abnahme").stdout.strip():
             print("Hinweis: tests/abnahme hat nicht committete Änderungen; der Lauf nutzt", werkzeug[:8])
         ort = abzug(sha, werkzeug)
+    global ORT
+    ORT = ort
     zeit = matrix.jetzt()
     lauf_id = zeit.replace(" ", "T").replace(":", "") + "-" + sha[:8]
 
@@ -298,15 +314,22 @@ def main() -> int:
         }
     ]
     hand_belege = matrix.belege_lesen()
+    gegen_fehl = 0
     teile: dict[str, list[dict]] = {}
     for p in wahl:
         k = kriterien.get(p["id"])
         if a.gegenprobe:
             if not p.get("gegenprobe"):
                 continue
+            if fehler := pruefsatz_fehler(p | {"befehl": p["gegenprobe"]}):
+                print(f"FEHL Gegenprobe {p['id']}: ungültig ({fehler})")
+                gegen_fehl += 1
+                continue
             code, out, err, _ = ausfuehren(p["gegenprobe"], ort, p.get("zeitlimit", 180))
             s, _ = urteil(p | {"deckung": "voll"}, code, out, err)
-            print(f"{'ok  ' if s == 'nicht bestanden' else 'FEHL'} Gegenprobe {p['id']}: {s}")
+            ok = s == "nicht bestanden"
+            gegen_fehl += not ok
+            print(f"{'ok  ' if ok else 'FEHL'} Gegenprobe {p['id']}: {s}")
             continue
         if fehler := pruefsatz_fehler(p):
             r = {"stand": "nicht geprüft", "grund": f"Prüfsatz ungültig: {fehler}", "exit": None, "text": ""}
@@ -368,7 +391,7 @@ def main() -> int:
         zeilen.append(b)
         print(f"{s:16} {kid:12} {grund[:90]}")
     if a.gegenprobe:
-        return 0
+        return 1 if gegen_fehl else 0
     zeilen.append({"abgeschlossen": True, "ende": matrix.jetzt()})
     print(f"Lauf {lauf_id}: " + ", ".join(f"{v} {k}" for k, v in zaehler.items()))
     if not a.ohne_datei:
