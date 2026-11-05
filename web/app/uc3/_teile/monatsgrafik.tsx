@@ -53,7 +53,8 @@ export function Monatsgrafik({ monate, regelsatz }: { monate: readonly Monatslau
       <svg
         viewBox={`0 0 ${BREITE} ${HOEHE + 36}`}
         className="h-auto w-full"
-        role="img"
+        // Gruppe statt Bild: die Punkte sind Links, und interaktive Elemente dürfen nicht in role="img" stecken (axe).
+        role="group"
         aria-label={`Beschäftigungsverhältnisse am Stichtag von ${monatName(monate[0]!.lieferung)} bis ${monatName(monate.at(-1)!.lieferung)}, zwischen ${formatZahl(Math.min(...werte))} und ${formatZahl(Math.max(...werte))}`}
       >
         {hilfslinien(beginn, ende).map((wert) => (
