@@ -53,6 +53,8 @@ Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „
 
 **Datenbank:** Die ganze Demo läuft gegen die Kopie `statistik_vorfuehrung` (`UC3_DATABASE_URL` auf die Kopie), nie gegen `statistik`. Die Freigabe schreibt einen Commit; deshalb läuft D2 auf einem eigenen Demo-Branch im Checkout des Vortragsrechners, der Commit wird nie gepusht. Geprobt wird vorher nur auf `statistik_probe`.
 
+**Demo-Branch je Lauf frisch ab main:** Für jeden Lauf, Probe wie Vorführung, legt Bernhard einen neuen Demo-Branch ab main an (`git switch -c demo/<uhrzeit> origin/main`) und nimmt nie einen Branch aus einer früheren Probe. Grund: Bei gleicher Vorschlags-ID kann die Freigabe sonst auf einen Commit aus der Probe zeigen.
+
 **Teil 1, Rückblick (6:15–6:50):** Die drei Änderungsaufträge der Aufgabe sind umgesetzt und mit Namen freigegeben (Vorschläge 24, 25, 26).
 
 1. `uv run uc3 vorschlag zeigen 24`: Regel-Unterschied und Zahlen vorher und nachher von Auftrag 1.
@@ -90,7 +92,7 @@ Drei Anfragen der Aufgabenstellung, je etwa 25 Sekunden: Zeitreihe, Männer und 
 
 **Nur geprüfte Fragen.** Vorgeführt werden ausschließlich die acht Fragen aus der Tabelle, wörtlich so getippt. Jede ist gegen eigenes SQL und das unabhängige Orakel nachgerechnet (Prüfung im Team, 05.11.2026 17:15 bis 17:19, #74). Freie Fragen der Jury tippt Bernhard nicht ein, solange der Folge-MR von bb („nie still falsch“) nicht auf main ist. Dann bietet er eine Frage aus der Liste an. Der Stand wird um 06:45 geprüft und in `probe.md` eingetragen.
 
-- Klickweg: Seite `/uc3/fragen`, Frage ins Feld tippen. Die Antwort zeigt die Zahl, die Abfrage und die Definition.
+- Klickweg: Seite `/uc3/fragen`, Frage ins Feld tippen. Die Antwort zeigt die Zahl oder Tabelle und „Abfrage ansehen“. Den ganzen Antwortsatz und die Definition zeigt „Details“.
 - Terminal (Stufe 2): `uv run uc3 frage "…"` mit demselben Text.
 - Letzter Rückfall: SQL mit `psql` aus dem Fragenkatalog, Teil A1 bis A3.
 - Sagt Bernhard: „Drei Fragen an die Daten. Das Programm rechnet die Antwort ohne KI und zeigt Ihnen die Abfrage dazu.“
@@ -123,7 +125,7 @@ Fragt die Jury so etwas, sagt Bernhard: „Das zeige ich Ihnen mit einer Abfrage
 - Jury muss sehen:
   - Die Zahl, die Abfrage und die Definition auf dem Bildschirm.
   - Frage 1: erste Zeile 392.236 (F14). Der Oktober 2025 steht als vorläufig (F11).
-  - Frage 2: Männer 211.603, Frauen 180.633, je Bundesland gegliedert (F14).
+  - Frage 2: die Tabelle je Bundesland. Die Summen Männer 211.603 und Frauen 180.633 (F14) stehen im Satz unter „Details“. Bernhard klappt es auf.
   - Frage 4: Fluktuation 3,42 % mit Zugängen und Abgängen (F23). Nie zwei Monate mit verschiedener ÖNACE-Version Abschnitt gegen Abschnitt vergleichen (F13).
 - Weicht eine Zahl von der Sollzahl ab, sagt Bernhard nichts dazu und wechselt auf die SQL aus dem Fragenkatalog. Die Abweichung kommt danach ins Probe-Protokoll.
 
@@ -174,7 +176,7 @@ Jeder Punkt wird abgehakt, sobald er geprüft ist. Uhrzeit nur aus der Uhr (`TZ=
 - [ ] D3: Die acht geprüften Fragen auf `/uc3/fragen` und mit `uv run uc3 frage "…"` geprobt, jede Zahl gegen die Sollzahl der Tabelle. Folge-MR von bb auf main? Wenn nein, keine freien Fragen. SQL A1 bis A3 als Rückfall bereit, `<regelstand>` eingesetzt.
 - [ ] D4: Sollwert 7.498 (F18) gegen die Abfrage im Belegregister geprüft. Testmodus-Ansage bereit.
 - [ ] D2: `uv run uc3 vorschlag zeigen 24` und `uv run uc3 protokoll --zeigen` laufen auf dem Vortragsrechner. B2 nur, wenn es nach dem Fix der UC3-Lane dreimal gegen `statistik_probe` geklappt hat. Nie `freigabe` geübt.
-- [ ] Datenbank: `UC3_DATABASE_URL` zeigt auf `statistik_vorfuehrung`, nicht auf `statistik`. Prüfung ohne Wert: Datenbankname im Kopf der App oder `uv run uc3 laeufe` liefert die 24 Läufe der Kopie. Checkout steht auf dem Demo-Branch.
+- [ ] Datenbank: `UC3_DATABASE_URL` zeigt auf `statistik_vorfuehrung`, nicht auf `statistik`. Prüfung ohne Wert: Datenbankname im Kopf der App oder `uv run uc3 laeufe` liefert die 24 Läufe der Kopie. Checkout steht auf einem Demo-Branch, der für diesen Lauf frisch ab main angelegt ist.
 - [ ] Protokolleintrag der Freigabe von Auftrag 1 (05.11.2026 16:54) gefunden, Fenster für den Rückblick bereit.
 - [ ] Entscheid D4 um 06:45 getroffen und in `probe.md` eingetragen.
 - [ ] Freeze um 07:00 (Europe/Vienna) bestätigt. Danach keine Änderung mehr.
