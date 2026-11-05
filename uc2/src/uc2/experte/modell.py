@@ -9,8 +9,11 @@ Modellannahmen (bewusst, Vorgabe aus Issue #42, Entscheid X2):
 - W ∝ ρ/(1 − ρ) ohne den Faktor 1/μ. Mehr Kapazität senkt die Wartezeit hier nur über die Auslastung, nicht
   zusätzlich über die schnellere Bedienung. Ein M/M/1-Modell mit W = ρ/(μ − λ) ergäbe für den Pflicht-Testwert
   (+5 % Kapazität, ρ₀ = 0,80) −23,8 % statt −20 %; das Modell ist also eher vorsichtig.
-- Ein Versorgungspool: ρ₀, Kassenstellen-Bestand und alle Maßnahmen beziehen sich auf die kassenärztliche
-  Versorgung (Allgemein- und Fachmedizin gemeinsam), siehe Kopf von `annahmen.yaml`.
+- Ein Versorgungspool: ρ₀, Kassenstellen-Bestand und alle Maßnahmen beziehen sich auf die fachärztliche
+  Kassenversorgung (Leitfrage PRD S10: Facharzttermine), siehe Kopf von `annahmen.yaml`. Allgemeinmedizin
+  wirkt nur über die Nachfrage beim Pool (PVE, Triage).
+- Monotonie: Jede Kennzahl muss in jeder A-Annahme monoton sein, sonst trägt die Eckenrechnung nicht
+  (`_pruefe_monotonie`).
 - Mehrkosten sind die jährlichen Mehrkosten im Zieljahr (nicht über die Jahre kumuliert) in Prozent der
   nominalen Ausgangsausgaben 2025 ohne Fortschreibung. Zweite Kennzahl: dieselben Mehrkosten in Prozent der
   Ausgaben für die niedergelassene Versorgung (Budgetdienst, Jahr 2024); sie geht nicht in die
@@ -309,6 +312,43 @@ def _formel(roh: object, wo: str, annahmen: Mapping[str, Annahme]) -> Formel:
     return formel
 
 
+def _pruefe_monotonie(massnahmen: Sequence[Massnahme], annahmen: Mapping[str, Annahme], wo: str) -> None:
+    """Strukturregeln, unter denen jede Kennzahl in jeder A-Annahme monoton ist.
+
+    Die Spanne und das Urteil `nicht erfüllt` werten nur Ecken aus (`zielpruefung`). Das gilt nur, wenn
+    jede Kennzahl in jeder Annahme einzeln monoton ist. Innerhalb einer Maßnahme ist jede Formel ein Produkt
+    nicht negativer Faktoren: in jedem Faktor monoton. Monotonie geht verloren, wenn eine Annahme in zwei
+    Maßnahmen gegenläufig wirkt, etwa als Faktor einer Kapazitäts- und als Teiler einer Nachfragemaßnahme;
+    dann kann ein innerer Punkt schlechter sein als jede Ecke. Deshalb wird abgelehnt:
+    - eine A-Annahme mit Spanne (min < max), die in mehr als einer Maßnahme des Pakets vorkommt,
+    - eine A-Annahme mit Spanne als Teiler,
+    - ρ₀ oder eine Kostenbasis in einer Maßnahmenformel (sie gehen nur über `rechne` ein).
+    """
+    nutzer: dict[str, list[str]] = {}
+    for m in massnahmen:
+        for formel in (m.wirkung, m.kosten):
+            for aid in formel.annahmen:
+                if aid in (RHO0, *POSITIVE_ANNAHMEN):
+                    raise ValueError(
+                        f"{wo}: `{aid}` steht in der Formel der Maßnahme `{m.id}`; ρ₀ und Kostenbasen "
+                        "dürfen nur im Modell selbst vorkommen"
+                    )
+            for aid in formel.teiler:
+                if annahmen[aid].hat_spanne:
+                    raise ValueError(
+                        f"{wo}: A-Annahme `{aid}` mit Spanne steht als Teiler in Maßnahme `{m.id}`; "
+                        "die Eckenrechnung setzt Monotonie voraus (Teiler nur ohne Spanne, etwa Typ B)"
+                    )
+        for aid in dict.fromkeys(m.wirkung.annahmen + m.kosten.annahmen):
+            nutzer.setdefault(aid, []).append(m.id)
+    for aid, ids in nutzer.items():
+        if len(ids) > 1 and annahmen[aid].hat_spanne:
+            raise ValueError(
+                f"{wo}: A-Annahme `{aid}` mit Spanne wirkt in mehreren Maßnahmen ({', '.join(ids)}); "
+                "die Eckenrechnung setzt Monotonie voraus. Ausweg: je Maßnahme eine eigene Annahme"
+            )
+
+
 def _pruefe_teiler(formel: Formel, annahmen: Mapping[str, Annahme], wo: str) -> None:
     for aid in formel.teiler:
         if annahmen[aid].min <= 0:
@@ -433,6 +473,7 @@ def lade_paket(
     for m, _ in gewaehlt:
         _pruefe_teiler(m.wirkung, annahmen, f"{m.id}.wirkung")
         _pruefe_teiler(m.kosten, annahmen, f"{m.id}.kosten")
+    _pruefe_monotonie([m for m, _ in gewaehlt], annahmen, pfad.name)
     beschreibung = roh.get("beschreibung")
     return Paket(
         name=pfad.stem,

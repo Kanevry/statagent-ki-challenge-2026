@@ -195,3 +195,37 @@ def test_gegenlaeufige_annahme_ergibt_offen_statt_nicht_erfuellt(tmp_path: Path)
     pruefung = modell.ergebnis(modell.lade_paket(datei))["zielpruefung"]
     assert (pruefung["ecken_erreicht"], pruefung["modus_erreicht"]) == (0, True)
     assert pruefung["ergebnis"] == "offen"
+
+
+def test_nicht_monotone_struktur_wird_abgelehnt(tmp_path: Path) -> None:
+    # Gegenbeispiel aus dem Review: x als Faktor in kompetenzen.wirkung und als Teiler in triage.wirkung.
+    # Ecken ergaben −36,0 % und −33,6 % („erfüllt“), der innere Punkt x = 1 nur −9,2 %.
+    register = yaml.safe_load((pfade.CONFIG / "annahmen.yaml").read_text(encoding="utf-8"))
+    register["annahmen"].append(
+        {
+            "id": "x",
+            "beschreibung": "Test",
+            "min": 0.1,
+            "modus": 1,
+            "max": 10,
+            "einheit": "Faktor",
+            "typ": "A",
+            "quelle": "Test",
+        }
+    )
+    katalog = yaml.safe_load((pfade.CONFIG / "massnahmen.yaml").read_text(encoding="utf-8"))
+    for eintrag in katalog["massnahmen"]:
+        if eintrag["id"] == "kompetenzen":
+            eintrag["wirkung"]["faktoren"].append("x")
+        if eintrag["id"] == "triage":
+            eintrag["wirkung"]["teiler"] = ["x"]
+    (tmp_path / "annahmen.yaml").write_text(yaml.safe_dump(register, allow_unicode=True), encoding="utf-8")
+    (tmp_path / "massnahmen.yaml").write_text(yaml.safe_dump(katalog, allow_unicode=True), encoding="utf-8")
+    annahmen = modell.lade_annahmen(tmp_path / "annahmen.yaml")
+    ziel = modell.lade_ziel()
+    massnahmen = modell.lade_massnahmen(annahmen, ziel, tmp_path / "massnahmen.yaml")
+    datei = _paket(
+        tmp_path, {"massnahmen": [{"id": "kompetenzen", "umfang": 30}, {"id": "triage", "umfang": 30}]}
+    )
+    with pytest.raises(ValueError, match="`x`"):
+        modell.lade_paket(datei, annahmen, massnahmen, ziel)
