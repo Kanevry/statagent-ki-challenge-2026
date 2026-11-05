@@ -157,7 +157,7 @@ export function ProtokollSchublade({ id, uc, onSchliessen, quelle = standardQuel
         <h2
           ref={titel}
           tabIndex={-1}
-          className={klassen("flex-1 font-display text-20 font-bold text-ink", fokus)}
+          className="flex-1 font-display text-20 font-bold text-ink outline-none"
         >
           Protokoll
         </h2>
