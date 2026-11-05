@@ -307,6 +307,7 @@ def test_strom_mit_erschoepftem_budget_meldet_fehler_als_eine_zeile(protokoll, m
         ("Das sind z. B. Pflegekräfte in Wien. Mehr folgt.", "Das sind z. B. Pflegekräfte in Wien."),
         ("Es sind ca. 7.500 Stellen. Mehr folgt.", "Es sind ca. 7.500 Stellen."),
         ("Stichtag ist der 31. März 2025. Mehr folgt.", "Stichtag ist der 31. März 2025."),
+        ("Es sind 12. Weitere Angaben folgen.", "Es sind 12."),
         ("Code a. n. g. Gesundheit zählt mit. Mehr folgt.", "Code a. n. g. Gesundheit zählt mit."),
         ("Erst das. danach klein weiter. Ende.", "Erst das. danach klein weiter."),
         ("wort " * 40, ("wort " * 27).strip() + "…"),

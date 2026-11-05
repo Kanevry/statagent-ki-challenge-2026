@@ -13,7 +13,8 @@
 # Eintrag in Dateireihenfolge, der passt, gewinnt.
 # `gesetze`: Gesetzesfilter der Suche, sobald der Status bekannt ist (Review N1/N2: die Status-Rückfrage
 # setzt Träger UND Suchgebiet). BPGG gilt für alle, weil das Pflegegeld bundesweit einheitlich ist.
-# `stellen`: zuständige Stelle je Bereich (pflegegeld | pension | krankenversicherung).
+# `stellen`: zuständige Stelle je Bereich (pflegegeld | pension | krankenversicherung). Die
+# Unfallversicherung (AUVA, ASVG § 28) steht in leistungen.yaml als `stelle_fest` mit `stelle_je_status`.
 # `verfahren`: Verfahrensrecht gilt für alle Versicherten, unabhängig vom Status (#31): Bescheid, Klage und
 # Fristen regelt das ASGG; das Verfahren in Leistungssachen der Siebente Teil des ASVG (§§ 354–368), auf den
 # GSVG § 194, BSVG § 182 und B-KUVG § 129 verweisen. `gesetze` kommen bei jedem Status in den Gesetzesfilter
@@ -36,6 +37,8 @@ stellen:
     name: "Österreichische Gesundheitskasse (ÖGK)"
   SMS:
     name: "Sozialministeriumservice"
+  AUVA:
+    name: "Allgemeine Unfallversicherungsanstalt (AUVA)"
 
 status:
   pva:

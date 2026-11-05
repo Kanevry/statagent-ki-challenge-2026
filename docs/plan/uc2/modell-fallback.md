@@ -23,8 +23,8 @@ Schnittstelle kann einen Lauf nicht fortsetzen. Der abgebrochene Fall bleibt üb
 | Vorführmodus (Aufzeichnung `mock-abbruch`) | "Testbetrieb, aufgezeichneter Abbruch. Hier ist kein Modell ausgefallen, die Seite zeigt nur, wie ein Abbruch aussieht." | Es wird kein Anbieter genannt, der Provider der Aufzeichnung ist `mock` und erscheint nirgends roh |
 | claude | Knopf "Modell wechseln: claude", immer wählbar | Start mit `provider: "claude"` |
 | azure | Knopf "Modell wechseln: azure" (wenn der Lauf nicht schon über azure lief) | Start mit `provider: "azure"` |
-| ollama nicht eingerichtet (`OLLAMA_MODEL` leer) | Knopf "Modell wechseln: ollama · lokal · Fallback" gesperrt, darunter sichtbar: "Das lokale Modell ist hier nicht eingerichtet." | Kein Start. Der Server lehnt `provider: "ollama"` zusätzlich mit 422 ab |
-| ollama eingerichtet (`OLLAMA_MODEL` gesetzt) | Knopf wählbar, Beschriftung "ollama · lokal · Fallback" | Start mit `provider: "ollama"`. Lehnt die Python-API ihn mit 422 ab, steht "Das Panel nimmt ollama gerade nicht an. Wähle ein anderes Modell." Die Runden bleiben stehen |
+| ollama nicht eingerichtet (`OLLAMA_MODEL` leer) | Knopf "Modell wechseln: ollama · lokal · Ersatz" gesperrt, darunter sichtbar: "Das lokale Modell ist hier nicht eingerichtet." | Kein Start. Der Server lehnt `provider: "ollama"` zusätzlich mit 422 ab |
+| ollama eingerichtet (`OLLAMA_MODEL` gesetzt) | Knopf wählbar, Beschriftung "ollama · lokal · Ersatz" | Start mit `provider: "ollama"`. Lehnt die Python-API ihn mit 422 ab, steht "Das Panel nimmt ollama gerade nicht an. Wähle ein anderes Modell." Die Runden bleiben stehen |
 | Neuer Versuch scheitert (403, 409, Netz) | Meldung unter den Knöpfen: "Ein neuer Versuch ist in der Online-Demo gesperrt." bzw. "Es läuft schon eine Verhandlung." bzw. "Keine Verbindung zum Server." | Band und Runden bleiben |
 
 ## Was geprüft wurde
@@ -49,7 +49,7 @@ Verglichen wurde der Export des Frames (nur lesend, PNG) mit `u2-1a-oben-desktop
 | Schritte 1 Fall, 2 Panel verhandelt, 3 Antwort | vorhanden, Schritt 2 aktiv |
 | Rotes Band mit Abbruch-Text | vorhanden, mit Satz in Alltagssprache, Hinweis auf fertige Runden und kleinem technischem Grund |
 | "Erneut versuchen" | vorhanden (grüne Hauptaktion) |
-| "Modell wechseln: ollama (lokal)" | je ein Knopf für die anderen Modelle, ollama als "ollama · lokal · Fallback", gesperrt mit sichtbarer Meldung, wenn nicht eingerichtet |
+| "Modell wechseln: ollama (lokal)" | je ein Knopf für die anderen Modelle, ollama als "ollama · lokal · Ersatz", gesperrt mit sichtbarer Meldung, wenn nicht eingerichtet |
 | Positionen der Runden 1 und 2 bleiben | sechs Personas mit Haltung, "bewegt" oder "fest", Herkunft-Chip, Stand nach Runde 2 |
 | Moderator rechts, Experte mit Annahmen und gelben Hinweisen | vorhanden |
 | Gesprächsverlauf | vorhanden, nach Runden getrennt, je Beitrag mit Haltung und Herkunft |

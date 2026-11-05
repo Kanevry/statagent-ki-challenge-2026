@@ -38,6 +38,11 @@ Code: `uc1/uc1/kern.py`, `uc1/uc1/grenze.py`, `uc1/uc1/erweiterung.py`. Daten: `
    - Das Zitat ist nach `normalisiere()` und `normiere()` ein Teilstring des Abschnitts.
    - Das Zitat hat mindestens 6 Wörter oder 30 Zeichen.
    - Die Aussage ist durch Zitat und Kontext gedeckt (`deckung` ≥ `schwelle` aus `daten/deckung.yaml`, siehe unten).
+   - Enthält das bis zum Satzende verlängerte Zitat eine Bedingung („wenn“, „sofern“, „soweit“, „falls“, „unter
+     der Voraussetzung“, „bei Vorliegen“), trägt auch die Aussage eine („wenn“, „sofern“, „soweit“, „falls“,
+     „nur“, „bei“, „unter“, „wer“; englisch „if“, „only“, „when“ u. a.). Sonst fällt sie weg (Review !69:
+     „Familienmitglieder können Pflegegeld ohne Bevollmächtigung beantragen“ zu BPGG § 25 Abs. 2). Die
+     Prüfung ist lexikalisch: Sie erkennt, dass eine Bedingung fehlt, nicht, ob es die richtige ist.
    Andere Aussagen fallen weg (`verworfen` nennt Grund und Deckung). Bleibt keine übrig, antwortet der Kern mit
    Abstinenz und Übergabe an die Stelle bzw. an eine Beratung.
 7. **Beträge**:
@@ -121,7 +126,7 @@ ein kleineres Modell, nicht der Kern.
 | Datei | Inhalt | Quelle |
 |---|---|---|
 | `traeger.yaml` | Status → Stelle je Bereich, Gesetzesfilter | BPGG § 22 Abs. 1 Z 1, 3, 5 (Fassung ab 2026-05-20), Zitate wörtlich, per Test gegen die DB geprüft |
-| `leistungen.yaml` | Pflegegeld, Pflegekarenzgeld, Rehabilitation/Kur, Krankengeld, Wochengeld: Auslöser, Pflichtangaben, Rückfragen, Suche, Formular, Unterlagen | Normen-Überschriften im Korpus; Formulare PAL080 S. 2 und „Antrag Kur und Reha“ S. 2 |
+| `leistungen.yaml` | Pflegegeld, Pflegekarenzgeld, Rehabilitation/Kur, Krankengeld, Wochengeld, Unfallversicherung: Auslöser, Pflichtangaben, Rückfragen, Suche, Formular, Unterlagen | Normen-Überschriften im Korpus; Formulare PAL080 S. 2 und „Antrag Kur und Reha“ S. 2; Unfallversicherung: ASVG § 28 Z 1 (AUVA) und Z 2 (SVS für Selbständige, `stelle_je_status`), Zitate per Test gegen die DB geprüft |
 | `deckung.yaml` | Stoppwörter, Gleichwerte, Schwelle, 8 Kalibrierpaare | Abschnitte aus `lotse.abschnitt`, handbeschriftet |
 | `thesaurus.yaml` | 30 Einträge Bürgersprache → Fachbegriff | Überschriften im Korpus (`kontext ILIKE`), Themen aus dem Dev-Set d01–d12, nicht aus dem Lotse-Set |
 | `grenzen.yaml` | Muster vor/nach, Notfall-, Grenz- und Injection-Text DE/EN | 144 Rettung, 1450 Gesundheitsberatung |
@@ -159,8 +164,10 @@ der Grenze, ein Modellaufruf (`{saetze: [str]}`, Stil einfach), Zahlenprüfung, 
 Zeile in `meta.protokoll` (`vorschlag_typ = auskunft`). Zahlen und Belege gehen unverändert durch. Ein Satz mit
 einer Zahl, die nicht genau so im Kontext steht („rund 20“ statt „19,6“), fällt weg. Fehlt danach eine
 Kontext-Zahl, hängt der Server „Bezeichnung: Wert Einheit.“ an. Ab zwei Kontext-Zahlen schreibt das Modell keine
-Ziffern: Jeder Modellsatz mit Ziffer fällt weg, der Server setzt alle Zahlensätze selbst (sonst bestanden
-vertauschte Werte). Zahlen aus der Frage gelten nicht als belegt. `anzeige` rechnet über `Decimal`: Das Minus
+Zahlen, weder als Ziffern noch als Wörter: Jeder Modellsatz mit Ziffer fällt weg, der Server setzt alle
+Zahlensätze selbst (sonst bestanden vertauschte Werte). Ein Satz mit ausgeschriebener Zahl („sieben tausend“)
+fällt immer weg; „ein“ und „eine“ zählen nicht. Gleiche Zahlensätze (dieselbe Zahl von UC3 und UC2) stehen nur
+einmal, `zahlen` und `belege` bleiben vollständig. Die Einheit „Anzahl“ steht nicht im Satz. Zahlen aus der Frage gelten nicht als belegt. `anzeige` rechnet über `Decimal`: Das Minus
 bleibt, `1e-07` wird „0,0000001“. Demo-Kontext (erfunden):
 `uc1/tests/fixtures/uc4-wartezeiten.json`. Azure-Lauf 2026-11-05: 778 ms, mittlere Satzlänge 8,0 Wörter, Text
 „Im Monat 08/2026 warteten Versicherte im Median 19,6 Tage. Das ist kürzer als im Vormonat. Im Vormonat waren es
@@ -170,6 +177,8 @@ nicht hinzu.
   Die Abnahme prüft eine frische Session ohne die Liste.
 - Ohne Status sucht der Kern ohne Gesetzesfilter; paralleles Recht ist dann nur auf 2 Treffer je Gesetz gedeckelt.
 - Unterlagen für Krankengeld und Wochengeld sind im Korpus nicht belegt und fehlen deshalb.
+- Unfallversicherung: Beamtinnen und Beamte (Dienstunfall, B-KUVG, BVAEB) sind nicht abgebildet und bekommen
+  die AUVA genannt.
 - Gegen aufgehobene Paragraphen filtert der Kern selbst (Kontext enthält „aufgehoben“), bis `uc1.suche` sie
   weglässt.
 - Der mock-Provider zählt Aufrufe je Prozess. Ein CLI-Lauf mit `--provider mock` über zwei Wechsel liefert deshalb
@@ -192,6 +201,6 @@ und Beziehung des Antragstellers (`antragsteller.*`) und die Antragsart (`antrag
 - **Keine Rückfrage:** Antragsangaben stehen nicht in `pflicht` der Leistungen. Rückfragen bleiben bei höchstens
   3, Status zuerst. Was fehlt, steht im Antrag unter „noch offen“ (`docs/plan/uc1/antrag.md`).
 - **Angebot:** Leistungen mit `antrag:` in `leistungen.yaml` (Pflegegeld, Rehabilitation) bringen den Schritt
-  „Antrag vorbereiten …“ in `naechste_schritte`. `LotseAntwort.antraege` nennt die Art für `lotse antrag`.
+  „Antrag vorbereiten …“ in `naechste_schritte`, bei beiden zusammen nur einmal (gleiche Schritte einmal). `LotseAntwort.antraege` nennt die Art für `lotse antrag`.
 - **Regel „person: selbst“:** „ich bin“ zählt nicht mehr vor einer Rolle für eine andere Person („Ich bin
   Case-Managerin“, „ich bin ihr Sohn“). Vorher setzte das Gespräch aus dem Case-Management `person=selbst`.

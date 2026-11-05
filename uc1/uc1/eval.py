@@ -2070,7 +2070,8 @@ def _cli_ende(
     ergebnisse = setze_paare(faelle, ergebnisse)
     kopf = [
         *kopf,
-        f"Set: `{args.set}`",
+        # Nur der Dateiname: ein absoluter Pfad trüge Benutzer- und Rechnernamen ins öffentliche Repo.
+        f"Set: `{args.set.name}`",
         f"Provider: {provider or 'Standard'}; Stil: {args.stil} (Fälle mit leichte_sprache: einfach); "
         f"Erweiterung: {erweiterung}",
     ]

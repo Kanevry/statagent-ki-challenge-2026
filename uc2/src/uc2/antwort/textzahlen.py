@@ -178,10 +178,26 @@ def _ist_jahr(text: str, start: int, ende: int) -> bool:
     return satzanfang and _VERB_DANACH.match(text, ende) is not None
 
 
+#: Einheiten, die nur „Stück“ meinen (UC3 liefert „Anzahl“): im Text steht die Zahl ohne Einheit.
+OHNE_EINHEIT = frozenset({"anzahl"})
+
+
+def sichtbare_einheit(einheit: str | None) -> str | None:
+    """Einheit für den Text; „Anzahl“ und ähnliche Zählwörter entfallen („7.498“, nicht „7.498 Anzahl“)."""
+    return None if not einheit or einheit.strip().casefold() in OHNE_EINHEIT else einheit
+
+
 def _passt(zahl: Zahl, wert: float, text: str, start: int, ende: int, menge: re.Pattern[str]) -> bool:
     if abs(wert - float(zahl.wert)) > TOLERANZ:
         return False
     if zahl.einheit:
+        if (
+            not sichtbare_einheit(zahl.einheit)
+            and zahl.bezeichnung in text[text.rfind("\n", 0, start) + 1 : start]
+        ):
+            # Zählwert („Anzahl“) ohne sichtbare Einheit: belegt, wenn seine volle Bezeichnung in derselben
+            # Zeile davor steht, wie in der Ausgangslage des Adapters („Beschäftigte (Wien, …): 7.498“).
+            return True
         # Nur die Einheit in einer ihrer festen Schreibweisen („135.790 Beschäftigte“ für „Personen“), nie ein
         # beliebiges Wort der Bezeichnung („135.790 Gesundheitszentren“ über „Gesundheits- und Sozialwesen“).
         einheit = _einheit_muster(zahl.einheit).match(text, ende)

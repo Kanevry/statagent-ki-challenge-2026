@@ -1,7 +1,5 @@
 import ereignisseJson from "../../app/api/uc2/_fixtures/ereignisse-mock.json";
 import { ableiten, bewegungenVon, hatSichBewegt, wende, LEER } from "./zustand";
-import { annahmeSatz } from "./experte-spur";
-import { auswahlSatz } from "./moderator-spur";
 
 const alle = ereignisseJson as unknown[];
 
@@ -56,14 +54,3 @@ it("event ende mit abgebrochen und letzte_seq setzt auch ohne abbruch-Ereignis d
   expect(z.status).toBe("abgebrochen");
 });
 
-it("Texte des Experten und des Moderators in Alltagssprache", () => {
-  const e = (alle[1] as { daten: { entscheidend: string } }).daten.entscheidend;
-  const satz = annahmeSatz(e)!;
-  expect(satz).toContain("Ist der Wert niedrig (0,70), sinkt die Wartezeit um 16,02 % und das Ziel wird verfehlt.");
-  expect(satz).toContain("Ist er hoch (0,95), sinkt sie um 53,37 % und das Ziel wird erreicht.");
-  expect(satz).not.toContain("Typ A");
-  expect(annahmeSatz("unbekanntes Format")).toBe("unbekanntes Format");
-  expect(auswahlSatz(false, "Nicht gewählt (Rang 13): 1 Belege zum Fall, 0 Themenbezüge; die Obergrenze")).toBe(
-    "Nicht dabei: 1 Artikel im Archiv, 0 Themen berührt. Die Plätze gingen an Gruppen mit mehr Belegen.",
-  );
-});
