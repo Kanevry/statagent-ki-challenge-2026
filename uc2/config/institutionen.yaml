@@ -1,0 +1,61 @@
+# Institutionen des UC2-Akteurspools: einzige Quelle für IDs und Suchaliase.
+# Belege (#40) taggen Abschnitte damit, Akteure (#41) verweisen mit `institution: <id>`.
+# Die IDs sind fest (Contract-Lock, #41 note_269669); Aliase dürfen ergänzt werden.
+# Aliase sind Institutions- und Funktionsbezeichnungen, nie Personennamen und nie Parteien.
+# Abgleich: ganzes Wort, Groß-/Kleinschreibung egal (Details in uc2.belege).
+version: 1
+institutionen:
+  - id: sv
+    name: Sozialversicherung
+    aliase: [Sozialversicherung, Dachverband, ÖGK, Gesundheitskasse, SVS, BVAEB, Krankenkasse, Krankenkassen,
+      Krankenversicherung, Sozialversicherungsträger]
+  - id: gesundheitsministerium
+    name: Gesundheitsministerium
+    aliase: [Gesundheitsministerium, Gesundheitsministerin, Gesundheitsminister, Sozialministerium,
+      Sozialministerin, Sozialminister, BMSGPK]
+  - id: laender
+    name: Bundesländer
+    aliase: [Bundesländer, Bundesland, Landeshauptleute, Landeshauptmann, Landeshauptfrau,
+      Gesundheitslandesrat, Gesundheitslandesrätin, Landesgesundheitsfonds, Gesundheitsfonds]
+  - id: aerztekammer
+    name: Ärztekammer
+    aliase: [Ärztekammer, Ärztekammern, ÖÄK, Kammerpräsident, Kammerpräsidentin]
+  - id: vertragsaerzte
+    name: Vertragsärzt:innen
+    aliase: [Kassenarzt, Kassenärzte, Kassenärztin, Kassenärztinnen, Vertragsarzt, Vertragsärzte,
+      Kassenstellen, Kassenstelle, Kassenvertrag]
+  - id: wahlaerzte
+    name: Wahlärzt:innen
+    aliase: [Wahlarzt, Wahlärzte, Wahlärztin, Wahlärztinnen, Privatarzt, Privatärzte]
+  - id: krankenanstalten
+    name: Krankenanstalten
+    aliase: [Spital, Spitäler, Krankenhaus, Krankenhäuser, Krankenanstalt, Krankenanstalten, Klinik,
+      Kliniken, Spitalsambulanz, Spitalsambulanzen, Gesundheitsverbund]
+  - id: pflege
+    name: Pflegevertretung
+    aliase: [Pflege, Pflegekräfte, Pflegepersonal, Pflegeberufe, Gesundheits- und Krankenpflege,
+      Pflegeverband, Berufsverband Pflege]
+  - id: patienten
+    name: Patient:innenvertretung
+    aliase: [Patientenanwalt, Patientenanwältin, Patientenanwaltschaft, Patientenvertretung,
+      Patientinnen- und Patientenvertretung, Selbsthilfe]
+  - id: gesetzgeber
+    name: Gesetzgeber
+    aliase: [Nationalrat, Bundesrat, Parlament, Gesundheitsausschuss, Gesetzgeber, Gesetzesnovelle,
+      Begutachtung]
+  - id: finanzministerium
+    name: Finanzministerium
+    aliase: [Finanzministerium, Finanzminister, Finanzministerin, Budget, Budgetdienst, Fiskalrat,
+      Finanzausgleich]
+  - id: public_health
+    name: Public Health
+    aliase: [Public Health, Gesundheit Österreich, GÖG, Gesundheitsökonom, Gesundheitsökonomin,
+      Gesundheitsökonomen, Prävention, Epidemiologe, Epidemiologin]
+  - id: sozialpartner
+    name: Sozialpartner (WK/AK/LK)
+    aliase: [Sozialpartner, Wirtschaftskammer, Arbeiterkammer, Landwirtschaftskammer, ÖGB,
+      Gewerkschaft, Industriellenvereinigung]
+  - id: pharma
+    name: Industrie/Pharma
+    aliase: [Pharmig, Pharmaindustrie, Pharmawirtschaft, Pharmaunternehmen, Medikamente, Arzneimittel,
+      Generika, Medizinprodukte]
