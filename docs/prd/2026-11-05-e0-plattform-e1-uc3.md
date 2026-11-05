@@ -90,6 +90,10 @@ antwort = complete(nachrichten, schema=None, stream=False, provider=None, zweck=
 # stream=True → Iterator[str]; provider=None → LLM_PROVIDER aus Umgebung
 # Antwort: text, json, provider, modell, dauer_ms, tokens_in, tokens_out
 aktives_modell()  # {"provider": "azure", "modell": "gpt-5-4-mini", "quelle": "env"}
+# Tagesbudget (#100): LLM_TAGESBUDGET_AUFRUFE; voll → BudgetErschoepft vor dem Aufruf, ohne Protokollzeile.
+# Online (KIC_ONLINE=1) ohne Budget und mit echtem Provider → KonfigFehler.
+budget_status()   # {"grenze": 500, "verbraucht": 12, "frei": 488}; ohne Grenze sind grenze und frei None
+# python -m plattform.router frage: Exit 3 und {"fehler": "budget_erschoepft"}, wenn nichts frei ist
 ```
 
 | LLM_PROVIDER | Umsetzung | Umgebungsvariablen |

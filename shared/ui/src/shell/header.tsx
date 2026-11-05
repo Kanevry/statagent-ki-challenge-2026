@@ -4,7 +4,7 @@ import type { KeyboardEvent, Ref } from "react";
 import { fokus, klassen } from "../basis/klassen";
 import { Piktogramm } from "../basis/piktogramm";
 import type { UcEintrag } from "../ucs";
-import { StandardVerweis, type Verweis } from "./kontext";
+import { StandardVerweis, type SeitenModellWert, type Verweis } from "./kontext";
 import { ModellBadge } from "./modell-badge";
 import { appTabs, istAktiv, marke } from "./navigation";
 
@@ -28,6 +28,8 @@ export interface AppHeaderProps {
   Verweis?: Verweis;
   ucs?: readonly UcEintrag[];
   modellQuelle?: string;
+  /** Modell-Vorgabe der aktuellen Seite (`SeitenModell`), sonst die globale Einstellung. */
+  seitenModell?: SeitenModellWert | null;
   /** Ref auf den Knopf „Protokoll“: die Shell gibt ihm beim Schließen der Schublade den Fokus zurück. */
   protokollKnopfRef?: Ref<HTMLButtonElement>;
   /** Ref auf `<header>`: die Schublade setzt unter seiner Unterkante an. */
@@ -58,6 +60,7 @@ export function AppHeader({
   Verweis = StandardVerweis,
   ucs,
   modellQuelle,
+  seitenModell = null,
   protokollKnopfRef,
   kopfRef,
 }: AppHeaderProps) {
@@ -72,13 +75,13 @@ export function AppHeader({
             <p className="font-sans text-12 text-slate">{kopfMarke.zeile}</p>
           </div>
           <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-3 min-[1400px]:shrink-0">
-            <ModellBadge quelle={modellQuelle} />
+            <ModellBadge quelle={modellQuelle} vorgabe={seitenModell} />
             {/* Natives <button>, weil der Fokus per Ref zurückkommen muss (Knopf reicht keinen Ref). */}
             <button
               ref={protokollKnopfRef}
               type="button"
               className={klassen(
-                "inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 font-sans text-14 text-ink hover:bg-paper",
+                "inline-flex min-h-11 items-center gap-2 rounded-lg border border-line px-3 py-2 font-sans text-14 text-ink hover:bg-paper",
                 fokus,
               )}
               onClick={onProtokoll}

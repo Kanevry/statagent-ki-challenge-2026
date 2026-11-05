@@ -235,7 +235,8 @@ export function VoiceKnopf({
         pegelNahRef.current = begrenze(p);
       });
       sdk.on("message", (nachricht) => {
-        if (nachricht?.type !== "transcript" || nachricht.transcriptType !== "final") return;
+        // Neuere SDK-Stände senden den Typ mit Zusatz, etwa `transcript[transcriptType="final"]` (#120).
+        if (!nachricht?.type?.startsWith("transcript") || nachricht.transcriptType !== "final") return;
         const text = (nachricht.transcript ?? "").trim();
         if (!text) return;
         const rolle = nachricht.role === "assistant" ? "assistent" : "nutzer";

@@ -38,6 +38,14 @@ describe("GET /api/plattform/voice-config", () => {
     expect((await lies()).body.aktiv).toBe(false);
   });
 
+  // Fängt ab (#120): Ohne Standard-Assistenten blieb auch ein Raum mit eigenem Assistenten aus.
+  it("ist ohne Standard-Assistenten aktiv, assistantId bleibt null", async () => {
+    vi.stubEnv("VAPI_PUBLIC_KEY", "pk-oeffentlich");
+    vi.stubEnv("VAPI_ASSISTANT_ID", "");
+    vi.stubEnv("PUBLIC_URL", "https://beispiel.example.org");
+    expect((await lies()).body).toEqual({ publicKey: "pk-oeffentlich", assistantId: null, aktiv: true });
+  });
+
   it("liefert null statt leerer Werte und ist dann nicht aktiv", async () => {
     vi.stubEnv("VAPI_PUBLIC_KEY", " ");
     vi.stubEnv("VAPI_ASSISTANT_ID", "");
