@@ -13,14 +13,14 @@ belege: []
 
 # Jede Zahl nachrechenbar.
 
-Jede Änderung mit Namen.
+Jede Änderung mit Namen freigegeben.
 
-Jetzt live: ein Lauf, Ihre Änderung, drei Datenanfragen.
+Jetzt live: Ihre Änderung und drei Datenanfragen.
 
-Der Lauf rechnet lokal und offline. Das Modell ist austauschbar.
+Gezählt wird ohne KI, lokal und offline. Das KI-Modell ist austauschbar.
 
 ki-challenge.gotzendorfer.at
 
 ## Sprechernotizen
 
-Jede Zahl lässt sich nachrechnen. Jetzt live. Nennen Sie mir eine Regel, die ich jetzt ändern soll.
+Jede Zahl lässt sich nachrechnen. Jetzt live. Nennen Sie mir eine Regel, die ich jetzt ändern soll, etwa die Altersgrenze von 110 Jahren.

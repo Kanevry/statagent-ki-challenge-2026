@@ -177,7 +177,13 @@ it("einstieg: Haken nur für Antworten, deren Name in belegt steht", () => {
     expect(a.dataset.belegt, name).toBe(ja ? "ja" : "nein");
     expect(a.querySelector('svg[class*="haken"]') !== null, name).toBe(ja);
   }
-  expect(antworten.filter((a) => a.dataset.belegt === "ja")).toHaveLength(1);
+  expect(antworten.filter((a) => a.dataset.belegt === "ja")).toHaveLength(belegt.length);
+  // Nur ein Name in belegt: genau eine Antwort mit Haken, die anderen offen.
+  const teil = { ...folie, daten: { ...folie.daten, belegt: "[StatAgent]" } };
+  const el2 = zeige("einstieg", teil, nr, 3);
+  const ja = [...el2.querySelectorAll<HTMLElement>('[data-belegt="ja"]')];
+  expect(ja).toHaveLength(1);
+  expect(el2.querySelectorAll('[data-belegt="nein"]')).toHaveLength(2);
 });
 
 it("schluss: kein Knopf und kein Link", () => {

@@ -1,6 +1,6 @@
 ---
 nummer: 7
-titel: Zwei Branchenlisten, ein Übergang
+titel: Im Jänner 2025 wechselt die Branchenliste
 layout: text
 szene: woerterbuecher
 uebergang: C-C J-J Q-R J-K
@@ -27,12 +27,12 @@ belege: []
 | K | Telekommunikation und IT |
 | R | Gesundheits- und Sozialwesen |
 
-J: ein alter Code, zwei neue
+J wird geteilt: Aus einem Abschnitt werden zwei, J und K.
 
-Wir führen beide Listen mit Gültigkeit. Alte Codes von 2003 ordnen wir C zu, Herstellung von Waren.
+Wir führen beide Listen und wissen je Monat, welche gilt. Manche Meldungen nutzen noch Codes der Liste von 2003. Wir zählen sie zu C, Herstellung von Waren.
 
 Herkunft: Klassifikationen in stat.klass_oenace mit Gültigkeit, Regeln Q01 und R7
 
 ## Sprechernotizen
 
-Im Jänner 2025 wechselt die Branchenliste. Meist passt ein alter Code auf einen neuen, manchmal wird aus einem zwei. Wir führen beide Listen mit Gültigkeit. Alte Codes von 2003 ordnen wir C zu, Herstellung von Waren.
+Im Jänner 2025 wechselt die Branchenliste. Meist passt ein alter Abschnitt auf einen neuen. Manchmal ändert sich nur der Buchstabe: Gesundheit heißt jetzt R statt Q. Und J wird geteilt: Aus Information und Kommunikation werden zwei Abschnitte, J für Verlage und Medien, K für Telekommunikation und IT. Wir führen beide Listen mit Gültigkeit. Alte Codes von 2003 aus früheren Meldungen zählen wir zu C, Herstellung von Waren.
