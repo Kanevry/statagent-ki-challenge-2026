@@ -408,7 +408,7 @@ def test_abgeschnittenes_ergebnis_je_monat_gelesen(
 def test_oenace_reihe_ueber_versionswechsel_abgelehnt(gerechnet: Verbindung) -> None:
     daten = antwort_frage(gerechnet, "Zeitreihe nach ÖNACE 08/2024 bis 03/2025")
     assert daten["zahlen"] == []
-    for teil in ("ÖNACE 2008", "ÖNACE 2025", "bis Dezember 2024", "von Jänner 2025 bis März 2025"):
+    for teil in ("neu eingeteilt", "August bis Dezember 2024", "Jänner bis März 2025"):
         assert teil in daten["text"]
 
 

@@ -39,6 +39,21 @@ def _direkt(conn: Verbindung, bedingung: str = "", parameter: tuple[object, ...]
     return int(str(zeile["wert"]))
 
 
+def _direkt_monat(conn: Verbindung, monat: str, bedingung: str) -> int:
+    stand = letzter_lauf(conn, monat)
+    assert stand is not None
+    zeile = conn.execute(
+        (
+            "SELECT COALESCE(sum(wert), 0) AS wert FROM stat.stat_beschaeftigte WHERE regelsatz = 'v1'"
+            " AND regelstand = %s AND zeitraum_art = 'Stichtag' AND variable = 'Beschaeftigungsverhaeltnisse'"
+            " AND zeitraum_bis BETWEEN %s AND %s" + bedingung
+        ).encode(),
+        (stand.regelstand, monatserster(monat), monatsletzter(monat)),
+    ).fetchone()
+    assert zeile is not None
+    return int(str(zeile["wert"]))
+
+
 def _werte(daten: dict[str, Any]) -> list[object]:
     return [z["wert"] for z in daten["zahlen"]]
 
@@ -156,11 +171,9 @@ def test_eine_zahl_erster_satz_ist_die_antwort(gerechnet: Verbindung) -> None:
 # Fängt: „…: alle“ steht auch bei mehreren Zahlen im Text.
 def test_mehrere_zahlen_ohne_alle(gerechnet: Verbindung) -> None:
     daten = uc4_antwort(gerechnet, "Zeitreihe 08/2024 bis 09/2024")
-    assert (
-        len(daten["zahlen"]) == 2
-        and ": alle" not in daten["text"]
-        and daten["text"].startswith("Verstanden:")
-    )
+    assert len(daten["zahlen"]) == 2 and ": alle" not in daten["text"]
+    werte = [f"{z['wert']:,}".replace(",", ".") for z in daten["zahlen"]]
+    assert daten["text"].startswith(f"Von {werte[0]} auf {werte[1]} Beschäftigungsverhältnisse")
 
 
 # Fängt (#176): Eine Frage nach einer Person ergab den Gesamtbestand.
@@ -229,21 +242,28 @@ def test_vertrag_ucantwort(gerechnet: Verbindung, frage: str) -> None:
     assert set(als_ucantwort(antwort_frage(gerechnet, frage))) >= {"text", "belege", "zahlen"}
 
 
-# Fängt (Owner 05.11., „Winter 2025 in Wien im Gesundheits- und Sozialwesen“): Bei einem Zeitraum über den ÖNACE-Wechsel
-# stand als einziger Satz der Station „Winter 2025 heißt hier …“; die Absage muss der erste Satz sein.
-def test_zeitraum_ueber_oenace_wechsel_absage_ist_der_erste_satz(
-    gerechnet: Verbindung, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from statagent import frage as weg
+# Fängt (Owner 05.11., „Winter 2025 in Wien im Gesundheits- und Sozialwesen“): Über den ÖNACE-Wechsel gab es nur den Satz
+# „Winter 2025 heißt hier …“. Gleicher Name in beiden Versionen heißt: die Zahl, mit dem Abschnitt je Monat.
+def test_branche_ueber_oenace_wechsel_zeigt_die_zahl(gerechnet: Verbindung) -> None:
+    daten = uc4_antwort(gerechnet, "Beschäftigte in Wien im Gesundheits- und Sozialwesen von 08/2024 bis 03/2025")
+    soll = [
+        _direkt_monat(gerechnet, monat, " AND region = '9' AND oenace = 'Q'") for monat in ("2024-08", "2024-09")
+    ]
+    assert _werte(daten)[:2] == soll
+    sql_text = " ".join(b["sql"] for b in daten["belege"])
+    assert "s.oenace = 'Q'" in sql_text and "s.oenace = 'R'" in sql_text
+    assert "ist bis Dezember 2024 Abschnitt Q, ab Jänner 2025 Abschnitt R" in daten["text"]
+    kern = pytest.importorskip("plattform.router").kern_satz
+    assert any(f"{w:,}".replace(",", ".") in kern(daten["text"]) for w in soll)
 
-    monkeypatch.setattr(
-        weg,
-        "_oenace_version",
-        lambda _conn, monat: ("2008", "2008-01") if monat < "2024-09" else ("2025", "2024-09"),
-    )
-    daten = uc4_antwort(
-        gerechnet,
-        "Wie viele Beschäftigte gab es von 08/2024 bis 09/2024 in Wien im Gesundheits- und Sozialwesen",
-    )
+
+# Fängt: „ÖNACE Q“ ist 2008 Gesundheit und 2025 Erziehung, „Handel“ hieß 2008 anders. Keine gemeinsame Zahl.
+@pytest.mark.parametrize(
+    "frage",
+    ["Beschäftigte in ÖNACE Q von 08/2024 bis 03/2025", "Beschäftigte im Handel von 08/2024 bis 03/2025"],
+)
+def test_keine_gemeinsame_zahl_ueber_den_wechsel(gerechnet: Verbindung, frage: str) -> None:
+    daten = uc4_antwort(gerechnet, frage)
     assert daten["zahlen"] == []
-    assert daten["text"].startswith("Die Wirtschaftsbereiche (ÖNACE) wurden neu eingeteilt")
+    assert daten["text"].startswith("Für diesen Zeitraum gibt es keine gemeinsame Zahl")
+    assert "August bis Dezember 2024 und Jänner bis März 2025" in daten["text"]
