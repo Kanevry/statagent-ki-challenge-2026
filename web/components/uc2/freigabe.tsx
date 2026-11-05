@@ -25,14 +25,14 @@ export type FreigabeAuftrag = { name: string; entscheidung: "freigegeben" | "abg
 export type Speichern = (auftrag: FreigabeAuftrag) => Promise<{ zeitpunkt?: string | null } | void>;
 
 export const VORFUEHRUNG_HINWEIS = "Vorführung: nichts gespeichert";
-export const SATZ = "Das Ergebnis der Verhandlung wird als geprüft markiert und kommt mit deinem Namen ins Protokoll.";
+export const SATZ = "Mit Ihrem Namen gilt das Ergebnis als geprüft und steht im Protokoll.";
 /** In der Vorführung bleibt nichts stehen; der Satz darf nicht das Gegenteil sagen. */
-export const VORFUEHRUNG_SATZ = "In der Vorführung wird nichts gespeichert. Im echten Betrieb kommt dein Name ins Protokoll.";
+export const VORFUEHRUNG_SATZ = "Mit Ihrem Namen gilt das Ergebnis als geprüft. In der Vorführung wird nichts gespeichert.";
 /** Längste Begründung; die Route und die Python-API lehnen mehr ab. */
 export const MAX_BEGRUENDUNG = 500;
 /** Textknopf mit Mindesthöhe 44 px für Touch (wie in UC3). */
 const TEXTKNOPF = "inline-flex min-h-11 items-center font-sans text-14 font-semibold text-ink underline underline-offset-4";
-const NAME_HINWEIS = "Bitte den eigenen Vor- und Nachnamen eintragen, „Team“ gilt nicht.";
+const NAME_HINWEIS = "Vor- und Nachname, „Team“ gilt nicht.";
 
 /** Aus dem Bericht der API (`freigabe: {name?, zeit, entscheidung, begruendung?} | null`); öffentlich ohne Name und Grund. */
 export function entscheidungAusBericht(bericht: unknown): Entscheidung | null {
@@ -180,13 +180,13 @@ export function FreigabeBericht({ fallId, modus, entscheidung, onEntschieden, sp
   return (
     <article
       aria-labelledby={titelId}
-      className="flex flex-col gap-4 rounded-xl border border-line bg-white p-6"
+      className="flex flex-col gap-4"
       data-baustein="freigabe"
       data-zustand={entscheidung?.art ?? "offen"}
       data-testid="uc2-freigabe"
     >
-      <Ueberschrift stufe={3} als="h3" id={titelId}>
-        Freigabe des Berichts
+      <Ueberschrift stufe={3} als="h2" id={titelId}>
+        Ergebnis freigeben
       </Ueberschrift>
       {!entscheidung && <Fliesstext groesse={14}>{vorfuehrung ? VORFUEHRUNG_SATZ : SATZ}</Fliesstext>}
 
@@ -283,7 +283,7 @@ export function FreigabeBericht({ fallId, modus, entscheidung, onEntschieden, sp
         ) : null}
       </div>
       {vorfuehrung && (
-        <p className="border-l-2 border-line pl-3 font-sans text-12 text-slate" data-testid="uc2-freigabe-vorfuehrung">
+        <p className="font-sans text-12 text-slate" data-testid="uc2-freigabe-vorfuehrung">
           {VORFUEHRUNG_HINWEIS}
         </p>
       )}
