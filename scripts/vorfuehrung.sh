@@ -94,8 +94,9 @@ if ! grep -q '^VORFUEHRUNG_DB_PASSWORD=.' "$datei"; then
   printf "VORFUEHRUNG_DB_PASSWORD='%s'\n" "${pw:0:32}" >>"$datei"
   echo "init: Datenbank-Passwort neu angelegt"
 fi
-# Bei jedem Modellaufruf zählt das Budget; rund 10 Aufrufe je Auftrag, zwei Durchläufe und Proben haben hier Platz
-grep -q '^VORFUEHRUNG_TAGESBUDGET=.' "$datei" || echo "VORFUEHRUNG_TAGESBUDGET=500" >>"$datei"
+# Jeder Modellaufruf zählt, Grenze je UTC-Tag. Ein Auftrag mit Freigabe und Rücknahme kostet 6 bis 15 Aufrufe, eine
+# Probenserie der Live-Lane brauchte 673: Proben dürfen die Vorführung nicht aussperren.
+grep -q '^VORFUEHRUNG_TAGESBUDGET=.' "$datei" || echo "VORFUEHRUNG_TAGESBUDGET=2000" >>"$datei"
 sed -i '/^VORFUEHRUNG_DOMAIN=/d;/^VORFUEHRUNG_GIT=/d' "$datei"
 printf "VORFUEHRUNG_DOMAIN=%s\nVORFUEHRUNG_GIT=%s/checkout/.git\n" "$domain" "$v" >>"$datei"
 echo "init: $datei Modus $(stat -c %a "$datei")"

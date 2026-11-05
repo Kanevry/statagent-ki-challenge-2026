@@ -17,7 +17,7 @@ Platzhalter: `<vorführ-adresse>` ist die Adresse der Instanz, `<dump>` eine `pg
 | DB | eigener Container in eigenem Netz, `statistik_vorfuehrung` plus Vorlage. Enthält `roh` und `bereinigt`, die öffentliche App erreicht ihn nicht |
 | UC1, UC2 | lesend aus der öffentlichen DB (Rolle `kic_app`) |
 | Git | eigener Checkout mit einem Commit „Ausgangsstand“, kein Remote, also kein Push. Die Freigabe committet dorthin |
-| Modell | Azure mit eigenem Tagesbudget (`VORFUEHRUNG_TAGESBUDGET`, Standard 500), eigenes Protokoll-Volume |
+| Modell | nur Azure, kein Rückfall auf Mistral: Scheitert Azure, steht das als Fehler auf der Seite. Eigenes Tagesbudget (`VORFUEHRUNG_TAGESBUDGET`, Standard 2000, Grenze je UTC-Tag), eigenes Protokoll-Volume |
 
 Der Auftrag im Browser hält keine Anfrage offen: POST startet `uc3 agent` im Server, die Seite fragt alle 3 s den Stand ab.
 Reißt das Netz kurz ab, rechnet der Auftrag weiter, und auch ein Neuladen findet ihn wieder.
