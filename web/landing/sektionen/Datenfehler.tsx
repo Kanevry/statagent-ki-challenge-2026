@@ -37,8 +37,72 @@ function Einstufungstext({ zeile }: { zeile: BefundZeile }) {
 }
 
 /** Auffälligkeiten der Prüfung (Anker #datenfehler); Desktop als Tabelle, mobil als Liste mit Trennlinien. */
-export default function Datenfehler({ tabelle }: { tabelle: BefundTabelle }) {
+/** So viele Befunde stehen offen; der Rest liegt hinter „Alle … Befunde“ (UI-Regie 05.11.: weniger ist mehr). */
+const ERSTE = 5;
+
+type Zeile = BefundTabelle["zeilen"][number];
+
+function BefundZeilen({ zeilen }: { zeilen: Zeile[] }) {
   const sp = DATENFEHLER.spalten;
+  return (
+    <>
+      <table className={a.befunde}>
+        <caption className={s.nurLeser}>{DATENFEHLER.beschriftung}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{sp.befund}</th>
+            <th scope="col">{sp.lieferung}</th>
+            <th scope="col">{sp.saetze}</th>
+            <th scope="col">{sp.einstufung}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {zeilen.map((z, i) => (
+            <tr key={`${z.befund}-${z.lieferung}-${i}`}>
+              <th scope="row">
+                <span className={a.befundName}>{z.befund}</span>
+                {z.beleg ? <code className={a.befundBeleg}>{z.beleg}</code> : null}
+              </th>
+              <td className={a.mono}>{monateLesbar(z.lieferung)}</td>
+              <td className={a.mono}>{monateLesbar(z.saetze)}</td>
+              <td>
+                <Einstufungstext zeile={z} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <ul className={a.befundListe} aria-label={DATENFEHLER.beschriftung}>
+        {zeilen.map((z, i) => (
+          <li key={`${z.befund}-${z.lieferung}-${i}`} className={a.befundEintrag}>
+            <p className={a.befundName}>{z.befund}</p>
+            <dl className={a.befundDaten}>
+              <div>
+                <dt>{sp.lieferung}</dt>
+                <dd className={a.mono}>{monateLesbar(z.lieferung)}</dd>
+              </div>
+              <div>
+                <dt>{sp.saetze}</dt>
+                <dd className={a.mono}>{monateLesbar(z.saetze)}</dd>
+              </div>
+              <div>
+                <dt>{sp.einstufung}</dt>
+                <dd>
+                  <Einstufungstext zeile={z} />
+                </dd>
+              </div>
+            </dl>
+            {z.beleg ? <code className={a.befundBeleg}>{z.beleg}</code> : null}
+          </li>
+        ))}
+      </ul>
+
+    </>
+  );
+}
+
+export default function Datenfehler({ tabelle }: { tabelle: BefundTabelle }) {
   return (
     <section id="datenfehler" className={s.abschnitt} aria-labelledby="datenfehler-titel">
       <div className={s.rahmen}>
@@ -63,66 +127,21 @@ export default function Datenfehler({ tabelle }: { tabelle: BefundTabelle }) {
                 : null}
             </p>
 
-            <table className={a.befunde}>
-              <caption className={s.nurLeser}>{DATENFEHLER.beschriftung}</caption>
-              <thead>
-                <tr>
-                  <th scope="col">{sp.befund}</th>
-                  <th scope="col">{sp.lieferung}</th>
-                  <th scope="col">{sp.saetze}</th>
-                  <th scope="col">{sp.einstufung}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tabelle.zeilen.map((z, i) => (
-                  <tr key={`${z.befund}-${z.lieferung}-${i}`}>
-                    <th scope="row">
-                      <span className={a.befundName}>{z.befund}</span>
-                      {z.beleg ? <code className={a.befundBeleg}>{z.beleg}</code> : null}
-                    </th>
-                    <td className={a.mono}>{monateLesbar(z.lieferung)}</td>
-                    <td className={a.mono}>{monateLesbar(z.saetze)}</td>
-                    <td>
-                      <Einstufungstext zeile={z} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <ul className={a.befundListe} aria-label={DATENFEHLER.beschriftung}>
-              {tabelle.zeilen.map((z, i) => (
-                <li key={`${z.befund}-${z.lieferung}-${i}`} className={a.befundEintrag}>
-                  <p className={a.befundName}>{z.befund}</p>
-                  <dl className={a.befundDaten}>
-                    <div>
-                      <dt>{sp.lieferung}</dt>
-                      <dd className={a.mono}>{monateLesbar(z.lieferung)}</dd>
+            <BefundZeilen zeilen={tabelle.zeilen.slice(0, ERSTE)} />
+            {tabelle.zeilen.length > ERSTE && (
+              <details className={a.mehr}>
+                <summary>{`Alle ${tabelle.zeilen.length} Befunde und Begriffe`}</summary>
+                <BefundZeilen zeilen={tabelle.zeilen.slice(ERSTE)} />
+                <dl className={a.glossar}>
+                  {DATENFEHLER.glossar.map((g) => (
+                    <div key={g.begriff}>
+                      <dt>{g.begriff}</dt>
+                      <dd>{g.erklaerung}</dd>
                     </div>
-                    <div>
-                      <dt>{sp.saetze}</dt>
-                      <dd className={a.mono}>{monateLesbar(z.saetze)}</dd>
-                    </div>
-                    <div>
-                      <dt>{sp.einstufung}</dt>
-                      <dd>
-                        <Einstufungstext zeile={z} />
-                      </dd>
-                    </div>
-                  </dl>
-                  {z.beleg ? <code className={a.befundBeleg}>{z.beleg}</code> : null}
-                </li>
-              ))}
-            </ul>
-
-            <dl className={a.glossar}>
-              {DATENFEHLER.glossar.map((g) => (
-                <div key={g.begriff}>
-                  <dt>{g.begriff}</dt>
-                  <dd>{g.erklaerung}</dd>
-                </div>
-              ))}
-            </dl>
+                  ))}
+                </dl>
+              </details>
+            )}
           </div>
         </Einblenden>
       </div>

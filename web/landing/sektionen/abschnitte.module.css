@@ -774,3 +774,18 @@
     transition: none;
   }
 }
+
+/* Weitere Befunde hinter einem ruhigen Aufklapper (UI-Regie 05.11.). */
+.mehr {
+  margin-top: 16px;
+}
+
+.mehr > summary {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  cursor: pointer;
+  color: var(--l-gruen);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
