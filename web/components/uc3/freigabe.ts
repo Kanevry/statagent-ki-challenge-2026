@@ -5,6 +5,7 @@ import { lies, type Lesung, type Sql } from "./db";
 import { ladeMassgeblichenLauf } from "./laeufe";
 import { istMonat, monatName, monatsgrenzen } from "./monat";
 import type { Lauf } from "./typen";
+import { alltag } from "./sprache";
 
 // Freigaben (UC3): Vorschläge der eigenen Agenten lesen, die Freigabe-Waage aus der Probe bilden und die Entscheidung
 // eines Menschen an die CLI weiterreichen (`uc3 freigabe` / `uc3 ablehnen`). Geschrieben wird nur über die CLI;
@@ -994,7 +995,7 @@ export function auftragsZitat(anweisung: string): string {
   const saetze = rumpf.split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ])/);
   const ende = saetze.findIndex((satz) => AN_DEN_AGENTEN.test(satz));
   const fachlich = (ende < 0 ? saetze : saetze.slice(0, ende)).join(" ").trim();
-  return fachlich || anweisung.trim();
+  return alltag(fachlich || anweisung.trim());
 }
 
 /** Wer den Auftrag gegeben hat: Name aus dem Protokoll, sonst die Herkunft „Auftrag N“ der Aufgabenstellung. */

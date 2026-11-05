@@ -6,6 +6,7 @@ import { leseRegeln, REGEL_TYPEN, sqlRegeln, type Regel, type RegelTyp } from "@
 import { leerSatz } from "@/components/uc3/db";
 import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import { monatName } from "@/components/uc3/monat";
+import { alltag } from "@/components/uc3/sprache";
 
 // Regeln des Regelsatzes v1 (#18, Frame egqhg): gruppiert nach Einlesen, Zuordnen, Zählen, Prüfen, mit
 // Beschreibung, Begründung, Gültigkeit und Freigabe. Nur lesend; Freigaben laufen über die CLI.
@@ -89,14 +90,14 @@ export default async function Regeln() {
               {gruppe.map((r) => (
                 <li key={r.id} id={r.name} className="flex scroll-mt-24 flex-col gap-2 border-b border-line py-4 target:bg-paper" data-regel={r.name}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <Fliesstext className="max-w-3xl">{r.beschreibung}</Fliesstext>
+                    <Fliesstext className="max-w-3xl">{alltag(r.beschreibung)}</Fliesstext>
                     <Status art={r.freigegebenVon ? "ok" : "warnung"}>
                       {r.freigegebenVon
                         ? `freigegeben von ${r.freigegebenVon} am ${r.freigegebenAm ?? ""}`
                         : "noch ohne Freigabe"}
                     </Status>
                   </div>
-                  <Fliesstext groesse={14} ton="gedaempft" className="max-w-3xl">{`Begründung: ${r.begruendung}`}</Fliesstext>
+                  <Fliesstext groesse={14} ton="gedaempft" className="max-w-3xl">{`Begründung: ${alltag(r.begruendung)}`}</Fliesstext>
                   <p className="font-sans text-12 text-slate">
                     <span className="mr-2 break-all font-mono">{r.name}</span>
                     {gueltigkeit(r)}

@@ -18,6 +18,7 @@ import {
   type Freigaben,
   type Waage,
 } from "@/components/uc3/freigabe";
+import { alltag } from "@/components/uc3/sprache";
 
 // Freigaben (Frames qVTQj, PPe1S, uJbeL): Reiter „Wartet auf Sie“ (offene Vorschläge der Agenten) und „Erledigt“
 // (Protokoll in Worten). Liest die UC3-Datenbank direkt; ohne Datenbank Leerzustand mit HTTP 200.
@@ -154,8 +155,8 @@ function Erledigt({ zeilen }: { zeilen: ErledigtZeile[] }) {
         const teile = [
           formatZeit(z.zeit),
           `${z.art === "freigegeben" ? "Freigegeben" : "Abgelehnt"} von ${z.name}`,
-          ...(z.anweisung ? [`Anweisung ‚${z.anweisung}‘`] : []),
-          ...(z.geaendert ? [`Geändert: ${z.geaendert}`] : []),
+          ...(z.anweisung ? [`Anweisung ‚${alltag(z.anweisung)}‘`] : []),
+          ...(z.geaendert ? [`Geändert: ${alltag(z.geaendert)}`] : []),
         ];
         const w = z.waage;
         return (
@@ -165,16 +166,16 @@ function Erledigt({ zeilen }: { zeilen: ErledigtZeile[] }) {
             </Status>
             <Fliesstext className="break-words">
               {teile.join(" · ")}
-              {w && w.umverteilung && ` · ${probeTitel(w.lieferung)}: ${waageSatz(w)}`}
+              {w && w.umverteilung && ` · ${probeTitel(w.lieferung)}: ${alltag(waageSatz(w))}`}
               {w && !w.umverteilung && (
                 <>
-                  {` · ${probeTitel(w.lieferung)}: ${w.haupt.bezeichnung} `}
+                  {` · ${probeTitel(w.lieferung)}: ${alltag(w.haupt.bezeichnung)} `}
                   <span className="font-mono tabular-nums">{`${formatZahl(w.haupt.vorher)} → ${formatZahl(w.haupt.nachher)}`}</span>
                 </>
               )}
             </Fliesstext>
             {z.art === "abgelehnt" && z.begruendung && (
-              <Fliesstext groesse={14}>{`Begründung: ${z.begruendung}`}</Fliesstext>
+              <Fliesstext groesse={14}>{`Begründung: ${alltag(z.begruendung)}`}</Fliesstext>
             )}
             {w && z.vorschlag && <HerkunftChip {...waageBeleg(z.vorschlag.id, w)} />}
             {w && z.vorschlag && <GesamtAenderung vorschlag={z.vorschlag.id} waage={w} />}

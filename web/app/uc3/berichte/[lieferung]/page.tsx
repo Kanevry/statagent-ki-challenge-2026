@@ -24,6 +24,7 @@ import { abrechnung } from "@/components/uc3/laeufe";
 import { aufzaehlen, haltSatz, haltTreffer, leseLaufDetail, sqlTreffer, wartetSatz, weiterSatz } from "@/components/uc3/lauf-detail";
 import { istMonat, monatName, stichtag } from "@/components/uc3/monat";
 import { berichtPfad, berichtslistePfad, laufPfad, regelsatzAus } from "@/components/uc3/navigation";
+import { alltag } from "@/components/uc3/sprache";
 import { MonatsStatus } from "../../_teile/monatstabelle";
 
 // Qualitätsbericht eines Monats (#18, Frame fJdk9) in den fünf Abschnitten des Generators
@@ -111,12 +112,12 @@ export default async function Bericht({ params, searchParams }: Props) {
           {titel}
         </Fliesstext>
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
-          {halt ? haltSatz(halt, lieferung) : hauptsatz(lieferung, auffaelligkeiten)}
+          {halt ? alltag(haltSatz(halt, lieferung)) : hauptsatz(lieferung, auffaelligkeiten)}
         </Ueberschrift>
         {halt && detail ? (
           <>
             <HerkunftChip {...laufBeleg(detail.lauf, { quelle: "meta.pruefung_treffer", sql: sqlTreffer(detail.lauf, halt) })} />
-            <Fliesstext>{weiterSatz(detail.lauf, detail.veroeffentlichen.wartetAuf)}</Fliesstext>
+            <Fliesstext>{alltag(weiterSatz(detail.lauf, detail.veroeffentlichen.wartetAuf))}</Fliesstext>
             <Fliesstext>{hauptsatz(lieferung, auffaelligkeiten)}</Fliesstext>
           </>
         ) : null}
@@ -238,7 +239,7 @@ function UeberblickAbschnitt({ b }: { b: Qualitaetsbericht }) {
       {vormonat && differenz !== null ? (
         <div className="flex flex-col items-start gap-2">
           <Fliesstext>
-            {`Zum Vormonat ${monatName(vormonat.lieferung)} mit ${formatZahl(vormonat.gezaehlt)} Verhältnissen: `}
+            {`Zum Vormonat ${monatName(vormonat.lieferung)} mit ${formatZahl(vormonat.gezaehlt)} Beschäftigungsverhältnissen: `}
             <span className="font-mono tabular-nums">{formatDifferenz(differenz)}</span>
             {vormonat.gezaehlt > 0 && (
               <span className="font-mono tabular-nums">{` (${formatProzent((differenz / vormonat.gezaehlt) * 100)})`}</span>
