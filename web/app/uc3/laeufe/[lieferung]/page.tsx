@@ -179,7 +179,10 @@ function SoGehtEsWeiter({ detail, angehalten }: { detail: LaufDetail; angehalten
           <code className="block w-full overflow-x-auto break-all bg-paper py-2 font-mono text-14 text-ink">{befehl}</code>
         </>
       ) : wartet ? (
-        <Fliesstext>{weiterSatz(lauf, veroeffentlichen.wartetAuf)}</Fliesstext>
+        <>
+          <Fliesstext>{weiterSatz(lauf, veroeffentlichen.wartetAuf)}</Fliesstext>
+          {lauf.fortgeschrieben > 0 && <HerkunftChip {...laufBeleg(lauf, { quelle: "meta.lauf", sql: sqlKennzahlen(lauf) })} />}
+        </>
       ) : (
         <Fliesstext>
           {veroeffentlichen.regelnOhneFreigabe > 0

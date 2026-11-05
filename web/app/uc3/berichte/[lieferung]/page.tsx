@@ -21,7 +21,16 @@ import { bestandBeleg, laufBeleg } from "@/components/uc3/beleg";
 import { leerSatz } from "@/components/uc3/db";
 import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import { abrechnung } from "@/components/uc3/laeufe";
-import { aufzaehlen, haltSatz, haltTreffer, leseLaufDetail, sqlTreffer, wartetSatz, weiterSatz } from "@/components/uc3/lauf-detail";
+import {
+  aufzaehlen,
+  haltSatz,
+  haltTreffer,
+  leseLaufDetail,
+  sqlKennzahlen,
+  sqlTreffer,
+  wartetSatz,
+  weiterSatz,
+} from "@/components/uc3/lauf-detail";
 import { istMonat, monatName, stichtag } from "@/components/uc3/monat";
 import { berichtPfad, berichtslistePfad, laufPfad, regelsatzAus } from "@/components/uc3/navigation";
 import { alltag } from "@/components/uc3/sprache";
@@ -118,6 +127,9 @@ export default async function Bericht({ params, searchParams }: Props) {
           <>
             <HerkunftChip {...laufBeleg(detail.lauf, { quelle: "meta.pruefung_treffer", sql: sqlTreffer(detail.lauf, halt) })} />
             <Fliesstext>{alltag(weiterSatz(detail.lauf, detail.veroeffentlichen.wartetAuf))}</Fliesstext>
+            {detail.lauf.fortgeschrieben > 0 && (
+              <HerkunftChip {...laufBeleg(detail.lauf, { quelle: "meta.lauf", sql: sqlKennzahlen(detail.lauf) })} />
+            )}
             <Fliesstext>{hauptsatz(lieferung, auffaelligkeiten)}</Fliesstext>
           </>
         ) : null}
