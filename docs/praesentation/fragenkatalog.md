@@ -197,7 +197,9 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Was der Vorschlag ändert:** Regel `R5_alter`, Parameter `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`. Der Agent darf für diesen Parameter nur `jahresdifferenz` oder `unbekannt` vorschlagen (`uc3/statagent/agenten/koordinator.py`, Zeile 81). Einen anderen Ersatztag wie den 1. Jänner weist er ab.
 
-**Erwartete Wirkung:** Der Gesamtbestand ändert sich nie, nur das Alter einzelner Verhältnisse mit Monat 13. Für August 2024 gilt Jahresdifferenz gleich Ersatztag 1. Juli, der Beispielbericht bleibt exakt (F4). Im Juni 2026 liegt der Stichtag vor dem 1. Juli: Mit Jahresdifferenz sind diese Verhältnisse ein Jahr älter, der Vorschlag zeigt wenige verschobene Altersgruppen, der Gesamtbestand bleibt 403.301 (einmal gemessen von der UC3-Lane, 05.11.2026 22:40, Commit d888e09, bis zum Vorschlag). Dreimal gegen die Vorführ-Instanz ist noch offen. Juli bis Dezember zeigen keinen Unterschied, das ist fachlich richtig.
+**Erwartete Wirkung:** Der Gesamtbestand ändert sich nie, nur das Alter einzelner Verhältnisse mit Monat 13. Für August 2024 gilt Jahresdifferenz gleich Ersatztag 1. Juli, der Beispielbericht bleibt exakt (F4). Im Juni 2026 liegt der Stichtag vor dem 1. Juli: Mit Jahresdifferenz sind diese Verhältnisse ein Jahr älter, der Vorschlag zeigt wenige verschobene Altersgruppen, der Gesamtbestand bleibt 403.301 (einmal gemessen von der UC3-Lane, 05.11.2026 22:40, Commit d888e09, bis zum Vorschlag). Juli bis Dezember zeigen keinen Unterschied, das ist fachlich richtig.
+
+**Auf der Seite:** Die Tabelle von „Vorher und nachher ansehen“ zählt Beschäftigungskategorien. In Juni und Juli 2026 zeigt sie überall gleiche Werte und den Satz „Bei den Beschäftigungskategorien ändert die Probe keine Zahl, die Gesamtzahl bleibt gleich“ (im Browser gemessen, Lane Vorführung; der Vorschlag dauert rund 145 s). Das ist kein Fehler, sieht aber nach nichts aus: B2 nur nehmen, wenn die Jury genau das wünscht.
 
 **Falle:** Mit `--probe 2025-03` zeigt die Probe 396.762 → 395.292 (−1.470), obwohl sich nur das Alter ändert. In der Probe fehlen die Fortschreibungen von 2025-03 und 2025-10. Der Fix kommt mit !150, die Abgabe ist nicht betroffen.
 
@@ -350,7 +352,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 **Kurzantwort:** Wir nennen fünf Grenzen offen.
 Erstens sind die Daten synthetisch.
 Zweitens hängt das Alter bei Geburtsmonat 13 vor Juli von der Antwort der Fachabteilung auf Rückfrage R1 ab (F4).
-Drittens sind die Pensionsmeldungen der Träger nicht eingelesen.
+Drittens fehlen bei den Pensionen die öffentlich Bediensteten, die frühere BVA meldet keine. Die Zahlen sind vorläufig, bis sie mit Namen freigegeben sind.
 Viertens zählen wir auf ÖNACE-Abschnitt und Bundesland, nicht bis zum 5-Steller und nicht nach Bezirk oder Gemeinde. Die Tabelle für weitere Ebenen ist angelegt.
 Fünftens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parameter und lässt sich ändern (F5).
 
@@ -378,7 +380,7 @@ Fünftens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parame
 
 #### Stand (was vom Zielbild auf main ist)
 
-Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.2026 19:40 und 20:00 auf der Online-Demo (POST `/api/uc4/frage` mit der Wien-Frage), dazu der Prüfpunkt des Leads um 20:00. Vor Fr 07:00 noch einmal messen. Nicht gemessen heißt: nicht behaupten.
+Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.2026 23:04 bis 23:08 auf der Online-Demo, main `11b5ff5` (POST `/api/uc4/frage`), dazu der Prüfpunkt des Leads um 20:00. Fr 05:00 noch einmal messen. Nicht gemessen heißt: nicht behaupten.
 
 | Teil des Zielbilds | Stand auf main | Beleg |
 |---|---|---|
@@ -389,10 +391,13 @@ Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.
 | UC1-Adapter (Lotse) | registriert | `uc1/pyproject.toml`, `uc1.uc4:router_adapter` |
 | Freigabe mit Namen in UC2 | im Code | `uc2/src/uc2/verhandlung/freigabe.py`, `web/app/api/uc2/faelle/[id]/freigabe/route.ts` |
 | Freigabe mit Namen in UC1 | nicht gefunden | keine Fundstelle auf main |
-| Wien-Frage liefert drei Antworten | online ja: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator und Lotse mit Modell gpt-5-4-mini, beide mit dem Beleg aus UC3; nichts fehlt; 9 bis 15 s | gemessen 19:40, 19:58 (Lead) und 20:00 |
+| Wien-Frage liefert drei Antworten | online ja: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator mit Modell gpt-5-4-mini, Lotse fester Text, beide mit dem Beleg aus UC3; nichts fehlt; 9 bis 12 s | gemessen 23:04, zweimal |
+| Frage ohne Zahl | „Wie heißt der Hund von Pippi Langstrumpf?“: Die Kette stoppt bei StatAgent, ohne Zahl, 3 s | gemessen 23:06 |
+| Frage mit „Wartezeiten“ | Mit Wien und März 2025: Der Simulator rechnet über das Rechenmodell, Wartezeit −22,2 %, 128,2 Mio. Euro pro Jahr, 22 s. Nicht vorführen. Ohne Monat und Ort: StatAgent fragt zurück, welchen Begriff es erklären soll, die Kette stoppt | gemessen 23:06 und 23:08 |
+| „Zugänge Oktober 2024“ | Öffentliche Adresse: keine Zahl, Hinweis auf die lokale Auswertung. Vorführ-Instanz nicht gemessen | gemessen 23:07 und 23:08 |
 | Live-Änderung per Agent (D2 Teil 2) | Endserie läuft, MR !150 Stand 20:00 noch rot; Teil 2 nur, wenn beim Freeze auf main | Prüfpunkt Lead 20:00 |
 | Klassifikation bis 5-Steller und Gemeinden | kommt gegen 23:00 als Klassifikation; gezählt wird weiter nach Abschnitt und Bundesland (Rohdaten haben nur das) | Prüfpunkt Lead 20:00 |
-| Pensionsmeldungen der Träger | nicht eingelesen | Prüfpunkt Lead 20:00, C14 |
+| Pensionsmeldungen der Träger | eingelesen: 28 von 28 Dateien, 9 Formate, 394 Summen ohne Abweichung. Online 2025 im Jahresdurchschnitt 2.584.909, vorläufig | `docs/uc3/pensionen-pruefbericht.md`, online gemessen 23:16 |
 | Lotse, verdeckter Test | Trefferquote 8 von 10, Träger richtig 6 von 10, Grenzen erkannt 3 von 8; Verbesserung eingespielt, Nachmessung offen | Prüfpunkt Lead 20:00 |
 | Simulator ohne passenden Zeitungsartikel | sagt offen „Modellannahme“, erfindet keinen Beleg | Prüfpunkt Lead 20:00, Messung E0 19:50 |
 | Online-Demo, Budget | 1.000 Modellaufrufe je Tag | Prüfpunkt Lead 20:00 |

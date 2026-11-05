@@ -31,11 +31,11 @@
     "folie": 1,
     "quelle": "oberflaeche",
     "route": "/uc4",
-    "commit": "fd936b3",
+    "commit": "11b5ff5",
     "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
     "art": "live",
-    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "aufgenommen_am": "2026-11-05T23:13+01:00",
     "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {
@@ -135,11 +135,11 @@
     "folie": 9,
     "quelle": "oberflaeche",
     "route": "/uc4",
-    "commit": "fd936b3",
+    "commit": "11b5ff5",
     "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
     "art": "live",
-    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "aufgenommen_am": "2026-11-05T23:11+01:00",
     "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {

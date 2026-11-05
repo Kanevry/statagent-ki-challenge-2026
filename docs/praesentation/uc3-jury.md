@@ -71,7 +71,7 @@ Bernhard nennt sie von sich aus oder auf Nachfrage und versteckt sie nicht.
 
 - Die Live-Änderung ist ein getippter Satz, keine gesprochene Eingabe.
 - Gezählt wird nach ÖNACE-Abschnitt und Bundesland (Kriterien-Karte, Bereich 2).
-- Die Pensionsmeldungen der Träger sind nicht eingelesen (Bereich 1).
+- Die Pensionen sind eingelesen, aber vorläufig bis zur Freigabe mit Namen, und ohne öffentlich Bedienstete: Die frühere BVA meldet keine (Bereich 1).
 - Wo Daten fehlen, gilt eine begründete Annahme mit Beleg, die Rückfrage ist dokumentiert (`abgabe/rueckfragen/`).
 - Zeitersparnis: nicht gemessen. Wir fragen zurück: „Wie lange dauert das bei Ihnen heute?“
 - Alle gesammelt: Fragenkatalog C14, `management-faq.md` Frage 13.
