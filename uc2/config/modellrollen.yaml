@@ -1,0 +1,48 @@
+# Modell je Rolle (Regeln als Daten, #41). Aufruf über plattform.llm.complete(…, provider=, zweck=).
+# Standard ist azure, Qualitätsmodus claude (Abo über `claude -p`), Tests und CI mock.
+# ollama ist Offline-Notnagel (Owner-Entscheid 05.11.): Modell aus Env OLLAMA_MODEL, sonst Platzhalter.
+# Rollen ohne Sprachmodell rechnen im Code und nennen keinen Provider.
+version: 1
+standard_provider: azure
+qualitaetsmodus: claude
+luecke: >-
+  plattform.llm.complete() kennt laut E0-Vertrag nur provider und zweck; modell und aufwand je Rolle
+  wirken erst nach E0 #52. Bis dahin laufen Akteure im Qualitätsmodus auf demselben Modell wie der
+  Moderator, und das Protokoll jedes Laufs nennt diese Lücke.
+rollen:
+  moderator:
+    sprachmodell: true
+    zweck: uc2.moderator
+    aufgaben: [Auftrag, Auswahl der Akteure, Steuerung der Runden, Protokolltext, Lektionen]
+    provider:
+      azure: {modell: gpt-5-4-mini, aufwand: hoch}
+      claude: {modell: claude-opus-5-5}
+      mock: {modell: mock-fixture}
+      ollama: {modell: lokal, modell_env: OLLAMA_MODEL}
+  akteur:
+    sprachmodell: true
+    zweck: uc2.akteur
+    aufgaben: [Züge je Runde nach zug.schema.json]
+    provider:
+      azure: {modell: gpt-5-4-mini, aufwand: niedrig}
+      claude: {modell: claude-sonnet-5-5}
+      mock: {modell: mock-fixture}
+      ollama: {modell: lokal, modell_env: OLLAMA_MODEL}
+  experte:
+    sprachmodell: false
+    aufgaben: [deterministisches Wirkungsmodell, Zahlen für die Verhandlung]
+  suche:
+    sprachmodell: false
+    aufgaben: [Belegsuche im Pressespiegel, Volltext und Aktualität]
+  matrix:
+    sprachmodell: false
+    aufgaben: [Positionsmatrix Akteur, Thema und Runde]
+  klassifikation:
+    sprachmodell: false
+    aufgaben: [Einordnung je Thema in Konsens, Mehrheit, Minderheit und offenen Konflikt]
+  pruefungen:
+    sprachmodell: false
+    aufgaben: [Schemaprüfung der Züge, Zahlenprüfung, Bezugsprüfung]
+  personenschutz:
+    sprachmodell: false
+    aufgaben: [Maskierung von Personennamen in Belegen vor Modell und Anzeige]
