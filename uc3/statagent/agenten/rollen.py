@@ -65,7 +65,8 @@ ROLLEN: dict[str, Rolle] = {
     for r in (
         Rolle(
             "datenmanagement",
-            "Einlesen und Zählen: Berichtszeitraum, Stichtag, Bestand, Abschnittswahl, Einleseregeln; dazu "
+            "Einlesen und Zählen: Berichtszeitraum, Stichtag, Bestand, Abschnittswahl, Alter (Ersatztag bei "
+            "Geburtsmonat 13, Grenzen für unplausible Alter), Einleseregeln; dazu "
             "Sonderauswertungen mit Personenliste (z. B. Ministeriumslieferung) als neue Zählregel der Art "
             "personentage in einem eigenen Regelsatz, nie als Code.",
             ("regel_aendern", "regel_neu"),
@@ -79,7 +80,8 @@ ROLLEN: dict[str, Rolle] = {
         ),
         Rolle(
             "qs",
-            "Qualitätssicherung: Prüfregeln, Schwellen, Einstufung und Anhalten von Monaten.",
+            "Qualitätssicherung: nur Prüfregeln (Typ pruefung), also Schwellen, Einstufung und Anhalten von "
+            "Monaten; wie gezählt wird (Alter, Zeitraum, Kategorie) gehört zu datenmanagement oder klassifikation.",
             ("regel_aendern", "regel_neu"),
             ("pruefung",),
         ),

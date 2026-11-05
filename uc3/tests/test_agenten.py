@@ -315,3 +315,62 @@ def test_ungueltiger_vorschlag_wird_nicht_angelegt(
     ergebnis = agent_ausfuehren(agent_conn, "Eine Anweisung", complete=modell)
     assert ergebnis.vorschlag_id is None
     assert ergebnis.abgelehnt is not None and grund in ergebnis.abgelehnt
+
+
+def test_falsche_rolle_wird_an_die_zustaendige_umgeleitet(agent_conn: Verbindung) -> None:
+    # Fängt: Der Koordinator schickt „Geburtsmonat 13 nur mit der Differenz der Jahre“ an qs; qs darf keine
+    # Zählregeln ändern, der Vorschlag scheiterte (Live-Probe 05.11.). Jetzt fragt der Koordinator einmal die
+    # Rolle, die diesen Regeltyp ändern darf.
+    aenderung = {
+        "typ": "regel_aendern",
+        "regelsatz_ziel": "v2",
+        "aenderungen": [
+            {
+                "regel_name": "R5_alter",
+                "parameter_neu": [{"schluessel": "geburtsmonat_13", "wert": "jahresdifferenz"}],
+            }
+        ],
+        "begruendung": "Live-Änderung: bei Geburtsmonat 13 nur die Differenz der Jahre.",
+    }
+    modell = FakeModell(
+        {
+            "agent.koordinator": {"rolle": "qs", "auftrag": "Geburtsmonat 13 anders behandeln"},
+            "agent.qs": aenderung,
+            "agent.datenmanagement": aenderung,
+        }
+    )
+    ergebnis = agent_ausfuehren(
+        agent_conn, "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre.", complete=modell
+    )
+    assert ergebnis.abgelehnt is None, ergebnis.abgelehnt
+    assert ergebnis.vorschlag_id is not None and ergebnis.rolle == "datenmanagement"
+
+
+def test_gemischter_vorschlag_behaelt_was_die_rolle_darf(agent_conn: Verbindung) -> None:
+    # Fängt: Das Modell ändert zu Geburtsmonat 13 zugleich R5_alter (zaehl) und den Maßnahmetext von P04
+    # (pruefung); keine Rolle darf beides, jeder Versuch scheiterte (Live-Probe 05.11.).
+    gemischt = {
+        "typ": "regel_aendern",
+        "regelsatz_ziel": "v2",
+        "aenderungen": [
+            {
+                "regel_name": "R5_alter",
+                "parameter_neu": [{"schluessel": "geburtsmonat_13", "wert": "jahresdifferenz"}],
+            },
+            {
+                "regel_name": "P04_geburtsdatum_monat_13",
+                "parameter_neu": [{"schluessel": "massnahme", "wert": "x"}],
+            },
+        ],
+        "begruendung": "Live-Änderung: bei Geburtsmonat 13 nur die Differenz der Jahre.",
+    }
+    modell = FakeModell(
+        {"agent.koordinator": {"rolle": "datenmanagement", "auftrag": "x"}, "agent.datenmanagement": gemischt}
+    )
+    ergebnis = agent_ausfuehren(
+        agent_conn, "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre.", complete=modell
+    )
+    assert ergebnis.vorschlag_id is not None, ergebnis.abgelehnt
+    v = vorschlag_lesen(agent_conn, ergebnis.vorschlag_id)
+    assert [a["regel_name"] for a in v.aenderungen] == ["R5_alter"]
+    assert "P04_geburtsdatum_monat_13" in v.begruendung

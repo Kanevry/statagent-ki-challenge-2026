@@ -53,6 +53,14 @@ class VorschlagUngueltig(ValueError):
     """Der Vorschlag des Modells passt nicht zu den Regeln in der Datenbank."""
 
 
+class RolleUnzustaendig(VorschlagUngueltig):
+    """Die Rolle hat eine Regel eines Typs angefasst, den sie nicht ändern darf; ``typ`` nennt ihn."""
+
+    def __init__(self, meldung: str, typ: str) -> None:
+        super().__init__(meldung)
+        self.typ = typ
+
+
 @dataclass
 class Ergebnis:
     """Was aus einer Anweisung wurde: ein offener Vorschlag, eine Rückfrage oder eine begründete Ablehnung."""
@@ -327,17 +335,32 @@ def vorschlag_pruefen(
             raise VorschlagUngueltig(f"Basisregelsatz {basis} gibt es nicht")
     regeln = _regeln(conn, basis)
     aenderungen: list[dict[str, Any]] = []
+    ausgelassen: list[str] = []
+    fremder_typ = ""
     datei: CodeDateiEntwurf | None = None
 
     if antwort.typ == "regel_aendern":
         if not antwort.aenderungen:
             raise VorschlagUngueltig("regel_aendern ohne Änderung")
+        # Ändert der Vorschlag auch Regeln eines Typs, den die Rolle nicht anfassen darf (Live-Probe 05.11.:
+        # Geburtsmonat 13 → R5_alter und zugleich der Maßnahmetext von P04), bleiben diese weg und stehen in der
+        # Begründung; nur wenn nichts übrig bleibt, ist die Rolle unzuständig.
+        erlaubt = []
         for a in antwort.aenderungen:
             r = regeln.get(a.regel_name)
             if r is None:
                 raise VorschlagUngueltig(f"Regel {a.regel_name} gibt es im Regelsatz {basis} nicht")
-            if r["typ"] not in rolle.regeltypen:
-                raise VorschlagUngueltig(f"Die Rolle {rolle.name} darf {r['typ']}-Regeln nicht ändern")
+            if r["typ"] in rolle.regeltypen:
+                erlaubt.append(a)
+            else:
+                ausgelassen.append(f"{a.regel_name} ({r['typ']})")
+                fremder_typ = str(r["typ"])
+        if not erlaubt:
+            raise RolleUnzustaendig(
+                f"Die Rolle {rolle.name} darf {fremder_typ}-Regeln nicht ändern", fremder_typ
+            )
+        for a in erlaubt:
+            r = regeln[a.regel_name]
             alt = dict(r["parameter"])
             # Das Modell legt seinen Erklärtext manchmal als Parameter `beschreibung` ab (Live-Probe Auftrag 2,
             # 05.11.); Text der Regel ist kein Parameter und ändert keine Zahl, also verwerfen statt ablehnen.
@@ -359,7 +382,7 @@ def vorschlag_pruefen(
             if n.name in regeln:
                 raise VorschlagUngueltig(f"Regel {n.name} gibt es schon; bitte regel_aendern")
             if n.typ not in rolle.regeltypen:
-                raise VorschlagUngueltig(f"Die Rolle {rolle.name} darf keine {n.typ}-Regeln anlegen")
+                raise RolleUnzustaendig(f"Die Rolle {rolle.name} darf keine {n.typ}-Regeln anlegen", n.typ)
             gleiche_art = [r for r in regeln.values() if r["typ"] == n.typ and r["art"] == n.art]
             parameter = _parameter(n.parameter)
             if n.typ == "zaehl" and gleiche_art:
@@ -402,7 +425,10 @@ def vorschlag_pruefen(
     _ohne_kennungen(
         _ohne_auswertungsfelder(aenderungen), antwort.begruendung, None if datei is None else datei.rumpf
     )
-    return GeprueftVorschlag(antwort.typ, ziel, basis, aenderungen, datei, antwort.begruendung.strip())
+    begruendung = antwort.begruendung.strip()
+    if ausgelassen:
+        begruendung += f" Nicht Teil dieses Vorschlags (andere Rolle zuständig): {', '.join(ausgelassen)}."
+    return GeprueftVorschlag(antwort.typ, ziel, basis, aenderungen, datei, begruendung)
 
 
 # --- Modellaufrufe ------------------------------------------------------------------------------------
@@ -503,32 +529,52 @@ def agent_ausfuehren(
         return ergebnis
 
     rolle = ROLLEN[koordination.rolle]
-    ergebnis.rolle = rolle.name
     kontext = kontext_bauen(conn, regelsatz_basis, probe_lieferung)
-    nachrichten = [
-        {"role": "system", "content": rolle.system_prompt},
-        {
-            "role": "user",
-            "content": f"Anweisung: {anweisung}\nAuftrag des Koordinators: {koordination.auftrag}\n"
-            f"Kontext (JSON):\n{json.dumps(kontext, ensure_ascii=False, default=str)}",
-        },
-    ]
-    try:
-        antwort = _aufruf(modell_aufruf, ergebnis, nachrichten, VorschlagAntwort, rolle.zweck)
-    except (ValidationError, ValueError) as fehler:
-        ergebnis.abgelehnt = (
-            f"Antwort der Rolle {rolle.name} passt nicht zum Format ({type(fehler).__name__})"
-        )
-        return ergebnis
-    ergebnis.modell, ergebnis.provider = ergebnis.aufrufe[-1]["modell"], ergebnis.aufrufe[-1]["provider"]
-    if antwort.rueckfrage:
-        ergebnis.rueckfrage = antwort.rueckfrage
-        return ergebnis
-    try:
-        g = vorschlag_pruefen(conn, rolle, antwort, regelsatz_basis=regelsatz_basis)
-    except VorschlagUngueltig as fehler:
-        ergebnis.abgelehnt = str(fehler)
-        return ergebnis
+    versucht: set[str] = set()
+    while True:
+        ergebnis.rolle = rolle.name
+        versucht.add(rolle.name)
+        nachrichten = [
+            {"role": "system", "content": rolle.system_prompt},
+            {
+                "role": "user",
+                "content": f"Anweisung: {anweisung}\nAuftrag des Koordinators: {koordination.auftrag}\n"
+                f"Kontext (JSON):\n{json.dumps(kontext, ensure_ascii=False, default=str)}",
+            },
+        ]
+        try:
+            antwort = _aufruf(modell_aufruf, ergebnis, nachrichten, VorschlagAntwort, rolle.zweck)
+        except (ValidationError, ValueError) as fehler:
+            ergebnis.abgelehnt = (
+                f"Antwort der Rolle {rolle.name} passt nicht zum Format ({type(fehler).__name__})"
+            )
+            return ergebnis
+        ergebnis.modell, ergebnis.provider = ergebnis.aufrufe[-1]["modell"], ergebnis.aufrufe[-1]["provider"]
+        if antwort.rueckfrage:
+            ergebnis.rueckfrage = antwort.rueckfrage
+            return ergebnis
+        try:
+            g = vorschlag_pruefen(conn, rolle, antwort, regelsatz_basis=regelsatz_basis)
+        except RolleUnzustaendig as fehler:
+            # Der Koordinator hat die falsche Rolle gewählt (Live-Probe 05.11.: Geburtsmonat 13 ging an qs, die
+            # keine Zählregeln ändern darf). Einmal die Rolle fragen, die diesen Regeltyp ändern darf.
+            zustaendig = next(
+                (
+                    r
+                    for r in ROLLEN.values()
+                    if fehler.typ in r.regeltypen and antwort.typ in r.typen and r.name not in versucht
+                ),
+                None,
+            )
+            if zustaendig is None:
+                ergebnis.abgelehnt = str(fehler)
+                return ergebnis
+            rolle = zustaendig
+            continue
+        except VorschlagUngueltig as fehler:
+            ergebnis.abgelehnt = str(fehler)
+            return ergebnis
+        break
     ergebnis.vorschlag_id = vorschlag_anlegen(
         conn,
         anweisung=anweisung,
