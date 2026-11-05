@@ -20,7 +20,19 @@ const NEULADEN_MS = 30_000;
 
 type Zustand = { art: "laden" } | { art: "ok"; status: ModellStatus } | { art: "fehler" };
 
-export function ModellBadge({ quelle = "/api/plattform/modell", lang = false }: { quelle?: string; lang?: boolean }) {
+/** Sichtbarer Satz statt „mock · mock“: auch für Bürger verständlich (Abnahme #64-5). */
+export const TESTBETRIEB_TEXT = "Testbetrieb: keine KI angeschlossen";
+
+export function ModellBadge({
+  quelle = "/api/plattform/modell",
+  lang = false,
+  vorgabe = null,
+}: {
+  quelle?: string;
+  lang?: boolean;
+  /** Modell der aktuellen Seite (`SeitenModell`); hat Vorrang vor der globalen Einstellung. */
+  vorgabe?: { provider: string; modell?: string | null; gewaehlt?: boolean } | null;
+}) {
   const [zustand, setZustand] = useState<Zustand>({ art: "laden" });
 
   useEffect(() => {
@@ -56,6 +68,35 @@ export function ModellBadge({ quelle = "/api/plattform/modell", lang = false }: 
     };
   }, [quelle]);
 
+  // Die Seite darf nur Testbetrieb melden oder den Anbieter bestätigen, den der Server wirklich meldet; sonst
+  // zeigte der Badge einen erfundenen Anbieter (Review !66).
+  // Ausnahme: Die Seite wählt den Anbieter selbst für ihre Anfragen (gewaehlt, Modellwahl auf /uc4).
+  const vorgabeGilt =
+    vorgabe !== null &&
+    (vorgabe.provider === "mock" ||
+      vorgabe.gewaehlt === true ||
+      (zustand.art === "ok" && zustand.status.provider === vorgabe.provider));
+  if (vorgabe && vorgabeGilt) {
+    const seiteMock = vorgabe.provider === "mock";
+    return (
+      <ModellPille
+        aria-live="polite"
+        title={vorgabe.gewaehlt ? "Auf dieser Seite gewählt" : "Angabe dieser Seite"}
+        data-testid="modell-badge"
+        data-modell-seite=""
+      >
+        {seiteMock ? (
+          <span data-modell-mock="">{TESTBETRIEB_TEXT}</span>
+        ) : (
+          <>
+            <span>Modell:</span>
+            <span className="font-mono">{vorgabe.modell ? `${vorgabe.provider} · ${vorgabe.modell}` : vorgabe.provider}</span>
+          </>
+        )}
+      </ModellPille>
+    );
+  }
+
   if (zustand.art === "fehler") {
     return (
       <WarnChip data-testid="modell-badge">Modell nicht erreichbar</WarnChip>
@@ -75,7 +116,7 @@ export function ModellBadge({ quelle = "/api/plattform/modell", lang = false }: 
   return (
     <ModellPille aria-live="polite" title={titel} data-testid="modell-badge">
       {mock ? (
-        <span data-modell-mock="">Testbetrieb: keine KI angeschlossen</span>
+        <span data-modell-mock="">{TESTBETRIEB_TEXT}</span>
       ) : (
         <>
           <span>Modell:</span>

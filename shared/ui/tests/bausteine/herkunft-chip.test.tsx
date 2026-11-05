@@ -50,3 +50,17 @@ it("zeigt Revision, Regelstand und gekürzten Lauf im Chip, offen den vollen Lau
   await user.click(chip);
   expect(screen.getByText(new RegExp(`Lauf ${lauf}`))).toBeTruthy();
 });
+
+
+// Fängt ab (Antrag UC1): Ein Gesetzeszitat erschien als Zahl ohne Abfrage („Für diese Zahl ist keine Abfrage …“),
+// das Zitat selbst und sein Fassungsstand fehlten.
+it("mit Zitat: zeigt das Zitat wörtlich und den Stand, ohne SQL- oder Abfrage-Satz", async () => {
+  const user = userEvent.setup();
+  const zitat = "Pflegegeld gebührt bei einem Pflegebedarf von durchschnittlich mehr als 65 Stunden monatlich.";
+  render(<HerkunftChip quelle="BPGG § 4" zitat={zitat} fassung="BGBl. I Nr. 12/2026" />);
+  await user.click(screen.getByRole("button", { name: /Zitat ansehen/ }));
+  expect(screen.getByText(zitat).tagName).toBe("BLOCKQUOTE");
+  expect(screen.getByText("Stand: BGBl. I Nr. 12/2026")).toBeTruthy();
+  expect(screen.queryByText(/keine Abfrage/)).toBeNull();
+  expect(screen.queryByRole("button", { name: "Kopieren" })).toBeNull();
+});

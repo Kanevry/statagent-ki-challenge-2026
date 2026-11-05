@@ -19,7 +19,7 @@ export default function GemeinsamerEinstieg() {
           {`Eine Frage läuft nacheinander durch ${kette}.`}
         </Ueberschrift>
         <Fliesstext ton="gedaempft">
-          Jeder Schritt bekommt die Antworten davor als Kontext. Jede Zahl zeigt, woher sie kommt.
+          Jeder Bereich sieht die Antworten davor. Jede Zahl zeigt, woher sie kommt.
         </Fliesstext>
       </div>
       <Einstieg />

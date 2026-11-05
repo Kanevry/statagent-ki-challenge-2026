@@ -148,3 +148,42 @@ describe("ModellBadge nach Frames CKCV4 und nas8Y", () => {
     expect(chip.querySelector("[data-status-symbol=warnung]")).not.toBeNull();
   });
 });
+
+// Fängt ab (Lead 58, UC2-Sichtprüfung): Die Seite läuft im Testbetrieb, der Header zeigt aber die globale
+// Einstellung „azure · gpt-5“. Die Seite meldet ihr Modell über SeitenModell; beim Verlassen gilt wieder global.
+describe("Modell der Seite", () => {
+  it("SeitenModell mock schlägt die globale Angabe, nach dem Verlassen gilt sie wieder", async () => {
+    const { AppShell } = await import("../../src/shell/app-shell");
+    const { SeitenModell } = await import("../../src/shell/seiten-modell");
+    const { TESTBETRIEB_TEXT } = await import("../../src/shell/modell-badge");
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json(gewaehlt)));
+    const { rerender } = render(
+      <AppShell pfad="/uc2">
+        <SeitenModell provider="mock" />
+      </AppShell>,
+    );
+    expect((await screen.findByTestId("modell-badge")).textContent).toBe(TESTBETRIEB_TEXT);
+    rerender(<AppShell pfad="/uc2">ohne Angabe</AppShell>);
+    expect(await screen.findByText("azure · gpt-5")).toBeTruthy();
+  });
+
+  // Fängt ab (Review !66): Die Seite meldet einen Anbieter, den der Server gar nicht nutzt, und der Badge zeigt
+  // ihn trotzdem. Eine Vorgabe gilt nur für Testbetrieb oder wenn sie zum gemessenen Anbieter passt.
+  it("eine fremde Vorgabe gilt nicht, eine passende schon", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json(gewaehlt)));
+    const { rerender } = render(<ModellBadge vorgabe={{ provider: "mistral", modell: "mistral-large-latest" }} />);
+    expect(await screen.findByText("azure · gpt-5")).toBeTruthy();
+    rerender(<ModellBadge vorgabe={{ provider: "azure", modell: "gpt-5-4-mini" }} />);
+    expect(screen.getByTestId("modell-badge").textContent).toBe("Modell:azure · gpt-5-4-mini");
+  });
+});
+
+
+// Fängt ab (Modellwahl /uc4): Die Seite schickt den gewählten Anbieter mit jeder Anfrage, der Badge zeigt aber
+// weiter die globale Einstellung.
+it("eine gewählte Vorgabe gilt auch gegen den gemessenen Anbieter", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json(gewaehlt)));
+  render(<ModellBadge vorgabe={{ provider: "mistral", gewaehlt: true }} />);
+  expect(screen.getByTestId("modell-badge").textContent).toBe("Modell:mistral");
+  expect(screen.getByTestId("modell-badge").getAttribute("title")).toBe("Auf dieser Seite gewählt");
+});
