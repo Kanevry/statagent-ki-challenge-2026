@@ -670,7 +670,7 @@ def bedingung_fehlt(aussage: str, zitat: str, sprache: str = "de") -> bool:
 
 
 # Zahlwort und Ziffer gelten als dieselbe Zahl („sechs Monate“ im Zitat, „6 Monate“ in der Aussage).
-_ZAHLWOERTER: dict[str, tuple[str, ...]] = {
+_ZAHLWOERTER: dict[str, tuple[str, str]] = {
     w: (str(i), e)
     for i, (w, e) in enumerate(
         zip(
