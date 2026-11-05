@@ -11,6 +11,8 @@ const repoWurzel = path.join(path.dirname(fileURLToPath(import.meta.url)), "..")
 const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: repoWurzel,
+  // /praesentation liest web/content/slides/*.md zur Laufzeit (#59); standalone kopiert sie nur so mit.
+  outputFileTracingIncludes: { "/praesentation": ["./content/slides/**/*"] },
   transpilePackages: ["@kic/ui"],
   env: {
     NEXT_PUBLIC_VAPI_PUBLIC_KEY: process.env.VAPI_PUBLIC_KEY ?? "",
