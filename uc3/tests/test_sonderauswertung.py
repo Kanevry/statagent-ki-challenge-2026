@@ -28,7 +28,23 @@ PARAMETER = {
     "monate": 1,
     "qualifikationen": ["ArbeiterDV", "ArbeiterFD"],
     "oenace": "C",
-    "altcodes_als_abschnitt": [],
+    # Abgabe-Variante (Annahme A13): genau die Altcodes, die Q01 im Regelsatz v1 nach C legt
+    "altcodes_als_abschnitt": [
+        "DA",
+        "DB",
+        "DC",
+        "DD",
+        "DE",
+        "DF",
+        "DG",
+        "DH",
+        "DI",
+        "DJ",
+        "DK",
+        "DL",
+        "DM",
+        "DN",
+    ],
     "mindesttage": 30,
     "datenstand": "juengste_lieferung_je_tag",
     "angehaltene_lieferungen": "ueberspringen",
@@ -40,14 +56,16 @@ PARAMETER = {
 }
 
 
-def _auswertungsregel(conn: Verbindung) -> None:
+def _auswertungsregel(conn: Verbindung, v1_freigeben: bool = True, **aenderung: object) -> None:
     for monat in ("2024-08", "2024-09", "2024-10", "2024-11"):
         lauf_ausfuehren(conn, monat, "v1")
+    if v1_freigeben:
+        regeln_freigeben(conn, "v1", NAME)  # Q01 legt die Altcodes nur freigegeben fest
     conn.execute(
         b"""INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, beschreibung, begruendung,
               grundlage) VALUES ('ministerium', 'A3_ministerium_personentage', 'zaehl', 'personentage', 10, %s,
               'Test', 'Test', 'Auftrag 3')""",
-        (json.dumps(PARAMETER),),
+        (json.dumps({**PARAMETER, **aenderung}),),
     )
 
 
@@ -76,6 +94,8 @@ def test_personentage_november(conn: Verbindung, tmp_path: Path) -> None:
         "7002;W;1944;30",
         "7004;M;1985;30",
     ]
+    # Fängt: CSV mit CRLF statt LF; die sha256 passte dann nicht zum Soll aus dem Orakel (Koordinator, Punkt 1a).
+    assert b"\r" not in datei.read_bytes()
     ausgabe = conn.execute(
         b"SELECT zeilen, freigegeben_von FROM meta.ausgabe WHERE art = 'ministerium' AND berichtsmonat = '2024-11'"
     ).fetchone()
@@ -182,6 +202,9 @@ def test_gescheitertes_git_lehnt_ab_und_schreibt_keine_ausgabe(conn: Verbindung,
     assert [z["entscheidung"] for z in f] == ["nein"]
     assert _ausgaben(conn) == []
     assert git(repo, "rev-parse", "HEAD") == kopf
+    # Fängt auch: der Beleg bleibt nach dem Git-Fehler gestaged und ginge mit dem nächsten Commit ohne Freigabe
+    # hinaus (Review-Bank 57, Punkt 8).
+    assert git(repo, "status", "--porcelain") == ""
     assert not (tmp_path / "extern" / "ministerium_2024-11.csv").exists()
     assert not (repo / "abgabe" / "ministerium_2024-11.beleg.md").exists()
 
@@ -286,4 +309,34 @@ def test_csv_mit_einzeldaten_darf_nicht_im_repo_liegen(conn: Verbindung, tmp_pat
             conn, "2024-11", NAME, ziel_dir=repo / "abgabe", beleg_dir=repo / "abgabe", repo_pfad=repo
         )
     assert not (repo / "abgabe" / "ministerium_2024-11.csv").exists()
+    assert _ausgaben(conn) == []
+
+
+@pytest.mark.parametrize(
+    ("aenderung", "v1_freigeben", "fehler", "meldung"),
+    [
+        ({"altcodes_als_abschnitt": []}, True, RegelFehler, r"ist \[\], Soll ist \[DA, DB, .*DN\] laut Q01"),
+        ({"altcodes_als_abschnitt": ["DA"]}, True, RegelFehler, r"ist \[DA\], Soll ist \[DA, DB"),
+        ({"angehaltene_lieferungen": "verwenden"}, True, RegelFehler, "Soll ist 'ueberspringen'"),
+        ({}, False, NichtFreigegeben, "Q01_oenace_2003_unterabschnitte .* nicht freigegeben"),
+    ],
+)
+def test_lieferung_nur_mit_abgabe_definition(
+    conn: Verbindung,
+    tmp_path: Path,
+    aenderung: dict[str, object],
+    v1_freigeben: bool,
+    fehler: type[Exception],
+    meldung: str,
+) -> None:
+    # Fängt: die Abgabezahl hängt still am Modellvorschlag; mit altcodes_als_abschnitt = [] käme 32.713 statt
+    # 32.741 heraus (Personen zählen im Sheet zu C und fallen in der Lieferung heraus), mit 'verwenden' die
+    # Teil-Lieferung 2025-10 statt Variante S, oder ohne freigegebene Q01 eine ungeprüfte Codeliste (Annahme A13).
+    _auswertungsregel(conn, v1_freigeben, **aenderung)
+    regeln_freigeben(conn, "ministerium", NAME)
+    with pytest.raises(fehler, match=meldung):
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=tmp_path / "abgabe"
+        )
+    assert not (tmp_path / "extern").exists() and not (tmp_path / "abgabe").exists()
     assert _ausgaben(conn) == []

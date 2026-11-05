@@ -12,8 +12,14 @@ eigener Agent vorschlägt und eine Person freigibt. Dieses Modul rechnet nur, oh
   ist (z. B. ÖNACE-2003-Unterabschnitte, die die Quellzuordnung in den Abschnitt übernimmt), zählen nur, wenn der
   Code in ``altcodes_als_abschnitt`` steht (leere Liste: nur direkt als Abschnitt gelieferte Codes).
 - Ausgabe: eine Zeile je Person mit mindestens ``mindesttage`` Tagen, sortiert nach PERSON_ID.
-- Freigabe: über Vertrag P (meta.protokoll, meta.freigabe, Commit genau der CSV mit Trailer ``Freigegeben-von``);
-  je Berichtsmonat genau eine freigegebene Lieferung.
+- Ablage: die CSV enthält Einzeldaten und liegt außerhalb jedes Git-Repos (``konfig.lieferungen_extern``); im Repo
+  steht nur der Beleg ``abgabe/<datei>.beleg.md`` mit sha256 und Zeilenzahl.
+- Freigabe: über Vertrag P (meta.protokoll, meta.freigabe, Commit genau des Belegs mit Trailer ``Freigegeben-von``);
+  je Berichtsmonat genau eine freigegebene Lieferung. Scheitert die Freigabe, wird der frühere Zustand von CSV und
+  Beleg wiederhergestellt (neue Dateien entfernt) und der Beleg aus dem Git-Index genommen.
+- Abgabe-Definition: vor dem Schreiben prüft ``definition_pruefen``, dass ``altcodes_als_abschnitt`` genau die
+  Altcodes abdeckt, die die freigegebene Zuordnungsregel des Bereinigungs-Regelsatzes in den Abschnitt legt
+  (Regel Q01, wie im Sheet), und dass angehaltene Lieferungen übersprungen werden (Variante S, Annahme A13).
 
 Warum das Lieferfenster „Monat bis Monat + 2“ dasselbe ist wie „je Tag die jüngste Lieferung, die ihn enthält“:
 jede Lieferung ist ein Vollabzug über ihren Berichtsmonat und die zwei Vormonate (Fachbeschreibung § 2). Ein Tag
@@ -28,6 +34,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 from statagent import ergebnis, konfig
 from statagent.db import Verbindung, lieferungen, tupelzeilen
@@ -70,6 +77,8 @@ class Auswertung:
     datenstand: dict[str, str]  # Monat -> verwendete Lieferung
     uebersprungen: dict[str, str] = field(default_factory=dict)  # Monat -> übersprungene Lieferung
     zeilen: list[tuple[int, str, str, int]] = field(default_factory=list)
+    #: die beiden Parameter, an denen die Abgabezahl hängt (Altcodes, angehaltene Lieferungen; Annahme A13)
+    parameter: dict[str, Any] = field(default_factory=dict)
 
     def csv(self, felder: list[str], trennzeichen: str) -> str:
         kopf = trennzeichen.join(felder)
@@ -189,6 +198,7 @@ def personentage(conn: Verbindung, regel: Regel, berichtsmonat: str) -> Auswertu
         bis=bis,
         datenstand=stand,
         uebersprungen=uebersprungen,
+        parameter={"altcodes_als_abschnitt": list(altcodes), "angehaltene_lieferungen": modus},
         zeilen=[
             (int(str(z["person_id"])), str(z["geschlecht"]), str(z["geburtsjahr"]), int(str(z["tage"])))
             for z in zeilen
@@ -207,6 +217,62 @@ def auswertung_regel(conn: Verbindung, regelsatz: str, name: str | None = None) 
     if not regel.freigegeben:
         raise NichtFreigegeben(f"{regel.name} ist nicht freigegeben; zuerst Vorschlag freigeben")
     return regel
+
+
+def altcodes_soll(conn: Verbindung, regel: Regel, berichtsmonat: str) -> tuple[list[str], list[str]]:
+    """Altcodes, die die Zuordnungsregeln des Bereinigungs-Regelsatzes in den Abschnitt ``oenace`` legen.
+
+    Liefert (Codes sortiert, Namen der Regeln). Gelesen wird aus meta.regel (Regel Q01, Parameter ``codes`` und
+    ``ziel``), nicht aus dem Code. Jede beteiligte Regel muss mit Namen freigegeben sein.
+    """
+    rs = str(wert(regel, "bereinigung_regelsatz"))
+    abschnitt = str(wert(regel, "oenace")).strip().upper()
+    codes: set[str] = set()
+    namen: list[str] = []
+    for r in regeln_laden(conn, rs, berichtsmonat):
+        p = r.parameter
+        if (
+            r.typ != "zuordnung"
+            or p.get("merkmal") != "oenace"
+            or str(p.get("ziel", "")).upper() != abschnitt
+        ):
+            continue
+        if not isinstance(p.get("codes"), list):
+            continue
+        if not r.freigegeben:
+            raise NichtFreigegeben(
+                f"{r.name} (Regelsatz {rs}) ist nicht freigegeben; ohne sie steht nicht fest, welche Altcodes"
+                f" zu Abschnitt {abschnitt} zählen"
+            )
+        codes |= {str(c).strip().upper() for c in p["codes"]}
+        namen.append(r.name)
+    return sorted(codes), namen
+
+
+def definition_pruefen(conn: Verbindung, regel: Regel, berichtsmonat: str) -> None:
+    """Weist eine Definition ab, die nicht die Abgabe-Variante rechnet (Annahme A13, Persona-Panel F5).
+
+    Dieselbe Person darf im Sheet nicht zu Abschnitt C zählen und in der Ministeriums-Lieferung aus C fallen:
+    ``altcodes_als_abschnitt`` muss genau die Altcodes der freigegebenen Zuordnungsregel nennen. Angehaltene
+    Lieferungen werden übersprungen (Variante S, Entscheid Lead 58). Bei Abweichung: RegelFehler mit Soll und Ist.
+    """
+    modus = str(wert(regel, "angehaltene_lieferungen"))
+    if modus != "ueberspringen":
+        raise RegelFehler(
+            f"{regel.name}: angehaltene_lieferungen ist {modus!r}, Soll ist 'ueberspringen' (Variante S, Annahme A13)"
+        )
+    ist_roh = wert(regel, "altcodes_als_abschnitt")
+    if not isinstance(ist_roh, list):
+        raise RegelFehler(f"{regel.name}: altcodes_als_abschnitt muss eine Liste von Codes sein")
+    ist = sorted({str(c).strip().upper() for c in ist_roh})
+    soll, namen = altcodes_soll(conn, regel, berichtsmonat)
+    if ist != soll:
+        quelle = ", ".join(namen) or "keine Zuordnungsregel"
+        raise RegelFehler(
+            f"{regel.name}: altcodes_als_abschnitt ist [{', '.join(ist)}], Soll ist [{', '.join(soll)}] laut"
+            f" {quelle} (Regelsatz {wert(regel, 'bereinigung_regelsatz')}); sonst zählt dieselbe Person im Sheet"
+            " zu einem Abschnitt und fällt in der Lieferung heraus (Annahme A13)"
+        )
 
 
 def _bisherige_lieferung(conn: Verbindung, berichtsmonat: str, sha256: str) -> None:
@@ -334,24 +400,27 @@ def ministerium_schreiben(
     beleg_dir: Path | None = None,
     repo_pfad: Path | None = None,
 ) -> tuple[Path, Auswertung]:
-    """Rechnet die Lieferung, schreibt die CSV und gibt sie mit Namen frei.
+    """Rechnet die Lieferung, schreibt die CSV außerhalb des Repos und gibt den Beleg mit Namen frei.
 
-    Ablauf: (1) rechnen, (2) eine frühere Freigabe desselben Berichtsmonats abweisen, (3) CSV schreiben,
-    (4) Beleg ``<datei>.beleg.md`` schreiben (sha256, Zeilen, Definition, Abgabeweg; die CSV enthält Einzeldaten
-    und bleibt laut abgabe/.gitignore außerhalb des Repos), (5) mit ``repo_pfad`` Protokolleintrag und Freigabe über
-    Vertrag P (Commit genau des Belegs mit Trailer ``Freigegeben-von``), (6) meta.ausgabe mit ``protokoll_id``.
-    Scheitert (5), werden CSV und Beleg wieder entfernt.
+    Ablauf: (1) Definition gegen die Abgabe-Variante prüfen (``definition_pruefen``), (2) rechnen, (3) eine
+    frühere Freigabe desselben Berichtsmonats abweisen, (4) CSV in die Ablage außerhalb jedes Git-Repos schreiben
+    (``konfig.lieferungen_extern``, Einzeldaten), (5) Beleg ``<datei>.beleg.md`` im Repo schreiben (sha256, Zeilen,
+    Definition, Abgabeweg), (6) mit ``repo_pfad`` Protokolleintrag und Freigabe über Vertrag P (Commit genau des
+    Belegs mit Trailer ``Freigegeben-von``), (7) meta.ausgabe mit ``protokoll_id``. Scheitert (6), werden CSV und
+    Beleg auf den Stand davor zurückgesetzt (frühere Fassung wiederhergestellt, neue Datei entfernt) und der Beleg
+    aus dem Git-Index genommen.
     """
     person = name_pruefen(name)
     regel = auswertung_regel(conn, regelsatz)
+    definition_pruefen(conn, regel, berichtsmonat)
     auswertung = personentage(conn, regel, berichtsmonat)
     datei = (ziel_dir or konfig.lieferungen_extern()) / str(wert(regel, "datei")).format(
         berichtsmonat=berichtsmonat
     )
     if konfig.im_repo(datei, repo_pfad):
         raise RegelFehler(
-            f"{datei.name} enthält Einzeldaten und darf nicht im Repo liegen; Ablage außerhalb, z. B. "
-            "STATAGENT_LIEFERUNGEN oder lieferungen/ neben dem Repo"
+            f"{datei.name} enthält Einzeldaten und darf nicht im Repo liegen, auch in keinem anderen Git-Repo;"
+            " Ablage außerhalb, z. B. STATAGENT_LIEFERUNGEN oder lieferungen/ neben dem Repo"
         )
     beleg = (beleg_dir or konfig.abgabe()) / f"{datei.stem}.beleg.md"
     wurzel = (repo_pfad or konfig.REPO_WURZEL).resolve()
@@ -370,7 +439,8 @@ def ministerium_schreiben(
     beleg.parent.mkdir(parents=True, exist_ok=True)
     # Frühere Fassungen merken: scheitert die Freigabe, wird der alte Zustand wiederhergestellt statt gelöscht.
     vorher = {p: (p.read_bytes() if p.is_file() else None) for p in (datei, beleg)}
-    datei.write_text(inhalt, encoding="utf-8")
+    # Bytes statt Text: LF-Zeilenende auf jedem System, die Datei entspricht genau der sha256 im Beleg.
+    datei.write_bytes(inhalt.encode("utf-8"))
     beleg.write_text(beleg_text(regel, auswertung, datei.name, sha, person), encoding="utf-8")
     protokoll_id: int | None = None
     if repo_pfad is not None and beleg_ref is not None:
@@ -378,8 +448,16 @@ def ministerium_schreiben(
             protokoll_id = _lieferung_freigeben(
                 conn, person, repo_pfad, beleg_ref, berichtsmonat, auswertung, sha
             )
-        except Exception:
-            # nicht freigegeben: keine neue Datei, die wie eine Lieferung aussieht; Vorhandenes bleibt erhalten
+        except Exception as fehler:
+            # nicht freigegeben: keine neue Datei, die wie eine Lieferung aussieht; Vorhandenes bleibt erhalten.
+            # Der Beleg ist schon gestaged (git add vor dem Commit): aus dem Index nehmen, sonst landet er im
+            # nächsten Commit ohne Freigabe.
+            from plattform.freigabe import GitFehler, _git
+
+            try:
+                _git(repo_pfad, "reset", "-q", "--", beleg_ref)
+            except GitFehler as reset_fehler:
+                fehler.add_note(f"Beleg {beleg_ref} ist noch gestaged: {reset_fehler}")
             for pfad, alt in vorher.items():
                 if alt is None:
                     pfad.unlink(missing_ok=True)

@@ -7,7 +7,7 @@ Zwei Läufe mit denselben Daten und Regeln liefern denselben Ergebnis-Hash.
 
 ## Voraussetzungen
 
-- Python **3.12** oder neuer, [uv](https://docs.astral.sh/uv/) 0.9 oder neuer
+- Python **3.12** oder neuer, [uv](https://docs.astral.sh/uv/) 0.12 oder neuer
 - PostgreSQL **16** mit den Daten des Startpakets (`roh.lieferung`, `klassifikation.*`), Port **5433**:
   im Startpaket `DB_PORT=5433 docker compose up -d`, warten bis `docker logs statagent-db` „fertig“ meldet
 - Startpaket-Ordner (Beispielbericht, Vorlagen) unter `../svbox/uc3` neben dem Repo oder über `STATAGENT_STARTPAKET`
@@ -44,6 +44,7 @@ uv run uc3 berichte --alle && uv run uc3 sheet   # 24 Qualitätsberichte und Agg
 | `eichen` | Zellvergleich gegen `beispielbericht_2024-08.xlsx` |
 | `veroeffentlichen --lieferung JJJJ-MM --name "…"` | gibt einen Monat frei: vorläufig → endgültig, danach unveränderlich |
 | `berichte`, `sheet`, `pruefe-abgabe` | Qualitätsberichte, Aggregations-Sheet, Prüfung der Abgabedateien |
+| `ministerium --monat JJJJ-MM --name "…"` | Ministeriums-Lieferung (Auftrag 3): prüft die Definition gegen Annahme A13 (Altcodes wie Regel Q01, angehaltene Lieferungen überspringen), schreibt die CSV außerhalb jedes Git-Repos und gibt den Beleg (sha256, Zeilenzahl) unter `abgabe/` mit Namen frei; Ausgabe mit beiden Parametern und Zeilenzahl |
 | `protokoll` | Protokoll aller Änderungen: Git-Commits mit `Freigegeben-von`, Regelfreigaben, veröffentlichte Monate |
 
 Der Ergebnis-Hash eines Laufs ist SHA-256 über alle Zellen des Monats: je Zelle eine Zeile

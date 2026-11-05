@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -85,11 +86,39 @@ def lieferungen_extern() -> Path:
     return _haupt_checkout(REPO_WURZEL).parent / "lieferungen"
 
 
+def _in_git_repo(ziel: Path) -> bool:
+    """True, wenn `ziel` (oder sein nächster existierender Elternordner) in irgendeinem Git-Repo liegt.
+
+    Fängt auch Geschwister-Worktrees und fremde Repos, die `im_repo` über die Pfade allein nicht sieht. Ohne
+    lauffähiges git gilt das Ziel vorsichtshalber als Repo.
+    """
+    ordner = ziel
+    while not ordner.is_dir():
+        if ordner.parent == ordner:
+            return False
+        ordner = ordner.parent
+    # GIT_DIR und Co. aus der Umgebung würden git auf ein anderes Repo lenken.
+    umgebung = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    try:
+        lauf = subprocess.run(
+            ["git", "-C", str(ordner), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=umgebung,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return True
+    return lauf.returncode == 0 and bool(lauf.stdout.strip())
+
+
 def im_repo(pfad: Path, repo: Path | None = None) -> bool:
-    """True, wenn `pfad` im Repo (oder in einem Worktree davon) liegt."""
+    """True, wenn `pfad` im Repo, in einem Worktree davon oder in irgendeinem anderen Git-Repo liegt."""
     ziel = pfad.resolve()
     wurzeln = {(repo or REPO_WURZEL).resolve(), _haupt_checkout(repo or REPO_WURZEL).resolve()}
-    return any(ziel == w or w in ziel.parents for w in wurzeln)
+    if any(ziel == w or w in ziel.parents for w in wurzeln):
+        return True
+    return _in_git_repo(ziel)
 
 
 def abgabe() -> Path:

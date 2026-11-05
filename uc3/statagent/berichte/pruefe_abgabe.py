@@ -38,6 +38,12 @@ from statagent.ergebnis import monat_verschieben
 ERSTER_MONAT, MONATE = "2024-08", 24
 MINISTERIUM_KOPF = ["PERSON_ID", "GESCHLECHT", "GEBURTSJAHR", "TAGE"]
 MINDEST_TAGE = 200
+#: Herleitung der Sollzahl der Ministeriums-Lieferung (Annahme A13, Zeile „| A13 | … **32.741 Personen** …“).
+ANNAHMEN = Path("docs") / "plan" / "uc3" / "annahmen.md"
+#: Soll-sha256 der Ministeriums-CSV (Zeile „Soll-sha256: `…`“ mit Herleitung).
+ORAKEL = Path("docs") / "plan" / "uc3" / "ministerium-oracle.md"
+_SOLL_SHA = re.compile(r"^Soll-sha256: `([0-9a-f]{64})`", re.MULTILINE)
+_SOLL_A13 = re.compile(r"^\| A13 \|.*?\*\*([\d.]+) Personen\*\*", re.MULTILINE)
 #: Blätter der Veranstaltervorlage, falls die Vorlage nicht greifbar ist (CI ohne Startpaket).
 VORLAGE_BLAETTER = [
     "Hinweise",
@@ -443,10 +449,46 @@ def _beleg_sha256(beleg: Path) -> str | None:
     return treffer.group(1) if treffer else None
 
 
-def _punkt_ministerium(abgabe_dir: Path, lieferungen_dir: Path | None = None) -> Punkt:
+def ministerium_soll(repo_wurzel: Path) -> int | None:
+    """Sollzahl der Ministeriums-Lieferung aus Annahme A13 in docs/plan/uc3/annahmen.md, sonst None."""
+    pfad = repo_wurzel / ANNAHMEN
+    if not pfad.is_file():
+        return None
+    treffer = _SOLL_A13.search(pfad.read_text(encoding="utf-8"))
+    return _zahl(treffer.group(1)) if treffer else None
+
+
+def ministerium_soll_sha256(repo_wurzel: Path) -> str | None:
+    """Soll-sha256 der Ministeriums-CSV aus docs/plan/uc3/ministerium-oracle.md, sonst None."""
+    pfad = repo_wurzel / ORAKEL
+    if not pfad.is_file():
+        return None
+    treffer = _SOLL_SHA.search(pfad.read_text(encoding="utf-8"))
+    return treffer.group(1) if treffer else None
+
+
+def _beleg_zeilen(beleg: Path) -> int | None:
+    """Personenzahl aus dem Beleg (Zeile „| Zeilen | <n> Personen und 1 Kopfzeile |“), sonst None."""
+    treffer = re.search(r"^\| Zeilen \| (\d+) Personen", beleg.read_text(encoding="utf-8"), re.MULTILINE)
+    return int(treffer.group(1)) if treffer else None
+
+
+def _tausender(n: int) -> str:
+    return f"{n:,}".replace(",", ".")
+
+
+def _punkt_ministerium(
+    abgabe_dir: Path,
+    lieferungen_dir: Path | None = None,
+    soll: int | None = None,
+    soll_sha: str | None = None,
+) -> Punkt:
     """Die CSV enthält Einzeldaten und liegt außerhalb des Repos; im Repo (abgabe/) steht nur der Beleg mit sha256.
 
-    Eine CSV in ``abgabe/`` ist ein Mangel (sie gehört nicht ins öffentliche Repo). Liegt die CSV in
+    Eine CSV in ``abgabe/`` ist ein Mangel (sie gehört nicht ins öffentliche Repo). Die Zeilenzahl im Beleg muss
+    der Sollzahl ``soll`` aus Annahme A13 entsprechen, die sha256 im Beleg der Soll-sha256 ``soll_sha`` aus
+    docs/plan/uc3/ministerium-oracle.md (die Zeilenzahl allein trennt die Varianten nicht; fehlt ein Sollwert, ist
+    das ein Mangel). Liegt die CSV in
     ``lieferungen_dir`` (lokal vor der Abgabe über die SV-Box), wird sie geprüft und gegen die sha256 des Belegs
     abgeglichen; ohne sie reicht der Beleg (Entscheid Lead 58, #16; Review 57 Pflicht B).
     """
@@ -463,12 +505,32 @@ def _punkt_ministerium(abgabe_dir: Path, lieferungen_dir: Path | None = None) ->
     if sha is None:
         return Punkt(name, False, f"{beleg.name} ohne sha256-Zeile")
     pfad = (lieferungen_dir / datei) if lieferungen_dir is not None else None
+    if pfad is not None and pfad.is_file() and hashlib.sha256(pfad.read_bytes()).hexdigest() != sha:
+        return Punkt(name, False, f"{datei} passt nicht zur sha256 im Beleg")
+    personen = _beleg_zeilen(beleg)
+    if personen is None:
+        return Punkt(name, False, f"{beleg.name} ohne Zeilenzahl")
+    if soll is None:
+        return Punkt(name, False, f"Sollzahl nicht gefunden ({ANNAHMEN.as_posix()}, Annahme A13)")
+    if personen != soll:
+        return Punkt(
+            name,
+            False,
+            f"Beleg nennt {_tausender(personen)} Personen, Soll ist {_tausender(soll)} (Annahme A13)",
+        )
+    if soll_sha is None:
+        return Punkt(name, False, f"Soll-sha256 nicht gefunden ({ORAKEL.as_posix()})")
+    if sha != soll_sha:
+        return Punkt(
+            name, False, f"Beleg nennt sha256 {sha[:12]}, Soll ist {soll_sha[:12]} ({ORAKEL.as_posix()})"
+        )
     if pfad is None or not pfad.is_file():
         return Punkt(
-            name, True, f"{datei} nicht im Repo (Einzeldaten, Abgabe über SV-Box); Beleg sha256 {sha[:12]}"
+            name,
+            True,
+            f"{datei} nicht im Repo (Einzeldaten, Abgabe über SV-Box); Beleg sha256 {sha[:12]},"
+            f" {_tausender(personen)} Personen wie Annahme A13",
         )
-    if hashlib.sha256(pfad.read_bytes()).hexdigest() != sha:
-        return Punkt(name, False, f"{datei} passt nicht zur sha256 im Beleg")
     with pfad.open(encoding="utf-8", newline="") as f:
         zeilen = list(csv.reader(f, delimiter=";"))
     if not zeilen or zeilen[0] != MINISTERIUM_KOPF:
@@ -476,6 +538,8 @@ def _punkt_ministerium(abgabe_dir: Path, lieferungen_dir: Path | None = None) ->
     daten = zeilen[1:]
     if not daten:
         return Punkt(name, False, "keine Datenzeilen")
+    if len(daten) != personen:
+        return Punkt(name, False, f"{len(daten)} Datenzeilen, der Beleg nennt {personen}")
     if any(len(z) != len(MINISTERIUM_KOPF) for z in daten):
         return Punkt(name, False, "Zeilen mit falscher Spaltenzahl")
     ids = [z[0] for z in daten]
@@ -485,7 +549,9 @@ def _punkt_ministerium(abgabe_dir: Path, lieferungen_dir: Path | None = None) ->
     zu_wenig = [z[0] for z in daten if not z[3].isdigit() or int(z[3]) < MINDEST_TAGE]
     if zu_wenig:
         return Punkt(name, False, f"{len(zu_wenig)} Zeilen mit TAGE < {MINDEST_TAGE} oder nicht numerisch")
-    return Punkt(name, True, f"{len(daten)} Personen, sortiert, TAGE ≥ {MINDEST_TAGE}")
+    return Punkt(
+        name, True, f"{_tausender(len(daten))} Personen wie Annahme A13, sortiert, TAGE ≥ {MINDEST_TAGE}"
+    )
 
 
 def _punkt_protokoll(abgabe_dir: Path) -> Punkt:
@@ -542,7 +608,12 @@ def pruefe_abgabe(
             _punkt_sheet(abgabe_dir / "aggregationen_v1.xlsx", "Aggregations-Sheet v1", soll, conn),
             _punkt_berichte(abgabe_dir, struktur),
             vorlage_punkt,
-            _punkt_ministerium(abgabe_dir, lieferungen_dir),
+            _punkt_ministerium(
+                abgabe_dir,
+                lieferungen_dir,
+                ministerium_soll(repo_wurzel),
+                ministerium_soll_sha256(repo_wurzel),
+            ),
             _punkt_protokoll(abgabe_dir),
             _punkt_modelle(abgabe_dir, repo_wurzel),
             _punkt_sheet(

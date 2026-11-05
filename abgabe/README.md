@@ -25,6 +25,14 @@ Lieferung, die ihn enthält, wobei die angehaltene Teil-Lieferung 2025-10 übers
 Person ohne Doppelzählung; mindestens 200 Tage; unplausible Geburtsdaten, auch Monat 13, als `Unbekannt`;
 ÖNACE-2003-Altcodes DA bis DN zählen zu Abschnitt C wie im Sheet. Ergebnis im Prototyp: 32.741 Personen.
 
+Anweisung an den Agenten für Auftrag 3 (Wortlaut und Begründung in `docs/plan/uc3/ministerium-oracle.md`):
+`altcodes_als_abschnitt` = DA bis DN (genau die Codes der Regel `Q01_oenace_2003_unterabschnitte` im Regelsatz
+v1), `angehaltene_lieferungen` = `ueberspringen`, also die angehaltene Lieferung 2025-10 überspringen. Soll:
+32.741 Personen; ohne Altcodes kämen 32.713 heraus. `uv run uc3 ministerium` weist eine abweichende Definition
+ohne Datei ab (Exit 1, Meldung mit Soll und Ist) und gibt beide Parameter und die Zeilenzahl aus. `pruefe-abgabe`
+vergleicht die Zeilenzahl im Beleg mit der Sollzahl aus Annahme A13 (`docs/plan/uc3/annahmen.md`) und die sha256
+im Beleg mit der Soll-sha256 aus `docs/plan/uc3/ministerium-oracle.md` (unabhängiges Orakel, CSV mit LF).
+
 Die Lieferung entsteht erst, wenn die Definition (Regelsatz `ministerium`) mit Namen freigegeben ist. Bis dahin
 fehlt der Beleg, und `pruefe-abgabe` meldet die Lieferung als offen.
 

@@ -454,6 +454,10 @@ def ministerium(
         typer.echo(f"nicht erzeugt und nicht freigegeben: {fehler}", err=True)
         raise typer.Exit(1) from fehler
     typer.echo(f"{datei}: {len(auswertung.zeilen)} Personen, Zeitraum {auswertung.von} bis {auswertung.bis}")
+    typer.echo(f"  Zeilen: {len(auswertung.zeilen)} Personen und 1 Kopfzeile")
+    altcodes = auswertung.parameter.get("altcodes_als_abschnitt", [])
+    typer.echo(f"  altcodes_als_abschnitt: [{', '.join(altcodes)}]")
+    typer.echo(f"  angehaltene_lieferungen: {auswertung.parameter.get('angehaltene_lieferungen')}")
     for m, lieferung in auswertung.datenstand.items():
         hinweis = f"  (übersprungen: {auswertung.uebersprungen[m]})" if m in auswertung.uebersprungen else ""
         typer.echo(f"  {m} aus Lieferung {lieferung}{hinweis}")
