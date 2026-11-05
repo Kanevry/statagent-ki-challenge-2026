@@ -76,8 +76,9 @@ AUFWAND_SPRACHE = "niedrig"  # reasoning_effort low; plattform.llm.complete kenn
 NOCHMAL_HINWEIS = (
     "Die Prüfung hat alle Aussagen deines ersten Versuchs verworfen. Gründe: {gruende}. Antworte noch einmal "
     "aus denselben Daten. Kopiere jedes Zitat Zeichen für Zeichen aus dem Abschnitt, mindestens ein ganzer "
-    "Satz. Die Aussage sagt nur, was im Zitat steht, mit dessen Bedingungen, in kurzen Sätzen. Steht die "
-    "Antwort wirklich nicht in den Daten, gib keine Aussage zurück."
+    "Satz. Die Aussage sagt nur, was im Zitat steht, mit dessen Bedingungen, in kurzen Sätzen. Eine Aussage, "
+    "die die Frage nur streift, ist keine Antwort. Beantworten die Daten die Frage nicht, gib keine Aussage "
+    "zurück."
 )
 
 # --------------------------------------------------------------------------------------------------------
@@ -1333,10 +1334,14 @@ def _analysiere(
     # Leistungen mit `nur_regel: true` (z. B. Unfallversicherung) zählen nur über ihre Auslöser: Das Modell
     # deutete „nach einem Sturz im Spital“ als Arbeitsunfall und nannte die AUVA (Aufnahme v8).
     modell_leistungen = [lid for lid in modell_leistungen if not leistungen()[lid].get("nur_regel")]
-    # Reihenfolge: Sitzung, dann Regeln, dann Modell. Die erste Leistung bestimmt Lage und Suchvorrang; ein
-    # Auslöser ist sicherer als ein Modellvorschlag (Dev-Set x12: Arbeitsunfall erkannt, das Modell schlug
-    # Reha und Krankengeld dazu vor, die Antwort glitt auf die Reha ab, #155).
-    erkannt = list(dict.fromkeys([*zustand.get("leistungen", []), *regel_leistungen, *modell_leistungen]))
+    # Reihenfolge: Sitzung, dann Leistungen mit `nur_regel` (enge Auslöser), dann Modell, dann übrige Regeln.
+    # Die erste Leistung bestimmt Lage und Suchvorrang. Dev-Set #155: x12 (Arbeitsunfall erkannt, das Modell
+    # schlug Reha und Krankengeld dazu vor, die Antwort glitt auf die Reha ab) braucht die Unfallversicherung
+    # vorn; x04 (Pflegekarenz auf Englisch) braucht das Modell vor der breiten Pflegegeld-Regel („care“).
+    eng = [lid for lid in regel_leistungen if leistungen()[lid].get("nur_regel")]
+    erkannt = list(
+        dict.fromkeys([*zustand.get("leistungen", []), *eng, *modell_leistungen, *regel_leistungen])
+    )
     ergebnis_.leistungen = erkannt
     if not ergebnis_.lage and erkannt:
         ergebnis_.lage = str(leistungen()[erkannt[0]]["lage"])
