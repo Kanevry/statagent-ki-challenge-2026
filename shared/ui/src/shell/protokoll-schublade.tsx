@@ -170,7 +170,13 @@ export function ProtokollSchublade({ id, uc, onSchliessen, quelle = standardQuel
           <Piktogramm name="schliessen" groesse={18} />
         </button>
       </div>
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 py-2">
+      {/* Scrollbereich in der Fokusliste der Fokusfalle: mit Tab erreichbar, Pfeil und Bild-ab scrollen (Review !45). */}
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label="Protokoll-Einträge"
+        className={klassen("flex flex-1 flex-col gap-4 overflow-y-auto px-5 py-2", fokus)}
+      >
         {zustand.art === "laden" && (
           <p role="status" className="py-2 font-sans text-14 text-slate">
             Protokoll wird geladen.

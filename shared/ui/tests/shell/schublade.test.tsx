@@ -89,8 +89,11 @@ describe("Protokoll-Schublade", () => {
     const schublade = screen.getByRole("dialog");
     const erneut = await screen.findByRole("button", { name: "Erneut laden" });
     const schliessen = screen.getByRole("button", { name: "Schließen" });
+    const liste = screen.getByRole("region", { name: "Protokoll-Einträge" });
     await nutzer.tab();
     expect(document.activeElement).toBe(schliessen);
+    await nutzer.tab();
+    expect(document.activeElement).toBe(liste);
     await nutzer.tab();
     expect(document.activeElement).toBe(erneut);
     await nutzer.tab();
@@ -98,6 +101,27 @@ describe("Protokoll-Schublade", () => {
     await nutzer.tab({ shift: true });
     expect(document.activeElement).toBe(erneut);
     expect(schublade.contains(document.activeElement)).toBe(true);
+  });
+
+  // Fängt ab (Review !45): mit geladener Liste enthält die Fokusfalle nur „Schließen“, die scrollbare Liste ist
+  // per Tastatur unerreichbar; und die Falle darf Pfeil und Bild-ab nicht schlucken.
+  it("Tab erreicht die Liste, Pfeil und Bild-ab bleiben beim Scrollbereich", async () => {
+    antworte({ "/api/uc3/protokoll": fixture });
+    const nutzer = userEvent.setup();
+    render(<AppShell pfad="/uc3">inhalt</AppShell>);
+    await nutzer.click(screen.getByRole("button", { name: "Protokoll" }));
+    await screen.findByText(fixture[0]!.anweisung);
+    const liste = screen.getByRole("region", { name: "Protokoll-Einträge" });
+    const schliessen = screen.getByRole("button", { name: "Schließen" });
+    await nutzer.tab();
+    expect(document.activeElement).toBe(schliessen);
+    await nutzer.tab();
+    expect(document.activeElement).toBe(liste);
+    for (const key of ["ArrowDown", "PageDown"]) {
+      const ereignis = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      liste.dispatchEvent(ereignis);
+      expect(ereignis.defaultPrevented, key).toBe(false);
+    }
   });
 
   it("zeigt die Uhrzeit allein, das Datum nur bei Einträgen von einem anderen Tag", async () => {
