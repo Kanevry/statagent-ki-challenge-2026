@@ -4,8 +4,8 @@
 
 | Teil | Modell | Wofür | Wo |
 |---|---|---|---|
-| Monatslauf, Prüfungen, Qualitätsberichte, Aggregations-Sheet, Ministeriums-Lieferung | **keines** | Zahlen entstehen nur durch SQL und Python (`uv run uc3 lauf`, `berichte`, `sheet`); zwei Läufe liefern denselben Ergebnis-Hash | lokal, PostgreSQL 16 |
-| Eigene Agenten (Koordinator, Datenmanagement, Klassifikation, Qualitätssicherung, Reporting) | **Azure AI Foundry `gpt-5-4-mini`** (Deployment des Veranstalters, Endpunkt West Europe) | Änderungsaufträge in Sprache verstehen und als Vorschlag formulieren (Regeländerung oder Code-Datei); Datenanfragen in eine sichtbare Abfrage übersetzen | über `plattform.llm` (Schalter `LLM_PROVIDER`) |
+| Monatslauf, Prüfungen, Qualitätsberichte, Aggregations-Sheet, Ministeriums-Lieferung, Datenanfragen (`uc3 frage`, `uc3 antwort`), Klassifikationen (`uc3 klass`) | **keines** | Zahlen entstehen nur durch SQL und Python (`uv run uc3 lauf`, `berichte`, `sheet`); zwei Läufe liefern denselben Ergebnis-Hash | lokal, PostgreSQL 16 |
+| Eigene Agenten (Koordinator, Datenmanagement, Klassifikation, Qualitätssicherung, Reporting) | **Azure AI Foundry `gpt-5-4-mini`** (Deployment des Veranstalters, Endpunkt West Europe) | Änderungsaufträge in Sprache verstehen und als Vorschlag formulieren (Regeländerung oder Code-Datei) | über `plattform.llm` (Schalter `LLM_PROVIDER`) |
 | Austauschbar (Technische Regel 4) | Mistral (EU, Zweitanbieter), Ollama (offline, Notnagel) | gleiche Aufgaben, gleiche Schnittstelle | `LLM_PROVIDER=mistral` bzw. `ollama` |
 | Tests, CI | `mock` (feste Antworten) | Agenten-Tests ohne Netz | `LLM_PROVIDER=mock` |
 
