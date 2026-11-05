@@ -73,8 +73,9 @@ def main() -> int:
     argumente = argparse.ArgumentParser()
     argumente.add_argument("--aus", type=Path, help="Matrix zusätzlich in diese Datei schreiben")
     argumente.add_argument("--id", default="", help="Nur diese Zeilen, mit Komma getrennt")
+    argumente.add_argument("--katalog", type=Path, help="Andere Tabelle statt fragen_katalog.md")
     optionen = argumente.parse_args()
-    zeilen = katalog_lesen()
+    zeilen = katalog_lesen(optionen.katalog) if optionen.katalog else katalog_lesen()
     if optionen.id:
         gewaehlt = set(optionen.id.split(","))
         zeilen = [z for z in zeilen if z.id in gewaehlt]

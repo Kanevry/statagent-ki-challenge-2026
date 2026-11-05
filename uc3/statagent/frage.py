@@ -602,7 +602,7 @@ def _ausserhalb_text(von: str, bis: str) -> str:
     zeit = zeitraum_anzeige(von, bis)
     daten = zeitraum_anzeige(ERSTE_LIEFERUNG, LETZTE_LIEFERUNG)
     neu_von, neu_bis = monat_verschieben(von, 12), monat_verschieben(bis, 12)
-    if von[5:7] == "12" and bis[5:7] == "02" and ERSTE_LIEFERUNG <= neu_von and neu_bis <= LETZTE_LIEFERUNG:
+    if von[5:7] == "12" and bis[5:7] == "02" and neu_von >= ERSTE_LIEFERUNG and neu_bis <= LETZTE_LIEFERUNG:
         return (
             f"Für {zeit} gibt es keine Zahl, Daten gibt es nur für {daten}. "
             f"Meinen Sie den Winter {neu_von[:4]}/{neu_bis[2:4]}, also {zeitraum_anzeige(neu_von, neu_bis)}?"
@@ -928,7 +928,7 @@ def _bestand_antwort(
                 }
             )
     if not zahlen:
-        if bis < ERSTE_LIEFERUNG or von > LETZTE_LIEFERUNG:
+        if von != bis and (bis < ERSTE_LIEFERUNG or von > LETZTE_LIEFERUNG):
             # Ganz außerhalb der Daten: zuerst das, die Kette zeigt nur den ersten Satz.
             return _rueckfrage(_ausserhalb_text(von, bis))
         if von == bis and not staende:
@@ -937,7 +937,7 @@ def _bestand_antwort(
             text = f"Für {zeitraum_anzeige(von, bis)} gibt es keine Zahl."
         return _antwort(
             typ,
-            " ".join([text, verstanden, *hinweise]),
+            " ".join([verstanden, text, *hinweise]),
             definition=definition,
             einheit=einheit,
             stand=staende,
