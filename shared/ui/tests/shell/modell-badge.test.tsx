@@ -94,3 +94,39 @@ describe("ModellBadge lädt periodisch neu", () => {
     expect(holen).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("ModellBadge nach Frames CKCV4 und nas8Y", () => {
+  it("ist eine violette Pille mit Punkt und Wechsel-Symbol, der Wert steht in Mono", async () => {
+    zeige({ ...gewaehlt, zuletzt: null });
+    const wert = await screen.findByText("azure · gpt-5");
+    expect(wert.className).toContain("font-mono");
+    const badge = screen.getByTestId("modell-badge");
+    expect(badge.className).toContain("rounded-full");
+    expect(badge.className).toContain("bg-violett-bg");
+    expect(badge.className).not.toContain("border-l-2");
+    expect(badge.querySelector('[data-piktogramm="wechseln"]')?.getAttribute("width")).toBe("14");
+  });
+
+  it("kurz im Header, „Modell:“ nur für Screenreader; lang mit „Modell:“ und „austauschbar“ sichtbar", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ...gewaehlt, zuletzt: null })));
+    const kurz = render(<ModellBadge />);
+    await screen.findByText("azure · gpt-5");
+    expect(kurz.container.textContent).toBe("Modell:azure · gpt-5");
+    expect(screen.getByText("Modell:").className).toContain("sr-only");
+    kurz.unmount();
+
+    const lang = render(<ModellBadge lang />);
+    await screen.findByText("azure · gpt-5");
+    expect(lang.container.textContent).toBe("Modell:azure · gpt-5· austauschbar");
+    expect(screen.getByText("Modell:").className).not.toContain("sr-only");
+  });
+
+  it("zeigt den Fehlerzustand als Warn-Chip mit Symbol und Wort", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 500 })));
+    render(<ModellBadge />);
+    const chip = await screen.findByText("Modell nicht erreichbar").then((t) => t.closest("[data-testid=modell-badge]")!);
+    expect(chip.textContent).toBe("Modell nicht erreichbar");
+    expect(chip.className).toContain("bg-warn-bg");
+    expect(chip.querySelector("[data-status-symbol=warnung]")).not.toBeNull();
+  });
+});

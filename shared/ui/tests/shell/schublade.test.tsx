@@ -29,7 +29,11 @@ describe("Protokoll-Schublade", () => {
     await nutzer.click(knopf);
     const schublade = screen.getByRole("dialog", { name: "Protokoll StatAgent" });
     await screen.findByText("Lieferung 2025-03 freigeben");
-    expect(screen.getByText("Freigegeben").closest("[data-status]")?.getAttribute("data-status")).toBe("freigegeben");
+    // Frame yK42X: die Art steht als Wort vor dem Namen, bei einer Freigabe in Grün.
+    const freigabe = screen.getByText("Freigabe");
+    expect(freigabe.closest("[data-status]")?.getAttribute("data-status")).toBe("freigegeben");
+    expect(freigabe.className).toContain("text-gruen");
+    expect(screen.getByText("Vorschlag").closest("[data-status]")?.getAttribute("data-akteur")).toBe("agent");
     expect(aufrufe).toContain("/api/uc3/protokoll");
     await screen.findByText("mock · mock");
 
@@ -58,6 +62,26 @@ describe("Protokoll-Schublade", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(geruest.hasAttribute("inert")).toBe(false);
     expect(document.activeElement).toBe(knopf);
+  });
+
+  it("zeigt die Uhrzeit allein, das Datum nur bei Einträgen von einem anderen Tag", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-05T12:00:00+01:00"));
+    antworte({
+      "/api/uc3/protokoll": [
+        { ...fixture[1], id: 2, zeit: "2026-11-05T11:05:00+01:00" },
+        { ...fixture[1], id: 1, zeit: "2026-11-03T10:30:00+01:00" },
+      ],
+    });
+    try {
+      const nutzer = userEvent.setup({ advanceTimers: () => {} });
+      render(<AppShell pfad="/uc3">inhalt</AppShell>);
+      await nutzer.click(screen.getByRole("button", { name: "Protokoll" }));
+      const zeiten = await screen.findAllByText(/^\d\d:\d\d$/);
+      expect(zeiten.map((z) => z.closest("time")?.textContent)).toEqual(["11:05", "10:3003.11."]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("zeigt den Fehlerzustand, wenn die Antwort den Vertrag verletzt", async () => {

@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppHeader } from "../../src/shell/header";
-import { protokollUc, zeigtHeader } from "../../src/shell/navigation";
+import { marke, protokollUc, zeigtHeader } from "../../src/shell/navigation";
 
 function zeige(pfad: string) {
   vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
@@ -15,8 +15,8 @@ describe("AppHeader", () => {
     zeige("/uc3");
     const links = within(screen.getByRole("navigation", { name: "Bereiche" })).getAllByRole("link");
     expect(links.map((l) => l.getAttribute("href"))).toEqual(["/", "/uc3", "/uc1", "/uc2", "/uc4", "/praesentation"]);
-    expect(links[1]?.textContent).toBe("UC3 StatAgentbewertet");
-    expect(links[4]?.textContent).toBe("UC4 Einstieg");
+    expect(links[1]?.textContent).toBe("UC3 · StatAgentbewertet");
+    expect(links[4]?.textContent).toBe("UC4 · Einstieg");
     expect(links.filter((l) => l.textContent?.includes("bewertet"))).toHaveLength(1);
   });
 
@@ -37,6 +37,43 @@ describe("AppHeader", () => {
     expect(document.activeElement).toBe(links[5]);
     await nutzer.keyboard("{Home}");
     expect(document.activeElement).toBe(links[0]);
+  });
+});
+
+describe("AppHeader nach Frame nas8Y", () => {
+  it("füllt den aktiven Tab mit Grün und weißer Fettschrift, die anderen bleiben ohne Fläche", () => {
+    zeige("/uc3");
+    const [uebersicht, uc3] = screen.getAllByRole("link");
+    expect(uc3?.className).toContain("bg-gruen");
+    expect(uc3?.className).toContain("text-white");
+    expect(uc3?.className).toContain("font-bold");
+    expect(uebersicht?.className).not.toContain("bg-gruen");
+    expect(uebersicht?.className).toContain("rounded-lg");
+  });
+
+  it("setzt den Chip „bewertet“ in Mint auf UC3", () => {
+    zeige("/uc1");
+    const chip = screen.getByText("bewertet");
+    expect(chip.className).toContain("bg-mint");
+    expect(chip.closest("a")?.getAttribute("data-tab")).toBe("uc3");
+  });
+
+  it("zeigt links die Marke mit zweiter Zeile und rechts den Protokoll-Knopf mit Symbol", () => {
+    zeige("/uc3");
+    const kopf = screen.getByRole("banner");
+    expect(kopf.querySelector("[data-marke]")?.textContent).toBe("StatAgentby Bernhard Götzendorfer · Team OneShotAndy");
+    const knopf = screen.getByRole("button", { name: "Protokoll" });
+    expect(knopf.querySelector('[data-piktogramm="protokoll"]')).not.toBeNull();
+    expect(knopf.className).toContain("border-line");
+  });
+
+  it("nennt die Marke nur auf UC3 StatAgent, sonst OneShotAndy", () => {
+    expect(marke("/uc3").name).toBe("StatAgent");
+    expect(marke("/uc3/lauf/2025-10").name).toBe("StatAgent");
+    for (const pfad of ["/uc1", "/uc2", "/uc4", "/praesentation", "/_bausteine"]) {
+      expect(marke(pfad).name, pfad).toBe("OneShotAndy");
+    }
+    expect(marke("/uc1").zeile).not.toContain("—");
   });
 });
 

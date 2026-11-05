@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { Knopf } from "../basis/knopf";
 import { fokus, klassen } from "../basis/klassen";
 import { Leerzustand } from "../basis/leerzustand";
+import { Piktogramm } from "../basis/piktogramm";
 import { Status } from "../basis/status";
 import type { BereichId, UcEintrag } from "../ucs";
 import { eintraegeSchema, type Eintrag } from "./eintrag";
 
-// Protokoll-Schublade (Pen-Frame yK42X): 380 px, rechts, modal. Zeigt, wer was angewiesen hat und was daraus
-// wurde. Sie setzt unter dem Header an (`oben`), damit Modell-Badge und Knopf „Protokoll“ sichtbar bleiben.
+// Protokoll-Schublade (Pen-Frame yK42X): 380 px, rechts, modal. Eine Liste: Uhrzeit in Mono, daneben Art und Wer,
+// darunter was angewiesen wurde und was daraus wurde. Einträge von einem anderen Tag tragen das Datum unter der Uhrzeit. Sie setzt unter dem Header an (`oben`), damit Modell-Badge und Knopf „Protokoll“ sichtbar bleiben.
 // Esc schließt. Den übrigen Inhalt macht die AppShell `inert` und gibt dem Knopf „Protokoll“ beim Schließen
 // den Fokus zurück. Eine Antwort, die den Vertrag `Eintrag` verletzt, zeigt den Fehlerzustand statt halber Daten.
 
@@ -31,42 +32,41 @@ const datum = new Intl.DateTimeFormat("de-AT", { timeZone: "Europe/Vienna", day:
 const uhrzeit = new Intl.DateTimeFormat("de-AT", { timeZone: "Europe/Vienna", hour: "2-digit", minute: "2-digit" });
 const voll = new Intl.DateTimeFormat("de-AT", { timeZone: "Europe/Vienna", dateStyle: "long", timeStyle: "medium" });
 
-function StatusWort({ status }: { status: Eintrag["status"] }) {
-  if (status === "freigegeben") return <Status art="ok">Freigegeben</Status>;
-  if (status === "abgelehnt") return <Status art="fehler">Abgelehnt</Status>;
-  return <Status art="info">Wartet auf Freigabe</Status>;
+/** Art des Eintrags, wie der Frame sie nennt: der Status des Eintrags und wer ihn schrieb ergeben das Wort. */
+function art(eintrag: Eintrag): { wort: string; klasse: string } {
+  if (eintrag.status === "freigegeben") return { wort: "Freigabe", klasse: "text-gruen" };
+  if (eintrag.status === "abgelehnt") return { wort: "Ablehnung", klasse: "text-err-fg" };
+  return { wort: eintrag.akteur === "agent" ? "Vorschlag" : "Anweisung", klasse: "text-ink" };
 }
 
-function Zeile({ eintrag }: { eintrag: Eintrag }) {
+function Zeile({ eintrag, heute }: { eintrag: Eintrag; heute: string }) {
   const zeit = new Date(eintrag.zeit);
+  const tag = datum.format(zeit);
+  const { wort, klasse } = art(eintrag);
   return (
-    <tr className="border-b border-line align-top" data-status={eintrag.status}>
-      <td className="py-2 pr-2 font-mono tabular-nums text-slate">
-        <time dateTime={eintrag.zeit} title={voll.format(zeit)} className="flex flex-col">
-          <span>{datum.format(zeit)}</span>
-          <span>{uhrzeit.format(zeit)}</span>
-        </time>
-      </td>
-      <td className="py-2 pr-2 text-ink">
-        {eintrag.akteur === "agent" ? <span className="border-l-2 border-violett pl-1">Agent</span> : "Mensch"}
-      </td>
-      <td className="py-2 pr-2 break-words text-ink">{eintrag.name}</td>
-      <td className="py-2">
-        <div className="flex flex-col items-start gap-1">
-          <span className="text-ink">{eintrag.anweisung}</span>
-          {eintrag.wirkung && <span className="text-slate">{eintrag.wirkung}</span>}
-          <StatusWort status={eintrag.status} />
-        </div>
-      </td>
-    </tr>
+    <li
+      className="flex gap-3 border-b border-line py-3 font-sans text-13"
+      data-status={eintrag.status}
+      data-akteur={eintrag.akteur}
+    >
+      <time
+        dateTime={eintrag.zeit}
+        title={voll.format(zeit)}
+        className="flex w-10 shrink-0 flex-col font-mono text-12 tabular-nums text-slate"
+      >
+        <span>{uhrzeit.format(zeit)}</span>
+        {tag !== heute && <span>{tag}</span>}
+      </time>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <p className="flex flex-wrap items-center gap-x-1.5">
+          <span className={klassen("font-bold", klasse)}>{wort}</span>
+          <span className="break-words text-slate">{`· ${eintrag.name}`}</span>
+        </p>
+        <p className="break-words text-ink">{eintrag.anweisung}</p>
+        {eintrag.wirkung && <p className="break-words text-slate">{eintrag.wirkung}</p>}
+      </div>
+    </li>
   );
-}
-
-function Zusammenfassung({ eintraege }: { eintraege: Eintrag[] }) {
-  const offen = eintraege.filter((e) => e.status === "offen").length;
-  const anzahl = eintraege.length === 1 ? "1 Eintrag" : `${eintraege.length} Einträge`;
-  const warten = offen === 0 ? "nichts wartet auf Freigabe" : `${offen} ${offen === 1 ? "wartet" : "warten"} auf Freigabe`;
-  return <p className="font-sans text-14 text-ink">{`${anzahl}, ${warten}.`}</p>;
 }
 
 export function ProtokollSchublade({ id, uc, onSchliessen, quelle = standardQuelle, oben = 0 }: ProtokollSchubladeProps) {
@@ -103,40 +103,42 @@ export function ProtokollSchublade({ id, uc, onSchliessen, quelle = standardQuel
     return () => abbruch.abort();
   }, [adresse, versuch]);
 
-  const titelId = `${id}-titel`;
+  const heute = datum.format(new Date());
   return (
     <div
       id={id}
       role="dialog"
       aria-modal="true"
-      aria-labelledby={titelId}
+      aria-label={`Protokoll ${uc.name}`}
       style={{ top: oben }}
       className="fixed bottom-0 right-0 z-50 flex w-95 max-w-full flex-col border-l border-t border-line bg-white"
     >
-      <div className="flex items-start justify-between gap-4 border-b border-line p-4">
-        <div className="flex flex-col gap-1">
-          <h2
-            ref={titel}
-            id={titelId}
-            tabIndex={-1}
-            className={klassen("font-display text-20 font-bold text-ink", fokus)}
-          >
-            {`Protokoll ${uc.name}`}
-          </h2>
-          <p className="font-sans text-14 text-slate">Wer hat was angewiesen, und was ist daraus geworden.</p>
-        </div>
-        <Knopf art="sekundaer" onClick={onSchliessen}>
-          Schließen
-        </Knopf>
+      <div className="flex items-center gap-2 border-b border-line px-5 py-4">
+        <Piktogramm name="protokoll" groesse={18} className="shrink-0 text-ink" />
+        <h2
+          ref={titel}
+          tabIndex={-1}
+          className={klassen("flex-1 font-display text-20 font-bold text-ink", fokus)}
+        >
+          Protokoll
+        </h2>
+        <button
+          type="button"
+          aria-label="Schließen"
+          onClick={onSchliessen}
+          className={klassen("inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-slate hover:bg-paper", fokus)}
+        >
+          <Piktogramm name="schliessen" groesse={18} />
+        </button>
       </div>
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 py-2">
         {zustand.art === "laden" && (
-          <p role="status" className="font-sans text-14 text-slate">
+          <p role="status" className="py-2 font-sans text-14 text-slate">
             Protokoll wird geladen.
           </p>
         )}
         {zustand.art === "fehler" && (
-          <div role="alert" className="flex flex-col items-start gap-4">
+          <div role="alert" className="flex flex-col items-start gap-4 py-2">
             <Status art="fehler">Protokoll nicht erreichbar</Status>
             <p className="font-sans text-14 text-slate">Die Einträge kamen nicht oder nicht im erwarteten Format.</p>
             <Knopf art="sekundaer" onClick={() => setVersuch((v) => v + 1)}>
@@ -148,31 +150,11 @@ export function ProtokollSchublade({ id, uc, onSchliessen, quelle = standardQuel
           <Leerzustand satz={`Für ${uc.name} gibt es noch keine Einträge.`} className="py-0" />
         )}
         {zustand.art === "ok" && zustand.eintraege.length > 0 && (
-          <>
-            <Zusammenfassung eintraege={zustand.eintraege} />
-            <table className="w-full table-fixed border-collapse text-left font-sans text-12">
-              <caption className="sr-only">{`Protokoll ${uc.name}, neueste zuerst`}</caption>
-              <colgroup>
-                <col className="w-14" />
-                <col className="w-16" />
-                <col className="w-24" />
-                <col />
-              </colgroup>
-              <thead>
-                <tr className="border-b border-line text-slate">
-                  <th scope="col" className="py-2 pr-2 font-medium">Zeit</th>
-                  <th scope="col" className="py-2 pr-2 font-medium">Art</th>
-                  <th scope="col" className="py-2 pr-2 font-medium">Wer</th>
-                  <th scope="col" className="py-2 font-medium">Was</th>
-                </tr>
-              </thead>
-              <tbody>
-                {zustand.eintraege.map((eintrag) => (
-                  <Zeile key={eintrag.id} eintrag={eintrag} />
-                ))}
-              </tbody>
-            </table>
-          </>
+          <ol aria-label={`Protokoll ${uc.name}, neueste zuerst`} className="flex flex-col">
+            {zustand.eintraege.map((eintrag) => (
+              <Zeile key={eintrag.id} eintrag={eintrag} heute={heute} />
+            ))}
+          </ol>
         )}
       </div>
     </div>
