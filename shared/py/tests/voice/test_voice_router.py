@@ -434,7 +434,7 @@ def test_budget_erschoepft_wird_429_mit_meldung(umgebung):
 
     antwort_http = _app(ohne_budget).post("/chat/completions", json=ANFRAGE, headers=_bearer())
     assert antwort_http.status_code == 429
-    assert "Tagesbudget" in antwort_http.json()["detail"]
+    assert antwort_http.json()["detail"] == kern.BUDGET_MELDUNG
 
 
 def test_andere_fehler_aus_antwort_bleiben_500(umgebung):
@@ -461,8 +461,11 @@ def test_gueltige_aufrufe_je_ip_begrenzt(umgebung, antwort, monkeypatch):
     ("roh", "erwartet"),
     [
         ("customer-ended-call", "customer-ended-call"),
-        ("pipeline-error-openai-llm-failed", "pipeline-error-openai-llm-failed"),
-        ("call.in-progress.error-vapifault-transport-never-connected", None),
+        # Review !38 (#119): Präfix-Einträge ergeben nur ihre Kategorie, der freie Anhang fällt weg
+        ("pipeline-error-openai-llm-failed", "pipeline-error"),
+        ("pipeline-error-irgendwas-frei-erfunden", "pipeline-error"),
+        ("pipeline-error-", "pipeline-error"),
+        ("call.in-progress.error-vapifault-transport-never-connected", "call"),
         ("pipeline-error-+43 664 1234567", "sonstiges"),
         ("pipeline-error-436641234567", "sonstiges"),
         ("Herr Mustermann legte auf", "sonstiges"),
@@ -482,6 +485,33 @@ def test_webhook_zweiter_bericht_desselben_anrufs_schreibt_keine_zeile(client, u
     monkeypatch.setattr(kern, "_GEMELDET", OrderedDict())
     assert client.post("/vapi/webhook", json=_bericht(), headers=kopf).json() == {"status": "doppelt"}
     assert len((umgebung / "voice.jsonl").read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_webhook_wiederholung_nach_schreibfehler_schreibt_die_zeile(client, umgebung, monkeypatch):
+    """Fängt (Review !38/!55, #119): call_id vor dem Schreiben gemerkt, Vapis Retry als doppelt verworfen."""
+    kopf = {"x-vapi-secret": SECRET}
+    ziel = umgebung / "voice.jsonl"
+    echtes_open = Path.open
+    geworfen: list[bool] = []
+
+    def open_mit_einem_fehler(self, mode="r", *args, **kwargs):
+        if self == ziel and "a" in mode and not geworfen:
+            geworfen.append(True)
+            raise OSError("Platte voll")
+        return echtes_open(self, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", open_mit_einem_fehler)
+    nicht_test_client = TestClient(client.app, raise_server_exceptions=False)
+    assert nicht_test_client.post("/vapi/webhook", json=_bericht(), headers=kopf).status_code == 500
+    assert geworfen == [True]
+    assert client.post("/vapi/webhook", json=_bericht(), headers=kopf).json() == {"status": "ok"}
+    assert len(ziel.read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_metadata_uc4_bleibt_uc4(umgebung, antwort):
+    """Fängt (Review !38, #119): metadata.uc = uc4 wurde zu „unbekannt“."""
+    _app(antwort).post("/chat/completions", json={**ANFRAGE, "metadata": {"uc": "uc4"}}, headers=_bearer())
+    assert [s.uc for _, s in antwort.aufrufe] == ["uc4"]
 
 
 def test_webhook_endgrund_mit_telefonnummer_landet_nicht_im_log(client, umgebung):
