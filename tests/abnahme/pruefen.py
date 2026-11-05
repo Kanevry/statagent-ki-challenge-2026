@@ -160,6 +160,9 @@ def db_umgebung(datei: Path) -> str:
         if "=" not in zeile or zeile.lstrip().startswith("#"):
             continue
         name, wert = (t.strip().strip("'\"") for t in zeile.split("=", 1))
+        if name in ("STATAGENT_STARTPAKET", "STATAGENT_ABGABE"):
+            UMGEBUNG[name] = wert
+            continue
         if not name.endswith("DATABASE_URL"):
             continue
         teile = urlsplit(wert)
