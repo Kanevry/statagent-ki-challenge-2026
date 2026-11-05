@@ -4,6 +4,8 @@
 //
 // Aufruf aus web/ (dort liegt @playwright/test):
 //   BASIS_URL=<url> AUSGABE=<datei.mp4> node ../docs/praesentation/werkzeug/backup_video.mjs
+// Für die Vorführ-Adresse zusätzlich VORFUEHRUNG_ZUGANG aus der .env.local in der Umgebung. Die öffentliche Adresse hat
+// keine bereinigten Einzeldaten und bricht bei der Fluktuationsfrage ab.
 // Läuft auf dem Zweitrechner, nie auf dem Vortragsrechner. Ändert keine Daten: nur lesen, die Datenanfragen
 // lesen die Datenbank. Die Kennzeichnung „Aufzeichnung vom …“ steht von der ersten bis zur letzten Sekunde im Bild.
 // Stimmt eine Antwort nicht mit der Sollzahl überein, bricht die Aufnahme ab, statt eine falsche Zahl aufzunehmen.
@@ -109,6 +111,8 @@ let ok = false;
 try {
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 },
+    // Vorführ-Adresse mit Passwort: Zugang nur aus der Umgebung, nie als Argument (`docs/betrieb/vorfuehrung.md`).
+    ...(process.env.VORFUEHRUNG_ZUGANG ? { httpCredentials: { username: "vorfuehrung", password: process.env.VORFUEHRUNG_ZUGANG } } : {}),
     deviceScaleFactor: 1,
     recordVideo: { dir: ordner, size: { width: 1920, height: 1080 } },
   });
