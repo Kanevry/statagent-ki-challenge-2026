@@ -131,16 +131,16 @@
   },
   {
     "bild": "SC11",
-    "motiv": "Kopf der App mit Wechsel zwischen den Use Cases",
+    "motiv": "Gemeinsamer Einstieg (UC4) mit dem Wechsel der Use Cases im App-Kopf",
     "folie": 10,
     "quelle": "oberflaeche",
-    "route": "/uc1",
-    "commit": "fdf78a1218b4390084e9b6c0b08186d8f6371911",
+    "route": "/uc4",
+    "commit": "4495de3cf9f53fc73d218d8968cf00ac24252e7b",
     "lauf": null,
     "pen_frame": null,
     "art": "live",
-    "aufgenommen_am": "2026-11-05T15:55:35+01:00",
-    "hinweis": "öffentliche Demo, aufgenommen mit werkzeug/aufnahme.mjs (Desktop 1920x1080, Mobil 390x844 @3x unter screens/mobil/). Stand origin/main zur Aufnahmezeit, Demo-Commit nicht sichtbar. UC1-Seite zeigt den Leerzustand, Modellanzeige mock."
+    "aufgenommen_am": "2026-11-05T16:27:58+01:00",
+    "hinweis": "Öffentliche Demo, Stand origin/main zur Aufnahmezeit; Demo-Commit auf der Seite nicht sichtbar. Modelle online im Testmodus."
   },
   {
     "bild": "SC12",

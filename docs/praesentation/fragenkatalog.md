@@ -53,7 +53,7 @@ ORDER BY zeitraum_bis;
 
 **Zahlen:** Erste Zeile muss 392.236 ergeben (F2). Datenbasis 24 Monatslieferungen (F3). Alle anderen Monate: Ergebnis live aus der Abfrage.
 
-**Hinweis:** Solange der Regelsatz nicht mit Namen freigegeben ist, steht bei allen Monaten „vorläufig“. Nach der Freigabe bleibt „vorläufig“ nur bei 2025-03 und 2025-10, weil dort Teile der Lieferung fehlten (F9, F11).
+**Hinweis:** Die Regel-Freigabe macht keinen Monat endgültig. Jeder Lauf ist vorläufig (`uc3/statagent/lauf.py`, Zeile 151 bis 152). Endgültig wird ein Monat nur mit `uv run uc3 veroeffentlichen --lieferung JJJJ-MM --name "…"` (`uc3/statagent/cli.py`, Zeile 300). Danach ist er unveränderlich. Bei 2025-03 und 2025-10 wurde fortgeschrieben, weil Teile der Lieferung fehlten (F9, F11). Solche Monate veröffentlicht der Befehl nicht ohne Weiteres. Ob veröffentlicht wird, entscheidet der Lead.
 
 ### A2 Männer und Frauen je Bundesland, ein Monat
 
@@ -131,9 +131,9 @@ LEFT JOIN stat.klass_oenace k
 ORDER BY 1;
 ```
 
-**Klassifikationswechsel (F13):** Ab Lieferung 2025-01 gilt ÖNACE 2025, auch rückwirkend für den 31.12.2024. 189.170 von 386.299 Verhältnissen tragen dort einen anderen Abschnittscode. Deshalb gilt für Fluktuation über den Jahreswechsel: beide Stichtage aus derselben Lieferung nehmen (zum Beispiel 31.12.2024 und 31.01.2025 aus Lieferung 2025-01) oder die Umsteiger ausdrücklich nennen. Zwei Monate aus Lieferungen mit verschiedener ÖNACE-Version nie Abschnitt gegen Abschnitt vergleichen.
+**Wechsel der ÖNACE-Version (F13):** Klassifikationswechsel ÖNACE 2008 → 2025 ab Lieferung 2025-01, auch rückwirkend für Dezember 2024. Deshalb gilt für Fluktuation über den Jahreswechsel: beide Stichtage aus derselben Lieferung nehmen (zum Beispiel 31.12.2024 und 31.01.2025 aus Lieferung 2025-01) oder die Umsteiger ausdrücklich nennen. Zwei Monate aus Lieferungen mit verschiedener ÖNACE-Version nie Abschnitt gegen Abschnitt vergleichen.
 
-**Grenze der Skizze:** Abschnitte, die bei einem Lieferausfall aus der Vorlieferung fortgeschrieben wurden (Spalte `herkunft`), zählen mit. Für 2025-03 und 2025-10 deshalb den Hinweis „vorläufig“ mitsagen (F9, F11). Vor der Freigabe des Regelsatzes gilt „vorläufig“ für alle Monate.
+**Grenze der Skizze:** Abschnitte, die bei einem Lieferausfall aus der Vorlieferung fortgeschrieben wurden (Spalte `herkunft`), zählen mit. Jeder Lauf ist vorläufig, bis ein Monat veröffentlicht ist. Für 2025-03 und 2025-10 den Hinweis „vorläufig“ besonders mitsagen (F9, F11).
 
 **Fundstelle im Repo:** `uc3/db/030_bereinigt_stat.sql` (Tabelle `bereinigt.abschnitt`), `uc3/db/035_herkunft.sql`, `docs/plan/uc3/annahmen.md`.
 
@@ -141,7 +141,9 @@ ORDER BY 1;
 
 ## Teil B: Fünf geübte Live-Änderungen
 
-Ablauf immer gleich: Satz sprechen, `agent` erzeugt nur einen Vorschlag, `vorschlag zeigen` zeigt Regel-Unterschied und Zahlen vorher und nachher, `freigabe` macht ihn wirksam. Änderungen landen im Regelsatz `v2`, `v1` bleibt unverändert. Die Freigabe schreibt einen Commit mit dem Trailer `Freigegeben-von`.
+Beim Üben nur bis `vorschlag zeigen`, dann `ablehnen`. Vor der Jury nie `freigabe` üben: Es aktiviert den Regelsatz v2 und committet, einen Reset-Befehl gibt es nicht.
+
+Ablauf immer gleich: Satz sprechen, `agent` erzeugt nur einen Vorschlag, `vorschlag zeigen` zeigt Regel-Unterschied und Zahlen vorher und nachher, `freigabe` macht ihn wirksam. Änderungen landen im Regelsatz `v2`, `v1` bleibt unverändert. Die Freigabe schreibt einen gespeicherten Änderungsschritt im Repo (Commit) mit dem Vermerk `Freigegeben-von`.
 
 Befehle (Fundstelle jeweils `uc3/statagent/cli.py` und `uc3/statagent/agenten/`):
 
@@ -240,7 +242,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C3 Sieht das Sprachmodell Einzeldaten?
 
-**Kurzantwort:** Nein. Beschäftigte und Geburtsdaten sind Hochrisikodaten, deshalb sieht das Modell nur Regeln, Schemata, Klassifikationen und Aggregate. Das Lese-Werkzeug der Agenten verweigert Ergebnisse mit Personen- oder Verhältnis-ID. Kleine Zellen unter 5 erscheinen als „<5“. Jeder Modellaufruf wird protokolliert, nie mit Inhalt.
+**Kurzantwort:** Nein. Beschäftigte und Geburtsdaten sind Hochrisikodaten, deshalb sieht das Modell nur Regeln, Tabellenaufbau, Klassifikationen und Aggregate. Das Lese-Werkzeug der Agenten verweigert Ergebnisse mit Personen- oder Verhältnis-ID. Kleine Zellen unter 5 erscheinen als „<5“. Jeder Modellaufruf wird protokolliert, nie mit Inhalt.
 
 **Antwortweg:** Datei `abgabe/modelle.md` zeigen.
 
@@ -264,7 +266,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C6 Welches Modell nutzen Sie, und lässt es sich tauschen?
 
-**Kurzantwort:** Die Agenten laufen standardmäßig auf Azure (gpt-5-4-mini). Über den Schalter `LLM_PROVIDER` geht auch `claude`, `mistral`, `ollama` oder `mock`. Schnittstelle und Protokoll bleiben gleich. Das Modell schlägt nur vor, die Rechnung macht das Programm.
+**Kurzantwort:** Die Agenten laufen standardmäßig auf Azure (gpt-5-4-mini). Über den Schalter `LLM_PROVIDER` geht auch `mistral` oder `ollama`. `mock` liefert feste Antworten für Tests. Schnittstelle und Protokoll bleiben gleich. Das Modell schlägt nur vor, die Rechnung macht das Programm.
 
 **Antwortweg:** `abgabe/modelle.md` zeigen. Der Schalter steht in `.env.example`.
 
@@ -272,7 +274,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C7 Was passiert, wenn das Modell ausfällt?
 
-**Kurzantwort:** Der Lauf rechnet trotzdem, denn er braucht kein Modell (F16). Es fehlen nur die Vorschläge der Agenten. Der Befehl `agent` meldet den Modellfehler als Meldung, ohne die Daten anzufassen. Dann hilft der Wechsel des Anbieters oder `LLM_PROVIDER=mock`.
+**Kurzantwort:** Der Lauf rechnet trotzdem, denn er braucht kein Modell (F16). Es fehlen nur die Vorschläge der Agenten. Der Befehl `agent` meldet den Modellfehler als Meldung, ohne die Daten anzufassen. Dann hilft der Wechsel des Anbieters (`mistral`, `ollama`). `mock` hilft dem Agenten nicht, denn die Fixture `agent.koordinator.json` fehlt (`shared/py/plattform/llm/mock.py`, Zeile 56). In der Demo geht D2 dann auf die Aufzeichnung.
 
 **Antwortweg:** Live zeigen: `uv run uc3 lauf --lieferung 2024-08` läuft, `agent` meldet den Fehler.
 
@@ -280,7 +282,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C8 Was ist mit bereits Veröffentlichtem?
 
-**Kurzantwort:** Veröffentlichtes bleibt, die Datenbank schützt es durch einen Trigger. Sehen spätere Lieferungen andere Werte, steht die Abweichung als Revisionsbedarf im Qualitätsbericht. Beispiel Dezember 2024: minus 260 Verhältnisse, also 387.390 veröffentlicht gegen 387.130 nach Lieferung 2025-01 (F12).
+**Kurzantwort:** Ist ein Monat veröffentlicht, bleibt seine Zahl, die Datenbank schützt ihn durch einen Trigger. Veröffentlicht wird nur mit `veroeffentlichen`, vorher ist jeder Lauf vorläufig. Sehen spätere Lieferungen andere Werte, steht die Abweichung als Revisionsbedarf im Qualitätsbericht. Beispiel Dezember 2024: minus 260 Verhältnisse, also 387.390 laut Lieferung 2024-12 gegen 387.130 nach Lieferung 2025-01 (F12). Im Bericht 2025-01 steht Dezember 2024 noch als „387.390 (vorläufig)“.
 
 **Antwortweg:** `uv run uc3 berichte --lieferung 2025-01 --zeigen`.
 
@@ -288,7 +290,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C9 Wie gehen Sie mit dem Wechsel der ÖNACE-Version um?
 
-**Kurzantwort:** Der Wirtschaftszweig wird nach der Version ausgewiesen, die im Berichtsmonat gilt: bis 12/2024 ÖNACE 2008, ab 01/2025 ÖNACE 2025. Ab Lieferung 2025-01 tragen 189.170 von 386.299 Verhältnissen einen anderen Abschnittscode, auch rückwirkend für den 31.12.2024 (F13). Branchen vergleichen wir nur innerhalb derselben Version. Die Sprungprüfung P14 vergleicht ÖNACE nicht über den Wechsel.
+**Kurzantwort:** Der Wirtschaftszweig wird nach der Version ausgewiesen, die im Berichtsmonat gilt: bis 12/2024 ÖNACE 2008, ab 01/2025 ÖNACE 2025. Der Wechsel gilt ab Lieferung 2025-01, auch rückwirkend für Dezember 2024 (F13). Branchen vergleichen wir nur innerhalb derselben Version. Die Sprungprüfung P14 vergleicht ÖNACE nicht über den Wechsel.
 
 **Antwortweg:** `uv run uc3 regeln zeigen`, Regel `R7_oenace_nach_berichtsmonat`.
 
@@ -296,7 +298,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C10 Warum löschen Sie nichts?
 
-**Kurzantwort:** Die Aufgabenstellung verlangt, dass kein Verhältnis verloren geht. Volldubletten werden zu einem Satz verdichtet, die Zahl der verdichteten Zeilen bleibt erhalten (2025-03: 1.663 Zeilen, F8). Unklare Werte werden zugeordnet und markiert. Die Abrechnung geht auf: gelesene Sätze gleich gezählte plus nicht gezählte plus ausgeschlossene.
+**Kurzantwort:** Die Aufgabenstellung verlangt, dass kein Verhältnis verloren geht. Volldubletten werden zu einem Satz verdichtet, die Zahl der verdichteten Zeilen bleibt erhalten (2025-03: 1.663 Zeilen, F8). Unklare Werte werden zugeordnet und markiert. Die Abrechnung geht auf: gelesene plus fortgeschriebene Sätze gleich gezählte plus nicht gezählte plus ausgeschlossene (März 2025: 1.470 fortgeschrieben, F9).
 
 **Antwortweg:** Qualitätsbericht 2025-03, Abschnitt 1 (Abrechnung) und 2 (Auffälligkeiten).
 
@@ -304,7 +306,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C11 Wie kommt eine neue Regel in Kraft?
 
-**Kurzantwort:** Eine Regel ist eine Zeile in `meta.regel` mit Gültigkeit, Begründung, Grundlage und Freigabe. Regelsatz v1 hat 15 Einlese-, Zuordnungs- und Zählregeln und 24 Prüfregeln P01 bis P24 (F15). Freigeben kann nur eine Person mit Vor- und Nachnamen. „Team“ wird abgelehnt. Bei Vorschlägen der Agenten entsteht dazu ein Commit mit dem Trailer `Freigegeben-von`.
+**Kurzantwort:** Eine Regel ist eine Zeile in `meta.regel` mit Gültigkeit, Begründung, Grundlage und Freigabe. Regelsatz v1 hat 15 Einlese-, Zuordnungs- und Zählregeln und 24 Prüfregeln P01 bis P24 (F15). Freigeben kann nur eine Person mit Vor- und Nachnamen. „Team“ wird abgelehnt. Bei Vorschlägen der Agenten entsteht dazu ein gespeicherter Änderungsschritt im Repo (Commit) mit dem Vermerk `Freigegeben-von`.
 
 **Antwortweg:** `uv run uc3 regeln zeigen`, `uv run uc3 regeln freigeben --name "Vor- und Nachname"`, `uv run uc3 protokoll --zeigen`.
 

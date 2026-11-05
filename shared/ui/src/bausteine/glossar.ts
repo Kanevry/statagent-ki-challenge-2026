@@ -1,7 +1,7 @@
 // Glossar der StatAgent-Begriffe in Alltagssprache. Die 14 Begriffe des UC3-Panels liegen nicht im
 // Repo; bis dahin die fünf Begriffe, die jede Seite braucht. Ergänzen: Eintrag hier, `Begriff` findet ihn.
 export const GLOSSAR = {
-  Lieferung: "Die Daten eines Monats, so wie sie von den Sozialversicherungsträgern kommen.",
+  Lieferung: "Die Daten, die die Sozialversicherungsträger jeden Monat schicken.",
   Revisionsbedarf:
     "Eine schon veröffentlichte Zahl wäre mit den neuen Daten anders. Sie bleibt stehen, der Unterschied kommt in den Qualitätsbericht.",
   Qualitätsbericht: "Bericht zu jeder Lieferung: was geprüft wurde, was auffiel und was das für die Zahlen heißt.",

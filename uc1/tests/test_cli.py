@@ -12,8 +12,12 @@ def test_unbekannter_befehl_endet_mit_2(capsys: pytest.CaptureFixture[str]) -> N
     assert "unbekannter Befehl" in capsys.readouterr().err
 
 
-def test_ungebauter_befehl_meldet_sich_statt_abzustuerzen(capsys: pytest.CaptureFixture[str]) -> None:
-    assert cli.main(["antrag"]) == 2
+def test_ungebauter_befehl_meldet_sich_statt_abzustuerzen(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Ein Befehl, dessen Modul es (noch) nicht gibt; unabhängig davon, welche Befehle schon gebaut sind.
+    monkeypatch.setitem(cli.BEFEHLE, "gibtsnochnicht", ("uc1.gibtsnochnicht", "Platzhalter"))
+    assert cli.main(["gibtsnochnicht"]) == 2
     assert "noch nicht gebaut" in capsys.readouterr().err
 
 

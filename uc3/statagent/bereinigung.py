@@ -400,15 +400,19 @@ def bereinigen(
     if fehlt and int(str(fehlt["n"])) > 0:
         raise RegelFehler("Quellzuordnung unvollständig: Abschnitte ohne Code (fehlt eine '<sonst>'-Zeile?)")
 
+    # Auf einer frischen Datenbank kennt der Planer die eben eingefügten Abschnitte noch nicht (autoanalyze kommt
+    # später) und plant den Anti-Join von E07 als verschachtelte Schleife: 2024-10 hing so über 9 min (#128).
+    # ANALYZE sieht in der Transaktion die eigenen Zeilen, wie bei den Temp-Tabellen in zaehlung.py.
+    conn.execute("ANALYZE bereinigt.abschnitt")
+
     r_fort = hoechstens_eine(regeln, "einlese", "fortschreibung")
     fortgeschrieben: int = 0
     fortschreibung: dict[str, object] = {}
-    if r_fort is not None and monat_verschieben(lieferung, -1) in [
-        str(z["lieferung"])
-        for z in conn.execute(
-            "SELECT DISTINCT lieferung FROM bereinigt.abschnitt WHERE regelsatz = %s", (regelsatz,)
-        ).fetchall()
-    ]:
+    vorlieferung = conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM bereinigt.abschnitt WHERE lieferung = %s AND regelsatz = %s) AS da",
+        (monat_verschieben(lieferung, -1), regelsatz),
+    ).fetchone()
+    if r_fort is not None and vorlieferung is not None and vorlieferung["da"]:
         fortgeschrieben, fortschreibung = _fortschreiben(
             conn, regel=r_fort, lauf_id=lauf_id, lieferung=lieferung, regelsatz=regelsatz, version=version
         )

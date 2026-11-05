@@ -1,0 +1,8 @@
+# Abnahme #66 (EA-4): frische Datenbank neben einer laufenden Bau-Datenbank.
+# Gleiche docker-compose.yml aus dem Startpaket, nur der feste Containername wird ersetzt.
+# Aufruf (im Startpaket-Ordner uc3/):
+#   DB_PORT=5444 docker compose -p kic-abnahme -f docker-compose.yml -f <dieser Pfad> up -d
+# Das Volume heißt dann kic-abnahme_statagent-daten und ist von der Bau-Datenbank getrennt.
+services:
+  db:
+    container_name: kic-abnahme-db

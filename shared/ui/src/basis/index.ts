@@ -4,6 +4,7 @@ export { Akzent, type AkzentArt, type AkzentProps } from "./akzent";
 export { Feld, type FeldProps } from "./feld";
 export { Knopf, knopfKlassen, type KnopfArt, type KnopfProps } from "./knopf";
 export { Leerzustand, type LeerzustandProps } from "./leerzustand";
+export { Piktogramm, type PiktogrammName, type PiktogrammProps } from "./piktogramm";
 export { Status, type StatusArt, type StatusProps } from "./status";
 export { Tabelle, type Spalte, type TabelleProps } from "./tabelle";
 export {
