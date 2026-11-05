@@ -16,7 +16,7 @@ from typing import Annotated, Any, NoReturn
 import typer
 
 from statagent import ergebnis, konfig
-from statagent.db import lieferungen, schema_einrichten, verbinden
+from statagent.db import abgabe_regelsaetze_einrichten, lieferungen, schema_einrichten, verbinden
 from statagent.regeln import NameUngueltig, RegelFehler, regeln_freigeben, regeln_laden
 from statagent.zeit import zeit_text
 
@@ -52,9 +52,10 @@ def _fehlt(issue: str, was: str) -> NoReturn:
 
 @db_app.command("init")
 def db_init(als_json: JsonOption = False) -> None:
-    """Legt Schemas bereinigt/meta/stat, Klassifikationen und Regelsatz v1 an (idempotent, nichts wird gelöscht)."""
+    """Legt Schemas, Klassifikationen und die Regelsätze v1, v2 und ministerium an (idempotent, nichts wird gelöscht)."""
     with verbinden() as conn:
         dateien = schema_einrichten(conn)
+        dateien += abgabe_regelsaetze_einrichten(conn)
     _ausgabe({"angewendet": dateien}, als_json, "angewendet: " + ", ".join(dateien))
 
 

@@ -1,5 +1,6 @@
-"""Frische Datenbank (`db init`): Regelsätze v2 und ministerium sind da, wie die Abgabe sie gerechnet hat (Jury-Probe 4d, B1).
+"""Frische Datenbank (`uc3 db init`): Regelsätze v2 und ministerium sind da, wie die Abgabe sie gerechnet hat (Jury-Probe 4d, B1).
 
+Die Fixture-Datenbank kennt nur v1 (``schema_einrichten``); hier lädt ein Fixture dasselbe nach wie der CLI-Befehl.
 Dazu B2: `sheet` schreibt ohne fertigen Lauf nichts.
 """
 
@@ -9,11 +10,17 @@ from pathlib import Path
 
 import pytest
 
-from statagent.db import Verbindung, schema_einrichten
+from statagent.db import Verbindung, abgabe_regelsaetze_einrichten, schema_einrichten
 
 # Änderungsaufträge 1 und 2: nur diese Regeln unterscheiden sich zwischen v1 und v2.
 GEAENDERT = {"R2_R4_stichtag_eigene_lieferung", "R6_beschaeftigungskategorie"}
 VERGLEICH = "typ, art, reihenfolge, parameter, gueltig_ab_lieferung, gueltig_bis_lieferung, aktiv"
+
+
+@pytest.fixture(autouse=True)
+def _abgabe_regelsaetze(conn: Verbindung) -> None:
+    abgabe_regelsaetze_einrichten(conn)
+    conn.commit()
 
 
 def _regeln(conn: Verbindung, regelsatz: str) -> dict[str, tuple[object, ...]]:
@@ -53,6 +60,7 @@ def test_ministerium_ist_freigegeben_und_eindeutig(conn: Verbindung) -> None:
 def test_db_init_zweimal_aendert_die_regelsaetze_nicht(conn: Verbindung) -> None:
     vorher = {rs: _regeln(conn, rs) for rs in ("v1", "v2", "ministerium")}
     schema_einrichten(conn)
+    abgabe_regelsaetze_einrichten(conn)
     conn.commit()
     assert {rs: _regeln(conn, rs) for rs in ("v1", "v2", "ministerium")} == vorher
 
@@ -73,3 +81,23 @@ def test_sheet_ohne_lauf_schreibt_nichts(conn: Verbindung, tmp_path: Path) -> No
     with pytest.raises(ValueError, match="keinen fertigen Lauf"):
         sheet_schreiben(conn, "v2", ziel=ziel)
     assert not ziel.exists()
+
+
+def test_cli_db_init_laedt_die_abgabe_regelsaetze(conn: Verbindung, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Fängt: `uc3 db init` ruft die Abgabe-Regelsätze nicht auf, dann fehlen v2 und ministerium wieder (B1).
+    from typer.testing import CliRunner
+
+    from statagent import cli
+
+    aufgerufen: list[str] = []
+    monkeypatch.setattr(cli, "verbinden", lambda: conn)
+    monkeypatch.setattr(cli, "schema_einrichten", lambda _c: ["schema"])
+    monkeypatch.setattr(
+        cli,
+        "abgabe_regelsaetze_einrichten",
+        lambda _c: aufgerufen.append("ja") or ["abgabe_regelsaetze/v2.sql"],
+    )
+    ergebnis = CliRunner().invoke(cli.app, ["db", "init"])
+    assert ergebnis.exit_code == 0, ergebnis.output
+    assert aufgerufen == ["ja"]
+    assert "abgabe_regelsaetze/v2.sql" in ergebnis.output

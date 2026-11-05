@@ -48,8 +48,8 @@ Das Sheet nennt diese Monate im Blatt Hinweise und im Kommentar der Monatsspalte
 ## Auf einer frischen Datenbank nachrechnen
 
 `uv run uc3 db init` legt die Regelsätze so an, wie die Abgabe sie gerechnet hat: v1 (`uc3/db/110`, `120`),
-v2 mit den Änderungsaufträgen 1 und 2 (`uc3/db/111_regelsatz_v2.sql`) und `ministerium` mit Auftrag 3
-(`uc3/db/112_regelsatz_ministerium.sql`). v2 und `ministerium` tragen die festgehaltene Freigabe aus der Abgabe
+v2 mit den Änderungsaufträgen 1 und 2 (`uc3/db/abgabe_regelsaetze/v2.sql`) und `ministerium` mit Auftrag 3
+(`uc3/db/abgabe_regelsaetze/ministerium.sql`). v2 und `ministerium` tragen die festgehaltene Freigabe aus der Abgabe
 (Name, Zeitpunkt). v1 kommt ohne Freigabe an; wer nachrechnet, gibt ihn mit seinem eigenen Namen frei
 (`uv run uc3 regeln freigeben --regelsatz v1 --name "Vor- und Nachname"`). Danach:
 
