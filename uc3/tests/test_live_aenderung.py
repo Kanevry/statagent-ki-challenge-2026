@@ -257,7 +257,7 @@ def test_ablehnen_und_ruecknahme_stellen_den_stand_wieder_her(
 def test_ruecknahme_nur_vom_stand_der_den_vorschlag_enthaelt(live_conn: Verbindung) -> None:
     zurueck = SequenzModell({"agent.koordinator": [{"rolle": "datenmanagement", "ruecknahme_von": 999}]})
     erg = agent_ausfuehren(live_conn, "Nimm Vorschlag 999 zurück", complete=zurueck)
-    assert erg.vorschlag_id is None and erg.abgelehnt is not None and "nicht freigegeben" in erg.abgelehnt
+    assert erg.vorschlag_id is None and erg.abgelehnt is not None and "noch nicht wirksam" in erg.abgelehnt
 
 
 def test_widerspruch_zu_frueherer_regel_ist_keine_ruecknahme(live_conn: Verbindung) -> None:
@@ -741,7 +741,8 @@ def test_was_nach_der_nachfrage_wegfaellt_steht_in_der_begruendung(live_conn: Ve
     )
     assert erg.vorschlag_id is not None, erg.abgelehnt
     assert (
-        "Im ersten Entwurf auch: R9_ohne_kinder" in vorschlag_lesen(live_conn, erg.vorschlag_id).begruendung
+        "Der erste Entwurf änderte zusätzlich R9_ohne_kinder"
+        in vorschlag_lesen(live_conn, erg.vorschlag_id).begruendung
     )
 
 
@@ -756,6 +757,8 @@ def test_aendert_nichts_erlaubt_die_ehrliche_rueckfrage(live_conn: Verbindung) -
     assert erg.vorschlag_id is None and erg.rueckfrage is not None and "schon so" in erg.rueckfrage
     zweite = [n for z, n in modell.aufrufe if z == "agent.datenmanagement"][1]
     assert "antworte mit einer Rückfrage" in zweite[-1]["content"]
+    # genau zwei Rollenaufrufe: kein Nachfassen und keine Umleitung überstimmt die ehrliche Rückfrage (Review 29)
+    assert [z for z, _ in modell.aufrufe if z != "agent.koordinator"] == ["agent.datenmanagement"] * 2
 
 
 def test_hinweis_wenn_sich_im_probemonat_nichts_aendert(live_conn: Verbindung) -> None:
@@ -812,8 +815,8 @@ def test_ruecknahme_liste_nur_aus_dem_aktuellen_stand(live_conn: Verbindung, rep
     inhalt = modell.aufrufe[0][1][1]["content"]
     assert f'"id": {zweite.vorschlag_id}' in inhalt and f'"id": {erg.vorschlag_id},' not in inhalt
     assert (
-        r.abgelehnt
-        == f"Vorschlag {erg.vorschlag_id} kann man hier nicht zurücknehmen: Er gehört nicht zum aktuellen Stand."
+        r.abgelehnt is not None
+        and f"Vorschlag {erg.vorschlag_id} stammt aus einem anderen Stand" in r.abgelehnt
     )
 
 
@@ -835,3 +838,20 @@ def test_ohne_ruecknehmbaren_vorschlag_gibt_es_eine_rueckfrage(live_conn: Verbin
     modell = SequenzModell({"agent.koordinator": [{"rolle": "datenmanagement", "auftrag": "x"}]})
     r = agent_ausfuehren(live_conn, "Nimm Vorschlag undefined zurück", complete=modell)
     assert r.vorschlag_id is None and r.rueckfrage is not None and "keinen freigegebenen" in r.rueckfrage
+
+
+@pytest.mark.parametrize(
+    "satz",
+    [
+        "Bei der Prüfung der Geburtsdaten soll Monat 13 als Jänner gelten",
+        "Die Überprüfung der Daten ändert das Alter",
+    ],
+)
+def test_wort_weiche_pruefung_als_wort_ist_kein_qs_auftrag(satz: str) -> None:
+    assert rolle_nach_worten(satz) != "qs"
+
+
+def test_meldung_zeigt_keine_regex(live_conn: Verbindung) -> None:
+    antwort = _aendern("R2_R4_stichtag_eigene_lieferung", {"von": "monat_15", "bis": "monat_15"})
+    erg = agent_ausfuehren(live_conn, "Stichtag", complete=_modell("datenmanagement", antwort))
+    assert erg.abgelehnt is not None and "tag:1 bis tag:31" in erg.abgelehnt and "^(" not in erg.abgelehnt

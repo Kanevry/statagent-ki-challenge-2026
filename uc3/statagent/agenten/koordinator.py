@@ -121,6 +121,12 @@ _ZULAESSIG: dict[tuple[str, str], Any] = {
     ("personentage", "angehaltene_lieferungen"): {"ueberspringen", "verwenden"},
 }
 
+#: Lesbare Fassung der Muster für Meldungen in der Konsole (Review 29: keine Regex vor der Jury).
+_ERLAUBT_TEXT = {
+    _TAG.pattern: "monatserster, monatsletzter, tag:1 bis tag:31",
+    _GEBURTSMONAT_13.pattern: "jahresdifferenz, unbekannt oder ersatz:MM-TT, z. B. ersatz:01-01",
+}
+
 #: Zählregel-Arten eines Auswertungs-Regelsatzes und die Parameter, die der Auswertungscode liest
 #: (``wert(regel, …)`` in sonderauswertung.py; dort gibt es keine eigene Liste). Nur was der Code kann.
 _AUSWERTUNG_PARAMETER: dict[str, frozenset[str]] = {"personentage": PERSONENTAGE_PARAMETER}
@@ -229,7 +235,9 @@ def _wert_pruefen(art: str, schluessel: str, alt: object, neu: object, regel: st
             f"{regel}.{schluessel}: {neu!r} ist für die Art {art} nicht zulässig ({werte})"
         )
     if isinstance(erlaubt, re.Pattern) and not (isinstance(neu, str) and erlaubt.match(neu)):
-        raise VorschlagUngueltig(f"{regel}.{schluessel}: {neu!r} passt nicht zu {erlaubt.pattern}")
+        raise VorschlagUngueltig(
+            f"{regel}.{schluessel}: {neu!r} passt nicht (erlaubt: {_ERLAUBT_TEXT.get(erlaubt.pattern, erlaubt.pattern)})"
+        )
     if alt is not None and not _gleicher_typ(alt, neu):
         raise VorschlagUngueltig(f"{regel}.{schluessel}: Wert {neu!r} hat einen anderen Typ als bisher")
 
@@ -932,7 +940,7 @@ def ruecknahme_pruefen(conn: Verbindung, vorschlag_id: int, basis: str) -> Gepru
     ).fetchone()
     if z is None or z["status"] != "freigegeben" or z["angewendet_am"] is None:
         raise VorschlagUngueltig(
-            f"Vorschlag {vorschlag_id} kann man nicht zurücknehmen: Er ist nicht freigegeben und nicht angewendet."
+            f"Vorschlag {vorschlag_id} ist noch nicht wirksam, darum gibt es nichts zurückzunehmen."
         )
     if z["typ"] == "code_datei":
         raise VorschlagUngueltig(
@@ -940,7 +948,8 @@ def ruecknahme_pruefen(conn: Verbindung, vorschlag_id: int, basis: str) -> Gepru
         )
     if str(z["regelsatz_ziel"]) != basis:
         raise VorschlagUngueltig(
-            f"Vorschlag {vorschlag_id} kann man hier nicht zurücknehmen: Er gehört nicht zum aktuellen Stand."
+            f"Zurücknehmen geht nur für Änderungen, die in {basis} dazugekommen sind. Vorschlag {vorschlag_id} stammt "
+            "aus einem anderen Stand."
         )
     regeln = _regeln(conn, basis)
     aenderungen: list[dict[str, Any]] = []
@@ -999,7 +1008,9 @@ _WEICHE: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "qs",
         re.compile(
-            r"anhalt|angehalten|schwelle|prozent|%|warn|melde[nt]?\b|prüfregel|pruefregel|prüfung|pruefung",
+            r"anhalt|angehalten|schwelle|prozent|%|warn|melde[nt]?\b|prüfregel|pruefregel|"
+            # „Prüfung“ nur als Anweisung an die Prüfung, nicht „bei der Prüfung der Geburtsdaten“ (Review 29)
+            r"\b(?:prüfung|pruefung)\s+(?:soll|muss|melde|schlägt|schlaegt|greift|ab\b)",
             re.IGNORECASE,
         ),
     ),
@@ -1109,6 +1120,7 @@ def agent_ausfuehren(
     versucht: set[str] = set()
     nachgefasst = False
     mehrere_bestaetigt = False
+    aendert_nichts = False
     vor_nachfrage = ""
     while True:
         ergebnis.rolle = rolle.name
@@ -1136,6 +1148,10 @@ def agent_ausfuehren(
             if antwort.rueckfrage:
                 # Zweite Meinung: fragt die Rolle zurück und nennt die Wort-Weiche eine andere, noch nicht gefragte
                 # Rolle, fragt der Code diese einmal (Probe 19:25: qs fragte zu P04, datenmanagement kann R5).
+                if aendert_nichts:
+                    # „Steht schon so“ ist eine ehrliche Antwort; Nachfassen oder Umleiten überstimmte sie (Review 29).
+                    ergebnis.rueckfrage = antwort.rueckfrage
+                    return ergebnis
                 if weiche is not None and weiche not in versucht:
                     rolle = ROLLEN[weiche]
                     umleiten = True
@@ -1204,6 +1220,7 @@ def agent_ausfuehren(
                     return ergebnis
                 runde += 1
                 ergebnis.korrekturen.append(str(fehler))
+                aendert_nichts = aendert_nichts or isinstance(fehler, AendertNichts)
                 # Reparaturrunde: die Rolle sieht ihre Antwort und die Meldung des Programms und korrigiert.
                 nachrichten = [
                     *nachrichten,
@@ -1253,7 +1270,8 @@ def agent_ausfuehren(
         if weg:
             g = replace(
                 g,
-                begruendung=f"{g.begruendung} Im ersten Entwurf auch: {', '.join(weg)}; auf Nachfrage weggelassen.",
+                begruendung=f"{g.begruendung} Der erste Entwurf änderte zusätzlich {', '.join(weg)}; nach Rückfrage ist das "
+                "weggefallen. Bitte prüfen, ob es gemeint war.",
             )
     return _anlegen(conn, ergebnis, rolle, g, probe_lieferung)
 

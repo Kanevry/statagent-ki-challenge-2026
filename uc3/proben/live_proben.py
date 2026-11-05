@@ -39,17 +39,24 @@ import psycopg
 
 from statagent import konfig
 from statagent.agenten.anwenden import ablehnen_ausfuehren, freigabe_ausfuehren
-from statagent.agenten.koordinator import agent_ausfuehren, produktions_regelsatz, ruecknahme_pruefen
-from statagent.agenten.regelaenderung import regelsatz_vorhanden
+from statagent.agenten.koordinator import (
+    VorschlagUngueltig,
+    agent_ausfuehren,
+    produktions_regelsatz,
+    ruecknahme_pruefen,
+)
+from statagent.agenten.regelaenderung import RegelKonflikt, regelsatz_vorhanden
 from statagent.agenten.vorschlag import (
     Vorschlag,
+    VorschlagFehler,
     vorschlag_anlegen,
     vorschlag_lesen,
     vorschlag_schema_einrichten,
     wirkung_text,
 )
 from statagent.db import Verbindung, verbinden
-from statagent.regeln import regeln_laden, regelstand
+from statagent.lauf import LaufFehler
+from statagent.regeln import RegelFehler, regeln_laden, regelstand
 
 REFERENZ_REGELSATZ = "v2"  # der Stand der Abgabe; jeder Lauf muss von diesem Regelstand ausgehen
 NAME = "Petra Probe"  # erkennbar eine Probe, keine echte Freigabe
@@ -295,9 +302,11 @@ _OFFEN: dict[str, int] = {}
 
 def _fehlertext(fehler: Exception) -> str:
     """Kurzer Fehlertext für die CSV im Repo: bei der Datenbank nur die Art, weil die Meldung Rechnernamen tragen kann."""
-    if isinstance(fehler, psycopg.Error | subprocess.SubprocessError | OSError):
-        return type(fehler).__name__  # Meldung kann Rechnernamen oder lokale Pfade tragen
-    return f"{type(fehler).__name__}: {str(fehler).splitlines()[0][:160] if str(fehler) else ''}"
+    if isinstance(fehler, VorschlagUngueltig | RegelKonflikt | LaufFehler | RegelFehler | VorschlagFehler):
+        return f"{type(fehler).__name__}: {str(fehler).splitlines()[0][:160] if str(fehler) else ''}"
+    return type(
+        fehler
+    ).__name__  # Fremde Meldungen können Rechnernamen oder lokale Pfade tragen (git, Datenbank)
 
 
 def _neu_verbinden(url: str, versuche: int = 20) -> Verbindung:
@@ -391,7 +400,7 @@ def ein_lauf(
         _OFFEN["id"] = v2.id
     zeile["freigabe_angewendet"] = f2.angewendet and _git_kopf(repo) != kopf
     if not f2.angewendet:
-        hinweise.append(f"Freigabe nicht angewendet: {f2.meldung}")
+        hinweise.append(f"Freigabe nicht angewendet: {f2.fehler}")
 
     # 5: Rücknahme als neuer Vorgang
     v3, dauer3, h = _vorschlag(
