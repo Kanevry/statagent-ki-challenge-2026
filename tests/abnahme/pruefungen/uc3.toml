@@ -990,3 +990,92 @@ zeitlimit = 620
 grund = "Zeitreihe, M/W je Bundesland und Fluktuation gleich der SQL-Gegenrechnung; Nullbestand ohne erfundene Rate"
 befund = "Eine Jury-Frage weicht von der SQL-Gegenrechnung ab, oder Nullbestand ergibt eine Rate"
 herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "18-AC1"
+hash = "3e42daa6ef"
+befehl = "python3 tests/abnahme/p/uc3_frames.py --ausgenommen U3-2 S6 && echo ucbereich $(grep -c UcBereich web/app/uc3/layout.tsx)"
+erwartet = ["^pflichtframes_in_matrix 4 von 4$", "^screens_ohne_bild 0$", "^pflichtframes_ohne_bild 0$", "^routen_ohne_bild 0$", "^screens_ohne_vergleich 0$", "^ucbereich [1-9]"]
+schwer = false
+deckung = "voll"
+quelle = "Kriterium 18-AC1; web/tests/uc3-frame-matrix.json; Bildgröße aus dem JPEG-Kopf"
+grund = "Jeder zugeordnete Frame hat eine Route mit Screenshots in 1440x900 und 390x844 und einen Vergleich ohne Einschränkung"
+befund = "Zu mindestens einem zugeordneten Frame fehlt der Screenshot oder der Vergleich (Liste in der Ausgabe, Zeilen offen und route)"
+anmerkung = "Ausgenommen per Entscheid Lead 21:4x: U3-2 (L6f3Mp) nach Abgabe, S6 Restmangel bis !193 Bereich 2. Ob die Frame-IDs in der Pen-Datei existieren, misst dieser Prüfsatz nicht"
+herkunft = "b-abnahme-9d 2026-11-05 21:35"
+
+[[pruefung]]
+id = "69-AC1"
+hash = "d690038e13"
+befehl = "timeout 120 uv run --package statagent python tests/abnahme/p/uc3_db.py qualifikation && timeout 200 uv run --package statagent python tests/abnahme/p/uc3_db.py anhangb"
+erwartet = ["^fachkategorien 3$", "^ausgangscodes 5$", "^kategorie Unbekannt codes 1$", "^abfragen 11$", "^fehlend_gesamt 0$"]
+schwer = true
+deckung = "voll"
+zeitlimit = 330
+quelle = "Kriterium 69-AC1; Entscheid Lead 05.11. 20:4x (Zählregel in v2 mit Freigabe gilt als neue Version, #69); Anhang-B-Abfragen auf der vollen Prüf-DB"
+grund = "Fünf Ausgangscodes auf drei Fachkategorien, Unbekannt gesondert, alle Anhang-B-Abfragen einschließlich Anti-Join ergeben 0"
+befund = "Die Zuordnung der Ausgangscodes weicht ab oder eine Anhang-B-Abfrage findet fehlende Zeilen"
+herkunft = "b-abnahme-9d 2026-11-05 21:35"
+
+[[pruefung]]
+id = "69-AC2"
+hash = "2554162131"
+befehl = "uv run --package statagent python tests/abnahme/p/uc3_v2_kategorien.py && python3 -c \"import hashlib,json;d=json.load(open('abgabe/manifest.json',encoding='utf-8'))['dateien'];e=[x for x in d if x['datei']=='aggregationen_v1.xlsx'][0];print('v1_wie_manifest',hashlib.sha256(open('abgabe/aggregationen_v1.xlsx','rb').read()).hexdigest()==e['sha256'])\""
+erwartet = ["^monate_v1 24$", "^monate_gleich True$", "^codes_v2 Angestellte,Arbeiter,Beamte$", "^auftrag1_insgesamt_gleich_v1_monate 24$", "^v1_wie_manifest True$"]
+schwer = false
+deckung = "voll"
+zeitlimit = 120
+quelle = "Kriterium 69-AC2; Entscheid Lead 05.11. 21:4x; docs/plan/uc3/aenderungsauftraege-matrix.md (kein Sheet nur mit Auftrag 1); Orakel zeitreihe.csv"
+grund = "v2 führt die drei Kategorien in 24 Monaten, Auftrag 1 allein ändert die Monatssumme nicht, v1 gleicht dem Manifest"
+befund = "Blatt Beschäftigungskategorie oder v1-Hash weichen ab"
+anmerkung = "Die Summen v2 = DV + FD gelten wörtlich nicht gegen v1, weil v2 Auftrag 2 mitträgt (identitaet_gegen_v1_monate 0); die Zellen von v2 misst 70-AC2 gegen das Orakel"
+herkunft = "b-abnahme-9d 2026-11-05 21:35"
+
+[[pruefung]]
+id = "135-2"
+hash = "821e18ec17"
+befehl = "echo pfad $(grep -c 'mitRegelsatz(`/uc3/berichte/${lieferung}`, regelsatz)' web/components/uc3/navigation.ts); echo liste $(grep -c 'berichtPfad(monat.lieferung, regelsatz)' web/app/uc3/berichte/page.tsx); echo seite $(grep -c 'regelsatzAus((await searchParams).regelsatz)' 'web/app/uc3/berichte/[lieferung]/page.tsx'); echo v2_berichte $(ls abgabe/qualitaetsberichte_v2/*.md | wc -l | tr -d ' ')"
+erwartet = ["^pfad 1$", "^liste [1-9]", "^seite 1$", "^v2_berichte 24$"]
+schwer = false
+deckung = "voll"
+quelle = "Kriterium 135-2; navigation.ts, Monatsseite rendert Lauf und Bericht gemeinsam"
+grund = "Der Bericht nimmt ?regelsatz=v2 entgegen und die Berichtsliste verlinkt mit dem Regelsatz; v2-Berichte liegen für 24 Monate vor"
+befund = "Der Bericht übernimmt den Regelsatz nicht oder v2-Berichte fehlen"
+anmerkung = "Nur im Code gemessen, ohne Browser"
+herkunft = "b-abnahme-9d 2026-11-05 21:35"
+
+[[pruefung]]
+id = "135-7"
+hash = "1b85e04e44"
+befehl = "echo ci_seed $(grep -c 'scripts/ci/uc3_seed.py' .gitlab-ci.yml); echo seed_datei $(test -s scripts/ci/uc3_seed.py && echo da); echo spec $(test -s web/tests/uc3-gefuellt.spec.ts && echo da); echo roh_schreiben $(grep -ciE '(insert into|copy) +roh\\.' scripts/ci/uc3_seed.py)"
+erwartet = ["^ci_seed [1-9]", "^seed_datei da$", "^spec da$", "^roh_schreiben 0$"]
+schwer = false
+deckung = "voll"
+quelle = "Kriterium 135-7; Job playwright in .gitlab-ci.yml"
+grund = "Der Playwright-Job seedet UC3 ohne Einzeldaten und misst die gefüllten Seiten"
+befund = "CI-Seed oder Spec für gefüllte UC3-Seiten fehlt, oder der Seed schreibt in roh"
+herkunft = "b-abnahme-9d 2026-11-05 21:35"
+
+[[pruefung]]
+id = "135-8"
+hash = "75205444b7"
+befehl = "echo tags $(grep -c 'wcag2a.*wcag2aa' web/tests/axe.spec.ts); echo hart $(grep -c 'critical.*serious' web/tests/axe.spec.ts); echo match $(grep -c 'testMatch: \"\\*\\*/\\*.spec.ts\"' web/playwright.config.ts); echo job $(grep -cE '^playwright:' .gitlab-ci.yml)"
+erwartet = ["^tags [1-9]", "^hart [1-9]", "^match 1$", "^job 1$"]
+schwer = false
+deckung = "voll"
+quelle = "Kriterium 135-8; web/tests/axe.spec.ts"
+grund = "axe-Spec prüft WCAG 2 A und AA, critical und serious sind hart, die Spec liegt im Playwright-Gate"
+befund = "axe-Spec fehlt im Playwright-Gate oder prüft nicht WCAG 2 A/AA mit critical/serious als Fehler"
+herkunft = "b-abnahme-9d 2026-11-05 21:35"
+
+[[pruefung]]
+id = "135-9"
+hash = "8ae3fca27b"
+befehl = "echo skript $(grep -c '\"lint\": \"eslint .\"' web/package.json); echo paket $(grep -c '\"eslint\":' web/package.json); echo konfig $(test -s web/eslint.config.mjs && echo da); echo ci $(grep -c 'run lint' .gitlab-ci.yml)"
+erwartet = ["^skript 1$", "^paket 1$", "^konfig da$", "^ci [1-9]"]
+schwer = false
+deckung = "voll"
+quelle = "Kriterium 135-9; Pipeline 41842 Job web grün"
+grund = "ESLint ist in web/ installiert und läuft im Job web als Gate"
+befund = "Web-Lint ist nicht installiert oder nicht im CI-Job"
+herkunft = "b-abnahme-9d 2026-11-05 21:35"

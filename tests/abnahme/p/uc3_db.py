@@ -7,6 +7,8 @@
     $P regelsaetze v1 v2 ministerium
     $P schema       # Tabellen, PostgreSQL-Version, Pflichtspalten (#13 AC2, #73 AC2)
     $P ladung       # Ladeprotokoll gegen Rohtabelle und Lieferungsdateien (#13 AC3)
+    $P anhangb      # Prüfabfragen aus docs/plan/uc3/anhang-b-schema.sql auf der vollen DB (#69 AC1)
+    $P qualifikation  # Ausgangscodes je Beschäftigungskategorie (#69 AC1)
 
 Die Adresse kommt aus UC3_DATABASE_URL; der Prüflauf setzt sie nur auf die Prüf-DB (Port 5444).
 Je Monat zählt der jüngste Lauf mit Status fertig oder unveraendert. Monatssumme = gezaehlt; die
@@ -19,6 +21,7 @@ import argparse
 import csv
 import gzip
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -179,6 +182,38 @@ def ladung() -> int:
     return 0
 
 
+def anhangb() -> int:
+    """Anhang-B-Abfragen auf der vollen Prüf-DB (der Test der Lane misst drei Fixture-Monate)."""
+    text = Path("docs/plan/uc3/anhang-b-schema.sql").read_text(encoding="utf-8")
+    ohne_kommentare = "\n".join(z for z in text.splitlines() if not z.lstrip().startswith("--"))
+    abfragen = [a.strip() for a in re.split(r";\s*\n", ohne_kommentare) if a.strip()]
+    gesamt = 0
+    with psycopg.connect(os.environ["UC3_DATABASE_URL"], connect_timeout=5) as verbindung:
+        verbindung.read_only = True
+        for abfrage in abfragen:
+            pruefung, fehlend = verbindung.execute(abfrage.encode()).fetchone()
+            gesamt += int(fehlend)
+            print(f"{pruefung.split()[0]} {fehlend}")
+    print(f"abfragen {len(abfragen)}")
+    print(f"fehlend_gesamt {gesamt}")
+    return 0
+
+
+def qualifikation() -> int:
+    """Fünf Ausgangscodes auf drei Fachkategorien, Unbekannt gesondert (#69 AC1)."""
+    with psycopg.connect(os.environ["UC3_DATABASE_URL"], connect_timeout=5) as verbindung:
+        verbindung.read_only = True
+        zeilen = verbindung.execute(
+            "select beschaeftigungskategorie, count(*) from stat.klass_qualifikation group by 1 order by 1"
+        ).fetchall()
+    for kategorie, codes in zeilen:
+        print(f"kategorie {kategorie} codes {codes}")
+    fach = [z for z in zeilen if z[0] != "Unbekannt"]
+    print(f"fachkategorien {len(fach)}")
+    print(f"ausgangscodes {sum(z[1] for z in fach)}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     unter = ap.add_subparsers(dest="befehl", required=True)
@@ -195,6 +230,8 @@ def main() -> int:
     a4.add_argument("namen", nargs="+")
     unter.add_parser("schema")
     unter.add_parser("ladung")
+    unter.add_parser("anhangb")
+    unter.add_parser("qualifikation")
     a = ap.parse_args()
     if a.befehl == "regelsaetze":
         return regelsaetze(a.namen)
@@ -202,6 +239,10 @@ def main() -> int:
         return schema()
     if a.befehl == "ladung":
         return ladung()
+    if a.befehl == "anhangb":
+        return anhangb()
+    if a.befehl == "qualifikation":
+        return qualifikation()
     if a.befehl == "abrechnung":
         return abrechnung(a.lieferung, a.regelsatz)
     if a.befehl == "zeitreihe":
