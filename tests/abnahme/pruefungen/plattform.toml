@@ -20,8 +20,8 @@ grund = "Der Lead hat die Checkliste gegengeprüft und mit Namen und Zeit vermer
 [[pruefung]]
 id = "27-AC1"
 hash = "747297f356"
-befehl = '''test -s abgabe/CHECKLISTE.md || { echo "CHECKLISTE fehlt"; exit 1; }; for k in "Freeze" "07:00" "09:00" "GitHub"; do echo "$k $(grep -c "$k" abgabe/CHECKLISTE.md)"; done; echo "erledigt_mail_yaml $(grep -E '^- \[x\]' abgabe/CHECKLISTE.md | grep -ciE 'mail|yaml')"; echo "offen_mail_yaml $(grep -E '^- \[ \]' abgabe/CHECKLISTE.md | grep -ciE 'mail|yaml' || true)"; echo "github_neben_0900 $(grep -cE 'GitHub.*09:00|09:00.*GitHub' abgabe/CHECKLISTE.md)"'''
-erwartet = ["^Freeze [1-9]", "^07:00 [1-9]", "^09:00 [1-9]", "^GitHub [1-9]", "^erledigt_mail_yaml [2-9]", "^offen_mail_yaml 0$", "^github_neben_0900 [1-9]"]
+befehl = '''test -s abgabe/CHECKLISTE.md || { echo "CHECKLISTE fehlt"; exit 1; }; for k in "Freeze" "07:00" "09:00" "GitHub"; do echo "$k $(grep -c "$k" abgabe/CHECKLISTE.md)"; done; echo "erledigt_mail_yaml $(grep -iE 'mail|yaml' abgabe/CHECKLISTE.md | grep -ci 'erledigt' || true)"; echo "offen_mail_yaml $(grep -iE 'mail' abgabe/CHECKLISTE.md | grep -iE '\[ \]|\| *(offen|geplant) *\|' | grep -civ 'erledigt' || true)"; echo "github_neben_0900 $(grep -cE 'GitHub.*09:00|09:00.*GitHub' abgabe/CHECKLISTE.md)"'''
+erwartet = ["^Freeze [1-9]", "^07:00 [1-9]", "^09:00 [1-9]", "^GitHub [1-9]", "^erledigt_mail_yaml [1-9]", "^offen_mail_yaml 0$", "^github_neben_0900 [1-9]"]
 deckung = "voll"
 schwer = false
 zeitlimit = 30

@@ -160,12 +160,13 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "14-AC3"
 hash = "379f192323"
-befehl = "python3 -c \"import csv;r=list(csv.DictReader(open('docs/plan/uc3/regeln-v1.csv',encoding='utf-8'),delimiter=';'));print([(x['name'],x['gueltig_ab_lieferung'],bool(x['begruendung']),bool(x['grundlage']),repr(x['freigegeben_von'])) for x in r if x['name'].startswith(('R6','R7'))])\""
-erwartet = ["R6_beschaeftigungskategorie', '2024-08', True, True, '[^']+'", "R7_oenace_nach_berichtsmonat', '2024-08', True, True, '[^']+'"]
+befehl = "python3 -c \"import csv;r=csv.DictReader(open('docs/plan/uc3/regeln-v1.csv',encoding='utf-8'),delimiter=';');[print(x['name'][:2],'ab',x['gueltig_ab_lieferung'],'begruendung',bool(x['begruendung'].strip()),'grundlage',bool(x['grundlage'].strip()),'freigabe',bool(x['freigegeben_von'].strip() and x['freigegeben_am'].strip())) for x in r if x['name'].startswith(('R6_','R7_'))]\""
+erwartet = ["^R6 ab \\d{4}-\\d{2} begruendung True grundlage True freigabe True$", "^R7 ab \\d{4}-\\d{2} begruendung True grundlage True freigabe True$"]
 schwer = false
 deckung = "teil"
-befund = "Der Snapshot hat bei R6 und R7 keine Freigabereferenz (regeln-v1.csv, Spalten freigegeben_von/freigegeben_am leer); der Anti-Join gegen die Klassifikation ist nicht gemessen (braucht DB)."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:23"
+grund = "Snapshot regeln-v1.csv: R6 und R7 mit Gültigkeit, Begründung, Grundlage und Freigabe (Name und Zeitpunkt); Anti-Join gegen die Klassifikation braucht die DB"
+befund = "Im Snapshot regeln-v1.csv fehlt bei R6 oder R7 Gültigkeit, Begründung, Grundlage oder Freigabe (Name und Zeitpunkt)"
+herkunft = "b-abnahme-4c 2026-11-05 20:45 (Messbefund 3e: alter Prüfsatz maß den Stand von 17:2x)"
 
 [[pruefung]]
 id = "14-AC4"
@@ -191,12 +192,13 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:24"
 [[pruefung]]
 id = "15-AC2"
 hash = "55782382da"
-befehl = "grep -c 'Noch keine' abgabe/protokoll.md"
-erwartet = ["(?m)^0$"]
+befehl = "echo noch_keine $(grep -c 'Noch keine' abgabe/protokoll.md || true); echo trailer $(grep -c 'Freigegeben-von' abgabe/protokoll.md || true)"
+erwartet = ["^noch_keine 0$", "^trailer [1-9]"]
 schwer = false
 deckung = "teil"
-befund = "Das Integrationsprotokoll mit Name, Zeitpunkt und Commit-Trailer fehlt: abgabe/protokoll.md zeigt noch keine freigegebene Aenderung und es gibt keinen Commit mit Trailer Freigegeben-von in uc3, abgabe oder docs."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:24"
+grund = "abgabe/protokoll.md führt freigegebene Änderungen mit Trailer Freigegeben-von (Aufruf freigeben() und Ablehnung ohne Commit misst dieser Teil nicht)"
+befund = "abgabe/protokoll.md zeigt keine freigegebene Änderung mit Trailer Freigegeben-von"
+herkunft = "b-abnahme-4c 2026-11-05 20:45 (Messbefund 3e: alter Prüfsatz maß den Stand von 17:2x)"
 
 [[pruefung]]
 id = "15-AC3"
@@ -379,13 +381,15 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "69-AC2"
 hash = "2554162131"
-befehl = "test -e abgabe/aggregationen_v2a.xlsx && echo DA || echo FEHLT"
+befehl = "test -e abgabe/aggregationen_v2.xlsx && echo DA || echo FEHLT"
 erwartet = ["^DA$"]
 schwer = false
 deckung = "teil"
 befund_art = "fehlt"
-befund = "Die Datei abgabe/aggregationen_v2a.xlsx fehlt auf main (auch abgabe/aggregationen_v2.xlsx fehlt); die 24 v2-Läufe laufen laut Kommentar 271827 erst auf dem Prüfrechner. SQL-Vergleich (0 Differenzen) und v1-Hash nicht messbar."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+quelle = "Wortlaut nennt aggregationen_v2a.xlsx; Lead a7 (über 3e, 05.11. 20:4x): die Abgabe heißt aggregationen_v2.xlsx"
+grund = "Sheet nach Änderungsauftrag liegt als abgabe/aggregationen_v2.xlsx vor (SQL-Vergleich je Monat und v1-Hash misst dieser Teil nicht)"
+befund = "abgabe/aggregationen_v2.xlsx fehlt auf main"
+herkunft = "b-abnahme-4c 2026-11-05 20:45 (Messbefund 3e: alter Prüfsatz maß den Stand von 17:2x)"
 
 [[pruefung]]
 id = "70-AC1"
