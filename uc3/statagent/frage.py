@@ -150,28 +150,51 @@ def fragetyp(frage: str) -> str:
 
 KANN = (
     "StatAgent beantwortet: Beschäftigungsverhältnisse je Monat oder Zeitraum, nach Bundesland, Geschlecht, "
-    "Branche (ÖNACE-Abschnitt) und Beschäftigungskategorie, dazu die Fluktuation je Branche und "
+    "Branche (ÖNACE-Abschnitt), Beschäftigungskategorie und Alter, dazu die Fluktuation je Branche und "
     "Begriffserklärungen."
 )
 #: Signalwörter für Merkmale, die es in den Daten der Anfrage nicht gibt: lieber ehrlich absagen als eine Zahl
 #: ohne diese Einschränkung zu liefern. Sprachverständnis, kein Rechenregelwerk (docs/plan/uc3/annahmen.md).
+ALTER_GRUND = (
+    "Das Durchschnittsalter und Geburtsjahrgänge wertet StatAgent nicht aus. Es gibt Zahlen zu "
+    "einem Alter oder einer Spanne, zum Beispiel „Beschäftigte unter 25 Jahren im Juli 2026“."
+)
+DAUER_GRUND = f"Wie lange ein Beschäftigungsverhältnis schon besteht, wertet StatAgent nicht aus. {KANN}"
+#: Mehrere, unmögliche oder nicht eindeutige Altersangaben: hier geht es nicht um das Durchschnittsalter.
+ALTER_UNKLAR = (
+    "Diese Altersangabe kann StatAgent nicht auswerten. Fragen Sie nach einem Alter oder einer Spanne in Jahren, "
+    "zum Beispiel „Beschäftigte ab 50 Jahren im Juli 2026“."
+)
+#: Eine Altersgrenze ohne „Jahre“. Nicht gemeint sind Mengen und Prozent („über 50 Prozent“, „über 20.000“) und Daten
+#: („bis 31. März“, „bis 12/2025“, „bis 12 2025“).
+_ALTER_GRENZE_MUSTER = (
+    r"\b(?:unter|über|ueber|ab|bis|zwischen)[\s-]+\d{2}(?![./,-]?\d)(?!\s+\d{4})"
+    r"(?!\.?\s*(?:jän|jan|feb|mär|mae|apr|mai|jun|jul|aug|sep|okt|nov|dez))"
+    r"(?!\s*(?:prozent|%|beschäftig|personen|leute|menschen|verhältnis|mitarbeit|arbeitnehm|dienstnehm|betrieb"
+    r"|jobs?\b|stellen\b|tausend|tsd))"
+)
+_ALTER_GRENZE = re.compile(_ALTER_GRENZE_MUSTER)
+_ALTER_FACHLICH_NICHT = re.compile(r"durchschnittsalter|\bwie alt\b|jahrgang|jahrgänge|geburtsjahr")
 NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
     # Dauer vor Alter prüfen: „seit über 2 Jahren beschäftigt“ ist keine Altersfrage, aber genauso nicht in den Daten.
     (
         re.compile(
-            r"beschäftigungsdauer|\bseit\s+(?:(?:über|ueber|mehr als|unter|weniger als)\s+)?\d{1,3}\s*(?:jahre|jahren|monate|monaten)\b"
-            r"|\b(?:über|ueber|unter|länger als|mehr als|weniger als)\s+\d{1,3}\s*(?:jahre|jahren|monate|monaten)\s+"
-            r"(?:beschäftigt|angestellt|tätig|im job|im betrieb)"
+            r"beschäftigungsdauer|\bdauer\b|(?:betriebs|firmen|unternehmens)zugehörigkeit|\bseit\s+(?:(?:über|ueber|mehr als|unter|weniger als)\s+)?\d{1,3}\s*(?:jahre|jahren|monate|monaten)\b"
+            r"|\b(?:über|ueber|unter|ab|bis|länger als|mehr als|weniger als)\s+\d{1,3}\s*(?:jahre|jahren|monate|monaten)\s+"
+            r"(?:beschäftigt|angestellt|tätig|im job|im betrieb|dabei|zugehörigkeit)"
         ),
-        "Wie lange ein Beschäftigungsverhältnis schon besteht, wertet StatAgent bei Datenanfragen nicht aus.",
+        DAUER_GRUND,
     ),
     (
         re.compile(
             r"\b(alter|altersgruppen?|lebensalter)\b(?!\s+(regel|regeln|version|fassung|stand|zählung|lieferung))"
-            r"|durchschnittsalter|jahre alt|\b\d{1,3}-?jährig|jugendlich|jahrgang|jahrgänge|geburtsjahr"
+            r"|durchschnittsalter|jahre alt|\bwie alt\b|\b\d{1,3}-?jährig|jugendlich|jahrgang|jahrgänge|geburtsjahr"
             r"|\b(unter|über|ueber|ab|bis)\s+\d{1,3}\s*(jahre|jahren)\b"
+            # Auffangregel: eine Altersangabe ohne eindeutigen Treffer bekommt keinen Gesamtbestand.
+            rf"|{_ALTER_GRENZE_MUSTER}"
+            r"|\b\d{2}\s*\+|\b(?:älter|aelter|jünger|juenger)(?:e[nrs]?)?\b|\balters(?:stufe|klasse|kohorte|struktur)\w*"
         ),
-        "Das Alter wertet StatAgent bei Datenanfragen nicht aus.",
+        ALTER_GRUND,
     ),
     (
         re.compile(r"durchschnitt|mittelwert|median"),
@@ -240,6 +263,8 @@ _KEIN_MERKMAL_STAMM = (
     "berichtsmonat", "stichtag", "verlauf", "lauf", "bereich", "branche", "sektor", "prozent", "vormonat",
     "vorjahr", "zahl", "tabelle", "beschäftigungskategorie", "kategorie", "geschlecht",
 )  # fmt: skip
+#: Nur als ganzes Wort: „Altersheim“ und „Altersteilzeit“ sind keine Merkmale.
+_KEIN_MERKMAL_WORT = frozenset({"alter", "alters", "altersgruppe", "altersgruppen", "altersverteilung"})
 _FUNKTIONSWORT = frozenset(
     {"im", "in", "der", "den", "dem", "die", "das", "welchem", "welcher", "welchen", "welche", "diesem",
      "dieser", "diesen", "ganz", "ganzen", "gesamten", "allen", "alle", "einem", "einer", "einen", "letzten",
@@ -282,6 +307,76 @@ def _normalisieren(frage: str, letzter: str) -> tuple[str, list[str], bool]:
     return frage, notizen, mittel
 
 
+# --- Alter: Spalte stat.stat_beschaeftigte.alter (Regel R5), Altersgruppen aus stat.klass_alter wie im Sheet ------
+ALTERSGRUPPE = Merkmal(
+    "Alter",
+    "(SELECT a.berichtsgruppe FROM stat.klass_alter a WHERE a.code = s.alter)",
+    "SELECT berichtsgruppe AS code, CASE WHEN berichtsgruppe = 'unbekannt' THEN 'Alter unbekannt'"
+    " ELSE replace(berichtsgruppe, ' u. mehr', ' Jahre und älter') || CASE WHEN berichtsgruppe LIKE '%% u. mehr'"
+    " THEN '' ELSE ' Jahre' END END AS bezeichnung FROM stat.klass_alter"
+    " GROUP BY berichtsgruppe ORDER BY min(code) < 0, min(code)",
+    ("alter",),
+)
+_ALTER_GRUPPEN = re.compile(
+    r"\b(?:nach|je|pro)\s+(?:\w+\s+)?(?:alter|altersgruppen?)\b(?!\s+(?:regel|regeln|version|fassung|stand|zählung|lieferung))"
+    r"|\baltersgruppen\b|\baltersverteilung\b"
+)
+_ALTER_NICHT = re.compile(r"durchschnittsalter|jugendlich|jahrgang|jahrgänge|geburtsjahr")
+_JAHRE = r"\s*-?\s*(?:jahren?|jährig\w*)"
+#: (Muster, Grenzen aus den Gruppen, Wortlaut). Höchstalter wie die Klassifikation.
+_ALTER_HOECHST = 130
+_ALTER_GRENZE_MINDEST = 14
+_ALTER_MUSTER: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(rf"\b(\d{{1,3}})(?:{_JAHRE})?(?:\s+alt)?\s+(?:oder|und)\s+(?:älter|aelter|mehr)\b"), "ab"),
+    (re.compile(r"\bim\s+alter\s+von\s+(\d{1,3})\s*(?:bis|und)\s*(\d{1,3})\b"), "spanne"),
+    (re.compile(rf"\b(?:zwischen\s+)?(\d{{1,3}})\s*-?\s*(?:bis|und|–|—|-)\s*(\d{{1,3}}){_JAHRE}"), "spanne"),
+    (re.compile(rf"\b(?:jünger als|juenger als)\s+(\d{{1,3}})(?:{_JAHRE})?"), "unter"),
+    (re.compile(rf"\bunter[\s-]+(\d{{1,3}}){_JAHRE}"), "unter"),
+    (re.compile(rf"\b(?:älter als|aelter als)\s+(\d{{1,3}})(?:{_JAHRE})?"), "ueber"),
+    (re.compile(rf"\b(?:über|ueber)[\s-]+(\d{{1,3}}){_JAHRE}"), "ueber"),
+    (re.compile(rf"\bab\s+(\d{{1,3}}){_JAHRE}"), "ab"),
+    (re.compile(rf"\bbis\s+(\d{{1,3}}){_JAHRE}"), "bis"),
+    # Ohne „Jahre“ nur direkt vor der Zeitangabe oder am Satzende: „über 2000 Beschäftigte“ ist eine Menge.
+    (re.compile(r"\bunter\s+(\d{2})(?=\s*(?:$|[?.,](?!\d)|im\b|in\b|am\b|von\b))"), "unter"),
+    (re.compile(r"\b(?:über|ueber)\s+(\d{2})(?=\s*(?:$|[?.,](?!\d)|im\b|in\b|am\b|von\b))"), "ueber"),
+    (re.compile(r"\bim\s+alter\s+von\s+(\d{1,3})\b"), "genau"),
+    (re.compile(r"\b(\d{1,3})\s*-?\s*jährig\w*"), "genau"),
+    (re.compile(r"\b(\d{1,3})\s+jahre\s+alt\b"), "genau"),
+)
+
+
+def _alter_lesen(frage: str) -> tuple[Merkmal, str, str] | None:
+    """Genau eine Altersangabe als Filter (Merkmal, Code, Etikett); bei keiner oder mehreren None (dann Absage)."""
+    text = frage.lower()
+    if _ALTER_NICHT.search(text):
+        return None
+    gefunden: list[tuple[str, int, int]] = []
+    for muster, art in _ALTER_MUSTER:
+        for t in muster.finditer(text):
+            zahlen = [int(g) for g in t.groups()]
+            gefunden.append((art, zahlen[0], zahlen[-1]))
+        text = muster.sub(lambda m: " " * len(m.group(0)), text)
+    # Bleibt neben dem Treffer eine Grenze stehen („unter 25 und über 50“), ist die Angabe nicht eindeutig.
+    if len(gefunden) != 1 or _ALTER_GRENZE.search(text):
+        return None
+    art, a, b = gefunden[0]
+    if art != "genau" and a < _ALTER_GRENZE_MINDEST:
+        return None  # „über 2 Jahre dabei“, „unter 10 in Wien“: das ist keine Altersgrenze
+    von, bis, etikett = {
+        "spanne": (a, b, f"{a} bis {b} Jahre"),
+        "unter": (0, a - 1, f"unter {a} Jahre"),
+        # Vollendete Jahre: „über 50“ beginnt bei 51, das Etikett nennt die Grenze (annahmen.md, A14).
+        "ueber": (a + 1, _ALTER_HOECHST, f"{a + 1} Jahre und älter"),
+        "ab": (a, _ALTER_HOECHST, f"ab {a} Jahre"),
+        "bis": (0, a, f"bis {a} Jahre"),
+        "genau": (a, a, f"{a} Jahre"),
+    }[art]
+    if not 0 <= von <= bis <= _ALTER_HOECHST:
+        return None
+    # von und bis sind ganze Zahlen aus der Frage.
+    return Merkmal("Alter", f"(s.alter BETWEEN {von} AND {bis})", "", ()), "true", etikett
+
+
 def nicht_auswertbar(frage: str, mittel: bool = False) -> str | None:
     """Absagetext, wenn die Frage Einzeldaten oder ein Merkmal verlangt, das es nicht gibt; sonst None.
 
@@ -292,10 +387,20 @@ def nicht_auswertbar(frage: str, mittel: bool = False) -> str | None:
     kennung = any((t.group(1) or "") not in _MENGENWORT for t in _LANGE_ZAHL.finditer(text))
     if _PERSON.search(text) or kennung:
         return "Einzeldaten gibt StatAgent nicht heraus, auch nicht zu einer einzelnen Person. " + KANN
+    alter_lesbar = not _ALTER_NICHT.search(text) and (
+        _alter_lesen(text) is not None or _ALTER_GRUPPEN.search(text) is not None
+    )
     for muster, grund in NICHT_AUSGEWERTET:
+        if grund is ALTER_GRUND and alter_lesbar:
+            continue
         if mittel and grund.startswith("Durchschnitte") and "median" not in text:
             continue
         if muster.search(text):
+            if grund is ALTER_GRUND:
+                # Das Beispiel der Alters-Absage sagt schon, was geht.
+                return ALTER_GRUND if _ALTER_FACHLICH_NICHT.search(text) else ALTER_UNKLAR
+            if grund is DAUER_GRUND:
+                return grund  # sagt schon selbst, was geht
             return f"{grund} Darum gibt es hier keine Zahl. {KANN}"
     return None
 
@@ -353,7 +458,13 @@ def _wort_bekannt(wort: str, erkannt: list[str]) -> bool:
     („Produktionslauf“, „Hausverwaltung“) ist damit unbekannt.
     """
     klein = wort.lower().strip("-")
-    if not klein or klein.isdigit() or klein in MONATSNAMEN or klein in _FUNKTIONSWORT:
+    if (
+        not klein
+        or klein.isdigit()
+        or klein in MONATSNAMEN
+        or klein in _FUNKTIONSWORT
+        or klein in _KEIN_MERKMAL_WORT
+    ):
         return True
     if any(klein.startswith(stamm) for stamm in _KEIN_MERKMAL_STAMM):
         return True
@@ -387,6 +498,10 @@ def _verstanden(
             teile.append(f"{wort}: alle")
     if FREIER_DV.name in gefiltert:
         teile.append("nur freie Dienstverträge")
+    if "Alter" in gefiltert:
+        teile.append(f"Alter {gefiltert['Alter'][1]}")
+    if ALTERSGRUPPE in gruppen:
+        teile.append("je Alter")
     return "Verstanden: " + ", ".join(teile) + "."
 
 
@@ -472,7 +587,7 @@ def _ohne_bezug(conn: Verbindung, frage: str, letzter: str) -> bool:
     genannt = monate_lesen(frage)
     if _filter(conn, frage, genannt[-1] if genannt else letzter, ())[0]:
         return False
-    if _BEZUG.search(text) or _gliederung(frage) is not None:
+    if _BEZUG.search(text) or _gliederung(frage) is not None or _ALTER_GRUPPEN.search(text):
         return False
     jahr = jahr_ohne_monat(frage)
     if not genannt and jahr is None:
@@ -520,7 +635,13 @@ def _status_text(staende: list[dict[str, Any]]) -> str:
 
 
 #: Anfang der Absage bei zwei Werten eines Merkmals; UC4 zeigt in diesem Fall je Wert eine Zahl (#125).
-MEHRERE_WERTE = "Die Frage nennt mehrere Werte"
+_MEHRZAHL = {
+    "Bundesland": "Bundesländer",
+    "Geschlecht": "Geschlechter",
+    "ÖNACE-Abschnitt": "Branchen",
+    "Beschäftigungskategorie": "Beschäftigungskategorien",
+}
+MEHRERE_WERTE = tuple(f"Die Frage nennt mehrere {w}:" for w in _MEHRZAHL.values())
 
 
 class _KeineZahl(Exception):
@@ -606,7 +727,7 @@ def _filter(
         if len(werte) > 1:
             namen = " und ".join(codes[c] for c in werte)
             raise _KeineZahl(
-                f"{MEHRERE_WERTE} für {merkmal.name}: {namen}. Eine Zahl für alle zusammen wäre "
+                f"Die Frage nennt mehrere {_MEHRZAHL[merkmal.name]}: {namen}. Eine Zahl für alle zusammen wäre "
                 f"missverständlich. Bitte getrennt fragen oder alle auf einmal mit „je {merkmal.name}“."
             )
         filter_.append((merkmal, werte[0]))
@@ -615,6 +736,11 @@ def _filter(
         filter_.append((FREIER_DV, "true"))
         etiketten.append("freie Dienstverträge")
         erkannt.append("freie dienstverträge")
+    alter = _alter_lesen(frage)
+    if alter is not None:
+        filter_.append((alter[0], alter[1]))
+        etiketten.append(alter[2])
+        erkannt.append(alter[2])
     for kette in _ORT_KETTE.findall(frage):
         for wort in re.split(r"\s*(?:,|\bund\b|\boder\b|\bsowie\b)\s*", kette, flags=re.IGNORECASE):
             if not _wort_bekannt(wort, erkannt):
@@ -799,6 +925,10 @@ def _bestand_antwort(
             stand = letzter_lauf(conn, str(staende_q[0]["monat"]), regelsatz)
             hash_ = stand.ergebnis_hash if stand and stand.lauf_id == staende_q[0]["lauf"] else None
         belege.append(_beleg(text_q, staende_q, hash_))
+        if gruppen == (ALTERSGRUPPE,):
+            # „bis 14“ zuerst, „Alter unbekannt“ zuletzt: Reihenfolge der Klassifikation, nicht des Texts.
+            rang = {code: i for i, code in enumerate(_codes(conn, ALTERSGRUPPE, von))}
+            zeilen = sorted(zeilen, key=lambda z: (str(z["monat"]), rang.get(str(z["g0"]), len(rang))))
         for z in zeilen:
             monat = str(z["monat"])
             if monat in ohne_stichtag or (gruppen and z["g0"] is None):
@@ -882,6 +1012,20 @@ def _bestand_antwort(
                 anteile.append(f"{name} {_komma(wert)} Prozent")
         if anteile:
             text += " Anteil an allen: " + ", ".join(anteile) + "."
+    if gruppen == (ALTERSGRUPPE,) and von == bis:
+        # Summe aller Alter für die letzte Tabellenzeile, als eigene Abfrage mit eigenem Beleg.
+        alle_sql = bestand_sql(conn, regelsatz, von, bis, filter_, ())
+        alle = _lesen(conn, alle_sql)
+        belege.append(_beleg(alle_sql, _staende(alle)))
+        zahlen.extend(
+            {
+                "bezeichnung": f"Beschäftigungsverhältnisse{zusatz}, Alle Altersstufen",
+                "wert": int(z["wert"]),
+                "einheit": einheit,
+                "beleg": len(belege) - 1,
+            }
+            for z in alle
+        )
     if gruppen == (GESCHLECHT, BUNDESLAND) and von == bis:
         # Summe je Geschlecht für die letzte Tabellenzeile, als eigene Abfrage mit eigenem Beleg. Nur für einen Monat:
         # Bestände mehrerer Monate darf man nicht addieren.
@@ -1051,7 +1195,7 @@ def _bewegung_fehlertext(fehler: psycopg.Error, monat: str) -> str:
     if "Regelstand" in meldung:
         return "Die Einzeldaten dieses Monats wurden inzwischen mit anderen Regeln neu gerechnet." + was_tun
     if "keine bereinigten Daten" in meldung:
-        return "Für diesen Monat liegen keine bereinigten Einzeldaten vor." + was_tun
+        return "Für diesen Monat liegen die Einzeldaten nicht vor." + was_tun
     return NICHT_LESBAR
 
 
@@ -1309,7 +1453,8 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
             and jahr_ohne_monat(frage) is None
             and letzter is not None
         ):
-            frage = f"{frage} {_monat_anzeige(letzter)}"
+            # Mit „im“: „unter 25“ am Satzende bleibt sonst nicht als Alter lesbar und fiele still weg.
+            frage = f"{frage.rstrip(' ?.!')} im {_monat_anzeige(letzter)}"
             if _AKTUELL.search(frage):
                 notizen.append(
                     f"„Aktuell“ heißt hier der zuletzt gerechnete Monat, {_monat_anzeige(letzter)}."
@@ -1328,6 +1473,19 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     return daten
 
 
+def _aufteilung(frage: str) -> Merkmal | None:
+    """Die Aufteilung der Frage; Altersgruppen nur allein, eine zweite Aufteilung fiele sonst still weg."""
+    text = frage.lower()
+    if not _ALTER_GRUPPEN.search(text):
+        return _gliederung(frage)
+    if _gliederung(frage) is not None or _geschlecht_gegliedert(text):
+        raise _KeineZahl(
+            "Die Zahlen je Alter gibt es nur ohne eine zweite Aufteilung. Bitte getrennt fragen, zum Beispiel "
+            "„Frauen nach Altersgruppe im Juli 2026“."
+        )
+    return ALTERSGRUPPE
+
+
 def _antwort_frage(
     conn: Verbindung, frage: str, regelsatz: str, typ: str, mittel: bool = False
 ) -> dict[str, Any]:
@@ -1340,6 +1498,7 @@ def _antwort_frage(
     jahr = jahr_ohne_monat(frage)
     text = frage.lower()
     if typ == "zeitreihe":
+        _aufteilung(frage)  # Männer und Frauen je Altersgruppe: Absage
         if len(monate) >= 2:
             von, bis = min(monate[0], monate[-1]), max(monate[0], monate[-1])
         elif len(monate) == 1:
@@ -1356,7 +1515,7 @@ def _antwort_frage(
         if von == "0001-01":
             von = _erster_monat(conn, regelsatz) or bis
         gruppen: tuple[Merkmal, ...] = (
-            (GESCHLECHT,) if _geschlecht_gegliedert(text) else tuple(g for g in (_gliederung(frage),) if g)
+            (GESCHLECHT,) if _geschlecht_gegliedert(text) else tuple(g for g in (_aufteilung(frage),) if g)
         )
         return _bestand_antwort(conn, frage, regelsatz, von, bis, gruppen, "zeitreihe", mittel)
     if typ == "fluktuation" and len(monate) > 1:
@@ -1377,10 +1536,15 @@ def _antwort_frage(
                 f"{_monat_anzeige(monat_verschieben(monat, 1))} gibt es sie."
             )
         filter_, etiketten = _filter(conn, frage, monat, ())
-        if any(m is not OENACE for m, _ in filter_) or _BUNDESLAND.search(text) or _GESCHLECHT.search(text):
+        if (
+            any(m is not OENACE for m, _ in filter_)
+            or _BUNDESLAND.search(text)
+            or _GESCHLECHT.search(text)
+            or _ALTER_GRUPPEN.search(text)
+        ):
             raise _KeineZahl(
                 "Die Fluktuation gibt es nur für ganz Österreich je Wirtschaftsbereich, nicht je Bundesland, "
-                "Geschlecht oder Beschäftigungskategorie. Vorschlag: „Fluktuation je Wirtschaftsbereich im "
+                "Geschlecht, Beschäftigungskategorie oder Alter. Vorschlag: „Fluktuation je Wirtschaftsbereich im "
                 f"{_monat_anzeige(monat)}“."
             )
         daten = _fluktuation_antwort(conn, monat, regelsatz)
@@ -1394,9 +1558,10 @@ def _antwort_frage(
             )
         return daten
     if typ == "geschlecht" and _geschlecht_gegliedert(text):
+        _aufteilung(frage)  # Männer und Frauen je Altersgruppe: Absage
         gruppen = (GESCHLECHT, BUNDESLAND) if _BUNDESLAND.search(text) else (GESCHLECHT,)
         return _bestand_antwort(conn, frage, regelsatz, monat, monat, gruppen, "geschlecht")
-    gliederung = _gliederung(frage)
+    gliederung = _aufteilung(frage)
     return _bestand_antwort(
         conn, frage, regelsatz, monat, monat, (gliederung,) if gliederung else (), "bestand"
     )
