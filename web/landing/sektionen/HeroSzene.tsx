@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { BUNDESLAENDER_2024_08, GOLDEN_SET, zahl } from "../daten/fakten";
-import { berechneLayout, standardRaender, type BefundId, type SzeneLayout } from "../szene/motor/layout";
+import { berechneLayout, standardRaender, type SzeneLayout } from "../szene/motor/layout";
 import { MARKEN, RUHE_P, schrittAnteil } from "../szene/motor/zeitplan";
 import {
   SCHRITTE,
@@ -13,7 +13,7 @@ import {
   type SchrittId,
   type SzeneVariante,
 } from "../szene/vertrag";
-import { BELEG, HERO, SCHRITT_TEXTE } from "../texte/inhalt";
+import { BELEG, HERO, SCHRITT_TEXTE, SZENE_TEXTE, monateLesbar } from "../texte/inhalt";
 import h from "./hero.module.css";
 import s from "./seite.module.css";
 
@@ -21,21 +21,9 @@ const SzeneCanvas = dynamic(() => import("../szene/SzeneCanvas"), { ssr: false }
 
 /** Bis hierhin steht der Erststand (Titel), danach übernimmt Schritt 1. */
 const ERSTSTAND_BIS = 0.07;
-/**
- * Neue Texte der Szenen-Beschriftung (zum Verschieben nach texte/inhalt.ts). Zahlen kommen aus dem
- * Layout, das sie aus daten/fakten.ts übernimmt.
- */
-const SZENE_TEXTE = {
-  befund: {
-    "geburtsmonat-13": "Geburtsmonat 13",
-    "bl-oenace-leer": "ohne Bundesland",
-    volldubletten: "doppelte Zeilen",
-    "fd-fehlen": "freie Dienstverträge fehlen",
-    "teil-lieferung": "fehlen",
-  } satisfies Record<BefundId, string>,
-  unbekannt: "ohne Bundesland",
-  legende: (n: number) => `1 Punkt ≈ ${zahl(n)} Beschäftigungsverhältnisse`,
-} as const;
+
+/** Rastpunkte der Scroll-Strecke: Erststand und die Ruhepunkte der vier Schritte (alle Übergänge fertig). */
+const RASTPUNKTE = [0, ...SCHRITTE.map((schritt) => RUHE_P[schritt.id])];
 
 /** Fester Fortschritt des Standbilds bei reduzierter Bewegung. */
 const STANDBILD_P = 0.62;
@@ -158,10 +146,17 @@ export default function HeroSzene() {
     messen();
     window.addEventListener("scroll", anfordern, { passive: true });
     window.addEventListener("resize", anfordern, { passive: true });
+    // Weiches Einrasten: Bleibt das Scrollen in der Nähe eines Ruhepunkts stehen, gleitet die Seite
+    // dorthin (Anker unten in der Strecke). „proximity“ statt „mandatory“: Weit weg davon und beim
+    // schnellen Wischen bleibt das Scrollen frei, der Rest der Seite rastet nie ein.
+    const wurzel = document.documentElement;
+    const vorher = wurzel.style.scrollSnapType;
+    wurzel.style.scrollSnapType = "y proximity";
     return () => {
       window.removeEventListener("scroll", anfordern);
       window.removeEventListener("resize", anfordern);
       if (rahmen) cancelAnimationFrame(rahmen);
+      wurzel.style.scrollSnapType = vorher;
     };
   }, [modus.bereit, modus.reduziert, fortschritt]);
 
@@ -270,6 +265,13 @@ export default function HeroSzene() {
       data-szene=""
       aria-labelledby="hero-titel"
     >
+      {zaehlen ? (
+        <div className={h.anker} aria-hidden="true">
+          {RASTPUNKTE.map((p) => (
+            <span key={p} style={{ "--p": p } as CSSProperties} />
+          ))}
+        </div>
+      ) : null}
       <div ref={buehneRef} className={h.buehne}>
         {canvas}
         {anker ? <SzenenMarken layout={anker.layout} /> : null}
@@ -483,8 +485,8 @@ const SzenenMarken = memo(function SzenenMarken({ layout: l }: { layout: SzeneLa
             className={h.befundMarke}
             style={{ left: b.label.x, top: b.label.y, width: b.label.breite }}
           >
-            <span className={h.markeZahl}>{zahl(b.zeilen)}</span> {SZENE_TEXTE.befund[b.id]}{" "}
-            <span className={h.befundLieferung}>{b.lieferung}</span>
+            <span className={h.markeZahl}>{zahl(b.zeilen)}</span> {(mobil && SZENE_TEXTE.befundMobil[b.id]) || SZENE_TEXTE.befund[b.id]}{" "}
+            <span className={h.befundLieferung}>{monateLesbar(b.lieferung)}</span>
           </p>
         ))}
       </div>

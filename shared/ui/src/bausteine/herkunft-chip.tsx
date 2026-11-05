@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useId, useState } from "react";
-import { Knopf, Status } from "../basis";
+import { Knopf, Piktogramm, Status } from "../basis";
 import { fokus, klassen } from "../basis/klassen";
 
 export type HerkunftChipProps = {
@@ -30,7 +30,8 @@ type Kopie = "bereit" | "kopiert" | "fehler";
 const LAUF_KURZ = 8;
 
 /**
- * Beleg einer Zahl: grüner Chip mit Quelle, Zeitpunkt, Regelstand und Lauf; beim Öffnen das SQL mit „Kopieren“.
+ * Beleg einer Zahl (Pen-Frame QVMco): grüne Pille mit Datenbank-Symbol, Quelle, Zeitpunkt, Regelstand und Lauf;
+ * beim Öffnen das SQL mit „Kopieren“. Quelle und Zeitpunkt stehen in Mono (Daten), die Wörter in Inter.
  * Steht als Block neben der Zahl (nicht innerhalb eines `<p>`), weil der geöffnete Bereich ein `<pre>` enthält.
  * Ohne SQL heißt der Chip „Beleg ansehen“ und zeigt nur Quelle, Lieferung, Lauf und Verweis.
  */
@@ -92,10 +93,11 @@ export function HerkunftChip({
         }}
         title={lauf && laufKurz !== lauf ? `Lauf ${lauf}` : undefined}
         className={klassen(
-          "inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full bg-gruen-bg px-2 py-1 text-left font-sans text-12 font-semibold text-gruen hover:underline",
+          "inline-flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-full bg-gruen-bg px-2.5 py-1 text-left font-sans text-12 font-normal text-gruen hover:underline",
           fokus,
         )}
       >
+        <Piktogramm name="datenbank" groesse={12} className="shrink-0" />
         <span className="font-mono">{quelle}</span>
         {zeitpunkt && (
           <>

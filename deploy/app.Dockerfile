@@ -40,6 +40,8 @@ FROM ${UV_IMAGE} AS laufzeit
 COPY --from=web-bau /usr/local/bin/node /usr/local/bin/node
 RUN groupadd --system --gid 1001 app && useradd --system --uid 1001 --gid app --home-dir /app app
 WORKDIR /app
+# Einziger beschreibbarer Ordner (Volume app_protokoll, #100): ein neues Volume übernimmt Besitzer app von hier
+RUN mkdir -p /app/var/protokoll && chown app:app /app/var/protokoll && chmod 0700 /app/var/protokoll
 # Code gehört root und ist nur lesbar für den Laufzeitnutzer app: er kann ihn nicht ändern (Compose: read_only)
 COPY --from=py-bau /app /app
 # standalone spiegelt die Repo-Wurzel (outputFileTracingRoot): web/server.js, node_modules, shared/ui

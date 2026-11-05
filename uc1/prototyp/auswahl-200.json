@@ -1,0 +1,1033 @@
+{
+ "seed": 42,
+ "grenze_bytes": 8192,
+ "fragen": [
+  {
+   "id": "F7",
+   "gesetz": "BPGG",
+   "para": "4"
+  },
+  {
+   "id": "F2",
+   "gesetz": "ASVG",
+   "para": "139"
+  },
+  {
+   "id": "F5",
+   "gesetz": "ASVG",
+   "para": "162"
+  },
+  {
+   "id": "F21",
+   "gesetz": "ASVG",
+   "para": "175"
+  },
+  {
+   "id": "F6",
+   "gesetz": "ASVG",
+   "para": "136"
+  }
+ ],
+ "abschnitte": [
+  {
+   "dokid": "ASVG=PARA=136=20=2025-05-30=2026-01-01",
+   "nr": 0,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=139=14=2026-03-31=2026-04-01",
+   "nr": 0,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=162=64=2024-07-04=2023-11-01",
+   "nr": 1,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=162=64=2024-07-04=2023-11-01",
+   "nr": 2,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=162=64=2024-07-04=2023-11-01",
+   "nr": 3,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=162=64=2024-07-04=2023-11-01",
+   "nr": 4,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=162=64=2024-07-04=2023-11-01",
+   "nr": 5,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=162=64=2024-07-04=2023-11-01",
+   "nr": 6,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=162=64=2024-07-04=2023-11-01",
+   "nr": 7,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=162=64=2024-07-04=2023-11-01",
+   "nr": 8,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=175=110=2024-07-19=2025-01-01",
+   "nr": 1,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=175=110=2024-07-19=2025-01-01",
+   "nr": 2,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=175=110=2024-07-19=2025-01-01",
+   "nr": 3,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=175=110=2024-07-19=2025-01-01",
+   "nr": 4,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=175=110=2024-07-19=2025-01-01",
+   "nr": 5,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=175=110=2024-07-19=2025-01-01",
+   "nr": 6,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=175=110=2024-07-19=2025-01-01",
+   "nr": 7,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=175=110=2024-07-19=2025-01-01",
+   "nr": 8,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "BPGG=PARA=4=12=2015-01-13=2015-01-01",
+   "nr": 1,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "BPGG=PARA=4=12=2015-01-13=2015-01-01",
+   "nr": 2,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "BPGG=PARA=4=12=2015-01-13=2015-01-01",
+   "nr": 3,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "BPGG=PARA=4=12=2015-01-13=2015-01-01",
+   "nr": 4,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "BPGG=PARA=4=12=2015-01-13=2015-01-01",
+   "nr": 5,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "BPGG=PARA=4=12=2015-01-13=2015-01-01",
+   "nr": 6,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "BPGG=PARA=4=12=2015-01-13=2015-01-01",
+   "nr": 7,
+   "rolle": "quelle"
+  },
+  {
+   "dokid": "ASVG=PARA=543=29=2010-05-20=2010-07-01",
+   "nr": 1,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=640=146=2008-12-29=2008-12-30",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=561=853=1995-12-22=1996-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=459b=120=2016-12-30=2017-04-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=310=1=2002-01-04=2002-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=786=20=2025-05-30=2025-05-31",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=412e=125=2017-08-01=2017-07-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=759b=81=2022-06-10=2022-03-19",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=336=189=1955-09-30=1956-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=659=111=2010-12-30=2010-12-31",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=108e=29=2017-01-18=2017-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=471d=66_162=2017-05-22=2019-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=67d=162=2015-12-28=2016-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=583=1=2000-01-11=2000-01-12",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=255=162=2015-12-28=2016-01-01",
+   "nr": 2,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=614=78=2004-07-14=2004-07-15",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=47=111=2010-12-30=2011-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=232=100=2018-12-22=2020-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=752=61=2021-03-31=2021-04-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=506b=1=2002-01-04=2003-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=65=107=2025-12-29=2026-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "BPGG=PARA=25a=59=2018-08-14=2018-07-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=361=2=2015-01-13=2014-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=373=104=1985-03-22=1987-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=49=110=2024-07-19=2025-01-01",
+   "nr": 2,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=341=191=2023-12-31=2024-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=599=100=2002-07-10=2002-07-11",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=228a=145=2003-12-30=2003-11-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=776=36=2023-04-20=2023-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "BPGG=PARA=47a=69=2001-07-10=2002-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=507=189=1955-09-30=1956-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=345a=130=2013-07-16=2014-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=117=106=2024-07-19=2024-07-20",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=719=100=2018-12-22=2018-12-23",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=307b=201=1996-04-30=1996-07-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=102=411=1996-08-20=1996-08-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=450=100=2018-12-22=2020-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=669=125=2017-08-01=2018-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=441e=100=2018-12-22=2020-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=383=104=1985-03-22=1987-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=731=105=2019-10-29=2020-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=13=53=2016-07-08=2017-03-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "BPGG=PARA=14a=58=2011-07-29=2012-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=84e=190=2023-12-31=2024-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=79c=100=2018-12-22=2019-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=790=133=2023-11-15=2023-11-16",
+   "nr": 1,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=499a=122=2011-12-27=2011-12-28",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=253d=43=2000-07-07=2000-07-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=16a=1=2002-01-04=2003-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=738=99=2020-08-06=2020-08-07",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=769=81=2022-06-10=2022-06-11",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=697=44=2016-06-13=2016-06-14",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=46=67=2001-07-10=2002-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=74a=144=2015-12-14=2016-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=805=109=2024-07-19=2024-07-20",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=276f=3=2013-01-10=2014-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=220a=201=1967-06-30=1967-07-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=394=104=1985-03-22=1987-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=284c=145=2003-12-30=2004-01-01",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "ASVG=PARA=447c=20=2004-03-29=2004-03-30",
+   "nr": 0,
+   "rolle": "hart"
+  },
+  {
+   "dokid": "RUF_2020=PARA=12==2023-01-01=2023-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "KrankenO_GKK_Burgenland_2005=PARA=47=156=2005-11-30=2005-12-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "Nov_BGBl._Nr._780/1974=ART=II=780=1974-12-30=1975-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "Fest_49_2005=ZIFF=3=189=2005-12-22=2005-12-28",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Europ_DR_OEsterr._-_Spanien=ANH=ZV5=668=1986-12-18=1986-04-25",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "MGOHV=PARA=11=84=2019-03-29=2019-04-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "B-KUVG=PARA=127a=100=2018-12-22=2020-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "FLAG=PARA=10a=104=2019-10-29=2020-07-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Philippinen=ART=17=116=1982-03-11=1982-04-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "B-KUVG=PARA=52a=707=1976-12-29=1974-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "DO.B_2005=PARA=253=44=2021-05-27=2021-05-28",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "GSVG=PARA=110=123=2012-12-28=2013-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "KBGG=PARA=3=25=2025-06-30=2025-07-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "B-KUVG=PARA=68a=101=2007-12-28=2008-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "BSVG=PARA=135a=106=2024-07-19=2025-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "BSVG=PARA=108=104=2019-10-29=2020-07-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_UNHCR=ART=16=355=1977-07-07=1977-08-07",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "KrankenO_BVAEB_2026=PARA=45=80=2025-12-22=2026-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "WandArb-DurchfV_574/1972=ART=33=101=2008-02-05=2008-02-25",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "PO_2014=PARA=3a=5=2022-01-10=2022-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "KrankenO_GKK_Burgenland_2005=PARA=5=106=2006-10-13=2006-11-01",
+   "nr": 9,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "REDV_2006=ANH=1=40=2026-07-02=2026-07-03",
+   "nr": 44,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "Nov_BGBl._Nr._388/1970=ART=II=388=1970-12-18=1971-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Portugal=ART=13=104=1987-03-24=1987-05-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "WandArb-DurchfV_574/1972=ART=9a=101=2008-02-05=2008-02-25",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_USA_Dvereinb=ART=6=512=1991-09-20=1991-11-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "DO.B_2005=PARA=69=175=2005-12-14=2005-12-20",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Jugoslawien=ART=13=269=1989-06-08=1989-07-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "B-KUVG=PARA=152=100=2018-12-22=2020-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "BPGGBereinigungsG=PARA=1=111=2010-12-30=2011-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "E-MVB=ZIFF=056-01-00-001==2018-01-01=2019-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "EFZ-DV-VO=PARA=9=304=2019-10-17=2020-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "KrankenO_BVAEB_2026=PARA=31=80=2025-12-22=2026-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Rumaenien_DVereinb=ART=3=175=2006-11-16=2006-12-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "RBV=PARA=9=23=2016-02-24=2016-03-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "RoeV_2024=PARA=12=85=2023-12-21=2024-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "GSVG=PARA=395=29=2022-03-18=2022-03-19",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "EG-WandArbV_1408/1971=ART=51a=592=2008-07-04=2008-07-07",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "E-MVB=ZIFF=004-ABC-N-001==2024-09-01=2024-09-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "Satzung_PI_Linz_AG_2024=PARA=39=71=2024-10-28=2024-10-29",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Slowakei_DVereinb=ART=13=61=2003-06-06=2003-06-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Belgien=ART=47=612=1978-12-19=1978-12-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "WandArb-DurchfV_574/1972=ART=10b=101=2008-02-05=2008-02-25",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "GO-CG=PARA=7==2001-01-12=2001-01-11",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Frankreich_DVereinb=ART=1=383=1984-10-09=1983-11-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "Fest_49_2005=ZIFF=20=189=2005-12-22=2005-12-28",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "BSVG=PARA=322=135=2009-12-30=2009-12-31",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "veraendW=ZAHL=44==1111-11-11=1111-11-11",
+   "nr": 168,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "RBGS_2005=PARA=3=153=2005-11-29=2005-11-05",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Jugoslawien=ART=11=289=1966-12-29=1967-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "E-MVB=ZIFF=035-00-00-006==2024-09-01=2024-09-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "B-KUVG=PARA=14=100=2018-12-22=2020-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "DO.A_2005=ANL=2a=76=2025-12-22=2026-01-01",
+   "nr": 6,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "E-MVB=ZIFF=049-06-00-011==2024-09-01=2024-09-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "GO-LSA_OEGK_Sbg=PARA=13==2020-01-10=2020-01-10",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Schweden=ART=24=298=1983-06-03=1983-07-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "SVGW_Anh_GOVorst=PARA=7=131=2018-07-06=2018-07-07",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "GSVG=PARA=93=156=2004-12-30=2005-01-01",
+   "nr": 7,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "KrankenO_BVAEB_2026=PARA=13=80=2025-12-22=2026-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Griechenland=ART=5=420=1981-09-17=1981-10-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "EG-WandArbV_1408/1971=ART=15=592=2008-07-04=2008-07-07",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "GO-LSA_OEGK_Bgld=PARA=18==2020-03-03=2020-03-03",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "MGOHV=PARA=6=84=2019-03-29=2019-04-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Spanien=ART=33=305=1983-06-10=1983-07-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "RFG_2020=PARA=19==2020-01-01=2020-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "KrankenO_BVAEB_2020=PARA=43=19=2020-01-30=2020-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_RepKorea=PROM=1=83=2010-08-23=2010-10-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Mongolei_2026=ART=18=66=2026-06-05=2026-08-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_RepKorea=ART=16=83=2010-08-23=2010-10-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "KrankenO_OEGK_2025=PARA=29=72=2025-12-19=2025-12-20",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Portugal=ART=3=104=1987-03-24=1987-05-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "EG-WandArbV_1408/1971=ART=61=592=2008-07-04=2008-07-07",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "E-MVB=ZIFF=049-03-11-004==2024-09-01=2024-09-01",
+   "nr": 38,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Belgien=ART=43=612=1978-12-19=1978-12-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Albanien=ART=3=154=2018-10-01=2018-12-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Niederlande_KostenErstVereinb=ART=9=896=1994-11-18=1994-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "MKO_2016=PARA=60=161=2019-12-09=2020-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_4seit_DVereinb=ART=1=465=1980-10-31=1980-11-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Bulgarien=ART=2=61=2006-03-21=2006-04-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "EinbezV_UV_ASVG_StF=PARA=3=213=2026-07-15=2026-07-16",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Italien_SchlussPr=ANL=1=307=1983-06-10=1983-07-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "GO-V_OEGK=PARA=17==2019-07-09=2019-07-09",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "Nov_BGBl._Nr._309/1965=ART=III=309=1965-11-30=1965-12-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "RPGG_2012=PARA=17=84=2012-06-30=2012-07-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "DO.B_2005=ANL=4=77=2013-07-06=2014-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "B-KUVG=PARA=146=100=2018-12-22=2020-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Liechtenstein=ART=31=72=1969-02-28=1969-03-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "APG=ANL=5=122=2011-12-27=2011-01-01",
+   "nr": 95,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "Satzung_VANotariat_2016=PARA=3==2016-02-24=2016-02-25",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "MGO_V_2005=PARA=1=117=2005-11-09=2005-11-15",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Griechenland_DVereinb=ART=13=421=1981-09-17=1981-10-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "DO.C_2005=PARA=79=178=2005-12-16=2005-12-22",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "PVA_Anh_GOVorst_2003=PARA=18=153=2017-11-24=2017-11-25",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Slowakei=ART=3=60=2003-06-06=2003-06-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "BSVG=PARA=51=46=2024-04-30=2024-05-01",
+   "nr": 1,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "DO.A_2005=PARA=163=94=2005-10-21=2005-10-27",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Europ_Notif_Belgien=ANH=ZV3=667=1986-12-18=1986-04-22",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "KrankenO_GKK_Burgenland_2005=PARA=43=156=2005-11-30=2005-12-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "PO-GA=PARA=11=25=2007-02-01=2007-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Schweiz=ART=25=448=1979-11-09=1979-12-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "Satzung_GKK_Vorarlberg_2016=ANH=6=21=2019-01-23=2020-01-01",
+   "nr": 9,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "GSVG=PARA=356=2=2015-01-13=2015-01-14",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "RBUEP_2025=PARA=6=61=2025-11-06=2025-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "KrankenO_OEGK_2025=PARA=57=72=2025-12-19=2025-12-20",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "B-KUVG=PARA=147a=100=2018-12-22=2020-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "veraendW=ZAHL=58==1111-11-11=1111-11-11",
+   "nr": 57,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "EntschGr-EG=PARA=18==1111-11-11=1111-11-11",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "BSVG=PARA=125=135=2009-12-30=2010-01-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_4seit=ART=7=464=1980-10-31=1980-11-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "Satzung_OEGK_2025=PARA=2=68=2025-12-19=2025-12-20",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "GOKDV=PARA=4==2019-12-20=2019-12-21",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "WandArb-DurchfV_574/1972=ART=105=101=2008-02-05=2008-02-25",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "SUG=PARA=15=142=2000-12-29=1996-05-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "AbkSozSi_Tuerkei_2000=ART=25=219=2000-12-29=2000-12-01",
+   "nr": 0,
+   "rolle": "zufall"
+  },
+  {
+   "dokid": "EUB-SVG=PARA=19a=106=2024-07-19=2024-07-20",
+   "nr": 0,
+   "rolle": "zufall"
+  }
+ ]
+}

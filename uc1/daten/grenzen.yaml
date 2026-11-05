@@ -1,0 +1,199 @@
+# Grenzprüfung des Lotsen (Issue #31, PRD § 3 B, Review D5b, Muster GOV.UK Chat: vor und nach der Antwort).
+#
+# Der Lotse gibt keine Diagnose, keine Befundbewertung, keine Therapie- und keine Medikamentenempfehlung.
+# Alle Muster sind reguläre Ausdrücke, geprüft ohne Groß-/Kleinschreibung auf dem normalisierten Text.
+# Eine Regel greift, wenn eines ihrer `muster` passt UND (falls angegeben) eines ihrer `und`-Muster.
+# Die erste greifende Regel in Dateireihenfolge entscheidet; `notfall` steht deshalb vorn.
+#
+# Quellen der Rufnummern: 144 Rettung (Notruf), 1450 Gesundheitsberatung (telefonische Gesundheitsberatung
+# der Länder und der Sozialversicherung). Die Muster sind ein Rauchtest; die Abnahme prüft eine frische
+# Session ohne diese Liste (PRD § 3 B, A2).
+
+vorpruefung:
+  - art: notfall
+    muster:
+      - 'brustschmerz'
+      - 'schmerzen in der brust'
+      - 'druck auf der brust'
+      # Brust, Herz oder Atem zusammen mit Schmerz, Stechen, Druck oder Enge (Koordinator #31, Rauchtest).
+      - '(?:brust|herz)\w{0,8}\s?(?:schmerz|stechen|stich|druck|enge)'
+      - '(?:schmerz\w*|stechen|stiche?|druck|enge)\s(?:\w+\s){0,2}(?:in der|in die|im|auf der|an der)\s(?:brust|herz\w*)'
+      - '(?:schmerz\w*|stechen|stiche?)\s(?:\w+\s){0,2}beim atmen'
+      - 'atem\w{0,6}\s?(?:schmerz|stechen|not)'
+      - 'atemnot'
+      - 'keine luft'
+      - 'kriege? kaum luft'
+      # Herzinfarkt nur akut; „Krankengeld nach einem Herzinfarkt“ ist eine Leistungsfrage.
+      - 'herzinfarkt.{0,30}(?:jetzt|gerade|akut|soeben)'
+      - '(?:jetzt|gerade|akut|soeben).{0,30}herzinfarkt'
+      - '\b(?:ich habe|habe ich|er hat|hat er|sie hat|hat sie) (?:\w+ )?einen herzinfarkt'
+      - 'bewusstlos'
+      - 'ohnm(?:ä|a)cht'
+      - 'schlaganfall.{0,30}(?:jetzt|gerade|akut|soeben)'
+      - '(?:jetzt|gerade|akut|soeben).{0,30}schlaganfall'
+      - 'umbringen'
+      - 'suizid'
+      - 'nicht mehr leben'
+      - 'chest pain'
+      - "can't breathe"
+      - 'cannot breathe'
+      - 'short(?:ness)? of breath'
+      - 'heart attack'
+      - 'unconscious'
+      - 'suicid'
+  - art: injection
+    muster:
+      - 'ignorier(?:e|en)? (?:alle|deine|die|s(?:ä|a)mtliche|vorherige)'
+      - 'vergiss (?:alle|deine|die) (?:regeln|anweisungen)'
+      - 'ignore (?:all|any|previous|your|the) (?:previous )?(?:rules|instructions)'
+      - 'system ?prompt'
+      - 'du bist (?:jetzt|ab jetzt|nun) '
+      - 'you are now '
+      - 'jailbreak'
+  - art: medikament
+    muster:
+      - 'medikament'
+      - 'tablette'
+      - '\bdosis\b'
+      - 'dosier'
+      - '\b\d+\s?(?:mg|ml|µg|mcg)\b'
+      - 'antibiotik'
+      - 'schmerzmittel'
+      - 'ibuprofen|paracetamol|aspirin|novalgin|diclofenac'
+      - 'medication|medicine|\bdose\b|\bpills?\b'
+    und:
+      - 'welche?[snm]? (?:medikament|tablette|dosis|schmerzmittel|antibiotik)'
+      - 'soll(?:te)? ich .{0,40}(?:nehmen|einnehmen|absetzen|weglassen)'
+      - 'darf ich .{0,40}(?:nehmen|einnehmen|kombinieren|absetzen)'
+      - 'kann ich .{0,40}(?:nehmen|einnehmen|absetzen)'
+      - 'wie ?viel .{0,30}(?:nehmen|einnehmen|mg|tabletten)'
+      - 'empfehl'
+      - 'absetzen'
+      - 'should i (?:take|stop)'
+      - 'which (?:medication|medicine|pill)'
+      - 'how much .{0,30}(?:take|mg)'
+      - 'can i take'
+      - 'recommend'
+  - art: befund
+    muster:
+      - 'befund'
+      - 'blutwert'
+      - 'laborwert'
+      - '\blabor\b'
+      - 'r(?:ö|o)ntgen'
+      - '\bmrt\b'
+      - '\bct\b'
+      - 'ultraschall'
+      - 'cholesterin'
+      - 'blutdruck'
+      - 'test results?'
+      - 'blood (?:test|values)'
+      - 'lab results?'
+    und:
+      - 'bedeut'
+      - '\bdeut(?:en|e|et)\b'
+      - 'bewert'
+      - 'normal'
+      - 'schlimm'
+      - 'gef(?:ä|a)hrlich'
+      - 'zu hoch'
+      - 'zu niedrig'
+      - 'erh(?:ö|o)ht'
+      - 'mean'
+      - 'interpret'
+      - 'serious'
+  - art: symptom
+    muster:
+      - 'schmerz'
+      - 'fieber'
+      - 'husten'
+      - 'schwindel'
+      - '(?:ü|u)belkeit'
+      - 'ausschlag'
+      - 'symptom'
+      - 'kopfweh'
+      - 'bauchweh'
+      - 'juck'
+      - 'stech'
+      - '\bstiche?\b'
+      - '\bbrust'
+      - '\bherz'
+      - '\batem'
+      - '\bkopf'
+      - '\bbauch'
+      - 'blutung|\bblute'
+      - 'l(?:ä|a)hmung|gel(?:ä|a)hmt'
+      - 'pain'
+      - 'fever'
+      - 'cough'
+      - 'dizz'
+      - 'rash'
+      - 'symptom'
+    und:
+      - 'ist das (?:gef(?:ä|a)hrlich|schlimm|normal|ernst|ein zeichen|eine? (?:\w+itis|krankheit|infekt|entz|grippe|allergie))'
+      - 'k(?:ö|o)nnte das'
+      - 'habe ich (?:eine?n? )?(?:krankheit|infekt|grippe|entz(?:ü|u)ndung|allergie|\w+itis|krebs|corona|covid)'
+      - 'was fehlt'
+      - 'was habe ich'
+      - 'was hat (?:er|sie)'
+      - '\bist das\b'
+      - 'was bedeute'
+      - 'was ist das'
+      - 'woher kommt'
+      - 'diagnos'
+      - 'do i have'
+      - 'is (?:it|this|that) (?:a sign|serious|dangerous|normal|cancer|an? infection)'
+      - 'what (?:is|could) (?:it|this|that)'
+
+nachpruefung:
+  - art: diagnose
+    muster:
+      - '\bdiagnose:'
+      - '\bsie haben (?:wahrscheinlich|vermutlich|m(?:ö|o)glicherweise|offenbar|eindeutig)\b'
+      - '\bsie haben (?:eine?n?|eine) (?:\w+ )?(?:grippe|infekt\w*|entz(?:ü|u)ndung|erkrankung|krankheit|herzinfarkt|schlaganfall|depression|diabetes|krebs|tumor|virus|syndrom|\w+itis|\w+ose)\b'
+      - '\bdas (?:ist|klingt nach|spricht f(?:ü|u)r) (?:eine?n?|eine) (?:\w+ )?(?:grippe|infekt\w*|entz(?:ü|u)ndung|herzinfarkt|schlaganfall|\w+itis)\b'
+      - '\byou (?:probably |likely )?have (?:a |an )?(?:flu|infection|inflammation|disease|heart attack|stroke|\w+itis)\b'
+  - art: medikament
+    muster:
+      - '\bnehmen sie (?:t(?:ä|a)glich |morgens |abends |zus(?:ä|a)tzlich )?(?:\d|eine? tablette|das medikament|ein medikament|\w+ (?:mg|tabletten))'
+      - '\b\d+\s?(?:mg|µg|mcg)\b'
+      - '\b\d+\s?(?:mal|x) (?:t(?:ä|a)glich|am tag)\b'
+      - '\btake \d'
+      - '\b(?:dosis|dosierung) (?:von|ist|betr(?:ä|a)gt)\b'
+  - art: befund
+    muster:
+      - '\bihr befund (?:ist|zeigt|bedeutet)\b'
+      - '\bihre werte sind\b'
+      - '\byour (?:results|values) (?:are|show)\b'
+
+# Grenztexte: Notfall zuerst die Handlung (144), dann wer ich bin, dann wohin sonst. Kurze Sätze.
+texte:
+  notfall:
+    de: >-
+      Das klingt nach einem Notfall. Rufen Sie sofort die Rettung unter 144. Ich bin ein KI-Lotse für
+      Leistungen der Sozialversicherung. Ich stelle keine Diagnose. Sind Sie unsicher, ob es ein Notfall ist?
+      Dann rufen Sie die Gesundheitsberatung unter 1450. Sie ist Tag und Nacht erreichbar.
+    en: >-
+      This may be an emergency. Call the ambulance now on 144. I am an AI guide for social insurance
+      benefits. I cannot give medical advice or a diagnosis. Not sure if it is an emergency? Call the
+      health advice line 1450. It is open day and night.
+  grenze:
+    de: >-
+      Dabei kann ich nicht helfen. Ich bin ein KI-Lotse für Leistungen der Sozialversicherung. Ich stelle
+      keine Diagnose. Ich bewerte keine Befunde und empfehle keine Therapie und kein Medikament. Fragen Sie
+      bitte Ihre Ärztin oder Ihren Arzt. Rat am Telefon gibt es Tag und Nacht unter 1450. Im Notfall rufen Sie
+      144. Zu Pflegegeld, Reha oder Krankengeld können Sie mich fragen.
+    en: >-
+      I cannot help with that. I am an AI guide for social insurance benefits. I cannot give medical advice:
+      no diagnosis, no view on test results, no treatment and no medication. Please ask your doctor. For
+      advice by phone, call 1450 at any time. In an emergency, call 144. You can ask me about care
+      allowance, rehabilitation or sickness benefit.
+  injection:
+    de: >-
+      Meine Regeln kann ich nicht abschalten. Ich bin ein KI-Lotse für Leistungen der Sozialversicherung. Ich
+      stelle keine Diagnose und gebe keine medizinische Empfehlung. Bei Fragen zur Gesundheit hilft Ihre Ärztin
+      oder Ihr Arzt. Rat am Telefon gibt es unter 1450. Im Notfall rufen Sie die Rettung unter 144.
+    en: >-
+      I cannot switch off my rules. I am an AI guide for social insurance benefits. I cannot give medical
+      advice or a diagnosis. For health questions, please ask your doctor or call 1450. In an emergency, call
+      144.

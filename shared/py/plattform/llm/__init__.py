@@ -5,6 +5,7 @@ Nicht aus ``plattform/__init__.py`` importiert (R2): der UC3-Lauf bleibt ohne Mo
 
 from .basis import (
     Antwort,
+    BudgetErschoepft,
     FixtureFehlt,
     KonfigFehler,
     LlmFehler,
@@ -14,10 +15,11 @@ from .basis import (
     VoruebergehenderFehler,
     ZweckFehler,
 )
-from .kern import aktives_modell, complete, prompt_hash
+from .kern import aktives_modell, budget_status, complete, prompt_hash
 
 __all__ = [
     "Antwort",
+    "BudgetErschoepft",
     "FixtureFehlt",
     "KonfigFehler",
     "LlmFehler",
@@ -27,6 +29,7 @@ __all__ = [
     "VoruebergehenderFehler",
     "ZweckFehler",
     "aktives_modell",
+    "budget_status",
     "complete",
     "prompt_hash",
 ]

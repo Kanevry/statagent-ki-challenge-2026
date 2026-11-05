@@ -9,7 +9,8 @@
     "./basis": "./src/basis/index.ts",
     "./bausteine": "./src/bausteine/index.ts",
     "./shell": "./src/shell/index.ts",
-    "./antwortform": "./src/antwortform.ts"
+    "./antwortform": "./src/antwortform.ts",
+    "./voice": "./src/voice/index.ts"
   },
   "scripts": {
     "test": "vitest --run"

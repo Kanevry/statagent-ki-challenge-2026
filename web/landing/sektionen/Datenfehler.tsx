@@ -1,6 +1,6 @@
 import type { Einstufung } from "../daten/fakten";
 import type { BefundTabelle, BefundZeile } from "../daten/typen";
-import { DATENFEHLER } from "../texte/inhalt";
+import { DATENFEHLER, monateLesbar } from "../texte/inhalt";
 import a from "./abschnitte.module.css";
 import Einblenden from "./Einblenden";
 import s from "./seite.module.css";
@@ -36,7 +36,7 @@ function Einstufungstext({ zeile }: { zeile: BefundZeile }) {
   );
 }
 
-/** „Gefundene Datenfehler“: Befunde der Prüfung; Desktop als Tabelle, mobil als Liste mit Trennlinien. */
+/** Auffälligkeiten der Prüfung (Anker #datenfehler); Desktop als Tabelle, mobil als Liste mit Trennlinien. */
 export default function Datenfehler({ tabelle }: { tabelle: BefundTabelle }) {
   const sp = DATENFEHLER.spalten;
   return (
@@ -80,8 +80,8 @@ export default function Datenfehler({ tabelle }: { tabelle: BefundTabelle }) {
                       <span className={a.befundName}>{z.befund}</span>
                       {z.beleg ? <code className={a.befundBeleg}>{z.beleg}</code> : null}
                     </th>
-                    <td className={a.mono}>{z.lieferung}</td>
-                    <td className={a.mono}>{z.saetze}</td>
+                    <td className={a.mono}>{monateLesbar(z.lieferung)}</td>
+                    <td className={a.mono}>{monateLesbar(z.saetze)}</td>
                     <td>
                       <Einstufungstext zeile={z} />
                     </td>
@@ -97,11 +97,11 @@ export default function Datenfehler({ tabelle }: { tabelle: BefundTabelle }) {
                   <dl className={a.befundDaten}>
                     <div>
                       <dt>{sp.lieferung}</dt>
-                      <dd className={a.mono}>{z.lieferung}</dd>
+                      <dd className={a.mono}>{monateLesbar(z.lieferung)}</dd>
                     </div>
                     <div>
                       <dt>{sp.saetze}</dt>
-                      <dd className={a.mono}>{z.saetze}</dd>
+                      <dd className={a.mono}>{monateLesbar(z.saetze)}</dd>
                     </div>
                     <div>
                       <dt>{sp.einstufung}</dt>
