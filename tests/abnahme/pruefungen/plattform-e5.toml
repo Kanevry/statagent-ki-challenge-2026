@@ -202,8 +202,8 @@ print("aufnahme_nach_umbau", nach_umbau)
 erwartet = ['^pngs 12$', '^namen_ok 1$', '^lesbar_ok 12$', '^breit_ok 12$', '^manifest_ok 12$', '^aufnahme_nach_umbau 12$']
 deckung = "voll"
 zeitlimit = 60
-quelle = "Issue #88, Kriterium 88-1 (Wortlaut: SC01 bis SC12 = 9 Bilder, mindestens 1920 Pixel breit, Manifest mit Name, Breite, Höhe, SHA-256, Begründung SC03 bis SC05 in quellen.json, Aufnahme nach dem Umbau der UI-Regie)"
-befund = "docs/praesentation/screens/ enthält nicht genau die 12 lesbaren PNGs SC01 bis SC12 mit mindestens 1920 Pixel Breite, oder das Manifest nennt Breite, Höhe und SHA-256 nicht für alle 9, oder ein Bild ist vor dem Umbau der UI-Regie aufgenommen, oder der Entfall von SC03 bis SC05 ist nicht in quellen.json begründet."
+quelle = "Issue #88, Kriterium 88-1 (Wortlaut: SC01 bis SC12 = 12 Bilder, mindestens 1920 Pixel breit, Manifest mit Name, Breite, Höhe, SHA-256, Aufnahme nach dem Umbau der UI-Regie)"
+befund = "docs/praesentation/screens/ enthält nicht genau die 12 lesbaren PNGs SC01 bis SC12 mit mindestens 1920 Pixel Breite, oder das Manifest nennt Breite, Höhe und SHA-256 nicht für alle 12, oder ein Bild ist vor dem Umbau der UI-Regie aufgenommen."
 grund = "12 lesbare PNGs SC01 bis SC12, alle mindestens 1920 Pixel breit, Manifest stimmt für 12 von 12, alle nach dem Umbau der UI-Regie aufgenommen, Entfall von SC03 bis SC05 begründet."
 gegenprobe = "test -e docs/praesentation/screens/SC03.png"
 
@@ -742,14 +742,13 @@ grund = "Die 8 Anfragen liefern live die Sollwerte."
 
 [[pruefung]]
 id = "141-2"
-hash = "8fd2eef2a2"
+hash = "f8fddedc97"
 befehl = '''uv run --isolated --package plattform python -I -c '
 import glob, json, pathlib, re, subprocess, sys
 r = subprocess.run([sys.executable, "docs/praesentation/werkzeug/screens_manifest.py", "--check"], capture_output=True, text=True)
-fremd = [l for l in r.stdout.splitlines() if l.strip() and not l.startswith("screens_manifest --check") and not re.match(r"SC0[345]: ", l)]
-print("befunde_ausser_sc03_bis_sc05", len(fremd))
+fremd = [l for l in r.stdout.splitlines() if l.strip() and not l.startswith("screens_manifest --check")]
+print("befunde", len(fremd))
 q = {e["bild"]: e for e in json.loads(pathlib.Path("docs/praesentation/screens/quellen.json").read_text(encoding="utf-8"))}
-print("entfall_begruendet", sum(1 for n in ("SC03", "SC04", "SC05") if "entfällt in v4" in str((q.get(n) or {}).get("hinweis") or "")))
 b = pathlib.Path("web/components/praesentation/bilder.ts")
 bt = b.read_text(encoding="utf-8") if b.is_file() else ""
 dat = [pathlib.Path(f).stem for f in glob.glob("web/content/slides/bilder/*") if f.lower().endswith((".png", ".webp", ".jpg", ".jpeg"))]
@@ -761,12 +760,12 @@ for p in glob.glob("web/content/slides/[0-9][0-9]-*.md"):
             fehlt += 1
 print("folien_verweise_ohne_bild", fehlt)
 ' '''
-erwartet = ['^befunde_ausser_sc03_bis_sc05 0$', '^entfall_begruendet 3$', '^bilder_ohne_eintrag 0$', '^folien_verweise_ohne_bild 0$']
+erwartet = ['^befunde 0$', '^bilder_ohne_eintrag 0$', '^folien_verweise_ohne_bild 0$']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #141, Aufgabe 2 (Wortlaut: Manifest mit screens_manifest.py --check; SC03 bis SC05 entfallen in v4, Begründung in quellen.json; Bilder in bilder/ und bilder.ts nur, falls eine Szene eines braucht). Die Aufnahme nach dem Umbau misst 88-1."
-befund = "screens_manifest.py --check meldet Befunde für andere Bilder als SC03 bis SC05 (Bilder fehlen oder sind unvollständig), oder der Entfall von SC03 bis SC05 ist nicht in quellen.json begründet, oder bilder/ und bilder.ts passen nicht zusammen."
-grund = "Außer den in v4 entfallenen SC03 bis SC05 meldet --check keinen Befund, der Entfall ist begründet, Bilder und bilder.ts stimmen überein."
+quelle = "Issue #141, Aufgabe 2 (Wortlaut neu, Entscheid Lead 05.11.: 12 Bilder, keines entfällt; Manifest mit screens_manifest.py --check; Bilder in bilder/ und bilder.ts nur, falls eine Szene eines braucht). Die Aufnahme nach dem Umbau misst 88-1."
+befund = "screens_manifest.py --check meldet Befunde (Bilder fehlen oder sind unvollständig), oder Bilder und bilder.ts stimmen nicht überein."
+grund = "--check meldet keinen Befund für die 12 Bilder, Bilder und bilder.ts stimmen überein."
 gegenprobe = "test \"$(grep -c 'SC13' docs/praesentation/screens/quellen.json || true)\" -ge 1"
 
 [[pruefung]]
@@ -864,7 +863,7 @@ gegenprobe = '''uv run --isolated --package plattform python -I -c 'print("d3_fe
 
 [[pruefung]]
 id = "141-7"
-hash = "297e23d76b"
+hash = "634cb58eb4"
 befehl = '''uv run --isolated --package plattform python -I -c '
 import glob, json, pathlib, re, subprocess, sys
 r = subprocess.run([sys.executable, "docs/praesentation/werkzeug/screens_manifest.py", "--check"], capture_output=True, text=True)
@@ -881,12 +880,12 @@ print("fehlende_bilder", len(entfallen))
 print("fehlende_unbegruendet", len(unbegruendet))
 print("verweise_auf_fehlende", verweis)
 ' '''
-erwartet = ['^manifest_12_von_12 0$', '^fehlende_bilder [0-9]+$', '^fehlende_unbegruendet 0$', '^verweise_auf_fehlende 0$']
+erwartet = ['^manifest_12_von_12 1$', '^verweise_auf_fehlende 0$']
 deckung = "teil"
 zeitlimit = 60
 quelle = "Issue #141, Abschnitt Fertig wenn, zweiter Punkt (Wortlaut: --check meldet 12/12 oder dokumentiert, welche SC durch v4 entfallen). Auslegung: 12/12 ist entweder erreicht, oder jedes fehlende Bild trägt in quellen.json den Hinweis \"entfällt in v4\" und keine Szene verweist darauf. Der Prüfsatz 141-2 verlangt zusätzlich, dass nur SC03 bis SC05 fehlen. Das erste Soll manifest_12_von_12 0 gilt für den Entfall-Weg; bei 12/12 darf es 1 sein"
-befund = "Es fehlen Bilder, die nicht als durch v4 entfallen in quellen.json begründet sind, oder eine Szene verweist auf ein fehlendes Bild."
-grund = "Jedes fehlende SC-Bild ist als durch v4 entfallen begründet und kein Verweis läuft ins Leere (oder alle 12 Bilder sind da)."
+befund = "screens_manifest.py --check meldet nicht 12/12, oder eine Szene verweist auf ein fehlendes Bild."
+grund = "--check meldet 12/12, kein Verweis läuft ins Leere."
 
 [[pruefung]]
 id = "141-8"

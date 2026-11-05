@@ -1,6 +1,7 @@
 import type { HerkunftChipProps } from "@kic/ui/bausteine";
 import { monatsgrenzen } from "./monat";
 import type { Lauf } from "./typen";
+import { bestandFilter } from "./zeitraum";
 
 /** Belegdaten für `<HerkunftChip>`, ohne Darstellungs-Props. */
 export type Beleg = Omit<HerkunftChipProps, "className">;
@@ -14,13 +15,13 @@ export function literal(wert: string | number): string {
 }
 
 /** Abfrage, die die Zahl der Beschäftigungsverhältnisse eines Monats aus den Zellen summiert. */
-export function sqlBestand(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "regelstand">): string {
+export function sqlBestand(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "regelstand" | "zeitraumArt">): string {
   const { von, bis } = monatsgrenzen(lauf.lieferung);
   return [
     "SELECT sum(wert) AS beschaeftigungsverhaeltnisse",
     "FROM stat.stat_beschaeftigte",
     `WHERE regelsatz = ${literal(lauf.regelsatz)} AND regelstand = ${literal(lauf.regelstand)}`,
-    "  AND zeitraum_art = 'Stichtag' AND variable = 'Beschaeftigungsverhaeltnisse'",
+    `  AND ${bestandFilter(lauf.zeitraumArt)}`,
     `  AND zeitraum_bis BETWEEN ${literal(von)} AND ${literal(bis)};`,
   ].join("\n");
 }
@@ -39,13 +40,13 @@ export function sqlAbrechnung(lauf: Pick<Lauf, "id">): string {
  * Eine Abfrage für eine ganze Zeile der Monatsübersicht: Bestand aus den Zellen und die Abrechnung des Laufs.
  * So trägt jede Zahl der Zeile denselben Beleg.
  */
-export function sqlMonatszeile(lauf: Pick<Lauf, "id" | "lieferung" | "regelsatz" | "regelstand">): string {
+export function sqlMonatszeile(lauf: Pick<Lauf, "id" | "lieferung" | "regelsatz" | "regelstand" | "zeitraumArt">): string {
   const { von, bis } = monatsgrenzen(lauf.lieferung);
   return [
     "SELECT l.lieferung, l.gelesen, l.nicht_gezaehlt, l.ausgeschlossen, l.fortgeschrieben,",
     "       (SELECT sum(s.wert) FROM stat.stat_beschaeftigte s",
     `         WHERE s.regelsatz = l.regelsatz AND s.regelstand = l.regelstand`,
-    "           AND s.zeitraum_art = 'Stichtag' AND s.variable = 'Beschaeftigungsverhaeltnisse'",
+    `           AND ${bestandFilter(lauf.zeitraumArt, "s.")}`,
     `           AND s.zeitraum_bis BETWEEN ${literal(von)} AND ${literal(bis)}) AS beschaeftigungsverhaeltnisse`,
     "FROM meta.lauf l",
     `WHERE l.id = ${literal(lauf.id)};`,
@@ -65,7 +66,7 @@ export function laufBeleg(lauf: Lauf, extra: Partial<Beleg> = {}): Beleg {
   };
 }
 
-/** Beleg der Zahl „Beschäftigungsverhältnisse am Stichtag“ eines Laufs. */
+/** Beleg der Zahl der Beschäftigungsverhältnisse eines Laufs (am Stichtag oder im ganzen Monat, je nach Regelsatz). */
 export function bestandBeleg(lauf: Lauf): Beleg {
   return laufBeleg(lauf, { sql: sqlBestand(lauf) });
 }

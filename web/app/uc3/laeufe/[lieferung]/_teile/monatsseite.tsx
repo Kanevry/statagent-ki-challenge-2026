@@ -47,9 +47,11 @@ import {
 import { istMonat, monatName, stichtag, verschieben } from "@/components/uc3/monat";
 import { abrechnung } from "@/components/uc3/laeufe";
 import { laufPfad, uebersichtPfad } from "@/components/uc3/navigation";
+import { OenaceWechselAbsatz } from "./oenace-wechsel-absatz";
 import type { Lauf } from "@/components/uc3/typen";
 import { alltag } from "@/components/uc3/sprache";
 import { Bundeslaender } from "./bundeslaender";
+import { imZeitraum } from "@/components/uc3/zeitraum";
 
 // Monatsseite und Qualitätsbericht in einem (UI-Regie v1): /uc3/laeufe/[monat] und /uc3/berichte/[monat] rendern
 // diese Seite. Oben eine Hauptaussage (warum angehalten oder wie viele), die Rechnung des Bestands in einer Zeile
@@ -91,13 +93,13 @@ function Rechnung({ detail }: { detail: LaufDetail }) {
             </span>
             <span className={teil} style={{ animationDelay: "900ms" }}>
               <span className={zahl}>{formatZahl(lauf.gezaehlt)}</span>
-              <span className={wort}>{`am Stichtag, ${stand}`}</span>
+              <span className={wort}>{`${imZeitraum(lauf.zeitraumArt)}, ${stand}`}</span>
             </span>
           </>
         ) : (
           <span className={teil}>
             <span className={zahl}>{formatZahl(lauf.gezaehlt)}</span>
-            <span className={wort}>{`Beschäftigungsverhältnisse am Stichtag, ${stand}`}</span>
+            <span className={wort}>{`Beschäftigungsverhältnisse ${imZeitraum(lauf.zeitraumArt)}, ${stand}`}</span>
           </span>
         )}
         <span className="pb-1">
@@ -112,6 +114,8 @@ function Rechnung({ detail }: { detail: LaufDetail }) {
 /**
  * Warum weniger übernommen als vermisst wird (Jury 05.11.: „78.949 fehlen, aber 77.746 übernommen?“): Übernommen
  * werden nur Verhältnisse, die laut Vormonats-Lieferung am Stichtag noch bestehen (Regel E07, docs/plan/uc3/2025-10-abgleich.md).
+ * In v2 gilt dieselbe Regel: Gemessen endeten die nicht übernommenen Verhältnisse schon am Vormonatsletzten (2025-10: 1.203,
+ * 2025-03: 234), sie bestanden also auch im ganzen Monat nicht.
  */
 function Differenz({ detail }: { detail: LaufDetail }) {
   const { lauf, treffer } = detail;
@@ -121,7 +125,7 @@ function Differenz({ detail }: { detail: LaufDetail }) {
   const vm = monatName(verschieben(lauf.lieferung, -1));
   return (
     <p className="max-w-3xl font-sans text-14 text-slate">
-      {`Übernommen sind nur die ${formatZahl(uebernommen)}, die laut Lieferung ${vm} am Stichtag noch bestanden. Die übrigen ${formatZahl(fehlen - uebernommen)} endeten schon vorher und zählen nicht.`}
+      {`Übernommen sind nur die ${formatZahl(uebernommen)}, die laut Lieferung ${vm} ${lauf.zeitraumArt === "Monat" ? `im ${monatName(lauf.lieferung)}` : "am Stichtag"} noch bestanden. Die übrigen ${formatZahl(fehlen - uebernommen)} endeten schon vorher und zählen nicht.`}
     </p>
   );
 }
@@ -361,7 +365,7 @@ function Abschnitte({ detail, bericht }: { detail: LaufDetail; bericht: Qualitae
           {regionen.length === 0 ? (
             <p className="font-sans text-14 text-slate">Für diesen Monat liegen keine Zahlen je Bundesland vor.</p>
           ) : (
-            <Bundeslaender regionen={regionen} stichtag={tag} />
+            <Bundeslaender regionen={regionen} wann={lauf.zeitraumArt === "Monat" ? `im ${monatName(lauf.lieferung)}` : `am ${tag}`} />
           )}
           <BelegLink {...laufBeleg(lauf, { sql: sqlRegionen(lauf) })} />
         </Mehr>
@@ -471,8 +475,8 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
   if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
   if (lesung.daten === null) {
     const satz =
-      regelsatz === "v2"
-        ? `Für ${name} gibt es mit Regelsatz v2 noch keinen Lauf. Er entsteht, sobald die freigegebene Änderung gerechnet ist.`
+      regelsatz !== "v1"
+        ? `Für ${name} gibt es mit Regelsatz ${regelsatz} noch keinen Lauf. Er entsteht, sobald die freigegebene Änderung gerechnet ist.`
         : `Für ${name} gibt es noch keinen Lauf.`;
     return (
       <>
@@ -482,8 +486,8 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
         <Leerzustand
           satz={satz}
           aktion={
-            <Link href={regelsatz === "v2" ? laufPfad(lieferung) : "/uc3"} className={knopfKlassen("sekundaer")}>
-              {regelsatz === "v2" ? `${name} mit Regelsatz v1 ansehen` : "Alle Monate ansehen"}
+            <Link href={regelsatz !== "v1" ? laufPfad(lieferung) : "/uc3"} className={knopfKlassen("sekundaer")}>
+              {regelsatz !== "v1" ? `${name} mit Regelsatz v1 ansehen` : "Alle Monate ansehen"}
             </Link>
           }
         />
@@ -503,8 +507,12 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
       <header className="flex max-w-4xl flex-col gap-4">
         <p className="flex flex-wrap items-center gap-x-3 font-sans text-14 text-slate">
           <span>{name}</span>
-          <span aria-hidden="true">·</span>
-          <span>{`Stichtag ${stichtag(lauf.lieferung)}`}</span>
+          {lauf.zeitraumArt !== "Monat" && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>{`Stichtag ${stichtag(lauf.lieferung)}`}</span>
+            </>
+          )}
           {lauf.regelsatz !== "v1" && (
             <>
               <span aria-hidden="true">·</span>
@@ -529,6 +537,7 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
       </header>
 
       <Auffaelligkeiten detail={detail} />
+      <OenaceWechselAbsatz lauf={lauf} />
       <Abschnitte detail={detail} bericht={bericht} />
       <Weiter detail={detail} />
       </div>

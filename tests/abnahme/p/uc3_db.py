@@ -5,6 +5,8 @@
     $P zeitreihe --orakel tests/abnahme/orakel/zeitreihe.csv --spalte v1_sheet_mit_e07
     $P laeufe --manifest docs/plan/uc3/laufmanifest-v1.csv
     $P regelsaetze v1 v2 ministerium
+    $P schema       # Tabellen, PostgreSQL-Version, Pflichtspalten (#13 AC2, #73 AC2)
+    $P ladung       # Ladeprotokoll gegen Rohtabelle und Lieferungsdateien (#13 AC3)
 
 Die Adresse kommt aus UC3_DATABASE_URL; der Prüflauf setzt sie nur auf die Prüf-DB (Port 5444).
 Je Monat zählt der jüngste Lauf mit Status fertig oder unveraendert. Monatssumme = gezaehlt; die
@@ -15,8 +17,10 @@ from __future__ import annotations
 
 import argparse
 import csv
+import gzip
 import os
 import sys
+from pathlib import Path
 
 import psycopg
 
@@ -103,6 +107,78 @@ def regelsaetze(namen: list[str]) -> int:
     return 0 if leer == 0 else 1
 
 
+PFLICHT_TABELLEN = (
+    "meta.regel",
+    "meta.lauf",
+    "meta.pruefung_treffer",
+    "stat.stat_beschaeftigte",
+    "stat.beschreibung",
+    "stat.variable",
+    "stat.klass_geschlecht",
+    "stat.klass_region",
+    "stat.klass_qualifikation",
+    "stat.klass_beschaeftigungskategorie",
+    "stat.klass_oenace",
+    "stat.klass_alter",
+    "stat.uebergang",
+    "stat.quellzuordnung",
+)
+# Definition und Berechnung stehen laut Schema zusammen in stat.variable.beschreibung.
+PFLICHT_SPALTEN = {
+    "variable": (
+        "stat.variable",
+        ("statistik", "code", "bezeichnung", "beschreibung", "einheit"),
+    ),
+    "oenace": ("stat.klass_oenace", ("version", "code", "ebene", "uebergeordnet", "gueltig_von")),
+    "uebergang": ("stat.uebergang", ("klassifikation", "beziehung", "gueltig_ab")),
+}
+
+
+def schema() -> int:
+    with psycopg.connect(os.environ["UC3_DATABASE_URL"], connect_timeout=5) as v:
+        v.read_only = True
+        print(f"pg {v.execute('show server_version').fetchone()[0].split('.')[0]}")
+        fehlt = [
+            t for t in PFLICHT_TABELLEN if v.execute("select to_regclass(%s)", (t,)).fetchone()[0] is None
+        ]
+        print(f"fehlende_tabellen {len(fehlt)}")
+        for t in fehlt:
+            print(f"  {t}")
+        for name, (tabelle, spalten) in PFLICHT_SPALTEN.items():
+            sch, tab = tabelle.split(".")
+            da = {
+                z[0]
+                for z in v.execute(
+                    "select column_name from information_schema.columns"
+                    " where table_schema=%s and table_name=%s",
+                    (sch, tab),
+                )
+            }
+            print(f"{name}_fehlend {' '.join(sorted(set(spalten) - da)) or 'keine'}")
+    return 0 if not fehlt else 1
+
+
+def ladung() -> int:
+    with psycopg.connect(os.environ["UC3_DATABASE_URL"], connect_timeout=5) as v:
+        v.read_only = True
+        protokoll = dict(v.execute("select lieferung, zeilen from roh.ladeprotokoll").fetchall())
+        roh = dict(v.execute("select lieferung, count(*) from roh.lieferung group by 1").fetchall())
+        nicht_text = v.execute(
+            "select count(*) from information_schema.columns where table_schema='roh'"
+            " and table_name='lieferung' and data_type <> 'text'"
+        ).fetchone()[0]
+    start = Path(os.environ.get("STATAGENT_STARTPAKET", "../svbox/uc3")) / "lieferungen"
+    datei_abweichend = 0
+    for monat, zeilen in protokoll.items():
+        with gzip.open(start / f"lieferung_{monat}.csv.gz", "rt", encoding="utf-8") as f:
+            datei_abweichend += sum(1 for _ in f) - 1 != zeilen
+    print(f"lieferungen {len(protokoll)}")
+    print(f"db_abweichend {sum(roh.get(m) != z for m, z in protokoll.items())}")
+    print(f"datei_abweichend {datei_abweichend}")
+    print(f"roh_nicht_text {nicht_text}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     unter = ap.add_subparsers(dest="befehl", required=True)
@@ -117,9 +193,15 @@ def main() -> int:
         p.add_argument("--regelsatz", default="v1")
     a4 = unter.add_parser("regelsaetze")
     a4.add_argument("namen", nargs="+")
+    unter.add_parser("schema")
+    unter.add_parser("ladung")
     a = ap.parse_args()
     if a.befehl == "regelsaetze":
         return regelsaetze(a.namen)
+    if a.befehl == "schema":
+        return schema()
+    if a.befehl == "ladung":
+        return ladung()
     if a.befehl == "abrechnung":
         return abrechnung(a.lieferung, a.regelsatz)
     if a.befehl == "zeitreihe":

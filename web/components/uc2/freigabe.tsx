@@ -282,7 +282,8 @@ export function FreigabeBericht({ fallId, modus, entscheidung, onEntschieden, sp
           </Status>
         ) : null}
       </div>
-      {vorfuehrung && (
+      {/* Vor der Entscheidung sagt es schon der Satz oben; danach ist der Satz weg. */}
+      {vorfuehrung && entscheidung && (
         <p className="font-sans text-12 text-slate" data-testid="uc2-freigabe-vorfuehrung">
           {VORFUEHRUNG_HINWEIS}
         </p>

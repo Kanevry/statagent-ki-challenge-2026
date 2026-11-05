@@ -6,6 +6,7 @@ import { Leerzustand, Ueberschrift } from "@kic/ui/basis";
 import { formatDifferenz, formatZahl, type FreigabeEntscheidung } from "@kic/ui/bausteine";
 import { literal, type Beleg } from "@/components/uc3/beleg";
 import { BelegLink, StandPunkt } from "@/components/uc3/beleg-link";
+import { vorfuehrungOffen } from "@/components/uc3/auftrag";
 import { nurLesend } from "@/components/uc3/cli";
 import { DatenFehler } from "@/components/uc3/daten-fehler";
 import {
@@ -131,6 +132,13 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
           entschiedenAm={entscheidung ? kurzZeit(entscheidung.zeit) : undefined}
           nurLesen={nurLesend()}
         />
+        {vorfuehrungOffen() && v.commitHash && (
+          <p className="font-sans text-14 text-slate">
+            {"Im Protokoll als Commit "}
+            <span className="font-mono tabular-nums text-ink">{v.commitHash.slice(0, 10)}</span>
+            {", mit dem Namen der Person, die freigegeben hat."}
+          </p>
+        )}
         {ergebnis && v.status === "freigegeben" && (
           <div className="flex flex-col gap-2">
             {ergebnis.laufDa ? (

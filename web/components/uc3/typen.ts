@@ -1,3 +1,4 @@
+import type { ZeitraumArt } from "./zeitraum";
 // Gemeinsame Typen der UC3-Seiten. Spaltennamen der Datenbank (snake_case) werden in den Lesern
 // (`laeufe.ts` usw.) auf diese Formen abgebildet; Seiten kennen nur diese Typen.
 
@@ -20,6 +21,8 @@ export interface Lauf {
   regelsatz: string;
   /** Hash der aktiven Regeln, mit denen gerechnet wurde. */
   regelstand: string;
+  /** Worüber der Regelsatz zählt: am Stichtag (v1) oder über das ganze Monat (v2). */
+  zeitraumArt: ZeitraumArt;
   /** fertig, unveraendert, abgebrochen, laeuft. */
   status: string;
   ergebnisStand: Ergebnisstand;

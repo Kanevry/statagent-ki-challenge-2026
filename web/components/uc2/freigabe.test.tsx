@@ -142,19 +142,19 @@ it("öffentlicher Bericht ohne Name und Grund: „Freigegeben am <Zeit>“ bzw. 
   expect(screen.queryByTestId("uc2-entwurf")).toBeNull();
 });
 
-it("Vorführmodus: der Hinweis steht da, die Freigabe wirkt in der Seite und ruft den Server nicht auf", async () => {
+it("Vorführmodus: die Freigabe wirkt in der Seite, ruft den Server nicht auf und sagt danach, dass nichts gespeichert ist", async () => {
   const speichern = vi.fn<Speichern>();
   zeige("vorfuehrung", speichern);
-  expect(screen.getByTestId("uc2-freigabe-vorfuehrung").textContent).toBe(VORFUEHRUNG_HINWEIS);
-  expect(VORFUEHRUNG_HINWEIS).toBe("Vorführung: nichts gespeichert");
+  // Vor der Entscheidung sagt es der Satz über dem Formular; zweimal wäre zu viel.
+  expect(screen.queryByTestId("uc2-freigabe-vorfuehrung")).toBeNull();
   await userEvent.type(screen.getByLabelText("Vor- und Nachname"), NAME);
   await userEvent.click(screen.getByRole("button", { name: "Freigeben" }));
   await waitFor(() => expect(screen.getByTestId("uc2-freigabe").textContent).toContain(`Freigegeben von ${NAME}`));
   expect(screen.queryByTestId("uc2-entwurf")).toBeNull();
   expect(speichern).not.toHaveBeenCalled();
   expect(fetch).not.toHaveBeenCalled();
-  // Der Hinweis bleibt auch nach der Freigabe stehen.
-  expect(screen.getByTestId("uc2-freigabe-vorfuehrung")).toBeTruthy();
+  // Der Satz ist nach der Freigabe weg, der Hinweis trägt es nun allein.
+  expect(screen.getByTestId("uc2-freigabe-vorfuehrung").textContent).toBe(VORFUEHRUNG_HINWEIS);
 });
 
 it("live: eine frühere Entscheidung aus dem Bericht ersetzt Entwurf und Eingabe", async () => {

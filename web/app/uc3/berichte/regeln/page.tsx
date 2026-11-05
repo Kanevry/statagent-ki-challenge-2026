@@ -9,5 +9,5 @@ type Props = { searchParams: Promise<{ regelsatz?: string | string[] }> };
 
 export default async function Regeln({ searchParams }: Props) {
   const regelsatz = regelsatzAus((await searchParams).regelsatz);
-  redirect(`/uc3/klassifikationen${regelsatz === "v2" ? "?regelsatz=v2" : ""}#regeln`);
+  redirect(`/uc3/klassifikationen${regelsatz === "v1" ? "" : `?regelsatz=${regelsatz}`}#regeln`);
 }
