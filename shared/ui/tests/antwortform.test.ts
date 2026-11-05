@@ -10,6 +10,15 @@ import { belegSchema, ucAntwortSchema, zahlSchema } from "../src/antwortform";
 type Teil = { type?: string | string[]; enum?: string[]; anyOf?: Teil[]; $ref?: string; items?: Teil };
 type Objekt = { properties: Record<string, Teil>; required?: string[]; additionalProperties?: unknown };
 
+const defs = (jsonSchema as unknown as { $defs: Record<string, Objekt> }).$defs;
+
+/** Feldnamen eines Objekts; ein $defs-Verweis (pydantic) wird aufgelöst, ein eingebettetes Objekt (zod) direkt gelesen. */
+function felder(teil: Teil | undefined): string[] | null {
+  if (!teil) return null;
+  const ziel = teil.$ref ? defs[teil.$ref.replace("#/$defs/", "")] : (teil as unknown as Objekt);
+  return ziel?.properties ? Object.keys(ziel.properties).sort() : null;
+}
+
 function form(teil: Teil) {
   const varianten = teil.anyOf ?? [teil];
   return {
@@ -19,6 +28,8 @@ function form(teil: Teil) {
       .flatMap((v) => (v.$ref ? ["object"] : Array.isArray(v.type) ? v.type : [v.type]))
       .sort(),
     werte: varianten.flatMap((v) => v.enum ?? []).sort(),
+    // Arrays: zeigt `items` auf dasselbe Objekt (z. B. `belege` auf Beleg)?
+    elemente: felder(varianten.find((v) => v.items)?.items),
   };
 }
 
@@ -28,8 +39,6 @@ function vergleiche(ausZod: Objekt, ausPython: Objekt) {
   expect([...(ausZod.required ?? [])].sort()).toEqual([...(ausPython.required ?? [])].sort());
   expect(ausZod.additionalProperties).toBe(ausPython.additionalProperties);
 }
-
-const defs = (jsonSchema as unknown as { $defs: Record<string, Objekt> }).$defs;
 
 describe("UcAntwort (zod) gegen shared/schema", () => {
   it("die Fixture erfüllt den Vertrag", () => {
