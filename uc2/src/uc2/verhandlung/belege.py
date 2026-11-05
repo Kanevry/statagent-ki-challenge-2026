@@ -17,6 +17,7 @@ import functools
 import json
 import os
 import re
+import sys
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import date
@@ -157,6 +158,11 @@ def lade_namensliste() -> Namensliste | None:
     try:
         liste = Namensliste.lade(pfad)
     except NamenslisteFehlt:
+        return None
+    except OSError as fehler:
+        # Vorhanden, aber nicht lesbar (online 05.11.: Datei 600/root, App als uid 1001): wie „fehlt“
+        # behandeln, damit UC2 bei gekennzeichneten Beispielbelegen bleibt statt ganz auszufallen. Kein Pfad.
+        print(f"[uc2] Namensliste nicht lesbar ({type(fehler).__name__}), Beispielbelege", file=sys.stderr)
         return None
     return liste if len(liste) else None
 
