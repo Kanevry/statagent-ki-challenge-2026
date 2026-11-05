@@ -1,0 +1,362 @@
+"""Vom Satz zum Vorschlag: Koordinator wählt die Rolle, die Rolle schlägt vor, das Programm prüft.
+
+Ablauf von ``agent_ausfuehren``:
+
+1. Koordinator (ein Modellaufruf, Zweck ``agent.koordinator``) ordnet die Anweisung einer Rolle zu oder
+   stellt eine Rückfrage.
+2. Die Lese-Werkzeuge stellen einen Kontext zusammen (Regeln, Schema, Klassifikation, Aggregate, nie
+   Einzeldaten). Die Rolle antwortet in einem Modellaufruf mit dem Format ``VorschlagAntwort``. Bewusst
+   ohne Werkzeug-Schleife: ein fester Kontext ist nachvollziehbar und läuft mit jedem Modell, auch mock.
+3. Der Code prüft den Vorschlag gegen die Datenbank (Regel vorhanden, Parameter bekannt, Wert zulässig
+   für die Regel-Art, keine Kennungen). Erst dann entsteht ein offener Vorschlag in meta.vorschlag.
+
+Keine Zahl entsteht im Modell. Die Probe (``probe_rechnen``) rechnet das Programm.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from dataclasses import dataclass, field
+from typing import Any
+
+from pydantic import BaseModel, ValidationError
+
+from statagent.agenten import plattform_bruecke
+from statagent.agenten.anwenden import CodeUngueltig, code_pruefen
+from statagent.agenten.plattform_bruecke import CompleteFunktion
+from statagent.agenten.regelaenderung import regelsatz_vorhanden
+from statagent.agenten.rollen import (
+    KOORDINATOR_ZWECK,
+    ROLLEN,
+    Koordination,
+    Parameter,
+    Rolle,
+    VorschlagAntwort,
+    koordinator_prompt,
+)
+from statagent.agenten.vorschlag import CodeDateiEntwurf, probe_rechnen, vorschlag_anlegen
+from statagent.agenten.werkzeuge import (
+    GESPERRTE_SPALTEN,
+    AbfrageVerweigert,
+    klassifikation_lesen,
+    regeln_lesen,
+    schema_lesen,
+    sql_lesen,
+)
+from statagent.db import Verbindung
+
+
+class VorschlagUngueltig(ValueError):
+    """Der Vorschlag des Modells passt nicht zu den Regeln in der Datenbank."""
+
+
+@dataclass
+class Ergebnis:
+    """Was aus einer Anweisung wurde: ein offener Vorschlag, eine Rückfrage oder eine begründete Ablehnung."""
+
+    anweisung: str
+    rolle: str | None = None
+    vorschlag_id: int | None = None
+    rueckfrage: str | None = None
+    abgelehnt: str | None = None
+    modell: str | None = None
+    provider: str | None = None
+    aufrufe: list[dict[str, str | None]] = field(default_factory=list)
+
+
+# --- Zulässige Werte je Regel-Art (was der Zählcode versteht; Werte selbst stehen in meta.regel) -------
+
+_TAG = re.compile(r"^(monatserster|monatsletzter|tag:\d{1,2})$")
+_ZULAESSIG: dict[tuple[str, str], Any] = {
+    ("dimension", "qualifikation"): {"code", "beschaeftigungskategorie"},
+    ("bestand", "zeitraum_art"): {"Stichtag", "Monat"},
+    ("bestand", "von"): _TAG,
+    ("bestand", "bis"): _TAG,
+    ("bestand", "lieferung"): {"eigene"},
+    ("abschnittswahl", "ordnung"): {"spaetester_beginn"},
+    ("alter", "bezug"): {"bis", "von"},
+    ("alter", "geburtsmonat_13"): {"jahresdifferenz", "unbekannt"},
+    ("klassifikationsversion", "nach"): {"berichtsmonat"},
+}
+
+
+def _gleicher_typ(alt: object, neu: object) -> bool:
+    if isinstance(alt, bool) or isinstance(neu, bool):
+        return isinstance(alt, bool) and isinstance(neu, bool)
+    if isinstance(alt, int | float):
+        return isinstance(neu, int | float)
+    return type(alt) is type(neu)
+
+
+def _wert_pruefen(art: str, schluessel: str, alt: object, neu: object, regel: str) -> None:
+    erlaubt = _ZULAESSIG.get((art, schluessel))
+    if isinstance(erlaubt, set) and neu not in erlaubt:
+        werte = ", ".join(sorted(erlaubt))
+        raise VorschlagUngueltig(
+            f"{regel}.{schluessel}: {neu!r} ist für die Art {art} nicht zulässig ({werte})"
+        )
+    if isinstance(erlaubt, re.Pattern) and not (isinstance(neu, str) and erlaubt.match(neu)):
+        raise VorschlagUngueltig(f"{regel}.{schluessel}: {neu!r} passt nicht zu {erlaubt.pattern}")
+    if alt is not None and not _gleicher_typ(alt, neu):
+        raise VorschlagUngueltig(f"{regel}.{schluessel}: Wert {neu!r} hat einen anderen Typ als bisher")
+
+
+def _parameter(liste: list[Parameter]) -> dict[str, Any]:
+    ergebnis: dict[str, Any] = {}
+    for p in liste:
+        if p.schluessel in ergebnis:
+            raise VorschlagUngueltig(f"Parameter {p.schluessel} kommt doppelt vor")
+        ergebnis[p.schluessel] = p.wert
+    return ergebnis
+
+
+def _regeln(conn: Verbindung, regelsatz: str) -> dict[str, dict[str, Any]]:
+    zeilen = conn.execute(
+        "SELECT name, typ, art, parameter FROM meta.regel WHERE regelsatz = %s AND aktiv", (regelsatz,)
+    ).fetchall()
+    return {str(z["name"]): dict(z) for z in zeilen}
+
+
+def _ziel_pruefen(conn: Verbindung, ziel: str) -> None:
+    if not re.fullmatch(r"v\d+", ziel):
+        raise VorschlagUngueltig(f"Regelsatz {ziel!r} hat nicht die Form v<Zahl>")
+    z = conn.execute(
+        "SELECT count(*) AS n FROM meta.lauf WHERE regelsatz = %s AND ergebnis_status = 'endgueltig'", (ziel,)
+    ).fetchone()
+    if z is not None and int(str(z["n"])) > 0:
+        raise VorschlagUngueltig(
+            f"Regelsatz {ziel} hat veröffentlichte Monate; die bleiben unverändert. Bitte einen neuen Regelsatz."
+        )
+
+
+def _ohne_kennungen(*teile: object) -> None:
+    text = json.dumps(teile, ensure_ascii=False, default=str).lower()
+    for wort in sorted(GESPERRTE_SPALTEN):
+        if wort in text:
+            raise VorschlagUngueltig(
+                f"Der Vorschlag nennt „{wort}“; Einzeldaten gehören nicht in Vorschläge."
+            )
+
+
+@dataclass(frozen=True)
+class GeprueftVorschlag:
+    typ: str
+    regelsatz_ziel: str
+    regelsatz_basis: str
+    aenderungen: list[dict[str, Any]]
+    datei: CodeDateiEntwurf | None
+    begruendung: str
+
+
+def vorschlag_pruefen(
+    conn: Verbindung, rolle: Rolle, antwort: VorschlagAntwort, *, regelsatz_basis: str = "v1"
+) -> GeprueftVorschlag:
+    """Prüft den Modellvorschlag gegen die Datenbank. Werte vorher liest der Code selbst, nie das Modell."""
+    if antwort.typ is None:
+        raise VorschlagUngueltig("Die Antwort enthält weder Vorschlag noch Rückfrage")
+    if antwort.typ not in rolle.typen:
+        raise VorschlagUngueltig(f"Die Rolle {rolle.name} darf keine Vorschläge vom Typ {antwort.typ} machen")
+    if not antwort.begruendung.strip():
+        raise VorschlagUngueltig("Ein Vorschlag braucht eine Begründung")
+    ziel = antwort.regelsatz_ziel
+    _ziel_pruefen(conn, ziel)
+    basis = ziel if regelsatz_vorhanden(conn, ziel) else regelsatz_basis
+    if not regelsatz_vorhanden(conn, basis):
+        raise VorschlagUngueltig(f"Basisregelsatz {basis} gibt es nicht")
+    regeln = _regeln(conn, basis)
+    aenderungen: list[dict[str, Any]] = []
+    datei: CodeDateiEntwurf | None = None
+
+    if antwort.typ == "regel_aendern":
+        if not antwort.aenderungen:
+            raise VorschlagUngueltig("regel_aendern ohne Änderung")
+        for a in antwort.aenderungen:
+            r = regeln.get(a.regel_name)
+            if r is None:
+                raise VorschlagUngueltig(f"Regel {a.regel_name} gibt es im Regelsatz {basis} nicht")
+            if r["typ"] not in rolle.regeltypen:
+                raise VorschlagUngueltig(f"Die Rolle {rolle.name} darf {r['typ']}-Regeln nicht ändern")
+            alt = dict(r["parameter"])
+            neu_teil = _parameter(a.parameter_neu)
+            for k, w in neu_teil.items():
+                if k not in alt:
+                    raise VorschlagUngueltig(f"{a.regel_name}: Parameter {k!r} kennt die Regel nicht")
+                _wert_pruefen(str(r["art"]), k, alt[k], w, a.regel_name)
+            neu = {**alt, **neu_teil}
+            if neu == alt:
+                raise VorschlagUngueltig(f"{a.regel_name}: der Vorschlag ändert nichts")
+            aenderungen.append({"regel_name": a.regel_name, "parameter_alt": alt, "parameter_neu": neu})
+    elif antwort.typ == "regel_neu":
+        if not antwort.neue_regeln:
+            raise VorschlagUngueltig("regel_neu ohne Regel")
+        for n in antwort.neue_regeln:
+            if n.name in regeln:
+                raise VorschlagUngueltig(f"Regel {n.name} gibt es schon; bitte regel_aendern")
+            if n.typ not in rolle.regeltypen:
+                raise VorschlagUngueltig(f"Die Rolle {rolle.name} darf keine {n.typ}-Regeln anlegen")
+            gleiche_art = [r for r in regeln.values() if r["typ"] == n.typ and r["art"] == n.art]
+            if not gleiche_art:
+                arten = sorted({str(r["art"]) for r in regeln.values() if r["typ"] == n.typ})
+                raise VorschlagUngueltig(
+                    f"Eine {n.typ}-Regel der Art {n.art!r} kennt das Programm nicht (vorhanden: "
+                    f"{', '.join(arten)}). Eine neue Art braucht neuen Code im Programm; das ist ein "
+                    "Entwicklungsauftrag, kein Regelvorschlag."
+                )
+            if n.typ == "zaehl":
+                raise VorschlagUngueltig(
+                    f"Zählregeln gibt es je Art genau einmal; bitte {gleiche_art[0]['name']} ändern"
+                )
+            parameter = _parameter(n.parameter)
+            bekannt = set().union(*(set(dict(r["parameter"])) for r in gleiche_art))
+            unbekannt = sorted(set(parameter) - bekannt)
+            if unbekannt:
+                raise VorschlagUngueltig(
+                    f"{n.name}: Parameter {', '.join(unbekannt)} kennt die Art {n.art} nicht"
+                )
+            for k, w in parameter.items():
+                _wert_pruefen(n.art, k, None, w, n.name)
+            regel = n.model_dump(exclude={"parameter"}) | {"parameter": parameter}
+            aenderungen.append({"regel": regel})
+    else:
+        d = antwort.datei
+        if d is None:
+            raise VorschlagUngueltig("code_datei ohne Datei")
+        if not re.fullmatch(r"[a-z0-9_]{1,60}", d.name):
+            raise VorschlagUngueltig("Dateiname nur aus a-z, 0-9 und _ (höchstens 60 Zeichen)")
+        endung = ".py" if d.sprache == "python" else ".sql"
+        try:
+            code_pruefen(endung, d.inhalt)
+        except (CodeUngueltig, AbfrageVerweigert) as fehler:
+            raise VorschlagUngueltig(f"Code-Datei: {fehler}") from None
+        datei = CodeDateiEntwurf(name=d.name, endung=endung, rumpf=d.inhalt)
+
+    _ohne_kennungen(aenderungen, antwort.begruendung, None if datei is None else datei.rumpf)
+    return GeprueftVorschlag(antwort.typ, ziel, basis, aenderungen, datei, antwort.begruendung.strip())
+
+
+# --- Modellaufrufe ------------------------------------------------------------------------------------
+
+
+def _antwort_lesen[M: BaseModel](antwort: Any, format_: type[M]) -> M:
+    roh = getattr(antwort, "json", None)
+    if isinstance(roh, BaseModel):
+        roh = roh.model_dump()
+    if roh is None:
+        roh = json.loads(str(getattr(antwort, "text", "") or "null"))
+    return format_.model_validate(roh)
+
+
+def _aufruf[M: BaseModel](
+    complete: CompleteFunktion,
+    ergebnis: Ergebnis,
+    nachrichten: list[dict[str, str]],
+    format_: type[M],
+    zweck: str,
+) -> M:
+    antwort = complete(nachrichten, schema=format_, zweck=zweck)
+    modell, provider = getattr(antwort, "modell", None), getattr(antwort, "provider", None)
+    ergebnis.aufrufe.append(
+        {
+            "zweck": zweck,
+            "modell": None if modell is None else str(modell),
+            "provider": None if provider is None else str(provider),
+        }
+    )
+    return _antwort_lesen(antwort, format_)
+
+
+def kontext_bauen(conn: Verbindung, regelsatz_basis: str = "v1") -> dict[str, Any]:
+    """Was eine Rolle sehen darf: Regeln, Schema, Klassifikation der Qualifikation, Lauf-Aggregate."""
+    kontext: dict[str, Any] = {
+        "regelsatz_basis": regelsatz_basis,
+        "regeln": regeln_lesen(conn, regelsatz_basis),
+    }
+    if regelsatz_basis != "v2" and regelsatz_vorhanden(conn, "v2"):
+        kontext["regeln_v2"] = regeln_lesen(conn, "v2")
+    kontext["klassifikation"] = klassifikation_lesen(conn, "qualifikation")
+    kontext["schema"] = schema_lesen(conn)
+    kontext["laeufe"] = sql_lesen(
+        conn,
+        """SELECT DISTINCT ON (regelsatz, lieferung) regelsatz, lieferung, gezaehlt, ergebnis_status
+           FROM meta.lauf WHERE status IN ('fertig', 'unveraendert')
+           ORDER BY regelsatz, lieferung, id DESC""",
+    )["zeilen"]
+    return kontext
+
+
+def agent_ausfuehren(
+    conn: Verbindung,
+    anweisung: str,
+    *,
+    complete: CompleteFunktion | None = None,
+    regelsatz_basis: str = "v1",
+    probe_lieferung: str | None = None,
+) -> Ergebnis:
+    """Setzt eine Anweisung in Sprache in einen offenen Vorschlag um (oder fragt zurück).
+
+    ``complete`` ist der Modell-Schalter (Standard: ``plattform.llm.complete``); Tests geben einen Fake.
+    Mit ``probe_lieferung`` rechnet das Programm gleich die Probe für diesen Monat.
+    """
+    ergebnis = Ergebnis(anweisung=anweisung)
+    modell_aufruf = complete or plattform_bruecke.lade_complete()
+    try:
+        koordination = _aufruf(
+            modell_aufruf,
+            ergebnis,
+            [{"role": "system", "content": koordinator_prompt()}, {"role": "user", "content": anweisung}],
+            Koordination,
+            KOORDINATOR_ZWECK,
+        )
+    except (ValidationError, ValueError) as fehler:
+        ergebnis.abgelehnt = f"Antwort des Koordinators passt nicht zum Format ({type(fehler).__name__})"
+        return ergebnis
+    if koordination.rueckfrage or koordination.rolle is None:
+        ergebnis.rueckfrage = (
+            koordination.rueckfrage or "Welche Rolle ist gemeint? Bitte genauer beschreiben."
+        )
+        return ergebnis
+
+    rolle = ROLLEN[koordination.rolle]
+    ergebnis.rolle = rolle.name
+    kontext = kontext_bauen(conn, regelsatz_basis)
+    nachrichten = [
+        {"role": "system", "content": rolle.system_prompt},
+        {
+            "role": "user",
+            "content": f"Anweisung: {anweisung}\nAuftrag des Koordinators: {koordination.auftrag}\n"
+            f"Kontext (JSON):\n{json.dumps(kontext, ensure_ascii=False, default=str)}",
+        },
+    ]
+    try:
+        antwort = _aufruf(modell_aufruf, ergebnis, nachrichten, VorschlagAntwort, rolle.zweck)
+    except (ValidationError, ValueError) as fehler:
+        ergebnis.abgelehnt = (
+            f"Antwort der Rolle {rolle.name} passt nicht zum Format ({type(fehler).__name__})"
+        )
+        return ergebnis
+    ergebnis.modell, ergebnis.provider = ergebnis.aufrufe[-1]["modell"], ergebnis.aufrufe[-1]["provider"]
+    if antwort.rueckfrage:
+        ergebnis.rueckfrage = antwort.rueckfrage
+        return ergebnis
+    try:
+        g = vorschlag_pruefen(conn, rolle, antwort, regelsatz_basis=regelsatz_basis)
+    except VorschlagUngueltig as fehler:
+        ergebnis.abgelehnt = str(fehler)
+        return ergebnis
+    ergebnis.vorschlag_id = vorschlag_anlegen(
+        conn,
+        anweisung=anweisung,
+        rolle=rolle.name,
+        typ=g.typ,
+        regelsatz_ziel=g.regelsatz_ziel,
+        regelsatz_basis=g.regelsatz_basis,
+        begruendung=g.begruendung,
+        aenderungen=g.aenderungen or None,
+        datei=g.datei,
+        modell=ergebnis.modell,
+        provider=ergebnis.provider,
+    )
+    if probe_lieferung is not None:
+        probe_rechnen(conn, ergebnis.vorschlag_id, probe_lieferung)
+    return ergebnis

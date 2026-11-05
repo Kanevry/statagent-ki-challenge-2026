@@ -92,8 +92,12 @@ def zaehlen(
     if bezug is None:
         raise RegelFehler(f"{r_alter.name}: bezug muss 'bis' oder 'von' sein")
     monat13 = str(wert(r_alter, "geburtsmonat_13"))
-    if monat13 not in ("jahresdifferenz", "unbekannt"):
-        raise RegelFehler(f"{r_alter.name}: geburtsmonat_13 muss 'jahresdifferenz' oder 'unbekannt' sein")
+    ersatz = re.fullmatch(r"ersatz:(\d{2})-(\d{2})", monat13)
+    if monat13 not in ("jahresdifferenz", "unbekannt") and ersatz is None:
+        raise RegelFehler(
+            f"{r_alter.name}: geburtsmonat_13 muss 'jahresdifferenz', 'unbekannt' oder 'ersatz:MM-TT' sein"
+        )
+    ersatz_monat, ersatz_tag = (int(ersatz.group(1)), int(ersatz.group(2))) if ersatz else (0, 0)
 
     dim = str(wert(r_dim, "qualifikation"))
     if dim == "code":
@@ -130,6 +134,8 @@ def zaehlen(
               CASE WHEN w.geburtsdatum IS NOT NULL THEN extract(year FROM age(%(bezug)s::date, w.geburtsdatum))::int
                    WHEN w.geburtsdatum_status = 'monat_13' AND %(m13)s = 'jahresdifferenz'
                      THEN extract(year FROM %(bezug)s::date)::int - w.geburtsjahr
+                   WHEN w.geburtsdatum_status = 'monat_13' AND %(em)s > 0
+                     THEN extract(year FROM age(%(bezug)s::date, make_date(w.geburtsjahr, %(em)s, %(et)s)))::int
               END AS alter_roh) x
             """
         ).format(ordnung=ordnung, t_bestand=t_bestand),
@@ -140,6 +146,8 @@ def zaehlen(
             "bis": zr.bis,
             "bezug": bezug,
             "m13": monat13,
+            "em": ersatz_monat,
+            "et": ersatz_tag,
             "amax": int(wert(r_alter, "max_plausibel")),
             "amin": int(wert(r_alter, "min_plausibel")),
         },
@@ -157,6 +165,24 @@ def zaehlen(
         ).format(qual=qual_ausdruck, join=qual_join, t_bestand=t_bestand, t_zellen=t_zellen),
         {"art": zr.art, "von": zr.von, "bis": zr.bis, "var": variable},
     )
+    # Nur gelieferte Abschnitte (ohne Fortschreibung E07): Prüfungen erkennen daran einen Lieferausfall.
+    t_geliefert = sql.Identifier(f"{praefix}zellen_geliefert")
+    conn.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(t_geliefert))
+    conn.execute(
+        sql.SQL(
+            """
+            CREATE TEMP TABLE {t_geliefert} ON COMMIT DROP AS
+            SELECT b.bundesland AS region, b.oenace, b.oenace_version, b.geschlecht, {qual} AS qualifikation,
+                   b.alter_jahre AS alter, count(*)::bigint AS wert
+            FROM {t_bestand} b {join} WHERE b.herkunft = 'geliefert'
+            GROUP BY 1, 2, 3, 4, 5, 6
+            """
+        ).format(qual=qual_ausdruck, join=qual_join, t_bestand=t_bestand, t_geliefert=t_geliefert)
+    )
+    # Temporäre Tabellen haben keine Statistik; ohne ANALYZE plant PostgreSQL Anti-Joins als verschachtelte Schleifen.
+    conn.execute(sql.SQL("CREATE INDEX ON {} (vvh_id)").format(t_bestand))
+    conn.execute(sql.SQL("ANALYZE {}").format(t_bestand))
+    conn.execute(sql.SQL("ANALYZE {}").format(t_zellen))
     kennzahlen = conn.execute(
         sql.SQL(
             """

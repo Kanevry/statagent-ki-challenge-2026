@@ -44,6 +44,7 @@ uv run uc3 berichte --alle && uv run uc3 sheet   # 24 Qualitätsberichte und Agg
 | `eichen` | Zellvergleich gegen `beispielbericht_2024-08.xlsx` |
 | `veroeffentlichen --lieferung JJJJ-MM --name "…"` | gibt einen Monat frei: vorläufig → endgültig, danach unveränderlich |
 | `berichte`, `sheet`, `pruefe-abgabe` | Qualitätsberichte, Aggregations-Sheet, Prüfung der Abgabedateien |
+| `protokoll` | Protokoll aller Änderungen: Git-Commits mit `Freigegeben-von`, Regelfreigaben, veröffentlichte Monate |
 
 ## Wie ein Lauf rechnet
 

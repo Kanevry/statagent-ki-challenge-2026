@@ -265,6 +265,33 @@ def eichen(
 # --- noch nicht umgesetzte Befehle (eigene Issues) ---------------------------------------------------------
 
 
+@app.command("berichte")
+def berichte(
+    lieferung: Annotated[str | None, typer.Option(help="Berichtsmonat JJJJ-MM")] = None,
+    alle: Annotated[
+        bool, typer.Option("--alle", help="Berichte für alle gerechneten Monate schreiben")
+    ] = False,
+    regelsatz: Annotated[str, typer.Option()] = "v1",
+    zeigen: Annotated[bool, typer.Option("--zeigen", help="Bericht ausgeben statt schreiben")] = False,
+) -> None:
+    """Qualitätsbericht je Berichtsmonat aus der Vorlage erzeugen (abgabe/qualitaetsberichte/JJJJ-MM.md)."""
+    from statagent.berichte.qualitaetsbericht import bericht_erzeugen, bericht_schreiben
+
+    with verbinden() as conn:
+        if alle:
+            monate = [m for m in lieferungen(conn) if ergebnis.letzter_lauf(conn, m, regelsatz) is not None]
+        elif lieferung:
+            monate = [lieferung]
+        else:
+            typer.echo("Bitte --lieferung JJJJ-MM oder --alle angeben.", err=True)
+            raise typer.Exit(2)
+        for monat in monate:
+            if zeigen:
+                typer.echo(bericht_erzeugen(conn, monat, regelsatz))
+            else:
+                typer.echo(f"{monat}: {bericht_schreiben(conn, monat, regelsatz)}")
+
+
 @app.command("veroeffentlichen")
 def veroeffentlichen(
     name: Annotated[str, typer.Option(help="Vor- und Nachname der freigebenden Person")],
@@ -298,28 +325,48 @@ def veroeffentlichen(
         raise typer.Exit(1)
 
 
-@app.command("berichte")
-def berichte(lieferung: Annotated[str | None, typer.Option(help="Berichtsmonat JJJJ-MM")] = None) -> None:
-    """Qualitätsbericht je Berichtsmonat aus der Vorlage erzeugen bzw. anzeigen."""
-    _fehlt("#16", "berichte")
-
-
 @app.command("sheet")
 def sheet(regelsatz: Annotated[str, typer.Option()] = "v1") -> None:
-    """Aggregations-Sheet aus der Vorlage füllen (alle gerechneten Monate)."""
-    _fehlt("#16", "sheet")
+    """Aggregations-Sheet aus der Vorlage füllen (alle gerechneten Monate) → abgabe/aggregationen_<regelsatz>.xlsx."""
+    try:
+        from statagent.berichte.sheet import sheet_schreiben
+    except ModuleNotFoundError:
+        _fehlt("#16", "sheet")
+    with verbinden() as conn:
+        erg = sheet_schreiben(conn, regelsatz)
+    typer.echo(f"Sheet geschrieben: {getattr(erg, 'pfad', erg)}")
 
 
 @app.command("pruefe-abgabe")
-def pruefe_abgabe() -> None:
-    """Prüft die Abgabedateien unter abgabe/ (Sheet, 24 Qualitätsberichte, Ministerium, Protokoll, Modelle)."""
-    _fehlt("#16/#20", "pruefe-abgabe")
+def pruefe_abgabe(als_json: JsonOption = False) -> None:
+    """Prüft die Abgabedateien unter abgabe/ (Sheet alt und neu, 24 Qualitätsberichte, Ministerium, Protokoll, Modelle)."""
+    from statagent.berichte.pruefe_abgabe import pruefe_abgabe as pruefen
+
+    erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL)
+    _ausgabe(erg.als_dict(), als_json, erg.als_text())
+    if not erg.ok:
+        raise typer.Exit(1)
 
 
 @app.command("ministerium")
-def ministerium(monat: Annotated[str, typer.Option(help="Berichtsmonat JJJJ-MM")] = "2026-07") -> None:
-    """Ministeriums-Lieferung (Auftrag 3) erzeugen."""
-    _fehlt("#71", "ministerium")
+def ministerium(
+    name: Annotated[str, typer.Option(help="Vor- und Nachname der Person, die die Lieferung freigibt")],
+    monat: Annotated[str, typer.Option(help="Berichtsmonat JJJJ-MM")] = "2026-07",
+    regelsatz: Annotated[str, typer.Option(help="Regelsatz mit der Definition (Auftrag 3)")] = "ministerium",
+) -> None:
+    """Ministeriums-Lieferung (Auftrag 3) nach freigegebener Definition rechnen und mit Namen freigeben."""
+    from statagent.sonderauswertung import NichtFreigegeben, ministerium_schreiben
+
+    try:
+        with verbinden() as conn:
+            datei, auswertung = ministerium_schreiben(conn, monat, name, regelsatz=regelsatz)
+    except (NichtFreigegeben, NameUngueltig, RegelFehler) as fehler:
+        typer.echo(f"nicht erzeugt: {fehler}", err=True)
+        raise typer.Exit(1) from fehler
+    typer.echo(f"{datei}: {len(auswertung.zeilen)} Personen, Zeitraum {auswertung.von} bis {auswertung.bis}")
+    for m, lieferung in auswertung.datenstand.items():
+        hinweis = f"  (übersprungen: {auswertung.uebersprungen[m]})" if m in auswertung.uebersprungen else ""
+        typer.echo(f"  {m} aus Lieferung {lieferung}{hinweis}")
 
 
 @app.command("agent")
@@ -358,9 +405,19 @@ def klass(
 
 
 @app.command("protokoll")
-def protokoll(als_json: JsonOption = False) -> None:
-    """Protokoll aller Änderungen über die Agenten (Anweisung, Änderung, Freigabe)."""
-    _fehlt("#15", "protokoll")
+def protokoll(
+    zeigen: Annotated[
+        bool, typer.Option("--zeigen", help="ausgeben statt nach abgabe/protokoll.md schreiben")
+    ] = False,
+) -> None:
+    """Protokoll aller Änderungen: Anweisung, Änderung, Freigabe mit Namen (Git-Trailer und Datenbank)."""
+    from statagent.berichte.protokoll import protokoll_erzeugen, protokoll_schreiben
+
+    with verbinden() as conn:
+        if zeigen:
+            typer.echo(protokoll_erzeugen(conn))
+        else:
+            typer.echo(f"Protokoll geschrieben: {protokoll_schreiben(conn)}")
 
 
 def main() -> None:

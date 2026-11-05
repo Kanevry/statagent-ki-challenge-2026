@@ -43,6 +43,12 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  'Fachbeschreibung § 3 (Klassifikationen enthalten „unbekannt“) und § 4 Nr. 8 (fehlende Angaben nach begründeten Annahmen, kein Verhältnis verloren); Anhang B (Quellzuordnung statt zweiter Klassifikation).',
  'Fachbeschreibung § 3, § 4 Nr. 8; Anhang B'),
 
+('v1', 'E07_fortschreibung_lieferausfall', 'einlese', 'fortschreibung', 60,
+ '{"quelle": "vorlieferung", "schwelle_anteil_verschwunden": 0.01, "merkmal_auspraegung": "qualifikation", "mindestens_vormonat": 100, "mindestens_basis": 1000}',
+ 'Fehlen in einer Lieferung belegt Verhältnisse, die im Vormonat bestanden (mehr als 1 % eines Vormonatsbestands von mindestens 1.000 Verhältnissen, oder eine Qualifikation mit über 100 Verhältnissen fällt ganz aus), werden die fehlenden Verhältnisse einmalig aus der Vorlieferung ergänzt, wenn dort ein am neuen Stichtag gültiger Abschnitt vorliegt. Ergänzte Abschnitte sind als fortgeschrieben markiert, der Monat bleibt vorläufig, bereits fortgeschriebene Abschnitte werden nie weitergetragen.',
+ 'Anhang A Nr. 1: kein Verhältnis geht verloren. Lieferung 2025-03 enthält keine freien Dienstverträge (1.492 FD-Verhältnisse vom 28.02. fehlen, alle wieder in 2025-04), Lieferung 2025-10 rund 20 % weniger Verhältnisse (78.949 vom 30.09. fehlen, 78.733 wieder in 2025-11). Einperiodige Fortschreibung der letzten gültigen Beobachtung ist gängige Praxis bei kurzfristigem Meldeausfall (Statistische Ämter des Bundes und der Länder, Beschäftigtenpanel, Metadatenreport § 2.5.3; Statistik Austria, Konjunkturindikatoren § 2.2.3). Nur frühere Lieferungen, keine Hochrechnung; spätere Lieferungen zeigen die Abweichung als Revisionsbedarf.',
+ 'Anhang A Nr. 1, 2; Fachbeschreibung § 4 Nr. 4 und 8; Rückfragen R4, R5'),
+
 ('v1', 'Q01_oenace_2003_unterabschnitte', 'zuordnung', 'quellzuordnung', 51,
  '{"merkmal": "oenace", "von_version": "2003", "codes": ["DA","DB","DC","DD","DE","DF","DG","DH","DI","DJ","DK","DL","DM","DN"], "ziel": "C"}',
  'ÖNACE-2003-Unterabschnitte DA bis DN (Sachgütererzeugung) werden dem Abschnitt C „Herstellung von Waren“ zugeordnet, in ÖNACE 2008 und 2025. D allein bleibt D (Energieversorgung).',
@@ -74,9 +80,9 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  'Fachbeschreibung § 4 Nr. 3; Anhang A Nr. 1; Technische Regel 1'),
 
 ('v1', 'R5_alter', 'zaehl', 'alter', 30,
- '{"bezug": "bis", "geburtsmonat_13": "jahresdifferenz", "max_plausibel": 100, "min_plausibel": 0}',
- 'Alter in vollendeten Jahren am Ende des Berichtszeitraums (Stichtag). Bei Geburtsmonat 13 gilt Berichtsjahr − Geburtsjahr. Ein Alter über 100 Jahre oder unter 0 gilt als unplausibel und wird als „unbekannt“ gezählt; das Verhältnis zählt.',
- 'Beispielbericht 2024-08 Tab13: die 370 Fälle mit Monat 13 stehen mit Berichtsjahr − Geburtsjahr in den Altersjahren, nur die 7 Fälle mit 117–153 Jahren unter „unbekannt“ (Variante D der Lead-Gegenrechnung, 576 von 576 Zellen). Grenze 100 statt 74: ab 09/2024 erscheinen echte 75- bis 77-Jährige (62 bis 310 je Monat, Geburtsjahr 1948–1951), zwischen 78 und 116 Jahren gibt es keinen Fall; eine Grenze von 74 würde eine echte Entwicklung als Fehler korrigieren.',
+ '{"bezug": "bis", "geburtsmonat_13": "ersatz:07-01", "max_plausibel": 110, "min_plausibel": 0}',
+ 'Alter in vollendeten Jahren am Ende des Berichtszeitraums (Stichtag). Bei Geburtsmonat 13 ist der Geburtstag unbekannt: Wir setzen den 1. Juli des Geburtsjahres ein (Jahresmitte) und rechnen das vollendete Alter. Ein Alter über 110 Jahre oder unter 0 gilt als unplausibel und wird als „unbekannt“ gezählt; das Verhältnis zählt.',
+ 'Ersatztag 1. Juli: Ist nur das Jahr bekannt, ist die Jahresmitte die beste Schätzung (Praxis z. B. NHS England, Person Birth Date); für 08/2024 trifft sie den Beispielbericht genau wie jeder Ersatztag im Jänner bis August (Tab13 576 von 576 Zellen). Grenze 110: großzügige eigene Prüfgrenze, kein amtlicher Standard (ILO empfiehlt keine obere Altersgrenze für Erwerbstätige); ab 09/2024 erscheinen echte 75- bis 77-Jährige (62 bis 310 je Monat), zwischen 78 und 116 Jahren gibt es keinen Fall, die 7 Fälle mit 117–153 Jahren sind unplausibel. Eine Grenze von 74 würde eine echte Entwicklung als Fehler korrigieren.',
  'Fachbeschreibung § 4 Nr. 5; Erläuterungen Beispielbericht; Rückfragen R1, R2'),
 
 ('v1', 'R7_oenace_nach_berichtsmonat', 'zaehl', 'klassifikationsversion', 40,

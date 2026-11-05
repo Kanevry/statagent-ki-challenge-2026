@@ -38,6 +38,7 @@ class LaufErgebnis:
     nicht_gezaehlt: int
     ausgeschlossen: int
     korrigiert: int
+    fortgeschrieben: int
     ergebnis_hash: str
     zellen: int
     meldung: str
@@ -111,9 +112,9 @@ def lauf_ausfuehren(
             nicht_gezaehlt = zl.nicht_aktiv + mehrfach_abschnitte
             if b.abschnitte != zl.aktive_abschnitte + zl.nicht_aktiv:
                 raise RegelFehler("Abschnitte aus der Bereinigung ≠ aktive + nicht aktive Abschnitte")
-            if b.gelesen != zl.gezaehlt + nicht_gezaehlt + b.ausgeschlossen:
+            if b.gelesen + b.fortgeschrieben != zl.gezaehlt + nicht_gezaehlt + b.ausgeschlossen:
                 raise RegelFehler(
-                    "Abrechnung geht nicht auf: gelesen ≠ gezählt + nicht gezählt + ausgeschlossen"
+                    "Abrechnung geht nicht auf: gelesen + fortgeschrieben ≠ gezählt + nicht gezählt + ausgeschlossen"
                 )
 
             for regel_id, saetze in sorted(b.wirkung.items()):
@@ -151,6 +152,11 @@ def lauf_ausfuehren(
                 meldung_teile.append(f"{len(offen)} Regeln ohne Freigabe: Ergebnis vorläufig")
             if anhalten:
                 meldung_teile.append("angehalten durch " + ", ".join(anhalten))
+            if b.fortgeschrieben:
+                meldung_teile.append(
+                    f"{b.fortgeschrieben} Verhältnisse aus {b.fortschreibung.get('vormonat')} fortgeschrieben "
+                    f"({b.fortschreibung.get('ausloeser')}): Ergebnis vorläufig"
+                )
 
             hash_vorher = _hash_bestehend(
                 conn, regelsatz, stand, zl.zeitraum.art, zl.zeitraum.von, zl.zeitraum.bis
@@ -218,7 +224,7 @@ def lauf_ausfuehren(
             conn.execute(
                 """UPDATE meta.lauf SET beendet_am = now(), status = %s, ergebnis_status = %s, gelesen = %s,
                      gezaehlt = %s, nicht_gezaehlt = %s, ausgeschlossen = %s, korrigiert = %s, ergebnis_hash = %s,
-                     zellen = %s, meldung = %s, regelstand = %s
+                     zellen = %s, meldung = %s, regelstand = %s, fortgeschrieben = %s
                    WHERE id = %s""",
                 (
                     lauf_status,
@@ -232,6 +238,7 @@ def lauf_ausfuehren(
                     zl.zellen,
                     meldung,
                     stand_ergebnis,
+                    b.fortgeschrieben,
                     lauf_id,
                 ),
             )
@@ -255,6 +262,7 @@ def lauf_ausfuehren(
         nicht_gezaehlt=nicht_gezaehlt,
         ausgeschlossen=b.ausgeschlossen,
         korrigiert=b.korrigiert,
+        fortgeschrieben=b.fortgeschrieben,
         ergebnis_hash=hash_ergebnis,
         zellen=zl.zellen,
         meldung=meldung,
@@ -336,6 +344,11 @@ def veroeffentlichen(
            WHERE t.lauf_id = %s AND t.anhalten ORDER BY g.reihenfolge""",
         (stand.lauf_id,),
     ).fetchall()
+    fort = conn.execute("SELECT fortgeschrieben FROM meta.lauf WHERE id = %s", (stand.lauf_id,)).fetchone()
+    if fort is not None and int(str(fort["fortgeschrieben"])) > 0 and not trotz_anhalten:
+        raise LaufFehler(
+            f"{lieferung} enthält {fort['fortgeschrieben']} fortgeschriebene Verhältnisse (E07); bleibt vorläufig"
+        )
     if angehalten and not trotz_anhalten:
         namen = ", ".join(str(z["name"]) for z in angehalten)
         raise LaufFehler(f"{lieferung} ist angehalten durch {namen}; bleibt vorläufig (Rückfrage offen)")

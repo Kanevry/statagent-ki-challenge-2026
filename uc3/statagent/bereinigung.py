@@ -24,6 +24,8 @@ class Bereinigung:
     abschnitte: int
     ausgeschlossen: int  # als Volldublette verdichtete Zeilen
     korrigiert: int  # Abschnitte, die eine Einlese- oder Zuordnungsregel verändert hat
+    fortgeschrieben: int  # Abschnitte, die E07 aus der Vorlieferung ergänzt hat (nicht in gelesen enthalten)
+    fortschreibung: dict[str, object]  # Auslöser und Umfang der Fortschreibung (leer, wenn keine)
     spaltentausch: bool
     oenace_version: str
     wirkung: dict[int, int] = field(default_factory=dict)  # regel_id -> betroffene Sätze
@@ -101,6 +103,103 @@ def _zuordnungen_pruefen(conn: Verbindung, regeln: list[Regel]) -> list[int]:
                 f"{r.name}: stat.quellzuordnung ({z['geliefert']} → {z['ziele']}) passt nicht zu den Parametern"
             )
     return ids
+
+
+def _fortschreiben(
+    conn: Verbindung, *, regel: Regel, lauf_id: int, lieferung: str, regelsatz: str, version: str
+) -> tuple[int, dict[str, object]]:
+    """Regel E07: bei belegtem Lieferausfall fehlende Verhältnisse einmalig aus der Vorlieferung ergänzen.
+
+    Auslöser: mehr als ``schwelle_anteil_verschwunden`` der am Vormonats-Stichtag bestehenden Verhältnisse fehlen in
+    der Lieferung ganz (Teil-Lieferung), oder eine Ausprägung von ``merkmal_auspraegung`` mit mehr als
+    ``mindestens_vormonat`` Verhältnissen fällt auf 0 (dann nur diese). Übernommen werden nur gelieferte Abschnitte
+    der Vorlieferung, die am neuen Stichtag gelten. Nur frühere Lieferungen, keine Hochrechnung.
+    """
+    if wert(regel, "quelle") != "vorlieferung":
+        raise RegelFehler(f"{regel.name}: nicht unterstützte Quelle {regel.parameter.get('quelle')!r}")
+    merkmal = str(wert(regel, "merkmal_auspraegung"))
+    if merkmal not in MERKMALE:
+        raise RegelFehler(f"{regel.name}: unbekanntes Merkmal {merkmal!r}")
+    vormonat = monat_verschieben(lieferung, -1)
+    p = {
+        "l": lieferung,
+        "vm": vormonat,
+        "rs": regelsatz,
+        "st": monatsletzter(lieferung),
+        "st_vm": monatsletzter(vormonat),
+    }
+    m = sql.Identifier(merkmal)
+    z = conn.execute(
+        sql.SQL(
+            """
+            WITH vm AS (
+              SELECT DISTINCT ON (v.vvh_id) v.vvh_id, v.{m} AS wert
+              FROM bereinigt.abschnitt v
+              WHERE v.lieferung = %(vm)s AND v.regelsatz = %(rs)s AND v.herkunft = 'geliefert'
+                AND v.beginn <= %(st_vm)s AND (v.ende IS NULL OR v.ende >= %(st_vm)s)
+              ORDER BY v.vvh_id, v.beginn DESC
+            ),
+            akt AS (
+              SELECT {m} AS wert, count(*) AS n FROM bereinigt.abschnitt
+              WHERE lieferung = %(l)s AND regelsatz = %(rs)s AND herkunft = 'geliefert' GROUP BY 1
+            )
+            SELECT (SELECT count(*) FROM vm) AS basis,
+                   (SELECT count(*) FROM vm WHERE NOT EXISTS (
+                      SELECT 1 FROM bereinigt.abschnitt a
+                      WHERE a.lieferung = %(l)s AND a.regelsatz = %(rs)s AND a.vvh_id = vm.vvh_id)) AS fehlend,
+                   coalesce((SELECT jsonb_agg(w ORDER BY w) FROM (
+                      SELECT vm.wert AS w FROM vm GROUP BY vm.wert
+                      HAVING count(*) > %(min)s
+                         AND NOT EXISTS (SELECT 1 FROM akt WHERE akt.wert = vm.wert)) x), '[]') AS ausgefallen
+            """
+        ).format(m=m),
+        {**p, "min": int(wert(regel, "mindestens_vormonat"))},
+        prepare=False,
+    ).fetchone()
+    if z is None or int(str(z["basis"])) < int(wert(regel, "mindestens_basis")):
+        return 0, {}  # zu kleiner Vormonatsbestand: ein Anteil sagt nichts über einen Lieferausfall
+    basis, fehlend = int(str(z["basis"])), int(str(z["fehlend"]))
+    ausgefallen = [str(w) for w in z["ausgefallen"]] if isinstance(z["ausgefallen"], list) else []
+    teil = fehlend / basis > float(wert(regel, "schwelle_anteil_verschwunden"))
+    if not teil and not ausgefallen:
+        return 0, {}
+    vm_version = conn.execute(
+        "SELECT min(oenace_version) AS v FROM bereinigt.abschnitt WHERE lieferung = %s AND regelsatz = %s",
+        (vormonat, regelsatz),
+    ).fetchone()
+    if vm_version is None or vm_version["v"] != version:
+        raise RegelFehler(
+            f"{regel.name}: Fortschreibung über einen ÖNACE-Versionswechsel ist nicht vorgesehen"
+        )
+    auswahl = sql.SQL("TRUE") if teil else sql.SQL("v.{m} = ANY(%(werte)s)").format(m=m)
+    eingefuegt = conn.execute(
+        sql.SQL(
+            """
+            INSERT INTO bereinigt.abschnitt (lieferung, regelsatz, lauf_id, vvh_id, person_id, geburtsdatum,
+                geburtsjahr, geburtsdatum_status, geschlecht, beginn, ende, qualifikation, oenace, oenace_version,
+                bundesland, roh_zeilen, korrekturen, roh_oenace, roh_bundesland, herkunft)
+            SELECT %(l)s, %(rs)s, %(lauf)s, v.vvh_id, v.person_id, v.geburtsdatum, v.geburtsjahr,
+                   v.geburtsdatum_status, v.geschlecht, v.beginn, v.ende, v.qualifikation, v.oenace, v.oenace_version,
+                   v.bundesland, 1, v.korrekturen || %(name)s::text, v.roh_oenace, v.roh_bundesland, 'fortgeschrieben'
+            FROM bereinigt.abschnitt v
+            WHERE v.lieferung = %(vm)s AND v.regelsatz = %(rs)s AND v.herkunft = 'geliefert'
+              AND v.beginn <= %(st)s AND (v.ende IS NULL OR v.ende >= %(st)s)
+              AND {auswahl}
+              AND NOT EXISTS (SELECT 1 FROM bereinigt.abschnitt a
+                              WHERE a.lieferung = %(l)s AND a.regelsatz = %(rs)s AND a.vvh_id = v.vvh_id)
+            """
+        ).format(auswahl=auswahl),
+        {**p, "lauf": lauf_id, "name": regel.name, "werte": ausgefallen},
+        prepare=False,
+    ).rowcount
+    return eingefuegt, {
+        "ausloeser": "teil_lieferung" if teil else "auspraegung_ausgefallen",
+        "vormonat": vormonat,
+        "basis_vormonat": basis,
+        "fehlend": fehlend,
+        "ausgefallen": ausgefallen,
+        "fortgeschrieben": eingefuegt,
+    }
 
 
 def bereinigen(
@@ -294,6 +393,19 @@ def bereinigen(
     if fehlt and int(str(fehlt["n"])) > 0:
         raise RegelFehler("Quellzuordnung unvollständig: Abschnitte ohne Code (fehlt eine '<sonst>'-Zeile?)")
 
+    r_fort = hoechstens_eine(regeln, "einlese", "fortschreibung")
+    fortgeschrieben: int = 0
+    fortschreibung: dict[str, object] = {}
+    if r_fort is not None and monat_verschieben(lieferung, -1) in [
+        str(z["lieferung"])
+        for z in conn.execute(
+            "SELECT DISTINCT lieferung FROM bereinigt.abschnitt WHERE regelsatz = %s", (regelsatz,)
+        ).fetchall()
+    ]:
+        fortgeschrieben, fortschreibung = _fortschreiben(
+            conn, regel=r_fort, lauf_id=lauf_id, lieferung=lieferung, regelsatz=regelsatz, version=version
+        )
+
     summe = conn.execute(
         """SELECT count(*) AS abschnitte, coalesce(sum(roh_zeilen - 1), 0) AS dubletten,
                   count(*) FILTER (WHERE cardinality(korrekturen) > 0) AS korrigiert,
@@ -304,8 +416,11 @@ def bereinigen(
     assert summe is not None
     abschnitte = int(str(summe["abschnitte"]))
     ausgeschlossen = int(str(summe["dubletten"]))
-    if abschnitte + ausgeschlossen != gelesen:
-        raise RegelFehler(f"Bereinigung verliert Sätze: {gelesen} gelesen, {abschnitte} + {ausgeschlossen}")
+    if abschnitte + ausgeschlossen != gelesen + fortgeschrieben:
+        raise RegelFehler(
+            f"Bereinigung verliert Sätze: {gelesen} gelesen + {fortgeschrieben} fortgeschrieben ≠ "
+            f"{abschnitte} Abschnitte + {ausgeschlossen} verdichtet"
+        )
 
     wirkung: dict[int, int] = {}
     if r_tausch is not None and tausch:
@@ -331,6 +446,8 @@ def bereinigen(
         abschnitte=abschnitte,
         ausgeschlossen=ausgeschlossen,
         korrigiert=int(str(summe["korrigiert"])),
+        fortgeschrieben=fortgeschrieben,
+        fortschreibung=fortschreibung,
         spaltentausch=tausch,
         oenace_version=version,
         wirkung=wirkung,
