@@ -73,14 +73,20 @@ def glab_json(pfad: str, versuche: int = 3) -> object:
     raise AssertionError("unerreichbar")
 
 
-def glab_schreiben(methode: str, pfad: str, feld: str, wert: str) -> None:
-    subprocess.run(
-        ["glab", "api", "-X", methode, f"projects/{PROJEKT}/{pfad}", "-f", f"{feld}={wert}"],
-        capture_output=True,
-        text=True,
-        check=True,
-        cwd=WURZEL,
-    )
+def glab_schreiben(methode: str, pfad: str, feld: str, wert: str, versuche: int = 3) -> None:
+    """Schreibender Aufruf über glab; vorübergehende Fehler werden wiederholt, sonst klare Meldung."""
+    for nr in range(1, versuche + 1):
+        aus = subprocess.run(
+            ["glab", "api", "-X", methode, f"projects/{PROJEKT}/{pfad}", "-f", f"{feld}={wert}"],
+            capture_output=True,
+            text=True,
+            cwd=WURZEL,
+        )
+        if aus.returncode == 0:
+            return
+        if nr == versuche:
+            raise RuntimeError(f"glab {methode} {pfad} scheitert: {(aus.stderr or aus.stdout).strip()[:300]}")
+        time.sleep(2 * nr)
 
 
 def issues_holen(cache: Path | None) -> list[dict]:
