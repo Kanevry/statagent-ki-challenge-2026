@@ -237,8 +237,8 @@ def antwort_daten(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         wert = int(str(zeilen[0]["wert"]))
         zahlen = [{"bezeichnung": bezeichnung + zusatz, "wert": wert, "einheit": einheit, "beleg": 0}]
         text = (
-            f"Am Stichtag {stichtag} ({_monat_anzeige(monat)}) gab es {_deutsch(wert)} {bezeichnung}{zusatz}; "
-            f"die Zahl ist {status} (Lauf {stand.lauf_id})."
+            f"Am {stichtag}, dem letzten Tag im {_monat_anzeige(monat)}, gab es {_deutsch(wert)} "
+            f"{bezeichnung}{zusatz}. Die Zahl ist {status}."
         )
     else:
         zahlen = [
@@ -252,9 +252,8 @@ def antwort_daten(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         ]
         summe = sum(int(str(z["wert"])) for z in zeilen)
         text = (
-            f"Am Stichtag {stichtag} ({_monat_anzeige(monat)}) gab es {_deutsch(summe)} {bezeichnung}{zusatz}, "
-            f"aufgeteilt nach {gruppe.name} in {len(zahlen)} Zahlen; die Zahlen sind {status} "
-            f"(Lauf {stand.lauf_id})."
+            f"Am {stichtag}, dem letzten Tag im {_monat_anzeige(monat)}, gab es {_deutsch(summe)} "
+            f"{bezeichnung}{zusatz}, aufgeteilt nach {gruppe.name} in {len(zahlen)} Zahlen. Die Zahlen sind {status}."
         )
     return {"text": text, "belege": [beleg], "zahlen": zahlen, "uc": UC, "modell": None, "protokoll_id": None}
 
