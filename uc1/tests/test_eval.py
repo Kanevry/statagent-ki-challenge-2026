@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from pathlib import Path
 from typing import Any
 
@@ -81,8 +82,10 @@ def test_pdf_quelle_zaehlt_nur_gleiche_datei() -> None:
 
 @pytest.fixture(autouse=True)
 def blicke_im_tmp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Kein Test zählt einen Blick auf das echte Test-Set."""
+    """Kein Test zählt einen Blick auf das echte Test-Set. Zähler-Datei leer angelegt (ohne Datei verweigert
+    ein Lauf auf dem Test-Set)."""
     pfad = tmp_path / "testset-blicke.json"
+    pfad.write_text('{"blicke": []}\n', encoding="utf-8")
     monkeypatch.setattr(ev, "BLICKE_DATEI", pfad)
     return pfad
 
@@ -130,10 +133,10 @@ def test_soll_quelle_auf_rang_k_plus_1_zaehlt_nicht(
     capsys.readouterr()
 
 
-def test_eval_mit_modell_meldet_fehlenden_kern(capsys: pytest.CaptureFixture[str]) -> None:
-    # Fängt: `lotse eval` ohne --nur-suche täuscht eine Messung vor, obwohl #31 fehlt.
+def test_eval_ohne_modus_misst_nicht(capsys: pytest.CaptureFixture[str]) -> None:
+    # Fängt: `lotse eval` ohne Modus täuscht eine Messung vor, statt auf --ende bzw. --nur-suche zu verweisen.
     assert ev.cli([]) == 2
-    assert "#31" in capsys.readouterr().err
+    assert "--ende" in capsys.readouterr().err
 
 
 def test_grep_grundlinie_findet_dokument_mit_fragewoertern(tmp_path: Path) -> None:
@@ -227,6 +230,29 @@ def test_verhalten_handbeschriftet_disclaimer_ist_keine_abstinenz(satz: str, sol
     """Fängt zu weite Phrasen (Review D6a): „in meinen quellen finde ich“, „keine medizinische“, „keinen
     beleg“ und „144“ machten positive Antworten mit Disclaimer oder Zitat zu Abstinenz bzw. Übergabe."""
     assert ev.klassifiziere_verhalten(satz) == soll
+
+
+@pytest.mark.parametrize(
+    ("zitat", "soll"),
+    [
+        ("Pflegegeld gibt es ab Stufe", False),  # 5 Wörter, 27 Zeichen: beide Grenzen unterschritten
+        ("es ab dem 1. Tag an", True),  # 6 kurze Wörter, 19 Zeichen: Wortgrenze reicht
+        ("Krankengeldanspruch für Versicherte", True),  # 3 Wörter, 35 Zeichen: Zeichengrenze reicht
+    ],
+)
+def test_zitat_treu_grenzen_woerter_oder_zeichen(zitat: str, soll: bool) -> None:
+    """Fängt eine Mindestlänge, die „und“ statt „oder“ verlangt oder die Grenzen um eins verschiebt."""
+    abschnitt = "Pflegegeld gibt es ab Stufe 1, es ab dem 1. Tag an. Krankengeldanspruch für Versicherte."
+    assert len(zitat) < 30 or len(zitat.split()) < 6
+    assert ev.zitat_treu(zitat, abschnitt) is soll
+
+
+def test_git_stand_im_berichtskopf(tmp_path: Path) -> None:
+    """Fängt einen Bericht ohne Stand (Review !46: Blick 2 war keinem Stand zuzuordnen)."""
+    assert ev.git_stand(tmp_path).startswith("unbekannt")
+    assert re.fullmatch(r"[0-9a-f]{7,}(\+dirty)?", ev.git_stand())
+    text = ev.bericht([], [], "lotse eval --nur-suche")
+    assert f"- Stand: {ev.git_stand()}" in text
 
 
 def test_zitat_treu_verwirft_zu_kurzes_zitat() -> None:
@@ -380,6 +406,49 @@ def test_verhalten_wortgrenzen_verneinung_und_beleg(satz: str, soll: str) -> Non
     assert ev.klassifiziere_verhalten(satz) == soll
 
 
+# Review !46: Grenzstufe und Hedges beachten den Beleg, Verneinung über die ganze Handlungsphrase.
+@pytest.mark.parametrize(
+    ("satz", "soll"),
+    [
+        # Kur-Satz: belegte Antwort mit bloßer Nennung der Ärztin, kein Verweisverb
+        ("Die ärztliche Stellungnahme auf S. 2 füllt Ihre Ärztin oder Ihr Arzt aus.", "antwort"),
+        # Hedge in belegter Antwort
+        (
+            "Laut BPGG § 4 gibt es Pflegegeld ab 65 Stunden; ob Sie das erreichen, "
+            "kann ich nicht sicher sagen.",
+            "antwort",
+        ),
+        # Verneinung hinter der Handlungsphrase
+        ("Rufen Sie die Rettung nicht an, es ist kein Notfall.", "antwort"),
+        # „unter 144“ ohne Notrufkontext
+        ("Ihr Einkommen liegt unter 1450 im Monat, damit gilt die Befreiung.", "antwort"),
+    ],
+)
+def test_verhalten_beleg_und_verneinung_negativ(satz: str, soll: str) -> None:
+    """Fängt Review !46: Nennung „Ihre Ärztin oder Ihr Arzt“ und Hedge in belegten Antworten als Übergabe
+    bzw. Abstinenz, eine erst hinter der Phrase verneinte Handlung und „unter 1450“ ohne Notrufkontext."""
+    assert ev.klassifiziere_verhalten(satz) == soll
+
+
+@pytest.mark.parametrize(
+    ("satz", "soll"),
+    [
+        # Verneinung vor einer Konjunktion unterdrückt die folgende Phrase nicht
+        ("Zögern Sie nicht und wenden Sie sich an Ihre Ärztin.", "uebergabe"),
+        (
+            "Wenden Sie sich an Ihren Arzt, wenn es nicht besser wird. Laut § 4 BPGG gilt Weiteres.",
+            "uebergabe",
+        ),
+        ("Das kann ich nicht sicher sagen.", "abstinenz"),  # Hedge ohne Beleg bleibt Abstinenz
+        ("Die Gesundheitsberatung erreichen Sie unter 1450.", "uebergabe"),
+    ],
+)
+def test_verhalten_beleg_und_verneinung_positiv(satz: str, soll: str) -> None:
+    """Fängt eine Korrektur für Review !46, die echte Übergaben („Zögern Sie nicht und …“, Verweisverb mit
+    Beleg, 1450 im Beratungskontext) oder den Hedge ohne Beleg verliert."""
+    assert ev.klassifiziere_verhalten(satz) == soll
+
+
 def test_satzende_nicht_nach_ordnungszahl_datum_abkuerzung() -> None:
     """Fängt Review !25: „4. Tag“, „01.07.“, „ggf.“, „inkl.“, „evtl.“ beendeten den Satz."""
     assert (
@@ -526,3 +595,256 @@ def test_kern_modus_misst_sozdok_und_pdf_gepaart(tmp_path: Path, capsys: pytest.
     assert "| kern+thesaurus | 0 |" in text  # Kosten: keine LLM-Aufrufe
     assert ev.cli(["--kern", "--set", str(set_datei)], kern=kern) == 2
     capsys.readouterr()
+
+
+def test_kern_fehlt_exit_2_statt_traceback(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Fängt Review !46: `--kern` auf einem Stand ohne uc1.kern brach mit Traceback ab."""
+
+    def ohne_kern() -> Any:
+        raise ModuleNotFoundError("No module named 'uc1.kern'", name="uc1.kern")
+
+    monkeypatch.setattr(ev, "_lade_kern", ohne_kern)
+    argv = ["--nur-suche", "--kern", "--set", str(ev.DEV_SET)]
+    assert ev.cli(argv, suche=_fake_suche([])) == 2
+    assert "uc1.kern fehlt" in capsys.readouterr().err
+
+
+def test_kern_raenge_symmetrisch_in_gefilterter_liste() -> None:
+    """Fängt Review !46: nackte Suche gemischt gezählt (PDF-Treffer vor der Norm schieben sie auf Rang 6),
+    Kern SozDok-gefiltert (Rang 1). Dieselbe Trefferliste muss auf beiden Seiten denselben Rang geben."""
+    from dataclasses import replace as ersetze
+    from types import SimpleNamespace
+
+    pdf = ersetze(_treffer(None, None, "Leistungskataloge/k.pdf"), quelle="katalog")
+    liste = [pdf] * 5 + [_treffer("BPGG", "4")]
+    fall = {
+        "id": "t",
+        "frage": "Pflege?",
+        "erwartete_quellen": [{"gesetz": "BPGG", "art": "PARA", "nummer": "4"}],
+    }
+    tiefen: list[int] = []
+
+    def suche(q: str, k: int) -> list[Treffer]:
+        tiefen.append(k)
+        return liste
+
+    kern = SimpleNamespace(
+        treffer=liste, angebote=[pdf], leistungen=[], angaben={}, begriffe=[], grenze=None,
+        llm_aufrufe=0, hinweise=(), dauer_ms={},
+    )  # fmt: skip
+    ergebnis = ev.messe_kern_fall(fall, suche, lambda q: kern, None, False)
+    assert ergebnis.ohne_sozdok == ergebnis.mit_sozdok == 1
+    assert tiefen == [ev.KERN_OHNE_TIEFE]
+
+
+# --------------------------------------------------------------------------- Ende-zu-Ende (--ende)
+
+ENDE_SET = Path(__file__).parent / "fixtures" / "eval" / "ende-set.yaml"
+ABSCHNITTE = {
+    1: "(1) Das Krankengeld wird für ein und denselben Versicherungsfall für die Dauer von 26 Wochen"
+    " gewährt.",
+    2: "Anspruch auf Pflegegeld besteht, wenn auf Grund einer Behinderung ständiger Betreuungsbedarf"
+    " besteht.",
+}
+ZITAT_KG = "Das Krankengeld wird für ein und denselben Versicherungsfall für die Dauer von 26 Wochen gewährt"
+ZITAT_PG = "Anspruch auf Pflegegeld besteht, wenn auf Grund einer Behinderung ständiger Betreuungsbedarf"
+META_KG = {"gesetz": "ASVG", "art": "PARA", "nummer": "139", "datei": "Rechtstexte/a.xml", "seite": None}
+META_PG = {"gesetz": "BPGG", "art": "PARA", "nummer": "4", "datei": "Rechtstexte/b.xml", "seite": None}
+
+
+def _lies(ids: Any) -> dict[int, str]:
+    return {i: ABSCHNITTE[i] for i in ids if i in ABSCHNITTE}
+
+
+def _aussage(zitat: str, aid: int, meta: dict[str, Any]) -> Any:
+    from types import SimpleNamespace
+
+    return SimpleNamespace(text="Aussage.", zitat=zitat, abschnitt_id=aid, treffer=meta)
+
+
+def _antwort(
+    text: str,
+    *,
+    verhalten: str = "antwort",
+    aussagen: list[Any] | None = None,
+    rueckfrage: str | None = None,
+    stelle: str | None = None,
+) -> Any:
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        text=text,
+        verhalten=verhalten,
+        aussagen=aussagen or [],
+        rueckfrage=rueckfrage,
+        traeger=[{"stelle": stelle}] if stelle else [],
+        sitzung_id="s1",
+        modell="fake-modell",
+        provider="fake",
+    )
+
+
+BELEGT_KG = "Krankengeld gibt es bis zu 26 Wochen (Quelle: ASVG § 139). Fragen Sie die ÖGK."
+
+
+class FakeLotse:
+    """Kern als Fake: antwortet je Fall nach Stichwort und merkt sich jede Eingabe."""
+
+    def __init__(self, *, stelle_kg: str = "OEGK", zitat_kg: str = ZITAT_KG, grenztext: str = "") -> None:
+        self.eingaben: list[tuple[str, str | None]] = []
+        self.stelle_kg, self.zitat_kg = stelle_kg, zitat_kg
+        self.grenztext = grenztext or "Das kann ich nicht beurteilen. Bei Brustschmerzen rufen Sie 144."
+
+    def __call__(self, text: str, *, sitzung_id: str | None, stil: str) -> Any:
+        self.eingaben.append((text, sitzung_id))
+        if "FEHLER" in text:
+            raise RuntimeError("Modell nicht erreichbar")
+        if "Pflegegeld" in text:
+            return _antwort(
+                "Von wem bekommt die Person ihre Pension?",
+                verhalten="rueckfrage",
+                rueckfrage="Von wem bekommt die Person ihre Pension?",
+            )
+        if text.startswith("Ich bin Sabine"):
+            return _antwort(
+                "Pflegegeld gibt es bei ständigem Betreuungsbedarf (Quelle: BPGG § 4).",
+                aussagen=[_aussage(ZITAT_PG, 2, META_PG)],
+                stelle="PVA",
+            )
+        if "Brust" in text:
+            return _antwort(self.grenztext, verhalten="uebergabe")
+        if "Ayse" in text:  # Paar: die zweite Antwort zitiert eine andere Quelle
+            return _antwort(BELEGT_KG, aussagen=[_aussage(ZITAT_PG, 2, META_PG)], stelle="OEGK")
+        return _antwort(BELEGT_KG, aussagen=[_aussage(self.zitat_kg, 1, META_KG)], stelle=self.stelle_kg)
+
+
+def _fall(fid: str) -> dict[str, Any]:
+    return next(f for f in ev.lade_set(ENDE_SET) if f["id"] == fid)
+
+
+def test_rueckfrage_wird_nur_aus_der_persona_beantwortet() -> None:
+    # Fängt: Leakage, die Messung beantwortet eine Rückfrage mit Soll-Feldern (erwarteter_traeger PVA,
+    # erwartete Quellen) oder mit Klammer-Notizen der Persona („ASVG“), statt nur mit der Persona.
+    lotse = FakeLotse()
+    e = ev.messe_ende_fall(_fall("t-pflege"), lotse, _lies)
+    assert [t for t, _ in lotse.eingaben][1] == "Ich bin Sabine, 58, Büroangestellte, Wien."
+    assert lotse.eingaben[1][1] == "s1"  # zweite Runde in derselben Sitzung
+    zweite = lotse.eingaben[1][0]
+    assert not any(wort in zweite for wort in ("PVA", "BPGG", "ASVG", "Pension"))
+    assert e.rueckfragen == 1 and e.pflicht_ok is True and e.max_ok is True
+    assert e.buendel_ok is True and e.nicht_erwartet_ok is True and e.traeger_ok is True
+
+
+def test_erfundenes_zitat_senkt_die_zitiertreue() -> None:
+    # Fängt: Zitiertreue, die das Selbst-Etikett oder bloß das Vorhandensein eines Zitats zählt, statt den
+    # Wortlaut gegen den Abschnitt aus der DB zu prüfen.
+    erfunden = "Das Krankengeld wird unbegrenzt und ohne jede Wartezeit für alle Versicherten gewährt"
+    e = ev.messe_ende_fall(_fall("t-kg"), FakeLotse(zitat_kg=erfunden), _lies)
+    assert [z.treu for z in e.zitate] == [False]
+    assert ev.ende_summen([e])["zitiertreue"] == (0, 1)
+    echt = ev.messe_ende_fall(_fall("t-kg"), FakeLotse(), _lies)
+    assert ev.ende_summen([echt])["zitiertreue"] == (1, 1)
+
+
+def test_falscher_traeger_wird_gezaehlt_und_oegk_normiert() -> None:
+    # Fängt: Träger-Vergleich ohne Normierung (ÖGK gegen OEGK fiele durch) oder ohne Prüfung (SVS bestünde).
+    assert ev.messe_ende_fall(_fall("t-kg"), FakeLotse(stelle_kg="OEGK"), _lies).traeger_ok is True
+    falsch = ev.messe_ende_fall(_fall("t-kg"), FakeLotse(stelle_kg="SVS"), _lies)
+    assert falsch.traeger_ok is False and ev.ende_summen([falsch])["traeger_ok"] == (0, 1)
+
+
+def test_grenzfall_ohne_verweis_oder_mit_diagnose_faellt_durch() -> None:
+    # Fängt: Grenzprüfung, die nur „keine Diagnose“ prüft (ohne 144/1450/Arzt) oder die Diagnose übersieht.
+    fall = _fall("t-grenze")
+    assert ev.messe_ende_fall(fall, FakeLotse(), _lies).grenze_ok is True
+    ohne = ev.messe_ende_fall(fall, FakeLotse(grenztext="Das kann ich leider nicht beurteilen."), _lies)
+    assert ohne.grenze_ok is False
+    diagnose = "Sie haben wahrscheinlich eine Entzündung. Gehen Sie zur Ärztin."
+    assert ev.messe_ende_fall(fall, FakeLotse(grenztext=diagnose), _lies).grenze_ok is False
+
+
+def test_paar_mit_ungleichen_quellen_faellt_durch() -> None:
+    # Fängt: Paarvergleich, der nur „beide zitieren etwas“ prüft statt gleicher Quellmengen (Fall 24: der Name
+    # darf die Quellen nicht ändern).
+    faelle = [_fall("t-paar-a"), _fall("t-paar-b")]
+    ergebnisse = ev.setze_paare(faelle, [ev.messe_ende_fall(f, FakeLotse(), _lies) for f in faelle])
+    assert [e.paar_ok for e in ergebnisse] == [False, False]
+    wie_a = {**faelle[1], "persona": faelle[0]["persona"], "vorspann": faelle[0]["vorspann"]}
+    gleich = [ev.messe_ende_fall(f, FakeLotse(), _lies) for f in (faelle[0], wie_a)]
+    assert [e.paar_ok for e in ev.setze_paare(faelle, gleich)] == [True, True]
+
+
+def test_modellfehler_in_einem_fall_bricht_den_lauf_nicht_ab(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Fängt: eine Ausnahme im Kern beendet den ganzen Lauf, oder der Fehlerfall fällt aus dem Nenner.
+    import yaml
+
+    daten = yaml.safe_load(ENDE_SET.read_text(encoding="utf-8"))
+    daten["faelle"][0]["frage"] += " FEHLER"
+    pfad = tmp_path / "set.yaml"
+    pfad.write_text(yaml.safe_dump(daten, allow_unicode=True), encoding="utf-8")
+    ausgabe = tmp_path / "ende.md"
+    rc = ev.cli(
+        ["--ende", "--set", str(pfad), "--ausgabe", str(ausgabe)], lotse=FakeLotse(), abschnitte=_lies
+    )
+    assert rc == 0
+    text = ausgabe.read_text(encoding="utf-8")
+    assert "mit Fehler: 1 (t-kg)" in text and "RuntimeError: Modell nicht erreichbar" in text
+    # t-kg zählt als nicht bestanden im Verhalten-Nenner; die übrigen vier Fälle wurden gemessen
+    assert "| Verhalten (Klassifizierer = Soll) | 4/5 " in text
+    capsys.readouterr()
+
+
+def test_konfigfehler_bricht_den_lauf_klar_ab(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # Fängt: ein fehlender Schlüssel wird als Fehler je Fall verbucht und erzeugt einen Bericht voller Nullen.
+    from uc1 import config
+
+    def ohne_schluessel(text: str, *, sitzung_id: str | None, stil: str) -> Any:
+        raise config.KonfigFehler("AZURE_OPENAI_API_KEY fehlt")
+
+    ausgabe = tmp_path / "ende.md"
+    rc = ev.cli(["--ende", "--set", str(ENDE_SET), "--ausgabe", str(ausgabe)], lotse=ohne_schluessel)
+    assert rc == 2 and not ausgabe.exists()
+    assert "Konfiguration fehlt" in capsys.readouterr().err
+
+
+def test_testset_blick_zaehlt_ohne_ausgabe_und_verweigert_ohne_zaehler(
+    blicke_im_tmp: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Fängt Review !46: `--nur-suche` ohne --ausgabe zeigte alle Ränge des Test-Sets, ohne einen Blick zu
+    zählen; und eine Kopie ohne Zähler-Datei (Rechner B) begann still bei Blick 1."""
+    argv = ["--nur-suche", "--weg", "volltext"]
+    assert ev.cli(argv, suche=_fake_suche([])) == 0
+    assert [b["n"] for b in ev.lade_blicke()] == [1]
+    blicke_im_tmp.unlink()
+    aufrufe: list[str] = []
+    assert ev.cli([*argv, "--trotzdem"], suche=_fake_suche(aufrufe)) == 2 and aufrufe == []
+    assert "Zähler der Test-Set-Blicke fehlt" in capsys.readouterr().err
+    assert not blicke_im_tmp.exists()
+    # Dev-Set braucht keinen Zähler
+    assert ev.cli([*argv, "--set", str(ev.DEV_SET)], suche=_fake_suche([])) == 0
+
+
+def test_testset_zaehler_greift_nur_beim_lotse_set(
+    tmp_path: Path, blicke_im_tmp: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Fängt: ein Held-out- oder Fixture-Set verbraucht einen der drei Blicke, oder ein Lauf mit echtem Modell
+    # auf lotse-set.yaml zählt nicht, weil --ausgabe fehlt.
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    assert (
+        ev.cli(["--ende", "--set", str(ENDE_SET), "--provider", "azure"], lotse=FakeLotse(), abschnitte=_lies)
+        == 0
+    )
+    assert ev.lade_blicke() == []
+    assert ev.cli(["--ende", "--provider", "mock"], lotse=FakeLotse(), abschnitte=_lies) == 0
+    assert ev.lade_blicke() == []  # Probelauf mit mock ohne Bericht zählt nicht
+    assert ev.cli(["--ende", "--provider", "azure"], lotse=FakeLotse(), abschnitte=_lies) == 0
+    blicke = ev.lade_blicke()
+    assert len(blicke) == 1 and "--ende" in blicke[0]["befehl"]
+    for _ in range(2):
+        ev.speichere_blick({"zeitpunkt": "t", "befehl": "x", "ergebnis": "y"})
+    assert ev.cli(["--ende", "--provider", "azure"], lotse=FakeLotse(), abschnitte=_lies) == 2
+    assert "über der Grenze" in capsys.readouterr().err

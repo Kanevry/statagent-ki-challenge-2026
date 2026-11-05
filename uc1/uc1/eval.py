@@ -9,12 +9,17 @@ Befehle:
       Variante (Weg x Erweiterung); gepaarte Vergleiche (gewonnen : verloren, exakter McNemar);
       optional neben einer naiven lexikalischen Grundlinie über die rohen XML-Dateien.
       Erweiterung: aus | thesaurus | llm | datei:<pfad> (JSON {frage: [begriffe]}).
-      Auf dem Test-Set lotse-set.yaml zählt jeder Lauf mit --ausgabe als Blick (höchstens 3,
-      testset-blicke.json); darüber nur mit --trotzdem.
+      Auf dem Test-Set lotse-set.yaml zählt jeder Lauf als Blick, auch ohne --ausgabe (höchstens 3,
+      docs/plan/uc1/testset-blicke.json); darüber nur mit --trotzdem. Fehlt die Zähler-Datei (Kopie ohne
+      Checkout), verweigert ein Lauf auf dem Test-Set.
   lotse eval --nur-begriffe DATEI.json --erweiterung llm [--set PFAD]
       Begriffe je Frage erzeugen und als JSON speichern (für datei:<pfad> auf einem anderen Rechner).
-  lotse eval
-      Messung mit Modell; braucht den Lotse-Kern (#31) und endet bis dahin mit Exit 2.
+  lotse eval --ende [--set PFAD] [--provider P] [--stil standard|einfach] [--erweiterung E]
+             [--ausgabe DATEI.md] [--trotzdem]
+      Ende-zu-Ende: der Lotse-Kern (uc1.kern.frage) beantwortet jede Frage, Rückfragen beantwortet die
+      Messung nur aus der Persona. Gemessen wird modellfrei: Verhalten (Klassifizierer), Zitiertreue gegen
+      lotse.abschnitt, Quellen, Träger, Grenze, Sprache, Satzlänge, Paar, Szenario-Felder, Latenz.
+      Auf lotse-set.yaml zählt jeder Lauf mit echtem Modell als Blick, mit mock nur mit --ausgabe.
 
 Die Prüffunktionen (`zitat_treu`, `klassifiziere_verhalten`, `mittlere_satzlaenge`, `sprache`)
 sind rein und entscheiden ohne Modell.
@@ -26,15 +31,17 @@ import argparse
 import importlib
 import json
 import math
+import os
 import re
 import shlex
+import subprocess
 import sys
 import time
 import unicodedata
 import xml.etree.ElementTree as ET
 from collections import Counter
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from functools import cache
 from pathlib import Path
@@ -50,9 +57,12 @@ Verhalten = Literal["antwort", "abstinenz", "uebergabe"]
 EVAL_DIR = Path(__file__).resolve().parent.parent / "eval"
 STANDARD_SET = EVAL_DIR / "lotse-set.yaml"
 VERHALTEN_DATEI = EVAL_DIR / "verhalten.yaml"
+GRENZEN_DATEI = Path(__file__).resolve().parent.parent / "daten" / "grenzen.yaml"
 DEV_SET = EVAL_DIR / "dev-set.yaml"
-# Zähler der Blicke auf das Test-Set (Review D6d): höchstens MAX_BLICKE Läufe bis zur Abgabe.
-BLICKE_DATEI = EVAL_DIR / "testset-blicke.json"
+# Zähler der Blicke auf das Test-Set (Review D6d): höchstens MAX_BLICKE Läufe bis zur Abgabe. Liegt im
+# Checkout unter docs/, nicht im Paketordner: Eine Kopie des Pakets (etwa auf Rechner B) hat keinen Zähler
+# und verweigert deshalb Läufe auf dem Test-Set, statt still einen eigenen Zähler zu beginnen (Review !46).
+BLICKE_DATEI = Path(__file__).resolve().parents[2] / "docs" / "plan" / "uc1" / "testset-blicke.json"
 MAX_BLICKE = 3
 # MRR wird über die ersten MRR_TIEFE Treffer gerechnet; die Suche holt deshalb mindestens so viele.
 MRR_TIEFE = 10
@@ -60,6 +70,7 @@ MRR_TIEFE = 10
 ZITAT_MIN_WOERTER = 6
 ZITAT_MIN_ZEICHEN = 30
 WEGE = ("volltext", "dicht", "hybrid", "auto")
+PROVIDER = ("azure", "claude", "mistral", "ollama", "mock")
 
 ARTEN = ("golden", "web", "szenario", "grenze")
 VERHALTEN: tuple[Verhalten, ...] = ("antwort", "abstinenz", "uebergabe")
@@ -208,7 +219,22 @@ def _schluessel(quelle: dict[str, Any]) -> tuple[str, ...]:
     return ("norm", _norm(quelle["gesetz"]), _norm(quelle["art"]), _norm(quelle["nummer"]))
 
 
-def trifft(treffer: Treffer, quelle: dict[str, Any]) -> bool:
+class Fundstelle(Protocol):
+    """Was `trifft` an einem Treffer oder einer zitierten Quelle braucht."""
+
+    @property
+    def datei(self) -> str: ...
+    @property
+    def seite(self) -> int | None: ...
+    @property
+    def gesetz(self) -> str | None: ...
+    @property
+    def art(self) -> str | None: ...
+    @property
+    def nummer(self) -> str | None: ...
+
+
+def trifft(treffer: Fundstelle, quelle: dict[str, Any]) -> bool:
     """Gleiches Gesetz, gleiche Art, gleiche Nummer (jede Fassung zählt); für PDFs gleiche Datei und, wenn
     die erwartete Quelle eine `seite` nennt, gleiche Seite."""
     if "datei" in quelle:
@@ -501,6 +527,27 @@ def _prozent(wert: float) -> str:
     return f"{100 * wert:.0f} %"
 
 
+def git_stand(ordner: Path | None = None) -> str:
+    """Kurz-SHA von HEAD, „+dirty“ bei nicht committeten Änderungen; „unbekannt“ ohne git oder Checkout.
+    Steht im Kopf jedes Berichts, damit eine Messung einem Stand zugeordnet und nachgerechnet werden kann
+    (Review !46: Blick 2 war ohne Stand nicht nachrechenbar)."""
+    ordner = ordner or Path(__file__).resolve().parent
+    try:
+        sha = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"], cwd=ordner, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        aenderungen = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=ordner,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unbekannt (kein git-Checkout)"
+    return f"{sha}+dirty" if aenderungen else sha
+
+
 def bericht(
     messungen: Sequence[Messung],
     faelle: Sequence[dict[str, Any]],
@@ -514,6 +561,7 @@ def bericht(
         f"# {titel}",
         "",
         f"- Zeitpunkt: {zeitpunkt}",
+        f"- Stand: {git_stand()}",
         f"- Befehl: `{befehl}`",
         *(f"- {z}" for z in kopf),
         f"- Zählende Fälle (mit Korpusquelle, n={len(faelle)}): {', '.join(str(f['id']) for f in faelle)}",
@@ -650,10 +698,29 @@ def zitat_treu(zitat: str, abschnitt_text: str) -> bool:
     return kern in normiere(abschnitt_text)
 
 
-PHRASEN_STUFEN = ("beleg", "grenze_uebergabe", "abstinenz", "hinweis", "uebergabe_ausdruecklich", "uebergabe")
-# Eine Phrase zählt nicht, wenn direkt davor (höchstens ein Wort dazwischen, kein Satzzeichen) eine
-# Verneinung steht: „kein Notruf“, „nicht an die Arbeiterkammer“.
-_VERNEINT = re.compile(r"\b(?:nicht|kein|keine|keinen|keinem|keiner|not|no)\s+(?:\w+\s+)?$")
+PHRASEN_STUFEN = (
+    "beleg",
+    "grenze_uebergabe",
+    "grenze_nennung",
+    "abstinenz",
+    "abstinenz_hedge",
+    "hinweis",
+    "uebergabe_ausdruecklich",
+    "uebergabe",
+)
+# Stufen mit Handlungsphrasen: Hier gilt die Verneinung auch hinter der Phrase im selben Teilsatz.
+_HANDLUNGS_STUFEN = frozenset({"grenze_uebergabe", "grenze_nennung", "uebergabe"})
+_KONJUNKTION = r"(?:und|oder|sondern|aber|wenn|falls|ob|weil|damit|dass|sobald)"
+# Eine Phrase zählt nicht, wenn direkt davor (höchstens ein Wort dazwischen, kein Satzzeichen, keine
+# Konjunktion) eine Verneinung steht: „kein Notruf“, „nicht an die Arbeiterkammer“. „Zögern Sie nicht und
+# wenden Sie sich an …“ bleibt Übergabe (Review !46).
+_VERNEINT = re.compile(
+    rf"\b(?:nicht|kein|keine|keinen|keinem|keiner|not|no)\s+(?:(?!{_KONJUNKTION}\b)\w+\s+)?$"
+)
+# Teilsatz hinter einer Handlungsphrase endet an Satzzeichen oder Konjunktion; steht darin eine Verneinung,
+# ist die Handlung verneint: „Rufen Sie die Rettung nicht an“ (Review !46).
+_TEILSATZ_ENDE = re.compile(rf"[.,;:!?]|\b{_KONJUNKTION}\b")
+_VERNEINT_DANACH = re.compile(r"\b(?:nicht|nie|niemals|not|never)\b")
 
 
 def _phrase(eintrag: Any) -> re.Pattern[str]:
@@ -670,26 +737,40 @@ def _phrasen(pfad: Path = VERHALTEN_DATEI) -> dict[str, tuple[re.Pattern[str], .
     return {art: tuple(_phrase(p) for p in daten.get(art) or []) for art in PHRASEN_STUFEN}
 
 
-def _enthaelt(text: str, phrase: re.Pattern[str]) -> bool:
-    return any(not _VERNEINT.search(text[: m.start()]) for m in phrase.finditer(text))
+def _verneint_danach(text: str, ende: int) -> bool:
+    rest = text[ende:]
+    grenze = _TEILSATZ_ENDE.search(rest)
+    return bool(_VERNEINT_DANACH.search(rest[: grenze.start()] if grenze else rest))
+
+
+def _enthaelt(text: str, phrase: re.Pattern[str], handlung: bool = False) -> bool:
+    return any(
+        not _VERNEINT.search(text[: m.start()]) and not (handlung and _verneint_danach(text, m.end()))
+        for m in phrase.finditer(text)
+    )
 
 
 def klassifiziere_verhalten(antworttext: str, phrasen_datei: Path = VERHALTEN_DATEI) -> Verhalten:
     """Verhalten aus dem Antworttext über die Stufen in verhalten.yaml (erste passende entscheidet):
-    Grenz-Übergabe (Notruf, Ärztin/Arzt) vor Abstinenz vor Disclaimer ohne Beleg vor ausdrücklicher
-    Übergabe vor Verweis ohne Beleg vor Antwort. Belegt = mindestens ein Quellverweis (§, Art., Quelle:,
-    Seite). Ein Handlungshinweis oder Disclaimer in einer belegten Antwort macht sie nicht zur Übergabe
-    bzw. Abstinenz."""
+    Grenz-Handlung (Notruf rufen, Verweisverb an Ärztin/Arzt) vor bloßer Grenz-Nennung ohne Beleg vor
+    Abstinenz vor Hedge ohne Beleg vor Disclaimer ohne Beleg vor ausdrücklicher Übergabe vor Verweis ohne
+    Beleg vor Antwort. Belegt = mindestens ein Quellverweis (§, Art., Quelle:, Seite). Eine Nennung, ein
+    Hedge, Handlungshinweis oder Disclaimer in einer belegten Antwort macht sie nicht zur Übergabe bzw.
+    Abstinenz."""
     text = normiere(antworttext).casefold()
     phrasen = _phrasen(phrasen_datei)
 
     def trifft_stufe(stufe: str) -> bool:
-        return any(_enthaelt(text, p) for p in phrasen[stufe])
+        return any(_enthaelt(text, p, stufe in _HANDLUNGS_STUFEN) for p in phrasen[stufe])
 
     belegt = trifft_stufe("beleg")
     if trifft_stufe("grenze_uebergabe"):
         return "uebergabe"
+    if not belegt and trifft_stufe("grenze_nennung"):
+        return "uebergabe"
     if trifft_stufe("abstinenz"):
+        return "abstinenz"
+    if not belegt and trifft_stufe("abstinenz_hedge"):
         return "abstinenz"
     if not belegt and trifft_stufe("hinweis"):
         return "abstinenz"
@@ -822,8 +903,9 @@ def _parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--erweiterung",
-        default="aus",
-        help="Erweiterung(en), Komma-getrennt: aus, thesaurus, llm, datei:<pfad> (JSON {frage: [begriffe]})",
+        default=None,
+        help="Erweiterung(en), Komma-getrennt: aus, thesaurus, llm, datei:<pfad> (JSON {frage: [begriffe]});"
+        " Standard aus, mit --ende llm wie im Kern",
     )
     p.add_argument("-k", type=int, default=5, help="Recall@k, mindestens 1")
     p.add_argument(
@@ -835,6 +917,11 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--grep-grundlinie", action="store_true", help="naive Grundlinie über rohe XML")
     p.add_argument("--trotzdem", action="store_true", help=f"Test-Set auch nach {MAX_BLICKE} Blicken messen")
     p.add_argument("--nur-begriffe", type=Path, help="nur Begriffe je Frage erzeugen und als JSON speichern")
+    p.add_argument("--ende", action="store_true", help="Ende-zu-Ende: der Lotse-Kern beantwortet jede Frage")
+    p.add_argument("--provider", choices=PROVIDER, help="mit --ende: Modell-Provider (Standard LLM_PROVIDER)")
+    p.add_argument(
+        "--stil", choices=("standard", "einfach"), default="standard", help="mit --ende: Antwortstil"
+    )
     return p
 
 
@@ -924,8 +1011,16 @@ def _lade_suche() -> SucheFn | None:
     return suche_fn
 
 
-def cli(argv: Sequence[str], *, suche: SucheFn | None = None, kern: KernFn | None = None) -> int:
-    """Einstieg für `lotse eval`. `suche` ersetzt in Tests uc1.suche.suche, `kern` uc1.kern.kern_suche."""
+def cli(
+    argv: Sequence[str],
+    *,
+    suche: SucheFn | None = None,
+    kern: KernFn | None = None,
+    lotse: LotseFn | None = None,
+    abschnitte: AbschnittFn | None = None,
+) -> int:
+    """Einstieg für `lotse eval`. In Tests ersetzen `suche` uc1.suche.suche, `kern` uc1.kern.kern_suche,
+    `lotse` uc1.kern.frage und `abschnitte` das Lesen der Abschnitt-Texte aus lotse.abschnitt."""
     args = _parser().parse_args(list(argv))
     try:
         faelle = lade_set(args.set)
@@ -938,16 +1033,24 @@ def cli(argv: Sequence[str], *, suche: SucheFn | None = None, kern: KernFn | Non
 
     if args.pruefe_set:
         return _cli_pruefe_set(faelle)
+    befehl = " ".join(["lotse eval", *map(shlex.quote, argv)])
+    if args.ende:
+        if args.nur_suche or args.kern or args.nur_begriffe:
+            print(
+                "lotse eval: --ende geht nicht mit --nur-suche, --kern oder --nur-begriffe", file=sys.stderr
+            )
+            return 2
+        return _cli_ende(args, faelle, befehl, lotse, abschnitte)
+    args.erweiterung = args.erweiterung or "aus"
     if args.nur_begriffe:
         return _cli_nur_begriffe(args, faelle)
-    befehl = " ".join(["lotse eval", *map(shlex.quote, argv)])
     if args.kern and not args.nur_suche:
         print("lotse eval: --kern gilt nur mit --nur-suche", file=sys.stderr)
         return 2
     if args.nur_suche:
         return _cli_nur_suche(args, faelle, suche, befehl, kern)
     print(
-        "lotse eval: die Messung mit Modell braucht den Lotse-Kern (#31), der noch nicht gebaut ist. "
+        "lotse eval: Modus fehlt. Mit Modell über den Lotse-Kern (#31): --ende. "
         "Ohne Modell: --pruefe-set oder --nur-suche.",
         file=sys.stderr,
     )
@@ -988,11 +1091,21 @@ def _cli_nur_begriffe(args: argparse.Namespace, faelle: Sequence[dict[str, Any]]
     return 0
 
 
-def _blick_kopf(args: argparse.Namespace) -> tuple[bool, list[str]] | None:
-    """(zählt als Blick, Kopfzeilen); None, wenn der Blick über der Grenze läge."""
-    testset = ist_testset(args.set) and args.ausgabe is not None
+def _blick_kopf(args: argparse.Namespace, zaehlt: bool = True) -> tuple[bool, list[str]] | None:
+    """(zählt als Blick, Kopfzeilen); None, wenn der Lauf verweigert wird (über der Grenze oder ohne
+    Zähler-Datei). Jeder Lauf auf dem Test-Set zählt, auch ohne --ausgabe: Der volle Bericht mit allen
+    Rängen geht immer auf stdout (Review !46). Nur `--ende` mit mock ohne Bericht übergibt `zaehlt=False`."""
+    testset = ist_testset(args.set) and zaehlt
     if not testset:
         return False, []
+    if not BLICKE_DATEI.is_file():
+        print(
+            f"lotse eval: Zähler der Test-Set-Blicke fehlt ({BLICKE_DATEI}). Läufe auf dem Test-Set nur im "
+            f"Checkout mit docs/plan/uc1/{BLICKE_DATEI.name}; abgestimmt wird auf dem Dev-Set "
+            f"(--set {DEV_SET.name}).",
+            file=sys.stderr,
+        )
+        return None
     n = len(lade_blicke()) + 1
     if n > MAX_BLICKE and not args.trotzdem:
         print(
@@ -1015,12 +1128,13 @@ def _verbindung(suche: SucheFn | None) -> Any:
     return verbinde()
 
 
-def _abschluss(
-    args: argparse.Namespace, text: str, testset: bool, befehl: str, messungen: Sequence[Messung]
-) -> int:
+def _ergebnis(messungen: Sequence[Messung]) -> str:
+    return ", ".join(f"{m.name} {m.recall}" for m in messungen)
+
+
+def _abschluss(args: argparse.Namespace, text: str, testset: bool, befehl: str, ergebnis: str) -> int:
     print(text)
     if testset:
-        ergebnis = ", ".join(f"{m.name} {m.recall}" for m in messungen)
         zeit = datetime.now().astimezone().isoformat(timespec="minutes")
         speichere_blick({"zeitpunkt": zeit, "befehl": befehl, "ergebnis": ergebnis})
     if args.ausgabe:
@@ -1104,7 +1218,8 @@ def _cli_nur_suche(
             return 2
         messungen.append(messe("grep", zaehlend, grep_suche(lade_rohkorpus(daten_dir)), args.k))
     titel = "Lotse-Set: Suche (Recall@k)" if ist_testset(args.set) else f"{args.set.name}: Suche (Recall@k)"
-    return _abschluss(args, bericht(messungen, zaehlend, befehl, kopf, titel), testset, befehl, messungen)
+    text = bericht(messungen, zaehlend, befehl, kopf, titel)
+    return _abschluss(args, text, testset, befehl, _ergebnis(messungen))
 
 
 # --------------------------------------------------------------------------- Suche im Kern (--kern)
@@ -1184,6 +1299,20 @@ class KernFall:
     angebote_n: int = 0
 
 
+# Trefferbasis der nackten Suche im Modus --kern. Beide Seiten zählen den Rang in derselben Definition:
+# in der nach Quelle gefilterten Liste (SozDok bzw. PDF-Angebote), je höchstens MRR_TIEFE Einträge. Vorher
+# wurde die nackte Suche gemischt (SozDok und PDF in den ersten 10) und der Kern gefiltert gezählt; dieselbe
+# Norm stand so einmal auf Rang 6 und einmal auf Rang 1 (Review !46). Die nackte Suche holt deshalb tiefer,
+# damit ihre gefilterten Listen so lang sein können wie die des Kerns.
+KERN_OHNE_TIEFE = 3 * MRR_TIEFE
+PDF_QUELLEN = frozenset({"formular", "katalog"})
+
+
+def nach_quelle(treffer: Sequence[Treffer], quellen: frozenset[str] | set[str]) -> list[Treffer]:
+    """Treffer der genannten Quellen in Originalreihenfolge, höchstens MRR_TIEFE (Rangbasis für --kern)."""
+    return [t for t in treffer if t.quelle in quellen][:MRR_TIEFE]
+
+
 def messe_kern_fall(
     fall: dict[str, Any],
     suche_fn: Callable[[str, int], list[Treffer]],
@@ -1191,8 +1320,9 @@ def messe_kern_fall(
     begriffe: Begriffe | None,
     llm_ohne: bool,
 ) -> KernFall:
-    """Ein Fall: nackte Suche (MRR_TIEFE Treffer, Erweiterung vor der Zeitmessung) und Suche im Kern.
-    SozDok-Rang im Kern über dessen SozDok-Treffer, PDF-Rang über dessen Angebote (Katalog, Formular)."""
+    """Ein Fall: nackte Suche (KERN_OHNE_TIEFE Treffer, Erweiterung vor der Zeitmessung) und Suche im Kern.
+    Symmetrische Ränge: SozDok-Rang auf beiden Seiten in der SozDok-gefilterten Liste, PDF-Rang in der
+    PDF-gefilterten Liste (nackt) bzw. den Angeboten des Kerns (Katalog, Formular), je MRR_TIEFE Einträge."""
     frage = anfrage(fall)
     start = time.perf_counter()
     zusatz = begriffe(frage) if begriffe else []
@@ -1203,20 +1333,22 @@ def messe_kern_fall(
 
         erweitert = anfrage_aus(frage, zusatz)
     start = time.perf_counter()
-    ohne = suche_fn(erweitert, MRR_TIEFE)[:MRR_TIEFE]
+    ohne = suche_fn(erweitert, KERN_OHNE_TIEFE)[:KERN_OHNE_TIEFE]
     ms_ohne = (time.perf_counter() - start) * 1000
     mit = kern_fn(frage)
     regex = fall.get("ueberschrift_regex")
+    ohne_sozdok, ohne_pdf = nach_quelle(ohne, {"sozdok"}), nach_quelle(ohne, PDF_QUELLEN)
     mit_sozdok = [t for t in mit.treffer if t.quelle == "sozdok"]
+    mit_pdf = list(mit.angebote)[:MRR_TIEFE]
     pdf, pdf_datei = pdf_quellen(fall), pdf_quellen(fall, mit_seite=False)
     return KernFall(
         id=str(fall["id"]),
-        ohne_sozdok=rang(ohne, sozdok_quellen(fall), regex),
-        mit_sozdok=rang(mit_sozdok, sozdok_quellen(fall), regex),
-        ohne_pdf=rang(ohne, pdf) if pdf else None,
-        mit_pdf=rang(mit.angebote, pdf) if pdf else None,
-        ohne_pdf_datei=rang(ohne, pdf_datei) if pdf else None,
-        mit_pdf_datei=rang(mit.angebote, pdf_datei) if pdf else None,
+        ohne_sozdok=rang(ohne_sozdok, sozdok_quellen(fall), regex),
+        mit_sozdok=rang(mit_sozdok[:MRR_TIEFE], sozdok_quellen(fall), regex),
+        ohne_pdf=rang(ohne_pdf, pdf) if pdf else None,
+        mit_pdf=rang(mit_pdf, pdf) if pdf else None,
+        ohne_pdf_datei=rang(ohne_pdf, pdf_datei) if pdf else None,
+        mit_pdf_datei=rang(mit_pdf, pdf_datei) if pdf else None,
         ms_ohne=ms_ohne,
         ms_erweiterung_ohne=ms_erw,
         ms_analyse=float(mit.dauer_ms.get("analyse", 0.0)),
@@ -1286,6 +1418,7 @@ def kern_bericht(
         f"# {titel}",
         "",
         f"- Zeitpunkt: {zeitpunkt}",
+        f"- Stand: {git_stand()}",
         f"- Befehl: `{befehl}`",
         *(f"- {z}" for z in kopf),
         f"- Fälle mit Korpusquelle: {len(faelle)}; davon SozDok-zählend {n_sozdok}, mit PDF-Quelle {n_pdf}.",
@@ -1367,7 +1500,13 @@ def _cli_kern(
     if suche_fn is None:
         print("lotse eval: uc1.suche fehlt; --kern braucht die Suche", file=sys.stderr)
         return 2
-    kern_fn = kern or _lade_kern()
+    try:
+        kern_fn = kern or _lade_kern()
+    except ModuleNotFoundError as fehler:
+        if fehler.name != "uc1.kern":
+            raise
+        print("lotse eval: uc1.kern fehlt auf diesem Stand; --kern braucht den Kern", file=sys.stderr)
+        return 2
     conn = _verbindung(suche)
     fn = suche_fn
 
@@ -1394,4 +1533,553 @@ def _cli_kern(
     messungen = [
         m for name, es in laeufe.items() for m in kern_messungen(name, zaehlend, es, args.k)["sozdok"]
     ]
-    return _abschluss(args, text, testset, befehl, messungen)
+    return _abschluss(args, text, testset, befehl, _ergebnis(messungen))
+
+
+# --------------------------------------------------------------------------- Ende-zu-Ende (--ende)
+
+# Ein Wechsel an den Kern: (Nachricht, sitzung_id=..., stil=...) -> Antwort mit text, verhalten, aussagen,
+# rueckfrage, traeger, sitzung_id, modell, provider (uc1.kern.LotseAntwort; Zugriff über getattr, damit
+# eval.py uc1.kern nicht importiert).
+LotseFn = Callable[..., Any]
+# Abschnitt-IDs -> Text aus lotse.abschnitt; fehlende IDs fehlen im Ergebnis.
+AbschnittFn = Callable[[Sequence[int]], dict[int, str]]
+
+# Antwortrunden der Messung auf Rückfragen: höchstens so viele, wie der Kern fragt (sein Deckel ist 3).
+MAX_ANTWORTRUNDEN = 3
+SATZLAENGE_EINFACH = 15.0
+ROH_LAENGE = 700
+_VERWEIS = re.compile(r"(?<!\d)(?:144|1450)(?!\d)|ärzt|arzt|doctor|physician|\bgp\b")
+_THEMA_WORT = re.compile(r"\w{5,}", re.UNICODE)
+
+
+@dataclass(frozen=True)
+class ZitierteQuelle:
+    """Herkunft einer Aussage der Antwort (Aussage.treffer des Kerns ohne Text)."""
+
+    datei: str
+    seite: int | None
+    gesetz: str | None
+    art: str | None
+    nummer: str | None
+
+    def schluessel(self) -> tuple[str, ...]:
+        if self.gesetz and self.nummer:
+            return ("norm", _norm(self.gesetz), _norm(self.art), _norm(self.nummer))
+        return ("datei", _norm(Path(self.datei).name))
+
+    def anzeige(self) -> str:
+        if self.gesetz and self.nummer:
+            zeichen = {"PARA": "§", "ART": "Art."}.get((self.art or "").upper(), self.art or "")
+            return f"{self.gesetz} {zeichen} {self.nummer}"
+        return Path(self.datei).name + (f", S. {self.seite}" if self.seite else "")
+
+
+@dataclass(frozen=True)
+class GeprueftesZitat:
+    abschnitt_id: int | None
+    quelle: ZitierteQuelle
+    aussage: str
+    zitat: str
+    treu: bool
+
+
+@dataclass(frozen=True)
+class Wechsel:
+    eingabe: str
+    text: str
+    verhalten_kern: str
+    rueckfrage: str | None
+    ms: float
+
+
+@dataclass(frozen=True)
+class EndeFall:
+    """Ein Fall Ende-zu-Ende. Ein Prüfwert None heißt: für diesen Fall nicht anwendbar."""
+
+    id: str
+    art: str
+    wechsel: tuple[Wechsel, ...]
+    fehler: str = ""
+    verhalten: str = ""  # Klassifizierer auf dem Endtext
+    verhalten_kern: str = ""  # Selbst-Etikett des Kerns
+    verhalten_ok: bool | None = None
+    zitate: tuple[GeprueftesZitat, ...] = ()
+    quellen_ok: bool | None = None
+    traeger: tuple[str, ...] = ()
+    traeger_ok: bool | None = None
+    grenze_ok: bool | None = None
+    sprache_ist: str = ""
+    sprache_ok: bool | None = None
+    satzlaenge: float = 0.0
+    einfach_ok: bool | None = None
+    rueckfragen: int = 0
+    pflicht_ok: bool | None = None
+    max_ok: bool | None = None
+    buendel_ok: bool | None = None
+    nicht_erwartet_ok: bool | None = None
+    paar_ok: bool | None = None
+    modell: str = ""
+
+    @property
+    def zitierte(self) -> frozenset[tuple[str, ...]]:
+        return frozenset(z.quelle.schluessel() for z in self.zitate)
+
+    @property
+    def ms_gesamt(self) -> float:
+        return sum(w.ms for w in self.wechsel)
+
+
+# (Name im Bericht, Attribut von EndeFall)
+ENDE_GROESSEN = (
+    ("Verhalten (Klassifizierer = Soll)", "verhalten_ok"),
+    ("Quelle zitiert (mind. eine erwartete)", "quellen_ok"),
+    ("Träger", "traeger_ok"),
+    ("Grenze (keine Diagnose, Verweis 144/1450/Arzt)", "grenze_ok"),
+    ("Sprache", "sprache_ok"),
+    (f"Satzlänge < {SATZLAENGE_EINFACH:.0f} (leichte Sprache, Stil einfach)", "einfach_ok"),
+    ("Paar: gleiche zitierte Quellmenge", "paar_ok"),
+    ("Szenario: max_rueckfragen", "max_ok"),
+    ("Szenario: Pflicht-Rückfrage gestellt", "pflicht_ok"),
+    ("Szenario: buendel (jede Gruppe zitiert)", "buendel_ok"),
+    ("Szenario: nicht_erwartet nicht zitiert", "nicht_erwartet_ok"),
+)
+
+
+def persona_antwort(fall: dict[str, Any]) -> str:
+    """Antwort der Messung auf eine Rückfrage: NUR die Persona (ohne Klammern), nie ein Soll-Feld wie
+    erwarteter_traeger oder erwartete_quellen (Leakage). Die Sprache folgt der Frage, nicht dem Feld
+    `sprache`."""
+    persona = persona_text(fall.get("persona"))
+    englisch = sprache(str(fall["frage"])) == "en"
+    if not persona:
+        return "I can't say more." if englisch else "Mehr kann ich dazu nicht sagen."
+    return f"I am {persona}." if englisch else f"Ich bin {persona}."
+
+
+def thema_getroffen(thema: str, rueckfrage: str) -> bool:
+    """Trifft eine Rückfrage ein Pflichtthema? Grob und modellfrei: ein Wort des Themas (ab 5 Zeichen)
+    stimmt in den ersten 6 Zeichen mit einem Wort der Rückfrage überein („pensionsauszahlender Träger“
+    trifft „… ihre Pension …“)."""
+    staemme = {w[:6] for w in _THEMA_WORT.findall(normiere(thema).casefold())}
+    woerter = {w[:6] for w in _THEMA_WORT.findall(normiere(rueckfrage).casefold())}
+    return bool(staemme & woerter)
+
+
+def normiere_traeger(name: str | None) -> str:
+    """ÖGK, OEGK und „ögk“ werden gleich: Umlaute ausgeschrieben, nur Buchstaben und Ziffern."""
+    text = normiere(name or "").casefold()
+    for umlaut, ersatz in (("ö", "oe"), ("ä", "ae"), ("ü", "ue"), ("ß", "ss")):
+        text = text.replace(umlaut, ersatz)
+    return re.sub(r"[^a-z0-9]", "", text)
+
+
+@cache
+def grenz_muster(pfad: Path = GRENZEN_DATEI) -> tuple[re.Pattern[str], ...]:
+    """Nachprüfungsmuster (Diagnose, Medikament, Befund) aus daten/grenzen.yaml, nur gelesen."""
+    daten = yaml.safe_load(pfad.read_text(encoding="utf-8"))
+    return tuple(
+        re.compile(str(m)) for regel in daten.get("nachpruefung") or [] for m in regel.get("muster") or []
+    )
+
+
+def grenze_eingehalten(text: str, muster: Sequence[re.Pattern[str]] | None = None) -> bool:
+    """Keine Diagnose (kein Nachprüfungsmuster) und ein Verweis auf 144, 1450 oder Ärztin/Arzt."""
+    klein = normiere(text).casefold()
+    muster = grenz_muster() if muster is None else muster
+    return not any(m.search(klein) for m in muster) and bool(_VERWEIS.search(klein))
+
+
+def _quelle_aus(meta: Any) -> ZitierteQuelle:
+    meta = meta if isinstance(meta, dict) else {}
+    seite = meta.get("seite")
+    return ZitierteQuelle(
+        datei=str(meta.get("datei") or ""),
+        seite=seite if isinstance(seite, int) else None,
+        gesetz=meta.get("gesetz"),
+        art=meta.get("art"),
+        nummer=meta.get("nummer"),
+    )
+
+
+def pruefe_zitate(aussagen: Sequence[Any], abschnitte: AbschnittFn) -> tuple[GeprueftesZitat, ...]:
+    """Jedes Zitat gegen den vollen Text seines Abschnitts (per abschnitt_id). Fehlt der Abschnitt, ist das
+    Zitat nicht treu. Endpunkte wie „…“ am Zitat zählen nicht (der Kern kürzt sie auch ab)."""
+    ids = [int(i) for a in aussagen if (i := getattr(a, "abschnitt_id", None)) is not None]
+    texte = abschnitte(ids) if ids else {}
+    geprueft = []
+    for a in aussagen:
+        aid = getattr(a, "abschnitt_id", None)
+        zitat = str(getattr(a, "zitat", "") or "")
+        kern = zitat.strip().strip(".…").strip()
+        text = texte.get(int(aid)) if aid is not None else None
+        geprueft.append(
+            GeprueftesZitat(
+                abschnitt_id=int(aid) if aid is not None else None,
+                quelle=_quelle_aus(getattr(a, "treffer", None)),
+                aussage=str(getattr(a, "text", "") or ""),
+                zitat=zitat,
+                treu=text is not None and zitat_treu(kern, text),
+            )
+        )
+    return tuple(geprueft)
+
+
+def _irgendeine_zitiert(zitate: Sequence[GeprueftesZitat], quellen: Sequence[dict[str, Any]]) -> bool:
+    return any(trifft(z.quelle, q) for z in zitate for q in quellen)
+
+
+def bewerte_ende(
+    fall: dict[str, Any],
+    wechsel: Sequence[Wechsel],
+    endantwort: Any,
+    zitate: tuple[GeprueftesZitat, ...],
+    stil: str,
+    fehler: str = "",
+) -> EndeFall:
+    """Alle Prüfwerte eines Falls aus der Endantwort. Mit `fehler` zählt jede anwendbare Größe als nicht
+    bestanden (ein Modellfehler ist ein Fehler des Falls, kein Ausfall aus dem Nenner)."""
+    text = str(getattr(endantwort, "text", "") or "") if not fehler else ""
+    verhalten_kern = str(getattr(endantwort, "verhalten", "") or "") if not fehler else ""
+    offen = bool(getattr(endantwort, "rueckfrage", None)) if not fehler else False
+    verhalten = "" if fehler else ("rueckfrage" if offen else klassifiziere_verhalten(text))
+    stellen = tuple(
+        str(s.get("stelle") or s.get("name") or "")
+        for s in (getattr(endantwort, "traeger", None) or [] if not fehler else [])
+        if isinstance(s, dict)
+    )
+    rueckfragen = [w.rueckfrage for w in wechsel if w.rueckfrage]
+    erwartet_traeger = fall.get("erwarteter_traeger")
+    quellen = fall["erwartete_quellen"]
+    einfach = bool(fall.get("leichte_sprache")) or stil == "einfach"
+    satzlaenge = mittlere_satzlaenge(text) if text else 0.0
+    pflicht = list(fall.get("rueckfragen_pflicht") or [])
+    werte: dict[str, bool | None] = {
+        "verhalten_ok": verhalten in verhalten_liste(fall["verhalten_soll"]),
+        "quellen_ok": _irgendeine_zitiert(zitate, quellen) if quellen else None,
+        "traeger_ok": (
+            normiere_traeger(str(erwartet_traeger)) in {normiere_traeger(s) for s in stellen}
+            if erwartet_traeger
+            else None
+        ),
+        "grenze_ok": grenze_eingehalten(text) if fall.get("grenze") else None,
+        "sprache_ok": sprache(text) == fall["sprache"],
+        "einfach_ok": (bool(text) and satzlaenge < SATZLAENGE_EINFACH) if einfach else None,
+        "max_ok": len(rueckfragen) <= int(fall["max_rueckfragen"]) if "max_rueckfragen" in fall else None,
+        "pflicht_ok": (
+            all(any(thema_getroffen(str(t), r) for r in rueckfragen) for t in pflicht) if pflicht else None
+        ),
+        "buendel_ok": (
+            all(_irgendeine_zitiert(zitate, gruppe) for gruppe in fall["buendel"])
+            if fall.get("buendel")
+            else None
+        ),
+        "nicht_erwartet_ok": (
+            not _irgendeine_zitiert(zitate, fall["nicht_erwartet"]) if fall.get("nicht_erwartet") else None
+        ),
+    }
+    if fehler:
+        werte = {k: (None if v is None else False) for k, v in werte.items()}
+    modell = "/".join(
+        str(x) for x in (getattr(endantwort, "provider", None), getattr(endantwort, "modell", None)) if x
+    )
+    return EndeFall(
+        id=str(fall["id"]),
+        art=str(fall.get("art", "")),
+        wechsel=tuple(wechsel),
+        fehler=fehler,
+        verhalten=verhalten,
+        verhalten_kern=verhalten_kern,
+        zitate=zitate,
+        traeger=stellen,
+        sprache_ist=sprache(text) if text else "",
+        satzlaenge=round(satzlaenge, 1),
+        rueckfragen=len(rueckfragen),
+        modell=modell,
+        **werte,
+    )
+
+
+def messe_ende_fall(
+    fall: dict[str, Any],
+    lotse: LotseFn,
+    abschnitte: AbschnittFn,
+    stil: str = "standard",
+    abbruch: tuple[type[BaseException], ...] = (config.KonfigFehler,),
+) -> EndeFall:
+    """Ein Fall: Anfrage wie `anfrage()`, dann je Rückfrage eine Antwort aus der Persona (höchstens
+    MAX_ANTWORTRUNDEN). Eine Ausnahme aus `abbruch` (fehlender Schlüssel) bricht ab; jede andere wird zum
+    Fehler des Falls."""
+    stil_fall = "einfach" if fall.get("leichte_sprache") else stil
+    eingabe, sid = anfrage(fall), None
+    wechsel: list[Wechsel] = []
+    endantwort: Any = None
+    start = time.perf_counter()
+    try:
+        for runde in range(MAX_ANTWORTRUNDEN + 1):
+            start = time.perf_counter()
+            endantwort = lotse(eingabe, sitzung_id=sid, stil=stil_fall)
+            ms = (time.perf_counter() - start) * 1000
+            sid = getattr(endantwort, "sitzung_id", None) or sid
+            rueckfrage = getattr(endantwort, "rueckfrage", None) or None
+            text = str(getattr(endantwort, "text", "") or "")
+            wechsel.append(Wechsel(eingabe, text, str(getattr(endantwort, "verhalten", "")), rueckfrage, ms))
+            if not rueckfrage or runde == MAX_ANTWORTRUNDEN:
+                break
+            eingabe = persona_antwort(fall)
+        zitate = pruefe_zitate(list(getattr(endantwort, "aussagen", None) or []), abschnitte)
+    except abbruch:
+        raise
+    except Exception as ausnahme:  # Modell- oder Suchfehler: zählt als Fehler des Falls, Lauf geht weiter
+        meldung = f"{type(ausnahme).__name__}: {str(ausnahme)[:200]}"
+        if len(wechsel) == 0 or wechsel[-1].eingabe != eingabe:  # der gescheiterte Wechsel mit seiner Dauer
+            wechsel.append(Wechsel(eingabe, "", "fehler", None, (time.perf_counter() - start) * 1000))
+        return bewerte_ende(fall, wechsel, endantwort, (), stil_fall, fehler=meldung)
+    return bewerte_ende(fall, wechsel, endantwort, zitate, stil_fall)
+
+
+def setze_paare(faelle: Sequence[dict[str, Any]], ergebnisse: Sequence[EndeFall]) -> list[EndeFall]:
+    """Paar (Fall 24): beide Einträge müssen dieselbe, nicht leere Menge zitierter Quellen haben."""
+    nach_id = {e.id: e for e in ergebnisse}
+    gruppen: dict[str, list[str]] = {}
+    for f in faelle:
+        if f.get("paar") and str(f["id"]) in nach_id:
+            gruppen.setdefault(str(f["paar"]), []).append(str(f["id"]))
+    for ids in gruppen.values():
+        if len(ids) != 2:
+            continue
+        a, b = nach_id[ids[0]], nach_id[ids[1]]
+        ok = not a.fehler and not b.fehler and bool(a.zitierte) and a.zitierte == b.zitierte
+        nach_id[a.id], nach_id[b.id] = replace(a, paar_ok=ok), replace(b, paar_ok=ok)
+    return [nach_id[e.id] for e in ergebnisse]
+
+
+def ende_summen(ergebnisse: Sequence[EndeFall]) -> dict[str, tuple[int, int]]:
+    """(bestanden, n) je Größe über die Fälle, in denen sie anwendbar ist, dazu Zitiertreue über Zitate."""
+    summen = {}
+    for _, attr in ENDE_GROESSEN:
+        werte = [getattr(e, attr) for e in ergebnisse if getattr(e, attr) is not None]
+        summen[attr] = (sum(werte), len(werte))
+    zitate = [z for e in ergebnisse for z in e.zitate]
+    summen["zitiertreue"] = (sum(z.treu for z in zitate), len(zitate))
+    return summen
+
+
+def _ok(wert: bool | None) -> str:
+    return "–" if wert is None else ("ja" if wert else "**nein**")
+
+
+def _anteil(treffer: int, n: int) -> str:
+    if n == 0:
+        return "– | –"
+    unten, oben = wilson(treffer, n)
+    return f"{treffer}/{n} ({_prozent(treffer / n)}) | {_prozent(unten)} – {_prozent(oben)}"
+
+
+def _kurz(text: str, laenge: int = ROH_LAENGE) -> str:
+    einzeilig = re.sub(r"\s+", " ", text).strip().replace("|", "/")
+    return einzeilig if len(einzeilig) <= laenge else einzeilig[: laenge - 1] + "…"
+
+
+def ende_bericht(
+    ergebnisse: Sequence[EndeFall],
+    faelle: Sequence[dict[str, Any]],
+    befehl: str,
+    kopf: Sequence[str] = (),
+    titel: str = "Ende-zu-Ende",
+) -> str:
+    zeitpunkt = datetime.now().astimezone().isoformat(timespec="seconds")
+    soll = {str(f["id"]): f for f in faelle}
+    summen = ende_summen(ergebnisse)
+    modelle = sorted({e.modell for e in ergebnisse if e.modell})
+    wechsel_ms = [w.ms for e in ergebnisse for w in e.wechsel]
+    fall_ms = [e.ms_gesamt for e in ergebnisse if e.wechsel]
+    abweichend = [e.id for e in ergebnisse if not e.fehler and e.verhalten != e.verhalten_kern]
+    fehler = [e for e in ergebnisse if e.fehler]
+    zeilen = [
+        f"# {titel}",
+        "",
+        f"- Zeitpunkt: {zeitpunkt}",
+        f"- Stand: {git_stand()}",
+        f"- Befehl: `{befehl}`",
+        *(f"- {z}" for z in kopf),
+        f"- Modell laut Antworten: {', '.join(modelle) or '– (kein Modellaufruf gemeldet)'}",
+        f"- Fälle: {len(ergebnisse)}; mit Fehler: {len(fehler)}"
+        + (f" ({', '.join(e.id for e in fehler)})" if fehler else ""),
+        "- Rückfragen beantwortet die Messung nur aus der Persona (ohne Klammern), nie aus Soll-Feldern.",
+        "- Alle Größen modellfrei. Intervall: Wilson 95 %. Eine Größe zählt nur in Fällen, in denen sie "
+        "anwendbar ist (Nenner n). Ein Fall mit Fehler zählt in jeder anwendbaren Größe als nicht bestanden.",
+        "",
+        "## Summen",
+        "",
+        "| Größe | bestanden | Wilson 95 % |",
+        "|---|---|---|",
+        f"| Zitiertreue (je Zitat, wörtlich im Abschnitt) | {_anteil(*summen['zitiertreue'])} |",
+        *(f"| {name} | {_anteil(*summen[attr])} |" for name, attr in ENDE_GROESSEN),
+        "",
+        f"- Selbst-Etikett des Kerns weicht vom Klassifizierer ab: {len(abweichend)}"
+        + (f" ({', '.join(abweichend)})" if abweichend else ""),
+        f"- Rückfragen gesamt: {sum(e.rueckfragen for e in ergebnisse)}",
+        f"- Latenz je Wechsel p50 | p95 (ms): {_p50_p95(wechsel_ms) if wechsel_ms else '– | –'}; "
+        f"je Fall p50 | p95 (ms): {_p50_p95(fall_ms) if fall_ms else '– | –'}; "
+        f"gesamt {sum(fall_ms) / 1000:.1f} s",
+        "",
+        "## Je Art",
+        "",
+        "| Art | n | Verhalten | Quelle zitiert | Träger | Grenze | Zitate treu | Fehler |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for art in [*ARTEN, *sorted({e.art for e in ergebnisse} - set(ARTEN))]:
+        es = [e for e in ergebnisse if e.art == art]
+        if not es:
+            continue
+        s = ende_summen(es)
+
+        def kurz(paar: tuple[int, int]) -> str:
+            return f"{paar[0]}/{paar[1]}" if paar[1] else "–"
+
+        zeilen.append(
+            f"| {art} | {len(es)} | {kurz(s['verhalten_ok'])} | {kurz(s['quellen_ok'])} |"
+            f" {kurz(s['traeger_ok'])} | {kurz(s['grenze_ok'])} | {kurz(s['zitiertreue'])} |"
+            f" {sum(bool(e.fehler) for e in es)} |"
+        )
+    zeilen += [
+        "",
+        "## Je Fall",
+        "",
+        "| Fall | Art | Verhalten Soll | Klassifizierer | Kern | Zitate treu | Quelle | Träger Soll |"
+        " Träger ist | Träger | Grenze | Sprache | Satzlänge | Rückfragen | Pflicht | max | Bündel |"
+        " nicht erw. | Paar | ms | Fehler |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for e in ergebnisse:
+        f = soll.get(e.id, {})
+        treu = f"{sum(z.treu for z in e.zitate)}/{len(e.zitate)}" if e.zitate else "–"
+        verhalten_soll = "/".join(verhalten_liste(f.get("verhalten_soll")))
+        zeilen.append(
+            f"| {e.id} | {e.art} | {verhalten_soll} | {e.verhalten or '–'} |"
+            f" {e.verhalten_kern or '–'} | {treu} | {_ok(e.quellen_ok)} |"
+            f" {f.get('erwarteter_traeger') or '–'} |"
+            f" {', '.join(e.traeger) or '–'} | {_ok(e.traeger_ok)} | {_ok(e.grenze_ok)} |"
+            f" {e.sprache_ist or '–'} {_ok(e.sprache_ok)} | {e.satzlaenge} {_ok(e.einfach_ok)} |"
+            f" {e.rueckfragen} | {_ok(e.pflicht_ok)} | {_ok(e.max_ok)} | {_ok(e.buendel_ok)} |"
+            f" {_ok(e.nicht_erwartet_ok)} | {_ok(e.paar_ok)} | {e.ms_gesamt:.0f} |"
+            f" {_kurz(e.fehler, 120) or '–'} |"
+        )
+    zeilen += ["", "## Rohantworten (gekürzt) und Aussagen", ""]
+    for e in ergebnisse:
+        f = soll.get(e.id, {})
+        zeilen += [
+            f"### {e.id}",
+            "",
+            f"- Erwartete Quellen: {_quelltext(f.get('erwartete_quellen') or []) or '–'}",
+        ]
+        for nr, w in enumerate(e.wechsel, 1):
+            zeilen.append(
+                f"- Wechsel {nr} ({w.ms:.0f} ms, Kern: {w.verhalten_kern or '–'}):"
+                f" Eingabe „{_kurz(w.eingabe, 300)}“"
+            )
+            zeilen.append(f"  - Antwort: {_kurz(w.text) or '–'}")
+        if e.fehler:
+            zeilen.append(f"- Fehler: {_kurz(e.fehler, 300)}")
+        for z in e.zitate:
+            zeilen.append(
+                f"- Aussage ({z.quelle.anzeige()}, Abschnitt {z.abschnitt_id},"
+                f" treu: {'ja' if z.treu else 'NEIN'}):"
+                f" {_kurz(z.aussage, 300)} Zitat: „{_kurz(z.zitat, 300)}“"
+            )
+        zeilen.append("")
+    return "\n".join(zeilen).rstrip() + "\n"
+
+
+def _abschnitt_leser(conn: Any) -> AbschnittFn:
+    def lies(ids: Sequence[int]) -> dict[int, str]:
+        zeilen = conn.execute(
+            "SELECT id, text FROM lotse.abschnitt WHERE id = ANY(%s)", (list(ids),)
+        ).fetchall()
+        return {int(i): str(t) for i, t in zeilen}
+
+    return lies
+
+
+def _lade_lotse(conn: Any, provider: str | None, erweiterung: str) -> LotseFn:
+    """uc1.kern.frage, lazy über importlib wie bei --kern. Sitzungen im Prozess (SpeicherImSpeicher), damit
+    die Messung lotse.sitzung nicht füllt; die Suche läuft über die gemeinsame Verbindung."""
+    kern = importlib.import_module("uc1.kern")
+    speicher_klasse = getattr(kern, "SpeicherImSpeicher", None)
+    speicher = speicher_klasse() if speicher_klasse is not None else None
+
+    def lotse(text: str, *, sitzung_id: str | None, stil: str) -> Any:
+        optionen: dict[str, Any] = {
+            "sitzung_id": sitzung_id,
+            "stil": stil,
+            "provider": provider,
+            "erweiterung": erweiterung,
+            "conn": conn,
+        }
+        if speicher is not None:
+            optionen["speicher"] = speicher
+        return kern.frage(text, **optionen)
+
+    return lotse
+
+
+def _cli_ende(
+    args: argparse.Namespace,
+    faelle: Sequence[dict[str, Any]],
+    befehl: str,
+    lotse: LotseFn | None,
+    abschnitte: AbschnittFn | None,
+) -> int:
+    erweiterung = args.erweiterung or "llm"
+    if erweiterung not in ("aus", "thesaurus", "llm"):
+        print("lotse eval: --ende kennt nur die Erweiterungen aus, thesaurus, llm", file=sys.stderr)
+        return 2
+    provider = args.provider or os.environ.get("LLM_PROVIDER") or ""
+    # Auf dem Test-Set ist jeder Lauf mit echtem Modell ein Blick; ein Probelauf mit mock nur mit --ausgabe.
+    blick = _blick_kopf(args, zaehlt=provider != "mock" or args.ausgabe is not None)
+    if blick is None:
+        return 2
+    testset, kopf = blick
+    abbruch: tuple[type[BaseException], ...] = (config.KonfigFehler,)
+    conn = None
+    if lotse is None:
+        from plattform.llm import KonfigFehler as LlmKonfigFehler
+
+        abbruch += (LlmKonfigFehler,)
+        from uc1.db import verbinde
+
+        conn = verbinde()
+        lotse = _lade_lotse(conn, args.provider, erweiterung)
+        abschnitte = abschnitte or _abschnitt_leser(conn)
+    lies = abschnitte or (lambda ids: {})
+    ergebnisse: list[EndeFall] = []
+    try:
+        for fall in faelle:
+            ergebnis = messe_ende_fall(fall, lotse, lies, args.stil, abbruch)
+            if ergebnis.fehler and conn is not None:
+                conn.rollback()  # eine abgebrochene Transaktion darf den nächsten Fall nicht mitreißen
+            print(f"lotse eval: {ergebnis.id} {ergebnis.verhalten or ergebnis.fehler[:60]}", file=sys.stderr)
+            ergebnisse.append(ergebnis)
+    except abbruch as fehler:
+        print(f"lotse eval: Abbruch, Konfiguration fehlt: {fehler}", file=sys.stderr)
+        return 2
+    finally:
+        if conn is not None:
+            conn.close()
+    ergebnisse = setze_paare(faelle, ergebnisse)
+    kopf = [
+        *kopf,
+        f"Set: `{args.set}`",
+        f"Provider: {provider or 'Standard'}; Stil: {args.stil} (Fälle mit leichte_sprache: einfach); "
+        f"Erweiterung: {erweiterung}",
+    ]
+    name = "Lotse-Set" if ist_testset(args.set) else args.set.name
+    text = ende_bericht(ergebnisse, faelle, befehl, kopf, f"{name}: Ende-zu-Ende über den Lotse-Kern")
+    summen = ende_summen(ergebnisse)
+    ergebnis_text = ", ".join(
+        f"{attr} {t}/{n}"
+        for attr, (t, n) in summen.items()
+        if attr in ("verhalten_ok", "zitiertreue", "quellen_ok")
+    )
+    return _abschluss(args, text, testset, befehl, ergebnis_text)

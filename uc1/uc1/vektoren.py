@@ -5,7 +5,8 @@ Aufruf aus `uc1/`: `uv run python -m uc1.vektoren <unterbefehl>`.
 - `export --ausgabe DATEI.jsonl`  Abschnitte als `{text_hash, eingabe}`, je Hash einmal, sortiert nach Hash.
 - `berechnen --eingabe DATEI.jsonl --ausgabe PREFIX`  bettet ein (768 Dimensionen, float32) und schreibt
   `PREFIX.hashes.txt`, `PREFIX.768.npy` und `PREFIX.meta.json`. Teilstücke unter `PREFIX.teile/` machen den
-  Lauf wiederaufnehmbar. Rechenintensiv: läuft auf m5, nie auf dem M4 (Swap-Vorfall #29).
+  Lauf wiederaufnehmbar. Rechenintensiv: läuft auf Rechner B, nie auf Rechner A
+  (Demo-Rechner) (Swap-Vorfall #29).
 - `import --prefix PREFIX [--dims 768,256]`  löscht und lädt je modell/dim per COPY nach lotse.vektor.
 - `status`  Vektoren je modell/dim gegen die eindeutigen Text-Hashes der Abschnitte.
 
@@ -126,7 +127,7 @@ def lies_vektoren(prefix: Path) -> tuple[list[str], Matrix]:
     return hashes, matrix
 
 
-# --- Berechnen (nur m5) -----------------------------------------------------------------------------
+# --- Berechnen (nur Rechner B) -----------------------------------------------------------------------------
 
 
 def _speicher_mb() -> dict[str, float]:
@@ -299,7 +300,7 @@ def cli(argv: list[str]) -> int:
     unter = parser.add_subparsers(dest="befehl", required=True)
     p_export = unter.add_parser("export", help="Abschnitte als JSONL exportieren")
     p_export.add_argument("--ausgabe", type=Path, required=True)
-    p_rechnen = unter.add_parser("berechnen", help="Einbetten (nur m5)")
+    p_rechnen = unter.add_parser("berechnen", help="Einbetten (nur Rechner B)")
     p_rechnen.add_argument("--eingabe", type=Path, required=True)
     p_rechnen.add_argument("--ausgabe", type=Path, required=True, help="Prefix der Ausgabedateien")
     p_rechnen.add_argument("--batch", type=int, default=8)

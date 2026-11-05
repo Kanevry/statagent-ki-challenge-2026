@@ -3,7 +3,7 @@
 Stand 2026-11-05, ca. 13:40 bis 14:10 CET. Prüfer: unabhängige Review-Session (Claude), Worktree `b-uc1`, Basis
 `a930302` plus uncommittete Arbeit an `suche.py`, `typen.py` und `vektoren.py` (nicht verändert). Vorgehen: Grill
 (eine Entscheidung nach der anderen, gegen Code, SQL und Quellen) im Berichtsmodus, ohne Rückfragen. Gemessen wurde
-auf dem M4 nur lesend gegen die DB `lotse` (keine Modelle geladen). Der Reranker lief auf m5 in einem Prozess mit
+auf Rechner A nur lesend gegen die DB `lotse` (keine Modelle geladen). Der Reranker lief auf Rechner B in einem Prozess mit
 batch 8.
 
 ## 1. Kurzfassung: Top 5 nach Wert je Aufwand
@@ -19,7 +19,7 @@ batch 8.
 **Nicht tun:** den Cross-Encoder `BAAI/bge-reranker-v2-m3` über die Volltext-Kandidaten legen. Auf dem Dev-Set
 verschlechtert er beide guten Varianten. Mit von Hand erweiterten Anfragen fällt Recall@5 von 11/12 auf 9/12
 und MRR@10 von 0,82 auf 0,37, mit den LLM-Begriffen von 9/12 auf 7/12 (MRR 0,67 → 0,26). Ein CPU-Gegenlauf mit
-Top 20 zeigt dasselbe Bild. Auf dem belasteten m5 kostet er p50 6,6 s je Frage (MPS, 50 Paare) bzw. 10 s (CPU,
+Top 20 zeigt dasselbe Bild. Auf dem belasteten Rechner B kostet er p50 6,6 s je Frage (MPS, 50 Paare) bzw. 10 s (CPU,
 20 Paare). Konfidenz 70 %, Details in Befund D7. Das spart 1–2 h Einbau.
 
 ## 2. Befunde
@@ -30,7 +30,7 @@ Top 20 zeigt dasselbe Bild. Auf dem belasteten m5 kostet er p50 6,6 s je Frage (
 - Behauptung: Jede Kombination (Gesetz, Art, Nummer) kommt genau einmal vor. Der Korpus ist ein Schnappschuss mit
   einer Fassung je §. Die Gruppierung in `_ein_treffer_je_paragraph` legt deshalb nur die Absätze desselben §
   zusammen. Das ist nützlich für die Vielfalt der Treffer, juristisch aber ohne Wirkung.
-- Beleg: M4, SQL `select n, count(*) from (select gesetz, art, nummer, count(*) n from lotse.dokument where
+- Beleg: Rechner A, SQL `select n, count(*) from (select gesetz, art, nummer, count(*) n from lotse.dokument where
   quelle='sozdok' group by 1,2,3) g group by 1` → `1|14244`. Kein `inkrafttreten` liegt nach heute (0 von 14.244,
   Maximum 2026-10-01). `akra` ist nur einmal gesetzt, als Platzhalter 8888-08-08 (BSVG § 88). Das Platzhalterdatum
   1111-11-11 steht bei FLAG und den 136 `veraendW`-Dokumenten. Die gefragten Fassungen: BPGG § 4 = 1 Fassung, ikra
@@ -79,7 +79,7 @@ Top 20 zeigt dasselbe Bild. Auf dem belasteten m5 kostet er p50 6,6 s je Frage (
 - Behauptung: Die Volltext-Konstruktion trägt: ODER-Anfrage, IDF, Themenfaktor, Präfix, Zerlegung, Längenabwertung,
   ein Abschnitt je §. Lange erweiterte Anfragen erzeugen aber Ausreißer bis 2 s und verletzen dann sowohl das AC
   „p95 < 300 ms“ als auch das Voice-Budget.
-- Beleg: M4, `uv run python /tmp/b-uc1-review/kandidaten.py` und `kandidaten_llm.py` (k=50, 36 Anfragen).
+- Beleg: Rechner A, `uv run python /tmp/b-uc1-review/kandidaten.py` und `kandidaten_llm.py` (k=50, 36 Anfragen).
   Originalfragen p50 ≈ 40 ms, Maximum 91 ms. Erweiterte Fragen p50 110 ms, Maximum 2.003 ms (d03 „… Ausgleichszulage
   Richtsatz“), dazu 1.946 ms und 1.277 ms (d03 und d04 mit LLM-Begriffen). Die Ursache ist nicht profiliert.
   Vermutlich sind es viele Präfix-Operanden (`:*`) mit dem `ts_rank` je Term im LATERAL über viele Kandidaten.
@@ -88,12 +88,12 @@ Top 20 zeigt dasselbe Bild. Auf dem belasteten m5 kostet er p50 6,6 s je Frage (
   statement_timeout = '400ms'` mit Rückfall auf die Originalfrage. Aufwand 30 min.
 - Nächster Check: `lotse suche --messen` mit den 12 Dev-Fragen plus Begriffen; Ziel ist ein Maximum unter 300 ms.
 
-### D2 · Dichte Suche (embeddinggemma-2, 256 d, Anfrage-Einbettung auf dem M4)
+### D2 · Dichte Suche (embeddinggemma-2, 256 d, Anfrage-Einbettung auf Rechner A)
 - Behauptung: Der Nutzen der dichten Suche ist für den Vollkorpus unbelegt. Der Prototyp (n=5, 200 Abschnitte) ist
   gesättigt: Volltext und hybrid stehen dort überall auf Rang 1. Die Wortlücke zwischen Bürger und Gesetz schließt die
   Anfrage-Erweiterung (Befund 1) bereits zu großen Teilen, und zwar ohne 3,4 GB RSS im Dienst.
-- Beleg: `docs/plan/uc1/messung-embeddings.md` (n=5, „Die Aussagekraft ist gering“); M4 `select count(*) from
-  lotse.vektor` → 0, hybrid also nicht messbar. Im HF-Cache von m5 liegen `onnx-community/embeddinggemma-2-ONNX` und
+- Beleg: `docs/plan/uc1/messung-embeddings.md` (n=5, „Die Aussagekraft ist gering“); Rechner A `select count(*) from
+  lotse.vektor` → 0, hybrid also nicht messbar. Im HF-Cache von Rechner B liegen `onnx-community/embeddinggemma-2-ONNX` und
   `mlx-community/embeddinggemma-2-{4bit,8bit,bf16}`, also gäbe es Wege ohne torch. Ihre Gleichheit mit den
   Dokumentvektoren ist nicht geprüft.
 - Konfidenz: 60 %, dass hybrid auf dem Dev-Set nicht klar über Volltext plus Erweiterung liegt (nicht gemessen; der
@@ -179,7 +179,7 @@ Top 20 zeigt dasselbe Bild. Auf dem belasteten m5 kostet er p50 6,6 s je Frage (
 - Behauptung: Die Messung ist methodisch sauber angelegt (eingefroren, Held-out, grep-Grundlinie, Verhalten aus dem
   Text). Die Stichproben sind aber zu klein für die Ziele, und zwei Bausteine erzeugen falsche Klassen.
 - Beleg:
-  - Intervalle (Wilson 95 %, `python3`, M4):
+  - Intervalle (Wilson 95 %, `python3`, Rechner A):
     - Volltext 5/15 = 15–58 %, grep 4/15 = 11–52 %; die beiden sind nicht unterscheidbar.
     - PRD-Ziele: 10/12 = 55–95 %, Held-out 8/10 = 49–94 %.
     - Grenzen 8/8 = 68–100 %: Eine Fehlerrate bis 31 % ist damit nicht ausgeschlossen.
@@ -210,7 +210,7 @@ Top 20 zeigt dasselbe Bild. Auf dem belasteten m5 kostet er p50 6,6 s je Frage (
 - Behauptung: Auf diesem Korpus und mit diesem Aufbau schadet der Reranker. Er zieht thematisch benachbarte, aber
   falsche Normen nach vorn: Formularseiten, Pensionsanpassung statt Ausgleichszulage, Betriebsrente statt
   Versehrtenrente, Abfindung statt Waisenpension.
-- Beleg: m5, `rerank.py kandidaten.jsonl mps 512 50` (CrossEncoder, max_length 512, batch 8; Text = Kontext + Absatz;
+- Beleg: Rechner B, `rerank.py kandidaten.jsonl mps 512 50` (CrossEncoder, max_length 512, batch 8; Text = Kontext + Absatz;
   Anfrage = Bürgerfrage).
 
   | Variante | R@5 vorher → nachher | MRR@10 vorher → nachher | Recall@50 |
@@ -225,14 +225,14 @@ Top 20 zeigt dasselbe Bild. Auf dem belasteten m5 kostet er p50 6,6 s je Frage (
   (erweitert). Zugleich fällt d07 in der Variante llm von 5 auf 12.
 
   Kosten: 0,6 B Parameter, F32 (Modellkarte https://huggingface.co/BAAI/bge-reranker-v2-m3, abgerufen am
-  2026-11-05). Gemessen auf m5 (MPS, belastet durch einen parallelen Indexlauf): p50 6,6 s, p95 10,0 s je 50 Paare,
+  2026-11-05). Gemessen auf Rechner B (MPS, belastet durch einen parallelen Indexlauf): p50 6,6 s, p95 10,0 s je 50 Paare,
   RSS 1,06 GB plus 3,27 GB MPS-Treiberspeicher.
 
-  CPU-Gegenlauf auf m5 (`rerank.py … cpu 512 20`, 8 Threads, nur Top 20, ebenfalls belastet): p50 10,0 s, p95
+  CPU-Gegenlauf auf Rechner B (`rerank.py … cpu 512 20`, 8 Threads, nur Top 20, ebenfalls belastet): p50 10,0 s, p95
   19,2 s je Frage, RSS 2,7 GB. Die Qualität bestätigt das Bild: erweitert R@5 11/12 → 10/12 (MRR 0,82 → 0,40), llm
   9/12 → 7/12 (MRR 0,67 → 0,35), original 2/12 → 3/12.
 
-  Schätzung für die CPU des M4, nicht gemessen: 2 × 0,57 Mrd. Parameter × 512 Tokens ≈ 0,6 TFLOP je Paar, also
+  Schätzung für die CPU von Rechner A, nicht gemessen: 2 × 0,57 Mrd. Parameter × 512 Tokens ≈ 0,6 TFLOP je Paar, also
   ≈ 12 TFLOP für 20 Paare. Bei rund 1 TFLOP/s effektiv sind das etwa 10 s. Für Voice ist das unbrauchbar und im
   Textpfad zäh.
 
@@ -269,7 +269,7 @@ die Kopien belegen die Top 5.
   PDFs (z. B. 4 Gesetz + 2 Ratgeber).
 
 **N3 · Qualitätsmodus `claude -p` kann am Demo-Tag ausfallen.**
-- Beleg: M4, `claude -p --model haiku …` meldete am 2026-11-05: „Warning: this sign-in can end at any time from now
+- Beleg: Rechner A, `claude -p --model haiku …` meldete am 2026-11-05: „Warning: this sign-in can end at any time from now
   until 2026-11-06. Renewing it does not move that date. … use claude setup-token for unattended jobs.“
 - Konfidenz: 70 %, dass das Risiko real ist; ob es genau in die Demo fällt, ist nicht abzuschätzen.
 - Empfehlung: In der Demo läuft Azure als Standard. Vorher `claude setup-token` durch den Owner, Konto-Aktion mit
@@ -294,7 +294,7 @@ die Kopien belegen die Top 5.
 - Empfehlung: siehe Top 1.
 
 **N6 · Offline-Betrieb.**
-- Beleg: Ohne `HF_HUB_OFFLINE` fragt sentence-transformers beim Laden den Hub; im m5-Log mit gesetzter Variable steht
+- Beleg: Ohne `HF_HUB_OFFLINE` fragt sentence-transformers beim Laden den Hub; im Log auf Rechner B mit gesetzter Variable steht
   „offline mode is enabled … Using cached commit hash“. Im Veranstaltungs-WLAN mit Captive Portal kann der Aufruf
   hängen (nicht gemessen).
 - Konfidenz: 50 %.
@@ -313,7 +313,7 @@ Konfidenz 70 %. Empfehlung: lassen wie geplant.
 - Ein Abschnitt je § in den Top-k. Das gibt Vielfalt, auch wenn das Fassungsargument entfällt.
 - Eingefrorenes Set vor dem Kern, Held-out beim Lead, Verhalten aus dem Text statt aus dem Selbst-Etikett,
   grep-Grundlinie neben jeder Zahl, p95 mitgemessen.
-- Erst den Prototyp, dann skalieren; Deckel nach dem Vorfall (batch 8, 512 als Standard, Läufe nur auf m5).
+- Erst den Prototyp, dann skalieren; Deckel nach dem Vorfall (batch 8, 512 als Standard, Läufe nur auf Rechner B).
 - Rückfragen und Pflichtfelder als Daten, die Kill-Reihenfolge, Replay als Rückfall.
 
 ## 4. Testprotokoll
@@ -344,17 +344,17 @@ Kostenbeteiligung“).
 - `original`: nur die Bürgerfrage.
 - `erweitert`: Frage plus von mir geschriebene Fachbegriffe. Ich kannte die Zielnormen; die Variante ist deshalb
   eine Obergrenze (Orakel), kein fairer Test.
-- `llm`: Frage plus Begriffe von Haiku (`claude -p --model haiku`, M4, 24 s für alle 12 Fragen). Der Prompt verlangt
+- `llm`: Frage plus Begriffe von Haiku (`claude -p --model haiku`, Rechner A, 24 s für alle 12 Fragen). Der Prompt verlangt
   „3 bis 6 Fachbegriffe in der Sprache des Gesetzes … keine Paragraphennummern“ und nennt keine Zielnormen.
   Prompt: `/tmp/b-uc1-review/prompt-llm.txt`.
 
 **Befehle.**
-- M4 (aus `uc1/`, nur lesend):
+- Rechner A (aus `uc1/`, nur lesend):
   - `uv run python /tmp/b-uc1-review/kandidaten.py` und `… kandidaten_llm.py` holen je Variante Volltext Top 50
     über `uc1.suche.suche(q, k=50, weg="volltext")`.
   - `… filter.py` läuft mit `SuchFilter(gesetze=…)`.
-- m5:
-  - `scp` der Datei `kandidaten.jsonl` (36 Zeilen) nach `~/scratch/b-uc1-review/`.
+- Rechner B:
+  - `scp` der Datei `kandidaten.jsonl` (36 Zeilen) nach `<arbeitsordner B>`.
   - `nohup sh run.sh` mit `rerank.py` (CrossEncoder, HF offline, `nice -n 5`, ein Prozess, batch 8).
 
 **Rohzahlen Volltext (Rang der ersten erwarteten Norm in Top 50; – = nicht unter 50).**
@@ -387,15 +387,15 @@ Maximum 2.003 ms. Aufgehobene §§ in den Top 5 vor dem Rerank: d02 1, d03 1, d0
   abgedeckt.
 - Haiku ist nicht das Produktionsmodell (gpt-5-4-mini).
 - Der Filter wurde von mir gesetzt, nicht aus einer echten Rückfrage abgeleitet.
-- Die Reranker-Latenz stammt von einem belasteten m5.
+- Die Reranker-Latenz stammt von einem belasteten Rechner B.
 
 ## 5. Nicht geprüft
 - Dichte und hybride Suche auf dem Vollkorpus (`lotse.vektor` = 0 zum Zeitpunkt der Messung).
 - Reranker mit erweiterter Anfrage als Query, mit `max_length` 1024 oder mit ganzem § statt Absatz. Den Lauf mit
-  1024 habe ich um 13:59 selbst beendet: Er hätte den Entscheid nicht geändert und konkurrierte auf m5 mit dem
+  1024 habe ich um 13:59 selbst beendet: Er hätte den Entscheid nicht geändert und konkurrierte auf Rechner B mit dem
   Indexlauf um MPS.
-- Reranker-Latenz auf der CPU des M4 (auf dem M4 bewusst nicht geladen; nur geschätzt, siehe D7).
-- Reranker-Latenz auf einem unbelasteten m5: Beide Läufe teilten MPS bzw. die CPU mit dem parallelen Indexlauf.
+- Reranker-Latenz auf der CPU von Rechner A (auf Rechner A bewusst nicht geladen; nur geschätzt, siehe D7).
+- Reranker-Latenz auf einem unbelasteten Rechner B: Beide Läufe teilten MPS bzw. die CPU mit dem parallelen Indexlauf.
 - Anfrage-Erweiterung mit gpt-5-4-mini über `plattform.llm` und deren Latenz je Anfrage.
 - Ob BPGG § 4 (ikra 2015) und die übrigen Fassungen dem heutigen RIS-Stand entsprechen. Der Korpus ist ein
   Schnappschuss; ich habe nur BPGG § 5 gegen eine externe Quelle gehalten.

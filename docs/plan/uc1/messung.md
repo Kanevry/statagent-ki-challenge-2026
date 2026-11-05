@@ -3,6 +3,7 @@
 - Zeitpunkt: 2026-11-05T14:52:27+01:00
 - Befehl: `lotse eval --nur-suche --weg volltext --erweiterung aus,thesaurus,llm --grep-grundlinie --ausgabe docs/plan/uc1/messung.md`
 - Blick 2 von 3 auf das Test-Set (testset-blicke.json)
+- Stand: 23c0d11, vor Persona-Änderung (28f97e0), mit diesem Stand nicht nachrechenbar (Stand-Zeile nachgetragen, Review !46)
 - Zählende Fälle (mit Korpusquelle, n=15): g02, g03, g05, g06, g07, g10, g18, g20, g21, g24a, g24b, g25, w01, s-pflege, s-casemanager
 - Intervall: Wilson 95 %. MRR über die ersten 10 Treffer (Rang darüber zählt 0).
 

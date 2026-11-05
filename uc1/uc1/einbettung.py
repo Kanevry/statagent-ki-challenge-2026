@@ -19,7 +19,7 @@ from unittest import mock
 
 MODELL_ID = "google/embeddinggemma-2"
 VOLLE_DIMENSION = 768
-# Token-Deckel je Text. Das Modell kann 8K, aber 8192 Tokens mit batch 32 belegten auf dem M4 (MPS) über
+# Token-Deckel je Text. Das Modell kann 8K, aber 8192 Tokens mit batch 32 belegten auf Rechner A (MPS) über
 # 14 GB Treiberspeicher und brachten den Rechner ins Swappen (#29). 512 Tokens decken laut Messung den
 # Großteil der Abschnitte ab; EMBED_MAX_TOKENS überschreibt den Wert für Vergleichsläufe.
 STANDARD_MAX_TOKENS = 512

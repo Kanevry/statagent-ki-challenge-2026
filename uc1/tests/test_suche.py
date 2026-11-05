@@ -50,9 +50,11 @@ def test_lange_frage_scheitert_nicht_an_und(conn: psycopg.Connection) -> None:
 
 
 @pytest.mark.daten
-def test_entscheidungsuebersichten_hinter_bpgg_4(conn: psycopg.Connection) -> None:
+def test_fall_7_bpgg_4_steht_vor_den_uebersichten_in_top_50(conn: psycopg.Connection) -> None:
     """Fängt fehlende Abwertung großer Sammeldokumente: die BPGG-Entscheidungsübersichten (ca. 940 KB)
-    dürfen BPGG § 4 nicht überholen."""
+    dürfen BPGG § 4 nicht überholen. Prüft nur die Reihenfolge in den Top 50, NICHT die AC „BPGG § 4 in
+    den Top 5“: Die ist verfehlt; laut messung.md (Blick 2, Fall g07) steht BPGG § 4 bei keiner Variante
+    unter den ersten 10 Treffern („–“)."""
     treffer = s.suche(FALL_7, k=50, conn=conn)
     plaetze = {t.zitierschluessel(): i for i, t in reversed(list(enumerate(treffer)))}
     assert "BPGG § 4" in plaetze

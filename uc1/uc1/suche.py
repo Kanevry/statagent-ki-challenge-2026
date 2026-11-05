@@ -18,7 +18,8 @@ beim Ingest) fallen in allen Wegen weg, außer mit mit_aufgehobenen=True (Review
 Dicht: Cosinus in numpy gegen lotse.vektor (google/embeddinggemma-2, SUCH_DIMENSION). Die Matrix lädt je
 Prozess und Verbindung einmal; Filter, Abwertung großer Sammeldokumente und eine Fassung je Paragraph gelten
 wie beim Volltext. Hybrid: Reciprocal Rank Fusion (k=60) aus Volltext und dicht auf Ebene der Abschnitte.
-Auto: hybrid, wenn Vektoren da sind (einmal je Prozess geprüft), sonst Volltext.
+Auto: volltext (Entscheid #29 nach dem gepaarten Dev-Vergleich, siehe weg_fuer und
+docs/plan/uc1/messung-dev.md).
 """
 
 from __future__ import annotations

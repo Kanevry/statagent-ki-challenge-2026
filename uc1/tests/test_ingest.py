@@ -94,6 +94,16 @@ def test_eko_latin1_und_zeilennummern() -> None:
     assert dok.meta["leerzeilen"] == 1
 
 
+def test_eko_trennt_nur_an_zeilenumbruch(tmp_path: Path) -> None:
+    """Fängt splitlines im EKO-Leser: Byte 0x85 (U+0085 in Latin-1) teilte eine Zeile und verschob alle
+    folgenden Zeilennummern (Review !46)."""
+    datei = tmp_path / "regeltext.txt"
+    datei.write_bytes(b"erste Zeile mit \x85 darin\r\nzweite Zeile\n")
+    dok = lies_eko(datei, tmp_path)
+    assert isinstance(dok, Dokument)
+    assert [a.zeile for a in dok.abschnitte] == [1, 2]
+
+
 def test_inhalts_hash_unabhaengig_von_reihenfolge() -> None:
     """Fängt einen globalen Hash, der von Lade- oder DB-Reihenfolge abhängt (zwei Läufe ungleich)."""
     zeilen = [("B", 0, "h2"), ("A", 1, "h1"), ("A", 0, "h0")]
@@ -173,3 +183,44 @@ def test_aufgehoben_im_eingelesenen_korpus() -> None:
         ).fetchone()
     assert zeilen == {"ASVG 206": True, "ASVG 253c": True, "BPGG 4": False, "ASVG 139": False}
     assert gesamt is not None and 1000 <= gesamt[0] <= 1200
+
+
+@pytest.mark.daten
+def test_voller_ingest_laesst_befund_zeilen_stehen() -> None:
+    """Fängt einen vollen Ingest, der mit TRUNCATE die ganze lotse.dokument leert und damit die
+    Upload-Demos (quelle='befund', #33) löscht, die nie eingelesen werden.
+
+    Läuft in einer eigenen, danach gelöschten Datenbank auf demselben Server, nie gegen `lotse`."""
+    import uuid
+
+    import psycopg
+    from psycopg.conninfo import conninfo_to_dict, make_conninfo
+
+    from uc1.config import datenbank_url
+    from uc1.db import init_schema
+
+    basis = conninfo_to_dict(datenbank_url())
+    name = f"lotse_test_{uuid.uuid4().hex[:12]}"
+    verwaltung = make_conninfo(**{**basis, "dbname": "postgres"})
+    try:
+        with psycopg.connect(verwaltung, autocommit=True) as admin:
+            admin.execute(f'CREATE DATABASE "{name}"')
+    except psycopg.OperationalError as fehler:
+        pytest.skip(f"keine Test-Datenbank anlegbar: {fehler}")
+    try:
+        with psycopg.connect(make_conninfo(**{**basis, "dbname": name})) as conn:
+            init_schema(conn)
+            conn.execute(
+                "INSERT INTO lotse.dokument (quelle, dokid, datei, inhalt_hash)"
+                " VALUES ('befund', 'Befunde/demo.pdf', 'Befunde/demo.pdf', 'x'),"
+                " ('sozdok', 'alt', 'Rechtstexte/alt.xml', 'y')"
+            )
+            conn.commit()
+            ingest.lade(conn, tuple(ingest.TEIL_QUELLEN), [_dok(BPGG)])
+            zeilen = conn.execute("SELECT quelle, dokid FROM lotse.dokument ORDER BY quelle").fetchall()
+            abschnitte = conn.execute("SELECT count(*) FROM lotse.abschnitt").fetchone()
+    finally:
+        with psycopg.connect(verwaltung, autocommit=True) as admin:
+            admin.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
+    assert zeilen == [("befund", "Befunde/demo.pdf"), ("sozdok", _dok(BPGG).dokid)]
+    assert abschnitte == (1,)

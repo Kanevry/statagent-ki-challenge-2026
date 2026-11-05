@@ -445,7 +445,9 @@ def lies_eko(pfad: Path, wurzel: Path, limit: int | None = None) -> Dokument | F
     übersprungen; die Zeilennummer bleibt die der Datei. In regeltext.txt und indtext.txt gibt es keine."""
     datei = pfad.relative_to(wurzel).as_posix()
     try:
-        zeilen = pfad.read_bytes().decode("latin-1").splitlines()
+        # Nur an \n trennen: splitlines trennte auch an U+0085 (cp1252-„…“ als Byte 0x85) und an
+        # \x0b/\x0c/\x1c-\x1e und verschöbe damit die Zeilennummern (Review !46). \r fällt in normalisiere.
+        zeilen = pfad.read_bytes().decode("latin-1").removesuffix("\n").split("\n")
     except OSError as fehler:
         return Fehler(datei, f"Datei nicht lesbar: {fehler}")
     abschnitte: list[Abschnitt] = []
@@ -494,13 +496,20 @@ def _dokument_zeilen(doks: Iterable[Dokument]) -> Iterator[tuple[object, ...]]:
 
 
 def lade(conn: psycopg.Connection, teile: tuple[Teil, ...], daten: list[Dokument | Fehler]) -> None:
-    """Leert die Zeilen der gewählten Teile und lädt neu, alles in einer Transaktion."""
+    """Leert die Zeilen der gewählten Teile und lädt neu, alles in einer Transaktion.
+
+    Gelöscht werden nur Dokumente der eingelesenen Quellen (Abschnitte über ON DELETE CASCADE), auch beim
+    vollen Ingest. Zeilen anderer Quellen, etwa `quelle='befund'` aus den Upload-Demos (#33), bleiben stehen.
+    Deshalb gibt es kein TRUNCATE … RESTART IDENTITY mehr: Die IDs von Dokument und Abschnitt sind über
+    Ingest-Läufe nicht stabil. Das ist gewollt; Vektoren hängen am `text_hash`, nicht an der ID.
+    """
     doks = [d for d in daten if isinstance(d, Dokument)]
     fehler = [f for f in daten if isinstance(f, Fehler)]
     quellen = [q for t in teile for q in TEIL_QUELLEN[t]]
     with conn.transaction(), conn.cursor() as cur:
         if set(teile) == set(TEIL_QUELLEN):
-            cur.execute("TRUNCATE lotse.ingest_fehler, lotse.abschnitt, lotse.dokument RESTART IDENTITY")
+            # ingest_fehler enthält nur Ingest-Zeilen, beim vollen Ingest also ganz leeren.
+            cur.execute("DELETE FROM lotse.ingest_fehler")
         else:
             # Fehlerzeilen tragen keine Quelle; zuordnen über den Ordner der Datei.
             ordner = [RECHTSTEXTE] if "sozdok" in teile else []
@@ -509,7 +518,7 @@ def lade(conn: psycopg.Connection, teile: tuple[Teil, ...], daten: list[Dokument
             cur.execute(
                 "DELETE FROM lotse.ingest_fehler WHERE split_part(datei, '/', 1) = ANY(%s)", (ordner,)
             )
-            cur.execute("DELETE FROM lotse.dokument WHERE quelle = ANY(%s)", (quellen,))  # CASCADE
+        cur.execute("DELETE FROM lotse.dokument WHERE quelle = ANY(%s)", (quellen,))  # CASCADE
         with cur.copy(
             "COPY lotse.dokument (quelle, dokid, datei, titel, gesetz, art, nummer, inkrafttreten,"
             " berkz, meta, inhalt_hash) FROM STDIN"

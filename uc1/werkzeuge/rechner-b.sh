@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# Hilfsskript für den Vollindex auf m5 (#29). Liegt auf m5 unter ~/scratch/b-uc1/m5.sh (per scp kopiert),
-# kein Checkout dort. Aufruf vom M4: ssh m5-remote 'bash ~/scratch/b-uc1/m5.sh <befehl>'.
+# Hilfsskript für den Vollindex auf Rechner B (Apple Silicon, #29). Liegt auf Rechner B im Arbeitsordner
+# (per scp kopiert, kein Checkout dort). Aufruf von Rechner A:
+#   ssh "$RECHNER_B" "ARBEITSORDNER_B=<arbeitsordner B> bash <arbeitsordner B>/rechner-b.sh <befehl>"
+# Umgebung (ohne Standardwert, nichts davon steht im Repo):
+#   RECHNER_B        SSH-Ziel von Rechner B (nur für Aufrufe von Rechner A aus, z. B. scp)
+#   ARBEITSORDNER_B  absoluter Arbeitsordner auf Rechner B (Pflicht für alle Befehle außer repo-packen)
 #
 # Befehle:
 #   entpacken       uc1-code.tgz nach uc1/, abschnitte.tgz nach vollindex/
@@ -11,21 +15,21 @@
 #   pg-start        Instanz starten (Log pg/server.log)
 #   pg-stop         Instanz anhalten (pg_ctl stop -m fast)
 #   pg-status       pg_ctl status samt PID
-#   ingest          lotse db-init und lotse ingest gegen die m5-DB, Ausgabe nach log/ingest.log
-#   import          Vektoren aus vollindex/ nach lotse.vektor der m5-DB, danach status
+#   ingest          lotse db-init und lotse ingest gegen die DB auf Rechner B, Ausgabe nach log/ingest.log
+#   import          Vektoren aus vollindex/ nach lotse.vektor der DB auf Rechner B, danach status
 #   hashliste       dokid, nr, text_hash je Abschnitt nach log/hashliste.tsv
-#   export          Export aus der m5-DB nach log/abschnitte-m5.jsonl samt Prüfsumme
-#   status          python -m uc1.vektoren status gegen die m5-DB
-#   repo-packen     NUR AUF DEM M4, im Checkout: git archive (HEAD) von pyproject.toml, uv.lock,
+#   export          Export aus der DB auf Rechner B nach log/abschnitte-b.jsonl samt Prüfsumme
+#   status          python -m uc1.vektoren status gegen die DB auf Rechner B
+#   repo-packen     NUR AUF RECHNER A, im Checkout: git archive (HEAD) von pyproject.toml, uv.lock,
 #                   .python-version, shared/py, uc1 plus geänderte und neue Dateien dieser Pfade
-#                   (ohne Ignoriertes) als uc1/laufzeit/repo.tar; danach per scp nach m5
+#                   (ohne Ignoriertes) als uc1/laufzeit/repo.tar; danach per scp nach Rechner B
 #   repo-entpacken  repo.tar nach repo/ (überschreibt), dann uv sync --package uc1 --extra embed
-#   messen ARGS     Suchmessung (werkzeuge/messen.py ARGS) aus repo/uc1 gegen die m5-DB, MPS, HF offline,
+#   messen ARGS     Suchmessung (werkzeuge/messen.py ARGS) aus repo/uc1 gegen die DB auf Rechner B, MPS, HF offline,
 #                   im Hintergrund; Log log/messen.log, PID log/messen.pid
 set -euo pipefail
 
 if [ "${1:-}" = "repo-packen" ]; then
-  # Läuft auf dem M4 im Checkout, nicht auf m5.
+  # Läuft auf Rechner A im Checkout, nicht auf Rechner B.
   WURZEL="$(git rev-parse --show-toplevel)"
   cd "$WURZEL"
   mkdir -p uc1/laufzeit
@@ -41,7 +45,7 @@ if [ "${1:-}" = "repo-packen" ]; then
   exit 0
 fi
 
-BASIS="$HOME/scratch/b-uc1"
+BASIS="${ARBEITSORDNER_B:?ARBEITSORDNER_B setzen (Arbeitsordner auf Rechner B)}"
 PGBIN=/opt/homebrew/opt/postgresql@18/bin
 PGDATA="$BASIS/pg"
 PORT=5434
@@ -137,23 +141,23 @@ case "${1:-}" in
     LOTSE_DATABASE_URL="$URL" "$PY" -m uc1.vektoren status
     ;;
   hashliste)
-    # dokid, nr, text_hash je Abschnitt, für den Vergleich mit dem M4 (Inhalts-Hash)
+    # dokid, nr, text_hash je Abschnitt, für den Vergleich mit Rechner A (Inhalts-Hash)
     PGPASSWORD=statistik "$PGBIN/psql" -h localhost -p $PORT -U statistik -d lotse -c \
       "\\copy (SELECT d.dokid, a.nr, a.text_hash, d.datei FROM lotse.abschnitt a JOIN lotse.dokument d ON d.id = a.dokument_id ORDER BY 1, 2) TO '$BASIS/log/hashliste.tsv'"
     wc -l log/hashliste.tsv
     ;;
   export)
-    # Export aus der m5-DB, zum Vergleich mit dem Export des M4 (gleiche Prüfsumme erwartet)
+    # Export aus der DB auf Rechner B, zum Vergleich mit dem Export von Rechner A (gleiche Prüfsumme erwartet)
     cd uc1
-    LOTSE_DATABASE_URL="$URL" "$PY" -m uc1.vektoren export --ausgabe "$BASIS/log/abschnitte-m5.jsonl"
-    shasum -a 256 "$BASIS/log/abschnitte-m5.jsonl"
+    LOTSE_DATABASE_URL="$URL" "$PY" -m uc1.vektoren export --ausgabe "$BASIS/log/abschnitte-b.jsonl"
+    shasum -a 256 "$BASIS/log/abschnitte-b.jsonl"
     ;;
   status)
     cd uc1
     LOTSE_DATABASE_URL="$URL" "$PY" -m uc1.vektoren status
     ;;
   *)
-    sed -n '2,23p' "$0"
+    sed -n '2,28p' "$0"
     exit 2
     ;;
 esac

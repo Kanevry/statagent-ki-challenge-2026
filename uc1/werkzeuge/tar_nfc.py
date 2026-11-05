@@ -1,9 +1,9 @@
-"""Korpus byte-genau zwischen M4 und m5 kopieren (#29).
+"""Korpus byte-genau zwischen Rechner A und Rechner B kopieren (#29).
 
-bsdtar auf macOS legte Dateinamen mit Umlaut („ÖGK …“) auf m5 als NFD an, auf dem M4 stehen sie als NFC.
-Weil `dokid` für PDFs der Dateipfad ist, wich dadurch der Inhalts-Hash ab, obwohl alle Text-Hashes gleich
-waren. Dieses Skript packt und entpackt mit Pythons tarfile, das Namen als Bytes übernimmt, und lässt
-AppleDouble-Dateien (`._*`) weg.
+bsdtar auf macOS legte Dateinamen mit Umlaut („ÖGK …“) auf Rechner B als NFD an, auf Rechner A stehen
+sie als NFC. Weil `dokid` für PDFs der Dateipfad ist, wich dadurch der Inhalts-Hash ab, obwohl alle
+Text-Hashes gleich waren. Dieses Skript packt und entpackt mit Pythons tarfile, das Namen als Bytes
+übernimmt, und lässt AppleDouble-Dateien (`._*`) weg.
 
     python -I werkzeuge/tar_nfc.py packen <verzeichnis> <archiv.tgz>
     python -I werkzeuge/tar_nfc.py entpacken <archiv.tgz> <zielverzeichnis>

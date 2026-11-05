@@ -1,7 +1,7 @@
 # Messung Dev-Set: Volltext gegen hybrid, Erweiterung aus / Thesaurus / LLM (#29, #30)
 
 Stand 2026-11-05. Dev-Set `uc1/eval/dev-set.yaml` (d01–d12 aus `review-architektur.md` § 4). Das Test-Set
-`lotse-set.yaml` wurde hier NICHT benutzt (Zähler `uc1/eval/testset-blicke.json` unverändert bei Blick 1).
+`lotse-set.yaml` wurde hier NICHT benutzt (Zähler damals `uc1/eval/testset-blicke.json`, heute `docs/plan/uc1/testset-blicke.json` unverändert bei Blick 1).
 
 ## Ergebnis und Empfehlung
 
@@ -23,7 +23,7 @@ Gepaart (B gegen A, Treffer in Top 5, exakter McNemar):
 Erweiterung verliert er knapp (insgesamt 2 : 4 über die drei Paare), ohne Erweiterung gewinnt er einen Fall. Kein
 Unterschied ist signifikant (n=12), ein Vorteil von hybrid ist damit aber auch nicht belegt. Hybrid kostet zusätzlich
 das Modell im Speicher, etwa 30 ms je Anfrage und einen Ladevorgang beim Start. Die Entscheidung trifft der
-Koordinator; `auto` ist im Code unverändert (hybrid, wenn Vektoren da sind).
+Koordinator; er hat so entschieden: `auto` ist im Code volltext (`weg_fuer` in `uc1/uc1/suche.py`).
 
 **Empfehlung Erweiterung:** Textpfad `llm` (blind erzeugt: 9/12, 47–91 %, 7 : 0 gegen aus, p = 0,016), mit dem
 Thesaurus als Rückfall, wie `erweitere()` ihn schon hat. Sprachpfad `thesaurus` (deterministisch, keine Latenz).
@@ -48,23 +48,23 @@ d03). Für den Sprachpfad braucht es eine Prüfung auf Fragen, die der Thesaurus
 
 ## Befehle
 
-Rechner A (M4), aus `uc1/`. `werkzeuge/messen.py` ruft `uc1.eval.cli` mit denselben Argumenten wie `lotse eval`:
+Rechner A, aus `uc1/`. `werkzeuge/messen.py` ruft `uc1.eval.cli` mit denselben Argumenten wie `lotse eval`:
 
 ```
 uv run python werkzeuge/messen.py --set eval/dev-set.yaml --erweiterung llm --nur-begriffe laufzeit/begriffe-llm.json
 uv run python werkzeuge/messen.py --nur-suche --set eval/dev-set.yaml --weg volltext \
   --erweiterung aus,thesaurus,datei:laufzeit/begriffe-llm.json --ausgabe laufzeit/dev-m4-volltext.md
-bash werkzeuge/m5.sh repo-packen          # Stand HEAD plus nicht committete Dateien
-scp laufzeit/repo.tar werkzeuge/m5.sh laufzeit/begriffe-llm.json <rechner B>:<arbeitsordner B>/
+bash werkzeuge/rechner-b.sh repo-packen          # Stand HEAD plus nicht committete Dateien
+scp laufzeit/repo.tar werkzeuge/rechner-b.sh laufzeit/begriffe-llm.json <rechner B>:<arbeitsordner B>/
 ```
 
-Rechner B (m5), Arbeitsordner ohne Checkout, PG 18 mit voll eingelesenem Korpus und 61.309 Vektoren je Dimension:
+Rechner B (Apple Silicon), Arbeitsordner ohne Checkout, `ARBEITSORDNER_B` gesetzt, PG 18 mit voll eingelesenem Korpus und 61.309 Vektoren je Dimension:
 
 ```
-bash m5.sh repo-entpacken                 # repo/, uv sync --package uc1 --extra embed
-bash m5.sh ingest                         # setzt meta.aufgehoben
-bash m5.sh messen --nur-suche --set eval/dev-set.yaml --weg volltext,hybrid \
-  --erweiterung aus,thesaurus,datei:<arbeitsordner B>/begriffe-llm.json --ausgabe <arbeitsordner B>/log/dev-m5.md
+bash rechner-b.sh repo-entpacken                 # repo/, uv sync --package uc1 --extra embed
+bash rechner-b.sh ingest                         # setzt meta.aufgehoben
+bash rechner-b.sh messen --nur-suche --set eval/dev-set.yaml --weg volltext,hybrid \
+  --erweiterung aus,thesaurus,datei:<arbeitsordner B>/begriffe-llm.json --ausgabe <arbeitsordner B>/log/dev-b.md
 ```
 
 `messen` setzt `EMBED_DEVICE=mps`, `HF_HUB_OFFLINE=1` und die URL der eigenen DB. Ein Prozess, Anfrage-Einbettung
@@ -77,7 +77,7 @@ batch 1.
   (dokid, nr, text_hash) und enthält `meta` nicht, das Flag geht also nicht ein. Die Vektoren hängen an
   `text_hash` und bleiben gültig.
 
-## Rechner A (M4), nur Volltext
+## Rechner A, nur Volltext
 
 - Zeitpunkt: 2026-11-05T14:47:38+01:00
 
@@ -89,10 +89,10 @@ batch 1.
 
 Die Ränge sind gleich wie auf Rechner B, die Volltext-Suche ist rechnerübergreifend deterministisch.
 
-## Rechner B (m5), Rohbericht
+## Rechner B, Rohbericht
 
 - Zeitpunkt: 2026-11-05T14:48:02+01:00
-- Befehl: `lotse eval --nur-suche --set eval/dev-set.yaml --weg volltext,hybrid --erweiterung aus,thesaurus,datei:<arbeitsordner B>/begriffe-llm.json --ausgabe <arbeitsordner B>/log/dev-m5.md`
+- Befehl: `lotse eval --nur-suche --set eval/dev-set.yaml --weg volltext,hybrid --erweiterung aus,thesaurus,datei:<arbeitsordner B>/begriffe-llm.json --ausgabe <arbeitsordner B>/log/dev-b.md`
 - Zählende Fälle (mit Korpusquelle, n=12): d01, d02, d03, d04, d05, d06, d07, d08, d09, d10, d11, d12
 - Intervall: Wilson 95 %. MRR über die ersten 10 Treffer (Rang darüber zählt 0).
 

@@ -6,7 +6,7 @@ Teilbefehle (aus `uc1/`, z. B. `uv run python prototyp/embedding_200.py auswahl`
                und `laufzeit/absaetze-200.jsonl` (mit Text, nicht committen).
 - `volltext`   nur PG (Schema `lotse_proto`), ohne Modell: Rangliste je Frage nach `laufzeit/volltext.json`.
 - `vergleich`  dicht (768 und 256 Dimensionen) und hybrid (RRF k=60) gegen die Volltext-Rangliste,
-               Rang der erwarteten Quelle je Golden-Frage, Recall@5 und MRR@10. Läuft auf m5 (#29).
+               Rang der erwarteten Quelle je Golden-Frage, Recall@5 und MRR@10. Läuft auf Rechner B (#29).
 - `messung`    Ladezeit, Spitzen-RAM, Durchsatz und Anfrage-Latenz je Gerät, jeweils in frischen Prozessen.
 - `zaehlung`   Abschnitte im ganzen Korpus nach derselben Einheit, als Grundlage der Hochrechnung.
 
@@ -40,7 +40,7 @@ ZIEL = 200
 ANZAHL_HART = 60  # harte Nachbarn: andere §§ aus BPGG und ASVG
 RRF_K = 60
 DIMENSIONEN = (768, 256)
-BATCH = 8  # Koordinator-Vorgabe nach dem Swap-Vorfall auf dem M4 (#29)
+BATCH = 8  # Koordinator-Vorgabe nach dem Swap-Vorfall auf Rechner A (#29)
 NICHT_TEXT = {"inhaltsvz", "aendprot", "layoutdaten"}
 
 FRAGEN: list[dict[str, str]] = [
