@@ -221,7 +221,7 @@ def freigabe_commits(repo: Path | str) -> list[dict[str, str]]:
 def export_md(conn: psycopg.Connection, repo: Path | str, uc: str | None = None) -> str:
     """``protokoll.md``: je Freigabe-Commit, je Ablehnung und je ``meta.protokoll``-Eintrag eine Zeile.
 
-    Mit ``uc`` zählen nur Commits, deren Trailer ``Vorschlag`` auf einen Eintrag dieses UC zeigt.
+    Mit ``uc`` zählen nur Commits, deren Trailer ``Vorschlag: <uc>/<id>`` auf einen Eintrag dieses UC zeigt.
     """
     eintraege = conn.execute(
         "SELECT id, zeit, uc, akteur, name, anweisung, wirkung, status, modell, provider, ref, commit_hash"
@@ -230,7 +230,7 @@ def export_md(conn: psycopg.Connection, repo: Path | str, uc: str | None = None)
     ).fetchall()
     commits = freigabe_commits(repo)
     if uc is not None:
-        eigene = {str(e[0]) for e in eintraege}
+        eigene = {f"{uc}/{e[0]}" for e in eintraege}  # Trailer Vorschlag: <uc>/<id>
         commits = [c for c in commits if {v.strip() for v in c["vorschlag"].split(",")} & eigene]
     ablehnungen = conn.execute(
         "SELECT f.protokoll_id, f.zeitpunkt, p.anweisung, f.name, f.begruendung FROM meta.freigabe f"

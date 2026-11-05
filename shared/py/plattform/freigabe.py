@@ -1,7 +1,8 @@
 """Freigabe durch einen Menschen (Vertrag P, Issue #55).
 
 ``freigeben`` schreibt ``meta.freigabe``, setzt den Vorschlag in ``meta.protokoll`` auf ``freigegeben``
-und legt den Git-Commit mit den Trailern ``Freigegeben-von``, ``Vorschlag`` und ``Modell`` an, alles in einer
+und legt den Git-Commit mit den Trailern ``Freigegeben-von``, ``Vorschlag`` (``<uc>/<id>``: die ID ist nur je
+UC-Datenbank eindeutig, das Repo teilen alle UCs) und ``Modell`` an, alles in einer
 DB-Transaktion: scheitert Git, wird die DB zurückgerollt. Ein Dateilock im Git-Verzeichnis serialisiert
 parallele Freigaben auf dasselbe Repo. ``ablehnen`` arbeitet analog ohne Commit.
 
@@ -134,17 +135,23 @@ def _repo_lock(repo_pfad: Path | str) -> Iterator[None]:
 
 def _offener_vorschlag(
     conn: psycopg.Connection, vorschlag_id: int
-) -> tuple[str, str | None, str | None, str | None, str | None]:
+) -> tuple[str, str, str | None, str | None, str | None, str | None]:
+    """(uc, anweisung, modell, provider, vorschlag_typ, ref) des offenen Vorschlags, mit FOR UPDATE."""
     zeile = conn.execute(
-        "SELECT anweisung, modell, provider, vorschlag_typ, ref, status FROM meta.protokoll"
+        "SELECT uc, anweisung, modell, provider, vorschlag_typ, ref, status FROM meta.protokoll"
         " WHERE id = %s FOR UPDATE",
         (vorschlag_id,),
     ).fetchone()
     if zeile is None:
         raise VorschlagUngueltig(f"Vorschlag {vorschlag_id} existiert nicht")
-    if zeile[5] != "offen":
-        raise VorschlagUngueltig(f"Vorschlag {vorschlag_id} ist {zeile[5]}, nicht offen")
-    return zeile[0], zeile[1], zeile[2], zeile[3], zeile[4]
+    if zeile[6] != "offen":
+        raise VorschlagUngueltig(f"Vorschlag {vorschlag_id} ist {zeile[6]}, nicht offen")
+    return zeile[0], zeile[1], zeile[2], zeile[3], zeile[4], zeile[5]
+
+
+def vorschlag_kennung(uc: str, vorschlag_id: int) -> str:
+    """Repo-weit eindeutige Kennung für den Trailer ``Vorschlag`` (z. B. ``uc3/7``)."""
+    return f"{uc}/{vorschlag_id}"
 
 
 def _objekt_typ(angegeben: str | None, vorschlag_typ: str | None) -> str | None:
@@ -161,8 +168,8 @@ def _einzeilig(wert: str | None) -> str:
     return " ".join((wert or "keins").split()) or "keins"
 
 
-def _vorhandener_commit(repo_pfad: Path | str, vorschlag_id: int) -> str | None:
-    """Commit, der schon den Trailer ``Vorschlag: <id>`` trägt (Wiederholung nach DB-Fehler), sonst None."""
+def _vorhandener_commit(repo_pfad: Path | str, kennung: str) -> str | None:
+    """Commit mit Trailer ``Vorschlag: <uc>/<id>`` (Wiederholung nach DB-Fehler), sonst None."""
     try:
         _git(repo_pfad, "rev-parse", "--verify", "-q", "HEAD")
     except GitFehler:
@@ -170,7 +177,7 @@ def _vorhandener_commit(repo_pfad: Path | str, vorschlag_id: int) -> str | None:
     ausgabe = _git(repo_pfad, "log", "--format=%H %(trailers:key=Vorschlag,valueonly,separator=%x2C)")
     for zeile in ausgabe.splitlines():
         hash_, _, werte = zeile.partition(" ")
-        if str(vorschlag_id) in {w.strip() for w in werte.split(",")}:
+        if kennung in {w.strip() for w in werte.split(",")}:
             return hash_
     return None
 
@@ -229,7 +236,8 @@ def freigeben(
     name = pruefe_name(name)
     _pruefe_autocommit(conn)
     with _repo_lock(repo_pfad), conn.transaction():
-        anweisung, modell, provider, vorschlag_typ, ref = _offener_vorschlag(conn, vorschlag_id)
+        uc, anweisung, modell, provider, vorschlag_typ, ref = _offener_vorschlag(conn, vorschlag_id)
+        kennung = vorschlag_kennung(uc, vorschlag_id)
         typ = _objekt_typ(objekt_typ, vorschlag_typ)
         if typ is None:
             raise ValueError("objekt_typ fehlt und vorschlag_typ ist keiner von " + ", ".join(OBJEKT_TYPEN))
@@ -237,14 +245,14 @@ def freigeben(
         if typ == "datei" and not ziel_ref:
             raise ValueError("objekt_typ datei braucht objekt_ref (Pfad relativ zum Repo)")
         freigabe = _freigabe_schreiben(conn, vorschlag_id, name, "ja", None, typ, ziel_ref)
-        commit_hash = _vorhandener_commit(repo_pfad, vorschlag_id)
+        commit_hash = _vorhandener_commit(repo_pfad, kennung)
         if commit_hash is None:
             betreff = " ".join(anweisung.split())
             trailer = [
                 "--trailer",
                 f"Freigegeben-von: {name}",
                 "--trailer",
-                f"Vorschlag: {vorschlag_id}",
+                f"Vorschlag: {kennung}",
                 "--trailer",
                 f"Modell: {_einzeilig(modell)}@{_einzeilig(provider)}",
             ]
@@ -283,7 +291,7 @@ def ablehnen(
     if not begruendung or not begruendung.strip():
         raise ValueError("Ablehnung braucht eine Begründung")
     with conn.transaction():
-        _, _, _, vorschlag_typ, ref = _offener_vorschlag(conn, vorschlag_id)
+        _, _, _, _, vorschlag_typ, ref = _offener_vorschlag(conn, vorschlag_id)
         return _freigabe_schreiben(
             conn,
             vorschlag_id,

@@ -104,7 +104,7 @@ def test_freigeben_schreibt_db_und_commit(conn, repo):
     assert _git(repo, "log", "-1", "--format=%s") == "X"
     assert _git(repo, "log", "-1", "--format=%(trailers)").splitlines() == [
         "Freigegeben-von: Bernhard Götzendorfer",
-        f"Vorschlag: {vorschlag_id}",
+        f"Vorschlag: test/{vorschlag_id}",
         "Modell: gpt-5-mini@azure",
     ]
     assert _git(repo, "show", "--name-only", "--format=", "HEAD").splitlines() == [ref]
@@ -142,13 +142,30 @@ def test_fremd_gestagtes_bleibt_draussen(conn, repo):
 def test_wiederholung_legt_keinen_zweiten_commit_an(conn, repo):
     """Fängt: zweiter Commit für denselben Vorschlag nach abgebrochener DB-Transaktion."""
     vorschlag_id = _vorschlag(conn)
-    _git(repo, "commit", "--allow-empty", "-q", "-m", "früher", "--trailer", f"Vorschlag: {vorschlag_id}")
+    _git(
+        repo, "commit", "--allow-empty", "-q", "-m", "früher", "--trailer", f"Vorschlag: test/{vorschlag_id}"
+    )
     vorher = _git(repo, "rev-parse", "HEAD")
 
     freigabe = freigeben(conn, vorschlag_id, "Bernhard Götzendorfer", repo)
 
     assert _commits(repo) == 1
     assert freigabe.commit_hash == vorher
+
+
+def test_gleiche_id_anderer_uc_wird_nicht_wiederverwendet(conn, repo):
+    """Fängt: der Commit eines anderen UC mit derselben ID wird wiederverwendet, die Datei nie committet."""
+    ref = f"uc3/erzeugt/{uuid.uuid4()}.py"
+    (repo / ref).parent.mkdir(parents=True)
+    (repo / ref).write_text("print('uc3')\n", encoding="utf-8")
+    vorschlag_id = _vorschlag(conn, ref=ref)
+    _git(repo, "commit", "--allow-empty", "-q", "-m", "uc1", "--trailer", f"Vorschlag: uc1/{vorschlag_id}")
+
+    freigeben(conn, vorschlag_id, "Bernhard Götzendorfer", repo, objekt_typ="datei")
+
+    assert _commits(repo) == 2
+    assert _git(repo, "show", "--name-only", "--format=", "HEAD").splitlines() == [ref]
+    assert pruefe_freigegeben(conn, ref, repo) == vorschlag_id
 
 
 def test_verbindung_ohne_autocommit_wird_abgelehnt(repo):
