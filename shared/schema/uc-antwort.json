@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Beleg": {
+      "additionalProperties": false,
+      "description": "Herkunft einer Aussage, z. B. ``uc=\"uc3\"``, ``quelle=\"stat.beschaeftigte\"``, ``lieferung=\"2025-03\"``.\n\n``uc`` ist der UC, der den Beleg geliefert hat; zitiert UC2 eine UC3-Zahl, bleibt ``uc=\"uc3\"``. UC3 nennt\nzusätzlich ``regelstand`` (Version des Regelsatzes aus ``meta.regel``), ``lauf``\n(``meta.lauf.ergebnis_hash``) und ``stand``, damit alte und neue Regeln unterscheidbar bleiben und ein\nvorläufiger Monat nicht als feste Zahl weiterläuft.",
+      "properties": {
+        "uc": {
+          "enum": [
+            "uc1",
+            "uc2",
+            "uc3"
+          ],
+          "title": "Uc",
+          "type": "string"
+        },
+        "quelle": {
+          "title": "Quelle",
+          "type": "string"
+        },
+        "lieferung": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lieferung"
+        },
+        "monat": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Monat"
+        },
+        "sql": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sql"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref"
+        },
+        "regelstand": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Regelstand"
+        },
+        "lauf": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lauf"
+        },
+        "stand": {
+          "anyOf": [
+            {
+              "enum": [
+                "endgueltig",
+                "vorlaeufig"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stand"
+        }
+      },
+      "required": [
+        "uc",
+        "quelle"
+      ],
+      "title": "Beleg",
+      "type": "object"
+    },
+    "Zahl": {
+      "additionalProperties": false,
+      "description": "Eine Zahl der Antwort; ``beleg`` ist der Index in ``UcAntwort.belege``.",
+      "properties": {
+        "bezeichnung": {
+          "title": "Bezeichnung",
+          "type": "string"
+        },
+        "wert": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Wert"
+        },
+        "einheit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Einheit"
+        },
+        "beleg": {
+          "title": "Beleg",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "bezeichnung",
+        "wert",
+        "beleg"
+      ],
+      "title": "Zahl",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Antwort eines Use Case in der UC4-Kette (Schema: ``shared/schema/uc-antwort.json``).",
+  "properties": {
+    "text": {
+      "title": "Text",
+      "type": "string"
+    },
+    "belege": {
+      "items": {
+        "$ref": "#/$defs/Beleg"
+      },
+      "title": "Belege",
+      "type": "array"
+    },
+    "zahlen": {
+      "items": {
+        "$ref": "#/$defs/Zahl"
+      },
+      "title": "Zahlen",
+      "type": "array"
+    },
+    "uc": {
+      "enum": [
+        "uc1",
+        "uc2",
+        "uc3"
+      ],
+      "title": "Uc",
+      "type": "string"
+    },
+    "modell": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Modell"
+    },
+    "protokoll_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Protokoll Id"
+    }
+  },
+  "required": [
+    "text",
+    "belege",
+    "zahlen",
+    "uc"
+  ],
+  "title": "UcAntwort",
+  "type": "object"
+}

@@ -1,0 +1,33 @@
+# Caddy der Online-Demo (#68): öffentlich ohne Passwort, TLS automatisch (Let's Encrypt), Inhalt per Env umschaltbar.
+{
+	servers {
+		# nur HTTP/1.1 und HTTP/2; HTTP/3 bräuchte UDP 443, das die Demo nicht anbietet
+		protocols h1 h2
+	}
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Ohne Löschung im selben Block setzt Caddy die Header sofort, damit stehen sie auch auf Fehlerantworten (404, 502).
+	# Ein Block mit "-Feld" wird aufgeschoben und fehlt dort (gemessen 05.11.2026).
+	header {
+		Strict-Transport-Security "max-age=2592000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), geolocation=(), payment=()"
+		# Demo zum Ausprobieren, keine Suchmaschinen-Seite: nicht indexieren
+		X-Robots-Tag "noindex, nofollow"
+	}
+	header -Server
+
+	# Online-Demo ist lesend (#68): nur GET und HEAD. Das sperrt Freigabe-POSTs, Modellaufrufe und Next Server
+	# Actions an der Kante, bevor sie die App erreichen. Eine Ausnahme (etwa Voice) braucht einen eigenen Matcher.
+	@schreibend not method GET HEAD
+	respond @schreibend "Die Online-Demo ist lesend." 403
+
+	# platzhalter.caddy (statische Seite) oder app.caddy (Next.js-Web), umschaltbar über INHALT;
+	# ein unbekannter Wert lässt Caddy nicht starten (fail-closed)
+	import /etc/caddy/inhalt/{$INHALT}.caddy
+}
