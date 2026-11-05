@@ -174,9 +174,10 @@ def _norm_schluessel(nummer: str) -> tuple[int, str]:
     return (int(m.group(1)), m.group(2)) if m else (-1, "")
 
 
-def leistung_der_norm(gesetz: str | None, nummer: str | None) -> list[str]:
-    """Leistungen, zu deren ``normen`` (leistungen.yaml) die Norm gehört; leer für fremde Normen und PDFs."""
-    if not gesetz or not nummer:
+def leistung_der_norm(gesetz: str | None, nummer: str | None, art: str | None = "PARA") -> list[str]:
+    """Leistungen, zu deren ``normen`` (leistungen.yaml) der Paragraph gehört; leer für fremde Normen, andere
+    Gliederungsarten (Anlage, Artikel) und PDFs."""
+    if not gesetz or not nummer or (art or "").upper() != "PARA":
         return []
     schluessel = _norm_schluessel(nummer)
     if schluessel[0] < 0:
@@ -193,21 +194,30 @@ def leistung_der_norm(gesetz: str | None, nummer: str | None) -> list[str]:
 
 
 def stellen_der_antwort(
-    aussagen: Sequence[Aussage], status: str | None
+    aussagen: Sequence[Aussage], status: str | None, erkannt: Sequence[str] = ()
 ) -> tuple[list[str], list[dict[str, str]]]:
     """Leistungen, die die geprüften Aussagen tragen (über ihre zitierten Normen), und deren Stellen (#155).
 
-    Fehlt der Status, folgt er aus dem Gesetz der zitierten Norm (``status_aus_gesetz`` in traeger.yaml); ein
-    genannter Status geht vor. Liefert ([], []), wenn keine Aussage eine Norm einer Leistung zitiert."""
+    Fehlt der Status, folgt er aus dem Gesetz der zitierten Normen (``status_aus_gesetz`` in traeger.yaml),
+    aber nur, wenn alle zitierten Gesetze der Leistung auf denselben Status zeigen (ASVG und GSVG: offen).
+    Ein genannter Status geht vor. Leistungen mit ``nur_regel`` zählen nur, wenn ein Auslöser sie erkannt hat:
+    Eine zitierte Unfallnorm macht einen Sturz nicht zum Arbeitsunfall (Aufnahme v8, Review !155).
+    Liefert ([], []), wenn keine Aussage eine Norm einer Leistung zitiert."""
     aus_gesetz: dict[str, str] = traeger_tabelle().get("status_aus_gesetz") or {}
-    getragen: dict[str, str | None] = {}
+    gesetze: dict[str, set[str]] = {}
     for a in aussagen:
-        gesetz, nummer = a.treffer.get("gesetz"), a.treffer.get("nummer")
-        for lid in leistung_der_norm(gesetz, nummer):
-            if lid not in getragen or getragen[lid] is None:
-                getragen[lid] = status or aus_gesetz.get(str(gesetz))
-    stellen = [s for lid, st in getragen.items() if (s := zustaendige_stelle(lid, st))]
-    return list(getragen), stellen
+        gesetz = a.treffer.get("gesetz")
+        for lid in leistung_der_norm(gesetz, a.treffer.get("nummer"), a.treffer.get("art")):
+            if leistungen()[lid].get("nur_regel") and lid not in erkannt:
+                continue
+            gesetze.setdefault(lid, set()).add(str(gesetz))
+    stellen = []
+    for lid, gs in gesetze.items():
+        abgeleitet = {aus_gesetz.get(g) for g in gs}
+        st = status or (abgeleitet.pop() if len(abgeleitet) == 1 else None)
+        if (stelle := zustaendige_stelle(lid, st)) is not None:
+            stellen.append(stelle)
+    return list(gesetze), stellen
 
 
 def regel_analyse(text: str) -> tuple[list[str], dict[str, str]]:
@@ -1654,8 +1664,9 @@ def frage(
     elif aussagen:
         # Die Stelle folgt aus der Leistung, deren Normen die Antwort zitiert, nicht aus einer erkannten
         # Nachbarleistung (#155). Zitiert keine Aussage eine Norm einer Leistung oder hat keine davon eine
-        # Stelle (Status offen), bleibt es bei der Analyse.
-        getragen, stellen = stellen_der_antwort(aussagen, angaben.get("status"))
+        # Stelle (Status offen), bleibt es bei der Analyse. Bewusst: Eine Leistung, die nur über ein PDF-Zitat
+        # vorkommt, bringt ihre Stelle dann nicht mit; die Antwort nennt die Stelle der zitierten Norm.
+        getragen, stellen = stellen_der_antwort(aussagen, angaben.get("status"), erkannt)
         if getragen and stellen:
             antwort.leistungen = list(dict.fromkeys([*erkannt, *getragen]))
             antwort.antraege = [

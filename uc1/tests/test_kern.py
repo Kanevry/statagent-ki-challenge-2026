@@ -1203,34 +1203,43 @@ def test_stelle_folgt_aus_der_zitierten_leistung(monkeypatch: pytest.MonkeyPatch
 
 
 def test_stelle_der_zitierten_leistung_auch_ohne_erkannte_leistung(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fängt eine Antwort aus der Unfallversicherung (ASVG § 175) ohne Stelle, weil kein Auslöser die
-    Leistung erkannt hatte (Dev-Set x12): Die AUVA steht dann mit Fundstelle da."""
+    """Fängt eine Antwort aus dem Krankengeld (ASVG § 141) ohne Stelle, weil kein Auslöser die Leistung
+    erkannt hatte: Die ÖGK steht dann mit Fundstelle da (#155, Nennt die Antwort keine Stelle …)."""
     regeln = kern.deckung_regeln() | {"schwelle": 0.0}
     monkeypatch.setattr(kern, "deckung_regeln", lambda: regeln)
-    asvg_175 = treffer(
-        401,
-        "§ 175. (1) Arbeitsunfälle sind Unfälle, die sich im örtlichen, zeitlichen und ursächlichen "
-        "Zusammenhang mit der die Versicherung begründenden Beschäftigung ereignen.",
+    asvg_141 = treffer(
+        402,
+        "§ 141. (1) Das Krankengeld gebührt in der Höhe von 50 vom Hundert der Bemessungsgrundlage für den "
+        "Kalendertag.",
         gesetz="ASVG",
-        nummer="175",
+        nummer="141",
     )
     aussage = {
-        "text": "Ein Arbeitsunfall ist ein Unfall im Zusammenhang mit der versicherten Beschäftigung.",
-        "abschnitt_id": 401,
-        "zitat": "Arbeitsunfälle sind Unfälle, die sich im örtlichen, zeitlichen und ursächlichen "
-        "Zusammenhang mit der die Versicherung begründenden Beschäftigung ereignen.",
+        "text": "Das Krankengeld beträgt die Hälfte der Bemessungsgrundlage für jeden Kalendertag.",
+        "abschnitt_id": 402,
+        "zitat": "Das Krankengeld gebührt in der Höhe von 50 vom Hundert der Bemessungsgrundlage für den "
+        "Kalendertag.",
     }
     leer = {"lage": "", "leistungen": [], "angaben": {}, "begriffe": []}
-    modell = Skript([leer], [antwort_mit(aussage)])
     a = kern.frage(
-        "Ich bin in der Mittagspause ausgerutscht. Zählt das?",
-        modell=modell,
-        suche_fn=FesteSuche([asvg_175]),
+        "Wie viel Geld bekomme ich, wenn ich länger ausfalle? Ich bin angestellt.",
+        modell=Skript([leer], [antwort_mit(aussage)]),
+        suche_fn=FesteSuche([asvg_141]),
         speicher=kern.SpeicherImSpeicher(),
     )
     assert a.verhalten == "antwort", a.text
-    assert [(s["stelle"], s["fundstelle"]) for s in a.traeger] == [("AUVA", "ASVG § 28 Z 1")]
-    assert "unfallversicherung" in a.leistungen
+    assert [(s["stelle"], s["fundstelle"]) for s in a.traeger] == [("OEGK", "ASVG § 138")]
+    assert "krankengeld" in a.leistungen
+
+
+def test_zitierte_unfallnorm_macht_keinen_arbeitsunfall() -> None:
+    """Fängt die AUVA, die über eine zitierte Unfallnorm (ASVG § 175) ohne Auslöser kommt: `nur_regel` soll
+    genau das verhindern (Sturz im Spital, Aufnahme v8; Review !155)."""
+    assert kern.stellen_der_antwort([_aussage_aus("ASVG", "175")], "angestellt") == ([], [])
+    getragen, stellen = kern.stellen_der_antwort(
+        [_aussage_aus("ASVG", "175")], "angestellt", ["unfallversicherung"]
+    )
+    assert getragen == ["unfallversicherung"] and [s["stelle"] for s in stellen] == ["AUVA"]
 
 
 def _aussage_aus(gesetz: str, nummer: str) -> kern.Aussage:
@@ -1242,7 +1251,7 @@ def _aussage_aus(gesetz: str, nummer: str) -> kern.Aussage:
         stand=None,
         betrag=False,
         hinweis_hoehe=False,
-        treffer={"gesetz": gesetz, "nummer": nummer},
+        treffer={"gesetz": gesetz, "nummer": nummer, "art": "PARA"},
     )
 
 
@@ -1261,6 +1270,16 @@ def test_status_aus_dem_gesetz_der_zitierten_norm(
     """Fängt eine Antwort ohne Stelle, weil der Status offen blieb, obwohl die zitierte Norm ihn festlegt."""
     _, stellen = kern.stellen_der_antwort([_aussage_aus(gesetz, nummer)], status)
     assert [s["stelle"] for s in stellen] == [stelle]
+
+
+def test_ohne_status_keine_stelle_bei_gemischten_gesetzen() -> None:
+    """Fängt „Zuständig: ÖGK“ für Krankengeld, wenn die Antwort ASVG und GSVG zitiert und der Status offen
+    ist: Für Selbständige wäre die ÖGK falsch, also keine Stelle (Review !155)."""
+    zitate = [_aussage_aus("ASVG", "141"), _aussage_aus("GSVG", "106")]
+    assert kern.stellen_der_antwort(zitate, None) == (["krankengeld"], [])
+    assert kern.stellen_der_antwort([_aussage_aus("BPGG", "4"), _aussage_aus("ANL", "1")], "pva")[0] == [
+        "pflegegeld"
+    ]
 
 
 def test_zweiter_versuch_wenn_die_pruefung_alles_verwirft() -> None:

@@ -34,12 +34,13 @@ vorpruefung:
       - '\b(?:ich habe|habe ich|er hat|hat er|sie hat|hat sie) (?:\w+ )?einen herzinfarkt'
       - 'bewusstlos'
       - 'ohnm(?:ä|a)cht'
-      # Schlaganfall nur akut: Das Fenster endet am Satzende und an „und“, sonst wäre „hatte einen Schlaganfall und
-      # braucht jetzt den ganzen Tag Hilfe“ ein Notfall statt einer Pflegefrage (Dev-Set x03, #155). Die Gegenwart
-      # („er hat einen Schlaganfall“) greift wie beim Herzinfarkt immer.
-      - 'schlaganfall(?:(?!\bund\b)[^.;!?]){0,30}\b(?:jetzt|gerade|akut|soeben)\b'
+      # Schlaganfall nur akut. Ein vergangener („hatte einen Schlaganfall und braucht jetzt Hilfe“, „nach dem
+      # Schlaganfall“) ist eine Pflegefrage (Dev-Set x03, #155); die Sperre gilt nur für diese Vergangenheitsformen,
+      # „Verdacht auf Schlaganfall und jetzt …“ bleibt Notfall (Review !155). Die Gegenwart („er hat einen
+      # Schlaganfall“) greift immer, außer im Perfekt („gehabt“, „erlitten“).
+      - '(?<!hatte einen )(?<!nach dem )(?<!nach einem )schlaganfall(?!\s+(?:gehabt|erlitten)).{0,30}(?:jetzt|gerade|akut|soeben)'
       - '(?:jetzt|gerade|akut|soeben).{0,30}schlaganfall'
-      - '\b(?:ich habe|habe ich|er hat|hat er|sie hat|hat sie) (?:\w+ )?einen schlaganfall'
+      - '\b(?:ich habe|habe ich|er hat|hat er|sie hat|hat sie) (?:\w+ )?einen schlaganfall(?!\s+(?:gehabt|erlitten))'
       - 'umbringen'
       - 'suizid'
       - 'nicht mehr leben'
