@@ -160,10 +160,12 @@ def _dict(conn: Verbindung, abfrage: str, parameter: tuple[object, ...] = ()) ->
     }
 
 
-def _unbekannt_codes(conn: Verbindung) -> dict[tuple[str, str], str]:
-    """Code für „unbekannt“ je (Merkmal, Version) laut stat.quellzuordnung (geliefert '<leer>')."""
+def _unbekannt_codes(conn: Verbindung, regelsatz: str) -> dict[tuple[str, str], str]:
+    """Code für „unbekannt“ je (Merkmal, Version) laut stat.quellzuordnung des Regelsatzes (geliefert '<leer>')."""
     zeilen = conn.execute(
-        "SELECT merkmal, version, code FROM stat.quellzuordnung WHERE geliefert = '<leer>' ORDER BY 1, 2"
+        """SELECT merkmal, version, code FROM stat.quellzuordnung
+           WHERE regelsatz = %s AND geliefert = '<leer>' ORDER BY 1, 2""",
+        (regelsatz,),
     ).fetchall()
     return {(str(z["merkmal"]), str(z["version"])): str(z["code"]) for z in zeilen}
 
@@ -222,7 +224,7 @@ def sheet_schreiben(
     wb = load_workbook(vorlage)
 
     monate = _gerechnete_monate(conn, regelsatz)
-    unbekannt = _unbekannt_codes(conn)
+    unbekannt = _unbekannt_codes(conn, regelsatz)
     qual_kategorie = {
         str(z["code"]): str(z["beschaeftigungskategorie"])
         for z in conn.execute(

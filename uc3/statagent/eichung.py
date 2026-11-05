@@ -98,7 +98,7 @@ class Klassen:
     oenace_unbekannt: frozenset[str]
 
 
-def klassen_laden(conn: Verbindung) -> Klassen:
+def klassen_laden(conn: Verbindung, regelsatz: str = "v1") -> Klassen:
     qualifikation = {
         str(z["code"]): str(z["beschaeftigungskategorie"])
         for z in conn.execute(
@@ -123,7 +123,9 @@ def klassen_laden(conn: Verbindung) -> Klassen:
     unbekannt = frozenset(
         str(z["code"])
         for z in conn.execute(
-            "SELECT DISTINCT code FROM stat.quellzuordnung WHERE merkmal = 'oenace' AND geliefert = '<leer>'"
+            """SELECT DISTINCT code FROM stat.quellzuordnung
+               WHERE regelsatz = %s AND merkmal = 'oenace' AND geliefert = '<leer>'""",
+            (regelsatz,),
         ).fetchall()
     )
     return Klassen(qualifikation, region, alter, unbekannt)
@@ -293,7 +295,7 @@ def eichen(
     regelsatz: str = "v1",
 ) -> Eichergebnis:
     """Vergleicht die Monatswerte der Lieferung zellenweise mit dem Beispielbericht."""
-    klassen = klassen_laden(conn)
+    klassen = klassen_laden(conn, regelsatz)
     agg = ist_aus_zeilen(monatswerte(conn, lieferung, regelsatz), klassen)
     zellen = [Zelle(s.blatt, s.zelle, s.soll, agg.summe(s.spec)) for s in soll_zellen(xlsx_pfad)]
     return Eichergebnis(lieferung, zellen)

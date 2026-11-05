@@ -69,7 +69,7 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
 
 ('v1', 'R2_R4_stichtag_eigene_lieferung', 'zaehl', 'bestand', 10,
  '{"zeitraum_art": "Stichtag", "von": "monatsletzter", "bis": "monatsletzter", "lieferung": "eigene", "variable": "Beschaeftigungsverhaeltnisse"}',
- 'Ein Verhältnis zählt im Berichtsmonat, wenn ein Zeitabschnitt am Stichtag (Monatsletzter) besteht: BEGINN ≤ Stichtag und ENDE leer oder ≥ Stichtag. Gerechnet wird aus der Lieferung des Berichtsmonats.',
+ 'Ein Verhältnis zählt im Berichtsmonat, wenn ein Zeitabschnitt am Stichtag (Monatsletzter) besteht: BEGINN ≤ Stichtag und ENDE leer oder ≥ Stichtag. Gerechnet wird aus der Lieferung des Berichtsmonats. Fehlen dort belegt Verhältnisse (Lieferausfall), ergänzt die Einleseregel E07 sie einmalig aus der Vorlieferung; sie zählen mit, stehen als fortgeschrieben getrennt im Qualitätsbericht, und der Monat bleibt vorläufig. Spätere Lieferungen werden nie verwendet.',
  'Fachbeschreibung § 4 Nr. 1, 2, 4. 2024-08: 392.284 Sätze − 48 mit Ende vor dem 31.08. = 392.236 = Beispielbericht Tab1.',
  'Fachbeschreibung § 4 Nr. 1, 2, 4'),
 

@@ -61,7 +61,7 @@ INSERT INTO meta.rueckfrage (nr, titel, lieferungen, aufgefallen, anzahl, merkma
  'P18_merkmalswelle', '2025-05'),
 
 ('R7', 'Kurzlebige Zweitmeldungen derselben Person', 'alle ab lieferung_2024-08',
- 'VVH_IDs 859780 bis 864885 beginnen im Berichtsmonat, sind nur in einer Lieferung sichtbar, und dieselbe Person hat am Stichtag ein zweites Verhältnis mit gleicher Qualifikation, ÖNACE und Bundesland.',
+ 'VVH_IDs im Bereich 859780 bis 864885 beginnen im Berichtsmonat, und dieselbe Person hat am Stichtag ein zweites Verhältnis mit gleicher Qualifikation, ÖNACE und Bundesland. Der Bereich kommt in allen 24 Lieferungen vor (131–218 Sätze je Lieferung, Annahme A10); dass jedes dieser Verhältnisse nur in einer Lieferung sichtbar ist, ist nicht bestätigt.',
  '131–218 Sätze je Lieferung (2024-08: 196)', 'ganzer Satz (zweites Verhältnis)',
  '[859975, 860000, 860337, 861206, 861975]',
  'SELECT count(*) FROM roh.lieferung WHERE lieferung = ''2024-08'' AND vvh_id::bigint BETWEEN 859780 AND 864885;',

@@ -33,6 +33,18 @@ def test_pruefkatalog_hat_24_vollstaendige_plaetze(conn: Verbindung, tmp_path: P
     assert {z["herkunft"] for z in zeilen} <= {"forensik", "anhang_a", "zusatz"}
 
 
+def test_alle_19_forensikpruefungen_haben_einen_katalogplatz(conn: Verbindung) -> None:
+    # Fängt: eine Forensikprüfung R01–R19 ohne Platz oder mit einem Platz, den es in meta.regel nicht gibt
+    # (Tippfehler in 125_forensik.sql), d. h. der Katalog behauptet eine Abdeckung, die es nicht gibt.
+    zeilen = conn.execute("SELECT nr, plaetze FROM meta.forensik_pruefung ORDER BY nr").fetchall()
+    assert [z["nr"] for z in zeilen] == [f"R{n:02d}" for n in range(1, 20)]
+    plaetze = {z["platz"] for z in pruefkatalog_zeilen(conn)}
+    for z in zeilen:
+        assert z["plaetze"] and set(z["plaetze"]) <= plaetze, z["nr"]
+    abgedeckt = {z["platz"]: z["forensik"] for z in pruefkatalog_zeilen(conn)}
+    assert abgedeckt["P03"].startswith("R02 ")
+
+
 def test_pruefkatalog_wirft_bei_fehlender_einstufung(conn: Verbindung) -> None:
     # Fängt: ein Platz ohne Einstufung landet still als leere Zelle im Katalog.
     conn.execute(

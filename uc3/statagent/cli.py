@@ -383,14 +383,30 @@ def ministerium(
     monat: Annotated[str, typer.Option(help="Berichtsmonat JJJJ-MM")] = "2026-07",
     regelsatz: Annotated[str, typer.Option(help="Regelsatz mit der Definition (Auftrag 3)")] = "ministerium",
 ) -> None:
-    """Ministeriums-Lieferung (Auftrag 3) nach freigegebener Definition rechnen und mit Namen freigeben."""
-    from statagent.sonderauswertung import NichtFreigegeben, ministerium_schreiben
+    """Ministeriums-Lieferung (Auftrag 3) rechnen, schreiben und über Vertrag P mit Namen freigeben (Commit)."""
+    from plattform.freigabe import GitFehler, VorschlagUngueltig
+
+    from statagent.sonderauswertung import (
+        LieferungBereitsFreigegeben,
+        NichtFreigegeben,
+        ministerium_schreiben,
+    )
 
     try:
         with verbinden() as conn:
-            datei, auswertung = ministerium_schreiben(conn, monat, name, regelsatz=regelsatz)
-    except (NichtFreigegeben, NameUngueltig, RegelFehler) as fehler:
-        typer.echo(f"nicht erzeugt: {fehler}", err=True)
+            datei, auswertung = ministerium_schreiben(
+                conn, monat, name, regelsatz=regelsatz, repo_pfad=konfig.REPO_WURZEL
+            )
+    except (
+        NichtFreigegeben,
+        NameUngueltig,
+        RegelFehler,
+        LieferungBereitsFreigegeben,
+        GitFehler,
+        VorschlagUngueltig,
+        ValueError,
+    ) as fehler:
+        typer.echo(f"nicht erzeugt und nicht freigegeben: {fehler}", err=True)
         raise typer.Exit(1) from fehler
     typer.echo(f"{datei}: {len(auswertung.zeilen)} Personen, Zeitraum {auswertung.von} bis {auswertung.bis}")
     for m, lieferung in auswertung.datenstand.items():

@@ -78,7 +78,7 @@ def protokoll_erzeugen(conn: Verbindung, repo: Path | None = None) -> str:
         "",
         "Jede Änderung an Regeln oder Code und jede Veröffentlichung eines Monats steht hier mit Anweisung,",
         "Änderung, Name der freigebenden Person und Zeitpunkt. Erzeugt mit `uv run uc3 protokoll` aus Git",
-        "(Commits mit `Freigegeben-von`) und der Datenbank (meta.vorschlag, meta.regel, meta.lauf).",
+        "(Commits mit `Freigegeben-von`) und der Datenbank (meta.vorschlag, meta.regel, meta.lauf, meta.ausgabe).",
         "",
         "## 1 Änderungen über die eigenen Agenten (Git)",
         "",
@@ -154,6 +154,31 @@ def protokoll_erzeugen(conn: Verbindung, repo: Path | None = None) -> str:
         ]
     else:
         zeilen.append("Noch kein Monat veröffentlicht.")
+
+    zeilen += ["", "## 5 Lieferungen nach außen (Ministerium)", ""]
+    ausgaben = (
+        conn.execute(
+            """SELECT a.berichtsmonat, a.datei, a.zeilen, a.sha256, a.freigegeben_von, a.freigegeben_am,
+                      p.status, p.commit_hash
+               FROM meta.ausgabe a LEFT JOIN meta.protokoll p ON p.id = a.protokoll_id
+               ORDER BY a.berichtsmonat, a.id"""
+        ).fetchall()
+        if _tabelle_vorhanden(conn, "meta.ausgabe")
+        else []
+    )
+    if ausgaben:
+        zeilen += [
+            "| Berichtsmonat | Datei | Personen | Freigegeben von | Zeitpunkt | Protokoll | Commit | sha256 |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
+        zeilen += [
+            f"| {a['berichtsmonat']} | {a['datei']} | {a['zeilen']} | {a['freigegeben_von']} |"
+            f" {_zeit(a['freigegeben_am'])} | {a['status'] or 'ohne Vertrag P'} |"
+            f" {'`' + str(a['commit_hash'])[:10] + '`' if a['commit_hash'] else ''} | `{str(a['sha256'])[:12]}` |"
+            for a in ausgaben
+        ]
+    else:
+        zeilen.append("Noch keine Lieferung nach außen freigegeben.")
     zeilen.append("")
     return "\n".join(zeilen)
 

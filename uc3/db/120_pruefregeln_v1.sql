@@ -28,9 +28,9 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  'Anhang A Nr. 1; Regel E01; Rückfrage F3'),
 
 ('v1', 'P04_geburtsdatum_monat_13', 'pruefung', 'geburtsdatum_status', 4,
- '{"ebene": "satz", "status": "monat_13", "einstufung": "erklaert-datenproblem", "massnahme": "Geburtsjahr behalten, Alter = Berichtsjahr − Geburtsjahr (E03, R5)", "anhalten": false, "rueckfrage": "R1"}',
+ '{"ebene": "satz", "status": "monat_13", "einstufung": "erklaert-datenproblem", "massnahme": "Geburtstag unbekannt: 1. Juli des Geburtsjahres als Ersatztag (R5 ersatz:07-01), Alter in vollendeten Jahren am Stichtag (E03, R5)", "anhalten": false, "rueckfrage": "R1"}',
  'Verhältnisse am Stichtag mit Geburtsdatum im Monat 13 (z. B. 1963-13-09).',
- '336–444 Fälle je Lieferung, in 2024-08 370 am Stichtag. Das Jahr ist plausibel; der Beispielbericht weist sie mit Berichtsjahr − Geburtsjahr aus.',
+ '336–444 Fälle je Lieferung, in 2024-08 370 am Stichtag. Das Jahr ist plausibel, der Tag fehlt. Mit dem Ersatztag 1. Juli (R5) trifft das Alter für 08/2024 den Beispielbericht (Tab13 576 von 576 Zellen).',
  'Fachbeschreibung § 2; Regel E03; Rückfrage R1'),
 
 ('v1', 'P05_geburtsdatum_ungueltig', 'pruefung', 'geburtsdatum_status', 5,

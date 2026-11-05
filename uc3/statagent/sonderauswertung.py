@@ -8,7 +8,17 @@ eigener Agent vorschlägt und eine Person freigibt. Dieses Modul rechnet nur, oh
   Vormonate). Optional werden Lieferungen übersprungen, deren Lauf eine Prüfregel angehalten hat (Teil-Lieferung).
 - Tage: Kalendertage, an denen mindestens ein passender Zeitabschnitt besteht; gleichzeitige Verhältnisse zählen
   einen Tag einmal (``range_agg``), DV- und FD-Tage zusammen.
+- Abschnitt: ``oenace`` ist der Abschnitt nach der Bereinigung. Zeitabschnitte, deren gelieferter Code ein Altcode
+  ist (z. B. ÖNACE-2003-Unterabschnitte, die die Quellzuordnung in den Abschnitt übernimmt), zählen nur, wenn der
+  Code in ``altcodes_als_abschnitt`` steht (leere Liste: nur direkt als Abschnitt gelieferte Codes).
 - Ausgabe: eine Zeile je Person mit mindestens ``mindesttage`` Tagen, sortiert nach PERSON_ID.
+- Freigabe: über Vertrag P (meta.protokoll, meta.freigabe, Commit genau der CSV mit Trailer ``Freigegeben-von``);
+  je Berichtsmonat genau eine freigegebene Lieferung.
+
+Warum das Lieferfenster „Monat bis Monat + 2“ dasselbe ist wie „je Tag die jüngste Lieferung, die ihn enthält“:
+jede Lieferung ist ein Vollabzug über ihren Berichtsmonat und die zwei Vormonate (Fachbeschreibung § 2). Ein Tag
+des Monats m steht also genau in den Lieferungen m, m + 1 und m + 2, und alle Tage eines Monats haben dieselbe
+jüngste Lieferung. Herleitung und Varianten: docs/plan/uc3/ministerium-oracle.md.
 """
 
 from __future__ import annotations
@@ -20,12 +30,16 @@ from datetime import date
 from pathlib import Path
 
 from statagent import ergebnis, konfig
-from statagent.db import Verbindung, lieferungen
+from statagent.db import Verbindung, lieferungen, tupelzeilen
 from statagent.regeln import Regel, RegelFehler, eine, name_pruefen, regeln_laden, wert
 
 
 class NichtFreigegeben(RuntimeError):
     """Eine Auswertung startet nur mit freigegebener Definition (Technische Regel 6d)."""
+
+
+class LieferungBereitsFreigegeben(RuntimeError):
+    """Für den Berichtsmonat ist schon eine Lieferung freigegeben; eine neue Fassung braucht einen neuen Auftrag."""
 
 
 @dataclass
@@ -95,6 +109,9 @@ def personentage(conn: Verbindung, regel: Regel, berichtsmonat: str) -> Auswertu
             f"{regel.name}: nicht unterstützter Datenstand {regel.parameter.get('datenstand')!r}"
         )
     stand, uebersprungen = datenstand_waehlen(conn, monate, rs, modus == "ueberspringen")
+    altcodes = wert(regel, "altcodes_als_abschnitt")
+    if not isinstance(altcodes, list) or not all(isinstance(c, str) and c.strip() for c in altcodes):
+        raise RegelFehler(f"{regel.name}: altcodes_als_abschnitt muss eine Liste von Codes sein (auch leer)")
     alter = eine(regeln_laden(conn, rs, berichtsmonat), "zaehl", "alter")
     von, bis = ergebnis.monatserster(monate[0]), ergebnis.monatsletzter(monate[-1])
 
@@ -109,6 +126,8 @@ def personentage(conn: Verbindung, regel: Regel, berichtsmonat: str) -> Auswertu
           FROM quelle q
           JOIN bereinigt.abschnitt a ON a.lieferung = q.lieferung AND a.regelsatz = %(rs)s
           WHERE a.qualifikation = ANY(%(quals)s) AND a.oenace = %(oen)s
+            AND (a.roh_oenace IS NULL OR upper(btrim(a.roh_oenace)) = %(oen)s
+                 OR upper(btrim(a.roh_oenace)) = ANY(%(alt)s))
             AND a.beginn <= q.bis AND (a.ende IS NULL OR a.ende >= q.von)
         ),
         agg AS (SELECT person_id, range_agg(r) AS mr FROM seg WHERE NOT isempty(r) GROUP BY person_id),
@@ -136,6 +155,7 @@ def personentage(conn: Verbindung, regel: Regel, berichtsmonat: str) -> Auswertu
             "rs": rs,
             "quals": [str(q) for q in wert(regel, "qualifikationen")],
             "oen": str(wert(regel, "oenace")),
+            "alt": [c.strip().upper() for c in altcodes],
             "min": int(wert(regel, "mindesttage")),
             "stichtag": bis,
             "amax": int(wert(alter, "max_plausibel")),
@@ -170,6 +190,73 @@ def auswertung_regel(conn: Verbindung, regelsatz: str, name: str | None = None) 
     return regel
 
 
+def _bisherige_lieferung(conn: Verbindung, berichtsmonat: str, sha256: str) -> None:
+    """Weist eine zweite Freigabe desselben Berichtsmonats ab (gleicher oder anderer Inhalt)."""
+    vorher = conn.execute(
+        """SELECT freigegeben_von, freigegeben_am, sha256 FROM meta.ausgabe
+           WHERE art = 'ministerium' AND berichtsmonat = %s ORDER BY id LIMIT 1""",
+        (berichtsmonat,),
+    ).fetchone()
+    if vorher is None:
+        return
+    am = f"{vorher['freigegeben_am']:%d.%m.%Y %H:%M}"
+    if vorher["sha256"] == sha256:
+        raise LieferungBereitsFreigegeben(
+            f"Ministeriums-Lieferung {berichtsmonat} ist bereits freigegeben von {vorher['freigegeben_von']} am {am}"
+        )
+    raise LieferungBereitsFreigegeben(
+        f"Ministeriums-Lieferung {berichtsmonat} ist bereits freigegeben von {vorher['freigegeben_von']} am {am};"
+        " der neu gerechnete Inhalt weicht ab. Eine neue Fassung braucht einen neuen Auftrag"
+    )
+
+
+def _lieferung_freigeben(
+    conn: Verbindung,
+    person: str,
+    repo_pfad: Path,
+    ref: str,
+    berichtsmonat: str,
+    auswertung: Auswertung,
+    sha: str,
+) -> int:
+    """Protokolleintrag (vorschlag_typ lieferung) und Freigabe über Vertrag P: Commit genau der CSV mit Trailer.
+
+    Scheitert die Freigabe (Git, Lock, Pfad), wird der Eintrag mit dem technischen Grund abgelehnt und der Fehler
+    weitergeworfen; dann entsteht keine Ausgabe.
+    """
+    from plattform.freigabe import ablehnen, freigeben
+
+    with conn.transaction():
+        eintrag = conn.execute(
+            """INSERT INTO meta.protokoll (uc, akteur, name, anweisung, wirkung, vorschlag_typ, ref)
+               VALUES ('uc3', 'mensch', %s, %s, %s, 'lieferung', %s) RETURNING id""",
+            (
+                person,
+                f"Ministeriums-Lieferung {berichtsmonat} freigeben (Auftrag 3, Regel {auswertung.regel})",
+                f"{len(auswertung.zeilen)} Personen, Zeitraum {auswertung.von} bis {auswertung.bis},"
+                f" sha256 {sha[:12]}",
+                ref,
+            ),
+        ).fetchone()
+    assert eintrag is not None
+    protokoll_id = int(str(eintrag["id"]))
+    try:
+        with tupelzeilen(conn):
+            freigeben(conn, protokoll_id, person, repo_pfad, objekt_typ="datei", objekt_ref=ref)
+    except Exception as fehler:
+        with tupelzeilen(conn):
+            ablehnen(
+                conn,
+                protokoll_id,
+                person,
+                f"Freigabe technisch abgebrochen ({type(fehler).__name__}: {fehler}); keine Lieferung freigegeben",
+                objekt_typ="datei",
+                objekt_ref=ref,
+            )
+        raise
+    return protokoll_id
+
+
 def ministerium_schreiben(
     conn: Verbindung,
     berichtsmonat: str,
@@ -177,35 +264,58 @@ def ministerium_schreiben(
     *,
     regelsatz: str = "ministerium",
     ziel_dir: Path | None = None,
+    repo_pfad: Path | None = None,
 ) -> tuple[Path, Auswertung]:
-    """Rechnet die Lieferung, schreibt die CSV und hält die Freigabe der Lieferung mit Namen fest."""
+    """Rechnet die Lieferung, schreibt die CSV und gibt sie mit Namen frei.
+
+    Ablauf: (1) rechnen, (2) eine frühere Freigabe desselben Berichtsmonats abweisen, (3) CSV schreiben,
+    (4) mit ``repo_pfad`` Protokolleintrag und Freigabe über Vertrag P (Commit genau dieser Datei mit Trailer
+    ``Freigegeben-von``), (5) meta.ausgabe mit ``protokoll_id``. Scheitert (4), wird die CSV wieder entfernt.
+    """
     person = name_pruefen(name)
     regel = auswertung_regel(conn, regelsatz)
     auswertung = personentage(conn, regel, berichtsmonat)
     datei = (ziel_dir or konfig.abgabe()) / str(wert(regel, "datei")).format(berichtsmonat=berichtsmonat)
     inhalt = auswertung.csv([str(f) for f in wert(regel, "felder")], str(wert(regel, "trennzeichen")))
+    sha = hashlib.sha256(inhalt.encode("utf-8")).hexdigest()
+    wurzel = (repo_pfad or konfig.REPO_WURZEL).resolve()
+    try:
+        relativ = datei.resolve().relative_to(wurzel).as_posix()
+    except ValueError:
+        if repo_pfad is not None:
+            raise RegelFehler(
+                f"{datei} liegt nicht im Repo {wurzel}; so lässt sie sich nicht freigeben"
+            ) from None
+        relativ = str(datei)
+    _bisherige_lieferung(conn, berichtsmonat, sha)
     datei.parent.mkdir(parents=True, exist_ok=True)
     datei.write_text(inhalt, encoding="utf-8")
-    try:
-        relativ = str(datei.resolve().relative_to(konfig.REPO_WURZEL))
-    except ValueError:
-        relativ = str(datei)
+    protokoll_id: int | None = None
+    if repo_pfad is not None:
+        try:
+            protokoll_id = _lieferung_freigeben(
+                conn, person, repo_pfad, relativ, berichtsmonat, auswertung, sha
+            )
+        except Exception:
+            datei.unlink(missing_ok=True)  # nicht freigegeben: keine Datei, die wie eine Lieferung aussieht
+            raise
     with conn.transaction():
         conn.execute(
             """INSERT INTO meta.ausgabe (art, berichtsmonat, regel_id, datei, zeilen, sha256, datenstand,
-                 freigegeben_von)
-               VALUES ('ministerium', %s, %s, %s, %s, %s, %s::jsonb, %s)""",
+                 freigegeben_von, protokoll_id)
+               VALUES ('ministerium', %s, %s, %s, %s, %s, %s::jsonb, %s, %s)""",
             (
                 berichtsmonat,
                 regel.id,
                 relativ,
                 len(auswertung.zeilen),
-                hashlib.sha256(inhalt.encode("utf-8")).hexdigest(),
+                sha,
                 json.dumps(
                     {"datenstand": auswertung.datenstand, "uebersprungen": auswertung.uebersprungen},
                     sort_keys=True,
                 ),
                 person,
+                protokoll_id,
             ),
         )
     return datei, auswertung

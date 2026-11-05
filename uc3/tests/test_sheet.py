@@ -164,6 +164,15 @@ def test_sheet_v2_baut_kategorien_um(conn: Verbindung, tmp_path: Path) -> None:
             FROM meta.lauf WHERE regelsatz = 'v1' AND status IN ('fertig', 'unveraendert')
             """
         )
+        # Ein neuer Regelsatz übernimmt die Quellzuordnung seiner Basis (regelaenderung.regelsatz_sicherstellen).
+        conn.execute(
+            """
+            INSERT INTO stat.quellzuordnung (regelsatz, quelle, merkmal, version, geliefert, klassifikation, code,
+                                             regel_id)
+            SELECT 'v2', quelle, merkmal, version, geliefert, klassifikation, code, regel_id
+            FROM stat.quellzuordnung WHERE regelsatz = 'v1'
+            """
+        )
         conn.execute(
             """
             INSERT INTO stat.stat_beschaeftigte

@@ -65,6 +65,7 @@ KATALOG_SPALTEN = (
     "rueckfrage",
     "herkunft",
     "forensik",
+    "befund",
     "sql",
     "status",
 )
@@ -277,9 +278,10 @@ def pruefkatalog_zeilen(conn: Verbindung, regelsatz: str = "v1") -> list[dict[st
     """Je aktiver Prüfregel (``meta.regel``, Typ ``pruefung``) des Regelsatzes ein Katalogplatz, sortiert nach Platz.
 
     Der Platz (P01 …) kommt aus dem Regelnamen. ``status`` ist ``umgesetzt`` nur, wenn ``pruefungen.ARTEN`` für die
-    Art einen Code-Pfad hat (``sql`` nennt ihn), sonst ``offen``. ``herkunft``: ``forensik``, wenn die Grundlage
-    der Prüfung oder einer Bezugsregel „Forensik Nr. …“ nennt; sonst ``anhang_a``, wenn sie „Anhang A“ nennt;
-    sonst ``zusatz`` (eigene Prüfung aus Fachbeschreibung, Qualitätsbericht oder Messung).
+    Art einen Code-Pfad hat (``sql`` nennt ihn), sonst ``offen``. ``forensik`` nennt die Forensikprüfungen R01–R19,
+    die den Platz laut ``meta.forensik_pruefung`` (125_forensik.sql) abdecken; ``herkunft`` ist dann ``forensik``,
+    sonst ``anhang_a``, wenn die Grundlage „Anhang A“ nennt, sonst ``zusatz``. ``befund`` nennt Befunde aus dem
+    Fallenkatalog („Forensik Nr. …“ in der Grundlage der Prüfung oder einer Bezugsregel).
 
     Wirft ``ValueError`` bei leerem Pflichtfeld (Platz und Feld im Text), bei einem Namen ohne Platz, bei doppeltem
     Platz und bei einer Lücke in der Platzfolge.
@@ -303,10 +305,17 @@ def pruefkatalog_zeilen(conn: Verbindung, regelsatz: str = "v1") -> list[dict[st
             raise ValueError(f"Prüfkatalog {platz} ({name}): Pflichtfeld 'anhalten' fehlt in meta.regel")
 
         bezug = _bezug(conn, regelsatz, p, grundlage)
-        forensik = sorted(
-            {f"Forensik Nr. {n}" for n in _FORENSIK_IM_TEXT.findall(grundlage)}
+        forensik = [
+            f"{z['nr']} {z['name']} ({z['schwelle']})"
+            for z in conn.execute(
+                "SELECT nr, name, schwelle FROM meta.forensik_pruefung WHERE %s = ANY(plaetze) ORDER BY nr",
+                (platz,),
+            ).fetchall()
+        ]
+        befunde = sorted(
+            {f"Befund Nr. {n}" for n in _FORENSIK_IM_TEXT.findall(grundlage)}
             | {
-                f"Forensik Nr. {n} (über {b['name']})"
+                f"Befund Nr. {n} (über {b['name']})"
                 for b in bezug
                 for n in _FORENSIK_IM_TEXT.findall(str(b["grundlage"]))
             }
@@ -340,7 +349,8 @@ def pruefkatalog_zeilen(conn: Verbindung, regelsatz: str = "v1") -> list[dict[st
                 "bezug_regel": "; ".join(str(b["name"]) for b in bezug) or "keine",
                 "rueckfrage": "; ".join(rueckfragen) or "keine",
                 "herkunft": herkunft,
-                "forensik": "; ".join(forensik) or "nicht belegt",
+                "forensik": "; ".join(forensik) or "keine Forensikprüfung (Zusatzprüfung)",
+                "befund": "; ".join(befunde) or "keiner",
                 "sql": code or f"kein Code-Pfad für Art '{art}' in statagent/pruefungen.py",
                 "status": "umgesetzt" if code else "offen",
             }
