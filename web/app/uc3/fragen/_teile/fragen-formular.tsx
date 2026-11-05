@@ -186,7 +186,7 @@ export function FragenFormular({
               aria-invalid={eingabeFehler ? true : undefined}
               aria-describedby={eingabeFehler ? fehlerId : undefined}
               onChange={(e) => setFrage(e.target.value)}
-              className={`min-w-0 flex-1 rounded-lg border bg-white px-4 font-sans text-ink placeholder:text-slate focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen ${
+              className={`min-w-0 rounded-lg border bg-white sm:flex-1 px-4 font-sans text-ink placeholder:text-slate focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen ${
                 eingabeFehler ? "border-err-fg" : "border-slate"
               } ${buehne ? "h-14 text-20" : "h-11 text-16"}`}
             />
@@ -212,7 +212,7 @@ export function FragenFormular({
             <p className="font-sans text-14 text-slate" id="beispiele-titel">
               Oder eines davon:
             </p>
-            <ul aria-labelledby="beispiele-titel" className="flex flex-col">
+            <ul aria-labelledby="beispiele-titel" className="flex flex-col gap-2 sm:gap-0">
               {BEISPIELE.map((beispiel) => (
                 <li key={beispiel}>
                   <button type="button" onClick={() => fragen(beispiel)} className={`${textLink} text-16 text-ink`}>
@@ -242,7 +242,7 @@ export function FragenFormular({
               <p className="font-sans text-14 text-slate" id="noch-eine-frage">
                 Noch eine Frage:
               </p>
-              <ul aria-labelledby="noch-eine-frage" className="flex flex-col">
+              <ul aria-labelledby="noch-eine-frage" className="flex flex-col gap-2 sm:gap-0">
                 {BEISPIELE.filter((b) => b !== frage.trim()).map((beispiel) => (
                   <li key={beispiel}>
                     <button type="button" onClick={() => fragen(beispiel)} className={`${textLink} text-16 text-ink`}>
