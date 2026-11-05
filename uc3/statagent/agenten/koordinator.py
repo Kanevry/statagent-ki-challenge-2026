@@ -240,6 +240,17 @@ def produktions_regelsatz(conn: Verbindung) -> str:
     return max(kandidaten, key=_v_nummer) if kandidaten else "v1"
 
 
+def probe_monat(conn: Verbindung, basis: str) -> str | None:
+    """Monat für die Probe: der jüngste gerechnete der Basis, sonst der jüngste gerechnete überhaupt. Ein Regelsatz
+    aus einer Freigabe oder Rücknahme hat keine Läufe; die Probe rechnet beide Stände ohnehin selbst (Review 9b)."""
+    z = conn.execute(
+        """SELECT lieferung FROM meta.lauf WHERE status IN ('fertig', 'unveraendert')
+           ORDER BY (regelsatz = %s) DESC, lieferung DESC LIMIT 1""",
+        (basis,),
+    ).fetchone()
+    return None if z is None else str(z["lieferung"])
+
+
 def _hat_laeufe(conn: Verbindung, regelsatz: str) -> bool:
     z = conn.execute(
         "SELECT EXISTS (SELECT 1 FROM meta.lauf WHERE regelsatz = %s) AS da", (regelsatz,)
@@ -275,21 +286,27 @@ def bekannte_werte(conn: Verbindung, basis: str) -> dict[str, list[str]]:
     """Ausprägungen je Merkmal, wie sie in der Statistik stehen (Aggregate und Klassifikation, keine Einzeldaten).
 
     Grundlage für Ausschluss und Gruppierung: das Modell nennt Werte nur aus dieser Liste (Live-Probe: „Wien“
-    statt Code „9“ hätte nichts ausgeschlossen). Quelle ist der jüngste Lauf der Basis, sonst der jüngste Lauf
-    überhaupt (ein neuer Regelsatz nach einer Rücknahme hat noch keine Läufe; Probe 19:25 fragte darum zurück),
+    statt Code „9“ hätte nichts ausgeschlossen). Quelle ist der jüngste Lauf der Basis mit Zellen, sonst der jüngste
+    Lauf mit Zellen überhaupt: ein neuer Regelsatz nach einer Rücknahme hat noch keine Läufe (Probe 19:25 fragte
+    darum zurück), und ein Lauf mit Status „unveraendert“ legt keine Zellen an (Review 9b: Geschlecht und ÖNACE
+    waren für v2 leer),
     dazu die Bundesländer aus stat.klass_region. ``qualifikation`` folgt R6 der Basis: Codes oder Kategorien.
     """
     werte: dict[str, set[str]] = {m: set() for m in ("region", "geschlecht", "oenace")}
-    lauf = conn.execute(
-        """SELECT id FROM meta.lauf WHERE status IN ('fertig', 'unveraendert')
-           ORDER BY (regelsatz = %s) DESC, id DESC LIMIT 1""",
-        (basis,),
-    ).fetchone()
+    lauf = (
+        conn.execute(
+            "SELECT lauf_id FROM stat.stat_beschaeftigte WHERE regelsatz = %s ORDER BY lauf_id DESC LIMIT 1",
+            (basis,),
+        ).fetchone()
+        or conn.execute(
+            "SELECT lauf_id FROM stat.stat_beschaeftigte ORDER BY lauf_id DESC LIMIT 1"
+        ).fetchone()
+    )
     if lauf is not None:
         for merkmal in werte:
             zeilen = conn.execute(
                 f"SELECT DISTINCT {merkmal} AS w FROM stat.stat_beschaeftigte WHERE lauf_id = %s".encode(),
-                (lauf["id"],),
+                (lauf["lauf_id"],),
             ).fetchall()
             werte[merkmal] |= {str(z["w"]) for z in zeilen}
     regionen = conn.execute("SELECT code AS w FROM stat.klass_region WHERE ebene = 'bundesland'").fetchall()

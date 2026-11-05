@@ -31,7 +31,6 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 import psycopg
@@ -236,6 +235,13 @@ def _vorschlag(conn: Verbindung, anweisung: str, monat: str) -> tuple[Vorschlag 
 _OFFEN: dict[str, int] = {}
 
 
+def _fehlertext(fehler: Exception) -> str:
+    """Kurzer Fehlertext für die CSV im Repo: bei der Datenbank nur die Art, weil die Meldung Rechnernamen tragen kann."""
+    if isinstance(fehler, psycopg.Error):
+        return type(fehler).__name__
+    return f"{type(fehler).__name__}: {str(fehler).splitlines()[0][:160] if str(fehler) else ''}"
+
+
 def _neu_verbinden(url: str, versuche: int = 20) -> Verbindung:
     for _ in range(versuche):
         try:
@@ -391,22 +397,34 @@ def main() -> int:
 
     konfig.umgebung_laden()  # .env.local wie die CLI (Modell-Schlüssel); gesetzte Variablen bleiben
     url = os.environ.get("UC3_DATABASE_URL", "")
-    if urlsplit(url).path.strip("/") in ("", "statistik"):
+    repo = Path(
+        subprocess.run(
+            ["git", "-C", str(args.repo.expanduser()), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    ).resolve()
+    if (repo / "uc3" / "statagent").exists():
         print(
-            "Abbruch: Proben nur gegen eine eigene Kopie (UC3_DATABASE_URL mit anderem DB-Namen)",
+            "Abbruch: --repo liegt in einem Checkout dieses Repos; Proben committen nur in ein eigenes Probe-Repo",
             file=sys.stderr,
         )
         return 2
-    repo = args.repo.expanduser().resolve()
-    if (repo / "uc3" / "statagent").exists():
-        print("Abbruch: --repo ist ein Checkout dieses Repos; Proben committen nur in ein eigenes Probe-Repo")
+    conn = verbinden(url) if url else verbinden()
+    # Gefragt wird die Datenbank selbst: die URL kann den Namen auch als dbname=… tragen (Review 9b).
+    datenbank = conn.execute("SELECT current_database() AS d").fetchone()
+    if datenbank is None or datenbank["d"] == "statistik":
+        conn.close()
+        print(
+            "Abbruch: Proben nur gegen eine eigene Kopie, nie gegen die Datenbank statistik", file=sys.stderr
+        )
         return 2
     auswahl = [a for a in AUFTRAEGE if not args.auftraege or a.kurz in args.auftraege]
     code = subprocess.run(
         ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True
     ).stdout.strip()
     neu = not args.csv.exists()
-    conn = verbinden(url)
     with args.csv.open("a", encoding="utf-8", newline="") as f:
         vorschlag_schema_einrichten(conn)
         # Stand der Abgabe (fest v2, nicht der aktuelle Stand): sonst nähme ein Neustart eine verschmutzte Kopie an.
@@ -456,7 +474,7 @@ def main() -> int:
                         "anweisung": auftrag.anweisung,
                         "zeit": _jetzt(),
                         "bestanden": False,
-                        "hinweis": f"{type(fehler).__name__}: {fehler}",
+                        "hinweis": _fehlertext(fehler),
                     }
                 break
             schreiber.writerow({"code": code, **zeile})

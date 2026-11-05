@@ -21,13 +21,19 @@ from statagent.agenten.anwenden import ablehnen_ausfuehren, freigabe_ausfuehren
 from statagent.agenten.koordinator import (
     agent_ausfuehren,
     bekannte_werte,
+    probe_monat,
     produktions_regelsatz,
     rolle_nach_worten,
     ruecknahme_gemeint,
     ziel_bestimmen,
 )
 from statagent.agenten.regelaenderung import regelsatz_sicherstellen
-from statagent.agenten.vorschlag import VorschlagFehler, vorschlag_lesen, vorschlag_schema_einrichten
+from statagent.agenten.vorschlag import (
+    VorschlagFehler,
+    _geaenderte_codes,
+    vorschlag_lesen,
+    vorschlag_schema_einrichten,
+)
 from statagent.db import Verbindung
 from statagent.lauf import lauf_ausfuehren
 from statagent.regeln import regeln_laden, regelstand
@@ -603,3 +609,26 @@ def test_ruecknahme_von_zwei_ausschluessen_stellt_den_stand_wieder_her(
     assert r.vorschlag_id is not None, r.abgelehnt
     assert freigabe_ausfuehren(conn, r.vorschlag_id, NAME, repo, freigeben=plattform_freigeben).angewendet
     assert _stand(conn, produktions_regelsatz(conn)) == vorher
+
+
+def test_bekannte_werte_auch_wenn_der_juengste_lauf_keine_zellen_hat(live_conn: Verbindung) -> None:
+    # Fängt (Review 9b, auf der Abgabe-Kopie gemessen): der jüngste v2-Lauf ist „unveraendert“ und hat keine Zellen;
+    # Geschlecht und ÖNACE waren leer, „Männer nicht zählen“ endete in einer Absage.
+    lauf = lauf_ausfuehren(live_conn, MONAT, "v1", reihenfolge_pruefen=False)
+    assert lauf.status == "unveraendert"
+    werte = bekannte_werte(live_conn, "v1")
+    assert werte["geschlecht"] and werte["oenace"]
+
+
+def test_probemonat_faellt_auf_den_juengsten_gerechneten_monat_zurueck(live_conn: Verbindung) -> None:
+    # Fängt (Review 9b): v3/v4 aus Freigabe oder Rücknahme haben keine Läufe, `uc3 agent` zeigte dann keine Zahlen.
+    assert probe_monat(live_conn, "v1") == MONAT
+    assert probe_monat(live_conn, "v9") == MONAT
+
+
+def test_probe_zeigt_nur_geaenderte_auspraegungen_die_groesste_zuerst() -> None:
+    vorher = {str(i): 100 for i in range(20)} | {"C": 500, "gleich": 7}
+    nachher = {str(i): 100 + i + 1 for i in range(20)} | {"C": 400, "gleich": 7}
+    text = _geaenderte_codes(vorher, nachher)
+    assert text.startswith("C 500 → 400, 19 100 → 120")
+    assert "gleich" not in text and text.endswith("und 13 weitere")

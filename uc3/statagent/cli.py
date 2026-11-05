@@ -525,17 +525,14 @@ def agent(
     else:
         modell_fehler = (PlattformFehlt, LlmFehler)
 
-    from statagent.agenten.koordinator import produktions_regelsatz
+    from statagent.agenten.koordinator import probe_monat, produktions_regelsatz
 
     with verbinden() as conn:
         regelsatz_basis = regelsatz_basis or produktions_regelsatz(conn)
         if probe is None and not ohne_probe:
             # Die Probe zeigt die Wirkung am jüngsten gerechneten Monat; 2024-08 (Erstlieferung) zeigt bei
             # Auftrag 2 nur +48 und unterschätzt die Wirkung (Sichtprüfung UI, 05.11.).
-            gerechnet = [
-                m for m in lieferungen(conn) if ergebnis.letzter_lauf(conn, m, regelsatz_basis) is not None
-            ]
-            probe = max(gerechnet) if gerechnet else None
+            probe = probe_monat(conn, regelsatz_basis)
         try:
             erg = agent_ausfuehren(conn, anweisung, regelsatz_basis=regelsatz_basis, probe_lieferung=probe)
         except modell_fehler as fehler:

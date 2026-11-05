@@ -275,6 +275,25 @@ def _wert(w: object) -> str:
     return json.dumps(w, ensure_ascii=False)
 
 
+#: So viele geänderte Ausprägungen zeigt die Probe je Merkmal, die größten zuerst (vor der Jury lesbar).
+PROBE_ZEILEN = 8
+
+
+def _geaenderte_codes(vorher: dict[str, int], nachher: dict[str, int]) -> str:
+    """Nur die Ausprägungen, die sich ändern, die größte Änderung zuerst (Review 9b: ganze Verteilungen als JSON
+    waren unlesbar)."""
+    geaendert = [
+        (c, int(vorher.get(c, 0)), int(nachher.get(c, 0)))
+        for c in set(vorher) | set(nachher)
+        if vorher.get(c, 0) != nachher.get(c, 0)
+    ]
+    geaendert.sort(key=lambda t: (-abs(t[2] - t[1]), t[0]))
+    teile = [f"{c} {v} → {n}" for c, v, n in geaendert[:PROBE_ZEILEN]]
+    if len(geaendert) > PROBE_ZEILEN:
+        teile.append(f"und {len(geaendert) - PROBE_ZEILEN} weitere")
+    return ", ".join(teile)
+
+
 def diff_text(vorschlag: Vorschlag) -> str:
     """Die Änderung in zwei Sprachen: Alltagssprache und technisch. Nur geänderte Zeilen."""
     v = vorschlag
@@ -331,7 +350,7 @@ def diff_text(vorschlag: Vorschlag) -> str:
         for merkmal in (*PROBE_MERKMALE, "altersgruppe"):
             vm, nm = p["vorher"]["je_merkmal"].get(merkmal, {}), p["nachher"]["je_merkmal"].get(merkmal, {})
             if vm != nm:
-                zeilen.append(f"  {merkmal}: {_wert(vm)} → {_wert(nm)}")
+                zeilen.append(f"  {merkmal}: {_geaenderte_codes(vm, nm)}")
     return "\n".join(zeilen)
 
 
