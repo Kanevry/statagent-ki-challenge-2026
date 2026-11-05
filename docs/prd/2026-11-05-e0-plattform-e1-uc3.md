@@ -237,7 +237,7 @@ der Modell-Badge liest `GET /api/plattform/modell` (E0-Route, führt `uv run pyt
 - Ein TS-Modell-Schalter oder direkte Modellaufrufe aus `web/` (eine Implementierung in Python genügt)
 - Eigene Vapi-Tool-Calls (Freigabe per Sprache über Vapi): Live-Änderung per Sprache läuft über den Text-/Voice-Weg
   des UC3-Agenten, nicht über Vapi-Tools
-- Deploy (Vercel) und Docker-Build der Web-App: Demo läuft lokal am M4
+- Deploy über Vercel: die Vorführung läuft lokal. Zusätzlich gibt es seit 05.11. ein Online-Deploy per Docker auf einem eigenen Server (#68, Owner-Wort 13:20, `deploy/README.md`)
 - Inhalte von UC1, UC2, Slides (eigene Tabs #23, #24, #26) und Abgabe-Ablauf (#27)
 - Code-Übernahme aus everlast: nur Konzept und Verträge, Code entsteht neu (Repo ist öffentlich)
 
