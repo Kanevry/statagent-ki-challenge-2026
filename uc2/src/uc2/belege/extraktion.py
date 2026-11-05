@@ -158,7 +158,11 @@ def extrahiere(
         zahl_abschnitte = 0
         for artikel in ergebnis.artikel:
             artikel_id = f"{md5[:12]}-{artikel.nr:03d}"
-            gesamt_hash = text_hash(artikel.text)
+            # Beiträge nur mit Titel sind erst bei gleichem Titel, Medium und Datum dieselbe Sendung.
+            schluessel = artikel.text
+            if artikel.nur_titel:
+                schluessel = f"nur_titel|{artikel.titel}|{artikel.medium}|{artikel.artikeldatum}"
+            gesamt_hash = text_hash(schluessel)
             if gesamt_hash in artikel_hashes:
                 abweichungen.append(
                     {
@@ -171,7 +175,7 @@ def extrahiere(
                 continue
             artikel_hashes[gesamt_hash] = artikel_id
             zeile = {"artikel_id": artikel_id, "quelle_md5": md5, **asdict(artikel)}
-            del zeile["nr"]
+            del zeile["nr"], zeile["nur_titel"]
             artikel_zeilen.append(zeile)
             zahl_artikel += 1
             texte = zerlege_abschnitte(artikel.text, regeln.max_zeichen, regeln.ueberlappung)

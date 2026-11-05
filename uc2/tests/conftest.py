@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import contextlib
+import os
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -25,17 +27,33 @@ def ausgabe_text() -> str:
     return (FIXTURES / "belege" / "ausgabe_2026-09-01.txt").read_text(encoding="utf-8")
 
 
+def _in_ci() -> bool:
+    return bool(os.environ.get("CI") or os.environ.get("GITLAB_CI"))
+
+
+def _lege_testdb_an() -> None:
+    """Legt `healthpolicy_test` an, verbunden über die DB aus `PGDATABASE` (Standard `statistik`)."""
+    verwaltungs_db = os.environ.get("PGDATABASE", "statistik")
+    with db.verbinde(verwaltungs_db, autocommit=True) as verwaltung:
+        sql = "select 1 from pg_database where datname = %s"
+        if verwaltung.execute(sql, (TEST_DB,)).fetchone() is None:
+            with contextlib.suppress(psycopg.errors.DuplicateDatabase):  # parallel angelegt
+                verwaltung.execute(f'create database "{TEST_DB}"')
+
+
 @pytest.fixture
 def pg_test() -> Iterator[psycopg.Connection[Any]]:
-    """Leere Schema-Lage in `healthpolicy_test`; überspringt ohne erreichbares PG."""
+    """Leeres Schema `uc2` in `healthpolicy_test`.
+
+    Ohne erreichbares PG: lokal übersprungen, in CI (`CI`/`GITLAB_CI`) ein Fehler, damit die PG-Tests
+    dort nie still ausfallen.
+    """
     try:
-        with db.verbinde("postgres", autocommit=True) as verwaltung:
-            sql = "select 1 from pg_database where datname = %s"
-            vorhanden = verwaltung.execute(sql, (TEST_DB,)).fetchone()
-            if vorhanden is None:
-                verwaltung.execute(f'create database "{TEST_DB}"')
+        _lege_testdb_an()
         verbindung = db.verbinde(TEST_DB)
     except psycopg.OperationalError as fehler:
+        if _in_ci():
+            pytest.fail(f"PostgreSQL in CI nicht erreichbar: {fehler}")
         pytest.skip(f"PostgreSQL nicht erreichbar: {fehler}")
     with verbindung:
         verbindung.execute("drop schema if exists uc2 cascade")

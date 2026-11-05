@@ -61,6 +61,8 @@ class Artikel:
     typ: str | None
     titel: str
     text: str
+    nur_titel: bool = False
+    """Radio/TV ohne Transkript: der Text ist der Titel (nicht in `artikel.jsonl`)."""
 
 
 @dataclass
@@ -223,7 +225,53 @@ def _titel_abtrennen(zeilen: list[str], titel: str) -> tuple[list[str], bool]:
 
 
 def _ist_beiwerk(zeile: str) -> bool:
-    return zeile.startswith(RADIO_BEIWERK) or bool(SPRECHERZEILE_RE.search(zeile))
+    return zeile.startswith(RADIO_BEIWERK)
+
+
+def _klammertiefe(zeile: str) -> int:
+    return zeile.count("(") - zeile.count(")")
+
+
+def ohne_sprecher(zeilen: list[str], max_folgezeilen: int = 4) -> list[str]:
+    """Verwirft Sprechereinträge von Radio/TV (`Name (Organisation) (17 Sekunden)`), auch umbrochene.
+
+    Ein Eintrag reicht von seiner ersten Zeile bis zur Zeile, die auf `(N Sekunden)` endet und die dort
+    offene Klammer schließt. Transkript-Zeilen wie `(00:03:10) : … Text` sind ausgeglichen und bleiben.
+    """
+    ergebnis: list[str] = []
+    i = 0
+    while i < len(zeilen):
+        if SPRECHERZEILE_RE.search(zeilen[i]):
+            i += 1
+            continue
+        ende = _sprecher_ende(zeilen, i, max_folgezeilen)
+        if ende is not None:
+            i = ende + 1
+            continue
+        ergebnis.append(zeilen[i])
+        i += 1
+    return ergebnis
+
+
+def _sprecher_ende(zeilen: list[str], start: int, max_folgezeilen: int) -> int | None:
+    """Letzte Zeile eines umbrochenen Sprechereintrags ab `start`, sonst None.
+
+    Leerzeilen innerhalb des Eintrags werden mit verworfen.
+    """
+    tiefe = _klammertiefe(zeilen[start])
+    if tiefe <= 0:
+        return None
+    folgezeilen = 0
+    for j in range(start + 1, len(zeilen)):
+        if not zeilen[j]:
+            continue  # Leerzeilen, etwa vom Seitenwechsel, gehören nicht zum Eintrag
+        folgezeilen += 1
+        if folgezeilen > max_folgezeilen:
+            return None
+        tiefe += _klammertiefe(zeilen[j])
+        if tiefe <= 0:
+            return j if SPRECHERZEILE_RE.search(zeilen[j]) else None
+    return None
 
 
 def _startzeile(zeilen: list[str]) -> int | None:
@@ -305,14 +353,16 @@ def zerlege_ausgabe(text: str) -> Ausgabe:
         if not feldblock:
             abweichung(eintrag, "feldblock_fehlt")
 
-        koerper, titel_ok = _titel_abtrennen(koerper, eintrag.titel)
+        koerper, titel_ok = _titel_abtrennen(ohne_sprecher(koerper), eintrag.titel)
         if not titel_ok:
             abweichung(eintrag, "titel_abweichend")
         inhalt = verbinde_zeilen(koerper).strip()
+        nur_titel = False
         if not inhalt and titel_ok:
             # Radio-Beitrag nur mit Sprecherliste: der Titel ist der ganze Beleg.
             abweichung(eintrag, "nur_titel")
             inhalt = eintrag.titel
+            nur_titel = True
         if not inhalt:
             abweichung(eintrag, "text_leer")
             continue
@@ -331,6 +381,7 @@ def zerlege_ausgabe(text: str) -> Ausgabe:
                 typ=felder.get("Typ"),
                 titel=eintrag.titel,
                 text=inhalt,
+                nur_titel=nur_titel,
             )
         )
     if len(ausgabe.artikel) != len(ausgabe.eintraege):

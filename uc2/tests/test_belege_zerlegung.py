@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from uc2.belege.zerlegung import seiten_aus_text, verbinde_zeilen, zerlege_ausgabe
+from pathlib import Path
+
+from uc2.belege.extraktion import extrahiere, lies_jsonl
+from uc2.belege.zerlegung import ohne_sprecher, seiten_aus_text, verbinde_zeilen, zerlege_ausgabe
 
 
 def test_inhaltsverzeichnis_mit_umbruch_ueber_zwei_seiten(ausgabe_text: str) -> None:
@@ -53,3 +56,83 @@ def test_silbentrennung() -> None:
 
 def test_seiten_am_formfeed() -> None:
     assert len(seiten_aus_text("a\fb\f")) == 2
+
+
+SPRECHER = [
+    "Mustermann Erika (Verband der Beispielberufe in",
+    "Musterstadt) (17 Sekunden)",
+    "Beispiel Max (Radio Test) (9 Sekunden)",
+    "Probe Anna (Kammer der",
+    "",
+    "Testberufe) (5 Sekunden)",
+]
+
+
+def _radioausgabe(titel: list[str], transkript: str | None = None) -> str:
+    fuss = "Seite {n} von {m}                                                  © APA-Comm GmbH"
+    m = 2 + len(titel)
+    toc = ["Pressespiegel", "", "Inhaltsverzeichnis"]
+    for i, t in enumerate(titel):
+        toc += [f"S. {3 + i}       {t}", "           17.02.2026, Radio Test - Testjournal"]
+    seiten = ["Medienbeobachtung", "\n".join([*toc, fuss.format(n=2, m=m)])]
+    for i, t in enumerate(titel):
+        koerper = [*SPRECHER, *([transkript] if transkript else [])]
+        seiten.append(
+            "\n".join(
+                [
+                    "Pressespiegel",
+                    "",
+                    "Radio Test - Testjournal vom 17.02.2026",
+                    t,
+                    *koerper,
+                    "Sender           Radio Test",
+                    "Quelle           Testjournal",
+                    "Typ              Radio",
+                    fuss.format(n=3 + i, m=m),
+                ]
+            )
+        )
+    return "\f".join(seiten) + "\f"
+
+
+def test_umbrochene_sprecherzeilen_ganz_verworfen_transkript_bleibt() -> None:
+    transkript = "(00:03:10) : ... die Kasse (ÖGK) startet eine Beratung"
+    ausgabe = zerlege_ausgabe(_radioausgabe(["Testjournal - Beratung startet"], transkript))
+    text = ausgabe.artikel[0].text
+    for teil in (
+        "Mustermann",
+        "Erika",
+        "Beispielberufe",
+        "Musterstadt",
+        "Beispiel Max",
+        "Probe",
+        "Testberufe",
+        "Sekunden",
+    ):
+        assert teil not in text
+    assert text == transkript
+    assert not ausgabe.artikel[0].nur_titel
+
+
+def test_ohne_sprecher_unausgeglichene_klammer_ohne_sekunden_bleibt() -> None:
+    zeilen = ["Ein Satz (mit Klammer, die", "erst hier schließt) und weiter."]
+    assert ohne_sprecher(zeilen) == zeilen
+
+
+def test_nur_sprecher_beitraege_mit_anderem_titel_bleiben_beide(tmp_path: Path) -> None:
+    quelle = tmp_path / "presse"
+    quelle.mkdir()
+    text = _radioausgabe(["Testjournal - Thema eins", "Testjournal - Thema zwei"])
+    (quelle / "Pressespiegel vom 17.02.2026.pdf").write_text(text, encoding="utf-8")
+    # dieselbe Sendung in einer zweiten Ausgabe ist eine echte Dublette
+    (quelle / "Pressespiegel vom 18.02.2026.pdf").write_text(
+        text.replace("Medienbeobachtung", "Medien"), encoding="utf-8"
+    )
+    extrahiere(quelle, tmp_path / "aus", prozesse=1, leser=lambda p: p.read_text(encoding="utf-8"))
+    artikel = lies_jsonl(tmp_path / "aus" / "artikel.jsonl")
+    assert [a["text"] for a in artikel] == ["Testjournal - Thema eins", "Testjournal - Thema zwei"]
+    arten = [a["art"] for a in lies_jsonl(tmp_path / "aus" / "abweichungen.jsonl")]
+    assert arten.count("artikel_dublette") == 2
+    assert "nur_titel" not in artikel[0]
+    for datei in (tmp_path / "aus").iterdir():
+        assert "Mustermann" not in datei.read_text(encoding="utf-8")
