@@ -1,0 +1,8 @@
+# Beispielpaket zur Leitfrage „−20 % Wartezeit in 5 Jahren bei höchstens +5 % Mehrkosten“.
+# Kapazität (Kassenstellen) und Nachfrage (digitale Triage) zugleich; alle Annahmen aus dem Register.
+beschreibung: Kassenstellen +3 % und digitale Facharzt-Triage für 20 % der Überweisungen
+massnahmen:
+  - id: kassenstellen
+    umfang: 3
+  - id: triage
+    umfang: 20

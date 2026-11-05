@@ -1,0 +1,97 @@
+# Maßnahmenkatalog des Experten (#42). Jede Maßnahme wirkt entweder auf die Kapazität (Δμ) oder auf die
+# Nachfrage (Δλ) der fachärztlichen Kassenversorgung; der Experte kombiniert mehrere Maßnahmen multiplikativ:
+#   ρ₁ = ρ₀ · Π(1 − Δλᵢ) / Π(1 + Δμᵢ),   Wartezeitänderung = W(ρ₁)/W(ρ₀) − 1 mit W(ρ) = ρ/(1 − ρ).
+#
+# Formeln (linear im Umfang, alle Zahlen aus `annahmen.yaml`):
+#   Wirkung (Anteil) = Umfang · skala · Π faktoren / Π teiler
+#   Kosten (Mio. EUR pro Jahr) = Umfang · skala · Π faktoren / Π teiler
+# Pfade: kumulierter Anteil des Umfangs je Jahr 1 bis 5. `umsetzungspfad` treibt die Kosten,
+# `wirkungspfad` (Standard: wie `umsetzungspfad`) die Wirkung. Ausgabe im Zieljahr 5 plus Jahrespfad.
+version: 1
+massnahmen:
+  - id: kassenstellen
+    name: Zusätzliche Kassenstellen
+    wirkt_auf: kapazitaet
+    einheit: "% zusätzliche Kassenstellen gegenüber dem Bestand"
+    wirkung:
+      skala: 0.01
+      faktoren: [kassenstellen_besetzung]
+    kosten:
+      skala: 0.01
+      faktoren: [kassenstellen_bestand, kassenstellen_besetzung, kosten_je_kassenstelle]
+    umsetzungspfad: [0.2, 0.4, 0.6, 0.8, 1.0]
+    quelle: >-
+      Kapazität wächst mit den besetzten neuen Stellen; Kosten = Stellen × Besetzung × Kosten je Stelle.
+      Linearer Aufbau über 5 Jahre (Annahme).
+  - id: telemedizin
+    name: Telemedizin-Anteil
+    wirkt_auf: nachfrage
+    einheit: "% der fachärztlichen Kontakte, die telemedizinisch stattfinden"
+    wirkung:
+      skala: 0.01
+      faktoren: [telemedizin_substitution]
+    kosten:
+      skala: 1
+      faktoren: [kosten_telemedizin]
+    umsetzungspfad: [0.2, 0.4, 0.6, 0.8, 1.0]
+    quelle: >-
+      Ersetzte Kontakte vor Ort mindern die Nachfrage vor Ort; Kosten je Prozentpunkt.
+      Linearer Aufbau über 5 Jahre (Annahme).
+  - id: triage
+    name: Digitale Facharzt-Triage
+    wirkt_auf: nachfrage
+    einheit: "% der Überweisungen zu Fachärzt:innen, die digital triagiert werden"
+    wirkung:
+      skala: 0.01
+      faktoren: [triage_vermeidung]
+    kosten:
+      skala: 1
+      faktoren: [kosten_triage]
+    umsetzungspfad: [0.2, 0.4, 0.6, 0.8, 1.0]
+    quelle: >-
+      Vermiedene Überweisungen mindern die fachärztliche Nachfrage; Kosten je Prozentpunkt.
+      Linearer Aufbau über 5 Jahre (Annahme).
+  - id: kompetenzen
+    name: Kompetenzen Gesundheitsberufe (Task-Shifting)
+    wirkt_auf: kapazitaet
+    einheit: "% der fachärztlichen Leistungen, die an Gesundheitsberufe delegiert werden"
+    wirkung:
+      skala: 0.01
+      faktoren: [kompetenzen_entlastung]
+    kosten:
+      skala: 1
+      faktoren: [kosten_kompetenzen]
+    umsetzungspfad: [0.0, 0.2, 0.5, 0.8, 1.0]
+    quelle: >-
+      Delegierte Leistungen machen ärztliche Kapazität frei; Start erst nach Rechtsänderung und Ausbildung
+      (verzögerter Pfad, Annahme).
+  - id: oeffnungszeiten
+    name: Erweiterte Öffnungszeiten
+    wirkt_auf: kapazitaet
+    einheit: "% zusätzliche Ordinationsstunden in Kassenordinationen"
+    wirkung:
+      skala: 0.01
+      faktoren: [oeffnungszeiten_produktivitaet]
+    kosten:
+      skala: 1
+      faktoren: [kosten_oeffnungszeiten]
+    umsetzungspfad: [0.4, 0.7, 1.0, 1.0, 1.0]
+    quelle: >-
+      Zusätzliche Stunden erhöhen die Kapazität bestehender Ordinationen; über Vertrag schnell umsetzbar
+      (Annahme).
+  - id: pve
+    name: Primärversorgungseinheiten (PVE)
+    wirkt_auf: nachfrage
+    einheit: zusätzliche Primärversorgungseinheiten
+    wirkung:
+      skala: 1
+      faktoren: [pve_versicherte, pve_entlastung]
+      teiler: [bevoelkerung]
+    kosten:
+      skala: 1
+      faktoren: [pve_zusatzkosten]
+    umsetzungspfad: [0.2, 0.4, 0.6, 0.8, 1.0]
+    wirkungspfad: [0.0, 0.1, 0.3, 0.5, 0.7]
+    quelle: >-
+      PVE betreuen Versicherte wohnortnah und mindern so die Facharzt-Nachfrage im Bevölkerungsanteil.
+      Wirkung mit Zeitverzug (WIFO: 2 bis 6 Jahre, Recherche § 6.4), Kosten ab Gründung.

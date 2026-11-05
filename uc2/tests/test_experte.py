@@ -1,0 +1,105 @@
+"""Experte (#42): Literalwerte aus der geschlossenen Formel, nicht aus dem Code nachgerechnet."""
+
+from __future__ import annotations
+
+import re
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+import yaml
+
+from uc2 import pfade
+from uc2.cli import main
+from uc2.experte import modell
+
+PAKETE = pfade.UC2_WURZEL / "pakete"
+PDF = Path("statistik_at_gesundheitsausgaben") / "20260611Gesundheitsausgaben2025.pdf"
+
+
+def test_pflichtwert_kassenstellen_fuenf_prozent() -> None:
+    # ρ₁ = 0,80/1,05 = 0,761904…; W(ρ₁)/W(ρ₀) = (0,7619/0,2381)/(0,8/0,2) = 3,2/4 = 0,8 → −20 %.
+    paket = modell.lade_paket(PAKETE / "test-kassenstellen-5.yaml")
+    punkt = modell.rechne(paket, paket.modus_werte())
+    assert punkt.rho1 == pytest.approx(0.7619, abs=5e-5)
+    assert punkt.wartezeit * 100 == pytest.approx(-20.0, abs=0.1)
+    assert modell.ergebnis(paket)["zielpruefung"]["ergebnis"] == "erfüllt"
+
+
+def test_zwei_laeufe_byte_gleich(capsys: pytest.CaptureFixture[str]) -> None:
+    paket = str(PAKETE / "beispiel-wartezeiten.yaml")
+    assert main(["experte", "--paket", paket, "--json"]) == 0
+    erster = capsys.readouterr().out
+    assert main(["experte", "--paket", paket, "--json"]) == 0
+    assert capsys.readouterr().out == erster
+    assert "kein Sprachmodell" in erster
+
+
+def test_ausgangsausgaben_gleich_pdf() -> None:
+    pdf = pfade.daten() / PDF
+    if not pdf.exists() or shutil.which("pdftotext") is None:
+        pytest.skip("Statistik-Austria-PDF oder pdftotext fehlt")
+    text = subprocess.run(
+        ["pdftotext", "-layout", "-f", "2", "-l", "2", str(pdf), "-"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    zeilen = text.splitlines()
+    kopf = next(z for z in zeilen if re.search(r"2018\s+2019.*2025", z))
+    jahre = [int(j) for j in re.findall(r"\b20\d\d\b", kopf)]
+    # Tabellenzeile, nicht die Überschrift „Laufende Gesundheitsausgaben in Österreich …“.
+    reihe = next(z for z in zeilen if re.match(r"\s*Laufende Gesundheitsausgaben\s{2,}\d", z))
+    werte = [int(w.replace(" ", "")) for w in re.findall(r"\d{1,3}(?: \d{3})+|\d+", reihe)]
+    pdf_wert = dict(zip(jahre, werte, strict=True))[2025]
+
+    eintrag = next(
+        a
+        for a in yaml.safe_load((pfade.CONFIG / "annahmen.yaml").read_text(encoding="utf-8"))["annahmen"]
+        if a["id"] == "ausgangsausgaben"
+    )
+    assert pdf_wert == 61338
+    assert eintrag["modus"] == eintrag["min"] == eintrag["max"] == pdf_wert
+    assert (eintrag["typ"], eintrag["jahr"], eintrag["einheit"]) == ("B", 2025, "Mio. EUR")
+    assert "Seite 2" in eintrag["quelle"]
+
+
+def test_beispielpaket_offen_und_rho0_entscheidend() -> None:
+    # Modus ρ₀ = 0,80 erreicht −22 %; bei ρ₀ = 0,70 bleiben nur rund −16 %: die Spanne schneidet −20 %.
+    daten = modell.ergebnis(modell.lade_paket(PAKETE / "beispiel-wartezeiten.yaml"))
+    spanne = daten["kennzahlen"]["wartezeit_aenderung_prozent"]
+    assert spanne["min"] < -20.0 < spanne["max"]
+    assert daten["zielpruefung"]["ergebnis"] == "offen"
+    assert daten["entscheidend"]["annahme"] == "rho0"
+    assert daten["entscheidend"]["text"].startswith("entscheidend: ρ₀")
+    rho0 = daten["entscheidend"]["einfluesse"][0]
+    assert (rho0["min"]["wert"], rho0["max"]["wert"]) == (0.7, 0.95)
+    assert rho0["min"]["ziel_erreicht"] is False and rho0["max"]["ziel_erreicht"] is True
+
+
+def test_kapazitaet_und_nachfrage_multiplikativ(tmp_path: Path) -> None:
+    # Kassenstellen +5 % (Δμ = 0,05) und Triage 50 % × 0,2 (Δλ = 0,10) bei ρ₀ = 0,80:
+    # ρ₁ = 0,8 · 0,9 / 1,05 = 24/35; W(ρ₁) = 24/11; W(ρ₀) = 4 → Änderung 6/11 − 1 = −5/11.
+    fest = {"min": None, "modus": None, "max": None}
+    paket_datei = tmp_path / "kombination.yaml"
+    paket_datei.write_text(
+        yaml.safe_dump(
+            {
+                "massnahmen": [{"id": "kassenstellen", "umfang": 5}, {"id": "triage", "umfang": 50}],
+                "annahmen": {
+                    aid: dict.fromkeys(fest, wert)
+                    for aid, wert in {
+                        "rho0": 0.8,
+                        "kassenstellen_besetzung": 1.0,
+                        "triage_vermeidung": 0.2,
+                    }.items()
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    paket = modell.lade_paket(paket_datei)
+    punkt = modell.rechne(paket, paket.modus_werte())
+    assert punkt.rho1 == pytest.approx(0.6857142857, abs=1e-9)
+    assert punkt.wartezeit == pytest.approx(-0.4545454545, abs=1e-9)
