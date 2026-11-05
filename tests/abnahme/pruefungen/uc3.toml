@@ -13,16 +13,6 @@ grund = "Alle vier Befehle stehen in der Hilfe und enden mit Exit 0; die YAML en
 herkunft = "b-abnahme-30/messer-c 2026-11-05 17:22"
 
 [[pruefung]]
-id = "13-AC2"
-hash = "33411a902b"
-befehl = "DB_PORT=5433 docker compose up -d && uv run --isolated --package statagent statagent db init && uv run --isolated --package statagent statagent db init && psql \"$UC3_DATABASE_URL\" -c 'select version()' -c '\\dt meta.*' -c '\\dt stat.*'"
-erwartet = ["PostgreSQL 16", "meta\\.regel", "meta\\.lauf"]
-schwer = true
-deckung = "teil"
-befund = "Braucht Docker und PostgreSQL (verboten). Zweiter Lauf ohne Datenverlust und Version 16 nicht gemessen. Ein eigener Schema-Snapshot (pg_dump) liegt nicht in uc3/db, nur die DDL-Dateien; Kommentar 271253 sagt, der frische compose-Lauf werde "
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:22"
-
-[[pruefung]]
 id = "13-AC3"
 hash = "b933063091"
 befehl = "uv run --isolated --package statagent statagent db pruefen"
@@ -168,26 +158,6 @@ befund = "web/package.json hat kein lint-Skript und .gitlab-ci.yml kein Web-Lint
 herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 
 [[pruefung]]
-id = "14-AC1"
-hash = "d8d0194719"
-befehl = "STATAGENT_STARTPAKET=<Pfad zu svbox/uc3> uv run --isolated --package statagent --with pytest pytest -q uc3/tests/test_goldenset.py -m daten"
-erwartet = ["(^|= )\\d+ passed"]
-schwer = true
-deckung = "teil"
-befund = "Braucht PostgreSQL mit allen Lieferungen und den Beispielbericht des Veranstalters (beides verboten). Der Koordinator fuehrt den Befehl auf dem Pruefrechner aus."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:23"
-
-[[pruefung]]
-id = "14-AC2"
-hash = "32e22bb614"
-befehl = "psql \"$UC3_DATABASE_URL\" -c \"select count(*) from roh.lieferung where lieferung='2024-08'\" (erwartet 392284); uv run statagent laeufe; uv run statagent lauf --lieferung 2024-08 (gezaehlt 392236, nicht gezaehlt 48, ausgeschlossen 0)"
-erwartet = ["392284", "392236", "\\b48\\b"]
-schwer = true
-deckung = "teil"
-befund = "Braucht die Datenbank. Die Zahl 392236 und die Abrechnung sind nur in Dokumenten belegt, nicht in diesem Lauf gemessen."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:23"
-
-[[pruefung]]
 id = "14-AC3"
 hash = "379f192323"
 befehl = "python3 -c \"import csv;r=list(csv.DictReader(open('docs/plan/uc3/regeln-v1.csv',encoding='utf-8'),delimiter=';'));print([(x['name'],x['gueltig_ab_lieferung'],bool(x['begruendung']),bool(x['grundlage']),repr(x['freigegeben_von'])) for x in r if x['name'].startswith(('R6','R7'))])\""
@@ -240,16 +210,6 @@ befund = "Die Testdatei uc3/tests/test_prompt_grenzen.py gibt es auf main nicht 
 herkunft = "b-abnahme-30/messer-c 2026-11-05 17:24"
 
 [[pruefung]]
-id = "16-AC1"
-hash = "64f08b4fac"
-befehl = "python3 -c \"import csv;r=list(csv.DictReader(open('docs/plan/uc3/laufmanifest-v1.csv',encoding='utf-8')));m=[x['monat'] for x in r];print(len(r),len(set(m)),m[0],m[-1],m==sorted(m),sum(int(x['nach_laufmonat']) for x in r))\"; for m in <24 Monate>; do uv run statagent lauf --lieferung $m; done; uv run statagent laufmanifest"
-erwartet = ["(?m)^24 24 2024-08 2026-07 True 0$"]
-schwer = true
-deckung = "teil"
-befund = "Die Manifestdatei erfuellt die Zahlen, aber die 24 Laeufe in Reihenfolge und dass ein Neulauf keine veroeffentlichte v1 ueberschreibt brauchen die Datenbank (nicht erlaubt); Ergebnis steht bei allen 24 Monaten noch auf vorlaeufig, veroeffen"
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:25"
-
-[[pruefung]]
 id = "16-AC2"
 hash = "173ddad634"
 befehl = "python3 -c \"import csv;q=list(csv.DictReader(open('uc3/pruefkatalog.csv',encoding='utf-8')));print(len(q),q[0]['platz'],q[-1]['platz'],[k for k in q[0] if any(not x[k].strip() for x in q if k in ('status','ebene','schwelle','einstufung','massnahme','begruendung','sql'))])\"; psql \"$UC3_DATABASE_URL\" -c \"select lieferung, gelesen+fortgeschrieben-(gezaehlt+nicht_gezaehlt+ausgeschlossen) from meta.lauf\""
@@ -257,16 +217,6 @@ erwartet = ["^24 P01 P24 \\[\\]$", "(?m)\\b0$"]
 schwer = true
 deckung = "teil"
 befund = "Teile fehlen: Residuum je Monat in der DB, getrennte Verhaeltniszaehlung und die Zuordnung zu den 19 Forensikpruefungen sind nicht gemessen; ob 'umgesetzt' nicht nur ein Platzhalter ist, prueft nur ein Lauf (uc3/tests/test_katalog.py brauch"
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:25"
-
-[[pruefung]]
-id = "16-AC3"
-hash = "a9e6671777"
-befehl = "psql \"$UC3_DATABASE_URL\" -f <die SQL aus docs/plan/uc3/2025-10-abgleich.md Menge A> (erwartet 78949); select ergebnis_status from meta.lauf where lieferung='2025-10'; select count(*) from stat.stat_beschaeftigte where stand='2025-10' and herkunft='lieferung_2025-11'"
-erwartet = ["78949"]
-schwer = true
-deckung = "teil"
-befund = "Die Mengen und die Zeilen aus 2025-11 (soll 0) brauchen die Datenbank; Menge B fuer 78.863 ist im Dokument ausdruecklich nicht reproduziert, das passt zur Vorgabe, ist aber hier nicht nachgemessen."
 herkunft = "b-abnahme-30/messer-c 2026-11-05 17:25"
 
 [[pruefung]]
@@ -278,16 +228,6 @@ schwer = false
 deckung = "teil"
 anmerkung = "Annahmen, Revisionsbedarf und ÖNACE-Strukturänderungen misst dieser Prüfsatz nicht; Hand-Beleg nötig"
 grund = "24 Dateien, der Validator meldet 0 Struktur- und Einstufungsfehler; eigene Pruefung: 219 Auffaelligkeitszeilen mit Umfang, Beleg, Einstufung und Massnahme, 0 Luecken."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:25"
-
-[[pruefung]]
-id = "16-AC5"
-hash = "4e598afe42"
-befehl = "uv run --isolated --with openpyxl python3 -c \"import openpyxl;print(openpyxl.load_workbook('abgabe/aggregationen_v1.xlsx').sheetnames)\"; psql \"$UC3_DATABASE_URL\" -c 'select count(*) from stat.stat_beschaeftigte' (je Monat gegen Blattsummen)"
-erwartet = ["\\['Hinweise', 'Bundesland', 'Geschlecht', 'OENACE_2008', 'OENACE_2025', 'Beschaeftigungskategorie'\\]"]
-schwer = true
-deckung = "teil"
-befund = "Sechs Blaetter und Formeln sind gemessen, aber die Blattsummen gegen die DB-Gesamtzahl (0 Differenzen) brauchen die Datenbank; der Validator sagt selbst 'ohne Datenbankabgleich'."
 herkunft = "b-abnahme-30/messer-c 2026-11-05 17:25"
 
 [[pruefung]]
@@ -320,16 +260,6 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "layout.tsx nutzt UcBereich und @kic/ui, aber die verlangte Datei web/tests/uc3-frame-matrix.json fehlt; eine Matrix liegt stattdessen unter docs/plan/uc3/uc3-frame-matrix.json (Frames bgAUw, fFDc8, L6f3Mp, P6gBQD enthalten, beide Viewports)"
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
-
-[[pruefung]]
-id = "18-AC2"
-hash = "2f68a6b5e2"
-befehl = "pnpm --filter web exec playwright test <UC3-Oberflaechentest> (Dev-Server mit UC3_DATABASE_URL)"
-erwartet = ["passed"]
-schwer = true
-deckung = "teil"
-befund = "Die Bedienung (Beleg oeffnen, Freigabe mit Name, Enter allein) braucht Browser und Datenbank. Die Navigation hat fuenf statt sechs Eintraege, Annahmen haengen unter Qualitaetsberichte; das ist noch zu klaeren. Keine Treffer fuer Modellaufru"
 herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 
 [[pruefung]]
@@ -394,16 +324,6 @@ erwartet = ["Abgabe vollständig"]
 schwer = false
 deckung = "teil"
 befund = "Die Abgabedateien sind nicht vollstaendig: ministerium_2026-07.csv und aggregationen_v2.xlsx fehlen, das Manifest fehlt; das ist ein Epic-Kriterium (Kinder #17 und #20 offen)."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
-
-[[pruefung]]
-id = "22-2"
-hash = "a1f42ab5d4"
-befehl = "STATAGENT_STARTPAKET=<Pfad zu svbox/uc3> uv run --isolated --package statagent --with pytest pytest -q uc3/tests/test_goldenset.py -m daten; uv run statagent pruefkatalog"
-erwartet = ["(^|= )\\d+ passed"]
-schwer = true
-deckung = "teil"
-befund = "Golden Set 2880 Zellen und die Pruefregeln gegen 2025-03 und 2025-10 brauchen die Datenbank; Messung beim Koordinator auf dem Pruefrechner."
 herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 
 [[pruefung]]
@@ -618,3 +538,101 @@ deckung = "teil"
 quelle = "Orakel bb 05.11., Abschnitt 1 (Sheet v1 gegen Orakel v1 + E07: 955 Wertzellen, 0 abweichend; mit Insgesamt 1051)"
 grund = "Abgabe-Sheet v1 stimmt Zelle für Zelle mit dem unabhängigen Orakel; Insgesamt nachgerechnet"
 befund = "Abgabe-Sheet v1 weicht vom unabhängigen Orakel ab"
+
+[[pruefung]]
+id = "14-AC1"
+hash = "d8d0194719"
+befehl = "timeout 900 uv run --package statagent pytest -q -p no:cacheprovider -m daten uc3/tests/test_goldenset.py"
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 960
+quelle = "Kriterium 14-AC1; Golden Set 2.880 Zellen gegen den Beispielbericht des Veranstalters (STATAGENT_STARTPAKET)"
+grund = "Golden-Set-Test 08/2024 auf frischer Prüf-DB grün"
+befund = "Golden-Set-Test 08/2024 nicht grün"
+
+[[pruefung]]
+id = "14-AC2"
+hash = "32e22bb614"
+befehl = "timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py abrechnung 2024-08"
+erwartet = ["^gelesen 392284$", "^gezaehlt 392236$", "^nicht_gezaehlt 48$", "^ausgeschlossen 0$", "^aufgehend ja$"]
+schwer = true
+deckung = "teil"
+zeitlimit = 320
+quelle = "Kriterium 14-AC2; Orakel bb Abschnitt 1 und zeitreihe.csv (392236)"
+grund = "Abrechnung 2024-08 geht auf: 392284 = 392236 + 48 + 0"
+befund = "Abrechnung 2024-08 weicht vom Soll ab"
+anmerkung = "„Personen mit mehreren VVH bleiben mehrfach gezählt“ misst dieser Prüfsatz nicht"
+
+[[pruefung]]
+id = "16-AC1"
+hash = "64f08b4fac"
+befehl = "timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py laeufe --manifest docs/plan/uc3/laufmanifest-v1.csv"
+erwartet = ["^manifest_monate 24$", "^db_monate 24$", "^hash_gleich 24$", "^nach_laufmonat 0$"]
+schwer = true
+deckung = "teil"
+zeitlimit = 320
+quelle = "Kriterium 16-AC1; Laufmanifest der UC3-Lane"
+grund = "24 Läufe auf frischer Prüf-DB, Ergebnis-Hash je Monat gleich dem Manifest, 0 spätere Lieferungen"
+befund = "Läufe der frischen Prüf-DB weichen vom Laufmanifest ab"
+anmerkung = "„Neulauf überschreibt keine veröffentlichte v1“ misst dieser Prüfsatz nicht"
+
+[[pruefung]]
+id = "16-AC3"
+hash = "a9e6671777"
+befehl = "timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py abrechnung 2025-10"
+erwartet = ["^ergebnis_status vorlaeufig$"]
+schwer = true
+deckung = "teil"
+zeitlimit = 320
+quelle = "Kriterium 16-AC3"
+grund = "2025-10 steht auf vorläufig"
+befund = "2025-10 steht nicht auf vorläufig"
+anmerkung = "Audit- und Forensik-Menge (78949/78863) misst dieser Prüfsatz nicht"
+
+[[pruefung]]
+id = "16-AC5"
+hash = "4e598afe42"
+befehl = "timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py zeitreihe --orakel tests/abnahme/orakel/zeitreihe.csv --spalte v1_sheet_mit_e07"
+erwartet = ["^monate 24$", "^mit_lauf 24$", "^abweichend 0$"]
+schwer = true
+deckung = "teil"
+zeitlimit = 320
+gegenprobe = "timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py zeitreihe --orakel tests/abnahme/orakel/zeitreihe.csv --spalte v1_rein"
+quelle = "Orakel bb, zeitreihe.csv Spalte v1_sheet_mit_e07"
+grund = "DB-Gesamtzahl je Monat gleich dem unabhängigen Orakel (und damit gleich den Blattsummen des Sheets)"
+befund = "DB-Gesamtzahl weicht vom unabhängigen Orakel ab"
+
+[[pruefung]]
+id = "22-2"
+hash = "a1f42ab5d4"
+befehl = "timeout 900 uv run --package statagent pytest -q -p no:cacheprovider -m daten uc3/tests/test_goldenset.py"
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "teil"
+zeitlimit = 960
+quelle = "Kriterium 22-2"
+grund = "Golden-Set-Test grün"
+befund = "Golden-Set-Test nicht grün"
+anmerkung = "Prüfregeln gegen 2025-03 und 2025-10 misst dieser Prüfsatz nicht"
+
+[[pruefung]]
+id = "13-AC2"
+hash = "33411a902b"
+befehl = "timeout 300 uv run --package statagent uc3 db init --json >/dev/null && timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py laeufe --manifest docs/plan/uc3/laufmanifest-v1.csv"
+erwartet = ["^hash_gleich 24$"]
+schwer = true
+deckung = "teil"
+zeitlimit = 640
+quelle = "Kriterium 13-AC2 (zweiter Schema-Lauf ohne Datenverlust)"
+grund = "Ein weiterer Schema-Lauf auf der Prüf-DB lässt alle 24 Läufe unverändert"
+befund = "Zweiter Schema-Lauf verändert oder verliert Daten"
+anmerkung = "Compose-Start auf 5433 prüft die Abnahme nicht selbst (Bau-Port); Schema-Snapshot unter uc3/db nur von Hand"
+
+[[pruefung]]
+id = "18-AC2"
+hash = "2f68a6b5e2"
+art = "hand"
+deckung = "voll"
+beschreibung = "Ein Mensch öffnet die UC3-Seiten gegen die Prüf-DB (Dev-Server mit UC3_DATABASE_URL auf 5444), öffnet einen Beleg, gibt eine Freigabe mit Vor- und Nachname frei und prüft, dass Enter allein nichts freigibt."
+
