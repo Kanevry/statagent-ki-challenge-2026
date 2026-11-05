@@ -75,3 +75,70 @@ it("ohne Wirkung wird nichts angeboten: keine Modellwahl ohne Modell, kein Feld,
   expect(screen.queryByLabelText("Ihre Frage")).toBeNull();
   expect(screen.queryAllByRole("button")).toHaveLength(0);
 });
+
+const BELEG = { uc: "uc3", lieferung: "2025-03", monat: "2025-03", sql: null, ref: null, regelstand: "v1", lauf: null, stand: "endgueltig" };
+
+it("jede Zahl hat ihren eigenen Beleg (zwei Zahlen aus zwei Quellen)", async () => {
+  const antwort = {
+    ...ANTWORT,
+    belege: [
+      { ...BELEG, quelle: "stat.beschaeftigte_monat" },
+      { ...BELEG, quelle: "stat.klass_oenace" },
+    ],
+    zahlen: [
+      { bezeichnung: "Beschäftigte", wert: 388650, einheit: null, beleg: 0 },
+      { bezeichnung: "davon Wien", wert: 92480, einheit: null, beleg: 1 },
+    ],
+  };
+  fetchMit(() =>
+    stromAntwort([
+      { art: "start", kette: ["uc3"], modell: null },
+      { art: "station", uc: "uc3", stufe: 1, zustand: "laeuft" },
+      { art: "antwort", uc: "uc3", stufe: 1, dauer_ms: 900, kern: "Kernsatz.", antwort },
+      { art: "ende", fehlend: [], dauer_ms: 1000 },
+    ]),
+  );
+  render(<Kette kette={["uc3"]} fragenOffen mitModell={false} />);
+  await userEvent.type(screen.getByLabelText("Ihre Frage"), "Frage{Enter}");
+  await screen.findByText("Kernsatz.");
+  const zahlen = document.querySelectorAll("[data-zahl]");
+  expect(zahlen).toHaveLength(2);
+  expect(screen.getByRole("button", { name: /stat\.beschaeftigte_monat/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /stat\.klass_oenace/ })).toBeTruthy();
+});
+
+it("Strom ohne Abschluss oder mit kaputter Zeile wird ein Fehlersatz, die Seite läuft nicht ewig", async () => {
+  fetchMit(() =>
+    stromAntwort([
+      { art: "start", kette: ["uc3"], modell: null },
+      { art: "station", uc: "uc3", stufe: 1, zustand: "laeuft" },
+    ]),
+  );
+  const { unmount } = render(<Kette kette={["uc3"]} fragenOffen mitModell={false} />);
+  await userEvent.type(screen.getByLabelText("Ihre Frage"), "Frage{Enter}");
+  expect((await screen.findByRole("alert")).textContent).toContain("brach ab");
+  expect(screen.getByRole("button", { name: "Fragen" }).hasAttribute("disabled")).toBe(false);
+  unmount();
+
+  vi.unstubAllGlobals();
+  fetchMit(() => new Response('{"art":"start","kette":["uc3"]}\nkein json\n', { status: 200 }));
+  render(<Kette kette={["uc3"]} fragenOffen mitModell={false} />);
+  await userEvent.type(screen.getByLabelText("Ihre Frage"), "Frage{Enter}");
+  expect((await screen.findByRole("alert")).textContent).toContain("nicht im erwarteten Format");
+});
+
+it("der Screenreader hört die tatsächliche Zahl der Antworten, nicht pauschal alle", async () => {
+  fetchMit(() =>
+    stromAntwort([
+      { art: "start", kette: ["uc3", "uc2"], modell: null },
+      { art: "station", uc: "uc3", stufe: 1, zustand: "laeuft" },
+      { art: "antwort", uc: "uc3", stufe: 1, dauer_ms: 900, kern: "Eins.", antwort: ANTWORT },
+      { art: "station", uc: "uc2", stufe: 2, zustand: "laeuft" },
+      { art: "fehlt", uc: "uc2", stufe: 2, grund: "zeitueberschreitung" },
+      { art: "ende", fehlend: [], dauer_ms: 1000 },
+    ]),
+  );
+  render(<Kette kette={["uc3", "uc2"]} fragenOffen mitModell={false} />);
+  await userEvent.type(screen.getByLabelText("Ihre Frage"), "Frage{Enter}");
+  await waitFor(() => expect(screen.getByRole("status").textContent).toBe("1 von 2 Stationen haben geantwortet."));
+});

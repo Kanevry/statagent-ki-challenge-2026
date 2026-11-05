@@ -61,6 +61,14 @@ async function fehlerAusAntwort(antwort: Response): Promise<string> {
   return antwort.status === 429 ? "Gerade sind zu viele Fragen unterwegs. Bitte gleich noch einmal." : "Die Kette hat nicht geantwortet.";
 }
 
+/** Was der Screenreader am Ende hört: wie viele Stationen geantwortet haben, nicht pauschal „alle“. */
+function fertigSatz(stationen: Record<string, Station>): string {
+  const alle = Object.values(stationen);
+  const mit = alle.filter((s) => s.art === "antwort").length;
+  if (mit === alle.length) return mit === 1 ? "Die Station hat geantwortet." : `Alle ${mit} Stationen haben geantwortet.`;
+  return `${mit} von ${alle.length} Stationen haben geantwortet.`;
+}
+
 function useSprache(): VoiceKonfiguration | null {
   const [konfig, setKonfig] = useState<VoiceKonfiguration | null>(null);
   useEffect(() => {
@@ -129,16 +137,24 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
     const leser = antwort.body.getReader();
     const dekoder = new TextDecoder();
     let rest = "";
+    // Endet der Strom ohne „ende“ oder „fehler“ oder kommt eine unlesbare Zeile, ist der Lauf kaputt: dann ein
+    // Fehlersatz statt einer Seite, die ewig „läuft“ (Review !106).
+    let abgeschlossen = false;
+    let kaputt = false;
     const anwenden = (zeile: string) => {
-      if (!zeile.trim()) return;
+      if (!zeile.trim() || abgeschlossen) return;
       let roh: unknown;
       try {
         roh = JSON.parse(zeile);
       } catch {
+        kaputt = true;
         return;
       }
       const e = stromEreignisSchema.safeParse(roh);
-      if (!e.success) return;
+      if (!e.success) {
+        kaputt = true;
+        return;
+      }
       const d = e.data;
       switch (d.art) {
         case "start":
@@ -158,9 +174,11 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
           setLauf({ art: "laeuft", stationen });
           return;
         case "ende":
+          abgeschlossen = true;
           setLauf({ art: "fertig", stationen, dauerMs: d.dauer_ms });
           return;
         case "fehler":
+          abgeschlossen = true;
           setLauf({ art: "fehler", meldung: d.fehler, stationen });
           return;
       }
@@ -175,6 +193,13 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
         zeilen.forEach(anwenden);
       }
       anwenden(rest);
+      if (!abgeschlossen && !steuerung.signal.aborted) {
+        setLauf({
+          art: "fehler",
+          meldung: kaputt ? "Die Antwort kam nicht im erwarteten Format." : "Die Antwort brach ab, bevor alle Stationen fertig waren.",
+          stationen,
+        });
+      }
     } catch {
       if (!steuerung.signal.aborted) setLauf({ art: "fehler", meldung: "Die Verbindung ist abgerissen.", stationen });
     }
@@ -269,7 +294,7 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
       )}
 
       <p role="status" aria-live="polite" className="sr-only">
-        {lauf.art === "laeuft" ? "Die Frage läuft durch die Kette." : lauf.art === "fertig" ? "Alle Stationen haben geantwortet." : ""}
+        {lauf.art === "laeuft" ? "Die Frage läuft durch die Kette." : lauf.art === "fertig" ? fertigSatz(lauf.stationen) : ""}
       </p>
 
       {lauf.art === "fehler" && !lauf.stationen && <p role="alert" className="font-sans text-16 text-ink">{lauf.meldung}</p>}
@@ -356,23 +381,37 @@ function StationKarte({
 }
 
 function Antwort({ kern, antwort, dauerMs }: { kern: string; antwort: UcAntwort; dauerMs: number }) {
-  const zahl = antwort.zahlen[0];
-  const beleg = zahl ? antwort.belege[zahl.beleg] : undefined;
   const mehr = antwort.text.trim() !== kern.trim();
   return (
     <div className="flex flex-col gap-3" data-uc4-antwort="">
       <p className="font-display text-20 font-medium text-ink text-pretty">{kern}</p>
-      {beleg && (
-        <HerkunftChip
-          quelle={beleg.quelle}
-          lieferung={beleg.lieferung}
-          monat={beleg.monat}
-          regelstand={beleg.regelstand}
-          sql={beleg.sql}
-          lauf={beleg.lauf}
-          verweis={beleg.ref}
-          stand={beleg.stand}
-        />
+      {antwort.zahlen.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {antwort.zahlen.map((zahl, i) => {
+            const beleg = antwort.belege[zahl.beleg];
+            return (
+              <li key={`${zahl.bezeichnung}-${i}`} className="flex flex-wrap items-baseline gap-x-2 gap-y-1" data-zahl="">
+                <span className="font-sans text-14 text-slate">{zahl.bezeichnung}</span>
+                <span className="font-sans text-16 font-semibold text-ink tabular-nums">
+                  {new Intl.NumberFormat("de-AT").format(zahl.wert)}
+                  {zahl.einheit ? ` ${zahl.einheit}` : ""}
+                </span>
+                {beleg && (
+                  <HerkunftChip
+                    quelle={beleg.quelle}
+                    lieferung={beleg.lieferung}
+                    monat={beleg.monat}
+                    regelstand={beleg.regelstand}
+                    sql={beleg.sql}
+                    lauf={beleg.lauf}
+                    verweis={beleg.ref}
+                    stand={beleg.stand}
+                  />
+                )}
+              </li>
+            );
+          })}
+        </ul>
       )}
       {mehr && (
         <details>
