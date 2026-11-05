@@ -110,7 +110,16 @@ def main(argv: list[str] | None = None) -> int:
     lade_env_local()
     if args.befehl == "status":
         info = aktives_modell(args.zweck)
-        print(json.dumps(info, ensure_ascii=False) if args.json else f"{info['provider']} · {info['modell']}")
+        if args.json:
+            print(json.dumps(info, ensure_ascii=False))
+            return 0
+        zeile = f"{info['provider']} · {info['modell']}"
+        zuletzt = info.get("zuletzt") or {}
+        if zuletzt and (
+            zuletzt.get("provider") != info["provider"] or (zuletzt.get("fallback_stufe") or 1) > 1
+        ):
+            zeile += f" (zuletzt {zuletzt.get('provider')}, Stufe {zuletzt.get('fallback_stufe')})"
+        print(zeile)
         return 0
     return _smoke(args.provider, args.datei or _repo_wurzel() / "docs" / "models.md")
 

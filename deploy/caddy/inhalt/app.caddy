@@ -1,0 +1,6 @@
+# INHALT=app: Next.js-Web aus dem app-Container (deploy/app.Dockerfile), nur über das interne Compose-Netz erreichbar.
+# Keine CSP hier: Next.js setzt Inline-Skripte; eine CSP gehört dann mit Nonce in web/ (E0).
+reverse_proxy app:3000 {
+	# während app neu startet (Deploy), versucht Caddy bis zu 5 s weiter, statt sofort 502 zu liefern
+	lb_try_duration 5s
+}
