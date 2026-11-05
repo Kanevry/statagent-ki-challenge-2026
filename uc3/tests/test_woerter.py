@@ -36,6 +36,8 @@ def test_unbekanntes_wort(frage: str, erkannt: list[str], erwartet: str | None) 
         "Beschäftigte außer Wien im September 2024",
         "How many employees in September 2024?",
         "Was kostet eine Pizza?",
+        "Wie hoch war der Bestand zum Jahresende?",
+        "Wie viele Beschäftigte gibt es pro Jahr?",
         "Beschäftigte im September 2024 nach v2",
         "Beschäftigte in ÖNACE Z im September 2024",
         "Welches Bundesland hat die höchste Zahl im September 2024?",

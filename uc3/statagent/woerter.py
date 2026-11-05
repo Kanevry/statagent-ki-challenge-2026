@@ -34,12 +34,13 @@ _FUELLWOERTER = _liste(
     viel viele vieler sagen sag zeig zeige zeigen steht stehen stand
     servus grüß gott könnt könntet könntest ihr euch bräuchte bräuchten hätten würde würden nennen nenne nennt
     angeben ausgeben liefern auskunft info information interessiert interessieren eigentlich überhaupt denn wohl
-    gabs gibts
+    gabs gibts betrachtet betrachten soweit wohlgemerkt jeweilig insbesondere bezogen bezug
     """
 )
 _SACHE = _liste(
     """
-    anzahl gesamtzahl gesamtanzahl gesamtbestand bestand bestanden bestehen besteht beschäftigtenstand
+    anzahl gesamtzahl gesamtanzahl gesamtbestand bestand bestands bestandes bestanden unselbständig unselbständige
+    unselbständigen unselbstständig unselbstständige unselbstständigen bestehen besteht beschäftigtenstand
     beschäftigtenzahl beschäftigtenzahlen tätig tätige tätigen arbeit arbeite arbeiten arbeitend arbeitende arbeitenden arbeitet arbeitete arbeiteten arbeitnehmer
     arbeitnehmerinnen beschäftigung beschaeftigung beschäftigungen beschäftigt beschaeftigt beschäftigte beschäftigten
     beschaeftigte beschaeftigten beschäftigter beschäftigungsverhältnis beschäftigungsverhältnisse
@@ -53,7 +54,7 @@ _ZEIT = _liste(
     aktuell aktuelle aktuellen derzeit gegenwärtig gegenwaertig heute momentan zurzeit zuletzt jeweils letzte letzten
     letzter letztes vergangene vergangenen vergangener
     jahr jahre jahren jahres monat monate monaten monats monatsletzten monatsletzter monatsende monatsweise stichtag
-    stichtage ende anfang mitte beginn jahresende jahresanfang jahresmitte zeitraum
+    stichtage ende anfang mitte beginn zeitraum
     """
 )
 _AUSWERTUNG = _liste(
@@ -61,7 +62,7 @@ _AUSWERTUNG = _liste(
     abgang abgänge abgängen abgaenge abschnitt abschnitte abschnitten anteil anteile anteils aufgeteilt aufteilung
     bereich bereichen branche branchen bundesland bundesländer bundesländern bundeslaender durchschnitt durchschnitte
     durchschnittlich durchschnittliche durchschnittlicher durchschnittliches durchschnittlichen verteilen verteilt
-    verteilung entwicklung entwickelt entwickelte fluktuation frauenanteil gegenüber
+    verteilung gegliedert gliederung aufgeschlüsselt aufgegliedert aufschlüsselung entwicklung entwickelt entwickelte fluktuation frauenanteil gegenüber
     gegenueber geschlecht geschlechter ganz ganzen gesamt gesamte gesamten hoch insgesamt
     jahresdurchschnitt jahresmittel kategorie kategorien mittel mittelwert monatsdurchschnitt männeranteil oenace
     önace österreich oesterreich prozent regel summe tabelle verglichen vergleich vergleichen verlauf vs
@@ -84,6 +85,6 @@ def unbekanntes_wort(frage: str, erkannt: list[str]) -> str | None:
         text = text.replace(stelle.lower(), " ")
     for treffer in _WORT.finditer(text):
         wort = treffer.group(0)
-        if len(wort) > 1 and wort not in BEKANNT:
+        if len(wort) > 1 and wort not in BEKANNT and not all(t in BEKANNT or len(t) < 2 for t in wort.split("-")):
             return wort
     return None

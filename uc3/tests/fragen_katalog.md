@@ -16,7 +16,7 @@ Spalten:
 
 Jahreszeiten: meteorologisch, „Winter 2025“ endet 2025 (Dezember 2024 bis Februar 2025). Der jüngste Monat ist Juli 2026.
 
-Die Zeilen `B…` schrieb ein Agent, der den Lese-Code nicht kannte. Zwei Soll-Werte sind danach korrigiert: B023 „zwischen
+Die Zeilen `B…` und `C…` schrieben Agenten, die den Lese-Code nicht kannten. Zwei Soll-Werte sind danach korrigiert: B023 „zwischen
 Dezember 2024 und Dezember 2025“ meint den ganzen Bereich, B065 „zwischen Mai und Oktober“ ohne Jahr den jüngsten solchen
 Zeitraum, wie alle Angaben ohne Jahr.
 
@@ -372,3 +372,63 @@ Zeitraum, wie alle Angaben ohne Jahr.
 | B068 | merkmal:unbekannt,form:unsauber,blind | rueckfrage | - | - | auch=absage | Beschäftigte in Ostösterreich im Juni 2026 |
 | B069 | zeit:quartal,zeit:ohne_jahr,merkmal:branche,blind | zahl | 2025-10..2025-12 | branche=Beherbergung und Gastronomie | mittel;auch=rueckfrage,absage | Beschäftigte in der Gastro im Q4 |
 | B070 | zeit:stichtag,blind | zahl | 2026-07 | - | auch=rueckfrage | Wie viele Beschäftigte waren am 10. Juli 2026 in Beschäftigung? |
+| C001 | zeit:monat,form:amtlich,blind2 | zahl | 2025-10 | - | muss | Stand der unselbständig Beschäftigten zum Monatsletzten Oktober 2025 |
+| C002 | merkmal:arbeitszeit,merkmal:bundesland,form:gliederung,blind2 | absage | - | - | auch=rueckfrage | Bestand unselbständig Beschäftigter zum Monatsletzten März 2026 in Wien, aufgeschlüsselt nach Teilzeit und Vollzeit |
+| C003 | zeit:monat,zeit:relativ,zeit:verschachtelt,form:amtlich,blind2 | zahl | 2026-02 | - | muss | Bestand der unselbständig Beschäftigten insgesamt, Stand Monatsletzter, und zwar der des Februars heuer |
+| C004 | zeit:stichtag,merkmal:bundesland,form:stichwort,blind2 | zahl | 2025-12 | region=9 | muss | Beschäftigtenstand Wien, Stichtag 31.12.2025 |
+| C005 | merkmal:staatsbuergerschaft,zeit:stichtag,form:nebensatz,blind2 | absage | - | - | auch=rueckfrage | Beschäftigte insgesamt zum Stichtag 31.12.2025, wobei mich vor allem die Verteilung nach Staatsbürgerschaft interessiert |
+| C006 | zeit:unklar,form:amtlich,blind2 | rueckfrage | - | - | auch=absage | Wie hat sich der Bestand der unselbständig Beschäftigten entwickelt? |
+| C007 | zeit:stichtag,merkmal:branche,merkmal:bundesland,kreuz:merkmale,form:stichwort,blind2 | zahl | 2026-01 | region=2;branche=Beherbergung und Gastronomie | muss | Bestand Beherbergung und Gastronomie, Stichtag 31.01.2026, Kärnten |
+| C008 | zeit:monat,merkmal:geschlecht,form:nebensatz,blind2 | zahl | 2026-05 | geschlecht=W | muss | Wie viele unselbständig Beschäftigte gab es Ende Mai 2026, wenn man nur die Frauen betrachtet? |
+| C009 | merkmal:alter,merkmal:branche,form:nebensatz,blind2 | absage | - | - | auch=rueckfrage | Wie hoch war der Bestand im Bau Ende Mai 2026, soweit die Beschäftigten über 55 Jahre alt waren? |
+| C010 | zeit:stichtag,merkmal:kategorie,form:nebensatz,blind2 | zahl | 2026-03 | kategorie=Beamte | muss | Wie viele Beschäftigte gab es, soweit sie Beamte sind, zum Stichtag 31. März 2026? |
+| C011 | zeit:winter,form:amtlich,blind2 | zahl | 2025-12..2026-02 | - | mittel;muss | Bestand der Beschäftigten im Winter 2026, insgesamt |
+| C012 | merkmal:einkommen,merkmal:branche,zeit:stichtag,form:amtlich,blind2 | absage | - | - | auch=rueckfrage | Summe der Beitragsgrundlagen im Handel, Stichtag 31.10.2025 |
+| C013 | zeit:quartal,merkmal:kategorie,form:amtlich,blind2 | zahl | 2026-01..2026-03 | kategorie=Arbeiter | mittel;muss | Durchschnittlicher Bestand an Arbeitern im 1. Quartal 2026 |
+| C014 | zeit:ohne_jahr,zeit:jahresteil,form:amtlich,blind2 | zahl | 2025-12 | - | auch=rueckfrage,absage | Wie hoch war der Bestand zum Jahresende? |
+| C015 | zeit:monat,merkmal:bundesland,form:gliederung,blind2 | zahl | 2026-04 | - | gruppe=region;muss | Summe der Beschäftigten, gegliedert nach Bundesland, Stand April 2026 |
+| C016 | merkmal:betriebsgroesse,merkmal:branche,merkmal:bundesland,zeit:stichtag,form:amtlich,blind2 | absage | - | - | auch=rueckfrage | Gesundheits- und Sozialwesen in Tirol, Stand 31.01.2026, getrennt nach Betriebsgröße |
+| C017 | zeit:ohne_jahr,zeit:monat,form:stichwort,blind2 | zahl | 2026-07 | - | muss | Gesamtbestand Ende Juli, unselbständig Beschäftigte |
+| C018 | merkmal:unbekannt,merkmal:bundesland,form:unsauber,blind2 | rueckfrage | - | - | auch=absage | Beschäftigte im Süden Österreichs, Stand Mai 2026 |
+| C019 | zeit:monat,form:gliederung,merkmal:geschlecht,blind2 | zahl | 2024-09 | - | gruppe=geschlecht;muss | Beschäftigte nach Geschlecht aufgeschlüsselt, Stand Monatsletzter September 2024 |
+| C020 | merkmal:beruf,merkmal:branche,zeit:monat,blind2 | absage | - | - | auch=rueckfrage | Bestand der Elektriker im Bau zum Monatsletzten September 2025 |
+| C021 | zeit:bereich,merkmal:bundesland,form:amtlich,blind2 | zahl | 2025-03..2025-05 | region=1 | muss | Unselbständig Beschäftigte, Stand Monatsletzter, Burgenland, März 2025 bis Mai 2025 |
+| C022 | zeit:jahr,merkmal:geschlecht,form:stichwort,blind2 | zahl | 2025-01..2025-12 | geschlecht=M | muss | Zeitreihe Bestand Männer, Jänner 2025 bis Dezember 2025 |
+| C023 | merkmal:arbeitszeit,form:anderes_thema,zeit:monat,blind2 | absage | - | - | auch=rueckfrage | Anzahl der geringfügig Beschäftigten Ende April 2026 |
+| C024 | zeit:stichtag,merkmal:kategorie,merkmal:bundesland,form:amtlich,blind2 | zahl | 2025-02 | region=6;freier_dv=1 | muss | Bestand an freien Dienstverträgen zum Monatsletzten Februar 2025 in der Steiermark |
+| C025 | form:anderes_thema,zeit:stichtag,form:stichwort,blind2 | absage | - | - | auch=rueckfrage | Summe der Beschäftigten und der Arbeitslosen, Stichtag 31.05.2026 |
+| C026 | zeit:stichtag,merkmal:branche,form:stichwort,blind2 | zahl | 2026-07 | branche=Verkehr und Lagerei | muss | Stand zum 31.07.2026: Beschäftigte in Verkehr und Lagerei |
+| C027 | merkmal:unbekannt,merkmal:branche,form:unsauber,blind2 | rueckfrage | - | - | auch=absage | Bestand im Dienstleistungssektor, Stichtag 31.03.2026 |
+| C028 | zeit:monat,merkmal:geschlecht,merkmal:bundesland,merkmal:branche,kreuz:merkmale,blind2 | zahl | 2025-12 | region=9;geschlecht=W;branche=Erziehung und Unterricht | muss | Bestand Erziehung und Unterricht, Wien, Frauen, Stand Dezember 2025 |
+| C029 | merkmal:herkunft,merkmal:bundesland,form:nebensatz,zeit:monat,blind2 | absage | - | - | auch=rueckfrage | Bestand der Beschäftigten in Kärnten, soweit sie im Ausland wohnen, Stand Mai 2026 |
+| C030 | zeit:monat,form:gliederung,merkmal:kategorie,blind2 | zahl | 2024-10 | - | gruppe=kategorie;muss | Aufgeschlüsselt nach Beschäftigungskategorie: wie hoch war der Bestand Ende Oktober 2024? |
+| C031 | merkmal:unbekannt,merkmal:bundesland,zeit:monat,blind2 | absage | - | - | auch=rueckfrage | Beschäftigte in Wien nach Gemeindebezirk, Stand März 2026 |
+| C032 | form:unsauber,merkmal:branche,merkmal:bundesland,form:zwei_werte,kreuz:merkmale,blind2 | zahl | 2026-05 | branche=Bau | werte_je=region:9,4;auch=absage,rueckfrage | Beschäftigte im Bau, Wien, Oberösterreich, Mai 2026 |
+| C033 | zeit:bereich,form:amtlich,blind2 | zahl | 2026-01..2026-04 | - | muss | Beschäftigte in den Monaten Jänner bis April 2026 insgesamt |
+| C034 | zeit:ausserhalb,zeit:stichtag,form:amtlich,blind2 | absage | - | - | auch=rueckfrage | Stichtag 31.12.2022: unselbständig Beschäftigte insgesamt |
+| C035 | zeit:stichtag,merkmal:oenace,form:stichwort,blind2 | zahl | 2025-11 | oenace=G | muss | Beschäftigte ÖNACE-Abschnitt G, Stichtag 30.11.2025 |
+| C036 | zeit:stichtag,merkmal:oenace,form:stichwort,blind2 | zahl | 2024-12 | oenace=F | muss | ÖNACE-Abschnitt F, Stand zum Monatsletzten Dezember 2024 |
+| C037 | zeit:ausserhalb,zeit:monat,form:amtlich,blind2 | absage | - | - | auch=rueckfrage | Bestand zum Monatsletzten Mai 2024, unselbständig Beschäftigte insgesamt |
+| C038 | merkmal:unbekannt,form:unsauber,zeit:monat,blind2 | rueckfrage | - | - | auch=absage | Unselbständig und selbständig Beschäftigte zusammen, Stand Jänner 2026 |
+| C039 | zeit:jahreszeit,merkmal:bundesland,merkmal:kategorie,kreuz:merkmale,form:amtlich,blind2 | zahl | 2025-06..2025-08 | region=8;kategorie=Angestellte | mittel;muss | Beschäftigtenstand im Sommer 2025 in Vorarlberg, nur Angestellte |
+| C040 | form:prognose,zeit:ausserhalb,zeit:stichtag,blind2 | absage | - | - | auch=rueckfrage | Voraussichtlicher Bestand zum Stichtag 31.12.2027 |
+| C041 | zeit:jahreszeit,merkmal:bundesland,merkmal:geschlecht,kreuz:merkmale,form:nebensatz,blind2 | zahl | 2026-03..2026-05 | region=2;geschlecht=M | mittel;muss | Wie hoch war der Bestand im Frühjahr 2026, in Kärnten wohlgemerkt nur bei den Männern? |
+| C042 | zeit:stichtag,merkmal:bundesland,form:vergleich,blind2 | zahl | 2026-06 | - | werte_je=region:9,3;auch=absage,rueckfrage | Bestand Wien gegenüber Niederösterreich, Stichtag Ende Juni 2026 |
+| C043 | merkmal:befristung,zeit:monat,form:amtlich,blind2 | absage | - | - | auch=rueckfrage | Wie viele befristet Beschäftigte gab es zum Monatsletzten Februar 2026? |
+| C044 | zeit:ungueltig,zeit:stichtag,blind2 | zahl | 2026-06 | - | auch=rueckfrage,absage | Bestand zum Stichtag 31.06.2026 |
+| C045 | zeit:monat,merkmal:geschlecht,form:anteil,blind2 | zahl | 2026-02 | - | art=anteil;anteil=geschlecht:W;auch=rueckfrage,absage | Frauenanteil unter den unselbständig Beschäftigten, Stand Februar 2026 |
+| C046 | merkmal:dauer,merkmal:branche,zeit:monat,blind2 | absage | - | - | auch=rueckfrage | Wie lange dauerten die Beschäftigungsverhältnisse im Bau im Schnitt, Stand März 2026? |
+| C047 | zeit:monat,form:veraenderung,blind2 | zahl | 2026-06,2026-07 | - | auch=rueckfrage | Veränderung des Bestands gegenüber dem Vormonat, Stand Juli 2026 |
+| C048 | zeit:unklar,zeit:quartal,form:amtlich,blind2 | rueckfrage | - | - | auch=absage | Beschäftigte zum Quartalsende 2025 |
+| C049 | zeit:monat,merkmal:bundesland,form:zwei_werte,form:amtlich,blind2 | zahl | 2026-04 | - | werte_je=region:4,5;auch=absage,rueckfrage | Summe der Beschäftigten Oberösterreich und Salzburg, Stichtag 30.04.2026 |
+| C050 | merkmal:leiharbeit,merkmal:branche,zeit:monat,form:nebensatz,blind2 | absage | - | - | auch=rueckfrage | Bestand in der Herstellung von Waren zum Stichtag 30.06.2026, davon Leiharbeitskräfte |
+| C051 | zeit:stichtag,merkmal:branche,merkmal:bundesland,kreuz:merkmale,form:stichwort,blind2 | zahl | 2026-06 | region=5;branche=Gesundheits- und Sozialwesen | muss | Gesundheits- und Sozialwesen, Salzburg, Stichtag 30.06.2026 |
+| C052 | zeit:relativ,zeit:verschachtelt,form:amtlich,blind2 | zahl | 2024-08..2026-07 | - | mittel;auch=rueckfrage,absage | Durchschnittlicher Bestand der unselbständig Beschäftigten im Zeitraum der vergangenen zwei Jahre |
+| C053 | merkmal:ausbildung,merkmal:bundesland,zeit:stichtag,form:nebensatz,blind2 | absage | - | - | auch=rueckfrage | Anteil der Beschäftigten mit Maturaabschluss in Wien, Stichtag 30.11.2025 |
+| C054 | zeit:stichtag,merkmal:branche,merkmal:bundesland,merkmal:geschlecht,form:gliederung,blind2 | zahl | 2025-09 | region=9;branche=Bau | gruppe=geschlecht;muss | Beschäftigte im Bau in Wien, nach Geschlecht aufgeschlüsselt, Stichtag 30.09.2025 |
+| C055 | zeit:ohne_jahr,zeit:bereich,form:amtlich,blind2 | zahl | 2026-05..2026-07 | - | auch=rueckfrage,absage | Unselbständig Beschäftigte von Mai bis Juli, Stand jeweils Monatsletzter |
+| C056 | merkmal:elternteilzeit,merkmal:geschlecht,merkmal:branche,zeit:monat,form:nebensatz,blind2 | absage | - | - | auch=rueckfrage | Frauen im Gesundheits- und Sozialwesen, die in Elternteilzeit sind, Stand Jänner 2026 |
+| C057 | zeit:monat,form:gliederung,merkmal:branche,blind2 | zahl | 2026-03 | - | gruppe=oenace;muss | Beschäftigte, gegliedert nach ÖNACE-Abschnitt, Stichtag 31.03.2026 |
+| C058 | zeit:relativ,zeit:unklar,form:amtlich,blind2 | rueckfrage | - | - | auch=absage | Bestand der Beschäftigten zum Ende des vorigen Quartals |
+| C059 | form:anderes_thema,merkmal:branche,zeit:jahr,blind2 | absage | - | - | auch=rueckfrage | Wie viele Arbeitsunfälle gab es im Bau im Jahr 2025? |
+| C060 | merkmal:einkommen,form:amtlich,zeit:monat,blind2 | absage | - | - | auch=rueckfrage | Bruttomonatsverdienst der unselbständig Beschäftigten, Stand Oktober 2025 |

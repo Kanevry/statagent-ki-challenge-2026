@@ -254,6 +254,7 @@ EINWOHNER: dict[str, tuple[str, ...]] = {
     "Kärnten": ("kärntner",),
     "Salzburg": ("salzburger",),
 }
+_ZEITWORT_OHNE_MONAT = re.compile(r"\b(?:jahr|jahre|jahren|jahres|monat|monate|monaten|monats|zeitraum)\b", re.IGNORECASE)
 _VERNEINUNG = frozenset({"außer", "ausser", "ohne", "nicht", "kein", "keine", "keinen", "keiner", "ausgenommen"})
 _FRAU = re.compile(r"\b(frau|frauen|weiblich\w*)\b")
 _MANN = re.compile(r"\b(mann|männer|maenner|männlich\w*|maennlich\w*)\b")
@@ -1478,6 +1479,9 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
             and jahr_ohne_monat(frage) is None
             and letzter is not None
         ):
+            if _ZEITWORT_OHNE_MONAT.search(frage):
+                # „pro Jahr“, „je Quartal“: Das meint nicht den jüngsten Monat.
+                return _rueckfrage_monat(typ, None)
             frage = f"{frage} {_monat_anzeige(letzter)}"
             if _AKTUELL.search(frage):
                 notizen.append(
