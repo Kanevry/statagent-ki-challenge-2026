@@ -8,7 +8,8 @@
     "./tokens.css": "./src/tokens.css",
     "./basis": "./src/basis/index.ts",
     "./bausteine": "./src/bausteine/index.ts",
-    "./shell": "./src/shell/index.ts"
+    "./shell": "./src/shell/index.ts",
+    "./antwortform": "./src/antwortform.ts"
   },
   "scripts": {
     "test": "vitest --run"
