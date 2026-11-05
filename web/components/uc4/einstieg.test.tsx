@@ -1,11 +1,12 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import fixture from "../../../shared/schema/fixtures/uc-antwort.json";
-import type { Ergebnis } from "../../lib/plattform/uc4-ergebnis";
+import { BUDGET_MELDUNG, type Ergebnis } from "../../lib/plattform/uc4-ergebnis";
 import { Einstieg } from "./einstieg";
 
 // Fängt ab: Karten in Antwort- statt Kettenreihenfolge, eine Zahl ohne Herkunft, Enter ohne Wirkung, ein
-// gesperrter POST (Online-Demo, #100) als Absturz und ein fehlender UC ohne lesbaren Grund.
+// gesperrter POST (Online-Demo, #100) als Absturz, ein 429 ohne seinen Hinweis und ein fehlender UC ohne lesbaren
+// Grund.
 
 const uc3 = fixture as Ergebnis["antworten"][number];
 const ergebnis: Ergebnis = {
@@ -57,6 +58,26 @@ it("ein gesperrter POST zeigt in jeder Karte den Hinweis auf die Online-Demo", a
   await user.click(screen.getByRole("button", { name: "Frage stellen" }));
   expect(await screen.findAllByText("Fragen sind in der Online-Demo noch gesperrt.")).toHaveLength(4);
   expect(karten().map((k) => k.dataset.zustand)).toEqual(["fehler", "fehler", "fehler"]);
+});
+
+it("429 (Ratenlimit oder Tagesbudget, #100) zeigt den Hinweis aus der Antwort, nicht „Antwort fehlgeschlagen“", async () => {
+  const user = userEvent.setup();
+  antworte(429, { fehler: BUDGET_MELDUNG });
+  render(<Einstieg />);
+  await user.type(screen.getByLabelText("Frage an die Kette"), "x{Enter}");
+  expect(await screen.findAllByText(BUDGET_MELDUNG)).toHaveLength(4);
+});
+
+// Fängt ab: Budget mitten in der Kette erschöpft (router meldet grund BudgetErschoepft), die Karte zeigt aber
+// „Antwort fehlgeschlagen“ statt des Budget-Hinweises (Review !36, Pflicht 3).
+it("fehlender UC mit grund BudgetErschoepft zeigt den Budget-Hinweis in seiner Karte", async () => {
+  const user = userEvent.setup();
+  antworte(200, { antworten: [uc3], fehlend: [{ uc: "uc2", grund: "BudgetErschoepft" }, { uc: "uc1", grund: "BudgetErschoepft" }] });
+  render(<Einstieg />);
+  await user.type(screen.getByLabelText("Frage an die Kette"), "x{Enter}");
+  expect(await within(karten()[1]!).findByText(BUDGET_MELDUNG)).toBeTruthy();
+  expect(within(karten()[2]!).getByText(BUDGET_MELDUNG)).toBeTruthy();
+  expect(screen.queryByText("Antwort fehlgeschlagen")).toBeNull();
 });
 
 // Fängt ab: der Chip zeigt den ersten statt des referenzierten Belegs (ein Test mit nur belege[0] bliebe grün),

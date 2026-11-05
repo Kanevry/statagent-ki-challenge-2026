@@ -1,5 +1,7 @@
 import fixture from "../../../shared/schema/fixtures/uc-antwort.json";
+import { erstelleRatenlimit, type PruefeRatenlimit } from "./ratenlimit";
 import {
+  BUDGET_MELDUNG,
   erstelleFrageAntwort,
   ROUTER_ARGV,
   standardAusfuehren,
@@ -11,7 +13,9 @@ import { ergebnisSchema, type Ergebnis } from "./uc4-ergebnis";
 // Fängt ab: Kette in falscher Reihenfolge, Frage ohne Grenze, ein Router-Fehler als 500 oder halbe Daten,
 // Mock-Schalter ohne Wirkung, eine Frage, die als Schalter des Routers gelesen wird, und „keine Antwort“
 // (Exit 1) als Fehler statt als Ergebnis. Dazu die zweite Sperre hinter dem Proxy: Online-Demo nur lesend,
-// zu großer Body, mehr als zwei Läufe gleichzeitig und ein Slot, der nach einem Fehler belegt bleibt.
+// zu großer Body, mehr als zwei Läufe gleichzeitig und ein Slot, der nach einem Fehler belegt bleibt. Aus #100: ein
+// Ratenlimit ohne Wirkung auf die Route oder erst nach dem Body-Lesen, und ein erschöpftes Tagesbudget (Exit 3)
+// als 502 statt 429.
 
 /** Ein frischer Handler je Aufruf, damit die Lauf-Zählung eines Tests keinen anderen berührt. */
 const frageAntwort = (a: Request, optionen: FrageOptionen) => erstelleFrageAntwort(optionen)(a);
@@ -33,6 +37,9 @@ function anfrage(body: unknown): Request {
   });
 }
 
+/** Kein Limit: die übrigen Fälle prüfen die Route, nicht das Ratenlimit. */
+const offen: PruefeRatenlimit = () => null;
+
 const liefert = (stdout: string, code = 0) => vi.fn<Ausfuehren>(async () => ({ code, stdout }));
 
 beforeEach(() => {
@@ -46,6 +53,7 @@ describe("POST /api/uc4/frage", () => {
       ausfuehren,
       umgebung: {},
       wurzel: () => "/repo",
+      ratenlimit: offen,
     });
 
     expect(antwort.status).toBe(200);
@@ -60,7 +68,7 @@ describe("POST /api/uc4/frage", () => {
 
   it("UC4_ADAPTER=mock hängt --mock an, eine Frage mit Bindestrich bleibt nach -- ein Argument", async () => {
     const ausfuehren = liefert(JSON.stringify(ergebnis));
-    await frageAntwort(anfrage({ frage: "-h" }), { ausfuehren, umgebung: { UC4_ADAPTER: "mock" }, wurzel: () => "/r" });
+    await frageAntwort(anfrage({ frage: "-h" }), { ausfuehren, umgebung: { UC4_ADAPTER: "mock" }, wurzel: () => "/r", ratenlimit: offen });
     expect(ausfuehren.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--mock", "--", "-h"]);
   });
 
@@ -73,7 +81,7 @@ describe("POST /api/uc4/frage", () => {
         { uc: "uc1", grund: "TimeoutError" },
       ],
     };
-    const antwort = await frageAntwort(anfrage({ frage: "x" }), { ausfuehren: liefert(JSON.stringify(leer), 1), umgebung: {}, wurzel: () => "/r" });
+    const antwort = await frageAntwort(anfrage({ frage: "x" }), { ausfuehren: liefert(JSON.stringify(leer), 1), umgebung: {}, wurzel: () => "/r", ratenlimit: offen });
     expect(antwort.status).toBe(200);
     expect(await antwort.json()).toEqual(leer);
   });
@@ -106,7 +114,7 @@ describe("POST /api/uc4/frage", () => {
       liefert(JSON.stringify({ ...ergebnis, fehlend: ["uc1"] })),
     ];
     for (const ausfuehren of fehlerfaelle) {
-      const antwort = await frageAntwort(anfrage({ frage: "x" }), { ausfuehren, umgebung: {}, wurzel: () => "/r" });
+      const antwort = await frageAntwort(anfrage({ frage: "x" }), { ausfuehren, umgebung: {}, wurzel: () => "/r", ratenlimit: offen });
       expect(antwort.status).toBe(502);
       expect((await antwort.json()).fehler).toMatch(/Kette/);
     }
@@ -166,6 +174,34 @@ describe("Sperren vor dem Subprozess", () => {
     offen[2]!({ code: 0, stdout: JSON.stringify(ergebnis) });
     expect([(await zweite).status, (await dritte).status]).toEqual([200, 200]);
     expect(ausfuehren).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe("POST /api/uc4/frage, Ratenlimit und Tagesbudget (#100)", () => {
+  it("das Ratenlimit greift vor Body-Lesen und Subprozess", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    const ratenlimit = erstelleRatenlimit({ proMinute: 1 });
+    const optionen = { ausfuehren, umgebung: {}, wurzel: () => "/r", ratenlimit, jetzt: () => 0 };
+    expect((await frageAntwort(anfrage({ frage: "x" }), optionen)).status).toBe(200);
+    // Ein zu großer Body wäre 413; das Limit kommt vorher.
+    const gesperrt = await frageAntwort(anfrage({ frage: "a".repeat(5000) }), optionen);
+    expect(gesperrt.status).toBe(429);
+    expect(gesperrt.headers.get("retry-after")).toBe("60");
+    expect(ausfuehren).toHaveBeenCalledTimes(1);
+  });
+
+  it("Exit 3 mit fehler budget_erschoepft wird 429 mit Hinweis und Retry-After bis Mitternacht UTC", async () => {
+    const stdout = JSON.stringify({ fehler: "budget_erschoepft", meldung: "…" });
+    const antwort = await frageAntwort(anfrage({ frage: "x" }), {
+      ausfuehren: liefert(stdout, 3),
+      umgebung: {},
+      wurzel: () => "/r",
+      ratenlimit: offen,
+      jetzt: () => Date.UTC(2026, 10, 5, 23, 0, 0),
+    });
+    expect(antwort.status).toBe(429);
+    expect(antwort.headers.get("retry-after")).toBe("3600");
+    expect(await antwort.json()).toEqual({ fehler: BUDGET_MELDUNG });
   });
 });
 
