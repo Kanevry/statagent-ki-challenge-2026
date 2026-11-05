@@ -34,7 +34,12 @@ export const frageSchema = z.object({
 export type Fehlend = z.infer<typeof fehlendSchema>;
 export type Ergebnis = z.infer<typeof ergebnisSchema>;
 
-/** Lesbarer Grund für eine fehlende Antwort. */
+/** Hinweis, wenn das Tagesbudget der Modellaufrufe verbraucht ist (Route 429, Karte mitten in der Kette, #100). */
+export const BUDGET_MELDUNG = "Für heute sind keine Antworten mehr frei. Bitte morgen wieder fragen.";
+
+/** Lesbarer Grund für eine fehlende Antwort; `BudgetErschoepft` ist der Fehlertyp aus `plattform.llm`. */
 export function grundText(grund: string): string {
-  return grund === "kein_adapter" ? "Noch nicht angeschlossen" : "Antwort fehlgeschlagen";
+  if (grund === "kein_adapter") return "Noch nicht angeschlossen";
+  if (grund === "BudgetErschoepft") return BUDGET_MELDUNG;
+  return "Antwort fehlgeschlagen";
 }
