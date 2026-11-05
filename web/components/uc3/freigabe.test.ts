@@ -19,6 +19,15 @@ import {
   waageBeleg,
   waageSatz,
   wirkungJeKategorie,
+  aenderungSatz,
+  auftragKopf,
+  freigabenKopf,
+  kurzZeit,
+  ohneProbeSatz,
+  probeJeKategorie,
+  protokollZeilen,
+  vorgeschlagenVon,
+  type ErledigtZeile,
 } from "./freigabe";
 
 // Nie die echte CLI: jeder Handler bekommt ein gefälschtes `ausfuehren` (die Prozessgrenze); der Aufbau des
@@ -333,6 +342,20 @@ describe("Probe für Auftrag 1 (Umverteilung)", () => {
     expect(u?.gesamt).toBe(392236);
   });
 
+  // Fehler, den das fängt (auch: vorher zeigte dieselbe Summe wie nachher, die Umverteilung war unsichtbar): Tabelle „vorher | nachher“ zeigt Codes (ArbeiterDV) statt Kategorien oder verliert Beamte.
+  it("fasst die Probe je Beschäftigungskategorie zur Tabelle zusammen", () => {
+    expect(probeJeKategorie(probe, kategorien)).toEqual({
+      lieferung: "2024-08",
+      zeilen: [
+        { kategorie: "Angestellte", vorher: 236961, nachher: 236961, vorherTeile: [{ wort: "Angestellte mit Dienstvertrag", wert: 235819 }, { wort: "Angestellte freier Dienstvertrag", wert: 1142 }] },
+        { kategorie: "Arbeiter", vorher: 141713, nachher: 141713, vorherTeile: [{ wort: "Arbeiter mit Dienstvertrag", wert: 141331 }, { wort: "Arbeiter freier Dienstvertrag", wert: 382 }] },
+        { kategorie: "Beamte", vorher: 13562, nachher: 13562, vorherTeile: [{ wort: "Beamte", wert: 13562 }] },
+      ],
+      gesamt: { vorher: 392236, nachher: 392236 },
+    });
+    expect(probeJeKategorie(null, kategorien)).toBeNull();
+  });
+
   it("erfindet keine Zusammensetzung, wenn die Summe nicht stimmt", () => {
     const falsch = structuredClone(probe);
     falsch["2024-08"].nachher.je_merkmal.qualifikation.Arbeiter = 141700;
@@ -388,5 +411,67 @@ describe("Auftragszitat (Sichtprüfung bb, #18)", () => {
       "Fasse Gruppen zusammen: Die Gesamtzahl bleibt gleich.",
     );
     expect(auftragsZitat("Auftrag 2, ganzes Monat: Gezählt wird das ganze Monat.")).toBe("Gezählt wird das ganze Monat.");
+  });
+});
+
+describe("Sätze der Freigabe-Seiten (UI-Regie v1)", () => {
+  // Fehler, den das fängt: Zeit in UTC oder mit Jahr und Komma statt „05.11. 16:53“ in Wiener Zeit.
+  it("schreibt die Zeit kurz in Wiener Zeit", () => {
+    expect(kurzZeit("2026-11-05T15:53:10Z")).toBe("05.11. 16:53");
+    expect(kurzZeit("kein Datum")).toBe("kein Datum");
+  });
+
+  // Fehler, den das fängt: der Zeilentitel ist der ganze 15-zeilige Auftrag statt des Teils vor dem Doppelpunkt.
+  it("nimmt den Titel aus dem Teil vor dem Doppelpunkt", () => {
+    expect(auftragKopf("Auftrag 2, ganzes Monat statt Stichtag: Gezählt wird nicht mehr der Monatsletzte.")).toEqual({
+      nummer: "2",
+      titel: "Ganzes Monat statt Stichtag",
+    });
+    expect(auftragKopf("Regelsatz v2 freigeben")).toEqual({ nummer: null, titel: "Regelsatz v2 freigeben" });
+  });
+
+  // Fehler, den das fängt: Regelcodes wie R6_… im Fließtext der Zeile.
+  it("sagt ohne Regelcode, was sich ändert", () => {
+    const satz = aenderungSatz({ typ: "regel_aendern", aenderungen: [{ regel_name: "R6_beschaeftigungskategorie" }], regelsatzZiel: "v2" });
+    expect(satz).toBe("Ändert eine Regel im Regelsatz v2");
+    expect(aenderungSatz({ typ: "regel_neu", aenderungen: [{}], regelsatzZiel: "ministerium" })).toBe(
+      "Neue Regel für die Ministeriums-Lieferung",
+    );
+  });
+
+  // Fehler, den das fängt: Kopf sagt „Nichts wartet“, obwohl drei Änderungen entschieden sind.
+  it("bildet den Kopfsatz aus den Daten", () => {
+    const frei = { art: "freigegeben" as const };
+    expect(freigabenKopf(0, [frei, frei, frei])).toBe("3 Änderungen, alle mit Namen freigegeben.");
+    expect(freigabenKopf(1, [frei])).toBe("1 Änderung wartet auf Ihre Freigabe.");
+    expect(freigabenKopf(0, [frei, { art: "abgelehnt" }])).toBe("2 Änderungen mit Namen entschieden: 1 freigegeben, 1 abgelehnt.");
+    expect(freigabenKopf(0, [])).toBe("Noch hat kein Agent eine Änderung vorgeschlagen.");
+  });
+
+  it("nennt Agent, Anbieter und Modell", () => {
+    expect(vorgeschlagenVon({ rolle: "klassifikation", provider: "azure", modell: "gpt-5-4-mini" })).toBe(
+      "Vorgeschlagen vom Klassifikations-Agenten (Azure gpt-5-4-mini)",
+    );
+    expect(vorgeschlagenVon({ rolle: "qs", provider: null, modell: null })).toBe("Vorgeschlagen vom Prüf-Agenten");
+  });
+
+  // Fehler, den das fängt: Auftrag 3 sagt „Probe noch nicht gerechnet“, obwohl es nie ein vorher und nachher gibt.
+  it("begründet eine fehlende Probe", () => {
+    expect(ohneProbeSatz({ typ: "regel_neu", regelsatzZiel: "ministerium" })).toMatch(/Ministeriums-Lieferung/);
+    expect(ohneProbeSatz({ typ: "regel_aendern", regelsatzZiel: "v2" })).toMatch(/noch nicht gerechnet/);
+  });
+
+  // Fehler, den das fängt: 72 Zeilen „Regelstand … für Monat“ derselben Person in derselben Minute.
+  it("fasst die Regelstände eines Regelsatzes zu einer Zeile zusammen", () => {
+    const basis = { art: "freigegeben" as const, name: "Erika Muster", anweisung: null, geaendert: null, begruendung: null, commit: null, vorschlag: null, waage: null };
+    const zeilen: ErledigtZeile[] = [
+      { ...basis, schluessel: "r1", zeit: "2026-11-05T15:54:00Z", regelstand: { regelsatz: "v2", lieferung: "2024-09" } },
+      { ...basis, schluessel: "r2", zeit: "2026-11-05T15:54:01Z", regelstand: { regelsatz: "v2", lieferung: "2024-08" } },
+      { ...basis, schluessel: "f1", zeit: "2026-11-05T15:53:00Z", anweisung: "Regelsatz v2 freigeben" },
+    ];
+    expect(protokollZeilen(zeilen).map((z) => z.satz)).toEqual([
+      "Regeln von Regelsatz v2 für 2 Monate festgehalten, August 2024 bis September 2024",
+      "Regelsatz v2 freigeben",
+    ]);
   });
 });

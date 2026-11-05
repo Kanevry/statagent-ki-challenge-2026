@@ -3,8 +3,11 @@
 Für die API (`uc2.api`, #44) gibt es zwei Schalter:
 
 - `--frage-stdin`: Die Frage kommt als Freitext über stdin statt aus der Fall-YAML. `pruefe_frage` fasst
-  Leerraum zusammen, lehnt Steuer- und Bidi-Zeichen ab und begrenzt auf `MAX_FRAGE` Zeichen. Die Frage landet
-  so in `uc2.fall` und im Ereignis `start`.
+  Leerraum zusammen, lehnt Steuer- und Bidi-Zeichen ab und begrenzt auf `MAX_FRAGE` Zeichen. Personendaten
+  (#137): Kennungen (Ziffernfolgen ab 8 Stellen, Sozialversicherungsnummer), ein Geburtsdatum neben
+  „geb.“/„geboren“/„Geburtsdatum“ und E-Mail-Adressen lehnt sie mit `FRAGE_PERSONENDATEN` ab; Namen
+  maskiert sie zur Rolle (`maskiere_modelltext`, Muster; der Lauf maskiert danach noch einmal mit der
+  Namensliste). Die maskierte Frage landet in `uc2.fall`, im Ereignis `start` und im Prompt.
 - `--melde-fall-id`: Die CLI schreibt `fall_id=<n>` als erste Zeile auf stdout, sobald der Fall in
   `uc2.fall` committet ist, und leert den Puffer sofort. Gewählt statt einer vorab vergebenen UUID
   (`--fall-ref`): `uc2.fall.fall_id` ist eine Identity-Spalte, eine UUID bräuchte eine neue Spalte samt
@@ -24,6 +27,7 @@ import argparse
 import dataclasses
 import functools
 import json
+import re
 import sys
 import unicodedata
 from typing import Any
@@ -31,6 +35,7 @@ from typing import Any
 import psycopg
 
 from uc2 import db
+from uc2.belege.namen import Namensliste, maskiere_modelltext
 from uc2.modelle import PROVIDER, ModellKonfigFehler, waehle_provider
 from uc2.verhandlung.ausgabe import als_text
 from uc2.verhandlung.belege import (
@@ -45,21 +50,56 @@ from uc2.verhandlung.belege import (
 from uc2.verhandlung.bericht import bericht
 from uc2.verhandlung.fall import FallFehler, bekannte_faelle, lade_fall
 from uc2.verhandlung.lauf import PARALLEL_ECHT, Laufoptionen, Verhandlung, VerhandlungsFehler
+from uc2.verhandlung.schutz import SchutzFehler
 
 MAX_FRAGE = 500
 """Höchstlänge der Frage in Zeichen (nach dem Zusammenfassen von Leerraum)."""
 _BIDI = frozenset("\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u200e\u200f")
+FRAGE_PERSONENDATEN = (
+    "Die Frage darf keine Kennungen wie PERSON_ID oder Sozialversicherungsnummer, kein Geburtsdatum und "
+    "keine E-Mail-Adresse enthalten."
+)
+"""Fester Satz bei Ablehnung; er wiederholt die Eingabe nie (API 422, CLI stderr)."""
+_ANF = "[\"'„“”»«‚‘’]?"
+KENNUNG = re.compile(
+    r"(?<!\d)(?:\d{8,}|\d{4}[ /-]?\d{6}|\d{4}[ /-]?\d{2}\.\d{2}\.(?:\d{4}|\d{2})"
+    r"|\d{4} \d{2} \d{2} \d{2})(?!\d)"
+    rf"|\b(?:PERSON|VVH)[_ -]?ID\s*[:=#]?\s*{_ANF}\s*\d"
+    rf"|\b(?:SV|Sozialversicherungs|Versicherungs)-?(?:Nummer|Nr\.?)\s*[:=#]?\s*{_ANF}\s*\d",
+    re.IGNORECASE,
+)
+"""Kennung: Ziffernfolge ab 8 Stellen, Sozialversicherungsnummer (4 Ziffern plus Geburtsdatum TTMMJJ, auch mit
+Trenner, als TT.MM.JJ(JJ) oder in Paaren „01 02 80“) oder eine Ziffer direkt nach „PERSON_ID“, „VVH_ID“
+oder „SV-Nummer“, auch in Anführungszeichen (kurze IDs)."""
+_MONATE = "Jänner|Januar|Feber|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember"
+DATUM = re.compile(
+    r"(?<!\d)(?:\d{1,2}\.\s?\d{1,2}\.\s?(?:\d{4}|\d{2})|\d{4}-\d{1,2}-\d{1,2})(?!\d)"
+    rf"|(?<!\d)\d{{1,2}}\.\s?(?:{_MONATE})\s+\d{{2,4}}(?!\d)",
+    re.IGNORECASE,
+)
+"""Datum TT.MM.JJJJ, TT.MM.JJ, JJJJ-MM-TT oder „1. Februar 1980“; zählt nur zusammen mit `GEBURT`."""
+GEBURT = re.compile(r"\bgeb(?:oren|urtsdatum|urtstag|\.)", re.IGNORECASE)
+EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 
 
 class FrageFehler(ValueError):
     """Frage leer, zu lang oder mit Steuerzeichen."""
 
 
-def pruefe_frage(roh: str) -> str:
-    """Freitext-Frage prüfen und normalisieren; `FrageFehler` bei Verstoß.
+def enthaelt_personendaten(frage: str) -> bool:
+    """Kennung, Geburtsdatum (Datum neben „geb.“, „geboren“ oder „Geburtsdatum“) oder E-Mail-Adresse."""
+    if KENNUNG.search(frage) or EMAIL.search(frage):
+        return True
+    return bool(DATUM.search(frage) and GEBURT.search(frage))
+
+
+def pruefe_frage(roh: str, namen: Namensliste | None = None) -> str:
+    """Freitext-Frage prüfen, normalisieren und maskieren; `FrageFehler` bei Verstoß.
 
     Zeilenumbrüche und Tabulatoren sind erlaubt und werden wie jeder Leerraum zu einem Leerzeichen; jedes
-    andere Steuerzeichen (Unicode Cc) und Richtungszeichen (Bidi) wird abgelehnt.
+    andere Steuerzeichen (Unicode Cc) und Richtungszeichen (Bidi) wird abgelehnt. Personendaten
+    (`enthaelt_personendaten`) ergeben `FRAGE_PERSONENDATEN`. Namen werden zur Rolle maskiert: Muster
+    (Vorname und Nachname, Titel und Nachname, Funktion …) und, wenn übergeben, die Namensliste.
     """
     for zeichen in roh:
         if zeichen in _BIDI or (unicodedata.category(zeichen) == "Cc" and zeichen not in "\t\n\r"):
@@ -69,7 +109,9 @@ def pruefe_frage(roh: str) -> str:
         raise FrageFehler("Frage ist leer")
     if len(frage) > MAX_FRAGE:
         raise FrageFehler(f"Frage ist länger als {MAX_FRAGE} Zeichen ({len(frage)})")
-    return frage
+    if enthaelt_personendaten(frage):
+        raise FrageFehler(FRAGE_PERSONENDATEN)
+    return maskiere_modelltext(frage, namen)
 
 
 def _melde_fall_id(fall_id: int) -> None:
@@ -141,7 +183,7 @@ def ausfuehren(args: argparse.Namespace) -> int:
         if args.frage_stdin:
             # Begrenzt lesen: mehr als das Vierfache der Höchstlänge ist sicher zu lang.
             fall = dataclasses.replace(fall, frage=pruefe_frage(sys.stdin.read(MAX_FRAGE * 4 + 1)))
-    except (FallFehler, ModellKonfigFehler, FrageFehler) as fehler:
+    except (FallFehler, ModellKonfigFehler, FrageFehler, SchutzFehler) as fehler:
         print(f"Fehler: {fehler}", file=sys.stderr)
         return 2
     for name, wert in (("--max-akteure", args.max_akteure), ("--max-runden", args.max_runden)):
@@ -165,7 +207,7 @@ def ausfuehren(args: argparse.Namespace) -> int:
         )
         try:
             fall_id = Verhandlung(verbindung, fall, optionen).fuehre_aus()
-        except (BelegFehler, ModellKonfigFehler, VerhandlungsFehler) as fehler:
+        except (BelegFehler, ModellKonfigFehler, VerhandlungsFehler, SchutzFehler) as fehler:
             print(f"Fehler: {fehler}", file=sys.stderr)
             return 1
         daten = bericht(verbindung, fall_id)

@@ -38,6 +38,8 @@ from openpyxl.xml.functions import tostring
 
 from statagent import ergebnis, konfig
 from statagent.db import Verbindung
+from statagent.regeln import eine, regeln_laden
+from statagent.regeln import wert as regel_wert
 
 #: Variable und Zeitraumart der Stichtagszählung (Kennzahl, keine Zuordnungsregel).
 STICHTAG_VARIABLE = "Beschaeftigungsverhaeltnisse"
@@ -172,6 +174,11 @@ def _unbekannt_codes(conn: Verbindung, regelsatz: str) -> dict[tuple[str, str], 
     return {(str(z["merkmal"]), str(z["version"])): str(z["code"]) for z in zeilen}
 
 
+def zaehl_zeitraum(conn: Verbindung, regelsatz: str, monat: str) -> str:
+    """Zeitraumart der Bestandsregel des Regelsatzes: v1 „Stichtag“, nach Auftrag 2 „Monat“ (Regeln als Daten)."""
+    return str(regel_wert(eine(regeln_laden(conn, regelsatz, monat), "zaehl", "bestand"), "zeitraum_art"))
+
+
 def _gerechnete_monate(conn: Verbindung, regelsatz: str) -> list[str]:
     zeilen = conn.execute(
         """
@@ -241,6 +248,7 @@ def sheet_schreiben(
     vorlaeufig: dict[str, str] = {}
     fortgeschrieben: dict[str, int] = {}
     letztes_ende: datetime | None = None
+    zeitraum_arten: set[str] = set()
     for monat in monate:
         stand = ergebnis.letzter_lauf(conn, monat, regelsatz)
         assert stand is not None
@@ -251,10 +259,14 @@ def sheet_schreiben(
         ende = lauf["beendet_am"]
         if isinstance(ende, datetime) and (letztes_ende is None or ende > letztes_ende):
             letztes_ende = ende
+        # Zeitraumart aus der Bestandsregel des Regelsatzes: v1 zählt am Stichtag, v2 über das ganze Monat
+        # (Auftrag 2). Fest „Stichtag“ ergab für v2 lauter Nullen.
+        art = zaehl_zeitraum(conn, regelsatz, monat)
+        zeitraum_arten.add(art)
         zellen = [
             z
             for z in ergebnis.monatswerte(conn, monat, regelsatz)
-            if z["zeitraum_art"] == STICHTAG and z["variable"] == STICHTAG_VARIABLE
+            if z["zeitraum_art"] == art and z["variable"] == STICHTAG_VARIABLE
         ]
         if int(str(lauf["fortgeschrieben"] or 0)) > 0:
             fortgeschrieben[monat] = int(str(lauf["fortgeschrieben"]))
@@ -364,6 +376,12 @@ def sheet_schreiben(
             f"Erzeugt aus stat.stat_beschaeftigte, Regelsatz {regelsatz}, Monate {spanne}; "
             f"vorläufig: {vorl}. 0 = gerechnet, keine Fälle; leer = Monat nicht gerechnet."
         )
+        if zeitraum_arten - {STICHTAG}:
+            # Die Vorlage sagt „am Stichtag“; für einen anderen Zählzeitraum steht hier, was die Werte bedeuten.
+            hinweise.cell(zeile, 1).value = str(hinweise.cell(zeile, 1).value) + (
+                " Gezählt sind Verhältnisse, die im Berichtsmonat mindestens einen Tag bestehen (ganzes Monat statt"
+                " Stichtag, Regel R2_R4)."
+            )
         if fortgeschrieben:
             liste = "; ".join(
                 f"{m}: {n:,} Verhältnisse".replace(",", ".") for m, n in sorted(fortgeschrieben.items())

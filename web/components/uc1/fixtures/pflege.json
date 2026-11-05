@@ -1,0 +1,322 @@
+{
+  "szenario": "pflege",
+  "aufgenommen": "2026-11-05T17:08:25Z",
+  "quelle": "lotse frage --json, Kern 927bd30 (MR !93), Provider azure. Nachbearbeitet: zwei Aussagetexte zu BPGG § 4 von Hand an den Wortlaut angeglichen („mehr als“, „voraussichtlich mindestens“), Zitate unverändert (Review !69).",
+  "schritte": [
+    {
+      "eingabe": {
+        "text": "Meine Mutter kommt allein nicht mehr zurecht. Sie ist 84, wohnt in Wien, war im Oktober nach einem Sturz im Spital.",
+        "stil": "einfach"
+      },
+      "antwort": {
+        "text": "Wer zahlt die Pension? Meist ist das die Pensionsversicherung (PVA), sonst die Versicherung für Selbständige (SVS) oder die für Beamte und Bahn (BVAEB). Sie können auch sagen: keine Pension.",
+        "verhalten": "rueckfrage",
+        "sitzung_id": "f0e54122-2ed1-45f3-858f-9c9235cd97b4",
+        "rueckfrage": "Wer zahlt die Pension? Meist ist das die Pensionsversicherung (PVA), sonst die Versicherung für Selbständige (SVS) oder die für Beamte und Bahn (BVAEB). Sie können auch sagen: keine Pension.",
+        "rueckfrage_optionen": [
+          {
+            "text": "Pensionsversicherung (PVA)",
+            "antwort": "Die Pension kommt von der PVA."
+          },
+          {
+            "text": "Selbständige (SVS)",
+            "antwort": "Die Pension kommt von der SVS."
+          },
+          {
+            "text": "Beamte und Bahn (BVAEB)",
+            "antwort": "Die Pension kommt von der BVAEB."
+          },
+          {
+            "text": "Keine Pension",
+            "antwort": "Keine Pension."
+          }
+        ],
+        "aussagen": [],
+        "traeger": [],
+        "naechste_schritte": [],
+        "leistungen": [
+          "pflegegeld",
+          "rehabilitation"
+        ],
+        "antraege": [
+          "pflegegeld",
+          "reha"
+        ],
+        "modell": "gpt-5-4-mini",
+        "provider": "azure",
+        "grenze": false,
+        "uebergabe_an": null,
+        "hinweise": []
+      }
+    },
+    {
+      "eingabe": {
+        "text": "Sie bekommt ihre Pension von der PVA. Sie heißt Maria Beispiel, ist am 12.03.1942 geboren und wohnt in der Favoritenstraße 1, 1100 Wien.",
+        "stil": "einfach"
+      },
+      "antwort": {
+        "text": "Pflegegeld gibt es, wenn der Pflegebedarf voraussichtlich mindestens sechs Monate dauert (BPGG § 4). Pflegegeld gibt es, wenn der Pflegebedarf durchschnittlich mehr als 65 Stunden im Monat beträgt (BPGG § 4).\nZuständig: Pensionsversicherungsanstalt (PVA) (BPGG § 22 Abs. 1 Z 1; ASVG § 300).\nSo geht es weiter:\n1. Stellen Sie den Antrag auf Pflegegeld (PAL080) der PVA.\n2. Legen Sie Kopien Ihrer Befunde von Arzt, Ärztin oder Krankenhaus bei (Antrag PAL080, S. 2).\n3. Ich kann den Antrag für Sie vorausfüllen. Abgeschickt wird nichts.\n4. Stellen Sie den Antrag auf Kur und Rehabilitation.\n5. Legen Sie die wichtigen Befunde Ihrer Ärztin oder Ihres Arztes bei (Antrag Kur und Reha, S. 2).\n6. Hilfe im Alltag: FSW-Antrag auf Förderung, S. 5.\n7. Hilfe im Alltag: Antrag-auf-Zuschuss-zu-Fahrtkosten Wien, S. 2.\n8. Fragen klären Sie direkt mit: Pensionsversicherungsanstalt (PVA).\nDiese Auskunft kommt von einem KI-Lotsen. Die Entscheidung trifft der Träger.",
+        "verhalten": "antwort",
+        "sitzung_id": "f0e54122-2ed1-45f3-858f-9c9235cd97b4",
+        "rueckfrage": null,
+        "rueckfrage_optionen": [],
+        "aussagen": [
+          {
+            "text": "Pflegegeld gibt es, wenn der Pflegebedarf voraussichtlich mindestens sechs Monate dauert.",
+            "zitat": "Das Pflegegeld gebührt bei Zutreffen der übrigen Anspruchsvoraussetzungen, wenn auf Grund einer körperlichen, geistigen oder psychischen Behinderung oder einer Sinnesbehinderung der ständige Betreuungs- und Hilfsbedarf (Pflegebedarf) voraussichtlich mindestens sechs Monate andauern wird oder würde.",
+            "quelle": "BPGG § 4",
+            "stand": "2015-01-01",
+            "betrag": false,
+            "hinweis_hoehe": false,
+            "angebot": false
+          },
+          {
+            "text": "Pflegegeld gibt es, wenn der Pflegebedarf durchschnittlich mehr als 65 Stunden im Monat beträgt.",
+            "zitat": "Anspruch auf Pflegegeld besteht in Höhe der Stufe 1: für Personen, deren Pflegebedarf nach Abs. 1 durchschnittlich mehr als 65 Stunden monatlich beträgt; Stufe 2: für Personen, deren Pflegebedarf nach Abs. 1 durchschnittlich mehr als 95 Stunden monatlich beträgt;",
+            "quelle": "BPGG § 4",
+            "stand": "2015-01-01",
+            "betrag": false,
+            "hinweis_hoehe": false,
+            "angebot": false
+          }
+        ],
+        "traeger": [
+          {
+            "leistung": "pflegegeld",
+            "stelle": "PVA",
+            "name": "Pensionsversicherungsanstalt (PVA)",
+            "fundstelle": "BPGG § 22 Abs. 1 Z 1",
+            "status": "pva",
+            "zitat": "der für die Gewährung der Vollrente, Pension oder des Sonderruhegeldes zuständige Sozialversicherungsträger"
+          },
+          {
+            "leistung": "rehabilitation",
+            "stelle": "PVA",
+            "name": "Pensionsversicherungsanstalt (PVA)",
+            "fundstelle": "ASVG § 300",
+            "status": "pva"
+          }
+        ],
+        "naechste_schritte": [
+          "Stellen Sie den Antrag auf Pflegegeld (PAL080) der PVA.",
+          "Legen Sie Kopien Ihrer Befunde von Arzt, Ärztin oder Krankenhaus bei (Antrag PAL080, S. 2).",
+          "Ich kann den Antrag für Sie vorausfüllen. Abgeschickt wird nichts.",
+          "Stellen Sie den Antrag auf Kur und Rehabilitation.",
+          "Legen Sie die wichtigen Befunde Ihrer Ärztin oder Ihres Arztes bei (Antrag Kur und Reha, S. 2).",
+          "Hilfe im Alltag: FSW-Antrag auf Förderung, S. 5.",
+          "Hilfe im Alltag: Antrag-auf-Zuschuss-zu-Fahrtkosten Wien, S. 2.",
+          "Fragen klären Sie direkt mit: Pensionsversicherungsanstalt (PVA)."
+        ],
+        "leistungen": [
+          "pflegegeld",
+          "rehabilitation"
+        ],
+        "antraege": [
+          "pflegegeld",
+          "reha"
+        ],
+        "modell": "gpt-5-4-mini",
+        "provider": "azure",
+        "grenze": false,
+        "uebergabe_an": null,
+        "hinweise": []
+      }
+    }
+  ],
+  "belege_sha256": "6fc3d78272351ae09a1ec0d005542ba461112e77848e67fd9773756ff3afac08",
+  "antrag": {
+    "art": "pflegegeld",
+    "sitzung_id": "f0e54122-2ed1-45f3-858f-9c9235cd97b4",
+    "formular": {
+      "datei": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf",
+      "bezeichnung": "Antrag auf Pflegegeld nach dem Bundespflegegeldgesetz (PAL080) der PVA",
+      "version": "PAL 080 (01. 2025)",
+      "seiten": 8,
+      "sha256": "c12f29f6bd732ded90a43d64a1579235fa86ef9689e45291966b822a7926b2ce"
+    },
+    "formularwahl": {
+      "datei": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf",
+      "bezeichnung": "Antrag auf Pflegegeld nach dem Bundespflegegeldgesetz (PAL080) der PVA",
+      "version": "PAL 080 (01. 2025)",
+      "begruendung": "PAL080 ist der Antrag auf Pflegegeld bei der PVA. Er passt, wenn die PVA zuständig ist (BPGG § 22). Das gilt bei Pension von der PVA, bei Angestellten und ohne Pension.",
+      "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 1: „ANTRAG auf PFLEGEGELD nach dem Bundespflegegeldgesetz (BPGG)“"
+    },
+    "befuellt": [
+      {
+        "feld": "Fam.Name",
+        "wert": "Beispiel",
+        "angaben": [
+          "person.familienname"
+        ],
+        "seite": 1
+      },
+      {
+        "feld": "Vorname",
+        "wert": "Maria",
+        "angaben": [
+          "person.vorname"
+        ],
+        "seite": 1
+      },
+      {
+        "feld": "Geburtsdatum",
+        "wert": "12.03.1942",
+        "angaben": [
+          "person.geburtsdatum"
+        ],
+        "seite": 1
+      },
+      {
+        "feld": "Adresse Straße",
+        "wert": "Favoritenstraße",
+        "angaben": [
+          "person.strasse"
+        ],
+        "seite": 1
+      },
+      {
+        "feld": "Hausnummer, Stiege, Tür",
+        "wert": "1",
+        "angaben": [
+          "person.hausnummer"
+        ],
+        "seite": 1
+      },
+      {
+        "feld": "PLZ",
+        "wert": "1100",
+        "angaben": [
+          "person.plz"
+        ],
+        "seite": 1
+      },
+      {
+        "feld": "Ort",
+        "wert": "Wien",
+        "angaben": [
+          "person.ort"
+        ],
+        "seite": 1
+      }
+    ],
+    "noch_offen": [
+      {
+        "id": "antragsart",
+        "text": "ob Pflegegeld erstmals beantragt, erhöht oder nach einer Befristung weiter gewährt werden soll",
+        "grund": "Angabe fehlt im Gespräch",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 1: „WEITERGEWÄHRUNG nach BEFRISTUNG“",
+        "annahme": true,
+        "annahme_grund": "Das Formular markiert keine Pflichtfelder; S. 4: „Ich habe alle Fragen richtig und vollständig beantwortet.“"
+      },
+      {
+        "id": "versicherungsnummer",
+        "text": "Versicherungsnummer (10 Ziffern, steht auf der e-card). Der Lotse fragt sie nicht ab",
+        "grund": "Angabe fehlt im Gespräch",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 1: „Versicherungsnummer“",
+        "annahme": true,
+        "annahme_grund": "Das Formular markiert keine Pflichtfelder; S. 4: „Ich habe alle Fragen richtig und vollständig beantwortet.“"
+      },
+      {
+        "id": "staatsbuergerschaft",
+        "text": "Staatsbürgerschaft ankreuzen (Österreich oder andere)",
+        "grund": "Angabe fehlt im Gespräch",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 1: „Staatsbürgerschaft“",
+        "annahme": true,
+        "annahme_grund": "Das Formular markiert keine Pflichtfelder; S. 4: „Ich habe alle Fragen richtig und vollständig beantwortet.“"
+      },
+      {
+        "id": "personenstand",
+        "text": "Personenstand ankreuzen (z. B. verheiratet, verwitwet)",
+        "grund": "Angabe fehlt im Gespräch",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 1: „Personenstand“",
+        "annahme": true,
+        "annahme_grund": "Das Formular markiert keine Pflichtfelder; S. 4: „Ich habe alle Fragen richtig und vollständig beantwortet.“"
+      },
+      {
+        "id": "gesundheit",
+        "text": "Krankheiten und Beschwerden, wegen derer Pflege nötig ist. Das tragen Sie selbst ein",
+        "grund": "füllt der Lotse nicht aus",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 2: „Krankheiten bzw. gesundheitliche Beeinträchtigungen:“",
+        "annahme": true,
+        "annahme_grund": "Das Formular markiert keine Pflichtfelder; S. 4: „Ich habe alle Fragen richtig und vollständig beantwortet.“"
+      },
+      {
+        "id": "gruende",
+        "text": "Gründe der Pflegebedürftigkeit mit ja oder nein ankreuzen (z. B. körperliche Einschränkung, Demenz)",
+        "grund": "füllt der Lotse nicht aus",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 2: „Gründe Ihrer Pflegebedürftigkeit:“",
+        "annahme": true,
+        "annahme_grund": "Das Formular markiert keine Pflichtfelder; S. 4: „Ich habe alle Fragen richtig und vollständig beantwortet.“"
+      },
+      {
+        "id": "medikamente",
+        "text": "ob die Person regelmäßig Medikamente nimmt. Das füllt der Lotse nicht aus",
+        "grund": "füllt der Lotse nicht aus",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 2: „Nehmen Sie regelmäßig Medikamente?“",
+        "annahme": true,
+        "annahme_grund": "Das Formular markiert keine Pflichtfelder; S. 4: „Ich habe alle Fragen richtig und vollständig beantwortet.“"
+      },
+      {
+        "id": "betreuung",
+        "text": "wer heute schon betreut und hilft (Angehörige, mobile Dienste, 24-Stunden-Betreuung)",
+        "grund": "Angabe fehlt im Gespräch",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 2: „Erfolgt die notwendige BETREUUNG UND HILFE von einer anderen Person / Stelle?“",
+        "annahme": true,
+        "annahme_grund": "Das Formular markiert keine Pflichtfelder; S. 4: „Ich habe alle Fragen richtig und vollständig beantwortet.“"
+      },
+      {
+        "id": "fragen_5_bis_8",
+        "text": "Fragen 5 bis 8 mit ja oder nein beantworten (Krankenhaus, Unfall, andere Leistungen, Pension)",
+        "grund": "Angabe fehlt im Gespräch",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 3: „Sind Sie durch einen UNFALL pflegebedürftig geworden?“",
+        "annahme": true,
+        "annahme_grund": "Das Formular markiert keine Pflichtfelder; S. 4: „Ich habe alle Fragen richtig und vollständig beantwortet.“"
+      },
+      {
+        "id": "anweisung",
+        "text": "wie das Pflegegeld ausgezahlt werden soll (Konto oder bar)",
+        "grund": "Angabe fehlt im Gespräch",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 4: „ANWEISUNG des Pflegegeldes“",
+        "annahme": true,
+        "annahme_grund": "Nur auszufüllen, wenn die Person noch keine Leistung bezieht („KEIN Leistungsbezug:“, S. 4). Ob das zutrifft, weiß der Lotse nicht."
+      },
+      {
+        "id": "unterschrift",
+        "text": "Datum und Unterschrift auf Seite 4 (macht die antragstellende Person selbst)",
+        "grund": "füllt der Lotse nicht aus",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 4: „Ich habe alle Fragen richtig und vollständig beantwortet.“",
+        "annahme": false
+      }
+    ],
+    "unterlagen": [
+      {
+        "text": "Kopien Ihrer Befunde von Arzt, Ärztin oder Krankenhaus",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 2: „Bitte legen Sie vorhandene Befunde von Ihrem Arzt / Ihrer Ärztin oder Krankenhaus in Kopie bei.“"
+      },
+      {
+        "text": "aktuelle medizinische Unterlagen (z. B. ärztliches Attest, Krankenhausbefunde)",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 2: „Aktuelle medizinische Unterlagen“",
+        "bedingung": "bei einem neuerlichen Antrag innerhalb eines Jahres nach der letzten Entscheidung"
+      },
+      {
+        "text": "Nachweis über die Aufenthaltsberechtigung",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 1: „legen Sie einen Nachweis über die Aufenthaltsberechtigung bei“",
+        "bedingung": "bei einer anderen Staatsbürgerschaft als Österreich"
+      },
+      {
+        "text": "„Antrag auf bargeldlose Pensionszahlung“ vom Geldinstitut",
+        "quelle": "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 4: „Antrag auf bargeldlose Pensionszahlung“",
+        "bedingung": "ohne bestehenden Leistungsbezug, wenn das Pflegegeld auf ein Konto gehen soll"
+      }
+    ],
+    "stelle": {
+      "leistung": "pflegegeld",
+      "stelle": "PVA",
+      "name": "Pensionsversicherungsanstalt (PVA)",
+      "fundstelle": "BPGG § 22 Abs. 1 Z 1",
+      "status": "pva",
+      "zitat": "der für die Gewährung der Vollrente, Pension oder des Sonderruhegeldes zuständige Sozialversicherungsträger"
+    },
+    "eingereicht": false
+  }
+}

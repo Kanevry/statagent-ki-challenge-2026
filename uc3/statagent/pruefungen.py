@@ -128,6 +128,19 @@ def _regel_namentlich(k: Kontext, regel: Regel) -> Regel:
     raise RegelFehler(f"{regel.name}: referenzierte Regel '{name}' ist im Regelsatz nicht aktiv")
 
 
+def _regeln_namentlich(k: Kontext, regel: Regel) -> list[Regel]:
+    """Die in ``parameter.regel`` referenzierten Regeln des Laufs (ein Name oder eine Liste von Namen)."""
+    angabe = _param(regel, "regel")
+    namen = [str(n) for n in angabe] if isinstance(angabe, list) else [str(angabe)]
+    aktiv = {r.name: r for r in k.regeln}
+    fehlt = [n for n in namen if n not in aktiv]
+    if fehlt or not namen:
+        raise RegelFehler(
+            f"{regel.name}: referenzierte Regel '{', '.join(fehlt)}' ist im Regelsatz nicht aktiv"
+        )
+    return [aktiv[n] for n in namen]
+
+
 def _beleg(k: Kontext, abfrage: Abfrage | str, params: Mapping[str, Any], kopf: str | None = None) -> str:
     with ClientCursor(k.conn) as cur:
         text = cur.mogrify(abfrage, dict(params))
@@ -141,7 +154,7 @@ def _eine_zeile(k: Kontext, abfrage: Abfrage | str, params: Mapping[str, Any]) -
     return zeile
 
 
-_BESTAND_KOPF = "_bestand: Verhältnisse am Stichtag nach Abschnittswahl (statagent.zaehlung) im Lauf {lauf}"
+_BESTAND_KOPF = "_bestand: Verhältnisse {zeitraum} nach Abschnittswahl (statagent.zaehlung) im Lauf {lauf}"
 
 
 def _saetze(
@@ -166,7 +179,8 @@ def _saetze(
     z = _eine_zeile(k, abfrage, params)
     n = _int(z["n"])
     beispiele = [int(v) for v in z["beispiele"]] if isinstance(z["beispiele"], list) else []
-    kopf = _BESTAND_KOPF.format(lauf=k.lauf_id) if bestand else None
+    zeitraum = "im Berichtsmonat" if k.zeitraum_art == "Monat" else "am Stichtag"
+    kopf = _BESTAND_KOPF.format(zeitraum=zeitraum, lauf=k.lauf_id) if bestand else None
     return Befund(
         anzahl=n,
         umfang=f"{_n(n)} {einheit}",
@@ -212,21 +226,21 @@ def _mehrere_abschnitte(k: Kontext, regel: Regel) -> Befund:
 
 
 def _korrektur(k: Kontext, regel: Regel) -> Befund:
-    name = _regel_namentlich(k, regel).name
+    namen = [r.name for r in _regeln_namentlich(k, regel)]
     bezug = str(_param(regel, "bezug"))
     if bezug == "lieferung":
         return _saetze(
             k,
-            f"SELECT vvh_id, 1 AS gewicht FROM {_ABSCHNITTE} AND %(name)s = ANY(korrekturen)",
+            f"SELECT vvh_id, 1 AS gewicht FROM {_ABSCHNITTE} AND korrekturen && %(namen)s::text[]",
             "Sätze",
-            {"name": name},
+            {"namen": namen},
         )
     if bezug == "stichtag":
         return _saetze(
             k,
-            "SELECT vvh_id, 1 AS gewicht FROM _bestand WHERE %(name)s = ANY(korrekturen)",
+            "SELECT vvh_id, 1 AS gewicht FROM _bestand WHERE korrekturen && %(namen)s::text[]",
             "Verhältnisse am Stichtag",
-            {"name": name},
+            {"namen": namen},
             bestand=True,
         )
     raise RegelFehler(f"{regel.name}: bezug muss 'lieferung' oder 'stichtag' sein")
@@ -550,10 +564,18 @@ def _blattsummen(k: Kontext, regel: Regel) -> Befund:
     if not isinstance(gliederungen, dict):
         raise RegelFehler(f"{regel.name}: gliederungen muss ein Objekt sein")
 
+    # Zählt die Dimensionsregel nach Beschäftigungskategorie (Auftrag 1, Regelsatz v2), stehen in den Zellen
+    # Arbeiter/Angestellte/Beamte statt der fünf Qualifikationscodes; dann gilt deren Klassifikation.
+    r_dim = next((r for r in k.regeln if r.typ == "zaehl" and r.art == "dimension"), None)
+    kategorie = r_dim is not None and r_dim.parameter.get("qualifikation") == "beschaeftigungskategorie"
+
     def abfrage(beleg: bool) -> Abfrage:
         summen = []
         for g, spez in gliederungen.items():
-            teile = str(dict(spez)["tabelle"]).split(".")
+            tabelle = str(dict(spez)["tabelle"])
+            if str(g) == "qualifikation" and kategorie:
+                tabelle = "stat.klass_beschaeftigungskategorie"
+            teile = tabelle.split(".")
             if len(teile) != 2:
                 raise RegelFehler(f"{regel.name}: tabelle muss 'schema.tabelle' sein ({g})")
             version = (

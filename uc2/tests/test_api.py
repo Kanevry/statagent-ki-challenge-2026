@@ -377,5 +377,5 @@ def test_filter_greift_auch_fuer_die_fixture_belege() -> None:
         assert set(nachher) <= set(BELEG_FELDER) and "text" not in nachher and "akteure" not in nachher
         assert nachher["zitat"] == kuerze(vorher["text"])
     # Prüfereignisse mit nur einer Beleg-ID bleiben unverändert
-    befund = {"thema": "triage", "beleg_id": "abcdefabcdef-001-01", "woerter": "acht woerter"}
+    befund = {"thema": "triage", "beleg_id": "abcdefabcdef-001-01", "wortzahl": 8}
     assert daten_fuer_ausgabe(befund, volltext=False) == befund

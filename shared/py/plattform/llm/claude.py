@@ -12,7 +12,10 @@ import os
 import signal
 import subprocess
 import tempfile
-from collections.abc import Callable
+import threading
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager, suppress
+from types import FrameType
 from typing import Any
 
 from .basis import KonfigFehler, Nachricht, Provider, Rohantwort, VoruebergehenderFehler
@@ -36,13 +39,39 @@ def _subprozess(
         text=True,
         start_new_session=True,
     ) as prozess:
-        try:
-            ausgabe, fehler = prozess.communicate(eingabe, timeout=zeitlimit_s)
-        except subprocess.TimeoutExpired:
-            os.killpg(prozess.pid, signal.SIGKILL)
-            prozess.communicate()
-            raise
+        with _mitbeenden_bei_sigterm(prozess.pid):
+            try:
+                ausgabe, fehler = prozess.communicate(eingabe, timeout=zeitlimit_s)
+            except subprocess.TimeoutExpired:
+                os.killpg(prozess.pid, signal.SIGKILL)
+                prozess.communicate()
+                raise
     return subprocess.CompletedProcess(argv, prozess.returncode, ausgabe, fehler)
+
+
+@contextmanager
+def _mitbeenden_bei_sigterm(gruppe: int) -> Iterator[None]:
+    """Beendet die eigene Sitzung von claude mit, wenn dieser Prozess SIGTERM bekommt (#150).
+
+    Die Web-Route beendet beim Abbruch die Prozessgruppe des Routers; claude läuft wegen ``start_new_session``
+    in einer anderen und überlebte sonst als Waise. Nur im Hauptthread möglich (``signal.signal``).
+    """
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    vorher = signal.getsignal(signal.SIGTERM)
+
+    def beenden(signum: int, rahmen: FrameType | None) -> None:
+        with suppress(ProcessLookupError):
+            os.killpg(gruppe, signal.SIGKILL)
+        signal.signal(signal.SIGTERM, vorher)
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    signal.signal(signal.SIGTERM, beenden)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, vorher)
 
 
 def flache_nachrichten(nachrichten: list[Nachricht]) -> str:

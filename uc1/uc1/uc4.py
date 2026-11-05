@@ -113,9 +113,30 @@ def erlaubte_zahlen(kontext: Kontext) -> set[str]:
     return erlaubt
 
 
+# Ausgeschriebene Zahlen („sieben tausend vierhundert achtundneunzig“, /uc4-Probelauf Szene 8) prüft der
+# Server nicht gegen den Kontext; ein Satz damit fällt weg wie ein Satz mit falscher Ziffer. Grundzahlen als
+# ganzes Wort, Zehner, hundert, tausend, Million und Milliarde auch als Teil („achtundneunzig“). „ein“,
+# „eine“, „one“ und Ordnungszahlen („zweite“) zählen nicht, sie stehen in fast jedem Satz.
+_ZAHLWORT = re.compile(
+    r"\b(?:null|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|(?:drei|vier|fünf|sech|sieb|acht"
+    r"|neun)zehn|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|(?:thir|four|fif|six|seven|eigh"
+    r"|nine)teen|(?:twen|thir|for|fif|six|seven|eigh|nine)ty)\b"
+    r"|zwanzig|dreißig|dreissig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig"
+    r"|hundert|tausend|million|milliard|\b(?:hundred|thousand|billion)",
+    re.IGNORECASE,
+)
+# Diese Einheiten sagen nichts über die Zahl hinaus und fallen im Zahlensatz weg („7.498 Anzahl“).
+_EINHEIT_OHNE_WORT = {"anzahl"}
+
+
+def hat_zahlwort(satz: str) -> bool:
+    """True, wenn der Satz eine ausgeschriebene Zahl enthält."""
+    return bool(_ZAHLWORT.search(satz))
+
+
 def _zahlensatz(zahl: Zahl) -> str:
-    einheit = f" {zahl.einheit}" if zahl.einheit else ""
-    return f"{zahl.bezeichnung}: {anzeige(zahl)}{einheit}."
+    einheit = zahl.einheit if zahl.einheit and zahl.einheit.casefold() not in _EINHEIT_OHNE_WORT else None
+    return f"{zahl.bezeichnung}: {anzeige(zahl)}{f' {einheit}' if einheit else ''}."
 
 
 def pruefe_zahlen(saetze: Sequence[str], kontext: Kontext) -> tuple[list[str], list[str]]:
@@ -125,7 +146,10 @@ def pruefe_zahlen(saetze: Sequence[str], kontext: Kontext) -> tuple[list[str], l
     danach, hängt der Server einen festen Satz mit ihr an.
     Ab zwei Kontext-Zahlen schreibt das Modell keine Ziffern: Jeder Modellsatz mit einer Ziffer fällt weg, und
     der Server setzt je Zahl einen Satz aus ``bezeichnung`` und ``anzeige``. Die Prüfung „kommt irgendwo vor“
-    ließ sonst vertauschte Werte durch (Juli statt August, Männer statt Frauen, Review !68)."""
+    ließ sonst vertauschte Werte durch (Juli statt August, Männer statt Frauen, Review !68). Gleiche
+    Zahlensätze (gleiche Bezeichnung, Anzeige und Einheit, z. B. dieselbe Zahl von UC3 und UC2) stehen nur
+    einmal; ``zahlen`` und ``belege`` der Antwort bleiben davon unberührt.
+    Ein Satz mit einer ausgeschriebenen Zahl („sieben tausend“) fällt immer weg."""
     erlaubt = erlaubte_zahlen(kontext)
     mehrere = len(kontext.zahlen) >= 2
     behalten: list[str] = []
@@ -135,12 +159,14 @@ def pruefe_zahlen(saetze: Sequence[str], kontext: Kontext) -> tuple[list[str], l
         if not sauber:
             continue
         zahlen = _zahlen_in(sauber)
-        if not zahlen if mehrere else all(z in erlaubt for z in zahlen):
+        if hat_zahlwort(sauber):
+            verworfen.append(sauber)
+        elif not zahlen if mehrere else all(z in erlaubt for z in zahlen):
             behalten.append(sauber if sauber.endswith((".", "!", "?")) else sauber + ".")
         else:
             verworfen.append(sauber)
     if mehrere:
-        return behalten + [_zahlensatz(z) for z in kontext.zahlen], verworfen
+        return behalten + list(dict.fromkeys(_zahlensatz(z) for z in kontext.zahlen)), verworfen
     for zahl in kontext.zahlen:
         text = anzeige(zahl)
         im_text = set(_zahlen_in(" ".join(behalten)))
@@ -165,11 +191,12 @@ def _prompt(sprache: Literal["de", "en"], zahlen: int = 1) -> str:
     """Systemprompt; ab zwei Zahlen schreibt das Modell keine Ziffern, die Zahlensätze setzt der Server."""
     sprachname = "Englisch" if sprache == "en" else "Deutsch"
     zahlenregel = (
-        "3. Schreibe keine Ziffern und keine Zahlen. Die Sätze mit den Zahlen aus <zahlen> setzt das System "
-        "selbst an das Ende. Ein Satz mit einer Ziffer fällt weg.\n"
+        "3. Schreibe keine Zahlen, weder als Ziffern noch als Wörter (nicht „sieben tausend“). Die Sätze mit "
+        "den Zahlen aus <zahlen> setzt das System selbst an das Ende. Ein Satz mit einer Zahl fällt weg.\n"
         if zahlen >= 2
         else "3. Zahlen schreibst du genau in der Schreibweise aus <zahlen> (Feld anzeige). Nicht runden, "
-        "nicht umrechnen, keine anderen Zahlen, keine Wörter wie rund oder etwa vor einer Zahl.\n"
+        "nicht umrechnen, keine anderen Zahlen, keine Zahlen als Wörter, keine Wörter wie rund oder etwa vor "
+        "einer Zahl.\n"
     )
     return (
         "Du bist der SV KI-Lotse. Du erklärst Bürgerinnen und Bürgern eine Auskunft der österreichischen "

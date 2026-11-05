@@ -112,3 +112,84 @@ def test_vertrag_ucantwort(conn: Verbindung) -> None:
     _lauf(conn)
     for frage in ("Frauen im August 2024", "nach Geschlecht 2024-08", "ohne Monat"):
         antwortform.UcAntwort.model_validate(antwort_daten(conn, frage))
+
+
+# Fängt (#125): „Männer und Frauen“ liefert nur Männer, weil nur die erste Ausprägung zählt; die Summe fehlt
+# oder weicht von den Teilen ab; eine Teilzahl teilt sich Beleg und SQL mit einer anderen.
+def test_mehrere_auspraegungen_je_zahl_mit_eigenem_beleg_und_summe(conn: Verbindung) -> None:
+    _lauf(conn)
+    daten = antwort_daten(conn, "Männer und Frauen in Wien im August 2024")
+    maenner = _direkt(conn, " AND region = %s AND geschlecht = %s", ("9", "M"))
+    frauen = _direkt(conn, " AND region = %s AND geschlecht = %s", ("9", "W"))
+    assert [z["wert"] for z in daten["zahlen"]] == [maenner, frauen, maenner + frauen]
+    assert maenner > 0 and frauen > 0
+    assert [z["beleg"] for z in daten["zahlen"]] == [0, 1, 2]
+    assert len({b["sql"] for b in daten["belege"]}) == 3
+    assert "IN ('M', 'W')" in daten["belege"][2]["sql"]
+    assert "zusammen" in daten["zahlen"][2]["bezeichnung"]
+    _belege_gueltig(daten)
+    laender = antwort_daten(conn, "Wien, Tirol und Salzburg im August 2024")
+    assert len(laender["zahlen"]) == 4 and len(laender["belege"]) == 4
+
+
+# Fängt (#95, 95-2/95-3): Rückfrage ohne Monat in Fachsprache, „(Lauf N)“ im Text statt im Beleg, und kein
+# Hinweis, dass bei „Beschäftigte“ Beschäftigungsverhältnisse gezählt werden.
+def test_text_alltagssprache_lauf_im_beleg(conn: Verbindung) -> None:
+    assert antwort_daten(conn, "Beschäftigte in Tirol")["text"] == (
+        "Bitte nennen Sie einen Monat, zum Beispiel März 2025."
+    )
+    _lauf(conn)
+    stand = letzter_lauf(conn, MONAT)
+    assert stand is not None
+    daten = antwort_daten(conn, "Beschäftigte im August 2024")
+    assert "Lauf" not in daten["text"] and "—" not in daten["text"]
+    assert daten["belege"][0]["ref"].startswith(f"meta.lauf/{stand.lauf_id} ")
+    assert daten["text"].count("eine Person kann mehrere haben") == 1
+    ohne = antwort_daten(conn, "Beschäftigungsverhältnisse im August 2024")
+    assert "eine Person kann mehrere haben" not in ohne["text"]
+
+
+# Fängt: Regelsatz v2 liefert 0, weil die Abfrage fest „Stichtag“ sucht, obwohl die Bestandsregel über das
+# Monat zählt; ein Kategoriefilter liefert 0, weil v2 die Kategorie schon in s.qualifikation trägt.
+def test_v2_zeitraumart_und_kategorie_aus_den_regeln(conn: Verbindung) -> None:
+    from statagent.agenten.regelaenderung import regelsatz_sicherstellen
+
+    _lauf(conn)
+    with conn.transaction():
+        regelsatz_sicherstellen(conn, "v2", "v1")
+        conn.execute(
+            """UPDATE meta.regel SET parameter = parameter || '{"zeitraum_art": "Monat"}'::jsonb
+               WHERE regelsatz = 'v2' AND typ = 'zaehl' AND art = 'bestand'"""
+        )
+        conn.execute(
+            """UPDATE meta.regel SET parameter = '{"qualifikation": "beschaeftigungskategorie"}'::jsonb
+               WHERE regelsatz = 'v2' AND typ = 'zaehl' AND art = 'dimension'"""
+        )
+        conn.execute(
+            """INSERT INTO meta.lauf (lieferung, regelsatz, regelstand, status, ergebnis_status, beendet_am, meldung)
+               SELECT lieferung, 'v2', 'test-v2', 'fertig', ergebnis_status, beendet_am, 'Test v2'
+               FROM meta.lauf WHERE regelsatz = 'v1' AND lieferung = %s AND status IN ('fertig', 'unveraendert')
+               ORDER BY id DESC LIMIT 1""",
+            (MONAT,),
+        )
+        conn.execute(
+            """INSERT INTO stat.stat_beschaeftigte
+               SELECT 'Monat', s.zeitraum_von, s.zeitraum_bis, s.region, s.oenace, s.oenace_version, s.geschlecht,
+                      q.beschaeftigungskategorie, s.alter, s.variable, sum(s.wert), s.status, s.stand,
+                      'v2', 'test-v2', l2.id
+               FROM stat.stat_beschaeftigte s
+               JOIN stat.klass_qualifikation q ON q.code = s.qualifikation
+               JOIN meta.lauf l2 ON l2.regelsatz = 'v2' AND l2.lieferung = %s
+               WHERE s.regelsatz = 'v1' AND s.zeitraum_bis BETWEEN %s AND %s
+               GROUP BY 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 16""",
+            (MONAT, monatserster(MONAT), monatsletzter(MONAT)),
+        )
+    gesamt = antwort_daten(conn, "Beschäftigte im August 2024", regelsatz="v2")
+    assert gesamt["zahlen"][0]["wert"] == _direkt(conn) > 0
+    assert "s.zeitraum_art = 'Monat'" in gesamt["belege"][0]["sql"]
+    assert "irgendwann im Monat" in gesamt["text"] and "(DV)" in gesamt["text"]
+    arbeiter = antwort_daten(conn, "Arbeiter im August 2024", regelsatz="v2")
+    soll = _direkt(conn, " AND qualifikation IN ('ArbeiterDV', 'ArbeiterFD')")
+    assert arbeiter["zahlen"][0]["wert"] == soll > 0
+    assert "klass_qualifikation" not in arbeiter["belege"][0]["sql"]
+    assert "irgendwann im Monat" not in antwort_daten(conn, "Beschäftigte im August 2024")["text"]

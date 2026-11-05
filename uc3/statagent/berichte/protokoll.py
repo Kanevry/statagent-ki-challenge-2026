@@ -16,6 +16,7 @@ from pathlib import Path
 
 from statagent import konfig
 from statagent.db import Verbindung
+from statagent.zeit import zeit_text
 
 _FELD = "\x1e"
 _EINTRAG = "\x1f"
@@ -67,8 +68,18 @@ def _tabelle_vorhanden(conn: Verbindung, name: str) -> bool:
     return bool(z and z["da"])
 
 
+def _zahl(wert: object) -> str:
+    """Ganze Zahl mit Tausenderpunkt (392.236); sonst der Text, wie er ist."""
+    return f"{wert:,}".replace(",", ".") if isinstance(wert, int) else str(wert or "")
+
+
+def _zelle(text: object) -> str:
+    """Text für eine Tabellenzelle: eine Zeile, `|` maskiert (sonst bricht die Markdown-Tabelle um)."""
+    return " ".join(str(text or "").split()).replace("|", "\\|")
+
+
 def _zeit(wert: object) -> str:
-    return f"{wert:%d.%m.%Y %H:%M}" if isinstance(wert, datetime) else ""
+    return zeit_text(wert, ersatz="")
 
 
 def protokoll_erzeugen(conn: Verbindung, repo: Path | None = None) -> str:
@@ -80,6 +91,12 @@ def protokoll_erzeugen(conn: Verbindung, repo: Path | None = None) -> str:
         "Änderung, Name der freigebenden Person und Zeitpunkt. Erzeugt mit `uv run uc3 protokoll` aus Git",
         "(Commits mit `Freigegeben-von`) und der Datenbank (meta.vorschlag, meta.regel, meta.lauf, meta.ausgabe).",
         "",
+    ]
+    # Wer eine Freigabe eingegeben hat, steht nicht im Commit; die Hinweise sind Daten (docs/plan/uc3).
+    hinweise = (repo or konfig.REPO_WURZEL) / "docs" / "plan" / "uc3" / "protokoll-hinweise.md"
+    if hinweise.is_file():
+        zeilen += ["## Hinweise zu den Freigaben", "", hinweise.read_text(encoding="utf-8").strip(), ""]
+    zeilen += [
         "## 1 Änderungen über die eigenen Agenten (Git)",
         "",
     ]
@@ -90,7 +107,7 @@ def protokoll_erzeugen(conn: Verbindung, repo: Path | None = None) -> str:
             "|---|---|---|---|---|---|",
         ]
         zeilen += [
-            f"| {c.datum} | {c.anweisung} | {c.freigegeben_von} | {c.vorschlag} | {c.modell} | `{c.hash[:10]}` |"
+            f"| {zeit_text(datetime.fromisoformat(c.datum), ersatz=c.datum)} | {_zelle(c.anweisung)} | {c.freigegeben_von} | {c.vorschlag} | {c.modell} | `{c.hash[:10]}` |"
             for c in commits
         ]
     else:
@@ -109,7 +126,7 @@ def protokoll_erzeugen(conn: Verbindung, repo: Path | None = None) -> str:
                 "|---|---|---|---|---|---|---|---|---|",
             ]
             zeilen += [
-                f"| {v['id']} | {_zeit(v['erstellt_am'])} | {v['anweisung']} | {v['rolle']} | {v['typ']} |"
+                f"| {v['id']} | {_zeit(v['erstellt_am'])} | {_zelle(v['anweisung'])} | {v['rolle']} | {v['typ']} |"
                 f" {v['status']} | {v['freigegeben_von'] or ''} | {_zeit(v['freigegeben_am'])} |"
                 f" {v['modell'] or ''}@{v['provider'] or ''} |"
                 for v in vorschlaege
@@ -149,7 +166,7 @@ def protokoll_erzeugen(conn: Verbindung, repo: Path | None = None) -> str:
         ]
         zeilen += [
             f"| {z['lieferung']} | {z['regelsatz']} | {z['freigegeben_von']} | {_zeit(z['freigegeben_am'])} |"
-            f" {z['gezaehlt']} | `{str(z['ergebnis_hash'])[:12]}` |"
+            f" {_zahl(z['gezaehlt'])} | `{str(z['ergebnis_hash'])[:12]}` |"
             for z in laeufe
         ]
     else:

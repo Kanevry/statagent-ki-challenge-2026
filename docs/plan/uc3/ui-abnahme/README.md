@@ -31,7 +31,7 @@ maßgebliche Datenbank noch keinen Vorschlag mit Probe hat.
 
 ## Vergleich mit den Pen-Frames
 
-Zuordnung: `docs/plan/uc3/uc3-frame-matrix.json`. Verglichen wurden Inhalt, Reihenfolge und Hauptaussage je Screen,
+Zuordnung: `web/tests/uc3-frame-matrix.json`. Verglichen wurden Inhalt, Reihenfolge und Hauptaussage je Screen,
 nicht Pixel. Die Frames zeigen eine linke Leiste; die App nutzt die Unter-Navigation der Shell oben (Vertrag H).
 
 | Frame | Screen | Urteil |

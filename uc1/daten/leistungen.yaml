@@ -3,7 +3,8 @@
 #
 # Quellen: Normen im Korpus lotse (Überschriften, z. B. „BPGG § 4 Anspruchsvoraussetzungen“,
 # „ASVG § 138 Krankengeld“, „ASVG § 162 Wochengeld“, „ASVG § 155 Maßnahmen zur Festigung der Gesundheit“,
-# „ASVG § 300 Rehabilitation“, „BPGG § 21c Pflegekarenzgeld“); Formulare unter
+# „ASVG § 300 Rehabilitation“, „BPGG § 21c Pflegekarenzgeld“, „ASVG § 28 Sachliche Zuständigkeit der
+# Träger der Unfallversicherung“, „ASVG § 175 Arbeitsunfall“); Formulare unter
 # „Anträge und Formulare/“ in UC1_DATA_DIR (PAL080 = Antrag auf Pflegegeld der PVA).
 #
 # felder: Pflichtangaben mit Rückfragetext. `rang` legt die Reihenfolge der Rückfragen fest (klein zuerst):
@@ -13,8 +14,15 @@
 #   `bereich` (Spalte in traeger.yaml), `gesetze` (fest) oder `gesetze_aus_status: true`,
 #   `suchanfrage` (Fachbegriffe für die SozDok-Suche), `angebote` (Suche in Katalogen und Formularen,
 #   `regional`: Dateien nur für ein Bundesland), `stelle_fest` (Stelle unabhängig vom Status),
+#   `stelle_je_status` (Ausnahmen von `stelle_fest` je Status, z. B. SVS für die Unfallversicherung),
 #   `formular` (`fuer_stelle`: nur für diese Stellen, sonst kein fremdes Formular), `unterlagen`,
-#   `antrag` (Art für `lotse antrag`, Issue #32).
+#   `antrag` (Art für `lotse antrag`, Issue #32), `nur_regel: true` (zählt nur über `ausloeser`, nie über das
+#   Analyse-Modell).
+#   `normen`: Normbereiche, die zur Leistung gehören ({gesetz, von, bis}, Paragraphen einschließlich, „21c“
+#   liegt zwischen 21 und 22). Zitiert eine geprüfte Aussage eine dieser Normen, folgt die zuständige Stelle aus
+#   dieser Leistung, nicht aus einer erkannten Nachbarleistung (Held-out #39, #155). Bereiche nach den
+#   Überschriften im Korpus; Verfahrensrecht (BPGG §§ 22–27 gilt für alle Pflegegeld-Leistungen) nur dort, wo
+#   es die Leistung eindeutig macht.
 
 felder:
   status:
@@ -23,6 +31,13 @@ felder:
     rueckfrage:
       de: "Wer zahlt die Pension? Meist ist das die Pensionsversicherung (PVA), sonst die Versicherung für Selbständige (SVS) oder die für Beamte und Bahn (BVAEB). Sie können auch sagen: keine Pension."
       en: "Who pays the pension? Usually the pension insurance (PVA), otherwise the insurance for the self-employed (SVS) or for civil servants and railways (BVAEB). You can also say: no pension."
+    # Antwortknöpfe der UC1-Seite (UI-Regie): `text` auf dem Knopf, `antwort` geht als Nachricht an den Kern
+    # und wird von erkenne_status (traeger.yaml) erkannt.
+    optionen:
+      - {text: {de: "Pensionsversicherung (PVA)", en: "Pension insurance (PVA)"}, antwort: {de: "Die Pension kommt von der PVA.", en: "The pension comes from the PVA."}}
+      - {text: {de: "Selbständige (SVS)", en: "Self-employed (SVS)"}, antwort: {de: "Die Pension kommt von der SVS.", en: "The pension comes from the SVS."}}
+      - {text: {de: "Beamte und Bahn (BVAEB)", en: "Civil servants and railways (BVAEB)"}, antwort: {de: "Die Pension kommt von der BVAEB.", en: "The pension comes from the BVAEB."}}
+      - {text: {de: "Keine Pension", en: "No pension"}, antwort: {de: "Keine Pension.", en: "Keine Pension."}}
   person:
     rang: 2
     bezeichnung: {de: "wer die Hilfe braucht", en: "who needs the help"}
@@ -57,9 +72,10 @@ felder:
 
 leistungen:
   pflegegeld:
-    # Hilfe im Alltag (Kataloge, FSW): nur hier als nächster Schritt, Sichtprüfung #35
-    alltagshilfe: true
     name: {de: "Pflegegeld", en: "care allowance (Pflegegeld)"}
+    # Hilfe im Alltag (Kataloge, FSW): nur hier als nächster Schritt, Sichtprüfung #35. `name` bleibt die
+    # erste Zeile je Leistung, die UC1-Seite liest die Namen daraus (web/components/uc1/leistungen.test.ts).
+    alltagshilfe: true
     lage: "Pflegebedarf"
     ausloeser:
       - 'pflege(?!karenz|teilzeit)'
@@ -76,6 +92,9 @@ leistungen:
     bereich: pflegegeld
     gesetze: [BPGG]
     suchanfrage: "Pflegegeld Anspruchsvoraussetzungen Pflegebedarf ständiger Betreuung und Hilfe Antragstellung"
+    normen:
+      - {gesetz: BPGG, von: "3", bis: "21"}   # Anspruch, Stufen, Beginn, Ruhen, Auszahlung
+      - {gesetz: BPGG, von: "22", bis: "27"}  # Entscheidungsträger, Antrag, Begutachtung, Bescheid
     angebote:
       suchanfrage: "Pflege zu Hause Unterstützung Betreuung Heimhilfe Förderung Pflegegeld Antrag"
       # Dateien mit diesem Teilstring gelten nur für das genannte Bundesland (FSW = Fonds Soziales Wien).
@@ -91,9 +110,8 @@ leistungen:
       - text: "Kopien Ihrer Befunde von Arzt, Ärztin oder Krankenhaus"
         quelle: "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 2"
   pflegekarenzgeld:
-    # Hilfe im Alltag (Kataloge, FSW): nur hier als nächster Schritt, Sichtprüfung #35
-    alltagshilfe: true
     name: {de: "Pflegekarenzgeld", en: "care leave allowance (Pflegekarenzgeld)"}
+    alltagshilfe: true
     lage: "Pflege einer angehörigen Person neben der Arbeit"
     ausloeser:
       - 'pflegekarenz'
@@ -108,6 +126,8 @@ leistungen:
     stelle_fest: {stelle: SMS, fundstelle: "BPGG § 21c"}
     gesetze: [BPGG, AlVG]
     suchanfrage: "Pflegekarenzgeld Pflegekarenz Pflegeteilzeit Familienhospizkarenz"
+    normen:
+      - {gesetz: BPGG, von: "21c", bis: "21f"}  # 3b. Abschnitt Pflegekarenzgeld
     unterlagen: []
   rehabilitation:
     name: {de: "Rehabilitation und Kur", en: "rehabilitation and spa treatment"}
@@ -123,6 +143,10 @@ leistungen:
     bereich: pension
     gesetze_aus_status: true
     suchanfrage: "Rehabilitation medizinische Maßnahmen Festigung der Gesundheit Kuraufenthalt Gesundheitsvorsorge"
+    normen:
+      - {gesetz: ASVG, von: "300", bis: "307h"}  # Rehabilitation und Gesundheitsvorsorge der Pensionsversicherung
+      - {gesetz: GSVG, von: "157", bis: "162"}
+      - {gesetz: BSVG, von: "150", bis: "152"}
     angebote:
       suchanfrage: "Antrag Kur Rehabilitation Aufenthalt"
     antrag: reha  # Entwurf über `lotse antrag reha` (#32, formulare/kur-reha.felder.json)
@@ -147,6 +171,10 @@ leistungen:
     bereich: krankenversicherung
     gesetze_aus_status: true
     suchanfrage: "Krankengeld Arbeitsunfähigkeit infolge Krankheit Dauer des Krankengeldanspruches"
+    normen:
+      - {gesetz: ASVG, von: "138", bis: "143"}   # Krankengeld: Anspruch, Dauer, Höhe, Versagung, Ruhen
+      - {gesetz: GSVG, von: "104a", bis: "107"}  # Unterstützungsleistung und Krankengeld
+      - {gesetz: B-KUVG, von: "85", bis: "85b"}
     unterlagen: []  # im Korpus keine Unterlagenliste belegt
   wochengeld:
     name: {de: "Wochengeld", en: "maternity allowance (Wochengeld)"}
@@ -163,4 +191,57 @@ leistungen:
     bereich: krankenversicherung
     gesetze_aus_status: true
     suchanfrage: "Wochengeld Mutterschaft Entbindung Leistungen aus dem Versicherungsfall der Mutterschaft"
+    normen:
+      - {gesetz: ASVG, von: "162", bis: "168"}
+      - {gesetz: GSVG, von: "102", bis: "102b"}
+      - {gesetz: BSVG, von: "97", bis: "98"}
+    unterlagen: []  # im Korpus keine Unterlagenliste belegt
+  unfallversicherung:
+    name: {de: "Unfallversicherung", en: "accident insurance (Unfallversicherung)"}
+    # Endmessung g21 (Heimweg von der Arbeit gestürzt) nannte PVA/ÖGK statt AUVA. Zuständig ist nach ASVG § 28
+    # Z 1 die AUVA, für Bäuerinnen und Bauern (lit. a) und die nach § 8 Abs. 1 Z 3 lit. a versicherten
+    # Selbständigen (lit. b) nach Z 2 die SVS, für Beamtinnen und Beamte (Dienstunfall) nach B-KUVG § 9 Abs. 1 die
+    # BVAEB (`stelle_je_status`, #151). Ohne Status bleibt es bei der AUVA (häufigster Fall, ASVG § 28 Z 1).
+    # „Arbeit“ allein löst nicht aus, nur Unfall, Weg oder Verletzung im Zusammenhang mit der Arbeit.
+    lage: "Arbeitsunfall, Wegunfall oder Berufskrankheit"
+    nur_regel: true  # „Sturz“ allein ist kein Arbeitsunfall; das Modell deutete ihn so (Aufnahme v8)
+    ausloeser:
+      - 'arbeitsunf(?:ä|a)ll'
+      - 'wegunf(?:ä|a)ll'
+      - 'berufskrankheit'
+      - 'unfallversicherung'
+      - '(?:auf dem|am) (?:heim)?weg (?:von der|zur|zu der|in die|nach der) arbeit'
+      # Arbeitsplatz in Bürgersprache: „in der Firma“, „im Betrieb“, „am Arbeitsplatz“, „auf der Baustelle“ (#155).
+      - '(?:(?:bei|in) der arbeit|in der firma|im betrieb|am arbeitsplatz|auf der baustelle)\b.{0,40}(?:gest(?:ü|u)rzt|verletzt|verungl(?:ü|u)ckt|unfall|ausgerutscht)'
+      - '(?:gest(?:ü|u)rzt|verletzt|verungl(?:ü|u)ckt|ausgerutscht)\b.{0,20}(?:(?:bei|in) der arbeit|in der firma|im betrieb|am arbeitsplatz|auf der baustelle)\b'
+      - 'accident at work'
+      - 'work(?:place)?[- ]accident'
+      - 'commuting accident'
+      - 'occupational (?:disease|illness)'
+      - 'on (?:the|my) way (?:to|from|home from) work'
+      - '(?:injured|hurt|fell) at work'
+      - 'accident insurance'
+    pflicht: []
+    bereich: unfallversicherung
+    stelle_fest:
+      stelle: AUVA
+      fundstelle: "ASVG § 28 Z 1"
+      zitat: "Zur Durchführung der Unfallversicherung sind sachlich zuständig: 1. die Allgemeine Unfallversicherungsanstalt, soweit nicht der unter Z 2 genannte Versicherungsträger zuständig ist"
+    # Vorrang vor `stelle_fest`, wenn der Status bekannt ist (uc1.kern.zustaendige_stelle).
+    stelle_je_status:
+      svs:
+        stelle: SVS
+        fundstelle: "ASVG § 28 Z 2 lit. a und b"
+        zitat: "2. die Sozialversicherungsanstalt der Selbständigen für a) die nach § 3 des Bauern-Sozialversicherungsgesetzes in der Unfallversicherung pflichtversicherten selbständig Erwerbstätigen und ihre teilversicherten Familienangehörigen, soweit es sich nicht um eine Teilversicherung nach § 8 Abs. 1 Z 3 lit. h, i und l handelt, sowie die gemäß § 8 Abs. 1 Z 3 lit. d teilversicherten Angehörigen von Orden, Kongregationen und Anstalten, b) die nach § 8 Abs. 1 Z 3 lit. a pflichtversicherten selbständig Erwerbstätigen"
+      bvaeb:
+        stelle: BVAEB
+        fundstelle: "B-KUVG § 9 Abs. 1"
+        zitat: "Träger der Kranken- und Unfallversicherung nach diesem Bundesgesetz für das gesamte Bundesgebiet ist die Versicherungsanstalt öffentlich Bediensteter, Eisenbahnen und Bergbau"
+    gesetze: [ASVG]
+    suchanfrage: "Arbeitsunfall Wegunfall Weg zur oder von der Arbeitsstätte Unfallversicherung Berufskrankheit"
+    normen:
+      - {gesetz: ASVG, von: "28", bis: "28"}     # sachliche Zuständigkeit AUVA, SVS
+      - {gesetz: ASVG, von: "172", bis: "222"}   # Dritter Teil Unfallversicherung
+      - {gesetz: BSVG, von: "148", bis: "149t"}  # Unfallversicherung der Bäuerinnen und Bauern (SVS)
+      - {gesetz: B-KUVG, von: "88", bis: "95"}   # Dienstunfall (BVAEB)
     unterlagen: []  # im Korpus keine Unterlagenliste belegt

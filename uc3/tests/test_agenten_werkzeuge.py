@@ -127,6 +127,21 @@ def test_erlaubte_abfrage_auf_stat_liefert_zeilen(agent_conn: Verbindung) -> Non
     assert int(unqualifiziert["zeilen"][0]["n"]) > 0
 
 
+@pytest.mark.parametrize(
+    "abfrage",
+    [
+        "SELECT * FROM meta.pruefung_treffer",
+        "SELECT to_jsonb(t) AS j FROM meta.revision_ursache t",
+        "SELECT r FROM meta.rueckfrage r",
+    ],
+)
+def test_tabellen_mit_beispiel_kennungen_sind_gesperrt(agent_conn: Verbindung, abfrage: str) -> None:
+    # Fängt: VVH_IDs in der Spalte „beispiele“ (Prüftreffer, Revisionsursachen, Rückfragen) gelangen über eine
+    # freie Abfrage auf meta ans Modell, auch als ganze Zeile oder JSON (Session-Review, Befund 3).
+    with pytest.raises(AbfrageVerweigert, match="Kennungen"):
+        sql_lesen(agent_conn, abfrage)
+
+
 def test_roh_kennzahlen_ohne_kennungen_und_ohne_kleine_zellen(agent_conn: Verbindung) -> None:
     # Fängt: Kennungen (PERSON_ID, VVH_ID) oder Zellen 1 bis 4 in den Rohdaten-Kennzahlen für das Modell.
     k = roh_kennzahlen(agent_conn, "2024-08")
@@ -223,3 +238,13 @@ def test_ziel_v1_mit_veroeffentlichtem_monat_bleibt_verweigert(agent_conn: Verbi
     ergebnis = agent_ausfuehren(agent_conn, "DV und FD zusammen", complete=_modell("klassifikation", antwort))
     assert ergebnis.abgelehnt is not None and "veröffentlichte Monate" in ergebnis.abgelehnt
     assert _anzahl(agent_conn, "SELECT count(*) AS n FROM meta.vorschlag") == 0
+
+
+def test_eine_kleine_zelle_ist_nicht_aus_der_summe_rueckrechenbar() -> None:
+    # Fängt: genau eine Zelle „<5“ neben exakten Zellen und exakter Zeilenzahl ist als Differenz ablesbar
+    # (Session-Review, mögliches Problem roh_kennzahlen); die kleinste übrige Zelle muss mit gesperrt werden.
+    from statagent.agenten.werkzeuge import SEKUNDAER, _verteilung
+
+    assert _verteilung({"(leer)": 3, "M": 100, "W": 200}) == {"(leer)": "<5", "M": SEKUNDAER, "W": 200}
+    assert _verteilung({"A": 2, "B": 1, "C": 50}) == {"A": "<5", "B": "<5", "C": 50}
+    assert _verteilung({"M": 0, "W": 10}) == {"M": 0, "W": 10}

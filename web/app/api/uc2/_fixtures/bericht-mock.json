@@ -1,6 +1,6 @@
 {
  "fall": {
-  "fall_id": 10,
+  "fall_id": 22,
   "fall_name": "wartezeiten",
   "frage": "Wie können die Wartezeiten auf Facharzttermine innerhalb von fünf Jahren um 20 % reduziert werden, ohne die Gesundheitsausgaben um mehr als 5 % zu erhöhen?",
   "auftrag": {
@@ -60,9 +60,9 @@
   "stichtag": "2026-09-30",
   "status_gespeichert": "fertig",
   "status": "fertig",
-  "lebenszeichen": "2026-11-05T16:04:59.408843+01:00",
-  "start": "2026-11-05T16:04:59.262101+01:00",
-  "ende": "2026-11-05T16:04:59.408843+01:00"
+  "lebenszeichen": "2026-11-05T18:44:49.159792+01:00",
+  "start": "2026-11-05T18:44:49.021651+01:00",
+  "ende": "2026-11-05T18:44:49.159792+01:00"
  },
  "auftrag": {
   "ziel": "Wie können die Wartezeiten auf Facharzttermine innerhalb von fünf Jahren um 20 % reduziert werden, ohne die Gesundheitsausgaben um mehr als 5 % zu erhöhen?",
@@ -227,7 +227,7 @@
        "belege": [
         {
          "beleg_id": "31e8d18812a7-007-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-18",
          "monat": "2026-09",
          "titel": "Kammer fordert attraktivere Kassenverträge",
@@ -245,7 +245,7 @@
        "belege": [
         {
          "beleg_id": "47ede0b32189-011-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-06-30",
          "monat": "2026-06",
          "titel": "Spitalsärzte klagen über volle Ambulanzen",
@@ -263,7 +263,7 @@
        "belege": [
         {
          "beleg_id": "31e8d18812a7-007-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-18",
          "monat": "2026-09",
          "titel": "Kammer fordert attraktivere Kassenverträge",
@@ -281,7 +281,7 @@
        "belege": [
         {
          "beleg_id": "31e8d18812a7-007-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-18",
          "monat": "2026-09",
          "titel": "Kammer fordert attraktivere Kassenverträge",
@@ -318,7 +318,7 @@
        "belege": [
         {
          "beleg_id": "ab275863e008-020-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-08-17",
          "monat": "2026-08",
          "titel": "Keine höheren Beiträge",
@@ -336,7 +336,7 @@
        "belege": [
         {
          "beleg_id": "515bfa0c6262-004-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-08-28",
          "monat": "2026-08",
          "titel": "Gebarung der Kassen unter Druck",
@@ -354,7 +354,7 @@
        "belege": [
         {
          "beleg_id": "79ba84c07c6e-017-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-08",
          "monat": "2026-09",
          "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
@@ -372,7 +372,7 @@
        "belege": [
         {
          "beleg_id": "ab275863e008-020-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-08-17",
          "monat": "2026-08",
          "titel": "Keine höheren Beiträge",
@@ -409,7 +409,7 @@
        "belege": [
         {
          "beleg_id": "cc25450aedaa-022-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-19",
          "monat": "2026-09",
          "titel": "Digitale Ersteinschätzung evaluieren",
@@ -427,7 +427,7 @@
        "belege": [
         {
          "beleg_id": "79ba84c07c6e-017-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-08",
          "monat": "2026-09",
          "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
@@ -445,7 +445,7 @@
        "belege": [
         {
          "beleg_id": "c22f87ab3139-015-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-12",
          "monat": "2026-09",
          "titel": "Gruppenpraxen sollen leichter möglich werden",
@@ -463,7 +463,7 @@
        "belege": [
         {
          "beleg_id": "79ba84c07c6e-017-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-08",
          "monat": "2026-09",
          "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
@@ -500,7 +500,7 @@
        "belege": [
         {
          "beleg_id": "007f2b90aa6d-013-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-08-03",
          "monat": "2026-08",
          "titel": "Sorge vor Zweiklassenmedizin",
@@ -518,7 +518,7 @@
        "belege": [
         {
          "beleg_id": "9ab8157bb3b1-008-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-05",
          "monat": "2026-09",
          "titel": "Ärztekammer skeptisch gegenüber Pflichtlenkung",
@@ -536,7 +536,7 @@
        "belege": [
         {
          "beleg_id": "fcfc027ce213-012-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-25",
          "monat": "2026-09",
          "titel": "Patientenanwaltschaft verlangt Terminobergrenze",
@@ -554,7 +554,7 @@
        "belege": [
         {
          "beleg_id": "007f2b90aa6d-013-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-08-03",
          "monat": "2026-08",
          "titel": "Sorge vor Zweiklassenmedizin",
@@ -591,7 +591,7 @@
        "belege": [
         {
          "beleg_id": "ae6b911ced1e-006-01",
-         "medium": "Regionalanzeiger (Beispiel)",
+         "medium": "Regionalanzeiger",
          "datum": "2026-07-30",
          "monat": "2026-07",
          "titel": "Ambulanzen und Kassen ringen um Patientenströme",
@@ -609,7 +609,7 @@
        "belege": [
         {
          "beleg_id": "ae6b911ced1e-006-01",
-         "medium": "Regionalanzeiger (Beispiel)",
+         "medium": "Regionalanzeiger",
          "datum": "2026-07-30",
          "monat": "2026-07",
          "titel": "Ambulanzen und Kassen ringen um Patientenströme",
@@ -627,7 +627,7 @@
        "belege": [
         {
          "beleg_id": "c79b2f3f10a7-005-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-08-12",
          "monat": "2026-08",
          "titel": "Streit um Erstattung für Wahlarztbesuche",
@@ -645,7 +645,7 @@
        "belege": [
         {
          "beleg_id": "74ae27909bd4-002-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-15",
          "monat": "2026-09",
          "titel": "Wartezeit auf Facharzttermine bleibt lang",
@@ -682,7 +682,7 @@
        "belege": [
         {
          "beleg_id": "3b23f309efd0-001-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-22",
          "monat": "2026-09",
          "titel": "Kasse will mehr Facharztstellen ausschreiben",
@@ -700,7 +700,7 @@
        "belege": [
         {
          "beleg_id": "3b23f309efd0-001-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-22",
          "monat": "2026-09",
          "titel": "Kasse will mehr Facharztstellen ausschreiben",
@@ -718,7 +718,7 @@
        "belege": [
         {
          "beleg_id": "7a273bf03088-016-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-08-25",
          "monat": "2026-08",
          "titel": "Mehr Kompetenzen für Gesundheitsberufe",
@@ -736,7 +736,7 @@
        "belege": [
         {
          "beleg_id": "3b23f309efd0-001-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-22",
          "monat": "2026-09",
          "titel": "Kasse will mehr Facharztstellen ausschreiben",
@@ -753,7 +753,8 @@
     "widersprueche": [],
     "code_widersprueche": [],
     "belege_eingefordert": [],
-    "haltungen_ohne_beleg": []
+    "haltungen_ohne_beleg": [],
+    "einigung_ohne_gegenstimme": []
    },
    "pruefungen": []
   },
@@ -789,7 +790,7 @@
        "belege": [
         {
          "beleg_id": "31e8d18812a7-007-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-18",
          "monat": "2026-09",
          "titel": "Kammer fordert attraktivere Kassenverträge",
@@ -807,7 +808,7 @@
        "belege": [
         {
          "beleg_id": "47ede0b32189-011-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-06-30",
          "monat": "2026-06",
          "titel": "Spitalsärzte klagen über volle Ambulanzen",
@@ -825,7 +826,7 @@
        "belege": [
         {
          "beleg_id": "31e8d18812a7-007-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-18",
          "monat": "2026-09",
          "titel": "Kammer fordert attraktivere Kassenverträge",
@@ -843,7 +844,7 @@
        "belege": [
         {
          "beleg_id": "31e8d18812a7-007-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-18",
          "monat": "2026-09",
          "titel": "Kammer fordert attraktivere Kassenverträge",
@@ -882,7 +883,7 @@
        "belege": [
         {
          "beleg_id": "ab275863e008-020-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-08-17",
          "monat": "2026-08",
          "titel": "Keine höheren Beiträge",
@@ -900,7 +901,7 @@
        "belege": [
         {
          "beleg_id": "515bfa0c6262-004-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-08-28",
          "monat": "2026-08",
          "titel": "Gebarung der Kassen unter Druck",
@@ -918,7 +919,7 @@
        "belege": [
         {
          "beleg_id": "79ba84c07c6e-017-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-08",
          "monat": "2026-09",
          "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
@@ -936,7 +937,7 @@
        "belege": [
         {
          "beleg_id": "ab275863e008-020-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-08-17",
          "monat": "2026-08",
          "titel": "Keine höheren Beiträge",
@@ -975,7 +976,7 @@
        "belege": [
         {
          "beleg_id": "cc25450aedaa-022-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-19",
          "monat": "2026-09",
          "titel": "Digitale Ersteinschätzung evaluieren",
@@ -993,7 +994,7 @@
        "belege": [
         {
          "beleg_id": "79ba84c07c6e-017-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-08",
          "monat": "2026-09",
          "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
@@ -1011,7 +1012,7 @@
        "belege": [
         {
          "beleg_id": "c22f87ab3139-015-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-12",
          "monat": "2026-09",
          "titel": "Gruppenpraxen sollen leichter möglich werden",
@@ -1029,7 +1030,7 @@
        "belege": [
         {
          "beleg_id": "79ba84c07c6e-017-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-08",
          "monat": "2026-09",
          "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
@@ -1068,7 +1069,7 @@
        "belege": [
         {
          "beleg_id": "007f2b90aa6d-013-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-08-03",
          "monat": "2026-08",
          "titel": "Sorge vor Zweiklassenmedizin",
@@ -1086,7 +1087,7 @@
        "belege": [
         {
          "beleg_id": "9ab8157bb3b1-008-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-05",
          "monat": "2026-09",
          "titel": "Ärztekammer skeptisch gegenüber Pflichtlenkung",
@@ -1104,7 +1105,7 @@
        "belege": [
         {
          "beleg_id": "fcfc027ce213-012-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-25",
          "monat": "2026-09",
          "titel": "Patientenanwaltschaft verlangt Terminobergrenze",
@@ -1122,7 +1123,7 @@
        "belege": [
         {
          "beleg_id": "007f2b90aa6d-013-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-08-03",
          "monat": "2026-08",
          "titel": "Sorge vor Zweiklassenmedizin",
@@ -1161,7 +1162,7 @@
        "belege": [
         {
          "beleg_id": "ae6b911ced1e-006-01",
-         "medium": "Regionalanzeiger (Beispiel)",
+         "medium": "Regionalanzeiger",
          "datum": "2026-07-30",
          "monat": "2026-07",
          "titel": "Ambulanzen und Kassen ringen um Patientenströme",
@@ -1179,7 +1180,7 @@
        "belege": [
         {
          "beleg_id": "ae6b911ced1e-006-01",
-         "medium": "Regionalanzeiger (Beispiel)",
+         "medium": "Regionalanzeiger",
          "datum": "2026-07-30",
          "monat": "2026-07",
          "titel": "Ambulanzen und Kassen ringen um Patientenströme",
@@ -1197,7 +1198,7 @@
        "belege": [
         {
          "beleg_id": "c79b2f3f10a7-005-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-08-12",
          "monat": "2026-08",
          "titel": "Streit um Erstattung für Wahlarztbesuche",
@@ -1215,7 +1216,7 @@
        "belege": [
         {
          "beleg_id": "74ae27909bd4-002-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-15",
          "monat": "2026-09",
          "titel": "Wartezeit auf Facharzttermine bleibt lang",
@@ -1254,7 +1255,7 @@
        "belege": [
         {
          "beleg_id": "3b23f309efd0-001-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-22",
          "monat": "2026-09",
          "titel": "Kasse will mehr Facharztstellen ausschreiben",
@@ -1272,7 +1273,7 @@
        "belege": [
         {
          "beleg_id": "3b23f309efd0-001-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-22",
          "monat": "2026-09",
          "titel": "Kasse will mehr Facharztstellen ausschreiben",
@@ -1290,7 +1291,7 @@
        "belege": [
         {
          "beleg_id": "7a273bf03088-016-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-08-25",
          "monat": "2026-08",
          "titel": "Mehr Kompetenzen für Gesundheitsberufe",
@@ -1308,7 +1309,7 @@
        "belege": [
         {
          "beleg_id": "3b23f309efd0-001-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-22",
          "monat": "2026-09",
          "titel": "Kasse will mehr Facharztstellen ausschreiben",
@@ -1339,7 +1340,10 @@
      }
     ],
     "belege_eingefordert": [],
-    "haltungen_ohne_beleg": []
+    "haltungen_ohne_beleg": [],
+    "einigung_ohne_gegenstimme": [
+     "patientenlenkung"
+    ]
    },
    "pruefungen": [
     {
@@ -1386,7 +1390,7 @@
        "belege": [
         {
          "beleg_id": "31e8d18812a7-007-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-18",
          "monat": "2026-09",
          "titel": "Kammer fordert attraktivere Kassenverträge",
@@ -1406,7 +1410,7 @@
        "belege": [
         {
          "beleg_id": "47ede0b32189-011-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-06-30",
          "monat": "2026-06",
          "titel": "Spitalsärzte klagen über volle Ambulanzen",
@@ -1426,7 +1430,7 @@
        "belege": [
         {
          "beleg_id": "31e8d18812a7-007-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-18",
          "monat": "2026-09",
          "titel": "Kammer fordert attraktivere Kassenverträge",
@@ -1446,7 +1450,7 @@
        "belege": [
         {
          "beleg_id": "31e8d18812a7-007-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-18",
          "monat": "2026-09",
          "titel": "Kammer fordert attraktivere Kassenverträge",
@@ -1478,16 +1482,16 @@
      "themen": [
       {
        "thema": "kassenstellen",
-       "haltung": 0,
-       "begruendung": "Wir wägen ab zwischen Ausgabendynamik im Gesundheitswesen dämpfen und Defizitverfahren und Fiskalregeln der Europäischen Union. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+       "haltung": -1,
+       "begruendung": "Das Thema berührt unsere Grenze: keine Mehrausgaben ohne Gegenfinanzierung. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
        "bedingungen": [
-        "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+        "Wahrung von: keine Mehrausgaben ohne Gegenfinanzierung"
        ],
-       "zugestaendnis": null,
+       "zugestaendnis": "Bewegung von +0 auf -1 mit Blick auf sv",
        "belege": [
         {
          "beleg_id": "ab275863e008-020-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-08-17",
          "monat": "2026-08",
          "titel": "Keine höheren Beiträge",
@@ -1498,16 +1502,16 @@
       },
       {
        "thema": "triage",
-       "haltung": 0,
-       "begruendung": "Wir wägen ab zwischen Ausgabendynamik im Gesundheitswesen dämpfen und Defizitverfahren und Fiskalregeln der Europäischen Union. Wir gehen auf die Position von sv ein.",
+       "haltung": -1,
+       "begruendung": "Das Thema berührt unsere Grenze: keine Mehrausgaben ohne Gegenfinanzierung. Wir gehen auf die Position von sv ein.",
        "bedingungen": [
-        "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+        "Wahrung von: keine Mehrausgaben ohne Gegenfinanzierung"
        ],
-       "zugestaendnis": null,
+       "zugestaendnis": "Bewegung von +0 auf -1 mit Blick auf sv",
        "belege": [
         {
          "beleg_id": "515bfa0c6262-004-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-08-28",
          "monat": "2026-08",
          "titel": "Gebarung der Kassen unter Druck",
@@ -1527,7 +1531,7 @@
        "belege": [
         {
          "beleg_id": "79ba84c07c6e-017-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-08",
          "monat": "2026-09",
          "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
@@ -1547,7 +1551,7 @@
        "belege": [
         {
          "beleg_id": "ab275863e008-020-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-08-17",
          "monat": "2026-08",
          "titel": "Keine höheren Beiträge",
@@ -1588,7 +1592,7 @@
        "belege": [
         {
          "beleg_id": "cc25450aedaa-022-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-19",
          "monat": "2026-09",
          "titel": "Digitale Ersteinschätzung evaluieren",
@@ -1608,7 +1612,7 @@
        "belege": [
         {
          "beleg_id": "79ba84c07c6e-017-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-08",
          "monat": "2026-09",
          "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
@@ -1628,7 +1632,7 @@
        "belege": [
         {
          "beleg_id": "c22f87ab3139-015-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-12",
          "monat": "2026-09",
          "titel": "Gruppenpraxen sollen leichter möglich werden",
@@ -1648,7 +1652,7 @@
        "belege": [
         {
          "beleg_id": "79ba84c07c6e-017-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-08",
          "monat": "2026-09",
          "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
@@ -1689,7 +1693,7 @@
        "belege": [
         {
          "beleg_id": "007f2b90aa6d-013-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-08-03",
          "monat": "2026-08",
          "titel": "Sorge vor Zweiklassenmedizin",
@@ -1709,7 +1713,7 @@
        "belege": [
         {
          "beleg_id": "9ab8157bb3b1-008-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-05",
          "monat": "2026-09",
          "titel": "Ärztekammer skeptisch gegenüber Pflichtlenkung",
@@ -1729,7 +1733,7 @@
        "belege": [
         {
          "beleg_id": "fcfc027ce213-012-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-25",
          "monat": "2026-09",
          "titel": "Patientenanwaltschaft verlangt Terminobergrenze",
@@ -1749,7 +1753,7 @@
        "belege": [
         {
          "beleg_id": "007f2b90aa6d-013-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-08-03",
          "monat": "2026-08",
          "titel": "Sorge vor Zweiklassenmedizin",
@@ -1790,7 +1794,7 @@
        "belege": [
         {
          "beleg_id": "ae6b911ced1e-006-01",
-         "medium": "Regionalanzeiger (Beispiel)",
+         "medium": "Regionalanzeiger",
          "datum": "2026-07-30",
          "monat": "2026-07",
          "titel": "Ambulanzen und Kassen ringen um Patientenströme",
@@ -1810,7 +1814,7 @@
        "belege": [
         {
          "beleg_id": "ae6b911ced1e-006-01",
-         "medium": "Regionalanzeiger (Beispiel)",
+         "medium": "Regionalanzeiger",
          "datum": "2026-07-30",
          "monat": "2026-07",
          "titel": "Ambulanzen und Kassen ringen um Patientenströme",
@@ -1830,7 +1834,7 @@
        "belege": [
         {
          "beleg_id": "c79b2f3f10a7-005-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-08-12",
          "monat": "2026-08",
          "titel": "Streit um Erstattung für Wahlarztbesuche",
@@ -1850,7 +1854,7 @@
        "belege": [
         {
          "beleg_id": "74ae27909bd4-002-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-15",
          "monat": "2026-09",
          "titel": "Wartezeit auf Facharzttermine bleibt lang",
@@ -1891,7 +1895,7 @@
        "belege": [
         {
          "beleg_id": "3b23f309efd0-001-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-22",
          "monat": "2026-09",
          "titel": "Kasse will mehr Facharztstellen ausschreiben",
@@ -1911,7 +1915,7 @@
        "belege": [
         {
          "beleg_id": "3b23f309efd0-001-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-22",
          "monat": "2026-09",
          "titel": "Kasse will mehr Facharztstellen ausschreiben",
@@ -1931,7 +1935,7 @@
        "belege": [
         {
          "beleg_id": "7a273bf03088-016-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-08-25",
          "monat": "2026-08",
          "titel": "Mehr Kompetenzen für Gesundheitsberufe",
@@ -1951,7 +1955,7 @@
        "belege": [
         {
          "beleg_id": "3b23f309efd0-001-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-22",
          "monat": "2026-09",
          "titel": "Kasse will mehr Facharztstellen ausschreiben",
@@ -1964,11 +1968,14 @@
     }
    ],
    "notiz": {
-    "notiz": "Runde 3: 1 Positionsänderungen. Offen bleiben: finanzierung, triage.",
+    "notiz": "Runde 3: 3 Positionsänderungen. Offen bleiben: finanzierung, triage.",
     "widersprueche": [],
     "code_widersprueche": [],
     "belege_eingefordert": [],
-    "haltungen_ohne_beleg": []
+    "haltungen_ohne_beleg": [],
+    "einigung_ohne_gegenstimme": [
+     "patientenlenkung"
+    ]
    },
    "pruefungen": []
   },
@@ -1980,7 +1987,7 @@
      "akteur": "aerztekammer",
      "gueltig": true,
      "bezug_auf": [
-      "gesundheitsministerium"
+      "finanzministerium"
      ],
      "zahlen": [
       {
@@ -1998,7 +2005,7 @@
       {
        "thema": "kassenstellen",
        "haltung": 1,
-       "begruendung": "Das Thema stützt unser Ziel: Kassenstellen durch bessere Honorare und weniger Bürokratie attraktiv machen. Wir gehen auf die Position von gesundheitsministerium ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+       "begruendung": "Das Thema stützt unser Ziel: Kassenstellen durch bessere Honorare und weniger Bürokratie attraktiv machen. Wir gehen auf die Position von finanzministerium ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
        "bedingungen": [
         "Wahrung von: keine Kassenverträge an der Kammer vorbei"
        ],
@@ -2006,7 +2013,7 @@
        "belege": [
         {
          "beleg_id": "31e8d18812a7-007-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-18",
          "monat": "2026-09",
          "titel": "Kammer fordert attraktivere Kassenverträge",
@@ -2018,7 +2025,7 @@
       {
        "thema": "triage",
        "haltung": 0,
-       "begruendung": "Wir wägen ab zwischen Kassenstellen durch bessere Honorare und weniger Bürokratie attraktiv machen und Gesamtverträge brauchen die Zustimmung der Sozialversicherung. Wir gehen auf die Position von gesundheitsministerium ein.",
+       "begruendung": "Wir wägen ab zwischen Kassenstellen durch bessere Honorare und weniger Bürokratie attraktiv machen und Gesamtverträge brauchen die Zustimmung der Sozialversicherung. Wir gehen auf die Position von finanzministerium ein.",
        "bedingungen": [
         "Wahrung von: keine Abschaffung des Wahlarztsystems"
        ],
@@ -2026,7 +2033,7 @@
        "belege": [
         {
          "beleg_id": "47ede0b32189-011-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-06-30",
          "monat": "2026-06",
          "titel": "Spitalsärzte klagen über volle Ambulanzen",
@@ -2038,7 +2045,7 @@
       {
        "thema": "finanzierung",
        "haltung": -1,
-       "begruendung": "Das Thema berührt unsere Grenze: keine Abschaffung des Wahlarztsystems. Wir gehen auf die Position von gesundheitsministerium ein.",
+       "begruendung": "Das Thema berührt unsere Grenze: keine Abschaffung des Wahlarztsystems. Wir gehen auf die Position von finanzministerium ein.",
        "bedingungen": [
         "Wahrung von: keine Abschaffung des Wahlarztsystems"
        ],
@@ -2046,7 +2053,7 @@
        "belege": [
         {
          "beleg_id": "31e8d18812a7-007-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-18",
          "monat": "2026-09",
          "titel": "Kammer fordert attraktivere Kassenverträge",
@@ -2058,7 +2065,7 @@
       {
        "thema": "patientenlenkung",
        "haltung": 1,
-       "begruendung": "Das Thema stützt unser Ziel: verbindliche, bundesweit einheitliche Patientenlenkung einführen. Wir gehen auf die Position von gesundheitsministerium ein.",
+       "begruendung": "Das Thema stützt unser Ziel: verbindliche, bundesweit einheitliche Patientenlenkung einführen. Wir gehen auf die Position von finanzministerium ein.",
        "bedingungen": [
         "Wahrung von: keine Primärversorgungseinheiten ohne ärztliche Leitung"
        ],
@@ -2066,7 +2073,7 @@
        "belege": [
         {
          "beleg_id": "31e8d18812a7-007-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-18",
          "monat": "2026-09",
          "titel": "Kammer fordert attraktivere Kassenverträge",
@@ -2098,16 +2105,16 @@
      "themen": [
       {
        "thema": "kassenstellen",
-       "haltung": 0,
-       "begruendung": "Wir wägen ab zwischen Ausgabendynamik im Gesundheitswesen dämpfen und Defizitverfahren und Fiskalregeln der Europäischen Union. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+       "haltung": -1,
+       "begruendung": "Das Thema berührt unsere Grenze: keine Mehrausgaben ohne Gegenfinanzierung. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
        "bedingungen": [
-        "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+        "Wahrung von: keine Mehrausgaben ohne Gegenfinanzierung"
        ],
        "zugestaendnis": null,
        "belege": [
         {
          "beleg_id": "ab275863e008-020-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-08-17",
          "monat": "2026-08",
          "titel": "Keine höheren Beiträge",
@@ -2118,16 +2125,16 @@
       },
       {
        "thema": "triage",
-       "haltung": 0,
-       "begruendung": "Wir wägen ab zwischen Ausgabendynamik im Gesundheitswesen dämpfen und Defizitverfahren und Fiskalregeln der Europäischen Union. Wir gehen auf die Position von sv ein.",
+       "haltung": -1,
+       "begruendung": "Das Thema berührt unsere Grenze: keine Mehrausgaben ohne Gegenfinanzierung. Wir gehen auf die Position von sv ein.",
        "bedingungen": [
-        "Wahrung von: keine Ausweitung des Defizits für das Gesundheitswesen"
+        "Wahrung von: keine Mehrausgaben ohne Gegenfinanzierung"
        ],
        "zugestaendnis": null,
        "belege": [
         {
          "beleg_id": "515bfa0c6262-004-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-08-28",
          "monat": "2026-08",
          "titel": "Gebarung der Kassen unter Druck",
@@ -2147,7 +2154,7 @@
        "belege": [
         {
          "beleg_id": "79ba84c07c6e-017-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-08",
          "monat": "2026-09",
          "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
@@ -2167,7 +2174,7 @@
        "belege": [
         {
          "beleg_id": "ab275863e008-020-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-08-17",
          "monat": "2026-08",
          "titel": "Keine höheren Beiträge",
@@ -2208,7 +2215,7 @@
        "belege": [
         {
          "beleg_id": "cc25450aedaa-022-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-19",
          "monat": "2026-09",
          "titel": "Digitale Ersteinschätzung evaluieren",
@@ -2228,7 +2235,7 @@
        "belege": [
         {
          "beleg_id": "79ba84c07c6e-017-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-08",
          "monat": "2026-09",
          "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
@@ -2248,7 +2255,7 @@
        "belege": [
         {
          "beleg_id": "c22f87ab3139-015-01",
-         "medium": "Fachdienst Gesundheit (Beispiel)",
+         "medium": "Fachdienst Gesundheit",
          "datum": "2026-09-12",
          "monat": "2026-09",
          "titel": "Gruppenpraxen sollen leichter möglich werden",
@@ -2268,7 +2275,7 @@
        "belege": [
         {
          "beleg_id": "79ba84c07c6e-017-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-08",
          "monat": "2026-09",
          "titel": "Reformpartnerschaft: Finanzierung aus einer Hand",
@@ -2283,7 +2290,7 @@
      "akteur": "patienten",
      "gueltig": true,
      "bezug_auf": [
-      "aerztekammer"
+      "finanzministerium"
      ],
      "zahlen": [
       {
@@ -2301,7 +2308,7 @@
       {
        "thema": "kassenstellen",
        "haltung": 1,
-       "begruendung": "Das Thema stützt unser Ziel: kürzere Wartezeiten auf Kassentermine und Operationen. Wir gehen auf die Position von aerztekammer ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+       "begruendung": "Das Thema stützt unser Ziel: kürzere Wartezeiten auf Kassentermine und Operationen. Wir gehen auf die Position von finanzministerium ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
        "bedingungen": [
         "Wahrung von: keine zusätzlichen Kosten für Versicherte ohne soziale Staffelung"
        ],
@@ -2309,7 +2316,7 @@
        "belege": [
         {
          "beleg_id": "007f2b90aa6d-013-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-08-03",
          "monat": "2026-08",
          "titel": "Sorge vor Zweiklassenmedizin",
@@ -2321,7 +2328,7 @@
       {
        "thema": "triage",
        "haltung": 0,
-       "begruendung": "Wir wägen ab zwischen kürzere Wartezeiten auf Kassentermine und Operationen und keine Entscheidungsmacht über Verträge oder Budgets. Wir gehen auf die Position von aerztekammer ein.",
+       "begruendung": "Wir wägen ab zwischen kürzere Wartezeiten auf Kassentermine und Operationen und keine Entscheidungsmacht über Verträge oder Budgets. Wir gehen auf die Position von finanzministerium ein.",
        "bedingungen": [
         "Wahrung von: keine neuen Selbstbehalte, die einkommensschwache Versicherte vom Arztbesuch abhalten"
        ],
@@ -2329,7 +2336,7 @@
        "belege": [
         {
          "beleg_id": "9ab8157bb3b1-008-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-05",
          "monat": "2026-09",
          "titel": "Ärztekammer skeptisch gegenüber Pflichtlenkung",
@@ -2341,7 +2348,7 @@
       {
        "thema": "finanzierung",
        "haltung": 0,
-       "begruendung": "Wir wägen ab zwischen kürzere Wartezeiten auf Kassentermine und Operationen und keine Entscheidungsmacht über Verträge oder Budgets. Wir gehen auf die Position von aerztekammer ein.",
+       "begruendung": "Wir wägen ab zwischen kürzere Wartezeiten auf Kassentermine und Operationen und keine Entscheidungsmacht über Verträge oder Budgets. Wir gehen auf die Position von finanzministerium ein.",
        "bedingungen": [
         "Wahrung von: keine neuen Selbstbehalte, die einkommensschwache Versicherte vom Arztbesuch abhalten"
        ],
@@ -2349,7 +2356,7 @@
        "belege": [
         {
          "beleg_id": "fcfc027ce213-012-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-25",
          "monat": "2026-09",
          "titel": "Patientenanwaltschaft verlangt Terminobergrenze",
@@ -2361,7 +2368,7 @@
       {
        "thema": "patientenlenkung",
        "haltung": 2,
-       "begruendung": "Das Thema stützt unser Ziel: Gesundheitshotline 1450 mit verbindlichem Termin als Ergebnis. Wir gehen auf die Position von aerztekammer ein.",
+       "begruendung": "Das Thema stützt unser Ziel: Gesundheitshotline 1450 mit verbindlichem Termin als Ergebnis. Wir gehen auf die Position von finanzministerium ein.",
        "bedingungen": [
         "Wahrung von: Patientenlenkung ohne Gebühren beim Erstkontakt"
        ],
@@ -2369,7 +2376,7 @@
        "belege": [
         {
          "beleg_id": "007f2b90aa6d-013-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-08-03",
          "monat": "2026-08",
          "titel": "Sorge vor Zweiklassenmedizin",
@@ -2384,7 +2391,7 @@
      "akteur": "sv",
      "gueltig": true,
      "bezug_auf": [
-      "aerztekammer"
+      "finanzministerium"
      ],
      "zahlen": [
       {
@@ -2402,7 +2409,7 @@
       {
        "thema": "kassenstellen",
        "haltung": 2,
-       "begruendung": "Das Thema stützt unser Ziel: Wartezeiten auf Termine bei Kassenärztinnen und Kassenärzten senken. Wir gehen auf die Position von aerztekammer ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+       "begruendung": "Das Thema stützt unser Ziel: Wartezeiten auf Termine bei Kassenärztinnen und Kassenärzten senken. Wir gehen auf die Position von finanzministerium ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
        "bedingungen": [
         "Wahrung von: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern"
        ],
@@ -2410,7 +2417,7 @@
        "belege": [
         {
          "beleg_id": "ae6b911ced1e-006-01",
-         "medium": "Regionalanzeiger (Beispiel)",
+         "medium": "Regionalanzeiger",
          "datum": "2026-07-30",
          "monat": "2026-07",
          "titel": "Ambulanzen und Kassen ringen um Patientenströme",
@@ -2422,7 +2429,7 @@
       {
        "thema": "triage",
        "haltung": 0,
-       "begruendung": "Wir wägen ab zwischen Wartezeiten auf Termine bei Kassenärztinnen und Kassenärzten senken und Einnahmen hängen an Beiträgen und damit an der Beschäftigungslage. Wir gehen auf die Position von aerztekammer ein.",
+       "begruendung": "Wir wägen ab zwischen Wartezeiten auf Termine bei Kassenärztinnen und Kassenärzten senken und Einnahmen hängen an Beiträgen und damit an der Beschäftigungslage. Wir gehen auf die Position von finanzministerium ein.",
        "bedingungen": [
         "Wahrung von: keine Kürzung des Leistungskatalogs zur Sanierung der Gebarung"
        ],
@@ -2430,7 +2437,7 @@
        "belege": [
         {
          "beleg_id": "ae6b911ced1e-006-01",
-         "medium": "Regionalanzeiger (Beispiel)",
+         "medium": "Regionalanzeiger",
          "datum": "2026-07-30",
          "monat": "2026-07",
          "titel": "Ambulanzen und Kassen ringen um Patientenströme",
@@ -2442,7 +2449,7 @@
       {
        "thema": "finanzierung",
        "haltung": 0,
-       "begruendung": "Wir wägen ab zwischen einheitlichen Leistungskatalog über alle Krankenversicherungsträger erreichen und neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern. Wir gehen auf die Position von aerztekammer ein.",
+       "begruendung": "Wir wägen ab zwischen einheitlichen Leistungskatalog über alle Krankenversicherungsträger erreichen und neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern. Wir gehen auf die Position von finanzministerium ein.",
        "bedingungen": [
         "Wahrung von: neue Leistungen nur mit Gegenfinanzierung oder zusätzlichen Mitteln von Bund oder Ländern"
        ],
@@ -2450,7 +2457,7 @@
        "belege": [
         {
          "beleg_id": "c79b2f3f10a7-005-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-08-12",
          "monat": "2026-08",
          "titel": "Streit um Erstattung für Wahlarztbesuche",
@@ -2462,7 +2469,7 @@
       {
        "thema": "patientenlenkung",
        "haltung": 2,
-       "begruendung": "Das Thema stützt unser Ziel: Patientenlenkung über die Gesundheitshotline 1450 und die Primärversorgung stärken. Wir gehen auf die Position von aerztekammer ein.",
+       "begruendung": "Das Thema stützt unser Ziel: Patientenlenkung über die Gesundheitshotline 1450 und die Primärversorgung stärken. Wir gehen auf die Position von finanzministerium ein.",
        "bedingungen": [
         "Wahrung von: keine Kürzung des Leistungskatalogs zur Sanierung der Gebarung"
        ],
@@ -2470,7 +2477,7 @@
        "belege": [
         {
          "beleg_id": "74ae27909bd4-002-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-09-15",
          "monat": "2026-09",
          "titel": "Wartezeit auf Facharzttermine bleibt lang",
@@ -2485,7 +2492,7 @@
      "akteur": "vertragsaerzte",
      "gueltig": true,
      "bezug_auf": [
-      "aerztekammer"
+      "finanzministerium"
      ],
      "zahlen": [
       {
@@ -2503,7 +2510,7 @@
       {
        "thema": "kassenstellen",
        "haltung": 1,
-       "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Wir gehen auf die Position von aerztekammer ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
+       "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Wir gehen auf die Position von finanzministerium ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
        "bedingungen": [
         "Wahrung von: zusätzliche Öffnungszeiten nur mit Abgeltung"
        ],
@@ -2511,7 +2518,7 @@
        "belege": [
         {
          "beleg_id": "3b23f309efd0-001-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-22",
          "monat": "2026-09",
          "titel": "Kasse will mehr Facharztstellen ausschreiben",
@@ -2523,7 +2530,7 @@
       {
        "thema": "triage",
        "haltung": 0,
-       "begruendung": "Wir wägen ab zwischen digitale Werkzeuge, die Zeit sparen statt Zeit kosten und Honorare legt der Gesamtvertrag fest. Wir gehen auf die Position von aerztekammer ein.",
+       "begruendung": "Wir wägen ab zwischen digitale Werkzeuge, die Zeit sparen statt Zeit kosten und Honorare legt der Gesamtvertrag fest. Wir gehen auf die Position von finanzministerium ein.",
        "bedingungen": [
         "Wahrung von: keine Mehrleistungen ohne Honorar"
        ],
@@ -2531,7 +2538,7 @@
        "belege": [
         {
          "beleg_id": "3b23f309efd0-001-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-22",
          "monat": "2026-09",
          "titel": "Kasse will mehr Facharztstellen ausschreiben",
@@ -2543,7 +2550,7 @@
       {
        "thema": "finanzierung",
        "haltung": 1,
-       "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Wir gehen auf die Position von aerztekammer ein.",
+       "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Wir gehen auf die Position von finanzministerium ein.",
        "bedingungen": [
         "Wahrung von: keine Mehrleistungen ohne Honorar"
        ],
@@ -2551,7 +2558,7 @@
        "belege": [
         {
          "beleg_id": "7a273bf03088-016-01",
-         "medium": "Beispielblatt (Beispiel)",
+         "medium": "Beispielblatt",
          "datum": "2026-08-25",
          "monat": "2026-08",
          "titel": "Mehr Kompetenzen für Gesundheitsberufe",
@@ -2563,7 +2570,7 @@
       {
        "thema": "patientenlenkung",
        "haltung": 2,
-       "begruendung": "Das Thema stützt unser Ziel: Primärversorgungseinheiten mit fairer Finanzierung. Wir gehen auf die Position von aerztekammer ein.",
+       "begruendung": "Das Thema stützt unser Ziel: Primärversorgungseinheiten mit fairer Finanzierung. Wir gehen auf die Position von finanzministerium ein.",
        "bedingungen": [
         "Wahrung von: keine Mehrleistungen ohne Honorar"
        ],
@@ -2571,7 +2578,7 @@
        "belege": [
         {
          "beleg_id": "3b23f309efd0-001-01",
-         "medium": "Musterzeitung Süd (Beispiel)",
+         "medium": "Musterzeitung Süd",
          "datum": "2026-09-22",
          "monat": "2026-09",
          "titel": "Kasse will mehr Facharztstellen ausschreiben",
@@ -2588,7 +2595,10 @@
     "widersprueche": [],
     "code_widersprueche": [],
     "belege_eingefordert": [],
-    "haltungen_ohne_beleg": []
+    "haltungen_ohne_beleg": [],
+    "einigung_ohne_gegenstimme": [
+     "patientenlenkung"
+    ]
    },
    "pruefungen": []
   }
@@ -2637,14 +2647,14 @@
     "kassenstellen": [
      0,
      0,
-     0,
-     0
+     -1,
+     -1
     ],
     "triage": [
      0,
      0,
-     0,
-     0
+     -1,
+     -1
     ],
     "finanzierung": [
      1,
@@ -2808,6 +2818,22 @@
   },
   {
    "runde": 3,
+   "akteur": "finanzministerium",
+   "thema": "kassenstellen",
+   "alt": 0,
+   "neu": -1,
+   "begruendung": "Das Thema berührt unsere Grenze: keine Mehrausgaben ohne Gegenfinanzierung. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten."
+  },
+  {
+   "runde": 3,
+   "akteur": "finanzministerium",
+   "thema": "triage",
+   "alt": 0,
+   "neu": -1,
+   "begruendung": "Das Thema berührt unsere Grenze: keine Mehrausgaben ohne Gegenfinanzierung. Wir gehen auf die Position von sv ein."
+  },
+  {
+   "runde": 3,
    "akteur": "sv",
    "thema": "finanzierung",
    "alt": -1,
@@ -2824,22 +2850,26 @@
     "sv",
     "vertragsaerzte"
    ],
-   "ablehnend": [],
+   "ablehnend": [
+    "finanzministerium"
+   ],
    "enthalten": [
-    "finanzministerium",
     "gesundheitsministerium"
    ],
-   "minderheit": []
+   "minderheit": [
+    "finanzministerium"
+   ]
   },
   "triage": {
    "kategorie": "offener_konflikt",
    "zustimmend": [
     "gesundheitsministerium"
    ],
-   "ablehnend": [],
+   "ablehnend": [
+    "finanzministerium"
+   ],
    "enthalten": [
     "aerztekammer",
-    "finanzministerium",
     "patienten",
     "sv",
     "vertragsaerzte"
@@ -2891,6 +2921,367 @@
  ],
  "experte": {
   "paket": "beispiel-wartezeiten",
+  "ergebnis": {
+   "ziel": {
+    "quelle": "PRD docs/plan/uc2/2026-11-05-healthpolicy-simulator.md, S10 (Leitfrage: Wartezeiten auf Facharzttermine innerhalb von fünf Jahren um 20 % reduzieren) und S4 (Zielprüfung „−20 % Wartezeit, ≤ +5 % Kosten“)",
+    "zieljahr": 5,
+    "kosten_aenderung_prozent_hoechstens": 5.0,
+    "wartezeit_aenderung_prozent_hoechstens": -20.0
+   },
+   "paket": "beispiel-wartezeiten",
+   "hinweis": "Zahlen aus dem Experten, kein Sprachmodell",
+   "annahmen": [
+    {
+     "id": "rho0",
+     "max": 0.95,
+     "min": 0.7,
+     "typ": "A",
+     "jahr": null,
+     "modus": 0.8,
+     "quelle": "Unbelegt, Expertenschätzung. Keine Datenquelle zur Auslastung gefunden; Modell W ∝ ρ/(1−ρ) ist Vorgabe aus Issue #42. Die Spanne 0,70 bis 0,95 ist bewusst weit (PRD-Risiko „Zielprüfung hängt an unbelegtem ρ₀“).",
+     "symbol": "ρ₀",
+     "einheit": "Anteil",
+     "in_spanne": true,
+     "beschreibung": "Auslastung der fachärztlichen Kassenversorgung im Ausgangsjahr (Nachfrage/Kapazität)",
+     "ueberschrieben": false
+    },
+    {
+     "id": "ausgangsausgaben",
+     "max": 61338.0,
+     "min": 61338.0,
+     "typ": "B",
+     "jahr": 2025,
+     "modus": 61338.0,
+     "quelle": "Statistik Austria, Pressemitteilung 14 202-121/26 vom 11.06.2026, Datei data/uc2/statistik_at_gesundheitsausgaben/20260611Gesundheitsausgaben2025.pdf, Seite 2, Tabelle, Zeile „Laufende Gesundheitsausgaben“, Spalte 2025 (erste Schätzung).",
+     "symbol": "ausgangsausgaben",
+     "einheit": "Mio. EUR",
+     "in_spanne": false,
+     "beschreibung": "Laufende Gesundheitsausgaben Österreich laut System of Health Accounts (öffentlich und privat)",
+     "ueberschrieben": false
+    },
+    {
+     "id": "basis_niedergelassen",
+     "max": 11800.0,
+     "min": 11800.0,
+     "typ": "B",
+     "jahr": 2024,
+     "modus": 11800.0,
+     "quelle": "Parlamentarischer Budgetdienst, „Finanzierung des österreichischen Gesundheitssystems“, Datei data/uc2/parlament_budgetdienst/BD-Finanzierung-des-oesterreichischen-Gesundheitssystems.pdf, PDF-Seite 37: „im Jahr 2024 mit 11,8 Mrd. EUR bzw. 24 % auf die kurative und rehabilitative niedergelassene Versorgung“ (enthält auch Zahnärzt:innen und andere Gesundheitsberufe; Jahr 2024).",
+     "symbol": "basis_niedergelassen",
+     "einheit": "Mio. EUR",
+     "in_spanne": false,
+     "beschreibung": "Laufende Gesundheitsausgaben für die kurative und rehabilitative niedergelassene Versorgung (Zusatzkennzahl, nicht Teil der Zielprüfung)",
+     "ueberschrieben": false
+    },
+    {
+     "id": "kassenstellen_besetzung",
+     "max": 1.0,
+     "min": 0.6,
+     "typ": "A",
+     "jahr": null,
+     "modus": 0.85,
+     "quelle": "Unbelegt, Expertenschätzung. Richtung: Die ÖÄK-Ärztestatistik 2025 (Pressetext, Datei wie bei kassenstellen_bestand) nennt offene Kassenstellen, ohne Zahl; neue Stellen werden nicht sicher besetzt.",
+     "symbol": "kassenstellen_besetzung",
+     "einheit": "Anteil",
+     "in_spanne": true,
+     "beschreibung": "Anteil zusätzlicher Kassenstellen, die besetzt und voll versorgungswirksam werden",
+     "ueberschrieben": false
+    },
+    {
+     "id": "kassenstellen_bestand",
+     "max": 5000.0,
+     "min": 3500.0,
+     "typ": "A",
+     "jahr": null,
+     "modus": 4200.0,
+     "quelle": "Unbelegt, Expertenschätzung. Die ÖÄK-Ärztestatistik 2025 (data/uc2/aerztekammer_aerztestatistik/20260729_pk-unterlage-arztestatistik-2025.pdf) nennt keine Zahl der Kassenstellen, nur dass die Zahl der Kassenärzt:innen seit 20 Jahren etwa gleich ist. Startwert: rund die Hälfte von rund 8.250 Kassenärzt:innen (Köpfe, Sekundärangabe), weite Spanne.",
+     "symbol": "kassenstellen_bestand",
+     "einheit": "Stellen",
+     "in_spanne": true,
+     "beschreibung": "Bestand an fachärztlichen Kassenstellen (Vollstellen, Pool der Bezugsgröße)",
+     "ueberschrieben": false
+    },
+    {
+     "id": "kosten_je_kassenstelle",
+     "max": 0.6,
+     "min": 0.3,
+     "typ": "A",
+     "jahr": null,
+     "modus": 0.45,
+     "quelle": "Expertenschätzung, keine Quelle gelesen; Größenordnung eines Kassenhonorars je Vollstelle.",
+     "symbol": "kosten_je_kassenstelle",
+     "einheit": "Mio. EUR pro Jahr und Stelle",
+     "in_spanne": true,
+     "beschreibung": "Mehrkosten je besetzter zusätzlicher Kassenstelle (Honorar und Förderung)",
+     "ueberschrieben": false
+    },
+    {
+     "id": "triage_vermeidung",
+     "max": 0.25,
+     "min": 0.05,
+     "typ": "A",
+     "jahr": null,
+     "modus": 0.15,
+     "quelle": "Unbelegt, Expertenschätzung (geringe Befolgung und Fehlsteuerung der Lenkung begrenzen die Wirkung).",
+     "symbol": "triage_vermeidung",
+     "einheit": "Anteil",
+     "in_spanne": true,
+     "beschreibung": "Anteil digital triagierter Überweisungen, die keinen Facharztkontakt mehr brauchen",
+     "ueberschrieben": false
+    },
+    {
+     "id": "kosten_triage",
+     "max": 8.0,
+     "min": 2.0,
+     "typ": "A",
+     "jahr": null,
+     "modus": 4.0,
+     "quelle": "Expertenschätzung, keine Quelle gelesen.",
+     "symbol": "kosten_triage",
+     "einheit": "Mio. EUR pro Jahr und Prozentpunkt",
+     "in_spanne": true,
+     "beschreibung": "Mehrkosten je Prozentpunkt digital triagierter Überweisungen (Betrieb, ärztliche Sichtung)",
+     "ueberschrieben": false
+    }
+   ],
+   "zieljahr": 5,
+   "jahrespfad": [
+    {
+     "jahr": 1,
+     "rho1": 0.7912,
+     "mehrkosten_mio_eur": 25.6,
+     "kosten_aenderung_prozent": 0.04,
+     "wartezeit_aenderung_prozent": -5.29
+    },
+    {
+     "jahr": 2,
+     "rho1": 0.7824,
+     "mehrkosten_mio_eur": 51.3,
+     "kosten_aenderung_prozent": 0.08,
+     "wartezeit_aenderung_prozent": -10.1
+    },
+    {
+     "jahr": 3,
+     "rho1": 0.7738,
+     "mehrkosten_mio_eur": 76.9,
+     "kosten_aenderung_prozent": 0.13,
+     "wartezeit_aenderung_prozent": -14.5
+    },
+    {
+     "jahr": 4,
+     "rho1": 0.7652,
+     "mehrkosten_mio_eur": 102.6,
+     "kosten_aenderung_prozent": 0.17,
+     "wartezeit_aenderung_prozent": -18.53
+    },
+    {
+     "jahr": 5,
+     "rho1": 0.7567,
+     "mehrkosten_mio_eur": 128.2,
+     "kosten_aenderung_prozent": 0.21,
+     "wartezeit_aenderung_prozent": -22.24
+    }
+   ],
+   "kennzahlen": {
+    "rho0": {
+     "max": 0.95,
+     "min": 0.7,
+     "modus": 0.8
+    },
+    "rho1": {
+     "max": 0.9239,
+     "min": 0.6456,
+     "modus": 0.7567
+    },
+    "mehrkosten_mio_eur": {
+     "max": 250.0,
+     "min": 58.9,
+     "modus": 128.2
+    },
+    "kosten_aenderung_prozent": {
+     "max": 0.41,
+     "min": 0.1,
+     "modus": 0.21
+    },
+    "wartezeit_aenderung_prozent": {
+     "max": -8.62,
+     "min": -62.75,
+     "modus": -22.24
+    },
+    "kosten_aenderung_niedergelassen_prozent": {
+     "max": 2.12,
+     "min": 0.5,
+     "modus": 1.09
+    }
+   },
+   "massnahmen": [
+    {
+     "id": "kassenstellen",
+     "name": "Zusätzliche Kassenstellen",
+     "umfang": 3.0,
+     "einheit": "% zusätzliche fachärztliche Kassenstellen gegenüber dem Bestand",
+     "wirkt_auf": "kapazitaet",
+     "wirkung_prozent": 2.55,
+     "mehrkosten_mio_eur": 48.2
+    },
+    {
+     "id": "triage",
+     "name": "Digitale Facharzt-Triage",
+     "umfang": 20.0,
+     "einheit": "% der fachärztlichen Kontakte, denen eine digitale Triage vorgeschaltet wird",
+     "wirkt_auf": "nachfrage",
+     "wirkung_prozent": 3.0,
+     "mehrkosten_mio_eur": 80.0
+    }
+   ],
+   "beschreibung": "Fachärztliche Kassenstellen +3 % und digitale Triage vor 20 % der fachärztlichen Kontakte",
+   "entscheidend": {
+    "text": "entscheidend: ρ₀ (Auslastung der fachärztlichen Kassenversorgung im Ausgangsjahr (Nachfrage/Kapazität), Typ A): bei Min 0,70 Wartezeit −16,02 %, Kosten 0,21 %, Ziel verfehlt; bei Max 0,95 Wartezeit −53,37 %, Kosten 0,21 %, Ziel erreicht",
+    "annahme": "rho0",
+    "einfluesse": [
+     {
+      "max": {
+       "rho1": 0.8986,
+       "wert": 0.95,
+       "ziel_erreicht": true,
+       "kosten_aenderung_prozent": 0.21,
+       "wartezeit_aenderung_prozent": -53.37
+      },
+      "min": {
+       "rho1": 0.6621,
+       "wert": 0.7,
+       "ziel_erreicht": false,
+       "kosten_aenderung_prozent": 0.21,
+       "wartezeit_aenderung_prozent": -16.02
+      },
+      "kippt": true,
+      "annahme": "rho0",
+      "ausschlag_prozentpunkte": 37.35
+     },
+     {
+      "max": {
+       "rho1": 0.7411,
+       "wert": 0.25,
+       "ziel_erreicht": true,
+       "kosten_aenderung_prozent": 0.21,
+       "wartezeit_aenderung_prozent": -28.44
+      },
+      "min": {
+       "rho1": 0.7723,
+       "wert": 0.05,
+       "ziel_erreicht": false,
+       "kosten_aenderung_prozent": 0.21,
+       "wartezeit_aenderung_prozent": -15.2
+      },
+      "kippt": true,
+      "annahme": "triage_vermeidung",
+      "ausschlag_prozentpunkte": 13.23
+     },
+     {
+      "max": {
+       "rho1": 0.7534,
+       "wert": 1.0,
+       "ziel_erreicht": true,
+       "kosten_aenderung_prozent": 0.22,
+       "wartezeit_aenderung_prozent": -23.62
+      },
+      "min": {
+       "rho1": 0.7623,
+       "wert": 0.6,
+       "ziel_erreicht": false,
+       "kosten_aenderung_prozent": 0.19,
+       "wartezeit_aenderung_prozent": -19.83
+      },
+      "kippt": true,
+      "annahme": "kassenstellen_besetzung",
+      "ausschlag_prozentpunkte": 3.79
+     },
+     {
+      "max": {
+       "rho1": 0.7567,
+       "wert": 8.0,
+       "ziel_erreicht": true,
+       "kosten_aenderung_prozent": 0.34,
+       "wartezeit_aenderung_prozent": -22.24
+      },
+      "min": {
+       "rho1": 0.7567,
+       "wert": 2.0,
+       "ziel_erreicht": true,
+       "kosten_aenderung_prozent": 0.14,
+       "wartezeit_aenderung_prozent": -22.24
+      },
+      "kippt": false,
+      "annahme": "kosten_triage",
+      "ausschlag_prozentpunkte": 0.2
+     },
+     {
+      "max": {
+       "rho1": 0.7567,
+       "wert": 0.6,
+       "ziel_erreicht": true,
+       "kosten_aenderung_prozent": 0.24,
+       "wartezeit_aenderung_prozent": -22.24
+      },
+      "min": {
+       "rho1": 0.7567,
+       "wert": 0.3,
+       "ziel_erreicht": true,
+       "kosten_aenderung_prozent": 0.18,
+       "wartezeit_aenderung_prozent": -22.24
+      },
+      "kippt": false,
+      "annahme": "kosten_je_kassenstelle",
+      "ausschlag_prozentpunkte": 0.05
+     },
+     {
+      "max": {
+       "rho1": 0.7567,
+       "wert": 5000.0,
+       "ziel_erreicht": true,
+       "kosten_aenderung_prozent": 0.22,
+       "wartezeit_aenderung_prozent": -22.24
+      },
+      "min": {
+       "rho1": 0.7567,
+       "wert": 3500.0,
+       "ziel_erreicht": true,
+       "kosten_aenderung_prozent": 0.2,
+       "wartezeit_aenderung_prozent": -22.24
+      },
+      "kippt": false,
+      "annahme": "kassenstellen_bestand",
+      "ausschlag_prozentpunkte": 0.03
+     }
+    ]
+   },
+   "zielpruefung": {
+    "ecken": 64,
+    "ergebnis": "offen",
+    "ecken_erreicht": 40,
+    "modus_erreicht": true,
+    "annahmen_in_spanne": [
+     "rho0",
+     "kassenstellen_besetzung",
+     "kassenstellen_bestand",
+     "kosten_je_kassenstelle",
+     "triage_vermeidung",
+     "kosten_triage"
+    ]
+   },
+   "ausgangsausgaben": {
+    "jahr": 2025,
+    "wert": 61338.0,
+    "quelle": "Statistik Austria, Pressemitteilung 14 202-121/26 vom 11.06.2026, Datei data/uc2/statistik_at_gesundheitsausgaben/20260611Gesundheitsausgaben2025.pdf, Seite 2, Tabelle, Zeile „Laufende Gesundheitsausgaben“, Spalte 2025 (erste Schätzung).",
+    "einheit": "Mio. EUR"
+   },
+   "basis_niedergelassen": {
+    "jahr": 2024,
+    "wert": 11800.0,
+    "quelle": "Parlamentarischer Budgetdienst, „Finanzierung des österreichischen Gesundheitssystems“, Datei data/uc2/parlament_budgetdienst/BD-Finanzierung-des-oesterreichischen-Gesundheitssystems.pdf, PDF-Seite 37: „im Jahr 2024 mit 11,8 Mrd. EUR bzw. 24 % auf die kurative und rehabilitative niedergelassene Versorgung“ (enthält auch Zahnärzt:innen und andere Gesundheitsberufe; Jahr 2024).",
+    "einheit": "Mio. EUR"
+   }
+  },
   "beschreibung": "Fachärztliche Kassenstellen +3 % und digitale Triage vor 20 % der fachärztlichen Kontakte",
   "entscheidend": "entscheidend: ρ₀ (Auslastung der fachärztlichen Kassenversorgung im Ausgangsjahr (Nachfrage/Kapazität), Typ A): bei Min 0,70 Wartezeit −16,02 %, Kosten 0,21 %, Ziel verfehlt; bei Max 0,95 Wartezeit −53,37 %, Kosten 0,21 %, Ziel erreicht",
   "zielpruefung": "offen",
@@ -2956,6 +3347,22 @@
     "begruendung": "Das Thema stützt unser Ziel: leistungsgerechte Honorare für Kassenleistungen. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten."
    },
    {
+    "alt": 0,
+    "neu": -1,
+    "runde": 3,
+    "thema": "kassenstellen",
+    "akteur": "finanzministerium",
+    "begruendung": "Das Thema berührt unsere Grenze: keine Mehrausgaben ohne Gegenfinanzierung. Wir gehen auf die Position von sv ein. Der Experte rechnet für das Paket mit −22,24 % Wartezeit bei 0,21 % Mehrkosten."
+   },
+   {
+    "alt": 0,
+    "neu": -1,
+    "runde": 3,
+    "thema": "triage",
+    "akteur": "finanzministerium",
+    "begruendung": "Das Thema berührt unsere Grenze: keine Mehrausgaben ohne Gegenfinanzierung. Wir gehen auf die Position von sv ein."
+   },
+   {
     "alt": -1,
     "neu": 0,
     "runde": 3,
@@ -2966,10 +3373,11 @@
   ],
   "klassifikation": {
    "triage": {
-    "ablehnend": [],
+    "ablehnend": [
+     "finanzministerium"
+    ],
     "enthalten": [
      "aerztekammer",
-     "finanzministerium",
      "patienten",
      "sv",
      "vertragsaerzte"
@@ -2997,13 +3405,16 @@
     ]
    },
    "kassenstellen": {
-    "ablehnend": [],
+    "ablehnend": [
+     "finanzministerium"
+    ],
     "enthalten": [
-     "finanzministerium",
      "gesundheitsministerium"
     ],
     "kategorie": "mehrheit",
-    "minderheit": [],
+    "minderheit": [
+     "finanzministerium"
+    ],
     "zustimmend": [
      "aerztekammer",
      "patienten",
@@ -3027,5 +3438,6 @@
    }
   }
  },
- "ereignisse": 66
+ "ereignisse": 66,
+ "freigabe": null
 }

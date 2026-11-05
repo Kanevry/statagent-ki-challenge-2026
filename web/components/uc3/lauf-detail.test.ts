@@ -4,6 +4,7 @@ import {
   bestandSatz,
   einstufungStatus,
   fehlendeGruppen,
+  haltKurz,
   haltSatz,
   haltTreffer,
   hatRevisionsbedarf,
@@ -212,5 +213,22 @@ describe("massnahmeSatz nach einer Live-Änderung (Review !51 Runde 2, Punkt 4)"
         "Geburtstag unbekannt: 1. Juli des Geburtsjahres als Ersatztag (R5 ersatz:07-01), Alter in vollendeten Jahren am Stichtag (E03, R5)",
       ),
     ).toBe("Geburtstag unbekannt: 1. Juli des Geburtsjahres als Ersatztag, Alter in vollendeten Jahren am Stichtag.");
+  });
+});
+
+describe("Review !104: Richtung und Abrechnung", () => {
+  // Fehler: P17 hieß immer „kleiner“, die Regel erkennt auch eine größere Lieferung.
+  it("nennt die Richtung der Zeilenzahl aus den Daten", () => {
+    const t = (aktuell: number, vormonat: number) =>
+      treffer({ art: "zeilenzahl_vs_vormonat", anzahl: Math.abs(aktuell - vormonat), anhalten: true, details: { aktuell, vormonat } });
+    expect(haltKurz(t(345078, 434104))).toBe("Lieferung deutlich kleiner");
+    expect(haltKurz(t(500000, 434104))).toBe("Lieferung deutlich größer");
+    expect(haltSatz(t(500000, 434104), "2025-10")).toBe("Im Oktober 2025 hat die Lieferung 65.896 Zeilen mehr als die vorige. Deshalb ist der Monat angehalten.");
+  });
+
+  // Fehler: die Abrechnung zeigte immer „=“, auch wenn sie nicht aufgeht.
+  it("zeigt ≠, wenn die Abrechnung nicht aufgeht", () => {
+    const lauf = { gelesen: 100, gezaehlt: 90, fortgeschrieben: 0, nichtGezaehlt: 5, ausgeschlossen: 0 };
+    expect(abrechnungSatz(lauf, false)).toBe("100 gelesene Zeilen ≠ 90 gezählt + 5 nicht gezählt + 0 ausgeschlossen. Die Abrechnung geht nicht auf.");
   });
 });

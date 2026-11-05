@@ -70,9 +70,13 @@ async function ausDatenbank(url: string, stand: string): Promise<BefundTabelle> 
             from meta.pruefung_treffer t
             left join meta.lauf l on l.id = t.lauf_id
             left join meta.regel r on r.id = t.regel_id
-           order by (t.einstufung = 'nicht-erklaerbar') desc nulls first, t.anzahl desc
+           -- Nur echte Funde (Jury-Kritik 05.11.: „P01 … 0 Zeilen · nicht eingestuft“ stand oben). Was den Lauf
+           -- anhält und nicht erklärbar ist zuerst, dann die größten; nicht Eingestuftes zuletzt.
+           where t.anzahl > 0
+           order by t.anhalten desc nulls last, (t.einstufung = 'nicht-erklaerbar') desc nulls last,
+                    (t.einstufung is null), t.anzahl desc
            limit ${MAX_ZEILEN}`,
-        sql<{ anzahl: string }[]>`select count(*)::text as anzahl from meta.pruefung_treffer`,
+        sql<{ anzahl: string }[]>`select count(*)::text as anzahl from meta.pruefung_treffer where anzahl > 0`,
       ]);
       return { zeilen, anzahl: Number(anzahl) };
     })();
@@ -88,9 +92,28 @@ async function ausDatenbank(url: string, stand: string): Promise<BefundTabelle> 
   }
 }
 
-export async function ladeBefunde(): Promise<BefundTabelle> {
-  const stand = new Date().toISOString();
+/** Wie lange ein Stand aus der Datenbank gilt; die Seite rendert je Anfrage, die Datenbank sieht höchstens eine je Minute. */
+export const ZWISCHENSPEICHER_MS = 60_000;
+let zwischenspeicher: { url: string; bis: number; tabelle: BefundTabelle } | null = null;
+
+/** Nur für Tests: vergisst den gemerkten Stand. */
+export function befundeZwischenspeicherLeeren(): void {
+  zwischenspeicher = null;
+}
+
+export async function ladeBefunde(jetzt: number = Date.now()): Promise<BefundTabelle> {
   const url = process.env.UC3_DATABASE_URL;
+  if (url && zwischenspeicher && zwischenspeicher.url === url && zwischenspeicher.bis > jetzt) {
+    return zwischenspeicher.tabelle;
+  }
+  const tabelle = await ladeFrisch(url);
+  // Nur einen Stand aus der Datenbank merken: Fällt sie aus, versucht die nächste Anfrage es wieder.
+  if (url && tabelle.quelle === "datenbank") zwischenspeicher = { url, bis: jetzt + ZWISCHENSPEICHER_MS, tabelle };
+  return tabelle;
+}
+
+async function ladeFrisch(url: string | undefined): Promise<BefundTabelle> {
+  const stand = new Date().toISOString();
   if (!url) {
     console.warn("[landing] UC3_DATABASE_URL fehlt, zeige Beispieldaten");
     return befundeAusFixture(stand);
@@ -98,7 +121,10 @@ export async function ladeBefunde(): Promise<BefundTabelle> {
   try {
     return await ausDatenbank(url, stand);
   } catch (fehler) {
-    if (fehler instanceof KeineTreffer) return befundeAusFixture(stand, "keine-treffer");
+    if (fehler instanceof KeineTreffer) {
+      console.warn("[landing] meta.pruefung_treffer ist leer, zeige Beispieldaten");
+      return befundeAusFixture(stand, "keine-treffer");
+    }
     // Nur die Meldung, nie die Verbindungs-URL (enthält das Passwort).
     const grund = fehler instanceof Error ? fehler.message.replaceAll(url, "<UC3_DATABASE_URL>") : "unbekannt";
     console.warn("[landing] UC3-Datenbank nicht verfügbar, zeige Beispieldaten:", grund);
