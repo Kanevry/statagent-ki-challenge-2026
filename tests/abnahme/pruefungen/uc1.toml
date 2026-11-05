@@ -1,0 +1,777 @@
+# Prüfsätze UC1 (inkl. UC4-Adapter #107, #130). Vorschläge von b-abnahme-30/agent-uc1 05.11. 18:0x, gesichtet von
+# b-abnahme-30 (Testzählungen verankert, damit Durchfaller nie passen).
+
+# Prüfsatz-Vorschläge Bereich uc1 (Abnahme, Jury-Sicht). Erzeugt 05.11. von b-abnahme-30/messer-uc1.
+# Gemessen auf einem Abzug von origin/main (321a717). Das Kriterium zählt, nicht der offene MR (!68, !69).
+
+[[pruefung]]
+id = "107-1"
+hash = "a143716291"
+befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_uc4.py -k test_zahlen_und_belege_bleiben_unveraendert_ueber_mock"
+erwartet = ["1 passed"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+gegenprobe = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_uc4.py -k test_gibt_es_nicht"
+quelle = "Issue #107, Akzeptanz 1"
+befund = "Der Adapter ändert Zahlen oder Belege, setzt uc nicht auf uc1 oder liefert Sätze mit 15 oder mehr Wörtern im Mittel."
+grund = "Mit mock ergibt ein Kontext mit 2 Zahlen und 2 Belegen dieselben Zahlen (Wert, Beleg-Index) und Belege, uc == uc1, Satzlänge unter 15."
+
+[[pruefung]]
+id = "107-2"
+hash = "269a928577"
+befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_uc4.py -k test_grenzfrage_ergibt_grenzantwort_ohne_modell"
+erwartet = ["1 passed"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+gegenprobe = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_uc4.py -k test_gibt_es_nicht"
+quelle = "Issue #107, Akzeptanz 2"
+befund = "Eine Diagnosefrage im Kontext geht doch ans Modell oder liefert Zahlen und Belege statt der Grenzantwort."
+grund = "Eine Diagnosefrage ergibt die Grenzantwort, das Modell wird nicht aufgerufen."
+
+[[pruefung]]
+id = "107-3"
+hash = "2d3eb6ddc3"
+befehl = "n=$(grep -c 'Azure-Lauf 20' docs/plan/uc1/kern.md || true); w=$(grep -ci 'Wartezeiten' docs/plan/uc1/kern.md || true); echo \"azure-lauf $n wartezeiten $w\""
+erwartet = ["^azure-lauf [1-9]\\d* wartezeiten [1-9]\\d*$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "grep -c 'Azure-Lauf 1999' docs/plan/uc1/kern.md"
+quelle = "Issue #107, Akzeptanz 3"
+befund = "In docs/plan/uc1/kern.md steht kein datierter Azure-Lauf auf dem Demo-Kontext Wartezeiten (Lauf-Log fehlt)."
+grund = "Ein datierter Azure-Lauf mit Messwerten auf dem Kontext Wartezeiten ist im Dokument festgehalten (das Roh-Log selbst prüft der Lauf nicht)."
+
+[[pruefung]]
+id = "130-1"
+hash = "0487adbf6b"
+befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_kern.py -k kalibrierpaare_werden_von_der_schwelle_getrennt"
+erwartet = ["1 passed"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #130, Punkt 1 (Belegregel bleibt, 8 Kalibrierpaare)"
+befund = "Die Kalibrierpaare werden nach einer Änderung der Deckungsregeln nicht mehr von der Schwelle getrennt."
+grund = "Die 8 Kalibrierpaare bleiben getrennt (Belegregel hält); sagt nichts über die neuen Gleichwerte."
+
+[[pruefung]]
+id = "130-1"
+hash = "0487adbf6b"
+befehl = "timeout 120 uv run --isolated --package uc1 python -c \"\nimport yaml\nd = yaml.safe_load(open('uc1/daten/deckung.yaml', encoding='utf-8'))\nprint('gleich', len(d.get('gleich') or {}))\n\""
+erwartet = ["^gleich ([3-9]|[1-9]\\d+)$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "timeout 120 uv run --isolated --package uc1 python -c \"\nimport yaml\nd = yaml.safe_load(open('uc1/daten/deckung.yaml', encoding='utf-8'))\nprint('gleich', len(d.get('gleich') or {}) - 99)\n\""
+quelle = "Issue #130, Punkt 1 (Gleichwerte Bürgerwort zu Rechtswort in deckung.yaml)"
+befund = "uc1/daten/deckung.yaml kennt nur die 2 Schreibweisen-Gleichwerte (Prozent, Krankenkasse), keine Bürgerwörter."
+grund = "Mindestens ein weiterer Gleichwert-Eintrag (Bürgerwort zu Rechtswort) steht in deckung.yaml; ob er die Pflege-Aussagen deckt, misst dieser Satz nicht."
+
+[[pruefung]]
+id = "130-1"
+hash = "0487adbf6b"
+art = "hand"
+beschreibung = "Ein Mensch lässt den Pflege-Prompt in Bürgersprache mit Azure laufen (Gespräch Pflege, 4 Aussagen) und prüft: 4 von 4 Aussagen gedeckt, Amtsdeutsch weitgehend ersetzt, Belegregel unverändert."
+deckung = "teil"
+schwer = true
+quelle = "Issue #130, Punkt 1"
+befund = "Der Zielkonflikt Bürgersprache gegen Deckung ist am Pflege-Gespräch nicht gemessen."
+grund = "Bürgersprache und Deckungsprüfung vertragen sich im Pflege-Gespräch (4 von 4 gedeckt)."
+
+[[pruefung]]
+id = "130-2"
+hash = "73075ee64c"
+befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_kern.py -k hilfe_im_alltag_nur_bei_pflege"
+erwartet = ["1 passed"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #130, Punkt 2"
+befund = "Die Formatierung der nächsten Schritte nennt „Hilfe im Alltag“ auch ohne Pflege-Leistung."
+grund = "Die Formatierung setzt „Hilfe im Alltag“ nur bei Pflege; die Angebotssuche selbst (Kur-und-Reha-Treffer) misst dieser Satz nicht."
+
+[[pruefung]]
+id = "130-2"
+hash = "73075ee64c"
+art = "hand"
+beschreibung = "Mit Datenbank lotse und Korpus: Pflege-Szenario (Mutter 82, PVA, Wien) durch den Kern laufen lassen und prüfen, dass kein Angebot „Antrag Kur und Reha“ als Hilfe im Alltag für Pflege erscheint, sondern ein Pflege-Angebot (FSW)."
+deckung = "teil"
+schwer = true
+quelle = "Issue #130, Punkt 2"
+befund = "Die Angebotssuche liefert für Pflege weiter ein Kur-und-Reha-Angebot."
+grund = "Das Pflege-Angebot passt zu Pflege (kein Kur-und-Reha-Treffer)."
+
+[[pruefung]]
+id = "130-3"
+hash = "e7fae1e4c7"
+befehl = "n=$(grep -cE '^class (UcAntwort|Beleg|Zahl)\\b' uc1/uc1/uc4.py || true); echo \"lokal $n\"; grep -c 'from plattform.antwortform import' uc1/uc1/uc4.py"
+erwartet = ["^lokal 0$", "^1$"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+gegenprobe = "n=$(grep -cE '^class (UcAntwort|Beleg|Zahl)\\b' uc1/uc1/uc4.py || true); echo \"lokal $n\"; grep -c 'from plattform.antwortform import' uc1/uc1/uc4.py | grep -x 5"
+quelle = "Issue #130, Punkt 3 (Issue #107)"
+befund = "uc1/uc1/uc4.py definiert UcAntwort, Beleg oder Zahl noch lokal oder importiert nicht aus plattform.antwortform."
+grund = "uc4.py hat keine lokalen UcAntwort/Beleg/Zahl und importiert sie aus plattform.antwortform."
+
+[[pruefung]]
+id = "130-4"
+hash = "c37d14342f"
+befehl = "timeout 120 uv run --isolated --package uc1 python -c \"\nfrom uc1.eval import mittlere_satzlaenge as m\nprint(round(m('Eins zwei drei\\nVier fünf sechs\\nSieben acht neun'), 1))\n\""
+erwartet = ["^3\\.0$"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+gegenprobe = "timeout 120 uv run --isolated --package uc1 python -c \"\nfrom uc1.eval import mittlere_satzlaenge as m\nprint(round(m('Eins zwei drei\\nVier fünf sechs\\nSieben acht neun'), 1) + 1)\n\""
+quelle = "Issue #130, Punkt 4 (Listenzeilen ohne Satzpunkt zählen je Zeile)"
+befund = "eval.mittlere_satzlaenge zieht Zeilen ohne Satzpunkt zu einem Satz zusammen (hier 9,0 statt 3,0 Wörter je Satz)."
+grund = "Drei Listenzeilen ohne Satzpunkt zu je 3 Wörtern ergeben 3,0 Wörter je Satz."
+
+[[pruefung]]
+id = "130-5"
+hash = "a0bd7f2533"
+art = "hand"
+beschreibung = "Mit Modell (Azure): englische Pflegefrage stellen; prüfen, dass die Antwort keine deutschen Wörter außerhalb wörtlicher Zitate enthält (z. B. „zuständigen Entscheidungsträger“) und Formular- und Unterlagentexte englisch angeboten werden oder die Grenze ausdrücklich genannt ist."
+deckung = "teil"
+schwer = true
+quelle = "Issue #130, Punkt 5"
+befund = "Die englische Antwort übernimmt deutsche Begriffe aus dem Zitat; Formular- und Unterlagentexte gibt es nur auf Deutsch."
+grund = "Englische Antwort ohne deutsche Fremdwörter außerhalb der Zitate."
+
+[[pruefung]]
+id = "130-6"
+hash = "ad36ef8cf3"
+befehl = "n=$(grep -c '+dirty' docs/plan/uc1/messung-kern.md || true); a=$(grep -c '88bc419' docs/plan/uc1/messung-kern.md || true); echo \"dirty $n alterstand $a\""
+erwartet = ["^dirty 0 alterstand 0$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "n=$(grep -c '+dirty' docs/plan/uc1/messung-kern.md || true); echo \"dirty $n alterstand 1\""
+quelle = "Issue #130, Punkt 6"
+befund = "docs/plan/uc1/messung-kern.md nennt weiter den Lauf auf 88bc419+dirty; die Kern-Messung wurde auf dem committeten Stand nicht neu aufgezeichnet."
+grund = "Der Messbericht nennt keinen +dirty-Stand und nicht mehr den alten Stand 88bc419 (ob der neue Lauf sauber war, sieht ein Mensch im Kopf des Berichts)."
+
+[[pruefung]]
+id = "121-1"
+hash = "4c2802244c"
+befehl = "out=$(timeout 120 uv run --isolated --package uc1 python -c \"\nimport sys\nsys.modules['uc1.kern'] = None\nimport uc1.eval as ev\nrc = ev.cli(['--nur-suche', '--kern', '--set', 'uc1/eval/dev-set.yaml'], suche=lambda *a, **k: [])\nprint('rc', rc)\n\" 2>&1); echo \"$out\"; echo \"traceback $(echo \"$out\" | grep -c Traceback)\""
+erwartet = ["^rc 2$", "kern fehlt", "^traceback 0$"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #121, Punkt 1"
+befund = "Fehlt der Kern, bricht lotse eval mit Traceback ab oder endet nicht mit Exit 2 und Hinweis."
+grund = "Ohne uc1.kern endet die Kern-Messung mit Exit 2 und einem Hinweis, ohne Traceback."
+
+[[pruefung]]
+id = "121-2"
+hash = "89cf12fa43"
+befehl = "u=$(grep -c 'unittest' uc1/uc1/einbettung.py || true); w=$(grep -cE '(import|from) +plattform\\.embeddings|EMBED_[A-Z_]*(DOWNLOAD|HERUNTERLADEN)' uc1/uc1/einbettung.py || true); echo \"unittest $u weg $w\""
+erwartet = ["^unittest 0 weg [1-9]\\d*$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "u=$(grep -c 'unittest' uc1/uc1/einbettung.py || true); echo \"unittest $u weg 0\" | grep -x 'unittest 0 weg [1-9][0-9]*'"
+quelle = "Issue #121, Punkt 2"
+befund = "uc1/uc1/einbettung.py importiert weiter unittest.mock im Produktionscode und lädt das Modell ohne Env-Schalter oder Umstieg auf plattform.embeddings."
+grund = "einbettung.py enthält kein unittest und hat entweder einen Download-Schalter oder nutzt plattform.embeddings (das Laden selbst misst dieser Satz nicht)."
+
+[[pruefung]]
+id = "121-3"
+hash = "7a975713fb"
+befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_ingest.py -k eko"
+erwartet = ["(^|= )\\d+ passed"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+gegenprobe = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_ingest.py -k eko_gibt_es_nicht"
+quelle = "Issue #121, Punkt 3"
+befund = "Der EKO-Leser trennt an U+0085 und verschiebt die Zeilennummern."
+grund = "Der EKO-Leser trennt nur an \\n; Zeilennummern bleiben bei Byte 0x85 stabil."
+
+[[pruefung]]
+id = "121-4"
+hash = "a55f4f9669"
+befehl = "a=$(grep -rniE 'auto *(=|ist|heißt) *hybrid' uc1/uc1/suche.py docs/plan/uc1/messung-dev.md docs/plan/uc1/dev-set-2.md | wc -l | tr -d ' '); echo \"alt $a\"; grep -c 'auto heißt volltext' uc1/uc1/suche.py"
+erwartet = ["^alt 0$", "^1$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "a=$(grep -rniE 'auto *(=|ist|heißt) *hybrid' uc1/uc1/suche.py | wc -l | tr -d ' '); echo \"alt $a\" | grep -x 'alt 3'"
+quelle = "Issue #121, Punkt 4"
+befund = "suche.py oder die Messdokumente nennen weiter „auto = hybrid“ (die Latenzangabe p95 66 gegen 77 ms ist hier nicht gemessen)."
+grund = "Keine Stelle sagt mehr „auto = hybrid“, und suche.py sagt „auto heißt volltext“."
+
+[[pruefung]]
+id = "121-5"
+hash = "d53d0f2107"
+befehl = "timeout 120 uv run --isolated --package uc1 python -c \"\nfrom uc1.erweiterung import llm_begriffe\ngesehen = []\ndef modell(nachrichten, schema, provider):\n    gesehen.append(' '.join(m['content'] for m in nachrichten))\n    return {'begriffe': ['Pflegegeld']}\nfrage = 'Ich bin Peter Huber, geboren am 12.03.1960, wohne in der Hauptstraße 5, 1100 Wien. Meine Mutter braucht Pflege.'\nllm_begriffe(frage, modell=modell)\nleck = [w for w in ('Peter', 'Huber', '12.03.1960', 'Hauptstraße') if w in gesehen[0]]\nprint('leck', len(leck))\n\""
+erwartet = ["^leck 0$"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+gegenprobe = "timeout 120 uv run --isolated --package uc1 python -c \"\nfrage = 'Ich bin Peter Huber, geboren am 12.03.1960, wohne in der Hauptstraße 5, 1100 Wien. Meine Mutter braucht Pflege.'\nprint('leck', len([w for w in ('Peter', 'Huber', '12.03.1960', 'Hauptstraße') if w in frage]))\n\""
+quelle = "Issue #121, Punkt 5"
+befund = "erweiterung.llm_begriffe schickt Namen, Geburtsdatum und Adresse aus der Frage unverändert ans Modell."
+grund = "Name, Geburtsdatum und Straße aus der Frage erreichen das Modell nicht."
+
+[[pruefung]]
+id = "81-1"
+hash = "f2e6fe6805"
+befehl = "(test -s uc1/eval/termin-wien.json && grep -c 'Unbelegte Adressen: 0' docs/plan/uc1/termin-messung.md) || echo fehlt"
+erwartet = ["^1$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "grep -c 'Unbelegte Adressen: 7' docs/plan/uc1/termin-messung.md | grep -x 1"
+quelle = "Issue #81, Projekt-AC"
+befund = "Fixture uc1/eval/termin-wien.json fehlt oder der Prüfbericht termin-messung.md nennt nicht „Unbelegte Adressen: 0“."
+grund = "Fixture und Prüfbericht liegen vor, der Bericht nennt 0 unbelegte Adressen (der Bericht ist ein Text, der Lauf wird hier nicht wiederholt)."
+
+[[pruefung]]
+id = "81-1"
+hash = "f2e6fe6805"
+befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_termin.py -m 'not daten'"
+erwartet = ["(^|= )\\d+ passed"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #81, Projekt-AC (Teilstring, nicht belegt)"
+befund = "Die Termin-Logik belegt eine Adresse nicht als normalisierten Teilstring der Quelle oder erfindet eine Adresse statt „nicht belegt“."
+grund = "Die Tests ohne Datenbank bestehen: Teilstring-Regel, „nicht belegt“ bei fehlender Quelle, kein Entwurf ohne belegte Adresse."
+
+[[pruefung]]
+id = "81-1"
+hash = "f2e6fe6805"
+befehl = "grep -c -- '--fall' uc1/uc1/eval.py || true"
+erwartet = ["^[1-9]\\d*$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #81, Projekt-AC (Wortlaut: uv run lotse eval --fall termin-wien)"
+befund = "Der im Kriterium genannte Aufruf lotse eval --fall existiert nicht; die Funktion liegt unter lotse termin --fall (Auslegungsfrage)."
+grund = "lotse eval kennt den Schalter --fall."
+
+[[pruefung]]
+id = "81-1"
+hash = "f2e6fe6805"
+befehl = "timeout 170 uv run --package uc1 python -m uc1.termin --pruefen termin-wien"
+erwartet = ["OK +0 unbelegte Adressen", "OK +jede ausgegebene Adresse ist Teilstring der Quelle"]
+deckung = "voll"
+schwer = true
+zeitlimit = 170
+quelle = "Issue #81, Projekt-AC; docs/plan/uc1/termin-messung.md"
+befund = "Der echte Lauf gegen Korpus und Datenbank liefert unbelegte Adressen oder weniger als eine Stelle."
+grund = "Der Lauf gegen Korpus und Datenbank belegt jede Adresse und zählt 0 unbelegte."
+
+[[pruefung]]
+id = "81-2"
+hash = "3ac1a2adcb"
+befehl = "timeout 120 uv run --isolated --package uc1 python -c \"\nimport re, json\nt = open('uc1/erzeugt/termin-wien.ics', encoding='utf-8').read().replace('\\r\\n', '\\n')\nu = re.sub(r'\\n[ \\t]', '', t)\nprint('vevent', u.count('BEGIN:VEVENT'))\nprint('tentative', 'STATUS:TENTATIVE' in u)\nprint('summary', 'SUMMARY:Terminentwurf\\n' in u)\nprint('nichtgebucht', 'nicht gebucht' in u)\nprint('checkliste', all(w in u for w in ('Unterlagen', 'Nähe', 'Zeitpräferenz')))\nd = json.load(open('uc1/eval/termin-wien.json', encoding='utf-8'))['wunsch']['datum'].replace('-', '')\nprint('datum', 'DTSTART;TZID=Europe/Vienna:' + d in u)\n\""
+erwartet = ["^vevent 1$", "^tentative True$", "^summary True$", "^nichtgebucht True$", "^checkliste True$", "^datum True$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "timeout 120 uv run --isolated --package uc1 python -c \"\nt = open('uc1/erzeugt/termin-wien.ics', encoding='utf-8').read()\nprint('vevent', t.count('BEGIN:VEVENT') + 1)\n\" | grep -x 'vevent 1'"
+quelle = "Issue #81, Projekt-AC 2"
+befund = "Die ICS-Datei hat nicht genau 1 VEVENT mit STATUS:TENTATIVE, Titel „Terminentwurf“, Wunschdatum und Checkliste oder sagt nicht „nicht gebucht“."
+grund = "Die abgelegte ICS-Datei hat genau 1 VEVENT, TENTATIVE, Titel Terminentwurf, Wunschdatum aus dem Fixture, Checkliste und „nicht gebucht“ (Ort aus dem Beleg und die UI-Kennzeichnung misst dieser Satz nicht)."
+
+[[pruefung]]
+id = "81-2"
+hash = "3ac1a2adcb"
+befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_termin.py -k 'ics_genau_ein_vevent or ics_text'"
+erwartet = ["(^|= )\\d+ passed"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #81, Projekt-AC 2"
+befund = "Der ICS-Bau liefert nicht genau 1 VEVENT mit TENTATIVE und „nicht gebucht“ oder lässt Beleg-Kennungen im Text stehen."
+grund = "Die Tests zum ICS-Bau bestehen (genau 1 VEVENT, TENTATIVE, nicht gebucht)."
+
+[[pruefung]]
+id = "81-3"
+hash = "75bb4e1a14"
+befehl = "timeout 120 uv run --isolated --package uc1 python -c \"\nimport json\nd = json.load(open('uc1/eval/termin-dialoge.json', encoding='utf-8'))\nprint('dialoge', len(d['dialoge']))\nfor x in d['dialoge']:\n    n = sum(1 for v in x['verlauf'] if v.get('art') == 'rueckfrage' and v.get('feld') == 'zeitpraeferenz')\n    print(x['id'], 'rueckfragen', n, 'soll', x['erwartet_rueckfragen_zeitpraeferenz'], 'frei', x['freier_termin_behauptet'], 'belege', len(x['beleg_ids']))\n\""
+erwartet = ["^dialoge 2$", "^zeit-fehlt rueckfragen 1 soll 1 frei False belege [1-9]", "^zeit-bekannt rueckfragen 0 soll 0 frei False belege [1-9]"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "timeout 120 uv run --isolated --package uc1 python -c \"\nimport json\nd = json.load(open('uc1/eval/termin-dialoge.json', encoding='utf-8'))\nprint('dialoge', len(d['dialoge']) + 1)\n\" | grep -x 'dialoge 2'"
+quelle = "Issue #81, Projekt-AC 3"
+befund = "termin-dialoge.json hat nicht 2 Dialoge mit 1 bzw. 0 Rückfragen zur Zeitpräferenz, behauptet einen freien Termin oder nennt keine Beleg-IDs."
+grund = "Die aufgezeichneten Dialoge zeigen 1 Rückfrage (Zeit fehlt) und 0 (Zeit bekannt), keinen freien Termin und Beleg-IDs (der UI-Screenshot mit Pen-Frame fehlt in dieser Messung)."
+
+[[pruefung]]
+id = "81-3"
+hash = "75bb4e1a14"
+art = "hand"
+beschreibung = "Ein Mensch prüft im UI-Screenshot der Terminstrecke, dass der verwendete Pen-Frame (ID) referenziert ist und dass „nicht gebucht“ sichtbar steht."
+deckung = "teil"
+schwer = true
+quelle = "Issue #81, Projekt-AC 3 (UI-Screenshot)"
+befund = "Es gibt keinen UI-Screenshot mit Pen-Frame-Referenz für die Terminstrecke."
+grund = "Screenshot zeigt die Terminstrecke mit Pen-Frame-Referenz und dem Hinweis „nicht gebucht“."
+
+[[pruefung]]
+id = "82-1"
+hash = "96ca5dffeb"
+befehl = "timeout 120 uv run --isolated --package uc1 python -c \"\nfrom uc1.cli import BEFEHLE\nprint('anliegen', 'anliegen' in BEFEHLE)\n\""
+erwartet = ["^anliegen True$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #82, Projekt-AC 1"
+befund = "lotse kennt den Befehl anliegen nicht."
+grund = "Der CLI-Befehl anliegen ist registriert (Ausgabe der 3 Schritte misst dieser Satz nicht)."
+
+[[pruefung]]
+id = "82-1"
+hash = "96ca5dffeb"
+befehl = "(test -s docs/plan/uc1/anliegen-messung.md && echo vorhanden) || echo fehlt"
+erwartet = ["^vorhanden$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #82, Projekt-AC 1"
+befund = "docs/plan/uc1/anliegen-messung.md fehlt."
+grund = "Der Messbericht zu den Anliegen liegt vor."
+
+[[pruefung]]
+id = "82-1"
+hash = "96ca5dffeb"
+art = "hand"
+beschreibung = "Mit Datenbank lotse und einer Fixture-Sitzung: lotse anliegen --sitzung <fixture-id> gibt genau 3 Schritte (Antrag-Entwurf, fehlende Unterlagen, Termin) mit stabiler ID und Status offen oder erledigt aus; SQL-Abgleich gegen lotse.sitzung bzw. die Schritt-Tabelle zeigt 0 Unterschiede."
+deckung = "teil"
+schwer = true
+quelle = "Issue #82, Projekt-AC 1"
+befund = "Der Befehl anliegen und der SQL-Abgleich sind nicht gelaufen."
+grund = "3 Schritte, 0 Unterschiede im SQL-Abgleich."
+
+[[pruefung]]
+id = "82-2"
+hash = "d36d998308"
+befehl = "(test -s uc1/eval/anliegen-wiederaufnahme.json && echo vorhanden) || echo fehlt"
+erwartet = ["^vorhanden$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #82, Projekt-AC 2"
+befund = "uc1/eval/anliegen-wiederaufnahme.json fehlt."
+grund = "Die Aufzeichnung des Zweitbesuchs liegt vor (ihr Inhalt wird nicht geprüft)."
+
+[[pruefung]]
+id = "82-2"
+hash = "d36d998308"
+art = "hand"
+beschreibung = "Mit Datenbank: Sitzung mit 3 Schritten anlegen, Dienst neu starten, Zweitbesuch derselben Sitzung zeigt alle 3 IDs und Status; nach Erledigen eines Schritts zeigen CLI und „Bisherige Anliegen“ genau 2 offene Schritte; eine zweite Sitzung sieht 0 Schritte der ersten."
+deckung = "teil"
+schwer = true
+quelle = "Issue #82, Projekt-AC 2"
+befund = "Wiederaufnahme nach Neustart ist nicht gemessen."
+grund = "3 IDs nach Neustart, danach genau 2 offene, fremde Sitzung sieht 0."
+
+[[pruefung]]
+id = "82-3"
+hash = "271f65544d"
+befehl = "(test -s docs/plan/uc1/anliegen-messung.md && grep -c 'Zweitbesuch' docs/plan/uc1/anliegen-messung.md) || echo fehlt"
+erwartet = ["^[1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #82, Projekt-AC 3"
+befund = "docs/plan/uc1/anliegen-messung.md fehlt oder nennt keinen Zweitbesuch."
+grund = "Der Messbericht beschreibt den Zweitbesuch (0 wiederholte Fragen misst dieser Satz nicht)."
+
+[[pruefung]]
+id = "82-3"
+hash = "271f65544d"
+art = "hand"
+beschreibung = "Ein Mensch prüft im Zweitbesuch: 0 Fragen zu schon gespeicherten Pflichtangaben, der nächste offene Schritt zeigt seine vorhandene Quelle; Screenshot mit Pen-Frame-Referenz liegt im Bericht."
+deckung = "teil"
+schwer = true
+quelle = "Issue #82, Projekt-AC 3"
+befund = "Zweitbesuch und Screenshot sind nicht belegt."
+grund = "0 wiederholte Fragen, nächster Schritt mit Quelle."
+
+[[pruefung]]
+id = "83-1"
+hash = "101d3569be"
+befehl = "test -s uc1/eval/buendel-gesundheit-kind.yaml || { echo fehlt; exit 0; }; timeout 120 uv run --isolated --package uc1 python -c \"\nimport yaml\nd = yaml.safe_load(open('uc1/eval/buendel-gesundheit-kind.yaml', encoding='utf-8'))\nfa = d if isinstance(d, list) else (d.get('faelle') or d.get('szenarien') or [])\nprint('szenarien', len(fa))\n\""
+erwartet = ["^szenarien 2$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #83, Projekt-AC 1"
+befund = "uc1/eval/buendel-gesundheit-kind.yaml fehlt oder enthält nicht genau 2 Szenarien."
+grund = "Das Set enthält genau 2 Szenarien (Angebote und Quellenanteil misst dieser Satz nicht)."
+
+[[pruefung]]
+id = "83-1"
+hash = "101d3569be"
+art = "hand"
+beschreibung = "Mit Datenbank und Korpus: lotse eval --set uc1/eval/buendel-gesundheit-kind.yaml liefert je Szenario mindestens 3 belegte Angebote, 100 % nennen Quelle und Seite/Abschnitt; sind es weniger als 3, ist die Messung als nicht bestanden protokolliert."
+deckung = "teil"
+schwer = true
+quelle = "Issue #83, Projekt-AC 1"
+befund = "Das Bündel-Set ist nicht gemessen."
+grund = "Je Szenario mindestens 3 belegte Angebote mit Quelle und Seite."
+
+[[pruefung]]
+id = "83-2"
+hash = "ec5e4b3700"
+befehl = "(test -s docs/plan/uc1/buendel-messung.md && echo vorhanden) || echo fehlt"
+erwartet = ["^vorhanden$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #83, Projekt-AC 2"
+befund = "docs/plan/uc1/buendel-messung.md fehlt."
+grund = "Der Messbericht liegt vor (0 unbelegte Leistungszusagen misst dieser Satz nicht)."
+
+[[pruefung]]
+id = "83-3"
+hash = "25fda2f498"
+befehl = "(test -s docs/plan/uc1/buendel-messung.md && grep -c '2/2' docs/plan/uc1/buendel-messung.md) || echo fehlt"
+erwartet = ["^[1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #83, Projekt-AC 3"
+befund = "buendel-messung.md fehlt oder belegt nicht 2/2 bestandene Grenzfälle."
+grund = "Der Bericht nennt 2/2 bestandene Grenzfälle (Inhalt der Fälle misst dieser Satz nicht)."
+
+[[pruefung]]
+id = "83-3"
+hash = "25fda2f498"
+befehl = "n=$(grep -rliE 'impfpass' uc1/daten/grenzen.yaml uc1/eval/*.yaml | wc -l | tr -d ' '); m=$(grep -rliE 'famili' uc1/daten/grenzen.yaml uc1/eval/*.yaml | wc -l | tr -d ' '); echo \"impfpass $n familie $m\""
+erwartet = ["^impfpass [1-9]\\d* familie [1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #83, Projekt-AC 3"
+befund = "Kein Grenzfall zu Impfpass oder familiärer Erkrankung steht in grenzen.yaml oder den Eval-Sets."
+grund = "Beide Grenzfälle (Impfpass, familiäre Erkrankung) kommen in Daten oder Eval-Sets vor."
+
+[[pruefung]]
+id = "30-1"
+hash = "442603aacc"
+befehl = "a=$(git log --reverse --format=%ct -- uc1/eval/lotse-set.yaml | head -1); b=$(git log --reverse --format=%ct -- uc1/uc1/kern.py uc1/lotse/kern.py | head -1); if [ -n \"$a\" ] && [ -n \"$b\" ] && [ \"$a\" -lt \"$b\" ]; then echo \"set vor kern\"; else echo \"reihenfolge falsch oder Verlauf fehlt\"; fi"
+erwartet = ["^set vor kern$"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+gegenprobe = "a=$(git log --reverse --format=%ct -- uc1/uc1/kern.py | head -1); b=$(git log --reverse --format=%ct -- uc1/eval/lotse-set.yaml | head -1); if [ \"$a\" -lt \"$b\" ]; then echo \"set vor kern\"; else echo falsch; fi | grep -x 'set vor kern'"
+quelle = "Issue #30, Akzeptanz 1 (Belegweg: git log)"
+befund = "Der erste Commit an kern.py ist nicht jünger als der erste Commit an lotse-set.yaml, oder der Git-Verlauf ist im Abzug nicht da."
+grund = "lotse-set.yaml wurde vor dem ersten Commit an kern.py committet (der Kern liegt heute unter uc1/uc1/kern.py, nicht uc1/lotse/kern.py)."
+
+[[pruefung]]
+id = "30-2"
+hash = "83e3355ded"
+befehl = "timeout 120 uv run --isolated --package uc1 python -c \"\nimport sys, io, contextlib\nfrom pathlib import Path\nimport uc1.eval as e\nbuf = io.StringIO()\ntry:\n    with contextlib.redirect_stdout(buf):\n        e.cli(['--help'])\nexcept SystemExit:\n    pass\nh = buf.getvalue()\nprint('nur-suche', '--nur-suche' in h)\nprint('provider', '--provider' in h)\nprint('llm-beim-import', 'plattform.llm' in sys.modules)\nprint('provider-in-shared', all(Path('shared/py/plattform/llm/%s.py' % p).is_file() for p in e.PROVIDER))\n\"; timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_eval.py -k nur_suche_mit_fake_suche"
+erwartet = ["^nur-suche True$", "^provider True$", "^llm-beim-import False$", "^provider-in-shared True$", "1 passed"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_eval.py -k nur_suche_gibt_es_nicht"
+quelle = "Issue #30, Akzeptanz 2"
+befund = "lotse eval kennt --nur-suche oder --provider nicht, lädt das Modell schon beim Import, oder die Provider stimmen nicht mit shared/ überein."
+grund = "--nur-suche läuft im Test mit Suche-Attrappe ohne Modell, --provider kennt genau die Provider aus shared/ (echter Lauf gegen die Datenbank ist hier nicht gemessen)."
+
+[[pruefung]]
+id = "30-3"
+hash = "5851b47dee"
+befehl = "n=$(grep -lE 'Provider: *(azure|claude|mistral|ollama)|--provider (azure|claude|mistral|ollama)' docs/plan/uc1/*.md | grep -c . || true); g=$(grep -lE 'g24a' docs/plan/uc1/messung-ende*.md docs/plan/uc1/messung-heldout*.md 2>/dev/null | grep -c . || true); echo \"echtlauf-docs $n lotse-set-lauf $g\""
+erwartet = ["^echtlauf-docs [1-9]\\d* lotse-set-lauf [1-9]\\d*$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "grep -c 'Provider: azure und mock' docs/plan/uc1/messung-ende.md | grep -x 1"
+quelle = "Issue #30, Akzeptanz 3"
+befund = "Es gibt nur einen Rauchtest mit echtem Modell auf dem Mini-Set; ein aufgezeichneter Lauf mit echtem Modell auf dem Lotse-Set (Satzlänge, Quellgleichheit, Fall 24) liegt nicht vor."
+grund = "Mindestens ein Bericht dokumentiert einen echten Modelllauf auf dem Lotse-Set mit dem Namenspaar 24a/24b (Inhalt der Werte misst dieser Satz nicht)."
+
+[[pruefung]]
+id = "31-1"
+hash = "1337af8156"
+befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_kern.py -k 'stil_einfach_kurze_saetze or modus_sprache_genau_ein_modellaufruf'"
+erwartet = ["(^|= )\\d+ passed"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #31, Akzeptanz Stil Einfach"
+befund = "Der Stil „Einfach“ liefert mit der Attrappe Sätze von 15 oder mehr Wörtern im Mittel oder andere Quellen."
+grund = "Mit der Attrappe bleibt die mittlere Satzlänge unter 15 (der aufgezeichnete Lauf mit echtem Modell zu Fall 24 fehlt)."
+
+[[pruefung]]
+id = "31-1"
+hash = "1337af8156"
+art = "hand"
+beschreibung = "Mit Azure: Fall 24 (Namenspaar Michael und Mehmet) im Stil „Einfach“ laufen lassen (lotse eval --ende --provider azure --stil einfach, Bericht ablegen). Prüfen: beide Antworten zitieren dieselben Quellen, mittlere Satzlänge unter 15 Wörter, Lauf ist als Bericht aufgezeichnet."
+deckung = "voll"
+schwer = true
+quelle = "Issue #31, Akzeptanz Stil Einfach"
+befund = "Kein aufgezeichneter Echt-Lauf zu Fall 24 im Stil Einfach."
+grund = "Gleiche Quellen im Namenspaar, Satzlänge unter 15, Lauf aufgezeichnet."
+
+[[pruefung]]
+id = "31-2"
+hash = "8cf2248931"
+befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_kern.py -k 'englische_frage_englische_antwort_deutsches_zitat or englische_zahl'"
+erwartet = ["(^|= )\\d+ passed"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #31, Akzeptanz Englisch"
+befund = "Bei englischer Frage ist die Antwort nicht englisch, das Zitat nicht deutsch oder eine Zahl steht nicht im Zitat."
+grund = "Mit der Attrappe antwortet der Kern englisch mit deutschem Zitat und prüft Zahlen gegen das Zitat (Zitiertreue 100 % mit echtem Modell misst dieser Satz nicht)."
+
+[[pruefung]]
+id = "31-2"
+hash = "8cf2248931"
+art = "hand"
+beschreibung = "Mit Azure: englische Pflegefrage ausführen; Antwort ist englisch, die Zitate sind deutsch, jedes Zitat steht wörtlich im Abschnitt (Zitiertreue 100 % im Bericht)."
+deckung = "voll"
+schwer = true
+quelle = "Issue #31, Akzeptanz Englisch"
+befund = "Kein Echt-Lauf mit Zitiertreue für die englische Frage."
+grund = "Antwort englisch, Zitate deutsch, Zitiertreue 100 %."
+
+[[pruefung]]
+id = "28-1"
+hash = "7b7445039d"
+befehl = "timeout 150 uv run --isolated --package uc1 ruff check uc1/uc1 uc1/tests; echo \"ruff exit $?\"; m=$(timeout 280 uv run --isolated --package uc1 mypy --config-file uc1/pyproject.toml uc1/uc1 2>&1); echo \"mypy exit $?\"; echo \"$m\" | tail -1; timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider -m 'not daten and not modell' uc1/tests/test_kern.py uc1/tests/test_termin.py uc1/tests/test_eval.py uc1/tests/test_sprache.py uc1/tests/test_grenze.py uc1/tests/test_erweiterung.py uc1/tests/test_antrag.py uc1/tests/test_cli.py uc1/tests/test_uc4.py"
+erwartet = ["^ruff exit 0$", "^mypy exit 0$", "(^|= )\\d+ passed"]
+deckung = "teil"
+schwer = false
+zeitlimit = 290
+quelle = "Issue #28, Akzeptanz 1"
+befund = "ruff, mypy oder die Tests ohne Datenbank sind nicht grün (die Tests mit Datenbank und Embeddings sind hier ausgenommen)."
+grund = "ruff und mypy sind grün, und die Tests ohne Datenbank bestehen."
+
+[[pruefung]]
+id = "28-1"
+hash = "7b7445039d"
+befehl = "cd uc1 && timeout 280 uv run pytest -q && timeout 100 uv run ruff check . && timeout 280 uv run mypy uc1"
+erwartet = ["(^|= )\\d+ passed", "All checks passed"]
+deckung = "voll"
+schwer = true
+zeitlimit = 290
+quelle = "Issue #28, Akzeptanz 1 (CI-Job python)"
+befund = "Die volle uc1-Suite (mit der lokalen Datenbank lotse) ist nicht grün."
+grund = "pytest, ruff und mypy laufen über uc1 grün."
+
+[[pruefung]]
+id = "28-2"
+hash = "4fd9902468"
+befehl = "grep -c '^\\*\\*Machbar: \\(ja\\|nein\\)' docs/plan/uc1/spikes.md"
+erwartet = ["^3$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "grep -c '^\\*\\*Machbar: \\(ja\\|nein\\)' docs/plan/uc1/spikes.md | grep -x 4"
+quelle = "Issue #28, Akzeptanz 2 (Kommentare des Issues; Abbild in spikes.md)"
+befund = "docs/plan/uc1/spikes.md hat nicht für alle 3 Spikes ein „Machbar: ja/nein“."
+grund = "Alle 3 Spikes tragen ein „Machbar: ja“ oder „nein“ (Befehl und Messwert prüft ein Mensch; die Notizen des Issues selbst sind hier nicht gelesen)."
+
+[[pruefung]]
+id = "28-3"
+hash = "9f6f9f1d81"
+befehl = "f=$(git ls-files | grep -cE '(^|/)\\.env(\\.local)?$' || true); s=$(git grep -nIE '(API_KEY|SECRET|TOKEN|PASSWORD|WEBHOOK_SECRET)[A-Z_]*[ ]*[=:][ ]*[\"'\"'\"']?[A-Za-z0-9/+_-]{20,}' -- uc1 docs shared ':!*.lock' | grep -vE 'example|beispiel|erfunden|\\$\\{|process\\.env|os\\.environ|getenv' | wc -l | tr -d ' '); echo \"envdateien $f schluesselzeilen $s\""
+erwartet = ["^envdateien 0 schluesselzeilen 0$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = "f=$(git ls-files | grep -cE '(^|/)\\.env(\\.local)?$' || true); echo \"envdateien $f schluesselzeilen 0\" | grep -x 'envdateien 3 schluesselzeilen 0'"
+quelle = "Issue #28, Akzeptanz 3"
+befund = "Eine .env.local ist versioniert oder eine Datei enthält eine schlüsselähnliche Zeile mit langem Wert."
+grund = "Keine .env-Datei im Repo und keine schlüsselähnliche Zuweisung in uc1, docs, shared (Vergleich mit den echten Werten ist nicht möglich; Logs und Issue-Texte nicht geprüft)."
+
+[[pruefung]]
+id = "23-1"
+hash = "cc772ba601"
+befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_kern.py -k 'pflege_szenario_zwei_wechsel_buendel or ohne_gueltige_aussage_abstinenz'; test -f uc1/uc1/api.py && grep -c erstelle_router uc1/uc1/api.py"
+erwartet = ["(^|= )\\d+ passed", "^[1-9]\\d*$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #23 (Epic-Fertig-Kriterium: Text und Stimme, jede Auskunft mit Quelle)"
+befund = "Der Text-Pfad besteht im Test, aber uc1/uc1/api.py mit dem Sprach-Router (Stimme) fehlt auf main."
+grund = "Text-Pfad besteht und der Dienst hängt den Sprach-Router ein (die Vorführung selbst misst dieser Satz nicht)."
+
+[[pruefung]]
+id = "23-1"
+hash = "cc772ba601"
+art = "hand"
+beschreibung = "Ein Mensch führt das Pflege-Szenario einmal per Text und einmal per Stimme (Vapi über Tunnel oder Text-Fallback nach Voice-Abnahme) vor; jede Auskunft nennt die Quelle (Gesetz und Paragraf oder Dokument und Seite), und die Belegmengen beider Wege stimmen überein."
+deckung = "voll"
+schwer = true
+quelle = "Issue #23"
+befund = "Ein Szenario Ende zu Ende per Text und per Stimme ist nicht vorgeführt."
+grund = "Beide Wege liefern dieselbe Auskunft mit Quelle."
+
+[[pruefung]]
+id = "34-1"
+hash = "cccdb1c734"
+art = "hand"
+beschreibung = "Kein Prüfsatz in diesem Issue: das Kriterium verweist auf die Abnahme in #22 (UC3-Anbindung). Ein Mensch prüft, dass #22 diese Abnahme als eigenes Kriterium trägt und dass sie dort besteht."
+deckung = "teil"
+schwer = false
+quelle = "Issue #34, Akzeptanz 4 (UC3-Anbindung: Oracle n/a hier; echte Abnahme als AC in #22)"
+befund = "Die Abnahme der UC3-Anbindung liegt in #22 und wird hier nicht gemessen."
+grund = "#22 trägt das Kriterium und es besteht."
+
+[[pruefung]]
+id = "36-AC1"
+hash = "1c066eff9c"
+befehl = "(test -s docs/plan/uc1/voice-abnahme.md && grep -cE '07:00' docs/plan/uc1/voice-abnahme.md && grep -ciE 'fallback' docs/plan/uc1/voice-abnahme.md) || echo fehlt"
+erwartet = ["^[1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+gegenprobe = "grep -c '99:99' docs/plan/uc1/voice-abnahme.md | grep -x 1"
+quelle = "Issue #36, AC1"
+befund = "docs/plan/uc1/voice-abnahme.md fehlt oder nennt weder die Frist Fr 07:00 noch den Text-/Replay-Fallback."
+grund = "Die Datei nennt die Frist 07:00 und den Fallback (ob der Voice-Oracle dokumentiert ist und nach 07:00 nichts mehr gebaut wird, prüft ein Mensch)."
+
+[[pruefung]]
+id = "35-1"
+hash = "43b8bdd84b"
+befehl = "(test -f web/app/uc1/page.tsx && echo vorhanden) || echo fehlt"
+erwartet = ["^vorhanden$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #35, Akzeptanz 1"
+befund = "Die Seite web/app/uc1/page.tsx fehlt (liegt im offenen MR !69)."
+grund = "Die Seite /uc1 liegt als Route vor."
+
+[[pruefung]]
+id = "35-1"
+hash = "43b8bdd84b"
+art = "hand"
+beschreibung = "Ein Mensch vergleicht die laufende Seite /uc1 mit den Pen-Frames KN6mU (Situation), B1gvr (Leistungen mit Quelle), ZHSFO (Antrag mit Unterlagen und Stelle) und ytfvF (Leer-Zustand): Aufbau, Reihenfolge, Bausteine."
+deckung = "voll"
+schwer = true
+quelle = "Issue #35, Akzeptanz 1 (Belegweg: Pen-Vergleich durch die UI-Session)"
+befund = "Die Seite entspricht den vier Pen-Frames nicht oder fehlt."
+grund = "Aufbau, Reihenfolge und Bausteine stimmen mit allen vier Frames überein."
+
+[[pruefung]]
+id = "35-2"
+hash = "e5a8e7b0ed"
+befehl = "d=$(find web/app/uc1 web/components/uc1 -type f 2>/dev/null | wc -l | tr -d ' '); g=$(grep -rE '—|–' web/app/uc1 web/components/uc1 2>/dev/null | wc -l | tr -d ' '); echo \"dateien $d gedankenstriche $g\""
+erwartet = ["^dateien [1-9]\\d* gedankenstriche 0$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #35, Akzeptanz 2 (impeccable-Katalog, Teilmessung)"
+befund = "Die Seitendateien fehlen (MR !69) oder enthalten Gedankenstriche."
+grund = "Die Seite hat Dateien und keinen Gedankenstrich im Quelltext (die volle Schablonen-Messung bleibt Handarbeit)."
+
+[[pruefung]]
+id = "35-2"
+hash = "e5a8e7b0ed"
+art = "hand"
+beschreibung = "Anti-KI-Schablonen-Messung (Skill product-ux-audit, impeccable-Katalog) auf der laufenden Seite /uc1 mit Desktop und Handy; Ergebnis muss 0 Treffer sein."
+deckung = "voll"
+schwer = true
+quelle = "Issue #35, Akzeptanz 2"
+befund = "Die Schablonen-Messung ergibt Treffer oder wurde nicht gemacht."
+grund = "0 Schablonen-Treffer."
+
+[[pruefung]]
+id = "35-3"
+hash = "3eed003730"
+befehl = "grep -rl 'HerkunftChip' web/app/uc1 web/components/uc1 2>/dev/null | wc -l | tr -d ' '"
+erwartet = ["^[1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #35, Akzeptanz 3"
+befund = "Die Seite nutzt den Herkunft-Chip aus @kic/ui nicht (oder fehlt)."
+grund = "Die Seite bindet den Herkunft-Chip ein (Klick und Teilstring-Prüfung misst dieser Satz nicht)."
+
+[[pruefung]]
+id = "35-3"
+hash = "3eed003730"
+art = "hand"
+beschreibung = "Im Browser auf /uc1 einen Herkunft-Chip anklicken: der Abschnitt öffnet sich, der angezeigte Text ist ein Teilstring des Abschnitts in lotse.abschnitt (Leerraum normalisiert)."
+deckung = "voll"
+schwer = true
+quelle = "Issue #35, Akzeptanz 3 (Playwright)"
+befund = "Der Klick öffnet den Abschnitt nicht oder der Text ist kein Teilstring."
+grund = "Chip öffnet den Abschnitt, Text ist Teilstring."
+
+[[pruefung]]
+id = "35-4"
+hash = "25706392a2"
+befehl = "grep -rlE 'ModellBadge|ModellPille' web/app/uc1 web/components/uc1 2>/dev/null | wc -l | tr -d ' '"
+erwartet = ["^[1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #35, Akzeptanz 4"
+befund = "Die Seite bindet das Modell-Badge nicht ein (oder fehlt)."
+grund = "Das Modell-Badge ist eingebunden (Sichtbarkeit in jedem Screenshot misst dieser Satz nicht)."
+
+[[pruefung]]
+id = "35-4"
+hash = "25706392a2"
+art = "hand"
+beschreibung = "Alle Screenshots des Playwright-Durchlaufs (Desktop und Handy) durchsehen: KI-Kennzeichnung und Modell-Badge sind in jedem sichtbar."
+deckung = "voll"
+schwer = true
+quelle = "Issue #35, Akzeptanz 4 (AI Act Art. 50)"
+befund = "In mindestens einem Screenshot fehlt Kennzeichnung oder Badge."
+grund = "Kennzeichnung und Badge in jedem Screenshot."
+
+[[pruefung]]
+id = "35-5"
+hash = "8e8d050ef9"
+befehl = "grep -rliE 'replay' web/app/uc1 web/components/uc1 2>/dev/null | wc -l | tr -d ' '"
+erwartet = ["^[1-9]\\d*$"]
+deckung = "teil"
+befund_art = "fehlt"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #35, Akzeptanz 5"
+befund = "Die Seite hat keinen Replay (oder fehlt)."
+grund = "Ein Replay-Pfad ist im Quelltext der Seite vorhanden (Hash-Gleichheit misst dieser Satz nicht)."
+
+[[pruefung]]
+id = "35-5"
+hash = "8e8d050ef9"
+art = "hand"
+beschreibung = "Playwright mit blockiertem Netz: Pflege-Szenario im Replay durchspielen; SHA-256 über die abgespielten Belege gleich dem Hash der Aufzeichnung."
+deckung = "voll"
+schwer = true
+quelle = "Issue #35, Akzeptanz 5 (Playwright mit blockiertem Netz)"
+befund = "Replay ohne Netz läuft nicht durch oder die Hashes weichen ab."
+grund = "Replay läuft ohne Netz, Hashes gleich."
+
+[[pruefung]]
+id = "35-6"
+hash = "51bf44482f"
+art = "hand"
+beschreibung = "axe-core auf allen vier Zuständen von /uc1 (Desktop und Handy): 0 Verstöße der Stufen critical und serious."
+deckung = "voll"
+schwer = true
+quelle = "Issue #35, Akzeptanz 6 (axe)"
+befund = "axe meldet critical oder serious Verstöße."
+grund = "0 critical/serious."

@@ -12,7 +12,10 @@
 #   scripts/deploy.sh status    Container, ausgelieferte Revision, letzte Caddy-Logzeilen
 #   scripts/deploy.sh bauprobe REF   App-Image eines Branches mit dem eigenen deploy/ auf dem Server bauen und
 #                               in einem Wegwerf-Container ohne Netz anstarten (vor einem Merge)
-#   scripts/deploy.sh daten DB DATEI     Dump (pg_dump -Fc) aus <basis>/daten/DATEI in die Datenbank DB
+#   scripts/deploy.sh daten DB DATEI     Dump aus <basis>/daten/DATEI (pg_dump -Fc .dump oder SQL .sql.gz) in die
+#                               Datenbank DB, in einer Transaktion; sichert DB vorher (Rückweg: daten DB sicherung/…)
+#   scripts/deploy.sh sichern [DB]       pg_dump -Fc je DB (ohne DB: alle) nach <basis>/daten/sicherung/, mit sha256,
+#                               die letzten 5 je DB bleiben
 #   scripts/deploy.sh inhaltshash DB SCHEMA   Inhalts-Hash wie lokal (deploy/sql/inhaltshash.sql)
 #   scripts/deploy.sh           up, dann pruefen
 #
@@ -121,6 +124,24 @@ haupt() {
   # ein Deploy zur Zeit
   exec 9>"$basis/.deploy.lock"
   flock -w 300 9 || { echo "up: ein anderer Deploy läuft seit über 5 Minuten" >&2; return 1; }
+  # 0. Geld (#108b): ein Modell- oder Voice-Schlüssel wirkt online nur mit Ratenlimit und Tagesbudget als ganzer
+  #    Zahl ab 1. Sonst bricht up ab, bevor sich etwas ändert. Werte werden nur geprüft, nie ausgegeben.
+  #    Gelesen wie Compose: die letzte Zeile gewinnt, auch in der Form "export NAME=…".
+  local name schluessel="" wert
+  wert_von() { sed -nE "s/^[[:space:]]*(export[[:space:]]+)?$1=//p" "$env_datei" | tail -n 1 | tr -d "\"'[:space:]"; }
+  for name in AZURE_API_KEY MISTRAL_API_KEY VAPI_API_KEY VAPI_CUSTOM_LLM_KEY; do
+    wert=$(wert_von "$name")
+    if [ -n "$wert" ]; then schluessel="$schluessel $name"; fi
+  done
+  wert=""
+  if [ -n "$schluessel" ]; then
+    for name in RATENLIMIT_PRO_MINUTE LLM_TAGESBUDGET_AUFRUFE; do
+      if ! wert_von "$name" | grep -Eq '^[1-9][0-9]*$'; then
+        echo "up: Schlüssel gesetzt ($schluessel ), aber $name fehlt oder ist keine ganze Zahl ab 1; nichts geändert" >&2
+        return 1
+      fi
+    done
+  fi
   # 1. neuen Stand prüfen und das App-Image bauen; die laufenden Ordner in repo/ bleiben bis dahin unberührt
   cd "$neu/deploy"
   "${compose[@]}" config --quiet </dev/null
@@ -140,6 +161,11 @@ haupt() {
   fi
   cp "$neu/REVISION" "$basis/repo/REVISION"
   "${compose[@]}" ps --format 'table {{.Service}}\t{{.Status}}' </dev/null
+  # Platte: jeder Build lässt Cache und ein namenloses Image zurück (05.11.: 14 GB Cache). Der Cache der letzten
+  # 48 Stunden bleibt für schnelle Builds; ein Fehler hier bricht den fertigen Deploy nicht ab.
+  docker builder prune -f --filter until=48h </dev/null >/dev/null 2>&1 || echo "up: Build-Cache nicht aufgeräumt" >&2
+  docker image prune -f </dev/null >/dev/null 2>&1 || echo "up: namenlose Images nicht aufgeräumt" >&2
+  echo "up: Platte $(df -h --output=avail "$basis" | tail -n 1 | tr -d ' ') frei"
 }
 haupt "$@"
 EOF
@@ -167,20 +193,25 @@ haupt() {
   done
   # Gegenprobe als kic_app über TCP; PGPASSWORD geht als Umgebung in den Container, nicht als Argument
   export PGPASSWORD=$pw
-  local als_app=("${compose[@]}" exec -T -e PGPASSWORD db psql -X -q -At -h 127.0.0.1 -U kic_app -d statistik)
-  "${als_app[@]}" -c "select 'rechte: kic_app angemeldet, superuser=' || rolsuper || ', default_transaction_read_only=' || current_setting('default_transaction_read_only') from pg_roles where rolname = current_user" </dev/null
-  if "${als_app[@]}" -c "create table kic_probe (x int)" </dev/null >/dev/null 2>&1; then
-    echo "rechte: kic_app konnte eine Tabelle anlegen" >&2
-    return 1
-  fi
-  if "${als_app[@]}" -c "begin; set transaction read write; create table public.kic_probe (x int); rollback;" </dev/null >/dev/null 2>&1; then
-    echo "rechte: kic_app konnte mit read write eine Tabelle anlegen" >&2
-    return 1
-  fi
-  echo "rechte: Anlegen als kic_app abgewiesen (lesend und ohne CREATE-Recht)"
-  # echtes Lesen als kic_app: je Datenbank die erste berechtigte Tabelle zählen
+  local als_app=("${compose[@]}" exec -T -e PGPASSWORD db psql -X -q -At -h 127.0.0.1 -U kic_app)
+  "${als_app[@]}" -d statistik -c "select 'rechte: kic_app angemeldet, superuser=' || rolsuper || ', default_transaction_read_only=' || current_setting('default_transaction_read_only') from pg_roles where rolname = current_user" </dev/null
+  # je Datenbank als kic_app: Anlegen muss scheitern, auch mit read write (#108a); dann echtes Lesen der ersten
+  # berechtigten Tabelle
   for db in $datenbanken; do
-    "${compose[@]}" exec -T -e PGPASSWORD db psql -X -q -At -h 127.0.0.1 -U kic_app -d "$db" -c "select 'rechte ' || current_database() || ': kic_app liest ' || coalesce((select table_schema || '.' || table_name || ' (' || (xpath('/row/n/text()', query_to_xml(format('select count(*) as n from %I.%I', table_schema, table_name), false, true, '')))[1]::text || ' Zeilen)' from information_schema.role_table_grants where grantee = 'kic_app' and privilege_type = 'SELECT' order by 1 limit 1), 'keine Tabelle vorhanden')" </dev/null
+    # bestanden nur, wenn Postgres die Rechte verweigert; jeder andere Fehler (Tabelle schon da, Schema fehlt)
+    # belegt nichts und bricht ab
+    local probe sql
+    for sql in "create table kic_probe (x int)" "begin; set transaction read write; create table public.kic_probe (x int); rollback;"; do
+      if probe=$("${als_app[@]}" -d "$db" -c "$sql" </dev/null 2>&1); then
+        echo "rechte $db: kic_app konnte eine Tabelle anlegen ($sql)" >&2
+        return 1
+      fi
+      if ! printf '%s' "$probe" | grep -Eq 'permission denied|read-only transaction'; then
+        echo "rechte $db: Probe nicht aussagekräftig: $probe" >&2
+        return 1
+      fi
+    done
+    "${als_app[@]}" -d "$db" -c "select 'rechte ' || current_database() || ': Anlegen abgewiesen, kic_app liest ' || coalesce((select table_schema || '.' || table_name || ' (' || (xpath('/row/n/text()', query_to_xml(format('select count(*) as n from %I.%I', table_schema, table_name), false, true, '')))[1]::text || ' Zeilen)' from information_schema.role_table_grants where grantee = 'kic_app' and privilege_type = 'SELECT' order by 1 limit 1), 'keine Tabelle vorhanden')" </dev/null
   done
   unset PGPASSWORD
 }
@@ -215,9 +246,33 @@ cmd_pruefen() {
   code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "https://$DOMAIN/gibt-es-nicht-$RANDOM") || code=000
   if [[ $code == 404 ]]; then echo "pruefen: unbekannter Pfad 404"; else echo "pruefen: unbekannter Pfad liefert $code statt 404" >&2; fehler=1; fi
 
-  # lesend: alles außer GET und HEAD weist Caddy ab, bevor es die App erreicht
-  code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 -X POST -d x=1 "https://$DOMAIN/api/probe") || code=000
-  if [[ $code == 403 ]]; then echo "pruefen: POST abgewiesen (403, lesend)"; else echo "pruefen: POST liefert $code statt 403" >&2; fehler=1; fi
+  # lesend: die schreibenden Wege prüft die Sperrliste unten (am Text der Caddy-Antwort, Review !94 und !103);
+  # die Methodenmatrix der Kante ohne Server prüft deploy/methoden-matrix.sh im CI-Job deploy-check
+  local pfad
+  # Die zwei Frage-Wege (#150): POST kommt an der Kante vorbei (Antwort nicht der Satz von Caddy; ein leerer Body
+  # endet in der App mit 400 oder 403, ohne Modellaufruf), PUT, DELETE und OPTIONS weist Caddy ab.
+  local methode antwort
+  for pfad in /api/uc3/frage /api/uc4/frage; do
+    antwort=$(curl -sS --max-time 20 -X POST -H 'content-type: application/json' -d '{}' "https://$DOMAIN$pfad") || antwort=""
+    if [[ $antwort == *"Die Online-Demo ist lesend."* ]]; then echo "pruefen: POST $pfad an der Kante gesperrt" >&2; fehler=1; else echo "pruefen: POST $pfad erreicht die App"; fi
+    for methode in PUT DELETE OPTIONS; do
+      code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 -X "$methode" "https://$DOMAIN$pfad") || code=000
+      if [[ $code == 403 ]]; then echo "pruefen: $methode $pfad abgewiesen (403)"; else echo "pruefen: $methode $pfad liefert $code statt 403" >&2; fehler=1; fi
+    done
+  done
+
+  # Voice aus heißt: kein Vapi-Schlüssel im Body (#108 b, Lead a7 05.11.). Mit dem öffentlichen Schlüssel könnte
+  # jeder abgerechnete Anrufe starten, auch wenn der Sprechknopf aus ist.
+  local voice
+  voice=$(curl -sS --max-time 20 "https://$DOMAIN/api/plattform/voice-config") || voice=""
+  if [[ $voice == *'"aktiv":true'* ]]; then
+    echo "pruefen: Voice ist aktiv (Schlüssel wird ausgeliefert, nur nach Freigabe des Leads)"
+  elif [[ $voice == *'"aktiv":false'* && $voice == *'"publicKey":null'* && $voice == *'"assistantId":null'* ]]; then
+    echo "pruefen: Voice aus, kein Schlüssel ausgeliefert"
+  else
+    echo "pruefen: voice-config liefert bei Voice aus einen Schlüssel oder ist nicht lesbar" >&2
+    fehler=1
+  fi
 
   # auf dem Server: jeder Dienst läuft und meldet healthy
   local zustand
@@ -233,6 +288,56 @@ EOF
     if [[ $zeile == *=running/healthy ]]; then echo "pruefen: ${zeile%%=*} healthy"; else echo "pruefen: $zeile" >&2; fehler=1; fi
   done
   [[ -n $zustand ]] || { echo "pruefen: keine Container gefunden" >&2; fehler=1; }
+  # die Seiten der Demo antworten
+  local pfad
+  for pfad in /uc1 /uc2 /uc3 /uc4 /praesentation; do
+    code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "https://$DOMAIN$pfad") || code=000
+    if [[ $code != 200 ]]; then echo "pruefen: GET $pfad liefert $code statt 200" >&2; fehler=1; fi
+  done
+  echo "pruefen: Seiten /uc1 /uc2 /uc3 /uc4 /praesentation geprüft"
+
+  # lesend: alles außer GET und HEAD weist Caddy ab, bevor es die App erreicht. Geprüft am Text der Caddy-Antwort,
+  # damit ein 403 der App nicht als Sperre an der Kante durchgeht. Die Liste nennt jeden schreibenden Weg der App.
+  local antwort gesperrt=0
+  for pfad in /api/probe /api/uc3/freigabe /api/uc2/faelle /api/uc2/faelle/mock-wartezeiten/freigabe \
+    /api/uc2/modell /api/plattform/modell /chat/completions /vapi/webhook; do
+    antwort=$(curl -sS -w ' %{http_code}' --max-time 20 -X POST -H 'content-type: application/json' -d '{}' \
+      "https://$DOMAIN$pfad") || antwort="kein-netz 000"
+    if [[ $antwort == "Die Online-Demo ist lesend. 403" ]]; then
+      gesperrt=$((gesperrt + 1))
+    else
+      echo "pruefen: POST $pfad kommt an der Sperre vorbei (HTTP ${antwort##* })" >&2
+      fehler=1
+    fi
+  done
+  echo "pruefen: POST abgewiesen (403 an der Kante) auf $gesperrt schreibenden Wegen"
+
+  # Frage-Wege (Stufe A, KIC_ONLINE_FRAGEN): offen genau dann, wenn der Schalter in .env.server auf 1 steht.
+  # Ein leeres JSON ist eine ungültige Frage: die App antwortet 400, rechnet nichts und ruft kein Modell.
+  local schalter erwartet
+  # gelesen wie Compose: die letzte Zeile gewinnt; eine unlesbare Datei oder kein SSH ist ein Fehler, kein "zu"
+  schalter=$(
+    remote bash -s -- "$ENV_DATEI" <<'EOF'
+test -r "$1" || exit 2
+sed -nE "s/^[[:space:]]*(export[[:space:]]+)?KIC_ONLINE_FRAGEN=//p" "$1" | tail -n 1 | tr -d "\"'[:space:]"
+EOF
+  ) || schalter=unlesbar
+  if [[ $schalter == unlesbar ]]; then
+    echo "pruefen: KIC_ONLINE_FRAGEN in .env.server nicht lesbar, Frage-Wege nicht geprüft" >&2
+    fehler=1
+    erwartet=unbekannt
+  elif [[ $schalter == 1 ]]; then erwartet=offen; else erwartet=zu; fi
+  for pfad in /api/uc3/frage /api/uc4/frage; do
+    code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 -X POST -H 'content-type: application/json' \
+      -d '{}' "https://$DOMAIN$pfad") || code=000
+    if [[ $erwartet == zu && $code == 403 ]] || [[ $erwartet == offen && $code == 400 ]]; then
+      echo "pruefen: POST $pfad $erwartet wie erwartet ($code)"
+    else
+      echo "pruefen: POST $pfad liefert $code, erwartet $erwartet (KIC_ONLINE_FRAGEN)" >&2
+      fehler=1
+    fi
+  done
+
   return "$fehler"
 }
 
@@ -300,22 +405,117 @@ EOF
 # Namen und Pfade gehen in Remote-Befehle: nur einfache Bezeichner zulassen
 pruefe_name() { [[ $1 =~ ^[a-z][a-z0-9_]{0,62}$ ]] || { echo "ungültiger Name: $1" >&2; exit 2; }; }
 
+pruefe_datei() {
+  if [[ ! $1 =~ ^[A-Za-z0-9._/-]+$ || $1 == *..* || $1 == /* ]]; then
+    echo "Pfad relativ zu <basis>/daten angeben, ohne .." >&2
+    exit 2
+  fi
+}
+
+cmd_sichern() {
+  # Sicherung je Datenbank (pg_dump -Fc) nach <basis>/daten/sicherung/<db>-<UTC>.dump mit .sha256 daneben.
+  # Ohne DB: alle App-Datenbanken. Je DB bleiben die letzten 5; die Datei in $2 (Quelle eines laufenden `daten`)
+  # wird nie weggeräumt. Zurück geht es mit `scripts/deploy.sh daten <db> sicherung/<datei>`.
+  # $3 = vor-daten: eine noch fehlende DB ist dann kein Fehler (erstes Einspielen)
+  local db=${1:-} schuetzen=${2:-} modus=${3:-direkt}
+  if [[ -n $db ]]; then pruefe_name "$db"; fi
+  if [[ -n $schuetzen ]]; then pruefe_datei "$schuetzen"; fi
+  remote bash -s -- "$BASIS" "$ENV_DATEI" "$db" "$schuetzen" "$modus" <<'EOF'
+haupt() {
+  set -euo pipefail
+  umask 077
+  cd "$1/repo/deploy"
+  local compose=(docker compose --env-file "$2" -f docker-compose.prod.yml) db=$3 schuetzen=$4 modus=$5 behalten=5
+  local ziel="$1/daten/sicherung" liste d da stempel datei alt
+  mkdir -p "$ziel"
+  # eine Sicherung zur Zeit; .teil-Reste eines Abbruchs räumt der Trap weg
+  exec 8>"$1/.sichern.lock"
+  flock -w 600 8 || { echo "sichern: eine andere Sicherung läuft seit über 10 Minuten" >&2; return 1; }
+  TEIL=""
+  trap 'if [ -n "$TEIL" ]; then rm -f "$TEIL"; fi' EXIT
+  "${compose[@]}" up -d --wait db </dev/null
+  local psql=("${compose[@]}" exec -T db psql -X -q -At -U statistik -d statistik)
+  if [ -n "$db" ]; then
+    liste=$db
+  else
+    liste=$("${psql[@]}" -c "select datname from pg_database where not datistemplate and datname <> 'postgres' order by 1" </dev/null)
+  fi
+  for d in $liste; do
+    da=$("${psql[@]}" -c "select 1 from pg_database where datname = '$d'" </dev/null)
+    if [ "$da" != 1 ]; then
+      if [ "$modus" = vor-daten ]; then
+        echo "sichern: Datenbank $d gibt es noch nicht, nichts zu sichern"
+        continue
+      fi
+      echo "sichern: Datenbank $d gibt es nicht" >&2
+      return 1
+    fi
+    # sekundengenauer Name; liegt er schon da (zwei Läufe in derselben Sekunde), eine Sekunde warten: nie überschreiben
+    stempel=$(date -u +%Y%m%dT%H%M%SZ)
+    while [ -e "$ziel/$d-$stempel.dump" ]; do
+      sleep 1
+      stempel=$(date -u +%Y%m%dT%H%M%SZ)
+    done
+    datei="$ziel/$d-$stempel.dump"
+    # erst als .teil schreiben und lesend gegenprüfen; eine halbe Sicherung bekommt nie den endgültigen Namen
+    TEIL="$datei.teil"
+    "${compose[@]}" exec -T db pg_dump -U statistik -d "$d" -Fc </dev/null >"$TEIL"
+    test -s "$TEIL" || { echo "sichern: $d ergab eine leere Datei" >&2; return 1; }
+    # liest jeden Datenblock, nicht nur das Inhaltsverzeichnis: eine abgeschnittene Datei scheitert hier
+    "${compose[@]}" exec -T db pg_restore -f /dev/null "/daten/sicherung/$(basename "$TEIL")" </dev/null
+    mv -n "$TEIL" "$datei"
+    if [ -e "$TEIL" ]; then echo "sichern: $(basename "$datei") gibt es schon, nichts überschrieben" >&2; return 1; fi
+    TEIL=""
+    sha256sum "$datei" >"$datei.sha256"
+    echo "sichern: $d nach sicherung/$(basename "$datei"), $(stat -c %s "$datei") Byte, sha256 $(cut -c1-16 "$datei.sha256")…"
+    # nur die letzten $behalten je DB behalten, nie die geschützte Quelle; vor einem Einspielen wird nichts
+    # weggeräumt, damit Fehlversuche keine älteren, verschiedenen Stände verdrängen
+    if [ "$modus" = vor-daten ]; then continue; fi
+    ls -1t "$ziel/$d"-[0-9]*Z.dump | tail -n +$((behalten + 1)) | while read -r alt; do
+      if [ -n "$schuetzen" ] && [ "$alt" -ef "$1/daten/$schuetzen" ]; then continue; fi
+      rm -f "$alt" "$alt.sha256"
+    done
+  done
+}
+haupt "$@"
+EOF
+}
+
 cmd_daten() {
   local db=${1:?daten braucht DB und Datei, z. B. scripts/deploy.sh daten healthpolicy uc2/healthpolicy-uc2.dump}
   local datei=${2:?daten braucht eine Datei unter <basis>/daten}
   pruefe_name "$db"
-  if [[ ! $datei =~ ^[A-Za-z0-9._/-]+$ || $datei == *..* || $datei == /* ]]; then
-    echo "daten: Pfad relativ zu <basis>/daten angeben, ohne .." >&2
-    exit 2
+  pruefe_datei "$datei"
+  # 1. erst die Datei prüfen: eine fehlende, kaputte oder falsche Datei bricht ab, bevor gesichert wird
+  remote bash -s -- "$BASIS" "$datei" <<'EOF'
+haupt() {
+  set -euo pipefail
+  local basis=$1 datei=$2
+  test -f "$basis/daten/$datei" || { echo "daten: <basis>/daten/$datei fehlt" >&2; return 1; }
+  # psql würde einen abgeschnittenen Strom sonst bis zum Abbruch einspielen: die ganze Datei vorher prüfen
+  case "$datei" in
+    *.sql.gz) gzip -t "$basis/daten/$datei" || { echo "daten: $datei ist kein vollständiges gzip, nichts eingespielt" >&2; return 1; } ;;
+  esac
+  if [ -f "$basis/daten/$datei.sha256" ]; then
+    (cd "$(dirname "$basis/daten/$datei")" && sha256sum -c --quiet "$(basename "$datei").sha256") ||
+      { echo "daten: Prüfsumme von $datei stimmt nicht, nichts eingespielt" >&2; return 1; }
   fi
-  # pg_restore im db-Container; der Dump liegt dort read-only unter /daten. Vorhandene Objekte werden ersetzt.
+  echo "daten: sha256 $(sha256sum "$basis/daten/$datei" | cut -c1-16)…, $(stat -c %s "$basis/daten/$datei") Byte, geprüft"
+}
+haupt "$@"
+EOF
+  # 2. Rückweg: den heutigen Stand sichern; scheitert das, wird nichts eingespielt
+  cmd_sichern "$db" "$datei" vor-daten
+  # Im db-Container; der Dump liegt dort read-only unter /daten. pg_dump -Fc (.dump) über pg_restore, vorhandene
+  # Objekte werden ersetzt; reines SQL (.sql.gz) über psql, der Dump muss dann selbst aufräumen (pg_dump --clean
+  # --if-exists), sonst scheitert er an vorhandenen Objekten und die Datenbank bleibt, wie sie war.
   remote bash -s -- "$BASIS" "$ENV_DATEI" "$db" "$datei" <<'EOF'
 haupt() {
   set -euo pipefail
   cd "$1/repo/deploy"
   local compose=(docker compose --env-file "$2" -f docker-compose.prod.yml) db=$3 datei=$4
+  # 3. einspielen (die Datei ist oben geprüft)
   test -f "$1/daten/$datei" || { echo "daten: <basis>/daten/$datei fehlt" >&2; return 1; }
-  echo "daten: sha256 $(sha256sum "$1/daten/$datei" | cut -c1-16)…, $(stat -c %s "$1/daten/$datei") Byte"
   "${compose[@]}" up -d --wait db </dev/null
   local da
   da=$("${compose[@]}" exec -T db psql -U statistik -d statistik -At -c "select 1 from pg_database where datname = '$db'" </dev/null)
@@ -324,8 +524,17 @@ haupt() {
     echo "daten: Datenbank $db angelegt"
   fi
   # eine Transaktion: ein Fehler lässt die Datenbank im alten Zustand statt halb geleert
-  "${compose[@]}" exec -T db pg_restore -U statistik -d "$db" --no-owner --no-privileges --clean --if-exists \
-    --single-transaction --exit-on-error "/daten/$datei" </dev/null
+  case "$datei" in
+    *.sql.gz)
+      # commit nur, wenn gzip bis zum Ende gelesen hat; fehlt es, rollt Postgres beim Verbindungsende zurück
+      { echo 'begin;'; gzip -dc "$1/daten/$datei" && echo 'commit;'; } |
+        "${compose[@]}" exec -T db psql -X -q -v ON_ERROR_STOP=1 -U statistik -d "$db" >/dev/null
+      ;;
+    *)
+      "${compose[@]}" exec -T db pg_restore -U statistik -d "$db" --no-owner --no-privileges --clean --if-exists \
+        --single-transaction --exit-on-error "/daten/$datei" </dev/null
+      ;;
+  esac
   echo "daten: $datei nach $db eingespielt"
 }
 haupt "$@"
@@ -359,6 +568,7 @@ case "${1:-alles}" in
   init) cmd_init ;;
   rechte) cmd_rechte ;;
   daten) cmd_daten "${2:-}" "${3:-}" ;;
+  sichern) cmd_sichern "${2:-}" ;;
   inhaltshash) cmd_inhaltshash "${2:-}" "${3:-}" ;;
   up) cmd_up ;;
   pruefen) cmd_pruefen ;;
@@ -369,9 +579,9 @@ case "${1:-alles}" in
     cmd_up
     cmd_pruefen
     ;;
-  -h | --help | hilfe) sed -n '2,22p' "$0" ;;
+  -h | --help | hilfe) sed -n '2,25p' "$0" ;;
   *)
-    echo "unbekannter Befehl: $1 (init|up|rechte|pruefen|status|bauprobe|daten|inhaltshash)" >&2
+    echo "unbekannter Befehl: $1 (init|up|rechte|pruefen|status|bauprobe|daten|sichern|inhaltshash)" >&2
     exit 2
     ;;
 esac

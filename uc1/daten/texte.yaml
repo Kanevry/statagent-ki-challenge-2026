@@ -26,6 +26,7 @@ de:
   abstinenz: "Dazu habe ich keinen Beleg in meinen Quellen. Ich will Ihnen nichts Falsches sagen."
   uebergabe: "Bitte wenden Sie sich an die {name}."
   uebergabe_beratung: "Bitte wenden Sie sich an Ihre Sozialversicherung oder an eine Sozialberatung."
+  fachfremd: "Das ist keine Frage zur Sozialversicherung, dabei kann ich nicht helfen. Ich bin ein KI-Lotse für Leistungen wie Pflegegeld, Reha oder Krankengeld. Dazu können Sie mich fragen."
   modell_aus: "Die Antwort-KI ist gerade nicht erreichbar."
   ki_hinweis: "Diese Auskunft kommt von einem KI-Lotsen. Die Entscheidung trifft der Träger."
 en:
@@ -49,5 +50,6 @@ en:
   abstinenz: "I have no reliable source for this in my documents. I do not want to tell you anything wrong."
   uebergabe: "Please contact {name}."
   uebergabe_beratung: "Please contact your social insurance provider or a social counselling service."
+  fachfremd: "This is not a social insurance question, so I cannot help with it. I am an AI guide for benefits such as care allowance, rehabilitation or sickness benefit. You can ask me about those."
   modell_aus: "The answer service is not reachable right now."
   ki_hinweis: "This answer comes from an AI guide. The insurance provider makes the decision."

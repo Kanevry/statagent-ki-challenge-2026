@@ -7,7 +7,7 @@ Jede Änderung an Regeln oder Code und jede Veröffentlichung eines Monats steht
 ## Hinweise zu den Freigaben
 
 - Regelsatz v1 und die Veröffentlichung von 22 Monaten (2024-08 bis 2026-07 ohne 2025-03 und 2025-10, die vorläufig bleiben) hat Bernhard Götzendorfer am 05.11.2026 selbst freigegeben.
-- Die Freigaben der Vorschläge uc3/24, uc3/25 und uc3/26 und des Regelsatzes v2 hat am 05.11.2026 die Lead-Session im Auftrag von Bernhard Götzendorfer eingegeben (Delegation des Owners am 05.11.2026 gegen 16:14 Uhr).
+- Die Freigaben der Vorschläge uc3/24, uc3/25 und uc3/26 und des Regelsatzes v2 hat am 05.11.2026 die Lead-Session im Auftrag von Bernhard Götzendorfer eingegeben (Delegation des Owners am 05.11.2026 gegen 16:14 Uhr). Bernhard Götzendorfer hat diese vier Freigaben am selben Abend selbst bestätigt (`uc3 bestaetigen`, Commit 2ba95e5 mit Trailer `Freigegeben-von` und je `Bestaetigt: <Commit>`).
 - Alle Zeitpunkte in diesem Protokoll sind Wiener Zeit.
 
 ## 1 Änderungen über die eigenen Agenten (Git)
@@ -41,6 +41,7 @@ Jede Änderung an Regeln oder Code und jede Veröffentlichung eines Monats steht
 | 05.11.2026 16:54 | Auftrag 2, ganzes Monat statt Stichtag: Gezählt wird nicht mehr der Monatsletzte, sondern das ganze Monat. Beschäftigt ist, wer im Berichtsmonat jemals beschäftigt war; auch ein einziger Tag mitten im Monat genügt. Ein Verhältnis zählt, wenn mindestens ein Zeitabschnitt mindestens einen Tag im Berichtsmonat besteht: Beginn höchstens Monatsletzter und Ende leer oder mindestens Monatserster. Zähleinheit bleiben die Versicherungsverhältnisse, jedes zählt im Monat genau einmal. Die Merkmale kommen aus dem letzten Zeitabschnitt des Verhältnisses im Berichtsmonat, das Alter in vollendeten Jahren am Monatsletzten, gezählt wird weiterhin aus der Lieferung des Berichtsmonats. Die Änderung gilt rückwirkend für die ganze Zeitreihe zusammen mit Auftrag 1, also im Regelsatz v2; Regelsatz v1 bleibt, wie er ist. Der Zeitraum der Zählregel ist also der ganze Monat (Art Monat statt Stichtag), vom Monatsersten bis zum Monatsletzten. | Bernhard Götzendorfer | uc3/25 | gpt-5-4-mini@azure | `952eeb8c41` |
 | 05.11.2026 16:54 | Regelsatz v2 freigeben | Bernhard Götzendorfer | uc3/27 | keins@keins | `599e60109c` |
 | 05.11.2026 16:54 | Auftrag 3, Datenlieferung an das Ministerium: Das Ministerium erhält eine Liste aller Personen, die in den letzten zwölf Monaten bis einschließlich Berichtsmonat mindestens 200 Tage als Arbeiter beschäftigt waren, mit Dienstvertrag oder freiem Dienstvertrag (ArbeiterDV, ArbeiterFD), im ÖNACE-Abschnitt C. Der Berichtsmonat ist ein Parameter, für die Abgabe 07/2026, also der Zeitraum 01.08.2025 bis 31.07.2026. Tage sind Kalendertage, an denen mindestens ein passender Zeitabschnitt besteht; gleichzeitige Verhältnisse zählen einen Tag nur einmal, DV- und FD-Tage werden zusammengezählt. Datenstand: Für jeden Tag gilt die jüngste Lieferung, die diesen Tag enthält, verarbeitet nach unseren Regeln (Regelsatz v1); eine Lieferung, deren Monatslauf angehalten wurde (Teil-Lieferung), wird dabei übersprungen. Wirtschaftszweig ist die ÖNACE des jeweiligen Zeitabschnitts, wie ihn die verwendete Lieferung ausweist: bis 12/2024 nach ÖNACE 2008, ab 01/2025 nach ÖNACE 2025, gezählt wird Abschnitt C; die alten ÖNACE-2003-Codes DA bis DN zählen wie in unserer Zuordnungsregel Q01 zu C. Felder: PERSON_ID, GESCHLECHT, GEBURTSJAHR (bei unplausiblem Geburtsdatum Unbekannt), TAGE. Format: CSV mit Semikolon, Datei ministerium_JJJJ-MM.csv, sortiert nach PERSON_ID. Setze das als Regel um, nicht als Code: eine neue Regel (regel_neu) vom Typ zaehl der Art personentage im Regelsatz ministerium, mit den Parametern, die diese Art kennt. | Bernhard Götzendorfer | uc3/26 | gpt-5-4-mini@azure | `08e63c046f` |
+| 05.11.2026 18:22 | Bestätigung der Freigaben uc3/24, uc3/25, uc3/26, uc3/27 durch Bernhard Götzendorfer | Bernhard Götzendorfer |  |  | `2ba95e5139` |
 
 ## 2 Vorschläge der Agenten
 
@@ -63,28 +64,28 @@ Jede Änderung an Regeln oder Code und jede Veröffentlichung eines Monats steht
 
 | Berichtsmonat | Regelsatz | Freigegeben von | Zeitpunkt | Verhältnisse | Ergebnis-Hash |
 |---|---|---|---|---|---|
-| 2024-08 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 392236 | `de35e5b8837c` |
-| 2024-09 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 393454 | `d7b32d2bed1c` |
-| 2024-10 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 391033 | `676240a20cd5` |
-| 2024-11 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 389141 | `0a5e7bef37c3` |
-| 2024-12 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 387390 | `22c406871f2a` |
-| 2025-01 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 385033 | `68ba0b5a3704` |
-| 2025-02 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 386996 | `5a9aa6c9babb` |
-| 2025-04 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 387601 | `3a917452e284` |
-| 2025-05 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 390001 | `47f863da9087` |
-| 2025-06 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 394252 | `5dec1780ffa2` |
-| 2025-07 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 397419 | `5a0128470ba8` |
-| 2025-08 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 393712 | `cf4b69d616c4` |
-| 2025-09 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 394200 | `155252e0e863` |
-| 2025-11 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 389823 | `66a453d93287` |
-| 2025-12 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 388231 | `5b125df6c742` |
-| 2026-01 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 385573 | `6e40a4577df6` |
-| 2026-02 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 387947 | `224e7722de8d` |
-| 2026-03 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 391475 | `901b5e763328` |
-| 2026-04 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 389361 | `74db783ba6c0` |
-| 2026-05 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 391871 | `be2cf1392f6e` |
-| 2026-06 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 395320 | `472dd18a5d1e` |
-| 2026-07 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 399027 | `0f1f7def0db7` |
+| 2024-08 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 392.236 | `de35e5b8837c` |
+| 2024-09 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 393.454 | `d7b32d2bed1c` |
+| 2024-10 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 391.033 | `676240a20cd5` |
+| 2024-11 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 389.141 | `0a5e7bef37c3` |
+| 2024-12 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 387.390 | `22c406871f2a` |
+| 2025-01 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 385.033 | `68ba0b5a3704` |
+| 2025-02 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 386.996 | `5a9aa6c9babb` |
+| 2025-04 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 387.601 | `3a917452e284` |
+| 2025-05 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 390.001 | `47f863da9087` |
+| 2025-06 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 394.252 | `5dec1780ffa2` |
+| 2025-07 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 397.419 | `5a0128470ba8` |
+| 2025-08 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 393.712 | `cf4b69d616c4` |
+| 2025-09 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 394.200 | `155252e0e863` |
+| 2025-11 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 389.823 | `66a453d93287` |
+| 2025-12 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 388.231 | `5b125df6c742` |
+| 2026-01 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 385.573 | `6e40a4577df6` |
+| 2026-02 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 387.947 | `224e7722de8d` |
+| 2026-03 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 391.475 | `901b5e763328` |
+| 2026-04 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 389.361 | `74db783ba6c0` |
+| 2026-05 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 391.871 | `be2cf1392f6e` |
+| 2026-06 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 395.320 | `472dd18a5d1e` |
+| 2026-07 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 399.027 | `0f1f7def0db7` |
 
 ## 5 Lieferungen nach außen (Ministerium)
 

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Status } from "../basis/status";
-import { WarnChip } from "../bausteine/chips";
 import { ModellPille } from "../bausteine/modell-pille";
 import { abweichendZuletzt, modellStatusSchema, type ModellStatus } from "./modell-status";
 
@@ -21,7 +20,7 @@ const NEULADEN_MS = 30_000;
 type Zustand = { art: "laden" } | { art: "ok"; status: ModellStatus } | { art: "fehler" };
 
 /** Sichtbarer Satz statt „mock · mock“: auch für Bürger verständlich (Abnahme #64-5). */
-export const TESTBETRIEB_TEXT = "Testbetrieb: keine KI angeschlossen";
+export const TESTBETRIEB_TEXT = "Ohne Sprachmodell";
 
 export function ModellBadge({
   quelle = "/api/plattform/modell",
@@ -90,7 +89,7 @@ export function ModellBadge({
         ) : (
           <>
             <span>Modell:</span>
-            <span className="font-mono">{vorgabe.modell ? `${vorgabe.provider} · ${vorgabe.modell}` : vorgabe.provider}</span>
+            <span>{vorgabe.modell ? `${vorgabe.provider} · ${vorgabe.modell}` : vorgabe.provider}</span>
           </>
         )}
       </ModellPille>
@@ -99,7 +98,7 @@ export function ModellBadge({
 
   if (zustand.art === "fehler") {
     return (
-      <WarnChip data-testid="modell-badge">Modell nicht erreichbar</WarnChip>
+      <ModellPille data-testid="modell-badge">Modell nicht erreichbar</ModellPille>
     );
   }
 
@@ -120,7 +119,7 @@ export function ModellBadge({
       ) : (
         <>
           <span>Modell:</span>
-          <span className={zustand.art === "ok" ? "font-mono" : undefined}>{wert}</span>
+          <span>{wert}</span>
           {lang && <span>· austauschbar</span>}
         </>
       )}

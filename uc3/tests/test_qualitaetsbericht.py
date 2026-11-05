@@ -15,6 +15,7 @@ from statagent.berichte.qualitaetsbericht import (
     BerichtFehler,
     _auffaelligkeiten_daten,
     _lesbar,
+    _md_revision,
     _rueckfragen,
     _rueckfragen_daten,
     _ueberblick,
@@ -23,6 +24,7 @@ from statagent.berichte.qualitaetsbericht import (
     bericht_erzeugen,
     bericht_schreiben,
     grundlage_kurz,
+    im_zeitraum,
     text_glaetten,
     zahl,
 )
@@ -320,7 +322,11 @@ def test_rueckfragen_je_monat_vollstaendig_und_ohne_doppelung(conn: Verbindung) 
     assert spalte == [["keine Rückfrage nötig"], ["noch keine Rückfrage gestellt"]]
 
     oktober = {r["nr"] for r in _rueckfragen_daten("2025-10", [], rueckfragen)}
-    assert oktober == {"R1", "R3", "R6", "R8"}  # Einzelmonate nur im eigenen Monat, „alle“ ab ab_lieferung
+    # Einzelmonate nur im eigenen Monat, „alle“ ab ab_lieferung; R8 gehört zur Prüfregel P19 und steht nur mit
+    # einem Treffer, der auf sie verweist, in § 3 (Runde 4).
+    assert oktober == {"R1", "R3", "R6"}
+    p19 = _pruef_treffer("P19_phantom_doppelmeldung", None, "R8", "nicht-erklaerbar")
+    assert "R8" in {r["nr"] for r in _rueckfragen_daten("2025-10", [p19], rueckfragen)}
     assert "R5" not in {r["nr"] for r in _rueckfragen_daten("2025-10", treffer[1:2], rueckfragen)}
 
     for r in _rueckfragen_daten("2024-08", [], rueckfragen):
@@ -448,7 +454,8 @@ def test_saisonmonat_und_revision_aus_lieferausfall_verweisen_richtig() -> None:
     assert _verweise(p14, rueckfragen, "2024-09") == []
     p14_offen = p14 | {"einstufung": "nicht-erklaerbar"}
     assert _verweise(p14_offen, rueckfragen, "2024-09") == ["R10"]
-    assert _verweise(p14_offen, rueckfragen, "2024-11") == []
+    # Runde 4: Zur eigenen Prüfregel gilt die Rückfrage in jedem Monat (v2 springt in anderen Monaten als v1).
+    assert _verweise(p14_offen, rueckfragen, "2024-11") == ["R10"]
     p23 = _pruef_treffer("P23_revision_vormonat", None, "neu", "nicht-erklaerbar") | {
         "art": "revision_vormonat",
         "umfang": "2025-10: +343 (0,1 %)",
@@ -499,3 +506,66 @@ def test_v2_ueberblick_zaehlt_im_berichtsmonat(conn: Verbindung) -> None:
     assert f"| davon gezählt im Berichtsmonat (mindestens ein Tag) | {zahl(gezaehlt)} |" in text
     assert "am Stichtag |" not in _abschnitt(text, 1)
     assert text.startswith("# Qualitätsbericht – Berichtsmonat 2024-08 (Regelsatz v2: Auftrag 2)\n")
+
+
+def test_v2_texte_folgen_der_monatszaehlung_und_r10_nur_mit_verweis() -> None:
+    # Fängt (Runde 4): v2 zeigte „Bestand am Stichtag“ und „Verhältnisse am Stichtag“ aus den Satzvorlagen, obwohl
+    # über den Monat gezählt wird; R10 stand in § 3 eines Monats, in dem § 2 „keine Rückfrage nötig“ sagt;
+    # § 5 nannte „veröffentlicht“, obwohl im Regelsatz nichts veröffentlicht ist.
+    satz = "Der Bestand am Stichtag weicht ab (10 Verhältnisse am Stichtag)."
+    assert im_zeitraum(satz, "Stichtag") == satz
+    assert (
+        im_zeitraum(satz, "Monat")
+        == "Der Bestand im Berichtsmonat weicht ab (10 Verhältnisse im Berichtsmonat)."
+    )
+
+    r10: dict[str, object] = {
+        "nr": "R10",
+        "titel": "Sprünge",
+        "frage": "Ursache?",
+        "vorschlag": "wie geliefert",
+        "regel_name": "P14_sprung_aggregat",
+        "lieferungen": "lieferung_2025-03",
+        "ab_lieferung": None,
+        "gestellt_am": None,
+        "antwort": None,
+        "antwort_am": None,
+        "zu_pruefung": True,
+    }
+    plausibel = _pruef_treffer("P14_sprung_aggregat", None, None, "erklaert-plausibel")
+    assert _rueckfragen_daten("2025-03", [plausibel], [r10]) == []
+    offen = plausibel | {"einstufung": "nicht-erklaerbar"}
+    assert [x["nr"] for x in _rueckfragen_daten("2025-04", [offen], [r10])] == ["R10"]
+    ohne_pruefung = r10 | {"nr": "R3", "regel_name": "E07_fortschreibung_lieferausfall", "zu_pruefung": False}
+    assert [x["nr"] for x in _rueckfragen_daten("2025-03", [], [ohne_pruefung])] == ["R3"]
+
+    zeile = {
+        "berichtsmonat": "2025-08",
+        "veroeffentlicht": 10,
+        "vorlaeufig": True,
+        "damals_vorlaeufig": True,
+        "aktuell": 9,
+        "differenz": -1,
+        "hauptursache": None,
+    }
+    revision = {"zeilen": [zeile], "details": [], "satz": None, "nachrechnung": []}
+    v2 = "\n".join(_md_revision(revision | {"veroeffentlicht_gibt_es": False}))
+    assert (
+        "| Berichtsmonat | bisher gerechnet |" in v2
+        and "| 2025-08 | 10 |" in v2
+        and "veröffentlichte Monate" not in v2
+    )
+    v1 = "\n".join(_md_revision(revision | {"veroeffentlicht_gibt_es": True}))
+    assert "| Berichtsmonat | veröffentlicht |" in v1 and "| 2025-08 | 10 (vorläufig) |" in v1
+
+
+def test_im_zeitraum_laesst_den_bezugstag_des_alters_stehen() -> None:
+    # Fängt: In v2 stand „Alter in vollendeten Jahren im Berichtsmonat“, das Alter gilt aber am Stichtag
+    # (Review 5a, 05.11.); der Kopf des Bestands-Belegs folgt dagegen dem Zählzeitraum.
+    from statagent.berichte.qualitaetsbericht import im_zeitraum
+
+    alter = "Alter in vollendeten Jahren am Stichtag (E03, R5)"
+    kopf = "-- _bestand: Verhältnisse am Stichtag nach Abschnittswahl"
+    assert im_zeitraum(alter, "Monat") == alter
+    assert im_zeitraum(kopf, "Monat") == "-- _bestand: Verhältnisse im Berichtsmonat nach Abschnittswahl"
+    assert im_zeitraum(kopf, "Stichtag") == kopf
