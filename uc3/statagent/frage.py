@@ -22,6 +22,7 @@ from statagent.agenten.werkzeuge import AbfrageVerweigert, sql_lesen
 from statagent.berichte.sheet import STICHTAG, STICHTAG_VARIABLE
 from statagent.db import Verbindung
 from statagent.ergebnis import letzter_lauf, monat_verschieben, monatserster, monatsletzter
+from statagent.pensionen import ist_pensionsfrage, pensionsantwort
 from statagent.regeln import Regel, regeln_laden, regelstand
 from statagent.uc4 import (
     _ISO,
@@ -1196,6 +1197,13 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     """
     frage, notizen = normalisieren(frage)
     typ = fragetyp(frage)
+    if ist_pensionsfrage(frage) and not _PERSON.search(frage.lower()):
+        try:
+            pension = pensionsantwort(conn, frage)
+        except (psycopg.Error, AbfrageVerweigert):
+            return _antwort(typ, NICHT_LESBAR, hinweise=[NICHT_LESBAR])
+        pension["text"] = " ".join([*notizen, pension["text"]])
+        return pension
     absage = nicht_auswertbar(frage)
     if absage is not None:
         return _antwort(typ, absage, hinweise=[absage])

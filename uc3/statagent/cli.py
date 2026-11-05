@@ -28,9 +28,13 @@ app = typer.Typer(
 db_app = typer.Typer(help="Datenbank: Schema einrichten und Rohdaten prüfen.", no_args_is_help=True)
 regeln_app = typer.Typer(help="Regeln als Daten: anzeigen, exportieren, freigeben.", no_args_is_help=True)
 vorschlag_app = typer.Typer(help="Vorschläge der Agenten ansehen.", no_args_is_help=True)
+pensionen_app = typer.Typer(
+    help="Pensionsstatistik 2018 bis 2025: Meldungen der Träger laden, prüfen, ausgeben.", no_args_is_help=True
+)
 app.add_typer(db_app, name="db")
 app.add_typer(regeln_app, name="regeln")
 app.add_typer(vorschlag_app, name="vorschlag")
+app.add_typer(pensionen_app, name="pensionen")
 
 JsonOption = Annotated[bool, typer.Option("--json", help="Ausgabe als JSON")]
 
@@ -836,6 +840,89 @@ def antwort(
     for nummer, beleg in enumerate(daten["belege"]):
         zeilen.append(f"SQL [{nummer}]: {beleg['sql']}")
     _ausgabe(daten, als_json, "\n".join(zeilen))
+
+
+# --- pensionen ----------------------------------------------------------------------------------------------
+
+
+@pensionen_app.command("laden")
+def pensionen_laden(
+    ordner: Annotated[
+        Path | None, typer.Option(help="Ordner mit JJJJ/*.xlsx; Standard: pensionen/ im Startpaket")
+    ] = None,
+    als_json: JsonOption = False,
+) -> None:
+    """Liest alle Meldungen der Träger. Ein unbekanntes Format bricht ab, dann bleibt die Datenbank unverändert."""
+    from statagent.pensionen import PensionFehler, laden
+
+    with verbinden() as conn:
+        try:
+            daten = laden(conn, ordner)
+        except PensionFehler as fehler:
+            typer.echo(f"Nichts geladen. {fehler}", err=True)
+            raise typer.Exit(1) from fehler
+    text = (
+        f"{daten['dateien']} Dateien, {len(daten['formate'])} Formate, {daten['werte']} Werte, "
+        f"{daten['summen']} Summen als Prüfwert, Hash {daten['ergebnis_hash'][:16]}"
+        + (" (unverändert)" if daten["unveraendert"] else "")
+    )
+    _ausgabe(daten, als_json, text)
+
+
+@pensionen_app.command("pruefen")
+def pensionen_pruefen(
+    ausgabe: Annotated[Path | None, typer.Option(help="Bericht als Markdown in diese Datei schreiben")] = None,
+    als_json: JsonOption = False,
+) -> None:
+    """Prüfbericht: Summen gegen die Dateien, Lücken, Übergang 2019/2020, Auffälligkeiten. Ändert keine Zahl."""
+    from statagent.pensionen import bericht_text, pruefbericht
+
+    with verbinden() as conn:
+        bericht = pruefbericht(conn)
+    text = bericht_text(bericht)
+    if ausgabe:
+        ausgabe.write_text(text, encoding="utf-8")
+    _ausgabe(bericht, als_json, text)
+    if not bericht["ladung"]["dateien"] or bericht["summen"]["abweichend"] or bericht["vorzeitig"]:
+        raise typer.Exit(1)
+
+
+@pensionen_app.command("tabelle")
+def pensionen_tabelle(
+    jahr: Annotated[int, typer.Option(help="Jahr 2018 bis 2025")],
+    nummer: Annotated[str, typer.Option("--tabelle", help="T12 Pensionsstand, T13 vorzeitige Alterspensionen")] = "T12",
+    als_json: JsonOption = False,
+) -> None:
+    """Tabelle 12 oder 13 eines Jahres mit den selbst gebildeten Summen über die Träger."""
+    from statagent.pensionen import PensionFehler, tabelle
+
+    with verbinden() as conn:
+        try:
+            daten = tabelle(conn, jahr, nummer)
+        except PensionFehler as fehler:
+            typer.echo(str(fehler), err=True)
+            raise typer.Exit(2) from fehler
+    text = "\n".join(
+        f"{z['bezeichnung']:<60} {z['pensionsart']:<12} {z['geschlecht']} {z['wert']:>10}" for z in daten["zeilen"]
+    )
+    _ausgabe(daten, als_json, text or f"Keine Zahlen für {jahr}: zuerst `uc3 pensionen laden`.")
+
+
+@pensionen_app.command("freigeben")
+def pensionen_freigeben(
+    name: Annotated[str, typer.Option(help="Vor- und Nachname der freigebenden Person")],
+    als_json: JsonOption = False,
+) -> None:
+    """Gibt Regeln und Zahlen mit Namen frei: vorläufig → endgültig (danach unveränderlich)."""
+    from statagent.pensionen import PensionFehler, freigeben
+
+    with verbinden() as conn:
+        try:
+            daten = freigeben(conn, name, repo_pfad=konfig.REPO_WURZEL)
+        except (PensionFehler, NameUngueltig) as fehler:
+            typer.echo(f"Nicht freigegeben. {fehler}", err=True)
+            raise typer.Exit(1) from fehler
+    _ausgabe(daten, als_json, f"{daten['freigegeben_von']} hat {daten['zellen']} Zahlen freigegeben.")
 
 
 def main() -> None:
