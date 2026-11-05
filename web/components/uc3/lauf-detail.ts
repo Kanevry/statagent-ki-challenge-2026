@@ -36,6 +36,9 @@ export interface Treffer {
 /** Felder aus meta.pruefung_treffer.details, die die Seite liest; alles andere bleibt unbeachtet. */
 export interface TrefferDetails {
   anteil?: number;
+  /** P15/P17: Wert dieses Monats und des Vormonats (bei P16 steht in „vormonat“ der Monat als Text). */
+  aktuell?: number;
+  vormonat?: number | string;
   rueckfrage?: string;
   auspraegungen?: { code: string; gliederung: string; aktuell: number; vormonat: number }[];
 }
@@ -425,11 +428,24 @@ export function haltSatz(
         ? `${im} fehlt eine Gruppe ganz, die es im ${vm} noch gab. ${deshalb}`
         : `${im} fehlen ${formatZahl(n)} Gruppen ganz, die es im ${vm} noch gab. ${deshalb}`;
     }
-    case "zeilenzahl_vs_vormonat":
-      return `${im} weicht die Lieferung um ${formatZahl(n)} ${n === 1 ? "Zeile" : "Zeilen"} von der vorigen ab. ${deshalb}`;
+    case "zeilenzahl_vs_vormonat": {
+      const r = richtung(t);
+      const art = r === "kleiner" ? "weniger" : r === "groesser" ? "mehr" : null;
+      return art
+        ? `${im} hat die Lieferung ${formatZahl(n)} ${n === 1 ? "Zeile" : "Zeilen"} ${art} als die vorige. ${deshalb}`
+        : `${im} weicht die Lieferung um ${formatZahl(n)} ${n === 1 ? "Zeile" : "Zeilen"} von der vorigen ab. ${deshalb}`;
+    }
     default:
       return `${im} hält die Prüfung „${trefferTitel(t, lieferung).replace(/\.$/, "")}“ den Monat an.`;
   }
+}
+
+/** Richtung einer Mengen-Prüfung aus details (aktuell gegen vormonat), sonst null. */
+function richtung(t: { details?: TrefferDetails | null }): "kleiner" | "groesser" | null {
+  const a = t.details?.aktuell;
+  const v = t.details?.vormonat;
+  if (typeof a !== "number" || typeof v !== "number" || a === v) return null;
+  return a < v ? "kleiner" : "groesser";
 }
 
 /** Haltegrund in wenigen Wörtern für die Monatsübersicht („jedes fünfte fehlt“, „freie Dienstverträge fehlen“). */
@@ -449,7 +465,7 @@ export function haltKurz(
     case "bestand_vs_vormonat":
       return "Bestand stark gesunken";
     case "zeilenzahl_vs_vormonat":
-      return "Lieferung deutlich kleiner";
+      return richtung(t) === "groesser" ? "Lieferung deutlich größer" : richtung(t) === "kleiner" ? "Lieferung deutlich kleiner" : "Lieferung deutlich anders";
     default:
       return "eine Prüfung hält an";
   }
@@ -471,8 +487,14 @@ export function ausLieferung(lauf: Pick<Lauf, "gezaehlt" | "fortgeschrieben">): 
 }
 
 /** „425.151 gelesene Zeilen = 387.180 gezählt + 36.308 nicht gezählt + 1.663 ausgeschlossen.“ (ohne Übernommene) */
-export function abrechnungSatz(lauf: Pick<Lauf, "gelesen" | "gezaehlt" | "fortgeschrieben" | "nichtGezaehlt" | "ausgeschlossen">): string {
-  return `${formatZahl(lauf.gelesen)} gelesene Zeilen = ${formatZahl(ausLieferung(lauf))} gezählt + ${formatZahl(lauf.nichtGezaehlt)} nicht gezählt + ${formatZahl(lauf.ausgeschlossen)} ausgeschlossen.`;
+export function abrechnungSatz(
+  lauf: Pick<Lauf, "gelesen" | "gezaehlt" | "fortgeschrieben" | "nichtGezaehlt" | "ausgeschlossen">,
+  gehtAuf = true,
+): string {
+  const teile = `${formatZahl(ausLieferung(lauf))} gezählt + ${formatZahl(lauf.nichtGezaehlt)} nicht gezählt + ${formatZahl(lauf.ausgeschlossen)} ausgeschlossen`;
+  return gehtAuf
+    ? `${formatZahl(lauf.gelesen)} gelesene Zeilen = ${teile}.`
+    : `${formatZahl(lauf.gelesen)} gelesene Zeilen ≠ ${teile}. Die Abrechnung geht nicht auf.`;
 }
 
 export function determinismusSatz(d: Determinismus): string {
@@ -609,6 +631,7 @@ export function sqlDeterminismus(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "r
 export function sqlTreffer(lauf: Pick<Lauf, "id" | "quelleId">, t: Pick<Treffer, "regelId" | "ebene" | "belegSql">): string {
   const kopf = [
     "SELECT r.name, p.anzahl, p.umfang, coalesce(p.einstufung, 'nicht-erklaerbar') AS einstufung, p.massnahme, p.anhalten,",
+    "       p.details,",
     "       ARRAY(SELECT q.nr FROM meta.rueckfrage q WHERE q.antwort IS NULL",
     "             AND (q.nr = p.details ->> 'rueckfrage' OR q.regel_name = r.name)) AS offene_rueckfragen",
     "FROM meta.pruefung_treffer p JOIN meta.regel r ON r.id = p.regel_id",

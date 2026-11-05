@@ -18,6 +18,7 @@ import {
   kurzZeit,
   leseVorschlag,
   ohneProbeSatz,
+  probeAendert,
   probeJeKategorie,
   probeTabelleBeleg,
   probeTitel,
@@ -201,7 +202,7 @@ function ProbeTabelleAnsicht({ vorschlag, tabelle: t }: { vorschlag: number; tab
   const kopf = "py-2 text-left font-sans text-14 font-medium text-slate";
   const wort = "py-2 pr-4 text-left font-sans text-16 font-normal text-ink";
   const zahlZ = "py-2 pr-6 text-right font-sans text-16 tabular-nums text-ink";
-  const gleich = t.gesamt.vorher === t.gesamt.nachher;
+  const aendert = probeAendert(t);
   return (
     <div className="flex flex-col gap-2">
       <table className="w-full max-w-2xl border-collapse">
@@ -245,7 +246,13 @@ function ProbeTabelleAnsicht({ vorschlag, tabelle: t }: { vorschlag: number; tab
         </tbody>
       </table>
       <div className="flex flex-wrap items-baseline gap-x-4">
-        {gleich && <span className="font-sans text-16 text-ink">Gesamt bleibt gleich, nur die Gliederung ändert sich.</span>}
+        <span className="font-sans text-16 text-ink">
+          {aendert.gesamt
+            ? `Gesamt ändert sich um ${formatDifferenz(t.gesamt.nachher - t.gesamt.vorher)}.`
+            : aendert.gliederung
+              ? "Gesamt bleibt gleich, nur die Gliederung ändert sich."
+              : `Die ${probeTitel(t.lieferung)} ändert keine Zahl.`}
+        </span>
         <BelegLink {...probeTabelleBeleg(vorschlag, t)} />
       </div>
     </div>

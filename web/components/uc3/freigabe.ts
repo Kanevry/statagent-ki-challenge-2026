@@ -1111,6 +1111,12 @@ export interface ProbeTabelle {
  * ihrer Kategorie zugeordnet; ein Code, der selbst eine Kategorie ist (Regelsatz v2), steht unter sich selbst.
  * Ohne gerechnete Probe null.
  */
+/** Ändert die Probe überhaupt etwas? Eine Zahl je Kategorie, die Gliederung (getrennt gezählte Gruppen) oder Gesamt. */
+export function probeAendert(t: ProbeTabelle): { gliederung: boolean; gesamt: boolean } {
+  const gliederung = t.zeilen.some((z) => z.vorher !== z.nachher || z.vorherTeile.length > 1);
+  return { gliederung, gesamt: t.gesamt.vorher !== t.gesamt.nachher };
+}
+
 export function probeJeKategorie(probe: unknown, kategorien: Kategorien): ProbeTabelle | null {
   const [monat] = probeMonate(probe);
   if (!monat) return null;
@@ -1154,8 +1160,9 @@ export function probeTabelleBeleg(vorschlagIdWert: number, t: ProbeTabelle): Bel
     stand: "vorlaeufig",
     verweis: `Probe zu Vorschlag uc3/${vorschlagIdWert}, gerechnet und zurückgerollt`,
     sql: [
-      "SELECT coalesce(k.beschaeftigungskategorie, q.code) AS kategorie,",
-      "       sum(q.vorher) AS vorher, sum(q.nachher) AS nachher",
+      "-- Je Gruppe der Lieferung: vorher getrennt (z. B. Dienstvertrag und freier Dienstvertrag), nachher je Kategorie",
+      "SELECT coalesce(k.beschaeftigungskategorie, q.code) AS kategorie, q.code AS gruppe,",
+      "       q.vorher, q.nachher",
       "FROM meta.vorschlag v",
       "CROSS JOIN LATERAL (",
       "  SELECT coalesce(a.key, b.key) AS code,",
@@ -1165,9 +1172,8 @@ export function probeTabelleBeleg(vorschlagIdWert: number, t: ProbeTabelle): Bel
       ") q",
       "LEFT JOIN stat.klass_qualifikation k ON k.code = q.code",
       `WHERE v.id = ${literal(vorschlagIdWert)}`,
-      "GROUP BY 1",
       "UNION ALL",
-      `SELECT 'Gesamt', (${basis}->'vorher'->>'gesamt')::bigint, (${basis}->'nachher'->>'gesamt')::bigint`,
+      `SELECT 'Gesamt', NULL, (${basis}->'vorher'->>'gesamt')::bigint, (${basis}->'nachher'->>'gesamt')::bigint`,
       `FROM meta.vorschlag v WHERE v.id = ${literal(vorschlagIdWert)};`,
     ].join("\n"),
   };

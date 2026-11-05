@@ -8,6 +8,8 @@ import {
   annahmeSatz,
   leseQualitaetsbericht,
   sqlAnnahmen,
+  sqlAnnahmePruefung,
+  sqlAnnahmeWirkung,
   sqlRueckfragen,
   type Annahme,
   type Qualitaetsbericht,
@@ -29,6 +31,7 @@ import {
   massnahmeSatz,
   revisionSatz,
   sortiereTreffer,
+  sqlBestandMitVormonat,
   sqlDeterminismus,
   sqlKeineRevision,
   sqlKennzahlen,
@@ -42,7 +45,9 @@ import {
   type Treffer,
 } from "@/components/uc3/lauf-detail";
 import { istMonat, monatName, stichtag, verschieben } from "@/components/uc3/monat";
+import { abrechnung } from "@/components/uc3/laeufe";
 import { laufPfad, uebersichtPfad } from "@/components/uc3/navigation";
+import type { Lauf } from "@/components/uc3/typen";
 import { alltag } from "@/components/uc3/sprache";
 import { Bundeslaender } from "./bundeslaender";
 
@@ -247,8 +252,17 @@ function RueckfrageZeile({ r }: { r: Rueckfrage }) {
   );
 }
 
-function AnnahmeZeile({ a }: { a: Annahme }) {
+function AnnahmeZeile({ a, lauf }: { a: Annahme; lauf: Lauf }) {
   const wirkung = a.wirkungSaetze === null ? null : formatZahl(a.wirkungSaetze);
+  const eins = a.wirkungSaetze === 1;
+  // Umfasst die Zahl alle geprüften Zeilen (eine Regel, die jede Zeile anfasst), sagt der Satz das dazu.
+  const alleZeilen = a.wirkungSaetze !== null && (a.wirkungSaetze === lauf.gelesen || a.wirkungSaetze === lauf.gelesen + lauf.fortgeschrieben);
+  const belegSql =
+    a.wirkungQuelle === "pruefung" && a.wirkungRegel
+      ? sqlAnnahmePruefung(lauf, a.wirkungRegel)
+      : a.wirkungQuelle === "regel" && a.wirkungRegel
+        ? sqlAnnahmeWirkung(lauf, a.wirkungRegel)
+        : null;
   return (
     <li className="border-b border-line">
       <details>
@@ -261,11 +275,12 @@ function AnnahmeZeile({ a }: { a: Annahme }) {
             {wirkung === null
               ? "Für diese Annahme gibt es in diesem Monat keine eindeutige Zahl."
               : a.wirkungQuelle === "pruefung"
-                ? `Betrifft in diesem Monat ${wirkung} Beschäftigungsverhältnisse, so viele findet die Prüfung.`
-                : `Betrifft in diesem Monat ${wirkung} ${a.wirkungSaetze === 1 ? "Zeile" : "Zeilen"}.`}
+                ? `Betrifft in diesem Monat ${wirkung} ${eins ? "Beschäftigungsverhältnis" : "Beschäftigungsverhältnisse"}, so viele findet die Prüfung.`
+                : `Betrifft in diesem Monat ${wirkung} ${eins ? "Zeile" : "Zeilen"}.${alleZeilen ? " Diese Zahl umfasst alle geprüften Zeilen, nicht nur die geänderten." : ""}`}
           </p>
           {a.begruendung && <p className="font-sans text-14 text-ink">{`Begründung: ${a.begruendung}`}</p>}
           {a.rueckfrage && <p className="font-sans text-14 text-slate">{`Gehört zu Rückfrage ${a.rueckfrage}.`}</p>}
+          {belegSql && <BelegLink {...laufBeleg(lauf, { quelle: a.wirkungQuelle === "pruefung" ? "meta.pruefung_treffer" : "meta.regel_wirkung", sql: belegSql })} />}
         </div>
       </details>
     </li>
@@ -278,8 +293,8 @@ function marken(detail: LaufDetail, bericht: Qualitaetsbericht | null): Marke[] 
   return [
     { id: "ueberblick", text: "Überblick", anzahl: null },
     { id: "auffaelligkeiten", text: "Auffälligkeiten", anzahl: sortiereTreffer(detail.treffer).length },
-    { id: "rueckfragen", text: "Rückfragen", anzahl: bericht?.rueckfragen.length ?? 0 },
-    { id: "annahmen", text: "Annahmen", anzahl: bericht?.annahmen.length ?? 0 },
+    { id: "rueckfragen", text: "Rückfragen", anzahl: bericht ? bericht.rueckfragen.length : null },
+    { id: "annahmen", text: "Annahmen", anzahl: bericht ? bericht.annahmen.length : null },
     { id: "revisionsbedarf", text: "Revisionsbedarf", anzahl: detail.revisionen.filter(hatRevisionsbedarf).length },
   ];
 }
@@ -306,6 +321,8 @@ function Sprungmarken({ liste, seitlich }: { liste: readonly Marke[]; seitlich: 
   );
 }
 
+const BERICHT_FEHLER = "Dieser Teil des Qualitätsberichts ließ sich gerade nicht lesen. Es wurde nichts geändert. Laden Sie die Seite in einer Minute neu.";
+
 function Abschnitte({ detail, bericht }: { detail: LaufDetail; bericht: Qualitaetsbericht | null }) {
   const { lauf, revisionen, regionen, determinismus } = detail;
   const tag = stichtag(lauf.lieferung);
@@ -319,7 +336,7 @@ function Abschnitte({ detail, bericht }: { detail: LaufDetail; bericht: Qualitae
 
       <Abschnitt id="ueberblick" titel="Überblick">
         <div className="flex flex-wrap items-baseline gap-x-3">
-          <p className="font-sans text-16 text-ink">{abrechnungSatz(lauf)}</p>
+          <p className="font-sans text-16 text-ink">{abrechnungSatz(lauf, abrechnung(lauf).gehtAuf)}</p>
           <BelegLink {...abrechnungBeleg(lauf)} />
         </div>
         <Mehr text="Bundesländer">
@@ -339,11 +356,14 @@ function Abschnitte({ detail, bericht }: { detail: LaufDetail; bericht: Qualitae
       <Abschnitt
         id="rueckfragen"
         titel={
-          rueckfragen.length === 0
+          !bericht
+            ? "Rückfragen"
+            : rueckfragen.length === 0
             ? "Keine Rückfrage betrifft diesen Monat."
             : `${formatZahl(rueckfragen.length)} ${rueckfragen.length === 1 ? "Rückfrage betrifft" : "Rückfragen betreffen"} diesen Monat, ${offen === 0 ? "alle beantwortet" : `${formatZahl(offen)} offen`}.`
         }
       >
+        {!bericht && <p className="font-sans text-16 text-ink">{BERICHT_FEHLER}</p>}
         {rueckfragen.length > 0 && (
           <ul className="flex flex-col border-t border-line">
             {rueckfragen.map((r) => (
@@ -356,12 +376,13 @@ function Abschnitte({ detail, bericht }: { detail: LaufDetail; bericht: Qualitae
 
       <Abschnitt
         id="annahmen"
-        titel={annahmen.length === 0 ? "In diesem Monat gilt keine Annahme." : `${formatZahl(annahmen.length)} ${annahmen.length === 1 ? "Annahme gilt" : "Annahmen gelten"} in diesem Monat, jede als Regel umgesetzt.`}
+        titel={!bericht ? "Annahmen" : annahmen.length === 0 ? "In diesem Monat gilt keine Annahme." : `${formatZahl(annahmen.length)} ${annahmen.length === 1 ? "Annahme gilt" : "Annahmen gelten"} in diesem Monat, jede als Regel umgesetzt.`}
       >
+        {!bericht && <p className="font-sans text-16 text-ink">{BERICHT_FEHLER}</p>}
         {annahmen.length > 0 && (
           <ul className="flex flex-col border-t border-line">
             {annahmen.map((a) => (
-              <AnnahmeZeile key={a.nr} a={a} />
+              <AnnahmeZeile key={a.nr} a={a} lauf={lauf} />
             ))}
           </ul>
         )}
@@ -478,6 +499,13 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
           {halt ? haltSatz(halt, lauf.lieferung, detail.fdCodes) : bestandSatz(lauf, vormonat)}
         </Ueberschrift>
+        <div>
+          {halt ? (
+            <BelegLink {...laufBeleg(lauf, { quelle: "meta.pruefung_treffer", sql: sqlTreffer(lauf, halt) })} />
+          ) : (
+            <BelegLink {...laufBeleg(lauf, { sql: sqlBestandMitVormonat(lauf, vormonat) })} />
+          )}
+        </div>
         <Rechnung detail={detail} />
         <WegWeiter detail={detail} angehalten={halt !== null} />
       </header>

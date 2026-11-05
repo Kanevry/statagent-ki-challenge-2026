@@ -63,7 +63,7 @@ export function BelegLink({
   );
 }
 
-export type Stand = "veroeffentlicht" | "angehalten" | "vorlaeufig" | "freigegeben" | "offen" | "abgelehnt";
+export type Stand = "veroeffentlicht" | "angehalten" | "vorlaeufig" | "freigegeben" | "offen" | "abgelehnt" | "fehler";
 
 const STAND: Record<Stand, { wort: string; punkt: string }> = {
   veroeffentlicht: { wort: "veröffentlicht", punkt: "bg-slate" },
@@ -72,6 +72,7 @@ const STAND: Record<Stand, { wort: string; punkt: string }> = {
   freigegeben: { wort: "freigegeben", punkt: "bg-gruen" },
   offen: { wort: "wartet auf Freigabe", punkt: "bg-gelb" },
   abgelehnt: { wort: "abgelehnt", punkt: "bg-slate" },
+  fehler: { wort: "Abrechnung geht nicht auf", punkt: "bg-err-fg" },
 };
 
 /** Status als ein Wort mit Punkt (grau veröffentlicht, gelb angehalten, grün nur freigegeben). */

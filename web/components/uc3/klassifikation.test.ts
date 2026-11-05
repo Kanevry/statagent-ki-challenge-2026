@@ -98,12 +98,12 @@ describe("kategorieSaetze", () => {
     const s = kategorieSaetze(
       {
         ...stand,
-        auftrag: { ...auftrag, status: "freigegeben", von: "Bernhard Götzendorfer", am: "2026-11-05T15:53:49.778Z" },
+        auftrag: { ...auftrag, status: "freigegeben", von: "Erika Muster", am: "2026-11-05T15:53:49.778Z" },
       },
       liste,
       "v1",
     );
-    expect(s.auftrag).toContain("von Bernhard Götzendorfer am 5. November 2026 um 16:53 Uhr");
+    expect(s.auftrag).toContain("von Erika Muster am 5. November 2026 um 16:53 Uhr");
     expect(s.auftrag).toContain("zu 3 Beschäftigungskategorien zusammen: Angestellte, Arbeiter und Beamte");
   });
 });
@@ -209,7 +209,7 @@ describe("qualifikationsStaende", () => {
         regelId: 13,
         regelName: "R6_beschaeftigungskategorie",
         spalte: "code",
-        regelVon: "Bernhard Götzendorfer",
+        regelVon: "Erika Muster",
         regelAm: "2026-11-05T15:12:58.688Z",
         auftrag: {
           vorschlagId: 24,
@@ -217,7 +217,7 @@ describe("qualifikationsStaende", () => {
           status: "freigegeben",
           regelsatzZiel: "v2",
           zielSpalte: "beschaeftigungskategorie",
-          von: "Bernhard Götzendorfer",
+          von: "Erika Muster",
           am: "2026-11-05T15:53:49.778Z",
         },
       },
@@ -225,7 +225,7 @@ describe("qualifikationsStaende", () => {
     );
     expect(staende.map((s) => s.regelsatz)).toEqual(["v1", "v2"]);
     expect(staende[0]?.satz).toBe("Regelsatz v1 zählt die 2 Qualifikationen einzeln, so wie sie geliefert werden.");
-    expect(staende[1]?.freigabe).toBe("freigegeben von Bernhard Götzendorfer am 5. November 2026 um 16:53 Uhr");
+    expect(staende[1]?.freigabe).toBe("freigegeben von Erika Muster am 5. November 2026 um 16:53 Uhr");
     expect(staende[1]?.auftrag).toEqual({ titel: "Auftrag 1", vorschlagId: 24 });
   });
 });

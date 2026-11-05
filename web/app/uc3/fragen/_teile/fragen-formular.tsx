@@ -285,7 +285,13 @@ function Antwort({
   const verstanden = verstandenSatz(antwort);
   const [beleg] = antwort.belege;
   const eine = antwort.zahlen.length === 1 ? antwort.zahlen[0] : undefined;
-  const stand = beleg?.stand === "vorlaeufig" ? "vorlaeufig" : beleg?.stand === "endgueltig" ? "veroeffentlicht" : null;
+  // Vorläufig, sobald irgendein Beleg vorläufig ist; veröffentlicht nur, wenn alle Belege endgültig sind (Review !104).
+  const staende = antwort.belege.map((b) => b.stand);
+  const stand = staende.includes("vorlaeufig")
+    ? "vorlaeufig"
+    : staende.length > 0 && staende.every((st) => st === "endgueltig")
+      ? "veroeffentlicht"
+      : null;
   // Alle Abfragen in einem Beleg: ein Beleg je Antwort.
   const sqls = [...new Set(antwort.belege.map((b) => b.sql).filter((s): s is string => Boolean(s)))];
 
