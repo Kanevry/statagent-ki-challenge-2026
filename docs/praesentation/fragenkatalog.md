@@ -389,7 +389,7 @@ Fünftens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parame
 
 #### Stand (was vom Zielbild auf main ist)
 
-Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.2026 19:40 auf der Online-Demo (POST `/api/uc4/frage` mit der Wien-Frage). Vor Fr 07:00 noch einmal messen. Nicht gemessen heißt: nicht behaupten.
+Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.2026 19:40 und 20:00 auf der Online-Demo (POST `/api/uc4/frage` mit der Wien-Frage), dazu der Prüfpunkt des Leads um 20:00. Vor Fr 07:00 noch einmal messen. Nicht gemessen heißt: nicht behaupten.
 
 | Teil des Zielbilds | Stand auf main | Beleg |
 |---|---|---|
@@ -400,7 +400,14 @@ Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.
 | UC1-Adapter (Lotse) | registriert | `uc1/pyproject.toml`, `uc1.uc4:router_adapter` |
 | Freigabe mit Namen in UC2 | im Code | `uc2/src/uc2/verhandlung/freigabe.py`, `web/app/api/uc2/faelle/[id]/freigabe/route.ts` |
 | Freigabe mit Namen in UC1 | nicht gefunden | keine Fundstelle auf main |
-| Wien-Frage liefert drei Antworten | online ja, in 9 s: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator und Lotse mit Modell gpt-5-4-mini, beide mit dem Beleg aus UC3; nichts fehlt | gemessen 19:40 |
+| Wien-Frage liefert drei Antworten | online ja: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator und Lotse mit Modell gpt-5-4-mini, beide mit dem Beleg aus UC3; nichts fehlt; 9 bis 15 s | gemessen 19:40, 19:58 (Lead) und 20:00 |
+| Live-Änderung per Agent (D2 Teil 2) | Endserie läuft, MR !150 Stand 20:00 noch rot; Teil 2 nur, wenn beim Freeze auf main | Prüfpunkt Lead 20:00 |
+| Klassifikation bis 5-Steller und Gemeinden | kommt gegen 23:00 als Klassifikation; gezählt wird weiter nach Abschnitt und Bundesland (Rohdaten haben nur das) | Prüfpunkt Lead 20:00 |
+| Pensionsmeldungen der Träger | nicht eingelesen | Prüfpunkt Lead 20:00, C14 |
+| Lotse, verdeckter Test | Trefferquote 8 von 10, Träger richtig 6 von 10, Grenzen erkannt 3 von 8; Verbesserung eingespielt, Nachmessung offen | Prüfpunkt Lead 20:00 |
+| Simulator ohne passenden Zeitungsartikel | sagt offen „Modellannahme“, erfindet keinen Beleg | Prüfpunkt Lead 20:00, Messung E0 19:50 |
+| Online-Demo, Budget | 1.000 Modellaufrufe je Tag | Prüfpunkt Lead 20:00 |
+| Alle Seiten online | /, /uc1, /uc2, /uc3, /uc3/fragen, /uc4, /praesentation je HTTP 200 | Prüfpunkt Lead, gemessen 19:58 |
 | Online-Demo | mit KI: Azure gpt-5-4-mini (seit 19:17 laut Betrieb); `/uc4` wählt das Modell je Frage | Antwort der Wien-Frage, gemessen 19:40 |
 
 **Pflege:** Vor Fr 07:00 mit dem Stand auf main abgleichen, Uhrzeit und Commit neu setzen.

@@ -17,9 +17,9 @@ belege: [F4, F5, F7, F8, F9]
 |---|---|---|---|
 | 1963-13-09 | Geboren im 13. Monat | 370 | August 2024 |
 | 1871-04-30 | 117 bis 153 Jahre alt | 7 | August 2024 |
-| 2 × dieselbe | Doppelte Zeilen | 1.663 | März 2025 |
+| 2 × dieselbe Zeile | Doppelte Zeilen | 1.663 | März 2025 |
 
-Dazu: fehlende freie Dienstverträge (1.492, März 2025), vertauschte Spalten (Juni 2025), leere Felder (1.996, August 2024), alte Branchencodes von 2003 und die Lücke im Oktober 2025.
+Dazu: fehlende freie Dienstverträge (1.492, März 2025), vertauschte Spalten (Juni 2025), leere Felder für Bundesland und Branche (1.996, August 2024), alte Branchencodes von 2003 und die Lücke im Oktober 2025. Jeden Fehler korrigiert eine Regel, oder StatAgent hält an und fragt nach.
 
 Herkunft: Qualitätsberichte August 2024, März, Juni und Oktober 2025
 

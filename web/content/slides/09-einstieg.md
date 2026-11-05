@@ -9,7 +9,7 @@ bereiche: [Weiterentwicklung und Betrieb, Bedienbarkeit]
 screenshot: null
 pen_frame: null
 belege: [F18]
-belegt: [StatAgent]
+belegt: [StatAgent, Simulator, Lotse]
 ---
 
 # Zielbild: eine Frage, drei Antworten.
@@ -20,13 +20,13 @@ belegt: [StatAgent]
 2. **Simulator:** was mehr oder weniger Personal für Wartezeiten bedeutet, abgewogen aus Sicht von Kassen, Ärzten und Versicherten.
 3. **Lotse:** in einfachen Worten, was das für Ihren nächsten Arzttermin heißt.
 
-Gemeinsamer Einstieg
+Ein Einstieg für alle drei
 
-Herkunft: 7.498 gemessen mit uc3 frage, gleich dem Orakel der Review-Bank, Wien, ÖNACE 2025 Abschnitt R, März 2025
+Herkunft: 7.498 gemessen mit der Datenfrage von StatAgent am 5. November 2026, Wien, ÖNACE 2025 Abschnitt R, März 2025
 
 ## Sprechernotizen
 
 Das ist das Ziel: Eine Frage läuft durch alle drei.
 [→] StatAgent liefert die geprüfte Zahl: 7.498 Beschäftigungsverhältnisse.
 [→] Der Simulator wägt ab, was mehr oder weniger Personal für Wartezeiten bedeutet.
-[→] Der Lotse erklärt es in einfachen Worten. So wird aus drei Aufgaben eine vierte.
+[→] Der Lotse erklärt es in einfachen Worten. So wird aus drei Aufgaben eine vierte: ein gemeinsamer Einstieg, eine Frage für alle drei.
