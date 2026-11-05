@@ -193,3 +193,18 @@ def test_fehlende_azure_url_auf_stufe_1_ist_konfigfehler(protokoll, monkeypatch)
 
     with pytest.raises(KonfigFehler):
         complete([{"role": "user", "content": "x"}], provider="azure")
+
+
+def test_bekannte_namen_ignoriert_beispiel_und_vorgabewerte():
+    """Fängt (Review !7/!20): ein Schlüssel aus examples/default galt als Schema-Name im Protokoll-Ort."""
+    from plattform.llm import kern
+
+    schema = {
+        "type": "object",
+        "properties": {"zahl": {"type": "integer", "default": {"properties": {"aus_default": 1}}}},
+        "examples": [{"properties": {"aus_beispiel": 1}}],
+        "const": {"properties": {"aus_const": 1}},
+    }
+    namen = kern._bekannte_namen(schema)
+    assert namen == {"zahl"}
+    assert kern._ort(["aus_beispiel", 0], namen) == "$.*[0]"

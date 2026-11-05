@@ -1,0 +1,80 @@
+# Deckung einer Aussage durch ihr Zitat (Issue #31, Messbefund BPGG § 25 „ohne Vollmacht“).
+# deckung = Anteil der Inhaltswörter der Aussage, die (grob gestammt) im Zitat oder im Kontext des Abschnitts
+# stehen. Liegt sie unter `schwelle`, verwirft uc1.kern die Aussage. Die Heuristik ist lexikalisch: Sie
+# erkennt Zusätze mit neuen Wörtern, aber keine vertauschte Verneinung und keine freie, richtige Paraphrase
+# (siehe docs/plan/uc1/kern.md § Bekannte Grenzen).
+
+schwelle: 0.5  # Kalibrierung unten: gedeckt ≥ 0,62, ungedeckt ≤ 0,40 (Mitte der Lücke 0,51)
+
+# Funktionswörter und Allerweltsverben ohne eigene Behauptung. Bewusst NICHT hier: „nicht“, „kein“,
+# „ohne“, „immer“, „auch ohne“-Teile, „automatisch“; sie tragen oft genau den Zusatz, den das Zitat nicht hat.
+stoppwoerter: [
+  der, die, das, den, dem, des, ein, eine, einen, einem, einer, eines,
+  und, oder, aber, sowie, bzw, wenn, dass, daß, ob, weil, als, wie, so, auch, nur, noch, schon, dann, dabei,
+  ist, sind, war, wird, werden, wurde, kann, können, muss, müssen, darf, dürfen, soll, sollen, gilt, gelten,
+  hat, haben, gibt, gibt's, es, man, sie, er, ihr, ihre, ihren, ihrem, ihrer, sein, seine, seinen, seinem,
+  wer, was, wo, diese, dieser, dieses, diesem, diesen, jede, jeder, jedes, dort, hier, dazu, damit, davon,
+  für, mit, von, vom, bei, beim, zu, zum, zur, aus, auf, an, am, in, im, um, über, unter, nach, vor, bis,
+  pro, je, etwa, sich, selbst, sehr, mehr, viel, bitte,
+  bekommt, bekommen, braucht, brauchen, erhält, erhalten, geben, gibt, stellen, stellt, wichtig,
+  the, a, an, of, to, and, or, is, are, can, be, for, with, in, on, at, by
+]
+
+# Gleichwertige Schreibweisen: Steht die rechte Form in Zitat oder Kontext, gilt das linke Wort als gedeckt.
+gleich:
+  prozent: ["v. h.", "%", "vom hundert"]
+  krankenkasse: ["krankenversicherung", "gesundheitskasse"]
+
+# Kalibrierung: handbeschriftete Paare aus dem Korpus (DB lotse), NICHT aus eval/lotse-set.yaml
+# (dort: BPGG § 4, § 22, ASVG § 131, 136, 138, 139, 162, 175, 253, 367, 45, GSVG § 36, 104a, 106).
+# label: gedeckt = die Aussage sagt nur, was das Zitat sagt; ungedeckt = sie behauptet mehr oder anderes.
+# Zitat = wörtlicher Ausschnitt aus lotse.abschnitt.text, kontext = lotse.abschnitt.kontext.
+kalibrierung:
+  - id: asvg141-g
+    abschnitt_id: 5131
+    kontext: "ASVG § 141 Höhe des Krankengeldes"
+    zitat: "Ab dem 43. Tag einer mit Arbeitsunfähigkeit verbundenen Erkrankung erhöht sich das Krankengeld auf 60 v. H. der Bemessungsgrundlage für den Kalendertag."
+    aussage: "Ab dem 43. Tag der Erkrankung erhöht sich das Krankengeld auf 60 Prozent der Bemessungsgrundlage."
+    label: gedeckt
+  - id: asvg141-u
+    abschnitt_id: 5131
+    kontext: "ASVG § 141 Höhe des Krankengeldes"
+    zitat: "Ab dem 43. Tag einer mit Arbeitsunfähigkeit verbundenen Erkrankung erhöht sich das Krankengeld auf 60 v. H. der Bemessungsgrundlage für den Kalendertag."
+    aussage: "Ab dem 43. Tag steigt das Krankengeld automatisch, rückwirkend und ohne ärztliche Bestätigung."
+    label: ungedeckt
+  - id: asvg132-u
+    abschnitt_id: 5111
+    kontext: "ASVG § 132 Bare Leistungen an Stelle von Sachleistungen"
+    zitat: "Die Träger der Krankenversicherung können in ihren Satzungen bestimmen, daß für Versicherte, deren Arbeitsverdienst einen in der Satzung festzusetzenden Betrag überschreitet, an Stelle der Sachleistungen bare Leistungen gewährt werden."
+    aussage: "Gutverdiener bekommen immer Geld statt Sachleistungen, ganz ohne Antrag."
+    label: ungedeckt
+  - id: bpgg25-g
+    abschnitt_id: 14182
+    kontext: "BPGG § 25 Antragstellung"
+    zitat: "Wird der Antrag bei einer anderen Behörde, einem anderen Sozialversicherungsträger, einem Gericht oder einem Gemeindeamt eingebracht, so ist der Antrag unverzüglich an den zuständigen Entscheidungsträger"
+    aussage: "Ein Antrag bei einer anderen Behörde oder einem Gemeindeamt wird an den zuständigen Entscheidungsträger weitergeleitet."
+    label: gedeckt
+  - id: bpgg25-u
+    abschnitt_id: 14182
+    kontext: "BPGG § 25 Antragstellung"
+    zitat: "Wird der Antrag bei einer anderen Behörde, einem anderen Sozialversicherungsträger, einem Gericht oder einem Gemeindeamt eingebracht, so ist der Antrag unverzüglich an den zuständigen Entscheidungsträger"
+    aussage: "Familienmitglieder können den Antrag auch ohne Vollmacht beim Gemeindeamt stellen."
+    label: ungedeckt
+  - id: bpgg25a-g
+    abschnitt_id: 14183
+    kontext: "BPGG § 25a Begutachtung"
+    zitat: "Auf Wunsch des Pflegebedürftigen oder seines gesetzlichen Vertreters (§ 1034 ABGB) ist bei der Untersuchung die Anwesenheit und Anhörung einer Person seines Vertrauens zu ermöglichen."
+    aussage: "Auf Wunsch darf bei der Untersuchung eine Person des Vertrauens anwesend sein."
+    label: gedeckt
+  - id: fsw-g
+    abschnitt_id: 72836
+    kontext: "fsw-antrag-auf-foerderung-von-leistungen.1779095804 S. 1"
+    zitat: "Antrag auf Förderung von Leistungen 1. Förderung Ich beantrage eine Förderung für Leistungen Pflege und Betreuung"
+    aussage: "Beim Fonds Soziales Wien beantragen Sie eine Förderung für Leistungen der Pflege und Betreuung."
+    label: gedeckt
+  - id: fsw-u
+    abschnitt_id: 72836
+    kontext: "fsw-antrag-auf-foerderung-von-leistungen.1779095804 S. 1"
+    zitat: "Antrag auf Förderung von Leistungen 1. Förderung Ich beantrage eine Förderung für Leistungen Pflege und Betreuung"
+    aussage: "Der Fonds Soziales Wien zahlt die Pflege zu Hause vollständig und ohne Einkommensprüfung."
+    label: ungedeckt

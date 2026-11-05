@@ -1,0 +1,16 @@
+{
+  "hinweis": "ERFUNDENER Demo-Kontext für UC4 (#107). Keine echten Werte, keine echte Lieferung.",
+  "uc": "uc3",
+  "text": "Im Monat 08/2026 warteten Versicherte im Median 19,6 Tage auf einen Termin für eine Rehabilitation. Im Vormonat waren es 23,1 Tage.",
+  "position": "Die Wartezeit ist kürzer als im Vormonat.",
+  "belege": [
+    {"uc": "uc3", "quelle": "Demo-Statistik Wartezeiten (erfunden)", "lieferung": "2026-08", "monat": "2026-08", "ref": "demo:wartezeit:2026-08"},
+    {"uc": "uc3", "quelle": "Demo-Statistik Wartezeiten (erfunden)", "lieferung": "2026-07", "monat": "2026-07", "ref": "demo:wartezeit:2026-07"}
+  ],
+  "zahlen": [
+    {"bezeichnung": "Wartezeit auf eine Rehabilitation im Median, 08/2026", "wert": 19.6, "einheit": "Tage", "beleg": 0},
+    {"bezeichnung": "Wartezeit auf eine Rehabilitation im Median, 07/2026", "wert": 23.1, "einheit": "Tage", "beleg": 1}
+  ],
+  "modell": null,
+  "protokoll_id": null
+}
