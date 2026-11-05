@@ -89,7 +89,7 @@ test("Frage absenden: drei Karten in Reihenfolge uc3, uc2, uc1, jede Zahl mit He
     await expect(zahl.locator('[data-baustein="herkunft"]')).toHaveCount(1);
   }
   await expect(page.getByRole("status").filter({ hasText: "3 Antworten da." })).toHaveCount(1);
-  await expect(page.locator('[data-uc-karte="uc2"]').getByText("von StatAgent")).toHaveCount(1);
+  await expect(page.locator('[data-uc-karte="uc2"]').getByText("von StatAgent", { exact: true })).toHaveCount(1);
 
   await gateMessen(page);
 });
