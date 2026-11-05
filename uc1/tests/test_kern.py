@@ -1106,3 +1106,53 @@ def test_unfallversicherung_nur_ueber_ausloeser_nicht_ueber_das_modell() -> None
     )
     assert "unfallversicherung" not in a.leistungen and "pflegegeld" in a.leistungen
     assert all(t["stelle"] != "AUVA" for t in a.traeger)
+
+
+def _ohne_leistung() -> dict[str, Any]:
+    return {
+        "lage": "",
+        "leistungen": [],
+        "angaben": {"status": None, "person": None, "bundesland": None},
+        "begriffe": [],
+    }
+
+
+def test_medizinische_frage_ohne_leistung_wird_uebergeben() -> None:
+    """Fängt eine medizinische Frage ohne Leistung, die aus Gesetzestexten beantwortet statt an Ärztin,
+    Arzt oder 1450 übergeben wird (Held-out #39, #155)."""
+    modell = Skript([_ohne_leistung()], [])
+    a = kern.frage(
+        "Mein Knie schmerzt seit Wochen beim Gehen.",
+        modell=modell,
+        suche_fn=FesteSuche([treffer()]),
+        speicher=kern.SpeicherImSpeicher(),
+    )
+    assert a.grenze and a.grenze_art == "medizinisch" and a.aussagen == []
+    assert a.verhalten == "uebergabe" == klassifiziere_verhalten(a.text)
+    assert a.uebergabe_an is not None and "Arzt" in a.uebergabe_an and "1450" in a.text
+
+
+def test_fachfremde_frage_sagt_keine_sozialversicherungsfrage() -> None:
+    """Fängt eine Abstinenz ohne den Hinweis, dass es keine Sozialversicherungsfrage ist (Held-out #39)."""
+    modell = Skript([_ohne_leistung()], [antwort_mit(verhalten="abstinenz")])
+    a = kern.frage(
+        "Wie backe ich einen Apfelstrudel?",
+        modell=modell,
+        suche_fn=FesteSuche([treffer()]),
+        speicher=kern.SpeicherImSpeicher(),
+    )
+    assert a.verhalten == "abstinenz" and not a.grenze
+    assert "keine Frage zur Sozialversicherung" in a.text and "Sozialversicherung oder" not in a.text
+
+
+def test_leistungsfrage_ohne_erkannte_leistung_bleibt_normale_abstinenz() -> None:
+    """Fängt eine Frage mit Sozialversicherungsbezug, die als fachfremd oder medizinisch abgewiesen wird."""
+    modell = Skript([_ohne_leistung()], [antwort_mit(verhalten="abstinenz")])
+    a = kern.frage(
+        "Zahlt die Kasse Physiotherapie bei Rückenschmerzen?",
+        modell=modell,
+        suche_fn=FesteSuche([treffer()]),
+        speicher=kern.SpeicherImSpeicher(),
+    )
+    assert not a.grenze and a.verhalten == "abstinenz"
+    assert "keine Frage zur Sozialversicherung" not in a.text and "wenden Sie sich an" in a.text

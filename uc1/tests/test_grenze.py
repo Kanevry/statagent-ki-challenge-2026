@@ -96,3 +96,57 @@ def test_leistungsfrage_mit_krankheitswort_ist_keine_grenze(frage: str) -> None:
     """Fängt zu weite Muster: eine Leistungsfrage, die eine Krankheit nur nennt (z. B. „nach einem
     Herzinfarkt“), darf weder Notfall noch Grenze auslösen."""
     assert grenze.vorpruefung(frage) is None
+
+
+# --- Held-out #39, #155: Verweis je Grenzart, Therapiefragen, Leistungsfragen mit „ist das“ ---------------
+
+
+def test_medikamentenfrage_verweist_auf_apotheke() -> None:
+    """Fängt einen Verweis ohne Apotheke bei einer Medikamentenfrage (falsches Verweisziel im Held-out)."""
+    befund = grenze.vorpruefung("Welches Schmerzmittel soll ich nehmen?")
+    assert befund is not None and befund.art == "medikament"
+    assert "Apotheke" in befund.uebergabe_an() and "1450" in befund.uebergabe_an()
+    assert "Apotheke" in befund.text() and "pharmacist" in befund.text("en")
+
+
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Was kann ich gegen meine Rückenschmerzen tun?",
+        "Welche Übungen helfen bei Arthrose am besten? Welche Übung soll ich machen?",
+        "Gibt es Hausmittel gegen Husten?",
+        "What can I do about my back pain?",
+    ],
+)
+def test_therapiefrage_ist_grenze(frage: str) -> None:
+    """Fängt eine Therapiefrage, die inhaltlich beantwortet statt übergeben wird."""
+    befund = grenze.vorpruefung(frage)
+    assert befund is not None and befund.art in ("therapie", "symptom")
+    assert "Arzt" in befund.uebergabe_an()
+
+
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Was kann ich gegen den Bescheid zum Pflegegeld tun?",
+        "Ich habe Rückenschmerzen. Ist das ein Grund für eine Reha?",
+        "Meine Mutter hat Atemnot nach Covid, ist das ein Anspruch auf Reha?",
+        "Zahlt die Kasse Physiotherapie bei Rückenschmerzen?",
+    ],
+)
+def test_leistungsfrage_mit_beschwerde_ist_keine_grenze(frage: str) -> None:
+    """Fängt eine pauschale Ablehnung, wo eine Antwort mit Antrag erwartet ist."""
+    befund = grenze.vorpruefung(frage)
+    assert befund is None or befund.art == "notfall"
+    assert grenze.medizinisch(frage) is None
+
+
+def test_medizinisch_nur_ohne_sv_bezug() -> None:
+    """Fängt eine medizinische Frage, die ohne Leistung aus Gesetzestexten beantwortet würde, und eine
+    Leistungsfrage, die fälschlich als medizinisch gilt."""
+    befund = grenze.medizinisch("Mein Knie schmerzt seit Wochen beim Gehen.")
+    assert befund is not None and befund.art == "medizinisch" and not befund.notfall
+    assert "Arzt" in befund.uebergabe_an() and "1450" in befund.text()
+    assert grenze.medizinisch("Mein Knie schmerzt, bekomme ich Krankengeld?") is None
+    assert grenze.medizinisch("Wie backe ich einen Apfelstrudel?") is None
+    assert grenze.sv_bezug("Wer zahlt die Reha?") and not grenze.sv_bezug("Wie backe ich einen Apfelstrudel?")
