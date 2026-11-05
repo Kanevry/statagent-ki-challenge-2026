@@ -51,7 +51,7 @@ describe("Namen", () => {
   it("zeigt die neueste Fassung und den neuesten Stand zuerst", () => {
     const a = auswahlAus(["2008", "2025"], ["2011-01-01", "2026-01-01"]);
     expect(a.oenace.map((w) => w.name)).toEqual(["ÖNACE 2025", "ÖNACE 2008"]);
-    expect(a.region[0]).toEqual({ wert: "2026-01-01", name: "Stand 1. Jänner 2026" });
+    expect(a.region[0]).toEqual({ wert: "2026-01-01", name: "Stand 1. Jänner 2026", ort: "im Stand vom 1. Jänner 2026" });
   });
 });
 
@@ -66,7 +66,13 @@ describe("regionSaetze", () => {
   });
 
   it("nennt dieselbe Zusammenlegung von der alten Gemeinde aus", () => {
-    expect(regionSaetze("60301", "2014-01-01", [zeile({})])).toEqual(["Ab 1. Jänner 2015 geht sie auf in Gleisdorf (60345)."]);
+    expect(regionSaetze("60301", "2014-01-01", [zeile({})])).toEqual(["Ab 1. Jänner 2015 gehört das zu Gleisdorf (60345)."]);
+  });
+
+  it("nennt nur den Code, wenn der Name bleibt und der Code wechselt", () => {
+    const code = zeile({ name_alt: "Gleisdorf", name_neu: "Gleisdorf" });
+    expect(regionSaetze("60345", stand2026, [code])).toEqual(["Seit 1. Jänner 2015 mit diesem Code, davor (60301)."]);
+    expect(regionSaetze("60301", "2014-01-01", [code])).toEqual(["Ab 1. Jänner 2015 mit neuem Code (60345)."]);
   });
 
   it("kürzt lange Listen", () => {

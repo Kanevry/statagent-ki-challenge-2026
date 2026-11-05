@@ -11,6 +11,10 @@ const ADRESSE = "/api/uc3/klassifikationen";
 const ART_WORT: Record<Art, string> = { oenace: "Branchen", region: "Regionen" };
 const FEHLER = "Die Liste ist gerade nicht erreichbar. Bitte noch einmal versuchen.";
 
+function grossAnfang(satz: string): string {
+  return satz.charAt(0).toUpperCase() + satz.slice(1);
+}
+
 async function hole<T>(parameter: Record<string, string>, signal?: AbortSignal): Promise<T> {
   const antwort = await fetch(`${ADRESSE}?${new URLSearchParams(parameter)}`, { signal });
   if (!antwort.ok) throw new Error(String(antwort.status));
@@ -23,7 +27,9 @@ function Inhalt({ knoten, offen, klappbar }: { knoten: Knoten; offen: boolean; k
       <span className="w-20 shrink-0 font-sans text-14 tabular-nums text-slate">{knoten.code}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="font-sans text-16 text-ink">{knoten.name}</span>
-        {knoten.pfad && <span className="font-sans text-14 text-slate">{`${knoten.ebene} in ${knoten.pfad}`}</span>}
+        {knoten.pfad !== undefined && (
+          <span className="font-sans text-14 text-slate">{knoten.pfad ? `${knoten.ebene} in ${knoten.pfad}` : knoten.ebene}</span>
+        )}
         {knoten.aenderungen.map((satz) => (
           <span key={satz} className="font-sans text-14 text-slate">
             {satz}
@@ -105,6 +111,33 @@ function Liste({ knoten, art, fassung }: { knoten: readonly Knoten[]; art: Art; 
   );
 }
 
+/** Die oberste Ebene ist zu Beginn zu: Die Abschnitte stehen schon oben in der Tabelle, und die Seite bleibt kurz. */
+function Oberste({ daten, art, fassung }: { daten: Kinder; art: Art; fassung: string }) {
+  const [offen, setOffen] = useState(false);
+  const listeId = useId();
+  return (
+    <div className="flex flex-col">
+      <button
+        type="button"
+        aria-expanded={offen}
+        aria-controls={offen ? listeId : undefined}
+        onClick={() => setOffen(!offen)}
+        className="flex min-h-11 w-full items-baseline justify-between gap-3 py-2 text-left font-sans text-16 text-ink underline-offset-4 hover:underline"
+      >
+        {offen ? `Alle ${daten.ueberschrift}` : `Alle ${daten.ueberschrift} aufklappen`}
+        <span aria-hidden="true" className={`shrink-0 text-slate transition-transform motion-reduce:transition-none ${offen ? "rotate-90" : ""}`}>
+          ›
+        </span>
+      </button>
+      {offen && (
+        <div id={listeId}>
+          <Liste knoten={daten.knoten} art={art} fassung={fassung} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 type Stand<T> = { zustand: "laedt" } | { zustand: "fehler" } | { zustand: "da"; daten: T };
 
 export function Nachschlagen({ auswahl, start, startArt }: { auswahl: Auswahl; start: Kinder; startArt: Art }) {
@@ -159,7 +192,7 @@ export function Nachschlagen({ auswahl, start, startArt }: { auswahl: Auswahl; s
 
   const wahlen = auswahl[art];
   const arten = (Object.keys(ART_WORT) as Art[]).filter((a) => auswahl[a].length > 0);
-  const fassungName = wahlen.find((w) => w.wert === fassung)?.name ?? "";
+  const ort = wahlen.find((w) => w.wert === fassung)?.ort ?? "";
 
   return (
     <div className="flex flex-col gap-3">
@@ -208,7 +241,7 @@ export function Nachschlagen({ auswahl, start, startArt }: { auswahl: Auswahl; s
             value={suche}
             maxLength={60}
             onChange={(e) => setSuche(e.target.value)}
-            placeholder={art === "oenace" ? "Code oder Name, zum Beispiel 10.11 oder Bäckerei" : "Code oder Name, zum Beispiel 70101 oder Innsbruck"}
+            placeholder={art === "oenace" ? "Code oder Name, zum Beispiel 10.11 oder Fleisch" : "Code oder Name, zum Beispiel 70101 oder Innsbruck"}
             className="min-h-11 w-full rounded-md border border-line bg-white px-3 font-sans text-16 text-ink placeholder:text-slate"
           />
         </div>
@@ -216,13 +249,13 @@ export function Nachschlagen({ auswahl, start, startArt }: { auswahl: Auswahl; s
 
       <div aria-live="polite">
         {treffer ? (
-          <Ergebnis stand={treffer} text={text} fassungName={fassungName} art={art} fassung={fassung} />
+          <Ergebnis stand={treffer} text={text} ort={ort} art={art} fassung={fassung} />
         ) : wurzel.zustand === "laedt" ? (
           <p className="py-2 font-sans text-14 text-slate">Wird geladen.</p>
         ) : wurzel.zustand === "fehler" ? (
           <p className="py-2 font-sans text-14 text-slate">{FEHLER}</p>
         ) : (
-          <Liste key={`${art}-${fassung}`} knoten={wurzel.daten.knoten} art={art} fassung={fassung} />
+          <Oberste key={`${art}-${fassung}`} daten={wurzel.daten} art={art} fassung={fassung} />
         )}
       </div>
     </div>
@@ -232,13 +265,13 @@ export function Nachschlagen({ auswahl, start, startArt }: { auswahl: Auswahl; s
 function Ergebnis({
   stand,
   text,
-  fassungName,
+  ort,
   art,
   fassung,
 }: {
   stand: Stand<Treffer>;
   text: string;
-  fassungName: string;
+  ort: string;
   art: Art;
   fassung: string;
 }) {
@@ -246,12 +279,12 @@ function Ergebnis({
   if (stand.zustand === "fehler") return <p className="py-2 font-sans text-14 text-slate">{FEHLER}</p>;
   const { knoten, gesamt } = stand.daten;
   if (gesamt === 0) {
-    return <p className="py-2 font-sans text-16 text-ink">{`In ${fassungName} passt nichts zu „${text}“.`}</p>;
+    return <p className="py-2 font-sans text-16 text-ink">{`${grossAnfang(ort)} passt nichts zu „${text}“.`}</p>;
   }
   const zaehlung =
     gesamt > knoten.length
-      ? `Die ersten ${knoten.length} von ${gesamt} Treffern in ${fassungName}. Genauer suchen zeigt den Rest.`
-      : `${gesamt} ${gesamt === 1 ? "Treffer" : "Treffer"} in ${fassungName}.`;
+      ? `Die ersten ${knoten.length} von ${gesamt} Treffern ${ort}. Genauer suchen zeigt den Rest.`
+      : `${gesamt} Treffer ${ort}.`;
   return (
     <>
       <p className="pb-1 font-sans text-14 text-slate">{zaehlung}</p>

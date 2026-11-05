@@ -12,6 +12,8 @@ export type Art = "oenace" | "region";
 export interface Wahl {
   wert: string;
   name: string;
+  /** Für Sätze, zum Beispiel „in ÖNACE 2025“ oder „im Stand vom 1. Jänner 2026“. */
+  ort: string;
 }
 
 export interface Auswahl {
@@ -27,7 +29,7 @@ export interface Knoten {
   hatKinder: boolean;
   /** Was sich an diesem Code geändert hat, in ganzen Sätzen; leer, wenn nichts. */
   aenderungen: string[];
-  /** Nur bei Treffern der Suche: wozu der Code gehört. */
+  /** Nur bei Treffern der Suche: wozu der Code gehört, leer auf der obersten Ebene. */
   pfad?: string;
 }
 
@@ -76,8 +78,8 @@ export function fassungName(art: Art, wert: string): string {
 export function auswahlAus(oenace: readonly string[], staende: readonly string[]): Auswahl {
   const neuesteZuerst = (a: string, b: string) => b.localeCompare(a);
   return {
-    oenace: [...oenace].sort(neuesteZuerst).map((wert) => ({ wert, name: fassungName("oenace", wert) })),
-    region: [...staende].sort(neuesteZuerst).map((wert) => ({ wert, name: fassungName("region", wert) })),
+    oenace: [...oenace].sort(neuesteZuerst).map((wert) => ({ wert, name: fassungName("oenace", wert), ort: `in ÖNACE ${wert}` })),
+    region: [...staende].sort(neuesteZuerst).map((wert) => ({ wert, name: fassungName("region", wert), ort: `im Stand vom ${standName(wert)}` })),
   };
 }
 
@@ -149,7 +151,7 @@ export function regionSaetze(code: string, stand: string, zeilen: readonly Ueber
       saetze.push(`Seit ${datum} zusammengelegt aus ${liste(vorher.map((z) => benannt(z.name_alt, z.code_alt)))}.`);
     } else if (vorher.length === 1) {
       const z = vorher[0]!;
-      if (z.code_alt !== code) saetze.push(`Seit ${datum} unter diesem Code, davor ${benannt(z.name_alt, z.code_alt)}.`);
+      if (z.code_alt !== code) saetze.push(`Seit ${datum} mit diesem Code, davor ${z.name_alt === z.name_neu ? `(${z.code_alt})` : benannt(z.name_alt, z.code_alt)}.`);
       else if (z.name_alt !== z.name_neu && z.name_alt) saetze.push(`Seit ${datum} unter diesem Namen, davor ${z.name_alt}.`);
       else saetze.push(`Seit ${datum} mit geändertem Gebiet.`);
     }
@@ -157,8 +159,8 @@ export function regionSaetze(code: string, stand: string, zeilen: readonly Ueber
       saetze.push(`Ab ${datum} aufgeteilt auf ${liste(danach.map((z) => benannt(z.name_neu, z.code_neu)))}.`);
     } else if (danach.length === 1) {
       const z = danach[0]!;
-      if (z.code_neu !== code) saetze.push(`Ab ${datum} geht sie auf in ${benannt(z.name_neu, z.code_neu)}.`);
-      else if (z.name_alt !== z.name_neu && z.name_neu) saetze.push(`Ab ${datum} heißt sie ${z.name_neu}.`);
+      if (z.code_neu !== code) saetze.push(z.name_alt === z.name_neu ? `Ab ${datum} mit neuem Code (${z.code_neu}).` : `Ab ${datum} gehört das zu ${benannt(z.name_neu, z.code_neu)}.`);
+      else if (z.name_alt !== z.name_neu && z.name_neu) saetze.push(`Ab ${datum} mit neuem Namen: ${z.name_neu}.`);
       else saetze.push(`Ab ${datum} mit geändertem Gebiet.`);
     }
   }
@@ -342,7 +344,10 @@ function sucheRoh(sql: Sql, art: Art, fassung: string, suche: string) {
     LIMIT ${TREFFER_MAX}`;
 }
 
-/** Wozu jeder Treffer gehört, von oben nach unten, je Ebene eine Abfrage. Österreich als Staat steht nicht dabei. */
+/**
+ * Wozu jeder Treffer gehört, je Ebene eine Abfrage. ÖNACE: nur der Abschnitt, die Kette über vier Ebenen wäre länger als
+ * der Treffer selbst. Region: Bundesland und Bezirk, Österreich als Staat steht nicht dabei.
+ */
 async function pfade(sql: Sql, art: Art, fassung: string, zeilen: readonly Roh[]): Promise<Map<string, string>> {
   const bekannt = new Map<string, { name: string; oben: string | null }>();
   let offen = [...new Set(zeilen.map((z) => z.uebergeordnet).filter((c): c is string => Boolean(c)))];
@@ -366,7 +371,7 @@ async function pfade(sql: Sql, art: Art, fassung: string, zeilen: readonly Roh[]
       teile.unshift(art === "oenace" ? `${e.name} (${c})` : e.name);
       c = e.oben;
     }
-    if (teile.length > 0) ergebnis.set(z.code, teile.join(" › "));
+    if (teile.length > 0) ergebnis.set(z.code, art === "oenace" ? teile[0]! : teile.join(" › "));
   }
   return ergebnis;
 }
@@ -378,7 +383,7 @@ export function leseAnfrage(anfrage: Anfrage, optionen: { sql?: Sql | null } = {
       const roh = await sucheRoh(sql, art, fassung, anfrage.suche);
       const [knoten, pfad] = await Promise.all([alsKnoten(sql, art, fassung, roh), pfade(sql, art, fassung, roh)]);
       return {
-        knoten: knoten.map((k) => ({ ...k, pfad: pfad.get(k.code) })),
+        knoten: knoten.map((k) => ({ ...k, pfad: pfad.get(k.code) ?? "" })),
         gesamt: roh[0] ? Number(roh[0].gesamt) : 0,
       };
     }
