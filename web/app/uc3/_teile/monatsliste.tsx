@@ -1,19 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { formatDifferenz, formatZahl } from "@kic/ui/bausteine";
-import { BelegLink, StandPunkt } from "@/components/uc3/beleg-link";
-import type { Beleg } from "@/components/uc3/beleg";
+import { StandPunkt } from "@/components/uc3/beleg-link";
 import { monatName } from "@/components/uc3/monat";
-import { berichtPfad, laufPfad } from "@/components/uc3/navigation";
+import { laufPfad } from "@/components/uc3/navigation";
 import type { Monatslauf } from "@/components/uc3/typen";
 
-// Monatsliste (UI-Regie v1): Monat · Beschäftigungsverhältnisse · zum Vormonat · Stand · Bericht · Beleg. Stand
+// Monatsliste (UI-Regie v1): Monat · Beschäftigungsverhältnisse · zum Vormonat · Stand. Der Monatsname führt zur
+// Monatsseite (zugleich Qualitätsbericht); ein Beleg für die ganze Zeitreihe steht im Kopf. Stand
 // steht nur bei Ausnahmen (angehalten, vorläufig); 22-mal „veröffentlicht“ wäre Lärm. Die Abrechnung
 // (gelesen, nicht gezählt, ausgeschlossen) erscheint erst auf Wunsch.
 
-export type Zeile = { monat: Monatslauf; vormonat: number | null; beleg: Beleg };
+export type Zeile = { monat: Monatslauf; vormonat: number | null };
 
 const kopf = "border-b border-ink py-2 pr-4 text-left align-bottom font-sans text-12 font-semibold text-slate";
 const zelle = "py-3 pr-4 align-top font-sans text-14 text-ink";
@@ -26,19 +26,34 @@ function Stand({ monat }: { monat: Monatslauf }) {
   return null;
 }
 
-export function Monatsliste({ zeilen, regelsatz }: { zeilen: readonly Zeile[]; regelsatz: string }) {
+export function Monatsliste({
+  zeilen,
+  regelsatz,
+  titel,
+  rechts,
+}: {
+  zeilen: readonly Zeile[];
+  regelsatz: string;
+  titel: ReactNode;
+  /** Regelsatz-Segment und Beleg der Zeitreihe, rechts in der Kopfzeile. */
+  rechts?: ReactNode;
+}) {
   const [abrechnung, setAbrechnung] = useState(false);
   return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <button
-          type="button"
-          aria-expanded={abrechnung}
-          onClick={() => setAbrechnung(!abrechnung)}
-          className="inline-flex min-h-11 items-center font-sans text-14 text-slate underline decoration-line underline-offset-4 hover:text-ink"
-        >
-          {abrechnung ? "Spalten der Abrechnung ausblenden" : "Spalten der Abrechnung zeigen"}
-        </button>
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+        {titel}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <button
+            type="button"
+            aria-pressed={abrechnung}
+            onClick={() => setAbrechnung(!abrechnung)}
+            className="inline-flex min-h-11 items-center font-sans text-14 text-slate underline decoration-line underline-offset-4 hover:text-ink"
+          >
+            {abrechnung ? "Abrechnung ausblenden" : "Abrechnung zeigen"}
+          </button>
+          {rechts}
+        </div>
       </div>
 
       <table className="hidden w-full border-collapse md:table">
@@ -55,13 +70,11 @@ export function Monatsliste({ zeilen, regelsatz }: { zeilen: readonly Zeile[]; r
                 <th scope="col" className={`${kopf} text-right`}>ausgeschlossen</th>
               </>
             )}
-            <th scope="col" className={kopf}>Stand</th>
-            <th scope="col" className={kopf}>Bericht</th>
-            <th scope="col" className={`${kopf} pr-0`}>Beleg</th>
+            <th scope="col" className={`${kopf} pr-0`}>Stand</th>
           </tr>
         </thead>
         <tbody>
-          {zeilen.map(({ monat, vormonat, beleg }) => (
+          {zeilen.map(({ monat, vormonat }) => (
             <tr key={monat.lieferung} className="border-b border-line" data-lieferung={monat.lieferung}>
               <th scope="row" className={`${zelle} text-left font-medium`}>
                 <Link href={laufPfad(monat.lieferung, regelsatz)} className={link}>
@@ -77,16 +90,8 @@ export function Monatsliste({ zeilen, regelsatz }: { zeilen: readonly Zeile[]; r
                   <td className={zahl}>{formatZahl(monat.ausgeschlossen)}</td>
                 </>
               )}
-              <td className={zelle}>
-                <Stand monat={monat} />
-              </td>
-              <td className={zelle}>
-                <Link href={berichtPfad(monat.lieferung, regelsatz)} className={link}>
-                  Bericht
-                </Link>
-              </td>
               <td className={`${zelle} pr-0`}>
-                <BelegLink {...beleg} />
+                <Stand monat={monat} />
               </td>
             </tr>
           ))}
@@ -94,7 +99,7 @@ export function Monatsliste({ zeilen, regelsatz }: { zeilen: readonly Zeile[]; r
       </table>
 
       <ul className="flex flex-col md:hidden" aria-label="Monate">
-        {zeilen.map(({ monat, vormonat, beleg }) => (
+        {zeilen.map(({ monat, vormonat }) => (
           <li key={monat.lieferung} className="flex flex-col gap-1 border-b border-line py-3" data-lieferung={monat.lieferung}>
             <div className="flex items-baseline justify-between gap-4">
               <Link href={laufPfad(monat.lieferung, regelsatz)} className={`font-sans text-16 font-medium ${link}`}>
@@ -111,12 +116,6 @@ export function Monatsliste({ zeilen, regelsatz }: { zeilen: readonly Zeile[]; r
                 {`${formatZahl(monat.gelesen)} Zeilen gelesen, ${formatZahl(monat.nichtGezaehlt)} nicht gezählt, ${formatZahl(monat.ausgeschlossen)} ausgeschlossen`}
               </p>
             )}
-            <div className="flex gap-4">
-              <Link href={berichtPfad(monat.lieferung, regelsatz)} className={`font-sans text-14 ${link}`}>
-                Bericht
-              </Link>
-              <BelegLink {...beleg} />
-            </div>
           </li>
         ))}
       </ul>

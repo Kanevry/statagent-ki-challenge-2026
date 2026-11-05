@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { knopfKlassen, Leerzustand, Ueberschrift } from "@kic/ui/basis";
 import { formatZahl } from "@kic/ui/bausteine";
-import { bestandBeleg, laufBeleg, monatszeileBeleg } from "@/components/uc3/beleg";
+import { bestandBeleg, laufBeleg, literal } from "@/components/uc3/beleg";
 import { BelegLink } from "@/components/uc3/beleg-link";
 import { leerSatz } from "@/components/uc3/db";
-import { leseMonatsuebersicht } from "@/components/uc3/laeufe";
+import { leseMonatsuebersicht, MASSGEBLICH_SQL } from "@/components/uc3/laeufe";
 import { haltKurz, haltTreffer, leseLaufDetail, sqlTreffer } from "@/components/uc3/lauf-detail";
 import { monatName, verschieben } from "@/components/uc3/monat";
 import { laufPfad, regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/navigation";
@@ -46,6 +46,16 @@ function RegelsatzWahl({ aktiv }: { aktiv: Regelsatz }) {
       </ul>
     </nav>
   );
+}
+
+/** Beleg der ganzen Zeitreihe: maßgeblicher Lauf je Monat mit Bestand und Abrechnung. */
+function sqlZeitreihe(regelsatz: string): string {
+  return [
+    "SELECT lieferung, gezaehlt AS beschaeftigungsverhaeltnisse, fortgeschrieben, gelesen, nicht_gezaehlt,",
+    "       ausgeschlossen, ergebnis_status",
+    `FROM (${MASSGEBLICH_SQL.replace("$1", literal(regelsatz)).split("\n").join("\n      ")}) m`,
+    "ORDER BY lieferung;",
+  ].join("\n");
 }
 
 type Props = { searchParams: Promise<{ regelsatz?: string | string[] }> };
@@ -107,7 +117,7 @@ export default async function Monate({ searchParams }: Props) {
   const wieViele = angehalten.length;
   const zeilen: Zeile[] = monate.map((monat) => {
     const davor = monate.find((m) => m.lieferung === verschieben(monat.lieferung, -1));
-    return { monat, vormonat: davor ? davor.gezaehlt : null, beleg: monatszeileBeleg(monat) };
+    return { monat, vormonat: davor ? davor.gezaehlt : null };
   });
 
   return (
@@ -133,23 +143,34 @@ export default async function Monate({ searchParams }: Props) {
       <Monatsgrafik monate={monate} regelsatz={regelsatz} />
 
       {angehalten.length > 0 && (
-        <section aria-labelledby="angehalten-titel" className="flex max-w-4xl flex-col gap-2">
+        <section aria-labelledby="angehalten-titel" className="flex max-w-5xl flex-col gap-2">
           <h2 id="angehalten-titel" className="font-sans text-16 font-semibold text-ink">
             Angehalten
           </h2>
           <ul className="flex flex-col">
             {angehalten.map((a) => (
-              <li key={a.monat.lieferung} className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-line py-3 font-sans text-16">
-                <span className="min-w-36 font-medium text-ink">{monatName(a.monat.lieferung)}</span>
-                <span className="text-ink">{a.grund}</span>
-                <span className="text-slate">
-                  {a.wartet.length > 0 ? `wartet auf Rückfrage ${a.wartet.join(", ")}` : "wartet auf die Fachabteilung"}
+              <li
+                key={a.monat.lieferung}
+                className="flex flex-col gap-2 border-b border-line py-3 font-sans text-16 md:grid md:grid-cols-[10rem_1fr_auto] md:items-center md:gap-6"
+              >
+                <span className="font-medium text-ink">{monatName(a.monat.lieferung)}</span>
+                <span className="flex flex-wrap gap-x-4">
+                  <span className="text-ink">{a.grund}</span>
+                  <span className="text-slate">
+                    {a.wartet.length > 0 ? `wartet auf Rückfrage ${a.wartet.join(", ")}` : "wartet auf die Fachabteilung"}
+                  </span>
                 </span>
-                <span className="ml-auto flex items-center gap-4">
+                <span className="flex items-center justify-end gap-4">
                   {a.beleg && <BelegLink {...a.beleg} />}
-                  <Link href={laufPfad(a.monat.lieferung, regelsatz)} className="inline-flex min-h-11 items-center font-medium text-gruen underline underline-offset-4">
-                    Prüfen →
-                  </Link>
+                  {a.monat.lieferung === vorfuehren?.lieferung ? (
+                    <Link href={laufPfad(a.monat.lieferung, regelsatz)} className={knopfKlassen("primaer")}>
+                      {`${monatName(a.monat.lieferung)} prüfen`}
+                    </Link>
+                  ) : (
+                    <Link href={laufPfad(a.monat.lieferung, regelsatz)} className="inline-flex min-h-11 items-center font-medium text-ink underline underline-offset-4">
+                      Prüfen
+                    </Link>
+                  )}
                 </span>
               </li>
             ))}
@@ -157,22 +178,22 @@ export default async function Monate({ searchParams }: Props) {
         </section>
       )}
 
-      {vorfuehren && (
-        <div>
-          <Link href={laufPfad(vorfuehren.lieferung, regelsatz)} className={knopfKlassen("primaer")}>
-            {`${monatName(vorfuehren.lieferung)} ansehen →`}
-          </Link>
-        </div>
-      )}
-
       <section aria-labelledby="monate-titel" className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 id="monate-titel" className="font-sans text-16 font-semibold text-ink">
-            Alle Monate
-          </h2>
-          {(regelsaetze.includes("v2") || regelsatz === "v2") && <RegelsatzWahl aktiv={regelsatz} />}
-        </div>
-        <Monatsliste zeilen={zeilen} regelsatz={regelsatz} />
+        <Monatsliste
+          zeilen={zeilen}
+          regelsatz={regelsatz}
+          titel={
+            <h2 id="monate-titel" className="font-sans text-16 font-semibold text-ink">
+              Alle Monate
+            </h2>
+          }
+          rechts={
+            <>
+              {(regelsaetze.includes("v2") || regelsatz === "v2") && <RegelsatzWahl aktiv={regelsatz} />}
+              <BelegLink quelle="meta.lauf" sql={sqlZeitreihe(regelsatz)} />
+            </>
+          }
+        />
       </section>
     </>
   );

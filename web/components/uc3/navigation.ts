@@ -5,12 +5,13 @@ import type { UcNavPunkt } from "@kic/ui/shell";
  * hier: das Anti-Schablonen-Gate folgt jedem Link und verlangt HTTP 200.
  */
 export const UC3_NAVIGATION: readonly UcNavPunkt[] = [
-  // UI-Regie Version 1: drei Schritte der Vorführung, dann ruhig „Regeln und Klassifikationen“. Berichte gehören
+  // UI-Regie Version 1: drei Schritte der Vorführung, dann ruhig die Regeln (mit Klassifikationen). Kurze Wörter,
+  // damit alle vier Punkte bei 390 px ohne Abschneiden passen (Jury-Kritik bb, Punkt d). Berichte gehören
   // zu „Monate“ (die Monatsseite ist zugleich der Qualitätsbericht); die Routen bleiben erreichbar.
   { href: "/uc3", label: "Monate" },
   { href: "/uc3/freigaben", label: "Freigaben" },
-  { href: "/uc3/fragen", label: "Fragen an die Daten" },
-  { href: "/uc3/klassifikationen", label: "Regeln und Klassifikationen" },
+  { href: "/uc3/fragen", label: "Fragen" },
+  { href: "/uc3/klassifikationen", label: "Regeln" },
 ];
 
 export type Regelsatz = "v1" | "v2";
