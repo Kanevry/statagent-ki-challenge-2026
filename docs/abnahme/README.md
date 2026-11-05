@@ -4,7 +4,7 @@ Die Abnahme-Lane prüft unabhängig von den Bau-Sessions, mit dem Blick der Jury
 (`docs/abnahme/`) und Skripte, die lesen und messen (`tests/abnahme/`). Befunde gehen als Kommentar an das Issue und
 mit Lane-Zuordnung an die zuständige Session; Fixes macht die Lane, der der Code gehört.
 
-Stand: 05.11.2026, 16:38 (Europe/Vienna), nach dem Review von !56.
+Stand: 05.11.2026, 16:37 (Europe/Vienna), nach dem Review von !56.
 
 | Issue | Abnahme | Urteil | Protokoll |
 |---|---|---|---|
