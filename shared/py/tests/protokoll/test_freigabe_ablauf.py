@@ -169,6 +169,65 @@ def test_wiederholung_legt_keinen_zweiten_commit_an(conn, repo):
     assert freigabe.commit_hash == vorher
 
 
+def _alter_commit(repo: Path, kennung: str, name: str) -> str:
+    """Freigabe-Commit aus der Zeit vor dem Neuaufbau der Datenbank."""
+    subprocess.run(
+        ["git", "-C", str(repo), "commit", "--allow-empty", "-q", "-m", "Regelsatz v1 freigeben"]
+        + ["--trailer", f"Freigegeben-von: {name}", "--trailer", f"Vorschlag: {kennung}"],
+        check=True,
+        env={**os.environ, "GIT_AUTHOR_DATE": "2026-01-01T12:00:00+01:00"},
+    )
+    return _git(repo, "rev-parse", "HEAD")
+
+
+@pytest.mark.parametrize("name", ["Bernhard Götzendorfer", "Johanna Huber"])
+def test_alter_commit_mit_gleicher_id_gehoert_nicht_zur_neuen_freigabe(conn, repo, name):
+    """Fängt: Nach frischem Laden beginnt die ID wieder bei 1. Die Freigabe hing am alten Commit (gleicher
+    Name) oder scheiterte mit „nennt einen anderen Freigebenden“ (anderer Name)."""
+    vorschlag_id = _vorschlag(conn)
+    alt = _alter_commit(repo, f"test/{vorschlag_id}", "Bernhard Götzendorfer")
+
+    freigabe = freigeben(conn, vorschlag_id, name, repo)
+
+    assert freigabe.commit_hash != alt
+    assert _commits(repo) == 2
+    assert _git(repo, "log", "-1", "--format=%(trailers:key=Freigegeben-von,valueonly)", "HEAD") == name
+    gespeichert = conn.execute(
+        "SELECT commit_hash FROM meta.protokoll WHERE id = %s", (vorschlag_id,)
+    ).fetchone()
+    assert gespeichert == (freigabe.commit_hash,)
+
+
+class _ScheitertBeimCommitHash:
+    """Verbindung, deren Schreiben des Commit-Hash einmal scheitert: Der Git-Commit ist dann schon da."""
+
+    def __init__(self, conn) -> None:
+        self._conn = conn
+
+    def __getattr__(self, name: str):
+        return getattr(self._conn, name)
+
+    def execute(self, sql: str, *argumente):
+        if "SET commit_hash" in sql:
+            raise psycopg.OperationalError("Verbindung weg")
+        return self._conn.execute(sql, *argumente)
+
+
+def test_wiederholung_nach_db_fehler_findet_denselben_commit(conn, repo):
+    """Fängt: Die Zeitprüfung übersieht den Commit des ersten Versuchs und legt einen zweiten an."""
+    vorschlag_id = _vorschlag(conn)
+    with pytest.raises(psycopg.OperationalError):
+        freigeben(_ScheitertBeimCommitHash(conn), vorschlag_id, "Bernhard Götzendorfer", repo)
+    erster = _git(repo, "rev-parse", "HEAD")
+    status = conn.execute("SELECT status FROM meta.protokoll WHERE id = %s", (vorschlag_id,)).fetchone()
+    assert status == ("offen",)
+
+    freigabe = freigeben(conn, vorschlag_id, "Bernhard Götzendorfer", repo)
+
+    assert freigabe.commit_hash == erster
+    assert _commits(repo) == 1
+
+
 def test_gleiche_id_anderer_uc_wird_nicht_wiederverwendet(conn, repo):
     """Fängt: der Commit eines anderen UC mit derselben ID wird wiederverwendet, die Datei nie committet."""
     ref = f"uc3/erzeugt/{uuid.uuid4()}.py"
