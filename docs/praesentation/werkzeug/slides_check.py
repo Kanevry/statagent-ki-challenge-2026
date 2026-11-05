@@ -24,7 +24,7 @@ NOTIZ_KOMMENTAR = "<!-- notizen -->"
 # Verboten: Monat als Ziffernfolge. Ganze Datumsmuster JJJJ-MM-TT (Datenmuster) sind keine Monatsangabe.
 MONAT_JJJJ_MM = re.compile(r"(?<!\d)\d{4}-\d{2}(?!\d)(?!-\d)")
 MONAT_MM_JJJJ = re.compile(r"(?<!\d)\d{2}/\d{4}(?!\d)")
-VERBOTENE_WOERTER = re.compile(r"beispiel|platzhalter|generiert", re.IGNORECASE)
+VERBOTENE_WOERTER = re.compile(r"beispiel|platzhalter|generiert|offiziell", re.IGNORECASE)
 # Die Tabelle der Monatswerte darf Monate als Ziffernfolge führen (Datenquelle des Diagramms).
 MONATSTABELLE_DATEIEN = {"03-falsche-zahl.md"}
 

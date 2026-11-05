@@ -12,7 +12,7 @@ pen_frame: null
 belege: []
 ---
 
-# Im Januar 2025 wechselt die Branchenliste.
+# Im Jänner 2025 wechselt die Branchenliste.
 
 | ÖNACE 2008 | bis Dezember 2024 |
 |---|---|
@@ -20,7 +20,7 @@ belege: []
 | J | Information und Kommunikation |
 | Q | Gesundheits- und Sozialwesen |
 
-| ÖNACE 2025 | ab Januar 2025 |
+| ÖNACE 2025 | ab Jänner 2025 |
 |---|---|
 | C | Herstellung von Waren |
 | J | Verlage, Rundfunk, Medien |
@@ -35,4 +35,4 @@ Herkunft: Klassifikationen in stat.klass_oenace mit Gültigkeit, Regeln Q01 und 
 
 ## Sprechernotizen
 
-Im Januar 2025 wechselt die Branchenliste. Meist passt ein alter Code auf einen neuen, manchmal wird aus einem zwei. Wir führen beide Listen mit Gültigkeit. Alte Codes von 2003 ordnen wir C zu, Herstellung von Waren.
+Im Jänner 2025 wechselt die Branchenliste. Meist passt ein alter Code auf einen neuen, manchmal wird aus einem zwei. Wir führen beide Listen mit Gültigkeit. Alte Codes von 2003 ordnen wir C zu, Herstellung von Waren.

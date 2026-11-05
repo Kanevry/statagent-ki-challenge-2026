@@ -9,19 +9,20 @@ bereiche: [Weiterentwicklung und Betrieb, Bedienbarkeit]
 screenshot: null
 pen_frame: null
 belege: [F18]
+belegt: [StatAgent]
 ---
 
-# Eine Frage, drei Antworten, jede mit Beleg.
+# Zielbild: eine Frage, drei Antworten.
 
-„Wie viele Menschen arbeiten im März 2025 in Wien im Gesundheits- und Sozialwesen, und was heißt das für mich?“
+„Wie viele Beschäftigungsverhältnisse gibt es im März 2025 in Wien im Gesundheits- und Sozialwesen, und was heißt das für mich?“
 
-1. **StatAgent:** 7.498 Beschäftigungsverhältnisse, mit Beleg
+1. **StatAgent:** 7.498 Beschäftigungsverhältnisse, mit Beleg und Abfrage
 2. **Simulator:** was mehr oder weniger Personal für Wartezeiten bedeutet, abgewogen aus Sicht von Kassen, Ärzten und Versicherten.
 3. **Lotse:** in einfachen Worten, was das für Ihren nächsten Arzttermin heißt.
 
 Gemeinsamer Einstieg
 
-Herkunft: 7.498 aus unabhängiger Gegenrechnung, Wien, ÖNACE 2025 Abschnitt R, März 2025
+Herkunft: 7.498 gemessen mit uc3 frage, gleich dem Orakel der Review-Bank, Wien, ÖNACE 2025 Abschnitt R, März 2025
 
 ## Sprechernotizen
 

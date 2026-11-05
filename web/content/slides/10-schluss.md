@@ -15,9 +15,9 @@ belege: []
 
 Jede Änderung mit Namen.
 
-Jetzt live: ein Lauf, Ihre Änderung, Ihre Datenanfrage.
+Jetzt live: ein Lauf, Ihre Änderung, drei Datenanfragen.
 
-Läuft lokal und offline. Das Modell ist austauschbar.
+Der Lauf rechnet lokal und offline. Das Modell ist austauschbar.
 
 ki-challenge.gotzendorfer.at
 

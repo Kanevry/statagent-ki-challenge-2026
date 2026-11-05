@@ -8,7 +8,7 @@ dauer_s: 35
 bereiche: [Datenmanagement, Qualitätssicherung]
 screenshot: null
 pen_frame: null
-belege: [F4, F5, F8]
+belege: [F4, F5, F7, F8, F9]
 ---
 
 # Acht Arten von Fehlern gefunden. Nichts gelöscht.
