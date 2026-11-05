@@ -6,7 +6,7 @@ id = "26-1"
 hash = "04600bfc65"
 art = "hand"
 deckung = "voll"
-beschreibung = "Fr 06.11. früh (Probe 06:00 bis 07:00) hält Bernhard den vollen Vortrag samt Demo mit Stoppuhr (Start und Ende aus der Uhr, nicht geschätzt). Bestanden ist: Gesamtdauer höchstens 10:00 und alle fünf Pflichtschritte kamen vor (Lösung, Fehlerbeispiel, eine begründete Annahme, Live-Änderung mit Vorher/Nachher, eine Datenfrage). Danach stellt der Lead als Jury drei Fragen aus dem Fragenkatalog und eine außerhalb. Bestanden ist: alle vier Fragen sind in unter 30 Sekunden beantwortet, ohne Pflichtlücke. Der Lead trägt Name, Uhrzeit und Ergebnis der Jury-Simulation in probe.md (Tabelle Auffälligkeiten) oder als Kommentar in #26 ein. Die Dauer allein misst der Prüfsatz 26-1 (Dauer)."
+beschreibung = "Fr 06.11. früh (Probe 2 ab 07:15, Entscheid Lead f7 in #141) hält Bernhard den vollen Vortrag samt Demo mit Stoppuhr (Start und Ende aus der Uhr, nicht geschätzt). Bestanden ist, je Pfad gemessen (Entscheid Lead f7 in #90): Pfad B höchstens 10:00, Pfad A höchstens 14:00 und in Pfad A kamen alle fünf Pflichtschritte vor (Lösung, Fehlerbeispiel, eine begründete Annahme, Live-Änderung mit Vorher/Nachher, eine Datenfrage). Danach stellt der Lead als Jury drei Fragen aus dem Fragenkatalog und eine außerhalb. Bestanden ist: alle vier Fragen sind in unter 30 Sekunden beantwortet, ohne Pflichtlücke. Der Lead trägt Name, Uhrzeit und Ergebnis der Jury-Simulation in probe.md (Tabelle Auffälligkeiten) oder als Kommentar in #26 ein. Die Dauer allein misst der Prüfsatz 26-1 (Dauer)."
 quelle = "Issue #26, Abschnitt Fertig wenn"
 befund = "Es gibt keinen ausgefüllten Probelauf mit Stoppuhr und keinen Vermerk des Leads zur Jury-Simulation."
 grund = "Probelauf höchstens 10:00 mit allen fünf Pflichtschritten und Jury-Simulation durch den Lead bestanden."
@@ -20,16 +20,18 @@ t = open("docs/praesentation/probe.md", encoding="utf-8").read()
 def feld(n):
     m = re.search(r"^\| " + re.escape(n) + r" \| *(.*?) *\|$", t, re.M)
     return m.group(1).strip() if m else ""
-g = re.match(r"(\d{1,2}):(\d{2})\b", feld("Gesamtdauer Ist"))
+g = re.match(r"(\d{1,2}):(\d{2})\b", feld("Probe 2 Dauer Pfad B"))
 print("gesamtdauer_gesetzt", int(bool(g)))
 print("gesamt_le_10min", int(bool(g) and 0 < int(g[1]) * 60 + int(g[2]) <= 600))
+a = re.match(r"(\d{1,2}):(\d{2})\b", feld("Probe 2 Dauer Pfad A"))
+print("pfad_a_le_14min", int(bool(a) and 0 < int(a[1]) * 60 + int(a[2]) <= 840))
 ' '''
-erwartet = ['^gesamtdauer_gesetzt 1$', '^gesamt_le_10min 1$']
+erwartet = ['^gesamtdauer_gesetzt 1$', '^gesamt_le_10min 1$', '^pfad_a_le_14min 1$']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #26, Abschnitt Fertig wenn (Probelauf höchstens 10 min)"
-befund = "probe.md nennt keine Gesamtdauer Ist oder sie liegt über 10:00."
-grund = "probe.md trägt eine Gesamtdauer von höchstens 10:00 ein."
+quelle = "Issue #26, Abschnitt Fertig wenn (Probelauf höchstens 10 min); Entscheide Lead f7 in #90 und #141: je Pfad, Pfad B höchstens 10:00, Pfad A höchstens 14:00, gemessen in Probe 2 des Owners"
+befund = "probe.md nennt eine der beiden Dauern von Probe 2 nicht, oder Pfad B liegt über 10:00 oder Pfad A über 14:00."
+grund = "probe.md trägt für Probe 2 des Owners Pfad B mit höchstens 10:00 und Pfad A mit höchstens 14:00 ein."
 
 # ---------------------------------------------------------------- #88 Screenshots
 
@@ -46,6 +48,8 @@ uhr = lambda s: bool(re.search(r"\b\d{1,2}:\d{2}\b", s))
 print("start_ende", int(uhr(feld("Start (Uhr)")) and uhr(feld("Ende (Uhr)"))))
 g = re.match(r"(\d{1,2}):(\d{2})\b", feld("Gesamtdauer Ist"))
 print("gesamt_le_10min", int(bool(g) and 0 < int(g[1]) * 60 + int(g[2]) <= 600))
+a = re.match(r"(\d{1,2}):(\d{2})\b", feld("Gesamtdauer Ist Pfad A"))
+print("pfad_a_le_14min", int(bool(a) and 0 < int(a[1]) * 60 + int(a[2]) <= 840))
 ab = zeilen = 0
 for z in t.splitlines():
     c = [x.strip() for x in z.strip().strip("|").split("|")]
@@ -57,18 +61,18 @@ print("abschnitte_alle_gefuellt", int(zeilen >= 15 and ab == zeilen))
 pf = 0
 for z in t.splitlines():
     c = [x.strip() for x in z.strip().strip("|").split("|")]
-    if len(c) == 5 and re.fullmatch(r"[1-5]", c[0]) and c[3] and c[4]:
+    if len(c) == 5 and re.fullmatch(r"[1-5]", c[0]) and c[3] and c[4] and re.match(r"Pfad A|D\d", c[2]):
         pf += 1
 print("pflichtschritte_bestaetigt", pf)
 m = re.search(r"Ergebnis: (\d) von 5 bestätigt", t)
 print("ergebnis", m.group(1) if m else "offen")
 ' '''
-erwartet = ['^start_ende 1$', '^gesamt_le_10min 1$', '^abschnitte_alle_gefuellt 1$', '^pflichtschritte_bestaetigt 5$', '^ergebnis 5$']
+erwartet = ['^start_ende 1$', '^gesamt_le_10min 1$', '^pfad_a_le_14min 1$', '^abschnitte_alle_gefuellt 1$', '^pflichtschritte_bestaetigt 5$', '^ergebnis 5$']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #90, Kriterium 90-1 (Wortlaut: Start/Ende, Abschnittszeiten, Gesamtdauer höchstens 10:00, 5/5 Schritte vom Lead bestätigt); Abschnitte und Pflichtschritte wie in probe.md (15, mit !215 19 für Pfad A und B; Gesamtdauer Ist ist dann Pfad B)"
-befund = "probe.md ist nicht ausgefüllt: Start, Ende, Gesamtdauer, Abschnittszeiten oder die Bestätigung der fünf Pflichtschritte durch den Lead fehlen, oder die Gesamtdauer liegt über 10:00."
-grund = "probe.md hat Start, Ende, alle Abschnittszeiten und eine Gesamtdauer von höchstens 10:00, und der Lead hat 5 von 5 Pflichtschritten bestätigt."
+quelle = "Issue #90, Kriterium 90-1 (Wortlaut: Start/Ende, Abschnittszeiten, Gesamtdauer höchstens 10:00, 5/5 Schritte vom Lead bestätigt); Entscheid Lead f7 in #90 (Owner 21:2x, zwei Termine): je Pfad gemessen, Pfad A mit allen fünf Pflichtschritten höchstens 14:00 (Feld Gesamtdauer Ist Pfad A), Pfad B höchstens 10:00 (Feld Gesamtdauer Ist)"
+befund = "probe.md ist nicht ausgefüllt: Start, Ende, eine der beiden Gesamtdauern, Abschnittszeiten oder die Bestätigung der fünf Pflichtschritte in Pfad A fehlen, oder Pfad A liegt über 14:00 oder Pfad B über 10:00."
+grund = "probe.md hat Start, Ende und alle Abschnittszeiten, Pfad A höchstens 14:00, Pfad B höchstens 10:00, und der Lead hat 5 von 5 Pflichtschritten in Pfad A bestätigt."
 
 [[pruefung]]
 id = "90-1"
@@ -897,7 +901,7 @@ import re
 t = open("docs/praesentation/probe.md", encoding="utf-8").read()
 leer = vorl = ab = 0
 for z in t.splitlines():
-    if re.fullmatch(r"\| [^|]+ \| *\|", z):
+    if re.fullmatch(r"\| [^|]+ \| *\|", z) and not z.startswith("| Probe 2 "):
         leer += 1
     c = [x.strip() for x in z.strip().strip("|").split("|")]
     if len(c) == 7 and re.fullmatch(r"\d+|8[a-e]", c[0]) and not (c[4] and c[5] and c[6]):
@@ -910,7 +914,7 @@ print("abschnitte_offen", ab)
 erwartet = ['^leere_werte 0$', '^vorlage_reste 0$', '^abschnitte_offen 0$']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #141, Abschnitt Fertig wenn, dritter Punkt (Probe-Protokoll ist ausgefüllt)"
+quelle = "Issue #141, Abschnitt Fertig wenn, dritter Punkt (Probe-Protokoll ist ausgefüllt); Probe 2 des Owners ab 07:15 misst 26-1 und zählt hier nicht"
 befund = "probe.md ist noch die Vorlage: Werte sind leer, Auswahlen wie ja / nein nicht getroffen, Abschnittszeiten nicht eingetragen, Titel trägt noch (Vorlage)."
 grund = "Alle Felder der Tabellen in probe.md sind ausgefüllt und keine Auswahl ist mehr offen."
 
