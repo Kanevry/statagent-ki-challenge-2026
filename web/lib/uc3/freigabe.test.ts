@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Ausfuehren, CliLauf } from "./cli";
+import { UC3_ARGV, type Ausfuehren, type CliLauf } from "./cli";
 import {
   entscheidungArgv,
   erstelleFreigabeAntwort,
@@ -12,19 +12,16 @@ import {
 } from "./freigabe";
 
 // Nie die echte CLI: jede Antwort kommt aus einem gefälschten `ausfuehren`.
-// cli.ts importiert `@/lib/plattform/modell`; die Vitest-Konfiguration kennt den Alias `@/` nicht. Deshalb steht
-// hier ein Ersatz mit demselben Vertrag wie `uc3()` (Präfix `uv run --frozen uc3`, argv ohne Shell).
-vi.mock("./cli", () => ({
-  standardAusfuehren: async () => {
-    throw new Error("echte CLI im Test");
-  },
-  uc3: (argv: readonly string[], o: { ausfuehren: Ausfuehren; wurzel?: () => string }) =>
-    o.ausfuehren("uv", ["run", "--frozen", "uc3", ...argv], {
-      cwd: o.wurzel?.() ?? "/repo",
-      timeout: 120_000,
-      maxBuffer: 2 * 1024 * 1024,
-    }),
-}));
+// Echter Aufbau des Aufrufs aus cli.ts; nur der Standard-Ausführer wirft, damit nie die echte CLI läuft.
+vi.mock("./cli", async (importOriginal) => {
+  const echt = await importOriginal<typeof import("./cli")>();
+  return {
+    ...echt,
+    standardAusfuehren: async () => {
+      throw new Error("echte CLI im Test");
+    },
+  };
+});
 
 function anfrage(body: unknown): Request {
   return new Request("http://localhost/api/uc3/freigabe", {
@@ -82,7 +79,7 @@ describe("POST /api/uc3/freigabe", () => {
     const [befehl, argv] = aus.mock.calls[0]!;
     expect(befehl).toBe("uv");
     expect(argv).toEqual([
-      "run", "--frozen", "uc3",
+      ...UC3_ARGV,
       "ablehnen", "1", "--name", "Anna Beispiel", "--begruendung", begruendung, "--json",
     ]);
   });
@@ -124,7 +121,7 @@ describe("POST /api/uc3/freigabe", () => {
       protokoll_id: 1,
       angewendet: true,
     });
-    expect(aus.mock.calls[0]![1]).toEqual(["run", "--frozen", "uc3", "freigabe", "1", "--name", "Anna Beispiel", "--json"]);
+    expect(aus.mock.calls[0]![1]).toEqual([...UC3_ARGV, "freigabe", "1", "--name", "Anna Beispiel", "--json"]);
   });
 
   it("Fehler: Timeout bringt den Server zum Absturz. Startfehler → 502", async () => {

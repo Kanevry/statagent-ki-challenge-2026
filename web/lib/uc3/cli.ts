@@ -3,14 +3,16 @@ import { execFile } from "node:child_process";
 import { findeRepoWurzel } from "../plattform/modell";
 
 /**
- * Aufruf der UC3-CLI (`uv run --frozen uc3 …`) als Subprozess mit argv, nie über eine Shell. Nur für Schreibwege
+ * Aufruf der UC3-CLI (`uv run --frozen --package statagent uc3 …`) als Subprozess mit argv, nie über eine Shell. Nur für Schreibwege
  * (Freigabe, Ablehnung) und Fragen; Lesen geht direkt an die Datenbank (`db.ts`). web/ ruft nie ein Modell.
  *
  * `UC3_CLI_WURZEL` lenkt den Aufruf auf einen anderen Checkout, in dem `uc3/` liegt (Entwicklung, solange uc3/ nicht
  * auf main ist); ohne Angabe die Repo-Wurzel dieses Checkouts.
  */
 
-export const UC3_ARGV = ["run", "--frozen", "uc3"] as const;
+// `--package statagent`: uv installiert das Workspace-Mitglied uc3/ bei Bedarf; ohne den Schalter fehlt das
+// Programm `uc3`, wenn nur `uv sync` ohne `--all-packages` lief (gemessen 05.11.).
+export const UC3_ARGV = ["run", "--frozen", "--package", "statagent", "uc3"] as const;
 export const TIMEOUT_MS = 120_000;
 export const MAX_BUFFER = 2 * 1024 * 1024;
 
