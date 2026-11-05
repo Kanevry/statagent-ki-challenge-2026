@@ -1,0 +1,9 @@
+# Pflicht-Testwert (#42, PRD S4): +5 % Kassenstellen, voll besetzt, ρ₀ = 0,80 ohne Spanne.
+# Erwartung aus der geschlossenen Formel: ρ₁ = 0,80/1,05 = 0,7619…, Wartezeitänderung −20,0 %.
+beschreibung: Pflicht-Testwert Kassenstellen +5 % Kapazität bei ρ₀ = 0,80
+massnahmen:
+  - id: kassenstellen
+    umfang: 5
+annahmen:
+  rho0: {min: 0.80, modus: 0.80, max: 0.80}
+  kassenstellen_besetzung: {min: 1.0, modus: 1.0, max: 1.0}
