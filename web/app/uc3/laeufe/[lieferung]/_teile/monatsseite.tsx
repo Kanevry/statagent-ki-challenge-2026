@@ -450,7 +450,7 @@ function Weiter({ detail }: { detail: LaufDetail }) {
         <span />
       )}
       <Link href={uebersichtPfad(lauf.regelsatz)} className={`inline-flex min-h-11 items-center ${link}`}>
-        Alle Monate
+        Alle Läufe
       </Link>
       {detail.danach ? (
         <Link href={laufPfad(nach, lauf.regelsatz)} className={`inline-flex min-h-11 items-center ${link}`}>
