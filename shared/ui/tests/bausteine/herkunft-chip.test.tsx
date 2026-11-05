@@ -24,3 +24,15 @@ it("zeigt nach Klick das SQL und kopiert genau dieses", async () => {
   expect(schreiben).toHaveBeenCalledWith(sql);
   expect(await screen.findByText("Kopiert")).toBeTruthy();
 });
+
+// Fängt ab: ein Beleg ohne SQL, der einen leeren „Kopieren“-Knopf anbietet, und ein vorläufiger Stand, der
+// wie ein endgültiger aussieht (UC4-Antworten, #98).
+it("ohne SQL: Beleg ansehen ohne Kopieren, vorläufiger Stand steht im Chip", async () => {
+  const user = userEvent.setup();
+  render(<HerkunftChip sql={null} lieferung="2025-03" stand="vorlaeufig" />);
+
+  const chip = screen.getByRole("button", { name: "roh.lieferung 2025-03 · vorläufig · Beleg ansehen" });
+  await user.click(chip);
+  expect(screen.getByText(/keine Abfrage hinterlegt/)).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Kopieren" })).toBeNull();
+});

@@ -11,11 +11,12 @@ function zeige(pfad: string) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("AppHeader", () => {
-  it("rendert fünf Tabs aus der Registry in fester Reihenfolge, UC3 trägt „bewertet“", () => {
+  it("rendert sechs Tabs aus der Registry in fester Reihenfolge, UC3 trägt „bewertet“", () => {
     zeige("/uc3");
     const links = within(screen.getByRole("navigation", { name: "Bereiche" })).getAllByRole("link");
-    expect(links.map((l) => l.getAttribute("href"))).toEqual(["/", "/uc3", "/uc1", "/uc2", "/praesentation"]);
+    expect(links.map((l) => l.getAttribute("href"))).toEqual(["/", "/uc3", "/uc1", "/uc2", "/uc4", "/praesentation"]);
     expect(links[1]?.textContent).toBe("UC3 StatAgentbewertet");
+    expect(links[4]?.textContent).toBe("UC4 Einstieg");
     expect(links.filter((l) => l.textContent?.includes("bewertet"))).toHaveLength(1);
   });
 
@@ -33,7 +34,7 @@ describe("AppHeader", () => {
     await nutzer.keyboard("{ArrowRight}");
     expect(document.activeElement).toBe(links[1]);
     await nutzer.keyboard("{ArrowLeft}{ArrowLeft}");
-    expect(document.activeElement).toBe(links[4]);
+    expect(document.activeElement).toBe(links[5]);
     await nutzer.keyboard("{Home}");
     expect(document.activeElement).toBe(links[0]);
   });

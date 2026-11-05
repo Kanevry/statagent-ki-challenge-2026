@@ -5,7 +5,7 @@ import { Knopf } from "../basis/knopf";
 import { fokus, klassen } from "../basis/klassen";
 import { Leerzustand } from "../basis/leerzustand";
 import { Status } from "../basis/status";
-import type { UcEintrag, UcId } from "../ucs";
+import type { BereichId, UcEintrag } from "../ucs";
 import { eintraegeSchema, type Eintrag } from "./eintrag";
 
 // Protokoll-Schublade (Pen-Frame yK42X): 380 px, rechts, modal. Zeigt, wer was angewiesen hat und was daraus
@@ -18,14 +18,14 @@ export interface ProtokollSchubladeProps {
   uc: UcEintrag;
   onSchliessen: () => void;
   /** Adresse der Einträge, Standard `/api/<uc>/protokoll`. */
-  quelle?: (uc: UcId) => string;
+  quelle?: (uc: BereichId) => string;
   /** Abstand vom oberen Fensterrand in px, meist die Unterkante des Headers. */
   oben?: number;
 }
 
 type Zustand = { art: "laden" } | { art: "ok"; eintraege: Eintrag[] } | { art: "fehler" };
 
-const standardQuelle = (uc: UcId) => `/api/${uc}/protokoll`;
+const standardQuelle = (uc: BereichId) => `/api/${uc}/protokoll`;
 
 const datum = new Intl.DateTimeFormat("de-AT", { timeZone: "Europe/Vienna", day: "2-digit", month: "2-digit" });
 const uhrzeit = new Intl.DateTimeFormat("de-AT", { timeZone: "Europe/Vienna", hour: "2-digit", minute: "2-digit" });
