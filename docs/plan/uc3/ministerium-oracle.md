@@ -44,17 +44,26 @@ Berichtsmonat 2026-07, zwölf Monate, Abschnitt C, Schwelle 200 Tage.
 
 | Variante | Parameter | Personen | Quelle |
 |---|---|---|---|
-| ohne Altcodes | `altcodes_als_abschnitt: []` | 32.639 | Forensik, Lead note 269248 |
-| DA bis DM als C | `altcodes_als_abschnitt: ["DA", "DB", "DC", "DD", "DE", "DF", "DG", "DH", "DI", "DJ", "DK", "DL", "DM"]` | 32.667 | Prototyp-Lauf auf m5 |
-| wie oben, August 2025 aus Lieferung 2025-11 | Datenstand weicht vom Fenster ab (kein Parameterwert) | 32.706 | Orakel-Angabe |
+| ohne Altcodes, Teil-Lieferung 2025-10 übersprungen | `altcodes_als_abschnitt: []`, `angehaltene_lieferungen: ueberspringen` | **32.713** | finaler Code, gemessen 05.11.2026 15:0x |
+| DA bis DM als C, Teil-Lieferung 2025-10 übersprungen | `altcodes_als_abschnitt: ["DA", …, "DM"]`, `angehaltene_lieferungen: ueberspringen` | **32.741** | finaler Code, gemessen 05.11.2026 15:0x |
+| ohne Altcodes, August 2025 aus der Teil-Lieferung 2025-10 | – | 32.639 | Forensik, Lead note 269248 |
+| DA bis DM als C, August 2025 aus der Teil-Lieferung 2025-10 | – | 32.667 | früherer Prototyp |
+| DA bis DM als C, August 2025 aus Lieferung 2025-11 | Datenstand weicht vom Fenster ab (kein Parameterwert) | 32.706 | Orakel-Angabe |
 
-Die dritte Zeile entsteht nicht durch einen Parameterwert. Eine Lieferung 2025-11 enthält nach § 2 die Monate
+Gemessen mit dem Code dieses Branches auf der Datenbank `statistik` (24 Läufe v1, nicht freigegeben), ohne
+Eintrag in der Datenbank: die Definition lag nur im Speicher, freigegeben ist nichts. Datenstand je Monat: 2025-08
+aus Lieferung 2025-09, weil die jüngere Lieferung 2025-10 angehalten ist (Teil-Lieferung, Rückfrage zur
+Teil-Lieferung, P15/P16); 2025-09 aus 2025-11, 2025-10 aus 2025-12 und so weiter bis 2026-05 bis 2026-07 aus
+2026-07. Die 74 Personen Unterschied zu 32.639/32.667 kommen genau aus dieser Wahl: Die Teil-Lieferung 2025-10
+fehlen rund 20 % der Verhältnisse, mit ihr verlieren diese Personen Tage im August und fallen unter 200 Tage.
+
+Die fünfte Zeile entsteht nicht durch einen Parameterwert. Eine Lieferung 2025-11 enthält nach § 2 die Monate
 September bis November 2025, also keinen August. Wer August 2025 aus ihr nimmt, verlässt die Regel „jüngste
 Lieferung, die den Tag enthält“. Die Zahl steht hier nur, damit sich die Abweichung zum Orakel erklären lässt.
 
-**Vorbehalt:** Die Zahlen stammen aus einem Prototyp-Lauf beziehungsweise aus der Forensik und nicht aus dem
-finalen Code. Der Koordinator bestätigt sie mit `uv run uc3 ministerium` nach der Freigabe der Definition und
-trägt das Ergebnis hier nach. Bis dahin sind sie Erwartungswerte.
+**Offen:** Die amtliche Lieferung entsteht erst mit `uv run uc3 ministerium --name …`, nachdem der Owner die
+Definition (Regelsatz `ministerium`) mit seinem Namen freigegeben hat. Welche Altcode-Variante gilt, entscheidet
+diese Freigabe; Annahme A13 nimmt DA bis DM als C (wie die Bereinigung in v1).
 
 ## Freigabe der Lieferung (Regel 7)
 
