@@ -171,6 +171,25 @@ def test_gescheitertes_git_lehnt_ab_und_schreibt_keine_ausgabe(conn: Verbindung,
     assert _ausgaben(conn) == []
     assert git(repo, "rev-parse", "HEAD") == kopf
     assert not (repo / "abgabe" / "ministerium_2024-11.csv").exists()
+    assert not (repo / "abgabe" / "ministerium_2024-11.beleg.md").exists()
+
+
+def test_gescheitertes_git_stellt_vorhandene_datei_wieder_her(conn: Verbindung, tmp_path: Path) -> None:
+    # Fängt: eine schon vorhandene Zieldatei (z. B. eine frühere Rechnung) wird überschrieben und nach dem Git-Fehler
+    # gelöscht statt wiederhergestellt (Review Codex, sonderauswertung.py:319).
+    repo = _repo(tmp_path / "repo")
+    hook = repo / ".git" / "keine-hooks" / "pre-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    hook.chmod(0o755)
+    alt = repo / "abgabe" / "ministerium_2024-11.csv"
+    alt.parent.mkdir(parents=True)
+    alt.write_text("alte Fassung\n", encoding="utf-8")
+    _auswertungsregel(conn)
+    regeln_freigeben(conn, "ministerium", NAME)
+    with pytest.raises(GitFehler):
+        ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+    assert alt.read_text(encoding="utf-8") == "alte Fassung\n"
 
 
 # Grenzfälle (Review !13 Punkt 9): Schwelle − 1 / Schwelle (im Echtbetrieb 199/200, hier mindesttage = 30 auf

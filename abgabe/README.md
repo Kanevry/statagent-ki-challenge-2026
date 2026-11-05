@@ -22,7 +22,8 @@ der Rechnung zu, und die Freigabe mit Namen (Commit-Trailer `Freigegeben-von`) g
 Rechenweg (Auftrag 3, Entscheid zur Variante in `docs/plan/uc3/ministerium-oracle.md`): Berichtsmonat 2026-07 und
 die elf Monate davor; Arbeiter mit Dienst- oder freiem Dienstvertrag; ÖNACE-Abschnitt C; je Tag die jüngste
 Lieferung, die ihn enthält, wobei die angehaltene Teil-Lieferung 2025-10 übersprungen wird (Variante S); Tage je
-Person ohne Doppelzählung; mindestens 200 Tage; unplausible Geburtsdaten, auch Monat 13, als `Unbekannt`.
+Person ohne Doppelzählung; mindestens 200 Tage; unplausible Geburtsdaten, auch Monat 13, als `Unbekannt`;
+ÖNACE-2003-Altcodes DA bis DN zählen zu Abschnitt C wie im Sheet. Ergebnis im Prototyp: 32.741 Personen.
 
 Die Lieferung entsteht erst, wenn die Definition (Regelsatz `ministerium`) mit Namen freigegeben ist. Bis dahin
 fehlt der Beleg, und `pruefe-abgabe` meldet die Lieferung als offen.

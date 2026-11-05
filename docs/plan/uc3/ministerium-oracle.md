@@ -61,8 +61,9 @@ Die fünfte Zeile entsteht nicht durch einen Parameterwert. Eine Lieferung 2025-
 September bis November 2025, also keinen August. Wer August 2025 aus ihr nimmt, verlässt die Regel „jüngste
 Lieferung, die den Tag enthält“. Die Zahl steht hier nur, damit sich die Abweichung zum Orakel erklären lässt.
 
-**Entscheid (Lead 58, autonom, 05.11.2026, Kommentar in #72):** Abgabezahl ist Variante S, also 32.713 ohne bzw.
-32.741 mit DA–DM. Sie passt zum Entscheid E07, die Teil-Lieferung 2025-10 als Lieferausfall zu behandeln. Die
+**Entscheid (Lead 58, autonom, 05.11.2026, Kommentare in #72):** Abgabezahl ist **32.741**: Variante S mit den
+ÖNACE-2003-Altcodes DA bis DN in Abschnitt C, also dieselbe Zuordnung wie Regel Q01 im Sheet (Persona-Panel F5).
+32.713 (Variante S ohne Altcodes) steht nur noch als Variante im Beleg. Sie passt zum Entscheid E07, die Teil-Lieferung 2025-10 als Lieferausfall zu behandeln. Die
 wörtliche Lesart H („jüngste Lieferung, die den Tag enthält“, August 2025 aus der Teil-Lieferung 2025-10) ergibt
 32.639 bzw. 32.667 und ist das bisherige Soll des Leads (note 269248). Drei unabhängige Rechnungen und die
 Forensik stimmen dort überein. Die Wahl S statt H ist eine Annahme und steht als Rückfrage R3 (Lead: F1) an die

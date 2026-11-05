@@ -358,8 +358,10 @@ def ministerium_schreiben(
         relativ = str(datei)
     _bisherige_lieferung(conn, berichtsmonat, sha)
     datei.parent.mkdir(parents=True, exist_ok=True)
-    datei.write_text(inhalt, encoding="utf-8")
     beleg = datei.with_name(f"{datei.stem}.beleg.md")
+    # Frühere Fassungen merken: scheitert die Freigabe, wird der alte Zustand wiederhergestellt statt gelöscht.
+    vorher = {p: (p.read_bytes() if p.is_file() else None) for p in (datei, beleg)}
+    datei.write_text(inhalt, encoding="utf-8")
     beleg.write_text(beleg_text(regel, auswertung, datei.name, sha, person), encoding="utf-8")
     protokoll_id: int | None = None
     if repo_pfad is not None:
@@ -369,9 +371,12 @@ def ministerium_schreiben(
                 conn, person, repo_pfad, beleg_ref, berichtsmonat, auswertung, sha
             )
         except Exception:
-            # nicht freigegeben: keine Datei, die wie eine Lieferung aussieht
-            datei.unlink(missing_ok=True)
-            beleg.unlink(missing_ok=True)
+            # nicht freigegeben: keine neue Datei, die wie eine Lieferung aussieht; Vorhandenes bleibt erhalten
+            for pfad, alt in vorher.items():
+                if alt is None:
+                    pfad.unlink(missing_ok=True)
+                else:
+                    pfad.write_bytes(alt)
             raise
     with conn.transaction():
         conn.execute(
