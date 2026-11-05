@@ -18,7 +18,9 @@ LAYOUTS = {"titel", "text", "schritte", "zahl", "live"}
 LAYOUT_ALIASE = {"cover": "titel"}  # alte Namen, die die Runtime weiter versteht
 SZENE_MUSTER = re.compile(r"^[a-z0-9-]+$")
 DATEINAME = re.compile(r"^(\d{2})-.+\.md$")
-GEDANKENSTRICH = re.compile(r" [—–] ")
+# Gedankenstrich: jeder Geviertstrich und jeder Halbgeviertstrich, der nicht zwischen zwei Ziffern steht.
+# Zeitspannen wie 0:20–1:20 bleiben erlaubt.
+GEDANKENSTRICH = re.compile(r"—|(?<!\d)–|–(?!\d)")
 BELEG_KENNUNG = re.compile(r"^F\d+$")
 NOTIZ_KOMMENTAR = "<!-- notizen -->"
 # Verboten: Monat als Ziffernfolge. Ganze Datumsmuster JJJJ-MM-TT (Datenmuster) sind keine Monatsangabe.

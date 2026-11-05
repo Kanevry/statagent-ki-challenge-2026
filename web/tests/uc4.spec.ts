@@ -55,66 +55,62 @@ const ERGEBNIS = {
   fehlend: [],
 };
 
-async function frageStellen(page: Page): Promise<void> {
-  await page.getByLabel("Frage an die Kette").fill("Wie viele Beschäftigte gab es 2025-03?");
-  await page.getByLabel("Frage an die Kette").press("Enter");
+/** Der Strom zu ERGEBNIS als NDJSON, wie ihn die Route mit `Accept: application/x-ndjson` liefert. */
+function strom(): string {
+  const zeilen: unknown[] = [{ art: "start", kette: ["uc3", "uc2", "uc1"], modell: null }];
+  ERGEBNIS.antworten.forEach((antwort, i) => {
+    const uc = antwort.uc as string;
+    zeilen.push({ art: "station", uc, stufe: i + 1, zustand: "laeuft" });
+    zeilen.push({ art: "antwort", uc, stufe: i + 1, dauer_ms: 900, kern: String(antwort.text).split(". ")[0], antwort });
+  });
+  zeilen.push({ art: "ende", fehlend: [], dauer_ms: 2700 });
+  return zeilen.map((z) => JSON.stringify(z)).join("\n") + "\n";
 }
 
-test("/uc4 liefert 200 und zeigt Hauptaussage, Frage-Feld und drei leere Karten", async ({ page }) => {
+async function frageStellen(page: Page): Promise<void> {
+  await page.getByLabel("Ihre Frage").fill("Wie viele Beschäftigte gab es 2025-03?");
+  await page.getByLabel("Ihre Frage").press("Enter");
+}
+
+test("/uc4 liefert 200: Hauptaussage, Frage-Feld, drei Stationen ohne Platzhaltertext", async ({ page }) => {
   const antwort = await page.goto("/uc4");
   expect(antwort?.status()).toBe(200);
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Eine Frage läuft nacheinander durch");
-  await expect(page.getByLabel("Frage an die Kette")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByLabel("Ihre Frage")).toBeVisible();
   await expect(page.locator("[data-uc-karte]")).toHaveCount(3);
-  await expect(page.locator('[data-zustand="leer"]')).toHaveCount(3);
+  await expect(page.locator('[data-zustand="wartet"]')).toHaveCount(3);
+  await expect(page.locator("main")).not.toContainText("sobald eine Frage gestellt ist");
 });
 
-// Fängt ab (Review !66): Der Sprechknopf steht unter den drei Karten statt am Frage-Feld (auf 390 px unter drei
-// gestapelten Karten).
-test("der Sprechknopf steht am Frage-Feld, vor den Karten", async ({ page }) => {
-  await page.goto("/uc4");
-  const vorDenKarten = await page.evaluate(() => {
-    const stimme = document.querySelector("[data-uc4-stimme]");
-    const karte = document.querySelector("[data-uc-karte]");
-    const feld = document.querySelector('input[name="frage"]');
-    if (!stimme || !karte || !feld) return null;
-    const vor = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-    return vor(feld, stimme) && vor(stimme, karte);
-  });
-  expect(vorDenKarten).toBe(true);
-});
-
-test("Frage absenden: drei Karten in Reihenfolge uc3, uc2, uc1, jede Zahl mit HerkunftChip, Gate 0", async ({ page }) => {
+test("Frage absenden: Stationen antworten in Reihenfolge uc3, uc2, uc1, jede mit Kernsatz, Gate 0", async ({ page }) => {
   let gesendet: unknown = null;
+  let accept = "";
   await page.route("**/api/uc4/frage", async (route) => {
     gesendet = route.request().postDataJSON();
-    await route.fulfill({ json: ERGEBNIS });
+    accept = route.request().headers()["accept"] ?? "";
+    await route.fulfill({ status: 200, headers: { "content-type": "application/x-ndjson" }, body: strom() });
   });
   await page.goto("/uc4");
   await frageStellen(page);
 
-  const karten = page.locator("[data-uc-karte]");
   await expect(page.locator('[data-zustand="antwort"]')).toHaveCount(3);
+  const karten = page.locator("[data-uc-karte]");
   expect(await karten.evaluateAll((el) => el.map((k) => k.getAttribute("data-uc-karte")))).toEqual(["uc3", "uc2", "uc1"]);
   expect(gesendet).toEqual({ frage: "Wie viele Beschäftigte gab es 2025-03?" });
-
-  const zahlen = page.locator("[data-zahl]");
-  expect(await zahlen.count()).toBeGreaterThan(0);
-  for (const zahl of await zahlen.all()) {
-    await expect(zahl.locator('[data-baustein="herkunft"]')).toHaveCount(1);
-  }
-  await expect(page.getByRole("status").filter({ hasText: "3 Antworten da." })).toHaveCount(1);
-  await expect(page.locator('[data-uc-karte="uc2"]').getByText("von StatAgent", { exact: true })).toHaveCount(1);
+  expect(accept).toContain("application/x-ndjson");
+  await expect(page.locator("[data-uc4-antwort]")).toHaveCount(3);
+  await expect(page.locator('[data-uc-karte="uc3"] [data-baustein="herkunft"]')).toHaveCount(1);
+  await expect(page.getByText(/Fertig in/)).toBeVisible();
 
   await gateMessen(page);
 });
 
-test("gesperrter POST (Online-Demo) zeigt den Hinweis in jeder Karte, die Seite bleibt bedienbar", async ({ page }) => {
+test("gesperrter POST zeigt genau einen ruhigen Satz, keine rote Meldung je Station", async ({ page }) => {
   await page.route("**/api/uc4/frage", (route) => route.fulfill({ status: 405, body: "" }));
   await page.goto("/uc4");
   await frageStellen(page);
 
-  await expect(page.locator('[data-zustand="fehler"]')).toHaveCount(3);
-  await expect(page.locator("[data-uc-karte]").getByText("Fragen sind in der Online-Demo noch gesperrt.")).toHaveCount(3);
-  await expect(page.getByRole("button", { name: "Frage stellen" })).toBeEnabled();
+  await expect(page.getByText("Fragen sind hier gerade nicht offen.")).toHaveCount(1);
+  await expect(page.locator('[data-zustand="fehlt"]')).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Fragen", exact: true })).toBeEnabled();
 });

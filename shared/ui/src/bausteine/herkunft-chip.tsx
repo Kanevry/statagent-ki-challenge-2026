@@ -34,10 +34,11 @@ type Kopie = "bereit" | "kopiert" | "fehler";
 const LAUF_KURZ = 8;
 
 /**
- * Beleg einer Zahl (Pen-Frame QVMco): grüne Pille mit Datenbank-Symbol, Quelle, Zeitpunkt, Regelstand und Lauf;
- * beim Öffnen das SQL mit „Kopieren“. Quelle und Zeitpunkt stehen in Mono (Daten), die Wörter in Inter.
+ * Beleg einer Zahl: ruhiger Textlink „Beleg“ (bei Zitaten die Quelle) mit Datenbank- bzw. Dokument-Symbol;
+ * Quelle, Zeitpunkt, Regelstand und Lauf stehen im Namen des Knopfs und aufgeklappt in den Angaben, dazu das SQL
+ * mit „Kopieren“ (UI-Regie 05.11.: keine Pille an jeder Zahl).
  * Steht als Block neben der Zahl (nicht innerhalb eines `<p>`), weil der geöffnete Bereich ein `<pre>` enthält.
- * Ohne SQL heißt der Chip „Beleg ansehen“ und zeigt nur Quelle, Lieferung, Lauf und Verweis.
+ * Ohne SQL zeigt der aufgeklappte Beleg nur Quelle, Lieferung, Lauf und Verweis, ohne Kopieren.
  */
 export function HerkunftChip({
   sql,
@@ -99,39 +100,35 @@ export function HerkunftChip({
         }}
         title={lauf && laufKurz !== lauf ? `Lauf ${lauf}` : undefined}
         className={klassen(
-          "inline-flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-full bg-gruen-bg px-2.5 py-1 text-left font-sans text-12 font-normal text-gruen hover:underline",
+          "inline-flex items-center gap-1 text-left font-sans text-12 text-slate underline decoration-line underline-offset-4 hover:text-gruen hover:decoration-gruen",
           fokus,
         )}
       >
         <Piktogramm name={zitat ? "protokoll" : "datenbank"} groesse={12} className="shrink-0" />
-        <span className="font-mono">{quelle}</span>
-        {zeitpunkt && (
-          <>
-            {" "}
-            <span className={revision ? undefined : "font-mono"}>{zeitpunkt}</span>
-          </>
-        )}
-        {teile.map((teil) => (
-          <Fragment key={teil}>
-            {" · "}
-            <span>{teil}</span>
-          </Fragment>
-        ))}
-        {" · "}
-        <span>{zitat ? "Zitat ansehen" : sql ? "SQL ansehen" : "Beleg ansehen"}</span>
+        {/* Ruhig (UI-Regie 05.11.): sichtbar nur, was man zum Weiterklicken braucht. Tabelle, Lieferung, Regelstand
+            und Lauf stehen aufgeklappt in den Angaben und für Screenreader hier. */}
+        <span>{zitat ? quelle : "Beleg"}</span>
+        {(() => {
+          const rest = [zitat ? null : quelle, zeitpunkt, ...teile].filter(Boolean).join(", ");
+          return rest ? <span className="sr-only">{`, ${rest}`}</span> : null;
+        })()}
       </button>
       {offen && (
-        <div id={bereichId} className="flex w-full flex-col gap-2 border-l-2 border-gruen bg-white py-2 pl-4 pr-2">
+        <div id={bereichId} className="flex w-full flex-col gap-2 rounded-lg border border-line bg-white p-3">
           {angaben && <p className="font-sans text-12 text-slate">{angaben}</p>}
           {zitat ? (
             // Rechtsquelle (UC1): das Zitat wörtlich, darunter der Fassungsstand; kein Satz über eine Abfrage.
             <>
-              <blockquote className="border-l-2 border-line pl-3 font-sans text-14 text-ink">{zitat}</blockquote>
+              <blockquote className="font-sans text-14 text-ink">{zitat}</blockquote>
               {fassung && <p className="font-sans text-12 text-slate">{`Stand: ${fassung}`}</p>}
             </>
           ) : sql ? (
             <>
-              <pre className="max-w-full overflow-x-auto whitespace-pre-wrap font-mono text-12 text-ink">
+              <pre
+                tabIndex={0}
+                aria-label="SQL der Abfrage"
+                className={klassen("max-w-full overflow-x-auto whitespace-pre-wrap font-mono text-12 text-ink", fokus)}
+              >
                 <code>{sql}</code>
               </pre>
               <div className="flex flex-wrap items-center gap-4">

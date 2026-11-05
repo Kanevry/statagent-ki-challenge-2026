@@ -13,8 +13,8 @@ import { ucs, type UcEintrag } from "@kic/ui/ucs";
 // ganze Projekt traced. An der Registry ändert ein UC dafür nichts.
 export const dynamicParams = false;
 
-/** UCs mit eigenem Ordner unter web/app/<uc>/; uc1 und uc2 tragen sich ein, sobald sie einen anlegen. */
-const EIGENE_ROUTE = new Set<string>(["uc2", "uc3"]);
+/** UCs mit eigenem Ordner unter web/app/<uc>/: alle drei haben inzwischen eine eigene Route. */
+const EIGENE_ROUTE = new Set<string>(["uc1", "uc2", "uc3"]);
 
 export function generateStaticParams(): Array<{ uc: string }> {
   return ucs.filter((uc) => !EIGENE_ROUTE.has(uc.id)).map((uc) => ({ uc: uc.id }));
