@@ -9,6 +9,8 @@ import { Begriffsliste, Fachbegriff } from "@/components/uc3/fachbegriff";
 import type { Uc3Begriff } from "@/components/uc3/glossar";
 import { laufBeleg } from "@/components/uc3/beleg";
 import {
+  auftraggeber,
+  auftragsZitat,
   aenderungKurz,
   ergebnisPfad,
   gesamtZeile,
@@ -114,8 +116,8 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
           nurLesen={nurLesend()}
           vorschlagId={v.id}
           eintrag={{
-            anweisung: v.anweisung,
-            name: v.gesagtVon ? `Gesagt von ${v.gesagtVon}` : "Wer es gesagt hat, ist nicht erfasst",
+            anweisung: auftragsZitat(v.anweisung),
+            name: auftraggeber(v),
             zeit: v.gesagtAm ?? v.erstelltAm,
             wirkung: aenderungKurz(v),
             modell: v.modell,
@@ -155,7 +157,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
         {w && w.umverteilung && !u && (
           <section className="flex flex-col gap-2" aria-labelledby="verschiebung">
             <h2 id="verschiebung" className="font-sans text-16 font-semibold text-ink">
-              {`${probeTitel(w.lieferung)}: Diese ${formatZahl(w.weitere.length)} Kategorien tauschen Verhältnisse untereinander.`}
+              {`${probeTitel(w.lieferung)}: Diese ${formatZahl(w.weitere.length)} Kategorien tauschen Beschäftigungsverhältnisse untereinander.`}
             </h2>
             <WaageZeilen vorschlag={v.id} waage={w} zeilen={w.weitere} />
           </section>
@@ -232,7 +234,7 @@ function UmverteilungZahlen({
   return (
     <div className="flex flex-col gap-3">
       <p className="font-sans text-16 font-semibold text-ink">{probeTitel(u.lieferung)}</p>
-      <Fliesstext>{`Dieselben Verhältnisse stehen in ${formatZahl(kategorienZahl)} Kategorien:`}</Fliesstext>
+      <Fliesstext>{`Dieselben Beschäftigungsverhältnisse stehen in ${formatZahl(kategorienZahl)} Kategorien:`}</Fliesstext>
       <ul className="flex flex-col gap-3">
         {u.gruppen.map((g) => (
           <li key={g.ziel} className="flex flex-col items-start gap-1">

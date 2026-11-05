@@ -505,8 +505,8 @@ export function waageSatz(w: Waage): string {
   if (w.umverteilung) {
     const zahl = formatZahl(w.gesamtVorher);
     return monat
-      ? `${monat}verteilen sich die ${zahl} Verhältnisse neu, gesamt bleibt ${zahl}.`
-      : `Die ${zahl} Verhältnisse verteilen sich neu, gesamt bleibt ${zahl}.`;
+      ? `${monat}verteilen sich die ${zahl} Beschäftigungsverhältnisse neu, gesamt bleibt ${zahl}.`
+      : `Die ${zahl} Beschäftigungsverhältnisse verteilen sich neu, gesamt bleibt ${zahl}.`;
   }
   if (haupt.differenz === 0) return `${monat}bleibt ${haupt.bezeichnung} bei ${formatZahl(haupt.vorher)}.`.trim();
   const satz = `${monat}zählen wir ${haupt.bezeichnung} mit ${formatZahl(haupt.nachher)} statt ${formatZahl(haupt.vorher)}.`;
@@ -978,3 +978,27 @@ export function erstelleFreigabeAntwort({
 
 /** Prozessweiter Handler für die Route. */
 export const freigabeAntwort = erstelleFreigabeAntwort();
+
+/** Sätze, mit denen eine Anweisung den Agenten selbst anspricht („Ändere dafür nur …“, „Ziel ist …“). */
+const AN_DEN_AGENTEN = /^(Ändere|Ändern|Setze|Lege|Nutze|Verwende|Schreibe|Erzeuge|Baue|Ziel ist)\b/;
+
+/**
+ * Der fachliche Auftrag als Zitat für die Freigabe: ohne Titel vor dem Doppelpunkt, ohne Klammern mit Dateien oder
+ * Spaltennamen und ohne die Sätze an den Agenten (Sichtprüfung bb, #18). Bleibt nichts übrig, steht der Rohtext da.
+ */
+export function auftragsZitat(anweisung: string): string {
+  const doppelpunkt = anweisung.indexOf(":");
+  const rumpf = (doppelpunkt > 0 && doppelpunkt < 120 ? anweisung.slice(doppelpunkt + 1) : anweisung)
+    .replace(/\s*\([^)]*(?:\.csv|Spalte|[A-Z]{4,})[^)]*\)/g, "")
+    .trim();
+  const saetze = rumpf.split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ])/);
+  const ende = saetze.findIndex((satz) => AN_DEN_AGENTEN.test(satz));
+  const fachlich = (ende < 0 ? saetze : saetze.slice(0, ende)).join(" ").trim();
+  return fachlich || anweisung.trim();
+}
+
+/** Wer den Auftrag gegeben hat: Name aus dem Protokoll, sonst die Herkunft „Auftrag N“ der Aufgabenstellung. */
+export function auftraggeber(v: Pick<Vorschlag, "gesagtVon" | "anweisung">): string {
+  if (v.gesagtVon) return `Gesagt von ${v.gesagtVon}`;
+  return /^Auftrag \d+\b/.test(v.anweisung.trim()) ? "Änderungsauftrag aus der Aufgabenstellung" : "Ohne Namen erfasst";
+}
