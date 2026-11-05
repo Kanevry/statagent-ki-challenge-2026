@@ -3,9 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Akzent, Fliesstext, knopfKlassen, Leerzustand, Ueberschrift } from "@kic/ui/basis";
 import { formatDifferenz, formatZahl, HerkunftChip, type FreigabeEntscheidung } from "@kic/ui/bausteine";
-import { leerSatz } from "@/lib/uc3/db";
-import { Fachbegriff } from "@/lib/uc3/fachbegriff";
-import type { Uc3Begriff } from "@/lib/uc3/glossar";
+import { leerSatz } from "@/components/uc3/db";
+import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import type { Uc3Begriff } from "@/components/uc3/glossar";
 import {
   aenderungKurz,
   ergebnisPfad,
@@ -21,8 +21,8 @@ import {
   type Vorschlag,
   type Waage,
   type WaageZeile,
-} from "@/lib/uc3/freigabe";
-import { monatName } from "@/lib/uc3/monat";
+} from "@/components/uc3/freigabe";
+import { monatName } from "@/components/uc3/monat";
 import { Entscheiden } from "./entscheiden";
 
 // Ein Vorschlag in drei Zonen (Frames qVTQj, oBcQu): das wurde gesagt, das ändert sich, Freigabe mit Namen.

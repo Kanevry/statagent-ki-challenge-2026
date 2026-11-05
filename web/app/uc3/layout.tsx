@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { UcBereich } from "@kic/ui/shell";
-import { UC3_NAVIGATION } from "@/lib/uc3/navigation";
+import { UC3_NAVIGATION } from "@/components/uc3/navigation";
 import { DemoModus } from "./_teile/demo-modus";
 
 // UC3 StatAgent (bewertet): fünf Punkte nach dem Persona-Panel 05.11. (Wörter aus Bewertungsbereich 6).

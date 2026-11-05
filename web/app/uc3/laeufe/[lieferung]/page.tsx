@@ -3,10 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Fliesstext, knopfKlassen, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
 import { formatZahl, HerkunftChip } from "@kic/ui/bausteine";
-import { abrechnungBeleg, laufBeleg } from "@/lib/uc3/beleg";
-import { leerSatz } from "@/lib/uc3/db";
-import { Fachbegriff } from "@/lib/uc3/fachbegriff";
-import { abrechnung } from "@/lib/uc3/laeufe";
+import { abrechnungBeleg, laufBeleg } from "@/components/uc3/beleg";
+import { leerSatz } from "@/components/uc3/db";
+import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { abrechnung } from "@/components/uc3/laeufe";
 import {
   abrechnungSatz,
   bestandSatz,
@@ -30,10 +30,10 @@ import {
   umschichtungSatz,
   ursachenSatz,
   type LaufDetail,
-} from "@/lib/uc3/lauf-detail";
-import { istMonat, monatName, stichtag, verschieben } from "@/lib/uc3/monat";
-import { berichtPfad, laufPfad } from "@/lib/uc3/navigation";
-import type { Lauf } from "@/lib/uc3/typen";
+} from "@/components/uc3/lauf-detail";
+import { istMonat, monatName, stichtag, verschieben } from "@/components/uc3/monat";
+import { berichtPfad, laufPfad } from "@/components/uc3/navigation";
+import type { Lauf } from "@/components/uc3/typen";
 import { Auffaelligkeiten } from "./_teile/auffaelligkeiten";
 import { Bundeslaender } from "./_teile/bundeslaender";
 

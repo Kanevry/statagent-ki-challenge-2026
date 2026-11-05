@@ -1,5 +1,5 @@
 import { formatZahl } from "@kic/ui/bausteine";
-import type { Region } from "@/lib/uc3/lauf-detail";
+import type { Region } from "@/components/uc3/lauf-detail";
 
 const kopf = "border-b border-ink py-2 pr-4 text-left align-bottom font-sans text-12 font-semibold text-slate";
 const zelle = "py-2 pr-4 align-top font-sans text-14 text-ink";

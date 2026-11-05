@@ -15,14 +15,14 @@ import {
   sqlUeberblick,
   type Auffaelligkeit,
   type Qualitaetsbericht,
-} from "@/lib/uc3/bericht";
-import { bestandBeleg, laufBeleg } from "@/lib/uc3/beleg";
-import { leerSatz } from "@/lib/uc3/db";
-import { Fachbegriff } from "@/lib/uc3/fachbegriff";
-import { abrechnung } from "@/lib/uc3/laeufe";
-import { aufzaehlen, wartetSatz } from "@/lib/uc3/lauf-detail";
-import { istMonat, monatName, stichtag } from "@/lib/uc3/monat";
-import { berichtPfad, laufPfad } from "@/lib/uc3/navigation";
+} from "@/components/uc3/bericht";
+import { bestandBeleg, laufBeleg } from "@/components/uc3/beleg";
+import { leerSatz } from "@/components/uc3/db";
+import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { abrechnung } from "@/components/uc3/laeufe";
+import { aufzaehlen, wartetSatz } from "@/components/uc3/lauf-detail";
+import { istMonat, monatName, stichtag } from "@/components/uc3/monat";
+import { berichtPfad, laufPfad } from "@/components/uc3/navigation";
 import { MonatsStatus } from "../../_teile/monatstabelle";
 
 // Qualitätsbericht eines Monats (#18, Frame fJdk9) in den fünf Abschnitten des Generators

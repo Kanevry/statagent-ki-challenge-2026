@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Fliesstext, knopfKlassen, Leerzustand, Ueberschrift } from "@kic/ui/basis";
 import { formatZahl, formatZeit, HerkunftChip } from "@kic/ui/bausteine";
-import { bestandBeleg } from "@/lib/uc3/beleg";
-import { leerSatz } from "@/lib/uc3/db";
-import { Fachbegriff } from "@/lib/uc3/fachbegriff";
-import { leseMonatsuebersicht, sqlRegelFreigaben } from "@/lib/uc3/laeufe";
-import { monatName } from "@/lib/uc3/monat";
-import { berichtPfad, laufPfad } from "@/lib/uc3/navigation";
+import { bestandBeleg } from "@/components/uc3/beleg";
+import { leerSatz } from "@/components/uc3/db";
+import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { leseMonatsuebersicht, sqlRegelFreigaben } from "@/components/uc3/laeufe";
+import { monatName } from "@/components/uc3/monat";
+import { berichtPfad, laufPfad } from "@/components/uc3/navigation";
 import { gemeinsamerRegelstand, Monatstabelle } from "./_teile/monatstabelle";
 
 // Monatsläufe (#18, Frames bgAUw und iU5QZ): eine Zeile je Berichtsmonat mit dem maßgeblichen Lauf. Liest die
@@ -64,7 +64,7 @@ export default async function Monatslaeufe() {
           {`${monate.length} Monate von ${monatName(erster.lieferung)} bis ${monatName(letzter.lieferung)} sind gerechnet. `}
           {angehalten.length === 0
             ? "Kein Monat ist angehalten."
-            : `${ZAHLWORT[angehalten.length] ?? angehalten.length} davon ${angehalten.length === 1 ? "ist" : "sind"} angehalten und ${angehalten.length === 1 ? "braucht" : "brauchen"} Ihr Urteil: ${aufzaehlen(angehalten.map((m) => monatName(m.lieferung)))}.`}
+            : `${ZAHLWORT[angehalten.length] ?? angehalten.length} davon ${angehalten.length === 1 ? "ist" : "sind"} angehalten und ${angehalten.length === 1 ? "wartet" : "warten"} auf die Antwort der Fachabteilung: ${aufzaehlen(angehalten.map((m) => monatName(m.lieferung)))}.`}
         </Fliesstext>
         {alleVorlaeufig && regeln.ohneFreigabe > 0 && (
           <div className="flex flex-col items-start gap-2">

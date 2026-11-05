@@ -9,12 +9,12 @@ import {
   sqlBerichtsuebersicht,
   sqlOhneRueckfrage,
   type Berichtszeile,
-} from "@/lib/uc3/bericht";
-import { aufzaehlen } from "@/lib/uc3/lauf-detail";
-import { leerSatz } from "@/lib/uc3/db";
-import { Fachbegriff } from "@/lib/uc3/fachbegriff";
-import { monatName } from "@/lib/uc3/monat";
-import { berichtPfad } from "@/lib/uc3/navigation";
+} from "@/components/uc3/bericht";
+import { aufzaehlen } from "@/components/uc3/lauf-detail";
+import { leerSatz } from "@/components/uc3/db";
+import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { monatName } from "@/components/uc3/monat";
+import { berichtPfad } from "@/components/uc3/navigation";
 import { MonatsStatus } from "../_teile/monatstabelle";
 
 // Qualitätsberichte (#18, Frame fJdk9): ein Bericht je Monat aus dem maßgeblichen Lauf. Ohne Datenbank der

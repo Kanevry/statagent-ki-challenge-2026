@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { Status } from "@kic/ui/basis";
 import { formatDifferenz, formatZahl, HerkunftChip } from "@kic/ui/bausteine";
-import { monatszeileBeleg, type Beleg } from "@/lib/uc3/beleg";
-import { abrechnung } from "@/lib/uc3/laeufe";
-import { monatName, verschieben } from "@/lib/uc3/monat";
-import { laufPfad } from "@/lib/uc3/navigation";
-import type { Monatslauf } from "@/lib/uc3/typen";
+import { monatszeileBeleg, type Beleg } from "@/components/uc3/beleg";
+import { abrechnung } from "@/components/uc3/laeufe";
+import { monatName, verschieben } from "@/components/uc3/monat";
+import { laufPfad } from "@/components/uc3/navigation";
+import type { Monatslauf } from "@/components/uc3/typen";
 
 type Stand = { art: "ok" | "warnung" | "fehler" | "info"; wort: string };
 

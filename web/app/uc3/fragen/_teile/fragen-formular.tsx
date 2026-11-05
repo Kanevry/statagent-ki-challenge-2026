@@ -4,8 +4,8 @@ import { useRef, useState, type FormEvent } from "react";
 import type { UcAntwort } from "@kic/ui/antwortform";
 import { Feld, Fliesstext, Knopf, Status, Tabelle, Zahl } from "@kic/ui/basis";
 import { HerkunftChip } from "@kic/ui/bausteine";
-import { alsCsv, istRueckfrage } from "@/lib/uc3/antwort";
-import { istMonat, monatName } from "@/lib/uc3/monat";
+import { alsCsv, istRueckfrage } from "@/components/uc3/antwort";
+import { istMonat, monatName } from "@/components/uc3/monat";
 
 export type Definition = { code: string; beschreibung: string };
 

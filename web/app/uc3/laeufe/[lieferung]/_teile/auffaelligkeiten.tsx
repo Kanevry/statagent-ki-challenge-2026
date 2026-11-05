@@ -1,6 +1,6 @@
 import { Status } from "@kic/ui/basis";
 import { HerkunftChip, WarnChip } from "@kic/ui/bausteine";
-import { laufBeleg } from "@/lib/uc3/beleg";
+import { laufBeleg } from "@/components/uc3/beleg";
 import {
   einstufungStatus,
   massnahmeSatz,
@@ -8,8 +8,8 @@ import {
   trefferTitel,
   umfangImTitel,
   type Treffer,
-} from "@/lib/uc3/lauf-detail";
-import type { Lauf } from "@/lib/uc3/typen";
+} from "@/components/uc3/lauf-detail";
+import type { Lauf } from "@/components/uc3/typen";
 
 /** Eine Auffälligkeit: Titel als Satz, Einstufung als Symbol und Wort, Maßnahme, Beleg. Einzeldaten (Verhältnis-Nummern) zeigt das Web nie. */
 function Eintrag({ lauf, treffer }: { lauf: Lauf; treffer: Treffer }) {

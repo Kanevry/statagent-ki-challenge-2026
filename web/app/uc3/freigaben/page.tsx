@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Akzent, Fliesstext, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
 import { formatDifferenz, formatZahl, formatZeit, HerkunftChip } from "@kic/ui/bausteine";
-import { leerSatz } from "@/lib/uc3/db";
-import { Fachbegriff } from "@/lib/uc3/fachbegriff";
+import { leerSatz } from "@/components/uc3/db";
+import { Fachbegriff } from "@/components/uc3/fachbegriff";
 import {
   aenderungKurz,
   gesamtZeile,
@@ -16,8 +16,8 @@ import {
   type ErledigtZeile,
   type Freigaben,
   type Waage,
-} from "@/lib/uc3/freigabe";
-import { istMonat, monatName } from "@/lib/uc3/monat";
+} from "@/components/uc3/freigabe";
+import { istMonat, monatName } from "@/components/uc3/monat";
 
 // Freigaben (Frames qVTQj, PPe1S, uJbeL): Reiter „Wartet auf Sie“ (offene Vorschläge der Agenten) und „Erledigt“
 // (Protokoll in Worten). Liest die UC3-Datenbank direkt; ohne Datenbank Leerzustand mit HTTP 200.

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Fliesstext, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
 import { Begriff, HerkunftChip } from "@kic/ui/bausteine";
-import { laufBeleg } from "@/lib/uc3/beleg";
-import { leerSatz } from "@/lib/uc3/db";
-import { Fachbegriff } from "@/lib/uc3/fachbegriff";
+import { laufBeleg } from "@/components/uc3/beleg";
+import { leerSatz } from "@/components/uc3/db";
+import { Fachbegriff } from "@/components/uc3/fachbegriff";
 import {
   leseKlassifikationen,
   qualifikationsZahlen,
@@ -24,7 +24,7 @@ import {
   wechselzahlen,
   zaehleUebergangsWorte,
   type Zuordnungsregel,
-} from "@/lib/uc3/klassifikation";
+} from "@/components/uc3/klassifikation";
 import { Abschnittstabelle } from "./_teile/abschnittstabelle";
 
 // Klassifikationen (#18, Frame XlcSB): Branchen ÖNACE 2008 gegen 2025, wie gelieferte Codes zugeordnet werden und

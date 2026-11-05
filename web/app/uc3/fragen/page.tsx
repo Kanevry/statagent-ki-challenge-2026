@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Fliesstext, Ueberschrift } from "@kic/ui/basis";
-import { lies } from "@/lib/uc3/db";
+import { lies } from "@/components/uc3/db";
 import { type Definition, FragenFormular } from "./_teile/fragen-formular";
 
 // Fragen an die Daten (#18, Frame DbY1q): eine Frage in eigenen Worten, die Antwort rechnet `uc3 frage` bzw.

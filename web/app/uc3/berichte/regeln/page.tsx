@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Fliesstext, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
 import { formatZahl, HerkunftChip } from "@kic/ui/bausteine";
-import { leseRegeln, REGEL_TYPEN, sqlRegeln, type Regel, type RegelTyp } from "@/lib/uc3/bericht";
-import { leerSatz } from "@/lib/uc3/db";
-import { Fachbegriff } from "@/lib/uc3/fachbegriff";
-import { monatName } from "@/lib/uc3/monat";
+import { leseRegeln, REGEL_TYPEN, sqlRegeln, type Regel, type RegelTyp } from "@/components/uc3/bericht";
+import { leerSatz } from "@/components/uc3/db";
+import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { monatName } from "@/components/uc3/monat";
 
 // Regeln des Regelsatzes v1 (#18, Frame egqhg): gruppiert nach Einlesen, Zuordnen, Zählen, Prüfen, mit
 // Beschreibung, Begründung, Gültigkeit und Freigabe. Nur lesend; Freigaben laufen über die CLI.
