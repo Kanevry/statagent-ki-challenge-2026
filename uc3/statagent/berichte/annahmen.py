@@ -18,15 +18,17 @@ def _hat_tabelle(conn: Verbindung, name: str) -> bool:
 def annahmen(conn: Verbindung, lieferung: str, regelsatz: str = "v1") -> list[dict[str, object]]:
     """Annahmen, die für `lieferung` gelten, sortiert nach Nummer (F1, F2, …, F10).
 
-    Felder: nr, rueckfrage, satz, begruendung, regel_name, wirkung_saetze (meta.regel_wirkung des
+    Felder: nr, rueckfrage, satz, grund, begruendung, regel_name, wirkung_saetze (meta.regel_wirkung des
     maßgeblichen Laufs für regel_name, sonst None), beleg_sql (meta.rueckfrage.beleg_sql, sonst None).
+    `satz` endet mit „Grund: …“ (Spalte `grund`), damit Qualitätsbericht und CLI die Begründung zeigen, ohne
+    ein eigenes Feld zu kennen; `grund` steht zusätzlich einzeln da.
     """
     if not _hat_tabelle(conn, "meta.annahme"):
         return []
     mit_rueckfrage = _hat_tabelle(conn, "meta.rueckfrage")
     stand = ergebnis.letzter_lauf(conn, lieferung, regelsatz)
     zeilen = conn.execute(
-        f"""SELECT a.nr, a.rueckfrage, a.satz, a.begruendung, a.regel_name,
+        f"""SELECT a.nr, a.rueckfrage, a.satz, a.grund, a.begruendung, a.regel_name,
                    (SELECT sum(w.saetze) FROM meta.regel_wirkung w JOIN meta.regel r ON r.id = w.regel_id
                     WHERE w.lauf_id = %(lauf)s AND r.name = a.regel_name) AS wirkung_saetze,
                    {
@@ -43,7 +45,8 @@ def annahmen(conn: Verbindung, lieferung: str, regelsatz: str = "v1") -> list[di
         {
             "nr": z["nr"],
             "rueckfrage": z["rueckfrage"],
-            "satz": z["satz"],
+            "satz": f"{z['satz']} Grund: {z['grund']}" if z["grund"] else z["satz"],
+            "grund": z["grund"],
             "begruendung": z["begruendung"],
             "regel_name": z["regel_name"],
             "wirkung_saetze": None if z["wirkung_saetze"] is None else int(str(z["wirkung_saetze"])),

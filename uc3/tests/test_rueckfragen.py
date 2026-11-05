@@ -1,4 +1,4 @@
-"""Rückfragen als Dateien (GitLab #72 AC1): Dateien R1 bis R9 nach Vorlage, nachgezählt aus der Datenbank."""
+"""Rückfragen als Dateien (GitLab #72 AC1): Dateien R1 bis R10 nach Vorlage, nachgezählt aus der Datenbank."""
 
 from __future__ import annotations
 
@@ -88,3 +88,17 @@ def test_fuenf_rueckfragen_nach_vorlage_mit_nachgezaehlten_beispielen(
     assert "- **Verhältnis:** ein Beschäftigungsverhältnis" in texte["R3"]
     assert "- **Fortschreiben:**" in texte["R3"]
     assert "- **Fortschreiben:**" not in texte["R1"]  # nur Begriffe, die im Text vorkommen
+
+
+def test_r10_entsteht_und_jede_rueckfrage_stellt_eine_frage(conn: Verbindung, tmp_path: Path) -> None:
+    # Fängt: R10 (P14) fehlt oder ihre Beleg-Abfrage bricht den Generator (keine Spalte vvh_id), eine Rückfrage
+    # stellt zwei Fragen auf einmal, R8 und R9 nennen wieder Zahlen, die nicht zum Qualitätsbericht passen.
+    pfade = rueckfragen_schreiben(conn, tmp_path, datum=date(2026, 11, 5))
+    texte = {p.stem: p.read_text(encoding="utf-8") for p in pfade}
+    assert list(texte)[-2:] == ["R9", "R10"]
+    assert "Nr.: R10 · Datum: 05.11.2026" in texte["R10"]
+    assert "(Hinterlegt als Regel `P14_sprung_aggregat`.)" in texte["R10"]
+    for nr, text in texte.items():
+        frage = re.search(r"\*\*Frage an die Fachabteilung:\*\* (.*)", text)
+        assert frage and frage.group(1).count("?") == 1, nr
+    assert "216 bis 322" in texte["R8"] and "8.000" not in texte["R9"]
