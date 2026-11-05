@@ -165,7 +165,7 @@ export function ProtokollSchublade({ id, uc, onSchliessen, quelle = standardQuel
           type="button"
           aria-label="Schließen"
           onClick={onSchliessen}
-          className={klassen("inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-slate hover:bg-paper", fokus)}
+          className={klassen("inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-slate hover:bg-paper", fokus)}
         >
           <Piktogramm name="schliessen" groesse={18} />
         </button>

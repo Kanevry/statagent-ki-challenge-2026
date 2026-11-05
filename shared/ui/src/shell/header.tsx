@@ -81,7 +81,7 @@ export function AppHeader({
               ref={protokollKnopfRef}
               type="button"
               className={klassen(
-                "inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 font-sans text-14 text-ink hover:bg-paper",
+                "inline-flex min-h-11 items-center gap-2 rounded-lg border border-line px-3 py-2 font-sans text-14 text-ink hover:bg-paper",
                 fokus,
               )}
               onClick={onProtokoll}
