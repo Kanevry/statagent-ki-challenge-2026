@@ -435,7 +435,7 @@ export function klarerAenderungsSatz(
   const teile = v.aenderungen.flatMap((roh) => {
     const a = objekt(roh) as Aenderung;
     if (v.typ === "regel_aendern" && a.aktiv_neu === false) {
-      return [`Die Regel ${String(a.regel_name ?? "")} wird abgeschaltet, sie wird nicht gelöscht.`];
+      return ["Die Regel wird abgeschaltet, sie wird nicht gelöscht."];
     }
     const satz = v.typ === "regel_neu" ? regelNeuSatz(objekt(a.regel), bezeichnungen) : null;
     return satz ? [satz] : [];
@@ -1128,6 +1128,12 @@ export function kurzZeit(iso: string): string {
 }
 
 /** Titel und Nummer eines Auftrags: „Auftrag 1, Dienstvertrag …: …“ → Nummer 1, Titel „Dienstvertrag …“. */
+/** Sagt das Zitat dasselbe wie die Überschrift? Eine gekürzte Überschrift („… …“) zählt nicht, dort trägt das Zitat den Rest. */
+export function zitatDoppelt(titel: string, zitat: string): boolean {
+  const glatt = (t: string) => t.trim().replace(/[.!?]$/, "").toLowerCase();
+  return !titel.endsWith("…") && glatt(titel) === glatt(alltag(zitat));
+}
+
 export function auftragKopf(anweisung: string): { nummer: string | null; titel: string } {
   const treffer = /^\s*Auftrag (\d+)\s*,?\s*([^:]{0,100}):/.exec(anweisung);
   if (treffer) {
@@ -1205,6 +1211,24 @@ export interface ProbeTabelle {
  * ihrer Kategorie zugeordnet; ein Code, der selbst eine Kategorie ist (Regelsatz v2), steht unter sich selbst.
  * Ohne gerechnete Probe null.
  */
+/**
+ * Legt die Probe Bundesländer zusammen? Die Tabelle zeigt nur Beschäftigungskategorien, also sagt es dieser Satz, mit
+ * den Zahlen aus `je_merkmal.region`. Die neue Gruppe („Ost“) steht in keiner Klassifikation und heißt wie im Vorschlag.
+ */
+export function regionenSatz(probe: unknown, bezeichnungen: Bezeichnungen = {}): string | null {
+  const [monat] = probeMonate(probe);
+  if (!monat) return null;
+  const v = objekt(objekt(monat.vorher.je_merkmal).region);
+  const n = objekt(objekt(monat.nachher.je_merkmal).region);
+  const weg = Object.keys(v).filter((code) => zahl(v[code]) > 0 && n[code] === undefined);
+  const neu = Object.keys(n).filter((code) => v[code] === undefined);
+  const [gruppe] = neu;
+  if (weg.length < 2 || neu.length !== 1 || gruppe === undefined) return null;
+  const teile = weg.map((code) => `${codeName("region", code, bezeichnungen)} ${formatZahl(zahl(v[code]))}`);
+  const liste = `${teile.slice(0, -1).join(", ")} und ${teile.at(-1)}`;
+  return `${liste} zählen nachher zusammen als „${gruppe}“: ${formatZahl(zahl(n[gruppe]))}.`;
+}
+
 /**
  * Ändert die Probe etwas an den Beschäftigungskategorien (je_merkmal.qualifikation) oder an der Gesamtzahl? Andere
  * Merkmale (Bundesland, Alter) prüft diese Funktion nicht; der Satz auf der Seite nennt deshalb die Kategorien.

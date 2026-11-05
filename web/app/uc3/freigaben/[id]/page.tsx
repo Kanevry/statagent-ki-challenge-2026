@@ -22,8 +22,10 @@ import {
   ohneProbeSatz,
   probeAendert,
   probeJeKategorie,
+  zitatDoppelt,
   probeTabelleBeleg,
   probeTitel,
+  regionenSatz,
   sqlErgebnisLauf,
   sqlWirkung,
   vorgeschlagenVon,
@@ -81,6 +83,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
   const quelle = kopf.nummer ? `Änderungsauftrag ${kopf.nummer} aus der Aufgabenstellung` : auftraggeber(v);
   const gesagtAm = v.gesagtAm ?? v.erstelltAm;
   const tabelle = probeJeKategorie(v.probe, kategorien);
+  const regionen = regionenSatz(v.probe, bezeichnungen);
   const entscheidung = entscheidungAus(v);
 
   return (
@@ -99,7 +102,10 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
           {kopf.titel}
         </Ueberschrift>
         <figure className="flex flex-col gap-2">
-          <blockquote className="font-sans text-20 text-pretty text-ink">{`„${auftragsZitat(v.anweisung)}“`}</blockquote>
+          {/* Steht der ganze Auftrag schon in der Überschrift, wäre das Zitat derselbe Satz noch einmal. */}
+          {!zitatDoppelt(kopf.titel, auftragsZitat(v.anweisung)) && (
+            <blockquote className="font-sans text-20 text-pretty text-ink">{`„${auftragsZitat(v.anweisung)}“`}</blockquote>
+          )}
           <figcaption className="font-sans text-14 text-slate">
             {`${quelle}, `}
             <time dateTime={gesagtAm} className="tabular-nums">
@@ -115,6 +121,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
           {tabelle ? probeTitel(tabelle.lieferung) : "Keine Probe"}
         </h2>
         <p className="font-sans text-14 text-slate">{`${vorgeschlagenVon(v)}.`}</p>
+        {regionen && <p className="font-sans text-16 font-semibold text-ink">{regionen}</p>}
         {tabelle ? (
           <ProbeTabelleAnsicht vorschlag={v.id} tabelle={tabelle} />
         ) : (
@@ -203,8 +210,9 @@ function DetailBlock({ titel, children }: { titel: string; children: ReactNode }
  */
 function ProbeTabelleAnsicht({ vorschlag, tabelle: t }: { vorschlag: number; tabelle: ProbeTabelle }) {
   const kopf = "py-2 text-left font-sans text-14 font-medium text-slate";
-  const wort = "py-2 pr-4 text-left font-sans text-16 font-normal text-ink";
-  const zahlZ = "py-2 pr-6 text-right font-sans text-16 tabular-nums text-ink";
+  // Am Handy enger: Die vier Spalten müssen in 358 px passen, sonst ist die Spalte „nachher“ abgeschnitten.
+  const wort = "py-2 pr-2 text-left font-sans text-14 font-normal text-ink sm:pr-4 sm:text-16";
+  const zahlZ = "py-2 pr-2 text-right font-sans text-14 tabular-nums text-ink sm:pr-6 sm:text-16";
   const aendert = probeAendert(t);
   return (
     <div className="flex flex-col gap-2">
@@ -216,7 +224,7 @@ function ProbeTabelleAnsicht({ vorschlag, tabelle: t }: { vorschlag: number; tab
             <th scope="col" colSpan={2} className={kopf}>
               vorher
             </th>
-            <th scope="col" colSpan={2} className={`${kopf} border-l border-line pl-4`}>
+            <th scope="col" colSpan={2} className={`${kopf} border-l border-line pl-2 sm:pl-4`}>
               nachher
             </th>
           </tr>
@@ -230,7 +238,7 @@ function ProbeTabelleAnsicht({ vorschlag, tabelle: t }: { vorschlag: number; tab
                 <td className={zahlZ}>{formatZahl(teil.wert)}</td>
                 {i === 0 && (
                   <>
-                    <th scope="row" rowSpan={teile.length} className={`${wort} border-l border-line pl-4 align-middle`}>
+                    <th scope="row" rowSpan={teile.length} className={`${wort} border-l border-line pl-2 sm:pl-4 align-middle`}>
                       {z.kategorie}
                     </th>
                     <td rowSpan={teile.length} className={`${zahlZ} pr-0 align-middle`}>
@@ -244,7 +252,7 @@ function ProbeTabelleAnsicht({ vorschlag, tabelle: t }: { vorschlag: number; tab
           <tr className="font-semibold">
             <td className={`${wort} font-semibold`}>Gesamt</td>
             <td className={`${zahlZ} font-semibold`}>{formatZahl(t.gesamt.vorher)}</td>
-            <td className={`${wort} border-l border-line pl-4 font-semibold`}>Gesamt</td>
+            <td className={`${wort} border-l border-line pl-2 sm:pl-4 font-semibold`}>Gesamt</td>
             <td className={`${zahlZ} pr-0 font-semibold`}>{formatZahl(t.gesamt.nachher)}</td>
           </tr>
         </tbody>
