@@ -86,6 +86,32 @@ class _Verstoss(ValueError):
         self.kennung = kennung
 
 
+def _bekannte_namen(knoten: Any) -> set[str]:
+    """Alle im JSON-Schema deklarierten Eigenschaftsnamen (rekursiv)."""
+    namen: set[str] = set()
+    if isinstance(knoten, dict):
+        eigenschaften = knoten.get("properties")
+        if isinstance(eigenschaften, dict):
+            namen |= set(eigenschaften)
+        for wert in knoten.values():
+            namen |= _bekannte_namen(wert)
+    elif isinstance(knoten, list):
+        for wert in knoten:
+            namen |= _bekannte_namen(wert)
+    return namen
+
+
+def _ort(segmente: Any, bekannt: set[str]) -> str:
+    """Pfad wie ``$.stufe[0]``; Schlüssel, die nicht im Schema stehen (aus der Antwort), werden ``*``."""
+    teile = []
+    for segment in segmente:
+        if isinstance(segment, int):
+            teile.append(f"[{segment}]")
+        else:
+            teile.append("." + (segment if segment in bekannt else "*"))
+    return "$" + "".join(teile)
+
+
 def _validiere(roh: Rohantwort, schema: Schema) -> dict[str, Any]:
     """Validiertes dict oder ``_Verstoss`` mit kurzer Begründung (geht als Hinweis zurück ans Modell)."""
     daten = roh.json
@@ -98,9 +124,8 @@ def _validiere(roh: Rohantwort, schema: Schema) -> dict[str, Any]:
         try:
             jsonschema.validate(daten, schema)
         except jsonschema.ValidationError as fehler:
-            raise _Verstoss(
-                f"Schema verletzt: {fehler.message}", f"{fehler.validator} {fehler.json_path}"
-            ) from fehler
+            ort = _ort(fehler.absolute_path, _bekannte_namen(schema))
+            raise _Verstoss(f"Schema verletzt: {fehler.message}", f"{fehler.validator} {ort}") from fehler
         if not isinstance(daten, dict):
             raise _Verstoss("Antwort muss ein JSON-Objekt sein", "type $")
         return daten
@@ -109,7 +134,7 @@ def _validiere(roh: Rohantwort, schema: Schema) -> dict[str, Any]:
         return schema.model_validate(daten).model_dump(mode="json")
     except ValidationError as fehler:
         erster = fehler.errors()[0]
-        ort = "$" + "".join(f".{teil}" for teil in erster["loc"])
+        ort = _ort(erster["loc"], _bekannte_namen(schema.model_json_schema()))
         raise _Verstoss(f"Schema verletzt: {erster['msg']}", f"{erster['type']} {ort}") from fehler
 
 
@@ -332,6 +357,10 @@ def _strom(
             if erster is not None:
                 yield erster
             yield from strom.teile
+        except GeneratorExit:
+            # Verbraucher hat abgebrochen: kein Erfolg, sonst zählt die Zeile in letzter_erfolg() mit.
+            fehler_text = "abgebrochen"
+            raise
         except Exception as fehler:
             fehler_text = _kennung(fehler)
             raise
