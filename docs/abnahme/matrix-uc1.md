@@ -1,0 +1,57 @@
+# Abnahme-Matrix UC1 SV KI-Lotse
+
+Erzeugt von `tests/abnahme/matrix.py` am 2026-11-05 17:24 (Europe/Vienna) auf main `08ca8017`.
+Nicht von Hand ändern. Belege stehen in `docs/abnahme/belege.jsonl`,
+der jüngste Eintrag je Kriterium gilt. Ein Kriterium ist nur `bestanden`,
+wenn der Prüfer den Befehl in seiner Session ausgeführt und die Ausgabe gelesen hat.
+
+| Stand | Anzahl |
+|---|---:|
+| bestanden | 0 |
+| nicht bestanden | 0 |
+| nicht geprüft | 34 |
+| nach Abgabe | 6 |
+| gesamt | 40 |
+
+| Kriterium | Teil | Art | Kriterium im Wortlaut | Stand | Beleg | main-SHA | Uhrzeit |
+|---|---|---|---|---|---|---|---|
+| #23-1 | UC1 | Text | Ein Szenario Ende-zu-Ende per Text und per Stimme vorführbar, jede Auskunft mit Quelle | nicht geprüft |  |  |  |
+| #28-1 (geschlossen) | UC1 | ☐ | `uv run pytest -q`, `uv run ruff check .` und mypy laufen über `uc1` grün (CI-Job `python`). | nicht geprüft |  |  |  |
+| #28-2 (geschlossen) | UC1 | ☐ | Je Spike steht im Issue „machbar ja/nein“ mit Befehl und Messwert. | nicht geprüft |  |  |  |
+| #28-3 (geschlossen) | UC1 | ☐ | Keine Werte aus `.env.local` in Repo, Log oder Issue. | nicht geprüft |  |  |  |
+| #30-1 | UC1 | ☐ | `lotse-set.yaml` ist committet, bevor der erste Commit an `uc1/lotse/kern.py` entsteht (git log belegt die Reihenfolge). | nicht geprüft |  |  |  |
+| #30-2 | UC1 | ☐ | `lotse eval --nur-suche` läuft ohne Modell; `lotse eval` mit `--provider` aus `shared/`. | nicht geprüft |  |  |  |
+| #30-3 | UC1 | ☐ | Ein Durchlauf mit echtem Modell ist aufgezeichnet (für Satzlänge/Quellgleichheit, nicht `mock`). | nicht geprüft |  |  |  |
+| #31-1 | UC1 | ☐ | Stil „Einfach“: gleiche Quellen, mittlere Satzlänge < 15 Wörter (aufgezeichneter Lauf mit echtem Modell, Fall 24 Namenspaar gleiche Quellen). | nicht geprüft |  |  |  |
+| #31-2 | UC1 | ☐ | Englische Frage: Antwort englisch, Zitate deutsch, Zitiertreue 100 %. | nicht geprüft |  |  |  |
+| #34-1 | UC1 | ☐ | UC3-Anbindung: Oracle n/a hier; echte Abnahme als AC in #22. | nicht geprüft |  |  |  |
+| #35-1 | UC1 | ☐ | Seite entspricht Frame `KN6mU`, `B1gvr`, `ZHSFO` und `ytfvF` (Aufbau, Reihenfolge, Bausteine). | nicht geprüft |  |  |  |
+| #35-2 | UC1 | ☐ | 0 Schablonen-Treffer (Anti-KI-Schablonen-Messung, impeccable-Katalog). | nicht geprüft |  |  |  |
+| #35-3 | UC1 | ☐ | Klick auf Herkunft-Chip öffnet den Abschnitt, angezeigter Text ist Teilstring des Abschnitts. | nicht geprüft |  |  |  |
+| #35-4 | UC1 | ☐ | KI-Kennzeichnung (AI Act Art. 50) und Modell-Badge in jedem Screenshot sichtbar. | nicht geprüft |  |  |  |
+| #35-5 | UC1 | ☐ | Replay ohne Netz: Pflege-Szenario läuft durch, Hash der abgespielten Belege = Hash der Aufzeichnung. | nicht geprüft |  |  |  |
+| #35-6 | UC1 | ☐ | axe: 0 critical/serious. | nicht geprüft |  |  |  |
+| #36-1 | UC1 | ☐ | **AC1:** `docs/plan/uc1/voice-abnahme.md` nennt die Frist Fr07:00 und dokumentiert bestehenden Voice-Oracle oder Text-/Replay-Fallback; kein offener Featurebau nach07:00. Die ursprünglichen Qualitätskriterien bleiben bestehen. | nicht geprüft |  |  |  |
+| #81-1 | UC1 | ☐ | Projekt-AC: `uc1/eval/termin-wien.json` hält eine synthetische Wiener Pflegesituation fest. `uv run lotse eval --fall termin-wien` liefert mindestens 1 zuständige Beratungsstelle/Einrichtung mit Name, Adresse, Quellpfad und Seite/Abschnitt; jede ausgegebene Adresse ist ein normalisierter Teilstring der zitierten Quelle. Unbelegter Kontakt ergibt „nicht belegt“ statt erfundener Adresse. Prüfbericht `docs/plan/uc1/termin-messung.md` enthält 0 unbelegte Adressen. **Datenbasis:** `svbox/00-allgemein/text/Use Case 1 Versicherten-Chatbot V2.md:95-105; vault/05-business/career/hackathons-2026-27/ki-challenge/vor-ort-05-11.md:72`. | nicht geprüft |  |  |  |
+| #81-2 | UC1 | ☐ | Projekt-AC: Für dieselbe Sitzung erzeugt `uc1/erzeugt/termin-wien.ics` genau 1 VEVENT mit `STATUS:TENTATIVE`, Titel „Terminentwurf“, synthetischem Wunschdatum und Ort aus dem Beleg. Checkliste enthält Unterlagen, Nähe und Zeitpräferenz. Ein Parserbericht zählt 1 VEVENT; Text/UI kennzeichnen ausdrücklich „nicht gebucht“. **Datenbasis:** `svbox/00-allgemein/text/Use Case 1 Versicherten-Chatbot V2.md:99-105; lead-session-orchestrator/.orchestrator/runtime/fleet/ki-challenge-issue-audit.md:360-362`. | nicht geprüft |  |  |  |
+| #81-3 | UC1 | ☐ | Projekt-AC: Zwei aufgezeichnete Dialogfälle zeigen: fehlt nur die Zeitpräferenz, genau 1 Rückfrage dazu; ist sie bereits bekannt, 0 wiederholte Fragen dazu. Kein freier Termin wird behauptet. Ergebnis und Beleg-IDs liegen in `uc1/eval/termin-dialoge.json`; UI-Screenshot referenziert den verwendeten Pen-Frame. **Datenbasis:** `svbox/00-allgemein/text/Use Case 1 Versicherten-Chatbot V2.md:155-173`. | nicht geprüft |  |  |  |
+| #82-1 | UC1 | ☐ | Projekt-AC: `uv run lotse anliegen --sitzung <fixture-id>` gibt in einem Fixture genau 3 Schritte (Antrag-Entwurf, fehlende Unterlagen, Termin) mit stabiler ID und Status `offen\|erledigt` aus. SQL-Abgleich gegen `lotse.sitzung` bzw. eine normalisierte Schritt-Tabelle liefert 0 Unterschiede; Bericht in `docs/plan/uc1/anliegen-messung.md`. **Datenbasis:** `svbox/00-allgemein/text/Use Case 1 Versicherten-Chatbot V2.md:103-105; svbox/00-allgemein/text/Use Case 1 Versicherten-Chatbot V2.md:113-127`. | nach Abgabe | Label prio::nach-abgabe |  |  |
+| #82-2 | UC1 | ☐ | Projekt-AC: Ein Zweitbesuch derselben synthetischen Sitzung nach Dienstneustart erhält alle 3 IDs/Statuswerte; nach dem Erledigen 1 Schritts zeigt CLI und „Bisherige Anliegen“ exakt 2 offene Schritte. Eine zweite Sitzung sieht 0 Schritte der ersten. Aufzeichnung unter `uc1/eval/anliegen-wiederaufnahme.json`. **Datenbasis:** `svbox/00-allgemein/text/Use Case 1 Versicherten-Chatbot V2.md:33; lead-session-orchestrator/.orchestrator/runtime/fleet/ki-challenge-issue-audit.md:364-366`. | nach Abgabe | Label prio::nach-abgabe |  |  |
+| #82-3 | UC1 | ☐ | Projekt-AC: Im Zweitbesuch werden 0 Fragen zu bereits gespeicherten Pflichtangaben wiederholt; der nächste offene Schritt wird mit dessen vorhandener Quelle angezeigt. Dialog- und UI-Beleg in `docs/plan/uc1/anliegen-messung.md`, Screenshot mit Pen-Frame-Referenz gemäß #35. **Datenbasis:** `svbox/00-allgemein/text/Use Case 1 Versicherten-Chatbot V2.md:119-127; svbox/00-allgemein/text/Use Case 1 Versicherten-Chatbot V2.md:155-157`. | nach Abgabe | Label prio::nach-abgabe |  |  |
+| #83-1 | UC1 | ☐ | Projekt-AC: `uc1/eval/buendel-gesundheit-kind.yaml` enthält genau 2 synthetische Szenarien mit erwarteten Quellen. `uv run lotse eval --set uc1/eval/buendel-gesundheit-kind.yaml` liefert je Szenario mindestens 3 belegte administrative/soziale Angebote; 100 % der Angebote nennen Quelle und Seite/Abschnitt. Wenn 3 Angebote nicht belegt sind, wird die Messung als nicht bestanden protokolliert, nichts ergänzt. **Datenbasis:** `svbox/00-allgemein/text/Use Case 1 Versicherten-Chatbot V2.md:267-289; svbox/00-allgemein/text/Use Case 1 Versicherten-Chatbot V2.md:315-335`. | nach Abgabe | Label prio::nach-abgabe |  |  |
+| #83-2 | UC1 | ☐ | Projekt-AC: Jede Nutzen-Erklärung enthält mindestens 1 wörtlich prüfbaren Quellausschnitt und trennt allgemeine Information von Anspruchsvoraussetzungen. `docs/plan/uc1/buendel-messung.md` listet pro Angebot Quelle und nächsten organisatorischen Schritt; 0 unbelegte Leistungszusagen. **Datenbasis:** `svbox/00-allgemein/text/Use Case 1 Versicherten-Chatbot V2.md:175-181; svbox/00-allgemein/text/Use Case 1 Versicherten-Chatbot V2.md:378-380`. | nach Abgabe | Label prio::nach-abgabe |  |  |
+| #83-3 | UC1 | ☐ | Projekt-AC: Zwei zusätzliche Grenzfälle (familiäre Erkrankung, Impfpass) ergeben 0 persönliche Risiko-, Diagnose- oder Therapieaussagen. Impfpass-Inhalt wird nur als dokumentierter Inhalt wiedergegeben. Bestehende Grenzprüfung #31 plus manuelle Quellenprüfung werden im selben Bericht mit 2/2 bestandenen Fällen belegt. **Datenbasis:** `svbox/00-allgemein/text/Use Case 1 Versicherten-Chatbot V2.md:183-207`. | nach Abgabe | Label prio::nach-abgabe |  |  |
+| #107-1 | UC4 | Text | pytest (mock): Ein Kontext mit 2 Zahlen und 2 Belegen ergibt eine Antwort mit denselben 2 Zahlen (Wert und Beleg-Index gleich) und denselben 2 Belegen, `uc == "uc1"`, mittlere Satzlänge < 15. Orakel: pytest. | nicht geprüft |  |  |  |
+| #107-2 | UC4 | Text | Grenzfall im Kontext (Frage nach Diagnose) ergibt die Grenzantwort ohne Modell. Orakel: pytest. | nicht geprüft |  |  |  |
+| #107-3 | UC4 | Text | Ein Lauf mit Azure auf dem Demo-Kontext „Wartezeiten“ (sobald das Drehbuch steht) ist aufgezeichnet. Orakel: Lauf-Log. | nicht geprüft |  |  |  |
+| #121-1 | UC1 | ☐ | `eval._lade_kern` ohne Kern: Exit 2 mit Hinweis statt Traceback (eval.py ca. Z. 1142) | nicht geprüft |  |  |  |
+| #121-2 | UC1 | ☐ | Stiller Download (~1,5 GB) in `einbettung._modell`: nur mit Env-Schalter, sonst klare Meldung; `unittest.mock` aus dem Produktionscode entfernen (einbettung.py ca. Z. 87, 102-105). Mit dem Umstieg auf `plattform.embeddings` (#67 note_270878) erledigt sich beides. | nicht geprüft |  |  |  |
+| #121-3 | UC1 | ☐ | EKO Latin-1: `splitlines` trennt auch an U+0085 → nur an \\n trennen (ingest.py ca. Z. 448) | nicht geprüft |  |  |  |
+| #121-4 | UC1 | ☐ | Doku gegen Code: suche.py:21 und messung-dev.md:26 nennen noch „auto = hybrid“, dev-set-2.md:164, suche.py:74, p95 66 vs. 77 ms | nicht geprüft |  |  |  |
+| #121-5 | UC1 | ☐ | `erweiterung.py` (ca. Z. 129) schickt die ganze Frage samt Persona ans Modell: Personenangaben (Namen, Geburtsdaten, Adressen) vor der Erweiterung entfernen | nicht geprüft |  |  |  |
+| #130-1 | UC4 | ☐ | **Zielkonflikt Bürgersprache gegen Deckungsprüfung:** Die Deckung verlangt die Wörter des Zitats (Schwelle 0,50). Ein Prompt mit echter Bürgersprache ließ 2 von 4 Pflege-Aussagen durchfallen. Vorschlag: Gleichwerte (Bürgerwort ↔ Rechtswort) in `uc1/daten/deckung.yaml`, an den 8 Kalibrierpaaren neu prüfen. Belegregel bleibt. | nicht geprüft |  |  |  |
+| #130-2 | UC4 | ☐ | **Pflege-Antwort:** Die Angebotssuche liefert „Hilfe im Alltag: Antrag Kur und Reha, S. 1“. Das passt nicht zu Pflege (Suche, nicht Sprache). | nicht geprüft |  |  |  |
+| #130-3 | UC4 | ☐ | **UC4 (#107):** `uc1/uc1/uc4.py` hat noch einen lokalen `UcAntwort`/`Beleg` (an main angeglichen, `uc`-Feld). Nach dem Rebase auf main nur noch den Import auf `plattform.antwortform` tauschen. | nicht geprüft |  |  |  |
+| #130-4 | UC4 | ☐ | **`eval.mittlere_satzlaenge`:** Listenzeilen ohne Satzpunkt werden mit der nächsten Zeile zusammengezogen (Antrag: 36,2 statt 11,0 Wörter je Satz). | nicht geprüft |  |  |  |
+| #130-5 | UC4 | ☐ | **Englisch:** übernimmt deutsche Begriffe aus dem Zitat; Formular- und Unterlagentexte gibt es nur auf Deutsch. | nicht geprüft |  |  |  |
+| #130-6 | UC4 | ☐ | **Kern-Messung neu laufen lassen** auf dem committeten Stand (17cb5fb). Der letzte Lauf war `88bc419+dirty`. | nicht geprüft |  |  |  |
