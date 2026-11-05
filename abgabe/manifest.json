@@ -1,6 +1,6 @@
 {
   "abgabe": "UC3 StatAgent, Team OneShotAndy",
-  "stand": "72f1bda 2026-11-05",
+  "stand": "a1467bb 2026-11-05",
   "dateien": [
     {
       "datei": ".gitignore",
@@ -21,10 +21,10 @@
     {
       "datei": "README.md",
       "ort": "repo",
-      "groesse": 4100,
-      "sha256": "d6a4b74f5fd80a518ef54e2da2ae5d97d45d74984b893889c4a768c8c1a856f6",
+      "groesse": 5531,
+      "sha256": "a59aeba583381c46fcd9d75c75ad202404704d0c6e4bb81d5e4e1c6e7fa5e378",
       "regelsatz": "-",
-      "stand": "daf847c 2026-11-05"
+      "stand": "a1467bb 2026-11-05"
     },
     {
       "datei": "aggregationen_v1.xlsx",
