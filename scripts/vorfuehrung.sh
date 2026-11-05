@@ -217,7 +217,9 @@ haupt() {
   exec 9>"$v/.lock"
   flock -w 300 9 || { echo "daten: ein anderer Vorgang läuft seit über 5 Minuten" >&2; return 1; }
   cd "$v/repo/deploy"
-  local compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  # global, weil der EXIT-Trap nach dem Ende von haupt läuft; ein Abbruch darf die App nicht gestoppt lassen
+  compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  trap 'rc=$?; if [ "$rc" -ne 0 ]; then echo "abgebrochen (rc $rc), App wird wieder gestartet" >&2; "${compose[@]}" up -d vorfuehrung-app </dev/null || true; fi' EXIT
   local psql=("${compose[@]}" exec -T vorfuehrung-db psql -X -q -At -v ON_ERROR_STOP=1 -U statistik -d postgres)
   "${compose[@]}" stop vorfuehrung-app </dev/null
   "${compose[@]}" up -d --wait vorfuehrung-db </dev/null
@@ -249,7 +251,9 @@ haupt() {
   exec 9>"$v/.lock"
   flock -w 300 9 || { echo "reset: ein anderer Vorgang läuft seit über 5 Minuten" >&2; return 1; }
   cd "$v/repo/deploy"
-  local compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  # global, weil der EXIT-Trap nach dem Ende von haupt läuft; ein Abbruch darf die App nicht gestoppt lassen
+  compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  trap 'rc=$?; if [ "$rc" -ne 0 ]; then echo "abgebrochen (rc $rc), App wird wieder gestartet" >&2; "${compose[@]}" up -d vorfuehrung-app </dev/null || true; fi' EXIT
   local psql=("${compose[@]}" exec -T vorfuehrung-db psql -X -q -At -v ON_ERROR_STOP=1 -U statistik -d postgres)
   "${psql[@]}" -c "select 1 from pg_database where datname = 'statistik_vorfuehrung_vorlage'" </dev/null | grep -q 1 ||
     { echo "reset: keine Vorlage, zuerst scripts/vorfuehrung.sh daten" >&2; return 1; }
@@ -299,7 +303,9 @@ haupt() {
   exec 9>"$v/.lock"
   flock -w 300 9 || { echo "festschreiben: ein anderer Vorgang läuft seit über 5 Minuten" >&2; return 1; }
   cd "$v/repo/deploy"
-  local compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  # global, weil der EXIT-Trap nach dem Ende von haupt läuft; ein Abbruch darf die App nicht gestoppt lassen
+  compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  trap 'rc=$?; if [ "$rc" -ne 0 ]; then echo "abgebrochen (rc $rc), App wird wieder gestartet" >&2; "${compose[@]}" up -d vorfuehrung-app </dev/null || true; fi' EXIT
   local psql=("${compose[@]}" exec -T vorfuehrung-db psql -X -q -At -v ON_ERROR_STOP=1 -U statistik -d postgres)
   als_app() { HOME=/nonexistent setpriv --reuid=1001 --regid=1001 --clear-groups git -c 'safe.directory=*' -C "$v/checkout" "$@"; }
   # App weg, sonst scheitert die Kopie an offenen Verbindungen. Erst die neue Vorlage bauen, dann die alte ersetzen:

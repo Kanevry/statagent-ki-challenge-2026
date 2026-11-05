@@ -5,6 +5,8 @@
 | ([$s | to_entries[] | select((.value.ports // []) | length > 0)] | length == 0)
 # Die Datenbank mit Rohdaten hängt nur am eigenen Netz, nie am Netz der öffentlichen Demo
 and (($s["vorfuehrung-db"].networks | keys) == ["intern"])
+# Postgres darf nicht PID 1 sein: Ein verwaister Prozess mit Exit-Code ungleich 0 löst sonst einen Crash-Neustart aus
+and ($s["vorfuehrung-db"].init == true)
 and ($s["vorfuehrung-app"].cap_drop == ["ALL"])
 and ($s["vorfuehrung-app"].read_only == true)
 # Schreiben nur in die eigene Kopie, nie in die Abgabe-DB; UC1 und UC2 bleiben lesend
