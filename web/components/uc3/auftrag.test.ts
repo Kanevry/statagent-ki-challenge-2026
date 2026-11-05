@@ -5,6 +5,7 @@ import {
   erstelleAuftragWeg,
   ergebnisAus,
   leseEingabe,
+  rechenbareMonate,
   MAX_BODY_BYTES,
   vorfuehrungOffen,
   type AuftragStand,
@@ -44,6 +45,27 @@ describe("Eingabe und Aufruf", () => {
     expect(leseEingabe('{"art":"lauf","lieferung":"2025-10","regelsatz":"--alle"}')).toHaveProperty("meldung");
     expect(leseEingabe('{"art":"sql"}')).toHaveProperty("meldung");
     expect(leseEingabe("kein json")).toHaveProperty("meldung");
+  });
+});
+
+describe("Probemonat", () => {
+  it("geht als Option vor dem Satz mit, ohne Angabe entscheidet die CLI", () => {
+    expect(auftragArgv({ art: "agent", anweisung: "x", probe: "2025-03" })).toEqual(["agent", "--json", "--probe", "2025-03", "--", "x"]);
+    expect(leseEingabe('{"art":"agent","anweisung":"x","probe":""}')).toEqual({ art: "agent", anweisung: "x" });
+    expect(leseEingabe('{"art":"agent","anweisung":"x","probe":"--ohne-probe"}')).toHaveProperty("meldung");
+  });
+});
+
+describe("rechenbareMonate", () => {
+  const alle = ["2024-08", "2024-09", "2024-10"];
+
+  it("ein neuer Regelsatz beginnt beim ersten Monat, sonst scheitert der Lauf an der Reihenfolge", () => {
+    expect(rechenbareMonate(alle, new Set())).toEqual(["2024-08"]);
+    expect(rechenbareMonate(alle, new Set(["2024-08"]))).toEqual(["2024-09", "2024-08"]);
+  });
+
+  it("alle gerechnet: alle wählbar, neueste zuerst", () => {
+    expect(rechenbareMonate(alle, new Set(alle))).toEqual(["2024-10", "2024-09", "2024-08"]);
   });
 });
 
