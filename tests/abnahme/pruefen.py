@@ -147,8 +147,28 @@ def abzug(sha: str, werkzeug: str) -> Path:
         (ziel / ".fertig").write_text(sha)
     if not (ziel / MARKE_KLON).exists():  # Abzüge von vor der Marke (unter ABZUEGE, also eigene Prüf-Klone)
         (ziel / MARKE_KLON).write_text("Prüf-Klon der Abnahme; wird vor jedem Lauf hart zurückgesetzt.\n")
+    nachbarn_verlinken()
     zuruecksetzen(ziel, sha, werkzeug)
     return ziel
+
+
+NACHBARN = ("svbox", "lieferungen")  # Startpaket und externe Lieferungen (Einzeldaten), nie im Repo
+
+
+def nachbarn_verlinken() -> None:
+    """Legt neben die Abzüge dieselben Nachbarordner wie neben den Haupt-Checkout (Jury-Weg: ../svbox/uc3).
+
+    statagent sucht Startpaket und Lieferungen neben dem Haupt-Checkout (konfig.startpaket,
+    konfig.lieferungen_extern); ohne die Links meldet pruefe-abgabe „Vorlage nicht gefunden“ (Lauf 19:53).
+    """
+    gemeinsam = matrix.git("rev-parse", "--path-format=absolute", "--git-common-dir").stdout.strip()
+    basis = Path(gemeinsam).parent.parent
+    for name in NACHBARN:
+        quelle, link = basis / name, ABZUEGE / name
+        if not quelle.is_dir():
+            print(f"Hinweis: {name}/ fehlt neben dem Haupt-Checkout", file=sys.stderr)
+        elif not link.exists():
+            link.symlink_to(quelle)
 
 
 def urteil(p: dict, code: int, stdout: str, stderr: str = "") -> tuple[str, str]:
