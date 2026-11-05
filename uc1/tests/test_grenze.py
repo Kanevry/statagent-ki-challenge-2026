@@ -34,6 +34,7 @@ def test_vorpruefung_faengt_englische_symptomfrage() -> None:
     [
         "Meine Mutter ist chronisch krank und kommt allein nicht mehr zurecht.",
         "Ich möchte weniger arbeiten, um meinen Vater nach dem Schlaganfall zu pflegen.",
+        "Mein Mann hatte einen Schlaganfall und braucht jetzt den ganzen Tag jemanden.",
         "Welche Kosten übernimmt die Kasse für Medikamente?",
         "Ich brauche nach meiner Hüftoperation einen Rollstuhl. Zahlt das die Krankenkasse?",
     ],
@@ -150,3 +151,13 @@ def test_medizinisch_nur_ohne_sv_bezug() -> None:
     assert grenze.medizinisch("Mein Knie schmerzt, bekomme ich Krankengeld?") is None
     assert grenze.medizinisch("Wie backe ich einen Apfelstrudel?") is None
     assert grenze.sv_bezug("Wer zahlt die Reha?") and not grenze.sv_bezug("Wie backe ich einen Apfelstrudel?")
+
+
+@pytest.mark.parametrize(
+    "frage",
+    ["Er hat einen Schlaganfall, was soll ich tun?", "Mein Vater hat gerade einen Schlaganfall!"],
+)
+def test_schlaganfall_in_der_gegenwart_bleibt_notfall(frage: str) -> None:
+    """Fängt einen Notfall, der durchrutscht, weil das Fenster nach „Schlaganfall“ an „und“ endet (#155)."""
+    befund = grenze.vorpruefung(frage)
+    assert befund is not None and befund.notfall
