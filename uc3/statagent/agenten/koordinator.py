@@ -304,8 +304,12 @@ _KENNUNGS_ANKUENDIGUNG = (
 )
 #: Zwischen Ankündigungen und Zahl: Leerraum (auch Zeilenumbruch) und Satzzeichen wie ``:`` ``=`` ``#`` ``/`` ``.``.
 _KENNUNGS_TRENNER = r"[\s:=#/.,\-]*+"
-#: Ende der Zahl: keine weitere Ziffer, kein Datum/Dezimalteil (``2025-10``, ``3.5``), keine Einheit.
-_KENNUNGS_ENDE = r"(?!\d)(?![-./,]\d)(?!\s*(?:%|(?:prozent|jahre?n?|tag(?:e|en)?|monate?n?|wochen?)\b))"
+#: Ende einer Zahl: keine weitere Ziffer, keine Einheit. Nur kurze Zahlen (bis vier Stellen) dürfen als Datum oder
+#: Dezimalzahl weitergehen (``2025-10``, ``3.5``); eine lange Zahl mit ``,`` ``/`` ``-`` dahinter ist eine Liste von
+#: Kennungen („1001049,1001050“, „859975/859976“; Review 5a, 05.11.).
+_KENNUNGS_EINHEIT = r"(?!\s*(?:%|(?:prozent|jahre?n?|tag(?:e|en)?|monate?n?|wochen?)\b))"
+_KENNUNGS_ENDE_LANG = r"(?!\d)" + _KENNUNGS_EINHEIT
+_KENNUNGS_ENDE_KURZ = r"(?!\d)(?![-./,]\d)" + _KENNUNGS_EINHEIT
 
 #: Konkrete Kennung in einer Anweisung oder im Fließtext eines Vorschlags. Eine Kennung im Datensatz hat sechs bis
 #: sieben Stellen (VVH_ID um 859975, PERSON_ID um 1001049), daher zwei Formen:
@@ -322,11 +326,14 @@ _KENNUNG_IN_ANWEISUNG = re.compile(
     + r"){0,3}"
     + _KENNUNGS_TRENNER
     + r"\d{5,}"
-    + _KENNUNGS_ENDE
+    + _KENNUNGS_ENDE_LANG
     + r"|\b(?:vvh|person)[_-]?id"
     + _KENNUNGS_TRENNER
-    + r"(?!(?:19|20)\d\d(?!\d))\d+"
-    + _KENNUNGS_ENDE,
+    + r"(?:\d{5,}"
+    + _KENNUNGS_ENDE_LANG
+    + r"|(?!(?:19|20)\d\d(?!\d))\d{1,4}"
+    + _KENNUNGS_ENDE_KURZ
+    + r")",
     re.IGNORECASE,
 )
 

@@ -250,6 +250,10 @@ def test_anweisung_ohne_kennung_geht_durch(anweisung: str) -> None:
         "Personen/IDs/Kennung 1001049",
         # Fängt: „Nr.“ zwischen Kennungswort und Kennung.
         "Verhältnis Nr. 859975",
+        # Fängt: Listen von Kennungen galten als Datum/Dezimalzahl und gingen durch (Review 5a, 05.11.).
+        "PERSON_ID 1001049,1001050",
+        "IDs 1001049,1001050 und 1001051",
+        "VVH_ID 859975/859976",
     ],
 )
 def test_anweisung_mit_kennung_wird_abgewiesen(anweisung: str) -> None:
