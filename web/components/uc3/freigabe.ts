@@ -2,7 +2,9 @@ import { formatZahl, pruefeName } from "@kic/ui/bausteine";
 import { literal, type Beleg } from "./beleg";
 import { type Ausfuehren, standardAusfuehren, uc3 } from "./cli";
 import { lies, type Lesung, type Sql } from "./db";
-import { istMonat, monatName } from "./monat";
+import { ladeMassgeblichenLauf } from "./laeufe";
+import { istMonat, monatName, monatsgrenzen } from "./monat";
+import type { Lauf } from "./typen";
 
 // Freigaben (UC3): Vorschläge der eigenen Agenten lesen, die Freigabe-Waage aus der Probe bilden und die Entscheidung
 // eines Menschen an die CLI weiterreichen (`uc3 freigabe` / `uc3 ablehnen`). Geschrieben wird nur über die CLI;
@@ -272,18 +274,27 @@ async function ladeErgebnisZiel(sql: Sql, v: Vorschlag): Promise<ErgebnisZiel | 
 }
 
 /** Ein Vorschlag mit Bezeichnungen und Ergebnis-Ziel; `null` in den Daten, wenn es ihn nicht gibt. */
-export async function leseVorschlag(
-  id: number,
-): Promise<Lesung<{ vorschlag: Vorschlag | null; bezeichnungen: Bezeichnungen; ergebnis: ErgebnisZiel | null }>> {
+export async function leseVorschlag(id: number): Promise<
+  Lesung<{
+    vorschlag: Vorschlag | null;
+    bezeichnungen: Bezeichnungen;
+    kategorien: Kategorien;
+    ergebnis: ErgebnisZiel | null;
+    wirkung: EchteWirkung | null;
+  }>
+> {
   return lies(async (sql) => {
-    if (!(await tabelleDa(sql, "meta.vorschlag"))) return { vorschlag: null, bezeichnungen: {}, ergebnis: null };
+    if (!(await tabelleDa(sql, "meta.vorschlag")))
+      return { vorschlag: null, bezeichnungen: {}, kategorien: {}, ergebnis: null, wirkung: null };
     const mitProtokoll = await tabelleDa(sql, "meta.protokoll");
     const [z] = await sql`SELECT * FROM (${vorschlagSelect(sql, mitProtokoll)}) x WHERE id = ${id}`;
     const vorschlag = z ? vorschlagAus(z) : null;
     return {
       vorschlag,
       bezeichnungen: await ladeBezeichnungen(sql),
+      kategorien: await ladeKategorien(sql),
       ergebnis: vorschlag ? await ladeErgebnisZiel(sql, vorschlag) : null,
+      wirkung: vorschlag ? await ladeEchteWirkung(sql, vorschlag) : null,
     };
   });
 }
@@ -405,14 +416,27 @@ function zahl(x: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Probemonate mit Zahlen, neuester zuerst. Akzeptiert `{ "2025-10": {...} }` und einen einzelnen Monat. */
+/**
+ * Probemonate mit Zahlen, neuester zuerst. Akzeptiert `{ "2025-10": {...} }` und einen einzelnen Monat. Der Monat ist
+ * der Schlüssel im jsonb (so schreibt ihn die CLI); nur ohne Monatsschlüssel gilt das Feld `lieferung`.
+ */
 function probeMonate(probe: unknown): { lieferung: string; vorher: ProbeZahlen; nachher: ProbeZahlen }[] {
   const o = objekt(probe);
-  const kandidaten = "vorher" in o ? [o] : Object.values(o).map(objekt);
+  const kandidaten: [string, Record<string, unknown>][] =
+    "vorher" in o ? [["", o]] : Object.entries(o).map(([k, p]) => [k, objekt(p)]);
   return kandidaten
-    .filter((p) => typeof p.vorher === "object" && p.vorher && typeof p.nachher === "object" && p.nachher)
-    .map((p) => ({ lieferung: String(p.lieferung ?? ""), vorher: objekt(p.vorher), nachher: objekt(p.nachher) }))
+    .filter(([, p]) => typeof p.vorher === "object" && p.vorher && typeof p.nachher === "object" && p.nachher)
+    .map(([schluessel, p]) => ({
+      lieferung: istMonat(schluessel) ? schluessel : String(p.lieferung ?? ""),
+      vorher: objekt(p.vorher),
+      nachher: objekt(p.nachher),
+    }))
     .sort((a, b) => b.lieferung.localeCompare(a.lieferung));
+}
+
+/** „Probe für August 2024“ aus dem Monat der Probe; ohne erkennbaren Monat „Probe“. */
+export function probeTitel(lieferung: string): string {
+  return istMonat(lieferung) ? `Probe für ${monatName(lieferung)}` : "Probe";
 }
 
 /**
@@ -511,6 +535,238 @@ export function waageBeleg(vorschlagIdWert: number, w: Waage, zeile: WaageZeile 
       `WHERE id = ${literal(vorschlagIdWert)};`,
     ].join("\n"),
   };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Umverteilung der Qualifikationen in Worten (Probe) und echte Wirkung aus den Läufen
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Qualifikationscode → Beschäftigungskategorie und ob es ein freier Dienstvertrag ist (stat.klass_qualifikation). */
+export type Kategorien = Readonly<Record<string, { kategorie: string; frei: boolean | null }>>;
+
+export const SQL_KATEGORIEN = [
+  "SELECT code, beschaeftigungskategorie, freier_dienstvertrag",
+  "FROM stat.klass_qualifikation ORDER BY code;",
+].join("\n");
+
+export async function ladeKategorien(sql: Sql): Promise<Kategorien> {
+  if (!(await tabelleDa(sql, "stat.klass_qualifikation"))) return {};
+  const zeilen = await sql`SELECT code, beschaeftigungskategorie, freier_dienstvertrag FROM stat.klass_qualifikation`;
+  const ergebnis: Record<string, { kategorie: string; frei: boolean | null }> = {};
+  for (const z of zeilen) {
+    ergebnis[String(z.code)] = {
+      kategorie: String(z.beschaeftigungskategorie),
+      frei: typeof z.freier_dienstvertrag === "boolean" ? z.freier_dienstvertrag : null,
+    };
+  }
+  return ergebnis;
+}
+
+export interface UmverteilungTeil {
+  code: string;
+  wert: number;
+  frei: boolean | null;
+}
+
+export interface UmverteilungGruppe {
+  /** Neue Kategorie, etwa „Arbeiter“. */
+  ziel: string;
+  nachher: number;
+  /** Bisherige Qualifikationen, die genau diese Kategorie ergeben. */
+  teile: UmverteilungTeil[];
+}
+
+export interface Umverteilung {
+  lieferung: string;
+  gruppen: UmverteilungGruppe[];
+  /** Kategorien, die vorher und nachher gleich heißen und gleich viele zählen (etwa Beamte). */
+  bleibt: { code: string; wert: number }[];
+  gesamt: number;
+}
+
+/**
+ * Liest aus der Probe, wie sich die Qualifikationen zu Kategorien zusammenfügen: Jede neue Kategorie muss genau die
+ * Summe der bisherigen Codes dieser Kategorie (laut stat.klass_qualifikation) sein, jeder weggefallene Code muss in
+ * einer neuen Kategorie aufgehen und die Gesamtzahl muss gleich bleiben. Sonst null, dann zeigt die Seite die Waage.
+ */
+export function umverteilung(probe: unknown, kategorien: Kategorien): Umverteilung | null {
+  const [monat] = probeMonate(probe);
+  if (!monat) return null;
+  const gesamtVorher = zahl(monat.vorher.gesamt);
+  if (gesamtVorher <= 0 || gesamtVorher !== zahl(monat.nachher.gesamt)) return null;
+  const v = objekt(objekt(monat.vorher.je_merkmal).qualifikation);
+  const n = objekt(objekt(monat.nachher.je_merkmal).qualifikation);
+  const neu = Object.keys(n).filter((c) => !(c in v));
+  const weg = Object.keys(v).filter((c) => !(c in n));
+  if (neu.length === 0 || weg.length === 0) return null;
+  const gruppen: UmverteilungGruppe[] = [];
+  const verbraucht = new Set<string>();
+  for (const ziel of neu) {
+    const teile = weg
+      .filter((c) => kategorien[c]?.kategorie === ziel)
+      .map((c) => ({ code: c, wert: zahl(v[c]), frei: kategorien[c]?.frei ?? null }))
+      .sort((a, b) => Number(a.frei) - Number(b.frei) || a.code.localeCompare(b.code));
+    const nachher = zahl(n[ziel]);
+    if (teile.length === 0 || teile.reduce((s, t) => s + t.wert, 0) !== nachher) return null;
+    for (const t of teile) verbraucht.add(t.code);
+    gruppen.push({ ziel, nachher, teile });
+  }
+  if (weg.some((c) => !verbraucht.has(c))) return null;
+  gruppen.sort((a, b) => b.nachher - a.nachher);
+  const bleibt = Object.keys(n)
+    .filter((c) => c in v && zahl(v[c]) === zahl(n[c]))
+    .map((c) => ({ code: c, wert: zahl(n[c]) }));
+  return { lieferung: monat.lieferung, gruppen, bleibt, gesamt: gesamtVorher };
+}
+
+/** „141.331 mit Dienstvertrag“ oder „382 freie Dienstverträge“; ohne Angabe zum Vertrag die Bezeichnung. */
+export function teilWort(t: UmverteilungTeil, bezeichnung?: string): string {
+  if (t.frei === false) return `${formatZahl(t.wert)} mit Dienstvertrag`;
+  if (t.frei === true) return `${formatZahl(t.wert)} ${t.wert === 1 ? "freier Dienstvertrag" : "freie Dienstverträge"}`;
+  return `${formatZahl(t.wert)} ${bezeichnung ?? t.code}`;
+}
+
+/** „Arbeiter 141.713 = 141.331 mit Dienstvertrag + 382 freie Dienstverträge“ */
+export function gruppenSatz(g: UmverteilungGruppe, bezeichnungen: Bezeichnungen = {}): string {
+  const teile = g.teile.map((t) => teilWort(t, bezeichnungen.qualifikation?.[t.code]));
+  return `${g.ziel} ${formatZahl(g.nachher)} = ${teile.join(" + ")}`;
+}
+
+/** Beleg einer Gruppe: die neue Kategorie nachher und jeder bisherige Code vorher, alles aus der Probe. */
+export function gruppenBeleg(vorschlagIdWert: number, u: Umverteilung, g: UmverteilungGruppe): Beleg {
+  const feld = (seite: "vorher" | "nachher", code: string) =>
+    `(probe->${literal(u.lieferung)}->'${seite}'->'je_merkmal'->'qualifikation'->>${literal(code)})::bigint`;
+  const spalten = [
+    `${feld("nachher", g.ziel)} AS ${spaltenName(`${g.ziel}_nachher`)}`,
+    ...g.teile.map((t) => `${feld("vorher", t.code)} AS ${spaltenName(`${t.code}_vorher`)}`),
+  ];
+  return {
+    quelle: "meta.vorschlag",
+    lieferung: u.lieferung,
+    monat: u.lieferung,
+    stand: "vorlaeufig",
+    verweis: `Probe zu Vorschlag uc3/${vorschlagIdWert}, gerechnet und zurückgerollt`,
+    sql: [`SELECT ${spalten.join(",\n       ")}`, "FROM meta.vorschlag", `WHERE id = ${literal(vorschlagIdWert)};`].join("\n"),
+  };
+}
+
+function spaltenName(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9_]/g, "_");
+}
+
+/** Ein Regelsatz im jüngsten Monat, für den es mit beiden Regelsätzen einen fertigen Lauf gibt. */
+export interface WirkungSeite {
+  lauf: Lauf;
+  /** Verhältnisse je gezähltem Qualifikationscode des Laufs. */
+  je: Record<string, number>;
+  gesamt: number;
+}
+
+export interface EchteWirkung {
+  monat: string;
+  basis: WirkungSeite;
+  ziel: WirkungSeite;
+  /** Weitere freigegebene Aufträge mit demselben Ziel-Regelsatz (deren Wirkung steckt mit in `ziel`). */
+  auchImZiel: string[];
+}
+
+/** Titel eines Auftrags: der Teil der Anweisung vor dem ersten Doppelpunkt, etwa „Auftrag 2, ganzes Monat statt Stichtag“. */
+export function auftragTitel(anweisung: string): string {
+  const [kopf = ""] = anweisung.split(":");
+  return kopf.trim().length > 0 && kopf.length <= 120 ? kopf.trim() : anweisung.slice(0, 80).trim();
+}
+
+/**
+ * SQL hinter den Zahlen eines Laufs: Verhältnisse je Beschäftigungskategorie und je gezähltem Code, mit Gesamtsumme
+ * (Zeile ohne Kategorie). Gezählte Codes, die selbst eine Kategorie sind (Regelsatz v2), stehen unter sich selbst.
+ */
+export function sqlWirkung(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "regelstand">): string {
+  const { von, bis } = monatsgrenzen(lauf.lieferung);
+  return [
+    "SELECT coalesce(k.beschaeftigungskategorie, s.qualifikation) AS kategorie, s.qualifikation,",
+    "       sum(s.wert) AS beschaeftigungsverhaeltnisse",
+    "FROM stat.stat_beschaeftigte s",
+    "LEFT JOIN stat.klass_qualifikation k ON k.code = s.qualifikation",
+    `WHERE s.regelsatz = ${literal(lauf.regelsatz)} AND s.regelstand = ${literal(lauf.regelstand)}`,
+    "  AND s.variable = 'Beschaeftigungsverhaeltnisse'",
+    `  AND s.zeitraum_bis BETWEEN ${literal(von)} AND ${literal(bis)}`,
+    "GROUP BY ROLLUP (1, 2) ORDER BY 1, 2;",
+  ].join("\n");
+}
+
+/** SQL, das den Vergleichsmonat bestimmt: der jüngste Monat mit fertigem Lauf in beiden Regelsätzen. */
+export function sqlWirkungMonat(basis: string, ziel: string): string {
+  return [
+    "SELECT max(a.lieferung) AS monat FROM meta.lauf a",
+    `WHERE a.regelsatz = ${literal(basis)} AND a.status IN ('fertig', 'unveraendert')`,
+    "  AND EXISTS (SELECT 1 FROM meta.lauf b",
+    `              WHERE b.regelsatz = ${literal(ziel)} AND b.lieferung = a.lieferung`,
+    "                AND b.status IN ('fertig', 'unveraendert'));",
+  ].join("\n");
+}
+
+async function ladeSeite(sql: Sql, monat: string, regelsatz: string): Promise<WirkungSeite | null> {
+  const lauf = await ladeMassgeblichenLauf(sql, monat, regelsatz);
+  if (!lauf) return null;
+  const { von, bis } = monatsgrenzen(monat);
+  const zeilen = await sql`
+    SELECT qualifikation, sum(wert)::bigint AS wert FROM stat.stat_beschaeftigte
+    WHERE regelsatz = ${lauf.regelsatz} AND regelstand = ${lauf.regelstand}
+      AND variable = 'Beschaeftigungsverhaeltnisse' AND zeitraum_bis BETWEEN ${von} AND ${bis}
+    GROUP BY qualifikation`;
+  if (zeilen.length === 0) return null;
+  const je: Record<string, number> = {};
+  for (const z of zeilen) je[String(z.qualifikation)] = zahl(z.wert);
+  return { lauf, je, gesamt: Object.values(je).reduce((s, x) => s + x, 0) };
+}
+
+/**
+ * Echte Wirkung eines freigegebenen Regel-Vorschlags: Zahlen des jüngsten Monats, den beide Regelsätze schon
+ * gerechnet haben. Ohne solchen Monat null (dann zeigt die Seite nur die Probe, nichts Erfundenes).
+ */
+async function ladeEchteWirkung(sql: Sql, v: Vorschlag): Promise<EchteWirkung | null> {
+  if (v.status !== "freigegeben" || v.typ === "code_datei" || !v.regelsatzBasis || v.regelsatzBasis === v.regelsatzZiel)
+    return null;
+  if (!(await tabelleDa(sql, "meta.lauf")) || !(await tabelleDa(sql, "stat.stat_beschaeftigte"))) return null;
+  const [m] = await sql`
+    SELECT max(a.lieferung) AS monat FROM meta.lauf a
+    WHERE a.regelsatz = ${v.regelsatzBasis} AND a.status IN ('fertig', 'unveraendert')
+      AND EXISTS (SELECT 1 FROM meta.lauf b WHERE b.regelsatz = ${v.regelsatzZiel} AND b.lieferung = a.lieferung
+                    AND b.status IN ('fertig', 'unveraendert'))`;
+  const monat = typeof m?.monat === "string" && istMonat(m.monat) ? m.monat : null;
+  if (!monat) return null;
+  const [basis, ziel] = await Promise.all([ladeSeite(sql, monat, v.regelsatzBasis), ladeSeite(sql, monat, v.regelsatzZiel)]);
+  if (!basis || !ziel) return null;
+  const andere = await sql`
+    SELECT anweisung FROM meta.vorschlag
+    WHERE regelsatz_ziel = ${v.regelsatzZiel} AND status = 'freigegeben' AND id <> ${v.id} AND typ <> 'code_datei'
+    ORDER BY id`;
+  return { monat, basis, ziel, auchImZiel: andere.map((z) => auftragTitel(String(z.anweisung ?? ""))) };
+}
+
+/** Eine Kategorie im Vergleich der Läufe: Summe der Codes dieser Kategorie in beiden Regelsätzen. */
+export interface WirkungKategorie {
+  kategorie: string;
+  basis: number;
+  ziel: number;
+  /** Gezählte Codes im Basis-Lauf, wenn er die Kategorie in mehreren Codes führt. */
+  basisTeile: UmverteilungTeil[];
+}
+
+/** Fasst beide Läufe je Beschäftigungskategorie zusammen, größte Kategorie zuerst; „Unbekannt“ ohne Zahl fällt weg. */
+export function wirkungJeKategorie(w: EchteWirkung, kategorien: Kategorien): WirkungKategorie[] {
+  const kat = (code: string) => kategorien[code]?.kategorie ?? code;
+  const ergebnis = new Map<string, WirkungKategorie>();
+  const eintrag = (k: string) =>
+    ergebnis.get(k) ?? ergebnis.set(k, { kategorie: k, basis: 0, ziel: 0, basisTeile: [] }).get(k)!;
+  for (const [code, wert] of Object.entries(w.basis.je)) {
+    const e = eintrag(kat(code));
+    e.basis += wert;
+    if (code !== e.kategorie) e.basisTeile.push({ code, wert, frei: kategorien[code]?.frei ?? null });
+  }
+  for (const [code, wert] of Object.entries(w.ziel.je)) eintrag(kat(code)).ziel += wert;
+  for (const e of ergebnis.values()) e.basisTeile.sort((a, b) => Number(a.frei) - Number(b.frei) || a.code.localeCompare(b.code));
+  return [...ergebnis.values()].filter((e) => e.basis > 0 || e.ziel > 0).sort((a, b) => b.basis - a.basis);
 }
 
 // ---------------------------------------------------------------------------------------------------------------

@@ -10,6 +10,7 @@ import {
   klartext,
   leseFreigaben,
   rollenName,
+  probeTitel,
   waage,
   waageBeleg,
   waageSatz,
@@ -17,7 +18,6 @@ import {
   type Freigaben,
   type Waage,
 } from "@/components/uc3/freigabe";
-import { istMonat, monatName } from "@/components/uc3/monat";
 
 // Freigaben (Frames qVTQj, PPe1S, uJbeL): Reiter „Wartet auf Sie“ (offene Vorschläge der Agenten) und „Erledigt“
 // (Protokoll in Worten). Liest die UC3-Datenbank direkt; ohne Datenbank Leerzustand mit HTTP 200.
@@ -112,7 +112,7 @@ function Wartet({ daten }: { daten: Freigaben }) {
     <ul className="flex flex-col" aria-label="Offene Vorschläge">
       {daten.offen.map((v) => {
         const w = waage(v.probe, daten.bezeichnungen);
-        const satz = w ? waageSatz(w) : (klartext(v).worte[0] ?? aenderungKurz(v));
+        const satz = w ? `${probeTitel(w.lieferung)}. ${waageSatz(w)}` : (klartext(v).worte[0] ?? aenderungKurz(v));
         return (
           <li key={v.id} className="flex flex-col gap-3 border-t border-line py-6 first:border-t-0 first:pt-0">
             <blockquote className="border-l-2 border-line pl-4">
@@ -160,7 +160,6 @@ function Erledigt({ zeilen }: { zeilen: ErledigtZeile[] }) {
           ...(z.geaendert ? [`Geändert: ${z.geaendert}`] : []),
         ];
         const w = z.waage;
-        const monat = w && istMonat(w.lieferung) ? monatName(w.lieferung) : w?.lieferung;
         return (
           <li key={z.schluessel} className="flex flex-col gap-2 border-t border-line py-4 first:border-t-0 first:pt-0">
             <Status art={z.art === "freigegeben" ? "ok" : "info"}>
@@ -168,10 +167,10 @@ function Erledigt({ zeilen }: { zeilen: ErledigtZeile[] }) {
             </Status>
             <Fliesstext className="break-words">
               {teile.join(" · ")}
-              {w && w.umverteilung && ` · ${waageSatz(w)}`}
+              {w && w.umverteilung && ` · ${probeTitel(w.lieferung)}: ${waageSatz(w)}`}
               {w && !w.umverteilung && (
                 <>
-                  {` · ${monat ? `${monat}: ` : ""}${w.haupt.bezeichnung} `}
+                  {` · ${probeTitel(w.lieferung)}: ${w.haupt.bezeichnung} `}
                   <span className="font-mono tabular-nums">{`${formatZahl(w.haupt.vorher)} → ${formatZahl(w.haupt.nachher)}`}</span>
                 </>
               )}
