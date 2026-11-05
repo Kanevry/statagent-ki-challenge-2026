@@ -656,8 +656,7 @@ def _rollen_mit_aufwand(rolle: str, provider: str) -> Any:
 
 
 def test_moderator_im_kurzlauf_rechnet_nicht_mit_hohem_aufwand(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fängt den Probelauf 05.11.: Auftrag mit Aufwand „hoch“ dauert 42,8 s, die Web-Route bricht nach 60 s
-    ab."""
+    """Fängt den Probelauf 05.11.: Auftrag mit Aufwand „hoch“ dauert 42,8 s, die ganze Kette 49,8 s."""
     aufwand: list[Any] = []
     echt = kurzlauf.rufe
 
@@ -696,3 +695,19 @@ def test_kern_mit_ein_und_eine_bleibt() -> None:
         "weniger": "Weniger Personal heißt länger warten.",
     }
     assert kern_text(kern) is not None
+
+
+def test_zeile_einer_vertretung_ist_deutsch(praes: UcAntwort) -> None:
+    """Fängt „Dafür bei Bessere Arbeitsbedingungen, Mehr öffentliches Geld dafür.“ (Review !210)."""
+    assert "Dafür bei „" not in praes.text and "dafür." not in praes.text
+    zeilen = [z for z in _akteurszeilen(praes.text) if "Dafür bei: " in z]
+    assert zeilen and all("„" in z for z in zeilen)
+    assert adapter_modul._titelliste(["A"]) == "„A“"
+    assert adapter_modul._titelliste(["A", "B", "C"]) == "„A“, „B“ und „C“"
+
+
+def test_antwort_nennt_kennzahl_mit_einer_schreibweise(demo: UcAntwort) -> None:
+    """Fängt −22,2 % oben und −22,24 % darunter in derselben Antwort, auch aus Modelltext (Review !210)."""
+    assert "22,24" not in demo.text and "62,75" not in demo.text
+    assert "−22,2 %" in demo.text and ERSATZ not in demo.text
+    assert "128,2 Mio. Euro" in demo.text and "Mio EUR" not in demo.text

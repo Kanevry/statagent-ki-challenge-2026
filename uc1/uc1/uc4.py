@@ -187,8 +187,7 @@ def pruefe_zahlen(saetze: Sequence[str], kontext: Kontext) -> tuple[list[str], l
 # --------------------------------------------------------------------------------------------------------
 # Modell
 
-#: Ab so vielen UC3-Zahlen steht im Text keine Liste, sondern der Verweis auf die Station davor.
-KETTE_MAX_ZAHLEN = 3
+#: Steht statt der Zahl, wenn UC3 mehrere liefert.
 KETTE_VERWEIS = "Die einzelnen Zahlen stehen mit Beleg bei StatAgent."
 _BUNDESLAENDER = frozenset(
     {
@@ -204,16 +203,12 @@ _BUNDESLAENDER = frozenset(
     }
 )
 KETTE_GESUNDHEIT = (
-    "Mit mehr Personal im Gesundheits- und Sozialwesen warten Sie meist kürzer und werden oft besser "
-    "betreut. "
-    "Mit weniger Personal warten Sie meist länger."
+    "Wie rasch Sie einen Termin bekommen und wie viel Zeit man für Sie hat, hängt auch davon ab, "
+    "wie viele Menschen dort arbeiten."
 )
-KETTE_ANDERE_BRANCHEN = (
-    "Diese Zahl sagt allein wenig über Ärzte und Pflege. "
-    "Fragen Sie nach dem Gesundheits- und Sozialwesen, dann wird es konkreter."
-)
+KETTE_KONKRETER = "Fragen Sie nach dem Gesundheits- und Sozialwesen, dann wird es konkreter."
 KETTE_FLUKTUATION = (
-    "Wechselt das Personal oft, treffen Sie öfter auf neue Gesichter und erklären Ihre Lage öfter neu. "
+    "Wechselt das Personal oft, treffen Sie auf neue Gesichter und erklären Ihre Lage öfter neu. "
     "Bleibt es, kennt man Sie eher."
 )
 KETTE_PAKET = (
@@ -257,21 +252,17 @@ def _prompt(sprache: Literal["de", "en"], zahlen: int = 1) -> str:
 
 
 def _belegsatz(kontext: Kontext) -> str | None:
-    """Fester Satz mit der Belegzahl von UC3, ohne Gliederung: „7.498 im März 2025“ wäre ohne Wien und
-    Branche falsch,
-    was die Zahl genau zählt, steht bei StatAgent. Ohne Zahl von UC3 None."""
+    """Fester Satz mit der Belegzahl von UC3, ohne Gliederung: „7.498 im März 2025“ wäre ohne Wien und Branche
+    falsch, was die Zahl genau zählt, steht bei StatAgent. Mehrere Zahlen ohne Bezeichnung sagten nichts
+    („3.611; 3.887“), dann steht der Verweis. Ohne Zahl von UC3 None."""
     uc3 = [z for z in kontext.zahlen if kontext.belege[z.beleg].uc == "uc3"]
     if not uc3:
         return None
-    if len(uc3) > KETTE_MAX_ZAHLEN:
+    if len(uc3) > 1:
         return KETTE_VERWEIS
-    teile = []
-    for z in uc3:
-        ohne_einheit = not z.einheit or z.einheit.casefold() in _EINHEIT_OHNE_WORT
-        teile.append(anzeige(z) if ohne_einheit else f"{anzeige(z)} {z.einheit}")
-    if len(teile) == 1:
-        return f"Die Zahl von StatAgent: {teile[0]}."
-    return f"Die Zahlen von StatAgent: {'; '.join(teile)}."
+    zahl = uc3[0]
+    ohne_einheit = not zahl.einheit or zahl.einheit.casefold() in _EINHEIT_OHNE_WORT
+    return f"Die Zahl von StatAgent: {anzeige(zahl) if ohne_einheit else f'{anzeige(zahl)} {zahl.einheit}'}."
 
 
 def _gliederung(zahl: Zahl) -> set[str]:
@@ -289,11 +280,17 @@ def _paket_wirkung(wert: float) -> str:
 
 
 def kette_text(kontext: Kontext) -> str:
-    """Was die Auskunft für den Arzttermin heißt, aus dem, was die Zahlen zählen; dazu der Belegsatz."""
+    """Was die Auskunft für den Arzttermin heißt, aus dem, was alle Zahlen gemeinsam zählen; dazu der
+    Belegsatz.
+
+    „Alle“ zählt: Eine Frage über alle Branchen liefert auch eine Zeile fürs Gesundheitswesen und ist
+    trotzdem keine
+    Frage dazu."""
     uc3 = [z for z in kontext.zahlen if kontext.belege[z.beleg].uc == "uc3"]
     teile = [_gliederung(z) for z in uc3]
     gemeinsam = set.intersection(*teile) if teile else set()
     region = next(iter(sorted(gemeinsam & _BUNDESLAENDER)), None)
+    wo = f" in {region}" if region else ""
     paket = next(
         (
             z
@@ -305,17 +302,17 @@ def kette_text(kontext: Kontext) -> str:
         None,
     )
     if paket is not None:
-        wirkung = KETTE_PAKET.format(wirkung=_paket_wirkung(paket.wert))
+        satz = f"heißt das: {KETTE_PAKET.format(wirkung=_paket_wirkung(paket.wert))}"
     elif not uc3:
-        wirkung = KETTE_GESUNDHEIT
-    elif any("gesundheit" in z.bezeichnung.casefold() for z in uc3):
-        fluktuation = any(z.bezeichnung.startswith("Fluktuation") for z in uc3)
-        wirkung = KETTE_FLUKTUATION if fluktuation else KETTE_GESUNDHEIT
+        satz = f"heißt das: {KETTE_GESUNDHEIT}"
+    elif all("gesundheit" in z.bezeichnung.casefold() for z in uc3):
+        fluktuation = all(z.bezeichnung.startswith("Fluktuation") for z in uc3)
+        satz = f"heißt das: {KETTE_FLUKTUATION if fluktuation else KETTE_GESUNDHEIT}"
     else:
-        wirkung = KETTE_ANDERE_BRANCHEN
-    anfang = f"Für Ihren nächsten Arzttermin{f' in {region}' if region else ''} heißt das:"
+        zahl = "sagt diese Zahl" if len(uc3) == 1 else "sagen diese Zahlen"
+        satz = f"{zahl} allein wenig. {KETTE_KONKRETER}"
     belegsatz = _belegsatz(kontext)
-    return " ".join(teil for teil in (anfang, wirkung, belegsatz) if teil)
+    return " ".join(teil for teil in (f"Für Ihren nächsten Arzttermin{wo} {satz}", belegsatz) if teil)
 
 
 def _nachricht(frage: str, kontext: Kontext) -> str:

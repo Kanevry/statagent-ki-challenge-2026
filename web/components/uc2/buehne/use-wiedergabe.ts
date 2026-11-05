@@ -53,7 +53,7 @@ export function useWiedergabe(fallId: string): Wiedergabe {
     const abfrage = new URLSearchParams();
     if (letzte.current > 0) abfrage.set("seq", String(letzte.current));
     if (sofort.current) abfrage.set("sofort", "1");
-    const quelle = new EventSource(`/api/uc2/faelle/${encodeURIComponent(fallId)}/ereignisse${abfrage.size ? `?${abfrage}` : ""}`);
+    const quelle = new EventSource(`/api/uc2/faelle/${encodeURIComponent(fallId)}/ereignisse${abfrage.toString() ? `?${abfrage}` : ""}`);
     quelle.onopen = () => setVerbindung("offen");
     quelle.onerror = () => {
       if (quelle.readyState !== EventSource.CLOSED) {

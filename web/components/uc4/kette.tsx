@@ -508,8 +508,14 @@ function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcA
         </details>
       )}
       <ModellPille data-testid="uc4-modell">
-        {antwort.modell ? (antwort.modell === "mock" ? TESTBETRIEB_TEXT : "Mit KI geschrieben") : erste ? "Ohne KI, nur Code" : "Fester Text"}
-        {dauerMs > 0 ? `, ${sekunden(dauerMs)} s` : ""}
+        {!antwort.modell && !erste ? (
+          "Fester Text"
+        ) : (
+          <>
+            {antwort.modell ? (antwort.modell === "mock" ? TESTBETRIEB_TEXT : "Mit KI geschrieben") : "Ohne KI, nur Code"}
+            {dauerMs > 0 ? `, ${sekunden(dauerMs)} s` : ""}
+          </>
+        )}
       </ModellPille>
     </div>
   );

@@ -290,6 +290,12 @@ def _namen_statt_ids(text: str, akteure: dict[str, Akteur]) -> str:
     return muster.sub(lambda m: akteure[m.group(1)].name, text)
 
 
+def _titelliste(titel: Sequence[str]) -> str:
+    """„A“, „B“ und „C“: in Anführungszeichen, damit auch Titel des Modells im Satz passen."""
+    zitiert = [f"„{t}“" for t in titel]
+    return zitiert[0] if len(zitiert) == 1 else f"{', '.join(zitiert[:-1])} und {zitiert[-1]}"
+
+
 def _akteur_zeile(
     akteur: Akteur,
     ergebnis: Kurzergebnis,
@@ -306,9 +312,9 @@ def _akteur_zeile(
     dagegen = [titel[t] for t in themen if positionen[t].wert <= -1]
     teile = []
     if dafuer:
-        teile.append(f"Dafür bei {', '.join(dafuer)}.")
+        teile.append(f"Dafür bei: {_titelliste(dafuer)}.")
     if dagegen:
-        teile.append(f"Dagegen bei {', '.join(dagegen)}.")
+        teile.append(f"Dagegen bei: {_titelliste(dagegen)}.")
     if not teile:
         teile.append("Unentschieden.")
     zeile = f"- {akteur.name}: {' '.join(teile)}"
@@ -376,15 +382,31 @@ def _abwaegung(ergebnis: Kurzergebnis, akteure: dict[str, Akteur], s: _Sammlung,
     return zeilen
 
 
+def _eine_stelle(zahl: Zahl) -> str:
+    """Eine Nachkommastelle wie auf /uc2: Derselbe Fall steht mit einem Wert da, nicht mit −22,2 % und
+    −22,24 %."""
+    einheit = "Mio. Euro" if zahl.einheit == "Mio EUR" else sichtbare_einheit(zahl.einheit)
+    text = zahl_de(float(zahl.wert), 1)
+    return f"{text} {einheit}" if einheit else text
+
+
+def _eine_schreibweise(zeile: str, ez: dict[str, Zahl]) -> str:
+    """Auch in Modelltext („rechnet mit −22,24 %“) stehen die Kennzahlen des Rechenmodells mit einer
+    Stelle."""
+    for name in ("wartezeit", "wartezeit_min", "wartezeit_max", "kosten"):
+        if name in ez:
+            wert = abs(float(ez[name].wert))
+            zeile = zeile.replace(f"{zahl_de(wert, 2)} %", f"{zahl_de(wert, 1)} %")
+    return zeile
+
+
 def _kernzeile(ergebnis: Kurzergebnis, ez: dict[str, Zahl]) -> str:
-    """Erste Zeile der Antwort, was die Station oben zeigt; ohne Zahlenecho von UC3 (#164). Eine
-    Nachkommastelle
-    wie auf /uc2, damit derselbe Fall nicht mit zwei Werten dasteht."""
+    """Erste Zeile der Antwort, was die Station oben zeigt; ohne Zahlenecho von UC3 (#164)."""
     if ez:
         return (
             "Das durchgerechnete Maßnahmenpaket bringt laut Rechenmodell: "
-            f"Wartezeit {zahl_de(float(ez['wartezeit'].wert), 1)} %, "
-            f"Mehrkosten {zahl_de(float(ez['kosten_mio'].wert), 1)} Mio. Euro pro Jahr."
+            f"Wartezeit {_eine_stelle(ez['wartezeit'])}, Mehrkosten {_eine_stelle(ez['kosten_mio'])} pro "
+            f"Jahr."
         )
     return ergebnis.kern or " ".join(allgemein.FESTER_KERN)
 
@@ -412,9 +434,11 @@ def _experte_text(voll: dict[str, Any], ez: dict[str, Zahl]) -> list[str]:
     erreicht, ecken = _zahl_text(ez["ecken_erreicht"]), _zahl_text(ez["ecken"])
     experte = (
         "Ein Rechenmodell ohne KI schätzt die Wirkung im fünften Jahr: Wartezeit "
-        f"{_zahl_text(ez['wartezeit'])}, je nach Annahmen zwischen {_zahl_text(ez['wartezeit_min'])} und "
-        f"{_zahl_text(ez['wartezeit_max'])}. Mehrkosten {_zahl_text(ez['kosten'])} der Gesundheitsausgaben, "
-        f"das sind {_zahl_text(ez['kosten_mio'])} pro Jahr. Das Ziel ist {_zahl_text(ez['ziel_wartezeit'])} "
+        f"{_eine_stelle(ez['wartezeit'])}, je nach Annahmen zwischen {_eine_stelle(ez['wartezeit_min'])} und "
+        f"{_eine_stelle(ez['wartezeit_max'])}. Mehrkosten {_eine_stelle(ez['kosten'])} der "
+        f"Gesundheitsausgaben, "
+        f"das sind {_eine_stelle(ez['kosten_mio'])} pro Jahr. Das Ziel ist "
+        f"{_zahl_text(ez['ziel_wartezeit'])} "
         f"Wartezeit bei höchstens {_zahl_text(ez['ziel_kosten'])} Mehrkosten. Wird es erreicht? "
         f"{_ZIELPRUEFUNG.get(pruefung, pruefung)} ({erreicht} von {ecken} durchgerechneten Annahmen "
         "erreichen es)."
@@ -455,7 +479,8 @@ def antwort(
     nur an `mock` (`pruefe_freigabe` in `kurzverhandlung`). `stichtag` begrenzt das Datum der Belege
     (Standard: Stichtag des Falls, bei allgemeinen Fragen heute).
 
-    Laufzeit (die Web-Route bricht nach 60 s ab): Standard eine Runde mit höchstens 3 Akteuren, deren Züge
+    Laufzeit (die Station soll in Sekunden antworten, die Web-Route bricht nach 180 s ab): Standard eine
+    Runde mit höchstens 3 Akteuren, deren Züge
     bei echten Providern parallel laufen. `frist_s` zählt ab diesem Aufruf; ist sie um, folgt nach dem
     laufenden Schritt keine weitere Runde und keine Notiz der Moderation.
     """
@@ -539,7 +564,9 @@ def _antwort(
         for feld in ("ziele", "interessen", "restriktionen", "budgetvorgaben", "prioritaeten", "rote_linien")
         for t in getattr(akteure[aid], feld)
     )
-    text = "\n".join(_ohne_entfernte_zahl(bereinige(z, s.zahlen, profil)) for z in zeilen)
+    text = "\n".join(
+        _ohne_entfernte_zahl(bereinige(_eine_schreibweise(z, ez), s.zahlen, profil)) for z in zeilen
+    )
     frei = freie_zahlen(text, s.zahlen, profil)
     if frei:
         raise FreieZahl(f"Zahl ohne Eintrag in zahlen: {', '.join(frei)}")

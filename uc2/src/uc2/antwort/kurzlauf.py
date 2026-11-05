@@ -10,7 +10,8 @@ Den Auftrag baut `auftrag_nachrichten`: für einen Fall `prompts.auftrag_nachric
 eine allgemeine Frage `uc2.antwort.allgemein.auftrag_nachrichten` (nur Ausgangslage aus dem Kontext). Mit
 Provider `mock` antwortet `uc2.antwort.allgemein.KurzMock`.
 
-Laufzeit (die Web-Route `uc4.ts` bricht nach 60 s ab, Review zu !73): Standard eine Runde mit höchstens 3
+Laufzeit (die Web-Route `uc4.ts` bricht nach 180 s ab, die Station soll viel früher antworten): Standard
+eine Runde mit höchstens 3
 Akteuren. Die Teilnehmer wählt der Code (Belegzahl und Themenbezug, kein Modellaufruf), die Züge einer Runde
 laufen bei echten Providern parallel. Mit einer Frist (`frist_bis`) folgt nach dem laufenden Schritt keine
 weitere Runde und keine Notiz mehr. So sind es höchstens 1 + Akteure + 1 Aufrufe (Auftrag, Züge, Notiz),
@@ -53,7 +54,7 @@ KURZ_GRENZE_AKTEURE = 4
 KURZ_RUNDEN = 1
 """Standard für UC4: nur die Positionsrunde; mit `runden=2` folgt eine Debatte."""
 FRIST_S = 25.0
-"""Frist ab Start des Adapters; danach keine weitere Runde und keine Notiz (Web-Route: 60 s)."""
+"""Frist ab Start des Adapters; danach keine weitere Runde und keine Notiz (Web-Route: 180 s)."""
 ALLTAGSREGEL = (
     "Zusatzregel für diese Kurzfassung, sie geht allen anderen Sprachregeln vor: Themen, Begründungen, "
     "Bedingungen, Zugeständnisse und die Notiz lesen und hören Bürgerinnen und Bürger ohne Fachwissen. "
@@ -169,7 +170,7 @@ class _Kurzlauf:
         self.rm_akteur: Rollenmodell = rollenmodell("akteur", provider)
         # Im Kurzlauf auch der Moderator mit dem Aufwand der Akteure: Mit „hoch“ dauerte der Auftrag allein
         # 42,8 s
-        # (Azure, Fall Wartezeiten, 05.11.), die Web-Route bricht nach 60 s ab.
+        # (Azure, Fall Wartezeiten, 05.11.); wer am Tisch fragt, wartet nicht so lange.
         self.rm_moderator: Rollenmodell = replace(
             rollenmodell("moderator", provider), aufwand=self.rm_akteur.aufwand
         )

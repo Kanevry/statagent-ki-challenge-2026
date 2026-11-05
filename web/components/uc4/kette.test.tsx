@@ -275,7 +275,8 @@ it("fester Text der Stationen danach heißt so, nicht „Mit KI geschrieben“",
   const seite = await fragen(strom(UC3, UC2, fest as UcAntwort));
   await screen.findByText(/Fertig in/);
   const zeile = seite.querySelector('[data-uc-karte="uc1"] [data-testid="uc4-modell"]')!.textContent;
-  expect(zeile).toContain("Fester Text");
+  // Keine Zeit beim festen Text: „Fester Text, 0,0 s“ sagte nichts (UI-Regie).
+  expect(zeile).toBe("Fester Text");
   expect(seite.querySelector('[data-uc-karte="uc2"] [data-testid="uc4-modell"]')!.textContent).toContain("Mit KI geschrieben");
   expect(seite.querySelector('[data-uc-karte="uc3"] [data-testid="uc4-modell"]')!.textContent).toContain("Ohne KI, nur Code");
   // Die Schlusszeile darf dann nicht behaupten, das Modell schreibe die Sätze.

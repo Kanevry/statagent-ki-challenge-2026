@@ -49,14 +49,14 @@ MOCK_THEMEN: tuple[dict[str, str], ...] = (
     },
     {
         "id": "finanzierung",
-        "titel": "Mehr öffentliches Geld dafür",
+        "titel": "Mehr öffentliches Geld",
         "beschreibung": "Ob Krankenversicherung, Bund und Länder dafür mehr bezahlen sollen",
     },
 )
 """Feste Themen für allgemeine Fragen (UC4): gelten für Mock und echte Modelle, damit der Kurzlauf ohne
-Auftragsaufruf auskommt (Laufzeit: gemessen 38,5 s mit Auftragsaufruf bei azure, Route-Frist 60 s). Die
+Auftragsaufruf auskommt (Laufzeit: gemessen 38,5 s mit Auftragsaufruf bei azure, Route-Frist 180 s). Die
 Titel sind
-Vorschläge, weil im Text „Dafür bei …“ davor steht; „Dafür bei Versorgung im Alltag“ sagte niemandem etwas."""
+Vorschläge, weil im Text „Dafür bei: …“ davor steht; „Versorgung im Alltag“ sagte dort niemandem etwas."""
 
 TEILNEHMER = ("aerztekammer", "patienten", "sv")
 """Wer bei allgemeinen Fragen abwägt: Ärzte, Versicherte, Kassen, wie es Folie 9 sagt. Die Wahl nach Belegzahl
