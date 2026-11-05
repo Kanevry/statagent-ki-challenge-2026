@@ -86,14 +86,16 @@ export const FOLIEN_ORDNER = path.join(process.cwd(), "content", "slides");
 export function leseFolien(ordner: string = FOLIEN_ORDNER): Folie[] {
   let namen: string[];
   try {
-    namen = readdirSync(ordner);
+    // Die Folien kommen über outputFileTracingIncludes in den Build (next.config.ts); ohne den Kommentar
+    // würde Turbopack wegen des variablen Pfads das ganze Projekt mitnehmen.
+    namen = readdirSync(/* turbopackIgnore: true */ ordner);
   } catch {
     return [];
   }
   return namen
     .filter((n) => /\.md$/i.test(n) && !/^readme\.md$/i.test(n))
     .sort((a, b) => a.localeCompare(b, "de", { numeric: true }))
-    .map((n) => parseFolie(n, readFileSync(path.join(ordner, n), "utf8")));
+    .map((n) => parseFolie(n, readFileSync(/* turbopackIgnore: true */ path.join(ordner, n), "utf8")));
 }
 
 /** Anfang einer Zeitangabe: `3:15–4:15` wird `3:15`. */

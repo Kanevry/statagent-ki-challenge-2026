@@ -53,10 +53,17 @@ const live = dateien.findIndex((q) => /^layout:\s*live\s*$/m.test(q) && /^route:
 const LIVE_NR = live + 1;
 
 /** Sammelt Konsolenfehler und unbehandelte Fehler der Seite. */
+// Der Modell-Badge im Kopf fragt /api/plattform/modell. In CI läuft kein Modell-Schalter, die Route antwortet 503
+// und der Browser meldet das als Ladefehler. Das ist kein Fehler der Präsentation und wird hier nicht gezählt.
+const BEKANNTE_LADEFEHLER = ["/api/plattform/modell"];
+
 function fehlerSammeln(page: Page): string[] {
   const fehler: string[] = [];
   page.on("console", (m) => {
-    if (m.type() === "error") fehler.push(m.text());
+    if (m.type() !== "error") return;
+    const quelle = m.location().url ?? "";
+    if (BEKANNTE_LADEFEHLER.some((pfad) => quelle.includes(pfad))) return;
+    fehler.push(`${m.text()}${quelle ? ` (${quelle})` : ""}`);
   });
   page.on("pageerror", (e) => fehler.push(e.message));
   return fehler;
