@@ -367,7 +367,7 @@ Oracle: Vapi-Call-Log (end-of-call-report) plus Transkript in der UI; Pegel nach
 
 ### E0-10 Anti-Schablonen-Gate
 ```gherkin
-Given alle Routen der App, measureSlop aus dem Repo (Quelle und Lizenz im Kopf) und `slop-positive.html`
+Given alle Routen der App, measureSlop aus dem Repo und `slop-positive.html`
 When `pnpm test:slop` läuft (Playwright, 1440×900 und 390×844, `root:'body'`)
 Then jede Route meldet 0 Treffer in den zwölf Schlüsseln, und die Positiv-Fixture meldet ≥ 1 in jedem Schlüssel
 ```
