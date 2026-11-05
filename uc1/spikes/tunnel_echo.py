@@ -37,9 +37,14 @@ class EchoHandler(BaseHTTPRequestHandler):
     token: str = ""
     protocol_version = "HTTP/1.1"
 
+    def log_request(self, code: int | str = "-", size: int | str = "-") -> None:
+        # Nur Methode, Pfad ohne Query und Status; keine Request-Zeile, keine Header (Token), keine Inhalte.
+        pfad = (self.path or "").split("?", 1)[0]
+        sys.stderr.write(f"{self.log_date_time_string()} {self.command} {pfad} {code}\n")
+
     def log_message(self, format: str, *args: Any) -> None:
-        # Nur Methode, Pfad, Status; keine Header (Token), keine Inhalte.
-        sys.stderr.write(f"{self.log_date_time_string()} {format % args}\n")
+        # Fehlermeldungen von http.server (z. B. send_error) ohne Request-Zeile.
+        sys.stderr.write(f"{self.log_date_time_string()} {self.command or '-'} Meldung\n")
 
     def _antwort(self, status: int, koerper: dict[str, Any]) -> None:
         # Ungelesener Request-Body bliebe sonst in der Keep-alive-Verbindung (cloudflared nutzt sie

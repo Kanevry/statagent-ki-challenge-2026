@@ -25,6 +25,10 @@ def hilfe() -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # E0-Vertrag: jede Python-CLI lädt .env.local über plattform.umgebung (Datei gewinnt gegen Geerbtes).
+    from plattform.umgebung import lade_env_local
+
+    lade_env_local()
     args = list(sys.argv[1:] if argv is None else argv)
     if not args or args[0] in {"-h", "--help", "hilfe"}:
         print(hilfe())

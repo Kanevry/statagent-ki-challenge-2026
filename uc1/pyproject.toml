@@ -59,6 +59,11 @@ no_implicit_optional = true
 module = ["sentence_transformers.*", "torch.*", "transformers.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# plattform (E0, shared/py) hat noch kein py.typed; mypy liest die Quelle trotzdem mit.
+module = ["plattform", "plattform.*"]
+follow_untyped_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
