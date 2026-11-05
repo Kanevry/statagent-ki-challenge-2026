@@ -18,7 +18,7 @@ const artKlassen: Record<StatusArt, string> = {
 };
 
 /** Kleine Linien-Symbole, 16 × 16, Farbe aus `currentColor`. */
-function Symbol({ art }: { art: StatusArt }) {
+function Symbol({ art, klein }: { art: StatusArt; klein?: boolean }) {
   return (
     <svg
       viewBox="0 0 16 16"
@@ -31,7 +31,7 @@ function Symbol({ art }: { art: StatusArt }) {
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
-      className="size-4 shrink-0"
+      className={klein ? "size-3 shrink-0" : "size-4 shrink-0"}
       data-status-symbol={art}
     >
       {art === "warnung" ? (
@@ -59,12 +59,14 @@ function Symbol({ art }: { art: StatusArt }) {
 
 export type StatusProps = HTMLAttributes<HTMLSpanElement> & {
   art: StatusArt;
+  /** Kleine Form für Chips (Pen-Frames QVMco, NeqAs): Symbol 12 px, Text 12 px, normales Gewicht. */
+  klein?: boolean;
   /** Eigenes Wort statt des Standards. Leer fällt auf das Standardwort zurück: nie Symbol allein. */
   children?: ReactNode;
 };
 
 /** Status, immer Symbol und Wort, nie nur Farbe. */
-export function Status({ art, className, children, ...rest }: StatusProps) {
+export function Status({ art, klein, className, children, ...rest }: StatusProps) {
   const leer =
     children === undefined ||
     children === null ||
@@ -73,10 +75,15 @@ export function Status({ art, className, children, ...rest }: StatusProps) {
   const wort = leer ? standardWort[art] : children;
   return (
     <span
-      className={klassen("inline-flex items-center gap-2 font-sans text-14 font-medium", artKlassen[art], className)}
+      className={klassen(
+        "inline-flex items-center font-sans",
+        klein ? "gap-1.5 text-12 font-normal" : "gap-2 text-14 font-medium",
+        artKlassen[art],
+        className,
+      )}
       {...rest}
     >
-      <Symbol art={art} />
+      <Symbol art={art} klein={klein} />
       <span>{wort}</span>
     </span>
   );

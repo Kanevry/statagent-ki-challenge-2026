@@ -12,4 +12,5 @@ export {
 } from "./freigabe-karte";
 export { GLOSSAR, type GlossarWort } from "./glossar";
 export { HerkunftChip, type HerkunftChipProps } from "./herkunft-chip";
+export { ModellPille, type ModellPilleProps } from "./modell-pille";
 export { pruefeName, type NamensPruefung } from "./name";

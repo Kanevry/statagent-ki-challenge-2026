@@ -42,6 +42,14 @@ const theme = themeVariablen(lies("../src/tokens.css"));
 const mitPraefix = (praefix: string) =>
   [...theme].filter(([name]) => name.startsWith(praefix) && !name.endsWith("*"));
 
+/**
+ * Farben, die nicht aus Pen kommen, sondern aus einem Pen-Wert abgeleitet sind, mit Grund. Jede weitere Farbe
+ * außerhalb des Snapshots lässt den Vergleich unten scheitern. Zurück in Pen tragen: Variable l-gruen-dunkel.
+ */
+const ABGELEITET: Record<string, string> = {
+  "--color-gruen-dunkel": "Hauptaktion beim Überfahren, Weiß darauf mindestens 4,5:1 (Review !45)",
+};
+
 // Pen-Variable -> Tailwind-Variable für Schriften (Farben: Präfix l- entfällt).
 const schriftZuordnung: Record<string, string> = {
   "font-head": "--font-display",
@@ -64,8 +72,13 @@ describe("Design-Tokens gegen Pencil-Snapshot", () => {
     const erwartet = Object.fromEntries(
       Object.entries(snapshot.farben).map(([name, wert]) => [`--color-${name.replace(/^l-/, "")}`, wert.toLowerCase()]),
     );
-    const ist = Object.fromEntries(mitPraefix("--color-").map(([name, wert]) => [name, wert.toLowerCase()]));
+    const ist = Object.fromEntries(
+      mitPraefix("--color-")
+        .filter(([name]) => !(name in ABGELEITET))
+        .map(([name, wert]) => [name, wert.toLowerCase()]),
+    );
     expect(ist).toEqual(erwartet);
+    for (const name of Object.keys(ABGELEITET)) expect(theme.has(name), `${name} fehlt in tokens.css`).toBe(true);
   });
 
   it("genau drei Schriften, je die Pencil-Familie als Fontsource-Variable", () => {
