@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Leerzustand, Ueberschrift } from "@kic/ui/basis";
 import { formatZahl } from "@kic/ui/bausteine";
 import { StandPunkt } from "@/components/uc3/beleg-link";
-import { leerSatz } from "@/components/uc3/db";
+import { DatenFehler } from "@/components/uc3/daten-fehler";
 import {
   aenderungSatz,
   auftragKopf,
@@ -29,16 +29,7 @@ const pfeilLink =
 export default async function FreigabenSeite() {
   const lesung = await leseFreigaben();
 
-  if (!lesung.ok) {
-    return (
-      <>
-        <Ueberschrift stufe={2} als="h1">
-          Freigaben
-        </Ueberschrift>
-        <Leerzustand satz={leerSatz(lesung.grund)} />
-      </>
-    );
-  }
+  if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
   const { offen, erledigt } = lesung.daten;
   const entschieden = erledigt.filter((z): z is ErledigtZeile & { vorschlag: Vorschlag } => z.vorschlag !== null);
   const protokoll = protokollZeilen(erledigt);

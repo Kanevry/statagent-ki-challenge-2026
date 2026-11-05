@@ -7,7 +7,7 @@ import { formatDifferenz, formatZahl, type FreigabeEntscheidung } from "@kic/ui/
 import { literal, type Beleg } from "@/components/uc3/beleg";
 import { BelegLink, StandPunkt } from "@/components/uc3/beleg-link";
 import { nurLesend } from "@/components/uc3/cli";
-import { leerSatz } from "@/components/uc3/db";
+import { DatenFehler } from "@/components/uc3/daten-fehler";
 import {
   aenderungKurz,
   auftraggeber,
@@ -68,16 +68,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
   if (id === null) notFound();
   const lesung = await leseVorschlag(id);
 
-  if (!lesung.ok) {
-    return (
-      <>
-        <Ueberschrift stufe={2} als="h1">
-          Freigaben
-        </Ueberschrift>
-        <Leerzustand satz={leerSatz(lesung.grund)} />
-      </>
-    );
-  }
+  if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
   const { vorschlag: v, kategorien, ergebnis, wirkung } = lesung.daten;
   if (!v) notFound();
 

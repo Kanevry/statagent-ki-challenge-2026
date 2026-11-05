@@ -4,7 +4,7 @@ import { knopfKlassen, Leerzustand, Ueberschrift } from "@kic/ui/basis";
 import { formatZahl } from "@kic/ui/bausteine";
 import { bestandBeleg, laufBeleg, literal } from "@/components/uc3/beleg";
 import { BelegLink } from "@/components/uc3/beleg-link";
-import { leerSatz } from "@/components/uc3/db";
+import { DatenFehler } from "@/components/uc3/daten-fehler";
 import { leseMonatsuebersicht, MASSGEBLICH_SQL } from "@/components/uc3/laeufe";
 import { haltKurz, haltTreffer, leseLaufDetail, sqlTreffer } from "@/components/uc3/lauf-detail";
 import { monatName, verschieben } from "@/components/uc3/monat";
@@ -83,7 +83,8 @@ export default async function Monate({ searchParams }: Props) {
   const regelsatz = regelsatzAus((await searchParams).regelsatz);
   const lesung = await leseMonatsuebersicht(regelsatz);
 
-  if (!lesung.ok || lesung.daten.monate.length === 0) {
+  if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
+  if (lesung.daten.monate.length === 0) {
     const ohneV2 = lesung.ok && regelsatz === "v2";
     return (
       <>
@@ -92,9 +93,7 @@ export default async function Monate({ searchParams }: Props) {
         </Ueberschrift>
         <Leerzustand
           satz={
-            !lesung.ok
-              ? leerSatz(lesung.grund)
-              : ohneV2
+            ohneV2
                 ? "Die Monate entstehen, sobald eine Änderung mit Namen freigegeben und gerechnet ist."
                 : "Der erste Lauf beginnt mit August 2024."
           }

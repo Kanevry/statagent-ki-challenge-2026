@@ -5,6 +5,7 @@ import { Fliesstext, Leerzustand, Ueberschrift } from "@kic/ui/basis";
 import { formatZahl } from "@kic/ui/bausteine";
 import { BelegLink, StandPunkt } from "@/components/uc3/beleg-link";
 import { leseRegeln, REGEL_TYPEN, sqlRegeln, type Regel, type RegelTyp } from "@/components/uc3/bericht";
+import { DatenFehler } from "@/components/uc3/daten-fehler";
 import { leerSatz } from "@/components/uc3/db";
 import {
   datumLang,
@@ -342,7 +343,8 @@ export default async function RegelnUndKlassifikationen({ searchParams }: Props)
   const regelsatz = regelsatzAus((await searchParams).regelsatz);
   // Die Klassifikationen hängen nicht am Regelsatz; der Auftrag für die Qualifikationen geht von v1 aus.
   const lesung = await leseKlassifikationen("v1");
-  const daten = lesung.ok && lesung.daten.abschnitte.length > 0 ? lesung.daten : null;
+  if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
+  const daten = lesung.daten.abschnitte.length > 0 ? lesung.daten : null;
 
   return (
     <>
@@ -357,7 +359,7 @@ export default async function RegelnUndKlassifikationen({ searchParams }: Props)
             Regeln und Klassifikationen
           </Ueberschrift>
           <Leerzustand
-            satz={lesung.ok ? "Die Code-Listen sind noch nicht geladen. Sie kommen mit dem Startpaket in die Datenbank." : leerSatz(lesung.grund)}
+            satz="Die Code-Listen sind noch nicht geladen. Sie kommen mit dem Startpaket in die Datenbank."
           />
         </header>
       )}
