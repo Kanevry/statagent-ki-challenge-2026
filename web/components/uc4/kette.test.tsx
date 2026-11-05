@@ -162,3 +162,18 @@ it("die Einheit „Anzahl“ steht nicht hinter der Zahl", async () => {
   expect(document.querySelector("[data-zahl]")?.textContent).not.toContain("Anzahl");
   expect(document.querySelector("[data-zahl]")?.textContent).toContain("7.498");
 });
+
+it("ein mit „…“ gekürzter Kernsatz wird durch die ganze kurze Antwort ersetzt", async () => {
+  const antwort = { ...ANTWORT, text: "Im März 2025 gab es 7.498 Beschäftigungsverhältnisse in Wien im Gesundheits- und Sozialwesen, laut Statistik." };
+  fetchMit(() =>
+    stromAntwort([
+      { art: "start", kette: ["uc3"], modell: null },
+      { art: "antwort", uc: "uc3", stufe: 1, dauer_ms: 900, kern: "Im März 2025 gab es 7.498 Beschäftigungsverhältnisse in Wien …", antwort },
+      { art: "ende", fehlend: [], dauer_ms: 1000 },
+    ]),
+  );
+  render(<Kette kette={["uc3"]} fragenOffen mitModell={false} />);
+  await userEvent.type(screen.getByLabelText("Ihre Frage"), "Frage{Enter}");
+  await screen.findByText(antwort.text);
+  expect(screen.queryByText("Ganze Antwort")).toBeNull();
+});

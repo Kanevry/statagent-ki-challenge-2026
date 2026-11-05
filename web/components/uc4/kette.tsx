@@ -247,6 +247,7 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
               {laeuft ? "Läuft …" : "Fragen"}
             </button>
           </div>
+          <p className="font-sans text-12 text-slate">Bitte keine persönlichen Daten eingeben.</p>
           {eingabeFehler && (
             <p id="uc4-frage-fehler" className="font-sans text-14 text-err-fg">
               {eingabeFehler}
@@ -381,11 +382,16 @@ function StationKarte({
   );
 }
 
+/** Der Kernsatz endet bei langen Sätzen mit „…“; ist die ganze Antwort kurz, steht sie lieber ganz da (Jury 05.11.). */
+const GANZ_BIS = 320;
+
 function Antwort({ kern, antwort, dauerMs }: { kern: string; antwort: UcAntwort; dauerMs: number }) {
-  const mehr = antwort.text.trim() !== kern.trim();
+  const text = antwort.text.trim();
+  const gezeigt = kern.trim().endsWith("…") && text.length <= GANZ_BIS ? text : kern;
+  const mehr = text !== gezeigt.trim();
   return (
     <div className="flex flex-col gap-3" data-uc4-antwort="">
-      <p className="font-display text-20 font-medium text-ink text-pretty">{kern}</p>
+      <p className="font-display text-20 font-medium text-ink text-pretty">{gezeigt}</p>
       {antwort.zahlen.length > 0 && (
         <ul className="flex flex-col gap-2">
           {antwort.zahlen.map((zahl, i) => {
