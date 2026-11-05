@@ -407,13 +407,16 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "70-AC2"
 hash = "2a532215c7"
-befehl = "test -e abgabe/aggregationen_v2.xlsx && echo DA || echo FEHLT"
-erwartet = ["^DA$"]
+befehl = "python3 tests/abnahme/p/uc3_csv_filter.py && timeout 120 uv run --package statagent python tests/abnahme/p/uc3_sheet_orakel.py --sheet abgabe/aggregationen_v2.xlsx --orakel tests/abnahme/orakel/sheet-v2.csv --spalte wert_a12_mit_e07 && echo bericht_juli $(grep -c '407\\.604' abgabe/qualitaetsberichte_v2/2026-07.md) && python3 -c \"import hashlib,json;e=[x for x in json.load(open('abgabe/manifest.json'))['dateien'] if x['datei']=='aggregationen_v1.xlsx'][0];print('v1_wie_manifest',hashlib.sha256(open('abgabe/aggregationen_v1.xlsx','rb').read()).hexdigest()==e['sha256'])\""
+erwartet = ["^distinct_vvh 407604$", "^zellen 1003$", "^abweichend 0$", "^fehlend 0$", "^zusaetzlich 0$", "^bericht_juli [1-9]", "^v1_wie_manifest True$"]
+gegenprobe = "timeout 120 uv run --package statagent python tests/abnahme/p/uc3_sheet_orakel.py --sheet abgabe/aggregationen_v2.xlsx --orakel tests/abnahme/orakel/sheet-v2.csv --spalte wert_a12_rein"
 schwer = false
-deckung = "teil"
-befund_art = "fehlt"
-befund = "abgabe/aggregationen_v2.xlsx fehlt auf main. Der Juli-2026-Wert 407604 (CSV-Filter) und der DB-Vergleich sind nicht gemessen (Veranstalterdaten und Datenbank sind verboten)."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+deckung = "voll"
+zeitlimit = 200
+quelle = "Orakel bb, sheet-v2.csv Spalte wert_a12_mit_e07; CSV-Filter aus dem Wortlaut, ohne Produktcode"
+grund = "Unabhängiger CSV-Filter Juli 2026 = 407604; Sheet v2 Zelle für Zelle gleich dem Orakel; DB-Ergebnis laut v2-Bericht 2026-07 = 407.604; v1 per SHA256 gleich dem Manifest. Neuberechnung der v2-Läufe auf frischer DB misst 22-1"
+befund = "Juli 2026 oder Sheet v2 weicht vom unabhängigen Filter oder Orakel ab, oder v1 passt nicht zum Manifest"
+herkunft = "b-abnahme-4c 2026-11-05 20:55"
 
 [[pruefung]]
 id = "71-AC1"
@@ -601,6 +604,20 @@ quelle = "Kriterium 14-AC2; Orakel bb Abschnitt 1 und zeitreihe.csv (392236)"
 grund = "Abrechnung 2024-08 geht auf: 392284 = 392236 + 48 + 0"
 befund = "Abrechnung 2024-08 weicht vom Soll ab"
 anmerkung = "„Personen mit mehreren VVH bleiben mehrfach gezählt“ misst dieser Prüfsatz nicht"
+
+[[pruefung]]
+id = "14-AC2"
+hash = "32e22bb614"
+befehl = "timeout 120 python3 tests/abnahme/p/uc3_csv_filter.py --lieferung 2024-08 --stichtag"
+erwartet = ["^zeilen 392284$", "^distinct_stichtag 392236$", "^nicht_aktiv 48$", "^volldubletten_nicht_aktiv 0$", "^personen_mit_mehreren_vvh [1-9]"]
+gegenprobe = "timeout 120 python3 tests/abnahme/p/uc3_csv_filter.py --lieferung 2024-09 --stichtag"
+schwer = false
+deckung = "voll"
+zeitlimit = 130
+quelle = "Kriterium 14-AC2; unabhängiger Filter über die Rohlieferung, ohne Produktcode"
+grund = "Rohlieferung 2024-08 unabhängig gezählt: 392236 distinct VVH_ID am Stichtag, 48 nicht aktiv ohne Volldubletten, Personen mit mehreren VVH mehrfach gezählt; zusammen mit der SQL-Abrechnung der Prüf-DB"
+befund = "Die Rohlieferung 2024-08 ergibt nicht 392236 am Stichtag und 48 nicht aktive Sätze ohne Volldubletten"
+herkunft = "b-abnahme-4c 2026-11-05 21:00"
 
 [[pruefung]]
 id = "16-AC1"
