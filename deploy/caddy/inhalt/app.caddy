@@ -3,4 +3,6 @@
 reverse_proxy app:3000 {
 	# während app neu startet (Deploy), versucht Caddy bis zu 5 s weiter, statt sofort 502 zu liefern
 	lb_try_duration 5s
+	# Stationen-Strom auf /uc4 (application/x-ndjson): jede Zeile sofort weitergeben, nicht puffern
+	flush_interval -1
 }

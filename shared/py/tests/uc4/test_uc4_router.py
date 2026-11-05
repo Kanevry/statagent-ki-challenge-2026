@@ -206,3 +206,79 @@ def test_cli_kette_nur_uc3_braucht_kein_budget(protokoll, monkeypatch, capsys):
     assert main(["frage", "--json", "--kette", "uc3", "--", "Wie viele?"]) == 0
     assert [a["uc"] for a in json.loads(capsys.readouterr().out)["antworten"]] == ["uc3"]
     assert main(["frage", "--json", "--", "Wie viele?"]) == 3
+
+
+# --- --strom (Seite /uc4 zeigt die Stationen nacheinander, ui-regie-32) -------------------------------------
+
+
+def _ereignisse(capsys) -> list[dict]:
+    return [json.loads(z) for z in capsys.readouterr().out.splitlines()]
+
+
+def test_strom_meldet_start_stationen_antworten_und_ende_in_reihenfolge(protokoll, capsys, monkeypatch):
+    """Fängt: Strom erst am Ende, fehlende Station vor der Antwort, Ereignisse ohne Stufe oder Kern."""
+    monkeypatch.setattr(router, "MOCK_PAUSE_S", 0.0)
+    assert main(["frage", "--strom", "--mock", "--", "Wie viele?"]) == 0
+    ereignisse = _ereignisse(capsys)
+    assert [(e["art"], e.get("uc")) for e in ereignisse] == [
+        ("start", None),
+        ("station", "uc3"),
+        ("antwort", "uc3"),
+        ("station", "uc2"),
+        ("antwort", "uc2"),
+        ("station", "uc1"),
+        ("antwort", "uc1"),
+        ("ende", None),
+    ]
+    assert ereignisse[0]["kette"] == ["uc3", "uc2", "uc1"]
+    uc3 = ereignisse[2]
+    assert uc3["stufe"] == 1 and uc3["antwort"]["zahlen"][0]["wert"] == 412345
+    assert uc3["kern"] == "Im März 2025 waren 412.345 Personen unselbständig beschäftigt (Mock)."
+    assert ereignisse[-1]["fehlend"] == []
+
+
+def test_strom_meldet_fehlende_station_mit_grund(protokoll):
+    ereignisse: list[dict] = []
+    uc3 = {"text": "7.498 Beschäftigte.", "belege": [], "zahlen": [], "uc": "uc3"}
+    durchreichen(
+        "Wie viele?", kette=("uc3", "uc2"), adapter={"uc3": lambda f, k: uc3}, melden=ereignisse.append
+    )
+    assert ereignisse[-2] == {"art": "fehlt", "uc": "uc2", "stufe": 2, "grund": "kein_adapter"}
+    assert ereignisse[-1]["fehlend"] == [{"uc": "uc2", "grund": "kein_adapter"}]
+
+
+def test_strom_mit_mock_wartet_je_station(protokoll, capsys, monkeypatch):
+    pausen: list[float] = []
+    monkeypatch.setattr(router.time, "sleep", pausen.append)
+    assert main(["frage", "--strom", "--mock", "--", "x"]) == 0
+    assert pausen == [router.MOCK_PAUSE_S] * 3
+
+
+def test_strom_mit_erschoepftem_budget_meldet_fehler_als_eine_zeile(protokoll, monkeypatch, capsys):
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "1")
+    complete([{"role": "user", "content": "x"}], zweck="smoke")
+    assert main(["frage", "--strom", "--", "Wie viele?"]) == 3
+    assert _ereignisse(capsys) == [
+        {
+            "art": "fehler",
+            "fehler": "budget_erschoepft",
+            "meldung": "Das Tageskontingent für Modellaufrufe ist aufgebraucht.",
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("text", "kern"),
+    [
+        (
+            "Am 31.03.2025 gab es 7.498 Verhältnisse; vorläufig. Zweiter Satz.",
+            "Am 31.03.2025 gab es 7.498 Verhältnisse; vorläufig.",
+        ),
+        ("Erste Zeile ohne Punkt\nZweite Zeile.", "Erste Zeile ohne Punkt"),
+        ("wort " * 40, ("wort " * 27).strip() + "…"),
+    ],
+)
+def test_kern_ist_der_erste_satz_hoechstens_140_zeichen(text, kern):
+    assert router.kern_satz(text) == kern
+    assert len(router.kern_satz(text)) <= router.KERN_ZEICHEN

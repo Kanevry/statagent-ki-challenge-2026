@@ -1,7 +1,18 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { createInterface } from "node:readline";
 import { findeRepoWurzel } from "./modell";
 import { erstelleRatenlimit, grenzeAus, type PruefeRatenlimit } from "./ratenlimit";
-import { BUDGET_MELDUNG, ergebnisSchema, frageSchema, KETTE, type KettenUc, type Modellwahl } from "./uc4-ergebnis";
+import {
+  BUDGET_MELDUNG,
+  ergebnisSchema,
+  frageSchema,
+  KETTE,
+  STROM_TYP,
+  stromEreignisSchema,
+  type KettenUc,
+  type Modellwahl,
+  type StromEreignis,
+} from "./uc4-ergebnis";
 
 export { BUDGET_MELDUNG };
 
@@ -42,6 +53,34 @@ export const standardAusfuehren: Ausfuehren = (befehl, argv, { cwd, timeout, max
       else ablehnen(fehler);
     });
   });
+
+/** Ein laufender Router im Strom-Modus: stdout Zeile für Zeile, Exit-Code am Ende, Abbruch von außen. */
+export interface StromLauf {
+  zeilen: AsyncIterable<string>;
+  /** Exit-Code; null nach Timeout, Abbruch oder Startfehler. */
+  ende: Promise<number | null>;
+  abbrechen: () => void;
+}
+
+export type StromStarten = (
+  befehl: string,
+  argv: readonly string[],
+  optionen: { cwd: string; timeout: number; zusatz?: Readonly<Record<string, string>> },
+) => StromLauf;
+
+export const standardStromStarten: StromStarten = (befehl, argv, { cwd, timeout, zusatz = {} }) => {
+  // stderr verworfen: es kann Pfade, Umgebungswerte oder die Frage enthalten (wie beim Ergebnis-Weg nur Exit-Codes).
+  const kind = spawn(befehl, [...argv], { cwd, env: { ...process.env, ...zusatz }, stdio: ["ignore", "pipe", "ignore"] });
+  const abbrechen = () => {
+    if (kind.exitCode === null && kind.signalCode === null) kind.kill("SIGKILL");
+  };
+  const uhr = setTimeout(abbrechen, timeout);
+  const ende = new Promise<number | null>((aufloesen) => {
+    kind.once("error", () => aufloesen(null));
+    kind.once("close", (code) => aufloesen(code));
+  }).finally(() => clearTimeout(uhr));
+  return { zeilen: createInterface({ input: kind.stdout, crlfDelay: Infinity }), ende, abbrechen };
+};
 
 /** argv für eine Frage; `--` davor, damit eine Frage wie „-h“ kein Schalter des Routers wird. */
 export function routerArgv(frage: string, mock: boolean, kette?: readonly KettenUc[]): string[] {
@@ -185,6 +224,8 @@ function leseFrage(text: string): { frage: string; modell?: Modellwahl } | { mel
 
 export interface FrageOptionen {
   ausfuehren?: Ausfuehren;
+  /** Startet den Router im Strom-Modus (`--strom`); Standard: Subprozess mit zeilenweisem stdout. */
+  stromStarten?: StromStarten;
   umgebung?: Readonly<Record<string, string | undefined>>;
   wurzel?: () => string;
   maxLaeufe?: number;
@@ -201,6 +242,7 @@ export interface FrageOptionen {
  */
 export function erstelleFrageAntwort({
   ausfuehren = standardAusfuehren,
+  stromStarten = standardStromStarten,
   umgebung = process.env,
   wurzel = findeRepoWurzel,
   maxLaeufe = MAX_LAEUFE,
@@ -212,7 +254,7 @@ export function erstelleFrageAntwort({
   const kette = ketteAus(umgebung);
   const mitModell = ketteMitModell(kette);
 
-  async function fuehreAus(frage: string, gewaehlt: Modellwahl | undefined): Promise<Response> {
+  function laufParameter(frage: string, gewaehlt: Modellwahl | undefined) {
     // Ohne Modell in der Kette (Stufe A, nur UC3) wirkt keine Modellwahl: auch „Testbetrieb“ darf die echte Zahl
     // nicht durch die Mock-Zahl ersetzen.
     const modell = mitModell ? gewaehlt : undefined;
@@ -224,6 +266,118 @@ export function erstelleFrageAntwort({
     );
     // Gewähltes Modell als LLM_PROVIDER nur für diesen Lauf; ohne Wahl gilt die Einstellung der App.
     const zusatz = modell ? { LLM_PROVIDER: modell } : undefined;
+    return { modell, argv, zusatz };
+  }
+
+  function budgetAntwort(): Response {
+    console.warn("[uc4/frage] Tagesbudget erschöpft");
+    return Response.json(
+      { fehler: BUDGET_MELDUNG },
+      { status: 429, headers: { "retry-after": String(bisMitternachtUtc(jetzt())), "cache-control": "no-store" } },
+    );
+  }
+
+  /**
+   * Strom (`Accept: application/x-ndjson`): Die erste Zeile entscheidet den Status. Budget erschöpft → 429, keine
+   * oder kaputte Zeile → 502, sonst 200 und jede weitere Zeile geprüft, sobald sie kommt. Eine Zeile außerhalb des
+   * Vertrags oder ein Abbruch ohne „ende“ endet mit einer „fehler“-Zeile. `freigeben` gibt den Lauf-Slot genau
+   * einmal frei: am Ende des Stroms, bei Abbruch durch den Client oder vor einer Fehlerantwort.
+   */
+  async function fuehreStromAus(
+    frage: string,
+    gewaehlt: Modellwahl | undefined,
+    freigeben: () => void,
+  ): Promise<Response> {
+    const { modell, argv, zusatz } = laufParameter(frage, gewaehlt);
+    const startArgv = [...argv.slice(0, ROUTER_ARGV.length), "--strom", ...argv.slice(ROUTER_ARGV.length)];
+    let lauf: StromLauf;
+    try {
+      lauf = stromStarten("uv", startArgv, { cwd: wurzel(), timeout: TIMEOUT_MS, zusatz });
+    } catch (grund) {
+      freigeben();
+      console.warn(`[uc4/frage] Router nicht startbar (${(grund as Error).name ?? "Fehler"})`);
+      return fehler(502, "Die Kette hat nicht geantwortet. Bitte später noch einmal fragen.");
+    }
+    const leser = lauf.zeilen[Symbol.asyncIterator]();
+    const naechstes = async (): Promise<StromEreignis | "kaputt" | null> => {
+      for (;;) {
+        const { done, value } = await leser.next();
+        if (done) return null;
+        if (value.trim() === "") continue;
+        try {
+          const roh: unknown = JSON.parse(value);
+          if (typeof roh === "object" && roh !== null && (roh as { fehler?: unknown }).fehler === "budget_erschoepft") {
+            return { art: "fehler", fehler: BUDGET_MELDUNG };
+          }
+          const geprueft = stromEreignisSchema.safeParse(roh);
+          return geprueft.success ? geprueft.data : "kaputt";
+        } catch {
+          return "kaputt";
+        }
+      }
+    };
+
+    const erstes = await naechstes();
+    if (erstes === null || erstes === "kaputt" || erstes.art !== "start") {
+      // Nur eine kaputte Zeile bricht ab; sonst endet der Router gerade selbst (Budget, Startfehler).
+      if (erstes === "kaputt") lauf.abbrechen();
+      const code = await lauf.ende;
+      freigeben();
+      if (erstes !== null && erstes !== "kaputt" && erstes.art === "fehler" && erstes.fehler === BUDGET_MELDUNG) {
+        return budgetAntwort();
+      }
+      console.warn(`[uc4/frage] Strom ohne gültigen Start (Exit ${code ?? "abgebrochen"})`);
+      return fehler(502, "Die Kette hat in einem unerwarteten Format geantwortet.");
+    }
+
+    const kodierer = new TextEncoder();
+    const zeile = (ereignis: StromEreignis) => kodierer.encode(`${JSON.stringify(ereignis)}\n`);
+    let fertig = false;
+    const schliessen = () => {
+      if (fertig) return;
+      fertig = true;
+      freigeben();
+    };
+    const strom = new ReadableStream<Uint8Array>({
+      start(steuerung) {
+        steuerung.enqueue(zeile({ ...erstes, modell: modell ?? null }));
+      },
+      async pull(steuerung) {
+        const ereignis = await naechstes();
+        if (ereignis === "kaputt") {
+          console.warn("[uc4/frage] Strom-Zeile verletzt den Vertrag");
+          lauf.abbrechen();
+          steuerung.enqueue(zeile({ art: "fehler", fehler: "Die Kette hat in einem unerwarteten Format geantwortet." }));
+          steuerung.close();
+          schliessen();
+          return;
+        }
+        if (ereignis === null) {
+          const code = await lauf.ende;
+          if (code !== 0 && code !== 1) {
+            console.warn(`[uc4/frage] Strom endet ohne Abschluss (Exit ${code ?? "abgebrochen"})`);
+            const meldung =
+              code === null ? "Die Kette hat nicht rechtzeitig geantwortet." : "Die Kette ist mit einem Fehler abgebrochen.";
+            steuerung.enqueue(zeile({ art: "fehler", fehler: meldung }));
+          }
+          steuerung.close();
+          schliessen();
+          return;
+        }
+        steuerung.enqueue(zeile(ereignis));
+      },
+      cancel() {
+        lauf.abbrechen();
+        schliessen();
+      },
+    });
+    return new Response(strom, {
+      headers: { "content-type": `${STROM_TYP}; charset=utf-8`, "cache-control": "no-store", "x-accel-buffering": "no" },
+    });
+  }
+
+  async function fuehreAus(frage: string, gewaehlt: Modellwahl | undefined): Promise<Response> {
+    const { argv, zusatz } = laufParameter(frage, gewaehlt);
     let lauf: Lauf;
     try {
       lauf = await ausfuehren("uv", argv, { cwd: wurzel(), timeout: TIMEOUT_MS, maxBuffer: MAX_BUFFER, zusatz });
@@ -232,13 +386,7 @@ export function erstelleFrageAntwort({
       console.warn(`[uc4/frage] Router nicht erreichbar (${(grund as Error).name ?? "Fehler"})`);
       return fehler(502, "Die Kette hat nicht geantwortet. Bitte später noch einmal fragen.");
     }
-    if (lauf.code === EXIT_BUDGET && budgetErschoepft(lauf.stdout)) {
-      console.warn("[uc4/frage] Tagesbudget erschöpft");
-      return Response.json(
-        { fehler: BUDGET_MELDUNG },
-        { status: 429, headers: { "retry-after": String(bisMitternachtUtc(jetzt())), "cache-control": "no-store" } },
-      );
-    }
+    if (lauf.code === EXIT_BUDGET && budgetErschoepft(lauf.stdout)) return budgetAntwort();
     if (lauf.code !== 0 && lauf.code !== 1) {
       console.warn(`[uc4/frage] Router beendet mit Exit ${lauf.code}`);
       return fehler(502, "Die Kette ist mit einem Fehler abgebrochen.");
@@ -275,6 +423,21 @@ export function erstelleFrageAntwort({
 
     if (offen >= maxLaeufe) return fehler(429, "Gerade laufen schon genug Fragen. Bitte gleich noch einmal fragen.");
     offen += 1;
+    if ((anfrage.headers.get("accept") ?? "").includes(STROM_TYP)) {
+      let frei = false;
+      const freigeben = () => {
+        if (!frei) {
+          frei = true;
+          offen -= 1;
+        }
+      };
+      try {
+        return await fuehreStromAus(eingabe.frage, eingabe.modell, freigeben);
+      } catch (grund) {
+        freigeben();
+        throw grund;
+      }
+    }
     try {
       return await fuehreAus(eingabe.frage, eingabe.modell);
     } finally {
