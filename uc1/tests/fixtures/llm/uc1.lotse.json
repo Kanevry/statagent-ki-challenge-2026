@@ -37,7 +37,8 @@
           }
         ],
         "verhalten": "antwort",
-        "uebergabe_an": null
+        "uebergabe_an": null,
+        "beantwortet": true
       }
     }
   ]
