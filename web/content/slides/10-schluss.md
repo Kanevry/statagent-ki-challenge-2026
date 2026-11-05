@@ -15,7 +15,7 @@ belege: []
 
 Jede Änderung mit Namen freigegeben.
 
-Jetzt live: ein Monat neu gerechnet, Ihre Änderung, drei Datenanfragen.
+Jetzt live: Ihre Änderung und drei Datenanfragen.
 
 Gezählt wird ohne KI, lokal und offline. Das KI-Modell ist austauschbar.
 
