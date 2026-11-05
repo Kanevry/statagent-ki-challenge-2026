@@ -14,6 +14,7 @@ Prüfung nicht ab. `ok` gilt nur, wenn alle Punkte erfüllt sind.
 from __future__ import annotations
 
 import csv
+import hashlib
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -26,10 +27,10 @@ from statagent.berichte.sheet import (
     BLATT_GESCHLECHT,
     BLATT_KATEGORIE,
     OENACE_PRAEFIX,
-    STICHTAG,
     STICHTAG_VARIABLE,
     VORLAGE_DATEI,
     _blatt_lesen,
+    zaehl_zeitraum,
 )
 from statagent.db import Verbindung
 from statagent.ergebnis import monat_verschieben
@@ -37,6 +38,14 @@ from statagent.ergebnis import monat_verschieben
 ERSTER_MONAT, MONATE = "2024-08", 24
 MINISTERIUM_KOPF = ["PERSON_ID", "GESCHLECHT", "GEBURTSJAHR", "TAGE"]
 MINDEST_TAGE = 200
+#: Herleitung der Sollzahl der Ministeriums-Lieferung (Annahme A13, Zeile „| A13 | … **32.741 Personen** …“).
+ANNAHMEN = Path("docs") / "plan" / "uc3" / "annahmen.md"
+#: Soll-sha256 der Ministeriums-CSV (Zeile „Soll-sha256: `…`“ mit Herleitung).
+ORAKEL = Path("docs") / "plan" / "uc3" / "ministerium-oracle.md"
+_SOLL_SHA = re.compile(r"^Soll-sha256: `([0-9a-f]{64})`", re.MULTILINE)
+#: Erste Zeile „Beschäftigungsverhältnisse …“ im Überblick (§ 1) mit ihrer Zahl.
+_BESTAND_UEBERBLICK = re.compile(r"^\| Beschäftigungsverhältnisse[^|]*\| ([\d.]+) \|", re.MULTILINE)
+_SOLL_A13 = re.compile(r"^\| A13 \|.*?\*\*([\d.]+) Personen\*\*", re.MULTILINE)
 #: Blätter der Veranstaltervorlage, falls die Vorlage nicht greifbar ist (CI ohne Startpaket).
 VORLAGE_BLAETTER = [
     "Hinweise",
@@ -239,7 +248,10 @@ def bericht_maengel(
     if len([z for z in zeilen if z.strip()]) < MINDEST_ZEILEN:
         maengel.append(f"weniger als {MINDEST_ZEILEN} Zeilen (leer)")
     titel = next((z for z in zeilen if z.startswith("# ")), "")
-    if monat is not None and titel != struktur.titel.replace(MONAT_PLATZHALTER, monat):
+    if (bestand := _BESTAND_UEBERBLICK.search(text)) and bestand.group(1) == "0":
+        maengel.append("Bestand im Überblick ist 0 (Zählzeitraum des Regelsatzes nicht beachtet?)")
+    # Ein Zusatz hinter dem Titel ist erlaubt (Berichte zu Regelsatz v2 nennen den Regelsatz).
+    if monat is not None and not titel.startswith(struktur.titel.replace(MONAT_PLATZHALTER, monat)):
         maengel.append(f"Titel „{titel[2:]}“ passt nicht zu {monat}")
     vorhanden = [u for u in zeilen if u.startswith("## ") and u in struktur.abschnitte]
     fehlend = [u for u in struktur.abschnitte if u not in vorhanden]
@@ -259,7 +271,28 @@ def bericht_maengel(
         falsch = sorted({e for e in einstufungen if e not in struktur.einstufungen})
         if falsch:
             maengel.append("ungültige Einstufung " + ", ".join(f"„{e}“" for e in falsch))
+    if len(struktur.abschnitte) > 2:
+        maengel += _verweis_maengel(zeilen, struktur.abschnitte[1], struktur.abschnitte[2])
     return maengel
+
+
+_RUECKFRAGE_NR = re.compile(r"\bR\d+\b")
+
+
+def _verweis_maengel(zeilen: list[str], auffaellig: str, rueckfragen: str) -> list[str]:
+    """Jede Rückfrage, auf die eine Auffälligkeit in § 2 verweist (letzte Tabellenspalte), steht auch in § 3.
+
+    Fängt Berichte, deren § 2 noch alte Rückfrage-Nummern trägt, während § 3 die neuen nennt (Review 57, D).
+    """
+    teil2 = _abschnitt(zeilen, auffaellig) or []
+    teil3 = "\n".join(_abschnitt(zeilen, rueckfragen) or [])
+    verwiesen: set[str] = set()
+    for zeile in teil2:
+        if zeile.startswith("|") and not zeile.startswith("| ---") and not zeile.startswith("| Nr"):
+            zellen = [z.strip() for z in zeile.strip("|").split("|")]
+            verwiesen |= set(_RUECKFRAGE_NR.findall(zellen[-1])) if zellen else set()
+    fehlt = sorted(n for n in verwiesen if not re.search(rf"\b{n}\b", teil3))
+    return [f"§ 2 verweist auf {', '.join(fehlt)}, § 3 nennt sie nicht"] if fehlt else []
 
 
 def blatt_monate(blatt: str) -> list[str]:
@@ -279,13 +312,15 @@ def _ist_zahl(wert: object) -> bool:
 
 
 def _db_gesamt(conn: Verbindung, monat: str, regelsatz: str) -> int | None:
-    """Beschäftigungsverhältnisse am Stichtag des maßgeblichen Laufs (Muster `sheet.sheet_schreiben`)."""
+    """Beschäftigungsverhältnisse des maßgeblichen Laufs im Zählzeitraum der Bestandsregel (wie `sheet_schreiben`;
+    v2 zählt über das ganze Monat)."""
     if ergebnis.letzter_lauf(conn, monat, regelsatz) is None:
         return None
+    art = zaehl_zeitraum(conn, regelsatz, monat)
     return sum(
         int(str(z["wert"]))
         for z in ergebnis.monatswerte(conn, monat, regelsatz)
-        if z["zeitraum_art"] == STICHTAG and z["variable"] == STICHTAG_VARIABLE
+        if z["zeitraum_art"] == art and z["variable"] == STICHTAG_VARIABLE
     )
 
 
@@ -385,9 +420,13 @@ def _punkt_sheet(pfad: Path, name: str, blaetter: list[str] | None, conn: Verbin
     )
 
 
-def _punkt_berichte(abgabe_dir: Path, struktur: BerichtStruktur) -> Punkt:
-    name = "Qualitätsberichte 2024-08 bis 2026-07"
-    ordner = abgabe_dir / "qualitaetsberichte"
+def _punkt_berichte(
+    abgabe_dir: Path,
+    struktur: BerichtStruktur,
+    ordner_name: str = "qualitaetsberichte",
+    name: str = "Qualitätsberichte 2024-08 bis 2026-07",
+) -> Punkt:
+    ordner = abgabe_dir / ordner_name
     fehlend: list[str] = []
     mangelhaft: list[str] = []
     for monat in berichtsmonate():
@@ -413,11 +452,96 @@ def _punkt_berichte(abgabe_dir: Path, struktur: BerichtStruktur) -> Punkt:
     return Punkt(name, False, "; ".join(hinweise))
 
 
-def _punkt_ministerium(abgabe_dir: Path) -> Punkt:
-    name = "Ministeriums-Lieferung 2026-07"
-    pfad = abgabe_dir / "ministerium_2026-07.csv"
+def _beleg_sha256(beleg: Path) -> str | None:
+    """sha256 aus dem Beleg ``ministerium_<monat>.beleg.md`` (Zeile „| sha256 | `…` |“), sonst None."""
+    treffer = re.search(
+        r"^\| sha256 \| `([0-9a-f]{64})` \|$", beleg.read_text(encoding="utf-8"), re.MULTILINE
+    )
+    return treffer.group(1) if treffer else None
+
+
+def ministerium_soll(repo_wurzel: Path) -> int | None:
+    """Sollzahl der Ministeriums-Lieferung aus Annahme A13 in docs/plan/uc3/annahmen.md, sonst None."""
+    pfad = repo_wurzel / ANNAHMEN
     if not pfad.is_file():
-        return Punkt(name, False, f"{pfad.name} nicht gefunden")
+        return None
+    treffer = _SOLL_A13.search(pfad.read_text(encoding="utf-8"))
+    return _zahl(treffer.group(1)) if treffer else None
+
+
+def ministerium_soll_sha256(repo_wurzel: Path) -> str | None:
+    """Soll-sha256 der Ministeriums-CSV aus docs/plan/uc3/ministerium-oracle.md, sonst None."""
+    pfad = repo_wurzel / ORAKEL
+    if not pfad.is_file():
+        return None
+    treffer = _SOLL_SHA.search(pfad.read_text(encoding="utf-8"))
+    return treffer.group(1) if treffer else None
+
+
+def _beleg_zeilen(beleg: Path) -> int | None:
+    """Personenzahl aus dem Beleg (Zeile „| Zeilen | <n> Personen und 1 Kopfzeile |“), sonst None."""
+    treffer = re.search(r"^\| Zeilen \| (\d+) Personen", beleg.read_text(encoding="utf-8"), re.MULTILINE)
+    return int(treffer.group(1)) if treffer else None
+
+
+def _tausender(n: int) -> str:
+    return f"{n:,}".replace(",", ".")
+
+
+def _punkt_ministerium(
+    abgabe_dir: Path,
+    lieferungen_dir: Path | None = None,
+    soll: int | None = None,
+    soll_sha: str | None = None,
+) -> Punkt:
+    """Die CSV enthält Einzeldaten und liegt außerhalb des Repos; im Repo (abgabe/) steht nur der Beleg mit sha256.
+
+    Eine CSV in ``abgabe/`` ist ein Mangel (sie gehört nicht ins öffentliche Repo). Die Zeilenzahl im Beleg muss
+    der Sollzahl ``soll`` aus Annahme A13 entsprechen, die sha256 im Beleg der Soll-sha256 ``soll_sha`` aus
+    docs/plan/uc3/ministerium-oracle.md (die Zeilenzahl allein trennt die Varianten nicht; fehlt ein Sollwert, ist
+    das ein Mangel). Liegt die CSV in
+    ``lieferungen_dir`` (lokal vor der Abgabe über die SV-Box), wird sie geprüft und gegen die sha256 des Belegs
+    abgeglichen; ohne sie reicht der Beleg (Entscheid Lead 58, #16; Review 57 Pflicht B).
+    """
+    name = "Ministeriums-Lieferung 2026-07"
+    datei = "ministerium_2026-07.csv"
+    if (abgabe_dir / datei).exists():
+        return Punkt(
+            name, False, f"{datei} liegt im Repo unter abgabe/; sie enthält Einzeldaten und gehört nach außen"
+        )
+    beleg = abgabe_dir / "ministerium_2026-07.beleg.md"
+    if not beleg.is_file():
+        return Punkt(name, False, f"{beleg.name} nicht gefunden")
+    sha = _beleg_sha256(beleg)
+    if sha is None:
+        return Punkt(name, False, f"{beleg.name} ohne sha256-Zeile")
+    pfad = (lieferungen_dir / datei) if lieferungen_dir is not None else None
+    if pfad is not None and pfad.is_file() and hashlib.sha256(pfad.read_bytes()).hexdigest() != sha:
+        return Punkt(name, False, f"{datei} passt nicht zur sha256 im Beleg")
+    personen = _beleg_zeilen(beleg)
+    if personen is None:
+        return Punkt(name, False, f"{beleg.name} ohne Zeilenzahl")
+    if soll is None:
+        return Punkt(name, False, f"Sollzahl nicht gefunden ({ANNAHMEN.as_posix()}, Annahme A13)")
+    if personen != soll:
+        return Punkt(
+            name,
+            False,
+            f"Beleg nennt {_tausender(personen)} Personen, Soll ist {_tausender(soll)} (Annahme A13)",
+        )
+    if soll_sha is None:
+        return Punkt(name, False, f"Soll-sha256 nicht gefunden ({ORAKEL.as_posix()})")
+    if sha != soll_sha:
+        return Punkt(
+            name, False, f"Beleg nennt sha256 {sha[:12]}, Soll ist {soll_sha[:12]} ({ORAKEL.as_posix()})"
+        )
+    if pfad is None or not pfad.is_file():
+        return Punkt(
+            name,
+            True,
+            f"{datei} nicht im Repo (Einzeldaten, Abgabe über SV-Box); Beleg sha256 {sha[:12]},"
+            f" {_tausender(personen)} Personen wie Annahme A13",
+        )
     with pfad.open(encoding="utf-8", newline="") as f:
         zeilen = list(csv.reader(f, delimiter=";"))
     if not zeilen or zeilen[0] != MINISTERIUM_KOPF:
@@ -425,6 +549,8 @@ def _punkt_ministerium(abgabe_dir: Path) -> Punkt:
     daten = zeilen[1:]
     if not daten:
         return Punkt(name, False, "keine Datenzeilen")
+    if len(daten) != personen:
+        return Punkt(name, False, f"{len(daten)} Datenzeilen, der Beleg nennt {personen}")
     if any(len(z) != len(MINISTERIUM_KOPF) for z in daten):
         return Punkt(name, False, "Zeilen mit falscher Spaltenzahl")
     ids = [z[0] for z in daten]
@@ -434,7 +560,9 @@ def _punkt_ministerium(abgabe_dir: Path) -> Punkt:
     zu_wenig = [z[0] for z in daten if not z[3].isdigit() or int(z[3]) < MINDEST_TAGE]
     if zu_wenig:
         return Punkt(name, False, f"{len(zu_wenig)} Zeilen mit TAGE < {MINDEST_TAGE} oder nicht numerisch")
-    return Punkt(name, True, f"{len(daten)} Personen, sortiert, TAGE ≥ {MINDEST_TAGE}")
+    return Punkt(
+        name, True, f"{_tausender(len(daten))} Personen wie Annahme A13, sortiert, TAGE ≥ {MINDEST_TAGE}"
+    )
 
 
 def _punkt_protokoll(abgabe_dir: Path) -> Punkt:
@@ -477,6 +605,7 @@ def pruefe_abgabe(
     *,
     conn: Verbindung | None = None,
     vorlagen_dir: Path | None = None,
+    lieferungen_dir: Path | None = None,
 ) -> Pruefergebnis:
     """Prüft den Abgabeordner.
 
@@ -489,8 +618,22 @@ def pruefe_abgabe(
         [
             _punkt_sheet(abgabe_dir / "aggregationen_v1.xlsx", "Aggregations-Sheet v1", soll, conn),
             _punkt_berichte(abgabe_dir, struktur),
+            *(
+                [
+                    _punkt_berichte(
+                        abgabe_dir, struktur, "qualitaetsberichte_v2", "Qualitätsberichte v2 (Aufträge 1+2)"
+                    )
+                ]
+                if (abgabe_dir / "qualitaetsberichte_v2").is_dir()
+                else []
+            ),
             vorlage_punkt,
-            _punkt_ministerium(abgabe_dir),
+            _punkt_ministerium(
+                abgabe_dir,
+                lieferungen_dir,
+                ministerium_soll(repo_wurzel),
+                ministerium_soll_sha256(repo_wurzel),
+            ),
             _punkt_protokoll(abgabe_dir),
             _punkt_modelle(abgabe_dir, repo_wurzel),
             _punkt_sheet(

@@ -27,6 +27,7 @@ from statagent.regeln import (
 )
 from statagent.revision import revision_berechnen
 from statagent.zaehlung import zaehlen
+from statagent.zeit import zeit_text
 
 
 class LaufFehler(RuntimeError):
@@ -442,7 +443,7 @@ def veroeffentlichen(
             "SELECT freigegeben_von, freigegeben_am FROM meta.lauf WHERE id = %s", (stand.lauf_id,)
         ).fetchone()
         von = frueher["freigegeben_von"] if frueher else "?"
-        am = f"{frueher['freigegeben_am']:%d.%m.%Y %H:%M}" if frueher and frueher["freigegeben_am"] else "?"
+        am = zeit_text(frueher["freigegeben_am"]) if frueher else "?"
         raise LaufFehler(f"{lieferung} ({regelsatz}) ist bereits veröffentlicht von {von} am {am}")
     regeln = regeln_laden(conn, regelsatz, lieferung)
     offen = [r.name for r in regeln if not r.freigegeben]

@@ -146,6 +146,8 @@ def test_ganzes_monat_statt_stichtag_zaehlt_mindestens_so_viele(agent_conn: Verb
                             {"schluessel": "zeitraum_art", "wert": "Monat"},
                             {"schluessel": "von", "wert": "monatserster"},
                             {"schluessel": "bis", "wert": "monatsletzter"},
+                            # so geschah es live mit Azure: Erklärtext als Parameter; darf den Vorschlag nicht kippen
+                            {"schluessel": "beschreibung", "wert": "Bestand im ganzen Monat"},
                         ],
                     }
                 ],
@@ -155,7 +157,9 @@ def test_ganzes_monat_statt_stichtag_zaehlt_mindestens_so_viele(agent_conn: Verb
     )
     ergebnis = agent_ausfuehren(agent_conn, STICHTAG_MONAT, complete=modell, probe_lieferung="2024-08")
     assert ergebnis.vorschlag_id is not None
-    probe = vorschlag_lesen(agent_conn, ergebnis.vorschlag_id).probe["2024-08"]
+    v = vorschlag_lesen(agent_conn, ergebnis.vorschlag_id)
+    assert "beschreibung" not in v.aenderungen[0]["parameter_neu"]
+    probe = v.probe["2024-08"]
     assert probe["nachher"]["zeitraum_art"] == "Monat"
     assert probe["nachher"]["gesamt"] >= probe["vorher"]["gesamt"]
 
@@ -235,6 +239,26 @@ def test_beamte_ausschliessen_ohne_passende_regelart_wird_begruendet_abgelehnt(
 
 
 @pytest.mark.parametrize(
+    ("begruendung", "angenommen"),
+    [
+        ("Änderungsauftrag 1, erklärt mit Beispielen aus dem Qualitätsbericht.", True),
+        ("Änderungsauftrag 3 verlangt die Felder PERSON_ID, GESCHLECHT, GEBURTSJAHR und TAGE.", True),
+        ("Änderungsauftrag 1, geprüft an PERSON_ID 1001049.", False),
+        ("Änderungsauftrag 1, geprüft an vvh_id: 859975.", False),
+    ],
+)
+def test_begruendung_sperrt_nur_kennungen(agent_conn: Verbindung, begruendung: str, angenommen: bool) -> None:
+    # Fängt: die Kennungsprüfung schlug auf das Teilwort „beispiele“ an und wies „mit Beispielen“ ab, sie wies den
+    # Feldnamen ab, den Auftrag 3 verlangt (Live-Probe 05.11.), oder sie übersieht eine konkrete Kennung im Text.
+    modell = fake_dv_fd()
+    modell.antworten["agent.klassifikation"]["begruendung"] = begruendung
+    ergebnis = agent_ausfuehren(agent_conn, DV_FD, complete=modell)
+    assert (ergebnis.vorschlag_id is not None) is angenommen
+    if not angenommen:
+        assert ergebnis.abgelehnt is not None and "Kennung" in ergebnis.abgelehnt
+
+
+@pytest.mark.parametrize(
     ("rolle", "antwort", "grund"),
     [
         (
@@ -291,3 +315,62 @@ def test_ungueltiger_vorschlag_wird_nicht_angelegt(
     ergebnis = agent_ausfuehren(agent_conn, "Eine Anweisung", complete=modell)
     assert ergebnis.vorschlag_id is None
     assert ergebnis.abgelehnt is not None and grund in ergebnis.abgelehnt
+
+
+def test_falsche_rolle_wird_an_die_zustaendige_umgeleitet(agent_conn: Verbindung) -> None:
+    # Fängt: Der Koordinator schickt „Geburtsmonat 13 nur mit der Differenz der Jahre“ an qs; qs darf keine
+    # Zählregeln ändern, der Vorschlag scheiterte (Live-Probe 05.11.). Jetzt fragt der Koordinator einmal die
+    # Rolle, die diesen Regeltyp ändern darf.
+    aenderung = {
+        "typ": "regel_aendern",
+        "regelsatz_ziel": "v2",
+        "aenderungen": [
+            {
+                "regel_name": "R5_alter",
+                "parameter_neu": [{"schluessel": "geburtsmonat_13", "wert": "jahresdifferenz"}],
+            }
+        ],
+        "begruendung": "Live-Änderung: bei Geburtsmonat 13 nur die Differenz der Jahre.",
+    }
+    modell = FakeModell(
+        {
+            "agent.koordinator": {"rolle": "qs", "auftrag": "Geburtsmonat 13 anders behandeln"},
+            "agent.qs": aenderung,
+            "agent.datenmanagement": aenderung,
+        }
+    )
+    ergebnis = agent_ausfuehren(
+        agent_conn, "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre.", complete=modell
+    )
+    assert ergebnis.abgelehnt is None, ergebnis.abgelehnt
+    assert ergebnis.vorschlag_id is not None and ergebnis.rolle == "datenmanagement"
+
+
+def test_gemischter_vorschlag_behaelt_was_die_rolle_darf(agent_conn: Verbindung) -> None:
+    # Fängt: Das Modell ändert zu Geburtsmonat 13 zugleich R5_alter (zaehl) und den Maßnahmetext von P04
+    # (pruefung); keine Rolle darf beides, jeder Versuch scheiterte (Live-Probe 05.11.).
+    gemischt = {
+        "typ": "regel_aendern",
+        "regelsatz_ziel": "v2",
+        "aenderungen": [
+            {
+                "regel_name": "R5_alter",
+                "parameter_neu": [{"schluessel": "geburtsmonat_13", "wert": "jahresdifferenz"}],
+            },
+            {
+                "regel_name": "P04_geburtsdatum_monat_13",
+                "parameter_neu": [{"schluessel": "massnahme", "wert": "x"}],
+            },
+        ],
+        "begruendung": "Live-Änderung: bei Geburtsmonat 13 nur die Differenz der Jahre.",
+    }
+    modell = FakeModell(
+        {"agent.koordinator": {"rolle": "datenmanagement", "auftrag": "x"}, "agent.datenmanagement": gemischt}
+    )
+    ergebnis = agent_ausfuehren(
+        agent_conn, "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre.", complete=modell
+    )
+    assert ergebnis.vorschlag_id is not None, ergebnis.abgelehnt
+    v = vorschlag_lesen(agent_conn, ergebnis.vorschlag_id)
+    assert [a["regel_name"] for a in v.aenderungen] == ["R5_alter"]
+    assert "P04_geburtsdatum_monat_13" in v.begruendung

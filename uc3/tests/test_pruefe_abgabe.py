@@ -6,6 +6,7 @@ und übergeben `vorlagen_dir`, damit das Ergebnis nicht vom lokalen Startpaket a
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ from openpyxl.utils import get_column_letter
 from statagent.berichte.pruefe_abgabe import (
     ERGEBNIS_BLAETTER,
     VORLAGE_BLAETTER,
+    bericht_maengel,
     berichtsmonate,
     blatt_monate,
     pruefe_abgabe,
@@ -140,11 +142,23 @@ def _vollstaendig(wurzel: Path) -> Path:
     _sheet(abgabe / "aggregationen_v2.xlsx", VORLAGE_BLAETTER)
     for monat in berichtsmonate():
         (abgabe / "qualitaetsberichte" / f"{monat}.md").write_text(_bericht(monat), encoding="utf-8")
-    (abgabe / "ministerium_2026-07.csv").write_text(
-        "PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE\n2;W;1980;200\n10;M;1975;365\n", encoding="utf-8"
-    )
+    # Die CSV mit Einzeldaten liegt außerhalb des Repos (wurzel/extern), im Repo nur der Beleg mit ihrer sha256.
+    extern = wurzel / "extern"
+    extern.mkdir()
+    csv_inhalt = "PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE\n2;W;1980;200\n10;M;1975;365\n"
+    (extern / "ministerium_2026-07.csv").write_text(csv_inhalt, encoding="utf-8")
+    sha = hashlib.sha256(csv_inhalt.encode("utf-8")).hexdigest()
+    _beleg(abgabe, sha)
     (abgabe / "protokoll.md").write_text("# Protokoll\n", encoding="utf-8")
-    (wurzel / "docs").mkdir()
+    (wurzel / "docs" / "plan" / "uc3").mkdir(parents=True)
+    (wurzel / "docs" / "plan" / "uc3" / "annahmen.md").write_text(
+        "| Nr. | Annahme | Regel | Wirkung |\n| --- | --- | --- | --- |\n"
+        "| A13 | Ministeriums-Lieferung | Q01 | **2 Personen** (Abgabezahl) |\n",
+        encoding="utf-8",
+    )
+    (wurzel / "docs" / "plan" / "uc3" / "ministerium-oracle.md").write_text(
+        f"# Orakel\n\nSoll-sha256: `{sha}`\n", encoding="utf-8"
+    )
     (wurzel / "docs" / "models.md").write_text("# Modelle\n", encoding="utf-8")
     (wurzel / "uc3" / "statagent").mkdir(parents=True)
     (wurzel / "uc3" / "statagent" / "lauf.py").write_text("x = 1\n", encoding="utf-8")
@@ -154,7 +168,11 @@ def _vollstaendig(wurzel: Path) -> Path:
 def _pruefen(abgabe: Path, wurzel: Path, vorlagen: Path | None = None) -> dict[str, str]:
     """Hinweise der fehlenden Punkte; prüft nebenbei, dass `ok` nur ohne fehlende Punkte gilt."""
     erg = pruefe_abgabe(
-        abgabe, wurzel, blaetter=VORLAGE_BLAETTER, vorlagen_dir=vorlagen or _vorlage(wurzel / "vorlagen")
+        abgabe,
+        wurzel,
+        blaetter=VORLAGE_BLAETTER,
+        vorlagen_dir=vorlagen or _vorlage(wurzel / "vorlagen"),
+        lieferungen_dir=wurzel / "extern",
     )
     fehlend = {p.name: p.hinweis for p in erg.punkte if not p.ok}
     assert erg.ok is (not fehlend)
@@ -292,3 +310,84 @@ def test_regelkonstante_im_code_ist_nicht_ok(tmp_path: Path) -> None:
     fehlend = _pruefen(abgabe, tmp_path)
     assert set(fehlend) == {"keine Regelkonstanten im Code (Technische Regel 3)"}
     assert "zaehlung.py:1" in fehlend["keine Regelkonstanten im Code (Technische Regel 3)"]
+
+
+def _beleg(abgabe: Path, sha: str, personen: int = 2) -> None:
+    (abgabe / "ministerium_2026-07.beleg.md").write_text(
+        f"# Ministeriums-Lieferung 2026-07\n\n| Angabe | Wert |\n| --- | --- |\n| sha256 | `{sha}` |\n"
+        f"| Zeilen | {personen} Personen und 1 Kopfzeile |\n",
+        encoding="utf-8",
+    )
+
+
+def test_ministerium_ohne_csv_reicht_der_beleg_mit_sha256(tmp_path: Path) -> None:
+    # Fängt: die Jury-Kopie des Repos (CSV mit Einzeldaten bewusst nicht enthalten) gilt als unvollständig, oder
+    # ein Beleg ohne sha256 gilt als Lieferung.
+    abgabe = _vollstaendig(tmp_path)
+    (tmp_path / "extern" / "ministerium_2026-07.csv").unlink()
+    assert "Ministeriums-Lieferung 2026-07" not in _pruefen(abgabe, tmp_path)
+    (abgabe / "ministerium_2026-07.beleg.md").write_text("# ohne Prüfsumme\n", encoding="utf-8")
+    assert "ohne sha256" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]
+
+
+def test_ministerium_csv_muss_zur_sha256_im_beleg_passen(tmp_path: Path) -> None:
+    # Fängt: eine geänderte oder falsche CSV wird abgegeben, obwohl der freigegebene Beleg eine andere sha256 nennt.
+    abgabe = _vollstaendig(tmp_path)
+    _beleg(abgabe, "0" * 64)
+    assert "passt nicht" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]
+
+
+def test_ministerium_csv_im_repo_ist_ein_mangel(tmp_path: Path) -> None:
+    # Fängt: die CSV mit PERSON_ID liegt unter abgabe/ und ginge mit dem öffentlichen Repo hinaus (Review 57, B).
+    abgabe = _vollstaendig(tmp_path)
+    (abgabe / "ministerium_2026-07.csv").write_text(
+        "PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE\n", encoding="utf-8"
+    )
+    assert "liegt im Repo" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]
+
+
+def test_ministerium_sha256_im_beleg_muss_dem_sollwert_entsprechen(tmp_path: Path) -> None:
+    # Fängt: Beleg mit richtiger Zeilenzahl, aber anderem Inhalt (z. B. Variante H: ähnlich viele Personen,
+    # andere TAGE, oder CRLF statt LF) gilt als vollständig, oder der Sollwert fehlt still (Koordinator, Orakel).
+    abgabe = _vollstaendig(tmp_path)
+    (tmp_path / "extern" / "ministerium_2026-07.csv").unlink()
+    _beleg(abgabe, "1" * 64)
+    assert "Soll ist" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]
+    (tmp_path / "docs" / "plan" / "uc3" / "ministerium-oracle.md").unlink()
+    assert "Soll-sha256 nicht gefunden" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]
+
+
+def test_rueckfrage_aus_paragraf_2_muss_in_paragraf_3_stehen() -> None:
+    # Fängt: § 2 verweist auf eine Rückfrage (z. B. alte Nummer R2 statt R6), die § 3 nicht nennt; Leser finden
+    # die Frage dann nicht (Review 57, D).
+    text = _bericht().replace(
+        "| {e} | – | – |".format(e="erklärt – plausibel"), "| erklärt – plausibel | – | R7 |"
+    )
+    assert "§ 2 verweist auf R7, § 3 nennt sie nicht" in bericht_maengel(text)
+    mit_r7 = text.replace("Keine Rückfragen.", "R7 Volldubletten in Lieferung 2025-03: offen.")
+    assert not [m for m in bericht_maengel(mit_r7) if "verweist" in m]
+
+
+def test_ministerium_zeilenzahl_im_beleg_muss_der_sollzahl_a13_entsprechen(tmp_path: Path) -> None:
+    # Fängt: ein freigegebener Beleg mit einer anderen Personenzahl als der Abgabezahl aus Annahme A13 (z. B.
+    # 32.713 ohne Altcodes statt 32.741) gilt als vollständig, oder die Sollzahl fehlt still (Review-Bank 57, 1).
+    abgabe = _vollstaendig(tmp_path)
+    (tmp_path / "extern" / "ministerium_2026-07.csv").unlink()
+    sha = hashlib.sha256(b"PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE\n2;W;1980;200\n10;M;1975;365\n").hexdigest()
+    _beleg(abgabe, sha, personen=3)
+    assert (
+        "Beleg nennt 3 Personen, Soll ist 2" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]
+    )
+    _beleg(abgabe, sha, personen=2)
+    assert "Ministeriums-Lieferung 2026-07" not in _pruefen(abgabe, tmp_path)
+    (tmp_path / "docs" / "plan" / "uc3" / "annahmen.md").unlink()
+    assert "Sollzahl nicht gefunden" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]
+
+
+def test_bericht_mit_bestand_null_ist_mangelhaft() -> None:
+    # Fängt: v2-Berichte zeigten in § 1 „Beschäftigungsverhältnisse … | 0“, weil der Bericht fest am Stichtag
+    # zählte, und pruefe-abgabe ließ das durch (Review 69, Runde 3).
+    text = "# Qualitätsbericht\n\n| Beschäftigungsverhältnisse am Stichtag | 0 |\n"
+    assert any("Bestand im Überblick ist 0" in m for m in bericht_maengel(text))
+    gut = "# Qualitätsbericht\n\n| Beschäftigungsverhältnisse im Berichtsmonat | 407.604 |\n"
+    assert not any("Bestand im Überblick" in m for m in bericht_maengel(gut))
