@@ -986,30 +986,40 @@ def test_arbeit_allein_ist_kein_arbeitsunfall(text: str) -> None:
     [
         (None, "AUVA", "ASVG § 28 Z 1"),
         ("angestellt", "AUVA", "ASVG § 28 Z 1"),
-        ("svs", "SVS", "ASVG § 28 Z 2"),
+        ("svs", "SVS", "ASVG § 28 Z 2 lit. a und b"),
+        ("bvaeb", "BVAEB", "B-KUVG § 9 Abs. 1"),
     ],
 )
 def test_unfallversicherung_zustaendig_auva_selbstaendige_svs(
     status: str | None, stelle: str, fundstelle: str
 ) -> None:
-    """Fängt g21 (AUVA fehlte als Stelle) und Selbständige, die nach ASVG § 28 Z 2 zur SVS gehören."""
+    """Fängt g21 (AUVA fehlte als Stelle), Selbständige, die nach ASVG § 28 Z 2 lit. a und b zur SVS gehören
+    (das Zitat nannte nur lit. a), und Beamte, die die AUVA statt der BVAEB bekamen (#151)."""
     eintrag = kern.zustaendige_stelle("unfallversicherung", status)
     assert eintrag is not None and eintrag["stelle"] == stelle and eintrag["fundstelle"] == fundstelle
     assert eintrag["zitat"]
+    if status == "svs":
+        assert (
+            "b) die nach § 8 Abs. 1 Z 3 lit. a pflichtversicherten selbständig Erwerbstätigen"
+            in eintrag["zitat"]
+        )
     if stelle == "AUVA":
         assert eintrag["name"] == "Allgemeine Unfallversicherungsanstalt (AUVA)"
 
 
 @pytest.mark.daten
 def test_unfallversicherung_zitate_stehen_in_asvg_28(conn: psycopg.Connection) -> None:
-    """Fängt ein Zuständigkeits-Zitat zur Unfallversicherung, das nicht wörtlich in ASVG § 28 steht."""
-    zeilen = conn.execute(
-        "SELECT a.text FROM lotse.abschnitt a JOIN lotse.dokument d ON d.id = a.dokument_id "
-        "WHERE d.gesetz = 'ASVG' AND d.nummer = '28' ORDER BY d.inkrafttreten DESC LIMIT 1"
-    ).fetchall()
-    assert zeilen, "ASVG § 28 fehlt im Korpus"
+    """Fängt ein Zuständigkeits-Zitat zur Unfallversicherung, das nicht wörtlich in seiner Fundstelle steht
+    (ASVG § 28, für die BVAEB B-KUVG § 9)."""
     leistung = kern.leistungen()["unfallversicherung"]
     for eintrag in [leistung["stelle_fest"], *leistung["stelle_je_status"].values()]:
+        gesetz, nummer = str(eintrag["fundstelle"]).split(" § ")[0], str(eintrag["fundstelle"]).split()[2]
+        zeilen = conn.execute(
+            "SELECT a.text FROM lotse.abschnitt a JOIN lotse.dokument d ON d.id = a.dokument_id "
+            "WHERE d.gesetz = %s AND d.nummer = %s ORDER BY d.inkrafttreten DESC LIMIT 1",
+            (gesetz, nummer),
+        ).fetchall()
+        assert zeilen, f"{gesetz} § {nummer} fehlt im Korpus"
         assert kern.zitat_gueltig(eintrag["zitat"], zeilen[0][0]), eintrag["zitat"]
 
 
@@ -1318,3 +1328,46 @@ def test_sprachbefund_kostet_nur_die_betroffene_aussage(monkeypatch: pytest.Monk
     assert a.verhalten == "antwort" and [x.text for x in a.aussagen] == [GUELTIG["text"]]
     assert "Als KI" not in a.text
     assert any(v["grund"].startswith("Sprachprüfung") for v in a.verworfen)
+
+
+# ---------------------------------------------------------------- Schwellen aus dem Zitat (#151)
+
+STUFE_1 = (
+    "Anspruch auf Pflegegeld besteht in Höhe der Stufe 1: für Personen, deren Pflegebedarf nach Abs. 1 "
+    "durchschnittlich mehr als 65 Stunden monatlich beträgt;"
+)
+
+
+@pytest.mark.parametrize(
+    ("aussage", "sprache_", "fehlt"),
+    [
+        ("Pflegegeld gibt es ab 65 Stunden monatlich.", "de", "mehr als"),
+        ("Pflegegeld der Stufe 1 gibt es bei mehr als 65 Stunden im Monat.", "de", None),
+        ("Care allowance level 1 needs 65 hours of care a month.", "en", "mehr als"),
+        ("Care allowance level 1 needs more than 65 hours of care a month.", "en", None),
+        ("Für Stufe 1 braucht es einen großen Pflegebedarf.", "de", None),  # keine Zahl, keine Schwelle
+    ],
+)
+def test_schwelle_aus_dem_zitat_muss_in_der_aussage_stehen(
+    aussage: str, sprache_: str, fehlt: str | None
+) -> None:
+    """Fängt „ab 65 Stunden“ statt „mehr als 65 Stunden“: eine abgeschwächte Schwelle ist eine falsche
+    Rechtsaussage (Review !69, #151)."""
+    assert kern.schwelle_fehlt(aussage, STUFE_1, sprache_) == fehlt
+
+
+def test_aussage_ohne_schwelle_wird_verworfen() -> None:
+    """Fängt die Aufnahme-Aussage „bei sechs Monaten Pflegebedarf“ zu „voraussichtlich mindestens sechs
+    Monate“, die durch die Prüfung ging (#151)."""
+    zitat = (
+        "Das Pflegegeld gebührt bei Zutreffen der übrigen Anspruchsvoraussetzungen, wenn auf Grund einer "
+        "körperlichen, geistigen oder psychischen Behinderung oder einer Sinnesbehinderung der ständige "
+        "Betreuungs- und Hilfsbedarf (Pflegebedarf) voraussichtlich mindestens sechs Monate andauern wird."
+    )
+    schwach = {
+        "text": "Pflegegeld gibt es, wenn der Pflegebedarf sechs Monate dauert.",
+        "abschnitt_id": 101,
+        "zitat": zitat,
+    }
+    aussagen, verworfen = kern.pruefe_aussagen([schwach], [treffer()])
+    assert aussagen == [] and "Schwelle" in verworfen[0]["grund"]
