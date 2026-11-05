@@ -151,7 +151,14 @@ try {
     await warte(800);
     await page.locator('form[aria-label="Frage an die Daten"] button[type="submit"]').click();
     const ergebnis = page.locator('section[aria-labelledby="ergebnis-titel"]');
-    await ergebnis.getByText(f.soll, { exact: false }).first().waitFor({ timeout: 45000 });
+    const soll = ergebnis.getByText(f.soll, { exact: false });
+    await soll.first().waitFor({ state: "attached", timeout: 45000 });
+    // Steht die Sollzahl nur im ganzen Antwortsatz unter „Details“ (etwa die Summen von Männern und Frauen),
+    // klappt die Aufnahme „Details“ auf, damit die Zahl im Bild ist.
+    if ((await soll.locator("visible=true").count()) === 0) {
+      await ergebnis.locator("summary", { hasText: /^Details$/ }).last().click();
+    }
+    await soll.locator("visible=true").first().waitFor({ timeout: 15000 });
     await warte(9000);
     await rolle(page, 2, 2500);
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }));

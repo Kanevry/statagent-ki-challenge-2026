@@ -62,7 +62,7 @@ Die Aufgabe nennt als Beispiele eine Zeitreihe, Männer und Frauen und die Flukt
 | Männer und Frauen | Frage 2 (August 2024, je Bundesland) | Männer 211.603, Frauen 180.633 | F14 |
 | Fluktuation je Wirtschaftsbereich | Frage 4 (Oktober 2024) | 3,42 %, 12.215 Zugänge, 14.557 Abgänge | F23 |
 
-- **Weg:** Seite `/uc3/fragen`, sonst `uv run uc3 frage "…"`, sonst das SQL aus dem Fragenkatalog, Teil A1 bis A3. Die Antwort zeigt Zahl, Abfrage und Definition. Ein Sprachmodell rechnet hier nichts.
+- **Weg:** Seite `/uc3/fragen`, sonst `uv run uc3 frage "…"`, sonst das SQL aus dem Fragenkatalog, Teil A1 bis A3. Die Antwort zeigt Zahl oder Tabelle und die Abfrage, unter „Details“ den ganzen Satz und die Definition. Bei Männern und Frauen stehen die Summen dort, also „Details“ aufklappen. Ein Sprachmodell rechnet hier nichts.
 - **Freie Fragen der Jury:** nur, wenn der Stand um 06:45 sie trägt (Eintrag in `probe.md`). Sonst bietet Bernhard die nächste geprüfte Frage an oder nimmt das SQL aus Teil A. Was heute noch eine falsche Antwort geben kann, steht im Drehbuch D3 unter „Nicht vorführen“.
 - Weicht eine Zahl von der Sollzahl ab, wechselt Bernhard ohne Kommentar auf das SQL. Die Abweichung kommt ins Probe-Protokoll.
 
