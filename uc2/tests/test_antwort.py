@@ -1,12 +1,14 @@
 """UC4-Adapter `uc2.antwort.antwort` (#103) mit Szenario-Mock und erfundenen Fixture-Belegen, ohne PG.
 
 Zwei Fragen: `DEMO` passt zum Fall `wartezeiten` (Rechenmodell rechnet), `PRAES` ist die Beispiel-Frage der
-Präsentation (allgemeine Frage, kein Fall, Zahl nur aus dem UC3-Kontext).
+Präsentation (allgemeine Frage, kein Fall, Zahl nur aus dem UC3-Kontext). `DEMO` läuft mit zwei Runden und
+vier Akteuren (Debatte, „300 Stellen“ des Szenario-Mocks), `PRAES` mit dem UC4-Standard (eine Runde, drei).
 """
 
 from __future__ import annotations
 
 import json
+import threading
 from datetime import date
 from importlib.metadata import entry_points
 from pathlib import Path
@@ -15,15 +17,20 @@ from typing import Any
 import jsonschema
 import pytest
 from plattform.antwortform import SCHEMA_DATEI, UcAntwort
+from plattform.llm import BudgetErschoepft
 from plattform.router import durchreichen, mock_adapter
 
+import uc2.modelle
 from uc2.akteure.laden import Akteur
 from uc2.antwort import AntwortFehler, FreieZahl, antwort, belegquelle, bereinige, freie_zahlen, kurzlauf
 from uc2.antwort import adapter as adapter_modul
 from uc2.antwort.adapter import ERSATZ, MODELLANNAHME, QUELLE_BEISPIEL, waehle_fall
-from uc2.antwort.allgemein import MOCK_THEMEN
-from uc2.modelle import UngueltigeAntwort
+from uc2.antwort.allgemein import MOCK_THEMEN, mock_notiz
+from uc2.modelle import Modellantwort, UngueltigeAntwort
+from uc2.modelle.kontext import lies_kontext
+from uc2.verhandlung import prompts
 from uc2.verhandlung.belege import BELEG_ID, Beleg, BelegFehler, FixtureQuelle, IndexQuelle
+from uc2.verhandlung.lauf import Zugergebnis
 
 FIXTURES = Path(__file__).parent / "fixtures" / "antwort"
 DEMO = "Wie entwickeln sich die Wartezeiten, und was heißt das für mich?"
@@ -31,6 +38,8 @@ PRAES = (
     "Wie viele Menschen arbeiten im März 2025 in Wien im Gesundheits- und Sozialwesen, "
     "und was heißt das für mich?"
 )
+DEMO_LANG = {"runden": 2, "max_akteure": 4}
+"""Volle Kurzverhandlung für `DEMO`: Debatte und vier Akteure (Standard für UC4: eine Runde, drei)."""
 
 
 @pytest.fixture(autouse=True)
@@ -56,7 +65,7 @@ def demo(tmp_path_factory: pytest.TempPathFactory) -> UcAntwort:
     with pytest.MonkeyPatch.context() as mp:
         mp.setenv("LLM_PROVIDER", "mock")
         mp.setenv("PLATTFORM_PROTOKOLL", str(tmp_path_factory.mktemp("demo") / "modellaufrufe.jsonl"))
-        return antwort(DEMO, [_uc3()])
+        return antwort(DEMO, [_uc3()], **DEMO_LANG)
 
 
 @pytest.fixture(scope="module")
@@ -89,7 +98,7 @@ def test_vertrag_pydantic_und_json_schema(demo: UcAntwort) -> None:
 
 
 def test_mock_zweimal_gleiches_ergebnis(demo: UcAntwort) -> None:
-    assert antwort(DEMO, [_uc3()]).model_dump() == demo.model_dump()
+    assert antwort(DEMO, [_uc3()], **DEMO_LANG).model_dump() == demo.model_dump()
 
 
 def test_uc3_kontextzahl_mit_ihrem_beleg_in_der_antwort(demo: UcAntwort) -> None:
@@ -102,8 +111,8 @@ def test_uc3_kontextzahl_mit_ihrem_beleg_in_der_antwort(demo: UcAntwort) -> None
         "vorlaeufig",
     )
     assert (
-        "398.765 Personen (Statistik UC3, Tabelle stat.beschaeftigte_monat, Monat Oktober 2025, "
-        "Lieferung 2025-10, vorläufig, die Zahl kann sich noch ändern)"
+        "398.765 Personen (laut Beschäftigtenstatistik, Oktober 2025, vorläufig, "
+        "die Zahl kann sich noch ändern)"
     ) in demo.text
 
 
@@ -131,14 +140,14 @@ def test_keine_freie_zahl_im_text(demo: UcAntwort) -> None:
 
 
 def test_ohne_bereinigung_bricht_der_textcheck_ab(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(adapter_modul, "bereinige", lambda text, zahlen: text)
+    monkeypatch.setattr(adapter_modul, "bereinige", lambda text, zahlen, profil=frozenset(): text)
     with pytest.raises(FreieZahl, match="300 Stellen"):
-        antwort(DEMO, [])
+        antwort(DEMO, [], **DEMO_LANG)
 
 
 def test_je_akteur_beleg_mit_medium_und_herkunft(demo: UcAntwort) -> None:
     zeilen = _akteurszeilen(demo.text)
-    assert 2 <= len(zeilen) <= kurzlauf.KURZ_MAX_AKTEURE
+    assert 2 <= len(zeilen) <= kurzlauf.KURZ_GRENZE_AKTEURE
     assert all("Beispielbeleg, erfunden: " in z or MODELLANNAHME in z for z in zeilen)
     presse = [b for b in demo.belege if b.quelle.startswith(QUELLE_BEISPIEL)]
     assert presse and all(b.uc == "uc2" and b.ref and BELEG_ID.fullmatch(b.ref) for b in presse)
@@ -234,8 +243,13 @@ def test_praesentation_kontextzahl_mit_beleg_und_ohne_rechenmodell(praes: UcAntw
     assert praes.text.startswith(
         "Die Zahl aus der Statistik: Beschäftigte (Wien, Gesundheits- und Sozialwesen): "
     )
-    assert "135.790 Personen (Statistik UC3, Tabelle stat.stat_beschaeftigte, Monat März 2025" in praes.text
-    assert freie_zahlen(praes.text, praes.zahlen) == []
+    assert "135.790 Personen (laut Beschäftigtenstatistik, März 2025, endgültig)." in praes.text
+    # Erlaubt sind nur Zifferngruppen aus Akteursprofilen (z. B. die Hotline „1450“), sonst keine freie Zahl.
+    from uc2.akteure.laden import lade_akteure
+    from uc2.antwort.textzahlen import profilzahlen
+
+    profil = profilzahlen(t for a in lade_akteure() for t in (*a.ziele, *a.interessen, *a.prioritaeten))
+    assert freie_zahlen(praes.text, praes.zahlen, profil) == []
 
 
 def test_praesentation_je_akteur_beleg_oder_modellannahme(praes: UcAntwort) -> None:
@@ -250,7 +264,7 @@ def test_praesentation_je_akteur_beleg_oder_modellannahme(praes: UcAntwort) -> N
 def test_praesentation_allgemeiner_auftrag_und_alltagssprache(praes: UcAntwort) -> None:
     for thema in MOCK_THEMEN:
         assert thema["titel"] in praes.text
-    assert "Wer ist dafür, wer dagegen:" in praes.text and "Was das im Alltag heißt: " in praes.text
+    assert "Wer ist dafür, wer dagegen:" in praes.text and "Kurz gesagt: " in praes.text
     assert "–" not in praes.text and "—" not in praes.text
 
 
@@ -323,3 +337,152 @@ def test_belegquelle_index_nur_mit_namensliste_und_abschnitten(
         assert isinstance(quelle, erwartet)
         if isinstance(quelle, IndexQuelle):
             assert quelle.maskiert and quelle.namen is namen
+
+
+# --- Review zu !73: Laufzeit, Sprache, Budget ----------------------------------------------------------
+
+
+def _zaehle_aufrufe(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, list[dict[str, str]]]]:
+    """Jeder Modellaufruf über `uc2.modelle.complete` mit Rolle (aus dem Kontextblock) und Nachrichten."""
+    aufrufe: list[tuple[str, list[dict[str, str]]]] = []
+    echt = uc2.modelle.complete
+
+    def zaehler(nachrichten: list[dict[str, str]], **kw: Any) -> Any:
+        erste = next(n["content"] for n in nachrichten if n["role"] == "user")
+        aufrufe.append((str((lies_kontext(erste) or {}).get("rolle")), nachrichten))
+        return echt(nachrichten, **kw)
+
+    monkeypatch.setattr(uc2.modelle, "complete", zaehler)
+    return aufrufe
+
+
+def test_uc4_standard_hoechstens_fuenf_aufrufe(monkeypatch: pytest.MonkeyPatch) -> None:
+    aufrufe = _zaehle_aufrufe(monkeypatch)
+    ergebnis = antwort(DEMO, [_uc3()])
+    rollen = [r for r, _ in aufrufe]
+    assert rollen.count("moderator_auftrag") == 1 and rollen.count("moderator_notiz") <= 1
+    assert 2 <= rollen.count("akteur") <= 3 and "moderator_auswahl" not in rollen
+    assert len(rollen) <= 5
+    assert len(_akteurszeilen(ergebnis.text)) == rollen.count("akteur")
+    assert "in einer Runde" in ergebnis.text and "Einschätzung der Moderation:" in ergebnis.text
+
+
+def test_praesentation_ohne_auftrag_und_notizaufruf(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Allgemeine Frage: fester Auftrag statt Modellaufruf, keine Notiz, nur die drei Akteurszüge."""
+    aufrufe = _zaehle_aufrufe(monkeypatch)
+    antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")])
+    rollen = [r for r, _ in aufrufe]
+    assert rollen == ["akteur", "akteur", "akteur"]
+
+
+def test_frist_um_keine_weitere_runde_und_keine_notiz(monkeypatch: pytest.MonkeyPatch) -> None:
+    aufrufe = _zaehle_aufrufe(monkeypatch)
+    ergebnis = antwort(DEMO, [_uc3()], frist_s=0, **DEMO_LANG)
+    rollen = [r for r, _ in aufrufe]
+    assert rollen.count("moderator_notiz") == 0 and rollen.count("akteur") == 4
+    assert "in einer Runde" in ergebnis.text and "Einschätzung der Moderation" not in ergebnis.text
+
+
+def test_akteurszuege_laufen_bei_echtem_provider_parallel(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Die Barriere öffnet nur, wenn alle drei Züge gleichzeitig warten; nacheinander liefe sie in den Timeout.
+    barriere = threading.Barrier(3, timeout=10)
+
+    def zug(rm: Any, nachrichten: Any, *, akteur: str, themen: list[str], runde: int, **kw: Any) -> Any:
+        barriere.wait()
+        themenzuege = [
+            {
+                "thema": t,
+                "haltung": 1,
+                "begruendung": "Gut für die Versorgung.",
+                "beleg_ids": [],
+                "bedingungen": [],
+                "zugestaendnis": None,
+            }
+            for t in themen
+        ]
+        return Zugergebnis(
+            akteur, {"themen": themenzuege, "bezug_auf": [], "zahlen": []}, [], 1, "azure", "m"
+        )
+
+    def moderator(rm: Any, nachrichten: Any, schema: Any) -> Modellantwort:
+        assert schema is prompts.AUFTRAG_SCHEMA
+        daten = {"themen": [dict(t) for t in MOCK_THEMEN], "regeln": ["r"], "ziel": "z"}
+        return Modellantwort(daten, json.dumps(daten), "azure", "m", 1)
+
+    monkeypatch.setattr(kurzlauf, "fuehre_zug_aus", zug)
+    monkeypatch.setattr(kurzlauf, "rufe", moderator)
+    ergebnis = antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")], provider="azure", quelle=FixtureQuelle())
+    assert len(_akteurszeilen(ergebnis.text)) == 3
+    assert "Die Rollen spielt eine KI" in ergebnis.text and "Testbetrieb" not in ergebnis.text
+
+
+def test_alltagsregel_in_jedem_aufruf(monkeypatch: pytest.MonkeyPatch) -> None:
+    aufrufe = _zaehle_aufrufe(monkeypatch)
+    antwort(DEMO, [_uc3()])
+    assert aufrufe
+    for _, nachrichten in aufrufe:
+        assert nachrichten[0]["role"] == "system"
+        assert nachrichten[0]["content"].endswith(kurzlauf.ALLTAGSREGEL)
+    assert "Fachbegriff" in kurzlauf.ALLTAGSREGEL and "Alltagssprache" in kurzlauf.ALLTAGSREGEL
+
+
+def test_keine_prognose_und_notiz_in_klartext(demo: UcAntwort, praes: UcAntwort) -> None:
+    for text in (demo.text, praes.text):
+        assert "Änderung" not in text and "zu erwarten" not in text and "wohl nichts" not in text
+        assert "Der Code meldet" not in text
+    assert "Das Programm hat eine Auffälligkeit gefunden: Bei " in demo.text
+    zwei = mock_notiz(
+        {
+            "themen": [{"id": "triage", "titel": "Digitale Triage"}],
+            "aenderungen": [],
+            "klassifikation": {"triage": "offener_konflikt"},
+            "code_widersprueche": [{"art": "zahl_widerspruch", "akteur": "sv"}, {"art": "x", "akteur": "ak"}],
+        }
+    )
+    assert zwei == (
+        "In dieser Runde hat niemand seine Haltung geändert. Noch strittig: Digitale Triage. "
+        "Das Programm hat zwei Auffälligkeiten gefunden, zum Beispiel: "
+        "Bei sv weicht eine Zahl vom Rechenmodell ab."
+    )
+
+
+def test_mock_satz_ohne_ki(praes: UcAntwort) -> None:
+    assert "Testbetrieb ohne KI: Die Rollen kommen aus einer festen Vorlage." in praes.text
+    assert "spielt eine KI" not in praes.text
+
+
+def test_herkunft_ohne_tabelle_und_lieferung_im_text(praes: UcAntwort) -> None:
+    assert "stat." not in praes.text and "Tabelle" not in praes.text and "Lieferung" not in praes.text
+    assert "2025-03" not in praes.text and "UC3" not in praes.text
+    (zahl,) = praes.zahlen
+    beleg = praes.belege[zahl.beleg]
+    assert (beleg.quelle, beleg.lieferung) == ("stat.stat_beschaeftigte", "2025-03")
+
+
+def test_budget_erschoepft_geht_unveraendert_an_den_router(monkeypatch: pytest.MonkeyPatch) -> None:
+    fehler = BudgetErschoepft("Das Tageskontingent für Modellaufrufe ist aufgebraucht.")
+
+    def leer(*args: Any, **kwargs: Any) -> Any:
+        raise fehler
+
+    monkeypatch.setattr(uc2.modelle, "complete", leer)
+    with pytest.raises(BudgetErschoepft) as info:
+        antwort(DEMO, [])
+    assert info.value is fehler
+    ergebnis = durchreichen(DEMO, kette=("uc2",), adapter={"uc2": antwort})
+    assert [(f.uc, f.grund) for f in ergebnis.fehlend] == [("uc2", "BudgetErschoepft")]
+
+
+def test_budget_erschoepft_in_der_akteursrunde(monkeypatch: pytest.MonkeyPatch) -> None:
+    echt = uc2.modelle.complete
+    gezaehlt: list[int] = []
+
+    def nur_ein_aufruf(nachrichten: list[dict[str, str]], **kw: Any) -> Any:
+        gezaehlt.append(1)
+        if len(gezaehlt) > 1:
+            raise BudgetErschoepft("Das Tageskontingent für Modellaufrufe ist aufgebraucht.")
+        return echt(nachrichten, **kw)
+
+    monkeypatch.setattr(uc2.modelle, "complete", nur_ein_aufruf)
+    ergebnis = durchreichen(DEMO, kette=("uc2",), adapter={"uc2": antwort})
+    assert [(f.uc, f.grund) for f in ergebnis.fehlend] == [("uc2", "BudgetErschoepft")]

@@ -9,39 +9,65 @@ des Nutzers verhandeln. Alle Modellaufrufe laufen über `uc2.modelle.rufe`, also
 Den Auftrag baut `auftrag_nachrichten`: für einen Fall `prompts.auftrag_nachrichten` (Experte mit Paket), für
 eine allgemeine Frage `uc2.antwort.allgemein.auftrag_nachrichten` (nur Ausgangslage aus dem Kontext). Mit
 Provider `mock` antwortet `uc2.antwort.allgemein.KurzMock`.
+
+Laufzeit (die Web-Route `uc4.ts` bricht nach 60 s ab, Review zu !73): Standard eine Runde mit höchstens 3
+Akteuren. Die Teilnehmer wählt der Code (Belegzahl und Themenbezug, kein Modellaufruf), die Züge einer Runde
+laufen bei echten Providern parallel. Mit einer Frist (`frist_bis`) folgt nach dem laufenden Schritt keine
+weitere Runde und keine Notiz mehr. So sind es höchstens 1 + Akteure + 1 Aufrufe (Auftrag, Züge, Notiz),
+zuzüglich der Wiederholungen bei ungültigen Antworten.
+
+`BudgetErschoepft` aus `plattform.llm` geht unverändert an den Aufrufer, damit der Router den Grund
+`BudgetErschoepft` meldet (Hinweis aus #100 in Web und Voice).
 """
 
 from __future__ import annotations
 
 import functools
+import re
+import threading
+import time
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from datetime import date
 from typing import Any
 
+# plattform hat keinen py.typed-Marker (E0); wie in uc2.modelle.
+from plattform.llm import BudgetErschoepft  # type: ignore[import-untyped]
+
 from uc2.akteure.laden import Akteur
 from uc2.modelle import Rollenmodell, UngueltigeAntwort, rollenmodell, rufe
 from uc2.verhandlung import prompts
 from uc2.verhandlung.belege import Beleg, Belegquelle, pruefe_freigabe
-from uc2.verhandlung.lauf import (
-    MIN_TEILNEHMER,
-    PARALLEL_ECHT,
-    Zugergebnis,
-    fuehre_zug_aus,
-    pruefe_auswahl,
-    repariere_auswahl,
-    zwischenergebnis,
-)
+from uc2.verhandlung.lauf import MIN_TEILNEHMER, Zugergebnis, fuehre_zug_aus, zwischenergebnis
 from uc2.verhandlung.matrix import Einordnung, Position, Runde, aenderungen, klassifikation, werte
 from uc2.verhandlung.pruefungen import haltungen_ohne_beleg, pruefe
 
 from .allgemein import mock_einhaengen, mock_zuruecksetzen
 
-KURZ_MAX_AKTEURE = 4
-"""Höchstzahl der Akteure im Kurzlauf (die volle Verhandlung erlaubt bis zu 6)."""
-KURZ_RUNDEN = 2
-"""Runde 1 Position, Runde 2 Debatte; mit `runden=1` nur die Positionsrunde."""
+KURZ_MAX_AKTEURE = 3
+"""Standard-Höchstzahl der Akteure für UC4 (Laufzeit); erlaubt sind bis `KURZ_GRENZE_AKTEURE`."""
+KURZ_GRENZE_AKTEURE = 4
+"""Obergrenze für `max_akteure` im Kurzlauf (die volle Verhandlung erlaubt bis zu 6)."""
+KURZ_RUNDEN = 1
+"""Standard für UC4: nur die Positionsrunde; mit `runden=2` folgt eine Debatte."""
+FRIST_S = 25.0
+"""Frist ab Start des Adapters; danach keine weitere Runde und keine Notiz (Web-Route: 60 s)."""
+ALLTAGSREGEL = (
+    "Zusatzregel für diese Kurzfassung, sie geht allen anderen Sprachregeln vor: Themen, Begründungen, "
+    "Bedingungen, Zugeständnisse und die Notiz lesen und hören Bürgerinnen und Bürger ohne Fachwissen. "
+    "Schreibe in Alltagssprache, in kurzen Sätzen, ohne Abkürzungen und ohne Gedankenstriche. Einen "
+    "Fachbegriff verwendest du nur mit einer kurzen Erklärung in Klammern, etwa „Primärversorgung (die "
+    "erste Anlaufstelle, zum Beispiel die Hausarztpraxis)“. Eine Zahl schreibst du nur genau so, wie sie in "
+    "der Ausgangslage oder beim Rechenmodell steht: gleicher Wert, gleiches Vorzeichen, gleiche Einheit. "
+    "Jede andere Zahl lässt du weg, auch Rundennummern, Telefonnummern und eigene Schätzungen; "
+    "Jahreszahlen wie „bis 2030“ sind erlaubt. Sage nicht voraus, was sich ändern wird."
+)
+"""Eigene Sprachregel des Kurzlaufs (Review zu !73), an die Systemnachricht jedes Aufrufs angehängt."""
+
+_MOCK_SPERRE = threading.Lock()
+"""`KurzMock` hängt sich global in `plattform.llm` ein; gleichzeitige mock-Läufe warten aufeinander."""
+_WORT = re.compile(r"[^\W\d_]{5,}")
 
 
 class KurzlaufFehler(RuntimeError):
@@ -75,6 +101,24 @@ def modellname(provider: str, modell: str) -> str:
     return "mock" if provider == "mock" else modell
 
 
+def mit_alltagsregel(nachrichten: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Kopie der Nachrichten, `ALLTAGSREGEL` an die Systemnachricht angehängt (oder vorangestellt)."""
+    if nachrichten and nachrichten[0].get("role") == "system":
+        erste = {**nachrichten[0], "content": f"{nachrichten[0]['content']}\n\n{ALLTAGSREGEL}"}
+        return [erste, *nachrichten[1:]]
+    return [{"role": "system", "content": ALLTAGSREGEL}, *nachrichten]
+
+
+def _staemme(text: str) -> set[str]:
+    return {w.casefold()[:6] for w in _WORT.findall(text)}
+
+
+def _budget_weiter(fehler: UngueltigeAntwort) -> None:
+    """`BudgetErschoepft` hinter einer `UngueltigeAntwort` unverändert weiterwerfen."""
+    if isinstance(fehler.__cause__, BudgetErschoepft):
+        raise fehler.__cause__
+
+
 def _zuege(auftraege: Mapping[str, Callable[[], Zugergebnis]], parallel: int) -> dict[str, Zugergebnis]:
     if parallel <= 1:
         return {aid: auftraege[aid]() for aid in sorted(auftraege)}
@@ -97,7 +141,13 @@ class _Kurzlauf:
         max_akteure: int,
         runden: int,
         auftrag_nachrichten: AuftragNachrichten,
+        frist_bis: float | None,
+        mit_notiz: bool,
+        fester_auftrag: dict[str, Any] | None = None,
     ) -> None:
+        self.frist_bis = frist_bis
+        self.mit_notiz = mit_notiz
+        self.fester_auftrag = fester_auftrag
         self.auftrag_nachrichten = auftrag_nachrichten
         self.frage = frage
         self.experte = experte
@@ -112,10 +162,14 @@ class _Kurzlauf:
         self.rm_akteur: Rollenmodell = rollenmodell("akteur", provider)
         self.modelle: set[str] = set()
 
+    def frist_um(self) -> bool:
+        return self.frist_bis is not None and time.monotonic() >= self.frist_bis
+
     def _moderator(self, nachrichten: list[dict[str, str]], schema: dict[str, Any], was: str) -> Any:
         try:
-            antwort = rufe(self.rm_moderator, nachrichten, schema)
+            antwort = rufe(self.rm_moderator, mit_alltagsregel(nachrichten), schema)
         except UngueltigeAntwort as fehler:
+            _budget_weiter(fehler)
             raise KurzlaufFehler(f"Moderator: kein gültiger {was} ({fehler.kennung})") from fehler
         self.modelle.add(modellname(antwort.provider, antwort.modell))
         return antwort
@@ -136,46 +190,27 @@ class _Kurzlauf:
         }
 
     def auswahl(self, auftrag: dict[str, Any]) -> list[str]:
-        ids = list(self.akteure)
-        belegzahl = {
-            aid: self.quelle.belegzahl(a, self.frage, self.stichtag) for aid, a in self.akteure.items()
-        }
-        pool = [
-            {
-                "id": a.id,
-                "name": a.name,
-                "rolle": a.rolle,
-                "themen_interesse": list(a.themen_interesse),
-                "belegzahl": belegzahl[a.id],
-            }
-            for a in self.akteure.values()
-        ]
-        nachrichten = prompts.auswahl_nachrichten(self.frage, auftrag, pool, self.max_akteure)
-        schema = prompts.auswahl_schema(ids)
-        daten: dict[str, Any] = {"akteure": []}
-        fehler: list[str] = []
-        for _ in (1, 2):
-            antwort = self._moderator(nachrichten, schema, "Auswahl")
-            daten = antwort.json
-            fehler = pruefe_auswahl(daten, ids, self.max_akteure)
-            if not fehler:
-                break
-            nachrichten = [
-                *nachrichten,
-                {"role": "assistant", "content": antwort.text},
-                {
-                    "role": "user",
-                    "content": "Deine Auswahl verletzt Regeln: " + "; ".join(fehler) + ". Antworte erneut.",
-                },
-            ]
-        liste = repariere_auswahl(daten, ids, self.max_akteure, belegzahl) if fehler else daten["akteure"]
-        return sorted(a["akteur"] for a in liste if a["eingeladen"])
+        """Teilnehmer per Code, ohne Modellaufruf: Belegzahl plus doppelt der Themenbezug, dann ID.
+
+        Gleiche Gewichtung wie die Auswahl des Szenario-Mocks; spart den Auswahl-Aufruf (Laufzeit UC4).
+        """
+        themen = _staemme(" ".join(f"{t['titel']} {t['beschreibung']}" for t in auftrag["themen"]))
+
+        def rang(a: Akteur) -> tuple[int, str]:
+            bezug = len(themen & _staemme(" ".join(a.themen_interesse)))
+            return -(self.quelle.belegzahl(a, self.frage, self.stichtag) + 2 * bezug), a.id
+
+        reihe = sorted(self.akteure.values(), key=rang)
+        return sorted(a.id for a in reihe[: self.max_akteure])
 
     def verhandle(self) -> Kurzergebnis:
-        auftrag = self.auftrag()
+        # Allgemeine Fragen (UC4) bringen einen festen Auftrag mit: spart den Auftragsaufruf (Laufzeit).
+        auftrag = self.fester_auftrag if self.fester_auftrag is not None else self.auftrag()
         teilnehmer = self.auswahl(auftrag)
         themen = [t["id"] for t in auftrag["themen"]]
-        parallel = 1 if self.provider == "mock" else PARALLEL_ECHT
+        parallel = 1 if self.provider == "mock" else len(teilnehmer)
+        gelaufen = 0
+        budget_aus = False
         vorher: Runde | None = None
         jetzt: Runde = {}
         vorrunde: dict[str, Any] | None = None
@@ -209,10 +244,16 @@ class _Kurzlauf:
                     vorrunde=vorrunde,
                 )
                 return fuehre_zug_aus(
-                    self.rm_akteur, nachrichten, akteur=aid, themen=themen, runde=runde, teilnehmer=teilnehmer
+                    self.rm_akteur,
+                    mit_alltagsregel(nachrichten),
+                    akteur=aid,
+                    themen=themen,
+                    runde=runde,
+                    teilnehmer=teilnehmer,
                 )
 
             ergebnisse = _zuege({aid: functools.partial(zug, aid) for aid in teilnehmer}, parallel)
+            budget_aus = any(erg.fehler == ["BudgetErschoepft"] for erg in ergebnisse.values())
             jetzt = {}
             gueltig: dict[str, dict[str, Any]] = {}
             letzte_befunde, ohne_beleg = [], []
@@ -251,18 +292,26 @@ class _Kurzlauf:
             klass = klassifikation(jetzt, teilnehmer, themen)
             vorrunde = zwischenergebnis(jetzt, klass, gueltig, None)
             vorher = jetzt
+            gelaufen = runde
+            if budget_aus or self.frist_um():
+                break
         mit_position = [aid for aid in teilnehmer if aid in letzter_zug]
         if len(mit_position) < MIN_TEILNEHMER:
+            if budget_aus:
+                # Die Ursache verschluckt `fuehre_zug_aus`; Typ und Meldung wie in plattform.llm.
+                raise BudgetErschoepft("Das Tageskontingent für Modellaufrufe ist aufgebraucht.")
             raise KurzlaufFehler(
                 f"nur {len(mit_position)} von {len(teilnehmer)} Akteuren mit gültigem Zug "
                 f"(mindestens {MIN_TEILNEHMER} nötig)"
             )
         klass = klassifikation(jetzt, teilnehmer, themen)
-        notiz = self._notiz(auftrag, teilnehmer, jetzt, aend, klass, letzte_befunde, ohne_beleg)
+        notiz = None
+        if self.mit_notiz and not budget_aus and not self.frist_um():
+            notiz = self._notiz(auftrag, teilnehmer, gelaufen, jetzt, aend, klass, letzte_befunde, ohne_beleg)
         return Kurzergebnis(
             auftrag=auftrag,
             teilnehmer=teilnehmer,
-            runden=self.runden,
+            runden=gelaufen,
             positionen=jetzt,
             klassifikation=klass,
             belege=alle_belege,
@@ -276,6 +325,7 @@ class _Kurzlauf:
         self,
         auftrag: dict[str, Any],
         teilnehmer: list[str],
+        runde: int,
         jetzt: Runde,
         aend: list[dict[str, Any]],
         klass: dict[str, Einordnung],
@@ -286,7 +336,7 @@ class _Kurzlauf:
         nachrichten = prompts.notiz_nachrichten(
             frage=self.frage,
             auftrag=auftrag,
-            runde=self.runden,
+            runde=runde,
             teilnehmer=teilnehmer,
             positionen=werte(jetzt),
             aenderungen=aend,
@@ -295,8 +345,9 @@ class _Kurzlauf:
             haltungen_ohne_beleg=ohne_beleg,
         )
         try:
-            antwort = rufe(self.rm_moderator, nachrichten, prompts.NOTIZ_SCHEMA)
+            antwort = rufe(self.rm_moderator, mit_alltagsregel(nachrichten), prompts.NOTIZ_SCHEMA)
         except UngueltigeAntwort:
+            # Auch bei erschöpftem Budget: Die Abwägung steht, nur die Notiz entfällt.
             return None
         self.modelle.add(modellname(antwort.provider, antwort.modell))
         return str(antwort.json["notiz"])
@@ -314,18 +365,23 @@ def kurzverhandlung(
     max_akteure: int = KURZ_MAX_AKTEURE,
     runden: int = KURZ_RUNDEN,
     auftrag_nachrichten: AuftragNachrichten = prompts.auftrag_nachrichten,
+    frist_bis: float | None = None,
+    notiz: bool = True,
+    fester_auftrag: dict[str, Any] | None = None,
 ) -> Kurzergebnis:
     """Kurzverhandlung ohne PG; mit Provider `mock` über den Szenario-Mock deterministisch.
 
     `experte` ist die Kurzform für die Prompts (`prompts.experte_kurz`, ggf. ergänzt um Kontextzahlen),
     `experte_werte` die Zahlen, gegen die `pruefe` Züge mit Quelle `experte` abgleicht.
     `auftrag_nachrichten` baut den Auftrag des Moderators (Fall oder allgemeine Frage, siehe Moduldoku).
+    `frist_bis` ist ein Zeitpunkt auf `time.monotonic()`; `None` heißt ohne Frist. `notiz=False` spart den
+    Aufruf für die Notiz der Moderation, wenn der Aufrufer sie nicht zeigt.
     """
     if not 1 <= runden <= 2:
         raise ValueError("Kurzlauf: runden muss 1 oder 2 sein")
-    if not MIN_TEILNEHMER <= max_akteure <= KURZ_MAX_AKTEURE:
+    if not MIN_TEILNEHMER <= max_akteure <= KURZ_GRENZE_AKTEURE:
         raise ValueError(
-            f"Kurzlauf: max_akteure muss zwischen {MIN_TEILNEHMER} und {KURZ_MAX_AKTEURE} liegen"
+            f"Kurzlauf: max_akteure muss zwischen {MIN_TEILNEHMER} und {KURZ_GRENZE_AKTEURE} liegen"
         )
     pruefe_freigabe(quelle, provider)
     lauf = _Kurzlauf(
@@ -339,11 +395,15 @@ def kurzverhandlung(
         max_akteure=max_akteure,
         runden=runden,
         auftrag_nachrichten=auftrag_nachrichten,
+        frist_bis=frist_bis,
+        mit_notiz=notiz,
+        fester_auftrag=fester_auftrag,
     )
     if provider != "mock":
         return lauf.verhandle()
-    vorher = mock_einhaengen()
-    try:
-        return lauf.verhandle()
-    finally:
-        mock_zuruecksetzen(vorher)
+    with _MOCK_SPERRE:
+        vorher = mock_einhaengen()
+        try:
+            return lauf.verhandle()
+        finally:
+            mock_zuruecksetzen(vorher)

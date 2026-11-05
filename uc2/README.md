@@ -103,17 +103,27 @@ uc3 → uc2 → uc1 die Abwägung der Akteure mit Beleg, ohne in PG zu schreiben
   Rechenmodell (Beleg `quelle=uc2.experte`, `ref=<paket>`).
 - **Allgemeine Frage** (kein Fall, etwa Beschäftigte in Wien): kein Rechenmodell, keine Paketzahlen. Der
   Moderator bekommt nur die Ausgangslage aus dem Kontext (`uc2.antwort.allgemein`).
-- Kurzverhandlung in beiden Fällen: Moderator mit Auftrag, höchstens 4 Akteure, Positionsrunde und Debatte,
-  über `plattform.llm` (Zweck `uc2.panel`). Mit `LLM_PROVIDER=mock` deterministisch (`KurzMock`).
+- Kurzverhandlung in beiden Fällen über `plattform.llm` (Zweck `uc2.panel`). Standard für UC4 (die Web-Route
+  bricht nach 60 s ab): Moderator mit Auftrag, höchstens 3 Akteure (Auswahl per Code nach Belegzahl und
+  Themenbezug), eine Positionsrunde mit parallelen Zügen, Notiz der Moderation nur bei einem Fall. Das sind
+  höchstens 5 Modellaufrufe (ohne Wiederholungen). Allgemeine Fragen kommen ohne Auftragsaufruf aus (feste Themen Versorgung, Personal, Finanzierung): gemessen mit azure 4,1 s statt 38,5 s. `frist_s` (Standard 25 s ab Aufruf): Ist sie um, folgt
+  keine weitere Runde und keine Notiz. `runden=2`, `max_akteure=4` geben die Debatte. Jeder Aufruf bekommt
+  eine Sprachregel (Alltagssprache, Fachbegriffe nur mit Erklärung, `kurzlauf.ALLTAGSREGEL`). Mit
+  `LLM_PROVIDER=mock` deterministisch (`KurzMock`); der Text sagt dann „Testbetrieb ohne KI“.
 - Zahlen aus `kontext` (UC3) gehen mit ihrem Beleg unverändert in `zahlen` und `belege`.
 - Belege: `IndexQuelle` mit Maskierung, wenn `UC2_NAMENSLISTE` geladen ist und `uc2.abschnitt` Zeilen hat,
   sonst `FixtureQuelle`. Je zitiertem Artikel ein Beleg `quelle="presse: <Medium>"` (Fixture:
   `"beispielbeleg (erfunden): <Medium>"`), `monat`, `ref=<Beleg-ID>`. Ohne Beleg steht im Text
   „Modellannahme“. Echte Provider nur mit maskierter Quelle (`pruefe_freigabe`).
-- Den Text schreibt der Code: Ausgangszahl mit Herkunft, wer dafür und wer dagegen ist, was das im Alltag
-  heißt. Den Schluss für den Einzelnen schreibt UC1. Zahlen ohne Eintrag in `zahlen` werden ersetzt (Erkennung
-  aus `uc2.verhandlung.pruefungen`, plus die Einheiten der Antwort wie „Personen“), bleibt eine übrig, wirft
-  der Adapter `FreieZahl`. Modellfehler werfen; der Router meldet UC2 dann als fehlend.
+- Den Text schreibt der Code: Ausgangszahl mit Herkunft zum Vorlesen („laut Beschäftigtenstatistik, März
+  2025, endgültig“; Tabelle, Lieferung und SQL nur im Beleg), wer dafür und wer dagegen ist, wo man sich einig
+  ist (ohne Prognose). Den Schluss für den Einzelnen schreibt UC1.
+- Zahlen im Text (`uc2.antwort.textzahlen`): Jede Zifferngruppe muss mit Wert, Vorzeichen und Einheit zu
+  einem Eintrag in `zahlen` passen (ohne Einheit: ein Wort der Bezeichnung in der Nähe). Ausgenommen sind nur
+  Jahresangaben ohne Mengeneinheit („bis 2030“, „März 2025“). Alles andere wird an seiner Position durch
+  „(Zahl ohne Beleg entfernt)“ ersetzt; bleibt eine übrig, wirft der Adapter `FreieZahl`.
+- Modellfehler werfen; der Router meldet UC2 dann als fehlend. `BudgetErschoepft` geht unverändert durch,
+  der Router meldet den Grund `BudgetErschoepft` (Hinweis aus #100).
 - `modell` nennt das antwortende Modell, bei mock `mock`. `protokoll_id` ist `None`.
 
 ```bash

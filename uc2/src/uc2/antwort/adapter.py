@@ -7,20 +7,23 @@ UC2 liefert in der Kette uc3 → uc2 → uc1 die Abwägung der Akteure mit Beleg
 - **Allgemeine Frage** (kein Fall passt, z. B. Beschäftigte in Wien): Kein Rechenmodell. Der Moderator
   bekommt nur die Ausgangslage aus dem Kontext (UC3-Zahlen mit Beleg, `uc2.antwort.allgemein`).
 
-In beiden Wegen: Kurzverhandlung (`uc2.antwort.kurzlauf`) mit höchstens 4 Akteuren, Positionsrunde und
-Debatte; der Code schreibt den Text. Zahlen kommen nur vom Experten oder aus dem Kontext. Text aus Modellen
-läuft durch `bereinige`; danach prüft `freie_zahlen` den ganzen Text und wirft `FreieZahl`, statt eine
+In beiden Wegen: Kurzverhandlung (`uc2.antwort.kurzlauf`, Standard eine Runde mit höchstens 3 Akteuren und
+einer Frist von 25 s); der Code schreibt den Text. Zahlen kommen nur vom Experten oder aus dem Kontext. Jede
+Zeile läuft durch `bereinige` (`uc2.antwort.textzahlen`: jede Zifferngruppe muss mit Wert, Vorzeichen und
+Einheit zu `zahlen` passen); danach prüft `freie_zahlen` den ganzen Text und wirft `FreieZahl`, statt eine
 unbelegte Zahl auszuliefern.
 
 `protokoll_id` bleibt `None`: Der Kurzlauf schreibt nicht in PG (Begründung in `uc2.antwort.kurzlauf`).
-Fehler werfen (`AntwortFehler` und Unterklassen, `ModellKonfigFehler`, `BelegFehler`); der Router zählt
-den UC dann als fehlend. Es gibt keinen Ersatztext.
+Fehler werfen (`AntwortFehler` und Unterklassen, `ModellKonfigFehler`, `BelegFehler`,
+`plattform.llm.BudgetErschoepft` unverändert); der Router zählt den UC dann als fehlend und nennt den
+Fehlertyp als Grund. Es gibt keinen Ersatztext.
 """
 
 from __future__ import annotations
 
 import contextlib
 import re
+import time
 from collections.abc import Iterator, Sequence
 from datetime import date
 from pathlib import Path
@@ -40,24 +43,18 @@ from uc2.verhandlung import prompts
 from uc2.verhandlung.belege import Beleg as PresseBeleg
 from uc2.verhandlung.belege import Belegquelle, FixtureQuelle, IndexQuelle, hat_index, lade_namensliste
 from uc2.verhandlung.fall import Falldefinition, bekannte_faelle, lade_fall
-from uc2.verhandlung.pruefungen import (
-    EINHEIT,
-    JAHRE,
-    ZIFFERN,
-    experten_ergebniswerte,
-    gleich,
-    zahlwert,
-)
+from uc2.verhandlung.pruefungen import experten_ergebniswerte
 
 from . import allgemein
-from .kurzlauf import KURZ_MAX_AKTEURE, KURZ_RUNDEN, Kurzergebnis, KurzlaufFehler, kurzverhandlung
+from .kurzlauf import FRIST_S, KURZ_MAX_AKTEURE, KURZ_RUNDEN, Kurzergebnis, KurzlaufFehler, kurzverhandlung
+from .textzahlen import ERSATZ as ERSATZ  # Wiederexport: Tests und Aufrufer lesen ihn hier
+from .textzahlen import bereinige, freie_zahlen, profilzahlen
 
 QUELLE_EXPERTE = "uc2.experte"
 QUELLE_PRESSE = "presse"
 QUELLE_BEISPIEL = "beispielbeleg (erfunden)"
 """Quelle eines Fixture-Belegs: Medium und Text sind erfunden, nur zur Vorführung ohne Index."""
 MODELLANNAHME = "Modellannahme"
-ERSATZ = "(Zahl ohne Beleg entfernt)"
 VERBINDUNG_TIMEOUT_S = 3
 _KATEGORIE = {
     "konsens": "alle dafür",
@@ -66,23 +63,25 @@ _KATEGORIE = {
     "offener_konflikt": "noch strittig",
 }
 _ALLTAG = {
-    "konsens": "Hier sind sich alle einig. Eine Änderung ist am ehesten zu erwarten",
-    "mehrheit": "Die meisten sind dafür. Eine Änderung ist möglich, braucht aber noch Zustimmung",
-    "abgelehnt": "Die meisten sind dagegen. Eine Änderung ist derzeit unwahrscheinlich",
-    "offener_konflikt": "Hier gibt es Streit. Rasch wird sich wohl nichts ändern",
+    "konsens": "Bei diesem Thema sind sich alle einig.",
+    "mehrheit": "Die meisten sind dafür, einige haben noch Bedenken.",
+    "abgelehnt": "Die meisten sind dagegen.",
+    "offener_konflikt": "Hier gehen die Meinungen auseinander.",
 }
+"""Was die Einordnung für Bürger heißt, ohne Prognose: Verhandelt wurde keine Maßnahme."""
 _ZIELPRUEFUNG = {
     "erfüllt": "Ja, unter allen durchgerechneten Annahmen",
     "nicht erfüllt": "Nein, unter keiner der durchgerechneten Annahmen",
     "offen": "Das ist offen, es hängt von den Annahmen ab",
 }
 _STAND = {"endgueltig": "endgültig", "vorlaeufig": "vorläufig, die Zahl kann sich noch ändern"}
+_STATISTIK = {"uc3": "Beschäftigtenstatistik"}
+"""Name der Statistik im Text; Tabelle, Lieferung und SQL stehen nur im Beleg."""
 _MONAT = (
     "Jänner", "Februar", "März", "April", "Mai", "Juni",
     "Juli", "August", "September", "Oktober", "November", "Dezember",
 )  # fmt: skip
 _WORT = {1: "eine", 2: "zwei", 3: "drei", 4: "vier", 5: "fünf", 6: "sechs"}
-_GEDANKENSTRICH = re.compile(r"\s*[–—]\s*")
 _HOECHSTENS_KONTEXT_IM_TEXT = 3
 
 
@@ -211,44 +210,6 @@ def _experte_zahlen(voll: dict[str, Any], s: _Sammlung) -> dict[str, Zahl]:
 # --- Zahlen im Text -----------------------------------------------------------------------------------
 
 
-def _einheit_muster(zahlen: Sequence[Zahl]) -> re.Pattern[str]:
-    """`EINHEIT` aus `uc2.verhandlung.pruefungen` plus die Einheiten der Antwort (etwa „Personen“)."""
-    eigene = sorted({z.einheit for z in zahlen if z.einheit}, key=len, reverse=True)
-    if not eigene:
-        return EINHEIT
-    zusatz = "|".join(re.escape(e) for e in eigene)
-    return re.compile(rf"{EINHEIT.pattern}|\s?(?:{zusatz})")
-
-
-def freie_zahlen(text: str, zahlen: Sequence[Zahl]) -> list[str]:
-    """Zahlen mit Einheit, deren Betrag (auf 0,05) in keiner `Zahl` steht, oder die nicht lesbar sind.
-
-    Zahlerkennung aus `uc2.verhandlung.pruefungen` (`ZIFFERN`, `zahlwert`: Tausenderpunkt, Dezimalkomma,
-    Jahreszahlen 2000 bis 2040 entfallen). Als Einheit gilt `EINHEIT` und jede Einheit aus `zahlen`, damit
-    auch „412.345 Personen“ geprüft wird.
-    """
-    einheit = _einheit_muster(zahlen)
-    frei = []
-    for m in ZIFFERN.finditer(text):
-        nach = einheit.match(text, m.end())
-        if nach is None:
-            continue
-        gruppe = m.group(0)
-        if gruppe.isdigit() and int(gruppe) in JAHRE:
-            continue
-        wert = zahlwert(gruppe)
-        if wert is None or not any(gleich(wert, float(z.wert)) for z in zahlen):
-            frei.append(gruppe + nach.group(0))
-    return frei
-
-
-def bereinige(text: str, zahlen: Sequence[Zahl]) -> str:
-    """Freie Zahlen in Modell- oder Datentext durch `ERSATZ` ersetzen, Gedankenstriche durch Kommas."""
-    for fund in freie_zahlen(text, zahlen):
-        text = text.replace(fund, ERSATZ)
-    return _GEDANKENSTRICH.sub(", ", text)
-
-
 def _zahl_text(zahl: Zahl) -> str:
     """Deutsch formatiert, mit Tausenderpunkt („135.790 Personen“, „1.250 Mio EUR“)."""
     wert = zahl.wert
@@ -267,11 +228,13 @@ def _monat_text(monat: str) -> str:
 
 
 def _herkunft(beleg: Beleg) -> str:
-    teile = [f"Statistik {beleg.uc.upper()}", f"Tabelle {beleg.quelle}"]
+    """Herkunft zum Vorlesen: „laut Beschäftigtenstatistik, März 2025, endgültig“, ohne Tabelle und Lieferung.
+
+    Die Sprachausgabe liest diesen Satz vor; Tabelle, Lieferung und SQL stehen nur im Beleg.
+    """
+    teile = [f"laut {_STATISTIK.get(beleg.uc, 'Statistik')}"]
     if beleg.monat:
-        teile.append(f"Monat {_monat_text(beleg.monat)}")
-    if beleg.lieferung:
-        teile.append(f"Lieferung {beleg.lieferung}")
+        teile.append(_monat_text(beleg.monat))
     if beleg.stand:
         teile.append(_STAND.get(beleg.stand, beleg.stand))
     return ", ".join(teile)
@@ -392,9 +355,9 @@ def _abwaegung(ergebnis: Kurzergebnis, akteure: dict[str, Akteur], s: _Sammlung,
     ]
     zeilen.append(f"So stehen die Beteiligten zu den Themen: {'; '.join(einordnung)}.")
     alltag = [
-        f"{titel[t]}: {_ALLTAG.get(e.kategorie, e.kategorie)}." for t, e in ergebnis.klassifikation.items()
+        f"{titel[t]}: {_ALLTAG.get(e.kategorie, e.kategorie)}" for t, e in ergebnis.klassifikation.items()
     ]
-    zeilen.append(f"Was das im Alltag heißt: {' '.join(alltag)}")
+    zeilen.append(f"Kurz gesagt: {' '.join(alltag)}")
     bedingungen = [
         f"{akteure[aid].name}: {b}"
         for aid in ergebnis.teilnehmer
@@ -409,9 +372,15 @@ def _abwaegung(ergebnis: Kurzergebnis, akteure: dict[str, Akteur], s: _Sammlung,
 def _einleitung(ergebnis: Kurzergebnis) -> str:
     n = len(ergebnis.teilnehmer)
     runden = "einer Runde" if ergebnis.runden == 1 else f"{_WORT.get(ergebnis.runden, 'mehreren')} Runden"
+    if ergebnis.modelle == ["mock"]:
+        art = (
+            "Testbetrieb ohne KI: Die Rollen kommen aus einer festen Vorlage. Es ist keine echte Verhandlung."
+        )
+    else:
+        art = "Das ist eine Simulation: Die Rollen spielt eine KI, es ist keine echte Verhandlung."
     return (
         f"{_WORT.get(n, 'Mehrere').capitalize()} Interessenvertretungen haben die Frage in {runden} "
-        "abgewogen. Das ist eine Simulation: Die Rollen spielt eine KI, es ist keine echte Verhandlung."
+        f"abgewogen. {art}"
     )
 
 
@@ -447,6 +416,7 @@ def antwort(
     max_akteure: int = KURZ_MAX_AKTEURE,
     runden: int = KURZ_RUNDEN,
     stichtag: date | None = None,
+    frist_s: float = FRIST_S,
 ) -> UcAntwort:
     """UC2-Antwort zur Frage: Abwägung der Akteure mit Beleg, Zahlen nur aus Kontext und Rechenmodell.
 
@@ -454,14 +424,19 @@ def antwort(
     `modellrollen.yaml`. Belegquelle: `belegquelle()`, sofern nicht übergeben; eine unmaskierte Quelle geht
     nur an `mock` (`pruefe_freigabe` in `kurzverhandlung`). `stichtag` begrenzt das Datum der Belege
     (Standard: Stichtag des Falls, bei allgemeinen Fragen heute).
+
+    Laufzeit (die Web-Route bricht nach 60 s ab): Standard eine Runde mit höchstens 3 Akteuren, deren Züge
+    bei echten Providern parallel laufen. `frist_s` zählt ab diesem Aufruf; ist sie um, folgt nach dem
+    laufenden Schritt keine weitere Runde und keine Notiz der Moderation.
     """
     if not frage.strip():
         raise AntwortFehler("leere Frage")
+    frist_bis = time.monotonic() + frist_s
     gewaehlt = waehle_provider(provider)
     if quelle is not None:
-        return _antwort(frage, kontext, gewaehlt, quelle, max_akteure, runden, stichtag)
+        return _antwort(frage, kontext, gewaehlt, quelle, max_akteure, runden, stichtag, frist_bis)
     with belegquelle() as gefunden:
-        return _antwort(frage, kontext, gewaehlt, gefunden, max_akteure, runden, stichtag)
+        return _antwort(frage, kontext, gewaehlt, gefunden, max_akteure, runden, stichtag, frist_bis)
 
 
 def _antwort(
@@ -472,6 +447,7 @@ def _antwort(
     max_akteure: int,
     runden: int,
     stichtag: date | None,
+    frist_bis: float,
 ) -> UcAntwort:
     fall = waehle_fall(frage)
     s = _Sammlung()
@@ -507,6 +483,11 @@ def _antwort(
             max_akteure=max_akteure,
             runden=runden,
             auftrag_nachrichten=auftrag_nachrichten,
+            frist_bis=frist_bis,
+            # Die Notiz steht nur im Fall-Weg im Text; im allgemeinen Weg spart das einen Aufruf.
+            notiz=fall is not None,
+            # Allgemeine Fragen: feste Themen statt Auftragsaufruf (gemessen 38,5 s mit Aufruf bei azure).
+            fester_auftrag=allgemein.fester_auftrag(frage) if fall is None else None,
         )
     except KurzlaufFehler as fehler:
         raise AntwortFehler(f"Panel: {fehler}") from fehler
@@ -518,8 +499,16 @@ def _antwort(
     zeilen += _abwaegung(ergebnis, akteure, s, beispiel)
     if voll is not None and ergebnis.notiz:
         zeilen.append(f"Einschätzung der Moderation: {_namen_statt_ids(ergebnis.notiz, akteure)}")
-    text = "\n".join(bereinige(z, s.zahlen) for z in zeilen)
-    frei = freie_zahlen(text, s.zahlen)
+    # Zifferngruppen aus den Profilen der Teilnehmer (z. B. die Hotline „1450“) sind Namen, keine Messwerte.
+    profil = profilzahlen(
+        t
+        for aid in ergebnis.teilnehmer
+        if aid in akteure
+        for feld in ("ziele", "interessen", "restriktionen", "budgetvorgaben", "prioritaeten", "rote_linien")
+        for t in getattr(akteure[aid], feld)
+    )
+    text = "\n".join(bereinige(z, s.zahlen, profil) for z in zeilen)
+    frei = freie_zahlen(text, s.zahlen, profil)
     if frei:
         raise FreieZahl(f"Zahl ohne Eintrag in zahlen: {', '.join(frei)}")
     return UcAntwort(

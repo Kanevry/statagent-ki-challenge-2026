@@ -6,8 +6,9 @@ einer Beschäftigungsfrage wären irreführend. Der Moderator bekommt statt des 
 die Zahlen aus dem Kontext (UC3) mit ihrer Herkunft, und bildet daraus Themen für die Abwägung.
 
 Der Szenario-Mock aus `uc2.modelle.szenario` leitet Themen nur aus dem Maßnahmenpaket ab. Für diesen Auftrag
-antwortet deshalb `KurzMock` (Unterklasse des Szenario-Mocks) mit festen, allgemeinen Themen; alle anderen
-Rollen beantwortet weiter der Szenario-Mock.
+antwortet deshalb `KurzMock` (Unterklasse des Szenario-Mocks) mit festen, allgemeinen Themen. Die Notiz der
+Moderation schreibt `KurzMock` in Alltagssprache neu (Themen-Titel statt IDs, Zahlwörter statt Ziffern);
+alle anderen Rollen beantwortet weiter der Szenario-Mock.
 """
 
 from __future__ import annotations
@@ -46,7 +47,16 @@ MOCK_THEMEN: tuple[dict[str, str], ...] = (
         "beschreibung": "Wer die Kosten trägt: Krankenversicherung, Bund und Länder",
     },
 )
-"""Feste Themen des Mocks für allgemeine Fragen; ein echtes Modell bildet sie aus der Frage."""
+"""Feste Themen für allgemeine Fragen (UC4): gelten für Mock und echte Modelle, damit der Kurzlauf ohne
+Auftragsaufruf auskommt (Laufzeit: gemessen 38,5 s mit Auftragsaufruf bei azure, Route-Frist 60 s)."""
+
+ROLLE_NOTIZ = "moderator_notiz"
+_ZAHLWORT = {2: "zwei", 3: "drei", 4: "vier", 5: "fünf", 6: "sechs"}
+_AUFFAELLIGKEIT = {
+    "zahl_ohne_beleg": "Bei {akteur} steht eine Zahl ohne Beleg",
+    "beleg_ungueltig": "{akteur} nennt einen Beleg, der dieser Rolle nicht vorlag",
+    "zahl_widerspruch": "Bei {akteur} weicht eine Zahl vom Rechenmodell ab",
+}
 
 
 def ausgangslage(kontext_zahlen: list[dict[str, Any]]) -> dict[str, Any]:
@@ -73,6 +83,13 @@ def auftrag_nachrichten(frage: str, experte: dict[str, Any]) -> list[dict[str, s
     return [{"role": "system", "content": prompts.MODERATOR_SYSTEM}, {"role": "user", "content": text}]
 
 
+def fester_auftrag(frage: str) -> dict[str, Any]:
+    """Auftrag für allgemeine Fragen ohne Modellaufruf: feste Themen, Kriterien und Regeln, Ziel = Frage."""
+    from uc2.verhandlung import prompts
+
+    return {**_mock_auftrag({"frage": frage}), "kriterien": list(prompts.KRITERIEN)}
+
+
 def _mock_auftrag(k: dict[str, Any]) -> dict[str, Any]:
     return {
         "themen": [dict(t) for t in MOCK_THEMEN],
@@ -85,8 +102,35 @@ def _mock_auftrag(k: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def mock_notiz(k: dict[str, Any]) -> str:
+    """Notiz des Mocks in Alltagssprache, ohne Ziffern; Akteurs-IDs ersetzt der Adapter durch Namen."""
+    titel = {t["id"]: t["titel"] for t in k.get("themen") or []}
+    n = len(k.get("aenderungen") or [])
+    if n == 0:
+        teile = ["In dieser Runde hat niemand seine Haltung geändert."]
+    elif n == 1:
+        teile = ["Eine Haltung hat sich in dieser Runde geändert."]
+    else:
+        teile = [f"{_ZAHLWORT.get(n, 'mehrere').capitalize()} Haltungen haben sich in dieser Runde geändert."]
+    klass: dict[str, str] = k.get("klassifikation") or {}
+    offen = [titel.get(t, t) for t, kat in sorted(klass.items()) if kat == "offener_konflikt"]
+    if offen:
+        teile.append(f"Noch strittig: {', '.join(offen)}.")
+    code: list[dict[str, Any]] = k.get("code_widersprueche") or []
+    if code:
+        erste = code[0]
+        satz = _AUFFAELLIGKEIT.get(str(erste.get("art")), "Bei {akteur} passt etwas nicht zusammen")
+        beispiel = satz.format(akteur=erste.get("akteur") or "einer Rolle")
+        if len(code) == 1:
+            teile.append(f"Das Programm hat eine Auffälligkeit gefunden: {beispiel}.")
+        else:
+            wort = _ZAHLWORT.get(len(code), "mehrere")
+            teile.append(f"Das Programm hat {wort} Auffälligkeiten gefunden, zum Beispiel: {beispiel}.")
+    return " ".join(teile)
+
+
 class KurzMock(SzenarioMock):
-    """Szenario-Mock plus Antwort auf den allgemeinen Auftrag (`ROLLE_AUFTRAG`), deterministisch."""
+    """Szenario-Mock plus allgemeiner Auftrag und Notiz in Alltagssprache; deterministisch."""
 
     def rufe(
         self,
@@ -99,6 +143,13 @@ class KurzMock(SzenarioMock):
     ) -> Any:
         erste = next((n["content"] for n in nachrichten if n.get("role") == "user"), "")
         k = lies_kontext(erste)
+        if k is not None and k.get("rolle") == ROLLE_NOTIZ:
+            roh = super().rufe(nachrichten, schema=schema, modell=modell, aufwand=aufwand, zweck=zweck)
+            daten = json.loads(roh.text)
+            if isinstance(daten, dict):
+                daten["notiz"] = mock_notiz(k)
+                roh.text = json.dumps(daten, ensure_ascii=False, sort_keys=True)
+            return roh
         if k is None or k.get("rolle") != ROLLE_AUFTRAG:
             return super().rufe(nachrichten, schema=schema, modell=modell, aufwand=aufwand, zweck=zweck)
         text = json.dumps(_mock_auftrag(k), ensure_ascii=False, sort_keys=True)

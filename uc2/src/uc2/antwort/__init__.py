@@ -4,14 +4,7 @@ Entry-Point `kic.uc_antwort: uc2 = "uc2.antwort:antwort"`; der Router (`plattfor
 harten Import.
 """
 
-from uc2.antwort.adapter import (
-    AntwortFehler,
-    FreieZahl,
-    antwort,
-    belegquelle,
-    bereinige,
-    freie_zahlen,
-    waehle_fall,
-)
+from uc2.antwort.adapter import AntwortFehler, FreieZahl, antwort, belegquelle, waehle_fall
+from uc2.antwort.textzahlen import bereinige, freie_zahlen
 
 __all__ = ["AntwortFehler", "FreieZahl", "antwort", "belegquelle", "bereinige", "freie_zahlen", "waehle_fall"]
