@@ -25,6 +25,8 @@ export interface UcEintrag {
   route: `/${BereichId}`;
   /** Nur UC3 wird von der Jury bewertet */
   bewertet: boolean;
+  /** Der Header zeigt hier kein Modell: Die Zahlen entstehen ohne Sprachmodell (Agent und Modell stehen beim Vorschlag). */
+  ohneModellAnzeige?: boolean;
 }
 
 /** Eintrag eines der drei Use Cases (ohne den gemeinsamen Einstieg). */
@@ -38,6 +40,7 @@ export const ucs: readonly UseCaseEintrag[] = [
     kurz: "Agentengestützter Statistikprozess für die Beschäftigtenstatistik",
     route: "/uc3",
     bewertet: true,
+    ohneModellAnzeige: true,
   },
   {
     id: "uc1",

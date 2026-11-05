@@ -42,6 +42,14 @@ export function appTabs(ucs: readonly UcEintrag[] = registry): AppTab[] {
   ];
 }
 
+/**
+ * Zeigt der Header auf diesem Pfad das Modell? Aus dem Pfad statt über `SeitenModell`, weil dessen Effekt erst nach
+ * dem Laden wirkt: Der Server schickte sonst „Modell: wird geprüft“, und die Pille verschwände sichtbar.
+ */
+export function zeigtModell(pfad: string, ucs: readonly UcEintrag[] = registry): boolean {
+  return !ucs.some((uc) => uc.ohneModellAnzeige && istAktiv(uc.route, pfad));
+}
+
 export interface Marke {
   /** Produktname in der ersten Zeile. */
   name: string;
