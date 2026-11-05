@@ -22,7 +22,7 @@ export function UcNavigation({ name, nav }: { name: string; nav: readonly UcNavP
   const aktiv = aktiverPunkt(nav, pfad);
   return (
     <nav aria-label={`${name}, Unterseiten`} className="border-b border-line bg-paper">
-      <ul className="mx-auto flex max-w-7xl items-center gap-1 overflow-x-auto whitespace-nowrap px-2 md:px-6">
+      <ul className="mx-auto flex max-w-7xl items-center gap-1 whitespace-nowrap px-2 max-sm:flex-wrap sm:overflow-x-auto md:px-6">
         {nav.map((punkt) => (
           <li key={punkt.href}>
             <Verweis
