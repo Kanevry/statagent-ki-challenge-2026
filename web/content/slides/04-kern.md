@@ -17,7 +17,7 @@ belege: [F3, F26]
 # Aus Use Case 3 wurde ein Kern für alle drei.
 
 1. Jede Zahl hat einen Beleg.
-2. Jede Änderung gibt ein Mensch mit Namen frei.
+2. Freigeben darf nur ein Mensch.
 3. Das Programm rechnet. Die KI schlägt nur vor.
 
 24 Monatslieferungen · 10.152.292 Datenzeilen · einlesen, prüfen, zählen, berichten, freigeben
