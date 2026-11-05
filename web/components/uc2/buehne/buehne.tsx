@@ -100,7 +100,7 @@ export function PanelBuehne({ fallId, modus }: { fallId: string; modus: Modus })
       <div className="grid gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         <div className="flex flex-col justify-between gap-10">
           <div className="min-h-[200px] lg:min-h-[300px]" aria-live="polite">
-            <Szene buehne={buehne} zustand={z} />
+            <Szene buehne={buehne} zustand={z} modus={modus} />
           </div>
           {z.experte && buehne.art !== "experte" && <ExperteKurz zustand={z} />}
         </div>
@@ -131,6 +131,12 @@ function ModellZeile({ modus, zustand }: { modus: Modus; zustand: FallZustand })
       {modellSatz(modus, zustand)}
     </p>
   );
+}
+
+/** In der Aufzeichnung sind die Medien erfunden; das steht dann am Beleg, nicht nur in der Kopfzeile (Jury 05.11.). */
+function belegName(medium: string, modus: Modus): string {
+  if (modus === "vorfuehrung" && !/beispiel/i.test(medium)) return `Beleg (erfundene Beispielquelle): ${medium}`;
+  return `Beleg: ${medium}`;
 }
 
 function Rahmen({ children }: { children: React.ReactNode }) {
@@ -173,7 +179,7 @@ function Sitzreihe({ gruppen, sprecher, moderator, experte }: { gruppen: string[
   );
 }
 
-function Szene({ buehne, zustand: z }: { buehne: Buehne; zustand: FallZustand }) {
+function Szene({ buehne, zustand: z, modus }: { buehne: Buehne; zustand: FallZustand; modus: Modus }) {
   switch (buehne.art) {
     case "auftakt":
       return (
@@ -237,7 +243,7 @@ function Szene({ buehne, zustand: z }: { buehne: Buehne; zustand: FallZustand })
               {beleg && (
                 <details className="group max-w-xl">
                   <summary className="inline-flex min-h-11 cursor-pointer items-center font-sans text-14 text-gruen underline underline-offset-4">
-                    Beleg: {klartext(beleg.medium)}
+                    {belegName(klartext(beleg.medium), modus)}
                     {beleg.monat || beleg.datum ? `, ${monatText(beleg.monat ?? beleg.datum)}` : ""}
                   </summary>
                   <p className="mt-2 font-sans text-14 text-slate">„{klartext(beleg.zitat)}“</p>

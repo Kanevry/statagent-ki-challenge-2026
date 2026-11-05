@@ -146,12 +146,9 @@ function LeistungKarte({ id, antwort, letzte }: { id: string; antwort: WebAntwor
         ))
       )}
       {art &&
-        (letzte && ohneAufnahme ? (
-          <Fliesstext groesse={14} ton="gedaempft" data-uc1-ohne-aufnahme={art}>
-            Dafür gibt es einen Antrag. Im Beispiel ist er nicht aufgezeichnet. Im echten Gespräch füllt der Lotse ihn auch
-            aus.
-          </Fliesstext>
-        ) : letzte ? (
+        // Im aufgezeichneten Gespräch ohne aufgezeichneten Antrag: Leistung, Quelle und Stelle, kein Antragsweg
+        // (Jury 05.11.: „im Beispiel nicht aufgezeichnet“ war eine Sackgasse).
+        (letzte && ohneAufnahme ? null : letzte ? (
           <AntragKnopf art={art} />
         ) : (
           <Fliesstext groesse={14} ton="gedaempft">

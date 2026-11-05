@@ -84,21 +84,39 @@ where zeitraum_von='2024-08-31'` gibt 1568944 und 115220. Die App liest nur `UC3
 
 ## Live-Änderung (ein Lauf)
 
-Entscheid (Infra-Lane, 05.11.): Die App liest bei der Live-Änderung dieselbe Datenbank, in die der Lauf schreibt. Sonst
-erscheint der neue Lauf nicht. `statistik_demo` ist eine Kopie und bleibt unverändert.
+Entscheid (Lead und Infra-Lane, 05.11.): Die Live-Änderung schreibt in eine eigene Kopie `statistik_vorfuehrung` der
+Abgabe-DB `statistik` auf dem Bau-Rechner. `statistik` bleibt unberührt, damit die Abgabe nachrechenbar ist. Die
+Vorführ-App liest bei der Live-Änderung genau diese Kopie, sonst erscheint der neue Lauf nicht. `statistik_demo` (lokal,
+lesend) ist der Rückfall ohne Netz.
 
-1. **Mit Netz: Rechen-Datenbank auf dem Bau-Rechner über einen SSH-Tunnel.**
-   `ssh -o ExitOnForwardFailure=yes -N -L <tunnel-port>:localhost:5433 <bau-host>` (Terminal 3), dann die App mit
-   `UC3_DATABASE_URL=<bau-db>` statt `statistik_demo` starten. Diese Datenbank ist die Quelle der Online-Daten
-   (166 Läufe), sie zeigt dieselben Zahlen plus den neuen Lauf. Achtung: Sie ist die geteilte Bau-DB, der Lauf schreibt
-   dort hinein. Ein Lauf über den Tunnel ist nicht erprobt.
-2. **Ohne Netz: Einzellauf lokal** gegen die DB `statistik` (dort liegt `roh.lieferung` mit 10.152.292 Zeilen in
-   24 Lieferungen): `UC3_DATABASE_URL=<lokal>/statistik uv run uc3 lauf --lieferung <JJJJ-MM>`. Dauer lokal nicht
-   gemessen (auf dem Bau-Rechner rund 17 s je Lauf). Die lokale `statistik` hat nur 2 Läufe, die Anzeige weicht dann von
-   online ab. Nicht am Vorabend auf dem Vorführrechner testen, die Last stört andere Arbeit.
+**Kopie anlegen, Freitag 06:00 bis 06:30 (nach den letzten Läufen, vor der Vorführung).** Auf dem Bau-Rechner, aus
+einem Checkout mit `scripts/` und `deploy/sql/`:
+
+```bash
+scripts/vorfuehrung-db.sh --ersetzen statistik statistik_vorfuehrung
+```
+
+- `statistik` wird nur gelesen. Das Ziel darf nie `statistik` sein; ohne `--ersetzen` bricht das Skript ab, wenn es die
+  Kopie schon gibt.
+- Erst `CREATE DATABASE … TEMPLATE` (schnell, geht nur ohne offene Verbindungen auf `statistik`), sonst
+  `pg_dump | pg_restore`. Danach muss der Inhalts-Hash von `stat` und `meta` in Quelle und Kopie gleich sein, sonst Exit 1.
+- Probe am 05.11. mit einem Wegwerf-Namen: Rückweg `pg_dump | pg_restore` (zwei Verbindungen offen), 132 s, 5,7 GB,
+  166 Läufe, beide Hashes gleich, `stat` auch gleich wie online. Die Probe-DB ist wieder gelöscht.
+- Nicht verwechseln: `statistik_probe` und `statistik_live80*` sind Übungskopien anderer Lanes, keine Quelle.
+
+**Vorführen:**
+
+1. **Mit Netz:** SSH-Tunnel `ssh -o ExitOnForwardFailure=yes -N -L <tunnel-port>:localhost:5433 <bau-host>`
+   (Terminal 3), dann die App mit `UC3_DATABASE_URL=<bau-db-vorfuehrung>` neu starten, also der Verbindung zur Kopie
+   `statistik_vorfuehrung` über den Tunnel. Sie zeigt dieselben Zahlen wie online plus den neuen Lauf. Ein Lauf über den
+   Tunnel ist nicht erprobt.
+2. **Ohne Netz:** keine Live-Änderung, die App bleibt auf `statistik_demo` (lesend, gleiche Zahlen wie online). Ein
+   Einzellauf gegen die lokale `statistik` ist möglich (dort liegt `roh.lieferung` mit allen 24 Lieferungen, aber nur
+   2 Läufe, die Anzeige weicht dann von online ab); Dauer lokal nicht gemessen.
 3. **Letzter Rückfall:** Backup-Video.
 
-Wechsel zwischen den Datenbanken: `pnpm dev` mit Strg-C beenden, `export UC3_DATABASE_URL=…`, neu starten.
+Wechsel zwischen den Datenbanken: `pnpm dev` mit Strg-C beenden, `export UC3_DATABASE_URL=…`, neu starten. Vorher die
+Prüfzeile aus „Start in fünf Befehlen“ wiederholen (`.env.local` darf `UC3_DATABASE_URL` nicht setzen).
 
 ## Voice (nur auf ausdrückliche Anordnung)
 
@@ -130,4 +148,5 @@ unter 5 €. `sync` und `smoke` laufen nur mit Freigabe. Voice braucht Netz (Vap
 - `/uc4` nutzt auch `UC1_DATABASE_URL` und `UC2_DATABASE_URL`. Die lokalen DBs `lotse` und `healthpolicy` haben je 9
   Tabellen, ihr Inhalt ist nicht mit online verglichen.
 - Der Tunnel zum Bau-Rechner ist nicht mit einem Lauf erprobt, die Laufdauer lokal ist nicht gemessen.
+- `statistik_vorfuehrung` wird erst Freitag 06:00 bis 06:30 angelegt (Infra-Lane).
 - Der Worktree `<vorfuehrung>` ist noch nicht angelegt; er gehört nach dem Merge-Stopp auf den letzten `main`.
