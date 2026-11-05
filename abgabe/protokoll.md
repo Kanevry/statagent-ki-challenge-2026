@@ -42,6 +42,7 @@ Jede Änderung an Regeln oder Code und jede Veröffentlichung eines Monats steht
 | 05.11.2026 16:54 | Regelsatz v2 freigeben | Bernhard Götzendorfer | uc3/27 | keins@keins | `599e60109c` |
 | 05.11.2026 16:54 | Auftrag 3, Datenlieferung an das Ministerium: Das Ministerium erhält eine Liste aller Personen, die in den letzten zwölf Monaten bis einschließlich Berichtsmonat mindestens 200 Tage als Arbeiter beschäftigt waren, mit Dienstvertrag oder freiem Dienstvertrag (ArbeiterDV, ArbeiterFD), im ÖNACE-Abschnitt C. Der Berichtsmonat ist ein Parameter, für die Abgabe 07/2026, also der Zeitraum 01.08.2025 bis 31.07.2026. Tage sind Kalendertage, an denen mindestens ein passender Zeitabschnitt besteht; gleichzeitige Verhältnisse zählen einen Tag nur einmal, DV- und FD-Tage werden zusammengezählt. Datenstand: Für jeden Tag gilt die jüngste Lieferung, die diesen Tag enthält, verarbeitet nach unseren Regeln (Regelsatz v1); eine Lieferung, deren Monatslauf angehalten wurde (Teil-Lieferung), wird dabei übersprungen. Wirtschaftszweig ist die ÖNACE des jeweiligen Zeitabschnitts, wie ihn die verwendete Lieferung ausweist: bis 12/2024 nach ÖNACE 2008, ab 01/2025 nach ÖNACE 2025, gezählt wird Abschnitt C; die alten ÖNACE-2003-Codes DA bis DN zählen wie in unserer Zuordnungsregel Q01 zu C. Felder: PERSON_ID, GESCHLECHT, GEBURTSJAHR (bei unplausiblem Geburtsdatum Unbekannt), TAGE. Format: CSV mit Semikolon, Datei ministerium_JJJJ-MM.csv, sortiert nach PERSON_ID. Setze das als Regel um, nicht als Code: eine neue Regel (regel_neu) vom Typ zaehl der Art personentage im Regelsatz ministerium, mit den Parametern, die diese Art kennt. | Bernhard Götzendorfer | uc3/26 | gpt-5-4-mini@azure | `08e63c046f` |
 | 05.11.2026 18:22 | Bestätigung der Freigaben uc3/24, uc3/25, uc3/26, uc3/27 durch Bernhard Götzendorfer | Bernhard Götzendorfer |  |  | `2ba95e5139` |
+| 05.11.2026 19:35 | Ministeriums-Lieferung 2026-07 freigeben (Auftrag 3, Regel M01_personentage_ministerium) | Bernhard Götzendorfer | uc3/28 | keins@keins | `1b0f799313` |
 
 ## 2 Vorschläge der Agenten
 
@@ -89,4 +90,6 @@ Jede Änderung an Regeln oder Code und jede Veröffentlichung eines Monats steht
 
 ## 5 Lieferungen nach außen (Ministerium)
 
-Noch keine Lieferung nach außen freigegeben.
+| Berichtsmonat | Datei | Personen | Freigegeben von | Zeitpunkt | Protokoll | Commit | sha256 |
+|---|---|---|---|---|---|---|---|
+| 2026-07 | ministerium_2026-07.csv | 32741 | Bernhard Götzendorfer | 05.11.2026 19:35 | freigegeben | `1b0f799313` | `d8492f46dd5f` |

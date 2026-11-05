@@ -20,6 +20,27 @@ stoppwoerter: [
   the, a, an, of, to, and, or, is, are, can, be, for, with, in, on, at, by
 ]
 
+# Schwellen (#151, Review !69): Steht ein Schwellenwort (Schlüssel) im Zitat und nennt die Aussage eine Zahl,
+# muss sie eine der Formen dazu tragen (reguläre Ausdrücke, ohne Groß-/Kleinschreibung). Sonst verwirft der Kern
+# die Aussage: „ab 65 Stunden“ statt „mehr als 65 Stunden“ oder „bei sechs Monaten“ statt „voraussichtlich
+# mindestens sechs Monate“ sind falsche Rechtsaussagen. Englische Aussagen zitieren deutsche Normen.
+schwellen:
+  de:
+    "mehr als": ['\bmehr als\b', '\büber \d']
+    "weniger als": ['\bweniger als\b', '\bunter \d']
+    "mindestens": ['\bmindestens\b', '\bwenigstens\b']
+    "höchstens": ['\bhöchstens\b', '\bmaximal\b', '\bbis zu\b']
+    "voraussichtlich": ['\bvoraussichtlich\b']
+  en:
+    "mehr als": ['\bmore than\b', '\bover \d', '\bexceed']
+    "weniger als": ['\bless than\b', '\bfewer than\b', '\bunder \d']
+    "mindestens": ['\bat least\b', '\bminimum\b']
+    "höchstens": ['\bat most\b', '\bup to\b', '\bmaximum\b']
+    "voraussichtlich": ['\bexpected\b', '\blikely\b', '\bprobabl', '\banticipated\b']
+# Zahl hinter dem Schwellenwort im Zitat (Ziffern oder Zahlwort). Die Schwelle wird nur verlangt, wenn die
+# Aussage genau diese Zahl nennt; „Stufe 1“ in der Aussage zieht „mehr als 65“ aus dem Zitat nicht nach sich.
+zahl: '\d+(?:[.,]\d+)*|eins?|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|dreißig|hundert'
+
 # Gleichwertige Schreibweisen: Steht die rechte Form in Zitat oder Kontext, gilt das linke Wort als gedeckt.
 gleich:
   prozent: ["v. h.", "%", "vom hundert"]

@@ -358,11 +358,12 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C14 Was löst die Lösung nicht?
 
-**Kurzantwort:** Wir nennen vier Grenzen offen.
+**Kurzantwort:** Wir nennen fünf Grenzen offen.
 Erstens sind die Daten synthetisch.
 Zweitens hängt das Alter bei Geburtsmonat 13 vor Juli von der Antwort der Fachabteilung auf Rückfrage R1 ab (F4).
-Drittens sind `uv run uc3 frage` und `klass` noch nicht fertig (#74, #75). Datenanfragen laufen bis dahin als SQL aus diesem Katalog.
-Viertens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parameter und lässt sich ändern (F5).
+Drittens sind die Pensionsmeldungen der Träger nicht eingelesen.
+Viertens zählen wir auf ÖNACE-Abschnitt und Bundesland, nicht bis zum 5-Steller und nicht nach Bezirk oder Gemeinde. Die Tabelle für weitere Ebenen ist angelegt.
+Fünftens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parameter und lässt sich ändern (F5).
 
 **Antwortweg:** `uc3/README.md`, Abschnitt Grenzen, und Rückfrage R1 zeigen.
 
@@ -380,13 +381,36 @@ Viertens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Paramet
 
 ### C16 Läuft der gemeinsame Einstieg schon?
 
-**Kurzantwort (Tagesstand 05.11.2026, vor Fr 07:00 aktualisieren):** Auf main ist der UC3-Adapter registriert (Entry-Point `kic.uc_antwort`). UC2 liegt auf dem Branch `feat/uc2-antwort`. UC1 ist nach #31 geplant. Die Szene 9 zeigt das Zielbild, nicht den Tagesstand. Was heute läuft, zeigen wir an UC3: `uv run uc3 antwort "Beschäftigte in Wien im März 2025"`. Sollwert der Demo-Frage für UC3: 7.498 (F18).
+**Kurzantwort:** Die Szenen zeigen das Zielbild: eine Frage, drei Antworten. Was davon heute wirklich läuft, steht im Abschnitt „Stand“ darunter. Bernhard sagt nur, was dort steht. Sicher ist: Die Zahl kommt aus UC3, ohne Sprachmodell und mit Beleg, Sollwert 7.498 (F18).
 
-**Antwortweg:** `uv run uc3 antwort "…"`, in der Oberfläche die Seite `/uc4`. Laufen die Modelle online im Testmodus, sagen wir das an.
+**Antwortweg:** In der Oberfläche die Seite `/uc4`, im Terminal `uv run uc3 antwort "Beschäftigte in Wien im März 2025"`. Laufen die Modelle im Testbetrieb, sagt Bernhard „Testbetrieb“ an.
 
-**Fundstelle:** `uc3/pyproject.toml` (Abschnitt `kic.uc_antwort`), `uc3/statagent/uc4.py`, siehe C12.
+**Fundstelle:** `shared/py/plattform/router.py` (Router), Entry-Points `kic.uc_antwort` in `uc1/pyproject.toml`, `uc2/pyproject.toml`, `uc3/pyproject.toml`; `web/app/uc4/page.tsx`, `web/app/api/uc4/frage/route.ts`; siehe C12.
 
-**Pflege:** Diese Antwort vor Fr 07:00 mit dem Stand auf main abgleichen und das Datum neu setzen.
+#### Stand (was vom Zielbild auf main ist)
+
+Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.2026 19:40 und 20:00 auf der Online-Demo (POST `/api/uc4/frage` mit der Wien-Frage), dazu der Prüfpunkt des Leads um 20:00. Vor Fr 07:00 noch einmal messen. Nicht gemessen heißt: nicht behaupten.
+
+| Teil des Zielbilds | Stand auf main | Beleg |
+|---|---|---|
+| Gemeinsamer Router | im Code | `shared/py/plattform/router.py` |
+| Seite `/uc4` und Schnittstelle | im Code | `web/app/uc4/page.tsx`, `web/app/api/uc4/frage/route.ts` |
+| UC3-Adapter (StatAgent) | registriert | `uc3/pyproject.toml`, `statagent.uc4:antwort` |
+| UC2-Adapter (Simulator) | registriert | `uc2/pyproject.toml`, `uc2.antwort:antwort` |
+| UC1-Adapter (Lotse) | registriert | `uc1/pyproject.toml`, `uc1.uc4:router_adapter` |
+| Freigabe mit Namen in UC2 | im Code | `uc2/src/uc2/verhandlung/freigabe.py`, `web/app/api/uc2/faelle/[id]/freigabe/route.ts` |
+| Freigabe mit Namen in UC1 | nicht gefunden | keine Fundstelle auf main |
+| Wien-Frage liefert drei Antworten | online ja: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator und Lotse mit Modell gpt-5-4-mini, beide mit dem Beleg aus UC3; nichts fehlt; 9 bis 15 s | gemessen 19:40, 19:58 (Lead) und 20:00 |
+| Live-Änderung per Agent (D2 Teil 2) | Endserie läuft, MR !150 Stand 20:00 noch rot; Teil 2 nur, wenn beim Freeze auf main | Prüfpunkt Lead 20:00 |
+| Klassifikation bis 5-Steller und Gemeinden | kommt gegen 23:00 als Klassifikation; gezählt wird weiter nach Abschnitt und Bundesland (Rohdaten haben nur das) | Prüfpunkt Lead 20:00 |
+| Pensionsmeldungen der Träger | nicht eingelesen | Prüfpunkt Lead 20:00, C14 |
+| Lotse, verdeckter Test | Trefferquote 8 von 10, Träger richtig 6 von 10, Grenzen erkannt 3 von 8; Verbesserung eingespielt, Nachmessung offen | Prüfpunkt Lead 20:00 |
+| Simulator ohne passenden Zeitungsartikel | sagt offen „Modellannahme“, erfindet keinen Beleg | Prüfpunkt Lead 20:00, Messung E0 19:50 |
+| Online-Demo, Budget | 1.000 Modellaufrufe je Tag | Prüfpunkt Lead 20:00 |
+| Alle Seiten online | /, /uc1, /uc2, /uc3, /uc3/fragen, /uc4, /praesentation je HTTP 200 | Prüfpunkt Lead, gemessen 19:58 |
+| Online-Demo | mit KI: Azure gpt-5-4-mini (seit 19:17 laut Betrieb); `/uc4` wählt das Modell je Frage | Antwort der Wien-Frage, gemessen 19:40 |
+
+**Pflege:** Vor Fr 07:00 mit dem Stand auf main abgleichen, Uhrzeit und Commit neu setzen.
 
 ### C17 Wo seht ihr, dass die KI nichts erfindet?
 

@@ -34,6 +34,13 @@ def test_vorpruefung_faengt_englische_symptomfrage() -> None:
     [
         "Meine Mutter ist chronisch krank und kommt allein nicht mehr zurecht.",
         "Ich möchte weniger arbeiten, um meinen Vater nach dem Schlaganfall zu pflegen.",
+        "Mein Mann hatte einen Schlaganfall und braucht jetzt den ganzen Tag jemanden.",
+        "Er hat einen Schlaganfall gehabt und braucht Pflege. Bekommt er Pflegegeld?",
+        "Sie hat 2023 einen Schlaganfall erlitten und braucht jetzt Pflege.",
+        "Er ist seit dem Unfall gelähmt, bekommt er Pflegegeld?",
+        "Seit dem Schlaganfall kann sie nicht mehr sprechen. Bekommt sie Pflegegeld?",
+        "My husband had a heart attack in 2022. Can he get rehabilitation benefits?",
+        "Er hat einen Herzinfarkt gehabt und ist wieder gesund. Bekommt er Reha?",
         "Welche Kosten übernimmt die Kasse für Medikamente?",
         "Ich brauche nach meiner Hüftoperation einen Rollstuhl. Zahlt das die Krankenkasse?",
     ],
@@ -150,3 +157,36 @@ def test_medizinisch_nur_ohne_sv_bezug() -> None:
     assert grenze.medizinisch("Mein Knie schmerzt, bekomme ich Krankengeld?") is None
     assert grenze.medizinisch("Wie backe ich einen Apfelstrudel?") is None
     assert grenze.sv_bezug("Wer zahlt die Reha?") and not grenze.sv_bezug("Wie backe ich einen Apfelstrudel?")
+
+
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Er hat einen Schlaganfall, was soll ich tun?",
+        "Mein Vater hat gerade einen Schlaganfall!",
+        # Review !155: akut, auch über „und“ oder ein Satzende hinweg
+        "Verdacht auf Schlaganfall und jetzt hängt sein Mundwinkel, was tun?",
+        "Ich glaube Schlaganfall. Jetzt kann er nicht mehr sprechen.",
+        "Schlaganfall? Er kann jetzt nicht mehr reden",
+        # #163: Akutzeichen nach einem vergangenen Schlaganfall und ohne das Wort
+        "Meine Frau hatte einen Schlaganfall und kann jetzt nicht mehr sprechen.",
+        "Sein Mundwinkel hängt und er redet komisch.",
+        "Mein Vater ist plötzlich auf der rechten Seite gelähmt!",
+        # Zweitmeinung astra (#163): Angehörige als Subjekt, Alltagssprache, Englisch, Selbsttötung
+        "Meine Mutter hat einen Schlaganfall! Wer zahlt den Rettungswagen?",
+        "Mein Mann hat einen Herzinfarkt! Wer zahlt den Rettungswagen?",
+        "My dad is having a stroke. Does insurance cover the ambulance?",
+        "Mein Vater kann plötzlich nicht sprechen. Zahlt die Kasse den Transport?",
+        "My mum’s face has started drooping. Does insurance cover the ambulance?",
+        "Mein Mann bekommt kaum Luft. Zahlt die Kasse den Transport?",
+        "My husband can’t breathe. Does insurance cover the ambulance?",
+        "Mein Vater ist nicht ansprechbar. Wer zahlt den Rettungswagen?",
+        "My dad is unresponsive. Does insurance cover the ambulance?",
+        "Ich will mich töten. Bekomme ich noch Krankengeld?",
+        "I want to kill myself. Can I still get sickness benefit?",
+    ],
+)
+def test_schlaganfall_in_der_gegenwart_bleibt_notfall(frage: str) -> None:
+    """Fängt einen akuten Schlaganfall, der seit der Sperre für die Vergangenheit durchrutscht (#155)."""
+    befund = grenze.vorpruefung(frage)
+    assert befund is not None and befund.notfall

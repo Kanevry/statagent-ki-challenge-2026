@@ -70,12 +70,13 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "135-12"
 hash = "a4999cd761"
-befehl = "grep -cF 'Nicht gespeichert. ${meldung}' shared/ui/src/bausteine/freigabe-karte.tsx || true"
-erwartet = ["^0$"]
+befehl = "node tests/abnahme/p/ui_fehlertext.mjs && echo route_doppelt $(grep -ci 'ist nicht gespeichert' web/components/uc3/freigabe.ts || true)"
+erwartet = ["^route_satz_einmal ja$", "^route_schon_gesagt_einmal ja$", "^leer_fallback ja$", "^route_doppelt 0$"]
 schwer = false
-deckung = "teil"
-befund = "shared/ui/src/bausteine/freigabe-karte.tsx:65 setzt weiter Nicht gespeichert. vor die Meldung, die Route (web/components/uc3/freigabe.ts:691) beginnt selbst mit Die Entscheidung ist nicht gespeichert; die Texte sind nicht abgestimmt."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+deckung = "voll"
+grund = "Die Karte sagt „Nicht gespeichert“ genau einmal, auch wenn die Route es schon sagt; kein Routensatz wiederholt es"
+befund = "Die Fehlermeldung nennt „Nicht gespeichert“ doppelt oder gar nicht, oder ein Routensatz wiederholt es"
+herkunft = "b-abnahme-4c 2026-11-05 20:50 (Hinweis 3e: alter Prüfsatz grepte den Wortlaut, nicht das Verhalten)"
 
 [[pruefung]]
 id = "135-2"
@@ -160,12 +161,13 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "14-AC3"
 hash = "379f192323"
-befehl = "python3 -c \"import csv;r=list(csv.DictReader(open('docs/plan/uc3/regeln-v1.csv',encoding='utf-8'),delimiter=';'));print([(x['name'],x['gueltig_ab_lieferung'],bool(x['begruendung']),bool(x['grundlage']),repr(x['freigegeben_von'])) for x in r if x['name'].startswith(('R6','R7'))])\""
-erwartet = ["R6_beschaeftigungskategorie', '2024-08', True, True, '[^']+'", "R7_oenace_nach_berichtsmonat', '2024-08', True, True, '[^']+'"]
+befehl = "python3 -c \"import csv;r=csv.DictReader(open('docs/plan/uc3/regeln-v1.csv',encoding='utf-8'),delimiter=';');[print(x['name'][:2],'ab',x['gueltig_ab_lieferung'],'begruendung',bool(x['begruendung'].strip()),'grundlage',bool(x['grundlage'].strip()),'freigabe',bool(x['freigegeben_von'].strip() and x['freigegeben_am'].strip())) for x in r if x['name'].startswith(('R6_','R7_'))]\""
+erwartet = ["^R6 ab \\d{4}-\\d{2} begruendung True grundlage True freigabe True$", "^R7 ab \\d{4}-\\d{2} begruendung True grundlage True freigabe True$"]
 schwer = false
 deckung = "teil"
-befund = "Der Snapshot hat bei R6 und R7 keine Freigabereferenz (regeln-v1.csv, Spalten freigegeben_von/freigegeben_am leer); der Anti-Join gegen die Klassifikation ist nicht gemessen (braucht DB)."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:23"
+grund = "Snapshot regeln-v1.csv: R6 und R7 mit Gültigkeit, Begründung, Grundlage und Freigabe (Name und Zeitpunkt); Anti-Join gegen die Klassifikation braucht die DB"
+befund = "Im Snapshot regeln-v1.csv fehlt bei R6 oder R7 Gültigkeit, Begründung, Grundlage oder Freigabe (Name und Zeitpunkt)"
+herkunft = "b-abnahme-4c 2026-11-05 20:45 (Messbefund 3e: alter Prüfsatz maß den Stand von 17:2x)"
 
 [[pruefung]]
 id = "14-AC4"
@@ -191,12 +193,13 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:24"
 [[pruefung]]
 id = "15-AC2"
 hash = "55782382da"
-befehl = "grep -c 'Noch keine' abgabe/protokoll.md"
-erwartet = ["(?m)^0$"]
+befehl = "echo noch_keine $(grep -c 'Noch keine' abgabe/protokoll.md || true); echo trailer $(grep -c 'Freigegeben-von' abgabe/protokoll.md || true)"
+erwartet = ["^noch_keine 0$", "^trailer [1-9]"]
 schwer = false
 deckung = "teil"
-befund = "Das Integrationsprotokoll mit Name, Zeitpunkt und Commit-Trailer fehlt: abgabe/protokoll.md zeigt noch keine freigegebene Aenderung und es gibt keinen Commit mit Trailer Freigegeben-von in uc3, abgabe oder docs."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:24"
+grund = "abgabe/protokoll.md führt freigegebene Änderungen mit Trailer Freigegeben-von (Aufruf freigeben() und Ablehnung ohne Commit misst dieser Teil nicht)"
+befund = "abgabe/protokoll.md zeigt keine freigegebene Änderung mit Trailer Freigegeben-von"
+herkunft = "b-abnahme-4c 2026-11-05 20:45 (Messbefund 3e: alter Prüfsatz maß den Stand von 17:2x)"
 
 [[pruefung]]
 id = "15-AC3"
@@ -222,7 +225,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:25"
 [[pruefung]]
 id = "16-AC4"
 hash = "a571160318"
-befehl = "ls abgabe/qualitaetsberichte/*.md | wc -l | tr -d ' '; timeout 170 uv run --package statagent statagent pruefe-abgabe | grep -E '^\\[ok\\] Qualitätsberichte'"
+befehl = "ls abgabe/qualitaetsberichte/*.md | wc -l | tr -d ' '; STATAGENT_ABGABE=abgabe timeout 170 uv run --package statagent statagent pruefe-abgabe | grep -E '^\\[ok\\] Qualitätsberichte'"
 erwartet = ["^24$", "^\\[ok\\] Qualitätsberichte 2024-08 bis 2026-07: 24 Berichte mit 5 Abschnitten"]
 schwer = false
 deckung = "teil"
@@ -244,7 +247,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "17-AC2"
 hash = "5efcdcf25c"
-befehl = "timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
+befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
 erwartet = ["Abgabe vollständig"]
 schwer = false
 deckung = "teil"
@@ -286,13 +289,27 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "20-AC1"
 hash = "29abb8a741"
-befehl = "ls abgabe/manifest.json; timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
-erwartet = ["Abgabe vollständig"]
+befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe && python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg && git ls-files 'abgabe/*.csv' | wc -l | tr -d ' '"
+erwartet = ["^Abgabe vollständig\\.$", "^\\[ok\\] Ministeriums-Lieferung 2026-07: .*32\\.741 Personen", "^abweichend 0$", "^0$"]
+gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg --variante E"
 schwer = false
 deckung = "teil"
+quelle = "Entscheid #16 (Einzeldaten nur SV-Box): CSV extern, im Repo der Beleg; Orakel ministerium-varianten.csv Variante S"
+grund = "Validator meldet Abgabe vollständig; Beleg der Ministeriums-CSV (sha256, Zeilen) gleich Orakel Variante S, keine CSV im Repo (die CSV selbst prüft 71-AC2)"
+befund = "Validator oder Ministeriums-Beleg weicht ab (Exit, sha256 oder CSV im Repo)"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
+
+[[pruefung]]
+id = "20-AC1"
+hash = "29abb8a741"
+befehl = "python3 tests/abnahme/p/uc3_manifest.py abgabe/manifest.json"
+erwartet = ["^manifest_abweichend 0$"]
+schwer = false
+deckung = "voll"
 befund_art = "fehlt"
-befund = "abgabe/manifest.json (Dateiname, Groesse, SHA256, Regelsatz, Stand) gibt es nicht, und der Validator meldet fehlende Ministeriumsdatei und Sheet neu; der Validator endet erwartungsgemaess nicht mit Exit 0. Die 24 Berichte sind ok."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+grund = "abgabe/manifest.json nennt je Datei Name, Größe, SHA256, Regelsatz und Stand, und die Werte stimmen (Ministerium über den Beleg)"
+befund = "abgabe/manifest.json fehlt oder Einträge stimmen nicht (Name, Größe, SHA256, Regelsatz, Stand); Lane uc3"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
 
 [[pruefung]]
 id = "20-AC2"
@@ -319,12 +336,28 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "22-1"
 hash = "d123dbcdff"
-befehl = "timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
-erwartet = ["Abgabe vollständig"]
+befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe && python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg && git ls-files 'abgabe/*.csv' | wc -l | tr -d ' '"
+erwartet = ["^Abgabe vollständig\\.$", "^\\[ok\\] Ministeriums-Lieferung 2026-07: .*32\\.741 Personen", "^abweichend 0$", "^0$"]
+gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg --variante E"
 schwer = false
 deckung = "teil"
-befund = "Die Abgabedateien sind nicht vollstaendig: ministerium_2026-07.csv und aggregationen_v2.xlsx fehlen, das Manifest fehlt; das ist ein Epic-Kriterium (Kinder #17 und #20 offen)."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+quelle = "Entscheid #16 (Einzeldaten nur SV-Box): CSV extern, im Repo der Beleg"
+grund = "Abgabedateien vollständig (Validator), Ministerium per Beleg und sha256 belegt"
+befund = "Validator oder Ministeriums-Beleg weicht ab (Exit, sha256 oder CSV im Repo)"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
+
+[[pruefung]]
+id = "22-1"
+hash = "d123dbcdff"
+befehl = "timeout 120 uv run --package statagent python tests/abnahme/p/uc3_db.py regelsaetze v1 v2 ministerium"
+erwartet = ["^regelsaetze_ohne_aktive_regel 0$"]
+schwer = true
+deckung = "teil"
+befund_art = "fehlt"
+quelle = "Jury-Probe 4d 05.11. 20:03, Hürde B1: db init lädt nur Regelsatz v1"
+grund = "Auf der frisch nach README aufgebauten Prüf-DB sind die Regelsätze v1, v2 und ministerium aktiv, also sind Sheet v2 und Ministerium per CLI nachrechenbar"
+befund = "Auf frischer DB fehlen aktive Regeln für v2 oder ministerium; Sheet v2 und Ministerium sind dort nicht per CLI reproduzierbar (B1, Lane uc3)"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
 
 [[pruefung]]
 id = "22-3"
@@ -339,23 +372,26 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "69-AC1"
 hash = "d690038e13"
-befehl = "timeout 120 uv run --frozen --package statagent uc3 protokoll --zeigen"
-erwartet = ["R6_beschaeftigungskategorie", "[Ff]reigegeben"]
-schwer = true
+befehl = "echo r6 $(grep -c R6_beschaeftigungskategorie abgabe/protokoll.md); echo name_zeit $(grep -cE '^[|] v2 [|] [A-ZÄÖÜ][^ ]+ [A-ZÄÖÜ][^ ]+ [|] [0-9.]+ [0-9:]+ [|].*R6_beschaeftigungskategorie' abgabe/protokoll.md)"
+erwartet = ["^r6 [1-9]", "^name_zeit [1-9]"]
+schwer = false
 deckung = "teil"
-befund = "Klassifikationsversion, Anti-Join und Freigabe (Vorschlag uc3/24) liegen in der Datenbank des Prüfrechners und nicht im Repo auf main; ohne Datenbankzugriff nicht messbar. Vorschlag: SQL-Anti-Join der fünf Ausgangscodes in stat.uebergang gegen die drei F"
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+grund = "abgabe/protokoll.md führt die Freigabe von R6_beschaeftigungskategorie in Regelsatz v2 mit Name und Zeit; Anti-Join und die Lesart „neue Klassifikationsversion“ misst dieser Teil nicht"
+befund = "abgabe/protokoll.md führt R6_beschaeftigungskategorie nicht mit Name und Zeit der Freigabe"
+herkunft = "b-abnahme-4c 2026-11-05 20:40 (Audit: alter Satz las das Protokoll aus der leeren Prüf-DB)"
 
 [[pruefung]]
 id = "69-AC2"
 hash = "2554162131"
-befehl = "test -e abgabe/aggregationen_v2a.xlsx && echo DA || echo FEHLT"
+befehl = "test -e abgabe/aggregationen_v2.xlsx && echo DA || echo FEHLT"
 erwartet = ["^DA$"]
 schwer = false
 deckung = "teil"
 befund_art = "fehlt"
-befund = "Die Datei abgabe/aggregationen_v2a.xlsx fehlt auf main (auch abgabe/aggregationen_v2.xlsx fehlt); die 24 v2-Läufe laufen laut Kommentar 271827 erst auf dem Prüfrechner. SQL-Vergleich (0 Differenzen) und v1-Hash nicht messbar."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+quelle = "Wortlaut nennt aggregationen_v2a.xlsx; Lead a7 (über 3e, 05.11. 20:4x): die Abgabe heißt aggregationen_v2.xlsx"
+grund = "Sheet nach Änderungsauftrag liegt als abgabe/aggregationen_v2.xlsx vor (SQL-Vergleich je Monat und v1-Hash misst dieser Teil nicht)"
+befund = "abgabe/aggregationen_v2.xlsx fehlt auf main"
+herkunft = "b-abnahme-4c 2026-11-05 20:45 (Messbefund 3e: alter Prüfsatz maß den Stand von 17:2x)"
 
 [[pruefung]]
 id = "70-AC1"
@@ -392,13 +428,15 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "71-AC2"
 hash = "cb305a3298"
-befehl = "test -e abgabe/ministerium_2026-07.csv && echo DA || echo FEHLT"
-erwartet = ["^DA$"]
-schwer = true
-deckung = "teil"
-befund_art = "fehlt"
-befund = "Die CSV mit PERSON_ID liegt bewusst nicht im öffentlichen Repo (nur außerhalb, SV-Box; Beleg im Repo). Kopf, Sortierung und TAGE 200 bis 365 sind nur am externen Ort messbar: erste Zeile muss PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE sein."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+befehl = "python3 tests/abnahme/p/uc3_ministerium.py && grep -cE '^\\| Freigegeben von \\| [A-ZÄÖÜ][a-zäöüß]+ [A-ZÄÖÜ]' abgabe/ministerium_2026-07.beleg.md"
+erwartet = ["^kopf_wie_vorlage ja$", "^person_id_eindeutig_aufsteigend ja$", "^tage_200_bis_365 ja$", "^unbekannt_wie_orakel ja$", "^sha256_wie_beleg ja$", "^abweichend 0$", "^1$"]
+gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --variante E"
+schwer = false
+deckung = "voll"
+quelle = "Entscheid #16: CSV extern (../lieferungen neben dem Checkout), im Repo der Beleg; Orakel Variante S"
+grund = "CSV am externen Ort: Vorlagenkopf, Semikolon, PERSON_ID eindeutig aufsteigend, TAGE 200 bis 365, Unbekannt wie Orakel, sha256 = Beleg; Freigabe mit Vor- und Nachnamen im Beleg (Zeitpunkt prüfen die Kriterien von #55)"
+befund = "Ministeriums-CSV am externen Ort verletzt Form oder passt nicht zum Beleg (Lane uc3)"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
 
 [[pruefung]]
 id = "71-AC3"

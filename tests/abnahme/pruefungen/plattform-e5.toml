@@ -203,8 +203,8 @@ erwartet = ['^pngs 12$', '^namen_ok 1$', '^lesbar_ok 12$', '^breit_ok 12$', '^ma
 deckung = "voll"
 zeitlimit = 60
 quelle = "Issue #88, Kriterium 88-1 (Wortlaut: SC01 bis SC12 = 9 Bilder, mindestens 1920 Pixel breit, Manifest mit Name, Breite, Höhe, SHA-256, Begründung SC03 bis SC05 in quellen.json, Aufnahme nach dem Umbau der UI-Regie)"
-befund = "docs/praesentation/screens/ enthält nicht genau die 9 lesbaren PNGs SC01, SC02 und SC06 bis SC12 mit mindestens 1920 Pixel Breite, oder das Manifest nennt Breite, Höhe und SHA-256 nicht für alle 9, oder ein Bild ist vor dem Umbau der UI-Regie aufgenommen, oder der Entfall von SC03 bis SC05 ist nicht in quellen.json begründet."
-grund = "9 lesbare PNGs SC01 bis SC12, alle mindestens 1920 Pixel breit, Manifest stimmt für 9 von 9, alle nach dem Umbau der UI-Regie aufgenommen, Entfall von SC03 bis SC05 begründet."
+befund = "docs/praesentation/screens/ enthält nicht genau die 12 lesbaren PNGs SC01 bis SC12 mit mindestens 1920 Pixel Breite, oder das Manifest nennt Breite, Höhe und SHA-256 nicht für alle 9, oder ein Bild ist vor dem Umbau der UI-Regie aufgenommen, oder der Entfall von SC03 bis SC05 ist nicht in quellen.json begründet."
+grund = "12 lesbare PNGs SC01 bis SC12, alle mindestens 1920 Pixel breit, Manifest stimmt für 12 von 12, alle nach dem Umbau der UI-Regie aufgenommen, Entfall von SC03 bis SC05 begründet."
 gegenprobe = "test -e docs/praesentation/screens/SC03.png"
 
 [[pruefung]]
@@ -241,8 +241,8 @@ erwartet = ['^quellen_vollstaendig 12$', '^mock_als_live 0$', '^manifest_spalten
 deckung = "teil"
 zeitlimit = 60
 quelle = "Issue #88, Kriterium 88-2 (Wortlaut: Manifest pro Bild Route, Commit, Daten-/Lauf-ID, Kennzeichnung live/mock/replay; Pen-Frame-ID entfällt; 9/9 vollständig, 0 Mock-/Replay-Bilder als live)"
-befund = "Nicht alle 9 Bilder haben im Manifest und in quellen.json Route, Commit, Lauf und eine Art (live, testdaten, aufzeichnung), oder ein Mock- oder Replay-Bild ist als live ausgegeben."
-grund = "9 von 9 Einträge vollständig, im Manifest und in quellen.json, kein Mock- oder Replay-Bild als live ausgegeben; die Pen-Frame-ID wird nicht verlangt."
+befund = "Nicht alle 12 Bilder haben im Manifest und in quellen.json Route, Commit, Lauf und eine Art (live, testdaten, aufzeichnung), oder ein Mock- oder Replay-Bild ist als live ausgegeben."
+grund = "12 von 12 Einträge vollständig, im Manifest und in quellen.json, kein Mock- oder Replay-Bild als live ausgegeben; die Pen-Frame-ID wird nicht verlangt."
 gegenprobe = "test \"$(grep -c 'Pen-Frame' docs/praesentation/screens-manifest.md || true)\" -ge 1"
 
 [[pruefung]]
@@ -275,8 +275,8 @@ erwartet = ['^zeilen_ok 12$', '^offene_befunde 0$']
 deckung = "teil"
 zeitlimit = 60
 quelle = "Issue #88, Kriterium 88-3 (Wortlaut: pro PNG Reviewer, Datum, Befund; 9/9 ohne sichtbare Tokens, Schlüssel oder echte Gesundheits-/Sozialdaten; Bericht mit 0 offenen Befunden)"
-befund = "screens-sichtpruefung.md hat nicht für alle 9 Bilder Prüfer, Datum, Befund und Status ok mit Nein zu Tokens und Gesundheitsdaten, oder die Datei meldet noch offene Befunde."
-grund = "9 von 9 Zeilen ausgefüllt mit Status ok, und die Datei meldet 0 offene Befunde."
+befund = "screens-sichtpruefung.md hat nicht für alle 12 Bilder Prüfer, Datum, Befund und Status ok mit Nein zu Tokens und Gesundheitsdaten, oder die Datei meldet noch offene Befunde."
+grund = "12 von 12 Zeilen ausgefüllt mit Status ok, und die Datei meldet 0 offene Befunde."
 gegenprobe = "grep -c 'Offene Befunde: 12' docs/praesentation/screens-sichtpruefung.md | grep -c '^0$'"
 
 [[pruefung]]
@@ -287,7 +287,7 @@ deckung = "voll"
 beschreibung = "Eine zweite Person (nicht die, die die Bilder aufgenommen hat; die Vorprüfung durch den Aufnahme-Agenten zählt nicht) öffnet jedes der 12 PNGs in docs/praesentation/screens/ (SC01 bis SC12) in voller Größe und sieht sie an. Sie sucht sichtbare Tokens, Schlüssel, Adressen mit Zugangsdaten und echte Gesundheits- oder Sozialdaten (zum Beispiel echte Namen, Versicherungsnummern, VVH_IDs einzelner Verhältnisse). Ein Textscan allein zählt nicht. Sie trägt je Bild Namen, Datum und Befund in screens-sichtpruefung.md ein. Bestanden: 12 von 12 Bildern ohne solche Inhalte, und der Bericht nennt 0 offene Befunde."
 quelle = "Issue #88, Kriterium 88-3 (Wortlaut)"
 befund = "Es gibt keine unabhängige Sichtprüfung; screens-sichtpruefung.md nennt offene Befunde oder trägt keine zweite Person ein."
-grund = "Eine unabhängige Sichtprüfung hat alle 9 Bilder angesehen und keinen offenen Befund hinterlassen."
+grund = "Eine unabhängige Sichtprüfung hat alle 12 Bilder angesehen und keinen offenen Befund hinterlassen."
 
 # ---------------------------------------------------------------- #89 Szenen (10 Dateien)
 
@@ -577,7 +577,7 @@ w = str(t)
 a = subprocess.run([sys.executable, "docs/praesentation/werkzeug/screens_manifest.py", "--wurzel", w, "--check"], capture_output=True, text=True)
 subprocess.run([sys.executable, "docs/praesentation/werkzeug/screens_manifest.py", "--wurzel", w], capture_output=True, text=True)
 m = (t / "docs/praesentation/screens-manifest.md").read_text(encoding="utf-8")
-print("pfad_befund", sum(1 for l in a.stdout.splitlines() if re.search(r"(?i)pfad|außerhalb|grenze", l)))
+print("pfad_befund", sum(1 for l in a.stdout.splitlines() if re.search(r"(?i)pfad|außerhalb|grenze|unzulässig", l)))
 print("fremde_datei_gelesen", int(hashlib.sha256(fremd).hexdigest() in m))
 shutil.rmtree(t)
 ' '''
@@ -663,7 +663,7 @@ gegenprobe = '''echo "em_dashes $(grep -c 'StatAgent' docs/praesentation/2026-11
 [[pruefung]]
 id = "134-4"
 hash = "8757085643"
-befehl = '''ci=$(grep -c 'slides_check' .gitlab-ci.yml || true); an=$(timeout 60 glab api projects/259/issues/53/notes/272419 2>/dev/null | grep -o 'slides_check' | wc -l | tr -d ' '); echo "ci $ci antrag $an"'''
+befehl = '''ci=$(grep -c 'slides_check' .gitlab-ci.yml || true); notiz=$(timeout 60 glab api projects/259/issues/53/notes/272419 2>/dev/null) || exit 124; an=$(printf '%s' "$notiz" | grep -o 'slides_check' | wc -l | tr -d ' '); echo "ci $ci antrag $an"'''
 erwartet = ['^(ci [1-9][0-9]* antrag [0-9]+|ci [0-9]+ antrag [1-9][0-9]*)$']
 deckung = "voll"
 zeitlimit = 90
@@ -922,10 +922,15 @@ d = open("docs/praesentation/demo-drehbuch.md", encoding="utf-8").read()
 m = re.search(r"^### D2.*?(?=^### |\Z)", d, re.M | re.S)
 d2 = m.group(0) if m else ""
 print("d2_da", int(bool(m)))
-print("stand_der_probe", int(bool(re.search(r"Stand der Probe[^\n]*\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}", d2))))
-print("ungeprobte_live_befehle", len(re.findall(r"uv run uc3 (agent|freigabe|vorschlag freigeben)\b", d2)))
+print("stand_der_probe", int(bool(re.search(r"Stand der Proben?:[^\n]*\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}", d2))))
+proben = bool(re.search(r"Stand der Proben:[^\n]*dreimal von drei", d2))
+ausnahme = "Nie `freigabe` üben" in d2
+print("agent_geprobt", int(proben))
+print("freigabe_ausnahme", int(ausnahme))
+ungeprobt = ["vorschlag freigeben"] + ([] if proben else ["agent"]) + ([] if ausnahme else ["freigabe"])
+print("ungeprobte_live_befehle", len(re.findall(r"uv run uc3 (" + "|".join(ungeprobt) + r")\b", d2)))
 ' '''
-erwartet = ['^d2_da 1$', '^stand_der_probe 1$', '^ungeprobte_live_befehle 0$']
+erwartet = ['^d2_da 1$', '^stand_der_probe 1$', '^agent_geprobt 1$', '^freigabe_ausnahme 1$', '^ungeprobte_live_befehle 0$']
 deckung = "teil"
 zeitlimit = 60
 quelle = "Issue #141, Abschnitt Fertig wenn, vierter Punkt (Wortlaut: Drehbuch D2 zeigt nur Schritte, die E5 selbst geprobt hat; Auslegung: D2 nennt den Stand der Probe mit Uhrzeit und enthält keinen Live-Befehl agent oder freigabe)"

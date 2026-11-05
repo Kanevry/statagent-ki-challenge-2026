@@ -126,7 +126,7 @@ Die Demo beginnt bei 5:05, unmittelbar nach Szene 10, und dauert bis 9:30. Ablau
 | 7:45–9:00 | D3 Datenanfragen | 1:15 |
 | 9:00–9:30 | D4 Gemeinsamer Einstieg (nur wenn `/uc4` bis zum Freeze grün ist) | 0:30 |
 
-Die Live-Änderung steht im Drehbuch, nicht auf den Folien: der Rückblick auf die echte Freigabe von Auftrag 1 (Vorschlag 24). Eine neue Live-Änderung kommt nur dazu, wenn sie vorher in der Probe bestanden hat. Läuft die öffentliche Demo im Testmodus, sagt Bernhard „Testmodus“ vorher an.
+Die Live-Änderung steht im Drehbuch, nicht auf den Folien: erst der Rückblick auf die drei freigegebenen Aufträge, dann die Änderung der Jury, als Satz getippt („Ich sage dem Agenten in einem Satz, was er ändern soll.“). Ersatz ist die geübte Änderung B2. Läuft die öffentliche Demo im Testmodus, sagt Bernhard „Testmodus“ vorher an.
 
 ---
 
@@ -145,7 +145,7 @@ Stichpunkte, keine ganzen Sätze zum Ablesen. Die Zeiten sind Richtwerte für di
 
 - PostgreSQL 16 mit den Schemas `roh`, `klassifikation`, `bereinigt`, `stat`, `meta`.
 - Python-Paket `statagent`, Befehl `uc3`. Ein Lauf ist eine Lieferung (`lauf --lieferung JJJJ-MM`).
-- Next.js-Oberfläche: im Bau (MR !51). Nur wenn `/uc3` bis zum Freeze auf main ist, wird sie gezeigt. Sonst ist die CLI der Standard.
+- Next.js-Oberfläche `/uc3` mit Läufen, Berichten, Freigaben und Fragen (MR !51 und !61, seit 05.11.2026 auf main). Rückfall ist die CLI.
 - Modelle nur über `plattform.llm`. Standard für die UC3-Agenten ist Azure (gpt-5-4-mini). Umschaltbar über `LLM_PROVIDER`. Das Modell sieht Regeln, Schemata und Summen, keine Einzeldaten.
 
 ### Herausforderungen (45 s)
@@ -194,7 +194,7 @@ Rückfallsatz, wenn etwas Ungeübtes kommt: „Das setzt der Agent als Vorschlag
 
 ### Datenanfragen
 
-Beispiele, Kurzantworten und Fundstellen stehen im Fragenkatalog `docs/praesentation/fragenkatalog.md`. Stand heute: Der Befehl `frage` ist noch nicht fertig (Issues #74 und #75). Datenanfragen laufen bis dahin als SQL aus dem Fragenkatalog gegen die UC3-Datenbank. Das ehrlich so sagen.
+Beispiele, Kurzantworten und Fundstellen stehen im Fragenkatalog `docs/praesentation/fragenkatalog.md`. Datenanfragen laufen über `/uc3/fragen` oder `uv run uc3 frage "…"` (MR !61, #74), nur mit den geprüften Fragen aus dem Drehbuch D3. Rückfall ist das SQL aus dem Fragenkatalog, Teil A. Der Ablauf der ganzen 15 Minuten steht in `docs/praesentation/uc3-jury.md`.
 
 ---
 

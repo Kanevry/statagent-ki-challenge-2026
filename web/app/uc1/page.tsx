@@ -12,6 +12,8 @@ export default async function Uc1Start({ searchParams }: Props) {
   const { beispiel } = await searchParams;
   // Online-Demo lesend: Der Lotse antwortet nicht live (/api/uc1/frage → 403). Dann wird kein Formular angeboten,
   // sondern das aufgezeichnete Gespräch als Hauptaktion (UI-Regie 05.11.: kein Klick endet in einer roten Sperre).
-  const nurAufzeichnung = process.env.KIC_ONLINE_LESEND === "1";
+  // KIC_ONLINE_UC1=1 zeigt online nur das Formular; die API bleibt trotzdem bei 403 (#173). Der Schalter ist nicht
+  // gesetzt und darf es nicht werden: UC1 bleibt online aus, einen Entscheid für online gibt es nicht.
+  const nurAufzeichnung = process.env.KIC_ONLINE_LESEND === "1" && process.env.KIC_ONLINE_UC1 !== "1";
   return <StartSeite beispiel={beispiel === "pflege"} nurAufzeichnung={nurAufzeichnung} />;
 }

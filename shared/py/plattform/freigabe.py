@@ -136,10 +136,10 @@ def _repo_lock(repo_pfad: Path | str) -> Iterator[None]:
 
 def _offener_vorschlag(
     conn: psycopg.Connection, vorschlag_id: int
-) -> tuple[str, str, str | None, str | None, str | None, str | None]:
-    """(uc, anweisung, modell, provider, vorschlag_typ, ref) des offenen Vorschlags, mit FOR UPDATE."""
+) -> tuple[str, str, str | None, str | None, str | None, str | None, datetime]:
+    """(uc, anweisung, modell, provider, vorschlag_typ, ref, zeit) des offenen Vorschlags, mit FOR UPDATE."""
     zeile = conn.execute(
-        "SELECT uc, anweisung, modell, provider, vorschlag_typ, ref, status FROM meta.protokoll"
+        "SELECT uc, anweisung, modell, provider, vorschlag_typ, ref, status, zeit FROM meta.protokoll"
         " WHERE id = %s FOR UPDATE",
         (vorschlag_id,),
     ).fetchone()
@@ -147,7 +147,7 @@ def _offener_vorschlag(
         raise VorschlagUngueltig(f"Vorschlag {vorschlag_id} existiert nicht")
     if zeile[6] != "offen":
         raise VorschlagUngueltig(f"Vorschlag {vorschlag_id} ist {zeile[6]}, nicht offen")
-    return zeile[0], zeile[1], zeile[2], zeile[3], zeile[4], zeile[5]
+    return zeile[0], zeile[1], zeile[2], zeile[3], zeile[4], zeile[5], zeile[7]
 
 
 def vorschlag_kennung(uc: str, vorschlag_id: int) -> str:
@@ -169,16 +169,23 @@ def _einzeilig(wert: str | None) -> str:
     return " ".join((wert or "keins").split()) or "keins"
 
 
-def _vorhandener_commit(repo_pfad: Path | str, kennung: str) -> str | None:
-    """Commit mit Trailer ``Vorschlag: <uc>/<id>`` (Wiederholung nach DB-Fehler), sonst None."""
+def _vorhandener_commit(repo_pfad: Path | str, kennung: str, vorschlag_zeit: datetime) -> str | None:
+    """Commit dieses Vorschlags aus einem früheren Versuch (Wiederholung nach DB-Fehler), sonst None.
+
+    Die ID ist nur je Datenbank eindeutig: Nach frischem Laden beginnt sie wieder bei 1, das Repo trägt aber
+    noch die Trailer früherer Datenbanken. Darum zählt ein Commit nur, wenn er nicht vor dem Vorschlag
+    entstand. Maßgeblich ist das Autorendatum (bleibt bei Rebase gleich) in ganzen Sekunden wie bei Git.
+    """
     try:
         _git(repo_pfad, "rev-parse", "--verify", "-q", "HEAD")
     except GitFehler:
         return None  # noch kein Commit im Repo
-    ausgabe = _git(repo_pfad, "log", "--format=%H %(trailers:key=Vorschlag,valueonly,separator=%x2C)")
+    ausgabe = _git(repo_pfad, "log", "--format=%H %at %(trailers:key=Vorschlag,valueonly,separator=%x2C)")
+    grenze = int(vorschlag_zeit.timestamp())
     for zeile in ausgabe.splitlines():
-        hash_, _, werte = zeile.partition(" ")
-        if kennung in {w.strip() for w in werte.split(",")}:
+        hash_, _, rest = zeile.partition(" ")
+        autor_zeit, _, werte = rest.partition(" ")
+        if kennung in {w.strip() for w in werte.split(",")} and int(autor_zeit) >= grenze:
             return hash_
     return None
 
@@ -271,7 +278,7 @@ def freigeben(
     name = pruefe_name(name)
     _pruefe_autocommit(conn)
     with _repo_lock(repo_pfad), conn.transaction():
-        uc, anweisung, modell, provider, vorschlag_typ, ref = _offener_vorschlag(conn, vorschlag_id)
+        uc, anweisung, modell, provider, vorschlag_typ, ref, zeit = _offener_vorschlag(conn, vorschlag_id)
         kennung = vorschlag_kennung(uc, vorschlag_id)
         typ = _objekt_typ(objekt_typ, vorschlag_typ)
         if typ is None:
@@ -287,7 +294,7 @@ def freigeben(
                 )
             _pruefe_datei_im_repo(repo_pfad, ziel_ref)
         freigabe = _freigabe_schreiben(conn, vorschlag_id, name, "ja", None, typ, ziel_ref)
-        commit_hash = _vorhandener_commit(repo_pfad, kennung)
+        commit_hash = _vorhandener_commit(repo_pfad, kennung, zeit)
         if commit_hash is not None:
             _pruefe_wiederverwendung(repo_pfad, commit_hash, name, typ, ziel_ref)
         if commit_hash is None:
@@ -335,7 +342,7 @@ def ablehnen(
     if not begruendung or not begruendung.strip():
         raise ValueError("Ablehnung braucht eine Begründung")
     with conn.transaction():
-        _, _, _, _, vorschlag_typ, ref = _offener_vorschlag(conn, vorschlag_id)
+        _, _, _, _, vorschlag_typ, ref, _ = _offener_vorschlag(conn, vorschlag_id)
         return _freigabe_schreiben(
             conn,
             vorschlag_id,
