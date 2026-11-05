@@ -65,7 +65,12 @@ export type StatusProps = HTMLAttributes<HTMLSpanElement> & {
 
 /** Status, immer Symbol und Wort, nie nur Farbe. */
 export function Status({ art, className, children, ...rest }: StatusProps) {
-  const wort = children === undefined || children === null || children === "" ? standardWort[art] : children;
+  const leer =
+    children === undefined ||
+    children === null ||
+    typeof children === "boolean" ||
+    (typeof children === "string" && children.trim() === "");
+  const wort = leer ? standardWort[art] : children;
   return (
     <span
       className={klassen("inline-flex items-center gap-2 font-sans text-14 font-medium", artKlassen[art], className)}

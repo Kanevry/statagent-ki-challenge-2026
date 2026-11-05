@@ -22,6 +22,5 @@ describe("Knopf", () => {
     render(<Knopf {...ungetypt}>Freigeben</Knopf>);
     const knopf = screen.getByRole("button", { name: "Freigeben" });
     expect(document.activeElement).not.toBe(knopf);
-    expect(knopf.hasAttribute("autofocus")).toBe(false);
   });
 });

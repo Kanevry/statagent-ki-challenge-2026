@@ -11,6 +11,20 @@ type Snapshot = {
   textgroessen: number[];
 };
 
+/** Skala laut Vertrag D plus Pen-Größen 28/13/11 (Entscheid Lead 05.11.), je mit Zeilenhöhe. */
+const SKALA = [56, 32, 28, 20, 16, 14, 13, 12, 11];
+const ZEILENHOEHE: Record<number, string> = {
+  56: "1.05",
+  32: "1.15",
+  28: "1.2",
+  20: "1.35",
+  16: "1.5",
+  14: "1.45",
+  13: "1.45",
+  12: "1.4",
+  11: "1.4",
+};
+
 const lies = (pfad: string) => readFileSync(fileURLToPath(new URL(pfad, import.meta.url)), "utf8");
 const snapshot = JSON.parse(lies("../tokens.snapshot.json")) as Snapshot;
 
@@ -64,7 +78,7 @@ describe("Design-Tokens gegen Pencil-Snapshot", () => {
     }
   });
 
-  it("Skala genau 56/32/20/16/14/12 px, keine weitere --text-*", () => {
+  it("Skala genau 56/32/28/20/16/14/13/12/11 px, keine weitere --text-*", () => {
     const groessen = mitPraefix("--text-").filter(([name]) => !name.endsWith("--line-height"));
     const px = Object.fromEntries(
       groessen.map(([name, wert]) => {
@@ -73,10 +87,12 @@ describe("Design-Tokens gegen Pencil-Snapshot", () => {
         return [name, Number(rem[1]) * 16];
       }),
     );
-    expect(px).toEqual(Object.fromEntries(snapshot.textgroessen.map((g) => [`--text-${g}`, g])));
-    const zeilen = mitPraefix("--text-").filter(([name]) => name.endsWith("--line-height"));
-    expect(zeilen.map(([name]) => name).sort()).toEqual(
-      snapshot.textgroessen.map((g) => `--text-${g}--line-height`).sort(),
+    // Fest, nicht nur aus dem Snapshot abgeleitet: Snapshot und CSS dürfen nicht gemeinsam wegdriften.
+    expect(snapshot.textgroessen).toEqual(SKALA);
+    expect(px).toEqual(Object.fromEntries(SKALA.map((g) => [`--text-${g}`, g])));
+    const zeilen = Object.fromEntries(mitPraefix("--text-").filter(([name]) => name.endsWith("--line-height")));
+    expect(zeilen).toEqual(
+      Object.fromEntries(Object.entries(ZEILENHOEHE).map(([g, wert]) => [`--text-${g}--line-height`, wert])),
     );
   });
 });

@@ -29,8 +29,9 @@ export type KnopfProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "autoFocu
 
 /**
  * Knopf. Standard ist `type="button"`: ein Knopf in einem Formular sendet nur, wenn `type="submit"`
- * ausdrücklich gesetzt ist, damit Enter keine Freigabe auslöst. `autoFocus` wird verworfen, auch wenn
- * es ungetypt hereinkommt: der Fokus springt nie von selbst auf eine Aktion.
+ * ausdrücklich gesetzt ist. So löst Enter in einem Textfeld (implizites Absenden über den ersten
+ * Submit-Knopf des Formulars) keine Freigabe aus. `autoFocus` wird verworfen, auch wenn es ungetypt
+ * hereinkommt: der Fokus springt nie von selbst auf eine Aktion.
  */
 export function Knopf({ art = "primaer", type = "button", className, children, ...rest }: KnopfProps) {
   const { autoFocus: _verworfen, ...erlaubt } = rest as typeof rest & { autoFocus?: boolean };
