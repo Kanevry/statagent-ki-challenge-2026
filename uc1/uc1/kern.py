@@ -71,6 +71,15 @@ Sprache = Literal["de", "en"]
 Modus = Literal["text", "sprache"]  # sprache: ohne Analyse-Aufruf, kurzer Sprechtext (Voice, Ziel ≤ 2,0 s)
 MAX_AUSSAGEN_SPRACHE = 2
 AUFWAND_SPRACHE = "niedrig"  # reasoning_effort low; plattform.llm.complete kennt kein max_tokens
+# Zweiter Antwort-Aufruf, wenn die Server-Prüfung jede Aussage verwirft (#155: Abstinenz, obwohl die richtige
+# Quelle vorlag). Die Gründe gehen ohne Aussagetext an das Modell zurück, höchstens ein weiterer Aufruf.
+NOCHMAL_HINWEIS = (
+    "Die Prüfung hat alle Aussagen deines ersten Versuchs verworfen. Gründe: {gruende}. Antworte noch einmal "
+    "aus denselben Daten. Kopiere jedes Zitat Zeichen für Zeichen aus dem Abschnitt, mindestens ein ganzer "
+    "Satz. Die Aussage sagt nur, was im Zitat steht, mit dessen Bedingungen, in kurzen Sätzen. Eine Aussage, "
+    "die die Frage nur streift, ist keine Antwort. Beantworten die Daten die Frage nicht, gib keine Aussage "
+    "zurück."
+)
 
 # --------------------------------------------------------------------------------------------------------
 # Daten
@@ -112,11 +121,20 @@ def _passt(text: str, liste: Sequence[str]) -> bool:
     return any(m.search(text) for m in _muster(tuple(liste)))
 
 
+_SATZGRENZE = re.compile(r"(?<=[.!?])\s+")
+
+
 def erkenne_status(text: str) -> str | None:
-    """Status bzw. Pensionsträger aus Bürgersprache; erster Eintrag der Tabelle, der passt."""
-    for schluessel, eintrag in traeger_tabelle()["status"].items():
-        if _passt(text, eintrag["erkennen"]):
-            return str(schluessel)
+    """Status bzw. Pensionsträger aus Bürgersprache; erster Eintrag der Tabelle, der passt.
+
+    Aussagesätze gehen vor Fragesätzen: „Er bekommt seinen Ruhegenuss von der BVAEB. … ist dafür die PVA
+    zuständig?“ nennt die BVAEB als Status, die PVA nur als Vermutung (Dev-Set x02, #155)."""
+    saetze = _SATZGRENZE.split(text)
+    aussagen = " ".join(s for s in saetze if not s.rstrip().endswith("?"))
+    for teil in (aussagen, text):
+        for schluessel, eintrag in traeger_tabelle()["status"].items():
+            if teil and _passt(teil, eintrag["erkennen"]):
+                return str(schluessel)
     return None
 
 
@@ -148,6 +166,58 @@ def zustaendige_stelle(leistung_id: str, status: str | None) -> dict[str, str] |
     if eintrag.get("zitat"):
         ergebnis["zitat"] = str(eintrag["zitat"])
     return ergebnis
+
+
+def _norm_schluessel(nummer: str) -> tuple[int, str]:
+    """„21c“ → (21, "c"): Paragraphen mit Buchstaben liegen hinter der Zahl (21 < 21a < 21c < 22)."""
+    m = re.match(r"\s*(\d+)\s*([a-z]*)", str(nummer).lower())
+    return (int(m.group(1)), m.group(2)) if m else (-1, "")
+
+
+def leistung_der_norm(gesetz: str | None, nummer: str | None, art: str | None = "PARA") -> list[str]:
+    """Leistungen, zu deren ``normen`` (leistungen.yaml) der Paragraph gehört; leer für fremde Normen, andere
+    Gliederungsarten (Anlage, Artikel) und PDFs."""
+    if not gesetz or not nummer or (art or "").upper() != "PARA":
+        return []
+    schluessel = _norm_schluessel(nummer)
+    if schluessel[0] < 0:
+        return []
+    return [
+        lid
+        for lid, e in leistungen().items()
+        if any(
+            str(n["gesetz"]) == gesetz
+            and _norm_schluessel(str(n["von"])) <= schluessel <= _norm_schluessel(str(n["bis"]))
+            for n in e.get("normen") or []
+        )
+    ]
+
+
+def stellen_der_antwort(
+    aussagen: Sequence[Aussage], status: str | None, erkannt: Sequence[str] = ()
+) -> tuple[list[str], list[dict[str, str]]]:
+    """Leistungen, die die geprüften Aussagen tragen (über ihre zitierten Normen), und deren Stellen (#155).
+
+    Fehlt der Status, folgt er aus dem Gesetz der zitierten Normen (``status_aus_gesetz`` in traeger.yaml),
+    aber nur, wenn alle zitierten Gesetze der Leistung auf denselben Status zeigen (ASVG und GSVG: offen).
+    Ein genannter Status geht vor. Leistungen mit ``nur_regel`` zählen nur, wenn ein Auslöser sie erkannt hat:
+    Eine zitierte Unfallnorm macht einen Sturz nicht zum Arbeitsunfall (Aufnahme v8, Review !155).
+    Liefert ([], []), wenn keine Aussage eine Norm einer Leistung zitiert."""
+    aus_gesetz: dict[str, str] = traeger_tabelle().get("status_aus_gesetz") or {}
+    gesetze: dict[str, set[str]] = {}
+    for a in aussagen:
+        gesetz = a.treffer.get("gesetz")
+        for lid in leistung_der_norm(gesetz, a.treffer.get("nummer"), a.treffer.get("art")):
+            if leistungen()[lid].get("nur_regel") and lid not in erkannt:
+                continue
+            gesetze.setdefault(lid, set()).add(str(gesetz))
+    stellen = []
+    for lid, gs in gesetze.items():
+        abgeleitet = {aus_gesetz.get(g) for g in gs}
+        st = status or (abgeleitet.pop() if len(abgeleitet) == 1 else None)
+        if (stelle := zustaendige_stelle(lid, st)) is not None:
+            stellen.append(stelle)
+    return list(gesetze), stellen
 
 
 def regel_analyse(text: str) -> tuple[list[str], dict[str, str]]:
@@ -1141,6 +1211,13 @@ def setze_text(
 _SPRACHE_ERLAUBT = {"mittel_lang"}  # das Mittel prüft der Stil, nicht jede Antwort
 
 
+def _ohne_sprachbefund(aussagen: Sequence[Aussage]) -> tuple[list[Aussage], list[Aussage]]:
+    """Teilt in Aussagen ohne und mit eigenem Sprachbefund. Eine zu lange Aussage kostet so nicht die ganze
+    Antwort (Dev-Set x07, #155); was bleibt, prüft ``_sprachbefunde`` danach als Ganzes."""
+    gut = [a for a in aussagen if not _sprachbefunde([a])]
+    return gut, [a for a in aussagen if a not in gut]
+
+
 def _sprachbefunde(aussagen: Sequence[Aussage]) -> list[str]:
     """Arten der Sprachbefunde, die nach ``glaette`` im Modelltext der Aussagen bleiben."""
     if not aussagen:
@@ -1267,7 +1344,14 @@ def _analysiere(
     # Leistungen mit `nur_regel: true` (z. B. Unfallversicherung) zählen nur über ihre Auslöser: Das Modell
     # deutete „nach einem Sturz im Spital“ als Arbeitsunfall und nannte die AUVA (Aufnahme v8).
     modell_leistungen = [lid for lid in modell_leistungen if not leistungen()[lid].get("nur_regel")]
-    erkannt = list(dict.fromkeys([*zustand.get("leistungen", []), *modell_leistungen, *regel_leistungen]))
+    # Reihenfolge: Sitzung, dann Leistungen mit `nur_regel` (enge Auslöser), dann Modell, dann übrige Regeln.
+    # Die erste Leistung bestimmt Lage und Suchvorrang. Dev-Set #155: x12 (Arbeitsunfall erkannt, das Modell
+    # schlug Reha und Krankengeld dazu vor, die Antwort glitt auf die Reha ab) braucht die Unfallversicherung
+    # vorn; x04 (Pflegekarenz auf Englisch) braucht das Modell vor der breiten Pflegegeld-Regel („care“).
+    eng = [lid for lid in regel_leistungen if leistungen()[lid].get("nur_regel")]
+    erkannt = list(
+        dict.fromkeys([*zustand.get("leistungen", []), *eng, *modell_leistungen, *regel_leistungen])
+    )
     ergebnis_.leistungen = erkannt
     if not ergebnis_.lage and erkannt:
         ergebnis_.lage = str(leistungen()[erkannt[0]]["lage"])
@@ -1361,6 +1445,26 @@ def kern_belege(
     return kern_suche(
         text, sitzung_zustand=sitzung_zustand, erweiterung=erweiterung, provider=provider, conn=conn
     ).treffer
+
+
+def _antwort_aufruf(
+    modell_fn: ModellFn,
+    nachrichten: list[dict[str, str]],
+    provider: str | None,
+    antwort: LotseAntwort,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Ein Antwort-Aufruf; liefert (rohe Aussagen, Modell aus). Ein KonfigFehler bricht ab."""
+    try:
+        ergebnis = modell_fn(nachrichten, ANTWORT_SCHEMA, provider)
+    except Exception as fehler:
+        from plattform.llm import KonfigFehler
+
+        if isinstance(fehler, KonfigFehler):
+            raise
+        antwort.hinweise.append(f"Antwort ohne Modell ({type(fehler).__name__})")
+        return [], True
+    antwort.modell, antwort.provider = ergebnis.modell, ergebnis.provider
+    return list(ergebnis.json.get("aussagen") or []), False
 
 
 def frage(
@@ -1475,40 +1579,28 @@ def frage(
     roh_aussagen: list[dict[str, Any]] = []
     modell_aus = False
     angebot_ids = [t.abschnitt_id for t in angebote]
+    nachrichten: list[dict[str, str]] = []
     if treffer:
         daten_block = [_datenzeile(t, t.abschnitt_id in angebot_ids, modus) for t in treffer]
-        try:
-            ergebnis = modell_fn(
-                [
-                    {"role": "system", "content": _antwort_prompt(sprache_, stil, modus)},
-                    {
-                        "role": "user",
-                        "content": "<frage>"
-                        + maskiere_personendaten(verlauf_text)
-                        + "</frage>\n<lage>"
-                        + json.dumps(
-                            {"lage": lage, "leistungen": erkannt, "angaben": angaben, "stellen": traeger},
-                            ensure_ascii=False,
-                        )
-                        + "</lage>\n"
-                        + _angebot_hinweis(treffer, angebot_ids)
-                        + "<daten>"
-                        + json.dumps(daten_block, ensure_ascii=False)
-                        + "</daten>",
-                    },
-                ],
-                ANTWORT_SCHEMA,
-                provider,
-            )
-            roh_aussagen = list(ergebnis.json.get("aussagen") or [])
-            antwort.modell, antwort.provider = ergebnis.modell, ergebnis.provider
-        except Exception as fehler:
-            from plattform.llm import KonfigFehler
-
-            if isinstance(fehler, KonfigFehler):
-                raise
-            modell_aus = True
-            antwort.hinweise.append(f"Antwort ohne Modell ({type(fehler).__name__})")
+        nachrichten = [
+            {"role": "system", "content": _antwort_prompt(sprache_, stil, modus)},
+            {
+                "role": "user",
+                "content": "<frage>"
+                + maskiere_personendaten(verlauf_text)
+                + "</frage>\n<lage>"
+                + json.dumps(
+                    {"lage": lage, "leistungen": erkannt, "angaben": angaben, "stellen": traeger},
+                    ensure_ascii=False,
+                )
+                + "</lage>\n"
+                + _angebot_hinweis(treffer, angebot_ids)
+                + "<daten>"
+                + json.dumps(daten_block, ensure_ascii=False)
+                + "</daten>",
+            },
+        ]
+        roh_aussagen, modell_aus = _antwort_aufruf(modell_fn, nachrichten, provider, antwort)
     dauer["antwort"] = _ms(t0)
 
     # 6./7. Zitate und Beträge prüfen
@@ -1516,12 +1608,37 @@ def frage(
     aussagen, verworfen = pruefe_aussagen(
         roh_aussagen, treffer, sprache=sprache_, angebot_ids=angebot_ids, hoechstens=hoechstens
     )
+    # Alles verworfen, obwohl Treffer da waren: ein zweiter Versuch mit den Gründen (#155). Nicht im
+    # Sprachmodus (Latenz) und nicht, wenn das Modell gar keine Aussage geliefert hat (echte Abstinenz).
+    if not aussagen and verworfen and not modell_aus and modus != "sprache":
+        gruende = "; ".join(dict.fromkeys(str(v["grund"]) for v in verworfen))
+        hinweis = {"role": "user", "content": NOCHMAL_HINWEIS.format(gruende=gruende)}
+        roh_2, _ = _antwort_aufruf(modell_fn, [*nachrichten, hinweis], provider, antwort)
+        aussagen, verworfen_2 = pruefe_aussagen(
+            roh_2, treffer, sprache=sprache_, angebot_ids=angebot_ids, hoechstens=hoechstens
+        )
+        verworfen = [*verworfen, *verworfen_2]
+        antwort.hinweise.append(f"Zweiter Antwort-Aufruf nach Prüfung: {len(aussagen)} Aussagen")
     antwort.verworfen = verworfen
-    antwort.angebot_zitiert = any(a.angebot for a in aussagen)
     dauer["pruefung"] = _ms(t0)
 
     # Sprachprüfung des Modelltexts (uc1.sprache): ``glaette`` behebt Striche und Floskeln, was danach noch
     # gemeldet wird (KI-Selbstbezug, Kaskade, Schablone, zu langer Satz), geht nicht raus (Review !68).
+    # Zuerst je Aussage: nur die betroffenen fallen weg; dann der Rest als Ganzes (Kaskade über Sätze).
+    gut, mit_befund = _ohne_sprachbefund(aussagen)
+    if gut and mit_befund:
+        antwort.verworfen += [
+            {
+                "abschnitt_id": a.abschnitt_id,
+                "grund": "Sprachprüfung: " + ", ".join(_sprachbefunde([a])),
+                "zitat": a.zitat[:200],
+                "text": a.text[:200],
+                "deckung": a.deckung,
+            }
+            for a in mit_befund
+        ]
+        aussagen = gut
+    antwort.angebot_zitiert = any(a.angebot for a in aussagen)
     sprachbefunde = _sprachbefunde(aussagen)
     if sprachbefunde:
         antwort.hinweise.append("Sprachprüfung: " + ", ".join(sprachbefunde))
@@ -1545,7 +1662,22 @@ def frage(
         antwort.uebergabe_an = traeger[0]["name"] if traeger else None
         antwort.naechste_schritte = schritte
     elif aussagen:
-        schritte = naechste_schritte(erkannt, traeger, angebote, sprache_)
+        # Die Stelle folgt aus der Leistung, deren Normen die Antwort zitiert, nicht aus einer erkannten
+        # Nachbarleistung (#155). Zitiert keine Aussage eine Norm einer Leistung oder hat keine davon eine
+        # Stelle (Status offen), bleibt es bei der Analyse. Bewusst: Eine Leistung, die nur über ein PDF-Zitat
+        # vorkommt, bringt ihre Stelle dann nicht mit; die Antwort nennt die Stelle der zitierten Norm.
+        getragen, stellen = stellen_der_antwort(aussagen, angaben.get("status"), erkannt)
+        if getragen and stellen:
+            antwort.leistungen = list(dict.fromkeys([*erkannt, *getragen]))
+            antwort.antraege = [
+                str(a) for lid in antwort.leistungen if (a := leistungen()[lid].get("antrag"))
+            ]
+            erkannt_antwort = list(getragen)
+            traeger = stellen
+            antwort.traeger = traeger
+        else:
+            erkannt_antwort = list(erkannt)
+        schritte = naechste_schritte(erkannt_antwort, traeger, angebote, sprache_)
         # Offene Pflichtfelder nach 3 Rückfragen: Antwort mit Vorbehalt.
         if modus == "sprache":
             fertig = setze_sprechtext(aussagen, sprache=sprache_)

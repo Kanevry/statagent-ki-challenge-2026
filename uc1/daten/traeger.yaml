@@ -21,6 +21,17 @@
 # der Frage-Suche, `paragraphen` nur mit dem genannten Bereich (von, bis; beide eingeschlossen), wenn der
 # Status das Gesetz sonst nicht enthält.
 
+# `status_aus_gesetz`: Fehlt der Status, aber die Antwort stützt sich auf eine Norm einer Leistung (`normen` in
+# leistungen.yaml), dann folgt der Status aus dem Gesetz dieser Norm (#155: „Nennt die Antwort keine Stelle, aber
+# die Leistung hat eine Regel, steht die Stelle mit Beleg da“). GSVG und BSVG gelten nur für Versicherte der SVS,
+# das B-KUVG nur für die der BVAEB. Das ASVG steht für unselbständig Beschäftigte (Krankenversicherung ÖGK,
+# Pensionsversicherung PVA). Ein genannter Status geht immer vor.
+status_aus_gesetz:
+  ASVG: angestellt
+  GSVG: svs
+  BSVG: svs
+  B-KUVG: bvaeb
+
 verfahren:
   gesetze: [ASGG]
   paragraphen:
