@@ -10,6 +10,9 @@ import type { BefundTabelle, BefundZeile } from "./typen";
  */
 
 const ZEITLIMIT_MS = 2_500;
+
+/** Verbindung steht, aber die Prüfung hat noch keine Treffer geschrieben: kein Defekt, nur noch kein Lauf. */
+class KeineTreffer extends Error {}
 const MAX_ZEILEN = 50;
 
 const EINSTUFUNG_TEXT: Record<string, string> = {
@@ -78,7 +81,7 @@ async function ausDatenbank(url: string, stand: string): Promise<BefundTabelle> 
       zeitgeber = setTimeout(() => ablehnen(new Error(`Zeitlimit ${ZEITLIMIT_MS} ms`)), ZEITLIMIT_MS);
     });
     const ergebnis = await Promise.race([abfrage, zeitlimit]).finally(() => clearTimeout(zeitgeber));
-    if (ergebnis.anzahl === 0) throw new Error("meta.pruefung_treffer ist leer");
+    if (ergebnis.anzahl === 0) throw new KeineTreffer("meta.pruefung_treffer ist leer");
     return { quelle: "datenbank", zeilen: ergebnis.zeilen.map(zeileAusTreffer), anzahl: ergebnis.anzahl, stand };
   } finally {
     await sql.end({ timeout: 1 }).catch(() => {});
@@ -95,6 +98,7 @@ export async function ladeBefunde(): Promise<BefundTabelle> {
   try {
     return await ausDatenbank(url, stand);
   } catch (fehler) {
+    if (fehler instanceof KeineTreffer) return befundeAusFixture(stand, "keine-treffer");
     // Nur die Meldung, nie die Verbindungs-URL (enthält das Passwort).
     const grund = fehler instanceof Error ? fehler.message.replaceAll(url, "<UC3_DATABASE_URL>") : "unbekannt";
     console.warn("[landing] UC3-Datenbank nicht verfügbar, zeige Beispieldaten:", grund);
