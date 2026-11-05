@@ -36,7 +36,6 @@ Du hast ein Dutzend Hackathons als Projektleiter begleitet und weißt, woran Sol
 
 ## Context Files
 
-- `docs/plan-uc3-stand-1050.md` — Plan des Teams, Stand 10:50
 
 ## Evaluation Criteria
 

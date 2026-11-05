@@ -360,7 +360,7 @@ def pruefe_verzeichnisse(
 
     Ein in PG fehlender Eintrag ist nur dann eine Text-Dublette (Ausnahme), wenn das Skript es selbst belegt:
     Der Seitentext ab der Startzeile im PDF beginnt wie ein Abschnitt 1, der schon in PG steht. Gemessen
-    05.11. (Volllauf m5): solche Dubletten liegen auch in derselben Ausgabe oder unter anderem Medium.
+    05.11. (Volllauf Rechner B): solche Dubletten liegen auch in derselben Ausgabe oder unter anderem Medium.
     """
     with ThreadPoolExecutor(max_workers=jobs) as pool:
         verzeichnisse = dict(zip(eindeutig, pool.map(lies_verzeichnis, eindeutig.values()), strict=True))

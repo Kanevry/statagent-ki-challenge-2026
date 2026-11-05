@@ -13,7 +13,7 @@ Projektweiter Feature-Stopp Fr 05:00 gilt auch hier. UC3 hat Vorrang, nur UC3 wi
 > „Embeddings“ in § 2 Out-of-Scope ersetzt. Die Belegsuche ist hybrid: PG-Volltext `german` und Kosinus auf
 > embeddinggemma-2 (768d, nur Textteil, float32). Die Relevanz wird mit `0,5^(Δ/h)` und dem Institutionsfaktor gewichtet.
 > Die Vektoren liegen als `bytea` in `uc2.abschnitt`, die Ähnlichkeit rechnet numpy; pgvector wird nicht gebraucht.
-> Extraktion und Korpus-Embedding laufen auf dem m5, der Index und die Abfrage-Einbettung auf dem M4. Der Embedder
+> Extraktion und Korpus-Embedding laufen auf Rechner B, der Index und die Abfrage-Einbettung auf Rechner A. Der Embedder
 > folgt der E0-Schnittstelle aus #67 (`einbetten(texte, zweck)`, `dimension()`). Gewichte stehen nach der
 > Prototyp-Messung (09/2026) in `uc2/config/regeln.yaml`. Prüf- und Testskripte liegen unter `uc2/tests/` statt
 > `tests/uc2/` (Lane `uc2/`). ollama ist seit der Owner-Vorgabe 13:0x wieder als Offline-Notnagel erlaubt (ersetzt den

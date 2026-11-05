@@ -80,7 +80,7 @@ SCHEIBE = 256
 GERAETE = ("cpu", "cuda", "mps")
 _MPS_GRENZE = "PYTORCH_MPS_HIGH_WATERMARK_RATIO"
 #: torch verlangt untere Grenze ≤ obere; ihr Standard (1,4 auf Apple Silicon) liegt über üblichen oberen
-#: Grenzen wie 0,7, dann bricht torch beim ersten mps-Tensor ab („invalid low watermark ratio“, m5, 05.11.).
+#: Grenzen wie 0,7, dann bricht torch beim ersten mps-Tensor ab („invalid low watermark ratio“, 05.11.).
 _MPS_UNTERGRENZE = "PYTORCH_MPS_LOW_WATERMARK_RATIO"
 _MPS_UNTERGRENZE_STANDARD = 1.4
 _LADEN_BEFEHL = "uv run python -m plattform.embeddings laden"

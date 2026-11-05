@@ -1,0 +1,12 @@
+# Fall-Definition für `uv run uc2 verhandlung --fall wartezeiten` (#44, PRD S5/S10).
+# Fälle kommen nur aus diesem Ordner; die CLI nimmt die ID, nie einen Pfad.
+id: wartezeiten
+version: 1
+frage: >-
+  Wie können die Wartezeiten auf Facharzttermine innerhalb von fünf Jahren um 20 % reduziert werden, ohne die
+  Gesundheitsausgaben um mehr als 5 % zu erhöhen?
+stichtag: 2026-09-30
+# Maßnahmenpaket für den Experten (relativ zu uc2/)
+paket: pakete/beispiel-wartezeiten.yaml
+max_akteure: 6
+max_runden: 5
