@@ -8,8 +8,8 @@ Antwort; Zufall gibt es nicht, Streuung kommt aus sha256 über Akteur und Thema.
   Restriktionen und Budgetvorgaben (dagegen), dazu ein fester Streuwert.
 - Bewegung: in Runde 2 und 3 rückt ein Teil der Akteure eine Stufe zum Mittel der anderen; ab Runde 4 bleibt
   jeder stehen, so endet der Lauf nach der Regel „Runde ohne Änderung“.
-- Zahlen nur mit Quelle `experte`; in Runde 2 nennt der erste Teilnehmer bewusst eine Zahl ohne Quelle,
-  damit die Prüfung `zahl_ohne_beleg` im Szenario sichtbar wird.
+- Zahlen nur mit Quelle `experte` und nur aus `vom_rechenmodell_berechnet`; in Runde 2 nennt der erste
+  Teilnehmer bewusst eine Zahl ohne Quelle, damit die Prüfung `zahl_ohne_beleg` im Szenario sichtbar wird.
 - `UC2_MOCK_KAPUTT=<akteur_id>:<runde>` liefert für genau diesen Zug kaputtes JSON, auch bei der Wiederholung.
 
 Eingehängt wird er nur bei Provider `mock` über `einhaengen()`; `zuruecksetzen()` stellt den vorigen
@@ -124,8 +124,10 @@ def _akteurszug(k: dict[str, Any]) -> dict[str, Any]:
 
         bezug = [min(teilnehmer, key=abstand)]
 
-    wz = (experte.get("wartezeit_aenderung_prozent") or {}).get("modus")
-    kosten = (experte.get("kosten_aenderung_prozent") or {}).get("modus")
+    # Nur Ergebniszahlen des Rechenmodells tragen die Quelle `experte`, nie Vorgabe oder Annahme.
+    berechnet = experte.get("vom_rechenmodell_berechnet") or {}
+    wz = (berechnet.get("wartezeit_aenderung_prozent") or {}).get("modus")
+    kosten = (berechnet.get("kosten_aenderung_prozent") or {}).get("modus")
     zahlen: list[dict[str, Any]] = []
     zuege: list[dict[str, Any]] = []
     for i, thema in enumerate(themen):
@@ -202,7 +204,7 @@ def _auftrag(k: dict[str, Any]) -> dict[str, Any]:
             "titel": str(m["name"]),
             "beschreibung": f"{m['name']} im Umfang des Pakets ({m['einheit']})",
         }
-        for m in (k.get("experte") or {}).get("massnahmen") or []
+        for m in ((k.get("experte") or {}).get("annahme") or {}).get("massnahmen_umfang") or []
     ]
     themen += [dict(t) for t in _ZUSATZTHEMEN]
     return {

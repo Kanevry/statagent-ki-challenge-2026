@@ -36,6 +36,14 @@ uv run uc2 verhandlung --fall wartezeiten --provider claude --belege fixture --m
   bis zu 2 Kompromissrunden. Nach Runde 3 endet der Lauf, sobald eine Runde keine Positionsänderung bringt.
 - Jeder Zug wird gegen `zug.schema.json` und im Code geprüft. Es gibt die Ereignisse `zahl_ohne_beleg`,
   `beleg_ungueltig`, `zitat`, `zahl_widerspruch` und `ungueltige_ausgabe`.
+- Zahlen: Deutsche Schreibweise wird ganz gelesen („12.000 Stellen“ ist zwölftausend, „1.234,5 Mio“ ist
+  1234,5); Jahreszahlen 2000 bis 2040 entfallen. Lauf und `tests/pruefe_lauf.py` lesen gleich, je mit eigenem
+  Code. Eine Zahl mit Quelle `experte` muss einem Ergebnis des Rechenmodells gleichen (Kennzahlen mit Spanne,
+  Wirkung und Mehrkosten je Maßnahme, Jahrespfad), sonst `zahl_widerspruch`. Ziel, Zieljahr, Annahmen und
+  Maßnahmenumfang sind Eingaben und zählen nicht. Eine Zahl mit einer Beleg-ID als Quelle muss im Text dieses
+  Belegs stehen, sonst `zahl_ohne_beleg` mit Grund „Zahl steht nicht im Beleg“.
+- Bricht ein Lauf ab, trägt das Ereignis `abbruch` nur den Fehlertyp (`grund`) und einen festen Satz
+  (`meldung`). Den Fehlertext schreibt der Lauf ins Server-Log.
 - Geschrieben werden `uc2.fall`, `uc2.teilnahme`, `uc2.ereignis` (mit `seq` je Fall) und `uc2.position`
   (DDL `sql/002_verhandlung.sql`, wendet die CLI idempotent an). Matrix und Einordnung rechnet der Code.
 - Belege: `--belege index` holt je Akteur die 8 besten maskierten Belege aus dem Index
@@ -71,8 +79,12 @@ curl -sN 'localhost:8102/faelle/<fall_id>/ereignisse?seq=0'
 - `POST /faelle` startet `uv run uc2 verhandlung … --melde-fall-id [--frage-stdin]` als Unterprozess mit
   fester argv und ohne Shell. Die Frage geht über stdin. Die Fall-ID liest die API aus der ersten
   stdout-Zeile `fall_id=<n>`. Der Unterprozess ist der einzige Schreiber, die API liest nur.
-- Höchstens ein laufender Fall je API-Prozess: Ein zweiter Start ergibt 409. Das ersetzt ein Rate-Limit.
+- Höchstens ein laufender Fall je API-Prozess: Ein zweiter Start ergibt 409. Dazu höchstens ein Start je
+  Client-IP und Minute, sonst 429. Hinter einem Proxy gilt das Limit für alle zusammen.
 - Standard-Provider ist `mock`. `claude` und `azure` laufen nur mit `UC2_API_ECHTE_MODELLE=1`, sonst gibt es 403.
+  Mit `KIC_ONLINE=1` braucht ein echter Provider zusätzlich ein gültiges `LLM_TAGESBUDGET_AUFRUFE`, sonst
+  gibt es 503. Auch der Lauf selbst bricht dann in `plattform.llm.complete` ab, bevor ein Modell gerufen wird.
+- Fehler gehen nur als feste, einfache Sätze hinaus, ohne Env-Namen, Pfade oder Fehlertexte.
   `belege: index` geht vor #43 nur mit `mock`.
 - Belege gehen online nur als Zitatfelder hinaus: `beleg_id`, `medium`, `datum`/`monat`, `titel`, `pdf_seite`
   und `zitat`, Titel und Zitat höchstens 300 Zeichen (`uc2.api.belegfilter`). Den Volltext `text` liefert die

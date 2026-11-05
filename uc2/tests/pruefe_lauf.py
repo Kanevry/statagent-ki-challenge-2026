@@ -20,11 +20,21 @@ Prüfungen:
    schreiben müssen).
 4. `zahlen`: jede Zahl mit Einheit in einer Begründung steht betragsgleich (0,05) in `zahlen[]` mit gültiger
    Quelle, oder sie ist als `zahl_ohne_beleg` markiert. Steht sie in `zahlen[]` mit ungültiger Quelle, genügt
-   die Markierung `beleg_ungueltig` dieser Quelle (Prüfung 6).
-5. `experte`: jede Zahl mit Quelle `experte` gleicht betragsmäßig einem Wert aus dem Ereignis `experte` auf
-   0,05, sonst gibt es ein Ereignis `zahl_widerspruch` mit diesem Wert.
+   die Markierung `beleg_ungueltig` dieser Quelle (Prüfung 6). Eine unlesbare Zahl braucht die Markierung
+   mit demselben Fundtext.
+5. `experte`: jede Zahl mit Quelle `experte` gleicht betragsmäßig einem Ergebniswert des Rechenmodells auf
+   0,05, sonst gibt es ein Ereignis `zahl_widerspruch` mit diesem Wert. Ergebniswerte sind nur die berechneten
+   Werte aus `ergebnis` im Ereignis `experte`: `kennzahlen` (Wartezeit- und Kostenänderung, Mehrkosten, je
+   Modus/Min/Max), je Maßnahme Wirkung und Mehrkosten, im Jahrespfad alles außer `jahr`. Ziel, Zieljahr,
+   Annahmen, Umfang und Ecken sind Eingaben und zählen nicht.
 6. `belege`: jede Beleg-ID in `themen[].beleg_ids` und `zahlen[].quelle` stammt aus dem Ereignis `belege`
-   desselben Akteurs und derselben Runde, sonst gibt es `beleg_ungueltig` mit dieser ID.
+   desselben Akteurs und derselben Runde, sonst gibt es `beleg_ungueltig` mit dieser ID. Jede Zahl in
+   `zahlen[]` mit gültiger Beleg-Quelle steht im `zitat` dieses Belegs (betragsgleich auf 0,05, Einheit
+   egal), oder sie ist als `zahl_ohne_beleg` mit derselben Quelle und demselben Wert markiert. Umgekehrt ist
+   eine solche Markierung falsch, wenn die Zahl im Zitat steht.
+   Grenze: PG speichert vom Beleg nur das `zitat` (höchstens 300 Zeichen ab dem besten Satz), nicht den Text,
+   den das Modell sah (`text_modell`). Steht eine Zahl nur außerhalb des Zitats im Beleg, meldet das Orakel
+   einen Verstoß, den der Lauf zu Recht nicht markiert hat (falscher Alarm, nie ein falsches Grün).
 7. `protokoll`: `seq` lückenlos ab 1, gespeicherter Fallstatus `fertig`.
 
 Datenschutz: Ausgegeben werden nur IDs, Runden, Zahlen und Prüfungsnamen, kein Beleg- oder Begründungstext.
@@ -54,26 +64,38 @@ MIN_RUNDEN = 3
 TOLERANZ = 0.05
 JAHR_VON, JAHR_BIS = 2000, 2040
 MAX_LISTE = 40
+GRUND_BELEG = "Zahl steht nicht im Beleg"
 
 # Eigenes Zahlenmuster: eine vollständige Zifferngruppe (nicht mitten in einer anderen Zahl beginnend),
-# danach höchstens ein Leerzeichen und eine Einheit aus PRD S5. Anders als im Lauf wird die ganze Gruppe
-# gelesen („1.234,5 Mio“ ist 1234,5 und nicht 234,5).
+# danach höchstens ein Leerzeichen und eine Einheit aus PRD S5. Die ganze Gruppe wird gelesen („1.234,5 Mio“
+# ist 1234,5 und nicht 234,5, „12.000“ ist zwölftausend). Der Lauf liest seit Review !47 genauso; dies ist
+# eine eigene Kopie, kein Import.
 ZIFFERN = re.compile(r"(?<![\d.,])\d+(?:[.,]\d+)*")
 EINHEIT = re.compile(r"\s?(?:%|Prozent|Mio|Mrd|EUR|€|Tage|Stellen)")
+KENNZAHLEN = ("wartezeit_aenderung_prozent", "kosten_aenderung_prozent", "mehrkosten_mio_eur")
 
 
 # --------------------------------------------------------------------------------------------- Hilfen
 
 
 def zahlwert(gruppe: str) -> float | None:
-    """Zifferngruppe als Zahl: ein Trenner ist das Dezimalzeichen; mehrere sind deutsche Tausenderpunkte,
-    höchstens mit einem Dezimalkomma am Ende („1.234,5“). Andere Folgen gelten als unlesbar."""
+    """Zifferngruppe als Zahl, deutsche Schreibweise. Ein Komma ist Dezimalzeichen. Ein einzelner Punkt vor
+    genau drei Ziffern ist ein Tausenderpunkt („12.000“), außer vor ihm steht nur 0; sonst Dezimalpunkt
+    („22.24“). Mehrere Trenner sind Tausenderpunkte vor Dreiergruppen, höchstens mit einem Dezimalkomma am
+    Ende („1.234,5“). Andere Folgen gelten als unlesbar."""
+    teile = re.split(r"[.,]", gruppe)
     trenner = "".join(c for c in gruppe if c in ".,")
-    if len(trenner) <= 1:
-        return float(gruppe.replace(",", "."))
-    if set(trenner[:-1]) == {"."} and trenner[-1] in ".,":
-        return float(gruppe.replace(".", "").replace(",", "."))
-    return None
+    if not trenner:
+        return float(gruppe)
+    if len(trenner) == 1:
+        tausender = trenner == "." and len(teile[1]) == 3 and teile[0] != "0"
+        return float(teile[0] + teile[1]) if tausender else float(teile[0] + "." + teile[1])
+    dreier = teile[1:] if trenner[-1] == "." else teile[1:-1]
+    if set(trenner[:-1]) != {"."} or any(len(t) != 3 for t in dreier):
+        return None
+    if trenner[-1] == ",":
+        return float("".join(teile[:-1]) + "." + teile[-1])
+    return float("".join(teile))
 
 
 def zahlen_mit_einheit(text: str) -> list[tuple[str, float | None]]:
@@ -94,17 +116,32 @@ def gleich(a: float, b: float) -> bool:
     return abs(abs(a) - abs(b)) <= TOLERANZ
 
 
-def alle_zahlen(knoten: object) -> list[float]:
-    """Alle Zahlen eines JSON-Baums ohne Wahrheitswerte."""
-    if isinstance(knoten, bool):
-        return []
-    if isinstance(knoten, int | float):
-        return [float(knoten)]
-    if isinstance(knoten, dict):
-        return [z for v in knoten.values() for z in alle_zahlen(v)]
-    if isinstance(knoten, list):
-        return [z for v in knoten for z in alle_zahlen(v)]
-    return []
+def zahlen_ohne_einheit(text: str) -> list[float]:
+    """Alle lesbaren Zifferngruppen eines Texts (Abgleich einer Beleg-Zahl mit dem Zitat)."""
+    werte = [zahlwert(m.group(0)) for m in ZIFFERN.finditer(text)]
+    return [w for w in werte if w is not None]
+
+
+def _zahl(wert: object) -> list[float]:
+    return [] if isinstance(wert, bool) or not isinstance(wert, int | float) else [float(wert)]
+
+
+def ergebniswerte(experte: dict[str, Any]) -> list[float]:
+    """Nur berechnete Werte (Prüfung 5). Ältere Ereignisse ohne `ergebnis` tragen die Kennzahlen flach."""
+    erg = experte.get("ergebnis")
+    if not isinstance(erg, dict):
+        erg = {"kennzahlen": {k: experte.get(k) for k in KENNZAHLEN}}
+    werte: list[float] = []
+    kennzahlen = erg.get("kennzahlen") or {}
+    for name in KENNZAHLEN:
+        spanne = kennzahlen.get(name)
+        if isinstance(spanne, dict):
+            werte += [w for teil in ("modus", "min", "max") for w in _zahl(spanne.get(teil))]
+    for m in erg.get("massnahmen") or []:
+        werte += _zahl(m.get("wirkung_prozent")) + _zahl(m.get("mehrkosten_mio_eur"))
+    for jahr in erg.get("jahrespfad") or []:
+        werte += [w for k, v in jahr.items() if k != "jahr" for w in _zahl(v)]
+    return werte
 
 
 def pool() -> list[str]:
@@ -153,12 +190,17 @@ class Lauf:
         self.runden = sorted({e["runde"] for e in self.ereignisse if e["art"] == "runde" and e["runde"]})
         self.zuege: list[dict[str, Any]] = [e for e in self.ereignisse if e["art"] == "zug"]
         self.belege: dict[tuple[int, str], set[str]] = {}
+        self.zitate: dict[tuple[int, str, str], str] = {}
         self.marken: dict[str, list[dict[str, Any]]] = defaultdict(list)
         self.experte: dict[str, Any] | None = None
         for e in self.ereignisse:
             if e["art"] == "belege" and e["akteur"]:
-                ids = {b.get("beleg_id") for b in e["daten"].get("belege", []) if isinstance(b, dict)}
+                chips = [b for b in e["daten"].get("belege", []) if isinstance(b, dict)]
+                ids = {b.get("beleg_id") for b in chips}
                 self.belege[(e["runde"], e["akteur"])] = {i for i in ids if isinstance(i, str)}
+                for b in chips:
+                    if isinstance(b.get("beleg_id"), str):
+                        self.zitate[(e["runde"], e["akteur"], b["beleg_id"])] = str(b.get("zitat") or "")
             elif e["art"] == "experte":
                 self.experte = e["daten"]
             elif e["art"] in ("zahl_ohne_beleg", "beleg_ungueltig", "zahl_widerspruch", "ungueltige_ausgabe"):
@@ -248,7 +290,8 @@ def pruefe_zahlen(lauf: Lauf, zuege: list[dict[str, Any]]) -> dict[str, Any]:
                 geprueft += 1
                 ort = f"seq {z['seq']} (Runde {runde}, {aid}, Thema {t['thema']})"
                 if wert is None:
-                    verstoesse.append(f"{ort}: Zahl {fund!r} nicht lesbar")
+                    if not any(m.get("thema") == t["thema"] and m.get("fund") == fund for m in ohne_beleg):
+                        verstoesse.append(f"{ort}: Zahl {fund!r} nicht lesbar und nicht als zahl_ohne_beleg")
                     continue
                 passend = [e for e in zug["zahlen"] if gleich(float(e["wert"]), wert)]
                 if any(e["quelle"] == "experte" or e["quelle"] in erlaubt for e in passend):
@@ -274,7 +317,7 @@ def pruefe_experte(lauf: Lauf, zuege: list[dict[str, Any]]) -> dict[str, Any]:
     verstoesse = []
     if lauf.experte is None:
         verstoesse.append("kein Ereignis experte")
-    werte = alle_zahlen(lauf.experte or {})
+    werte = ergebniswerte(lauf.experte or {})
     geprueft = 0
     for z in zuege:
         for e in z["daten"]["zug"]["zahlen"]:
@@ -296,6 +339,7 @@ def pruefe_experte(lauf: Lauf, zuege: list[dict[str, Any]]) -> dict[str, Any]:
 def pruefe_belege(lauf: Lauf, zuege: list[dict[str, Any]]) -> dict[str, Any]:
     verstoesse = []
     geprueft = 0
+    zahlen = 0
     for z in zuege:
         runde, aid, zug = z["runde"], z["akteur"], z["daten"]["zug"]
         erlaubt = lauf.belege.get((runde, aid), set())
@@ -308,7 +352,33 @@ def pruefe_belege(lauf: Lauf, zuege: list[dict[str, Any]]) -> dict[str, Any]:
                 verstoesse.append(
                     f"seq {z['seq']} (Runde {runde}, {aid}): Beleg {bid} nicht geholt, kein beleg_ungueltig"
                 )
-    return ergebnis("belege", verstoesse, beleg_ids=geprueft)
+        nicht_im_beleg = [
+            m for m in lauf.markiert("zahl_ohne_beleg", runde, aid) if m.get("grund") == GRUND_BELEG
+        ]
+        for e in zug["zahlen"]:
+            if e["quelle"] not in erlaubt:
+                continue
+            zahlen += 1
+            wert = float(e["wert"])
+            im_zitat = any(
+                gleich(wert, w) for w in zahlen_ohne_einheit(lauf.zitate[(runde, aid, e["quelle"])])
+            )
+            marke = any(
+                m.get("quelle") == e["quelle"]
+                and isinstance(m.get("wert"), int | float)
+                and gleich(m["wert"], wert)
+                for m in nicht_im_beleg
+            )
+            ort = f"seq {z['seq']} (Runde {runde}, {aid})"
+            if not im_zitat and not marke:
+                verstoesse.append(
+                    f"{ort}: Zahl {wert} steht nicht im Zitat von {e['quelle']}, kein zahl_ohne_beleg"
+                )
+            elif im_zitat and marke:
+                verstoesse.append(
+                    f"{ort}: Zahl {wert} steht im Zitat von {e['quelle']}, aber zahl_ohne_beleg"
+                )
+    return ergebnis("belege", verstoesse, beleg_ids=geprueft, beleg_zahlen=zahlen)
 
 
 def pruefe_protokoll(lauf: Lauf) -> dict[str, Any]:

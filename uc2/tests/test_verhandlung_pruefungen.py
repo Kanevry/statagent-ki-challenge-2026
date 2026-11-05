@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from typing import Any
 
 from uc2.verhandlung.belege import Beleg
 from uc2.verhandlung.pruefungen import (
+    GRUND_BELEG,
+    experten_ergebniswerte,
     pruefe,
     ungueltige_belege,
     validiere_zug,
@@ -108,3 +111,67 @@ def test_zahl_widerspruch_gegen_experte_auf_005() -> None:
     )
     befunde = pruefe(zug, [BELEG], [-22.24, 0.21])
     assert [(b.art, b.daten["wert"]) for b in befunde] == [("zahl_widerspruch", -21.0)]
+
+
+# --- Review !47 ------------------------------------------------------------------------------------------
+
+ERGEBNIS = {
+    "zieljahr": 5,
+    "ziel": {"wartezeit_aenderung_prozent_hoechstens": -20.0, "kosten_aenderung_prozent_hoechstens": 5.0},
+    "kennzahlen": {
+        "rho1": {"modus": 0.81, "min": 0.8, "max": 0.83},
+        "wartezeit_aenderung_prozent": {"modus": -14.0, "min": -16.5, "max": -11.2},
+        "kosten_aenderung_prozent": {"modus": 1.3, "min": 1.1, "max": 1.6},
+        "mehrkosten_mio_eur": {"modus": 61.4, "min": 52.0, "max": 70.9},
+    },
+    "massnahmen": [{"id": "stellen", "umfang": 300, "wirkung_prozent": -9.5, "mehrkosten_mio_eur": 41.0}],
+    "zielpruefung": {"ecken": 8, "ecken_erreicht": 0},
+    "jahrespfad": [{"jahr": 1, "wartezeit_aenderung_prozent": -3.3, "mehrkosten_mio_eur": 12.0}],
+    "annahmen": [{"id": "a1", "min": 2.0, "modus": 3.0, "max": 4.0}],
+}
+"""Erfundenes Experten-Ergebnis in der Form von `uc2.experte.modell.ergebnis()`."""
+
+
+def test_experten_ergebniswerte_ohne_ziel_annahmen_umfang_und_jahre() -> None:
+    werte = experten_ergebniswerte(ERGEBNIS)
+    assert werte == sorted([-14.0, -16.5, -11.2, 1.3, 1.1, 1.6, 61.4, 52.0, 70.9, -9.5, 41.0, -3.3, 12.0])
+    for eingabe in (-20.0, 5.0, 300.0, 8.0, 1.0, 2.0, 3.0, 4.0, 0.81):
+        assert eingabe not in werte
+
+
+def test_ziel_als_experten_zahl_ist_widerspruch() -> None:
+    """Review !47: −20 (Ziel) mit Quelle experte ging durch, obwohl das Rechenmodell −14 % rechnet."""
+    zug = _zug(
+        "Ohne Zahl im Text.",
+        [
+            {"wert": -20, "einheit": "%", "quelle": "experte"},
+            {"wert": -14, "einheit": "%", "quelle": "experte"},
+        ],
+    )
+    befunde = pruefe(zug, [BELEG], experten_ergebniswerte(ERGEBNIS))
+    assert [(b.art, b.daten["wert"]) for b in befunde] == [("zahl_widerspruch", -20.0)]
+
+
+def test_zahl_mit_beleg_quelle_muss_im_beleg_stehen() -> None:
+    zug = _zug("Kosten 999 Mio EUR laut Beleg.", [{"wert": 999, "einheit": "Mio EUR", "quelle": BID}])
+    befunde = pruefe(zug, [BELEG], [])
+    assert [(b.art, b.daten.get("quelle"), b.daten.get("grund")) for b in befunde] == [
+        ("zahl_ohne_beleg", BID, GRUND_BELEG)
+    ]
+    mit_zahl = replace(BELEG, text_modell="Die Kasse nennt 999 Millionen Euro Bedarf.")
+    assert pruefe(zug, [mit_zahl], []) == []
+
+
+def test_deutsche_zahlen_mit_tausenderpunkt_und_dezimalkomma() -> None:
+    funde = zahlen_im_text(
+        "Es fehlen 12.000 Stellen, dazu 1.234,5 Mio und 3,5 %, bis 2030 Tage, englisch 22.24 % und 1,2.3 %"
+    )
+    assert funde == [
+        ("12.000 Stellen", 12000.0),
+        ("1.234,5 Mio", 1234.5),
+        ("3,5 %", 3.5),
+        ("22.24 %", 22.24),
+        ("1,2.3 %", None),
+    ]
+    # Unlesbar heißt nicht belegt
+    assert [b.daten["fund"] for b in zahlen_ohne_beleg(_zug("Etwa 1,2.3 % mehr."))] == ["1,2.3 %"]
