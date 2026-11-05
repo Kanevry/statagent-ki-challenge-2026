@@ -50,9 +50,9 @@ def test_export_md_zaehlt_commits_und_eintraege(tmp_path):
             )
             for i in range(3)
         ]
-        freigeben(conn, ids[0], "Erika Musterfrau", repo)
-        freigeben(conn, ids[1], "Max Mustermann", repo)
-        ablehnen(conn, ids[2], "Erika Musterfrau", "widerspricht Regel R2")
+        freigeben(conn, ids[0], "Anna Huber", repo)
+        freigeben(conn, ids[1], "Jakob Gruber", repo)
+        ablehnen(conn, ids[2], "Anna Huber", "widerspricht Regel R2")
 
     ziel = tmp_path / "protokoll.md"
     subprocess.run(
@@ -76,7 +76,8 @@ def test_export_md_zaehlt_commits_und_eintraege(tmp_path):
     )
 
     trailer = _git(repo, "log", "--format=%(trailers:key=Freigegeben-von,valueonly)")
-    erwartet = len([z for z in trailer.splitlines() if z.strip()]) + len(ids)
+    ablehnungen = 1
+    erwartet = len([z for z in trailer.splitlines() if z.strip()]) + ablehnungen + len(ids)
     zeilen = [z for z in ziel.read_text(encoding="utf-8").splitlines() if z.startswith("| ")]
-    kopfzeilen = 2  # je Tabelle eine Kopfzeile; Trennzeilen beginnen mit "|---"
-    assert len(zeilen) - kopfzeilen == erwartet == 5
+    kopfzeilen = 3  # je Tabelle eine Kopfzeile; Trennzeilen beginnen mit "|---"
+    assert len(zeilen) - kopfzeilen == erwartet == 6

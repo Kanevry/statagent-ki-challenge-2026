@@ -4,6 +4,10 @@
 und legt den Git-Commit mit den Trailern ``Freigegeben-von``, ``Vorschlag`` und ``Modell`` an, alles in einer
 DB-Transaktion: scheitert Git, wird die DB zurückgerollt. Ein Dateilock im Git-Verzeichnis serialisiert
 parallele Freigaben auf dasselbe Repo. ``ablehnen`` arbeitet analog ohne Commit.
+
+Die Freigabe ist an den Inhalt gebunden: bei ``objekt_typ = datei`` committet ``git commit --only`` genau
+diese Datei (fremd Gestagtes bleibt draußen), und ``pruefe_freigegeben`` vergleicht den Blob im
+Freigabe-Commit mit der Datei auf der Platte. Eine danach geänderte Datei gilt als nicht freigegeben.
 """
 
 from __future__ import annotations
@@ -26,13 +30,23 @@ if TYPE_CHECKING:
 
 ObjektTyp = Literal["datei", "regel", "lieferung", "antwort"]
 OBJEKT_TYPEN: tuple[str, ...] = ("datei", "regel", "lieferung", "antwort")
+#: Vorschlagstypen der Agenten (UC3 #15) und ihr Objekt der Freigabe.
+VORSCHLAG_ZU_OBJEKT: dict[str, str] = {
+    "regel_neu": "regel",
+    "regel_aendern": "regel",
+    "code_datei": "datei",
+}
 LOCK_NAME = "kic-freigabe.lock"
 
-# Wortbestandteile, die auf eine Rolle statt auf einen Menschen deuten („Teamleitung“, „Administrator“).
-_SPERR_TEILE = ("team", "admin", "agent")
+# Wortbestandteile, die auf eine Rolle oder einen Platzhalter statt auf einen Menschen deuten
+# („Teamleitung“, „Administrator“, „Mustermann“).
+_SPERR_TEILE = ("team", "admin", "agent", "muster")
 # Ganze Wörter, die kein Personenname sind.
-_SPERR_WOERTER = frozenset({"ki", "ai", "bot", "system", "user", "claude", "codex", "gpt", "llm", "modell"})
-_WORT = re.compile(r"^[^\W\d_]+(?:[-'.][^\W\d_]+)*\.?$")
+_SPERR_WOERTER = frozenset(
+    {"ki", "ai", "bot", "system", "user", "claude", "codex", "gpt", "llm", "modell", "vorname", "nachname"}
+)
+_WORT = re.compile(r"^[^\W\d_]+(?:[-'’.][^\W\d_]+)*\.?$")
+_INITIALE = re.compile(r"^[^\W\d_]\.$")
 
 
 class NameUngueltig(ValueError):
@@ -64,10 +78,12 @@ class Freigabe(BaseModel):
 
 
 def pruefe_name(name: str) -> str:
-    """Gibt den Namen zurück oder wirft ``NameUngueltig``: mindestens zwei Wörter aus Buchstaben,
-    keine Steuerzeichen, kein ``:``, keine Rollenbezeichnung."""
+    """Gibt den Namen (NFC) zurück oder wirft ``NameUngueltig``: mindestens zwei Wörter aus Buchstaben,
+    keine Steuerzeichen, kein ``:``, keine Rollen- oder Platzhalterbezeichnung. Erlaubt sind Bindestrich und
+    Apostroph (' und ’) im Wort sowie eine Initiale mit Punkt („J. Huber“)."""
     if not isinstance(name, str) or any(unicodedata.category(z).startswith("C") for z in name):
         raise NameUngueltig("Name enthält Steuerzeichen oder Zeilenumbrüche")
+    name = unicodedata.normalize("NFC", name)
     if ":" in name:
         raise NameUngueltig("Name darf keinen Doppelpunkt enthalten")
     woerter = name.split()
@@ -75,17 +91,20 @@ def pruefe_name(name: str) -> str:
         raise NameUngueltig("Vor- und Nachname nötig (mindestens zwei Wörter)")
     for wort in woerter:
         klein = wort.casefold()
-        if not _WORT.match(wort) or sum(z.isalpha() for z in wort) < 2:
+        initiale = bool(_INITIALE.match(wort))
+        if not initiale and (not _WORT.match(wort) or sum(z.isalpha() for z in wort) < 2):
             raise NameUngueltig(f"kein Namensbestandteil: {wort!r}")
         if klein.strip(".") in _SPERR_WOERTER or any(teil in klein for teil in _SPERR_TEILE):
             raise NameUngueltig(f"Rollenbezeichnung statt Name: {wort!r}")
     if len({w.casefold() for w in woerter}) < len(woerter):
         raise NameUngueltig("Wörter wiederholen sich")
+    if all(_INITIALE.match(w) for w in woerter):
+        raise NameUngueltig("nur Initialen, kein Name")
     return " ".join(woerter)
 
 
 def _git(repo_pfad: Path | str, *argumente: str) -> str:
-    umgebung = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+    umgebung = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "LC_ALL": "C"}
     try:
         lauf = subprocess.run(
             ["git", "-C", str(repo_pfad), *argumente],
@@ -133,7 +152,35 @@ def _objekt_typ(angegeben: str | None, vorschlag_typ: str | None) -> str | None:
         if angegeben not in OBJEKT_TYPEN:
             raise ValueError(f"objekt_typ muss einer von {OBJEKT_TYPEN} sein")
         return angegeben
-    return vorschlag_typ if vorschlag_typ in OBJEKT_TYPEN else None
+    if vorschlag_typ in OBJEKT_TYPEN:
+        return vorschlag_typ
+    return VORSCHLAG_ZU_OBJEKT.get(vorschlag_typ or "")
+
+
+def _einzeilig(wert: str | None) -> str:
+    return " ".join((wert or "keins").split()) or "keins"
+
+
+def _vorhandener_commit(repo_pfad: Path | str, vorschlag_id: int) -> str | None:
+    """Commit, der schon den Trailer ``Vorschlag: <id>`` trägt (Wiederholung nach DB-Fehler), sonst None."""
+    try:
+        _git(repo_pfad, "rev-parse", "--verify", "-q", "HEAD")
+    except GitFehler:
+        return None  # noch kein Commit im Repo
+    ausgabe = _git(repo_pfad, "log", "--format=%H %(trailers:key=Vorschlag,valueonly,separator=%x2C)")
+    for zeile in ausgabe.splitlines():
+        hash_, _, werte = zeile.partition(" ")
+        if str(vorschlag_id) in {w.strip() for w in werte.split(",")}:
+            return hash_
+    return None
+
+
+def _pruefe_autocommit(conn: psycopg.Connection) -> None:
+    if not conn.autocommit:
+        raise ValueError(
+            "Verbindung braucht autocommit=True, sonst wäre die Freigabe nur ein Savepoint einer fremden"
+            " Transaktion"
+        )
 
 
 def _freigabe_schreiben(
@@ -180,29 +227,44 @@ def freigeben(
     ``objekt_typ``/``objekt_ref`` fehlen: aus ``vorschlag_typ`` und ``ref`` des Vorschlags übernommen.
     """
     name = pruefe_name(name)
+    _pruefe_autocommit(conn)
     with _repo_lock(repo_pfad), conn.transaction():
         anweisung, modell, provider, vorschlag_typ, ref = _offener_vorschlag(conn, vorschlag_id)
         typ = _objekt_typ(objekt_typ, vorschlag_typ)
         if typ is None:
             raise ValueError("objekt_typ fehlt und vorschlag_typ ist keiner von " + ", ".join(OBJEKT_TYPEN))
-        freigabe = _freigabe_schreiben(
-            conn, vorschlag_id, name, "ja", None, typ, objekt_ref if objekt_ref is not None else ref
-        )
-        betreff = " ".join(anweisung.split())
-        _git(
-            repo_pfad,
-            "commit",
-            "--allow-empty",
-            "-m",
-            betreff,
-            "--trailer",
-            f"Freigegeben-von: {name}",
-            "--trailer",
-            f"Vorschlag: {vorschlag_id}",
-            "--trailer",
-            f"Modell: {modell or 'keins'}@{provider or 'keins'}",
-        )
-        commit_hash = _git(repo_pfad, "rev-parse", "HEAD")
+        ziel_ref = objekt_ref if objekt_ref is not None else ref
+        if typ == "datei" and not ziel_ref:
+            raise ValueError("objekt_typ datei braucht objekt_ref (Pfad relativ zum Repo)")
+        freigabe = _freigabe_schreiben(conn, vorschlag_id, name, "ja", None, typ, ziel_ref)
+        commit_hash = _vorhandener_commit(repo_pfad, vorschlag_id)
+        if commit_hash is None:
+            betreff = " ".join(anweisung.split())
+            trailer = [
+                "--trailer",
+                f"Freigegeben-von: {name}",
+                "--trailer",
+                f"Vorschlag: {vorschlag_id}",
+                "--trailer",
+                f"Modell: {_einzeilig(modell)}@{_einzeilig(provider)}",
+            ]
+            if typ == "datei":
+                # Genau diese Datei, nichts fremd Gestagtes; unverändert ergibt einen leeren Commit.
+                _git(repo_pfad, "add", "--", str(ziel_ref))
+                _git(
+                    repo_pfad,
+                    "commit",
+                    "--only",
+                    "--allow-empty",
+                    "-m",
+                    betreff,
+                    *trailer,
+                    "--",
+                    str(ziel_ref),
+                )
+            else:
+                _git(repo_pfad, "commit", "--only", "--allow-empty", "-m", betreff, *trailer)
+            commit_hash = _git(repo_pfad, "rev-parse", "HEAD")
         conn.execute("UPDATE meta.protokoll SET commit_hash = %s WHERE id = %s", (commit_hash, vorschlag_id))
     return freigabe.model_copy(update={"commit_hash": commit_hash})
 
@@ -217,6 +279,7 @@ def ablehnen(
 ) -> Freigabe:
     """Lehnt einen offenen Vorschlag mit Begründung ab (ohne Commit)."""
     name = pruefe_name(name)
+    _pruefe_autocommit(conn)
     if not begruendung or not begruendung.strip():
         raise ValueError("Ablehnung braucht eine Begründung")
     with conn.transaction():
@@ -232,21 +295,31 @@ def ablehnen(
         )
 
 
-def pruefe_freigegeben(conn: psycopg.Connection, datei: Path | str) -> int:
-    """Gibt die Vorschlags-ID zurück, wenn der jüngste Vorschlag mit ``ref = datei`` freigegeben ist.
+def pruefe_freigegeben(conn: psycopg.Connection, datei: Path | str, repo_pfad: Path | str = ".") -> int:
+    """Gibt die Vorschlags-ID zurück, wenn der jüngste Vorschlag mit ``ref = datei`` freigegeben ist und die
+    Datei noch genau den freigegebenen Inhalt hat.
 
     Sonst ``NichtFreigegeben``. Aufruf zu Beginn jedes Agenten-Skripts unter ``erzeugt/`` (Regel R6d);
-    ``datei`` wird so verglichen, wie sie im Vorschlag als ``ref`` steht (POSIX-Pfad).
+    ``datei`` ist der Pfad relativ zu ``repo_pfad`` (POSIX), so wie er im Vorschlag als ``ref`` steht.
     """
     ref = Path(datei).as_posix()
     zeile = conn.execute(
-        "SELECT p.id, p.status, EXISTS (SELECT 1 FROM meta.freigabe f"
-        "   WHERE f.protokoll_id = p.id AND f.entscheidung = 'ja')"
+        "SELECT p.id, p.status, p.commit_hash, (SELECT f.objekt_typ FROM meta.freigabe f"
+        "   WHERE f.protokoll_id = p.id AND f.entscheidung = 'ja' ORDER BY f.id DESC LIMIT 1)"
         " FROM meta.protokoll p WHERE p.ref = %s ORDER BY p.id DESC LIMIT 1",
         (ref,),
     ).fetchone()
     if zeile is None:
         raise NichtFreigegeben(f"kein Vorschlag zu {ref}")
-    if zeile[1] != "freigegeben" or not zeile[2]:
-        raise NichtFreigegeben(f"Vorschlag {zeile[0]} zu {ref} ist {zeile[1]}")
-    return int(zeile[0])
+    vorschlag_id, status, commit_hash, objekt_typ = zeile
+    if status != "freigegeben" or objekt_typ is None:
+        raise NichtFreigegeben(f"Vorschlag {vorschlag_id} zu {ref} ist {status}")
+    if objekt_typ == "datei":
+        try:
+            auf_platte = _git(repo_pfad, "hash-object", "--", ref)
+            freigegeben = _git(repo_pfad, "rev-parse", f"{commit_hash}:{ref}")
+        except GitFehler as fehler:
+            raise NichtFreigegeben(f"Vorschlag {vorschlag_id}: Inhalt von {ref} nicht prüfbar") from fehler
+        if auf_platte != freigegeben:
+            raise NichtFreigegeben(f"{ref} wurde nach der Freigabe (Vorschlag {vorschlag_id}) geändert")
+    return int(vorschlag_id)

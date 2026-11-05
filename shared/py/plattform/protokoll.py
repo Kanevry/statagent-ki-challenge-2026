@@ -140,7 +140,7 @@ _EINTRAG_SPALTEN = ", ".join(Eintrag.model_fields)
 
 
 def lies(
-    conn: psycopg.Connection, status: Status | None = None, uc: str | None = None, limit: int = 200
+    conn: psycopg.Connection, status: Status | None = None, limit: int = 200, *, uc: str | None = None
 ) -> list[Eintrag]:
     """Einträge, neueste zuerst, optional gefiltert nach ``status`` und ``uc``."""
     zeilen = conn.execute(
@@ -192,6 +192,7 @@ def freigabe_commits(repo: Path | str) -> list[dict[str, str]]:
         capture_output=True,
         text=True,
         timeout=60,
+        env={**os.environ, "LC_ALL": "C"},
     )
     if lauf.returncode != 0:
         if "does not have any commits" in lauf.stderr:
@@ -218,11 +219,23 @@ def freigabe_commits(repo: Path | str) -> list[dict[str, str]]:
 
 
 def export_md(conn: psycopg.Connection, repo: Path | str, uc: str | None = None) -> str:
-    """``protokoll.md``: je Freigabe-Commit eine Tabellenzeile, je ``meta.protokoll``-Eintrag eine Zeile."""
-    commits = freigabe_commits(repo)
+    """``protokoll.md``: je Freigabe-Commit, je Ablehnung und je ``meta.protokoll``-Eintrag eine Zeile.
+
+    Mit ``uc`` zählen nur Commits, deren Trailer ``Vorschlag`` auf einen Eintrag dieses UC zeigt.
+    """
     eintraege = conn.execute(
         "SELECT id, zeit, uc, akteur, name, anweisung, wirkung, status, modell, provider, ref, commit_hash"
         " FROM meta.protokoll WHERE (%(uc)s::text IS NULL OR uc = %(uc)s) ORDER BY id",
+        {"uc": uc},
+    ).fetchall()
+    commits = freigabe_commits(repo)
+    if uc is not None:
+        eigene = {str(e[0]) for e in eintraege}
+        commits = [c for c in commits if {v.strip() for v in c["vorschlag"].split(",")} & eigene]
+    ablehnungen = conn.execute(
+        "SELECT f.protokoll_id, f.zeitpunkt, p.anweisung, f.name, f.begruendung FROM meta.freigabe f"
+        " JOIN meta.protokoll p ON p.id = f.protokoll_id"
+        " WHERE f.entscheidung = 'nein' AND (%(uc)s::text IS NULL OR p.uc = %(uc)s) ORDER BY f.id",
         {"uc": uc},
     ).fetchall()
     zeilen = [
@@ -239,6 +252,18 @@ def export_md(conn: psycopg.Connection, repo: Path | str, uc: str | None = None)
         zeilen.append(
             f"| `{c['hash'][:12]}` | {_zelle(c['zeit'])} | {_zelle(c['betreff'])} | {_zelle(c['name'])}"
             f" | {_zelle(c['vorschlag'])} | {_zelle(c['modell'])} |"
+        )
+    zeilen += [
+        "",
+        f"## Ablehnungen ({len(ablehnungen)})",
+        "",
+        "| Vorschlag | Zeit | Anweisung | Abgelehnt von | Begründung |",
+        "|---|---|---|---|---|",
+    ]
+    for protokoll_id, zeitpunkt, anweisung, name, begruendung in ablehnungen:
+        zeilen.append(
+            f"| {protokoll_id} | {zeitpunkt.isoformat(timespec='seconds')} | {_zelle(anweisung)}"
+            f" | {_zelle(name)} | {_zelle(begruendung)} |"
         )
     zeilen += [
         "",

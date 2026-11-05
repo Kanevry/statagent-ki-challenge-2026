@@ -79,6 +79,8 @@ def test_sperrname_abgelehnt_ohne_commit(conn, repo, name):
 
 def test_freigeben_schreibt_db_und_commit(conn, repo):
     ref = f"erzeugt/{uuid.uuid4()}.py"
+    (repo / "erzeugt").mkdir()
+    (repo / ref).write_text("print('lauf')\n", encoding="utf-8")
     vorschlag_id = _vorschlag(conn, anweisung="X", ref=ref)
     offen_id = _vorschlag(conn)
     offen_ref = conn.execute("SELECT ref FROM meta.protokoll WHERE id = %s", (offen_id,)).fetchone()[0]
@@ -105,9 +107,57 @@ def test_freigeben_schreibt_db_und_commit(conn, repo):
         f"Vorschlag: {vorschlag_id}",
         "Modell: gpt-5-mini@azure",
     ]
-    assert pruefe_freigegeben(conn, ref) == vorschlag_id
+    assert _git(repo, "show", "--name-only", "--format=", "HEAD").splitlines() == [ref]
+    assert pruefe_freigegeben(conn, ref, repo) == vorschlag_id
     with pytest.raises(NichtFreigegeben):
-        pruefe_freigegeben(conn, offen_ref)
+        pruefe_freigegeben(conn, offen_ref, repo)
+
+
+def test_geaenderte_datei_gilt_als_nicht_freigegeben(conn, repo):
+    """Fängt: Freigabe gilt weiter, obwohl ein Agent die Datei danach umgeschrieben hat (R6d)."""
+    ref = f"erzeugt/{uuid.uuid4()}.py"
+    (repo / "erzeugt").mkdir()
+    (repo / ref).write_text("print('freigegeben')\n", encoding="utf-8")
+    vorschlag_id = _vorschlag(conn, ref=ref)
+    freigeben(conn, vorschlag_id, "Bernhard Götzendorfer", repo, objekt_typ="datei")
+
+    (repo / ref).write_text("print('nachher geändert')\n", encoding="utf-8")
+
+    with pytest.raises(NichtFreigegeben, match="geändert"):
+        pruefe_freigegeben(conn, ref, repo)
+
+
+def test_fremd_gestagtes_bleibt_draussen(conn, repo):
+    """Fängt: eine gestagte, nicht freigegebene Datei rutscht in den Freigabe-Commit (Regel 7/8)."""
+    (repo / "fremd.txt").write_text("nicht freigegeben\n", encoding="utf-8")
+    _git(repo, "add", "fremd.txt")
+    vorschlag_id = _vorschlag(conn)
+
+    freigeben(conn, vorschlag_id, "Bernhard Götzendorfer", repo)
+
+    assert _git(repo, "show", "--name-only", "--format=", "HEAD") == ""
+    assert _git(repo, "diff", "--cached", "--name-only") == "fremd.txt"
+
+
+def test_wiederholung_legt_keinen_zweiten_commit_an(conn, repo):
+    """Fängt: zweiter Commit für denselben Vorschlag nach abgebrochener DB-Transaktion."""
+    vorschlag_id = _vorschlag(conn)
+    _git(repo, "commit", "--allow-empty", "-q", "-m", "früher", "--trailer", f"Vorschlag: {vorschlag_id}")
+    vorher = _git(repo, "rev-parse", "HEAD")
+
+    freigabe = freigeben(conn, vorschlag_id, "Bernhard Götzendorfer", repo)
+
+    assert _commits(repo) == 1
+    assert freigabe.commit_hash == vorher
+
+
+def test_verbindung_ohne_autocommit_wird_abgelehnt(repo):
+    """Fängt: Freigabe läuft als Savepoint einer fremden Transaktion und wird nie festgeschrieben."""
+    url = os.environ.get("PLATTFORM_TEST_DATABASE_URL")
+    if not url:
+        pytest.skip("PLATTFORM_TEST_DATABASE_URL nicht gesetzt: DB-Test braucht eine leere Wegwerf-DB")
+    with psycopg.connect(url) as ohne, pytest.raises(ValueError, match="autocommit"):
+        freigeben(ohne, 1, "Bernhard Götzendorfer", repo)
 
 
 def test_parallele_freigaben_ohne_index_lock(conn, repo):
@@ -120,7 +170,7 @@ def test_parallele_freigaben_ohne_index_lock(conn, repo):
         try:
             with psycopg.connect(url, autocommit=True) as eigene:
                 start.wait()
-                freigeben(eigene, vorschlag_id, "Erika Musterfrau", repo)
+                freigeben(eigene, vorschlag_id, "Anna Huber", repo)
         except BaseException as f:  # noqa: B036 - Fehler im Thread an den Test weiterreichen
             fehler.append(f)
 
@@ -147,7 +197,7 @@ def test_git_fehler_rollt_db_zurueck(conn, repo, tmp_path, fall):
         hook.chmod(0o755)
 
     with pytest.raises(GitFehler):
-        freigeben(conn, vorschlag_id, "Erika Musterfrau", ziel)
+        freigeben(conn, vorschlag_id, "Anna Huber", ziel)
 
     assert _status(conn, vorschlag_id) == "offen"
     anzahl = conn.execute("SELECT count(*) FROM meta.freigabe WHERE protokoll_id = %s", (vorschlag_id,))
