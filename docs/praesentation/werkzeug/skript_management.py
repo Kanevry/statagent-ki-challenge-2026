@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Schreibt docs/praesentation/skript-management.md aus den Sprechernotizen der Management-Folien.
 
-Die Notizen in web/content/slides-management/ sind die einzige Quelle, damit Folie und Skript nicht auseinanderlaufen.
+Die Notizen in web/content/slides-management/ sind die einzige Quelle,
+damit Folie und Skript nicht auseinanderlaufen.
 Aufruf aus der Repo-Wurzel: python3 docs/praesentation/werkzeug/skript_management.py [--check]
 --check schreibt nichts und endet mit Exit 1, wenn die Datei nicht zum Stand der Folien passt.
 """
@@ -48,9 +49,12 @@ def baue() -> str:
     zeilen = [
         "# Sprech-Skript Management: 10 Minuten",
         "",
-        "Erzeugt aus den Sprechernotizen in `web/content/slides-management/` mit `docs/praesentation/werkzeug/skript_management.py`. Änderungen gehören in die Folien, nicht hierher. Folien: `/praesentation/management`, Antworten für die 5 Minuten danach: `management-faq.md`.",
+        "Erzeugt aus den Sprechernotizen in `web/content/slides-management/` mit "
+        "`docs/praesentation/werkzeug/skript_management.py`. Änderungen gehören in die Folien, nicht hierher. "
+        "Folien: `/praesentation/management`, Antworten für die 5 Minuten danach: `management-faq.md`.",
         "",
-        "Das Zeichen „→“ steht vor dem Satz, der mit dem Klick kommt. Kennungen wie F11 stehen im Belegregister und werden nicht mitgesprochen.",
+        "Das Zeichen „→“ steht vor dem Satz, der mit dem Klick kommt. "
+        "Kennungen wie F11 stehen im Belegregister und werden nicht mitgesprochen.",
         "",
     ]
     for nr, f in enumerate(alle, 1):
