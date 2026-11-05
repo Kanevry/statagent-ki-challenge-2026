@@ -105,7 +105,7 @@ test("Modellfehler: Runden bleiben, Erneut startet einen neuen Lauf", async ({ p
   const band = page.getByRole("alert").filter({ hasText: "Runde 3 ist abgebrochen" });
   await expect(band).toContainText("Testbetrieb, aufgezeichneter Abbruch");
   await expect(band).toContainText("Die Runden 1 und 2 sind fertig und bleiben stehen.");
-  await expect(band.locator('[data-teil="grund"]')).toHaveText("Technischer Grund: SimulierterAbbruch");
+  await expect(band.locator('[data-teil="grund"]')).toHaveText("Grund: aufgezeichneter Abbruch zur Vorführung");
   // Ein Abbruch ohne Modell erfindet keinen Anbieter-Ausfall.
   await expect(page.locator("main")).not.toContainText(/Modell azure|mock-fixture|mock · /);
   await expect(page.locator("[data-akteur]")).toHaveCount(6);

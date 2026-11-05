@@ -71,7 +71,7 @@ export function FehlerKarte({
           Ein neuer Versuch beginnt wieder bei Runde 1. Die Runden hier bleiben zum Nachlesen stehen.
         </Fliesstext>
         {f?.grund && (
-          <p className="font-mono text-12 text-slate" data-teil="grund">{`Technischer Grund: ${f.grund}`}</p>
+          <p className="font-sans text-12 text-slate" data-teil="grund">{`Grund: ${grundKlartext(f.grund)}`}</p>
         )}
       </div>
       <div className="flex flex-wrap items-start gap-3">
@@ -90,4 +90,14 @@ export function FehlerKarte({
       {meldung && <Status art="fehler">{meldung}</Status>}
     </div>
   );
+}
+
+/** Fehlertyp aus dem Ereignis `abbruch` in Klartext; der rohe Klassenname bleibt im Server-Protokoll. */
+function grundKlartext(grund: string): string {
+  const g = grund.toLowerCase();
+  if (g.includes("timeout") || g.includes("zeit")) return "Zeitüberschreitung";
+  if (g.includes("simuliert")) return "aufgezeichneter Abbruch zur Vorführung";
+  if (g.includes("budget")) return "Tageskontingent aufgebraucht";
+  if (g.includes("verbindung") || g.includes("connection")) return "Verbindung unterbrochen";
+  return "technischer Fehler";
 }

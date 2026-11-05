@@ -173,7 +173,7 @@ describe("Modellfehler (U2-1a)", () => {
     expect(screen.getByRole("alert").querySelector('[data-teil="fehlertext"]')?.textContent).toContain(
       "Das Modell azure hat nicht rechtzeitig geantwortet. Zeitüberschreitung nach 30 Sekunden.",
     );
-    expect(screen.getByRole("alert").querySelector('[data-teil="grund"]')?.textContent).toBe("Technischer Grund: TimeoutError");
+    expect(screen.getByRole("alert").querySelector('[data-teil="grund"]')?.textContent).toBe("Grund: Zeitüberschreitung");
     expect(screen.getByRole("alert").querySelector('[data-teil="fehlertext"]')?.textContent).not.toContain("TimeoutError");
     // Runde 1 und 2 bleiben: sechs Personas mit Haltung, Moderator-Notiz nach Runde 2.
     expect(document.querySelectorAll("[data-akteur]")).toHaveLength(6);
@@ -183,7 +183,7 @@ describe("Modellfehler (U2-1a)", () => {
     expect((screen.getByTestId("uc2-modell-claude") as HTMLButtonElement).disabled).toBe(false);
     const ollama = screen.getByTestId("uc2-modell-ollama") as HTMLButtonElement;
     expect(ollama.disabled).toBe(true);
-    expect(ollama.textContent).toContain("ollama · lokal · Fallback");
+    expect(ollama.textContent).toContain("ollama · lokal · Ersatz");
     expect(document.querySelector('[data-modell="ollama"]')?.textContent).toContain("nicht eingerichtet");
     expect(screen.queryByText("Am Ende gilt")).toBeNull();
   });

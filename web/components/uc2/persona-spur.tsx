@@ -1,6 +1,6 @@
 import { akteurName, haltungWort, haltungZahl, themaKurz } from "./namen";
 import { BelegChip } from "./beleg-chip";
-import { belegeAllerZuege, hatSichBewegt, letzteAenderung, verlaufVon, zuegeVon, type FallZustand } from "./zustand";
+import { belegeAllerZuege, hatSichBewegt, letzteAenderung, verlaufVon, zuegeVon, type FallZustand, belegeDesZugs } from "./zustand";
 import { klassen } from "./klassen";
 
 // Eine Spur je Persona (Pen f1ct2, Karte links): Name, Marke (spricht gerade, bewegt, fest), je Thema die Haltung als
@@ -60,7 +60,9 @@ export function PersonaSpur({ zustand, akteur }: { zustand: FallZustand; akteur:
   const alleBelege = belegeAllerZuege(zustand, akteur);
   const letzteRunde = zug?.runde ?? 0;
   // Belege des jüngsten Beitrags stehen offen in der Liste, die der früheren Runden zugeklappt darunter, nicht verloren.
-  const belege = alleBelege.filter((b) => b.runden.includes(letzteRunde));
+  // „Stützt“ zeigt beim aktuellen Beitrag nur die Themen des jüngsten Zugs; was ein Beleg früher stützte, steht in der
+  // Historie darunter (Review 69).
+  const belege = belegeDesZugs(zustand, akteur);
   const frueher = alleBelege.filter((b) => !b.runden.includes(letzteRunde));
   const eintrag = zustand.auswahl.find((a) => a.akteur === akteur);
   const spricht = marke === "spricht";

@@ -42,7 +42,7 @@ export function modellWahl(): ModellWahl[] {
     { id: "claude", label: "claude", verfuegbar: true },
     {
       id: "ollama",
-      label: "ollama · lokal · Fallback",
+      label: "ollama · lokal · Ersatz",
       verfuegbar: ollama,
       meldung: ollama ? undefined : "Das lokale Modell ist hier nicht eingerichtet.",
     },
