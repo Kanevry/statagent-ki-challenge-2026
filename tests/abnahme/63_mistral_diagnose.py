@@ -13,12 +13,15 @@ import json
 import os
 
 import httpx
-
 from plattform.umgebung import lade_env_local
 
 
 def _limits(antwort: httpx.Response) -> dict[str, str]:
-    return {k: v for k, v in antwort.headers.items() if k.lower().startswith(("x-ratelimit", "ratelimit", "retry-after"))}
+    return {
+        k: v
+        for k, v in antwort.headers.items()
+        if k.lower().startswith(("x-ratelimit", "ratelimit", "retry-after"))
+    }
 
 
 def _fehlertyp(antwort: httpx.Response) -> str | None:
@@ -49,7 +52,11 @@ def main() -> int:
         chat = client.post(
             f"{basis}/chat/completions",
             headers=kopf,
-            json={"model": "mistral-small-latest", "messages": [{"role": "user", "content": "1"}], "max_tokens": 1},
+            json={
+                "model": "mistral-small-latest",
+                "messages": [{"role": "user", "content": "1"}],
+                "max_tokens": 1,
+            },
         )
         ergebnis["chat_status"] = chat.status_code
         ergebnis["chat_limits"] = _limits(chat)

@@ -32,8 +32,9 @@ FRAGEN = [
     "Wie viele Beschäftigte gab es im Juli 2027?",
 ]
 
-#: Eigene Abfrage: Die Tabelle hat keine Summenzeilen, nur die volle Kreuzgliederung. Österreich ist die Summe aller
-#: Zellen des Monats (Stichtag, Regelsatz v1), je Bundesland die Summe je Code aus ``stat.klass_region``.
+#: Eigene Abfrage: Die Tabelle hat keine Summenzeilen, nur die volle Kreuzgliederung.
+#: Österreich ist die Summe aller Zellen des Monats (Stichtag, Regelsatz v1),
+#: je Bundesland die Summe je Code aus ``stat.klass_region``.
 EIGENE = """
 select r.bezeichnung, sum(s.wert)
 from stat.stat_beschaeftigte s
@@ -108,8 +109,17 @@ def main() -> int:
     zeilen = protokoll.with_name("router.jsonl")
     router_text = zeilen.read_text(encoding="utf-8") if zeilen.exists() else ""
     frei_von_text = not any(f in router_text for f in FRAGEN)
-    print(json.dumps({"ergebnisse": ergebnisse, "router_zeilen": router_text.count("\n"),
-                      "router_ohne_fragetext": frei_von_text}, ensure_ascii=False, default=str))
+    print(
+        json.dumps(
+            {
+                "ergebnisse": ergebnisse,
+                "router_zeilen": router_text.count("\n"),
+                "router_ohne_fragetext": frei_von_text,
+            },
+            ensure_ascii=False,
+            default=str,
+        )
+    )
     return 0
 
 
