@@ -38,7 +38,7 @@ from uc2.verhandlung.pruefungen import (
     sperre_zitate,
     validiere_zug,
 )
-from uc2.verhandlung.schutz import Namensschutz, lade_schutz
+from uc2.verhandlung.schutz import Namensschutz, lade_schutz, pruefe_liste
 from uc2.verhandlung.speicher import Fallschreiber, Herzschlag, ddl_anwenden, neuer_fall
 
 MIN_TEILNEHMER = 2
@@ -253,7 +253,9 @@ class Verhandlung:
         self.optionen = optionen
         # Einmal je Lauf; fail-closed bei echtem Provider ohne Namensliste (`SchutzFehler`, vor der Anlage).
         self.schutz = (
-            lade_schutz(optionen.provider) if optionen.namen is None else Namensschutz(optionen.namen)
+            lade_schutz(optionen.provider)
+            if optionen.namen is None
+            else Namensschutz(pruefe_liste(optionen.namen, optionen.provider))
         )
         # Die Frage steht in `uc2.fall`, im Ereignis `start`, im Bericht und in jedem Prompt.
         self.fall = replace(fall, frage=self.schutz.text(fall.frage))

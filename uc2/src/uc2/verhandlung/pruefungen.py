@@ -198,11 +198,8 @@ def zitate(zug: dict[str, Any], belege: Sequence[Beleg], n: int = ZITAT_WOERTER)
             for kette in _ketten(_woerter(feld), n):
                 treffer = next((bid for bid, menge in quellen if kette in menge), None)
                 if treffer is not None:
-                    befunde.append(
-                        Befund(
-                            "zitat", {"thema": t["thema"], "beleg_id": treffer, "woerter": " ".join(kette)}
-                        )
-                    )
+                    # Ohne die übernommenen Wörter (#137): das Ereignis geht über SSE und Bericht nach außen.
+                    befunde.append(Befund("zitat", {"thema": t["thema"], "beleg_id": treffer, "wortzahl": n}))
                     break
     return befunde
 

@@ -477,15 +477,18 @@ class Namensliste:
         return len(self.eintraege)
 
     @classmethod
-    def lade(cls, pfad: Path | None = None, *, erlaube_ohne_liste: bool = False) -> Namensliste:
+    def lade(
+        cls, pfad: Path | None = None, *, erlaube_ohne_liste: bool = False, env_ohne_liste: bool = True
+    ) -> Namensliste:
         """Aus `pfad` oder Env `UC2_NAMENSLISTE`, fail-closed.
 
         Fehlt die Angabe oder die Datei, oder hat sie keinen Eintrag, folgt `NamenslisteFehlt`. Nur mit
         `erlaube_ohne_liste=True` oder Env `UC2_NAMEN_OHNE_LISTE=1` (beides nur in Tests) kommt dann eine
-        leere Liste (nur Muster, Hinweis auf stderr). Eine Datei innerhalb eines Git-Checkouts wird
-        abgelehnt (`NamenslisteImRepo`).
+        leere Liste (nur Muster, Hinweis auf stderr). `env_ohne_liste=False` lässt das Env nicht gelten
+        (Verhandlung mit echtem Provider, #137). Eine Datei innerhalb eines Git-Checkouts wird abgelehnt
+        (`NamenslisteImRepo`).
         """
-        ohne = erlaube_ohne_liste or os.environ.get(OHNE_LISTE_ENV) == "1"
+        ohne = erlaube_ohne_liste or (env_ohne_liste and os.environ.get(OHNE_LISTE_ENV) == "1")
         if pfad is None:
             env = os.environ.get(NAMENSLISTE_ENV)
             if not env:
@@ -1014,27 +1017,45 @@ def fachwortschatz() -> frozenset[str]:
     return frozenset(worte)
 
 
-def _nach_artikel(text: str, wort: str) -> bool:
-    """`wort` steht irgendwo im Text nach einem Artikel oder flektierten Adjektiv („die Wartezeit“)."""
-    for m in re.finditer(r"(?<![\w-])" + re.escape(wort) + r"(?![\w-])", text):
-        davor = _wort_davor(text, m.start())
+_DETERMINATIV_TEXT = """
+    der die das den dem des ein eine einen einem einer eines kein keine keinen keinem keiner keines
+    unser unsere unseren unserem unserer unseres dieser diese dieses diesem diesen jeder jede jedes jedem
+    jeden im am zum zur vom beim ins
+    """
+_DETERMINATIV = frozenset(_DETERMINATIV_TEXT.split())
+"""Echte Artikel und Determinative, auch mit Präposition verschmolzen („zur“). Reine Präpositionen und
+Konjunktionen („für“, „nach“, „aber“) zählen nicht: Nach ihnen steht ein Name so oft wie ein Hauptwort."""
+_ADJEKTIVE_MAX = 2
+"""Höchstens so viele flektierte Adjektive zwischen Determinativ und Wort („die lange teure Wartezeit“)."""
+
+
+def _nach_determinativ(text: str, start: int) -> bool:
+    """Das Wort bei `start` steht nach einem Determinativ, direkt oder über flektierte Adjektive („die lange
+    Wartezeit“). Entschieden wird je Vorkommen, nicht für den ganzen Text."""
+    pos = start
+    for _ in range(_ADJEKTIVE_MAX + 1):
+        davor = _wort_davor(text, pos)
         if davor is None:
-            continue
-        vorher = davor[0]
+            return False
+        vorher, pos = davor
         vfalt = vorher.casefold()
-        if vfalt in _ARTIKEL_DAVOR or (
-            vorher[:1].islower() and vfalt.endswith(_ADJEKTIV_ENDUNG) and vfalt not in _ZUSCHREIBUNG_WORTE
-        ):
+        if vfalt in _DETERMINATIV:
             return True
+        adjektiv = (
+            vorher[:1].islower() and vfalt.endswith(_ADJEKTIV_ENDUNG) and vfalt not in _ZUSCHREIBUNG_WORTE
+        )
+        if not adjektiv:
+            return False
     return False
 
 
 def _einzelwort_als_name(text: str, start: int, ende: int) -> bool:
-    """Ein einzelnes Wort aus der Namensliste zählt im Modelltext nur als Name, wenn es großgeschrieben mitten
-    im Satz steht und kein gängiges Hauptwort ist: nicht im `fachwortschatz`, ohne Substantiv- oder
-    Adjektivendung, kein Stoppwort und im selben Text nie nach Artikel oder flektiertem Adjektiv."""
+    """Ein einzelnes Wort aus der Namensliste zählt an dieser Stelle als Name, wenn es großgeschrieben ist und
+    kein gängiges Hauptwort ist: nicht im `fachwortschatz`, ohne Substantiv- oder Adjektivendung, kein
+    Stoppwort und an dieser Stelle nicht nach einem Determinativ (`_nach_determinativ`). Der Satzanfang zählt
+    mit (#137, Review 5a): Dort steht ein Name genauso wie mitten im Satz."""
     stamm = _WORT.match(text[start:ende])
-    if stamm is None or not stamm.group(0)[0].isupper() or _satzanfang(text, start):
+    if stamm is None or not stamm.group(0)[0].isupper():
         return False
     kern = stamm.group(0)
     falt = kern.casefold()
@@ -1042,7 +1063,7 @@ def _einzelwort_als_name(text: str, start: int, ende: int) -> bool:
         return False
     if SUBSTANTIV_ENDUNG.search(falt) or falt.endswith(ABGELEITETE_ENDUNGEN):
         return False
-    return not _nach_artikel(text, kern)
+    return not _nach_determinativ(text, start)
 
 
 def maskiere_modelltext(
@@ -1057,10 +1078,10 @@ def maskiere_modelltext(
     - Mehrteilige Einträge der Namensliste immer.
     - Einzelwörter der Namensliste nur nach `_einzelwort_als_name`: Die Liste enthält Allgemeinwörter
       (nominalisierte Adjektive, die als Nachname gesammelt wurden), und Modelltext ist kein Pressetext.
-    - Ist ein voller Name erkannt, gilt sein Nachname im ganzen Text als bekannt (auch am Satzanfang).
+    - Ist ein Name erkannt, gilt er (bei vollen Namen auch der Nachname) im ganzen Text als bekannt.
 
-    Grenze: Ein Einzelname aus der Liste am Satzanfang oder nach einem Artikel bleibt stehen, wenn ihn kein
-    Muster und kein voller Name im selben Text belegt.
+    Grenze: Ein Einzelname aus der Liste direkt nach einem Determinativ („die …“, „unser …“) bleibt stehen,
+    wenn ihn kein Muster und keine andere Stelle im selben Text belegt.
     """
     if not text:
         return text

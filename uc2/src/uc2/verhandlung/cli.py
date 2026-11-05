@@ -5,9 +5,9 @@ Für die API (`uc2.api`, #44) gibt es zwei Schalter:
 - `--frage-stdin`: Die Frage kommt als Freitext über stdin statt aus der Fall-YAML. `pruefe_frage` fasst
   Leerraum zusammen, lehnt Steuer- und Bidi-Zeichen ab und begrenzt auf `MAX_FRAGE` Zeichen. Personendaten
   (#137): Kennungen (Ziffernfolgen ab 8 Stellen, Sozialversicherungsnummer), ein Geburtsdatum neben
-  „geboren“/„Geburtsdatum“ und E-Mail-Adressen lehnt sie mit `FRAGE_PERSONENDATEN` ab; Namen maskiert sie
-  zur Rolle (`maskiere_modelltext`, Muster; der Lauf maskiert danach noch einmal mit der Namensliste). Die
-  maskierte Frage landet in `uc2.fall`, im Ereignis `start` und im Prompt.
+  „geb.“/„geboren“/„Geburtsdatum“ und E-Mail-Adressen lehnt sie mit `FRAGE_PERSONENDATEN` ab; Namen
+  maskiert sie zur Rolle (`maskiere_modelltext`, Muster; der Lauf maskiert danach noch einmal mit der
+  Namensliste). Die maskierte Frage landet in `uc2.fall`, im Ereignis `start` und im Prompt.
 - `--melde-fall-id`: Die CLI schreibt `fall_id=<n>` als erste Zeile auf stdout, sobald der Fall in
   `uc2.fall` committet ist, und leert den Puffer sofort. Gewählt statt einer vorab vergebenen UUID
   (`--fall-ref`): `uc2.fall.fall_id` ist eine Identity-Spalte, eine UUID bräuchte eine neue Spalte samt
@@ -60,15 +60,18 @@ FRAGE_PERSONENDATEN = (
     "keine E-Mail-Adresse enthalten."
 )
 """Fester Satz bei Ablehnung; er wiederholt die Eingabe nie (API 422, CLI stderr)."""
+_ANF = "[\"'„“”»«‚‘’]?"
 KENNUNG = re.compile(
-    r"(?<!\d)(?:\d{8,}|\d{4}[ /-]?\d{6})(?!\d)"
-    r"|\b(?:PERSON|VVH)[_ -]?ID\s*[:=#]?\s*\d"
-    r"|\b(?:SV|Sozialversicherungs|Versicherungs)-?(?:Nummer|Nr\.?)\s*[:=#]?\s*\d",
+    r"(?<!\d)(?:\d{8,}|\d{4}[ /-]?\d{6}|\d{4}[ /-]?\d{2}\.\d{2}\.\d{2})(?!\d)"
+    rf"|\b(?:PERSON|VVH)[_ -]?ID\s*[:=#]?\s*{_ANF}\s*\d"
+    rf"|\b(?:SV|Sozialversicherungs|Versicherungs)-?(?:Nummer|Nr\.?)\s*[:=#]?\s*{_ANF}\s*\d",
     re.IGNORECASE,
 )
 """Kennung: Ziffernfolge ab 8 Stellen, Sozialversicherungsnummer (4 Ziffern plus Geburtsdatum TTMMJJ, auch mit
-Trenner) oder eine Ziffer direkt nach „PERSON_ID“, „VVH_ID“ oder „SV-Nummer“ (kurze IDs)."""
-DATUM = re.compile(r"(?<!\d)\d{1,2}\.\s?\d{1,2}\.\s?\d{4}(?!\d)")
+Trenner oder als TT.MM.JJ) oder eine Ziffer direkt nach „PERSON_ID“, „VVH_ID“ oder „SV-Nummer“, auch in
+Anführungszeichen (kurze IDs)."""
+DATUM = re.compile(r"(?<!\d)(?:\d{1,2}\.\s?\d{1,2}\.\s?(?:\d{4}|\d{2})|\d{4}-\d{1,2}-\d{1,2})(?!\d)")
+"""Datum TT.MM.JJJJ, TT.MM.JJ oder JJJJ-MM-TT; zählt nur zusammen mit `GEBURT`."""
 GEBURT = re.compile(r"\bgeb(?:oren|urtsdatum|urtstag|\.)", re.IGNORECASE)
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 
@@ -78,7 +81,7 @@ class FrageFehler(ValueError):
 
 
 def enthaelt_personendaten(frage: str) -> bool:
-    """Kennung, Geburtsdatum (Datum TT.MM.JJJJ zusammen mit „geboren“/„Geburtsdatum“) oder E-Mail-Adresse."""
+    """Kennung, Geburtsdatum (Datum neben „geb.“, „geboren“ oder „Geburtsdatum“) oder E-Mail-Adresse."""
     if KENNUNG.search(frage) or EMAIL.search(frage):
         return True
     return bool(DATUM.search(frage) and GEBURT.search(frage))

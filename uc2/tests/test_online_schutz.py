@@ -27,7 +27,7 @@ from uc2.verhandlung.cli import FRAGE_PERSONENDATEN, FrageFehler, pruefe_frage
 from uc2.verhandlung.fall import lade_fall
 from uc2.verhandlung.lauf import Laufoptionen, Verhandlung, Zugergebnis
 from uc2.verhandlung.pruefungen import sperre_zitate, zitate
-from uc2.verhandlung.schutz import SchutzFehler, lade_schutz
+from uc2.verhandlung.schutz import MAX_EINHEIT, Namensschutz, SchutzFehler, lade_schutz, pruefe_liste
 from uc2.verhandlung.speicher import lies_ereignisse, lies_fall
 
 TEST_DB = "healthpolicy_test"
@@ -35,12 +35,12 @@ LISTE = Namensliste(
     (
         Namenseintrag("Felix Probst"),
         Namenseintrag("Maria Beispiel"),
-        Namenseintrag("Haberl"),
+        Namenseintrag("Quastlberger"),
         Namenseintrag("Betroffene"),  # Allgemeinwort, wie es die Sammlung als Nachname aufnimmt
         Namenseintrag("Wartezeit"),
     )
 )
-NAMEN = ("Felix", "Probst", "Maria Beispiel", "Haberl")
+NAMEN = ("Felix", "Probst", "Maria Beispiel", "Quastlberger")
 ZUSATZ = " Das sagt Dr. Felix Probst, und Maria Beispiel fordert mehr Stellen."
 DEMO_FRAGEN = (
     "Wie können die Wartezeiten auf Facharzttermine innerhalb von fünf Jahren um 20 % reduziert werden, ohne "
@@ -60,7 +60,16 @@ DEMO_FRAGEN = (
             "Das sagt eine Person, und eine Person fordert mehr Stellen.",
         ),
         ("Felix Probst warnt. Probst bleibt dabei.", "Eine Person warnt. Eine Person bleibt dabei."),
-        ("Wie Haberl sagte, fehlt das Geld.", "Wie eine Person sagte, fehlt das Geld."),
+        ("Wie Quastlberger sagte, fehlt das Geld.", "Wie eine Person sagte, fehlt das Geld."),
+        # Review 5a zu !97: je Vorkommen entscheiden, Satzanfang und Präpositionen zählen mit
+        ("Quastlberger sagte nichts.", "Eine Person sagte nichts."),
+        ("Das reicht, aber Quastlberger fordert mehr.", "Das reicht, aber eine Person fordert mehr."),
+        ("Das Geld reicht nicht für Quastlberger.", "Das Geld reicht nicht für eine Person."),
+        ("Gestern bestätigte Quastlberger die Zahl.", "Gestern bestätigte eine Person die Zahl."),
+        (
+            "Die Kasse zahlt mehr für Betroffene. Wie Quastlberger sagte, fehlt Geld.",
+            "Die Kasse zahlt mehr für Betroffene. Wie eine Person sagte, fehlt Geld.",
+        ),
         (
             "Gesundheitsministerin Probst will mehr Stellen.",
             "Eine Vertreterin des Gesundheitsministeriums will mehr Stellen.",
@@ -77,7 +86,7 @@ def test_namen_im_modelltext_werden_zur_rolle(text: str, erwartet: str) -> None:
         "Für Betroffene ändert sich wenig, weil Betroffene länger warten.",
         "Die Betroffenen warten auf Termine.",
         "Der Experte rechnet mit −22,24 % Wartezeit bei 0,21 % Mehrkosten.",
-        "Haberl sagte nichts.",  # Einzelwort am Satzanfang: Grenze, siehe maskiere_modelltext
+        "Die lange Wartezeit trifft vor allem Betroffene.",  # nach Determinativ und Adjektiv
         "Das Thema stützt unser Ziel: Kassenstellen durch bessere Honorare attraktiv machen.",
         "Wahrung von: keine Kürzung der Kassenstellen. Wir gehen auf die Position von sv ein.",
         "Die Ärztekammer fordert 300 zusätzliche Stellen, die Sozialversicherung prüft die Kosten.",
@@ -93,6 +102,52 @@ def test_lauf_ohne_namensliste_mit_echtem_provider_bricht_ab(monkeypatch: pytest
     with pytest.raises(SchutzFehler, match="Namensliste"):
         lade_schutz("azure")
     assert len(lade_schutz("mock").namen) == 0  # mock: Muster reichen
+
+
+def test_test_env_und_leere_liste_gelten_nicht_fuer_echte_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("UC2_NAMEN_OHNE_LISTE", "1")
+    monkeypatch.delenv("UC2_NAMENSLISTE", raising=False)
+    with pytest.raises(SchutzFehler):
+        lade_schutz("azure")
+    with pytest.raises(SchutzFehler, match="leere Liste"):
+        pruefe_liste(Namensliste(), "claude")
+    assert pruefe_liste(Namensliste(), "mock") == Namensliste()
+
+
+def test_namensschutz_maskiert_notiz_auftrag_auswahl_und_einheit() -> None:
+    schutz = Namensschutz(LISTE)
+    notiz = schutz.notiz(
+        {
+            "notiz": "Maria Beispiel blockiert.",
+            "widersprueche": [
+                {
+                    "akteur": "Felix Probst",
+                    "thema": "stellen",
+                    "art": "zahl",
+                    "beschreibung": "Laut Quastlberger",
+                }
+            ],
+            "belege_eingefordert": [{"akteur": "sv", "thema": "Maria Beispiel", "grund": "fehlt"}],
+        }
+    )
+    auftrag = schutz.auftrag(
+        {
+            "themen": [
+                {"id": "stellen", "titel": "Stellen für Quastlberger", "beschreibung": "Felix Probst"}
+            ],
+            "kriterien": [],
+            "regeln": ["Maria Beispiel spricht zuletzt."],
+            "ziel": "Einigung mit Quastlberger",
+        }
+    )
+    auswahl = schutz.auswahl([{"akteur": "sv", "eingeladen": True, "begruendung": "Felix Probst zahlt."}])
+    zug = schutz.zug({**_zug("Gut."), "zahlen": [{"wert": 3, "einheit": "Stellen laut Quastlberger " * 5}]})
+    texte = json.dumps([notiz, auftrag, auswahl, zug], ensure_ascii=False)
+    for name in NAMEN:
+        assert name not in texte, name
+    assert notiz["widersprueche"][0]["thema"] == "stellen"  # IDs bleiben
+    assert notiz["belege_eingefordert"][0]["akteur"] == "sv"
+    assert len(zug["zahlen"][0]["einheit"]) <= MAX_EINHEIT
 
 
 # --- 2. Zitat-Sperre -------------------------------------------------------------------------------------
@@ -149,6 +204,12 @@ def test_unter_acht_woertern_bleibt_die_begruendung() -> None:
         "Wartet eine Frau, geboren am 01.02.1980, länger?",
         "Welche Wartezeit hat Geburtsdatum 3.4.1975?",
         "Bitte Antwort an maria.beispiel@example.org senden.",
+        # Review 5a zu !97: weitere Datums- und Nummernformen, Kennung in Anführungszeichen
+        "Wartet eine Frau, geb. 01.02.80, länger?",
+        "Geburtsdatum 1980-02-01: Wie lange wartet sie?",
+        "Wartet die Versicherte 1234 01.02.80 länger?",
+        'Wie lange wartet PERSON_ID: "4711"?',
+        "Wie lange wartet VVH_ID „815“?",
     ],
 )
 def test_frage_mit_kennung_geburtsdatum_oder_email_wird_abgelehnt(frage: str) -> None:
