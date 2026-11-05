@@ -17,7 +17,9 @@ _GRUNDSAETZE = (
     "Grundsätze: Du schlägst vor, ein Mensch gibt mit Vor- und Nachnamen frei, das Programm rechnet. "
     "Du nennst nie Zahlen, die nicht im Kontext stehen, und du siehst und verlangst keine Einzeldaten "
     "(keine PERSON_ID, keine VVH_ID, keine einzelnen Sätze), nur Schema, Regeln, Klassifikationen und "
-    "Aggregate. Antworte auf Deutsch und nur im verlangten JSON-Format. Ist die Anweisung mehrdeutig oder "
+    "Aggregate. Namen von Bundesländern, Kategorien und Altersangaben ordnest du selbst über Klassifikation und "
+    "bekannte Werte zu; das ist kein Grund für eine Rückfrage. "
+    "Antworte auf Deutsch und nur im verlangten JSON-Format. Ist die Anweisung mehrdeutig oder "
     "passt keine Möglichkeit, stelle eine Rückfrage statt zu raten."
 )
 
@@ -87,7 +89,8 @@ ROLLEN: dict[str, Rolle] = {
         Rolle(
             "qs",
             "Qualitätssicherung: nur Prüfregeln (Typ pruefung), also Schwellen, Einstufung und Anhalten von "
-            "Monaten; wie gezählt wird (Alter, Zeitraum, Kategorie) gehört zu datenmanagement oder klassifikation.",
+            "Monaten; wie und wer gezählt wird (Alter, Zeitraum, Kategorie, Ausschluss) gehört zu datenmanagement "
+            "oder klassifikation.",
             ("regel_aendern", "regel_neu"),
             ("pruefung",),
         ),
@@ -109,6 +112,10 @@ def koordinator_prompt() -> str:
     return (
         "Du bist der Koordinator von StatAgent. Aufgabe: Ordne die Anweisung eines Menschen genau einer Rolle "
         f"zu und formuliere den Auftrag knapp. Rollen: {rollen}. Werkzeuge: keine. "
+        "Wegweiser: wer nicht mehr gezählt wird oder was zusammen ausgewiesen wird (Kategorien, Bundesländer, "
+        "Altersgruppen ausschließen oder zusammenlegen) → klassifikation; Stichtag, Zeitraum, Alter, Geburtsmonat "
+        "13, Plausibilitätsgrenzen des Alters → datenmanagement; Schwellen, ab wann ein Monat gemeldet oder "
+        "angehalten wird → qs. Frage nur zurück, wenn die Anweisung wirklich mehrdeutig ist. "
         "Ausgabe: JSON {rolle, auftrag, rueckfrage, ruecknahme_von}. Nur wenn der Mensch ausdrücklich eine schon "
         "freigegebene Änderung zurücknehmen will (zurücknehmen, rückgängig machen, wie vorher), setze ruecknahme_von "
         "auf die Nummer dieses Vorschlags; eine neue Regel, die einer früheren widerspricht, ist keine Rücknahme, "

@@ -258,7 +258,16 @@ def zaehlen(
         )
         conn.execute(
             sql.SQL("UPDATE {} b SET ausgeschlossen = true WHERE {}").format(
-                t_bestand, ausschluss_bedingung(r_aus, qual_ausdruck)
+                t_bestand,
+                # Im UPDATE gibt es keinen Join auf klass_qualifikation; die Kategorie kommt aus einer Unterabfrage.
+                ausschluss_bedingung(
+                    r_aus,
+                    sql.SQL(
+                        "(SELECT k.beschaeftigungskategorie FROM stat.klass_qualifikation k WHERE k.code = b.qualifikation)"
+                    )
+                    if dim == "beschaeftigungskategorie"
+                    else qual_ausdruck,
+                ),
             )
         )
     conn.execute(

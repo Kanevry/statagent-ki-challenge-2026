@@ -277,3 +277,31 @@ def test_widerspruch_zu_frueherer_regel_ist_keine_ruecknahme(live_conn: Verbindu
 )
 def test_ruecknahme_nur_bei_ausdruecklichem_wort(anweisung: str, gemeint: bool) -> None:
     assert ruecknahme_gemeint(anweisung) is gemeint
+
+
+def test_ausschluss_wenn_nach_beschaeftigungskategorie_gezaehlt_wird(conn: Verbindung) -> None:
+    # Fängt: in v2 (R6 = beschaeftigungskategorie) brach der Ausschluss mit „missing FROM-clause entry for table
+    # kq“ ab (Live-Probe 05.11., Auftrag „ohne Beamte“).
+    vorschlag_schema_einrichten(conn)
+    with conn.transaction():
+        conn.execute(
+            """UPDATE meta.regel SET parameter = '{"qualifikation": "beschaeftigungskategorie"}'::jsonb
+               WHERE regelsatz = 'v1' AND name = 'R6_beschaeftigungskategorie'"""
+        )
+    lauf_ausfuehren(conn, MONAT, "v1", reihenfolge_pruefen=False)
+    antwort = _neu("ausschluss", "R8_ohne_beamte", {"merkmal": "qualifikation", "werte": ["Beamte"]})
+    erg = agent_ausfuehren(
+        conn, "Beamte nicht zählen", complete=_modell("klassifikation", antwort), probe_lieferung=MONAT
+    )
+    assert erg.vorschlag_id is not None, erg.abgelehnt
+    p = vorschlag_lesen(conn, erg.vorschlag_id).probe[MONAT]
+    assert set(p["nachher"]["je_merkmal"]["qualifikation"]) == {"Angestellte", "Arbeiter"}
+    beamte = p["vorher"]["je_merkmal"]["qualifikation"]["Beamte"]
+    assert p["nachher"]["gesamt"] == p["vorher"]["gesamt"] - beamte
+
+
+def test_nur_meldungstext_einer_pruefregel_ist_kein_vorschlag(live_conn: Verbindung) -> None:
+    # Fängt: „Monat 13 → 1. Jänner“ änderte nur den Maßnahmetext von P04; das ändert keine Zahl.
+    text = _aendern("P04_geburtsdatum_monat_13", {"massnahme": "Ersatztag 1. Jänner"})
+    erg = agent_ausfuehren(live_conn, "Monat 13 heißt 1. Jänner", complete=_modell("qs", text))
+    assert erg.vorschlag_id is None and erg.abgelehnt is not None and "keine Zahl" in erg.abgelehnt

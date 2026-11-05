@@ -198,6 +198,9 @@ def _wert_pruefen(art: str, schluessel: str, alt: object, neu: object, regel: st
 
 
 _REGEL_TEXTE = frozenset({"beschreibung", "begruendung", "grundlage", "name"})
+#: Parameter einer Prüfregel, die nur Text der Meldung sind (Live-Probe 05.11.: „Monat 13 → 1. Jänner“ änderte nur
+#: den Maßnahmetext von P04, keine Zahl).
+_PRUEFTEXTE = frozenset({"satz", "massnahme"})
 
 
 def _parameter(liste: list[Parameter]) -> dict[str, Any]:
@@ -567,6 +570,11 @@ def vorschlag_pruefen(
             neu = {**alt, **neu_teil}
             if str(r["art"]) == "bestand":
                 _bestand_pruefen(a.regel_name, neu)
+            if r["typ"] == "pruefung" and set(neu_teil) <= _PRUEFTEXTE:
+                raise VorschlagUngueltig(
+                    f"{a.regel_name}: nur der Meldungstext einer Prüfregel ändert sich; das ändert keine Zahl. "
+                    "Gemeint ist vermutlich eine Zählregel (z. B. R5_alter für Alter und Geburtsmonat 13)"
+                )
             if neu == alt:
                 raise VorschlagUngueltig(
                     f"{a.regel_name}: der Vorschlag ändert nichts (die Werte stehen schon so in der Regel; "
@@ -689,15 +697,17 @@ _WEGWEISER = {
     "Stichtag am Tag N: zeitraum_art Stichtag und von = bis = tag:N; ganzes Monat: zeitraum_art Monat, von "
     "monatserster, bis monatsletzter",
     "Bundesland, Region": "Merkmal region, Codes laut klassifikation.bundesland (z. B. 9 = Wien)",
-    "Alter, Plausibilitätsgrenze des Alters, Geburtsmonat 13, Alter am Monatsersten/-letzten": "zaehl-Regel der "
-    "Art alter (R5_alter); P04/P06/P07 sind Prüfregeln und ändern keine Zahl",
+    "Alter, Plausibilitätsgrenze des Alters, Geburtsmonat 13, Ersatztag, Alter am Monatsersten/-letzten": "zaehl-"
+    "Regel der Art alter (R5_alter, Ersatztag als geburtsmonat_13 = ersatz:MM-TT); E03 erkennt nur das Muster des "
+    "Datums, P04/P06/P07 sind Prüfregeln und ändern keine Zahl",
     "Beschäftigungskategorie statt Qualifikation (DV/FD zusammen)": "zaehl-Regel der Art dimension",
     "welcher Abschnitt eines Verhältnisses zählt": "zaehl-Regel der Art abschnittswahl",
     "ÖNACE-Version": "zaehl-Regel der Art klassifikationsversion",
-    "Ausprägungen nicht zählen (ohne Beamte, ohne ein Bundesland, nur ab einem Alter)": "neue zaehl-Regel der Art "
-    "ausschluss",
+    "Ausprägungen nicht zählen (ohne Beamte, ohne ein Bundesland, Kinder unter einem Alter)": "neue zaehl-Regel "
+    "der Art ausschluss (Rolle klassifikation); eine Prüfregel kann niemanden ausschließen",
     "Ausprägungen zusammenlegen (Bundesländer zu Regionen, Kategorien zusammen)": "neue zaehl-Regel der Art "
-    "gruppierung",
+    "gruppierung auf dem bestehenden Merkmal (z. B. region mit zuordnung ['1=Ost', '3=Ost', '9=Ost']); eine neue "
+    "Klassifikation ist dafür nicht nötig",
     "Schwellen, ab wann ein Monat angehalten oder gemeldet wird": "Prüfregel (typ pruefung), Rolle qs",
 }
 
