@@ -102,6 +102,7 @@ services:
       VAPI_PUBLIC_KEY: ${VAPI_PUBLIC_KEY:-}
       VAPI_WEBHOOK_SECRET: ${VAPI_WEBHOOK_SECRET:-}
       VAPI_CUSTOM_LLM_KEY: ${VAPI_CUSTOM_LLM_KEY:-}
+      VAPI_ASSISTANT_ID: ${VAPI_ASSISTANT_ID:-}
       PUBLIC_URL: https://${SITE_ADDRESS:?SITE_ADDRESS fehlt in .env.server}
       # Rolle kic_app: nur SELECT, default_transaction_read_only (deploy/sql/app-rolle.sql); statistik bleibt Admin
       UC1_DATABASE_URL: postgresql://kic_app:${KIC_APP_DB_PASSWORD:?KIC_APP_DB_PASSWORD fehlt, zuerst scripts/deploy.sh init}@db:5432/lotse
