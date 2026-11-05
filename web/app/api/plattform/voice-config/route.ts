@@ -17,5 +17,8 @@ export async function GET(): Promise<Response> {
   // Online-Demo nur lesend (#100): kein Sprechknopf, sonst startete jeder Besucher abgerechnete Vapi-Anrufe,
   // die nach der Begrüßung abbrechen (der Proxy sperrt POST /chat/completions). Review !66.
   const aktiv = Boolean(publicKey && wert("PUBLIC_URL")) && wert("KIC_ONLINE_LESEND") !== "1";
-  return Response.json({ publicKey, assistantId, aktiv }, { headers: { "cache-control": "no-store" } });
+  // Schlüssel und Assistent nur, wenn Voice aktiv ist (Lead a7, 05.11.): Mit dem öffentlichen Schlüssel kann jeder
+  // abgerechnete Anrufe starten, auch wenn der Knopf aus ist. Ausgeschaltet heißt deshalb: nichts ausliefern.
+  const antwort = aktiv ? { publicKey, assistantId, aktiv } : { publicKey: null, assistantId: null, aktiv };
+  return Response.json(antwort, { headers: { "cache-control": "no-store" } });
 }

@@ -1,0 +1,21 @@
+/* Ein Auftritt blendet beim Sprecherwechsel einmal ein: kurz, ohne Hüpfen. Bei reduzierter Bewegung gar nicht. */
+@keyframes auftritt {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.auftritt {
+  animation: auftritt 420ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auftritt {
+    animation: none;
+  }
+}

@@ -25,14 +25,14 @@ export type FreigabeAuftrag = { name: string; entscheidung: "freigegeben" | "abg
 export type Speichern = (auftrag: FreigabeAuftrag) => Promise<{ zeitpunkt?: string | null } | void>;
 
 export const VORFUEHRUNG_HINWEIS = "Vorführung: nichts gespeichert";
-export const SATZ = "Das Ergebnis der Verhandlung wird als geprüft markiert und kommt mit deinem Namen ins Protokoll.";
+export const SATZ = "Mit Ihrem Namen gilt das Ergebnis als geprüft und steht im Protokoll.";
 /** In der Vorführung bleibt nichts stehen; der Satz darf nicht das Gegenteil sagen. */
-export const VORFUEHRUNG_SATZ = "In der Vorführung wird nichts gespeichert. Im echten Betrieb kommt dein Name ins Protokoll.";
+export const VORFUEHRUNG_SATZ = "Mit Ihrem Namen gilt das Ergebnis als geprüft. In der Vorführung wird nichts gespeichert.";
 /** Längste Begründung; die Route und die Python-API lehnen mehr ab. */
 export const MAX_BEGRUENDUNG = 500;
 /** Textknopf mit Mindesthöhe 44 px für Touch (wie in UC3). */
 const TEXTKNOPF = "inline-flex min-h-11 items-center font-sans text-14 font-semibold text-ink underline underline-offset-4";
-const NAME_HINWEIS = "Bitte den eigenen Vor- und Nachnamen eintragen, „Team“ gilt nicht.";
+const NAME_HINWEIS = "Vor- und Nachname, „Team“ gilt nicht.";
 
 /** Aus dem Bericht der API (`freigabe: {name?, zeit, entscheidung, begruendung?} | null`); öffentlich ohne Name und Grund. */
 export function entscheidungAusBericht(bericht: unknown): Entscheidung | null {
@@ -180,13 +180,13 @@ export function FreigabeBericht({ fallId, modus, entscheidung, onEntschieden, sp
   return (
     <article
       aria-labelledby={titelId}
-      className="flex flex-col gap-4 rounded-xl border border-line bg-white p-6"
+      className="flex flex-col gap-4"
       data-baustein="freigabe"
       data-zustand={entscheidung?.art ?? "offen"}
       data-testid="uc2-freigabe"
     >
-      <Ueberschrift stufe={3} als="h3" id={titelId}>
-        Freigabe des Berichts
+      <Ueberschrift stufe={3} als="h2" id={titelId}>
+        Ergebnis freigeben
       </Ueberschrift>
       {!entscheidung && <Fliesstext groesse={14}>{vorfuehrung ? VORFUEHRUNG_SATZ : SATZ}</Fliesstext>}
 
@@ -283,12 +283,43 @@ export function FreigabeBericht({ fallId, modus, entscheidung, onEntschieden, sp
         ) : null}
       </div>
       {vorfuehrung && (
-        <p className="border-l-2 border-line pl-3 font-sans text-12 text-slate" data-testid="uc2-freigabe-vorfuehrung">
+        <p className="font-sans text-12 text-slate" data-testid="uc2-freigabe-vorfuehrung">
           {VORFUEHRUNG_HINWEIS}
         </p>
       )}
     </article>
   );
+}
+
+/**
+ * Entscheidung zum Fall: live liest sie eine frühere Freigabe aus dem Bericht der API (sonst zeigte ein schon
+ * freigegebener Bericht nach Neuladen wieder das Formular, und Speichern endete mit 409); in der Vorführung bleibt
+ * alles in der Seite.
+ */
+export function useEntscheidung(
+  fallId: string,
+  modus: Modus,
+  fertig: boolean,
+): [Entscheidung | null, (e: Entscheidung) => void] {
+  const [entscheidung, setEntscheidung] = useState<Entscheidung | null>(null);
+  const vorfuehrung = modus === "vorfuehrung";
+  useEffect(() => {
+    if (!fertig || vorfuehrung) return;
+    let abgebrochen = false;
+    fetch(`/api/uc2/faelle/${encodeURIComponent(fallId)}`, { cache: "no-store" })
+      .then((antwort) => (antwort.ok ? antwort.json() : null))
+      .then((bericht: unknown) => {
+        const frueher = entscheidungAusBericht(bericht);
+        if (!abgebrochen && frueher) setEntscheidung(frueher);
+      })
+      .catch(() => {
+        // Ohne den Bericht gilt der Fall als offen; der Server lehnt eine zweite Entscheidung ohnehin ab.
+      });
+    return () => {
+      abgebrochen = true;
+    };
+  }, [fertig, vorfuehrung, fallId]);
+  return [entscheidung, setEntscheidung];
 }
 
 /**
@@ -306,26 +337,8 @@ export function StandMitFreigabe({
   modus: Modus;
   speichern?: Speichern;
 }) {
-  const [entscheidung, setEntscheidung] = useState<Entscheidung | null>(null);
   const fertig = zustand.status === "fertig" && endstand(zustand) !== null;
-  const vorfuehrung = modus === "vorfuehrung";
-
-  useEffect(() => {
-    if (!fertig || vorfuehrung) return;
-    let abgebrochen = false;
-    fetch(`/api/uc2/faelle/${encodeURIComponent(fallId)}`, { cache: "no-store" })
-      .then((antwort) => (antwort.ok ? antwort.json() : null))
-      .then((bericht: unknown) => {
-        const frueher = entscheidungAusBericht(bericht);
-        if (!abgebrochen && frueher) setEntscheidung(frueher);
-      })
-      .catch(() => {
-        // Ohne den Bericht gilt der Fall als offen; der Server lehnt eine zweite Entscheidung ohnehin ab.
-      });
-    return () => {
-      abgebrochen = true;
-    };
-  }, [fertig, vorfuehrung, fallId]);
+  const [entscheidung, setEntscheidung] = useEntscheidung(fallId, modus, fertig);
 
   const marke = !fertig ? undefined : !entscheidung ? <EntwurfMarke /> : entscheidung.art === "abgelehnt" ? <AbgelehntMarke /> : undefined;
 

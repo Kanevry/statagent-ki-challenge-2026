@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { findeUc } from "@kic/ui/ucs";
-import { FallStellen } from "@/components/uc2/fall-stellen";
+import { Fall } from "@/components/uc2/fall";
 import { ladeVorbereitung } from "../api/uc2/_lib/vorbereitung";
 
-// U2-0 Fall stellen (Pen bhI7X). Die Seite rechnet nichts und ruft kein Modell: Start und Strom laufen über /api/uc2.
+// /uc2 Fall: Frage, Tisch, eine Hauptaktion (UI-Regie 05.11.). Die Seite rechnet nichts und ruft kein Modell: Start und Strom laufen über /api/uc2.
 export const metadata: Metadata = { title: `${findeUc("uc2").name} · OneShotAndy` };
 export const dynamic = "force-dynamic";
 
 export default async function Uc2Start() {
   const vorbereitung = await ladeVorbereitung();
-  return <FallStellen vorbereitung={vorbereitung} />;
+  return <Fall vorbereitung={vorbereitung} />;
 }

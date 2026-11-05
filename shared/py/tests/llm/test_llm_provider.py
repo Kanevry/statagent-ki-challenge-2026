@@ -164,3 +164,35 @@ def test_nur_text_nimmt_bei_teile_listen_nur_textteile():
     assert nur_text(teile) == "Bereit."
     assert nur_text("Bereit.") == "Bereit."
     assert nur_text(None) == ""
+
+
+def test_claude_subprozess_endet_mit_wenn_der_router_sigterm_bekommt(tmp_path):
+    """Fängt (#150): claude läuft in eigener Sitzung und überlebte den Gruppen-Abbruch der Web-Route."""
+    import os
+    import signal
+    import subprocess
+    import sys
+    import time
+
+    pid_datei = tmp_path / "claude.pid"
+    code = (
+        "import sys; from plattform.llm.claude import _subprozess\n"
+        f"_subprozess(['sh', '-c', 'echo $$ > {pid_datei}; sleep 30'], '', '.', 60)\n"
+    )
+    router = subprocess.Popen([sys.executable, "-c", code])
+    for _ in range(100):
+        if pid_datei.exists() and pid_datei.read_text().strip():
+            break
+        time.sleep(0.05)
+    kind = int(pid_datei.read_text())
+    router.send_signal(signal.SIGTERM)
+    router.wait(timeout=10)
+    for _ in range(100):
+        try:
+            os.kill(kind, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    else:
+        os.killpg(kind, signal.SIGKILL)
+        raise AssertionError("claude-Kindprozess lebt nach SIGTERM an den Router weiter")
