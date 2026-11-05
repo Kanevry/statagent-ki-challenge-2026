@@ -171,10 +171,11 @@ describe("massnahmeSatz und einstufungStatus", () => {
 
 describe("Lauf-Detail: Regelsatz, Veröffentlichen, Revisionsbedarf", () => {
   // Fehler: ?regelsatz=x oder ?regelsatz=v3 landet ungeprüft in der Abfrage.
-  it("lässt nur v1 und v2 zu, alles andere ist v1", () => {
+  it("lässt nur v<Zahl> zu, alles andere ist v1", () => {
     expect(regelsatzAus("v2")).toBe("v2");
     expect(regelsatzAus(undefined)).toBe("v1");
-    expect(regelsatzAus("v3")).toBe("v1");
+    expect(regelsatzAus("v3")).toBe("v3");
+    expect(regelsatzAus("v3;x")).toBe("v1");
     expect(regelsatzAus(["v2", "v2"])).toBe("v1");
   });
 
