@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { findeRepoWurzel } from "./modell";
 import { erstelleRatenlimit, grenzeAus, type PruefeRatenlimit } from "./ratenlimit";
-import { BUDGET_MELDUNG, ergebnisSchema, frageSchema, type Modellwahl } from "./uc4-ergebnis";
+import { BUDGET_MELDUNG, ergebnisSchema, frageSchema, KETTE, type KettenUc, type Modellwahl } from "./uc4-ergebnis";
 
 export { BUDGET_MELDUNG };
 
@@ -48,8 +48,8 @@ export function routerArgv(frage: string, mock: boolean, kette?: readonly Ketten
   return [...ROUTER_ARGV, ...(mock ? ["--mock"] : []), ...(kette ? ["--kette", kette.join(",")] : []), "--", frage];
 }
 
-export const STANDARD_KETTE = ["uc3", "uc2", "uc1"] as const;
-export type KettenUc = (typeof STANDARD_KETTE)[number];
+/** Volle Kette, wie `plattform.router.STANDARD_KETTE`. */
+export const STANDARD_KETTE = KETTE;
 /** UCs ohne Sprachmodell (UC3 rechnet nur mit SQL); wie `OHNE_MODELL` in `plattform.router`. */
 const OHNE_MODELL: ReadonlySet<KettenUc> = new Set(["uc3"]);
 
