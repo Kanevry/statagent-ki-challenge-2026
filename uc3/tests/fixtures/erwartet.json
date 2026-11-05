@@ -1,0 +1,219 @@
+{
+  "2024-08": {
+    "gelesen": 16,
+    "gezaehlt": 12,
+    "nicht_gezaehlt": 3,
+    "ausgeschlossen": 1,
+    "zellen": [
+      {
+        "region": "9",
+        "oenace": "C",
+        "geschlecht": "M",
+        "qualifikation": "ArbeiterDV",
+        "alter": 44,
+        "wert": 1
+      },
+      {
+        "region": "9",
+        "oenace": "C",
+        "geschlecht": "M",
+        "qualifikation": "AngestellteDV",
+        "alter": 44,
+        "wert": 1
+      },
+      {
+        "region": "3",
+        "oenace": "G",
+        "geschlecht": "W",
+        "qualifikation": "AngestellteDV",
+        "alter": 33,
+        "wert": 1
+      },
+      {
+        "region": "1",
+        "oenace": "O",
+        "geschlecht": "M",
+        "qualifikation": "Beamte",
+        "alter": 49,
+        "wert": 1
+      },
+      {
+        "region": "6",
+        "oenace": "F",
+        "geschlecht": "M",
+        "qualifikation": "ArbeiterDV",
+        "alter": 54,
+        "wert": 1
+      },
+      {
+        "region": "9",
+        "oenace": "I",
+        "geschlecht": "W",
+        "qualifikation": "AngestellteDV",
+        "alter": 36,
+        "wert": 1
+      },
+      {
+        "region": "0",
+        "oenace": "UNB",
+        "geschlecht": "M",
+        "qualifikation": "ArbeiterFD",
+        "alter": 31,
+        "wert": 1
+      },
+      {
+        "region": "4",
+        "oenace": "C",
+        "geschlecht": "W",
+        "qualifikation": "AngestellteDV",
+        "alter": 42,
+        "wert": 1
+      },
+      {
+        "region": "5",
+        "oenace": "D",
+        "geschlecht": "M",
+        "qualifikation": "ArbeiterDV",
+        "alter": 41,
+        "wert": 1
+      },
+      {
+        "region": "7",
+        "oenace": "Q",
+        "geschlecht": "W",
+        "qualifikation": "AngestellteDV",
+        "alter": 61,
+        "wert": 1
+      },
+      {
+        "region": "9",
+        "oenace": "O",
+        "geschlecht": "M",
+        "qualifikation": "Beamte",
+        "alter": -1,
+        "wert": 1
+      },
+      {
+        "region": "8",
+        "oenace": "J",
+        "geschlecht": "W",
+        "qualifikation": "AngestellteFD",
+        "alter": 29,
+        "wert": 1
+      }
+    ]
+  },
+  "2024-09": {
+    "gelesen": 5,
+    "gezaehlt": 4,
+    "nicht_gezaehlt": 1,
+    "ausgeschlossen": 0,
+    "zellen": [
+      {
+        "region": "9",
+        "oenace": "C",
+        "geschlecht": "M",
+        "qualifikation": "ArbeiterDV",
+        "alter": 44,
+        "wert": 1
+      },
+      {
+        "region": "6",
+        "oenace": "F",
+        "geschlecht": "M",
+        "qualifikation": "ArbeiterDV",
+        "alter": 54,
+        "wert": 1
+      },
+      {
+        "region": "3",
+        "oenace": "G",
+        "geschlecht": "W",
+        "qualifikation": "ArbeiterDV",
+        "alter": 24,
+        "wert": 1
+      },
+      {
+        "region": "0",
+        "oenace": "UNB",
+        "geschlecht": "M",
+        "qualifikation": "AngestellteDV",
+        "alter": 25,
+        "wert": 1
+      }
+    ]
+  },
+  "2024-10": {
+    "gelesen": 9,
+    "gezaehlt": 7,
+    "nicht_gezaehlt": 2,
+    "ausgeschlossen": 0,
+    "zellen": [
+      {
+        "region": "9",
+        "oenace": "C",
+        "geschlecht": "M",
+        "qualifikation": "ArbeiterDV",
+        "alter": 44,
+        "wert": 6
+      },
+      {
+        "region": "9",
+        "oenace": "C",
+        "geschlecht": "W",
+        "qualifikation": "ArbeiterDV",
+        "alter": 44,
+        "wert": 1
+      }
+    ]
+  },
+  "2024-11": {
+    "_kommentar": "Zwei aktive Abschnitte (3001, spätester Beginn gilt), Alter 80 plausibel (3002), ungültiges ENDE '2024-02-30' (3003: E06 → Monatsletzter 2024-02-29, endet vor dem Stichtag) und 'today' (3004: E06 → läuft), Altcode DE → C (3005), Ende vor dem Stichtag (3007).",
+    "gelesen": 8,
+    "gezaehlt": 5,
+    "nicht_gezaehlt": 3,
+    "ausgeschlossen": 0,
+    "zellen": [
+      {
+        "region": "1",
+        "oenace": "G",
+        "geschlecht": "W",
+        "qualifikation": "AngestellteDV",
+        "alter": 34,
+        "wert": 1
+      },
+      {
+        "region": "3",
+        "oenace": "C",
+        "geschlecht": "M",
+        "qualifikation": "AngestellteDV",
+        "alter": 54,
+        "wert": 1
+      },
+      {
+        "region": "4",
+        "oenace": "C",
+        "geschlecht": "W",
+        "qualifikation": "AngestellteDV",
+        "alter": 34,
+        "wert": 1
+      },
+      {
+        "region": "9",
+        "oenace": "C",
+        "geschlecht": "M",
+        "qualifikation": "ArbeiterDV",
+        "alter": 38,
+        "wert": 1
+      },
+      {
+        "region": "9",
+        "oenace": "C",
+        "geschlecht": "W",
+        "qualifikation": "ArbeiterDV",
+        "alter": 80,
+        "wert": 1
+      }
+    ]
+  }
+}
