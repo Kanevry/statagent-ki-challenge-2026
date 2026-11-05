@@ -18,6 +18,7 @@ import hashlib
 import importlib
 import json
 import logging
+import re
 import sys
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
@@ -34,6 +35,34 @@ from uc2.belege.regeln import Regeln, lade_regeln
 log = logging.getLogger(__name__)
 
 AUSSCHNITT_ZEICHEN = 200
+ZITAT_ZEICHEN = 300
+"""Höchstlänge des Belegzitats für Anzeige und API (Entscheid Lead 58, Owner-Klick #8705): online gehen je
+Beleg nur Zitat, Medium, Datum, Titel und PDF-Seite hinaus, nie der ganze Artikel. Die Jury braucht den
+belegten Satz mit Quelle, und der APA-Kopf des Pressespiegels lautet „persönliche Information“."""
+_SATZENDE = re.compile(r"(?<=[.!?…])\s+")
+_SUCHWORT = re.compile(r"\w{4,}")
+
+
+def kurzzitat(text: str, frage: str, zeichen: int = ZITAT_ZEICHEN) -> str:
+    """Belegter Satz: ab dem Satz mit den meisten Suchwörtern der Frage (Gleichstand: der frühere) höchstens
+    `zeichen` Zeichen, an einer Wortgrenze gekürzt mit „…“. Erwartet den schon maskierten Anzeigetext."""
+    flach = " ".join(text.split())
+    if not flach:
+        return ""
+    woerter = {w.lower() for w in _SUCHWORT.findall(frage)}
+    saetze = _SATZENDE.split(flach)
+    bester, punkte, start = 0, -1, 0
+    pos = 0
+    for i, satz in enumerate(saetze):
+        p = sum(1 for w in _SUCHWORT.findall(satz) if w.lower() in woerter)
+        if p > punkte:
+            bester, punkte, start = i, p, pos
+        pos += len(satz) + 1
+    rest = flach[start:] if bester else flach
+    if len(rest) <= zeichen:
+        return rest
+    schnitt = rest.rfind(" ", 0, zeichen - 1)
+    return rest[: schnitt if schnitt > 0 else zeichen - 1].rstrip() + "…"
 
 
 @dataclass(frozen=True)
@@ -432,6 +461,9 @@ class Beleg:
     cos: float
     rang_volltext: int | None
     rang_vektor: int | None
+    pdf_seite: int | None = None
+    zitat: str = ""
+    """Belegter Satz aus `text_anzeige`, höchstens `ZITAT_ZEICHEN` Zeichen (siehe dort, warum)."""
 
     def als_dict(self, anzeige: bool = False) -> dict[str, Any]:
         """Alle Felder; mit `anzeige=True` ohne `text_modell` (Zitate bleiben dann draußen)."""
@@ -470,12 +502,23 @@ where artikel_id = any(%(ids)s) order by artikel_id, nr
 
 
 def maskiere_treffer(
-    verbindung: psycopg.Connection[Any], treffer: Sequence[Treffer], namen: Namensliste | None
+    verbindung: psycopg.Connection[Any],
+    treffer: Sequence[Treffer],
+    namen: Namensliste | None,
+    frage: str = "",
 ) -> list[Beleg]:
-    """Treffer → maskierte Belege. Namen werden über Titel und alle Abschnitte des Artikels erkannt."""
+    """Treffer → maskierte Belege. Namen werden über Titel und alle Abschnitte des Artikels erkannt; `frage`
+    wählt den Satz für `zitat`."""
+    ids = sorted({t.artikel_id for t in treffer})
     teile_je_artikel: dict[str, list[tuple[str, str, list[str]]]] = {}
-    for z in verbindung.execute(ARTIKELTEXT_SQL, {"ids": sorted({t.artikel_id for t in treffer})}):
+    for z in verbindung.execute(ARTIKELTEXT_SQL, {"ids": ids}):
         teile_je_artikel.setdefault(str(z[0]), []).append((str(z[1]), str(z[2]), list(z[3] or [])))
+    seiten = {
+        str(z[0]): int(z[1])
+        for z in verbindung.execute(
+            "select artikel_id, pdf_seite from uc2.artikel where artikel_id = any(%(ids)s)", {"ids": ids}
+        )
+    }
     belege: list[Beleg] = []
     for t in treffer:
         abschnitte = teile_je_artikel.get(t.artikel_id, [])
@@ -493,6 +536,8 @@ def maskiere_treffer(
                 titel=titel,
                 text_modell=text,
                 text_anzeige=zitate_anzeige(text),
+                pdf_seite=seiten.get(t.artikel_id),
+                zitat=kurzzitat(zitate_anzeige(text), frage),
                 rang=t.rang,
                 relevanz=t.relevanz,
                 gewicht_alter=t.gewicht_alter,
@@ -536,7 +581,7 @@ def suche_belege(
         institution=akteur.institution,
     )
     liste = namen if namen is not None else Namensliste.lade()
-    belege = maskiere_treffer(verbindung, treffer, liste)
+    belege = maskiere_treffer(verbindung, treffer, liste, frage)
     log.info(
         "belege akteur=%s runde=%s stichtag=%s modus=%s n=%d schluessel=%s",
         akteur.id,
