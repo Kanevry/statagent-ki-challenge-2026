@@ -251,7 +251,8 @@ describe("POST /api/uc4/frage, Modellwahl", () => {
     const online = (modell: string, liste?: string) =>
       frageAntwort(anfrage({ frage: "Wie viele?", modell }), {
         ausfuehren,
-        umgebung: { KIC_ONLINE: "1", ...(liste === undefined ? {} : { UC4_MODELLWAHL: liste }) },
+        // Stufe B: volle Kette ausdrücklich, sonst gilt online nur UC3 und die Wahl wirkt gar nicht
+        umgebung: { KIC_ONLINE: "1", UC4_KETTE: "uc3,uc2,uc1", ...(liste === undefined ? {} : { UC4_MODELLWAHL: liste }) },
         wurzel: () => "/repo",
         ratenlimit: offen,
       });
@@ -313,6 +314,13 @@ describe("POST /api/uc4/frage, Online-Stufe A", () => {
     await frageAntwort(anfrage({ frage: "x" }), mitUmgebung(ausfuehren, {}));
     expect(ausfuehren.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--kette", "uc3,uc1", "--", "x"]);
     expect(ausfuehren.mock.calls[1]?.[1]).toEqual([...ROUTER_ARGV, "--", "x"]);
+  });
+
+  it("online (KIC_ONLINE=1) heißt ein leeres UC4_KETTE nur UC3, nicht die volle Kette", async () => {
+    const ausfuehren = liefert(JSON.stringify({ antworten: [ergebnis.antworten[0]], fehlend: [] }));
+    await frageAntwort(anfrage({ frage: "x" }), mitUmgebung(ausfuehren, { KIC_ONLINE: "1", UC4_KETTE: " " }));
+    expect(ausfuehren.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--kette", "uc3", "--", "x"]);
+    expect(uc4Einstellung({ KIC_ONLINE: "1", UC4_KETTE: "uc3,uc2,uc1" }).kette).toEqual(["uc3", "uc2", "uc1"]);
   });
 
   it("uc4Einstellung sagt der Seite Kette, ob Fragen offen sind und ob ein Modell läuft", () => {
