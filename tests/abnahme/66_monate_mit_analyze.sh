@@ -12,6 +12,8 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 export UC3_DATABASE_URL="postgresql://statistik:statistik@localhost:${PORT}/statistik"
 export STATAGENT_STARTPAKET="$STARTPAKET_UC3"
 if [ "$CONTAINER" = "statagent-db" ]; then echo "Abbruch: Bau-Datenbank" >&2; exit 2; fi
+# Vor dem ersten Lauf: Erreicht UC3_DATABASE_URL wirklich den Abnahme-Container? (Review !56)
+bash "$HIER/66_jury_weg.sh" ziel
 von="${1:-2024-08}"
 bis="${2:-2026-07}"
 monat="$von"

@@ -39,9 +39,51 @@ compose() {
 
 zeit() { TZ=Europe/Vienna date '+%Y-%m-%dT%H:%M:%S%z'; }
 
-schritt="${1:?Schritt fehlt: frisch|sync|init|lauf|eichen|laeufe|hash|ab}"
+# Harte Zielprüfung (Review !56): Bevor ein Schritt über UC3_DATABASE_URL arbeitet, muss diese Adresse genau den
+# Abnahme-Container erreichen. Geprüft werden Compose-Projekt und veröffentlichter Port des Containers sowie der
+# system_identifier des Clusters, einmal im Container und einmal über die URL gelesen. Sonst Abbruch mit Exit 3.
+ziel_pruefen() {
+  local projekt_ist port_ist id_container id_url
+  if ! projekt_ist=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$CONTAINER" 2>/dev/null); then
+    echo "Abbruch: Container $CONTAINER läuft nicht." >&2
+    exit 3
+  fi
+  if [ "$projekt_ist" != "$PROJEKT" ]; then
+    echo "Abbruch: $CONTAINER gehört zu Projekt '$projekt_ist', erwartet $PROJEKT." >&2
+    exit 3
+  fi
+  port_ist=$(docker port "$CONTAINER" 5432/tcp 2>/dev/null | sed -n 's/.*:\([0-9][0-9]*\)$/\1/p' | head -1)
+  if [ "$port_ist" != "$PORT" ]; then
+    echo "Abbruch: $CONTAINER veröffentlicht Port '$port_ist', erwartet $PORT." >&2
+    exit 3
+  fi
+  id_container=$(docker exec "$CONTAINER" psql -U statistik -d statistik -At \
+    -c "select system_identifier from pg_control_system()")
+  id_url=$(cd "$ABNAHME_REPO" && uv run python - <<'PY'
+import os
+
+import psycopg
+
+with psycopg.connect(os.environ["UC3_DATABASE_URL"], connect_timeout=5) as verbindung:
+    print(verbindung.execute("select system_identifier from pg_control_system()").fetchone()[0])
+PY
+  )
+  if [ -z "$id_container" ] || [ "$id_container" != "$id_url" ]; then
+    echo "Abbruch: $UC3_DATABASE_URL erreicht nicht $CONTAINER (Cluster '$id_url' statt '$id_container')." >&2
+    exit 3
+  fi
+  echo "ziel ok: $CONTAINER, Projekt $PROJEKT, Port $PORT"
+}
+
+schritt="${1:?Schritt fehlt: frisch|ziel|sync|init|lauf|eichen|laeufe|hash|goldenset|provider|ab}"
 echo "== $schritt $(zeit)"
 case "$schritt" in
+  init|lauf|eichen|laeufe|goldenset|provider) ziel_pruefen ;;
+esac
+case "$schritt" in
+  ziel)
+    ziel_pruefen
+    ;;
   frisch)
     compose down -v 2>&1 | tail -3
     start=$(date +%s)
@@ -56,6 +98,10 @@ case "$schritt" in
       fi
       sleep 5
     done
+    if [ "${bereit:-0}" -lt 2 ]; then
+      echo "Abbruch: $CONTAINER ist nach 10 Minuten nicht bereit." >&2
+      exit 4
+    fi
     echo "dauer_s=$(( $(date +%s) - start ))"
     docker logs -t "$CONTAINER" 2>&1 | sed -n '1p;/ready to accept connections/p' | cut -c1-30
     docker logs "$CONTAINER" 2>&1 | grep -i -E "fertig|error|fatal" | tail -5 || true

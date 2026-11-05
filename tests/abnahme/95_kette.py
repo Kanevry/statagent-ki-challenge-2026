@@ -30,7 +30,10 @@ FRAGEN = [
     "Beschäftigte im März 2025 nach Bundesland",
     "Wie geht es den Wartezeiten?",
     "Wie viele Beschäftigte gab es im Juli 2027?",
+    "Wie viele Beschäftigte gab es im Oktober 2025?",
 ]
+#: Kette uc3 → uc2 → uc1: je Frage genau ein Routerschritt je UC, auch für fehlende Adapter.
+SCHRITTE_JE_FRAGE = 3
 
 #: Eigene Abfrage: Die Tabelle hat keine Summenzeilen, nur die volle Kreuzgliederung.
 #: Österreich ist die Summe aller Zellen des Monats (Stichtag, Regelsatz v1),
@@ -52,12 +55,13 @@ def _db() -> psycopg.Connection[Any]:
     return psycopg.connect(url, autocommit=True)
 
 
-def _lauf_hashes(conn: psycopg.Connection[Any]) -> dict[str, str]:
+def _laeufe(conn: psycopg.Connection[Any]) -> dict[str, tuple[str, str]]:
+    """Je Lieferung der letzte gültige Lauf: (ergebnis_hash, ergebnis_status)."""
     rows = conn.execute(
-        "select distinct on (lieferung) lieferung, ergebnis_hash from meta.lauf "
+        "select distinct on (lieferung) lieferung, ergebnis_hash, ergebnis_status from meta.lauf "
         "where status in ('fertig', 'unveraendert') order by lieferung, id desc"
     ).fetchall()
-    return {r[0]: r[1] for r in rows}
+    return {r[0]: (r[1], r[2]) for r in rows}
 
 
 def _sql_wert(conn: psycopg.Connection[Any], sql_text: str) -> list[Any]:
@@ -70,12 +74,15 @@ def _sql_wert(conn: psycopg.Connection[Any], sql_text: str) -> list[Any]:
 
 
 def main() -> int:
-    protokoll = Path(tempfile.mkdtemp(prefix="abnahme95-")) / "protokoll.jsonl"
-    os.environ["PLATTFORM_PROTOKOLL"] = str(protokoll)
+    ordner = Path(tempfile.mkdtemp(prefix="abnahme95-"))
+    # Beide Ziele ausdrücklich setzen, ein geerbtes PLATTFORM_ROUTER_PROTOKOLL schriebe sonst woanders hin.
+    os.environ["PLATTFORM_PROTOKOLL"] = str(ordner / "modellaufrufe.jsonl")
+    router_datei = ordner / "router.jsonl"
+    os.environ["PLATTFORM_ROUTER_PROTOKOLL"] = str(router_datei)
     from plattform.router import durchreichen
 
     conn = _db()
-    hashes = _lauf_hashes(conn)
+    laeufe = _laeufe(conn)
     ergebnisse: list[dict[str, Any]] = []
     for frage in FRAGEN:
         erg = durchreichen(frage)
@@ -96,7 +103,13 @@ def main() -> int:
                     "wert": zahl.wert,
                     "beleg_uc": beleg.uc,
                     "monat": beleg.monat,
-                    "lauf_gleich_meta": (beleg.lauf == hashes.get(beleg.monat or "")) if beleg.lauf else None,
+                    "lauf_gleich_meta": (beleg.lauf == laeufe.get(beleg.monat or "", ("", ""))[0])
+                    if beleg.lauf
+                    else None,
+                    "beleg_stand": beleg.stand,
+                    "stand_gleich_meta": (beleg.stand == laeufe.get(beleg.monat or "", ("", ""))[1])
+                    if beleg.stand
+                    else None,
                 }
                 if beleg.uc == "uc3" and beleg.sql:
                     pruef["beleg_sql_ergebnis"] = _sql_wert(conn, beleg.sql)
@@ -106,21 +119,26 @@ def main() -> int:
                     pruef["eigene_summen"] = {(r[0] or "Österreich"): r[1] for r in rows}
                 eintrag["zahlen"].append(pruef)
         ergebnisse.append(eintrag)
-    zeilen = protokoll.with_name("router.jsonl")
-    router_text = zeilen.read_text(encoding="utf-8") if zeilen.exists() else ""
-    frei_von_text = not any(f in router_text for f in FRAGEN)
+    # Fehlt die Datei, ist das ein Befund, kein „ohne Fragetext“.
+    router_da = router_datei.is_file()
+    router_text = router_datei.read_text(encoding="utf-8") if router_da else ""
+    router_zeilen = len([z for z in router_text.splitlines() if z.strip()])
+    erwartet = len(FRAGEN) * SCHRITTE_JE_FRAGE
+    frei_von_text = (not any(f in router_text for f in FRAGEN)) if router_da else None
     print(
         json.dumps(
             {
                 "ergebnisse": ergebnisse,
-                "router_zeilen": router_text.count("\n"),
+                "router_datei_da": router_da,
+                "router_zeilen": router_zeilen,
+                "router_zeilen_erwartet": erwartet,
                 "router_ohne_fragetext": frei_von_text,
             },
             ensure_ascii=False,
             default=str,
         )
     )
-    return 0
+    return 0 if router_da and router_zeilen == erwartet and frei_von_text else 1
 
 
 if __name__ == "__main__":

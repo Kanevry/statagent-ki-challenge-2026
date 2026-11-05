@@ -4,14 +4,14 @@ Die Abnahme-Lane prüft unabhängig von den Bau-Sessions, mit dem Blick der Jury
 (`docs/abnahme/`) und Skripte, die lesen und messen (`tests/abnahme/`). Befunde gehen als Kommentar an das Issue und
 mit Lane-Zuordnung an die zuständige Session; Fixes macht die Lane, der der Code gehört.
 
-Stand: 05.11.2026, 16:20 (Europe/Vienna).
+Stand: 05.11.2026, 16:38 (Europe/Vienna), nach dem Review von !56.
 
 | Issue | Abnahme | Urteil | Protokoll |
 |---|---|---|---|
-| #66 | EA-4 Jury-Weg: frische DB, Golden Set 08/2024, Determinismus | **bestanden** auf main `f1bf42bb`; alle 24 Monate bitgleich mit dem Manifest der UC3-Lane; Blocker 66-6: `lauf --alle` hängt auf frischer DB | [66.md](66.md) |
-| #63 | EA-1 Modell-Schalter live | **bestanden** (16:04, nach Mistral-Freischaltung) | [63.md](63.md) |
+| #66 | EA-4 Jury-Weg: frische DB, Golden Set 08/2024, Determinismus | **bestanden** auf main `f1bf42bb`; alle 24 Monate bitgleich mit dem Manifest der UC3-Lane; Blocker 66-6 (`lauf --alle` hing auf frischer DB) mit !58 behoben, nachgemessen | [66.md](66.md) |
+| #63 | EA-1 Modell-Schalter live | **teilweise**: alle drei Provider liefern Text (16:04); `docs/models.md` erst mit !57 | [63.md](63.md) |
 | #64 | EA-2 Screens gegen Pen-Frames, Schablonen, Sprache | Vorprüfung **nicht bestanden** (UC3 und Präsentation live Platzhalter, Shell weicht ab); 0 Schablonen-Treffer | [64.md](64.md) |
-| #95 | UC4 Gemeinsamer Einstieg | UC3-Teil **bestanden**; UC2 und UC1 ohne Adapter | [95.md](95.md) |
+| #95 | UC4 Gemeinsamer Einstieg | UC3-Teil **bestanden** (auch 2025-10, Router-Protokoll 18/18); UC2 und UC1 ohne Adapter | [95.md](95.md) |
 | #65 | EA-3 Voice Ende zu Ende | offen: nicht vor 22:00, nach #61; Soll-Zahl im Issue veraltet (388.650 statt 387.180) | Kommentar in #65 |
 | #51 | UC2-Szenario mit azure | nicht prüfbar: Verhandlung erst in !47, #49 offen | - |
 | #50 | UC2-Szenario vorführbar | nicht prüfbar: nicht vor 21:00, #49 offen | - |
