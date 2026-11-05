@@ -1,0 +1,3 @@
+# Lieferungen mit Einzeldaten (PERSON_ID) gehören nicht ins öffentliche Repo (Entscheid Lead 58, #16).
+# Sie gehen über den SV-Box-Teamordner; im Repo steht je Lieferung der Beleg <datei>.beleg.md mit sha256.
+ministerium_*.csv

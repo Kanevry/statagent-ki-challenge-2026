@@ -47,6 +47,9 @@ class Rolle:
             "Werkzeuge: Der Kontext unten stammt aus den Lese-Werkzeugen regeln_lesen, schema_lesen, "
             "klassifikation_lesen und sql_lesen (nur stat, meta und klassifikation; Kennzahlen der Rohdaten "
             "kommen nur über roh_kennzahlen, Zellen unter 5 als „<5“). "
+            "Bei regel_aendern nennt parameter_neu nur Schlüssel, die im Feld parameter der Regel schon stehen, "
+            "in derselben Schreibweise und mit einem der dort erlaubten Werte; Beschreibung, Begründung und "
+            "der Regelname sind keine Parameter. "
             "Regeln sind Daten: ändere bevorzugt Parameter einer bestehenden Regel (regel_aendern), lege nur "
             "dann eine neue Regel an (regel_neu), wenn es ihre Art schon gibt, und schreibe Code (code_datei) "
             "nur für Sonderauswertungen: Python mit def run(conn, lieferung) -> dict oder ein einzelnes "
@@ -62,7 +65,10 @@ ROLLEN: dict[str, Rolle] = {
     for r in (
         Rolle(
             "datenmanagement",
-            "Einlesen und Zählen: Berichtszeitraum, Stichtag, Bestand, Abschnittswahl, Einleseregeln.",
+            "Einlesen und Zählen: Berichtszeitraum, Stichtag, Bestand, Abschnittswahl, Alter (Ersatztag bei "
+            "Geburtsmonat 13, Grenzen für unplausible Alter), Einleseregeln; dazu "
+            "Sonderauswertungen mit Personenliste (z. B. Ministeriumslieferung) als neue Zählregel der Art "
+            "personentage in einem eigenen Regelsatz, nie als Code.",
             ("regel_aendern", "regel_neu"),
             ("einlese", "zaehl"),
         ),
@@ -74,13 +80,15 @@ ROLLEN: dict[str, Rolle] = {
         ),
         Rolle(
             "qs",
-            "Qualitätssicherung: Prüfregeln, Schwellen, Einstufung und Anhalten von Monaten.",
+            "Qualitätssicherung: nur Prüfregeln (Typ pruefung), also Schwellen, Einstufung und Anhalten von "
+            "Monaten; wie gezählt wird (Alter, Zeitraum, Kategorie) gehört zu datenmanagement oder klassifikation.",
             ("regel_aendern", "regel_neu"),
             ("pruefung",),
         ),
         Rolle(
             "reporting",
-            "Auswertungen und Lieferungen an Dritte (z. B. Ministerium) als Code-Datei, ohne Regeln zu ändern.",
+            "Auswertungen über Aggregate als Code-Datei, ohne Regeln zu ändern; keine Personenlisten "
+            "(die gehören zu datenmanagement).",
             ("code_datei",),
             (),
         ),

@@ -20,7 +20,8 @@ from openpyxl.utils import get_column_letter
 
 from statagent import konfig
 from statagent.db import Verbindung
-from statagent.ergebnis import monatswerte
+from statagent.ergebnis import letzter_lauf, monatswerte
+from statagent.regeln import RegelFehler, regeln_laden, regelstand
 
 #: Spaltengruppen des Beispielberichts (Layout des Veranstalters, keine Zählregel): ALLE = Arbeiter, Angestellte,
 #: Beamte; AB = „Angestellte und Beamte“ in Tab3–Tab13. Welche Qualifikation zu welcher Kategorie gehört, kommt aus
@@ -294,7 +295,20 @@ def eichen(
     xlsx_pfad: Path | None = None,
     regelsatz: str = "v1",
 ) -> Eichergebnis:
-    """Vergleicht die Monatswerte der Lieferung zellenweise mit dem Beispielbericht."""
+    """Vergleicht die Monatswerte der Lieferung zellenweise mit dem Beispielbericht.
+
+    Geeicht wird nur ein Lauf, der den heute geltenden Regelstand gerechnet hat (wie bei ``veroeffentlichen``);
+    sonst ``RegelFehler`` mit dem Hinweis, zuerst neu zu rechnen.
+    """
+    stand = letzter_lauf(conn, lieferung, regelsatz)
+    if stand is None:
+        raise RegelFehler(f"Kein Lauf für {lieferung} ({regelsatz}): zuerst `lauf --lieferung {lieferung}`")
+    aktuell = regelstand(conn, regeln_laden(conn, regelsatz, lieferung))
+    if stand.regelstand != aktuell:
+        raise RegelFehler(
+            f"Lauf {lieferung} hat Regelstand {stand.regelstand} gerechnet, heute gilt {aktuell}: "
+            f"zuerst `lauf --lieferung {lieferung}` neu rechnen"
+        )
     klassen = klassen_laden(conn, regelsatz)
     agg = ist_aus_zeilen(monatswerte(conn, lieferung, regelsatz), klassen)
     zellen = [Zelle(s.blatt, s.zelle, s.soll, agg.summe(s.spec)) for s in soll_zellen(xlsx_pfad)]

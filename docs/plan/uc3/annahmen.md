@@ -256,9 +256,9 @@ FROM roh.lieferung WHERE lieferung='2024-08';  -- 392284, 392236, 48
 
 ## A9 Lieferung 2024-08 ist kein Drei-Monats-Vollabzug
 
-**Befund.** Das kleinste ENDE in 2024-08 ist der 01.08.2024. Enden im Juni oder Juli 2024 gibt es nicht (beide gemessen, 0). Die Lieferung enthält also nur Verhältnisse, die im August noch bestanden.
+**Befund.** Das kleinste ENDE in 2024-08 ist der 01.08.2024. Enden im Juni oder Juli 2024 gibt es nicht (beide gemessen, 0). Die Lieferung enthält also nur Verhältnisse, die im August noch bestanden. Vor dem Monatsletzten enden in 2024-08 nur 48 Verhältnisse, in den anderen 23 Lieferungen je 6.614 bis 17.664 im eigenen Monat (gemessen; 17.664 ist 2025-06 mit Spaltentausch, sonst höchstens 9.180).
 
-**Annahme.** 2024-08 ist eine Erstlieferung, kein Vollabzug über drei Monate. Das hat auf Auftrag 1 (Stichtag August) keine Wirkung. Es wirkt erst bei Auftrag 2, wenn Zeiträume über mehrere Monate gezählt werden. Eine fehlende Vorlieferung wird dort nicht aus 2024-08 aufgefüllt.
+**Annahme.** 2024-08 ist eine Erstlieferung, kein Vollabzug über drei Monate. Das hat auf die Zählung am Stichtag keine Wirkung. Bei der Zählung über den ganzen Monat (Auftrag 2, Regelsatz v2) bringt 2024-08 nur 48 Verhältnisse mehr als der Stichtag (392.284 statt 392.236), 2024-09 dagegen 7.746 (gemessen in `stat.stat_beschaeftigte`). Die Monatszahl August 2024 kann deshalb zu niedrig sein; wie viele Verhältnisse fehlen, ist nicht gemessen. Ergänzt wird nicht, weil ein Monat keine spätere Lieferung nutzen darf. Annahme F9 und Rückfrage R9 (`meta.annahme`, `meta.rueckfrage`). Eine früher genannte Größe von „rund 8.000 zu niedrig“ ist nicht belegt: Lieferung 2024-09 kennt nur 36 im August endende Verhältnisse, und ihre Revision für August beträgt +684 (unabhängiges Orakel).
 
 **Begründung.** Messung an den Daten (Beleg-SQL); Fachbeschreibung § 2 beschreibt die Lieferung als Abzug über drei Monate, die Daten bestätigen das für 2024-08 nicht.
 
@@ -271,6 +271,10 @@ FROM roh.lieferung WHERE lieferung='2024-08';  -- 392284, 392236, 48
 ```sql
 SELECT min(ende), count(*) FILTER (WHERE ende BETWEEN '2024-06-01' AND '2024-07-31')
 FROM roh.lieferung WHERE lieferung='2024-08' AND ende<>'';  -- 2024-08-01, 0
+SELECT lieferung, count(DISTINCT vvh_id) FROM roh.lieferung
+WHERE ende ~ '^\d{4}-\d{2}-\d{2}$' AND left(ende, 7) = lieferung
+  AND ende < to_char(to_date(lieferung, 'YYYY-MM') + interval '1 month - 1 day', 'YYYY-MM-DD')
+GROUP BY lieferung ORDER BY lieferung;  -- 2024-08: 48; übrige 6.614 bis 17.664
 ```
 
 **Verworfene Alternativen.** Annahme eines Vollabzugs: würde Zeiträume mit fehlenden Beendigungen als durchgehend beschäftigt zählen.
@@ -286,6 +290,8 @@ FROM roh.lieferung WHERE lieferung='2024-08' AND ende<>'';  -- 2024-08-01, 0
 **Annahme.** Die Verhältnisse zählen. Gezählt werden Verhältnisse, nicht Personen. Der Beispielbericht zählt sie ebenfalls mit. Im Qualitätsbericht stehen sie als Auffälligkeit.
 
 **Begründung.** Zählregel 1 (Verhältnisse, nicht Personen); Beispielbericht 2024-08.
+
+**Zählweise im Qualitätsbericht.** Die Prüfregel `P19_phantom_doppelmeldung` zählt nicht den Kennungsbereich, sondern alle Verhältnisse mit Beginn im Berichtsmonat, deren Person am Stichtag ein zweites Verhältnis mit gleicher Qualifikation, Branche und gleichem Bundesland hat: 216 bis 322 je Monat, 216 in 2024-08, davon 196 im Kennungsbereich (gemessen in `meta.pruefung_treffer` und `bereinigt.abschnitt`). Rückfrage R8 nennt seit 05.11.2026 dieselbe Zählung.
 
 **Umgesetzt als.** `R1_R3_verhaeltnis_einmal` zählt jede VVH_ID einmal; die Ausweisung als Auffälligkeit liegt im Berichtsformat und hat keine eigene Regel.
 
@@ -329,7 +335,7 @@ SELECT id, name, gueltig_ab_lieferung, aktiv, freigegeben_von IS NOT NULL AS fre
 | A3 | 50 je Lieferung | 40 bis 51 am Stichtag, 50 in 2024-08 | |
 | A4 | 336 bis 444 je Lieferung | gesamt 336 bis 444; am Stichtag 305 bis 399 | 2024-08: 370 stimmt |
 | A5 | keine Fälle 78 bis 116 Jahre | stimmt für vollendetes Alter; nach Jahresdifferenz 2 bis 5 Fälle mit 78 in 2026-01 bis 2026-07 | Zahlen 62 / 211 / 310 bestätigt |
-| A10 | etwa 213 je Lieferung, nur eine Lieferung sichtbar | 131 bis 218 je Lieferung, Bereich in allen 24 Lieferungen | Deutung nicht bestätigt |
+| A10 | etwa 213 je Lieferung, nur eine Lieferung sichtbar | 131 bis 218 je Lieferung, Bereich in allen 24 Lieferungen | Deutung nicht bestätigt; der Qualitätsbericht (P19) zählt 216 bis 322 je Monat, siehe A10 |
 
 ## Nachtrag 05.11.2026 nachmittags (Review !13, Recherche zu den Rückfragen)
 
@@ -339,4 +345,11 @@ SELECT id, name, gueltig_ab_lieferung, aktiv, freigegeben_von IS NOT NULL AS fre
 | A5 | Plausibilitätsgrenze **110** statt 100 Jahre | `R5_alter` (`max_plausibel = 110`) | keine Zahl ändert sich (zwischen 78 und 116 Jahren gibt es keinen Fall) |
 | A11 | Ungültiges ENDE (z. B. `2024-02-30`): Monatsletzter von JJJJ-MM (`2024-02-29`); nur ein unlesbares ENDE gilt als „läuft“. Datumsprüfung per Muster `JJJJ-MM-TT` plus gültiges Datum (`today`, `infinity` gelten nicht). | `E06_ende_ungueltig`, `E03_datum_pruefen` | 0 Fälle in 24 Lieferungen (gemessen), Beleg: `SELECT count(*) FROM roh.lieferung WHERE ende IS NOT NULL AND NOT (ende ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' AND pg_input_is_valid(ende, 'date'));` = 0, ebenso für BEGINN außer 2025-06 vor dem Spaltentausch |
 | A12 | Fortschreibung bei belegtem Lieferausfall: fehlen mehr als 1 % der Vormonats-Verhältnisse (Basis mindestens 1.000) oder fällt eine Qualifikation mit über 100 Verhältnissen ganz aus, werden die fehlenden Verhältnisse **einmalig aus der Vorlieferung** ergänzt, wenn dort ein am neuen Stichtag gültiger Abschnitt vorliegt. Markiert als `herkunft = fortgeschrieben`, getrennt ausgewiesen, Monat bleibt vorläufig, Fortgeschriebenes wird nie weitergetragen. | `E07_fortschreibung_lieferausfall` | betrifft 2025-03 (FD, 1.492 Verhältnisse vom 28.02.) und 2025-10 (Teil-Lieferung, 78.949 fehlende vom 30.09.); P13/P15/P16 messen weiter nur Geliefertes und zeigen den Ausfall. Praxis: einperiodige Fortschreibung (Beschäftigtenpanel der Statistischen Ämter, Metadatenreport § 2.5.3). Rückfragen R3, R4. |
-| A13 | Ministeriums-Lieferung (Auftrag 3): Abschnitt C umfasst auch die ÖNACE-2003-Altcodes DA–DM (Regel Q01). | `Q01_oenace_2003_unterabschnitte` | 32.667 Personen; ohne Altcodes (nur gelieferter Code C) wären es 32.639 (gemessen, Differenz 28 Personen). |
+| A13 | Ministeriums-Lieferung (Auftrag 3): Abschnitt C umfasst auch die ÖNACE-2003-Altcodes DA bis DN (Regel Q01), und die angehaltene Teil-Lieferung 2025-10 wird für die Tage übersprungen (Variante S, Entscheid Lead 58, #72). | `Q01_oenace_2003_unterabschnitte`, Parameter `altcodes_als_abschnitt` | **32.741 Personen** (Abgabezahl); ohne Altcodes 32.713; mit der Teil-Lieferung 2025-10 wären es 32.667 bzw. 32.639 (siehe docs/plan/uc3/ministerium-oracle.md). `uc3 ministerium` weist eine Definition ab, deren Altcodes nicht genau Q01 entsprechen oder die angehaltene Lieferungen verwendet; `pruefe-abgabe` liest die fett gesetzte Personenzahl dieser Zeile als Sollzahl für den Beleg. |
+
+## Nachtrag 05.11.2026 abends (Begründungen, F9, Rückfragen)
+
+- Jede Annahme F1 bis F10 trägt in `meta.annahme.grund` einen Grund in einem Satz; Qualitätsbericht und `uc3 annahmen` zeigen ihn als „Grund: …“.
+- F9 / R9: Satz neu mit Messung (48 gegen 6.614 bis 17.664, +48 gegen +7.746), ohne ungemessene Größe; siehe A9.
+- R8 zählt wie der Qualitätsbericht (216 bis 322 je Monat); R5, R6 und R9 stellen nur noch eine Frage; R7 begründet den Vorschlag.
+- Neue Rückfrage R10 zu `P14_sprung_aggregat`: 19 Gruppen in 11 Monaten (2024-09 bis 2026-07) ändern sich ohne Saisongrund um 3,1 bis 7,5 %; bis zur Antwort zählen wie geliefert und als „nicht erklärbar“ kennzeichnen.

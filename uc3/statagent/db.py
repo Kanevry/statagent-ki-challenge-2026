@@ -60,12 +60,19 @@ def sql_dateien(verzeichnis: Path | None = None) -> list[Path]:
 
 
 def schema_einrichten(conn: Verbindung, verzeichnis: Path | None = None) -> list[str]:
-    """Wendet alle SQL-Dateien idempotent an (eine Transaktion). Liefert die Dateinamen."""
+    """Wendet alle SQL-Dateien idempotent an (eine Transaktion). Liefert die Dateinamen.
+
+    Danach lädt es den Umsteiger ÖNACE 2008 → 2025 aus dem Startpaket nach stat.uebergang, falls die Datei
+    da ist; sonst steht ein Hinweis in der Liste (kein Abbruch).
+    """
+    from statagent.klass import umsteiger_einrichten
+
     angewendet: list[str] = []
     with conn.transaction():
         for datei in sql_dateien(verzeichnis):
             conn.execute(datei.read_text(encoding="utf-8").encode())
             angewendet.append(datei.name)
+        angewendet.append(umsteiger_einrichten(conn))
     return angewendet
 
 

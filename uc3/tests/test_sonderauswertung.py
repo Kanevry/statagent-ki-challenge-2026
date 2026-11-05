@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from test_regeln_freigabe import _repo
 
 from statagent.db import Verbindung
 from statagent.lauf import lauf_ausfuehren
-from statagent.regeln import NameUngueltig, regeln_freigeben
+from statagent.regeln import NameUngueltig, RegelFehler, regeln_freigeben
 from statagent.sonderauswertung import (
     LieferungBereitsFreigegeben,
     NichtFreigegeben,
@@ -27,7 +28,23 @@ PARAMETER = {
     "monate": 1,
     "qualifikationen": ["ArbeiterDV", "ArbeiterFD"],
     "oenace": "C",
-    "altcodes_als_abschnitt": [],
+    # Abgabe-Variante (Annahme A13): genau die Altcodes, die Q01 im Regelsatz v1 nach C legt
+    "altcodes_als_abschnitt": [
+        "DA",
+        "DB",
+        "DC",
+        "DD",
+        "DE",
+        "DF",
+        "DG",
+        "DH",
+        "DI",
+        "DJ",
+        "DK",
+        "DL",
+        "DM",
+        "DN",
+    ],
     "mindesttage": 30,
     "datenstand": "juengste_lieferung_je_tag",
     "angehaltene_lieferungen": "ueberspringen",
@@ -39,14 +56,16 @@ PARAMETER = {
 }
 
 
-def _auswertungsregel(conn: Verbindung) -> None:
+def _auswertungsregel(conn: Verbindung, v1_freigeben: bool = True, **aenderung: object) -> None:
     for monat in ("2024-08", "2024-09", "2024-10", "2024-11"):
         lauf_ausfuehren(conn, monat, "v1")
+    if v1_freigeben:
+        regeln_freigeben(conn, "v1", NAME)  # Q01 legt die Altcodes nur freigegeben fest
     conn.execute(
         b"""INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, beschreibung, begruendung,
               grundlage) VALUES ('ministerium', 'A3_ministerium_personentage', 'zaehl', 'personentage', 10, %s,
               'Test', 'Test', 'Auftrag 3')""",
-        (json.dumps(PARAMETER),),
+        (json.dumps({**PARAMETER, **aenderung}),),
     )
 
 
@@ -54,10 +73,10 @@ def test_lieferung_braucht_freigegebene_definition_und_namen(conn: Verbindung, t
     # Fängt: Auswertung startet ohne freigegebene Definition (Regel 6d) oder mit Platzhalter-Namen (Regel 7).
     _auswertungsregel(conn)
     with pytest.raises(NichtFreigegeben):
-        ministerium_schreiben(conn, "2024-11", "Lena Gruber", ziel_dir=tmp_path)
+        ministerium_schreiben(conn, "2024-11", "Lena Gruber", ziel_dir=tmp_path, beleg_dir=tmp_path)
     regeln_freigeben(conn, "ministerium", "Lena Gruber")
     with pytest.raises(NameUngueltig):
-        ministerium_schreiben(conn, "2024-11", "Team", ziel_dir=tmp_path)
+        ministerium_schreiben(conn, "2024-11", "Team", ziel_dir=tmp_path, beleg_dir=tmp_path)
 
 
 def test_personentage_november(conn: Verbindung, tmp_path: Path) -> None:
@@ -65,7 +84,9 @@ def test_personentage_november(conn: Verbindung, tmp_path: Path) -> None:
     # ENDE als beendet gewertet, Ende vor dem Zeitraum gezählt, Sortierung oder CSV-Kopf falsch.
     _auswertungsregel(conn)
     regeln_freigeben(conn, "ministerium", "Lena Gruber")
-    datei, auswertung = ministerium_schreiben(conn, "2024-11", "Lena Gruber", ziel_dir=tmp_path)
+    datei, auswertung = ministerium_schreiben(
+        conn, "2024-11", "Lena Gruber", ziel_dir=tmp_path, beleg_dir=tmp_path
+    )
     assert auswertung.datenstand == {"2024-11": "2024-11"}
     assert datei.read_text(encoding="utf-8").splitlines() == [
         "PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE",
@@ -73,6 +94,8 @@ def test_personentage_november(conn: Verbindung, tmp_path: Path) -> None:
         "7002;W;1944;30",
         "7004;M;1985;30",
     ]
+    # Fängt: CSV mit CRLF statt LF; die sha256 passte dann nicht zum Soll aus dem Orakel (Koordinator, Punkt 1a).
+    assert b"\r" not in datei.read_bytes()
     ausgabe = conn.execute(
         b"SELECT zeilen, freigegeben_von FROM meta.ausgabe WHERE art = 'ministerium' AND berichtsmonat = '2024-11'"
     ).fetchone()
@@ -97,22 +120,25 @@ def _lieferungs_protokoll(conn: Verbindung) -> list[tuple[int, str, str | None]]
     ]
 
 
-def test_freigabe_committet_genau_die_csv_mit_trailer_und_protokoll(conn: Verbindung, tmp_path: Path) -> None:
+def test_freigabe_committet_den_beleg_mit_sha256_nicht_die_csv(conn: Verbindung, tmp_path: Path) -> None:
     # Fängt: Lieferung nur in meta.ausgabe festgehalten, ohne meta.protokoll/meta.freigabe und ohne Commit mit
-    # Trailer (Review !13 Punkt 3, #71 AC2, Regel 7), oder ein Commit mit fremden Dateien.
+    # Trailer (Review !13 Punkt 3, #71 AC2, Regel 7), ein Commit mit fremden Dateien, oder die CSV mit
+    # Einzeldaten im Repo statt des Belegs mit ihrer sha256 (Entscheid Lead 58, #16).
     repo = _repo(tmp_path / "repo")
     (repo / "fremd.txt").write_text("nicht Teil der Lieferung\n", encoding="utf-8")
     git(repo, "add", "fremd.txt")
     _auswertungsregel(conn)
     regeln_freigeben(conn, "ministerium", NAME)
-    datei, _ = ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+    datei, _ = ministerium_schreiben(
+        conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+    )
     assert git(repo, "log", "-1", "--format=%(trailers:key=Freigegeben-von,valueonly)") == NAME
     assert git(repo, "show", "--name-only", "--format=", "HEAD").splitlines() == [
-        "abgabe/ministerium_2024-11.csv"
+        "abgabe/ministerium_2024-11.beleg.md"
     ]
-    assert (
-        git(repo, "show", "HEAD:abgabe/ministerium_2024-11.csv") == datei.read_text(encoding="utf-8").strip()
-    )
+    sha = hashlib.sha256(datei.read_bytes()).hexdigest()
+    beleg = git(repo, "show", "HEAD:abgabe/ministerium_2024-11.beleg.md")
+    assert f"`{sha}`" in beleg and "ministerium_2024-11.csv" in beleg and NAME in beleg
     [(protokoll_id, status, commit)] = _lieferungs_protokoll(conn)
     assert (status, commit) == ("freigegeben", git(repo, "rev-parse", "HEAD"))
     f = conn.execute(
@@ -121,9 +147,9 @@ def test_freigabe_committet_genau_die_csv_mit_trailer_und_protokoll(conn: Verbin
     assert f is not None and (f["name"], f["objekt_typ"], f["objekt_ref"]) == (
         NAME,
         "datei",
-        "abgabe/ministerium_2024-11.csv",
+        "abgabe/ministerium_2024-11.beleg.md",
     )
-    assert _ausgaben(conn) == [("abgabe/ministerium_2024-11.csv", protokoll_id)]
+    assert _ausgaben(conn) == [("ministerium_2024-11.csv", protokoll_id)]
 
 
 def test_zweite_freigabe_desselben_monats_wird_abgewiesen(conn: Verbindung, tmp_path: Path) -> None:
@@ -132,15 +158,23 @@ def test_zweite_freigabe_desselben_monats_wird_abgewiesen(conn: Verbindung, tmp_
     repo = _repo(tmp_path / "repo")
     _auswertungsregel(conn)
     regeln_freigeben(conn, "ministerium", NAME)
-    datei, _ = ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+    datei, _ = ministerium_schreiben(
+        conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+    )
     kopf = git(repo, "rev-parse", "HEAD")
+    inhalt = datei.read_bytes()
     with pytest.raises(LieferungBereitsFreigegeben, match=f"bereits freigegeben von {NAME} am"):
-        ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+        )
     conn.execute(b"UPDATE meta.ausgabe SET sha256 = 'anders' WHERE berichtsmonat = '2024-11'")
     with pytest.raises(LieferungBereitsFreigegeben, match="neuen Auftrag"):
-        ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+        )
     assert git(repo, "rev-parse", "HEAD") == kopf
-    assert git(repo, "status", "--porcelain") == ""  # Datei unverändert
+    assert git(repo, "status", "--porcelain", "--untracked-files=no") == ""  # Beleg unverändert
+    assert datei.read_bytes() == inhalt  # CSV (nicht im Repo) unverändert
     assert len(_ausgaben(conn)) == 1 and len(_lieferungs_protokoll(conn)) == 1
     assert datei.is_file()
 
@@ -157,7 +191,9 @@ def test_gescheitertes_git_lehnt_ab_und_schreibt_keine_ausgabe(conn: Verbindung,
     _auswertungsregel(conn)
     regeln_freigeben(conn, "ministerium", NAME)
     with pytest.raises(GitFehler):
-        ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+        )
     [(protokoll_id, status, commit)] = _lieferungs_protokoll(conn)
     assert (status, commit) == ("abgelehnt", None)
     f = conn.execute(
@@ -166,7 +202,31 @@ def test_gescheitertes_git_lehnt_ab_und_schreibt_keine_ausgabe(conn: Verbindung,
     assert [z["entscheidung"] for z in f] == ["nein"]
     assert _ausgaben(conn) == []
     assert git(repo, "rev-parse", "HEAD") == kopf
-    assert not (repo / "abgabe" / "ministerium_2024-11.csv").exists()
+    # Fängt auch: der Beleg bleibt nach dem Git-Fehler gestaged und ginge mit dem nächsten Commit ohne Freigabe
+    # hinaus (Review-Bank 57, Punkt 8).
+    assert git(repo, "status", "--porcelain") == ""
+    assert not (tmp_path / "extern" / "ministerium_2024-11.csv").exists()
+    assert not (repo / "abgabe" / "ministerium_2024-11.beleg.md").exists()
+
+
+def test_gescheitertes_git_stellt_vorhandene_datei_wieder_her(conn: Verbindung, tmp_path: Path) -> None:
+    # Fängt: eine schon vorhandene Zieldatei (z. B. eine frühere Rechnung) wird überschrieben und nach dem Git-Fehler
+    # gelöscht statt wiederhergestellt (Review Codex, sonderauswertung.py:319).
+    repo = _repo(tmp_path / "repo")
+    hook = repo / ".git" / "keine-hooks" / "pre-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    hook.chmod(0o755)
+    alt = tmp_path / "extern" / "ministerium_2024-11.csv"
+    alt.parent.mkdir(parents=True, exist_ok=True)
+    alt.write_text("alte Fassung\n", encoding="utf-8")
+    _auswertungsregel(conn)
+    regeln_freigeben(conn, "ministerium", NAME)
+    with pytest.raises(GitFehler):
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+        )
+    assert alt.read_text(encoding="utf-8") == "alte Fassung\n"
 
 
 # Grenzfälle (Review !13 Punkt 9): Schwelle − 1 / Schwelle (im Echtbetrieb 199/200, hier mindesttage = 30 auf
@@ -216,3 +276,87 @@ def test_geburtsmonat_13_ist_unplausibles_geburtsjahr(conn: Verbindung) -> None:
     zeilen = {z[0]: z for z in personentage(conn, auswertung_regel(conn, "ministerium"), "2024-11").zeilen}
     assert zeilen[5301][2] == "Unbekannt"
     assert zeilen[7001][2] == "1970"
+
+
+def test_freigabe_im_protokoll_ohne_ausgabe_verhindert_zweite_freigabe(
+    conn: Verbindung, tmp_path: Path
+) -> None:
+    # Fängt: Commit und meta.protokoll sind da, die meta.ausgabe-Zeile fehlt (Abbruch danach); ein zweiter Aufruf
+    # gibt denselben Monat noch einmal frei (Session-Review, Befund 4).
+    repo = _repo(tmp_path / "repo")
+    _auswertungsregel(conn)
+    regeln_freigeben(conn, "ministerium", NAME)
+    ministerium_schreiben(
+        conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+    )
+    conn.execute(b"DELETE FROM meta.ausgabe WHERE art = 'ministerium' AND berichtsmonat = '2024-11'")
+    kopf = git(repo, "rev-parse", "HEAD")
+    with pytest.raises(LieferungBereitsFreigegeben, match="meta.protokoll"):
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+        )
+    assert git(repo, "rev-parse", "HEAD") == kopf
+
+
+def test_csv_mit_einzeldaten_darf_nicht_im_repo_liegen(conn: Verbindung, tmp_path: Path) -> None:
+    # Fängt: die Ministeriums-CSV (PERSON_ID) landet im Repo und damit im öffentlichen GitHub-Push (Review 57,
+    # Pflicht B; Entscheid Lead 58: Abgabe über den SV-Box-Teamordner, im Repo nur der Beleg).
+    repo = _repo(tmp_path / "repo")
+    _auswertungsregel(conn)
+    regeln_freigeben(conn, "ministerium", NAME)
+    with pytest.raises(RegelFehler, match="nicht im Repo"):
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=repo / "abgabe", beleg_dir=repo / "abgabe", repo_pfad=repo
+        )
+    assert not (repo / "abgabe" / "ministerium_2024-11.csv").exists()
+    assert _ausgaben(conn) == []
+
+
+@pytest.mark.parametrize(
+    ("aenderung", "v1_freigeben", "fehler", "meldung"),
+    [
+        ({"altcodes_als_abschnitt": []}, True, RegelFehler, r"ist \[\], Soll ist \[DA, DB, .*DN\] laut Q01"),
+        ({"altcodes_als_abschnitt": ["DA"]}, True, RegelFehler, r"ist \[DA\], Soll ist \[DA, DB"),
+        ({"angehaltene_lieferungen": "verwenden"}, True, RegelFehler, "Soll ist 'ueberspringen'"),
+        ({}, False, NichtFreigegeben, "Q01_oenace_2003_unterabschnitte .* nicht freigegeben"),
+    ],
+)
+def test_lieferung_nur_mit_abgabe_definition(
+    conn: Verbindung,
+    tmp_path: Path,
+    aenderung: dict[str, object],
+    v1_freigeben: bool,
+    fehler: type[Exception],
+    meldung: str,
+) -> None:
+    # Fängt: die Abgabezahl hängt still am Modellvorschlag; mit altcodes_als_abschnitt = [] käme 32.713 statt
+    # 32.741 heraus (Personen zählen im Sheet zu C und fallen in der Lieferung heraus), mit 'verwenden' die
+    # Teil-Lieferung 2025-10 statt Variante S, oder ohne freigegebene Q01 eine ungeprüfte Codeliste (Annahme A13).
+    _auswertungsregel(conn, v1_freigeben, **aenderung)
+    regeln_freigeben(conn, "ministerium", NAME)
+    with pytest.raises(fehler, match=meldung):
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=tmp_path / "abgabe"
+        )
+    assert not (tmp_path / "extern").exists() and not (tmp_path / "abgabe").exists()
+    assert _ausgaben(conn) == []
+
+
+def test_abgabemonat_schreibt_nur_mit_sollwerten(tmp_path: Path) -> None:
+    # Fängt: Die erste Freigabe der Ministeriums-Lieferung ist endgültig; eine falsche Zahl (32.713 ohne Altcodes)
+    # fiel bisher erst nach dem Commit in pruefe-abgabe auf (Review 69, Punkt 2).
+    from statagent.sonderauswertung import ABGABE_MONAT, soll_pruefen
+
+    (tmp_path / "docs" / "plan" / "uc3").mkdir(parents=True)
+    (tmp_path / "docs" / "plan" / "uc3" / "annahmen.md").write_text(
+        "| A13 | Ministerium | **32.741 Personen** |\n", encoding="utf-8"
+    )
+    (tmp_path / "docs" / "plan" / "uc3" / "ministerium-oracle.md").write_text(
+        "Soll-sha256: `" + "a" * 64 + "`\n", encoding="utf-8"
+    )
+    soll_pruefen(tmp_path, ABGABE_MONAT, 32741, "a" * 64)
+    soll_pruefen(tmp_path, "2026-06", 1, "b" * 64)  # andere Monate prüft das nicht
+    with pytest.raises(RegelFehler, match="32.713 Personen statt Soll 32.741"):
+        soll_pruefen(tmp_path, ABGABE_MONAT, 32713, "a" * 64)
+    with pytest.raises(RegelFehler, match="sha256"):
+        soll_pruefen(tmp_path, ABGABE_MONAT, 32741, "b" * 64)

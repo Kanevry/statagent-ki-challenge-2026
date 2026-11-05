@@ -53,6 +53,14 @@ class VorschlagUngueltig(ValueError):
     """Der Vorschlag des Modells passt nicht zu den Regeln in der Datenbank."""
 
 
+class RolleUnzustaendig(VorschlagUngueltig):
+    """Die Rolle hat eine Regel eines Typs angefasst, den sie nicht ändern darf; ``typ`` nennt ihn."""
+
+    def __init__(self, meldung: str, typ: str) -> None:
+        super().__init__(meldung)
+        self.typ = typ
+
+
 @dataclass
 class Ergebnis:
     """Was aus einer Anweisung wurde: ein offener Vorschlag, eine Rückfrage oder eine begründete Ablehnung."""
@@ -70,6 +78,13 @@ class Ergebnis:
 # --- Zulässige Werte je Regel-Art (was der Zählcode versteht; Werte selbst stehen in meta.regel) -------
 
 _TAG = re.compile(r"^(monatserster|monatsletzter|tag:\d{1,2})$")
+#: ``geburtsmonat_13``, wie zaehlung.py es versteht: jahresdifferenz, unbekannt oder ``ersatz:MM-TT``. Das
+#: Ersatzdatum geht dort in ``make_date(geburtsjahr, MM, TT)``; zulässig ist darum nur ein Tag, den es in
+#: jedem Jahr gibt (kein 29.02., kein 31. in Monaten mit 30 Tagen).
+_GEBURTSMONAT_13 = re.compile(
+    r"^(jahresdifferenz|unbekannt"
+    r"|ersatz:(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31))$"
+)
 _ZULAESSIG: dict[tuple[str, str], Any] = {
     ("dimension", "qualifikation"): {"code", "beschaeftigungskategorie"},
     ("bestand", "zeitraum_art"): {"Stichtag", "Monat"},
@@ -78,7 +93,7 @@ _ZULAESSIG: dict[tuple[str, str], Any] = {
     ("bestand", "lieferung"): {"eigene"},
     ("abschnittswahl", "ordnung"): {"spaetester_beginn"},
     ("alter", "bezug"): {"bis", "von"},
-    ("alter", "geburtsmonat_13"): {"jahresdifferenz", "unbekannt"},
+    ("alter", "geburtsmonat_13"): _GEBURTSMONAT_13,
     ("klassifikationsversion", "nach"): {"berichtsmonat"},
     # sonderauswertung.personentage verweigert jeden anderen Wert
     ("personentage", "datenstand"): {"juengste_lieferung_je_tag"},
@@ -88,6 +103,25 @@ _ZULAESSIG: dict[tuple[str, str], Any] = {
 #: Zählregel-Arten eines Auswertungs-Regelsatzes und die Parameter, die der Auswertungscode liest
 #: (``wert(regel, …)`` in sonderauswertung.py; dort gibt es keine eigene Liste). Nur was der Code kann.
 _AUSWERTUNG_PARAMETER: dict[str, frozenset[str]] = {"personentage": PERSONENTAGE_PARAMETER}
+#: Was eine Rolle über die Parameter einer neuen Auswertungsregel wissen muss (Kontext ``neue_regel_arten``);
+#: ohne diese Liste riet das Modell die Namen (Live-Probe Auftrag 3, 05.11.). Werte stehen hier keine.
+_AUSWERTUNG_PARAMETER_TEXT: dict[str, dict[str, str]] = {
+    "personentage": {
+        "monate": "Zahl: Monate bis einschließlich Berichtsmonat",
+        "qualifikationen": "Liste der Qualifikationscodes, z. B. ArbeiterDV",
+        "oenace": "ÖNACE-Abschnitt als Buchstabe",
+        "altcodes_als_abschnitt": "Liste alter ÖNACE-2003-Codes, die zu diesem Abschnitt zählen",
+        "mindesttage": "Zahl: kleinste Zahl von Tagen für die Liste",
+        "datenstand": "juengste_lieferung_je_tag",
+        "angehaltene_lieferungen": "ueberspringen oder verwenden",
+        "bereinigung_regelsatz": "Regelsatz, nach dem die Lieferungen bereinigt sind, z. B. v1",
+        "geburtsjahr_unplausibel": "Text für ein unplausibles Geburtsjahr",
+        "felder": "Liste der Spalten der Datei",
+        "datei": "Dateiname mit dem Platzhalter {berichtsmonat}",
+        "trennzeichen": "Trennzeichen der CSV",
+    }
+}
+assert all(set(t) == _AUSWERTUNG_PARAMETER[a] for a, t in _AUSWERTUNG_PARAMETER_TEXT.items())
 _V_REGELSATZ = re.compile(r"v\d+")
 #: Auswertungs-Regelsatz (z. B. ``ministerium``): eigene Regeln, keine Monatsläufe. Wie der CHECK in 140_vorschlag.sql.
 _AUSWERTUNG_REGELSATZ = re.compile(r"[a-z][a-z0-9_]{2,40}")
@@ -112,6 +146,9 @@ def _wert_pruefen(art: str, schluessel: str, alt: object, neu: object, regel: st
         raise VorschlagUngueltig(f"{regel}.{schluessel}: {neu!r} passt nicht zu {erlaubt.pattern}")
     if alt is not None and not _gleicher_typ(alt, neu):
         raise VorschlagUngueltig(f"{regel}.{schluessel}: Wert {neu!r} hat einen anderen Typ als bisher")
+
+
+_REGEL_TEXTE = frozenset({"beschreibung", "begruendung", "grundlage", "name"})
 
 
 def _parameter(liste: list[Parameter]) -> dict[str, Any]:
@@ -209,13 +246,111 @@ def _ohne_auswertungsfelder(aenderungen: list[dict[str, Any]]) -> list[dict[str,
     return ergebnis
 
 
-def _ohne_kennungen(*teile: object) -> None:
-    text = json.dumps(teile, ensure_ascii=False, default=str).lower()
-    for wort in sorted(GESPERRTE_SPALTEN):
-        if wort in text:
+#: Kennungsspalten (person_id, vvh_id) als ganzes Wort, Groß/Klein egal. Ohne „beispiele“ aus
+#: GESPERRTE_SPALTEN: eine Begründung „… mit Beispielen …“ nennt keine Einzeldaten.
+_KENNUNGSWORT = re.compile(
+    r"\b(" + "|".join(sorted(GESPERRTE_SPALTEN - {"beispiele"})) + r")\b", re.IGNORECASE
+)
+
+
+_TEXTFELDER = ("beschreibung", "begruendung")
+
+
+def _zeichenketten(wert: object) -> list[str]:
+    """Alle Zeichenketten in ``wert`` (Schlüssel und Werte, verschachtelt), roh statt als JSON.
+
+    Ein JSON-Text schreibt einen Zeilenumbruch als ``\\n``; „PERSON_ID\\n1001049“ oder „x\\nperson_id“ hätte dann
+    keine Wortgrenze und keinen Leerraum mehr, und die Prüfung liefe ins Leere (Review 05.11.).
+    """
+    if isinstance(wert, str):
+        return [wert]
+    if isinstance(wert, dict):
+        return [t for k, w in wert.items() for t in (*_zeichenketten(k), *_zeichenketten(w))]
+    if isinstance(wert, (list, tuple, set, frozenset)):
+        return [t for w in wert for t in _zeichenketten(w)]
+    return [] if wert is None else [str(wert)]
+
+
+def _ohne_kennungen(aenderungen: list[dict[str, Any]], begruendung: str, rumpf: str | None) -> None:
+    """Code und Parameter nennen keine Kennungsspalte; Fließtext nennt keine konkrete Kennung mit Nummer.
+
+    Der Fließtext (Begründung, Beschreibung einer neuen Regel) darf den Feldnamen nennen, den ein Auftrag verlangt
+    („Felder PERSON_ID, GESCHLECHT …“ in Auftrag 3, Live-Probe 05.11.), aber keine Kennung wie „PERSON_ID 1001049“.
+    Jede Zeichenkette wird einzeln und roh geprüft, damit Leerraum echter Leerraum ist.
+    """
+    texte: list[object] = [begruendung]
+    ohne_texte: list[dict[str, Any]] = []
+    for a in aenderungen:
+        regel = a.get("regel")
+        if isinstance(regel, dict):
+            texte += [regel.get(k) for k in _TEXTFELDER]
+            a = {**a, "regel": {k: w for k, w in regel.items() if k not in _TEXTFELDER}}
+        ohne_texte.append(a)
+    for text in _zeichenketten([ohne_texte, rumpf]):
+        if treffer := _KENNUNGSWORT.search(text):
             raise VorschlagUngueltig(
-                f"Der Vorschlag nennt „{wort}“; Einzeldaten gehören nicht in Vorschläge."
+                f"Der Vorschlag nennt „{treffer.group(1).lower()}“; Einzeldaten gehören nicht in Vorschläge."
             )
+    if any(_KENNUNG_IN_ANWEISUNG.search(text) for text in _zeichenketten(texte)):
+        raise VorschlagUngueltig(
+            "Der Vorschlag nennt eine konkrete Kennung; Einzeldaten gehören nicht in Vorschläge."
+        )
+
+
+#: Wort, das eine Kennung ankündigt: „VVH“, „Person(en)“, „…verhältnis“, „ID(s)“, „Kennung“, „Nummer“, „Nr.“,
+#: jeweils optional mit ``_ID``/``-ID``.
+_KENNUNGS_ANKUENDIGUNG = (
+    r"(?:vvh|person(?:en)?|\w*verh(?:ä|ae)ltnis(?:ses|se|sen)?|ids?|kennung(?:en)?|nummern?|nr)(?:[_-]?ids?)?"
+)
+#: Zwischen Ankündigungen und Zahl: Leerraum (auch Zeilenumbruch) und Satzzeichen wie ``:`` ``=`` ``#`` ``/`` ``.``.
+_KENNUNGS_TRENNER = r"[\s:=#/.,\-]*+"
+#: Ende einer Zahl: keine weitere Ziffer, keine Einheit. Nur kurze Zahlen (bis vier Stellen) dürfen als Datum oder
+#: Dezimalzahl weitergehen (``2025-10``, ``3.5``); eine lange Zahl mit ``,`` ``/`` ``-`` dahinter ist eine Liste von
+#: Kennungen („1001049,1001050“, „859975/859976“; Review 5a, 05.11.).
+_KENNUNGS_EINHEIT = r"(?!\s*(?:%|(?:prozent|jahre?n?|tag(?:e|en)?|monate?n?|wochen?)\b))"
+_KENNUNGS_ENDE_LANG = r"(?!\d)" + _KENNUNGS_EINHEIT
+_KENNUNGS_ENDE_KURZ = r"(?!\d)(?![-./,]\d)" + _KENNUNGS_EINHEIT
+
+#: Konkrete Kennung in einer Anweisung oder im Fließtext eines Vorschlags. Eine Kennung im Datensatz hat sechs bis
+#: sieben Stellen (VVH_ID um 859975, PERSON_ID um 1001049), daher zwei Formen:
+#: - Ankündigung(en) („Person“, „Kennung“, „Personen/IDs/Kennung“, „Verhältnis Nr.“), dann eine Zahl ab fünf Stellen;
+#: - ausdrücklicher Spaltenname ``VVH_ID``/``PERSON_ID``, dann eine Zahl beliebiger Länge außer einer Jahreszahl.
+#: Alter, Grenzen, Prozente, Tage und Monate („Person 75 und älter“, „100 Jahre“, „3 Prozent“, „2025-10“) bleiben
+#: erlaubt: zu kurz, mit Einheit oder als Datum.
+_KENNUNG_IN_ANWEISUNG = re.compile(
+    r"\b"
+    + _KENNUNGS_ANKUENDIGUNG
+    + r"(?:\b"
+    + _KENNUNGS_TRENNER
+    + _KENNUNGS_ANKUENDIGUNG
+    + r"){0,3}"
+    + _KENNUNGS_TRENNER
+    + r"\d{5,}"
+    + _KENNUNGS_ENDE_LANG
+    + r"|\b(?:vvh|person)[_-]?id"
+    + _KENNUNGS_TRENNER
+    + r"(?:\d{5,}"
+    + _KENNUNGS_ENDE_LANG
+    + r"|(?!(?:19|20)\d\d(?!\d))\d{1,4}"
+    + _KENNUNGS_ENDE_KURZ
+    + r")",
+    re.IGNORECASE,
+)
+
+
+def anweisung_pruefen(anweisung: str) -> str | None:
+    """Grund für die Ablehnung, wenn die Anweisung eine konkrete Kennung nennt, sonst None.
+
+    Läuft vor dem ersten Modellaufruf: eine solche Anweisung erreicht weder Modell noch Protokoll. Der Grund
+    nennt die Kennung nicht.
+    """
+    if _KENNUNG_IN_ANWEISUNG.search(anweisung):
+        return (
+            "Die Anweisung enthält eine Kennung (etwa VVH_ID, PERSON_ID oder die Nummer einer Person oder "
+            "eines Verhältnisses); sie geht nicht an das Modell und nicht ins Protokoll. Bitte ohne "
+            "Einzeldaten formulieren."
+        )
+    return None
 
 
 @dataclass(frozen=True)
@@ -249,19 +384,38 @@ def vorschlag_pruefen(
             raise VorschlagUngueltig(f"Basisregelsatz {basis} gibt es nicht")
     regeln = _regeln(conn, basis)
     aenderungen: list[dict[str, Any]] = []
+    ausgelassen: list[str] = []
+    fremder_typ = ""
     datei: CodeDateiEntwurf | None = None
 
     if antwort.typ == "regel_aendern":
         if not antwort.aenderungen:
             raise VorschlagUngueltig("regel_aendern ohne Änderung")
+        # Ändert der Vorschlag auch Regeln eines Typs, den die Rolle nicht anfassen darf (Live-Probe 05.11.:
+        # Geburtsmonat 13 → R5_alter und zugleich der Maßnahmetext von P04), bleiben diese weg und stehen in der
+        # Begründung; nur wenn nichts übrig bleibt, ist die Rolle unzuständig.
+        erlaubt = []
         for a in antwort.aenderungen:
             r = regeln.get(a.regel_name)
             if r is None:
                 raise VorschlagUngueltig(f"Regel {a.regel_name} gibt es im Regelsatz {basis} nicht")
-            if r["typ"] not in rolle.regeltypen:
-                raise VorschlagUngueltig(f"Die Rolle {rolle.name} darf {r['typ']}-Regeln nicht ändern")
+            if r["typ"] in rolle.regeltypen:
+                erlaubt.append(a)
+            else:
+                ausgelassen.append(f"{a.regel_name} ({r['typ']})")
+                fremder_typ = str(r["typ"])
+        if not erlaubt:
+            raise RolleUnzustaendig(
+                f"Die Rolle {rolle.name} darf {fremder_typ}-Regeln nicht ändern", fremder_typ
+            )
+        for a in erlaubt:
+            r = regeln[a.regel_name]
             alt = dict(r["parameter"])
-            neu_teil = _parameter(a.parameter_neu)
+            # Das Modell legt seinen Erklärtext manchmal als Parameter `beschreibung` ab (Live-Probe Auftrag 2,
+            # 05.11.); Text der Regel ist kein Parameter und ändert keine Zahl, also verwerfen statt ablehnen.
+            neu_teil = {
+                k: w for k, w in _parameter(a.parameter_neu).items() if k in alt or k not in _REGEL_TEXTE
+            }
             for k, w in neu_teil.items():
                 if k not in alt:
                     raise VorschlagUngueltig(f"{a.regel_name}: Parameter {k!r} kennt die Regel nicht")
@@ -277,7 +431,7 @@ def vorschlag_pruefen(
             if n.name in regeln:
                 raise VorschlagUngueltig(f"Regel {n.name} gibt es schon; bitte regel_aendern")
             if n.typ not in rolle.regeltypen:
-                raise VorschlagUngueltig(f"Die Rolle {rolle.name} darf keine {n.typ}-Regeln anlegen")
+                raise RolleUnzustaendig(f"Die Rolle {rolle.name} darf keine {n.typ}-Regeln anlegen", n.typ)
             gleiche_art = [r for r in regeln.values() if r["typ"] == n.typ and r["art"] == n.art]
             parameter = _parameter(n.parameter)
             if n.typ == "zaehl" and gleiche_art:
@@ -320,7 +474,10 @@ def vorschlag_pruefen(
     _ohne_kennungen(
         _ohne_auswertungsfelder(aenderungen), antwort.begruendung, None if datei is None else datei.rumpf
     )
-    return GeprueftVorschlag(antwort.typ, ziel, basis, aenderungen, datei, antwort.begruendung.strip())
+    begruendung = antwort.begruendung.strip()
+    if ausgelassen:
+        begruendung += f" Nicht Teil dieses Vorschlags (andere Rolle zuständig): {', '.join(ausgelassen)}."
+    return GeprueftVorschlag(antwort.typ, ziel, basis, aenderungen, datei, begruendung)
 
 
 # --- Modellaufrufe ------------------------------------------------------------------------------------
@@ -369,6 +526,9 @@ def kontext_bauen(
     if regelsatz_basis != "v2" and regelsatz_vorhanden(conn, "v2"):
         kontext["regeln_v2"] = regeln_lesen(conn, "v2")
     kontext["klassifikation"] = klassifikation_lesen(conn, "qualifikation")
+    kontext["neue_regel_arten"] = {
+        art: {"typ": "zaehl", "parameter_pflicht": text} for art, text in _AUSWERTUNG_PARAMETER_TEXT.items()
+    }
     kontext["schema"] = schema_lesen(conn)
     kontext["laeufe"] = sql_lesen(
         conn,
@@ -395,6 +555,10 @@ def agent_ausfuehren(
     Mit ``probe_lieferung`` rechnet das Programm gleich die Probe für diesen Monat.
     """
     ergebnis = Ergebnis(anweisung=anweisung)
+    grund = anweisung_pruefen(anweisung)
+    if grund is not None:
+        ergebnis.abgelehnt = grund
+        return ergebnis
     modell_aufruf = complete or plattform_bruecke.lade_complete()
     try:
         koordination = _aufruf(
@@ -414,32 +578,52 @@ def agent_ausfuehren(
         return ergebnis
 
     rolle = ROLLEN[koordination.rolle]
-    ergebnis.rolle = rolle.name
     kontext = kontext_bauen(conn, regelsatz_basis, probe_lieferung)
-    nachrichten = [
-        {"role": "system", "content": rolle.system_prompt},
-        {
-            "role": "user",
-            "content": f"Anweisung: {anweisung}\nAuftrag des Koordinators: {koordination.auftrag}\n"
-            f"Kontext (JSON):\n{json.dumps(kontext, ensure_ascii=False, default=str)}",
-        },
-    ]
-    try:
-        antwort = _aufruf(modell_aufruf, ergebnis, nachrichten, VorschlagAntwort, rolle.zweck)
-    except (ValidationError, ValueError) as fehler:
-        ergebnis.abgelehnt = (
-            f"Antwort der Rolle {rolle.name} passt nicht zum Format ({type(fehler).__name__})"
-        )
-        return ergebnis
-    ergebnis.modell, ergebnis.provider = ergebnis.aufrufe[-1]["modell"], ergebnis.aufrufe[-1]["provider"]
-    if antwort.rueckfrage:
-        ergebnis.rueckfrage = antwort.rueckfrage
-        return ergebnis
-    try:
-        g = vorschlag_pruefen(conn, rolle, antwort, regelsatz_basis=regelsatz_basis)
-    except VorschlagUngueltig as fehler:
-        ergebnis.abgelehnt = str(fehler)
-        return ergebnis
+    versucht: set[str] = set()
+    while True:
+        ergebnis.rolle = rolle.name
+        versucht.add(rolle.name)
+        nachrichten = [
+            {"role": "system", "content": rolle.system_prompt},
+            {
+                "role": "user",
+                "content": f"Anweisung: {anweisung}\nAuftrag des Koordinators: {koordination.auftrag}\n"
+                f"Kontext (JSON):\n{json.dumps(kontext, ensure_ascii=False, default=str)}",
+            },
+        ]
+        try:
+            antwort = _aufruf(modell_aufruf, ergebnis, nachrichten, VorschlagAntwort, rolle.zweck)
+        except (ValidationError, ValueError) as fehler:
+            ergebnis.abgelehnt = (
+                f"Antwort der Rolle {rolle.name} passt nicht zum Format ({type(fehler).__name__})"
+            )
+            return ergebnis
+        ergebnis.modell, ergebnis.provider = ergebnis.aufrufe[-1]["modell"], ergebnis.aufrufe[-1]["provider"]
+        if antwort.rueckfrage:
+            ergebnis.rueckfrage = antwort.rueckfrage
+            return ergebnis
+        try:
+            g = vorschlag_pruefen(conn, rolle, antwort, regelsatz_basis=regelsatz_basis)
+        except RolleUnzustaendig as fehler:
+            # Der Koordinator hat die falsche Rolle gewählt (Live-Probe 05.11.: Geburtsmonat 13 ging an qs, die
+            # keine Zählregeln ändern darf). Einmal die Rolle fragen, die diesen Regeltyp ändern darf.
+            zustaendig = next(
+                (
+                    r
+                    for r in ROLLEN.values()
+                    if fehler.typ in r.regeltypen and antwort.typ in r.typen and r.name not in versucht
+                ),
+                None,
+            )
+            if zustaendig is None:
+                ergebnis.abgelehnt = str(fehler)
+                return ergebnis
+            rolle = zustaendig
+            continue
+        except VorschlagUngueltig as fehler:
+            ergebnis.abgelehnt = str(fehler)
+            return ergebnis
+        break
     ergebnis.vorschlag_id = vorschlag_anlegen(
         conn,
         anweisung=anweisung,
