@@ -462,6 +462,16 @@ describe("Sätze der Freigabe-Seiten (UI-Regie v1)", () => {
     expect(auftragKopf("Regelsatz v2 freigeben")).toEqual({ nummer: null, titel: "Regelsatz v2 freigeben" });
   });
 
+  // Fehler, den das fängt: Die Überschrift brach bei „nicht mit dem 1“ ab, darunter stand der ganze Satz noch einmal.
+  it("schneidet die Überschrift nicht nach einem Datum oder einer Abkürzung ab", () => {
+    const satz = "Rechnen Sie bei Geburtsmonat 13 nur mit der Differenz der Jahre, nicht mit dem 1. Juli.";
+    const { titel } = auftragKopf(satz);
+    expect(titel).toBe("Rechnen Sie bei Geburtsmonat 13 nur mit der Differenz der Jahre, nicht mit dem 1. Juli");
+    expect(zitatDoppelt(titel, auftragsZitat(satz))).toBe(true);
+    expect(auftragKopf("Zählen Sie z. B. Beamte nicht mit.").titel).toBe("Zählen Sie z. B. Beamte nicht mit");
+    expect(auftragKopf("Beamte zählen nicht mit. Prüfe das bitte.").titel).toBe("Beamte zählen nicht mit");
+  });
+
   // Fehler, den das fängt: Regelcodes wie R6_… im Fließtext der Zeile.
   it("sagt ohne Regelcode, was sich ändert", () => {
     const satz = aenderungSatz({ typ: "regel_aendern", aenderungen: [{ regel_name: "R6_beschaeftigungskategorie" }], regelsatzZiel: "v2" });
