@@ -15,8 +15,8 @@ const BROWSER = "e5-screens";
 const BASIS_URL = (process.env.BASIS_URL || "http://localhost:3000").replace(/\/+$/, "");
 const SCREENS = resolve(dirname(fileURLToPath(import.meta.url)), "..", "screens");
 
-// Bild, Route, Viewports. Vorerst nur SC11.
-const ZIELE = [{ bild: "SC11", route: "/uc1" }];
+// Bild, Route, Viewports. SC11 zeigt den gemeinsamen Einstieg (UC4) mit dem Wechsel der Use Cases im App-Kopf.
+const ZIELE = [{ bild: "SC11", route: "/uc4" }];
 const VIEWPORTS = [
   { art: "desktop", width: 1920, height: 1080, deviceScaleFactor: 1 },
   { art: "mobil", width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true },

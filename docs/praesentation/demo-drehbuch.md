@@ -17,17 +17,23 @@ Feature-Stopp und Freeze für Code, Präsentation und Demo: **Fr 06.11.2026 07:0
 
 Die Demo selbst dauert 3:15 (5:15–8:30). Optional D4 steht am Ende dieses Blatts und hat keine eigene Zeit.
 
+## Wo die Demo läuft
+
+- **Live heißt: auf dem Rechner von Bernhard.** Stufe 1 ist der lokale Stand mit dem Modell Azure.
+- **Die öffentliche Demo läuft im Testmodus.** Dort zeigt der Kopf „Modell mock · mock“, und `/uc3` zeigt den Leerzustand. Sie ist keine Live-Demo des Agenten. Wird sie gezeigt, sagt Bernhard vorher „Testmodus“ an.
+- **Bedingung für die Web-Oberfläche:** Die Seite `/uc3` liegt noch in MR !51. Nur wenn sie bis zum Freeze auf main ist, wird die Web-Oberfläche gezeigt. Sonst ist der CLI-Weg (Stufe 2) der Standard. Der Stand wird um 06:45 geprüft und in `probe.md` eingetragen.
+
 ## Schritte
 
 ### Überleitung (5:00–5:15)
 
-- Sagt Bernhard: „Bisher waren das Folien. Jetzt zeige ich dieselbe Pipeline am echten Stand.“
+- Sagt Bernhard: „Bisher waren das Folien. Jetzt zeige ich denselben Ablauf am echten Stand, auf meinem Rechner.“
 - Jury sieht: Folie 8 „Jetzt live“, danach der Wechsel zum Browser.
 
 ### D1 Lauf 2025-03 und Qualitätsbericht (5:15–6:20)
 
-- Klickweg: Web-UI, Seite `/uc3`, dann „Lauf-Detail 2025-03“. Dort steht der Qualitätsbericht des Monats.
-- CLI-Rückfall: `uv run uc3 lauf --lieferung 2025-03`, danach `uv run uc3 laeufe`. Bericht: `abgabe/qualitaetsberichte/2025-03.md`.
+- CLI-Weg (Standard): `uv run uc3 lauf --lieferung 2025-03`, danach `uv run uc3 laeufe`. Bericht: `abgabe/qualitaetsberichte/2025-03.md`.
+- Klickweg, nur wenn `/uc3` (MR !51) bis zum Freeze auf main ist: Web-UI, Seite `/uc3`, dann „Lauf-Detail 2025-03“. Dort steht der Qualitätsbericht des Monats.
 - Sagt Bernhard: „März 2025 hat zwei Fehler auf einmal. 1.663 Zeilen sind doppelt (F8), und die freien Dienstverträge fehlen ganz, 1.492 Verhältnisse (F9). Das Programm hält den Monat an und markiert ihn als vorläufig.“
 - Jury muss sehen:
   - Auffälligkeit Volldubletten mit 1.663 Zeilen (F8), Einstufung sichtbar.
@@ -39,7 +45,7 @@ Die Demo selbst dauert 3:15 (5:15–8:30). Optional D4 steht am Ende dieses Blat
 
 Geübter Auftrag: Plausibilitätsgrenze für das Alter von 110 auf 100 senken. Das ändert keine Zahlen (F5). So zeigt die Demo Diff und Freigabe ohne Risiko.
 
-Ablauf mit den Befehlen (im Terminal oder in der Web-UI, gleiche Schritte):
+Ablauf mit den Befehlen (im Terminal, in der Web-UI nur bei `/uc3` auf main, gleiche Schritte):
 
 1. 6:20 Auftrag stellen. Der Agent erzeugt nur einen Vorschlag und ändert nichts:
    `uv run uc3 agent "Setze die Plausibilitätsgrenze für das Alter von 110 auf 100" --probe 2024-08`
@@ -52,14 +58,16 @@ Ablauf mit den Befehlen (im Terminal oder in der Web-UI, gleiche Schritte):
 
 - Sagt Bernhard (bei 1): „Ich sage der Maschine in einem Satz, was sich ändern soll. Sie schreibt nur einen Vorschlag.“
 - Sagt Bernhard (bei 2): „Hier ist der Unterschied in der Regel. Und hier die Zahlen vorher und nachher. Sie sind gleich, weil zwischen 78 und 116 Jahren kein Fall liegt (F5).“
-- Sagt Bernhard (bei 3 und 4): „Erst mit meinem Namen wird es wirksam. Der Commit trägt den Vermerk Freigegeben-von. Das Protokoll hält es fest.“
+- Sagt Bernhard (bei 3 und 4): „Erst mit meinem Namen wird es wirksam. Der gespeicherte Änderungsschritt im Repo trägt den Vermerk Freigegeben-von. Das Protokoll hält es fest.“
 - Jury muss sehen:
   - Regel-Diff: `max_plausibel` von 110 auf 100 (F5).
   - Zahlen vorher und nachher, gleich.
-  - Freigabe mit Vor- und Nachname, „Team“ wird abgelehnt (F15).
-  - Commit mit Trailer `Freigegeben-von`.
+  - Freigabe mit Vor- und Nachname, „Team“ wird abgelehnt (`shared/py/plattform/freigabe.py`, `pruefe_name`).
+  - Gespeicherter Änderungsschritt (Commit) mit dem Vermerk `Freigegeben-von`.
   - Eintrag im Protokoll.
-- Vorher prüfen: Ist `<id>` beim Üben vergeben worden, nimm die neue Kennung aus der Ausgabe von Schritt 1. Nie eine Kennung von gestern übernehmen.
+- Vorher prüft Bernhard: Er nimmt die Kennung `<id>` aus der Ausgabe von Schritt 1. Nie eine Kennung von gestern übernehmen.
+- Üben nur bis zur Ablehnung: `uv run uc3 vorschlag zeigen <id>`, dann `uv run uc3 ablehnen <id> --name "Bernhard Götzendorfer" --begruendung "Übung vor der Jury"`. Vor der Jury nie `freigabe` üben. Es aktiviert den Regelsatz v2 und committet. Einen Reset-Befehl gibt es nicht (`uc3/statagent/cli.py`). Wäre v2 schon auf 100 gesetzt, träfe die Live-Änderung auf einen Stand, der nicht mehr von 110 ausgeht.
+- Modell: D2 braucht das echte Modell (Azure). Mit `mock` gibt es keinen Vorschlag.
 
 ### D3 Datenanfrage Männer und Frauen je Bundesland (7:40–8:20)
 
@@ -73,7 +81,7 @@ Ablauf mit den Befehlen (im Terminal oder in der Web-UI, gleiche Schritte):
 
 ### UC-Wechsel (8:20–8:30)
 
-- Klickweg: App-Header, UC-Wechsel einmal öffnen und zurück zu UC3.
+- Klickweg (nur in der Web-Oberfläche): App-Header, UC-Wechsel einmal öffnen und zurück zu UC3. Im CLI-Weg zeigt Bernhard nur den Satz und nennt, dass die anderen Anwendungsfälle auf demselben Kern entstehen.
 - Sagt Bernhard: „Derselbe Kern trägt auch die anderen Räume. Dazu gleich mehr.“
 - Jury muss sehen: den Umschalter mit UC1, UC2, UC3. Mehr nicht.
 
@@ -91,15 +99,15 @@ Die Stufen brauchen keinen Umbau. Die Befehle bleiben gleich.
 
 | Stufe | Auslöser | Wechsel (höchstens 30 s) | Was Bernhard sagt |
 |---|---|---|---|
-| 1 Web-UI | Standard. Öffentliche Demo oder lokaler Stand. | keiner | nichts Besonderes |
-| 2 CLI im Terminal | Web-UI lädt nicht, Netz fällt aus oder Seite zeigt Fehler. Auch: Live-Modell antwortet nicht. | Terminal-Fenster nach vorn holen. Bei fehlendem Modell vorher `LLM_PROVIDER=mock` setzen. Dieselben Befehle wie in D1 bis D3. | „Die Oberfläche macht gerade Pause. Ich zeige dasselbe im Terminal.“ Bei Mock zusätzlich: „Das Modell ist nicht erreichbar. Ich nutze den festen Ersatz. Die Zahlen kommen ohnehin aus dem Programm (F16).“ |
+| 1 Web-UI | Nur wenn `/uc3` (MR !51) bis zum Freeze auf main ist: lokaler Stand auf dem Rechner von Bernhard, Modell Azure. Ist die öffentliche Demo im Bild, läuft sie im Testmodus. | keiner | nichts Besonderes. Bei der öffentlichen Demo vorher: „Das ist der Testmodus.“ |
+| 2 CLI im Terminal | Standard, solange `/uc3` nicht auf main ist. Auch: Web-UI lädt nicht, Netz fällt aus oder Seite zeigt Fehler. Auch: Live-Modell antwortet nicht (dann nur für D1 und D3). | Terminal-Fenster nach vorn holen. Dieselben Befehle wie in D1 bis D3. Bei fehlendem Modell vorher `LLM_PROVIDER=mock` setzen: Damit laufen D1 und D3, denn sie brauchen kein Modell. D2 geht ohne Modell auf die Aufzeichnung (Stufe 3). | „Die Oberfläche macht gerade Pause. Ich zeige dasselbe im Terminal.“ Bei fehlendem Modell zusätzlich: „Das Modell ist nicht erreichbar. Lauf und Datenanfrage brauchen keins (F16). Die Änderung zeige ich als Aufzeichnung.“ |
 | 3 Backup-Video | Auch das Terminal geht nicht (Datenbank, Rechner). | Vorbereiteten Videoplayer mit der lokalen Datei in den Vordergrund holen und starten. Plan: `docs/praesentation/backup-video.md`. | „Das ist eine Aufzeichnung von heute früh.“ |
 
 Regeln für alle Stufen:
 
 - Eine Aufzeichnung wird immer als Aufzeichnung gekennzeichnet. Bernhard sagt es vor dem ersten Bild.
 - Der Wechsel zählt ab dem Auslöser bis zum ersten sichtbaren Bild der neuen Stufe. Mehr als 30 Sekunden gelten als Fehlschlag der Probe.
-- Im Modus `mock` entsteht kein Modellaufruf. Das ist ein Ersatz und wird so benannt.
+- Im Modus `mock` entsteht kein Modellaufruf. Es gibt dort nur die Smoke-Fixture `shared/py/plattform/fixtures/smoke.json`. Der Agent braucht `agent.koordinator.json`. Fehlt sie, bricht er ab (`shared/py/plattform/llm/mock.py`, Zeile 56). Einen Mock-Rückfall für D2 gibt es deshalb nicht.
 - Beim Wechsel nicht diskutieren, nicht entschuldigen. Ein Satz, dann weiter.
 
 ## Vorbereitungs-Checkliste Fr 06:00–07:00
@@ -107,15 +115,16 @@ Regeln für alle Stufen:
 Jeder Punkt wird abgehakt, sobald er geprüft ist. Uhrzeit nur aus der Uhr (`TZ=Europe/Vienna date`), nie schätzen.
 
 - [ ] Datenbank läuft und antwortet.
-- [ ] Regelsatz freigegeben: Bernhard gibt die Regeln mit seinem Namen frei (`uv run uc3 regeln freigeben --name "Bernhard Götzendorfer"`), danach `uv run uc3 lauf --alle` und `uv run uc3 berichte --alle`. Ohne diese Freigabe steht bei allen 24 Monaten „vorläufig“. Das ist eine Handlung des Owners, spätestens 05:30.
+- [ ] Regelsatz freigegeben: Bernhard gibt die Regeln mit seinem Namen frei (`uv run uc3 regeln freigeben --name "Bernhard Götzendorfer"`), danach `uv run uc3 lauf --alle` und `uv run uc3 berichte --alle`. Ohne diese Freigabe nennt der Bericht „Regeln ohne Freigabe“. Jeder Lauf bleibt danach vorläufig (`uc3/statagent/lauf.py`, Zeile 151 bis 152). Das ist eine Handlung des Owners, spätestens 05:30.
+- [ ] Entscheid des Leads: ob und welche Monate veröffentlicht werden. Ohne diesen Entscheid zeigt die Jury vorläufige Monate. Das ist gewollt und wird nicht als Fehler erklärt.
 - [ ] Läufe 2024-08 bis 2026-07 sind vorhanden (24 Lieferungen, F3). Prüfung mit `uv run uc3 laeufe`.
-- [ ] Browser-Tabs vorbereitet: `/uc3` mit Lauf-Detail 2025-03, Protokoll, bei D4 zusätzlich `/uc4`.
+- [ ] Ist `/uc3` (MR !51) auf main: Browser-Tabs vorbereitet (`/uc3` mit Lauf-Detail 2025-03, Protokoll, bei D4 zusätzlich `/uc4`). Sonst: Terminal ist der Standard.
 - [ ] Terminal mit großer Schrift, aus 3 Metern lesbar.
-- [ ] Modell-Schalter geprüft: `LLM_PROVIDER` auf den Standard und einmal auf `mock`.
+- [ ] Modell-Schalter geprüft: `LLM_PROVIDER` auf den Standard. Mit `mock` laufen nur D1 und D3.
 - [ ] Video lokal geöffnet und startklar (Stufe 3).
-- [ ] Netz aus getestet: Stufe 2 und Stufe 3 laufen ohne Netz.
+- [ ] Netz aus getestet: Stufe 2 (D1 und D3) und Stufe 3 laufen ohne Netz. D2 braucht das Modell.
 - [ ] Keine Secrets sichtbar. Umgebungsvariablen nicht im Terminal anzeigen, keine `.env.local` öffnen.
 - [ ] Zahlen auf den Folien gegen `abgabe/` abgeglichen.
-- [ ] Übungsauftrag aus D2 einmal trocken gelaufen, `<id>` notiert, Zustand danach zurückgesetzt.
+- [ ] Übungsauftrag aus D2 nur bis `vorschlag zeigen <id>` gelaufen, dann `ablehnen <id>` mit der Begründung „Übung vor der Jury“. Nie `freigabe` geübt.
 - [ ] Entscheid D4 um 06:45 getroffen und in `probe.md` eingetragen.
 - [ ] Freeze um 07:00 (Europe/Vienna) bestätigt. Danach keine Änderung mehr.

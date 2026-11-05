@@ -15,9 +15,9 @@ Je Bild stehen Herkunft (Route, Commit, Lauf) und Art (live, Testdaten, Aufzeich
 | SC08 | Regel R5_alter als Daten | 7 | nein | – | – | – | – | – | – | offen | – |
 | SC09 | Rückfrage R1 an die Fachabteilung | 7 | nein | – | – | – | – | – | – | offen | – |
 | SC10 | Protokoll mit Freigabe, Name, Zeit, Wirkung | 9 | nein | – | – | – | – | – | – | offen | – |
-| SC11 | Kopf der App mit Wechsel zwischen den Use Cases | 10 | ja | 1920 | 1080 | `8ff691ec075c7a70`[^SC11] | /uc1 | fdf78a1218b4 | – | live | 2026-11-05T15:55:35+01:00 |
+| SC11 | Gemeinsamer Einstieg (UC4) mit dem Wechsel der Use Cases im App-Kopf | 10 | ja | 1920 | 1080 | `4f2307d2fb7b7b90`[^SC11] | /uc4 | 4495de3cf9f5 | – | live | 2026-11-05T16:27:58+01:00 |
 | SC12 | Agent-Vorschlag mit Diff vor der Freigabe | 8 | nein | – | – | – | – | – | – | offen | – |
 
 Stand: 1/12 vorhanden, 1/12 gültig
 
-[^SC11]: `8ff691ec075c7a7043f3684220c7d9e96eeb71c973fcd64ba94d79dc891094ae`
+[^SC11]: `4f2307d2fb7b7b90261c86b1060f652be87fbd0cc80d13765bce38f305f87f28`

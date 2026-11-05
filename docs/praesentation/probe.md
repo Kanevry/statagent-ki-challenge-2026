@@ -6,6 +6,9 @@ Gehört zu GitLab #90, Epic #26. Wird am Fr 06.11.2026 ab 06:00 ausgefüllt.
 - **Feature-Stopp und Freeze: Fr 06.11.2026 07:00 (Europe/Vienna).** Nach dem Freeze ändert niemand Code, Folien oder Demo.
 - Ältere Dokumente nennen teils 05:00. Es gilt 07:00 laut Owner.
 - Uhrzeiten nur aus der Uhr eintragen: `TZ=Europe/Vienna date`. Nie schätzen, nie runden.
+- **Bedingung für die Web-Oberfläche:** Die Seite `/uc3` liegt in MR !51. Nur wenn sie bis zum Freeze auf main ist, wird die Web-Oberfläche gezeigt (Stufe 1). Sonst ist der CLI-Weg (Stufe 2) der Standard. Der Stand wird um 06:45 geprüft und in der Tabelle unten eingetragen.
+- **Live heißt auf dem Rechner von Bernhard** (Modell Azure). Die öffentliche Demo läuft im Testmodus und wird so angesagt.
+- **Üben ohne Folgen:** Den Änderungsauftrag aus D2 nur bis `vorschlag zeigen <id>` üben, dann `ablehnen <id>`. Nie `freigabe` üben (siehe Demo-Drehbuch, D2).
 - Das Soll kommt aus der Folienliste (Summe 9:40, 20 s Puffer bis 10:00) und aus `docs/praesentation/demo-drehbuch.md`.
 
 ## 1. Durchlauf
@@ -18,7 +21,8 @@ Gehört zu GitLab #90, Epic #26. Wird am Fr 06.11.2026 ab 06:00 ausgefüllt.
 | Gesamtdauer Ist | |
 | Soll | 9:40, Obergrenze 10:00 |
 | Gesamtdauer ≤ 10:00 | ja / nein |
-| Stufe der Demo | 1 Web-UI / 2 CLI / 3 Video |
+| `/uc3` (MR !51) beim Freeze auf main | ja / nein (bei nein ist Stufe 2 der Standard) |
+| Stufe der Demo | 1 Web-UI (nur bei `/uc3` auf main) / 2 CLI / 3 Video |
 | Stand (Commit) | |
 | Zahlen auf Folien gegen `abgabe/` abgeglichen | ja / nein |
 
@@ -81,7 +85,7 @@ Der Metadatenbericht steht in `docs/praesentation/backup-video.md`, Abschnitt �
 Das Live-Modell wird absichtlich nicht verfügbar gemacht. Gemessen werden zwei Wege getrennt:
 
 - Weg (a): Wechsel auf die Aufzeichnung. Das ist der Nachweis für #90. Ziel: höchstens 30 Sekunden.
-- Weg (b): Stufe 2 im Terminal mit `LLM_PROVIDER=mock`. Er wird zusätzlich protokolliert und ersetzt Weg (a) nicht.
+- Weg (b): Stufe 2 im Terminal mit `LLM_PROVIDER=mock`. Damit laufen nur D1 und D3, denn sie brauchen kein Modell. Für D2 gibt es keinen Mock-Weg, weil die Fixture `agent.koordinator.json` fehlt (`shared/py/plattform/llm/mock.py`, Zeile 56). D2 geht ohne Modell auf die Aufzeichnung, das ist Weg (a). Weg (b) wird zusätzlich protokolliert und ersetzt Weg (a) nicht.
 
 | Feld | Wert |
 |---|---|
@@ -91,7 +95,7 @@ Das Live-Modell wird absichtlich nicht verfügbar gemacht. Gemessen werden zwei 
 | Uhr beim ersten sichtbaren Bild der Aufzeichnung | |
 | Dauer des Wechsels in Sekunden | |
 | Dauer ≤ 30 s | ja / nein |
-| Weg (b) Stufe 2 mit `LLM_PROVIDER=mock`: Dauer in Sekunden und Ergebnis | |
+| Weg (b) Stufe 2 mit `LLM_PROVIDER=mock` für D1 und D3: Dauer in Sekunden und Ergebnis | |
 | Aufzeichnung gekennzeichnet („Das ist eine Aufzeichnung von heute früh“ gesagt) | ja / nein |
 | Kennzeichnung im Bild sichtbar | ja / nein |
 | Wiederholt nach Fehlschlag | ja / nein, Dauer |

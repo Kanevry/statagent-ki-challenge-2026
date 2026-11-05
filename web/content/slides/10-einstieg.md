@@ -23,4 +23,4 @@ Belege, Freigabe mit Namen und der Modell-Schalter sind ein gemeinsamer Kern.
 
 ## Sprechernotizen
 
-Bewertet wird Use Case 3. Der Kern trägt mehr: Belege, Freigabe mit Namen, Modell-Schalter. Darauf laufen der KI-Lotse und der HealthPolicy Simulator. Nächster Schritt: ein gemeinsamer Einstieg. Eine Frage bekommt die geprüfte Zahl, die Abwägung und eine einfache Erklärung.
+Bewertet wird Use Case 3. Der Kern trägt mehr: Belege, Freigabe mit Namen, Modell-Schalter. Der KI-Lotse und der Simulator entstehen auf demselben Kern. Nächster Schritt: ein gemeinsamer Einstieg. Eine Frage bekommt die geprüfte Zahl, die Abwägung und eine einfache Erklärung.

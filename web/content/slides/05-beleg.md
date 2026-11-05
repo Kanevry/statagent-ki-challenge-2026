@@ -20,4 +20,4 @@ Herkunft: Zellvergleich `uc3 eichen --lieferung 2024-08` und eine unabhängige G
 
 ## Sprechernotizen
 
-Zuerst der Beleg. Der Beispielbericht für August 2024 ist unser Golden Set, also die Vorlage zum Prüfen. Er hat 2.880 Zahlenzellen. Wir haben alle nachgerechnet, null Abweichungen. Auch die Brücke geht auf: 392.284 Zeilen, minus 48 Abschnitte, die vor dem Stichtag enden, gleich 392.236. Der Stichtag ist der Monatsletzte.
+Zuerst der Beleg. Der Beispielbericht für August 2024 ist unser Golden Set, also die Vorlage zum Prüfen. Er hat 2.880 Zahlenzellen. Wir haben alle nachgerechnet, null Abweichungen. So rechnet es sich: 392.284 Zeilen, minus 48 Abschnitte, die vor dem Stichtag enden, gleich 392.236. Der Stichtag ist der Monatsletzte.

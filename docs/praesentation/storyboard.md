@@ -77,7 +77,7 @@ Abnahme der Bilder über #88. Ablage `docs/praesentation/screens/SC01.png` bis `
 | SC8 | Regel `R5_alter` als Daten | UC3-Oberfläche oder `uc3 regeln zeigen` | 7 |
 | SC9 | Rückfrage R1 an die Fachabteilung | `abgabe/rueckfragen/R1.md` | 7 |
 | SC10 | Protokoll mit Freigabe, Name, Zeit, Wirkung | UC3-Oberfläche oder `uc3 protokoll --zeigen` | 9 |
-| SC11 | Kopf der App mit Wechsel zwischen den Use Cases | öffentliche Demo | 10 |
+| SC11 | Gemeinsamer Einstieg (UC4) mit dem Wechsel der Use Cases im App-Kopf | öffentliche Demo, Route `/uc4` | 10 |
 | SC12 | Agent-Vorschlag mit Diff vor der Freigabe | `uc3 vorschlag zeigen <id>` oder Oberfläche | 8 |
 
 Ein Bild aus Testdaten oder eine Aufzeichnung wird im Manifest so gekennzeichnet. Es wird nie als Live-Lauf ausgegeben.

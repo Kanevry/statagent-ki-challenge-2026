@@ -12,7 +12,7 @@ belege: [F12]
 
 # Was wir nicht anfassen
 
-Veröffentlichte Monate bleiben, wie sie sind. Eine spätere Abweichung steht als Revisionsbedarf im Bericht: Dezember 2024, −260 Verhältnisse.
+Ist ein Monat veröffentlicht, bleibt seine Zahl. Eine spätere Abweichung steht als Revisionsbedarf im Bericht, für Dezember 2024 sind es −260.
 
 Das Modell sieht Regeln und Summen. Einzelne Datensätze sieht es nie.
 
@@ -20,4 +20,4 @@ Herkunft: Lieferung 2024-12 gegen 2025-01, Qualitätsbericht 2025-01 und unabhä
 
 ## Sprechernotizen
 
-Was wir nicht anfassen: Veröffentlichtes bleibt, wie es ist. Ändert eine spätere Lieferung einen alten Monat, steht das als Revisionsbedarf im Bericht. Beispiel Dezember 2024: minus 260 Verhältnisse. Die Zahl bleibt veröffentlicht, die Abweichung ist dokumentiert. Und das Modell sieht keine Einzeldaten.
+Was wir nicht anfassen: Ist ein Monat veröffentlicht, bleibt seine Zahl. Eine spätere Abweichung steht als Revisionsbedarf im Bericht, für Dezember 2024 sind es minus 260. Und das Modell sieht keine Einzeldaten.

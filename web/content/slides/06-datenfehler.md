@@ -25,7 +25,7 @@ belege: [F4, F5, F6, F7, F8, F9, F10, F11]
 
 Jeder Befund steht mit Abfrage und Einstufung im Qualitätsbericht des Monats.
 
-Herkunft: Qualitätsberichte 2024-08, 2025-03, 2025-06 und 2025-10
+Herkunft: Qualitätsberichte 2024-08, 2025-03, 2025-06 und 2025-10. Die 388.115 stehen in `docs/plan/uc3/annahmen.md` A6 (Regel E01). Der Bericht 2025-06 nennt 432.086 getauschte Sätze.
 
 ## Sprechernotizen
 

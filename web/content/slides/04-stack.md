@@ -16,7 +16,7 @@ belege: [F16]
 
 **Python-Programm `statagent`, Befehl `uc3`:** liest ein, rechnet, prüft, schreibt Berichte
 
-**Oberfläche:** zeigt Läufe und Berichte und startet Befehle
+**Oberfläche:** zeigt Läufe und Berichte (im Bau)
 
 **Agenten:** schreiben Vorschläge für Regeln und Code. Das Modell ist austauschbar. Es sieht Regeln und Summen, keine Einzeldaten.
 
@@ -24,4 +24,4 @@ Herkunft: `uc3/README.md`
 
 ## Sprechernotizen
 
-So ist es gebaut. Unten liegt PostgreSQL 16, die Datenbank. Darüber liegt das Python-Paket statagent mit dem Befehl uc3. Es liest, prüft und rechnet. Die Oberfläche in Next.js liest nur und startet diesen Befehl. Die Agenten sprechen über eine einzige Schnittstelle mit dem Modell. Das Modell ist austauschbar. Es sieht Regeln, Schemata und Summen. Einzeldaten sieht es nie.
+So ist es gebaut. Unten liegt PostgreSQL 16, die Datenbank. Darüber liegt das Python-Paket statagent mit dem Befehl uc3. Es liest, prüft und rechnet. Die Oberfläche in Next.js ist im Bau. Sie zeigt Läufe und Berichte. Die Agenten sprechen über eine einzige Schnittstelle mit dem Modell. Das Modell ist austauschbar. Es sieht Regeln, Tabellenaufbau und Summen. Einzeldaten sieht es nie.
