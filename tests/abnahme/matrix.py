@@ -50,8 +50,10 @@ ABNAHME_KOPF = re.compile(
     r"^(#{1,6})\s*(Akzeptanzkriterien|Akzeptanz|Messbare Abnahmen|Fertig,? wenn|AC)\b", re.I
 )
 KOPF = re.compile(r"^(#{1,6})\s")
-CHECKBOX = re.compile(r"^\s*[-*+]\s+\[( |x|X)\]\s+(.*\S)\s*$")
+CHECKBOX = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+\[( |x|X)\]\s+(.*\S)\s*$")
 PUNKT = re.compile(r"^\s{0,3}(?:[-*+]|\d+[.)])\s+(.*\S)\s*$")
+FORTSETZUNG = re.compile(r"^\s{2,}\S")  # eingerückte Folgezeile gehört zum Kriterium davor
+AC_MARKE = re.compile(r"^\**\s*(AC\d+[a-z]?)\s*:")  # „**AC1:**“ ergibt die feste ID <iid>-AC1
 
 # Was nie in eine Datei, ein Issue oder eine Nachricht darf.
 VERBOTEN = re.compile(
@@ -62,7 +64,7 @@ VERBOTEN = re.compile(
 def glab_json(pfad: str, versuche: int = 3) -> object:
     """GET über glab; vorübergehende Fehler der API werden bis zu dreimal wiederholt."""
     for nr in range(1, versuche + 1):
-        aus = subprocess.run(["glab", "api", pfad], capture_output=True, text=True)
+        aus = subprocess.run(["glab", "api", pfad], capture_output=True, text=True, cwd=WURZEL)
         if aus.returncode == 0:
             return json.loads(aus.stdout)
         if nr == versuche:
@@ -71,17 +73,33 @@ def glab_json(pfad: str, versuche: int = 3) -> object:
     raise AssertionError("unerreichbar")
 
 
+def glab_schreiben(methode: str, pfad: str, feld: str, wert: str) -> None:
+    subprocess.run(
+        ["glab", "api", "-X", methode, f"projects/{PROJEKT}/{pfad}", "-f", f"{feld}={wert}"],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=WURZEL,
+    )
+
+
 def issues_holen(cache: Path | None) -> list[dict]:
     if cache and cache.exists():
         return json.loads(cache.read_text())
     alle: list[dict] = []
     seite = 1
     while True:
-        teil = glab_json(f"projects/{PROJEKT}/issues?per_page=100&page={seite}&state=all")
+        teil = glab_json(
+            f"projects/{PROJEKT}/issues?per_page=100&page={seite}&state=all&order_by=created_at&sort=asc"
+        )
+        if not isinstance(teil, list):
+            raise RuntimeError(f"Issue-Abruf Seite {seite}: keine Liste, sondern {str(teil)[:120]}")
         if not teil:
             break
         alle.extend(teil)
         seite += 1
+    if len({i["iid"] for i in alle}) != len(alle):
+        raise RuntimeError("Issue-Abruf: doppelte iid, Seiten haben sich während des Abrufs verschoben")
     if cache:
         cache.write_text(json.dumps(alle))
     return alle
@@ -123,17 +141,28 @@ def kriterium_hash(text: str) -> str:
 
 
 def kriterien(issue: dict) -> list[dict]:
-    """Kriterien in der Reihenfolge der Beschreibung: Checkboxen überall, Text nur unter Abnahme-Köpfen."""
-    zeilen = (issue.get("description") or "").splitlines()
+    """Kriterien in der Reihenfolge der Beschreibung: Checkboxen überall, Text nur unter Abnahme-Köpfen.
+
+    Der Wortlaut umfasst die erste Zeile und alle eingerückten Folgezeilen (Datenbasis, Abhängigkeiten);
+    der Hash deckt den ganzen Block. Kriterien mit Marke „ACn:“ bekommen die feste ID `<iid>-ACn`, alle
+    anderen eine laufende Nummer `<iid>-<n>`; verschiebt sich die Nummer, passt der Hash nicht mehr.
+    """
+    zeilen = (issue.get("description") or "").split("\n")
     aus: list[dict] = []
     im_abschnitt = 0  # Ebene der Abnahme-Überschrift, 0 = außerhalb
     im_code = False
+    offen: dict | None = None  # Kriterium, an das Folgezeilen angehängt werden
     for nr, zeile in enumerate(zeilen):
-        if zeile.lstrip().startswith("```"):
+        if zeile.lstrip().startswith(("```", "~~~")):
             im_code = not im_code
+            offen = None
             continue
         if im_code:
             continue
+        if offen and FORTSETZUNG.match(zeile) and not CHECKBOX.match(zeile) and not PUNKT.match(zeile):
+            offen["folge"].append(zeile.strip())
+            continue
+        offen = None
         k = KOPF.match(zeile)
         if k:
             ebene = len(k.group(1))
@@ -144,22 +173,33 @@ def kriterien(issue: dict) -> list[dict]:
             continue
         c = CHECKBOX.match(zeile)
         if c:
-            aus.append(
-                {
-                    "art": "checkbox",
-                    "abgehakt": c.group(1).lower() == "x",
-                    "wortlaut": norm(c.group(2)),
-                    "zeile": nr,
-                }
-            )
-            continue
-        if im_abschnitt:
-            p = PUNKT.match(zeile)
-            if p:
-                aus.append({"art": "text", "abgehakt": False, "wortlaut": norm(p.group(1)), "zeile": nr})
-    for i, k in enumerate(aus, 1):
-        k["id"] = f"{issue['iid']}-{i}"
+            offen = {
+                "art": "checkbox",
+                "abgehakt": c.group(1).lower() == "x",
+                "erste": c.group(2),
+                "zeile": nr,
+            }
+        elif im_abschnitt and (p := PUNKT.match(zeile)):
+            offen = {"art": "text", "abgehakt": False, "erste": p.group(1), "zeile": nr}
+        if offen:
+            offen["folge"] = []
+            aus.append(offen)
+    if im_code:
+        print(
+            f"Warnung #{issue['iid']}: Codeblock nicht geschlossen, Kriterien danach fehlen", file=sys.stderr
+        )
+    lauf_nr = 0
+    vergeben: set[str] = set()
+    for k in aus:
+        k["wortlaut"] = norm(" ".join([k.pop("erste"), *k.pop("folge")]))
         k["hash"] = kriterium_hash(k["wortlaut"])
+        marke = AC_MARKE.match(k["wortlaut"])
+        kid = f"{issue['iid']}-{marke.group(1)}" if marke else None
+        if not kid or kid in vergeben:
+            lauf_nr += 1
+            kid = f"{issue['iid']}-{lauf_nr}"
+        vergeben.add(kid)
+        k["id"] = kid
     return aus
 
 
@@ -181,45 +221,195 @@ def alle_kriterien(issues: list[dict]) -> list[dict]:
     return zeilen
 
 
+ZEIT = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d$")
+# Ohne eigene Pfadliste gilt ein Beleg nur, solange sich auf main in den Pfaden seines Bereichs nichts ändert.
+# Gemeinsame Teile (shared/, Lockfiles, Wurzel-Konfiguration) zählen überall mit;
+# ist eine Abhängigkeit unklar, wird neu gemessen.
+GEMEINSAM = ["shared", "pyproject.toml", "uv.lock", "package.json", "pnpm-lock.yaml", "web/package.json"]
+STANDARD_PFADE = {
+    "uc3": [
+        "uc3",
+        "abgabe",
+        "docs/plan/uc3",
+        "web/app/uc3",
+        "web/app/api/uc3",
+        "web/components/uc3",
+        *GEMEINSAM,
+    ],
+    "uc1": ["uc1", "docs/plan/uc1", "web/app/uc1", "web/app/api/uc1", "web/components/uc1", *GEMEINSAM],
+    "uc2": ["uc2", "docs/plan/uc2", "web/app/uc2", "web/app/api/uc2", "web/components/uc2", *GEMEINSAM],
+    "plattform": [".", ":(exclude)docs/abnahme", ":(exclude)tests/abnahme"],
+}
+ABNAHME_SESSION = "b-abnahme"  # Prüfer-Präfix der Abnahme-Lane; Agent-Belege mit „/“ im Namen sind Vorschläge
+ENTSCHEIDE = WURZEL / "docs" / "abnahme" / "entscheide.jsonl"
+
+
+LAEUFE = WURZEL / "docs" / "abnahme" / "laeufe"
+
+
 def belege_lesen() -> dict[str, dict]:
-    jueng: dict[str, dict] = {}
+    """Je Kriterium der Beleg mit der jüngsten Messzeit.
+
+    Quellen: `belege.jsonl` (von Hand) und alle abgeschlossenen Läufe (`laeufe/*.jsonl` mit Schlusszeile);
+    bei gleicher Zeit gewinnt der später gelesene.
+    """
+    quellen: list[list[dict]] = []
     if BELEGE.exists():
-        for zeile in BELEGE.read_text().splitlines():
-            if zeile.strip():
-                b = json.loads(zeile)
-                jueng[b["id"]] = b  # der jüngste gilt
+        quellen.append([json.loads(z) for z in BELEGE.read_text().splitlines() if z.strip()])
+    for datei in sorted(LAEUFE.glob("*.jsonl")) if LAEUFE.exists() else []:
+        zeilen = [json.loads(z) for z in datei.read_text().splitlines() if z.strip()]
+        if zeilen and zeilen[-1].get("abgeschlossen"):
+            quellen.append([z for z in zeilen if "id" in z])
+    jueng: dict[str, dict] = {}
+    for quelle in quellen:
+        for b in quelle:
+            alt = jueng.get(b["id"])
+            if not alt or str(b.get("zeit", "")) >= str(alt.get("zeit", "")):
+                jueng[b["id"]] = b
     return jueng
 
 
-def stand(k: dict, belege: dict[str, dict]) -> tuple[str, dict | None, str]:
+def git(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(WURZEL), *args], capture_output=True, text=True)
+
+
+_GUELTIG: dict[tuple, str] = {}
+
+
+def veraltet(b: dict, ziel: str, bereich_name: str) -> str:
+    """Leer, wenn der Beleg für den Zielstand gilt; sonst der Grund, warum nicht."""
+    pfade = tuple(b.get("pfade") or STANDARD_PFADE[bereich_name])
+    schluessel = (b["sha"], ziel, pfade)
+    if schluessel not in _GUELTIG:
+        voll = git("rev-parse", "--verify", "--quiet", f"{b['sha']}^{{commit}}")
+        if voll.returncode != 0:
+            _GUELTIG[schluessel] = f"Messstand {b['sha']} unbekannt"
+        elif git("merge-base", "--is-ancestor", voll.stdout.strip(), ziel).returncode != 0:
+            _GUELTIG[schluessel] = f"Messstand {b['sha']} liegt nicht auf main"
+        else:
+            diff = git("diff", "--quiet", voll.stdout.strip(), ziel, "--", *pfade)
+            _GUELTIG[schluessel] = "" if diff.returncode == 0 else f"main hat sich seit {b['sha']} geändert"
+    return _GUELTIG[schluessel]
+
+
+def entscheide_lesen() -> dict[str, dict]:
+    """Entscheide von Lead oder Owner je Kriterium (verschoben oder als Restmangel angenommen), mit Quelle."""
+    if not ENTSCHEIDE.exists():
+        return {}
+    return {e["id"]: e for e in (json.loads(z) for z in ENTSCHEIDE.read_text().splitlines() if z.strip())}
+
+
+def beleg_fuer(k: dict, belege: dict[str, dict]) -> dict | None:
+    """Beleg zur ID; verschiebt sich die laufende Nummer, wird er über Issue und Hash wiedergefunden."""
     b = belege.get(k["id"])
+    if b and b.get("hash") == k["hash"]:
+        return b
+    passend = [
+        x for x in belege.values() if x.get("hash") == k["hash"] and x["id"].split("-")[0] == str(k["iid"])
+    ]
+    return max(passend, key=lambda x: str(x.get("zeit", ""))) if passend else b
+
+
+def ist_vorschlag(b: dict) -> bool:
+    """Bestanden zählt nur aus einem Lauf oder von der Abnahme-Session selbst, nicht von einem Mess-Agent."""
+    pruefer = str(b.get("pruefer", ""))
+    return not (pruefer.startswith("lauf ") or (pruefer.startswith(ABNAHME_SESSION) and "/" not in pruefer))
+
+
+def stand(k: dict, belege: dict[str, dict], ziel: str | None = None) -> tuple[str, dict | None, str]:
+    """Stand eines Kriteriums. `ziel` ist der main-Stand, für den geurteilt wird (Standard origin/main)."""
+    b = beleg_fuer(k, belege)
+    gemessen, grund = "nicht geprüft", ""
     if b and b.get("hash") != k["hash"]:
-        return "nicht geprüft", b, "Kriterium seit dem Beleg geändert, neu prüfen"
-    if k["nach_abgabe"] and not (b and b["stand"] == "bestanden"):
-        return "nach Abgabe", b, "Label prio::nach-abgabe"
-    if not b:
-        return "nicht geprüft", None, ""
-    return b["stand"], b, b.get("grund", "")
+        grund = "Kriterium seit dem Beleg geändert, neu prüfen"
+    elif b and (alt := veraltet(b, ziel or "origin/main", k["bereich"])):
+        grund = f"Beleg veraltet: {alt}; zuletzt {b['stand']} auf {b['sha']}"
+    elif b and b["stand"] == "bestanden" and ist_vorschlag(b):
+        grund = f"Vorschlag von {b['pruefer']}, noch nicht reproduziert"
+    elif b:
+        gemessen, grund = b["stand"], b.get("grund", "")
+    if k["nach_abgabe"] and gemessen != "bestanden":
+        return "nach Abgabe", b, f"Label prio::nach-abgabe; gemessen: {gemessen}"
+    e = _entscheide().get(k["id"])
+    if e and e.get("hash") == k["hash"] and e["entscheid"] == "nach Abgabe" and gemessen != "bestanden":
+        return "nach Abgabe", b, f"Entscheid: {e['wer']} ({e['quelle']}); gemessen: {gemessen}"
+    return gemessen, b, grund
+
+
+_ENTSCHEIDE: dict[str, dict] | None = None
+
+
+def _entscheide() -> dict[str, dict]:
+    global _ENTSCHEIDE
+    if _ENTSCHEIDE is None:
+        _ENTSCHEIDE = entscheide_lesen()
+    return _ENTSCHEIDE
+
+
+TEILE = ("UC3", "E6", "UC4", "UC1", "UC2", "E5", "E0", "E4")
+TOR_TEILE = ("UC3", "E6")
 
 
 def zaehlen(zeilen: list[dict], belege: dict[str, dict]) -> dict[str, Counter]:
-    z: dict[str, Counter] = {b: Counter() for b in BEREICHE}
+    """Zähler je Bereich (Matrix-Datei) und je Teil (E6 und UC4 getrennt von E0).
+
+    Zusatzschlüssel: `fehlt` (nicht bestanden, weil etwas auf main fehlt) und `geschlossen` (aus geschlossenen
+    Issues), damit der Lead Fachfehler von noch nicht gemergter Arbeit unterscheiden kann.
+    """
+    z: dict[str, Counter] = {b: Counter() for b in (*BEREICHE, *TEILE)}
     for k in zeilen:
-        z[k["bereich"]][stand(k, belege)[0]] += 1
+        s, b, _ = stand(k, belege)
+        for schluessel in (k["bereich"], k["teil"]):
+            z[schluessel][s] += 1
+            if s == "nicht bestanden" and b and b.get("befund_art") == "fehlt":
+                z[schluessel]["fehlt"] += 1
+            if k["state"] == "closed":
+                z[schluessel]["geschlossen"] += 1
     return z
 
 
 def zaehler_text(z: dict[str, Counter], sha: str, zeit: str) -> str:
     teile = [
-        f"Zähler {zeit}, main {sha}, Reihenfolge bestanden / nicht bestanden / nicht geprüft / nach Abgabe:"
+        f"Zähler {zeit}, geurteilt für main {sha}:",
+        "bestanden / nicht bestanden (davon fehlt auf main) / nicht geprüft / nach Abgabe",
     ]
-    for b in BEREICHE:
+    for b in (*BEREICHE, *TEILE):
         c = z[b]
+        gesamt = sum(c[s] for s in STAENDE)
+        if b in TEILE and not gesamt:
+            continue
+        name = f"  Teil {b}" if b in TEILE else b
         teile.append(
-            f"{b} {c['bestanden']} / {c['nicht bestanden']} / {c['nicht geprüft']} / {c['nach Abgabe']}"
-            f" (von {sum(c.values())})"
+            f"{name} {c['bestanden']} / {c['nicht bestanden']} ({c['fehlt']}) / {c['nicht geprüft']} / "
+            f"{c['nach Abgabe']} (von {gesamt}, {c['geschlossen']} aus geschlossenen Issues)"
         )
     return "\n".join(teile)
+
+
+def tor(zeilen: list[dict], belege: dict[str, dict]) -> int:
+    """Tor vor dem Merge-Stopp für UC3 und E6.
+
+    Jedes Kriterium ist bestanden, verschoben oder per Entscheid (Lead oder Owner, mit Quelle in
+    `entscheide.jsonl`) als Restmangel angenommen. Entschiedenes bleibt sichtbar.
+    """
+    entscheide = entscheide_lesen()
+    offen, entschieden = [], []
+    for k in zeilen:
+        if k["teil"] not in TOR_TEILE:
+            continue
+        s, _b, grund = stand(k, belege)
+        if s not in ("nicht geprüft", "nicht bestanden"):
+            continue
+        e = entscheide.get(k["id"])
+        (entschieden if e and e.get("hash") == k["hash"] else offen).append((k, s, grund, e))
+    for k, s, _grund, e in entschieden:
+        print(f"entschieden {k['teil']} {k['id']}: {s}; {e['entscheid']} ({e['wer']}, {e['quelle']})")
+    for k, s, grund, _ in offen:
+        print(f"OFFEN {k['teil']} {k['id']}: {s}: {grund[:160]}")
+    print(
+        f"Tor UC3+E6: {'offen' if offen else 'grün'} ({len(offen)} offen, {len(entschieden)} per Entscheid)"
+    )
+    return 1 if offen else 0
 
 
 def zelle(text: str) -> str:
@@ -304,6 +494,14 @@ def beleg_pruefen(b: dict, bekannt: dict[str, dict]) -> list[str]:
         fehler.append(f"{b.get('id')}: Stand {b.get('stand')!r} unbekannt")
     if b.get("stand") in ("bestanden", "nicht bestanden") and not (b.get("befehl") or b.get("datei")):
         fehler.append(f"{b.get('id')}: ohne Befehl oder Datei kein Urteil")
+    if b.get("stand") == "bestanden" and not (b.get("befehl") and b.get("ausgabe")):
+        fehler.append(f"{b.get('id')}: bestanden nur mit ausgeführtem Befehl und gelesener Ausgabe")
+    if b.get("deckung") == "teil" and b.get("stand") == "bestanden":
+        fehler.append(f"{b.get('id')}: ein Teil-Prüfsatz kann nicht bestanden ergeben")
+    if b.get("zeit") and not ZEIT.match(str(b["zeit"])):
+        fehler.append(f"{b.get('id')}: zeit nicht in der Form JJJJ-MM-TT HH:MM")
+    if b.get("sha") and git("rev-parse", "--verify", "--quiet", f"{b['sha']}^{{commit}}").returncode != 0:
+        fehler.append(f"{b.get('id')}: Messstand {b['sha']} ist kein bekannter Commit")
     if b.get("id") in bekannt and bekannt[b["id"]]["hash"] != b.get("hash"):
         fehler.append(f"{b.get('id')}: hash passt nicht zum aktuellen Kriterium")
     if b.get("id") not in bekannt:
@@ -313,53 +511,50 @@ def beleg_pruefen(b: dict, bekannt: dict[str, dict]) -> list[str]:
     return fehler
 
 
-def abhaken(issues: list[dict], kid: str, belege: dict[str, dict], ja: bool) -> int:
+def abhaken(kid: str, belege: dict[str, dict], ja: bool) -> int:
+    """Hakt eine Checkbox ab, nur mit gültigem Beleg; liest das Issue dafür immer frisch (nie aus dem Cache).
+
+    Wiederholbar: ist der Haken schon gesetzt, wird nur ein fehlender Kommentar nachgeholt (Marke je Beleg).
+    """
     iid = int(kid.split("-")[0])
-    issue = next(i for i in issues if i["iid"] == iid)
+    issue = glab_json(f"projects/{PROJEKT}/issues/{iid}")
     k = next((k for k in kriterien(issue) if k["id"] == kid), None)
     if not k:
         print(f"{kid}: kein solches Kriterium", file=sys.stderr)
         return 2
-    b = belege.get(kid)
     if k["art"] != "checkbox":
         print(f"{kid}: Textkriterium, nichts abzuhaken (Kommentar genügt)", file=sys.stderr)
         return 2
-    if not b or b["stand"] != "bestanden" or b["hash"] != k["hash"]:
-        print(f"{kid}: kein gültiger Beleg mit Stand bestanden, nicht abgehakt", file=sys.stderr)
+    s, b, grund = stand(k | {"nach_abgabe": False}, belege)
+    if s != "bestanden" or not b:
+        print(f"{kid}: Stand {s} ({grund}), nicht abgehakt", file=sys.stderr)
         return 3
-    if k["abgehakt"]:
-        print(f"{kid}: schon abgehakt")
-        return 0
-    zeilen = issue["description"].splitlines()
-    zeilen[k["zeile"]] = re.sub(r"\[ \]", "[x]", zeilen[k["zeile"]], count=1)
-    neu = "\n".join(zeilen) + ("\n" if issue["description"].endswith("\n") else "")
+    marke = f"<!-- abnahme-haken:{kid}:{b['hash']}:{b['sha']}:{b['zeit']} -->"
     kommentar = (
         f"Abnahme {kid}: **bestanden** (Prüfer {b['pruefer']}, {b['zeit']}, main `{b['sha']}`)\n\n"
         f"Kriterium: {k['wortlaut']}\n\n"
         + (f"Befehl:\n```\n{b['befehl']}\n```\n" if b.get("befehl") else "")
         + (f"Ausgabe:\n```\n{b['ausgabe']}\n```\n" if b.get("ausgabe") else "")
         + (f"Beleg: {b['datei']}\n" if b.get("datei") else "")
-        + "\nMatrix: `docs/abnahme/matrix-*.md`, erzeugt von `tests/abnahme/matrix.py`."
+        + "\nMatrix: `docs/abnahme/matrix-*.md`, erzeugt von `tests/abnahme/matrix.py`.\n"
+        + marke
     )
     if not ja:
-        print(f"Trockenlauf {kid}: würde Zeile {k['zeile'] + 1} abhaken und kommentieren:\n{kommentar}")
+        print(f"Trockenlauf {kid}: abgehakt={k['abgehakt']}, Zeile {k['zeile'] + 1}\n{kommentar}")
         return 0
-    subprocess.run(
-        ["glab", "api", "-X", "PUT", f"projects/{PROJEKT}/issues/{iid}", "-f", f"description={neu}"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    subprocess.run(
-        ["glab", "api", "-X", "POST", f"projects/{PROJEKT}/issues/{iid}/notes", "-f", f"body={kommentar}"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    if not k["abgehakt"]:
+        zeilen = issue["description"].split("\n")
+        zeilen[k["zeile"]] = re.sub(r"\[ \]", "[x]", zeilen[k["zeile"]], count=1)
+        glab_schreiben("PUT", f"issues/{iid}", "description", "\n".join(zeilen))
+    notizen = glab_json(f"projects/{PROJEKT}/issues/{iid}/notes?per_page=100")
+    if not any(marke in (n.get("body") or "") for n in notizen):
+        glab_schreiben("POST", f"issues/{iid}/notes", "body", kommentar)
     nach = glab_json(f"projects/{PROJEKT}/issues/{iid}")
     neu_k = next(x for x in kriterien(nach) if x["id"] == kid)
-    print(f"{kid}: abgehakt={neu_k['abgehakt']}")
-    return 0 if neu_k["abgehakt"] else 1
+    andere = [x["wortlaut"] for x in kriterien(nach) if x["id"] != kid]
+    vorher = [x["wortlaut"] for x in kriterien(issue) if x["id"] != kid]
+    print(f"{kid}: abgehakt={neu_k['abgehakt']}, übrige Kriterien unverändert={andere == vorher}")
+    return 0 if neu_k["abgehakt"] and andere == vorher else 1
 
 
 def befunde(zeilen: list[dict], belege: dict[str, dict], wahl: str | None, ja: bool) -> int:
@@ -392,12 +587,7 @@ def befunde(zeilen: list[dict], belege: dict[str, dict], wahl: str | None, ja: b
         if any(marke in (n.get("body") or "") for n in notizen):
             print(f"#{iid}: Befund unverändert, kein neuer Kommentar")
             continue
-        subprocess.run(
-            ["glab", "api", "-X", "POST", f"projects/{PROJEKT}/issues/{iid}/notes", "-f", f"body={text}"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        glab_schreiben("POST", f"issues/{iid}/notes", "body", text)
         gepostet += 1
         print(f"#{iid}: Befund kommentiert ({len(liste)})")
     print(f"{gepostet} Kommentare")
@@ -406,7 +596,9 @@ def befunde(zeilen: list[dict], belege: dict[str, dict], wahl: str | None, ja: b
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("befehl", choices=("schreiben", "zaehler", "liste", "einlesen", "abhaken", "befunde"))
+    ap.add_argument(
+        "befehl", choices=("schreiben", "zaehler", "liste", "einlesen", "abhaken", "befunde", "tor")
+    )
     ap.add_argument("arg", nargs="?")
     ap.add_argument("--bereich", choices=BEREICHE)
     ap.add_argument("--cache", type=Path, help="Issue-Abzug als JSON (zum Wiederholen ohne API)")
@@ -442,9 +634,11 @@ def main() -> int:
         print(f"{len(neu)} Belege angehängt")
         return 0
     if a.befehl == "abhaken":
-        return abhaken(issues, a.arg, belege, a.ja)
+        return abhaken(a.arg, belege, a.ja)
     if a.befehl == "befunde":
         return befunde(zeilen, belege, a.bereich, a.ja)
+    if a.befehl == "tor":
+        return tor(zeilen, belege)
 
     sha, zeit = main_sha(), jetzt()
     if a.befehl == "schreiben":
