@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "uc2/akteure/akteur.schema.json",
+  "title": "Akteursdatei (Frontmatter)",
+  "description": "Institutioneller Akteur des UC2-Pools. Keine Personen, keine Parteien, keine Zahlen ohne Quelle.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id", "version", "name", "institution", "rolle", "ziele", "interessen", "restriktionen",
+    "budgetvorgaben", "prioritaeten", "rote_linien", "annahme", "themen_interesse"
+  ],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z_]*$"},
+    "version": {"type": "integer", "minimum": 1},
+    "name": {"type": "string", "minLength": 1},
+    "institution": {"type": "string", "pattern": "^[a-z][a-z_]*$"},
+    "rolle": {"type": "string", "minLength": 10},
+    "ziele": {"$ref": "#/$defs/liste"},
+    "interessen": {"$ref": "#/$defs/liste"},
+    "restriktionen": {"$ref": "#/$defs/liste"},
+    "budgetvorgaben": {"$ref": "#/$defs/liste"},
+    "prioritaeten": {"$ref": "#/$defs/liste"},
+    "rote_linien": {"$ref": "#/$defs/liste"},
+    "annahme": {
+      "description": "Modellannahme, solange die Belegsuche (#43) keine Belegzahlen je Thema liefert.",
+      "enum": ["Modellannahme", "belegt"]
+    },
+    "themen_interesse": {"$ref": "#/$defs/liste"}
+  },
+  "$defs": {
+    "liste": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 3}
+    }
+  }
+}
