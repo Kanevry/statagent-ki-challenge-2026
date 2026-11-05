@@ -46,7 +46,7 @@ export function Fall({ vorbereitung }: { vorbereitung: Vorbereitung }) {
     <div className="flex min-h-[70vh] flex-col justify-center gap-10 py-6" data-testid="uc2-fall">
       <div className="flex max-w-4xl flex-col gap-5">
         <h1 className="font-sans text-16 font-semibold text-slate">Sechs Gruppen des Gesundheitswesens verhandeln über Wartezeiten beim Facharzt.</h1>
-        <p className="font-display text-56 font-bold text-ink text-balance">{fall.frage}</p>
+        <p lang="de" className="font-display text-32 font-bold break-words text-ink text-balance hyphens-auto sm:text-56">{fall.frage}</p>
         <p className="font-sans text-16 text-slate">Geprüft wird das Paket: {fall.paket}.</p>
       </div>
 

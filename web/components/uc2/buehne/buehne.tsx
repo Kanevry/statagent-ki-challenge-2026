@@ -205,7 +205,7 @@ function Szene({ buehne, zustand: z }: { buehne: Buehne; zustand: FallZustand })
                   <span className="font-semibold text-ink">{haltungWort(aussage.haltung)}</span>
                 )}
               </p>
-              <blockquote className="font-display text-28 font-medium text-ink text-pretty">„{aussage.satz}“</blockquote>
+              <blockquote className="font-display text-20 font-medium break-words text-ink text-pretty hyphens-auto sm:text-28">„{aussage.satz}“</blockquote>
               {beleg && (
                 <details className="group max-w-xl">
                   <summary className="inline-flex min-h-11 cursor-pointer items-center font-sans text-14 text-gruen underline underline-offset-4">
@@ -272,7 +272,7 @@ function Auftritt({ schluessel, wer, satz, children }: { schluessel: string; wer
   return (
     <article key={schluessel} className={`flex flex-col gap-5 ${css.auftritt}`}>
       <p className="font-sans text-14 font-semibold text-gruen">{wer}</p>
-      {satz && <p className="font-display text-28 font-medium text-ink text-pretty">{satz}</p>}
+      {satz && <p className="font-display text-20 font-medium break-words text-ink text-pretty hyphens-auto sm:text-28">{satz}</p>}
       {children}
     </article>
   );
@@ -282,7 +282,7 @@ function Kennzahl({ titel, wert }: { titel: string; wert: string }) {
   return (
     <div className="flex flex-col gap-1">
       <dt className="font-sans text-14 text-slate">{titel}</dt>
-      <dd className="font-display text-56 font-bold text-ink tabular-nums">{wert}</dd>
+      <dd className="font-display text-32 font-bold text-ink tabular-nums sm:text-56">{wert}</dd>
     </div>
   );
 }
@@ -325,7 +325,7 @@ function Ergebnis({ zustand: z }: { zustand: FallZustand }) {
   return (
     <article className={`flex flex-col gap-6 ${css.auftritt}`}>
       <p className="font-sans text-14 font-semibold text-gruen">Moderator</p>
-      <p className="font-display text-28 font-medium text-ink text-pretty">
+      <p className="font-display text-20 font-medium break-words text-ink text-pretty hyphens-auto sm:text-28">
         {stand.filter((t) => t.kategorie === "konsens" || t.kategorie === "mehrheit").length} von {stand.length} Themen haben eine
         Mehrheit. {schluss(z)}
       </p>
