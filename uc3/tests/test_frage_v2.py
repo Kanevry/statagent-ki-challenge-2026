@@ -243,7 +243,9 @@ def test_vor_und_nach_fragt_beide(mit_v2: Verbindung, frage: str) -> None:
 def test_regelsatz_ohne_lauf_sagt_mit_namen_ab(mit_v2: Verbindung, frage: str) -> None:
     daten = antwort_frage(mit_v2, frage)
     assert (
-        daten["zahlen"] == [] and "Den Regelsatz v3 gibt es" in daten["text"] and "v1 und v2" in daten["text"]
+        daten["zahlen"] == []
+        and "Im Regelsatz v3 ist noch kein Monat gerechnet." in daten["text"]
+        and "v1 und v2" in daten["text"]
     )
 
 
@@ -274,7 +276,7 @@ def test_datenbankfehler_im_v2_weg_wirft_nicht(mit_v2: Verbindung, monkeypatch: 
 # Fix-Liste !230, B4: Ein Durchschnitt zu einem einzelnen Monat bekam die Monatszahl.
 def test_durchschnitt_zu_einem_monat_sagt_ab(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Durchschnittliche Beschäftigte im August 2024 nach v2")
-    assert daten["zahlen"] == [] and "Durchschnitte" in daten["text"]
+    assert daten["zahlen"] == [] and daten["text"] == frage_modul.DURCHSCHNITT_GRUND
 
 
 # Fix-Liste !230, B5: Die Rückfrage zum Jahr sprach vom letzten Tag und zeigte Beispiele ohne v2.
@@ -307,7 +309,7 @@ def test_zwei_bundeslaender_bekommen_den_passenden_satz(mit_v2: Verbindung) -> N
 
 def test_zeitreihe_sagt_nur_ein_monat(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Zeitreihe der Beschäftigten 2024 nach v2")
-    assert daten["zahlen"] == [] and "nur für einen Monat" in daten["text"]
+    assert daten["zahlen"] == [] and "nur einen Monat auf einmal, keinen Verlauf" in daten["text"]
 
 
 # Fix-Liste !230, B8: zwei Sätze, und die Absage ist keine Rückfrage.
@@ -322,7 +324,7 @@ def test_fluktuation_absage_in_zwei_saetzen(mit_v2: Verbindung) -> None:
 # Gegenfall zu B4: Über mehrere Monate bleibt der Durchschnitt erlaubt, auch wenn der Zeitraum erst übersetzt wird.
 def test_durchschnitt_ueber_einen_zeitraum_sagt_nicht_durchschnitte_ab(mit_v2: Verbindung) -> None:
     text = antwort_frage(mit_v2, "Durchschnitt August bis September 2024 nach v2")["text"]
-    assert "Durchschnitte rechnet" not in text
+    assert text != frage_modul.DURCHSCHNITT_GRUND
 
 
 # Fix-Liste !230, B7: Auch ein Verlauf zweier Bundesländer bekommt den Grund statt der Erklärung zum Regelsatz.

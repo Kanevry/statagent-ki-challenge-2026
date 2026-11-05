@@ -162,6 +162,9 @@ ALTER_GRUND = (
     "einem Alter oder einer Spanne, zum Beispiel „Beschäftigte unter 25 Jahren im Juli 2026“."
 )
 DURCHGEHEND_GRUND = f"Wie lange jemand im Monat beschäftigt war, wertet StatAgent nicht aus. {KANN}"
+DURCHSCHNITT_GRUND = (
+    "Durchschnitte gibt es nur über mehrere Monate, zum Beispiel „Durchschnitt März bis Juni 2025“."
+)
 DAUER_GRUND = f"Wie lange ein Beschäftigungsverhältnis schon besteht, wertet StatAgent nicht aus. {KANN}"
 #: Mehrere, unmögliche oder nicht eindeutige Altersangaben: hier geht es nicht um das Durchschnittsalter.
 ALTER_UNKLAR = (
@@ -209,7 +212,7 @@ NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
     ),
     (
         re.compile(r"durchschnitt|mittelwert|median"),
-        "Durchschnitte rechnet StatAgent bei Datenanfragen nicht.",
+        DURCHSCHNITT_GRUND,
     ),
     (re.compile(r"\blohn|löhne|gehalt|gehälter|einkommen|verdienst"), "Einkommen sind nicht in den Daten."),
     (re.compile(r"teilzeit|vollzeit|arbeitszeit|stunden"), "Die Arbeitszeit ist nicht in den Daten."),
@@ -412,7 +415,7 @@ def nicht_auswertbar(frage: str, mittel: bool = False) -> str | None:
             if grund is ALTER_GRUND:
                 # Das Beispiel der Alters-Absage sagt schon, was geht.
                 return ALTER_GRUND if _ALTER_FACHLICH_NICHT.search(text) else ALTER_UNKLAR
-            if grund is DAUER_GRUND:
+            if grund is DAUER_GRUND or grund is DURCHSCHNITT_GRUND:
                 return grund  # sagt schon selbst, was geht
             return f"{grund} Darum gibt es hier keine Zahl. {KANN}"
     return None
@@ -634,13 +637,13 @@ def _regelsatz_der_frage(frage: str) -> str | None:
 
 
 def _kein_regelsatz(conn: Verbindung, frage: str, regelsatz: str) -> dict[str, Any]:
-    """Der genannte Regelsatz hat keinen fertigen Lauf: Absage mit seinem Namen statt still der v1-Zahl."""
+    """Der genannte Regelsatz hat keinen fertigen Lauf: Hinweis mit seinem Namen statt still der v1-Zahl."""
     zeilen = conn.execute(
         "SELECT DISTINCT regelsatz FROM meta.lauf WHERE status IN ('fertig', 'unveraendert') ORDER BY 1"
     ).fetchall()
     gerechnet = [str(z["regelsatz"]) for z in zeilen]
     vorhanden = f" Es gibt Zahlen im Regelsatz {_aufzaehlung(gerechnet)}." if gerechnet else ""
-    text = f"Den Regelsatz {regelsatz} gibt es in der Datenanfrage nicht.{vorhanden}"
+    text = f"Im Regelsatz {regelsatz} ist noch kein Monat gerechnet.{vorhanden}"
     return _antwort(fragetyp(frage), text, hinweise=[text])
 
 
@@ -706,7 +709,7 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
         text = f"Die Datenanfrage zeigt immer nur einen Regelsatz. Fragen Sie je einmal. {beispiel}"
         return _antwort(typ, text, hinweise=[text])
     if _ZEITREIHE.search(frage.lower()):
-        text = f"Im Regelsatz {regelsatz} gibt es Zahlen nur für einen Monat. {beispiel}"
+        text = f"Im Regelsatz {regelsatz} zeigt die Datenanfrage nur einen Monat auf einmal, keinen Verlauf. {beispiel}"
         return _antwort(typ, text, hinweise=[text])
     if (
         jahr is not None
