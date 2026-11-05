@@ -243,6 +243,26 @@ describe("POST /api/uc4/frage, Modellwahl", () => {
     expect(ausfuehren.mock.calls[0]?.[2].zusatz).toBeUndefined();
   });
 
+  // Fängt ab (Review !72, Geld): online hebelte die Wahl LLM_PROVIDER=mock des Compose aus und rief bezahlte Anbieter.
+  it("online (KIC_ONLINE=1) nur Testbetrieb und die Anbieter aus UC4_MODELLWAHL", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    const online = (modell: string, liste?: string) =>
+      frageAntwort(anfrage({ frage: "Wie viele?", modell }), {
+        ausfuehren,
+        umgebung: { KIC_ONLINE: "1", ...(liste === undefined ? {} : { UC4_MODELLWAHL: liste }) },
+        wurzel: () => "/repo",
+        ratenlimit: offen,
+      });
+    const claude = await online("claude");
+    expect(claude.status).toBe(400);
+    expect(await claude.json()).toEqual({ fehler: "Dieses Modell ist hier nicht freigegeben." });
+    expect(ausfuehren).not.toHaveBeenCalled();
+    expect((await online("mock")).status).toBe(200);
+    expect((await online("azure", "azure, mistral")).status).toBe(200);
+    expect((await online("claude", "azure, mistral")).status).toBe(400);
+    expect(ausfuehren).toHaveBeenCalledTimes(2);
+  });
+
   it("lehnt ein unbekanntes Modell mit 400 ab, ohne Subprozess", async () => {
     const ausfuehren = liefert(JSON.stringify(ergebnis));
     const antwort = await frageAntwort(anfrage({ frage: "Wie viele?", modell: "gpt; rm -rf" }), optionen(ausfuehren));

@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import fixture from "../../../shared/schema/fixtures/uc-antwort.json";
 import { BUDGET_MELDUNG, type Ergebnis } from "../../lib/plattform/uc4-ergebnis";
+import { AppShell } from "@kic/ui/shell";
 import { Einstieg } from "./einstieg";
 
 // Fängt ab: Karten in Antwort- statt Kettenreihenfolge, eine Zahl ohne Herkunft, Enter ohne Wirkung, ein
@@ -129,11 +130,11 @@ it("Modell je Karte als Modell-Pille, ohne Modell ein ruhiger Satz ohne Pille", 
   expect(ohne.textContent).toBe("Ohne KI gerechnet, nur mit Code.");
 });
 
-// Fängt ab (Modellwahl, Lead c0): die Wahl kommt nicht im POST an, „Wie eingestellt“ schickt trotzdem ein Modell,
-// und eine von StatAgent abgelehnte Wahl (ZweckFehler) steht als „Antwort fehlgeschlagen“ da.
+// Fängt ab (Modellwahl, Lead c0): die Wahl kommt nicht im POST an, „Voreinstellung der App“ schickt trotzdem ein
+// Modell, und eine vom Zweck nicht erlaubte Wahl (ZweckFehler, hier UC2) steht als „Antwort fehlgeschlagen“ da.
 it("schickt die Modellwahl mit, ohne Wahl kein Feld modell, gesperrte Wahl mit lesbarem Grund", async () => {
   const user = userEvent.setup();
-  const abruf = antworte(200, { antworten: [], fehlend: [{ uc: "uc3", grund: "ZweckFehler" }, { uc: "uc2", grund: "kein_adapter" }, { uc: "uc1", grund: "kein_adapter" }] });
+  const abruf = antworte(200, { antworten: [uc3], fehlend: [{ uc: "uc2", grund: "ZweckFehler" }, { uc: "uc1", grund: "kein_adapter" }] });
   render(<Einstieg />);
   await user.type(screen.getByLabelText("Frage an die Kette"), "x{Enter}");
   await screen.findByText("Mit diesem Modell gesperrt");
@@ -144,4 +145,28 @@ it("schickt die Modellwahl mit, ohne Wahl kein Feld modell, gesperrte Wahl mit l
   await screen.findByText("Mit diesem Modell gesperrt");
   expect(fragen(abruf)).toEqual([{ frage: "x" }, { frage: "x", modell: "claude" }]);
   expect(screen.queryByText("Antwort fehlgeschlagen")).toBeNull();
+});
+
+// Fängt ab (Review !72): Der Badge im Header zeigte die Wahl im Radio („claude“), auch wenn ein anderes Modell
+// geantwortet hat oder die Frage scheiterte. Er zeigt das Modell aus der Antwort, vorher die Einstellung der App.
+it("Badge zeigt das Modell, das geantwortet hat, nicht die Wahl", async () => {
+  const user = userEvent.setup();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (adresse: string) => {
+      if (adresse === "/api/uc4/frage") return Response.json({ antworten: [{ ...uc3, modell: "mistral-large-latest" }], fehlend: [] });
+      if (adresse === "/api/plattform/modell") return Response.json({ provider: "azure", modell: "gpt-5-4-mini", version: null, quelle: "env" });
+      return Response.json({});
+    }),
+  );
+  render(
+    <AppShell pfad="/uc4">
+      <Einstieg />
+    </AppShell>,
+  );
+  await user.click(screen.getByRole("radio", { name: "Claude" }));
+  expect((await screen.findByTestId("modell-badge")).textContent).toContain("azure");
+  await user.type(screen.getByLabelText("Frage an die Kette"), "x{Enter}");
+  await screen.findByText(uc3.text);
+  expect(screen.getByTestId("modell-badge").textContent).toBe("Modell:mistral-large-latest");
 });

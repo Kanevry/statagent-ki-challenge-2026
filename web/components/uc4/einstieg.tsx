@@ -176,9 +176,18 @@ async function stelleFrage(frage: string, modell: Modellwahl | null): Promise<Zu
     : { art: "fehler", meldung: "Die Antwort kam nicht im erwarteten Format." };
 }
 
-// Modellwahl (Lead c0, Szene 8): Wer antwortet, lässt sich hier umschalten. Der Wert geht als LLM_PROVIDER an den
-// Router; „Wie eingestellt“ nimmt die Einstellung der App. StatAgent rechnet ohne Claude (Abgaberegel), seine Karte
-// sagt das dann selbst.
+// Badge im Header nach der Antwort (Review !72): Er zeigt das Modell, das wirklich geantwortet hat, nicht die Wahl im
+// Radio. Nur wenn alle Antworten mit Modell dasselbe nennen; ohne Modell (StatAgent rechnet mit Code) keine Vorgabe.
+function ModellDerAntwort({ zustand }: { zustand: Zustand }) {
+  if (zustand.art !== "ok") return null;
+  const modelle = [...new Set(zustand.ergebnis.antworten.map((a) => a.modell).filter((m): m is string => Boolean(m)))];
+  return modelle.length === 1 ? <SeitenModell provider={modelle[0]!} gewaehlt /> : null;
+}
+
+// Modellwahl (Lead c0, Szene 8): Wer antwortet, lässt sich für getippte Fragen umschalten. Der Wert geht als
+// LLM_PROVIDER an den Router; „Voreinstellung der App“ nimmt die Einstellung der App. Erlaubt ein Zweck den Anbieter
+// nicht (etwa UC1 oder UC2 mit einem gesperrten Anbieter), sagt die Karte das selbst. Der Sprechknopf nutzt die
+// Wahl nicht, er hat seinen eigenen Assistenten.
 function ModellAuswahl({
   wahl,
   onWahl,
@@ -189,12 +198,12 @@ function ModellAuswahl({
   gesperrt: boolean;
 }) {
   const optionen: { wert: Modellwahl | null; name: string }[] = [
-    { wert: null, name: "Wie eingestellt" },
+    { wert: null, name: "Voreinstellung der App" },
     ...MODELLWAHL.map((wert) => ({ wert, name: MODELL_NAMEN[wert] })),
   ];
   return (
     <fieldset className="flex max-w-3xl flex-col gap-2" disabled={gesperrt} data-modell-auswahl="">
-      <legend className="font-sans text-14 font-semibold text-ink">Welches Modell antwortet?</legend>
+      <legend className="font-sans text-14 font-semibold text-ink">Welches Modell antwortet auf getippte Fragen?</legend>
       <div className="flex flex-wrap gap-2">
         {optionen.map(({ wert, name }) => (
           <label
@@ -213,7 +222,8 @@ function ModellAuswahl({
         ))}
       </div>
       <Fliesstext groesse={14} ton="gedaempft">
-        Die Zahlen rechnet immer der Code. Das Modell schreibt nur die Sätze dazu.
+        Die Zahlen rechnet immer der Code. Das Modell schreibt nur die Sätze dazu. Für den Sprechknopf gilt diese
+        Wahl nicht.
       </Fliesstext>
     </fieldset>
   );
@@ -262,7 +272,7 @@ export function Einstieg() {
       <Stimme />
 
       <ModellAuswahl wahl={modell} onWahl={setModell} gesperrt={laedt} />
-      {modell && <SeitenModell provider={modell} gewaehlt />}
+      <ModellDerAntwort zustand={zustand} />
 
       <p role="status" aria-live="polite" className="sr-only" data-uc4-ansage="">
         {ansage(zustand)}

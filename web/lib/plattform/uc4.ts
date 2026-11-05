@@ -52,6 +52,18 @@ export const MAX_BODY_BYTES = 4 * 1024;
 export const MAX_LAEUFE = 2;
 
 const UNGUELTIG = "Die Anfrage braucht JSON mit dem Feld frage als Text.";
+const NICHT_FREIGEGEBEN = "Dieses Modell ist hier nicht freigegeben.";
+
+/**
+ * Online (KIC_ONLINE=1, nur das Prod-Compose setzt es) darf die Wahl kein Geld kosten, das niemand freigegeben hat:
+ * erlaubt sind dann nur Testbetrieb und die Anbieter aus UC4_MODELLWAHL (Komma-Liste). Lokal ist jede Wahl offen.
+ * Review !72: sonst hebelte die Wahl LLM_PROVIDER=mock und „claude online aus“ des Compose aus.
+ */
+export function modellErlaubt(modell: Modellwahl, umgebung: Readonly<Record<string, string | undefined>>): boolean {
+  if (umgebung.KIC_ONLINE !== "1" || modell === "mock") return true;
+  const liste = (umgebung.UC4_MODELLWAHL ?? "").split(",").map((teil) => teil.trim());
+  return liste.includes(modell);
+}
 
 type Status = 400 | 403 | 413 | 429 | 502;
 
@@ -194,6 +206,7 @@ export function erstelleFrageAntwort({
     }
     const eingabe = leseFrage(text);
     if ("meldung" in eingabe) return fehler(400, eingabe.meldung);
+    if (eingabe.modell && !modellErlaubt(eingabe.modell, umgebung)) return fehler(400, NICHT_FREIGEGEBEN);
 
     if (offen >= maxLaeufe) return fehler(429, "Gerade laufen schon genug Fragen. Bitte gleich noch einmal fragen.");
     offen += 1;

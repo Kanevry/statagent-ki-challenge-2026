@@ -54,7 +54,7 @@ export const BUDGET_MELDUNG = "Für heute sind keine Antworten mehr frei. Bitte 
 export function grundText(grund: string): string {
   if (grund === "kein_adapter") return "Noch nicht angeschlossen";
   if (grund === "BudgetErschoepft") return BUDGET_MELDUNG;
-  // plattform.llm lehnt einen Anbieter ab, den der Zweck nicht erlaubt (StatAgent nie mit Claude).
+  // plattform.llm lehnt einen Anbieter ab, den der Zweck nicht erlaubt (zwecke.toml, Feld erlaubt).
   if (grund === "ZweckFehler") return "Mit diesem Modell gesperrt";
   return "Antwort fehlgeschlagen";
 }
