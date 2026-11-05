@@ -1,6 +1,6 @@
 # Abnahme-Prozess: jedes Kriterium mit Beleg, bei jedem neuen main wiederholt
 
-Stand v0.2, 05.11.2026 17:43 (Europe/Vienna), b-abnahme-30. Geprüft von Fable 5.1 und Astra (Codex, gpt-6-astra)
+Stand v0.3, 05.11.2026 18:15 (Europe/Vienna), b-abnahme-30 (v0.2 17:43 nach Review). Geprüft von Fable 5.1 und Astra (Codex, gpt-6-astra)
 unabhängig voneinander; was übernommen und was verworfen wurde, steht unten.
 
 ## Ziel
@@ -20,6 +20,7 @@ bestanden, verschoben oder als Restmangel entschieden.
 | Hand-Beleg | `docs/abnahme/belege.jsonl` | Prüfer (Mess-Agents nur als Vorschlag) |
 | Entscheid | `docs/abnahme/entscheide.jsonl` (verschoben oder Restmangel, mit Quelle) | Lead oder Owner, eingetragen von der Abnahme |
 | Matrix, Zähler, Tor | `docs/abnahme/matrix-<bereich>.md`, `matrix.py zaehler`, `matrix.py tor` | erzeugt, nie von Hand |
+| Jury-Raster UC3 | `docs/abnahme/raster-uc3.csv` (Bewertungsbereich je Issue), Tabelle oben in `matrix-uc3.md` | Abnahme |
 
 ## Befehle
 
@@ -27,12 +28,15 @@ bestanden, verschoben oder als Restmangel entschieden.
 uv run python tests/abnahme/pruefen.py [--bereich uc3] [--id 70-AC2] [--schwer] [--gegenprobe]
 uv run python tests/abnahme/matrix.py schreiben | zaehler | tor | befunde [--ja] | abhaken <id> [--ja]
 bash tests/abnahme/waechter.sh          # startet den leichten Lauf bei jedem neuen origin/main
+bash tests/abnahme/schwer_pruefrechner.sh <bundle> <main-sha> <werkzeug-sha> <issues.json>   # Prüfrechner
 ```
 
 ## Der Lauf
 
-1. Abzug: Prüfling ist main an der vollen SHA (`git archive`, `uv sync --frozen`, `pnpm install --offline`,
-   gemessen 2 s). Prüfwerkzeug ist `tests/abnahme` aus dem Abnahme-Commit. Beide SHAs stehen im Laufmanifest.
+1. Abzug: Prüfling ist main an der vollen SHA, als geteilter Klon mit Git-Historie (für git- und
+   gitleaks-Prüfsätze), mit `uv sync --frozen` und `pnpm install` (erst offline, dann mit Netz; scheitert beides,
+   werden die vitest-Prüfsätze Lauf-Fehler). Prüfwerkzeug ist `tests/abnahme` aus dem Abnahme-Commit. Beide SHAs
+   stehen im Laufmanifest.
 2. Im Abzug gibt es keine `.env.local`. Datenbank-Variablen zeigen auf einen gesperrten Port, `LLM_PROVIDER` ist
    gesperrt. Was eine DB, Docker, einen Browser oder ein Modell braucht, ist `schwer = true` und läuft nur auf
    dem Prüfrechner gegen die Prüf-DB (Port 5444), nie gegen eine Bau-DB.
@@ -46,9 +50,16 @@ bash tests/abnahme/waechter.sh          # startet den leichten Lauf bei jedem ne
 | Prüfsatz ungültig (Regex kaputt, verneinende Suche, Feld fehlt) | nicht geprüft (Prüfsatz ungültig) |
 | `zeitlimit_ist_befund = true` und Zeitlimit | nicht bestanden (ein Hänger ist dann ein Produktfehler) |
 
-4. Mehrere Prüfsätze je Kriterium: ein Teil nicht bestanden heißt Kriterium nicht bestanden. Bestanden nur, wenn
+4. `art = "hand"`: ein Mensch prüft (Screens, Stimme, Upload, Jury-Probe). Er zählt nur mit einem Hand-Beleg
+   des Prüfers in `belege.jsonl` (`art = "hand"`, Hash passend, Pfade unverändert); sonst „Hand-Prüfung offen“.
+5. Schwerer Lauf: Kriterien mit schwerem Teil urteilt nur der schwere Lauf (alle Teile). Ein leichter Lauf darf
+   sie abwerten (nicht bestanden), sonst schweigt er. Der schwere Lauf bricht vor jedem Schritt ab, wenn eine
+   Datenbank-Adresse nicht auf die lokale Prüf-DB (Port 5444) zeigt (gemessen: mit 5433 Exit 3).
+6. Mehrere Prüfsätze je Kriterium: ein Teil nicht bestanden heißt Kriterium nicht bestanden. Bestanden nur, wenn
    ein voller Prüfsatz besteht und kein Teil scheitert.
-5. Jeder wichtige Prüfsatz hat eine `gegenprobe` mit falschem Soll; `--gegenprobe` verlangt, dass sie scheitert.
+7. Testzählungen sind so verankert, dass ein Durchfaller nie passt (pytest `(^|= )\d+ passed`, vitest
+   `^\s*Tests\s+\d+ passed \(\d+\)`); keine feste Testzahl, außer `-k` wählt genau einen Test.
+8. Jeder wichtige Prüfsatz hat eine `gegenprobe` mit falschem Soll; `--gegenprobe` verlangt, dass sie scheitert.
 
 ## Wann ein Beleg gilt
 
@@ -115,9 +126,16 @@ Nicht übernommen, mit Grund:
   ändert dort, der Hash kippt, die Abnahme misst neu.
 - Vollständiger Markdown-Parser, CI-Pipeline, TOML-Prüfsätze für UC1, UC2, E0, E5 heute (beide Streichlisten).
 
+## Was der Prozess schon gefunden hat (eigene Fehler eingeschlossen)
+
+- Fixes auf main selbst erkannt: 135-10, 135-11 (Commit 043885a).
+- Zu großzügige Agent-Urteile: 13-AC4 (zwei Teile ungemessen), 16-AC4 (Prüfsatz verlangte Exit 0 des ganzen
+  Validators), 92-1 (Ministeriums-CSV im Repo verlangt, laut Owner-Entscheid nur im Manifest).
+- Eigene Werkzeugfehler, behoben: Prüfskripte fehlten im Abzug, Farbcodes, fehlende Node-Module, Abzug ohne Git,
+  Befund-Kommentare wurden bei geänderter Laufzeit erneut gepostet (in UC3 und UC1 je ein doppelter Kommentar
+  aus dem Lauf 18:05).
+
 ## Offen
 
-- Raster-Zuordnung UC3 zu den sechs Bewertungsbereichen (Fable M7, Astra 18) als `raster-uc3.csv` mit
-  Kurztabelle oben in der Matrix.
 - 71-AC3: 32.706 gegen Orakel-Variante E (32.710) klären (Fable N4).
 - Hand-Belege mit Pfaden für Pen-Frames, Stimme, Live-Proben.
