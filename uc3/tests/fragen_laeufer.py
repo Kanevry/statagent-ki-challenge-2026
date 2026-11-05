@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -51,11 +52,19 @@ def _fragen(conn: Verbindung, zeile: Zeile, soll: Soll) -> list[tuple[str, Urtei
 def laufen(conn: Verbindung, zeilen: list[Zeile]) -> list[tuple[Zeile, str, Urteil]]:
     datenbank_pruefen(conn)
     ergebnisse: list[tuple[Zeile, str, Urteil]] = []
-    for zeile in zeilen:
+    for nummer, zeile in enumerate(zeilen, start=1):
+        beginn = time.monotonic()
         soll = soll_rechnen(conn, zeile)
         conn.rollback()
+        orakel = time.monotonic()
         ergebnisse += [(zeile, weg, urteil) for weg, urteil in _fragen(conn, zeile, soll)]
         conn.rollback()
+        ende = time.monotonic()
+        print(
+            f"{nummer}/{len(zeilen)} {zeile.id} Orakel {orakel - beginn:.1f} s, Antworten {ende - orakel:.1f} s",
+            file=sys.stderr,
+            flush=True,
+        )
     return ergebnisse
 
 

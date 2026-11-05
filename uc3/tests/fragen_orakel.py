@@ -165,6 +165,8 @@ def _bestand(conn: Any, zeile: Zeile, gruppe: str | None) -> list[dict[str, Any]
         "rs": zeile.regelsatz,
         "monate": list(zeile.monate),
         "art": "Monat" if zeile.regelsatz == "v2" else "Stichtag",
+        "erster": min(zeile.monate),
+        "letzter": max(zeile.monate),
     }
     bedingungen = _bedingungen(zeile, parameter)
     spalte = None
@@ -183,6 +185,9 @@ def _bestand(conn: Any, zeile: Zeile, gruppe: str | None) -> list[dict[str, Any]
         + (" LEFT JOIN stat.klass_qualifikation q ON q.code = s.qualifikation" if join_q else "")
         + " WHERE s.regelsatz = %(rs)s AND s.zeitraum_art = %(art)s"
         + " AND s.variable = 'Beschaeftigungsverhaeltnisse' AND l.lieferung = ANY(%(monate)s)"
+        # Grenzen auf der Spalte selbst, sonst liest der Join über to_char zwei Millionen Zeilen je Frage.
+        + " AND s.zeitraum_bis >= to_date(%(erster)s, 'YYYY-MM')"
+        + " AND s.zeitraum_bis < to_date(%(letzter)s, 'YYYY-MM') + interval '1 month'"
         + "".join(f" AND {b}" for b in bedingungen)
         + " GROUP BY 1"
         + (", 2" if spalte else "")

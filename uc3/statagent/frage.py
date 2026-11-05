@@ -72,6 +72,8 @@ EINGEBAUT = {
     ("bestand", "bis"): "monatsletzter",
     ("abschnittswahl", "ordnung"): "spaetester_beginn",
 }
+#: Bis zu so vielen Monaten nennt der Text jeden Monat einzeln (Jahreszeit, Quartal, Halbjahr).
+MONATE_IM_TEXT = 6
 #: „Am höchsten“ nennt nur Abschnitte mit mindestens so vielen Beschäftigungsverhältnissen am Stichtag.
 MINDESTBESTAND_HOECHSTE = 1000
 NICHT_LESBAR = (
@@ -591,6 +593,32 @@ def _filter(
     return filter_, etiketten
 
 
+def _branche_ueber_wechsel(
+    conn: Verbindung, frage: str, filter_: list[tuple[Merkmal, str]], letzter_alt: str, neu_ab: str
+) -> tuple[list[tuple[Merkmal, str]], str] | None:
+    """Filter für die Monate vor dem ÖNACE-Wechsel und ein Hinweissatz, wenn die Branche beide Male gleich heißt.
+
+    „Gesundheits- und Sozialwesen“ ist bis Dezember 2024 Abschnitt Q, ab Jänner 2025 Abschnitt R. Heißt die Branche
+    verschieden („Handel“) oder meint derselbe Buchstabe zwei Bereiche („ÖNACE Q“), gibt es keine gemeinsame Zahl.
+    """
+    code_neu = next(code for m, code in filter_ if m is OENACE)
+    namen_alt, namen_neu = _codes(conn, OENACE, letzter_alt), _codes(conn, OENACE, neu_ab)
+    werte_alt = _werte(frage, OENACE, namen_alt)[0]
+    if len(werte_alt) != 1 or namen_alt[werte_alt[0]] != namen_neu.get(code_neu):
+        return None
+    code_alt, name = werte_alt[0], namen_neu[code_neu]
+    filter_alt = [(m, code_alt if m is OENACE else code) for m, code in filter_]
+    wie = (
+        f"bleibt dabei Abschnitt {code_neu}"
+        if code_alt == code_neu
+        else f"ist bis {_monat_anzeige(letzter_alt)} Abschnitt {code_alt}, ab {_monat_anzeige(neu_ab)} Abschnitt {code_neu}"
+    )
+    return filter_alt, (
+        f"Die Wirtschaftsbereiche wurden im {_monat_anzeige(neu_ab)} neu eingeteilt: {name} {wie}. "
+        "Über den Wechsel hinweg ist der Vergleich darum nur ungefähr."
+    )
+
+
 def bestand_sql(
     conn: Verbindung,
     regelsatz: str,
@@ -692,45 +720,48 @@ def _bestand_antwort(
         raise _KeineZahl(
             f"Freie Dienstverträge kann die Datenanfrage nur im Regelsatz v1 trennen, nicht in {regelsatz}. {KANN}"
         )
+    abschnitte = [(von, bis, filter_)]
+    hinweise: list[str] = []
     if OENACE in gruppen or any(m is OENACE for m, _ in filter_):
         v_von, v_bis = _oenace_version(conn, von), _oenace_version(conn, bis)
         if v_von and v_bis and v_von[0] != v_bis[0]:
             letzter_alt = monat_verschieben(v_bis[1], -1)
-            raise _KeineZahl(
-                f"Die Wirtschaftsbereiche (ÖNACE) wurden neu eingeteilt: bis {_monat_anzeige(letzter_alt)} gilt "
-                f"ÖNACE {v_von[0]}, ab {_monat_anzeige(v_bis[1])} ÖNACE {v_bis[0]}. Gleiche Buchstaben meinen "
-                "dort teils andere Bereiche, eine Reihe über den Wechsel hinweg wäre irreführend. Bitte getrennt "
-                f"fragen: von {_monat_anzeige(von)} bis {_monat_anzeige(letzter_alt)} und von "
-                f"{_monat_anzeige(v_bis[1])} bis {_monat_anzeige(bis)}."
-            )
+            ueber = None if OENACE in gruppen else _branche_ueber_wechsel(conn, frage, filter_, letzter_alt, v_bis[1])
+            if ueber is None:
+                raise _KeineZahl(
+                    f"Für diesen Zeitraum gibt es keine gemeinsame Zahl, weil die Wirtschaftsbereiche im "
+                    f"{_monat_anzeige(v_bis[1])} neu eingeteilt wurden. Bitte getrennt fragen: "
+                    f"{zeitraum_anzeige(von, letzter_alt)} und {zeitraum_anzeige(v_bis[1], bis)}."
+                )
+            filter_alt, hinweis = ueber
+            abschnitte = [(von, letzter_alt, filter_alt), (v_bis[1], bis, filter_)]
+            hinweise.append(hinweis)
+    if len(_monate(von, bis)) > 120:
+        raise _KeineZahl("Der Zeitraum ist für eine Antwort zu lang. Bitte höchstens zehn Jahre auf einmal fragen.")
     # Ein Ergebnis über HOECHSTENS_ZEILEN liest sql_lesen nur abgeschnitten: dann je Monat eine Abfrage.
     abfragen: list[tuple[str, list[dict[str, Any]]]] = []
-    sql_text = bestand_sql(conn, regelsatz, von, bis, filter_, gruppen)
-    try:
-        abfragen.append((sql_text, _lesen(conn, sql_text)))
-    except _Abgeschnitten:
-        monate = _monate(von, bis)
-        if len(monate) > 120:
-            raise _KeineZahl(
-                "Der Zeitraum ist für eine Antwort zu lang. Bitte höchstens zehn Jahre auf einmal fragen."
-            ) from None
-        for monat in monate:
-            text_m = bestand_sql(conn, regelsatz, monat, monat, filter_, gruppen)
-            try:
-                zeilen_m = _lesen(conn, text_m)
-            except _Abgeschnitten:
-                raise _KeineZahl(
-                    f"Für {_monat_anzeige(monat)} wären es zu viele Zahlen für eine Antwort. Bitte enger fragen, "
-                    "zum Beispiel mit weniger Aufteilungen oder für ein Bundesland."
-                ) from None
-            if zeilen_m:
-                abfragen.append((text_m, zeilen_m))
+    sql_text = ""
+    for teil_von, teil_bis, teil_filter in abschnitte:
+        sql_text = bestand_sql(conn, regelsatz, teil_von, teil_bis, teil_filter, gruppen)
+        try:
+            abfragen.append((sql_text, _lesen(conn, sql_text)))
+        except _Abgeschnitten:
+            for monat in _monate(teil_von, teil_bis):
+                text_m = bestand_sql(conn, regelsatz, monat, monat, teil_filter, gruppen)
+                try:
+                    zeilen_m = _lesen(conn, text_m)
+                except _Abgeschnitten:
+                    raise _KeineZahl(
+                        f"Für {_monat_anzeige(monat)} wären es zu viele Zahlen für eine Antwort. Bitte enger fragen, "
+                        "zum Beispiel mit weniger Aufteilungen oder für ein Bundesland."
+                    ) from None
+                if zeilen_m:
+                    abfragen.append((text_m, zeilen_m))
     alle = [z for _, zeilen in abfragen for z in zeilen]
     staende = _staende(alle)
     info = _laufinfo(conn, regelsatz, staende)
     for s in staende:
         s["fortgeschrieben"] = info.get(int(s["lauf"]), (0, True))[0]
-    hinweise: list[str] = []
     ohne_stichtag = {str(s["monat"]) for s in staende if not info.get(int(s["lauf"]), (0, True))[1]}
     if ohne_stichtag:
         hinweise.append(
@@ -811,6 +842,7 @@ def _bestand_antwort(
     gezaehlte_staende = [s for s in staende if str(s["monat"]) not in ohne_stichtag]
     text = _text_bestand(typ, gezaehlt, gruppen, labels, zusatz)
     je_monat = sorted({str(z["monat"]) for z in gezaehlt})
+    antwortsatz, ersetzt = _antwortsatz(gezaehlt, zusatz, text)
     if mittel and len(je_monat) > 1:
         if gruppen:
             text += " Einen Durchschnitt gibt es hier nur ohne Aufteilung."
@@ -834,10 +866,15 @@ def _bestand_antwort(
                     "beleg": len(belege) - 1,
                 }
             )
-            text += (
-                f" Im Durchschnitt waren es {_deutsch(durchschnitt)} "
+            durchschnitts_satz = (
+                f"Im Durchschnitt waren es {_deutsch(durchschnitt)} "
                 f"(Mittelwert der {_anzahl_monate(len(je_monat))}, auf ganze Zahlen gerundet)."
             )
+            text += f" {durchschnitts_satz}"
+            antwortsatz = (
+                f"Im Durchschnitt waren es {_deutsch(durchschnitt)} Beschäftigungsverhältnisse{zusatz}, {zeitraum}."
+            )
+            ersetzt = durchschnitts_satz
     if "anteil" in frage.lower() and gruppen == (GESCHLECHT,) and von == bis:
         summe = sum(int(z["wert"]) for z in zahlen)
         anteile = []
@@ -869,7 +906,7 @@ def _bestand_antwort(
             for z in summen
             if z["g0"] is not None
         )
-    return _antwort(
+    daten = _antwort(
         typ,
         " ".join(
             [
@@ -887,6 +924,8 @@ def _bestand_antwort(
         zahlen=zahlen,
         hinweise=hinweise,
     )
+    daten["antwortsatz"], daten["ersetzt"] = antwortsatz, ersetzt
+    return daten
 
 
 def _monate(von: str, bis: str) -> list[str]:
@@ -896,6 +935,31 @@ def _monate(von: str, bis: str) -> list[str]:
         monate.append(monat)
         monat = monat_verschieben(monat, 1)
     return monate
+
+
+def _antwortsatz(zeilen: list[dict[str, Any]], zusatz: str, text: str) -> tuple[str, str]:
+    """Der Satz, mit dem die Kette auf /uc4 die Antwort beginnt, und der Teil des Textes, den er ersetzt.
+
+    Die Station zeigt nur den ersten Satz: Darin muss die Zahl stehen, nicht die Erklärung der Frage (Winter 2025).
+    """
+    je_monat: dict[str, int] = {}
+    for z in zeilen:
+        je_monat[str(z["monat"])] = je_monat.get(str(z["monat"]), 0) + int(z["wert"])
+    monate = sorted(je_monat)
+    if len(monate) == 1:
+        monat = monate[0]
+        tag = monatsletzter(monat).strftime("%d.%m.%Y")
+        satz = (
+            f"Am {tag}, dem letzten Tag im {_monat_anzeige(monat)}, gab es {_deutsch(je_monat[monat])} "
+            f"Beschäftigungsverhältnisse{zusatz}."
+        )
+        erster = re.match(r"Am .*?Beschäftigungsverhältnisse[^.]*\.", text)
+        return satz, erster.group(0) if erster else ""
+    satz = (
+        f"Von {_deutsch(je_monat[monate[0]])} auf {_deutsch(je_monat[monate[-1]])} "
+        f"Beschäftigungsverhältnisse{zusatz}, {zeitraum_anzeige(monate[0], monate[-1])}."
+    )
+    return satz, ""
 
 
 def _text_bestand(
@@ -922,6 +986,8 @@ def _text_bestand(
                 f"{_monat_anzeige(letzter)} ({_anzahl_monate(len(monate))}): von {_deutsch(je_monat[erster])} "
                 f"auf {_deutsch(je_monat[letzter])}."
             )
+            if len(monate) <= MONATE_IM_TEXT and not gruppen:
+                text += " Je Monat: " + ", ".join(f"{_monat_anzeige(m)} {_deutsch(je_monat[m])}" for m in monate) + "."
         if gruppen:
             text += f" Aufgeteilt nach {', '.join(g.name for g in gruppen)}, eine Zahl je Monat und Gruppe."
         return text

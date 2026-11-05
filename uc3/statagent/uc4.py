@@ -713,27 +713,26 @@ def uc4_antwort(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str
         return _fluktuation_kurz(daten)
     return {
         **weg.als_ucantwort(daten),
-        "text": _text_fuer_kette(weg.als_webantwort(daten)["text"], daten["zahlen"]),
+        "text": _text_fuer_kette(weg.als_webantwort(daten)["text"], daten),
     }
 
 
 #: Teile des „Verstanden“-Satzes, die nichts eingrenzen.
 _ALLE = re.compile(r",\s+(?:Bundesland|Geschlecht|Branche|Beschäftigungskategorie): alle")
-_MONATSSATZ = re.compile(r"Am \d{1,2}\. (\S+) (\d{4}) gab es ([\d.]+ [^.]*\.)\s*")
 
 
-def _text_fuer_kette(text: str, zahlen: list[dict[str, Any]]) -> str:
-    """Der Text für die Stationen der Kette: Bei genau einer Zahl ist der erste Satz die Antwort, danach kommt
-    „Verstanden …“. Der erste Satz wird auch als Kern der Station verwendet, darum ohne Punkt nach dem Tag.
+def _text_fuer_kette(text: str, daten: dict[str, Any]) -> str:
+    """Der Text für die Stationen der Kette: Der erste Satz ist die Antwort, danach kommt „Verstanden …“.
+
+    Die Station zeigt nur den ersten Satz; stünde dort die Erklärung der Frage, sähe man die Zahl nicht.
     """
     text = _ALLE.sub("", text)
-    satz = _MONATSSATZ.search(text)
-    if len(zahlen) != 1 or not text.startswith("Verstanden:") or satz is None:
+    satz = daten.get("antwortsatz")
+    if not satz or not daten["zahlen"]:
         return text
-    monat = f"{satz.group(2)}-{MONATSNAMEN[satz.group(1).lower()]:02d}"
-    tag = monatsletzter(monat).strftime("%d.%m.%Y")
-    antwort = f"Am {tag}, dem letzten Tag im {_monat_anzeige(monat)}, gab es {satz.group(3)}"
-    return f"{antwort} {text[: satz.start()].strip()} {text[satz.end() :].strip()}".strip()
+    ersetzt = daten.get("ersetzt") or ""
+    rest = " ".join(text.replace(ersetzt, "", 1).split()) if ersetzt else text
+    return f"{satz} {rest}".strip()
 
 
 def _fluktuation_kurz(daten: dict[str, Any]) -> dict[str, Any]:
