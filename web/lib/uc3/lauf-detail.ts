@@ -1,0 +1,463 @@
+import { formatZahl } from "@kic/ui/bausteine";
+import { literal } from "./beleg";
+import { lies, type Lesung, type Sql } from "./db";
+import { ladeMassgeblichenLauf } from "./laeufe";
+import { monatName, monatsgrenzen, stichtag, verschieben } from "./monat";
+import type { Lauf } from "./typen";
+
+// Lauf-Detail /uc3/laeufe/[lieferung] (#18, Frames fFDc8 und P6gBQD): Leser, Sätze und Beleg-Abfragen eines Monats.
+// Jede Abfrage, die ein Beleg ZEIGT, liefert genau die Zahl, die daneben steht; ausgeführt wird die parametrisierte
+// Fassung mit denselben Bedingungen.
+
+const GUELTIG = "('fertig', 'unveraendert')";
+
+export type Einstufung = "erklaert-plausibel" | "erklaert-datenproblem" | "nicht-erklaerbar";
+
+export interface Treffer {
+  regelId: number;
+  name: string;
+  art: string;
+  beschreibung: string;
+  /** Satzvorlage aus meta.regel.parameter->>'satz' mit {anzahl}, {monat}, {umfang}; fehlt in älteren Ständen. */
+  satz: string | null;
+  ebene: string;
+  anzahl: number;
+  umfang: string | null;
+  beispiele: unknown[];
+  einstufung: Einstufung | null;
+  massnahme: string | null;
+  anhalten: boolean;
+  belegSql: string | null;
+}
+
+export interface Ursache {
+  ursache: string;
+  anzahl: number;
+}
+
+export interface Revision {
+  berichtsmonat: string;
+  veroeffentlicht: number;
+  aktuell: number;
+  differenz: number;
+  statusVorher: string;
+  ursachen: Ursache[];
+}
+
+export interface Region {
+  code: string;
+  name: string;
+  anzahl: number;
+}
+
+export interface Determinismus {
+  laeufe: number;
+  hashes: number;
+  hash: string;
+}
+
+export interface LaufDetail {
+  lauf: Lauf;
+  vormonat: Lauf | null;
+  /** Gibt es für den Monat davor bzw. danach einen Lauf? Dann verlinkt die Seite dorthin. */
+  davor: boolean;
+  danach: boolean;
+  treffer: Treffer[];
+  revisionen: Revision[];
+  regionen: Region[];
+  determinismus: Determinismus;
+}
+
+function zahl(wert: unknown): number {
+  const n = Number(wert ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Sätze
+
+/** „1 Verhältnis“, „2 Verhältnisse“. */
+export function verhaeltnisse(n: number): string {
+  return `${formatZahl(n)} ${n === 1 ? "Verhältnis" : "Verhältnisse"}`;
+}
+
+export function aufzaehlen(teile: readonly string[]): string {
+  return teile.length < 2 ? (teile[0] ?? "") : `${teile.slice(0, -1).join(", ")} und ${teile.at(-1)}`;
+}
+
+/** Einstufung als Status: Art für Symbol und Farbe, Wort für den Text. */
+export function einstufungStatus(e: Einstufung | null): { art: "ok" | "warnung" | "fehler" | "info"; wort: string } {
+  switch (e) {
+    case "erklaert-plausibel":
+      return { art: "ok", wort: "erklärt, plausibel" };
+    case "erklaert-datenproblem":
+      return { art: "warnung", wort: "erklärt, Datenproblem" };
+    case "nicht-erklaerbar":
+      return { art: "fehler", wort: "nicht erklärbar" };
+    default:
+      return { art: "info", wort: "noch nicht eingestuft" };
+  }
+}
+
+/** Eigene Titel je Prüfregel (Nummer vor dem Unterstrich), falls meta.regel keine Satzvorlage trägt. */
+const TITEL: Record<string, string> = {
+  P01: "Gleiche Zeilen kamen mehrfach vor.",
+  P02: "Ein Verhältnis hat am Stichtag mehrere Zeitabschnitte.",
+  P03: "Beginn und Ende waren vertauscht.",
+  P04: "Im Geburtsdatum steht der Monat 13.",
+  P05: "Das Geburtsdatum fehlt oder ist ungültig.",
+  P06: "Das Alter kann nicht stimmen.",
+  P07: "Beschäftigte ab 75 Jahren.",
+  P08: "Beginn oder Ende war kein gültiges Datum.",
+  P09: "Der Beginn liegt nach dem Ende.",
+  P10: "Bundesland oder Branche wurde leer geliefert.",
+  P11: "Alte Branchencodes aus dem Jahr 2003.",
+  P12: "Ein gelieferter Code steht in keiner Liste.",
+  P13: "Gruppen aus dem Vormonat fehlen ganz.",
+  P14: "Gruppen haben sich stark gegenüber dem Vormonat verändert.",
+  P15: "Der Bestand fällt stark gegenüber dem Vormonat.",
+  P16: "Verhältnisse des Vormonats fehlen in der Lieferung.",
+  P17: "Die Lieferung hat deutlich mehr oder weniger Zeilen als die vorige.",
+  P18: "Viele gleiche Codewechsel am selben Tag.",
+  P19: "Mögliche Doppelmeldung bei neuen Verhältnissen.",
+  P20: "Angaben einer Person passen nicht zusammen.",
+  P21: "Teilsummen passen nicht zur Gesamtzahl.",
+  P22: "Die Abrechnung der Sätze geht nicht auf.",
+  P23: "Frühere Monate wären mit dieser Lieferung anders.",
+  P24: "Die Lieferung deckt die Vormonate nicht ganz ab.",
+};
+
+/** Titel einer Auffälligkeit: Satzvorlage der Regel, sonst eigener Titel, sonst der erste Satz der Beschreibung. */
+export function trefferTitel(t: Pick<Treffer, "name" | "beschreibung" | "satz" | "anzahl" | "umfang">, lieferung: string): string {
+  if (t.satz) {
+    return t.satz
+      .replaceAll("{anzahl}", formatZahl(t.anzahl))
+      .replaceAll("{monat}", monatName(lieferung))
+      .replaceAll("{umfang}", t.umfang ?? "");
+  }
+  const eigen = TITEL[t.name.split("_")[0] ?? ""];
+  if (eigen) return eigen;
+  const erster = t.beschreibung.split(/(?<=\.)\s/)[0] ?? t.beschreibung;
+  return erster || t.name;
+}
+
+/** Steht der Umfang schon im Titel (Vorlage mit {umfang}), wird er nicht noch einmal gezeigt. */
+export function umfangImTitel(t: Pick<Treffer, "satz">): boolean {
+  return Boolean(t.satz?.includes("{umfang}"));
+}
+
+const EINSTUFUNG_RANG: Record<string, number> = { "nicht-erklaerbar": 0, "erklaert-datenproblem": 1, "erklaert-plausibel": 2 };
+
+/** Nur Treffer mit Anzahl > 0: anhaltende zuerst, dann nicht erklärbar, dann nach Anzahl. */
+export function sortiereTreffer(treffer: readonly Treffer[]): Treffer[] {
+  return treffer
+    .filter((t) => t.anzahl > 0)
+    .sort(
+      (a, b) =>
+        Number(b.anhalten) - Number(a.anhalten) ||
+        (EINSTUFUNG_RANG[a.einstufung ?? ""] ?? 3) - (EINSTUFUNG_RANG[b.einstufung ?? ""] ?? 3) ||
+        b.anzahl - a.anzahl,
+    );
+}
+
+/** Welche anhaltende Prüfung die Überschrift trägt: die, deren Zahl ein Mensch am leichtesten versteht. */
+const HALT_VORRANG = ["verhaeltnisse_verschwunden", "bestand_vs_vormonat", "auspraegung_verschwunden", "zeilenzahl_vs_vormonat"];
+
+export function haltTreffer(treffer: readonly Treffer[]): Treffer | null {
+  const anhaltend = treffer.filter((t) => t.anhalten);
+  const rang = (t: Treffer) => {
+    const i = HALT_VORRANG.indexOf(t.art);
+    return i < 0 ? HALT_VORRANG.length : i;
+  };
+  return [...anhaltend].sort((a, b) => rang(a) - rang(b) || b.anzahl - a.anzahl)[0] ?? null;
+}
+
+/** Überschrift eines angehaltenen Monats: Grund mit Zahl. */
+export function haltSatz(t: Pick<Treffer, "art" | "anzahl" | "name" | "beschreibung" | "satz" | "umfang">, lieferung: string): string {
+  const im = `Im ${monatName(lieferung)}`;
+  const n = t.anzahl;
+  const deshalb = "deshalb ist der Monat angehalten.";
+  switch (t.art) {
+    case "verhaeltnisse_verschwunden":
+      return `${im} ${n === 1 ? "fehlt" : "fehlen"} ${verhaeltnisse(n)} des Vormonats, ${deshalb}`;
+    case "bestand_vs_vormonat":
+      return `${im} wären es ${verhaeltnisse(n)} weniger als im Vormonat, ${deshalb}`;
+    case "auspraegung_verschwunden":
+      return n === 1
+        ? `${im} fehlt eine Gruppe ganz, die es im Vormonat noch gab, ${deshalb}`
+        : `${im} fehlen ${formatZahl(n)} Gruppen ganz, die es im Vormonat noch gab, ${deshalb}`;
+    case "zeilenzahl_vs_vormonat":
+      return `${im} weicht die Lieferung um ${formatZahl(n)} ${n === 1 ? "Zeile" : "Zeilen"} von der vorigen ab, ${deshalb}`;
+    default:
+      return `${im} hält die Prüfung „${trefferTitel(t, lieferung).replace(/\.$/, "")}“ den Monat an.`;
+  }
+}
+
+/** Überschrift eines Monats, der nicht angehalten ist: Bestand am Stichtag und Veränderung zum Vormonat. */
+export function bestandSatz(lauf: Pick<Lauf, "lieferung" | "gezaehlt">, vormonat: Pick<Lauf, "lieferung" | "gezaehlt"> | null): string {
+  const kopf = `Am ${stichtag(lauf.lieferung)} bestanden ${formatZahl(lauf.gezaehlt)} Beschäftigungsverhältnisse`;
+  if (!vormonat) return `${kopf}.`;
+  const d = lauf.gezaehlt - vormonat.gezaehlt;
+  const vm = monatName(vormonat.lieferung);
+  if (d === 0) return `${kopf}, gleich viele wie im ${vm}.`;
+  return `${kopf}, ${formatZahl(Math.abs(d))} ${d > 0 ? "mehr" : "weniger"} als im ${vm}.`;
+}
+
+/** „425.151 gelesene Sätze = 387.180 gezählt + 36.308 nicht gezählt + 1.663 ausgeschlossen.“ (ohne Fortgeschriebene) */
+export function abrechnungSatz(lauf: Pick<Lauf, "gelesen" | "gezaehlt" | "fortgeschrieben" | "nichtGezaehlt" | "ausgeschlossen">): string {
+  return `${formatZahl(lauf.gelesen)} gelesene Sätze = ${formatZahl(lauf.gezaehlt - lauf.fortgeschrieben)} gezählt + ${formatZahl(lauf.nichtGezaehlt)} nicht gezählt + ${formatZahl(lauf.ausgeschlossen)} ausgeschlossen.`;
+}
+
+export function determinismusSatz(d: Determinismus): string {
+  const kurz = d.hash.slice(0, 8);
+  if (d.laeufe <= 1) return `Ein Lauf mit diesen Regeln, Ergebnis-Hash ${kurz}.`;
+  if (d.hashes === 1) return `${formatZahl(d.laeufe)} Läufe mit diesen Regeln, alle mit demselben Ergebnis-Hash ${kurz}.`;
+  return `${formatZahl(d.laeufe)} Läufe mit diesen Regeln, aber ${formatZahl(d.hashes)} verschiedene Ergebnis-Hashes.`;
+}
+
+/** Ein Satz je Berichtsmonat mit Revisionsbedarf. */
+export function revisionSatz(r: Pick<Revision, "berichtsmonat" | "veroeffentlicht" | "aktuell" | "differenz" | "statusVorher">): string {
+  const monat = monatName(r.berichtsmonat);
+  const veroeffentlicht = r.statusVorher === "endgueltig";
+  if (r.differenz === 0) return `Mit dieser Lieferung bliebe ${monat} gleich.`;
+  const richtung = r.differenz < 0 ? "kleiner" : "größer";
+  const bezug = veroeffentlicht ? "als veröffentlicht" : "als bisher gezeigt";
+  const bleibt = veroeffentlicht
+    ? "Die veröffentlichte Zahl bleibt stehen."
+    : "Die bisher gezeigte Zahl bleibt stehen, weil jeder Monat nur aus seiner eigenen Lieferung gerechnet wird.";
+  return `Mit dieser Lieferung wäre ${monat} um ${verhaeltnisse(Math.abs(r.differenz))} ${richtung} ${bezug} (${formatZahl(r.aktuell)} statt ${formatZahl(r.veroeffentlicht)}). ${bleibt}`;
+}
+
+function ursacheTeil(u: Ursache): string | null {
+  const n = u.anzahl;
+  const nv = verhaeltnisse(n);
+  const ist = n === 1 ? "ist" : "sind";
+  const wurde = n === 1 ? "wurde" : "wurden";
+  switch (u.ursache) {
+    case "nicht_mehr_enthalten":
+      return `${nv} ${ist} in der neuen Lieferung nicht mehr enthalten`;
+    case "rueckwirkende_abmeldung":
+      return `${nv} ${wurde} rückwirkend abgemeldet`;
+    case "nachmeldung":
+      return `${nv} ${wurde} nachgemeldet`;
+    case "merkmal_geaendert":
+      return `bei ${nv} hat sich ein Merkmal geändert`;
+    default:
+      return `${nv}: ${u.ursache}`;
+  }
+}
+
+/** „Gründe: 4.360 Verhältnisse sind … und 605 Verhältnisse wurden nachgemeldet.“; Ursachen mit 0 fallen weg. */
+export function ursachenSatz(ursachen: readonly Ursache[]): string | null {
+  const teile = [...ursachen]
+    .filter((u) => u.anzahl > 0)
+    .sort((a, b) => b.anzahl - a.anzahl)
+    .map(ursacheTeil)
+    .filter((t): t is string => t !== null);
+  return teile.length ? `Gründe: ${aufzaehlen(teile)}.` : null;
+}
+
+/** Bis zu drei Beispiel-Kennungen als Text. */
+export function beispielText(beispiele: readonly unknown[], max = 3): string | null {
+  const ids = beispiele.filter((b) => typeof b === "number" || typeof b === "string").slice(0, max);
+  return ids.length ? ids.map(String).join(", ") : null;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Beleg-Abfragen (Anzeige)
+
+const BESTAND_FILTER = "zeitraum_art = 'Stichtag' AND variable = 'Beschaeftigungsverhaeltnisse'";
+
+/** Bestand dieses Monats und des Vormonats, je mit dem Regelstand ihres maßgeblichen Laufs. */
+export function sqlBestandMitVormonat(lauf: Lauf, vormonat: Lauf | null): string {
+  const teil = (l: Lauf) => {
+    const { von, bis } = monatsgrenzen(l.lieferung);
+    return `(regelstand = ${literal(l.regelstand)} AND zeitraum_bis BETWEEN ${literal(von)} AND ${literal(bis)})`;
+  };
+  return [
+    "SELECT to_char(zeitraum_bis, 'YYYY-MM') AS monat, sum(wert) AS beschaeftigungsverhaeltnisse",
+    "FROM stat.stat_beschaeftigte",
+    `WHERE regelsatz = ${literal(lauf.regelsatz)} AND ${BESTAND_FILTER}`,
+    `  AND (${[vormonat, lauf].filter((l): l is Lauf => l !== null).map(teil).join("\n       OR ")})`,
+    "GROUP BY 1 ORDER BY 1;",
+  ].join("\n");
+}
+
+export function sqlKennzahlen(lauf: Pick<Lauf, "id">): string {
+  return [
+    "SELECT lieferung, gelesen, gezaehlt, fortgeschrieben, nicht_gezaehlt, ausgeschlossen, ergebnis_status",
+    "FROM meta.lauf",
+    `WHERE id = ${literal(lauf.id)};`,
+  ].join("\n");
+}
+
+export function sqlDeterminismus(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "regelstand">): string {
+  return [
+    "SELECT count(*) AS laeufe, count(DISTINCT ergebnis_hash) AS hashes, min(ergebnis_hash) AS ergebnis_hash",
+    "FROM meta.lauf",
+    `WHERE lieferung = ${literal(lauf.lieferung)} AND regelsatz = ${literal(lauf.regelsatz)}`,
+    `  AND regelstand = ${literal(lauf.regelstand)} AND status IN ${GUELTIG};`,
+  ].join("\n");
+}
+
+/** Abfrage des Treffers (liefert alle gezeigten Angaben) und darunter die Prüfabfrage der Regel. */
+export function sqlTreffer(lauf: Pick<Lauf, "id">, t: Pick<Treffer, "regelId" | "ebene" | "belegSql">): string {
+  const kopf = [
+    "SELECT r.name, p.anzahl, p.umfang, p.einstufung, p.massnahme, p.anhalten, p.beispiele",
+    "FROM meta.pruefung_treffer p JOIN meta.regel r ON r.id = p.regel_id",
+    `WHERE p.lauf_id = ${literal(lauf.id)} AND p.regel_id = ${literal(t.regelId)} AND p.ebene = ${literal(t.ebene)};`,
+  ];
+  return t.belegSql ? [...kopf, "", "-- Prüfabfrage der Regel, mit der die Anzahl gerechnet wurde:", t.belegSql.trim()].join("\n") : kopf.join("\n");
+}
+
+export function sqlRevision(lauf: Pick<Lauf, "id">, berichtsmonat: string): string {
+  return [
+    "SELECT r.berichtsmonat, r.veroeffentlicht, r.aktuell, r.differenz, r.status_vorher, u.ursache, u.anzahl",
+    "FROM meta.revision r",
+    "LEFT JOIN meta.revision_ursache u ON u.lauf_id = r.lauf_id AND u.berichtsmonat = r.berichtsmonat",
+    `WHERE r.lauf_id = ${literal(lauf.id)} AND r.gliederung = 'insgesamt' AND r.berichtsmonat = ${literal(berichtsmonat)}`,
+    "ORDER BY u.anzahl DESC;",
+  ].join("\n");
+}
+
+export function sqlKeineRevision(lauf: Pick<Lauf, "id">): string {
+  return `SELECT count(*) AS monate_mit_revisionsbedarf\nFROM meta.revision\nWHERE lauf_id = ${literal(lauf.id)} AND gliederung = 'insgesamt' AND differenz <> 0;`;
+}
+
+/** Bestand je Bundesland; ROLLUP liefert die Summenzeile (Bundesland leer) gleich mit. */
+export function sqlRegionen(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "regelstand">): string {
+  const { von, bis } = monatsgrenzen(lauf.lieferung);
+  return [
+    "SELECT s.region, k.bezeichnung, sum(s.wert) AS beschaeftigungsverhaeltnisse",
+    "FROM stat.stat_beschaeftigte s",
+    "LEFT JOIN stat.klass_region k ON k.code = s.region AND k.ebene = 'bundesland'",
+    "  AND k.gueltig_von <= s.zeitraum_bis AND (k.gueltig_bis IS NULL OR k.gueltig_bis >= s.zeitraum_bis)",
+    `WHERE s.regelsatz = ${literal(lauf.regelsatz)} AND s.regelstand = ${literal(lauf.regelstand)}`,
+    `  AND s.${BESTAND_FILTER.replace(" AND ", " AND s.")}`,
+    `  AND s.zeitraum_bis BETWEEN ${literal(von)} AND ${literal(bis)}`,
+    "GROUP BY ROLLUP ((s.region, k.bezeichnung))",
+    "ORDER BY grouping(s.region), s.region = '0', 3 DESC;",
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Leser
+
+interface TrefferZeile {
+  regel_id: number;
+  name: string;
+  art: string | null;
+  beschreibung: string | null;
+  satz: string | null;
+  ebene: string;
+  anzahl: string | number;
+  umfang: string | null;
+  beispiele: unknown;
+  einstufung: Einstufung | null;
+  massnahme: string | null;
+  anhalten: boolean;
+  beleg_sql: string | null;
+}
+
+async function ladeTreffer(sql: Sql, laufId: number): Promise<Treffer[]> {
+  const zeilen = await sql<TrefferZeile[]>`
+    SELECT p.regel_id, r.name, r.art, r.beschreibung, r.parameter->>'satz' AS satz, p.ebene, p.anzahl, p.umfang,
+           p.beispiele, p.einstufung, p.massnahme, p.anhalten, p.beleg_sql
+    FROM meta.pruefung_treffer p JOIN meta.regel r ON r.id = p.regel_id
+    WHERE p.lauf_id = ${laufId} AND p.anzahl > 0`;
+  return sortiereTreffer(
+    zeilen.map((z) => ({
+      regelId: z.regel_id,
+      name: z.name,
+      art: z.art ?? "",
+      beschreibung: z.beschreibung ?? "",
+      satz: z.satz,
+      ebene: z.ebene,
+      anzahl: zahl(z.anzahl),
+      umfang: z.umfang,
+      beispiele: Array.isArray(z.beispiele) ? z.beispiele : [],
+      einstufung: z.einstufung,
+      massnahme: z.massnahme,
+      anhalten: z.anhalten,
+      belegSql: z.beleg_sql,
+    })),
+  );
+}
+
+async function ladeRevisionen(sql: Sql, laufId: number): Promise<Revision[]> {
+  const [revisionen, ursachen] = await Promise.all([
+    sql<{ berichtsmonat: string; veroeffentlicht: string; aktuell: string; differenz: string; status_vorher: string }[]>`
+      SELECT berichtsmonat, veroeffentlicht, aktuell, differenz, status_vorher
+      FROM meta.revision WHERE lauf_id = ${laufId} AND gliederung = 'insgesamt' ORDER BY berichtsmonat`,
+    sql<{ berichtsmonat: string; ursache: string; anzahl: string }[]>`
+      SELECT berichtsmonat, ursache, anzahl FROM meta.revision_ursache WHERE lauf_id = ${laufId}`,
+  ]);
+  return revisionen.map((r) => ({
+    berichtsmonat: r.berichtsmonat,
+    veroeffentlicht: zahl(r.veroeffentlicht),
+    aktuell: zahl(r.aktuell),
+    differenz: zahl(r.differenz),
+    statusVorher: r.status_vorher,
+    ursachen: ursachen
+      .filter((u) => u.berichtsmonat === r.berichtsmonat)
+      .map((u) => ({ ursache: u.ursache, anzahl: zahl(u.anzahl) })),
+  }));
+}
+
+async function ladeRegionen(sql: Sql, lauf: Lauf): Promise<Region[]> {
+  const { von, bis } = monatsgrenzen(lauf.lieferung);
+  const zeilen = await sql<{ region: string; bezeichnung: string | null; anzahl: string }[]>`
+    SELECT s.region, k.bezeichnung, sum(s.wert) AS anzahl
+    FROM stat.stat_beschaeftigte s
+    LEFT JOIN stat.klass_region k ON k.code = s.region AND k.ebene = 'bundesland'
+      AND k.gueltig_von <= s.zeitraum_bis AND (k.gueltig_bis IS NULL OR k.gueltig_bis >= s.zeitraum_bis)
+    WHERE s.regelsatz = ${lauf.regelsatz} AND s.regelstand = ${lauf.regelstand}
+      AND s.zeitraum_art = 'Stichtag' AND s.variable = 'Beschaeftigungsverhaeltnisse'
+      AND s.zeitraum_bis BETWEEN ${von} AND ${bis}
+    GROUP BY s.region, k.bezeichnung
+    ORDER BY s.region = '0', 3 DESC`;
+  return zeilen.map((z) => ({
+    code: z.region,
+    name: z.region === "0" ? "unbekannt" : (z.bezeichnung ?? `Code ${z.region}`),
+    anzahl: zahl(z.anzahl),
+  }));
+}
+
+async function ladeDeterminismus(sql: Sql, lauf: Lauf): Promise<Determinismus> {
+  const [z] = await sql<{ laeufe: string; hashes: string; ergebnis_hash: string | null }[]>`
+    SELECT count(*) AS laeufe, count(DISTINCT ergebnis_hash) AS hashes, min(ergebnis_hash) AS ergebnis_hash
+    FROM meta.lauf
+    WHERE lieferung = ${lauf.lieferung} AND regelsatz = ${lauf.regelsatz} AND regelstand = ${lauf.regelstand}
+      AND status IN ('fertig', 'unveraendert')`;
+  return { laeufe: zahl(z?.laeufe), hashes: zahl(z?.hashes), hash: z?.ergebnis_hash ?? "" };
+}
+
+async function hatLauf(sql: Sql, lieferungen: string[], regelsatz: string): Promise<Set<string>> {
+  const zeilen = await sql<{ lieferung: string }[]>`
+    SELECT DISTINCT lieferung FROM meta.lauf
+    WHERE regelsatz = ${regelsatz} AND lieferung IN ${sql(lieferungen)} AND status IN ('fertig', 'unveraendert')`;
+  return new Set(zeilen.map((z) => z.lieferung));
+}
+
+/** Alles für die Seite eines Monats; `null`, wenn es für den Monat keinen Lauf gibt. */
+export async function ladeLaufDetail(sql: Sql, lieferung: string, regelsatz = "v1"): Promise<LaufDetail | null> {
+  const davor = verschieben(lieferung, -1);
+  const danach = verschieben(lieferung, 1);
+  const [lauf, vormonat, nachbarn] = await Promise.all([
+    ladeMassgeblichenLauf(sql, lieferung, regelsatz),
+    ladeMassgeblichenLauf(sql, davor, regelsatz),
+    hatLauf(sql, [davor, danach], regelsatz),
+  ]);
+  if (!lauf) return null;
+  const [treffer, revisionen, regionen, determinismus] = await Promise.all([
+    ladeTreffer(sql, lauf.id),
+    ladeRevisionen(sql, lauf.id),
+    ladeRegionen(sql, lauf),
+    ladeDeterminismus(sql, lauf),
+  ]);
+  return { lauf, vormonat, davor: nachbarn.has(davor), danach: nachbarn.has(danach), treffer, revisionen, regionen, determinismus };
+}
+
+export function leseLaufDetail(lieferung: string, regelsatz = "v1"): Promise<Lesung<LaufDetail | null>> {
+  return lies((sql) => ladeLaufDetail(sql, lieferung, regelsatz));
+}

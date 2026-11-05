@@ -1,0 +1,42 @@
+{
+  "zweck": "Zuordnung der UC3-Screens (S1 bis S7, Owner-Frames ab x=4800, Shell-Frames ab x=12000) zu den Routen der Web-App (#18 AC1). Frame-IDs aus design/ki-challenge.pen, gelesen per Pencil-MCP get_app_state am 2026-11-05 15:4x; keine erfundenen IDs.",
+  "pen_datei": "design/ki-challenge.pen (im Elternordner, nicht im Repo)",
+  "hinweis_navigation": "Die Frames zeigen eine linke Leiste; die App nutzt die Unter-Navigation der Shell oben (Vertrag H, UcBereich). Verglichen wird Inhalt und Reihenfolge, nicht die Leiste.",
+  "screens": [
+    { "screen": "S1", "name": "Monatsläufe", "frames": ["iU5QZ", "bgAUw"], "routen": ["/uc3"], "zustaende": [], "abnahme": "offen" },
+    { "screen": "S1a", "name": "Lauf-Detail", "frames": ["fFDc8"], "routen": ["/uc3/laeufe/2025-03"], "zustaende": [], "abnahme": "offen" },
+    { "screen": "S1b", "name": "Lauf angehalten", "frames": ["P6gBQD"], "routen": ["/uc3/laeufe/2025-10"], "zustaende": ["angehalten"], "abnahme": "offen" },
+    { "screen": "S2", "name": "Qualitätsbericht", "frames": ["fJdk9"], "routen": ["/uc3/berichte", "/uc3/berichte/2025-10"], "zustaende": [], "abnahme": "offen" },
+    { "screen": "S3", "name": "Annahmen und Regeln", "frames": ["egqhg"], "routen": ["/uc3/berichte/regeln", "/uc3/berichte/2025-10"], "zustaende": [], "abnahme": "offen" },
+    {
+      "screen": "S4",
+      "name": "Freigaben",
+      "frames": ["qVTQj", "FgY98"],
+      "frames_verworfen": { "kcyWs": "Entwurf 1, laut Owner 11:05 zu überladen; nur Ausgangsbasis" },
+      "routen": ["/uc3/freigaben", "/uc3/freigaben/[id]"],
+      "zustaende": { "freigegeben": "oBcQu", "leer": "PPe1S", "laden": "F2sT1", "fehler": "bawCX", "demo": "Xw9fE" },
+      "abnahme": "offen"
+    },
+    { "screen": "S5", "name": "Fragen an die Daten", "frames": ["DbY1q"], "routen": ["/uc3/fragen"], "zustaende": [], "abnahme": "offen" },
+    { "screen": "S6", "name": "Klassifikationen", "frames": ["XlcSB"], "routen": ["/uc3/klassifikationen"], "zustaende": [], "abnahme": "offen" },
+    {
+      "screen": "S7",
+      "name": "Protokoll",
+      "frames": ["uJbeL", "yK42X"],
+      "routen": ["/uc3/freigaben?reiter=erledigt", "Protokoll-Schublade der Shell (GET /api/uc3/protokoll)"],
+      "zustaende": [],
+      "abnahme": "offen"
+    },
+    {
+      "screen": "U3-2",
+      "name": "Abgabe und Export",
+      "frames": ["L6f3Mp"],
+      "routen": [],
+      "zustaende": [],
+      "abnahme": "nicht umgesetzt",
+      "grund": "Die Abgabe entsteht über die CLI (uc3 berichte, sheet, ministerium, pruefe-abgabe); die Oberfläche bleibt lesend. Entscheid in #18."
+    }
+  ],
+  "viewports": ["1440x900", "390x844"],
+  "screenshots": "docs/plan/uc3/ui-abnahme/"
+}

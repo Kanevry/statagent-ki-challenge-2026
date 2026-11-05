@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { findeRepoWurzel } from "@/lib/plattform/modell";
+// Relativ statt "@/…": vitest.config.ts (E0) kennt den Alias nicht, so bleibt die Datei in Tests ladbar.
+import { findeRepoWurzel } from "../plattform/modell";
 
 /**
  * Aufruf der UC3-CLI (`uv run --frozen uc3 …`) als Subprozess mit argv, nie über eine Shell. Nur für Schreibwege
