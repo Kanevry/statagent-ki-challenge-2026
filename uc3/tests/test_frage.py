@@ -25,12 +25,15 @@ from statagent.agenten.werkzeuge import AbfrageVerweigert, sql_lesen
 from statagent.db import Verbindung, verbinden
 from statagent.ergebnis import letzter_lauf, monat_verschieben, monatserster, monatsletzter
 from statagent.frage import (
+    ALTER_UNKLAR,
+    _alter_lesen,
     als_ucantwort,
     als_webantwort,
     antwort_frage,
     fragetyp,
     jahr_ohne_monat,
     monate_lesen,
+    nicht_auswertbar,
     rate,
 )
 from statagent.lauf import lauf_ausfuehren
@@ -540,8 +543,6 @@ def test_verstanden_satz(gerechnet: Verbindung) -> None:
 @pytest.mark.parametrize(
     ("frage", "grund"),
     [
-        ("Wie viele Beschäftigte unter 25 Jahren gab es im August 2024?", "Alter"),
-        ("Durchschnittsalter der Beschäftigten im August 2024", "Alter"),
         ("Wie viele Jobs hatte Person 1234567 im August 2024?", "Einzeldaten"),
         ("Beschäftigte in Atlantis im August 2024", "„Atlantis“"),
         ("Beschäftigte im Bergbaubetrieb im August 2024", "„Bergbaubetrieb“"),
@@ -564,7 +565,7 @@ def test_nicht_auswertbar_ehrlich_abgesagt(gerechnet: Verbindung, frage: str, gr
 )
 def test_zwei_werte_eines_merkmals_abgesagt(gerechnet: Verbindung, frage: str) -> None:
     daten = antwort_frage(gerechnet, frage)
-    assert daten["zahlen"] == [] and "mehrere Werte" in daten["text"]
+    assert daten["zahlen"] == [] and "Die Frage nennt mehrere" in daten["text"]
 
 
 # Fängt: „von März bis Juni 2025“ liest nur Juni; „entwickelt“ ist keine Zeitreihe; „letztes Jahr“ bleibt offen.
@@ -719,7 +720,7 @@ def test_unbekannter_ort_abgesagt(gerechnet: Verbindung, frage: str) -> None:
 # Fängt: „ÖNACE C und ÖNACE F“ liefert nur C.
 def test_zwei_oenace_codes_abgesagt(gerechnet: Verbindung) -> None:
     daten = antwort_frage(gerechnet, "Beschäftigte in ÖNACE C und ÖNACE F im August 2024")
-    assert daten["zahlen"] == [] and "mehrere Werte" in daten["text"]
+    assert daten["zahlen"] == [] and "Die Frage nennt mehrere" in daten["text"]
 
 
 # Fängt: freie Dienstverträge werden fälschlich als nicht vorhanden abgesagt; sie sind die FD-Qualifikationen.
@@ -763,13 +764,14 @@ def test_keine_fehlabsage_signalwort(frage: str) -> None:
     assert frage_modul.nicht_auswertbar(frage) is None
 
 
-# Fängt: Alter außerhalb 14–99 und Dauerfragen fallen durch und liefern still den Gesamtbestand (Review 69).
+# Fängt: Altersfragen ohne eindeutige Angabe und Dauerfragen fallen durch und liefern still den Gesamtbestand (Review 69).
 @pytest.mark.parametrize(
     ("frage", "grund"),
     [
-        ("Wie viele Beschäftigte unter 10 Jahren gab es im August 2024?", "alter"),
-        ("Beschäftigte über 100 Jahre im August 2024", "alter"),
-        ("Wie viele sind über 100 Jahre alt im August 2024?", "alter"),
+        ("Wie viele Jugendliche gab es im August 2024?", "alter"),
+        ("Wie alt sind die Beschäftigten im August 2024?", "alter"),
+        ("Beschäftigte im Alter im August 2024", "alter"),
+        ("30-Jährige und 40-Jährige im August 2024", "alter"),
         ("Beschäftigte, die über 2 Jahre beschäftigt sind, im August 2024", "wie lange"),
         ("Wie viele sind seit über 2 Jahren beschäftigt im August 2024?", "wie lange"),
     ],
@@ -874,13 +876,252 @@ def test_vorschlaege_der_jahr_rueckfrage_funktionieren_als_frage(gerechnet: Verb
     assert [z["wert"] for z in reihe["zahlen"]] == soll and not reihe["rueckfrage"]
 
 
+def _im_alter(conn: Verbindung, monat: str, von: int, bis: int) -> int:
+    stand = letzter_lauf(conn, monat)
+    assert stand is not None
+    zeile = conn.execute(
+        "SELECT COALESCE(sum(wert), 0) AS n FROM stat.stat_beschaeftigte WHERE regelsatz = 'v1' AND regelstand = %s"
+        " AND zeitraum_art = 'Stichtag' AND variable = 'Beschaeftigungsverhaeltnisse' AND zeitraum_bis = %s"
+        " AND alter BETWEEN %s AND %s",
+        (stand.regelstand, monatsletzter(monat), von, bis),
+    ).fetchone()
+    assert zeile is not None
+    return int(str(zeile["n"]))
+
+
+# Fängt: Eine Altersfrage wird abgesagt, ergibt den Gesamtbestand, oder die Grenzen sind um eins verschoben.
+@pytest.mark.parametrize(
+    ("frage", "von", "bis", "wort"),
+    [
+        ("Wie viele 30-Jährige gab es im August 2024?", 30, 30, "Alter 30 Jahre"),
+        ("Beschäftigte im Alter von 30 im August 2024", 30, 30, "Alter 30 Jahre"),
+        ("Wie viele Beschäftigte unter 25 Jahren gab es im August 2024?", 0, 24, "Alter unter 25 Jahre"),
+        ("Beschäftigte über 50 Jahren im August 2024", 51, 130, "Alter 51 Jahre und älter"),
+        ("Beschäftigte ab 65 Jahren im August 2024", 65, 130, "Alter ab 65 Jahre"),
+        ("Beschäftigte unter 25 im August 2024", 0, 24, "Alter unter 25 Jahre"),
+        ("Beschäftigte über 50 im August 2024", 51, 130, "Alter 51 Jahre und älter"),
+        ("Beschäftigte älter als 50 im August 2024", 51, 130, "Alter 51 Jahre und älter"),
+        ("Beschäftigte jünger als 30 im August 2024", 0, 29, "Alter unter 30 Jahre"),
+        ("Beschäftigte zwischen 25 und 34 Jahren im August 2024", 25, 34, "Alter 25 bis 34 Jahre"),
+        ("25- bis 34-Jährige im August 2024", 25, 34, "Alter 25 bis 34 Jahre"),
+    ],
+)
+def test_alter_und_spanne(gerechnet: Verbindung, frage: str, von: int, bis: int, wort: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert [z["wert"] for z in daten["zahlen"]] == [_im_alter(gerechnet, "2024-08", von, bis)]
+    assert wort in daten["text"]
+
+
+# Fängt: Die Altersgruppen weichen vom Bestand ab oder eine zweite Aufteilung fällt still weg.
+def test_altersgruppen(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, "Beschäftigte nach Altersgruppe im August 2024")
+    gesamt = _bestand(gerechnet, "2024-08")[()]
+    summe = daten["zahlen"][-1]
+    assert summe["bezeichnung"].endswith(", Alle Altersstufen") and summe["wert"] == gesamt
+    assert sum(z["wert"] for z in daten["zahlen"][:-1]) == gesamt
+    assert "je Alter" in daten["text"]
+    assert daten["belege"][summe["beleg"]] is not daten["belege"][daten["zahlen"][0]["beleg"]]
+    wort = next(z["bezeichnung"].rsplit(", ", 1)[-1] for z in daten["zahlen"][:-1] if z["wert"])
+    zeile = next(z for z in daten["zahlen"] if z["bezeichnung"].endswith(f", {wort}"))
+    if wort.removesuffix(" Jahre").isdigit():
+        alter = int(wort.removesuffix(" Jahre"))
+        assert zeile["wert"] == _im_alter(gerechnet, "2024-08", alter, alter)
+    namen = [z["bezeichnung"].rsplit(", ", 1)[-1] for z in daten["zahlen"][:-1]]
+    alter_zeilen = [int(n.removesuffix(" Jahre")) for n in namen if n.removesuffix(" Jahre").isdigit()]
+    assert alter_zeilen == sorted(alter_zeilen)
+    assert "75 u. mehr" not in namen and "unbekannt" not in namen
+    for frage in (
+        "Männer und Frauen je Altersgruppe im August 2024",
+        "Beschäftigte nach Altersgruppe je Bundesland im August 2024",
+    ):
+        absage = antwort_frage(gerechnet, frage)
+        assert absage["zahlen"] == [] and "Die Zahlen je Alter gibt es nur ohne" in absage["text"]
+
+
+# Fängt: Mehrere Altersangaben ergeben still die erste, das Durchschnittsalter steht in jeder Altersabsage.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "30-Jährige und 40-Jährige im August 2024",
+        "unter 25 Jahren und über 50 Jahren im August 2024",
+        "Beschäftigte unter 200 Jahren und 300-Jährige im August 2024",
+        "Beschäftigte über 130 Jahre im August 2024",
+    ],
+)
+def test_alter_nicht_eindeutig_keine_zahl(gerechnet: Verbindung, frage: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert daten["zahlen"] == [] and daten["text"] == ALTER_UNKLAR
+    assert "Durchschnittsalter" not in daten["text"]
+
+
+# Gegenfall: Das Durchschnittsalter bleibt mit eigenem Satz abgesagt.
+def test_durchschnittsalter_keine_zahl(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, "Durchschnittsalter der Beschäftigten im August 2024")
+    assert daten["zahlen"] == [] and "Durchschnittsalter" in daten["text"]
+
+
+# Fix-Liste !227, Punkt 1: Der Tausenderpunkt galt als Satzende, aus Mengen wurde ein Alter (Regression).
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Gab es im August 2024 über 20.000 Beschäftigte in Wien?",
+        "Gab es im August 2024 unter 40.000 Beschäftigte in Wien?",
+        "Gab es im August 2024 über 10.000 Beschäftigte in Wien?",
+    ],
+)
+def test_menge_mit_tausenderpunkt_ist_kein_alter(gerechnet: Verbindung, frage: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert "Alter" not in daten["text"].split("Am ")[0]
+    assert [z["wert"] for z in daten["zahlen"]] == [
+        antwort_frage(gerechnet, "Beschäftigte in Wien im August 2024")["zahlen"][0]["wert"]
+    ]
+
+
+def test_prozent_mit_komma_ist_kein_alter() -> None:
+    assert _alter_lesen("Anteil über 20,5 Prozent im August 2024") is None
+
+
+# Fix-Liste !227, Punkt 2: Ohne Monat fiel „unter 25“ still weg, es kam der Gesamtbestand.
+@pytest.mark.parametrize("frage", ["Beschäftigte unter 25", "Beschäftigte unter 25?"])
+def test_alter_ohne_monat_bleibt(gerechnet: Verbindung, frage: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    letzter = max(s["monat"] for s in daten["stand"])
+    assert "Alter unter 25 Jahre" in daten["text"]
+    assert [z["wert"] for z in daten["zahlen"]] == [_im_alter(gerechnet, str(letzter), 0, 24)]
+
+
+# Fix-Liste !227, Punkt 3: Bindestrich und „oder älter“ ergaben genau ein Alter.
+@pytest.mark.parametrize(
+    ("frage", "von", "bis", "wort"),
+    [
+        ("Über-50-Jährige im August 2024", 51, 130, "Alter 51 Jahre und älter"),
+        ("Unter-25-Jährige im August 2024", 0, 24, "Alter unter 25 Jahre"),
+        ("Beschäftigte, 30 Jahre alt oder älter, im August 2024", 30, 130, "Alter ab 30 Jahre"),
+        ("Beschäftigte 50 Jahre und älter im August 2024", 50, 130, "Alter ab 50 Jahre"),
+    ],
+)
+def test_alter_mit_bindestrich_und_oder_aelter(
+    gerechnet: Verbindung, frage: str, von: int, bis: int, wort: str
+) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert wort in daten["text"]
+    assert [z["wert"] for z in daten["zahlen"]] == [_im_alter(gerechnet, "2024-08", von, bis)]
+
+
+# Fix-Liste !227, Punkt 3: Dauer ist kein Alter, Grenzen unter 14 sind keine Altersgrenzen.
+@pytest.mark.parametrize(
+    ("frage", "wort"),
+    [
+        ("Beschäftigte ab 2 Jahren Dauer im August 2024", "Wie lange"),
+        ("Beschäftigte bis 25 Jahre Betriebszugehörigkeit im August 2024", "Wie lange"),
+        ("Wie viele sind über 2 Jahre dabei im August 2024?", "Wie lange"),
+        ("Beschäftigte unter 10 in Wien im August 2024", "Altersangabe"),
+    ],
+)
+def test_dauer_und_kleine_grenzen_sind_kein_alter(gerechnet: Verbindung, frage: str, wort: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert daten["zahlen"] == [] and wort in daten["text"]
+
+
+# Fix-Liste !227, Punkt 4: Der Stamm „alter“ machte „Altersheim“ zu einem bekannten Wort.
+def test_altersheim_ist_kein_alter(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, "Beschäftigte in Altersheimen im August 2024")
+    assert daten["zahlen"] == []
+
+
+# Fix-Liste !227, Punkt 5: Eine Altersangabe ohne eindeutigen Treffer gibt die Absage, nie den Gesamtbestand.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte ab 50 im August 2024",
+        "Beschäftigte bis 25 im August 2024",
+        "Beschäftigte zwischen 25 und 34 im August 2024",
+        "Beschäftigte 50+ im August 2024",
+        "Vergleich unter 25 und über 50 im August 2024",
+        "Frauen über 50 nach Bundesland im August 2024",
+        "Beschäftigte nach Altersstufen im August 2024",
+        "Beschäftigte nach Altersklassen im August 2024",
+        "Wie viele ältere Beschäftigte gab es im August 2024?",
+    ],
+)
+def test_auffangregel_alter(gerechnet: Verbindung, frage: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert daten["zahlen"] == [] and daten["text"] == ALTER_UNKLAR
+
+
+# Gegenfall zur Auffangregel: Daten, Mengen und Prozent bleiben.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte von August 2024 bis 12/2024",
+        "Beschäftigte bis 31. Dezember 2024",
+        "Wie viele Beschäftigte ab 01.09.2024?",
+        "Gab es im August 2024 über 50 Beschäftigte in Wien?",
+    ],
+)
+def test_auffangregel_laesst_daten_und_mengen(frage: str) -> None:
+    assert nicht_auswertbar(frage) is None
+
+
+# ui-regie: Mengen mit diesen Wörtern bekamen sonst den Alterssatz.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Gab es über 50 Mitarbeiter in Wien im August 2024?",
+        "Gab es über 50 Arbeitnehmer in Wien im August 2024?",
+        "Gab es über 50 Dienstnehmer in Wien im August 2024?",
+        "Gab es über 50 Betriebe in Wien im August 2024?",
+    ],
+)
+def test_mengen_bekommen_keinen_alterssatz(gerechnet: Verbindung, frage: str) -> None:
+    assert antwort_frage(gerechnet, frage)["text"] != ALTER_UNKLAR
+
+
+# ui-regie: Die Absage nennt, was geht, ohne die alten Formeln.
+def test_dauer_absage_wortlaut(gerechnet: Verbindung) -> None:
+    text = antwort_frage(gerechnet, "Beschäftigte ab 2 Jahren Dauer im August 2024")["text"]
+    assert text.startswith(
+        "Wie lange ein Beschäftigungsverhältnis schon besteht, wertet StatAgent nicht aus. "
+    )
+    assert "bei Datenanfragen" not in text and "Darum gibt es" not in text and "StatAgent beantwortet" in text
+
+
+# Der Beispielsatz der Alters-Absage muss selbst eine Zahl geben.
+def test_beispiel_der_alters_absage_rechnet(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, "Beschäftigte ab 50 Jahren im August 2024")
+    assert [z["wert"] for z in daten["zahlen"]] == [_im_alter(gerechnet, "2024-08", 50, 130)]
+
+
+# Fix-Liste !227, Punkt 6: Fluktuation nach Altersgruppe gab still die Tabelle je Branche.
+def test_fluktuation_nach_altersgruppe_sagt_ab(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, "Fluktuation nach Altersgruppe im Oktober 2024")
+    assert daten["zahlen"] == [] and "oder Alter" in daten["text"]
+
+
+# Fix-Liste !227, A1: Die Jury-Frage „nach alter Regel“ meint keine Altersgruppen und bekam eine Tabelle je Alter.
+def test_nach_alter_regel_ist_eine_zahl(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, "Beschäftigte nach alter Regel im August 2024")
+    assert [z["wert"] for z in daten["zahlen"]] == [_bestand(gerechnet, "2024-08")[()]]
+    assert "je Alter" not in daten["text"]
+
+
+# Fix-Liste !227, Punkt 7: „Altersgruppen im Monat“ bekam „Das kann StatAgent nicht beantworten“ vor dem Angebot „Alter“.
+@pytest.mark.parametrize(
+    "frage",
+    ["Altersgruppen im August 2024", "Altersverteilung im August 2024", "Nach Altersgruppe im August 2024"],
+)
+def test_altersgruppen_ohne_bestandswort(gerechnet: Verbindung, frage: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert daten["zahlen"] and "je Alter" in daten["text"]
+
+
 # Fängt: Der Jahrgang ist kein Merkmal der Daten; die Frage gab den Gesamtbestand ohne Hinweis (Prüfung !169).
 @pytest.mark.parametrize(
     "frage", ["Beschäftigte Jahrgang 1990 im September 2024", "Geburtsjahr 1990 im September 2024"]
 )
 def test_jahrgang_nicht_ausgewertet(gerechnet: Verbindung, frage: str) -> None:
     daten = antwort_frage(gerechnet, frage)
-    assert daten["zahlen"] == [] and "Das Alter wertet StatAgent" in daten["text"]
+    assert daten["zahlen"] == [] and "Geburtsjahrgänge" in daten["text"]
 
 
 # Fängt: Eine Menge wird als Jahr gelesen, die Frage bekommt eine Rückfrage statt der Zahl (Prüfung !169).

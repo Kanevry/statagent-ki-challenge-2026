@@ -784,7 +784,7 @@ def _adapter_liest_gleich(conn: Verbindung, frage: str, regelsatz: str) -> bool:
     gelesen = weg.normalisieren(frage)[0]
     genannt = weg.monate_lesen(gelesen)
     monat = genannt[-1] if genannt else weg._letzter_monat(conn, regelsatz)
-    if monat is None or weg._FREIER_DV.search(gelesen.lower()):
+    if monat is None or weg._ALTER_GRUPPEN.search(gelesen.lower()):
         return False
     mehrfach: list[Merkmal] = []
     try:
@@ -795,7 +795,8 @@ def _adapter_liest_gleich(conn: Verbindung, frage: str, regelsatz: str) -> bool:
                 return False
             if len(werte) > 1:
                 mehrfach.append(merkmal)
-        weg._filter(conn, gelesen, monat, tuple(mehrfach))
+        filter_, _ = weg._filter(conn, gelesen, monat, tuple(mehrfach))
     except weg._KeineZahl:
         return False
-    return True
+    # Freie Dienstverträge und Alter kennt der Adapter nicht.
+    return all(merkmal in MERKMALE for merkmal, _ in filter_)

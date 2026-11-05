@@ -353,3 +353,9 @@ SELECT id, name, gueltig_ab_lieferung, aktiv, freigegeben_von IS NOT NULL AS fre
 - F9 / R9: Satz neu mit Messung (48 gegen 6.614 bis 17.664, +48 gegen +7.746), ohne ungemessene Größe; siehe A9.
 - R8 zählt wie der Qualitätsbericht (216 bis 322 je Monat); R5, R6 und R9 stellen nur noch eine Frage; R7 begründet den Vorschlag.
 - Neue Rückfrage R10 zu `P14_sprung_aggregat`: 19 Gruppen in 11 Monaten (2024-09 bis 2026-07) ändern sich ohne Saisongrund um 3,1 bis 7,5 %; bis zur Antwort zählen wie geliefert und als „nicht erklärbar“ kennzeichnen.
+
+## Nachtrag 05.11.2026 nachts (Datenanfragen zum Alter, Review !227)
+
+| Nr. | Änderung | Regel | Wirkung |
+|---|---|---|---|
+| A14 | Datenanfrage „über 50“ heißt in vollendeten Jahren **51 Jahre und älter**, „ab 50“ heißt 50 Jahre und älter (Entscheid Review-Bank). Die Antwort nennt die Grenze im Verstanden-Satz. Grenzen unter 14 Jahren gelten nicht als Altersgrenze und werden abgesagt. | keine Zählregel: Sprachverständnis der Datenanfrage (`uc3/statagent/frage.py`) | keine Zahl der Abgabe ändert sich; wer „über 50“ fragt, sieht das Altersjahr 50 nicht mitgezählt |
