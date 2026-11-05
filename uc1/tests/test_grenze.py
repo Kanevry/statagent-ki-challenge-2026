@@ -39,6 +39,8 @@ def test_vorpruefung_faengt_englische_symptomfrage() -> None:
         "Sie hat 2023 einen Schlaganfall erlitten und braucht jetzt Pflege.",
         "Er ist seit dem Unfall gelähmt, bekommt er Pflegegeld?",
         "Seit dem Schlaganfall kann sie nicht mehr sprechen. Bekommt sie Pflegegeld?",
+        "My husband had a heart attack in 2022. Can he get rehabilitation benefits?",
+        "Er hat einen Herzinfarkt gehabt und ist wieder gesund. Bekommt er Reha?",
         "Welche Kosten übernimmt die Kasse für Medikamente?",
         "Ich brauche nach meiner Hüftoperation einen Rollstuhl. Zahlt das die Krankenkasse?",
     ],
@@ -170,6 +172,18 @@ def test_medizinisch_nur_ohne_sv_bezug() -> None:
         "Meine Frau hatte einen Schlaganfall und kann jetzt nicht mehr sprechen.",
         "Sein Mundwinkel hängt und er redet komisch.",
         "Mein Vater ist plötzlich auf der rechten Seite gelähmt!",
+        # Zweitmeinung astra (#163): Angehörige als Subjekt, Alltagssprache, Englisch, Selbsttötung
+        "Meine Mutter hat einen Schlaganfall! Wer zahlt den Rettungswagen?",
+        "Mein Mann hat einen Herzinfarkt! Wer zahlt den Rettungswagen?",
+        "My dad is having a stroke. Does insurance cover the ambulance?",
+        "Mein Vater kann plötzlich nicht sprechen. Zahlt die Kasse den Transport?",
+        "My mum’s face has started drooping. Does insurance cover the ambulance?",
+        "Mein Mann bekommt kaum Luft. Zahlt die Kasse den Transport?",
+        "My husband can’t breathe. Does insurance cover the ambulance?",
+        "Mein Vater ist nicht ansprechbar. Wer zahlt den Rettungswagen?",
+        "My dad is unresponsive. Does insurance cover the ambulance?",
+        "Ich will mich töten. Bekomme ich noch Krankengeld?",
+        "I want to kill myself. Can I still get sickness benefit?",
     ],
 )
 def test_schlaganfall_in_der_gegenwart_bleibt_notfall(frage: str) -> None:
