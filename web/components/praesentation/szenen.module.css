@@ -677,7 +677,6 @@
   width: 740px;
   padding: 44px 48px;
   border: 1px solid var(--linie);
-  border-left: 8px solid var(--mint);
   border-radius: 8px;
   background: var(--ink);
 }
@@ -1486,11 +1485,18 @@
   }
 }
 /* Szene zahlen (Management-Fassung): bis zu drei große Zahlen oder eine Liste von Sätzen */
-.z-zahlen {
+.z-flaeche {
   position: absolute;
   left: 120px;
   right: 120px;
-  top: 340px;
+  top: 190px;
+  bottom: 90px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 110px;
+}
+.z-zahlen {
   display: flex;
   gap: 80px;
   margin: 0;
@@ -1509,6 +1515,7 @@
   line-height: 1.05;
   letter-spacing: -0.02em;
   color: var(--mint);
+  white-space: nowrap;
 }
 .z-text {
   margin: 24px 0 0;
@@ -1516,10 +1523,6 @@
   line-height: 1.3;
 }
 .z-saetze {
-  position: absolute;
-  left: 120px;
-  right: 160px;
-  top: 300px;
   display: flex;
   flex-direction: column;
   gap: 64px;
@@ -1533,14 +1536,24 @@
   font-weight: 500;
 }
 .z-fuss {
-  position: absolute;
-  left: 120px;
-  right: 160px;
-  top: 740px;
   margin: 0;
-  font-size: 44px;
-  line-height: 1.3;
-  font-weight: 500;
+  font-family: var(--f-titel);
+  font-weight: 600;
+  font-size: 60px;
+  line-height: 1.2;
+  color: var(--mint);
+}
+.s10-ohne .s10-eins {
+  top: 230px;
+}
+.s10-ohne .s10-zwei {
+  top: 322px;
+}
+.s10-ohne .s10-live {
+  top: 520px;
+}
+.s10-ohne .s10-offline {
+  top: 630px;
 }
 
 @media print {

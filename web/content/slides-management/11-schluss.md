@@ -6,6 +6,7 @@ szene: schluss
 zeit: "9:45–10:00"
 dauer_s: 15
 belege: []
+ohne_kreis: ja
 ---
 
 # Jede Zahl nachrechenbar.

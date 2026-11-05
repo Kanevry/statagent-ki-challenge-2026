@@ -33,7 +33,7 @@ const ALLE_ZIELE = [
   {
     bild: "SC11",
     route: "/uc4",
-    frage: "Wie viele Beschäftigungsverhältnisse gibt es im März 2025 in Wien im Gesundheits- und Sozialwesen, und was heißt das für mich?",
+    frage: "Wie viele Beschäftigte gab es im März 2025 in Wien im Gesundheits- und Sozialwesen?",
     soll: "7.498",
   },
   { bild: "SC12", route: "/uc3/freigaben/24" },

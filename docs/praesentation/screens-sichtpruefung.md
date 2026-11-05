@@ -4,17 +4,19 @@ Jedes Bild wird von einer zweiten Person oder einem unabhängigen Prüfer angese
 
 | Bild | Prüfer | Datum | Sichtbare Tokens/Schlüssel (ja/nein) | Echte Gesundheits- oder Sozialdaten (ja/nein) | Befund | Status (offen/ok) |
 |---|---|---|---|---|---|---|
-| SC01 | | | | | offen, Bild vom 05.11.2026 22:11 |
-| SC02 | | | | | offen, Bild vom 05.11.2026 22:11 |
-| SC03 | | | | | offen, Bild vom 05.11.2026 22:11 |
-| SC04 | | | | | offen, Bild vom 05.11.2026 22:11 |
-| SC05 | | | | | offen, Bild vom 05.11.2026 22:11 |
-| SC06 | | | | | offen, Bild vom 05.11.2026 22:11 |
-| SC07 | | | | | offen, Bild vom 05.11.2026 22:11 |
-| SC08 | | | | | offen, Bild vom 05.11.2026 22:11 |
-| SC09 | | | | | offen, Bild vom 05.11.2026 22:11 |
-| SC10 | | | | | offen, Bild vom 05.11.2026 22:11 |
-| SC11 | | | | | offen, Bild vom 05.11.2026 22:11 |
-| SC12 | | | | | offen, Bild vom 05.11.2026 22:11 |
+| SC01 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC02 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC03 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Alter /uc4-Stand: abgeschnittenes Feld, „Text: gpt-5-4-mini“, Lotse ohne Bedingung. Neu aufnehmen nach !192 und !210. Geprüft bei 1000 px Breite | offen |
+| SC04 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC05 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC06 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC07 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC08 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC09 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC10 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC11 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Alter /uc4-Stand: abgeschnittenes Feld, „Text: gpt-5-4-mini“, Lotse ohne Bedingung. Neu aufnehmen nach !192 und !210. Geprüft bei 1000 px Breite | offen |
+| SC12 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
 
-Offene Befunde: 12
+Offene Befunde: 2 (SC03, SC11)
+
+Die Bilder in `screens/mobil/` sind nicht angesehen.

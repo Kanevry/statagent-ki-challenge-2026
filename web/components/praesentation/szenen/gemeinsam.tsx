@@ -112,12 +112,14 @@ export function Kreis({
  * Kopf der Szenen 3 bis 9: kleiner Kreis 3 links, Titel eine Zeile daneben. Über dem Kreis steht klein „Use Case 3“,
  * damit die 3 nicht als Foliennummer gelesen wird (Sans, normale Schreibung, kein Versal- oder Mono-Etikett, #59).
  */
-export function Kopf({ titel, lang = false, t = 0.1 }: { titel: string; lang?: boolean; t?: number }) {
+export function Kopf({ titel, lang = false, t = 0.1, ohneUc = false }: { titel: string; lang?: boolean; t?: number; ohneUc?: boolean }) {
   return (
     <>
-      <p className={k("kopf-uc", "a")} style={vars({ t })}>
-        Use Case 3
-      </p>
+      {!ohneUc && (
+        <p className={k("kopf-uc", "a")} style={vars({ t })}>
+          Use Case 3
+        </p>
+      )}
       <Kreis n={3} x={120} y={92} d={72} />
       <h2 className={k("titel", (lang || titel.length > 52) && "titel-lang", "a")} style={vars({ t })}>
         {titel}

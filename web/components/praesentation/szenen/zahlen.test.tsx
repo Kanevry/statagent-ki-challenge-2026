@@ -40,3 +40,24 @@ it("takte im Frontmatter kann die Takte der Szene senken, aber nie erhöhen", ()
   expect(taktZahl(3, "9")).toBe(3);
   expect(taktZahl(3, "abc")).toBe(3);
 });
+
+const folieNr = (nr: number) => {
+  const f = management[nr - 1];
+  if (!f) throw new Error(`Folie ${nr} fehlt`);
+  return f;
+};
+
+it("Regie Management: Folie 11 ohne Kreis 4, Folie 4 ohne Zählzeile, Folie 9 ohne Etikett, Folie 2 ohne Rechenfalle", () => {
+  const zeige = (nr: number) => {
+    const f = folieNr(nr);
+    const Szene = szeneFuer(f.szene)?.Komponente;
+    if (!Szene) throw new Error(`Szene zu Folie ${nr} fehlt`);
+    return render(<Szene folie={f} nr={nr} aktiv={false} takt={9} />).container;
+  };
+  expect(zeige(11).querySelector('[data-k="4"]')).toBeNull();
+  expect(zeige(4).textContent).not.toContain("2.880 von 2.880 gleich");
+  expect(zeige(9).textContent).not.toContain("Use Case 3");
+  const zwei = zeige(2).textContent ?? "";
+  expect(zwei).toContain("von 394.200 im September");
+  expect(zwei).not.toContain("313.154");
+});

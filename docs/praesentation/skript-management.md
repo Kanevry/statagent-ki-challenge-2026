@@ -16,13 +16,13 @@ Belege: keine Zahl.
 >
 > → Im Oktober 2025 fehlen in der Lieferung 78.949 Beschäftigungsverhältnisse. Jedes fünfte.
 >
-> → Wer einfach zählt, meldet 313.154 statt 394.200 im September. Das wäre ein Einbruch um ein Fünftel, in einem einzigen Monat. Einen Einbruch, den es nie gab.
+> → Wer einfach zählt, meldet für Oktober einen Einbruch um ein Fünftel, in einem einzigen Monat. Einen Einbruch, den es nie gab.
 
 Belege: F11, F17.
 
 ## Folie 3 · StatAgent veröffentlicht nicht, er hält an und fragt nach. · 2:30–3:15
 
-> Und jetzt der Unterschied, um den es uns geht. StatAgent veröffentlicht diesen Monat nicht. Er hält an und schreibt eine Rückfrage an die Fachabteilung. Bis zur Antwort schreibt er 77.746 fehlende Verhältnisse aus dem September fort und kennzeichnet den Monat als vorläufig. Gelöscht wird nichts, überschrieben wird nichts. Im November sind 78.733 der fehlenden wieder da. Das Programm hat nichts entschieden. Es hat gemerkt, dass etwas nicht stimmt, und einem Menschen die Frage gestellt.
+> Und jetzt der Unterschied, um den es uns geht. StatAgent veröffentlicht diesen Monat nicht. Er hält an und schreibt eine Rückfrage an die Fachabteilung. Bis zur Antwort übernimmt er 77.746 fehlende Verhältnisse aus dem September und kennzeichnet den Monat als vorläufig. Gelöscht wird nichts, überschrieben wird nichts. Im November sind 78.733 der 78.949 fehlenden wieder da. Das Programm hat nichts entschieden. Es hat gemerkt, dass etwas nicht stimmt, und einem Menschen die Frage gestellt.
 
 Belege: F11.
 
@@ -101,7 +101,7 @@ Geschätzt mit 130 Wörtern je Minute. Gemessen wird in der Probe (`probe.md`).
 | Folie | Soll (s) | Wörter | Schätzung (s) |
 |---|---|---|---|
 | 1 | 60 | 77 | 36 |
-| 2 | 90 | 69 | 32 |
+| 2 | 90 | 64 | 30 |
 | 3 | 45 | 74 | 34 |
 | 4 | 60 | 87 | 40 |
 | 5 | 60 | 64 | 30 |
@@ -111,4 +111,4 @@ Geschätzt mit 130 Wörtern je Minute. Gemessen wird in der Probe (`probe.md`).
 | 9 | 45 | 50 | 23 |
 | 10 | 45 | 59 | 27 |
 | 11 | 15 | 17 | 8 |
-| **Summe** | **600** | **770** | **356** |
+| **Summe** | **600** | **765** | **354** |

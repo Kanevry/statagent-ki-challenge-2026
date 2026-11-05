@@ -13,7 +13,7 @@ belege: [F19, F26, F27]
 | Zahl | Text |
 |---|---|
 | 3 von 3 | Aufträge der Aufgabe umgesetzt, jeder mit Namen im Protokoll |
-| 3 bis 9 s | rechnet das Modell an einem Vorschlag |
+| 3 bis 9 s | braucht das Modell für einen Vorschlag |
 | 1 Cent | kostet ein Vorschlag, rund, zum Azure-Listenpreis |
 
 Herkunft: Protokoll der Änderungen, Protokoll der Modellaufrufe, Azure-Preisliste vom 5. November 2026

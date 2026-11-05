@@ -8,7 +8,7 @@ dauer_s: 60
 belege: [F3, F26]
 freigabe_name: Freigegeben von Bernhard Götzendorfer
 freigabe_datum: 5. November 2026
-freigabe_regel: "Regel R6, Regelsatz v2: Dienstvertrag und freier Dienstvertrag zusammen"
+freigabe_regel: "Dienstvertrag und freier Dienstvertrag zusammen"
 ---
 
 # Die KI versteht, ein Mensch gibt frei, das Programm rechnet.

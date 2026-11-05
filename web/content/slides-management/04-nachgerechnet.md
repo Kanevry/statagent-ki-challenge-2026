@@ -7,6 +7,7 @@ zahl: 2.880
 zeit: "3:15–4:15"
 dauer_s: 60
 belege: [F1, F15]
+ohne_zaehler: ja
 angehalten: [März 2025, Oktober 2025]
 ---
 
@@ -17,8 +18,6 @@ angehalten: [März 2025, Oktober 2025]
 | Bericht des Veranstalters | August 2024 · 13 Tabellen |
 | StatAgent rechnet selbst | aus den Rohdaten |
 | Die anderen 23 Monate, September 2024 bis Juli 2026 | angehalten im März und Oktober 2025 |
-
-2.880 von 2.880 gleich
 
 0 Abweichungen
 

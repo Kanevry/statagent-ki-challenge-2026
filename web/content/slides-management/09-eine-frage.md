@@ -7,11 +7,12 @@ zeit: "8:15–9:00"
 dauer_s: 45
 belege: [F18]
 belegt: [StatAgent, Simulator, Lotse]
+ohne_uc: ja
 ---
 
 # Eine Frage, drei Antworten: Statistik, Simulator, Lotse.
 
-„Wie viele Beschäftigungsverhältnisse gibt es im März 2025 in Wien im Gesundheits- und Sozialwesen, und was heißt das für mich?“
+„Wie viele Beschäftigte gab es im März 2025 in Wien im Gesundheits- und Sozialwesen?“
 
 1. **StatAgent:** 7.498 Beschäftigungsverhältnisse, mit Beleg und Abfrage
 2. **Simulator:** was mehr oder weniger Personal für Wartezeiten bedeutet, abgewogen aus Sicht von Kassen, Ärzten und Versicherten.

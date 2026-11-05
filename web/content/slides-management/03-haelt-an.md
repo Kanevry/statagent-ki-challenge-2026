@@ -12,12 +12,12 @@ belege: [F11]
 
 | Zahl | Text |
 |---|---|
+| 77.746 | Verhältnisse aus dem September übernommen, nichts gelöscht |
 | 390.900 | vorläufiger Bestand im Oktober 2025 |
-| 77.746 | Verhältnisse aus dem September fortgeschrieben, nichts gelöscht |
-| 78.733 | der fehlenden sind im November 2025 wieder da |
+| 78.733 | der 78.949 fehlenden sind im November 2025 wieder da |
 
 Herkunft: Qualitätsbericht Oktober 2025, Abgleich Oktober mit November 2025
 
 ## Sprechernotizen
 
-Und jetzt der Unterschied, um den es uns geht. StatAgent veröffentlicht diesen Monat nicht. Er hält an und schreibt eine Rückfrage an die Fachabteilung. Bis zur Antwort schreibt er 77.746 fehlende Verhältnisse aus dem September fort und kennzeichnet den Monat als vorläufig. Gelöscht wird nichts, überschrieben wird nichts. Im November sind 78.733 der fehlenden wieder da. Das Programm hat nichts entschieden. Es hat gemerkt, dass etwas nicht stimmt, und einem Menschen die Frage gestellt.
+Und jetzt der Unterschied, um den es uns geht. StatAgent veröffentlicht diesen Monat nicht. Er hält an und schreibt eine Rückfrage an die Fachabteilung. Bis zur Antwort übernimmt er 77.746 fehlende Verhältnisse aus dem September und kennzeichnet den Monat als vorläufig. Gelöscht wird nichts, überschrieben wird nichts. Im November sind 78.733 der 78.949 fehlenden wieder da. Das Programm hat nichts entschieden. Es hat gemerkt, dass etwas nicht stimmt, und einem Menschen die Frage gestellt.

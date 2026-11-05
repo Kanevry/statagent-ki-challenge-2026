@@ -8,9 +8,8 @@ dauer_s: 90
 belege: [F11, F17]
 takte: 2
 zahl_gross: 78.949 fehlen
-zahl_geliefert: 313.154
 monat_bruch: 2025-10
-vergleich: gegen 394.200 im September
+vergleich: von 394.200 im September
 ---
 
 # Im Oktober 2025 fehlte jedes fünfte Beschäftigungsverhältnis.
@@ -51,4 +50,4 @@ Herkunft: Qualitätsberichte August 2024 bis Juli 2026, Qualitätsbericht Oktobe
 
 Jeden Monat kommt eine Lieferung mit allen Beschäftigungsverhältnissen. Daraus wird eine Zahl, und die geht weiter. Hier sehen Sie 24 Monate, die Säulen sind fast gleich hoch. So sollte es auch sein.
 [→] Im Oktober 2025 fehlen in der Lieferung 78.949 Beschäftigungsverhältnisse. Jedes fünfte.
-[→] Wer einfach zählt, meldet 313.154 statt 394.200 im September. Das wäre ein Einbruch um ein Fünftel, in einem einzigen Monat. Einen Einbruch, den es nie gab.
+[→] Wer einfach zählt, meldet für Oktober einen Einbruch um ein Fünftel, in einem einzigen Monat. Einen Einbruch, den es nie gab.
