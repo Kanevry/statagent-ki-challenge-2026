@@ -51,6 +51,8 @@ try {
       if (!reduziert) {
         // Sticky-Strecke: erste <section> mit data-szene oder das erste Element mit position: sticky.
         const strecke = await seite.evaluate(() => {
+          // Weiches Einrasten aus: Die Bilder sollen genau an den Fortschritten unten entstehen.
+          document.documentElement.style.scrollSnapType = "none";
           const s = document.querySelector("[data-szene]") ?? document.querySelector("main section");
           if (!s) return null;
           const r = s.getBoundingClientRect();
