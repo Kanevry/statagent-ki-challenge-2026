@@ -149,7 +149,9 @@ class _Kurzlauf:
         mit_notiz: bool,
         fester_auftrag: dict[str, Any] | None = None,
         mit_kern: bool = False,
+        feste_teilnehmer: Sequence[str] = (),
     ) -> None:
+        self.feste_teilnehmer = feste_teilnehmer
         self.frist_bis = frist_bis
         self.mit_notiz = mit_notiz
         self.mit_kern = mit_kern
@@ -203,8 +205,12 @@ class _Kurzlauf:
     def auswahl(self, auftrag: dict[str, Any]) -> list[str]:
         """Teilnehmer per Code, ohne Modellaufruf: Belegzahl plus doppelt der Themenbezug, dann ID.
 
-        Gleiche Gewichtung wie die Auswahl des Szenario-Mocks; spart den Auswahl-Aufruf (Laufzeit UC4).
+        Gleiche Gewichtung wie die Auswahl des Szenario-Mocks; spart den Auswahl-Aufruf (Laufzeit UC4). Feste
+        Teilnehmer gehen vor, wenn es genug davon gibt.
         """
+        fest = [aid for aid in self.feste_teilnehmer if aid in self.akteure]
+        if len(fest) >= MIN_TEILNEHMER:
+            return sorted(fest[: self.max_akteure])
         themen = _staemme(" ".join(f"{t['titel']} {t['beschreibung']}" for t in auftrag["themen"]))
 
         def rang(a: Akteur) -> tuple[int, str]:
@@ -408,6 +414,7 @@ def kurzverhandlung(
     notiz: bool = True,
     fester_auftrag: dict[str, Any] | None = None,
     kern: bool = False,
+    feste_teilnehmer: Sequence[str] = (),
 ) -> Kurzergebnis:
     """Kurzverhandlung ohne PG; mit Provider `mock` über den Szenario-Mock deterministisch.
 
@@ -441,6 +448,7 @@ def kurzverhandlung(
         mit_notiz=notiz,
         fester_auftrag=fester_auftrag,
         mit_kern=kern,
+        feste_teilnehmer=feste_teilnehmer,
     )
     if provider != "mock":
         return lauf.verhandle()

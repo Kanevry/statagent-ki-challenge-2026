@@ -21,11 +21,18 @@ from plattform.llm import BudgetErschoepft
 from plattform.router import durchreichen, mock_adapter
 
 import uc2.modelle
-from uc2.akteure.laden import Akteur
+from uc2.akteure.laden import Akteur, lade_akteure
 from uc2.antwort import AntwortFehler, FreieZahl, antwort, belegquelle, bereinige, freie_zahlen, kurzlauf
 from uc2.antwort import adapter as adapter_modul
 from uc2.antwort.adapter import ERSATZ, MODELLANNAHME, QUELLE_BEISPIEL, waehle_fall
-from uc2.antwort.allgemein import FESTER_KERN, KERN_SCHEMA, MOCK_THEMEN, fester_auftrag, mock_notiz
+from uc2.antwort.allgemein import (
+    FESTER_KERN,
+    KERN_SCHEMA,
+    MOCK_THEMEN,
+    TEILNEHMER,
+    fester_auftrag,
+    mock_notiz,
+)
 from uc2.modelle import Modellantwort, UngueltigeAntwort
 from uc2.modelle.kontext import lies_kontext
 from uc2.verhandlung.belege import BELEG_ID, Beleg, BelegFehler, FixtureQuelle, IndexQuelle
@@ -627,3 +634,11 @@ def test_moderator_im_kurzlauf_rechnet_nicht_mit_hohem_aufwand(monkeypatch: pyte
     monkeypatch.setattr(kurzlauf, "rollenmodell", _rollen_mit_aufwand)
     antwort(DEMO, [_uc3()])
     assert aufwand and set(aufwand) == {"niedrig"}
+
+
+def test_allgemeine_frage_waegen_aerzte_versicherte_und_kassen_ab(praes: UcAntwort) -> None:
+    """Fängt Runden ohne Kasse oder Ärzte: Folie 9 verspricht die Sicht von Kassen, Ärzten, Versicherten."""
+    namen = {a.id: a.name for a in lade_akteure()}
+    zeilen = _akteurszeilen(praes.text)
+    assert {z[2:].split(":", 1)[0] for z in zeilen} >= {namen["aerztekammer"], namen["sv"]}
+    assert len(zeilen) == len(TEILNEHMER)

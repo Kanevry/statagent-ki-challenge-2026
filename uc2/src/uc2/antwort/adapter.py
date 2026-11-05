@@ -516,6 +516,7 @@ def _antwort(
             # Allgemeine Fragen: feste Themen statt Auftragsaufruf (gemessen 38,5 s mit Aufruf bei azure).
             fester_auftrag=allgemein.fester_auftrag(frage) if fall is None else None,
             kern=fall is None,
+            feste_teilnehmer=allgemein.TEILNEHMER if fall is None else (),
         )
     except KurzlaufFehler as fehler:
         raise AntwortFehler(f"Panel: {fehler}") from fehler

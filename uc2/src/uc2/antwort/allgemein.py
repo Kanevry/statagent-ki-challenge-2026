@@ -58,6 +58,10 @@ Auftragsaufruf auskommt (Laufzeit: gemessen 38,5 s mit Auftragsaufruf bei azure,
 Titel sind
 Vorschläge, weil im Text „Dafür bei …“ davor steht; „Dafür bei Versorgung im Alltag“ sagte niemandem etwas."""
 
+TEILNEHMER = ("aerztekammer", "patienten", "sv")
+"""Wer bei allgemeinen Fragen abwägt: Ärzte, Versicherte, Kassen, wie es Folie 9 sagt. Die Wahl nach Belegzahl
+brachte sonst Runden ohne Kasse oder Ärzte."""
+
 ROLLE_KERN = "moderator_kern"
 KERN_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -138,9 +142,11 @@ def kern_nachrichten(frage: str, lage: dict[str, Any], stimmen: list[dict[str, A
         "Beschäftigte“ und "
         "„Weniger Beschäftigte“ und sage, was das für die Beiträge zur Krankenversicherung und die "
         "Versorgung heißt. "
-        "Je Satz höchstens 15 Wörter und etwas Greifbares: Wartezeit, Betreuung, Kosten, Belastung. Wo die "
-        "Vertretungen sich widersprechen, sag es im Satz. Das sind allgemeine Zusammenhänge, schreibe "
-        "„heißt meist“, "
+        "Je Satz höchstens 15 Wörter und etwas Greifbares: Wartezeit, Betreuung, Kosten, Belastung. Nenne "
+        "einen "
+        "Streitpunkt nur, wenn es ihn wirklich gibt, und dann konkret, etwa „, aber wer es zahlt, ist "
+        "umstritten“. "
+        "Das sind allgemeine Zusammenhänge, schreibe „heißt meist“, "
         "keine Vorhersage. Keine Zahlen, weder als Ziffern noch als Wörter. Wiederhole die Zahl aus der "
         "Statistik "
         f"nicht.\n\n{kontext_block(kontext)}"
