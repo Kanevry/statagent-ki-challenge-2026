@@ -1,4 +1,4 @@
-"""Prüft die Foliendateien web/content/slides/*.md (GitLab #89).
+"""Prüft die 10 Foliendateien web/content/slides/01 bis 10 (Szenen v4, GitLab #89).
 
 Gibt je Befund eine Zeile aus und endet mit Exit 0 nur, wenn alle Folien gültig sind.
 Nur Standardbibliothek; das Frontmatter wird selbst geparst (flache key: value-Zeilen).
@@ -11,15 +11,22 @@ import re
 import sys
 from pathlib import Path
 
-ANZAHL = 11
-MAX_DAUER_S = 600  # Summe aller dauer_s; Ziel 9:30, Puffer 30 s
-PFLICHTFELDER = ("nummer", "titel", "layout", "szene", "zeit", "dauer_s", "bereiche", "belege")
+ANZAHL = 10  # Szenen v4: 01 bis 10 (Soll 305 s, Demo danach)
+MAX_DAUER_S = 600  # Summe aller dauer_s
+PFLICHTFELDER = ("titel", "layout", "szene", "zeit", "dauer_s", "belege")
 LAYOUTS = {"titel", "text", "schritte", "zahl", "live"}
 LAYOUT_ALIASE = {"cover": "titel"}  # alte Namen, die die Runtime weiter versteht
 SZENE_MUSTER = re.compile(r"^[a-z0-9-]+$")
 DATEINAME = re.compile(r"^(\d{2})-.+\.md$")
 GEDANKENSTRICH = re.compile(r" [—–] ")
 BELEG_KENNUNG = re.compile(r"^F\d+$")
+NOTIZ_KOMMENTAR = "<!-- notizen -->"
+# Verboten: Monat als Ziffernfolge. Ganze Datumsmuster JJJJ-MM-TT (Datenmuster) sind keine Monatsangabe.
+MONAT_JJJJ_MM = re.compile(r"(?<!\d)\d{4}-\d{2}(?!\d)(?!-\d)")
+MONAT_MM_JJJJ = re.compile(r"(?<!\d)\d{2}/\d{4}(?!\d)")
+VERBOTENE_WOERTER = re.compile(r"beispiel|platzhalter|generiert", re.IGNORECASE)
+# Die Tabelle der Monatswerte darf Monate als Ziffernfolge führen (Datenquelle des Diagramms).
+MONATSTABELLE_DATEIEN = {"03-falsche-zahl.md"}
 
 
 def standard_wurzel() -> Path:
@@ -68,25 +75,41 @@ def leer(wert: str | list[str] | None) -> bool:
     return wert.strip() in {"", "null", "~"}
 
 
-def koerper_pruefen(koerper: str) -> list[str]:
+def notiz_index(zeilen: list[str]) -> int | None:
+    """Zeile, ab der die Sprechernotizen beginnen (## Sprechernotizen oder <!-- notizen -->)."""
+    return next(
+        (i for i, zeile in enumerate(zeilen) if zeile.strip() in {"## Sprechernotizen", NOTIZ_KOMMENTAR}),
+        None,
+    )
+
+
+def koerper_pruefen(koerper: str, dateiname: str = "", titel_gesetzt: bool = True) -> list[str]:
     befunde: list[str] = []
     zeilen = koerper.splitlines()
-    if not any(zeile.startswith("# ") for zeile in zeilen):
-        befunde.append("Körper hat keine #-Überschrift")
-    notiz_index = next((i for i, zeile in enumerate(zeilen) if zeile.strip() == "## Sprechernotizen"), None)
-    if notiz_index is None:
+    if not titel_gesetzt and not any(zeile.startswith("# ") for zeile in zeilen):
+        befunde.append("Körper hat keine #-Überschrift und kein titel")
+    ende = notiz_index(zeilen)
+    if ende is None:
         befunde.append("Überschrift ## Sprechernotizen fehlt")
     else:
         danach: list[str] = []
-        for zeile in zeilen[notiz_index + 1 :]:
+        for zeile in zeilen[ende + 1 :]:
             if zeile.startswith("#"):
                 break
             danach.append(zeile)
         if not "".join(danach).strip():
-            befunde.append("## Sprechernotizen ist leer")
-    for nr, zeile in enumerate(zeilen, start=1):
+            befunde.append("Sprechernotizen sind leer")
+    sichtbar = zeilen if ende is None else zeilen[:ende]
+    for nr, zeile in enumerate(sichtbar, start=1):
         if GEDANKENSTRICH.search(zeile):
             befunde.append(f"Gedankenstrich als Stilmittel in Körperzeile {nr}")
+        if dateiname in MONATSTABELLE_DATEIEN and zeile.lstrip().startswith("|"):
+            continue
+        if MONAT_JJJJ_MM.search(zeile) or MONAT_MM_JJJJ.search(zeile):
+            befunde.append(f"Monat als Ziffernfolge in Körperzeile {nr} (Monat ausschreiben)")
+        verboten = VERBOTENE_WOERTER.search(zeile)
+        if verboten:
+            befunde.append(f"Verbotenes Wort „{verboten.group(0)}“ in sichtbarer Körperzeile {nr}")
     return befunde
 
 
@@ -136,12 +159,13 @@ def datei_pruefen(pfad: Path, storyboard: str, kennungen: set[str]) -> tuple[lis
         if isinstance(belege, list):
             for kennung in belege:
                 if not BELEG_KENNUNG.match(kennung):
-                    befunde.append(f"Beleg {kennung} ist keine Kennung Fn (F1, F2, …)")
+                    befunde.append(f"Beleg {kennung} ist keine Kennung Fn (F1, F2 usw.)")
                 elif kennung not in kennungen:
                     befunde.append(f"Beleg {kennung} fehlt im Belegregister")
         elif isinstance(belege, str) and belege.strip():
             befunde.append("belege ist keine Liste in [a, b]-Form")
-    befunde.extend(koerper_pruefen(koerper))
+    titel_gesetzt = felder is not None and not leer(felder.get("titel"))
+    befunde.extend(koerper_pruefen(koerper, pfad.name, titel_gesetzt))
     if pfad.name not in storyboard and pfad.stem not in storyboard:
         befunde.append("Datei wird in storyboard.md nicht genannt")
     return befunde, dauer
@@ -180,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     erwartet = set(range(1, ANZAHL + 1))
     fehlend = sorted(erwartet - set(nummern))
     if fehlend or len(nummern) != len(set(nummern)):
-        befunde.append(f"slides: Nummern nicht lückenlos 01–{ANZAHL:02d} (fehlend {fehlend})")
+        befunde.append(f"slides: Nummern nicht lückenlos 01 bis {ANZAHL:02d} (fehlend {fehlend})")
 
     gueltig = 0
     summe = 0

@@ -43,10 +43,16 @@ export function listenPunkte(folie: Folie): Inline[][] {
   return folie.inhalt.find((b): b is Liste => b.art === "liste")?.punkte ?? [];
 }
 
+/** Alle Tabellen der Folie als Text: Kopf und Zeilen. */
+export function tabellen(folie: Folie): { kopf: string[]; zeilen: string[][] }[] {
+  return folie.inhalt
+    .filter((b): b is Tabelle => b.art === "tabelle")
+    .map((t) => ({ kopf: t.kopf.map(inlineText), zeilen: t.zeilen.map((z) => z.map(inlineText)) }));
+}
+
 /** Erste Tabelle als Text: Kopf und Zeilen. */
 export function tabelle(folie: Folie): { kopf: string[]; zeilen: string[][] } | undefined {
-  const t = folie.inhalt.find((b): b is Tabelle => b.art === "tabelle");
-  return t ? { kopf: t.kopf.map(inlineText), zeilen: t.zeilen.map((z) => z.map(inlineText)) } : undefined;
+  return tabellen(folie)[0];
 }
 
 /**
@@ -66,18 +72,22 @@ export function zahlWert(text: string | undefined): number {
   return Number(treffer[0].replace("−", "-").replace(/\./g, "").replace(",", "."));
 }
 
-/** Zeile unten rechts: Nummer und Zeit ohne Strich, z. B. `3 · 1:00 bis 2:00` (wie die Folienleiste). */
-export function zeitZeile(folie: Folie, nr: number): string {
-  const zeit = folie.zeit
-    ?.split(/\s*[–—-]\s*/)
-    .filter((t) => t !== "")
-    .join(" bis ");
-  return zeit ? `${nr} · ${zeit}` : String(nr);
-}
-
-/** Screenshot-Kennung aus dem Frontmatter, zweistellig vereinheitlicht: `SC7`, `sc07` und `SC07` werden `SC07`. */
+/**
+ * Bild-Kennung aus `screenshot:` im Frontmatter. `SC7`, `sc07` und `SC07` werden `SC07`; ein Dateiname ohne Endung
+ * wie `freigabe-echt` bleibt, wie er ist. Leer oder `null`: keine Kennung.
+ */
 export function screenshotKennung(folie: Folie): string | undefined {
   const roh = folie.daten.screenshot?.trim();
-  const treffer = roh ? /^sc0*(\d+)$/i.exec(roh) : null;
-  return treffer?.[1] ? `SC${treffer[1].padStart(2, "0")}` : undefined;
+  if (!roh) return undefined;
+  const sc = /^sc0*(\d+)$/i.exec(roh);
+  if (sc?.[1]) return `SC${sc[1].padStart(2, "0")}`;
+  return /^[\w-]+$/.test(roh) ? roh : undefined;
+}
+
+/** Übergänge aus dem Frontmatter `uebergang: C-C J-J Q-R J-K` als Paare (alter Code, neuer Code). */
+export function uebergaenge(text: string | undefined): [string, string][] {
+  return (text ?? "")
+    .split(/\s+/)
+    .map((p) => p.split("-"))
+    .filter((p): p is [string, string] => p.length === 2 && p[0] !== "" && p[1] !== "");
 }

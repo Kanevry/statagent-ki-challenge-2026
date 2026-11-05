@@ -1,38 +1,34 @@
-import Link from "next/link";
-import { liveKomponente } from "../../../lib/praesentation/live";
 import { absatzTexte, kopfzeile } from "../../../lib/praesentation/szenen-daten";
 import { Fuss, k, Kreis, vars, type SzeneProps } from "./gemeinsam";
 
+// Gestaltung: Lage und Auftritt (Sekunden) der vier Absätze unter der Überschrift.
+const ABSAETZE = [
+  { klasse: "s10-satz s10-zwei", t: 0.8 },
+  { klasse: "s10-live", t: 1.3 },
+  { klasse: "s10-offline", t: 1.7 },
+  { klasse: "s10-klein", t: 2.1 },
+] as const;
+
 /**
- * Szene 9: zwei Sätze (Überschrift, erster Absatz), der Mint-Kreis 4 atmet zweimal, darunter der Knopf `knopf`
- * zur Route `route` (nur Routen aus der Registry in lib/praesentation/live.tsx) und die kleine Zeile.
+ * Szene 10: Überschrift und erster Absatz oben, in der Mitte der Mint-Kreis 4 (gleitet aus Szene 9 herüber, atmet
+ * zweimal), darunter der zweite Absatz groß in Mint, der dritte als Nebentext, der vierte unten. Kein Knopf.
  */
-export function Schluss({ folie, nr }: SzeneProps) {
-  const [zwei, klein] = absatzTexte(folie);
-  const { route, knopf } = folie.daten;
-  const erlaubt = liveKomponente(route) !== undefined;
+export function Schluss({ folie }: SzeneProps) {
+  const absaetze = absatzTexte(folie);
   return (
     <>
-      <h2 className={k("s9-satz", "s9-eins", "a")} style={vars({ t: 0.6 })}>
+      <h2 className={k("s10-satz", "s10-eins", "a")} style={vars({ t: 0.4 })}>
         {kopfzeile(folie)}
       </h2>
-      {zwei && (
-        <p className={k("s9-satz", "s9-zwei", "a")} style={vars({ t: 1.1 })}>
-          {zwei}
-        </p>
+      <Kreis n={4} x={850} y={330} d={220} klasse="s10-k4" />
+      {ABSAETZE.map((a, i) =>
+        absaetze[i] ? (
+          <p key={i} className={k(...a.klasse.split(" "), "a")} style={vars({ t: a.t })}>
+            {absaetze[i]}
+          </p>
+        ) : null,
       )}
-      <Kreis n={4} x={830} y={388} d={260} klasse="s9-k4" />
-      {erlaubt && route && knopf && (
-        <Link href={route} className={k("s9-knopf")} data-live-route={route}>
-          {knopf}
-        </Link>
-      )}
-      {klein && (
-        <p className={k("s9-klein", "a")} style={vars({ t: 1.9 })}>
-          {klein}
-        </p>
-      )}
-      <Fuss folie={folie} nr={nr} />
+      <Fuss folie={folie} />
     </>
   );
 }

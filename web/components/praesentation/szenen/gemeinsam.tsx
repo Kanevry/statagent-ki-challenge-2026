@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Folie } from "../../../lib/praesentation/folien";
 import type { Inline } from "../../../lib/praesentation/markdown";
-import { herkunft, screenshotKennung, zeitZeile } from "../../../lib/praesentation/szenen-daten";
+import { herkunft, screenshotKennung } from "../../../lib/praesentation/szenen-daten";
 import { bildFuer } from "../bilder";
 import stile from "../szenen.module.css";
 
@@ -33,6 +33,17 @@ export function vars(werte: Record<string, string | number>): CSSProperties {
   return Object.fromEntries(Object.entries(werte).map(([n, v]) => [`--${n}`, String(v)])) as CSSProperties;
 }
 
+/**
+ * Takt-Schalter für ein Element: bis Takt `ab` verborgen, danach mit Klasse `an` (startet seine Animationen).
+ * Ergebnis zum Ausbreiten: `{...taktAn(2, takt)}` plus `className={k("…", an(2, takt))}`.
+ */
+export function taktAn(ab: number): { "data-takt": number } {
+  return { "data-takt": ab };
+}
+export function an(ab: number, takt: number): string | false {
+  return takt >= ab && "an";
+}
+
 const FORMAT = new Intl.NumberFormat("de-DE");
 
 /** Nutzer wünscht reduzierte Bewegung. Auf dem Server und ohne matchMedia: nein. */
@@ -51,24 +62,45 @@ export function Text({ inline }: { inline: readonly Inline[] }) {
   );
 }
 
-/** Fußzeile: links die Herkunft aus dem Markdown (falls vorhanden), rechts Nummer und Zeit. */
-export function Fuss({ folie, nr }: { folie: Folie; nr: number }) {
+/** Fuß: links unten die Herkunft aus dem Markdown, falls vorhanden. Zeitmarken stehen nur in den Notizen. */
+export function Fuss({ folie }: { folie: Folie }) {
   const quelle = herkunft(folie);
-  return (
-    <>
-      {quelle && <p className={k("herkunft")}>{quelle}</p>}
-      <p className={k("zeit")}>{zeitZeile(folie, nr)}</p>
-    </>
-  );
+  return quelle ? <p className={k("herkunft")}>{quelle}</p> : null;
 }
 
 /**
- * Kreis einer Aufgabe (1, 2, 3) oder der gefüllte Kreis 4. `data-k` verbindet gleiche Kreise über den
- * Szenenwechsel (FLIP in schau.tsx). Position und Größe in px auf der Bühne, `t` = Auftritt in Sekunden.
+ * Kreis einer Aufgabe (1, 2, 3) oder der gefüllte Kreis 4. Mit `flip` (Standard) trägt er `data-k` und gleitet beim
+ * Szenenwechsel von der alten an die neue Stelle (schau.tsx). Position und Größe in px, `t` = Auftritt in Sekunden,
+ * `ab` = erst ab diesem Takt sichtbar.
  */
-export function Kreis({ n, x, y, d, t, klasse }: { n: number; x: number; y: number; d: number; t?: number; klasse?: string }) {
+export function Kreis({
+  n,
+  x,
+  y,
+  d,
+  t,
+  klasse,
+  flip = true,
+  ab,
+  takt = 0,
+}: {
+  n: number;
+  x: number;
+  y: number;
+  d: number;
+  t?: number;
+  klasse?: string;
+  flip?: boolean;
+  ab?: number;
+  takt?: number;
+}) {
   return (
-    <div className={k("kreis", `k${n}`, klasse)} data-k={n} style={vars({ x: `${x}px`, y: `${y}px`, d: `${d}px`, ...(t === undefined ? {} : { t }) })}>
+    <div
+      className={k("kreis", `k${n}`, klasse, ab !== undefined && an(ab, takt))}
+      {...(flip ? { "data-k": n } : {})}
+      {...(ab !== undefined ? taktAn(ab) : {})}
+      style={vars({ x: `${x}px`, y: `${y}px`, d: `${d}px`, ...(t === undefined ? {} : { t }) })}
+    >
       <div className={k("kreis-koerper")} aria-hidden="true">
         {n}
       </div>
@@ -76,8 +108,20 @@ export function Kreis({ n, x, y, d, t, klasse }: { n: number; x: number; y: numb
   );
 }
 
+/** Kopf der Szenen 3 bis 9: kleiner Kreis 3 links, Titel eine Zeile daneben. */
+export function Kopf({ titel, lang = false, t = 0.1 }: { titel: string; lang?: boolean; t?: number }) {
+  return (
+    <>
+      <Kreis n={3} x={120} y={92} d={72} />
+      <h2 className={k("titel", lang && "titel-lang", "a")} style={vars({ t })}>
+        {titel}
+      </h2>
+    </>
+  );
+}
+
 /** Gezeichneter Mint-Haken (SVG mit pathLength 1). */
-export function Haken({ klasse, viewBox, d, t, dauer }: { klasse: string; viewBox: string; d: string; t: number; dauer?: number }) {
+export function Haken({ klasse, viewBox, d, t, dauer }: { klasse?: string; viewBox: string; d: string; t: number; dauer?: number }) {
   return (
     <svg className={k(klasse, "haken")} viewBox={viewBox} aria-hidden="true">
       <path className={k("strich", "zeichnet")} style={vars({ t, ...(dauer ? { dauer: `${dauer}s` } : {}) })} pathLength={1} d={d} />
@@ -86,16 +130,15 @@ export function Haken({ klasse, viewBox, d, t, dauer }: { klasse: string; viewBo
 }
 
 /**
- * Blick in die App: ruhiges Fenster mit einem echten Bildschirmfoto aus bilder.ts. Ohne Bild zur Kennung aus
- * `screenshot:` erscheint nichts, der Platz bleibt leer.
+ * Blick in die App: ruhiges Fenster mit einer echten Aufnahme aus bilder.ts, ab Takt `ab`. Ohne Bild zur Kennung aus
+ * `screenshot:` erscheint nichts. Der Alt-Text steht im Frontmatter unter `bild_alt`.
  */
-export function Blick({ folie, breite, t, wartet = false, style }: { folie: Folie; breite: number; t: number; wartet?: boolean; style?: CSSProperties }) {
-  const kennung = screenshotKennung(folie);
-  const bild = bildFuer(kennung);
-  if (!bild || !kennung) return null;
+export function Blick({ folie, ab, takt, tt, lage }: { folie: Folie; ab: number; takt: number; tt: number; lage: CSSProperties }) {
+  const bild = bildFuer(screenshotKennung(folie));
+  if (!bild) return null;
   return (
-    <figure className={k("blick", wartet && "blick-wartet")} style={{ ...vars({ b: `${breite}px`, t }), ...style }}>
-      <Image src={bild} alt={`Blick in die App: ${folie.titel}`} fill sizes={`${breite}px`} unoptimized />
+    <figure className={k("blick", an(ab, takt))} {...taktAn(ab)} style={{ ...lage, ...vars({ tt }) }}>
+      <Image src={bild} alt={folie.daten.bild_alt ?? folie.titel} fill sizes={`${String(lage.width ?? 600)}px`} unoptimized />
     </figure>
   );
 }
@@ -119,20 +162,20 @@ function useAblauf(aktiv: boolean, schritt: (ms: number) => boolean, ende: () =>
   }, [aktiv, ...abh]);
 }
 
-/** Zählt beim Betreten von 0 auf `ziel` (1,2 s nach `start` ms). Ohne JavaScript und bei reduzierter Bewegung: Endwert. */
-export function Zaehler({ ziel, aktiv, start = 0, className }: { ziel: number; aktiv: boolean; start?: number; className?: string }) {
+/** Zählt beim Betreten von 0 auf `ziel` (`dauer` ms ab `start` ms). Ohne JavaScript und bei reduzierter Bewegung: Endwert. */
+export function Zaehler({ ziel, aktiv, start = 0, dauer = 1200, className }: { ziel: number; aktiv: boolean; start?: number; dauer?: number; className?: string }) {
   const [wert, setWert] = useState(ziel);
   useAblauf(
     aktiv && Number.isFinite(ziel),
     (ms) => {
-      const p = Math.max(0, Math.min(1, (ms - start) / 1200));
+      const p = Math.max(0, Math.min(1, (ms - start) / dauer));
       setWert(Math.round(ziel * (1 - Math.pow(1 - p, 3))));
       return p < 1;
     },
     () => setWert(ziel),
-    [ziel, start],
+    [ziel, start, dauer],
   );
-  return <p className={className}>{Number.isFinite(wert) ? FORMAT.format(wert) : ""}</p>;
+  return <span className={className}>{Number.isFinite(wert) ? FORMAT.format(wert) : ""}</span>;
 }
 
 /**
@@ -162,38 +205,55 @@ export function Getippt({ text, aktiv, start = 0, ms = 30 }: { text: string; akt
 }
 
 /**
- * Raster aus `anzahl` Quadraten (11 px, Abstand 2 px) als Canvas. Beim Betreten füllt eine Welle von links oben
- * nach rechts unten die Zellen Mint (ab 0,3 s, 1,6 s lang). Bei reduzierter Bewegung sofort alles Mint.
+ * Raster aus `anzahl` Quadraten (`zelle` px, Abstand `luecke` px) als Canvas, Farbe aus der CSS-Variable `farbe`.
+ * Mit `welle` füllt sich jede Spalte erst, wenn die Vergleichslinie sie erreicht (`start` bis `start + dauer` s);
+ * vorher ist sie in `--linie`. Bei reduzierter Bewegung sofort fertig. Keine Schleife nach dem Ende.
  */
-export function Raster({ anzahl, spalten, aktiv }: { anzahl: number; spalten: number; aktiv: boolean }) {
+export function Raster({
+  anzahl,
+  spalten,
+  zelle,
+  luecke,
+  farbe,
+  aktiv,
+  welle,
+}: {
+  anzahl: number;
+  spalten: number;
+  zelle: number;
+  luecke: number;
+  farbe: "--mint" | "--neben";
+  aktiv: boolean;
+  welle?: { start: number; dauer: number };
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
   const zeilen = Math.ceil(anzahl / spalten);
-  const breite = spalten * 13 - 2;
-  const hoehe = zeilen * 13 - 2;
+  const schritt = zelle + luecke;
+  const breite = spalten * schritt - luecke;
+  const hoehe = zeilen * schritt - luecke;
   const malen = (sekunden: number) => {
     const el = ref.current;
     const ctx = el?.getContext?.("2d");
     if (!el || !ctx) return;
     const stil = getComputedStyle(el);
-    const an = stil.getPropertyValue("--mint").trim() || "#3ddc97";
-    const aus = stil.getPropertyValue("--linie").trim() || "#1e3542";
-    const diagonale = spalten + zeilen - 2 || 1;
+    const voll = stil.getPropertyValue(farbe).trim() || "#3ddc97";
+    const leer = stil.getPropertyValue("--linie").trim() || "#1e3542";
     ctx.clearRect(0, 0, breite, hoehe);
     for (let i = 0; i < anzahl; i++) {
-      const r = Math.floor(i / spalten);
       const c = i % spalten;
-      ctx.fillStyle = sekunden >= 0.3 + ((r + c) / diagonale) * 1.6 + 0.2 ? an : aus;
-      ctx.fillRect(c * 13, r * 13, 11, 11);
+      const erreicht = !welle || sekunden >= welle.start + (c / spalten) * welle.dauer + 0.2;
+      ctx.fillStyle = erreicht ? voll : leer;
+      ctx.fillRect(c * schritt, Math.floor(i / spalten) * schritt, zelle, zelle);
     }
   };
   useAblauf(
-    aktiv,
+    aktiv && welle !== undefined,
     (ms) => {
       malen(ms / 1000);
-      return ms < 2200;
+      return welle !== undefined && ms < (welle.start + welle.dauer + 0.4) * 1000;
     },
     () => malen(Number.POSITIVE_INFINITY),
-    [anzahl, spalten],
+    [anzahl, spalten, zelle, luecke, farbe],
   );
-  return <canvas ref={ref} width={breite} height={hoehe} className={k("s5-raster")} aria-hidden="true" />;
+  return <canvas ref={ref} width={breite} height={hoehe} aria-hidden="true" />;
 }

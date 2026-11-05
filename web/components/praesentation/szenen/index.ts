@@ -3,12 +3,13 @@ import { Annahme } from "./annahme";
 import { BelegSzene } from "./beleg";
 import { DreiFragen } from "./drei-fragen";
 import { Einstieg } from "./einstieg";
-import { Fallen } from "./fallen";
-import { FalscheZahl, TAKTE_FALSCHE_ZAHL } from "./falsche-zahl";
+import { Fehler } from "./fehler";
+import { FalscheZahl } from "./falsche-zahl";
 import type { SzeneProps } from "./gemeinsam";
 import { Gleichung } from "./gleichung";
 import { Kern } from "./kern";
 import { Schluss } from "./schluss";
+import { Woerterbuecher } from "./woerterbuecher";
 
 export type { SzeneProps } from "./gemeinsam";
 
@@ -19,18 +20,20 @@ export interface SzenenEintrag {
 }
 
 /**
- * Registry `szene` (Frontmatter) zu Komponente, Szenenfolge v3 „1 + 2 + 3 = 4“ (#59, Lane E5). Nur was hier steht,
- * wird als Szene gezeigt; eine unbekannte oder fehlende `szene` fällt auf das Layout aus `layout` zurück.
+ * Registry `szene` (Frontmatter) zu Komponente, Szenenfolge v4 „1 + 2 + 3 = 4“ mit zehn Szenen (#59, Lane E5).
+ * Takte (je ein Klick, ein Satz, eine Bewegung) in falsche-zahl, kern, fehler, annahme und einstieg.
+ * Nur was hier steht, wird als Szene gezeigt; eine unbekannte oder fehlende `szene` fällt auf `layout` zurück.
  */
 export const SZENEN: Readonly<Record<string, SzenenEintrag>> = {
   gleichung: { Komponente: Gleichung, takte: 0 },
   "drei-fragen": { Komponente: DreiFragen, takte: 0 },
-  "falsche-zahl": { Komponente: FalscheZahl, takte: TAKTE_FALSCHE_ZAHL },
-  kern: { Komponente: Kern, takte: 0 },
+  "falsche-zahl": { Komponente: FalscheZahl, takte: 3 },
+  kern: { Komponente: Kern, takte: 3 },
   beleg: { Komponente: BelegSzene, takte: 0 },
-  fallen: { Komponente: Fallen, takte: 0 },
-  annahme: { Komponente: Annahme, takte: 0 },
-  einstieg: { Komponente: Einstieg, takte: 0 },
+  fehler: { Komponente: Fehler, takte: 3 },
+  woerterbuecher: { Komponente: Woerterbuecher, takte: 0 },
+  annahme: { Komponente: Annahme, takte: 3 },
+  einstieg: { Komponente: Einstieg, takte: 3 },
   schluss: { Komponente: Schluss, takte: 0 },
 };
 

@@ -1,5 +1,5 @@
 import { absatzTexte, kopfzeile, tabelle } from "../../../lib/praesentation/szenen-daten";
-import { Blick, Fuss, k, Kreis, vars, type SzeneProps } from "./gemeinsam";
+import { an, Fuss, k, Kopf, taktAn, vars, type SzeneProps } from "./gemeinsam";
 
 /**
  * Hintergrund-Strom: Datumsmuster ohne Bedeutung und ohne IDs, deterministisch (gleicher Seed, gleiches Bild).
@@ -20,18 +20,15 @@ const BAHNEN = stromBahnen();
 const BAHN_Y = [62, 186, 310, 372];
 
 /**
- * Szene 6: Ein ruhiger Strom aus Datenzeilen läuft durch, drei Zeilen der Tabelle bleiben hängen, werden gelb und
- * wachsen zu großen Zeilen (Muster, Falle, Umfang). Darunter der Absatz, unten die Herkunft. Kreis 3 neben dem Titel.
+ * Szene 6 (drei Takte): Beim Betreten läuft ein ruhiger Strom aus Datenzeilen durch. Je Takt bleibt eine Zeile der
+ * Tabelle hängen (Muster, Fehler, Anzahl, Lieferung), wird gelb und groß. Im dritten Takt der Absatz darunter.
  */
-export function Fallen({ folie, nr }: SzeneProps) {
+export function Fehler({ folie, takt }: SzeneProps) {
   const zeilen = tabelle(folie)?.zeilen ?? [];
   const [dazu] = absatzTexte(folie);
   return (
     <>
-      <Kreis n={3} x={120} y={92} d={72} t={0} />
-      <h2 className={k("titel", "a")} style={vars({ t: 0.1 })}>
-        {kopfzeile(folie)}
-      </h2>
+      <Kopf titel={kopfzeile(folie)} />
       <div className={k("s6-strom")} aria-hidden="true">
         {BAHNEN.map((text, b) => (
           <p key={b} className={k("s6-bahn")} style={{ top: BAHN_Y[b], ...vars({ t: (b * 0.12).toFixed(2) }) }}>
@@ -40,23 +37,23 @@ export function Fallen({ folie, nr }: SzeneProps) {
         ))}
       </div>
       <ol className={k("s6-fallen")}>
-        {zeilen.slice(0, 3).map(([muster = "", was = "", umfang = ""], i) => (
-          <li key={i} className={k("s6-falle")} style={{ top: i * 124, ...vars({ t: 0.25 + i * 0.15 }) }}>
+        {zeilen.slice(0, 3).map(([muster = "", was = "", anzahl = "", lieferung = ""], i) => (
+          <li key={i} className={k("s6-falle", an(i + 1, takt))} {...taktAn(i + 1)} style={{ top: i * 124 }}>
             <span className={k("s6-code")} aria-hidden="true">
               {muster}
             </span>
             <p className={k("s6-was")}>{was}</p>
-            <p className={k("s6-zahl")}>{umfang}</p>
+            <p className={k("s6-zahl")}>{anzahl}</p>
+            <p className={k("s6-monat")}>{lieferung}</p>
           </li>
         ))}
       </ol>
       {dazu && (
-        <p className={k("s6-dazu", "a")} style={vars({ t: 3 })}>
+        <p className={k("s6-dazu", an(3, takt))} {...taktAn(3)} style={vars({ tt: 1.8 })}>
           {dazu}
         </p>
       )}
-      <Blick folie={folie} breite={620} t={3.4} />
-      <Fuss folie={folie} nr={nr} />
+      <Fuss folie={folie} />
     </>
   );
 }

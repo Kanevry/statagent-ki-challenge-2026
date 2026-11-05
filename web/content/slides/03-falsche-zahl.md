@@ -5,22 +5,24 @@ layout: text
 szene: falsche-zahl
 zahl_geliefert: 313.154
 monat_bruch: 2025-10
+vergleich: statt 394.200
+vorlaeufig: vorläufig 390.900
 stempel: angehalten
-zeit: "1:00–2:00"
+zeit: "0:45–1:45"
 dauer_s: 60
 bereiche: [Datenmanagement, Qualitätssicherung]
-screenshot: SC07
+screenshot: null
 pen_frame: null
-belege: [F11, F17]
+belege: [F11, F17, F20]
 ---
 
 # Eine falsche Zahl kostet Vertrauen.
 
-1. **Oktober 2025:** In der Lieferung fehlt jede fünfte Beschäftigung.
-2. StatAgent veröffentlicht nicht. Er hält an und fragt nach.
-3. **Im November sind 78.733 davon wieder da.**
+1. **Oktober 2025:** 78.949 Beschäftigungsverhältnisse fehlen in der Lieferung, jedes fünfte.
+2. StatAgent veröffentlicht nicht. Er hält an und schreibt eine Rückfrage.
+3. **Im November 2025 sind 78.733 davon wieder da.**
 
-| Monat | Beschäftigte am Stichtag |
+| Monat | Beschäftigungsverhältnisse am Monatsende |
 |---|---|
 | 2024-08 | 392.236 |
 | 2024-09 | 393.454 |
@@ -47,10 +49,11 @@ belege: [F11, F17]
 | 2026-06 | 395.320 |
 | 2026-07 | 399.027 |
 
-Herkunft: Qualitätsberichte August 2024 bis Juli 2026, Prüfregeln P15 bis P17
+Herkunft: Qualitätsberichte August 2024 bis Juli 2026, Qualitätsbericht Oktober 2025, Abgleich Oktober mit November 2025
 
 ## Sprechernotizen
 
-Ein Fall aus den echten Daten. Jeden Monat kommt eine Lieferung, daraus wird eine Zahl: wie viele Menschen beschäftigt sind.
-Im Oktober 2025 fehlte in der Lieferung jede fünfte Beschäftigung. Wer einfach zählt, meldet 78.949 Beschäftigte weniger.
-StatAgent hat angehalten und nachgefragt. Im November waren sie wieder da.
+Ein Fall aus den Daten der Challenge. Jeden Monat kommt eine Lieferung. Daraus wird eine Zahl: wie viele Beschäftigungsverhältnisse es gibt.
+[→] Im Oktober 2025 fehlen in der Lieferung 78.949 Beschäftigungsverhältnisse, jedes fünfte. Wer einfach zählt, meldet für Oktober 81.046 Beschäftigungsverhältnisse weniger. Einen Einbruch, den es nie gab.
+[→] StatAgent veröffentlicht nicht. Er hält an und schreibt eine Rückfrage.
+[→] Im November 2025 sind 78.733 davon wieder da.

@@ -4,9 +4,9 @@ Der Katalog hilft am Tisch, wenn die Fachjury nachfragt. Er enthält die drei Da
 
 Regel: Jede Antwort ist in unter 30 Sekunden lesbar. Aufbau je Frage: Frage, Kurzantwort, Antwortweg, Fundstelle im Repo, Zahlen mit Kennung F….
 
-Die Kennungen F1 bis F16 stehen im Belegregister `belegregister.md`.
+Die Kennungen F1 bis F19 stehen im Belegregister `belegregister.md`.
 
-Stand der Befehle: `uv run uc3 frage` ist noch nicht fertig (#74). Bis dahin läuft jede Datenanfrage als SQL mit `psql` gegen die UC3-Datenbank. Der Befehl `uv run uc3 antwort "…"` beantwortet einfache Fragen zu einem Monat, zum Beispiel „Beschäftigte in Wien im März 2025“, ohne Sprachmodell.
+Stand der Befehle: `uv run uc3 frage` ist noch nicht fertig (#74). Es kommt mit MR !61, sobald das auf main ist. Bis dahin läuft jede Datenanfrage als SQL mit `psql` gegen die UC3-Datenbank. Der Befehl `uv run uc3 antwort "…"` beantwortet einfache Fragen zu einem Monat, zum Beispiel „Beschäftigte in Wien im März 2025“, ohne Sprachmodell.
 
 ## Gemeinsame Bausteine für das SQL
 
@@ -288,13 +288,13 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Fundstelle:** `uc3/db/030_bereinigt_stat.sql` (Trigger `stat_besch_endgueltig`), `abgabe/qualitaetsberichte/2025-01.md`.
 
-### C9 Wie gehen Sie mit dem Wechsel der ÖNACE-Version um?
+### C9 Wie behandelt ihr den ÖNACE-Wechsel?
 
-**Kurzantwort:** Der Wirtschaftszweig wird nach der Version ausgewiesen, die im Berichtsmonat gilt: bis 12/2024 ÖNACE 2008, ab 01/2025 ÖNACE 2025. Der Wechsel gilt ab Lieferung 2025-01, auch rückwirkend für Dezember 2024 (F13). Branchen vergleichen wir nur innerhalb derselben Version. Die Sprungprüfung P14 vergleicht ÖNACE nicht über den Wechsel.
+**Kurzantwort:** Klassifikationen tragen eine Gültigkeit (`stat.klass_oenace`, Spalten `version`, `gueltig_von`, `gueltig_bis`). Der Wirtschaftszweig wird nach der Version ausgewiesen, die im Berichtsmonat gilt: bis 12/2024 ÖNACE 2008, ab 01/2025 ÖNACE 2025. Das regelt Regel `R7_oenace_nach_berichtsmonat`. Der Wechsel gilt ab Lieferung 2025-01, auch rückwirkend für Dezember 2024 (F13). Alte ÖNACE-2003-Codes (DA bis DN) gehen über Regel `Q01_oenace_2003_unterabschnitte` auf Abschnitt C, in 08/2024 sind das 50 Verhältnisse (F6). Branchen vergleichen wir nur innerhalb derselben Version. Die Sprungprüfung P14 vergleicht ÖNACE nicht über den Wechsel.
 
-**Antwortweg:** `uv run uc3 regeln zeigen`, Regel `R7_oenace_nach_berichtsmonat`.
+**Antwortweg:** `uv run uc3 regeln zeigen`, Regeln `R7_oenace_nach_berichtsmonat` und `Q01_oenace_2003_unterabschnitte`.
 
-**Fundstelle:** `uc3/db/110_regelsatz_v1.sql`, `uc3/db/120_pruefregeln_v1.sql`, `uc3/db/020_stat_metadaten.sql` (Tabelle `stat.uebergang`).
+**Fundstelle:** `uc3/db/110_regelsatz_v1.sql` (Q01 ab Zeile 52, R7 ab Zeile 88), `uc3/db/120_pruefregeln_v1.sql`, `uc3/db/020_stat_metadaten.sql` (Tabellen `stat.klass_oenace` und `stat.uebergang`), `docs/plan/uc3/annahmen.md` (A3).
 
 ### C10 Warum löschen Sie nichts?
 
@@ -322,7 +322,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C13 Was habt ihr bei der Teil-Lieferung 2025-10 gemacht?
 
-**Kurzantwort:** Die Lieferung hatte 345.078 Zeilen statt rund 430.000. Von 394.200 am 30.09.2025 offenen Verhältnissen fehlten 78.949 (20,0 Prozent), 78.733 davon sind in 2025-11 wieder da (F11). Der Lauf hält an, schreibt 77.746 Verhältnisse fort und weist 390.900 als vorläufig aus (F11).
+**Kurzantwort:** Die Lieferung hatte 345.078 Zeilen statt rund 430.000. Der bereinigte Bestand lag bei 313.154 gegen 394.200 im Vormonat, die Differenz ist 81.046 (F17). Von 394.200 am 30.09.2025 offenen Verhältnissen fehlten 78.949 in der Lieferung (20,0 Prozent), 78.733 davon sind in 2025-11 wieder da (F11). Beide Zahlen messen Verschiedenes: Die erste vergleicht Bestände, die zweite zählt Verhältnisse, die gar nicht vorkommen. Der Lauf hält an, schreibt 77.746 Verhältnisse fort und weist 390.900 als vorläufig aus (F11).
 
 **Antwortweg:** Qualitätsbericht 2025-10, Prüfregeln P15, P16, P17.
 
@@ -339,6 +339,34 @@ Viertens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Paramet
 **Antwortweg:** `uc3/README.md`, Abschnitt Grenzen, und Rückfrage R1 zeigen.
 
 **Fundstelle:** `uc3/README.md`, `abgabe/rueckfragen/R1.md`, `docs/plan/uc3/annahmen.md`.
+
+### C15 Ihr habt die Regeln am Bericht abgestimmt, ist das nicht zirkulär?
+
+**Kurzantwort:** Nein. Die Regeln kommen aus der Fachbeschreibung. Nur zwei Lücken schließt der Bericht selbst: Geburtsmonat 13 und die Altersgrenze (`docs/plan/uc3/annahmen.md` A4 und A5, F4, F5). Für die übrigen 23 Monate gibt es keinen Vergleichsbericht. Dort laufen 24 Prüfregeln (F15). Die Gegenrechnung lief unabhängig und ohne den UC3-Code, direkt auf den Rohdaten (Belegregister, Abfragen A1 bis A9).
+
+**Antwortweg:** `uv run uc3 eichen --lieferung 2024-08` (F1), danach `docs/plan/uc3/annahmen.md` A4 und A5 zeigen und `uv run uc3 regeln zeigen`.
+
+**Fundstelle:** `docs/plan/uc3/annahmen.md`, `uc3/pruefkatalog.csv`, `docs/praesentation/belegregister.md`.
+
+**Zahlen:** 2.880 von 2.880 Zellen (F1), 23 Monate ohne Vergleichsbericht und 24 Prüfregeln (F15).
+
+### C16 Läuft der gemeinsame Einstieg schon?
+
+**Kurzantwort (Tagesstand 05.11.2026, vor Fr 07:00 aktualisieren):** Auf main ist der UC3-Adapter registriert (Entry-Point `kic.uc_antwort`). UC2 liegt auf dem Branch `feat/uc2-antwort`. UC1 ist nach #31 geplant. Die Szene 9 zeigt das Zielbild, nicht den Tagesstand. Was heute läuft, zeigen wir an UC3: `uv run uc3 antwort "Beschäftigte in Wien im März 2025"`. Sollwert der Demo-Frage für UC3: 7.498 (F18).
+
+**Antwortweg:** `uv run uc3 antwort "…"`, in der Oberfläche die Seite `/uc4`. Laufen die Modelle online im Testmodus, sagen wir das an.
+
+**Fundstelle:** `uc3/pyproject.toml` (Abschnitt `kic.uc_antwort`), `uc3/statagent/uc4.py`, siehe C12.
+
+**Pflege:** Diese Antwort vor Fr 07:00 mit dem Stand auf main abgleichen und das Datum neu setzen.
+
+### C17 Wo seht ihr, dass die KI nichts erfindet?
+
+**Kurzantwort:** Der Agent schreibt nur Vorschläge. Die Wirkung wird vorab gerechnet und gezeigt. Wirksam wird eine Änderung erst mit der Freigabe durch eine Person mit Namen. Im Lauf kommt `plattform.llm` nie vor: `uv run uc3 lauf` importiert es nicht, die Zahlen entstehen allein durch Code und Regeln (F16).
+
+**Antwortweg:** `uv run uc3 vorschlag zeigen <id>` (Regel-Unterschied, Zahlen vorher und nachher), `uv run uc3 protokoll --zeigen`. Danach `uc3/statagent/lauf.py` auf Importe prüfen: kein `plattform.llm`.
+
+**Fundstelle:** `uc3/statagent/agenten/koordinator.py`, `uc3/statagent/cli.py` (Befehl `agent`, Import von `plattform.llm` nur dort), `abgabe/modelle.md`.
 
 ## Wenn eine Frage nicht im Katalog steht
 

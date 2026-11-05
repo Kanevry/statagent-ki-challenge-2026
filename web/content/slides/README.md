@@ -45,39 +45,42 @@ als Zusatz (Tabelle unten), alle anderen werden ignoriert.
 
 Steht `szene` im Frontmatter, läuft die Folie als animierte Szene auf der dunklen Bühne (1920 × 1080). Die Registry
 ist `web/components/praesentation/szenen/index.ts`. Jede Szene nimmt ihren Text, ihre Zahlen und Tabellen aus dem
-Markdown; im Code stehen nur Gestaltungstexte ohne Inhalt. Die Zeile `Herkunft: …` steht unten links, Nummer und
-Zeit unten rechts. `layout` bleibt der Rückfall, falls die Szene fehlt.
+Markdown; im Code stehen nur Gestaltungstexte ohne Inhalt. Die Zeile `Herkunft: …` steht unten links. Zeitmarken
+(`zeit`) stehen nur in den Notizen (Taste N), nie auf der Bühne. `layout` bleibt der Rückfall, falls die Szene fehlt.
+Die Szenen 3 bis 9 tragen einen einheitlichen Kopf: kleiner Kreis 3, daneben die `#`-Überschrift in einer Zeile.
 
-| `szene` | Erwartet im Markdown | Zusätze im Frontmatter |
-|---|---|---|
-| `gleichung` | `#` Satz unter 1 + 2 + 3 = 4, 1. Absatz: Zeile klein | keine |
-| `drei-fragen` | Tabelle Aufgabe, Person, Frage (tippt sich), Use Case; Absatz: Satz über der Linie | `hervorheben`: Aufgabe mit Mint-Chip |
-| `falsche-zahl` | `#` Titel, Liste mit drei Sätzen (je Takt einer), Tabelle Monat (JJJJ-MM) und Wert | `monat_bruch`, `zahl_geliefert`, `stempel` |
-| `kern` | `#` Titel, Liste mit drei Regeln (erste liegt unten) | `name`: tippt sich unter der zweiten Regel |
-| `beleg` | `#` Titel, 1. Absatz Satz | `zahl`, z. B. `2.880`: Raster und Hochzählen |
-| `fallen` | `#` Titel, Tabelle Muster, Falle, Umfang (drei Zeilen), Absatz darunter | keine |
-| `annahme` | `#` Titel, 1. Absatz neben dem 13. Monat, Tabelle Möglichkeit und `… von N`, Schlusssatz | `treffer`: Satz neben dem Haken |
-| `einstieg` | `#` Titel, 1. Absatz Frage (tippt sich), Liste `**UCn:** Antwort`, 2. Absatz unter Kreis 4 | keine |
-| `schluss` | `#` erster Satz, 1. Absatz zweiter Satz, 2. Absatz Zeile klein | `route` (nur aus `live.tsx`), `knopf` |
+| `szene` | Takte | Erwartet im Markdown | Zusätze im Frontmatter |
+|---|---|---|---|
+| `gleichung` | 0 | `#` Satz unter 1 + 2 + 3 = 4, 1. Absatz: Zeile klein | keine |
+| `drei-fragen` | 0 | Tabelle Aufgabe, Person, Frage (tippt sich), Lösung; Absatz: Satz über der Linie | keine |
+| `falsche-zahl` | 3 | `#` Titel, Liste mit drei Sätzen (je Takt einer), Tabelle Monat (JJJJ-MM) und Wert, Spaltenkopf über dem Diagramm | `monat_bruch`, `zahl_geliefert`, `vergleich`, `vorlaeufig`, `stempel` |
+| `kern` | 3 | `#` Titel, Liste mit drei Regeln (je Takt eine, von oben), Absatz unten klein | `name`: tippt sich unter der zweiten Regel; `screenshot`, `bild_alt` |
+| `beleg` | 0 | `#` Titel, Tabelle mit drei Spalten-Köpfen (Bericht, eigene Rechnung, übrige Monate), Absätze: Zählzeile, Ergebnis, Satz | `zahl`, z. B. `2.880`: Zahl der Quadrate je Raster |
+| `fehler` | 3 | `#` Titel, Tabelle Muster, Fehler, Anzahl, Lieferung (je Takt eine Zeile), Absatz im dritten Takt | keine |
+| `woerterbuecher` | 0 | `#` Titel, zwei Tabellen (alte und neue Liste, Kopf: Name und Gültigkeit), Absätze: Teilung, Satz | `uebergang`, z. B. `C-C J-J Q-R J-K`; ein Code mit zwei Zielen teilt sich gelb |
+| `annahme` | 3 | `#` Titel, 1. Absatz (Takt 1), Tabelle Rechenweg und Spaltenkopf mit Gesamtzahl (Takt 2), Schlusssatz (Takt 3) | `treffer`: Satz neben dem Haken |
+| `einstieg` | 3 | `#` Titel, 1. Absatz Frage (tippt sich), Liste mit drei Antworten (je Takt eine), 2. Absatz unter Kreis 4 | keine |
+| `schluss` | 0 | `#` erster Satz, Absätze: zweiter Satz, Live-Zeile, Nebenzeile, Adresse unten | keine |
 
 Jeder sichtbare Satz steht im Markdown, auch kurze wie der Stempel oder der Treffer-Satz. Monate im sichtbaren Text
 ausgeschrieben („Oktober 2025“); nur Tabellen tragen sie als Daten (`2025-10`), die Säulenachse macht daraus
-„Okt 2025“. Die Kreise 1 bis 4, die Zeichen + und = und die Achsenwerte sind Gestaltung. Kreise mit gleicher Nummer gleiten beim Wechsel von
-ihrer alten an ihre neue Stelle.
+„Okt 2025“. Die Kreise 1 bis 4, die Zeichen + und = und die Achsenwerte sind Gestaltung. Kreise mit gleicher Nummer
+gleiten beim Wechsel von ihrer alten an ihre neue Stelle. Gelb steht nur für Probleme, Erfolge sind Mint oder Weiß.
 
 ### Blick in die App
 
-`screenshot: SC07` nennt das Bildschirmfoto, das die Szenen `falsche-zahl`, `kern`, `beleg` und `fallen` als
-ruhiges Fenster zeigen. Es erscheint nur, wenn die Datei `bilder/SC07.png` hier liegt und in
-`web/components/praesentation/bilder.ts` statisch importiert ist. Sonst bleibt der Platz leer. Nur echte
-Aufnahmen aus der App, ohne Beschriftung.
+`screenshot: freigabe-echt` nennt die Aufnahme, die eine Szene als ruhiges Fenster zeigt (heute nur `kern`, im
+zweiten Takt). Sie erscheint nur, wenn die Datei hier unter `bilder/` liegt und in
+`web/components/praesentation/bilder.ts` unter derselben Kennung statisch importiert ist; den Alt-Text trägt
+`bild_alt`. Sonst bleibt der Platz leer. Nur echte Aufnahmen aus der App, ohne Beschriftung.
 
 ### Takte
 
 Eine Szene kann Takte haben: Schritte innerhalb der Szene, die nur auf Tastendruck kommen. Pfeil rechts zeigt erst
 den nächsten Takt, nach dem letzten Takt die nächste Folie. Pfeil links geht erst die Takte zurück; wer eine Szene
 von hinten betritt, sieht alle Takte. Die Adresse trägt nur `?folie=N`, eine Folie startet dort mit Takt 0.
-Bei reduzierter Bewegung und im Druck zeigt jede Szene sofort alle Takte. Heute hat nur `falsche-zahl` Takte (drei).
+Bei reduzierter Bewegung und im Druck zeigt jede Szene sofort alle Takte. Die Taktzahl je Szene steht in der
+Registry; im Sprechtext markiert `[→]` den Klick.
 
 ## Layouts
 

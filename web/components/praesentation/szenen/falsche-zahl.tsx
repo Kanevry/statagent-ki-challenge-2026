@@ -1,12 +1,8 @@
 import { kopfzeile, listenPunkte, tabelle, zahlWert } from "../../../lib/praesentation/szenen-daten";
-import { Blick, Fuss, k, Kreis, Text, vars, type SzeneProps } from "./gemeinsam";
+import { Fuss, k, Kopf, Text, vars, type SzeneProps } from "./gemeinsam";
 
-/** Takte der Szene: 1 gelieferter Wert gelb, 2 Stempel, 3 Wert wieder da mit Haken. */
-export const TAKTE_FALSCHE_ZAHL = 3;
-
-// Gestaltung, kein Inhalt: Achse von 300.000 bis 400.000 und die Breite der Säulenfläche in px.
-const ACHSE_UNTEN = 300_000;
-const ACHSE_SPANNE = 100_000;
+// Gestaltung, kein Inhalt: Achse von 0 bis 400.000 und die Breite der Säulenfläche in px.
+const ACHSE_OBEN = 400_000;
 const BREITE = 890;
 const LUECKE = 10;
 const FORMAT = new Intl.NumberFormat("de-DE");
@@ -22,13 +18,14 @@ export function monatText(monat: string, lang = false): string {
   return t && name ? `${name} ${t[1]}` : monat;
 }
 
-const hoehe = (v: number) => Math.min(1, Math.max(0, (v - ACHSE_UNTEN) / ACHSE_SPANNE)).toFixed(4);
+const hoehe = (v: number) => Math.min(1, Math.max(0, v / ACHSE_OBEN)).toFixed(4);
 
 /**
- * Szene 3: Säulen aus der Tabelle wachsen wie ein Herzschlag. Die Säule aus `monat_bruch` fällt in Takt 1 auf
- * `zahl_geliefert`, bekommt in Takt 2 den Stempel und steigt in Takt 3 zurück, mit Haken. Kreis 3 neben dem Titel.
+ * Szene 3 (drei Takte): Säulen aus der Tabelle, Achse ab 0. Die Säule aus `monat_bruch` fällt in Takt 1 auf
+ * `zahl_geliefert` (gelb, rechts groß mit `vergleich`), bekommt in Takt 2 den `stempel` und steigt in Takt 3 als
+ * gefüllter Mint-Balken mit Haken zurück (rechts `vorlaeufig`). Die Takt-Sätze sind die Liste.
  */
-export function FalscheZahl({ folie, nr, takt }: SzeneProps) {
+export function FalscheZahl({ folie, takt }: SzeneProps) {
   const t = tabelle(folie);
   const reihen = (t?.zeilen ?? []).map(([monat = "", wert = ""]) => ({ monat, zahl: zahlWert(wert) }));
   const bruch = reihen.findIndex((r) => r.monat === folie.daten.monat_bruch);
@@ -37,32 +34,39 @@ export function FalscheZahl({ folie, nr, takt }: SzeneProps) {
   const spalte = (i: number) => i * (w + LUECKE) + w / 2;
   const letzte = reihen.length - 1;
   const beschriftet = [0, bruch, letzte].filter((i, j, alle) => i >= 0 && alle.indexOf(i) === j);
+  const { zahl_geliefert: geliefert, vergleich, vorlaeufig, stempel } = folie.daten;
 
   return (
     <div className={k(takt >= 1 && "takt-1", takt >= 2 && "takt-2", takt >= 3 && "takt-3")}>
-      <Kreis n={3} x={120} y={92} d={72} t={0} />
-      <h2 className={k("titel", "a")} style={vars({ t: 0.1 })}>
-        {kopfzeile(folie)}
-      </h2>
-      <div className={k("s3-diagramm")} role="img" aria-label={`${t?.kopf[1] ?? ""}, ${monatText(reihen[0]?.monat ?? "", true)} bis ${monatText(reihen[letzte]?.monat ?? "", true)}`}>
+      <Kopf titel={kopfzeile(folie)} />
+      {t?.kopf[1] && (
+        <p className={k("s3-was", "a")} style={vars({ t: 0.3 })}>
+          {t.kopf[1]}
+        </p>
+      )}
+      <div
+        className={k("s3-diagramm")}
+        role="img"
+        aria-label={`${t?.kopf[1] ?? ""}, ${monatText(reihen[0]?.monat ?? "", true)} bis ${monatText(reihen[letzte]?.monat ?? "", true)}`}
+      >
         <p className={k("s3-achse", "s3-oben", "a")} style={vars({ t: 0.3 })}>
-          {FORMAT.format(ACHSE_UNTEN + ACHSE_SPANNE)}
+          {FORMAT.format(ACHSE_OBEN)}
         </p>
         <p className={k("s3-achse", "s3-unten", "a")} style={vars({ t: 0.3 })}>
-          {FORMAT.format(ACHSE_UNTEN)}
+          {FORMAT.format(0)}
         </p>
         <div className={k("s3-saeulen")}>
           {reihen.map((r, i) => (
             <div
               key={r.monat}
               className={k("s3-saeule", i === bruch && "s3-okt")}
-              style={vars({ i, h: hoehe(r.zahl), ...(i === bruch ? { hg: hoehe(zahlWert(folie.daten.zahl_geliefert)) } : {}) })}
+              style={vars({ i, h: hoehe(r.zahl), ...(i === bruch ? { hg: hoehe(zahlWert(geliefert)) } : {}) })}
             >
               <div className={k("s3-fuellung")} />
               {i === bruch && (
                 <>
                   <div className={k("s3-marke")} />
-                  {folie.daten.stempel && <p className={k("s3-stempel")}>{folie.daten.stempel}</p>}
+                  {stempel && <p className={k("s3-stempel")}>{stempel}</p>}
                   <svg className={k("s3-haken", "haken")} viewBox="0 0 64 56" aria-hidden="true">
                     <path className={k("strich")} pathLength={1} d="M8 30l14 14L56 10" />
                   </svg>
@@ -86,6 +90,15 @@ export function FalscheZahl({ folie, nr, takt }: SzeneProps) {
           </p>
         ))}
       </div>
+      <div className={k("s3-rechts")}>
+        {geliefert && (
+          <p className={k("s3-r1")}>
+            <b>{geliefert}</b>
+            {vergleich && <span>{vergleich}</span>}
+          </p>
+        )}
+        {vorlaeufig && <p className={k("s3-r3")}>{vorlaeufig}</p>}
+      </div>
       <ol className={k("s3-takte")}>
         {listenPunkte(folie).map((p, i) => (
           <li key={i} className={k(`t${i + 1}`)}>
@@ -93,8 +106,7 @@ export function FalscheZahl({ folie, nr, takt }: SzeneProps) {
           </li>
         ))}
       </ol>
-      <Blick folie={folie} breite={620} t={1.4} wartet={takt < TAKTE_FALSCHE_ZAHL} />
-      <Fuss folie={folie} nr={nr} />
+      <Fuss folie={folie} />
     </div>
   );
 }
