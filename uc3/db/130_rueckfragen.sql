@@ -15,7 +15,7 @@ INSERT INTO meta.rueckfrage (nr, titel, lieferungen, aufgefallen, anzahl, merkma
  '370 Sätze am Stichtag 31.08.2024 in Lieferung 2024-08, in den anderen Lieferungen 336 bis 444 Sätze', 'Geburtsdatum, daraus das Alter in der Alterstabelle',
  '[1050, 1824, 2257, 5493, 7739]',
  'SELECT vvh_id FROM roh.lieferung WHERE lieferung = ''2024-08'' AND substr(geburtsdatum, 6, 2) = ''13'' AND beginn <= ''2024-08-31'' AND (ende IS NULL OR ende >= ''2024-08-31'')',
- 'So machen wir es bis zur Antwort: Wir lesen Monat 13 als „Monat unbekannt“ und rechnen mit dem 1. Juli des Geburtsjahres, also der Jahresmitte. Das ist die beste Schätzung, wenn nur das Jahr bekannt ist, und für August 2024 ergibt es genau die Zahlen des Beispielberichts. Einen Unterschied macht die Wahl nur in Berichtsmonaten von Jänner bis Juni. Wollt ihr anders rechnen, etwa nur mit der Differenz der Jahre, stellen wir einen Wert der Regel um. Die Fälle stehen jeden Monat im Qualitätsbericht.',
+ 'Wir lesen Monat 13 als „Monat unbekannt“ und rechnen mit dem 1. Juli des Geburtsjahres, also der Jahresmitte. Das ist die beste Schätzung, wenn nur das Jahr bekannt ist, und für August 2024 ergibt es genau die Zahlen des Beispielberichts. Einen Unterschied macht die Wahl nur in Berichtsmonaten von Jänner bis Juni. Wollt ihr anders rechnen, etwa nur mit der Differenz der Jahre, stellen wir einen Wert der Regel um. Die Fälle stehen jeden Monat im Qualitätsbericht.',
  'Mit welchem Tag sollen wir bei Geburtsmonat 13 rechnen: mit dem 1. Juli, mit dem 1. Jänner oder nur mit der Differenz der Jahre?',
  'R5_alter', '2024-08'),
 
@@ -24,7 +24,7 @@ INSERT INTO meta.rueckfrage (nr, titel, lieferungen, aufgefallen, anzahl, merkma
  '838 Verhältnisse: 491 in Lieferung 2025-05 und 347 in Lieferung 2026-02', 'Branche (ÖNACE), jeweils als neuer Zeitabschnitt am selben Tag',
  '[125007, 229275, 229304, 229324, 229333]',
  'SELECT n.vvh_id FROM roh.lieferung n WHERE ((n.lieferung = ''2025-05'' AND n.beginn = ''2025-05-01'' AND n.oenace = ''C'' AND n.bundesland = ''6'') OR (n.lieferung = ''2026-02'' AND n.beginn = ''2026-02-01'' AND n.oenace = ''C'' AND n.bundesland = ''9'')) AND EXISTS (SELECT 1 FROM roh.lieferung a WHERE a.lieferung = n.lieferung AND a.vvh_id = n.vvh_id AND a.oenace = CASE n.lieferung WHEN ''2025-05'' THEN ''O'' ELSE ''G'' END AND a.ende < n.beginn)',
- 'So machen wir es bis zur Antwort: Wir zählen die Verhältnisse so, wie sie geliefert sind, also ab dem Wechsel in C. Ohne eure Auskunft wäre jede Korrektur ein Eingriff in eine Entwicklung, die echt sein kann. Im Qualitätsbericht steht die Welle mit Zahl und Tag als „nicht erklärbar“ und verweist auf diese Rückfrage.',
+ 'Wir zählen die Verhältnisse so, wie sie geliefert sind, also ab dem Wechsel in C. Ohne eure Auskunft wäre jede Korrektur ein Eingriff in eine Entwicklung, die echt sein kann. Im Qualitätsbericht steht die Welle mit Zahl und Tag als „nicht erklärbar“ und verweist auf diese Rückfrage.',
  'Haben diese Dienstgeber wirklich die Branche gewechselt, oder ist die Branche falsch codiert?',
  'P18_merkmalswelle', '2025-05'),
 
@@ -33,7 +33,7 @@ INSERT INTO meta.rueckfrage (nr, titel, lieferungen, aufgefallen, anzahl, merkma
  '78.949 Verhältnisse, die am 30.09.2025 bestanden, fehlen in Lieferung 2025-10; 78.733 davon sind in 2025-11 wieder da, 216 nicht', 'alle Merkmale gleichmäßig, jeweils etwa 20 %',
  '[34, 79, 95, 122, 133]',
  'SELECT s.vvh_id FROM (SELECT DISTINCT vvh_id FROM roh.lieferung WHERE lieferung = ''2025-09'' AND beginn <= ''2025-09-30'' AND (ende IS NULL OR ende >= ''2025-09-30'')) s WHERE NOT EXISTS (SELECT 1 FROM roh.lieferung l WHERE l.lieferung = ''2025-10'' AND l.vvh_id = s.vvh_id)',
- 'So machen wir es bis zur Antwort: Wir übernehmen die fehlenden Verhältnisse einmalig aus Lieferung 2025-09, wenn sie dort am 31.10.2025 noch gültig sind (wir schreiben sie fort). Spätere Lieferungen nutzen wir nicht, weil jeder Monat nur aus seiner eigenen und früheren Lieferungen gerechnet wird. So geht kein Verhältnis verloren, und der Fehler bleibt klein: Mit Fortschreibung zählen wir 390.900 Verhältnisse, Lieferung 2025-11 nennt für denselben Tag 391.243. Der Qualitätsbericht zeigt gelieferte und fortgeschriebene Verhältnisse getrennt, der Lauf hält an, bis ein Mensch freigibt, und der Monat bleibt vorläufig. Auch die Ministeriums-Lieferung rechnet August 2025 aus Lieferung 2025-09 und nicht aus der Teil-Lieferung: Das ergibt 32.741 Personen, aus der Teil-Lieferung wären es 32.667.',
+ 'Wir übernehmen die fehlenden Verhältnisse einmalig aus Lieferung 2025-09, wenn sie dort am 31.10.2025 noch gültig sind (wir schreiben sie fort). Spätere Lieferungen nutzen wir nicht, weil jeder Monat nur aus seiner eigenen und früheren Lieferungen gerechnet wird. So geht kein Verhältnis verloren, und der Fehler bleibt klein: Mit Fortschreibung zählen wir 390.900 Verhältnisse, Lieferung 2025-11 nennt für denselben Tag 391.243. Der Qualitätsbericht zeigt gelieferte und fortgeschriebene Verhältnisse getrennt, der Lauf hält an, bis ein Mensch freigibt, und der Monat bleibt vorläufig. Auch die Ministeriums-Lieferung rechnet August 2025 aus Lieferung 2025-09 und nicht aus der Teil-Lieferung: Das ergibt 32.741 Personen, aus der Teil-Lieferung wären es 32.667.',
  'Kommt für Oktober 2025 eine vollständige Nachlieferung, oder dürfen wir die fehlenden Verhältnisse wie beschrieben aus Lieferung 2025-09 fortschreiben?',
  'E07_fortschreibung_lieferausfall', '2025-10'),
 
@@ -42,7 +42,7 @@ INSERT INTO meta.rueckfrage (nr, titel, lieferungen, aufgefallen, anzahl, merkma
  '1.492 freie Dienstverträge, die am 28.02.2025 bestanden, fehlen; alle sind in 2025-04 wieder da. Lieferung 2025-03 hat keinen einzigen solchen Satz.', 'Qualifikation (ArbeiterFD, AngestellteFD)',
  '[448, 1054, 1264, 1289, 2247]',
  'SELECT DISTINCT p.vvh_id FROM roh.lieferung p WHERE p.lieferung = ''2025-02'' AND p.qual LIKE ''%FD'' AND p.beginn <= ''2025-02-28'' AND (p.ende IS NULL OR p.ende >= ''2025-02-28'') AND NOT EXISTS (SELECT 1 FROM roh.lieferung l WHERE l.lieferung = ''2025-03'' AND l.vvh_id = p.vvh_id)',
- 'So machen wir es bis zur Antwort: Wir übernehmen die fehlenden freien Dienstverträge einmalig aus Lieferung 2025-02, wenn sie dort am 31.03.2025 noch gültig sind (wir schreiben sie fort). Eine ganze Gruppe verschwindet nicht für einen Monat und kommt dann zurück; ohne Fortschreibung zeigte die Zeitreihe einen Bruch, den es nicht gibt. Der Qualitätsbericht zeigt gelieferte und fortgeschriebene Verhältnisse getrennt, der Lauf hält an, und der Monat bleibt vorläufig. Mit Lieferung 2025-04 steht die Abweichung als Revisionsbedarf im Bericht.',
+ 'Wir übernehmen die fehlenden freien Dienstverträge einmalig aus Lieferung 2025-02, wenn sie dort am 31.03.2025 noch gültig sind (wir schreiben sie fort). Eine ganze Gruppe verschwindet nicht für einen Monat und kommt dann zurück; ohne Fortschreibung zeigte die Zeitreihe einen Bruch, den es nicht gibt. Der Qualitätsbericht zeigt gelieferte und fortgeschriebene Verhältnisse getrennt, der Lauf hält an, und der Monat bleibt vorläufig. Mit Lieferung 2025-04 steht die Abweichung als Revisionsbedarf im Bericht.',
  'Dürfen wir die freien Dienstverträge für März 2025 aus Lieferung 2025-02 fortschreiben, oder soll März 2025 ohne sie erscheinen und erst später berichtigt werden?',
  'E07_fortschreibung_lieferausfall', '2025-03'),
 
@@ -51,7 +51,7 @@ INSERT INTO meta.rueckfrage (nr, titel, lieferungen, aufgefallen, anzahl, merkma
  '388.115 von 432.086 Sätzen haben keinen Beginn; getauscht werden alle 432.086 Sätze der Lieferung', 'Beginn und Ende (ganze Lieferung)',
  '[7, 12, 14, 33, 34]',
  'SELECT vvh_id FROM roh.lieferung WHERE lieferung = ''2025-06'' AND beginn IS NULL',
- 'So machen wir es bis zur Antwort: Wir tauschen Beginn und Ende für die ganze Lieferung, nicht Zeile für Zeile. Danach bestehen am 30.06.2025 394.252 Verhältnisse, ähnlich wie in den Nachbarmonaten (390.001 und 397.419), und keines geht verloren. Der Tausch greift nur, wenn mehr als die Hälfte der Beginndaten leer ist und mehr als 5 % nach dem Ende liegen; das trifft nur diese Lieferung. Der Tausch steht im Qualitätsbericht für Juni 2025.',
+ 'Wir tauschen Beginn und Ende für die ganze Lieferung, nicht Zeile für Zeile. Danach bestehen am 30.06.2025 394.252 Verhältnisse, ähnlich wie in den Nachbarmonaten (390.001 und 397.419), und keines geht verloren. Der Tausch greift nur, wenn mehr als die Hälfte der Beginndaten leer ist und mehr als 5 % nach dem Ende liegen; das trifft nur diese Lieferung. Der Tausch steht im Qualitätsbericht für Juni 2025.',
  'Sind Beginn und Ende in Lieferung 2025-06 vertauscht, und dürfen wir sie bis zu einer korrigierten Nachlieferung für die ganze Lieferung tauschen?',
  'E01_spaltentausch_beginn_ende', '2025-06'),
 
@@ -60,7 +60,7 @@ INSERT INTO meta.rueckfrage (nr, titel, lieferungen, aufgefallen, anzahl, merkma
  '7 Verhältnisse am 31.08.2024; 7 bis 14 Sätze je Lieferung', 'Geburtsdatum, daraus das Alter in der Alterstabelle',
  '[149431, 207859, 327231]',
  'SELECT vvh_id FROM roh.lieferung WHERE lieferung = ''2024-08'' AND geburtsdatum < ''1913-09-01'' AND beginn <= ''2024-08-31'' AND (ende IS NULL OR ende >= ''2024-08-31'')',
- 'So machen wir es bis zur Antwort: Ein Alter über 110 Jahre halten wir für einen Fehler im Geburtsdatum; es steht unter „Alter unbekannt“, das Verhältnis zählt trotzdem mit. Zwischen 78 und 116 Jahren gibt es in keiner Lieferung einen Fall, deshalb ergibt jede Grenze in diesem Bereich dieselben Zahlen. Eine Grenze bei 74 würde dagegen echte 75-Jährige wegrechnen, 62 bis 310 je Monat.',
+ 'Ein Alter über 110 Jahre halten wir für einen Fehler im Geburtsdatum; es steht unter „Alter unbekannt“, das Verhältnis zählt trotzdem mit. Zwischen 78 und 116 Jahren gibt es in keiner Lieferung einen Fall, deshalb ergibt jede Grenze in diesem Bereich dieselben Zahlen. Eine Grenze bei 74 würde dagegen echte 75-Jährige wegrechnen, 62 bis 310 je Monat.',
  'Ab welchem Alter sollen wir ein Geburtsdatum als Fehler werten, und gilt dieselbe Grenze für das Geburtsjahr in der Ministeriums-Lieferung?',
  'R5_alter', '2024-08'),
 
@@ -69,7 +69,7 @@ INSERT INTO meta.rueckfrage (nr, titel, lieferungen, aufgefallen, anzahl, merkma
  '1.663 überzählige Zeilen; ohne Bereinigung wären am 31.03.2025 1.523 Verhältnisse doppelt gezählt (388.703 statt 387.180)', 'ganze Zeile',
  '[100071, 100136, 10047]',
  'SELECT vvh_id FROM roh.lieferung WHERE lieferung = ''2025-03'' GROUP BY vvh_id, person_id, geburtsdatum, geschlecht, beginn, ende, qual, oenace, bundesland HAVING count(*) > 1',
- 'So machen wir es bis zur Antwort: Zwei völlig gleiche Zeilen fassen wir zu einer zusammen. Wie viele es waren, steht im Qualitätsbericht für März 2025.',
+ 'Zwei völlig gleiche Zeilen fassen wir zu einer zusammen. Wie viele es waren, steht im Qualitätsbericht für März 2025.',
  'Sind die doppelten Zeilen ein technischer Fehler beim Abzug der Daten, oder können sie zwei echte Verhältnisse sein?',
  'E02_volldubletten', '2025-03'),
 
@@ -78,16 +78,16 @@ INSERT INTO meta.rueckfrage (nr, titel, lieferungen, aufgefallen, anzahl, merkma
  '196 Sätze in Lieferung 2024-08; 131 bis 218 Sätze je Lieferung', 'ganze Zeile (das zweite Verhältnis)',
  '[859975, 860000, 860337, 861206, 861975]',
  'SELECT vvh_id FROM roh.lieferung WHERE lieferung = ''2024-08'' AND CASE WHEN vvh_id ~ ''^[0-9]+$'' THEN vvh_id::bigint END BETWEEN 859780 AND 864885',
- 'So machen wir es bis zur Antwort: Wir zählen sie mit, denn gezählt werden Verhältnisse und nicht Personen, und auch der Beispielbericht zählt sie. Im Qualitätsbericht sind sie gekennzeichnet und als „nicht erklärbar“ eingestuft, bis ihr antwortet. Ausschließen könnten wir sie nur mit Wissen aus der nächsten Lieferung, und die darf ein Monat nicht nutzen.',
+ 'Wir zählen sie mit, denn gezählt werden Verhältnisse und nicht Personen, und auch der Beispielbericht zählt sie. Im Qualitätsbericht sind sie gekennzeichnet und als „nicht erklärbar“ eingestuft, bis ihr antwortet. Ausschließen könnten wir sie nur mit Wissen aus der nächsten Lieferung, und die darf ein Monat nicht nutzen.',
  'Sind das echte zweite Verhältnisse oder doppelte Meldungen, die wir nicht zählen sollen?',
  'P19_phantom_doppelmeldung', '2024-08'),
 
 ('R9', 'Lieferung 2024-08 ohne die im August beendeten Verhältnisse', 'lieferung_2024-08',
- 'In Lieferung 2024-08 enden nur 5.736 Verhältnisse im August, in den anderen Lieferungen 13.133 bis 15.000 im jeweiligen Monat. Für die Zählung am Stichtag 31.08.2024 macht das nichts, bei einer Zählung über den ganzen Monat fehlen aber rund 8.000 Verhältnisse.',
+ 'In Lieferung 2024-08 enden nur 5.736 Verhältnisse im August, in den anderen Lieferungen 13.133 bis 15.000 im jeweiligen Monat. Für die Zählung am Stichtag 31.08.2024 macht das nichts, bei einer Zählung über den ganzen Monat fehlen aber rund 8.000 Verhältnisse. Außerdem enthält die Lieferung kein einziges Verhältnis, das im Juni oder Juli 2024 endete, sie ist also kein Vollabzug über drei Monate.',
  '5.736 Verhältnisse enden in Lieferung 2024-08 im August; in den anderen Lieferungen 13.133 bis 15.000 im eigenen Monat', 'Ende im Berichtsmonat',
  '[]',
  'SELECT DISTINCT vvh_id FROM roh.lieferung WHERE lieferung = ''2024-08'' AND ende ~ ''^\d{4}-\d{2}-\d{2}$'' AND left(ende, 7) = ''2024-08''',
- 'So machen wir es bis zur Antwort: Die Zählung am Stichtag bleibt, wie sie ist; sie stimmt mit dem Beispielbericht in allen 2.880 Zellen überein. Zählen wir über den ganzen Monat, rechnen wir August 2024 nur aus der eigenen Lieferung und kennzeichnen den Monat als eingeschränkt. Aus Lieferung 2024-09 ergänzen wir nichts, weil ein Monat keine späteren Lieferungen nutzen darf.',
+ 'Die Zählung am Stichtag bleibt, wie sie ist; sie stimmt mit dem Beispielbericht in allen 2.880 Zellen überein. Zählen wir über den ganzen Monat, rechnen wir August 2024 nur aus der eigenen Lieferung und kennzeichnen den Monat als eingeschränkt. Aus Lieferung 2024-09 ergänzen wir nichts, weil ein Monat keine späteren Lieferungen nutzen darf.',
  'Fehlen in Lieferung 2024-08 absichtlich die im August beendeten Verhältnisse, und kommt dafür noch eine vollständige Lieferung?',
  'P24_lieferumfang_fenster', '2024-08')
 

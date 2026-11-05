@@ -11,6 +11,9 @@ from statagent.berichte.qualitaetsbericht import (
     ABSCHNITTE,
     GUELTIGE_EINSTUFUNGEN,
     BerichtFehler,
+    _auffaelligkeiten_daten,
+    _rueckfragen,
+    _rueckfragen_daten,
     _ueberblick,
     bericht_daten,
     bericht_erzeugen,
@@ -236,3 +239,50 @@ def test_saetze_sind_einfach_und_struktur_passt_zum_markdown(conn: Verbindung) -
     assert "F4" in nrn and "F9" not in nrn
     assert "- Annahme F4: " in _abschnitt(text, 4)
     assert "Begriffe: Ein Verhältnis ist ein Beschäftigungsverhältnis, nicht eine Person." in text
+
+
+def _pruef_treffer(
+    name: str, pruef_regel: str | None, rueckfrage: str | None, einstufung: str
+) -> dict[str, object]:
+    # Prüftreffer wie aus _treffer, Werte erfunden; die Rückfragen kommen aus 130_rueckfragen.sql.
+    return {
+        "ebene": "satz",
+        "anzahl": 3,
+        "umfang": None,
+        "einstufung": einstufung,
+        "massnahme": "x",
+        "anhalten": False,
+        "beleg_sql": None,
+        "rueckfrage": rueckfrage,
+        "name": name,
+        "pruef_regel": pruef_regel,
+        "beschreibung": "x",
+        "satz_vorlage": None,
+    }
+
+
+def test_rueckfragen_je_monat_vollstaendig_und_ohne_doppelung(conn: Verbindung) -> None:
+    # Fängt: § 2 zeigt „–“ bei P01/P03, obwohl R7/R5 ihre geprüfte Einleseregel umsetzen; „neu“ statt
+    # Klartext; R5 (nur Lieferung 2025-06) erscheint in jedem späteren Monat (#126); die Frage wird
+    # mitten im Wort gekürzt; § 3 sagt „Bis zur Antwort gilt: So machen wir es bis zur Antwort: …“.
+    rueckfragen = _rueckfragen(conn)
+    treffer = [
+        _pruef_treffer("P01_volldubletten", "E02_volldubletten", None, "erklaert-datenproblem"),
+        _pruef_treffer("P03_spaltentausch", "E01_spaltentausch_beginn_ende", None, "erklaert-datenproblem"),
+        _pruef_treffer("P06_alter_unplausibel", "R5_alter", "R6", "erklaert-datenproblem"),
+        _pruef_treffer("P12_code_unbekannt", "Q03_sonst_unbekannt", "neu", "nicht-erklaerbar"),
+        _pruef_treffer("P23_revision_vormonat", None, "neu", "erklaert-plausibel"),
+    ]
+    spalte = [a["rueckfragen"] for a in _auffaelligkeiten_daten(treffer, rueckfragen, "2025-10")]
+    assert spalte == [["R7"], ["R5"], ["R6"], ["noch keine Rückfrage gestellt"], ["keine Rückfrage nötig"]]
+
+    oktober = {r["nr"] for r in _rueckfragen_daten("2025-10", [], rueckfragen)}
+    assert oktober == {"R1", "R3", "R6", "R8"}  # Einzelmonate nur im eigenen Monat, „alle“ ab ab_lieferung
+    assert "R5" in {r["nr"] for r in _rueckfragen_daten("2025-10", treffer[1:2], rueckfragen)}
+
+    for r in _rueckfragen_daten("2024-08", [], rueckfragen):
+        assert not r["frage"].endswith("…"), r["nr"]
+        assert r["antwort"].count("bis zur Antwort") + r["antwort"].count("Bis zur Antwort") == 1, r["nr"]
+    r1 = next(r for r in _rueckfragen_daten("2024-08", [], rueckfragen) if r["nr"] == "R1")
+    assert r1["antwort"].startswith("Noch offen. Bis zur Antwort gilt: Wir lesen Monat 13")
+    assert r1["frage"].endswith("nur mit der Differenz der Jahre?")

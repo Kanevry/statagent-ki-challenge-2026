@@ -11,6 +11,7 @@ für Byte. Es gibt keinen Zeitstempel „jetzt“; „erstellt am“ ist das End
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -257,7 +258,8 @@ def _treffer(conn: Verbindung, lauf_id: int) -> list[dict[str, object]]:
         return []
     return conn.execute(
         """SELECT t.ebene, t.anzahl, t.umfang, t.einstufung, t.massnahme, t.anhalten, t.beleg_sql,
-                  t.details ->> 'rueckfrage' AS rueckfrage, r.name, r.beschreibung,
+                  t.details ->> 'rueckfrage' AS rueckfrage, r.name, r.parameter ->> 'regel' AS pruef_regel,
+                  r.beschreibung,
                   r.parameter ->> 'satz' AS satz_vorlage
            FROM meta.pruefung_treffer t JOIN meta.regel r ON r.id = t.regel_id
            WHERE t.lauf_id = %s AND t.anzahl > 0
@@ -270,20 +272,55 @@ def _rueckfragen(conn: Verbindung) -> list[dict[str, object]]:
     if not _hat_tabelle(conn, "meta.rueckfrage"):
         return []
     return conn.execute(
-        """SELECT nr, titel, frage, vorschlag, regel_name, gestellt_am, antwort, antwort_am, ab_lieferung
+        """SELECT nr, titel, lieferungen, frage, vorschlag, regel_name, gestellt_am, antwort, antwort_am,
+                  ab_lieferung
            FROM meta.rueckfrage ORDER BY length(nr), nr"""
     ).fetchall()
 
 
+#: Marke in den Prüfregeln für „Befund ohne gestellte Rückfrage“ (Parameter ``rueckfrage``).
+OHNE_RUECKFRAGE = "neu"
+
+
 def _verweise(treffer: dict[str, object], rueckfragen: list[dict[str, object]]) -> list[str]:
-    nrn = [
-        str(r["nr"])
-        for r in rueckfragen
-        if r["regel_name"] is not None and r["regel_name"] == treffer["name"]
-    ]
-    if treffer["rueckfrage"] and str(treffer["rueckfrage"]) not in nrn:
-        nrn.append(str(treffer["rueckfrage"]))
+    """Nummern der Rückfragen zu einem Prüftreffer, nur aus meta.rueckfrage und der Prüfregel.
+
+    Eine Rückfrage gehört dazu, wenn ihre Regel (``regel_name``) die Prüfregel ist oder die Prüfregel sie
+    nennt. Nennt die Prüfregel keine, zählt auch die Einlese- oder Zählregel, die sie prüft (Parameter
+    ``regel``, etwa P01 → E02 → R7). Die Marke „neu“ ist keine Nummer und fehlt hier.
+    """
+    eigene = str(treffer["rueckfrage"] or "")
+    namen = {treffer["name"]}
+    if not eigene and treffer.get("pruef_regel"):
+        namen.add(treffer["pruef_regel"])
+    nrn = [str(r["nr"]) for r in rueckfragen if r["regel_name"] is not None and r["regel_name"] in namen]
+    if eigene and eigene != OHNE_RUECKFRAGE and eigene not in nrn:
+        nrn.append(eigene)
     return nrn
+
+
+def _rueckfrage_spalte(treffer: dict[str, object], rueckfragen: list[dict[str, object]]) -> list[str]:
+    """Rückfrage-Spalte in § 2: Nummern, bei der Marke „neu“ ohne Nummer ein Klartext statt „neu“."""
+    nrn = _verweise(treffer, rueckfragen)
+    if nrn or treffer["rueckfrage"] != OHNE_RUECKFRAGE:
+        return nrn
+    if treffer["einstufung"] == "nicht-erklaerbar":
+        return ["noch keine Rückfrage gestellt"]
+    return ["keine Rückfrage nötig"]
+
+
+def _gilt_fuer_monat(rueckfrage: dict[str, object], lieferung: str) -> bool:
+    """Steht die Lieferung in der Spalte ``lieferungen`` der Rückfrage?
+
+    Formen in 130_rueckfragen.sql: „lieferung_2025-10“, „lieferung_2025-05, lieferung_2026-02“ (Einzelmonate)
+    sowie „lieferung_2024-08 und alle weiteren“ und „alle ab lieferung_2024-08“ (ab diesem Monat).
+    """
+    text = str(rueckfrage.get("lieferungen") or "")
+    monate = re.findall(r"\d{4}-\d{2}", text)
+    if re.search(r"\balle\b", text, re.IGNORECASE):
+        ab = str(rueckfrage.get("ab_lieferung") or min(monate, default=""))
+        return bool(ab) and ab <= lieferung
+    return lieferung in monate
 
 
 def _umfang(t: dict[str, object]) -> str:
@@ -395,7 +432,7 @@ def _auffaelligkeiten_daten(
                 "einstufung": EINSTUFUNGEN.get(str(t["einstufung"]), EINSTUFUNGEN["nicht-erklaerbar"]),
                 "massnahme": als_satz(t["massnahme"]),
                 "anhalten": bool(t["anhalten"]),
-                "rueckfragen": _verweise(t, rueckfragen),
+                "rueckfragen": _rueckfrage_spalte(t, rueckfragen),
                 "beleg_sql": str(t["beleg_sql"] or "").strip() or None,
             }
         )
@@ -408,10 +445,8 @@ def _rueckfragen_daten(
     verwiesen = {nr for t in treffer for nr in _verweise(t, rueckfragen)}
     aus = []
     for r in rueckfragen:
-        if not (
-            str(r["nr"]) in verwiesen
-            or (r["ab_lieferung"] is not None and str(r["ab_lieferung"]) <= lieferung)
-        ):
+        # Nur Rückfragen dieses Monats (#126): laut Spalte lieferungen oder weil ein Prüftreffer auf sie verweist.
+        if not (str(r["nr"]) in verwiesen or _gilt_fuer_monat(r, lieferung)):
             continue
         if r["antwort"]:
             antwort = f"{r['antwort']} ({datum(r['antwort_am'])})" if r["antwort_am"] else str(r["antwort"])
@@ -421,7 +456,7 @@ def _rueckfragen_daten(
             {
                 "nr": str(r["nr"]),
                 "gestellt_am": datum(r["gestellt_am"]) if r["gestellt_am"] else "noch nicht gestellt",
-                "frage": _kurz(f"{r['titel']}: {r['frage']}", 160),
+                "frage": " ".join(f"{r['titel']}: {r['frage']}".split()),
                 "antwort": antwort,
                 "offen": not r["antwort"],
                 "regel_name": r["regel_name"],

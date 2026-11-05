@@ -121,7 +121,8 @@ def _datei_text(r: dict[str, object], gemessen: int, ids: list[str], datum: date
         f"| Beispiel-IDs (VVH_ID, 3–5 Stück) | {beispiele} |\n\n"
         "Abfrage, mit der das nachvollzogen werden kann (sie liefert eine Zeile je betroffenem Satz):\n\n"
         f"{sql_block}"
-        f"**Unser Vorschlag zur Behandlung:** {r['vorschlag']}{regel}\n\n"
+        # `vorschlag` ist ohne Einleitung gespeichert, damit § 3 des Qualitätsberichts sie nicht doppelt sagt.
+        f"**Unser Vorschlag zur Behandlung:** So machen wir es bis zur Antwort: {r['vorschlag']}{regel}\n\n"
         f"**Frage an die Fachabteilung:** {r['frage']}\n\n"
     )
     return (

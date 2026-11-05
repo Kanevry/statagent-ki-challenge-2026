@@ -95,6 +95,25 @@ _ZULAESSIG: dict[tuple[str, str], Any] = {
 #: Zählregel-Arten eines Auswertungs-Regelsatzes und die Parameter, die der Auswertungscode liest
 #: (``wert(regel, …)`` in sonderauswertung.py; dort gibt es keine eigene Liste). Nur was der Code kann.
 _AUSWERTUNG_PARAMETER: dict[str, frozenset[str]] = {"personentage": PERSONENTAGE_PARAMETER}
+#: Was eine Rolle über die Parameter einer neuen Auswertungsregel wissen muss (Kontext ``neue_regel_arten``);
+#: ohne diese Liste riet das Modell die Namen (Live-Probe Auftrag 3, 05.11.). Werte stehen hier keine.
+_AUSWERTUNG_PARAMETER_TEXT: dict[str, dict[str, str]] = {
+    "personentage": {
+        "monate": "Zahl: Monate bis einschließlich Berichtsmonat",
+        "qualifikationen": "Liste der Qualifikationscodes, z. B. ArbeiterDV",
+        "oenace": "ÖNACE-Abschnitt als Buchstabe",
+        "altcodes_als_abschnitt": "Liste alter ÖNACE-2003-Codes, die zu diesem Abschnitt zählen",
+        "mindesttage": "Zahl: kleinste Zahl von Tagen für die Liste",
+        "datenstand": "juengste_lieferung_je_tag",
+        "angehaltene_lieferungen": "ueberspringen oder verwenden",
+        "bereinigung_regelsatz": "Regelsatz, nach dem die Lieferungen bereinigt sind, z. B. v1",
+        "geburtsjahr_unplausibel": "Text für ein unplausibles Geburtsjahr",
+        "felder": "Liste der Spalten der Datei",
+        "datei": "Dateiname mit dem Platzhalter {berichtsmonat}",
+        "trennzeichen": "Trennzeichen der CSV",
+    }
+}
+assert all(set(t) == _AUSWERTUNG_PARAMETER[a] for a, t in _AUSWERTUNG_PARAMETER_TEXT.items())
 _V_REGELSATZ = re.compile(r"v\d+")
 #: Auswertungs-Regelsatz (z. B. ``ministerium``): eigene Regeln, keine Monatsläufe. Wie der CHECK in 140_vorschlag.sql.
 _AUSWERTUNG_REGELSATZ = re.compile(r"[a-z][a-z0-9_]{2,40}")
@@ -119,6 +138,9 @@ def _wert_pruefen(art: str, schluessel: str, alt: object, neu: object, regel: st
         raise VorschlagUngueltig(f"{regel}.{schluessel}: {neu!r} passt nicht zu {erlaubt.pattern}")
     if alt is not None and not _gleicher_typ(alt, neu):
         raise VorschlagUngueltig(f"{regel}.{schluessel}: Wert {neu!r} hat einen anderen Typ als bisher")
+
+
+_REGEL_TEXTE = frozenset({"beschreibung", "begruendung", "grundlage", "name"})
 
 
 def _parameter(liste: list[Parameter]) -> dict[str, Any]:
@@ -216,13 +238,38 @@ def _ohne_auswertungsfelder(aenderungen: list[dict[str, Any]]) -> list[dict[str,
     return ergebnis
 
 
-def _ohne_kennungen(*teile: object) -> None:
-    text = json.dumps(teile, ensure_ascii=False, default=str).lower()
-    for wort in sorted(GESPERRTE_SPALTEN):
-        if wort in text:
-            raise VorschlagUngueltig(
-                f"Der Vorschlag nennt „{wort}“; Einzeldaten gehören nicht in Vorschläge."
-            )
+#: Kennungsspalten (person_id, vvh_id) als ganzes Wort, Groß/Klein egal. Ohne „beispiele“ aus
+#: GESPERRTE_SPALTEN: eine Begründung „… mit Beispielen …“ nennt keine Einzeldaten.
+_KENNUNGSWORT = re.compile(
+    r"\b(" + "|".join(sorted(GESPERRTE_SPALTEN - {"beispiele"})) + r")\b", re.IGNORECASE
+)
+
+
+_TEXTFELDER = ("beschreibung", "begruendung")
+
+
+def _ohne_kennungen(aenderungen: list[dict[str, Any]], begruendung: str, rumpf: str | None) -> None:
+    """Code und Parameter nennen keine Kennungsspalte; Fließtext nennt keine konkrete Kennung mit Nummer.
+
+    Der Fließtext (Begründung, Beschreibung einer neuen Regel) darf den Feldnamen nennen, den ein Auftrag verlangt
+    („Felder PERSON_ID, GESCHLECHT …“ in Auftrag 3, Live-Probe 05.11.), aber keine Kennung wie „PERSON_ID 1001049“.
+    """
+    texte: list[object] = [begruendung]
+    ohne_texte: list[dict[str, Any]] = []
+    for a in aenderungen:
+        regel = a.get("regel")
+        if isinstance(regel, dict):
+            texte += [regel.get(k) for k in _TEXTFELDER]
+            a = {**a, "regel": {k: w for k, w in regel.items() if k not in _TEXTFELDER}}
+        ohne_texte.append(a)
+    if treffer := _KENNUNGSWORT.search(json.dumps([ohne_texte, rumpf], ensure_ascii=False, default=str)):
+        raise VorschlagUngueltig(
+            f"Der Vorschlag nennt „{treffer.group(1).lower()}“; Einzeldaten gehören nicht in Vorschläge."
+        )
+    if _KENNUNG_IN_ANWEISUNG.search(json.dumps(texte, ensure_ascii=False, default=str)):
+        raise VorschlagUngueltig(
+            "Der Vorschlag nennt eine konkrete Kennung; Einzeldaten gehören nicht in Vorschläge."
+        )
 
 
 #: Konkrete Kennung in einer Anweisung: Kennungswort, optional ``_ID``/``-ID``/``Nr.``, optional ``:``/``=``/``#``,
@@ -292,7 +339,11 @@ def vorschlag_pruefen(
             if r["typ"] not in rolle.regeltypen:
                 raise VorschlagUngueltig(f"Die Rolle {rolle.name} darf {r['typ']}-Regeln nicht ändern")
             alt = dict(r["parameter"])
-            neu_teil = _parameter(a.parameter_neu)
+            # Das Modell legt seinen Erklärtext manchmal als Parameter `beschreibung` ab (Live-Probe Auftrag 2,
+            # 05.11.); Text der Regel ist kein Parameter und ändert keine Zahl, also verwerfen statt ablehnen.
+            neu_teil = {
+                k: w for k, w in _parameter(a.parameter_neu).items() if k in alt or k not in _REGEL_TEXTE
+            }
             for k, w in neu_teil.items():
                 if k not in alt:
                     raise VorschlagUngueltig(f"{a.regel_name}: Parameter {k!r} kennt die Regel nicht")
@@ -400,6 +451,9 @@ def kontext_bauen(
     if regelsatz_basis != "v2" and regelsatz_vorhanden(conn, "v2"):
         kontext["regeln_v2"] = regeln_lesen(conn, "v2")
     kontext["klassifikation"] = klassifikation_lesen(conn, "qualifikation")
+    kontext["neue_regel_arten"] = {
+        art: {"typ": "zaehl", "parameter_pflicht": text} for art, text in _AUSWERTUNG_PARAMETER_TEXT.items()
+    }
     kontext["schema"] = schema_lesen(conn)
     kontext["laeufe"] = sql_lesen(
         conn,

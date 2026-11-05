@@ -146,6 +146,8 @@ def test_ganzes_monat_statt_stichtag_zaehlt_mindestens_so_viele(agent_conn: Verb
                             {"schluessel": "zeitraum_art", "wert": "Monat"},
                             {"schluessel": "von", "wert": "monatserster"},
                             {"schluessel": "bis", "wert": "monatsletzter"},
+                            # so geschah es live mit Azure: Erklärtext als Parameter; darf den Vorschlag nicht kippen
+                            {"schluessel": "beschreibung", "wert": "Bestand im ganzen Monat"},
                         ],
                     }
                 ],
@@ -155,7 +157,9 @@ def test_ganzes_monat_statt_stichtag_zaehlt_mindestens_so_viele(agent_conn: Verb
     )
     ergebnis = agent_ausfuehren(agent_conn, STICHTAG_MONAT, complete=modell, probe_lieferung="2024-08")
     assert ergebnis.vorschlag_id is not None
-    probe = vorschlag_lesen(agent_conn, ergebnis.vorschlag_id).probe["2024-08"]
+    v = vorschlag_lesen(agent_conn, ergebnis.vorschlag_id)
+    assert "beschreibung" not in v.aenderungen[0]["parameter_neu"]
+    probe = v.probe["2024-08"]
     assert probe["nachher"]["zeitraum_art"] == "Monat"
     assert probe["nachher"]["gesamt"] >= probe["vorher"]["gesamt"]
 
@@ -232,6 +236,26 @@ def test_beamte_ausschliessen_ohne_passende_regelart_wird_begruendet_abgelehnt(
     assert ergebnis.abgelehnt is not None and "ausschluss" in ergebnis.abgelehnt
     assert "Entwicklungsauftrag" in ergebnis.abgelehnt
     assert _anzahl(agent_conn, "SELECT count(*) AS n FROM meta.vorschlag") == 0
+
+
+@pytest.mark.parametrize(
+    ("begruendung", "angenommen"),
+    [
+        ("Änderungsauftrag 1, erklärt mit Beispielen aus dem Qualitätsbericht.", True),
+        ("Änderungsauftrag 3 verlangt die Felder PERSON_ID, GESCHLECHT, GEBURTSJAHR und TAGE.", True),
+        ("Änderungsauftrag 1, geprüft an PERSON_ID 1001049.", False),
+        ("Änderungsauftrag 1, geprüft an vvh_id: 859975.", False),
+    ],
+)
+def test_begruendung_sperrt_nur_kennungen(agent_conn: Verbindung, begruendung: str, angenommen: bool) -> None:
+    # Fängt: die Kennungsprüfung schlug auf das Teilwort „beispiele“ an und wies „mit Beispielen“ ab, sie wies den
+    # Feldnamen ab, den Auftrag 3 verlangt (Live-Probe 05.11.), oder sie übersieht eine konkrete Kennung im Text.
+    modell = fake_dv_fd()
+    modell.antworten["agent.klassifikation"]["begruendung"] = begruendung
+    ergebnis = agent_ausfuehren(agent_conn, DV_FD, complete=modell)
+    assert (ergebnis.vorschlag_id is not None) is angenommen
+    if not angenommen:
+        assert ergebnis.abgelehnt is not None and "Kennung" in ergebnis.abgelehnt
 
 
 @pytest.mark.parametrize(
