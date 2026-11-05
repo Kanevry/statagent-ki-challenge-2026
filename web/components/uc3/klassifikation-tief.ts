@@ -364,12 +364,12 @@ function sucheRoh(sql: Sql, art: Art, fassung: string, suche: string) {
     FROM stat.klass_region k
     WHERE ((k.version = ${fassung} AND k.ebene IN ('bezirk', 'gemeinde')) OR (k.ebene = 'bundesland' AND k.code <> '0'))
       AND (k.code LIKE ${`${roh}%`}
-        OR (${mitNamen}::boolean AND regexp_replace(k.bezeichnung, '\s', '', 'g') ILIKE ${`%${dicht}%`}))
+        OR (${mitNamen}::boolean AND regexp_replace(k.bezeichnung, '[[:space:]]', '', 'g') ILIKE ${`%${dicht}%`}))
     ORDER BY
       CASE
         WHEN k.code = ${suche} THEN 0
         WHEN k.code LIKE ${`${roh}%`} THEN 1
-        WHEN regexp_replace(k.bezeichnung, '\s', '', 'g') ILIKE ${`${dicht}%`} THEN 2
+        WHEN regexp_replace(k.bezeichnung, '[[:space:]]', '', 'g') ILIKE ${`${dicht}%`} THEN 2
         ELSE 3
       END,
       k.code COLLATE "C"
