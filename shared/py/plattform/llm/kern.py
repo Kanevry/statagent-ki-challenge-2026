@@ -11,19 +11,21 @@ from typing import Any, Literal, overload
 import jsonschema
 from pydantic import BaseModel, ValidationError
 
-from plattform.protokoll import Modellaufruf, modellaufruf
+from plattform.protokoll import Modellaufruf, modellaufruf, protokoll_datei
 
 from . import zwecke
 from .azure import AUFWAND, AzureProvider
 from .basis import (
     ROLLEN,
     Antwort,
+    KonfigFehler,
     LlmFehler,
     Nachricht,
     Provider,
     ProviderFehler,
     Rohantwort,
     SchemaFehler,
+    SchluesselFehlt,
     VoruebergehenderFehler,
 )
 from .claude import ClaudeProvider
@@ -76,27 +78,46 @@ def _json_schema(schema: Schema) -> dict[str, Any] | None:
     return schema.model_json_schema()
 
 
+class _Verstoss(ValueError):
+    """Schema-Verstoß: ``str()`` ist der Hinweis ans Modell (darf Werte nennen), ``kennung`` nur Regel/Ort."""
+
+    def __init__(self, meldung: str, kennung: str) -> None:
+        super().__init__(meldung)
+        self.kennung = kennung
+
+
 def _validiere(roh: Rohantwort, schema: Schema) -> dict[str, Any]:
-    """Validiertes dict oder ``ValueError`` mit kurzer Begründung (geht als Hinweis zurück ans Modell)."""
+    """Validiertes dict oder ``_Verstoss`` mit kurzer Begründung (geht als Hinweis zurück ans Modell)."""
     daten = roh.json
     if daten is None:
         try:
             daten = json.loads(roh.text)
         except json.JSONDecodeError as fehler:
-            raise ValueError(f"Antwort ist kein gültiges JSON ({fehler.msg})") from fehler
+            raise _Verstoss(f"Antwort ist kein gültiges JSON ({fehler.msg})", "json $") from fehler
     if isinstance(schema, dict):
         try:
             jsonschema.validate(daten, schema)
         except jsonschema.ValidationError as fehler:
-            raise ValueError(f"Schema verletzt: {fehler.message}") from fehler
+            raise _Verstoss(
+                f"Schema verletzt: {fehler.message}", f"{fehler.validator} {fehler.json_path}"
+            ) from fehler
         if not isinstance(daten, dict):
-            raise ValueError("Antwort muss ein JSON-Objekt sein")
+            raise _Verstoss("Antwort muss ein JSON-Objekt sein", "type $")
         return daten
     assert schema is not None
     try:
         return schema.model_validate(daten).model_dump(mode="json")
     except ValidationError as fehler:
-        raise ValueError(f"Schema verletzt: {fehler.errors()[0]['msg']}") from fehler
+        erster = fehler.errors()[0]
+        ort = "$" + "".join(f".{teil}" for teil in erster["loc"])
+        raise _Verstoss(f"Schema verletzt: {erster['msg']}", f"{erster['type']} {ort}") from fehler
+
+
+def _kennung(fehler: BaseException) -> str:
+    """Fehler fürs Protokoll: nur Typ und, bei Schemafehlern, Regel und Ort. Nie der Meldungstext,
+    denn der kann Teile der Modellantwort enthalten."""
+    kennung = getattr(fehler, "kennung", "")
+    return f"{type(fehler).__name__}: {kennung}" if kennung else type(fehler).__name__
 
 
 def _summe(a: int | None, b: int | None) -> int | None:
@@ -149,7 +170,7 @@ def _ein_provider(
         return roh, None
     try:
         return roh, _validiere(roh, schema)
-    except ValueError as erster_fehler:
+    except _Verstoss as erster_fehler:
         hinweis = {
             "role": "user",
             "content": (
@@ -164,8 +185,15 @@ def _ein_provider(
         zweiter.tokens_out = _summe(roh.tokens_out, zweiter.tokens_out)
         try:
             return zweiter, _validiere(zweiter, schema)
-        except ValueError as fehler:
-            raise SchemaFehler(f"{instanz.name}: {fehler} (nach einer Wiederholung)") from fehler
+        except _Verstoss as fehler:
+            raise SchemaFehler(
+                f"{instanz.name}: {fehler} (nach einer Wiederholung)", fehler.kennung
+            ) from fehler
+
+
+def _modell_fuer(instanz: Provider, stufe: int, modell: str | None, groesse: str) -> str:
+    """Ein explizites ``modell`` gilt nur für Stufe 1; Fallback-Stufen nehmen ihr Standardmodell."""
+    return modell if (modell and stufe == 1) else instanz.standard_modell(groesse)
 
 
 def ausfuehren(
@@ -187,9 +215,16 @@ def ausfuehren(
     gewaehlt = modell or ""
     for stufe, name in enumerate(kette, start=1):
         instanz = provider_instanz(name)
-        gewaehlt = modell or instanz.standard_modell(groesse)
+        gewaehlt = _modell_fuer(instanz, stufe, modell, groesse)
         try:
-            roh, daten = _ein_provider(instanz, nachrichten, schema, gewaehlt, aufwand, zweck)
+            try:
+                roh, daten = _ein_provider(instanz, nachrichten, schema, gewaehlt, aufwand, zweck)
+            except SchluesselFehlt as fehler:
+                if stufe == 1:
+                    raise KonfigFehler(
+                        f"{fehler}: der gewählte Provider braucht seinen Schlüssel"
+                    ) from fehler
+                raise
         except VoruebergehenderFehler as fehler:
             letzter = fehler
             continue
@@ -205,7 +240,7 @@ def ausfuehren(
                 tokens_out=None,
                 stufe=stufe,
                 aufwand=aufwand,
-                fehler=f"{type(fehler).__name__}: {fehler}",
+                fehler=_kennung(fehler),
             )
             raise
         dauer_ms = 0 if instanz.deterministisch else round((time.perf_counter() - start) * 1000)
@@ -247,7 +282,7 @@ def ausfuehren(
         tokens_out=None,
         stufe=len(kette),
         aufwand=aufwand,
-        fehler=f"ProviderFehler: {meldung}",
+        fehler=f"ProviderFehler: {' → '.join(kette)}",
     )
     raise ProviderFehler(meldung) from letzter
 
@@ -263,11 +298,18 @@ def _strom(
     letzter: Exception | None = None
     for stufe, name in enumerate(kette, start=1):
         instanz = provider_instanz(name)
-        gewaehlt = modell or instanz.standard_modell(groesse)
+        gewaehlt = _modell_fuer(instanz, stufe, modell, groesse)
         fehler_text: str | None = None
         try:
-            strom = instanz.strom(nachrichten, modell=gewaehlt, aufwand=aufwand, zweck=zweck)
-            erster = next(strom.teile, None)
+            try:
+                strom = instanz.strom(nachrichten, modell=gewaehlt, aufwand=aufwand, zweck=zweck)
+                erster = next(strom.teile, None)
+            except SchluesselFehlt as fehler:
+                if stufe == 1:
+                    raise KonfigFehler(
+                        f"{fehler}: der gewählte Provider braucht seinen Schlüssel"
+                    ) from fehler
+                raise
         except VoruebergehenderFehler as fehler:
             letzter = fehler
             continue
@@ -283,7 +325,7 @@ def _strom(
                 tokens_out=None,
                 stufe=stufe,
                 aufwand=aufwand,
-                fehler=f"{type(fehler).__name__}: {fehler}",
+                fehler=_kennung(fehler),
             )
             raise
         try:
@@ -291,7 +333,7 @@ def _strom(
                 yield erster
             yield from strom.teile
         except Exception as fehler:
-            fehler_text = f"{type(fehler).__name__}: {fehler}"
+            fehler_text = _kennung(fehler)
             raise
         finally:
             dauer_ms = 0 if instanz.deterministisch else round((time.perf_counter() - start) * 1000)
@@ -321,7 +363,7 @@ def _strom(
         tokens_out=None,
         stufe=len(kette),
         aufwand=aufwand,
-        fehler=f"ProviderFehler: {meldung}",
+        fehler=f"ProviderFehler: {' → '.join(kette)}",
     )
     raise ProviderFehler(meldung) from letzter
 
@@ -374,15 +416,41 @@ def complete(
     return ausfuehren(nachrichten, kette=kette, schema=schema, zweck=zweck, modell=modell, aufwand=aufwand)
 
 
+def letzter_erfolg(max_zeilen: int = 500) -> dict[str, Any] | None:
+    """Letzte Protokollzeile ohne Fehler (wer zuletzt tatsächlich geantwortet hat), sonst ``None``."""
+    datei = protokoll_datei()
+    if not datei.is_file():
+        return None
+    zeilen = datei.read_text(encoding="utf-8").splitlines()[-max_zeilen:]
+    for zeile in reversed(zeilen):
+        try:
+            eintrag = json.loads(zeile)
+        except json.JSONDecodeError:
+            continue
+        if not eintrag.get("fehler"):
+            return {
+                k: eintrag.get(k)
+                for k in ("provider", "modell", "version", "fallback_stufe", "zweck", "zeit")
+            }
+    return None
+
+
 def aktives_modell(zweck: str = "") -> dict[str, Any]:
-    """Provider, Modell, zuletzt gesehene Version und Quelle der Wahl (``argument|env|zweck``)."""
-    name, quelle = zwecke.waehle(zweck, None)
+    """Gewählter Provider (erste Stufe der Kette), Modell, Version, Quelle der Wahl und ``zuletzt``:
+    wer laut Protokoll zuletzt tatsächlich geantwortet hat, mit Fallback-Stufe."""
+    kette_, quelle = zwecke.kette(zweck, None)
+    name = kette_[0]
     if name not in FABRIKEN:
         raise LlmFehler(f"unbekannter Provider {name!r}")
     instanz = provider_instanz(name)
+    zuletzt = letzter_erfolg()
+    version = _LETZTE_VERSION.get(name)
+    if version is None and zuletzt and zuletzt.get("provider") == name:
+        version = zuletzt.get("version")
     return {
         "provider": name,
         "modell": instanz.standard_modell(zwecke.zweck(zweck).groesse),
-        "version": _LETZTE_VERSION.get(name),
+        "version": version,
         "quelle": quelle,
+        "zuletzt": zuletzt,
     }

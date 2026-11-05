@@ -14,7 +14,7 @@ import httpx
 import openai
 from openai.types.chat import ChatCompletionChunk
 
-from .basis import Nachricht, Provider, Rohantwort, Strom, VoruebergehenderFehler
+from .basis import Nachricht, Provider, Rohantwort, SchluesselFehlt, Strom, VoruebergehenderFehler
 
 ZEITLIMIT_S = 60.0
 
@@ -48,7 +48,7 @@ class OpenAiKompatibel(Provider):
             return "nicht-noetig"
         wert = os.environ.get(self.schluessel_var, "")
         if not wert:
-            raise VoruebergehenderFehler(f"{self.name}: {self.schluessel_var} nicht belegt")
+            raise SchluesselFehlt(f"{self.name}: {self.schluessel_var} nicht belegt")
         return wert
 
     def zusatz(self, aufwand: str | None) -> dict[str, Any]:
@@ -123,15 +123,21 @@ class OpenAiKompatibel(Provider):
         ergebnis = Strom(teile=iter(()), modell=modell)
 
         def teile() -> Iterator[str]:
-            for stueck in cast("Iterator[ChatCompletionChunk]", roh):
-                if stueck.model:
-                    ergebnis.version = stueck.model
-                if stueck.usage:
-                    ergebnis.tokens_in = stueck.usage.prompt_tokens
-                    ergebnis.tokens_out = stueck.usage.completion_tokens
-                for wahl in stueck.choices:
-                    if wahl.delta and wahl.delta.content:
-                        yield wahl.delta.content
+            try:
+                for stueck in cast("Iterator[ChatCompletionChunk]", roh):
+                    if stueck.model:
+                        ergebnis.version = stueck.model
+                    if stueck.usage:
+                        ergebnis.tokens_in = stueck.usage.prompt_tokens
+                        ergebnis.tokens_out = stueck.usage.completion_tokens
+                    for wahl in stueck.choices:
+                        if wahl.delta and wahl.delta.content:
+                            yield wahl.delta.content
+            except (openai.APIError, httpx.HTTPError) as fehler:
+                # Abriss beim Lesen: vor dem ersten Teil übernimmt die nächste Stufe, danach Abbruch.
+                raise VoruebergehenderFehler(
+                    f"{self.name}: Strom abgebrochen ({type(fehler).__name__})"
+                ) from fehler
 
         ergebnis.teile = teile()
         return ergebnis

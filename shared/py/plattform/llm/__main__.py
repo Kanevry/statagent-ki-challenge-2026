@@ -38,6 +38,10 @@ def _belegt(provider: str) -> str | None:
     return None
 
 
+#: Zeitgrenzen laut Akzeptanz #54: azure und mistral unter 30 s, claude unter 60 s.
+ZEITGRENZE_MS = {"azure": 30_000, "mistral": 30_000, "claude": 60_000}
+
+
 def _repo_wurzel() -> Path:
     wurzel = Path.cwd().resolve()
     for ordner in (wurzel, *wurzel.parents):
@@ -63,13 +67,20 @@ def _smoke(provider: list[str], datei: Path) -> int:
                 {"provider": name, "modell": "-", "version": "-", "dauer": dauer, "ergebnis": meldung}
             )
             continue
+        grenze_ms = ZEITGRENZE_MS.get(name, 30_000)
+        if not antwort.text.strip():
+            ergebnis = "fehler: leere Antwort"
+        elif antwort.dauer_ms > grenze_ms:
+            ergebnis = f"zu langsam: {antwort.dauer_ms / 1000:.1f} s über {grenze_ms // 1000} s"
+        else:
+            ergebnis = f"ok ({antwort.text.strip()[:20]!r})"
         zeilen.append(
             {
                 "provider": name,
                 "modell": antwort.modell,
                 "version": antwort.version or "-",
                 "dauer": f"{antwort.dauer_ms / 1000:.1f} s",
-                "ergebnis": f"ok ({antwort.text.strip()[:20]!r})",
+                "ergebnis": ergebnis,
             }
         )
     zeit = datetime.now(ZoneInfo("Europe/Vienna")).isoformat(timespec="seconds")

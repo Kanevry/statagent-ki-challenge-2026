@@ -17,12 +17,15 @@ Zahlen rechnet nie ein Modell, sondern der Code ohne Sprachmodell. An das Modell
 
 - Vorrang: Argument `provider` > Umgebung `LLM_PROVIDER` > Vorzug des Zwecks in `shared/py/plattform/zwecke.toml`.
   `LLM_PROVIDER=mock` stellt alles auf mock.
-- Fallback-Kette je Zweck (Standard azure → mistral → ollama) bei Netz-, 5xx- und Timeout-Fehlern sowie bei
-  fehlendem Schlüssel. Die Stufe steht als `fallback_stufe` (1 = erster Provider) in Antwort und Protokoll.
+- Fallback-Kette je Zweck (Standard azure → mistral → ollama) bei Netz-, 5xx-, Timeout-Fehlern und HTTP 429
+  (gedrosselter Endpunkt), außerdem wenn der Schlüssel einer späteren Stufe fehlt. Fehlt der Schlüssel des
+  gewählten Providers (Stufe 1), ist das ein `KonfigFehler`, kein stiller Wechsel. Ein explizites `modell` gilt
+  nur für Stufe 1. Die Stufe steht als `fallback_stufe` (1 = erster Provider) in Antwort und Protokoll;
+  `aktives_modell()["zuletzt"]` nennt, wer laut Protokoll zuletzt tatsächlich geantwortet hat.
 - UC3-Zwecke (`qs.einstufung`, `agent.koordinator`, `frage.sql`) erlauben claude nicht.
 - Jeder Aufruf schreibt genau eine Protokollzeile (`var/protokoll/modellaufrufe.jsonl` oder
   `PLATTFORM_PROTOKOLL`): Provider, Modell, Version, Zweck, Prompt-Hash, Dauer, Tokens, Fallback-Stufe,
-  Aufwand, Fehler. Nie den Inhalt.
+  Aufwand, Fehler. Nie den Inhalt; bei Fehlern nur Typ und (Schema) Prüfregel mit Ort.
 
 ## Prüfen
 

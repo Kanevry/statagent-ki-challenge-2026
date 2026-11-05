@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
 import tempfile
 from collections.abc import Callable
@@ -25,9 +26,23 @@ Runner = Callable[[list[str], str, str, int], "subprocess.CompletedProcess[str]"
 def _subprozess(
     argv: list[str], eingabe: str, cwd: str, zeitlimit_s: int
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        argv, input=eingabe, cwd=cwd, timeout=zeitlimit_s, capture_output=True, text=True, check=False
-    )
+    # Eigene Prozessgruppe: bei Timeout endet auch jeder Kindprozess von claude, nicht nur der Kopf.
+    with subprocess.Popen(
+        argv,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=cwd,
+        text=True,
+        start_new_session=True,
+    ) as prozess:
+        try:
+            ausgabe, fehler = prozess.communicate(eingabe, timeout=zeitlimit_s)
+        except subprocess.TimeoutExpired:
+            os.killpg(prozess.pid, signal.SIGKILL)
+            prozess.communicate()
+            raise
+    return subprocess.CompletedProcess(argv, prozess.returncode, ausgabe, fehler)
 
 
 def flache_nachrichten(nachrichten: list[Nachricht]) -> str:

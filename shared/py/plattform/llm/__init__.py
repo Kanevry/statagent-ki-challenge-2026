@@ -10,6 +10,8 @@ from .basis import (
     LlmFehler,
     ProviderFehler,
     SchemaFehler,
+    SchluesselFehlt,
+    VoruebergehenderFehler,
     ZweckFehler,
 )
 from .kern import aktives_modell, complete, prompt_hash
@@ -21,6 +23,8 @@ __all__ = [
     "LlmFehler",
     "ProviderFehler",
     "SchemaFehler",
+    "SchluesselFehlt",
+    "VoruebergehenderFehler",
     "ZweckFehler",
     "aktives_modell",
     "complete",

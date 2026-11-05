@@ -19,7 +19,15 @@ class ProviderFehler(LlmFehler):
 
 
 class SchemaFehler(LlmFehler):
-    """Die Antwort hat das Schema auch nach genau einer Wiederholung verfehlt."""
+    """Die Antwort hat das Schema auch nach genau einer Wiederholung verfehlt.
+
+    ``kennung`` nennt nur Prüfregel und Ort (z. B. ``type $.stufe``), nie den Antwortwert: nur sie geht ins
+    Protokoll. Die volle Meldung bleibt beim Aufrufer.
+    """
+
+    def __init__(self, meldung: str, kennung: str = "") -> None:
+        super().__init__(meldung)
+        self.kennung = kennung
 
 
 class ZweckFehler(LlmFehler):
@@ -35,7 +43,11 @@ class FixtureFehlt(LlmFehler):
 
 
 class VoruebergehenderFehler(LlmFehler):
-    """Netz, 5xx, Timeout oder fehlender Schlüssel: die nächste Stufe der Kette darf übernehmen."""
+    """Netz, 5xx, 429 oder Timeout: die nächste Stufe der Kette darf übernehmen."""
+
+
+class SchluesselFehlt(VoruebergehenderFehler):
+    """Schlüssel fehlt: auf Stufe 1 ein ``KonfigFehler`` (kein stiller Wechsel), später übersprungen."""
 
 
 @dataclass(frozen=True, slots=True)
