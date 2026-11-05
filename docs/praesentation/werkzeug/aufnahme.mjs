@@ -22,7 +22,7 @@ const SCREENS = process.env.SCREENS ? resolve(process.env.SCREENS) : resolve(dir
 const ALLE_ZIELE = [
   { bild: "SC01", route: "/uc3" },
   { bild: "SC02", route: "/uc3/berichte/regeln", scroll: '[data-regel="R6_beschaeftigungskategorie"]' },
-  { bild: "SC03", route: "/uc4" },
+  { bild: "SC03", route: "/uc4", nichtMehr: "wird geprüft" },
   { bild: "SC04", route: "/uc3/berichte/2024-08" },
   { bild: "SC05", route: "/uc3/klassifikationen" },
   { bild: "SC06", route: "/uc3/berichte/2025-03" },
@@ -81,6 +81,10 @@ for (const a of auftraege) {
       { timeout: 120000, polling: 500 },
       a.soll,
     );
+  }
+  if (a.nichtMehr) {
+    // Zwischenstand beim Laden, zum Beispiel die Modell-Anzeige im Kopf: Bleibt er stehen, bricht die Aufnahme ab.
+    await page.waitForFunction((text) => !document.body.innerText.includes(text), { timeout: 20000, polling: 500 }, a.nichtMehr);
   }
   const fehler = await page.evaluate(() => document.body.innerText.includes("Die Zahlen ließen sich gerade nicht lesen"));
   if (fehler) throw new Error(a.bild + ": Fehlerseite auf " + route + " (Zahlen nicht lesbar), Abbruch");
