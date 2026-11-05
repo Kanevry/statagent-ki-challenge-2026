@@ -3,13 +3,14 @@ import Link from "next/link";
 import { Akzent, Fliesstext, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
 import { formatDifferenz, formatZahl, formatZeit, HerkunftChip } from "@kic/ui/bausteine";
 import { leerSatz } from "@/components/uc3/db";
-import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import {
   aenderungKurz,
   gesamtZeile,
   klartext,
   leseFreigaben,
   rollenName,
+  probeTitel,
   waage,
   waageBeleg,
   waageSatz,
@@ -17,7 +18,7 @@ import {
   type Freigaben,
   type Waage,
 } from "@/components/uc3/freigabe";
-import { istMonat, monatName } from "@/components/uc3/monat";
+import { alltag } from "@/components/uc3/sprache";
 
 // Freigaben (Frames qVTQj, PPe1S, uJbeL): Reiter „Wartet auf Sie“ (offene Vorschläge der Agenten) und „Erledigt“
 // (Protokoll in Worten). Liest die UC3-Datenbank direkt; ohne Datenbank Leerzustand mit HTTP 200.
@@ -87,13 +88,11 @@ export default async function FreigabenSeite({
           Die Agenten schlagen Änderungen nur vor. Gerechnet wird damit erst, wenn ein Mensch sie mit Vor- und
           Nachnamen freigibt.
         </Fliesstext>
-        <ul className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5" aria-label="Begriffe auf dieser Seite">
-          {(["Freigabe", "Regelsatz", "Probe", "Regelstand", "Ergebnis-Hash"] as const).map((wort) => (
-            <li key={wort} className="font-sans text-14 font-semibold text-ink">
-              <Fachbegriff wort={wort} />
-            </li>
-          ))}
-        </ul>
+        <Begriffsliste
+          worte={["Freigabe", "Regelsatz", "Probe", "Regelstand", "Ergebnis-Hash"]}
+          label="Begriffe auf dieser Seite"
+          className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5"
+        />
       </header>
 
       <div className="flex max-w-3xl flex-col gap-6">
@@ -112,7 +111,7 @@ function Wartet({ daten }: { daten: Freigaben }) {
     <ul className="flex flex-col" aria-label="Offene Vorschläge">
       {daten.offen.map((v) => {
         const w = waage(v.probe, daten.bezeichnungen);
-        const satz = w ? waageSatz(w) : (klartext(v).worte[0] ?? aenderungKurz(v));
+        const satz = w ? `${probeTitel(w.lieferung)}. ${waageSatz(w)}` : (klartext(v).worte[0] ?? aenderungKurz(v));
         return (
           <li key={v.id} className="flex flex-col gap-3 border-t border-line py-6 first:border-t-0 first:pt-0">
             <blockquote className="border-l-2 border-line pl-4">
@@ -156,11 +155,10 @@ function Erledigt({ zeilen }: { zeilen: ErledigtZeile[] }) {
         const teile = [
           formatZeit(z.zeit),
           `${z.art === "freigegeben" ? "Freigegeben" : "Abgelehnt"} von ${z.name}`,
-          ...(z.anweisung ? [`Anweisung ‚${z.anweisung}‘`] : []),
-          ...(z.geaendert ? [`Geändert: ${z.geaendert}`] : []),
+          ...(z.anweisung ? [`Anweisung ‚${alltag(z.anweisung)}‘`] : []),
+          ...(z.geaendert ? [`Geändert: ${alltag(z.geaendert)}`] : []),
         ];
         const w = z.waage;
-        const monat = w && istMonat(w.lieferung) ? monatName(w.lieferung) : w?.lieferung;
         return (
           <li key={z.schluessel} className="flex flex-col gap-2 border-t border-line py-4 first:border-t-0 first:pt-0">
             <Status art={z.art === "freigegeben" ? "ok" : "info"}>
@@ -168,16 +166,16 @@ function Erledigt({ zeilen }: { zeilen: ErledigtZeile[] }) {
             </Status>
             <Fliesstext className="break-words">
               {teile.join(" · ")}
-              {w && w.umverteilung && ` · ${waageSatz(w)}`}
+              {w && w.umverteilung && ` · ${probeTitel(w.lieferung)}: ${alltag(waageSatz(w))}`}
               {w && !w.umverteilung && (
                 <>
-                  {` · ${monat ? `${monat}: ` : ""}${w.haupt.bezeichnung} `}
+                  {` · ${probeTitel(w.lieferung)}: ${alltag(w.haupt.bezeichnung)} `}
                   <span className="font-mono tabular-nums">{`${formatZahl(w.haupt.vorher)} → ${formatZahl(w.haupt.nachher)}`}</span>
                 </>
               )}
             </Fliesstext>
             {z.art === "abgelehnt" && z.begruendung && (
-              <Fliesstext groesse={14}>{`Begründung: ${z.begruendung}`}</Fliesstext>
+              <Fliesstext groesse={14}>{`Begründung: ${alltag(z.begruendung)}`}</Fliesstext>
             )}
             {w && z.vorschlag && <HerkunftChip {...waageBeleg(z.vorschlag.id, w)} />}
             {w && z.vorschlag && <GesamtAenderung vorschlag={z.vorschlag.id} waage={w} />}

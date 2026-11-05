@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { annahmeSatz, befundSatz, einstufungAus, ersterSatz, rueckfrageBetrifft } from "./bericht";
+import { annahmeSatz, befundSatz, einstufungAus, ersterSatz, rueckfrageBetrifft, rueckfragenInAllenMonaten } from "./bericht";
 
 describe("einstufungAus", () => {
   // Fehler: ein Treffer ohne Einstufung ('' in meta.pruefung_treffer) erschiene grün oder gar nicht; der
@@ -21,6 +21,30 @@ describe("ersterSatz", () => {
       "Fachbeschreibung § 4 Nr. 1, 2, 4. 2024-08: 392.284 Sätze.",
     );
     expect(ersterSatz("Kommt eine Nachlieferung? Wenn nicht: was dann?")).toBe("Kommt eine Nachlieferung?");
+  });
+
+  // Fehler: Rückfrage R1 endete im Bericht mit „… mit dem 1.“, weil eine Ordinalzahl den Satz beendete.
+  it("schneidet nicht an Ordinalzahlen", () => {
+    expect(ersterSatz("Rechnen wir mit dem 1. Tag oder mit dem 15. Juli? Sonst nichts.")).toBe(
+      "Rechnen wir mit dem 1. Tag oder mit dem 15. Juli?",
+    );
+  });
+});
+
+describe("rueckfragenInAllenMonaten", () => {
+  // Fehler: Der Kopf nannte nur Rückfragen, auf die jeder Monat wartet. R8 hält nur März und Oktober 2025 offen,
+  // betrifft aber jeden Monat; R1 betrifft auch jeden Monat, hält aber nichts offen und gehört nicht in den Kopf.
+  it("nennt Rückfragen für alle Monate, die irgendwo etwas offen halten", () => {
+    const zeilen = [
+      { monat: { lieferung: "2024-08" }, wartet: [] },
+      { monat: { lieferung: "2025-03" }, wartet: ["R4", "R8"] },
+    ];
+    const offen = [
+      { nr: "R1", titel: "Geburtsmonat 13", lieferungen: "lieferung_2024-08 und alle weiteren" },
+      { nr: "R4", titel: "Freie Dienstverträge fehlen", lieferungen: "lieferung_2025-03" },
+      { nr: "R8", titel: "Kurze Zweitmeldungen", lieferungen: "alle ab lieferung_2024-08" },
+    ];
+    expect(rueckfragenInAllenMonaten(zeilen, offen).map((q) => q.nr)).toEqual(["R8"]);
   });
 });
 
@@ -53,5 +77,14 @@ describe("befundSatz", () => {
   it("füllt die Vorlage und lässt Unbekanntes stehen", () => {
     const t = { anzahl: 1980, umfang: null, beschreibung: "", regel: "P10", vorlage: "Im {monat} sind {anzahl} Merkmale leer {x}." };
     expect(befundSatz(t, "2025-10")).toBe("Im Oktober 2025 sind 1.980 Merkmale leer {x}.");
+  });
+});
+
+describe("ersterSatz nach Zahlen (Review !77, Punkt 7)", () => {
+  // Fehler: nach jeder Zahl mit Punkt endete kein Satz mehr („… Grenze 110. Die ILO …“ lief weiter).
+  it("endet nach einer Zahl, außer vor einem Monatsnamen", () => {
+    expect(ersterSatz("Die obere Grenze ist 110. Die ILO zählt anders.")).toBe("Die obere Grenze ist 110.");
+    expect(ersterSatz("Wir rechnen mit dem 1. Juli des Jahres. Danach mehr.")).toBe("Wir rechnen mit dem 1. Juli des Jahres.");
+    expect(ersterSatz("Gezählt wird ein Alter bis 110. Die ILO zählt anders.")).toBe("Gezählt wird ein Alter bis 110.");
   });
 });

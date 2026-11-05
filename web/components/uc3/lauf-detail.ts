@@ -29,6 +29,15 @@ export interface Treffer {
   belegSql: string | null;
   /** Offene Rückfragen (meta.rueckfrage ohne Antwort), auf die der Treffer verweist. */
   offeneRueckfragen?: string[];
+  /** meta.pruefung_treffer.details: Anteil, fehlende Gruppen, Rückfrage der Prüfung. */
+  details?: TrefferDetails | null;
+}
+
+/** Felder aus meta.pruefung_treffer.details, die die Seite liest; alles andere bleibt unbeachtet. */
+export interface TrefferDetails {
+  anteil?: number;
+  rueckfrage?: string;
+  auspraegungen?: { code: string; gliederung: string; aktuell: number; vormonat: number }[];
 }
 
 export interface Ursache {
@@ -85,6 +94,8 @@ export interface LaufDetail {
   revisionen: Revision[];
   regionen: Region[];
   determinismus: Determinismus;
+  /** Qualifikationen mit freiem Dienstvertrag (stat.klass_qualifikation), für „alle freien Dienstverträge“. */
+  fdCodes: string[];
 }
 
 function zahl(wert: unknown): number {
@@ -95,9 +106,9 @@ function zahl(wert: unknown): number {
 // ---------------------------------------------------------------------------------------------------------------
 // Sätze
 
-/** „1 Verhältnis“, „2 Verhältnisse“. */
+/** „1 Beschäftigungsverhältnis“, „2 Beschäftigungsverhältnisse“ (docs/sprache.md: nie „Verhältnis“ allein). */
 export function verhaeltnisse(n: number): string {
-  return `${formatZahl(n)} ${n === 1 ? "Verhältnis" : "Verhältnisse"}`;
+  return `${formatZahl(n)} ${n === 1 ? "Beschäftigungsverhältnis" : "Beschäftigungsverhältnisse"}`;
 }
 
 export function aufzaehlen(teile: readonly string[]): string {
@@ -128,7 +139,7 @@ export function einstufungStatus(
 /** Eigene Titel je Prüfregel (Nummer vor dem Unterstrich), falls meta.regel keine Satzvorlage trägt. */
 const TITEL: Record<string, string> = {
   P01: "Gleiche Zeilen kamen mehrfach vor.",
-  P02: "Ein Verhältnis hat am Stichtag mehrere Zeitabschnitte.",
+  P02: "Ein Beschäftigungsverhältnis hat am Stichtag mehrere Zeitabschnitte.",
   P03: "Beginn und Ende waren vertauscht.",
   P04: "Im Geburtsdatum steht der Monat 13.",
   P05: "Das Geburtsdatum fehlt oder ist ungültig.",
@@ -142,13 +153,13 @@ const TITEL: Record<string, string> = {
   P13: "Gruppen aus dem Vormonat fehlen ganz.",
   P14: "Gruppen haben sich stark gegenüber dem Vormonat verändert.",
   P15: "Der Bestand fällt stark gegenüber dem Vormonat.",
-  P16: "Verhältnisse des Vormonats fehlen in der Lieferung.",
+  P16: "Beschäftigungsverhältnisse des Vormonats fehlen in der Lieferung.",
   P17: "Die Lieferung hat deutlich mehr oder weniger Zeilen als die vorige.",
   P18: "Viele gleiche Codewechsel am selben Tag.",
-  P19: "Mögliche Doppelmeldung bei neuen Verhältnissen.",
+  P19: "Mögliche Doppelmeldung bei neuen Beschäftigungsverhältnissen.",
   P20: "Angaben einer Person passen nicht zusammen.",
   P21: "Teilsummen passen nicht zur Gesamtzahl.",
-  P22: "Die Abrechnung der Sätze geht nicht auf.",
+  P22: "Die Abrechnung der Zeilen geht nicht auf.",
   P23: "Frühere Monate wären mit dieser Lieferung anders.",
   P24: "Die Lieferung deckt die Vormonate nicht ganz ab.",
 };
@@ -163,6 +174,60 @@ export interface MassnahmeLage {
   rueckfrage: boolean;
   /** Text in Klammern nach „keine (…)“, z. B. die Saisonbranchen. */
   klammer: string | null;
+  /** Nummer der offenen Rückfrage, an der die Prüfung hängt (z. B. „R3“), sonst null. */
+  rueckfrageNr: string | null;
+  /** Fehlen im selben Monat ganze Gruppen (P13), wie viele davon und wie sie heißen. */
+  fehlendeGruppen: FehlendeGruppen | null;
+}
+
+/** Ganze Gruppen, die im Monat fehlen (P13), mit der Zahl aus dem Vormonat. */
+export interface FehlendeGruppen {
+  anzahl: number;
+  /** „alle freien Dienstverträge“, „die freien Dienstverträge (ArbeiterFD)“ oder „2 Gruppen (X, Y)“. */
+  wort: string;
+  /** Fehlen genau alle Qualifikationen mit freiem Dienstvertrag laut stat.klass_qualifikation? */
+  alleFreienDienstvertraege: boolean;
+  /** Fehlen nur Qualifikationen mit freiem Dienstvertrag (alle oder ein Teil)? */
+  nurFreieDienstvertraege: boolean;
+}
+
+/**
+ * Fehlende Gruppen aus einer P13-Prüfung des Monats; ohne P13 oder ohne Angaben null. `fdCodes` sind die Codes mit
+ * freier_dienstvertrag aus stat.klass_qualifikation: „alle“ steht nur, wenn genau diese fehlen (Review !77, Punkt 2).
+ */
+export function fehlendeGruppen(
+  treffer: readonly Pick<Treffer, "art" | "details">[],
+  fdCodes: readonly string[] = [],
+): FehlendeGruppen | null {
+  const p13 = treffer.find((t) => t.art === "auspraegung_verschwunden" && t.details?.auspraegungen?.length);
+  const liste = p13?.details?.auspraegungen ?? [];
+  if (liste.length === 0) return null;
+  const anzahl = liste.reduce((s, a) => s + (Number(a.vormonat) || 0), 0);
+  const fd = new Set(fdCodes);
+  const nurFd = fd.size > 0 && liste.every((a) => a.gliederung === "qualifikation" && fd.has(a.code));
+  const alleFd = nurFd && [...fd].every((code) => liste.some((a) => a.code === code));
+  const codes = liste.map((a) => a.code).join(", ");
+  return {
+    anzahl,
+    alleFreienDienstvertraege: alleFd,
+    nurFreieDienstvertraege: nurFd,
+    wort: alleFd
+      ? "alle freien Dienstverträge"
+      : nurFd
+        ? `die freien Dienstverträge (${codes})`
+        : `${formatZahl(liste.length)} ${liste.length === 1 ? "Gruppe" : "Gruppen"} (${codes})`,
+  };
+}
+
+/** Rückfrage einer Prüfung: aus details, sonst die erste offene; „neu“ und Ähnliches zählen nicht. */
+function rueckfrageAus(t: Pick<Treffer, "details" | "offeneRueckfragen">): string | null {
+  const kandidaten = [t.details?.rueckfrage, ...(t.offeneRueckfragen ?? [])];
+  return kandidaten.find((nr): nr is string => typeof nr === "string" && /^R\d+$/.test(nr)) ?? null;
+}
+
+/** Ein Haltesatz für jede anhaltende Prüfung: dieselbe Bedingung wie unter „So geht es weiter“. */
+function angehaltenBis(l: MassnahmeLage, sonst: string): string {
+  return l.rueckfrageNr ? `Der Monat ist angehalten, bis die Fachabteilung Rückfrage ${l.rueckfrageNr} beantwortet.` : sonst;
 }
 
 const FRAGT_NACH = "Die Fachabteilung soll das klären.";
@@ -175,22 +240,24 @@ const FRAGT_NACH = "Die Fachabteilung soll das klären.";
  * erklärt die Seite so die Regel, mit der gerechnet wurde, nicht eine alte Fassung (Review !51 Runde 2, Punkt 4).
  */
 const MASSNAHME: Record<string, (l: MassnahmeLage) => string> = {
-  P01: () => "Doppelte Zeilen sind zu einer zusammengefasst, jedes Verhältnis zählt einmal.",
+  P01: () => "Doppelte Zeilen sind zu einer zusammengefasst, jedes Beschäftigungsverhältnis zählt einmal.",
   P03: () => "Beginn und Ende sind für die ganze Lieferung zurückgetauscht.",
-  P13: () => "Der Monat ist angehalten, die Fachabteilung soll klären, warum die Gruppen fehlen.",
+  P13: (l) => angehaltenBis(l, "Der Monat ist angehalten, die Fachabteilung soll klären, warum die Gruppen fehlen."),
   P14: (l) =>
     l.einstufung === "nicht-erklaerbar"
       ? "Die Zahlen bleiben, wie sie geliefert sind. Die Fachabteilung soll die Veränderung erklären."
       : `Nichts zu tun, das ist die übliche Saison${l.klammer ? ` (${l.klammer.replace(/^Saison:\s*/, "")})` : ""}.`,
-  P15: () => "Der Monat ist angehalten, bis jemand die Lieferung geprüft hat.",
+  P15: (l) => angehaltenBis(l, "Der Monat ist angehalten, bis jemand die Lieferung geprüft hat."),
   P16: (l) =>
     l.anhalten
-      ? "Der Monat ist angehalten, bis die fehlenden Verhältnisse nachgeliefert sind."
-      : "Nichts zu tun, es sind Einzelfälle wie Stornos.",
-  P17: () => "Der Monat ist angehalten, bis jemand geprüft hat, ob die Lieferung vollständig ist.",
+      ? angehaltenBis(l, "Der Monat ist angehalten, bis die fehlenden Beschäftigungsverhältnisse nachgeliefert sind.")
+      : l.fehlendeGruppen
+        ? `${formatZahl(l.fehlendeGruppen.anzahl)} davon sind ${l.fehlendeGruppen.nurFreieDienstvertraege ? "die fehlenden freien Dienstverträge" : `die fehlenden ${l.fehlendeGruppen.wort}`}, die übrigen sind Einzelfälle wie Stornos.`
+        : "Nichts zu tun, es sind Einzelfälle wie Stornos.",
+  P17: (l) => angehaltenBis(l, "Der Monat ist angehalten, bis jemand geprüft hat, ob die Lieferung vollständig ist."),
   P18: () => "Sie zählen wie geliefert. Die Fachabteilung soll den Wechsel erklären.",
   P19: (l) =>
-    `Sie sind markiert und zählen mit, denn gezählt werden Verhältnisse, nicht Personen.${
+    `Sie sind markiert und zählen mit, denn gezählt werden Beschäftigungsverhältnisse, nicht Personen.${
       l.rueckfrage ? " Die Fachabteilung soll klären, ob es doppelte Meldungen sind." : ""
     }`,
   P23: (l) =>
@@ -223,7 +290,15 @@ export function rohAlsSatz(roh: string): string {
 
 /** „Was wir tun“ als ein Satz in Alltagssprache; ohne Rohtext `null`. */
 export function massnahmeSatz(
-  t: { name: string; massnahme: string | null; einstufung: Einstufung | null; anhalten: boolean },
+  t: {
+    name: string;
+    massnahme: string | null;
+    einstufung: Einstufung | null;
+    anhalten: boolean;
+    offeneRueckfragen?: string[];
+    details?: TrefferDetails | null;
+  },
+  kontext: { fehlendeGruppen?: FehlendeGruppen | null } = {},
 ): string | null {
   const roh = t.massnahme?.trim();
   if (!roh) return null;
@@ -234,6 +309,8 @@ export function massnahmeSatz(
     anhalten: t.anhalten,
     rueckfrage: /Rückfrage|an die Fachabteilung/.test(roh),
     klammer: /^keine \((.+)\)/.exec(roh)?.[1] ?? null,
+    rueckfrageNr: rueckfrageAus(t),
+    fehlendeGruppen: kontext.fehlendeGruppen ?? null,
   });
 }
 
@@ -287,22 +364,54 @@ export function haltTreffer(treffer: readonly Treffer[]): Treffer | null {
   return [...anhaltend].sort((a, b) => rang(a) - rang(b) || b.anzahl - a.anzahl)[0] ?? null;
 }
 
-/** Überschrift eines angehaltenen Monats: Grund mit Zahl. */
-export function haltSatz(t: Pick<Treffer, "art" | "anzahl" | "name" | "beschreibung" | "satz" | "umfang">, lieferung: string): string {
+const ORDINAL: Record<number, string> = { 2: "zweite", 3: "dritte", 4: "vierte", 5: "fünfte", 6: "sechste", 7: "siebte", 8: "achte", 9: "neunte", 10: "zehnte" };
+
+/** „jedes fünfte“ für einen Anteil nahe 1/n (n 2 bis 10), sonst „23 Prozent der“; ohne Anteil null. */
+export function anteilWort(anteil: number | undefined | null): string | null {
+  if (typeof anteil !== "number" || !(anteil > 0) || anteil >= 1) return null;
+  const n = Math.round(1 / anteil);
+  if (ORDINAL[n] && Math.abs(anteil * n - 1) < 0.05) return `jedes ${ORDINAL[n]}`;
+  return `${formatZahl(Math.round(anteil * 100))} Prozent der`;
+}
+
+/**
+ * Überschrift eines angehaltenen Monats: Grund mit Zahl und „das heißt“ (docs/sprache.md, Regel 3), dann ein eigener
+ * Satz „Deshalb ist der Monat angehalten.“
+ */
+export function haltSatz(
+  t: Pick<Treffer, "art" | "anzahl" | "name" | "beschreibung" | "satz" | "umfang"> & { details?: TrefferDetails | null },
+  lieferung: string,
+  fdCodes: readonly string[] = [],
+): string {
   const im = `Im ${monatName(lieferung)}`;
+  const vm = monatName(verschieben(lieferung, -1));
   const n = t.anzahl;
-  const deshalb = "deshalb ist der Monat angehalten.";
+  const deshalb = "Deshalb ist der Monat angehalten.";
   switch (t.art) {
-    case "verhaeltnisse_verschwunden":
-      return `${im} ${n === 1 ? "fehlt" : "fehlen"} ${verhaeltnisse(n)} des Vormonats, ${deshalb}`;
+    case "verhaeltnisse_verschwunden": {
+      const anteil = anteilWort(t.details?.anteil);
+      if (anteil?.startsWith("jedes")) {
+        return `${im} fehlt ${anteil} Beschäftigungsverhältnis aus dem ${vm}, zusammen ${formatZahl(n)}. ${deshalb}`;
+      }
+      if (anteil) return `${im} fehlen ${anteil} Beschäftigungsverhältnisse aus dem ${vm}, zusammen ${formatZahl(n)}. ${deshalb}`;
+      return `${im} ${n === 1 ? "fehlt" : "fehlen"} ${verhaeltnisse(n)} aus dem ${vm}. ${deshalb}`;
+    }
     case "bestand_vs_vormonat":
-      return `${im} wären es ${verhaeltnisse(n)} weniger als im Vormonat, ${deshalb}`;
-    case "auspraegung_verschwunden":
+      return `${im} wären es ${verhaeltnisse(n)} weniger als im ${vm}. ${deshalb}`;
+    case "auspraegung_verschwunden": {
+      const g = fehlendeGruppen([t], fdCodes);
+      if (g?.alleFreienDienstvertraege) return `${im} fehlen ${g.wort} (${vm}: ${formatZahl(g.anzahl)}). ${deshalb}`;
+      if (g?.nurFreieDienstvertraege) {
+        const codes = g.wort.replace(/^die freien Dienstverträge /, "");
+        return `${im} fehlen freie Dienstverträge, im ${vm} waren es ${formatZahl(g.anzahl)} ${codes}. ${deshalb}`;
+      }
+      if (g) return `${im} fehlen ${g.wort} ganz, die es im ${vm} noch gab. ${deshalb}`;
       return n === 1
-        ? `${im} fehlt eine Gruppe ganz, die es im Vormonat noch gab, ${deshalb}`
-        : `${im} fehlen ${formatZahl(n)} Gruppen ganz, die es im Vormonat noch gab, ${deshalb}`;
+        ? `${im} fehlt eine Gruppe ganz, die es im ${vm} noch gab. ${deshalb}`
+        : `${im} fehlen ${formatZahl(n)} Gruppen ganz, die es im ${vm} noch gab. ${deshalb}`;
+    }
     case "zeilenzahl_vs_vormonat":
-      return `${im} weicht die Lieferung um ${formatZahl(n)} ${n === 1 ? "Zeile" : "Zeilen"} von der vorigen ab, ${deshalb}`;
+      return `${im} weicht die Lieferung um ${formatZahl(n)} ${n === 1 ? "Zeile" : "Zeilen"} von der vorigen ab. ${deshalb}`;
     default:
       return `${im} hält die Prüfung „${trefferTitel(t, lieferung).replace(/\.$/, "")}“ den Monat an.`;
   }
@@ -318,9 +427,14 @@ export function bestandSatz(lauf: Pick<Lauf, "lieferung" | "gezaehlt">, vormonat
   return `${kopf}, ${formatZahl(Math.abs(d))} ${d > 0 ? "mehr" : "weniger"} als im ${vm}.`;
 }
 
-/** „425.151 gelesene Sätze = 387.180 gezählt + 36.308 nicht gezählt + 1.663 ausgeschlossen.“ (ohne Fortgeschriebene) */
+/** Gezählt aus der Lieferung selbst, ohne die aus dem Vormonat übernommenen (E07). */
+export function ausLieferung(lauf: Pick<Lauf, "gezaehlt" | "fortgeschrieben">): number {
+  return lauf.gezaehlt - lauf.fortgeschrieben;
+}
+
+/** „425.151 gelesene Zeilen = 387.180 gezählt + 36.308 nicht gezählt + 1.663 ausgeschlossen.“ (ohne Übernommene) */
 export function abrechnungSatz(lauf: Pick<Lauf, "gelesen" | "gezaehlt" | "fortgeschrieben" | "nichtGezaehlt" | "ausgeschlossen">): string {
-  return `${formatZahl(lauf.gelesen)} gelesene Sätze = ${formatZahl(lauf.gezaehlt - lauf.fortgeschrieben)} gezählt + ${formatZahl(lauf.nichtGezaehlt)} nicht gezählt + ${formatZahl(lauf.ausgeschlossen)} ausgeschlossen.`;
+  return `${formatZahl(lauf.gelesen)} gelesene Zeilen = ${formatZahl(ausLieferung(lauf))} gezählt + ${formatZahl(lauf.nichtGezaehlt)} nicht gezählt + ${formatZahl(lauf.ausgeschlossen)} ausgeschlossen.`;
 }
 
 export function determinismusSatz(d: Determinismus): string {
@@ -394,13 +508,25 @@ export function kannVeroeffentlichen(
 export function bleibtVorlaeufigSatz(wartetAuf: readonly string[]): string {
   if (wartetAuf.length === 0) return "Der Monat bleibt vorläufig, bis die offene Frage geklärt ist.";
   return wartetAuf.length === 1
-    ? `Der Monat bleibt vorläufig, bis die Rückfrage ${wartetAuf[0]} beantwortet ist.`
-    : `Der Monat bleibt vorläufig, bis die Rückfragen ${aufzaehlen(wartetAuf)} beantwortet sind.`;
+    ? `Der Monat bleibt vorläufig, bis die Fachabteilung Rückfrage ${wartetAuf[0]} beantwortet.`
+    : `Der Monat bleibt vorläufig, bis die Fachabteilung die Rückfragen ${aufzaehlen(wartetAuf)} beantwortet.`;
+}
+
+/**
+ * Der eine Weg weiter für einen angehaltenen oder fortgeschriebenen Monat: was wir übernehmen (E07) und worauf der
+ * Monat wartet. „Wir übernehmen 77.746 Beschäftigungsverhältnisse aus der Lieferung September 2025 (Regel E07). Der
+ * Monat bleibt vorläufig, bis die Fachabteilung Rückfrage R3 beantwortet.“
+ */
+export function weiterSatz(lauf: Pick<Lauf, "lieferung" | "fortgeschrieben">, wartetAuf: readonly string[]): string {
+  const bleibt = bleibtVorlaeufigSatz(wartetAuf);
+  if (lauf.fortgeschrieben <= 0) return bleibt;
+  const vm = monatName(verschieben(lauf.lieferung, -1));
+  return `Wir übernehmen ${verhaeltnisse(lauf.fortgeschrieben)} aus der Lieferung ${vm} (Regel E07). ${bleibt}`;
 }
 
 /** Ein Satz je Berichtsmonat, in dem sich nur die Gruppen verschieben. */
 export function umschichtungSatz(r: Pick<Revision, "berichtsmonat">): string {
-  return `Mit dieser Lieferung bliebe die Summe für ${monatName(r.berichtsmonat)} gleich, aber Verhältnisse verschieben sich zwischen den Gruppen.`;
+  return `Mit dieser Lieferung bliebe die Summe für ${monatName(r.berichtsmonat)} gleich, aber Beschäftigungsverhältnisse verschieben sich zwischen den Gruppen.`;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -425,7 +551,8 @@ export function sqlBestandMitVormonat(lauf: Lauf, vormonat: Lauf | null): string
 
 export function sqlKennzahlen(lauf: Pick<Lauf, "id" | "quelleId">): string {
   return [
-    "SELECT lieferung, gelesen, gezaehlt, fortgeschrieben, nicht_gezaehlt, ausgeschlossen, ergebnis_status",
+    "SELECT lieferung, gezaehlt - fortgeschrieben AS aus_der_lieferung, fortgeschrieben AS uebernommen,",
+    "       gezaehlt AS bestand_am_stichtag, gelesen, nicht_gezaehlt, ausgeschlossen, ergebnis_status",
     "FROM meta.lauf",
     `WHERE id = ${literal(lauf.id)};`,
   ].join("\n");
@@ -522,12 +649,13 @@ interface TrefferZeile {
   anhalten: boolean;
   beleg_sql: string | null;
   offene_rueckfragen: string[] | null;
+  details: TrefferDetails | null;
 }
 
 async function ladeTreffer(sql: Sql, laufId: number): Promise<Treffer[]> {
   const zeilen = await sql<TrefferZeile[]>`
     SELECT p.regel_id, r.name, r.art, r.beschreibung, r.parameter->>'satz' AS satz, p.ebene, p.anzahl, p.umfang,
-           coalesce(p.einstufung, 'nicht-erklaerbar') AS einstufung, p.massnahme, p.anhalten, p.beleg_sql,
+           coalesce(p.einstufung, 'nicht-erklaerbar') AS einstufung, p.massnahme, p.anhalten, p.beleg_sql, p.details,
            ARRAY(SELECT q.nr FROM meta.rueckfrage q
                  WHERE q.antwort IS NULL AND (q.nr = p.details ->> 'rueckfrage' OR q.regel_name = r.name)
                  ORDER BY length(q.nr), q.nr) AS offene_rueckfragen
@@ -548,6 +676,7 @@ async function ladeTreffer(sql: Sql, laufId: number): Promise<Treffer[]> {
       anhalten: z.anhalten,
       belegSql: z.beleg_sql,
       offeneRueckfragen: z.offene_rueckfragen ?? [],
+      details: z.details ?? null,
     })),
   );
 }
@@ -594,6 +723,17 @@ async function ladeRegionen(sql: Sql, lauf: Lauf): Promise<Region[]> {
     name: z.region === "0" ? "unbekannt" : (z.bezeichnung ?? `Code ${z.region}`),
     anzahl: zahl(z.anzahl),
   }));
+}
+
+/** Codes der Qualifikationen mit freiem Dienstvertrag; ältere Stände ohne Spalte ergeben eine leere Liste. */
+export async function ladeFdCodes(sql: Sql): Promise<string[]> {
+  try {
+    const zeilen = await sql<{ code: string }[]>`
+      SELECT code FROM stat.klass_qualifikation WHERE freier_dienstvertrag ORDER BY code`;
+    return zeilen.map((z) => z.code);
+  } catch {
+    return [];
+  }
 }
 
 async function ladeDeterminismus(sql: Sql, lauf: Lauf): Promise<Determinismus> {
@@ -653,14 +793,26 @@ export async function ladeLaufDetail(sql: Sql, lieferung: string, regelsatz = "v
     hatLauf(sql, [davor, danach], regelsatz),
   ]);
   if (!lauf) return null;
-  const [treffer, revisionen, regionen, determinismus] = await Promise.all([
+  const [treffer, revisionen, regionen, determinismus, fdCodes] = await Promise.all([
     ladeTreffer(sql, lauf.quelleId),
     ladeRevisionen(sql, lauf.id),
     ladeRegionen(sql, lauf),
     ladeDeterminismus(sql, lauf),
+    ladeFdCodes(sql),
   ]);
   const veroeffentlichen = await ladeVeroeffentlichen(sql, lauf, treffer);
-  return { lauf, veroeffentlichen, vormonat, davor: nachbarn.has(davor), danach: nachbarn.has(danach), treffer, revisionen, regionen, determinismus };
+  return {
+    lauf,
+    veroeffentlichen,
+    vormonat,
+    davor: nachbarn.has(davor),
+    danach: nachbarn.has(danach),
+    treffer,
+    revisionen,
+    regionen,
+    determinismus,
+    fdCodes,
+  };
 }
 
 export function leseLaufDetail(lieferung: string, regelsatz = "v1"): Promise<Lesung<LaufDetail | null>> {
