@@ -50,6 +50,8 @@ class Laufoptionen:
     verbinde: Callable[[], psycopg.Connection[Any]] | None = None
     """Eigene Verbindung für den Herzschlag; ohne sie gibt es nur Lebenszeichen nach jedem Zug."""
     herzschlag_s: float = HERZSCHLAG_S
+    bei_anlage: Callable[[int], None] | None = None
+    """Wird mit der Fall-ID aufgerufen, sobald `uc2.fall` committet ist (CLI `--melde-fall-id`, API)."""
 
 
 @dataclass
@@ -94,7 +96,8 @@ def fuehre_zug_aus(
     return Zugergebnis(akteur, None, fehler, 2)
 
 
-def _pruefe_auswahl(daten: dict[str, Any], ids: list[str], max_akteure: int) -> list[str]:
+def pruefe_auswahl(daten: dict[str, Any], ids: list[str], max_akteure: int) -> list[str]:
+    """Regelverstöße einer Moderator-Auswahl (Pool vollständig, Ober- und Untergrenze); leer = gültig."""
     fehler = []
     genannt = [a["akteur"] for a in daten["akteure"]]
     if sorted(genannt) != sorted(ids):
@@ -107,7 +110,7 @@ def _pruefe_auswahl(daten: dict[str, Any], ids: list[str], max_akteure: int) -> 
     return fehler
 
 
-def _repariere_auswahl(
+def repariere_auswahl(
     daten: dict[str, Any], ids: list[str], max_akteure: int, belegzahl: dict[str, int]
 ) -> list[dict[str, Any]]:
     """Code-Korrektur nach der Wiederholung: Reihenfolge des Moderators, Obergrenze, Mindestzahl, Lücken."""
@@ -143,7 +146,7 @@ def _repariere_auswahl(
     return [gesehen[aid] for aid in ids]
 
 
-def _zwischenergebnis(
+def zwischenergebnis(
     jetzt: Runde, klass: dict[str, Einordnung], zuege: dict[str, dict[str, Any]], notiz: str | None
 ) -> dict[str, Any]:
     """Kontext der nächsten Runde: Positionen, Einigungen, gescheiterte und offene Themen, Bedingungen."""
@@ -169,6 +172,12 @@ def _zwischenergebnis(
         "zugestaendnisse": zugestaendnisse,
         "moderator": notiz,
     }
+
+
+# Alte Namen: ein anderer Branch importiert sie noch.
+_pruefe_auswahl = pruefe_auswahl
+_repariere_auswahl = repariere_auswahl
+_zwischenergebnis = zwischenergebnis
 
 
 @contextlib.contextmanager
@@ -223,6 +232,8 @@ class Verhandlung:
             )
             schreiber = Fallschreiber(self.verbindung, fall_id)
             try:
+                if self.optionen.bei_anlage is not None:
+                    self.optionen.bei_anlage(fall_id)
                 with _herzschlag(self.optionen, fall_id):
                     self._ablauf(schreiber)
                 schreiber.beende("fertig")
@@ -325,7 +336,7 @@ class Verhandlung:
             except UngueltigeAntwort as f_:
                 raise VerhandlungsFehler(f"Moderator: keine gültige Auswahl ({f_.kennung})") from f_
             daten = antwort.json
-            fehler = _pruefe_auswahl(daten, ids, self.max_akteure)
+            fehler = pruefe_auswahl(daten, ids, self.max_akteure)
             if not fehler:
                 break
             nachrichten = [
@@ -338,7 +349,7 @@ class Verhandlung:
             ]
         if fehler:
             s.ereignis("auswahl_korrektur", {"fehler": fehler}, akteur="moderator")
-            liste = _repariere_auswahl(daten, ids, self.max_akteure, belegzahl)
+            liste = repariere_auswahl(daten, ids, self.max_akteure, belegzahl)
         else:
             liste = sorted(daten["akteure"], key=lambda a: a["akteur"])
         eintraege = []
@@ -466,7 +477,7 @@ class Verhandlung:
             notiz = self._notiz(
                 s, auftrag, runde, teilnehmer, jetzt, aend, klass, code_widersprueche, ohne_beleg
             )
-            vorrunde = _zwischenergebnis(jetzt, klass, gueltig, notiz)
+            vorrunde = zwischenergebnis(jetzt, klass, gueltig, notiz)
             s.ereignis(
                 "runde_ende",
                 {

@@ -1,11 +1,27 @@
-"""Befehl `uv run uc2 verhandlung --fall <id> [--provider …] [--belege fixture|index] [--json]`."""
+"""Befehl `uv run uc2 verhandlung --fall <id> [--provider …] [--belege fixture|index] [--json]`.
+
+Für die API (`uc2.api`, #44) gibt es zwei Schalter:
+
+- `--frage-stdin`: Die Frage kommt als Freitext über stdin statt aus der Fall-YAML. `pruefe_frage` fasst
+  Leerraum zusammen, lehnt Steuer- und Bidi-Zeichen ab und begrenzt auf `MAX_FRAGE` Zeichen. Die Frage landet
+  so in `uc2.fall` und im Ereignis `start`.
+- `--melde-fall-id`: Die CLI schreibt `fall_id=<n>` als erste Zeile auf stdout, sobald der Fall in
+  `uc2.fall` committet ist, und leert den Puffer sofort. Gewählt statt einer vorab vergebenen UUID
+  (`--fall-ref`): `uc2.fall.fall_id` ist eine Identity-Spalte, eine UUID bräuchte eine neue Spalte samt
+  Migration bestehender Tabellen, und die API müsste PG abfragen, bis die Zeile erscheint. Mit der ersten
+  Zeile kennt die API die echte Fall-ID genau dann, wenn der Fall lesbar ist; SSE findet ihn sofort.
+  Scheitert der Lauf vor der Anlage (Konfiguration, Belegfreigabe), kommt keine Zeile, und die API meldet
+  den Start als gescheitert.
+"""
 
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import functools
 import json
 import sys
+import unicodedata
 
 from uc2 import db
 from uc2.modelle import PROVIDER, ModellKonfigFehler, waehle_provider
@@ -14,6 +30,36 @@ from uc2.verhandlung.belege import BelegFehler, Belegquelle, FixtureQuelle, Inde
 from uc2.verhandlung.bericht import bericht
 from uc2.verhandlung.fall import FallFehler, bekannte_faelle, lade_fall
 from uc2.verhandlung.lauf import PARALLEL_ECHT, Laufoptionen, Verhandlung, VerhandlungsFehler
+
+MAX_FRAGE = 500
+"""Höchstlänge der Frage in Zeichen (nach dem Zusammenfassen von Leerraum)."""
+_BIDI = frozenset("\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u200e\u200f")
+
+
+class FrageFehler(ValueError):
+    """Frage leer, zu lang oder mit Steuerzeichen."""
+
+
+def pruefe_frage(roh: str) -> str:
+    """Freitext-Frage prüfen und normalisieren; `FrageFehler` bei Verstoß.
+
+    Zeilenumbrüche und Tabulatoren sind erlaubt und werden wie jeder Leerraum zu einem Leerzeichen; jedes
+    andere Steuerzeichen (Unicode Cc) und Richtungszeichen (Bidi) wird abgelehnt.
+    """
+    for zeichen in roh:
+        if zeichen in _BIDI or (unicodedata.category(zeichen) == "Cc" and zeichen not in "\t\n\r"):
+            raise FrageFehler(f"Frage enthält ein Steuerzeichen (U+{ord(zeichen):04X})")
+    frage = " ".join(roh.split())
+    if not frage:
+        raise FrageFehler("Frage ist leer")
+    if len(frage) > MAX_FRAGE:
+        raise FrageFehler(f"Frage ist länger als {MAX_FRAGE} Zeichen ({len(frage)})")
+    return frage
+
+
+def _melde_fall_id(fall_id: int) -> None:
+    sys.stdout.write(f"fall_id={fall_id}\n")
+    sys.stdout.flush()
 
 
 def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -39,6 +85,16 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     )
     parser.add_argument("--max-runden", type=int, help="Obergrenze der Runden (Smoke), höchstens wie im Fall")
     parser.add_argument("--json", action="store_true", help="Bericht als JSON statt Terminal-Text")
+    parser.add_argument(
+        "--frage-stdin",
+        action="store_true",
+        help=f"Frage als Freitext von stdin statt aus der Fall-YAML (höchstens {MAX_FRAGE} Zeichen)",
+    )
+    parser.add_argument(
+        "--melde-fall-id",
+        action="store_true",
+        help="erste Zeile auf stdout: fall_id=<n>, sobald der Fall angelegt ist (für uc2.api)",
+    )
     parser.set_defaults(func=ausfuehren)
 
 
@@ -46,7 +102,10 @@ def ausfuehren(args: argparse.Namespace) -> int:
     try:
         fall = lade_fall(args.fall)
         provider = waehle_provider(args.provider)
-    except (FallFehler, ModellKonfigFehler) as fehler:
+        if args.frage_stdin:
+            # Begrenzt lesen: mehr als das Vierfache der Höchstlänge ist sicher zu lang.
+            fall = dataclasses.replace(fall, frage=pruefe_frage(sys.stdin.read(MAX_FRAGE * 4 + 1)))
+    except (FallFehler, ModellKonfigFehler, FrageFehler) as fehler:
         print(f"Fehler: {fehler}", file=sys.stderr)
         return 2
     for name, wert in (("--max-akteure", args.max_akteure), ("--max-runden", args.max_runden)):
@@ -62,6 +121,7 @@ def ausfuehren(args: argparse.Namespace) -> int:
             max_runden=args.max_runden,
             parallel=1 if provider == "mock" else PARALLEL_ECHT,
             verbinde=None if provider == "mock" else functools.partial(db.verbinde),
+            bei_anlage=_melde_fall_id if args.melde_fall_id else None,
         )
         try:
             fall_id = Verhandlung(verbindung, fall, optionen).fuehre_aus()
