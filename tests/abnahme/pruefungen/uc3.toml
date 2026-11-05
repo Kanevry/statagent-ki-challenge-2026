@@ -517,10 +517,10 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "74-AC2"
 hash = "0fb1276b75"
-befehl = "timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_frage.py -k 'rueckfrage_statt_zahl or definition_oenace or nur_lese_rolle'"
-erwartet = ["(^|= )\\d+ passed"]
+befehl = "timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_frage.py -k 'rueckfrage_statt_zahl or definition_oenace or nur_lese_rolle' 2>&1 | tail -1"
+erwartet = ["^\\d+ passed in"]
 schwer = true
-deckung = "teil"
+deckung = "voll"
 befund = "Rückfrage, ÖNACE-Definition und Nur-Lese-Rolle (INSERT/UPDATE/DELETE abgewiesen) sind in uc3/tests/test_frage.py vorgesehen (Zeilen 199, 208, 287), laufen aber nur mit Datenbank. Messbefehl siehe Befehl, auf dem Prüfrechner."
 herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 
@@ -878,3 +878,115 @@ quelle = "Kriterium 72-AC1; Rohlieferungen des Startpakets, ohne Produktcode"
 grund = "R1 bis R5 decken die fünf Themen und alle Pflichtteile ab; jede Beispiel-ID zeigt in der Rohlieferung genau den behaupteten Befund (Monat 13, fehlt in der Teil-Lieferung, Beginn fehlt)"
 befund = "In R1 bis R5 fehlt ein Pflichtteil, oder eine Beispiel-ID zeigt in der Rohlieferung den behaupteten Befund nicht"
 herkunft = "b-abnahme-4c 2026-11-05 21:30"
+
+[[pruefung]]
+id = "13-AC2"
+hash = "33411a902b"
+befehl = '''timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py schema'''
+erwartet = ["^pg 16$", "^fehlende_tabellen 0$"]
+schwer = true
+deckung = "voll"
+zeitlimit = 320
+grund = "PostgreSQL 16, alle Pflichttabellen auf der frisch aufgebauten Prüf-DB; zweiter Schema-Lauf ohne Datenverlust misst der erste Teil"
+befund = "Die frische Prüf-DB ist nicht PostgreSQL 16 oder eine Pflichttabelle fehlt"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "13-AC3"
+hash = "b933063091"
+befehl = '''timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py ladung'''
+erwartet = ["^lieferungen 24$", "^db_abweichend 0$", "^datei_abweichend 0$", "^roh_nicht_text 0$"]
+schwer = true
+deckung = "voll"
+zeitlimit = 320
+grund = "24 Lieferungen; Ladeprotokoll gleich der Rohtabelle und gleich den Zeilen der Dateien; alle Rohfelder Text; jeder Satz trägt seine Lieferung"
+befund = "Ladeprotokoll, Rohtabelle und Dateien stimmen nicht überein, oder ein Rohfeld ist nicht Text"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "73-AC2"
+hash = "9357e72f6b"
+befehl = '''timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py schema'''
+erwartet = ["^variable_fehlend keine$", "^oenace_fehlend keine$", "^uebergang_fehlend keine$"]
+schwer = true
+deckung = "voll"
+zeitlimit = 320
+grund = "variable, klass_oenace und uebergang haben die Pflichtspalten; der Anti-Join misst der erste Teil"
+befund = "Pflichtspalten fehlen in stat.variable, stat.klass_oenace oder stat.uebergang (Ausgabe nennt sie)"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "14-AC3"
+hash = "379f192323"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_anhang_b.py -k alle_pruefabfragen'''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "Die Prüfabfragen aus Anhang B ergeben 0 Fehlstellen, also keine verwendeten Codes außerhalb der Klassifikation; R6 und R7 mit Freigabe misst der erste Teil"
+befund = "Anti-Join: verwendete Codes liegen außerhalb der gültigen Klassifikation"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "14-AC4"
+hash = "25741237d3"
+befehl = '''echo a4 $(grep -c '^| A4 ' docs/plan/uc3/annahmen.md); echo a5 $(grep -c '^| A5 ' docs/plan/uc3/annahmen.md); echo max_plausibel $(grep -c 'max_plausibel' docs/plan/uc3/annahmen.md); echo fall_75 $(grep -c 'P07_alter_hoch_plausibel' abgabe/qualitaetsberichte/2025-03.md); python3 -c "import csv;r=list(csv.DictReader(open('docs/plan/uc3/regeln-v1.csv',encoding='utf-8'),delimiter=';'));print('regeln_ohne_freigabe',sum(not x['freigegeben_von'].strip() for x in r))"'''
+erwartet = ["^a4 [1-9]", "^a5 [1-9]", "^max_plausibel [1-9]", "^fall_75 [1-9]", "^regeln_ohne_freigabe 0$"]
+schwer = false
+deckung = "voll"
+grund = "Geburtsmonat 13 und unplausibles Alter stehen in den Annahmen; Grenze ist max_plausibel, keine globale Regel über 74; plausible 75+ bleiben (P07); im Snapshot sind alle Regeln freigegeben"
+befund = "Annahmen A4 oder A5 fehlen, die 75+-Fälle bleiben nicht erhalten, oder eine Regel im Snapshot ist nicht freigegeben"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "15-AC2"
+hash = "55782382da"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_agenten_freigabe.py -k 'ablehnen_aendert_nichts or code_datei_laeuft_nur_mit_freigabe or freigabe_mit_namen_aendert_regel''''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "Code läuft nur mit Freigabe (NichtFreigegeben), Freigabe mit Namen ändert Regel und Commit, Ablehnen ändert nichts; Trailer im Protokoll misst der erste Teil"
+befund = "Freigabe-Ablauf: Code läuft ohne Freigabe, oder Ablehnen ändert etwas"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "71-AC1"
+hash = "4b5d5cfed4"
+befehl = '''python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg'''
+erwartet = ["^beleg_sha256_wie_orakel ja$", "^beleg_zeilen_wie_orakel ja$", "^abweichend 0$"]
+schwer = false
+deckung = "voll"
+gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg --variante E"
+grund = "Die Lieferung gleicht dem unabhängigen Orakel (drei unabhängige Rechnungen, sha256), also dieselbe Personenmenge; Grenzfälle misst der erste Teil"
+befund = "Der Beleg der Ministeriums-Lieferung weicht vom unabhängigen Orakel ab"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "72-AC2"
+hash = "69c97928a0"
+befehl = '''python3 -c "import glob,re;n=0;f=0
+for d in glob.glob('abgabe/qualitaetsberichte/20*.md'):
+  t=open(d,encoding='utf-8').read().split('## 3 ',1)[1].split('## 4 ',1)[0]
+  for z in re.findall(r'^[|] R[0-9]+ [|].*$',t,re.M):
+    n+=1;f+=not re.search(r'Bis zur Antwort gilt|Antwort:',z)
+print('rueckfragen',n);print('ohne_status',f)"; echo validator_prueft $(grep -c 'Bis zur Antwort' uc3/statagent/berichte/pruefe_abgabe.py || true)'''
+erwartet = ["^rueckfragen [1-9]", "^ohne_status 0$", "^validator_prueft [1-9]"]
+schwer = false
+deckung = "voll"
+befund_art = "fehlt"
+grund = "Jede Rückfrage im Bericht trägt Antwort oder begründete vorläufige Annahme, und der Validator prüft das"
+befund = "Rückfragen im Bericht stehen ohne Antwort- oder Annahmestatus, oder der Validator prüft den Status nicht (Wortlaut: „Validator prüft 0 Rückfragen ohne Antwort- oder Annahmestatus“)"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "74-AC1"
+hash = "1e6babf147"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_frage.py -k 'gleich_gegenrechnung or nullbestand''''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "Zeitreihe, M/W je Bundesland und Fluktuation gleich der SQL-Gegenrechnung; Nullbestand ohne erfundene Rate"
+befund = "Eine Jury-Frage weicht von der SQL-Gegenrechnung ab, oder Nullbestand ergibt eine Rate"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
