@@ -773,3 +773,95 @@ deckung = "voll"
 grund = "Das Oracle-Dokument nennt Abfrage, Regelstand, Ergebniszahl 32.741, beide Vergleichswerte, die Regel jüngste Lieferung je Tag und den Mengenvergleich"
 befund = "ministerium-oracle.md nennt Abfrage, Regelstand, Ergebniszahl, Vergleichswerte oder Mengenvergleich nicht"
 herkunft = "b-abnahme-4c 2026-11-05 21:10"
+
+[[pruefung]]
+id = "15-AC1"
+hash = "8e13469c34"
+befehl = '''python3 -c "import json;a=json.load(open('docs/plan/uc3/agenten-routing.json',encoding='utf-8'))['anweisungen'];R={'klassifikation','datenmanagement','qs','qualitaetssicherung','reporting'};print('anweisungen',len(a));print('ohne_text',sum(not x.get('anweisung') for x in a));print('rolle_falsch',sum(x.get('rolle') not in R for x in a));print('ohne_protokoll',sum(not isinstance(x.get('protokoll_id'),int) for x in a))"; echo akteur_rolle $(git grep -cE "akteur *= *.(klassifikation|datenmanagement|reporting)" -- uc3/statagent | wc -l | tr -d ' ')'''
+erwartet = ["^anweisungen 4$", "^ohne_text 0$", "^rolle_falsch 0$", "^ohne_protokoll 0$", "^akteur_rolle 0$"]
+schwer = false
+deckung = "voll"
+grund = "agenten-routing.json ordnet vier Anweisungen je einer erlaubten Rolle mit Protokoll-ID zu; akteur bleibt agent oder mensch"
+befund = "agenten-routing.json nennt nicht vier Anweisungen mit Rolle und Protokoll-ID, oder der Code setzt eine Rolle als akteur"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "15-AC3"
+hash = "42927bd501"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_prompt_grenzen.py'''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "Adapter-Spies prüfen die tatsächlichen Modellnachrichten: keine Einzeldaten, Schema bleibt erlaubt"
+befund = "test_prompt_grenzen.py scheitert: Einzeldaten könnten das Modell erreichen"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "17-AC1"
+hash = "7cb4d8eb26"
+befehl = '''for i in 69 70 71 74; do echo teilissue_$i $(grep -c "#$i" docs/plan/uc3/aenderungsauftraege-matrix.md); done; echo agent_weg $(grep -c 'uc3 agent' docs/plan/uc3/aenderungsauftraege-matrix.md); echo routing $(grep -c 'agenten-routing.json' docs/plan/uc3/aenderungsauftraege-matrix.md); echo freigabe_name $(grep -cE '^[|] [123] .*Bernhard Götzendorfer, [0-9.]+ [0-9:]+' docs/plan/uc3/aenderungsauftraege-matrix.md)'''
+erwartet = ["^teilissue_69 [1-9]", "^teilissue_70 [1-9]", "^teilissue_71 [1-9]", "^teilissue_74 [1-9]", "^agent_weg [1-9]", "^routing [1-9]", "^freigabe_name 3$"]
+schwer = false
+deckung = "voll"
+grund = "Die Matrix verlinkt die vier Teilissues, die Aufträge 1 bis 3 gehen über uc3 agent mit Rollenrouting und Freigabe mit Name und Zeit"
+befund = "aenderungsauftraege-matrix.md verlinkt ein Teilissue nicht oder nennt Agentenweg und Freigabe nicht"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "17-AC2"
+hash = "5efcdcf25c"
+befehl = '''python3 -c "import json;d=json.load(open('abgabe/manifest.json',encoding='utf-8'))['dateien'];n=[x['datei'] for x in d];print('sheet_alt','aggregationen_v1.xlsx' in n);print('sheet_neu','aggregationen_v2.xlsx' in n);print('ministerium','ministerium_2026-07.csv' in n);print('berichte_v2',sum('qualitaetsberichte_v2/' in x for x in n))"; echo datenstand $(grep -c 'juengste_lieferung_je_tag' abgabe/ministerium_2026-07.beleg.md); STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe | tail -1'''
+erwartet = ["^sheet_alt True$", "^sheet_neu True$", "^ministerium True$", "^berichte_v2 24$", "^datenstand 1$", "^Abgabe vollständig\\.$"]
+schwer = false
+deckung = "voll"
+grund = "Das Manifest führt Sheet alt und neu getrennt, 24 v2-Berichte und die Ministeriums-CSV; Datenstand jüngste Lieferung je Tag; der Validator liest alles zurück"
+befund = "Das Manifest führt Sheets, v2-Berichte oder Ministeriums-CSV nicht, oder der Validator meldet einen Mangel"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "20-AC2"
+hash = "6bf081e4e2"
+befehl = '''for i in 63 65 66 15 16 17 69 70 71 73 74; do echo ref_$i $(grep -c "#$i" abgabe/uc3-abnahme.md); done; echo azure $(grep -c 'Azure' abgabe/uc3-abnahme.md); echo deployment $(grep -c 'gpt-5-4-mini' abgabe/uc3-abnahme.md); echo pruefausgabe $(grep -c 'Abgabe vollständig' abgabe/uc3-abnahme.md); echo protokoll_namen $(grep -c 'Bernhard Götzendorfer' abgabe/protokoll.md)'''
+erwartet = ["^ref_63 [1-9]", "^ref_65 [1-9]", "^ref_66 [1-9]", "^ref_15 [1-9]", "^ref_16 [1-9]", "^ref_17 [1-9]", "^ref_69 [1-9]", "^ref_70 [1-9]", "^ref_71 [1-9]", "^ref_73 [1-9]", "^ref_74 [1-9]", "^azure [1-9]", "^deployment [1-9]", "^pruefausgabe [1-9]", "^protokoll_namen [1-9]"]
+schwer = false
+deckung = "voll"
+grund = "uc3-abnahme.md enthält Prüfausgaben und Bezüge auf #63, #65, #66 und die Teilissues, nennt Azure und das Deployment; das Protokoll führt Namen"
+befund = "uc3-abnahme.md nennt einen Bezug, Azure, das Deployment oder die Prüfausgabe nicht"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "70-AC1"
+hash = "ffbb7b165f"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_monatszaehlung.py'''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "test_monatszaehlung.py besteht: Ein-Tages-Fall, offenes Ende, zwei Abschnitte, zwei VVH, Monatsgrenzen"
+befund = "test_monatszaehlung.py scheitert"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "73-AC1"
+hash = "e9b2ca58fc"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_anhang_b.py -k 'sql_datei_hat_elf or alle_pruefabfragen''''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "anhang-b-schema.sql hat die prüfbaren Abfragen, alle ergeben auf der gerechneten Prüf-DB 0 Fehlstellen"
+befund = "Die Prüfabfragen aus anhang-b-schema.sql finden Fehlstellen"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "73-AC3"
+hash = "a8a42a6da1"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_anhang_b.py'''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "test_anhang_b.py besteht: Quellzuordnung und Anti-Join auf der gerechneten Prüf-DB"
+befund = "test_anhang_b.py scheitert"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
