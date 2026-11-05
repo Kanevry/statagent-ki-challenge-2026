@@ -51,6 +51,19 @@ def test_mock_zweimal_gleiche_ereignisse_matrix_und_einordnung(pg_test: psycopg.
     assert all(z["bezug_auf"] for r in b1["runden"][1:] for z in r["zuege"] if z["gueltig"])
 
 
+def test_mock_zeigt_minderheit_gegen_eine_mehrheit(pg_test: psycopg.Connection[Any]) -> None:
+    """Abnahme 24-1: Im Vorführfall steht jemand gegen eine Mehrheit. Das Finanzministerium hält ab der
+    Verhandlungsrunde seine rote Linie gegen Mehrausgaben bei den Paket-Maßnahmen."""
+    b = bericht(pg_test, _lauf(pg_test))
+    mit_minderheit = {
+        t: k for t, k in b["klassifikation"].items() if k["kategorie"] == "mehrheit" and k["minderheit"]
+    }
+    assert mit_minderheit, b["klassifikation"]
+    assert any("finanzministerium" in k["minderheit"] for k in mit_minderheit.values())
+    werte = b["matrix"]["werte"]["finanzministerium"]
+    assert any(reihe[1] > reihe[2] for reihe in werte.values())  # bewegt sich in Runde 3 dagegen
+
+
 def test_kaputter_mock_zug_ergibt_ungueltige_ausgabe_und_lauf_endet_fertig(
     pg_test: psycopg.Connection[Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:

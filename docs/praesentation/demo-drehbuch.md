@@ -21,6 +21,7 @@ Die Demo dauert 4:25 (5:05–9:30). Eine eigene Überleitung gibt es nicht. Szen
 ## Wo die Demo läuft
 
 - **Live heißt: auf dem Rechner von Bernhard.** Stufe 1 ist der lokale Stand mit dem Modell Azure.
+- **Datenbank der Vorführung:** Die ganze Demo läuft gegen die eigene Kopie `statistik_vorfuehrung`, nie gegen die Abgabe-Datenbank `statistik`, auch nach 09:00 nicht (Entscheid Lead, 05.11.2026). Auf dem Vortragsrechner zeigt `UC3_DATABASE_URL` auf diese Kopie. Infra zieht die Kopie frisch am Fr 06.11.2026 zwischen 06:00 und 06:30 aus `statistik` (Abgabe-Stand); die Daten sind dieselben, alle Sollzahlen gelten, Übungsvorschläge aus den Proben sind nicht darin. So bleibt die Abgabe jederzeit nachrechenbar.
 - **Die öffentliche Demo läuft im Testmodus.** Dort zeigt der Kopf „Modell mock · mock“, und `/uc3` zeigt den Leerzustand. Sie ist keine Live-Demo des Agenten. Wird sie gezeigt, sagt Bernhard vorher „Testmodus“ an.
 - **Web-Oberfläche:** `/uc3` (MR !51) und `uc3 frage` mit `/uc3/fragen` (MR !61) sind seit dem 05.11.2026 auf main. Die Web-Oberfläche ist damit Stufe 1, sofern sie auf dem Rechner von Bernhard Daten zeigt. Der Stand wird um 06:45 geprüft und in `probe.md` eingetragen.
 
@@ -72,6 +73,8 @@ Ablauf (im Browser auf `/uc3/freigaben`, Reiter „Erledigt“, gleich im Termin
 `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2025-03`, dann `uv run uc3 vorschlag zeigen <id>` und `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`.
 
 Kommt „Kein Vorschlag“, sendet Bernhard denselben Satz einmal neu. Kommt er wieder, bleibt es beim Rückblick.
+
+Datenbank: Agent, Vorschlag und Freigabe von B2 laufen nur gegen `statistik_vorfuehrung` (`UC3_DATABASE_URL` auf die Kopie), nie gegen `statistik`. Die Freigabe schreibt einen Commit ins Repo; deshalb läuft D2 auf einem eigenen Demo-Branch im Checkout des Vortragsrechners, der Commit wird nie gepusht. Geprobt wird vorher nur auf `statistik_probe`.
 
 Bis dahin gilt: Nennt die Jury nach Szene 10 eine Regel, sagt Bernhard: „Das zeige ich Ihnen an einer Änderung, die ich heute schon freigegeben habe“ und bleibt bei Vorschlag 24.
 
@@ -168,6 +171,7 @@ Jeder Punkt wird abgehakt, sobald er geprüft ist. Uhrzeit nur aus der Uhr (`TZ=
 - [ ] D3: Die acht geprüften Fragen auf `/uc3/fragen` und mit `uv run uc3 frage "…"` geprobt, jede Zahl gegen die Sollzahl der Tabelle. Folge-MR von bb auf main? Wenn nein, keine freien Fragen. SQL A1 bis A3 als Rückfall bereit, `<regelstand>` eingesetzt.
 - [ ] D4: Sollwert 7.498 (F18) gegen die Abfrage im Belegregister geprüft. Testmodus-Ansage bereit.
 - [ ] D2: `uv run uc3 vorschlag zeigen 24` und `uv run uc3 protokoll --zeigen` laufen auf dem Vortragsrechner. B2 nur, wenn es nach dem Fix der UC3-Lane dreimal gegen `statistik_probe` geklappt hat. Nie `freigabe` geübt.
+- [ ] Datenbank: `UC3_DATABASE_URL` zeigt auf `statistik_vorfuehrung`, nicht auf `statistik`. Prüfung ohne Wert: Datenbankname im Kopf der App oder `uv run uc3 laeufe` liefert die 24 Läufe der Kopie. Checkout steht auf dem Demo-Branch.
 - [ ] Protokolleintrag der Freigabe von Auftrag 1 (05.11.2026 16:54) gefunden, Fenster für den Rückblick bereit.
 - [ ] Entscheid D4 um 06:45 getroffen und in `probe.md` eingetragen.
 - [ ] Freeze um 07:00 (Europe/Vienna) bestätigt. Danach keine Änderung mehr.
