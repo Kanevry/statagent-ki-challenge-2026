@@ -16,6 +16,13 @@ Ablauf:
 
 Aufruf: ``python -m uc1.uc4 --kontext DATEI.json "<frage>"``. In der UC4-Kette findet ``plattform.router``
 den Adapter ``router_adapter`` über den Entry-Point ``kic.uc_antwort`` / ``uc1`` (uc1/pyproject.toml).
+
+In der Kette (``kette_antwort``) schreibt kein Modell (Entscheid Lead 05.11.): Der Text entsteht aus Bedingung
+und Wirkung der Frage, also daraus, was die Zahl von UC3 zählt (Region, Gesundheitswesen oder nicht,
+Fluktuation) und ob UC2 ein Paket durchgerechnet hat. Am Ende steht ein fester Satz mit der Belegzahl von UC3.
+Immer deutsch, Grenzprüfung wie im Kern. Vorher schrieb das Modell Zahlenechos und Sätze mit Lücke (#164),
+etwa „Im Oktober gab es Beschäftigungsverhältnisse.“; nach allen Filtern blieb kaum mehr als ein fester
+Satz übrig.
 """
 
 from __future__ import annotations
@@ -180,6 +187,34 @@ def pruefe_zahlen(saetze: Sequence[str], kontext: Kontext) -> tuple[list[str], l
 # --------------------------------------------------------------------------------------------------------
 # Modell
 
+#: Steht statt der Zahl, wenn UC3 mehrere liefert.
+KETTE_VERWEIS = "Die einzelnen Zahlen stehen mit Beleg bei StatAgent."
+_BUNDESLAENDER = frozenset(
+    {
+        "Burgenland",
+        "Kärnten",
+        "Niederösterreich",
+        "Oberösterreich",
+        "Salzburg",
+        "Steiermark",
+        "Tirol",
+        "Vorarlberg",
+        "Wien",
+    }
+)
+KETTE_GESUNDHEIT = (
+    "Wie rasch Sie einen Termin bekommen und wie viel Zeit man für Sie hat, hängt auch davon ab, "
+    "wie viele Menschen dort arbeiten."
+)
+KETTE_KONKRETER = "Fragen Sie nach dem Gesundheits- und Sozialwesen, dann wird es konkreter."
+KETTE_FLUKTUATION = (
+    "Wechselt das Personal oft, treffen Sie auf neue Gesichter und erklären Ihre Lage öfter neu. "
+    "Bleibt es, kennt man Sie eher."
+)
+KETTE_PAKET = (
+    "Kommt das durchgerechnete Paket, {wirkung}. Sicher ist das nicht, es hängt von den Annahmen ab."
+)
+
 SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {"saetze": {"type": "array", "items": {"type": "string"}}},
@@ -214,6 +249,70 @@ def _prompt(sprache: Literal["de", "en"], zahlen: int = 1) -> str:
         "wenigen Wörtern. Keine Floskeln, keine Gedankenstriche, kein „zudem“ oder „darüber hinaus“.\n"
         f"7. Sprache: {sprachname}."
     )
+
+
+def _belegsatz(kontext: Kontext) -> str | None:
+    """Fester Satz mit der Belegzahl von UC3, ohne Gliederung: „7.498 im März 2025“ wäre ohne Wien und Branche
+    falsch, was die Zahl genau zählt, steht bei StatAgent. Mehrere Zahlen ohne Bezeichnung sagten nichts
+    („3.611; 3.887“), dann steht der Verweis. Ohne Zahl von UC3 None."""
+    uc3 = [z for z in kontext.zahlen if kontext.belege[z.beleg].uc == "uc3"]
+    if not uc3:
+        return None
+    if len(uc3) > 1:
+        return KETTE_VERWEIS
+    zahl = uc3[0]
+    ohne_einheit = not zahl.einheit or zahl.einheit.casefold() in _EINHEIT_OHNE_WORT
+    return f"Die Zahl von StatAgent: {anzeige(zahl) if ohne_einheit else f'{anzeige(zahl)} {zahl.einheit}'}."
+
+
+def _gliederung(zahl: Zahl) -> set[str]:
+    """Was die Zahl eingrenzt, aus ihrer Bezeichnung: „… (Wien, Gesundheits- und Sozialwesen)“ → beide
+    Teile."""
+    treffer = re.search(r"\((.*)\)", zahl.bezeichnung)
+    return {teil.strip() for teil in treffer.group(1).split(",")} if treffer else set()
+
+
+def _paket_wirkung(wert: float) -> str:
+    """Richtung aus dem Rechenmodell; was auf eine Stelle gerundet null ist, heißt „kaum“, nicht „länger“."""
+    if round(wert, 1) == 0:
+        return "ändert sich die Wartezeit laut Rechenmodell kaum"
+    return f"warten Sie laut Rechenmodell meist {'kürzer' if wert < 0 else 'länger'}"
+
+
+def kette_text(kontext: Kontext) -> str:
+    """Was die Auskunft für den Arzttermin heißt, aus dem, was alle Zahlen gemeinsam zählen; dazu der
+    Belegsatz.
+
+    „Alle“ zählt: Eine Frage über alle Branchen liefert auch eine Zeile fürs Gesundheitswesen und ist
+    trotzdem keine
+    Frage dazu."""
+    uc3 = [z for z in kontext.zahlen if kontext.belege[z.beleg].uc == "uc3"]
+    teile = [_gliederung(z) for z in uc3]
+    gemeinsam = set.intersection(*teile) if teile else set()
+    region = next(iter(sorted(gemeinsam & _BUNDESLAENDER)), None)
+    wo = f" in {region}" if region else ""
+    paket = next(
+        (
+            z
+            for z in kontext.zahlen
+            if kontext.belege[z.beleg].quelle == "uc2.experte"
+            and "wahrscheinlichster" in z.bezeichnung
+            and z.bezeichnung.startswith("Wartezeit")
+        ),
+        None,
+    )
+    if paket is not None:
+        satz = f"heißt das: {KETTE_PAKET.format(wirkung=_paket_wirkung(paket.wert))}"
+    elif not uc3:
+        satz = f"heißt das: {KETTE_GESUNDHEIT}"
+    elif all("gesundheit" in z.bezeichnung.casefold() for z in uc3):
+        fluktuation = all(z.bezeichnung.startswith("Fluktuation") for z in uc3)
+        satz = f"heißt das: {KETTE_FLUKTUATION if fluktuation else KETTE_GESUNDHEIT}"
+    else:
+        zahl = "sagt diese Zahl" if len(uc3) == 1 else "sagen diese Zahlen"
+        satz = f"{zahl} allein wenig. {KETTE_KONKRETER}"
+    belegsatz = _belegsatz(kontext)
+    return " ".join(teil for teil in (f"Für Ihren nächsten Arzttermin{wo} {satz}", belegsatz) if teil)
 
 
 def _nachricht(frage: str, kontext: Kontext) -> str:
@@ -291,8 +390,14 @@ def antwort(
     try:
         ergebnis = modell_fn(
             [
-                {"role": "system", "content": _prompt(sprache_, len(ktx.zahlen))},
-                {"role": "user", "content": _nachricht(frage, ktx)},
+                {
+                    "role": "system",
+                    "content": _prompt(sprache_, len(ktx.zahlen)),
+                },
+                {
+                    "role": "user",
+                    "content": _nachricht(frage, ktx),
+                },
             ],
             SCHEMA,
             provider,
@@ -352,27 +457,39 @@ def _grenze(
 KEIN_KONTEXT = "Dazu liegen mir noch keine Zahlen aus den anderen Bereichen vor."
 
 
-def router_adapter(frage: str, kontext: list[UcAntwort], *, modell: ModellFn | None = None) -> UcAntwort:
+def kette_antwort(frage: str, kontext: Kontext) -> UcAntwort:
+    """Antwort in der Kette ohne Modell; Grenzprüfung vorher und nachher wie im Kern, immer deutsch."""
+    befund = grenze.vorpruefung(frage)
+    if befund is not None:
+        return UcAntwort.model_validate(_grenze(befund, kontext, "de", None))
+    text = sprache.glaette(kette_text(kontext))
+    befund = grenze.nachpruefung(text)
+    if befund is not None:
+        return UcAntwort.model_validate(_grenze(befund, kontext, "de", None))
+    return UcAntwort(text=text, belege=list(kontext.belege), zahlen=list(kontext.zahlen), uc=UC, modell=None)
+
+
+def router_adapter(frage: str, kontext: list[UcAntwort]) -> UcAntwort:
     """Adapter für ``plattform.router`` (Entry-Point ``kic.uc_antwort``, Name ``uc1``).
 
-    Fasst die Antworten der UCs davor zu einem Kontext zusammen: Belege werden aneinandergehängt, der
-    Beleg-Index jeder Zahl um die Zahl der Belege davor verschoben, so bleibt jede Zahl an ihrem Beleg. Ohne
-    Kontext ein fester Satz ohne Modell und ohne Datenbank (der Router schreibt seinen eigenen Schritt)."""
+    Fasst die Antworten der UCs davor zu einem Kontext zusammen. Gleiche Belege und gleiche Zahlen stehen
+    nur einmal
+    (UC2 reicht die Zahl von UC3 mit ihrem Beleg weiter); jede Zahl bleibt an ihrem Beleg. Ohne Kontext ein
+    fester
+    Satz (der Router schreibt seinen eigenen Schritt)."""
     if not kontext:
         return UcAntwort(text=KEIN_KONTEXT, belege=[], zahlen=[], uc=UC, modell=None)
     belege: list[Beleg] = []
     zahlen: list[Zahl] = []
     for vorher in kontext:
-        versatz = len(belege)
-        belege += vorher.belege
-        zahlen += [z.model_copy(update={"beleg": z.beleg + versatz}) for z in vorher.zahlen]
-    zusammen = Kontext(
-        text=" ".join(a.text for a in kontext if a.text),
-        belege=belege,
-        zahlen=zahlen,
-        uc=kontext[-1].uc,
-    )
-    return UcAntwort.model_validate(antwort(frage, zusammen, modell=modell))
+        for beleg in vorher.belege:
+            if beleg not in belege:
+                belege.append(beleg)
+        for zahl in vorher.zahlen:
+            kennung = (zahl.bezeichnung, zahl.wert, zahl.einheit)
+            if kennung not in [(z.bezeichnung, z.wert, z.einheit) for z in zahlen]:
+                zahlen.append(zahl.model_copy(update={"beleg": belege.index(vorher.belege[zahl.beleg])}))
+    return kette_antwort(frage, Kontext(belege=belege, zahlen=zahlen, uc=kontext[-1].uc))
 
 
 # --------------------------------------------------------------------------------------------------------

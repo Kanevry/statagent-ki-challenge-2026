@@ -39,8 +39,8 @@ function Ergebnis({ stand, jetzt }: { stand: AuftragStand; jetzt: number }) {
   if (stand.zustand === "vorschlag") {
     return (
       <div role="status" className="flex flex-col gap-2">
-        <p className="font-sans text-16 text-ink">{stand.satz ?? "Der Vorschlag liegt bereit."}</p>
-        <p className="font-sans text-14 text-slate">Vorschlag nach {dauer}. Noch ist nichts geändert.</p>
+        <p className="font-sans text-16 text-ink">Der Vorschlag liegt bereit, nach {dauer}. Noch ist nichts geändert.</p>
+        {stand.satz && <p className="font-sans text-14 text-slate">({stand.satz})</p>}
         <Link href={`/uc3/freigaben/${stand.vorschlagId}`} className={textLink}>
           Vorher und nachher ansehen, dann entscheiden
         </Link>
@@ -74,15 +74,27 @@ function Ergebnis({ stand, jetzt }: { stand: AuftragStand; jetzt: number }) {
   );
 }
 
-export function AuftragFormular({ monate, regelsatz }: { monate: readonly string[]; regelsatz: string }) {
+export function AuftragFormular({
+  monate,
+  probeMonate,
+  rechenbar,
+  regelsatz,
+}: {
+  monate: readonly string[];
+  probeMonate: readonly string[];
+  rechenbar: readonly string[];
+  regelsatz: string;
+}) {
   const [satz, setSatz] = useState("");
-  const [monat, setMonat] = useState(monate.includes("2025-10") ? "2025-10" : (monate[0] ?? ""));
+  const [monat, setMonat] = useState(rechenbar.includes("2025-10") ? "2025-10" : (rechenbar[0] ?? ""));
+  const [probe, setProbe] = useState("");
   const [stand, setStand] = useState<AuftragStand | null>(null);
   const [meldung, setMeldung] = useState<string | null>(null);
   const [netzWeg, setNetzWeg] = useState(false);
   const [jetzt, setJetzt] = useState(() => Date.now());
   const satzId = useId();
   const monatId = useId();
+  const probeId = useId();
   const laeuft = stand?.zustand === "laeuft";
 
   const abfragen = useCallback(async () => {
@@ -136,14 +148,14 @@ export function AuftragFormular({ monate, regelsatz }: { monate: readonly string
       setMeldung("Bitte schreiben Sie den Auftrag in einem Satz.");
       return;
     }
-    void starten({ art: "agent", anweisung: satz });
+    void starten({ art: "agent", anweisung: satz, probe });
   }
 
   return (
     <div className="flex max-w-3xl flex-col gap-8">
       <header className="flex flex-col gap-3">
         <Ueberschrift stufe={2} als="h1">
-          Änderung in einem Satz
+          Ein Auftrag in einem Satz
         </Ueberschrift>
         <p className="font-sans text-16 text-slate">
           Die Agenten schreiben daraus einen Vorschlag mit den Zahlen vorher und nachher. Wirksam wird er erst, wenn ein
@@ -161,8 +173,29 @@ export function AuftragFormular({ monate, regelsatz }: { monate: readonly string
           maxLength={1000}
           value={satz}
           onChange={(e) => setSatz(e.target.value)}
+          placeholder="Zum Beispiel: Beamte zählen nicht mehr mit"
           className={`rounded border border-slate bg-white px-4 py-2 font-sans text-16 text-ink ${fokus}`}
         />
+        {monate.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <label htmlFor={probeId} className="font-sans text-14 font-semibold text-ink">
+              Zahlen vorher und nachher für
+            </label>
+            <select
+              id={probeId}
+              value={probe}
+              onChange={(e) => setProbe(e.target.value)}
+              className={`h-10 w-fit rounded border border-slate bg-white px-4 font-sans text-16 text-ink ${fokus}`}
+            >
+              <option value="">{`${monatName(monate[0]!)} (jüngster Monat)`}</option>
+              {probeMonate.filter((m) => m !== monate[0]).map((m) => (
+                <option key={m} value={m}>
+                  {monatName(m)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <Knopf type="submit" disabled={laeuft}>
             Vorschlag schreiben lassen
@@ -183,7 +216,7 @@ export function AuftragFormular({ monate, regelsatz }: { monate: readonly string
         </section>
       )}
 
-      {monate.length > 0 && (
+      {rechenbar.length > 0 && (
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -201,7 +234,7 @@ export function AuftragFormular({ monate, regelsatz }: { monate: readonly string
               onChange={(e) => setMonat(e.target.value)}
               className={`h-10 rounded border border-slate bg-white px-4 font-sans text-16 text-ink ${fokus}`}
             >
-              {monate.map((m) => (
+              {rechenbar.map((m) => (
                 <option key={m} value={m}>
                   {monatName(m)}
                 </option>

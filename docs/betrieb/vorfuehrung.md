@@ -34,17 +34,48 @@ scripts/vorfuehrung.sh pruefen             # ohne Zugang 401, mit Zugang Seiten,
 ```
 
 Den Dump zieht man auf dem Rechner mit der Rechen-Datenbank aus der Abgabe-DB, die dabei nur gelesen wird:
-`docker exec statagent-db pg_dump -U statistik -d statistik -Fc -Z 4 > <dump>`. Vor der Vorführung (Fr 06:00 bis 06:30, nach den
-letzten Läufen) einmal neu ziehen und `daten` wiederholen. Ein neuer Stand: `up <ref>`, danach `reset`.
+`docker exec statagent-db pg_dump -U statistik -d statistik -Fc -Z 4 > <dump>`. Ein neuer Stand: `up <ref>`, danach `reset`.
+
+## Ablauf Freitag früh (05:57 bis 07:00)
+
+Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset` jede spätere Freigabe zurücknimmt.
+`statistik` wird dabei nur gelesen und bekommt die Pensionen bis nach 09:00 nicht. Server-Schritte startet nur der Lead.
+
+1. **Ab 05:57, neuer Dump mit Pensionen, nach den letzten Läufen.** Auf dem Rechner mit der Rechen-Datenbank, mit einem
+   Code-Stand ab !214:
+   ```bash
+   scripts/vorfuehrung-db.sh --ersetzen statistik statistik_vorfuehrung_pensionen
+   # mit UC3_DATABASE_URL auf diese Kopie und gesetztem STATAGENT_STARTPAKET:
+   uv run uc3 db init && uv run uc3 pensionen laden && uv run uc3 pensionen pruefen
+   docker exec statagent-db pg_dump -U statistik -Fc -d statistik_vorfuehrung_pensionen > <dump>
+   psql "<kopie>" -X -q -At -v schema=stat -f deploy/sql/inhaltshash.sql | grep GESAMT   # dasselbe für meta, beide notieren
+   ```
+   Probe am 05.11. mit einem Zwischenstand von !214: 2 min 33 s bis zum fertigen Dump, 457 MB.
+2. **Stand und Daten auf den Server.** `scripts/vorfuehrung.sh up <ref>` mit dem Stand, der vorgeführt wird, dann
+   `scripts/vorfuehrung.sh daten <dump>`. `daten` gibt die GESAMT-Zeilen aus, sie müssen denen aus Schritt 1 gleichen.
+3. **Probe.** `scripts/vorfuehrung.sh pruefen`, danach einmal D1 bis D4 im Browser, dann `scripts/vorfuehrung.sh reset`.
+4. **07:00, Freigabe.** Der Owner gibt die Pensionen mit seinem Namen frei, bis dahin steht dort „vorläufig“:
+   `scripts/vorfuehrung.sh pensionen-freigeben "<Vor- und Nachname>"`. Der Befehl läuft in der App, der Commit landet im Checkout.
+5. **Direkt danach:** `scripts/vorfuehrung.sh festschreiben`. Keine Probe dazwischen, sonst wird sie mit festgeschrieben.
+6. **Gegenprobe.** `scripts/vorfuehrung.sh reset`. Der Beleg ist die Freigabe, die danach noch auf der Seite steht; die Meldung
+   „0 Commits“ gilt immer. Das ist der Stand für die Vorführung um 09:00.
 
 ## Vorführen
 
 1. Hotspot an, `<vorführ-adresse>` öffnen, Nutzer und Passwort eingeben.
-2. **D1 Lauf und Bericht:** `/uc3/auftrag`, unten einen Monat rechnen, dann „Monat und Qualitätsbericht ansehen“.
-3. **D2 Live-Änderung:** `/uc3/auftrag`, Satz tippen, „Vorschlag schreiben lassen“. Danach „Vorher und nachher ansehen“, Name
-   eintragen, freigeben. Die Seite nennt den Commit. Rücknahme: neuer Auftrag „Nimm Vorschlag <n> zurück“, wieder freigeben.
+2. **D1 Lauf und Bericht, vor D2:** `/uc3/auftrag`, unten einen Monat rechnen, dann „Monat und Qualitätsbericht ansehen“.
+3. **D2 Live-Änderung:** `/uc3/auftrag`, Satz tippen, Monat für die Zahlen wählen, „Vorschlag schreiben lassen“. Danach „Vorher
+   und nachher ansehen“, Name eintragen, freigeben. Die Seite nennt den Commit. Rücknahme: neuer Auftrag „Nimm Vorschlag <n>
+   zurück“, wieder freigeben.
 4. **D3 Datenanfragen:** `/uc3/fragen`.
 5. **D4 Gemeinsamer Einstieg:** `/uc4`.
+
+Die Zahlen nachher kommen in der Vorführung aus der Probe auf dem Vorschlag. Ein neuer Regelsatz rechnet Monate nur in
+zeitlicher Reihenfolge ab dem ersten Monat, alle 24 sind live nicht machbar; die Seite bietet deshalb nur rechenbare Monate an.
+Nicht jeder Auftrag ändert in jedem Monat eine Zahl: Der Auftrag zum Geburtsmonat 13 wirkt nur in Jänner bis Juni, im Juli 2026
+ändert er keine. Für ihn Juni 2026 wählen (Gesamtzahl gleich, die Altersgruppen verschieben sich um wenige Personen, gemessen in
+der Lane Live-Änderung). März und Oktober 2025 bietet die Seite für die Probe nicht an: Dort enthält der Bestand Fortschreibungen,
+und die Probe zeigt bisher eine falsche Gesamtzahl.
 
 ## Zurück auf den Ausgangsstand
 
@@ -52,22 +83,50 @@ letzten Läufen) einmal neu ziehen und `daten` wiederholen. Ein neuer Stand: `up
 scripts/vorfuehrung.sh reset
 ```
 
-Neue Arbeitskopie aus der Vorlage, Freigabe-Commits weg, App neu gestartet, auch ein laufender Auftrag endet damit. Die Vorlage
+Neue Arbeitskopie aus der Vorlage, Freigabe-Commits weg, App neu gestartet, auch ein laufender Auftrag endet damit. Jede Probe
+eines Auftrags hinterlässt tote Zeilen (auf einer Kopie nach rund 100 Proben 23 statt 8 GB, Lane Live-Änderung), deshalb direkt vor
+der Vorführung immer `reset`. Die Vorlage bleibt dabei sauber, die Platte zeigt `status`. Die Vorlage
 und das Tagesbudget bleiben. Danach kann die Vorführung noch einmal laufen, etwa 09:00 und später fürs Management.
+
+Eine Freigabe, die bleiben soll (die Pensionen, Fr 07:00), würde `reset` mit zurücknehmen. Deshalb direkt danach:
+
+```bash
+scripts/vorfuehrung.sh festschreiben   # heutiger Stand wird Vorlage, der Commit gehört zum neuen Ausgangsstand
+```
+
+Das ersetzt die Vorlage. Zurück geht es nur mit `daten <dump>`. Also nur auf einem geprüften Stand, nie nach einer Probe.
+Ein späteres `up` legt den Checkout neu an: Der Freigabe-Commit ist dann weg, die Freigabe in der Datenbank bleibt.
+Bricht `daten`, `reset` oder `festschreiben` mitten ab, startet das Skript die App wieder; danach den Befehl wiederholen.
 
 ## Messungen
 
-Nicht gemessen: Die Instanz ist noch nicht aufgesetzt.
+Gemessen am 05.11.2026 auf der echten Adresse im Browser, mit dem Stand aus !229. Freigaben mit einem Probe-Namen, vor jedem
+Durchlauf `reset`.
 
-| Messung | Ergebnis |
+| Messung | Durchlauf 1 (23:00) | Durchlauf 2 (23:06, gedrosselt) |
+|---|---|---|
+| Ganzer Durchlauf D1 bis D4 | 349,7 s | 358,3 s |
+| Seite `/uc3` | 1,8 s | 1,8 s |
+| D1 Lauf Oktober 2025 | 101,2 s | 96,2 s |
+| D1 Monatsseite | 0,7 s | 0,6 s |
+| D2 Vorschlag (Geburtsmonat 13, Juni 2026) | 144,6 s | 147,6 s |
+| D2 Freigabe mit Name | 3,1 s | 5,8 s |
+| D2 Rücknahme, Vorschlag | 85,7 s | 90,8 s |
+| D2 Rücknahme, Freigabe | 2,3 s | 3,7 s |
+| D3 Datenanfrage (7.498) | 5,0 s | 5,8 s |
+| D4 `/uc4` | 4,3 s | 4,6 s |
+
+Gedrosselt heißt: 4 Mbit/s herunter, 1 Mbit/s hinauf, 150 ms im Browser. Beide Durchläufe liefen ohne Fehler und ohne Abriss.
+Das ersetzt keine Messung über einen echten Hotspot, die steht aus und liegt bei der Probe um 07:00.
+
+| Weitere Messung | Ergebnis |
 |---|---|
-| Durchlauf 1, D1 bis D4 | nicht gemessen |
-| Reset | nicht gemessen |
-| Durchlauf 2, D1 bis D4 | nicht gemessen |
-| Seitenlast über Hotspot | nicht gemessen |
-| Live-Änderung über Hotspot | nicht gemessen (`uc3 agent` mit Probe auf einer Abgabe-Kopie: 42 bis 110 s, Lane Live-Änderung) |
-| Basisregelsatz von `uc3 agent` auf dem vorgeführten Stand | nicht gemessen |
-| App-Neustart nach einer Freigabe, dann ein Lauf (Code-Vorschläge liegen im tmpfs, DB und Git bleiben) | nicht gemessen |
+| Lauf Oktober 2025 gegen die Rechen-Datenbank | gleich: 397.514, Hash `63f106818887` |
+| Reset | 51 bis 53 s, fünfmal |
+| Erster Monat auf einem neuen Regelsatz (2024-08) | 41 s |
+| Basisregelsatz von `uc3 agent` | v2, Ziel v3, nach Rücknahme Ziel v4 |
+| App-Neustart nach einer Freigabe, dann ein Lauf | läuft; ein Code-Vorschlag ist dabei nicht geprüft |
+| `pensionen-freigeben`, `festschreiben`, `reset`, zurück mit `daten` | nicht gemessen |
 
 ## Reserve: lokal
 

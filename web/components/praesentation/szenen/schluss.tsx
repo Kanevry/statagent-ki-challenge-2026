@@ -15,12 +15,14 @@ const ABSAETZE = [
  */
 export function Schluss({ folie }: SzeneProps) {
   const absaetze = absatzTexte(folie);
+  // `ohne_kreis: ja`: kein Kreis 4, der Text rückt zusammen (Management-Fassung).
+  const ohneKreis = folie.daten.ohne_kreis === "ja";
   return (
-    <>
+    <div className={ohneKreis ? k("s10-ohne") : undefined}>
       <h2 className={k("s10-satz", "s10-eins", "a")} style={vars({ t: 0.4 })}>
         {kopfzeile(folie)}
       </h2>
-      <Kreis n={4} x={850} y={330} d={220} klasse="s10-k4" />
+      {!ohneKreis && <Kreis n={4} x={850} y={330} d={220} klasse="s10-k4" />}
       {ABSAETZE.map((a, i) =>
         absaetze[i] ? (
           <p key={i} className={k(...a.klasse.split(" "), "a")} style={vars({ t: a.t })}>
@@ -29,6 +31,6 @@ export function Schluss({ folie }: SzeneProps) {
         ) : null,
       )}
       <Fuss folie={folie} />
-    </>
+    </div>
   );
 }

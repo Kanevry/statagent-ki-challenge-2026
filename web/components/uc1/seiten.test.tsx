@@ -18,6 +18,8 @@ it("online ohne Sprachmodell: kein Formular, eine Hauptaktion „Aufgezeichnetes
   expect(screen.queryByRole("textbox")).toBeNull();
   expect(screen.queryByRole("button", { name: "Senden" })).toBeNull();
   expect(screen.getByRole("button", { name: "Aufgezeichnetes Gespräch ansehen" })).toBeTruthy();
+  // Fängt „Erzählen Sie, was los ist“ über einer Seite ohne Eingabefeld (Live-Test 05.11.).
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("So läuft ein Gespräch");
 });
 
 it("lokal mit Sprachmodell bleibt das Formular", () => {

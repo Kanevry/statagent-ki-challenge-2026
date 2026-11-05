@@ -11,7 +11,10 @@ const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: repoWurzel,
   // /praesentation liest web/content/slides/*.md zur Laufzeit (#59); standalone kopiert sie nur so mit.
-  outputFileTracingIncludes: { "/praesentation": ["./content/slides/**/*"] },
+  outputFileTracingIncludes: {
+    "/praesentation": ["./content/slides/**/*"],
+    "/praesentation/management": ["./content/slides-management/**/*"],
+  },
   transpilePackages: ["@kic/ui"],
   // Kein `env` mit Vapi-Schlüssel: der Knopf holt ihn zur Laufzeit von /api/plattform/voice-config, und nur wenn
   // Voice aktiv ist. Ein NEXT_PUBLIC_-Wert stünde fest im Browser-Code jedes Builds (Review 4d, 05.11.).

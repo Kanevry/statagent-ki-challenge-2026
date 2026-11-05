@@ -11,6 +11,10 @@ services:
     # gleicher Digest wie docker-compose.prod.yml
     image: postgres:16-bookworm@sha256:14952ad1d751328359b3b0512475d2760c8ddf968f0615bd911155010dc9901a
     restart: unless-stopped
+    # Ohne init ist Postgres selbst PID 1 und erbt jeden verwaisten Prozess. Der Healthcheck wartet während einer Kopie auf
+    # die Quell-DB, läuft in sein Timeout und endet als Waise mit Exit 2: Postgres hält das für einen abgestürzten
+    # Server-Prozess und startet neu (gemessen: festschreiben brach so jedes Mal ab).
+    init: true
     # Grenze, damit ein Lauf die öffentliche Demo auf demselben Server nicht verdrängt
     mem_limit: 3g
     shm_size: 1g
@@ -38,7 +42,8 @@ services:
       - ./sql:/deploy-sql:ro
     networks: [intern]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U statistik -d statistik_vorfuehrung"]
+      # DB postgres: die Arbeitskopie ist bei festschreiben Quelle einer Kopie und bei reset kurz gar nicht da
+      test: ["CMD-SHELL", "pg_isready -U statistik -d postgres"]
       interval: 5s
       timeout: 3s
       retries: 30

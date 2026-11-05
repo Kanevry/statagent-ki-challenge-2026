@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 const BROWSER = "e5-screens";
 const BASIS_URL = (process.env.BASIS_URL || "http://localhost:3000").replace(/\/+$/, "");
-const SCREENS = resolve(dirname(fileURLToPath(import.meta.url)), "..", "screens");
+const SCREENS = process.env.SCREENS ? resolve(process.env.SCREENS) : resolve(dirname(fileURLToPath(import.meta.url)), "..", "screens");
 
 // Bild, Route, optionale Aktion; je Szene der Präsentation mindestens ein Bild (Feld folie in quellen.json, #88). Aktionen ändern nichts: "folge" liest den ersten passenden Link und navigiert
 // dorthin (kein Klick auf Knöpfe), "scroll" rollt das Element unter den App-Kopf. Seiten mit der Fehlermeldung
@@ -22,16 +22,21 @@ const SCREENS = resolve(dirname(fileURLToPath(import.meta.url)), "..", "screens"
 const ALLE_ZIELE = [
   { bild: "SC01", route: "/uc3" },
   { bild: "SC02", route: "/uc3/berichte/regeln", scroll: '[data-regel="R6_beschaeftigungskategorie"]' },
-  { bild: "SC03", route: "/uc4" },
+  { bild: "SC03", route: "/uc4", nichtMehr: "wird geprüft" },
   { bild: "SC04", route: "/uc3/berichte/2024-08" },
   { bild: "SC05", route: "/uc3/klassifikationen" },
   { bild: "SC06", route: "/uc3/berichte/2025-03" },
   { bild: "SC07", route: "/uc3/berichte/2025-10" },
   { bild: "SC08", route: "/uc3/berichte/regeln", scroll: '[data-regel="R5_alter"]' },
   { bild: "SC09", route: "/" },
-  { bild: "SC10", route: "/uc3/freigaben?reiter=erledigt", folge: 'main a[href^="/uc3/freigaben/"]' },
-  { bild: "SC11", route: "/uc4" },
-  { bild: "SC12", route: "/uc3/freigaben", folge: 'main a[href^="/uc3/freigaben/"]', scroll: "#verschiebung" },
+  { bild: "SC10", route: "/uc3/freigaben", folge: 'main a[href^="/uc3/freigaben/"]' },
+  {
+    bild: "SC11",
+    route: "/uc4",
+    frage: "Wie viele Beschäftigte gab es im März 2025 in Wien im Gesundheits- und Sozialwesen?",
+    soll: "7.498",
+  },
+  { bild: "SC12", route: "/uc3/freigaben/24" },
 ];
 const NUR = (process.env.NUR || "").split(",").map((b) => b.trim()).filter(Boolean);
 const ZIELE = NUR.length ? ALLE_ZIELE.filter((z) => NUR.includes(z.bild)) : ALLE_ZIELE;
@@ -66,12 +71,31 @@ for (const a of auftraege) {
     await page.goto(a.url.slice(0, a.url.length - a.route.length) + href, { waitUntil: "load", timeout: 30000 });
     await page.waitForNetworkIdle({ idleTime: 500, concurrency: 2, timeout: 10000 }).catch(() => {});
   }
+  if (a.frage) {
+    // Die Frage läuft durch die ganze Kette (Modellaufrufe, nichts wird gespeichert). Fertig ist sie, wenn die Sollzahl
+    // dasteht und der Knopf wieder frei ist. Fehlt die Sollzahl, bricht die Aufnahme ab.
+    await page.type("main form input", a.frage);
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(
+      (soll) => document.querySelector("main")?.innerText.includes(soll) && !document.querySelector("main form button[type=submit][disabled]"),
+      { timeout: 120000, polling: 500 },
+      a.soll,
+    );
+  }
+  if (a.nichtMehr) {
+    // Zwischenstand beim Laden, zum Beispiel die Modell-Anzeige im Kopf: Bleibt er stehen, bricht die Aufnahme ab.
+    await page.waitForFunction((text) => !document.body.innerText.includes(text), { timeout: 20000, polling: 500 }, a.nichtMehr);
+  }
   const fehler = await page.evaluate(() => document.body.innerText.includes("Die Zahlen ließen sich gerade nicht lesen"));
   if (fehler) throw new Error(a.bild + ": Fehlerseite auf " + route + " (Zahlen nicht lesbar), Abbruch");
   if (a.scroll) {
     const da = await page.evaluate((sel) => {
       const el = document.querySelector(sel);
       if (!el) return false;
+      // Eingeklappte Regeln aufklappen, sonst zeigt das Bild sie nicht.
+      for (let d = el.closest("details"); d; d = d.parentElement?.closest("details") ?? null) d.open = true;
+      // Auch die Begründung der Regel selbst, damit SC02 und SC08 je ihre Regel zeigen.
+      for (const d of el.querySelectorAll("details")) d.open = true;
       el.scrollIntoView({ block: "start" });
       window.scrollBy(0, -96);
       return true;

@@ -361,6 +361,8 @@ def main() -> int:
         if (not a.id or p["id"] == a.id)
         and (not a.bereich or p["datei"].split(".")[0].split("-")[0] == a.bereich)
         and (a.schwer or not p.get("schwer"))
+        # `einzeln = true`: nur mit --id (22-1 rechnet 24 Läufe v2 nach und sprengt sonst den Schlusslauf).
+        and (a.id or not p.get("einzeln"))
         # Der schwere Lauf urteilt nur Kriterien mit schwerem Teil (alle ihre Teile). Rein leichte Kriterien
         # misst der leichte Lauf: auf dem Prüfrechner fehlen glab und Nachbarordner, ein Urteil von dort
         # würde ein jüngeres leichtes Urteil überdecken (Lauf 20:11: 134-4 nur dort nicht bestanden).

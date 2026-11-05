@@ -82,6 +82,8 @@ python:
     # Abnahme-Prüfsätze ohne DB und Netz (Antrag b-abnahme-30 in #53, Wunsch Review-Bank 4d); greift, sobald die
     # Datei mit !82 auf dem Branch liegt
     - if [ -f tests/abnahme/test_abnahme.py ]; then uv run pytest -q -p no:cacheprovider tests/abnahme/test_abnahme.py; fi
+    # Abgabe-Skripte (GitHub-Push, SV-Box-Upload) ohne Netz
+    - uv run pytest -q -p no:cacheprovider tests/abgabe
 
 web:
   extends: .pnpm

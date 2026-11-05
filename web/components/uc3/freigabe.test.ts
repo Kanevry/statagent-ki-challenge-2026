@@ -12,6 +12,9 @@ import {
   isoZeit,
   aenderungKurz,
   klarerAenderungsSatz,
+  zitatDoppelt,
+  regionenSatz,
+  probeWirkungSatz,
   klartext,
   kurzerGrund,
   probeTitel,
@@ -568,7 +571,7 @@ describe("Sichtbarer Satz auf der Freigabe (#168)", () => {
   it("steht bei Rücknahme und Ausschluss, nicht bei einer normalen Änderung", () => {
     expect(
       klarerAenderungsSatz({ typ: "regel_aendern", aenderungen: [{ regel_name: "X1", aktiv_neu: false }] }),
-    ).toBe("Die Regel X1 wird abgeschaltet, sie wird nicht gelöscht.");
+    ).toBe("Die Regel wird abgeschaltet, sie wird nicht gelöscht.");
     expect(
       klarerAenderungsSatz({
         typ: "regel_neu",
@@ -578,5 +581,57 @@ describe("Sichtbarer Satz auf der Freigabe (#168)", () => {
     expect(
       klarerAenderungsSatz({ typ: "regel_aendern", aenderungen: [{ regel_name: "X1", parameter_alt: { a: 1 }, parameter_neu: { a: 2 } }] }),
     ).toBeNull();
+  });
+});
+
+describe("Überschrift und Zitat der Freigabe", () => {
+  // Fehler: „Beamte zählen nicht mehr mit“ stand als Überschrift und direkt darunter noch einmal als Zitat.
+  it("zeigt das Zitat nur, wenn es mehr sagt als die Überschrift", () => {
+    expect(zitatDoppelt("Beamte zählen nicht mehr mit", "Beamte zählen nicht mehr mit.")).toBe(true);
+    expect(zitatDoppelt("Rechne bei Geburtsmonat 13 nur …", "Rechne bei Geburtsmonat 13 nur mit der Differenz.")).toBe(false);
+    expect(zitatDoppelt("Dienstvertrag zusammen", "In der Statistik wird nicht mehr unterschieden.")).toBe(false);
+  });
+});
+
+describe("Zusammenlegung von Bundesländern in der Probe", () => {
+  const probe = (vorher: Record<string, number>, nachher: Record<string, number>) => ({
+    "2026-07": { vorher: { je_merkmal: { region: vorher } }, nachher: { je_merkmal: { region: nachher } } },
+  });
+  const namen = { region: { "1": "Burgenland", "3": "Niederösterreich" } };
+
+  // Fehler: Die Tabelle zeigte nur Kategorien, vorher gleich nachher, die Änderung war nicht zu sehen.
+  it("nennt die Bundesländer und die neue Gruppe mit Zahlen", () => {
+    expect(regionenSatz(probe({ "1": 100, "3": 2000, "9": 5 }, { Ost: 2100, "9": 5 }), namen)).toBe(
+      "Burgenland 100 und Niederösterreich 2.000 zählen nachher zusammen als „Ost“: 2.100.",
+    );
+  });
+
+  it("schweigt, wenn nichts zusammengelegt wird", () => {
+    expect(regionenSatz(probe({ "1": 100, "3": 2000 }, { "1": 90, "3": 2000 }), namen)).toBeNull();
+    expect(regionenSatz({}, namen)).toBeNull();
+  });
+});
+
+describe("Wirkung außerhalb der Kategorien", () => {
+  const probe = (vorher: object, nachher: object) => ({
+    "2026-06": { vorher: { je_merkmal: vorher }, nachher: { je_merkmal: nachher } },
+  });
+
+  // Fehler: Eine Änderung am Alter sagte nur „ändert die Probe keine Zahl“, obwohl sich die Altersgruppen verschieben.
+  it("nennt die größten Unterschiede, auch wenn die Kategorien gleich bleiben", () => {
+    const satz = probeWirkungSatz(
+      probe(
+        { qualifikation: { Arbeiter: 5 }, altersgruppe: { "25-34": 1000, "35-44": 2000 } },
+        { qualifikation: { Arbeiter: 5 }, altersgruppe: { "25-34": 1100, "35-44": 1900 } },
+      ),
+    );
+    expect(satz).toBe(
+      "Die Änderung zeigt sich an anderer Stelle. Altersgruppe 25-34: 1.100 statt 1.000; Altersgruppe 35-44: 1.900 statt 2.000.",
+    );
+  });
+
+  it("schweigt, wenn sich außerhalb der Kategorien nichts ändert", () => {
+    expect(probeWirkungSatz(probe({ qualifikation: { Arbeiter: 5 } }, { qualifikation: { Arbeiter: 6 } }))).toBeNull();
+    expect(probeWirkungSatz({})).toBeNull();
   });
 });
