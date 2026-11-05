@@ -100,9 +100,22 @@ test("Frage absenden: Stationen antworten in Reihenfolge uc3, uc2, uc1, jede mit
   expect(accept).toContain("application/x-ndjson");
   await expect(page.locator("[data-uc4-antwort]")).toHaveCount(3);
   await expect(page.locator('[data-uc-karte="uc3"] [data-baustein="herkunft"]')).toHaveCount(1);
+  await expect(page.locator("[data-zahl]")).toHaveCount(1);
   await expect(page.getByText(/Fertig in/)).toBeVisible();
 
   await gateMessen(page);
+});
+
+test("Klick auf ein Beispiel: der Anfang der Frage steht sichtbar im Feld", async ({ page }) => {
+  // Fängt die UI-Regie 05.11.: Das Feld zeigte „m Gesundheits- …“ statt des Anfangs.
+  await page.route("**/api/uc4/frage", (route) =>
+    route.fulfill({ status: 200, headers: { "content-type": "application/x-ndjson" }, body: strom() }),
+  );
+  await page.goto("/uc4");
+  await page.getByRole("button", { name: /im März 2025 in Wien/ }).click();
+  await expect(page.locator('[data-zustand="antwort"]')).toHaveCount(3);
+  await expect(page.getByLabel("Ihre Frage")).toHaveValue(/^Wie viele/);
+  expect(await page.getByLabel("Ihre Frage").evaluate((el) => el.scrollLeft)).toBe(0);
 });
 
 test("gesperrter POST zeigt genau einen ruhigen Satz, keine rote Meldung je Station", async ({ page }) => {

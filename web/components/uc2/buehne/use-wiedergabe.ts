@@ -39,7 +39,10 @@ export function useWiedergabe(fallId: string): Wiedergabe {
   const [index, setIndex] = useState(0);
   const [pausiert, setPausiert] = useState(false);
   const [tempo, setTempo] = useState(1);
+  const [amEnde, setAmEnde] = useState(false);
   const letzte = useRef(0);
+  // Beim Neuverbinden nach „Zum Ergebnis“: Der Rest der Aufzeichnung kommt ohne Takt (?sofort=1).
+  const sofort = useRef(false);
 
   useEffect(() => {
     if (typeof EventSource === "undefined") {
@@ -47,8 +50,10 @@ export function useWiedergabe(fallId: string): Wiedergabe {
       return;
     }
     setVerbindung("verbindet");
-    const ab = letzte.current > 0 ? `?seq=${letzte.current}` : "";
-    const quelle = new EventSource(`/api/uc2/faelle/${encodeURIComponent(fallId)}/ereignisse${ab}`);
+    const abfrage = new URLSearchParams();
+    if (letzte.current > 0) abfrage.set("seq", String(letzte.current));
+    if (sofort.current) abfrage.set("sofort", "1");
+    const quelle = new EventSource(`/api/uc2/faelle/${encodeURIComponent(fallId)}/ereignisse${abfrage.toString() ? `?${abfrage}` : ""}`);
     quelle.onopen = () => setVerbindung("offen");
     quelle.onerror = () => {
       if (quelle.readyState !== EventSource.CLOSED) {
@@ -89,7 +94,10 @@ export function useWiedergabe(fallId: string): Wiedergabe {
 
   const listeRef = useRef(ereignisse);
   listeRef.current = ereignisse;
-  const mehr = index < ereignisse.length;
+  // Nach „Zum Ergebnis“ zählt alles, was angekommen ist und noch ankommt. Abgeleitet statt gesetzt: Ein gesetzter Stand
+  // wurde im Browser vom noch laufenden Takt-Timer wieder zurückgedreht (05.11.).
+  const stand = amEnde ? ereignisse.length : index;
+  const mehr = stand < ereignisse.length;
 
   // Takt: nach einem Ereignis mit eigener Bühne warten, Ereignisse ohne Bühne sofort mitnehmen.
   useEffect(() => {
@@ -101,7 +109,7 @@ export function useWiedergabe(fallId: string): Wiedergabe {
     return () => clearTimeout(uhr);
   }, [index, mehr, pausiert, tempo]);
 
-  const gezeigt = useMemo(() => ereignisse.slice(0, index), [ereignisse, index]);
+  const gezeigt = useMemo(() => ereignisse.slice(0, stand), [ereignisse, stand]);
   const zustand = useMemo(() => ableiten(gezeigt), [gezeigt]);
   const gesamt = useMemo(() => ableiten(ereignisse), [ereignisse]);
 
@@ -112,12 +120,19 @@ export function useWiedergabe(fallId: string): Wiedergabe {
     verbindung,
     pausiert,
     tempo,
-    anteil: ereignisse.length === 0 ? 0 : index / ereignisse.length,
+    anteil: ereignisse.length === 0 ? 0 : stand / ereignisse.length,
     umschalten: () => setPausiert((p) => !p),
     setTempo,
-    weiter: () => setIndex(naechsterIndex(ereignisse, index)),
-    zumEnde: () => setIndex(ereignisse.length),
+    weiter: () => setIndex(naechsterIndex(ereignisse, stand)),
+    zumEnde: () => {
+      setAmEnde(true);
+      if (verbindung !== "zu") {
+        sofort.current = true;
+        setVersuch((v) => v + 1);
+      }
+    },
     vonVorn: () => {
+      setAmEnde(false);
       setIndex(0);
       setPausiert(false);
     },

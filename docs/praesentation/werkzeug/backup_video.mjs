@@ -143,7 +143,6 @@ try {
   await oeffne(page, "/uc3/fragen", "D3 Fragen an die Daten: Das Programm rechnet ohne KI und zeigt die Abfrage");
   await warte(4000);
   for (const f of FRAGEN) {
-    await zeile(page, f.zeile);
     const feld = page.locator('form[aria-label="Frage an die Daten"] input, form[aria-label="Frage an die Daten"] textarea').first();
     await feld.click();
     await feld.fill("");
@@ -159,6 +158,8 @@ try {
       await ergebnis.locator("summary", { hasText: /^Details$/ }).last().click();
     }
     await soll.locator("visible=true").first().waitFor({ timeout: 15000 });
+    // Die Einblendung kommt erst mit dem Ergebnis, nie über der alten Tabelle.
+    await zeile(page, f.zeile);
     await warte(9000);
     await rolle(page, 2, 2500);
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }));

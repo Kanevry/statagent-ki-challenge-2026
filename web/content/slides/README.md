@@ -41,6 +41,8 @@ Sprechtext. Steht nie auf der Folie.
 Weitere Schlüssel (`nummer`, `bereiche`, `belege` und so weiter) sind erlaubt. Die Szenen lesen manche davon
 als Zusatz (Tabelle unten), alle anderen werden ignoriert.
 
+Die Management-Fassung (Seite `/praesentation/management`, Ordner `web/content/slides-management/`) nutzt dieselben Szenen. Dort darf `takte` im Frontmatter die Takte einer Szene senken.
+
 ## Szenen
 
 Steht `szene` im Frontmatter, läuft die Folie als animierte Szene auf der dunklen Bühne (1920 × 1080). Die Registry
@@ -60,6 +62,7 @@ Die Szenen 3 bis 9 tragen einen einheitlichen Kopf: kleiner Kreis 3, daneben die
 | `woerterbuecher` | 0 | `#` Titel, zwei Tabellen (alte und neue Liste, Kopf: Name und Gültigkeit), Absätze: Teilung, Satz | `uebergang`, z. B. `C-C J-J Q-R J-K`; ein Code mit zwei Zielen teilt sich gelb |
 | `annahme` | 3 | `#` Titel, 1. Absatz (Takt 1), Tabelle Rechenweg und Spaltenkopf mit Gesamtzahl (Takt 2), Schlusssatz (Takt 3) | `treffer`: Satz neben dem Haken |
 | `einstieg` | 3 | `#` Titel, 1. Absatz Frage (tippt sich), Liste mit drei Antworten (je Takt eine), 2. Absatz unter Kreis 4 | `belegt`: Namen, deren Antwort einen Haken trägt; die übrigen zeigen einen offenen Kreis |
+| `zahlen` | 0 | `#` Titel als Satz, Tabelle Zahl und Text (bis drei Zeilen) oder Liste von Sätzen, Absatz klein darunter | keine |
 | `schluss` | 0 | `#` erster Satz, Absätze: zweiter Satz, Live-Zeile, Nebenzeile, Adresse unten | keine |
 
 Jeder sichtbare Satz steht im Markdown, auch kurze wie der Stempel oder der Treffer-Satz. Monate im sichtbaren Text

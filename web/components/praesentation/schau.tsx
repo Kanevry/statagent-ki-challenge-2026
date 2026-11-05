@@ -31,11 +31,17 @@ function gehoertDemElement(ziel: EventTarget | null, taste: string): boolean {
   return taste === " " && ["BUTTON", "A", "SUMMARY"].includes(ziel.tagName);
 }
 
+/** Takte einer Folie: die der Szene, oder weniger, wenn das Frontmatter `takte` kleiner setzt. */
+export function taktZahl(ausSzene: number, ausFolie: string | undefined): number {
+  const n = Number(ausFolie);
+  return ausFolie !== undefined && Number.isInteger(n) && n >= 0 ? Math.min(n, ausSzene) : ausSzene;
+}
+
 const FOKUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen";
 
 export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }) {
   const anzahl = folien.length;
-  const takte = useMemo(() => folien.map((f) => szeneFuer(f.szene?.id)?.takte ?? 0), [folien]);
+  const takte = useMemo(() => folien.map((f) => taktZahl(szeneFuer(f.szene?.id)?.takte ?? 0, f.szene?.folie.daten.takte)), [folien]);
   // Direktlink ?folie=N (N > 1, etwa nach einem Neuladen mitten im Vortrag): Endzustand wie beim Sprung aus der
   // Leiste, damit nie ein Zwischenstand erscheint. Folie 1 beginnt wie gewohnt mit ihrer Bewegung.
   const [stand, setStand] = useState<Stand>(() => (start > 1 ? betreten(start, takte, true) : { folie: start, takt: 0 }));
