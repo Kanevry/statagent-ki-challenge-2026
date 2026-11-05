@@ -86,14 +86,20 @@ class _Verstoss(ValueError):
         self.kennung = kennung
 
 
+#: Schlüssel, unter denen ein JSON-Schema Daten statt Schema trägt; „properties“ dort zählen nicht.
+_DATEN_SCHLUESSEL = frozenset({"default", "examples", "example", "const", "enum"})
+
+
 def _bekannte_namen(knoten: Any) -> set[str]:
-    """Alle im JSON-Schema deklarierten Eigenschaftsnamen (rekursiv)."""
+    """Alle im JSON-Schema deklarierten Eigenschaftsnamen (rekursiv), ohne Beispiel- und Vorgabewerte."""
     namen: set[str] = set()
     if isinstance(knoten, dict):
         eigenschaften = knoten.get("properties")
         if isinstance(eigenschaften, dict):
             namen |= set(eigenschaften)
-        for wert in knoten.values():
+        for schluessel, wert in knoten.items():
+            if schluessel in _DATEN_SCHLUESSEL:
+                continue
             namen |= _bekannte_namen(wert)
     elif isinstance(knoten, list):
         for wert in knoten:
