@@ -62,7 +62,9 @@ const NAME_HINWEIS = "Bitte den eigenen Vor- und Nachnamen eintragen, „Team“
 
 function fehlertext(fehler: unknown): string {
   const meldung = fehler instanceof Error ? fehler.message.trim() : "";
-  return meldung ? `Nicht gespeichert. ${meldung}` : "Nicht gespeichert. Bitte noch einmal versuchen.";
+  if (!meldung) return "Nicht gespeichert. Bitte noch einmal versuchen.";
+  // Sagt die Route es schon selbst, nicht doppelt (Antrag #135).
+  return /^nicht gespeichert\b/i.test(meldung) ? meldung : `Nicht gespeichert. ${meldung}`;
 }
 
 function serverZeit(antwort: FreigabeAntwort): string {

@@ -30,7 +30,8 @@ Zahlen rechnet nie ein Modell, sondern der Code ohne Sprachmodell. An das Modell
 ## Tagesbudget und Ratenlimit
 
 Für die öffentliche Online-Demo (#100) gelten zwei Grenzen. `LLM_TAGESBUDGET_AUFRUFE` (ganze Zahl ab 1, leer =
-kein Budget) begrenzt die Modellaufrufe je UTC-Tag. Gezählt werden die Zeilen des Tages in
+kein Budget) begrenzt die `complete`-Aufrufe je UTC-Tag. Ein Aufruf kann über Ausweichstufen und die
+Schema-Wiederholung mehrere Anfragen an Anbieter auslösen. Gezählt werden die Zeilen des Tages in
 `modellaufrufe.jsonl` mit einem Sprachmodell-Provider, auch Fehlversuche; Zeilen von `router` und `lokal` zählen
 nicht. So stimmt die Zahl auch über die Python-Prozesse, die die Web-App je Anfrage startet. Ist das Budget
 verbraucht, wirft `complete` vor jedem Provider-Aufruf `BudgetErschoepft` und schreibt keine Zeile;
@@ -38,7 +39,8 @@ verbraucht, wirft `complete` vor jedem Provider-Aufruf `BudgetErschoepft` und sc
 `POST /api/uc4/frage` antwortet mit 429. `status --json` nennt den Stand im Feld `budget`
 (`grenze`, `verbraucht`, `frei`). Davor begrenzt die Web-App jede Client-IP auf `RATENLIMIT_PRO_MINUTE`
 Fragen je Minute (Standard 10, gleitendes Fenster, 429 mit `Retry-After`). Prüfen und Schreiben des Budgets sind
-nicht atomar: gleichzeitige Anfragen an der Grenze können sie um wenige Aufrufe überschreiten.
+nicht atomar: gleichzeitig laufende Aufrufe an der Grenze können sie um so viele Aufrufe überschreiten, wie gerade
+laufen.
 
 Online ist das Budget Pflicht (fail-closed, Review !36). Das Prod-Compose setzt `KIC_ONLINE=1` und verlangt
 `LLM_TAGESBUDGET_AUFRUFE` beim Start (`${…:?}`, Invariante in `deploy/compose-invarianten.jq`). Ist
