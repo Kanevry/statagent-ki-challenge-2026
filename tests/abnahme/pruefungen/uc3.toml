@@ -55,21 +55,25 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "135-10"
 hash = "24f5e85ccf"
-befehl = "grep -nE '\"(dev|start)\"' web/package.json"
-erwartet = ["(-H|--hostname) 127\\.0\\.0\\.1"]
+befehl = "grep -nE '\"(dev|start)\": .*next (dev|start) -H 127\\.0\\.0\\.1' web/package.json"
+erwartet = ["\"dev\": .*next dev -H 127\\.0\\.0\\.1", "\"start\": .*next start -H 127\\.0\\.0\\.1"]
 schwer = false
-deckung = "teil"
-befund = "web/package.json:7 und :9 starten next dev und next start ohne Bindung an 127.0.0.1."
+deckung = "voll"
+befund = "Kriterium auf main wieder verfehlt"
+grund = "next dev und next start binden an 127.0.0.1 (web/package.json)"
+geprueft_von = "b-abnahme-30 nach Fix 043885a"
 herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 
 [[pruefung]]
 id = "135-11"
 hash = "33ebd3f7d8"
-befehl = "grep -c \"alias\" web/vitest.config.ts || true"
-erwartet = ["^[1-9]"]
+befehl = "grep -nF 'find: /^@\\//' web/vitest.config.ts"
+erwartet = ["^\\d+:.*alias: \\[\\{ find: /\\^@\\\\//"]
 schwer = false
-deckung = "teil"
-befund = "web/vitest.config.ts kennt keinen Alias @/ (0 Treffer); web/components/uc3/cli.ts importiert weiter relativ."
+deckung = "voll"
+befund = "Kriterium auf main wieder verfehlt"
+grund = "vitest.config.ts löst den Alias @/ auf"
+geprueft_von = "b-abnahme-30 nach Fix 043885a"
 herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 
 [[pruefung]]
