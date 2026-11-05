@@ -18,9 +18,11 @@ from statagent.berichte.qualitaetsbericht import (
     _rueckfragen,
     _rueckfragen_daten,
     _ueberblick,
+    _verweise,
     bericht_daten,
     bericht_erzeugen,
     bericht_schreiben,
+    grundlage_kurz,
     text_glaetten,
     zahl,
 )
@@ -164,7 +166,9 @@ def test_veroeffentlichter_monat_zeigt_den_veroeffentlichenden_lauf(conn: Verbin
     revision = _abschnitt(text, 5)
     assert f"veröffentlichenden Lauf {erster.lauf_id}" in revision
     assert "P90_testpruefung (Aggregat, 7 Sätze, hätte angehalten)" in revision
-    assert "Umschichtung" in revision and "| 2024-08 | ÖNACE-Abschnitt | C |" in revision
+    assert "Umschichtung" in revision and re.search(
+        r"\| 2024-08 \| ÖNACE-Abschnitt \| [^|]*\(C\) \|", revision
+    )
     assert bericht_maengel(text) == []
 
 
@@ -186,7 +190,8 @@ def test_umschichtung_ist_revisionsbedarf(conn: Verbindung) -> None:
     assert "Kein Revisionsbedarf" not in revision
     assert "Umschichtung zwischen Ausprägungen, insgesamt unverändert" in revision
     zeilen = [z for z in revision.splitlines() if z.startswith("| 2024-08 | ÖNACE-Abschnitt |")]
-    assert [z.split(" | ")[2] for z in zeilen] == ["C", "D"]
+    # Klarnamen statt Codes in § 5 (Review-Bank 69, Runde 3), der Abschnittsbuchstabe bleibt in Klammern.
+    assert [z.split(" | ")[2][-3:] for z in zeilen] == ["(C)", "(D)"]
     assert zeilen[0].endswith("| +10 |") and zeilen[1].endswith("| -10 |")
 
 
@@ -301,8 +306,10 @@ def test_rueckfragen_je_monat_vollstaendig_und_ohne_doppelung(conn: Verbindung) 
         _pruef_treffer("P12_code_unbekannt", "Q03_sonst_unbekannt", "neu", "nicht-erklaerbar"),
         _pruef_treffer("P23_revision_vormonat", None, "neu", "erklaert-plausibel"),
     ]
-    spalte = [a["rueckfragen"] for a in _auffaelligkeiten_daten(treffer, rueckfragen, "2025-10")]
-    assert spalte == [["R7"], ["R5"], ["R6"], ["noch keine Rückfrage gestellt"], ["keine Rückfrage nötig"]]
+    # Über regel_name nur im Monat der Rückfrage: R7 gilt für 2025-03, R5 für 2025-06.
+    spalte = [a["rueckfragen"] for a in _auffaelligkeiten_daten(treffer, rueckfragen, "2025-03")]
+    assert spalte == [["R7"], [], ["R6"], ["noch keine Rückfrage gestellt"], ["keine Rückfrage nötig"]]
+    assert _auffaelligkeiten_daten(treffer[1:2], rueckfragen, "2025-06")[0]["rueckfragen"] == ["R5"]
     # Fängt: P07 (erklärt – plausibel) erbte über seine Regel R5_alter die Rückfrage R1; P14 (nicht erklärbar,
     # ohne Rückfrage) zeigte „–“.
     spaeter = [
@@ -314,7 +321,7 @@ def test_rueckfragen_je_monat_vollstaendig_und_ohne_doppelung(conn: Verbindung) 
 
     oktober = {r["nr"] for r in _rueckfragen_daten("2025-10", [], rueckfragen)}
     assert oktober == {"R1", "R3", "R6", "R8"}  # Einzelmonate nur im eigenen Monat, „alle“ ab ab_lieferung
-    assert "R5" in {r["nr"] for r in _rueckfragen_daten("2025-10", treffer[1:2], rueckfragen)}
+    assert "R5" not in {r["nr"] for r in _rueckfragen_daten("2025-10", treffer[1:2], rueckfragen)}
 
     for r in _rueckfragen_daten("2024-08", [], rueckfragen):
         assert not r["frage"].endswith("…"), r["nr"]
@@ -424,3 +431,71 @@ def test_status_nennt_anhalten_einmal_und_revision_sagt_damals_vorlaeufig(conn: 
     assert {"P91_test", "P92_test"} <= set(grund.split(", "))
     zeile = next(z for z in _abschnitt(text, 5).splitlines() if z.startswith("| 2024-08 |"))
     assert "(damals vorläufig)" in zeile
+
+
+def test_saisonmonat_und_revision_aus_lieferausfall_verweisen_richtig() -> None:
+    # Fängt (Runde 3): P14 im Saisonmonat (erklärt – plausibel) zeigte R10 über regel_name, auch in Monaten,
+    # die R10 nicht nennt; P23 in 2025-10/2025-11 zeigte „noch keine Rückfrage gestellt“ statt R3 (Teil-Lieferung).
+    rueckfragen: list[dict[str, object]] = [
+        {
+            "nr": "R10",
+            "regel_name": "P14_sprung_aggregat",
+            "lieferungen": "lieferung_2024-09",
+            "ab_lieferung": None,
+        },
+    ]
+    p14 = _pruef_treffer("P14_sprung_aggregat", None, None, "erklaert-plausibel")
+    assert _verweise(p14, rueckfragen, "2024-09") == []
+    p14_offen = p14 | {"einstufung": "nicht-erklaerbar"}
+    assert _verweise(p14_offen, rueckfragen, "2024-09") == ["R10"]
+    assert _verweise(p14_offen, rueckfragen, "2024-11") == []
+    p23 = _pruef_treffer("P23_revision_vormonat", None, "neu", "nicht-erklaerbar") | {
+        "art": "revision_vormonat",
+        "umfang": "2025-10: +343 (0,1 %)",
+    }
+    ausfall = {"2025-10": ["R3"]}
+    assert _verweise(p23, rueckfragen, "2025-10", ausfall) == ["R3"]
+    assert _verweise(p23, rueckfragen, "2025-11", ausfall) == ["R3"]  # Revision des Ausfallmonats
+    assert _verweise(p23 | {"umfang": "2025-12: +5 (0,0 %)"}, rueckfragen, "2026-01", ausfall) == []
+
+
+def test_grundlage_nennt_den_kern_statt_der_ganzen_anweisung() -> None:
+    # Fängt (Runde 3): § 4 zeigte in v2 die ganze Agenten-Anweisung (980 Zeichen) als Grundlage.
+    lang = (
+        "Fachbeschreibung § 4 Nr. 1, 2, 4; Vorschlag uc3/25: Auftrag 2, ganzes Monat statt Stichtag: "
+        + "Text " * 200
+    )
+    assert (
+        grundlage_kurz(lang)
+        == "Fachbeschreibung § 4 Nr. 1, 2, 4; Vorschlag uc3/25: Auftrag 2, ganzes Monat statt Stichtag"
+    )
+    ohne = grundlage_kurz("Wort " * 100)
+    assert len(ohne) <= 160 and ohne.endswith("Wort…")
+    assert grundlage_kurz("Fachbeschreibung § 4 Nr. 6") == "Fachbeschreibung § 4 Nr. 6"
+
+
+def test_v2_ueberblick_zaehlt_im_berichtsmonat(conn: Verbindung) -> None:
+    # Fängt (Runde 3, Blocker): v2 zählt die Zeitraumart „Monat“, § 1 filterte fest auf „Stichtag“ und zeigte
+    # „Beschäftigungsverhältnisse am Stichtag | 0“ und „Veränderung zum Vormonat | 0“.
+    import json
+
+    from statagent.agenten.regelaenderung import regelsatz_sicherstellen
+
+    regelsatz_sicherstellen(conn, "v2", "v1")
+    conn.execute(
+        """UPDATE meta.regel SET parameter = parameter || %s::jsonb
+           WHERE regelsatz = 'v2' AND name = 'R2_R4_stichtag_eigene_lieferung'""",
+        (json.dumps({"zeitraum_art": "Monat"}),),
+    )
+    conn.execute(
+        """UPDATE meta.regel SET grundlage = grundlage || '; Vorschlag uc3/25: Auftrag 2, ganzes Monat: lang'
+           WHERE regelsatz = 'v2' AND name = 'R2_R4_stichtag_eigene_lieferung'"""
+    )
+    lauf = lauf_ausfuehren(conn, "2024-08", regelsatz="v2")
+    gezaehlt = int(str(_lauf(conn, lauf.lauf_id)["gezaehlt"]))
+    text = bericht_erzeugen(conn, "2024-08", "v2")
+    assert gezaehlt > 0
+    assert f"| Beschäftigungsverhältnisse im Berichtsmonat (mindestens ein Tag) | {zahl(gezaehlt)} |" in text
+    assert f"| davon gezählt im Berichtsmonat (mindestens ein Tag) | {zahl(gezaehlt)} |" in text
+    assert "am Stichtag |" not in _abschnitt(text, 1)
+    assert text.startswith("# Qualitätsbericht – Berichtsmonat 2024-08 (Regelsatz v2: Auftrag 2)\n")
