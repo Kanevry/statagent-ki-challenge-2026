@@ -70,7 +70,7 @@ Routen, die noch nicht gebaut sind, stehen in der Liste `NOCH_OFFEN` in `web/tes
 Eine Route in der Liste darf 404 liefern. Liefert sie 200, wird sie gemessen (0 Treffer Pflicht) und der Lauf
 hängt den Hinweis „aus NOCH_OFFEN streichen“ an die Testannotationen, wird aber nicht rot. So sperrt die Liste
 keine fremde Lane. Hart wird es nur mit `ABGABE=1`: Dann muss `NOCH_OFFEN` leer sein und jede Route 200 liefern.
-`ABGABE=1` wird ab dem Feature-Stopp (Fr 05:00) als CI-Variable im Job `playwright` gesetzt.
+Ab dem Feature-Stopp (Fr 06.11. 06:30) gilt `ABGABE` von selbst (`ABGABE_AB` in `web/tests/slop.spec.ts`), ohne CI-Variable; vorher lässt sich der harte Lauf mit `ABGABE=1` erzwingen.
 
 ## Was gemessen wird
 
