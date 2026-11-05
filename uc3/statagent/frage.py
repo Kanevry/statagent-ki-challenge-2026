@@ -760,6 +760,9 @@ def _bestand_antwort(
             filter_alt, hinweis = ueber
             abschnitte = [(von, letzter_alt, filter_alt), (v_bis[1], bis, filter_)]
             hinweise.append(hinweis)
+            # Der Buchstabe gilt nur für einen Teil des Zeitraums; der Hinweis nennt beide.
+            code_neu = next(code for m, code in filter_ if m is OENACE)
+            verstanden = verstanden.replace(f"Branche {code_neu} ", "Branche ", 1)
     if len(_monate(von, bis)) > 120:
         raise _KeineZahl("Der Zeitraum ist für eine Antwort zu lang. Bitte höchstens zehn Jahre auf einmal fragen.")
     # Ein Ergebnis über HOECHSTENS_ZEILEN liest sql_lesen nur abgeschnitten: dann je Monat eine Abfrage.
