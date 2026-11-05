@@ -152,7 +152,8 @@ def daten() -> Iterator[Verbindung]:
     try:
         conn = verbinden(DATEN_URL, autocommit=False)
     except psycopg.OperationalError as fehler:
-        pytest.skip(f"Datenbank mit allen Lieferungen nicht erreichbar: {type(fehler).__name__}")
+        # Wer `-m daten` wählt, will diese Tests: fehlende Daten sind ein Fehler, kein Überspringen (wie test_goldenset).
+        pytest.fail(f"Datenbank nicht erreichbar ({type(fehler).__name__}); UC3_DATABASE_URL prüfen")
     try:
         conn.execute(DATEI_120.read_text(encoding="utf-8").encode())  # wird mit zurückgerollt
         yield conn
@@ -171,7 +172,7 @@ def _pruefen(conn: Verbindung, lieferung: str) -> tuple[list[str], dict[str, dic
         (lieferung,),
     ).fetchone()
     if z is None or z["id"] is None:
-        pytest.skip(f"kein Lauf {lieferung} in der Datenbank")
+        pytest.fail(f"kein Lauf {lieferung} in der Datenbank; zuerst uv run uc3 lauf --alle")
     lauf_id = int(str(z["id"]))
     regeln = regeln_laden(conn, "v1", lieferung)
     zaehlen(conn, lieferung=lieferung, berichtsmonat=lieferung, regelsatz="v1", regeln=regeln)
