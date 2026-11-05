@@ -8,6 +8,10 @@ Antwort; Zufall gibt es nicht, Streuung kommt aus sha256 über Akteur und Thema.
   Restriktionen und Budgetvorgaben (dagegen), dazu ein fester Streuwert.
 - Bewegung: in Runde 2 und 3 rückt ein Teil der Akteure eine Stufe zum Mittel der anderen; ab Runde 4 bleibt
   jeder stehen, so endet der Lauf nach der Regel „Runde ohne Änderung“.
+- Rote Linie gegen Mehrkosten (#24, Abnahme 24-1): Ab der Verhandlungsrunde (Runde 3) stellt sich ein Akteur
+  mit einer roten Linie gegen Mehrausgaben (`MEHRKOSTEN_LINIE`) gegen jede Maßnahme des Pakets, solange der
+  Experte Mehrkosten rechnet, und rückt davon nicht mehr ab. In Runde 1 und 2 bewegt er sich wie alle. So
+  steht im Szenario sichtbar eine Minderheit gegen eine Mehrheit.
 - Zahlen nur mit Quelle `experte` und nur aus `vom_rechenmodell_berechnet`; in Runde 2 nennt der erste
   Teilnehmer bewusst eine Zahl ohne Quelle, damit die Prüfung `zahl_ohne_beleg` im Szenario sichtbar wird.
 - `UC2_MOCK_KAPUTT=<akteur_id>:<runde>` liefert für genau diesen Zug kaputtes JSON, auch bei der Wiederholung.
@@ -34,6 +38,11 @@ MODELL = "mock-szenario"
 VERSION = "szenario-1"
 KAPUTT_ENV = "UC2_MOCK_KAPUTT"
 KAPUTTER_TEXT = '{"themen": [{"thema": "kaputt", "haltung": '
+
+MEHRKOSTEN_LINIE = "mehrausgaben"
+VERHANDLUNGSRUNDE = 3
+"""Ab dieser Runde gilt die rote Linie gegen Mehrkosten (Runde 3 ist die Verhandlung, siehe `lauf`)."""
+"""Wortteil einer roten Linie gegen Mehrkosten („keine Mehrausgaben ohne Gegenfinanzierung“)."""
 
 _WORT = re.compile(r"[A-Za-zÄÖÜäöüß]{5,}")
 _FUELLWOERTER = frozenset({"gegen", "nicht", "keine", "einer", "einen", "durch", "ueber", "über", "ohne"})
@@ -86,6 +95,24 @@ def grundhaltung(akteur: dict[str, Any], thema: dict[str, Any]) -> int:
     return _klemme(1.0 * (dafuer - dagegen) + 0.5 * streu)
 
 
+def mehrkosten_linie(akteur: dict[str, Any], thema_id: str, experte: dict[str, Any]) -> str | None:
+    """Die rote Linie gegen Mehrkosten, wenn sie bei diesem Thema greift (öffentlich für Tests).
+
+    Sie greift bei einer Maßnahme des Pakets (`annahme.massnahmen_umfang`), wenn das Rechenmodell für das
+    Paket Mehrkosten berechnet (`kosten_aenderung_prozent.modus` > 0).
+    """
+    linie = next((r for r in akteur["rote_linien"] if MEHRKOSTEN_LINIE in r.casefold()), None)
+    if linie is None:
+        return None
+    massnahmen = {str(m["id"]) for m in (experte.get("annahme") or {}).get("massnahmen_umfang") or []}
+    kosten = ((experte.get("vom_rechenmodell_berechnet") or {}).get("kosten_aenderung_prozent") or {}).get(
+        "modus"
+    )
+    if thema_id in massnahmen and isinstance(kosten, int | float) and kosten > 0:
+        return str(linie)
+    return None
+
+
 # --- Akteur --------------------------------------------------------------------------------------------
 
 
@@ -103,13 +130,18 @@ def _akteurszug(k: dict[str, Any]) -> dict[str, Any]:
 
     haltungen: dict[str, int] = {}
     alt: dict[str, int] = {}
+    gegen: dict[str, str] = {}
     for thema in themen:
         tid = thema["id"]
         vorher = eigene.get(tid, grundhaltung(akteur, thema)) if runde > 1 else grundhaltung(akteur, thema)
         alt[tid] = vorher
         neu = vorher
         andere = [p[tid] for a, p in positionen.items() if a != aid and tid in p]
-        if runde in (2, 3) and andere:
+        linie_kosten = mehrkosten_linie(akteur, tid, experte) if runde >= VERHANDLUNGSRUNDE else None
+        if linie_kosten is not None:
+            gegen[tid] = linie_kosten
+            neu = min(vorher, -1)
+        elif runde in (2, 3) and andere:
             mittel = sum(andere) / len(andere)
             if abs(mittel - vorher) >= 1 and _streuung(aid, tid, runde, modulo=2) == 0:
                 neu = _klemme(vorher + (1 if mittel > vorher else -1))
@@ -136,6 +168,7 @@ def _akteurszug(k: dict[str, Any]) -> dict[str, Any]:
         staemme = _thema_staemme(thema)
         _, ziel = _bezug(staemme, [*akteur["ziele"], *akteur["prioritaeten"]])
         _, linie = _bezug(staemme, [*akteur["rote_linien"], *akteur["budgetvorgaben"]])
+        linie = gegen.get(tid, linie)
         if h >= 1:
             grund = f"Das Thema stützt unser Ziel: {ziel or akteur['ziele'][0]}."
         elif h <= -1:
