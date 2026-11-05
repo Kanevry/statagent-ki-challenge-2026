@@ -128,7 +128,8 @@ Namen in unserer Team-Datenbank stehen. Den Nachweis dafür enthält `abgabe/pro
 
 - `uv run pytest -q` für den gemeinsamen Kern, je Use Case `cd ucN && uv run pytest -q`
 - `pnpm typecheck && pnpm test` für den TypeScript-Teil
-- UC3 gegen die echten Daten: `uv run pytest -q -m daten uc3/tests` (Golden Set mit 2.880 Zellen)
+- UC3 gegen die echten Daten (Datenbank mit gerechneten Läufen, Golden Set mit 2.880 Zellen):
+  `UC3_DATEN_URL=postgresql://statistik:statistik@localhost:5433/statistik uv run pytest -q -m daten uc3/tests`.
 
 ### Online-Demo
 
