@@ -116,15 +116,18 @@ export interface Befund {
   beleg: string;
 }
 
-/** Die 8 Befunde der Gegenrechnung (Pen-Frame c0eRD, Tabelle „Gefundene Datenfehler“). */
+/**
+ * Die 8 Arten von Auffälligkeiten der Gegenrechnung (Pen-Frame c0eRD, Tabelle der Landing).
+ * Einstufung wie in den Qualitätsberichten abgabe/qualitaetsberichte/*.md, Rückfragen wie abgabe/rueckfragen/R*.md.
+ */
 export const BEFUNDE: readonly Befund[] = [
   {
     id: "geburtsmonat-13",
     befund: "Geburtsmonat 13",
     lieferung: "ab 2024-08",
     saetze: "370",
-    einstufung: "erklaert-plausibel",
-    einstufungText: "erklärt, plausibel",
+    einstufung: "erklaert-datenproblem",
+    einstufungText: "erklärt, Datenproblem",
     rueckfrage: "R1",
     beleg: "substr(geburtsdatum, 6, 2) = '13'",
   },
@@ -135,17 +138,17 @@ export const BEFUNDE: readonly Befund[] = [
     saetze: "7",
     einstufung: "erklaert-datenproblem",
     einstufungText: "erklärt, Datenproblem",
-    rueckfrage: "R2",
+    rueckfrage: "R6",
     beleg: "geburtsdatum < '1949-09-01'",
   },
   {
     id: "oenace-2003",
-    befund: "Alte Branchencodes (ÖNACE 2003, DA bis DM)",
+    befund: "Alte Branchencodes (ÖNACE 2003, DA bis DN)",
     lieferung: "alle 24",
     // gemessen 05.11.2026 je Lieferung: 40 (2025-10) bis 51 (2025-09) Zeilen, meist 49 oder 50
     saetze: "40 bis 51 je Lieferung",
-    einstufung: "erklaert-plausibel",
-    einstufungText: "erklärt, plausibel",
+    einstufung: "erklaert-datenproblem",
+    einstufungText: "erklärt, Datenproblem",
     beleg: "oenace ~ '^D[A-N]$' → C",
   },
   {
@@ -164,7 +167,7 @@ export const BEFUNDE: readonly Befund[] = [
     saetze: "1.663 Zeilen, 1.523 doppelt am Stichtag",
     einstufung: "erklaert-datenproblem",
     einstufungText: "erklärt, Datenproblem",
-    rueckfrage: "R3",
+    rueckfrage: "R7",
     beleg: "group by alle Felder having count(*) > 1",
   },
   {
@@ -172,8 +175,8 @@ export const BEFUNDE: readonly Befund[] = [
     befund: "Freie Dienstverträge fehlen ganz",
     lieferung: "2025-03",
     saetze: "1.492",
-    einstufung: "nicht-erklaerbar",
-    einstufungText: "nicht erklärbar",
+    einstufung: "erklaert-datenproblem",
+    einstufungText: "erklärt, Datenproblem",
     rueckfrage: "R4",
     beleg: "count(*) filter (where qual like '%FD') = 0",
   },
@@ -182,9 +185,9 @@ export const BEFUNDE: readonly Befund[] = [
     befund: "Teil-Lieferung, rund 20 % fehlen",
     lieferung: "2025-10",
     saetze: "78.949, davon 78.733 in 2025-11 wieder da",
-    einstufung: "nicht-erklaerbar",
-    einstufungText: "nicht erklärbar",
-    rueckfrage: "R5",
+    einstufung: "erklaert-datenproblem",
+    einstufungText: "erklärt, Datenproblem",
+    rueckfrage: "R3",
     beleg: "offen in 2025-09, fehlt in 2025-10",
   },
   {
@@ -193,7 +196,7 @@ export const BEFUNDE: readonly Befund[] = [
     lieferung: "2024-12 → 2025-01",
     saetze: "−260 (−0,067 %)",
     einstufung: "revision",
-    einstufungText: "Revision ausgewiesen",
+    einstufungText: "Revisionsbedarf ausgewiesen",
     beleg: "387.390 → 387.130",
   },
 ] as const;

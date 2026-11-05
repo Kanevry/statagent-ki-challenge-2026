@@ -1,6 +1,7 @@
 import { GLOSSAR } from "@kic/ui/bausteine";
 import { describe, expect, it } from "vitest";
 import * as inhalt from "./inhalt";
+import { BEFUNDE } from "../daten/fakten";
 import { BEGRIFFE, monateLesbar } from "./inhalt";
 
 /** Alle sichtbaren Texte der Landingpage als eine Liste von Strings (Funktionen mit Beispielwerten). */
@@ -23,6 +24,14 @@ const SICHTBAR = alleTexte({
   DATENFEHLER: inhalt.DATENFEHLER,
   USE_CASES: inhalt.USE_CASES,
   TEAM: inhalt.TEAM,
+  // Tabelle der Auffälligkeiten (Beispieldaten): nur die sichtbaren Felder, Monate wie in Datenfehler.tsx
+  BEFUNDE: BEFUNDE.map((b) => [
+    b.befund,
+    monateLesbar(b.lieferung),
+    monateLesbar(b.saetze),
+    b.einstufungText,
+    b.rueckfrage ?? "",
+  ]),
 });
 
 describe("Wortliste docs/sprache.md", () => {

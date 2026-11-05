@@ -80,7 +80,7 @@ const ZEILEN_JE_LIEFERUNG = rund(SUMME_ZEILEN / ANZAHL_LIEFERUNGEN);
  * und Freigabe stehen wortgleich in shared/ui/src/bausteine/glossar.ts (Test: inhalt.test.ts).
  */
 export const BEGRIFFE = {
-  Lieferung: "Die Daten eines Monats, so wie sie von den Sozialversicherungsträgern kommen.",
+  Lieferung: "Die Daten, die die Sozialversicherungsträger jeden Monat schicken.",
   Beschäftigungsverhältnis: "ein sozialversicherter Job; wer zwei Jobs hat, zählt zweimal",
   "Freier Dienstvertrag": "ein Job ohne Anstellung, trotzdem sozialversichert",
   Stichtag: "der letzte Tag des Monats; gezählt wird jedes Beschäftigungsverhältnis, das an diesem Tag besteht",
@@ -123,14 +123,14 @@ export const HERO = {
   ergebnis: [
     { wert: zahl(ANZAHL_LIEFERUNGEN), text: "Monatslieferungen" },
     { wert: zahl(SUMME_ZEILEN), text: "Zeilen zusammen" },
-    { wert: zahl(BEFUNDE.length), text: "Auffälligkeiten gefunden" },
+    { wert: zahl(BEFUNDE.length), text: "Arten von Auffälligkeiten" },
     { wert: `${zahl(GOLDEN_SET.zellenExakt)} von ${zahl(GOLDEN_SET.zellenGesamt)}`, text: "Zahlen stimmen genau" },
   ],
   ergebnisBereich: "Ergebnis auf einen Blick",
   ergebnisQuelle: `Nachgerechnet am Beispielbericht der Aufgabe für ${monatJahr(GOLDEN_SET.lieferung)}, Stand 5. November 2026. Gelöscht wird nichts.`,
   hinweis: `Weiter nach unten: in ${ZAHLWORT[4]} Schritten von den Rohdaten zur belegten Zahl.`,
   schritteBereich: "Die vier Schritte",
-  springeZu: "Springe zu Schritt",
+  springeZu: "Zu Schritt",
 } as const;
 
 export interface SchrittText {
@@ -158,7 +158,7 @@ export const SCHRITT_TEXTE: Record<SchrittId, SchrittText> = {
     titel: "Jeden Monat kommen neue Daten",
     kennzahl: SUMME_ZEILEN,
     einheit: `Zeilen in ${zahl(ANZAHL_LIEFERUNGEN)} Monatslieferungen zusammen`,
-    text: `Jede Säule ist ein Monat, von ${monatJahr(ERSTE)} bis ${monatJahr(LETZTE)}, mit rund ${zahl(ZEILEN_JE_LIEFERUNG)} Zeilen. Jede Lieferung enthält alle Beschäftigungsverhältnisse der letzten ${ZAHLWORT[MONATE_JE_LIEFERUNG]} Monate, viele stehen deshalb in mehreren Lieferungen. Die Daten sind erfunden, in der Größe etwa ${BRUCHWORT[MASSSTAB_TEIL_VON_OESTERREICH]} Österreichs.`,
+    text: `Jede Säule ist ein Monat, von ${monatJahr(ERSTE)} bis ${monatJahr(LETZTE)}, mit rund ${zahl(ZEILEN_JE_LIEFERUNG)} Zeilen. Jede Lieferung soll alle Beschäftigungsverhältnisse der letzten ${ZAHLWORT[MONATE_JE_LIEFERUNG]} Monate enthalten, viele stehen deshalb in mehreren Lieferungen. Die Daten sind erfunden, in der Größe etwa ${BRUCHWORT[MASSSTAB_TEIL_VON_OESTERREICH]} Österreichs.`,
     glossar: [begriff("Lieferung"), begriff("Beschäftigungsverhältnis")],
   },
   pruefen: {
@@ -230,7 +230,7 @@ export const ANSATZ = {
     },
     {
       titel: "Jede Zahl hat einen Beleg",
-      text: "Zu jedem Wert im Bericht gehört die Abfrage, die ihn erzeugt hat. Wer nachrechnen will, kann das Zeile für Zeile.",
+      text: "Zu jeder Zahl im Bericht gehört die Abfrage, die sie erzeugt hat. Wer nachrechnen will, kann das Zeile für Zeile.",
     },
     {
       titel: "Statistikdaten bleiben lokal",
