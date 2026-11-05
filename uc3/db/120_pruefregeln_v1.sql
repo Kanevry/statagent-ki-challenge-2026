@@ -112,13 +112,13 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  'Fachbeschreibung § 2; Rückfrage R3'),
 
 ('v1', 'P18_merkmalswelle', 'pruefung', 'merkmalswelle', 18,
- '{"ebene": "satz", "merkmale": ["oenace", "bundesland"], "schwelle": 100, "beginn_im_berichtsmonat": true, "einstufung": "nicht-erklaerbar", "massnahme": "gezählt wie geliefert; Rückfrage an die Fachabteilung", "anhalten": false, "rueckfrage": "neu"}',
+ '{"ebene": "satz", "merkmale": ["oenace", "bundesland"], "schwelle": 100, "beginn_im_berichtsmonat": true, "einstufung": "nicht-erklaerbar", "massnahme": "gezählt wie geliefert; Rückfrage an die Fachabteilung", "anhalten": false, "rueckfrage": "R2"}',
  'Mehr als 100 Verhältnisse, deren neuer Abschnitt im Berichtsmonat am selben Tag denselben Codewechsel X → Y hat (ÖNACE oder Bundesland, aufeinanderfolgende Abschnitte eines Verhältnisses).',
  'Einzelne Wechsel sind normal, eine Welle gleicher Wechsel am selben Tag nicht: 2025-05 Steiermark O → C (491 am 01.05.), 2026-02 Wien G → C (347 am 01.02.). Ob Umstrukturierung oder Codierfehler, kann nur die Fachabteilung sagen.',
  'Fachbeschreibung § 4 Nr. 3; Qualitätsbericht § 2'),
 
 ('v1', 'P19_phantom_doppelmeldung', 'pruefung', 'phantom_doppelmeldung', 19,
- '{"ebene": "satz", "einstufung": "erklaert-plausibel", "massnahme": "gekennzeichnet, gezählt (Zählregel 1: Verhältnisse, nicht Personen)", "anhalten": false}',
+ '{"ebene": "satz", "einstufung": "nicht-erklaerbar", "massnahme": "gekennzeichnet, gezählt (Zählregel 1: Verhältnisse, nicht Personen); Rückfrage an die Fachabteilung", "anhalten": false, "rueckfrage": "R8"}',
  'Verhältnisse mit Beginn im Berichtsmonat, deren Person am Stichtag ein zweites Verhältnis mit gleicher Qualifikation, ÖNACE und gleichem Bundesland hat.',
  'Gezählt werden Verhältnisse, nicht Personen (Fachbeschreibung § 4 Nr. 1); der Beispielbericht zählt solche Fälle mit. Die Kennzeichnung zeigt, dass mögliche Doppelmeldungen gesehen wurden.',
  'Fachbeschreibung § 4 Nr. 1; Beispielbericht 2024-08'),
@@ -142,13 +142,13 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  'Anhang A Nr. 1; Qualitätsbericht § 1'),
 
 ('v1', 'P23_revision_vormonat', 'pruefung', 'revision_vormonat', 23,
- '{"ebene": "lieferung", "gliederung": "insgesamt", "schwelle": 0.005, "einstufung": "nicht-erklaerbar", "einstufung_unter_schwelle": "erklaert-plausibel", "massnahme": "Revisionsbedarf an die Fachabteilung", "massnahme_unter_schwelle": "Revisionsbedarf im Bericht (Nachmeldungen, rückwirkende Abmeldungen); Veröffentlichtes bleibt", "anhalten": false, "rueckfrage": "neu"}',
- 'Revisionsbedarf der Vormonate laut meta.revision: weicht der Bestand insgesamt um mehr als 0,5 % vom veröffentlichten Wert ab, geht es an die Fachabteilung, sonst gilt es als Nachmeldung bzw. rückwirkende Abmeldung.',
+ '{"ebene": "lieferung", "gliederung": "insgesamt", "schwelle": 0.0025, "einstufung": "nicht-erklaerbar", "einstufung_unter_schwelle": "erklaert-plausibel", "massnahme": "Revisionsbedarf an die Fachabteilung", "massnahme_unter_schwelle": "Revisionsbedarf im Bericht (Nachmeldungen, rückwirkende Abmeldungen); Veröffentlichtes bleibt", "anhalten": false, "rueckfrage": "neu"}',
+ 'Revisionsbedarf der Vormonate laut meta.revision: weicht der Bestand insgesamt um mehr als 0,25 % vom veröffentlichten Wert ab, geht es an die Fachabteilung, sonst gilt es als Nachmeldung bzw. rückwirkende Abmeldung.',
  'Veröffentlichte Monate bleiben unverändert, Abweichungen stehen als Revisionsbedarf im Bericht (Fachbeschreibung § 4 Nr. 4). Kleine Abweichungen sind durch Nachmeldungen üblich.',
  'Fachbeschreibung § 4 Nr. 4; Technische Regel 7'),
 
 ('v1', 'P24_lieferumfang_fenster', 'pruefung', 'lieferumfang_fenster', 24,
- '{"ebene": "lieferung", "fenster_vormonate": 2, "schwelle": 0.01, "einstufung": "erklaert-datenproblem", "massnahme": "keine (kein Vollabzug über drei Monate, z. B. Erstlieferung)", "anhalten": false}',
+ '{"ebene": "lieferung", "fenster_vormonate": 2, "schwelle": 0.01, "einstufung": "erklaert-datenproblem", "massnahme": "keine (kein Vollabzug über drei Monate, z. B. Erstlieferung); Rückfrage an die Fachabteilung", "anhalten": false, "rueckfrage": "R9"}',
  'Die Lieferung soll ein Vollabzug über drei Monate sein und damit Abschnitte enthalten, die in den zwei Vormonaten endeten. Liegt deren Anteil unter 1 %, wird ein fehlender Vollabzug gemeldet.',
  'Gemessen 2024-09 bis 2026-07: 1,6 % (zweite Lieferung, Fenster erst einen Monat gefüllt) bis 7,5 % der Abschnitte enden im Fenster. 2024-08 enthält kein Ende vor dem 01.08.2024 (0,0 %): Erstlieferung, kein Vollabzug.',
  'Fachbeschreibung § 2')

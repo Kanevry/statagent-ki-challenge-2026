@@ -49,10 +49,10 @@ uv run uc3 berichte --alle && uv run uc3 sheet   # 24 Qualitätsberichte und Agg
 ## Wie ein Lauf rechnet
 
 1. **Bereinigen** (`bereinigt.abschnitt`): Spaltentausch BEGINN/ENDE erkennen, Volldubletten verdichten, Daten
-   prüfen (Geburtsmonat 13 behält das Jahr), Merkmale über `stat.quellzuordnung` auf Klassifikationscodes führen
+   prüfen (Geburtsmonat 13 behält das Jahr, Ersatztag 1. Juli), Merkmale über `stat.quellzuordnung` auf Klassifikationscodes führen
    (leer → unbekannt, ÖNACE-2003-Unterabschnitte DA–DN → C). Kein Satz geht verloren.
 2. **Zählen** (`stat.stat_beschaeftigte`, Long-Format nach Anhang B): Verhältnis zählt, wenn ein Abschnitt am
-   Stichtag besteht; Merkmale aus diesem Abschnitt; Alter in vollendeten Jahren, über 100 als unbekannt.
+   Stichtag besteht; Merkmale aus diesem Abschnitt; Alter in vollendeten Jahren am Stichtag; bei Geburtsmonat 13 gilt der 1. Juli als Geburtstag, über 110 Jahre als unbekannt.
 3. **Revisionsbedarf**: die zwei Vormonate aus der eigenen Lieferung nachrechnen und mit dem Veröffentlichten
    vergleichen (Nachmeldungen, rückwirkende Abmeldungen, nicht mehr enthalten).
 4. **Prüfen** (Prüfkatalog P01–P24 in `meta.regel`): Auffälligkeiten mit Einstufung erklärt-plausibel,
