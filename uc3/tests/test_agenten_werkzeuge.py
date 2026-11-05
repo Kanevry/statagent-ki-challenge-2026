@@ -238,3 +238,13 @@ def test_ziel_v1_mit_veroeffentlichtem_monat_bleibt_verweigert(agent_conn: Verbi
     ergebnis = agent_ausfuehren(agent_conn, "DV und FD zusammen", complete=_modell("klassifikation", antwort))
     assert ergebnis.abgelehnt is not None and "veröffentlichte Monate" in ergebnis.abgelehnt
     assert _anzahl(agent_conn, "SELECT count(*) AS n FROM meta.vorschlag") == 0
+
+
+def test_eine_kleine_zelle_ist_nicht_aus_der_summe_rueckrechenbar() -> None:
+    # Fängt: genau eine Zelle „<5“ neben exakten Zellen und exakter Zeilenzahl ist als Differenz ablesbar
+    # (Session-Review, mögliches Problem roh_kennzahlen); die kleinste übrige Zelle muss mit gesperrt werden.
+    from statagent.agenten.werkzeuge import SEKUNDAER, _verteilung
+
+    assert _verteilung({"(leer)": 3, "M": 100, "W": 200}) == {"(leer)": "<5", "M": SEKUNDAER, "W": 200}
+    assert _verteilung({"A": 2, "B": 1, "C": 50}) == {"A": "<5", "B": "<5", "C": 50}
+    assert _verteilung({"M": 0, "W": 10}) == {"M": 0, "W": 10}

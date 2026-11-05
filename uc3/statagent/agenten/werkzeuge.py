@@ -213,6 +213,23 @@ def klassifikation_lesen(conn: Verbindung, begriff: str) -> dict[str, list[dict[
     return ergebnis
 
 
+#: Kennzeichen einer Zelle, die nur unterdrückt ist, damit sich eine „<5“-Zelle nicht aus der Summe zurückrechnen lässt.
+SEKUNDAER = "geheim"
+
+
+def _verteilung(werte: dict[str, int]) -> dict[str, int | str]:
+    """Anzahl je Code mit Geheimhaltung: Zellen 1–4 als „<5“. Ist genau eine Zelle so unterdrückt, wird zusätzlich
+    die kleinste übrige Zelle über 0 als „geheim“ ausgewiesen (sekundäre Sperrung), weil die Zeilenzahl der Lieferung
+    exakt bekannt ist und die einzelne Zelle sonst als Differenz ablesbar wäre."""
+    aus: dict[str, int | str] = {k: _zelle(n) for k, n in werte.items()}
+    primaer = [k for k, v in aus.items() if isinstance(v, str)]
+    if len(primaer) == 1:
+        offen = sorted((n, k) for k, n in werte.items() if k not in primaer and n > 0)
+        if offen:
+            aus[offen[0][1]] = SEKUNDAER
+    return aus
+
+
 def _zelle(n: int) -> int | str:
     """Geheimhaltung: Zellen von 1 bis MINDESTZELLE - 1 gehen nur als „<5“ hinaus (0 bleibt 0)."""
     return n if n == 0 or n >= MINDESTZELLE else f"<{MINDESTZELLE}"
@@ -256,7 +273,7 @@ def roh_kennzahlen(conn: Verbindung, lieferung: str) -> dict[str, Any]:
             ).format(m=sql.Identifier(m)),
             (lieferung,),
         ).fetchall()
-        je_code[m] = {str(c["code"]): _zelle(int(str(c["n"]))) for c in codes}
+        je_code[m] = _verteilung({str(c["code"]): int(str(c["n"])) for c in codes})
     leere_felder: dict[str, dict[str, int | float | str]] = {}
     for f in ROH_FELDER:
         n = int(str(z[f]))
