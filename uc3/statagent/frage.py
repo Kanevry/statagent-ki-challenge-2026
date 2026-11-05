@@ -30,14 +30,18 @@ from statagent.uc4 import (
     _ZAHL_MONAT,
     MERKMALE,
     Merkmal,
+    _aufzaehlung,
     _codes,
     _deutsch,
+    _fortgeschrieben_hinweis,
     _gliederung,
     _monat_anzeige,
+    jahr_rueckfrage,
 )
 from statagent.zeitraum import (
     KEIN_JAHR,
     MONATSNAMEN,
+    ZEITREIHE_WORT,
     tag_hinweis,
     umschreiben,
     unklar,
@@ -80,7 +84,7 @@ _DEFINITION = re.compile(
     r"\b(was\s+(ist|sind|bedeutet|heißt|heisst|zählt|zaehlt)|definition|bedeutung|definiert)\b"
 )
 _FLUKTUATION = re.compile(r"fluktu|zugäng|abgäng|zugaeng|abgaeng|zu- und abg")
-_ZEITREIHE = re.compile(r"zeitreihe|entwicklung|entwickelt|verlauf|monatsweise|je monat|pro monat|\bseit\b")
+_ZEITREIHE = ZEITREIHE_WORT
 #: „Vergleich“ ist nur ohne genau einen Monat eine Zeitreihe („Vergleich Männer und Frauen im März 2025“ nicht).
 _VERGLEICH = re.compile(r"vergleich|gegenüber")
 _GESCHLECHT = re.compile(r"männer|maenner|frauen|geschlecht|männlich|weiblich")
@@ -541,16 +545,6 @@ def _laufinfo(conn: Verbindung, regelsatz: str, staende: list[dict[str, Any]]) -
     return {int(str(z["id"])): (int(str(z["fortgeschrieben"])), bool(z["stichtag"])) for z in zeilen}
 
 
-def _fortgeschrieben_hinweis(monat: str, anzahl: int, fluktuation: bool = False) -> str:
-    text = (
-        f"{_monat_anzeige(monat)} enthält {_deutsch(anzahl)} fortgeschriebene Beschäftigungsverhältnisse: "
-        "Sie fehlten in der Lieferung und wurden aus der Lieferung des Vormonats übernommen."
-    )
-    if fluktuation:
-        text += " Zu- und Abgänge dieses Teils fehlen, die Fluktuation ist dadurch zu niedrig."
-    return text
-
-
 def _filter(
     conn: Verbindung, frage: str, monat: str, ohne: tuple[Merkmal, ...]
 ) -> tuple[list[tuple[Merkmal, str]], list[str]]:
@@ -811,9 +805,17 @@ def _bestand_antwort(
         if gruppen:
             text += " Einen Durchschnitt gibt es hier nur ohne Aufteilung."
         else:
-            summe = sum(int(z["wert"]) for z in gezaehlt)
-            durchschnitt = (2 * summe + len(je_monat)) // (2 * len(je_monat))  # kaufmännisch gerundet
-            zeitraum = zeitraum_anzeige(je_monat[0], je_monat[-1])
+            # Durchschnitt als eigene Abfrage über die Monatszahlen (eigener Beleg), wie in statagent.uc4.
+            quelle = " UNION ALL ".join(f"({text_q})" for text_q, _ in abfragen)
+            gezaehlte_monate = sql.SQL(", ").join(sql.Literal(m) for m in je_monat).as_string(conn)
+            mittel_sql = f"SELECT round(avg(t.wert))::bigint AS wert FROM ({quelle}) t WHERE t.monat IN ({gezaehlte_monate})"
+            durchschnitt = int(_lesen(conn, mittel_sql)[0]["wert"])
+            belege.append(_beleg(mittel_sql, [s for s in staende if str(s["monat"]) in je_monat]))
+            zeitraum = (
+                zeitraum_anzeige(je_monat[0], je_monat[-1])
+                if je_monat == _monate(je_monat[0], je_monat[-1])
+                else _aufzaehlung([_monat_anzeige(m) for m in je_monat])
+            )
             zahlen.append(
                 {
                     "bezeichnung": f"Beschäftigungsverhältnisse{zusatz}, Durchschnitt {zeitraum}",
@@ -1197,12 +1199,7 @@ def _rueckfrage_monat(typ: str, jahr: str | None) -> dict[str, Any]:
             f"Zum Beispiel „Fluktuation je Wirtschaftsbereich im {monat}“."
         )
     if jahr is not None:
-        return _rueckfrage(
-            f"Die Statistik zählt am letzten Tag jedes Monats, für {jahr} gibt es also zwölf Werte. "
-            f"Meinen Sie {was} für einen Monat, zum Beispiel „{beispiel} Dezember {jahr}“, den Durchschnitt, "
-            f"„{beispiel} Jahresdurchschnitt {jahr}“, oder alle Monate als Zeitreihe, "
-            f"„Zeitreihe 01/{jahr} bis 12/{jahr}“?"
-        )
+        return _rueckfrage(jahr_rueckfrage(was, beispiel, jahr))
     return _rueckfrage(f"Für welchen Monat möchten Sie {was} wissen? Zum Beispiel „{beispiel} März 2025“.")
 
 
@@ -1216,7 +1213,7 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         letzter = _letzter_monat(conn, regelsatz)
     except psycopg.Error:
         return _antwort(fragetyp(frage), NICHT_LESBAR, hinweise=[NICHT_LESBAR])
-    grund = unklar(frage)
+    grund = unklar(frage, letzter or LETZTE_LIEFERUNG)
     if grund is not None:
         return _antwort(fragetyp(frage), grund, hinweise=[grund])
     hinweis_tag = tag_hinweis(frage)

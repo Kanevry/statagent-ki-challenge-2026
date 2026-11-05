@@ -11,7 +11,9 @@ Festlegungen (Sprachverständnis, kein Rechenregelwerk):
 - Jahreszeiten meteorologisch: Frühling März bis Mai, Sommer Juni bis August, Herbst September bis November,
   Winter Dezember bis Februar. „Winter 2025“ ist der Winter, der 2025 endet (Dezember 2024 bis Februar 2025);
   „Winter 2025/26“ ist Dezember 2025 bis Februar 2026.
-- Ohne Jahr gilt der jüngste passende Zeitraum, der ganz vor oder im jüngsten Monat mit Daten liegt.
+- Ohne Jahr gilt der jüngste passende Zeitraum, der ganz vor oder im jüngsten Monat mit Daten liegt. Steht ein Jahr
+  direkt daneben („2025 im März“, „im März letzten Jahres“, „heuer im März“), gilt dieses Jahr. Nennt die Frage ein
+  Jahr, das sich nicht zuordnen lässt, fragt ``unklar`` zurück: nie still der jüngste Zeitraum.
 - „Anfang 2025“ ist Jänner, „Mitte 2025“ Juni, „Ende 2025“ Dezember.
 - „letzten Monat“, „aktuell“ und Ähnliches meinen den jüngsten Monat mit Daten, nicht den Kalendermonat.
 """
@@ -19,7 +21,7 @@ Festlegungen (Sprachverständnis, kein Rechenregelwerk):
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 #: Monatsnamen der Alltagssprache (österreichisch und bundesdeutsch, mit Abkürzungen) → Monatsnummer.
 MONATSNAMEN: dict[str, int] = {
@@ -114,7 +116,36 @@ _HEUER = re.compile(
     r"(?<!\w)(heuer|dieses\s+jahr(?:es)?|in\s+diesem\s+jahr|im\s+laufenden\s+jahr)(?!\w)", re.I
 )
 _LETZTES_JAHR = re.compile(
-    r"(?<!\w)(?:im\s+)?(?:letzte[nms]?|vergangene[nms]?|vorige[nms]?)\s+jahr(?:es)?(?!\w)", re.IGNORECASE
+    r"(?<!\w)(?:(?:im|des)\s)?(?:(?:letzte[nms]?|vergangene[nms]?|vorige[nms]?)\s+jahr(?:es)?|vorjahr(?:es)?)(?!\w)",
+    re.IGNORECASE,
+)
+#: „2025/26“ außerhalb einer Jahreszeit: zwei Jahre, für einen Monat ohne Jahr nicht zuzuordnen.
+_JAHRESPAAR = re.compile(r"(?<!\d)(?:19|20)\d{2}\s*/\s*\d{2,4}(?!\d)")
+#: Ein Vergleich meint oft zwei Zeitpunkte: Ein Jahr daneben gehört dann nicht sicher zum Monat ohne Jahr.
+_VERGLEICH = re.compile(
+    r"vergleich|gegenüber|gegenueber|verglichen|(?<!\w)vs\.?(?!\w)|(?<!\w)zu\s+\d{4}", re.IGNORECASE
+)
+#: Davor ein Wort, das das Jahr zum zweiten Zeitpunkt macht („zum Vorjahr“, „und 2025“).
+_VERGLEICH_DAVOR = re.compile(
+    r"(?<!\w)(?:zum?|gegen|gegenüber|gegenueber|vs\.?|und|oder|mit)\s*$", re.IGNORECASE
+)
+#: Zwischen Jahr und Zeitangabe steht höchstens ein kurzes Füllwort („2025 im März“, „März in 2025“).
+_JAHR_NEBEN = re.compile(
+    r"\s*(?:[,:–—-]\s*)?(?:(?:im|in|von|vom|aus|des|dem|den|der|jahre?s?)\s+)*", re.IGNORECASE
+)
+#: Relative Jahre, die wir nicht auflösen: lieber nachfragen als den jüngsten Monat nehmen.
+_ANDERES_JAHR = re.compile(
+    r"(?<!\w)(?:vor\s+\w+\s+jahr(?:en)?|vorletzte[nms]?\s+jahr|vorvorjahr|nächste[nms]?\s+jahr|naechste[nms]?\s+jahr"
+    r"|ein\s+jahr\s+(?:zuvor|davor|früher|frueher))",
+    re.IGNORECASE,
+)
+_JAHR_OFFEN = (
+    "Das Jahr ist hier nicht eindeutig. Bitte Monat und Jahr zusammen nennen, "
+    "zum Beispiel „Beschäftigte im März 2025“."
+)
+#: Zwischen zwei Teilen einer Aufzählung steht nur ein Bindewort („im Mai 2025 und im Juni“).
+_NUR_BINDEWORT = re.compile(
+    r"\s*(?:,|und|oder|sowie|bzw\.?)\s*(?:auch\s+)?(?:(?:im|in|den|dem|der|von)\s+)?", re.IGNORECASE
 )
 #: Wörter, mit denen eine bloße Jahreszahl den Durchschnitt aller Monate meint („Jahresdurchschnitt 2025“).
 DURCHSCHNITT_WORT = re.compile(
@@ -123,18 +154,30 @@ DURCHSCHNITT_WORT = re.compile(
 )
 
 
+#: Wörter, mit denen eine Frage die Monate einzeln sehen will (Text in Kleinbuchstaben).
+ZEITREIHE_WORT = re.compile(
+    r"zeitreihe|entwicklung|entwickelt|verlauf|monatsweise|je monat|pro monat|\bseit\b"
+)
+
 #: Ein gemeinsames Jahr am Ende einer Aufzählung („März und April 2025“, „Q1 und Q3 2025“).
 _FOLGEJAHR = re.compile(
     r"\s*(?:,|und|oder|sowie|bzw\.?)\s+[^,]{0,30}?(?<!\d)((?:19|20)\d{2})(?!\d)", re.IGNORECASE
 )
 _MONAT_DES_JAHRES = re.compile(rf"(?<!\w)({_MW})\.?\s+(?:des\s+jahres|im\s+jahre?|von)\s+{_J}", re.IGNORECASE)
+_RANDMONAT_DES_JAHRES = re.compile(
+    rf"(?<!\w)(letzte|erste)[nmr]?\s+monats?\s+(?:des\s+jahres\s+|im\s+jahre?\s+|von\s+|in\s+)?{_J}",
+    re.IGNORECASE,
+)
 _DATUM = re.compile(
     r"(?<![\d.])(\d{1,2})\.\s?(\d{1,2})\.\s?((?:19|20)\d{2})(?!\d)|(?<!\d)((?:19|20)\d{2})-(\d{1,2})-(\d{1,2})(?!\d)"
 )
 _HALBJAHR_SAISON = re.compile(r"(?<!\w)(sommer|winter)(halbjahr|saison)\w*", re.IGNORECASE)
 _BEREICHSWORT = re.compile(r"(?<!\w)(?:bis|zwischen)(?!\w)|[–—-]", re.IGNORECASE)
 #: Jahreszahlen, die kein Zeitraum sind („ÖNACE 2008“, „Version 2025“).
-KEIN_JAHR = re.compile(r"(?:önace|oenace|nace|version|fassung)[\s-]*(?:19|20)\d{2}", re.IGNORECASE)
+KEIN_JAHR = re.compile(
+    r"(?:önace|oenace|nace|version|fassung|klassifikation|plz|postleitzahl|jahrgang)[\s-]*(?:19|20)\d{2}",
+    re.IGNORECASE,
+)
 
 
 def _folgejahr(t: re.Match[str]) -> int | None:
@@ -226,7 +269,7 @@ class Zeitraum:
         if self.art == "letzte_monate":
             return f"Mit den {wort} sind hier die jüngsten Monate mit Daten gemeint: {zeit}."
         if self.art == "jahr":
-            return f"Mit {wort} ist hier der Durchschnitt der Monate {zeit} gemeint."
+            return f"Gemeint ist der Durchschnitt der Monate {zeit}."
         if self.art in ("quartal", "halbjahr"):
             laenge = 3 if self.art == "quartal" else 6
             name = "Quartal" if self.art == "quartal" else "Halbjahr"
@@ -370,8 +413,14 @@ def _treffer_monat_ohne_jahr(t: re.Match[str], letzter: str | None) -> tuple[str
     return None if jahr is None else (_monat(jahr, nummer), _monat(jahr, nummer), True)
 
 
+def _treffer_randmonat(t: re.Match[str], _letzter: str | None) -> tuple[str, str, bool] | None:
+    monat = _monat(int(t.group(2)), 12 if t.group(1).lower() == "letzte" else 1)
+    return monat, monat, False
+
+
 #: Muster in der Reihenfolge, in der sie gelten: zusammengesetzte Zeiträume vor einzelnen Monaten.
 _MUSTER: tuple[tuple[re.Pattern[str], str, object], ...] = (
+    (_RANDMONAT_DES_JAHRES, "monat", _treffer_randmonat),
     (_MONAT_DES_JAHRES, "monat", _treffer_monat_des_jahres),
     (_ZWISCHEN, "bereich", _treffer_bereich),
     (_BEREICH, "bereich", _treffer_bereich),
@@ -406,12 +455,8 @@ def _explizit(frage: str) -> list[tuple[int, int, str]]:
     return sorted(gefunden)
 
 
-def teile_lesen(frage: str, letzter: str | None) -> list[Zeitraum]:
-    """Alle zusammengesetzten Zeitangaben der Frage (ohne wörtliche Einzelmonate und bloße Jahre).
-
-    Eine Textstelle zählt nur einmal; zuerst Bereiche, dann Jahreszeiten, Quartale, Halbjahre, Jahresteile,
-    „letzte N Monate“, „letzter Monat“, zuletzt ausgeschriebene Monatsnamen ohne Jahr.
-    """
+def _teile_roh(frage: str, letzter: str | None) -> list[Zeitraum]:
+    """Alle zusammengesetzten Zeitangaben der Frage, ein fehlendes Jahr aus dem jüngsten Monat ergänzt."""
     teile: list[Zeitraum] = []
 
     def frei(a: int, b: int) -> bool:
@@ -435,6 +480,134 @@ def teile_lesen(frage: str, letzter: str | None) -> list[Zeitraum]:
             von, bis, ohne = ergebnis
             teile.append(Zeitraum(von, bis, "monat", _wort(frage, t), t.start(), t.end(), ohne))
     return sorted(teile, key=lambda z: z.start)
+
+
+def _freie_jahre(
+    frage: str, teile: list[Zeitraum], explizit: list[tuple[int, int, str]], letzter: str | None
+) -> list[tuple[int, int, int]]:
+    """Jahre außerhalb aller Zeitangaben als (Jahr, Anfang, Ende): „2025“, „heuer“, „letzten Jahres“."""
+    zeichen = list(frage)
+
+    def weg(a: int, b: int) -> None:
+        zeichen[a:b] = " " * (b - a)
+
+    for z in teile:
+        weg(z.start, z.ende)
+    for a, b, _ in explizit:
+        weg(a, b)
+    for muster in (KEIN_JAHR, _DATUM):
+        for t in muster.finditer(frage):
+            weg(t.start(), t.end())
+    rest = "".join(zeichen)
+    jahre: list[tuple[int, int, int]] = []
+    if letzter is not None:
+        for t in _HEUER.finditer(rest):
+            jahre.append((int(letzter[:4]), t.start(), t.end()))
+        for t in _LETZTES_JAHR.finditer(rest):
+            jahre.append((int(letzter[:4]) - 1, t.start(), t.end()))
+    for t in JAHR.finditer(rest):
+        jahre.append((int(t.group(1)), t.start(), t.end()))
+    return sorted(jahre, key=lambda j: j[1])
+
+
+def _ins_jahr(z: Zeitraum, jahr: int) -> Zeitraum:
+    """Der Teil ohne Jahr im genannten Jahr; ein Zeitraum über den Jahreswechsel endet darin („Winter 2025“)."""
+    if z.art in ("quartal", "halbjahr") and re.search(r"letzt", z.wort, re.IGNORECASE):
+        # „das letzte Quartal von 2025“ ist das vierte, nicht das Quartal, das zuletzt Daten hat.
+        laenge = 3 if z.art == "quartal" else 6
+        von, bis = _monat(jahr, 13 - laenge), _monat(jahr, 12)
+    else:
+        schritte = (jahr - int(z.bis[:4])) * 12
+        von, bis = verschieben(z.von, schritte), verschieben(z.bis, schritte)
+    return replace(z, von=von, bis=bis, ohne_jahr=False, wort=f"{z.wort} {jahr}")
+
+
+def _grenzt_an(frage: str, z: Zeitraum, start: int, ende: int) -> bool:
+    """Steht das Jahr (Textstelle start bis ende) direkt neben dem Teil, nur durch „im“, „in“ oder „von“ getrennt?"""
+    if _VERGLEICH_DAVOR.search(frage[:start]):
+        return False
+    zwischen = frage[ende : z.start] if ende <= z.start else frage[z.ende : start]
+    return _JAHR_NEBEN.fullmatch(zwischen) is not None
+
+
+def _aufloesen(frage: str, letzter: str | None) -> tuple[list[Zeitraum], list[tuple[int, int]], str | None]:
+    """Weist Teilen ohne Jahr das Jahr zu, das die Frage nennt.
+
+    Ein Jahr gilt, wenn es direkt neben dem Teil steht („2025 im März“, „März in 2025“, „im März letzten Jahres“). In
+    einer Aufzählung gilt das Jahr des Nachbarn, wenn der Teil damit in der genannten Reihenfolge bleibt („im Mai 2025
+    und im Juni“; „Dezember 2025 und Jänner“ bleibt offen). Rückgabe: die Teile, die Textstellen der freien Jahre und
+    ein Satz, wenn das Jahr nicht eindeutig ist. Dann bleiben die Teile, wie sie sind; ``unklar`` fragt zurück, bevor
+    eine Zahl entsteht. Steht nirgends ein Jahr, gilt der jüngste passende Zeitraum, und der Text sagt es.
+    """
+    roh = _teile_roh(frage, letzter)
+    explizit = [(a, e, m) for a, e, m in _explizit(frage) if not any(a < z.ende and e > z.start for z in roh)]
+    freie = _freie_jahre(frage, roh, explizit, letzter)
+    if not roh and not explizit:
+        return roh, [], (_JAHR_OFFEN if len({j for j, _, _ in freie}) > 1 else None)
+    relativ = [z for z in roh if z.art in ("aktuell", "letzte_monate")]
+    if relativ and freie:
+        wort = relativ[0].wort
+        return (
+            roh,
+            [],
+            (
+                f"{wort[:1].upper()}{wort[1:]} und ein Jahr passen nicht zusammen. "
+                "Bitte Monat und Jahr nennen, zum Beispiel „Beschäftigte im Dezember 2025“."
+            ),
+        )
+    if any(z.ohne_jahr for z in roh) and (
+        _JAHRESPAAR.search(frage) or _ANDERES_JAHR.search(frage) or (freie and _VERGLEICH.search(frage))
+    ):
+        return roh, [], _JAHR_OFFEN
+    # Reihenfolge der Frage; wörtliche Monate zählen als Nachbarn, „letzten Monat“ nennt kein Jahr.
+    alle = sorted([*roh, *(Zeitraum(m, m, "monat", "", a, e) for a, e, m in explizit)], key=lambda z: z.start)
+    benutzt: set[int] = set()
+    for i, z in enumerate(alle):
+        if not z.ohne_jahr:
+            continue
+        nah = {n for n, (_, a, e) in enumerate(freie) if _grenzt_an(frage, z, a, e)}
+        if len({freie[n][0] for n in nah}) > 1:
+            return roh, [], _JAHR_OFFEN
+        if nah:
+            alle[i] = _ins_jahr(z, freie[min(nah)][0])
+            benutzt |= nah
+
+    def kennt_jahr(z: Zeitraum) -> bool:
+        return not z.ohne_jahr and z.art not in ("aktuell", "letzte_monate")
+
+    def verbunden(links: Zeitraum, rechts: Zeitraum) -> bool:
+        return _NUR_BINDEWORT.fullmatch(frage[links.ende : rechts.start]) is not None
+
+    for i in range(1, len(alle)):
+        if alle[i].ohne_jahr and kennt_jahr(alle[i - 1]) and verbunden(alle[i - 1], alle[i]):
+            kandidat = _ins_jahr(alle[i], int(alle[i - 1].bis[:4]))
+            if kandidat.von <= alle[i - 1].bis:
+                return roh, [], _JAHR_OFFEN
+            alle[i] = kandidat
+    for i in range(len(alle) - 2, -1, -1):
+        if alle[i].ohne_jahr and kennt_jahr(alle[i + 1]) and verbunden(alle[i], alle[i + 1]):
+            kandidat = _ins_jahr(alle[i], int(alle[i + 1].von[:4]))
+            if kandidat.bis >= alle[i + 1].von:
+                return roh, [], _JAHR_OFFEN
+            alle[i] = kandidat
+    genannt = {int(m[:4]) for z in alle if kennt_jahr(z) for m in (z.von, z.bis)}
+    if any(z.ohne_jahr for z in alle):
+        return roh, [], (_JAHR_OFFEN if genannt or freie else None)
+    # Ein Jahr, das zu keinem Teil gehört und auch sonst nicht genannt ist: „März 2025 und 2026“.
+    if any(j not in genannt for n, (j, _, _) in enumerate(freie) if n not in benutzt):
+        return roh, [], _JAHR_OFFEN
+    teile = [z for z in alle if z.wort]
+    return teile, [(a, e) for _, a, e in freie], None
+
+
+def teile_lesen(frage: str, letzter: str | None) -> list[Zeitraum]:
+    """Alle zusammengesetzten Zeitangaben der Frage (ohne wörtliche Einzelmonate und bloße Jahre).
+
+    Eine Textstelle zählt nur einmal; zuerst Bereiche, dann Jahreszeiten, Quartale, Halbjahre, Jahresteile,
+    „letzte N Monate“, „letzter Monat“, zuletzt ausgeschriebene Monatsnamen ohne Jahr. Ein Jahr an anderer Stelle
+    der Frage gilt für Teile ohne Jahr (siehe ``_aufloesen``).
+    """
+    return _aufloesen(frage, letzter)[0]
 
 
 def jahr_lesen(frage: str, letzter: str | None) -> tuple[int, str] | None:
@@ -497,18 +670,24 @@ def umschreiben(frage: str, letzter: str | None) -> tuple[str, list[str], bool]:
     Rückgabe: neue Frage, Sätze, welche Monate gemeint sind, und ob ein Durchschnitt über mehrere Monate gemeint
     ist (Jahreszeit, Quartal, Halbjahr oder ein Durchschnittswort). Wörtliche Monate bleiben stehen.
     """
-    teile = teile_lesen(frage, letzter)
+    teile, jahresstellen, _ = _aufloesen(frage, letzter)
     notizen: list[str] = []
     mittel = False
-    for z in sorted(teile, key=lambda z: z.start, reverse=True):
+    # Von hinten ersetzen, damit die Stellen davor gültig bleiben; das verwendete Jahr steht danach im Monat.
+    aenderungen: list[tuple[int, int, str, Zeitraum | None]] = [(a, b, "", None) for a, b in jahresstellen]
+    for z in teile:
         ersatz = (
             monat_anzeige(z.von) if z.von == z.bis else f"{monat_anzeige(z.von)} bis {monat_anzeige(z.bis)}"
         )
-        frage = frage[: z.start] + ersatz + frage[z.ende :]
-        satz = z.erklaerung()
+        aenderungen.append((z.start, z.ende, ersatz, z))
+    for start, ende, ersatz, teil in sorted(aenderungen, key=lambda x: x[0], reverse=True):
+        frage = frage[:start] + ersatz + frage[ende:]
+        if teil is None:
+            continue
+        satz = teil.erklaerung()
         if satz:
             notizen.insert(0, satz)
-        if z.mehrere and z.art in ("jahreszeit", "quartal", "halbjahr"):
+        if teil.mehrere and teil.art in ("jahreszeit", "quartal", "halbjahr"):
             mittel = True
     if DURCHSCHNITT_WORT.search(frage):
         mittel = True
@@ -518,10 +697,11 @@ def umschreiben(frage: str, letzter: str | None) -> tuple[str, list[str], bool]:
     return frage, notizen, mittel
 
 
-def unklar(frage: str) -> str | None:
+def unklar(frage: str, letzter: str | None = None) -> str | None:
     """Ein Satz, wenn die Frage einen Zeitraum nennt, der nicht eindeutig ist; sonst None.
 
-    „Sommerhalbjahr“ und „Wintersaison“ meinen je nach Fach andere Monate, „Winter 2025/27“ widerspricht sich.
+    „Sommerhalbjahr“ und „Wintersaison“ meinen je nach Fach andere Monate, „Winter 2025/27“ widerspricht sich. Mit
+    ``letzter`` (jüngster Monat mit Daten) auch: Monat ohne Jahr neben Jahren, die nicht eindeutig zu ihm gehören.
     """
     t = _HALBJAHR_SAISON.search(frage)
     if t:
@@ -538,7 +718,7 @@ def unklar(frage: str) -> str | None:
                     f"{t.group(0).strip()} passt nicht zusammen. "
                     f"Meinen Sie „Beschäftigte im Winter {jahr}/{str(jahr + 1)[2:]}“?"
                 )
-    return None
+    return _aufloesen(frage, letzter)[2]
 
 
 def tag_hinweis(frage: str) -> str | None:

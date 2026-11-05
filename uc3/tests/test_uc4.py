@@ -265,3 +265,67 @@ def test_aufzaehlung_und_unklarer_zeitraum(vier_monate: Verbindung) -> None:
     assert mittel["zahlen"][-1]["bezeichnung"].endswith("Durchschnitt August 2024 und November 2024")
     halbjahr = antwort_daten(conn, "Beschäftigte im Sommerhalbjahr 2024")
     assert halbjahr["zahlen"] == [] and "nicht eindeutig" in halbjahr["text"]
+
+
+# Fängt: Eine Liste um den Datenbestand herum, ganz außerhalb der Daten, brach mit IndexError ab (Prüfung !169).
+def test_liste_ganz_ausserhalb_der_daten(vier_monate: Verbindung) -> None:
+    daten = antwort_daten(vier_monate, "Beschäftigte Jänner 2024 und Jänner 2027")
+    assert daten["zahlen"] == []
+    assert (
+        "Für Jänner 2024 und Jänner 2027 gibt es keine Daten, nur für August bis November 2024."
+        in daten["text"]
+    )
+    teil = antwort_daten(vier_monate, "Beschäftigte Jänner 2024 und September 2024")
+    assert [z["wert"] for z in teil["zahlen"]] == [_monat_direkt(vier_monate, "2024-09")]
+    assert "darum zählt hier September 2024." in teil["text"]
+
+
+# Fängt: Auf /uc4 kommen zwölf Zahlen statt der Rückfrage wie in uc3 frage (#74 AC2); mit Durchschnittswort oder
+# Zeitreihe muss es weiter Zahlen geben.
+def test_jahr_ohne_durchschnitt_fragt_zurueck(vier_monate: Verbindung) -> None:
+    conn = vier_monate
+    frage = antwort_daten(conn, "Beschäftigte 2024")
+    assert frage["zahlen"] == [] and "Jahresdurchschnitt 2024" in frage["text"]
+    soll = [_monat_direkt(conn, m) for m in ("2024-08", "2024-09", "2024-10", "2024-11")]
+    mittel = antwort_daten(conn, "Jahresdurchschnitt 2024")
+    assert [z["wert"] for z in mittel["zahlen"]] == [*soll, (2 * sum(soll) + 4) // 8]
+    reihe = antwort_daten(conn, "Zeitreihe 2024")
+    assert [z["wert"] for z in reihe["zahlen"]][:4] == soll and "Gemeint ist der" not in reihe["text"]
+    assert antwort_daten(conn, "Beschäftigte 2023")["zahlen"] == []
+    assert "keine Daten" in antwort_daten(conn, "Beschäftigte 2023")["text"]
+
+
+# Fängt: Ein Monat im Jahr davor oder daneben wird zur Zahl des jüngsten passenden Monats (Prüfung !169).
+def test_jahr_vor_dem_monat_ist_der_gefragte_monat(vier_monate: Verbindung) -> None:
+    conn = vier_monate
+    soll = _monat_direkt(conn, "2024-09")
+    assert [
+        z["wert"] for z in antwort_daten(conn, "Wie viele Beschäftigte gab es 2024 im September?")["zahlen"]
+    ] == [soll]
+    daneben = antwort_daten(conn, "Beschäftigte 2023 im September")
+    assert daneben["zahlen"] == [] and "keine Daten" in daneben["text"]
+    rueckfrage = antwort_daten(conn, "Beschäftigte 2023 und 2024 im September")
+    assert rueckfrage["zahlen"] == [] and "nicht eindeutig" in rueckfrage["text"]
+
+
+# Fängt: Der Durchschnitt mittelt einen vorläufigen oder fortgeschriebenen Monat, ohne ihn beim Namen zu nennen;
+# sein Beleg sagt keinen Stand.
+def test_vorlaeufige_und_fortgeschriebene_monate_beim_namen(vier_monate: Verbindung) -> None:
+    conn = vier_monate
+    stand = letzter_lauf(conn, "2024-09")
+    assert stand is not None
+    conn.execute(
+        "UPDATE meta.lauf SET ergebnis_status = 'endgueltig', fortgeschrieben = 0 WHERE lieferung <> '2024-09'"
+    )
+    conn.execute(
+        "UPDATE meta.lauf SET ergebnis_status = 'vorlaeufig', fortgeschrieben = 123 WHERE id = %s",
+        (stand.lauf_id,),
+    )
+    daten = antwort_daten(conn, "Beschäftigte im Herbst 2024")
+    assert "teils endgültig, teils vorläufig (vorläufig: September 2024)" in daten["text"]
+    assert "September 2024 enthält 123 fortgeschriebene" in daten["text"]
+    assert daten["belege"][-1]["stand"] == "vorlaeufig"
+    einzeln = antwort_daten(conn, "Beschäftigte im September 2024")
+    assert "September 2024 enthält 123 fortgeschriebene" in einzeln["text"]
+    conn.execute("UPDATE meta.lauf SET ergebnis_status = 'endgueltig', fortgeschrieben = 0")
+    assert antwort_daten(conn, "Beschäftigte im Herbst 2024")["belege"][-1]["stand"] == "endgueltig"

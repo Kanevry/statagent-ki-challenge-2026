@@ -76,6 +76,25 @@ TABELLE: list[tuple[str, str | None, str | None, str | None]] = [
     ("Wie viele Beschäftigte gibt es in Tirol?", None, None, None),
     ("Beschäftigte im Winterdienst", None, None, None),
     ("Was ist ÖNACE 2008 Abschnitt F?", None, None, None),
+    # Ein Jahr an anderer Stelle gilt, nicht der jüngste passende Zeitraum (Prüfung !169, vorher still falsch)
+    ("Wie viele Beschäftigte gab es 2025 im März?", "2025-03", "2025-03", "monat"),
+    ("2024 im Herbst", "2024-09", "2024-11", "jahreszeit"),
+    ("im Jahr 2024 im Dezember", "2024-12", "2024-12", "monat"),
+    ("März in 2025", "2025-03", "2025-03", "monat"),
+    ("im März letzten Jahres", "2025-03", "2025-03", "monat"),
+    ("im letzten Monat des Jahres 2025", "2025-12", "2025-12", "monat"),
+    ("im Mai 2025 und im Juni", "2025-05", "2025-06", "liste"),
+    ("heuer im März", "2026-03", "2026-03", "monat"),
+    ("heuer im Dezember", "2026-12", "2026-12", "monat"),
+    ("im Dezember letztes Jahr", "2025-12", "2025-12", "monat"),
+    ("im Sommer letzten Jahres", "2025-06", "2025-08", "jahreszeit"),
+    ("im September letzten Jahres", "2025-09", "2025-09", "monat"),
+    ("im März des Vorjahres", "2025-03", "2025-03", "monat"),
+    ("2025 im Winter", "2024-12", "2025-02", "jahreszeit"),
+    ("2025 im letzten Quartal", "2025-10", "2025-12", "quartal"),
+    ("2025 im ersten Halbjahr", "2025-01", "2025-06", "halbjahr"),
+    # Der jüngste Zeitraum bleibt, wenn gar kein Jahr dasteht; „ÖNACE 2008“ ist keines
+    ("im März nach ÖNACE 2008", "2026-03", "2026-03", "monat"),
 ]  # fmt: skip
 
 
@@ -104,7 +123,7 @@ def test_tabelle_hat_mindestens_dreissig_formulierungen() -> None:
         ("im ersten Halbjahr 2025", "Das 1. Halbjahr 2025 sind die Monate Jänner bis Juni 2025."),
         ("im März", "März ohne Jahr heißt hier März 2026, der jüngste März mit Daten."),
         ("letzten Monat", "Mit letzten Monat ist hier der jüngste Monat mit Daten gemeint: Juli 2026."),
-        ("2025", "Mit 2025 ist hier der Durchschnitt der Monate Jänner bis Dezember 2025 gemeint."),
+        ("2025", "Gemeint ist der Durchschnitt der Monate Jänner bis Dezember 2025."),
         (
             "November bis Februar 2025",
             "November bis Februar 2025 heißt hier November 2024 bis Februar 2025.",
@@ -154,6 +173,9 @@ def test_ohne_daten_keine_raterei() -> None:
         # aufgezählte Monate ohne die Monate dazwischen
         ("im Jänner 2025 und Juli 2025", "2025-01", "2025-07", "liste", ("2025-01", "2025-07")),
         ("Wien im Juli 2026 im Vergleich zum Juli 2025", "2025-07", "2026-07", "liste", ("2025-07", "2026-07")),
+        # das Jahr des Nachbarn in einer Aufzählung, in der genannten Reihenfolge
+        ("im Mai 2025 und Juni 2026 und im Juli", "2025-05", "2026-07", "liste", ("2025-05", "2026-06", "2026-07")),
+        ("März, April, Mai 2025", "2025-03", "2025-05", "liste", ("2025-03", "2025-04", "2025-05")),
     ],
 )  # fmt: skip
 def test_randfaelle_astra(frage: str, von: str, bis: str, art: str, nur: tuple[str, ...]) -> None:
@@ -188,6 +210,82 @@ def test_unklar_und_tag() -> None:
     )
     assert tag_hinweis("am 2025-03-01") is not None
     assert tag_hinweis("am 31.03.2025") is None and tag_hinweis("im März 2025") is None
+
+
+# Fängt: ein Monat ohne Jahr neben mehreren oder fremden Jahren wird still zum jüngsten Monat.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "2024 und 2025 im März",
+        "März im Vergleich zu 2025",
+        "Juli 2026 im Vergleich zum Juli",
+        "2025/26 im Winter",
+        "letzten Monat im Vergleich zu 2025",
+        "die letzten 3 Monate 2025",
+        # Nachbar-Jahr würde die Reihenfolge umdrehen: nicht raten
+        "Dezember 2025 und Jänner",
+        "Herbst 2025 und Winter",
+        "Q4 2025 und Jänner",
+        # Vorjahr als zweiter Zeitpunkt
+        "Wie hat sich der März zum Vorjahr entwickelt?",
+        "Veränderung zum Vorjahr im März",
+        "Beschäftigte im März und im Vorjahr",
+        # Jahr und Monat als zwei Dinge
+        "Jahresdurchschnitt 2025 und März",
+        "2025 und im März",
+        # Jahr, das zu keinem Teil gehört
+        "2024 im März und im April 2025",
+        "März 2025 und 2026",
+        "Sommer 2024 und 2025",
+        "2024 im Herbst 2025",
+        # mehrere bloße Jahre
+        "Jahresdurchschnitt 2024 und 2025",
+        # Zahlen, die wie Jahre aussehen
+        "Betriebe mit 2025 Mitarbeitern im März",
+        "Beschäftigte im März mit 2025 Euro",
+        "mehr als 2025 Personen im Juni",
+        # relative Jahre, die wir nicht auflösen
+        "vor zwei Jahren im März",
+        "vorletztes Jahr im März",
+    ],
+)
+def test_jahr_nicht_zuzuordnen_fragt_zurueck(frage: str) -> None:
+    from statagent.zeitraum import unklar
+
+    grund = unklar(frage, LETZTER)
+    assert grund is not None and "„Beschäftigte im" in grund
+
+
+# Fängt: Rückfrage, obwohl die Frage gar kein Jahr nennt; Klassifikationsjahre gelten als Berichtsjahr.
+@pytest.mark.parametrize(
+    ("frage", "nur"),
+    [
+        ("Beschäftigte im März und letzten Monat", ("2026-03", "2026-07")),
+        ("Juni und letzten Monat vergleichen", ("2026-06", "2026-07")),
+        ("Klassifikation 2025 im März", ()),
+        ("Jahrgang 2025 im März", ()),
+        ("Beschäftigte im März PLZ 2025", ()),
+    ],
+)
+def test_ohne_jahr_keine_rueckfrage(frage: str, nur: tuple[str, ...]) -> None:
+    from statagent.zeitraum import unklar
+
+    zeitraum = zeitraum_lesen(frage, LETZTER)
+    assert unklar(frage, LETZTER) is None and zeitraum is not None
+    assert zeitraum.nur == nur if nur else zeitraum.von == "2026-03"
+
+
+# Fängt: Das zugewiesene Jahr bleibt doppelt im Text stehen, uc3 frage liest dann ein zweites Jahr.
+def test_umschreiben_nimmt_das_freie_jahr_heraus() -> None:
+    from statagent.frage import jahr_ohne_monat
+
+    for frage, monate_text in (
+        ("Wie viele Beschäftigte gab es 2025 im März?", "März 2025"),
+        ("im März letzten Jahres in Wien", "März 2025"),
+        ("2024 im Herbst", "September 2024 bis November 2024"),
+    ):
+        neu = umschreiben(frage, LETZTER)[0]
+        assert monate_text in neu and jahr_ohne_monat(neu) is None and "letzten" not in neu
 
 
 # Fängt: „ÖNACE 2025“ wird in uc3 frage als Berichtsjahr gelesen; ein Median wird als Durchschnitt gerechnet.
