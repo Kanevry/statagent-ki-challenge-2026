@@ -174,6 +174,15 @@ def zwischenergebnis(
     }
 
 
+def einigung_ohne_gegenstimme(jetzt: Runde, teilnehmer: list[str], themen: list[str]) -> list[str]:
+    """Themen, auf denen jeder Teilnehmer eine Haltung ab +1 hat (Hinweis an den Moderator, #127)."""
+    return [
+        t
+        for t in themen
+        if teilnehmer and all(t in jetzt.get(a, {}) and jetzt[a][t].wert >= 1 for a in teilnehmer)
+    ]
+
+
 # Alte Namen: ein anderer Branch importiert sie noch.
 _pruefe_auswahl = pruefe_auswahl
 _repariere_auswahl = repariere_auswahl
@@ -478,7 +487,16 @@ class Verhandlung:
             alle_aenderungen += aend
             klass = klassifikation(jetzt, teilnehmer, themen)
             notiz = self._notiz(
-                s, auftrag, runde, teilnehmer, jetzt, aend, klass, code_widersprueche, ohne_beleg
+                s,
+                auftrag,
+                runde,
+                teilnehmer,
+                jetzt,
+                aend,
+                klass,
+                code_widersprueche,
+                ohne_beleg,
+                einigung_ohne_gegenstimme(jetzt, teilnehmer, themen),
             )
             vorrunde = zwischenergebnis(jetzt, klass, gueltig, notiz)
             s.ereignis(
@@ -516,6 +534,7 @@ class Verhandlung:
         klass: dict[str, Einordnung],
         code_widersprueche: list[dict[str, Any]],
         ohne_beleg: list[dict[str, str]],
+        einig: list[str],
     ) -> str | None:
         nachrichten = prompts.notiz_nachrichten(
             frage=self.fall.frage,
@@ -527,6 +546,19 @@ class Verhandlung:
             klassifikation={t: e.kategorie for t, e in klass.items()},
             code_widersprueche=code_widersprueche,
             haltungen_ohne_beleg=ohne_beleg,
+            einigung_ohne_gegenstimme=einig,
+            grenzen={
+                aid: {
+                    "rote_linien": list(self.akteure[aid].rote_linien),
+                    "budgetvorgaben": list(self.akteure[aid].budgetvorgaben),
+                }
+                for aid in teilnehmer
+            },
+            kosten={
+                k: self.experte[k]
+                for k in ("mehrkosten_mio_eur", "kosten_aenderung_prozent")
+                if k in self.experte
+            },
         )
         try:
             antwort = rufe(self.rm_moderator, nachrichten, prompts.NOTIZ_SCHEMA)
@@ -540,7 +572,12 @@ class Verhandlung:
             return None
         s.ereignis(
             "moderator_notiz",
-            {**antwort.json, "code_widersprueche": code_widersprueche, "haltungen_ohne_beleg": ohne_beleg},
+            {
+                **antwort.json,
+                "code_widersprueche": code_widersprueche,
+                "haltungen_ohne_beleg": ohne_beleg,
+                "einigung_ohne_gegenstimme": einig,
+            },
             runde=runde,
             akteur="moderator",
         )
