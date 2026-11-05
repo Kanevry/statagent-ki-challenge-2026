@@ -202,3 +202,25 @@ def test_gleiche_einheit_anderer_begriff_passt_nicht() -> None:
     ]
     # ohne Kennwort im Satzteil entscheidet nur Wert, Vorzeichen und Einheit
     assert freie_zahlen("Das Ziel liegt bei −20 %.", ziel) == []
+
+
+def test_anzahl_als_einheit_steht_nicht_im_text() -> None:
+    """E0 Szene 8: UC3 liefert Einheit „Anzahl“; im Text steht „7.498“, und die Zahl bleibt belegt."""
+    from plattform.antwortform import Zahl
+
+    from uc2.antwort.textzahlen import ERSATZ, bereinige, sichtbare_einheit
+
+    z = [
+        Zahl(
+            bezeichnung="Beschäftigte (Wien, Gesundheits- und Sozialwesen)",
+            wert=7498,
+            einheit="Anzahl",
+            beleg=0,
+        )
+    ]
+    assert sichtbare_einheit("Anzahl") is None and sichtbare_einheit("Personen") == "Personen"
+    satz = (
+        "Beschäftigte (Wien, Gesundheits- und Sozialwesen): 7.498 (laut Beschäftigtenstatistik, März 2025)."
+    )
+    assert bereinige(satz, z) == satz
+    assert ERSATZ in bereinige("Es fehlen 7.498 Gesundheitszentren.", z)

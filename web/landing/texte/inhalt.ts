@@ -263,6 +263,8 @@ export const DATENFEHLER = {
   /** Hinweis, wenn die Datenbank mehr Treffer hat, als die Tabelle zeigt */
   auswahl: (gezeigt: number, gesamt: number) =>
     `Gezeigt werden ${zahl(gezeigt)} von ${zahl(gesamt)} Auffälligkeiten, nicht erklärbare zuerst, dann die größten.`,
+  /** Aufklapper unter den ersten Zeilen (UI-Regie): weitere Auffälligkeiten, falls es welche gibt, und immer die Begriffe. */
+  mehr: (weitere: number) => (weitere > 0 ? `${zahl(weitere)} weitere Auffälligkeiten und Begriffe` : "Begriffe"),
   /** Glossar zur Spalte Einstufung (Roast K9); die drei Stufen stammen aus der Qualitätsbericht-Vorlage der Aufgabe. */
   glossar: [
     { begriff: "erklärt, plausibel", erklaerung: "ungewohnt, aber echt: zählt mit und wird vermerkt" },

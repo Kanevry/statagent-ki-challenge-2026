@@ -31,9 +31,10 @@ export default async function Startseite() {
         <HeroSzene />
         {/* Erst rendern, wenn sie in die Nähe kommen (eine Hülle, damit `.abschnitt + .abschnitt` greift) */}
         <div className={l.spaeter}>
+          {/* Nach dem Einstieg zuerst der Weg in die App (UI-Regie 05.11.), dann Ansatz und Befunde. */}
+          <UseCases />
           <Ansatz />
           <Datenfehler tabelle={tabelle} />
-          <UseCases />
           <Team />
         </div>
       </main>

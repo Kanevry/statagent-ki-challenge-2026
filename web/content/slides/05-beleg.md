@@ -1,23 +1,35 @@
 ---
 nummer: 5
-titel: 2.880 von 2.880
+titel: Wir rechnen die Vorlage des Veranstalters nach
 layout: zahl
-zeit: "2:45–3:15"
+szene: beleg
+zahl: 2.880
+zeit: "2:20–2:50"
 dauer_s: 30
 bereiche: [Qualitätssicherung, Reporting]
-screenshot: SC4
-pen_frame: uzmdd
-belege: [F1, F2]
+screenshot: null
+pen_frame: null
+belege: [F1, F15]
+angehalten: [März 2025, Oktober 2025]
 ---
 
-# 2.880 von 2.880
+# Wir rechnen die Vorlage des Veranstalters nach. Alle 2.880 Zahlen stimmen.
 
-Alle Zahlenzellen des Beispielberichts 08/2024 exakt nachgerechnet. 0 Abweichungen.
+| Seite | Unterzeile |
+|---|---|
+| Vorlage des Veranstalters | August 2024 · 13 Tabellen |
+| StatAgent rechnet selbst | aus den Rohdaten |
+| Die anderen 23 Monate, September 2024 bis Juli 2026 | 24 Prüfregeln liefen, 2 Monate angehalten |
 
-392.284 Zeilen geliefert, 48 vor dem Stichtag beendet, 392.236 Beschäftigungsverhältnisse am Stichtag 31.08.2024.
+2.880 von 2.880 gleich
 
-Herkunft: Zellvergleich `uc3 eichen --lieferung 2024-08` und eine unabhängige Gegenrechnung
+0 Abweichungen
+
+Für die anderen 23 Monate wachen 24 Prüfregeln.
+
+Herkunft: Vergleich mit der Vorlage des Veranstalters für August 2024 und unabhängige Gegenrechnung
 
 ## Sprechernotizen
 
-Zuerst der Beleg. Der Beispielbericht für August 2024 ist unser Golden Set, also die Vorlage zum Prüfen. Er hat 2.880 Zahlenzellen. Wir haben alle nachgerechnet, null Abweichungen. So rechnet es sich: 392.284 Zeilen, minus 48 Abschnitte, die vor dem Stichtag enden, gleich 392.236. Der Stichtag ist der Monatsletzte.
+Woher wissen wir, dass StatAgent richtig rechnet? Der Veranstalter hat für August 2024 einen Bericht als Vorlage mitgegeben: 13 Tabellen, 2.880 Zahlen. StatAgent rechnet ihn selbst nach. Alle 2.880 stimmen. Die Regeln stammen aus der Fachbeschreibung, nur zwei Lücken schließt der Bericht.
+[→] Für die anderen 23 Monate gibt es keinen Vergleichsbericht. Dort wachen 24 Prüfregeln. Zwei Monate halten sie an, März und Oktober 2025.
