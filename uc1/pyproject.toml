@@ -5,10 +5,14 @@ description = "UC1 SV KI-Lotse: Korpus, Suche und Lotse-Kern (KI Challenge 2026)
 requires-python = ">=3.12"
 dependencies = [
   "numpy>=2",
+  "plattform",
   "psycopg[binary]>=3.2",
   "pypdf>=5",
   "pyyaml>=6",
 ]
+
+[tool.uv.sources]
+plattform = { workspace = true }
 
 [project.optional-dependencies]
 # Embeddings (google/embeddinggemma-2) nur bei Bedarf: `uv sync --extra embed`.
