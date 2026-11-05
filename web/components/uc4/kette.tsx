@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { formatiereZahl } from "@kic/ui/basis";
 import { HerkunftChip, ModellPille } from "@kic/ui/bausteine";
 import { SeitenModell, TESTBETRIEB_TEXT } from "@kic/ui/shell";
 import { findeUc } from "@kic/ui/ucs";
@@ -393,7 +394,7 @@ function Antwort({ kern, antwort, dauerMs }: { kern: string; antwort: UcAntwort;
               <li key={`${zahl.bezeichnung}-${i}`} className="flex flex-wrap items-baseline gap-x-2 gap-y-1" data-zahl="">
                 <span className="font-sans text-14 text-slate">{zahl.bezeichnung}</span>
                 <span className="font-sans text-16 font-semibold text-ink tabular-nums">
-                  {new Intl.NumberFormat("de-AT").format(zahl.wert)}
+                  {formatiereZahl(zahl.wert)}
                   {zahl.einheit && zahl.einheit !== "Anzahl" ? ` ${zahl.einheit}` : ""}
                 </span>
                 {beleg && (
