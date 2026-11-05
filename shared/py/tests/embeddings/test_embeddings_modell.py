@@ -17,6 +17,15 @@ pytest.importorskip(
 from plattform import embeddings  # noqa: E402
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _modell_im_cache():
+    """Die Tests laden nie selbst aus dem Netz; fehlt die Revision im Cache, werden sie übersprungen."""
+    try:
+        embeddings.dimension()
+    except embeddings.ModellFehlt:
+        pytest.skip("Revision nicht im HF-Cache: uv run python -m plattform.embeddings laden")
+
+
 @pytest.fixture
 def protokoll(tmp_path, monkeypatch):
     datei = tmp_path / "modellaufrufe.jsonl"
@@ -35,6 +44,14 @@ def test_gleiche_texte_gleiche_vektoren_der_laenge_dimension(protokoll):
 
     assert erster == zweiter
     assert len(erster) == embeddings.dimension()
+
+
+def test_vektoren_haben_laenge_eins(protokoll):
+    """Fängt: das Modell liefert unnormierte Vektoren (Cosinus wäre nicht mehr das Skalarprodukt)."""
+    for vektor in embeddings.einbetten(
+        ["kurz", "Ein etwas längerer Satz über die Beitragsgrundlagen."], "test"
+    ):
+        assert math.sqrt(math.fsum(x * x for x in vektor)) == pytest.approx(1.0, abs=1e-5)
 
 
 def test_ranking_naher_text_vor_fremdem(protokoll):
@@ -63,7 +80,7 @@ def test_protokoll_genau_eine_zeile_ohne_text(protokoll):
 
 def test_offline_aus_dem_cache(protokoll, tmp_path):
     """Fängt: Laden fragt trotz gefülltem Cache den Hub und scheitert ohne Netz."""
-    embeddings.einbetten(["einmal laden"], zweck="test")  # füllt den Cache, falls er leer war
+    embeddings.einbetten(["einmal laden"], zweck="test")  # Cache ist gefüllt (sonst übersprungen)
     code = (
         "from plattform.embeddings import dimension, einbetten\n"
         "print(len(einbetten(['ohne Netz'], zweck='test')[0]) == dimension())\n"
