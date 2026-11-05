@@ -1,0 +1,27 @@
+{
+  "text": "Am Stichtag 31.03.2025 (März 2025) gab es 91.450 Beschäftigungsverhältnisse (Wien); die Zahl ist vorläufig (Lauf 105).",
+  "belege": [
+    {
+      "uc": "uc3",
+      "quelle": "stat.stat_beschaeftigte",
+      "lieferung": "2025-03",
+      "monat": "2025-03",
+      "sql": "SELECT COALESCE(sum(s.wert), 0)::bigint AS wert FROM stat.stat_beschaeftigte s WHERE s.regelsatz = 'v1' AND s.regelstand = 'c3ecc447f8384fea' AND s.zeitraum_art = 'Stichtag' AND s.variable = 'Beschaeftigungsverhaeltnisse' AND s.zeitraum_bis BETWEEN '2025-03-01'::date AND '2025-03-31'::date AND s.region = '9'",
+      "ref": "meta.lauf/105 regelstand c3ecc447f8384fea vorlaeufig",
+      "regelstand": "c3ecc447f8384fea",
+      "lauf": "9ad1015664c0319add493ff441b9e97516bce6af9a43ef08b358d938db6e4474",
+      "stand": "vorlaeufig"
+    }
+  ],
+  "zahlen": [
+    {
+      "bezeichnung": "Beschäftigungsverhältnisse (Wien)",
+      "wert": 91450,
+      "einheit": "Anzahl",
+      "beleg": 0
+    }
+  ],
+  "uc": "uc3",
+  "modell": null,
+  "protokoll_id": null
+}
