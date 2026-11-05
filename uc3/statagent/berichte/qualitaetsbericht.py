@@ -989,6 +989,81 @@ def grundlage_kurz(text: object) -> str:
 # --- Bericht -----------------------------------------------------------------------------------------
 
 
+def _oenace_wechsel_sql(vormonat: str, lieferung: str, regelsatz: str, stichtag: date) -> str:
+    """Beleg: dasselbe Verhältnis am Tag vor dem Wechsel in der Lieferung davor und in der ersten neuen Lieferung."""
+
+    def bestand(liefer: str) -> str:
+        return (
+            "SELECT DISTINCT ON (vvh_id) vvh_id, oenace FROM bereinigt.abschnitt"
+            f" WHERE lieferung = '{liefer}' AND regelsatz = '{regelsatz}' AND beginn <= DATE '{stichtag}'"
+            f" AND (ende IS NULL OR ende >= DATE '{stichtag}') ORDER BY vvh_id, beginn DESC"
+        )
+
+    return (
+        f"WITH vorher AS ({bestand(vormonat)}),\n     nachher AS ({bestand(lieferung)})\n"
+        "SELECT v.oenace AS alt, n.oenace AS neu, count(*) AS verhaeltnisse\n"
+        "FROM vorher v JOIN nachher n USING (vvh_id)\nGROUP BY 1, 2 ORDER BY 3 DESC"
+    )
+
+
+def _oenace_wechsel(conn: Verbindung, lieferung: str, regelsatz: str) -> dict[str, Any] | None:
+    """Beginnt in diesem Monat eine neue ÖNACE-Version: Wie viele Verhältnisse tragen dadurch einen anderen Abschnitt?
+
+    Die Lieferung meldet mit der neuen Version auch den Vormonat in neuen Codes (Forensik: 12/2024 in Lieferung
+    2025-01). Das ist keine echte Entwicklung, und das muss der Bericht dieses Monats sagen. Monate ohne Wechsel und
+    Monate ohne gemeinsame Verhältnisse mit der Lieferung davor liefern None.
+    """
+    erster = date.fromisoformat(f"{lieferung}-01")
+    version = conn.execute(
+        """SELECT n.version AS neu, a.version AS alt FROM stat.klass_oenace n
+           JOIN stat.klass_oenace a ON a.ebene = 1 AND a.gueltig_bis = n.gueltig_von - 1
+           WHERE n.ebene = 1 AND n.gueltig_von = %s LIMIT 1""",
+        (erster,),
+    ).fetchone()
+    if version is None:
+        return None
+    alt, neu = str(version["alt"]), str(version["neu"])
+    vormonat = ergebnis.monat_verschieben(lieferung, -1)
+    stichtag = ergebnis.monatsletzter(vormonat)
+    sql = _oenace_wechsel_sql(vormonat, lieferung, regelsatz, stichtag)
+    wechsel = conn.execute(sql.encode()).fetchall()
+    gesamt = sum(_int(z["verhaeltnisse"]) for z in wechsel)
+    if not gesamt:
+        return None
+    namen = {
+        (str(z["version"]), str(z["code"])): str(z["bezeichnung"])
+        for z in conn.execute(
+            "SELECT version, code, bezeichnung FROM stat.klass_oenace WHERE ebene = 1 AND version = ANY(%s)",
+            ([alt, neu],),
+        ).fetchall()
+    }
+    anders = [z for z in wechsel if z["alt"] != z["neu"]]
+    nur_buchstabe = [
+        z
+        for z in anders
+        if (name := namen.get((alt, str(z["alt"])))) is not None and name == namen.get((neu, str(z["neu"])))
+    ]
+    beispiel = nur_buchstabe[0] if nur_buchstabe else None
+    return {
+        "version_alt": alt,
+        "version_neu": neu,
+        "vormonat": vormonat,
+        "stichtag": stichtag_text(vormonat),
+        "gesamt": gesamt,
+        "anders": sum(_int(z["verhaeltnisse"]) for z in anders),
+        "nur_buchstabe": sum(_int(z["verhaeltnisse"]) for z in nur_buchstabe),
+        "beispiel": None
+        if beispiel is None
+        else {
+            "name": namen[(alt, str(beispiel["alt"]))],
+            "alt": str(beispiel["alt"]),
+            "neu": str(beispiel["neu"]),
+            "anzahl": _int(beispiel["verhaeltnisse"]),
+        },
+        "beleg_sql": sql,
+    }
+
+
 def bericht_daten(conn: Verbindung, lieferung: str, regelsatz: str = "v1") -> dict[str, Any]:
     """Der Bericht als Struktur: Kopf, Status-Sätze, die fünf Abschnitte und die Annahmen des Monats."""
     stand = ergebnis.letzter_lauf(conn, lieferung, regelsatz)
@@ -1044,6 +1119,7 @@ def bericht_daten(conn: Verbindung, lieferung: str, regelsatz: str = "v1") -> di
         "begriffe": _begriffe(bool(fortgeschrieben), zaehl_zeitraum(conn, regelsatz, lieferung)),
         "kennzahlen": _kennzahlen(conn, quelle, lieferung, regelsatz),
         "auffaelligkeiten": auffaelligkeiten,
+        "oenace_wechsel": _oenace_wechsel(conn, lieferung, regelsatz),
         "rueckfragen": _rueckfragen_daten(lieferung, treffer, rueckfragen, ausfall),
         "annahmen": annahmen(conn, lieferung, regelsatz),
         "regeln": _regeln_daten(conn, quelle_id, lieferung, regelsatz),
@@ -1098,7 +1174,39 @@ def _ueberblick(conn: Verbindung, lauf: dict[str, object], lieferung: str, regel
     return _md_ueberblick(_kennzahlen(conn, lauf, lieferung, regelsatz))
 
 
-def _md_auffaelligkeiten(auffaelligkeiten: list[dict[str, Any]], gelaufen: int) -> list[str]:
+def _md_oenace_wechsel(w: dict[str, Any]) -> list[str]:
+    anteil = prozent(100 * w["anders"] / w["gesamt"]).lstrip("+")
+    satz = (
+        f"**Wechsel der ÖNACE:** In diesem Monat beginnt ÖNACE {w['version_neu']} und löst ÖNACE {w['version_alt']} ab"
+        f" (Regel `R7_oenace_nach_berichtsmonat`). Die Lieferung meldet auch frühere Zeitabschnitte schon mit den neuen"
+        f" Codes: Von {zahl(w['gesamt'])} Verhältnissen, die am {w['stichtag']} in beiden Lieferungen stehen, tragen"
+        f" {zahl(w['anders'])} ({anteil}) hier einen anderen Abschnitt als in der Lieferung {w['vormonat']}. Das ist"
+        " eine Umstellung der Klassifikation und keine echte Entwicklung; die Gesamtzahl ändert sich dadurch nicht."
+    )
+    if w["beispiel"]:
+        b = w["beispiel"]
+        satz += (
+            f" Bei {zahl(w['nur_buchstabe'])} davon bleibt der Name des Abschnitts gleich und nur der Buchstabe ist neu,"
+            f" zum Beispiel {b['name']} von ({b['alt']}) zu ({b['neu']}) bei {zahl(b['anzahl'])} Verhältnissen."
+        )
+    satz += " Zahlen je Abschnitt sind über den Wechsel nicht direkt vergleichbar; die amtlichen Übergänge zeigt `uv run uc3 klass oenace`."
+    return [
+        satz,
+        "",
+        "<details><summary>Beleg: Wechsel der ÖNACE</summary>",
+        "",
+        "```sql",
+        str(w["beleg_sql"]),
+        "```",
+        "",
+        "</details>",
+        "",
+    ]
+
+
+def _md_auffaelligkeiten(
+    auffaelligkeiten: list[dict[str, Any]], gelaufen: int, wechsel: dict[str, Any] | None = None
+) -> list[str]:
     kopf = [
         "Nr.",
         "Ebene (Satz / Aggregat / Lieferung)",
@@ -1146,6 +1254,8 @@ def _md_auffaelligkeiten(auffaelligkeiten: list[dict[str, Any]], gelaufen: int) 
             f"{KEINE_AUFFAELLIGKEIT} Keine der {gelaufen} Prüfungen hat in diesem Monat angeschlagen.",
             "",
         ]
+    if wechsel:
+        aus += _md_oenace_wechsel(wechsel)
     aus += belege
     aus.append(
         "Einstufung: „erklärt – plausibel“ heißt, die Entwicklung ist echt und mit Daten belegt. „erklärt –"
@@ -1278,7 +1388,7 @@ def bericht_markdown(d: dict[str, Any]) -> str:
     teile = [
         _md_kopf(d),
         _md_ueberblick(d["kennzahlen"]),
-        _md_auffaelligkeiten(d["auffaelligkeiten"], d["pruefungen_gelaufen"]),
+        _md_auffaelligkeiten(d["auffaelligkeiten"], d["pruefungen_gelaufen"], d.get("oenace_wechsel")),
         _md_rueckfragen(d["rueckfragen"]),
         _md_regeln(d["regeln"], d["annahmen"]),
         _md_revision(d["revision"]),
