@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { alsCsv, erstelleFrageAntwort, frageFehlt, istRueckfrage, zerlegeAntwort } from "./antwort";
 import { UC3_ARGV, uc3, type Ausfuehren, type CliLauf } from "./cli";
+import { erstelleRatenlimit } from "../../lib/plattform/ratenlimit";
 import bundeslaender from "./fixtures/antwort-bundeslaender-2025-10.json";
 import ohneMonat from "./fixtures/antwort-ohne-monat.json";
 import wien from "./fixtures/antwort-wien-2025-03.json";
@@ -145,6 +146,33 @@ describe("POST /api/uc3/frage", () => {
     expect((await a).status).toBe(200);
     expect((await b).status).toBe(200);
     expect((await h(anfrage({ frage: "d" }))).status).toBe(200);
+  });
+
+  it("Fehler: ein Client belegt online beide Läufe dauerhaft. Ratenlimit je IP → 429 vor Body und Subprozess", async () => {
+    const vonIp = (ip: string, body: unknown) => {
+      const r = anfrage(body);
+      r.headers.set("x-forwarded-for", ip);
+      return r;
+    };
+    const aus = vi.fn<Ausfuehren>(async () => ok(wien));
+    const h = erstelleFrageAntwort({
+      starte: uc3,
+      ausfuehren: aus,
+      umgebung: { KIC_ONLINE_LESEND: "1", KIC_ONLINE_FRAGEN: "1" },
+      wurzel: () => "/repo",
+      ratenlimit: erstelleRatenlimit({ proMinute: 3 }),
+      jetzt: () => 0,
+    });
+    for (const frage of ["a", "b", "c"]) expect((await h(vonIp("203.0.113.7", { frage }))).status).toBe(200);
+    expect(aus).toHaveBeenCalledTimes(3);
+    // Ein zu großer Body wäre 413; das Limit kommt vorher.
+    const gesperrt = await h(vonIp("203.0.113.7", { frage: "x".repeat(5000) }));
+    expect(gesperrt.status).toBe(429);
+    expect(gesperrt.headers.get("retry-after")).toBe("60");
+    expect((await gesperrt.json()).fehler).toMatch(/^Zu viele Fragen in kurzer Zeit\./);
+    expect(aus).toHaveBeenCalledTimes(3);
+    expect((await h(vonIp("198.51.100.2", { frage: "d" }))).status).toBe(200);
+    expect(aus).toHaveBeenCalledTimes(4);
   });
 });
 

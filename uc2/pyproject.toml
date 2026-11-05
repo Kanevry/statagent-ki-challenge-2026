@@ -34,6 +34,10 @@ plattform = { workspace = true }
 [project.scripts]
 uc2 = "uc2.cli:main"
 
+# UC4-Adapter (#103): der Router findet ihn über die Entry-Point-Gruppe, ohne harten Import.
+[project.entry-points."kic.uc_antwort"]
+uc2 = "uc2.antwort:antwort"
+
 [dependency-groups]
 dev = [
     "pytest>=8.3",

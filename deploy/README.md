@@ -57,8 +57,9 @@ Server, nicht der Entwicklerrechner. `daten` spielt in einer Transaktion ein: ei
 ## Zugang
 
 Die Seite ist öffentlich, ohne Passwort (Owner 05.11.2026: Basic Auth entfernt), und lesend: Caddy lässt nur GET und
-HEAD durch und antwortet auf alles andere mit 403, bevor die Anfrage die App erreicht. Das sperrt Freigabe-POSTs,
-Modellaufrufe und Next Server Actions. Die App bekommt zusätzlich `KIC_ONLINE_LESEND=1`. Suchmaschinen sollen die
+HEAD durch, dazu POST auf genau zwei Pfade (`/api/uc3/frage`, `/api/uc4/frage`), und antwortet auf alles andere mit
+403, bevor die Anfrage die App erreicht. Das sperrt Freigabe-POSTs, Läufe, UC2-Fälle und Next Server Actions. Die App
+bekommt zusätzlich `KIC_ONLINE_LESEND=1` und nimmt die zwei Frage-Wege erst mit `KIC_ONLINE_FRAGEN=1` an. Suchmaschinen sollen die
 Seite nicht aufnehmen (`X-Robots-Tag: noindex, nofollow`).
 
 Datenbank: Die App verbindet sich als `kic_app` (nur SELECT, `default_transaction_read_only`, kein CREATE, kein
@@ -71,9 +72,21 @@ und `daten` und prüft als `kic_app`, dass Anlegen scheitert.
 |---|---|---|
 | `SITE_ADDRESS` | Domain | öffentliche Adresse, für die Caddy das Zertifikat holt |
 | `INHALT` | `platzhalter` \| `app` | statische Seite oder Next.js-Web. `app`, sobald die Landingpage (#58) auf main ist |
+| `KIC_ONLINE_FRAGEN` | leer \| `1` | `1` öffnet nur die Fragen (`/api/uc4/frage`; `/api/uc3/frage` ab dem UC3-Teil in !92). Freigaben, Läufe, UC2-Fälle und Voice bleiben zu |
+| `UC4_KETTE` | `uc3` (Standard, auch wenn leer) \| Komma-Liste | Stationen auf `/uc4`. `uc3` fragt nur die Zahl, ohne Modell. Stufe B setzt `uc3,uc2,uc1` ausdrücklich; ein ungültiger Wert heißt wieder nur `uc3` |
+| `UC4_MODELLWAHL` | leer \| z. B. `azure` | Anbieter, die man auf `/uc4` wählen darf. Leer: nur Testbetrieb |
+| `RATENLIMIT_PRO_MINUTE` | Zahl ab 1 | Fragen je IP und Minute, Standard 10 |
+
+**Stufe A, Fragen ohne Modell:** `KIC_ONLINE_FRAGEN=1`, `UC4_KETTE=uc3`, kein Modellschlüssel. Die Zahl kommt aus
+der Datenbank `statistik` (gerechnete Läufe mit Regelsatz v1 nötig), kein Modellaufruf, das Tagesbudget wird nicht
+verbraucht. **Stufe B, mit Modell:** zusätzlich `UC4_KETTE=uc3,uc2,uc1`, `LLM_PROVIDER=azure` mit den
+`AZURE_*`-Schlüsseln, `UC4_MODELLWAHL=azure` und ein bewusst gesetztes `LLM_TAGESBUDGET_AUFRUFE`. Bedingung der
+Review-Bank: Stufe B erst, wenn das Tagesbudget atomar reserviert (heute kann es bei gleichzeitigen Aufrufen um
+einige Aufrufe überschritten werden).
 
 Umschalten: Zeile in `.env.server` ändern, dann `scripts/deploy.sh up && scripts/deploy.sh pruefen`. Ein anderer Wert
-lässt Caddy nicht starten (fail-closed).
+für `INHALT` lässt Caddy nicht starten (fail-closed). Ein ungültiges `UC4_KETTE` fällt auf `uc3` zurück, ein
+ungültiges `RATENLIMIT_PRO_MINUTE` auf 10.
 
 ## Daten
 
@@ -107,7 +120,7 @@ Seite vom Netz nehmen: auf dem Server in `<basis>/repo/deploy`
   vorhanden, App-URLs nur mit `kic_app`.
 - Header auf jeder Antwort, auch auf Fehlerantworten: HSTS (30 Tage), `nosniff`, `X-Frame-Options DENY`, Referrer- und
   Permissions-Policy, `noindex`; strikte CSP für die Platzhalter-Seite. Kein HTTP/3.
-- Lesend auf drei Ebenen: Caddy (nur GET/HEAD), Datenbankrolle `kic_app` (nur SELECT, read-only), App-Image ohne git
+- Lesend auf drei Ebenen: Caddy (nur GET/HEAD, dazu POST auf die zwei Frage-Wege, die die App nur mit `KIC_ONLINE_FRAGEN=1` annimmt), Datenbankrolle `kic_app` (nur SELECT, read-only), App-Image ohne git
   und ohne Repo (`plattform.freigabe` und der Protokoll-Export aus `git log` gehen online ohnehin nicht).
 - Keine Modellschlüssel in `.env.server`, solange kein Ratenlimit und kein Tagesbudget steht: die Seite ist ohne
   Passwort erreichbar, Modellaufrufe kosten Geld (Lead 05.11.2026).
