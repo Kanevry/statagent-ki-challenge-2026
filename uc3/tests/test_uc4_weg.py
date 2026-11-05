@@ -320,5 +320,5 @@ def test_im_durchschnitt_ist_kein_merkmal(gerechnet: Verbindung) -> None:
 def test_durchschnitt_steht_zuerst(gerechnet: Verbindung) -> None:
     lauf_ausfuehren(gerechnet, "2024-10", "v1")
     daten = uc4_antwort(gerechnet, "Wie viele Beschäftigte gab es im Herbst 2024?")
-    assert ", Durchschnitt " in daten["zahlen"][0]["bezeichnung"]
+    assert daten["zahlen"][0]["bezeichnung"] == "Durchschnitt September bis November 2024"
     assert {z["beleg"] for z in daten["zahlen"]} <= set(range(len(daten["belege"])))

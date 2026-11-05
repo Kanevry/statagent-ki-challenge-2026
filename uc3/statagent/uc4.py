@@ -727,7 +727,16 @@ _ALLE = re.compile(r",\s+(?:Bundesland|Geschlecht|Branche|Beschäftigungskategor
 def _durchschnitt_zuerst(zahlen: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Die folgenden Stationen nehmen die erste Zahl als Hauptzahl: Beim Zeitraum ist das der Durchschnitt."""
     mittel = [z for z in zahlen if ", Durchschnitt " in str(z["bezeichnung"])]
-    return [*mittel, *(z for z in zahlen if z not in mittel)]
+    return [*(_kurz(z) for z in mittel), *(z for z in zahlen if z not in mittel)]
+
+
+def _kurz(zahl: dict[str, Any]) -> dict[str, Any]:
+    """Station 2 beginnt mit Name und Zahl und zeigt 140 Zeichen: Der Name muss kurz sein, sonst fällt die Zahl weg."""
+    treffer = re.fullmatch(r"[^,(]+?(?: \((.*)\))?, (Durchschnitt .*)", str(zahl["bezeichnung"]))
+    if treffer is None:
+        return zahl
+    merkmale = f" ({treffer.group(1)})" if treffer.group(1) else ""
+    return {**zahl, "bezeichnung": f"{treffer.group(2)}{merkmale}"}
 
 
 def _text_fuer_kette(text: str, daten: dict[str, Any]) -> str:
