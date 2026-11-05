@@ -556,7 +556,7 @@ def tag_hinweis(frage: str) -> str | None:
         if tag != letzter_tag:
             name = ANZEIGE_MONAT[nummer - 1]
             return (
-                f"Die Statistik zählt nur am Monatsletzten, darum zeigen wir für den {tag}. {name} {jahr} "
-                f"den Stand vom {letzter_tag}. {name} {jahr}."
+                "Die Statistik zählt nur am letzten Tag jedes Monats. "
+                f"Für den {tag}. {name} {jahr} zeigen wir darum den Stand vom {letzter_tag}. {name} {jahr}."
             )
     return None

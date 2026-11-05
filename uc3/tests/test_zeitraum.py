@@ -183,8 +183,8 @@ def test_unklar_und_tag() -> None:
     )
     assert unklar("Winter 2025/26") is None and unklar("Sommer 2025") is None
     assert tag_hinweis("am 1.3.2025") == (
-        "Die Statistik zählt nur am Monatsletzten, darum zeigen wir für den 1. März 2025 den Stand vom "
-        "31. März 2025."
+        "Die Statistik zählt nur am letzten Tag jedes Monats. "
+        "Für den 1. März 2025 zeigen wir darum den Stand vom 31. März 2025."
     )
     assert tag_hinweis("am 2025-03-01") is not None
     assert tag_hinweis("am 31.03.2025") is None and tag_hinweis("im März 2025") is None
