@@ -10,12 +10,14 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "numpy>=2.1",
     "jsonschema>=4.23",
+    "fastapi>=0.120",
+    "uvicorn>=0.38",
     "plattform",
 ]
 
 [project.optional-dependencies]
-# Nur auf Hosts, die Vektoren rechnen (m5: Korpus, M4: Abfrage). CI und Tests laufen ohne torch.
-# Gemessen 05.11. (m5, Prototyp): Der Prozessor von embeddinggemma-2 lädt auch im Nur-Text-Betrieb die
+# Nur auf Hosts, die Vektoren rechnen (Rechner B: Korpus, Rechner A: Abfrage). CI und Tests laufen ohne torch.
+# Gemessen 05.11. (Rechner B, Prototyp): Der Prozessor von embeddinggemma-2 lädt auch im Nur-Text-Betrieb die
 # Bild- und Video-Prozessoren und bricht ohne Pillow und torchvision ab.
 einbettung = [
     "sentence-transformers[image]>=6.1.0",
