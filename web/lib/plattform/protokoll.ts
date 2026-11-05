@@ -1,5 +1,5 @@
 import { eintraegeSchema, eintragStatus, type Eintrag } from "@kic/ui/shell";
-import { ucs, type UcId } from "@kic/ui/ucs";
+import { bereiche, type BereichId } from "@kic/ui/ucs";
 import { z } from "zod";
 import fixture from "../../../shared/schema/fixtures/protokoll-eintraege.json";
 
@@ -24,12 +24,13 @@ export function fixtureErlaubt(umgebung: Readonly<Record<string, string | undefi
 /** Standardquelle des Fallbacks: Fixture nur, wenn `fixtureErlaubt()`, sonst nichts. */
 export const fallbackQuelle = (): readonly Eintrag[] => (fixtureErlaubt() ? fixtureEintraege : []);
 
-export function istUcId(wert: string): wert is UcId {
-  return ucs.some((uc) => uc.id === wert);
+/** Bereich aus der Registry, auch uc4 (gemeinsamer Einstieg): seine Schublade zeigt den Leerzustand. */
+export function istBereichId(wert: string): wert is BereichId {
+  return bereiche.some((uc) => uc.id === wert);
 }
 
 /** Einträge eines UC, optional nach Status, neueste zuerst (wie `plattform.protokoll.lies`). */
-export function filtereEintraege(eintraege: readonly Eintrag[], uc: UcId, status?: Eintrag["status"]): Eintrag[] {
+export function filtereEintraege(eintraege: readonly Eintrag[], uc: BereichId, status?: Eintrag["status"]): Eintrag[] {
   return eintraege
     .filter((e) => e.uc === uc && (status === undefined || e.status === status))
     .sort((a, b) => b.id - a.id);
@@ -39,9 +40,9 @@ export function filtereEintraege(eintraege: readonly Eintrag[], uc: UcId, status
 export async function protokollAntwort(
   anfrage: Request,
   uc: string,
-  quelle: (uc: UcId) => Promise<readonly Eintrag[]> | readonly Eintrag[] = fallbackQuelle,
+  quelle: (uc: BereichId) => Promise<readonly Eintrag[]> | readonly Eintrag[] = fallbackQuelle,
 ): Promise<Response> {
-  if (!istUcId(uc)) return Response.json({ fehler: `Unbekannter Bereich: ${uc}` }, { status: 404 });
+  if (!istBereichId(uc)) return Response.json({ fehler: `Unbekannter Bereich: ${uc}` }, { status: 404 });
   const roh = new URL(anfrage.url).searchParams.get("status");
   const status = roh === null ? undefined : statusParam.safeParse(roh);
   if (status && !status.success) {
