@@ -10,10 +10,11 @@ from __future__ import annotations
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from plattform.freigabe import ablehnen as plattform_ablehnen
+from plattform.freigabe import freigeben as plattform_freigeben
 from psycopg import pq
 
 from statagent.agenten.anwenden import (
@@ -35,9 +36,8 @@ from statagent.ergebnis import monatswerte
 from statagent.lauf import lauf_ausfuehren
 from statagent.regeln import NameUngueltig
 
-VERTRAG_P = Path(__file__).parent / "fixtures" / "plattform_vertrag_meta.sql"
 ANWEISUNG = "Zählt freie Dienstverträge mit den Dienstverträgen zusammen"
-NAME = "Erika Musterfrau"
+NAME = "Lena Gruber"
 R6_ALT = {"qualifikation": "code"}
 R6_NEU = {"qualifikation": "beschaeftigungskategorie"}
 
@@ -49,52 +49,23 @@ def git(repo: Path, *argumente: str) -> str:
 
 
 class FakeFreigabe:
-    """Wie ``plattform.freigabe.freigeben`` laut Vertrag P; zählt Aufrufe, kann scheitern."""
+    """Ruft das echte ``plattform.freigabe.freigeben`` (Vertrag P) auf, zählt Aufrufe und kann einen Git-Fehler
+    vortäuschen (dann ändert sich nichts)."""
 
     def __init__(self, scheitern: bool = False) -> None:
         self.scheitern = scheitern
         self.aufrufe = 0
 
-    def __call__(self, conn: Verbindung, vorschlag_id: int, name: str, repo_pfad: Path) -> SimpleNamespace:
+    def __call__(self, conn: Verbindung, vorschlag_id: int, name: str, repo_pfad: Path, **kwargs: Any) -> Any:
         self.aufrufe += 1
         assert conn.autocommit and conn.info.transaction_status == pq.TransactionStatus.IDLE
-        p = conn.execute("SELECT * FROM meta.protokoll WHERE id = %s", (vorschlag_id,)).fetchone()
-        assert p is not None and p["status"] == "offen"
-        with conn.transaction():
-            conn.execute(
-                """INSERT INTO meta.freigabe (protokoll_id, name, entscheidung, objekt_typ, objekt_ref)
-                   VALUES (%s, %s, 'ja', %s, %s)""",
-                (vorschlag_id, name, p["vorschlag_typ"], p["ref"]),
-            )
-            if self.scheitern:
-                raise subprocess.CalledProcessError(128, ["git", "commit"])
-            argv = ["commit", "-m", str(p["anweisung"])]
-            argv += ["--trailer", f"Freigegeben-von: {name}", "--trailer", f"Vorschlag: uc3/{vorschlag_id}"]
-            argv += ["--trailer", f"Modell: {p['modell']}@{p['provider']}"]
-            if p["vorschlag_typ"] == "datei":
-                git(repo_pfad, "add", "--", str(p["ref"]))
-                argv += ["--only", "--", str(p["ref"])]
-            else:
-                argv.insert(1, "--allow-empty")
-            git(repo_pfad, *argv)
-            commit_hash = git(repo_pfad, "rev-parse", "HEAD")
-            conn.execute(
-                "UPDATE meta.protokoll SET status = 'freigegeben', commit_hash = %s WHERE id = %s",
-                (commit_hash, vorschlag_id),
-            )
-        return SimpleNamespace(commit_hash=commit_hash, name=name, zeitpunkt=None)
+        if self.scheitern:
+            raise subprocess.CalledProcessError(128, ["git", "commit"])
+        return plattform_freigeben(conn, vorschlag_id, name, repo_pfad, **kwargs)
 
 
-def fake_ablehnen(
-    conn: Verbindung, vorschlag_id: int, name: str, repo_pfad: Path, *, begruendung: str | None = None
-) -> SimpleNamespace:
-    with conn.transaction():
-        conn.execute(
-            "INSERT INTO meta.freigabe (protokoll_id, name, entscheidung, begruendung) VALUES (%s, %s, 'nein', %s)",
-            (vorschlag_id, name, begruendung),
-        )
-        conn.execute("UPDATE meta.protokoll SET status = 'abgelehnt' WHERE id = %s", (vorschlag_id,))
-    return SimpleNamespace(zeitpunkt=None)
+def fake_ablehnen(conn: Verbindung, vorschlag_id: int, name: str, begruendung: str) -> Any:
+    return plattform_ablehnen(conn, vorschlag_id, name, begruendung)
 
 
 @pytest.fixture
@@ -115,7 +86,7 @@ def repo(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def agent_conn(conn: Verbindung) -> Iterator[Verbindung]:
-    conn.execute(VERTRAG_P.read_text(encoding="utf-8").encode())
+    # meta.protokoll/meta.freigabe kommen aus plattform/sql/meta.sql (Vertrag P), eingespielt von db init.
     vorschlag_schema_einrichten(conn)
     yield conn
 
@@ -163,7 +134,7 @@ def test_freigabe_mit_namen_aendert_regel_und_committet_mit_trailer(
 ) -> None:
     conn = agent_conn
     vid = r6_vorschlag(conn)
-    ergebnis = freigabe_ausfuehren(conn, vid, "  Erika   Musterfrau ", repo, freigeben=FakeFreigabe())
+    ergebnis = freigabe_ausfuehren(conn, vid, "  Lena   Gruber ", repo, freigeben=FakeFreigabe())
 
     assert ergebnis.angewendet and ergebnis.fehler is None and ergebnis.name == NAME
     v = vorschlag_lesen(conn, vid)

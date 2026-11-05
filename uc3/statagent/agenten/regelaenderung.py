@@ -37,6 +37,15 @@ def regelsatz_sicherstellen(conn: Verbindung, ziel: str, basis: str) -> bool:
     )
     if cur.rowcount == 0:
         raise RegelKonflikt(f"Basisregelsatz {basis} hat keine aktiven Regeln")
+    # Quellzuordnungen gehören zum Regelsatz (Sheet alt und neu bleiben getrennt änderbar).
+    conn.execute(
+        """INSERT INTO stat.quellzuordnung (regelsatz, quelle, merkmal, version, geliefert, klassifikation, code,
+                                            regel_id)
+           SELECT %s, quelle, merkmal, version, geliefert, klassifikation, code, regel_id
+           FROM stat.quellzuordnung WHERE regelsatz = %s
+           ON CONFLICT DO NOTHING""",
+        (ziel, basis),
+    )
     return True
 
 
@@ -93,6 +102,9 @@ def _aendern(
     conn.execute(
         """UPDATE meta.regel r SET parameter = %(neu)s::jsonb, begruendung = %(b)s,
                   grundlage = r.grundlage || '; ' || %(h)s,
+                  -- die alte Freigabe gilt nicht für die neue Fassung (meta.regel_historie hält sie fest);
+                  -- `anwenden` setzt in derselben Transaktion die neue Freigabe mit Namen
+                  freigegeben_von = NULL, freigegeben_am = NULL,
                   ersetzt_regel_id = coalesce(r.ersetzt_regel_id,
                       (SELECT b.id FROM meta.regel b WHERE b.regelsatz = %(basis)s AND b.name = r.name
                          AND b.regelsatz <> r.regelsatz))

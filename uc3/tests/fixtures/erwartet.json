@@ -168,10 +168,10 @@
     ]
   },
   "2024-11": {
-    "_kommentar": "Zwei aktive Abschnitte (3001, spätester Beginn gilt), Alter 80 plausibel (3002), ungültiges ENDE '2024-02-30' und 'today' (3003, 3004: E06 → läuft), Altcode DE → C (3005), Ende vor dem Stichtag (3007).",
+    "_kommentar": "Zwei aktive Abschnitte (3001, spätester Beginn gilt), Alter 80 plausibel (3002), ungültiges ENDE '2024-02-30' (3003: E06 → Monatsletzter 2024-02-29, endet vor dem Stichtag) und 'today' (3004: E06 → läuft), Altcode DE → C (3005), Ende vor dem Stichtag (3007).",
     "gelesen": 8,
-    "gezaehlt": 6,
-    "nicht_gezaehlt": 2,
+    "gezaehlt": 5,
+    "nicht_gezaehlt": 3,
     "ausgeschlossen": 0,
     "zellen": [
       {
@@ -204,7 +204,7 @@
         "geschlecht": "M",
         "qualifikation": "ArbeiterDV",
         "alter": 38,
-        "wert": 2
+        "wert": 1
       },
       {
         "region": "9",

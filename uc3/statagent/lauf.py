@@ -11,12 +11,20 @@ from __future__ import annotations
 import importlib
 import importlib.util
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 from statagent import ergebnis
 from statagent.bereinigung import bereinigen
-from statagent.db import Verbindung, lieferungen
-from statagent.regeln import Regel, RegelFehler, name_pruefen, regeln_laden, regelstand
+from statagent.db import Verbindung, lieferungen, tupelzeilen
+from statagent.regeln import (
+    Regel,
+    RegelFehler,
+    name_pruefen,
+    regeln_laden,
+    regelstand,
+    regelstand_freigegeben,
+)
 from statagent.revision import revision_berechnen
 from statagent.zaehlung import zaehlen
 
@@ -112,6 +120,11 @@ def lauf_ausfuehren(
             nicht_gezaehlt = zl.nicht_aktiv + mehrfach_abschnitte
             if b.abschnitte != zl.aktive_abschnitte + zl.nicht_aktiv:
                 raise RegelFehler("Abschnitte aus der Bereinigung ≠ aktive + nicht aktive Abschnitte")
+            unabhaengig = _bestand_aus_roh(conn, lieferung, regelsatz, regeln, zl.zeitraum, b.spaltentausch)
+            if unabhaengig is not None and unabhaengig != zl.gezaehlt:
+                raise RegelFehler(
+                    f"Gegenrechnung aus roh.lieferung ergibt {unabhaengig} Verhältnisse, gezählt sind {zl.gezaehlt}"
+                )
             if b.gelesen + b.fortgeschrieben != zl.gezaehlt + nicht_gezaehlt + b.ausgeschlossen:
                 raise RegelFehler(
                     "Abrechnung geht nicht auf: gelesen + fortgeschrieben ≠ gezählt + nicht gezählt + ausgeschlossen"
@@ -186,12 +199,7 @@ def lauf_ausfuehren(
                         f"veröffentlicht unter Regelstand {v_stand} bleibt; Regelstand {stand} ergäbe "
                         f"{zl.gezaehlt} statt {v_wert} ({zl.gezaehlt - v_wert:+d}), siehe Revisionsbedarf"
                     )
-                    conn.execute(
-                        """INSERT INTO meta.revision (lauf_id, berichtsmonat, gliederung, schluessel,
-                             veroeffentlicht, aktuell, status_vorher) VALUES (%s, %s, 'insgesamt', 'AT', %s, %s,
-                             'endgueltig')""",
-                        (lauf_id, lieferung, v_wert, zl.gezaehlt),
-                    )
+                    _revision_regelwechsel(conn, lauf_id, lieferung, regelsatz, v_stand, zl.zeitraum)
                 conn.execute(
                     """UPDATE meta.lauf SET (freigegeben_von, freigegeben_am) = (
                          SELECT freigegeben_von, freigegeben_am FROM meta.lauf
@@ -220,6 +228,28 @@ def lauf_ausfuehren(
                        FROM _zellen""",
                     (ergebnis_status, f"Lieferung {lieferung}", regelsatz, stand, lauf_id),
                 )
+            kennzahlen = {
+                "gelesen": b.gelesen,
+                "gezaehlt": zl.gezaehlt,
+                "nicht_gezaehlt": nicht_gezaehlt,
+                "ausgeschlossen": b.ausgeschlossen,
+                "korrigiert": b.korrigiert,
+                "fortgeschrieben": b.fortgeschrieben,
+                "zellen": zl.zellen,
+            }
+            if veroeffentlicht is not None:
+                # Kennzahlen des veröffentlichten Laufs: meta.lauf zeigt nie eine unveröffentlichte Zahl neben dem
+                # veröffentlichten Hash; die Abweichung steht nur in meta.revision.
+                quelle = conn.execute(
+                    """SELECT gelesen, gezaehlt, nicht_gezaehlt, ausgeschlossen, korrigiert, fortgeschrieben, zellen
+                       FROM meta.lauf WHERE id = (
+                         SELECT min(lauf_id) FROM stat.stat_beschaeftigte
+                         WHERE regelsatz = %s AND regelstand = %s AND zeitraum_art = %s AND zeitraum_von = %s
+                           AND zeitraum_bis = %s AND status = 'endgueltig')""",
+                    (regelsatz, stand_ergebnis, zl.zeitraum.art, zl.zeitraum.von, zl.zeitraum.bis),
+                ).fetchone()
+                if quelle is not None:
+                    kennzahlen = {k: int(str(v)) for k, v in quelle.items()}
             meldung = "; ".join(meldung_teile)
             conn.execute(
                 """UPDATE meta.lauf SET beendet_am = now(), status = %s, ergebnis_status = %s, gelesen = %s,
@@ -229,16 +259,16 @@ def lauf_ausfuehren(
                 (
                     lauf_status,
                     ergebnis_status,
-                    b.gelesen,
-                    zl.gezaehlt,
-                    nicht_gezaehlt,
-                    b.ausgeschlossen,
-                    b.korrigiert,
+                    kennzahlen["gelesen"],
+                    kennzahlen["gezaehlt"],
+                    kennzahlen["nicht_gezaehlt"],
+                    kennzahlen["ausgeschlossen"],
+                    kennzahlen["korrigiert"],
                     hash_ergebnis,
-                    zl.zellen,
+                    kennzahlen["zellen"],
                     meldung,
                     stand_ergebnis,
-                    b.fortgeschrieben,
+                    kennzahlen["fortgeschrieben"],
                     lauf_id,
                 ),
             )
@@ -257,16 +287,83 @@ def lauf_ausfuehren(
         regelstand=stand_ergebnis,
         status=lauf_status,
         ergebnis_status=ergebnis_status,
-        gelesen=b.gelesen,
-        gezaehlt=zl.gezaehlt,
-        nicht_gezaehlt=nicht_gezaehlt,
-        ausgeschlossen=b.ausgeschlossen,
-        korrigiert=b.korrigiert,
-        fortgeschrieben=b.fortgeschrieben,
+        gelesen=kennzahlen["gelesen"],
+        gezaehlt=kennzahlen["gezaehlt"],
+        nicht_gezaehlt=kennzahlen["nicht_gezaehlt"],
+        ausgeschlossen=kennzahlen["ausgeschlossen"],
+        korrigiert=kennzahlen["korrigiert"],
+        fortgeschrieben=kennzahlen["fortgeschrieben"],
         ergebnis_hash=hash_ergebnis,
-        zellen=zl.zellen,
+        zellen=kennzahlen["zellen"],
         meldung=meldung,
     )
+
+
+def _bestand_aus_roh(
+    conn: Verbindung, lieferung: str, regelsatz: str, regeln: list[Regel], zeitraum: Any, tausch: bool
+) -> int | None:
+    """Unabhängige Gegenrechnung des Bestands direkt aus roh.lieferung (ohne bereinigt.abschnitt und ohne
+    Abschnittswahl): je VVH_ID einmal, Abschnitt besteht im Berichtszeitraum, BEGINN/ENDE nach Spaltentausch und
+    Datumsmuster; dazu die fortgeschriebenen Verhältnisse (E07), die nicht in der Lieferung stehen.
+
+    Enthält die Lieferung Daten, die eine Einleseregel ersetzt (ungültiges BEGINN/ENDE), gibt es keine einfache
+    Gegenrechnung: dann None (in den 24 Lieferungen gemessen 0 solche Sätze)."""
+    muster = str(next(r for r in regeln if r.typ == "einlese" and r.art == "datum").parameter["muster"])
+    beginn, ende = ("ende", "beginn") if tausch else ("beginn", "ende")
+    z = conn.execute(
+        f"""
+        WITH r AS (SELECT vvh_id, {beginn} AS b, {ende} AS e FROM roh.lieferung WHERE lieferung = %(l)s)
+        SELECT count(*) FILTER (WHERE NOT (b ~ %(m)s AND pg_input_is_valid(b, 'date'))
+                                   OR (e IS NOT NULL AND NOT (e ~ %(m)s AND pg_input_is_valid(e, 'date')))) AS ersetzt,
+               (SELECT count(DISTINCT vvh_id) FROM r
+                WHERE b ~ %(m)s AND pg_input_is_valid(b, 'date') AND b::date <= %(bis)s
+                  AND (e IS NULL OR (e ~ %(m)s AND pg_input_is_valid(e, 'date') AND e::date >= %(von)s))) AS bestand,
+               (SELECT count(DISTINCT a.vvh_id) FROM bereinigt.abschnitt a
+                WHERE a.lieferung = %(l)s AND a.regelsatz = %(rs)s AND a.herkunft = 'fortgeschrieben'
+                  AND a.beginn <= %(bis)s AND (a.ende IS NULL OR a.ende >= %(von)s)) AS fortgeschrieben
+        FROM r
+        """.encode(),
+        {"l": lieferung, "rs": regelsatz, "m": muster, "von": zeitraum.von, "bis": zeitraum.bis},
+        prepare=False,
+    ).fetchone()
+    if z is None or int(str(z["ersetzt"])) > 0:
+        return None
+    return int(str(z["bestand"])) + int(str(z["fortgeschrieben"]))
+
+
+def _revision_regelwechsel(
+    conn: Verbindung, lauf_id: int, lieferung: str, regelsatz: str, v_stand: str, zeitraum: Any
+) -> None:
+    """Revisionsbedarf eines veröffentlichten Monats unter neuem Regelstand: jede Gliederung, veröffentlicht
+    (stat.stat_beschaeftigte) gegen neu gerechnet (_zellen). Veröffentlichtes bleibt unverändert."""
+    for gliederung, spalte in (
+        ("insgesamt", "'AT'"),
+        ("region", "region"),
+        ("geschlecht", "geschlecht"),
+        ("qualifikation", "qualifikation"),
+        ("oenace", "oenace"),
+    ):
+        conn.execute(
+            f"""
+            INSERT INTO meta.revision (lauf_id, berichtsmonat, gliederung, schluessel, veroeffentlicht, aktuell,
+                                       status_vorher)
+            SELECT %(lauf)s, %(l)s, %(g)s, coalesce(alt.k, neu.k), coalesce(alt.n, 0), coalesce(neu.n, 0), 'endgueltig'
+            FROM (SELECT {spalte}::text AS k, sum(wert) AS n FROM stat.stat_beschaeftigte
+                  WHERE regelsatz = %(rs)s AND regelstand = %(st)s AND zeitraum_art = %(art)s
+                    AND zeitraum_von = %(von)s AND zeitraum_bis = %(bis)s AND status = 'endgueltig' GROUP BY 1) alt
+            FULL JOIN (SELECT {spalte}::text AS k, sum(wert) AS n FROM _zellen GROUP BY 1) neu ON neu.k = alt.k
+            """.encode(),
+            {
+                "lauf": lauf_id,
+                "l": lieferung,
+                "g": gliederung,
+                "rs": regelsatz,
+                "st": v_stand,
+                "art": zeitraum.art,
+                "von": zeitraum.von,
+                "bis": zeitraum.bis,
+            },
+        )
 
 
 def _meldung_ohne_daten(fehler: BaseException) -> str:
@@ -324,20 +421,45 @@ def veroeffentlichen(
     name: str,
     *,
     trotz_anhalten: bool = False,
+    repo_pfad: Path | None = None,
 ) -> int:
     """Gibt das Ergebnis des letzten Laufs eines Monats mit Namen frei: vorläufig → endgültig.
 
-    Voraussetzungen: alle für die Lieferung geltenden Regeln sind freigegeben, und keine Prüfregel hat den
-    Monat angehalten (außer ausdrücklich `trotz_anhalten`). Liefert die Zahl der veröffentlichten Zellen.
+    Voraussetzungen (Technische Regel 7, Fachbeschreibung § 4 Nr. 4):
+    - der Monat ist noch nicht veröffentlicht,
+    - der Lauf hat genau den Regelstand gerechnet, der heute gilt (Regeln und Quellzuordnung), und dieser
+      Regelstand ist für die Lieferung mit Namen freigegeben,
+    - keine Prüfregel hat angehalten und nichts wurde fortgeschrieben (außer ausdrücklich ``trotz_anhalten``).
+    Mit ``repo_pfad`` wird die Freigabe der Lieferung über Vertrag P protokolliert (Git-Commit mit Trailer).
+    Liefert die Zahl der veröffentlichten Zellen.
     """
     person = name_pruefen(name)
     stand = ergebnis.letzter_lauf(conn, lieferung, regelsatz)
     if stand is None:
         raise LaufFehler(f"Kein Lauf für {lieferung} ({regelsatz}): zuerst `lauf --lieferung {lieferung}`")
-    offen = [r.name for r in regeln_laden(conn, regelsatz, lieferung) if not r.freigegeben]
+    if stand.ergebnis_status == "endgueltig":
+        frueher = conn.execute(
+            "SELECT freigegeben_von, freigegeben_am FROM meta.lauf WHERE id = %s", (stand.lauf_id,)
+        ).fetchone()
+        von = frueher["freigegeben_von"] if frueher else "?"
+        am = f"{frueher['freigegeben_am']:%d.%m.%Y %H:%M}" if frueher and frueher["freigegeben_am"] else "?"
+        raise LaufFehler(f"{lieferung} ({regelsatz}) ist bereits veröffentlicht von {von} am {am}")
+    regeln = regeln_laden(conn, regelsatz, lieferung)
+    offen = [r.name for r in regeln if not r.freigegeben]
     if offen:
         raise LaufFehler(
             f"{len(offen)} Regeln ohne Freigabe ({', '.join(offen[:4])} …): zuerst `regeln freigeben`"
+        )
+    aktuell = regelstand(conn, regeln)
+    if aktuell != stand.regelstand:
+        raise LaufFehler(
+            f"Regelstand hat sich seit dem Lauf geändert ({stand.regelstand} → {aktuell}): "
+            f"zuerst `lauf --lieferung {lieferung}` neu rechnen"
+        )
+    if regelstand_freigegeben(conn, regelsatz, lieferung, aktuell) is None:
+        raise LaufFehler(
+            f"Regelstand {aktuell} ist für {lieferung} nicht freigegeben (z. B. geänderte Quellzuordnung): "
+            "zuerst `regeln freigeben`"
         )
     angehalten = conn.execute(
         """SELECT g.name FROM meta.pruefung_treffer t JOIN meta.regel g ON g.id = t.regel_id
@@ -352,6 +474,26 @@ def veroeffentlichen(
     if angehalten and not trotz_anhalten:
         namen = ", ".join(str(z["name"]) for z in angehalten)
         raise LaufFehler(f"{lieferung} ist angehalten durch {namen}; bleibt vorläufig (Rückfrage offen)")
+    if repo_pfad is not None:
+        from plattform.freigabe import freigeben
+
+        ref = f"stat.stat_beschaeftigte/{regelsatz}/{lieferung}"
+        with conn.transaction():
+            eintrag = conn.execute(
+                """INSERT INTO meta.protokoll (uc, akteur, name, anweisung, wirkung, vorschlag_typ, ref)
+                   VALUES ('uc3', 'mensch', %s, %s, %s, 'lieferung', %s) RETURNING id""",
+                (
+                    person,
+                    f"Berichtsmonat {lieferung} ({regelsatz}) veröffentlichen",
+                    f"Regelstand {aktuell}, Ergebnis-Hash {stand.ergebnis_hash[:12]}",
+                    ref,
+                ),
+            ).fetchone()
+        assert eintrag is not None
+        with tupelzeilen(conn):
+            freigeben(
+                conn, int(str(eintrag["id"])), person, repo_pfad, objekt_typ="lieferung", objekt_ref=ref
+            )
     with conn.transaction():
         cur = conn.execute(
             """UPDATE stat.stat_beschaeftigte SET status = 'endgueltig'

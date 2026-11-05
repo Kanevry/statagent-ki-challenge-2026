@@ -28,7 +28,7 @@ from statagent.agenten.plattform_bruecke import FreigabeFunktion, PlattformFehlt
 from statagent.agenten.regelaenderung import einspielen
 from statagent.agenten.vorschlag import Vorschlag, VorschlagFehler, vorschlag_lesen
 from statagent.agenten.werkzeuge import abfrage_pruefen
-from statagent.db import Verbindung
+from statagent.db import Verbindung, tupelzeilen
 from statagent.regeln import name_pruefen
 
 
@@ -163,7 +163,8 @@ def freigabe_ausfuehren(
 
     neu_abgelegt = v.typ == "code_datei" and datei_ablegen(v, repo_pfad)  # ref muss eine Datei im Repo sein
     try:
-        freigabe = funktion(conn, protokoll_id, gepruefter_name, repo_pfad)
+        with tupelzeilen(conn):
+            freigabe = funktion(conn, protokoll_id, gepruefter_name, repo_pfad)
     except BaseException:
         if neu_abgelegt and v.datei_pfad is not None:
             (repo_pfad / v.datei_pfad).unlink(missing_ok=True)
@@ -212,7 +213,11 @@ def ablehnen_ausfuehren(
         raise VorschlagFehler(f"Vorschlag uc3/{v.id} ist bereits {v.zustand}")
     protokoll_id = _bereit_fuer_plattform(conn, v)
     funktion = ablehnen or plattform_bruecke.lade_ablehnung()
-    entscheidung = funktion(conn, protokoll_id, gepruefter_name, Path(repo_pfad), begruendung=begruendung)
+    if not begruendung or not begruendung.strip():
+        raise VorschlagFehler("Eine Ablehnung braucht eine Begründung")
+    # Vertrag P: ablehnen(conn, vorschlag_id, name, begruendung) – ohne Commit, daher ohne Repo-Pfad.
+    with tupelzeilen(conn):
+        entscheidung = funktion(conn, protokoll_id, gepruefter_name, begruendung.strip())
     zeitpunkt = getattr(entscheidung, "zeitpunkt", None)
     with conn.transaction():
         conn.execute(

@@ -44,9 +44,9 @@ def test_fortschreibung_ergaenzt_markiert_und_haelt_vorlaeufig(conn: Verbindung)
         (erg.lauf_id,),
     ).fetchone()
     assert p16 is not None and p16["anzahl"] > 0  # der Ausfall bleibt sichtbar
-    regeln_freigeben(conn, "v1", "Erika Musterfrau")
+    regeln_freigeben(conn, "v1", "Lena Gruber")
     with pytest.raises(LaufFehler, match="fortgeschrieben|angehalten"):
-        veroeffentlichen(conn, "2024-09", "v1", "Erika Musterfrau")
+        veroeffentlichen(conn, "2024-09", "v1", "Lena Gruber")
 
 
 def test_fortgeschriebenes_wird_nicht_weitergetragen(conn: Verbindung) -> None:

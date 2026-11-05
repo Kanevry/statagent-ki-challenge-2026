@@ -171,7 +171,7 @@ def regeln_freigeben_befehl(
     """Gibt alle noch offenen Regeln eines Regelsatzes mit Namen und Zeitpunkt frei („Team“ wird abgelehnt)."""
     try:
         with verbinden() as conn:
-            n = regeln_freigeben(conn, regelsatz, name)
+            n = regeln_freigeben(conn, regelsatz, name, repo_pfad=konfig.REPO_WURZEL)
     except NameUngueltig as fehler:
         typer.echo(f"abgelehnt: {fehler}", err=True)
         raise typer.Exit(1) from fehler
@@ -314,14 +314,16 @@ def veroeffentlichen(
             typer.echo("Bitte --lieferung JJJJ-MM oder --alle angeben.", err=True)
             raise typer.Exit(2)
         fehler = 0
+        erfolgreich = 0
         for monat in monate:
             try:
-                n = veroeffentlichen_ausfuehren(conn, monat, regelsatz, name)
+                n = veroeffentlichen_ausfuehren(conn, monat, regelsatz, name, repo_pfad=konfig.REPO_WURZEL)
+                erfolgreich += 1
                 typer.echo(f"{monat}: {n} Zellen endgültig, freigegeben von {' '.join(name.split())}")
             except (LaufFehler, NameUngueltig) as f:
                 fehler += 1
                 typer.echo(f"{monat}: nicht veröffentlicht: {f}", err=True)
-    if fehler and not alle:
+    if fehler and (not alle or erfolgreich == 0):
         raise typer.Exit(1)
 
 

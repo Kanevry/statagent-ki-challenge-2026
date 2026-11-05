@@ -181,15 +181,15 @@ def test_nach_freigabe_ist_lauf_endgueltig_und_zeilen_sind_geschuetzt(conn: Verb
     vorlaeufig = lauf.lauf_ausfuehren(conn, "2024-08", regelsatz="v1", gestartet_von=None)
     assert vorlaeufig.ergebnis_status == "vorlaeufig"
     with pytest.raises(lauf.LaufFehler, match="ohne Freigabe"):
-        lauf.veroeffentlichen(conn, "2024-08", "v1", "Erika Musterfrau")
+        lauf.veroeffentlichen(conn, "2024-08", "v1", "Lena Gruber")
     conn.rollback()
     offen = conn.execute(
         b"SELECT count(*) AS n FROM meta.regel WHERE regelsatz = 'v1' AND aktiv AND freigegeben_von IS NULL"
     ).fetchone()
     assert offen is not None
-    assert regeln.regeln_freigeben(conn, regelsatz="v1", name="Erika Musterfrau") == offen["n"]
+    assert regeln.regeln_freigeben(conn, regelsatz="v1", name="Lena Gruber") == offen["n"]
     conn.commit()
-    assert lauf.veroeffentlichen(conn, "2024-08", "v1", "Erika Musterfrau") > 0
+    assert lauf.veroeffentlichen(conn, "2024-08", "v1", "Lena Gruber") > 0
     conn.commit()
     endgueltig = lauf.lauf_ausfuehren(conn, "2024-08", regelsatz="v1", gestartet_von=None)
     assert endgueltig.ergebnis_status == "endgueltig"

@@ -42,8 +42,8 @@ def test_lieferung_braucht_freigegebene_definition_und_namen(conn: Verbindung, t
     # Fängt: Auswertung startet ohne freigegebene Definition (Regel 6d) oder mit Platzhalter-Namen (Regel 7).
     _auswertungsregel(conn)
     with pytest.raises(NichtFreigegeben):
-        ministerium_schreiben(conn, "2024-11", "Erika Musterfrau", ziel_dir=tmp_path)
-    regeln_freigeben(conn, "ministerium", "Erika Musterfrau")
+        ministerium_schreiben(conn, "2024-11", "Lena Gruber", ziel_dir=tmp_path)
+    regeln_freigeben(conn, "ministerium", "Lena Gruber")
     with pytest.raises(NameUngueltig):
         ministerium_schreiben(conn, "2024-11", "Team", ziel_dir=tmp_path)
 
@@ -52,17 +52,16 @@ def test_personentage_november(conn: Verbindung, tmp_path: Path) -> None:
     # Fängt: falscher Datenstand (jüngste Lieferung), Angestellte/andere Abschnitte mitgezählt, ein ungültiges
     # ENDE als beendet gewertet, Ende vor dem Zeitraum gezählt, Sortierung oder CSV-Kopf falsch.
     _auswertungsregel(conn)
-    regeln_freigeben(conn, "ministerium", "Erika Musterfrau")
-    datei, auswertung = ministerium_schreiben(conn, "2024-11", "Erika Musterfrau", ziel_dir=tmp_path)
+    regeln_freigeben(conn, "ministerium", "Lena Gruber")
+    datei, auswertung = ministerium_schreiben(conn, "2024-11", "Lena Gruber", ziel_dir=tmp_path)
     assert auswertung.datenstand == {"2024-11": "2024-11"}
     assert datei.read_text(encoding="utf-8").splitlines() == [
         "PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE",
         "7001;M;1970;30",
         "7002;W;1944;30",
-        "7003;M;1985;30",
         "7004;M;1985;30",
     ]
     ausgabe = conn.execute(
         b"SELECT zeilen, freigegeben_von FROM meta.ausgabe WHERE art = 'ministerium' AND berichtsmonat = '2024-11'"
     ).fetchone()
-    assert ausgabe is not None and (ausgabe["zeilen"], ausgabe["freigegeben_von"]) == (4, "Erika Musterfrau")
+    assert ausgabe is not None and (ausgabe["zeilen"], ausgabe["freigegeben_von"]) == (3, "Lena Gruber")

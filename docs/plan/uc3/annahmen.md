@@ -7,7 +7,7 @@ Stand 05.11.2026. Regelsatz `v1` (`meta.regel`; Regeln immer über `name` anspre
 - Datenbasis: `roh.lieferung` (10.152.292 Zeilen, 24 Lieferungen 2024-08 bis 2026-07, alle Felder Text). Alle Zahlen mit Vermerk „gemessen" wurden am 05.11.2026 per SELECT nachgerechnet. Zahlen mit Vermerk „Quelle: Lead-Gegenrechnung bzw. Forensik 05.11." sind übernommen.
 - Beispiel-IDs sind VVH_IDs. Personenschlüssel werden nicht genannt.
 - Stichtag einer Lieferung ist der Monatsletzte des Berichtsmonats. Ein Satz ist am Stichtag aktiv, wenn `beginn <= Stichtag` und `ende` leer oder `ende >= Stichtag`. Abkürzung in den Abfragen: `AKTIV(st)`.
-- Alle Regeln gelten ab Lieferung 2024-08 und sind angelegt (`aktiv = true`). Eine Namensfreigabe (`freigegeben_von`) ist für keine der 13 Regeln eingetragen (gemessen, Abfrage am Ende). Sie ist vor der Abgabe nachzuholen.
+- Alle Regeln gelten ab Lieferung 2024-08 und sind angelegt (`aktiv = true`). Regelsatz v1 umfasst 15 Einlese-, Zuordnungs- und Zählregeln sowie 24 Prüfregeln (P01–P24). Eine Namensfreigabe (`freigegeben_von`) ist noch nicht eingetragen; sie erfolgt mit `uv run uc3 regeln freigeben --name "Vor- und Nachname"` über Vertrag P.
 
 ## Übersicht
 
@@ -17,7 +17,7 @@ Stand 05.11.2026. Regelsatz `v1` (`meta.regel`; Regeln immer über `name` anspre
 | A2 | Leere Merkmale sind „unbekannt" | 1.996 am Stichtag 2024-08; 1.587 bis 2.031 je Lieferung am Stichtag | `Q02_leer_unbekannt` (mit `E05_quellzuordnung`) | keine |
 | A3 | ÖNACE-2003-Unterabschnitte nach C | 50 am Stichtag 2024-08; 40 bis 51 je Lieferung | `Q01_oenace_2003_unterabschnitte` | F5 (laut Regel) |
 | A4 | Geburtsmonat 13 | 370 am Stichtag 2024-08; 305 bis 399 je Lieferung | `E03_datum_pruefen`, `R5_alter` | R1 |
-| A5 | Unplausibles Alter | 7 am Stichtag 2024-08 | `R5_alter` (`max_plausibel = 100`) | R2 |
+| A5 | Unplausibles Alter | 7 am Stichtag 2024-08 | `R5_alter` (`max_plausibel = 110`) | R2 |
 | A6 | Spaltentausch BEGINN/ENDE | 388.115 von 432.086 (nur 2025-06) | `E01_spaltentausch_beginn_ende` | F3 (laut Regel) |
 | A7 | Abschnittswahl am Stichtag | 0 am Stichtag; Lücken 0 bis 7 und Überlappungen 0 bis 4 je Lieferung | `R1_R3_verhaeltnis_einmal` | keine |
 | A8 | Abrechnung „nicht gezählt" | 48 in 2024-08 | `R2_R4_stichtag_eigene_lieferung` | keine |
@@ -93,13 +93,13 @@ SELECT count(*) FROM roh.lieferung WHERE lieferung='2024-08'
 
 ## A3 ÖNACE-2003-Unterabschnitte gehören zu C
 
-**Befund.** Die Lieferungen enthalten Altcodes der ÖNACE 2003: DA, DB, DC, DD, DF, DG, DH, DI, DJ, DK, DL, DM. In 2024-08 sind es 50 Sätze am Stichtag (gemessen: DA 8, DB 2, DC 4, DD 5, DF 4, DG 1, DH 4, DI 3, DJ 7, DK 6, DL 5, DM 1). Über alle Lieferungen am Stichtag 40 bis 51 (gemessen, ohne 2025-06). Die Vorgabe nannte 50 je Lieferung. Abschnitt C hat in 2024-08 62.154 Sätze mit Code C (gemessen); mit den 50 Altcodes sind es 62.204 wie im Beispielbericht (Quelle: Beispielbericht Tab3). Umsteiger 2003 nach 2008: die 6-Steller gehen mehrheitlich nach C, DA 49 von 49 (Quelle: Lead-Gegenrechnung bzw. Forensik 05.11.). DE kommt in 2024-08 nicht vor (gemessen) und würde als unbekannter Code gemeldet. Beispiele: 100216, 1005, 101214.
+**Befund.** Die Lieferungen enthalten Altcodes der ÖNACE 2003: DA, DB, DC, DD, DF, DG, DH, DI, DJ, DK, DL, DM. In 2024-08 sind es 50 Sätze am Stichtag (gemessen: DA 8, DB 2, DC 4, DD 5, DF 4, DG 1, DH 4, DI 3, DJ 7, DK 6, DL 5, DM 1). Über alle Lieferungen am Stichtag 40 bis 51 (gemessen, ohne 2025-06). Die Vorgabe nannte 50 je Lieferung. Abschnitt C hat in 2024-08 62.154 Sätze mit Code C (gemessen); mit den 50 Altcodes sind es 62.204 wie im Beispielbericht (Quelle: Beispielbericht Tab3). Umsteiger 2003 nach 2008: die 6-Steller gehen mehrheitlich nach C, DA 49 von 49 (Quelle: Lead-Gegenrechnung bzw. Forensik 05.11.). DE und DN kommen in keiner Lieferung vor (gemessen) und sind nach derselben Mehrheitsregel C zugeordnet (siehe unten). Beispiele: 100216, 1005, 101214.
 
 **Annahme.** DA bis DN (Sachgütererzeugung) zählen zum Abschnitt C „Herstellung von Waren", in ÖNACE 2008 und ab 2025 auch in ÖNACE 2025. D allein bleibt D (Energieversorgung).
 
 **Begründung.** Fachbeschreibung § 4 Nr. 8 (fehlende oder abweichende Angaben nach begründeten Annahmen); Beispielbericht Tab3 (C = 62.154 + 50).
 
-**Umgesetzt als.** `Q01_oenace_2003_unterabschnitte`, 26 Zeilen in `stat.quellzuordnung` (13 Codes mal 2 Versionen, gemessen).
+**Umgesetzt als.** `Q01_oenace_2003_unterabschnitte`, 28 Zeilen in `stat.quellzuordnung` (14 Codes DA–DN mal 2 Versionen).
 
 **Gültigkeit.** Ab Lieferung 2024-08, auch für die Version ÖNACE 2025.
 
@@ -150,7 +150,7 @@ SELECT count(*) FROM roh.lieferung WHERE lieferung='2024-08'
 
 **Befund.** In 2024-08 haben 7 Sätze am Stichtag ein Alter von 117 bis 153 Jahren (Geburtsjahre ab 1871, gemessen). Beispiele: 149431, 207859, 327231. Echte Hochbetagte kommen ab 2024-09 dazu: vollendete 75 bis 100 Jahre am Stichtag in 2024-09 62, in 2025-03 211, in 2026-07 310 (gemessen, Geburtsjahre 1948 bis 1951). Zwischen 78 und 116 vollendeten Jahren gibt es in keiner Lieferung einen Fall (gemessen über alle Lieferungen außer 2025-06 am Stichtag, 0). Zum Vergleich: Die Jahresdifferenz allein liefert für 2026-01 bis 2026-07 je 2 bis 5 Sätze mit 78; das ist ein Messeffekt (Geburtstag noch nicht erreicht) und kein Altersbereich ohne Lücke.
 
-**Annahme.** Ein Alter über 100 oder unter 0 Jahren gilt als unplausibel und wird als „unbekannt" gezählt. Das Verhältnis zählt. Die Grenze ist ein Regelparameter (`max_plausibel = 100`).
+**Annahme.** Ein Alter über 110 oder unter 0 Jahren gilt als unplausibel und wird als „unbekannt" gezählt. Das Verhältnis zählt. Die Grenze ist ein Regelparameter (`max_plausibel = 110`): eine großzügige eigene Prüfgrenze, kein amtlicher Standard (die ILO empfiehlt keine obere Altersgrenze für Erwerbstätige). Für alle 24 Lieferungen liefern 100 und 110 dieselben Zahlen.
 
 **Begründung.** Beispielbericht 2024-08 Tab13: nur die 7 Fälle mit 117 bis 153 Jahren stehen unter „unbekannt"; für 2024-08 liefern die Grenzen 74 und 100 dieselben Zahlen (Zeile „75 u. mehr" = 0). Fachbeschreibung § 4 Nr. 5.
 
@@ -326,3 +326,13 @@ SELECT id, name, gueltig_ab_lieferung, aktiv, freigegeben_von IS NOT NULL AS fre
 | A4 | 336 bis 444 je Lieferung | gesamt 336 bis 444; am Stichtag 305 bis 399 | 2024-08: 370 stimmt |
 | A5 | keine Fälle 78 bis 116 Jahre | stimmt für vollendetes Alter; nach Jahresdifferenz 2 bis 5 Fälle mit 78 in 2026-01 bis 2026-07 | Zahlen 62 / 211 / 310 bestätigt |
 | A10 | etwa 213 je Lieferung, nur eine Lieferung sichtbar | 131 bis 218 je Lieferung, Bereich in allen 24 Lieferungen | Deutung nicht bestätigt |
+
+## Nachtrag 05.11.2026 nachmittags (Review !13, Recherche R1–R5)
+
+| Nr. | Änderung | Regel | Wirkung |
+|---|---|---|---|
+| A4 | Geburtsmonat 13: Ersatztag **1. Juli** des Geburtsjahres, vollendetes Alter (Jahresmitte, beste Schätzung bei nur bekanntem Jahr; Praxis z. B. NHS England, Person Birth Date). Vorher Jahresdifferenz (= Ersatztag Jänner). | `R5_alter` (`geburtsmonat_13 = ersatz:07-01`) | 08/2024 unverändert (Tab13 576/576, Golden Set grün); in Berichtsmonaten Jänner bis Juni sind die betroffenen Personen ein Jahr jünger als nach Jahresdifferenz. Rückfrage R1 bleibt offen. |
+| A5 | Plausibilitätsgrenze **110** statt 100 Jahre | `R5_alter` (`max_plausibel = 110`) | keine Zahl ändert sich (zwischen 78 und 116 Jahren gibt es keinen Fall) |
+| A11 | Ungültiges ENDE (z. B. `2024-02-30`): Monatsletzter von JJJJ-MM (`2024-02-29`); nur ein unlesbares ENDE gilt als „läuft“. Datumsprüfung per Muster `JJJJ-MM-TT` plus gültiges Datum (`today`, `infinity` gelten nicht). | `E06_ende_ungueltig`, `E03_datum_pruefen` | 0 Fälle in 24 Lieferungen (gemessen), Beleg: `SELECT count(*) FROM roh.lieferung WHERE ende IS NOT NULL AND NOT (ende ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' AND pg_input_is_valid(ende, 'date'));` = 0, ebenso für BEGINN außer 2025-06 vor dem Spaltentausch |
+| A12 | Fortschreibung bei belegtem Lieferausfall: fehlen mehr als 1 % der Vormonats-Verhältnisse (Basis mindestens 1.000) oder fällt eine Qualifikation mit über 100 Verhältnissen ganz aus, werden die fehlenden Verhältnisse **einmalig aus der Vorlieferung** ergänzt, wenn dort ein am neuen Stichtag gültiger Abschnitt vorliegt. Markiert als `herkunft = fortgeschrieben`, getrennt ausgewiesen, Monat bleibt vorläufig, Fortgeschriebenes wird nie weitergetragen. | `E07_fortschreibung_lieferausfall` | betrifft 2025-03 (FD, 1.492 Verhältnisse vom 28.02.) und 2025-10 (Teil-Lieferung, 78.949 fehlende vom 30.09.); P13/P15/P16 messen weiter nur Geliefertes und zeigen den Ausfall. Praxis: einperiodige Fortschreibung (Beschäftigtenpanel der Statistischen Ämter, Metadatenreport § 2.5.3). Rückfragen R4, R5. |
+| A13 | Ministeriums-Lieferung (Auftrag 3): Abschnitt C umfasst auch die ÖNACE-2003-Altcodes DA–DM (Regel Q01). | `Q01_oenace_2003_unterabschnitte` | 32.667 Personen; ohne Altcodes (nur gelieferter Code C) wären es 32.639 (gemessen, Differenz 28 Personen). |

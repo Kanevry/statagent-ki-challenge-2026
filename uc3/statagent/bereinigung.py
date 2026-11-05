@@ -92,8 +92,8 @@ def _zuordnungen_pruefen(conn: Verbindung, regeln: list[Regel]) -> list[int]:
             """SELECT coalesce(array_agg(DISTINCT q.geliefert ORDER BY q.geliefert), '{}') AS geliefert,
                       coalesce(array_agg(DISTINCT q.code), '{}') AS ziele
                FROM stat.quellzuordnung q JOIN meta.regel g ON g.id = q.regel_id
-               WHERE g.name = %s AND q.merkmal = %s""",
-            (r.name, wert(r, "merkmal")),
+               WHERE g.name = %s AND q.merkmal = %s AND q.regelsatz = %s""",
+            (r.name, wert(r, "merkmal"), r.regelsatz),
         ).fetchone()
         assert z is not None
         geliefert = sorted(str(c) for c in z["geliefert"]) if isinstance(z["geliefert"], list) else []
@@ -249,8 +249,9 @@ def bereinigen(
         if r_beginn
         else None
     )
-    if r_ende is not None and wert(r_ende, "ersatz") != "laeuft":
-        raise RegelFehler(f"{r_ende.name}: nicht unterstützter Ersatz {r_ende.parameter}")
+    ende_modus = str(wert(r_ende, "ersatz")) if r_ende is not None else "laeuft"
+    if ende_modus not in ("laeuft", "monatsletzter_sonst_laeuft"):
+        raise RegelFehler(f"{r_ende.name if r_ende else 'E06'}: nicht unterstützter Ersatz {ende_modus!r}")
     qz_quelle = str(wert(r_qz, "quelle"))
 
     # Fehlt eine Einleseregel, die ein vorhandener Fehler bräuchte, bricht der Lauf ab statt still zu raten.
@@ -278,10 +279,10 @@ def bereinigen(
         roh_feld = "qual" if m == "qualifikation" else m
         joins.append(
             sql.SQL(
-                """LEFT JOIN stat.quellzuordnung {q} ON {q}.quelle = %(qz)s AND {q}.merkmal = {m}
+                """LEFT JOIN stat.quellzuordnung {q} ON {q}.regelsatz = %(rs)s AND {q}.quelle = %(qz)s AND {q}.merkmal = {m}
                      AND {q}.version = {v} AND {q}.geliefert = coalesce(t.{f}, '<leer>')
                      AND ({q}.regel_id IS NULL OR {q}.regel_id = ANY(%(qz_ids)s::int[]))
-                   LEFT JOIN stat.quellzuordnung {s} ON {s}.quelle = %(qz)s AND {s}.merkmal = {m}
+                   LEFT JOIN stat.quellzuordnung {s} ON {s}.regelsatz = %(rs)s AND {s}.quelle = %(qz)s AND {s}.merkmal = {m}
                      AND {s}.version = {v} AND {s}.geliefert = '<sonst>'
                      AND ({s}.regel_id IS NULL OR {s}.regel_id = ANY(%(qz_ids)s::int[]))"""
             ).format(
@@ -319,7 +320,12 @@ def bereinigen(
           SELECT t.*,
             CASE WHEN t.beginn_t ~ %(muster)s AND pg_input_is_valid(t.beginn_t, 'date') THEN t.beginn_t::date END
               AS beg,
-            CASE WHEN t.ende_t ~ %(muster)s AND pg_input_is_valid(t.ende_t, 'date') THEN t.ende_t::date END AS end_d
+            CASE WHEN t.ende_t ~ %(muster)s AND pg_input_is_valid(t.ende_t, 'date') THEN t.ende_t::date
+                 WHEN %(ende_modus)s = 'monatsletzter_sonst_laeuft' AND t.ende_t ~ '^[0-9]{{4}}-(0[1-9]|1[0-2])-[0-9]{{2}}$'
+                   THEN (make_date(substr(t.ende_t, 1, 4)::int, substr(t.ende_t, 6, 2)::int, 1)
+                         + interval '1 month - 1 day')::date
+            END AS end_d,
+            (t.ende_t IS NOT NULL AND NOT (t.ende_t ~ %(muster)s AND pg_input_is_valid(t.ende_t, 'date'))) AS ende_korr
           FROM t
         ),
         z AS (
@@ -341,7 +347,7 @@ def bereinigen(
                z.c_qualifikation, z.c_oenace, %(ver)s, z.c_bundesland, z.roh_zeilen,
                array_remove(ARRAY[{tausch_name}::text,
                                   CASE WHEN z.beg IS NULL THEN {beginn_name}::text END,
-                                  CASE WHEN z.ende_t IS NOT NULL AND z.end_d IS NULL THEN {ende_name}::text END]
+                                  CASE WHEN z.ende_korr THEN {ende_name}::text END]
                             || coalesce((SELECT array_agg(g.name ORDER BY g.name) FROM meta.regel g
                                          WHERE g.id = ANY(z.qz_regeln)), '{{}}'), NULL),
                z.oenace, z.bundesland
@@ -381,6 +387,7 @@ def bereinigen(
             "qz_ids": qz_ids,
             "muster": muster,
             "muster13": muster13,
+            "ende_modus": ende_modus,
         },
     )
 

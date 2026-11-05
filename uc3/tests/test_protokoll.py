@@ -42,7 +42,7 @@ def test_commit_mit_trailer_steht_im_protokoll(tmp_path: Path) -> None:
         "-m",
         "Zählt freie Dienstverträge mit den Dienstverträgen zusammen",
         "--trailer",
-        "Freigegeben-von: Erika Musterfrau",
+        "Freigegeben-von: Lena Gruber",
         "--trailer",
         "Vorschlag: uc3/1",
         "--trailer",
@@ -52,7 +52,7 @@ def test_commit_mit_trailer_steht_im_protokoll(tmp_path: Path) -> None:
     assert [(c.anweisung, c.freigegeben_von, c.vorschlag, c.modell) for c in commits] == [
         (
             "Zählt freie Dienstverträge mit den Dienstverträgen zusammen",
-            "Erika Musterfrau",
+            "Lena Gruber",
             "uc3/1",
             "gpt-5-4-mini@azure",
         )
@@ -63,9 +63,9 @@ def test_protokoll_nennt_regelfreigabe_und_veroeffentlichung(conn: Verbindung, t
     # Fängt: Freigaben mit Namen (Regeln, Monat) fehlen im Abgabe-Protokoll.
     _git(tmp_path, "init", "-q")
     lauf_ausfuehren(conn, "2024-08", "v1")
-    regeln_freigeben(conn, "v1", "Erika Musterfrau")
-    veroeffentlichen(conn, "2024-08", "v1", "Erika Musterfrau")
+    regeln_freigeben(conn, "v1", "Lena Gruber")
+    veroeffentlichen(conn, "2024-08", "v1", "Lena Gruber")
     text = protokoll_erzeugen(conn, tmp_path)
-    assert "## 3 Regelfreigaben" in text and "| v1 | Erika Musterfrau |" in text
-    assert "| 2024-08 | v1 | Erika Musterfrau |" in text
+    assert "## 3 Regelfreigaben" in text and "| v1 | Lena Gruber |" in text
+    assert "| 2024-08 | v1 | Lena Gruber |" in text
     assert "Noch keine freigegebene Änderung über die Agenten." in text

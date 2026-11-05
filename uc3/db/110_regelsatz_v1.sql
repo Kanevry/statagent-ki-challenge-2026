@@ -32,9 +32,9 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  'Fachbeschreibung § 2; Anhang A Nr. 1, 2'),
 
 ('v1', 'E06_ende_ungueltig', 'einlese', 'ersatz_ende', 45,
- '{"ersatz": "laeuft"}',
- 'Ein ENDE, das geliefert, aber kein gültiges Datum ist, wird als „Verhältnis läuft“ übernommen und der Satz als korrigiert markiert. Das Verhältnis zählt, die Prüfregel meldet den Satz.',
- 'Anhang A Nr. 1 (kein Verhältnis geht verloren) und Nr. 2 (jede Zuordnung festhalten). Ein unlesbares ENDE belegt kein Ende; das Verhältnis besteht laut Lieferung (Vollabzug). Bisher 0 Fälle in 24 Lieferungen.',
+ '{"ersatz": "monatsletzter_sonst_laeuft"}',
+ 'Ein ENDE, das geliefert, aber kein gültiges Datum ist: Sind Jahr und Monat lesbar (z. B. 2024-02-30), gilt der Monatsletzte (2024-02-29); sonst wird das Verhältnis als „läuft“ übernommen. Der Satz ist als korrigiert markiert, kein Verhältnis geht verloren.',
+ 'Anhang A Nr. 1 (kein Verhältnis geht verloren) und Nr. 2 (jede Zuordnung festhalten). Ein Tippfehler im Tag lässt den Monat des Endes erkennen; ein unlesbares ENDE belegt kein Ende, das Verhältnis besteht laut Lieferung (Vollabzug). Gemessen 05.11.: 0 ungültige ENDE und 0 ungültige BEGINN in allen 24 Lieferungen (Review !13).',
  'Fachbeschreibung § 2 (ENDE leer = Verhältnis läuft); Anhang A Nr. 1, 2'),
 
 ('v1', 'E05_quellzuordnung', 'einlese', 'quellzuordnung', 50,

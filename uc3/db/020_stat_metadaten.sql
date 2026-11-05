@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS stat.uebergang (
 -- geliefert '<leer>' = Feld leer, '<sonst>' = jeder andere nicht zugeordnete Wert.
 -- version '-' für Merkmale ohne Versionen.
 CREATE TABLE IF NOT EXISTS stat.quellzuordnung (
+  regelsatz text NOT NULL DEFAULT 'v1',                      -- Zuordnungen gehören zu einem Regelsatz (Sheet alt/neu)
   quelle text NOT NULL,                                      -- 'zvd' (Lieferung der Zentralen Versicherungsdatei)
   merkmal text NOT NULL CHECK (merkmal IN ('geschlecht', 'qualifikation', 'oenace', 'bundesland')),
   version text NOT NULL DEFAULT '-',
@@ -77,5 +78,5 @@ CREATE TABLE IF NOT EXISTS stat.quellzuordnung (
   klassifikation text NOT NULL,                              -- Zieltabelle, z. B. 'klass_oenace'
   code text NOT NULL,
   regel_id int REFERENCES meta.regel (id),                   -- Regel, die diese Zuordnung begründet (NULL = Identität)
-  PRIMARY KEY (quelle, merkmal, version, geliefert)
+  PRIMARY KEY (regelsatz, quelle, merkmal, version, geliefert)
 );

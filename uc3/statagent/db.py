@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import psycopg
-from psycopg.rows import dict_row
+from psycopg.rows import dict_row, tuple_row
 
 from statagent import konfig
 
@@ -31,9 +31,32 @@ def verbindung(url: str | None = None) -> Iterator[Verbindung]:
         conn.close()
 
 
+def plattform_ddl() -> Path | None:
+    """Gemeinsame DDL von Vertrag P (``plattform/sql/meta.sql``: meta.protokoll, meta.freigabe), falls vorhanden."""
+    try:
+        import plattform
+    except ModuleNotFoundError:
+        return None
+    datei = Path(str(plattform.__file__)).parent / "sql" / "meta.sql"
+    return datei if datei.is_file() else None
+
+
+@contextmanager
+def tupelzeilen(conn: Verbindung) -> Iterator[Verbindung]:
+    """Vertrag-P-Funktionen (plattform.freigabe) lesen Zeilen als Tupel; unsere Verbindungen liefern dicts."""
+    alt = conn.row_factory
+    conn.row_factory = tuple_row  # type: ignore[assignment]
+    try:
+        yield conn
+    finally:
+        conn.row_factory = alt
+
+
 def sql_dateien(verzeichnis: Path | None = None) -> list[Path]:
-    """Alle DDL- und Seed-Dateien in Ausführungsreihenfolge (Dateiname aufsteigend)."""
-    return sorted((verzeichnis or konfig.DB_VERZEICHNIS).glob("[0-9][0-9][0-9]_*.sql"))
+    """Alle DDL- und Seed-Dateien in Ausführungsreihenfolge: zuerst Vertrag P (shared), dann uc3/db/NNN_*.sql."""
+    eigene = sorted((verzeichnis or konfig.DB_VERZEICHNIS).glob("[0-9][0-9][0-9]_*.sql"))
+    gemeinsam = plattform_ddl()
+    return ([gemeinsam] if gemeinsam else []) + eigene
 
 
 def schema_einrichten(conn: Verbindung, verzeichnis: Path | None = None) -> list[str]:

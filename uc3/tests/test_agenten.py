@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -21,7 +20,6 @@ from statagent.agenten.vorschlag import diff_text, probe_rechnen, vorschlag_lese
 from statagent.agenten.werkzeuge import AbfrageVerweigert, schema_lesen, sql_lesen
 from statagent.db import Verbindung
 
-VERTRAG_P = Path(__file__).parent / "fixtures" / "plattform_vertrag_meta.sql"
 DV_FD = "Zählt freie Dienstverträge mit den Dienstverträgen zusammen"
 STICHTAG_MONAT = "Zählt jedes Verhältnis, das irgendwann im Monat bestand, nicht nur am Stichtag"
 BEAMTE = "Beamte ausschließen"
@@ -79,7 +77,7 @@ def fake_dv_fd() -> FakeModell:
 
 @pytest.fixture
 def agent_conn(conn: Verbindung) -> Iterator[Verbindung]:
-    conn.execute(VERTRAG_P.read_text(encoding="utf-8").encode())
+    # meta.protokoll/meta.freigabe kommen aus plattform/sql/meta.sql (Vertrag P), eingespielt von db init.
     vorschlag_schema_einrichten(conn)
     yield conn
 

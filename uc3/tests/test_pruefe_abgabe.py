@@ -11,20 +11,22 @@ from statagent.berichte.qualitaetsbericht import ABSCHNITTE
 
 
 def _bericht(einstufung: str = "erklärt – plausibel") -> str:
-    return "\n".join([
-        "# Qualitätsbericht – Berichtsmonat 2024-08",
-        "",
-        ABSCHNITTE[0],
-        "",
-        ABSCHNITTE[1],
-        "",
-        "| Nr. | Ebene | Beschreibung | Umfang | Beleg (Abfrage) | Einstufung | Maßnahme | Rückfrage |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
-        f"| 1 | Satz | Test | 3 Sätze | `SELECT 1 \\| 2` | {einstufung} | – | – |",
-        "",
-        *ABSCHNITTE[2:],
-        "",
-    ])
+    return "\n".join(
+        [
+            "# Qualitätsbericht – Berichtsmonat 2024-08",
+            "",
+            ABSCHNITTE[0],
+            "",
+            ABSCHNITTE[1],
+            "",
+            "| Nr. | Ebene | Beschreibung | Umfang | Beleg (Abfrage) | Einstufung | Maßnahme | Rückfrage |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+            f"| 1 | Satz | Test | 3 Sätze | `SELECT 1 \\| 2` | {einstufung} | – | – |",
+            "",
+            *ABSCHNITTE[2:],
+            "",
+        ]
+    )
 
 
 def _sheet(pfad: Path, blaetter: list[str]) -> None:
@@ -74,7 +76,7 @@ def test_falsche_einstufung_und_regelkonstante_sind_nicht_ok(tmp_path: Path) -> 
     # Fängt: Einstufung außerhalb der Drei-Werte-Liste oder Regelkonstante im Code wird übersehen.
     abgabe = _vollstaendig(tmp_path)
     (abgabe / "qualitaetsberichte" / "2025-03.md").write_text(_bericht("erklärt"), encoding="utf-8")
-    (tmp_path / "uc3" / "statagent" / "zaehlung.py").write_text("CODE = 'U" "NB'\n", encoding="utf-8")
+    (tmp_path / "uc3" / "statagent" / "zaehlung.py").write_text("CODE = 'UNB'\n", encoding="utf-8")
     erg = pruefe_abgabe(abgabe, tmp_path, blaetter=VORLAGE_BLAETTER)
     assert not erg.ok
     fehlend = {p.name: p.hinweis for p in erg.punkte if not p.ok}

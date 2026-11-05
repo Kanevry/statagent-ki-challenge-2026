@@ -8,21 +8,19 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
-import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
-from statagent.db import Verbindung
+from plattform.freigabe import NameUngueltig as NameUngueltig  # Vertrag P, re-exportiert
+from plattform.freigabe import pruefe_name
+
+from statagent.db import Verbindung, lieferungen
 
 
 class RegelFehler(RuntimeError):
     """Der Regelsatz ist für einen Lauf nicht vollständig oder widersprüchlich."""
-
-
-class NameUngueltig(ValueError):
-    """Freigabe braucht Vor- und Nachnamen einer Person (Technische Regel 7)."""
 
 
 @dataclass(frozen=True)
@@ -120,9 +118,11 @@ def regelstand(conn: Verbindung, regeln: list[Regel]) -> str:
         for r in sorted(regeln, key=lambda r: (r.typ, r.reihenfolge, r.name))
         if r.typ != "pruefung"  # Prüfregeln melden, sie ändern keine Zahl
     ]
+    regelsaetze = sorted({r.regelsatz for r in regeln})
     qz = conn.execute(
-        """SELECT quelle, merkmal, version, geliefert, code FROM stat.quellzuordnung
-           ORDER BY quelle, merkmal, version, geliefert COLLATE "C" """
+        """SELECT quelle, merkmal, version, geliefert, code FROM stat.quellzuordnung WHERE regelsatz = ANY(%s)
+           ORDER BY quelle, merkmal, version, geliefert COLLATE "C" """,
+        (regelsaetze,),
     ).fetchall()
     ko = conn.execute(
         """SELECT DISTINCT version, gueltig_von::text AS von, coalesce(gueltig_bis::text, '') AS bis
@@ -138,40 +138,53 @@ def regelstand(conn: Verbindung, regeln: list[Regel]) -> str:
     return hashlib.sha256(roh.encode("utf-8")).hexdigest()[:16]
 
 
-#: Wörter, die keine Person bezeichnen (Technische Regel 7: „Ein Platzhalter wie ‚Team‘ reicht nicht“).
-_PLATZHALTER = {"team", "admin", "administrator", "agent", "ki", "ai", "bot", "system", "user", "test", "uc3"}
-
-
 def name_pruefen(name: str) -> str:
-    """Prüft einen Freigabe-Namen: Vor- und Nachname, keine Platzhalter, keine Steuerzeichen.
+    """Prüft einen Freigabe-Namen nach Vertrag P (``plattform.freigabe.pruefe_name``): Vor- und Nachname einer
+    Person, keine Platzhalter oder Rollen, keine Steuerzeichen. Liefert den normalisierten Namen (NFC)."""
+    return str(pruefe_name(name))
 
-    Liefert den normalisierten Namen. Der Commit-Weg der Freigabe (Trailer) läuft über
-    ``plattform.freigabe`` (E0, #55); diese Prüfung sichert die Regelfreigabe in ``meta.regel``.
+
+def regeln_freigeben(
+    conn: Verbindung,
+    regelsatz: str,
+    name: str,
+    regel_ids: list[int] | None = None,
+    *,
+    repo_pfad: Path | None = None,
+) -> int:
+    """Gibt die noch offenen aktiven Regeln eines Regelsatzes (oder die genannten) mit Namen und Zeitpunkt frei
+    und hält für jede Lieferung den so freigegebenen Regelstand fest (Regeln und Quellzuordnung).
+
+    Mit ``repo_pfad`` läuft die Freigabe über Vertrag P (``plattform.freigabe.freigeben``): Eintrag in
+    meta.protokoll/meta.freigabe und ein Git-Commit mit Trailer ``Freigegeben-von``. Liefert die Zahl der Regeln.
     """
-    if any(unicodedata.category(z).startswith("C") for z in name):
-        raise NameUngueltig("Der Name enthält Steuerzeichen oder Zeilenumbrüche.")
-    if ":" in name:
-        raise NameUngueltig("Der Name darf keinen Doppelpunkt enthalten.")
-    normal = " ".join(name.split())
-    woerter = normal.split(" ")
-    if len(woerter) < 2:
-        raise NameUngueltig("Bitte Vor- und Nachnamen angeben, z. B. „Erika Musterfrau“.")
-    for wort in woerter:
-        if (
-            not re.fullmatch(r"[^\W\d_][^\W\d_'’.\-]*(?:[-'’][^\W\d_]+)*\.?", wort)
-            or len(wort.rstrip(".")) < 2
-        ):
-            raise NameUngueltig(f"„{wort}“ ist kein Namensbestandteil.")
-        if wort.lower().strip(".") in _PLATZHALTER:
-            raise NameUngueltig(f"„{normal}“ ist ein Platzhalter, kein Name einer Person.")
-    if len({w.lower() for w in woerter}) == 1:
-        raise NameUngueltig(f"„{normal}“ ist ein Platzhalter, kein Name einer Person.")
-    return normal
+    person = name_pruefen(name)
+    offen = conn.execute(
+        """SELECT count(*) AS n FROM meta.regel WHERE regelsatz = %(rs)s AND aktiv AND freigegeben_von IS NULL
+             AND (%(ids)s::int[] IS NULL OR id = ANY(%(ids)s::int[]))""",
+        {"rs": regelsatz, "ids": regel_ids},
+    ).fetchone()
+    anzahl_offen = int(str(offen["n"])) if offen else 0
+    protokoll_id: int | None = None
+    if repo_pfad is not None:
+        from plattform.freigabe import freigeben
 
-
-def regeln_freigeben(conn: Verbindung, regelsatz: str, name: str, regel_ids: list[int] | None = None) -> int:
-    """Gibt alle noch nicht freigegebenen aktiven Regeln (oder die genannten) mit Namen und Zeitpunkt frei."""
-    gepruefter_name = name_pruefen(name)
+        with conn.transaction():
+            eintrag = conn.execute(
+                """INSERT INTO meta.protokoll (uc, akteur, name, anweisung, wirkung, vorschlag_typ, ref)
+                   VALUES ('uc3', 'mensch', %s, %s, %s, 'regel', %s) RETURNING id""",
+                (
+                    person,
+                    f"Regelsatz {regelsatz} freigeben",
+                    f"{anzahl_offen} Regeln mit Namen freigegeben; Regelstand je Lieferung festgehalten",
+                    f"meta.regel/{regelsatz}",
+                ),
+            ).fetchone()
+        assert eintrag is not None
+        protokoll_id = int(str(eintrag["id"]))
+        freigeben(
+            conn, protokoll_id, person, repo_pfad, objekt_typ="regel", objekt_ref=f"meta.regel/{regelsatz}"
+        )
     with conn.transaction():
         cur = conn.execute(
             """
@@ -179,6 +192,27 @@ def regeln_freigeben(conn: Verbindung, regelsatz: str, name: str, regel_ids: lis
             WHERE regelsatz = %(rs)s AND aktiv AND freigegeben_von IS NULL
               AND (%(ids)s::int[] IS NULL OR id = ANY(%(ids)s::int[]))
             """,
-            {"n": gepruefter_name, "rs": regelsatz, "ids": regel_ids},
+            {"n": person, "rs": regelsatz, "ids": regel_ids},
         )
-        return cur.rowcount
+        geaendert = cur.rowcount
+        for lieferung in lieferungen(conn):
+            regeln = regeln_laden(conn, regelsatz, lieferung)
+            if not regeln or not all(r.freigegeben for r in regeln):
+                continue
+            conn.execute(
+                """INSERT INTO meta.regelstand_freigabe (regelsatz, lieferung, regelstand, freigegeben_von,
+                     protokoll_id) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING""",
+                (regelsatz, lieferung, regelstand(conn, regeln), person, protokoll_id),
+            )
+    return geaendert
+
+
+def regelstand_freigegeben(
+    conn: Verbindung, regelsatz: str, lieferung: str, stand: str
+) -> dict[str, object] | None:
+    """Freigabe (Name, Zeitpunkt) des Regelstands für die Lieferung, sonst None."""
+    return conn.execute(
+        """SELECT freigegeben_von, freigegeben_am FROM meta.regelstand_freigabe
+           WHERE regelsatz = %s AND lieferung = %s AND regelstand = %s""",
+        (regelsatz, lieferung, stand),
+    ).fetchone()

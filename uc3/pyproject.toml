@@ -56,5 +56,5 @@ strict = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = ["openpyxl.*"]
+module = ["openpyxl.*", "plattform", "plattform.*"]
 ignore_missing_imports = true

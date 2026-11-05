@@ -18,7 +18,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from statagent.db import Verbindung
+from statagent.db import Verbindung, tupelzeilen
 
 #: ``complete(nachrichten, schema=None, stream=False, provider=None, zweck=…) -> Antwort`` (Vertrag M).
 CompleteFunktion = Callable[..., Any]
@@ -50,16 +50,22 @@ def lade_complete() -> CompleteFunktion:
     return funktion
 
 
+def _mit_tupelzeilen(funktion: Callable[..., Any]) -> FreigabeFunktion:
+    def aufruf(conn: Verbindung, *argumente: Any, **schluessel: Any) -> Any:
+        with tupelzeilen(conn):
+            return funktion(conn, *argumente, **schluessel)
+
+    return aufruf
+
+
 def lade_freigabe() -> FreigabeFunktion:
     """``plattform.freigabe.freigeben`` (#55): schreibt meta.freigabe und den Commit mit Trailer."""
-    funktion: FreigabeFunktion = _modul("plattform.freigabe", "#55").freigeben
-    return funktion
+    return _mit_tupelzeilen(_modul("plattform.freigabe", "#55").freigeben)
 
 
 def lade_ablehnung() -> FreigabeFunktion:
     """``plattform.freigabe.ablehnen`` (#55): schreibt meta.freigabe ohne Commit."""
-    funktion: FreigabeFunktion = _modul("plattform.freigabe", "#55").ablehnen
-    return funktion
+    return _mit_tupelzeilen(_modul("plattform.freigabe", "#55").ablehnen)
 
 
 def sha256_datei(inhalt: bytes) -> str:
@@ -96,4 +102,13 @@ def pruefe_freigegeben(conn: Verbindung, datei: Path, repo_pfad: Path) -> bool:
     plattform_pruefung = getattr(modul, "pruefe_freigegeben", None)
     if plattform_pruefung is None:
         return _eigene_pruefung(conn, datei, repo_pfad)
-    return bool(plattform_pruefung(conn, datei, repo_pfad))
+    try:
+        ref = relativer_pfad(datei, repo_pfad)
+    except ValueError:
+        return False
+    try:
+        with tupelzeilen(conn):
+            plattform_pruefung(conn, ref, repo_pfad)
+    except (modul.NichtFreigegeben, modul.VorschlagUngueltig):
+        return False
+    return True
