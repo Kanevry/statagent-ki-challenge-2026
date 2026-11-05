@@ -106,7 +106,7 @@ export function anfrageAus(parameter: URLSearchParams): Anfrage | null {
   if (unter !== null) return CODE.test(unter) ? { art, fassung, was: "kinder", unter } : null;
   if (suche !== null) {
     const text = suche.trim();
-    return text.length > 0 && text.length <= SUCHE_MAX ? { art, fassung, was: "suche", suche: text } : null;
+    return text.length > 0 && text.length <= SUCHE_MAX && !/\p{Cc}/u.test(text) ? { art, fassung, was: "suche", suche: text } : null;
   }
   return { art, fassung, was: "wurzel" };
 }
@@ -306,8 +306,9 @@ type RohTreffer = Roh & { gesamt: string | number };
 function sucheRoh(sql: Sql, art: Art, fassung: string, suche: string) {
   const roh = mitEscape(suche);
   // Bei einem Zeichen nur der Code: „C“ meint den Abschnitt, nicht jeden Namen mit einem c.
-  const muster = suche.length < 2 ? "\u0000" : `%${roh}%`;
-  const anfang = suche.length < 2 ? "\u0000" : `${roh}%`;
+  const mitNamen = suche.length >= 2;
+  const muster = `%${roh}%`;
+  const anfang = `${roh}%`;
   if (art === "oenace") {
     const kompakt = mitEscape(suche.replace(/\s+/g, "").toUpperCase());
     return sql<RohTreffer[]>`
@@ -317,7 +318,7 @@ function sucheRoh(sql: Sql, art: Art, fassung: string, suche: string) {
       WHERE k.version = ${fassung} AND k.code <> 'UNB'
         AND (replace(upper(k.code), ' ', '') LIKE ${`${kompakt}%`}
           OR split_part(k.code, ' ', 2) LIKE ${`${roh}%`}
-          OR k.bezeichnung ILIKE ${muster})
+          OR (${mitNamen}::boolean AND k.bezeichnung ILIKE ${muster}))
       ORDER BY
         CASE
           WHEN replace(upper(k.code), ' ', '') = ${suche.replace(/\s+/g, "").toUpperCase()} OR split_part(k.code, ' ', 2) = ${suche} THEN 0
@@ -332,7 +333,7 @@ function sucheRoh(sql: Sql, art: Art, fassung: string, suche: string) {
     SELECT k.code, k.bezeichnung, k.ebene, k.uebergeordnet, count(*) OVER () AS gesamt, k.ebene <> 'gemeinde' AS hat_kinder
     FROM stat.klass_region k
     WHERE ((k.version = ${fassung} AND k.ebene IN ('bezirk', 'gemeinde')) OR (k.ebene = 'bundesland' AND k.code <> '0'))
-      AND (k.code LIKE ${`${roh}%`} OR k.bezeichnung ILIKE ${muster})
+      AND (k.code LIKE ${`${roh}%`} OR (${mitNamen}::boolean AND k.bezeichnung ILIKE ${muster}))
     ORDER BY
       CASE
         WHEN k.code = ${suche} THEN 0

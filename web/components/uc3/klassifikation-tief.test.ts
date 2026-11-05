@@ -35,6 +35,7 @@ describe("anfrageAus", () => {
     `art=oenace&fassung=2025&suche=${"x".repeat(61)}`,
     "art=oenace&fassung=2025&unter=C'%3B",
     "art=oenace&fassung=2025&unter=C&suche=x",
+    "art=oenace&fassung=2025&suche=a%00b",
   ])("weist %s ab", (text) => {
     expect(anfrage(text)).toBeNull();
   });
