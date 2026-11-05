@@ -34,6 +34,8 @@ from typing import Any
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
+import psycopg
+
 from statagent import konfig
 from statagent.agenten.anwenden import ablehnen_ausfuehren, freigabe_ausfuehren
 from statagent.agenten.koordinator import agent_ausfuehren, produktions_regelsatz, ruecknahme_pruefen
@@ -48,9 +50,11 @@ from statagent.agenten.vorschlag import (
 from statagent.db import Verbindung, verbinden
 from statagent.regeln import regeln_laden, regelstand
 
+REFERENZ_REGELSATZ = "v2"  # der Stand der Abgabe; jeder Lauf muss von diesem Regelstand ausgehen
 NAME = "Petra Probe"  # erkennbar eine Probe, keine echte Freigabe
 WIEN = ZoneInfo("Europe/Vienna")
 SPALTEN = (
+    "code",
     "auftrag",
     "lauf",
     "anweisung",
@@ -232,6 +236,15 @@ def _vorschlag(conn: Verbindung, anweisung: str, monat: str) -> tuple[Vorschlag 
 _OFFEN: dict[str, int] = {}
 
 
+def _neu_verbinden(url: str, versuche: int = 20) -> Verbindung:
+    for _ in range(versuche):
+        try:
+            return verbinden(url)
+        except psycopg.OperationalError:
+            time.sleep(15)
+    return verbinden(url)
+
+
 def _aufraeumen(conn: Verbindung, vorschlag_id: int, repo: Path) -> None:
     """Stellt den Stand vor einem freigegebenen Vorschlag ohne Modell wieder her (Umkehrung aus dem Code), damit
     ein gescheiterter Lauf die folgenden nicht verfälscht. Zählt nie als bestanden."""
@@ -371,6 +384,9 @@ def main() -> int:
     parser.add_argument("--monat", default="2026-07")
     parser.add_argument("--auftraege", nargs="*", help="Kurznamen, Standard: alle zehn")
     parser.add_argument("--csv", type=Path, default=Path("docs/plan/uc3/live-proben.csv"))
+    parser.add_argument(
+        "--nur", nargs="*", help="einzelne Läufe nachholen, Form Kurzname:Lauf, z. B. D_monat13_jaenner:2"
+    )
     args = parser.parse_args()
 
     konfig.umgebung_laden()  # .env.local wie die CLI (Modell-Schlüssel); gesetzte Variablen bleiben
@@ -386,16 +402,23 @@ def main() -> int:
         print("Abbruch: --repo ist ein Checkout dieses Repos; Proben committen nur in ein eigenes Probe-Repo")
         return 2
     auswahl = [a for a in AUFTRAEGE if not args.auftraege or a.kurz in args.auftraege]
+    code = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True
+    ).stdout.strip()
     neu = not args.csv.exists()
-    with verbinden(url) as conn, args.csv.open("a", encoding="utf-8", newline="") as f:
+    conn = verbinden(url)
+    with args.csv.open("a", encoding="utf-8", newline="") as f:
         vorschlag_schema_einrichten(conn)
-        # Stand der Abgabe (Zählregeln von v2) als Ausgangsstand jedes Laufs
-        referenz = _stand(conn, produktions_regelsatz(conn), args.monat)
+        # Stand der Abgabe (fest v2, nicht der aktuelle Stand): sonst nähme ein Neustart eine verschmutzte Kopie an.
+        referenz = _stand(conn, REFERENZ_REGELSATZ, args.monat)
         schreiber = csv.DictWriter(f, fieldnames=SPALTEN, delimiter=";")
         if neu:
             schreiber.writeheader()
-        for nummer in range(1, args.runden + 1):
-            for auftrag in auswahl:
+        laeufe = [(n, a) for n in range(1, args.runden + 1) for a in auswahl]
+        if args.nur:
+            laeufe = [(n, a) for n, a in laeufe if f"{a.kurz}:{n}" in args.nur]
+        for nummer, auftrag in laeufe:
+            for versuch in range(2):
                 try:
                     zeile = ein_lauf(
                         conn,
@@ -406,6 +429,24 @@ def main() -> int:
                         locker=nummer == args.runden,
                         referenz=referenz,
                     )
+                except psycopg.OperationalError as fehler:
+                    # Verbindung weg (Tunnel), kein Urteil über den Agenten: neu verbinden und den Lauf wiederholen.
+                    print(
+                        f"{_jetzt()} {auftrag.kurz} Lauf {nummer}: Verbindung verloren ({fehler})", flush=True
+                    )
+                    conn = _neu_verbinden(url)
+                    if "id" in _OFFEN:
+                        _aufraeumen(conn, _OFFEN.pop("id"), repo)
+                    zeile = {
+                        "auftrag": auftrag.kurz,
+                        "lauf": nummer,
+                        "anweisung": auftrag.anweisung,
+                        "zeit": _jetzt(),
+                        "bestanden": False,
+                        "hinweis": f"Verbindung verloren, nicht gewertet: {type(fehler).__name__}",
+                    }
+                    if versuch == 0:
+                        continue
                 except Exception as fehler:  # nicht bestanden, kein Abbruch der Serie
                     if "id" in _OFFEN:
                         _aufraeumen(conn, _OFFEN.pop("id"), repo)
@@ -417,14 +458,16 @@ def main() -> int:
                         "bestanden": False,
                         "hinweis": f"{type(fehler).__name__}: {fehler}",
                     }
-                schreiber.writerow(zeile)
-                f.flush()
-                print(
-                    f"{zeile['zeit']} {auftrag.kurz} Lauf {nummer}: "
-                    f"{'bestanden' if zeile.get('bestanden') else 'NICHT bestanden'} "
-                    f"({zeile.get('dauer_s', '-')} s) {zeile.get('hinweis', '')}",
-                    flush=True,
-                )
+                break
+            schreiber.writerow({"code": code, **zeile})
+            f.flush()
+            print(
+                f"{zeile['zeit']} {auftrag.kurz} Lauf {nummer}: "
+                f"{'bestanden' if zeile.get('bestanden') else 'NICHT bestanden'} "
+                f"({zeile.get('dauer_s', '-')} s) {zeile.get('hinweis', '')}",
+                flush=True,
+            )
+    conn.close()
     return 0
 
 
