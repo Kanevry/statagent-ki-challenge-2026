@@ -563,10 +563,18 @@ def _blattsummen(k: Kontext, regel: Regel) -> Befund:
     if not isinstance(gliederungen, dict):
         raise RegelFehler(f"{regel.name}: gliederungen muss ein Objekt sein")
 
+    # Zählt die Dimensionsregel nach Beschäftigungskategorie (Auftrag 1, Regelsatz v2), stehen in den Zellen
+    # Arbeiter/Angestellte/Beamte statt der fünf Qualifikationscodes; dann gilt deren Klassifikation.
+    r_dim = next((r for r in k.regeln if r.typ == "zaehl" and r.art == "dimension"), None)
+    kategorie = r_dim is not None and r_dim.parameter.get("qualifikation") == "beschaeftigungskategorie"
+
     def abfrage(beleg: bool) -> Abfrage:
         summen = []
         for g, spez in gliederungen.items():
-            teile = str(dict(spez)["tabelle"]).split(".")
+            tabelle = str(dict(spez)["tabelle"])
+            if str(g) == "qualifikation" and kategorie:
+                tabelle = "stat.klass_beschaeftigungskategorie"
+            teile = tabelle.split(".")
             if len(teile) != 2:
                 raise RegelFehler(f"{regel.name}: tabelle muss 'schema.tabelle' sein ({g})")
             version = (
