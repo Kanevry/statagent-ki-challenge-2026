@@ -27,7 +27,7 @@ und im README unter Grenzen.
 | Aussage im README | Fundstelle in `docs/models.md` | Ergebnis |
 |---|---|---|
 | Azure `gpt-5.4-mini`, Deployment `gpt-5-4-mini`, Pflicht und Standard für UC3 | Tabelle Provider, Zeile `azure`; Smoke-Tabelle (Version `gpt-5.4-mini-2026-03-17`) | gleich |
-| Mistral (EU) als Zweitanbieter, seit 16:04 frei | Tabelle Provider, Zeile `mistral`; Smoke 16:17 ok | gleich |
+| Mistral (EU) als Zweitanbieter | Tabelle Provider, Zeile `mistral`; Smoke ok | gleich |
 | Mistral Projektbudget 10 € | nicht in `docs/models.md`. Quelle: Issue #54 und PRD Zeile 99. | Ergänzung, kein Widerspruch |
 | Ollama lokal, Offline-Notnagel | Tabelle Provider, Zeile `ollama` | gleich |
 | Claude Opus 5.5 über die CLI, nur UC1 und UC2 und Vergleiche, nie UC3 | Zeile `claude` (`claude-opus-5-5`); Abschnitt Auswahl: UC3-Zwecke erlauben claude nicht | gleich |
@@ -41,7 +41,8 @@ dasselbe (Azure Standard, Mistral und Ollama austauschbar, Claude nur im Entwick
 ## 3. Weitere Prüfungen
 
 - Keine Gedankenstriche im README: Suche nach den Zeichen ergab 0 Treffer.
-- Keine Werte, Hostnamen oder IP-Adressen im README. Die Demo-Adresse steht schon in `deploy/README.md`.
+- Keine Werte und keine IP-Adressen im README. Einzige Adresse ist bewusst die öffentliche Demo-Adresse; sie steht
+  auch in `deploy/README.md` und im README des Veranstalter-Repos auf GitHub. Interne Rechnernamen kommen nicht vor.
 - Der Satz „uc3/README.md folgt“ ist entfernt, das README verweist auf die vorhandene Datei.
 - uv-Version: README sagt 0.12 (gemessen mit 0.12.12). `uc3/README.md` sagt „0.9 oder neuer“. Beide Angaben passen
   nicht zusammen. `pyproject.toml` legt keine Mindestversion fest. Die Datei `uc3/README.md` gehört der UC3-Lane und

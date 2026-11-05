@@ -64,8 +64,8 @@ Voice geht über Vapi, einen **US-Dienst**. Der Ablauf, belegt in `docs/voice.md
 1. Der Browser verbindet sich mit Vapi. Vapi erhält das **Audio** der Frage, schreibt es zu Text um und schickt das
    **Transkript** an unseren Server.
 2. Unser Server antwortet mit seiner eigenen `antwort`-Funktion. Die Zahlen rechnet der Code aus der Datenbank,
-   kein Sprachmodell. An Vapi gehen **nur Aggregate, jeweils mit gesprochenem Beleg**. **Einzeldaten** verlassen den
-   Rechner nie, SQL wird nicht gesprochen.
+   kein Sprachmodell. **Aus der Datenbank gehen nur Summen mit Beleg hinaus**, keine Einzeldaten, und SQL wird nicht
+   gesprochen. Was jemand ins Mikrofon sagt, geht als Ton und Text an Vapi.
 3. Die Aufnahme ist aus: `recordingEnabled` steht im Assistant auf `False`
    (`shared/py/plattform/voice/assistant.py`, Zeilen 56 und 57). Vapi hält das Transkript nach eigenen Regeln.
    Dort landen die gesprochene Frage und die Antwort mit Aggregat und Beleg.
@@ -139,8 +139,8 @@ Anfragen (POST) blockt der Server mit 403.
 | Daten | Startpaket des Veranstalters, synthetisch, nicht im Repo; Ordner `../svbox/uc3` oder `STATAGENT_STARTPAKET` | `uc3/README.md` |
 
 Wichtige Bibliotheken: `openai`, `fastapi`, `psycopg`, `pydantic` (Kern, `shared/py/pyproject.toml`), `typer` und
-`openpyxl` (UC3, `uc3/pyproject.toml`), Next.js 16, React 19, `three` (App, `web/package.json`) und `@vapi-ai/web`
-für den Sprechknopf (`shared/ui/package.json`). Die genauen
+`openpyxl` (UC3, `uc3/pyproject.toml`), Next.js 16, React 19, `three` und `@vapi-ai/web` für den
+Sprechknopf (App, `web/package.json`; geladen in `web/lib/plattform/voice-lader.ts`). Die genauen
 Versionen stehen in `uv.lock` und `pnpm-lock.yaml`. Für die lokalen Embeddings kommt das Extra
 `plattform[embeddings]` (sentence-transformers) dazu. Es ist nicht in der CI.
 
@@ -169,7 +169,7 @@ Die Angaben stimmen mit `docs/models.md` überein. Das ist dort die Hauptquelle,
 - **Azure OpenAI `gpt-5.4-mini`** (Deployment `gpt-5-4-mini`, Modell des Veranstalters, Endpunkt in der EU) ist
   **Pflicht und Standard für alle UC3-Agenten**.
 - **Mistral (EU)** ist der Zweitanbieter, zum Beispiel für den Wechsel vor der Jury. Das Projektbudget beträgt
-  10 € (Issue #54). Seit 05.11. 16:04 ist das Konto frei, der Testlauf um 16:17 in `docs/models.md` war ok.
+  10 € (Issue #54). Der Testlauf in `docs/models.md` war ok.
 - **Ollama** läuft lokal ohne Netz und ist ein Notnagel für den Offline-Betrieb.
 - **Claude Opus 5.5** läuft über die CLI und ist nur ein Qualitätsmodus für UC1 und UC2 und für Vergleiche.
   **Nie in der UC3-Zählung.**

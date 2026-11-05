@@ -1,8 +1,9 @@
 /*
  * SPDX-License-Identifier: Apache-2.0
  *
- * Herkunft: Die Messregeln folgen dem impeccable-Katalog von Paul Bakaus (Apache-2.0).
- * Lizenztext: ./LICENSE-impeccable. Angepasst für das Anti-Schablonen-Gate der KI Challenge 2026 (Issue #62).
+ * Copyright 2025 Paul Bakaus (impeccable, https://github.com/pbakaus/impeccable), Apache-2.0.
+ * Herkunft: Die Messregeln folgen dem impeccable-Katalog. Lizenztext: ./LICENSE-impeccable.
+ * Angepasst für das Anti-Schablonen-Gate der KI Challenge 2026 (Issue #62).
  */
 /**
  * Anti-Schablonen-Messung der Plattform (Issue #62).
