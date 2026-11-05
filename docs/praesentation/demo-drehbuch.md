@@ -122,13 +122,13 @@ Drei Anfragen der Aufgabenstellung, je etwa 25 Sekunden: Zeitreihe, Männer und 
 
 Zusatz (12:00–13:00), eine ehrliche Absage, nur wenn Zeit bleibt: „Entwicklung im Bau seit August 2024“. Das Programm sagt ab, weil die Branchen ab 2025 nach ÖNACE 2025 gezählt werden (F13). Sagt Bernhard: „Hier sagt das Programm ehrlich nein, statt zwei verschiedene Einteilungen zu vergleichen.“
 
+**Nicht vorführen:** Alter wie „unter 25“. Die Frage liefert still die Gesamtzahl 399.027, ohne Hinweis. Gemeldet an die UC3-Lane.
+
 **Stand der freien Fragen** (gemessen 05.11.2026 auf dem Testserver, Stand `main` `fd936b3`, um 06:45 neu messen):
 
 - Sagt ehrlich ab: zwei Werte eines Merkmals („Wien und Tirol“, „Arbeiter und Angestellte“), „Durchschnittsalter“, Fluktuation mit Filter („in Wien“) oder für August 2024, Fragen nach einer einzelnen Person.
 - Liefert eine Zahl, nicht gegen das Orakel geprüft: Branchen in Umgangssprache („Gastronomie“, „Gesundheitswesen“, „Handel“), „freie Dienstverträge“, Zeiträume („von März bis Juni 2025“).
 - Holpert: „Welche Branche hat die höchste Fluktuation“ sagt ab, aber mit „Das Wort ‚hat‘ kenne ich nicht“.
-
-**Nicht vorführen:** Alter wie „unter 25“. Die Frage liefert still die Gesamtzahl 399.027, ohne Hinweis. Gemeldet an die UC3-Lane.
 
 Fragt die Jury so etwas, sagt Bernhard: „Das zeige ich Ihnen mit einer Abfrage aus dem Katalog“ und nimmt die passende SQL aus Teil A oder eine Frage aus der Tabelle.
 
