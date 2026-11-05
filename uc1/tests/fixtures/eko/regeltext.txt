@@ -1,0 +1,3 @@
+|0087076|;|Eine Kostenübernahme ist nur möglich zur Selbstkatheterisierung.|
+
+|0119273|;|Erstattung bei Colitis ulcerosa/Morbus Crohn.|

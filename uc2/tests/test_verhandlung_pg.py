@@ -9,6 +9,8 @@ from typing import Any
 import psycopg
 import pytest
 
+import uc2.modelle
+from uc2.modelle import ModellKonfigFehler
 from uc2.verhandlung.belege import BelegFehler, FixtureQuelle, IndexQuelle
 from uc2.verhandlung.bericht import bericht
 from uc2.verhandlung.fall import FallFehler, lade_fall
@@ -69,7 +71,8 @@ def test_kaputter_mock_zug_ergibt_ungueltige_ausgabe_und_lauf_endet_fertig(
 
 
 def test_index_quelle_mit_echtem_provider_wird_verweigert(pg_test: psycopg.Connection[Any]) -> None:
-    optionen = Laufoptionen(provider="claude", quelle=IndexQuelle(pg_test))
+    """Ohne Namensliste ist die Index-Quelle nicht maskiert; der Lauf bricht vor der Anlage ab."""
+    optionen = Laufoptionen(provider="claude", quelle=IndexQuelle(pg_test, namen=None))
     with pytest.raises(BelegFehler, match="nicht maskiert"):
         Verhandlung(pg_test, lade_fall("wartezeiten"), optionen).fuehre_aus()
 
@@ -85,3 +88,35 @@ def test_laufender_fall_ohne_lebenszeichen_gilt_nach_60_s_als_abgebrochen() -> N
     assert wirksamer_status("laufend", jetzt - timedelta(seconds=59), jetzt) == "laufend"
     assert wirksamer_status("laufend", jetzt - timedelta(seconds=61), jetzt) == "abgebrochen"
     assert wirksamer_status("fertig", jetzt - timedelta(hours=1), jetzt) == "fertig"
+
+
+def test_echter_provider_online_ohne_budget_bricht_vor_dem_ersten_aufruf_ab(
+    pg_test: psycopg.Connection[Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review !47: Jeder UC2-Modellaufruf geht durch `plattform.llm.complete`. Dessen Budgetprüfung (!36)
+    bricht mit `KIC_ONLINE=1` ohne `LLM_TAGESBUDGET_AUFRUFE` fail-closed ab, bevor ein Provider läuft."""
+    from plattform.llm import kern  # type: ignore[import-untyped]
+
+    monkeypatch.setenv("KIC_ONLINE", "1")
+    monkeypatch.delenv("LLM_TAGESBUDGET_AUFRUFE", raising=False)
+    aufrufe: list[str | None] = []
+    echt = uc2.modelle.complete
+
+    def gezaehlt(*args: Any, **kw: Any) -> Any:
+        aufrufe.append(kw.get("provider"))
+        return echt(*args, **kw)
+
+    def kein_provider(name: str) -> Any:
+        raise AssertionError(f"Provider {name} darf ohne Budget nie laufen")
+
+    monkeypatch.setattr(uc2.modelle, "complete", gezaehlt)
+    monkeypatch.setattr(kern, "provider_instanz", kein_provider)
+    angelegt: list[int] = []
+    optionen = Laufoptionen(provider="claude", quelle=FixtureQuelle(), bei_anlage=angelegt.append)
+    with pytest.raises(ModellKonfigFehler, match="LLM_TAGESBUDGET_AUFRUFE"):
+        Verhandlung(pg_test, lade_fall("wartezeiten"), optionen).fuehre_aus()
+    assert aufrufe == ["claude"]
+    fall = lies_fall(pg_test, angelegt[0])
+    assert fall is not None and fall["status"] == "abgebrochen"
+    abbruch = [e["daten"] for e in lies_ereignisse(pg_test, angelegt[0]) if e["art"] == "abbruch"]
+    assert abbruch == [{"grund": "ModellKonfigFehler", "meldung": "Der Dienst ist gerade nicht bereit."}]

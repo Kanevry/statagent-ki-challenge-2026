@@ -12,6 +12,32 @@
   color: var(--l-white);
 }
 
+/*
+ * Rastpunkte für weiches Einrasten (scroll-snap-type: y proximity setzt HeroSzene am Wurzelelement).
+ * Ein Anker bei Fortschritt p liegt bei p × (Höhe der Strecke − Viewport-Höhe); dvh entspricht
+ * window.innerHeight, mit dem HeroSzene den Fortschritt misst.
+ */
+.anker {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.anker > span {
+  position: absolute;
+  left: 0;
+  top: calc(var(--p) * (100% - 100vh));
+  width: 1px;
+  height: 1px;
+  scroll-snap-align: start;
+}
+
+@supports (height: 100dvh) {
+  .anker > span {
+    top: calc(var(--p) * (100% - 100dvh));
+  }
+}
+
 .buehne {
   position: sticky;
   top: 0;

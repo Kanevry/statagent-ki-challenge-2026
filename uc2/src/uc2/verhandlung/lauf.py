@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import logging
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
@@ -20,12 +21,17 @@ import psycopg
 from uc2.akteure.laden import Akteur, lade_akteure
 from uc2.experte.modell import ergebnis as experte_ergebnis
 from uc2.experte.modell import lade_paket
-from uc2.modelle import Rollenmodell, UngueltigeAntwort, rollenmodell, rufe, szenario
+from uc2.modelle import ModellKonfigFehler, Rollenmodell, UngueltigeAntwort, rollenmodell, rufe, szenario
 from uc2.verhandlung import prompts
 from uc2.verhandlung.belege import Beleg, Belegquelle, pruefe_freigabe
 from uc2.verhandlung.fall import Falldefinition
 from uc2.verhandlung.matrix import Einordnung, Position, Runde, aenderungen, klassifikation, werte
-from uc2.verhandlung.pruefungen import experten_werte, haltungen_ohne_beleg, pruefe, validiere_zug
+from uc2.verhandlung.pruefungen import (
+    experten_ergebniswerte,
+    haltungen_ohne_beleg,
+    pruefe,
+    validiere_zug,
+)
 from uc2.verhandlung.speicher import Fallschreiber, Herzschlag, ddl_anwenden, neuer_fall
 
 MIN_TEILNEHMER = 2
@@ -34,10 +40,30 @@ RUNDEN_OHNE_ABBRUCH = 3
 PARALLEL_ECHT = 3
 """Gleichzeitige Akteursaufrufe bei echten Modellen (claude startet je Aufruf einen Subprozess)."""
 HERZSCHLAG_S = 20.0
+ABBRUCH_INTERN = "Der Lauf ist an einem internen Fehler gescheitert."
+
+_log = logging.getLogger(__name__)
 
 
 class VerhandlungsFehler(RuntimeError):
     """Der Moderator liefert keinen verwertbaren Auftrag; der Fall wird abgebrochen."""
+
+
+def abbruch_meldung(fehler: BaseException) -> str:
+    """Fester, einfacher Satz für das öffentliche Ereignis `abbruch` (SEC-009).
+
+    Nie der Fehlertext selbst: Er kann Env-Namen, Pfade, SQL oder Modelltext tragen. Die Einzelheiten gehen
+    nur ins Server-Log (`fuehre_aus`).
+    """
+    if isinstance(fehler, VerhandlungsFehler):
+        return "Das Modell hat nicht geantwortet."
+    if isinstance(fehler, ModellKonfigFehler):
+        return "Der Dienst ist gerade nicht bereit."
+    if isinstance(fehler, psycopg.Error):
+        return "Die Datenbank hat einen Fehler gemeldet."
+    if isinstance(fehler, KeyboardInterrupt | SystemExit):
+        return "Der Lauf wurde beendet."
+    return ABBRUCH_INTERN
 
 
 @dataclass
@@ -50,6 +76,8 @@ class Laufoptionen:
     verbinde: Callable[[], psycopg.Connection[Any]] | None = None
     """Eigene Verbindung für den Herzschlag; ohne sie gibt es nur Lebenszeichen nach jedem Zug."""
     herzschlag_s: float = HERZSCHLAG_S
+    bei_anlage: Callable[[int], None] | None = None
+    """Wird mit der Fall-ID aufgerufen, sobald `uc2.fall` committet ist (CLI `--melde-fall-id`, API)."""
 
 
 @dataclass
@@ -94,7 +122,8 @@ def fuehre_zug_aus(
     return Zugergebnis(akteur, None, fehler, 2)
 
 
-def _pruefe_auswahl(daten: dict[str, Any], ids: list[str], max_akteure: int) -> list[str]:
+def pruefe_auswahl(daten: dict[str, Any], ids: list[str], max_akteure: int) -> list[str]:
+    """Regelverstöße einer Moderator-Auswahl (Pool vollständig, Ober- und Untergrenze); leer = gültig."""
     fehler = []
     genannt = [a["akteur"] for a in daten["akteure"]]
     if sorted(genannt) != sorted(ids):
@@ -107,7 +136,7 @@ def _pruefe_auswahl(daten: dict[str, Any], ids: list[str], max_akteure: int) -> 
     return fehler
 
 
-def _repariere_auswahl(
+def repariere_auswahl(
     daten: dict[str, Any], ids: list[str], max_akteure: int, belegzahl: dict[str, int]
 ) -> list[dict[str, Any]]:
     """Code-Korrektur nach der Wiederholung: Reihenfolge des Moderators, Obergrenze, Mindestzahl, Lücken."""
@@ -143,7 +172,7 @@ def _repariere_auswahl(
     return [gesehen[aid] for aid in ids]
 
 
-def _zwischenergebnis(
+def zwischenergebnis(
     jetzt: Runde, klass: dict[str, Einordnung], zuege: dict[str, dict[str, Any]], notiz: str | None
 ) -> dict[str, Any]:
     """Kontext der nächsten Runde: Positionen, Einigungen, gescheiterte und offene Themen, Bedingungen."""
@@ -169,6 +198,12 @@ def _zwischenergebnis(
         "zugestaendnisse": zugestaendnisse,
         "moderator": notiz,
     }
+
+
+# Alte Namen: ein anderer Branch importiert sie noch.
+_pruefe_auswahl = pruefe_auswahl
+_repariere_auswahl = repariere_auswahl
+_zwischenergebnis = zwischenergebnis
 
 
 @contextlib.contextmanager
@@ -197,7 +232,7 @@ class Verhandlung:
         voll = experte_ergebnis(lade_paket(fall.paket))
         self.experte_voll = voll
         self.experte = prompts.experte_kurz(voll)
-        self.experte_werte = experten_werte(voll)
+        self.experte_werte = experten_ergebniswerte(voll)
 
     def _modelle(self) -> dict[str, Any]:
         return {
@@ -223,15 +258,19 @@ class Verhandlung:
             )
             schreiber = Fallschreiber(self.verbindung, fall_id)
             try:
+                if self.optionen.bei_anlage is not None:
+                    self.optionen.bei_anlage(fall_id)
                 with _herzschlag(self.optionen, fall_id):
                     self._ablauf(schreiber)
                 schreiber.beende("fertig")
             except BaseException as fehler:
                 # Abgeschlossene Runden bleiben; der Abbruch darf den ursprünglichen Fehler nie verdecken.
+                # Nach außen (SSE, Bericht) nur Fehlertyp und fester Satz; die Einzelheiten ins Server-Log.
+                _log.error("Fall %s abgebrochen: %s: %s", fall_id, type(fehler).__name__, fehler)
                 with contextlib.suppress(psycopg.Error):
                     self.verbindung.rollback()
                     schreiber.ereignis(
-                        "abbruch", {"grund": type(fehler).__name__, "meldung": str(fehler)[:300]}
+                        "abbruch", {"grund": type(fehler).__name__, "meldung": abbruch_meldung(fehler)}
                     )
                     schreiber.beende("abgebrochen")
                 raise
@@ -268,6 +307,9 @@ class Verhandlung:
                 "zielpruefung": self.experte_voll["zielpruefung"]["ergebnis"],
                 "modus_erreicht": self.experte_voll["zielpruefung"]["modus_erreicht"],
                 "entscheidend": self.experte_voll["entscheidend"]["text"],
+                # Vollständiges Ergebnis: zahl_widerspruch vergleicht gegen dessen Ergebniswerte
+                # (`experten_ergebniswerte`), und pruefe_lauf.py liest sie unabhängig daraus nach.
+                "ergebnis": self.experte_voll,
             },
         )
         auftrag = self._auftrag(s)
@@ -325,7 +367,7 @@ class Verhandlung:
             except UngueltigeAntwort as f_:
                 raise VerhandlungsFehler(f"Moderator: keine gültige Auswahl ({f_.kennung})") from f_
             daten = antwort.json
-            fehler = _pruefe_auswahl(daten, ids, self.max_akteure)
+            fehler = pruefe_auswahl(daten, ids, self.max_akteure)
             if not fehler:
                 break
             nachrichten = [
@@ -338,7 +380,7 @@ class Verhandlung:
             ]
         if fehler:
             s.ereignis("auswahl_korrektur", {"fehler": fehler}, akteur="moderator")
-            liste = _repariere_auswahl(daten, ids, self.max_akteure, belegzahl)
+            liste = repariere_auswahl(daten, ids, self.max_akteure, belegzahl)
         else:
             liste = sorted(daten["akteure"], key=lambda a: a["akteur"])
         eintraege = []
@@ -466,7 +508,7 @@ class Verhandlung:
             notiz = self._notiz(
                 s, auftrag, runde, teilnehmer, jetzt, aend, klass, code_widersprueche, ohne_beleg
             )
-            vorrunde = _zwischenergebnis(jetzt, klass, gueltig, notiz)
+            vorrunde = zwischenergebnis(jetzt, klass, gueltig, notiz)
             s.ereignis(
                 "runde_ende",
                 {

@@ -6,11 +6,13 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { ucs } from "../../shared/ui/src/ucs";
+import { bereiche } from "../../shared/ui/src/ucs";
 
 const hier = path.dirname(fileURLToPath(import.meta.url));
 const MESSSKRIPT = path.join(hier, "lib", "slop-measure.js");
 const FIXTURE = path.join(hier, "fixtures", "slop-positive.html");
+const FIXTURE_VERSTECKT = path.join(hier, "fixtures", "slop-versteckt.html");
+/** Harte Prüfung (#102): in CI gesetzt (Job playwright), lokal per ABGABE=1. */
 const ABGABE = process.env.ABGABE === "1";
 
 /** Die zwölf geprüften Schlüssel. `genericFontShare` ist ausgenommen (Inter ist Vertrag, siehe docs/design.md). */
@@ -35,12 +37,11 @@ const SCHLUESSEL = [
  * statt rot zu werden, damit die Liste keine fremde Lane sperrt. Mit ABGABE=1 muss die Liste leer sein und jede
  * Route 200 liefern.
  */
-const NOCH_OFFEN: Record<string, string> = {
-  "/": "Landing-Session baut die Startseite noch",
-};
+const NOCH_OFFEN: Record<string, string> = {};
 
-const ROUTEN: string[] = ["/", ...ucs.map((uc) => uc.route), "/praesentation", "/_bausteine"];
-const MAX_SEITEN = 40;
+const ROUTEN: string[] = ["/", ...bereiche.map((uc) => uc.route), "/praesentation", "/_bausteine"];
+// 120 je Viewport: UC-Unterseiten (z. B. je Lieferung) sollen das Gate nicht über die Grenze treiben (Lead 58)
+const MAX_SEITEN = 120;
 
 /** Gültiger Modell-Status mit abweichendem „zuletzt“, damit der Hinweis im Badge mitgemessen wird. */
 const MODELL_STATUS = {
@@ -93,9 +94,28 @@ function anhangName(route: string, zustand = ""): string {
   return `slop${route === "/" ? "-start" : route.replaceAll("/", "-")}${zustand}`;
 }
 
-/** Misst die gerade geladene Seite: alle zwölf Schlüssel vorhanden und 0. Sammelt Verstöße, ohne abzubrechen. */
+/**
+ * Fängt ab: eine Seite, die waagrecht über den Viewport hinausläuft (Review !45: Header bei 390 px mit
+ * „zuletzt mistral (Stufe 2)“). Hart, nicht soft: eine überlaufende Seite ist auf dem Handy kaputt.
+ */
+async function pruefeKeinUeberlauf(page: Page, testInfo: TestInfo, ort: string): Promise<void> {
+  const masse = await page.evaluate(() => ({
+    breite: document.documentElement.scrollWidth,
+    fenster: window.innerWidth,
+  }));
+  expect(
+    masse.breite,
+    `Waagrechter Überlauf auf ${ort} (${testInfo.project.name}): scrollWidth ${masse.breite} > innerWidth ${masse.fenster}`,
+  ).toBeLessThanOrEqual(masse.fenster);
+}
+
+/**
+ * Misst die gerade geladene Seite: kein waagrechter Überlauf (hart) und alle zwölf Schlüssel vorhanden und 0
+ * (soft, sammelt Verstöße, ohne abzubrechen).
+ */
 async function pruefeSeite(page: Page, testInfo: TestInfo, ort: string, zustand = ""): Promise<void> {
   await vorbereiten(page);
+  await pruefeKeinUeberlauf(page, testInfo, `${ort}${zustand}`);
   const messung = await messen(page);
   await anhaengen(testInfo, anhangName(ort, zustand), messung);
   expect.soft(fehlendeSchluessel(messung.counts), `Schlüssel fehlen im Messergebnis (${ort}${zustand})`).toEqual([]);
@@ -129,6 +149,14 @@ test.describe("Messfunktion", () => {
     for (const k of SCHLUESSEL) {
       expect(messung.counts[k], `Positiv-Fixture trifft ${k} nicht`).toBeGreaterThanOrEqual(1);
     }
+  });
+
+  test("Negativ-Fixture: verstecktes Muster zählt in keinem Schlüssel", async ({ page }, testInfo) => {
+    await page.goto(`file://${FIXTURE_VERSTECKT}`);
+    const messung = await messen(page);
+    await anhaengen(testInfo, "slop-versteckt", messung);
+    const treffer = Object.fromEntries(SCHLUESSEL.map((k) => [k, messung.counts[k]]).filter(([, v]) => v !== 0));
+    expect(treffer, "verstecktes Muster gezählt").toEqual({});
   });
 
   test("root body erfasst ein Muster im Header vor main, root main nicht", async ({ page }) => {
@@ -178,7 +206,13 @@ test.describe("Anti-Schablonen-Gate", () => {
         continue;
       }
       expect.soft(status, `HTTP-Status von ${route}`).toBe(200);
-      if (status !== 200 || !(antwort?.headers()["content-type"] ?? "").includes("text/html")) continue;
+      if (status !== 200) continue;
+      const art = antwort?.headers()["content-type"] ?? "";
+      if (!art.includes("text/html")) {
+        // Eine Startroute muss eine Seite sein; ein gefundener Link auf eine Datei wird nur übergangen.
+        if (ROUTEN.includes(route)) expect.soft(art, `Content-Type der Startroute ${route}`).toContain("text/html");
+        continue;
+      }
       if (offen) {
         testInfo.annotations.push({ type: "Hinweis", description: `${route} ist gebaut: aus NOCH_OFFEN streichen` });
       }
@@ -190,14 +224,12 @@ test.describe("Anti-Schablonen-Gate", () => {
       }
     }
 
+    const ungeprueftWegenGrenze = [...new Set(warteschlange.filter((r) => !besucht.has(r)))];
     await testInfo.attach("seiten", {
-      body: JSON.stringify(
-        { gemessen, uebersprungen, ungeprueftWegenGrenze: warteschlange.filter((r) => !besucht.has(r)) },
-        null,
-        2,
-      ),
+      body: JSON.stringify({ gemessen, uebersprungen, ungeprueftWegenGrenze }, null, 2),
       contentType: "application/json",
     });
+    expect.soft(ungeprueftWegenGrenze, `Seiten jenseits der Grenze von ${MAX_SEITEN} ungeprüft`).toEqual([]);
     expect(gemessen.length, "Keine Seite gemessen").toBeGreaterThan(0);
   });
 

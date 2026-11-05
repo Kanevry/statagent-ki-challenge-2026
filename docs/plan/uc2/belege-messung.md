@@ -2,12 +2,13 @@
 
 Stand 05.11.2026, Bau-Session b-uc2. Owner-Vorgabe 12:5x: „bzgl embeddings nutze bitte google/embeddinggemma-2 …
 teste immer in nem kleinen prototypen annahmen und dann skalier alles hoch“. Lead 13:24: Extraktion, Embedding und
-Indexbau nur auf dem m5, das Ergebnis kommt per `pg_dump` auf den M4 (PG 5433).
+Indexbau nur auf Rechner B, das Ergebnis kommt per `pg_dump` auf Rechner A (PG 5433).
 
-Korpus, Zwischenstände, Vektoren und Dump liegen nie im Repo. Arbeitsordner: m5 `~/Projects/_scratch/kic-uc2/`,
-M4 `~/Projects/ki-challenge-2026/arbeit/uc2/`.
+Korpus, Zwischenstände, Vektoren und Dump liegen nie im Repo. Arbeitsordner: je Rechner `$UC2_ARBEIT` außerhalb des Repos.
+Rechner A ist der Entwicklungsrechner mit der lokalen Datenbank, Rechner B ein zweiter Rechner im Team für Extraktion und
+Embeddings.
 
-## 1. Prototyp 1: Modell (m5, erfundene Texte)
+## 1. Prototyp 1: Modell (Rechner B, erfundene Texte)
 
 | Messung | Wert |
 |---|---|
@@ -22,16 +23,16 @@ M4 `~/Projects/ki-challenge-2026/arbeit/uc2/`.
 Befund: Der Prozessor lädt auch im Nur-Text-Betrieb die Bild- und Video-Prozessoren und bricht ohne `Pillow` und
 `torchvision` ab. Das Extra `einbettung` in `uc2/pyproject.toml` enthält beide.
 
-## 2. Prototyp 2: ein Monat echt (09/2026, m5)
+## 2. Prototyp 2: ein Monat echt (09/2026, Rechner B)
 
 | Stufe | Ergebnis |
 |---|---|
-| Übertragung M4 → m5 (m5-remote) | 192 MB in 199 s, ca. 1 MB/s |
+| Übertragung Rechner A → Rechner B (per SSH) | 192 MB in 199 s, ca. 1 MB/s |
 | `uc2 extrahiere` | 22 Ausgaben in 1,4 s; 352 Einträge im Inhaltsverzeichnis → 351 Artikel (1 Text-Dublette), 966 Abschnitte |
 | `uc2 einbetten` | 966 Abschnitte in 21,6 s (44,7/s, Abschnitte bis 1.500 Zeichen) |
-| `uc2 index` | M4 und m5: gleicher Inhalts-Hash |
+| `uc2 index` | Rechner A und Rechner B: gleicher Inhalts-Hash |
 
-## 3. Vollbestand 2026 (m5)
+## 3. Vollbestand 2026 (Rechner B)
 
 | Stufe | Ergebnis |
 |---|---|
@@ -39,13 +40,13 @@ Befund: Der Prozessor lädt auch im Nur-Text-Betrieb die Bild- und Video-Prozess
 | Inhaltsverzeichnis / Artikel / Abschnitte | 2.925 / 2.909 / 7.800 |
 | Extraktion / Embedding | 6,2 s / 400 s (MPS) |
 | Index zweimal geladen | identischer Inhalts-Hash, also idempotent |
-| Dump `healthpolicy`, Schema `uc2` | `pg_dump -Fc` aus dem PG-16-Container, 32 MB; Restore auf dem M4 in 1 s; Inhalts-Hash M4 = m5 (Stand v1; ausgeliefert ist v3, § 3a) |
+| Dump `healthpolicy`, Schema `uc2` | `pg_dump -Fc` aus dem PG-16-Container, 32 MB; Restore auf Rechner A in 1 s; Inhalts-Hash Rechner A = Rechner B (Stand v1; ausgeliefert ist v3, § 3a) |
 
 Abweichungen im Indexer-Protokoll: 231 Radio- und TV-Beiträge nur mit Titel, 16 Artikel- und 4 Abschnitts-Dubletten
 entfernt, 1 Titel abweichend.
 
 **Unabhängiges Prüfskript** `uc2/tests/pruefe_index.py`: eigener Inhaltsverzeichnis-Parser, eigenes md5, kein Import
-von Laufzeit-Code. Lauf über alle 187 PDF auf dem m5:
+von Laufzeit-Code. Lauf über alle 187 PDF auf Rechner B:
 
 - md5: 186 auf der Platte = 186 in PG.
 - Keine Zeile `Autor:in` gespeichert.
@@ -54,11 +55,11 @@ von Laufzeit-Code. Lauf über alle 187 PDF auf dem m5:
 
 Befunde aus diesem Lauf:
 
-1. **Hash hängt an der Collation:** Der Inhalts-Hash hing an der DB-Collation (M4 `de_AT.UTF-8`, m5 `en_US.utf8`), behoben mit `collate "C"`.
+1. **Hash hängt an der Collation:** Der Inhalts-Hash hing an der DB-Collation (Rechner A `de_AT.UTF-8`, Rechner B `en_US.utf8`), behoben mit `collate "C"`.
 2. **Sprecherzeilen bei Radio/TV:** Umbrochene Sprecherzeilen wurden nur halb verworfen. Dadurch blieben Namensreste im Text (19 Beiträge), und verschiedene Sendungen galten als Dubletten (3 Beiträge vom 17.02.2026). Behoben in zwei Schritten (§ 3a).
 3. **Autor:innen im Fließtext:** 165 der 395 Autor:in-Namen stehen im Fließtext (622 Abschnitte, Bylines und Erwähnungen). Für #40 ist das nur ein Hinweis; die Maskierung ist Aufgabe von #43 (Personenschutz).
 
-## 3a. Nachläufe nach den Fixes (m5)
+## 3a. Nachläufe nach den Fixes (Rechner B)
 
 | Lauf | Änderung | Artikel / Abschnitte | Prüfskript über 187 PDF |
 |---|---|---|---|
@@ -68,9 +69,9 @@ Befunde aus diesem Lauf:
 
 v3 ist der ausgelieferte Stand:
 - Index zweimal geladen, Inhalts-Hash beide Male `e79db68f…`.
-- Dump `healthpolicy-uc2-v3.dump`: 31,7 MB, sha256 `424e70f9…`, liegt auf dem m5 und auf dem M4 unter `~/Projects/ki-challenge-2026/arbeit/uc2/dump/`.
-- Auf dem M4 eingespielt, gleicher Inhalts-Hash.
-- Extraktion 22 s, Embedding 14 min auf dem m5 unter Last.
+- Dump `healthpolicy-uc2-v3.dump`: 31,7 MB, sha256 `424e70f9…`, liegt auf Rechner B und auf Rechner A unter `$UC2_ARBEIT/dump/`.
+- Auf Rechner A eingespielt, gleicher Inhalts-Hash.
+- Extraktion 22 s, Embedding 14 min auf Rechner B unter Last.
 
 **Stichprobe (Akzeptanz #40):** Ein Gutachter mit frischem Kontext hat 10 zufällige Artikel (Seed 20261105, v2) gegen ihre PDF-Seiten
 geprüft: Start, Titel, Medium, Datum, Vollständigkeit über Seitenwechsel, keine Kopf- oder Fußzeilen, kein Feldblock, keine
@@ -79,6 +80,59 @@ Interviewer-Name steht im Fließtext.
 
 **Betrieb:** Ohne `HF_HUB_OFFLINE=1` fragt sentence-transformers bei jedem Laden den Hub nach Dateien ab. Für den Demo-Betrieb
 ohne Netz `HF_HUB_OFFLINE=1` setzen; das Modell liegt im Cache.
+
+## 3b. Lauf v4 nach dem Review !32 (Rechner B, 05.11. 14:58–15:07 CET)
+
+Code `bbd4470` (Fix-Liste der Review-Bank). Neu im Prüfskript sind ein Seitentext-Abgleich je Artikel, eine
+Dubletten-Ausnahme nur mit eigenem Textbeleg, „Artikel ohne Abschnitt = 0“, höchstens 1 Abweichung je Ausgabe und
+„Autor:in“ an jeder Stelle der Zeile. Der Lauf hat neu extrahiert, neu eingebettet und zweimal indexiert.
+
+| Prüfung (pruefe_index.py, 187 PDF) | Ergebnis |
+|---|---|
+| md5 | 187 Dateien, 186 eindeutig = 186 in PG |
+| Inhaltsverzeichnis | 186 Ausgaben, 0 Abweichungen; 10 Text-Dubletten-Ausnahmen, alle mit Textbeleg (erwartet 10) |
+| Seitentext | 2.915 Artikel gegen ihre PDF-Seite, 0 Abweichungen, 0 ohne Startzeile |
+| Artikel ohne Abschnitt | 0 |
+| Autor:in | 0 Abschnitte und 0 Titel mit Autor:in-Zeile; 165 von 395 Autor:in-Werten im Fließtext (622 Abschnitte, für #43) |
+| Text-Hash-Dubletten | 0 |
+| Vektoren | 7.806 |
+
+v4 ist inhaltlich gleich v3:
+- zweimal Inhalts-Hash `e79db68f…`;
+- `abschnitte.jsonl` und `vektoren.npy` bitgleich zu v3 (sha256 je gleich), `max_seq_length = 1024` verändert also keinen Vektor;
+- neu ist nur `eingaben_sha256` in `vektoren.json`. Der eingespielte v3-Index auf Rechner A gilt damit weiter.
+- Dump `healthpolicy-uc2-v4.dump` auf Rechner B, sha256 `a0f5f189…`.
+
+**Stichprobe v4** (Seed 20261106, 10 Zufallsartikel, Gutachter mit frischem Kontext gegen `pdftotext` der PDF-Seiten)
+
+Geprüft wurden:
+- Start nach Startzeile und Titel;
+- Titel, Medium und Datum;
+- Vollständigkeit bis zum Feldblock, auch über Seitenwechsel;
+- keine Kopf- oder Fußzeile, kein Feldblock, keine Layout-Kopie und keine Autor:in-Zeile.
+
+| artikel_id | PDF-Seite | Abschnitte | Urteil |
+|---|---|---|---|
+| daf32afaf321-005 | 10 | 3 | ok |
+| 14e28e515192-013 | 28 | 3 | ok |
+| 1f5717670522-015 | 40 | 3 | ok |
+| 301253469019-010 | 37 | 1 | ok |
+| 4ed0c27ce1fc-003 | 10 | 2 | ok |
+| 054b6543bc63-005 | 15 | 2 | ok |
+| cb28586bf327-002 | 4 | 3 | ok |
+| 665e4657cd04-008 | 28 | 1 | ok |
+| 858ae9b66ed1-011 | 32 | 2 | ok |
+| 5b8e6f785f39-032 | 98 | 15 | ok (im zweiten Durchgang mit den Seiten 98–108 nachgeprüft, vollständig bis zum Feldblock auf S. 104) |
+
+Ergebnis **10/10 ok**. Radio und TV sind in dieser Stichprobe nicht vertreten. Den Rundfunkzweig deckt die Seitentext-Prüfung über alle 2.915 Artikel ab.
+
+Grenzfälle für den Personenschutz (#43), so im PDF-Textfluss und daher im Text:
+- Bylines im ersten Absatz und eigene Zeilen „Von …“;
+- Mitarbeit-Zeilen;
+- E-Mail-Adressen mit Klarnamen am Textende;
+- Bildunterschriften und Fotocredits;
+- Zitatkästen mit Namensnennung;
+- Privatpersonen mit Vollnamen, Alter, Wohnort und Gesundheitsangaben.
 
 ## 4. Suchgüte (Vollbestand, 10 Fragen, k = 8)
 
@@ -123,6 +177,94 @@ Die Gewichte sind deshalb Startwerte in `regeln.yaml` und werden mit den Fällen
 |---|---|---|---|
 | M1 | Volltext mit ODER-Verknüpfung als Standard | UND: 6/10 Fragen ohne Treffer | UND, `websearch_to_tsquery` |
 | M2 | Hybrid als RRF (k = 60, Gewicht Volltext 0,6) statt Summe roher Werte | höchste P@8 und nDCG@8; skalenfrei | 0,7·cos + 0,3·ts (Skalen unvergleichbar), reiner Vektor |
-| M3 | Index nur auf dem m5 bauen, Dump auf den M4 | Lead 13:24, M4 überlastet; Demo darf nicht vom Tunnel abhängen | Index auf dem M4, PG über den Tunnel |
-| M4 | Abfrage-Embedding zur Laufzeit lokal (CPU) | Lead 13:3x: klein, erlaubt; 25 ms je Frage | Abfragen über den m5 |
+| M3 | Index nur auf Rechner B bauen, Dump auf Rechner A | Lead 13:24, Rechner A überlastet; Demo darf nicht vom Tunnel abhängen | Index auf Rechner A, PG über den Tunnel |
+| Rechner A | Abfrage-Embedding zur Laufzeit lokal (CPU) | Lead 13:3x: klein, erlaubt; 25 ms je Frage | Abfragen über Rechner B |
 | M5 | Autor:in-Namen im Fließtext als Eingabe für #43 | Akzeptanz #40 verlangt „keine Zeile Autor:in“; Namen maskiert #43 | Autor:innen schon in #40 maskieren (doppelte Maskierungslogik) |
+
+## 6. Belegsuche je Akteur und Personenschutz (#43, 05.11.2026)
+
+Gemessen auf Rechner A gegen `healthpolicy` (Index v3, 7.806 Abschnitte), lesend, mit `UC2_EINBETTUNG=mock`. Die Suche fällt
+damit auf Volltext zurück, weil die Vektoren im Index von embeddinggemma-2 stammen. Die Namensliste liegt außerhalb des
+Repos (`UC2_NAMENSLISTE`). Echte Namen stehen hier nicht.
+
+**Rang.** `rang = relevanz × 0,5^((Stichtag − Artikeldatum)/120) × f`. f ist 1,5, wenn `abschnitt.institutionen` die
+Institution des Akteurs enthält, sonst 1,0. Der Faktor ist auch bei RRF der letzte.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Kalibrier-Fixture: zwei textgleiche Artikel, Jänner und September, Stichtag 2026-09-30 | September vorne, Verhältnis 0,5^(Δ/120) auf 1e-9 |
+| `pruefe_rang.py`, Fixture: Volltext, dazu Hybrid mit Mock-Vektoren und Institution | grün; ein verfälschter Rang (× 1 + 1e-6) ergibt Exit 1 |
+| `pruefe_rang.py` am Index: 2 Volltextfragen und eine Akteursfrage | jeweils 8 Treffer, 0 Abweichungen |
+
+Das Orakel hat dabei eine echte Abweichung gefunden. psycopg liefert `real` (float4) als gerundete Dezimalzahl, die vom
+exakten Wert um etwa 3e-9 abweicht. Die Suche liest `ts` deshalb jetzt als `float8`.
+
+**Personenschutz.**
+
+| Messung | Wert |
+|---|---|
+| `uc2 namen sammeln --aus-index` (Titel und alle Abschnitte) | 3.853 Namen (1.982 einzelne Nachnamen, 1.871 mehrteilig), 4,2 s |
+| Lauf mit 10 Fragen × 3 Akteuren (`aerztekammer`, `sv`, `laender`), k = 8 | 30 Aufrufe, 240 Belege aus 62 Artikeln, 1,7 s gesamt, höchstens 0,08 s je Aufruf |
+| `pruefe_namen.py --lauf` gegen die Index-Liste (Titel, `text_modell`, `text_anzeige`, Datenblock) | 0 Treffer |
+| Unabhängiger Musterscan aus `pruefe_namen.py` auf denselben Texten | 0 Personennamen; 2 Funde des Zuschreibungsmusters sind ein Substantiv |
+
+**Ganzer Index gegen beide Listen.** Alle 2.915 Artikel wurden maskiert, Titel und Abschnitte je als ein Artikel, zusammen
+21.442 Texte (Modell- und Anzeigeform). Die zweite Liste sind die 395 Autor:in-Werte, die unabhängig von der Laufzeit aus den
+187 PDFs gelesen wurden (`autor_werte` im Prüfskript, Lauf auf Rechner B).
+
+| Laufzeit-Namensliste | gegen Index-Liste (3.853) | gegen Autor:in-Liste (395) |
+|---|---|---|
+| nur aus dem Index (Muster) | 0 Treffer | 28 Treffer, 6 verschiedene Namen: 159 von 165 Autor:in-Namen im Fließtext maskiert (96,4 %) |
+| Index plus Autor:in-Werte (`uc2 namen sammeln --aus-index --autoren …`, 4.097 Namen) | 0 Treffer | 0 Treffer |
+
+Im Betrieb gilt die zweite Zeile: `UC2_NAMENSLISTE` zeigt auf die gemeinsame Liste außerhalb des Repos. Fehlt sie oder
+ist sie leer, bricht die Suche ab (fail-closed, `NamenslisteFehlt`, CLI Exit 2), weil die Muster allein nur 167 von 178
+Fundstellen der Recall-Stichprobe schützen (93,8 % < 95 %); die Deploy-Lane muss die Liste deshalb außerhalb des Repos auf
+den Online-Server legen und `UC2_NAMENSLISTE` dort setzen. Die erste Zeile
+misst, wie viel die Muster allein leisten. Der Abgleich mit der Autor:in-Liste ist in der zweiten Zeile nicht mehr
+unabhängig, weil die Liste selbst in die Maskierung eingeht. Unabhängig bleibt die Recall-Stichprobe mit einem
+Gutachter mit frischem Kontext (Akzeptanz S2, ≥ 50 Namen, ≥ 95 % maskiert).
+
+**Recall-Stichprobe (Gutachter mit frischem Kontext).** 40 unmaskierte Artikel aus dem Index. Ein Gutachter ohne
+Kenntnis der Muster hat darin 178 Fundstellen zu 92 Personen markiert (Datei außerhalb des Repos). Gezählt wird eine
+Fundstelle als maskiert, wenn weder ihre Form noch der Nachname im maskierten Artikel als ganzes Wort stehen bleibt;
+eine Person zählt als voll maskiert, wenn alle ihre Fundstellen im Artikel maskiert sind (114 Paare Artikel/Person).
+Fehlalarme sind Ersetzungen zur Rolle, in deren Original kein Wort der Gutachterliste des Artikels steht. Das ist eine
+Obergrenze, weil der Gutachter nicht jede Person markiert hat.
+
+| Stand | Fundstellen mit Liste | Fundstellen ohne Liste | Personen voll (mit Liste) | Fehlalarme mit / ohne Liste |
+|---|---|---|---|---|
+| vorher (Kopf 344938f) | 169/178 (94,9 %) | 157/178 (88,2 %) | 105/114 (92,1 %) | 67 / 40 |
+| nachher | 178/178 (100 %) | 167/178 (93,8 %) | 114/114 (100 %) | 66 / 39 |
+| nachher ohne die 5 Vornamen aus der Stichprobe | 174/178 (97,8 %) | 163/178 (91,6 %) | 110/114 (96,5 %) | – |
+
+Durchgerutscht waren vorher 7 × „Vorname Nachname“, 1 × nur Nachname und 1 × ein Autorenkürzel. Ergänzt wurden nur
+allgemeine Muster: `Bild:` als Bildnachweis (das Muster `Bilder?` passte nie auf „Bild:“), ein Attribut vor der Funktion
+in der Apposition („erster Vizepräsident“), zwei Großwörter nach einer Zuschreibung („…, erklärte <Vorname> <Nachname>,“,
+bisher wurde nur das erste Wort ersetzt), Literaturangaben `Nachname AB, Nachname C`, Autorenkürzel am Ende eines Teils
+und fünf gängige Vornamen in `VORNAMEN_ALLE`. Die letzte Zeile zeigt, wie viel ohne diese fünf Vornamen bleibt: Sie
+stammen aus der Stichprobe, das 100-%-Ergebnis ist insoweit nicht unabhängig. Kürzel werden nur klein geschrieben am Ende
+eines Teils erkannt, nach Satzzeichen oder in Klammern; Kürzel mitten im Text bleiben eine Grenze. Über den ganzen
+Index (2.915 Artikel, 21.442 Texte) bleiben es 0 Treffer gegen Index- und Autor:in-Liste; die neuen festen Ersetzungen
+ergeben dort 43 × „[Kürzel]“, die Stichprobe der Treffer der neuen Muster am Index zeigte keine Allgemeinwörter.
+
+**Grenzen der Muster** (für die Recall-Stichprobe):
+- Ein Nachname allein, ohne Funktion, Titel, Vorname oder Zuschreibung im selben Artikel, wird nur über die Namensliste
+  erkannt. Fehlt er dort, bleibt er stehen.
+- Eine Zuschreibung mit Name vor dem Verb („Musterfrau sagt …“) wird nicht als Muster erkannt, sondern nur als bekannter
+  Name.
+- Vornamen außerhalb der Liste (`VORNAMEN_ALLE`, rund 250) machen aus „<Vorname> <Nachname>“ keinen Treffer. Es greifen
+  dann nur Funktion, Titel oder Zuschreibung.
+- Bei transitiven Verben („kritisiert“, „fordert“, „warnt“) zählt ein Name ohne Vorname nur direkt nach einem Zitat.
+- Ganz großgeschriebene Namen ohne Vorname (Bylines), Initialen-Kürzel mitten im Text und Namen in Komposita
+  („Musterfrau-Plan“) werden nicht erkannt. Klein geschriebene Kürzel am Ende eines Teils („(mm)“) werden seit der
+  Recall-Stichprobe zu „[Kürzel]“.
+- Der Substantivtest beim Sammeln verwirft Nachnamen, die zugleich Allgemeinwörter sind (Artikel oder flektiertes
+  Adjektiv davor in über 15 % der Vorkommen, Substantivendung, öfter klein als groß). Im eigenen Artikel werden sie über
+  die Muster trotzdem maskiert, in anderen Artikeln nur, wenn dort ebenfalls ein Muster greift.
+- Eine Funktion mit eindeutiger Person („Präsidentin der Ärztekammer“) bleibt als Rolle bestehen. Das ist so gewollt,
+  identifiziert die Person aber über die Funktion.
+
+**Befund für #44.** Die Abfrage aus Frage, Institution und 3 `themen_interesse` zieht die Belege stark zu den Themen des
+Akteurs. Über 10 Fragen waren es je Akteur nur 24 bis 30 verschiedene Artikel unter 80 Belegen. Ob die Themen in die
+Abfrage gehören oder nur die Frage, sollte mit den Fällen aus #44 gemessen werden.

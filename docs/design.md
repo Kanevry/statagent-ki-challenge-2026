@@ -70,13 +70,13 @@ Routen, die noch nicht gebaut sind, stehen in der Liste `NOCH_OFFEN` in `web/tes
 Eine Route in der Liste darf 404 liefern. Liefert sie 200, wird sie gemessen (0 Treffer Pflicht) und der Lauf
 hängt den Hinweis „aus NOCH_OFFEN streichen“ an die Testannotationen, wird aber nicht rot. So sperrt die Liste
 keine fremde Lane. Hart wird es nur mit `ABGABE=1`: Dann muss `NOCH_OFFEN` leer sein und jede Route 200 liefern.
-`ABGABE=1` wird ab dem Feature-Stopp (Fr 05:00) als CI-Variable im Job `playwright` gesetzt.
+`ABGABE: "1"` steht seit 05.11. als Variable im CI-Job `playwright` (#102): `NOCH_OFFEN` ist leer, seit die Landing gebaut ist, damit sperrt die harte Prüfung keine Lane. Lokal gilt sie mit `ABGABE=1`. Braucht es vor dem Feature-Stopp (Fr 06.11. 06:30) eine neue Route, die noch nicht gebaut ist, kommt sie mit Begründung in `NOCH_OFFEN`, und die Variable fällt so lange weg.
 
 ## Was gemessen wird
 
 - **Breitensuche:** Startrouten sind `/`, die UC-Routen, `/praesentation` und `/_bausteine`. Von jeder gemessenen
   Seite folgt das Gate den Links mit gleichem Ursprung (`a[href^="/"]`, ohne `/api/`, Dateien und Anker), mit
-  Besucht-Menge und höchstens 40 Seiten je Viewport. Die Seitenliste hängt als Anhang `seiten` am Bericht.
+  Besucht-Menge und höchstens 120 Seiten je Viewport; mehr Seiten machen den Test rot. Die Seitenliste hängt als Anhang `seiten` am Bericht.
 - **Zustände nach Interaktion:** Auf `/uc3` wird je Viewport auch gemessen, wenn der Modell-Badge den Hinweis
   „zuletzt“ zeigt (Antwort per `page.route` vorgegeben) und wenn die Protokoll-Schublade offen ist
   (`KIC_FIXTURE=1` füllt sie). Der Fehlerzustand des Badges ist im Lauf ohne vorgegebene Antwort abgedeckt.

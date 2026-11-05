@@ -21,6 +21,16 @@ def nur_mock_einbettung(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("UC2_EINBETTUNG", "mock")
 
 
+@pytest.fixture(autouse=True)
+def namen_ohne_liste(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests laufen ohne echte Namensliste: Schalter auf „nur Muster“ (`UC2_NAMEN_OHNE_LISTE=1`).
+
+    Nur hier gesetzt; die Laufzeit ist sonst fail-closed (`NamenslisteFehlt`). Tests der Fail-closed-Regel
+    löschen die Variable selbst.
+    """
+    monkeypatch.setenv("UC2_NAMEN_OHNE_LISTE", "1")
+
+
 @pytest.fixture
 def ausgabe_text() -> str:
     """Erfundene Ausgabe im Format von `pdftotext -layout` (9 Seiten, 3 Artikel, 2 Layout-Kopien)."""

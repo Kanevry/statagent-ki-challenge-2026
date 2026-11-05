@@ -160,6 +160,25 @@ def test_hybrid_ohne_torch_faellt_auf_volltext_zurueck(
     assert "torch fehlt" in capsys.readouterr().err
 
 
+def test_modell_nicht_im_cache_faellt_auf_volltext_zurueck(
+    pg_test: psycopg.Connection[Any], extrakt: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Review !32 Pflicht 7: dimension() lädt das Modell erst bei der Suche; ModellFehlt → volltext."""
+    from plattform.embeddings import ModellFehlt
+
+    class OhneCache(MockEinbetter):
+        def dimension(self) -> int:
+            raise ModellFehlt("Revision nicht im HF-Cache")
+
+    bette_extrakt_ein(extrakt, MockEinbetter(), batch=2)
+    indexiere(extrakt, pg_test)
+    modus, treffer = suche(
+        pg_test, "Wartezeit Facharzt", lade_regeln(), modus="hybrid", einbetter=OhneCache()
+    )
+    assert modus == "volltext" and treffer
+    assert "plattform.embeddings laden" in capsys.readouterr().err
+
+
 def test_kaputter_vektor_faellt_auf_volltext_zurueck(
     pg_test: psycopg.Connection[Any], extrakt: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

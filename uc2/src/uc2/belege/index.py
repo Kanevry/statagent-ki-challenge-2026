@@ -34,7 +34,9 @@ def wende_sql_an(verbindung: psycopg.Connection[Any]) -> None:
 
 
 class VektorenPassenNicht(RuntimeError):
-    """Die Vektoren wurden aus anderen Texten gebildet als denen in `abschnitte.jsonl`; nie still laden."""
+    """Der Extrakt passt nicht zum Index: Vektoren aus anderen Texten als `abschnitte.jsonl`, oder neue
+    Abschnitte kollidieren mit erhaltenen Abschnitten einer Quelle mit Lesefehler. Nie still laden; der Lauf
+    ändert dann nichts."""
 
 
 def lade_vektoren(
@@ -94,8 +96,8 @@ where q.md5 = any(%s)
 order by q.ausgabedatum, a.artikeldatum, a.medium collate "C", a.titel collate "C", a.pdf_seite, s.nr,
          s.text_hash collate "C"
 """
-# collate "C": Die Sortierung darf nicht von der DB-Collation abhängen (gemessen 05.11.: M4 de_AT.UTF-8,
-# m5-Container en_US.utf8 → gleicher Inhalt, verschiedener Hash).
+# collate "C": Die Sortierung darf nicht von der DB-Collation abhängen (gemessen 05.11.: Rechner A
+# de_AT.UTF-8, Container auf Rechner B en_US.utf8 → gleicher Inhalt, verschiedener Hash).
 
 
 def inhalt_hash(verbindung: psycopg.Connection[Any], md5s: list[str]) -> str:
@@ -186,6 +188,19 @@ def indexiere(extrakt: Path, verbindung: psycopg.Connection[Any]) -> IndexErgebn
                 ],
             )
             dim = int(meta["dim"]) if matrix is not None else None
+            # Bleibt eine Quelle mit Lesefehler stehen, kann ein neu extrahierter Abschnitt denselben
+            # Text-Hash haben (Dublette über Ausgaben). UNIQUE(text_hash) würde den Lauf ohne klare Meldung
+            # zurückrollen.
+            konflikte = verbindung.execute(
+                "select count(*) from uc2.abschnitt where text_hash = any(%s)",
+                ([s["text_hash"] for s in abschnitte],),
+            ).fetchone()
+            if konflikte is not None and konflikte[0]:
+                raise VektorenPassenNicht(
+                    f"{konflikte[0]} neue Abschnitte haben denselben Text-Hash wie Abschnitte einer "
+                    "erhaltenen Quelle mit Lesefehler: Lesefehler beheben und neu extrahieren, "
+                    "Index unverändert"
+                )
             cur.executemany(
                 "insert into uc2.abschnitt (abschnitt_id, artikel_id, nr, text, text_hash, institutionen, "
                 "vektor, "

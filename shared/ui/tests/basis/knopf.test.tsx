@@ -24,3 +24,12 @@ describe("Knopf", () => {
     expect(document.activeElement).not.toBe(knopf);
   });
 });
+
+// Fängt ab: eine halbtransparente Hover-Fläche (hover:bg-gruen/90 ergab Weiß auf ≈#1a8762, 4,47:1). Der Kontrast
+// des deckenden Tokens steht in tests/kontrast.test.ts.
+it("Hauptknopf: Überfahren mit deckendem Grün-dunkel, ohne Transparenz", async () => {
+  const { knopfKlassen } = await import("../../src/basis/knopf");
+  const klassen = knopfKlassen("primaer").split(" ");
+  expect(klassen).toContain("hover:bg-gruen-dunkel");
+  expect(klassen.filter((k) => /^hover:bg-[\w-]+\/\d+$/.test(k))).toEqual([]);
+});
