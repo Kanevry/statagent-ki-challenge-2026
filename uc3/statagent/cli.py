@@ -770,6 +770,25 @@ def export_online(
     _ausgabe(daten, als_json, "\n".join(zeilen))
 
 
+@app.command("bestaetigen")
+def bestaetigen_befehl(
+    vorschlaege: Annotated[list[str], typer.Argument(help="Vorschläge, z. B. uc3/24 uc3/25 uc3/26 uc3/27")],
+    name: Annotated[str, typer.Option(help="Vor- und Nachname der Person, die selbst bestätigt")],
+    als_json: JsonOption = False,
+) -> None:
+    """Bestätigt in fremdem Auftrag eingegebene Freigaben selbst: leerer Commit mit Trailer Freigegeben-von."""
+    from statagent.bestaetigung import BestaetigungFehler, bestaetigen
+
+    try:
+        erg = bestaetigen(konfig.REPO_WURZEL, name, vorschlaege)
+    except (BestaetigungFehler, NameUngueltig) as fehler:
+        typer.echo(f"Nicht bestätigt: {fehler}", err=True)
+        raise typer.Exit(1) from fehler
+    zeilen = [f"{erg.name} hat bestätigt (Commit {erg.commit_hash[:10]}):"]
+    zeilen += [f"- {v}: Freigabe-Commit {sha[:10]}" for v, sha in erg.commits.items()]
+    _ausgabe(dataclasses.asdict(erg), als_json, "\n".join(zeilen))
+
+
 @app.command("protokoll")
 def protokoll(
     zeigen: Annotated[
