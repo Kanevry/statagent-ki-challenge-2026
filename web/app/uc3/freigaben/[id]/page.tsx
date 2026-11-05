@@ -1,47 +1,48 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Akzent, Fliesstext, knopfKlassen, Leerzustand, Ueberschrift } from "@kic/ui/basis";
-import { formatDifferenz, formatZahl, HerkunftChip, type FreigabeEntscheidung } from "@kic/ui/bausteine";
+import type { ReactNode } from "react";
+import { Leerzustand, Ueberschrift } from "@kic/ui/basis";
+import { formatDifferenz, formatZahl, type FreigabeEntscheidung } from "@kic/ui/bausteine";
+import { literal, type Beleg } from "@/components/uc3/beleg";
+import { BelegLink, StandPunkt } from "@/components/uc3/beleg-link";
+import { vorfuehrungOffen } from "@/components/uc3/auftrag";
 import { nurLesend } from "@/components/uc3/cli";
-import { leerSatz } from "@/components/uc3/db";
-import { Begriffsliste, Fachbegriff } from "@/components/uc3/fachbegriff";
-import type { Uc3Begriff } from "@/components/uc3/glossar";
-import { laufBeleg } from "@/components/uc3/beleg";
+import { DatenFehler } from "@/components/uc3/daten-fehler";
 import {
-  auftraggeber,
-  auftragsZitat,
   aenderungKurz,
+  auftraggeber,
+  auftragKopf,
+  auftragsZitat,
   ergebnisPfad,
-  gesamtZeile,
-  gruppenBeleg,
-  gruppenSatz,
   klartext,
+  kurzZeit,
+  klarerAenderungsSatz,
   leseVorschlag,
+  ohneProbeSatz,
+  probeAendert,
+  probeJeKategorie,
+  zitatDoppelt,
+  probeTabelleBeleg,
   probeTitel,
-  rollenName,
+  regionenSatz,
   sqlErgebnisLauf,
   sqlWirkung,
-  sqlWirkungMonat,
-  teilWort,
-  umverteilung,
+  vorgeschlagenVon,
   vorschlagId,
-  waage,
-  waageBeleg,
-  waageSatz,
   wirkungJeKategorie,
-  type Bezeichnungen,
   type EchteWirkung,
   type Kategorien,
-  type Umverteilung,
+  type ProbeTabelle,
+  type Bezeichnungen,
   type Vorschlag,
-  type Waage,
-  type WaageZeile,
 } from "@/components/uc3/freigabe";
 import { monatName } from "@/components/uc3/monat";
 import { Entscheiden } from "./entscheiden";
 
-// Ein Vorschlag in drei Zonen (Frames qVTQj, oBcQu): das wurde gesagt, das ändert sich, Freigabe mit Namen.
+// Ein Vorschlag (UI-Regie v1): oben der Auftrag im Wortlaut, in der Mitte die Probe als kleine Tabelle vorher und
+// nachher mit einem Beleg, unten die Freigabe (lokal das Formular, online nur der Satz). Vergleich der Regelsätze aus
+// echten Läufen, die Regeländerung und die Begründung des Agenten stehen hinter „Details“.
 // Liest die UC3-Datenbank direkt; ohne Datenbank Leerzustand mit HTTP 200, unbekannte ID → 404.
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Freigaben · StatAgent" };
@@ -54,153 +55,114 @@ function entscheidungAus(v: Vorschlag): FreigabeEntscheidung | undefined {
   return undefined;
 }
 
+/** Beleg der Regeländerung selbst: Wortlaut und Regelname stehen hier, nicht im Fließtext. */
+function aenderungBeleg(v: Vorschlag, bezeichnungen: Bezeichnungen): Beleg {
+  const { worte } = klartext(v, bezeichnungen);
+  return {
+    quelle: "meta.vorschlag",
+    verweis: `Vorschlag uc3/${v.id}, ${aenderungKurz(v)}`,
+    zitat: worte.join(" ") || undefined,
+    sql: `SELECT typ, regelsatz_basis, regelsatz_ziel, aenderungen\nFROM meta.vorschlag\nWHERE id = ${literal(v.id)};`,
+  };
+}
+
+const zelle = "py-2 pr-6 text-right font-sans tabular-nums";
+const kopfZelle = "py-2 pr-6 text-right font-sans text-14 font-medium text-slate";
+
 export default async function FreigabeSeite({ params }: { params: Promise<{ id: string }> }) {
   const id = vorschlagId((await params).id);
   if (id === null) notFound();
   const lesung = await leseVorschlag(id);
 
-  if (!lesung.ok) {
-    return (
-      <>
-        <Ueberschrift stufe={2} als="h1">
-          Freigaben
-        </Ueberschrift>
-        <Leerzustand satz={leerSatz(lesung.grund)} />
-      </>
-    );
-  }
-  const { vorschlag: v, bezeichnungen, kategorien, ergebnis, wirkung } = lesung.daten;
+  if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
+  const { vorschlag: v, kategorien, ergebnis, wirkung, bezeichnungen } = lesung.daten;
   if (!v) notFound();
 
-  const w = waage(v.probe, bezeichnungen);
-  // Bei einer Umverteilung steht groß, wie sich die Kategorien zusammensetzen; die gleichbleibende Summe nur klein.
-  const u = w?.umverteilung ? umverteilung(v.probe, kategorien) : null;
-  const { worte, diff } = klartext(v);
+  const kopf = auftragKopf(v.anweisung);
+  const klarerSatz = klarerAenderungsSatz(v, bezeichnungen);
+  const quelle = kopf.nummer ? `Änderungsauftrag ${kopf.nummer} aus der Aufgabenstellung` : auftraggeber(v);
+  const gesagtAm = v.gesagtAm ?? v.erstelltAm;
+  const tabelle = probeJeKategorie(v.probe, kategorien);
+  const regionen = regionenSatz(v.probe, bezeichnungen);
   const entscheidung = entscheidungAus(v);
-  const gesamt = w ? gesamtZeile(w) : null;
-  // Probe steht ohne gerechnete Probe schon in Zone 2 neben dem Hinweis.
-  const begriffe: Uc3Begriff[] = w ? ["Freigabe", "Regel", "Regelsatz", "Probe"] : ["Freigabe", "Regel", "Regelsatz"];
-  const titel =
-    v.status === "offen"
-      ? "Diese Änderung wartet auf Ihre Freigabe."
-      : v.status === "freigegeben"
-        ? "Diese Änderung ist freigegeben."
-        : "Diese Änderung ist abgelehnt.";
-
-  const regelInWorten = (
-    <div className="flex flex-col gap-2">
-      {worte.map((satz) => (
-        <Fliesstext key={satz}>{satz}</Fliesstext>
-      ))}
-    </div>
-  );
 
   return (
     <>
       <nav aria-label="Zurück">
-        <Link href="/uc3/freigaben" className="font-sans text-14 font-semibold text-gruen underline underline-offset-4">
-          Zurück zu allen Freigaben
+        <Link
+          href="/uc3/freigaben"
+          className="inline-flex min-h-11 items-center font-sans text-14 font-medium text-gruen underline underline-offset-4"
+        >
+          Alle Freigaben
         </Link>
       </nav>
-      <header className="flex max-w-3xl flex-col gap-2">
-        <Ueberschrift stufe={2} als="h1">
-          {titel}
+
+      <header className="flex max-w-3xl flex-col gap-4">
+        <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
+          {kopf.titel}
         </Ueberschrift>
-        <Fliesstext groesse={14} ton="gedaempft">
-          {`Vorschlag uc3/${v.id} · ${aenderungKurz(v)}`}
-        </Fliesstext>
+        <figure className="flex flex-col gap-2">
+          {/* Steht der ganze Auftrag schon in der Überschrift, wäre das Zitat derselbe Satz noch einmal. */}
+          {!zitatDoppelt(kopf.titel, auftragsZitat(v.anweisung)) && (
+            <blockquote className="font-sans text-20 text-pretty text-ink">{`„${auftragsZitat(v.anweisung)}“`}</blockquote>
+          )}
+          <figcaption className="font-sans text-14 text-slate">
+            {`${quelle}, `}
+            <time dateTime={gesagtAm} className="tabular-nums">
+              {kurzZeit(gesagtAm)}
+            </time>
+          </figcaption>
+        </figure>
+        {klarerSatz && <p className="font-sans text-16 font-semibold text-pretty text-ink">{klarerSatz}</p>}
       </header>
 
-      <div className="flex max-w-3xl flex-col gap-6">
+      <section aria-labelledby="probe-titel" className="flex max-w-3xl flex-col gap-3">
+        <h2 id="probe-titel" className="font-sans text-16 font-semibold text-ink">
+          {tabelle ? probeTitel(tabelle.lieferung) : "Keine Probe"}
+        </h2>
+        <p className="font-sans text-14 text-slate">{`${vorgeschlagenVon(v)}.`}</p>
+        {regionen && <p className="font-sans text-16 font-semibold text-ink">{regionen}</p>}
+        {tabelle ? (
+          <ProbeTabelleAnsicht vorschlag={v.id} tabelle={tabelle} />
+        ) : (
+          <p className="font-sans text-16 text-ink">{ohneProbeSatz(v)}</p>
+        )}
+      </section>
+
+      <section aria-labelledby="freigabe-titel" className="flex max-w-3xl flex-col gap-4 border-t border-line pt-6">
+        <h2 id="freigabe-titel" className="sr-only">
+          Freigabe
+        </h2>
         <Entscheiden
-          nurLesen={nurLesend()}
           vorschlagId={v.id}
-          eintrag={{
-            anweisung: auftragsZitat(v.anweisung),
-            name: auftraggeber(v),
-            zeit: v.gesagtAm ?? v.erstelltAm,
-            wirkung: aenderungKurz(v),
-            modell: v.modell,
-            ref: `uc3/${v.id}`,
-          }}
-          zahlen={
-            w && !u
-              ? {
-                  vorher: w.haupt.vorher,
-                  nachher: w.haupt.nachher,
-                  satz: `${probeTitel(w.lieferung)}. ${waageSatz(w)}`,
-                  beleg: waageBeleg(v.id, w),
-                }
-              : null
-          }
-          diff={diff}
           entscheidung={entscheidung}
-          ohneProbe={
-            w && u ? (
-              <>
-                <UmverteilungZahlen vorschlag={v.id} waage={w} u={u} bezeichnungen={bezeichnungen} />
-                {regelInWorten}
-              </>
-            ) : (
-            <>
-              {regelInWorten}
-              <Fliesstext ton="gedaempft">Die Probe ist noch nicht gerechnet, deshalb fehlen die Zahlen.</Fliesstext>
-              <div className="font-sans text-14 font-semibold text-ink">
-                <Fachbegriff wort="Probe" />
-              </div>
-              {diff && <Regelzeilen text={diff} />}
-            </>
-            )
-          }
+          entschiedenAm={entscheidung ? kurzZeit(entscheidung.zeit) : undefined}
+          nurLesen={nurLesend()}
         />
-
-        {w && w.umverteilung && !u && (
-          <section className="flex flex-col gap-2" aria-labelledby="verschiebung">
-            <h2 id="verschiebung" className="font-sans text-16 font-semibold text-ink">
-              {`${probeTitel(w.lieferung)}: Diese ${formatZahl(w.weitere.length)} Kategorien tauschen Beschäftigungsverhältnisse untereinander.`}
-            </h2>
-            <WaageZeilen vorschlag={v.id} waage={w} zeilen={w.weitere} />
-          </section>
+        {vorfuehrungOffen() && v.commitHash && (
+          <p className="font-sans text-14 text-slate">
+            {"Im Protokoll als Commit "}
+            <span className="font-mono tabular-nums text-ink">{v.commitHash.slice(0, 10)}</span>
+            {", mit dem Namen der Person, die freigegeben hat."}
+          </p>
         )}
-
-        {wirkung && <EchteWirkungTeil wirkung={wirkung} kategorien={kategorien} umverteilt={u !== null} />}
-
-        {w && !w.umverteilung && gesamt && <WaageZeilen vorschlag={v.id} waage={w} zeilen={[gesamt]} />}
-
-        {w && !w.umverteilung && w.weitere.length > 0 && (
-          <details className="flex flex-col gap-2">
-            <summary className="cursor-pointer font-sans text-14 font-semibold text-gruen">
-              {`${w.weitere.length} weitere Kategorien ändern sich`}
-            </summary>
-            <div className="pt-2">
-              <WaageZeilen vorschlag={v.id} waage={w} zeilen={w.weitere} />
-            </div>
-          </details>
-        )}
-
-        <Akzent art="ki" className="flex flex-col gap-2">
-          <Fliesstext groesse={14} ton="gedaempft">
-            {`Vorschlag von ${rollenName(v.rolle)}${v.modell ? ` mit ${v.modell}` : ""}`}
-          </Fliesstext>
-          {w && regelInWorten}
-          <Fliesstext groesse={14}>{`Begründung des Agenten: ${v.begruendung}`}</Fliesstext>
-        </Akzent>
-
-        <Begriffsliste worte={begriffe} label="Begriffe auf dieser Seite" className="grid gap-4 sm:grid-cols-2" />
-
-        {ergebnis && (
+        {ergebnis && v.status === "freigegeben" && (
           <div className="flex flex-col gap-2">
-            <div>
-              <Link href={ergebnisPfad(ergebnis)} className={knopfKlassen("sekundaer")}>
-                {`Ergebnis ansehen: ${monatName(ergebnis.monat)}, Regelsatz ${ergebnis.regelsatz}`}
-              </Link>
-            </div>
-            {v.status === "freigegeben" && !ergebnis.laufDa && (
-              <div className="flex flex-wrap items-center gap-2">
-                <Fliesstext groesse={14}>
-                  {`Die neuen Zahlen entstehen, sobald der Monat mit Regelsatz ${ergebnis.regelsatz} gerechnet ist.`}
-                </Fliesstext>
-                <HerkunftChip
+            {ergebnis.laufDa ? (
+              <div>
+                <Link
+                  href={ergebnisPfad(ergebnis)}
+                  className="inline-flex min-h-11 items-center font-sans text-16 font-medium text-gruen underline underline-offset-4"
+                >
+                  {`Ergebnis für ${monatName(ergebnis.monat)} mit Regelsatz ${ergebnis.regelsatz} ansehen`}
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="font-sans text-16 text-ink">
+                  {`Die neuen Zahlen entstehen, sobald ${monatName(ergebnis.monat)} mit Regelsatz ${ergebnis.regelsatz} gerechnet ist.`}
+                </span>
+                <BelegLink
                   quelle="meta.lauf"
                   lieferung={ergebnis.monat}
                   stand="vorlaeufig"
@@ -210,150 +172,166 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
             )}
           </div>
         )}
-      </div>
+      </section>
+
+      <details className="max-w-3xl">
+        <summary className="inline-flex min-h-11 cursor-pointer items-center font-sans text-14 text-slate underline decoration-line underline-offset-4 hover:text-ink">
+          Details
+        </summary>
+        <div className="mt-2 flex flex-col gap-6">
+          {wirkung && <WirkungTeil wirkung={wirkung} kategorien={kategorien} />}
+          <DetailBlock titel="Begründung des Agenten">
+            <p className="font-sans text-16 text-pretty text-ink">{v.begruendung}</p>
+          </DetailBlock>
+          <DetailBlock titel="Die Regeländerung">
+            <div>
+              <BelegLink {...aenderungBeleg(v, bezeichnungen)} text="Regeländerung ansehen" />
+            </div>
+          </DetailBlock>
+        </div>
+      </details>
     </>
   );
 }
 
-/**
- * Die Probe einer Umverteilung in Worten: je neue Kategorie die Summe ihrer bisherigen Teile, dann was bleibt, und
- * klein die unveränderte Gesamtzahl. Jede Zahl mit Beleg auf meta.vorschlag.probe.
- */
-function UmverteilungZahlen({
-  vorschlag,
-  waage: w,
-  u,
-  bezeichnungen,
-}: {
-  vorschlag: number;
-  waage: Waage;
-  u: Umverteilung;
-  bezeichnungen: Bezeichnungen;
-}) {
-  const kategorienZahl = u.gruppen.length + u.bleibt.length;
+function DetailBlock({ titel, children }: { titel: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-3">
-      <p className="font-sans text-16 font-semibold text-ink">{probeTitel(u.lieferung)}</p>
-      <Fliesstext>{`Dieselben Beschäftigungsverhältnisse stehen in ${formatZahl(kategorienZahl)} Kategorien:`}</Fliesstext>
-      <ul className="flex flex-col gap-3">
-        {u.gruppen.map((g) => (
-          <li key={g.ziel} className="flex flex-col items-start gap-1">
-            <span className="break-words font-sans text-20 font-semibold tabular-nums text-ink">{gruppenSatz(g, bezeichnungen)}</span>
-            <HerkunftChip {...gruppenBeleg(vorschlag, u, g)} />
-          </li>
-        ))}
-        {u.bleibt.map((b) => (
-          <li key={b.code} className="flex flex-col items-start gap-1">
-            <span className="break-words font-sans text-20 font-semibold tabular-nums text-ink">
-              {`${b.code} bleibt bei ${formatZahl(b.wert)}`}
-            </span>
-            <HerkunftChip
-              {...waageBeleg(vorschlag, w, {
-                merkmal: "qualifikation",
-                code: b.code,
-                bezeichnung: b.code,
-                vorher: b.wert,
-                nachher: b.wert,
-                differenz: 0,
-              })}
-            />
-          </li>
-        ))}
-      </ul>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Fliesstext groesse={14} ton="gedaempft">
-          {`Zusammen ${formatZahl(u.gesamt)} wie bisher, Unterschied 0.`}
-        </Fliesstext>
-        <HerkunftChip {...waageBeleg(vorschlag, w, w.gesamt)} />
-      </div>
+    <div className="flex flex-col gap-2">
+      <h3 className="font-sans text-14 font-semibold text-ink">{titel}</h3>
+      {children}
     </div>
   );
 }
 
 /**
- * Echte Wirkung aus den Läufen: der jüngste Monat, den beide Regelsätze gerechnet haben. Bei einer Umverteilung je
- * Kategorie, sonst die Gesamtzahl. Enthält der Ziel-Regelsatz weitere Aufträge, sagt der Text das.
+ * Probe als Tabelle (UI-Regie v1): links vorher die getrennt gezählten Gruppen (Dienstvertrag und freier
+ * Dienstvertrag), rechts nachher die zusammengefasste Kategorie. So sieht man, was die Änderung tut, obwohl die
+ * Gesamtzahl gleich bleibt. Ein Beleg für die ganze Tabelle.
  */
-function EchteWirkungTeil({
-  wirkung: e,
-  kategorien,
-  umverteilt,
-}: {
-  wirkung: EchteWirkung;
-  kategorien: Kategorien;
-  umverteilt: boolean;
-}) {
-  const { basis, ziel } = e;
-  const rb = basis.lauf.regelsatz;
-  const rz = ziel.lauf.regelsatz;
-  const zeilen = umverteilt ? wirkungJeKategorie(e, kategorien) : [];
-  const differenz = ziel.gesamt - basis.gesamt;
+function ProbeTabelleAnsicht({ vorschlag, tabelle: t }: { vorschlag: number; tabelle: ProbeTabelle }) {
+  const kopf = "py-2 text-left font-sans text-14 font-medium text-slate";
+  // Am Handy enger: Die vier Spalten müssen in 358 px passen, sonst ist die Spalte „nachher“ abgeschnitten.
+  const wort = "py-2 pr-2 text-left font-sans text-14 font-normal text-ink sm:pr-4 sm:text-16";
+  const zahlZ = "py-2 pr-2 text-right font-sans text-14 tabular-nums text-ink sm:pr-6 sm:text-16";
+  const aendert = probeAendert(t);
   return (
-    <section className="flex flex-col gap-3 border-t border-line pt-6" aria-labelledby="echte-wirkung">
-      <h2 id="echte-wirkung" className="font-sans text-16 font-semibold text-ink">
-        {`Gerechnet für ${monatName(e.monat)}: Regelsatz ${rb} und Regelsatz ${rz} im Vergleich`}
-      </h2>
-      <Fliesstext groesse={14} ton="gedaempft">
-        {`Das ist der jüngste Monat, für den es mit beiden Regelsätzen einen fertigen Lauf gibt.`}
-      </Fliesstext>
-      {zeilen.length > 0 && (
-        <ul className="flex flex-col gap-2">
-          {zeilen.map((k) => (
-            <li key={k.kategorie} className="break-words font-sans text-16 tabular-nums text-ink">
-              {`${k.kategorie}: Regelsatz ${rb} ${formatZahl(k.basis)}${
-                k.basisTeile.length > 1 ? ` (${k.basisTeile.map((t) => teilWort(t)).join(" + ")})` : ""
-              }, Regelsatz ${rz} ${formatZahl(k.ziel)}`}
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="font-sans text-16 tabular-nums text-ink">
-        {`Gesamt: Regelsatz ${rb} ${formatZahl(basis.gesamt)}, Regelsatz ${rz} ${formatZahl(ziel.gesamt)} (${formatDifferenz(differenz)})`}
-      </p>
-      {e.auchImZiel.length > 0 && (
-        <Fliesstext groesse={14}>
-          {`Regelsatz ${rz} enthält auch ${e.auchImZiel.map((t) => `„${t}“`).join(" und ")}. Der Unterschied zwischen den Regelsätzen kommt deshalb nicht nur aus diesem Auftrag.`}
-        </Fliesstext>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <HerkunftChip {...laufBeleg(basis.lauf, { sql: sqlWirkung(basis.lauf) })} />
-        <HerkunftChip {...laufBeleg(ziel.lauf, { sql: sqlWirkung(ziel.lauf) })} />
-        <HerkunftChip quelle="meta.lauf" lieferung={e.monat} sql={sqlWirkungMonat(rb, rz)} />
+    <div className="flex flex-col gap-2">
+      <div className="overflow-x-auto">
+      <table className="w-full max-w-2xl border-collapse">
+        <caption className="sr-only">{`${probeTitel(t.lieferung)}: Beschäftigungsverhältnisse vorher und nachher`}</caption>
+        <thead>
+          <tr className="border-b border-line">
+            <th scope="col" colSpan={2} className={kopf}>
+              vorher
+            </th>
+            <th scope="col" colSpan={2} className={`${kopf} border-l border-line pl-2 sm:pl-4`}>
+              nachher
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {t.zeilen.flatMap((z) => {
+            const teile = z.vorherTeile.length > 0 ? z.vorherTeile : [{ wort: z.kategorie, wert: z.vorher }];
+            return teile.map((teil, i) => (
+              <tr key={`${z.kategorie}-${teil.wort}`} className={i === teile.length - 1 ? "border-b border-line" : ""}>
+                <td className={wort}>{teil.wort}</td>
+                <td className={zahlZ}>{formatZahl(teil.wert)}</td>
+                {i === 0 && (
+                  <>
+                    <th scope="row" rowSpan={teile.length} className={`${wort} border-l border-line pl-2 sm:pl-4 align-middle`}>
+                      {z.kategorie}
+                    </th>
+                    <td rowSpan={teile.length} className={`${zahlZ} pr-0 align-middle`}>
+                      {formatZahl(z.nachher)}
+                    </td>
+                  </>
+                )}
+              </tr>
+            ));
+          })}
+          <tr className="font-semibold">
+            <td className={`${wort} font-semibold`}>Gesamt</td>
+            <td className={`${zahlZ} font-semibold`}>{formatZahl(t.gesamt.vorher)}</td>
+            <td className={`${wort} border-l border-line pl-2 sm:pl-4 font-semibold`}>Gesamt</td>
+            <td className={`${zahlZ} pr-0 font-semibold`}>{formatZahl(t.gesamt.nachher)}</td>
+          </tr>
+        </tbody>
+      </table>
       </div>
-    </section>
-  );
-}
-
-/** Zeilen „Arbeiter (Qualifikation): 0 → 210.000 (+210.000)“, jede mit Beleg auf genau ihre Zahlen. */
-function WaageZeilen({ vorschlag, waage: w, zeilen }: { vorschlag: number; waage: Waage; zeilen: WaageZeile[] }) {
-  return (
-    <ul className="flex flex-col gap-2">
-      {zeilen.map((z) => (
-        <li key={`${z.merkmal}-${z.code}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 font-sans text-14 text-ink">
-          <span className="break-words">
-            {`${z.merkmal === "gesamt" ? "Gesamt" : z.bezeichnung}: `}
-            <span className="font-mono tabular-nums">
-              {`${formatZahl(z.vorher)} → ${formatZahl(z.nachher)} (${formatDifferenz(z.differenz)})`}
-            </span>
-          </span>
-          <HerkunftChip {...waageBeleg(vorschlag, w, z)} />
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function Regelzeilen({ text }: { text: string }) {
-  return (
-    <pre className="max-w-full overflow-x-auto whitespace-pre-wrap break-words rounded border border-line bg-paper p-2 font-mono text-12 text-ink">
-      {text.split("\n").map((zeile, index) => (
-        <span
-          key={index}
-          className={`block ${zeile.startsWith("+") ? "bg-gruen-bg" : zeile.startsWith("-") ? "bg-err-bg" : ""}`}
-        >
-          {zeile}
+      <div className="flex flex-wrap items-baseline gap-x-4">
+        <span className="font-sans text-16 text-ink">
+          {aendert.gesamt
+            ? `Gesamt ändert sich um ${formatDifferenz(t.gesamt.nachher - t.gesamt.vorher)}.`
+            : aendert.gliederung
+              ? "Gesamt bleibt gleich, nur die Gliederung ändert sich."
+              : "Bei den Beschäftigungskategorien ändert die Probe keine Zahl, die Gesamtzahl bleibt gleich."}
         </span>
-      ))}
-    </pre>
+        <BelegLink {...probeTabelleBeleg(vorschlag, t)} />
+      </div>
+    </div>
+  );
+}
+
+/** Vergleich der Regelsätze aus echten Läufen: je Kategorie und Gesamt, der jüngste Monat mit beiden Läufen. */
+function WirkungTeil({ wirkung: e, kategorien }: { wirkung: EchteWirkung; kategorien: Kategorien }) {
+  const rb = e.basis.lauf.regelsatz;
+  const rz = e.ziel.lauf.regelsatz;
+  const zeilen = wirkungJeKategorie(e, kategorien).sort((a, b) => a.kategorie.localeCompare(b.kategorie, "de"));
+  const beleg: Beleg = {
+    quelle: "stat.stat_beschaeftigte",
+    lieferung: e.monat,
+    monat: e.monat,
+    regelstand: `${rb} ${e.basis.lauf.regelstand}, ${rz} ${e.ziel.lauf.regelstand}`,
+    verweis: `Regelsatz ${rb} und ${rz}, jüngster Monat mit fertigem Lauf in beiden`,
+    sql: [`-- Regelsatz ${rb}`, sqlWirkung(e.basis.lauf), "", `-- Regelsatz ${rz}`, sqlWirkung(e.ziel.lauf)].join("\n"),
+  };
+  return (
+    <DetailBlock titel={`Gerechnet für ${monatName(e.monat)}, Regelsatz ${rb} und ${rz}`}>
+      <div className="overflow-x-auto">
+      <table className="w-full max-w-lg border-collapse">
+        <caption className="sr-only">{`Beschäftigungsverhältnisse ${monatName(e.monat)} mit Regelsatz ${rb} und ${rz}`}</caption>
+        <thead>
+          <tr className="border-b border-line">
+            <th scope="col" className="py-2 pr-6 text-left">
+              <span className="sr-only">Kategorie</span>
+            </th>
+            <th scope="col" className={kopfZelle}>{`Regelsatz ${rb}`}</th>
+            <th scope="col" className={kopfZelle}>{`Regelsatz ${rz}`}</th>
+            <th scope="col" className={kopfZelle}>
+              Unterschied
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {zeilen.map((k) => (
+            <tr key={k.kategorie} className="border-b border-line text-14 text-ink">
+              <th scope="row" className="py-2 pr-6 text-left font-sans font-normal">
+                {k.kategorie}
+              </th>
+              <td className={zelle}>{formatZahl(k.basis)}</td>
+              <td className={zelle}>{formatZahl(k.ziel)}</td>
+              <td className={zelle}>{formatDifferenz(k.ziel - k.basis)}</td>
+            </tr>
+          ))}
+          <tr className="text-14 font-semibold text-ink">
+            <th scope="row" className="py-2 pr-6 text-left font-sans">
+              Gesamt
+            </th>
+            <td className={zelle}>{formatZahl(e.basis.gesamt)}</td>
+            <td className={zelle}>{formatZahl(e.ziel.gesamt)}</td>
+            <td className={zelle}>{formatDifferenz(e.ziel.gesamt - e.basis.gesamt)}</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      {e.auchImZiel.length > 0 && (
+        <p className="font-sans text-14 text-slate">
+          {`Regelsatz ${rz} enthält auch ${e.auchImZiel.map((t) => `„${auftragKopf(`${t}:`).titel}“`).join(" und ")}. Der Unterschied kommt deshalb nicht nur aus diesem Auftrag.`}
+        </p>
+      )}
+      <div>
+        <BelegLink {...beleg} />
+      </div>
+    </DetailBlock>
   );
 }

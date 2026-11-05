@@ -1,133 +1,135 @@
-# Vorführung am Freitag (06.11.2026) ohne Netz
+# Vorführung am Freitag (06.11.2026): online auf einer eigenen Instanz
 
-Die Vorführung läuft auf dem Vorführrechner, weil das Veranstaltungs-WLAN unsicher ist. Alles Lesende (`/`, `/uc3`,
-`/uc4`) liest aus der lokalen Datenbank `statistik_demo`, die genau den Inhalt der Online-Demo hat.
-Stand und Messdatum: 05.11.2026. Was nicht gemessen ist, steht als „nicht gemessen“.
+Die Live-Demo läuft auf dem Demo-Server unter einer eigenen Adresse mit Passwort, über den Hotspot des Vortragenden.
+Die öffentliche Demo bleibt lesend und daneben unverändert. Gerechnet wird ohne Modell, nur die Agenten rufen das
+Azure-Modell (`gpt-5-4-mini`).
+Stand 05.11.2026. Was nicht gemessen ist, steht als „nicht gemessen“.
 
-Platzhalter: `<hauptablage>` ist der Checkout mit der `.env.local`, `<vorfuehrung>` der Worktree für die Vorführung,
-`<lokal>` die Verbindung zur lokalen Postgres-Instanz auf Port 5433 (`postgresql://<nutzer>:<passwort>@localhost:5433`),
-`<bau-db>` die Verbindungs-URL der Rechen-Datenbank auf dem Bau-Rechner, `<bau-host>` dessen SSH-Name. Zugänge stehen
-nie im Repo.
+Platzhalter: `<vorführ-adresse>` ist die Adresse der Instanz, `<dump>` eine `pg_dump -Fc`-Datei der Abgabe-DB. Zugang: Nutzer
+`vorfuehrung`, Passwort `VORFUEHRUNG_ZUGANG` in der `.env.local` des Haupt-Checkouts. Beides steht nie im Repo.
 
-## Vorbereitung (Donnerstag spät oder Freitag nach dem Merge-Stopp, mit Netz)
+## Aufbau
 
-Die Hauptablage stand am 05.11. auf einem alten Planungs-Branch, nicht auf `main`. Vorgeführt wird deshalb aus einem
-eigenen Worktree auf dem gemergten Stand. `web` liest `../.env.local`, also die Datei an der Wurzel des Worktrees; sie ist
-ein Link auf die `.env.local` der Hauptablage und kommt nie ins Repo.
+| Teil | Inhalt |
+|---|---|
+| Caddy | der öffentliche Container mit einem zweiten Site-Block aus `<basis>/vorfuehrung/caddy/`, Basic-Auth, alle Methoden |
+| App | eigenes Compose-Projekt `ki-challenge-vorfuehrung`, eigenes Image mit git, ohne `KIC_ONLINE_LESEND`, mit `KIC_VORFUEHRUNG=1` |
+| DB | eigener Container in eigenem Netz, `statistik_vorfuehrung` plus Vorlage. Enthält `roh` und `bereinigt`, die öffentliche App erreicht ihn nicht |
+| UC1, UC2 | lesend aus der öffentlichen DB (Rolle `kic_app`) |
+| Git | eigener Checkout mit einem Commit „Ausgangsstand“, kein Remote, also kein Push. Die Freigabe committet dorthin |
+| Modell | nur Azure, kein Rückfall auf Mistral: Scheitert Azure, steht das als Fehler auf der Seite. Eigenes Tagesbudget (`VORFUEHRUNG_TAGESBUDGET`, Standard 2000, Grenze je UTC-Tag), eigenes Protokoll-Volume |
 
-```bash
-cd <hauptablage> && git fetch origin
-git worktree add --detach <vorfuehrung> origin/main
-cd <vorfuehrung> && ln -s <hauptablage>/.env.local .env.local
-pnpm install --frozen-lockfile && uv sync --all-packages   # braucht Netz, danach nicht mehr
-```
+Der Auftrag im Browser hält keine Anfrage offen: POST startet `uc3 agent` im Server, die Seite fragt alle 3 s den Stand ab.
+Reißt das Netz kurz ab, rechnet der Auftrag weiter, und auch ein Neuladen findet ihn wieder.
 
-Ist der Worktree schon da: `git -C <vorfuehrung> checkout --detach origin/main` nach einem `git fetch`, dann dieselbe
-Installationszeile.
-
-## Start in fünf Befehlen (Freitag früh, ohne Netz)
+## Aufsetzen (einmal, nur der Lead)
 
 ```bash
-cd <vorfuehrung> && grep -cE '^(LLM_PROVIDER|UC[123]_DATABASE_URL)=' .env.local   # muss 0 sein, sonst siehe unten
-psql "<lokal>/statistik_demo" -Atc 'select count(*) from meta.lauf'                  # erwartet 166
-export UC3_DATABASE_URL=<lokal>/statistik_demo UC1_DATABASE_URL=<lokal>/lotse UC2_DATABASE_URL=<lokal>/healthpolicy LLM_PROVIDER=mock NEXT_TELEMETRY_DISABLED=1
-pnpm dev   # Terminal 1, App auf http://127.0.0.1:3000 (Skript in web/package.json)
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3000/uc3   # Terminal 2, erwartet 200
+scripts/vorfuehrung.sh zugang              # legt VORFUEHRUNG_ZUGANG an, falls er fehlt; Wert wird nie ausgegeben
+scripts/deploy.sh up && scripts/deploy.sh pruefen   # einmalig von main: Caddy bekommt die Import-Zeile und das Volume
+scripts/vorfuehrung.sh init                # Passwort, Budget, Azure-Zugang, Caddy-Fragment (nur der Hash)
+scripts/vorfuehrung.sh up <ref>            # baut den Stand, legt den Checkout an, lädt Caddy neu
+scripts/vorfuehrung.sh daten <dump>        # lädt hoch, spielt die Vorlage ein, legt die Arbeitskopie an
+scripts/vorfuehrung.sh pruefen             # ohne Zugang 401, mit Zugang Seiten, öffentliche Demo weiter gesperrt
 ```
 
-- `web` startet mit `dotenv -o` (`web/package.json`): Ein Schlüssel aus `.env.local` **überschreibt** das `export`.
-  Deshalb muss die erste Zeile 0 ergeben. Steht dort `LLM_PROVIDER` oder eine `UC*_DATABASE_URL`, liefe die Vorführung
-  still gegen ein echtes Modell (Geld) oder eine andere Datenbank. Dann die Zeile in `.env.local` auskommentieren.
-  Am 05.11. ergab die Prüfung 0 (gemessen nur über Schlüsselnamen).
-- `LLM_PROVIDER=mock` gibt feste Platzhalter statt Modellantworten. Zahlen kommen aus der Datenbank und bleiben gleich.
-- `pnpm dev` statt Produktions-Build: Der Build ist für den Vorführrechner zu schwer. Dauer des ersten Aufrufs: nicht
-  gemessen.
-- `.env.local` enthält weitere Schlüssel (Modell, Voice, Abgabe). Ihre Werte werden nie gezeigt.
+Den Dump zieht man auf dem Rechner mit der Rechen-Datenbank aus der Abgabe-DB, die dabei nur gelesen wird:
+`docker exec statagent-db pg_dump -U statistik -d statistik -Fc -Z 4 > <dump>`. Ein neuer Stand: `up <ref>`, danach `reset`.
 
-## Probe ohne Netz (nicht ausgeführt)
+## Ablauf Freitag früh (05:57 bis 07:00)
 
-1. WLAN aus: `networksetup -setairportpower en0 off` (wieder an: `... on`). Ethernet und Hotspot ebenfalls trennen.
-   Das trennt auch den Tunnel zum Bau-Rechner.
-2. Die fünf Befehle oben ausführen, dann `/`, `/uc3`, `/uc3/klassifikationen`, `/uc4` und `/praesentation` öffnen.
-3. Erwartet: Status 200, keine Meldung „nicht erreichbar“, dieselben Zahlen wie online (24 Lieferungen, 166 Läufe).
-4. Im Browser unter „Netzwerk“ prüfen, dass keine Anfrage nach außen geht. Im Web-Code stehen keine Schrift- oder
-   CDN-Adressen, die Schriften kommen lokal aus `@fontsource-variable/*` (gemessen mit `grep`).
+Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset` jede spätere Freigabe zurücknimmt.
+`statistik` wird dabei nur gelesen und bekommt die Pensionen bis nach 09:00 nicht. Server-Schritte startet nur der Lead.
 
-## Datenbank statistik_demo
+1. **Ab 05:57, neuer Dump mit Pensionen, nach den letzten Läufen.** Auf dem Rechner mit der Rechen-Datenbank, mit einem
+   Code-Stand ab !214:
+   ```bash
+   scripts/vorfuehrung-db.sh --ersetzen statistik statistik_vorfuehrung_pensionen
+   # mit UC3_DATABASE_URL auf diese Kopie und gesetztem STATAGENT_STARTPAKET:
+   uv run uc3 db init && uv run uc3 pensionen laden && uv run uc3 pensionen pruefen
+   docker exec statagent-db pg_dump -U statistik -Fc -d statistik_vorfuehrung_pensionen > <dump>
+   psql "<kopie>" -X -q -At -v schema=stat -f deploy/sql/inhaltshash.sql | grep GESAMT   # dasselbe für meta, beide notieren
+   ```
+   Probe am 05.11. mit einem Zwischenstand von !214: 2 min 33 s bis zum fertigen Dump, 457 MB.
+2. **Stand und Daten auf den Server.** `scripts/vorfuehrung.sh up <ref>` mit dem Stand, der vorgeführt wird, dann
+   `scripts/vorfuehrung.sh daten <dump>`. `daten` gibt die GESAMT-Zeilen aus, sie müssen denen aus Schritt 1 gleichen.
+3. **Probe.** `scripts/vorfuehrung.sh pruefen`, danach einmal D1 bis D4 im Browser, dann `scripts/vorfuehrung.sh reset`.
+4. **07:00, Freigabe.** Der Owner gibt die Pensionen mit seinem Namen frei, bis dahin steht dort „vorläufig“:
+   `scripts/vorfuehrung.sh pensionen-freigeben "<Vor- und Nachname>"`. Der Befehl läuft in der App, der Commit landet im Checkout.
+5. **Direkt danach:** `scripts/vorfuehrung.sh festschreiben`. Keine Probe dazwischen, sonst wird sie mit festgeschrieben.
+6. **Gegenprobe.** `scripts/vorfuehrung.sh reset`. Der Beleg ist die Freigabe, die danach noch auf der Seite steht; die Meldung
+   „0 Commits“ gilt immer. Das ist der Stand für die Vorführung um 09:00.
 
-Der Dump `uc3-online-2026-11-05.sql.gz` liegt auf dem Server in `<basis>/daten/uc3/` und als Kopie lokal außerhalb des
-Repos. Er ist 17.057.030 Bytes groß, die ersten 16 Zeichen seines SHA-256 sind `891a651c9a09c2d7`.
+## Vorführen
 
-- Inhalt: pg_dump im Klartext, 2.781.882 Zeilen, nur die Schemas `meta` und `stat` (ohne `roh`, bereinigt).
-  Die Klassifikationen stecken in `stat.klass_*`, ein eigenes Schema `klassifikation` gibt es im Dump nicht.
-- Er enthält kein `DROP`, kein `CREATE DATABASE`, kein `\connect` und kein eigenes `BEGIN`/`COMMIT`. Gegen `statistik`
-  würde er an `CREATE SCHEMA` scheitern. Er gehört deshalb nur in eine neue, leere Datenbank.
+1. Hotspot an, `<vorführ-adresse>` öffnen, Nutzer und Passwort eingeben.
+2. **D1 Lauf und Bericht, vor D2:** `/uc3/auftrag`, unten einen Monat rechnen, dann „Monat und Qualitätsbericht ansehen“.
+3. **D2 Live-Änderung:** `/uc3/auftrag`, Satz tippen, Monat für die Zahlen wählen, „Vorschlag schreiben lassen“. Danach „Vorher
+   und nachher ansehen“, Name eintragen, freigeben. Die Seite nennt den Commit. Rücknahme: neuer Auftrag „Nimm Vorschlag <n>
+   zurück“, wieder freigeben.
+4. **D3 Datenanfragen:** `/uc3/fragen`.
+5. **D4 Gemeinsamer Einstieg:** `/uc4`.
+
+Die Zahlen nachher kommen in der Vorführung aus der Probe auf dem Vorschlag. Ein neuer Regelsatz rechnet Monate nur in
+zeitlicher Reihenfolge ab dem ersten Monat, alle 24 sind live nicht machbar; die Seite bietet deshalb nur rechenbare Monate an.
+Nicht jeder Auftrag ändert in jedem Monat eine Zahl: Der Auftrag zum Geburtsmonat 13 wirkt nur in Jänner bis Juni, im Juli 2026
+ändert er keine. Für ihn Juni 2026 wählen (Gesamtzahl gleich, die Altersgruppen verschieben sich um wenige Personen, gemessen in
+der Lane Live-Änderung). März und Oktober 2025 bietet die Seite für die Probe nicht an: Dort enthält der Bestand Fortschreibungen,
+und die Probe zeigt bisher eine falsche Gesamtzahl.
+
+## Zurück auf den Ausgangsstand
 
 ```bash
-psql "<lokal>/statistik" -c 'create database statistik_demo'   # nur wenn sie fehlt
-gzip -t <dump> && { echo 'begin;'; gzip -dc <dump> && echo 'commit;'; } | nice -n 10 psql "<lokal>/statistik_demo" -X -q -v ON_ERROR_STOP=1
-for s in stat meta; do psql "<lokal>/statistik_demo" -X -q -At -v schema=$s -f deploy/sql/inhaltshash.sql | grep GESAMT; done
-scripts/deploy.sh inhaltshash statistik stat; scripts/deploy.sh inhaltshash statistik meta   # online, nur lesend
+scripts/vorfuehrung.sh reset
 ```
 
-`gzip -t` prüft die ganze Datei vorher, und das `commit` folgt nur, wenn gzip bis zum Ende gelesen hat (wie
-`scripts/deploy.sh daten`).
+Neue Arbeitskopie aus der Vorlage, Freigabe-Commits weg, App neu gestartet, auch ein laufender Auftrag endet damit. Die Vorlage
+und das Tagesbudget bleiben. Danach kann die Vorführung noch einmal laufen, etwa 09:00 und später fürs Management.
 
-Gemessen am 05.11.: Einspielen 12,9 s, Größe 839 MB, freie Platte 21 GiB vorher, 19 GiB nachher.
-Die GESAMT-Zeilen sind lokal und online gleich: `stat 2764050 95f11e1b4c81107e70f45300c37b18c3`, `meta 16350 6b3fe1a923300314ac641e0e9edb1e04`.
-Neuaufbau: `dropdb` für `statistik_demo`, dann die Befehle oben (rund 13 s).
-
-Kernabfragen der Seiten, lokal gelaufen: `select count(*) from meta.lauf` gibt 166, `count(distinct lieferung)` gibt 24,
-der letzte Lauf ist Lieferung 2026-07 mit Status `unveraendert`. `select sum(wert), count(*) from stat.stat_beschaeftigte
-where zeitraum_von='2024-08-31'` gibt 1568944 und 115220. Die App liest nur `UC3_DATABASE_URL` (`web/components/uc3/db.ts`,
-`web/landing/daten/befunde.ts`) und nur aus `meta` und `stat`. Die App selbst ist nicht gestartet worden.
-
-## Live-Änderung (ein Lauf)
-
-Entscheid (Infra-Lane, 05.11.): Die App liest bei der Live-Änderung dieselbe Datenbank, in die der Lauf schreibt. Sonst
-erscheint der neue Lauf nicht. `statistik_demo` ist eine Kopie und bleibt unverändert.
-
-1. **Mit Netz: Rechen-Datenbank auf dem Bau-Rechner über einen SSH-Tunnel.**
-   `ssh -o ExitOnForwardFailure=yes -N -L <tunnel-port>:localhost:5433 <bau-host>` (Terminal 3), dann die App mit
-   `UC3_DATABASE_URL=<bau-db>` statt `statistik_demo` starten. Diese Datenbank ist die Quelle der Online-Daten
-   (166 Läufe), sie zeigt dieselben Zahlen plus den neuen Lauf. Achtung: Sie ist die geteilte Bau-DB, der Lauf schreibt
-   dort hinein. Ein Lauf über den Tunnel ist nicht erprobt.
-2. **Ohne Netz: Einzellauf lokal** gegen die DB `statistik` (dort liegt `roh.lieferung` mit 10.152.292 Zeilen in
-   24 Lieferungen): `UC3_DATABASE_URL=<lokal>/statistik uv run uc3 lauf --lieferung <JJJJ-MM>`. Dauer lokal nicht
-   gemessen (auf dem Bau-Rechner rund 17 s je Lauf). Die lokale `statistik` hat nur 2 Läufe, die Anzeige weicht dann von
-   online ab. Nicht am Vorabend auf dem Vorführrechner testen, die Last stört andere Arbeit.
-3. **Letzter Rückfall:** Backup-Video.
-
-Wechsel zwischen den Datenbanken: `pnpm dev` mit Strg-C beenden, `export UC3_DATABASE_URL=…`, neu starten.
-
-## Voice (nur auf ausdrückliche Anordnung)
-
-Befehle aus `docs/voice.md`, `--help` geprüft (`serve`, `sync`, `smoke`; `serve` kennt `--uc uc4`, `--mock`, `--port`, `--host`):
+Eine Freigabe, die bleiben soll (die Pensionen, Fr 07:00), würde `reset` mit zurücknehmen. Deshalb direkt danach:
 
 ```bash
-uv run python -m plattform.voice serve --uc uc4 --port 8104   # Terminal 3
-scripts/tunnel.sh 8104                                        # druckt PUBLIC_URL (braucht cloudflared)
-# PUBLIC_URL in <vorfuehrung>/.env.local eintragen (Wert nie ausgeben), dann:
-uv run python -m plattform.voice sync                         # wirkt nach außen
+scripts/vorfuehrung.sh festschreiben   # heutiger Stand wird Vorlage, der Commit gehört zum neuen Ausgangsstand
 ```
 
-Dann ein Web-Anruf auf `http://127.0.0.1:3000/uc4` als Smoke. Die Chat-API (`smoke`) braucht eine Karte (402).
-Die Tunnel-Adresse wechselt bei jedem Start, `sync` ist danach jedes Mal nötig. Kosten: etwa 5 Cent je 40 s, Guthaben nie
-unter 5 €. `sync` und `smoke` laufen nur mit Freigabe. Voice braucht Netz (Vapi, cloudflared). Gestartet ist nichts davon.
+Das ersetzt die Vorlage. Zurück geht es nur mit `daten <dump>`. Also nur auf einem geprüften Stand, nie nach einer Probe.
+Ein späteres `up` legt den Checkout neu an: Der Freigabe-Commit ist dann weg, die Freigabe in der Datenbank bleibt.
+Bricht `reset` oder `festschreiben` mitten ab, bleibt die App gestoppt: den Befehl wiederholen.
 
-## Was Netz braucht
+## Messungen
 
-- `pnpm install`, `uv sync`, Git und `scripts/deploy.sh`.
-- Modellaufrufe mit `azure`, `mistral`, `claude`. Mit `mock` und `ollama` lokal entfällt das.
-- Voice: Vapi, cloudflared-Tunnel, Webhook.
-- Der Tunnel zum Bau-Rechner für die Live-Änderung.
-- Die Abgabe (`SVBOX_*`). Ein PDF-Dienst steht in `.env.local`, wird im Repo aber nicht gelesen.
-- Kein Netz brauchen: Lesen aus `statistik_demo`, Schriften, `uc3 lauf` (laut `CLAUDE.md` ohne Sprachmodell).
+Gemessen am 05.11.2026 auf der echten Adresse, im Browser, ohne Drosselung, nicht über einen Hotspot. Freigaben mit einem
+Probe-Namen, danach `reset`.
 
-## Offene Punkte
+| Messung | Ergebnis |
+|---|---|
+| D1 Lauf Oktober 2025 im Browser | 92,9 s und 102,0 s; 397.514, Hash `63f106818887`, gleich wie auf der Rechen-Datenbank |
+| D2 Vorschlag (Geburtsmonat 13, Juli 2026) | 141,9 s und 140,1 s |
+| D2 Freigabe mit Name | 3,4 s, Commit mit Trailer im Checkout gelesen |
+| D2 Rücknahme | 89,4 s Vorschlag, 2,4 s Freigabe |
+| D3 Datenanfrage | nicht belegt, Prüfung war zu schwach |
+| D4 `/uc4` | 4,3 s |
+| Ein ganzer Durchlauf | 337,8 s, ohne D3-Beleg; zweiter Durchlauf mit dem neuen Stand steht aus |
+| Reset | 52 s und 51 s |
+| Erster Monat auf einem neuen Regelsatz (2024-08) | 41 s |
+| Basisregelsatz von `uc3 agent` auf dem vorgeführten Stand | v2, Ziel v3, nach Rücknahme Ziel v4 |
+| App-Neustart nach einer Freigabe, dann ein Lauf | läuft, kein Fehler; ein Code-Vorschlag ist dabei nicht geprüft |
+| Seitenlast und Live-Änderung über Hotspot | nicht gemessen |
 
-- App-Start gegen `statistik_demo` und die Probe ohne Netz sind nicht gelaufen (Build zu schwer für den Vorführrechner).
-- `/uc4` nutzt auch `UC1_DATABASE_URL` und `UC2_DATABASE_URL`. Die lokalen DBs `lotse` und `healthpolicy` haben je 9
-  Tabellen, ihr Inhalt ist nicht mit online verglichen.
-- Der Tunnel zum Bau-Rechner ist nicht mit einem Lauf erprobt, die Laufdauer lokal ist nicht gemessen.
-- Der Worktree `<vorfuehrung>` ist noch nicht angelegt; er gehört nach dem Merge-Stopp auf den letzten `main`.
+## Reserve: lokal
+
+Fällt der Server aus, läuft dieselbe App auf dem Vortragsrechner, Azure weiter über den Hotspot. Das ist auch der Weg, den
+die Aufgabenstellung vorgibt (Regel 2, eigenes Gerät) und den andere nachbauen können: `uc3/README.md`.
+
+Vorbereiten, solange das Netz gut ist: ein Worktree auf dem vorgeführten Stand mit Link auf die `.env.local`,
+`pnpm install --frozen-lockfile && uv sync --all-packages`, dazu `statistik_vorfuehrung` lokal aus `<dump>`
+(`createdb`, dann `pg_restore --no-owner --no-privileges`).
+
+```bash
+export UC3_DATABASE_URL=<lokale Verbindung>/statistik_vorfuehrung KIC_VORFUEHRUNG=1 LLM_PROVIDER=azure
+pnpm dev   # App auf http://127.0.0.1:3000
+```
+
+`web` startet mit `dotenv -o`: Ein Schlüssel aus `.env.local` überschreibt das `export`, also dort prüfen, dass
+`UC3_DATABASE_URL` nicht gesetzt ist. Die Freigabe committet hier in den Worktree, deshalb ein eigener Demo-Branch ohne Push.
+Einmal gemessen: nicht gemessen, folgt, sobald die Server-Instanz steht.

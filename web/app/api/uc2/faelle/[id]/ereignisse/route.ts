@@ -3,7 +3,8 @@ import { fehler, gueltigeId, mockErzwungen, MODUS_KOPF, ruftApi, SSE_KOPF } from
 
 // GET /api/uc2/faelle/{id}/ereignisse?seq=n: Server-Sent Events. `id: seq`, `event: art`, `data: json`, Wiederaufnahme
 // über `Last-Event-ID` oder `?seq=`, Ende mit `event: ende`. Echte Fälle reichen den Strom der Python-API unverändert
-// durch; "mock-"-Fälle spielen den Aufgezeichneten zeitversetzt ab (UC2_MOCK_TAKT_MS, Standard 150 ms je Ereignis).
+// durch; "mock-"-Fälle spielen den Aufgezeichneten zeitversetzt ab (UC2_MOCK_TAKT_MS, Standard 150 ms je Ereignis),
+// mit `?sofort=1` ohne Pause („Zum Ergebnis“ soll mit einem Klick das Ende zeigen).
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -22,7 +23,8 @@ export async function GET(anfrage: Request, { params }: { params: Promise<{ id: 
   if (istMockId(id) || mockErzwungen()) {
     const ereignisse = mockEreignisse(id);
     if (!ereignisse) return fehler(404, "Fall nicht gefunden.");
-    return new Response(mockStrom(ereignisse, ab, mockTakt(), anfrage.signal), { headers: { ...SSE_KOPF, [MODUS_KOPF]: "vorfuehrung" } });
+    const takt = new URL(anfrage.url).searchParams.get("sofort") === "1" ? 0 : mockTakt();
+    return new Response(mockStrom(ereignisse, ab, takt, anfrage.signal), { headers: { ...SSE_KOPF, [MODUS_KOPF]: "vorfuehrung" } });
   }
 
   const kopf: Record<string, string> = { accept: "text/event-stream" };

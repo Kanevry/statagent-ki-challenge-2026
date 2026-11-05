@@ -1,20 +1,19 @@
 # Sprech-Skript Fachjury: StatAgent, Use Case 3
 
-Dieses Skript enthält den Sprechtext für die Präsentation (10 Szenen, rund 5:05), den Verweis auf die Demo, die Stichpunkte für das Gespräch am Tisch und die 5-Minuten-Fassung für das Finale. Der Sprechtext steht in der Ich-Form von Bernhard Götzendorfer und ist so geschrieben, wie er ihn laut sagt. Er gehört zur Folge „1 + 2 + 3 = 4“ (Szenen v4).
+Dieses Skript enthält Stichpunkte und Kernsätze für die Fachjury. Die Fachjury beginnt live, ohne Folien (Ablauf: `uc3-jury.md`, Pfad A). Der Vortrag in Abschnitt 1 ist nur der Vorrat, falls die Jury sagt „Erzählen Sie mal“: dann die Szenen 3, 5 und 6, rund 2 Minuten. Der Sprechtext steht in der Ich-Form von Bernhard Götzendorfer. Das Management hat ein eigenes Skript: `skript-management.md`.
 
-- **Stand:** 05.11.2026
-- **Zeiten:** Freeze für Code, Präsentation und Demo am Fr 06.11.2026 um 07:00. Probe Fr 06:00–07:00. Fachjury ab 09:00, etwa 15 Minuten je Team: 10 Minuten Vortrag mit Demo, danach Live-Änderung der Jury und Datenanfragen.
-- **Zielbild:** Die Folien zeigen das Zielbild „1 + 2 + 3 = 4“ und wie wir dahin kamen. Der Tagesstand steht nur im Fragenkatalog `docs/praesentation/fragenkatalog.md`.
-- **Belege:** Zahlen mit Kennung F… (zum Beispiel F3) stehen im Belegregister `docs/praesentation/belegregister.md`. Unter jeder Szene steht, welche Kennungen darin vorkommen. Die Kennungen werden nicht mitgesprochen.
+- **Stand:** 05.11.2026, Vorgabe des Owners 21:2x: Vorführung online über Hotspot.
+- **Zeiten:** Freeze Fr 06.11.2026 um 07:00. Probe 06:00–07:00. Fachjury ab 09:00, 15 bis 20 Minuten, zwei Personen.
+- **Belege:** Zahlen mit Kennung F… (zum Beispiel F3) stehen im Belegregister `docs/praesentation/belegregister.md`. Die Kennungen werden nicht mitgesprochen.
 - **Takte:** Das Zeichen „→“ steht vor dem Satz, der mit dem Klick kommt. Es wird nicht mitgesprochen.
-- **Demo:** Läuft live auf dem Rechner von Bernhard (Stufe 1, Modell Azure). Ablauf und Rückfallwege stehen im Demo-Drehbuch `docs/praesentation/demo-drehbuch.md`.
+- **Demo:** Läuft online auf der Vorführ-Adresse, Modell Azure. Ablauf, Klickwege, Rückfälle und Sprechsätze stehen im Demo-Drehbuch `docs/praesentation/demo-drehbuch.md`.
 - **Lesehilfe:** Der gezählte Sprechtext steht in den eingerückten Absätzen (mit `>`). Alles andere sind Regieanweisungen.
 
 ---
 
-## 1 Vortrag, rund 5 Minuten (Szenen 1 bis 10)
+## 1 Vorrat: Vortrag, rund 5 Minuten (Szenen 1 bis 10), nur auf Nachfrage
 
-Sprechtempo: 130 Wörter je Minute. Die Szenenzeiten sind verbindlich, die Summe ist 5:05. Danach beginnt die Demo (siehe Abschnitt „Demo“).
+Sprechtempo: 130 Wörter je Minute. Am Tisch reichen meist die Szenen 3, 5 und 6.
 
 ### Szene 1 · Drei Aufgaben, eine Antwort · 0:00–0:15
 
@@ -117,25 +116,19 @@ Ergebnis: Schätzung 196 s (höchstens 305 s erlaubt), Soll 305 s gleich 5:05. D
 
 ## Demo
 
-Die Demo beginnt bei 5:05, unmittelbar nach Szene 10, und dauert bis 9:30. Ablauf, Klickwege, Rückfälle und Sprechsätze stehen im Demo-Drehbuch `docs/praesentation/demo-drehbuch.md`. Hier stehen nur die Minutenmarken:
+Ablauf, Minutenmarken, Klickwege, Rückfälle und Sprechsätze stehen im Demo-Drehbuch `docs/praesentation/demo-drehbuch.md`.
 
-| Zeit | Schritt | Dauer |
-|---|---|---|
-| 5:05–6:15 | D1 Lauf und Qualitätsbericht | 1:10 |
-| 6:15–7:45 | D2 Änderung per Sprache mit Freigabe | 1:30 |
-| 7:45–9:00 | D3 Datenanfragen | 1:15 |
-| 9:00–9:30 | D4 Gemeinsamer Einstieg (nur wenn `/uc4` bis zum Freeze grün ist) | 0:30 |
-
-Die Live-Änderung steht im Drehbuch, nicht auf den Folien: der Rückblick auf die echte Freigabe von Auftrag 1 (Vorschlag 24). Eine neue Live-Änderung kommt nur dazu, wenn sie vorher in der Probe bestanden hat. Läuft die öffentliche Demo im Testmodus, sagt Bernhard „Testmodus“ vorher an.
+Die Live-Änderung: erst der Rückblick auf die drei freigegebenen Aufträge, dann die Änderung der Jury, als Satz getippt („Ich sage dem Agenten in einem Satz, was er ändern soll.“). Ersatz ist die geübte Änderung B2.
 
 ---
 
 ## 3 Fachjury-Skript am Tisch
 
-Stichpunkte, keine ganzen Sätze zum Ablesen. Die Zeiten sind Richtwerte für die Zeit nach dem Vortrag. Monate stehen ausgeschrieben, Dateipfade und Befehle behalten ihre Schreibweise.
+Stichpunkte, keine ganzen Sätze zum Ablesen. Die Zeiten sind Richtwerte. Monate stehen ausgeschrieben, Dateipfade und Befehle behalten ihre Schreibweise.
 
 ### Lösung (30 s)
 
+- Die eine Aussage: Jede Zahl lässt sich nachrechnen, jede Änderung hat einen Namen. Die KI versteht den Auftrag, ein Mensch gibt frei, das Programm rechnet.
 - Zwei Sätze: Eine Lieferung rein, ein Qualitätsbericht und eine Nachrechnung des offiziellen Berichts raus. Jede Zahl hat einen Beleg.
 - Die KI schreibt Code und Regeländerungen als Vorschlag. Das Programm rechnet. Der Mensch gibt frei.
 - Regelsatz v1: 15 Einlese-, Zuordnungs- und Zählregeln und 24 Prüfregeln. Der Regelsatz ist die Sammlung der Regeln. Jede Regel hat Gültigkeit, Begründung, Grundlage und Freigabe (F15).
@@ -145,7 +138,8 @@ Stichpunkte, keine ganzen Sätze zum Ablesen. Die Zeiten sind Richtwerte für di
 
 - PostgreSQL 16 mit den Schemas `roh`, `klassifikation`, `bereinigt`, `stat`, `meta`.
 - Python-Paket `statagent`, Befehl `uc3`. Ein Lauf ist eine Lieferung (`lauf --lieferung JJJJ-MM`).
-- Next.js-Oberfläche: im Bau (MR !51). Nur wenn `/uc3` bis zum Freeze auf main ist, wird sie gezeigt. Sonst ist die CLI der Standard.
+- Next.js-Oberfläche `/uc3` mit Läufen, Berichten, Freigaben und Fragen. Rückfall ist die CLI.
+- Regel „lokal“: Läuft lokal wie gefordert, und zusätzlich auf einem Server, den wir selbst betreiben. Sie können es selbst nachbauen, ab einem frischen Klon 36 Minuten (F30). Die Abgabezahlen sind auf der eigenen Datenbank gerechnet, online läuft nur die Vorführung (FAQ Frage 14).
 - Modelle nur über `plattform.llm`. Standard für die UC3-Agenten ist Azure (gpt-5-4-mini). Umschaltbar über `LLM_PROVIDER`. Das Modell sieht Regeln, Schemata und Summen, keine Einzeldaten.
 
 ### Herausforderungen (45 s)
@@ -194,81 +188,23 @@ Rückfallsatz, wenn etwas Ungeübtes kommt: „Das setzt der Agent als Vorschlag
 
 ### Datenanfragen
 
-Beispiele, Kurzantworten und Fundstellen stehen im Fragenkatalog `docs/praesentation/fragenkatalog.md`. Stand heute: Der Befehl `frage` ist noch nicht fertig (Issues #74 und #75). Datenanfragen laufen bis dahin als SQL aus dem Fragenkatalog gegen die UC3-Datenbank. Das ehrlich so sagen.
+Beispiele, Kurzantworten und Fundstellen stehen im Fragenkatalog `docs/praesentation/fragenkatalog.md`. Datenanfragen laufen über `/uc3/fragen` oder `uv run uc3 frage "…"` (MR !61, #74), nur mit den geprüften Fragen aus dem Drehbuch D3. Rückfall ist das SQL aus dem Fragenkatalog, Teil A. Der Ablauf der ganzen 15 Minuten steht in `docs/praesentation/uc3-jury.md`.
 
 ---
 
-## 4 Finale, 5 Minuten
+## 4 Management
 
-Nur falls das Team unter die ersten drei kommt. Das Publikum ist ein Manager-Gremium mit weniger Technik, mehr Anwendung und Verantwortung. Szenenfolge: 1, 2, 3, 5, 6 (gekürzt auf drei Befunde), 9, dann die Verantwortung in drei Sätzen, dann 10. Keine Technikfolie am Schluss: Die Verantwortung kommt vor dem Schlussbild. Es gibt im Finale keine Demo; die Schlussszene wird ohne „Jetzt live“ gesprochen.
-
-### Finale · Szene 1 · Drei Aufgaben, eine Antwort · 0:00–0:20
-
-> Guten Tag, ich bin Bernhard Götzendorfer, Team OneShotAndy. Ich zeige Ihnen, wie aus drei Aufgaben eine vierte wurde. Bewertet wird die Statistik, Aufgabe 3.
-
-### Finale · Szene 2 · Drei Menschen, drei Fragen · 0:20–0:50
-
-> Drei Menschen brauchen eine Antwort. Versicherte wollen wissen, was ihnen zusteht. Entscheider wollen wissen, was eine Entscheidung bewirkt. Das Statistik-Team will sicher sein, dass jede veröffentlichte Zahl stimmt. Alle drei brauchen eine Antwort, der sie trauen können.
-
-### Finale · Szene 3 · Eine falsche Zahl kostet Vertrauen · 0:50–1:40 (3 Takte)
-
-> Ein Fall aus den Daten der Challenge. Jeden Monat kommt eine Lieferung, daraus wird eine Zahl.
-> → Im Oktober 2025 fehlen in der Lieferung 78.949 Beschäftigungsverhältnisse, jedes fünfte. Wer einfach zählt, meldet 81.046 weniger, einen Einbruch, den es nie gab.
-> → StatAgent veröffentlicht nicht. Er hält an und schreibt eine Rückfrage.
-> → Im November 2025 sind 78.733 davon wieder da.
-
-### Finale · Szene 5 · Wir rechnen den offiziellen Bericht nach · 1:40–2:10
-
-> Der Veranstalter hat einen offiziellen Bericht für August 2024 mitgegeben: 13 Tabellen, 2.880 Zahlen. StatAgent rechnet ihn selbst nach. Alle 2.880 stimmen, null Abweichungen. Für die anderen 23 Monate wachen 24 Prüfregeln.
-
-### Finale · Szene 6 (gekürzt) · Acht Arten von Fehlern gefunden · 2:10–2:50 (3 Takte)
-
-> In den Daten stecken Fehler.
-> → 370 Beschäftigungsverhältnisse mit Geburtsmonat 13.
-> → Sieben Datensätze mit 117 bis 153 Jahren.
-> → 1.663 doppelte Zeilen im März 2025. Acht Arten insgesamt. Gelöscht haben wir nichts. Das Programm korrigiert nach einer Regel oder hält an und fragt nach.
-
-### Finale · Szene 9 · Eine Frage, drei Antworten, jede mit Beleg · 2:50–3:20 (3 Takte)
-
-> Das ist das Ziel: Eine Frage läuft durch alle drei.
-> → StatAgent liefert die geprüfte Zahl: 7.498 Beschäftigungsverhältnisse.
-> → Der Simulator wägt ab, was mehr oder weniger Personal für Wartezeiten bedeutet.
-> → Der Lotse erklärt es in einfachen Worten. So wird aus drei Aufgaben eine vierte.
-
-### Finale · Verantwortung in drei Sätzen · 3:20–4:00
-
-> Jede Regeländerung und jede Lieferung gibt ein Mensch mit Vor- und Nachnamen frei, und der Zeitpunkt wird festgehalten. Ist ein Monat veröffentlicht, bleibt seine Zahl, und Abweichungen stehen im Bericht, statt dass wir etwas überschreiben. Das Modell sieht keine Einzeldaten, und die Verantwortung für jede Zahl bleibt bei Menschen.
-
-### Finale · Szene 10 · Jede Zahl nachrechenbar · 4:00–4:15
-
-> Jede Zahl lässt sich nachrechnen, jede Änderung hat einen Namen. Danke.
-
-**Zeittabelle Finale**
-
-| Teil | Fenster (s) | Wörter im Sprechtext | Schätzung bei 130 Wörtern/min (s) |
-|---|---|---|---|
-| Szene 1 · Drei Aufgaben, eine Antwort | 20 | 24 | 11 |
-| Szene 2 · Drei Menschen, drei Fragen | 30 | 37 | 17 |
-| Szene 3 · Eine falsche Zahl kostet Vertrauen | 50 | 57 | 26 |
-| Szene 5 · Wir rechnen den offiziellen Bericht nach | 30 | 32 | 15 |
-| Szene 6 (gekürzt) · Acht Arten von Fehlern gefunden | 40 | 42 | 19 |
-| Szene 9 · Eine Frage, drei Antworten | 30 | 43 | 20 |
-| Verantwortung in drei Sätzen | 40 | 49 | 23 |
-| Szene 10 · Jede Zahl nachrechenbar | 15 | 11 | 5 |
-| **Summe** | **255** | **295** | **136** |
-
-Ergebnis: Fenster zusammen 255 s gleich 4:15, Grenze ist 4:45. Die reine Sprechzeit liegt bei etwa 136 s. Der Rest sind Folienwechsel, Takte und Pausen.
-
-Belege Finale: F11, F17 (Szene 3), F1, F15 (Szene 5), F4, F5, F8 (Szene 6), F18 (Szene 9).
+Eigenes Skript: `skript-management.md`, Folien auf `/praesentation/management`, Antworten in `management-faq.md`.
 
 ---
 
 ## 5 Nicht sagen
 
-- Keine Zeitersparnis ohne Messung. Kein „Minuten statt Tage“, bis ein Use-Case-Owner einen Wert nennt.
+- Keine Zeitersparnis ohne Messung. Kein „Minuten statt Tage“. Stattdessen die offene Frage: „Wie lange dauert das bei Ihnen heute?“ und daneben unsere gemessene Dauer (FAQ Frage 7).
+- Nichts über die Fachabteilung behaupten. Richtig: Annahme mit Beleg, Rückfrage dokumentiert.
 - Kein Personalabbau und keine Stelleneinsparung als Argument.
 - Nie „die KI hat gerechnet“. Richtig: Die KI schreibt Code, das Programm rechnet.
-- Keine Hostnamen, auch keine Rechner- oder Servernamen. Die öffentliche Demo läuft im Testmodus. Wird sie gezeigt, heißt sie „öffentliche Demo“ und der Testmodus wird angesagt.
+- Keine Hostnamen, auch keine Rechner- oder Servernamen.
 - Keine IPs, Zugangsdaten und Beispiel-IDs einzelner Verhältnisse.
 - Keine Rückfrage-Nummern außer R1 (Geburtsmonat 13). Sonst: „Rückfrage an die Fachabteilung“.
 - Keine Zahl, die nicht im Belegregister steht.

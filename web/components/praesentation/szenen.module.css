@@ -210,6 +210,19 @@
   letter-spacing: -0.01em;
   white-space: nowrap;
 }
+/* Beschriftung des Kreises 3 im Kopf: über dem Kreis (darunter beginnt in Szene 3 und 9 schon der Inhalt bei 176 px),
+   links bündig mit ihm, endet vor dem Titel bei 220 px. Sans in normaler Schreibung, kein Mono- oder Versal-Etikett. */
+.kopf-uc {
+  position: absolute;
+  left: 120px;
+  top: 46px;
+  margin: 0;
+  font-family: var(--f-text);
+  font-size: 20px;
+  line-height: 1.2;
+  color: var(--neben);
+  white-space: nowrap;
+}
 .titel-lang {
   font-size: 46px;
   top: 100px;
@@ -664,7 +677,6 @@
   width: 740px;
   padding: 44px 48px;
   border: 1px solid var(--linie);
-  border-left: 8px solid var(--mint);
   border-radius: 8px;
   background: var(--ink);
 }
@@ -1452,7 +1464,14 @@
   color: var(--text);
 }
 
-/* 6. Reduzierte Bewegung und Druck: Endzustand */
+/* 6. Stille Folie (Sprung aus der Folienliste), reduzierte Bewegung und Druck: Endzustand */
+.szene.still,
+.szene.still *,
+.szene.still *::before,
+.szene.still *::after {
+  animation: none !important;
+  transition: none !important;
+}
 @media (prefers-reduced-motion: reduce) {
   .szene,
   .szene *,
@@ -1465,6 +1484,78 @@
     display: none;
   }
 }
+/* Szene zahlen (Management-Fassung): bis zu drei große Zahlen oder eine Liste von Sätzen */
+.z-flaeche {
+  position: absolute;
+  left: 120px;
+  right: 120px;
+  top: 190px;
+  bottom: 90px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 110px;
+}
+.z-zahlen {
+  display: flex;
+  gap: 80px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.z-kachel {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.z-zahl {
+  margin: 0;
+  font-family: var(--f-titel);
+  font-weight: 700;
+  font-size: 104px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--mint);
+  white-space: nowrap;
+}
+.z-text {
+  margin: 24px 0 0;
+  font-size: 36px;
+  line-height: 1.3;
+}
+.z-saetze {
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.z-satz {
+  font-size: 48px;
+  line-height: 1.25;
+  font-weight: 500;
+}
+.z-fuss {
+  margin: 0;
+  font-family: var(--f-titel);
+  font-weight: 600;
+  font-size: 60px;
+  line-height: 1.2;
+  color: var(--mint);
+}
+.s10-ohne .s10-eins {
+  top: 230px;
+}
+.s10-ohne .s10-zwei {
+  top: 322px;
+}
+.s10-ohne .s10-live {
+  top: 520px;
+}
+.s10-ohne .s10-offline {
+  top: 630px;
+}
+
 @media print {
   @page {
     size: 1920px 1080px;

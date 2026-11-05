@@ -273,10 +273,36 @@ def bericht_maengel(
             maengel.append("ungültige Einstufung " + ", ".join(f"„{e}“" for e in falsch))
     if len(struktur.abschnitte) > 2:
         maengel += _verweis_maengel(zeilen, struktur.abschnitte[1], struktur.abschnitte[2])
+        maengel += _rueckfrage_status_maengel(zeilen, struktur.abschnitte[2])
     return maengel
 
 
 _RUECKFRAGE_NR = re.compile(r"\bR\d+\b")
+_RUECKFRAGE_ZEILE = re.compile(r"^\|\s*R\d+\s*\|")
+ANTWORT_SPALTE = "Antwort der Fachabteilung"
+NOCH_OFFEN = "noch offen"
+ANNAHME_BIS_ANTWORT = "Bis zur Antwort gilt"
+
+
+def _rueckfrage_status_maengel(zeilen: list[str], rueckfragen: str) -> list[str]:
+    """Jede Rückfrage in § 3 hat eine Antwort oder einen Annahmestatus („Bis zur Antwort gilt: …“) (#72 AC2).
+
+    Mangel sind eine leere Antwortspalte und ein „Noch offen“ ohne die Annahme, mit der bis zur Antwort gerechnet wird.
+    """
+    spalte: int | None = None
+    ohne_status: list[str] = []
+    for zeile in _abschnitt(zeilen, rueckfragen) or []:
+        if not zeile.startswith("|"):
+            continue
+        zellen = [z.strip() for z in _ZELLGRENZE.split(zeile.strip().strip("|"))]
+        if ANTWORT_SPALTE in zellen:
+            spalte = zellen.index(ANTWORT_SPALTE)
+        elif _RUECKFRAGE_ZEILE.match(zeile):
+            antwort = zellen[spalte] if spalte is not None and spalte < len(zellen) else ""
+            offen = antwort.lower().startswith(NOCH_OFFEN) and ANNAHME_BIS_ANTWORT not in antwort
+            if not antwort or offen:
+                ohne_status.append(zellen[0])
+    return [f"§ 3: {', '.join(ohne_status)} ohne Antwort oder Annahme"] if ohne_status else []
 
 
 def _verweis_maengel(zeilen: list[str], auffaellig: str, rueckfragen: str) -> list[str]:
@@ -598,6 +624,142 @@ def _punkt_konstanten(repo_wurzel: Path) -> Punkt:
     return Punkt(name, True, "kein Treffer außerhalb von regeln.py")
 
 
+MANIFEST = "manifest.json"
+MINISTERIUM_CSV = "ministerium_2026-07.csv"
+# Regelsatz je Abgabedatei: erster passender Präfix des Pfads unter abgabe/ (Abgabe-Metadaten, keine Zählregel).
+_REGELSATZ_JE_PFAD = (
+    ("aggregationen_v1", "v1"),
+    ("qualitaetsberichte_v2/", "v2"),
+    ("qualitaetsberichte/", "v1"),
+    ("rueckfragen/", "v1"),
+    ("aggregationen_v2", "v2"),
+    ("ministerium_", "ministerium"),
+)
+
+
+def _regelsatz_fuer(datei: str) -> str:
+    return next((rs for praefix, rs in _REGELSATZ_JE_PFAD if datei.startswith(praefix)), "-")
+
+
+def _git_stand(repo_wurzel: Path, pfad: Path | None = None) -> str:
+    """Letzter Commit (Kurz-Hash und Datum) für `pfad` oder HEAD; außerhalb von Git „nicht im Git“."""
+    import subprocess
+
+    befehl = ["git", "-C", str(repo_wurzel), "log", "-1", "--format=%h %cs"]
+    if pfad is not None:
+        befehl += ["--", str(pfad)]
+    try:
+        aus = subprocess.run(befehl, capture_output=True, text=True, check=True, timeout=30).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return "nicht im Git"
+    return aus or "nicht committet"
+
+
+def _abgabe_dateien(abgabe_dir: Path) -> list[Path]:
+    return sorted(p for p in abgabe_dir.rglob("*") if p.is_file() and p.name != MANIFEST)
+
+
+def manifest_erzeugen(
+    abgabe_dir: Path, repo_wurzel: Path, lieferungen_dir: Path | None = None
+) -> dict[str, Any]:
+    """Manifest der Abgabe: je Datei Name, Größe, sha256, Regelsatz und Stand (letzter Commit der Datei).
+
+    Die Ministeriums-CSV steht mit Ort „extern“ darin: Sie enthält Einzeldaten, liegt außerhalb des Repos und geht
+    über den SV-Box-Teamordner. Fehlt sie lokal, kommen Größe und sha256 aus dem Beleg (Größe dann None).
+    """
+    eintraege: list[dict[str, Any]] = []
+    for pfad in _abgabe_dateien(abgabe_dir):
+        rel = pfad.relative_to(abgabe_dir).as_posix()
+        inhalt = pfad.read_bytes()
+        eintraege.append(
+            {
+                "datei": rel,
+                "ort": "repo",
+                "groesse": len(inhalt),
+                "sha256": hashlib.sha256(inhalt).hexdigest(),
+                "regelsatz": _regelsatz_fuer(rel),
+                "stand": _git_stand(repo_wurzel, pfad),
+            }
+        )
+    beleg = abgabe_dir / "ministerium_2026-07.beleg.md"
+    extern = (lieferungen_dir / MINISTERIUM_CSV) if lieferungen_dir is not None else None
+    if extern is not None and extern.is_file():
+        inhalt = extern.read_bytes()
+        groesse: int | None = len(inhalt)
+        sha: str | None = hashlib.sha256(inhalt).hexdigest()
+    else:
+        groesse, sha = None, (_beleg_sha256(beleg) if beleg.is_file() else None)
+    eintraege.append(
+        {
+            "datei": MINISTERIUM_CSV,
+            "ort": "extern (Einzeldaten, Abgabe über den SV-Box-Teamordner)",
+            "groesse": groesse,
+            "sha256": sha,
+            "regelsatz": "ministerium",
+            "stand": _git_stand(repo_wurzel, beleg) if beleg.is_file() else "kein Beleg",
+        }
+    )
+    return {
+        "abgabe": "UC3 StatAgent, Team OneShotAndy",
+        "stand": _git_stand(repo_wurzel),
+        "dateien": eintraege,
+    }
+
+
+def manifest_schreiben(abgabe_dir: Path, repo_wurzel: Path, lieferungen_dir: Path | None = None) -> Path:
+    import json
+
+    ziel = abgabe_dir / MANIFEST
+    daten = manifest_erzeugen(abgabe_dir, repo_wurzel, lieferungen_dir)
+    ziel.write_text(json.dumps(daten, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return ziel
+
+
+def _punkt_manifest(abgabe_dir: Path, lieferungen_dir: Path | None = None) -> Punkt:
+    """manifest.json nennt jede Abgabedatei mit Größe und sha256, und jede genannte Datei passt dazu."""
+    import json
+
+    name = "Manifest"
+    pfad = abgabe_dir / MANIFEST
+    if not pfad.is_file():
+        return Punkt(name, False, f"{MANIFEST} nicht gefunden (uc3 pruefe-abgabe --manifest schreibt es)")
+    try:
+        dateien = json.loads(pfad.read_text(encoding="utf-8"))["dateien"]
+        je_name = {str(d["datei"]): d for d in dateien}
+    except (ValueError, KeyError, TypeError) as fehler:
+        return Punkt(name, False, f"{MANIFEST} nicht lesbar: {fehler}")
+    maengel: list[str] = []
+    for d in dateien:
+        fehlt = [f for f in ("datei", "groesse", "sha256", "regelsatz", "stand") if f not in d]
+        if fehlt:
+            maengel.append(f"{d.get('datei', '?')} ohne {', '.join(fehlt)}")
+    vorhanden = {p.relative_to(abgabe_dir).as_posix(): p for p in _abgabe_dateien(abgabe_dir)}
+    for rel, datei in vorhanden.items():
+        eintrag = je_name.get(rel)
+        if eintrag is None:
+            maengel.append(f"{rel} fehlt im Manifest")
+            continue
+        inhalt = datei.read_bytes()
+        if (
+            eintrag.get("groesse") != len(inhalt)
+            or eintrag.get("sha256") != hashlib.sha256(inhalt).hexdigest()
+        ):
+            maengel.append(f"{rel} weicht vom Manifest ab")
+    for rel in je_name:
+        if rel != MINISTERIUM_CSV and rel not in vorhanden:
+            maengel.append(f"{rel} steht im Manifest, die Datei fehlt")
+    extern = je_name.get(MINISTERIUM_CSV)
+    if extern is None:
+        maengel.append(f"{MINISTERIUM_CSV} fehlt im Manifest")
+    elif lieferungen_dir is not None and (lieferungen_dir / MINISTERIUM_CSV).is_file():
+        sha = hashlib.sha256((lieferungen_dir / MINISTERIUM_CSV).read_bytes()).hexdigest()
+        if extern.get("sha256") != sha:
+            maengel.append(f"{MINISTERIUM_CSV} weicht vom Manifest ab")
+    if maengel:
+        return Punkt(name, False, _gekuerzt(maengel))
+    return Punkt(name, True, f"{len(dateien)} Dateien mit Größe, sha256, Regelsatz und Stand, alle passen")
+
+
 def pruefe_abgabe(
     abgabe_dir: Path,
     repo_wurzel: Path,
@@ -643,5 +805,6 @@ def pruefe_abgabe(
                 conn,
             ),
             _punkt_konstanten(repo_wurzel),
+            _punkt_manifest(abgabe_dir, lieferungen_dir),
         ]
     )

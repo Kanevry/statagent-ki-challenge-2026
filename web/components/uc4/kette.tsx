@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { formatiereZahl } from "@kic/ui/basis";
 import { HerkunftChip, ModellPille } from "@kic/ui/bausteine";
@@ -26,8 +27,8 @@ import { Stimme } from "./stimme";
 
 const ROLLE: Record<KettenUc, string> = {
   uc3: "rechnet die Zahl aus den Daten, ohne KI",
-  uc2: "wägt ab, was das für die Versorgung heißt",
-  uc1: "sagt in einfachen Worten, was es für Sie heißt",
+  uc2: "wägt ab, was mehr oder weniger Personal bedeutet",
+  uc1: "sagt, was das für Ihren nächsten Arzttermin heißt",
 };
 
 const BEISPIELE = [
@@ -62,9 +63,14 @@ async function fehlerAusAntwort(antwort: Response): Promise<string> {
   return antwort.status === 429 ? "Gerade sind zu viele Fragen unterwegs. Bitte gleich noch einmal." : "Die Kette hat nicht geantwortet.";
 }
 
+/** Die Kette hielt an (Station 1 ohne Zahl): Der Router meldet für die Stationen danach nichts, sie warten noch. */
+function istGestoppt(lauf: Lauf): boolean {
+  return lauf.art === "fertig" && Object.values(lauf.stationen).some((s) => s.art === "wartet");
+}
+
 /** Was der Screenreader am Ende hört: wie viele Stationen geantwortet haben, nicht pauschal „alle“. */
 function fertigSatz(stationen: Record<string, Station>): string {
-  const alle = Object.values(stationen);
+  const alle = Object.values(stationen).filter((s) => s.art !== "wartet");
   const mit = alle.filter((s) => s.art === "antwort").length;
   if (mit === alle.length) return mit === 1 ? "Die Station hat geantwortet." : `Alle ${mit} Stationen haben geantwortet.`;
   return `${mit} von ${alle.length} Stationen haben geantwortet.`;
@@ -92,6 +98,7 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
   const [lauf, setLauf] = useState<Lauf>({ art: "leer" });
   const [jetzt, setJetzt] = useState(() => Date.now());
   const abbruch = useRef<AbortController | null>(null);
+  const feld = useRef<HTMLInputElement | null>(null);
   const sprache = useSprache();
   const laeuft = lauf.art === "laeuft";
 
@@ -212,6 +219,8 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
   }
 
   const stationen = lauf.art === "leer" ? leereStationen(kette) : (lauf.stationen ?? leereStationen(kette));
+  const gestoppt = istGestoppt(lauf);
+  const gezeigteKette = gestoppt ? kette.filter((uc) => stationen[uc]?.art !== "wartet") : kette;
   const modelle = [
     ...new Set(
       Object.values(stationen)
@@ -220,15 +229,22 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
     ),
   ];
 
+  // Steht irgendwo fester Text, hat das Modell nicht „die Sätze“ geschrieben; die Zeile an den Karten sagt den Rest.
+  const mitFestemText = kette.some((uc, i) => {
+    const s = stationen[uc];
+    return i > 0 && s?.art === "antwort" && !s.antwort.modell;
+  });
+
   return (
     <div className="flex flex-col gap-10" data-testid="uc4-kette">
       {fragenOffen ? (
-        <form onSubmit={absenden} className="flex max-w-4xl flex-col gap-3" noValidate>
+        <form onSubmit={absenden} className="flex flex-col gap-3" noValidate>
           <label htmlFor="uc4-frage" className="font-sans text-14 font-semibold text-ink">
             Ihre Frage
           </label>
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
+              ref={feld}
               id="uc4-frage"
               name="frage"
               value={frage}
@@ -247,6 +263,7 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
               {laeuft ? "Läuft …" : "Fragen"}
             </button>
           </div>
+          <p className="font-sans text-12 text-slate">Bitte keine persönlichen Daten eingeben.</p>
           {eingabeFehler && (
             <p id="uc4-frage-fehler" className="font-sans text-14 text-err-fg">
               {eingabeFehler}
@@ -262,6 +279,10 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
                     disabled={laeuft}
                     onClick={() => {
                       setFrage(b);
+                      // Am Handy passt die Frage nicht ins Feld: Der Anfang soll sichtbar sein, nicht das Ende.
+                      requestAnimationFrame(() => {
+                        if (feld.current) feld.current.scrollLeft = 0;
+                      });
                       void fragen(b);
                     }}
                     className="min-h-11 text-left font-sans text-16 text-gruen underline underline-offset-4 disabled:opacity-60"
@@ -301,18 +322,18 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
       {lauf.art === "fehler" && !lauf.stationen && <p role="alert" className="font-sans text-16 text-ink">{lauf.meldung}</p>}
 
       <section aria-label="Stationen der Kette">
-        <ol className={kette.length === 1 ? "grid max-w-2xl gap-6" : "grid gap-6 lg:grid-cols-3"}>
-          {kette.map((uc, i) => (
-            <StationKarte key={uc} uc={uc} nr={i + 1} station={stationen[uc] ?? { art: "wartet" }} jetzt={jetzt} vorher={i > 0 ? kette[i - 1] : undefined} gestellt={lauf.art !== "leer"} />
+        <ol className={gezeigteKette.length === 1 ? "grid max-w-2xl gap-6" : "grid gap-6 lg:grid-cols-3"}>
+          {gezeigteKette.map((uc, i) => (
+            <StationKarte key={uc} uc={uc} nr={i + 1} station={stationen[uc] ?? { art: "wartet" }} jetzt={jetzt} vorher={i > 0 ? kette[i - 1] : undefined} gestellt={lauf.art !== "leer"} gestoppt={gestoppt} />
           ))}
         </ol>
       </section>
 
       {lauf.art === "fehler" && lauf.stationen && <p role="alert" className="font-sans text-16 text-ink">{lauf.meldung}</p>}
-      {lauf.art === "fertig" && (
+      {lauf.art === "fertig" && !gestoppt && (
         <p className="font-sans text-14 text-slate">
           Fertig in {sekunden(lauf.dauerMs)} s.{" "}
-          {modelle.length > 0 ? `Die Sätze schreibt ${modelle.join(" und ")}, die Zahlen rechnet der Code.` : "Die Zahlen rechnet der Code."}
+          {modelle.length > 0 && !mitFestemText ? `Die Sätze schreibt ${modelle.join(" und ")}, die Zahlen rechnet der Code.` : "Die Zahlen rechnet der Code."}
         </p>
       )}
       {modelle.length === 1 && <SeitenModell provider={modelle[0]!} gewaehlt />}
@@ -327,6 +348,7 @@ function StationKarte({
   jetzt,
   vorher,
   gestellt,
+  gestoppt,
 }: {
   uc: KettenUc;
   nr: number;
@@ -334,6 +356,7 @@ function StationKarte({
   jetzt: number;
   vorher?: KettenUc;
   gestellt: boolean;
+  gestoppt: boolean;
 }) {
   const name = findeUc(uc).name;
   const aktiv = station.art === "laeuft";
@@ -374,21 +397,77 @@ function StationKarte({
         </p>
       )}
 
-      {station.art === "fehlt" && <p className="font-sans text-16 text-slate">{grundText(station.grund)} Die Kette lief ohne diese Station weiter.</p>}
+      {station.art === "fehlt" && (
+        <p className="font-sans text-16 text-slate">
+          {grundText(station.grund)}
+          {gestoppt ? "" : " Die Kette lief ohne diese Station weiter."}
+        </p>
+      )}
 
-      {station.art === "antwort" && <Antwort kern={station.kern} antwort={station.antwort} dauerMs={station.dauerMs} />}
+      {station.art === "antwort" && <Antwort kern={station.kern} antwort={station.antwort} dauerMs={station.dauerMs} erste={!vorher} />}
     </li>
   );
 }
 
-function Antwort({ kern, antwort, dauerMs }: { kern: string; antwort: UcAntwort; dauerMs: number }) {
-  const mehr = antwort.text.trim() !== kern.trim();
+/**
+ * Station 1 zeigt mit Zahl nur den ersten Satz, der Rest („Verstanden: …“) steht unter „Ganze Antwort“. Ohne Zahl ist ihr
+ * Text die Rückfrage: Die steht ganz da, sonst fehlt die eigentliche Frage. Die anderen Stationen zeigen ihre erste
+ * Zeile, die Kernaussage (Jury 05.11.). Beides nur, solange es kurz genug ist.
+ */
+const GANZ_BIS = 320;
+/** Die übrigen Belege stehen in der ganzen Antwort; oben reicht einer, zweimal „Beleg“ untereinander sagt nichts. */
+const BELEGE_OBEN = 1;
+/** Mehr Zahlen trägt die Karte nicht; „Zugänge im Oktober 2024“ liefert 89 (UI-Regie 05.11.). */
+const ZAHLEN_AUF_KARTE = 5;
+
+/** Verweis auf die übrigen Zahlen; `null`, wenn alle auf die Karte passen. */
+export function weitereZahlenText(anzahl: number): string | null {
+  const weitere = anzahl - ZAHLEN_AUF_KARTE;
+  if (weitere <= 0) return null;
+  return weitere === 1 ? "und eine weitere" : `und ${weitere} weitere`;
+}
+
+/**
+ * Belege der Stationen nach der ersten: Die Zahl steht schon mit Beleg bei Station 1 (#164). Der Lotse zeigt den Beleg
+ * der Zahl aus seinem Satz. Der Simulator zeigt den Beleg des Rechenmodells, wenn es eines gab, denn dann stehen dessen
+ * Zahlen in seiner ersten Zeile; sonst seine eigenen Quellen, ohne die weitergereichte Zahl.
+ */
+function belegeOben(antwort: UcAntwort): UcAntwort["belege"] {
+  if (antwort.uc === "uc1") {
+    const beleg = antwort.zahlen[0] && antwort.belege[antwort.zahlen[0].beleg];
+    return beleg ? [beleg] : [];
+  }
+  const rechenmodell = antwort.belege.find((b) => b.quelle === "uc2.experte");
+  if (rechenmodell) return [rechenmodell];
+  const eigene = antwort.belege.filter((b) => b.uc === antwort.uc);
+  return eigene.filter((b, i) => eigene.findIndex((x) => x.quelle === b.quelle && x.monat === b.monat) === i).slice(0, BELEGE_OBEN);
+}
+
+function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcAntwort; dauerMs: number; erste: boolean }) {
+  const text = antwort.text.trim();
+  const ersteZeile = text.split("\n", 1)[0]!.trim();
+  const nurErsterSatz = erste && antwort.zahlen.length > 0 && !kern.trim().endsWith("…");
+  const gezeigt = !nurErsterSatz && ersteZeile.length <= GANZ_BIS ? ersteZeile : kern;
+  const mehr = text !== gezeigt.trim();
   return (
     <div className="flex flex-col gap-3" data-uc4-antwort="">
-      <p className="font-display text-20 font-medium text-ink text-pretty">{kern}</p>
-      {antwort.zahlen.length > 0 && (
+      <p className="font-display text-20 font-medium text-ink text-pretty">{gezeigt}</p>
+      {!erste && belegeOben(antwort).map((beleg, i) => (
+        <HerkunftChip
+          key={`${beleg.quelle}-${i}`}
+          quelle={beleg.quelle}
+          lieferung={beleg.lieferung}
+          monat={beleg.monat}
+          regelstand={beleg.regelstand}
+          sql={beleg.sql}
+          lauf={beleg.lauf}
+          verweis={beleg.ref}
+          stand={beleg.stand}
+        />
+      ))}
+      {erste && antwort.zahlen.length > 0 && (
         <ul className="flex flex-col gap-2">
-          {antwort.zahlen.map((zahl, i) => {
+          {antwort.zahlen.slice(0, ZAHLEN_AUF_KARTE).map((zahl, i) => {
             const beleg = antwort.belege[zahl.beleg];
             return (
               <li key={`${zahl.bezeichnung}-${i}`} className="flex flex-wrap items-baseline gap-x-2 gap-y-1" data-zahl="">
@@ -412,17 +491,31 @@ function Antwort({ kern, antwort, dauerMs }: { kern: string; antwort: UcAntwort;
               </li>
             );
           })}
+          {weitereZahlenText(antwort.zahlen.length) && (
+            <li className="font-sans text-14 text-slate">
+              {weitereZahlenText(antwort.zahlen.length)} unter{" "}
+              <Link href="/uc3/fragen" className="text-gruen underline underline-offset-4">
+                Fragen an die Daten
+              </Link>
+            </li>
+          )}
         </ul>
       )}
       {mehr && (
         <details>
           <summary className="inline-flex min-h-11 cursor-pointer items-center font-sans text-14 text-gruen underline underline-offset-4">Ganze Antwort</summary>
-          <p className="mt-1 font-sans text-16 text-ink">{antwort.text}</p>
+          <p className="mt-1 whitespace-pre-line font-sans text-16 text-ink">{antwort.text}</p>
         </details>
       )}
       <ModellPille data-testid="uc4-modell">
-        {antwort.modell ? (antwort.modell === "mock" ? TESTBETRIEB_TEXT : `Text: ${antwort.modell}`) : "Ohne KI, nur Code"}
-        {dauerMs > 0 ? ` · ${sekunden(dauerMs)} s` : ""}
+        {!antwort.modell && !erste ? (
+          "Fester Text"
+        ) : (
+          <>
+            {antwort.modell ? (antwort.modell === "mock" ? TESTBETRIEB_TEXT : "Mit KI geschrieben") : "Ohne KI, nur Code"}
+            {dauerMs > 0 ? `, ${sekunden(dauerMs)} s` : ""}
+          </>
+        )}
       </ModellPille>
     </div>
   );

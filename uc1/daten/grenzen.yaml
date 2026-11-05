@@ -28,22 +28,40 @@ vorpruefung:
       - 'atemnot'
       - 'keine luft'
       - 'kriege? kaum luft'
+      # Alltagssprache (Zweitmeinung astra zu #163): „bekommt kaum Luft“, „nicht ansprechbar“.
+      - '\b(?:bekomme?|bekommt|kriegt) (?:kaum|keine) luft\b'
+      - '\b(?:ist|bin|sind) (?:gerade |jetzt )?nicht (?:mehr )?ansprechbar\b'
+      - '\b(?:is|am|are) (?:currently |now )?unresponsive\b'
       # Herzinfarkt nur akut; „Krankengeld nach einem Herzinfarkt“ ist eine Leistungsfrage.
       - 'herzinfarkt.{0,30}(?:jetzt|gerade|akut|soeben)'
       - '(?:jetzt|gerade|akut|soeben).{0,30}herzinfarkt'
-      - '\b(?:ich habe|habe ich|er hat|hat er|sie hat|hat sie) (?:\w+ )?einen herzinfarkt'
+      - '\b(?:ich habe|habe ich|(?:er|sie|(?:mein|meine|unser|unsere) (?:mann|frau|vater|mutter|sohn|tochter|bruder|schwester|oma|opa)) hat|hat (?:er|sie)) (?:\w+ )?einen herzinfarkt(?!\s+(?:gehabt|erlitten))'
       - 'bewusstlos'
       - 'ohnm(?:ä|a)cht'
-      - 'schlaganfall.{0,30}(?:jetzt|gerade|akut|soeben)'
+      # Schlaganfall nur akut. Ein vergangener („hatte einen Schlaganfall und braucht jetzt Hilfe“, „nach dem
+      # Schlaganfall“) ist eine Pflegefrage (Dev-Set x03, #155); die Sperre gilt nur für diese Vergangenheitsformen,
+      # „Verdacht auf Schlaganfall und jetzt …“ bleibt Notfall (Review !155). Die Gegenwart („er hat einen
+      # Schlaganfall“) greift immer, außer im Perfekt („gehabt“, „erlitten“).
+      - '(?<!hatte einen )(?<!nach dem )(?<!nach einem )schlaganfall(?!\s+(?:gehabt|erlitten)).{0,30}(?:jetzt|gerade|akut|soeben)'
       - '(?:jetzt|gerade|akut|soeben).{0,30}schlaganfall'
+      - '\b(?:ich habe|habe ich|(?:er|sie|(?:mein|meine|unser|unsere) (?:mann|frau|vater|mutter|sohn|tochter|bruder|schwester|oma|opa)) hat|hat (?:er|sie)) (?:\w+ )?einen schlaganfall(?!\s+(?:gehabt|erlitten))'
+      - '\b(?:is|am|are) having (?:a |another )?stroke\b'
+      # Akutzeichen eines Schlaganfalls, unabhängig vom Wort (#163): Sprache weg „jetzt“ oder „plötzlich“, hängender
+      # Mundwinkel, plötzliche Lähmung oder Taubheit. „Seit dem Unfall gelähmt“ bleibt eine Leistungsfrage.
+      - '\b(?:kann|könnte|konnte) (?:\w+ )?(?:jetzt|plötzlich|auf einmal|seit eben|gerade) (?:\w+ )?nicht (?:mehr )?(?:richtig )?(?:sprechen|reden)'
+      - 'mundwinkel\w* (?:\w+ )?h(?:ä|a)ng|h(?:ä|a)ng\w* (?:\w+ ){0,3}mundwinkel'
+      - '(?:pl(?:ö|o)tzlich|auf einmal)\w* (?:\w+ ){0,4}(?:gel(?:ä|a)hmt|l(?:ä|a)hmung|taub|nicht mehr bewegen)'
+      - "\\b(?:face|mouth) (?:is |has (?:just )?started )?droop|\\bsuddenly (?:can['’]t|cannot) (?:speak|talk|move)"
       - 'umbringen'
+      - '\bich (?:will|möchte|werde) mich (?:selbst )?(?:töten|umbringen)\b'
+      - '\bi (?:want to|am going to) kill myself\b'
       - 'suizid'
       - 'nicht mehr leben'
       - 'chest pain'
-      - "can't breathe"
+      - "can['’]t breathe"
       - 'cannot breathe'
       - 'short(?:ness)? of breath'
-      - 'heart attack'
+      - '(?<!had a )(?<!after a )(?<!after the )heart attack'
       - 'unconscious'
       - 'suicid'
   - art: injection

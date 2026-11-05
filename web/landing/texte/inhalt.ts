@@ -116,8 +116,7 @@ export const NAVIGATION = {
 
 export const HERO = {
   titel: "StatAgent",
-  autor: "by Bernhard Götzendorfer",
-  leitmotiv: ["Hochrisikodaten", "Vertrauen", "Glaubwürdigkeit"] as const,
+  autor: "von Bernhard Götzendorfer",
   satz: `StatAgent macht aus ${zahl(ANZAHL_LIEFERUNGEN)} Monatslieferungen der Sozialversicherung eine geprüfte Beschäftigtenstatistik. Die KI schreibt Code und Regeln, gerechnet wird ohne KI, ein Mensch gibt mit Namen frei.`,
   /** Ergebnis auf einen Blick (Roast K3); Zahlen aus fakten.ts, Herkunft in `ergebnisQuelle`. */
   ergebnis: [
@@ -312,14 +311,12 @@ export const USE_CASES = {
 
 export const TEAM = {
   titel: "Team OneShotAndy",
-  produkt: "StatAgent by Bernhard Götzendorfer",
+  produkt: "StatAgent von Bernhard Götzendorfer",
   text: "Beitrag zur KI Challenge 2026 des Dachverbands der österreichischen Sozialversicherungsträger. Bewertet wird Use Case 3.",
 } as const;
 
 export const FUSSZEILE = {
   repo: { href: "https://github.com/KIChallenge/OneShotAndy", text: "github.com/KIChallenge/OneShotAndy" },
-  abgabe: "Abgabe Fr 06.11. 09:00",
-  ablage: "SV-Box-Teamordner",
   hinweise: ["Synthetische Daten, keine echten Personen"],
   quelle: "Grenzen der Bundesländer: Statistik Austria, data.statistik.gv.at, bearbeitet von Flooh Perlot, CC BY 4.0",
 } as const;

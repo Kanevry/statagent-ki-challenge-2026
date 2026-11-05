@@ -1,4 +1,4 @@
-import { folieAusParam, naechsteFolie, naechsterStand, schalterFuerTaste } from "./navigation";
+import { betreten, folieAusParam, naechsteFolie, naechsterStand, schalterFuerTaste } from "./navigation";
 
 // Fängt ab: Umbruch über das Ende hinaus (Folie 0 oder n + 1), Leertaste ohne Wirkung, eine Taste, die zu Unrecht
 // den Browser sperrt (null statt Zahl), und ein ?folie=-Wert, der den Absturz oder eine leere Bühne bringt.
@@ -85,4 +85,12 @@ describe("naechsterStand mit Takten", () => {
   it("korrigiert einen Takt über dem Maximum, statt ihn stehen zu lassen", () => {
     expect(weiter(2, 9)).toEqual({ folie: 3, takt: 0 });
   });
+});
+
+it("betreten: Takt 0, mit alle der Endzustand; Folie wird auf den gültigen Bereich begrenzt", () => {
+  const takte = [0, 3, 1];
+  expect(betreten(2, takte)).toEqual({ folie: 2, takt: 0 });
+  expect(betreten(2, takte, true)).toEqual({ folie: 2, takt: 3 });
+  expect(betreten(9, takte, true)).toEqual({ folie: 3, takt: 1 });
+  expect(betreten(0, takte, true)).toEqual({ folie: 1, takt: 0 });
 });

@@ -1,0 +1,550 @@
+{
+  "abgabe": "UC3 StatAgent, Team OneShotAndy",
+  "stand": "33b4d17 2026-11-05",
+  "dateien": [
+    {
+      "datei": ".gitignore",
+      "ort": "repo",
+      "groesse": 230,
+      "sha256": "3d3552b3adfbe785439487bef980678163bda37169cd8a632fdd2fa9c8cc4e02",
+      "regelsatz": "-",
+      "stand": "50b9f97 2026-11-05"
+    },
+    {
+      "datei": "CHECKLISTE.md",
+      "ort": "repo",
+      "groesse": 5766,
+      "sha256": "c435d41c01f60af96f56cdf7ae4a6c967089e9159ad8aa8ad6eb96eab9c1cafa",
+      "regelsatz": "-",
+      "stand": "72f1bda 2026-11-05"
+    },
+    {
+      "datei": "README.md",
+      "ort": "repo",
+      "groesse": 5861,
+      "sha256": "326aab2790eeda3d449e3f4c0c6b8282875bc4c44ab758d91b182ed905115539",
+      "regelsatz": "-",
+      "stand": "df47c29 2026-11-05"
+    },
+    {
+      "datei": "aggregationen_v1.xlsx",
+      "ort": "repo",
+      "groesse": 24684,
+      "sha256": "aa7a07f6f0c205df31697729705050439648bc59b8f90012799c3ecbb7d8299c",
+      "regelsatz": "v1",
+      "stand": "58ae3b9 2026-11-05"
+    },
+    {
+      "datei": "aggregationen_v2.xlsx",
+      "ort": "repo",
+      "groesse": 27005,
+      "sha256": "f36274cab5f8821210b9bd0c37d6d80bacb291f5702f839cbf42d58e7e158eae",
+      "regelsatz": "v2",
+      "stand": "8771abb 2026-11-05"
+    },
+    {
+      "datei": "ministerium_2026-07.beleg.md",
+      "ort": "repo",
+      "groesse": 1774,
+      "sha256": "20b30d2bd11389fcb3b23db0b96e063f2cc62ce448411fa3dc9abb085c197193",
+      "regelsatz": "ministerium",
+      "stand": "1b0f799 2026-11-05"
+    },
+    {
+      "datei": "modelle.md",
+      "ort": "repo",
+      "groesse": 1752,
+      "sha256": "b5f72ee62df1d4bee38bb73b46cd365bca7228d822dac979d6de72749409ebd0",
+      "regelsatz": "-",
+      "stand": "fb1f81c 2026-11-05"
+    },
+    {
+      "datei": "protokoll.md",
+      "ort": "repo",
+      "groesse": 16208,
+      "sha256": "0fa9b1b31d7ea048251cb3b2d246e0f5c9b355a316a4af80ab4b7d64ebf323f3",
+      "regelsatz": "-",
+      "stand": "1bc4ef7 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2024-08.md",
+      "ort": "repo",
+      "groesse": 14455,
+      "sha256": "3236b1e812a9cfcbd3eda6e3e95fb79cf794390e5d0ccd37ab8df74ad1f8ae71",
+      "regelsatz": "v1",
+      "stand": "8771abb 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2024-09.md",
+      "ort": "repo",
+      "groesse": 20935,
+      "sha256": "e12d801f5411053bb7bd3d393baddbb1795ef9176031b50f129814b98369f269",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2024-10.md",
+      "ort": "repo",
+      "groesse": 22349,
+      "sha256": "fad9b091524fa9c5310036008d0f502563f1b849cb08378518aa8fa7282cc54a",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2024-11.md",
+      "ort": "repo",
+      "groesse": 21847,
+      "sha256": "e000d22fe2e5f234e28ac6ae1545c86e6de913264a0c0b59884c519a638b4d0e",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2024-12.md",
+      "ort": "repo",
+      "groesse": 22848,
+      "sha256": "96d952155134a0de3c434156c1e1ac7081f973303952b0b9dfdce26dc427eec1",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2025-01.md",
+      "ort": "repo",
+      "groesse": 18437,
+      "sha256": "3216cf43a55b8cf4dee3f353f39f812c884183553c92d18c04c5c02e5fe06f4a",
+      "regelsatz": "v1",
+      "stand": "8f7fe85 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2025-02.md",
+      "ort": "repo",
+      "groesse": 21346,
+      "sha256": "56cc7cac2ebcb71dcad23c6dd0bc71aabac9fceab9ed1f098b4915bc69d6bf2c",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2025-03.md",
+      "ort": "repo",
+      "groesse": 28894,
+      "sha256": "42450ae67773fd0b94b7753e21eb791d026a4de30464b3862c894c7d867b752b",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2025-04.md",
+      "ort": "repo",
+      "groesse": 22902,
+      "sha256": "0e2e971228ff9c31925abe63590e343ea779df0aa266dd2c14cfa01860a2ad69",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2025-05.md",
+      "ort": "repo",
+      "groesse": 25526,
+      "sha256": "6eaf9293ef2d6b3a69cc29f6fdc14cfb8e19f53d227311170317f78e7ab01754",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2025-06.md",
+      "ort": "repo",
+      "groesse": 23534,
+      "sha256": "02292688f6365971928bff0e960745fc6258019a3e83082af8c462e8ea8f5247",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2025-07.md",
+      "ort": "repo",
+      "groesse": 22323,
+      "sha256": "c53829dbec8cdf82997a0d772617b1e0f826f7939aff90bfe6a8da13ce664703",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2025-08.md",
+      "ort": "repo",
+      "groesse": 22195,
+      "sha256": "564ae13b0971c9d64fe986ea484743aa4d770f5824c9e184ac164410817f30bf",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2025-09.md",
+      "ort": "repo",
+      "groesse": 22197,
+      "sha256": "f6830d4e6f967537d89e9a11439d66136a4ec9b1c3ac57c74c4c140acde38e90",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2025-10.md",
+      "ort": "repo",
+      "groesse": 26001,
+      "sha256": "1e0a9d21771ee45d47180d3d4fdaea46916298d463fdbb0636785c17d23d5143",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2025-11.md",
+      "ort": "repo",
+      "groesse": 22962,
+      "sha256": "1e9fa3ed6119b90a74bfaff2715eebeacf60f7e804f57ba0770ff32b7aae15a4",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2025-12.md",
+      "ort": "repo",
+      "groesse": 23743,
+      "sha256": "18011aa9cb0476f13835ea617f21b74a99f084a19f90c7d4016ef00dd5ef7953",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2026-01.md",
+      "ort": "repo",
+      "groesse": 22132,
+      "sha256": "d90768573c98df8c1c58e5fa569e740f7ef8b775529207b72d0148bdb6a95a6f",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2026-02.md",
+      "ort": "repo",
+      "groesse": 24562,
+      "sha256": "eda846404aa5cf7a2bfecfb84d2c7c417a91a4cf51728c9033f55b9a0ab6f680",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2026-03.md",
+      "ort": "repo",
+      "groesse": 22375,
+      "sha256": "b9b1f810631bc65d2ecc81e0ffb0039c95da61ef9f46d4b3db34d1c78b4a2460",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2026-04.md",
+      "ort": "repo",
+      "groesse": 22039,
+      "sha256": "41ec6375c91dc4ce459b7d4ae22e275b67850c0941ab44aeacd2c594d93b6bf7",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2026-05.md",
+      "ort": "repo",
+      "groesse": 21835,
+      "sha256": "01037a4773aacab4ac240c2b2c526c80dffc844cf2c29da4871a1100dc432543",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2026-06.md",
+      "ort": "repo",
+      "groesse": 21914,
+      "sha256": "896cdc872cc2a1a5c14c088a51bd1d0bca773934f44280db2215c496aae6f84e",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte/2026-07.md",
+      "ort": "repo",
+      "groesse": 22678,
+      "sha256": "b9ea9c21d6061970279c40ea75c61e95a9c9d06f40dac2f9db6f3169daf2d33b",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2024-08.md",
+      "ort": "repo",
+      "groesse": 14998,
+      "sha256": "f449972004e0ef9da0f41f62d6be90da70cd09adf42260ea696d1ddd22c9496e",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2024-09.md",
+      "ort": "repo",
+      "groesse": 21540,
+      "sha256": "cf7dc27bad41b782996627f2a21153361ec176420f6fb623b2c5ee7ee70797f7",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2024-10.md",
+      "ort": "repo",
+      "groesse": 22492,
+      "sha256": "8d652f7612149c57ecad630c80d1ac93efda2f349f0f0b917a520e6efaa0a294",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2024-11.md",
+      "ort": "repo",
+      "groesse": 22048,
+      "sha256": "fdc889a6f5bc68573547fa579ee5f7664f8c46c4eff0d9c04253bd741bfa7e1c",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2024-12.md",
+      "ort": "repo",
+      "groesse": 22904,
+      "sha256": "7c789e676debea157304ed3ee18efd14dbbbdd01bb78700ead762a662966371c",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2025-01.md",
+      "ort": "repo",
+      "groesse": 18621,
+      "sha256": "eb953d9301482608d238f3ae2333c10dd715d0bb3ff5af484f97fd0ad76f4344",
+      "regelsatz": "v2",
+      "stand": "8f7fe85 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2025-02.md",
+      "ort": "repo",
+      "groesse": 21443,
+      "sha256": "e6fcb7e31e1696e0ca32d8bb12e84144e9fa24db1a6be5eb4c6f4453d115c837",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2025-03.md",
+      "ort": "repo",
+      "groesse": 25089,
+      "sha256": "a096672dd9a5a1b741a379b2bcc1a18fdab5223b3f3723b49e1fca926c420764",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2025-04.md",
+      "ort": "repo",
+      "groesse": 23538,
+      "sha256": "ad060ccc67f83ec184ecf57c7da7ed3926d12ec743f465259d1238734478ae64",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2025-05.md",
+      "ort": "repo",
+      "groesse": 25644,
+      "sha256": "5f89bf34ce6aadeb5fc34b540704bdbe0645b920b0999fc4914a082e58a3a43b",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2025-06.md",
+      "ort": "repo",
+      "groesse": 23699,
+      "sha256": "69ab9f74a9e4e690e50d0cdde84173a4a873bbf74cbadbb6b39e0483b81242f7",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2025-07.md",
+      "ort": "repo",
+      "groesse": 22295,
+      "sha256": "82db9cc9c126deddb9a42b41ac229fc7d4356d4e7e47cfdc1489dd1bae4d9686",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2025-08.md",
+      "ort": "repo",
+      "groesse": 21915,
+      "sha256": "c3aa5cdce726f28446aef414a8cff1d25370c25624ea8a12052f8b9054add841",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2025-09.md",
+      "ort": "repo",
+      "groesse": 22433,
+      "sha256": "48eb5cb1a940595dabb5568e29db591880e4ca18ba43b27c3de513cd40f4f467",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2025-10.md",
+      "ort": "repo",
+      "groesse": 26466,
+      "sha256": "7d62d482841e90082458ced74b3eeff8c84c275ccacaa8d3152a28f0573f072c",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2025-11.md",
+      "ort": "repo",
+      "groesse": 23112,
+      "sha256": "b316a4ceb40a96f95c62a27e62bfe8abcf32ce1705cc68189532450dc8a52c84",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2025-12.md",
+      "ort": "repo",
+      "groesse": 23749,
+      "sha256": "8140684d89da3f82ee593f4ec10cfff7d9ffba57266bcd5e00dabc904b85dc35",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2026-01.md",
+      "ort": "repo",
+      "groesse": 21794,
+      "sha256": "d8e11ae517ed660b32072296e2bf3f5266e3fdb34773ed177a62901e2d134937",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2026-02.md",
+      "ort": "repo",
+      "groesse": 24775,
+      "sha256": "75e3814c0cee7600502ae35e3a782e18ce742c4ab021060d8fbb9f3ddfda299d",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2026-03.md",
+      "ort": "repo",
+      "groesse": 22620,
+      "sha256": "96b7c2a002a4506d7f3a14c197adcad00de454f8589dd274e55152c9f1efeb95",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2026-04.md",
+      "ort": "repo",
+      "groesse": 22009,
+      "sha256": "6814beed5bf99a56cc8e0c911294563a19d61b4abbf7adb1a8c02f433ba15d80",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2026-05.md",
+      "ort": "repo",
+      "groesse": 21874,
+      "sha256": "6294e1f8660600aacbd86b569bbaaa4a1b83a4f5a9baab8ddc7e5be0990df329",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2026-06.md",
+      "ort": "repo",
+      "groesse": 21992,
+      "sha256": "9402eb91370547ca2cb810676bd90e09ea4b3c8ab3321c2b0c4a26f6635b0765",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "qualitaetsberichte_v2/2026-07.md",
+      "ort": "repo",
+      "groesse": 22730,
+      "sha256": "eb9313ed7fcd6d5a0abe14857c9e5d01c999b128db55e6be6d81b39b5b9dec18",
+      "regelsatz": "v2",
+      "stand": "28cd60d 2026-11-05"
+    },
+    {
+      "datei": "rueckfragen/R1.md",
+      "ort": "repo",
+      "groesse": 2489,
+      "sha256": "dbef9430f71e294eacc507c5f2ba46a3c17f58a7a702fac5436ec7224647ab2a",
+      "regelsatz": "v1",
+      "stand": "67d8b22 2026-11-05"
+    },
+    {
+      "datei": "rueckfragen/R10.md",
+      "ort": "repo",
+      "groesse": 3594,
+      "sha256": "f6328377cbbc94f7d7710391e5e66ec5c7bd97367f4f739514c55ef8f9f47527",
+      "regelsatz": "v1",
+      "stand": "4a4f790 2026-11-05"
+    },
+    {
+      "datei": "rueckfragen/R2.md",
+      "ort": "repo",
+      "groesse": 2657,
+      "sha256": "4c25968236f496f874d9317a61d8c6c2178a48ed417c751fd7732337b4caf81d",
+      "regelsatz": "v1",
+      "stand": "67d8b22 2026-11-05"
+    },
+    {
+      "datei": "rueckfragen/R3.md",
+      "ort": "repo",
+      "groesse": 3168,
+      "sha256": "fbf0a9f77cf5021de7fe74c626a0255048721bccdfff8f4146acc6bd6c358dc5",
+      "regelsatz": "v1",
+      "stand": "67d8b22 2026-11-05"
+    },
+    {
+      "datei": "rueckfragen/R4.md",
+      "ort": "repo",
+      "groesse": 3037,
+      "sha256": "eab0ec3a7655a44c19dce56601a42417e7775e2e1b4e76bc5a6d6c6de0e0938f",
+      "regelsatz": "v1",
+      "stand": "67d8b22 2026-11-05"
+    },
+    {
+      "datei": "rueckfragen/R5.md",
+      "ort": "repo",
+      "groesse": 2331,
+      "sha256": "fe3bdaf092d2b8a7aa56f603317e6e4e33a3ddb1fadc5fae2aed0ad2ed4b66d0",
+      "regelsatz": "v1",
+      "stand": "8771abb 2026-11-05"
+    },
+    {
+      "datei": "rueckfragen/R6.md",
+      "ort": "repo",
+      "groesse": 2442,
+      "sha256": "bcd602d89fac44b00cac34822ace28aea0dfd20d724a691e72245b7d0b4a0892",
+      "regelsatz": "v1",
+      "stand": "8771abb 2026-11-05"
+    },
+    {
+      "datei": "rueckfragen/R7.md",
+      "ort": "repo",
+      "groesse": 2187,
+      "sha256": "84c57ec729491163106699a4e685d8281bf0ac8bb60db29eb00cc4b45fa9dd1b",
+      "regelsatz": "v1",
+      "stand": "8771abb 2026-11-05"
+    },
+    {
+      "datei": "rueckfragen/R8.md",
+      "ort": "repo",
+      "groesse": 2906,
+      "sha256": "56f2eea654ac28b2764dc578ed98a4e10e4be9b633f5d1f54383422d2b0e5597",
+      "regelsatz": "v1",
+      "stand": "8771abb 2026-11-05"
+    },
+    {
+      "datei": "rueckfragen/R9.md",
+      "ort": "repo",
+      "groesse": 2709,
+      "sha256": "a1730b26d6f5dcd6be9a21d86264991b7f85504adef130cbce162418458cb4a4",
+      "regelsatz": "v1",
+      "stand": "8771abb 2026-11-05"
+    },
+    {
+      "datei": "uc3-abnahme.md",
+      "ort": "repo",
+      "groesse": 5291,
+      "sha256": "2d6aba068d5d475b9388c99f7db7d55133f80acd7d462778815cf4fb5bbfe876",
+      "regelsatz": "-",
+      "stand": "72f1bda 2026-11-05"
+    },
+    {
+      "datei": "ministerium_2026-07.csv",
+      "ort": "extern (Einzeldaten, Abgabe über den SV-Box-Teamordner)",
+      "groesse": 622312,
+      "sha256": "d8492f46dd5f21fcd391e82d3eb671d437e46de2bda96f4237fd1d5972e86379",
+      "regelsatz": "ministerium",
+      "stand": "1b0f799 2026-11-05"
+    }
+  ]
+}

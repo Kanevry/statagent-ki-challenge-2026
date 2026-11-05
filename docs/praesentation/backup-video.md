@@ -11,7 +11,7 @@ Fällt Netz, Modell oder Rechner aus, zeigt das Video die Demo trotzdem. Es läu
 Das Video zeigt D1 bis D3 aus dem Drehbuch, in dieser Reihenfolge:
 
 1. D1 Lauf 2025-03 und Qualitätsbericht: Volldubletten (F8) und fehlende freie Dienstverträge (F9), Monat angehalten und vorläufig.
-2. D2 Änderung per Sprache: Auftrag, Vorschlag mit Regel-Diff und Zahlen vorher/nachher, Freigabe mit Vor- und Nachname, Protokoll.
+2. D2 Rückblick: die drei Aufträge der Aufgabe in der Liste der Freigaben, jeder mit Vor- und Nachnamen freigegeben. Dann Vorschlag 24 mit Regel-Unterschied und Zahlen vorher und nachher.
 3. D3 Datenanfrage Männer und Frauen je Bundesland mit sichtbarer SQL.
 
 Optional D4 kommt nicht ins Video. Eine Einblendung „Aufzeichnung vom [Datum]“ steht von der ersten bis zur letzten Sekunde im Bild.

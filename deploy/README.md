@@ -74,6 +74,14 @@ jedem `up` und `daten`: Es entzieht PUBLIC das Anlegen und Schreiben, bricht ab,
 Schreibrecht (auch auf Spalten, Sequenzen oder über eine Rolle) oder CREATE hat, und prüft in jeder Datenbank als
 `kic_app`, dass Anlegen mit „permission denied“ scheitert (#108a). Gemessen 05.11.: online 0 Schreibrechte.
 
+## Vorführ-Instanz
+
+Für die Live-Demo am Tisch läuft neben der öffentlichen Demo eine zweite Instanz mit Passwort, die schreiben darf: eigenes
+Compose-Projekt (`deploy/docker-compose.vorfuehrung.yml`), eigene DB mit Rohdaten in eigenem Netz, eigener Git-Checkout,
+Start nur über `scripts/vorfuehrung.sh`. An der öffentlichen Demo ändert sich nur, dass Caddy ein Fragment aus
+`<basis>/vorfuehrung/caddy/` importiert; ohne Datei importiert es nichts. `deploy-check` prüft auch diese Instanz
+(`deploy/vorfuehrung-invarianten.jq`). Betrieb: `docs/betrieb/vorfuehrung.md`.
+
 ## Schalter in `.env.server`
 
 | Schlüssel | Werte | Wirkung |
@@ -84,6 +92,7 @@ Schreibrecht (auch auf Spalten, Sequenzen oder über eine Rolle) oder CREATE hat
 | `UC4_KETTE` | `uc3` (Standard, auch wenn leer) \| Komma-Liste | Stationen auf `/uc4`. `uc3` fragt nur die Zahl, ohne Modell. Stufe B setzt `uc3,uc2,uc1` ausdrücklich; ein ungültiger Wert heißt wieder nur `uc3` |
 | `UC4_MODELLWAHL` | leer \| z. B. `azure` | Anbieter, die man auf `/uc4` wählen darf. Leer: nur Testbetrieb |
 | `RATENLIMIT_PRO_MINUTE` | Zahl ab 1 | Fragen je IP und Minute, Standard 10 |
+| `UC2_NAMENSLISTE` | leer \| absoluter Pfad auf dem Server | Namensliste für den echten UC2-Presse-Index, schreibgeschützt nach `/etc/kic/uc2-namensliste` gemountet. Die App liest als uid 1001: Datei mit Gruppe 1001 und Modus 640 (`chgrp 1001 <pfad> && chmod 640 <pfad>`), Ordner davor durchsuchbar. Leer: UC2 zeigt gekennzeichnete Beispielbelege |
 
 **Stufe A, Fragen ohne Modell:** `KIC_ONLINE_FRAGEN=1`, `UC4_KETTE=uc3`, kein Modellschlüssel. Die Zahl kommt aus
 der Datenbank `statistik` (gerechnete Läufe mit Regelsatz v1 nötig), kein Modellaufruf, das Tagesbudget wird nicht

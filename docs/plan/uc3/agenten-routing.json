@@ -1,0 +1,69 @@
+{
+  "zweck": "Rollenrouting der eigenen UC3-Agenten: jede aufgezeichnete Textanweisung geht an genau eine zuständige Rolle (Issue #15 AC1).",
+  "quelle": "meta.protokoll (Spalten id, akteur, name, anweisung, wirkung, status, modell, provider, ref, commit_hash); Rollen laut uc3/statagent/agenten/rollen.py",
+  "rollen": {
+    "datenmanagement": "Einlesen und Zählen (Zeitraum, Stichtag, Alter, Einleseregeln), Sonderauswertungen als Zählregel der Art personentage",
+    "klassifikation": "Merkmale und Zuordnungen (Beschäftigungskategorie, ÖNACE-Versionen, Quellzuordnung, Gruppierung)",
+    "qs": "Qualitätssicherung: nur Prüfregeln (Schwellen, Einstufung, Anhalten)",
+    "reporting": "Auswertungen über Aggregate als Code-Datei, ohne Regeln zu ändern"
+  },
+  "anweisungen": [
+    {
+      "anweisung": "Auftrag 1, Dienstvertrag und freier Dienstvertrag zusammen (Wortlaut im Protokoll)",
+      "rolle": "klassifikation",
+      "agent": "agent.klassifikation",
+      "protokoll_id": 24,
+      "datenbank": "statistik",
+      "vorschlag": "uc3/24",
+      "wirkung": "Regelsatz v2: R6_beschaeftigungskategorie.qualifikation: code → beschaeftigungskategorie",
+      "status": "freigegeben",
+      "freigegeben_von": "Bernhard Götzendorfer",
+      "commit": "d92cd47",
+      "modell": "azure gpt-5-4-mini"
+    },
+    {
+      "anweisung": "Auftrag 2, ganzes Monat statt Stichtag (Wortlaut im Protokoll)",
+      "rolle": "datenmanagement",
+      "agent": "agent.datenmanagement",
+      "protokoll_id": 25,
+      "datenbank": "statistik",
+      "vorschlag": "uc3/25",
+      "wirkung": "Regelsatz v2: R2_R4_stichtag_eigene_lieferung, Zeitraum vom Monatsersten bis zum Monatsletzten",
+      "status": "freigegeben",
+      "freigegeben_von": "Bernhard Götzendorfer",
+      "commit": "952eeb8",
+      "modell": "azure gpt-5-4-mini"
+    },
+    {
+      "anweisung": "Auftrag 3, Datenlieferung an das Ministerium (Wortlaut im Protokoll)",
+      "rolle": "datenmanagement",
+      "agent": "agent.datenmanagement",
+      "protokoll_id": 26,
+      "datenbank": "statistik",
+      "vorschlag": "uc3/26",
+      "wirkung": "Regelsatz ministerium: neue Regel M01_personentage_ministerium",
+      "status": "freigegeben",
+      "freigegeben_von": "Bernhard Götzendorfer",
+      "commit": "08e63c0",
+      "modell": "azure gpt-5-4-mini"
+    },
+    {
+      "anweisung": "Halte einen Monat schon an, wenn der Bestand um mehr als 3 Prozent unter dem Vormonat liegt.",
+      "rolle": "qs",
+      "agent": "agent.qs",
+      "protokoll_id": 30,
+      "datenbank": "statistik_probe",
+      "vorschlag": "uc3/30 (Probe)",
+      "wirkung": "Regelsatz v2: P15_bestand_vs_vormonat.schwelle: 0.05 → 0.03",
+      "status": "offen (Probe für die Live-Änderung, bewusst nicht freigegeben)",
+      "freigegeben_von": null,
+      "commit": null,
+      "modell": "azure gpt-5-4-mini"
+    }
+  ],
+  "hinweise": [
+    "Die Protokoll-IDs 24 bis 26 sind in der Abgabe-Datenbank statistik und in der Kopie statistik_probe gleich; ID 30 gibt es nur in statistik_probe (Probe der Live-Änderung, 05.11.2026 18:01).",
+    "Die Rolle reporting bekam keinen Auftrag: Die Änderungsaufträge 1 bis 3 ändern Regeln, keine Auswertungs-Code-Datei.",
+    "Die Bestätigung aller Freigaben durch Bernhard Götzendorfer selbst steht im Commit 2ba95e5 (Technische Regel 7)."
+  ]
+}

@@ -10,6 +10,10 @@ import {
   GRUND_UNBEKANNT,
   gruppenSatz,
   isoZeit,
+  aenderungKurz,
+  klarerAenderungsSatz,
+  zitatDoppelt,
+  regionenSatz,
   klartext,
   kurzerGrund,
   probeTitel,
@@ -19,6 +23,15 @@ import {
   waageBeleg,
   waageSatz,
   wirkungJeKategorie,
+  aenderungSatz,
+  auftragKopf,
+  freigabenKopf,
+  kurzZeit,
+  ohneProbeSatz,
+  probeJeKategorie,
+  protokollZeilen,
+  vorgeschlagenVon,
+  type ErledigtZeile,
 } from "./freigabe";
 
 // Nie die echte CLI: jeder Handler bekommt ein gefälschtes `ausfuehren` (die Prozessgrenze); der Aufbau des
@@ -210,6 +223,31 @@ describe("Freigabe-Waage", () => {
     expect(waageBeleg(1, w!).sql).toContain("probe->'2025-10'->'vorher'->>'gesamt'");
   });
 
+  // Fehler, den das fängt: „25-34 (altersgruppe)“ und „C (oenace)“ auf der Seite, ein ÖNACE-Abschnitt als Hauptzeile
+  // oder rund 30 Zeilen mehr bei jeder Stichtags-Änderung (!150, #168).
+  it("zeigt Altersgruppe und Branche lesbar und nur, wenn sich die Grundgliederung nicht ändert", () => {
+    const probeMit = (vorher: Record<string, Record<string, number>>, nachher: Record<string, Record<string, number>>, gesamtNachher = 100) => ({
+      "2025-10": {
+        lieferung: "2025-10",
+        vorher: { gesamt: 100, je_merkmal: vorher },
+        nachher: { gesamt: gesamtNachher, je_merkmal: nachher },
+      },
+    });
+    const nurAlter = waage(probeMit({ altersgruppe: { "25-34": 40, "35-44": 60 } }, { altersgruppe: { "25-34": 45, "35-44": 55 } }))!;
+    expect(nurAlter.weitere.map((z) => z.bezeichnung)).toEqual(["25-34 (Altersgruppe)", "35-44 (Altersgruppe)"]);
+    const nurBranche = waage(probeMit({ oenace: { C: 10 } }, { oenace: { C: 20 } }, 110))!;
+    expect(nurBranche.haupt.bezeichnung).toBe("Abschnitt C (Branche)");
+    const mitKategorie = waage(
+      probeMit(
+        { qualifikation: { Arbeiter: 50 }, oenace: { C: 10 }, altersgruppe: { "25-34": 40 } },
+        { qualifikation: { Arbeiter: 55 }, oenace: { C: 500 }, altersgruppe: { "25-34": 400 } },
+        105,
+      ),
+    )!;
+    expect(mitKategorie.haupt.merkmal).toBe("qualifikation");
+    expect(mitKategorie.weitere).toHaveLength(0);
+  });
+
   it("Fehler: Gesamtzahl ändert sich unbemerkt. Hauptzeile ist die Kategorie, dazu eine Zeile zur Gesamtzahl", () => {
     const monat = probe["2025-10"];
     const mitZuwachs = {
@@ -333,6 +371,20 @@ describe("Probe für Auftrag 1 (Umverteilung)", () => {
     expect(u?.gesamt).toBe(392236);
   });
 
+  // Fehler, den das fängt (auch: vorher zeigte dieselbe Summe wie nachher, die Umverteilung war unsichtbar): Tabelle „vorher | nachher“ zeigt Codes (ArbeiterDV) statt Kategorien oder verliert Beamte.
+  it("fasst die Probe je Beschäftigungskategorie zur Tabelle zusammen", () => {
+    expect(probeJeKategorie(probe, kategorien)).toEqual({
+      lieferung: "2024-08",
+      zeilen: [
+        { kategorie: "Angestellte", vorher: 236961, nachher: 236961, vorherTeile: [{ wort: "Angestellte mit Dienstvertrag", wert: 235819 }, { wort: "Angestellte freier Dienstvertrag", wert: 1142 }] },
+        { kategorie: "Arbeiter", vorher: 141713, nachher: 141713, vorherTeile: [{ wort: "Arbeiter mit Dienstvertrag", wert: 141331 }, { wort: "Arbeiter freier Dienstvertrag", wert: 382 }] },
+        { kategorie: "Beamte", vorher: 13562, nachher: 13562, vorherTeile: [{ wort: "Beamte", wert: 13562 }] },
+      ],
+      gesamt: { vorher: 392236, nachher: 392236 },
+    });
+    expect(probeJeKategorie(null, kategorien)).toBeNull();
+  });
+
   it("erfindet keine Zusammensetzung, wenn die Summe nicht stimmt", () => {
     const falsch = structuredClone(probe);
     falsch["2024-08"].nachher.je_merkmal.qualifikation.Arbeiter = 141700;
@@ -380,6 +432,8 @@ describe("Auftragszitat (Sichtprüfung bb, #18)", () => {
       "In der Statistik wird nicht mehr unterschieden. Die Beschäftigungskategorie hat nur noch drei Ausprägungen. Die Änderung gilt rückwirkend.",
     );
     expect(auftraggeber({ gesagtVon: null, anweisung })).toBe("Änderungsauftrag aus der Aufgabenstellung");
+    // Fehler, den das fängt: „Ohne Namen erfasst“ liest sich vor der Jury wie ein Mangel.
+    expect(auftraggeber({ gesagtVon: null, anweisung: "Bitte die Region anders ausweisen." })).toBe("Änderungsauftrag");
   });
 
   // Fehler (Review !77 Runde 2): jeder Doppelpunkt in den ersten 120 Zeichen schnitt den Anfang ab.
@@ -388,5 +442,171 @@ describe("Auftragszitat (Sichtprüfung bb, #18)", () => {
       "Fasse Gruppen zusammen: Die Gesamtzahl bleibt gleich.",
     );
     expect(auftragsZitat("Auftrag 2, ganzes Monat: Gezählt wird das ganze Monat.")).toBe("Gezählt wird das ganze Monat.");
+  });
+});
+
+describe("Sätze der Freigabe-Seiten (UI-Regie v1)", () => {
+  // Fehler, den das fängt: Zeit in UTC oder mit Jahr und Komma statt „05.11. 16:53“ in Wiener Zeit.
+  it("schreibt die Zeit kurz in Wiener Zeit", () => {
+    expect(kurzZeit("2026-11-05T15:53:10Z")).toBe("05.11. 16:53");
+    expect(kurzZeit("kein Datum")).toBe("kein Datum");
+  });
+
+  // Fehler, den das fängt: der Zeilentitel ist der ganze 15-zeilige Auftrag statt des Teils vor dem Doppelpunkt.
+  it("nimmt den Titel aus dem Teil vor dem Doppelpunkt", () => {
+    expect(auftragKopf("Auftrag 2, ganzes Monat statt Stichtag: Gezählt wird nicht mehr der Monatsletzte.")).toEqual({
+      nummer: "2",
+      titel: "Ganzes Monat statt Stichtag",
+    });
+    expect(auftragKopf("Regelsatz v2 freigeben")).toEqual({ nummer: null, titel: "Regelsatz v2 freigeben" });
+  });
+
+  // Fehler, den das fängt: Regelcodes wie R6_… im Fließtext der Zeile.
+  it("sagt ohne Regelcode, was sich ändert", () => {
+    const satz = aenderungSatz({ typ: "regel_aendern", aenderungen: [{ regel_name: "R6_beschaeftigungskategorie" }], regelsatzZiel: "v2" });
+    expect(satz).toBe("Ändert eine Regel im Regelsatz v2");
+    expect(aenderungSatz({ typ: "regel_neu", aenderungen: [{}], regelsatzZiel: "ministerium" })).toBe(
+      "Neue Regel für die Ministeriums-Lieferung",
+    );
+  });
+
+  // Fehler, den das fängt: Kopf sagt „Nichts wartet“, obwohl drei Änderungen entschieden sind.
+  it("bildet den Kopfsatz aus den Daten", () => {
+    const frei = { art: "freigegeben" as const };
+    expect(freigabenKopf(0, [frei, frei, frei])).toBe("3 Änderungen, alle mit Namen freigegeben.");
+    expect(freigabenKopf(1, [frei])).toBe("1 Änderung wartet auf Ihre Freigabe.");
+    expect(freigabenKopf(0, [frei, { art: "abgelehnt" }])).toBe("2 Änderungen mit Namen entschieden: 1 freigegeben, 1 abgelehnt.");
+    expect(freigabenKopf(0, [])).toBe("Noch hat kein Agent eine Änderung vorgeschlagen.");
+  });
+
+  it("nennt Agent, Anbieter und Modell", () => {
+    expect(vorgeschlagenVon({ rolle: "klassifikation", provider: "azure", modell: "gpt-5-4-mini" })).toBe(
+      "Vorgeschlagen vom Klassifikations-Agenten (Azure gpt-5-4-mini)",
+    );
+    expect(vorgeschlagenVon({ rolle: "qs", provider: null, modell: null })).toBe("Vorgeschlagen vom Prüf-Agenten");
+  });
+
+  // Fehler, den das fängt: Auftrag 3 sagt „Probe noch nicht gerechnet“, obwohl es nie ein vorher und nachher gibt.
+  it("begründet eine fehlende Probe", () => {
+    expect(ohneProbeSatz({ typ: "regel_neu", regelsatzZiel: "ministerium" })).toMatch(/Ministeriums-Lieferung/);
+    expect(ohneProbeSatz({ typ: "regel_aendern", regelsatzZiel: "v2" })).toMatch(/noch nicht gerechnet/);
+  });
+
+  // Fehler, den das fängt: 72 Zeilen „Regelstand … für Monat“ derselben Person in derselben Minute.
+  it("fasst die Regelstände eines Regelsatzes zu einer Zeile zusammen", () => {
+    const basis = { art: "freigegeben" as const, name: "Erika Muster", anweisung: null, geaendert: null, begruendung: null, commit: null, vorschlag: null, waage: null };
+    const zeilen: ErledigtZeile[] = [
+      { ...basis, schluessel: "r1", zeit: "2026-11-05T15:54:00Z", regelstand: { regelsatz: "v2", lieferung: "2024-09" } },
+      { ...basis, schluessel: "r2", zeit: "2026-11-05T15:54:01Z", regelstand: { regelsatz: "v2", lieferung: "2024-08" } },
+      { ...basis, schluessel: "f1", zeit: "2026-11-05T15:53:00Z", anweisung: "Regelsatz v2 freigeben" },
+    ];
+    expect(protokollZeilen(zeilen).map((z) => z.satz)).toEqual([
+      "Regeln von Regelsatz v2 für 2 Monate festgehalten, August 2024 bis September 2024",
+      "Regelsatz v2 freigeben",
+    ]);
+  });
+});
+
+describe("Rücknahme einer Regel (#168)", () => {
+  const ruecknahme = {
+    typ: "regel_aendern" as const,
+    regelsatzZiel: "v2",
+    aenderungen: [{ regel_name: "X1_probe", aktiv_neu: false, parameter_alt: { a: 1 }, parameter_neu: { a: 1 } }],
+  };
+
+  // Fehler, den das fängt: Gleiche Parameter ergaben keine Zeile, die Seite sagte nichts über die Rücknahme.
+  it("sagt in Worten und im Diff, dass die Regel abgeschaltet wird", () => {
+    const k = klartext(ruecknahme);
+    expect(k.worte).toEqual(["Die Regel X1_probe wird abgeschaltet, sie wird nicht gelöscht."]);
+    expect(k.diff).toBe("- X1_probe: aktiv = true\n+ X1_probe: aktiv = false");
+    expect(aenderungKurz(ruecknahme)).toBe("Regel X1_probe abschalten (Regelsatz v2)");
+    expect(aenderungSatz(ruecknahme)).toBe("Schaltet eine Regel ab im Regelsatz v2");
+  });
+
+  it("lässt eine normale Änderung unverändert", () => {
+    const normal = { ...ruecknahme, aenderungen: [{ regel_name: "X1_probe", parameter_alt: { a: 1 }, parameter_neu: { a: 2 } }] };
+    expect(klartext(normal).worte).toEqual(["In der Regel X1_probe wird „a“ von 1 auf 2 geändert."]);
+    expect(aenderungSatz(normal)).toBe("Ändert eine Regel im Regelsatz v2");
+  });
+});
+
+describe("Neue Regeln Ausschluss und Gruppierung als Satz (#168)", () => {
+  const neu = (regel: Record<string, unknown>) => ({ typ: "regel_neu" as const, aenderungen: [{ regel: { name: "R8_probe", ...regel } }] });
+  const namen = { region: { "1": "Burgenland", "3": "Niederösterreich", "9": "Wien" }, qualifikation: { Beamte: "Beamte" } };
+
+  // Fehler, den das fängt: Rohtext vom Modell, „region“ und Codes wie 9 auf der Freigabe-Seite vor der Jury.
+  it("schreibt einen Ausschluss mit Namen statt Codes", () => {
+    const k = klartext(neu({ art: "ausschluss", parameter: { merkmal: "region", werte: ["9"] }, beschreibung: "region 9 raus" }), namen);
+    expect(k.worte).toEqual(["Beschäftigungsverhältnisse mit Bundesland Wien zählen nicht mehr."]);
+    expect(k.diff).toBe("+ R8_probe: Beschäftigungsverhältnisse mit Bundesland Wien zählen nicht mehr.");
+    const beamte = klartext(neu({ art: "ausschluss", parameter: { merkmal: "beschaeftigungskategorie", werte: ["Beamte"] } }), namen);
+    expect(beamte.worte).toEqual(["Beschäftigungsverhältnisse mit Kategorie Beamte zählen nicht mehr."]);
+  });
+
+  // Fehler, den das fängt: „mit Alter 0-14“ beim naheliegenden Jury-Auftrag „Kinder unter 15“ (Review 9b).
+  it("schreibt Altersspannen in Worten", () => {
+    expect(klartext(neu({ art: "ausschluss", parameter: { merkmal: "alter", werte: ["0-14"] } })).worte).toEqual([
+      "Beschäftigungsverhältnisse im Alter von 0 bis 14 Jahren zählen nicht mehr.",
+    ]);
+    expect(klartext(neu({ art: "ausschluss", parameter: { merkmal: "alter", werte: ["0-14", "65-110"] } })).worte).toEqual([
+      "Beschäftigungsverhältnisse im Alter von 0 bis 14 und 65 bis 110 Jahren zählen nicht mehr.",
+    ]);
+  });
+
+  it("legt in der Gruppierung je Gruppe einen Satz an, auch aus der Listenform der Parameter", () => {
+    const parameter = [{ schluessel: "merkmal", wert: "region" }, { schluessel: "zuordnung", wert: ["1=Ost", "3=Ost", "9=Ost"] }];
+    expect(klartext(neu({ art: "gruppierung", parameter }), namen).worte).toEqual([
+      "Burgenland, Niederösterreich und Wien werden zu „Ost“ zusammengelegt.",
+    ]);
+  });
+
+  it("fällt bei anderen Arten und unlesbaren Parametern auf die Beschreibung zurück", () => {
+    expect(klartext(neu({ art: "pruefung", parameter: {}, beschreibung: "Prüft etwas." })).worte).toEqual(["Prüft etwas."]);
+    expect(klartext(neu({ art: "ausschluss", parameter: { merkmal: "region" }, beschreibung: "Satz" })).worte).toEqual(["Satz"]);
+  });
+});
+
+describe("Sichtbarer Satz auf der Freigabe (#168)", () => {
+  it("steht bei Rücknahme und Ausschluss, nicht bei einer normalen Änderung", () => {
+    expect(
+      klarerAenderungsSatz({ typ: "regel_aendern", aenderungen: [{ regel_name: "X1", aktiv_neu: false }] }),
+    ).toBe("Die Regel wird abgeschaltet, sie wird nicht gelöscht.");
+    expect(
+      klarerAenderungsSatz({
+        typ: "regel_neu",
+        aenderungen: [{ regel: { name: "R8", art: "ausschluss", parameter: { merkmal: "qualifikation", werte: ["Beamte"] } } }],
+      }),
+    ).toBe("Beschäftigungsverhältnisse mit Qualifikation Beamte zählen nicht mehr.");
+    expect(
+      klarerAenderungsSatz({ typ: "regel_aendern", aenderungen: [{ regel_name: "X1", parameter_alt: { a: 1 }, parameter_neu: { a: 2 } }] }),
+    ).toBeNull();
+  });
+});
+
+describe("Überschrift und Zitat der Freigabe", () => {
+  // Fehler: „Beamte zählen nicht mehr mit“ stand als Überschrift und direkt darunter noch einmal als Zitat.
+  it("zeigt das Zitat nur, wenn es mehr sagt als die Überschrift", () => {
+    expect(zitatDoppelt("Beamte zählen nicht mehr mit", "Beamte zählen nicht mehr mit.")).toBe(true);
+    expect(zitatDoppelt("Rechne bei Geburtsmonat 13 nur …", "Rechne bei Geburtsmonat 13 nur mit der Differenz.")).toBe(false);
+    expect(zitatDoppelt("Dienstvertrag zusammen", "In der Statistik wird nicht mehr unterschieden.")).toBe(false);
+  });
+});
+
+describe("Zusammenlegung von Bundesländern in der Probe", () => {
+  const probe = (vorher: Record<string, number>, nachher: Record<string, number>) => ({
+    "2026-07": { vorher: { je_merkmal: { region: vorher } }, nachher: { je_merkmal: { region: nachher } } },
+  });
+  const namen = { region: { "1": "Burgenland", "3": "Niederösterreich" } };
+
+  // Fehler: Die Tabelle zeigte nur Kategorien, vorher gleich nachher, die Änderung war nicht zu sehen.
+  it("nennt die Bundesländer und die neue Gruppe mit Zahlen", () => {
+    expect(regionenSatz(probe({ "1": 100, "3": 2000, "9": 5 }, { Ost: 2100, "9": 5 }), namen)).toBe(
+      "Burgenland 100 und Niederösterreich 2.000 zählen nachher zusammen als „Ost“: 2.100.",
+    );
+  });
+
+  it("schweigt, wenn nichts zusammengelegt wird", () => {
+    expect(regionenSatz(probe({ "1": 100, "3": 2000 }, { "1": 90, "3": 2000 }), namen)).toBeNull();
+    expect(regionenSatz({}, namen)).toBeNull();
   });
 });

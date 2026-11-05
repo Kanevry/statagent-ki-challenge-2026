@@ -21,6 +21,7 @@ from statagent.berichte.pruefe_abgabe import (
     bericht_maengel,
     berichtsmonate,
     blatt_monate,
+    manifest_schreiben,
     pruefe_abgabe,
 )
 
@@ -162,11 +163,20 @@ def _vollstaendig(wurzel: Path) -> Path:
     (wurzel / "docs" / "models.md").write_text("# Modelle\n", encoding="utf-8")
     (wurzel / "uc3" / "statagent").mkdir(parents=True)
     (wurzel / "uc3" / "statagent" / "lauf.py").write_text("x = 1\n", encoding="utf-8")
+    manifest_schreiben(abgabe, wurzel, extern)
     return abgabe
 
 
-def _pruefen(abgabe: Path, wurzel: Path, vorlagen: Path | None = None) -> dict[str, str]:
-    """Hinweise der fehlenden Punkte; prüft nebenbei, dass `ok` nur ohne fehlende Punkte gilt."""
+def _pruefen(
+    abgabe: Path, wurzel: Path, vorlagen: Path | None = None, *, manifest_neu: bool = True
+) -> dict[str, str]:
+    """Hinweise der fehlenden Punkte; prüft nebenbei, dass `ok` nur ohne fehlende Punkte gilt.
+
+    Standard: Manifest vorher neu schreiben, damit Tests, die eine Abgabedatei ändern, nur ihren eigenen Punkt
+    sehen. Die Manifest-Tests prüfen mit ``manifest_neu=False``.
+    """
+    if manifest_neu and abgabe.is_dir() and (abgabe / "manifest.json").is_file():
+        manifest_schreiben(abgabe, wurzel, wurzel / "extern")
     erg = pruefe_abgabe(
         abgabe,
         wurzel,
@@ -182,9 +192,9 @@ def _pruefen(abgabe: Path, wurzel: Path, vorlagen: Path | None = None) -> dict[s
 def test_leerer_ordner_ohne_vorlage_alle_punkte_fehlen(tmp_path: Path) -> None:
     # Fängt: Absturz bei fehlenden Dateien oder ein Punkt, der ohne Datei (oder ohne Vorlage) als erfüllt gilt.
     erg = pruefe_abgabe(tmp_path, tmp_path, blaetter=VORLAGE_BLAETTER, vorlagen_dir=tmp_path / "keine")
-    assert len(erg.punkte) == 8
+    assert len(erg.punkte) == 9
     assert not any(p.ok for p in erg.punkte)
-    assert erg.als_text().count("[fehlt]") == 8
+    assert erg.als_text().count("[fehlt]") == 9
     assert erg.als_dict()["ok"] is False
 
 
@@ -193,7 +203,7 @@ def test_leere_abgabe_mit_vorlage_besteht_nicht(tmp_path: Path) -> None:
     (tmp_path / "abgabe").mkdir()
     fehlend = _pruefen(tmp_path / "abgabe", tmp_path)
     assert VORLAGE not in fehlend
-    assert len(fehlend) == 7
+    assert len(fehlend) == 8
 
 
 def test_vollstaendiger_minimalordner_ist_ok(tmp_path: Path) -> None:
@@ -391,3 +401,81 @@ def test_bericht_mit_bestand_null_ist_mangelhaft() -> None:
     assert any("Bestand im Überblick ist 0" in m for m in bericht_maengel(text))
     gut = "# Qualitätsbericht\n\n| Beschäftigungsverhältnisse im Berichtsmonat | 407.604 |\n"
     assert not any("Bestand im Überblick" in m for m in bericht_maengel(gut))
+
+
+MANIFEST = "Manifest"
+
+
+def test_manifest_nennt_jede_datei_mit_groesse_sha256_regelsatz_und_stand(tmp_path: Path) -> None:
+    # Fängt: Manifest ohne Pflichtfelder oder ohne die externe Ministeriums-CSV (Abnahme #20 AC1).
+    import json
+
+    abgabe = _vollstaendig(tmp_path)
+    daten = json.loads((abgabe / "manifest.json").read_text(encoding="utf-8"))
+    je_name = {d["datei"]: d for d in daten["dateien"]}
+    assert je_name["aggregationen_v1.xlsx"]["regelsatz"] == "v1"
+    assert je_name["aggregationen_v2.xlsx"]["regelsatz"] == "v2"
+    assert je_name["qualitaetsberichte/2026-07.md"]["regelsatz"] == "v1"
+    assert je_name["ministerium_2026-07.csv"]["ort"].startswith("extern")
+    assert all({"datei", "groesse", "sha256", "regelsatz", "stand"} <= d.keys() for d in daten["dateien"])
+    assert "manifest.json" not in je_name
+
+
+def test_fehlendes_manifest_ist_ein_mangel(tmp_path: Path) -> None:
+    abgabe = _vollstaendig(tmp_path)
+    (abgabe / "manifest.json").unlink()
+    assert "nicht gefunden" in _pruefen(abgabe, tmp_path, manifest_neu=False)[MANIFEST]
+
+
+def test_geaenderte_datei_nach_dem_manifest_ist_ein_mangel(tmp_path: Path) -> None:
+    # Fängt: Manifest wird geschrieben und danach ändert sich eine Abgabedatei (z. B. Protokoll neu).
+    abgabe = _vollstaendig(tmp_path)
+    (abgabe / "protokoll.md").write_text("# Protokoll\nneu\n", encoding="utf-8")
+    assert "protokoll.md weicht vom Manifest ab" in _pruefen(abgabe, tmp_path, manifest_neu=False)[MANIFEST]
+
+
+def test_neue_datei_ohne_manifest_eintrag_und_geloeschte_datei_sind_maengel(tmp_path: Path) -> None:
+    abgabe = _vollstaendig(tmp_path)
+    (abgabe / "neu.md").write_text("x\n", encoding="utf-8")
+    (abgabe / "qualitaetsberichte" / "2024-08.md").unlink()
+    hinweis = _pruefen(abgabe, tmp_path, manifest_neu=False)[MANIFEST]
+    assert "neu.md fehlt im Manifest" in hinweis
+    assert "qualitaetsberichte/2024-08.md steht im Manifest, die Datei fehlt" in hinweis
+
+
+def test_ministeriums_csv_muss_zum_manifest_passen(tmp_path: Path) -> None:
+    abgabe = _vollstaendig(tmp_path)
+    (tmp_path / "extern" / "ministerium_2026-07.csv").write_text(
+        "PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE\n", encoding="utf-8"
+    )
+    assert (
+        "ministerium_2026-07.csv weicht vom Manifest ab"
+        in _pruefen(abgabe, tmp_path, manifest_neu=False)[MANIFEST]
+    )
+
+
+def _bericht_mit_rueckfrage(antwort: str) -> str:
+    kopf = "| Nr. | Gestellt am | Frage (kurz) | Antwort der Fachabteilung | Umgesetzt als Regel |"
+    zeile = f"| R1 | noch nicht gestellt | Geburtsmonat 13? | {antwort} | R5 |"
+    return _bericht().replace(
+        UEBERSCHRIFTEN[2], f"{UEBERSCHRIFTEN[2]}\n\n{kopf}\n| --- | --- | --- | --- | --- |\n{zeile}\n", 1
+    )
+
+
+@pytest.mark.parametrize(
+    ("antwort", "mangel"),
+    [
+        ("Noch offen. Bis zur Antwort gilt: Wir rechnen mit dem 1. Juli.", False),
+        ("Beantwortet am 01.01.2026: 1. Juli.", False),
+        ("Noch offen.", True),
+        ("", True),
+    ],
+)
+def test_rueckfrage_braucht_antwort_oder_annahme(antwort: str, mangel: bool) -> None:
+    # Fängt: Rückfrage ohne Antwort und ohne die Annahme, mit der bis dahin gerechnet wird (#72 AC2).
+    treffer = [
+        m for m in bericht_maengel(_bericht_mit_rueckfrage(antwort)) if "ohne Antwort oder Annahme" in m
+    ]
+    assert bool(treffer) is mangel
+    if mangel:
+        assert "R1" in treffer[0]

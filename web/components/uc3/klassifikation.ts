@@ -1,8 +1,11 @@
 import { literal } from "./beleg";
+import { ersterSatz } from "./bericht";
 import { lies, type Lesung, type Sql } from "./db";
 import { ladeMassgeblichenLauf } from "./laeufe";
 import { monatsgrenzen } from "./monat";
+import { alltag } from "./sprache";
 import type { Lauf } from "./typen";
+import { bestandFilter } from "./zeitraum";
 
 /**
  * Klassifikationen für UC3 (#18, Frame XlcSB): Branchenabschnitte ÖNACE 2008 und 2025, Übergänge, Zuordnungsregeln
@@ -190,14 +193,14 @@ function stichtagsFilter(lauf: Pick<Lauf, "lieferung" | "regelstand">): string {
 
 /** SQL der Verhältnisse je Abschnitt in beiden Monaten, jeweils aus dem maßgeblichen Lauf. */
 export function sqlAbschnittBestand(
-  alt: Pick<Lauf, "lieferung" | "regelstand" | "regelsatz">,
+  alt: Pick<Lauf, "lieferung" | "regelstand" | "regelsatz" | "zeitraumArt">,
   neu: Pick<Lauf, "lieferung" | "regelstand" | "regelsatz">,
 ): string {
   return [
     "SELECT s.oenace_version, s.oenace, sum(s.wert) AS beschaeftigungsverhaeltnisse",
     "FROM stat.stat_beschaeftigte s",
     `WHERE s.regelsatz = ${literal(alt.regelsatz)}`,
-    "  AND s.zeitraum_art = 'Stichtag' AND s.variable = 'Beschaeftigungsverhaeltnisse'",
+    `  AND ${bestandFilter(alt.zeitraumArt, "s.")}`,
     `  AND (${stichtagsFilter(alt)}`,
     `    OR ${stichtagsFilter(neu)})`,
     "GROUP BY 1, 2 ORDER BY 2, 1;",
@@ -288,6 +291,8 @@ export interface Klassifikationsdaten {
   qualifikationen: Qualifikation[];
   altersgruppen: Altersgruppe[];
   kategorieStand: KategorieStand | null;
+  /** Unterklassen je Abschnittspaar ÖNACE 2008 → 2025 aus dem Umsteigeschlüssel; leer, wenn er fehlt. */
+  abschnittUebergaenge: AbschnittUebergang[];
 }
 
 const zahl = (wert: unknown): number => Number(wert ?? 0);
@@ -301,7 +306,7 @@ async function ladeBestand(sql: Sql): Promise<Klassifikationsdaten["bestand"]> {
     SELECT s.oenace_version, s.oenace, sum(s.wert) AS wert
     FROM stat.stat_beschaeftigte s
     WHERE s.regelsatz = ${alt.regelsatz}
-      AND s.zeitraum_art = 'Stichtag' AND s.variable = 'Beschaeftigungsverhaeltnisse'
+      AND s.zeitraum_art = ${alt.zeitraumArt} AND s.variable = 'Beschaeftigungsverhaeltnisse'
       AND ((s.regelstand = ${alt.regelstand} AND s.zeitraum_bis BETWEEN ${a.von} AND ${a.bis})
         OR (s.regelstand = ${neu.regelstand} AND s.zeitraum_bis BETWEEN ${n.von} AND ${n.bis}))
     GROUP BY 1, 2`;
@@ -348,8 +353,18 @@ async function ladeRegeln(sql: Sql, regelsatz: string): Promise<Zuordnungsregel[
 /** Alles für die Seite in einem `lies()`-Aufruf mit parallelen Abfragen. */
 export function leseKlassifikationen(regelsatz = "v1"): Promise<Lesung<Klassifikationsdaten>> {
   return lies(async (sql) => {
-    const [oenace, uebergaenge, regeln, bestand, bundeslaender, geschlechter, qualifikationen, altersgruppen, kategorieStand] =
-      await Promise.all([
+    const [
+      oenace,
+      uebergaenge,
+      regeln,
+      bestand,
+      bundeslaender,
+      geschlechter,
+      qualifikationen,
+      altersgruppen,
+      kategorieStand,
+      abschnittUebergaenge,
+    ] = await Promise.all([
         sql<{ version: string; code: string; bezeichnung: string }[]>`
           SELECT version, code, bezeichnung FROM stat.klass_oenace
           WHERE ebene = 1 AND version IN ('2008', '2025')`,
@@ -367,6 +382,12 @@ export function leseKlassifikationen(regelsatz = "v1"): Promise<Lesung<Klassifik
           SELECT berichtsgruppe, min(code) AS von, max(code) AS bis
           FROM stat.klass_alter GROUP BY berichtsgruppe ORDER BY min(code)`,
         ladeKategorieStand(sql, regelsatz),
+        sql<{ alt: string; neu: string; unterklassen: string }[]>`
+          SELECT split_part(code_alt, ' ', 1) AS alt, split_part(code_neu, ' ', 1) AS neu,
+                 count(DISTINCT code_alt) AS unterklassen
+          FROM stat.uebergang
+          WHERE klassifikation = 'oenace_unterklasse' AND version_alt = '2008' AND version_neu = '2025'
+          GROUP BY 1, 2`,
       ]);
     const nach = (version: string) =>
       oenace.filter((o) => o.version === version).map(({ code, bezeichnung }) => ({ code, bezeichnung }));
@@ -390,6 +411,7 @@ export function leseKlassifikationen(regelsatz = "v1"): Promise<Lesung<Klassifik
       })),
       altersgruppen: altersgruppen.map((g) => ({ gruppe: g.berichtsgruppe, von: zahl(g.von), bis: zahl(g.bis) })),
       kategorieStand,
+      abschnittUebergaenge: abschnittUebergaenge.map((u) => ({ alt: u.alt, neu: u.neu, unterklassen: zahl(u.unterklassen) })),
     };
   });
 }
@@ -472,6 +494,9 @@ export interface KategorieStand {
   regelName: string;
   /** Spalte von stat.klass_qualifikation, nach der gezählt wird: „code“ (einzeln) oder „beschaeftigungskategorie“. */
   spalte: string;
+  /** Freigabe der Zählregel selbst (Name und Zeitpunkt als ISO), falls vorhanden. */
+  regelVon?: string | null;
+  regelAm?: string | null;
   auftrag: KategorieAuftrag | null;
 }
 
@@ -507,12 +532,22 @@ function isoText(wert: unknown): string | null {
 }
 
 async function ladeKategorieStand(sql: Sql, regelsatz: string): Promise<KategorieStand | null> {
-  const [r] = await sql<{ id: number; name: string; spalte: string | null }[]>`
-    SELECT id, name, parameter->>'qualifikation' AS spalte FROM meta.regel
+  const [r] = await sql<
+    { id: number; name: string; spalte: string | null; freigegeben_von: string | null; freigegeben_am: Date | null }[]
+  >`
+    SELECT id, name, parameter->>'qualifikation' AS spalte, freigegeben_von, freigegeben_am FROM meta.regel
     WHERE regelsatz = ${regelsatz} AND aktiv AND parameter ? 'qualifikation'
     ORDER BY id DESC LIMIT 1`;
   if (!r?.spalte) return null;
-  const stand: KategorieStand = { regelsatz, regelId: Number(r.id), regelName: r.name, spalte: r.spalte, auftrag: null };
+  const stand: KategorieStand = {
+    regelsatz,
+    regelId: Number(r.id),
+    regelName: r.name,
+    spalte: r.spalte,
+    regelVon: r.freigegeben_von,
+    regelAm: isoText(r.freigegeben_am),
+    auftrag: null,
+  };
   const [da] = await sql`SELECT to_regclass('meta.vorschlag') IS NOT NULL AS da`;
   if (!da?.da) return stand;
   const [v] = await sql<
@@ -645,4 +680,215 @@ export function abschnitteNachName(zeilen: readonly AbschnittZeile[]): NamensZei
   return ergebnis.sort(
     (a, b) => Number(unbekannt(a)) - Number(unbekannt(b)) || a.bezeichnung.localeCompare(b.bezeichnung, "de"),
   );
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Gegenüberstellung ÖNACE 2008 → 2025 (UI-Regie v1): eine Zeile je Branche, alt links, neu rechts
+
+/** Unterklassen, die laut Umsteigeschlüssel vom Abschnitt `alt` (2008) in den Abschnitt `neu` (2025) gehen. */
+export interface AbschnittUebergang {
+  alt: string;
+  neu: string;
+  unterklassen: number;
+}
+
+export type GegenueberArt = "gleich" | "gewechselt" | "umbenannt" | "geteilt" | "neu" | "entfaellt";
+
+export interface GegenueberZeile {
+  /** Name der Branche, wie er 2008 hieß (bei neuen Abschnitten der Name 2025). */
+  name: string;
+  alt: Abschnitt | null;
+  /** Ein Abschnitt 2025, bei einer Teilung mehrere. */
+  neu: Abschnitt[];
+  art: GegenueberArt;
+}
+
+/** Anteil der Unterklassen, ab dem ein Abschnitt 2025 als Nachfolger eines umbenannten Abschnitts 2008 gilt. */
+export const NACHFOLGER_SCHWELLE = 0.25;
+
+/**
+ * Stellt die Abschnitte 2008 und 2025 Zeile für Zeile gegenüber. Gleicher Name: eine Zeile, auch wenn der
+ * Buchstabe wechselt. Ohne gleichen Namen sucht der Umsteigeschlüssel die Nachfolger: Abschnitte 2025 ohne
+ * Namensgleichen, die mindestens `schwelle` der Unterklassen bekommen. Einer heißt „umbenannt“, mehrere „geteilt“.
+ * Was übrig bleibt, ist „neu“ oder „entfällt“. Nach Namen sortiert, „unbekannt“ am Ende.
+ */
+export function gegenueberstellung(
+  zeilen: readonly AbschnittZeile[],
+  uebergaenge: readonly AbschnittUebergang[],
+  schwelle = NACHFOLGER_SCHWELLE,
+): GegenueberZeile[] {
+  const alt = zeilen.flatMap((z) => (z.alt ? [z.alt] : []));
+  const neu = zeilen.flatMap((z) => (z.neu ? [z.neu] : []));
+  const neuNachName = new Map(neu.map((n) => [n.bezeichnung, n]));
+  const altNamen = new Set(alt.map((a) => a.bezeichnung));
+  const frei = new Map(neu.filter((n) => !altNamen.has(n.bezeichnung)).map((n) => [n.code, n]));
+  const ergebnis: GegenueberZeile[] = [];
+  for (const a of alt) {
+    const gleich = neuNachName.get(a.bezeichnung);
+    if (gleich) {
+      ergebnis.push({ name: a.bezeichnung, alt: a, neu: [gleich], art: gleich.code === a.code ? "gleich" : "gewechselt" });
+      continue;
+    }
+    const eigene = uebergaenge.filter((u) => u.alt === a.code);
+    const summe = eigene.reduce((s, u) => s + u.unterklassen, 0);
+    const nachfolger = eigene
+      .filter((u) => summe > 0 && u.unterklassen / summe >= schwelle && frei.has(u.neu))
+      .sort((x, y) => x.neu.localeCompare(y.neu, "de"))
+      .map((u) => frei.get(u.neu)!);
+    for (const n of nachfolger) frei.delete(n.code);
+    const art: GegenueberArt = nachfolger.length === 0 ? "entfaellt" : nachfolger.length === 1 ? "umbenannt" : "geteilt";
+    ergebnis.push({ name: a.bezeichnung, alt: a, neu: nachfolger, art });
+  }
+  for (const n of frei.values()) ergebnis.push({ name: n.bezeichnung, alt: null, neu: [n], art: "neu" });
+  const unbekannt = (z: GegenueberZeile) => z.alt?.code === UNBEKANNT || z.neu.some((n) => n.code === UNBEKANNT);
+  return ergebnis.sort((x, y) => Number(unbekannt(x)) - Number(unbekannt(y)) || x.name.localeCompare(y.name, "de"));
+}
+
+const ZAHLWORT = ["keine", "eine", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn", "elf", "zwölf"];
+const zahlwort = (n: number) => ZAHLWORT[n] ?? String(n);
+
+/** Hauptaussage und Unterzeile der Seite, mit den echten Zahlen der Gegenüberstellung (ohne „unbekannt“). */
+export function gegenueberSaetze(zeilen: readonly GegenueberZeile[]): { haupt: string; unter: string } {
+  const echt = zeilen.filter((z) => z.alt?.code !== UNBEKANNT && !z.neu.some((n) => n.code === UNBEKANNT));
+  const zaehle = (art: GegenueberArt) => echt.filter((z) => z.art === art).length;
+  const abschnitteAlt = echt.filter((z) => z.alt).length;
+  const abschnitteNeu = echt.reduce((s, z) => s + z.neu.length, 0);
+  const anzahl = abschnitteNeu === abschnitteAlt ? `mit ${abschnitteNeu} Abschnitten` : `mit ${abschnitteNeu} statt ${abschnitteAlt} Abschnitten`;
+  const haupt = `Ab Jänner 2025 gilt ÖNACE 2025 ${anzahl}. Wir vergleichen die Branchen über ihren Namen.`;
+  const teile: string[] = [];
+  const gleich = zaehle("gleich");
+  teile.push(`${gleich} ${gleich === 1 ? "Branche behält" : "Branchen behalten"} Buchstabe und Namen`);
+  const gewechselt = zaehle("gewechselt");
+  if (gewechselt) teile.push(`${gewechselt} ${gewechselt === 1 ? "steht" : "stehen"} unter einem anderen Buchstaben`);
+  const umbenannt = zaehle("umbenannt");
+  if (umbenannt) teile.push(`${umbenannt} ${umbenannt === 1 ? "heißt" : "heißen"} anders`);
+  const geteilt = zaehle("geteilt");
+  if (geteilt) teile.push(`${zahlwort(geteilt)} ${geteilt === 1 ? "teilt sich" : "teilen sich"}`);
+  const neu = zaehle("neu");
+  if (neu) teile.push(`${zahlwort(neu)} ${neu === 1 ? "ist" : "sind"} neu`);
+  const entfaellt = zaehle("entfaellt");
+  if (entfaellt) teile.push(`${zahlwort(entfaellt)} ${entfaellt === 1 ? "fällt" : "fallen"} weg`);
+  const unter = teile.length < 2 ? `${teile[0]}.` : `${teile.slice(0, -1).join(", ")} und ${teile.at(-1)}.`;
+  return { haupt, unter: unter[0].toUpperCase() + unter.slice(1) };
+}
+
+/** Ein Satz zu einer Zeile, die sich teilt oder umbenannt wird; sonst `null`. */
+export function aenderungsSatz(z: GegenueberZeile): string | null {
+  if (z.art === "geteilt") {
+    const liste = z.neu.map((n) => `${n.code} „${n.bezeichnung}“`);
+    const aufzaehlung = `${liste.slice(0, -1).join(", ")} und ${liste.at(-1)}`;
+    return `Teilt sich ab Jänner 2025 in ${zahlwort(z.neu.length)} Abschnitte: ${aufzaehlung}.`;
+  }
+  if (z.art === "umbenannt" && z.neu[0]) return `Heißt ab Jänner 2025 „${z.neu[0].bezeichnung}“.`;
+  if (z.art === "neu") return "Neu ab Jänner 2025.";
+  if (z.art === "entfaellt") return "Gibt es ab Jänner 2025 nicht mehr.";
+  return null;
+}
+
+/** SQL hinter der Zuordnung umbenannter und geteilter Abschnitte (für den Beleg). */
+export function sqlAbschnittUebergaenge(): string {
+  return [
+    "SELECT split_part(code_alt, ' ', 1) AS abschnitt_2008, split_part(code_neu, ' ', 1) AS abschnitt_2025,",
+    "       count(DISTINCT code_alt) AS unterklassen",
+    "FROM stat.uebergang",
+    "WHERE klassifikation = 'oenace_unterklasse' AND version_alt = '2008' AND version_neu = '2025'",
+    "GROUP BY 1, 2 ORDER BY 1, 2;",
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Qualifikationen je Regelsatz
+
+export interface QualifikationsStand {
+  regelsatz: string;
+  satz: string;
+  /** „freigegeben von … am …“ in Wiener Zeit, sonst `null`. */
+  freigabe: string | null;
+  status: "freigegeben" | "offen" | "abgelehnt" | null;
+  /** Auftrag, der diesen Regelsatz gebracht hat. */
+  auftrag: { titel: string; vorschlagId: number } | null;
+}
+
+function qualifikationsSatz(regelsatz: string, spalte: string | null, liste: readonly Qualifikation[]): string {
+  const bekannt = liste.filter((q) => q.code !== UNBEKANNT);
+  const kategorien = [...new Set(bekannt.map((q) => q.kategorie))];
+  const und = (xs: string[]) => (xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} und ${xs.at(-1)}`);
+  if (spalte === "code") {
+    return `Regelsatz ${regelsatz} zählt die ${bekannt.length} Qualifikationen einzeln, so wie sie geliefert werden.`;
+  }
+  if (spalte === "beschaeftigungskategorie") {
+    return `Regelsatz ${regelsatz} fasst sie zu ${kategorien.length} Beschäftigungskategorien zusammen: ${und(kategorien)}. Dienstvertrag und freier Dienstvertrag zählen dort gemeinsam.`;
+  }
+  return `Regelsatz ${regelsatz} zählt die Qualifikation nach der Spalte „${spalte ?? "unbekannt"}“.`;
+}
+
+const freigabeText = (von: string | null | undefined, am: string | null | undefined) =>
+  von ? `freigegeben von ${von}${am ? ` am ${wienerZeit(am)}` : ""}` : null;
+
+/** Ein Eintrag je Regelsatz: Grundstand aus der Zählregel, dazu der Regelsatz aus dem Auftrag, falls es ihn gibt. */
+export function qualifikationsStaende(stand: KategorieStand, liste: readonly Qualifikation[]): QualifikationsStand[] {
+  const basisFreigabe = freigabeText(stand.regelVon, stand.regelAm);
+  const ergebnis: QualifikationsStand[] = [
+    {
+      regelsatz: stand.regelsatz,
+      satz: qualifikationsSatz(stand.regelsatz, stand.spalte, liste),
+      freigabe: basisFreigabe,
+      status: basisFreigabe ? "freigegeben" : "offen",
+      auftrag: null,
+    },
+  ];
+  const a = stand.auftrag;
+  if (a) {
+    ergebnis.push({
+      regelsatz: a.regelsatzZiel,
+      satz: qualifikationsSatz(a.regelsatzZiel, a.zielSpalte, liste),
+      freigabe:
+        a.status === "freigegeben"
+          ? freigabeText(a.von, a.am)
+          : a.status === "abgelehnt"
+            ? `abgelehnt${a.von ? ` von ${a.von}` : ""}${a.am ? ` am ${wienerZeit(a.am)}` : ""}`
+            : null,
+      status: a.status,
+      auftrag: { titel: a.titel.split(",")[0]?.trim() || a.titel, vorschlagId: a.vorschlagId },
+    });
+  }
+  return ergebnis;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Regeln in Klartext
+
+const TABELLEN: Record<string, string> = {
+  "stat.quellzuordnung": "die Zuordnungsliste",
+  "meta.revision": "der Revisionsliste",
+  "stat.klass_oenace": "der ÖNACE-Liste",
+};
+
+/**
+ * Erster Satz einer Regelbeschreibung ohne Regelcodes und Tabellennamen, für den Fließtext. Der volle Text bleibt
+ * in den Details. „die Einleseregel E01“ wird „die Einleseregel“, „(E04)“ fällt weg, Tabellen heißen mit Namen.
+ */
+export function regelKlartext(beschreibung: string): string {
+  return alltag(ersterSatz(beschreibung))
+    .replace(/\s*\((?:[A-Z]\d{2}(?:_\w+)?|[A-Z]\d(?:_[A-Za-z0-9]+)+)\)/g, "")
+    .replace(/\s*\([^()]*\b(?:stat|meta|roh)\.[a-z_]+[^()]*\)/g, "")
+    .replace(/\s*\([^()]*\b[A-Za-z]+_[A-Za-z_]+\b[^()]*\)/g, "")
+    .replace(/\b(?:stat|meta|roh)\.[a-z_]+\b/g, (t) => TABELLEN[t] ?? "einer Liste")
+    .replace(/\b((?:Einlese|Zähl|Prüf|Zuordnungs)?[Rr]egel) (?:[A-Z]\d{2}|[A-Z]\d(?:_[A-Za-z0-9]+)+)\b/g, "$1")
+    .replace(/\bvon (?:[A-Z]\d(?:_[A-Za-z0-9]+)+)\b/g, "der Zählregel")
+    .replace(/\b(0[1-9]|1[0-2])\/(\d{4})\b/g, (_t, m: string, j: string) => `${MONATE_LANG[Number(m) - 1]} ${j}`)
+    .replace(/\beinem Zeile\b/g, "einer Zeile")
+    .replace(/\bder Zeile als\b/g, "die Zeile als")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+const MONATE_LANG = ["Jänner", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+
+/** „05.11.2026“ (Datum in Wiener Zeit aus `datum`) → „5. November 2026“; anderes bleibt stehen. */
+export function datumLang(text: string): string {
+  const t = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(text);
+  if (!t) return text;
+  const monat = MONATE_LANG[Number(t[2]) - 1];
+  return monat ? `${Number(t[1])}. ${monat} ${t[3]}` : text;
 }

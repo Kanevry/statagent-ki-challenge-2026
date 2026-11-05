@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { BUNDESLAENDER_2024_08, GOLDEN_SET, zahl } from "../daten/fakten";
 import { berechneLayout, standardRaender, type SzeneLayout } from "../szene/motor/layout";
@@ -13,7 +14,7 @@ import {
   type SchrittId,
   type SzeneVariante,
 } from "../szene/vertrag";
-import { BELEG, HERO, SCHRITT_TEXTE, SZENE_TEXTE, monateLesbar } from "../texte/inhalt";
+import { BELEG, HERO, NAVIGATION, SCHRITT_TEXTE, SZENE_TEXTE, monateLesbar } from "../texte/inhalt";
 import h from "./hero.module.css";
 import s from "./seite.module.css";
 
@@ -352,22 +353,10 @@ const ErststandInhalt = memo(function ErststandInhalt() {
       <h1 id="hero-titel" className={h.titel}>
         {HERO.titel} <span className={h.autor}>{HERO.autor}</span>
       </h1>
-      <p className={h.leitmotiv}>
-        {HERO.leitmotiv.map((wort, i) => (
-          <span key={wort} className={h.motivTeil} style={{ "--n": i } as CSSProperties}>
-            {i > 0 ? (
-              <>
-                <span className={h.pfeil} aria-hidden="true">
-                  →
-                </span>
-                <span className={s.nurLeser}> führt zu </span>
-              </>
-            ) : null}
-            <span className={i === HERO.leitmotiv.length - 1 ? h.motivZiel : undefined}>{wort}</span>
-          </span>
-        ))}
-      </p>
       <p className={h.satz}>{HERO.satz}</p>
+      <Link href={NAVIGATION.app.href} className={h.appKnopf}>
+        {NAVIGATION.app.text}
+      </Link>
       <div className={h.ergebnis}>
         <dl className={h.ergebnisListe} aria-label={HERO.ergebnisBereich}>
           {HERO.ergebnis.map((e) => (

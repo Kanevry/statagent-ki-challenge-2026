@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Knopf } from "@kic/ui/basis";
 import type { Folie } from "../../lib/praesentation/folien";
-import { naechsterStand, schalterFuerTaste, type Stand } from "../../lib/praesentation/navigation";
+import { betreten, naechsterStand, schalterFuerTaste, type Stand } from "../../lib/praesentation/navigation";
 import { BUEHNE, BUEHNE_BREITE, BUEHNE_HOEHE } from "./buehne-klassen";
 import { istRuhig, k } from "./szenen/gemeinsam";
 import { szeneFuer } from "./szenen";
@@ -31,12 +31,25 @@ function gehoertDemElement(ziel: EventTarget | null, taste: string): boolean {
   return taste === " " && ["BUTTON", "A", "SUMMARY"].includes(ziel.tagName);
 }
 
+/** Takte einer Folie: die der Szene, oder weniger, wenn das Frontmatter `takte` kleiner setzt. */
+export function taktZahl(ausSzene: number, ausFolie: string | undefined): number {
+  const n = Number(ausFolie);
+  return ausFolie !== undefined && Number.isInteger(n) && n >= 0 ? Math.min(n, ausSzene) : ausSzene;
+}
+
 const FOKUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen";
 
 export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }) {
   const anzahl = folien.length;
-  const takte = useMemo(() => folien.map((f) => szeneFuer(f.szene?.id)?.takte ?? 0), [folien]);
-  const [stand, setStand] = useState<Stand>({ folie: start, takt: 0 });
+  const takte = useMemo(() => folien.map((f) => taktZahl(szeneFuer(f.szene?.id)?.takte ?? 0, f.szene?.folie.daten.takte)), [folien]);
+  // Direktlink ?folie=N (N > 1, etwa nach einem Neuladen mitten im Vortrag): Endzustand wie beim Sprung aus der
+  // Leiste, damit nie ein Zwischenstand erscheint. Folie 1 beginnt wie gewohnt mit ihrer Bewegung.
+  const [stand, setStand] = useState<Stand>(() => (start > 1 ? betreten(start, takte, true) : { folie: start, takt: 0 }));
+  /**
+   * Still: die aktive Folie steht im Endzustand ohne Bewegung (Sprung aus der Folienliste). Keyframes, Zähler und
+   * getippte Texte laufen nicht, wie bei reduzierter Bewegung. Gilt, bis eine Taste oder ein Knopf die Folie wechselt.
+   */
+  const [still, setStill] = useState(start > 1);
   const [notizenAn, setNotizenAn] = useState(false);
   const [vollbild, setVollbild] = useState(false);
   const [kannVollbild, setKannVollbild] = useState(true);
@@ -57,16 +70,26 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
     }
   }, []);
 
-  /** Sprung auf eine Folie (Leiste): Takt 0, bei reduzierter Bewegung alle Takte. */
+  /**
+   * Sprung auf eine Folie (Leiste): immer der Endzustand mit allen Takten, still, ohne Zwischenstände wie einen
+   * halb gezählten Zähler. Takte schalten nur Tasten und die Knöpfe Vorherige/Nächste Folie.
+   */
   const gehe = useCallback(
-    (ziel: number) => wechsle({ folie: ziel, takt: istRuhig() ? (takte[ziel - 1] ?? 0) : 0 }),
+    (ziel: number) => {
+      setStill(true);
+      wechsle(betreten(ziel, takte, true));
+    },
     [takte, wechsle],
   );
 
   const schritt = useCallback(
     (taste: string) => {
       const neu = naechsterStand(stand, takte, taste, istRuhig());
-      if (neu && (neu.folie !== stand.folie || neu.takt !== stand.takt)) wechsle(neu);
+      if (neu && (neu.folie !== stand.folie || neu.takt !== stand.takt)) {
+        // Innerhalb der stillen Folie bleibt sie still: sonst liefen alle Keyframes und Zähler von vorn.
+        if (neu.folie !== stand.folie) setStill(false);
+        wechsle(neu);
+      }
       return neu !== null;
     },
     [stand, takte, wechsle],
@@ -91,7 +114,7 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
     el.querySelectorAll("[data-k]").forEach((kr) => kr.classList.remove(geflogen, mitgenommen));
     const altEl = el.querySelector<HTMLElement>(`[data-nr="${alt}"]`);
     const neuEl = el.querySelector<HTMLElement>(`[data-nr="${nr}"]`);
-    if (!altEl || !neuEl || istRuhig()) return;
+    if (!altEl || !neuEl || istRuhig() || still) return;
     altEl.classList.add(geht);
     const uhr = window.setTimeout(() => altEl.classList.remove(geht), 320);
     const massstab = el.getBoundingClientRect().width / BUEHNE_BREITE || 1;
@@ -114,7 +137,7 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
       }
     }
     return () => window.clearTimeout(uhr);
-  }, [nr]);
+  }, [nr, still]);
 
   const schalteVollbild = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
@@ -230,16 +253,17 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
                 return (
                   <div
                     key={f.id}
-                    className={k("szene", aktiv && "aktiv")}
+                    className={k("szene", aktiv && "aktiv", aktiv && still && "still")}
                     data-nr={i + 1}
                     data-szene={eintrag ? f.szene?.id : undefined}
                     data-aktiv={aktiv ? "ja" : undefined}
+                    data-still={aktiv && still ? "ja" : undefined}
                   >
                     {eintrag && f.szene ? (
                       <eintrag.Komponente
                         folie={f.szene.folie}
                         nr={i + 1}
-                        aktiv={aktiv}
+                        aktiv={aktiv && !still}
                         takt={aktiv ? takt : (takte[i] ?? 0)}
                       />
                     ) : (

@@ -119,6 +119,8 @@ export interface ErledigtZeile {
   commit: string | null;
   vorschlag: Vorschlag | null;
   waage: Waage | null;
+  /** Nur bei Einträgen aus meta.regelstand_freigabe: Regelsatz und Monat, für die der Regelstand gilt. */
+  regelstand?: { regelsatz: string; lieferung: string } | null;
 }
 
 export interface Freigaben {
@@ -221,6 +223,7 @@ export async function leseFreigaben(): Promise<Lesung<Freigaben>> {
           commit: null,
           vorschlag: null,
           waage: null,
+          regelstand: { regelsatz: String(z.regelsatz), lieferung },
         });
       }
     }
@@ -327,20 +330,76 @@ function wert(x: unknown): string {
   return typeof x === "string" ? `„${x}“` : JSON.stringify(x);
 }
 
-type Aenderung = { regel_name?: unknown; parameter_alt?: unknown; parameter_neu?: unknown; regel?: unknown; pfad?: unknown };
+type Aenderung = { regel_name?: unknown; aktiv_neu?: unknown; parameter_alt?: unknown; parameter_neu?: unknown; regel?: unknown; pfad?: unknown };
 
 function objekt(x: unknown): Record<string, unknown> {
   return typeof x === "object" && x !== null && !Array.isArray(x) ? (x as Record<string, unknown>) : {};
 }
 
+const MERKMAL_WORT: Record<string, string> = {
+  region: "Bundesland",
+  geschlecht: "Geschlecht",
+  oenace: "Branche",
+  qualifikation: "Qualifikation",
+  beschaeftigungskategorie: "Kategorie",
+  alter: "Alter",
+};
+
+function aufzaehlung(teile: readonly string[]): string {
+  return teile.length < 2 ? (teile[0] ?? "") : `${teile.slice(0, -1).join(", ")} und ${teile[teile.length - 1]!}`;
+}
+
+/** Parameter einer neuen Regel: als Objekt gespeichert, als Liste {schluessel, wert} vom Agenten geliefert. */
+function regelParameter(x: unknown): Record<string, unknown> {
+  if (!Array.isArray(x)) return objekt(x);
+  return Object.fromEntries(x.map((e) => [String(objekt(e).schluessel ?? ""), objekt(e).wert]));
+}
+
+/**
+ * Neue Regel der Arten `ausschluss` und `gruppierung` als Satz aus den Parametern statt als Rohtext mit Codes (#168).
+ * Andere Arten und unlesbare Parameter: null, dann gilt die Beschreibung der Regel.
+ */
+function regelNeuSatz(r: Record<string, unknown>, bezeichnungen: Bezeichnungen): string | null {
+  const p = regelParameter(r.parameter);
+  const merkmal = String(p.merkmal ?? "");
+  const nachschlag = merkmal === "beschaeftigungskategorie" ? "qualifikation" : merkmal;
+  const name = (code: string) => codeName(nachschlag, code, bezeichnungen);
+  if (r.art === "ausschluss" && Array.isArray(p.werte) && p.werte.length > 0) {
+    if (merkmal === "alter") {
+      const spannen = p.werte.map((w) => String(w).replace("-", " bis "));
+      return `Beschäftigungsverhältnisse im Alter von ${aufzaehlung(spannen)} Jahren zählen nicht mehr.`;
+    }
+    const werte = p.werte.map((w) => name(String(w)));
+    return `Beschäftigungsverhältnisse mit ${MERKMAL_WORT[merkmal] ?? merkmal} ${aufzaehlung(werte)} zählen nicht mehr.`;
+  }
+  if (r.art === "gruppierung" && Array.isArray(p.zuordnung) && p.zuordnung.length > 0) {
+    const gruppen = new Map<string, string[]>();
+    for (const eintrag of p.zuordnung) {
+      const [code = "", gruppe = ""] = String(eintrag).split("=");
+      gruppen.set(gruppe.trim(), [...(gruppen.get(gruppe.trim()) ?? []), name(code.trim())]);
+    }
+    return [...gruppen].map(([gruppe, teile]) => `${aufzaehlung(teile)} werden zu „${gruppe}“ zusammengelegt.`).join(" ");
+  }
+  return null;
+}
+
 /** Regeländerung in Worten und als Zeilen mit „-“ (fällt weg) und „+“ (kommt dazu); nur geänderte Werte. */
-export function klartext(v: Pick<Vorschlag, "typ" | "aenderungen">): { worte: string[]; diff: string } {
+export function klartext(
+  v: Pick<Vorschlag, "typ" | "aenderungen">,
+  bezeichnungen: Bezeichnungen = {},
+): { worte: string[]; diff: string } {
   const worte: string[] = [];
   const zeilen: string[] = [];
   for (const roh of v.aenderungen) {
     const a = objekt(roh) as Aenderung;
     if (v.typ === "regel_aendern") {
       const regel = String(a.regel_name ?? "");
+      // Rücknahme: Die Regel bleibt mit gleichen Parametern stehen, nur `aktiv` wechselt (#168).
+      if (a.aktiv_neu === false) {
+        worte.push(`Die Regel ${regel} wird abgeschaltet, sie wird nicht gelöscht.`);
+        zeilen.push(`- ${regel}: aktiv = true`, `+ ${regel}: aktiv = false`);
+        continue;
+      }
       const alt = objekt(a.parameter_alt);
       const neu = objekt(a.parameter_neu);
       for (const k of [...new Set([...Object.keys(alt), ...Object.keys(neu)])].sort()) {
@@ -354,8 +413,9 @@ export function klartext(v: Pick<Vorschlag, "typ" | "aenderungen">): { worte: st
     } else if (v.typ === "regel_neu") {
       const r = objekt(a.regel);
       const name = String(r.name ?? "");
-      worte.push(typeof r.beschreibung === "string" ? r.beschreibung : `Die Regel ${name} kommt neu dazu.`);
-      zeilen.push(`+ ${name}: ${wert(r.parameter)}`);
+      const satz = regelNeuSatz(r, bezeichnungen);
+      worte.push(satz ?? (typeof r.beschreibung === "string" ? r.beschreibung : `Die Regel ${name} kommt neu dazu.`));
+      zeilen.push(`+ ${name}: ${satz ?? wert(r.parameter)}`);
     } else {
       worte.push("Eine Sonderauswertung kommt dazu. Sie ändert keine Regel und keine Zahl der Statistik.");
       zeilen.push(`+ Datei ${String(a.pfad ?? "")}`);
@@ -364,12 +424,32 @@ export function klartext(v: Pick<Vorschlag, "typ" | "aenderungen">): { worte: st
   return { worte, diff: zeilen.join("\n") };
 }
 
+/**
+ * Satz für den sichtbaren Teil der Freigabe, nur wenn die Änderung sonst unsichtbar bliebe: Rücknahme, Ausschluss,
+ * Zusammenlegung. Andere Änderungen zeigt die Probe; dort bleibt die Seite ruhig (null).
+ */
+export function klarerAenderungsSatz(
+  v: Pick<Vorschlag, "typ" | "aenderungen">,
+  bezeichnungen: Bezeichnungen = {},
+): string | null {
+  const teile = v.aenderungen.flatMap((roh) => {
+    const a = objekt(roh) as Aenderung;
+    if (v.typ === "regel_aendern" && a.aktiv_neu === false) {
+      return ["Die Regel wird abgeschaltet, sie wird nicht gelöscht."];
+    }
+    const satz = v.typ === "regel_neu" ? regelNeuSatz(objekt(a.regel), bezeichnungen) : null;
+    return satz ? [satz] : [];
+  });
+  return teile.length > 0 ? teile.join(" ") : null;
+}
+
 /** Kurzform für das Protokoll: welche Regel oder Datei sich ändert. */
 export function aenderungKurz(v: Pick<Vorschlag, "typ" | "aenderungen" | "regelsatzZiel">): string {
   const namen = v.aenderungen.map((roh) => {
     const a = objekt(roh) as Aenderung;
     if (v.typ === "code_datei") return `Datei ${String(a.pfad ?? "")}`;
-    return `Regel ${String(a.regel_name ?? objekt(a.regel).name ?? "")}`;
+    const name = `Regel ${String(a.regel_name ?? objekt(a.regel).name ?? "")}`;
+    return a.aktiv_neu === false ? `${name} abschalten` : name;
   });
   return v.typ === "code_datei" ? namen.join(", ") : `${namen.join(", ")} (Regelsatz ${v.regelsatzZiel})`;
 }
@@ -408,7 +488,21 @@ export interface Waage {
   gesamtNachher: number;
 }
 
-const MERKMALE: Record<string, string> = { qualifikation: "Qualifikation", geschlecht: "Geschlecht", region: "Region" };
+const MERKMALE: Record<string, string> = {
+  qualifikation: "Qualifikation",
+  geschlecht: "Geschlecht",
+  region: "Region",
+  altersgruppe: "Altersgruppe",
+  oenace: "Branche",
+};
+
+/** Merkmale, die nur zählen, wenn sich die Grundgliederung nicht ändert: Sonst stünden rund 30 Zeilen mehr da. */
+const NUR_OHNE_GRUNDGLIEDERUNG: ReadonlySet<string> = new Set(["altersgruppe", "oenace"]);
+
+/** Name eines Codes; ein ÖNACE-Abschnitt heißt je Fassung anders, darum nur „Abschnitt C“ statt eines Namens. */
+function codeName(merkmal: string, code: string, bezeichnungen: Bezeichnungen): string {
+  return bezeichnungen[merkmal]?.[code] ?? (merkmal === "oenace" ? `Abschnitt ${code}` : code);
+}
 
 type ProbeZahlen = { gesamt?: unknown; je_merkmal?: unknown };
 
@@ -460,18 +554,19 @@ export function waage(probe: unknown, bezeichnungen: Bezeichnungen = {}): Waage 
       const vorher = zahl(v[code]);
       const nachher = zahl(n[code]);
       if (vorher === nachher) continue;
-      const name = bezeichnungen[merkmal]?.[code] ?? code;
       zeilen.push({
         merkmal,
         code,
-        bezeichnung: `${name} (${MERKMALE[merkmal] ?? merkmal})`,
+        bezeichnung: `${codeName(merkmal, code, bezeichnungen)} (${MERKMALE[merkmal] ?? merkmal})`,
         vorher,
         nachher,
         differenz: nachher - vorher,
       });
     }
   }
-  zeilen.sort((a, b) => Math.abs(b.differenz) - Math.abs(a.differenz) || a.bezeichnung.localeCompare(b.bezeichnung));
+  const grundgliederung = zeilen.filter((z) => !NUR_OHNE_GRUNDGLIEDERUNG.has(z.merkmal));
+  const gezeigt = grundgliederung.length > 0 ? grundgliederung : zeilen;
+  gezeigt.sort((a, b) => Math.abs(b.differenz) - Math.abs(a.differenz) || a.bezeichnung.localeCompare(b.bezeichnung));
   const gesamtVorher = zahl(monat.vorher.gesamt);
   const gesamtNachher = zahl(monat.nachher.gesamt);
   const gesamt: WaageZeile = {
@@ -483,11 +578,11 @@ export function waage(probe: unknown, bezeichnungen: Bezeichnungen = {}): Waage 
     differenz: gesamtNachher - gesamtVorher,
   };
   const gesamtBekannt = monat.vorher.gesamt !== undefined && monat.nachher.gesamt !== undefined && gesamtVorher > 0;
-  const umverteilung = zeilen.length > 0 && gesamtBekannt && gesamtVorher === gesamtNachher;
+  const umverteilung = gezeigt.length > 0 && gesamtBekannt && gesamtVorher === gesamtNachher;
   if (umverteilung) {
-    return { lieferung: monat.lieferung, haupt: gesamt, weitere: zeilen, gesamt, umverteilung, gesamtVorher, gesamtNachher };
+    return { lieferung: monat.lieferung, haupt: gesamt, weitere: gezeigt, gesamt, umverteilung, gesamtVorher, gesamtNachher };
   }
-  const [haupt = gesamt, ...weitere] = zeilen;
+  const [haupt = gesamt, ...weitere] = gezeigt;
   return { lieferung: monat.lieferung, haupt, weitere, gesamt, umverteilung, gesamtVorher, gesamtNachher };
 }
 
@@ -845,8 +940,14 @@ export function entscheidungArgv(e: Entscheidung): string[] {
     : ["ablehnen", String(e.id), "--name", e.name, "--begruendung", e.begruendung, "--json"];
 }
 
-/** Fester Satz für jeden Fehler, den die CLI nicht als bekannten fachlichen Fehler meldet (auch Git-Fehler). */
-export const GRUND_UNBEKANNT = "Die Entscheidung ist nicht gespeichert. Bitte später noch einmal versuchen.";
+/**
+ * Fester Satz für jeden Fehler, den die CLI nicht als bekannten fachlichen Fehler meldet (auch Git-Fehler). Die
+ * Freigabe-Karte (@kic/ui) setzt selbst „Nicht gespeichert.“ davor, deshalb sagt der Satz das nicht noch einmal
+ * (Abnahme 135-12).
+ */
+export const GRUND_UNBEKANNT = "Bitte später noch einmal versuchen.";
+/** Satz, wenn die CLI nicht startet oder unerwartet endet; die Karte setzt „Nicht gespeichert.“ davor. */
+export const DIENST_NICHT_ERREICHBAR = "Der Dienst antwortet gerade nicht. Bitte gleich noch einmal versuchen.";
 
 /**
  * Bekannte fachliche Fehler der CLI (stderr „nicht freigegeben: …“ bzw. „nicht abgelehnt: …“) → fester Satz.
@@ -936,7 +1037,7 @@ export function erstelleFreigabeAntwort({
       lauf = await uc3(entscheidungArgv(e), { ausfuehren, ...(wurzel ? { wurzel } : {}) });
     } catch (grund) {
       console.warn(`[uc3/freigabe] CLI nicht erreichbar (${(grund as Error).name ?? "Fehler"})`);
-      return fehler(502, "Die Entscheidung konnte nicht gespeichert werden. Bitte gleich noch einmal versuchen.");
+      return fehler(502, DIENST_NICHT_ERREICHBAR);
     }
     const erfolg = lauf.code === 0 || lauf.code === 1 ? erfolgAus(lauf.stdout, e.entscheidung) : null;
     if (erfolg && (lauf.code === 0 || erfolg.angewendet === false)) {
@@ -945,11 +1046,11 @@ export function erstelleFreigabeAntwort({
     if (lauf.code === 1) {
       const grund = kurzerGrund(lauf.stderr);
       const meldung =
-        grund === GRUND_UNBEKANNT ? GRUND_UNBEKANNT : "Die Entscheidung ist nicht gespeichert.";
+        grund === GRUND_UNBEKANNT ? GRUND_UNBEKANNT : "Die Angaben passen nicht.";
       return fehler(409, meldung, grund);
     }
     console.warn(`[uc3/freigabe] CLI beendet mit Exit ${lauf.code}`);
-    return fehler(502, "Die Entscheidung konnte nicht gespeichert werden. Bitte gleich noch einmal versuchen.");
+    return fehler(502, DIENST_NICHT_ERREICHBAR);
   }
 
   return async function freigabeAntwort(anfrage: Request): Promise<Response> {
@@ -1002,5 +1103,250 @@ export function auftragsZitat(anweisung: string): string {
 /** Wer den Auftrag gegeben hat: Name aus dem Protokoll, sonst die Herkunft „Auftrag N“ der Aufgabenstellung. */
 export function auftraggeber(v: Pick<Vorschlag, "gesagtVon" | "anweisung">): string {
   if (v.gesagtVon) return `Gesagt von ${v.gesagtVon}`;
-  return /^Auftrag \d+\b/.test(v.anweisung.trim()) ? "Änderungsauftrag aus der Aufgabenstellung" : "Ohne Namen erfasst";
+  return /^Auftrag \d+\b/.test(v.anweisung.trim()) ? "Änderungsauftrag aus der Aufgabenstellung" : "Änderungsauftrag";
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Sätze und Tabellen der Freigabe-Seiten (UI-Regie v1): ein Kopfsatz, Zeilen ohne Codes, Probe als kleine Tabelle
+// ---------------------------------------------------------------------------------------------------------------
+
+const kurzFormat = new Intl.DateTimeFormat("de-AT", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: "Europe/Vienna",
+});
+
+/** Zeitpunkt in Wiener Zeit als „05.11. 16:53“; ein ungültiger Wert bleibt, wie er ist. */
+export function kurzZeit(iso: string): string {
+  const datum = new Date(iso);
+  if (Number.isNaN(datum.getTime())) return iso;
+  const teil = (art: Intl.DateTimeFormatPartTypes) => kurzFormat.formatToParts(datum).find((t) => t.type === art)?.value ?? "";
+  return `${teil("day")}.${teil("month")}. ${teil("hour")}:${teil("minute")}`;
+}
+
+/** Titel und Nummer eines Auftrags: „Auftrag 1, Dienstvertrag …: …“ → Nummer 1, Titel „Dienstvertrag …“. */
+/** Sagt das Zitat dasselbe wie die Überschrift? Eine gekürzte Überschrift („… …“) zählt nicht, dort trägt das Zitat den Rest. */
+export function zitatDoppelt(titel: string, zitat: string): boolean {
+  const glatt = (t: string) => t.trim().replace(/[.!?]$/, "").toLowerCase();
+  return !titel.endsWith("…") && glatt(titel) === glatt(alltag(zitat));
+}
+
+export function auftragKopf(anweisung: string): { nummer: string | null; titel: string } {
+  const treffer = /^\s*Auftrag (\d+)\s*,?\s*([^:]{0,100}):/.exec(anweisung);
+  if (treffer) {
+    const rest = (treffer[2] ?? "").trim();
+    const titel = rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : `Auftrag ${treffer[1]}`;
+    return { nummer: treffer[1] ?? null, titel: alltag(titel) };
+  }
+  const [satz = ""] = anweisung.trim().split(/(?<=[.!?])\s+/);
+  const kurz = satz.length <= 90 ? satz.replace(/[.!?]$/, "") : `${satz.slice(0, 90).replace(/\s+\S*$/, "")} …`;
+  return { nummer: null, titel: alltag(kurz || "Änderung an den Regeln") };
+}
+
+/** Was die Änderung an den Regeln tut, ohne Regelcodes: „Ändert eine Regel im Regelsatz v2“. */
+export function aenderungSatz(v: Pick<Vorschlag, "typ" | "aenderungen" | "regelsatzZiel">): string {
+  if (v.typ === "code_datei") return "Neue Sonderauswertung, sie ändert keine Zahl der Statistik";
+  const n = Math.max(v.aenderungen.length, 1);
+  const wo = v.regelsatzZiel === "ministerium" ? "für die Ministeriums-Lieferung" : `im Regelsatz ${v.regelsatzZiel}`;
+  if (v.typ === "regel_neu") return n === 1 ? `Neue Regel ${wo}` : `${formatZahl(n)} neue Regeln ${wo}`;
+  const abgeschaltet = v.aenderungen.filter((roh) => objekt(roh).aktiv_neu === false).length;
+  if (abgeschaltet === n) return n === 1 ? `Schaltet eine Regel ab ${wo}` : `Schaltet ${formatZahl(n)} Regeln ab ${wo}`;
+  return n === 1 ? `Ändert eine Regel ${wo}` : `Ändert ${formatZahl(n)} Regeln ${wo}`;
+}
+
+/** Kopfsatz der Freigaben aus den Daten, etwa „3 Änderungen, alle mit Namen freigegeben.“ */
+export function freigabenKopf(offen: number, entschieden: readonly { art: "freigegeben" | "abgelehnt" }[]): string {
+  if (offen > 0) return offen === 1 ? "1 Änderung wartet auf Ihre Freigabe." : `${formatZahl(offen)} Änderungen warten auf Ihre Freigabe.`;
+  const n = entschieden.length;
+  if (n === 0) return "Noch hat kein Agent eine Änderung vorgeschlagen.";
+  const abgelehnt = entschieden.filter((e) => e.art === "abgelehnt").length;
+  if (abgelehnt === 0) return n === 1 ? "1 Änderung, mit Namen freigegeben." : `${formatZahl(n)} Änderungen, alle mit Namen freigegeben.`;
+  if (abgelehnt === n) return n === 1 ? "1 Änderung, mit Namen abgelehnt." : `${formatZahl(n)} Änderungen, alle mit Namen abgelehnt.`;
+  return `${formatZahl(n)} Änderungen mit Namen entschieden: ${formatZahl(n - abgelehnt)} freigegeben, ${formatZahl(abgelehnt)} abgelehnt.`;
+}
+
+const ROLLEN_DATIV: Record<string, string> = {
+  datenmanagement: "vom Datenmanagement-Agenten",
+  klassifikation: "vom Klassifikations-Agenten",
+  qs: "vom Prüf-Agenten",
+  reporting: "vom Berichts-Agenten",
+};
+
+const ANBIETER: Record<string, string> = {
+  azure: "Azure",
+  claude: "Claude",
+  mistral: "Mistral",
+  ollama: "Ollama",
+  mock: "Testmodell",
+};
+
+/** „Vorgeschlagen vom Klassifikations-Agenten (Azure gpt-5-4-mini)“ */
+export function vorgeschlagenVon(v: Pick<Vorschlag, "rolle" | "modell" | "provider">): string {
+  const wer = ROLLEN_DATIV[v.rolle] ?? `von ${rollenName(v.rolle)}`;
+  const anbieter = v.provider ? (ANBIETER[v.provider] ?? v.provider) : null;
+  const modell = [anbieter, v.modell].filter(Boolean).join(" ");
+  return `Vorgeschlagen ${wer}${modell ? ` (${modell})` : ""}`;
+}
+
+export interface ProbeKategorie {
+  kategorie: string;
+  vorher: number;
+  nachher: number;
+  /** Vorher getrennt gezählte Gruppen dieser Kategorie, z. B. „Angestellte mit Dienstvertrag“ 235.819. */
+  vorherTeile: { wort: string; wert: number }[];
+}
+
+export interface ProbeTabelle {
+  lieferung: string;
+  /** Je Beschäftigungskategorie, alphabetisch (Angestellte, Arbeiter, Beamte …). */
+  zeilen: ProbeKategorie[];
+  gesamt: { vorher: number; nachher: number };
+}
+
+/**
+ * Die Probe je Beschäftigungskategorie: Die Qualifikationscodes vorher und nachher werden über stat.klass_qualifikation
+ * ihrer Kategorie zugeordnet; ein Code, der selbst eine Kategorie ist (Regelsatz v2), steht unter sich selbst.
+ * Ohne gerechnete Probe null.
+ */
+/**
+ * Legt die Probe Bundesländer zusammen? Die Tabelle zeigt nur Beschäftigungskategorien, also sagt es dieser Satz, mit
+ * den Zahlen aus `je_merkmal.region`. Die neue Gruppe („Ost“) steht in keiner Klassifikation und heißt wie im Vorschlag.
+ */
+export function regionenSatz(probe: unknown, bezeichnungen: Bezeichnungen = {}): string | null {
+  const [monat] = probeMonate(probe);
+  if (!monat) return null;
+  const v = objekt(objekt(monat.vorher.je_merkmal).region);
+  const n = objekt(objekt(monat.nachher.je_merkmal).region);
+  const weg = Object.keys(v).filter((code) => zahl(v[code]) > 0 && n[code] === undefined);
+  const neu = Object.keys(n).filter((code) => v[code] === undefined);
+  const [gruppe] = neu;
+  if (weg.length < 2 || neu.length !== 1 || gruppe === undefined) return null;
+  const teile = weg.map((code) => `${codeName("region", code, bezeichnungen)} ${formatZahl(zahl(v[code]))}`);
+  const liste = `${teile.slice(0, -1).join(", ")} und ${teile.at(-1)}`;
+  return `${liste} zählen nachher zusammen als „${gruppe}“: ${formatZahl(zahl(n[gruppe]))}.`;
+}
+
+/**
+ * Ändert die Probe etwas an den Beschäftigungskategorien (je_merkmal.qualifikation) oder an der Gesamtzahl? Andere
+ * Merkmale (Bundesland, Alter) prüft diese Funktion nicht; der Satz auf der Seite nennt deshalb die Kategorien.
+ */
+export function probeAendert(t: ProbeTabelle): { gliederung: boolean; gesamt: boolean } {
+  const gliederung = t.zeilen.some((z) => z.vorher !== z.nachher || z.vorherTeile.length > 1);
+  return { gliederung, gesamt: t.gesamt.vorher !== t.gesamt.nachher };
+}
+
+export function probeJeKategorie(probe: unknown, kategorien: Kategorien): ProbeTabelle | null {
+  const [monat] = probeMonate(probe);
+  if (!monat) return null;
+  const v = objekt(objekt(monat.vorher.je_merkmal).qualifikation);
+  const n = objekt(objekt(monat.nachher.je_merkmal).qualifikation);
+  const je = new Map<string, ProbeKategorie>();
+  const eintrag = (code: string) => {
+    const kategorie = kategorien[code]?.kategorie ?? code;
+    return je.get(kategorie) ?? je.set(kategorie, { kategorie, vorher: 0, nachher: 0, vorherTeile: [] }).get(kategorie)!;
+  };
+  for (const [code, wert] of Object.entries(v)) {
+    const e = eintrag(code);
+    e.vorher += zahl(wert);
+    if (zahl(wert) === 0) continue;
+    const k = kategorien[code];
+    const wort = !k || k.frei === null || code === k.kategorie ? (k?.kategorie ?? code) : `${k.kategorie} ${k.frei ? "freier Dienstvertrag" : "mit Dienstvertrag"}`;
+    e.vorherTeile.push({ wort, wert: zahl(wert) });
+  }
+  // Dienstvertrag vor freiem Dienstvertrag, damit die Zeilen wie in der Aufgabe gelesen werden.
+  for (const e of je.values()) e.vorherTeile.sort((a, b) => Number(a.wort.includes("freier")) - Number(b.wort.includes("freier")));
+  for (const [code, wert] of Object.entries(n)) eintrag(code).nachher += zahl(wert);
+  const zeilen = [...je.values()]
+    .filter((z) => z.vorher !== 0 || z.nachher !== 0)
+    .sort((a, b) => a.kategorie.localeCompare(b.kategorie, "de"));
+  const summe = (seite: "vorher" | "nachher") => zeilen.reduce((s, z) => s + z[seite], 0);
+  const gesamt = {
+    vorher: monat.vorher.gesamt !== undefined ? zahl(monat.vorher.gesamt) : summe("vorher"),
+    nachher: monat.nachher.gesamt !== undefined ? zahl(monat.nachher.gesamt) : summe("nachher"),
+  };
+  if (zeilen.length === 0 && gesamt.vorher === 0 && gesamt.nachher === 0) return null;
+  return { lieferung: monat.lieferung, zeilen, gesamt };
+}
+
+/** Ein Beleg für die ganze Probe-Tabelle: je Kategorie vorher und nachher aus meta.vorschlag.probe, dazu Gesamt. */
+export function probeTabelleBeleg(vorschlagIdWert: number, t: ProbeTabelle): Beleg {
+  const basis = t.lieferung ? `v.probe->${literal(t.lieferung)}` : "v.probe";
+  return {
+    quelle: "meta.vorschlag",
+    lieferung: t.lieferung || null,
+    monat: t.lieferung || null,
+    stand: "vorlaeufig",
+    verweis: `Probe zu Vorschlag uc3/${vorschlagIdWert}, gerechnet und zurückgerollt`,
+    sql: [
+      "-- Je Gruppe der Lieferung: vorher getrennt (z. B. Dienstvertrag und freier Dienstvertrag), nachher je Kategorie",
+      "SELECT coalesce(k.beschaeftigungskategorie, q.code) AS kategorie, q.code AS gruppe,",
+      "       q.vorher, q.nachher",
+      "FROM meta.vorschlag v",
+      "CROSS JOIN LATERAL (",
+      "  SELECT coalesce(a.key, b.key) AS code,",
+      "         coalesce(a.value::bigint, 0) AS vorher, coalesce(b.value::bigint, 0) AS nachher",
+      `  FROM jsonb_each_text(${basis}->'vorher'->'je_merkmal'->'qualifikation') a`,
+      `  FULL JOIN jsonb_each_text(${basis}->'nachher'->'je_merkmal'->'qualifikation') b ON b.key = a.key`,
+      ") q",
+      "LEFT JOIN stat.klass_qualifikation k ON k.code = q.code",
+      `WHERE v.id = ${literal(vorschlagIdWert)}`,
+      "UNION ALL",
+      `SELECT 'Gesamt', NULL, (${basis}->'vorher'->>'gesamt')::bigint, (${basis}->'nachher'->>'gesamt')::bigint`,
+      `FROM meta.vorschlag v WHERE v.id = ${literal(vorschlagIdWert)};`,
+    ].join("\n"),
+  };
+}
+
+export interface ProtokollZeile {
+  schluessel: string;
+  satz: string;
+  name: string;
+  zeit: string;
+  art: "freigegeben" | "abgelehnt";
+}
+
+/**
+ * Weitere Einträge im Protokoll, die zu keinem Vorschlag gehören, in Worten. Die Regelstände eines Regelsatzes
+ * (einer je Monat) werden zu einer Zeile, etwa „Regeln von Regelsatz v2 für 24 Monate festgehalten“.
+ */
+export function protokollZeilen(zeilen: readonly ErledigtZeile[]): ProtokollZeile[] {
+  const ergebnis: ProtokollZeile[] = [];
+  const gruppen = new Map<string, { regelsatz: string; name: string; zeit: string; monate: string[] }>();
+  for (const z of zeilen) {
+    if (z.vorschlag) continue;
+    if (z.regelstand) {
+      const schluessel = `${z.regelstand.regelsatz}|${z.name}`;
+      const g = gruppen.get(schluessel) ?? gruppen.set(schluessel, { regelsatz: z.regelstand.regelsatz, name: z.name, zeit: z.zeit, monate: [] }).get(schluessel)!;
+      if (z.zeit > g.zeit) g.zeit = z.zeit;
+      g.monate.push(z.regelstand.lieferung);
+      continue;
+    }
+    const satz = z.anweisung ? auftragKopf(z.anweisung).titel : alltag(z.geaendert ?? "Änderung");
+    ergebnis.push({ schluessel: z.schluessel, satz, name: z.name, zeit: z.zeit, art: z.art });
+  }
+  for (const [schluessel, g] of gruppen) {
+    const monate = [...new Set(g.monate)].sort();
+    const name = (m: string) => (istMonat(m) ? monatName(m) : m);
+    const satz =
+      monate.length === 1
+        ? `Regeln von Regelsatz ${g.regelsatz} für ${name(monate[0]!)} festgehalten`
+        : `Regeln von Regelsatz ${g.regelsatz} für ${formatZahl(monate.length)} Monate festgehalten, ${name(monate[0]!)} bis ${name(monate.at(-1)!)}`;
+    ergebnis.push({ schluessel: `r-${schluessel}`, satz, name: g.name, zeit: g.zeit, art: "freigegeben" });
+  }
+  return ergebnis.sort((a, b) => b.zeit.localeCompare(a.zeit));
+}
+
+/**
+ * Warum ein Vorschlag keine Probe mit vorher und nachher hat. Eine Regel für die Ministeriums-Lieferung und eine
+ * Sonderauswertung ändern keine Zählung des Bestands; sonst ist die Probe nur noch nicht gerechnet.
+ */
+export function ohneProbeSatz(v: Pick<Vorschlag, "typ" | "regelsatzZiel">): string {
+  if (v.regelsatzZiel === "ministerium")
+    return "Diese Regel ändert keine Zählung des Bestands. Sie legt die Ministeriums-Lieferung an, deshalb gibt es kein vorher und nachher.";
+  if (v.typ === "code_datei")
+    return "Diese Sonderauswertung ändert keine Zählung des Bestands, deshalb gibt es kein vorher und nachher.";
+  return "Die Probe ist noch nicht gerechnet, deshalb fehlen die Zahlen vorher und nachher.";
 }

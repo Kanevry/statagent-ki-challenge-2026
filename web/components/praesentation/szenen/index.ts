@@ -10,6 +10,7 @@ import { Gleichung } from "./gleichung";
 import { Kern } from "./kern";
 import { Schluss } from "./schluss";
 import { Woerterbuecher } from "./woerterbuecher";
+import { ZahlenSzene } from "./zahlen";
 
 export type { SzeneProps } from "./gemeinsam";
 
@@ -35,6 +36,7 @@ export const SZENEN: Readonly<Record<string, SzenenEintrag>> = {
   annahme: { Komponente: Annahme, takte: 3 },
   einstieg: { Komponente: Einstieg, takte: 3 },
   schluss: { Komponente: Schluss, takte: 0 },
+  zahlen: { Komponente: ZahlenSzene, takte: 0 },
 };
 
 /** Eintrag zu einer Szene, oder `undefined` für unbekannt und leer. */

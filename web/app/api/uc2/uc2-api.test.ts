@@ -35,6 +35,16 @@ function bloecke(text: string): { id?: string; event?: string; data?: string }[]
     .map((b) => Object.fromEntries(b.split("\n").map((z) => [z.slice(0, z.indexOf(":")), z.slice(z.indexOf(":") + 2)])));
 }
 
+it("?sofort=1 liefert den Rest ohne Takt: „Zum Ergebnis“ wartet nicht auf die Aufzeichnung", async () => {
+  // Fängt einen Takt, der auch hier gilt: Mit 2 s je Ereignis liefe dieser Test in den Zeitablauf.
+  vi.stubEnv("UC2_MOCK_TAKT_MS", "2000");
+  const antwort = await ereignisse(new Request("http://x/api/uc2/faelle/mock-wartezeiten/ereignisse?seq=10&sofort=1"), ctx("mock-wartezeiten"));
+  const teile = bloecke(await antwort.text());
+  expect(teile).toHaveLength(57);
+  expect(teile[0]!.id).toBe("11");
+  vi.unstubAllEnvs();
+});
+
 it("liefert den aufgezeichneten Fall als SSE und endet mit event: ende", async () => {
   const antwort = await ereignisse(new Request("http://x/api/uc2/faelle/mock-wartezeiten/ereignisse"), ctx("mock-wartezeiten"));
   expect(antwort.status).toBe(200);

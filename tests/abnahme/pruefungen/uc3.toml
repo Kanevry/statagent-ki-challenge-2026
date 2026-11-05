@@ -26,7 +26,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:22"
 id = "13-AC4"
 hash = "69d5f6e7f3"
 befehl = "timeout 175 uv run --isolated --package statagent --with pytest pytest -q -p no:cacheprovider uc3/tests/test_llm_smoke.py; grep -rn 'def complete\\|def freigeben' uc3/statagent; echo \"exit $?\"; grep -rlnE 'CREATE TABLE[^;]*meta\\.(protokoll|freigabe)\\b' uc3/db uc3/statagent; echo \"exit $?\"; timeout 120 uv run --package statagent python -c \"import sys, statagent.lauf, statagent.cli; print('plattform.llm geladen' if 'plattform.llm' in sys.modules else 'plattform.llm nicht geladen')\"; test -s docs/plan/uc3/vertragsnutzung.md && echo 'vertragsnutzung vorhanden'"
-erwartet = ["^\\d+ passed in", "(?s)exit 1.*exit 1", "^plattform\\.llm nicht geladen$", "^vertragsnutzung vorhanden$"]
+erwartet = ["^\\d+ passed(, \\d+ deselected)? in", "(?s)exit 1.*exit 1", "^plattform\\.llm nicht geladen$", "^vertragsnutzung vorhanden$"]
 schwer = false
 deckung = "voll"
 grund = "Mock-Smoke gruen, der Befehl lauf laedt plattform.llm nicht, 0 eigene Definitionen von complete/freigeben und 0 DDL der Protokolltabellen in uc3/statagent und uc3/db (nur ein Test-Spy complete in uc3/tests/test_agenten_werkzeuge.py:44)."
@@ -70,12 +70,13 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "135-12"
 hash = "a4999cd761"
-befehl = "grep -cF 'Nicht gespeichert. ${meldung}' shared/ui/src/bausteine/freigabe-karte.tsx || true"
-erwartet = ["^0$"]
+befehl = "node tests/abnahme/p/ui_fehlertext.mjs && echo route_doppelt $(grep -ci 'ist nicht gespeichert' web/components/uc3/freigabe.ts || true)"
+erwartet = ["^route_satz_einmal ja$", "^route_schon_gesagt_einmal ja$", "^leer_fallback ja$", "^route_doppelt 0$"]
 schwer = false
-deckung = "teil"
-befund = "shared/ui/src/bausteine/freigabe-karte.tsx:65 setzt weiter Nicht gespeichert. vor die Meldung, die Route (web/components/uc3/freigabe.ts:691) beginnt selbst mit Die Entscheidung ist nicht gespeichert; die Texte sind nicht abgestimmt."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+deckung = "voll"
+grund = "Die Karte sagt „Nicht gespeichert“ genau einmal, auch wenn die Route es schon sagt; kein Routensatz wiederholt es"
+befund = "Die Fehlermeldung nennt „Nicht gespeichert“ doppelt oder gar nicht, oder ein Routensatz wiederholt es"
+herkunft = "b-abnahme-4c 2026-11-05 20:50 (Hinweis 3e: alter Prüfsatz grepte den Wortlaut, nicht das Verhalten)"
 
 [[pruefung]]
 id = "135-2"
@@ -160,12 +161,13 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "14-AC3"
 hash = "379f192323"
-befehl = "python3 -c \"import csv;r=list(csv.DictReader(open('docs/plan/uc3/regeln-v1.csv',encoding='utf-8'),delimiter=';'));print([(x['name'],x['gueltig_ab_lieferung'],bool(x['begruendung']),bool(x['grundlage']),repr(x['freigegeben_von'])) for x in r if x['name'].startswith(('R6','R7'))])\""
-erwartet = ["R6_beschaeftigungskategorie', '2024-08', True, True, '[^']+'", "R7_oenace_nach_berichtsmonat', '2024-08', True, True, '[^']+'"]
+befehl = "python3 -c \"import csv;r=csv.DictReader(open('docs/plan/uc3/regeln-v1.csv',encoding='utf-8'),delimiter=';');[print(x['name'][:2],'ab',x['gueltig_ab_lieferung'],'begruendung',bool(x['begruendung'].strip()),'grundlage',bool(x['grundlage'].strip()),'freigabe',bool(x['freigegeben_von'].strip() and x['freigegeben_am'].strip())) for x in r if x['name'].startswith(('R6_','R7_'))]\""
+erwartet = ["^R6 ab \\d{4}-\\d{2} begruendung True grundlage True freigabe True$", "^R7 ab \\d{4}-\\d{2} begruendung True grundlage True freigabe True$"]
 schwer = false
 deckung = "teil"
-befund = "Der Snapshot hat bei R6 und R7 keine Freigabereferenz (regeln-v1.csv, Spalten freigegeben_von/freigegeben_am leer); der Anti-Join gegen die Klassifikation ist nicht gemessen (braucht DB)."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:23"
+grund = "Snapshot regeln-v1.csv: R6 und R7 mit Gültigkeit, Begründung, Grundlage und Freigabe (Name und Zeitpunkt); Anti-Join gegen die Klassifikation braucht die DB"
+befund = "Im Snapshot regeln-v1.csv fehlt bei R6 oder R7 Gültigkeit, Begründung, Grundlage oder Freigabe (Name und Zeitpunkt)"
+herkunft = "b-abnahme-4c 2026-11-05 20:45 (Messbefund 3e: alter Prüfsatz maß den Stand von 17:2x)"
 
 [[pruefung]]
 id = "14-AC4"
@@ -191,12 +193,13 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:24"
 [[pruefung]]
 id = "15-AC2"
 hash = "55782382da"
-befehl = "grep -c 'Noch keine' abgabe/protokoll.md"
-erwartet = ["(?m)^0$"]
+befehl = "echo noch_keine $(grep -c 'Noch keine' abgabe/protokoll.md || true); echo trailer $(grep -c 'Freigegeben-von' abgabe/protokoll.md || true)"
+erwartet = ["^noch_keine 0$", "^trailer [1-9]"]
 schwer = false
 deckung = "teil"
-befund = "Das Integrationsprotokoll mit Name, Zeitpunkt und Commit-Trailer fehlt: abgabe/protokoll.md zeigt noch keine freigegebene Aenderung und es gibt keinen Commit mit Trailer Freigegeben-von in uc3, abgabe oder docs."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:24"
+grund = "abgabe/protokoll.md führt freigegebene Änderungen mit Trailer Freigegeben-von (Aufruf freigeben() und Ablehnung ohne Commit misst dieser Teil nicht)"
+befund = "abgabe/protokoll.md zeigt keine freigegebene Änderung mit Trailer Freigegeben-von"
+herkunft = "b-abnahme-4c 2026-11-05 20:45 (Messbefund 3e: alter Prüfsatz maß den Stand von 17:2x)"
 
 [[pruefung]]
 id = "15-AC3"
@@ -222,7 +225,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:25"
 [[pruefung]]
 id = "16-AC4"
 hash = "a571160318"
-befehl = "ls abgabe/qualitaetsberichte/*.md | wc -l | tr -d ' '; timeout 170 uv run --package statagent statagent pruefe-abgabe | grep -E '^\\[ok\\] Qualitätsberichte'"
+befehl = "ls abgabe/qualitaetsberichte/*.md | wc -l | tr -d ' '; STATAGENT_ABGABE=abgabe timeout 170 uv run --package statagent statagent pruefe-abgabe | grep -E '^\\[ok\\] Qualitätsberichte'"
 erwartet = ["^24$", "^\\[ok\\] Qualitätsberichte 2024-08 bis 2026-07: 24 Berichte mit 5 Abschnitten"]
 schwer = false
 deckung = "teil"
@@ -244,7 +247,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "17-AC2"
 hash = "5efcdcf25c"
-befehl = "timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
+befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
 erwartet = ["Abgabe vollständig"]
 schwer = false
 deckung = "teil"
@@ -286,13 +289,27 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "20-AC1"
 hash = "29abb8a741"
-befehl = "ls abgabe/manifest.json; timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
-erwartet = ["Abgabe vollständig"]
+befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe && python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg && git ls-files 'abgabe/*.csv' | wc -l | tr -d ' '"
+erwartet = ["^Abgabe vollständig\\.$", "^\\[ok\\] Ministeriums-Lieferung 2026-07: .*32\\.741 Personen", "^abweichend 0$", "^0$"]
+gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg --variante E"
 schwer = false
 deckung = "teil"
+quelle = "Entscheid #16 (Einzeldaten nur SV-Box): CSV extern, im Repo der Beleg; Orakel ministerium-varianten.csv Variante S"
+grund = "Validator meldet Abgabe vollständig; Beleg der Ministeriums-CSV (sha256, Zeilen) gleich Orakel Variante S, keine CSV im Repo (die CSV selbst prüft 71-AC2)"
+befund = "Validator oder Ministeriums-Beleg weicht ab (Exit, sha256 oder CSV im Repo)"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
+
+[[pruefung]]
+id = "20-AC1"
+hash = "29abb8a741"
+befehl = "python3 tests/abnahme/p/uc3_manifest.py abgabe/manifest.json"
+erwartet = ["^manifest_abweichend 0$"]
+schwer = false
+deckung = "voll"
 befund_art = "fehlt"
-befund = "abgabe/manifest.json (Dateiname, Groesse, SHA256, Regelsatz, Stand) gibt es nicht, und der Validator meldet fehlende Ministeriumsdatei und Sheet neu; der Validator endet erwartungsgemaess nicht mit Exit 0. Die 24 Berichte sind ok."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+grund = "abgabe/manifest.json nennt je Datei Name, Größe, SHA256, Regelsatz und Stand, und die Werte stimmen (Ministerium über den Beleg)"
+befund = "abgabe/manifest.json fehlt oder Einträge stimmen nicht (Name, Größe, SHA256, Regelsatz, Stand); Lane uc3"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
 
 [[pruefung]]
 id = "20-AC2"
@@ -319,12 +336,28 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "22-1"
 hash = "d123dbcdff"
-befehl = "timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
-erwartet = ["Abgabe vollständig"]
+befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe && python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg && git ls-files 'abgabe/*.csv' | wc -l | tr -d ' '"
+erwartet = ["^Abgabe vollständig\\.$", "^\\[ok\\] Ministeriums-Lieferung 2026-07: .*32\\.741 Personen", "^abweichend 0$", "^0$"]
+gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg --variante E"
 schwer = false
 deckung = "teil"
-befund = "Die Abgabedateien sind nicht vollstaendig: ministerium_2026-07.csv und aggregationen_v2.xlsx fehlen, das Manifest fehlt; das ist ein Epic-Kriterium (Kinder #17 und #20 offen)."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+quelle = "Entscheid #16 (Einzeldaten nur SV-Box): CSV extern, im Repo der Beleg"
+grund = "Abgabedateien vollständig (Validator), Ministerium per Beleg und sha256 belegt"
+befund = "Validator oder Ministeriums-Beleg weicht ab (Exit, sha256 oder CSV im Repo)"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
+
+[[pruefung]]
+id = "22-1"
+hash = "d123dbcdff"
+befehl = "timeout 120 uv run --package statagent python tests/abnahme/p/uc3_db.py regelsaetze v1 v2 ministerium"
+erwartet = ["^regelsaetze_ohne_aktive_regel 0$"]
+schwer = true
+deckung = "teil"
+befund_art = "fehlt"
+quelle = "Jury-Probe 4d 05.11. 20:03, Hürde B1: db init lädt nur Regelsatz v1"
+grund = "Auf der frisch nach README aufgebauten Prüf-DB sind die Regelsätze v1, v2 und ministerium aktiv, also sind Sheet v2 und Ministerium per CLI nachrechenbar"
+befund = "Auf frischer DB fehlen aktive Regeln für v2 oder ministerium; Sheet v2 und Ministerium sind dort nicht per CLI reproduzierbar (B1, Lane uc3)"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
 
 [[pruefung]]
 id = "22-3"
@@ -339,23 +372,26 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "69-AC1"
 hash = "d690038e13"
-befehl = "timeout 120 uv run --frozen --package statagent uc3 protokoll --zeigen"
-erwartet = ["R6_beschaeftigungskategorie", "[Ff]reigegeben"]
-schwer = true
+befehl = "echo r6 $(grep -c R6_beschaeftigungskategorie abgabe/protokoll.md); echo name_zeit $(grep -cE '^[|] v2 [|] [A-ZÄÖÜ][^ ]+ [A-ZÄÖÜ][^ ]+ [|] [0-9.]+ [0-9:]+ [|].*R6_beschaeftigungskategorie' abgabe/protokoll.md)"
+erwartet = ["^r6 [1-9]", "^name_zeit [1-9]"]
+schwer = false
 deckung = "teil"
-befund = "Klassifikationsversion, Anti-Join und Freigabe (Vorschlag uc3/24) liegen in der Datenbank des Prüfrechners und nicht im Repo auf main; ohne Datenbankzugriff nicht messbar. Vorschlag: SQL-Anti-Join der fünf Ausgangscodes in stat.uebergang gegen die drei F"
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+grund = "abgabe/protokoll.md führt die Freigabe von R6_beschaeftigungskategorie in Regelsatz v2 mit Name und Zeit; Anti-Join und die Lesart „neue Klassifikationsversion“ misst dieser Teil nicht"
+befund = "abgabe/protokoll.md führt R6_beschaeftigungskategorie nicht mit Name und Zeit der Freigabe"
+herkunft = "b-abnahme-4c 2026-11-05 20:40 (Audit: alter Satz las das Protokoll aus der leeren Prüf-DB)"
 
 [[pruefung]]
 id = "69-AC2"
 hash = "2554162131"
-befehl = "test -e abgabe/aggregationen_v2a.xlsx && echo DA || echo FEHLT"
+befehl = "test -e abgabe/aggregationen_v2.xlsx && echo DA || echo FEHLT"
 erwartet = ["^DA$"]
 schwer = false
 deckung = "teil"
 befund_art = "fehlt"
-befund = "Die Datei abgabe/aggregationen_v2a.xlsx fehlt auf main (auch abgabe/aggregationen_v2.xlsx fehlt); die 24 v2-Läufe laufen laut Kommentar 271827 erst auf dem Prüfrechner. SQL-Vergleich (0 Differenzen) und v1-Hash nicht messbar."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+quelle = "Wortlaut nennt aggregationen_v2a.xlsx; Lead a7 (über 3e, 05.11. 20:4x): die Abgabe heißt aggregationen_v2.xlsx"
+grund = "Sheet nach Änderungsauftrag liegt als abgabe/aggregationen_v2.xlsx vor (SQL-Vergleich je Monat und v1-Hash misst dieser Teil nicht)"
+befund = "abgabe/aggregationen_v2.xlsx fehlt auf main"
+herkunft = "b-abnahme-4c 2026-11-05 20:45 (Messbefund 3e: alter Prüfsatz maß den Stand von 17:2x)"
 
 [[pruefung]]
 id = "70-AC1"
@@ -371,13 +407,16 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "70-AC2"
 hash = "2a532215c7"
-befehl = "test -e abgabe/aggregationen_v2.xlsx && echo DA || echo FEHLT"
-erwartet = ["^DA$"]
+befehl = "python3 tests/abnahme/p/uc3_csv_filter.py && timeout 120 uv run --package statagent python tests/abnahme/p/uc3_sheet_orakel.py --sheet abgabe/aggregationen_v2.xlsx --orakel tests/abnahme/orakel/sheet-v2.csv --spalte wert_a12_mit_e07 && echo bericht_juli $(grep -c '407\\.604' abgabe/qualitaetsberichte_v2/2026-07.md) && python3 -c \"import hashlib,json;e=[x for x in json.load(open('abgabe/manifest.json'))['dateien'] if x['datei']=='aggregationen_v1.xlsx'][0];print('v1_wie_manifest',hashlib.sha256(open('abgabe/aggregationen_v1.xlsx','rb').read()).hexdigest()==e['sha256'])\""
+erwartet = ["^distinct_vvh 407604$", "^zellen 1003$", "^abweichend 0$", "^fehlend 0$", "^zusaetzlich 0$", "^bericht_juli [1-9]", "^v1_wie_manifest True$"]
+gegenprobe = "timeout 120 uv run --package statagent python tests/abnahme/p/uc3_sheet_orakel.py --sheet abgabe/aggregationen_v2.xlsx --orakel tests/abnahme/orakel/sheet-v2.csv --spalte wert_a12_rein"
 schwer = false
-deckung = "teil"
-befund_art = "fehlt"
-befund = "abgabe/aggregationen_v2.xlsx fehlt auf main. Der Juli-2026-Wert 407604 (CSV-Filter) und der DB-Vergleich sind nicht gemessen (Veranstalterdaten und Datenbank sind verboten)."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+deckung = "voll"
+zeitlimit = 200
+quelle = "Orakel bb, sheet-v2.csv Spalte wert_a12_mit_e07; CSV-Filter aus dem Wortlaut, ohne Produktcode"
+grund = "Unabhängiger CSV-Filter Juli 2026 = 407604; Sheet v2 Zelle für Zelle gleich dem Orakel; DB-Ergebnis laut v2-Bericht 2026-07 = 407.604; v1 per SHA256 gleich dem Manifest. Neuberechnung der v2-Läufe auf frischer DB misst 22-1"
+befund = "Juli 2026 oder Sheet v2 weicht vom unabhängigen Filter oder Orakel ab, oder v1 passt nicht zum Manifest"
+herkunft = "b-abnahme-4c 2026-11-05 20:55"
 
 [[pruefung]]
 id = "71-AC1"
@@ -392,13 +431,15 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "71-AC2"
 hash = "cb305a3298"
-befehl = "test -e abgabe/ministerium_2026-07.csv && echo DA || echo FEHLT"
-erwartet = ["^DA$"]
-schwer = true
-deckung = "teil"
-befund_art = "fehlt"
-befund = "Die CSV mit PERSON_ID liegt bewusst nicht im öffentlichen Repo (nur außerhalb, SV-Box; Beleg im Repo). Kopf, Sortierung und TAGE 200 bis 365 sind nur am externen Ort messbar: erste Zeile muss PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE sein."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+befehl = "python3 tests/abnahme/p/uc3_ministerium.py && grep -cE '^\\| Freigegeben von \\| [A-ZÄÖÜ][a-zäöüß]+ [A-ZÄÖÜ]' abgabe/ministerium_2026-07.beleg.md"
+erwartet = ["^kopf_wie_vorlage ja$", "^person_id_eindeutig_aufsteigend ja$", "^tage_200_bis_365 ja$", "^unbekannt_wie_orakel ja$", "^sha256_wie_beleg ja$", "^abweichend 0$", "^1$"]
+gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --variante E"
+schwer = false
+deckung = "voll"
+quelle = "Entscheid #16: CSV extern (../lieferungen neben dem Checkout), im Repo der Beleg; Orakel Variante S"
+grund = "CSV am externen Ort: Vorlagenkopf, Semikolon, PERSON_ID eindeutig aufsteigend, TAGE 200 bis 365, Unbekannt wie Orakel, sha256 = Beleg; Freigabe mit Vor- und Nachnamen im Beleg (Zeitpunkt prüfen die Kriterien von #55)"
+befund = "Ministeriums-CSV am externen Ort verletzt Form oder passt nicht zum Beleg (Lane uc3)"
+herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
 
 [[pruefung]]
 id = "71-AC3"
@@ -476,10 +517,10 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "74-AC2"
 hash = "0fb1276b75"
-befehl = "timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_frage.py -k 'rueckfrage_statt_zahl or definition_oenace or nur_lese_rolle'"
-erwartet = ["(^|= )\\d+ passed"]
+befehl = "timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_frage.py -k 'rueckfrage_statt_zahl or definition_oenace or nur_lese_rolle' 2>&1 | tail -1"
+erwartet = ["^\\d+ passed(, \\d+ deselected)? in"]
 schwer = true
-deckung = "teil"
+deckung = "voll"
 befund = "Rückfrage, ÖNACE-Definition und Nur-Lese-Rolle (INSERT/UPDATE/DELETE abgewiesen) sind in uc3/tests/test_frage.py vorgesehen (Zeilen 199, 208, 287), laufen aber nur mit Datenbank. Messbefehl siehe Befehl, auf dem Prüfrechner."
 herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 
@@ -565,6 +606,20 @@ befund = "Abrechnung 2024-08 weicht vom Soll ab"
 anmerkung = "„Personen mit mehreren VVH bleiben mehrfach gezählt“ misst dieser Prüfsatz nicht"
 
 [[pruefung]]
+id = "14-AC2"
+hash = "32e22bb614"
+befehl = "timeout 120 python3 tests/abnahme/p/uc3_csv_filter.py --lieferung 2024-08 --stichtag"
+erwartet = ["^zeilen 392284$", "^distinct_stichtag 392236$", "^nicht_aktiv 48$", "^volldubletten_nicht_aktiv 0$", "^personen_mit_mehreren_vvh [1-9]"]
+gegenprobe = "timeout 120 python3 tests/abnahme/p/uc3_csv_filter.py --lieferung 2024-09 --stichtag"
+schwer = false
+deckung = "voll"
+zeitlimit = 130
+quelle = "Kriterium 14-AC2; unabhängiger Filter über die Rohlieferung, ohne Produktcode"
+grund = "Rohlieferung 2024-08 unabhängig gezählt: 392236 distinct VVH_ID am Stichtag, 48 nicht aktiv ohne Volldubletten, Personen mit mehreren VVH mehrfach gezählt; zusammen mit der SQL-Abrechnung der Prüf-DB"
+befund = "Die Rohlieferung 2024-08 ergibt nicht 392236 am Stichtag und 48 nicht aktive Sätze ohne Volldubletten"
+herkunft = "b-abnahme-4c 2026-11-05 21:00"
+
+[[pruefung]]
 id = "16-AC1"
 hash = "64f08b4fac"
 befehl = "timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py laeufe --manifest docs/plan/uc3/laufmanifest-v1.csv"
@@ -636,3 +691,302 @@ art = "hand"
 deckung = "voll"
 beschreibung = "Ein Mensch öffnet die UC3-Seiten gegen die Prüf-DB (Dev-Server mit UC3_DATABASE_URL auf 5444), öffnet einen Beleg, gibt eine Freigabe mit Vor- und Nachname frei und prüft, dass Enter allein nichts freigibt."
 
+
+[[pruefung]]
+id = "16-AC1"
+hash = "64f08b4fac"
+befehl = "timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_freigabe_schutz.py -k 'zweite_veroeffentlichung or lauf_nach_regelwechsel'"
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+quelle = "Kriterium 16-AC1, letzter Halbsatz: Neulauf überschreibt keine veröffentlichte v1"
+grund = "Neulauf lässt die veröffentlichten Kennzahlen stehen, zweite Veröffentlichung bricht ab; zusammen mit 24 Läufen = Manifest und 0 späteren Lieferungen"
+befund = "Ein Neulauf kann einen veröffentlichten Monat überschreiben"
+herkunft = "b-abnahme-4c 2026-11-05 21:00"
+
+[[pruefung]]
+id = "16-AC3"
+hash = "a9e6671777"
+befehl = "python3 -c \"import csv;z=[x for x in csv.DictReader(open('docs/plan/uc3/laufmanifest-v1.csv',encoding='utf-8')) if x['monat']=='2025-10'][0];print('status',z['ergebnis_status'],'nach',z['nach_laufmonat'],'spaeteste',z['spaeteste_verwendete_lieferung'])\"; echo audit $(grep -c '78\\.949' docs/plan/uc3/2025-10-abgleich.md); echo forensik $(grep -c '78\\.863' docs/plan/uc3/2025-10-abgleich.md); echo sql $(grep -ciE '^ *(select|with) ' docs/plan/uc3/2025-10-abgleich.md); echo differenz $(grep -c '^## Differenz' docs/plan/uc3/2025-10-abgleich.md)"
+erwartet = ["^status vorlaeufig nach 0 spaeteste 2025-10$", "^audit [1-9]", "^forensik [1-9]", "^sql [2-9]", "^differenz 1$"]
+schwer = false
+deckung = "voll"
+quelle = "Kriterium 16-AC3; Laufmanifest v1 und docs/plan/uc3/2025-10-abgleich.md"
+grund = "2025-10 ist vorläufig und nutzt keine spätere Lieferung; der Abgleich nennt beide Zahlen mit eigenen Abfragen und einer Differenzdefinition"
+befund = "2025-10 nutzt eine spätere Lieferung oder der Abgleich nennt beide Zahlen nicht mit Abfragen und Differenz"
+herkunft = "b-abnahme-4c 2026-11-05 21:00"
+
+[[pruefung]]
+id = "16-AC5"
+hash = "4e598afe42"
+befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe 2>&1 | grep -E '^\\[[a-z]+\\] Aggregations-Sheet v1'"
+erwartet = ["^\\[ok\\] Aggregations-Sheet v1: aggregationen_v1\\.xlsx: 6 Blätter, Monatsspalten gefüllt, Insgesamt-Formeln und Blattsummen stimmen"]
+schwer = false
+deckung = "voll"
+quelle = "Kriterium 16-AC5; Validator pruefe-abgabe liest das Sheet zurück"
+grund = "Readback: 6 Blätter, Monatsspalten gefüllt, Insgesamt-Formeln und Blattsummen stimmen; zusammen mit Sheet = Orakel (keine zusätzlichen Ausprägungen) und Blattsummen = DB-Gesamtzahl"
+befund = "Der Readback des Sheets v1 meldet einen Mangel bei Blättern, Monatsspalten oder Formeln"
+herkunft = "b-abnahme-4c 2026-11-05 21:00"
+
+[[pruefung]]
+id = "16-AC4"
+hash = "a571160318"
+befehl = '''python3 tests/abnahme/p/uc3_berichte.py'''
+erwartet = ["^berichte 24$", "^ohne_fuenf_abschnitte 0$", "^auffaelligkeiten [1-9]", "^ohne_umfang_abfrage_massnahme 0$", "^einstufung_falsch 0$", "^ohne_annahme 0$", "^ohne_revisionsbedarf 0$"]
+schwer = false
+deckung = "voll"
+grund = "24 Berichte, fünf Abschnitte, jede Auffälligkeit mit Umfang, Abfrage, Maßnahme und gültiger Einstufung, Annahmen und Revisionsbedarf vorhanden; eigene Prüfung neben dem Validator"
+befund = "Ein Bericht verletzt Struktur oder Einstufung, oder eine Auffälligkeit nennt Umfang, Abfrage oder Maßnahme nicht"
+herkunft = "b-abnahme-4c 2026-11-05 21:10"
+
+[[pruefung]]
+id = "20-1"
+hash = "26310d5b3d"
+befehl = '''test -s abgabe/CHECKLISTE.md || { echo "CHECKLISTE fehlt"; exit 1; }; for k in "Freeze" "07:00" "09:00" "GitHub"; do echo "$k $(grep -c "$k" abgabe/CHECKLISTE.md)"; done; echo "erledigt_mail_yaml $(grep -iE 'mail|yaml' abgabe/CHECKLISTE.md | grep -ci 'erledigt' || true)"; echo "offen_mail_yaml $(grep -iE 'mail' abgabe/CHECKLISTE.md | grep -iE '\[ \]|\| *(offen|geplant) *\|' | grep -civ 'erledigt' || true)"; echo "github_neben_0900 $(grep -cE 'GitHub.*09:00|09:00.*GitHub' abgabe/CHECKLISTE.md)"'''
+erwartet = ["^Freeze [1-9]", "^07:00 [1-9]", "^09:00 [1-9]", "^GitHub [1-9]", "^erledigt_mail_yaml [1-9]", "^offen_mail_yaml 0$", "^github_neben_0900 [1-9]"]
+schwer = false
+deckung = "voll"
+grund = "Die Checkliste nennt Freeze 07:00 und Abgabe 09:00, hängt den GitHub-Push an 09:00 und führt Mail und YAML als erledigt, ohne neue Mailaufgabe"
+befund = "abgabe/CHECKLISTE.md nennt Freeze, Abgabe, GitHub-Push oder die erledigte Mail und YAML nicht"
+herkunft = "b-abnahme-4c 2026-11-05 21:10"
+
+[[pruefung]]
+id = "22-2"
+hash = "a1f42ab5d4"
+befehl = '''UC3_DATEN_URL="$UC3_DATABASE_URL" timeout 900 uv run --package statagent pytest -q -p no:cacheprovider -m daten uc3/tests/test_pruefungen.py 2>&1 | tail -1'''
+erwartet = ["^\\d+ passed(, \\d+ deselected)? in"]
+schwer = true
+deckung = "voll"
+zeitlimit = 920
+grund = "Prüfregeln gegen die echten Lieferungen belegt (auch 2025-03 und 2025-10), kein Test übersprungen; Golden Set misst der zweite Teil"
+befund = "Prüfregeln gegen die Lieferungen scheitern oder werden übersprungen"
+herkunft = "b-abnahme-4c 2026-11-05 21:10"
+
+[[pruefung]]
+id = "71-AC3"
+hash = "96b42f8b52"
+befehl = '''echo sql $(grep -c '^SELECT' docs/plan/uc3/ministerium-oracle.md); echo regelstand $(grep -c 'Regelstand' docs/plan/uc3/ministerium-oracle.md); echo zahl_32741 $(grep -c '32\.741' docs/plan/uc3/ministerium-oracle.md); echo vergleich_32639 $(grep -c '32\.639' docs/plan/uc3/ministerium-oracle.md); echo vergleich_32706 $(grep -c '32\.706' docs/plan/uc3/ministerium-oracle.md); echo mengenvergleich $(grep -c 'Mengenvergleich' docs/plan/uc3/ministerium-oracle.md); echo regel_juengste $(grep -ci 'juengste_lieferung_je_tag\|jüngste Lieferung' docs/plan/uc3/ministerium-oracle.md)'''
+erwartet = ["^sql [1-9]", "^regelstand [1-9]", "^zahl_32741 [1-9]", "^vergleich_32639 [1-9]", "^vergleich_32706 [1-9]", "^mengenvergleich [1-9]", "^regel_juengste [1-9]"]
+schwer = false
+deckung = "voll"
+grund = "Das Oracle-Dokument nennt Abfrage, Regelstand, Ergebniszahl 32.741, beide Vergleichswerte, die Regel jüngste Lieferung je Tag und den Mengenvergleich"
+befund = "ministerium-oracle.md nennt Abfrage, Regelstand, Ergebniszahl, Vergleichswerte oder Mengenvergleich nicht"
+herkunft = "b-abnahme-4c 2026-11-05 21:10"
+
+[[pruefung]]
+id = "15-AC1"
+hash = "8e13469c34"
+befehl = '''python3 -c "import json;a=json.load(open('docs/plan/uc3/agenten-routing.json',encoding='utf-8'))['anweisungen'];R={'klassifikation','datenmanagement','qs','qualitaetssicherung','reporting'};print('anweisungen',len(a));print('ohne_text',sum(not x.get('anweisung') for x in a));print('rolle_falsch',sum(x.get('rolle') not in R for x in a));print('ohne_protokoll',sum(not isinstance(x.get('protokoll_id'),int) for x in a))"; echo akteur_rolle $(git grep -cE "akteur *= *.(klassifikation|datenmanagement|reporting)" -- uc3/statagent | wc -l | tr -d ' ')'''
+erwartet = ["^anweisungen 4$", "^ohne_text 0$", "^rolle_falsch 0$", "^ohne_protokoll 0$", "^akteur_rolle 0$"]
+schwer = false
+deckung = "voll"
+grund = "agenten-routing.json ordnet vier Anweisungen je einer erlaubten Rolle mit Protokoll-ID zu; akteur bleibt agent oder mensch"
+befund = "agenten-routing.json nennt nicht vier Anweisungen mit Rolle und Protokoll-ID, oder der Code setzt eine Rolle als akteur"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "15-AC3"
+hash = "42927bd501"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_prompt_grenzen.py'''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "Adapter-Spies prüfen die tatsächlichen Modellnachrichten: keine Einzeldaten, Schema bleibt erlaubt"
+befund = "test_prompt_grenzen.py scheitert: Einzeldaten könnten das Modell erreichen"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "17-AC1"
+hash = "7cb4d8eb26"
+befehl = '''for i in 69 70 71 74; do echo teilissue_$i $(grep -c "#$i" docs/plan/uc3/aenderungsauftraege-matrix.md); done; echo agent_weg $(grep -c 'uc3 agent' docs/plan/uc3/aenderungsauftraege-matrix.md); echo routing $(grep -c 'agenten-routing.json' docs/plan/uc3/aenderungsauftraege-matrix.md); echo freigabe_name $(grep -cE '^[|] [123] .*Bernhard Götzendorfer, [0-9.]+ [0-9:]+' docs/plan/uc3/aenderungsauftraege-matrix.md)'''
+erwartet = ["^teilissue_69 [1-9]", "^teilissue_70 [1-9]", "^teilissue_71 [1-9]", "^teilissue_74 [1-9]", "^agent_weg [1-9]", "^routing [1-9]", "^freigabe_name 3$"]
+schwer = false
+deckung = "voll"
+grund = "Die Matrix verlinkt die vier Teilissues, die Aufträge 1 bis 3 gehen über uc3 agent mit Rollenrouting und Freigabe mit Name und Zeit"
+befund = "aenderungsauftraege-matrix.md verlinkt ein Teilissue nicht oder nennt Agentenweg und Freigabe nicht"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "17-AC2"
+hash = "5efcdcf25c"
+befehl = '''python3 -c "import json;d=json.load(open('abgabe/manifest.json',encoding='utf-8'))['dateien'];n=[x['datei'] for x in d];print('sheet_alt','aggregationen_v1.xlsx' in n);print('sheet_neu','aggregationen_v2.xlsx' in n);print('ministerium','ministerium_2026-07.csv' in n);print('berichte_v2',sum('qualitaetsberichte_v2/' in x for x in n))"; echo datenstand $(grep -c 'juengste_lieferung_je_tag' abgabe/ministerium_2026-07.beleg.md); STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe | tail -1'''
+erwartet = ["^sheet_alt True$", "^sheet_neu True$", "^ministerium True$", "^berichte_v2 24$", "^datenstand 1$", "^Abgabe vollständig\\.$"]
+schwer = false
+deckung = "voll"
+grund = "Das Manifest führt Sheet alt und neu getrennt, 24 v2-Berichte und die Ministeriums-CSV; Datenstand jüngste Lieferung je Tag; der Validator liest alles zurück"
+befund = "Das Manifest führt Sheets, v2-Berichte oder Ministeriums-CSV nicht, oder der Validator meldet einen Mangel"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "20-AC2"
+hash = "6bf081e4e2"
+befehl = '''for i in 63 65 66 15 16 17 69 70 71 73 74; do echo ref_$i $(grep -c "#$i" abgabe/uc3-abnahme.md); done; echo azure $(grep -c 'Azure' abgabe/uc3-abnahme.md); echo deployment $(grep -c 'gpt-5-4-mini' abgabe/uc3-abnahme.md); echo pruefausgabe $(grep -c 'Abgabe vollständig' abgabe/uc3-abnahme.md); echo protokoll_namen $(grep -c 'Bernhard Götzendorfer' abgabe/protokoll.md)'''
+erwartet = ["^ref_63 [1-9]", "^ref_65 [1-9]", "^ref_66 [1-9]", "^ref_15 [1-9]", "^ref_16 [1-9]", "^ref_17 [1-9]", "^ref_69 [1-9]", "^ref_70 [1-9]", "^ref_71 [1-9]", "^ref_73 [1-9]", "^ref_74 [1-9]", "^azure [1-9]", "^deployment [1-9]", "^pruefausgabe [1-9]", "^protokoll_namen [1-9]"]
+schwer = false
+deckung = "voll"
+grund = "uc3-abnahme.md enthält Prüfausgaben und Bezüge auf #63, #65, #66 und die Teilissues, nennt Azure und das Deployment; das Protokoll führt Namen"
+befund = "uc3-abnahme.md nennt einen Bezug, Azure, das Deployment oder die Prüfausgabe nicht"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "70-AC1"
+hash = "ffbb7b165f"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_monatszaehlung.py'''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "test_monatszaehlung.py besteht: Ein-Tages-Fall, offenes Ende, zwei Abschnitte, zwei VVH, Monatsgrenzen"
+befund = "test_monatszaehlung.py scheitert"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "73-AC1"
+hash = "e9b2ca58fc"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_anhang_b.py -k 'sql_datei_hat_elf or alle_pruefabfragen''''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "anhang-b-schema.sql hat die prüfbaren Abfragen, alle ergeben auf der gerechneten Prüf-DB 0 Fehlstellen"
+befund = "Die Prüfabfragen aus anhang-b-schema.sql finden Fehlstellen"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "73-AC3"
+hash = "a8a42a6da1"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_anhang_b.py'''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "test_anhang_b.py besteht: Quellzuordnung und Anti-Join auf der gerechneten Prüf-DB"
+befund = "test_anhang_b.py scheitert"
+herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "72-AC1"
+hash = "a02509875c"
+befehl = "timeout 170 python3 tests/abnahme/p/uc3_rueckfragen.py"
+erwartet = ["^R1 fehlt 0 ids [345] belegt [345]$", "^R2 fehlt 0 ids [345] belegt [345]$", "^R3 fehlt 0 ids [345] belegt [345]$", "^R4 fehlt 0 ids [345] belegt [345]$", "^R5 fehlt 0 ids [345] belegt [345]$", "^maengel 0$"]
+schwer = false
+deckung = "voll"
+zeitlimit = 180
+quelle = "Kriterium 72-AC1; Rohlieferungen des Startpakets, ohne Produktcode"
+grund = "R1 bis R5 decken die fünf Themen und alle Pflichtteile ab; jede Beispiel-ID zeigt in der Rohlieferung genau den behaupteten Befund (Monat 13, fehlt in der Teil-Lieferung, Beginn fehlt)"
+befund = "In R1 bis R5 fehlt ein Pflichtteil, oder eine Beispiel-ID zeigt in der Rohlieferung den behaupteten Befund nicht"
+herkunft = "b-abnahme-4c 2026-11-05 21:30"
+
+[[pruefung]]
+id = "13-AC2"
+hash = "33411a902b"
+befehl = '''timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py schema'''
+erwartet = ["^pg 16$", "^fehlende_tabellen 0$"]
+schwer = true
+deckung = "voll"
+zeitlimit = 320
+grund = "PostgreSQL 16, alle Pflichttabellen auf der frisch aufgebauten Prüf-DB; zweiter Schema-Lauf ohne Datenverlust misst der erste Teil"
+befund = "Die frische Prüf-DB ist nicht PostgreSQL 16 oder eine Pflichttabelle fehlt"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "13-AC3"
+hash = "b933063091"
+befehl = '''timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py ladung'''
+erwartet = ["^lieferungen 24$", "^db_abweichend 0$", "^datei_abweichend 0$", "^roh_nicht_text 0$"]
+schwer = true
+deckung = "voll"
+zeitlimit = 320
+grund = "24 Lieferungen; Ladeprotokoll gleich der Rohtabelle und gleich den Zeilen der Dateien; alle Rohfelder Text; jeder Satz trägt seine Lieferung"
+befund = "Ladeprotokoll, Rohtabelle und Dateien stimmen nicht überein, oder ein Rohfeld ist nicht Text"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "73-AC2"
+hash = "9357e72f6b"
+befehl = '''timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py schema'''
+erwartet = ["^variable_fehlend keine$", "^oenace_fehlend keine$", "^uebergang_fehlend keine$"]
+schwer = true
+deckung = "voll"
+zeitlimit = 320
+grund = "variable, klass_oenace und uebergang haben die Pflichtspalten; der Anti-Join misst der erste Teil"
+befund = "Pflichtspalten fehlen in stat.variable, stat.klass_oenace oder stat.uebergang (Ausgabe nennt sie)"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "14-AC3"
+hash = "379f192323"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_anhang_b.py -k alle_pruefabfragen'''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "Die Prüfabfragen aus Anhang B ergeben 0 Fehlstellen, also keine verwendeten Codes außerhalb der Klassifikation; R6 und R7 mit Freigabe misst der erste Teil"
+befund = "Anti-Join: verwendete Codes liegen außerhalb der gültigen Klassifikation"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "14-AC4"
+hash = "25741237d3"
+befehl = '''echo a4 $(grep -c '^| A4 ' docs/plan/uc3/annahmen.md); echo a5 $(grep -c '^| A5 ' docs/plan/uc3/annahmen.md); echo max_plausibel $(grep -c 'max_plausibel' docs/plan/uc3/annahmen.md); echo fall_75 $(grep -c 'P07_alter_hoch_plausibel' abgabe/qualitaetsberichte/2025-03.md); python3 -c "import csv;r=list(csv.DictReader(open('docs/plan/uc3/regeln-v1.csv',encoding='utf-8'),delimiter=';'));print('regeln_ohne_freigabe',sum(not x['freigegeben_von'].strip() for x in r))"'''
+erwartet = ["^a4 [1-9]", "^a5 [1-9]", "^max_plausibel [1-9]", "^fall_75 [1-9]", "^regeln_ohne_freigabe 0$"]
+schwer = false
+deckung = "voll"
+grund = "Geburtsmonat 13 und unplausibles Alter stehen in den Annahmen; Grenze ist max_plausibel, keine globale Regel über 74; plausible 75+ bleiben (P07); im Snapshot sind alle Regeln freigegeben"
+befund = "Annahmen A4 oder A5 fehlen, die 75+-Fälle bleiben nicht erhalten, oder eine Regel im Snapshot ist nicht freigegeben"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "15-AC2"
+hash = "55782382da"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_agenten_freigabe.py -k 'ablehnen_aendert_nichts or code_datei_laeuft_nur_mit_freigabe or freigabe_mit_namen_aendert_regel''''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "Code läuft nur mit Freigabe (NichtFreigegeben), Freigabe mit Namen ändert Regel und Commit, Ablehnen ändert nichts; Trailer im Protokoll misst der erste Teil"
+befund = "Freigabe-Ablauf: Code läuft ohne Freigabe, oder Ablehnen ändert etwas"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "71-AC1"
+hash = "4b5d5cfed4"
+befehl = '''python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg'''
+erwartet = ["^beleg_sha256_wie_orakel ja$", "^beleg_zeilen_wie_orakel ja$", "^abweichend 0$"]
+schwer = false
+deckung = "voll"
+gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg --variante E"
+grund = "Die Lieferung gleicht dem unabhängigen Orakel (drei unabhängige Rechnungen, sha256), also dieselbe Personenmenge; Grenzfälle misst der erste Teil"
+befund = "Der Beleg der Ministeriums-Lieferung weicht vom unabhängigen Orakel ab"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "72-AC2"
+hash = "69c97928a0"
+befehl = '''python3 -c "import glob,re;n=0;f=0
+for d in glob.glob('abgabe/qualitaetsberichte/20*.md'):
+  t=open(d,encoding='utf-8').read().split('## 3 ',1)[1].split('## 4 ',1)[0]
+  for z in re.findall(r'^[|] R[0-9]+ [|].*$',t,re.M):
+    n+=1;f+=not re.search(r'Bis zur Antwort gilt|Antwort:',z)
+print('rueckfragen',n);print('ohne_status',f)"; echo validator_prueft $(grep -c 'Bis zur Antwort' uc3/statagent/berichte/pruefe_abgabe.py || true)'''
+erwartet = ["^rueckfragen [1-9]", "^ohne_status 0$", "^validator_prueft [1-9]"]
+schwer = false
+deckung = "voll"
+befund_art = "fehlt"
+grund = "Jede Rückfrage im Bericht trägt Antwort oder begründete vorläufige Annahme, und der Validator prüft das"
+befund = "Rückfragen im Bericht stehen ohne Antwort- oder Annahmestatus, oder der Validator prüft den Status nicht (Wortlaut: „Validator prüft 0 Rückfragen ohne Antwort- oder Annahmestatus“)"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"
+
+[[pruefung]]
+id = "74-AC1"
+hash = "1e6babf147"
+befehl = '''timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_frage.py -k 'gleich_gegenrechnung or nullbestand''''
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+grund = "Zeitreihe, M/W je Bundesland und Fluktuation gleich der SQL-Gegenrechnung; Nullbestand ohne erfundene Rate"
+befund = "Eine Jury-Frage weicht von der SQL-Gegenrechnung ab, oder Nullbestand ergibt eine Rate"
+herkunft = "b-abnahme-4c 2026-11-05 21:40"

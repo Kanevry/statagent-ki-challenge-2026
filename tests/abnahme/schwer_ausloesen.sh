@@ -12,6 +12,8 @@ cd "$(dirname "$0")/../.."
 # shellcheck source=/dev/null
 . "${1:?env-Datei fehlt}"
 : "${PRUEFRECHNER:?}" "${PRUEFRECHNER_DIR:?}"
+# Eigene Verbindungen, nie der geteilte SSH-Master.
+SSH_OPT=(-o ConnectTimeout=10 -o ControlMaster=no -o ControlPath=none)
 sperre="/tmp/kic-abnahme-schwer.lock"
 mkdir "$sperre" 2>/dev/null || { echo "schwerer Lauf läuft schon"; exit 0; }
 trap 'rmdir "$sperre"' EXIT
@@ -27,16 +29,34 @@ tmp="$(mktemp -d /tmp/kic-abnahme-schwer.XXXXXX)"
 git bundle create -q "$tmp/abnahme.bundle" refs/remotes/origin/main "refs/heads/$(git rev-parse --abbrev-ref HEAD)"
 uv run python -c "import json,sys; sys.path.insert(0,'tests/abnahme'); import matrix; \
 json.dump(matrix.issues_holen(None), open('$tmp/issues.json','w'))"
-timeout 600 scp -q -o ConnectTimeout=10 "$tmp/abnahme.bundle" "$tmp/issues.json" tests/abnahme/schwer_pruefrechner.sh "$PRUEFRECHNER:$PRUEFRECHNER_DIR/"
+timeout 600 scp -q "${SSH_OPT[@]}" "$tmp/abnahme.bundle" "$tmp/issues.json" tests/abnahme/schwer_pruefrechner.sh "$PRUEFRECHNER:$PRUEFRECHNER_DIR/"
 echo "schwer: Lauf startet für main ${sha:0:8} $(TZ=Europe/Vienna date '+%H:%M')"
-if timeout 1800 ssh -o ConnectTimeout=10 "$PRUEFRECHNER" "bash $PRUEFRECHNER_DIR/schwer_pruefrechner.sh $PRUEFRECHNER_DIR/abnahme.bundle $sha $werkzeug \
-  $PRUEFRECHNER_DIR/issues.json" > "$tmp/lauf.log" 2>&1; then
-  datei="$(tail -1 "$tmp/lauf.log")"
-  timeout 120 scp -q -o ConnectTimeout=10 "$PRUEFRECHNER:$PRUEFRECHNER_DIR/repo/docs/abnahme/laeufe/$datei" "docs/abnahme/laeufe/${datei%.jsonl}-schwer.jsonl"
+# Der Lauf arbeitet auf dem Prüfrechner losgelöst und überlebt einen Abbruch der Verbindung (20:31 und 21:11 riss
+# sie ab; damals endete der Lauf mit ihr). Hier wird nur noch mit kurzen Verbindungen nachgesehen.
+log="$PRUEFRECHNER_DIR/lauf.log"
+timeout 60 ssh "${SSH_OPT[@]}" "$PRUEFRECHNER" "nohup bash -c 'bash $PRUEFRECHNER_DIR/schwer_pruefrechner.sh $PRUEFRECHNER_DIR/abnahme.bundle $sha $werkzeug \
+  $PRUEFRECHNER_DIR/issues.json > $log 2>&1; echo schwer-ende-\$? >> $log' > /dev/null 2>&1 < /dev/null &"
+ende=""
+for _ in $(seq 1 120); do
+  sleep 30
+  ende="$(timeout 40 ssh "${SSH_OPT[@]}" "$PRUEFRECHNER" "tail -1 $log" 2>/dev/null || true)"
+  case "$ende" in schwer-ende-*) break ;; *) ende="" ;; esac
+done
+timeout 120 scp -q "${SSH_OPT[@]}" "$PRUEFRECHNER:$log" "$tmp/lauf.log" || true
+if [ "$ende" = "schwer-ende-0" ]; then
+  datei="$(tail -2 "$tmp/lauf.log" | head -1)"
+  timeout 120 scp -q "${SSH_OPT[@]}" "$PRUEFRECHNER:$PRUEFRECHNER_DIR/repo/docs/abnahme/laeufe/$datei" "docs/abnahme/laeufe/${datei%.jsonl}-schwer.jsonl"
+  # Der Prüfrechner kennt die Sperrnamen nicht: die Laufdatei hier mit der vollen Liste schwärzen.
+  uv run python -c "import json,sys; sys.path.insert(0,'tests/abnahme'); import matrix; \
+p=sys.argv[1]; z=[json.loads(l) for l in open(p) if l.strip()]; \
+r=lambda x: matrix.schwaerzen(x) if isinstance(x,str) else [r(y) for y in x] if isinstance(x,list) else \
+{k: r(v) for k,v in x.items()} if isinstance(x,dict) else x; \
+open(p,'w').write(''.join(json.dumps(r(e),ensure_ascii=False)+'\\n' for e in z))" \
+    "docs/abnahme/laeufe/${datei%.jsonl}-schwer.jsonl"
   grep -E '^(Lauf|lauf_alle_exit)' "$tmp/lauf.log"
   echo "$sha" > "$stand_datei"
 else
-  echo "schwer: Lauf gescheitert, Log $tmp/lauf.log" >&2
+  echo "schwer: Lauf gescheitert (${ende:-kein Ende nach 60 min}), Log $tmp/lauf.log" >&2
   tail -5 "$tmp/lauf.log" >&2
   exit 1
 fi

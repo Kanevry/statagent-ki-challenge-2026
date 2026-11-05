@@ -16,7 +16,7 @@ from typing import Annotated, Any, NoReturn
 import typer
 
 from statagent import ergebnis, konfig
-from statagent.db import lieferungen, schema_einrichten, verbinden
+from statagent.db import abgabe_regelsaetze_einrichten, lieferungen, schema_einrichten, verbinden
 from statagent.regeln import NameUngueltig, RegelFehler, regeln_freigeben, regeln_laden
 from statagent.zeit import zeit_text
 
@@ -28,9 +28,14 @@ app = typer.Typer(
 db_app = typer.Typer(help="Datenbank: Schema einrichten und Rohdaten prüfen.", no_args_is_help=True)
 regeln_app = typer.Typer(help="Regeln als Daten: anzeigen, exportieren, freigeben.", no_args_is_help=True)
 vorschlag_app = typer.Typer(help="Vorschläge der Agenten ansehen.", no_args_is_help=True)
+pensionen_app = typer.Typer(
+    help="Pensionsstatistik 2018 bis 2025: Meldungen der Träger laden, prüfen, ausgeben.",
+    no_args_is_help=True,
+)
 app.add_typer(db_app, name="db")
 app.add_typer(regeln_app, name="regeln")
 app.add_typer(vorschlag_app, name="vorschlag")
+app.add_typer(pensionen_app, name="pensionen")
 
 JsonOption = Annotated[bool, typer.Option("--json", help="Ausgabe als JSON")]
 
@@ -52,9 +57,10 @@ def _fehlt(issue: str, was: str) -> NoReturn:
 
 @db_app.command("init")
 def db_init(als_json: JsonOption = False) -> None:
-    """Legt Schemas bereinigt/meta/stat, Klassifikationen und Regelsatz v1 an (idempotent, nichts wird gelöscht)."""
+    """Legt Schemas, Klassifikationen und die Regelsätze v1, v2 und ministerium an (idempotent, nichts wird gelöscht)."""
     with verbinden() as conn:
         dateien = schema_einrichten(conn)
+        dateien += abgabe_regelsaetze_einrichten(conn)
     _ausgabe({"angewendet": dateien}, als_json, "angewendet: " + ", ".join(dateien))
 
 
@@ -303,6 +309,16 @@ def berichte(
         else:
             typer.echo("Bitte --lieferung JJJJ-MM oder --alle angeben.", err=True)
             raise typer.Exit(2)
+        # Ohne fertigen Lauf entstünde ein leerer Bericht über der Abgabe (Jury-Probe 4d, B2).
+        ohne_lauf = [m for m in monate if ergebnis.letzter_lauf(conn, m, regelsatz) is None]
+        if not monate or ohne_lauf:
+            fuer = f" für {', '.join(ohne_lauf)}" if ohne_lauf else ""
+            typer.echo(
+                f"nicht geschrieben: Regelsatz {regelsatz} hat{fuer} keinen fertigen Lauf"
+                f" (zuerst uv run uc3 lauf --regelsatz {regelsatz})",
+                err=True,
+            )
+            raise typer.Exit(1)
         if als_json:
             daten = [bericht_daten(conn, monat, regelsatz) for monat in monate]
             typer.echo(json.dumps(daten if alle else daten[0], ensure_ascii=False, default=str, indent=2))
@@ -312,6 +328,16 @@ def berichte(
                 typer.echo(bericht_erzeugen(conn, monat, regelsatz))
             else:
                 typer.echo(f"{monat}: {bericht_schreiben(conn, monat, regelsatz)}")
+
+
+@app.command("oenace-wechsel")
+def oenace_wechsel() -> None:
+    """Datei für die Web-Monatsseite aus den Daten erzeugen (web/components/uc3/oenace-wechsel.json)."""
+    from statagent.berichte.oenace_wechsel import datei_schreiben
+
+    with verbinden() as conn:
+        pfad, monate = datei_schreiben(conn)
+    typer.echo(f"{pfad}: {monate} Monat(e) mit neuer ÖNACE-Version")
 
 
 @app.command("veroeffentlichen")
@@ -361,7 +387,11 @@ def sheet(regelsatz: Annotated[str, typer.Option()] = "v1") -> None:
     except ModuleNotFoundError:
         _fehlt("#16", "sheet")
     with verbinden() as conn:
-        erg = sheet_schreiben(conn, regelsatz)
+        try:
+            erg = sheet_schreiben(conn, regelsatz)
+        except ValueError as fehler:
+            typer.echo(f"nicht geschrieben: {fehler}", err=True)
+            raise typer.Exit(1) from fehler
     typer.echo(f"Sheet geschrieben: {getattr(erg, 'pfad', erg)}")
 
 
@@ -408,11 +438,21 @@ def pruefe_abgabe(
     mit_db: Annotated[
         bool, typer.Option("--mit-db", help="Blattsummen je Monat zusätzlich gegen die Datenbank prüfen")
     ] = False,
+    manifest: Annotated[
+        bool,
+        typer.Option("--manifest", help="vorher abgabe/manifest.json neu schreiben (Größe, sha256, Stand)"),
+    ] = False,
 ) -> None:
-    """Prüft die Abgabedateien unter abgabe/ (Sheet alt und neu, 24 Qualitätsberichte, Ministerium, Protokoll, Modelle)."""
+    """Prüft die Abgabedateien unter abgabe/ (Sheet alt und neu, 24 Qualitätsberichte, Ministerium, Protokoll, Modelle, Manifest)."""
+    from statagent.berichte.pruefe_abgabe import manifest_schreiben
     from statagent.berichte.pruefe_abgabe import pruefe_abgabe as pruefen
 
     extern = konfig.lieferungen_extern()
+    if manifest:
+        typer.echo(
+            f"Manifest geschrieben: {manifest_schreiben(konfig.abgabe(), konfig.REPO_WURZEL, extern)}",
+            err=True,
+        )
     if mit_db:
         with verbinden() as conn:
             erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL, conn=conn, lieferungen_dir=extern)
@@ -821,10 +861,10 @@ def antwort(
     als_json: JsonOption = False,
 ) -> None:
     """UC4-Antwort von UC3: Zahl aus stat.stat_beschaeftigte mit Beleg (ohne Sprachmodell, #106)."""
-    from statagent.uc4 import antwort_daten
+    from statagent.uc4 import uc4_antwort
 
     with verbinden() as conn:
-        daten = antwort_daten(conn, frage_text, regelsatz)
+        daten = uc4_antwort(conn, frage_text, regelsatz)
     zeilen = [daten["text"]]
     for zahl in daten["zahlen"]:
         beleg = daten["belege"][zahl["beleg"]]
@@ -833,6 +873,94 @@ def antwort(
     for nummer, beleg in enumerate(daten["belege"]):
         zeilen.append(f"SQL [{nummer}]: {beleg['sql']}")
     _ausgabe(daten, als_json, "\n".join(zeilen))
+
+
+# --- pensionen ----------------------------------------------------------------------------------------------
+
+
+@pensionen_app.command("laden")
+def pensionen_laden(
+    ordner: Annotated[
+        Path | None, typer.Option(help="Ordner mit JJJJ/*.xlsx; Standard: pensionen/ im Startpaket")
+    ] = None,
+    als_json: JsonOption = False,
+) -> None:
+    """Liest alle Meldungen der Träger. Ein unbekanntes Format bricht ab, dann bleibt die Datenbank unverändert."""
+    from statagent.pensionen import PensionFehler, laden
+
+    with verbinden() as conn:
+        try:
+            daten = laden(conn, ordner)
+        except PensionFehler as fehler:
+            typer.echo(f"Nichts geladen. {fehler}", err=True)
+            raise typer.Exit(1) from fehler
+    text = (
+        f"{daten['dateien']} Dateien, {len(daten['formate'])} Formate, {daten['werte']} Werte, "
+        f"{daten['summen']} Summen als Prüfwert, Hash {daten['ergebnis_hash'][:16]}"
+        + (" (unverändert)" if daten["unveraendert"] else "")
+    )
+    _ausgabe(daten, als_json, text)
+
+
+@pensionen_app.command("pruefen")
+def pensionen_pruefen(
+    ausgabe: Annotated[
+        Path | None, typer.Option(help="Bericht als Markdown in diese Datei schreiben")
+    ] = None,
+    als_json: JsonOption = False,
+) -> None:
+    """Prüfbericht: Summen gegen die Dateien, Lücken, Übergang 2019/2020, Auffälligkeiten. Ändert keine Zahl."""
+    from statagent.pensionen import bericht_text, pruefbericht
+
+    with verbinden() as conn:
+        bericht = pruefbericht(conn)
+    text = bericht_text(bericht)
+    if ausgabe:
+        ausgabe.write_text(text, encoding="utf-8")
+    _ausgabe(bericht, als_json, text)
+    if not bericht["ladung"]["dateien"] or bericht["summen"]["abweichend"] or bericht["vorzeitig"]:
+        raise typer.Exit(1)
+
+
+@pensionen_app.command("tabelle")
+def pensionen_tabelle(
+    jahr: Annotated[int, typer.Option(help="Jahr 2018 bis 2025")],
+    nummer: Annotated[
+        str, typer.Option("--tabelle", help="T12 Pensionsstand, T13 vorzeitige Alterspensionen")
+    ] = "T12",
+    als_json: JsonOption = False,
+) -> None:
+    """Tabelle 12 oder 13 eines Jahres mit den selbst gebildeten Summen über die Träger."""
+    from statagent.pensionen import PensionFehler, tabelle
+
+    with verbinden() as conn:
+        try:
+            daten = tabelle(conn, jahr, nummer)
+        except PensionFehler as fehler:
+            typer.echo(str(fehler), err=True)
+            raise typer.Exit(2) from fehler
+    text = "\n".join(
+        f"{z['bezeichnung']:<60} {z['pensionsart']:<12} {z['geschlecht']} {z['wert']:>10}"
+        for z in daten["zeilen"]
+    )
+    _ausgabe(daten, als_json, text or f"Keine Zahlen für {jahr}: zuerst `uc3 pensionen laden`.")
+
+
+@pensionen_app.command("freigeben")
+def pensionen_freigeben(
+    name: Annotated[str, typer.Option(help="Vor- und Nachname der freigebenden Person")],
+    als_json: JsonOption = False,
+) -> None:
+    """Gibt Regeln und Zahlen mit Namen frei: vorläufig → endgültig (danach unveränderlich)."""
+    from statagent.pensionen import PensionFehler, freigeben
+
+    with verbinden() as conn:
+        try:
+            daten = freigeben(conn, name, repo_pfad=konfig.REPO_WURZEL)
+        except (PensionFehler, NameUngueltig) as fehler:
+            typer.echo(f"Nicht freigegeben. {fehler}", err=True)
+            raise typer.Exit(1) from fehler
+    _ausgabe(daten, als_json, f"{daten['freigegeben_von']} hat {daten['zellen']} Zahlen freigegeben.")
 
 
 def main() -> None:

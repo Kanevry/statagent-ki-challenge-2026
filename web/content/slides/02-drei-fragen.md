@@ -13,9 +13,9 @@ belege: []
 
 | Aufgabe | Person | Frage | Lösung |
 |---|---|---|---|
-| 1 | Versicherte | „Welche Leistung steht mir zu?“ | Aufgabe 1 · KI-Lotse |
-| 2 | Entscheider | „Was bewirkt eine Entscheidung im Gesundheitswesen?“ | Aufgabe 2 · HealthPolicy Simulator |
-| 3 | Statistik-Team | „Stimmt die Zahl, die wir veröffentlichen?“ | Aufgabe 3 · StatAgent |
+| 1 | Versicherte | „Welche Leistung steht mir zu?“ | Use Case 1 · KI-Lotse |
+| 2 | Entscheider | „Was bewirkt eine Entscheidung im Gesundheitswesen?“ | Use Case 2 · HealthPolicy Simulator |
+| 3 | Statistik-Team | „Stimmt die Zahl, die wir veröffentlichen?“ | Use Case 3 · StatAgent |
 
 Alle drei brauchen eine Antwort, der sie trauen können.
 

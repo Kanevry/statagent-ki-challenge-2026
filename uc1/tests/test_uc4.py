@@ -175,11 +175,10 @@ def test_router_adapter_haelt_jede_zahl_an_ihrem_beleg() -> None:
         zahlen=[uc4.Zahl(bezeichnung="Wartezeit im Szenario", wert=17.2, einheit="Tage", beleg=0)],
         uc="uc2",
     )
-    a = uc4.router_adapter(FRAGE, [uc3, uc2], modell=modell_mit("Die Wartezeit liegt bei 19,6 Tagen."))
+    a = uc4.router_adapter(FRAGE, [uc3, uc2])
     assert a.uc == "uc1"
     assert [b.uc for b in a.belege] == ["uc3", "uc3", "uc2"]
     assert [(z.wert, z.beleg) for z in a.zahlen] == [(19.6, 0), (23.1, 1), (17.2, 2)]
-    assert "17,2" in a.text
 
 
 def test_router_findet_den_adapter_ueber_den_entry_point() -> None:
@@ -193,9 +192,8 @@ def test_router_findet_den_adapter_ueber_den_entry_point() -> None:
 
 def test_router_adapter_ohne_kontext_ohne_modell() -> None:
     """Fängt einen Modellaufruf ohne Kontext (die Kette davor lieferte nichts): fester Satz, keine Zahl."""
-    modell = modell_mit("darf nicht kommen")
-    a = uc4.router_adapter(FRAGE, [], modell=modell)
-    assert a.text == uc4.KEIN_KONTEXT and a.zahlen == [] and modell.aufrufe == []
+    a = uc4.router_adapter(FRAGE, [])
+    assert a.text == uc4.KEIN_KONTEXT and a.zahlen == []
 
 
 def test_vorzeichen_der_zahl_zaehlt() -> None:
@@ -268,3 +266,197 @@ def test_gleiche_zahl_aus_zwei_ucs_steht_einmal_ohne_einheit_anzahl() -> None:
     )
     assert [(z["wert"], z["beleg"]) for z in a["zahlen"]] == [(7498, 0), (7498, 1)]
     assert len(a["belege"]) == 2
+
+
+@pytest.mark.parametrize("satz", ["Es sind eins komma fünf Prozent.", "There were zero cases."])
+def test_eins_und_zero_sind_zahlwoerter(satz: str) -> None:
+    """Fängt „eins“ und „zero“, die als ausgeschriebene Zahl ungeprüft durchgingen (Review !93, #151)."""
+    assert uc4.hat_zahlwort(satz)
+
+
+BELEG_UC3 = uc4.Beleg(
+    uc="uc3", quelle="stat.stat_beschaeftigte", monat="2025-10", lieferung="2025-10", stand="vorlaeufig"
+)
+ZAHL_UC3 = uc4.Zahl(bezeichnung="Beschäftigungsverhältnisse", wert=390900, einheit="Anzahl", beleg=0)
+ZAHL_WIEN = ZAHL_UC3.model_copy(
+    update={"bezeichnung": "Beschäftigungsverhältnisse (Wien, Gesundheits- und Sozialwesen)", "wert": 7498}
+)
+
+
+def _kette_kontext(*zahlen: uc4.Zahl) -> list[uc4.UcAntwort]:
+    """UC3 mit Zahl und Beleg, UC2 reicht beides weiter wie uc2.antwort.adapter."""
+    gezeigt = list(zahlen or (ZAHL_UC3,))
+    uc3 = uc4.UcAntwort(text="Am 31.10.2025 gab es 390.900.", belege=[BELEG_UC3], zahlen=gezeigt, uc="uc3")
+    presse = uc4.Beleg(uc="uc2", quelle="presse: Kurier", monat="2026-09", ref="b1")
+    uc2 = uc4.UcAntwort(
+        text="Mehr Personal heißt meist kürzere Wartezeiten.",
+        belege=[BELEG_UC3, presse],
+        zahlen=gezeigt,
+        uc="uc2",
+    )
+    return [uc3, uc2]
+
+
+def test_kette_verschiedene_fragen_ergeben_verschiedenen_text() -> None:
+    """Fängt den Vorbehalt des Leads: Ein Satz, der für jede Frage gleich klingt, sagt nichts zum
+    Arzttermin."""
+    wien = uc4.router_adapter("Wien?", _kette_kontext(ZAHL_WIEN))
+    alle = uc4.router_adapter("Oktober?", _kette_kontext())
+    assert wien.text == (
+        "Für Ihren nächsten Arzttermin in Wien heißt das: Wie rasch Sie einen Termin bekommen und wie viel "
+        "Zeit man "
+        "für Sie hat, hängt auch davon ab, wie viele Menschen dort arbeiten. Die Zahl von StatAgent: 7.498."
+    )
+    assert alle.text == (
+        "Für Ihren nächsten Arzttermin sagt diese Zahl allein wenig. Fragen Sie nach dem Gesundheits- und "
+        "Sozialwesen, dann wird es konkreter. Die Zahl von StatAgent: 390.900."
+    )
+
+
+def test_kette_lotse_wiederholt_den_simulator_nicht() -> None:
+    """Fängt zwei gleiche Karten (Review !210): Wartezeit, Betreuung, mehr und weniger standen in Station 2
+    und 3."""
+    text = uc4.router_adapter("Wien?", _kette_kontext(ZAHL_WIEN)).text
+    assert (
+        "Mehr Personal" not in text and "Mit mehr Personal" not in text and "weniger" not in text.casefold()
+    )
+
+
+def test_kette_ohne_zahlen_station_ohne_belegsatz() -> None:
+    """Fängt „Die Zahl von StatAgent“ ohne Zahl, wenn die Kette ohne UC3 läuft."""
+    uc2 = uc4.UcAntwort(text="Abwägung.", belege=[], zahlen=[], uc="uc2")
+    assert uc4.router_adapter("Frage?", [uc2]).text == (
+        f"Für Ihren nächsten Arzttermin heißt das: {uc4.KETTE_GESUNDHEIT}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("bezeichnung", "erwartet"),
+    [
+        ("Beschäftigungsverhältnisse (Tirol)", "Arzttermin in Tirol sagt diese Zahl allein wenig"),
+        (
+            "Beschäftigungsverhältnisse (Wien, Frauen, Gesundheits- und Sozialwesen)",
+            "in Wien heißt das: Wie rasch",
+        ),
+        (
+            "Beschäftigungsverhältnisse (Frauen, Gesundheits- und Sozialwesen)",
+            "Arzttermin heißt das: Wie rasch",
+        ),
+        ("Beschäftigungsverhältnisse (Tirol, Bau)", "in Tirol sagt diese Zahl allein wenig"),
+        ("Fluktuation, ÖNACE R Gesundheits- und Sozialwesen", "heißt das: Wechselt das Personal oft"),
+        ("Fluktuation, alle Wirtschaftsbereiche", "Arzttermin sagt diese Zahl allein wenig"),
+        ("Fluktuation, ÖNACE F Bau", "Arzttermin sagt diese Zahl allein wenig"),
+    ],
+)
+def test_kette_text_folgt_dem_was_die_zahl_zaehlt(bezeichnung: str, erwartet: str) -> None:
+    """Fängt falsche Zuordnung: Bau bekäme den Satz übers Gesundheitswesen, und bei „Fluktuation im Bau“
+    träfe man
+    beim Arzt „neue Gesichter“ (UI-Regie 05.11.)."""
+    zahl = ZAHL_UC3.model_copy(update={"bezeichnung": bezeichnung})
+    assert erwartet in uc4.router_adapter("Frage?", _kette_kontext(zahl)).text
+
+
+def test_kette_frage_ueber_alle_branchen_ist_keine_frage_zum_gesundheitswesen() -> None:
+    """Fängt das Review von !210: Eine Liste aller Branchen enthält auch das Gesundheitswesen und bekam
+    dessen Satz."""
+    zeilen = [
+        ZAHL_UC3.model_copy(update={"bezeichnung": f"Beschäftigungsverhältnisse ({branche})", "wert": wert})
+        for branche, wert in (("Bau", 3611), ("Gesundheits- und Sozialwesen", 3887), ("Handel", 7498))
+    ]
+    text = uc4.router_adapter("Beschäftigte nach Branche", _kette_kontext(*zeilen)).text
+    assert text == (
+        "Für Ihren nächsten Arzttermin sagen diese Zahlen allein wenig. Fragen Sie nach dem Gesundheits- und "
+        f"Sozialwesen, dann wird es konkreter. {uc4.KETTE_VERWEIS}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("wert", "wirkung"),
+    [
+        (-22.24, "warten Sie laut Rechenmodell meist kürzer."),
+        (3.0, "warten Sie laut Rechenmodell meist länger."),
+        (0, "ändert sich die Wartezeit laut Rechenmodell kaum."),
+        (-0.04, "ändert sich die Wartezeit laut Rechenmodell kaum."),
+    ],
+)
+def test_kette_paket_sagt_die_richtung_aus_dem_rechenmodell(wert: float, wirkung: str) -> None:
+    """Fängt „warten kürzer“, wenn das Rechenmodell längere Wartezeiten ergibt, und „länger“ bei null."""
+    uc3, uc2 = _kette_kontext(ZAHL_WIEN)
+    uc2.belege.append(uc4.Beleg(uc="uc2", quelle="uc2.experte", ref="paket"))
+    uc2.zahlen.append(
+        uc4.Zahl(bezeichnung="Wartezeitänderung (wahrscheinlichster Wert)", wert=wert, einheit="%", beleg=2)
+    )
+    text = uc4.router_adapter("Wartezeiten?", [uc3, uc2]).text
+    assert wirkung in text and "22,24" not in text
+    assert text.endswith("Die Zahl von StatAgent: 7.498.")
+
+
+def test_kette_zahl_von_uc3_und_uc2_steht_einmal() -> None:
+    """Fängt den Live-Fund vom 05.11.: Dieselbe Zahl aus UC3 und UC2 stand zweimal in der Antwort."""
+    a = uc4.router_adapter("Oktober?", _kette_kontext())
+    assert [(z.wert, z.beleg) for z in a.zahlen] == [(390900, 0)]
+    assert [b.quelle for b in a.belege] == ["stat.stat_beschaeftigte", "presse: Kurier"]
+
+
+def test_kette_ohne_modell_und_ohne_ki_kennzeichnung(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt einen Modellaufruf in der Kette (Lead: 4 statt 5 je Frage) und „Mit KI geschrieben“ über
+    Fixtext. Gezählt
+    statt geworfen: `antwort` fängt Fehler des Modells ab, ein Wurf bliebe unbemerkt."""
+    aufrufe: list[int] = []
+
+    def zaehler(*args: Any, **kwargs: Any) -> Any:
+        aufrufe.append(1)
+        raise RuntimeError("Modell in der Kette gerufen")
+
+    monkeypatch.setattr(uc4, "standard_modell", zaehler)
+    assert uc4.router_adapter("Oktober?", _kette_kontext()).modell is None
+    assert aufrufe == []
+
+
+def test_kette_englische_frage_bekommt_deutsche_antwort() -> None:
+    """Fängt den Live-Fund: Station 3 antwortet englisch, der Rest der Seite deutsch."""
+    a = uc4.router_adapter(
+        "How many employees were there in Vienna in March 2025?", _kette_kontext(ZAHL_WIEN)
+    )
+    assert a.text.startswith("Für Ihren nächsten Arzttermin in Wien heißt das:")
+
+
+def test_kette_viele_zahlen_stehen_nicht_als_liste_im_text() -> None:
+    """Fängt „nach Bundesland“: neun Zahlen als Liste im Satz, die Bedeutung geht unter."""
+    viele = [ZAHL_UC3.model_copy(update={"bezeichnung": f"Land {n}", "wert": n}) for n in range(1, 10)]
+    a = uc4.router_adapter("Beschäftigte nach Bundesland", _kette_kontext(*viele))
+    assert a.text.endswith(uc4.KETTE_VERWEIS) and len(a.zahlen) == 9
+
+
+def test_kette_grenzfrage_bleibt_grenze_ohne_zahl() -> None:
+    """Fängt: Die Kette umgeht die Grenzprüfung; eine Therapiefrage bekäme Zahlen statt des Grenztexts."""
+    a = uc4.router_adapter("Welches Medikament soll ich gegen Fieber nehmen?", _kette_kontext())
+    assert a.zahlen == [] and "Arzttermin" not in a.text
+
+
+def test_kette_nachpruefung_bleibt(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt einen Text, der an der Nachprüfung vorbeigeht, seit kein Modell ihn schreibt."""
+    gesehen: list[str] = []
+    echt = uc4.grenze.nachpruefung
+
+    def spion(text: str) -> Any:
+        gesehen.append(text)
+        return echt(text)
+
+    monkeypatch.setattr(uc4.grenze, "nachpruefung", spion)
+    a = uc4.router_adapter("Oktober?", _kette_kontext())
+    assert gesehen == [a.text]
+
+
+def test_kette_belegsatz_nennt_keine_falsche_gliederung() -> None:
+    """Fängt „Grundlage: 7.498 Beschäftigungsverhältnisse im März 2025“: Im März gab es rund 390.000, Wien und
+    Branche fehlten im Satz. „Grundlage“ stimmt auch nicht, die festen Sätze folgen nicht aus der Zahl."""
+    a = uc4.router_adapter("Wie viele?", _kette_kontext(ZAHL_WIEN))
+    assert a.text.endswith("Die Zahl von StatAgent: 7.498.") and "Grundlage" not in a.text
+
+
+def test_kette_zwei_zahlen_stehen_nicht_ohne_bezeichnung_da() -> None:
+    """Fängt „Die Zahlen von StatAgent: 3.611; 3.887“: Ohne Bezeichnung sagen sie nichts (Review !210)."""
+    zwei = [ZAHL_UC3.model_copy(update={"bezeichnung": f"Land {n}", "wert": n}) for n in (3611, 3887)]
+    a = uc4.router_adapter("Zwei?", _kette_kontext(*zwei))
+    assert a.text.endswith(uc4.KETTE_VERWEIS) and "3.611" not in a.text

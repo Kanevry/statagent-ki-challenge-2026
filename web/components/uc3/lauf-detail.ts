@@ -4,6 +4,7 @@ import { lies, type Lesung, type Sql } from "./db";
 import { ladeMassgeblichenLauf } from "./laeufe";
 import { monatName, monatsgrenzen, stichtag, verschieben } from "./monat";
 import type { Lauf } from "./typen";
+import { bestandFilter, bestandSpalte, imZeitraumText, type ZeitraumArt } from "./zeitraum";
 
 // Lauf-Detail /uc3/laeufe/[lieferung] (#18, Frames fFDc8 und P6gBQD): Leser, Sätze und Beleg-Abfragen eines Monats.
 // Jede Abfrage, die ein Beleg ZEIGT, liefert genau die Zahl, die daneben steht; ausgeführt wird die parametrisierte
@@ -36,6 +37,9 @@ export interface Treffer {
 /** Felder aus meta.pruefung_treffer.details, die die Seite liest; alles andere bleibt unbeachtet. */
 export interface TrefferDetails {
   anteil?: number;
+  /** P15/P17: Wert dieses Monats und des Vormonats (bei P16 steht in „vormonat“ der Monat als Text). */
+  aktuell?: number;
+  vormonat?: number | string;
   rueckfrage?: string;
   auspraegungen?: { code: string; gliederung: string; aktuell: number; vormonat: number }[];
 }
@@ -333,6 +337,21 @@ export function trefferTitel(t: Pick<Treffer, "name" | "beschreibung" | "satz" |
   return erster || t.name;
 }
 
+/**
+ * Titel ohne die Klammer mit Messwerten (UI-Regie v1): Steht „({umfang})“ in der Satzvorlage, endet der Titel mit
+ * dem Satz davor, und die Messwerte stehen getrennt für die aufgeklappte Zeile.
+ */
+export function titelUndMesswerte(
+  t: Pick<Treffer, "name" | "beschreibung" | "satz" | "anzahl" | "umfang">,
+  lieferung: string,
+): { titel: string; messwerte: string | null } {
+  if (t.satz?.includes("({umfang})")) {
+    const titel = trefferTitel({ ...t, satz: t.satz.replace(/\s*\(\{umfang\}\)/, "") }, lieferung);
+    return { titel, messwerte: t.umfang?.trim() || null };
+  }
+  return { titel: trefferTitel(t, lieferung), messwerte: null };
+}
+
 /** Steht der Umfang schon im Titel (Vorlage mit {umfang}), wird er nicht noch einmal gezeigt. */
 export function umfangImTitel(t: Pick<Treffer, "satz">): boolean {
   return Boolean(t.satz?.includes("{umfang}"));
@@ -410,16 +429,53 @@ export function haltSatz(
         ? `${im} fehlt eine Gruppe ganz, die es im ${vm} noch gab. ${deshalb}`
         : `${im} fehlen ${formatZahl(n)} Gruppen ganz, die es im ${vm} noch gab. ${deshalb}`;
     }
-    case "zeilenzahl_vs_vormonat":
-      return `${im} weicht die Lieferung um ${formatZahl(n)} ${n === 1 ? "Zeile" : "Zeilen"} von der vorigen ab. ${deshalb}`;
+    case "zeilenzahl_vs_vormonat": {
+      const r = richtung(t);
+      const art = r === "kleiner" ? "weniger" : r === "groesser" ? "mehr" : null;
+      return art
+        ? `${im} hat die Lieferung ${formatZahl(n)} ${n === 1 ? "Zeile" : "Zeilen"} ${art} als die vorige. ${deshalb}`
+        : `${im} weicht die Lieferung um ${formatZahl(n)} ${n === 1 ? "Zeile" : "Zeilen"} von der vorigen ab. ${deshalb}`;
+    }
     default:
       return `${im} hält die Prüfung „${trefferTitel(t, lieferung).replace(/\.$/, "")}“ den Monat an.`;
   }
 }
 
-/** Überschrift eines Monats, der nicht angehalten ist: Bestand am Stichtag und Veränderung zum Vormonat. */
-export function bestandSatz(lauf: Pick<Lauf, "lieferung" | "gezaehlt">, vormonat: Pick<Lauf, "lieferung" | "gezaehlt"> | null): string {
-  const kopf = `Am ${stichtag(lauf.lieferung)} bestanden ${formatZahl(lauf.gezaehlt)} Beschäftigungsverhältnisse`;
+/** Richtung einer Mengen-Prüfung aus details (aktuell gegen vormonat), sonst null. */
+function richtung(t: { details?: TrefferDetails | null }): "kleiner" | "groesser" | null {
+  const a = t.details?.aktuell;
+  const v = t.details?.vormonat;
+  if (typeof a !== "number" || typeof v !== "number" || a === v) return null;
+  return a < v ? "kleiner" : "groesser";
+}
+
+/** Haltegrund in wenigen Wörtern für die Monatsübersicht („jedes fünfte fehlt“, „freie Dienstverträge fehlen“). */
+export function haltKurz(
+  t: Pick<Treffer, "art" | "anzahl"> & { details?: TrefferDetails | null },
+  fdCodes: readonly string[] = [],
+): string {
+  switch (t.art) {
+    case "verhaeltnisse_verschwunden": {
+      const anteil = anteilWort(t.details?.anteil);
+      return anteil?.startsWith("jedes") ? `${anteil} Beschäftigungsverhältnis fehlt` : "Beschäftigungsverhältnisse fehlen";
+    }
+    case "auspraegung_verschwunden": {
+      const g = fehlendeGruppen([t], fdCodes);
+      return g?.nurFreieDienstvertraege ? "freie Dienstverträge fehlen" : "ganze Gruppen fehlen";
+    }
+    case "bestand_vs_vormonat":
+      return "Bestand stark gesunken";
+    case "zeilenzahl_vs_vormonat":
+      return richtung(t) === "groesser" ? "Lieferung deutlich größer" : richtung(t) === "kleiner" ? "Lieferung deutlich kleiner" : "Lieferung deutlich anders";
+    default:
+      return "eine Prüfung hält an";
+  }
+}
+
+/** Überschrift eines Monats, der nicht angehalten ist: Bestand (Stichtag oder ganzes Monat) und Veränderung zum Vormonat. */
+export function bestandSatz(lauf: Pick<Lauf, "lieferung" | "gezaehlt" | "zeitraumArt">, vormonat: Pick<Lauf, "lieferung" | "gezaehlt"> | null): string {
+  const wann = lauf.zeitraumArt === "Monat" ? `Im ${monatName(lauf.lieferung)}` : `Am ${stichtag(lauf.lieferung)}`;
+  const kopf = `${wann} bestanden ${formatZahl(lauf.gezaehlt)} Beschäftigungsverhältnisse`;
   if (!vormonat) return `${kopf}.`;
   const d = lauf.gezaehlt - vormonat.gezaehlt;
   const vm = monatName(vormonat.lieferung);
@@ -433,8 +489,14 @@ export function ausLieferung(lauf: Pick<Lauf, "gezaehlt" | "fortgeschrieben">): 
 }
 
 /** „425.151 gelesene Zeilen = 387.180 gezählt + 36.308 nicht gezählt + 1.663 ausgeschlossen.“ (ohne Übernommene) */
-export function abrechnungSatz(lauf: Pick<Lauf, "gelesen" | "gezaehlt" | "fortgeschrieben" | "nichtGezaehlt" | "ausgeschlossen">): string {
-  return `${formatZahl(lauf.gelesen)} gelesene Zeilen = ${formatZahl(ausLieferung(lauf))} gezählt + ${formatZahl(lauf.nichtGezaehlt)} nicht gezählt + ${formatZahl(lauf.ausgeschlossen)} ausgeschlossen.`;
+export function abrechnungSatz(
+  lauf: Pick<Lauf, "gelesen" | "gezaehlt" | "fortgeschrieben" | "nichtGezaehlt" | "ausgeschlossen">,
+  gehtAuf = true,
+): string {
+  const teile = `${formatZahl(ausLieferung(lauf))} gezählt + ${formatZahl(lauf.nichtGezaehlt)} nicht gezählt + ${formatZahl(lauf.ausgeschlossen)} ausgeschlossen`;
+  return gehtAuf
+    ? `${formatZahl(lauf.gelesen)} gelesene Zeilen = ${teile}.`
+    : `${formatZahl(lauf.gelesen)} gelesene Zeilen ≠ ${teile}. Die Abrechnung geht nicht auf.`;
 }
 
 export function determinismusSatz(d: Determinismus): string {
@@ -532,8 +594,6 @@ export function umschichtungSatz(r: Pick<Revision, "berichtsmonat">): string {
 // ---------------------------------------------------------------------------------------------------------------
 // Beleg-Abfragen (Anzeige)
 
-const BESTAND_FILTER = "zeitraum_art = 'Stichtag' AND variable = 'Beschaeftigungsverhaeltnisse'";
-
 /** Bestand dieses Monats und des Vormonats, je mit dem Regelstand ihres maßgeblichen Laufs. */
 export function sqlBestandMitVormonat(lauf: Lauf, vormonat: Lauf | null): string {
   const teil = (l: Lauf) => {
@@ -543,16 +603,16 @@ export function sqlBestandMitVormonat(lauf: Lauf, vormonat: Lauf | null): string
   return [
     "SELECT to_char(zeitraum_bis, 'YYYY-MM') AS monat, sum(wert) AS beschaeftigungsverhaeltnisse",
     "FROM stat.stat_beschaeftigte",
-    `WHERE regelsatz = ${literal(lauf.regelsatz)} AND ${BESTAND_FILTER}`,
+    `WHERE regelsatz = ${literal(lauf.regelsatz)} AND ${bestandFilter(lauf.zeitraumArt)}`,
     `  AND (${[vormonat, lauf].filter((l): l is Lauf => l !== null).map(teil).join("\n       OR ")})`,
     "GROUP BY 1 ORDER BY 1;",
   ].join("\n");
 }
 
-export function sqlKennzahlen(lauf: Pick<Lauf, "id" | "quelleId">): string {
+export function sqlKennzahlen(lauf: Pick<Lauf, "id" | "quelleId" | "zeitraumArt">): string {
   return [
     "SELECT lieferung, gezaehlt - fortgeschrieben AS aus_der_lieferung, fortgeschrieben AS uebernommen,",
-    "       gezaehlt AS bestand_am_stichtag, gelesen, nicht_gezaehlt, ausgeschlossen, ergebnis_status",
+    `       gezaehlt AS ${bestandSpalte(lauf.zeitraumArt)}, gelesen, nicht_gezaehlt, ausgeschlossen, ergebnis_status`,
     "FROM meta.lauf",
     `WHERE id = ${literal(lauf.id)};`,
   ].join("\n");
@@ -571,6 +631,7 @@ export function sqlDeterminismus(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "r
 export function sqlTreffer(lauf: Pick<Lauf, "id" | "quelleId">, t: Pick<Treffer, "regelId" | "ebene" | "belegSql">): string {
   const kopf = [
     "SELECT r.name, p.anzahl, p.umfang, coalesce(p.einstufung, 'nicht-erklaerbar') AS einstufung, p.massnahme, p.anhalten,",
+    "       p.details,",
     "       ARRAY(SELECT q.nr FROM meta.rueckfrage q WHERE q.antwort IS NULL",
     "             AND (q.nr = p.details ->> 'rueckfrage' OR q.regel_name = r.name)) AS offene_rueckfragen",
     "FROM meta.pruefung_treffer p JOIN meta.regel r ON r.id = p.regel_id",
@@ -617,7 +678,7 @@ export function sqlVeroeffentlichen(lauf: Pick<Lauf, "id" | "quelleId" | "liefer
 }
 
 /** Bestand je Bundesland; ROLLUP liefert die Summenzeile (Bundesland leer) gleich mit. */
-export function sqlRegionen(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "regelstand">): string {
+export function sqlRegionen(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "regelstand" | "zeitraumArt">): string {
   const { von, bis } = monatsgrenzen(lauf.lieferung);
   return [
     "SELECT s.region, k.bezeichnung, sum(s.wert) AS beschaeftigungsverhaeltnisse",
@@ -625,7 +686,7 @@ export function sqlRegionen(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "regels
     "LEFT JOIN stat.klass_region k ON k.code = s.region AND k.ebene = 'bundesland'",
     "  AND k.gueltig_von <= s.zeitraum_bis AND (k.gueltig_bis IS NULL OR k.gueltig_bis >= s.zeitraum_bis)",
     `WHERE s.regelsatz = ${literal(lauf.regelsatz)} AND s.regelstand = ${literal(lauf.regelstand)}`,
-    `  AND s.${BESTAND_FILTER.replace(" AND ", " AND s.")}`,
+    `  AND ${bestandFilter(lauf.zeitraumArt, "s.")}`,
     `  AND s.zeitraum_bis BETWEEN ${literal(von)} AND ${literal(bis)}`,
     "GROUP BY ROLLUP ((s.region, k.bezeichnung))",
     "ORDER BY grouping(s.region), s.region = '0', 3 DESC;",
@@ -652,7 +713,7 @@ interface TrefferZeile {
   details: TrefferDetails | null;
 }
 
-async function ladeTreffer(sql: Sql, laufId: number): Promise<Treffer[]> {
+async function ladeTreffer(sql: Sql, laufId: number, art: ZeitraumArt): Promise<Treffer[]> {
   const zeilen = await sql<TrefferZeile[]>`
     SELECT p.regel_id, r.name, r.art, r.beschreibung, r.parameter->>'satz' AS satz, p.ebene, p.anzahl, p.umfang,
            coalesce(p.einstufung, 'nicht-erklaerbar') AS einstufung, p.massnahme, p.anhalten, p.beleg_sql, p.details,
@@ -667,14 +728,14 @@ async function ladeTreffer(sql: Sql, laufId: number): Promise<Treffer[]> {
       name: z.name,
       art: z.art ?? "",
       beschreibung: z.beschreibung ?? "",
-      satz: z.satz,
+      satz: z.satz === null ? null : imZeitraumText(z.satz, art),
       ebene: z.ebene,
       anzahl: zahl(z.anzahl),
-      umfang: z.umfang,
+      umfang: z.umfang === null ? null : imZeitraumText(z.umfang, art),
       einstufung: z.einstufung,
-      massnahme: z.massnahme,
+      massnahme: z.massnahme === null ? null : imZeitraumText(z.massnahme, art),
       anhalten: z.anhalten,
-      belegSql: z.beleg_sql,
+      belegSql: z.beleg_sql === null ? null : imZeitraumText(z.beleg_sql, art),
       offeneRueckfragen: z.offene_rueckfragen ?? [],
       details: z.details ?? null,
     })),
@@ -714,7 +775,7 @@ async function ladeRegionen(sql: Sql, lauf: Lauf): Promise<Region[]> {
     LEFT JOIN stat.klass_region k ON k.code = s.region AND k.ebene = 'bundesland'
       AND k.gueltig_von <= s.zeitraum_bis AND (k.gueltig_bis IS NULL OR k.gueltig_bis >= s.zeitraum_bis)
     WHERE s.regelsatz = ${lauf.regelsatz} AND s.regelstand = ${lauf.regelstand}
-      AND s.zeitraum_art = 'Stichtag' AND s.variable = 'Beschaeftigungsverhaeltnisse'
+      AND s.zeitraum_art = ${lauf.zeitraumArt} AND s.variable = 'Beschaeftigungsverhaeltnisse'
       AND s.zeitraum_bis BETWEEN ${von} AND ${bis}
     GROUP BY s.region, k.bezeichnung
     ORDER BY s.region = '0', 3 DESC`;
@@ -794,7 +855,7 @@ export async function ladeLaufDetail(sql: Sql, lieferung: string, regelsatz = "v
   ]);
   if (!lauf) return null;
   const [treffer, revisionen, regionen, determinismus, fdCodes] = await Promise.all([
-    ladeTreffer(sql, lauf.quelleId),
+    ladeTreffer(sql, lauf.quelleId, lauf.zeitraumArt),
     ladeRevisionen(sql, lauf.id),
     ladeRegionen(sql, lauf),
     ladeDeterminismus(sql, lauf),

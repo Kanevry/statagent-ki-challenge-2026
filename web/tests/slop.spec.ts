@@ -39,7 +39,7 @@ const SCHLUESSEL = [
  */
 const NOCH_OFFEN: Record<string, string> = {};
 
-const ROUTEN: string[] = ["/", ...bereiche.map((uc) => uc.route), "/praesentation", "/_bausteine"];
+const ROUTEN: string[] = ["/", ...bereiche.map((uc) => uc.route), "/praesentation", "/praesentation/management", "/_bausteine"];
 // 120 je Viewport: UC-Unterseiten (z. B. je Lieferung) sollen das Gate nicht über die Grenze treiben (Lead 58)
 const MAX_SEITEN = 120;
 
@@ -125,9 +125,10 @@ async function pruefeSeite(page: Page, testInfo: TestInfo, ort: string, zustand 
 
 /** Interne Seitenlinks (gleicher Ursprung, ohne API, Dateien und Anker) als Pfade. */
 async function interneLinks(page: Page): Promise<string[]> {
+  // getAttribute statt .href: Links in SVG (Monatsgrafik UC3) sind SVGAElement, deren href kein String ist.
   const pfade = await page.$$eval('a[href^="/"]', (links) =>
     links.map((a) => {
-      const url = new URL((a as HTMLAnchorElement).href);
+      const url = new URL(a.getAttribute("href") ?? "", location.href);
       return url.origin === location.origin ? url.pathname : "";
     }),
   );
@@ -233,14 +234,18 @@ test.describe("Anti-Schablonen-Gate", () => {
     expect(gemessen.length, "Keine Seite gemessen").toBeGreaterThan(0);
   });
 
-  test("/uc3 mit Modell-Hinweis „zuletzt“ und geöffneter Protokoll-Schublade", async ({ page }, testInfo) => {
+  test("/uc1 mit Modell-Hinweis „zuletzt“, /uc3 mit geöffneter Protokoll-Schublade", async ({ page }, testInfo) => {
     await page.route("**/api/plattform/modell", (route) => route.fulfill({ json: MODELL_STATUS }));
+    // /uc3 zeigt im Header kein Modell, darum wird der Hinweis auf /uc1 gemessen.
+    const uc1 = await page.goto("/uc1");
+    expect(uc1?.status(), "HTTP-Status von /uc1").toBe(200);
+    await vorbereiten(page);
+    await page.getByTestId("modell-zuletzt").first().waitFor({ state: "attached" });
+    await pruefeSeite(page, testInfo, "/uc1", "-badge-zuletzt");
+
     const antwort = await page.goto("/uc3");
     expect(antwort?.status(), "HTTP-Status von /uc3").toBe(200);
     await vorbereiten(page);
-    await page.getByTestId("modell-zuletzt").first().waitFor({ state: "attached" });
-    await pruefeSeite(page, testInfo, "/uc3", "-badge-zuletzt");
-
     await page.getByRole("button", { name: "Protokoll", exact: true }).click();
     const schublade = page.getByRole("dialog");
     await schublade.waitFor({ state: "visible" });

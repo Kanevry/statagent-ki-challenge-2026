@@ -8,6 +8,8 @@ Kommentar je Kriterium; die Marke enthält weder SHA noch Zeit.
 
 from __future__ import annotations
 
+import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -138,9 +140,19 @@ def test_html_kommentar_ist_kein_platzhalter() -> None:
     )
 
 
-def test_schwaerzen_entfernt_pfade_und_rechnernamen() -> None:
-    text = matrix.schwaerzen("liegt in ~/Projects/x und /Users/a/b auf m5-remote bzw. M4, nicht 127.0.0.1")
+def test_schwaerzen_entfernt_pfade_und_rechnernamen(monkeypatch: pytest.MonkeyPatch) -> None:
+    rechner = matrix.re.compile(
+        r"\brechner-erfunden\b|nutzer\S*"
+    )  # erfundene Namen, echte nur außerhalb des Repos
+    monkeypatch.setattr(matrix, "_RECHNER", rechner)
+    monkeypatch.setattr(
+        matrix, "VERBOTEN", matrix.re.compile(matrix.VERBOTEN.pattern[:-1] + "|" + rechner.pattern + ")")
+    )
+    text = matrix.schwaerzen(
+        "liegt in ~/Projects/x und /Users/nutzer1/b auf rechner-erfunden, nicht 127.0.0.1"
+    )
     assert not matrix.VERBOTEN.search(text)
+    assert "rechner-erfunden" not in text
     assert "127.0.0.1" in text
 
 
@@ -148,3 +160,75 @@ def test_bau_db_wird_verweigert(tmp_path: Path) -> None:
     datei = tmp_path / "bau.env"
     datei.write_text("UC3_DATABASE_URL=postgresql://s:s@localhost:5433/statistik\n")
     assert pruefen.db_umgebung(datei)
+
+
+def test_eigener_arbeitsbaum_wird_nie_zurueckgesetzt() -> None:
+    assert not (pruefen.WURZEL / pruefen.MARKE_KLON).exists()
+    with pytest.raises(SystemExit, match="eigene Arbeitsbaum ohne Marke"):
+        pruefen.zuruecksetzen(pruefen.WURZEL, KOPF, KOPF)
+
+
+def test_eigener_arbeitsbaum_ohne_marke_ist_kein_ort() -> None:
+    with pytest.raises(SystemExit, match="eigene Arbeitsbaum"):
+        pruefen.ort_vorbereiten(pruefen.WURZEL, KOPF, KOPF)
+
+
+def test_pruefklon_als_eigener_ort_wird_nur_geprueft(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prüfrechner: pruefen.py läuft im Prüf-Klon; mit Marke und passendem Kopf kein Abbruch."""
+    git = ["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@example.org"]
+    subprocess.run([*git, "init", "-q"], check=True)
+    (tmp_path / "a.txt").write_text("a\n")
+    subprocess.run([*git, "add", "a.txt"], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "a"], check=True)
+    kopf = subprocess.run([*git, "rev-parse", "HEAD"], capture_output=True, text=True, check=True)
+    kopf = kopf.stdout.strip()
+    (tmp_path / pruefen.MARKE_KLON).write_text("x\n")
+    monkeypatch.setattr(pruefen, "WURZEL", tmp_path)
+    pruefen.ort_vorbereiten(tmp_path, kopf, kopf)
+    assert (tmp_path / "a.txt").exists()
+    with pytest.raises(SystemExit, match="nicht auf main"):
+        pruefen.ort_vorbereiten(tmp_path, "0" * 40, kopf)
+
+
+def test_ordner_ohne_marke_wird_nicht_zurueckgesetzt(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit, match="ohne Marke"):
+        pruefen.zuruecksetzen(tmp_path, KOPF, KOPF)
+
+
+def test_verworfener_beleg_zaehlt_nicht(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ein Beleg aus verworfen.jsonl fällt aus der Matrix, die Laufdatei bleibt unverändert."""
+    laeufe = tmp_path / "laeufe"
+    laeufe.mkdir()
+    lauf = laeufe / "2026-11-05T2011-abc.jsonl"
+    beleg = {"pruefer": "lauf 2026-11-05T2011-abc", "zeit": "2026-11-05 20:11"}
+    zeilen = [
+        {"lauf": "2026-11-05T2011-abc"},
+        {"id": "1-1", "stand": "nicht bestanden", **beleg},
+        {"id": "1-2", "stand": "bestanden", **beleg},
+        {"abgeschlossen": True},
+    ]
+    lauf.write_text("".join(json.dumps(z) + "\n" for z in zeilen))
+    verworfen = tmp_path / "verworfen.jsonl"
+    eintrag = {"lauf": "2026-11-05T2011-abc", "ids": ["1-1"], "grund": "x", "wer": "y"}
+    verworfen.write_text(json.dumps(eintrag) + "\n")
+    monkeypatch.setattr(matrix, "LAEUFE", laeufe)
+    monkeypatch.setattr(matrix, "BELEGE", tmp_path / "belege.jsonl")
+    monkeypatch.setattr(matrix, "VERWORFEN", verworfen)
+    belege = matrix.belege_lesen()
+    assert "1-1" not in belege
+    assert belege["1-2"][0]["stand"] == "bestanden"
+
+
+def test_fehlende_sperrliste_warnt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(matrix, "_SPERRDATEI", tmp_path / "gibt-es-nicht")
+    assert matrix._sperrnamen() == r"(?!)"
+    assert "Sperrliste fehlt" in capsys.readouterr().err
+
+
+def test_env_datei_ist_eine_echte_leere_datei() -> None:
+    """plattform.umgebung verlangt is_file(); /dev/null ließ UC1-Tests im Abzug scheitern (28-1)."""
+    pfad = Path(pruefen.UMGEBUNG["KIC_ENV_DATEI"])
+    assert pfad.is_file()
+    assert pfad.read_text() == ""

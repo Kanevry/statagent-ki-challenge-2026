@@ -53,7 +53,7 @@ describe("Hilfen", () => {
 });
 
 it("die zehn Folien laufen alle als Szene; Takte in falsche-zahl, kern, beleg, fehler, annahme und einstieg", () => {
-  expect(folien.map((f) => f.szene)).toEqual(Object.keys(SZENEN));
+  expect(folien.map((f) => f.szene)).toEqual(Object.keys(SZENEN).filter((id) => id !== "zahlen"));
   expect(Object.entries(SZENEN).filter(([, e]) => e.takte > 0).map(([id, e]) => [id, e.takte])).toEqual([
     ["falsche-zahl", 3],
     ["kern", 3],
@@ -177,7 +177,13 @@ it("einstieg: Haken nur für Antworten, deren Name in belegt steht", () => {
     expect(a.dataset.belegt, name).toBe(ja ? "ja" : "nein");
     expect(a.querySelector('svg[class*="haken"]') !== null, name).toBe(ja);
   }
-  expect(antworten.filter((a) => a.dataset.belegt === "ja")).toHaveLength(1);
+  expect(antworten.filter((a) => a.dataset.belegt === "ja")).toHaveLength(belegt.length);
+  // Nur ein Name in belegt: genau eine Antwort mit Haken, die anderen offen.
+  const teil = { ...folie, daten: { ...folie.daten, belegt: "[StatAgent]" } };
+  const el2 = zeige("einstieg", teil, nr, 3);
+  const ja = [...el2.querySelectorAll<HTMLElement>('[data-belegt="ja"]')];
+  expect(ja).toHaveLength(1);
+  expect(el2.querySelectorAll('[data-belegt="nein"]')).toHaveLength(2);
 });
 
 it("schluss: kein Knopf und kein Link", () => {

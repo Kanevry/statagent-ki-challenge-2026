@@ -6,7 +6,7 @@ import { Piktogramm } from "../basis/piktogramm";
 import type { UcEintrag } from "../ucs";
 import { StandardVerweis, type SeitenModellWert, type Verweis } from "./kontext";
 import { ModellBadge } from "./modell-badge";
-import { appTabs, istAktiv, marke } from "./navigation";
+import { appTabs, istAktiv, marke, zeigtModell } from "./navigation";
 
 // App-Header (Pen-Frame nas8Y): links die Marke, in der Mitte die Tabs aus der Registry, rechts Modell-Badge und
 // Protokoll-Knopf. Die Tabs sind Links (sie wechseln die Seite), daher `aria-current` statt ARIA-Tabs. Alle bleiben
@@ -72,10 +72,16 @@ export function AppHeader({
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
           <div className="flex min-w-0 flex-col gap-0.5" data-marke="">
             <p className="font-display text-20 font-bold text-navy">{kopfMarke.name}</p>
-            <p className="font-sans text-12 text-slate">{kopfMarke.zeile}</p>
+            {/* Handy (unter sm): ohne diese Zeile, der Kopf nahm bei 390 px rund 250 von 844 px (UI-Regie 05.11.) */}
+            <p className="font-sans text-12 text-slate max-sm:hidden">{kopfMarke.zeile}</p>
           </div>
           <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-3 min-[1400px]:shrink-0">
-            <ModellBadge quelle={modellQuelle} vorgabe={seitenModell} />
+            {/* Handy: ohne Modell-Badge (ab sm wieder da), dann steht „Protokoll“ in der Zeile der Marke */}
+            {zeigtModell(pfad) && (
+              <div className="max-sm:hidden">
+                <ModellBadge quelle={modellQuelle} vorgabe={seitenModell} />
+              </div>
+            )}
             {/* Natives <button>, weil der Fokus per Ref zurückkommen muss (Knopf reicht keinen Ref). */}
             <button
               ref={protokollKnopfRef}
