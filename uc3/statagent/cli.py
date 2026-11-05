@@ -599,6 +599,29 @@ def protokoll(
             typer.echo(f"Protokoll geschrieben: {protokoll_schreiben(conn)}")
 
 
+@app.command("antwort")
+def antwort(
+    frage_text: Annotated[
+        str, typer.Argument(metavar="FRAGE", help="z. B. „Beschäftigte in Wien im März 2025“")
+    ],
+    regelsatz: Annotated[str, typer.Option()] = "v1",
+    als_json: JsonOption = False,
+) -> None:
+    """UC4-Antwort von UC3: Zahl aus stat.stat_beschaeftigte mit Beleg (ohne Sprachmodell, #106)."""
+    from statagent.uc4 import antwort_daten
+
+    with verbinden() as conn:
+        daten = antwort_daten(conn, frage_text, regelsatz)
+    zeilen = [daten["text"]]
+    for zahl in daten["zahlen"]:
+        beleg = daten["belege"][zahl["beleg"]]
+        zeilen.append(f"- {zahl['bezeichnung']}: {zahl['wert']} {zahl['einheit'] or ''}".rstrip())
+        zeilen.append(f"  Beleg [{zahl['beleg']}] {beleg['quelle']}, {beleg['ref']}")
+    for nummer, beleg in enumerate(daten["belege"]):
+        zeilen.append(f"SQL [{nummer}]: {beleg['sql']}")
+    _ausgabe(daten, als_json, "\n".join(zeilen))
+
+
 def main() -> None:
     app()
 

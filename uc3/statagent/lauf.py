@@ -313,7 +313,7 @@ def _bestand_aus_roh(
     z = conn.execute(
         f"""
         WITH r AS (SELECT vvh_id, {beginn} AS b, {ende} AS e FROM roh.lieferung WHERE lieferung = %(l)s)
-        SELECT count(*) FILTER (WHERE NOT (b ~ %(m)s AND pg_input_is_valid(b, 'date'))
+        SELECT count(*) FILTER (WHERE b IS NULL OR NOT (b ~ %(m)s AND pg_input_is_valid(b, 'date'))
                                    OR (e IS NOT NULL AND NOT (e ~ %(m)s AND pg_input_is_valid(e, 'date')))) AS ersetzt,
                (SELECT count(DISTINCT vvh_id) FROM r
                 WHERE b ~ %(m)s AND pg_input_is_valid(b, 'date') AND b::date <= %(bis)s

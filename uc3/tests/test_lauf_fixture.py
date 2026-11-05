@@ -14,6 +14,7 @@ from pathlib import Path
 
 import psycopg
 import pytest
+from conftest import ROH_SPALTEN
 
 from statagent.db import Verbindung, schema_einrichten
 from statagent.ergebnis import monatswerte
@@ -219,3 +220,18 @@ def test_alle_zellcodes_stehen_in_der_klassifikation(conn: Verbindung, merkmal: 
         lauf.lauf_ausfuehren(conn, lieferung, regelsatz="v1", gestartet_von=None)
     assert _zaehle(conn, "SELECT count(*) AS n FROM stat.stat_beschaeftigte") > 0
     assert _zaehle(conn, f"SELECT count(*) AS n FROM stat.stat_beschaeftigte s {ANTI_JOINS[merkmal]}") == 0
+
+
+def test_fehlender_beginn_gilt_als_ersetzt_und_lauf_rechnet(conn: Verbindung) -> None:
+    # Fängt: BEGINN = NULL zählt in der Gegenrechnung nicht als „ersetzt“ (NOT (NULL ~ m) ist NULL), E04 setzt
+    # den Fensterbeginn ein und der Lauf bricht mit „Gegenrechnung ergibt n−1“ ab (Review !13 Runde 3, Punkt 7).
+    lauf = pytest.importorskip("statagent.lauf")
+    with conn.transaction():
+        conn.execute(
+            f"""INSERT INTO roh.lieferung ({ROH_SPALTEN})
+                VALUES ('2024-08', '1099', '5099', '1980-05-12', 'M', NULL, NULL, 'ArbeiterDV', 'C', '9')"""
+        )
+    erg = lauf.lauf_ausfuehren(conn, "2024-08", regelsatz="v1", gestartet_von=None)
+    assert erg.status == "fertig"
+    assert erg.gezaehlt == ERWARTET["2024-08"]["gezaehlt"] + 1
+    assert erg.gelesen == erg.gezaehlt + erg.nicht_gezaehlt + erg.ausgeschlossen

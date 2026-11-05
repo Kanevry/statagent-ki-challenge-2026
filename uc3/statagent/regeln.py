@@ -16,7 +16,7 @@ from typing import Any
 from plattform.freigabe import NameUngueltig as NameUngueltig  # Vertrag P, re-exportiert
 from plattform.freigabe import pruefe_name
 
-from statagent.db import Verbindung, lieferungen
+from statagent.db import Verbindung, lieferungen, tupelzeilen
 
 
 class RegelFehler(RuntimeError):
@@ -157,6 +157,10 @@ def regeln_freigeben(
 
     Mit ``repo_pfad`` läuft die Freigabe über Vertrag P (``plattform.freigabe.freigeben``): Eintrag in
     meta.protokoll/meta.freigabe und ein Git-Commit mit Trailer ``Freigegeben-von``. Liefert die Zahl der Regeln.
+
+    ``freigeben`` verlangt eine Verbindung ohne offene Transaktion (DB und Git gemeinsam oder gar nicht) und liest
+    Tupelzeilen. Scheitert die Freigabe, bleibt der Protokolleintrag nicht ``offen`` liegen: er wird über
+    ``plattform.freigabe.ablehnen`` mit dem technischen Grund geschlossen, und keine Regel wird freigegeben.
     """
     person = name_pruefen(name)
     offen = conn.execute(
@@ -167,7 +171,7 @@ def regeln_freigeben(
     anzahl_offen = int(str(offen["n"])) if offen else 0
     protokoll_id: int | None = None
     if repo_pfad is not None:
-        from plattform.freigabe import freigeben
+        from plattform.freigabe import ablehnen, freigeben
 
         with conn.transaction():
             eintrag = conn.execute(
@@ -182,9 +186,27 @@ def regeln_freigeben(
             ).fetchone()
         assert eintrag is not None
         protokoll_id = int(str(eintrag["id"]))
-        freigeben(
-            conn, protokoll_id, person, repo_pfad, objekt_typ="regel", objekt_ref=f"meta.regel/{regelsatz}"
-        )
+        try:
+            with tupelzeilen(conn):
+                freigeben(
+                    conn,
+                    protokoll_id,
+                    person,
+                    repo_pfad,
+                    objekt_typ="regel",
+                    objekt_ref=f"meta.regel/{regelsatz}",
+                )
+        except Exception as fehler:
+            with tupelzeilen(conn):
+                ablehnen(
+                    conn,
+                    protokoll_id,
+                    person,
+                    f"Freigabe technisch abgebrochen ({type(fehler).__name__}: {fehler}); keine Regel freigegeben",
+                    objekt_typ="regel",
+                    objekt_ref=f"meta.regel/{regelsatz}",
+                )
+            raise
     with conn.transaction():
         cur = conn.execute(
             """

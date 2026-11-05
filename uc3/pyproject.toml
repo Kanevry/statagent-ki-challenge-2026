@@ -21,6 +21,10 @@ statagent = "statagent.cli:app"
 # Vertrag O/P des PRD: jede UC-CLI ist als `uv run <uc>` aufrufbar.
 uc3 = "statagent.cli:app"
 
+# UC4 „Gemeinsamer Einstieg“ (#106): Adapter für plattform.router, Name = UC.
+[project.entry-points."kic.uc_antwort"]
+uc3 = "statagent.uc4:antwort"
+
 [dependency-groups]
 dev = [
   "pytest>=8.4",
