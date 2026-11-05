@@ -389,7 +389,7 @@ Fünftens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parame
 
 #### Stand (was vom Zielbild auf main ist)
 
-Gemessen am 05.11.2026 18:54 auf main `1a8c645`, nur aus dem Code. Was im Betrieb läuft, ergänzt der Prüfpunkt um 20:00 und Fr 05:00. Nicht gemessen heißt: nicht behaupten.
+Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.2026 19:40 auf der Online-Demo (POST `/api/uc4/frage` mit der Wien-Frage). Vor Fr 07:00 noch einmal messen. Nicht gemessen heißt: nicht behaupten.
 
 | Teil des Zielbilds | Stand auf main | Beleg |
 |---|---|---|
@@ -400,8 +400,8 @@ Gemessen am 05.11.2026 18:54 auf main `1a8c645`, nur aus dem Code. Was im Betrie
 | UC1-Adapter (Lotse) | registriert | `uc1/pyproject.toml`, `uc1.uc4:router_adapter` |
 | Freigabe mit Namen in UC2 | im Code | `uc2/src/uc2/verhandlung/freigabe.py`, `web/app/api/uc2/faelle/[id]/freigabe/route.ts` |
 | Freigabe mit Namen in UC1 | nicht gefunden | keine Fundstelle auf main |
-| Wien-Frage liefert drei Antworten | noch nicht gemessen | Prüfpunkt 20:00 |
-| Online-Demo | Testbetrieb, keine KI angeschlossen | Kopf der Seite, gesehen 18:5x |
+| Wien-Frage liefert drei Antworten | online ja, in 9 s: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator und Lotse mit Modell gpt-5-4-mini, beide mit dem Beleg aus UC3; nichts fehlt | gemessen 19:40 |
+| Online-Demo | mit KI: Azure gpt-5-4-mini (seit 19:17 laut Betrieb); `/uc4` wählt das Modell je Frage | Antwort der Wien-Frage, gemessen 19:40 |
 
 **Pflege:** Vor Fr 07:00 mit dem Stand auf main abgleichen, Uhrzeit und Commit neu setzen.
 
