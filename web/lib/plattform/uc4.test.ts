@@ -5,10 +5,13 @@ import {
   erstelleFrageAntwort,
   ROUTER_ARGV,
   standardAusfuehren,
+  standardStromStarten,
+  uc4Einstellung,
   type Ausfuehren,
+  type StromStarten,
   type FrageOptionen,
 } from "./uc4";
-import { ergebnisSchema, type Ergebnis } from "./uc4-ergebnis";
+import { BUDGET_MELDUNG as BUDGET_TEXT, ergebnisSchema, stromEreignisSchema, type Ergebnis } from "./uc4-ergebnis";
 
 // Fängt ab: Kette in falscher Reihenfolge, Frage ohne Grenze, ein Router-Fehler als 500 oder halbe Daten,
 // Mock-Schalter ohne Wirkung, eine Frage, die als Schalter des Routers gelesen wird, und „keine Antwort“
@@ -61,7 +64,7 @@ describe("POST /api/uc4/frage", () => {
     expect(daten.antworten.map((a) => a.uc)).toEqual(["uc3", "uc2", "uc1"]);
     expect(ausfuehren).toHaveBeenCalledWith("uv", [...ROUTER_ARGV, "--", "Wie viele Beschäftigte gab es 2025-03?"], {
       cwd: "/repo",
-      timeout: 60_000,
+      timeout: 180_000,
       maxBuffer: 1024 * 1024,
     });
   });
@@ -249,7 +252,8 @@ describe("POST /api/uc4/frage, Modellwahl", () => {
     const online = (modell: string, liste?: string) =>
       frageAntwort(anfrage({ frage: "Wie viele?", modell }), {
         ausfuehren,
-        umgebung: { KIC_ONLINE: "1", ...(liste === undefined ? {} : { UC4_MODELLWAHL: liste }) },
+        // Stufe B: volle Kette ausdrücklich, sonst gilt online nur UC3 und die Wahl wirkt gar nicht
+        umgebung: { KIC_ONLINE: "1", UC4_KETTE: "uc3,uc2,uc1", ...(liste === undefined ? {} : { UC4_MODELLWAHL: liste }) },
         wurzel: () => "/repo",
         ratenlimit: offen,
       });
@@ -269,5 +273,273 @@ describe("POST /api/uc4/frage, Modellwahl", () => {
     expect(antwort.status).toBe(400);
     expect(await antwort.json()).toEqual({ fehler: "Dieses Modell gibt es hier nicht." });
     expect(ausfuehren).not.toHaveBeenCalled();
+  });
+});
+
+// Online-Demo Stufe A (Lead c0, 05.11.): Fragen offen, aber ohne Modell, nur UC3. Fängt ab: Fragen bleiben trotz
+// KIC_ONLINE_FRAGEN gesperrt, UC2/UC1 laufen online mit Mock-Texten mit, „Testbetrieb“ ersetzt die echte UC3-Zahl
+// durch die Mock-Zahl, ein Tippfehler in UC4_KETTE öffnet die volle Kette mit Modellaufrufen.
+describe("POST /api/uc4/frage, Online-Stufe A", () => {
+  const stufeA = { KIC_ONLINE: "1", KIC_ONLINE_LESEND: "1", KIC_ONLINE_FRAGEN: "1", UC4_KETTE: "uc3" };
+  const mitUmgebung = (ausfuehren: Ausfuehren, umgebung: Record<string, string>): FrageOptionen => ({
+    ausfuehren,
+    umgebung,
+    wurzel: () => "/repo",
+    ratenlimit: offen,
+  });
+
+  it("KIC_ONLINE_FRAGEN=1 öffnet Fragen trotz KIC_ONLINE_LESEND=1 und fragt nur UC3, ohne Modellwahl", async () => {
+    const ausfuehren = liefert(JSON.stringify({ antworten: [ergebnis.antworten[0]], fehlend: [] }));
+    const antwort = await frageAntwort(anfrage({ frage: "Wie viele?", modell: "mock" }), mitUmgebung(ausfuehren, stufeA));
+    expect(antwort.status).toBe(200);
+    expect(ausfuehren.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--kette", "uc3", "--", "Wie viele?"]);
+    expect(ausfuehren.mock.calls[0]?.[2].zusatz).toBeUndefined();
+  });
+
+  it("ohne Modell in der Kette wird auch ein nicht freigegebenes Modell nicht abgelehnt, sondern ignoriert", async () => {
+    const ausfuehren = liefert(JSON.stringify({ antworten: [ergebnis.antworten[0]], fehlend: [] }));
+    const antwort = await frageAntwort(anfrage({ frage: "Wie viele?", modell: "claude" }), mitUmgebung(ausfuehren, stufeA));
+    expect(antwort.status).toBe(200);
+    expect(ausfuehren.mock.calls[0]?.[2].zusatz).toBeUndefined();
+  });
+
+  it("ein ungültiger Wert in UC4_KETTE fällt auf nur UC3 zurück", async () => {
+    const ausfuehren = liefert(JSON.stringify({ antworten: [ergebnis.antworten[0]], fehlend: [] }));
+    await frageAntwort(anfrage({ frage: "Wie viele?" }), mitUmgebung(ausfuehren, { UC4_KETTE: "uc3,uc9" }));
+    expect(ausfuehren.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--kette", "uc3", "--", "Wie viele?"]);
+  });
+
+  it("UC4_KETTE hält die Standardreihenfolge, leer heißt volle Kette ohne --kette", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    await frageAntwort(anfrage({ frage: "x" }), mitUmgebung(ausfuehren, { UC4_KETTE: "uc1, uc3" }));
+    await frageAntwort(anfrage({ frage: "x" }), mitUmgebung(ausfuehren, {}));
+    expect(ausfuehren.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--kette", "uc3,uc1", "--", "x"]);
+    expect(ausfuehren.mock.calls[1]?.[1]).toEqual([...ROUTER_ARGV, "--", "x"]);
+  });
+
+  it("online (KIC_ONLINE=1) heißt ein leeres UC4_KETTE nur UC3, nicht die volle Kette", async () => {
+    const ausfuehren = liefert(JSON.stringify({ antworten: [ergebnis.antworten[0]], fehlend: [] }));
+    await frageAntwort(anfrage({ frage: "x" }), mitUmgebung(ausfuehren, { KIC_ONLINE: "1", UC4_KETTE: " " }));
+    expect(ausfuehren.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--kette", "uc3", "--", "x"]);
+    expect(uc4Einstellung({ KIC_ONLINE: "1", UC4_KETTE: "uc3,uc2,uc1" }).kette).toEqual(["uc3", "uc2", "uc1"]);
+  });
+
+  it("uc4Einstellung sagt der Seite Kette, ob Fragen offen sind und ob ein Modell läuft", () => {
+    expect(uc4Einstellung(stufeA)).toEqual({ kette: ["uc3"], fragenOffen: true, mitModell: false });
+    expect(uc4Einstellung({ KIC_ONLINE_LESEND: "1" })).toEqual({
+      kette: ["uc3", "uc2", "uc1"],
+      fragenOffen: false,
+      mitModell: true,
+    });
+  });
+});
+
+// Stationen-Strom (ui-regie-32): Fängt ab: Strom ohne Accept-Header, Status vor der ersten Zeile falsch, eine
+// kaputte Zeile, die ungeprüft an die Seite geht, ein Abbruch ohne Schlusszeile, ein Slot, der nach dem Strom oder
+// nach einem Abbruch des Clients belegt bleibt, und ein erschöpftes Budget als 200.
+describe("POST /api/uc4/frage, Strom der Stationen", () => {
+  const ANTWORT = ergebnis.antworten[0];
+  const zeilen = {
+    start: JSON.stringify({ art: "start", kette: ["uc3", "uc2", "uc1"] }),
+    station: JSON.stringify({ art: "station", uc: "uc3", stufe: 1, zustand: "laeuft" }),
+    antwort: JSON.stringify({ art: "antwort", uc: "uc3", stufe: 1, dauer_ms: 1073, kern: "7.498.", antwort: ANTWORT }),
+    ende: JSON.stringify({ art: "ende", fehlend: [], dauer_ms: 1100 }),
+  };
+
+  function stromAus(ausgabe: string[], code: number | null = 0) {
+    const abbrechen = vi.fn();
+    const starten = vi.fn<StromStarten>(() => ({
+      zeilen: (async function* () {
+        for (const z of ausgabe) yield z;
+      })(),
+      ende: Promise.resolve(code),
+      abbrechen,
+    }));
+    return { starten, abbrechen };
+  }
+
+  function stromAnfrage(body: unknown): Request {
+    return new Request("http://lokal/api/uc4/frage", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/x-ndjson" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  async function lies(antwort: Response) {
+    const text = await antwort.text();
+    return text
+      .split("\n")
+      .filter((z) => z !== "")
+      .map((z) => stromEreignisSchema.parse(JSON.parse(z)));
+  }
+
+  const optionen = (stromStarten: StromStarten, extra: Partial<FrageOptionen> = {}): FrageOptionen => ({
+    stromStarten,
+    umgebung: {},
+    wurzel: () => "/repo",
+    ratenlimit: offen,
+    ...extra,
+  });
+
+  it("liefert jede Zeile geprüft als NDJSON, mit --strom und dem gewählten Modell im Start", async () => {
+    const { starten } = stromAus([zeilen.start, zeilen.station, zeilen.antwort, zeilen.ende]);
+    const antwort = await frageAntwort(stromAnfrage({ frage: "Wie viele?", modell: "azure" }), optionen(starten));
+    expect(antwort.status).toBe(200);
+    expect(antwort.headers.get("content-type")).toBe("application/x-ndjson; charset=utf-8");
+    const ereignisse = await lies(antwort);
+    expect(ereignisse.map((e) => e.art)).toEqual(["start", "station", "antwort", "ende"]);
+    expect(ereignisse[0]).toEqual({ art: "start", kette: ["uc3", "uc2", "uc1"], modell: "azure" });
+    expect(starten.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--strom", "--", "Wie viele?"]);
+    expect(starten.mock.calls[0]?.[2].zusatz).toEqual({ LLM_PROVIDER: "azure" });
+  });
+
+  it("ohne Accept-Header bleibt die Antwort das Ergebnis am Ende (kein Strom)", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    const { starten } = stromAus([]);
+    const antwort = await frageAntwort(anfrage({ frage: "x" }), { ...optionen(starten), ausfuehren });
+    expect(antwort.headers.get("content-type")).toContain("application/json");
+    expect(starten).not.toHaveBeenCalled();
+  });
+
+  it("eine kaputte Zeile mitten im Strom endet mit einer fehler-Zeile und bricht den Router ab", async () => {
+    const { starten, abbrechen } = stromAus([zeilen.start, '{"art":"antwort","uc":"uc9"}', zeilen.ende]);
+    const ereignisse = await lies(await frageAntwort(stromAnfrage({ frage: "x" }), optionen(starten)));
+    expect(ereignisse.at(-1)).toEqual({ art: "fehler", fehler: "Die Kette hat in einem unerwarteten Format geantwortet." });
+    expect(abbrechen).toHaveBeenCalled();
+  });
+
+  it("ein Ende ohne Abschluss (Timeout) bekommt eine fehler-Zeile", async () => {
+    const { starten } = stromAus([zeilen.start, zeilen.station], null);
+    const ereignisse = await lies(await frageAntwort(stromAnfrage({ frage: "x" }), optionen(starten)));
+    expect(ereignisse.at(-1)).toEqual({ art: "fehler", fehler: "Die Kette hat nicht rechtzeitig geantwortet." });
+  });
+
+  it("erschöpftes Budget in der ersten Zeile wird 429 mit Retry-After, kein Strom", async () => {
+    const budget = JSON.stringify({ art: "fehler", fehler: "budget_erschoepft", meldung: "aufgebraucht" });
+    const { starten } = stromAus([budget], 3);
+    const antwort = await frageAntwort(stromAnfrage({ frage: "x" }), optionen(starten));
+    expect(antwort.status).toBe(429);
+    expect(await antwort.json()).toEqual({ fehler: BUDGET_TEXT });
+    expect(antwort.headers.get("retry-after")).toMatch(/^[1-9][0-9]*$/);
+  });
+
+  it("keine gültige erste Zeile wird 502", async () => {
+    const { starten } = stromAus(["kein json"], 0);
+    expect((await frageAntwort(stromAnfrage({ frage: "x" }), optionen(starten))).status).toBe(502);
+  });
+
+  it("gibt den Slot nach dem Strom und nach einem Abbruch des Clients wieder frei", async () => {
+    const { starten, abbrechen } = stromAus([zeilen.start, zeilen.station, zeilen.antwort, zeilen.ende]);
+    const handler = erstelleFrageAntwort(optionen(starten, { maxLaeufe: 1 }));
+    await (await handler(stromAnfrage({ frage: "x" }))).text();
+    const zweite = await handler(stromAnfrage({ frage: "x" }));
+    expect(zweite.status).toBe(200);
+    await zweite.body?.cancel();
+    expect(abbrechen).toHaveBeenCalled();
+    expect((await handler(stromAnfrage({ frage: "x" }))).status).toBe(200);
+  });
+
+  it("EOF ohne ende-Zeile bei Exit 1 endet mit einer fehler-Zeile (Seite bleibt nicht auf „läuft“)", async () => {
+    const { starten } = stromAus([zeilen.start, zeilen.station], 1);
+    const ereignisse = await lies(await frageAntwort(stromAnfrage({ frage: "x" }), optionen(starten)));
+    expect(ereignisse.at(-1)).toEqual({ art: "fehler", fehler: "Die Kette ist mit einem Fehler abgebrochen." });
+  });
+
+  it("ein Lesefehler der Pipe beendet den Router, schreibt fehler und gibt den Slot frei", async () => {
+    const abbrechen = vi.fn();
+    const starten = vi.fn<StromStarten>(() => ({
+      zeilen: (async function* () {
+        yield zeilen.start;
+        throw new Error("EPIPE");
+      })(),
+      ende: Promise.resolve(null),
+      abbrechen,
+    }));
+    const handler = erstelleFrageAntwort(optionen(starten, { maxLaeufe: 1 }));
+    const ereignisse = await lies(await handler(stromAnfrage({ frage: "x" })));
+    expect(ereignisse.at(-1)).toEqual({ art: "fehler", fehler: "Die Kette ist mit einem Fehler abgebrochen." });
+    expect(abbrechen).toHaveBeenCalled();
+    expect((await handler(stromAnfrage({ frage: "x" }))).status).toBe(200);
+  });
+
+  it("bricht der Client vor der ersten Zeile ab, endet der Router und der Slot wird frei", async () => {
+    let weiter: () => void = () => {};
+    let ende: (code: number | null) => void = () => {};
+    const abbrechen = vi.fn(() => {
+      weiter();
+      ende(null);
+    });
+    const haengt = {
+      zeilen: (async function* () {
+        await new Promise<void>((los) => (weiter = los));
+      })(),
+      ende: new Promise<number | null>((aufloesen) => (ende = aufloesen)),
+      abbrechen,
+    };
+    const normal = stromAus([zeilen.start, zeilen.ende]);
+    const starten = vi.fn<StromStarten>().mockReturnValueOnce(haengt).mockImplementation(normal.starten);
+    const handler = erstelleFrageAntwort(optionen(starten, { maxLaeufe: 1 }));
+    const steuerung = new AbortController();
+    const antwort = handler(new Request(stromAnfrage({ frage: "x" }), { signal: steuerung.signal }));
+    await vi.waitFor(() => expect(starten).toHaveBeenCalledTimes(1));
+    steuerung.abort();
+    expect((await antwort).status).toBe(502);
+    expect(abbrechen).toHaveBeenCalled();
+    expect((await handler(stromAnfrage({ frage: "x" }))).status).toBe(200);
+  });
+
+  it("Stufe A: --kette uc3 und kein Modell im Start", async () => {
+    const { starten } = stromAus([JSON.stringify({ art: "start", kette: ["uc3"] }), zeilen.ende]);
+    const umgebung = { KIC_ONLINE: "1", KIC_ONLINE_LESEND: "1", KIC_ONLINE_FRAGEN: "1", UC4_KETTE: "uc3" };
+    const antwort = await frageAntwort(stromAnfrage({ frage: "x", modell: "mock" }), optionen(starten, { umgebung }));
+    expect((await lies(antwort))[0]).toEqual({ art: "start", kette: ["uc3"], modell: null });
+    expect(starten.mock.calls[0]?.[1]).toEqual([...ROUTER_ARGV, "--strom", "--kette", "uc3", "--", "x"]);
+  });
+});
+
+// Echter Prozess (Review !96): `uv run` startet Python als Kind. Fängt ab: ein Abbruch oder Timeout beendet nur den
+// direkten Prozess, der Enkel rechnet als Waise weiter und hält stdout offen.
+describe("standardStromStarten mit echtem Prozess", () => {
+  const ENKEL = 'sleep 30 & echo "$!"; wait';
+  const lebt = (pid: number) => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  it("abbrechen beendet die ganze Prozessgruppe samt Enkel, ende löst auf", async () => {
+    const lauf = standardStromStarten("sh", ["-c", ENKEL], { cwd: ".", timeout: 30_000 });
+    const { value } = await lauf.zeilen[Symbol.asyncIterator]().next();
+    const enkel = Number(value);
+    expect(lebt(enkel)).toBe(true);
+    lauf.abbrechen();
+    expect(await lauf.ende).toBeNull();
+    await vi.waitFor(() => expect(lebt(enkel)).toBe(false), { timeout: 3_000 });
+  });
+
+  it("auch der Ergebnis-Weg (standardAusfuehren) beendet beim Timeout den Enkel", async () => {
+    const pidDatei = `${process.env.TMPDIR ?? "/tmp"}/uc4-enkel-${process.pid}.pid`;
+    await expect(
+      standardAusfuehren("sh", ["-c", `sleep 30 & echo "$!" > ${pidDatei}; wait`], {
+        cwd: ".",
+        timeout: 300,
+        maxBuffer: 1024,
+      }),
+    ).rejects.toThrow("TimeoutError");
+    const { readFileSync, rmSync } = await import("node:fs");
+    const enkel = Number(readFileSync(pidDatei, "utf8"));
+    rmSync(pidDatei);
+    await vi.waitFor(() => expect(lebt(enkel)).toBe(false), { timeout: 3_000 });
+  });
+
+  it("der Timeout beendet die Gruppe ebenfalls", async () => {
+    const lauf = standardStromStarten("sh", ["-c", ENKEL], { cwd: ".", timeout: 300 });
+    const { value } = await lauf.zeilen[Symbol.asyncIterator]().next();
+    expect(await lauf.ende).toBeNull();
+    await vi.waitFor(() => expect(lebt(Number(value))).toBe(false), { timeout: 3_000 });
   });
 });

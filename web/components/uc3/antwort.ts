@@ -3,6 +3,7 @@ import { ucAntwortSchema, type UcAntwort } from "@kic/ui/antwortform";
 // node:child_process, das Turbopack im Client-Bundle ablehnt (gemessen 05.11.). Den Aufruf `uc3` reicht die Route
 // herein (`starte`), siehe web/app/api/uc3/frage/route.ts.
 import type { Ausfuehren, CliLauf, uc3 } from "./cli";
+import { erstelleRatenlimit, grenzeAus, type PruefeRatenlimit } from "../../lib/plattform/ratenlimit";
 
 // Fragen an die Daten (UC3, POST /api/uc3/frage): reicht die Frage an `uc3 frage --json` weiter und, solange #74
 // fehlt, an `uc3 antwort --json`. Das Programm rechnet ohne Sprachmodell; web/ prüft nur die Form (UcAntwort,
@@ -141,6 +142,9 @@ export interface FrageAntwortOptionen {
   umgebung?: Readonly<Record<string, string | undefined>>;
   wurzel?: () => string;
   maxLaeufe?: number;
+  /** Ratenlimit je Client-IP (#100); Standard: eigenes Limit dieses Handlers mit `RATENLIMIT_PRO_MINUTE`. */
+  ratenlimit?: PruefeRatenlimit;
+  jetzt?: () => number;
 }
 
 export interface FrageErgebnis {
@@ -152,7 +156,7 @@ export interface FrageErgebnis {
 
 /**
  * Handler für POST /api/uc3/frage. Sperren in dieser Reihenfolge, alle vor dem Subprozess: `KIC_ONLINE_LESEND=1`
- * → 403, Body > 4 KiB → 413, ungültige Frage → 400, schon `maxLaeufe` Läufe offen → 429. Dann `uc3 frage`, bei
+ * ohne `KIC_ONLINE_FRAGEN=1` → 403, Ratenlimit je IP → 429 mit `Retry-After`, Body > 4 KiB → 413, ungültige Frage → 400, schon `maxLaeufe` Läufe offen → 429. Dann `uc3 frage`, bei
  * „noch nicht umgesetzt“ `uc3 antwort`; Timeout, Startfehler, Exit ≠ 0 oder eine Ausgabe außerhalb des Vertrags
  * → 502. Erfolg: {antwort, definition, rueckfrage, quelle}.
  */
@@ -162,6 +166,8 @@ export function erstelleFrageAntwort({
   umgebung = process.env,
   wurzel,
   maxLaeufe = MAX_LAEUFE,
+  ratenlimit = erstelleRatenlimit({ proMinute: grenzeAus(umgebung) }),
+  jetzt = Date.now,
 }: FrageAntwortOptionen): (anfrage: Request) => Promise<Response> {
   let offen = 0;
   const optionen = { timeout: TIMEOUT_MS, ...(ausfuehren ? { ausfuehren } : {}), ...(wurzel ? { wurzel } : {}) };
@@ -205,7 +211,14 @@ export function erstelleFrageAntwort({
   }
 
   return async function frageAntwort(anfrage: Request): Promise<Response> {
-    if (umgebung.KIC_ONLINE_LESEND === "1") return fehler(403, "Fragen an die Daten sind in der Online-Demo gesperrt.");
+    // Gleiche Bedingung wie fragenGesperrt in cli.ts; hier ausgeschrieben, weil diese Datei nur Typen aus cli.ts
+    // importiert (die Fragen-Seite lädt sie im Browser).
+    if (umgebung.KIC_ONLINE_LESEND === "1" && umgebung.KIC_ONLINE_FRAGEN !== "1") {
+      return fehler(403, "Fragen an die Daten sind in der Online-Demo gesperrt.");
+    }
+    // Vor Body und Subprozess: sonst hielte ein einzelner Client online beide Läufe dauerhaft belegt.
+    const gedrosselt = ratenlimit(anfrage, jetzt());
+    if (gedrosselt) return gedrosselt;
 
     let text: string;
     try {
