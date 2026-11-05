@@ -300,9 +300,9 @@ def _kette_kontext(*zahlen: uc4.Zahl) -> list[uc4.UcAntwort]:
     return [uc3, uc2]
 
 
-ARZT_MODELL = "Sie warten oft kürzer."
+ARZT_MODELL = "Mit mehr Personal warten Sie oft kürzer."
 ARZT = f"{uc4.KETTE_ANFANG} {ARZT_MODELL}"
-BELEGSATZ = "Grundlage: 390.900 Beschäftigungsverhältnisse im Oktober 2025."
+BELEGSATZ = "Grundlage ist die Zahl von StatAgent: 390.900."
 
 
 def test_kette_zahl_von_uc3_und_uc2_steht_einmal_und_oben_die_bedeutung() -> None:
@@ -325,26 +325,31 @@ def test_kette_zahl_von_uc3_und_uc2_steht_einmal_und_oben_die_bedeutung() -> Non
         "Die Statistik nennt Beschäftigungsverhältnisse als Zahl.",
         "Im Oktober gab es 390.900 Beschäftigungsverhältnisse.",
         "Es gab rund vierhunderttausend Stellen.",
+        "Sie warten meist kürzer.",
+        "Mehr Personal heißt meist kürzere Wartezeiten.",
     ],
 )
 def test_kette_satz_ohne_aussage_faellt_weg_und_der_feste_satz_steht_da(satz: str) -> None:
-    """Fängt die sinnlosen Sätze aus dem Live-Test und ein Zahlenecho des Modells: Es bleibt der feste Satz
-    mit Beleg."""
+    """Fängt die sinnlosen Sätze aus dem Live-Test, ein Zahlenecho, das Echo des Simulators und einen Satz
+    ohne
+    Bedingung, der klingt, als folge er aus der Zahl (UI-Regie 05.11.): Es bleibt der feste Satz mit Beleg."""
     a = uc4.router_adapter(
         "Wie viele Beschäftigte gab es im Oktober 2025?", _kette_kontext(), modell=modell_mit(satz)
     )
-    assert a.text == f"{uc4.KETTE_FESTER_SATZ} {BELEGSATZ}"
+    assert a.text == f"{uc4.KETTE_ANFANG} {uc4.KETTE_FESTER_SATZ} {BELEGSATZ}"
 
 
 def test_kette_anfang_steht_genau_einmal() -> None:
     """Fängt den Probelauf: Das Modell wiederholt den Simulator, der Arzttermin kommt nie vor, oder der
     Anfang doppelt."""
     frage = "Wie viele Beschäftigte gab es im Oktober 2025?"
-    ohne = uc4.router_adapter(frage, _kette_kontext(), modell=modell_mit("Meist geht es schneller."))
-    mit = uc4.router_adapter(
-        frage, _kette_kontext(), modell=modell_mit(f"{uc4.KETTE_ANFANG} Meist geht es schneller.")
+    ohne = uc4.router_adapter(
+        frage, _kette_kontext(), modell=modell_mit("Mit mehr Personal geht es schneller.")
     )
-    assert ohne.text == mit.text == f"{uc4.KETTE_ANFANG} Meist geht es schneller. {BELEGSATZ}"
+    mit = uc4.router_adapter(
+        frage, _kette_kontext(), modell=modell_mit(f"{uc4.KETTE_ANFANG} Mit mehr Personal geht es schneller.")
+    )
+    assert ohne.text == mit.text == f"{uc4.KETTE_ANFANG} Mit mehr Personal geht es schneller. {BELEGSATZ}"
 
 
 def test_kette_modellfehler_ergibt_festen_satz_mit_belegzahl() -> None:
@@ -354,7 +359,7 @@ def test_kette_modellfehler_ergibt_festen_satz_mit_belegzahl() -> None:
         raise RuntimeError("Modell aus")
 
     a = uc4.router_adapter("Wie viele Beschäftigte?", _kette_kontext(), modell=kaputt)
-    assert a.text == f"{uc4.KETTE_FESTER_SATZ} {BELEGSATZ}"
+    assert a.text == f"{uc4.KETTE_ANFANG} {uc4.KETTE_FESTER_SATZ} {BELEGSATZ}"
 
 
 def test_kette_englische_frage_bekommt_deutsche_antwort() -> None:
@@ -406,8 +411,9 @@ def test_kette_grenzfrage_bleibt_grenze_ohne_zahl() -> None:
     assert a.zahlen == [] and modell.aufrufe == []
 
 
-def test_kette_belegsatz_laesst_die_klammer_weg() -> None:
-    """Fängt den langen Belegsatz aus dem Probelauf: Die Gliederung steht schon bei StatAgent."""
+def test_kette_belegsatz_nennt_keine_falsche_gliederung() -> None:
+    """Fängt „Grundlage: 7.498 Beschäftigungsverhältnisse im März 2025“: Im März gab es rund 390.000, Wien und
+    Branche fehlten im Satz (UI-Regie 05.11.)."""
     wien = ZAHL_UC3.model_copy(
         update={
             "bezeichnung": "Beschäftigungsverhältnisse (Wien, Gesundheits- und Sozialwesen)",
@@ -415,4 +421,4 @@ def test_kette_belegsatz_laesst_die_klammer_weg() -> None:
         }
     )
     a = uc4.router_adapter("Wie viele?", _kette_kontext(wien), modell=modell_mit(ARZT_MODELL))
-    assert a.text.endswith("Grundlage: 7.498 Beschäftigungsverhältnisse im Oktober 2025.")
+    assert a.text == f"{ARZT} Grundlage ist die Zahl von StatAgent: 7.498."

@@ -97,6 +97,7 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
   const [lauf, setLauf] = useState<Lauf>({ art: "leer" });
   const [jetzt, setJetzt] = useState(() => Date.now());
   const abbruch = useRef<AbortController | null>(null);
+  const feld = useRef<HTMLInputElement | null>(null);
   const sprache = useSprache();
   const laeuft = lauf.art === "laeuft";
 
@@ -230,12 +231,13 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
   return (
     <div className="flex flex-col gap-10" data-testid="uc4-kette">
       {fragenOffen ? (
-        <form onSubmit={absenden} className="flex max-w-4xl flex-col gap-3" noValidate>
+        <form onSubmit={absenden} className="flex flex-col gap-3" noValidate>
           <label htmlFor="uc4-frage" className="font-sans text-14 font-semibold text-ink">
             Ihre Frage
           </label>
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
+              ref={feld}
               id="uc4-frage"
               name="frage"
               value={frage}
@@ -270,6 +272,10 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
                     disabled={laeuft}
                     onClick={() => {
                       setFrage(b);
+                      // Am Handy passt die Frage nicht ins Feld: Der Anfang soll sichtbar sein, nicht das Ende.
+                      requestAnimationFrame(() => {
+                        if (feld.current) feld.current.scrollLeft = 0;
+                      });
                       void fragen(b);
                     }}
                     className="min-h-11 text-left font-sans text-16 text-gruen underline underline-offset-4 disabled:opacity-60"
@@ -470,8 +476,8 @@ function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcA
         </details>
       )}
       <ModellPille data-testid="uc4-modell">
-        {antwort.modell ? (antwort.modell === "mock" ? TESTBETRIEB_TEXT : `Text: ${antwort.modell}`) : "Ohne KI, nur Code"}
-        {dauerMs > 0 ? ` · ${sekunden(dauerMs)} s` : ""}
+        {antwort.modell ? (antwort.modell === "mock" ? TESTBETRIEB_TEXT : "Mit KI geschrieben") : "Ohne KI, nur Code"}
+        {dauerMs > 0 ? `, ${sekunden(dauerMs)} s` : ""}
       </ModellPille>
     </div>
   );
