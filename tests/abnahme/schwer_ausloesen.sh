@@ -6,6 +6,7 @@
 # Die env-Datei liegt außerhalb des Repos (öffentliches Repo: keine Hostnamen, keine Pfade fremder Rechner) und setzt
 #   PRUEFRECHNER       ssh-Alias des Prüfrechners
 #   PRUEFRECHNER_DIR   Ordner mit abnahme.env und schwer_pruefrechner.sh auf dem Prüfrechner
+#   PRUEFRECHNER_VOR   optional: Vorsatz für den Lauf, etwa „nice -n 10 taskset -c 0-5“ auf einem geteilten Rechner
 # Läuft nur, wenn sich main seit dem letzten schweren Lauf in UC3-Pfaden geändert hat; nie zwei gleichzeitig.
 # Mit <kriterium> läuft nur dieser Prüfsatz (`einzeln = true`), immer, und ändert den Stand des letzten Laufs nicht.
 set -euo pipefail
@@ -36,7 +37,7 @@ echo "schwer: Lauf startet für main ${sha:0:8} $(TZ=Europe/Vienna date '+%H:%M'
 # Der Lauf arbeitet auf dem Prüfrechner losgelöst und überlebt einen Abbruch der Verbindung (20:31 und 21:11 riss
 # sie ab; damals endete der Lauf mit ihr). Hier wird nur noch mit kurzen Verbindungen nachgesehen.
 log="$PRUEFRECHNER_DIR/lauf.log"
-timeout 60 ssh "${SSH_OPT[@]}" "$PRUEFRECHNER" "nohup bash -c 'bash $PRUEFRECHNER_DIR/schwer_pruefrechner.sh $PRUEFRECHNER_DIR/abnahme.bundle $sha $werkzeug \
+timeout 60 ssh "${SSH_OPT[@]}" "$PRUEFRECHNER" "nohup bash -c '${PRUEFRECHNER_VOR:-} bash $PRUEFRECHNER_DIR/schwer_pruefrechner.sh $PRUEFRECHNER_DIR/abnahme.bundle $sha $werkzeug \
   $PRUEFRECHNER_DIR/issues.json $nur_id > $log 2>&1; echo schwer-ende-\$? >> $log' > /dev/null 2>&1 < /dev/null &"
 ende=""
 for _ in $(seq 1 120); do
