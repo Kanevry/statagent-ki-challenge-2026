@@ -1333,7 +1333,10 @@ def _analysiere(
     # Leistungen mit `nur_regel: true` (z. B. Unfallversicherung) zählen nur über ihre Auslöser: Das Modell
     # deutete „nach einem Sturz im Spital“ als Arbeitsunfall und nannte die AUVA (Aufnahme v8).
     modell_leistungen = [lid for lid in modell_leistungen if not leistungen()[lid].get("nur_regel")]
-    erkannt = list(dict.fromkeys([*zustand.get("leistungen", []), *modell_leistungen, *regel_leistungen]))
+    # Reihenfolge: Sitzung, dann Regeln, dann Modell. Die erste Leistung bestimmt Lage und Suchvorrang; ein
+    # Auslöser ist sicherer als ein Modellvorschlag (Dev-Set x12: Arbeitsunfall erkannt, das Modell schlug
+    # Reha und Krankengeld dazu vor, die Antwort glitt auf die Reha ab, #155).
+    erkannt = list(dict.fromkeys([*zustand.get("leistungen", []), *regel_leistungen, *modell_leistungen]))
     ergebnis_.leistungen = erkannt
     if not ergebnis_.lage and erkannt:
         ergebnis_.lage = str(leistungen()[erkannt[0]]["lage"])
