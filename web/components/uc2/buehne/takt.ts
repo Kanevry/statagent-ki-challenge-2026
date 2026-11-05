@@ -9,12 +9,13 @@ export type BuehnenArt = "auftakt" | "experte" | "runde" | "zug" | "moderator" |
 
 /** Wie lange die Bühne bei Tempo 1 auf einem Ereignis steht, in Millisekunden. 0: ohne eigene Bühne. */
 export const TAKT_MS: Record<string, number> = {
-  start: 1200,
-  experte: 4200,
-  runde: 1400,
-  zug: 3800,
-  moderator_notiz: 3600,
-  runde_ende: 3200,
+  // Jury-Kritik 05.11. abends: nach 15 s erst 3 von 6 Sprechern, zu langsam. Etwa 70 s für vier Runden.
+  start: 800,
+  experte: 3200,
+  runde: 1000,
+  zug: 2600,
+  moderator_notiz: 2800,
+  runde_ende: 2400,
 };
 
 export function taktMs(art: string | undefined, tempo: number): number {

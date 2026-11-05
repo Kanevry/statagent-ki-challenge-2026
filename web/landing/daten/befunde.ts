@@ -70,9 +70,13 @@ async function ausDatenbank(url: string, stand: string): Promise<BefundTabelle> 
             from meta.pruefung_treffer t
             left join meta.lauf l on l.id = t.lauf_id
             left join meta.regel r on r.id = t.regel_id
-           order by (t.einstufung = 'nicht-erklaerbar') desc nulls first, t.anzahl desc
+           -- Nur echte Funde (Jury-Kritik 05.11.: „P01 … 0 Zeilen · nicht eingestuft“ stand oben). Was den Lauf
+           -- anhält und nicht erklärbar ist zuerst, dann die größten; nicht Eingestuftes zuletzt.
+           where t.anzahl > 0
+           order by t.anhalten desc nulls last, (t.einstufung = 'nicht-erklaerbar') desc nulls last,
+                    (t.einstufung is null), t.anzahl desc
            limit ${MAX_ZEILEN}`,
-        sql<{ anzahl: string }[]>`select count(*)::text as anzahl from meta.pruefung_treffer`,
+        sql<{ anzahl: string }[]>`select count(*)::text as anzahl from meta.pruefung_treffer where anzahl > 0`,
       ]);
       return { zeilen, anzahl: Number(anzahl) };
     })();
