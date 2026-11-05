@@ -122,11 +122,27 @@ def _standard_modell(
     return antwort.json or {}
 
 
+# Namen nach einem Hinweiswort („heißt Maria Beispiel“, „mein Name ist …“): für Suchbegriffe ohne Nutzen.
+_NAME = re.compile(
+    r"\b(heiße|heißt|heisse|heisst|namens|name ist|name lautet)\s+"
+    r"[A-ZÄÖÜ][a-zäöüß-]+(?:\s+[A-ZÄÖÜ][a-zäöüß-]+){0,2}",
+    re.IGNORECASE,
+)
+
+
+def ohne_personendaten(frage: str) -> str:
+    """Frage für das Modell der Erweiterung: Datum, Telefon, Adresse und PLZ wie im Kern maskiert, dazu Namen
+    nach einem Hinweiswort (Abnahme 121-5: die Erweiterung schickte Name, Geburtsdatum und Adresse roh)."""
+    from uc1.kern import maskiere_personendaten  # spät: kern importiert dieses Modul
+
+    return _NAME.sub(lambda m: f"{m.group(1)} [Name]", maskiere_personendaten(frage))
+
+
 def llm_begriffe(frage: str, *, provider: str | None = None, modell: ModellFn | None = None) -> list[str]:
     """Fachbegriffe vom Modell. Wirft plattform.llm.LlmFehler, wenn das Modell ausfällt."""
     nachrichten = [
         {"role": "system", "content": ERWEITERUNG_PROMPT},
-        {"role": "user", "content": f"<frage>{normalisiere(frage)}</frage>"},
+        {"role": "user", "content": f"<frage>{ohne_personendaten(frage)}</frage>"},
     ]
     daten = (modell or _standard_modell)(nachrichten, BEGRIFFE_SCHEMA, provider)
     roh = daten.get("begriffe") or []
