@@ -1,5 +1,6 @@
 """Router UC4 (#97): Reihenfolge, Kontext, eigenes Schrittprotokoll, fehlende Adapter, R2."""
 
+import ast
 import json
 import re
 import subprocess
@@ -162,11 +163,74 @@ def test_r2_antwortform_und_plattform_laden_weder_router_noch_llm():
     assert lauf.stdout.strip() == "[]"
 
 
+def _importiert_llm_oder_router(datei: Path) -> bool:
+    """Echte Import-Anweisungen (auch in Funktionen), nicht Erwähnungen in Docstrings oder Kommentaren."""
+    for knoten in ast.walk(ast.parse(datei.read_text("utf-8"))):
+        if isinstance(knoten, ast.Import):
+            namen = [alias.name for alias in knoten.names]
+        elif isinstance(knoten, ast.ImportFrom):
+            modul = knoten.module or ""
+            namen = [modul, *(f"{modul}.{alias.name}" for alias in knoten.names)]
+        else:
+            continue
+        if any(re.fullmatch(r"plattform\.(llm|router)(\..*)?", name) for name in namen):
+            return True
+    return False
+
+
 def test_r2_uc3_lauf_importiert_weder_router_noch_llm():
-    """R2: der UC3-Lauf (``uc3 lauf``) läuft ohne Sprachmodell, auch nicht über den Router."""
-    dateien = sorted((WURZEL / "uc3").rglob("lauf*.py")) if (WURZEL / "uc3").is_dir() else []
+    """R2: ``uc3 lauf`` und der UC3-Adapter ``uc3/statagent/uc4.py`` laufen ohne Sprachmodell, auch nicht über
+    den Router. ``OHNE_MODELL`` im Router baut darauf (Online-Stufe A ohne Budget, Review !94)."""
+    uc3 = WURZEL / "uc3"
+    dateien = sorted([*uc3.rglob("lauf*.py"), *uc3.rglob("statagent/uc4.py")]) if uc3.is_dir() else []
     if not dateien:
         pytest.skip("uc3/**/lauf*.py liegt in diesem Stand nicht vor")
-    verboten = re.compile(r"plattform\.(llm|router)\b|from plattform import [^\n]*\b(llm|router)\b")
-    treffer = [str(d.relative_to(WURZEL)) for d in dateien if verboten.search(d.read_text("utf-8"))]
+    assert any(d.name == "uc4.py" for d in dateien), "UC3-Adapter fehlt in der Prüfung"
+    treffer = [str(d.relative_to(WURZEL)) for d in dateien if _importiert_llm_oder_router(d)]
     assert treffer == []
+
+
+def test_r2_pruefung_erkennt_import_aber_nicht_docstring(tmp_path):
+    datei = tmp_path / "x.py"
+    datei.write_text('"""Importiert ``plattform.llm`` nicht."""\n', encoding="utf-8")
+    assert not _importiert_llm_oder_router(datei)
+    datei.write_text("def f():\n    from plattform import llm\n", encoding="utf-8")
+    assert _importiert_llm_oder_router(datei)
+    datei.write_text("import plattform.router as r\n", encoding="utf-8")
+    assert _importiert_llm_oder_router(datei)
+
+
+# --- --kette (Online-Demo Stufe A: nur UC3, ohne Modell) ----------------------------------------------------
+
+
+def test_cli_kette_uc3_fragt_nur_uc3(protokoll, capsys):
+    """Fängt: `--kette uc3` lässt UC2 und UC1 trotzdem laufen (online kämen Mock-Texte)."""
+    assert main(["frage", "--json", "--mock", "--kette", "uc3", "--", "Wie viele?"]) == 0
+    ausgabe = json.loads(capsys.readouterr().out)
+    assert [a["uc"] for a in ausgabe["antworten"]] == ["uc3"]
+    assert ausgabe["fehlend"] == []
+
+
+def test_cli_kette_haelt_die_standardreihenfolge(protokoll, capsys):
+    assert main(["frage", "--json", "--mock", "--kette", "uc1,uc3", "--", "Wie viele?"]) == 0
+    assert [a["uc"] for a in json.loads(capsys.readouterr().out)["antworten"]] == ["uc3", "uc1"]
+
+
+@pytest.mark.parametrize("kette", ["", "uc4", "uc3,uc3", "uc3,x"])
+def test_cli_ungueltige_kette_bricht_ab(protokoll, kette):
+    with pytest.raises(SystemExit) as abbruch:
+        main(["frage", "--json", "--mock", "--kette", kette, "--", "Wie viele?"])
+    assert abbruch.value.code == 2
+
+
+def test_cli_kette_nur_uc3_braucht_kein_budget(protokoll, monkeypatch, capsys):
+    """Fängt: Stufe A online (kein Modell) sperrt, sobald das Tagesbudget aus Stufe B verbraucht ist."""
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "1")
+    complete([{"role": "user", "content": "x"}], zweck="smoke")
+    uc3 = {"text": "7.498", "belege": [], "zahlen": [], "uc": "uc3"}
+    monkeypatch.setattr(router, "_REGISTRY", {"uc3": lambda f, k: uc3})
+
+    assert main(["frage", "--json", "--kette", "uc3", "--", "Wie viele?"]) == 0
+    assert [a["uc"] for a in json.loads(capsys.readouterr().out)["antworten"]] == ["uc3"]
+    assert main(["frage", "--json", "--", "Wie viele?"]) == 3
