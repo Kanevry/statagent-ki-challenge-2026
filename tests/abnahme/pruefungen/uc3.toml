@@ -35,12 +35,13 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:22"
 [[pruefung]]
 id = "13-AC4"
 hash = "69d5f6e7f3"
-befehl = "timeout 175 uv run --isolated --package statagent --with pytest pytest -q -p no:cacheprovider uc3/tests/test_llm_smoke.py; grep -rn 'def complete\\|def freigeben' uc3/statagent; echo \"exit $?\"; grep -rlnE 'CREATE TABLE[^;]*meta\\.(protokoll|freigabe)\\b' uc3/db uc3/statagent; echo \"exit $?\""
-erwartet = ["2 passed", "(?s)exit 1.*exit 1"]
+befehl = "timeout 175 uv run --isolated --package statagent --with pytest pytest -q -p no:cacheprovider uc3/tests/test_llm_smoke.py; grep -rn 'def complete\\|def freigeben' uc3/statagent; echo \"exit $?\"; grep -rlnE 'CREATE TABLE[^;]*meta\\.(protokoll|freigabe)\\b' uc3/db uc3/statagent; echo \"exit $?\"; timeout 120 uv run --package statagent python -c \"import sys, statagent.lauf, statagent.cli; print('plattform.llm geladen' if 'plattform.llm' in sys.modules else 'plattform.llm nicht geladen')\"; test -s docs/plan/uc3/vertragsnutzung.md && echo 'vertragsnutzung vorhanden'"
+erwartet = ["2 passed", "(?s)exit 1.*exit 1", "^plattform\\.llm nicht geladen$", "^vertragsnutzung vorhanden$"]
 schwer = false
 deckung = "voll"
 grund = "Mock-Smoke gruen, der Befehl lauf laedt plattform.llm nicht, 0 eigene Definitionen von complete/freigeben und 0 DDL der Protokolltabellen in uc3/statagent und uc3/db (nur ein Test-Spy complete in uc3/tests/test_agenten_werkzeuge.py:44)."
 herkunft = "b-abnahme-30/messer-c 2026-11-05 17:22"
+geprueft_von = "b-abnahme-30: Produktions-CLI ohne plattform.llm und Review-Beleg ergänzt (Agent hatte beides nicht gemessen)"
 
 [[pruefung]]
 id = "135-1"
