@@ -417,6 +417,29 @@ export function haltSatz(
   }
 }
 
+/** Haltegrund in wenigen Wörtern für die Monatsübersicht („jedes fünfte fehlt“, „freie Dienstverträge fehlen“). */
+export function haltKurz(
+  t: Pick<Treffer, "art" | "anzahl"> & { details?: TrefferDetails | null },
+  fdCodes: readonly string[] = [],
+): string {
+  switch (t.art) {
+    case "verhaeltnisse_verschwunden": {
+      const anteil = anteilWort(t.details?.anteil);
+      return anteil?.startsWith("jedes") ? `${anteil} Beschäftigungsverhältnis fehlt` : "Beschäftigungsverhältnisse fehlen";
+    }
+    case "auspraegung_verschwunden": {
+      const g = fehlendeGruppen([t], fdCodes);
+      return g?.nurFreieDienstvertraege ? "freie Dienstverträge fehlen" : "ganze Gruppen fehlen";
+    }
+    case "bestand_vs_vormonat":
+      return "Bestand stark gesunken";
+    case "zeilenzahl_vs_vormonat":
+      return "Lieferung deutlich kleiner";
+    default:
+      return "eine Prüfung hält an";
+  }
+}
+
 /** Überschrift eines Monats, der nicht angehalten ist: Bestand am Stichtag und Veränderung zum Vormonat. */
 export function bestandSatz(lauf: Pick<Lauf, "lieferung" | "gezaehlt">, vormonat: Pick<Lauf, "lieferung" | "gezaehlt"> | null): string {
   const kopf = `Am ${stichtag(lauf.lieferung)} bestanden ${formatZahl(lauf.gezaehlt)} Beschäftigungsverhältnisse`;

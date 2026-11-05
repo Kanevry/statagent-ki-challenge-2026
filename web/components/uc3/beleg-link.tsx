@@ -5,7 +5,7 @@ import type { Beleg } from "./beleg";
 // Beleg als ruhiger Textlink (UI-Regie, Version 1): ein Beleg je Aussage-Block statt einer Pille an jeder Zahl.
 // Zu sieht man nur das Wort „Beleg“; offen stehen Tabelle, Lieferung, Regelstand, Lauf und die Abfrage. Mono-Schrift
 // nur hier drin (SQL, Tabellenname, Hash). Native <details>: ohne JavaScript bedienbar, Tastatur und Screenreader
-// inklusive. Bleibt lokal, bis die UI-Regie den Baustein nach shared/ui hochzieht.
+// inklusive. Nie in ein <p> setzen (details ist ein Block). Bleibt lokal, bis die UI-Regie den Baustein nach shared/ui hochzieht.
 
 export type BelegLinkProps = Beleg & {
   /** Linktext; Standard „Beleg“. */
