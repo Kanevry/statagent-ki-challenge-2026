@@ -26,7 +26,7 @@ export function DreiFragen({ folie, aktiv }: SzeneProps) {
               <p className={k("s2-person", "a")} style={vars({ t: s.person })}>
                 {person}
               </p>
-              <p className={k("s2-frage")} aria-label={frage}>
+              <p className={k("s2-frage")}>
                 <Getippt text={frage} aktiv={aktiv} start={s.tippen} ms={15} />
               </p>
               <p className={k("s2-uc", "a")} style={vars({ t: s.uc })}>

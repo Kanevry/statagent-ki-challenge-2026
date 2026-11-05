@@ -26,7 +26,8 @@ export interface Stand {
 /**
  * Stand nach einem Tastendruck, mit Takten innerhalb einer Szene. `takte[i]` ist die Taktzahl von Folie i + 1.
  * Vor: erst den nächsten Takt, dann die nächste Folie (dort Takt 0). Zurück: erst einen Takt zurück, dann die
- * vorige Folie mit allen Takten. `alleTakte` (reduzierte Bewegung): jede betretene Folie zeigt sofort alle Takte.
+ * vorige Folie mit allen Takten. `alleTakte` (reduzierte Bewegung): jede betretene Folie zeigt sofort alle Takte,
+ * Vor und Zurück überspringen die Takte und gehen direkt zur nächsten bzw. vorigen Folie.
  * `null` heißt wie bei `naechsteFolie`: die Taste gehört nicht zur Navigation.
  */
 export function naechsterStand(stand: Stand, takte: readonly number[], taste: string, alleTakte = false): Stand | null {
@@ -40,11 +41,11 @@ export function naechsterStand(stand: Stand, takte: readonly number[], taste: st
   const takt = Math.min(Math.max(stand.takt, 0), max(folie));
 
   if (VOR.has(taste)) {
-    if (takt < max(folie)) return { folie, takt: takt + 1 };
-    return folie < anzahl ? betreten(folie + 1) : { folie, takt };
+    if (!alleTakte && takt < max(folie)) return { folie, takt: takt + 1 };
+    return folie < anzahl ? betreten(folie + 1) : { folie, takt: alleTakte ? max(folie) : takt };
   }
   if (ZURUECK.has(taste)) {
-    if (takt > 0) return { folie, takt: takt - 1 };
+    if (!alleTakte && takt > 0) return { folie, takt: takt - 1 };
     return folie > 1 ? betreten(folie - 1, true) : { folie, takt };
   }
   if (taste === "Home") return betreten(1);

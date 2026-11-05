@@ -180,7 +180,8 @@ export function Zaehler({ ziel, aktiv, start = 0, dauer = 1200, className }: { z
 
 /**
  * Tippt `text` beim Betreten Zeichen für Zeichen (`ms` je Zeichen, ab `start` ms). Der ganze Text steht immer im
- * DOM; der noch nicht getippte Rest ist nur unsichtbar, damit die Zeile nicht springt.
+ * DOM; der noch nicht getippte Rest ist nur unsichtbar, damit die Zeile nicht springt. Vorgelesen wird nur der
+ * ganze Text (sr-only), die getippten Teile sind aria-hidden. Der Rahmen braucht kein aria-label.
  */
 export function Getippt({ text, aktiv, start = 0, ms = 30 }: { text: string; aktiv: boolean; start?: number; ms?: number }) {
   const [n, setN] = useState(text.length);
@@ -196,6 +197,7 @@ export function Getippt({ text, aktiv, start = 0, ms = 30 }: { text: string; akt
   );
   return (
     <>
+      <span className="sr-only">{text}</span>
       <span aria-hidden="true">{text.slice(0, n)}</span>
       <span className={k("rest")} aria-hidden="true">
         {text.slice(n)}

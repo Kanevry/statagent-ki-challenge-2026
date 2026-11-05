@@ -180,14 +180,16 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
                 type="button"
                 onClick={() => gehe(i + 1)}
                 aria-current={i + 1 === nr ? "step" : undefined}
-                className={`flex w-full items-baseline gap-[10px] px-[10px] py-2 text-left font-sans text-13 ${FOKUS} ${
+                className={`flex min-h-11 w-full items-center px-[10px] py-2 text-left font-sans text-13 ${FOKUS} ${
                   i + 1 === nr ? "bg-gruen-bg font-bold text-ink" : "text-ink hover:bg-paper"
                 }`}
               >
-                <span className={`w-10 shrink-0 font-mono text-12 tabular-nums ${i + 1 === nr ? "text-gruen" : "text-slate"}`}>
-                  {f.zeit ?? i + 1}
+                <span className="flex items-baseline gap-[10px]">
+                  <span className={`w-10 shrink-0 font-mono text-12 tabular-nums ${i + 1 === nr ? "text-gruen" : "text-slate"}`}>
+                    {notizenAn && f.zeit ? f.zeit : i + 1}
+                  </span>
+                  <span>{f.titel}</span>
                 </span>
-                <span>{f.titel}</span>
               </button>
             </li>
           ))}
@@ -196,6 +198,15 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
       </nav>
 
       <div className={`flex min-w-0 flex-1 flex-col gap-4 ${vollbild ? "min-h-0" : "p-4 md:p-6"}`}>
+        {/* Schmale Fenster: die Bühne wäre zu klein zum Lesen. Hinweis und Weg zur Druckansicht (alle Folien im Endzustand). */}
+        {!vollbild && (
+          <div className={`${k("ohne-druck")} flex flex-col items-start gap-4 md:hidden`}>
+            <p className="font-sans text-16 text-ink">Diese Präsentation ist für den großen Bildschirm gemacht.</p>
+            <Knopf art="sekundaer" onClick={() => window.print()}>
+              Als PDF sichern
+            </Knopf>
+          </div>
+        )}
         <div ref={platz} className={vollbild ? "flex min-h-0 flex-1 items-center justify-center" : "w-full"}>
           <section
             aria-roledescription="Folie"

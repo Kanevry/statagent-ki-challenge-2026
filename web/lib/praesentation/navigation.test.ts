@@ -71,6 +71,10 @@ describe("naechsterStand mit Takten", () => {
     expect(weiter(1, 0, true)).toEqual({ folie: 2, takt: 3 });
     expect(naechsterStand({ folie: 4, takt: 0 }, takte, "Home", true)).toEqual({ folie: 1, takt: 0 });
   });
+  it("überspringt bei reduzierter Bewegung die Takte auch beim Zurückgehen", () => {
+    expect(naechsterStand({ folie: 2, takt: 3 }, takte, "ArrowLeft", true)).toEqual({ folie: 1, takt: 0 });
+    expect(naechsterStand({ folie: 3, takt: 0 }, takte, "ArrowLeft", true)).toEqual({ folie: 2, takt: 3 });
+  });
   it("bleibt an den Rändern stehen, Pos1 und Ende setzen Takt 0, fremde Tasten ergeben null", () => {
     expect(weiter(4, 0)).toEqual({ folie: 4, takt: 0 });
     expect(zurueck(1, 0)).toEqual({ folie: 1, takt: 0 });

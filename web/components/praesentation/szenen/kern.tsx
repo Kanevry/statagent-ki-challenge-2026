@@ -59,7 +59,7 @@ export function Kern({ folie, aktiv, takt }: SzeneProps) {
                   </span>
                 ))}
                 {i === 1 && name && (
-                  <span className={k("s4-name")} aria-label={name}>
+                  <span className={k("s4-name")}>
                     <Getippt text={name} aktiv={aktiv && takt >= 2} start={700} ms={40} />
                   </span>
                 )}

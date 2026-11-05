@@ -3,6 +3,7 @@ import { FOLIEN_ORDNER, leseFolien, type Folie } from "../../../lib/praesentatio
 import { inlineText } from "../../../lib/praesentation/markdown";
 import {
   absatzTexte,
+  frontmatterListe,
   herkunft,
   listenPunkte,
   screenshotKennung,
@@ -134,6 +135,34 @@ it("woerterbuecher: eine Linie je Übergang, ein geteilter Code läuft gelb", ()
   const [, folie, nr] = folieMit("woerterbuecher");
   const el = zeige("woerterbuecher", folie, nr);
   expect(el.querySelectorAll("svg path")).toHaveLength(uebergaenge(folie.daten.uebergang).length);
+});
+
+it("beleg: Monate ab September 2024, angehaltene Monate tragen Pause statt Haken", () => {
+  const [, folie, nr] = folieMit("beleg");
+  const el = zeige("beleg", folie, nr);
+  const angehalten = frontmatterListe(folie.daten.angehalten);
+  expect(angehalten.length).toBeGreaterThan(0);
+  const monate = [...el.querySelectorAll("li")].filter((li) => li.querySelector("svg"));
+  expect(monate[0]?.textContent).toBe("September 2024");
+  const halt = monate.filter((li) => li.dataset.angehalten === "ja");
+  expect(halt.map((li) => li.textContent)).toEqual(angehalten.map((m) => `${m}, angehalten`));
+  for (const li of halt) expect(li.querySelector('svg[class*="haken"]')).toBeNull();
+  expect(monate.filter((li) => li.querySelector('svg[class*="haken"]'))).toHaveLength(monate.length - halt.length);
+});
+
+it("einstieg: Haken nur für Antworten, deren Name in belegt steht", () => {
+  const [, folie, nr] = folieMit("einstieg");
+  const el = zeige("einstieg", folie, nr, 3);
+  const antworten = [...el.querySelectorAll<HTMLElement>("[data-belegt]")];
+  expect(antworten).toHaveLength(3);
+  const belegt = frontmatterListe(folie.daten.belegt);
+  for (const a of antworten) {
+    const name = a.querySelector("strong")?.textContent?.replace(/[:.]\s*$/, "") ?? "";
+    const ja = belegt.includes(name);
+    expect(a.dataset.belegt, name).toBe(ja ? "ja" : "nein");
+    expect(a.querySelector('svg[class*="haken"]') !== null, name).toBe(ja);
+  }
+  expect(antworten.filter((a) => a.dataset.belegt === "ja")).toHaveLength(1);
 });
 
 it("schluss: kein Knopf und kein Link", () => {

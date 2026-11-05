@@ -91,3 +91,40 @@ export function uebergaenge(text: string | undefined): [string, string][] {
     .map((p) => p.split("-"))
     .filter((p): p is [string, string] => p.length === 2 && p[0] !== "" && p[1] !== "");
 }
+
+/** Liste aus dem Frontmatter: `[März 2025, Oktober 2025]` wird `["März 2025", "Oktober 2025"]`. Leer: leere Liste. */
+export function frontmatterListe(text: string | undefined): string[] {
+  return (text ?? "")
+    .trim()
+    .replace(/^\[|\]$/g, "")
+    .split(",")
+    .map((t) => t.trim().replace(/^(["'])(.*)\1$/, "$2").trim())
+    .filter((t) => t !== "");
+}
+
+/** Monatsnamen ausgeschrieben, Januar zuerst. */
+export const MONATSNAMEN = [
+  "Januar",
+  "Februar",
+  "März",
+  "April",
+  "Mai",
+  "Juni",
+  "Juli",
+  "August",
+  "September",
+  "Oktober",
+  "November",
+  "Dezember",
+] as const;
+
+/**
+ * `anzahl` Monate ab dem ersten Monat, der im Text ausgeschrieben steht (`September 2024 bis Juli 2026` beginnt mit
+ * September 2024), als `Monat JJJJ`. Steht kein Monat im Text, ist die Liste leer.
+ */
+export function monatsFolge(text: string | undefined, anzahl: number): string[] {
+  const treffer = new RegExp(`(${MONATSNAMEN.join("|")})\\s+(\\d{4})`).exec(text ?? "");
+  if (!treffer || !Number.isFinite(anzahl) || anzahl <= 0) return [];
+  const start = Number(treffer[2]) * 12 + MONATSNAMEN.indexOf(treffer[1] as (typeof MONATSNAMEN)[number]);
+  return Array.from({ length: anzahl }, (_, i) => `${MONATSNAMEN[(start + i) % 12]} ${Math.floor((start + i) / 12)}`);
+}

@@ -1,4 +1,5 @@
-import { absatzTexte, kopfzeile, listenPunkte } from "../../../lib/praesentation/szenen-daten";
+import { inlineText } from "../../../lib/praesentation/markdown";
+import { absatzTexte, frontmatterListe, kopfUndRest, kopfzeile, listenPunkte } from "../../../lib/praesentation/szenen-daten";
 import { an, Fuss, Getippt, Haken, k, Kopf, Kreis, taktAn, Text, vars, type SzeneProps } from "./gemeinsam";
 
 // Gestaltung: links die Kreise 3, 2, 1 auf einer Linie, je Takt eine Antwort daneben; Zuläufe in den Kreis 4 rechts.
@@ -15,16 +16,17 @@ const ZULAEUFE = [
 ] as const;
 
 /**
- * Szene 9 (drei Takte): Die Frage aus dem ersten Absatz tippt sich. Je Takt eine Antwort der Liste mit Haken neben
- * Kreis 3, 2, 1. Im dritten Takt laufen drei Mint-Linien in den wachsenden Kreis 4, darunter der zweite Absatz.
+ * Szene 9 (drei Takte): Die Frage aus dem ersten Absatz tippt sich. Je Takt eine Antwort der Liste neben Kreis 3, 2, 1:
+ * mit Haken, wenn ihr fetter Name in `belegt` (Frontmatter) steht, sonst mit leerem, gestricheltem Kreis (Zielbild). Im dritten Takt laufen drei Mint-Linien in den wachsenden Kreis 4, darunter der zweite Absatz.
  */
 export function Einstieg({ folie, aktiv, takt }: SzeneProps) {
   const [frage = "", einstieg] = absatzTexte(folie);
   const antworten = listenPunkte(folie).slice(0, 3);
+  const belegt = new Set(frontmatterListe(folie.daten.belegt));
   return (
     <>
       <Kopf titel={kopfzeile(folie)} t={0.05} />
-      <p className={k("s9-frage")} aria-label={frage}>
+      <p className={k("s9-frage")}>
         <Getippt text={frage} aktiv={aktiv} start={400} ms={9} />
       </p>
       <svg className={k("s9-netz")} viewBox="0 0 1920 1080" aria-hidden="true">
@@ -38,14 +40,30 @@ export function Einstieg({ folie, aktiv, takt }: SzeneProps) {
       {KREISE.map((c) => (
         <Kreis key={c.n} n={c.n} x={200} y={c.y} d={120} t={c.t} flip={false} />
       ))}
-      {antworten.map((p, i) => (
-        <p key={i} className={k("s9-antwort", an(i + 1, takt))} {...taktAn(i + 1)} style={{ top: ANTWORT_OBEN[i] }}>
-          <Haken viewBox="0 0 40 36" d="M6 19l9 9L34 8" t={0.3} />
-          <span>
-            <Text inline={p} />
-          </span>
-        </p>
-      ))}
+      {antworten.map((p, i) => {
+        const ja = belegt.has(inlineText(kopfUndRest(p).kopf));
+        return (
+          <p
+            key={i}
+            className={k("s9-antwort", an(i + 1, takt))}
+            {...taktAn(i + 1)}
+            data-belegt={ja ? "ja" : "nein"}
+            style={{ top: ANTWORT_OBEN[i] }}
+          >
+            {ja ? (
+              <Haken viewBox="0 0 40 36" d="M6 19l9 9L34 8" t={0.3} />
+            ) : (
+              <svg className={k("s9-offen")} viewBox="0 0 40 36" aria-hidden="true">
+                <circle cx="20" cy="18" r="14" />
+              </svg>
+            )}
+            <span>
+              <span className="sr-only">{ja ? "Belegt: " : "Noch nicht belegt: "}</span>
+              <Text inline={p} />
+            </span>
+          </p>
+        );
+      })}
       <Kreis n={4} x={1530} y={470} d={220} klasse="s9-k4" ab={3} takt={takt} />
       {einstieg && (
         <p className={k("s9-einstieg", an(3, takt))} {...taktAn(3)} style={vars({ tt: 1.9 })}>

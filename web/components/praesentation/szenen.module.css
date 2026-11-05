@@ -846,6 +846,13 @@
 .s5-monat .strich {
   stroke-width: 5;
 }
+/* Angehaltener Monat: gelber Rahmen und Pause-Zeichen statt Haken (Gelb auf Nacht, Kontrast über 12:1) */
+.s5-angehalten {
+  border-color: var(--gelb);
+}
+.s5-pause .strich {
+  stroke: var(--gelb);
+}
 .s5-zaehler {
   position: absolute;
   left: 120px;
@@ -1341,6 +1348,13 @@
 .s9-antwort .strich {
   stroke-width: 5;
 }
+/* Antwort ohne Beleg (Zielbild): leerer, gestrichelter Kreis statt Haken */
+.s9-offen circle {
+  fill: none;
+  stroke: var(--neben);
+  stroke-width: 3;
+  stroke-dasharray: 5 5;
+}
 .s9-einstieg {
   position: absolute;
   left: 1410px;
@@ -1481,5 +1495,30 @@
   /* Alle Takte sichtbar, auch in der Szene, die gerade lief */
   .szene [data-takt] {
     visibility: visible !important;
+  }
+  /* Szene 3 schaltet über .takt-N statt data-takt. Im Druck immer der Endzustand (Takt 3), auch wenn die Szene
+     gerade mit einem früheren Takt lief. Gleich wie .takt-3 oben. */
+  .s3-okt .s3-fuellung {
+    height: calc(var(--h) * 100%) !important;
+    background: var(--mint) !important;
+  }
+  .s3-marke {
+    opacity: 1 !important;
+    background: var(--night) !important;
+  }
+  .s3-stempel {
+    display: none !important;
+  }
+  .s3-haken,
+  .s3-r1,
+  .s3-r3,
+  .s3-takte li {
+    visibility: visible !important;
+  }
+  .s3-r1 b,
+  .s3-r1 span,
+  .s3-takte .t1,
+  .s3-takte .t2 {
+    color: var(--neben) !important;
   }
 }
