@@ -169,6 +169,26 @@ def test_zeit_mit_offset_ueber_mitternacht_zaehlt_nach_utc(protokoll, monkeypatc
         {"provider": "mock", "zeit": "2026-11-05T01:30:00+01:00"},  # 05.11. 00:30 UTC, heute
         {"provider": "mock", "zeit": "2026-11-06T00:30:00+01:00"},  # 05.11. 23:30 UTC, heute
     ]
-    protokoll.write_text("".join(json.dumps(z) + "\n" for z in zeilen), encoding="utf-8")
     monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "10")
-    assert budget_status() == {"grenze": 10, "verbraucht": 2, "frei": 8}
+
+    def verbraucht(auswahl: list[dict]) -> int | None:
+        protokoll.write_text("".join(json.dumps(z) + "\n" for z in auswahl), encoding="utf-8")
+        return budget_status()["verbraucht"]
+
+    assert verbraucht(zeilen) == 2
+    # Review !66: ohne astimezone zählte Z1 (Ortsdatum 05.11.) als heute, und Z3 (Ortsdatum 06.11.) als morgen
+    assert verbraucht(zeilen[:2]) == 1
+    assert verbraucht(zeilen[1:]) == 2
+
+
+def test_zeile_von_gestern_nach_einer_von_heute_beendet_die_zaehlung_nicht(protokoll, monkeypatch):
+    """Fängt (Review !66): Wettlauf um Mitternacht, eine späte Zeile von gestern brach die Zählung ab."""
+    heute = datetime.now(UTC)
+    gestern = heute - timedelta(days=1)
+    zeilen = [heute, gestern, heute]
+    protokoll.write_text(
+        "".join(json.dumps({"provider": "mock", "zeit": z.isoformat()}) + "\n" for z in zeilen),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "10")
+    assert budget_status()["verbraucht"] == 2
