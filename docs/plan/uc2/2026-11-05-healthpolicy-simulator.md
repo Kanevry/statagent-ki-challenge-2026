@@ -7,6 +7,17 @@
 #46 Lernen, #47 Oberfläche U2-0/U2-1 · W4 #48 Abgestimmte Antwort U2-2, #49 Szenario · Abnahme #50 Owner, #51 azure
 **Appetite:** Zusatz-Epic, 4 Wellen à 2–3 h mit bis zu 6 Agenten, Do 05.11. 13:30 bis Fr 06.11. 04:00 (UC2-Arbeitsende).
 Projektweiter Feature-Stopp Fr 05:00 gilt auch hier. UC3 hat Vorrang, nur UC3 wird bewertet.
+
+> **Nachtrag 05.11.2026, 13:10 (Bau-Session b-uc2, autonom entschieden, Steuerung: autonomous; Details #40 note_269666):**
+> Der Owner hat um 12:5x Embeddings mit `google/embeddinggemma-2` vorgegeben. Damit sind D2 und der Ausschluss
+> „Embeddings“ in § 2 Out-of-Scope ersetzt. Die Belegsuche ist hybrid: PG-Volltext `german` und Kosinus auf
+> embeddinggemma-2 (768d, nur Textteil, float32). Die Relevanz wird mit `0,5^(Δ/h)` und dem Institutionsfaktor gewichtet.
+> Die Vektoren liegen als `bytea` in `uc2.abschnitt`, die Ähnlichkeit rechnet numpy; pgvector wird nicht gebraucht.
+> Extraktion und Korpus-Embedding laufen auf dem m5, der Index und die Abfrage-Einbettung auf dem M4. Der Embedder
+> folgt der E0-Schnittstelle aus #67 (`einbetten(texte, zweck)`, `dimension()`). Gewichte stehen nach der
+> Prototyp-Messung (09/2026) in `uc2/config/regeln.yaml`. Prüf- und Testskripte liegen unter `uc2/tests/` statt
+> `tests/uc2/` (Lane `uc2/`). ollama ist seit der Owner-Vorgabe 13:0x wieder als Offline-Notnagel erlaubt (ersetzt den
+> Ausschluss vom 04.11.); Standard bleibt `azure`, der Qualitätsmodus `claude`.
 **Parent Project:** Monorepo `agents/ki-challenge-2026` (StatAgent; UC2 als Zusatz in `uc2/` und im UC2-Bereich von `web/`)
 
 ## 1. Problem & Motivation
@@ -73,7 +84,8 @@ zeigt, dass derselbe Kern (Modell-Schalter, Belegschicht, Protokoll, „Mensch g
       1.500 Zeichen werden in Abschnitte mit Überlappung geteilt. Institutions-Tags über `uc2/config/institutionen.yaml`.
       Erst 09/2026 als Durchstich, dann alle 186 Ausgaben. 2016/2018 bleiben draußen. Korpus und Index nie im Repo.
 - [ ] **S2 Belegsuche und Personenschutz:** Spalte `tsv = to_tsvector('german'::regconfig, text)` (immutable, kein
-      `unaccent`). Rang = `ts_rank_cd` × `0,5^((Stichtag − Artikeldatum) / Halbwertszeit)` × Institutionsfaktor
+      `unaccent`). Rang = Relevanz (hybrid: `w_v`·Kosinus embeddinggemma-2 + `w_t`·`ts_rank_cd` normiert, siehe
+      Nachtrag) × `0,5^((Stichtag − Artikeldatum) / Halbwertszeit)` × Institutionsfaktor
       (1,5, wenn der Artikel die Institution des Akteurs trägt, sonst 1,0); je Akteur und Runde die besten k = 8.
       Stichtag ist Fall-Parameter (Standard 2026-09-30), Halbwertszeit 120 Tage, Faktor und k in `uc2/config/regeln.yaml`; Jänner
       wiegt dann ca. 0,2 des Septembers. **Personenschutz** auf Titel und Text, bevor etwas an ein Modell oder in die
@@ -185,7 +197,8 @@ nennt die Lücke. Für den `claude`-Provider gelten diese Anforderungen an E0:
 - **Spieltheoretischer Modus** (Verhandlungsmacht, BATNA, Blockaderisiken); Koalitionen nur als Should.
 - **Monte-Carlo-Band, Backtest, Slider-Cockpit, Karte, Sankey** aus Recherche und Click-Dummy-Spezifikation.
 - **SozDok-Index** (`svbox/uc2/Rechtstexte`, 14.312 XML) und **OCR** für 2016/2018.
-- **Embeddings, pgvector, unaccent**: fehlen bzw. nicht installiert; der deutsche Stemmer faltet Umlaute.
+- **pgvector, unaccent**: fehlen bzw. nicht installiert; der deutsche Stemmer faltet Umlaute. (Embeddings sind seit dem
+  Nachtrag vom 05.11. 13:10 in Scope, ohne pgvector.)
 - **Framework einbetten** (TinyTroupe MIT, Concordia Apache-2.0, MiroFish/AgentTorch AGPL): nur Muster.
 - **Code aus eigenen Produkten** (persona-panel-Code, everlast, Pflegegeld-Prüfer): verboten im öffentlichen Repo.
 - **Abgabe von UC2:** bewertet wird nur UC3; nichts nach GitHub vor Fr kurz vor 09:00.
@@ -371,7 +384,7 @@ Regeln (Halbwertszeit, Grenzen) stehen in YAML im Repo, Änderungen per Commit m
 | `claude -p` lädt Repo-Regeln, Hooks und Werkzeuge; `--bare` bricht das Abo | hoch | neutraler Temp-Ordner, `--tools ""`, `--strict-mcp-config`, Abbruch bei gesetztem `ANTHROPIC_API_KEY` | Implement |
 | `complete()` ohne Parameter für Modell und Denkaufwand; „Personas niedriger“ nicht abbildbar | mittel | Bitte an E0 (`modell`, `aufwand`); bis dahin gleiches Modell, Lücke im Protokoll | Implement |
 | `CLAUDE.md` nennt `LLM_PROVIDER` noch ohne `claude` | niedrig | E0-1 ändert CLAUDE.md (#21 note_269372, Entscheid 7) | Implement |
-| Pen-Frame `NjP7Q` bietet „ollama lokal“, Owner schließt lokale Modelle aus (04.11.) | niedrig | Modellwechsel nur `azure`/`claude`; Hinweis an die UI-Session | Implement |
+| Pen-Frame `NjP7Q` bietet „ollama lokal“; der Ausschluss lokaler Modelle vom 04.11. ist seit 05.11. 13:0x aufgehoben (ollama als Offline-Notnagel) | niedrig | Modellwechsel `azure`/`claude`, `ollama` nur als Notnagel; Frame passt wieder | Implement |
 | UC2-Seiten brechen den CI-Job `web` von UC3; ai-elements zielt auf `ai ^6`, chatbot auf `ai 7` | hoch | E0 pinnt `ai`; UC2-Seiten nur in eigenem Bereich; CI `web` grün als Akzeptanz | Implement |
 | Abruf nach `id` verliert Ereignisse bei parallelen Schreibern | mittel | genau ein Schreibprozess je Fall, SSE und Replay lesen nach `seq` | Implement |
 | Abgebrochene CLI lässt Fall „laufend“ | mittel | Lebenszeichen, Status `abgebrochen` nach 60 s, Anzeige U2-1a | Implement |
