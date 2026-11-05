@@ -15,10 +15,14 @@ dependencies = [
 
 [project.optional-dependencies]
 # Nur auf Hosts, die Vektoren rechnen (m5: Korpus, M4: Abfrage). CI und Tests laufen ohne torch.
+# Gemessen 05.11. (m5, Prototyp): Der Prozessor von embeddinggemma-2 lädt auch im Nur-Text-Betrieb die
+# Bild- und Video-Prozessoren und bricht ohne Pillow und torchvision ab.
 einbettung = [
-    "sentence-transformers>=6.1.0",
+    "sentence-transformers[image]>=6.1.0",
     "transformers>=5.22",
     "torch>=2.9",
+    "torchvision>=0.20",
+    "pillow>=11",
 ]
 
 [tool.uv.sources]
