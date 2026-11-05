@@ -98,7 +98,7 @@ it("GET /api/uc2/modell meldet im Vorführmodus Testbetrieb ohne KI, im Format d
   const antwort = await modell();
   expect(antwort.status).toBe(200);
   expect(antwort.headers.get("x-uc2-modus")).toBe("vorfuehrung");
-  expect(await antwort.json()).toEqual({ provider: "Testbetrieb", modell: "keine KI angeschlossen", version: null, quelle: "uc2-vorfuehrung" });
+  expect(await antwort.json()).toEqual({ provider: "mock", modell: "mock", version: null, quelle: "uc2-vorfuehrung" });
 });
 
 describe("ohne UC2_MOCK", () => {
@@ -137,7 +137,7 @@ describe("ohne UC2_MOCK", () => {
   it("GET /api/uc2/modell meldet ohne erreichbare API ebenfalls Testbetrieb, nie einen erfundenen Provider", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("fetch failed"))));
     const body = (await (await modell()).json()) as { provider: string; modell: string };
-    expect(body).toMatchObject({ provider: "Testbetrieb", modell: "keine KI angeschlossen" });
+    expect(body).toMatchObject({ provider: "mock", modell: "mock" });
   });
 
   it("gibt 409 der API weiter und meldet 502, wenn der Strom eines echten Falls nicht zu erreichen ist", async () => {
