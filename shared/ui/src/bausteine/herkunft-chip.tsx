@@ -21,6 +21,10 @@ export type HerkunftChipProps = {
   verweis?: string | null;
   /** `vorlaeufig`: die Zahl kann sich mit einer späteren Lieferung noch ändern. */
   stand?: "endgueltig" | "vorlaeufig" | null;
+  /** Wörtliches Zitat einer Rechtsquelle (UC1, z. B. „BPGG § 4“); ersetzt beim Öffnen die SQL-Ansicht. */
+  zitat?: string | null;
+  /** Fassungsstand des Zitats, z. B. „BGBl. I Nr. 12/2026“ oder ein Datum. */
+  fassung?: string | null;
   className?: string;
 };
 
@@ -44,6 +48,8 @@ export function HerkunftChip({
   quelle = "roh.lieferung",
   verweis,
   stand,
+  zitat,
+  fassung,
   className,
 }: HerkunftChipProps) {
   const bereichId = useId();
@@ -97,7 +103,7 @@ export function HerkunftChip({
           fokus,
         )}
       >
-        <Piktogramm name="datenbank" groesse={12} className="shrink-0" />
+        <Piktogramm name={zitat ? "protokoll" : "datenbank"} groesse={12} className="shrink-0" />
         <span className="font-mono">{quelle}</span>
         {zeitpunkt && (
           <>
@@ -112,12 +118,18 @@ export function HerkunftChip({
           </Fragment>
         ))}
         {" · "}
-        <span>{sql ? "SQL ansehen" : "Beleg ansehen"}</span>
+        <span>{zitat ? "Zitat ansehen" : sql ? "SQL ansehen" : "Beleg ansehen"}</span>
       </button>
       {offen && (
         <div id={bereichId} className="flex w-full flex-col gap-2 border-l-2 border-gruen bg-white py-2 pl-4 pr-2">
           {angaben && <p className="font-sans text-12 text-slate">{angaben}</p>}
-          {sql ? (
+          {zitat ? (
+            // Rechtsquelle (UC1): das Zitat wörtlich, darunter der Fassungsstand; kein Satz über eine Abfrage.
+            <>
+              <blockquote className="border-l-2 border-line pl-3 font-sans text-14 text-ink">{zitat}</blockquote>
+              {fassung && <p className="font-sans text-12 text-slate">{`Stand: ${fassung}`}</p>}
+            </>
+          ) : sql ? (
             <>
               <pre className="max-w-full overflow-x-auto whitespace-pre-wrap font-mono text-12 text-ink">
                 <code>{sql}</code>
