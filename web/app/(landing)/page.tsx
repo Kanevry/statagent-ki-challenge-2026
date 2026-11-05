@@ -18,8 +18,9 @@ export const metadata: Metadata = {
   icons: { icon: { url: "/landing/favicon.svg", type: "image/svg+xml" } },
 };
 
-// Befunde aus der UC3-Datenbank höchstens alle fünf Minuten neu lesen.
-export const revalidate = 300;
+// Nie beim Build vorrendern: `next build` läuft ohne UC3_DATABASE_URL, sonst stünden nach jedem Deploy einige Minuten
+// lang die Beispieldaten auf der Seite (gemessen von infra-52 am 05.11.). Die Befunde hält ladeBefunde 60 s vor.
+export const dynamic = "force-dynamic";
 
 export default async function Startseite() {
   const tabelle = await ladeBefunde();
