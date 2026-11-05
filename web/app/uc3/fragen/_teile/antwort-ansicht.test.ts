@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { antwortTabelle, ersterSatz, istSummenzeile, kopfSagtVerstanden, kopfSatz, rueckfrageVorschlaege, verstandenSatz } from "./antwort-ansicht";
+import { antwortKnoepfe } from "./antwort-ansicht";
 
 const beleg = { uc: "uc3" as const, quelle: "stat.stat_beschaeftigte", lieferung: "2025-03", monat: "2025-03" };
 
@@ -57,5 +58,22 @@ describe("Antwort-Ansicht (UI-Regie v1)", () => {
   it("liest die Vorschläge einer Rückfrage", () => {
     const text = "Meinen Sie „Beschäftigte Dezember 2025“, oder „Zeitreihe 01/2025 bis 12/2025“?";
     expect(rueckfrageVorschlaege(text)).toEqual(["Beschäftigte Dezember 2025", "Zeitreihe 01/2025 bis 12/2025"]);
+  });
+});
+
+describe("antwortKnoepfe", () => {
+  it("macht aus Namen einer Erklärung keine Knöpfe, behält aber die Frage darin", () => {
+    const text = "Der Code C 10.11-0 heißt „Schlachten, ohne Schlachten von Geflügel“. Den Abschnitt erklärt die Frage „Was ist ÖNACE C?“.";
+    expect(antwortKnoepfe(text, null)).toEqual(["Was ist ÖNACE C?"]);
+  });
+
+  it("behält das Beispiel einer Absage, auch ohne Fragezeichen", () => {
+    const text = "Zum Beispiel: „Beschäftigte ab 50 Jahren im Juli 2026“";
+    expect(antwortKnoepfe(text, null)).toEqual(["Beschäftigte ab 50 Jahren im Juli 2026"]);
+  });
+
+  it("lässt bei einer Rückfrage alles durch", () => {
+    const text = "Welchen Monat meinen Sie, zum Beispiel „Beschäftigte im März“?";
+    expect(antwortKnoepfe(text, text)).toEqual(["Beschäftigte im März"]);
   });
 });
