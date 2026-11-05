@@ -353,7 +353,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 Erstens sind die Daten synthetisch.
 Zweitens hängt das Alter bei Geburtsmonat 13 vor Juli von der Antwort der Fachabteilung auf Rückfrage R1 ab (F4).
 Drittens fehlen bei den Pensionen die öffentlich Bediensteten, die frühere BVA meldet keine. Die Zahlen sind vorläufig, bis sie mit Namen freigegeben sind.
-Viertens zählen wir nach ÖNACE-Abschnitt und Bundesland, nicht bis zum 5-Steller und nicht nach Bezirk oder Gemeinde, denn die Lieferungen haben nur das. Die tiefen Klassifikationen sind geladen und nachgeprüft, aber nur auf der Prüf-Datenbank, online sind sie nicht sichtbar.
+Viertens zählen wir nach ÖNACE-Abschnitt und Bundesland, nicht bis zum 5-Steller und nicht nach Bezirk oder Gemeinde, denn die Lieferungen haben nur das. Die tiefen Klassifikationen sind geladen und nachgeprüft, aber nur auf `statistik_probe`, online sind sie nicht sichtbar.
 Fünftens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parameter und lässt sich ändern (F5).
 
 **Antwortweg:** `uc3/README.md`, Abschnitt Grenzen, und Rückfrage R1 zeigen.
@@ -396,7 +396,7 @@ Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.
 | Frage mit „Wartezeiten“ | Mit Wien und März 2025: Der Simulator rechnet über das Rechenmodell, Wartezeit −22,2 %, 128,2 Mio. Euro pro Jahr, 22 s. Nicht vorführen. Ohne Monat und Ort: StatAgent fragt zurück, welchen Begriff es erklären soll, die Kette stoppt | gemessen 23:06 und 23:08 |
 | „Zugänge Oktober 2024“ | Öffentliche Adresse: keine Zahl, Hinweis auf die lokale Auswertung. Vorführ-Instanz nicht gemessen | gemessen 23:07 und 23:08 |
 | Live-Änderung per Agent (D2 Teil 2) | Endserie läuft, MR !150 Stand 20:00 noch rot; Teil 2 nur, wenn beim Freeze auf main | Prüfpunkt Lead 20:00 |
-| Klassifikation bis 5-Steller und Gemeinden | auf main d3e221f und auf der Prüf-Datenbank geladen, online nicht sichtbar: Die Seite zeigt Abschnitte, „Bezirk“ kennt die Frage nicht. Gezählt wird weiter nach Abschnitt und Bundesland | online gemessen 23:53, #189 |
+| Klassifikation bis 5-Steller und Gemeinden | auf main d3e221f und auf der Datenbank `statistik_probe` geladen, online nicht sichtbar: Die Seite zeigt Abschnitte, „Bezirk“ kennt die Frage nicht. Gezählt wird weiter nach Abschnitt und Bundesland | online gemessen 23:53, #189 |
 | Pensionsmeldungen der Träger | eingelesen: 28 von 28 Dateien, 9 Formate, 394 Summen ohne Abweichung. Online 2025 im Jahresdurchschnitt 2.584.909, vorläufig | `docs/uc3/pensionen-pruefbericht.md`, online gemessen 23:16 |
 | Lotse, verdeckter Test | Trefferquote 8 von 10, Träger richtig 6 von 10, Grenzen erkannt 3 von 8; Verbesserung eingespielt, Nachmessung offen | Prüfpunkt Lead 20:00 |
 | Simulator ohne passenden Zeitungsartikel | sagt offen „Modellannahme“, erfindet keinen Beleg | Prüfpunkt Lead 20:00, Messung E0 19:50 |
