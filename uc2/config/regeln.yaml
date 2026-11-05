@@ -40,6 +40,29 @@ suche:
   kandidaten: 200
   # Treffer in der Ausgabe (je Artikel höchstens ein Abschnitt)
   k: 8
+  # Belege je Akteur und Runde für einen Akteurszug (`belege_fuer_akteur`, #43/#44)
+  k_je_akteur: 8
 
-# Faktor für Belege, die die Institution des fragenden Akteurs nennen (#43, hier noch ungenutzt).
+# Letzter Faktor des Endrangs (#43): rang = relevanz × 0,5^(Δ/Halbwertszeit) × f, f = institutionsfaktor,
+# wenn `abschnitt.institutionen` die Institution des fragenden Akteurs enthält, sonst 1,0.
 institutionsfaktor: 1.5
+
+# Personenschutz (#43, `uc2.belege.namen`): erkannte Namen werden zur Rolle, etwa „eine Vertreterin der
+# Ärztekammer“. Hier steht je Institution die Genitivform nach „Vertreterin/Vertreter/Person“; fehlt eine
+# ID, gilt „aus dem Bereich <Name aus institutionen.yaml>“.
+personenschutz:
+  rolle_genitiv:
+    sv: der Sozialversicherung
+    gesundheitsministerium: des Gesundheitsministeriums
+    laender: der Bundesländer
+    aerztekammer: der Ärztekammer
+    vertragsaerzte: der Vertragsärzt:innen
+    wahlaerzte: der Wahlärzt:innen
+    krankenanstalten: der Krankenanstalten
+    pflege: der Pflegevertretung
+    patienten: der Patient:innenvertretung
+    gesetzgeber: des Gesetzgebers
+    finanzministerium: des Finanzministeriums
+    public_health: aus dem Bereich Public Health
+    sozialpartner: der Sozialpartner
+    pharma: der Pharmaindustrie
