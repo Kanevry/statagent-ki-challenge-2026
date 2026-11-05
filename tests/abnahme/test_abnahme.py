@@ -225,3 +225,10 @@ def test_fehlende_sperrliste_warnt(
     monkeypatch.setattr(matrix, "_SPERRDATEI", tmp_path / "gibt-es-nicht")
     assert matrix._sperrnamen() == r"(?!)"
     assert "Sperrliste fehlt" in capsys.readouterr().err
+
+
+def test_env_datei_ist_eine_echte_leere_datei() -> None:
+    """plattform.umgebung verlangt is_file(); /dev/null ließ UC1-Tests im Abzug scheitern (28-1)."""
+    pfad = Path(pruefen.UMGEBUNG["KIC_ENV_DATEI"])
+    assert pfad.is_file()
+    assert pfad.read_text() == ""

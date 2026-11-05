@@ -663,7 +663,7 @@ gegenprobe = '''echo "em_dashes $(grep -c 'StatAgent' docs/praesentation/2026-11
 [[pruefung]]
 id = "134-4"
 hash = "8757085643"
-befehl = '''ci=$(grep -c 'slides_check' .gitlab-ci.yml || true); an=$(timeout 60 glab api projects/259/issues/53/notes/272419 2>/dev/null | grep -o 'slides_check' | wc -l | tr -d ' '); echo "ci $ci antrag $an"'''
+befehl = '''ci=$(grep -c 'slides_check' .gitlab-ci.yml || true); notiz=$(timeout 60 glab api projects/259/issues/53/notes/272419 2>/dev/null) || exit 124; an=$(printf '%s' "$notiz" | grep -o 'slides_check' | wc -l | tr -d ' '); echo "ci $ci antrag $an"'''
 erwartet = ['^(ci [1-9][0-9]* antrag [0-9]+|ci [0-9]+ antrag [1-9][0-9]*)$']
 deckung = "voll"
 zeitlimit = 90

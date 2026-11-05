@@ -372,12 +372,13 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "69-AC1"
 hash = "d690038e13"
-befehl = "timeout 120 uv run --frozen --package statagent uc3 protokoll --zeigen"
-erwartet = ["R6_beschaeftigungskategorie", "[Ff]reigegeben"]
-schwer = true
+befehl = "echo r6 $(grep -c R6_beschaeftigungskategorie abgabe/protokoll.md); echo name_zeit $(grep -cE '^[|] v2 [|] [A-ZÄÖÜ][^ ]+ [A-ZÄÖÜ][^ ]+ [|] [0-9.]+ [0-9:]+ [|].*R6_beschaeftigungskategorie' abgabe/protokoll.md)"
+erwartet = ["^r6 [1-9]", "^name_zeit [1-9]"]
+schwer = false
 deckung = "teil"
-befund = "Klassifikationsversion, Anti-Join und Freigabe (Vorschlag uc3/24) liegen in der Datenbank des Prüfrechners und nicht im Repo auf main; ohne Datenbankzugriff nicht messbar. Vorschlag: SQL-Anti-Join der fünf Ausgangscodes in stat.uebergang gegen die drei F"
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+grund = "abgabe/protokoll.md führt die Freigabe von R6_beschaeftigungskategorie in Regelsatz v2 mit Name und Zeit; Anti-Join und die Lesart „neue Klassifikationsversion“ misst dieser Teil nicht"
+befund = "abgabe/protokoll.md führt R6_beschaeftigungskategorie nicht mit Name und Zeit der Freigabe"
+herkunft = "b-abnahme-4c 2026-11-05 20:40 (Audit: alter Satz las das Protokoll aus der leeren Prüf-DB)"
 
 [[pruefung]]
 id = "69-AC2"

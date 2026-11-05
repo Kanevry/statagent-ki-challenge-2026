@@ -720,14 +720,14 @@ grund = "Chip öffnet den Abschnitt, Text ist Teilstring."
 [[pruefung]]
 id = "35-4"
 hash = "25706392a2"
-befehl = "grep -rlE 'ModellBadge|ModellPille' web/app/uc1 web/components/uc1 2>/dev/null | wc -l | tr -d ' '"
-erwartet = ["^[1-9]\\d*$"]
+befehl = "echo badge $(grep -c ModellBadge shared/ui/src/shell/header.tsx); echo shell $(grep -c AppShell web/lib/plattform/shell-rahmen.tsx); echo ki $(grep -c 'KI-Antwort' web/components/uc1/teile.tsx)"
+erwartet = ["^badge [1-9]", "^shell [1-9]", "^ki [1-9]"]
 deckung = "teil"
 befund_art = "fehlt"
 schwer = false
 zeitlimit = 200
 quelle = "Issue #35, Akzeptanz 4"
-befund = "Die Seite bindet das Modell-Badge nicht ein (oder fehlt)."
+befund = "Modell-Badge in der Shell oder KI-Kennzeichnung auf der UC1-Seite fehlen."
 grund = "Das Modell-Badge ist eingebunden (Sichtbarkeit in jedem Screenshot misst dieser Satz nicht)."
 
 [[pruefung]]

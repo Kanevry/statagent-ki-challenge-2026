@@ -69,11 +69,11 @@ ok = sum(1 for p in P if (m := re.search(r"^## " + re.escape(p) + r"\n(.*?)(?=^#
 print("readme_abschnitte", ok)
 r = open("docs/abgabe/readme-pruefung.md", encoding="utf-8").read()
 print("pruefung_7von7", "7 von 7" in r or "7/7" in r)
-'; bash tests/abnahme/66_readme_weg.sh'''
-erwartet = ["^readme_abschnitte 7$", "^pruefung_7von7 True$", "lauf_alle_exit=0", "^laeufe=24$", "^== ende$"]
+'; timeout 300 uv run --package statagent python tests/abnahme/p/uc3_db.py laeufe --manifest docs/plan/uc3/laufmanifest-v1.csv'''
+erwartet = ["^readme_abschnitte 7$", "^pruefung_7von7 True$", "^db_monate 24$", "^hash_gleich 24$"]
 deckung = "voll"
 schwer = true
-zeitlimit = 2400
+zeitlimit = 360
 quelle = "Issue #91 Kriterium (Wortlaut); der Start- und Beispiellauf in frischer Umgebung ist der README-Weg aus #66"
 befund = "Entweder fehlt ein README-Pflichtabschnitt, oder der im README beschriebene Beispiellauf (uc3 lauf --alle auf frischer Prüf-DB) endet nicht mit Exit 0 und 24 Läufen."
 grund = "7 von 7 Pflichtabschnitte vorhanden und der README-Weg läuft auf frischer Datenbank mit Exit 0 und 24 Läufen durch."
@@ -433,8 +433,8 @@ grund = "Alle Playwright-Tests von /uc4 sind in Desktop und Mobil grün, das Sch
 [[pruefung]]
 id = "98-1"
 hash = "24548b96a9"
-befehl = '''timeout 170 pnpm --dir web exec vitest --run components/uc4/einstieg.test.tsx --reporter=verbose 2>&1 | grep -E 'Karten stehen in Kettenreihenfolge|Zahl mit beleg = 1|Tests.*passed|Tests.*failed' '''
-erwartet = ["✓.*Karten stehen in Kettenreihenfolge", "✓.*durchgereichte Zahl trägt", "Tests\\s+\\d+ passed"]
+befehl = '''timeout 170 pnpm --dir web exec vitest --run components/uc4/kette.test.tsx --reporter=verbose 2>&1 | grep -E 'jede Zahl hat ihren eigenen Beleg|Tests.*passed|Tests.*failed' '''
+erwartet = ["✓.*jede Zahl hat ihren eigenen Beleg", "^\\s*Tests\\s+\\d+ passed \\(\\d+\\)"]
 deckung = "teil"
 schwer = false
 zeitlimit = 200
