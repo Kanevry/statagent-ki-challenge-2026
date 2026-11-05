@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { formatZahl } from "@kic/ui/bausteine";
 import type { Art, Auswahl, Kinder, Knoten, Treffer } from "@/components/uc3/klassifikation-tief";
 
 // Nachschlagen (#189): ein Suchfeld und aufklappbare Ebenen, ÖNACE je Fassung und Regionen je Stand. Die Kinder kommen
@@ -313,8 +314,8 @@ function Unten({
     status = leer
       ? `${grossAnfang(ort)} passt nichts zu „${text}“.`
       : gesamt > knoten.length
-        ? `Die ersten ${knoten.length} von ${gesamt} Treffern ${ort}. Genauer suchen zeigt den Rest.`
-        : `${gesamt} Treffer ${ort}.`;
+        ? `Die ersten ${knoten.length} von ${formatZahl(gesamt)} Treffern ${ort}. Genauer suchen zeigt den Rest.`
+        : `${formatZahl(gesamt)} Treffer ${ort}.`;
   }
   return (
     <div className="flex flex-col gap-1">

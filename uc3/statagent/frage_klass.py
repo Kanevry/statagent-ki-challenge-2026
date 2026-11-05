@@ -357,10 +357,8 @@ def _liste_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
             )
             satz = f"{name} hat {anzahl} {klammer}: {', '.join(namen)}.{gleich}"
             return antwort(satz, f"Bezirke in {land['bezeichnung']}: {len(unter_bezirke)}")
-        satz = (
-            f"{name} hat {anzahl_g} Gemeinden {klammer}.{gleich} Alle stehen auf der Seite Klassifikationen."
-        )
-        return antwort(satz, f"Gemeinden in {land['bezeichnung']}: {anzahl_g}")
+        satz = f"{name} hat {klass._deutsch(anzahl_g)} Gemeinden {klammer}.{gleich} Alle stehen auf der Seite Klassifikationen."
+        return antwort(satz, f"Gemeinden in {land['bezeichnung']}: {klass._deutsch(anzahl_g)}")
     # Bleibt ein Wort übrig, ist ein Ort gemeint, den es nicht gibt: nicht still die Summe von Österreich nennen.
     woerter = re.findall(r"[^\W\d_][\w.-]*", frage.lower())
     unbekannt = [w for w in woerter if w not in _FUELLWOERTER]
@@ -373,10 +371,10 @@ def _liste_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
         return _antwort("definition", satz, hinweise=[satz])
     anzahl_alle = sum(int(b["gemeinden"]) for b in bezirke)
     satz = (
-        f"Österreich hat {len(bezirke)} Bezirke und {anzahl_alle} Gemeinden {klammer}. "
+        f"Österreich hat {len(bezirke)} Bezirke und {klass._deutsch(anzahl_alle)} Gemeinden {klammer}. "
         "Wien zählt dabei mit seinen Gemeindebezirken. Alle stehen auf der Seite Klassifikationen."
     )
-    return antwort(satz, f"Österreich: {len(bezirke)} Bezirke, {anzahl_alle} Gemeinden")
+    return antwort(satz, f"Österreich: {len(bezirke)} Bezirke, {klass._deutsch(anzahl_alle)} Gemeinden")
 
 
 # --- Datenbank ------------------------------------------------------------------------------------------------
