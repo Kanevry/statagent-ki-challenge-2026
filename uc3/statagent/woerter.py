@@ -19,7 +19,7 @@ _WORT = re.compile(r"[a-zäöüß]+(?:-[a-zäöüß]+)*\d*")
 
 #: Eine kurze Zahl ohne Monat und ohne Datum schränkt etwas ein, das wir nicht kennen („ab 50“, „unter 25“, „50+“).
 #: Ausgenommen: „31.“ vor einem Monat, Zahlen mit Punkt oder Komma, Jahre und lange Mengen („über 10000“).
-_LOSE_ZAHL = re.compile(r"(?<![\d.,/-])\d{1,3}(?![\d.,/-]|\.\d)(?!\.)")
+_LOSE_ZAHL = re.compile(r"(?<![a-zäöüß\d.,/-])\d{1,3}(?![\d.,/-]|\.\d)(?!\.)")
 
 
 def _liste(text: str) -> frozenset[str]:
@@ -75,7 +75,7 @@ _AUSWERTUNG = _liste(
     zugang zugänge zugängen zugaenge veränderung veraenderung verändert stieg sank gestiegen gesunken gewachsen
     vormonat vormonats vorjahr
     beschäftigungskategorie beschäftigungskategorien über ueber unter alter alters altersgruppe altersgruppen
-    altersverteilung regelsatz v1 eins ganze ganzes gesamtes
+    altersverteilung regelsatz v1 eins ganze ganzes gesamtes gezählt gezaehlt zählt zaehlt
     """
 )
 BEKANNT = _FUELLWOERTER | _SACHE | _ZEIT | _AUSWERTUNG | frozenset(MONATSNAMEN)

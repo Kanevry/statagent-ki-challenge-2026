@@ -765,8 +765,11 @@ def _kein_regelsatz(conn: Verbindung, frage: str, regelsatz: str) -> dict[str, A
 
 def _gliederung_ohne_nach(conn: Verbindung, frage: str, letzter: str) -> str:
     """„Juli 2026 v2 Bundesland“: Das bloße Wort meint die Aufteilung, sonst fiele sie still weg."""
-    genannt = monate_lesen(frage)
-    if _gliederung(frage) is not None or _filter(conn, frage, genannt[-1] if genannt else letzter, ())[0]:
+    gelesen = _normalisieren(frage, letzter)[
+        0
+    ]  # „Sommer 2025“ kennt die Wörter-Prüfung in _filter nur als Monate.
+    genannt = monate_lesen(gelesen)
+    if _gliederung(frage) is not None or _filter(conn, gelesen, genannt[-1] if genannt else letzter, ())[0]:
         return frage
     for merkmal in MERKMALE:
         for wort in merkmal.gliederung:

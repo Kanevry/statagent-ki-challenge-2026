@@ -145,3 +145,9 @@ def test_unbekanntes_wort_auch_im_v2_weg(conn: Verbindung, frage: str) -> None:
 def test_regelsatz_angabe_ist_kein_unbekanntes_wort() -> None:
     assert unbekanntes_wort("Beschäftigte im März 2025 im Regelsatz v1", []) is None
     assert unbekanntes_wort("Beschäftigte über das ganze Monat März 2025", []) is None
+
+
+# Fängt: Das „1“ in „v1“ galt als lose Zahl, „im Regelsatz v1“ bekam die Absage.
+def test_ziffer_am_wort_ist_keine_lose_zahl() -> None:
+    assert unbekanntes_wort("Beschäftigte im Regelsatz v1 im März 2025", []) is None
+    assert unbekanntes_wort("Beschäftigte ab 50 im März 2025", []) == "50"
