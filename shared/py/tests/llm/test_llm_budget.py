@@ -1,6 +1,7 @@
 """Tagesbudget LLM_TAGESBUDGET_AUFRUFE (#100): zählt über die Protokolldatei, also prozessübergreifend."""
 
 import json
+import os
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -81,3 +82,61 @@ def test_router_cli_mit_erschoepftem_budget_endet_mit_exit_3(protokoll, monkeypa
     assert json.loads(capsys.readouterr().out)["fehler"] == "budget_erschoepft"
     assert gerufen == []
     assert not (protokoll.parent / "router.jsonl").exists()
+
+
+# --- Review !36 (57): fail-closed online, Protokoll vor dem Aufruf beschreibbar -----------------------------
+
+
+def _kein_provider(name):
+    raise AssertionError(f"Provider {name} darf nicht gerufen werden")
+
+
+def test_online_ohne_budget_mit_echtem_provider_ist_konfigfehler(protokoll, monkeypatch):
+    """Fängt: online (KIC_ONLINE=1) ohne LLM_TAGESBUDGET_AUFRUFE geht ein echter Aufruf ohne Grenze durch."""
+    monkeypatch.setenv("KIC_ONLINE", "1")
+    monkeypatch.delenv("LLM_TAGESBUDGET_AUFRUFE", raising=False)
+    monkeypatch.setenv("LLM_PROVIDER", "azure")
+    monkeypatch.setattr(kern, "provider_instanz", _kein_provider)
+
+    with pytest.raises(KonfigFehler, match="KIC_ONLINE=1 braucht LLM_TAGESBUDGET_AUFRUFE"):
+        complete(NACHRICHT, zweck="smoke")
+    with pytest.raises(KonfigFehler, match="KIC_ONLINE=1"):
+        complete(NACHRICHT, stream=True, zweck="smoke")
+    assert _zeilen(protokoll) == []
+
+
+def test_online_ohne_budget_mit_mock_laeuft(protokoll, monkeypatch):
+    """Fängt: die Sperre trifft auch mock, dann bricht die lesende Online-Demo ohne Schlüssel."""
+    monkeypatch.setenv("KIC_ONLINE", "1")
+    monkeypatch.delenv("LLM_TAGESBUDGET_AUFRUFE", raising=False)
+
+    assert complete(NACHRICHT, zweck="smoke").provider == "mock"
+
+
+def test_budget_mit_unbeschreibbarem_protokoll_ruft_keinen_provider(tmp_path, protokoll, monkeypatch):
+    """Fängt: Protokoll nicht beschreibbar (read_only ohne Volume) zählt 0, der Provider liefe trotzdem."""
+    sperre = tmp_path / "keine-ordner"
+    sperre.write_text("eine Datei, kein Ordner", encoding="utf-8")
+    monkeypatch.setenv("PLATTFORM_PROTOKOLL", str(sperre / "modellaufrufe.jsonl"))
+    monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "5")
+    monkeypatch.setattr(kern, "provider_instanz", _kein_provider)
+
+    with pytest.raises(KonfigFehler, match="beschreibbares Protokoll"):
+        complete(NACHRICHT, zweck="smoke")
+
+
+@pytest.mark.skipif(os.name != "posix" or os.geteuid() == 0, reason="root ignoriert Dateirechte")
+def test_budget_mit_schreibgeschuetztem_ordner_ist_konfigfehler(tmp_path, monkeypatch):
+    """Fängt: schreibgeschützter Protokollordner (wie read_only im Container) lässt den Aufruf durch."""
+    ordner = tmp_path / "nur-lesen"
+    ordner.mkdir()
+    ordner.chmod(0o500)
+    try:
+        monkeypatch.setenv("PLATTFORM_PROTOKOLL", str(ordner / "modellaufrufe.jsonl"))
+        monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "5")
+        monkeypatch.setenv("LLM_PROVIDER", "mock")
+        monkeypatch.setattr(kern, "provider_instanz", _kein_provider)
+        with pytest.raises(KonfigFehler, match="beschreibbares Protokoll"):
+            complete(NACHRICHT, zweck="smoke")
+    finally:
+        ordner.chmod(0o700)

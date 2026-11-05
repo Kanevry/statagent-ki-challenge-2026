@@ -1,7 +1,9 @@
 import { execFile } from "node:child_process";
 import { findeRepoWurzel } from "./modell";
 import { erstelleRatenlimit, grenzeAus, type PruefeRatenlimit } from "./ratenlimit";
-import { ergebnisSchema, frageSchema } from "./uc4-ergebnis";
+import { BUDGET_MELDUNG, ergebnisSchema, frageSchema } from "./uc4-ergebnis";
+
+export { BUDGET_MELDUNG };
 
 // POST /api/uc4/frage (#98): reicht die Frage an `plattform.router` weiter, als Subprozess mit argv (keine Shell).
 // web/ ruft nie ein Modell direkt; welche Adapter antworten, entscheidet der Router. `UC4_ADAPTER=mock` hängt
@@ -15,7 +17,6 @@ export const TIMEOUT_MS = 60_000;
 export const MAX_BUFFER = 1024 * 1024;
 /** Exit-Code von `plattform.router frage`, wenn das Tagesbudget erschöpft ist (`router.BUDGET_ERSCHOEPFT`). */
 export const EXIT_BUDGET = 3;
-export const BUDGET_MELDUNG = "Das Tageskontingent für Modellaufrufe ist aufgebraucht.";
 
 export interface Lauf {
   code: number;

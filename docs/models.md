@@ -40,6 +40,13 @@ verbraucht, wirft `complete` vor jedem Provider-Aufruf `BudgetErschoepft` und sc
 Fragen je Minute (Standard 10, gleitendes Fenster, 429 mit `Retry-After`). Prüfen und Schreiben des Budgets sind
 nicht atomar: gleichzeitige Anfragen an der Grenze können sie um wenige Aufrufe überschreiten.
 
+Online ist das Budget Pflicht (fail-closed, Review !36). Das Prod-Compose setzt `KIC_ONLINE=1` und verlangt
+`LLM_TAGESBUDGET_AUFRUFE` beim Start (`${…:?}`, Invariante in `deploy/compose-invarianten.jq`). Ist
+`KIC_ONLINE=1` gesetzt, das Budget aber leer, und steht in der Kette ein echter Provider, wirft `complete` vor dem
+Aufruf `KonfigFehler`; `mock` läuft weiter. Mit Budget öffnet `complete` das Protokoll vor dem Aufruf zum
+Anhängen: Ist es nicht beschreibbar (etwa `read_only` ohne Volume), gibt es `KonfigFehler` statt eines Aufrufs,
+der nicht gezählt würde.
+
 ## Prüfen
 
 ```bash

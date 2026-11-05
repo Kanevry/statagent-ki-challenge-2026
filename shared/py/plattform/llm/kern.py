@@ -235,7 +235,7 @@ def ausfuehren(
 ) -> Antwort:
     """Läuft eine gegebene Kette ab (``complete`` und der Smoke-Test ohne Fallback nutzen das)."""
     _pruefe_eingaben(nachrichten, aufwand)
-    _pruefe_budget()
+    _pruefe_budget(kette)
     hash_ = prompt_hash(nachrichten)
     groesse = zwecke.zweck(zweck).groesse
     letzter: Exception | None = None
@@ -446,7 +446,7 @@ def complete(
         if schema is not None:
             raise ValueError("stream=True und schema schließen sich aus")
         # Hier statt in ``_strom``: der Generator liefe erst beim ersten ``next``; der Fehler kommt sofort.
-        _pruefe_budget()
+        _pruefe_budget(kette)
         return _strom(nachrichten, kette, zweck, modell, aufwand)
     return ausfuehren(nachrichten, kette=kette, schema=schema, zweck=zweck, modell=modell, aufwand=aufwand)
 
@@ -524,14 +524,53 @@ def budget_status() -> dict[str, int | None]:
     return {"grenze": grenze, "verbraucht": verbraucht, "frei": frei}
 
 
-def _pruefe_budget() -> None:
-    """Wirft ``BudgetErschoepft`` vor dem ersten Provider-Aufruf, wenn heute nichts mehr frei ist.
+ONLINE_VARIABLE = "KIC_ONLINE"
 
-    Prüfen und Schreiben sind nicht atomar: laufen zwei Prozesse gleichzeitig an der Grenze, kann einer
+
+def _ist_online() -> bool:
+    """``KIC_ONLINE=1`` setzt nur das Prod-Compose (deploy/docker-compose.prod.yml), lokal bleibt es leer."""
+    return os.environ.get(ONLINE_VARIABLE, "").strip() == "1"
+
+
+def _pruefe_protokoll_schreibbar() -> None:
+    """Öffnet die Protokolldatei zum Anhängen, bevor ein Provider gerufen wird.
+
+    Ohne beschreibbares Protokoll zählt das Budget immer 0 und der Aufruf ginge durch; erst danach scheiterte
+    das Schreiben der Zeile. Darum vorher prüfen und als ``KonfigFehler`` melden.
+    """
+    datei = protokoll_datei()
+    try:
+        datei.parent.mkdir(parents=True, exist_ok=True)
+        with datei.open("a", encoding="utf-8"):
+            pass
+    except OSError as fehler:
+        raise KonfigFehler(
+            f"{BUDGET_VARIABLE} braucht ein beschreibbares Protokoll ({datei.name}): "
+            f"{fehler.strerror or fehler}"
+        ) from fehler
+
+
+def _pruefe_budget(kette: list[str]) -> None:
+    """Wirft vor dem ersten Provider-Aufruf, wenn kein Aufruf erlaubt ist.
+
+    - Online (``KIC_ONLINE=1``) ohne Budget und mit einem echten Provider in der Kette: ``KonfigFehler``
+      (fail-closed, damit eine vergessene Variable keine Kosten ohne Grenze erlaubt).
+    - Mit Budget: Protokoll muss beschreibbar sein (``KonfigFehler``), heute verbraucht ≥ Grenze:
+      ``BudgetErschoepft``.
+
+    Prüfen und Schreiben sind nicht atomar: laufen zwei Aufrufe gleichzeitig an der Grenze, kann einer
     darüber gehen. Das Ratenlimit der Web-App hält diese Überschreitung klein.
     """
     grenze = _budget_grenze()
-    if grenze is not None and _verbraucht_heute() >= grenze:
+    if grenze is None:
+        if _ist_online() and any(name != "mock" for name in kette):
+            raise KonfigFehler(
+                f"{ONLINE_VARIABLE}=1 braucht {BUDGET_VARIABLE} (ganze Zahl ab 1), "
+                "bevor ein Modell gerufen wird"
+            )
+        return
+    _pruefe_protokoll_schreibbar()
+    if _verbraucht_heute() >= grenze:
         raise BudgetErschoepft(
             "Das Tageskontingent für Modellaufrufe ist aufgebraucht. Morgen (UTC) ist es wieder frei."
         )

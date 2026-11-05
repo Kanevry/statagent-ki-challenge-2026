@@ -111,6 +111,10 @@ Seite vom Netz nehmen: auf dem Server in `<basis>/repo/deploy`
   und ohne Repo (`plattform.freigabe` und der Protokoll-Export aus `git log` gehen online ohnehin nicht).
 - Keine Modellschlüssel in `.env.server`, solange kein Ratenlimit und kein Tagesbudget steht: die Seite ist ohne
   Passwort erreichbar, Modellaufrufe kosten Geld (Lead 05.11.2026).
+- Tagesbudget ist Pflicht (#100): ohne `LLM_TAGESBUDGET_AUFRUFE` (ganze Zahl ab 1) in `.env.server` bricht
+  `docker compose` ab. Die App setzt `KIC_ONLINE=1`; damit ruft `plattform.llm` ohne Budget kein echtes Modell.
+  Gezählt wird im Modellprotokoll: Ohne beschreibbares Protokoll (Volume plus `PLATTFORM_PROTOKOLL`, der Container
+  ist `read_only`) lehnt `plattform.llm` jeden Aufruf ab.
 - Voice (Vapi) braucht POST auf `/chat/completions` und `/vapi/webhook`. Soll Voice online gehen, bekommen genau diese
   Pfade eine Ausnahme vom GET/HEAD-Matcher; geschützt bleiben sie über Bearer-Schlüssel und Webhook-Secret im Router
   (Vertrag V im PRD E0).

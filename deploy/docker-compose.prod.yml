@@ -79,8 +79,12 @@ services:
     environment:
       # Online-Demo ist lesend (#68): Caddy lässt nur GET/HEAD durch; das Flag sagt es auch der App
       KIC_ONLINE_LESEND: "1"
+      # Online-Merker für plattform.llm (#100): ohne LLM_TAGESBUDGET_AUFRUFE ruft die App kein echtes Modell.
+      # Bleibt "1", auch wenn KIC_ONLINE_LESEND für Fragen wegfällt.
+      KIC_ONLINE: "1"
+      # Pflicht: Tagesbudget der Modellaufrufe, ganze Zahl ab 1 (Fehlversuche zählen mit)
+      LLM_TAGESBUDGET_AUFRUFE: ${LLM_TAGESBUDGET_AUFRUFE:?LLM_TAGESBUDGET_AUFRUFE fehlt in .env.server (ganze Zahl ab 1, #100)}
       # online nur azure oder mistral (claude und ollama laufen nur lokal); ohne Schlüssel mock.
-      # Modellschlüssel erst, wenn Ratenlimit und Tagesbudget stehen (Lead 05.11.)
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL:-}
       AZURE_OPENAI_MODEL: ${AZURE_OPENAI_MODEL:-}

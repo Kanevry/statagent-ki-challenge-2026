@@ -137,7 +137,7 @@ deploy-check:
         INHALT=$inhalt caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
         echo "caddy validate ok: INHALT=$inhalt"
       done
-    - printf "SITE_ADDRESS=demo.example.org\nPOSTGRES_PASSWORD=x\nKIC_APP_DB_PASSWORD=x\n" > /tmp/dummy.env
+    - printf "SITE_ADDRESS=demo.example.org\nPOSTGRES_PASSWORD=x\nKIC_APP_DB_PASSWORD=x\nLLM_TAGESBUDGET_AUFRUFE=100\n" > /tmp/dummy.env
     - docker compose --env-file /tmp/dummy.env -f deploy/docker-compose.prod.yml config --format json > /tmp/compose.json
     # Invarianten: nur caddy veröffentlicht Ports; Härtung bleibt; die App verbindet sich nie als Superuser
     - jq -e -f deploy/compose-invarianten.jq /tmp/compose.json
