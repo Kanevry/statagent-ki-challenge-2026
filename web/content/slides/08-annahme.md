@@ -16,7 +16,7 @@ belege: [F4]
 
 370 Beschäftigungsverhältnisse im August 2024
 
-| Rechenweg | Falsche Zahlen von 576 in der Vorlage des Veranstalters |
+| Rechenweg | Zwei naheliegende Rechenwege liegen bei vielen der 576 Zahlen daneben. Unserer trifft alle. |
 |---|---|
 | Alter bleibt leer | 408 |
 | ein Jahr jünger | 367 |
@@ -30,5 +30,5 @@ Herkunft: Annahme A4, Regel R5_alter, Vergleich mit der Vorlage des Veranstalter
 
 Ein Fehler im Detail.
 [→] 370 Beschäftigungsverhältnisse sind laut Lieferung im 13. Monat geboren. Wie alt ist, wer so geboren ist?
-[→] Drei Rechenwege haben wir mit der Vorlage des Veranstalters verglichen. Die Balken zeigen, wie viele der 576 Zahlen falsch wären. Nur einer liegt bei null: Berichtsjahr minus Geburtsjahr.
+[→] Drei Rechenwege haben wir mit der Vorlage des Veranstalters verglichen. Zwei naheliegende liegen bei vielen der 576 Zahlen daneben. Unserer trifft alle: Berichtsjahr minus Geburtsjahr.
 [→] Wir nehmen den 1. Juli als Geburtstag. Welcher Tag für Jänner bis Juni gilt, fragen wir die Fachabteilung.

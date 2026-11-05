@@ -11,7 +11,7 @@ Folge: Erst die Präsentation (Szene 1 bis 10, 0:00–5:05), dann die Demo (5:05
 | Zeit | Schritt | Dauer |
 |---|---|---|
 | 5:05–6:15 | D1 Lauf und Qualitätsbericht (2025-10 angehalten, alternativ 2025-03) | 1:10 |
-| 6:15–7:45 | D2 Rückblick auf Auftrag 1, dann neue Änderung per Sprache mit Freigabe | 1:30 |
+| 6:15–7:45 | D2 Änderung per Sprache: Rückblick auf die echte Freigabe von Auftrag 1 | 1:30 |
 | 7:45–9:00 | D3 Datenanfragen der Jury-Aufgabe | 1:15 |
 | 9:00–9:30 | D4 Gemeinsamer Einstieg: die Wien-Frage in `/uc4` | 0:30 |
 | 9:30 | Ende der Demo, danach Fragen der Jury | |
@@ -46,36 +46,35 @@ Standard ist Oktober 2025, weil Szene 3 diesen Monat zeigt. Alternative ist Mär
   - Status des Monats: angehalten und vorläufig.
 - Hinweis zu 81.046 und 78.949: Die Differenz der Bestände ist 394.200 minus 313.154, also 81.046 (F17). Die Zahl 78.949 zählt Verhältnisse, die in der Lieferung gar nicht vorkommen (F11). Das sind zwei verschiedene Messungen. Bernhard nennt in der Demo beide nur mit ihrer Bedeutung.
 
-### D2 Änderung per Sprache mit sichtbarer Wirkung (6:15–7:45)
+### D2 Änderung per Sprache: Rückblick auf eine echte Freigabe (6:15–7:45)
 
-**Auftrag 1 ist schon abgegeben.** „Dienstvertrag und freien Dienstvertrag zusammen ausweisen“ wurde am 05.11.2026 um 16:54 freigegeben und steckt in der Abgabe (Regelsatz v2). Ihn live noch einmal auszuführen hieße, eine schon gültige Änderung zu wiederholen. Einen Reset gibt es nicht. Deshalb zeigt D2 zwei Dinge:
+**Stand der Probe (05.11.2026 17:56 bis 17:58, Azure, Kopie der Abgabe-DB):** Keine Live-Änderung ging durch. B2 (Geburtsmonat 13, drei Versuche), B3 und B1 endeten mit „Kein Vorschlag“ (falsche Rolle oder falscher Parameter) oder mit dem Abbruch der Probe bei Prüfregel P08. Der Fehler liegt bei b-uc3-84. Deshalb zeigt D2 nur, was geprobt ist: die echte Freigabe von Auftrag 1.
 
-1. **Rückblick, 20 Sekunden:** die Freigabe von Auftrag 1 im Protokoll. Gesamt bleibt 392.236, die Kategorien verschieben sich, zum Beispiel Angestellte (Qualifikation) von 0 auf 236.961 (F19). Bernhard liest die Zahlen vom Bildschirm.
-2. **Live, 70 Sekunden:** eine neue Änderung, die nicht abgegeben ist. Standard ist Fragenkatalog B2: bei Geburtsmonat 13 nur mit der Differenz der Jahre rechnen. Er passt zu Szene 8 und zur offenen Rückfrage R1. Nennt die Jury nach Szene 10 eine eigene Regel, nimmt Bernhard ihre, wenn sie einer der Übungen B1 bis B4 entspricht. Sonst bleibt es bei B2.
+**Auftrag 1 ist abgegeben.** „Dienstvertrag und freien Dienstvertrag zusammen ausweisen“ hat Bernhard am 5. November 2026 freigegeben (Vorschlag 24, Regelsatz v2, F19, F26). Er steckt in der Abgabe. Ihn live noch einmal auszuführen hieße, eine schon gültige Änderung zu wiederholen; einen Reset gibt es nicht.
 
-Ablauf (im Browser auf `/uc3/freigaben`, gleich im Terminal):
+Ablauf (im Browser auf `/uc3/freigaben`, Reiter „Erledigt“, gleich im Terminal):
 
-1. 6:15 Rückblick: `uv run uc3 protokoll --zeigen`, Eintrag der Freigabe von Auftrag 1 zeigen.
-2. 6:35 Auftrag stellen. Der Agent erzeugt nur einen Vorschlag und ändert nichts:
-   `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre." --probe 2025-03`
-3. 7:00 Vorschlag ansehen: `uv run uc3 vorschlag zeigen <id>`
-4. 7:20 Freigeben mit Vor- und Nachnamen: `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`
-5. 7:35 Protokoll zeigen: `uv run uc3 protokoll --zeigen`
+1. 6:15 Auftrag zeigen: die Anweisung von Vorschlag 24 im Wortlaut.
+2. 6:40 Vorschlag zeigen: `uv run uc3 vorschlag zeigen 24`. Regel-Unterschied und Zahlen vorher und nachher.
+3. 7:10 Freigabe und Protokoll: `uv run uc3 protokoll --zeigen`, Abschnitt 2 und 3.
 
-- Sagt Bernhard (bei 1): „Diese Änderung hat heute früh schon jemand mit Namen freigegeben. Sie steckt in der Abgabe.“
-- Sagt Bernhard (bei 2): „Jetzt eine neue. Ich sage der Maschine in einem Satz, was sich ändern soll. Sie schreibt nur einen Vorschlag.“
-- Sagt Bernhard (bei 3): „Hier ist der Unterschied in der Regel. Und hier die Zahlen vorher und nachher. Der Gesamtbestand bleibt gleich, im März 2025 verschieben sich Altersgruppen.“
-- Sagt Bernhard (bei 4 und 5): „Erst mit meinem Namen wird es wirksam. Der gespeicherte Änderungsschritt im Repo trägt den Vermerk Freigegeben-von. Das Protokoll hält es fest.“
+- Sagt Bernhard (bei 1): „Das war ein Auftrag der Aufgabe. Ich habe ihn in einem Satz an die Maschine gegeben. Sie schrieb nur einen Vorschlag.“
+- Sagt Bernhard (bei 2): „Hier ist der Unterschied in der Regel. Und hier die Zahlen vorher und nachher. Der Gesamtbestand bleibt bei 392.236. Die Kategorien verschieben sich, zum Beispiel Angestellte von 0 auf 236.961.“
+- Sagt Bernhard (bei 3): „Erst mit meinem Namen wurde es wirksam. Das Protokoll hält fest, wer, wann und was.“
 - Jury muss sehen:
-  - Protokolleintrag von Auftrag 1 mit Name und Zeit.
-  - Regel-Diff des neuen Vorschlags (Regel `R5_alter`, Parameter `geburtsmonat_13`). Den Regelnamen liest Bernhard vom Bildschirm vor.
-  - Zahlen vorher und nachher: Gesamt gleich, Altersgruppen verschoben. Die genauen Werte zeigt die Probe live; sie stehen nicht vorab im Drehbuch.
-  - Freigabe mit Vor- und Nachname, „Team“ wird abgelehnt (`shared/py/plattform/freigabe.py`, `pruefe_name`).
-  - Gespeicherter Änderungsschritt (Commit) mit dem Vermerk `Freigegeben-von` und der Eintrag im Protokoll.
-- Vorher prüft Bernhard: Er nimmt die Kennung `<id>` aus der Ausgabe von Schritt 2. Nie eine Kennung von gestern übernehmen.
-- Üben nur bis zur Ablehnung: `uv run uc3 vorschlag zeigen <id>`, dann `uv run uc3 ablehnen <id> --name "Bernhard Götzendorfer" --begruendung "Übung vor der Jury"`. Vor der Jury nie `freigabe` üben. Eine geübte Freigabe von B2 machte die Live-Änderung zu einer Wiederholung (`uc3/statagent/cli.py`, kein Reset).
-- Modell: D2 braucht das echte Modell (Azure). Mit `mock` gibt es keinen Vorschlag.
-- Entscheid in `probe.md` (Fr 06:45): B2 als Live-Änderung bestätigt oder Ersatz aus B1, B3, B4.
+  - Regel-Diff von Vorschlag 24 (Regel `R6_beschaeftigungskategorie`).
+  - Zahlen vorher und nachher: Gesamt gleich, Kategorien verschoben (F19).
+  - Freigabe mit Vor- und Nachname im Protokoll (F26). „Team“ wird abgelehnt (`shared/py/plattform/freigabe.py`, `pruefe_name`).
+- Die Uhrzeit liest Bernhard nicht vor: Das Protokoll zeigt sie ohne Zeitzone (15:53 statt 16:53 Wien), Hinweis an b-uc3-84.
+
+**Live-Änderung nur nach bestandener Probe.** Meldet b-uc3-84 einen Fix für die Probe, probt E5 B2 erneut auf der Kopie der Abgabe-DB (`statistik_probe`) bis `vorschlag zeigen` und `ablehnen`. Erst wenn das dreimal hintereinander klappt, kommt B2 als Live-Teil zurück in dieses Drehbuch:
+
+`uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2025-03`
+
+Bis dahin gilt: Nennt die Jury nach Szene 10 eine Regel, sagt Bernhard: „Das zeige ich Ihnen an einer Änderung, die ich heute schon freigegeben habe“ und bleibt bei Vorschlag 24.
+
+- Nie `freigabe` üben: Es committet ins Repo, einen Reset gibt es nicht. Proben nur gegen `statistik_probe`, nie gegen die Abgabe-DB `statistik`, denn auch ein abgelehnter Vorschlag steht danach im Protokoll der Abgabe.
+- Entscheid in `probe.md` (Fr 06:45): Rückblick allein oder Rückblick plus B2 live.
 
 ### D3 Datenanfragen (7:45–9:00)
 
@@ -166,7 +165,7 @@ Jeder Punkt wird abgehakt, sobald er geprüft ist. Uhrzeit nur aus der Uhr (`TZ=
 - [ ] D1: Monat gewählt (2025-10 oder 2025-03) und in `probe.md` eingetragen.
 - [ ] D3: Die acht geprüften Fragen auf `/uc3/fragen` und mit `uv run uc3 frage "…"` geprobt, jede Zahl gegen die Sollzahl der Tabelle. Folge-MR von bb auf main? Wenn nein, keine freien Fragen. SQL A1 bis A3 als Rückfall bereit, `<regelstand>` eingesetzt.
 - [ ] D4: Sollwert 7.498 (F18) gegen die Abfrage im Belegregister geprüft. Testmodus-Ansage bereit.
-- [ ] Übungsauftrag aus D2 (B2, Geburtsmonat 13 mit Jahresdifferenz) nur bis `vorschlag zeigen <id>` gelaufen, dann `ablehnen <id>` mit der Begründung „Übung vor der Jury“. Nie `freigabe` geübt.
+- [ ] D2: `uv run uc3 vorschlag zeigen 24` und `uv run uc3 protokoll --zeigen` laufen auf dem Vortragsrechner. B2 nur, wenn es nach dem Fix von b-uc3-84 dreimal gegen `statistik_probe` geklappt hat. Nie `freigabe` geübt.
 - [ ] Protokolleintrag der Freigabe von Auftrag 1 (05.11.2026 16:54) gefunden, Fenster für den Rückblick bereit.
 - [ ] Entscheid D4 um 06:45 getroffen und in `probe.md` eingetragen.
 - [ ] Freeze um 07:00 (Europe/Vienna) bestätigt. Danach keine Änderung mehr.

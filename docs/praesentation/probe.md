@@ -27,7 +27,7 @@ Gehört zu GitLab #90, Epic #26. Wird am Fr 06.11.2026 ab 06:00 ausgefüllt.
 | Stufe der Demo | 1 Web-UI (nur bei `/uc3` auf main) / 2 CLI / 3 Video |
 | Stand (Commit) | |
 | D4 gezeigt (Entscheid 06:45) | ja / nein (bei nein endet die Demo um 9:00) |
-| D2 Live-Änderung (Entscheid 06:45) | B2 Geburtsmonat 13 mit Jahresdifferenz / Ersatz B1, B3 oder B4. Auftrag 1 ist abgegeben und wird nur als Rückblick gezeigt |
+| D2 (Entscheid 06:45) | Rückblick auf Vorschlag 24 allein / plus B2 live (nur nach dreimal bestandener Probe gegen `statistik_probe`). Probe 05.11. 17:56 bis 17:58: B1, B2, B3 ohne Vorschlag oder abgebrochen |
 | D3 freie Fragen | nein, nur die acht geprüften (ja erst, wenn der Folge-MR von bb auf main ist) |
 | Zahlen in den Szenen gegen `abgabe/` abgeglichen | ja / nein |
 
@@ -48,7 +48,7 @@ Ist-Dauer ist das Ende minus der Start des Abschnitts. Beide Uhrzeiten eintragen
 | 9 | Szene 9 Eine Frage, drei Antworten, jede mit Beleg | 4:25–4:55 | 0:30 | | | |
 | 10 | Szene 10 Jede Zahl nachrechenbar. Jede Änderung mit Namen | 4:55–5:05 | 0:10 | | | |
 | D1 | Demo D1 Lauf und Qualitätsbericht | 5:05–6:15 | 1:10 | | | |
-| D2 | Demo D2 Rückblick Auftrag 1, neue Änderung B2 mit Freigabe | 6:15–7:45 | 1:30 | | | |
+| D2 | Demo D2 Rückblick auf die Freigabe von Auftrag 1 | 6:15–7:45 | 1:30 | | | |
 | D3 | Demo D3 Datenanfragen | 7:45–9:00 | 1:15 | | | |
 | D4 | Demo D4 Gemeinsamer Einstieg, Wien-Frage in `/uc4` (Entscheid 06:45) | 9:00–9:30 | 0:30 | | | |
 

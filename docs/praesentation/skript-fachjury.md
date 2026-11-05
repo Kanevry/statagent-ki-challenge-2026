@@ -126,7 +126,7 @@ Die Demo beginnt bei 5:05, unmittelbar nach Szene 10, und dauert bis 9:30. Ablau
 | 7:45–9:00 | D3 Datenanfragen | 1:15 |
 | 9:00–9:30 | D4 Gemeinsamer Einstieg (nur wenn `/uc4` bis zum Freeze grün ist) | 0:30 |
 
-Die Live-Änderung steht im Drehbuch, nicht auf den Folien: erst der Rückblick auf den abgegebenen Auftrag 1, dann neu die Rechnung bei Geburtsmonat 13 mit Jahresdifferenz (Fragenkatalog B2). Läuft die öffentliche Demo im Testmodus, sagt Bernhard „Testmodus“ vorher an.
+Die Live-Änderung steht im Drehbuch, nicht auf den Folien: der Rückblick auf die echte Freigabe von Auftrag 1 (Vorschlag 24). Eine neue Live-Änderung kommt nur dazu, wenn sie vorher in der Probe bestanden hat. Läuft die öffentliche Demo im Testmodus, sagt Bernhard „Testmodus“ vorher an.
 
 ---
 
