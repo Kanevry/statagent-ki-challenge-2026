@@ -32,7 +32,7 @@ import {
   type LaufDetail,
 } from "@/components/uc3/lauf-detail";
 import { istMonat, monatName, stichtag, verschieben } from "@/components/uc3/monat";
-import { berichtPfad, laufPfad } from "@/components/uc3/navigation";
+import { berichtPfad, laufPfad, uebersichtPfad } from "@/components/uc3/navigation";
 import type { Lauf } from "@/components/uc3/typen";
 import { Auffaelligkeiten } from "./_teile/auffaelligkeiten";
 import { Bundeslaender } from "./_teile/bundeslaender";
@@ -48,7 +48,7 @@ type Props = {
 
 /** Pfad eines Monats; mit Regelsatz v2 bleibt der Parameter erhalten. */
 function monatsPfad(lieferung: string, regelsatz: string): string {
-  return regelsatz === "v2" ? `${laufPfad(lieferung)}?regelsatz=v2` : laufPfad(lieferung);
+  return laufPfad(lieferung, regelsatz);
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -81,7 +81,7 @@ function Weiter({ lieferung, regelsatz, davor, danach }: { lieferung: string; re
   return (
     <nav aria-label="Weitere Monate" className="flex flex-col gap-4 border-t border-line pt-6">
       <div>
-        <Link href={berichtPfad(lieferung)} className={knopfKlassen("primaer")}>
+        <Link href={berichtPfad(lieferung, regelsatz)} className={knopfKlassen("primaer")}>
           {`Qualitätsbericht ${monatName(lieferung)} lesen`}
         </Link>
       </div>
@@ -97,7 +97,7 @@ function Weiter({ lieferung, regelsatz, davor, danach }: { lieferung: string; re
           </li>
         )}
         <li>
-          <Link href="/uc3" className={link}>
+          <Link href={uebersichtPfad(regelsatz)} className={link}>
             Alle Monatsläufe
           </Link>
         </li>

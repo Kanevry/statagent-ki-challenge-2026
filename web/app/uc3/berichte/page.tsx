@@ -14,7 +14,7 @@ import { aufzaehlen } from "@/components/uc3/lauf-detail";
 import { leerSatz } from "@/components/uc3/db";
 import { Fachbegriff } from "@/components/uc3/fachbegriff";
 import { monatName } from "@/components/uc3/monat";
-import { berichtPfad } from "@/components/uc3/navigation";
+import { berichtPfad, regelsatzAus } from "@/components/uc3/navigation";
 import { MonatsStatus } from "../_teile/monatstabelle";
 
 // Qualitätsberichte (#18, Frame fJdk9): ein Bericht je Monat aus dem maßgeblichen Lauf. Ohne Datenbank der
@@ -39,8 +39,11 @@ function monateText(n: number): string {
   return n === 1 ? "einem Monat" : `${formatZahl(n)} Monaten`;
 }
 
-export default async function Berichte() {
-  const lesung = await leseBerichtsliste();
+type Props = { searchParams: Promise<{ regelsatz?: string | string[] }> };
+
+export default async function Berichte({ searchParams }: Props) {
+  const regelsatz = regelsatzAus((await searchParams).regelsatz);
+  const lesung = await leseBerichtsliste(regelsatz);
 
   if (!lesung.ok || lesung.daten.length === 0) {
     return (
@@ -74,7 +77,7 @@ export default async function Berichte() {
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
           {kopfsatz}
         </Ueberschrift>
-        <HerkunftChip quelle="meta.rueckfrage" sql={sqlBerichtsuebersicht()} />
+        <HerkunftChip quelle="meta.rueckfrage" sql={sqlBerichtsuebersicht(regelsatz)} />
         {ueberall.length > 0 && (
           <Fliesstext>
             {`Bis die Antwort da ist, bleibt diese Auffälligkeit in jedem Monat „nicht erklärbar“. Das ist so gewollt: Das Programm rät nicht, ein Mensch muss es klären.`}
@@ -85,7 +88,7 @@ export default async function Berichte() {
             <Fliesstext>
               {`In ${monateText(weitere)} ist zusätzlich etwas nicht erklärbar, wozu noch keine Rückfrage gestellt ist. Der Bericht des Monats nennt es.`}
             </Fliesstext>
-            <HerkunftChip quelle="meta.pruefung_treffer" sql={sqlOhneRueckfrage()} />
+            <HerkunftChip quelle="meta.pruefung_treffer" sql={sqlOhneRueckfrage(regelsatz)} />
           </div>
         )}
         <Fliesstext>
@@ -112,14 +115,14 @@ export default async function Berichte() {
         <Ueberschrift stufe={3} als="h2" id="liste-titel">
           Jeder Monat hat seinen eigenen Bericht aus seinem maßgeblichen Lauf.
         </Ueberschrift>
-        <HerkunftChip quelle="meta.pruefung_treffer" sql={sqlBerichtsliste()} />
-        <Liste zeilen={zeilen} />
+        <HerkunftChip quelle="meta.pruefung_treffer" sql={sqlBerichtsliste(regelsatz)} />
+        <Liste zeilen={zeilen} regelsatz={regelsatz} />
       </section>
     </>
   );
 }
 
-function Liste({ zeilen }: { zeilen: readonly Berichtszeile[] }) {
+function Liste({ zeilen, regelsatz }: { zeilen: readonly Berichtszeile[]; regelsatz: string }) {
   return (
     <>
       <table className="hidden w-full max-w-5xl border-collapse md:table">
@@ -150,7 +153,7 @@ function Liste({ zeilen }: { zeilen: readonly Berichtszeile[] }) {
           {zeilen.map(({ monat, revisionsbedarf, wartet }) => (
             <tr key={monat.lieferung} className="border-b border-line" data-lieferung={monat.lieferung}>
               <th scope="row" className={`${zelle} text-left font-medium`}>
-                <Link href={berichtPfad(monat.lieferung)} className={link}>
+                <Link href={berichtPfad(monat.lieferung, regelsatz)} className={link}>
                   {monatName(monat.lieferung)}
                 </Link>
               </th>
@@ -172,7 +175,7 @@ function Liste({ zeilen }: { zeilen: readonly Berichtszeile[] }) {
         {zeilen.map(({ monat, revisionsbedarf, wartet }) => (
           <li key={monat.lieferung} className="flex flex-col gap-2 border-b border-line py-4" data-lieferung={monat.lieferung}>
             <div className="flex items-baseline justify-between gap-4">
-              <Link href={berichtPfad(monat.lieferung)} className={`font-sans text-16 font-semibold ${link}`}>
+              <Link href={berichtPfad(monat.lieferung, regelsatz)} className={`font-sans text-16 font-semibold ${link}`}>
                 {monatName(monat.lieferung)}
               </Link>
               <MonatsStatus monat={monat} />

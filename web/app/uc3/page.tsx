@@ -7,7 +7,7 @@ import { leerSatz } from "@/components/uc3/db";
 import { Fachbegriff } from "@/components/uc3/fachbegriff";
 import { leseMonatsuebersicht, sqlRegelFreigaben } from "@/components/uc3/laeufe";
 import { monatName } from "@/components/uc3/monat";
-import { berichtPfad, laufPfad } from "@/components/uc3/navigation";
+import { berichtPfad, laufPfad, regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/navigation";
 import { gemeinsamerRegelstand, Monatstabelle } from "./_teile/monatstabelle";
 
 // Monatsläufe (#18, Frames bgAUw und iU5QZ): eine Zeile je Berichtsmonat mit dem maßgeblichen Lauf. Liest die
@@ -22,27 +22,66 @@ function aufzaehlen(teile: readonly string[]): string {
 /** Zahlwort vor „davon“: „Einer davon ist angehalten“, „Zwei davon sind angehalten“. */
 const ZAHLWORT = ["Keiner", "Einer", "Zwei", "Drei", "Vier", "Fünf"];
 
-export default async function Monatslaeufe() {
-  const lesung = await leseMonatsuebersicht();
+/** Umschalter zwischen den Regelsätzen; erscheint erst, wenn es Läufe mit Regelsatz v2 gibt. */
+function RegelsatzWahl({ aktiv }: { aktiv: Regelsatz }) {
+  const punkte: Array<[Regelsatz, string]> = [
+    ["v1", "Regelsatz v1, nach der Fachbeschreibung"],
+    ["v2", "Regelsatz v2, mit den Änderungsaufträgen"],
+  ];
+  return (
+    <nav aria-label="Regelsatz" className="flex flex-col gap-2">
+      <Fachbegriff wort="Regelsatz" className="font-sans text-14 font-semibold text-ink" />
+      <ul className="flex flex-wrap gap-x-6 gap-y-2">
+        {punkte.map(([wert, text]) => (
+          <li key={wert}>
+            <Link
+              href={uebersichtPfad(wert)}
+              aria-current={wert === aktiv ? "page" : undefined}
+              className={`font-sans text-14 underline-offset-4 ${wert === aktiv ? "font-semibold text-ink" : "text-gruen underline"}`}
+            >
+              {text}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+type Props = { searchParams: Promise<{ regelsatz?: string | string[] }> };
+
+export default async function Monatslaeufe({ searchParams }: Props) {
+  const regelsatz = regelsatzAus((await searchParams).regelsatz);
+  const lesung = await leseMonatsuebersicht(regelsatz);
 
   if (!lesung.ok || lesung.daten.monate.length === 0) {
+    const ohneV2 = lesung.ok && regelsatz === "v2";
     return (
       <>
         <Ueberschrift stufe={2} als="h1">
-          Monatsläufe
+          {ohneV2 ? "Mit Regelsatz v2 ist noch kein Monat gerechnet." : "Noch kein Monat ist gerechnet."}
         </Ueberschrift>
         <Leerzustand
           satz={
-            lesung.ok
-              ? "Noch kein Monat ist gerechnet. Der erste Lauf beginnt mit August 2024."
-              : leerSatz(lesung.grund)
+            !lesung.ok
+              ? leerSatz(lesung.grund)
+              : ohneV2
+                ? "Die Monate entstehen, sobald eine Änderung mit Namen freigegeben und gerechnet ist."
+                : "Der erste Lauf beginnt mit August 2024."
+          }
+          aktion={
+            ohneV2 ? (
+              <Link href={uebersichtPfad("v1")} className={knopfKlassen("sekundaer")}>
+                Monate mit Regelsatz v1 ansehen
+              </Link>
+            ) : undefined
           }
         />
       </>
     );
   }
 
-  const { monate, regeln } = lesung.daten;
+  const { monate, regeln, regelsaetze } = lesung.daten;
   const erster = monate[0];
   const letzter = letztes(monate);
   const angehalten = monate.filter((m) => m.angehalten);
@@ -79,15 +118,16 @@ export default async function Monatslaeufe() {
         </Fliesstext>
         <div>
           {pruefen ? (
-            <Link href={laufPfad(pruefen.lieferung)} className={knopfKlassen("primaer")}>
+            <Link href={laufPfad(pruefen.lieferung, regelsatz)} className={knopfKlassen("primaer")}>
               {`${monatName(pruefen.lieferung)} prüfen`}
             </Link>
           ) : (
-            <Link href={berichtPfad(letzter.lieferung)} className={knopfKlassen("primaer")}>
+            <Link href={berichtPfad(letzter.lieferung, regelsatz)} className={knopfKlassen("primaer")}>
               {`Qualitätsbericht ${monatName(letzter.lieferung)} lesen`}
             </Link>
           )}
         </div>
+        {(regelsaetze.includes("v2") || regelsatz === "v2") && <RegelsatzWahl aktiv={regelsatz} />}
       </header>
 
       <ul className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Begriffe auf dieser Seite">
@@ -107,7 +147,7 @@ export default async function Monatslaeufe() {
             {`Alle Monate sind mit demselben Regelstand ${regelstand} gerechnet.`}
           </Fliesstext>
         )}
-        <Monatstabelle monate={monate} />
+        <Monatstabelle monate={monate} regelsatz={regelsatz} />
       </section>
     </>
   );

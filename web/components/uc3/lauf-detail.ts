@@ -636,9 +636,7 @@ async function hatLauf(sql: Sql, lieferungen: string[], regelsatz: string): Prom
 }
 
 /** Regelsatz aus der Adresse: nur „v1“ oder „v2“, alles andere gilt als „v1“. */
-export function regelsatzAus(wert: string | string[] | undefined): "v1" | "v2" {
-  return wert === "v2" ? "v2" : "v1";
-}
+export { regelsatzAus } from "./navigation";
 
 /** Alles für die Seite eines Monats; `null`, wenn es für den Monat keinen Lauf gibt. */
 export async function ladeLaufDetail(sql: Sql, lieferung: string, regelsatz = "v1"): Promise<LaufDetail | null> {

@@ -142,12 +142,23 @@ export function sqlRegelFreigaben(regelsatz = "v1"): string {
   ].join("\n");
 }
 
+/** Regelsätze, für die es mindestens einen erfolgreichen Lauf gibt, z. B. ["v1", "v2"]. */
+export async function ladeRegelsaetze(sql: Sql): Promise<string[]> {
+  const zeilen = await sql<{ regelsatz: string }[]>`
+    SELECT DISTINCT regelsatz FROM meta.lauf WHERE status IN ('fertig', 'unveraendert') ORDER BY regelsatz`;
+  return zeilen.map((z) => z.regelsatz);
+}
+
 /** Bequemer Einstieg für Seiten: Monatsläufe samt Regel-Freigaben oder Grund für den Leerzustand. */
-export function leseMonatsuebersicht(
-  regelsatz = "v1",
-): Promise<Lesung<{ monate: Monatslauf[]; regeln: { aktiv: number; ohneFreigabe: number } }>> {
+export function leseMonatsuebersicht(regelsatz = "v1"): Promise<
+  Lesung<{ monate: Monatslauf[]; regeln: { aktiv: number; ohneFreigabe: number }; regelsaetze: string[] }>
+> {
   return lies(async (sql) => {
-    const [monate, regeln] = await Promise.all([ladeMonatslaeufe(sql, regelsatz), ladeRegelFreigaben(sql, regelsatz)]);
-    return { monate, regeln };
+    const [monate, regeln, regelsaetze] = await Promise.all([
+      ladeMonatslaeufe(sql, regelsatz),
+      ladeRegelFreigaben(sql, regelsatz),
+      ladeRegelsaetze(sql),
+    ]);
+    return { monate, regeln, regelsaetze };
   });
 }

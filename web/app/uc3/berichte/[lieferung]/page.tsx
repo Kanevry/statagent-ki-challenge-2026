@@ -22,7 +22,7 @@ import { Fachbegriff } from "@/components/uc3/fachbegriff";
 import { abrechnung } from "@/components/uc3/laeufe";
 import { aufzaehlen, wartetSatz } from "@/components/uc3/lauf-detail";
 import { istMonat, monatName, stichtag } from "@/components/uc3/monat";
-import { berichtPfad, laufPfad } from "@/components/uc3/navigation";
+import { berichtPfad, berichtslistePfad, laufPfad, regelsatzAus } from "@/components/uc3/navigation";
 import { MonatsStatus } from "../../_teile/monatstabelle";
 
 // Qualitätsbericht eines Monats (#18, Frame fJdk9) in den fünf Abschnitten des Generators
@@ -30,7 +30,10 @@ import { MonatsStatus } from "../../_teile/monatstabelle";
 // Annahmen, Revisionsbedarf. Jede Zahl trägt einen Beleg, dessen Abfrage sie liefert.
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ lieferung: string }> };
+type Props = {
+  params: Promise<{ lieferung: string }>;
+  searchParams: Promise<{ regelsatz?: string | string[] }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { lieferung } = await params;
@@ -47,11 +50,12 @@ function mehrzahl(n: number, eins: string, viele: string): string {
   return `${formatZahl(n)} ${n === 1 ? eins : viele}`;
 }
 
-export default async function Bericht({ params }: Props) {
+export default async function Bericht({ params, searchParams }: Props) {
   const { lieferung } = await params;
   if (!istMonat(lieferung)) notFound();
-  const lesung = await leseQualitaetsbericht(lieferung);
-  const titel = `Qualitätsbericht ${monatName(lieferung)}`;
+  const regelsatz = regelsatzAus((await searchParams).regelsatz);
+  const lesung = await leseQualitaetsbericht(lieferung, regelsatz);
+  const titel = `Qualitätsbericht ${monatName(lieferung)}${regelsatz === "v2" ? ", Regelsatz v2" : ""}`;
 
   if (!lesung.ok || lesung.daten === null) {
     return (
@@ -62,11 +66,13 @@ export default async function Bericht({ params }: Props) {
         <Leerzustand
           satz={
             lesung.ok
-              ? `Für ${monatName(lieferung)} gibt es noch keinen gerechneten Lauf, deshalb auch keinen Qualitätsbericht.`
+              ? regelsatz === "v2"
+                ? `Für ${monatName(lieferung)} gibt es mit Regelsatz v2 noch keinen Lauf, deshalb auch keinen Qualitätsbericht.`
+                : `Für ${monatName(lieferung)} gibt es noch keinen gerechneten Lauf, deshalb auch keinen Qualitätsbericht.`
               : leerSatz(lesung.grund)
           }
           aktion={
-            <Link href="/uc3/berichte" className={link}>
+            <Link href={berichtslistePfad(regelsatz)} className={link}>
               Zu allen Qualitätsberichten
             </Link>
           }
@@ -114,13 +120,13 @@ export default async function Bericht({ params }: Props) {
           </Fliesstext>
         )}
         <Fliesstext groesse={14}>
-          <Link href={laufPfad(lieferung)} className={link}>
+          <Link href={laufPfad(lieferung, regelsatz)} className={link}>
             {`Lauf ${monatName(lieferung)} im Detail ansehen`}
           </Link>
           {b.vormonat && (
             <>
               {" · "}
-              <Link href={berichtPfad(b.vormonat.lieferung)} className={link}>
+              <Link href={berichtPfad(b.vormonat.lieferung, regelsatz)} className={link}>
                 {`Bericht ${monatName(b.vormonat.lieferung)}`}
               </Link>
             </>
