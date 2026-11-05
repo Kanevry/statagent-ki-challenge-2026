@@ -1,0 +1,81 @@
+{
+  "text": "Am Stichtag 31.10.2025 (Oktober 2025) gab es 210.262 Beschäftigungsverhältnisse (Männer), aufgeteilt nach Bundesland in 10 Zahlen; die Zahlen sind vorläufig (Lauf 112).",
+  "belege": [
+    {
+      "uc": "uc3",
+      "quelle": "stat.stat_beschaeftigte",
+      "lieferung": "2025-10",
+      "monat": "2025-10",
+      "sql": "SELECT s.region AS code, COALESCE(sum(s.wert), 0)::bigint AS wert FROM stat.stat_beschaeftigte s WHERE s.regelsatz = 'v1' AND s.regelstand = 'c3ecc447f8384fea' AND s.zeitraum_art = 'Stichtag' AND s.variable = 'Beschaeftigungsverhaeltnisse' AND s.zeitraum_bis BETWEEN '2025-10-01'::date AND '2025-10-31'::date AND s.geschlecht = 'M' GROUP BY 1 ORDER BY 1",
+      "ref": "meta.lauf/112 regelstand c3ecc447f8384fea vorlaeufig",
+      "regelstand": "c3ecc447f8384fea",
+      "lauf": "3077fc2fe68f4a769725317cc054293c32ee07d33f904b98badb093b99b52ca2",
+      "stand": "vorlaeufig"
+    }
+  ],
+  "zahlen": [
+    {
+      "bezeichnung": "Beschäftigungsverhältnisse (Männer), Bundesland unbekannt",
+      "wert": 1010,
+      "einheit": "Anzahl",
+      "beleg": 0
+    },
+    {
+      "bezeichnung": "Beschäftigungsverhältnisse (Männer), Burgenland",
+      "wert": 5832,
+      "einheit": "Anzahl",
+      "beleg": 0
+    },
+    {
+      "bezeichnung": "Beschäftigungsverhältnisse (Männer), Kärnten",
+      "wert": 11496,
+      "einheit": "Anzahl",
+      "beleg": 0
+    },
+    {
+      "bezeichnung": "Beschäftigungsverhältnisse (Männer), Niederösterreich",
+      "wert": 36231,
+      "einheit": "Anzahl",
+      "beleg": 0
+    },
+    {
+      "bezeichnung": "Beschäftigungsverhältnisse (Männer), Oberösterreich",
+      "wert": 37596,
+      "einheit": "Anzahl",
+      "beleg": 0
+    },
+    {
+      "bezeichnung": "Beschäftigungsverhältnisse (Männer), Salzburg",
+      "wert": 13913,
+      "einheit": "Anzahl",
+      "beleg": 0
+    },
+    {
+      "bezeichnung": "Beschäftigungsverhältnisse (Männer), Steiermark",
+      "wert": 29124,
+      "einheit": "Anzahl",
+      "beleg": 0
+    },
+    {
+      "bezeichnung": "Beschäftigungsverhältnisse (Männer), Tirol",
+      "wert": 18274,
+      "einheit": "Anzahl",
+      "beleg": 0
+    },
+    {
+      "bezeichnung": "Beschäftigungsverhältnisse (Männer), Vorarlberg",
+      "wert": 8864,
+      "einheit": "Anzahl",
+      "beleg": 0
+    },
+    {
+      "bezeichnung": "Beschäftigungsverhältnisse (Männer), Wien",
+      "wert": 47922,
+      "einheit": "Anzahl",
+      "beleg": 0
+    }
+  ],
+  "uc": "uc3",
+  "modell": null,
+  "protokoll_id": null
+}
