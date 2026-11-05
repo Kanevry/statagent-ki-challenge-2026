@@ -114,6 +114,10 @@ def fragetyp(frage: str) -> str:
 # --- Bausteine ------------------------------------------------------------------------------------------------
 
 
+def _anzahl_monate(anzahl: int) -> str:
+    return "1 Monat" if anzahl == 1 else f"{anzahl} Monate"
+
+
 def _komma(wert: float) -> str:
     return f"{wert:.2f}".replace(".", ",")
 
@@ -335,7 +339,7 @@ def _bestand_antwort(
     fehlend = _fehlende_monate(von, bis, {str(s["monat"]) for s in staende})
     if fehlend:
         hinweise.append(
-            f"Für {len(fehlend)} Monate im Zeitraum gibt es noch keinen gerechneten Lauf: "
+            f"Für {_anzahl_monate(len(fehlend))} im Zeitraum gibt es noch keinen gerechneten Lauf: "
             + ", ".join(_monat_anzeige(m) for m in fehlend[:6])
             + (" und weitere" if len(fehlend) > 6 else "")
             + "."
@@ -377,11 +381,17 @@ def _text_bestand(
     monate = sorted(je_monat)
     if typ == "zeitreihe":
         erster, letzter = monate[0], monate[-1]
-        text = (
-            f"Beschäftigungsverhältnisse{zusatz} am Monatsende, {_monat_anzeige(erster)} bis "
-            f"{_monat_anzeige(letzter)} ({len(monate)} Monate): von {_deutsch(je_monat[erster])} "
-            f"auf {_deutsch(je_monat[letzter])}."
-        )
+        if erster == letzter:
+            text = (
+                f"Beschäftigungsverhältnisse{zusatz} am Monatsende, {_monat_anzeige(erster)}: "
+                f"{_deutsch(je_monat[erster])}."
+            )
+        else:
+            text = (
+                f"Beschäftigungsverhältnisse{zusatz} am Monatsende, {_monat_anzeige(erster)} bis "
+                f"{_monat_anzeige(letzter)} ({_anzahl_monate(len(monate))}): von {_deutsch(je_monat[erster])} "
+                f"auf {_deutsch(je_monat[letzter])}."
+            )
         if gruppen:
             text += f" Aufgeteilt nach {', '.join(g.name for g in gruppen)}, eine Zahl je Monat und Gruppe."
         return text
