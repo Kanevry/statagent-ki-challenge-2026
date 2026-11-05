@@ -29,7 +29,7 @@ belege: []
 
 J wird geteilt: Aus einem Abschnitt werden zwei, J und K.
 
-Wir führen beide Listen mit Gültigkeit. Alte Codes von 2003 aus früheren Meldungen zählen wir zu C, Herstellung von Waren.
+Wir führen beide Listen und wissen je Monat, welche gilt. Manche Meldungen nutzen noch Codes der Liste von 2003. Wir zählen sie zu C, Herstellung von Waren.
 
 Herkunft: Klassifikationen in stat.klass_oenace mit Gültigkeit, Regeln Q01 und R7
 
