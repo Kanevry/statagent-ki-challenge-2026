@@ -18,7 +18,8 @@ def test_inhaltsverzeichnis_mit_umbruch_ueber_zwei_seiten(ausgabe_text: str) -> 
 
 def test_artikel_ueber_zwei_seiten_ohne_kopf_fuss_und_titel(ausgabe_text: str) -> None:
     ausgabe = zerlege_ausgabe(ausgabe_text)
-    assert ausgabe.abweichungen == []
+    # der Radio-Beitrag im Fixture hat kein Transkript (`(hh:mm:ss)`) und gilt als nur_titel
+    assert ausgabe.abweichungen == [{"art": "nur_titel", "artikel_nr": 3, "toc_seite": 9}]
     erster = ausgabe.artikel[0]
     assert erster.text.endswith("Bild: Eine Apotheke in Musterdorf.")
     assert "Apothekerkammer warnt" in erster.text  # Text der zweiten Seite
@@ -37,8 +38,9 @@ def test_layout_kopien_mit_startzeile_werden_verworfen(ausgabe_text: str) -> Non
 def test_radio_ohne_sprache_und_ohne_sprecherzeilen(ausgabe_text: str) -> None:
     radio = zerlege_ausgabe(ausgabe_text).artikel[2]
     assert (radio.medium, radio.typ) == ("Radio Test - Testjournal", "Radio")
-    assert radio.text.startswith("Die Krankenkasse startet eine kostenlose Beratung")
-    assert radio.text.endswith("in allen Bezirken.")
+    # ohne Transkriptzeile fällt der ganze Rumpf weg (Vorspann, Sprecher), der Titel ist der Beleg
+    assert radio.nur_titel
+    assert radio.text == "Testjournal - Kasse startet Beratung"
 
 
 def test_autorin_wird_nie_uebernommen(ausgabe_text: str) -> None:
@@ -68,7 +70,7 @@ SPRECHER = [
 ]
 
 
-def _radioausgabe(titel: list[str], transkript: str | None = None) -> str:
+def _radioausgabe(titel: list[str], transkript: list[str] | None = None) -> str:
     fuss = "Seite {n} von {m}                                                  © APA-Comm GmbH"
     m = 2 + len(titel)
     toc = ["Pressespiegel", "", "Inhaltsverzeichnis"]
@@ -76,7 +78,7 @@ def _radioausgabe(titel: list[str], transkript: str | None = None) -> str:
         toc += [f"S. {3 + i}       {t}", "           17.02.2026, Radio Test - Testjournal"]
     seiten = ["Medienbeobachtung", "\n".join([*toc, fuss.format(n=2, m=m)])]
     for i, t in enumerate(titel):
-        koerper = [*SPRECHER, *([transkript] if transkript else [])]
+        koerper = [*SPRECHER, *(transkript or [])]
         seiten.append(
             "\n".join(
                 [
@@ -97,7 +99,7 @@ def _radioausgabe(titel: list[str], transkript: str | None = None) -> str:
 
 def test_umbrochene_sprecherzeilen_ganz_verworfen_transkript_bleibt() -> None:
     transkript = "(00:03:10) : ... die Kasse (ÖGK) startet eine Beratung"
-    ausgabe = zerlege_ausgabe(_radioausgabe(["Testjournal - Beratung startet"], transkript))
+    ausgabe = zerlege_ausgabe(_radioausgabe(["Testjournal - Beratung startet"], [transkript]))
     text = ausgabe.artikel[0].text
     for teil in (
         "Mustermann",
@@ -136,3 +138,47 @@ def test_nur_sprecher_beitraege_mit_anderem_titel_bleiben_beide(tmp_path: Path) 
     assert "nur_titel" not in artikel[0]
     for datei in (tmp_path / "aus").iterdir():
         assert "Mustermann" not in datei.read_text(encoding="utf-8")
+
+
+NAMENSTEILE = ("Mustermann", "Erika", "Musterfrau", "Beispiel", "Probe", "Anna", "Verband", "Sekunden")
+
+
+def _radiotext(rumpf: list[str]) -> str:
+    return zerlege_ausgabe(_radioausgabe(["Testjournal - Beratung startet"], rumpf)).artikel[0].text
+
+
+def test_zwei_sprecher_auf_einer_zeile_fallen_weg() -> None:
+    text = _radiotext(
+        [
+            "Musterfrau Erika (beispiel.at - Verband zur Probe zivilgesellschaftlicher Arbeit) (8 Sekunden) "
+            "Beispiel Anna (beispiel.at - Verband zur Probe",
+            "(00:01:05) : ... die Kasse startet eine Beratung",
+        ]
+    )
+    assert text == "(00:01:05) : ... die Kasse startet eine Beratung"
+    assert not any(teil in text for teil in NAMENSTEILE)
+
+
+def test_sprecher_mitten_in_der_zeile_faellt_weg() -> None:
+    text = _radiotext(
+        [
+            "Vorspann Mustermann Erika (Verband Probe und Beispiel in Musterstadt) (17 Sekunden) Rest",
+            "(00:02:00) : ... Wartezeiten sinken",
+        ]
+    )
+    assert text == "(00:02:00) : ... Wartezeiten sinken"
+    assert not any(teil in text for teil in (*NAMENSTEILE, "Musterstadt", "Vorspann", "Rest"))
+
+
+def test_transkript_mit_fortsetzungszeile_bleibt() -> None:
+    text = _radiotext(
+        [
+            "(00:03:10) : ... sich darauf, dass in den kommenden vier Jahren die Kassen",
+            "rund drei Viertel der Kosten tragen",
+            "(00:04:00) : ... der Rest fällt auf die Länder",
+        ]
+    )
+    assert "(00:03:10) : ... sich darauf, dass in den kommenden vier Jahren die Kassen" in text
+    assert "rund drei Viertel der Kosten tragen" in text
+    assert "(00:04:00) : ... der Rest fällt auf die Länder" in text
+    assert not any(teil in text for teil in NAMENSTEILE)

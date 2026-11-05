@@ -26,6 +26,7 @@ FELD_RE = re.compile(r"^(Sender|Quelle|Typ)\s{2,}(\S.*)$")
 FOLGEFELD_RE = re.compile(r"^(?:Mutation|Typ|Land|Sprache|Adresse)\s{2,}\S|^\S+$")
 GESCHUETZT = "Autor:in"
 SPRECHERZEILE_RE = re.compile(r"\(\d+ Sekunden\)$")
+TRANSKRIPT_RE = re.compile(r"^\(\d\d:\d\d:\d\d\)")
 RADIO_BEIWERK = (
     "Sendungsdatum:",
     "Sendungsbeginn:",
@@ -228,6 +229,21 @@ def _ist_beiwerk(zeile: str) -> bool:
     return zeile.startswith(RADIO_BEIWERK)
 
 
+def nur_transkript(zeilen: list[str]) -> list[str]:
+    """Rumpf eines Radio-/TV-Beitrags: nur Transkriptzeilen `(hh:mm:ss) …` samt ihren Folgezeilen.
+
+    Alles davor (Sprecherlisten, auch mehrere oder mitten in einer Zeile, Vorspann, Reste) fällt weg.
+    """
+    ergebnis: list[str] = []
+    im_transkript = False
+    for zeile in zeilen:
+        if TRANSKRIPT_RE.match(zeile):
+            im_transkript = True
+        if im_transkript:
+            ergebnis.append(zeile)
+    return ergebnis
+
+
 def _klammertiefe(zeile: str) -> int:
     return zeile.count("(") - zeile.count(")")
 
@@ -353,13 +369,16 @@ def zerlege_ausgabe(text: str) -> Ausgabe:
         if not feldblock:
             abweichung(eintrag, "feldblock_fehlt")
 
+        rundfunk = "Sender" in felder
         koerper, titel_ok = _titel_abtrennen(ohne_sprecher(koerper), eintrag.titel)
+        if rundfunk:
+            koerper = nur_transkript(koerper)
         if not titel_ok:
             abweichung(eintrag, "titel_abweichend")
         inhalt = verbinde_zeilen(koerper).strip()
         nur_titel = False
-        if not inhalt and titel_ok:
-            # Radio-Beitrag nur mit Sprecherliste: der Titel ist der ganze Beleg.
+        if not inhalt and (titel_ok or rundfunk):
+            # Radio/TV ohne Transkript: der Titel ist der ganze Beleg.
             abweichung(eintrag, "nur_titel")
             inhalt = eintrag.titel
             nur_titel = True
