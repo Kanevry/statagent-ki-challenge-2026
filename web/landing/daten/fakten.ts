@@ -46,6 +46,14 @@ export const LIEFERUNGEN: readonly Lieferung[] = [
 export const SUMME_ZEILEN = 10_152_292;
 export const ANZAHL_LIEFERUNGEN = 24;
 
+/**
+ * Aus der Fachbeschreibung der Aufgabe (svbox/uc3/Fachbeschreibung.md, Abschnitte 1 und 2):
+ * Jede Lieferung ist ein Vollabzug mit allen Beschäftigungsverhältnissen der letzten drei Monate;
+ * die Größenordnung der synthetischen Daten ist etwa ein Zehntel Österreichs.
+ */
+export const MONATE_JE_LIEFERUNG = 3;
+export const MASSSTAB_TEIL_VON_OESTERREICH = 10;
+
 /** Bundesland-Codes wie klassifikation bundesland.csv (0 = unbekannt). */
 export type BundeslandCode = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
