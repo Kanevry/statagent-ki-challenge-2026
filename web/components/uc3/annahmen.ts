@@ -9,13 +9,19 @@ import { alltag } from "./sprache";
 export type AnnahmeZeile = {
   nr: string;
   rueckfrage: string | null;
+  /** true: Es gibt eine Rückfrage, und die Fachabteilung hat sie noch nicht beantwortet. */
+  wartet: boolean;
   regelName: string | null;
   lieferungen: readonly string[] | null;
   satz: string;
 };
 
-export const SQL_ANNAHMEN =
-  "SELECT nr, rueckfrage, regel_name, lieferungen, satz FROM meta.annahme ORDER BY substr(nr, 2)::int";
+export const SQL_ANNAHMEN = [
+  "SELECT a.nr, a.rueckfrage, a.regel_name, a.lieferungen, a.satz,",
+  "       a.rueckfrage IS NOT NULL AND q.antwort IS NULL AS wartet",
+  "  FROM meta.annahme a LEFT JOIN meta.rueckfrage q ON q.nr = a.rueckfrage",
+  " ORDER BY substr(a.nr, 2)::int",
+].join("\n");
 
 /** A1 bis A13: Nummer und Kurzname wie in docs/plan/uc3/annahmen.md. */
 export const HERLEITUNG: readonly { nr: string; name: string }[] = [
@@ -42,23 +48,33 @@ export function geltungSatz(lieferungen: readonly string[] | null): string {
   return `gilt für ${namen.length > 1 ? `${namen.slice(0, -1).join(", ")} und ${letzter}` : letzter}`;
 }
 
-/** Kopfsatz der Seite aus der Zahl der Annahmen. */
-export function annahmenKopf(anzahl: number): string {
-  return anzahl === 1
-    ? "1 Annahme gilt, bis die Fachabteilung antwortet."
-    : `${anzahl} Annahmen gelten, bis die Fachabteilung antwortet.`;
+/** Kopfsatz der Seite. Nur Annahmen mit offener Rückfrage warten auf die Fachabteilung, die anderen nicht. */
+export function annahmenKopf(anzahl: number, wartend: number): string {
+  const wir = `Wir rechnen mit ${anzahl} ${anzahl === 1 ? "Annahme" : "Annahmen"}.`;
+  if (wartend === 0) return wir;
+  return `${wir} ${wartend} ${wartend === 1 ? "wartet" : "warten"} auf die Fachabteilung.`;
 }
 
 export function leseAnnahmen(optionen?: { sql?: Sql | null }): Promise<Lesung<AnnahmeZeile[]>> {
   return lies(async (sql) => {
-    const [{ da } = { da: false }] = await sql<{ da: boolean }[]>`SELECT to_regclass('meta.annahme') IS NOT NULL AS da`;
+    const [{ da } = { da: false }] = await sql<
+      { da: boolean }[]
+    >`SELECT to_regclass('meta.annahme') IS NOT NULL AND to_regclass('meta.rueckfrage') IS NOT NULL AS da`;
     if (!da) return [];
     const zeilen = await sql.unsafe<
-      { nr: string; rueckfrage: string | null; regel_name: string | null; lieferungen: string[] | null; satz: string }[]
+      {
+        nr: string;
+        rueckfrage: string | null;
+        wartet: boolean;
+        regel_name: string | null;
+        lieferungen: string[] | null;
+        satz: string;
+      }[]
     >(SQL_ANNAHMEN);
     return zeilen.map((z) => ({
       nr: z.nr,
       rueckfrage: z.rueckfrage,
+      wartet: z.wartet,
       regelName: z.regel_name,
       lieferungen: z.lieferungen,
       satz: alltag(z.satz),

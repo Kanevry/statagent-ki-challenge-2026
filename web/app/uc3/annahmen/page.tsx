@@ -18,12 +18,12 @@ export default async function AnnahmenSeite() {
     <>
       <header className="flex max-w-4xl flex-col gap-3">
         <Ueberschrift stufe={2} als="h1">
-          {zeilen.length > 0 ? annahmenKopf(zeilen.length) : "Annahmen"}
+          {zeilen.length > 0 ? annahmenKopf(zeilen.length, zeilen.filter((a) => a.wartet).length) : "Annahmen"}
         </Ueberschrift>
         {zeilen.length > 0 && (
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <Fliesstext ton="gedaempft">Jede ist als Regel umgesetzt und steht im Qualitätsbericht des Monats.</Fliesstext>
-            <BelegLink quelle="meta.annahme" sql={SQL_ANNAHMEN} />
+            <BelegLink quelle="meta.annahme, meta.rueckfrage" sql={SQL_ANNAHMEN} />
           </div>
         )}
       </header>
@@ -39,7 +39,7 @@ export default async function AnnahmenSeite() {
                 <p className="max-w-3xl font-sans text-16 text-pretty text-ink">{a.satz}</p>
                 <p className="font-sans text-14 text-slate">
                   {geltungSatz(a.lieferungen)}
-                  {a.rueckfrage ? ` (Rückfrage ${a.rueckfrage})` : ""}
+                  {a.rueckfrage ? ` (Rückfrage ${a.rueckfrage}${a.wartet ? "" : ", beantwortet"})` : ""}
                 </p>
               </div>
             </li>

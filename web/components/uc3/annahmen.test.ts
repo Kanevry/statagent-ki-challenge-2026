@@ -23,8 +23,12 @@ describe("Annahmen als Bereich", () => {
     expect(geltungSatz(["2025-05", "2026-02"])).toBe("gilt für Mai 2025 und Februar 2026");
   });
 
-  it("setzt den Kopfsatz in Einzahl und Mehrzahl", () => {
-    expect(annahmenKopf(10)).toBe("10 Annahmen gelten, bis die Fachabteilung antwortet.");
-    expect(annahmenKopf(1)).toBe("1 Annahme gilt, bis die Fachabteilung antwortet.");
+  // Fehler, den das fängt: „10 Annahmen gelten, bis die Fachabteilung antwortet“, obwohl zwei keine Rückfrage haben
+  // (Review 9b, F5 und F10).
+  it("sagt nur für Annahmen mit offener Rückfrage, dass sie warten", () => {
+    expect(annahmenKopf(10, 8)).toBe("Wir rechnen mit 10 Annahmen. 8 warten auf die Fachabteilung.");
+    expect(annahmenKopf(10, 1)).toBe("Wir rechnen mit 10 Annahmen. 1 wartet auf die Fachabteilung.");
+    expect(annahmenKopf(10, 0)).toBe("Wir rechnen mit 10 Annahmen.");
+    expect(annahmenKopf(1, 1)).toBe("Wir rechnen mit 1 Annahme. 1 wartet auf die Fachabteilung.");
   });
 });
