@@ -1,5 +1,9 @@
 # Abnahmen: Übersicht
 
+**Seit 05.11. 17:43:** Der Ablauf steht in [PROZESS.md](PROZESS.md) (Prüfsätze, Lauf bei jedem neuen main, Matrix
+je Bereich: [UC3](matrix-uc3.md), [UC1](matrix-uc1.md), [UC2](matrix-uc2.md), [Plattform](matrix-plattform.md)).
+Die Einzelprotokolle unten bleiben die lesbaren Belege für die Jury-Kriterien.
+
 Die Abnahme-Lane prüft unabhängig von den Bau-Sessions, mit dem Blick der Jury. Sie schreibt nur Protokolle
 (`docs/abnahme/`) und Skripte, die lesen und messen (`tests/abnahme/`). Befunde gehen als Kommentar an das Issue und
 mit Lane-Zuordnung an die zuständige Session; Fixes macht die Lane, der der Code gehört.

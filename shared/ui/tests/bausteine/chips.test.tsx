@@ -19,15 +19,14 @@ describe("Chips nach Pen-Frames", () => {
     expect(container.textContent).toBe("Fehler");
   });
 
-  it("Herkunft-Chip: grüne Pille mit Datenbank-Symbol 12 px, Quelle in Mono, normales Gewicht", () => {
+  it("Herkunft-Chip: ruhiger Textlink „Beleg“ mit Datenbank-Symbol 12 px, ohne Fläche und ohne Mono", () => {
     const { container } = render(<HerkunftChip sql="select 1" lieferung="2025-03" />);
     const knopf = container.querySelector("button")!;
-    expect(knopf.className).toContain("bg-gruen-bg");
-    expect(knopf.className).toContain("font-normal");
-    expect(knopf.className).not.toContain("font-semibold");
+    expect(knopf.className).not.toMatch(/bg-|rounded-full/);
+    expect(knopf.className).toContain("underline");
     const symbol = knopf.querySelector('[data-piktogramm="datenbank"]');
     expect(symbol?.getAttribute("width")).toBe("12");
     expect(symbol?.getAttribute("aria-hidden")).toBe("true");
-    expect(knopf.querySelector(".font-mono")?.textContent).toBe("roh.lieferung");
+    expect(knopf.querySelector(".font-mono")).toBeNull();
   });
 });

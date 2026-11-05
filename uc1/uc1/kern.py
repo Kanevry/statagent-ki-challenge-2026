@@ -66,8 +66,6 @@ PLAUSIBEL_BIS = date(9000, 1, 1)
 
 Verhalten = Literal["antwort", "abstinenz", "uebergabe", "rueckfrage"]
 # Empfänger der Übergabe bei Grenzantworten, wie sie die Grenztexte in daten/grenzen.yaml nennen.
-UEBERGABE_NOTFALL = "Rettung 144; Gesundheitsberatung 1450"
-UEBERGABE_GRENZE = "Ärztin oder Arzt; Gesundheitsberatung 1450; Rettung 144"
 Stil = Literal["standard", "einfach"]
 Sprache = Literal["de", "en"]
 Modus = Literal["text", "sprache"]  # sprache: ohne Analyse-Aufruf, kurzer Sprechtext (Voice, Ziel ≤ 2,0 s)
@@ -1165,9 +1163,15 @@ def _ersatz_text(traeger: Sequence[dict[str, str]], schritte: Sequence[str], spr
     return "\n".join(zeilen)
 
 
-def _abstinenz_text(traeger: Sequence[dict[str, str]], sprache: str, modell_aus: bool) -> str:
+def _abstinenz_text(
+    traeger: Sequence[dict[str, str]], sprache: str, modell_aus: bool, fachfremd: bool = False
+) -> str:
+    """Abstinenz mit Verweis. ``fachfremd``: keine Leistung erkannt und kein Sozialversicherungsbezug; dann
+    sagt der Text das ausdrücklich, statt an die Sozialversicherung zu verweisen (Held-out #39, #155)."""
     tx = texte(sprache)
     teile = [tx["modell_aus"]] if modell_aus else []
+    if fachfremd:
+        return " ".join([*teile, tx["fachfremd"]])
     teile.append(tx["abstinenz"])
     teile.append(tx["uebergabe"].format(name=traeger[0]["name"]) if traeger else tx["uebergabe_beratung"])
     teile.append(tx["ki_hinweis"])
@@ -1427,6 +1431,14 @@ def frage(
     antwort.antraege = [str(a) for lid in erkannt if (a := leistungen()[lid].get("antrag"))]
     dauer["analyse"] = _ms(t0)
 
+    # 2b. Medizinische Frage ohne erkannte Leistung und ohne Sozialversicherungsbezug: übergeben statt aus
+    # Gesetzestexten antworten (Held-out #39, #155). Mit erkannter Leistung bleibt es eine Leistungsfrage.
+    if not erkannt:
+        befund = grenze.medizinisch(text)
+        if befund is not None:
+            zustand["verlauf"] = verlauf_vorher
+            return _grenzantwort(antwort, befund, zustand, speicher, dauer, gesamt)
+
     # 3. Rückfrage, falls Pflichtangaben fehlen
     # Jedes Feld wird höchstens einmal erfragt; bleibt es offen, folgt die Antwort mit Vorbehalt.
     offen = fehlende_felder(erkannt, angaben)
@@ -1542,7 +1554,8 @@ def frage(
         antwort.verhalten = "antwort"
         antwort.naechste_schritte = schritte
     else:
-        fertig = _abstinenz_text(traeger, sprache_, modell_aus)
+        fachfremd = not erkannt and not grenze.sv_bezug(verlauf_text)
+        fertig = _abstinenz_text(traeger, sprache_, modell_aus, fachfremd=fachfremd)
         antwort.verhalten = "abstinenz"
 
     # Sprache glätten (daten/sprache.yaml), vor der Nachprüfung, damit die den Text prüft, der rausgeht.
@@ -1591,7 +1604,7 @@ def _grenzantwort(
     # Jeder Grenztext verweist an Rettung, Gesundheitsberatung bzw. Ärztin oder Arzt (daten/grenzen.yaml) und
     # zählt deshalb als Übergabe, so wie der Klassifizierer ihn liest (Review !25, #31).
     antwort.verhalten = "uebergabe"
-    antwort.uebergabe_an = UEBERGABE_NOTFALL if befund.notfall else UEBERGABE_GRENZE
+    antwort.uebergabe_an = befund.uebergabe_an()
     antwort.grenze = True
     antwort.grenze_art = befund.art
     antwort.aussagen, antwort.belege, antwort.naechste_schritte = [], [], []

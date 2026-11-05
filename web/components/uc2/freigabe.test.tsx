@@ -26,7 +26,7 @@ it("zeigt vor der Freigabe die Marke Entwurf am Ergebnis und die Freigabe-Karte 
   expect(stand.querySelector('[data-testid="uc2-entwurf"]')?.textContent).toBe("Entwurf");
   expect(stand.querySelector("h2")?.textContent).toBe("Am Ende gilt");
   expect(screen.getByTestId("uc2-freigabe").textContent).toContain(
-    "Das Ergebnis der Verhandlung wird als geprüft markiert und kommt mit deinem Namen ins Protokoll.",
+    "Mit Ihrem Namen gilt das Ergebnis als geprüft und steht im Protokoll.",
   );
   expect(screen.getByRole("button", { name: "Freigeben" })).toHaveProperty("disabled", true);
   expect(screen.queryByTestId("uc2-freigabe-vorfuehrung")).toBeNull();
@@ -119,13 +119,13 @@ it("das Begründungsfeld nimmt höchstens 500 Zeichen an", async () => {
 
 it("live: der Satz verspricht den Namen im Protokoll; in der Vorführung sagt er, dass nichts gespeichert wird", () => {
   const live = zeige("live", vi.fn());
-  expect(screen.getByTestId("uc2-freigabe").textContent).toContain("kommt mit deinem Namen ins Protokoll");
+  expect(screen.getByTestId("uc2-freigabe").textContent).toContain("steht im Protokoll");
   live.unmount();
   zeige("vorfuehrung");
   const text = screen.getByTestId("uc2-freigabe").textContent!;
-  expect(VORFUEHRUNG_SATZ).toBe("In der Vorführung wird nichts gespeichert. Im echten Betrieb kommt dein Name ins Protokoll.");
+  expect(VORFUEHRUNG_SATZ).toContain("In der Vorführung wird nichts gespeichert.");
   expect(text).toContain(VORFUEHRUNG_SATZ);
-  expect(text).not.toContain("Das Ergebnis der Verhandlung wird als geprüft markiert und kommt mit deinem Namen ins Protokoll.");
+  expect(text).not.toContain("Mit Ihrem Namen gilt das Ergebnis als geprüft und steht im Protokoll.");
 });
 
 it("öffentlicher Bericht ohne Name und Grund: „Freigegeben am <Zeit>“ bzw. „Abgelehnt am <Zeit>“", async () => {

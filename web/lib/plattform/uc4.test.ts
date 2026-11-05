@@ -66,6 +66,7 @@ describe("POST /api/uc4/frage", () => {
       cwd: "/repo",
       timeout: 180_000,
       maxBuffer: 1024 * 1024,
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -471,8 +472,10 @@ describe("POST /api/uc4/frage, Strom der Stationen", () => {
       ende(null);
     });
     const haengt = {
+      // Hängt bis zum Abbruch und endet dann ohne eine einzige Zeile (das leere yield* hält require-yield ein).
       zeilen: (async function* () {
         await new Promise<void>((los) => (weiter = los));
+        yield* [];
       })(),
       ende: new Promise<number | null>((aufloesen) => (ende = aufloesen)),
       abbrechen,
@@ -487,6 +490,12 @@ describe("POST /api/uc4/frage, Strom der Stationen", () => {
     expect((await antwort).status).toBe(502);
     expect(abbrechen).toHaveBeenCalled();
     expect((await handler(stromAnfrage({ frage: "x" }))).status).toBe(200);
+  });
+
+  it("nach der ende-Zeile meldet ein Exit ungleich 0/1 trotzdem einen Fehler (#150)", async () => {
+    const { starten } = stromAus([zeilen.start, zeilen.ende], 2);
+    const ereignisse = await lies(await frageAntwort(stromAnfrage({ frage: "x" }), optionen(starten)));
+    expect(ereignisse.map((e) => e.art)).toEqual(["start", "ende", "fehler"]);
   });
 
   it("Stufe A: --kette uc3 und kein Modell im Start", async () => {
@@ -533,6 +542,26 @@ describe("standardStromStarten mit echtem Prozess", () => {
     const { readFileSync, rmSync } = await import("node:fs");
     const enkel = Number(readFileSync(pidDatei, "utf8"));
     rmSync(pidDatei);
+    await vi.waitFor(() => expect(lebt(enkel)).toBe(false), { timeout: 3_000 });
+  });
+
+  it("ein Abbruch des Clients beendet den Ergebnis-Weg sofort samt Enkel (#150)", async () => {
+    const pidDatei = `${process.env.TMPDIR ?? "/tmp"}/uc4-abbruch-${process.pid}.pid`;
+    const steuerung = new AbortController();
+    const lauf = standardAusfuehren("sh", ["-c", `sleep 30 & echo "$!" > ${pidDatei}; wait`], {
+      cwd: ".",
+      timeout: 30_000,
+      maxBuffer: 1024,
+      signal: steuerung.signal,
+    });
+    const { existsSync, readFileSync, rmSync } = await import("node:fs");
+    await vi.waitFor(() => expect(existsSync(pidDatei) && readFileSync(pidDatei, "utf8").trim() !== "").toBe(true));
+    const enkel = Number(readFileSync(pidDatei, "utf8"));
+    rmSync(pidDatei);
+    const beginn = Date.now();
+    steuerung.abort();
+    await expect(lauf).rejects.toThrow("AbortError");
+    expect(Date.now() - beginn).toBeLessThan(5_000);
     await vi.waitFor(() => expect(lebt(enkel)).toBe(false), { timeout: 3_000 });
   });
 

@@ -188,6 +188,25 @@ _ABKUERZUNGEN = frozenset(
         "rd",
     }
 )
+#: Monatsnamen nach einer Tageszahl („31. März“): dort endet kein Satz (#150).
+_MONATE = frozenset(
+    {
+        "Januar",
+        "Jänner",
+        "Februar",
+        "Feber",
+        "März",
+        "April",
+        "Mai",
+        "Juni",
+        "Juli",
+        "August",
+        "September",
+        "Oktober",
+        "November",
+        "Dezember",
+    }
+)
 _SATZENDE = re.compile(r"[.!?]\s+(?=[A-ZÄÖÜ])")
 
 
@@ -195,16 +214,16 @@ def kern_satz(text: str, grenze: int = KERN_ZEICHEN) -> str:
     """Erster Satz der ersten Zeile, gekürzt auf ``grenze`` Zeichen.
 
     Ein Satz endet bei ``.``, ``!`` oder ``?`` vor Leerraum und Großbuchstaben, nicht nach einer Tageszahl
-    („31. März“) und nicht nach einer Abkürzung („z. B.“, „ca.“, „a. n. g.“), Review !96.
+    vor einem Monatsnamen („31. März“) und nicht nach einer Abkürzung („z. B.“, „ca.“, „a. n. g.“).
     """
     erste_zeile = text.strip().split("\n", 1)[0].strip()
     satz = erste_zeile
     for treffer in _SATZENDE.finditer(erste_zeile):
         davor = re.search(r"(\w+)$", erste_zeile[: treffer.start()])
         wort = davor.group(1) if davor else ""
-        if erste_zeile[treffer.start()] == "." and (
-            (wort.isdigit() and len(wort) <= 2) or wort.lower() in _ABKUERZUNGEN
-        ):
+        danach = erste_zeile[treffer.end() :].split(" ", 1)[0].rstrip(",.;:")
+        tageszahl = wort.isdigit() and len(wort) <= 2 and danach in _MONATE
+        if erste_zeile[treffer.start()] == "." and (tageszahl or wort.lower() in _ABKUERZUNGEN):
             continue
         satz = erste_zeile[: treffer.start() + 1]
         break

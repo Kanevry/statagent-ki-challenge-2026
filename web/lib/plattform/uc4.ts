@@ -40,7 +40,14 @@ export interface Lauf {
 export type Ausfuehren = (
   befehl: string,
   argv: readonly string[],
-  optionen: { cwd: string; timeout: number; maxBuffer: number; zusatz?: Readonly<Record<string, string>> },
+  optionen: {
+    cwd: string;
+    timeout: number;
+    maxBuffer: number;
+    zusatz?: Readonly<Record<string, string>>;
+    /** Abbruch des Clients: beendet die Prozessgruppe sofort statt erst am Timeout (#150). */
+    signal?: AbortSignal;
+  },
 ) => Promise<Lauf>;
 
 /** Nach SIGTERM an die Prozessgruppe so lange warten, dann SIGKILL. */
@@ -81,7 +88,7 @@ function starteGruppe(befehl: string, argv: readonly string[], cwd: string, zusa
   return { kind, beenden, abgebrochen: () => abgebrochen };
 }
 
-export const standardAusfuehren: Ausfuehren = (befehl, argv, { cwd, timeout, maxBuffer, zusatz = {} }) =>
+export const standardAusfuehren: Ausfuehren = (befehl, argv, { cwd, timeout, maxBuffer, zusatz = {}, signal }) =>
   new Promise((aufloesen, ablehnen) => {
     const { kind, beenden } = starteGruppe(befehl, argv, cwd, zusatz);
     const stuecke: Buffer[] = [];
@@ -98,12 +105,17 @@ export const standardAusfuehren: Ausfuehren = (befehl, argv, { cwd, timeout, max
       else stuecke.push(stueck);
     });
     const uhr = setTimeout(() => abbruch("TimeoutError"), timeout);
+    const beiAbbruch = () => abbruch("AbortError");
+    if (signal?.aborted) beiAbbruch();
+    else signal?.addEventListener("abort", beiAbbruch, { once: true });
     kind.once("error", (fehler) => {
       clearTimeout(uhr);
+      signal?.removeEventListener("abort", beiAbbruch);
       ablehnen(fehler);
     });
     kind.once("close", (code) => {
       clearTimeout(uhr);
+      signal?.removeEventListener("abort", beiAbbruch);
       // Regulärer Exit ≠ 0 (z. B. 1 = keine Antwort): der Aufrufer entscheidet. Timeout, maxBuffer und ein Ende
       // durch Signal gelten als Fehler.
       if (grund) ablehnen(grund);
@@ -429,8 +441,9 @@ export function erstelleFrageAntwort({
         }
         if (ereignis === null) {
           const code = await lauf.ende;
-          // Ohne „ende“-Zeile bliebe die Seite auf „läuft“, auch bei Exit 0 oder 1 (Review !96).
-          if (!endeGesehen) {
+          // Ohne „ende“-Zeile bliebe die Seite auf „läuft“, auch bei Exit 0 oder 1 (Review !96). Nach „ende“ zählt
+          // trotzdem der Exit-Code: ein Absturz beim Aufräumen oder ein Signal ist ein Fehler (#150).
+          if (!endeGesehen || (code !== 0 && code !== 1)) {
             console.warn(`[uc4/frage] Strom endet ohne Abschluss (Exit ${code ?? "abgebrochen"})`);
             const meldung =
               code === null ? "Die Kette hat nicht rechtzeitig geantwortet." : "Die Kette ist mit einem Fehler abgebrochen.";
@@ -453,11 +466,11 @@ export function erstelleFrageAntwort({
     });
   }
 
-  async function fuehreAus(frage: string, gewaehlt: Modellwahl | undefined): Promise<Response> {
+  async function fuehreAus(frage: string, gewaehlt: Modellwahl | undefined, signal: AbortSignal): Promise<Response> {
     const { argv, zusatz } = laufParameter(frage, gewaehlt);
     let lauf: Lauf;
     try {
-      lauf = await ausfuehren("uv", argv, { cwd: wurzel(), timeout: TIMEOUT_MS, maxBuffer: MAX_BUFFER, zusatz });
+      lauf = await ausfuehren("uv", argv, { cwd: wurzel(), timeout: TIMEOUT_MS, maxBuffer: MAX_BUFFER, zusatz, signal });
     } catch (grund) {
       // Nur die Art des Fehlers loggen: stderr und Meldung können Pfade, Umgebungswerte oder die Frage enthalten.
       console.warn(`[uc4/frage] Router nicht erreichbar (${(grund as Error).name ?? "Fehler"})`);
@@ -516,7 +529,7 @@ export function erstelleFrageAntwort({
       }
     }
     try {
-      return await fuehreAus(eingabe.frage, eingabe.modell);
+      return await fuehreAus(eingabe.frage, eingabe.modell, anfrage.signal);
     } finally {
       offen -= 1;
     }
