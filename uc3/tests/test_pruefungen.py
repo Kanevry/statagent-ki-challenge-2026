@@ -2,7 +2,7 @@
 
 (a) Fixture-Lieferungen (CI): Treffer der Fallen aus test_lauf_fixture (Volldublette 1005, DK → C 1008,
     leer → UNB/0 1007, Alter 153 Jahre 1011, Spaltentausch 2024-10, Erstlieferung 2024-08).
-(b) `-m daten`: gegen die Datenbank mit allen 24 Lieferungen (UC3_DATEN_URL, Standard: Tunnel auf localhost:15433), in einer
+(b) `-m daten`: gegen die Datenbank mit allen 24 Lieferungen (UC3_DATABASE_URL wie `uc3 lauf`; UC3_DATEN_URL überschreibt), in einer
     Transaktion, die am Ende zurückgerollt wird. Soll-Zahlen aus der unabhängigen Gegenrechnung.
 """
 
@@ -16,11 +16,14 @@ from pathlib import Path
 import psycopg
 import pytest
 
+from statagent import konfig
 from statagent.db import Verbindung, verbinden
 from statagent.regeln import Regel, RegelFehler, regeln_laden
 
 DATEI_120 = Path(__file__).resolve().parents[1] / "db" / "120_pruefregeln_v1.sql"
-DATEN_URL = os.environ.get("UC3_DATEN_URL", "postgresql://statistik:statistik@localhost:15433/statistik")
+# Dieselbe Datenbank wie die CLI (UC3_DATABASE_URL, sonst der Standard aus konfig); kein fester Tunnel-Port, sonst
+# überspringt `-m daten` auf einem frischen Klon still vier Tests (Jury-Probe 4d, H4).
+DATEN_URL = os.environ.get("UC3_DATEN_URL") or konfig.datenbank_url()
 
 
 def _treffer(conn: Verbindung, lauf_id: int) -> dict[str, dict[str, object]]:

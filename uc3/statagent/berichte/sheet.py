@@ -230,9 +230,14 @@ def sheet_schreiben(
     """
     vorlage = vorlage or konfig.vorlagen() / VORLAGE_DATEI
     ziel = ziel or konfig.abgabe() / f"aggregationen_{regelsatz}.xlsx"
-    wb = load_workbook(vorlage)
-
     monate = _gerechnete_monate(conn, regelsatz)
+    if not monate:
+        # Ohne fertigen Lauf entstünde ein Sheet mit leeren Spalten über der Abgabe (Jury-Probe 4d, B2).
+        raise ValueError(
+            f"Regelsatz {regelsatz} hat keinen fertigen Lauf; Sheet nicht geschrieben"
+            f" (zuerst uv run uc3 lauf --alle --regelsatz {regelsatz})"
+        )
+    wb = load_workbook(vorlage)
     unbekannt = _unbekannt_codes(conn, regelsatz)
     qual_kategorie = {
         str(z["code"]): str(z["beschaeftigungskategorie"])
