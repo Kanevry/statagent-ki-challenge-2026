@@ -202,8 +202,8 @@ print("aufnahme_nach_umbau", nach_umbau)
 erwartet = ['^pngs 12$', '^namen_ok 1$', '^lesbar_ok 12$', '^breit_ok 12$', '^manifest_ok 12$', '^aufnahme_nach_umbau 12$']
 deckung = "voll"
 zeitlimit = 60
-quelle = "Issue #88, Kriterium 88-1 (Wortlaut: SC01 bis SC12 = 9 Bilder, mindestens 1920 Pixel breit, Manifest mit Name, Breite, Höhe, SHA-256, Begründung SC03 bis SC05 in quellen.json, Aufnahme nach dem Umbau der UI-Regie)"
-befund = "docs/praesentation/screens/ enthält nicht genau die 12 lesbaren PNGs SC01 bis SC12 mit mindestens 1920 Pixel Breite, oder das Manifest nennt Breite, Höhe und SHA-256 nicht für alle 9, oder ein Bild ist vor dem Umbau der UI-Regie aufgenommen, oder der Entfall von SC03 bis SC05 ist nicht in quellen.json begründet."
+quelle = "Issue #88, Kriterium 88-1 (Wortlaut: SC01 bis SC12 = 12 Bilder, mindestens 1920 Pixel breit, Manifest mit Name, Breite, Höhe, SHA-256, Aufnahme nach dem Umbau der UI-Regie)"
+befund = "docs/praesentation/screens/ enthält nicht genau die 12 lesbaren PNGs SC01 bis SC12 mit mindestens 1920 Pixel Breite, oder das Manifest nennt Breite, Höhe und SHA-256 nicht für alle 12, oder ein Bild ist vor dem Umbau der UI-Regie aufgenommen."
 grund = "12 lesbare PNGs SC01 bis SC12, alle mindestens 1920 Pixel breit, Manifest stimmt für 12 von 12, alle nach dem Umbau der UI-Regie aufgenommen, Entfall von SC03 bis SC05 begründet."
 gegenprobe = "test -e docs/praesentation/screens/SC03.png"
 
