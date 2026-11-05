@@ -34,8 +34,9 @@ export default tseslint.config(
       ...nextPlugin.configs["core-web-vitals"].rules,
       // Schmale Leerzeichen in Texten sind gewollt (Zahl und Einheit bleiben zusammen).
       "no-irregular-whitespace": ["error", { skipStrings: true, skipTemplates: true, skipJSXText: true }],
-      // Unterstrich markiert absichtlich ungenutzte Parameter (Verträge mit fester Signatur).
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      // Unterstrich markiert absichtlich ungenutzte Parameter (Verträge mit fester Signatur). Nur Warnung: ein
+      // ungenutzter Import ist kein Fehler im Lauf und soll am Abgabetag keine fremde Lane sperren (#135).
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
     },
   },
 );
