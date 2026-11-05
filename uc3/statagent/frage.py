@@ -160,17 +160,19 @@ ALTER_GRUND = (
     "einem Alter oder einer Spanne, zum Beispiel „Beschäftigte unter 25 Jahren im Juli 2026“."
 )
 DURCHGEHEND_GRUND = f"Wie lange jemand im Monat beschäftigt war, wertet StatAgent nicht aus. {KANN}"
+DAUER_GRUND = f"Wie lange ein Beschäftigungsverhältnis schon besteht, wertet StatAgent nicht aus. {KANN}"
 #: Mehrere, unmögliche oder nicht eindeutige Altersangaben: hier geht es nicht um das Durchschnittsalter.
 ALTER_UNKLAR = (
-    "Diese Altersangabe kann StatAgent nicht auswerten. Es gibt Zahlen zu einem Alter oder einer Spanne, "
-    "zum Beispiel „Beschäftigte unter 25 Jahren im Juli 2026“."
+    "Diese Altersangabe kann StatAgent nicht auswerten. Fragen Sie nach einem Alter oder einer Spanne in Jahren, "
+    "zum Beispiel „Beschäftigte ab 50 Jahren im Juli 2026“."
 )
 #: Eine Altersgrenze ohne „Jahre“. Nicht gemeint sind Mengen und Prozent („über 50 Prozent“, „über 20.000“) und Daten
 #: („bis 31. März“, „bis 12/2025“, „bis 12 2025“).
 _ALTER_GRENZE_MUSTER = (
     r"\b(?:unter|über|ueber|ab|bis|zwischen)[\s-]+\d{2}(?![./,-]?\d)(?!\s+\d{4})"
     r"(?!\.?\s*(?:jän|jan|feb|mär|mae|apr|mai|jun|jul|aug|sep|okt|nov|dez))"
-    r"(?!\s*(?:prozent|%|beschäftig|personen|leute|menschen|verhältnis|jobs?\b|stellen\b|tausend|tsd))"
+    r"(?!\s*(?:prozent|%|beschäftig|personen|leute|menschen|verhältnis|mitarbeit|arbeitnehm|dienstnehm|betrieb"
+    r"|jobs?\b|stellen\b|tausend|tsd))"
 )
 _ALTER_GRENZE = re.compile(_ALTER_GRENZE_MUSTER)
 _ALTER_FACHLICH_NICHT = re.compile(r"durchschnittsalter|\bwie alt\b|jahrgang|jahrgänge|geburtsjahr")
@@ -190,7 +192,7 @@ NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
             r"|\b(?:über|ueber|unter|ab|bis|länger als|mehr als|weniger als)\s+\d{1,3}\s*(?:jahre|jahren|monate|monaten)\s+"
             r"(?:beschäftigt|angestellt|tätig|im job|im betrieb|dabei|zugehörigkeit)"
         ),
-        "Wie lange ein Beschäftigungsverhältnis schon besteht, wertet StatAgent bei Datenanfragen nicht aus.",
+        DAUER_GRUND,
     ),
     (
         re.compile(
@@ -407,6 +409,8 @@ def nicht_auswertbar(frage: str, mittel: bool = False) -> str | None:
             if grund is ALTER_GRUND:
                 # Das Beispiel der Alters-Absage sagt schon, was geht.
                 return ALTER_GRUND if _ALTER_FACHLICH_NICHT.search(text) else ALTER_UNKLAR
+            if grund is DAUER_GRUND:
+                return grund  # sagt schon selbst, was geht
             return f"{grund} Darum gibt es hier keine Zahl. {KANN}"
     return None
 
@@ -636,7 +640,13 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
     )
     if "anteil" in frage.lower():
         return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
-    beide = _V1_WORT.search(frage) is not None or _V2_VERNEINT.search(frage) is not None
+    if _V2_VERNEINT.search(frage):
+        text = (
+            "Ohne Änderungsaufträge gilt Regelsatz v1. Fragen Sie ohne diese Angabe, "
+            "zum Beispiel „Beschäftigte in Wien im Juli 2026“."
+        )
+        return _antwort(typ, text, hinweise=[text])
+    beide = _V1_WORT.search(frage) is not None
     frage = _V1_WORT.sub(" ", _V2_ANGABE.sub(" ", _V2_UND_GLIEDERUNG.sub("nach ", frage)))
     letzter = _letzter_monat(conn, regelsatz) or LETZTE_LIEFERUNG
     try:

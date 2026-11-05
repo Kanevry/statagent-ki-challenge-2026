@@ -184,7 +184,7 @@ def test_gliederung_neben_v2_bleibt(mit_v2: Verbindung) -> None:
 )
 def test_verneinung_von_v2_gibt_keine_v2_zahl(mit_v2: Verbindung, frage: str) -> None:
     daten = antwort_frage(mit_v2, frage)
-    assert daten["zahlen"] == [] and "nur einen Regelsatz" in daten["text"]
+    assert daten["zahlen"] == [] and daten["text"].startswith("Ohne Änderungsaufträge gilt Regelsatz v1.")
 
 
 # Vorab-Lesung Bank !230, Punkt 2: Österreichisch heißt es „das ganze Monat“.

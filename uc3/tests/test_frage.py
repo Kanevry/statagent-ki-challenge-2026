@@ -1063,6 +1063,35 @@ def test_auffangregel_laesst_daten_und_mengen(frage: str) -> None:
     assert nicht_auswertbar(frage) is None
 
 
+# ui-regie: Mengen mit diesen Wörtern bekamen sonst den Alterssatz.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Gab es über 50 Mitarbeiter in Wien im August 2024?",
+        "Gab es über 50 Arbeitnehmer in Wien im August 2024?",
+        "Gab es über 50 Dienstnehmer in Wien im August 2024?",
+        "Gab es über 50 Betriebe in Wien im August 2024?",
+    ],
+)
+def test_mengen_bekommen_keinen_alterssatz(gerechnet: Verbindung, frage: str) -> None:
+    assert antwort_frage(gerechnet, frage)["text"] != ALTER_UNKLAR
+
+
+# ui-regie: Die Absage nennt, was geht, ohne die alten Formeln.
+def test_dauer_absage_wortlaut(gerechnet: Verbindung) -> None:
+    text = antwort_frage(gerechnet, "Beschäftigte ab 2 Jahren Dauer im August 2024")["text"]
+    assert text.startswith(
+        "Wie lange ein Beschäftigungsverhältnis schon besteht, wertet StatAgent nicht aus. "
+    )
+    assert "bei Datenanfragen" not in text and "Darum gibt es" not in text and "StatAgent beantwortet" in text
+
+
+# Der Beispielsatz der Alters-Absage muss selbst eine Zahl geben.
+def test_beispiel_der_alters_absage_rechnet(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, "Beschäftigte ab 50 Jahren im August 2024")
+    assert [z["wert"] for z in daten["zahlen"]] == [_im_alter(gerechnet, "2024-08", 50, 130)]
+
+
 # Fix-Liste !227, Punkt 6: Fluktuation nach Altersgruppe gab still die Tabelle je Branche.
 def test_fluktuation_nach_altersgruppe_sagt_ab(gerechnet: Verbindung) -> None:
     daten = antwort_frage(gerechnet, "Fluktuation nach Altersgruppe im Oktober 2024")
