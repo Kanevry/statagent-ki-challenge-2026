@@ -11,7 +11,7 @@ Folge: Erst die Präsentation (Szene 1 bis 10, 0:00–5:05), dann die Demo (5:05
 | Zeit | Schritt | Dauer |
 |---|---|---|
 | 5:05–6:15 | D1 Lauf und Qualitätsbericht (2025-10 angehalten, alternativ 2025-03) | 1:10 |
-| 6:15–7:45 | D2 Änderung per Sprache: Rückblick auf die drei Aufträge, dann live per Diktat | 1:30 |
+| 6:15–7:45 | D2 Änderung per Sprache: Rückblick auf die drei Aufträge, dann die Änderung der Jury live | 1:30 |
 | 7:45–9:00 | D3 Datenanfragen der Jury-Aufgabe | 1:15 |
 | 9:00–9:30 | D4 Gemeinsamer Einstieg: die Wien-Frage in `/uc4` | 0:30 |
 | 9:30 | Ende der Demo, danach Fragen der Jury | |
@@ -49,7 +49,7 @@ Standard ist Oktober 2025, weil Szene 3 diesen Monat zeigt. Alternative ist Mär
 
 ### D2 Änderung per Sprache (6:15–7:45)
 
-Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). Die Anweisung spricht Bernhard per macOS-Diktat ins Eingabefeld des Agenten, er tippt sie nicht (Owner-Wort 05.11.2026).
+Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „Per Sprache“ heißt: Die Anweisung ist ein Satz in Alltagssprache, den Bernhard ins Terminal tippt (Owner-Wort 05.11.2026 19:3x).
 
 **Datenbank:** Die ganze Demo läuft gegen die Kopie `statistik_vorfuehrung` (`UC3_DATABASE_URL` auf die Kopie), nie gegen `statistik`. Die Freigabe schreibt einen Commit; deshalb läuft D2 auf einem eigenen Demo-Branch im Checkout des Vortragsrechners, der Commit wird nie gepusht. Geprobt wird vorher nur auf `statistik_probe`.
 
@@ -61,28 +61,25 @@ Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). Die
 - Sagt Bernhard: „Die drei Aufträge der Aufgabe habe ich der Maschine in Sätzen gegeben. Sie schrieb Vorschläge, wirksam wurden sie erst mit meinem Namen.“
 - Sagt Bernhard (bei 1): „Der Gesamtbestand bleibt bei 392.236. Die Kategorien verschieben sich, zum Beispiel Angestellte von 0 auf 236.961.“
 
-**Teil 2, live per Sprache (6:50–7:45), nur wenn !50 beim Freeze auf main ist:** Laut Aufgabenstellung gibt die Jury eine kleine, unbekannte Änderung vor. Szene 10 endet mit „Nennen Sie mir eine Regel, die ich jetzt ändern soll.“ Bernhard wiederholt den Wunsch der Jury in einem Satz und diktiert diesen Satz. Die fünf geübten Änderungen im Fragenkatalog Teil B decken die naheliegenden Wünsche ab (Altersgrenze, Geburtsmonat 13, Schwelle Bestandsrückgang, Spaltentausch, Gegenprobe). Nennt die Jury nichts, nimmt Bernhard B2.
+**Teil 2, live per Sprache (6:50–7:45), nur wenn !50 beim Freeze auf main ist:** Laut Aufgabenstellung gibt die Jury eine kleine, unbekannte Änderung vor. Szene 10 endet mit „Nennen Sie mir eine Regel, die ich jetzt ändern soll.“ Bernhard wiederholt den Wunsch der Jury in einem Satz und tippt diesen Satz. Die fünf geübten Änderungen im Fragenkatalog Teil B decken die naheliegenden Wünsche ab (Altersgrenze, Geburtsmonat 13, Schwelle Bestandsrückgang, Spaltentausch, Gegenprobe). Nennt die Jury nichts, nimmt Bernhard B2.
 
-1. Im Terminal tippen: `uv run uc3 agent "` (mit öffnendem Anführungszeichen).
-2. Zweimal Fn drücken (macOS-Diktat), den Satz deutlich sprechen und dabei den Zielwert nennen. Ersatz B2: „Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre, Jahresdifferenz, statt mit dem 1. Juli.“ Einmal Fn drücken, das Diktat endet.
-3. Weitertippen: `" --probe JJJJ-MM` (für B2 `2025-03`) und Enter. Der Agent schreibt einen Vorschlag.
-4. `uv run uc3 vorschlag zeigen <id>`: Regel-Unterschied und Zahlen vorher und nachher. Bei B2: `R5_alter`, `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`.
-5. `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`, dann `uv run uc3 protokoll --zeigen`.
+1. Im Terminal tippen: `uv run uc3 agent "<Satz>" --probe JJJJ-MM` und Enter. Im Satz den Zielwert nennen. Ersatz B2: `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2025-03`. Der Agent schreibt einen Vorschlag.
+2. `uv run uc3 vorschlag zeigen <id>`: Regel-Unterschied und Zahlen vorher und nachher. Bei B2: `R5_alter`, `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`.
+3. `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`, dann `uv run uc3 protokoll --zeigen`.
 
-- Sagt Bernhard (bei 2): „Ich sage dem Agenten, was er ändern soll.“
-- Sagt Bernhard (bei 4): „Hier ist, was sich ändern würde, vorher und nachher. Wirksam wird es erst mit meinem Namen.“ Bei B2 zusätzlich: „Der Gesamtbestand bleibt gleich, im März 2025 verschieben sich Altersgruppen.“
-- Rückfall Mikro: Erkennt das Diktat nichts oder streikt das Mikro, tippt Bernhard den Satz aus Fragenkatalog B2. Er sagt: „Das Mikro macht Pause, ich tippe denselben Satz.“
+- Sagt Bernhard (bei 1): „Ich sage dem Agenten in einem Satz, was er ändern soll.“
+- Sagt Bernhard (bei 2): „Hier ist, was sich ändern würde, vorher und nachher. Wirksam wird es erst mit meinem Namen.“ Bei B2 zusätzlich: „Der Gesamtbestand bleibt gleich, im März 2025 verschieben sich Altersgruppen.“
 - Rückfall Agent: Kommt „Kein Vorschlag“, sendet Bernhard den Satz einmal neu und nennt den Zielwert ausdrücklich. Kommt er wieder, sagt er „Das zeige ich Ihnen mit einer geübten Änderung“ und nimmt B2. Scheitert auch das, bleibt es beim Rückblick aus Teil 1.
 - Will die Jury etwas, das eine neue Regel oder Code braucht (keine Änderung eines Parameters), sagt Bernhard: „Das wäre eine neue Regel. Der Agent schlägt sie vor, freigeben würde ich sie erst nach einer Probe.“ und nimmt B2.
 - Ist !50 beim Freeze nicht auf main, entfällt Teil 2. Nennt die Jury eine Regel, sagt Bernhard: „Das zeige ich Ihnen an einer Änderung, die ich heute schon freigegeben habe“ und bleibt bei Teil 1.
 
 **Jury muss sehen:**
-- Die Anweisung entsteht gesprochen im Eingabefeld.
+- Die Anweisung als Satz in Alltagssprache.
 - Regel-Diff und Zahlen vorher und nachher (F19 für Auftrag 1, live für B2).
 - Freigabe mit Vor- und Nachname, „Team“ wird abgelehnt (`shared/py/plattform/freigabe.py`, `pruefe_name`).
 - Eintrag im Protokoll (F26).
 
-**Stand der Proben:** 05.11.2026 17:56 bis 17:58 auf main 321a7176: B1, B2, B3 ohne Vorschlag oder abgebrochen. 18:20 bis 18:25 mit dem Code von !50: B2 dreimal von drei gültig, getippt. Das Diktat ist noch nicht geprobt; das geschieht in der Probe Fr 06:00 am Vortragsrechner.
+**Stand der Proben:** 05.11.2026 17:56 bis 17:58 auf main 321a7176: B1, B2, B3 ohne Vorschlag oder abgebrochen. 18:20 bis 18:25 mit dem Code von !50: B2 dreimal von drei gültig.
 
 - Nie `freigabe` üben: Es committet ins Repo, einen Reset gibt es nicht. Proben nur gegen `statistik_probe`.
 - Entscheid in `probe.md` (Fr 06:45): Teil 1 allein oder Teil 1 und Teil 2.
@@ -177,7 +174,6 @@ Jeder Punkt wird abgehakt, sobald er geprüft ist. Uhrzeit nur aus der Uhr (`TZ=
 - [ ] D3: Die acht geprüften Fragen auf `/uc3/fragen` und mit `uv run uc3 frage "…"` geprobt, jede Zahl gegen die Sollzahl der Tabelle. Folge-MR von bb auf main? Wenn nein, keine freien Fragen. SQL A1 bis A3 als Rückfall bereit, `<regelstand>` eingesetzt.
 - [ ] D4: Sollwert 7.498 (F18) gegen die Abfrage im Belegregister geprüft. Testmodus-Ansage bereit.
 - [ ] D2: `uv run uc3 vorschlag zeigen 24` und `uv run uc3 protokoll --zeigen` laufen auf dem Vortragsrechner. B2 nur, wenn es nach dem Fix der UC3-Lane dreimal gegen `statistik_probe` geklappt hat. Nie `freigabe` geübt.
-- [ ] Diktat: macOS-Diktat an, Kurzbefehl zweimal Fn, Sprache Deutsch, Mikrofon im Raum getestet. Ein Probesatz ins Terminal diktiert.
 - [ ] Datenbank: `UC3_DATABASE_URL` zeigt auf `statistik_vorfuehrung`, nicht auf `statistik`. Prüfung ohne Wert: Datenbankname im Kopf der App oder `uv run uc3 laeufe` liefert die 24 Läufe der Kopie. Checkout steht auf dem Demo-Branch.
 - [ ] Protokolleintrag der Freigabe von Auftrag 1 (05.11.2026 16:54) gefunden, Fenster für den Rückblick bereit.
 - [ ] Entscheid D4 um 06:45 getroffen und in `probe.md` eingetragen.

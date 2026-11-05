@@ -358,11 +358,12 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C14 Was löst die Lösung nicht?
 
-**Kurzantwort:** Wir nennen vier Grenzen offen.
+**Kurzantwort:** Wir nennen fünf Grenzen offen.
 Erstens sind die Daten synthetisch.
 Zweitens hängt das Alter bei Geburtsmonat 13 vor Juli von der Antwort der Fachabteilung auf Rückfrage R1 ab (F4).
-Drittens sind `uv run uc3 frage` und `klass` noch nicht fertig (#74, #75). Datenanfragen laufen bis dahin als SQL aus diesem Katalog.
-Viertens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parameter und lässt sich ändern (F5).
+Drittens sind die Pensionsmeldungen der Träger nicht eingelesen.
+Viertens zählen wir auf ÖNACE-Abschnitt und Bundesland, nicht bis zum 5-Steller und nicht nach Bezirk oder Gemeinde. Die Tabelle für weitere Ebenen ist angelegt.
+Fünftens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parameter und lässt sich ändern (F5).
 
 **Antwortweg:** `uc3/README.md`, Abschnitt Grenzen, und Rückfrage R1 zeigen.
 
