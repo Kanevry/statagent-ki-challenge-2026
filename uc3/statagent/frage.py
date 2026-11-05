@@ -29,14 +29,20 @@ from statagent.uc4 import (
     _OENACE_CODE,
     _ZAHL_MONAT,
     MERKMALE,
-    MONATSNAMEN,
     Merkmal,
     _codes,
     _deutsch,
     _gliederung,
     _monat_anzeige,
 )
-from statagent.zeitraum import KEIN_JAHR, tag_hinweis, umschreiben, unklar, zeitraum_anzeige
+from statagent.zeitraum import (
+    KEIN_JAHR,
+    MONATSNAMEN,
+    tag_hinweis,
+    umschreiben,
+    unklar,
+    zeitraum_anzeige,
+)
 
 UC = "uc3"
 QUELLE = "stat.stat_beschaeftigte"
@@ -259,9 +265,9 @@ def _normalisieren(frage: str, letzter: str) -> tuple[str, list[str], bool]:
     """
     frage, notizen, mittel = umschreiben(frage, letzter)
     if _LETZTES_JAHR.search(frage):
-        jahr = str(int(LETZTE_LIEFERUNG[:4]) - 1)  # das Jahr vor der letzten Lieferung der Aufgabe
-        frage = _LETZTES_JAHR.sub(f" {jahr} ", frage)
-        notizen.append(f"„Letztes Jahr“ heißt hier {jahr}.")
+        vorjahr = str(int(LETZTE_LIEFERUNG[:4]) - 1)  # das Jahr vor der letzten Lieferung der Aufgabe
+        frage = _LETZTES_JAHR.sub(f" {vorjahr} ", frage)
+        notizen.append(f"„Letztes Jahr“ heißt hier {vorjahr}.")
     jahr = jahr_ohne_monat(frage)
     if mittel and jahr is not None and not monate_lesen(frage):
         frage = re.sub(rf"(?<!\d){jahr}(?!\d)", f"Jänner {jahr} bis Dezember {jahr}", frage, count=1)
