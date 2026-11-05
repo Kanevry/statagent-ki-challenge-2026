@@ -18,7 +18,12 @@ import pytest
 from plattform.freigabe import freigeben as plattform_freigeben
 
 from statagent.agenten.anwenden import ablehnen_ausfuehren, freigabe_ausfuehren
-from statagent.agenten.koordinator import agent_ausfuehren, produktions_regelsatz, ziel_bestimmen
+from statagent.agenten.koordinator import (
+    agent_ausfuehren,
+    produktions_regelsatz,
+    ruecknahme_gemeint,
+    ziel_bestimmen,
+)
 from statagent.agenten.regelaenderung import regelsatz_sicherstellen
 from statagent.agenten.vorschlag import vorschlag_lesen, vorschlag_schema_einrichten
 from statagent.db import Verbindung
@@ -243,3 +248,32 @@ def test_ruecknahme_nur_vom_stand_der_den_vorschlag_enthaelt(live_conn: Verbindu
     zurueck = SequenzModell({"agent.koordinator": [{"rolle": "datenmanagement", "ruecknahme_von": 999}]})
     erg = agent_ausfuehren(live_conn, "Nimm Vorschlag 999 zurück", complete=zurueck)
     assert erg.vorschlag_id is None and erg.abgelehnt is not None and "nicht freigegeben" in erg.abgelehnt
+
+
+def test_widerspruch_zu_frueherer_regel_ist_keine_ruecknahme(live_conn: Verbindung) -> None:
+    # Fängt: „nicht mehr das ganze Monat, sondern am 15.“ las der Koordinator als Rücknahme von Auftrag 2 und
+    # stellte den Monatsletzten wieder her (Live-Probe 05.11.). Ohne Rücknahme-Wort gilt ruecknahme_von nicht.
+    stichtag = _aendern("R2_R4_stichtag_eigene_lieferung", {"von": "tag:15", "bis": "tag:15"})
+    modell = SequenzModell(
+        {
+            "agent.koordinator": [{"rolle": "datenmanagement", "auftrag": "x", "ruecknahme_von": 1}],
+            "agent.datenmanagement": [stichtag],
+        }
+    )
+    erg = agent_ausfuehren(live_conn, "Nicht mehr der Monatsletzte, sondern der 15. zählt.", complete=modell)
+    assert erg.vorschlag_id is not None, erg.abgelehnt
+    assert vorschlag_lesen(live_conn, erg.vorschlag_id).aenderungen[0]["parameter_neu"]["von"] == "tag:15"
+
+
+@pytest.mark.parametrize(
+    ("anweisung", "gemeint"),
+    [
+        ("Nimm Vorschlag 41 zurück", True),
+        ("Mach die letzte Änderung rückgängig", True),
+        ("Bitte wieder wie vorher zählen", True),
+        ("Ab jetzt am 15. statt über das ganze Monat", False),
+        ("Beamte nicht mehr zählen", False),
+    ],
+)
+def test_ruecknahme_nur_bei_ausdruecklichem_wort(anweisung: str, gemeint: bool) -> None:
+    assert ruecknahme_gemeint(anweisung) is gemeint

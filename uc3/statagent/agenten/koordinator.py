@@ -813,6 +813,21 @@ def ruecknahme_pruefen(conn: Verbindung, vorschlag_id: int, basis: str) -> Gepru
     )
 
 
+#: Woran der Code erkennt, dass die Anweisung ausdrücklich zurücknehmen will. Ohne eines dieser Wörter ist
+#: ``ruecknahme_von`` des Koordinators wirkungslos (Live-Probe 05.11.: „nicht mehr das ganze Monat, sondern am
+#: 15.“ wurde als Rücknahme von Auftrag 2 gelesen und stellte den Monatsletzten wieder her).
+_RUECKNAHME_WORT = re.compile(
+    r"zur(?:ü|ue)ck|r(?:ü|ue)ckg(?:ä|ae)ngig|r(?:ü|ue)cknahme|widerruf|wiederherstell|wie (?:es )?vorher|"
+    r"aufheb|storn",
+    re.IGNORECASE,
+)
+
+
+def ruecknahme_gemeint(anweisung: str) -> bool:
+    """True, wenn die Anweisung eine Rücknahme ausdrücklich verlangt (zurücknehmen, rückgängig, wie vorher …)."""
+    return bool(_RUECKNAHME_WORT.search(anweisung))
+
+
 #: Wie oft eine Rolle einen vom Programm abgelehnten Vorschlag korrigieren darf (Reparaturrunde).
 REPARATURRUNDEN = 2
 
@@ -868,7 +883,7 @@ def agent_ausfuehren(
         return ergebnis
 
     rolle = ROLLEN[koordination.rolle]
-    if koordination.ruecknahme_von is not None:
+    if koordination.ruecknahme_von is not None and ruecknahme_gemeint(anweisung):
         ergebnis.rolle = rolle.name
         try:
             g = ruecknahme_pruefen(conn, koordination.ruecknahme_von, basis)
