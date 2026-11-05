@@ -80,10 +80,14 @@ Daten an Vapi gehen. Ohne öffentliche Adresse (`PUBLIC_URL` leer) erreicht Vapi
 
 ### Qualitätssicherung
 
-Jeder Merge Request durchläuft die CI: Secret-Scan, ruff, mypy, pytest, TypeScript-Prüfung, Vitest, ein
-Produktions-Build der App und ein **Anti-Schablonen-Gate**. Das Gate misst jede Seite auf Desktop und Mobil
-gegen zwölf Muster generischer, maschinell zusammengesetzter Oberflächen und verlangt 0 Treffer
-(`docs/design.md`).
+Jeder Merge Request durchläuft die CI: Secret-Scan, ruff, mypy, pytest, TypeScript-Prüfung, ESLint, Vitest, ein
+Produktions-Build der App und Browser-Tests mit Playwright auf Desktop und Mobil. Dazu gehören:
+
+- ein **Anti-Schablonen-Gate**: Es misst jede Seite gegen zwölf Muster generischer, maschinell zusammengesetzter
+  Oberflächen und verlangt 0 Treffer (`docs/design.md`).
+- eine **Prüfung der Barrierefreiheit** mit axe (WCAG 2.1 AA): Schwere Verstöße lassen die Pipeline scheitern.
+- eine **gefüllte UC3-Testdatenbank** aus erfundenen Mini-Lieferungen, damit die Seiten unter `/uc3` mit Daten
+  geprüft werden und nicht nur im leeren Zustand.
 
 ## Ausführung
 
