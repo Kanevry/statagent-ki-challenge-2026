@@ -3,7 +3,8 @@
 **Date:** 2026-11-05
 **Author:** Bernhard Götzendorfer + Claude (AI-assisted planning, Steuerung: autonomous)
 **Status:** Draft
-**Epic:** #24
+**Epic:** #24 · Kinder: W1 #40 Belege, #41 Akteure, #42 Experte · W2 #43 Belegsuche, #44 Verhandlung · W3 #45 Ergebnis,
+#46 Lernen, #47 Oberfläche U2-0/U2-1 · W4 #48 Abgestimmte Antwort U2-2, #49 Szenario · Abnahme #50 Owner, #51 azure
 **Appetite:** Zusatz-Epic, 4 Wellen à 2–3 h mit bis zu 6 Agenten, Do 05.11. 13:30 bis Fr 06.11. 04:00 (UC2-Arbeitsende).
 Projektweiter Feature-Stopp Fr 05:00 gilt auch hier. UC3 hat Vorrang, nur UC3 wird bewertet.
 **Parent Project:** Monorepo `agents/ki-challenge-2026` (StatAgent; UC2 als Zusatz in `uc2/` und im UC2-Bereich von `web/`)
