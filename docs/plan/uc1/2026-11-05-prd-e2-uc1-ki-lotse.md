@@ -73,14 +73,14 @@ Quelle. Der Voice-Baustein dient zugleich UC3 („mit den Daten sprechen“).
 - Szenarien Gesundheitsförderung und Kind als geführter Ablauf: nur als freie Frage über den Serviceratgeber (Zeit, nicht bewertet).
 - Echte Einreichung, Terminbuchung, Konten, e-card-/ELGA-Zugriff (keine Schnittstellen, Außenwirkung).
 - Live-Abruf von Webseiten (oegk.at, gesundheit.gv.at …) und RIS: gehört zu E4 (#25); Lizenzen ungeprüft.
-- Vektorsuche mit pgvector (fehlt auf dem M4; Installation am UC3-Abgabe-Server riskant), Embeddings nur als spätere Option.
+- Vektorsuche mit pgvector (fehlt auf dem Demo-Rechner; Installation am UC3-Abgabe-Server riskant), Embeddings nur als spätere Option.
 - Fristenrechner, Betragsberechnung, Prognosen zu Bescheiden.
 - EU-Sprachweg (Azure Speech westeurope, LiveKit): nur als Ausblick im README.
 - Eigene UI-Gestaltung jenseits der Pen-Frames; Header, Modell-Schalter und Freigabe-Bausteine baut E0.
 - Mehr als DE/EN (TR, UK, BKS): Grenze im UI nennen.
 
 ### First Real Use / Kill
-Erste echte Nutzung: Der Owner spielt das Pflege-Szenario am M4 per Stimme im Veranstaltungs-WLAN durch, bis Fr 05:00.
+Erste echte Nutzung: Der Owner spielt das Pflege-Szenario am Demo-Rechner per Stimme im Veranstaltungs-WLAN durch, bis Fr 05:00.
 Läuft der Kern (Korpus und Lotse) bis Fr 01:00 nicht mit Zitaten, wird in dieser Reihenfolge gestrichen: Voice →
 Upload → Reha-Antrag → EN/Einfach. Übrig bleibt der Text-Pfad Pflege mit Pflegegeld-Entwurf, F zeigt dann nur diesen.
 Kein stilles Weiterschieben.
@@ -234,7 +234,7 @@ Oracle: Playwright-Durchlauf mit Screenshots; axe ohne critical/serious; Verglei
 ### External Acceptance
 | Criterion | Oracle | Owner | Not before | Pass condition | Fallback if it cannot run |
 |---|---|---|---|---|---|
-| A1 · E (Stimme) + B (Pflege-Szenario) live | Owner spricht das Szenario am M4 im Veranstaltungs-WLAN; Antwortzeit-Uhr und Vapi-Call-Log | Bernhard Götzendorfer | 2026-11-05 (nach E) | Szenario komplett, ≥ 1 Quelle je Antwort sichtbar, Median ≤ 2,0 s | Text-Pfad vorführen plus Aufzeichnung des Laufs |
+| A1 · E (Stimme) + B (Pflege-Szenario) live | Owner spricht das Szenario am Demo-Rechner im Veranstaltungs-WLAN; Antwortzeit-Uhr und Vapi-Call-Log | Bernhard Götzendorfer | 2026-11-05 (nach E) | Szenario komplett, ≥ 1 Quelle je Antwort sichtbar, Median ≤ 2,0 s | Text-Pfad vorführen plus Aufzeichnung des Laufs |
 | A2 · B (Grenzen, Zitate), C (Pflichtfelder) | Frische Prüf-Session des Leads sieht alle 8 Grenzfälle plus 2 Pflege-Antworten aus `lotse eval` mit den zitierten Abschnitten (nicht die Verbotsliste) und die Pflichtfeldlisten gegen die gedruckten Formulare | lead-session-orchestrator-09 | 2026-11-05 (nach B) | 0 Diagnosen oder Empfehlungen, ≥ 9/10 Aussagen von der Quelle gedeckt, 0 falsche Träger, Pflichtfeldliste ohne Lücke | Befunde als Issue, Fälle aus der Demo nehmen |
 | A4 · A, B (Held-out) | Lead schreibt vor dem ersten `kern.py`-Commit 10 Paraphrasen (u. a. Fall 7 „75 h“, SVS- und BVAEB-Pensionistin) und 8 eigene Grenzfragen (EN, Injection), friert sie außerhalb des Bau-Worktrees ein und lässt `lotse eval` darüber laufen | lead-session-orchestrator-09 | 2026-11-05 (vor B) | Recall@5 ≥ 8/10, Träger 10/10, Grenzen 8/8 | Nur eingefrorenes Lotse-Set, Ergebnis als „nicht held-out“ kennzeichnen |
 | A3 · F (Pen-Treue) | UI-Session vergleicht Screenshots mit den Pen-Frames | e5-praesentation-05 | 2026-11-06 (nach F) | Aufbau und Reihenfolge wie Frames, keine eigene Gestaltung | Abweichungsliste, Demo mit Text-Pfad |

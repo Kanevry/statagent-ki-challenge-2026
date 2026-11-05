@@ -8,11 +8,20 @@ import { useShell } from "./kontext";
  * Testbetrieb läuft, während die App global auf azure steht. Ohne diese Angabe zeigt der Badge die globale
  * Einstellung (`plattform.llm status`). Rendert nichts; beim Verlassen der Seite gilt wieder die globale Angabe.
  */
-export function SeitenModell({ provider, modell = null }: { provider: string; modell?: string | null }) {
+export function SeitenModell({
+  provider,
+  modell = null,
+  gewaehlt = false,
+}: {
+  provider: string;
+  modell?: string | null;
+  /** Nur setzen, wenn die Seite den Anbieter wirklich mit ihren Anfragen schickt (Modellwahl). */
+  gewaehlt?: boolean;
+}) {
   const { setzeSeitenModell } = useShell();
   useEffect(() => {
-    setzeSeitenModell({ provider, modell });
+    setzeSeitenModell({ provider, modell, gewaehlt });
     return () => setzeSeitenModell(null);
-  }, [provider, modell, setzeSeitenModell]);
+  }, [provider, modell, gewaehlt, setzeSeitenModell]);
   return null;
 }
