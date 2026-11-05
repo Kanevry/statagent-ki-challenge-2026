@@ -293,7 +293,7 @@ EOF
   # nur die Zeilenzahl, nie der Inhalt (Lead a7, 05.11.).
   local namen
   namen=$(remote bash -s -- "$BASIS" "$ENV_DATEI" <<'EOF'
-pfad=$(sed -n 's/^UC2_NAMENSLISTE=//p' "$2" | tail -1 | tr -d "'\"")
+pfad=$(sed -nE 's/^[[:space:]]*(export[[:space:]]+)?UC2_NAMENSLISTE=//p' "$2" | tail -n 1 | tr -d "\"'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 if [ -z "$pfad" ]; then echo leer; exit 0; fi
 if [ ! -f "$pfad" ]; then echo fehlt; exit 0; fi
 host=$(wc -l < "$pfad" | tr -d ' ')
