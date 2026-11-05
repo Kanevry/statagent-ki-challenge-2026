@@ -13,9 +13,10 @@ nie Frage- oder Antworttext, bei einem Fehler nur dessen Grund. Nicht aus ``plat
 Seite /uc4 zeigt die Stationen nacheinander): ``start`` (kette), ``station`` (läuft), ``antwort`` (mit
 ``kern``, dem ersten Satz, höchstens 140 Zeichen) oder ``fehlt`` (Grund), am Ende ``ende`` (fehlend, Dauer).
 
-Liefert die Station ``ZAHLEN_STATION`` keine Zahl (Rückfrage, Absage, Fehler), hält die Kette an: Ohne Zahl haben die
-Stationen danach nichts abzuwägen, und jeder Aufruf kostet Modellbudget. Die übrigen Stationen melden kein Ereignis,
-stehen nicht in ``fehlend`` (es fehlt nichts) und bekommen im Protokoll eine Zeile mit ``fehler=GESTOPPT``.
+Liefert die Station ``ZAHLEN_STATION`` keine Zahl (Rückfrage, Absage, Fehler), hält die Kette an: Ohne Zahl
+haben die Stationen danach nichts abzuwägen, und jeder Aufruf kostet Modellbudget. Die übrigen Stationen melden
+kein Ereignis, stehen nicht in ``fehlend`` (es fehlt nichts) und bekommen im Protokoll eine Zeile mit
+``fehler=GESTOPPT``.
 
 Die CLI ``frage`` prüft ohne ``--mock`` vorab das Tagesbudget von ``plattform.llm`` (#100): ist nichts frei,
 endet sie mit Exit 3 (``BUDGET_ERSCHOEPFT``) und ruft keinen Adapter.

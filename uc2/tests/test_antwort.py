@@ -28,7 +28,6 @@ from uc2.antwort.adapter import ERSATZ, MODELLANNAHME, QUELLE_BEISPIEL, waehle_f
 from uc2.antwort.allgemein import FESTER_KERN, KERN_SCHEMA, MOCK_THEMEN, fester_auftrag, mock_notiz
 from uc2.modelle import Modellantwort, UngueltigeAntwort
 from uc2.modelle.kontext import lies_kontext
-from uc2.verhandlung import prompts
 from uc2.verhandlung.belege import BELEG_ID, Beleg, BelegFehler, FixtureQuelle, IndexQuelle
 from uc2.verhandlung.lauf import Zugergebnis
 
@@ -524,7 +523,8 @@ def test_budget_erschoepft_in_der_notiz(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def _kern_aus_modell(monkeypatch: pytest.MonkeyPatch, antwort_oder_fehler: Any) -> None:
-    """Züge wie gehabt aus dem Mock, nur der Moderator-Aufruf für die Kernsätze liefert `antwort_oder_fehler`."""
+    """Züge wie gehabt aus dem Mock, nur der Moderator-Aufruf für die Kernsätze liefert
+    `antwort_oder_fehler`."""
     echt = kurzlauf.rufe
 
     def rufe(rm: Any, nachrichten: Any, schema: Any) -> Any:
@@ -538,7 +538,8 @@ def _kern_aus_modell(monkeypatch: pytest.MonkeyPatch, antwort_oder_fehler: Any) 
 
 
 def test_erste_zeile_sagt_was_personal_bedeutet_ohne_zahlenecho(praes: UcAntwort) -> None:
-    """Fängt #164: Die Station zeigt oben die Zahl von StatAgent statt einer Aussage zu mehr oder weniger Personal."""
+    """Fängt #164: Die Station zeigt oben die Zahl von StatAgent statt einer Aussage zu mehr oder weniger
+    Personal."""
     erste = praes.text.splitlines()[0]
     assert erste == " ".join(FESTER_KERN)
     assert "135.790" not in erste and "Statistik" not in erste
@@ -565,7 +566,8 @@ def test_modellkern_steht_oben(monkeypatch: pytest.MonkeyPatch) -> None:
     ids=["ziffer", "leer", "zu-lang", "modellfehler"],
 )
 def test_unbrauchbarer_kern_ergibt_feste_saetze(monkeypatch: pytest.MonkeyPatch, kern: Any) -> None:
-    """Fängt: Bei einer Ziffer, einem leeren oder überlangen Satz oder einem Modellfehler bleibt die Zeile leer oder die
+    """Fängt: Bei einer Ziffer, einem leeren oder überlangen Satz oder einem Modellfehler bleibt die Zeile
+    leer oder die
     Kette verliert den Simulator."""
     _kern_aus_modell(monkeypatch, kern)
     text = antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")]).text
@@ -573,7 +575,8 @@ def test_unbrauchbarer_kern_ergibt_feste_saetze(monkeypatch: pytest.MonkeyPatch,
 
 
 def test_kern_haelt_das_budget_nicht_zurueck(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fängt: Das Tagesbudget endet beim Kernsatz, die Seite zeigt feste Sätze statt des Budget-Hinweises (#100)."""
+    """Fängt: Das Tagesbudget endet beim Kernsatz, die Seite zeigt feste Sätze statt des Budget-Hinweises
+    (#100)."""
     fehler = UngueltigeAntwort("Budget", "BudgetErschoepft")
     fehler.__cause__ = BudgetErschoepft("aus")
     _kern_aus_modell(monkeypatch, fehler)
@@ -596,7 +599,8 @@ def test_fester_auftrag_nennt_das_ziel_der_abwaegung() -> None:
 
 
 def test_satz_mit_entfernter_zahl_faellt_ganz_weg() -> None:
-    """Fängt den Probelauf 05.11.: „… lag im März 2025 bei (Zahl ohne Beleg entfernt).“ in der ganzen Antwort."""
+    """Fängt den Probelauf 05.11.: „… lag im März 2025 bei (Zahl ohne Beleg entfernt).“ in der ganzen
+    Antwort."""
     zeile = f"- Bundesländer: Dafür. Die Zahl lag bei {ERSATZ}. Das hilft den Regionen."
     assert adapter_modul._ohne_entfernte_zahl(zeile) == "- Bundesländer: Dafür. Das hilft den Regionen."
 
@@ -610,7 +614,8 @@ def _rollen_mit_aufwand(rolle: str, provider: str) -> Any:
 
 
 def test_moderator_im_kurzlauf_rechnet_nicht_mit_hohem_aufwand(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fängt den Probelauf 05.11.: Auftrag mit Aufwand „hoch“ dauert 42,8 s, die Web-Route bricht nach 60 s ab."""
+    """Fängt den Probelauf 05.11.: Auftrag mit Aufwand „hoch“ dauert 42,8 s, die Web-Route bricht nach 60 s
+    ab."""
     aufwand: list[Any] = []
     echt = kurzlauf.rufe
 

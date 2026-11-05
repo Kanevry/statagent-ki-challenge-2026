@@ -93,7 +93,8 @@ class Kurzergebnis:
     ohne_zug: list[str] = field(default_factory=list)
     """Teilnehmer, die in keiner Runde einen gültigen Zug geliefert haben."""
     kern: str | None = None
-    """Zwei Sätze des Moderators: was mehr und was weniger Personal bedeutet. `None`: keiner brauchbar oder Frist um."""
+    """Zwei Sätze des Moderators: was mehr und was weniger Personal bedeutet. `None`: keiner brauchbar oder
+    Frist um."""
 
 
 AuftragNachrichten = Callable[[str, dict[str, Any]], list[dict[str, str]]]
@@ -164,7 +165,8 @@ class _Kurzlauf:
         self.max_akteure = max_akteure
         self.runden = runden
         self.rm_akteur: Rollenmodell = rollenmodell("akteur", provider)
-        # Im Kurzlauf auch der Moderator mit dem Aufwand der Akteure: Mit „hoch“ dauerte der Auftrag allein 42,8 s
+        # Im Kurzlauf auch der Moderator mit dem Aufwand der Akteure: Mit „hoch“ dauerte der Auftrag allein
+        # 42,8 s
         # (Azure, Fall Wartezeiten, 05.11.), die Web-Route bricht nach 60 s ab.
         self.rm_moderator: Rollenmodell = replace(
             rollenmodell("moderator", provider), aufwand=self.rm_akteur.aufwand
@@ -334,7 +336,8 @@ class _Kurzlauf:
         )
 
     def _kern(self, auftrag: dict[str, Any], teilnehmer: list[str], jetzt: Runde) -> str | None:
-        """Kernsätze aus den Haltungen; fehlen sie, setzt der Adapter feste Sätze. Budget geht weiter an den Aufrufer."""
+        """Kernsätze aus den Haltungen; fehlen sie, setzt der Adapter feste Sätze. Budget geht weiter an
+        den Aufrufer."""
         titel = {t["id"]: t["titel"] for t in auftrag["themen"]}
         stimmen = [
             {
@@ -412,7 +415,8 @@ def kurzverhandlung(
     `experte_werte` die Zahlen, gegen die `pruefe` Züge mit Quelle `experte` abgleicht.
     `auftrag_nachrichten` baut den Auftrag des Moderators (Fall oder allgemeine Frage, siehe Moduldoku).
     `frist_bis` ist ein Zeitpunkt auf `time.monotonic()`; `None` heißt ohne Frist. `notiz=False` spart den
-    Aufruf für die Notiz der Moderation, wenn der Aufrufer sie nicht zeigt. `kern=True` lässt den Moderator am Ende die
+    Aufruf für die Notiz der Moderation, wenn der Aufrufer sie nicht zeigt. `kern=True` lässt den Moderator
+    am Ende die
     zwei Kernsätze schreiben (ein Aufruf mehr, allgemeine Fragen).
     """
     if not 1 <= runden <= 2:

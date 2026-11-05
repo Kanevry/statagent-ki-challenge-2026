@@ -8,9 +8,11 @@ UC2 liefert in der Kette uc3 → uc2 → uc1 die Abwägung der Akteure mit Beleg
   bekommt nur die Ausgangslage aus dem Kontext (UC3-Zahlen mit Beleg, `uc2.antwort.allgemein`).
 
 In beiden Wegen: Kurzverhandlung (`uc2.antwort.kurzlauf`, Standard eine Runde mit höchstens 3 Akteuren und
-einer Frist von 25 s); der Code schreibt den Text. Die erste Zeile ist die Kernaussage, die oben auf der Station
+einer Frist von 25 s); der Code schreibt den Text. Die erste Zeile ist die Kernaussage, die oben auf der
+Station
 steht: Was mehr oder weniger Personal bedeutet (allgemeine Frage, Moderator, sonst feste Sätze), oder was das
-durchgerechnete Paket bringt und kostet (Fall). Die Zahl von UC3 steht dort nicht, sie steht schon bei UC3 (#164).
+durchgerechnete Paket bringt und kostet (Fall). Die Zahl von UC3 steht dort nicht, sie steht schon bei UC3
+(#164).
 Zahlen kommen nur vom Experten oder aus dem Kontext. Jede
 Zeile läuft durch `bereinige` (`uc2.antwort.textzahlen`: jede Zifferngruppe muss mit Wert, Vorzeichen und
 Einheit zu `zahlen` passen); danach prüft `freie_zahlen` den ganzen Text und wirft `FreieZahl`, statt eine
@@ -420,7 +422,8 @@ def _experte_text(voll: dict[str, Any], ez: dict[str, Zahl]) -> list[str]:
 
 
 def _ohne_entfernte_zahl(zeile: str) -> str:
-    """Ein Satz, aus dem die Prüfung eine Zahl genommen hat, fällt ganz weg: „lag bei (Zahl ohne Beleg entfernt).“
+    """Ein Satz, aus dem die Prüfung eine Zahl genommen hat, fällt ganz weg: „lag bei (Zahl ohne Beleg
+    entfernt).“
     sagt niemandem etwas. Die Zeile selbst (etwa mit dem Akteursnamen) bleibt, solange ein Satz übrig ist."""
     if _ERSATZ not in zeile:
         return zeile

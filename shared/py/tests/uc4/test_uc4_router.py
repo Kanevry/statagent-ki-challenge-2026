@@ -394,7 +394,8 @@ def test_ohne_zahl_von_uc3_ruft_die_kette_keine_weitere_station(protokoll):
 
 
 def test_faellt_uc3_aus_haelt_die_kette_auch_an(protokoll):
-    """Fängt: Bei einem Ausfall der Statistik wägen die Stationen ohne Zahl ab und ein Fehler bleibt unbemerkt."""
+    """Fängt: Bei einem Ausfall der Statistik wägen die Stationen ohne Zahl ab und ein Fehler bleibt
+    unbemerkt."""
 
     def kaputt(frage, kontext):
         raise RuntimeError("Datenbank weg")

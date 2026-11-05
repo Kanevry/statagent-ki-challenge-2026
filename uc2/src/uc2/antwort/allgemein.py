@@ -28,20 +28,24 @@ ROLLE_AUFTRAG = "moderator_auftrag_allgemein"
 MAX_THEMEN = 3
 HINWEIS = (
     "Zu dieser Frage gibt es kein Rechenmodell. Zahlen gibt es nur unter `kontext_zahlen`: Sie kommen "
-    "aus der amtlichen Statistik (UC3) und tragen ihre Herkunft. Andere Zahlen nennst du nicht. Wiederhole auch "
-    "diese Zahlen nicht: Sie stehen schon bei der Statistik. Sag, was mehr oder weniger Personal aus deiner Sicht heißt."
+    "aus der amtlichen Statistik (UC3) und tragen ihre Herkunft. Andere Zahlen nennst du nicht. Wiederhole "
+    "auch "
+    "diese Zahlen nicht: Sie stehen schon bei der Statistik. Sag, was mehr oder weniger Personal aus deiner "
+    "Sicht heißt."
 )
 
 MOCK_THEMEN: tuple[dict[str, str], ...] = (
     {
         "id": "versorgung",
         "titel": "Mehr Personal in der Versorgung",
-        "beschreibung": "Ob es in Praxis, Spital und Pflege mehr Fachkräfte braucht, damit Menschen rasch Hilfe bekommen",
+        "beschreibung": "Ob es in Praxis, Spital und Pflege mehr Fachkräfte braucht, damit Menschen rasch "
+        "Hilfe bekommen",
     },
     {
         "id": "personal",
         "titel": "Bessere Arbeitsbedingungen",
-        "beschreibung": "Bezahlung, Ausbildung und Belastung, damit Fachkräfte in Gesundheit und Pflege bleiben",
+        "beschreibung": "Bezahlung, Ausbildung und Belastung, damit Fachkräfte in Gesundheit und Pflege "
+        "bleiben",
     },
     {
         "id": "finanzierung",
@@ -50,7 +54,8 @@ MOCK_THEMEN: tuple[dict[str, str], ...] = (
     },
 )
 """Feste Themen für allgemeine Fragen (UC4): gelten für Mock und echte Modelle, damit der Kurzlauf ohne
-Auftragsaufruf auskommt (Laufzeit: gemessen 38,5 s mit Auftragsaufruf bei azure, Route-Frist 60 s). Die Titel sind
+Auftragsaufruf auskommt (Laufzeit: gemessen 38,5 s mit Auftragsaufruf bei azure, Route-Frist 60 s). Die
+Titel sind
 Vorschläge, weil im Text „Dafür bei …“ davor steht; „Dafür bei Versorgung im Alltag“ sagte niemandem etwas."""
 
 ROLLE_KERN = "moderator_kern"
@@ -61,7 +66,8 @@ KERN_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
 }
 KERN_ZEICHEN = 170
-"""Längster Kernsatz: Die Station zeigt die erste Zeile nur bis 320 Zeichen ganz (web/components/uc4/kette.tsx)."""
+"""Längster Kernsatz: Die Station zeigt die erste Zeile nur bis 320 Zeichen ganz
+(web/components/uc4/kette.tsx)."""
 FESTER_KERN = (
     "Mehr Personal heißt meist kürzere Wartezeiten und mehr Betreuung, kostet aber mehr.",
     "Weniger Personal heißt meist längere Wartezeiten und mehr Druck auf die Beschäftigten.",
@@ -104,7 +110,8 @@ def auftrag_nachrichten(frage: str, experte: dict[str, Any]) -> list[dict[str, s
 def fester_auftrag(frage: str) -> dict[str, Any]:
     """Auftrag für allgemeine Fragen ohne Modellaufruf: feste Themen, Kriterien und Regeln.
 
-    Das Ziel sagt, worum es geht; mit der Frage allein („Wie viele Beschäftigte gab es?“) gibt es nichts abzuwägen.
+    Das Ziel sagt, worum es geht; mit der Frage allein („Wie viele Beschäftigte gab es?“) gibt es nichts
+    abzuwägen.
     """
     from uc2.verhandlung import prompts
 
@@ -116,18 +123,26 @@ def fester_auftrag(frage: str) -> dict[str, Any]:
 
 
 def kern_nachrichten(frage: str, lage: dict[str, Any], stimmen: list[dict[str, Any]]) -> list[dict[str, str]]:
-    """Moderator schreibt aus den Haltungen die zwei Sätze, die oben auf der Station stehen. Keine Zahlen darin."""
+    """Moderator schreibt aus den Haltungen die zwei Sätze, die oben auf der Station stehen. Keine Zahlen
+    darin."""
     kontext = {"rolle": ROLLE_KERN, "frage": frage}
     text = (
-        f"# Frage\n{frage}\n\n# Ausgangslage\n{json.dumps(lage, ensure_ascii=False, indent=1, sort_keys=True)}\n\n"
+        f"# Frage\n{frage}\n\n# "
+        f"Ausgangslage\n{json.dumps(lage, ensure_ascii=False, indent=1, sort_keys=True)}\n\n"
         f"# Haltungen der Interessenvertretungen\n{json.dumps(stimmen, ensure_ascii=False, indent=1)}\n\n"
-        "# Aufgabe\nSag Menschen ohne Fachwissen in zwei Sätzen, was die Abwägung ergibt. `mehr`: Was mehr Personal "
-        "bedeutet, beginnt mit „Mehr Personal“. `weniger`: Was weniger Personal bedeutet, beginnt mit „Weniger "
-        "Personal“. Geht es um die ganze Wirtschaft und nicht ums Gesundheitswesen, schreibe „Mehr Beschäftigte“ und "
-        "„Weniger Beschäftigte“ und sage, was das für die Beiträge zur Krankenversicherung und die Versorgung heißt. "
+        "# Aufgabe\nSag Menschen ohne Fachwissen in zwei Sätzen, was die Abwägung ergibt. `mehr`: Was mehr "
+        "Personal "
+        "bedeutet, beginnt mit „Mehr Personal“. `weniger`: Was weniger Personal bedeutet, beginnt mit "
+        "„Weniger "
+        "Personal“. Geht es um die ganze Wirtschaft und nicht ums Gesundheitswesen, schreibe „Mehr "
+        "Beschäftigte“ und "
+        "„Weniger Beschäftigte“ und sage, was das für die Beiträge zur Krankenversicherung und die "
+        "Versorgung heißt. "
         "Je Satz höchstens 15 Wörter und etwas Greifbares: Wartezeit, Betreuung, Kosten, Belastung. Wo die "
-        "Vertretungen sich widersprechen, sag es im Satz. Das sind allgemeine Zusammenhänge, schreibe „heißt meist“, "
-        "keine Vorhersage. Keine Zahlen, weder als Ziffern noch als Wörter. Wiederhole die Zahl aus der Statistik "
+        "Vertretungen sich widersprechen, sag es im Satz. Das sind allgemeine Zusammenhänge, schreibe "
+        "„heißt meist“, "
+        "keine Vorhersage. Keine Zahlen, weder als Ziffern noch als Wörter. Wiederhole die Zahl aus der "
+        "Statistik "
         f"nicht.\n\n{kontext_block(kontext)}"
     )
     return [{"role": "system", "content": prompts.MODERATOR_SYSTEM}, {"role": "user", "content": text}]

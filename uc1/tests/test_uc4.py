@@ -306,7 +306,8 @@ BELEGSATZ = "Die Zahl dahinter für Oktober 2025: 390.900 Beschäftigungsverhäl
 
 
 def test_kette_zahl_von_uc3_und_uc2_steht_einmal_und_oben_die_bedeutung() -> None:
-    """Fängt den Live-Fund vom 05.11.: Dieselbe Zahl aus UC3 und UC2 zählte als zwei Zahlen, das Modell durfte deshalb
+    """Fängt den Live-Fund vom 05.11.: Dieselbe Zahl aus UC3 und UC2 zählte als zwei Zahlen, das Modell
+    durfte deshalb
     keine Ziffer schreiben und die Station begann mit „Im Oktober gab es Beschäftigungsverhältnisse.“."""
     a = uc4.router_adapter(
         "Wie viele Beschäftigte gab es im Oktober 2025?", _kette_kontext(), modell=modell_mit(ARZT_MODELL)
@@ -327,7 +328,8 @@ def test_kette_zahl_von_uc3_und_uc2_steht_einmal_und_oben_die_bedeutung() -> Non
     ],
 )
 def test_kette_satz_ohne_aussage_faellt_weg_und_der_feste_satz_steht_da(satz: str) -> None:
-    """Fängt die sinnlosen Sätze aus dem Live-Test und ein Zahlenecho des Modells: Es bleibt der feste Satz mit Beleg."""
+    """Fängt die sinnlosen Sätze aus dem Live-Test und ein Zahlenecho des Modells: Es bleibt der feste Satz
+    mit Beleg."""
     a = uc4.router_adapter(
         "Wie viele Beschäftigte gab es im Oktober 2025?", _kette_kontext(), modell=modell_mit(satz)
     )
@@ -335,7 +337,8 @@ def test_kette_satz_ohne_aussage_faellt_weg_und_der_feste_satz_steht_da(satz: st
 
 
 def test_kette_anfang_steht_genau_einmal() -> None:
-    """Fängt den Probelauf: Das Modell wiederholt den Simulator, der Arzttermin kommt nie vor, oder der Anfang doppelt."""
+    """Fängt den Probelauf: Das Modell wiederholt den Simulator, der Arzttermin kommt nie vor, oder der
+    Anfang doppelt."""
     frage = "Wie viele Beschäftigte gab es im Oktober 2025?"
     ohne = uc4.router_adapter(frage, _kette_kontext(), modell=modell_mit("Meist geht es schneller."))
     mit = uc4.router_adapter(
