@@ -20,8 +20,9 @@ den Adapter ``router_adapter`` über den Entry-Point ``kic.uc_antwort`` / ``uc1`
 In der Kette (``kette_antwort``) schreibt kein Modell (Entscheid Lead 05.11.): Der Text entsteht aus Bedingung
 und Wirkung der Frage, also daraus, was die Zahl von UC3 zählt (Region, Gesundheitswesen oder nicht,
 Fluktuation) und ob UC2 ein Paket durchgerechnet hat. Am Ende steht ein fester Satz mit der Belegzahl von UC3.
-Immer deutsch, Grenzprüfung wie im Kern. Vorher schrieb das Modell Zahlenechos und Sätze mit Lücke (#164), etwa
-„Im Oktober gab es Beschäftigungsverhältnisse.“; nach allen Filtern blieb kaum mehr als ein fester Satz übrig.
+Immer deutsch, Grenzprüfung wie im Kern. Vorher schrieb das Modell Zahlenechos und Sätze mit Lücke (#164),
+etwa „Im Oktober gab es Beschäftigungsverhältnisse.“; nach allen Filtern blieb kaum mehr als ein fester
+Satz übrig.
 """
 
 from __future__ import annotations
