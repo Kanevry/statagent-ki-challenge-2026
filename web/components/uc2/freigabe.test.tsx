@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ereignisseJson from "../../app/api/uc2/_fixtures/ereignisse-mock.json";
-import { entscheidungAusBericht, StandMitFreigabe, VORFUEHRUNG_HINWEIS, type Speichern } from "./freigabe";
+import { entscheidungAusBericht, StandMitFreigabe, VORFUEHRUNG_HINWEIS, VORFUEHRUNG_SATZ, type Speichern } from "./freigabe";
 import { ableiten } from "./zustand";
 
 // Freigabe des Berichts (U2-2): "Entwurf" bis ein Mensch mit Vor- und Nachnamen freigibt, danach "Freigegeben von …".
@@ -74,7 +74,7 @@ it("zeigt einen Fehler des Servers und bleibt Entwurf", async () => {
   expect(screen.getByTestId("uc2-entwurf")).toBeTruthy();
 });
 
-it("lehnt mit Begründung ab: Abgelehnt von Name, die Marke ist weg", async () => {
+it("lehnt mit Begründung ab: Abgelehnt von Name, die Marke Entwurf wird zu Abgelehnt", async () => {
   const speichern = vi.fn<Speichern>(async () => ({ zeitpunkt: "2026-11-05T16:30:00+00:00" }));
   zeige("live", speichern);
   await userEvent.type(screen.getByLabelText("Vor- und Nachname"), NAME);
@@ -87,6 +87,58 @@ it("lehnt mit Begründung ab: Abgelehnt von Name, die Marke ist weg", async () =
   const text = screen.getByTestId("uc2-freigabe").textContent!;
   expect(text).toContain(`Abgelehnt von ${NAME}, 05.11.2026, 17:30`);
   expect(text).toContain("Begründung: Zahlen zu dünn");
+  // Statt „Entwurf“ steht die Marke „Abgelehnt“ am Ergebnis.
+  expect(screen.queryByTestId("uc2-entwurf")).toBeNull();
+  expect(document.querySelector('[data-spur="stand"] [data-testid="uc2-abgelehnt"]')?.textContent).toBe("Abgelehnt");
+});
+
+it("nach einer Freigabe steht keine Marke mehr am Ergebnis", async () => {
+  zeige("live", vi.fn<Speichern>(async () => ({ zeitpunkt: "2026-11-05T16:30:00+00:00" })));
+  await userEvent.type(screen.getByLabelText("Vor- und Nachname"), NAME);
+  await userEvent.click(screen.getByRole("button", { name: "Freigeben" }));
+  await waitFor(() => expect(screen.getByTestId("uc2-freigabe").getAttribute("data-zustand")).toBe("freigegeben"));
+  expect(screen.queryByTestId("uc2-entwurf")).toBeNull();
+  expect(screen.queryByTestId("uc2-abgelehnt")).toBeNull();
+});
+
+it("alle Knöpfe der Karte sind mindestens 44 px hoch (min-h-11), auch Ablehnen und Zurück", async () => {
+  zeige("live", vi.fn());
+  const hoch = (name: string) => screen.getByRole("button", { name }).className;
+  expect(hoch("Freigeben")).toContain("min-h-11");
+  expect(hoch("Ablehnen")).toContain("min-h-11");
+  await userEvent.click(screen.getByRole("button", { name: "Ablehnen" }));
+  expect(hoch("Ablehnung speichern")).toContain("min-h-11");
+  expect(hoch("Zurück")).toContain("min-h-11");
+});
+
+it("das Begründungsfeld nimmt höchstens 500 Zeichen an", async () => {
+  zeige("live", vi.fn());
+  await userEvent.click(screen.getByRole("button", { name: "Ablehnen" }));
+  expect(screen.getByLabelText("Begründung der Ablehnung").getAttribute("maxlength")).toBe("500");
+});
+
+it("live: der Satz verspricht den Namen im Protokoll; in der Vorführung sagt er, dass nichts gespeichert wird", () => {
+  const live = zeige("live", vi.fn());
+  expect(screen.getByTestId("uc2-freigabe").textContent).toContain("kommt mit deinem Namen ins Protokoll");
+  live.unmount();
+  zeige("vorfuehrung");
+  const text = screen.getByTestId("uc2-freigabe").textContent!;
+  expect(VORFUEHRUNG_SATZ).toBe("In der Vorführung wird nichts gespeichert. Im echten Betrieb kommt dein Name ins Protokoll.");
+  expect(text).toContain(VORFUEHRUNG_SATZ);
+  expect(text).not.toContain("Das Ergebnis der Verhandlung wird als geprüft markiert und kommt mit deinem Namen ins Protokoll.");
+});
+
+it("öffentlicher Bericht ohne Name und Grund: „Freigegeben am <Zeit>“ bzw. „Abgelehnt am <Zeit>“", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ freigabe: { zeit: "2026-11-05T16:30:00+00:00", entscheidung: "abgelehnt" } })),
+  );
+  zeige("live");
+  await waitFor(() => expect(screen.getByTestId("uc2-freigabe").textContent).toContain("Abgelehnt am 05.11.2026, 17:30"));
+  const text = screen.getByTestId("uc2-freigabe").textContent!;
+  expect(text).not.toContain(" von ");
+  expect(text).not.toContain("Begründung");
+  expect(screen.getByTestId("uc2-abgelehnt")).toBeTruthy();
   expect(screen.queryByTestId("uc2-entwurf")).toBeNull();
 });
 
@@ -116,6 +168,12 @@ it("live: eine frühere Entscheidung aus dem Bericht ersetzt Entwurf und Eingabe
   await waitFor(() => expect(screen.getByTestId("uc2-freigabe").textContent).toContain(`Freigegeben von ${NAME}`));
   expect(screen.queryByTestId("uc2-entwurf")).toBeNull();
   expect(screen.queryByLabelText("Vor- und Nachname")).toBeNull();
+});
+
+it("entscheidungAusBericht liest öffentliche Entscheidungen ohne Namen", () => {
+  expect(entscheidungAusBericht({ freigabe: { zeit: "z", entscheidung: "freigegeben" } })).toEqual({ art: "freigegeben", zeit: "z" });
+  expect(entscheidungAusBericht({ freigabe: { zeit: "z", entscheidung: "abgelehnt" } })).toEqual({ art: "abgelehnt", zeit: "z" });
+  expect(entscheidungAusBericht({ freigabe: { name: NAME, entscheidung: "freigegeben" } })).toBeNull();
 });
 
 it("entscheidungAusBericht liest nur vollständige Entscheidungen", () => {

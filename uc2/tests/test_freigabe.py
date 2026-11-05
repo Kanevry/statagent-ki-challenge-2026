@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import subprocess
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,7 @@ from typing import Any
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
+from plattform.protokoll import export_md
 
 from uc2 import db
 from uc2.api import erstelle_app
@@ -19,13 +21,14 @@ from uc2.api.app import (
     FREIGABE_PRO_MINUTE,
     FREIGABE_ZU_OFT,
 )
+from uc2.api.belegfilter import bericht_fuer_ausgabe
 from uc2.cli import main
 from uc2.verhandlung.belege import FixtureQuelle
 from uc2.verhandlung.bericht import bericht
 from uc2.verhandlung.fall import lade_fall
 from uc2.verhandlung.freigabe import NAME_UNGUELTIG, FreigabeFehler, entscheide
 from uc2.verhandlung.lauf import Laufoptionen, Verhandlung
-from uc2.verhandlung.speicher import ddl_anwenden, neuer_fall
+from uc2.verhandlung.speicher import ddl_anwenden, neuer_fall, schreibe_freigabe
 
 TEST_DB = "healthpolicy_test"
 NAME = "Maria Beispiel"
@@ -36,6 +39,7 @@ NAME = "Maria Beispiel"
 def umgebung(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("PLATTFORM_PROTOKOLL", str(tmp_path / "modellaufrufe.jsonl"))
     monkeypatch.delenv("KIC_ONLINE_LESEND", raising=False)
+    monkeypatch.delenv("KIC_ONLINE", raising=False)
     monkeypatch.delenv("UC2_MOCK_KAPUTT", raising=False)
     monkeypatch.setenv("UC2_DATABASE_URL", "")
     monkeypatch.setenv("UC2_DB", TEST_DB)
@@ -89,6 +93,18 @@ def _protokoll(fall_id: int) -> list[tuple[Any, ...]]:
         ).fetchall()
 
 
+def _meta_freigaben(fall_id: int) -> list[tuple[Any, ...]]:
+    """Zeilen in `meta.freigabe` (Vertrag P) zu einem Fall, mit der Protokollzeile verbunden."""
+    with _verbinde() as v:
+        return v.execute(
+            "select f.name, f.entscheidung, f.begruendung, f.objekt_typ, f.objekt_ref,"
+            " f.zeitpunkt is not null, p.status, p.id = f.protokoll_id"
+            " from meta.freigabe f join meta.protokoll p on p.id = f.protokoll_id"
+            " where f.objekt_ref = %s order by f.id",
+            (f"uc2/fall/{fall_id}",),
+        ).fetchall()
+
+
 def test_freigabe_eines_fertigen_falls_erscheint_im_bericht_und_im_protokoll(
     fertig: int, client: TestClient
 ) -> None:
@@ -101,6 +117,10 @@ def test_freigabe_eines_fertigen_falls_erscheint_im_bericht_und_im_protokoll(
     frei = client.get(f"/faelle/{fertig}").json()["freigabe"]
     assert frei == {"name": NAME, "zeit": zeitpunkt, "entscheidung": "freigegeben", "begruendung": None}
     assert _protokoll(fertig) == [("mensch", NAME, "freigegeben", "uc2")]
+    # Vertrag P: genau eine Zeile in meta.freigabe, ja, objekt_typ antwort, Bezug auf den Fall
+    assert _meta_freigaben(fertig) == [
+        (NAME, "ja", None, "antwort", f"uc2/fall/{fertig}", True, "freigegeben", True)
+    ]
     # endgültig: eine zweite Entscheidung wird abgelehnt
     zweit = client.post(
         f"/faelle/{fertig}/freigabe",
@@ -108,6 +128,7 @@ def test_freigabe_eines_fertigen_falls_erscheint_im_bericht_und_im_protokoll(
     )
     assert zweit.status_code == 409
     assert client.get(f"/faelle/{fertig}").json()["freigabe"]["name"] == NAME
+    assert len(_meta_freigaben(fertig)) == 1  # die abgelehnte zweite Entscheidung schreibt nichts
 
 
 def test_ablehnung_braucht_begruendung_und_steht_im_bericht(fertig: int, client: TestClient) -> None:
@@ -122,6 +143,9 @@ def test_ablehnung_braucht_begruendung_und_steht_im_bericht(fertig: int, client:
     frei = client.get(f"/faelle/{fertig}").json()["freigabe"]
     assert (frei["entscheidung"], frei["begruendung"]) == ("abgelehnt", "Zahlen zu dünn")
     assert _protokoll(fertig) == [("mensch", NAME, "abgelehnt", "uc2")]
+    assert _meta_freigaben(fertig) == [
+        (NAME, "nein", "Zahlen zu dünn", "antwort", f"uc2/fall/{fertig}", True, "abgelehnt", True)
+    ]
 
 
 @pytest.mark.parametrize("name", ["Team", "Das Team", "Maria", "Admin Beispiel", "", "Maria\x00 Beispiel"])
@@ -131,6 +155,7 @@ def test_ungueltige_namen_ergeben_422_mit_festem_satz(fertig: int, client: TestC
     assert antwort.json() == {"detail": NAME_UNGUELTIG}
     assert client.get(f"/faelle/{fertig}").json()["freigabe"] is None
     assert _protokoll(fertig) == []
+    assert _meta_freigaben(fertig) == []
 
 
 def test_laufender_fall_wird_abgelehnt(laufend: int, client: TestClient) -> None:
@@ -138,6 +163,7 @@ def test_laufender_fall_wird_abgelehnt(laufend: int, client: TestClient) -> None
     assert antwort.status_code == 409
     assert client.get(f"/faelle/{laufend}").json()["freigabe"] is None
     assert _protokoll(laufend) == []
+    assert _meta_freigaben(laufend) == []
 
 
 def test_unbekannter_fall_und_falsche_anfrage(fertig: int, client: TestClient) -> None:
@@ -213,3 +239,60 @@ def test_cli_ablehnen_mit_begruendung(fertig: int, capsys: pytest.CaptureFixture
         main(["freigabe", str(fertig), "--name", NAME, "--ablehnen", "--begruendung", "Zu wenig Belege"]) == 0
     )
     assert capsys.readouterr().out.startswith(f"Abgelehnt von {NAME}, ")
+
+
+def test_ablehnung_steht_in_protokoll_md_unter_ablehnungen(fertig: int, tmp_path: Path) -> None:
+    """Ohne die Zeile in `meta.freigabe` fehlten UC2-Ablehnungen im Abschnitt „Ablehnungen“ (Vertrag P)."""
+    repo = tmp_path / "leeres-repo"
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    with _verbinde() as v:
+        entscheide(v, fertig, NAME, "abgelehnt", "Zahlen zu dünn")
+        text = export_md(v, repo, "uc2")
+    ablehnungen = text.split("## Ablehnungen", 1)[1]
+    assert NAME in ablehnungen and "Zahlen zu dünn" in ablehnungen and f"Fall {fertig}" in ablehnungen
+
+
+def test_schreiben_braucht_autocommit_ohne_offene_transaktion(fertig: int) -> None:
+    with db.verbinde(TEST_DB, autocommit=False) as v, pytest.raises(ValueError, match="autocommit"):
+        schreibe_freigabe(v, fertig, NAME, "freigegeben", None, "wartezeiten")
+    with _verbinde() as v:
+        v.execute("begin")
+        with pytest.raises(ValueError, match="autocommit"):
+            schreibe_freigabe(v, fertig, NAME, "freigegeben", None, "wartezeiten")
+        v.execute("rollback")
+    assert _meta_freigaben(fertig) == []
+
+
+def _entscheide_beide(client: TestClient, fall_id: int) -> None:
+    antwort = client.post(
+        f"/faelle/{fall_id}/freigabe",
+        json={"name": NAME, "entscheidung": "abgelehnt", "begruendung": "Zahlen zu dünn"},
+    )
+    assert antwort.status_code == 200
+
+
+@pytest.mark.parametrize("schalter", ["KIC_ONLINE", "KIC_ONLINE_LESEND"])
+def test_oeffentlich_steht_nur_entscheidung_und_zeit(
+    fertig: int, client: TestClient, monkeypatch: pytest.MonkeyPatch, schalter: str
+) -> None:
+    """Personenschutz: online weder Name noch Begründung, lokal beides."""
+    _entscheide_beide(client, fertig)
+    lokal = client.get(f"/faelle/{fertig}").json()["freigabe"]
+    assert lokal["name"] == NAME and lokal["begruendung"] == "Zahlen zu dünn"
+    monkeypatch.setenv(schalter, "1")
+    online = client.get(f"/faelle/{fertig}").json()["freigabe"]
+    assert online == {"entscheidung": "abgelehnt", "zeit": lokal["zeit"]}
+    assert NAME not in client.get(f"/faelle/{fertig}").text
+    assert "dünn" not in client.get(f"/faelle/{fertig}").text
+    monkeypatch.setenv(schalter, "0")
+    assert client.get(f"/faelle/{fertig}").json()["freigabe"] == lokal
+
+
+def test_ausgabefilter_laesst_offene_und_fehlende_freigabe_in_ruhe() -> None:
+    offen = {"fall": {"fall_id": 1}, "freigabe": None}
+    assert bericht_fuer_ausgabe(offen, anonym=True) == offen
+    assert bericht_fuer_ausgabe({"fall": {}}, anonym=True) == {"fall": {}}
+    frei = {"freigabe": {"name": NAME, "zeit": "z", "entscheidung": "freigegeben", "begruendung": None}}
+    oeffentlich = {"freigabe": {"zeit": "z", "entscheidung": "freigegeben"}}
+    assert bericht_fuer_ausgabe(frei, anonym=True) == oeffentlich
+    assert bericht_fuer_ausgabe(frei, anonym=False) == frei

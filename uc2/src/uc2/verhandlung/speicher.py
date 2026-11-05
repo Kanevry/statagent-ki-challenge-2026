@@ -15,6 +15,7 @@ from typing import Any
 import psycopg
 from plattform.protokoll import NeuerEintrag, ddl_einspielen  # type: ignore[import-untyped]  # kein py.typed
 from plattform.protokoll import schreibe as protokoll_schreibe
+from psycopg import pq
 from psycopg.types.json import Jsonb
 
 from uc2 import pfade
@@ -267,13 +268,18 @@ def schreibe_freigabe(
     begruendung: str | None,
     fall_name: str,
 ) -> datetime | None:
-    """Speichert die Entscheidung und eine Zeile im gemeinsamen Protokoll (`meta.protokoll`), zusammen.
+    """Speichert die Entscheidung, eine Zeile in `meta.protokoll` und eine in `meta.freigabe`, zusammen.
 
-    Gibt den Zeitpunkt zurück, oder `None`, wenn der Fall schon entschieden ist. Namen und Zustand des Falls
-    prüft der Aufrufer (`uc2.verhandlung.freigabe`). Die Verbindung braucht `autocommit=True`.
+    Vertrag P: `meta.freigabe` bekommt `ja|nein`, `objekt_typ='antwort'` und `objekt_ref='uc2/fall/<id>'`;
+    ohne diese Zeile fehlte eine Ablehnung im Abschnitt „Ablehnungen“ von `protokoll.md`. Alles läuft in einer
+    Transaktion, es gibt keinen Git-Commit. Gibt den Zeitpunkt zurück, oder `None`, wenn der Fall schon
+    entschieden ist. Namen und Zustand des Falls prüft der Aufrufer (`uc2.verhandlung.freigabe`). Die
+    Verbindung braucht `autocommit=True` ohne offene Transaktion, sonst wäre alles nur ein Savepoint.
     """
     if entscheidung not in ("freigegeben", "abgelehnt"):
         raise ValueError(f"unbekannte Entscheidung {entscheidung!r}")
+    if not verbindung.autocommit or verbindung.info.transaction_status != pq.TransactionStatus.IDLE:
+        raise ValueError("Die Verbindung braucht autocommit=True ohne offene Transaktion.")
     verbindung.execute(DDL_FREIGABE.read_text(encoding="utf-8"))
     ddl_einspielen(verbindung)
     with verbindung.transaction():
@@ -301,6 +307,12 @@ def schreibe_freigabe(
         )
         verbindung.execute(
             "update uc2.freigabe set protokoll_id = %s where fall_id = %s", (protokoll_id, fall_id)
+        )
+        verbindung.execute(
+            "insert into meta.freigabe"
+            " (protokoll_id, name, entscheidung, begruendung, objekt_typ, objekt_ref)"
+            " values (%s, %s, %s, %s, 'antwort', %s)",
+            (protokoll_id, name, "ja" if ok else "nein", None if ok else begruendung, f"uc2/fall/{fall_id}"),
         )
     zeitpunkt: datetime = zeile[0]
     return zeitpunkt

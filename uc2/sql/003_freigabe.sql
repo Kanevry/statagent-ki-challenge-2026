@@ -1,8 +1,9 @@
 -- Freigabe des Berichts einer fertigen Verhandlung durch einen Menschen mit Vor- und Nachnamen.
 -- Idempotent: mehrfach anwendbar. Höchstens eine Entscheidung je Fall (die Einreichung ist endgültig).
--- Die Plattform-Freigabe (`meta.freigabe`) legt für „ja“ immer einen Git-Commit an und passt daher nicht zu
--- einer reinen Entscheidung zu einem Fall in PG. Darum steht die Entscheidung hier, und zusätzlich eine
--- Zeile in `meta.protokoll` (`protokoll_id`), damit sie im gemeinsamen Protokoll erscheint.
+-- `plattform.freigabe.freigeben` legt für „ja“ immer einen Git-Commit an und passt daher nicht zu einer reinen
+-- Entscheidung zu einem Fall in PG. Darum steht die Entscheidung hier, und zusätzlich (Vertrag P, in derselben
+-- Transaktion, ohne Commit) je eine Zeile in `meta.protokoll` (`protokoll_id`) und in `meta.freigabe`
+-- (`ja|nein`, `objekt_typ` 'antwort', `objekt_ref` 'uc2/fall/<id>'), damit Ablehnungen in `protokoll.md` stehen.
 create schema if not exists uc2;
 
 create table if not exists uc2.freigabe (

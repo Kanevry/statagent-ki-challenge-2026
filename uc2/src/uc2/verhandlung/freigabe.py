@@ -2,9 +2,10 @@
 
 Ein Kern für API (`POST /faelle/{id}/freigabe`) und CLI (`uv run uc2 freigabe <fall_id> --name "…"`).
 Der Name wird wie in der Plattform geprüft (`plattform.freigabe.pruefe_name`, „Team“ gilt nicht). Die
-Entscheidung steht in `uc2.freigabe` und zusätzlich im gemeinsamen Protokoll (`meta.protokoll`); warum nicht
-`plattform.freigabe.freigeben`, steht in `uc2/sql/003_freigabe.sql`. Die Fehler tragen feste, einfache Sätze
-(SEC-009): sie nennen weder Pfade noch SQL noch den eingegebenen Text.
+Entscheidung steht in `uc2.freigabe` und zusätzlich im gemeinsamen Protokoll (`meta.protokoll`,
+`meta.freigabe`, Vertrag P, ohne Git-Commit); warum nicht `plattform.freigabe.freigeben`, steht in
+`uc2/sql/003_freigabe.sql`. Die Fehler tragen feste, einfache Sätze (SEC-009): sie nennen weder Pfade
+noch SQL noch den eingegebenen Text.
 """
 
 from __future__ import annotations

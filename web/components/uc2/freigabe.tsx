@@ -14,9 +14,10 @@ import { endstand, type FallZustand } from "./zustand";
 // selbst passt nicht: sie zeigt den Vorschlag eines Agenten mit Zahlen vorher und nachher.
 // Im Vorführmodus (aufgezeichnete Verhandlung) wird nichts gespeichert; das steht sichtbar dabei.
 
+/** `name` und `begruendung` fehlen, wenn der Bericht öffentlich ausgeliefert wird (Personenschutz, `uc2.api.belegfilter`). */
 export type Entscheidung =
-  | { art: "freigegeben"; name: string; zeit: string }
-  | { art: "abgelehnt"; name: string; zeit: string; begruendung: string };
+  | { art: "freigegeben"; name?: string; zeit: string }
+  | { art: "abgelehnt"; name?: string; zeit: string; begruendung?: string };
 
 export type FreigabeAuftrag = { name: string; entscheidung: "freigegeben" | "abgelehnt"; begruendung?: string };
 
@@ -24,17 +25,26 @@ export type FreigabeAuftrag = { name: string; entscheidung: "freigegeben" | "abg
 export type Speichern = (auftrag: FreigabeAuftrag) => Promise<{ zeitpunkt?: string | null } | void>;
 
 export const VORFUEHRUNG_HINWEIS = "Vorführung: nichts gespeichert";
-const SATZ = "Das Ergebnis der Verhandlung wird als geprüft markiert und kommt mit deinem Namen ins Protokoll.";
+export const SATZ = "Das Ergebnis der Verhandlung wird als geprüft markiert und kommt mit deinem Namen ins Protokoll.";
+/** In der Vorführung bleibt nichts stehen; der Satz darf nicht das Gegenteil sagen. */
+export const VORFUEHRUNG_SATZ = "In der Vorführung wird nichts gespeichert. Im echten Betrieb kommt dein Name ins Protokoll.";
+/** Längste Begründung; die Route und die Python-API lehnen mehr ab. */
+export const MAX_BEGRUENDUNG = 500;
+/** Textknopf mit Mindesthöhe 44 px für Touch (wie in UC3). */
+const TEXTKNOPF = "inline-flex min-h-11 items-center font-sans text-14 font-semibold text-ink underline underline-offset-4";
 const NAME_HINWEIS = "Bitte den eigenen Vor- und Nachnamen eintragen, „Team“ gilt nicht.";
 
-/** Aus dem Bericht der API (`freigabe: {name, zeit, entscheidung, begruendung} | null`). */
+/** Aus dem Bericht der API (`freigabe: {name?, zeit, entscheidung, begruendung?} | null`); öffentlich ohne Name und Grund. */
 export function entscheidungAusBericht(bericht: unknown): Entscheidung | null {
   const f = (bericht as { freigabe?: unknown } | null)?.freigabe;
   if (!f || typeof f !== "object") return null;
   const { name, zeit, entscheidung, begruendung } = f as Record<string, unknown>;
-  if (typeof name !== "string" || typeof zeit !== "string") return null;
-  if (entscheidung === "freigegeben") return { art: "freigegeben", name, zeit };
-  if (entscheidung === "abgelehnt") return { art: "abgelehnt", name, zeit, begruendung: typeof begruendung === "string" ? begruendung : "" };
+  if (typeof zeit !== "string") return null;
+  const person = typeof name === "string" && name.trim() ? { name } : {};
+  if (entscheidung === "freigegeben") return { art: "freigegeben", ...person, zeit };
+  if (entscheidung === "abgelehnt") {
+    return { art: "abgelehnt", ...person, zeit, ...(typeof begruendung === "string" && begruendung.trim() ? { begruendung } : {}) };
+  }
   return null;
 }
 
@@ -48,6 +58,24 @@ export function EntwurfMarke() {
       Entwurf
     </span>
   );
+}
+
+/** Marke am Ergebnis nach einer Ablehnung: der Bericht gilt nicht als geprüft. */
+export function AbgelehntMarke() {
+  return (
+    <span
+      className="inline-flex items-center rounded-full bg-err-bg px-3 py-0.5 font-sans text-12 font-semibold text-err-fg"
+      data-testid="uc2-abgelehnt"
+    >
+      Abgelehnt
+    </span>
+  );
+}
+
+/** Wer wann entschieden hat; ohne Namen (öffentlich) nur „am <Zeit>“. */
+export function entscheidungSatz(e: Entscheidung): string {
+  const wort = e.art === "freigegeben" ? "Freigegeben" : "Abgelehnt";
+  return e.name ? `${wort} von ${e.name}, ${formatZeit(e.zeit)}` : `${wort} am ${formatZeit(e.zeit)}`;
 }
 
 /** Speichern über die Route der Seite; die Antwort trägt feste Sätze, die direkt angezeigt werden. */
@@ -160,7 +188,7 @@ export function FreigabeBericht({ fallId, modus, entscheidung, onEntschieden, sp
       <Ueberschrift stufe={3} als="h3" id={titelId}>
         Freigabe des Berichts
       </Ueberschrift>
-      {!entscheidung && <Fliesstext groesse={14}>{SATZ}</Fliesstext>}
+      {!entscheidung && <Fliesstext groesse={14}>{vorfuehrung ? VORFUEHRUNG_SATZ : SATZ}</Fliesstext>}
 
       {!entscheidung && (
         <div className="flex flex-col gap-3">
@@ -179,7 +207,7 @@ export function FreigabeBericht({ fallId, modus, entscheidung, onEntschieden, sp
               fehler={nameFehler}
             />
             {!ablehnen && (
-              <Knopf className="sm:mt-7" disabled={!pruefung.gueltig || laeuft} onClick={() => void ausfuehren("freigegeben")}>
+              <Knopf className="min-h-11 sm:mt-7" disabled={!pruefung.gueltig || laeuft} onClick={() => void ausfuehren("freigegeben")}>
                 <Piktogramm name="haken" />
                 Freigeben
               </Knopf>
@@ -193,6 +221,7 @@ export function FreigabeBericht({ fallId, modus, entscheidung, onEntschieden, sp
               autoComplete="off"
               required
               value={begruendung}
+              maxLength={MAX_BEGRUENDUNG}
               onChange={(e) => setBegruendung(e.target.value)}
               onKeyDown={enterSperren}
             />
@@ -200,12 +229,12 @@ export function FreigabeBericht({ fallId, modus, entscheidung, onEntschieden, sp
           <div className="flex flex-wrap items-center gap-6">
             {ablehnen ? (
               <>
-                <Knopf art="sekundaer" disabled={!pruefung.gueltig || !grund || laeuft} onClick={() => void ausfuehren("abgelehnt")}>
+                <Knopf art="sekundaer" className="min-h-11" disabled={!pruefung.gueltig || !grund || laeuft} onClick={() => void ausfuehren("abgelehnt")}>
                   Ablehnung speichern
                 </Knopf>
                 <button
                   type="button"
-                  className={klassen("font-sans text-14 font-semibold text-ink underline underline-offset-4", fokus)}
+                  className={klassen(TEXTKNOPF, fokus)}
                   onClick={() => wechsle(false)}
                   disabled={laeuft}
                 >
@@ -216,7 +245,7 @@ export function FreigabeBericht({ fallId, modus, entscheidung, onEntschieden, sp
               <button
                 id={ablehnenId}
                 type="button"
-                className={klassen("font-sans text-14 font-semibold text-ink underline underline-offset-4", fokus)}
+                className={klassen(TEXTKNOPF, fokus)}
                 onClick={() => wechsle(true)}
                 disabled={laeuft}
               >
@@ -238,11 +267,11 @@ export function FreigabeBericht({ fallId, modus, entscheidung, onEntschieden, sp
       >
         {entscheidung ? (
           entscheidung.art === "freigegeben" ? (
-            <Status art="ok">{`Freigegeben von ${entscheidung.name}, ${formatZeit(entscheidung.zeit)}`}</Status>
+            <Status art="ok">{entscheidungSatz(entscheidung)}</Status>
           ) : (
             <>
-              <Status art="info">{`Abgelehnt von ${entscheidung.name}, ${formatZeit(entscheidung.zeit)}`}</Status>
-              <Fliesstext groesse={14}>{`Begründung: ${entscheidung.begruendung}`}</Fliesstext>
+              <Status art="info">{entscheidungSatz(entscheidung)}</Status>
+              {entscheidung.begruendung && <Fliesstext groesse={14}>{`Begründung: ${entscheidung.begruendung}`}</Fliesstext>}
             </>
           )
         ) : laeuft ? (
@@ -263,7 +292,7 @@ export function FreigabeBericht({ fallId, modus, entscheidung, onEntschieden, sp
 }
 
 /**
- * "Am Ende gilt" mit Freigabe: Marke "Entwurf" am Ergebnis, bis entschieden ist, darunter die Karte. Live liest die
+ * "Am Ende gilt" mit Freigabe: Marke "Entwurf" am Ergebnis, bis entschieden ist (nach einer Ablehnung "Abgelehnt"), darunter die Karte. Live liest die
  * Seite eine frühere Entscheidung aus dem Bericht der API; in der Vorführung bleibt alles in der Seite.
  */
 export function StandMitFreigabe({
@@ -298,9 +327,11 @@ export function StandMitFreigabe({
     };
   }, [fertig, vorfuehrung, fallId]);
 
+  const marke = !fertig ? undefined : !entscheidung ? <EntwurfMarke /> : entscheidung.art === "abgelehnt" ? <AbgelehntMarke /> : undefined;
+
   return (
     <>
-      <Stand zustand={zustand} marke={fertig && !entscheidung ? <EntwurfMarke /> : undefined} />
+      <Stand zustand={zustand} marke={marke} />
       {fertig && (
         <FreigabeBericht fallId={fallId} modus={modus} entscheidung={entscheidung} onEntschieden={setEntscheidung} speichern={speichern} />
       )}

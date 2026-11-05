@@ -20,6 +20,10 @@ export const runtime = "nodejs";
 
 export const MAX_BODY = 4 * 1024;
 
+export const ZU_OFT = "Zu viele Freigaben in kurzer Zeit. Bitte in einer Minute noch einmal.";
+export const ANFRAGE_UNGUELTIG =
+  "Die Eingabe passt nicht. Bitte Vor- und Nachnamen eintragen, eine Entscheidung wählen und die Begründung auf höchstens 500 Zeichen kürzen.";
+
 export const NAME_UNGUELTIG = "Bitte Vor- und Nachnamen eines Menschen eintragen. „Team“ gilt nicht.";
 
 const schema = z.object({
@@ -41,14 +45,24 @@ function fehlerAusApi(status: number): Response {
   if (status === 409) return fehler(409, "Dieser Bericht ist noch nicht fertig oder schon entschieden.");
   if (status === 413) return fehler(413, "Die Anfrage ist zu groß.");
   if (status === 422) return fehler(422, "Name oder Begründung passen nicht. Bitte Vor- und Nachnamen eintragen.");
-  if (status === 429) return fehler(429, "Bitte warte eine Minute, bevor du noch einmal freigibst.");
+  if (status === 429) {
+    const response = fehler(429, ZU_OFT);
+    response.headers.set("retry-after", "60");
+    return response;
+  }
   return fehler(502, "Das Panel hat nicht geantwortet. Bitte später noch einmal versuchen.");
 }
 
 export async function POST(anfrage: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   if (process.env.KIC_ONLINE_LESEND === "1") return fehler(403, "Freigeben ist in der Online-Demo gesperrt.");
   const gedrosselt = ratenlimit(anfrage);
-  if (gedrosselt) return gedrosselt;
+  if (gedrosselt) {
+    // Das gemeinsame Limit spricht von „Fragen“; hier geht es um Freigaben. Die Wartezeit bleibt.
+    const warten = gedrosselt.headers.get("retry-after") ?? "60";
+    const response = fehler(429, ZU_OFT);
+    response.headers.set("retry-after", warten);
+    return response;
+  }
 
   const { id } = await params;
   if (!gueltigeId(id)) return fehler(400, "Ungültige Fall-Kennung.");
@@ -61,7 +75,7 @@ export async function POST(anfrage: Request, { params }: { params: Promise<{ id:
     return f instanceof ZuGross ? fehler(413, "Die Anfrage ist zu groß.") : fehler(400, "Die Anfrage braucht JSON.");
   }
   const eingabe = schema.safeParse(roh);
-  if (!eingabe.success) return fehler(400, "Die Anfrage passt nicht: name, entscheidung oder begruendung sind ungültig.");
+  if (!eingabe.success) return fehler(400, ANFRAGE_UNGUELTIG);
   const { entscheidung, begruendung } = eingabe.data;
 
   const name = pruefeName(eingabe.data.name);

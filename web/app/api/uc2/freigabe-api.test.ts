@@ -1,4 +1,4 @@
-import { NAME_UNGUELTIG, POST as freigeben } from "./faelle/[id]/freigabe/route";
+import { ANFRAGE_UNGUELTIG, NAME_UNGUELTIG, POST as freigeben, ZU_OFT } from "./faelle/[id]/freigabe/route";
 
 // POST /api/uc2/faelle/{id}/freigabe: Sperren vor dem Body, Prüfung des Namens, Durchreichen an die Python-API mit festen
 // Sätzen, Vorführmodus ohne Speichern. Namen sind erfunden ("Musterfrau" lehnt die Namensregel selbst ab).
@@ -42,6 +42,27 @@ it("drosselt je IP mit 429", async () => {
   expect(status[10]).toBe(429);
 });
 
+it("drosselt mit eigenem Satz über Freigaben, nicht über Fragen, und mit Retry-After", async () => {
+  vi.stubEnv("UC2_MOCK", "1");
+  const ip = "10.9.9.10";
+  for (let i = 0; i < 10; i++) await post("mock-wartezeiten", gut, { ip });
+  const antwort = await post("mock-wartezeiten", gut, { ip });
+  expect(antwort.status).toBe(429);
+  const { fehler } = (await antwort.json()) as { fehler: string };
+  expect(fehler).toBe(ZU_OFT);
+  expect(fehler).toBe("Zu viele Freigaben in kurzer Zeit. Bitte in einer Minute noch einmal.");
+  expect(fehler).not.toMatch(/Fragen/);
+  expect(Number(antwort.headers.get("retry-after"))).toBeGreaterThanOrEqual(1);
+});
+
+it("die Drosselung der Python-API trägt denselben Satz und Retry-After", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail: "x" }, { status: 429 })));
+  const antwort = await post("42", gut);
+  expect(antwort.status).toBe(429);
+  expect(await antwort.json()).toEqual({ fehler: ZU_OFT });
+  expect(antwort.headers.get("retry-after")).toBe("60");
+});
+
 it("lehnt einen zu großen Body mit 413 ab, auch ohne Content-Length", async () => {
   expect((await post("42", null, { roh: JSON.stringify({ ...gut, begruendung: "x".repeat(5000) }) })).status).toBe(413);
   const strom = new ReadableStream<Uint8Array>({
@@ -64,7 +85,14 @@ it("lehnt einen zu großen Body mit 413 ab, auch ohne Content-Length", async () 
 
 it("lehnt ungültige Anfragen ab: kein JSON, falsche Felder, Team, Ablehnung ohne Begründung", async () => {
   expect((await post("42", null, { roh: "nicht json" })).status).toBe(400);
-  expect((await post("42", { name: "Maria Beispiel", entscheidung: "vielleicht" })).status).toBe(400);
+  const falsch = await post("42", { name: "Maria Beispiel", entscheidung: "vielleicht" });
+  expect(falsch.status).toBe(400);
+  // Alltagssprache: keine Feldnamen aus dem Code
+  const { fehler } = (await falsch.json()) as { fehler: string };
+  expect(fehler).toBe(ANFRAGE_UNGUELTIG);
+  expect(fehler).not.toMatch(/name,|entscheidung|begruendung/);
+  expect(fehler).toContain("500 Zeichen");
+  expect((await post("42", { ...gut, begruendung: "x".repeat(501) })).status).toBe(400);
   const team = await post("42", { name: "Team", entscheidung: "freigegeben" });
   expect(team.status).toBe(422);
   expect(await team.json()).toEqual({ fehler: NAME_UNGUELTIG });

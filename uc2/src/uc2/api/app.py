@@ -14,7 +14,9 @@ Eine Ausnahme vom Lesen ist `POST /faelle/{id}/freigabe` (Freigabe des Berichts 
 `uc2.verhandlung.freigabe`): nur für fertige Fälle, mit denselben Sperren wie der Start. `KIC_ONLINE_LESEND=1`
 ergibt 403 vor dem Body, dazu ein Ratenlimit je IP, eine Body-Grenze und feste Sätze.
 
-Jede Ausgabe läuft durch `uc2.api.belegfilter` (online nur Zitatfelder je Beleg). Eine PG-Verbindung je
+Jede Ausgabe läuft durch `uc2.api.belegfilter` (online nur Zitatfelder je Beleg; öffentlich, also mit
+`KIC_ONLINE=1` oder `KIC_ONLINE_LESEND=1`, steht von der Freigabe nur „freigegeben/abgelehnt am <Zeit>“,
+ohne Name und ohne Begründung). Eine PG-Verbindung je
 Anfrage, beim SSE-Strom für dessen Dauer. Fehler gehen als JSON mit festen, einfachen Sätzen hinaus: keine
 Env-Namen, Pfade, SQL oder Exception-Texte (SEC-009); Einzelheiten nur ins Server-Log.
 """
@@ -42,7 +44,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from uc2 import db
-from uc2.api.belegfilter import daten_fuer_ausgabe, ereignis_fuer_ausgabe
+from uc2.api.belegfilter import bericht_fuer_ausgabe, ereignis_fuer_ausgabe
 from uc2.api.start import Lauf, Startauftrag, Starter, StartFehler, UnterprozessStarter
 from uc2.verhandlung.belege import lade_namensliste
 from uc2.verhandlung.bericht import bericht
@@ -281,7 +283,7 @@ def erstelle_app(
         with closing(verbinde_pg()) as v:
             _fall_oder_404(v, fall_id)
             daten = bericht(v, fall_id)
-        return daten_fuer_ausgabe(jsonable_encoder(daten))
+        return bericht_fuer_ausgabe(jsonable_encoder(daten))
 
     def _freigabe_zu_oft(ip: str) -> bool:
         """Zählt die Anfrage; `True`, wenn das Fenster schon voll ist. Räumt abgelaufene Einträge weg."""
