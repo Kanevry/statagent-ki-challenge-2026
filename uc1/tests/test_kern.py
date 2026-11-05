@@ -786,3 +786,10 @@ def test_gleiche_stelle_fuer_zwei_leistungen_nur_einmal() -> None:
     ]
     text = kern.setze_text([], traeger, [], sprache="de", stil="einfach", vorbehalt=[])
     assert text.count("Zuständig:") == 1 and "BPGG § 22 Abs. 1 Z 1; ASVG § 300" in text
+
+
+def test_bgbl_ist_kein_satzende() -> None:
+    """Fängt ein Zitat, das bei „(ASVG), BGBl.“ endet, weil die Abkürzung als Satzende galt."""
+    text = "nach dem Allgemeinen Sozialversicherungsgesetz (ASVG), BGBl. Nr. 189/1955, oder nach dem GSVG;"
+    zitat = "nach dem Allgemeinen Sozialversicherungsgesetz (ASVG)"
+    assert kern.vervollstaendige_zitat(zitat, text).endswith("oder nach dem GSVG;")

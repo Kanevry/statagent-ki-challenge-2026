@@ -530,7 +530,7 @@ def zitat_gueltig(zitat: str, abschnitt_text: str) -> bool:
 # Zitat bis zum Satzende (Sichtprüfung #35): Ein Zitat, das mitten im Satz endet, kann das Gegenteil der
 # Aussage lesen lassen („… erhalten für die Dauer von vier Wochen“ ohne „… kein Arbeitslosengeld.“).
 _ABKUERZUNG = re.compile(
-    r"(?:^|[\s(])(?:Abs|Art|Z|Nr|lit|bzw|vgl|ca|idF|iVm|gem|Pkt|bzgl|insb|usw|etc|Dr|Mag|[a-zA-Z]|\d+)$"
+    r"(?:^|[\s(])(?:Abs|Art|Z|Nr|lit|bzw|vgl|ca|idF|iVm|gem|Pkt|bzgl|insb|usw|etc|Dr|Mag|BGBl|[a-zA-Z]|\d+)$"
 )
 ZITAT_VERLAENGERUNG = 300  # höchstens so viele Zeichen über das Modell-Zitat hinaus
 
