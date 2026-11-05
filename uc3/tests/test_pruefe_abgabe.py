@@ -18,6 +18,7 @@ from openpyxl.utils import get_column_letter
 from statagent.berichte.pruefe_abgabe import (
     ERGEBNIS_BLAETTER,
     VORLAGE_BLAETTER,
+    bericht_maengel,
     berichtsmonate,
     blatt_monate,
     pruefe_abgabe,
@@ -333,3 +334,14 @@ def test_ministerium_csv_im_repo_ist_ein_mangel(tmp_path: Path) -> None:
         "PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE\n", encoding="utf-8"
     )
     assert "liegt im Repo" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]
+
+
+def test_rueckfrage_aus_paragraf_2_muss_in_paragraf_3_stehen() -> None:
+    # Fängt: § 2 verweist auf eine Rückfrage (z. B. alte Nummer R2 statt R6), die § 3 nicht nennt; Leser finden
+    # die Frage dann nicht (Review 57, D).
+    text = _bericht().replace(
+        "| {e} | – | – |".format(e="erklärt – plausibel"), "| erklärt – plausibel | – | R7 |"
+    )
+    assert "§ 2 verweist auf R7, § 3 nennt sie nicht" in bericht_maengel(text)
+    mit_r7 = text.replace("Keine Rückfragen.", "R7 Volldubletten in Lieferung 2025-03: offen.")
+    assert not [m for m in bericht_maengel(mit_r7) if "verweist" in m]

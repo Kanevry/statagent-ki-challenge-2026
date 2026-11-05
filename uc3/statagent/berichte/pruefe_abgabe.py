@@ -260,7 +260,28 @@ def bericht_maengel(
         falsch = sorted({e for e in einstufungen if e not in struktur.einstufungen})
         if falsch:
             maengel.append("ungültige Einstufung " + ", ".join(f"„{e}“" for e in falsch))
+    if len(struktur.abschnitte) > 2:
+        maengel += _verweis_maengel(zeilen, struktur.abschnitte[1], struktur.abschnitte[2])
     return maengel
+
+
+_RUECKFRAGE_NR = re.compile(r"\bR\d+\b")
+
+
+def _verweis_maengel(zeilen: list[str], auffaellig: str, rueckfragen: str) -> list[str]:
+    """Jede Rückfrage, auf die eine Auffälligkeit in § 2 verweist (letzte Tabellenspalte), steht auch in § 3.
+
+    Fängt Berichte, deren § 2 noch alte Rückfrage-Nummern trägt, während § 3 die neuen nennt (Review 57, D).
+    """
+    teil2 = _abschnitt(zeilen, auffaellig) or []
+    teil3 = "\n".join(_abschnitt(zeilen, rueckfragen) or [])
+    verwiesen: set[str] = set()
+    for zeile in teil2:
+        if zeile.startswith("|") and not zeile.startswith("| ---") and not zeile.startswith("| Nr"):
+            zellen = [z.strip() for z in zeile.strip("|").split("|")]
+            verwiesen |= set(_RUECKFRAGE_NR.findall(zellen[-1])) if zellen else set()
+    fehlt = sorted(n for n in verwiesen if not re.search(rf"\b{n}\b", teil3))
+    return [f"§ 2 verweist auf {', '.join(fehlt)}, § 3 nennt sie nicht"] if fehlt else []
 
 
 def blatt_monate(blatt: str) -> list[str]:
