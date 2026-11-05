@@ -52,10 +52,10 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  'Fachbeschreibung § 4 Nr. 5; Regel R5_alter; Beispielbericht Tab13'),
 
 ('v1', 'P08_beginn_ersetzt', 'pruefung', 'korrektur', 8,
- '{"ebene": "satz", "regel": "E04_beginn_fehlt", "bezug": "lieferung", "einstufung": "erklaert-datenproblem", "massnahme": "BEGINN = erster Tag des Lieferfensters (E04), Verhältnis zählt", "anhalten": false}',
- 'Sätze ohne gültigen BEGINN, für die E04 den ersten Tag des Lieferfensters eingesetzt hat.',
- 'Kein Verhältnis geht verloren (Anhang A Nr. 1). Nach Regel E01 bisher 0 Fälle.',
- 'Fachbeschreibung § 2; Anhang A Nr. 1; Regel E04'),
+ '{"ebene": "satz", "regel": ["E04_beginn_fehlt", "E06_ende_ungueltig"], "bezug": "lieferung", "einstufung": "erklaert-datenproblem", "massnahme": "BEGINN fehlt: erster Tag des Lieferfensters (E04); ENDE ungültig: Monatsletzter bei lesbarem Monat, sonst offen (E06); Verhältnis zählt", "anhalten": false}',
+ 'Sätze, bei denen eine Einleseregel BEGINN (E04) oder ENDE (E06) ersetzt hat, weil der gelieferte Wert kein gültiges Datum war.',
+ 'Kein Verhältnis geht verloren (Anhang A Nr. 1). E04: nach Regel E01 bisher 0 Fälle. E06: ein ENDE, das kein gültiges Datum ist, wird nicht als beendet gewertet (Monatsletzter bei lesbarem Monat, sonst offen); die Zahl je Monat steht im Qualitätsbericht (Review !13 Runde 3 Punkt 11).',
+ 'Fachbeschreibung § 2; Anhang A Nr. 1; Regel E04; Regel E06'),
 
 ('v1', 'P09_beginn_nach_ende', 'pruefung', 'beginn_nach_ende', 9,
  '{"ebene": "satz", "einstufung": "nicht-erklaerbar", "massnahme": "Satz zählt nach Stichtagsregel nicht; an die Fachabteilung", "anhalten": false}',

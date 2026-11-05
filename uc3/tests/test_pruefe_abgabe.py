@@ -6,6 +6,7 @@ und übergeben `vorlagen_dir`, damit das Ergebnis nicht vom lokalen Startpaket a
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -292,3 +293,30 @@ def test_regelkonstante_im_code_ist_nicht_ok(tmp_path: Path) -> None:
     fehlend = _pruefen(abgabe, tmp_path)
     assert set(fehlend) == {"keine Regelkonstanten im Code (Technische Regel 3)"}
     assert "zaehlung.py:1" in fehlend["keine Regelkonstanten im Code (Technische Regel 3)"]
+
+
+def _beleg(abgabe: Path, sha: str) -> None:
+    (abgabe / "ministerium_2026-07.beleg.md").write_text(
+        f"# Ministeriums-Lieferung 2026-07\n\n| Angabe | Wert |\n| --- | --- |\n| sha256 | `{sha}` |\n",
+        encoding="utf-8",
+    )
+
+
+def test_ministerium_ohne_csv_reicht_der_beleg_mit_sha256(tmp_path: Path) -> None:
+    # Fängt: die Jury-Kopie des Repos (CSV mit Einzeldaten bewusst nicht enthalten) gilt als unvollständig, oder
+    # ein Beleg ohne sha256 gilt als Lieferung.
+    abgabe = _vollstaendig(tmp_path)
+    csv_datei = abgabe / "ministerium_2026-07.csv"
+    sha = hashlib.sha256(csv_datei.read_bytes()).hexdigest()
+    csv_datei.unlink()
+    (abgabe / "ministerium_2026-07.beleg.md").write_text("# ohne Prüfsumme\n", encoding="utf-8")
+    assert "ohne sha256" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]
+    _beleg(abgabe, sha)
+    assert "Ministeriums-Lieferung 2026-07" not in _pruefen(abgabe, tmp_path)
+
+
+def test_ministerium_csv_muss_zur_sha256_im_beleg_passen(tmp_path: Path) -> None:
+    # Fängt: eine geänderte oder falsche CSV wird abgegeben, obwohl der freigegebene Beleg eine andere sha256 nennt.
+    abgabe = _vollstaendig(tmp_path)
+    _beleg(abgabe, "0" * 64)
+    assert "passt nicht" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]

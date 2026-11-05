@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 from pathlib import Path
 
@@ -97,9 +98,10 @@ def _lieferungs_protokoll(conn: Verbindung) -> list[tuple[int, str, str | None]]
     ]
 
 
-def test_freigabe_committet_genau_die_csv_mit_trailer_und_protokoll(conn: Verbindung, tmp_path: Path) -> None:
+def test_freigabe_committet_den_beleg_mit_sha256_nicht_die_csv(conn: Verbindung, tmp_path: Path) -> None:
     # Fängt: Lieferung nur in meta.ausgabe festgehalten, ohne meta.protokoll/meta.freigabe und ohne Commit mit
-    # Trailer (Review !13 Punkt 3, #71 AC2, Regel 7), oder ein Commit mit fremden Dateien.
+    # Trailer (Review !13 Punkt 3, #71 AC2, Regel 7), ein Commit mit fremden Dateien, oder die CSV mit
+    # Einzeldaten im Repo statt des Belegs mit ihrer sha256 (Entscheid Lead 58, #16).
     repo = _repo(tmp_path / "repo")
     (repo / "fremd.txt").write_text("nicht Teil der Lieferung\n", encoding="utf-8")
     git(repo, "add", "fremd.txt")
@@ -108,11 +110,11 @@ def test_freigabe_committet_genau_die_csv_mit_trailer_und_protokoll(conn: Verbin
     datei, _ = ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
     assert git(repo, "log", "-1", "--format=%(trailers:key=Freigegeben-von,valueonly)") == NAME
     assert git(repo, "show", "--name-only", "--format=", "HEAD").splitlines() == [
-        "abgabe/ministerium_2024-11.csv"
+        "abgabe/ministerium_2024-11.beleg.md"
     ]
-    assert (
-        git(repo, "show", "HEAD:abgabe/ministerium_2024-11.csv") == datei.read_text(encoding="utf-8").strip()
-    )
+    sha = hashlib.sha256(datei.read_bytes()).hexdigest()
+    beleg = git(repo, "show", "HEAD:abgabe/ministerium_2024-11.beleg.md")
+    assert f"`{sha}`" in beleg and "ministerium_2024-11.csv" in beleg and NAME in beleg
     [(protokoll_id, status, commit)] = _lieferungs_protokoll(conn)
     assert (status, commit) == ("freigegeben", git(repo, "rev-parse", "HEAD"))
     f = conn.execute(
@@ -121,7 +123,7 @@ def test_freigabe_committet_genau_die_csv_mit_trailer_und_protokoll(conn: Verbin
     assert f is not None and (f["name"], f["objekt_typ"], f["objekt_ref"]) == (
         NAME,
         "datei",
-        "abgabe/ministerium_2024-11.csv",
+        "abgabe/ministerium_2024-11.beleg.md",
     )
     assert _ausgaben(conn) == [("abgabe/ministerium_2024-11.csv", protokoll_id)]
 
@@ -134,13 +136,15 @@ def test_zweite_freigabe_desselben_monats_wird_abgewiesen(conn: Verbindung, tmp_
     regeln_freigeben(conn, "ministerium", NAME)
     datei, _ = ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
     kopf = git(repo, "rev-parse", "HEAD")
+    inhalt = datei.read_bytes()
     with pytest.raises(LieferungBereitsFreigegeben, match=f"bereits freigegeben von {NAME} am"):
         ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
     conn.execute(b"UPDATE meta.ausgabe SET sha256 = 'anders' WHERE berichtsmonat = '2024-11'")
     with pytest.raises(LieferungBereitsFreigegeben, match="neuen Auftrag"):
         ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
     assert git(repo, "rev-parse", "HEAD") == kopf
-    assert git(repo, "status", "--porcelain") == ""  # Datei unverändert
+    assert git(repo, "status", "--porcelain", "--untracked-files=no") == ""  # Beleg unverändert
+    assert datei.read_bytes() == inhalt  # CSV (nicht im Repo) unverändert
     assert len(_ausgaben(conn)) == 1 and len(_lieferungs_protokoll(conn)) == 1
     assert datei.is_file()
 
@@ -216,3 +220,19 @@ def test_geburtsmonat_13_ist_unplausibles_geburtsjahr(conn: Verbindung) -> None:
     zeilen = {z[0]: z for z in personentage(conn, auswertung_regel(conn, "ministerium"), "2024-11").zeilen}
     assert zeilen[5301][2] == "Unbekannt"
     assert zeilen[7001][2] == "1970"
+
+
+def test_freigabe_im_protokoll_ohne_ausgabe_verhindert_zweite_freigabe(
+    conn: Verbindung, tmp_path: Path
+) -> None:
+    # Fängt: Commit und meta.protokoll sind da, die meta.ausgabe-Zeile fehlt (Abbruch danach); ein zweiter Aufruf
+    # gibt denselben Monat noch einmal frei (Session-Review, Befund 4).
+    repo = _repo(tmp_path / "repo")
+    _auswertungsregel(conn)
+    regeln_freigeben(conn, "ministerium", NAME)
+    ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+    conn.execute(b"DELETE FROM meta.ausgabe WHERE art = 'ministerium' AND berichtsmonat = '2024-11'")
+    kopf = git(repo, "rev-parse", "HEAD")
+    with pytest.raises(LieferungBereitsFreigegeben, match="meta.protokoll"):
+        ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+    assert git(repo, "rev-parse", "HEAD") == kopf

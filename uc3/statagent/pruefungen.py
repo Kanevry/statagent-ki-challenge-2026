@@ -128,6 +128,19 @@ def _regel_namentlich(k: Kontext, regel: Regel) -> Regel:
     raise RegelFehler(f"{regel.name}: referenzierte Regel '{name}' ist im Regelsatz nicht aktiv")
 
 
+def _regeln_namentlich(k: Kontext, regel: Regel) -> list[Regel]:
+    """Die in ``parameter.regel`` referenzierten Regeln des Laufs (ein Name oder eine Liste von Namen)."""
+    angabe = _param(regel, "regel")
+    namen = [str(n) for n in angabe] if isinstance(angabe, list) else [str(angabe)]
+    aktiv = {r.name: r for r in k.regeln}
+    fehlt = [n for n in namen if n not in aktiv]
+    if fehlt or not namen:
+        raise RegelFehler(
+            f"{regel.name}: referenzierte Regel '{', '.join(fehlt)}' ist im Regelsatz nicht aktiv"
+        )
+    return [aktiv[n] for n in namen]
+
+
 def _beleg(k: Kontext, abfrage: Abfrage | str, params: Mapping[str, Any], kopf: str | None = None) -> str:
     with ClientCursor(k.conn) as cur:
         text = cur.mogrify(abfrage, dict(params))
@@ -212,21 +225,21 @@ def _mehrere_abschnitte(k: Kontext, regel: Regel) -> Befund:
 
 
 def _korrektur(k: Kontext, regel: Regel) -> Befund:
-    name = _regel_namentlich(k, regel).name
+    namen = [r.name for r in _regeln_namentlich(k, regel)]
     bezug = str(_param(regel, "bezug"))
     if bezug == "lieferung":
         return _saetze(
             k,
-            f"SELECT vvh_id, 1 AS gewicht FROM {_ABSCHNITTE} AND %(name)s = ANY(korrekturen)",
+            f"SELECT vvh_id, 1 AS gewicht FROM {_ABSCHNITTE} AND korrekturen && %(namen)s::text[]",
             "Sätze",
-            {"name": name},
+            {"namen": namen},
         )
     if bezug == "stichtag":
         return _saetze(
             k,
-            "SELECT vvh_id, 1 AS gewicht FROM _bestand WHERE %(name)s = ANY(korrekturen)",
+            "SELECT vvh_id, 1 AS gewicht FROM _bestand WHERE korrekturen && %(namen)s::text[]",
             "Verhältnisse am Stichtag",
-            {"name": name},
+            {"namen": namen},
             bestand=True,
         )
     raise RegelFehler(f"{regel.name}: bezug muss 'lieferung' oder 'stichtag' sein")

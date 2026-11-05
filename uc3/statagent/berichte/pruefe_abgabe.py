@@ -14,6 +14,7 @@ Prüfung nicht ab. `ok` gilt nur, wenn alle Punkte erfüllt sind.
 from __future__ import annotations
 
 import csv
+import hashlib
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -413,11 +414,36 @@ def _punkt_berichte(abgabe_dir: Path, struktur: BerichtStruktur) -> Punkt:
     return Punkt(name, False, "; ".join(hinweise))
 
 
+def _beleg_sha256(beleg: Path) -> str | None:
+    """sha256 aus dem Beleg ``ministerium_<monat>.beleg.md`` (Zeile „| sha256 | `…` |“), sonst None."""
+    treffer = re.search(
+        r"^\| sha256 \| `([0-9a-f]{64})` \|$", beleg.read_text(encoding="utf-8"), re.MULTILINE
+    )
+    return treffer.group(1) if treffer else None
+
+
 def _punkt_ministerium(abgabe_dir: Path) -> Punkt:
+    """Die CSV enthält Einzeldaten und liegt nicht im Repo (abgabe/.gitignore); im Repo steht der Beleg mit sha256.
+
+    Mit CSV (lokal, SV-Box) wird sie geprüft und gegen die sha256 des Belegs abgeglichen; ohne CSV reicht der
+    freigegebene Beleg (Entscheid Lead 58, #16).
+    """
     name = "Ministeriums-Lieferung 2026-07"
     pfad = abgabe_dir / "ministerium_2026-07.csv"
+    beleg = abgabe_dir / "ministerium_2026-07.beleg.md"
+    sha = _beleg_sha256(beleg) if beleg.is_file() else None
+    if beleg.is_file() and sha is None:
+        return Punkt(name, False, f"{beleg.name} ohne sha256-Zeile")
     if not pfad.is_file():
-        return Punkt(name, False, f"{pfad.name} nicht gefunden")
+        if sha is not None:
+            return Punkt(
+                name,
+                True,
+                f"{pfad.name} nicht im Repo (Einzeldaten, Abgabe über SV-Box); Beleg sha256 {sha[:12]}",
+            )
+        return Punkt(name, False, f"weder {pfad.name} noch {beleg.name} gefunden")
+    if sha is not None and hashlib.sha256(pfad.read_bytes()).hexdigest() != sha:
+        return Punkt(name, False, f"{pfad.name} passt nicht zur sha256 im Beleg")
     with pfad.open(encoding="utf-8", newline="") as f:
         zeilen = list(csv.reader(f, delimiter=";"))
     if not zeilen or zeilen[0] != MINISTERIUM_KOPF:

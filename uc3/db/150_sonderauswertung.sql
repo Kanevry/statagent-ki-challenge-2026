@@ -19,3 +19,6 @@ CREATE TABLE IF NOT EXISTS meta.ausgabe (
 -- vorschlag_typ 'lieferung', meta.freigabe mit objekt_typ 'datei', Commit mit Trailer Freigegeben-von).
 -- protokoll_id verweist auf diesen Eintrag; NULL bei Ausgaben vor dieser Änderung.
 ALTER TABLE meta.ausgabe ADD COLUMN IF NOT EXISTS protokoll_id bigint REFERENCES meta.protokoll (id);
+
+-- Eine Lieferung je Art und Berichtsmonat (Schutz gegen Doppelfreigabe, auch bei parallelen Aufrufen).
+CREATE UNIQUE INDEX IF NOT EXISTS ausgabe_einmal_je_monat ON meta.ausgabe (art, berichtsmonat);

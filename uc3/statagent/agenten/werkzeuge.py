@@ -26,9 +26,10 @@ from statagent.db import Verbindung
 HOECHSTENS_ZEILEN = 200
 ZEITLIMIT = "10s"
 #: Spalten, die eine Person oder ein Beschäftigungsverhältnis kennzeichnen (Einzeldaten).
-GESPERRTE_SPALTEN = frozenset({"person_id", "vvh_id"})
-#: Prüftreffer tragen Beispiel-Kennungen in ``beispiele``; auch die gehen nicht an das Modell.
-GESPERRTE_WOERTER = (*sorted(GESPERRTE_SPALTEN), "beispiele")
+#: Prüftreffer, Rückfragen und Revisionsursachen tragen Beispiel-Kennungen in ``beispiele``; auch die gehen nicht an
+#: das Modell. Eine Tabelle mit einer dieser Spalten ist für freie Abfragen ganz gesperrt (auch über to_jsonb(t)).
+GESPERRTE_SPALTEN = frozenset({"person_id", "vvh_id", "beispiele"})
+GESPERRTE_WOERTER = tuple(sorted(GESPERRTE_SPALTEN))
 #: Struktur (ohne Daten) für ``schema_lesen``.
 SCHEMAS = ("stat", "meta", "bereinigt", "klassifikation")
 #: Was eine freie Abfrage lesen darf: Aggregate, Regeln, Läufe, Klassifikationen. Keine Tabelle dort trägt
@@ -140,6 +141,18 @@ def sql_lesen(conn: Verbindung, query: str) -> dict[str, Any]:
                 raise AbfrageVerweigert(
                     f"Die Abfrage liest außerhalb von stat/meta/klassifikation: {', '.join(fremd)}"
                 )
+            if tabellen:
+                cur.execute(
+                    b"""SELECT DISTINCT table_schema || '.' || table_name AS tabelle FROM information_schema.columns
+                        WHERE table_schema || '.' || table_name = ANY(%s) AND lower(column_name) = ANY(%s)""",
+                    (sorted(tabellen), sorted(GESPERRTE_SPALTEN)),
+                )
+                mit_kennung = sorted(str(z["tabelle"]) for z in cur.fetchall())
+                if mit_kennung:
+                    raise AbfrageVerweigert(
+                        f"{', '.join(mit_kennung)} trägt Kennungen ({', '.join(sorted(GESPERRTE_SPALTEN))}) "
+                        "und ist für freie Abfragen gesperrt."
+                    )
             cur.execute(text.encode())
             spalten = [s.name for s in (cur.description or [])]
             gesperrt = sorted({s for s in spalten if s.lower() in GESPERRTE_SPALTEN})

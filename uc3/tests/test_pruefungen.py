@@ -102,6 +102,19 @@ def test_lauf_schreibt_je_pruefregel_einen_treffer(conn: Verbindung) -> None:
     assert "P16_verhaeltnisse_verschwunden" in laeufe["2024-10"].meldung
 
 
+def test_p08_meldet_ersetztes_ende_e06(conn: Verbindung) -> None:
+    # Fängt: ein ungültiges ENDE (Fixture 2024-11: VVH 3003 „2024-02-30“, 3004 „today“), das E06 ersetzt, meldet keine
+    # P-Regel; der Qualitätsbericht zeigt die Korrektur dann nicht (Review !13 Runde 3, Punkt 11).
+    from statagent.lauf import lauf_ausfuehren
+
+    laeufe = {
+        m: lauf_ausfuehren(conn, m, regelsatz="v1") for m in ("2024-08", "2024-09", "2024-10", "2024-11")
+    }
+    conn.commit()
+    p08 = _treffer(conn, laeufe["2024-11"].lauf_id)["P08_beginn_ersetzt"]
+    assert p08["anzahl"] == 2 and p08["beispiele"] == [3003, 3004]
+
+
 def test_belege_sind_ausfuehrbar(conn: Verbindung) -> None:
     # Fängt: Beleg-SQL, das im Qualitätsbericht nicht nachvollziehbar ist (Syntaxfehler, falsche Literale).
     from statagent.lauf import lauf_ausfuehren

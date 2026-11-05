@@ -217,7 +217,19 @@ def _bisherige_lieferung(conn: Verbindung, berichtsmonat: str, sha256: str) -> N
         (berichtsmonat,),
     ).fetchone()
     if vorher is None:
-        return
+        # Auch eine Freigabe über Vertrag P zählt, deren meta.ausgabe-Zeile fehlt (z. B. Abbruch nach dem Commit).
+        protokoll = conn.execute(
+            """SELECT name, zeit FROM meta.protokoll
+               WHERE uc = 'uc3' AND vorschlag_typ = 'lieferung' AND status = 'freigegeben'
+                 AND anweisung LIKE %s ORDER BY id LIMIT 1""",
+            (f"Ministeriums-Lieferung {berichtsmonat} freigeben%",),
+        ).fetchone()
+        if protokoll is None:
+            return
+        raise LieferungBereitsFreigegeben(
+            f"Ministeriums-Lieferung {berichtsmonat} ist bereits freigegeben von {protokoll['name']} am "
+            f"{protokoll['zeit']:%d.%m.%Y %H:%M} (meta.protokoll); meta.ausgabe fehlt, bitte nachtragen statt neu freigeben"
+        )
     am = f"{vorher['freigegeben_am']:%d.%m.%Y %H:%M}"
     if vorher["sha256"] == sha256:
         raise LieferungBereitsFreigegeben(
@@ -238,7 +250,7 @@ def _lieferung_freigeben(
     auswertung: Auswertung,
     sha: str,
 ) -> int:
-    """Protokolleintrag (vorschlag_typ lieferung) und Freigabe über Vertrag P: Commit genau der CSV mit Trailer.
+    """Protokolleintrag (vorschlag_typ lieferung) und Freigabe über Vertrag P: Commit genau des Belegs mit Trailer.
 
     Scheitert die Freigabe (Git, Lock, Pfad), wird der Eintrag mit dem technischen Grund abgelehnt und der Fehler
     weitergeworfen; dann entsteht keine Ausgabe.
@@ -276,6 +288,42 @@ def _lieferung_freigeben(
     return protokoll_id
 
 
+def beleg_text(regel: Regel, auswertung: Auswertung, dateiname: str, sha256: str, person: str) -> str:
+    """Beleg zur Ministeriums-Lieferung für das Repo (die CSV selbst enthält Einzeldaten und bleibt draußen).
+
+    Nennt Datei, sha256, Zeilenzahl, Definition mit Parametern, Datenstand je Monat, Erzeugungsbefehl, Freigabe und
+    Abgabeweg (Entscheid Lead 58, #16: Abgabe über den SV-Box-Teamordner). Die Freigabe über Vertrag P committet
+    diesen Beleg; über die sha256 ist sie an den Inhalt der CSV gebunden.
+    """
+    parameter = json.dumps(regel.parameter, ensure_ascii=False, sort_keys=True)
+    stand = "; ".join(
+        f"{m} aus Lieferung {lf}"
+        + (f" (übersprungen: {auswertung.uebersprungen[m]})" if m in auswertung.uebersprungen else "")
+        for m, lf in sorted(auswertung.datenstand.items())
+    )
+    zeilen = [
+        f"# Ministeriums-Lieferung {auswertung.berichtsmonat} (Auftrag 3)",
+        "",
+        "Die Lieferung enthält Einzeldaten (PERSON_ID) und liegt deshalb nicht im Repo. Sie wird über den",
+        "SV-Box-Teamordner (Ergebnisdateien) abgegeben. Dieser Beleg ordnet die Datei der Rechnung zu.",
+        "",
+        "| Angabe | Wert |",
+        "| --- | --- |",
+        f"| Datei | `{dateiname}` |",
+        f"| sha256 | `{sha256}` |",
+        f"| Zeilen | {len(auswertung.zeilen)} Personen und 1 Kopfzeile |",
+        f"| Zeitraum | {auswertung.von:%d.%m.%Y} bis {auswertung.bis:%d.%m.%Y} |",
+        f"| Definition | Regel `{regel.name}` im Regelsatz `{regel.regelsatz}` (meta.regel {regel.id}) |",
+        f"| Parameter | `{parameter}` |",
+        f"| Datenstand je Monat | {stand} |",
+        f'| Erzeugt mit | `uv run uc3 ministerium --monat {auswertung.berichtsmonat} --name "{person}"` |',
+        f"| Freigegeben von | {person} (Commit-Trailer Freigegeben-von, meta.freigabe) |",
+        "| Abgabeweg | SV-Box-Teamordner, Ergebnisdateien (nicht im öffentlichen Repo) |",
+        "",
+    ]
+    return "\n".join(zeilen)
+
+
 def ministerium_schreiben(
     conn: Verbindung,
     berichtsmonat: str,
@@ -288,8 +336,10 @@ def ministerium_schreiben(
     """Rechnet die Lieferung, schreibt die CSV und gibt sie mit Namen frei.
 
     Ablauf: (1) rechnen, (2) eine frühere Freigabe desselben Berichtsmonats abweisen, (3) CSV schreiben,
-    (4) mit ``repo_pfad`` Protokolleintrag und Freigabe über Vertrag P (Commit genau dieser Datei mit Trailer
-    ``Freigegeben-von``), (5) meta.ausgabe mit ``protokoll_id``. Scheitert (4), wird die CSV wieder entfernt.
+    (4) Beleg ``<datei>.beleg.md`` schreiben (sha256, Zeilen, Definition, Abgabeweg; die CSV enthält Einzeldaten
+    und bleibt laut abgabe/.gitignore außerhalb des Repos), (5) mit ``repo_pfad`` Protokolleintrag und Freigabe über
+    Vertrag P (Commit genau des Belegs mit Trailer ``Freigegeben-von``), (6) meta.ausgabe mit ``protokoll_id``.
+    Scheitert (5), werden CSV und Beleg wieder entfernt.
     """
     person = name_pruefen(name)
     regel = auswertung_regel(conn, regelsatz)
@@ -309,14 +359,19 @@ def ministerium_schreiben(
     _bisherige_lieferung(conn, berichtsmonat, sha)
     datei.parent.mkdir(parents=True, exist_ok=True)
     datei.write_text(inhalt, encoding="utf-8")
+    beleg = datei.with_name(f"{datei.stem}.beleg.md")
+    beleg.write_text(beleg_text(regel, auswertung, datei.name, sha, person), encoding="utf-8")
     protokoll_id: int | None = None
     if repo_pfad is not None:
+        beleg_ref = beleg.resolve().relative_to(wurzel).as_posix()
         try:
             protokoll_id = _lieferung_freigeben(
-                conn, person, repo_pfad, relativ, berichtsmonat, auswertung, sha
+                conn, person, repo_pfad, beleg_ref, berichtsmonat, auswertung, sha
             )
         except Exception:
-            datei.unlink(missing_ok=True)  # nicht freigegeben: keine Datei, die wie eine Lieferung aussieht
+            # nicht freigegeben: keine Datei, die wie eine Lieferung aussieht
+            datei.unlink(missing_ok=True)
+            beleg.unlink(missing_ok=True)
             raise
     with conn.transaction():
         conn.execute(
