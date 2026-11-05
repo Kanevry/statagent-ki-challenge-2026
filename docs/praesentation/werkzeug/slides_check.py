@@ -83,9 +83,7 @@ def koerper_pruefen(koerper: str) -> list[str]:
     zeilen = koerper.splitlines()
     if not any(zeile.startswith("# ") for zeile in zeilen):
         befunde.append("Körper hat keine #-Überschrift")
-    notiz_index = next(
-        (i for i, zeile in enumerate(zeilen) if zeile.strip() == "## Sprechernotizen"), None
-    )
+    notiz_index = next((i for i, zeile in enumerate(zeilen) if zeile.strip() == "## Sprechernotizen"), None)
     if notiz_index is None:
         befunde.append("Überschrift ## Sprechernotizen fehlt")
     else:
@@ -113,9 +111,7 @@ def register_kennungen(belegregister: Path) -> set[str]:
     return kennungen
 
 
-def datei_pruefen(
-    pfad: Path, storyboard: str, kennungen: set[str]
-) -> tuple[list[str], int]:
+def datei_pruefen(pfad: Path, storyboard: str, kennungen: set[str]) -> tuple[list[str], int]:
     """Prüft eine Folie; liefert (Befunde, dauer_s)."""
     befunde: list[str] = []
     dauer = 0
