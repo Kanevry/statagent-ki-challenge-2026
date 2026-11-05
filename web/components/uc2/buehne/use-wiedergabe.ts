@@ -94,7 +94,10 @@ export function useWiedergabe(fallId: string): Wiedergabe {
 
   const listeRef = useRef(ereignisse);
   listeRef.current = ereignisse;
-  const mehr = index < ereignisse.length;
+  // Nach „Zum Ergebnis“ zählt alles, was angekommen ist und noch ankommt. Abgeleitet statt gesetzt: Ein gesetzter Stand
+  // wurde im Browser vom noch laufenden Takt-Timer wieder zurückgedreht (05.11.).
+  const stand = amEnde ? ereignisse.length : index;
+  const mehr = stand < ereignisse.length;
 
   // Takt: nach einem Ereignis mit eigener Bühne warten, Ereignisse ohne Bühne sofort mitnehmen.
   useEffect(() => {
@@ -106,12 +109,7 @@ export function useWiedergabe(fallId: string): Wiedergabe {
     return () => clearTimeout(uhr);
   }, [index, mehr, pausiert, tempo]);
 
-  // Nach „Zum Ergebnis“ läuft der Stand mit allem mit, was noch ankommt: Ein Klick reicht (Live-Test 05.11.: drei).
-  useEffect(() => {
-    if (amEnde) setIndex(ereignisse.length);
-  }, [amEnde, ereignisse.length]);
-
-  const gezeigt = useMemo(() => ereignisse.slice(0, index), [ereignisse, index]);
+  const gezeigt = useMemo(() => ereignisse.slice(0, stand), [ereignisse, stand]);
   const zustand = useMemo(() => ableiten(gezeigt), [gezeigt]);
   const gesamt = useMemo(() => ableiten(ereignisse), [ereignisse]);
 
@@ -122,10 +120,10 @@ export function useWiedergabe(fallId: string): Wiedergabe {
     verbindung,
     pausiert,
     tempo,
-    anteil: ereignisse.length === 0 ? 0 : index / ereignisse.length,
+    anteil: ereignisse.length === 0 ? 0 : stand / ereignisse.length,
     umschalten: () => setPausiert((p) => !p),
     setTempo,
-    weiter: () => setIndex(naechsterIndex(ereignisse, index)),
+    weiter: () => setIndex(naechsterIndex(ereignisse, stand)),
     zumEnde: () => {
       setAmEnde(true);
       if (verbindung !== "zu") {

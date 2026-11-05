@@ -75,8 +75,9 @@ test("Fall, Verhandlung ansehen, ein Sprecher zur Zeit, Ergebnis mit Freigabe", 
   await ohneStriche(page);
   await passtInDieBreite(page);
 
+  // Ein Klick reicht, und das Ergebnis steht sofort da (Live-Test 05.11.: drei Klicks, 15 s).
   await page.getByRole("button", { name: "Zum Ergebnis" }).click();
-  await expect(page.locator("main")).toContainText("Ergebnis nach 4 Runden", { timeout: 60_000 });
+  await expect(page.locator("main")).toContainText("Ergebnis nach 4 Runden", { timeout: 5_000 });
   await expect(page.getByRole("heading", { name: "Ergebnis freigeben" })).toBeVisible();
   await expect(page.locator("main")).not.toContainText("mock-fixture");
   await slopNull(page);

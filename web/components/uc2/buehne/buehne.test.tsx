@@ -94,3 +94,13 @@ it("„Zum Ergebnis“ zeigt mit einem Klick das Ende, auch wenn die Aufzeichnun
   await waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("Ergebnis nach"));
   expect(screen.queryByRole("button", { name: "Zum Ergebnis" })).toBeNull();
 });
+
+it("„Zum Ergebnis“ wirkt auch, wenn beim Klick noch nichts angekommen ist", async () => {
+  // Fängt den Browser-Lauf 05.11.: Der Klick kam vor dem ersten Ereignis, danach lief die Bühne im Takt weiter.
+  render(<PanelBuehne fallId="mock-wartezeiten" modus="vorfuehrung" />);
+  await userEvent.click(screen.getByRole("button", { name: "Zum Ergebnis" }));
+  const quelle = FakeQuelle.letzte!;
+  for (const ereignis of alle) act(() => quelle.sende([ereignis]));
+  act(() => quelle.sende([{ art: "ende", status: "fertig" }]));
+  await waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("Ergebnis nach"));
+});
