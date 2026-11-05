@@ -256,11 +256,27 @@ _KENNUNGSWORT = re.compile(
 _TEXTFELDER = ("beschreibung", "begruendung")
 
 
+def _zeichenketten(wert: object) -> list[str]:
+    """Alle Zeichenketten in ``wert`` (Schlüssel und Werte, verschachtelt), roh statt als JSON.
+
+    Ein JSON-Text schreibt einen Zeilenumbruch als ``\\n``; „PERSON_ID\\n1001049“ oder „x\\nperson_id“ hätte dann
+    keine Wortgrenze und keinen Leerraum mehr, und die Prüfung liefe ins Leere (Review 05.11.).
+    """
+    if isinstance(wert, str):
+        return [wert]
+    if isinstance(wert, dict):
+        return [t for k, w in wert.items() for t in (*_zeichenketten(k), *_zeichenketten(w))]
+    if isinstance(wert, (list, tuple, set, frozenset)):
+        return [t for w in wert for t in _zeichenketten(w)]
+    return [] if wert is None else [str(wert)]
+
+
 def _ohne_kennungen(aenderungen: list[dict[str, Any]], begruendung: str, rumpf: str | None) -> None:
     """Code und Parameter nennen keine Kennungsspalte; Fließtext nennt keine konkrete Kennung mit Nummer.
 
     Der Fließtext (Begründung, Beschreibung einer neuen Regel) darf den Feldnamen nennen, den ein Auftrag verlangt
     („Felder PERSON_ID, GESCHLECHT …“ in Auftrag 3, Live-Probe 05.11.), aber keine Kennung wie „PERSON_ID 1001049“.
+    Jede Zeichenkette wird einzeln und roh geprüft, damit Leerraum echter Leerraum ist.
     """
     texte: list[object] = [begruendung]
     ohne_texte: list[dict[str, Any]] = []
@@ -270,21 +286,47 @@ def _ohne_kennungen(aenderungen: list[dict[str, Any]], begruendung: str, rumpf: 
             texte += [regel.get(k) for k in _TEXTFELDER]
             a = {**a, "regel": {k: w for k, w in regel.items() if k not in _TEXTFELDER}}
         ohne_texte.append(a)
-    if treffer := _KENNUNGSWORT.search(json.dumps([ohne_texte, rumpf], ensure_ascii=False, default=str)):
-        raise VorschlagUngueltig(
-            f"Der Vorschlag nennt „{treffer.group(1).lower()}“; Einzeldaten gehören nicht in Vorschläge."
-        )
-    if _KENNUNG_IN_ANWEISUNG.search(json.dumps(texte, ensure_ascii=False, default=str)):
+    for text in _zeichenketten([ohne_texte, rumpf]):
+        if treffer := _KENNUNGSWORT.search(text):
+            raise VorschlagUngueltig(
+                f"Der Vorschlag nennt „{treffer.group(1).lower()}“; Einzeldaten gehören nicht in Vorschläge."
+            )
+    if any(_KENNUNG_IN_ANWEISUNG.search(text) for text in _zeichenketten(texte)):
         raise VorschlagUngueltig(
             "Der Vorschlag nennt eine konkrete Kennung; Einzeldaten gehören nicht in Vorschläge."
         )
 
 
-#: Konkrete Kennung in einer Anweisung: Kennungswort, optional ``_ID``/``-ID``/``Nr.``, optional ``:``/``=``/``#``,
-#: dann eine Zahl ab zwei Stellen („VVH_ID 859975“, „PERSON_ID: 1001049“, „Person 1001049“, „Verhältnis 12345“).
-#: Zahlen ohne Kennungswort (Jahre, Monate wie 2025-03, Grenzen wie 110 oder 200 Tage) bleiben erlaubt.
+#: Wort, das eine Kennung ankündigt: „VVH“, „Person(en)“, „…verhältnis“, „ID(s)“, „Kennung“, „Nummer“, „Nr.“,
+#: jeweils optional mit ``_ID``/``-ID``.
+_KENNUNGS_ANKUENDIGUNG = (
+    r"(?:vvh|person(?:en)?|\w*verh(?:ä|ae)ltnis(?:ses|se|sen)?|ids?|kennung(?:en)?|nummern?|nr)(?:[_-]?ids?)?"
+)
+#: Zwischen Ankündigungen und Zahl: Leerraum (auch Zeilenumbruch) und Satzzeichen wie ``:`` ``=`` ``#`` ``/`` ``.``.
+_KENNUNGS_TRENNER = r"[\s:=#/.,\-]*+"
+#: Ende der Zahl: keine weitere Ziffer, kein Datum/Dezimalteil (``2025-10``, ``3.5``), keine Einheit.
+_KENNUNGS_ENDE = r"(?!\d)(?![-./,]\d)(?!\s*(?:%|(?:prozent|jahre?n?|tag(?:e|en)?|monate?n?|wochen?)\b))"
+
+#: Konkrete Kennung in einer Anweisung oder im Fließtext eines Vorschlags. Eine Kennung im Datensatz hat sechs bis
+#: sieben Stellen (VVH_ID um 859975, PERSON_ID um 1001049), daher zwei Formen:
+#: - Ankündigung(en) („Person“, „Kennung“, „Personen/IDs/Kennung“, „Verhältnis Nr.“), dann eine Zahl ab fünf Stellen;
+#: - ausdrücklicher Spaltenname ``VVH_ID``/``PERSON_ID``, dann eine Zahl beliebiger Länge außer einer Jahreszahl.
+#: Alter, Grenzen, Prozente, Tage und Monate („Person 75 und älter“, „100 Jahre“, „3 Prozent“, „2025-10“) bleiben
+#: erlaubt: zu kurz, mit Einheit oder als Datum.
 _KENNUNG_IN_ANWEISUNG = re.compile(
-    r"\b(?:vvh|person|\w*verh(?:ä|ae)ltnis(?:ses)?|id)(?:[_-]?id)?\s*(?:nr\.?|nummer)?\s*[:=#]?\s*#?\d{2,}\b",
+    r"\b"
+    + _KENNUNGS_ANKUENDIGUNG
+    + r"(?:\b"
+    + _KENNUNGS_TRENNER
+    + _KENNUNGS_ANKUENDIGUNG
+    + r"){0,3}"
+    + _KENNUNGS_TRENNER
+    + r"\d{5,}"
+    + _KENNUNGS_ENDE
+    + r"|\b(?:vvh|person)[_-]?id"
+    + _KENNUNGS_TRENNER
+    + r"(?!(?:19|20)\d\d(?!\d))\d+"
+    + _KENNUNGS_ENDE,
     re.IGNORECASE,
 )
 

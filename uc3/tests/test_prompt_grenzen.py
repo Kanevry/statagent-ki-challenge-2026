@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from statagent.agenten.koordinator import agent_ausfuehren
+from statagent.agenten.koordinator import agent_ausfuehren, anweisung_pruefen
 from statagent.agenten.vorschlag import vorschlag_schema_einrichten
 from statagent.db import Verbindung
 from statagent.lauf import lauf_ausfuehren
@@ -210,3 +210,77 @@ def test_geburtsmonat_13_ersatz_mm_tt(agent_conn: Verbindung, wert: str, angenom
     else:
         assert ergebnis.vorschlag_id is None
         assert ergebnis.abgelehnt is not None and "geburtsmonat_13" in ergebnis.abgelehnt
+
+
+@pytest.mark.parametrize(
+    "anweisung",
+    [
+        # Fängt: „person“ + Zahl ab zwei Stellen galt als Kennung, die Altersregel vor der Jury wäre abgewiesen worden.
+        "Zähle jede Person 75 und älter als echt",
+        # Fängt: Mehrzahl „Personen“ mit Alter in Jahren als Kennung.
+        "Personen ab 75 Jahren",
+        # Fängt: eine Grenze in Jahren als Kennung.
+        "Setze die Altersgrenze auf 100 Jahre",
+        # Fängt: einen Prozentwert als Kennung.
+        "Halte an, wenn mehr als 3 Prozent fehlen",
+        # Fängt: einen Lieferungsmonat (Datum) als Kennung.
+        "Lieferung 2025-10",
+        # Fängt: eine Dauer in Tagen als Kennung.
+        "mindestens 200 Tage",
+        # Fängt: den Feldnamen ohne Nummer, den Auftrag 3 verlangt, als Kennung.
+        "Felder PERSON_ID, GESCHLECHT",
+    ],
+)
+def test_anweisung_ohne_kennung_geht_durch(anweisung: str) -> None:
+    assert anweisung_pruefen(anweisung) is None
+
+
+@pytest.mark.parametrize(
+    "anweisung",
+    [
+        # Fängt: Spaltenname mit Kennung.
+        "VVH_ID 859975",
+        # Fängt: Spaltenname, Doppelpunkt, Kennung.
+        "PERSON_ID: 1001049",
+        # Fängt: Kennungswort ohne _ID vor einer siebenstelligen Kennung.
+        "Person 1001049",
+        # Fängt: „Kennung“ fehlte im Wortmuster und ging durch.
+        "Kennung 1001049",
+        # Fängt: mehrere Kennungswörter mit Schrägstrich vor der Kennung gingen durch.
+        "Personen/IDs/Kennung 1001049",
+        # Fängt: „Nr.“ zwischen Kennungswort und Kennung.
+        "Verhältnis Nr. 859975",
+    ],
+)
+def test_anweisung_mit_kennung_wird_abgewiesen(anweisung: str) -> None:
+    grund = anweisung_pruefen(anweisung)
+    assert grund is not None and "Kennung" in grund
+    assert not re.search(r"\d{5,}", grund)
+
+
+def test_kennung_nach_zeilenumbruch_in_begruendung(agent_conn: Verbindung) -> None:
+    """Fängt: die Prüfung lief über json.dumps, ein Zeilenumbruch stand dort als ``\\n`` (zwei Zeichen), und
+    „PERSON_ID\\n1001049“ in der Begründung ging durch."""
+    spy = SpyModell(
+        {
+            "agent.koordinator": {"rolle": "klassifikation", "auftrag": "DV und FD gemeinsam ausweisen"},
+            "agent.klassifikation": {
+                "typ": "regel_aendern",
+                "regelsatz_ziel": "v2",
+                "aenderungen": [
+                    {
+                        "regel_name": "R6_beschaeftigungskategorie",
+                        "parameter_neu": [
+                            {"schluessel": "qualifikation", "wert": "beschaeftigungskategorie"}
+                        ],
+                    }
+                ],
+                "begruendung": "geprüft an PERSON_ID\n1001049",
+            },
+        }
+    )
+    ergebnis = agent_ausfuehren(
+        agent_conn, "Zählt freie Dienstverträge mit den Dienstverträgen zusammen", complete=spy
+    )
+    assert ergebnis.vorschlag_id is None
+    assert ergebnis.abgelehnt is not None and "Kennung" in ergebnis.abgelehnt
