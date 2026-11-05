@@ -1361,3 +1361,24 @@ def test_aussage_ohne_schwelle_wird_verworfen() -> None:
     }
     aussagen, verworfen = kern.pruefe_aussagen([schwach], [treffer()])
     assert aussagen == [] and "Schwelle" in verworfen[0]["grund"]
+
+
+@pytest.mark.parametrize(
+    ("status", "stelle", "fundstelle"),
+    [
+        (None, "AUVA", "ASVG § 28 Z 1"),
+        ("angestellt", "AUVA", "ASVG § 28 Z 1"),
+        ("svs", "SVS", "ASVG § 28 Z 2 lit. a und b"),
+        ("bvaeb", "BVAEB", "B-KUVG § 9 Abs. 1"),
+    ],
+)
+def test_unfallversicherung_stelle_je_status(status: str | None, stelle: str, fundstelle: str) -> None:
+    """Fängt die AUVA für Beamtinnen und Beamte (Dienstunfall: BVAEB nach B-KUVG § 9 Abs. 1) und ein
+    SVS-Zitat, das nur die Bäuerinnen und Bauern nennt, obwohl Z 2 lit. b auch Selbständige erfasst (#151)."""
+    eintrag = kern.zustaendige_stelle("unfallversicherung", status)
+    assert eintrag is not None and (eintrag["stelle"], eintrag["fundstelle"]) == (stelle, fundstelle)
+    if status == "svs":
+        assert (
+            "b) die nach § 8 Abs. 1 Z 3 lit. a pflichtversicherten selbständig Erwerbstätigen"
+            in eintrag["zitat"]
+        )

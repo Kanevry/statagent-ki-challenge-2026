@@ -199,8 +199,9 @@ leistungen:
   unfallversicherung:
     name: {de: "Unfallversicherung", en: "accident insurance (Unfallversicherung)"}
     # Endmessung g21 (Heimweg von der Arbeit gestürzt) nannte PVA/ÖGK statt AUVA. Zuständig ist nach ASVG § 28
-    # Z 1 die AUVA, für Selbständige und Bäuerinnen und Bauern nach Z 2 die SVS (`stelle_je_status`).
-    # Beamtinnen und Beamte (Dienstunfall, B-KUVG, BVAEB) sind nicht abgebildet; sie bekommen die AUVA.
+    # Z 1 die AUVA, für Bäuerinnen und Bauern (lit. a) und die nach § 8 Abs. 1 Z 3 lit. a versicherten
+    # Selbständigen (lit. b) nach Z 2 die SVS, für Beamtinnen und Beamte (Dienstunfall) nach B-KUVG § 9 Abs. 1 die
+    # BVAEB (`stelle_je_status`, #151). Ohne Status bleibt es bei der AUVA (häufigster Fall, ASVG § 28 Z 1).
     # „Arbeit“ allein löst nicht aus, nur Unfall, Weg oder Verletzung im Zusammenhang mit der Arbeit.
     lage: "Arbeitsunfall, Wegunfall oder Berufskrankheit"
     nur_regel: true  # „Sturz“ allein ist kein Arbeitsunfall; das Modell deutete ihn so (Aufnahme v8)
@@ -230,12 +231,17 @@ leistungen:
     stelle_je_status:
       svs:
         stelle: SVS
-        fundstelle: "ASVG § 28 Z 2"
-        zitat: "2. die Sozialversicherungsanstalt der Selbständigen für a) die nach § 3 des Bauern-Sozialversicherungsgesetzes in der Unfallversicherung pflichtversicherten selbständig Erwerbstätigen"
+        fundstelle: "ASVG § 28 Z 2 lit. a und b"
+        zitat: "2. die Sozialversicherungsanstalt der Selbständigen für a) die nach § 3 des Bauern-Sozialversicherungsgesetzes in der Unfallversicherung pflichtversicherten selbständig Erwerbstätigen und ihre teilversicherten Familienangehörigen, soweit es sich nicht um eine Teilversicherung nach § 8 Abs. 1 Z 3 lit. h, i und l handelt, sowie die gemäß § 8 Abs. 1 Z 3 lit. d teilversicherten Angehörigen von Orden, Kongregationen und Anstalten, b) die nach § 8 Abs. 1 Z 3 lit. a pflichtversicherten selbständig Erwerbstätigen"
+      bvaeb:
+        stelle: BVAEB
+        fundstelle: "B-KUVG § 9 Abs. 1"
+        zitat: "Träger der Kranken- und Unfallversicherung nach diesem Bundesgesetz für das gesamte Bundesgebiet ist die Versicherungsanstalt öffentlich Bediensteter, Eisenbahnen und Bergbau"
     gesetze: [ASVG]
     suchanfrage: "Arbeitsunfall Wegunfall Weg zur oder von der Arbeitsstätte Unfallversicherung Berufskrankheit"
     normen:
       - {gesetz: ASVG, von: "28", bis: "28"}     # sachliche Zuständigkeit AUVA, SVS
       - {gesetz: ASVG, von: "172", bis: "222"}   # Dritter Teil Unfallversicherung
       - {gesetz: BSVG, von: "148", bis: "149t"}  # Unfallversicherung der Bäuerinnen und Bauern (SVS)
+      - {gesetz: B-KUVG, von: "88", bis: "95"}   # Dienstunfall (BVAEB)
     unterlagen: []  # im Korpus keine Unterlagenliste belegt
