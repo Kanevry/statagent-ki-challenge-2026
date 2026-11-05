@@ -8,8 +8,9 @@ Wer ihn fährt, braucht nur diese Datei und `PROZESS.md`.
 | Schritt | Dauer | Fertig ab 06:30 |
 |---|---|---|
 | leichter Lauf (Arbeitsrechner) | rund 3 min | 06:35 |
-| schwerer Lauf (Prüfrechner, frische Prüf-DB, 24 Läufe, alle schweren Prüfsätze, ab 06:30 parallel zum leichten) | 15 bis 28 min (gemessen 15 und 20 ohne den vollen Satz 22-1, der rund 8 min dazu nimmt) | 06:58 |
-| Veröffentlichen, Tor, Meldung an den Lead | rund 5 min | 07:03 |
+| schwerer Lauf (Prüfrechner, frische Prüf-DB, 24 Läufe, alle schweren Prüfsätze, ab 06:30 parallel zum leichten) | 15 bis 22 min (gemessen 15 und 20; `uc3 lauf --alle` 483 bis 880 s je nach Last) | 06:52 |
+| Veröffentlichen, Tor, Meldung an den Lead | rund 5 min | 06:57 |
+| danach: 22-1 voll, eigener Lauf (24 Läufe v2, Sheet, Ministerium) | über 17 min unter Last (Lauf 22:32 brach nach 1000 s ab) | rund 07:20, Nachtrag an den Lead |
 
 Die Spanne hängt an der Last auf dem Prüfrechner (`uc3 lauf --alle`: 483 und 830 s). Beide Läufe starten gemeinsam,
 der schwere wartet nicht auf den leichten. Reißt die Verbindung ab, läuft der schwere Lauf auf dem Prüfrechner weiter.
@@ -43,6 +44,7 @@ uv run python tests/abnahme/matrix.py abhaken alle --ja
 uv run python tests/abnahme/matrix.py haken pruefen --ja
 uv run python tests/abnahme/matrix.py tor                 # Tor UC3 und E6
 uv run python tests/abnahme/matrix.py zaehler             # Meldung an den Lead
+bash tests/abnahme/schwer_ausloesen.sh "$ABNAHME_PRUEFRECHNER_ENV" 22-1   # danach, Nachtrag an den Lead
 ```
 
 `ABNAHME_PRUEFRECHNER_ENV` zeigt auf die env-Datei außerhalb des Repos (Rechte 600), Pfad in der Übergabe.
