@@ -8,8 +8,7 @@ LANG = (
     "Die Landesregierung stellt ein neues Programm vor. "
     + "Es geht um Kassenstellen in ländlichen Regionen und um bessere Erreichbarkeit. " * 6
     + "Die Wartezeiten auf einen Termin beim Facharzt sollen bis 2030 deutlich sinken, "
-    "sagt eine Vertreterin der Sozialversicherung. "
-    + "Weitere Schritte folgen im Herbst. " * 10
+    "sagt eine Vertreterin der Sozialversicherung. " + "Weitere Schritte folgen im Herbst. " * 10
 )
 
 
