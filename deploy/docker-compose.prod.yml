@@ -73,14 +73,23 @@ services:
     tmpfs:
       - /tmp
       - /app/web/.next/cache:uid=1001,gid=1001,mode=0700
+    # Modellprotokoll (#100): einziger beschreibbarer Ort; das Tagesbudget zählt hier, sonst lehnt plattform.llm ab
+    volumes:
+      - app_protokoll:/app/var/protokoll
     depends_on:
       db:
         condition: service_healthy
     environment:
       # Online-Demo ist lesend (#68): Caddy lässt nur GET/HEAD durch; das Flag sagt es auch der App
       KIC_ONLINE_LESEND: "1"
+      # Online-Merker für plattform.llm (#100): ohne LLM_TAGESBUDGET_AUFRUFE ruft die App kein echtes Modell.
+      # Bleibt "1", auch wenn KIC_ONLINE_LESEND für Fragen wegfällt.
+      KIC_ONLINE: "1"
+      # Pflicht: Tagesbudget der Modellaufrufe, ganze Zahl ab 1 (Fehlversuche zählen mit)
+      LLM_TAGESBUDGET_AUFRUFE: "${LLM_TAGESBUDGET_AUFRUFE:?LLM_TAGESBUDGET_AUFRUFE fehlt in .env.server, ganze Zahl ab 1}"
+      # Protokoll im Volume app_protokoll; router.jsonl liegt daneben
+      PLATTFORM_PROTOKOLL: ${PLATTFORM_PROTOKOLL:-/app/var/protokoll/modellaufrufe.jsonl}
       # online nur azure oder mistral (claude und ollama laufen nur lokal); ohne Schlüssel mock.
-      # Modellschlüssel erst, wenn Ratenlimit und Tagesbudget stehen (Lead 05.11.)
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL:-}
       AZURE_OPENAI_MODEL: ${AZURE_OPENAI_MODEL:-}
@@ -93,6 +102,7 @@ services:
       VAPI_PUBLIC_KEY: ${VAPI_PUBLIC_KEY:-}
       VAPI_WEBHOOK_SECRET: ${VAPI_WEBHOOK_SECRET:-}
       VAPI_CUSTOM_LLM_KEY: ${VAPI_CUSTOM_LLM_KEY:-}
+      VAPI_ASSISTANT_ID: ${VAPI_ASSISTANT_ID:-}
       PUBLIC_URL: https://${SITE_ADDRESS:?SITE_ADDRESS fehlt in .env.server}
       # Rolle kic_app: nur SELECT, default_transaction_read_only (deploy/sql/app-rolle.sql); statistik bleibt Admin
       UC1_DATABASE_URL: postgresql://kic_app:${KIC_APP_DB_PASSWORD:?KIC_APP_DB_PASSWORD fehlt, zuerst scripts/deploy.sh init}@db:5432/lotse
@@ -110,3 +120,5 @@ volumes:
   caddy_data:
   caddy_config:
   db_daten:
+  # Modellprotokoll der App (Tagesbudget #100): bleibt über Deploys erhalten
+  app_protokoll:

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Any, Literal, overload
 
 import jsonschema
@@ -18,6 +20,7 @@ from .azure import AUFWAND, AzureProvider
 from .basis import (
     ROLLEN,
     Antwort,
+    BudgetErschoepft,
     KonfigFehler,
     LlmFehler,
     Nachricht,
@@ -238,6 +241,7 @@ def ausfuehren(
 ) -> Antwort:
     """Läuft eine gegebene Kette ab (``complete`` und der Smoke-Test ohne Fallback nutzen das)."""
     _pruefe_eingaben(nachrichten, aufwand)
+    _pruefe_budget(kette)
     hash_ = prompt_hash(nachrichten)
     groesse = zwecke.zweck(zweck).groesse
     letzter: Exception | None = None
@@ -447,6 +451,8 @@ def complete(
     if stream:
         if schema is not None:
             raise ValueError("stream=True und schema schließen sich aus")
+        # Hier statt in ``_strom``: der Generator liefe erst beim ersten ``next``; der Fehler kommt sofort.
+        _pruefe_budget(kette)
         return _strom(nachrichten, kette, zweck, modell, aufwand)
     return ausfuehren(nachrichten, kette=kette, schema=schema, zweck=zweck, modell=modell, aufwand=aufwand)
 
@@ -473,6 +479,107 @@ def letzter_erfolg(max_zeilen: int = 500) -> dict[str, Any] | None:
                 for k in ("provider", "modell", "version", "fallback_stufe", "zweck", "zeit")
             }
     return None
+
+
+BUDGET_VARIABLE = "LLM_TAGESBUDGET_AUFRUFE"
+
+
+def _budget_grenze() -> int | None:
+    """``LLM_TAGESBUDGET_AUFRUFE`` als ganze Zahl ≥ 1, leer oder ungesetzt = kein Budget."""
+    roh = os.environ.get(BUDGET_VARIABLE, "").strip()
+    if not roh:
+        return None
+    try:
+        grenze = int(roh)
+    except ValueError:
+        grenze = 0
+    if grenze < 1:
+        # Ein Tippfehler darf online nicht „unbegrenzt“ heißen.
+        raise KonfigFehler(f"{BUDGET_VARIABLE} muss eine ganze Zahl ab 1 sein oder leer bleiben")
+    return grenze
+
+
+def _verbraucht_heute() -> int:
+    """Zeilen der Sprachmodell-Provider mit UTC-Datum von heute in der Protokolldatei.
+
+    Die Datei ist der Zähler, weil die Web-App je Anfrage einen eigenen Python-Prozess startet. Zeilen von
+    ``router`` und ``lokal`` (Embeddings) sind keine Modellaufrufe und zählen nicht; Fehlversuche schon,
+    denn auch sie belasten das Kontingent.
+    """
+    datei = protokoll_datei()
+    if not datei.is_file():
+        return 0
+    heute = datetime.now(UTC).date()
+    anzahl = 0
+    for zeile in datei.read_text(encoding="utf-8").splitlines():
+        try:
+            eintrag = json.loads(zeile)
+            tag = datetime.fromisoformat(eintrag["zeit"]).astimezone(UTC).date()
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            continue
+        if tag == heute and eintrag.get("provider") in FABRIKEN:
+            anzahl += 1
+    return anzahl
+
+
+def budget_status() -> dict[str, int | None]:
+    """Tagesbudget: ``grenze`` (``None`` = keins), heute ``verbraucht``, ``frei`` (``None`` ohne Grenze)."""
+    grenze = _budget_grenze()
+    verbraucht = _verbraucht_heute()
+    frei = None if grenze is None else max(grenze - verbraucht, 0)
+    return {"grenze": grenze, "verbraucht": verbraucht, "frei": frei}
+
+
+ONLINE_VARIABLE = "KIC_ONLINE"
+
+
+def _ist_online() -> bool:
+    """``KIC_ONLINE=1`` setzt nur das Prod-Compose (deploy/docker-compose.prod.yml), lokal bleibt es leer."""
+    return os.environ.get(ONLINE_VARIABLE, "").strip() == "1"
+
+
+def _pruefe_protokoll_schreibbar() -> None:
+    """Öffnet die Protokolldatei zum Anhängen, bevor ein Provider gerufen wird.
+
+    Ohne beschreibbares Protokoll zählt das Budget immer 0 und der Aufruf ginge durch; erst danach scheiterte
+    das Schreiben der Zeile. Darum vorher prüfen und als ``KonfigFehler`` melden.
+    """
+    datei = protokoll_datei()
+    try:
+        datei.parent.mkdir(parents=True, exist_ok=True)
+        with datei.open("a", encoding="utf-8"):
+            pass
+    except OSError as fehler:
+        raise KonfigFehler(
+            f"{BUDGET_VARIABLE} braucht ein beschreibbares Protokoll ({datei.name}): "
+            f"{fehler.strerror or fehler}"
+        ) from fehler
+
+
+def _pruefe_budget(kette: list[str]) -> None:
+    """Wirft vor dem ersten Provider-Aufruf, wenn kein Aufruf erlaubt ist.
+
+    - Online (``KIC_ONLINE=1``) ohne Budget und mit einem echten Provider in der Kette: ``KonfigFehler``
+      (fail-closed, damit eine vergessene Variable keine Kosten ohne Grenze erlaubt).
+    - Mit Budget: Protokoll muss beschreibbar sein (``KonfigFehler``), heute verbraucht ≥ Grenze:
+      ``BudgetErschoepft``.
+
+    Prüfen und Schreiben sind nicht atomar: laufen zwei Aufrufe gleichzeitig an der Grenze, kann einer
+    darüber gehen. Das Ratenlimit der Web-App hält diese Überschreitung klein.
+    """
+    grenze = _budget_grenze()
+    if grenze is None:
+        if _ist_online() and any(name != "mock" for name in kette):
+            raise KonfigFehler(
+                f"{ONLINE_VARIABLE}=1 braucht {BUDGET_VARIABLE} (ganze Zahl ab 1), "
+                "bevor ein Modell gerufen wird"
+            )
+        return
+    _pruefe_protokoll_schreibbar()
+    if _verbraucht_heute() >= grenze:
+        raise BudgetErschoepft(
+            "Das Tageskontingent für Modellaufrufe ist aufgebraucht. Morgen (UTC) ist es wieder frei."
+        )
 
 
 def aktives_modell(zweck: str = "") -> dict[str, Any]:
