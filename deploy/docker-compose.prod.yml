@@ -1,0 +1,112 @@
+# Produktiv-Stack der Online-Demo (#68). Start nur über scripts/deploy.sh (git archive von HEAD, rsync nach
+# <basis>/repo, dann compose up). Werte kommen aus <basis>/.env.server auf dem Server, nie aus dem Repo;
+# Vorlage: deploy/env.server.example. Images werden auf dem Server gebaut, nicht auf Entwicklerrechnern.
+#
+# Docker umgeht Host-Firewalls bei veröffentlichten Ports: nur Caddy bekommt "ports:", db und app bleiben intern.
+name: ki-challenge
+
+services:
+  caddy:
+    # Digest gepinnt (Index für amd64/arm64), Stand 05.11.2026; gleicher Wert im CI-Job deploy-check
+    image: caddy:2.11-alpine@sha256:f6228111e5fafa1a5238258d0858e103f10599b8d1659a146e7726681a002bb9
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    # Härtung: nur das Recht, Ports unter 1024 zu öffnen; Dateisystem schreibgeschützt bis auf Volumes und /tmp
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: [/tmp]
+    healthcheck:
+      # Admin-API lauscht nur im Container (localhost:2019)
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/metrics"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?SITE_ADDRESS fehlt in .env.server}
+      # platzhalter = statische Seite, app = Next.js-Web; auf app erst, wenn die Landingpage (#58) auf main ist
+      INHALT: ${INHALT:-platzhalter}
+    volumes:
+      # Verzeichnis statt Einzeldatei: rsync ersetzt Dateien per rename, ein Datei-Mount sähe die alte Fassung
+      - ./caddy:/etc/caddy:ro
+      - ./platzhalter:/srv/platzhalter:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  db:
+    # PostgreSQL 16 wie lokal (PG 5433); je UC eine Datenbank. Digest gepinnt, Stand 05.11.2026
+    image: postgres:16-bookworm@sha256:14952ad1d751328359b3b0512475d2760c8ddf968f0615bd911155010dc9901a
+    restart: unless-stopped
+    shm_size: 256mb
+    # der Entrypoint wechselt per gosu auf den Nutzer postgres; das geht auch ohne neue Rechte
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      POSTGRES_USER: statistik
+      POSTGRES_DB: statistik
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt, zuerst scripts/deploy.sh init}
+    volumes:
+      - db_daten:/var/lib/postgresql/data
+      # Dumps zum Einspielen (scripts/deploy.sh daten): <basis>/daten, außerhalb von repo/, rsync --delete erreicht sie nicht
+      - ../../daten:/daten:ro
+      - ./sql:/deploy-sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U statistik -d statistik"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/app.Dockerfile
+      args:
+        VAPI_PUBLIC_KEY: ${VAPI_PUBLIC_KEY:-}
+    image: ki-challenge-app:aktuell
+    restart: unless-stopped
+    # läuft als Nutzer app (uid 1001), braucht keine Linux-Capabilities; Code gehört root, Dateisystem schreibgeschützt
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/web/.next/cache:uid=1001,gid=1001,mode=0700
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Online-Demo ist lesend (#68): Caddy lässt nur GET/HEAD durch; das Flag sagt es auch der App
+      KIC_ONLINE_LESEND: "1"
+      # online nur azure oder mistral (claude und ollama laufen nur lokal); ohne Schlüssel mock.
+      # Modellschlüssel erst, wenn Ratenlimit und Tagesbudget stehen (Lead 05.11.)
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL:-}
+      AZURE_OPENAI_MODEL: ${AZURE_OPENAI_MODEL:-}
+      AZURE_API_KEY: ${AZURE_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      MISTRAL_BASE_URL: ${MISTRAL_BASE_URL:-}
+      MISTRAL_MODEL_CHAT: ${MISTRAL_MODEL_CHAT:-}
+      MISTRAL_MODEL_FAST: ${MISTRAL_MODEL_FAST:-}
+      VAPI_API_KEY: ${VAPI_API_KEY:-}
+      VAPI_PUBLIC_KEY: ${VAPI_PUBLIC_KEY:-}
+      VAPI_WEBHOOK_SECRET: ${VAPI_WEBHOOK_SECRET:-}
+      VAPI_CUSTOM_LLM_KEY: ${VAPI_CUSTOM_LLM_KEY:-}
+      PUBLIC_URL: https://${SITE_ADDRESS:?SITE_ADDRESS fehlt in .env.server}
+      # Rolle kic_app: nur SELECT, default_transaction_read_only (deploy/sql/app-rolle.sql); statistik bleibt Admin
+      UC1_DATABASE_URL: postgresql://kic_app:${KIC_APP_DB_PASSWORD:?KIC_APP_DB_PASSWORD fehlt, zuerst scripts/deploy.sh init}@db:5432/lotse
+      UC2_DATABASE_URL: postgresql://kic_app:${KIC_APP_DB_PASSWORD:?KIC_APP_DB_PASSWORD fehlt, zuerst scripts/deploy.sh init}@db:5432/healthpolicy
+      UC3_DATABASE_URL: postgresql://kic_app:${KIC_APP_DB_PASSWORD:?KIC_APP_DB_PASSWORD fehlt, zuerst scripts/deploy.sh init}@db:5432/statistik
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+volumes:
+  # Zertifikate und ACME-Konto: bleiben bei jedem Deploy erhalten (Let's-Encrypt-Limits)
+  caddy_data:
+  caddy_config:
+  db_daten:
