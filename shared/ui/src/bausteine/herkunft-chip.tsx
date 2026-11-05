@@ -131,7 +131,11 @@ export function HerkunftChip({
             </>
           ) : sql ? (
             <>
-              <pre className="max-w-full overflow-x-auto whitespace-pre-wrap font-mono text-12 text-ink">
+              <pre
+                tabIndex={0}
+                aria-label="SQL der Abfrage"
+                className={klassen("max-w-full overflow-x-auto whitespace-pre-wrap font-mono text-12 text-ink", fokus)}
+              >
                 <code>{sql}</code>
               </pre>
               <div className="flex flex-wrap items-center gap-4">
