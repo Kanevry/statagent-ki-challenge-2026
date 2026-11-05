@@ -161,9 +161,9 @@ def test_maenner_frauen_je_bundesland_gleich_gegenrechnung(gerechnet: Verbindung
 
 # Fängt: Zu- oder Abgänge falsch zugeordnet, Bezugsbestand nicht der veröffentlichte, oder eine Rate trotz
 # Bestand 0.
-@pytest.mark.parametrize("monat", ["2024-08", "2024-09"])
+@pytest.mark.parametrize("monat", ["2024-09"])
 def test_fluktuation_gleich_gegenrechnung(gerechnet: Verbindung, monat: str) -> None:
-    frage = FLUKTUATION.replace("September 2024", "August 2024") if monat == "2024-08" else FLUKTUATION
+    frage = FLUKTUATION
     daten = antwort_frage(gerechnet, frage)
     _pflichtfelder(daten)
     bestand = {k[0]: n for k, n in _bestand(gerechnet, monat, "oenace").items()}
@@ -200,7 +200,7 @@ def test_rueckfrage_statt_zahl(gerechnet: Verbindung, frage: str) -> None:
     daten = antwort_frage(gerechnet, frage)
     assert daten["rueckfrage"] is True and daten["typ"] == "rueckfrage"
     assert daten["zahlen"] == [] and daten["belege"] == [] and daten["text"].rstrip().endswith(("?", "“."))
-    if "2025" in frage:
+    if frage == "Beschäftigte 2025":
         assert "Dezember 2025" in daten["text"] and "Zeitreihe" in daten["text"]
 
 
@@ -496,3 +496,266 @@ def test_cli_json_ist_antwortform_der_webseite(
     else:
         assert rueckfrage is None
     assert (art == "zahl") == bool(daten["zahlen"])
+
+
+# --- Jury-Probe (#74, note_271969): nie still falsch -----------------------------------------------------------
+
+
+# Fängt: die Antwort sagt nicht, was verstanden wurde; ein übergangenes Merkmal bleibt unsichtbar.
+def test_verstanden_satz(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, "Beschäftigte in Wien im August 2024")
+    assert daten["text"].startswith(
+        "Verstanden: August 2024, Bundesland Wien, Geschlecht: alle, Branche: alle, Beschäftigungskategorie: alle."
+    )
+    assert daten["zahlen"][0]["wert"] == _bestand(gerechnet, "2024-08", "region")[("9",)]
+
+
+# Fängt: Alter, Durchschnitt, freie Dienstverträge, Personen oder ein unbekannter Ort fallen still weg und die
+# Antwort ist der Gesamtbestand (Jury-Probe: 13 falsche Antworten).
+@pytest.mark.parametrize(
+    ("frage", "grund"),
+    [
+        ("Wie viele Beschäftigte unter 25 Jahren gab es im August 2024?", "Alter"),
+        ("Durchschnittsalter der Beschäftigten im August 2024", "Alter"),
+        ("Wie viele Jobs hatte Person 1234567 im August 2024?", "Einzeldaten"),
+        ("Beschäftigte in Atlantis im August 2024", "„Atlantis“"),
+        ("Beschäftigte im Bergbaubetrieb im August 2024", "„Bergbaubetrieb“"),
+    ],
+)
+def test_nicht_auswertbar_ehrlich_abgesagt(gerechnet: Verbindung, frage: str, grund: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert daten["zahlen"] == [] and grund in daten["text"]
+    assert "StatAgent beantwortet" in daten["text"]
+
+
+# Fängt: zwei Werte eines Merkmals liefern die Zahl für nur einen davon.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte in Wien und Tirol im August 2024",
+        "Wie viele Arbeiter und Angestellte gab es im August 2024?",
+        "Vergleich Wien und Tirol im August 2024",
+    ],
+)
+def test_zwei_werte_eines_merkmals_abgesagt(gerechnet: Verbindung, frage: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert daten["zahlen"] == [] and "mehrere Werte" in daten["text"]
+
+
+# Fängt: „von März bis Juni 2025“ liest nur Juni; „entwickelt“ ist keine Zeitreihe; „letztes Jahr“ bleibt offen.
+def test_zeitraum_und_entwicklung(gerechnet: Verbindung) -> None:
+    frage, _ = frage_modul.normalisieren("Wie viele Beschäftigte gab es von März bis Juni 2025?")
+    assert monate_lesen(frage) == ["2025-03", "2025-06"] and fragetyp(frage) == "zeitreihe"
+    assert fragetyp("Wie hat sich Wien gegenüber dem Vormonat entwickelt?") == "zeitreihe"
+    frage, notizen = frage_modul.normalisieren("Wie haben sich die Beschäftigten im letzten Jahr entwickelt?")
+    assert jahr_ohne_monat(frage) == "2025" and notizen == ["„Letztes Jahr“ heißt hier 2025."]
+    daten = antwort_frage(gerechnet, "Wie viele Beschäftigte gab es von August bis September 2024?")
+    assert [z["wert"] for z in daten["zahlen"]] == [
+        _bestand(gerechnet, m)[()] for m in ("2024-08", "2024-09")
+    ]
+
+
+# Fängt: umgangssprachliche Branchen („Bau“, „Gesundheitswesen“) fallen still weg, oder der Buchstabe der falschen
+# ÖNACE-Version wird genommen (Gesundheit 2008 = Q, 2025 = R).
+def test_branchennamen_je_version(gerechnet: Verbindung) -> None:
+    je_abschnitt = {k[0]: n for k, n in _bestand(gerechnet, "2024-08", "oenace").items()}
+    bau = antwort_frage(gerechnet, "Wie viele Beschäftigte hatte der Bau im August 2024?")
+    assert [z["wert"] for z in bau["zahlen"]] == [je_abschnitt["F"]] and "Branche F Bau" in bau["text"]
+    pflege = antwort_frage(gerechnet, "Wie viele arbeiten im Gesundheitswesen im August 2024?")
+    assert [z["wert"] for z in pflege["zahlen"]] == [je_abschnitt["Q"]]
+    v2025 = {"Q": "Erziehung und Unterricht", "R": "Gesundheits- und Sozialwesen"}
+    assert frage_modul._werte("im gesundheitswesen", frage_modul.OENACE, v2025)[0] == ["R"]
+
+
+# Fängt: Fluktuation für August 2024 (erste Lieferung, kein Vollabzug), mit übergangenem Bundesland-Filter,
+# „am höchsten“ in einem Kleinstbereich, und die Rückfrage ohne Weg zu einer Antwort.
+def test_fluktuation_ehrlich(gerechnet: Verbindung) -> None:
+    august = antwort_frage(gerechnet, "Fluktuation im August 2024")
+    assert august["zahlen"] == [] and "erste Lieferung" in august["text"]
+    wien = antwort_frage(gerechnet, "Wie hoch war die Fluktuation in Wien im September 2024?")
+    assert wien["zahlen"] == [] and "nur für ganz Österreich" in wien["text"]
+    september = antwort_frage(gerechnet, FLUKTUATION)
+    assert september["zahlen"] and "Am höchsten" not in september["text"]  # Fixture: kein Abschnitt ≥ 1.000
+    bau = antwort_frage(gerechnet, "Zu- und Abgänge im Bau im September 2024")
+    assert bau["zahlen"] and "gefragt war die Branche F Bau" in bau["text"]
+    for frage in ("Wie hoch war die Fluktuation 2025?", "Fluktuation von 01/2025 bis 12/2025"):
+        rueck = antwort_frage(gerechnet, frage)
+        vorschlag = re.search(r"„(Fluktuation je Wirtschaftsbereich im [^“]+)“", rueck["text"])
+        assert rueck["rueckfrage"] and vorschlag
+        assert antwort_frage(gerechnet, vorschlag.group(1))["typ"] == "fluktuation"
+
+
+# Fängt: „Was zählt als Beschäftigte?“ wird als Datenfrage ohne Monat behandelt.
+def test_definition_was_zaehlt(gerechnet: Verbindung) -> None:
+    assert antwort_frage(gerechnet, "Was zählt als Beschäftigte?")["typ"] == "definition"
+
+
+# Fängt: „Frauen in Wien“ liefert Männer und Frauen; der Frauenanteil kommt ohne Prozent.
+def test_ein_geschlecht_und_anteil(gerechnet: Verbindung) -> None:
+    je = _bestand(gerechnet, "2024-08", "geschlecht, region")
+    frauen = antwort_frage(gerechnet, "Wie viele Frauen arbeiten im August 2024 in Wien?")
+    assert [z["wert"] for z in frauen["zahlen"]] == [je[("W", "9")]]
+    anteil = antwort_frage(gerechnet, "Wie hoch ist der Frauenanteil im August 2024?")
+    gesamt = sum(je.values())
+    frauen_gesamt = sum(n for (g, _), n in je.items() if g == "W")
+    prozent = {z["bezeichnung"]: z["wert"] for z in anteil["zahlen"] if z["einheit"] == "Prozent"}
+    assert prozent["Anteil an allen, Frauen"] == round(100 * frauen_gesamt / gesamt, 2)
+
+
+# --- Review-Bank 69 zu !85 --------------------------------------------------------------------------------------
+
+
+# Fängt: „am höchsten“ verschweigt die Schwelle, die Tabelle zeigt einen kleineren Abschnitt mit höherer Rate.
+def test_hoechste_nennt_schwelle() -> None:
+    zeilen = [
+        {"oenace": "A", "bestand": 5000, "fluktuation_prozent": 3.0},
+        {"oenace": "T", "bestand": 250, "fluktuation_prozent": 20.0},
+    ]
+    satz = frage_modul.hoechste_satz(zeilen, {"A": "Land", "T": "Haushalte"})
+    assert satz is not None and satz.startswith("Unter den Abschnitten mit mindestens 1.000")
+    assert "Abschnitt A" in satz and "Abschnitt T" not in satz
+    assert frage_modul.hoechste_satz(zeilen[1:], {}) is None
+
+
+# Fängt: Branchenwörter ohne Wortgrenze („handelt“ → Handel, „Datenbank“ → Finanz) und Zusammensetzungen nach
+# „im“ („Produktionslauf“, „Hausverwaltung“), die still als Branche gelten.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Um wie viele Beschäftigte handelt es sich im August 2024?",
+        "Beschäftigte laut Datenbank im August 2024",
+        "Beschäftigte mit Ausbildung im August 2024",
+    ],
+)
+def test_branchen_nur_ganze_woerter(gerechnet: Verbindung, frage: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert (
+        "Branche: alle" in daten["text"] and daten["zahlen"][0]["wert"] == _bestand(gerechnet, "2024-08")[()]
+    )
+
+
+@pytest.mark.parametrize(
+    "frage",
+    ["Beschäftigte im Produktionslauf August 2024", "Beschäftigte in der Hausverwaltung im August 2024"],
+)
+def test_unbekannte_zusammensetzung_abgesagt(gerechnet: Verbindung, frage: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert daten["zahlen"] == [] and "kenne ich nicht" in daten["text"]
+
+
+# Fängt: „weibliche Beschäftigte“ ergibt den Gesamtbestand mit „Geschlecht: alle“.
+@pytest.mark.parametrize(("wort", "code"), [("weibliche", "W"), ("männliche", "M"), ("Maenner", "M")])
+def test_geschlecht_synonyme(gerechnet: Verbindung, wort: str, code: str) -> None:
+    daten = antwort_frage(gerechnet, f"Wie viele {wort} Beschäftigte gab es im August 2024?")
+    assert [z["wert"] for z in daten["zahlen"]] == [_bestand(gerechnet, "2024-08", "geschlecht")[(code,)]]
+
+
+# Fängt: Beugungen und Füllwörter nach „in“ führen zu einer Fehlabsage der Jury-Kernfrage.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Fluktuation in den Wirtschaftsbereichen im September 2024",
+        "Fluktuation in den Branchen im September 2024",
+        "Fluktuation in den Abschnitten im September 2024",
+        "Beschäftigte im Bereich Handel im August 2024",
+        "Beschäftigte in der Branche Bau im August 2024",
+        "Beschäftigte in Wien im Gesundheits- und Sozialwesen im August 2024",  # Vorführfrage 5
+        "Fluktuation in Prozent im September 2024",
+        "Beschäftigte im August 2024 im Vergleich zum Vormonat",
+        "Beschäftigte im Vormonat August 2024",
+    ],
+)
+def test_keine_fehlabsage_bei_beugung(gerechnet: Verbindung, frage: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert "kenne ich nicht" not in daten["text"] and daten["zahlen"]
+
+
+# Fängt: „Vergleich“ mit genau einem Monat löst eine Zeitreihe bis heute aus.
+def test_vergleich_mit_einem_monat(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, "Vergleich Männer und Frauen im August 2024")
+    assert daten["typ"] == "geschlecht" and len(daten["zahlen"]) == 2
+
+
+# Fängt: „von November bis Februar 2025“ wird zu Februar bis November 2025.
+def test_von_bis_ueber_jahreswechsel() -> None:
+    frage, notizen = frage_modul.normalisieren("Beschäftigte von November bis Februar 2025")
+    assert monate_lesen(frage) == ["2024-11", "2025-02"] and notizen
+
+
+# Fängt: kleingeschriebene oder nachgereihte Orte („in graz“, „in Wien und Graz“) fallen still weg.
+@pytest.mark.parametrize(
+    "frage", ["beschäftigte in graz im august 2024", "Beschäftigte in Wien und Graz im August 2024"]
+)
+def test_unbekannter_ort_abgesagt(gerechnet: Verbindung, frage: str) -> None:
+    daten = antwort_frage(gerechnet, frage)
+    assert daten["zahlen"] == [] and "„graz“" in daten["text"].lower()
+
+
+# Fängt: „ÖNACE C und ÖNACE F“ liefert nur C.
+def test_zwei_oenace_codes_abgesagt(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, "Beschäftigte in ÖNACE C und ÖNACE F im August 2024")
+    assert daten["zahlen"] == [] and "mehrere Werte" in daten["text"]
+
+
+# Fängt: freie Dienstverträge werden fälschlich als nicht vorhanden abgesagt; sie sind die FD-Qualifikationen.
+# „freie DV“ fiel durch (dv ≠ dienstv) und lieferte still den ungefilterten Bestand (Review 69).
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Wie viele freie Dienstverträge gab es im August 2024?",
+        "Wie viele freie DV gab es im August 2024?",
+        "Anzahl der freien DV im August 2024",
+    ],
+)
+def test_freie_dienstvertraege_gezaehlt(gerechnet: Verbindung, frage: str) -> None:
+    stand = letzter_lauf(gerechnet, "2024-08")
+    assert stand is not None
+    z = gerechnet.execute(
+        """SELECT sum(s.wert) AS n FROM stat.stat_beschaeftigte s JOIN stat.klass_qualifikation q
+             ON q.code = s.qualifikation AND q.freier_dienstvertrag
+           WHERE s.regelsatz = 'v1' AND s.regelstand = %s AND s.zeitraum_art = 'Stichtag'
+             AND s.variable = 'Beschaeftigungsverhaeltnisse' AND s.zeitraum_bis = DATE '2024-08-31'""",
+        (stand.regelstand,),
+    ).fetchone()
+    assert z is not None
+    daten = antwort_frage(gerechnet, frage)
+    assert [x["wert"] for x in daten["zahlen"]] == [int(str(z["n"]))] and "nur freie Dienstverträge" in daten[
+        "text"
+    ]
+
+
+# Fängt: Fehlabsagen durch zu breite Signalwörter (alte Regel, vorjährig, Dauer, Name eines Abschnitts, Mengen).
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte nach alter Regel im August 2024",
+        "Beschäftigte gegenüber dem vorjährigen Monat August 2024",
+        "Wie ist der Name von ÖNACE K?",
+        "Gab es im August 2024 über 10000 Beschäftigte?",
+    ],
+)
+def test_keine_fehlabsage_signalwort(frage: str) -> None:
+    assert frage_modul.nicht_auswertbar(frage) is None
+
+
+# Fängt: Alter außerhalb 14–99 und Dauerfragen fallen durch und liefern still den Gesamtbestand (Review 69).
+@pytest.mark.parametrize(
+    ("frage", "grund"),
+    [
+        ("Wie viele Beschäftigte unter 10 Jahren gab es im August 2024?", "alter"),
+        ("Beschäftigte über 100 Jahre im August 2024", "alter"),
+        ("Wie viele sind über 100 Jahre alt im August 2024?", "alter"),
+        ("Beschäftigte, die über 2 Jahre beschäftigt sind, im August 2024", "wie lange"),
+        ("Wie viele sind seit über 2 Jahren beschäftigt im August 2024?", "wie lange"),
+    ],
+)
+def test_absage_alter_und_dauer(frage: str, grund: str) -> None:
+    text = frage_modul.nicht_auswertbar(frage)
+    assert text is not None and grund in text.lower()
+
+
+# Fängt: Notizen („Letztes Jahr heißt …“) stehen vor dem Verstanden-Satz statt danach.
+def test_notizen_nach_verstanden(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, "Wie haben sich die Beschäftigten im letzten Jahr entwickelt?")
+    assert daten["text"].startswith("Verstanden: Jänner 2025 bis Dezember 2025")
+    assert daten["text"].index("„Letztes Jahr“ heißt hier 2025.") > daten["text"].index("alle.")
