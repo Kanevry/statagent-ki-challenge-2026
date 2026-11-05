@@ -148,6 +148,68 @@
   text-wrap: pretty;
 }
 
+/* Ergebnis auf einen Blick: Wert groß, Bedeutung darunter, ruhige Mono-Zeile für die Herkunft. */
+.ergebnis {
+  margin: 32px 0 0;
+  max-width: 520px;
+}
+
+.ergebnisListe {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  justify-content: start;
+  gap: 8px 28px;
+  margin: 0;
+  padding: 16px 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--l-paper) 22%, transparent);
+}
+
+/* Wert oben, Bedeutung darunter; alle Werte auf einer Linie, egal wie lang die Bedeutung ist. */
+.ergebnisPunkt {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.ergebnisWert {
+  margin: 0;
+  font-family: var(--l-display);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--l-white);
+  white-space: nowrap;
+}
+
+.ergebnisText {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--l-line);
+}
+
+.ergebnisQuelle {
+  margin: 12px 0 0;
+  font-family: var(--l-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--l-line) 80%, transparent);
+}
+
+.glossar {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--l-line) 85%, transparent);
+}
+
+.glossar dfn {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--l-line);
+}
+
 .hinweis {
   margin: 40px 0 0;
   font-size: 14px;
@@ -594,6 +656,24 @@
   .hinweis {
     margin-top: 16px;
     font-size: 12px;
+  }
+
+  .ergebnis {
+    margin-top: 16px;
+  }
+
+  .ergebnisListe {
+    grid-template-columns: repeat(2, auto);
+    gap: 8px 24px;
+    padding-top: 12px;
+  }
+
+  .ergebnisWert {
+    font-size: 16px;
+  }
+
+  .ergebnisQuelle {
+    margin-top: 8px;
   }
 
   .schrittTitel {

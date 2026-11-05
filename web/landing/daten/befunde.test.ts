@@ -25,8 +25,10 @@ describe("ladeBefunde", () => {
     const t = await ladeBefunde();
     expect(Date.now() - start).toBeLessThan(3_500);
     expect(t.quelle).toBe("beispieldaten");
+    expect(t.grund).toBe("keine-verbindung");
     expect(JSON.stringify(warn.mock.calls)).not.toContain("geheimeswort");
   });
+
 });
 
 describe("zeileAusTreffer", () => {

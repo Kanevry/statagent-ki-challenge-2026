@@ -446,7 +446,12 @@ def complete(
 
 
 def letzter_erfolg(max_zeilen: int = 500) -> dict[str, Any] | None:
-    """Letzte Protokollzeile ohne Fehler (wer zuletzt tatsächlich geantwortet hat), sonst ``None``."""
+    """Letzte Protokollzeile ohne Fehler (wer zuletzt tatsächlich geantwortet hat), sonst ``None``.
+
+    Zählt nur Zeilen der Sprachmodell-Provider aus ``FABRIKEN``. Dieselbe Datei trägt auch Zeilen von
+    ``plattform.router`` (provider ``router``) und ``plattform.embeddings`` (provider ``lokal``); die
+    sind kein Modellwechsel und dürfen den Modell-Badge nicht übernehmen.
+    """
     datei = protokoll_datei()
     if not datei.is_file():
         return None
@@ -456,7 +461,7 @@ def letzter_erfolg(max_zeilen: int = 500) -> dict[str, Any] | None:
             eintrag = json.loads(zeile)
         except json.JSONDecodeError:
             continue
-        if not eintrag.get("fehler"):
+        if not eintrag.get("fehler") and eintrag.get("provider") in FABRIKEN:
             return {
                 k: eintrag.get(k)
                 for k in ("provider", "modell", "version", "fallback_stufe", "zweck", "zeit")

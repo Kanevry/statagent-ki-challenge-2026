@@ -105,7 +105,60 @@ function flaechenPunkt(r: Rechteck, rang: number, n: number, nx: number): [numbe
   return [r.x + ((gx + 0.5) / nx) * r.breite, r.y + ((gy + 0.5) / ny) * r.hoehe];
 }
 
+/**
+ * Ergebnis von bauePartikelStart: Puffer mit Schritt 1 und 2, dazu die Zuordnung, die
+ * bauePartikelZiele für Schritt 3 und 4 braucht.
+ */
+export interface PartikelStart {
+  puffer: PartikelPuffer;
+  /** Pufferindex je Kartenpartikel (Pufferreihenfolge, 2024-08 zuerst) */
+  kartenIndizes: number[];
+  kartenJeSaeule: number[];
+  /** Pufferindex je Rang in der Gruppe „ohne Bundesland“ */
+  unbekanntIndizes: number[];
+}
+
+/** Pro Teilschritt der Ziele höchstens so viele Partikel (hält jedes Häppchen klein). */
+const HAEPPCHEN = 6000;
+
+/**
+ * Stabile Sortierung von Indizes nach einem nicht-negativen Float32-Wert, nativ statt mit
+ * Vergleichsfunktion: Schlüssel = Bitmuster des Werts (monoton für Werte ≥ 0) · 2^20 + Rang.
+ * Gleiches Ergebnis wie `idx.sort((p, q) => wert(p) - wert(q))` bei stabiler Sortierung.
+ */
+function sortiereNach(idx: number[], wert: (i: number) => number): number[] {
+  const n = idx.length;
+  if (n >= 1 << 20) return idx.slice().sort((p, q) => wert(p) - wert(q));
+  const f = new Float32Array(1);
+  const u = new Uint32Array(f.buffer);
+  const schluessel = new Float64Array(n);
+  for (let r = 0; r < n; r++) {
+    f[0] = wert(idx[r]);
+    // Vorzeichen-Betrag → monoton steigend (negative Werte kommen nicht vor, bleiben aber richtig)
+    const bits = u[0] >>> 31 ? ~u[0] >>> 0 : (u[0] | 0x80000000) >>> 0;
+    schluessel[r] = bits * 1048576 + r;
+  }
+  schluessel.sort();
+  const aus = new Array<number>(n);
+  for (let r = 0; r < n; r++) aus[r] = idx[schluessel[r] % 1048576];
+  return aus;
+}
+
+/** Alle Ziele auf einmal (Tests, Ersatz): Start plus vollständig ausgeführte Ziele. */
 export function bauePartikel(layout: SzeneLayout, karte: KartenDaten): PartikelPuffer {
+  const start = bauePartikelStart(layout);
+  const schritte = bauePartikelZiele(start, layout, karte);
+  while (!schritte.next().done) {
+    // nächster Teilschritt
+  }
+  return start.puffer;
+}
+
+/**
+ * Schritt 1 und 2: Säulen, Prüf-Gruppen und Ringe. Braucht keine Kartendaten; Karte, Tabelle und
+ * Kartenstil stehen danach noch auf 0, bis bauePartikelZiele sie füllt.
+ */
+export function bauePartikelStart(layout: SzeneLayout): PartikelStart {
   const plan = planePartikel(layout.variante);
   const s = saat(plan);
   const ringe = Math.min(
@@ -202,31 +255,72 @@ export function bauePartikel(layout: SzeneLayout, karte: KartenDaten): PartikelP
     }
   }
 
+  return {
+    puffer: {
+      anzahl: n,
+      partikel: plan.gesamt,
+      position,
+      pruef,
+      karte: kartePos,
+      tabelle,
+      zufall: s.zufall.subarray(0, n * 4),
+      info,
+      dichte,
+      stil,
+      kartenJeLand: new Map(),
+    },
+    kartenIndizes,
+    kartenJeSaeule,
+    unbekanntIndizes,
+  };
+}
+
+/**
+ * Schritt 3 und 4 (Kartenpunkte, Kartenstil, Punkt-Balken) in Teilschritten: jeder `yield` ist
+ * eine Stelle, an der der Motor dem Browser den Hauptthread zurückgeben darf. Das Ergebnis ist
+ * dasselbe wie in einem Rutsch. `layout` muss dieselben Säulen haben wie beim Start.
+ */
+export function* bauePartikelZiele(start: PartikelStart, layout: SzeneLayout, karte: KartenDaten): Generator<void, void, void> {
+  const { puffer, kartenIndizes, kartenJeSaeule, unbekanntIndizes } = start;
+  const { position, karte: kartePos, tabelle, stil, kartenJeLand } = puffer;
+  const abstand = GRUPPE[layout.variante].abstand;
+  const setze = (arr: Float32Array, i: number, x: number, y: number) => {
+    arr[i * 2] = x;
+    arr[i * 2 + 1] = y;
+  };
+  kartenJeLand.clear();
+
   // Karte: genau das Präfix der geschichteten Stichprobe (so viele Punkte wie Kartenpartikel).
   // 2024-08 nimmt den Anfang des Präfixes und legt damit das ganze Land grob an; die übrigen
   // Säulen füllen je einen West-Ost-Streifen (links → Westen), damit der Strom geordnet fließt.
   const k = layout.karte;
-  const kartenJeLand = new Map<number, number>();
   const jeLandIndizes = new Map<number, number[]>();
   const punktVon = new Int32Array(kartenIndizes.length);
   const fuehrend = kartenJeSaeule[0] ?? 0;
   for (let j = 0; j < fuehrend; j++) punktVon[j] = j;
   const kx = (q: number) => karte.x[q % karte.n];
   const ky = (q: number) => karte.y[q % karte.n];
-  const rest = Array.from({ length: kartenIndizes.length - fuehrend }, (_, r) => fuehrend + r).sort((p, q) => kx(p) - kx(q));
+  const rest = sortiereNach(
+    Array.from({ length: kartenIndizes.length - fuehrend }, (_, r) => fuehrend + r),
+    kx,
+  );
+  yield;
   let versatz = 0;
-  let start = fuehrend;
+  let anfang = fuehrend;
   for (let si = 1; si < kartenJeSaeule.length; si++) {
     const m = kartenJeSaeule[si];
     const punkteS = rest.slice(versatz, versatz + m).sort((p, q) => ky(p) - ky(q));
-    const teile = Array.from({ length: m }, (_, r) => start + r).sort(
+    const teile = Array.from({ length: m }, (_, r) => anfang + r).sort(
       (p, q) => position[kartenIndizes[p] * 2 + 1] - position[kartenIndizes[q] * 2 + 1],
     );
     teile.forEach((t, r) => (punktVon[t] = punkteS[r]));
     versatz += m;
-    start += m;
+    anfang += m;
+    if (si % 4 === 0) yield;
   }
-  kartenIndizes.forEach((pi, j) => {
+  yield;
+  for (let j = 0; j < kartenIndizes.length; j++) {
+    const pi = kartenIndizes[j];
     const q = punktVon[j] % karte.n;
     setze(kartePos, pi, k.x + karte.x[q] * k.breite, k.y + karte.y[q] * k.hoehe);
     const code = karte.bl[q];
@@ -234,7 +328,9 @@ export function bauePartikel(layout: SzeneLayout, karte: KartenDaten): PartikelP
     let liste = jeLandIndizes.get(code);
     if (!liste) jeLandIndizes.set(code, (liste = []));
     liste.push(pi);
-  });
+    if ((j + 1) % HAEPPCHEN === 0) yield;
+  }
+  yield;
 
   // Punktgröße und Deckkraft aus der örtlichen Dichte: überall gleich große Punkte; wo sie sich
   // stapeln (Wien), kleiner und so blass, dass die Fläche satt, aber nicht heller als Mint wird.
@@ -242,32 +338,39 @@ export function bauePartikel(layout: SzeneLayout, karte: KartenDaten): PartikelP
   const zaehler = new Map<number, number>();
   const zellKey = (pi: number) =>
     Math.floor(kartePos[pi * 2] / zelle) * 8192 + Math.floor(kartePos[pi * 2 + 1] / zelle);
-  for (const pi of kartenIndizes) {
-    const key = zellKey(pi);
+  for (let j = 0; j < kartenIndizes.length; j++) {
+    const key = zellKey(kartenIndizes[j]);
     zaehler.set(key, (zaehler.get(key) ?? 0) + 1);
+    if ((j + 1) % HAEPPCHEN === 0) yield;
   }
-  const dichten = [...zaehler.values()].sort((a, b) => a - b);
+  // numerisch aufsteigend wie sort((a, b) => a - b)
+  const dichten = Float64Array.from(zaehler.values()).sort();
   const median = (dichten[Math.floor(dichten.length / 2)] ?? 1) / (zelle * zelle);
   const basis = Math.min(2.2, Math.max(1.0, 0.8 / Math.sqrt(median)));
-  for (const pi of kartenIndizes) {
+  yield;
+  for (let j = 0; j < kartenIndizes.length; j++) {
+    const pi = kartenIndizes[j];
     const rho = (zaehler.get(zellKey(pi)) ?? 1) / (zelle * zelle);
     const d = Math.min(1, Math.sqrt((2.5 * median) / rho));
     const groesse = basis * (0.72 + 0.28 * d);
     const flaeche = (Math.PI / 4) * groesse * groesse;
     stil[pi * 2] = groesse;
     stil[pi * 2 + 1] = Math.min(0.8, Math.max(0.06, 1.25 / (rho * flaeche)));
+    if ((j + 1) % HAEPPCHEN === 0) yield;
   }
+  yield;
 
   // Tabelle: je Land von West nach Ost in die Punkt-Balken, damit der Fluss geordnet bleibt
   const t = layout.tabelle;
   const pa = t.punktAbstand;
   for (const zeile of t.zeilen) {
-    const liste = (jeLandIndizes.get(zeile.code) ?? []).slice().sort((p, q) => kartePos[p * 2] - kartePos[q * 2]);
+    const liste = sortiereNach(jeLandIndizes.get(zeile.code) ?? [], (pi) => kartePos[pi * 2]);
     liste.forEach((pi, r) => {
       const spalte = Math.floor(r / t.punktReihen);
       const reihe = r % t.punktReihen;
       setze(tabelle, pi, t.x0 + (spalte + 0.5) * pa, zeile.oben + (reihe + 0.5) * pa);
     });
+    yield;
   }
 
   // Gruppe „ohne Bundesland“: neben der Karte, dann als zehnter Balken
@@ -281,18 +384,4 @@ export function bauePartikel(layout: SzeneLayout, karte: KartenDaten): PartikelP
     const reihe = r % t.punktReihen;
     setze(tabelle, pi, t.unbekannt.x + (spalte + 0.5) * pa, t.unbekannt.y + (reihe + 0.5) * pa);
   });
-
-  return {
-    anzahl: n,
-    partikel: plan.gesamt,
-    position,
-    pruef,
-    karte: kartePos,
-    tabelle,
-    zufall: s.zufall.subarray(0, n * 4),
-    info,
-    dichte,
-    stil,
-    kartenJeLand,
-  };
 }
