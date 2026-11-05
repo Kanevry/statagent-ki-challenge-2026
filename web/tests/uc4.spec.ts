@@ -1,7 +1,7 @@
 /**
  * /uc4 Gemeinsamer Einstieg (#98) im Browser, je Projekt der Konfiguration (desktop 1440×900, mobil 390×844).
  * Die Route POST /api/uc4/frage wird per `page.route` erfüllt: der Test prüft die Seite, nicht den Router
- * (den deckt web/lib/plattform/uc4.test.ts ab). Läuft in der CI, lokal nicht auf dem M4.
+ * (den deckt web/lib/plattform/uc4.test.ts ab). Läuft in der CI, lokal nicht auf dem Entwicklungsrechner.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -67,6 +67,21 @@ test("/uc4 liefert 200 und zeigt Hauptaussage, Frage-Feld und drei leere Karten"
   await expect(page.getByLabel("Frage an die Kette")).toBeVisible();
   await expect(page.locator("[data-uc-karte]")).toHaveCount(3);
   await expect(page.locator('[data-zustand="leer"]')).toHaveCount(3);
+});
+
+// Fängt ab (Review !66): Der Sprechknopf steht unter den drei Karten statt am Frage-Feld (auf 390 px unter drei
+// gestapelten Karten).
+test("der Sprechknopf steht am Frage-Feld, vor den Karten", async ({ page }) => {
+  await page.goto("/uc4");
+  const vorDenKarten = await page.evaluate(() => {
+    const stimme = document.querySelector("[data-uc4-stimme]");
+    const karte = document.querySelector("[data-uc-karte]");
+    const feld = document.querySelector('input[name="frage"]');
+    if (!stimme || !karte || !feld) return null;
+    const vor = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return vor(feld, stimme) && vor(stimme, karte);
+  });
+  expect(vorDenKarten).toBe(true);
 });
 
 test("Frage absenden: drei Karten in Reihenfolge uc3, uc2, uc1, jede Zahl mit HerkunftChip, Gate 0", async ({ page }) => {

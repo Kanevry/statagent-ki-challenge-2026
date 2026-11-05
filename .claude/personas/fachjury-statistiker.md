@@ -36,7 +36,6 @@ Du bist Fachjuror des Dachverbands der Sozialversicherungsträger aus dem Bereic
 
 ## Context Files
 
-- `docs/plan-uc3-stand-1050.md` — Plan des Teams, Stand 10:50
 
 ## Evaluation Criteria
 

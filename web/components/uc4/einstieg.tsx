@@ -2,7 +2,9 @@
 
 import { useState, type FormEvent } from "react";
 import { Feld, Fliesstext, Knopf, Status, Ueberschrift, Zahl } from "@kic/ui/basis";
-import { HerkunftChip } from "@kic/ui/bausteine";
+import { HerkunftChip, ModellPille } from "@kic/ui/bausteine";
+import { SeitenModell, TESTBETRIEB_TEXT } from "@kic/ui/shell";
+import { Stimme } from "./stimme";
 import { findeUc } from "@kic/ui/ucs";
 import type { Beleg, UcAntwort } from "@kic/ui/antwortform";
 import {
@@ -11,6 +13,9 @@ import {
   grundText,
   KETTE,
   MAX_FRAGE,
+  MODELL_NAMEN,
+  MODELLWAHL,
+  type Modellwahl,
   type Ergebnis,
   type Fehlend,
   type KettenUc,
@@ -69,12 +74,27 @@ function Zahlen({ antwort }: { antwort: UcAntwort }) {
   );
 }
 
+// Modell je Karte als Modell-Pille (Frame CKCV4, #113). Violett heißt KI: ohne Modell (UC3 rechnet mit Code)
+// steht nur ein ruhiger Satz ohne Pille.
 function Modell({ modell }: { modell: string | null | undefined }) {
+  if (!modell) {
+    return (
+      <p className="font-sans text-12 text-slate" data-testid="uc4-modell">
+        Ohne KI gerechnet, nur mit Code.
+      </p>
+    );
+  }
   return (
-    <p className="inline-flex items-center gap-2 border-l-2 border-violett pl-2 font-sans text-12" data-testid="uc4-modell">
-      <span className="text-slate">Modell</span>
-      <span className={modell ? "font-mono text-ink" : "text-slate"}>{modell ?? "keins, gerechnet von Code"}</span>
-    </p>
+    <ModellPille data-testid="uc4-modell" className="self-start">
+      {modell === "mock" ? (
+        <span>{TESTBETRIEB_TEXT}</span>
+      ) : (
+        <>
+          <span>Modell:</span>
+          <span className="font-mono">{modell}</span>
+        </>
+      )}
+    </ModellPille>
   );
 }
 
@@ -125,13 +145,13 @@ function ansage(zustand: Zustand): string {
   return `${zahl} da, es fehlt ${fehlend.map((f) => findeUc(f.uc).name).join(" und ")}.`;
 }
 
-async function stelleFrage(frage: string): Promise<Zustand> {
+async function stelleFrage(frage: string, modell: Modellwahl | null): Promise<Zustand> {
   let antwort: Response;
   try {
     antwort = await fetch("/api/uc4/frage", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ frage }),
+      body: JSON.stringify(modell ? { frage, modell } : { frage }),
       cache: "no-store",
     });
   } catch {
@@ -156,8 +176,62 @@ async function stelleFrage(frage: string): Promise<Zustand> {
     : { art: "fehler", meldung: "Die Antwort kam nicht im erwarteten Format." };
 }
 
+// Badge im Header nach der Antwort (Review !72): Er zeigt das Modell, das wirklich geantwortet hat, nicht die Wahl im
+// Radio. Nur wenn alle Antworten mit Modell dasselbe nennen; ohne Modell (StatAgent rechnet mit Code) keine Vorgabe.
+function ModellDerAntwort({ zustand }: { zustand: Zustand }) {
+  if (zustand.art !== "ok") return null;
+  const modelle = [...new Set(zustand.ergebnis.antworten.map((a) => a.modell).filter((m): m is string => Boolean(m)))];
+  return modelle.length === 1 ? <SeitenModell provider={modelle[0]!} gewaehlt /> : null;
+}
+
+// Modellwahl (Lead c0, Szene 8): Wer antwortet, lässt sich für getippte Fragen umschalten. Der Wert geht als
+// LLM_PROVIDER an den Router; „Voreinstellung der App“ nimmt die Einstellung der App. Erlaubt ein Zweck den Anbieter
+// nicht (etwa UC1 oder UC2 mit einem gesperrten Anbieter), sagt die Karte das selbst. Der Sprechknopf nutzt die
+// Wahl nicht, er hat seinen eigenen Assistenten.
+function ModellAuswahl({
+  wahl,
+  onWahl,
+  gesperrt,
+}: {
+  wahl: Modellwahl | null;
+  onWahl: (wahl: Modellwahl | null) => void;
+  gesperrt: boolean;
+}) {
+  const optionen: { wert: Modellwahl | null; name: string }[] = [
+    { wert: null, name: "Voreinstellung der App" },
+    ...MODELLWAHL.map((wert) => ({ wert, name: MODELL_NAMEN[wert] })),
+  ];
+  return (
+    <fieldset className="flex max-w-3xl flex-col gap-2" disabled={gesperrt} data-modell-auswahl="">
+      <legend className="font-sans text-14 font-semibold text-ink">Welches Modell antwortet auf getippte Fragen?</legend>
+      <div className="flex flex-wrap gap-2">
+        {optionen.map(({ wert, name }) => (
+          <label
+            key={name}
+            className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-line bg-white px-3 font-sans text-14 text-ink has-[:checked]:border-violett has-[:checked]:bg-violett-bg has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
+          >
+            <input
+              type="radio"
+              name="modell"
+              className="size-4 accent-violett"
+              checked={wahl === wert}
+              onChange={() => onWahl(wert)}
+            />
+            {name}
+          </label>
+        ))}
+      </div>
+      <Fliesstext groesse={14} ton="gedaempft">
+        Die Zahlen rechnet immer der Code. Das Modell schreibt nur die Sätze dazu. Für den Sprechknopf gilt diese
+        Wahl nicht.
+      </Fliesstext>
+    </fieldset>
+  );
+}
+
 export function Einstieg() {
   const [frage, setFrage] = useState("");
+  const [modell, setModell] = useState<Modellwahl | null>(null);
   const [eingabeFehler, setEingabeFehler] = useState<string | undefined>();
   const [zustand, setZustand] = useState<Zustand>({ art: "leer" });
   const laedt = zustand.art === "laden";
@@ -172,7 +246,7 @@ export function Einstieg() {
     }
     setEingabeFehler(undefined);
     setZustand({ art: "laden" });
-    setZustand(await stelleFrage(geprueft.data.frage));
+    setZustand(await stelleFrage(geprueft.data.frage, modell));
   }
 
   return (
@@ -194,7 +268,13 @@ export function Einstieg() {
         </Knopf>
       </form>
 
-      <p role="status" aria-live="polite" className="sr-only">
+      {/* Am Frage-Feld, vor den Karten: auch auf dem Handy direkt unter der Eingabe (Review !66). */}
+      <Stimme />
+
+      <ModellAuswahl wahl={modell} onWahl={setModell} gesperrt={laedt} />
+      <ModellDerAntwort zustand={zustand} />
+
+      <p role="status" aria-live="polite" className="sr-only" data-uc4-ansage="">
         {ansage(zustand)}
       </p>
 

@@ -1,0 +1,27 @@
+# Texte und Regeln für den Terminentwurf (Issue #81). Nichts wird gebucht.
+rueckfragen:
+  # Reihenfolge = Vorrang; je Aufruf höchstens eine Frage, nie eine schon gestellte oder beantwortete.
+  # Inhalt nach Use Case 1 V2, Abschnitt 3.3 „Beispiel Arzttermin“, in kurzen Sätzen (uc1.sprache).
+  - feld: plz
+    frage: "Soll der Termin in der Nähe sein? Dann nennen Sie mir bitte die Postleitzahl der Person."
+  - feld: zeitpraeferenz
+    frage: "Wann passt es Ihnen besser: vormittags oder nachmittags?"
+erkennen:
+  plz: "\\b(1[0-2]\\d0)\\s+wien\\b|\\bwien\\s+(1[0-2]\\d0)\\b"
+  zeitpraeferenz:
+    vormittag: ['vormittag', '\bin der fr(?:ü|u)h', '\bmorgens\b', '\bam morgen\b']
+    nachmittag: ['nachmittag', '\bam abend\b', '\babends\b']
+zeitfenster:
+  vormittag: {von: "08:00", bis: "12:00", text: "vormittags (08:00 bis 12:00)"}
+  nachmittag: {von: "13:00", bis: "17:00", text: "nachmittags (13:00 bis 17:00)"}
+# Sätze, die eine Buchung oder einen freien Termin behaupten; keiner darf in Entwurf oder Dialog stehen.
+verboten:
+  - 'termin ist (?:frei|bestätigt|gebucht)'
+  - '(?<!nicht )gebucht für'
+  - 'freier termin am'
+  - 'wir haben (?:ihnen )?einen termin'
+texte:
+  summary: "Terminentwurf"
+  nicht_gebucht: "Das ist ein Terminentwurf, nicht gebucht. Den Termin vereinbaren Sie selbst mit der Stelle."
+  wunschhinweis: "Datum und Uhrzeit sind Ihr Wunsch. Die Stelle hat noch nichts zugesagt."
+  ohne_adresse: "nicht belegt"

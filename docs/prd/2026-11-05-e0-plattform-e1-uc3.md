@@ -32,7 +32,7 @@ die Bau-Sessions der vier Tabs als erste Nutzer der Verträge.
 |-------|---------|--------|----------|
 | Repo enthält noch keinen Produktcode | `find . -maxdepth 2 -not -path './.git*'` | nur CLAUDE.md, README, CI-Vorschlag, docs/, .claude/personas | 2026-11-05 12:20 @ 51341c6 |
 | Rohdaten liegen in PG 5433 | `psql -p 5433 -U statistik -d statistik -c "select count(*) from roh.lieferung"` | 10.152.292 Zeilen | 2026-11-05 12:30 |
-| Golden Set 08/2024 exakt | Lead-Gegenrechnung (ki-challenge-goldenset-2024-08.md § 5) | 2.880/2.880 Zellen, 0 Abweichungen | 2026-11-05 (m5 statagent-db) |
+| Golden Set 08/2024 exakt | Lead-Gegenrechnung (ki-challenge-goldenset-2024-08.md § 5) | 2.880/2.880 Zellen, 0 Abweichungen | 2026-11-05 (Messrechner, statagent-db) |
 | Azure-Endpunkt we-16 antwortet | Lead-Smoke 12:2x (`/models` und Chat gpt-5-4-mini) | HTTP 200 / 200 | 2026-11-05 12:2x |
 | `claude -p --model claude-opus-5-5` liefert Antwort | `echo ok \| timeout 60 claude -p --model claude-opus-5-5 --output-format json 'Antworte nur mit ok'` (Pre-Mortem) | end_turn; API 3,5 s, Wandzeit 15–16 s, ca. 32k Cache-Tokens je Aufruf (lädt globalen Kontext) | 2026-11-05 13:0x |
 | `claude -p` kann JSON-Schema-Ausgabe | `claude -p --help \| grep json-schema` | `--json-schema <schema>` vorhanden (2.1.318) | 2026-11-05 12:30 |
@@ -44,7 +44,7 @@ die Bau-Sessions der vier Tabs als erste Nutzer der Verträge.
 | CI-Vorschlag passt nicht zum Workspace | `.gitlab-ci.yml:66-70` | `cd web`, Cache-Key `web/pnpm-lock.yaml`, `uv sync` ohne `--all-packages`, CI-Postgres leer | 2026-11-05 13:0x |
 | measureSlop-Schlüssel | `grep -n kickers web/tests/lib/slop-measure.js` | `kickersMono`, `kickersCaps` (kein `kickers`), `root` Standard `main` | 2026-11-05 13:0x |
 | `cloudflared` vorhanden | `which cloudflared` | /opt/homebrew/bin/cloudflared | 2026-11-05 13:0x |
-| Modell-Konzept Owner | Lead-Nachricht 13:0x („ok passt. so machen wirs“) | azure Pflicht UC3, mistral Zweitanbieter Live-Austausch, ollama Notnagel m5, claude Qualitätsmodus UC1/UC2; Azure-Limit 200.000 Token/s, Mistral-Budget 10 € | 2026-11-05 13:0x |
+| Modell-Konzept Owner | Lead-Nachricht 13:0x („ok passt. so machen wirs“) | azure Pflicht UC3, mistral Zweitanbieter Live-Austausch, ollama Notnagel lokal, claude Qualitätsmodus UC1/UC2; Azure-Limit 200.000 Token/s, Mistral-Budget 10 € | 2026-11-05 13:0x |
 
 ## 2. Solution & Scope
 
@@ -90,6 +90,10 @@ antwort = complete(nachrichten, schema=None, stream=False, provider=None, zweck=
 # stream=True → Iterator[str]; provider=None → LLM_PROVIDER aus Umgebung
 # Antwort: text, json, provider, modell, dauer_ms, tokens_in, tokens_out
 aktives_modell()  # {"provider": "azure", "modell": "gpt-5-4-mini", "quelle": "env"}
+# Tagesbudget (#100): LLM_TAGESBUDGET_AUFRUFE; voll → BudgetErschoepft vor dem Aufruf, ohne Protokollzeile.
+# Online (KIC_ONLINE=1) ohne Budget und mit echtem Provider → KonfigFehler.
+budget_status()   # {"grenze": 500, "verbraucht": 12, "frei": 488}; ohne Grenze sind grenze und frei None
+# python -m plattform.router frage: Exit 3 und {"fehler": "budget_erschoepft"}, wenn nichts frei ist
 ```
 
 | LLM_PROVIDER | Umsetzung | Umgebungsvariablen |
@@ -97,7 +101,7 @@ aktives_modell()  # {"provider": "azure", "modell": "gpt-5-4-mini", "quelle": "e
 | `azure` (Standard, Pflicht UC3-Agenten) | openai-SDK Chat Completions, Bearer, `reasoning_effort` nur hier | `AZURE_OPENAI_BASE_URL` (we-16), `AZURE_OPENAI_MODEL`, `AZURE_API_KEY` |
 | `claude` (Qualitätsmodus UC1/UC2, Vergleiche) | Subprozess `claude -p --model claude-opus-5-5 --output-format json [--json-schema …]`, `cwd` = leeres Temp-Verzeichnis (lädt sonst Projekt-CLAUDE.md und Hooks, ca. 32k Cache-Tokens), Nachrichtenliste wird zu einem Prompt geflacht, Schema-Antwort aus `structured_output`, Timeout 120 s, Wandzeit ca. 15 s, Abo, kein API-Key; nie im UC3-Lauf | `CLAUDE_MODEL` optional |
 | `mistral` (EU, Zweitanbieter für den Live-Austausch vor der Jury) | openai-SDK gegen `MISTRAL_BASE_URL`; Small für Klassifizieren und Extrahieren, Large nur für Texte; Budget 10 € (Limit setzt der Owner in der Konsole) | `MISTRAL_API_KEY`, `MISTRAL_MODEL_CHAT`, `MISTRAL_MODEL_FAST` |
-| `ollama` (Offline-Notnagel auf m5, gemma4/qwen3) | openai-SDK gegen `OLLAMA_BASE_URL` | `OLLAMA_BASE_URL`, `OLLAMA_MODEL` |
+| `ollama` (Offline-Notnagel auf einem eigenen Rechner, gemma4/qwen3) | openai-SDK gegen `OLLAMA_BASE_URL` | `OLLAMA_BASE_URL`, `OLLAMA_MODEL` |
 | `mock` (Tests, CI, Jury ohne Netz) | Fixtures `shared/py/plattform/fixtures/<zweck>.json`, deterministisch | keine |
 
 `zweck` routet: eine Tabelle `shared/py/plattform/zwecke.toml` ordnet jedem Zweck (z. B. `qs.einstufung`,

@@ -16,6 +16,8 @@ MODULE: tuple[str, ...] = (
     "uc2.belege.cli",
     "uc2.akteure.cli",
     "uc2.experte.cli",
+    "uc2.verhandlung.cli",
+    "uc2.verhandlung.freigabe",
 )
 
 

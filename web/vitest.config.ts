@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
@@ -5,6 +6,8 @@ import { defineConfig } from "vitest/config";
 // passWithNoTests bleibt, bis der erste Web-Test auf main liegt (#93 Punkt 4).
 export default defineConfig({
   plugins: [react()],
+  // Wie tsconfig "paths": "@/…" zeigt auf web/ (Antrag #135). Nur "@/", damit "@kic/ui" unberührt bleibt.
+  resolve: { alias: [{ find: /^@\//, replacement: fileURLToPath(new URL("./", import.meta.url)) }] },
   test: {
     environment: "jsdom",
     globals: true,

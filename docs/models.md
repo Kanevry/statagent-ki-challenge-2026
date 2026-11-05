@@ -30,7 +30,8 @@ Zahlen rechnet nie ein Modell, sondern der Code ohne Sprachmodell. An das Modell
 ## Tagesbudget und Ratenlimit
 
 Für die öffentliche Online-Demo (#100) gelten zwei Grenzen. `LLM_TAGESBUDGET_AUFRUFE` (ganze Zahl ab 1, leer =
-kein Budget) begrenzt die Modellaufrufe je UTC-Tag. Gezählt werden die Zeilen des Tages in
+kein Budget) begrenzt die `complete`-Aufrufe je UTC-Tag. Ein Aufruf kann über Ausweichstufen und die
+Schema-Wiederholung mehrere Anfragen an Anbieter auslösen. Gezählt werden die Zeilen des Tages in
 `modellaufrufe.jsonl` mit einem Sprachmodell-Provider, auch Fehlversuche; Zeilen von `router` und `lokal` zählen
 nicht. So stimmt die Zahl auch über die Python-Prozesse, die die Web-App je Anfrage startet. Ist das Budget
 verbraucht, wirft `complete` vor jedem Provider-Aufruf `BudgetErschoepft` und schreibt keine Zeile;
@@ -38,7 +39,8 @@ verbraucht, wirft `complete` vor jedem Provider-Aufruf `BudgetErschoepft` und sc
 `POST /api/uc4/frage` antwortet mit 429. `status --json` nennt den Stand im Feld `budget`
 (`grenze`, `verbraucht`, `frei`). Davor begrenzt die Web-App jede Client-IP auf `RATENLIMIT_PRO_MINUTE`
 Fragen je Minute (Standard 10, gleitendes Fenster, 429 mit `Retry-After`). Prüfen und Schreiben des Budgets sind
-nicht atomar: gleichzeitige Anfragen an der Grenze können sie um wenige Aufrufe überschreiten.
+nicht atomar: gleichzeitig laufende Aufrufe an der Grenze können sie um so viele Aufrufe überschreiten, wie gerade
+laufen.
 
 Online ist das Budget Pflicht (fail-closed, Review !36). Das Prod-Compose setzt `KIC_ONLINE=1` und verlangt
 `LLM_TAGESBUDGET_AUFRUFE` beim Start (`${…:?}`, Invariante in `deploy/compose-invarianten.jq`). Ist
@@ -72,8 +74,8 @@ Gemessen mit `uv run python -m plattform.llm smoke` (eine kurze Anfrage je Provi
 Einziges Embedding-Modell der Plattform: `google/embeddinggemma-2` über `plattform.embeddings` (lokal,
 sentence-transformers als Extra `plattform[embeddings]`, nicht in CI), Revision fest im Code. Ohne pgvector
 speichern die UCs `float4[]` und rechnen Cosinus in SQL oder numpy. Prototyp mit 200 Texten; hochskalieren
-(UC1, UC2) erst danach. Der Apple M4 Pro wird nicht gemessen (Regel: schwere Läufe nur auf dem Apple M5 Max
-oder in CI); auf dem M5 Max misst der Bench auch `cpu` als Näherung für Rechner ohne Grafikbeschleunigung.
+(UC1, UC2) erst danach. Der Entwicklungsrechner wird nicht gemessen (Regel: schwere Läufe nur auf einem eigenen Messrechner
+oder in CI); auf dem Messrechner (Apple Silicon) misst der Bench auch `cpu` als Näherung für Rechner ohne Grafikbeschleunigung.
 
 Nutzungsbedingungen: Für die Gewichte von embeddinggemma-2 gelten die Gemma Terms of Use
 (https://ai.google.dev/gemma/terms). Die Gewichte liegen nicht im Repo und werden nicht mit ihm verteilt.
@@ -96,18 +98,18 @@ mit einem langen Text über `EMBEDDINGS_MAX_TOKEN` Token, jeweils mit Stapel und
 
 | Zeit | Host | Modell | Revision | Gerät | Ladezeit | Dimension | n | Dauer | Texte/s |
 |---|---|---|---|---|---|---|---|---|---|
-| 2026-11-05T14:11:20+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | mps | 5.3 s | 768 | 200 | 4.62 s | 43 |
+| 2026-11-05T14:11:20+01:00 | Messrechner (Apple Silicon) | google/embeddinggemma-2 | `f9972ac22e69` | mps | 5.3 s | 768 | 200 | 4.62 s | 43 |
 
 #### Bench 2026-11-05T14:47:52+01:00
 
 | Zeit | Host | Modell | Revision | Gerät | Eingabe | Stapel | Max. Token | Ladezeit | Dimension | n | Dauer | Texte/s | Speicher |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | cpu | kurze Sätze | 16 | 2048 | 0.9 s | 768 | 1000 | 9.08 s | 110 | 2238 MiB (RSS-Spitze) |
-| 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | cpu | langer Text (8533 Wörter, abgeschnitten) | 16 | 2048 | 0.9 s | 768 | 1 | 2.23 s | 0.4 | 2325 MiB (RSS-Spitze) |
-| 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | mps | kurze Sätze | 16 | 2048 | 1.2 s | 768 | 1000 | 5.07 s | 197 | 2063 MiB (mps-Treiber nach dem Lauf) |
-| 2026-11-05T14:47:52+01:00 | Apple M5 Max | google/embeddinggemma-2 | `f9972ac22e69` | mps | langer Text (8533 Wörter, abgeschnitten) | 16 | 2048 | 1.2 s | 768 | 1 | 0.60 s | 1.7 | 2128 MiB (mps-Treiber nach dem Lauf) |
+| 2026-11-05T14:47:52+01:00 | Messrechner (Apple Silicon) | google/embeddinggemma-2 | `f9972ac22e69` | cpu | kurze Sätze | 16 | 2048 | 0.9 s | 768 | 1000 | 9.08 s | 110 | 2238 MiB (RSS-Spitze) |
+| 2026-11-05T14:47:52+01:00 | Messrechner (Apple Silicon) | google/embeddinggemma-2 | `f9972ac22e69` | cpu | langer Text (8533 Wörter, abgeschnitten) | 16 | 2048 | 0.9 s | 768 | 1 | 2.23 s | 0.4 | 2325 MiB (RSS-Spitze) |
+| 2026-11-05T14:47:52+01:00 | Messrechner (Apple Silicon) | google/embeddinggemma-2 | `f9972ac22e69` | mps | kurze Sätze | 16 | 2048 | 1.2 s | 768 | 1000 | 5.07 s | 197 | 2063 MiB (mps-Treiber nach dem Lauf) |
+| 2026-11-05T14:47:52+01:00 | Messrechner (Apple Silicon) | google/embeddinggemma-2 | `f9972ac22e69` | mps | langer Text (8533 Wörter, abgeschnitten) | 16 | 2048 | 1.2 s | 768 | 1 | 0.60 s | 1.7 | 2128 MiB (mps-Treiber nach dem Lauf) |
 
-Gemessen auf dem Apple M5 Max (Kopf 068d98e plus mps-Untergrenze), PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.7. Hochgerechnet brauchen 14.244 kurze Texte auf cpu rund 2,2 Minuten.
+Gemessen auf dem Messrechner (Apple Silicon, Kopf 068d98e plus mps-Untergrenze), PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.7. Hochgerechnet brauchen 14.244 kurze Texte auf cpu rund 2,2 Minuten.
 
 ### Smoke 2026-11-05T16:17:39+01:00
 

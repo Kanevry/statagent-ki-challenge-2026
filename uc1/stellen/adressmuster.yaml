@@ -1,0 +1,23 @@
+# Adressmuster für Stelle und Termin (Issue #81). Angewandt auf den normierten Seitentext
+# (uc1.eval.normiere: NFKC, Bindestriche und Anführungszeichen vereinheitlicht, Leerraum zusammengezogen).
+#
+# `teile`: benannte Bausteine; `formen`: ganze Adressen aus Bausteinen ({name} wird ersetzt).
+# Eine gefundene Adresse wird nur ausgegeben, wenn sie normierter Teilstring der zitierten Quelle ist
+# (termin.adresse_belegt); sonst steht dort „nicht belegt“. Keine Adresse kommt aus dem Modellwissen.
+teile:
+  # Straßenname: optional Bindestrich-Vorsätze (Friedrich-Hillegeist-), optional ein Eigenschaftswort
+  # auf -er (Mariahilfer Straße), dann ein Grundwort wie -straße, -gasse, -platz.
+  strasse: "(?:[A-ZÄÖÜ][a-zäöüß.]*-)*(?:[A-ZÄÖÜ][a-zäöüß]+er )?[A-ZÄÖÜ]?[a-zäöüß]*(?:[Ss]tra(?:ß|ss)e|[Gg]asse|[Pp]latz|[Gg]ürtel|[Ww]eg|[Rr]ing|[Aa]llee|[Zz]eile|[Kk]ai|[Ll]ände|[Mm]arkt)"
+  # Hausnummer mit Buchstabe und Bereich: 1, 9b, 7-9, 15-19.
+  hausnummer: "\\d{1,4}[a-z]?(?: ?- ?\\d{1,4}[a-z]?)?"
+  plz: "[1-9]\\d{3}"
+  ort: "[A-ZÄÖÜ][a-zäöüß.]+(?: am [A-ZÄÖÜ][a-zäöüß]+)?"
+formen:
+  # „Guglgasse 7-9, 1030 Wien“
+  strasse_zuerst: "{strasse} {hausnummer}, (?P<plz>{plz}) (?P<ort>{ort})"
+  # „1100 Wien, Wienerbergstraße 15-19“
+  plz_zuerst: "(?P<plz>{plz}) (?P<ort>{ort}), {strasse} {hausnummer}"
+# Höchster Abstand in Zeichen zwischen dem Ende des Namensankers und dem Beginn der Adresse. Auf
+# zweispaltigen Seiten (PAL080 S. 8) gehört die erste Adresse nach dem Anker zur linken Spalte; der
+# Ort-Abgleich je Stelle (stellen/wien.yaml `ort`) sichert die Zuordnung zusätzlich ab.
+max_abstand: 80
