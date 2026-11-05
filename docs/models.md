@@ -27,6 +27,19 @@ Zahlen rechnet nie ein Modell, sondern der Code ohne Sprachmodell. An das Modell
   `PLATTFORM_PROTOKOLL`): Provider, Modell, Version, Zweck, Prompt-Hash, Dauer, Tokens, Fallback-Stufe,
   Aufwand, Fehler. Nie den Inhalt; bei Fehlern nur Typ und (Schema) Prüfregel mit Ort.
 
+## Tagesbudget und Ratenlimit
+
+Für die öffentliche Online-Demo (#100) gelten zwei Grenzen. `LLM_TAGESBUDGET_AUFRUFE` (ganze Zahl ab 1, leer =
+kein Budget) begrenzt die Modellaufrufe je UTC-Tag. Gezählt werden die Zeilen des Tages in
+`modellaufrufe.jsonl` mit einem Sprachmodell-Provider, auch Fehlversuche; Zeilen von `router` und `lokal` zählen
+nicht. So stimmt die Zahl auch über die Python-Prozesse, die die Web-App je Anfrage startet. Ist das Budget
+verbraucht, wirft `complete` vor jedem Provider-Aufruf `BudgetErschoepft` und schreibt keine Zeile;
+`python -m plattform.router frage` endet dann mit Exit 3 und `{"fehler": "budget_erschoepft"}`, die Route
+`POST /api/uc4/frage` antwortet mit 429. `status --json` nennt den Stand im Feld `budget`
+(`grenze`, `verbraucht`, `frei`). Davor begrenzt die Web-App jede Client-IP auf `RATENLIMIT_PRO_MINUTE`
+Fragen je Minute (Standard 10, gleitendes Fenster, 429 mit `Retry-After`). Prüfen und Schreiben des Budgets sind
+nicht atomar: gleichzeitige Anfragen an der Grenze können sie um wenige Aufrufe überschreiten.
+
 ## Prüfen
 
 ```bash

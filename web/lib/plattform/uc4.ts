@@ -1,16 +1,21 @@
 import { execFile } from "node:child_process";
 import { findeRepoWurzel } from "./modell";
+import { pruefeRatenlimit as standardRatenlimit, type PruefeRatenlimit } from "./ratenlimit";
 import { ergebnisSchema, frageSchema } from "./uc4-ergebnis";
 
 // POST /api/uc4/frage (#98): reicht die Frage an `plattform.router` weiter, als Subprozess mit argv (keine Shell).
 // web/ ruft nie ein Modell direkt; welche Adapter antworten, entscheidet der Router. `UC4_ADAPTER=mock` hängt
 // `--mock` an (CI, Playwright, Online-Demo ohne Modellschlüssel). Exit 1 heißt „keine Antwort“ (alle fehlend)
-// und ist ein gültiges Ergebnis, solange stdout den Vertrag erfüllt.
+// und ist ein gültiges Ergebnis, solange stdout den Vertrag erfüllt. Vor dem Subprozess greift das Ratenlimit je IP
+// (#100); Exit 3 heißt „Tagesbudget von plattform.llm verbraucht“ und wird wie das Ratenlimit ein 429.
 
 export const ROUTER_ARGV = ["run", "--frozen", "python", "-m", "plattform.router", "frage", "--json"] as const;
 export const TIMEOUT_MS = 60_000;
 /** Drei Antworten mit Belegen passen weit hinein; mehr ist ein Fehler, kein Ergebnis. */
 export const MAX_BUFFER = 1024 * 1024;
+/** Exit-Code von `plattform.router frage`, wenn das Tagesbudget erschöpft ist (`router.BUDGET_ERSCHOEPFT`). */
+export const EXIT_BUDGET = 3;
+export const BUDGET_MELDUNG = "Das Tageskontingent für Modellaufrufe ist aufgebraucht.";
 
 export interface Lauf {
   code: number;
@@ -44,18 +49,41 @@ function fehler(status: 400 | 502, meldung: string): Response {
   return Response.json({ fehler: meldung }, { status, headers: { "cache-control": "no-store" } });
 }
 
+/** Sekunden bis zur nächsten UTC-Mitternacht: dann zählt plattform.llm das Budget neu. */
+function bisMitternachtUtc(jetzt: number): number {
+  const morgen = new Date(jetzt);
+  morgen.setUTCHours(24, 0, 0, 0);
+  return Math.max(1, Math.ceil((morgen.getTime() - jetzt) / 1000));
+}
+
+function budgetErschoepft(stdout: string): boolean {
+  try {
+    const daten: unknown = JSON.parse(stdout);
+    return typeof daten === "object" && daten !== null && "fehler" in daten && daten.fehler === "budget_erschoepft";
+  } catch {
+    return false;
+  }
+}
+
 export async function frageAntwort(
   anfrage: Request,
   {
     ausfuehren = standardAusfuehren,
     umgebung = process.env,
     wurzel = findeRepoWurzel,
+    ratenlimit = standardRatenlimit,
+    jetzt = Date.now,
   }: {
     ausfuehren?: Ausfuehren;
     umgebung?: Readonly<Record<string, string | undefined>>;
     wurzel?: () => string;
+    ratenlimit?: PruefeRatenlimit;
+    jetzt?: () => number;
   } = {},
 ): Promise<Response> {
+  const gedrosselt = ratenlimit(anfrage, jetzt());
+  if (gedrosselt) return gedrosselt;
+
   let roh: unknown;
   try {
     roh = await anfrage.json();
@@ -73,6 +101,13 @@ export async function frageAntwort(
     // Nur die Art des Fehlers loggen: stderr und Meldung können Pfade, Umgebungswerte oder die Frage enthalten.
     console.warn(`[uc4/frage] Router nicht erreichbar (${(grund as Error).name ?? "Fehler"})`);
     return fehler(502, "Die Kette hat nicht geantwortet. Bitte später noch einmal fragen.");
+  }
+  if (lauf.code === EXIT_BUDGET && budgetErschoepft(lauf.stdout)) {
+    console.warn("[uc4/frage] Tagesbudget erschöpft");
+    return Response.json(
+      { fehler: BUDGET_MELDUNG },
+      { status: 429, headers: { "retry-after": String(bisMitternachtUtc(jetzt())), "cache-control": "no-store" } },
+    );
   }
   if (lauf.code !== 0 && lauf.code !== 1) {
     console.warn(`[uc4/frage] Router beendet mit Exit ${lauf.code}`);

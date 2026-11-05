@@ -5,7 +5,8 @@ import type { Ergebnis } from "../../lib/plattform/uc4-ergebnis";
 import { Einstieg } from "./einstieg";
 
 // Fängt ab: Karten in Antwort- statt Kettenreihenfolge, eine Zahl ohne Herkunft, Enter ohne Wirkung, ein
-// gesperrter POST (Online-Demo, #100) als Absturz und ein fehlender UC ohne lesbaren Grund.
+// gesperrter POST (Online-Demo, #100) als Absturz, ein 429 ohne seinen Hinweis und ein fehlender UC ohne lesbaren
+// Grund.
 
 const uc3 = fixture as Ergebnis["antworten"][number];
 const ergebnis: Ergebnis = {
@@ -57,4 +58,12 @@ it("ein gesperrter POST zeigt in jeder Karte den Hinweis auf die Online-Demo", a
   await user.click(screen.getByRole("button", { name: "Frage stellen" }));
   expect(await screen.findAllByText("Fragen sind in der Online-Demo noch gesperrt.")).toHaveLength(4);
   expect(karten().map((k) => k.dataset.zustand)).toEqual(["fehler", "fehler", "fehler"]);
+});
+
+it("429 (Ratenlimit oder Tagesbudget, #100) zeigt den Hinweis aus der Antwort, nicht „Antwort fehlgeschlagen“", async () => {
+  const user = userEvent.setup();
+  antworte(429, { fehler: "Das Tageskontingent für Modellaufrufe ist aufgebraucht." });
+  render(<Einstieg />);
+  await user.type(screen.getByLabelText("Frage an die Kette"), "x{Enter}");
+  expect(await screen.findAllByText("Das Tageskontingent für Modellaufrufe ist aufgebraucht.")).toHaveLength(4);
 });

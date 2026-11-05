@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Any, Literal, overload
 
 import jsonschema
@@ -18,6 +20,7 @@ from .azure import AUFWAND, AzureProvider
 from .basis import (
     ROLLEN,
     Antwort,
+    BudgetErschoepft,
     KonfigFehler,
     LlmFehler,
     Nachricht,
@@ -232,6 +235,7 @@ def ausfuehren(
 ) -> Antwort:
     """Läuft eine gegebene Kette ab (``complete`` und der Smoke-Test ohne Fallback nutzen das)."""
     _pruefe_eingaben(nachrichten, aufwand)
+    _pruefe_budget()
     hash_ = prompt_hash(nachrichten)
     groesse = zwecke.zweck(zweck).groesse
     letzter: Exception | None = None
@@ -441,6 +445,8 @@ def complete(
     if stream:
         if schema is not None:
             raise ValueError("stream=True und schema schließen sich aus")
+        # Hier statt in ``_strom``: der Generator liefe erst beim ersten ``next``; der Fehler kommt sofort.
+        _pruefe_budget()
         return _strom(nachrichten, kette, zweck, modell, aufwand)
     return ausfuehren(nachrichten, kette=kette, schema=schema, zweck=zweck, modell=modell, aufwand=aufwand)
 
@@ -467,6 +473,68 @@ def letzter_erfolg(max_zeilen: int = 500) -> dict[str, Any] | None:
                 for k in ("provider", "modell", "version", "fallback_stufe", "zweck", "zeit")
             }
     return None
+
+
+BUDGET_VARIABLE = "LLM_TAGESBUDGET_AUFRUFE"
+
+
+def _budget_grenze() -> int | None:
+    """``LLM_TAGESBUDGET_AUFRUFE`` als ganze Zahl ≥ 1, leer oder ungesetzt = kein Budget."""
+    roh = os.environ.get(BUDGET_VARIABLE, "").strip()
+    if not roh:
+        return None
+    try:
+        grenze = int(roh)
+    except ValueError:
+        grenze = 0
+    if grenze < 1:
+        # Ein Tippfehler darf online nicht „unbegrenzt“ heißen.
+        raise KonfigFehler(f"{BUDGET_VARIABLE} muss eine ganze Zahl ab 1 sein oder leer bleiben")
+    return grenze
+
+
+def _verbraucht_heute() -> int:
+    """Zeilen der Sprachmodell-Provider mit UTC-Datum von heute in der Protokolldatei.
+
+    Die Datei ist der Zähler, weil die Web-App je Anfrage einen eigenen Python-Prozess startet. Zeilen von
+    ``router`` und ``lokal`` (Embeddings) sind keine Modellaufrufe und zählen nicht; Fehlversuche schon,
+    denn auch sie belasten das Kontingent.
+    """
+    datei = protokoll_datei()
+    if not datei.is_file():
+        return 0
+    heute = datetime.now(UTC).date()
+    anzahl = 0
+    for zeile in datei.read_text(encoding="utf-8").splitlines():
+        try:
+            eintrag = json.loads(zeile)
+            tag = datetime.fromisoformat(eintrag["zeit"]).astimezone(UTC).date()
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            continue
+        if tag == heute and eintrag.get("provider") in FABRIKEN:
+            anzahl += 1
+    return anzahl
+
+
+def budget_status() -> dict[str, int | None]:
+    """Tagesbudget: ``grenze`` (``None`` = keins), heute ``verbraucht``, ``frei`` (``None`` ohne Grenze)."""
+    grenze = _budget_grenze()
+    verbraucht = _verbraucht_heute()
+    frei = None if grenze is None else max(grenze - verbraucht, 0)
+    return {"grenze": grenze, "verbraucht": verbraucht, "frei": frei}
+
+
+def _pruefe_budget() -> None:
+    """Wirft ``BudgetErschoepft`` vor dem ersten Provider-Aufruf, wenn heute nichts mehr frei ist.
+
+    Prüfen und Schreiben sind nicht atomar: laufen zwei Prozesse gleichzeitig an der Grenze, kann einer
+    darüber gehen. Das Ratenlimit der Web-App hält diese Überschreitung klein.
+    """
+    grenze = _budget_grenze()
+    if grenze is not None and _verbraucht_heute() >= grenze:
+        raise BudgetErschoepft(
+            "Das Tageskontingent für Modellaufrufe ist aufgebraucht. Morgen (UTC) ist es wieder frei."
+        )
 
 
 def aktives_modell(zweck: str = "") -> dict[str, Any]:
