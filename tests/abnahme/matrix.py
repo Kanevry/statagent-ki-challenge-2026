@@ -577,7 +577,10 @@ def befunde(zeilen: list[dict], belege: dict[str, dict], wahl: str | None, ja: b
             je_issue.setdefault(k["iid"], []).append((k, b))
     gepostet = 0
     for iid, liste in sorted(je_issue.items()):
-        kern = json.dumps([(k["id"], b.get("grund"), b.get("ausgabe")) for k, b in liste], ensure_ascii=False)
+        # Nur Kriterium und Befund, nie die Ausgabe: sie enthält Laufzeiten (sonst Kommentar je Lauf).
+        kern = json.dumps(
+            [(k["id"], b.get("befund_art"), b.get("grund")) for k, b in liste], ensure_ascii=False
+        )
         marke = f"<!-- abnahme-befund:{hashlib.sha1(kern.encode()).hexdigest()[:12]} -->"
         wort = "Kriterium" if len(liste) == 1 else "Kriterien"
         teile = [f"Abnahme: **{len(liste)} {wort} nicht bestanden** (Prüfer b-abnahme)", ""]
