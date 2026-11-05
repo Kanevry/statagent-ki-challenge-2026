@@ -1334,8 +1334,15 @@ def frage(
 
     antwort.text = fertig
     antwort.aussagen = aussagen
+    # quelle in Kurzform wie im Text („FSW-Antrag auf Förderung, S. 5“ statt Dateipfad); der volle
+    # Zitierschlüssel bleibt in aussagen[].schluessel.
     antwort.belege = [
-        {"abschnitt_id": a.abschnitt_id, "zitat": a.zitat, "quelle": a.schluessel, "stand": a.stand}
+        {
+            "abschnitt_id": a.abschnitt_id,
+            "zitat": a.zitat,
+            "quelle": kurze_quelle(a.schluessel),
+            "stand": a.stand,
+        }
         for a in aussagen
     ]
     antwort.satzlaenge = round(mittlere_satzlaenge(fertig), 1)

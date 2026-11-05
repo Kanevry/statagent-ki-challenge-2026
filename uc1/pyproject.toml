@@ -26,6 +26,10 @@ embed = [
 [project.scripts]
 lotse = "uc1.cli:main"
 
+# UC4-Kette (#95, #107): plattform.router findet den UC1-Adapter über diesen Entry-Point.
+[project.entry-points."kic.uc_antwort"]
+uc1 = "uc1.uc4:router_adapter"
+
 [dependency-groups]
 dev = [
   "mypy>=1.13",

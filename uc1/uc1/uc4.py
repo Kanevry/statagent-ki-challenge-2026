@@ -13,7 +13,8 @@ Ablauf:
  4. Nachprüfung der Grenze auf den fertigen Text.
  5. Eine Zeile in ``meta.protokoll`` ohne Inhalte (keine Frage, kein Text), wenn eine Verbindung da ist.
 
-Aufruf: ``python -m uc1.uc4 --kontext DATEI.json "<frage>"``.
+Aufruf: ``python -m uc1.uc4 --kontext DATEI.json "<frage>"``. In der UC4-Kette findet ``plattform.router``
+den Adapter ``router_adapter`` über den Entry-Point ``kic.uc_antwort`` / ``uc1`` (uc1/pyproject.toml).
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import psycopg
+from plattform.antwortform import Beleg, UcAntwort, Zahl
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from uc1 import grenze, sprache
@@ -36,64 +38,19 @@ from uc1.eval import sprache as erkenne_sprache
 from uc1.ingest import normalisiere
 from uc1.kern import ModellFn, standard_modell
 
-UC = "uc1"
+UC: Literal["uc1"] = "uc1"
 MAX_SAETZE = 6
 SATZ_WOERTER = 12  # Prompt-Ziel je Satz; Abnahme: mittlere Satzlänge < 15 Wörter (#107)
 
 # --------------------------------------------------------------------------------------------------------
-# Antwortform (Vertrag #96). Lokale Kopie mit den Feldern von plattform.antwortform auf main (Beleg mit
-# Pflichtfeld ``uc``, UC3-Felder regelstand, lauf, stand). Der Branch hat das Modul noch nicht; sobald es
-# importierbar ist, wechselt nur der Import:
-#     from plattform.antwortform import Beleg, UcAntwort, Zahl
-
-
-class Beleg(BaseModel):
-    """Herkunft einer Zahl oder Aussage, nie frei erfunden. ``uc``: der UC, der den Beleg geliefert hat."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    uc: Literal["uc1", "uc2", "uc3"]
-    quelle: str
-    lieferung: str | None = None
-    monat: str | None = None
-    sql: str | None = None
-    ref: str | None = None
-    regelstand: str | None = None
-    lauf: str | None = None
-    stand: Literal["endgueltig", "vorlaeufig"] | None = None
-
-
-class Zahl(BaseModel):
-    """Eine Zahl mit Beleg; ``beleg`` ist der Index in ``belege``."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    bezeichnung: str
-    wert: int | float | str
-    einheit: str | None = None
-    beleg: int
+# Antwortform (Vertrag #96): Beleg, Zahl und UcAntwort kommen aus plattform.antwortform (streng: ``wert``
+# nur int oder endliche float, ``uc`` nur uc1/uc2/uc3).
 
 
 def _pruefe_index(zahlen: Sequence[Zahl], belege: Sequence[Beleg]) -> None:
     for z in zahlen:
         if not 0 <= z.beleg < len(belege):
             raise ValueError(f"Zahl {z.bezeichnung!r}: Beleg-Index {z.beleg} ohne Beleg")
-
-
-class UcAntwort(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    text: str
-    belege: list[Beleg]
-    zahlen: list[Zahl]
-    uc: str
-    modell: str | None
-    protokoll_id: int | None
-
-    @model_validator(mode="after")
-    def _index(self) -> UcAntwort:
-        _pruefe_index(self.zahlen, self.belege)
-        return self
 
 
 class Kontext(BaseModel):
@@ -122,8 +79,6 @@ _ZAHL_IM_TEXT = re.compile(r"\d+(?:[.,]\d+)*")
 def anzeige(zahl: Zahl) -> str:
     """Schreibweise einer Zahl im Text: deutsch, Dezimalkomma, Tausenderpunkt, nicht gerundet."""
     wert = zahl.wert
-    if isinstance(wert, str):
-        return wert
     if isinstance(wert, int):
         return f"{wert:,}".replace(",", ".")
     ganz, _, rest = repr(wert).partition(".")
@@ -329,6 +284,35 @@ def _grenze(
             conn, verhalten=f"grenze:{befund.art}", kontext=kontext, modell=modell, provider=None
         ),
     ).model_dump()
+
+
+# --------------------------------------------------------------------------------------------------------
+# Router (UC4-Kette uc3 -> uc2 -> uc1, plattform.router)
+
+KEIN_KONTEXT = "Dazu liegen mir noch keine Zahlen aus den anderen Bereichen vor."
+
+
+def router_adapter(frage: str, kontext: list[UcAntwort], *, modell: ModellFn | None = None) -> UcAntwort:
+    """Adapter für ``plattform.router`` (Entry-Point ``kic.uc_antwort``, Name ``uc1``).
+
+    Fasst die Antworten der UCs davor zu einem Kontext zusammen: Belege werden aneinandergehängt, der
+    Beleg-Index jeder Zahl um die Zahl der Belege davor verschoben, so bleibt jede Zahl an ihrem Beleg. Ohne
+    Kontext ein fester Satz ohne Modell und ohne Datenbank (der Router schreibt seinen eigenen Schritt)."""
+    if not kontext:
+        return UcAntwort(text=KEIN_KONTEXT, belege=[], zahlen=[], uc=UC, modell=None)
+    belege: list[Beleg] = []
+    zahlen: list[Zahl] = []
+    for vorher in kontext:
+        versatz = len(belege)
+        belege += vorher.belege
+        zahlen += [z.model_copy(update={"beleg": z.beleg + versatz}) for z in vorher.zahlen]
+    zusammen = Kontext(
+        text=" ".join(a.text for a in kontext if a.text),
+        belege=belege,
+        zahlen=zahlen,
+        uc=kontext[-1].uc,
+    )
+    return UcAntwort.model_validate(antwort(frage, zusammen, modell=modell))
 
 
 # --------------------------------------------------------------------------------------------------------
