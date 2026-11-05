@@ -1,1 +1,59 @@
-/* Design-Tokens Klarton+ als Tailwind-4-@theme: #56 (Werte aus Pencil get_style). */
+/*
+ * Design-Tokens Klarton+ als Tailwind-4-@theme (Issue #56).
+ * Quelle: Pen-Datei ki-challenge.pen, Variablen l-* und font-*, Stand in ../tokens.snapshot.json.
+ * Werte nie nur hier ändern: erst in Pencil, dann den Snapshot neu ziehen (README). Der Test
+ * tests/tokens.test.ts vergleicht beides und schlägt sonst fehl.
+ *
+ * Abstände: Tailwinds --spacing bleibt 4 px. Die Stufen 4/8/16/24/32/48/64 sind
+ * 1/2/4/6/8/12/16 (p-4 = 16 px). Hell, kein Dark Mode.
+ */
+
+/* Schriften offline aus node_modules (OFL-1.1), kein CDN. */
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+@theme {
+  /* Tailwinds Standardpalette, Standardschriften und Standardgrößen abschalten. */
+  --color-*: initial;
+  --font-*: initial;
+  --text-*: initial;
+
+  /* Farben, Name = Pen-Variable ohne Präfix l- */
+  --color-paper: #f4f7f5;
+  --color-white: #ffffff;
+  --color-ink: #0b1f2a;
+  --color-slate: #475256;
+  --color-line: #dce3df;
+  --color-gruen: #007a50; /* Beleg, Hauptaktion */
+  --color-gruen-bg: #ddf5ea;
+  --color-mint: #3ddc97;
+  --color-navy: #001e50;
+  --color-violett: #5b3df5; /* KI: nur Label und 2-px-Linie */
+  --color-violett-bg: #ece8ff;
+  --color-gelb: #f5d54f; /* Beleg-Gelb: nur Fläche, nie Schrift */
+  --color-gelb-bg: #fbf2c4;
+  --color-warn-fg: #8a5a00;
+  --color-warn-bg: #fff4d6;
+  --color-err-fg: #b42318;
+  --color-err-bg: #fdecea;
+
+  /* Schriften: display = Pen font-head, sans = Pen font-body (Standard für Fließtext), mono = Pen font-mono */
+  --font-display: "Space Grotesk Variable", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+
+  /* Typo-Skala, genau sechs Stufen; Klasse text-<px>, z. B. text-56 */
+  --text-56: 3.5rem;
+  --text-56--line-height: 1.05;
+  --text-32: 2rem;
+  --text-32--line-height: 1.15;
+  --text-20: 1.25rem;
+  --text-20--line-height: 1.35;
+  --text-16: 1rem;
+  --text-16--line-height: 1.5;
+  --text-14: 0.875rem;
+  --text-14--line-height: 1.45;
+  --text-12: 0.75rem;
+  --text-12--line-height: 1.4;
+}
