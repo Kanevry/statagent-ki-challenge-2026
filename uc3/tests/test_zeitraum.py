@@ -140,3 +140,62 @@ def test_ohne_daten_keine_raterei() -> None:
     assert zeitraum_lesen("letzten Monat", None) is None
     zeitraum = zeitraum_lesen("Sommer 2025", None)
     assert zeitraum is not None and (zeitraum.von, zeitraum.bis) == ("2025-06", "2025-08")
+
+
+# Fängt (Prüfung astra 05.11.): Randfälle, die still eine falsche Zahl lieferten.
+@pytest.mark.parametrize(
+    ("frage", "von", "bis", "art", "nur"),
+    [
+        # gemeinsames Jahr am Ende einer Aufzählung, nicht der jüngste März
+        ("im März und April 2025", "2025-03", "2025-04", "liste", ("2025-03", "2025-04")),
+        ("Q1 und Q3 2025", "2025-01", "2025-09", "liste", ("2025-01", "2025-02", "2025-03", "2025-07", "2025-08", "2025-09")),
+        # „des Jahres“ hinter einem Monat
+        ("im März des Jahres 2025", "2025-03", "2025-03", "monat", ()),
+        # aufgezählte Monate ohne die Monate dazwischen
+        ("im Jänner 2025 und Juli 2025", "2025-01", "2025-07", "liste", ("2025-01", "2025-07")),
+        ("Wien im Juli 2026 im Vergleich zum Juli 2025", "2025-07", "2026-07", "liste", ("2025-07", "2026-07")),
+    ],
+)  # fmt: skip
+def test_randfaelle_astra(frage: str, von: str, bis: str, art: str, nur: tuple[str, ...]) -> None:
+    zeitraum = zeitraum_lesen(frage, LETZTER)
+    assert zeitraum is not None
+    assert (zeitraum.von, zeitraum.bis, zeitraum.art, zeitraum.nur) == (von, bis, art, nur)
+
+
+# Fängt: aufgezählte Monate werden als Durchschnitt über alle Monate dazwischen gerechnet.
+def test_aufzaehlung_kein_durchschnitt_ueber_zwischenmonate() -> None:
+    assert not umschreiben("Durchschnitt im Jänner 2025 und Juli 2025", LETZTER)[2]
+    assert umschreiben("Durchschnitt von Jänner bis Juli 2025", LETZTER)[2]
+
+
+# Fängt: mehrdeutige oder widersprüchliche Zeiträume werden still als ganzes Jahr oder anderer Winter gelesen;
+# ein genannter Tag wird ohne Hinweis zum Monatsletzten.
+def test_unklar_und_tag() -> None:
+    from statagent.zeitraum import tag_hinweis, unklar
+
+    assert unklar("Beschäftigte im Sommerhalbjahr 2025") == (
+        "Sommerhalbjahr ist nicht eindeutig. Bitte die Monate nennen, zum Beispiel „Beschäftigte von Mai bis "
+        "Oktober 2025“."
+    )
+    assert (
+        unklar("Winter 2025/27")
+        == "Winter 2025/27 passt nicht zusammen. Meinen Sie „Beschäftigte im Winter 2025/26“?"
+    )
+    assert unklar("Winter 2025/26") is None and unklar("Sommer 2025") is None
+    assert tag_hinweis("am 1.3.2025") == (
+        "Die Statistik zählt nur am Monatsletzten, darum zeigen wir für den 1. März 2025 den Stand vom "
+        "31. März 2025."
+    )
+    assert tag_hinweis("am 2025-03-01") is not None
+    assert tag_hinweis("am 31.03.2025") is None and tag_hinweis("im März 2025") is None
+
+
+# Fängt: „ÖNACE 2025“ wird in uc3 frage als Berichtsjahr gelesen; ein Median wird als Durchschnitt gerechnet.
+def test_klassifikationsjahr_und_median() -> None:
+    from statagent.frage import jahr_ohne_monat, nicht_auswertbar
+
+    assert jahr_ohne_monat("Beschäftigte gemäß ÖNACE 2025") is None
+    assert jahr_ohne_monat("Beschäftigte 2025 nach ÖNACE 2008") == "2025"
+    median = nicht_auswertbar("Median der Beschäftigten Juni 2025 bis August 2025", mittel=True)
+    assert median is not None and median.startswith("Durchschnitte")
+    assert nicht_auswertbar("Durchschnitt der Beschäftigten Juni 2025 bis August 2025", mittel=True) is None

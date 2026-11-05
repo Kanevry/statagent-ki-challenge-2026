@@ -25,6 +25,7 @@ from statagent.db import Verbindung, verbinden
 from statagent.ergebnis import LaufStand, letzter_lauf, monatserster, monatsletzter
 from statagent.regeln import eine, regeln_laden
 from statagent.zeitraum import (
+    DURCHSCHNITT_WORT,
     ISO,
     MONATSNAMEN,
     NAME_MONAT,
@@ -32,6 +33,8 @@ from statagent.zeitraum import (
     Zeitraum,
     monat_anzeige,
     monate,
+    tag_hinweis,
+    unklar,
     zeitraum_anzeige,
     zeitraum_lesen,
 )
@@ -284,9 +287,12 @@ def antwort_daten(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     die Summe als eigene Abfrage dazu. Mehrere Monate: je Monat eine Zahl und der Durchschnitt als eigene
     Abfrage. Der Text sagt in einem Satz, welche Monate gemeint sind, und was außerhalb der Daten liegt.
     """
+    grund = unklar(frage)
+    if grund is not None:
+        return _leer(grund)
     erster, letzter = _datenbereich(conn, regelsatz)
     zeitraum = zeitraum_lesen(frage, letzter)
-    notizen: list[str] = []
+    notizen: list[str] = [h for h in (tag_hinweis(frage),) if h]
     if zeitraum is None:
         if letzter is None:
             return _leer("Es ist noch kein Monat gerechnet, darum gibt es noch keine Zahl.")
@@ -307,9 +313,12 @@ def antwort_daten(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
             notizen.append(
                 f"Daten gibt es nur für {vorhanden}, darum zählt hier {zeitraum_anzeige(von, bis)}."
             )
-    if von == bis:
-        return _mit_notizen(_monat_antwort(conn, frage, von, regelsatz), notizen)
-    return _mit_notizen(_zeitraum_antwort(conn, frage, von, bis, regelsatz), notizen)
+    liste = [m for m in zeitraum.monatsliste if von <= m <= bis]
+    if len(liste) == 1:
+        return _mit_notizen(_monat_antwort(conn, frage, liste[0], regelsatz), notizen)
+    # Aufgezählte Monate („Jänner und Juli 2025“) bekommen nur mit Durchschnittswort einen Durchschnitt.
+    mittel = zeitraum.art != "liste" or bool(DURCHSCHNITT_WORT.search(frage))
+    return _mit_notizen(_zeitraum_antwort(conn, frage, liste, regelsatz, mittel), notizen)
 
 
 def _monat_antwort(conn: Verbindung, frage: str, monat: str, regelsatz: str) -> dict[str, Any]:
@@ -446,7 +455,9 @@ def _halb_auf(summe: int, anzahl: int) -> int:
     return (2 * summe + anzahl) // (2 * anzahl)
 
 
-def _zeitraum_antwort(conn: Verbindung, frage: str, von: str, bis: str, regelsatz: str) -> dict[str, Any]:
+def _zeitraum_antwort(
+    conn: Verbindung, frage: str, monatsliste: list[str], regelsatz: str, mittel_zeigen: bool = True
+) -> dict[str, Any]:
     """Je Monat eine Zahl (alle genannten Ausprägungen zusammen) und der Durchschnitt der Monate.
 
     Die Ausprägungen werden je Monat aus der Klassifikation des Monats gelesen. Wechselt die ÖNACE-Einteilung im
@@ -464,7 +475,8 @@ def _zeitraum_antwort(conn: Verbindung, frage: str, von: str, bis: str, regelsat
     oenace_codes: dict[str, str] | None = None
     weise: _Zaehlweise | None = None
     teilabfragen: list[sql.Composable] = []
-    for monat in monate(von, bis):
+    von, bis = monatsliste[0], monatsliste[-1]
+    for monat in monatsliste:
         stand = letzter_lauf(conn, monat, regelsatz)
         if stand is None:
             ohne_lauf.append(monat)
@@ -527,45 +539,52 @@ def _zeitraum_antwort(conn: Verbindung, frage: str, von: str, bis: str, regelsat
                 "beleg": i,
             }
         )
-    # Durchschnitt als eigene Abfrage über dieselben Monatsabfragen (eigener Beleg), gerundet auf ganze Zahlen.
-    mittel_sql = sql.SQL("SELECT round(avg(t.wert))::bigint AS wert FROM ({}) t").format(
-        sql.SQL(" UNION ALL ").join(sql.SQL("({})").format(q) for q in teilabfragen)
-    )
-    zeile = conn.execute(mittel_sql).fetchone()
-    mittel = int(str(zeile["wert"])) if zeile is not None else _halb_auf(sum(w for _, w in werte), len(werte))
-    belege.append(
-        {
-            "uc": "uc3",
-            "quelle": QUELLE,
-            "lieferung": None,
-            "monat": None,
-            "sql": mittel_sql.as_string(conn),
-            "ref": "Durchschnitt der Monatsabfragen oben",
-            "regelstand": None,
-            "lauf": None,
-            "stand": None,
-        }
-    )
-    gezaehlt = zeitraum_anzeige(werte[0][0], werte[-1][0])
-    zahlen.append(
-        {
-            "bezeichnung": f"{bezeichnung}{klammer}, Durchschnitt {gezaehlt}",
-            "wert": mittel,
-            "einheit": einheit,
-            "beleg": len(belege) - 1,
-        }
-    )
     stichtag = weise is not None and weise.zeitraum_art == STICHTAG
     wann = "jeweils am letzten Tag des Monats" if stichtag else "je Monat"
     einzeln = ", ".join(f"{_monat_anzeige(m)} {_deutsch(w)}" for m, w in werte)
-    saetze = [
-        f"{bezeichnung}{klammer} {wann}: {einzeln}.",
-        f"Im Durchschnitt waren es {_deutsch(mittel)}.",
-    ]
+    saetze = [f"{bezeichnung}{klammer} {wann}: {einzeln}."]
+    if mittel_zeigen:
+        # Durchschnitt als eigene Abfrage über dieselben Monatsabfragen (eigener Beleg), auf ganze Zahlen gerundet.
+        mittel_sql = sql.SQL("SELECT round(avg(t.wert))::bigint AS wert FROM ({}) t").format(
+            sql.SQL(" UNION ALL ").join(sql.SQL("({})").format(q) for q in teilabfragen)
+        )
+        zeile = conn.execute(mittel_sql).fetchone()
+        mittel = (
+            int(str(zeile["wert"])) if zeile is not None else _halb_auf(sum(w for _, w in werte), len(werte))
+        )
+        belege.append(
+            {
+                "uc": "uc3",
+                "quelle": QUELLE,
+                "lieferung": None,
+                "monat": None,
+                "sql": mittel_sql.as_string(conn),
+                "ref": "Durchschnitt der Monatsabfragen oben",
+                "regelstand": None,
+                "lauf": None,
+                "stand": None,
+            }
+        )
+        gezaehlte = [m for m, _ in werte]
+        durchgehend = gezaehlte == monate(gezaehlte[0], gezaehlte[-1])
+        gezaehlt = (
+            zeitraum_anzeige(gezaehlte[0], gezaehlte[-1])
+            if durchgehend
+            else _aufzaehlung([_monat_anzeige(m) for m in gezaehlte])
+        )
+        zahlen.append(
+            {
+                "bezeichnung": f"{bezeichnung}{klammer}, Durchschnitt {gezaehlt}",
+                "wert": mittel,
+                "einheit": einheit,
+                "beleg": len(belege) - 1,
+            }
+        )
+        saetze.append(f"Im Durchschnitt waren es {_deutsch(mittel)}.")
     if ohne_lauf:
         saetze.append(
-            f"Für {', '.join(_monat_anzeige(m) for m in ohne_lauf)} gibt es noch keinen gerechneten Lauf; "
-            "der Durchschnitt nimmt nur die Monate mit Zahlen."
+            f"Für {', '.join(_monat_anzeige(m) for m in ohne_lauf)} gibt es noch keinen gerechneten Lauf"
+            + ("; der Durchschnitt nimmt nur die Monate mit Zahlen." if mittel_zeigen else ".")
         )
     if gruppe is not None:
         saetze.append(

@@ -36,7 +36,7 @@ from statagent.uc4 import (
     _gliederung,
     _monat_anzeige,
 )
-from statagent.zeitraum import umschreiben, zeitraum_anzeige
+from statagent.zeitraum import KEIN_JAHR, tag_hinweis, umschreiben, unklar, zeitraum_anzeige
 
 UC = "uc3"
 QUELLE = "stat.stat_beschaeftigte"
@@ -110,7 +110,7 @@ def monate_lesen(frage: str) -> list[str]:
 
 def jahr_ohne_monat(frage: str) -> str | None:
     """Eine Jahreszahl, die nicht Teil einer Monatsangabe ist (``Beschäftigte 2025``)."""
-    text = frage.lower()
+    text = KEIN_JAHR.sub(" ", frage.lower())  # „ÖNACE 2008“ ist kein Zeitraum
     for muster in (_NAME_MONAT, _ZAHL_MONAT, _ISO):
         text = muster.sub(" ", text)
     treffer = _JAHR.search(text)
@@ -280,7 +280,7 @@ def nicht_auswertbar(frage: str, mittel: bool = False) -> str | None:
     if _PERSON.search(text) or kennung:
         return "Einzeldaten gibt StatAgent nicht heraus, auch nicht zu einer einzelnen Person. " + KANN
     for muster, grund in NICHT_AUSGEWERTET:
-        if mittel and grund.startswith("Durchschnitte"):
+        if mittel and grund.startswith("Durchschnitte") and "median" not in text:
             continue
         if muster.search(text):
             return f"{grund} Darum gibt es hier keine Zahl. {KANN}"
@@ -1210,7 +1210,13 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         letzter = _letzter_monat(conn, regelsatz)
     except psycopg.Error:
         return _antwort(fragetyp(frage), NICHT_LESBAR, hinweise=[NICHT_LESBAR])
+    grund = unklar(frage)
+    if grund is not None:
+        return _antwort(fragetyp(frage), grund, hinweise=[grund])
+    hinweis_tag = tag_hinweis(frage)
     frage, notizen, mittel = _normalisieren(frage, letzter or LETZTE_LIEFERUNG)
+    if hinweis_tag:
+        notizen.insert(0, hinweis_tag)
     typ = fragetyp(frage)
     absage = nicht_auswertbar(frage, mittel=mittel and len(set(monate_lesen(frage))) > 1)
     if absage is not None:

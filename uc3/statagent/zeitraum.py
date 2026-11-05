@@ -116,13 +116,30 @@ _HEUER = re.compile(
 _LETZTES_JAHR = re.compile(
     r"(?<!\w)(?:im\s+)?(?:letzte[nms]?|vergangene[nms]?|vorige[nms]?)\s+jahr(?:es)?(?!\w)", re.IGNORECASE
 )
-#: Jahreszahlen, die kein Zeitraum sind („ÖNACE 2008“, „Version 2025“).
-_KEIN_JAHR = re.compile(r"(?:önace|oenace|nace|version|fassung)[\s-]*(?:19|20)\d{2}", re.IGNORECASE)
 #: Wörter, mit denen eine bloße Jahreszahl den Durchschnitt aller Monate meint („Jahresdurchschnitt 2025“).
 DURCHSCHNITT_WORT = re.compile(
     r"durchschnitt|jahresmittel|im\s+mittel|(?:ganze|gesamte)[ns]?\s+jahr|übers?\s+(?:das\s+)?jahr|ueber\s+das\s+jahr",
     re.IGNORECASE,
 )
+
+
+#: Ein gemeinsames Jahr am Ende einer Aufzählung („März und April 2025“, „Q1 und Q3 2025“).
+_FOLGEJAHR = re.compile(
+    r"\s*(?:,|und|oder|sowie|bzw\.?)\s+[^,]{0,30}?(?<!\d)((?:19|20)\d{2})(?!\d)", re.IGNORECASE
+)
+_MONAT_DES_JAHRES = re.compile(rf"(?<!\w)({_MW})\.?\s+(?:des\s+jahres|im\s+jahre?|von)\s+{_J}", re.IGNORECASE)
+_DATUM = re.compile(
+    r"(?<![\d.])(\d{1,2})\.\s?(\d{1,2})\.\s?((?:19|20)\d{2})(?!\d)|(?<!\d)((?:19|20)\d{2})-(\d{1,2})-(\d{1,2})(?!\d)"
+)
+_HALBJAHR_SAISON = re.compile(r"(?<!\w)(sommer|winter)(halbjahr|saison)\w*", re.IGNORECASE)
+_BEREICHSWORT = re.compile(r"(?<!\w)(?:bis|zwischen)(?!\w)|[–—-]", re.IGNORECASE)
+#: Jahreszahlen, die kein Zeitraum sind („ÖNACE 2008“, „Version 2025“).
+KEIN_JAHR = re.compile(r"(?:önace|oenace|nace|version|fassung)[\s-]*(?:19|20)\d{2}", re.IGNORECASE)
+
+
+def _folgejahr(t: re.Match[str]) -> int | None:
+    folge = _FOLGEJAHR.match(t.string, t.end())
+    return int(folge.group(1)) if folge else None
 
 
 def monat_anzeige(monat: str) -> str:
@@ -172,6 +189,12 @@ class Zeitraum:
     start: int = -1
     ende: int = -1
     ohne_jahr: bool = False  # das Jahr fehlte und wurde aus dem jüngsten Monat ergänzt
+    #: Art „liste“: nur diese Monate („Jänner 2025 und Juli 2025“), nicht die Monate dazwischen.
+    nur: tuple[str, ...] = ()
+
+    @property
+    def monatsliste(self) -> list[str]:
+        return list(self.nur) if self.nur else monate(self.von, self.bis)
 
     @property
     def mehrere(self) -> bool:
@@ -185,6 +208,8 @@ class Zeitraum:
         zeit = zeitraum_anzeige(self.von, self.bis)
         wort = self.wort.strip()
         gross = wort[:1].upper() + wort[1:]
+        if self.art == "liste":
+            return None
         if self.art in ("monat", "bereich"):
             if self.ohne_jahr:
                 was = (
@@ -233,9 +258,13 @@ def _treffer_jahreszeit(t: re.Match[str], letzter: str | None) -> tuple[str, str
             zweites = int(t.group(3)) if len(t.group(3)) == 4 else (jahr // 100) * 100 + int(t.group(3))
             if von_n > bis_n and zweites == jahr + 1:
                 return _monat(jahr, von_n), _monat(jahr + 1, bis_n), False
+            return None  # widersprüchliches Jahrespaar („Winter 2025/27“), siehe unklar()
         if von_n > bis_n:
             return _monat(jahr - 1, von_n), _monat(jahr, bis_n), False
         return _monat(jahr, von_n), _monat(jahr, bis_n), False
+    folge = _folgejahr(t)
+    if folge is not None:
+        return (_monat(folge - 1 if von_n > bis_n else folge, von_n), _monat(folge, bis_n), False)
     jahr_bis = _jahr_fuer(letzter, von_n, bis_n)
     if jahr_bis is None:
         return None
@@ -266,7 +295,7 @@ def _drei(nummer: int, jahr: int | None, letzter: str | None, laenge: int) -> tu
 def _treffer_quartal(t: re.Match[str], letzter: str | None) -> tuple[str, str, bool] | None:
     roh = t.group(1) or t.group(2) or t.group(4)
     nummer = int(roh) if roh else _ORDNUNG[t.group(3).lower()]
-    return _drei(nummer, int(t.group(5)) if t.group(5) else None, letzter, 3)
+    return _drei(nummer, int(t.group(5)) if t.group(5) else _folgejahr(t), letzter, 3)
 
 
 def _treffer_jahr_quartal(t: re.Match[str], _letzter: str | None) -> tuple[str, str, bool] | None:
@@ -275,7 +304,7 @@ def _treffer_jahr_quartal(t: re.Match[str], _letzter: str | None) -> tuple[str, 
 
 def _treffer_halbjahr(t: re.Match[str], letzter: str | None) -> tuple[str, str, bool] | None:
     nummer = int(t.group(1)) if t.group(1) else _ORDNUNG[t.group(2).lower()]
-    return _drei(nummer, int(t.group(3)) if t.group(3) else None, letzter, 6)
+    return _drei(nummer, int(t.group(3)) if t.group(3) else _folgejahr(t), letzter, 6)
 
 
 def _treffer_h_jahr(t: re.Match[str], _letzter: str | None) -> tuple[str, str, bool] | None:
@@ -327,14 +356,23 @@ def _treffer_letzter_monat(_t: re.Match[str], letzter: str | None) -> tuple[str,
     return None if letzter is None else (letzter, letzter, False)
 
 
+def _treffer_monat_des_jahres(t: re.Match[str], _letzter: str | None) -> tuple[str, str, bool] | None:
+    monat = _monat(int(t.group(2)), MONATSNAMEN[t.group(1).lower()])
+    return monat, monat, False
+
+
 def _treffer_monat_ohne_jahr(t: re.Match[str], letzter: str | None) -> tuple[str, str, bool] | None:
     nummer = MONATSNAMEN[t.group(1).lower()]
+    folge = _folgejahr(t)
+    if folge is not None:
+        return _monat(folge, nummer), _monat(folge, nummer), False
     jahr = _jahr_fuer(letzter, nummer, nummer)
     return None if jahr is None else (_monat(jahr, nummer), _monat(jahr, nummer), True)
 
 
 #: Muster in der Reihenfolge, in der sie gelten: zusammengesetzte Zeiträume vor einzelnen Monaten.
 _MUSTER: tuple[tuple[re.Pattern[str], str, object], ...] = (
+    (_MONAT_DES_JAHRES, "monat", _treffer_monat_des_jahres),
     (_ZWISCHEN, "bereich", _treffer_bereich),
     (_BEREICH, "bereich", _treffer_bereich),
     (_JAHRESZEIT, "jahreszeit", _treffer_jahreszeit),
@@ -407,7 +445,7 @@ def jahr_lesen(frage: str, letzter: str | None) -> tuple[int, str] | None:
     t = _LETZTES_JAHR.search(frage)
     if t and letzter is not None:
         return int(letzter[:4]) - 1, _wort(frage, t)
-    rest = _KEIN_JAHR.sub(lambda m: " " * len(m.group(0)), frage)
+    rest = KEIN_JAHR.sub(lambda m: " " * len(m.group(0)), frage)
     for muster in (NAME_MONAT, ZAHL_MONAT, ISO):
         rest = muster.sub(lambda m: " " * len(m.group(0)), rest.lower())
     t = JAHR.search(rest)
@@ -423,20 +461,27 @@ def zeitraum_lesen(frage: str, letzter: str | None) -> Zeitraum | None:
     ohne Jahr und für „letzten Monat“; ohne ihn bleiben solche Angaben unerkannt.
     """
     teile = teile_lesen(frage, letzter)
-    explizit = _explizit(frage)
-    if teile:
-        alle = [(z.start, z.von, z.bis) for z in teile] + [(a, m, m) for a, _, m in explizit]
-        if len(alle) == 1:
-            return teile[0]
-        von, bis = min(v for _, v, _ in alle), max(b for _, _, b in alle)
-        erster = teile[0]
-        return Zeitraum(von, bis, "bereich", erster.wort, erster.start, erster.ende, erster.ohne_jahr)
-    if explizit:
-        von, bis = min(m for _, _, m in explizit), max(m for _, _, m in explizit)
-        art = "monat" if von == bis else "bereich"
-        return Zeitraum(
-            von, bis, art, frage[explizit[0][0] : explizit[-1][1]], explizit[0][0], explizit[-1][1]
-        )
+    # Wörtliche Monate innerhalb eines Teils („März 2025 bis Juni 2025“) zählen nicht extra.
+    explizit = [
+        (a, e, m) for a, e, m in _explizit(frage) if not any(a < z.ende and e > z.start for z in teile)
+    ]
+    teil_liste = sorted(
+        [(z.start, z.ende, z.von, z.bis, z) for z in teile] + [(a, e, m, m, None) for a, e, m in explizit],
+        key=lambda x: x[0],
+    )
+    if len(teil_liste) == 1:
+        start, ende, von, bis, z = teil_liste[0]
+        if z is not None:
+            return z
+        return Zeitraum(von, bis, "monat", frage[start:ende], start, ende)
+    if teil_liste:
+        von, bis = min(x[2] for x in teil_liste), max(x[3] for x in teil_liste)
+        start, ende = teil_liste[0][0], teil_liste[-1][1]
+        zwischen = [frage[teil_liste[i][1] : teil_liste[i + 1][0]] for i in range(len(teil_liste) - 1)]
+        if all(_BEREICHSWORT.search(z) for z in zwischen):
+            return Zeitraum(von, bis, "bereich", frage[start:ende], start, ende)
+        nur = sorted({m for x in teil_liste for m in monate(x[2], x[3])})
+        return Zeitraum(von, bis, "liste", frage[start:ende], start, ende, nur=tuple(nur))
     t = _AKTUELL.search(frage)
     if t and letzter is not None and jahr_lesen(frage, letzter) is None:
         return Zeitraum(letzter, letzter, "aktuell", t.group(0), t.start(), t.end())
@@ -467,4 +512,51 @@ def umschreiben(frage: str, letzter: str | None) -> tuple[str, list[str], bool]:
             mittel = True
     if DURCHSCHNITT_WORT.search(frage):
         mittel = True
+    gesamt = zeitraum_lesen(frage, letzter)
+    if gesamt is not None and gesamt.art == "liste":
+        mittel = False  # aufgezählte Monate sind kein durchgehender Zeitraum
     return frage, notizen, mittel
+
+
+def unklar(frage: str) -> str | None:
+    """Ein Satz, wenn die Frage einen Zeitraum nennt, der nicht eindeutig ist; sonst None.
+
+    „Sommerhalbjahr“ und „Wintersaison“ meinen je nach Fach andere Monate, „Winter 2025/27“ widerspricht sich.
+    """
+    t = _HALBJAHR_SAISON.search(frage)
+    if t:
+        return (
+            f"{t.group(0)[:1].upper()}{t.group(0)[1:]} ist nicht eindeutig. Bitte die Monate nennen, "
+            "zum Beispiel „Beschäftigte von Mai bis Oktober 2025“."
+        )
+    for t in _JAHRESZEIT.finditer(frage):
+        if t.group(2) and t.group(3):
+            jahr = int(t.group(2))
+            zweites = int(t.group(3)) if len(t.group(3)) == 4 else (jahr // 100) * 100 + int(t.group(3))
+            if not t.group(1).lower().startswith("winter") or zweites != jahr + 1:
+                return (
+                    f"{t.group(0).strip()} passt nicht zusammen. "
+                    f"Meinen Sie „Beschäftigte im Winter {jahr}/{str(jahr + 1)[2:]}“?"
+                )
+    return None
+
+
+def tag_hinweis(frage: str) -> str | None:
+    """Ein Satz, wenn die Frage einen Tag nennt, der nicht der Monatsletzte ist (gezählt wird am Monatsletzten)."""
+    from calendar import monthrange
+
+    for t in _DATUM.finditer(frage):
+        if t.group(1):
+            tag, nummer, jahr = int(t.group(1)), int(t.group(2)), int(t.group(3))
+        else:
+            jahr, nummer, tag = int(t.group(4)), int(t.group(5)), int(t.group(6))
+        if not 1 <= nummer <= 12:
+            continue
+        letzter_tag = monthrange(jahr, nummer)[1]
+        if tag != letzter_tag:
+            name = ANZEIGE_MONAT[nummer - 1]
+            return (
+                f"Die Statistik zählt nur am Monatsletzten, darum zeigen wir für den {tag}. {name} {jahr} "
+                f"den Stand vom {letzter_tag}. {name} {jahr}."
+            )
+    return None

@@ -252,3 +252,16 @@ def test_ausserhalb_der_daten_und_ohne_zeitangabe(vier_monate: Verbindung) -> No
     assert ohne["text"].startswith("Ohne Zeitangabe zeigen wir den jüngsten Monat: November 2024.")
     letzter = antwort_daten(conn, "Beschäftigte letzten Monat")
     assert letzter["zahlen"][0]["wert"] == _monat_direkt(conn, "2024-11")
+
+
+# Fängt (Prüfung astra): aufgezählte Monate mitteln die Monate dazwischen; „Sommerhalbjahr“ wird still zum Jahr.
+def test_aufzaehlung_und_unklarer_zeitraum(vier_monate: Verbindung) -> None:
+    conn = vier_monate
+    daten = antwort_daten(conn, "Beschäftigte im August 2024 und November 2024")
+    soll = [_monat_direkt(conn, m) for m in ("2024-08", "2024-11")]
+    assert [z["wert"] for z in daten["zahlen"]] == soll and "Durchschnitt" not in daten["text"]
+    mittel = antwort_daten(conn, "Durchschnitt der Beschäftigten im August 2024 und November 2024")
+    assert [z["wert"] for z in mittel["zahlen"]] == [*soll, (2 * sum(soll) + 2) // 4]
+    assert mittel["zahlen"][-1]["bezeichnung"].endswith("Durchschnitt August 2024 und November 2024")
+    halbjahr = antwort_daten(conn, "Beschäftigte im Sommerhalbjahr 2024")
+    assert halbjahr["zahlen"] == [] and "nicht eindeutig" in halbjahr["text"]
