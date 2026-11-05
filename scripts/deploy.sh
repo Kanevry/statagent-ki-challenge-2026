@@ -298,7 +298,7 @@ if [ -z "$pfad" ]; then echo leer; exit 0; fi
 if [ ! -f "$pfad" ]; then echo fehlt; exit 0; fi
 host=$(wc -l < "$pfad" | tr -d ' ')
 im=$(cd "$1/repo/deploy" && docker compose --env-file "$2" -f docker-compose.prod.yml exec -T app \
-  sh -c 'test -f /etc/kic/uc2-namensliste && wc -l < /etc/kic/uc2-namensliste' </dev/null | tr -d ' \r')
+  sh -c 'if [ ! -f /etc/kic/uc2-namensliste ]; then echo keine-datei; elif [ ! -r /etc/kic/uc2-namensliste ]; then echo unlesbar; else wc -l < /etc/kic/uc2-namensliste; fi' </dev/null | tr -d ' \r')
 echo "host=$host container=${im:-0}"
 EOF
   ) || namen=unlesbar
@@ -311,6 +311,9 @@ EOF
       zeilen_app=${namen##*container=}
       if [[ $zeilen_host == 0 ]]; then
         echo "pruefen: UC2-Namensliste auf dem Server ist leer" >&2
+        fehler=1
+      elif [[ $zeilen_app == unlesbar ]]; then
+        echo "pruefen: UC2-Namensliste im Container nicht lesbar für den App-Nutzer (uid 1001): Datei mit Gruppe 1001 und Modus 640" >&2
         fehler=1
       elif [[ $zeilen_host == "$zeilen_app" ]]; then
         echo "pruefen: UC2-Namensliste geladen ($zeilen_app Zeilen im Container)"
