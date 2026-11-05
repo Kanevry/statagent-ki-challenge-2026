@@ -81,6 +81,13 @@ def test_kern_ohne_zahl_ist_ein_mangel() -> None:
     assert ohne_zahl.mangel.startswith("Kern nennt nur die Definition")
 
 
+# Fängt: Das „2“ in „v2“ zählte als Zahl im Kern; „Nach Regelsatz v2: Sommer 2025 heißt hier …“ fiel nicht auf.
+def test_ziffer_am_wort_ist_keine_zahl_im_kern() -> None:
+    kern = "Nach Regelsatz v2: Sommer 2025 heißt hier Juni bis August 2025."
+    urteil = urteilen(_zeile(), Soll(pflicht={"m": 100.0}), _antwort(f"{kern} Es gab 100.", 100.0), kern)
+    assert urteil.mangel.startswith("Kern ohne Zahl")
+
+
 def test_matrix_nennt_falsch_zuerst() -> None:
     zeile = _zeile()
     text = matrix(

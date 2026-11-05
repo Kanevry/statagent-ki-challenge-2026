@@ -402,7 +402,7 @@ def urteilen(zeile: Zeile, soll: Soll, antwort: dict[str, Any], kern: str | None
             )
     if "text" in zeile.optionen and zeile.optionen["text"] not in text:
         return Urteil("falsch", f"Hinweis fehlt im Text: {zeile.optionen['text']}", ziel=False)
-    if kern is not None and not re.search(r"\d[\d.,]*", _ohne_monatsangabe(kern)):
+    if kern is not None and not re.search(r"(?<![a-zA-ZäöüÄÖÜß])\d[\d.,]*", _ohne_monatsangabe(kern)):
         mangel = f"Kern ohne Zahl: {kern}"
     return Urteil("richtig", "", mangel)
 

@@ -851,7 +851,15 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
         return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
     daten = antwort_daten(conn, frage, regelsatz)
     text = f"Nach Regelsatz {regelsatz}: {daten['text']}" if daten["zahlen"] else daten["text"]
-    return _antwort(typ, text, belege=daten["belege"], zahlen=daten["zahlen"])
+    antwort = _antwort(typ, text, belege=daten["belege"], zahlen=daten["zahlen"])
+    # In der Kette zählt der erste Satz: Beim Zeitraum der Durchschnitt, nicht die Erklärung des Zeitraums.
+    mittel = [z for z in daten["zahlen"] if ", Durchschnitt " in str(z["bezeichnung"])]
+    if mittel:
+        name, _, zeit = str(mittel[0]["bezeichnung"]).partition(", Durchschnitt ")
+        antwort["antwortsatz"] = (
+            f"Im Durchschnitt waren es {_deutsch(int(mittel[0]['wert']))} {name}, {zeit}, nach Regelsatz {regelsatz}."
+        )
+    return antwort
 
 
 def _ohne_bezug(conn: Verbindung, frage: str, letzter: str) -> bool:
