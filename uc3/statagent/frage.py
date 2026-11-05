@@ -18,10 +18,12 @@ from typing import Any
 import psycopg
 from psycopg import sql
 
+from statagent import pensionen
 from statagent.agenten.werkzeuge import AbfrageVerweigert, sql_lesen
 from statagent.berichte.sheet import STICHTAG, STICHTAG_VARIABLE
 from statagent.db import Verbindung
 from statagent.ergebnis import letzter_lauf, monat_verschieben, monatserster, monatsletzter
+from statagent.pensionen import PensionFehler, ist_pensionsfrage, pensionsantwort
 from statagent.regeln import Regel, regeln_laden, regelstand
 from statagent.uc4 import (
     _ISO,
@@ -1261,12 +1263,24 @@ def _rueckfrage_monat(typ: str, jahr: str | None) -> dict[str, Any]:
     return _rueckfrage(f"Für welchen Monat möchten Sie {was} wissen? Zum Beispiel „{beispiel} März 2025“.")
 
 
+def _pensionsfrage(conn: Verbindung, frage: str) -> dict[str, Any]:
+    """Pensionen sind eine eigene Statistik mit eigenen Merkmalen (#77), kein Fall der Beschäftigtenstatistik."""
+    try:
+        return pensionsantwort(conn, frage)
+    except (PensionFehler, psycopg.errors.UndefinedTable, AbfrageVerweigert):
+        return _antwort("pensionen", pensionen.NICHT_GELADEN, hinweise=[pensionen.NICHT_GELADEN])
+    except psycopg.Error:
+        return _antwort("pensionen", pensionen.NICHT_LESBAR, hinweise=[pensionen.NICHT_LESBAR])
+
+
 def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str, Any]:
     """Beantwortet eine Datenanfrage ohne Sprachmodell; mehrdeutige Fragen bekommen eine Rückfrage.
 
     Wirft nie: Was sich nicht beantworten lässt (Zeitlimit, verweigerte Abfrage, zu viele Zahlen, ein Merkmal,
     das es nicht gibt), kommt als Textantwort ohne Zahl und ohne interne Details zurück.
     """
+    if ist_pensionsfrage(frage) and not _PERSON.search(frage.lower()):
+        return _pensionsfrage(conn, frage)
     try:
         letzter = _letzter_monat(conn, regelsatz)
     except psycopg.Error:

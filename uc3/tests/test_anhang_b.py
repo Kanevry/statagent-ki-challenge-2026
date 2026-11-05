@@ -1,7 +1,7 @@
 """Anhang B: die Prüfabfragen aus docs/plan/uc3/anhang-b-schema.sql liefern auf der Fixture-Datenbank überall 0.
 
-Läuft nach `schema_einrichten` und drei Läufen v1 (Fixture-Lieferungen 2024-08 bis 2024-10). Pensionen sind nicht
-importiert; die Integrität nach einem Pensionsimport ist offen (Optimum Bereich 1).
+Läuft nach `schema_einrichten` und drei Läufen v1 (Fixture-Lieferungen 2024-08 bis 2024-10). B12 bis B15 gelten für die
+Pensionen (#77) und halten auch vor dem ersten Laden; mit Daten prüft sie uc3/tests/test_pensionen.py.
 """
 
 from __future__ import annotations
@@ -22,10 +22,10 @@ def _abfragen() -> list[str]:
     return [a.strip() for a in re.split(r";\s*\n", ohne_kommentare) if a.strip()]
 
 
-def test_sql_datei_hat_elf_pruefungen() -> None:
+def test_sql_datei_hat_alle_pruefungen() -> None:
     # Fängt: eine Prüfung geht beim Bearbeiten verloren oder zwei verschmelzen (fehlendes Semikolon).
     namen = [re.search(r"'(B\d+) ", a) for a in _abfragen()]
-    assert [m.group(1) for m in namen if m] == [f"B{i}" for i in range(1, 12)]
+    assert [m.group(1) for m in namen if m] == [f"B{i}" for i in range(1, 16)]
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def test_alle_pruefabfragen_ergeben_null(gerechnet: Verbindung) -> None:
         zeile = gerechnet.execute(abfrage.encode()).fetchone()
         assert zeile is not None
         ergebnisse[zeile["pruefung"]] = zeile["fehlend"]
-    assert len(ergebnisse) == 11
+    assert len(ergebnisse) == 15
     assert {p: n for p, n in ergebnisse.items() if n} == {}
 
 
