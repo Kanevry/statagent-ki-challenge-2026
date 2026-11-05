@@ -47,6 +47,7 @@ import {
 import { istMonat, monatName, stichtag, verschieben } from "@/components/uc3/monat";
 import { abrechnung } from "@/components/uc3/laeufe";
 import { laufPfad, uebersichtPfad } from "@/components/uc3/navigation";
+import { OenaceWechselAbsatz } from "./oenace-wechsel-absatz";
 import type { Lauf } from "@/components/uc3/typen";
 import { alltag } from "@/components/uc3/sprache";
 import { Bundeslaender } from "./bundeslaender";
@@ -536,6 +537,7 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
       </header>
 
       <Auffaelligkeiten detail={detail} />
+      <OenaceWechselAbsatz lauf={lauf} />
       <Abschnitte detail={detail} bericht={bericht} />
       <Weiter detail={detail} />
       </div>
