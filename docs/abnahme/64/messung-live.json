@@ -1,0 +1,162 @@
+{
+  "zeit": "2026-11-05T15:00:38.733Z",
+  "seiten": [
+    "/",
+    "/uc1",
+    "/uc2",
+    "/uc3",
+    "/uc4",
+    "/praesentation",
+    "/_bausteine"
+  ],
+  "offen": [],
+  "ergebnis": [
+    {
+      "pfad": "/",
+      "w": 1440,
+      "status": 200,
+      "titel": "StatAgent · Team OneShotAndy · KI Challenge 2026",
+      "treffer": {},
+      "shot": "b64-start-1440.jpg",
+      "hoehe": 8544,
+      "ueberlauf_x": false,
+      "woerter": 368
+    },
+    {
+      "pfad": "/",
+      "w": 390,
+      "status": 304,
+      "titel": "StatAgent · Team OneShotAndy · KI Challenge 2026",
+      "treffer": {},
+      "shot": "b64-start-390.jpg",
+      "hoehe": 9832,
+      "ueberlauf_x": false
+    },
+    {
+      "pfad": "/uc1",
+      "w": 1440,
+      "status": 200,
+      "titel": "SV KI-Lotse · OneShotAndy",
+      "treffer": {},
+      "shot": "b64-uc1-1440.jpg",
+      "hoehe": 900,
+      "ueberlauf_x": false,
+      "woerter": 21
+    },
+    {
+      "pfad": "/uc1",
+      "w": 390,
+      "status": 304,
+      "titel": "SV KI-Lotse · OneShotAndy",
+      "treffer": {},
+      "shot": "b64-uc1-390.jpg",
+      "hoehe": 844,
+      "ueberlauf_x": false
+    },
+    {
+      "pfad": "/uc2",
+      "w": 1440,
+      "status": 200,
+      "titel": "HealthPolicy Simulator · OneShotAndy",
+      "treffer": {},
+      "shot": "b64-uc2-1440.jpg",
+      "hoehe": 900,
+      "ueberlauf_x": false,
+      "woerter": 23
+    },
+    {
+      "pfad": "/uc2",
+      "w": 390,
+      "status": 304,
+      "titel": "HealthPolicy Simulator · OneShotAndy",
+      "treffer": {},
+      "shot": "b64-uc2-390.jpg",
+      "hoehe": 844,
+      "ueberlauf_x": false
+    },
+    {
+      "pfad": "/uc3",
+      "w": 1440,
+      "status": 304,
+      "titel": "StatAgent · OneShotAndy",
+      "treffer": {},
+      "shot": "b64-uc3-1440.jpg",
+      "hoehe": 900,
+      "ueberlauf_x": false,
+      "woerter": 20
+    },
+    {
+      "pfad": "/uc3",
+      "w": 390,
+      "status": 304,
+      "titel": "StatAgent · OneShotAndy",
+      "treffer": {},
+      "shot": "b64-uc3-390.jpg",
+      "hoehe": 844,
+      "ueberlauf_x": false
+    },
+    {
+      "pfad": "/uc4",
+      "w": 1440,
+      "status": 200,
+      "titel": "Gemeinsamer Einstieg · OneShotAndy",
+      "treffer": {},
+      "shot": "b64-uc4-1440.jpg",
+      "hoehe": 900,
+      "ueberlauf_x": false,
+      "woerter": 92
+    },
+    {
+      "pfad": "/uc4",
+      "w": 390,
+      "status": 304,
+      "titel": "Gemeinsamer Einstieg · OneShotAndy",
+      "treffer": {},
+      "shot": "b64-uc4-390.jpg",
+      "hoehe": 1127,
+      "ueberlauf_x": false
+    },
+    {
+      "pfad": "/praesentation",
+      "w": 1440,
+      "status": 200,
+      "titel": "Präsentation · OneShotAndy",
+      "treffer": {},
+      "shot": "b64-praesentation-1440.jpg",
+      "hoehe": 900,
+      "ueberlauf_x": false,
+      "woerter": 21
+    },
+    {
+      "pfad": "/praesentation",
+      "w": 390,
+      "status": 304,
+      "titel": "Präsentation · OneShotAndy",
+      "treffer": {},
+      "shot": "b64-praesentation-390.jpg",
+      "hoehe": 844,
+      "ueberlauf_x": false
+    },
+    {
+      "pfad": "/_bausteine",
+      "w": 1440,
+      "status": 404,
+      "titel": "Bausteine · Klarton+",
+      "treffer": {},
+      "shot": "b64--bausteine-1440.jpg",
+      "hoehe": 900,
+      "ueberlauf_x": false,
+      "woerter": 17
+    },
+    {
+      "pfad": "/_bausteine",
+      "w": 390,
+      "status": 404,
+      "titel": "Bausteine · Klarton+",
+      "treffer": {},
+      "shot": "b64--bausteine-390.jpg",
+      "hoehe": 844,
+      "ueberlauf_x": false
+    }
+  ]
+}
