@@ -691,3 +691,40 @@ art = "hand"
 deckung = "voll"
 beschreibung = "Ein Mensch öffnet die UC3-Seiten gegen die Prüf-DB (Dev-Server mit UC3_DATABASE_URL auf 5444), öffnet einen Beleg, gibt eine Freigabe mit Vor- und Nachname frei und prüft, dass Enter allein nichts freigibt."
 
+
+[[pruefung]]
+id = "16-AC1"
+hash = "64f08b4fac"
+befehl = "timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_freigabe_schutz.py -k 'zweite_veroeffentlichung or lauf_nach_regelwechsel'"
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "voll"
+zeitlimit = 620
+quelle = "Kriterium 16-AC1, letzter Halbsatz: Neulauf überschreibt keine veröffentlichte v1"
+grund = "Neulauf lässt die veröffentlichten Kennzahlen stehen, zweite Veröffentlichung bricht ab; zusammen mit 24 Läufen = Manifest und 0 späteren Lieferungen"
+befund = "Ein Neulauf kann einen veröffentlichten Monat überschreiben"
+herkunft = "b-abnahme-4c 2026-11-05 21:00"
+
+[[pruefung]]
+id = "16-AC3"
+hash = "a9e6671777"
+befehl = "python3 -c \"import csv;z=[x for x in csv.DictReader(open('docs/plan/uc3/laufmanifest-v1.csv',encoding='utf-8')) if x['monat']=='2025-10'][0];print('status',z['ergebnis_status'],'nach',z['nach_laufmonat'],'spaeteste',z['spaeteste_verwendete_lieferung'])\"; echo audit $(grep -c '78\\.949' docs/plan/uc3/2025-10-abgleich.md); echo forensik $(grep -c '78\\.863' docs/plan/uc3/2025-10-abgleich.md); echo sql $(grep -ciE '^ *(select|with) ' docs/plan/uc3/2025-10-abgleich.md); echo differenz $(grep -c '^## Differenz' docs/plan/uc3/2025-10-abgleich.md)"
+erwartet = ["^status vorlaeufig nach 0 spaeteste 2025-10$", "^audit [1-9]", "^forensik [1-9]", "^sql [2-9]", "^differenz 1$"]
+schwer = false
+deckung = "voll"
+quelle = "Kriterium 16-AC3; Laufmanifest v1 und docs/plan/uc3/2025-10-abgleich.md"
+grund = "2025-10 ist vorläufig und nutzt keine spätere Lieferung; der Abgleich nennt beide Zahlen mit eigenen Abfragen und einer Differenzdefinition"
+befund = "2025-10 nutzt eine spätere Lieferung oder der Abgleich nennt beide Zahlen nicht mit Abfragen und Differenz"
+herkunft = "b-abnahme-4c 2026-11-05 21:00"
+
+[[pruefung]]
+id = "16-AC5"
+hash = "4e598afe42"
+befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe 2>&1 | grep -E '^\\[[a-z]+\\] Aggregations-Sheet v1'"
+erwartet = ["^\\[ok\\] Aggregations-Sheet v1: aggregationen_v1\\.xlsx: 6 Blätter, Monatsspalten gefüllt, Insgesamt-Formeln und Blattsummen stimmen"]
+schwer = false
+deckung = "voll"
+quelle = "Kriterium 16-AC5; Validator pruefe-abgabe liest das Sheet zurück"
+grund = "Readback: 6 Blätter, Monatsspalten gefüllt, Insgesamt-Formeln und Blattsummen stimmen; zusammen mit Sheet = Orakel (keine zusätzlichen Ausprägungen) und Blattsummen = DB-Gesamtzahl"
+befund = "Der Readback des Sheets v1 meldet einen Mangel bei Blättern, Monatsspalten oder Formeln"
+herkunft = "b-abnahme-4c 2026-11-05 21:00"
