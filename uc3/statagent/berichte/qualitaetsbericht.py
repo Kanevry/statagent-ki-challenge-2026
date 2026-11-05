@@ -102,6 +102,102 @@ def prozent(wert: float) -> str:
     return f"{vorzeichen}{text} %"
 
 
+def mehrzahl(anzahl: int, einzahl: str, viele: str) -> str:
+    """„1 Satz“, „2 Sätze“: Anzahl im österreichischen Format mit passendem Wort."""
+    return f"{zahl(anzahl)} {einzahl if anzahl == 1 else viele}"
+
+
+#: Vorzeichenbehaftete Ganzzahl ohne Tausenderpunkt in gespeicherten Texten (etwa „-4410“ aus `:+d`).
+_ROHE_ZAHL = re.compile(r"(?<![\w.,])([+-])(\d{4,})(?![\d.,]*\d)")
+#: Einzahl nach „1“ in gespeicherten Befundtexten (meta.pruefung_treffer.umfang, Satzvorlagen der Prüfregeln).
+#: Satzanfänge im Nominativ ändern auch das Verb, nach einer Präposition genügt das Nomen.
+_EINZAHL = tuple(
+    (re.compile(r"(?<![\d.,])1 " + muster), ersatz)
+    for muster, ersatz in (
+        (r"Gruppen (mit mindestens [\d.]+ Verhältnissen) haben\b", r"1 Gruppe \1 hat"),
+        (r"Zeilen kamen\b", "1 Zeile kam"),
+        (r"neue Verhältnisse gehören\b", "1 neues Verhältnis gehört"),
+        (r"Verhältnisse haben\b", "1 Verhältnis hat"),
+        (r"Verhältnisse gehören\b", "1 Verhältnis gehört"),
+        (r"Verhältnisse tragen\b", "1 Verhältnis trägt"),
+        (r"Gruppen\b", "1 Gruppe"),
+        (r"Zellen\b", "1 Zelle"),
+        (r"Zeilen\b", "1 Zeile"),
+        (r"Sätzen?\b", "1 Satz"),
+        (r"Verhältnissen?\b", "1 Verhältnis"),
+        (r"Personen\b", "1 Person"),
+    )
+)
+
+
+def text_glaetten(text: str) -> str:
+    """Gespeicherte Befundtexte im Format des Berichts: Tausenderpunkt auch mit Vorzeichen, Einzahl nach „1“.
+
+    Die Texte entstehen beim Lauf (meta.pruefung_treffer.umfang, Satzvorlage der Prüfregel); der Bericht
+    vereinheitlicht sie, ohne einen Lauf zu wiederholen. Das Minuszeichen bleibt „-“ wie im ganzen Bericht."""
+    text = _ROHE_ZAHL.sub(lambda m: m.group(1) + zahl(int(m.group(2))), text)
+    for muster, ersatz in _EINZAHL:
+        text = muster.sub(ersatz, text)
+    text = _ZEILEN_GEGEN.sub(r"\1 Zeilen statt \2 in \3", text)
+    return _MEHR_ODER_WENIGER.sub(
+        lambda m: (
+            ("mehr" if int(m.group(1).replace(".", "")) > int(m.group(2).replace(".", "")) else "weniger")
+            + f" Zeilen als die vorige ({m.group(1)} Zeilen statt {m.group(2)}"
+        ),
+        text,
+    )
+
+
+#: Umfang der Zeilenzahl-Prüfung „345.078 / 434.104 Zeilen gegen 2025-09“: welche Zahl wozu gehört.
+_ZEILEN_GEGEN = re.compile(r"([\d.]+) / ([\d.]+) Zeilen gegen (\d{4}-\d{2})")
+#: „mehr oder weniger Zeilen“ der Satzvorlage: die Richtung steht in den beiden Zahlen.
+_MEHR_ODER_WENIGER = re.compile(r"mehr oder weniger Zeilen als die vorige \(([\d.]+) Zeilen statt ([\d.]+)")
+#: Gliederung und Code in gespeicherten Befundtexten („oenace A“, „region 5“), Klarname aus stat.klass_*.
+_GLIEDERUNG_CODE = re.compile(r"\b(oenace|region|qualifikation|geschlecht) ([A-Za-z0-9]+)\b")
+#: Klammer, die nur interne Codes enthält („(-1)“, „(UNB bzw. 0)“), in Maßnahmen der Prüfregeln.
+_NUR_CODES = re.compile(r"\s*\((?:-?\d+|[A-Z]{2,}(?: bzw\. -?\d+)?)\)")
+
+
+def _klarnamen(conn: Verbindung, lieferung: str) -> dict[tuple[str, str], str]:
+    """Bezeichnung je (Gliederung, Code) aus stat.klass_*, ÖNACE in der am Stichtag gültigen Version.
+
+    ÖNACE-Abschnitte behalten den Buchstaben in Klammern, weil Tabellen und § 5 ihn zeigen."""
+    stichtag = ergebnis.monatsletzter(lieferung)
+    namen: dict[tuple[str, str], str] = {}
+    abfragen = (
+        (
+            "oenace",
+            """SELECT code, bezeichnung || ' (' || code || ')' AS name FROM stat.klass_oenace
+               WHERE ebene = 1 AND gueltig_von <= %(t)s AND (gueltig_bis IS NULL OR gueltig_bis >= %(t)s)""",
+        ),
+        ("region", "SELECT code, bezeichnung AS name FROM stat.klass_region WHERE ebene = 'bundesland'"),
+        ("qualifikation", "SELECT code, bezeichnung AS name FROM stat.klass_qualifikation"),
+        ("geschlecht", "SELECT code, bezeichnung AS name FROM stat.klass_geschlecht"),
+    )
+    for gliederung, abfrage in abfragen:
+        if _hat_tabelle(conn, "stat.klass_" + gliederung):
+            for z in conn.execute(abfrage, {"t": stichtag}).fetchall():
+                namen[(gliederung, str(z["code"]))] = str(z["name"])
+    return namen
+
+
+def _lesbar(treffer: list[dict[str, object]], namen: dict[tuple[str, str], str]) -> list[dict[str, object]]:
+    """Prüftreffer mit Klarnamen statt Gliederungscodes im Umfang und ohne Code-Klammern in der Maßnahme."""
+
+    def klar(m: re.Match[str]) -> str:
+        return namen.get((m.group(1), m.group(2)), m.group(0))
+
+    aus = []
+    for t in treffer:
+        neu = dict(t)
+        if t["umfang"]:
+            neu["umfang"] = _GLIEDERUNG_CODE.sub(klar, str(t["umfang"]))
+        if t["massnahme"]:
+            neu["massnahme"] = _NUR_CODES.sub("", str(t["massnahme"]))
+        aus.append(neu)
+    return aus
+
+
 def datum(wert: object) -> str:
     """TT.MM.JJJJ; Zeitpunkte in Wiener Ortszeit."""
     if isinstance(wert, datetime):
@@ -188,23 +284,18 @@ def _bestand(conn: Verbindung, regelsatz: str, regelstand: str, lieferung: str) 
 
 
 def _veroeffentlichender_lauf(conn: Verbindung, stand: ergebnis.LaufStand) -> int:
-    """Lauf, dessen Zahlen veröffentlicht sind: seine lauf_id hängt an den endgültigen Zeilen.
+    """Lauf, den eine Person mit Namen freigegeben hat: der erste mit meta.lauf.freigegeben_von für Lieferung,
+    Regelsatz und Regelstand (`veroeffentlichen` setzt das Feld; spätere Läufe übernehmen es nur).
 
-    Rechnet ein späterer Lauf einen veröffentlichten Monat unter neuem Regelstand nach, übernimmt er nur die
-    Kennzahlen; Prüftreffer und Regelwirkung in meta.* gehören zu seinem neuen Regelstand. Für einen nicht
-    veröffentlichten Monat ist es der Lauf selbst."""
-    if stand.ergebnis_status != "endgueltig":
-        return stand.lauf_id
+    Nicht der Lauf, an dem die endgültigen Zellen hängen: Prüfregeln gehören nicht zum Regelstand, ein früherer
+    Lauf mit gleichen Zellen kann also andere Prüftreffer haben als der freigegebene. Rechnet ein späterer Lauf
+    unter neuem Regelstand nach, gehören seine Prüftreffer und Regelwirkung zum neuen Stand und stehen nur in
+    § 5. Ohne freigegebenen Lauf ist es der maßgebliche Lauf selbst (vorläufig)."""
     zeile = conn.execute(
-        """SELECT min(lauf_id) AS id FROM stat.stat_beschaeftigte
-           WHERE regelsatz = %s AND regelstand = %s AND status = 'endgueltig'
-             AND zeitraum_bis BETWEEN %s AND %s""",
-        (
-            stand.regelsatz,
-            stand.regelstand,
-            ergebnis.monatserster(stand.lieferung),
-            ergebnis.monatsletzter(stand.lieferung),
-        ),
+        """SELECT min(id) AS id FROM meta.lauf
+           WHERE lieferung = %s AND regelsatz = %s AND regelstand = %s AND freigegeben_von IS NOT NULL
+             AND status IN ('fertig', 'unveraendert')""",
+        (stand.lieferung, stand.regelsatz, stand.regelstand),
     ).fetchone()
     return stand.lauf_id if zeile is None or zeile["id"] is None else _int(zeile["id"])
 
@@ -244,13 +335,22 @@ def _dateiname(conn: Verbindung, lieferung: str) -> str:
 
 
 def _pruefungen_gelaufen(conn: Verbindung, lauf_id: int) -> int:
-    """Anzahl der Prüfergebnisse des Laufs (auch ohne Treffer); 0 heißt: keine Prüfung gelaufen."""
+    """Zahl der Prüfregeln, die im Lauf gelaufen sind; 0 heißt: keine Prüfung gelaufen.
+
+    Gemessen an meta.pruefung_treffer: Jede gelaufene Prüfregel schreibt dort ein Ergebnis, auch ohne Treffer
+    (anzahl 0). Gezählt werden verschiedene Regeln, nicht Zeilen."""
     if not _hat_tabelle(conn, "meta.pruefung_treffer"):
         return 0
     zeile = conn.execute(
-        "SELECT count(*) AS n FROM meta.pruefung_treffer WHERE lauf_id = %s", (lauf_id,)
+        "SELECT count(DISTINCT regel_id) AS n FROM meta.pruefung_treffer WHERE lauf_id = %s", (lauf_id,)
     ).fetchone()
     return _int(zeile["n"]) if zeile else 0
+
+
+def _fortgeschrieben(conn: Verbindung, lauf_id: int) -> int:
+    """Verhältnisse, die Regel E07 im Lauf aus der Vorlieferung fortgeschrieben hat (meta.lauf.fortgeschrieben)."""
+    zeile = conn.execute("SELECT fortgeschrieben FROM meta.lauf WHERE id = %s", (lauf_id,)).fetchone()
+    return _int(zeile["fortgeschrieben"]) if zeile else 0
 
 
 def _treffer(conn: Verbindung, lauf_id: int) -> list[dict[str, object]]:
@@ -287,11 +387,12 @@ def _verweise(treffer: dict[str, object], rueckfragen: list[dict[str, object]]) 
 
     Eine Rückfrage gehört dazu, wenn ihre Regel (``regel_name``) die Prüfregel ist oder die Prüfregel sie
     nennt. Nennt die Prüfregel keine, zählt auch die Einlese- oder Zählregel, die sie prüft (Parameter
-    ``regel``, etwa P01 → E02 → R7). Die Marke „neu“ ist keine Nummer und fehlt hier.
+    ``regel``, etwa P01 → E02 → R7), außer der Befund ist „erklärt – plausibel“: eine echte Entwicklung
+    (etwa P07, Menschen ab 75) hängt nicht an der offenen Frage ihrer Regel. Die Marke „neu“ ist keine Nummer.
     """
     eigene = str(treffer["rueckfrage"] or "")
     namen = {treffer["name"]}
-    if not eigene and treffer.get("pruef_regel"):
+    if not eigene and treffer.get("pruef_regel") and treffer["einstufung"] != "erklaert-plausibel":
         namen.add(treffer["pruef_regel"])
     nrn = [str(r["nr"]) for r in rueckfragen if r["regel_name"] is not None and r["regel_name"] in namen]
     if eigene and eigene != OHNE_RUECKFRAGE and eigene not in nrn:
@@ -300,13 +401,16 @@ def _verweise(treffer: dict[str, object], rueckfragen: list[dict[str, object]]) 
 
 
 def _rueckfrage_spalte(treffer: dict[str, object], rueckfragen: list[dict[str, object]]) -> list[str]:
-    """Rückfrage-Spalte in § 2: Nummern, bei der Marke „neu“ ohne Nummer ein Klartext statt „neu“."""
+    """Rückfrage-Spalte in § 2: Nummern, sonst ein Klartext. Neben „nicht erklärbar“ steht nie „–“
+    (ohne Einstufung gilt der Treffer als nicht erklärbar, wie in § 2)."""
     nrn = _verweise(treffer, rueckfragen)
-    if nrn or treffer["rueckfrage"] != OHNE_RUECKFRAGE:
+    if nrn:
         return nrn
-    if treffer["einstufung"] == "nicht-erklaerbar":
+    if treffer["einstufung"] in (None, "nicht-erklaerbar"):
         return ["noch keine Rückfrage gestellt"]
-    return ["keine Rückfrage nötig"]
+    if treffer["rueckfrage"] == OHNE_RUECKFRAGE or treffer["einstufung"] == "erklaert-plausibel":
+        return ["keine Rückfrage nötig"]
+    return []
 
 
 def _gilt_fuer_monat(rueckfrage: dict[str, object], lieferung: str) -> bool:
@@ -324,7 +428,15 @@ def _gilt_fuer_monat(rueckfrage: dict[str, object], lieferung: str) -> bool:
 
 
 def _umfang(t: dict[str, object]) -> str:
-    return " ".join(str(t["umfang"]).split()) if t["umfang"] else f"{zahl(_int(t['anzahl']))} Sätze"
+    if t["umfang"]:
+        return text_glaetten(" ".join(str(t["umfang"]).split()))
+    return mehrzahl(_int(t["anzahl"]), "Satz", "Sätze")
+
+
+#: Marke im gespeicherten Beleg einer Prüfung, die nur gelieferte Abschnitte zählt (ohne Fortschreibung E07).
+NUR_GELIEFERT = "herkunft = 'geliefert'"
+#: Satz zu solchen Prüfungen, wenn der Monat oder sein Vormonat fortgeschriebene Verhältnisse hat.
+HINWEIS_NUR_GELIEFERT = "Diese Prüfung zählt nur gelieferte Verhältnisse; der Überblick zählt die fortgeschriebenen (Regel E07) mit."
 
 
 def befund_satz(t: dict[str, object], lieferung: str) -> str:
@@ -337,7 +449,7 @@ def befund_satz(t: dict[str, object], lieferung: str) -> str:
     werte = _Vorlage(anzahl=zahl(_int(t["anzahl"])), umfang=_umfang(t), monat=monat_text(lieferung))
     vorlage = t.get("satz_vorlage")
     if vorlage:
-        return " ".join(str(vorlage).format_map(werte).split())
+        return text_glaetten(" ".join(str(vorlage).format_map(werte).split()))
     return als_satz(
         f"{' '.join(str(t['beschreibung'] or t['name']).split()).rstrip('.')} ({werte['umfang']})"
     )
@@ -364,23 +476,28 @@ def _kennzahlen(conn: Verbindung, lauf: dict[str, object], lieferung: str, regel
         alt = _bestand(conn, regelsatz, vorher.regelstand, vormonat)
         diff = bestand - alt
         anteil = prozent(diff / alt * 100) if alt else "kein Anteil"
-        veraenderung = f"{zahl_vorzeichen(diff)} ({anteil}) gegenüber {vormonat} ({zahl(alt)})"
+        fort_vm = _fortgeschrieben(conn, vorher.lauf_id)
+        mit = f", davon {zahl(fort_vm)} fortgeschrieben" if fort_vm else ""
+        veraenderung = f"{zahl_vorzeichen(diff)} ({anteil}) gegenüber {vormonat} ({zahl(alt)}{mit})"
 
+    # Mit Fortschreibung (E07) gibt es zwei Bestände: mit und ohne fortgeschriebene Verhältnisse. Die
+    # Bezeichnungen sagen dann, welche Zahl welche ist; Prüfungen in § 2 zählen nur gelieferte.
+    mit_e07 = " (mit fortgeschriebenen, Regel E07)" if fortgeschrieben else ""
     zeilen = [
         ["gelesene Sätze", zahl(gelesen)],
-        ["davon gezählt am Stichtag", zahl(gezaehlt)],
+        ["davon gezählt am Stichtag" + mit_e07, zahl(gezaehlt)],
         [
             "ausgeschlossene oder korrigierte Sätze",
             f"{zahl(ausgeschlossen)} ausgeschlossen, {zahl(korrigiert)} korrigiert",
         ],
-        ["Beschäftigungsverhältnisse am Stichtag", zahl(bestand)],
+        ["Beschäftigungsverhältnisse am Stichtag" + mit_e07, zahl(bestand)],
         ["Veränderung zum Vormonat", veraenderung],
     ]
     abrechnung = "Abrechnung: gelesene Sätze = gezählte + nicht gezählte + ausgeschlossene Sätze."
     if fortgeschrieben:
         # E07 schreibt nur Verhältnisse fort, die am Stichtag laufen; sie stecken in „gezählt“.
         zeilen[2:2] = [
-            ["davon geliefert gezählt", zahl(gezaehlt - fortgeschrieben)],
+            ["davon geliefert gezählt (ohne fortgeschriebene)", zahl(gezaehlt - fortgeschrieben)],
             ["davon fortgeschrieben aus der Vorlieferung (Regel E07, vorläufig)", zahl(fortgeschrieben)],
         ]
         abrechnung = (
@@ -410,23 +527,31 @@ def _kennzahlen(conn: Verbindung, lauf: dict[str, object], lieferung: str, regel
         "abrechnung": abrechnung,
         "abrechnung_in_zahlen": in_zahlen,
         "abrechnung_geht_auf": aufgeht,
-        "hinweis": "Die Vorlage hat keine Zeile „nicht gezählt“. Wir zeigen dort Abschnitte, die am Stichtag"
-        " nicht bestehen (Annahme A8).",
+        "hinweis": "Die Vorlage hat keine Zeile „nicht gezählt“; wir nennen sie in der Abrechnung, damit sie"
+        " aufgeht, und zählen dort die Abschnitte, die am Stichtag nicht bestehen.",
     }
 
 
 def _auffaelligkeiten_daten(
-    treffer: list[dict[str, object]], rueckfragen: list[dict[str, object]], lieferung: str
+    treffer: list[dict[str, object]],
+    rueckfragen: list[dict[str, object]],
+    lieferung: str,
+    mit_fortschreibung: bool = False,
 ) -> list[dict[str, Any]]:
+    """§ 2 als Daten. `mit_fortschreibung`: der Monat oder sein Vormonat hat fortgeschriebene Verhältnisse (E07);
+    dann sagt der Befund einer Prüfung, die nur Gelieferte zählt, warum ihre Zahl vom Überblick abweicht."""
     aus = []
     for nr, t in enumerate(treffer, start=1):
+        satz = befund_satz(t, lieferung)
+        if mit_fortschreibung and NUR_GELIEFERT in str(t["beleg_sql"] or ""):
+            satz += " " + HINWEIS_NUR_GELIEFERT
         # Ohne Einstufung gilt der Treffer als nicht erklärt und geht an die Fachabteilung.
         aus.append(
             {
                 "nr": nr,
                 "ebene": EBENEN.get(str(t["ebene"]), str(t["ebene"])),
                 "regel": str(t["name"]),
-                "satz": befund_satz(t, lieferung),
+                "satz": satz,
                 "anzahl": _int(t["anzahl"]),
                 "umfang": _umfang(t),
                 "einstufung": EINSTUFUNGEN.get(str(t["einstufung"]), EINSTUFUNGEN["nicht-erklaerbar"]),
@@ -491,9 +616,18 @@ def _regeln_daten(conn: Verbindung, lauf_id: int, lieferung: str, regelsatz: str
 def _nachrechnung(
     conn: Verbindung, lauf: dict[str, object], quelle_id: int, treffer_quelle: list[dict[str, object]]
 ) -> list[str]:
-    """Hinweis in § 5, wenn ein späterer Lauf einen veröffentlichten Monat unter neuem Regelstand nachrechnet."""
+    """Hinweis in § 5, wenn ein späterer Lauf einen veröffentlichten Monat unter neuem Regelstand nachrechnet.
+
+    meta.lauf.regelstand zeigt bei solchen Läufen den veröffentlichten Stand. Ob der neue Stand wirklich
+    anders ist, steht in meta.revision: nur dann schreibt der Lauf Zeilen für den eigenen Monat."""
     lauf_id = _int(lauf["id"])
-    if lauf_id == quelle_id:
+    if lauf_id == quelle_id or not _hat_tabelle(conn, "meta.revision"):
+        return []
+    anders = conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM meta.revision WHERE lauf_id = %s AND berichtsmonat = %s) AS ja",
+        (lauf_id, lauf["lieferung"]),
+    ).fetchone()
+    if anders is None or not anders["ja"]:
         return []
     aus = [
         f"Lauf {lauf_id} hat den veröffentlichten Monat mit geänderten Regeln nachgerechnet. Die Abschnitte 1"
@@ -508,7 +642,7 @@ def _nachrechnung(
     ]
     if neu:
         teile = [
-            f"{t['name']} ({EBENEN.get(str(t['ebene']), str(t['ebene']))}, {zahl(_int(t['anzahl']))} Sätze"
+            f"{t['name']} ({EBENEN.get(str(t['ebene']), str(t['ebene']))}, {mehrzahl(_int(t['anzahl']), 'Satz', 'Sätze')}"
             + (", hätte angehalten)" if t["anhalten"] else ")")
             for t in neu
         ]
@@ -516,10 +650,24 @@ def _nachrechnung(
     return aus
 
 
-def _revision_daten(conn: Verbindung, lauf_id: int) -> dict[str, Any]:
+def _ohne_abgleich(conn: Verbindung, lieferung: str | None, regelsatz: str) -> str:
+    """Satz, wenn meta.revision für den Lauf nichts enthält; im ersten Monat mit dem Grund."""
+    if lieferung is not None:
+        vormonat = ergebnis.monat_verschieben(lieferung, -1)
+        if ergebnis.letzter_lauf(conn, vormonat, regelsatz) is None:
+            return (
+                f"Kein Revisionsabgleich, weil {monat_text(lieferung)} der erste gerechnete Monat ist und es"
+                " keinen früheren Monat zum Vergleichen gibt."
+            )
+    return "Für diesen Lauf liegt kein Revisionsabgleich vor."
+
+
+def _revision_daten(
+    conn: Verbindung, lauf_id: int, lieferung: str | None = None, regelsatz: str = "v1"
+) -> dict[str, Any]:
     leer: dict[str, Any] = {"abgeglichen": False, "zeilen": [], "details": [], "satz": None}
     if not _hat_tabelle(conn, "meta.revision"):
-        return leer | {"satz": "Für diesen Lauf liegt kein Revisionsabgleich vor."}
+        return leer | {"satz": _ohne_abgleich(conn, lieferung, regelsatz)}
     zeilen = conn.execute(
         """SELECT berichtsmonat, veroeffentlicht, aktuell, differenz, status_vorher
            FROM meta.revision WHERE lauf_id = %s AND gliederung = 'insgesamt' ORDER BY berichtsmonat""",
@@ -553,12 +701,16 @@ def _revision_daten(conn: Verbindung, lauf_id: int) -> dict[str, Any]:
             haupt = "Umschichtung zwischen Ausprägungen, insgesamt unverändert"
         elif monat in ursachen:
             ursache, anzahl = ursachen[monat]
-            haupt = f"{URSACHEN.get(ursache, ursache)} ({zahl(anzahl)} Verhältnisse)"
+            haupt = f"{URSACHEN.get(ursache, ursache)} ({mehrzahl(anzahl, 'Verhältnis', 'Verhältnisse')})"
+        # status_vorher ist der Stand beim Lauf. Ist der Monat inzwischen endgültig, heißt es „damals vorläufig“.
+        damals = z["status_vorher"] == "vorlaeufig"
+        jetzt = ergebnis.letzter_lauf(conn, monat, regelsatz)
         tabelle.append(
             {
                 "berichtsmonat": monat,
                 "veroeffentlicht": _int(z["veroeffentlicht"]),
-                "vorlaeufig": z["status_vorher"] == "vorlaeufig",
+                "vorlaeufig": damals and (jetzt is None or jetzt.ergebnis_status != "endgueltig"),
+                "damals_vorlaeufig": damals,
                 "aktuell": _int(z["aktuell"]),
                 "differenz": _int(z["differenz"]),
                 "hauptursache": haupt,
@@ -581,10 +733,11 @@ def _revision_daten(conn: Verbindung, lauf_id: int) -> dict[str, Any]:
                 )
     satz = None
     if not zeilen:
-        satz = "Für diesen Lauf liegt kein Revisionsabgleich vor."
+        satz = _ohne_abgleich(conn, lieferung, regelsatz)
     elif not tabelle:
+        stimmen = "geprüfter Vormonat stimmt" if len(zeilen) == 1 else "geprüfte Vormonate stimmen"
         satz = (
-            f"Kein Revisionsbedarf: {len(zeilen)} geprüfte Vormonate stimmen in allen Gliederungen mit der"
+            f"Kein Revisionsbedarf: {zahl(len(zeilen))} {stimmen} in allen Gliederungen mit der"
             " aktuellen Lieferung überein."
         )
     return {"abgeglichen": bool(zeilen), "zeilen": tabelle, "details": details, "satz": satz}
@@ -610,8 +763,18 @@ def _status_saetze(
         else f"Die Zahlen für {monat} sind vorläufig."
     ]
     angehalten = [a for a in auffaelligkeiten if a["anhalten"]]
-    for a in angehalten:
-        saetze.append(f"{a['satz']} Deshalb ist der Monat angehalten ({a['regel']}).")
+    if angehalten:
+        # Je Befund sein Satz, der Grund „angehalten“ nur einmal mit allen Prüfregeln.
+        # Der E07-Hinweis steht im Status-Block nur einmal.
+        hinweis = " " + HINWEIS_NUR_GELIEFERT
+        saetze += [str(a["satz"]).replace(hinweis, "") for a in angehalten]
+        mit_hinweis = sum(hinweis in str(a["satz"]) for a in angehalten)
+        if mit_hinweis == 1:
+            saetze.append(HINWEIS_NUR_GELIEFERT)
+        elif mit_hinweis > 1:
+            saetze.append(HINWEIS_NUR_GELIEFERT.replace("Diese Prüfung zählt", "Diese Prüfungen zählen"))
+        regeln = ", ".join(dict.fromkeys(str(a["regel"]) for a in angehalten))
+        saetze.append(f"Deshalb ist der Monat angehalten ({regeln}).")
     fort = _int(quelle.get("fortgeschrieben") or 0)
     if fort:
         vormonat = monat_text(ergebnis.monat_verschieben(stand.lieferung, -1))
@@ -660,13 +823,30 @@ def bericht_daten(conn: Verbindung, lieferung: str, regelsatz: str = "v1") -> di
         else conn.execute("SELECT * FROM meta.lauf WHERE id = %s", (quelle_id,)).fetchone()
     )
     assert quelle is not None
-    treffer = _treffer(conn, quelle_id)
+    treffer = _lesbar(_treffer(conn, quelle_id), _klarnamen(conn, lieferung))
     rueckfragen = _rueckfragen(conn)
     freigabe = _freigabe(conn, lieferung, regelsatz)
-    auffaelligkeiten = _auffaelligkeiten_daten(treffer, rueckfragen, lieferung)
+    fortgeschrieben = _int(quelle.get("fortgeschrieben") or 0)
+    vorher = ergebnis.letzter_lauf(conn, ergebnis.monat_verschieben(lieferung, -1), regelsatz)
+    fort_vormonat = _fortgeschrieben(conn, vorher.lauf_id) if vorher else 0
+    auffaelligkeiten = _auffaelligkeiten_daten(
+        treffer, rueckfragen, lieferung, mit_fortschreibung=bool(fortgeschrieben or fort_vormonat)
+    )
     return {
         "lieferung": lieferung,
         "regelsatz": regelsatz,
+        # Für die Weboberfläche (#126), oberste Ebene:
+        # lauf_id: maßgeblicher Lauf des Monats (jüngster erfolgreicher Lauf, wie technik.lauf_id).
+        "lauf_id": stand.lauf_id,
+        # regelstand: Hash des Regelstands dieses Laufs (meta.lauf.regelstand).
+        "regelstand": stand.regelstand,
+        # umgeschichtet: Verhältnisse, die Regel E07 aus der Vorlieferung fortgeschrieben hat
+        # (meta.lauf.fortgeschrieben des Laufs, dessen Zahlen § 1 zeigt). meta.lauf hat kein eigenes Feld für
+        # Umschichtungen zwischen Ausprägungen; die stehen nur in § 5 (meta.revision).
+        "umgeschichtet": fortgeschrieben,
+        # pruefungen_gelaufen: Zahl der verschiedenen Prüfregeln mit Ergebnis in meta.pruefung_treffer für den
+        # Lauf, dessen Prüfungen § 2 zeigt (auch Prüfungen ohne Treffer); 0 heißt: keine Prüfung gelaufen.
+        "pruefungen_gelaufen": _pruefungen_gelaufen(conn, quelle_id),
         "titel": f"Qualitätsbericht – Berichtsmonat {lieferung}",
         "datei": _dateiname(conn, lieferung),
         "erstellt_am": datum(lauf["beendet_am"]),
@@ -674,14 +854,13 @@ def bericht_daten(conn: Verbindung, lieferung: str, regelsatz: str = "v1") -> di
         "freigegeben_am": datum(freigabe[1]) if freigabe else None,
         "status": stand.ergebnis_status,
         "status_saetze": _status_saetze(conn, stand, lauf, quelle, auffaelligkeiten, freigabe),
-        "begriffe": _begriffe(bool(_int(quelle.get("fortgeschrieben") or 0))),
+        "begriffe": _begriffe(bool(fortgeschrieben)),
         "kennzahlen": _kennzahlen(conn, quelle, lieferung, regelsatz),
-        "pruefungen_gelaufen": _pruefungen_gelaufen(conn, quelle_id),
         "auffaelligkeiten": auffaelligkeiten,
         "rueckfragen": _rueckfragen_daten(lieferung, treffer, rueckfragen),
         "annahmen": annahmen(conn, lieferung, regelsatz),
         "regeln": _regeln_daten(conn, quelle_id, lieferung, regelsatz),
-        "revision": _revision_daten(conn, stand.lauf_id)
+        "revision": _revision_daten(conn, stand.lauf_id, lieferung, regelsatz)
         | {"nachrechnung": _nachrechnung(conn, lauf, quelle_id, treffer)},
         "technik": {
             "lauf_id": stand.lauf_id,
@@ -847,19 +1026,27 @@ def _md_revision(r: dict[str, Any]) -> list[str]:
     if r["nachrechnung"]:
         aus += [*r["nachrechnung"], ""]
     kopf = ["Berichtsmonat", "veröffentlicht", "laut aktueller Lieferung", "Differenz", "Hauptursache"]
-    aus += _tabelle(
-        kopf,
-        [
+    if r["zeilen"]:  # ohne Abweichung kein leerer Tabellenkopf, nur der Satz unten
+        aus += _tabelle(
+            kopf,
             [
-                z["berichtsmonat"],
-                zahl(z["veroeffentlicht"]) + (" (vorläufig)" if z["vorlaeufig"] else ""),
-                zahl(z["aktuell"]),
-                zahl_vorzeichen(z["differenz"]),
-                _zelle(z["hauptursache"]),
-            ]
-            for z in r["zeilen"]
-        ],
-    )
+                [
+                    z["berichtsmonat"],
+                    zahl(z["veroeffentlicht"])
+                    + (
+                        " (vorläufig)"
+                        if z["vorlaeufig"]
+                        else (" (damals vorläufig)" if z.get("damals_vorlaeufig") else "")
+                    ),
+                    zahl(z["aktuell"]),
+                    zahl_vorzeichen(z["differenz"]),
+                    _zelle(z["hauptursache"]),
+                ]
+                for z in r["zeilen"]
+            ],
+        )
+    while aus[-1] == "":
+        aus.pop()
     if r["details"]:
         aus += [
             "",

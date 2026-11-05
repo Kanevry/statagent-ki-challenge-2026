@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -10,14 +11,17 @@ from statagent.berichte.pruefe_abgabe import bericht_maengel, einstufungen_aus_b
 from statagent.berichte.qualitaetsbericht import (
     ABSCHNITTE,
     GUELTIGE_EINSTUFUNGEN,
+    HINWEIS_NUR_GELIEFERT,
     BerichtFehler,
     _auffaelligkeiten_daten,
+    _lesbar,
     _rueckfragen,
     _rueckfragen_daten,
     _ueberblick,
     bericht_daten,
     bericht_erzeugen,
     bericht_schreiben,
+    text_glaetten,
     zahl,
 )
 from statagent.db import Verbindung
@@ -64,7 +68,7 @@ def test_bericht_folgt_vorlage_und_meta_lauf(conn: Verbindung) -> None:
         f"Abrechnung in Zahlen: {zahl(g)} gelesen = {zahl(z)} gezählt + {zahl(n)} nicht gezählt"
         f" + {zahl(a)} ausgeschlossen (geht auf)."
     ) in text
-    assert "(Annahme A8)" in text
+    assert "Annahme A8" not in text and "Die Vorlage hat keine Zeile „nicht gezählt“" in text
     assert "gegenüber 2024-08" in text
     assert f"Ergebnis-Hash `{lauf['ergebnis_hash']}`" in text
     assert bericht_maengel(text) == []
@@ -99,7 +103,8 @@ def test_auffaelligkeit_mit_einstufung_beleg_und_anhalten(conn: Verbindung) -> N
     assert "erklärt – Datenproblem" in zeilen_p90[0] and "nicht erklärbar" in zeilen_p90[1]
     assert set(einstufungen_aus_bericht(text)) <= GUELTIGE_EINSTUFUNGEN
     assert "</summary>" in text and "P90_testpruefung</summary>" in text
-    assert "Deshalb ist der Monat angehalten (P90_testpruefung)." in text
+    (grund,) = re.findall(r"Deshalb ist der Monat angehalten \(([^)]*)\)\.", text)
+    assert "P90_testpruefung" in grund.split(", ")
     assert bericht_maengel(text) == []
 
 
@@ -192,7 +197,8 @@ def test_abrechnung_nennt_fortgeschriebene_verhaeltnisse(conn: Verbindung) -> No
     lauf["fortgeschrieben"], lauf["gezaehlt"] = 5, int(str(lauf["gezaehlt"])) + 5
     text = "\n".join(_ueberblick(conn, lauf, "2024-09", "v1"))
     z = int(str(lauf["gezaehlt"]))
-    assert f"| davon geliefert gezählt | {zahl(z - 5)} |" in text
+    assert f"| davon geliefert gezählt (ohne fortgeschriebene) | {zahl(z - 5)} |" in text
+    assert "| Beschäftigungsverhältnisse am Stichtag (mit fortgeschriebenen, Regel E07) |" in text
     assert "| davon fortgeschrieben aus der Vorlieferung (Regel E07, vorläufig) | 5 |" in text
     assert (
         "Abrechnung: gelesene Sätze + fortgeschriebene Verhältnisse = gezählte + nicht gezählte"
@@ -219,6 +225,28 @@ def test_freigabe_kommt_vom_freigegebenen_lauf(conn: Verbindung) -> None:
     text = bericht_erzeugen(conn, "2024-08")
     assert "noch nicht freigegeben" not in text
     assert f"freigegeben von: {NAME} am " in text and f"{NAME} hat sie am " in text
+
+    # Fängt (Review-Bank 69): § 2 kam vom Lauf mit den Zellen (erster), nicht vom freigegebenen (zweiter);
+    # Prüfregeln stehen nicht im Regelstand, die beiden Läufe können also verschieden treffen. Und ein weiterer
+    # Lauf mit gleichem Regelstand galt als „mit geänderten Regeln nachgerechnet“.
+    dritter = lauf_ausfuehren(conn, "2024-08", "v1")
+    regel = conn.execute(
+        """INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, beschreibung, begruendung, grundlage)
+           VALUES ('v1', 'P90_testpruefung', 'pruefung', 'test', 90, 'Testprüfung', 'Test', 'Test')
+           RETURNING id"""
+    ).fetchone()
+    assert regel is not None
+    for lauf_id, anzahl in ((erster.lauf_id, 11), (zweiter.lauf_id, 22)):
+        conn.execute(
+            """INSERT INTO meta.pruefung_treffer (lauf_id, regel_id, ebene, anzahl, einstufung, anhalten)
+               VALUES (%s, %s, 'satz', %s, 'erklaert-datenproblem', FALSE)""",
+            (lauf_id, regel["id"], anzahl),
+        )
+    text = bericht_erzeugen(conn, "2024-08")
+    assert dritter.lauf_id > zweiter.lauf_id and f"Lauf {dritter.lauf_id}," in text
+    paragraf2 = _abschnitt(text, 2)
+    assert "Testprüfung (22 Sätze)" in paragraf2 and "Testprüfung (11 Sätze)" not in paragraf2
+    assert "nachgerechnet" not in _abschnitt(text, 5)
 
 
 def test_saetze_sind_einfach_und_struktur_passt_zum_markdown(conn: Verbindung) -> None:
@@ -275,6 +303,14 @@ def test_rueckfragen_je_monat_vollstaendig_und_ohne_doppelung(conn: Verbindung) 
     ]
     spalte = [a["rueckfragen"] for a in _auffaelligkeiten_daten(treffer, rueckfragen, "2025-10")]
     assert spalte == [["R7"], ["R5"], ["R6"], ["noch keine Rückfrage gestellt"], ["keine Rückfrage nötig"]]
+    # Fängt: P07 (erklärt – plausibel) erbte über seine Regel R5_alter die Rückfrage R1; P14 (nicht erklärbar,
+    # ohne Rückfrage) zeigte „–“.
+    spaeter = [
+        _pruef_treffer("P07_alter_hoch_plausibel", "R5_alter", None, "erklaert-plausibel"),
+        _pruef_treffer("P90_ohne_rueckfrage", None, None, "nicht-erklaerbar"),
+    ]
+    spalte = [a["rueckfragen"] for a in _auffaelligkeiten_daten(spaeter, rueckfragen, "2025-10")]
+    assert spalte == [["keine Rückfrage nötig"], ["noch keine Rückfrage gestellt"]]
 
     oktober = {r["nr"] for r in _rueckfragen_daten("2025-10", [], rueckfragen)}
     assert oktober == {"R1", "R3", "R6", "R8"}  # Einzelmonate nur im eigenen Monat, „alle“ ab ab_lieferung
@@ -286,3 +322,105 @@ def test_rueckfragen_je_monat_vollstaendig_und_ohne_doppelung(conn: Verbindung) 
     r1 = next(r for r in _rueckfragen_daten("2024-08", [], rueckfragen) if r["nr"] == "R1")
     assert r1["antwort"].startswith("Noch offen. Bis zur Antwort gilt: Wir lesen Monat 13")
     assert r1["frage"].endswith("nur mit der Differenz der Jahre?")
+
+
+def test_befundtexte_im_format_des_berichts() -> None:
+    # Fängt: „-4410“ ohne Tausenderpunkt aus `:+d` (2025-10), „1 Gruppen … haben“ und „1 Zellen“ (2024-11,
+    # 2025-11); Monate wie „2025-08“ dürfen dabei nicht zu Zahlen werden.
+    assert text_glaetten("2025-08: -4410 (1,1 %), 2025-09: +1151 (0,3 %), 2025-10: -12") == (
+        "2025-08: -4.410 (1,1 %), 2025-09: +1.151 (0,3 %), 2025-10: -12"
+    )
+    assert (
+        text_glaetten(
+            "1 Gruppen mit mindestens 500 Verhältnissen haben sich verändert (1 Zellen (0 ohne Saisonerklärung))."
+        )
+        == "1 Gruppe mit mindestens 500 Verhältnissen hat sich verändert (1 Zelle (0 ohne Saisonerklärung))."
+    )
+    assert (
+        text_glaetten("21 Zellen, 11 Gruppen, Bei 1 Verhältnissen")
+        == "21 Zellen, 11 Gruppen, Bei 1 Verhältnis"
+    )
+
+
+def test_nur_gelieferte_pruefung_erklaert_abweichung_vom_ueberblick(conn: Verbindung) -> None:
+    # Fängt: 2025-10 nennt „Bestand am Stichtag“ einmal 313.154 (P15, nur geliefert) und einmal 390.900 (mit E07),
+    # ohne zu sagen, welche Zahl welche ist.
+    t = _pruef_treffer("P15_bestand_vs_vormonat", None, "R3", "erklaert-datenproblem")
+    t["beleg_sql"] = "SELECT count(*) FROM bereinigt.abschnitt WHERE herkunft = 'geliefert'"
+    rueckfragen = _rueckfragen(conn)
+    mit = _auffaelligkeiten_daten([t], rueckfragen, "2025-10", mit_fortschreibung=True)[0]["satz"]
+    ohne = _auffaelligkeiten_daten([t], rueckfragen, "2025-10")[0]["satz"]
+    assert mit.endswith(HINWEIS_NUR_GELIEFERT) and HINWEIS_NUR_GELIEFERT not in ohne
+
+
+def test_json_fuer_weboberflaeche_und_erster_monat(conn: Verbindung) -> None:
+    # Fängt: #126-Felder fehlen auf oberster Ebene; pruefungen_gelaufen zählt Zeilen statt Prüfregeln;
+    # 2024-08 sagt nur „kein Revisionsabgleich“ ohne Grund.
+    lauf = _lauf(conn, lauf_ausfuehren(conn, "2024-08", "v1").lauf_id)
+    daten = bericht_daten(conn, "2024-08")
+    regeln = conn.execute(
+        "SELECT count(DISTINCT regel_id) AS n FROM meta.pruefung_treffer WHERE lauf_id = %s", (lauf["id"],)
+    ).fetchone()
+    assert regeln is not None and regeln["n"] > 0
+    assert (daten["lauf_id"], daten["regelstand"]) == (lauf["id"], lauf["regelstand"])
+    assert daten["umgeschichtet"] == lauf["fortgeschrieben"]
+    assert daten["pruefungen_gelaufen"] == regeln["n"]
+    assert "August 2024 der erste gerechnete Monat ist" in str(daten["revision"]["satz"])
+
+
+def test_klarnamen_statt_codes_und_zeilenvergleich_mit_richtung() -> None:
+    # Fängt: „oenace A“, „region 5“, „Alter unbekannt (-1)“, „(UNB bzw. 0)“ im Bericht und „mehr oder weniger
+    # Zeilen (345.078 / 434.104 …)“ ohne Richtung (2024-08, 2024-09, 2025-10).
+    namen = {("oenace", "A"): "Land- und Forstwirtschaft, Fischerei (A)", ("region", "5"): "Salzburg"}
+    t = _pruef_treffer("P14_sprung_aggregat", None, None, "nicht-erklaerbar")
+    t["umfang"], t["massnahme"] = (
+        "2 Zellen: oenace A -3,1 %, region 5 4,9 %, oenace ZZ 1 %",
+        "Alter unbekannt (-1), zählt",
+    )
+    (lesbar,) = _lesbar([t], namen)
+    assert (
+        lesbar["umfang"]
+        == "2 Zellen: Land- und Forstwirtschaft, Fischerei (A) -3,1 %, Salzburg 4,9 %, oenace ZZ 1 %"
+    )
+    assert lesbar["massnahme"] == "Alter unbekannt, zählt"
+    assert _lesbar([t | {"massnahme": "unbekannt (UNB bzw. 0), Satz zählt"}], namen)[0]["massnahme"] == (
+        "unbekannt, Satz zählt"
+    )
+    assert (
+        text_glaetten(
+            "Die Lieferung hat deutlich mehr oder weniger Zeilen als die vorige (345.078 / 434.104 Zeilen gegen 2025-09"
+            " (-20,5 %))."
+        )
+        == "Die Lieferung hat deutlich weniger Zeilen als die vorige (345.078 Zeilen statt 434.104 in 2025-09 (-20,5 %))."
+    )
+
+
+def test_status_nennt_anhalten_einmal_und_revision_sagt_damals_vorlaeufig(conn: Verbindung) -> None:
+    # Fängt: „Deshalb ist der Monat angehalten“ je Befund (2025-10 dreimal); § 5 markiert einen inzwischen
+    # endgültigen Vormonat als „(vorläufig)“; 2024-08 zeigt einen leeren Tabellenkopf in § 5.
+    lauf_id = _laeufe(conn)
+    assert "| Berichtsmonat |" not in _abschnitt(bericht_erzeugen(conn, "2024-08"), 5)
+    regeln_freigeben(conn, "v1", NAME)
+    veroeffentlichen(conn, "2024-08", "v1", NAME)
+    conn.execute(
+        "UPDATE meta.revision SET aktuell = veroeffentlicht + 7, status_vorher = 'vorlaeufig'"
+        " WHERE lauf_id = %s AND berichtsmonat = '2024-08' AND gliederung = 'insgesamt'",
+        (lauf_id,),
+    )
+    for nr in (91, 92):
+        regel = conn.execute(
+            f"""INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, beschreibung, begruendung, grundlage)
+               VALUES ('v1', 'P{nr}_test', 'pruefung', 'test', {nr}, 'Testprüfung {nr}', 'Test', 'Test')
+               RETURNING id""".encode()
+        ).fetchone()
+        assert regel is not None
+        conn.execute(
+            """INSERT INTO meta.pruefung_treffer (lauf_id, regel_id, ebene, anzahl, einstufung, anhalten)
+               VALUES (%s, %s, 'lieferung', 1, 'erklaert-datenproblem', TRUE)""",
+            (lauf_id, regel["id"]),
+        )
+    text = bericht_erzeugen(conn, "2024-09")
+    (grund,) = re.findall(r"Deshalb ist der Monat angehalten \(([^)]*)\)\.", text)
+    assert {"P91_test", "P92_test"} <= set(grund.split(", "))
+    zeile = next(z for z in _abschnitt(text, 5).splitlines() if z.startswith("| 2024-08 |"))
+    assert "(damals vorläufig)" in zeile
