@@ -53,7 +53,11 @@ UMGEBUNG = {
     "LLM_PROVIDER": "gesperrt",
     "KIC_ENV_DATEI": "/dev/null",
     "UV_FROZEN": "1",
+    "NO_COLOR": "1",
+    "FORCE_COLOR": "0",
+    "CI": "1",
 }
+ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 LAUF_FEHLER = {124: "Zeitlimit", 126: "nicht ausführbar", 127: "Befehl nicht gefunden"}
 # Fehlende Datenbank oder fehlendes Modell ist kein Fachbefund, sondern ein Lauf-Fehler
 # (der Abzug sperrt beides). Er wird nie still: Stand „nicht geprüft“ mit Grund, sofort nachsehen.
@@ -148,7 +152,7 @@ def ausfuehren(befehl: str, ort: Path, sekunden: int) -> tuple[int, str, str, fl
             text=True,
             timeout=sekunden,
         )
-        code, out, err = r.returncode, r.stdout, r.stderr
+        code, out, err = r.returncode, ANSI.sub("", r.stdout), ANSI.sub("", r.stderr)
     except subprocess.TimeoutExpired as t:
         out = t.stdout.decode(errors="replace") if isinstance(t.stdout, bytes) else (t.stdout or "")
         code, err = 124, ""
