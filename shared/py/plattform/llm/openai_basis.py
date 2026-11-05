@@ -56,9 +56,10 @@ class OpenAiKompatibel(Provider):
         return {}
 
     def _client(self) -> openai.OpenAI:
+        schluessel = self.schluessel()  # zuerst: ein fehlender Schlüssel ist die eindeutigere Meldung
         return openai.OpenAI(
             base_url=self.basis_url(),
-            api_key=self.schluessel(),
+            api_key=schluessel,
             http_client=self._http_client,
             max_retries=0,
             timeout=ZEITLIMIT_S,

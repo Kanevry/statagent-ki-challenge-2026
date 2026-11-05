@@ -140,7 +140,10 @@ def test_strom_abbruch_durch_verbraucher_schreibt_genau_eine_zeile(protokoll):
     assert next(strom) == "a"
     strom.close()
 
-    assert len(_zeilen(protokoll)) == 1
+    zeilen = _zeilen(protokoll)
+    assert len(zeilen) == 1
+    assert zeilen[0]["fehler"] == "abgebrochen"  # zählt nicht als Erfolg (#94)
+    assert kern.letzter_erfolg() is None
 
 
 def test_strom_lesefehler_vor_erstem_teil_geht_zur_naechsten_stufe(protokoll):
@@ -163,3 +166,30 @@ def test_strom_lesefehler_nach_erstem_teil_ist_voruebergehend(protokoll):
     with pytest.raises(VoruebergehenderFehler):
         next(strom)
     assert _zeilen(protokoll)[-1]["fehler"] == "VoruebergehenderFehler"
+
+
+def test_dynamischer_schluessel_aus_der_antwort_wird_geschwaerzt(protokoll, tmp_path, monkeypatch):
+    """Fängt: ein Schlüsselname aus der Modellantwort landet über json_path im Protokoll (#94)."""
+    (tmp_path / "test.dyn.json").write_text(
+        json.dumps({"antworten": [{"json": {"werte": {"ping-7f3a": "kein int"}}}]}), encoding="utf-8"
+    )
+    monkeypatch.setenv("PLATTFORM_FIXTURES", str(tmp_path))
+    schema = {
+        "type": "object",
+        "properties": {"werte": {"type": "object", "additionalProperties": {"type": "integer"}}},
+    }
+
+    with pytest.raises(SchemaFehler):
+        complete([{"role": "user", "content": "x"}], schema=schema, provider="mock", zweck="test.dyn")
+
+    assert protokoll.read_text(encoding="utf-8").count("ping-7f3a") == 0
+    assert _zeilen(protokoll)[0]["fehler"] == "SchemaFehler: type $.werte.*"
+
+
+def test_fehlende_azure_url_auf_stufe_1_ist_konfigfehler(protokoll, monkeypatch):
+    """Fängt: fehlende URL wird als vorübergehend behandelt und still auf mistral gewechselt (#94)."""
+    monkeypatch.delenv("AZURE_OPENAI_BASE_URL")
+    kern.INSTANZEN["mistral"] = MistralProvider(http_client=_client(_chat()))
+
+    with pytest.raises(KonfigFehler):
+        complete([{"role": "user", "content": "x"}], provider="azure")
