@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { Feld, Fliesstext, Knopf, Status, Ueberschrift, Zahl } from "@kic/ui/basis";
-import { HerkunftChip } from "@kic/ui/bausteine";
+import { HerkunftChip, ModellPille } from "@kic/ui/bausteine";
+import { TESTBETRIEB_TEXT } from "@kic/ui/shell";
 import { findeUc } from "@kic/ui/ucs";
 import type { Beleg, UcAntwort } from "@kic/ui/antwortform";
 import {
@@ -69,12 +70,27 @@ function Zahlen({ antwort }: { antwort: UcAntwort }) {
   );
 }
 
+// Modell je Karte als Modell-Pille (Frame CKCV4, #113). Violett heißt KI: ohne Modell (UC3 rechnet mit Code)
+// steht nur ein ruhiger Satz ohne Pille.
 function Modell({ modell }: { modell: string | null | undefined }) {
+  if (!modell) {
+    return (
+      <p className="font-sans text-12 text-slate" data-testid="uc4-modell">
+        Ohne KI gerechnet, nur mit Code.
+      </p>
+    );
+  }
   return (
-    <p className="inline-flex items-center gap-2 border-l-2 border-violett pl-2 font-sans text-12" data-testid="uc4-modell">
-      <span className="text-slate">Modell</span>
-      <span className={modell ? "font-mono text-ink" : "text-slate"}>{modell ?? "keins, gerechnet von Code"}</span>
-    </p>
+    <ModellPille data-testid="uc4-modell" className="self-start">
+      {modell === "mock" ? (
+        <span>{TESTBETRIEB_TEXT}</span>
+      ) : (
+        <>
+          <span>Modell:</span>
+          <span className="font-mono">{modell}</span>
+        </>
+      )}
+    </ModellPille>
   );
 }
 

@@ -105,3 +105,21 @@ it("Zahl mit beleg = 1 zeigt den zweiten Beleg, durchgereichte Zahl trägt „vo
   );
   expect(within(karten()[2]!).getByText("Antwort fehlgeschlagen")).toBeTruthy();
 });
+
+// Fängt ab (#113): Die Modellangabe je Karte war eine eigene Randlinie statt der Modell-Pille (Frame CKCV4), und
+// eine Karte ohne Modell (UC3 rechnet mit Code) stand in KI-Violett.
+it("Modell je Karte als Modell-Pille, ohne Modell ein ruhiger Satz ohne Pille", async () => {
+  const user = userEvent.setup();
+  const mitModell = { text: "Einfach erklärt.", belege: [], zahlen: [], uc: "uc1" as const, modell: "gpt-5-4-mini", protokoll_id: null };
+  antworte(200, { antworten: [{ ...uc3, modell: null }, mitModell], fehlend: [{ uc: "uc2", grund: "kein_adapter" }] });
+  render(<Einstieg />);
+  await user.type(screen.getByLabelText("Frage an die Kette"), "x{Enter}");
+  await screen.findByText("Einfach erklärt.");
+  const [uc3Karte, , uc1Karte] = karten();
+  const pille = within(uc1Karte!).getByTestId("uc4-modell");
+  expect(pille.getAttribute("data-baustein")).toBe("modell");
+  expect(pille.textContent).toBe("Modell:gpt-5-4-mini");
+  const ohne = within(uc3Karte!).getByTestId("uc4-modell");
+  expect(ohne.getAttribute("data-baustein")).toBeNull();
+  expect(ohne.textContent).toBe("Ohne KI gerechnet, nur mit Code.");
+});
