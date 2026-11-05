@@ -104,7 +104,25 @@ function Rechnung({ detail }: { detail: LaufDetail }) {
           <BelegLink {...laufBeleg(lauf, { quelle: "meta.lauf", sql: sqlKennzahlen(lauf) })} />
         </span>
       </div>
+      <Differenz detail={detail} />
     </div>
+  );
+}
+
+/**
+ * Warum weniger übernommen als vermisst wird (Jury 05.11.: „78.949 fehlen, aber 77.746 übernommen?“): Übernommen
+ * werden nur Verhältnisse, die laut Vormonats-Lieferung am Stichtag noch bestehen (Regel E07, docs/plan/uc3/2025-10-abgleich.md).
+ */
+function Differenz({ detail }: { detail: LaufDetail }) {
+  const { lauf, treffer } = detail;
+  const fehlen = treffer.find((t) => t.art === "verhaeltnisse_verschwunden")?.anzahl ?? 0;
+  const uebernommen = lauf.fortgeschrieben;
+  if (!uebernommen || fehlen <= uebernommen) return null;
+  const vm = monatName(verschieben(lauf.lieferung, -1));
+  return (
+    <p className="max-w-3xl font-sans text-14 text-slate">
+      {`Übernommen sind nur die ${formatZahl(uebernommen)}, die laut Lieferung ${vm} am Stichtag noch bestanden. Die übrigen ${formatZahl(fehlen - uebernommen)} endeten schon vorher und zählen nicht.`}
+    </p>
   );
 }
 

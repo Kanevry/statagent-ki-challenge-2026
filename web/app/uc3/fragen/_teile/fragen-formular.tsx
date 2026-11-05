@@ -34,12 +34,13 @@ type Zustand =
 // Beleg; Tabellen als schlichte Tabelle; eine Rückfrage als Frage mit Knöpfen für die Folgefrage. Online gesperrt
 // (nurLesen) ein gestalteter Zustand ohne Feld und Knopf. API und Logik: components/uc3/antwort.ts, POST /api/uc3/frage.
 
-// Je ein Beispiel für eine Zahl, eine Tabelle, eine Kennzahl über den Bestand und eine Rückfrage statt einer
+// Je ein Beispiel für eine Zahl, eine Tabelle, eine Aufteilung und eine Rückfrage statt einer
 // geratenen Zahl; alle am 05.11. gegen `uc3 frage --json` auf der UC3-Datenbank geprüft (Sichtprüfung bb, #18).
 const BEISPIELE = [
   "Beschäftigte in Wien im Gesundheits- und Sozialwesen im März 2025",
   "Männer und Frauen im Oktober 2025 je Bundesland",
-  "Fluktuation je Wirtschaftsbereich im März 2025",
+  // „Fluktuation je Wirtschaftsbereich“ entfällt: online fehlt bereinigt.abschnitt, die Frage scheiterte (Jury 05.11.).
+  "Männer und Frauen in Tirol im Juli 2026",
   "Beschäftigte 2025",
 ] as const;
 
