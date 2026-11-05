@@ -178,7 +178,7 @@ deckung = "voll"
 schwer = false
 zeitlimit = 170
 quelle = "Issue #92 Kriterium (Wortlaut): gitleaks über die gesamte Historie, Dateiliste ohne .env.local und Schlüsseldateien, Checkliste verweist auf den Bericht"
-befund = "Die Checkliste (abgabe/CHECKLISTE.md) existiert nicht und verweist daher nicht auf den gitleaks-Bericht; gitleaks selbst und die Dateiliste sind sauber."
+befund = "abgabe/CHECKLISTE.md verweist nicht auf den gitleaks-Bericht; gitleaks selbst und die Dateiliste sind sauber."
 grund = "gitleaks findet in der ganzen Historie 0 Befunde, kein .env.local oder Schlüssel ist versioniert, die Checkliste verweist auf den Bericht."
 
 [[pruefung]]

@@ -70,12 +70,13 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 [[pruefung]]
 id = "135-12"
 hash = "a4999cd761"
-befehl = "grep -cF 'Nicht gespeichert. ${meldung}' shared/ui/src/bausteine/freigabe-karte.tsx || true"
-erwartet = ["^0$"]
+befehl = "node tests/abnahme/p/ui_fehlertext.mjs && echo route_doppelt $(grep -ci 'ist nicht gespeichert' web/components/uc3/freigabe.ts || true)"
+erwartet = ["^route_satz_einmal ja$", "^route_schon_gesagt_einmal ja$", "^leer_fallback ja$", "^route_doppelt 0$"]
 schwer = false
-deckung = "teil"
-befund = "shared/ui/src/bausteine/freigabe-karte.tsx:65 setzt weiter Nicht gespeichert. vor die Meldung, die Route (web/components/uc3/freigabe.ts:691) beginnt selbst mit Die Entscheidung ist nicht gespeichert; die Texte sind nicht abgestimmt."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+deckung = "voll"
+grund = "Die Karte sagt „Nicht gespeichert“ genau einmal, auch wenn die Route es schon sagt; kein Routensatz wiederholt es"
+befund = "Die Fehlermeldung nennt „Nicht gespeichert“ doppelt oder gar nicht, oder ein Routensatz wiederholt es"
+herkunft = "b-abnahme-4c 2026-11-05 20:50 (Hinweis 3e: alter Prüfsatz grepte den Wortlaut, nicht das Verhalten)"
 
 [[pruefung]]
 id = "135-2"
