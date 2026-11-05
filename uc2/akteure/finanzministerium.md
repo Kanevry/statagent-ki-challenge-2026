@@ -25,7 +25,7 @@ rote_linien:
   - keine Ausweitung des Defizits für das Gesundheitswesen
   - keine Mehrausgaben ohne Gegenfinanzierung
 annahme: Modellannahme
-themen_interesse: [Budget, Finanzausgleich, Fiskalrat, Ausgabenobergrenze, Kostendämpfung, Gegenfinanzierung, Zweckzuschuss]
+themen_interesse: [Budget, Finanzausgleich, Fiskalregeln, Ausgabenobergrenze, Kostendämpfung, Gegenfinanzierung, Zweckzuschuss]
 ---
 
 # Finanzministerium

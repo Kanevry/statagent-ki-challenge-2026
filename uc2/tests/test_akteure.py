@@ -15,6 +15,7 @@ from uc2 import pfade
 from uc2.akteure import namensscan
 from uc2.akteure.laden import AkteurFehler, lade_akteure, lade_institutionen, lade_modellrollen
 from uc2.akteure.pruefen import pruefe, pruefe_zug
+from uc2.cli import main
 
 PRUEFSKRIPT = Path(__file__).with_name("pruefe_namen.py")
 ERFUNDEN = (
@@ -73,6 +74,38 @@ def test_fehlendes_provider_modell_und_fehlende_rolle(kopie: tuple[Path, Path]) 
     fehler = pruefe(akteure, config).fehler
     assert "modellrollen.yaml: Rolle 'akteur': kein Modell für Provider 'claude'" in fehler
     assert "modellrollen.yaml: Rolle 'experte' fehlt" in fehler
+
+
+def test_cli_akteure_pruefen_exit_0() -> None:
+    assert main(["akteure", "pruefen"]) == 0
+
+
+def test_unbekannter_zweck_und_nicht_erlaubter_provider(kopie: tuple[Path, Path]) -> None:
+    akteure, config = kopie
+    pfad = config / "modellrollen.yaml"
+    daten = yaml.safe_load(pfad.read_text(encoding="utf-8"))
+    assert {daten["rollen"][r]["zweck"] for r in ("moderator", "akteur")} == {"uc2.panel"}
+    del daten["luecke"]  # optional seit E0 modell=/aufwand=
+    daten["rollen"]["moderator"]["zweck"] = "uc2.moderator"
+    daten["rollen"]["akteur"]["zweck"] = "qs.einstufung"  # UC3-Zweck ohne claude
+    pfad.write_text(yaml.safe_dump(daten, allow_unicode=True), encoding="utf-8")
+    fehler = {f for f in pruefe(akteure, config).fehler if f.startswith("modellrollen.yaml")}
+    assert fehler == {
+        "modellrollen.yaml: Rolle 'moderator': zweck 'uc2.moderator' fehlt in plattform/zwecke.toml",
+        "modellrollen.yaml: Rolle 'akteur': Provider 'claude' ist für zweck 'qs.einstufung' nicht erlaubt",
+    }
+
+
+def test_themenwort_als_alias_wird_gemeldet(kopie: tuple[Path, Path]) -> None:
+    akteure, config = kopie
+    pfad = config / "institutionen.yaml"
+    text = pfad.read_text(encoding="utf-8")
+    text = text.replace("aliase: [Sozialversicherung,", "aliase: [Wartezeit, Sozialversicherung,")
+    text = text.replace("aliase: [Pharmig,", "aliase: [Medikamente, Pharmig,")
+    pfad.write_text(text, encoding="utf-8")
+    fehler = pruefe(akteure, config).fehler
+    assert "institutionen.yaml: sv: Alias 'Wartezeit' ist Themenwort in gesundheitsministerium.md" in fehler
+    assert "institutionen.yaml: pharma: Alias 'Medikamente' ist ein Themenwort" in fehler
 
 
 def test_unbekannte_institution_und_fehlende_datei(kopie: tuple[Path, Path]) -> None:

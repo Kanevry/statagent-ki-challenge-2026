@@ -24,7 +24,7 @@ rote_linien:
   - kein Wegfall der Wahlarzt-Erstattung ohne Übergangsregelung
   - keine Pflicht zur Kassenbehandlung ohne Abgeltung
 annahme: Modellannahme
-themen_interesse: [Wahlarzt-Erstattung, Wahlarztsystem, Privatarzt, Kostenerstattung, Versorgungspflicht, Zweiklassenmedizin]
+themen_interesse: [Wahlarzt-Erstattung, Wahlarztsystem, Privathonorar, Kostenerstattung, Versorgungspflicht, Zweiklassenmedizin]
 ---
 
 # Wahlärzt:innen

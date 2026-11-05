@@ -28,7 +28,7 @@ rote_linien:
   - kein Durchgriff des Bundes auf die Spitalsplanung ohne Mitsprache der Länder
   - keine Schließung von Spitalsstandorten gegen die Landesplanung
 annahme: Modellannahme
-themen_interesse: [Spitalsambulanz, Landesgesundheitsfonds, Finanzausgleich, Strukturplan, ländliche Versorgung, Ambulantisierung, Spitalsstandort]
+themen_interesse: [Ambulanzentlastung, Spitalsfinanzierung, Finanzausgleich, Strukturplan, ländliche Versorgung, Ambulantisierung, Spitalsstandort]
 ---
 
 # Bundesländer

@@ -1,4 +1,6 @@
-# Modell je Rolle (Regeln als Daten, #41). Aufruf über plattform.llm.complete(…, provider=, zweck=).
+# Modell je Rolle (Regeln als Daten, #41). Aufruf über plattform.llm.complete(…, provider=, zweck=, modell=,
+# aufwand=). Beide Sprachmodell-Rollen nutzen den Plattform-Zweck uc2.panel (zwecke.toml erlaubt dort
+# claude); die Rolle unterscheidet der Schlüssel unter `rollen`.
 # Standard ist azure, Qualitätsmodus claude (Abo über `claude -p`), Tests und CI mock.
 # ollama ist Offline-Notnagel (Owner-Entscheid 05.11.): Modell aus Env OLLAMA_MODEL, sonst Platzhalter.
 # Rollen ohne Sprachmodell rechnen im Code und nennen keinen Provider.
@@ -6,13 +8,13 @@ version: 1
 standard_provider: azure
 qualitaetsmodus: claude
 luecke: >-
-  plattform.llm.complete() kennt laut E0-Vertrag nur provider und zweck; modell und aufwand je Rolle
-  wirken erst nach E0 #52. Bis dahin laufen Akteure im Qualitätsmodus auf demselben Modell wie der
-  Moderator, und das Protokoll jedes Laufs nennt diese Lücke.
+  plattform.llm.complete() nimmt modell= und aufwand= (E0). modell= gilt nur für Stufe 1 der
+  Fallback-Kette; fällt der Aufruf auf den nächsten Provider zurück, nutzt dieser sein Standardmodell.
+  Das Protokoll jedes Laufs nennt dann Provider und Modell, die tatsächlich geantwortet haben.
 rollen:
   moderator:
     sprachmodell: true
-    zweck: uc2.moderator
+    zweck: uc2.panel
     aufgaben: [Auftrag, Auswahl der Akteure, Steuerung der Runden, Protokolltext, Lektionen]
     provider:
       azure: {modell: gpt-5-4-mini, aufwand: hoch}
@@ -21,7 +23,7 @@ rollen:
       ollama: {modell: lokal, modell_env: OLLAMA_MODEL}
   akteur:
     sprachmodell: true
-    zweck: uc2.akteur
+    zweck: uc2.panel
     aufgaben: [Züge je Runde nach zug.schema.json]
     provider:
       azure: {modell: gpt-5-4-mini, aufwand: niedrig}

@@ -25,7 +25,7 @@ rote_linien:
   - keine Regelung ohne Darstellung der finanziellen Auswirkungen
   - keine Gesetzesänderung ohne Begutachtungsverfahren
 annahme: Modellannahme
-themen_interesse: [Gesetzesnovelle, Begutachtung, Gesundheitsausschuss, Kompetenzverteilung, Wirkungsfolgenabschätzung, Reformpartnerschaft]
+themen_interesse: [Gesetzesnovelle, Begutachtung, Gesetzgebungsverfahren, Kompetenzverteilung, Wirkungsfolgenabschätzung, Reformpartnerschaft]
 ---
 
 # Gesetzgeber

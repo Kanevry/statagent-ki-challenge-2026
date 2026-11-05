@@ -2190,6 +2190,7 @@ source = { editable = "uc2" }
 dependencies = [
     { name = "jsonschema" },
     { name = "numpy" },
+    { name = "plattform" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pyyaml" },
 ]
@@ -2214,6 +2215,7 @@ dev = [
 requires-dist = [
     { name = "jsonschema", specifier = ">=4.23" },
     { name = "numpy", specifier = ">=2.1" },
+    { name = "plattform", editable = "shared/py" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "sentence-transformers", marker = "extra == 'einbettung'", specifier = ">=6.1.0" },

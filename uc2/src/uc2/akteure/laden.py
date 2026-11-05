@@ -134,6 +134,24 @@ def lade_institutionen(config: Path | None = None) -> list[str]:
     return ids
 
 
+def lade_aliase(config: Path | None = None) -> dict[str, list[str]]:
+    """Suchaliase je Institutions-ID aus `institutionen.yaml`."""
+    pfad = (config or pfade.CONFIG) / "institutionen.yaml"
+    daten = _lies_yaml(pfad)
+    eintraege = daten.get("institutionen") if isinstance(daten, dict) else None
+    if not isinstance(eintraege, list):
+        raise AkteurFehler(f"{pfad.name}: Liste 'institutionen' fehlt")
+    aliase: dict[str, list[str]] = {}
+    for eintrag in eintraege:
+        if not isinstance(eintrag, dict) or not isinstance(eintrag.get("id"), str):
+            raise AkteurFehler(f"{pfad.name}: Eintrag ohne 'id': {eintrag!r}")
+        roh = eintrag.get("aliase") or []
+        if not isinstance(roh, list) or not all(isinstance(a, str) for a in roh):
+            raise AkteurFehler(f"{pfad.name}: {eintrag['id']}: 'aliase' muss eine Textliste sein")
+        aliase[eintrag["id"]] = roh
+    return aliase
+
+
 def akteur_aus_daten(daten: dict[str, Any], body: str, pfad: Path) -> Akteur:
     """Frontmatter gegen `akteur.schema.json` prüfen und in einen `Akteur` überführen."""
     validator = jsonschema.Draft202012Validator(lade_schema("akteur"))

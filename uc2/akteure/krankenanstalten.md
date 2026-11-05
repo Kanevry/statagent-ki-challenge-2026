@@ -25,7 +25,7 @@ rote_linien:
   - keine zusätzliche Last in den Ambulanzen ohne Personal und Mittel
   - keine Kürzung beim Spitalspersonal als Sparmaßnahme
 annahme: Modellannahme
-themen_interesse: [Spitalsambulanz, Spital, Ambulantisierung, Tagesklinik, Spitalspersonal, Patientenlenkung, Verweildauer]
+themen_interesse: [Ambulanzentlastung, Spitalsplanung, Ambulantisierung, Tagesklinik, Spitalspersonal, Patientenlenkung, Verweildauer]
 ---
 
 # Krankenanstalten

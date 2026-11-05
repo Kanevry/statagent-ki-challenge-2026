@@ -25,7 +25,7 @@ rote_linien:
   - keine Absenkung der Ausbildungsstandards in der Pflege
   - keine Mehrbelastung des Pflegepersonals ohne verbindliche Personalschlüssel
 annahme: Modellannahme
-themen_interesse: [Pflegepersonal, Pflegeausbildung, Community Nursing, Personalschlüssel, Langzeitpflege, Primärversorgung]
+themen_interesse: [Personalmangel Pflege, Pflegeausbildung, Community Nursing, Personalschlüssel, Langzeitpflege, Primärversorgung]
 ---
 
 # Pflegevertretung
