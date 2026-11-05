@@ -9,7 +9,7 @@ bereiche: [Weiterentwicklung und Betrieb, Bedienbarkeit]
 screenshot: null
 pen_frame: null
 belege: [F18]
-belegt: [StatAgent]
+belegt: [StatAgent, Simulator, Lotse]
 ---
 
 # Zielbild: eine Frage, drei Antworten.
