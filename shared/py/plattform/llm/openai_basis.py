@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import openai
+from openai.types.chat import ChatCompletionChunk
 
 from .basis import Nachricht, Provider, Rohantwort, Strom, VoruebergehenderFehler
 
@@ -36,7 +37,8 @@ class OpenAiKompatibel(Provider):
     strom_mit_usage: bool = True
 
     def __init__(self, http_client: httpx.Client | None = None) -> None:
-        self._http_client = http_client
+        # Das SDK typisiert seinen eigenen httpx-Client; zur Laufzeit nimmt es den injizierten Client an.
+        self._http_client: Any = http_client
 
     def basis_url(self) -> str:
         raise NotImplementedError
@@ -121,7 +123,7 @@ class OpenAiKompatibel(Provider):
         ergebnis = Strom(teile=iter(()), modell=modell)
 
         def teile() -> Iterator[str]:
-            for stueck in roh:
+            for stueck in cast("Iterator[ChatCompletionChunk]", roh):
                 if stueck.model:
                     ergebnis.version = stueck.model
                 if stueck.usage:

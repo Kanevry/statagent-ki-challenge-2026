@@ -1,4 +1,4 @@
-"""ollama (Offline-Notnagel auf m5): OpenAI-kompatibler Endpunkt ohne Schlüssel."""
+"""ollama (Offline-Notnagel auf einem lokalen Rechner): OpenAI-kompatibler Endpunkt ohne Schlüssel."""
 
 from __future__ import annotations
 

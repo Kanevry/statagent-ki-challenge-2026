@@ -9,7 +9,7 @@ Zahlen rechnet nie ein Modell, sondern der Code ohne Sprachmodell. An das Modell
 |---|---|---|---|
 | `azure` | Standard, Pflicht für die UC3-Agenten | `AZURE_OPENAI_MODEL` (gpt-5-4-mini) | OpenAI-kompatibler Endpunkt `/openai/v1` (we-16), `AZURE_API_KEY` |
 | `mistral` | EU-Zweitanbieter, Live-Austausch | `fast`: `MISTRAL_MODEL_FAST` (mistral-small-latest), `chat`: `MISTRAL_MODEL_CHAT` (mistral-large-latest) | `MISTRAL_BASE_URL`, `MISTRAL_API_KEY` |
-| `ollama` | Offline-Notnagel (m5) | `OLLAMA_MODEL` (qwen3:8b) | `OLLAMA_BASE_URL` (http://localhost:11434/v1) |
+| `ollama` | Offline-Notnagel (lokaler Rechner) | `OLLAMA_MODEL` (qwen3:8b) | `OLLAMA_BASE_URL` (http://localhost:11434/v1) |
 | `claude` | Nur UC1/UC2-Qualitätsmodus und Vergleiche, nie UC3 | `CLAUDE_MODEL` (claude-opus-5-5) | Claude-Code-CLI im Abo, ohne `ANTHROPIC_API_KEY` |
 | `mock` | Tests, CI, Jury ohne Netz | Fixtures `shared/py/plattform/fixtures/<zweck>.json` | keiner |
 
