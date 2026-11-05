@@ -176,7 +176,14 @@ def regeln_freigeben_befehl(
     except NameUngueltig as fehler:
         typer.echo(f"abgelehnt: {fehler}", err=True)
         raise typer.Exit(1) from fehler
-    typer.echo(f"{n} Regeln im Regelsatz {regelsatz} freigegeben von {' '.join(name.split())}.")
+    wer = " ".join(name.split())
+    if n:
+        typer.echo(
+            f"{wer} hat {n} Regeln im Regelsatz {regelsatz} freigegeben. Jetzt können die Monate veröffentlicht"
+            " werden."
+        )
+    else:
+        typer.echo(f"Im Regelsatz {regelsatz} war keine Regel mehr offen, es gab nichts freizugeben.")
 
 
 # --- lauf ---------------------------------------------------------------------------------------------------
@@ -278,9 +285,12 @@ def berichte(
     ] = False,
     regelsatz: Annotated[str, typer.Option()] = "v1",
     zeigen: Annotated[bool, typer.Option("--zeigen", help="Bericht ausgeben statt schreiben")] = False,
+    als_json: Annotated[
+        bool, typer.Option("--json", help="Bericht als Struktur ausgeben (fünf Abschnitte), nichts schreiben")
+    ] = False,
 ) -> None:
     """Qualitätsbericht je Berichtsmonat aus der Vorlage erzeugen (abgabe/qualitaetsberichte/JJJJ-MM.md)."""
-    from statagent.berichte.qualitaetsbericht import bericht_erzeugen, bericht_schreiben
+    from statagent.berichte.qualitaetsbericht import bericht_daten, bericht_erzeugen, bericht_schreiben
 
     with verbinden() as conn:
         if alle:
@@ -290,6 +300,10 @@ def berichte(
         else:
             typer.echo("Bitte --lieferung JJJJ-MM oder --alle angeben.", err=True)
             raise typer.Exit(2)
+        if als_json:
+            daten = [bericht_daten(conn, monat, regelsatz) for monat in monate]
+            typer.echo(json.dumps(daten if alle else daten[0], ensure_ascii=False, default=str, indent=2))
+            return
         for monat in monate:
             if zeigen:
                 typer.echo(bericht_erzeugen(conn, monat, regelsatz))
@@ -307,6 +321,7 @@ def veroeffentlichen(
     regelsatz: Annotated[str, typer.Option()] = "v1",
 ) -> None:
     """Gibt einen gerechneten Monat mit Namen frei: vorläufig → endgültig (danach unveränderlich)."""
+    from statagent.berichte.qualitaetsbericht import monat_text
     from statagent.lauf import LaufFehler
     from statagent.lauf import veroeffentlichen as veroeffentlichen_ausfuehren
 
@@ -324,10 +339,13 @@ def veroeffentlichen(
             try:
                 n = veroeffentlichen_ausfuehren(conn, monat, regelsatz, name, repo_pfad=konfig.REPO_WURZEL)
                 erfolgreich += 1
-                typer.echo(f"{monat}: {n} Zellen endgültig, freigegeben von {' '.join(name.split())}")
+                typer.echo(
+                    f"{monat}: {' '.join(name.split())} hat {monat_text(monat)} veröffentlicht ({n} Zellen)."
+                    " Die Zahlen sind jetzt endgültig und ändern sich nicht mehr."
+                )
             except (LaufFehler, NameUngueltig) as f:
                 fehler += 1
-                typer.echo(f"{monat}: nicht veröffentlicht: {f}", err=True)
+                typer.echo(f"{monat}: nicht veröffentlicht. Grund: {f}", err=True)
     if fehler and (not alle or erfolgreich == 0):
         raise typer.Exit(1)
 
@@ -391,11 +409,12 @@ def pruefe_abgabe(
     """Prüft die Abgabedateien unter abgabe/ (Sheet alt und neu, 24 Qualitätsberichte, Ministerium, Protokoll, Modelle)."""
     from statagent.berichte.pruefe_abgabe import pruefe_abgabe as pruefen
 
+    extern = konfig.lieferungen_extern()
     if mit_db:
         with verbinden() as conn:
-            erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL, conn=conn)
+            erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL, conn=conn, lieferungen_dir=extern)
     else:
-        erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL)
+        erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL, lieferungen_dir=extern)
     _ausgabe(erg.als_dict(), als_json, erg.als_text())
     if not erg.ok:
         raise typer.Exit(1)
@@ -562,7 +581,7 @@ def freigabe(
             erg = freigabe_ausfuehren(conn, vorschlag_id, name, konfig.REPO_WURZEL)
             v = vorschlag_lesen(conn, vorschlag_id)
     except _entscheidung_fehler() as fehler:
-        typer.echo(f"nicht freigegeben: {fehler}", err=True)
+        typer.echo(f"Der Vorschlag ist nicht freigegeben. Grund: {fehler}", err=True)
         raise typer.Exit(1) from fehler
     daten = dataclasses.asdict(erg) | {
         "freigegeben_am": v.freigegeben_am,
@@ -571,15 +590,15 @@ def freigabe(
     }
     zeit = f"{v.freigegeben_am:%d.%m.%Y %H:%M}" if v.freigegeben_am else "?"
     zeilen = [
-        f"Vorschlag uc3/{erg.vorschlag_id} freigegeben von {erg.name} am {zeit}",
-        f"Commit {erg.commit_hash or '-'} · Protokoll {v.protokoll_id}",
+        f"{erg.name} hat Vorschlag uc3/{erg.vorschlag_id} am {zeit} freigegeben.",
+        f"Festgehalten in Commit {erg.commit_hash or 'ohne Commit'} und Protokolleintrag {v.protokoll_id}.",
     ]
     if erg.angewendet:
-        zeilen.append(f"aktiv: {v.ref.replace(',', ', ')}")
+        zeilen.append(f"Die Regel ist jetzt aktiv: {v.ref.replace(',', ', ')}.")
     else:
         zeilen.append(
-            f"NICHT angewendet ({erg.fehler}): {erg.meldung}. Die Freigabe bleibt bestehen; "
-            "das Anwenden lässt sich wiederholen."
+            f"Die Freigabe gilt, aber die Regel ist noch nicht angewendet ({erg.fehler}): {erg.meldung}."
+            " Das Anwenden lässt sich wiederholen."
         )
     _ausgabe(daten, als_json, "\n".join(zeilen))
     if not erg.angewendet:
@@ -600,13 +619,32 @@ def ablehnen(
         with verbinden() as conn:
             v = ablehnen_ausfuehren(conn, vorschlag_id, name, konfig.REPO_WURZEL, begruendung=begruendung)
     except _entscheidung_fehler() as fehler:
-        typer.echo(f"nicht abgelehnt: {fehler}", err=True)
+        typer.echo(f"Der Vorschlag ist nicht abgelehnt. Grund: {fehler}", err=True)
         raise typer.Exit(1) from fehler
     _ausgabe(
         _vorschlag_dict(v),
         als_json,
-        f"Vorschlag uc3/{v.id} abgelehnt von {v.abgelehnt_von}: {v.ablehnungsgrund}",
+        f"{v.abgelehnt_von} hat Vorschlag uc3/{v.id} abgelehnt. Begründung: {v.ablehnungsgrund}"
+        " Regeln und Repo bleiben unverändert.",
     )
+
+
+@app.command("annahmen")
+def annahmen_befehl(
+    lieferung: Annotated[str, typer.Option(help="Berichtsmonat JJJJ-MM")],
+    regelsatz: Annotated[str, typer.Option()] = "v1",
+    als_json: JsonOption = False,
+) -> None:
+    """Annahmen F1 bis F10, die für den Monat gelten, bis die Fachabteilung antwortet."""
+    from statagent.berichte.annahmen import annahmen
+
+    with verbinden() as conn:
+        liste = annahmen(conn, lieferung, regelsatz)
+    zeilen = [
+        f"Annahme {a['nr']}: {a['satz']}" + (f" (Rückfrage {a['rueckfrage']})" if a["rueckfrage"] else "")
+        for a in liste
+    ]
+    _ausgabe(liste, als_json, "\n".join(zeilen) or f"Für {lieferung} gilt keine Annahme.")
 
 
 @app.command("frage")

@@ -12,6 +12,7 @@ from statagent.berichte.qualitaetsbericht import (
     GUELTIGE_EINSTUFUNGEN,
     BerichtFehler,
     _ueberblick,
+    bericht_daten,
     bericht_erzeugen,
     bericht_schreiben,
     zahl,
@@ -49,7 +50,8 @@ def test_bericht_folgt_vorlage_und_meta_lauf(conn: Verbindung) -> None:
     assert ueberschriften == list(ABSCHNITTE)
     assert text.startswith("# Qualitätsbericht – Berichtsmonat 2024-09\n")
     assert "freigegeben von: noch nicht freigegeben" in text
-    assert "**Status: VORLÄUFIG.**" in text
+    assert "> **Status: vorläufig.** Die Zahlen für September 2024 sind vorläufig." in text
+    assert "Die Regeln sind noch nicht mit Namen freigegeben." in text
 
     g, z, n, a = (int(str(lauf[k])) for k in ("gelesen", "gezaehlt", "nicht_gezaehlt", "ausgeschlossen"))
     assert f"| gelesene Sätze | {zahl(g)} |" in text
@@ -94,7 +96,7 @@ def test_auffaelligkeit_mit_einstufung_beleg_und_anhalten(conn: Verbindung) -> N
     assert "erklärt – Datenproblem" in zeilen_p90[0] and "nicht erklärbar" in zeilen_p90[1]
     assert set(einstufungen_aus_bericht(text)) <= GUELTIGE_EINSTUFUNGEN
     assert "</summary>" in text and "P90_testpruefung</summary>" in text
-    assert "Prüfung P90_testpruefung hat angehalten" in text
+    assert "Deshalb ist der Monat angehalten (P90_testpruefung)." in text
     assert bericht_maengel(text) == []
 
 
@@ -138,7 +140,9 @@ def test_veroeffentlichter_monat_zeigt_den_veroeffentlichenden_lauf(conn: Verbin
 
     text = bericht_erzeugen(conn, "2024-08")
     assert "VORLÄUFIG" not in text
-    assert "> **Status: endgültig**, freigegeben von Lena Gruber am " in text
+    assert (
+        "> **Status: endgültig.** Die Zahlen für August 2024 sind endgültig. Lena Gruber hat sie am " in text
+    )
     assert f"| davon gezählt am Stichtag | {zahl(erster.gezaehlt)} |" in _abschnitt(text, 1)
     alte_treffer = conn.execute(
         "SELECT r.name FROM meta.pruefung_treffer t JOIN meta.regel r ON r.id = t.regel_id "
@@ -192,3 +196,43 @@ def test_abrechnung_nennt_fortgeschriebene_verhaeltnisse(conn: Verbindung) -> No
         " + ausgeschlossene Sätze."
     ) in text
     assert " + 5 fortgeschrieben = " in text and "(geht auf)" in text
+
+
+def test_freigabe_kommt_vom_freigegebenen_lauf(conn: Verbindung) -> None:
+    # Fängt: zweimal gerechnet mit gleichem Ergebnis, dann veröffentlicht. Die Zellen hängen am ersten Lauf, die
+    # Freigabe am zweiten; der Bericht las Name und Zeitpunkt vom ersten und sagte „noch nicht freigegeben“.
+    erster = lauf_ausfuehren(conn, "2024-08", "v1")
+    zweiter = lauf_ausfuehren(conn, "2024-08", "v1")
+    regeln_freigeben(conn, "v1", NAME)
+    veroeffentlichen(conn, "2024-08", "v1", NAME)
+    zellen = conn.execute(
+        "SELECT min(lauf_id) AS id FROM stat.stat_beschaeftigte WHERE status = 'endgueltig'"
+    ).fetchone()
+    freigegeben = conn.execute(
+        "SELECT id FROM meta.lauf WHERE lieferung = '2024-08' AND freigegeben_von IS NOT NULL"
+    ).fetchall()
+    assert zellen is not None and zellen["id"] == erster.lauf_id
+    assert [z["id"] for z in freigegeben] == [zweiter.lauf_id]
+    text = bericht_erzeugen(conn, "2024-08")
+    assert "noch nicht freigegeben" not in text
+    assert f"freigegeben von: {NAME} am " in text and f"{NAME} hat sie am " in text
+
+
+def test_saetze_sind_einfach_und_struktur_passt_zum_markdown(conn: Verbindung) -> None:
+    # Fängt: Regelcode statt Satz als Hauptaussage in § 2, Platzhalter ungefüllt, Gedankenstriche oder „·“ in
+    # Sätzen, Annahmen fehlen im Bericht, JSON-Struktur und Markdown rechnen auseinander.
+    _laeufe(conn)
+    daten = bericht_daten(conn, "2024-09")
+    text = bericht_erzeugen(conn, "2024-09")
+    assert daten["auffaelligkeiten"], "Fixture ohne Prüftreffer"
+    for a in daten["auffaelligkeiten"]:
+        assert "{" not in a["satz"] and not a["satz"].startswith(a["regel"])
+        assert f"| {a['satz']} ({a['regel']}) |" in text.replace("\\|", "|")
+    for satz in [*daten["status_saetze"], *(a["satz"] for a in daten["auffaelligkeiten"])]:
+        assert "—" not in satz and " – " not in satz and "·" not in satz
+    assert "—" not in text and "·" not in text
+    assert daten["kennzahlen"]["abrechnung_in_zahlen"] in text
+    nrn = [a["nr"] for a in daten["annahmen"]]
+    assert "F4" in nrn and "F9" not in nrn
+    assert "- Annahme F4: " in _abschnitt(text, 4)
+    assert "Begriffe: Ein Verhältnis ist ein Beschäftigungsverhältnis, nicht eine Person." in text
