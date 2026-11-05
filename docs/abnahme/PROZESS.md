@@ -95,7 +95,7 @@ geschlossenes Issue, ein grüner MR oder ein Haken allein sind kein Beleg.
 | Was | Wann | Wo |
 |---|---|---|
 | leichter Lauf | bei jedem neuen origin/main (Wächter, Blick alle 5 min) | M4, Abzug |
-| schwerer Lauf UC3 (Golden Set, 24 Läufe, Abgabezahlen gegen Orakel, Ministerium) | nach dem Merge von !50, dann nach gebündelten UC3-Merges, höchstens einer gleichzeitig | Prüfrechner, Prüf-DB 5444 |
+| schwerer Lauf UC3 (Golden Set, 24 Läufe, Abgabezahlen gegen Orakel) | automatisch nach jedem leichten Lauf, wenn sich main in UC3-Pfaden (`uc3/`, `abgabe/`, `docs/plan/uc3/`, `shared/`, Lockfiles) geändert hat; höchstens einer gleichzeitig (`schwer_ausloesen.sh`, Ziel aus einer env-Datei außerhalb des Repos) | Prüfrechner, Prüf-DB 5444, rund 10 min |
 | Befunde und Haken | nach jedem Lauf mit Wechsel, durch den Prüfer | GitLab |
 | Zähler an den Lead | 19:00, 20:00, 23:00, 02:00, 05:00 | SendMessage |
 | Vorprüfung Tor | 05:00 | |
@@ -131,6 +131,12 @@ Nicht übernommen, mit Grund:
 - Fixes auf main selbst erkannt: 135-10, 135-11 (Commit 043885a).
 - Zu großzügige Agent-Urteile: 13-AC4 (zwei Teile ungemessen), 16-AC4 (Prüfsatz verlangte Exit 0 des ganzen
   Validators), 92-1 (Ministeriums-CSV im Repo verlangt, laut Owner-Entscheid nur im Manifest).
+- Schwerer Lauf 18:26 auf frischer Prüf-DB (main 27e54816): Golden Set grün; Abrechnung 2024-08 392284 = 392236 + 48
+  + 0; 24 Läufe hash-gleich mit dem Manifest der UC3-Lane; DB-Zeitreihe = Orakel in 24/24 Monaten; Sheet v1 = Orakel
+  in 1051 Zellen.
+- Agent-Vorschläge mit Platzhaltern (`<Pfad zu …>`) ergaben über Syntaxfehler falsch „nicht bestanden“; ein Vorschlag
+  startete `docker compose` auf dem Bau-Port 5433. Seitdem: Platzhalter, Syntaxfehler, Bau-Ports und Docker machen
+  einen Prüfsatz ungültig.
 - Eigene Werkzeugfehler, behoben: Prüfskripte fehlten im Abzug, Farbcodes, fehlende Node-Module, Abzug ohne Git,
   Befund-Kommentare wurden bei geänderter Laufzeit erneut gepostet (in UC3 und UC1 je ein doppelter Kommentar
   aus dem Lauf 18:05).
