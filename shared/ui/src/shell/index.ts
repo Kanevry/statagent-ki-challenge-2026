@@ -3,10 +3,11 @@
 export { AppShell, type AppShellProps } from "./app-shell";
 export { akteure, eintraegeSchema, eintragSchema, eintragStatus, type Akteur, type Eintrag, type EintragStatus } from "./eintrag";
 export { AppHeader, type AppHeaderProps } from "./header";
-export { ShellAnbieter, useShell, type ShellWert, type Verweis, type VerweisProps } from "./kontext";
-export { ModellBadge } from "./modell-badge";
+export { ShellAnbieter, useShell, type SeitenModellWert, type ShellWert, type Verweis, type VerweisProps } from "./kontext";
+export { ModellBadge, TESTBETRIEB_TEXT } from "./modell-badge";
 export { abweichendZuletzt, modellStatusSchema, modellUnbekannt, zuletztSchema, type ModellStatus, type Zuletzt } from "./modell-status";
 export { appTabs, istAktiv, marke, protokollUc, zeigtHeader, type AppTab, type Marke } from "./navigation";
 export { ProtokollSchublade, type ProtokollSchubladeProps } from "./protokoll-schublade";
+export { SeitenModell } from "./seiten-modell";
 export { UcBereich, type UcBereichProps } from "./uc-bereich";
 export { aktiverPunkt, UcNavigation, type UcNavPunkt } from "./uc-navigation";

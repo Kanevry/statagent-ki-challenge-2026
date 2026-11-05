@@ -52,8 +52,16 @@ def assistant_konfiguration(public_url: str | None) -> dict[str, Any]:
             "messages": [{"role": "system", "content": SYSTEM_PROMPT}],
         },
         "transcriber": {"provider": "deepgram", "model": "nova-2", "language": "de"},
-        "voice": {"provider": "azure", "voiceId": "de-AT-IngridNeural"},
+        # formatPlan aus: Vapi schreibt Zahlen sonst nach englischen Regeln aus („2025“ → „twentyfive“,
+        # gemessen im Web-Anruf 05.11.); die deutsche Azure-Stimme spricht Zahlen selbst richtig.
+        "voice": {
+            "provider": "azure",
+            "voiceId": "de-AT-IngridNeural",
+            "chunkPlan": {"enabled": True, "formatPlan": {"enabled": False}},
+        },
         "recordingEnabled": False,
+        # Geld (Review !66): kein Anruf länger als zwei Minuten, auch wenn niemand auflegt.
+        "maxDurationSeconds": 120,
         "artifactPlan": {"recordingEnabled": False},
         "server": {"url": f"{basis}/vapi/webhook"},
         "serverMessages": ["end-of-call-report"],
