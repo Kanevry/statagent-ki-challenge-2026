@@ -50,8 +50,9 @@ In einem Worktree unter `_wt/` findet `plattform.umgebung` die `.env.local` des 
   `web/app/layout.tsx` und `web/app/praesentation/`; die Landing-Session besitzt `web/app/(landing)/`,
   `web/landing/` und `web/public/landing/`; jede UC-Session besitzt `uc<N>/**`, `web/app/uc<N>/**`,
   `web/app/api/uc<N>/**` und `web/components/uc<N>/**` sowie ihren eigenen Eintrag in `shared/ui/src/ucs.ts`.
-- Neue Abhängigkeiten committet die Session mit dem Lockfile; Lockfile-Konflikte nach dem Rebase mit `uv lock`
-  bzw. `pnpm install` auflösen, nie von Hand.
+- Abhängigkeiten: Python-Pakete trägt jede UC-Lane nur in ihre eigene `ucN/pyproject.toml` ein; `uv lock` an der
+  Wurzel läuft nach dem Rebase durch die Lane, die zuletzt mergt, und das `uv.lock` ist Teil ihres MR (nie von
+  Hand auflösen). `web/package.json` und `pnpm-lock.yaml` ändert nur E0; UC-Lanes stellen dafür einen Antrag in #53.
 
 ## Herkunft
 

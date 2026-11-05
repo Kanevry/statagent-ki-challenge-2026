@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "dotenv -o -e ../.env.local -- next dev",
+    "dev": "dotenv -o --no-expand -e ../.env.local -- next dev",
     "build": "next build",
-    "start": "dotenv -o -e ../.env.local -- next start",
+    "start": "dotenv -o --no-expand -e ../.env.local -- next start",
     "test": "vitest --run",
     "test:slop": "playwright test"
   },

@@ -34,7 +34,8 @@ Schnittstellen-SSOT: `docs/prd/2026-11-05-e0-plattform-e1-uc3.md` (Verträge O, 
 
 | Pfad | Inhalt | Lane |
 |---|---|---|
-| `package.json`, `pnpm-workspace.yaml`, `pyproject.toml`, Lockfiles, `.gitlab-ci.yml` | Workspace-Wurzel, CI | E0 |
+| `package.json`, `pnpm-workspace.yaml`, `pyproject.toml`, `pnpm-lock.yaml`, `.gitlab-ci.yml` | Workspace-Wurzel, CI | E0 |
+| `uv.lock` | Python-Lockfile der Wurzel | die Lane, die zuletzt mergt (Regel unten) |
 | `web/` | Next.js-16-App (eine App): Configs, `app/layout.tsx`, `app/praesentation/` | E0 |
 | `web/app/(landing)/`, `web/landing/`, `web/public/landing/` | Landingpage `/` (rendert ohne App-Header) | Landing-Session |
 | `web/app/<uc>/**`, `web/app/api/<uc>/**`, `web/components/<uc>/**` | Seiten und Route-Handler je UC | UC-Session |
@@ -44,9 +45,12 @@ Schnittstellen-SSOT: `docs/prd/2026-11-05-e0-plattform-e1-uc3.md` (Verträge O, 
 | `abgabe/` | erzeugte UC3-Ergebnisse: Aggregations-Sheet, Qualitätsberichte, Ministeriums-Lieferung, Protokoll | UC3 |
 | `docs/` | PRD, Annahmen, `models.md` | alle |
 
-Je Session ein Worktree, nur in der eigenen Lane schreiben. Neue Abhängigkeiten: `uv add --package <uc> …` bzw.
-`pnpm --filter web add …`, danach Lockfile mitcommitten; bei Konflikt im Lockfile `uv lock` bzw. `pnpm install`
-nach dem Rebase neu laufen lassen.
+Je Session ein Worktree, nur in der eigenen Lane schreiben. Abhängigkeiten (Entscheid Lead 09, 05.11.):
+- **Python:** Jede UC-Lane trägt Pakete nur in ihrer eigenen `ucN/pyproject.toml` ein. `uv lock` an der Wurzel
+  läuft nach dem Rebase durch die Lane, die zuletzt mergt; das aktualisierte `uv.lock` ist Teil ihres MR und wird
+  im Review geprüft. Lockfile-Konflikte nie von Hand lösen, sondern `uv lock` neu laufen lassen.
+- **Web:** `web/package.json` und `pnpm-lock.yaml` ändert nur E0. Eine UC-Lane, die ein Web-Paket braucht, stellt
+  dafür einen Antrag als Kommentar in #53.
 
 Plan und Herleitung: Vault `05-business/career/hackathons-2026-27/ki-challenge/uc3-bauplan.md`. Daten:
 `../svbox/uc3/` (nicht im Repo). Zugänge nur in `.env.local` (nie lesen oder ausgeben, SEC-008).

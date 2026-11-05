@@ -62,5 +62,6 @@ def lade_env_local(start: Path | None = None) -> Path | None:
     pfad = Path(explizit) if explizit else finde_env_local(start)
     if pfad is None or not pfad.is_file():
         return None
-    load_dotenv(pfad, override=True)
+    # interpolate=False: ein Wert mit `$` bleibt wörtlich (sonst ersetzt python-dotenv still Teile davon).
+    load_dotenv(pfad, override=True, interpolate=False)
     return pfad
