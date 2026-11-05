@@ -685,8 +685,117 @@ def antwort(frage: str, kontext: list[Any]) -> Any:
     except ImportError as fehler:
         raise RuntimeError(
             "plattform.antwortform fehlt (Vertrag UcAntwort, #96, MR !30); "
-            "ohne ihn liefert nur statagent.uc4.antwort_daten ein dict."
+            "ohne ihn liefert nur statagent.uc4.uc4_antwort ein dict."
         ) from fehler
     with verbinden() as conn:
-        daten = antwort_daten(conn, frage)
+        daten = uc4_antwort(conn, frage)
     return UcAntwort.model_validate(daten)
+
+
+def uc4_antwort(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str, Any]:
+    """Felder der ``UcAntwort`` für /uc4: derselbe Weg wie /uc3/fragen, damit beide dasselbe sagen (#176).
+
+    Was dieser Weg nicht versteht, bekommt eine Absage oder Rückfrage, keine Zahl zu einer anderen Frage. Nur mehrere
+    Werte eines Merkmals („Wien und Tirol“) zeigt UC4 je Wert (#125); das rechnet ``antwort_daten``, und nur, wenn der
+    Adapter alle übrigen Einschränkungen der Frage genauso liest.
+    """
+    from statagent import frage as weg  # hier, weil statagent.frage aus diesem Modul importiert
+
+    daten = weg.antwort_frage(conn, frage, regelsatz)
+    if (
+        daten["typ"] in ("bestand", "geschlecht")
+        and daten["text"].startswith(weg.MEHRERE_WERTE)
+        and "anteil" not in frage.lower()
+        and _adapter_liest_gleich(conn, frage, regelsatz)
+    ):
+        return antwort_daten(conn, frage, regelsatz)
+    # Die Kurzfassung nur bei der Fluktuation selbst: Bei „Zugänge“ ist die Zahl der Zugänge gefragt.
+    if daten["typ"] == "fluktuation" and daten["zahlen"] and "fluktu" in frage.lower():
+        return _fluktuation_kurz(daten)
+    return {
+        **weg.als_ucantwort(daten),
+        "text": _text_fuer_kette(weg.als_webantwort(daten)["text"], daten["zahlen"]),
+    }
+
+
+#: Teile des „Verstanden“-Satzes, die nichts eingrenzen.
+_ALLE = re.compile(r",\s+(?:Bundesland|Geschlecht|Branche|Beschäftigungskategorie): alle")
+_MONATSSATZ = re.compile(r"Am \d{1,2}\. (\S+) (\d{4}) gab es ([\d.]+ [^.]*\.)\s*")
+
+
+def _text_fuer_kette(text: str, zahlen: list[dict[str, Any]]) -> str:
+    """Der Text für die Stationen der Kette: Bei genau einer Zahl ist der erste Satz die Antwort, danach kommt
+    „Verstanden …“. Der erste Satz wird auch als Kern der Station verwendet, darum ohne Punkt nach dem Tag.
+    """
+    text = _ALLE.sub("", text)
+    satz = _MONATSSATZ.search(text)
+    if len(zahlen) != 1 or not text.startswith("Verstanden:") or satz is None:
+        return text
+    monat = f"{satz.group(2)}-{MONATSNAMEN[satz.group(1).lower()]:02d}"
+    tag = monatsletzter(monat).strftime("%d.%m.%Y")
+    antwort = f"Am {tag}, dem letzten Tag im {_monat_anzeige(monat)}, gab es {satz.group(3)}"
+    return f"{antwort} {text[: satz.start()].strip()} {text[satz.end() :].strip()}".strip()
+
+
+def _fluktuation_kurz(daten: dict[str, Any]) -> dict[str, Any]:
+    """Fluktuation in der Kette: eine Zahl (alle Wirtschaftsbereiche oder die gefragte Branche), die Tabelle je Branche
+    bleibt auf /uc3/fragen. Gibt es diese eine Zahl nicht, kommt nur der Verweis.
+    """
+    text = str(daten["text"])
+    monat = re.search(r"Fluktuation im (\S+ \d{4})", text)
+    wann = monat.group(1) if monat else ""
+    branche = re.search(r"gefragt war die Branche (\S)", text)
+    anfang = f"Fluktuation, ÖNACE {branche.group(1)} " if branche else "Fluktuation, alle Wirtschaftsbereiche"
+    treffer = [z for z in daten["zahlen"] if str(z["bezeichnung"]).startswith(anfang)]
+    verweis = "Die Zahlen je Branche stehen unter Fragen an die Daten."
+    if not treffer and branche:
+        genannt = re.search(r"gefragt war die Branche \S ([^,]+), sie steht", text)
+        wo = genannt.group(1) if genannt else branche.group(1)
+        return _leer(
+            f"In der Branche {wo} gab es am Stichtag keine Beschäftigten, darum gibt es keine Fluktuation. {verweis}"
+        )
+    if not treffer:
+        return _leer(f"Für {wann} gibt es keine Gesamtzahl zur Fluktuation. {verweis}")
+    zahl = treffer[0]
+    wert = f"{zahl['wert']:.2f}".replace(".", ",")
+    if branche:
+        name = str(zahl["bezeichnung"]).removeprefix(anfang)
+        satz = f"In der Branche {name} lag die Fluktuation im {wann} bei {wert} Prozent."
+    else:
+        satz = f"Über alle Wirtschaftsbereiche zusammen lag die Fluktuation im {wann} bei {wert} Prozent."
+    saetze = [satz, verweis]
+    saetze += [h for h in daten["hinweise"] if "zu niedrig" in h]
+    stand = re.search(r"Die Zahlen sind ([^.]*)\.", text)
+    if stand:
+        saetze.append(f"Die Zahl ist {stand.group(1)}.")
+    return {
+        **_leer(" ".join(saetze)),
+        "belege": [daten["belege"][zahl["beleg"]]],
+        "zahlen": [{**zahl, "beleg": 0}],
+    }
+
+
+def _adapter_liest_gleich(conn: Verbindung, frage: str, regelsatz: str) -> bool:
+    """Liest der Adapter jede Ausprägung, die /uc3/fragen in der Frage findet, und bleibt kein Wort unbekannt?"""
+    from statagent import frage as weg
+
+    if weg._ZEITREIHE.search(frage.lower()):
+        return False  # „Wien gegenüber Tirol entwickelt“: der Adapter zeigt einen Stand, keine Entwicklung
+    gelesen = weg.normalisieren(frage)[0]
+    genannt = weg.monate_lesen(gelesen)
+    monat = genannt[-1] if genannt else weg._letzter_monat(conn, regelsatz)
+    if monat is None or weg._FREIER_DV.search(gelesen.lower()):
+        return False
+    mehrfach: list[Merkmal] = []
+    try:
+        for merkmal in MERKMALE:
+            codes = _codes(conn, merkmal, monat)
+            werte = weg._werte(gelesen, merkmal, codes)[0]
+            if not set(werte) <= set(_auspraegungen(gelesen, merkmal, codes)):
+                return False
+            if len(werte) > 1:
+                mehrfach.append(merkmal)
+        weg._filter(conn, gelesen, monat, tuple(mehrfach))
+    except weg._KeineZahl:
+        return False
+    return True

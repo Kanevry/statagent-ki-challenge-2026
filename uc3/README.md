@@ -48,6 +48,7 @@ uv run uc3 berichte --alle && uv run uc3 sheet   # 24 Qualitätsberichte und Agg
 | `protokoll` | Protokoll aller Änderungen: Git-Commits mit `Freigegeben-von`, Regelfreigaben, veröffentlichte Monate |
 | `klass [begriff] [code] [--version V] [--unterklassen N]` | erklärt eine Klassifikation (oenace, region, qualifikation, beschaeftigungskategorie, geschlecht, alter): Versionen mit Codes; mit Code Bezeichnung je Version, Übergänge aus `stat.uebergang` (ÖNACE 2008 zu 2025 lädt `db init` aus dem Umsteiger des Startpakets), Quellzuordnungen und Verhältnisse im letzten veröffentlichten Monat mit SQL |
 | `export-online --ziel datei.sql [--pg-dump "…"] [--rolle kic_app]` | Plain-SQL-Dump nur von `stat` und `meta` (nie `roh`, `bereinigt`; sonst wird die Datei gelöscht) mit Leserechten für die Rolle, einspielbar in PostgreSQL 16; Ausgabe Pfad, Größe, Tabellen je Schema, sha256 |
+| `pensionen laden` / `pruefen` / `tabelle --jahr J` / `freigeben --name "…"` | Pensionsstatistik 2018 bis 2025, siehe [Pensionen](#pensionen) |
 
 Der Ergebnis-Hash eines Laufs ist SHA-256 über alle Zellen des Monats: je Zelle eine Zeile
 `zeitraum_art|zeitraum_von|zeitraum_bis|region|oenace|oenace_version|geschlecht|qualifikation|alter|variable|wert`,
@@ -69,6 +70,29 @@ denselben Hash.
 
 Ein Lauf schreibt **vorläufig**. Endgültig wird ein Monat erst, wenn alle Regeln mit Namen freigegeben sind und
 eine Person ihn mit `veroeffentlichen` freigibt. Veröffentlichte Zeilen schützt ein Trigger gegen jede Änderung.
+
+## Pensionen
+
+Eine eigene Statistik aus den Jahresmeldungen der Träger (Ordner `pensionen/` des Startpakets), Tabellen 12 und 13,
+2018 bis 2025. Sie läuft unabhängig von den Monatsläufen und ändert keine Zahl der Beschäftigtenstatistik: Regeln und
+Zuordnungen liegen im eigenen Regelsatz `pensionen-v1`.
+
+```bash
+uv run uc3 db init                # legt Tabellen und Regeln an, lädt keine Zahlen
+uv run uc3 pensionen laden        # 28 Dateien, alles oder nichts; gleiche Dateien, gleicher Hash
+uv run uc3 pensionen pruefen      # Prüfbericht, Exit 1 bei einer Abweichung
+uv run uc3 frage "Wie viele Alterspensionen gab es 2025?"
+```
+
+- **Format:** Blätter und Kopfzeilen jeder Datei sind ihr Fingerabdruck und werden mit den Regeln verglichen. Ein
+  fremdes Format, ein unbekannter Wert, ein falsches Jahr oder eine fehlende Zeile brechen ab, und nichts wird geladen.
+- **Summen:** Summenzeilen der Dateien gehören nicht in die Statistik. Sie werden nachgerechnet. Die Summen über alle
+  Träger bildet die Statistik selbst.
+- **Träger:** `klass_versicherungstraeger` trägt die Fusionen zum 1.1.2020. Arbeiter und Angestellte der PVA sind frühere
+  Träger, keine Qualifikation.
+- **Prüfbericht:** nennt Lücken und den Bruch 2019/2020 mit Annahme und glättet nichts. Stand:
+  [docs/uc3/pensionen-pruefbericht.md](../docs/uc3/pensionen-pruefbericht.md).
+- **Freigabe:** Die Zahlen bleiben vorläufig, bis eine Person sie mit `pensionen freigeben --name` freigibt.
 
 ## Regeln als Daten
 
