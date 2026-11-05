@@ -95,6 +95,11 @@ export function ersterSatz(text: string, max = 180): string {
   return `${schnitt.slice(0, Math.max(schnitt.lastIndexOf(" "), max - 20))} …`;
 }
 
+/** Erster Buchstabe groß: nach dem Abschneiden von „Das Thema berührt unsere Grenze:“ beginnt der Rest klein. */
+export function grossAnfang(satz: string): string {
+  return satz.charAt(0).toLocaleUpperCase("de") + satz.slice(1);
+}
+
 /** Ein Thema, über das ein Sprecher gerade spricht, und ob er sich dabei bewegt hat. */
 export interface Aussage {
   thema: string;
@@ -120,7 +125,7 @@ export function hauptaussage(zug: Zug, davor: Zug | undefined): Aussage | null {
     titel: themaKurz(wahl.t.thema),
     haltung: wahl.t.haltung,
     vorher: wahl.vorher,
-    satz: ersterSatz(wahl.t.begruendung.replace(/^Das Thema (stützt|berührt) unser(e)? (Ziel|Grenze): /, "")),
+    satz: grossAnfang(ersterSatz(wahl.t.begruendung.replace(/^Das Thema (stützt|berührt) unser(e)? (Ziel|Grenze): /, ""))),
     belegIds: wahl.t.beleg_ids,
   };
 }

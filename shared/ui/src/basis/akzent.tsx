@@ -3,7 +3,7 @@ import { klassen } from "./klassen";
 
 export type AkzentArt = "beleg" | "ki" | "warnung" | "fehler";
 
-const artKlassen: Record<AkzentArt, string> = {
+export const artKlassen: Record<AkzentArt, string> = {
   beleg: "border-gruen",
   ki: "border-violett",
   warnung: "border-gelb",
@@ -16,12 +16,13 @@ export type AkzentProps = HTMLAttributes<HTMLDivElement> & {
 };
 
 /**
- * Akzent als linke Farblinie (2 px): grün = Beleg, violett = KI, gelb = Warnung, rot = Fehler.
- * Die Linie trägt keine Bedeutung allein; der Inhalt sagt, was gilt (bei Bedarf mit `Status`).
+ * Akzent: ein ruhiger Block ohne farbige Seitenlinie (UI-Regie 05.11.: farbige Seitenbalken sind eine Schablone).
+ * Die Art bleibt als Datenattribut; der Inhalt sagt, was gilt (bei Bedarf mit `Status`). `artKlassen` bleibt für
+ * Stellen, die die Farbe bewusst als Text- oder Randfarbe brauchen.
  */
 export function Akzent({ art, className, children, ...rest }: AkzentProps) {
   return (
-    <div className={klassen("border-l-2 pl-4", artKlassen[art], className)} data-akzent={art} {...rest}>
+    <div className={klassen("flex flex-col gap-1", className)} data-akzent={art} {...rest}>
       {children}
     </div>
   );

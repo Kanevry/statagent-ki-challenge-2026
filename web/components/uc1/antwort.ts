@@ -21,6 +21,8 @@ export const frageSchema = z.object({
     .min(1, "Bitte schreiben Sie kurz, was los ist.")
     .max(MAX_TEXT, `Bitte höchstens ${tausender(MAX_TEXT)} Zeichen.`)
     // Steuerzeichen (außer Zeilenumbruch und Tab) bricht der Kern sonst mit Exit ≠ 0 ab: das wäre 503 statt 400.
+    // Die Steuerzeichen im Muster sind gewollt; \p{Cc} nähme Tab und Zeilenumbruch mit (Lint-Gate, Lead a7).
+    // eslint-disable-next-line no-control-regex
     .refine((text) => !/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(text), "Der Text enthält unlesbare Zeichen."),
   sitzung: z.uuid("Die Sitzung ist ungültig.").optional(),
   stil: z.enum(["standard", "einfach"], "Der Stil ist ungültig.").default("standard"),
