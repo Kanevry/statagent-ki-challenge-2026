@@ -582,8 +582,32 @@ def test_modellkern_steht_oben(monkeypatch: pytest.MonkeyPatch) -> None:
             "mehr": "Mehr Beschäftigte heißt kürzer warten.",
             "weniger": "Weniger Personal heißt länger warten.",
         },
+        {
+            "mehr": "Mehr Personal heißt zwanzig Tage weniger Wartezeit.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
+        {
+            "mehr": "Mehr Personal heißt dreihundert Termine mehr.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
+        {
+            "mehr": "Mehr Personal heißt die Hälfte der Wartezeit.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
     ],
-    ids=["ziffer", "leer", "zu-lang", "modellfehler", "beitraege", "wer-zahlt", "kosten", "falscher-anfang"],
+    ids=[
+        "ziffer",
+        "leer",
+        "zu-lang",
+        "modellfehler",
+        "beitraege",
+        "wer-zahlt",
+        "kosten",
+        "falscher-anfang",
+        "zahlwort",
+        "zahlwort-hundert",
+        "haelfte",
+    ],
 )
 def test_unbrauchbarer_kern_ergibt_feste_saetze(monkeypatch: pytest.MonkeyPatch, kern: Any) -> None:
     """Fängt: Bei einer Ziffer, einem leeren oder überlangen Satz oder einem Modellfehler bleibt die Zeile
@@ -661,3 +685,14 @@ def test_feste_kernsaetze_und_prompt_sagen_nichts_ueber_geld() -> None:
     from uc2.antwort.allgemein import kern_text
 
     assert kern_text(dict(zip(("mehr", "weniger"), FESTER_KERN, strict=True))) == " ".join(FESTER_KERN)
+
+
+def test_kern_mit_ein_und_eine_bleibt() -> None:
+    """Fängt einen zu breiten Zahlwort-Filter: „eine“ steht in fast jedem Satz, dann käme nur noch Fixtext."""
+    from uc2.antwort.allgemein import kern_text
+
+    kern = {
+        "mehr": "Mehr Personal heißt meist eine kürzere Wartezeit.",
+        "weniger": "Weniger Personal heißt länger warten.",
+    }
+    assert kern_text(kern) is not None

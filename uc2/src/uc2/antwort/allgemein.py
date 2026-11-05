@@ -73,11 +73,23 @@ KERN_ZEICHEN = 170
 """Längster Kernsatz: Die Station zeigt die erste Zeile nur bis 320 Zeichen ganz
 (web/components/uc4/kette.tsx)."""
 _GELD = re.compile(
-    r"\b(?:Beitr\w+|Einnahm\w+|Geld\w*|\w*kosten\w*|kostet|zahl(?:t|en)|bezahl\w*|Budget\w*|\w*finanz\w*|Mittel)\b",
+    r"\b(?:Beitr\w+|Einnahm\w+|Geld\w*|\w*kosten\w*|kostet|zahl(?:t|en)|bezahl\w*|Budget\w*|\w*finanz\w*"
+    r"|Mittel)\b",
     re.IGNORECASE,
 )
 """Über Geld sagt die Station nur etwas, wenn ein Paket durchgerechnet ist: ohne Rechenmodell gibt es
 keinen Beleg."""
+_MENGE_IN_WORTEN = re.compile(
+    r"\b(?:null|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf"
+    r"|(?:drei|vier|fünf|sech|sieb|acht|neun)zehn)\b"
+    r"|zwanzig|dreißig|dreissig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig"
+    r"|hundert|tausend|million|milliard|\b(?:hälfte|doppelt\w*|drittel|viertel)\b",
+    re.IGNORECASE,
+)
+"""Mengen in Worten: Der Prompt verbietet sie, die Ziffernprüfung sieht sie nicht („zwanzig Tage weniger
+Wartezeit“).
+Gleiche Grundzahlen wie im Lotsen (`uc1.uc4`); UC2 importiert UC1 nicht. „ein“ und „eine“ zählen nicht, sie
+stehen in fast jedem Satz."""
 FESTER_KERN = (
     "Mehr Personal heißt meist kürzere Wartezeiten und mehr Betreuung.",
     "Weniger Personal heißt meist längere Wartezeiten und mehr Druck auf die Beschäftigten.",
@@ -156,14 +168,16 @@ def kern_nachrichten(frage: str, lage: dict[str, Any], stimmen: list[dict[str, A
 
 
 def kern_text(daten: dict[str, Any]) -> str | None:
-    """Die zwei Sätze als eine Zeile, oder `None`, wenn einer fehlt, zu lang ist, eine Ziffer trägt, nicht
-    beim
-    Personal anfängt oder über Geld spricht."""
+    """Die zwei Sätze als eine Zeile, oder `None`, wenn einer fehlt, zu lang ist, eine Zahl trägt (auch in
+    Worten), nicht beim Personal anfängt oder über Geld spricht."""
     mehr, weniger = (" ".join(str(daten.get(feld) or "").split()) for feld in ("mehr", "weniger"))
     saetze = [mehr, weniger]
     if not mehr.startswith("Mehr Personal") or not weniger.startswith("Weniger Personal"):
         return None
-    if any(len(s) > KERN_ZEICHEN or re.search(r"\d", s) or _GELD.search(s) for s in saetze):
+    if any(
+        len(s) > KERN_ZEICHEN or re.search(r"\d", s) or _MENGE_IN_WORTEN.search(s) or _GELD.search(s)
+        for s in saetze
+    ):
         return None
     return " ".join(s if s.endswith((".", "!", "?")) else f"{s}." for s in saetze)
 

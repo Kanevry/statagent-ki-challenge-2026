@@ -217,8 +217,7 @@ KETTE_FLUKTUATION = (
     "Bleibt es, kennt man Sie eher."
 )
 KETTE_PAKET = (
-    "Kommt das durchgerechnete Paket, warten Sie laut Rechenmodell meist {wort}. "
-    "Sicher ist das nicht, es hängt von den Annahmen ab."
+    "Kommt das durchgerechnete Paket, {wirkung}. Sicher ist das nicht, es hängt von den Annahmen ab."
 )
 
 SCHEMA: dict[str, Any] = {
@@ -282,6 +281,13 @@ def _gliederung(zahl: Zahl) -> set[str]:
     return {teil.strip() for teil in treffer.group(1).split(",")} if treffer else set()
 
 
+def _paket_wirkung(wert: float) -> str:
+    """Richtung aus dem Rechenmodell; was auf eine Stelle gerundet null ist, heißt „kaum“, nicht „länger“."""
+    if round(wert, 1) == 0:
+        return "ändert sich die Wartezeit laut Rechenmodell kaum"
+    return f"warten Sie laut Rechenmodell meist {'kürzer' if wert < 0 else 'länger'}"
+
+
 def kette_text(kontext: Kontext) -> str:
     """Was die Auskunft für den Arzttermin heißt, aus dem, was die Zahlen zählen; dazu der Belegsatz."""
     uc3 = [z for z in kontext.zahlen if kontext.belege[z.beleg].uc == "uc3"]
@@ -299,7 +305,7 @@ def kette_text(kontext: Kontext) -> str:
         None,
     )
     if paket is not None:
-        wirkung = KETTE_PAKET.format(wort="kürzer" if paket.wert < 0 else "länger")
+        wirkung = KETTE_PAKET.format(wirkung=_paket_wirkung(paket.wert))
     elif not uc3:
         wirkung = KETTE_GESUNDHEIT
     elif any("gesundheit" in z.bezeichnung.casefold() for z in uc3):

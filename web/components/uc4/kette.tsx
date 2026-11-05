@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { formatiereZahl } from "@kic/ui/basis";
 import { HerkunftChip, ModellPille } from "@kic/ui/bausteine";
@@ -416,17 +417,29 @@ function StationKarte({
 const GANZ_BIS = 320;
 /** Die übrigen Belege stehen in der ganzen Antwort; oben reicht einer, zweimal „Beleg“ untereinander sagt nichts. */
 const BELEGE_OBEN = 1;
+/** Mehr Zahlen trägt die Karte nicht; „Zugänge im Oktober 2024“ liefert 89 (UI-Regie 05.11.). */
+const ZAHLEN_AUF_KARTE = 5;
+
+/** Verweis auf die übrigen Zahlen; `null`, wenn alle auf die Karte passen. */
+export function weitereZahlenText(anzahl: number): string | null {
+  const weitere = anzahl - ZAHLEN_AUF_KARTE;
+  if (weitere <= 0) return null;
+  return weitere === 1 ? "und eine weitere" : `und ${weitere} weitere`;
+}
 
 /**
  * Belege der Stationen nach der ersten: Die Zahl steht schon mit Beleg bei Station 1 (#164). Der Lotse zeigt den Beleg
- * der Zahl aus seinem Satz, der Simulator seine eigenen Quellen, ohne Rechenmodell und ohne die weitergereichte Zahl.
+ * der Zahl aus seinem Satz. Der Simulator zeigt den Beleg des Rechenmodells, wenn es eines gab, denn dann stehen dessen
+ * Zahlen in seiner ersten Zeile; sonst seine eigenen Quellen, ohne die weitergereichte Zahl.
  */
 function belegeOben(antwort: UcAntwort): UcAntwort["belege"] {
   if (antwort.uc === "uc1") {
     const beleg = antwort.zahlen[0] && antwort.belege[antwort.zahlen[0].beleg];
     return beleg ? [beleg] : [];
   }
-  const eigene = antwort.belege.filter((b) => b.uc === antwort.uc && b.quelle !== "uc2.experte");
+  const rechenmodell = antwort.belege.find((b) => b.quelle === "uc2.experte");
+  if (rechenmodell) return [rechenmodell];
+  const eigene = antwort.belege.filter((b) => b.uc === antwort.uc);
   return eigene.filter((b, i) => eigene.findIndex((x) => x.quelle === b.quelle && x.monat === b.monat) === i).slice(0, BELEGE_OBEN);
 }
 
@@ -454,7 +467,7 @@ function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcA
       ))}
       {erste && antwort.zahlen.length > 0 && (
         <ul className="flex flex-col gap-2">
-          {antwort.zahlen.map((zahl, i) => {
+          {antwort.zahlen.slice(0, ZAHLEN_AUF_KARTE).map((zahl, i) => {
             const beleg = antwort.belege[zahl.beleg];
             return (
               <li key={`${zahl.bezeichnung}-${i}`} className="flex flex-wrap items-baseline gap-x-2 gap-y-1" data-zahl="">
@@ -478,6 +491,14 @@ function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcA
               </li>
             );
           })}
+          {weitereZahlenText(antwort.zahlen.length) && (
+            <li className="font-sans text-14 text-slate">
+              {weitereZahlenText(antwort.zahlen.length)} unter{" "}
+              <Link href="/uc3/fragen" className="text-gruen underline underline-offset-4">
+                Fragen an die Daten
+              </Link>
+            </li>
+          )}
         </ul>
       )}
       {mehr && (

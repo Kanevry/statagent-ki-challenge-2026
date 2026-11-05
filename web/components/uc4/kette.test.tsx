@@ -194,7 +194,7 @@ const UC3 = antwort("uc3", "Am 31.03.2025 gab es 7.498 Beschäftigungsverhältni
 const UC2 = antwort(
   "uc2",
   "Mehr Personal heißt meist kürzere Wartezeiten. Weniger Personal heißt meist längere Wartezeiten.\nDie Zahl aus der Statistik: 7.498.\nWer ist dafür, wer dagegen:",
-  [BELEG_UC3, EXPERTE, PRESSE, PRESSE],
+  [BELEG_UC3, PRESSE, PRESSE],
   [ZAHL],
 );
 const UC1 = antwort("uc1", "Für Ihren nächsten Arzttermin heißt das: Sie warten oft kürzer. Die Zahl dahinter für März 2025: 7.498 Beschäftigungsverhältnisse.", [BELEG_UC3, PRESSE], [ZAHL]);
@@ -231,7 +231,7 @@ it("der Simulator zeigt oben seine Aussage und seine eigenen Quellen, nicht die 
   const karte = seite.querySelector('[data-uc-karte="uc2"]')!;
   const aussage = karte.querySelector("[data-uc4-antwort] p")!.textContent;
   expect(aussage).toBe("Mehr Personal heißt meist kürzere Wartezeiten. Weniger Personal heißt meist längere Wartezeiten.");
-  // Zwei gleiche Quellen zählen einmal, Rechenmodell und weitergereichte Zahl fehlen hier.
+  // Zwei gleiche Quellen zählen einmal, die weitergereichte Zahl fehlt hier.
   expect(karte.querySelectorAll('[data-baustein="herkunft"]')).toHaveLength(1);
   expect(karte.querySelector('[data-baustein="herkunft"]')!.textContent).toContain("presse: Kurier");
 });
@@ -280,4 +280,39 @@ it("fester Text der Stationen danach heißt so, nicht „Mit KI geschrieben“",
   expect(seite.querySelector('[data-uc-karte="uc3"] [data-testid="uc4-modell"]')!.textContent).toContain("Ohne KI, nur Code");
   // Die Schlusszeile darf dann nicht behaupten, das Modell schreibe die Sätze.
   expect(screen.getByText(/Fertig in/).textContent).not.toContain("Die Sätze schreibt");
+});
+
+function zahlenAntwort(anzahl: number): UcAntwort {
+  const zahlen = Array.from({ length: anzahl }, (_, i) => ({ ...ZAHL, bezeichnung: `Branche ${i + 1}`, wert: i + 1 }));
+  return antwort("uc3", "Im Oktober 2024 gab es Zugänge.", [BELEG_UC3], zahlen);
+}
+
+it("89 Zahlen: höchstens 5 auf der Karte, der Rest als Verweis auf Fragen an die Daten", async () => {
+  // Fängt die UI-Regie 05.11.: „Zugänge im Oktober 2024“ zeigte 89 Zeilen auf der Karte von Station 1.
+  const seite = await fragen(strom(zahlenAntwort(89)));
+  await waitFor(() => expect(seite.querySelectorAll("[data-zahl]")).toHaveLength(5));
+  expect(seite.textContent).toContain("und 84 weitere unter Fragen an die Daten");
+  expect(screen.getByRole("link", { name: "Fragen an die Daten" }).getAttribute("href")).toBe("/uc3/fragen");
+});
+
+it("6 Zahlen: Einzahl im Verweis", async () => {
+  const seite = await fragen(strom(zahlenAntwort(6)));
+  await waitFor(() => expect(seite.querySelectorAll("[data-zahl]")).toHaveLength(5));
+  expect(seite.textContent).toContain("und eine weitere unter Fragen an die Daten");
+});
+
+it("bis 5 Zahlen ändert sich nichts", async () => {
+  const seite = await fragen(strom(zahlenAntwort(5)));
+  await waitFor(() => expect(seite.querySelectorAll("[data-zahl]")).toHaveLength(5));
+  expect(screen.queryByRole("link", { name: "Fragen an die Daten" })).toBeNull();
+});
+
+it("nennt die erste Zeile Zahlen des Rechenmodells, steht dessen Beleg sichtbar da", async () => {
+  // Fängt das Review von !210: „Wartezeit −22,2 %, Mehrkosten 128,2 Mio. Euro pro Jahr“ ohne jede Herkunft.
+  const fall = antwort("uc2", "Das durchgerechnete Maßnahmenpaket bringt laut Rechenmodell: Wartezeit −22,2 %.\nRest.", [BELEG_UC3, EXPERTE, PRESSE], [ZAHL]);
+  const seite = await fragen(strom(UC3, fall, UC1));
+  await screen.findByText(/Fertig in/);
+  const chips = seite.querySelectorAll('[data-uc-karte="uc2"] [data-baustein="herkunft"]');
+  expect(chips).toHaveLength(1);
+  expect(chips[0]!.textContent).toContain("uc2.experte");
 });

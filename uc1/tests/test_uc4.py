@@ -340,16 +340,24 @@ def test_kette_text_folgt_dem_was_die_zahl_zaehlt(bezeichnung: str, erwartet: st
     assert erwartet in uc4.router_adapter("Frage?", _kette_kontext(zahl)).text
 
 
-@pytest.mark.parametrize(("wert", "wort"), [(-22.24, "kürzer"), (3.0, "länger")])
-def test_kette_paket_sagt_die_richtung_aus_dem_rechenmodell(wert: float, wort: str) -> None:
-    """Fängt „warten kürzer“, wenn das Rechenmodell für das Paket längere Wartezeiten ergibt."""
+@pytest.mark.parametrize(
+    ("wert", "wirkung"),
+    [
+        (-22.24, "warten Sie laut Rechenmodell meist kürzer."),
+        (3.0, "warten Sie laut Rechenmodell meist länger."),
+        (0, "ändert sich die Wartezeit laut Rechenmodell kaum."),
+        (-0.04, "ändert sich die Wartezeit laut Rechenmodell kaum."),
+    ],
+)
+def test_kette_paket_sagt_die_richtung_aus_dem_rechenmodell(wert: float, wirkung: str) -> None:
+    """Fängt „warten kürzer“, wenn das Rechenmodell längere Wartezeiten ergibt, und „länger“ bei null."""
     uc3, uc2 = _kette_kontext(ZAHL_WIEN)
     uc2.belege.append(uc4.Beleg(uc="uc2", quelle="uc2.experte", ref="paket"))
     uc2.zahlen.append(
         uc4.Zahl(bezeichnung="Wartezeitänderung (wahrscheinlichster Wert)", wert=wert, einheit="%", beleg=2)
     )
     text = uc4.router_adapter("Wartezeiten?", [uc3, uc2]).text
-    assert f"laut Rechenmodell meist {wort}." in text and "22,24" not in text
+    assert wirkung in text and "22,24" not in text
     assert text.endswith("Die Zahl von StatAgent: 7.498.")
 
 
