@@ -102,6 +102,24 @@ def test_nur_suche_mit_fake_suche_schreibt_bericht(
     capsys.readouterr()
 
 
+def test_soll_quelle_auf_rang_k_plus_1_zaehlt_nicht(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Fängt: Recall@k, der die Treffer nicht auf k kürzt (Recall@unendlich bliebe sonst grün).
+    def fake_suche(
+        frage: str, *, k: int = 5, filter: SuchFilter | None = None, weg: str = "auto", conn: Any = None
+    ) -> list[Treffer]:
+        fuellung = [_treffer("ASVG", str(900 + i)) for i in range(k)]
+        return [*fuellung, _treffer("ASVG", "139")]  # Soll-Quelle erst auf Rang k+1
+
+    ausgabe = tmp_path / "bericht.md"
+    rc = ev.cli(["--nur-suche", "-k", "3", "--weg", "volltext", "--ausgabe", str(ausgabe)], suche=fake_suche)
+    assert rc == 0
+    n = len(ev.faelle_mit_korpusquelle(ev.lade_set()))
+    assert f"| suche:volltext | 0/{n} |" in ausgabe.read_text(encoding="utf-8")
+    capsys.readouterr()
+
+
 def test_eval_mit_modell_meldet_fehlenden_kern(capsys: pytest.CaptureFixture[str]) -> None:
     # Fängt: `lotse eval` ohne --nur-suche täuscht eine Messung vor, obwohl #31 fehlt.
     assert ev.cli([]) == 2
@@ -122,6 +140,8 @@ def test_grep_grundlinie_findet_dokument_mit_fragewoertern(tmp_path: Path) -> No
     )
     suche = ev.grep_suche(ev.lade_rohkorpus(tmp_path))
     assert [t.nummer for t in suche("Wie lange Krankengeld?", 5)] == ["139"]
+    # Störtext im Attribut (titrvo='Wochengeld') darf nicht zählen, nur der nutzdaten-Text von § 162.
+    assert [t.nummer for t in suche("Wie lange gibt es Wochengeld?", 5)] == ["162"]
     assert suche("ist der die das", 5) == []
 
 
