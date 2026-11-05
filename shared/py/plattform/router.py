@@ -4,25 +4,37 @@ Jeder Schritt ruft den Adapter des UC mit der Frage und den bisherigen Antworten
 aus der Registry (``registriere``) oder der Entry-Point-Gruppe ``kic.uc_antwort``, nie aus einem harten Import
 der UC-Pakete. Fehlt ein Adapter oder wirft er, läuft die Kette weiter und ``fehlend`` nennt den UC.
 
-Je Schritt genau eine Zeile über ``plattform.protokoll.modellaufruf``: Hash der Frage, nie Frage- oder
-Antworttext; bei einem Fehler nur dessen Typ. Nicht aus ``plattform/__init__.py`` importiert (R2).
+Je Schritt genau eine ``Routerschritt``-Zeile in ``router.jsonl`` (neben ``modellaufrufe.jsonl``, das nur
+Modellaufrufe trägt): UC, Stufe ab 1, Hash der Frage, Dauer, Modell, Anzahl Belege und Zahlen, protokoll_id;
+nie Frage- oder Antworttext, bei einem Fehler nur dessen Grund. Nicht aus ``plattform/__init__.py`` importiert
+(R2).
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import json
+import os
 import sys
+import threading
 import time
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from importlib.metadata import entry_points
+from pathlib import Path
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from .antwortform import Beleg, UcAntwort, Zahl
-from .protokoll import Modellaufruf, modellaufruf
+from .protokoll import protokoll_datei
 
-Adapter = Callable[[str, list[UcAntwort]], UcAntwort]
+#: Ein Adapter liefert eine ``UcAntwort`` oder ein Mapping derselben Form (wird streng geprüft).
+Adapter = Callable[[str, list[UcAntwort]], UcAntwort | Mapping[str, Any]]
+
+_SCHREIBSPERRE = threading.Lock()
 
 ENTRY_POINT_GRUPPE = "kic.uc_antwort"
 STANDARD_KETTE: tuple[str, ...] = ("uc3", "uc2", "uc1")
@@ -30,17 +42,45 @@ STANDARD_KETTE: tuple[str, ...] = ("uc3", "uc2", "uc1")
 _REGISTRY: dict[str, Adapter] = {}
 
 
+class Fehlend(BaseModel):
+    """Ein UC ohne Antwort; ``grund``: ``kein_adapter``, ``ungueltige_antwort`` oder der Fehlertyp."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    uc: str
+    grund: str
+
+
 class Ergebnis(BaseModel):
-    """Ergebnis der Kette: Antworten in Kettenreihenfolge, ``fehlend`` die UCs ohne Antwort."""
+    """Ergebnis der Kette: Antworten in Kettenreihenfolge, ``fehlend`` die UCs ohne Antwort mit Grund."""
 
     model_config = ConfigDict(extra="forbid")
 
     antworten: list[UcAntwort]
-    fehlend: list[str]
+    fehlend: list[Fehlend]
+
+
+@dataclass(frozen=True, slots=True)
+class Routerschritt:
+    """Eine Zeile je Schritt der Kette, ohne Frage- und Antworttext. ``fehler``: Grund wie in ``Fehlend``."""
+
+    uc: str
+    stufe: int
+    frage_hash: str
+    dauer_ms: int
+    modell: str | None
+    anzahl_belege: int
+    anzahl_zahlen: int
+    protokoll_id: int | None
+    fehler: str | None
 
 
 class AdapterFehlt(LookupError):
     """Für den UC ist weder in der Registry noch per Entry-Point ein Adapter bekannt."""
+
+
+class UngueltigeAntwort(TypeError):
+    """Der Adapter lieferte keine ``UcAntwort`` (oder kein passendes Mapping) für seinen UC."""
 
 
 def registriere(uc: str, funktion: Adapter) -> None:
@@ -65,44 +105,77 @@ def _frage_hash(frage: str) -> str:
     return hashlib.sha256(frage.encode("utf-8")).hexdigest()
 
 
+def router_protokoll_datei() -> Path:
+    """Ziel der Schrittzeilen: ``PLATTFORM_ROUTER_PROTOKOLL`` oder ``router.jsonl`` neben dem Modellprotokoll.
+
+    Eigene Datei, weil ``modellaufrufe.jsonl`` laut docs/models.md genau eine Zeile je Modellaufruf trägt;
+    ein Router-Schritt ist keiner.
+    """
+    explizit = os.environ.get("PLATTFORM_ROUTER_PROTOKOLL")
+    return Path(explizit) if explizit else protokoll_datei().with_name("router.jsonl")
+
+
+def _schritt_schreiben(schritt: Routerschritt) -> None:
+    zeile = asdict(schritt)
+    zeile["zeit"] = datetime.now(UTC).isoformat(timespec="milliseconds")
+    ziel = router_protokoll_datei()
+    ziel.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(zeile, ensure_ascii=False, sort_keys=True) + "\n"
+    with _SCHREIBSPERRE, ziel.open("a", encoding="utf-8") as datei:
+        datei.write(text)
+
+
+def _als_antwort(roh: object, uc: str) -> UcAntwort:
+    """Nimmt eine ``UcAntwort`` oder ein Mapping (dict, TypedDict) an; prüft streng und dass ``uc`` passt."""
+    antwort = UcAntwort.model_validate(roh) if isinstance(roh, Mapping) else roh
+    if not isinstance(antwort, UcAntwort) or antwort.uc != uc:
+        raise UngueltigeAntwort(uc)
+    return antwort
+
+
 def durchreichen(
     frage: str,
     kette: Sequence[str] = STANDARD_KETTE,
     adapter: Mapping[str, Adapter] | None = None,
 ) -> Ergebnis:
-    """Ruft die Adapter der Kette nacheinander; ``adapter`` ersetzt Registry und Entry-Points ganz."""
+    """Ruft die Adapter der Kette nacheinander; ``adapter`` ersetzt Registry und Entry-Points ganz.
+
+    Jeder Adapter bekommt tiefe Kopien der bisherigen Antworten: was er am Kontext ändert, ändert keine
+    frühere Antwort im Ergebnis.
+    """
     antworten: list[UcAntwort] = []
-    fehlend: list[str] = []
+    fehlend: list[Fehlend] = []
     frage_hash = _frage_hash(frage)
-    # Stufe zählt ab 1 wie in plattform.llm (dort: Stufe 1 = gewählter Provider), hier: Stufe 1 = erster UC.
+    # Stufe zählt ab 1 wie Vertrag M (plattform.llm: Stufe 1 = gewählter Provider), hier: Stufe 1 = erster UC.
     for stufe, uc in enumerate(kette, start=1):
         start = time.monotonic()
         antwort: UcAntwort | None = None
-        fehler: str | None = None
+        grund: str | None = None
         try:
             funktion = _adapter_finden(uc, adapter)
-            antwort = funktion(frage, list(antworten))
-            if not isinstance(antwort, UcAntwort) or antwort.uc != uc:
-                raise TypeError(f"Adapter {uc} lieferte keine UcAntwort für {uc}")
+            kontext = [vorher.model_copy(deep=True) for vorher in antworten]
+            antwort = _als_antwort(funktion(frage, kontext), uc)
+        except AdapterFehlt:
+            grund = "kein_adapter"
+        except (UngueltigeAntwort, ValidationError):
+            grund = "ungueltige_antwort"
         except Exception as fehlerobjekt:  # die Kette läuft mit den übrigen UCs weiter
-            antwort = None
-            fehler = type(fehlerobjekt).__name__
-        modellaufruf(
-            Modellaufruf(
-                provider="router",
-                modell=(antwort.modell if antwort is not None else None) or "keins",
-                version=None,
-                zweck=f"uc4.{uc}",
-                prompt_hash=frage_hash,
+            grund = type(fehlerobjekt).__name__
+        _schritt_schreiben(
+            Routerschritt(
+                uc=uc,
+                stufe=stufe,
+                frage_hash=frage_hash,
                 dauer_ms=round((time.monotonic() - start) * 1000),
-                tokens_in=None,
-                tokens_out=None,
-                fallback_stufe=stufe,
-                fehler=fehler,
+                modell=antwort.modell if antwort is not None else None,
+                anzahl_belege=len(antwort.belege) if antwort is not None else 0,
+                anzahl_zahlen=len(antwort.zahlen) if antwort is not None else 0,
+                protokoll_id=antwort.protokoll_id if antwort is not None else None,
+                fehler=grund,
             )
         )
         if antwort is None:
-            fehlend.append(uc)
+            fehlend.append(Fehlend(uc=uc, grund=grund or "unbekannt"))
         else:
             antworten.append(antwort)
     return Ergebnis(antworten=antworten, fehlend=fehlend)
@@ -115,11 +188,18 @@ def _mock_uc3(frage: str, kontext: list[UcAntwort]) -> UcAntwort:
     # Erfundener Wert; der echte UC3-Adapter liest die Zahl aus der Datenbank.
     return UcAntwort(
         text="Im März 2025 waren 412.345 Personen unselbständig beschäftigt (Mock).",
-        belege=[Beleg(quelle="roh.lieferung", lieferung="2025-03", monat="2025-03", sql=None, ref=None)],
+        belege=[
+            Beleg(
+                uc="uc3",
+                quelle="stat.beschaeftigte_monat",
+                lieferung="2025-03",
+                monat="2025-03",
+                regelstand="v1",
+                stand="endgueltig",
+            )
+        ],
         zahlen=[Zahl(bezeichnung="Beschäftigte", wert=412345, einheit="Personen", beleg=0)],
         uc="uc3",
-        modell=None,
-        protokoll_id=None,
     )
 
 
@@ -135,21 +215,23 @@ def _mock_uc2(frage: str, kontext: list[UcAntwort]) -> UcAntwort:
                 zahlen=[zahl.model_copy(update={"beleg": 0})],
                 uc="uc2",
                 modell="mock",
-                protokoll_id=None,
             )
-    return UcAntwort(
-        text="Keine Zahl im Kontext (Mock).", belege=[], zahlen=[], uc="uc2", modell="mock", protokoll_id=None
-    )
+    return UcAntwort(text="Keine Zahl im Kontext (Mock).", belege=[], zahlen=[], uc="uc2", modell="mock")
 
 
 def _mock_uc1(frage: str, kontext: list[UcAntwort]) -> UcAntwort:
-    zahlen = [z for vorher in kontext for z in vorher.zahlen]
-    text = (
-        f"Kurz gesagt: Es gab {zahlen[0].wert} {zahlen[0].einheit or ''}. Die Zahl kommt aus der Statistik."
-        if zahlen
-        else "Dazu gibt es noch keine Zahl."
-    )
-    return UcAntwort(text=text, belege=[], zahlen=[], uc="uc1", modell="mock", protokoll_id=None)
+    # Reicht die erste Zahl des Kontexts mit ihrem Beleg durch (der Beleg behält den liefernden UC).
+    for vorher in kontext:
+        if vorher.zahlen:
+            zahl = vorher.zahlen[0]
+            return UcAntwort(
+                text=f"Kurz gesagt: Es gab {zahl.wert} {zahl.einheit or ''}, laut Statistik.",
+                belege=[vorher.belege[zahl.beleg]],
+                zahlen=[zahl.model_copy(update={"beleg": 0})],
+                uc="uc1",
+                modell="mock",
+            )
+    return UcAntwort(text="Dazu gibt es noch keine Zahl.", belege=[], zahlen=[], uc="uc1", modell="mock")
 
 
 def mock_adapter() -> dict[str, Adapter]:
@@ -173,7 +255,8 @@ def main(argv: list[str] | None = None) -> int:
         for antwort in ergebnis.antworten:
             print(f"[{antwort.uc}] {antwort.text}")
         if ergebnis.fehlend:
-            print("fehlend: " + ", ".join(ergebnis.fehlend), file=sys.stderr)
+            fehlend = ", ".join(f"{f.uc} ({f.grund})" for f in ergebnis.fehlend)
+            print(f"fehlend: {fehlend}", file=sys.stderr)
     return 0 if ergebnis.antworten else 1
 
 

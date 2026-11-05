@@ -2,11 +2,15 @@
   "text": "Im März 2025 waren 412.345 Personen unselbständig beschäftigt (erfundener Wert).",
   "belege": [
     {
-      "quelle": "roh.lieferung",
+      "uc": "uc3",
+      "quelle": "stat.beschaeftigte_monat",
       "lieferung": "2025-03",
       "monat": "2025-03",
-      "sql": "SELECT count(*) FROM roh.lieferung WHERE lieferung = '2025-03'",
-      "ref": null
+      "sql": "SELECT sum(anzahl) FROM stat.beschaeftigte_monat WHERE monat = '2025-03'",
+      "ref": null,
+      "regelstand": "v1",
+      "lauf": null,
+      "stand": "endgueltig"
     }
   ],
   "zahlen": [
