@@ -132,7 +132,7 @@ def _kategorie_spalte(regelsatz: str) -> str:
     return "s.qualifikation" if regelsatz == "v2" else "q.beschaeftigungskategorie"
 
 
-def _bedingungen(zeile: Zeile, parameter: dict[str, Any]) -> list[str]:
+def _bedingungen(conn: Any, zeile: Zeile, parameter: dict[str, Any]) -> list[str]:
     bedingungen: list[str] = []
     f = zeile.filter
     if "region" in f:
@@ -146,11 +146,12 @@ def _bedingungen(zeile: Zeile, parameter: dict[str, Any]) -> list[str]:
         parameter["oenace"] = f["oenace"]
     if "branche" in f:
         # Der Name gilt je ÖNACE-Version der Zeile: dasselbe Wort hat 2008 und 2025 oft einen anderen Buchstaben.
-        bedingungen.append(
-            "s.oenace IN (SELECT k.code FROM stat.klass_oenace k WHERE k.ebene = 1"
-            " AND k.version = s.oenace_version AND k.bezeichnung LIKE %(branche)s)"
-        )
-        parameter["branche"] = f["branche"]
+        paare = conn.execute(
+            "SELECT version || ':' || code AS paar FROM stat.klass_oenace WHERE ebene = 1 AND bezeichnung LIKE %s",
+            (f["branche"],),
+        ).fetchall()
+        bedingungen.append("(s.oenace_version || ':' || s.oenace) = ANY(%(branche)s)")
+        parameter["branche"] = [str(z["paar"]) for z in paare]
     if "kategorie" in f:
         bedingungen.append(f"{_kategorie_spalte(zeile.regelsatz)} = %(kategorie)s")
         parameter["kategorie"] = f["kategorie"]
@@ -168,7 +169,7 @@ def _bestand(conn: Any, zeile: Zeile, gruppe: str | None) -> list[dict[str, Any]
         "erster": min(zeile.monate),
         "letzter": max(zeile.monate),
     }
-    bedingungen = _bedingungen(zeile, parameter)
+    bedingungen = _bedingungen(conn, zeile, parameter)
     spalte = None
     if gruppe:
         spalte = _SPALTE_GRUPPE[gruppe] or _kategorie_spalte(zeile.regelsatz)
