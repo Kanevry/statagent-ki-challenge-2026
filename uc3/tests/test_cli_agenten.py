@@ -101,7 +101,7 @@ def test_freigabe_mit_namen(agent_db: Verbindung, wegwerf_repo: Path) -> None:
     vid = r6_vorschlag(agent_db)
     ergebnis = runner.invoke(cli.app, ["freigabe", str(vid), "--name", NAME])
     assert ergebnis.exit_code == 0, ergebnis.output
-    assert f"freigegeben von {NAME}" in ergebnis.output
+    assert f"{NAME} hat Vorschlag uc3/{vid} am " in ergebnis.output
     assert "aktiv: v2/R6_beschaeftigungskategorie" in ergebnis.output
     assert f"Freigegeben-von: {NAME}" in git(wegwerf_repo, "log", "-1", "--format=%B")
 
@@ -122,7 +122,8 @@ def test_ablehnen_mit_begruendung(agent_db: Verbindung, wegwerf_repo: Path) -> N
         cli.app, ["ablehnen", str(vid), "--name", NAME, "--begruendung", "nicht im Auftrag"]
     )
     assert ergebnis.exit_code == 0, ergebnis.output
-    assert f"abgelehnt von {NAME}: nicht im Auftrag" in ergebnis.output
+    assert f"{NAME} hat Vorschlag uc3/" in ergebnis.output
+    assert "abgelehnt. Begründung: nicht im Auftrag" in ergebnis.output
 
 
 # Fehler: eine unbekannte ID beim Ablehnen endet mit Traceback statt mit Meldung und Exit 1.

@@ -12,7 +12,7 @@ import {
   type OffeneRueckfrage,
 } from "@/components/uc3/bericht";
 import { aufzaehlen, trefferTitel } from "@/components/uc3/lauf-detail";
-import { leerSatz } from "@/components/uc3/db";
+import { DatenFehler } from "@/components/uc3/daten-fehler";
 import { alltag } from "@/components/uc3/sprache";
 import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import { monatName } from "@/components/uc3/monat";
@@ -73,14 +73,15 @@ export default async function Berichte({ searchParams }: Props) {
   const regelsatz = regelsatzAus((await searchParams).regelsatz);
   const lesung = await leseBerichtsliste(regelsatz);
 
-  if (!lesung.ok || lesung.daten.zeilen.length === 0) {
+  if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
+  if (lesung.daten.zeilen.length === 0) {
     return (
       <>
         <Ueberschrift stufe={2} als="h1">
           Qualitätsberichte
         </Ueberschrift>
         <Leerzustand
-          satz={lesung.ok ? "Noch kein Monat ist gerechnet, deshalb gibt es noch keinen Qualitätsbericht." : leerSatz(lesung.grund)}
+          satz="Noch kein Monat ist gerechnet, deshalb gibt es noch keinen Qualitätsbericht."
         />
       </>
     );

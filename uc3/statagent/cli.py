@@ -18,6 +18,7 @@ import typer
 from statagent import ergebnis, konfig
 from statagent.db import lieferungen, schema_einrichten, verbinden
 from statagent.regeln import NameUngueltig, RegelFehler, regeln_freigeben, regeln_laden
+from statagent.zeit import zeit_text
 
 app = typer.Typer(
     help="StatAgent: Monatsbetrieb der Beschäftigtenstatistik. Die KI schreibt Code, das Programm rechnet.",
@@ -132,7 +133,7 @@ def regeln_zeigen(
         f"{r.id:>4} {r.typ:<9} {r.name:<34} {json.dumps(r.parameter, ensure_ascii=False)}\n"
         f"     {r.beschreibung}\n     Grundlage: {r.grundlage} · "
         + (
-            f"freigegeben von {r.freigegeben_von} am {r.freigegeben_am:%d.%m.%Y %H:%M}"
+            f"freigegeben von {r.freigegeben_von} am {zeit_text(r.freigegeben_am)}"
             if r.freigegeben_am
             else "NICHT freigegeben"
         )
@@ -176,7 +177,14 @@ def regeln_freigeben_befehl(
     except NameUngueltig as fehler:
         typer.echo(f"abgelehnt: {fehler}", err=True)
         raise typer.Exit(1) from fehler
-    typer.echo(f"{n} Regeln im Regelsatz {regelsatz} freigegeben von {' '.join(name.split())}.")
+    wer = " ".join(name.split())
+    if n:
+        typer.echo(
+            f"{wer} hat {n} Regeln im Regelsatz {regelsatz} freigegeben. Jetzt können die Monate veröffentlicht"
+            " werden."
+        )
+    else:
+        typer.echo(f"Im Regelsatz {regelsatz} war keine Regel mehr offen, es gab nichts freizugeben.")
 
 
 # --- lauf ---------------------------------------------------------------------------------------------------
@@ -212,13 +220,15 @@ def lauf(
             if not als_json:
                 # Abrechnung: gelesen = geliefert gezählt + nicht gezählt + ausgeschlossen; fortgeschriebene
                 # Verhältnisse (E07) zählen mit, stehen aber nicht in der Lieferung und deshalb getrennt.
+                from statagent.berichte.qualitaetsbericht import zahl
+
                 geliefert = e.gezaehlt - e.fortgeschrieben
-                fort = f" (+ {e.fortgeschrieben:,} fortgeschrieben, E07)" if e.fortgeschrieben else ""
+                fort = f" (+ {zahl(e.fortgeschrieben)} fortgeschrieben, E07)" if e.fortgeschrieben else ""
                 typer.echo(
                     f"{e.lieferung} [{e.regelsatz}] {e.status:<12} {e.ergebnis_status:<10} "
-                    f"gezählt {e.gezaehlt:>7,}  gelesen {e.gelesen:>7,} = {geliefert:,} + {e.nicht_gezaehlt:,} "
-                    f"nicht gezählt + {e.ausgeschlossen:,} ausgeschlossen{fort}  hash {e.ergebnis_hash[:12]}"
-                    + (f"  ({e.meldung})" if e.meldung else "")
+                    f"gezählt {zahl(e.gezaehlt):>7}  gelesen {zahl(e.gelesen):>7} = {zahl(geliefert)} + "
+                    f"{zahl(e.nicht_gezaehlt)} nicht gezählt + {zahl(e.ausgeschlossen)} ausgeschlossen{fort}  "
+                    f"hash {e.ergebnis_hash[:12]}" + (f"  ({e.meldung})" if e.meldung else "")
                 )
                 sys.stdout.flush()
     if als_json:
@@ -278,9 +288,12 @@ def berichte(
     ] = False,
     regelsatz: Annotated[str, typer.Option()] = "v1",
     zeigen: Annotated[bool, typer.Option("--zeigen", help="Bericht ausgeben statt schreiben")] = False,
+    als_json: Annotated[
+        bool, typer.Option("--json", help="Bericht als Struktur ausgeben (fünf Abschnitte), nichts schreiben")
+    ] = False,
 ) -> None:
     """Qualitätsbericht je Berichtsmonat aus der Vorlage erzeugen (abgabe/qualitaetsberichte/JJJJ-MM.md)."""
-    from statagent.berichte.qualitaetsbericht import bericht_erzeugen, bericht_schreiben
+    from statagent.berichte.qualitaetsbericht import bericht_daten, bericht_erzeugen, bericht_schreiben
 
     with verbinden() as conn:
         if alle:
@@ -290,6 +303,10 @@ def berichte(
         else:
             typer.echo("Bitte --lieferung JJJJ-MM oder --alle angeben.", err=True)
             raise typer.Exit(2)
+        if als_json:
+            daten = [bericht_daten(conn, monat, regelsatz) for monat in monate]
+            typer.echo(json.dumps(daten if alle else daten[0], ensure_ascii=False, default=str, indent=2))
+            return
         for monat in monate:
             if zeigen:
                 typer.echo(bericht_erzeugen(conn, monat, regelsatz))
@@ -307,6 +324,7 @@ def veroeffentlichen(
     regelsatz: Annotated[str, typer.Option()] = "v1",
 ) -> None:
     """Gibt einen gerechneten Monat mit Namen frei: vorläufig → endgültig (danach unveränderlich)."""
+    from statagent.berichte.qualitaetsbericht import monat_text
     from statagent.lauf import LaufFehler
     from statagent.lauf import veroeffentlichen as veroeffentlichen_ausfuehren
 
@@ -324,10 +342,13 @@ def veroeffentlichen(
             try:
                 n = veroeffentlichen_ausfuehren(conn, monat, regelsatz, name, repo_pfad=konfig.REPO_WURZEL)
                 erfolgreich += 1
-                typer.echo(f"{monat}: {n} Zellen endgültig, freigegeben von {' '.join(name.split())}")
+                typer.echo(
+                    f"{monat}: {' '.join(name.split())} hat {monat_text(monat)} veröffentlicht ({n} Zellen)."
+                    " Die Zahlen sind jetzt endgültig und ändern sich nicht mehr."
+                )
             except (LaufFehler, NameUngueltig) as f:
                 fehler += 1
-                typer.echo(f"{monat}: nicht veröffentlicht: {f}", err=True)
+                typer.echo(f"{monat}: nicht veröffentlicht. Grund: {f}", err=True)
     if fehler and (not alle or erfolgreich == 0):
         raise typer.Exit(1)
 
@@ -391,11 +412,12 @@ def pruefe_abgabe(
     """Prüft die Abgabedateien unter abgabe/ (Sheet alt und neu, 24 Qualitätsberichte, Ministerium, Protokoll, Modelle)."""
     from statagent.berichte.pruefe_abgabe import pruefe_abgabe as pruefen
 
+    extern = konfig.lieferungen_extern()
     if mit_db:
         with verbinden() as conn:
-            erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL, conn=conn)
+            erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL, conn=conn, lieferungen_dir=extern)
     else:
-        erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL)
+        erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL, lieferungen_dir=extern)
     _ausgabe(erg.als_dict(), als_json, erg.als_text())
     if not erg.ok:
         raise typer.Exit(1)
@@ -433,6 +455,10 @@ def ministerium(
         typer.echo(f"nicht erzeugt und nicht freigegeben: {fehler}", err=True)
         raise typer.Exit(1) from fehler
     typer.echo(f"{datei}: {len(auswertung.zeilen)} Personen, Zeitraum {auswertung.von} bis {auswertung.bis}")
+    typer.echo(f"  Zeilen: {len(auswertung.zeilen)} Personen und 1 Kopfzeile")
+    altcodes = auswertung.parameter.get("altcodes_als_abschnitt", [])
+    typer.echo(f"  altcodes_als_abschnitt: [{', '.join(altcodes)}]")
+    typer.echo(f"  angehaltene_lieferungen: {auswertung.parameter.get('angehaltene_lieferungen')}")
     for m, lieferung in auswertung.datenstand.items():
         hinweis = f"  (übersprungen: {auswertung.uebersprungen[m]})" if m in auswertung.uebersprungen else ""
         typer.echo(f"  {m} aus Lieferung {lieferung}{hinweis}")
@@ -474,8 +500,12 @@ def agent(
     anweisung: Annotated[str, typer.Argument(help="Änderungsauftrag in Sprache")],
     regelsatz_basis: Annotated[str, typer.Option(help="Regelsatz, von dem der Vorschlag ausgeht")] = "v1",
     probe: Annotated[
-        str | None, typer.Option(help="Probemonat JJJJ-MM: Zahlen vorher/nachher gleich mitrechnen")
+        str | None,
+        typer.Option(
+            help="Probemonat JJJJ-MM: Zahlen vorher/nachher gleich mitrechnen (Standard: jüngster gerechneter Monat)"
+        ),
     ] = None,
+    ohne_probe: Annotated[bool, typer.Option("--ohne-probe", help="keine Probe rechnen")] = False,
     als_json: JsonOption = False,
 ) -> None:
     """Gibt einen Änderungsauftrag an den Koordinator-Agenten (erzeugt einen Vorschlag, ändert nichts)."""
@@ -493,6 +523,13 @@ def agent(
         modell_fehler = (PlattformFehlt, LlmFehler)
 
     with verbinden() as conn:
+        if probe is None and not ohne_probe:
+            # Die Probe zeigt die Wirkung am jüngsten gerechneten Monat; 2024-08 (Erstlieferung) zeigt bei
+            # Auftrag 2 nur +48 und unterschätzt die Wirkung (Sichtprüfung UI, 05.11.).
+            gerechnet = [
+                m for m in lieferungen(conn) if ergebnis.letzter_lauf(conn, m, regelsatz_basis) is not None
+            ]
+            probe = max(gerechnet) if gerechnet else None
         try:
             erg = agent_ausfuehren(conn, anweisung, regelsatz_basis=regelsatz_basis, probe_lieferung=probe)
         except modell_fehler as fehler:
@@ -562,24 +599,24 @@ def freigabe(
             erg = freigabe_ausfuehren(conn, vorschlag_id, name, konfig.REPO_WURZEL)
             v = vorschlag_lesen(conn, vorschlag_id)
     except _entscheidung_fehler() as fehler:
-        typer.echo(f"nicht freigegeben: {fehler}", err=True)
+        typer.echo(f"Der Vorschlag ist nicht freigegeben. Grund: {fehler}", err=True)
         raise typer.Exit(1) from fehler
     daten = dataclasses.asdict(erg) | {
         "freigegeben_am": v.freigegeben_am,
         "ref": v.ref,
         "protokoll_id": v.protokoll_id,
     }
-    zeit = f"{v.freigegeben_am:%d.%m.%Y %H:%M}" if v.freigegeben_am else "?"
+    zeit = zeit_text(v.freigegeben_am)
     zeilen = [
-        f"Vorschlag uc3/{erg.vorschlag_id} freigegeben von {erg.name} am {zeit}",
-        f"Commit {erg.commit_hash or '-'} · Protokoll {v.protokoll_id}",
+        f"{erg.name} hat Vorschlag uc3/{erg.vorschlag_id} am {zeit} freigegeben.",
+        f"Festgehalten in Commit {erg.commit_hash or 'ohne Commit'} und Protokolleintrag {v.protokoll_id}.",
     ]
     if erg.angewendet:
-        zeilen.append(f"aktiv: {v.ref.replace(',', ', ')}")
+        zeilen.append(f"Die Regel ist jetzt aktiv: {v.ref.replace(',', ', ')}.")
     else:
         zeilen.append(
-            f"NICHT angewendet ({erg.fehler}): {erg.meldung}. Die Freigabe bleibt bestehen; "
-            "das Anwenden lässt sich wiederholen."
+            f"Die Freigabe gilt, aber die Regel ist noch nicht angewendet ({erg.fehler}): {erg.meldung}."
+            " Das Anwenden lässt sich wiederholen."
         )
     _ausgabe(daten, als_json, "\n".join(zeilen))
     if not erg.angewendet:
@@ -600,13 +637,32 @@ def ablehnen(
         with verbinden() as conn:
             v = ablehnen_ausfuehren(conn, vorschlag_id, name, konfig.REPO_WURZEL, begruendung=begruendung)
     except _entscheidung_fehler() as fehler:
-        typer.echo(f"nicht abgelehnt: {fehler}", err=True)
+        typer.echo(f"Der Vorschlag ist nicht abgelehnt. Grund: {fehler}", err=True)
         raise typer.Exit(1) from fehler
     _ausgabe(
         _vorschlag_dict(v),
         als_json,
-        f"Vorschlag uc3/{v.id} abgelehnt von {v.abgelehnt_von}: {v.ablehnungsgrund}",
+        f"{v.abgelehnt_von} hat Vorschlag uc3/{v.id} abgelehnt. Begründung: {v.ablehnungsgrund}"
+        " Regeln und Repo bleiben unverändert.",
     )
+
+
+@app.command("annahmen")
+def annahmen_befehl(
+    lieferung: Annotated[str, typer.Option(help="Berichtsmonat JJJJ-MM")],
+    regelsatz: Annotated[str, typer.Option()] = "v1",
+    als_json: JsonOption = False,
+) -> None:
+    """Annahmen F1 bis F10, die für den Monat gelten, bis die Fachabteilung antwortet."""
+    from statagent.berichte.annahmen import annahmen
+
+    with verbinden() as conn:
+        liste = annahmen(conn, lieferung, regelsatz)
+    zeilen = [
+        f"Annahme {a['nr']}: {a['satz']}" + (f" (Rückfrage {a['rueckfrage']})" if a["rueckfrage"] else "")
+        for a in liste
+    ]
+    _ausgabe(liste, als_json, "\n".join(zeilen) or f"Für {lieferung} gilt keine Annahme.")
 
 
 @app.command("frage")
@@ -639,10 +695,98 @@ def frage(
 
 @app.command("klass")
 def klass(
-    begriff: Annotated[str, typer.Argument(help="z. B. oenace, region, qualifikation")] = "oenace",
+    begriff: Annotated[
+        str,
+        typer.Argument(help="oenace, region, qualifikation, beschaeftigungskategorie, geschlecht oder alter"),
+    ] = "oenace",
+    code: Annotated[str | None, typer.Argument(help="z. B. C; ohne Code: Versionen und Codes")] = None,
+    version: Annotated[str | None, typer.Option("--version", help="nur diese Version, z. B. 2025")] = None,
+    unterklassen: Annotated[
+        int, typer.Option(help="bei ÖNACE zusätzlich so viele Unterklassen-Übergänge zeigen")
+    ] = 0,
+    regelsatz: Annotated[str, typer.Option()] = "v1",
+    als_json: JsonOption = False,
 ) -> None:
-    """Zeigt eine Klassifikation mit Versionen und Übergängen."""
-    _fehlt("#75", "klass")
+    """Erklärt eine Klassifikation: Versionen, Codes, Übergänge, Quellzuordnungen und Verhältnisse (#75)."""
+    from statagent.klass import KlassFehler, erklaeren
+    from statagent.klass import text as klass_text
+
+    with verbinden() as conn:
+        try:
+            daten = erklaeren(conn, begriff, code, version, regelsatz, unterklassen)
+        except KlassFehler as fehler:
+            typer.echo(str(fehler), err=True)
+            raise typer.Exit(1) from fehler
+    _ausgabe(daten, als_json, klass_text(daten))
+
+
+@app.command("export-online")
+def export_online(
+    ziel: Annotated[Path, typer.Option("--ziel", help="Zieldatei (.sql), am besten außerhalb des Repos")],
+    pg_dump: Annotated[
+        str,
+        typer.Option(
+            "--pg-dump",
+            help="pg_dump-Befehl, z. B. „docker exec -e PGUSER -e PGPASSWORD -e PGDATABASE <container> pg_dump“"
+            " (ohne Shell; die Verbindung kommt als PG*-Umgebung aus UC3_DATABASE_URL)",
+        ),
+    ] = "pg_dump",
+    rolle: Annotated[str, typer.Option("--rolle", help="Rolle, die Leserechte bekommt")] = "kic_app",
+    ohne_beispiele: Annotated[
+        bool,
+        typer.Option("--ohne-beispiele", help="Beispiel-Kennungen (beispiele) in meta.* im Export leeren"),
+    ] = False,
+    als_json: JsonOption = False,
+) -> None:
+    """Dump der Schemata stat und meta für den Online-Server, ohne roh und bereinigt, mit Leserechten."""
+    from statagent.export_online import ExportFehler, exportieren
+
+    try:
+        erg = exportieren(ziel, konfig.datenbank_url(), pg_dump, rolle, ohne_beispiele=ohne_beispiele)
+    except (ExportFehler, OSError) as fehler:
+        typer.echo(f"Export gescheitert, keine Datei geschrieben: {fehler}", err=True)
+        raise typer.Exit(1) from fehler
+    daten = {
+        "pfad": str(erg.pfad),
+        "groesse": erg.groesse,
+        "sha256": erg.sha256,
+        "tabellen": erg.tabellen,
+        "entfernt": erg.entfernt,
+        "rolle": rolle,
+        "geleert": erg.geleert,
+    }
+    zeilen = [
+        f"Geschrieben: {erg.pfad} ({erg.groesse / 1_048_576:.1f} MB)",
+        "Tabellen: " + ", ".join(f"{s} {n}" for s, n in erg.tabellen.items()),
+        f"sha256: {erg.sha256}",
+        f"Leserechte für {rolle} angehängt.",
+    ]
+    if ohne_beispiele:
+        zeilen.append(
+            "Beispiele geleert: " + (", ".join(f"{t} {n} Zeilen" for t, n in erg.geleert.items()) or "keine")
+        )
+    if erg.entfernt:
+        zeilen.append("Für PostgreSQL 16 auskommentiert: " + ", ".join(sorted(set(erg.entfernt))))
+    _ausgabe(daten, als_json, "\n".join(zeilen))
+
+
+@app.command("bestaetigen")
+def bestaetigen_befehl(
+    vorschlaege: Annotated[list[str], typer.Argument(help="Vorschläge, z. B. uc3/24 uc3/25 uc3/26 uc3/27")],
+    name: Annotated[str, typer.Option(help="Vor- und Nachname der Person, die selbst bestätigt")],
+    als_json: JsonOption = False,
+) -> None:
+    """Bestätigt in fremdem Auftrag eingegebene Freigaben selbst: leerer Commit mit Trailer Freigegeben-von."""
+    from statagent.bestaetigung import BestaetigungFehler, bestaetigen
+
+    try:
+        erg = bestaetigen(konfig.REPO_WURZEL, name, vorschlaege)
+    except (BestaetigungFehler, NameUngueltig) as fehler:
+        typer.echo(f"Nicht bestätigt: {fehler}", err=True)
+        raise typer.Exit(1) from fehler
+    zeilen = [f"{erg.name} hat bestätigt (Commit {erg.commit_hash[:10]}):"]
+    zeilen += [f"- {v}: Freigabe-Commit {sha[:10]}" for v, sha in erg.commits.items()]
+    _ausgabe(dataclasses.asdict(erg), als_json, "\n".join(zeilen))
 
 
 @app.command("protokoll")

@@ -2,7 +2,7 @@
 
 (a) Fixture-Lieferungen (CI): Treffer der Fallen aus test_lauf_fixture (Volldublette 1005, DK → C 1008,
     leer → UNB/0 1007, Alter 153 Jahre 1011, Spaltentausch 2024-10, Erstlieferung 2024-08).
-(b) `-m daten`: gegen die Datenbank mit allen 24 Lieferungen (UC3_DATEN_URL, Standard m5-Tunnel), in einer
+(b) `-m daten`: gegen die Datenbank mit allen 24 Lieferungen (UC3_DATEN_URL, Standard: Tunnel auf localhost:15433), in einer
     Transaktion, die am Ende zurückgerollt wird. Soll-Zahlen aus der unabhängigen Gegenrechnung.
 """
 
@@ -100,6 +100,19 @@ def test_lauf_schreibt_je_pruefregel_einen_treffer(conn: Verbindung) -> None:
     assert t10["P16_verhaeltnisse_verschwunden"]["anhalten"] is True
     assert laeufe["2024-10"].ergebnis_status == "vorlaeufig"
     assert "P16_verhaeltnisse_verschwunden" in laeufe["2024-10"].meldung
+
+
+def test_p08_meldet_ersetztes_ende_e06(conn: Verbindung) -> None:
+    # Fängt: ein ungültiges ENDE (Fixture 2024-11: VVH 3003 „2024-02-30“, 3004 „today“), das E06 ersetzt, meldet keine
+    # P-Regel; der Qualitätsbericht zeigt die Korrektur dann nicht (Review !13 Runde 3, Punkt 11).
+    from statagent.lauf import lauf_ausfuehren
+
+    laeufe = {
+        m: lauf_ausfuehren(conn, m, regelsatz="v1") for m in ("2024-08", "2024-09", "2024-10", "2024-11")
+    }
+    conn.commit()
+    p08 = _treffer(conn, laeufe["2024-11"].lauf_id)["P08_beginn_ersetzt"]
+    assert p08["anzahl"] == 2 and p08["beispiele"] == [3003, 3004]
 
 
 def test_belege_sind_ausfuehrbar(conn: Verbindung) -> None:
@@ -226,10 +239,32 @@ def test_2025_10_unvollstaendige_lieferung_haelt_an(daten: Verbindung) -> None:
            WHERE v.lieferung = '2025-09' AND v.regelsatz = 'v1' AND v.vvh_id IN (100003, 100005, 100025)
              AND v.beginn <= '2025-09-30' AND (v.ende IS NULL OR v.ende >= '2025-09-30')
              AND NOT EXISTS (SELECT 1 FROM bereinigt.abschnitt a
-                             WHERE a.lieferung = '2025-10' AND a.regelsatz = 'v1' AND a.vvh_id = v.vvh_id)"""
+                             WHERE a.lieferung = '2025-10' AND a.regelsatz = 'v1' AND a.vvh_id = v.vvh_id
+                               AND a.herkunft = 'geliefert')"""
     ).fetchone()
     assert z is not None and z["n"] == 3
     assert t["P15_bestand_vs_vormonat"]["umfang"].startswith("313.154 gegen 394.200")  # type: ignore[union-attr]
     assert t["P17_zeilenzahl_vs_vormonat"]["umfang"].startswith("345.078 / 434.104")  # type: ignore[union-attr]
     assert t["P22_abrechnung"]["anhalten"] is False
     assert t["P21_blattsummen"]["anhalten"] is False
+
+
+def test_blattsummen_folgen_der_beschaeftigungskategorie(conn: Verbindung) -> None:
+    # Fängt: Nach Auftrag 1 (R6 zählt nach Beschäftigungskategorie) prüfte P21 die Zellen gegen die fünf
+    # Qualifikationscodes; nur „Beamte“ traf, jeder v2-Monat hielt an (Lauf 05.11., Summe 13.187 statt Bestand).
+    import json
+
+    from statagent.agenten.regelaenderung import regelsatz_sicherstellen
+    from statagent.lauf import lauf_ausfuehren
+
+    regelsatz_sicherstellen(conn, "v2", "v1")
+    conn.execute(
+        """UPDATE meta.regel SET parameter = parameter || %s::jsonb
+           WHERE regelsatz = 'v2' AND typ = 'zaehl' AND art = 'dimension'""",
+        (json.dumps({"qualifikation": "beschaeftigungskategorie"}),),
+    )
+    conn.commit()
+    lauf = lauf_ausfuehren(conn, "2024-08", regelsatz="v2")
+    conn.commit()
+    p21 = _treffer(conn, lauf.lauf_id)["P21_blattsummen"]
+    assert p21["anzahl"] == 0, p21

@@ -153,6 +153,8 @@ def test_sheet_mini_vorlage_v1(conn: Verbindung, tmp_path: Path) -> None:
 
 
 def test_sheet_v2_baut_kategorien_um(conn: Verbindung, tmp_path: Path) -> None:
+    from statagent.agenten.regelaenderung import regelsatz_sicherstellen
+
     # Fängt: Blatt Beschäftigungskategorie bleibt bei fünf Qualifikationen, SUM-Bereich nicht nachgezogen,
     # Kategorie 'Unbekannt' fehlt, Blattsummen weichen ab.
     _laeufe(conn)
@@ -164,15 +166,9 @@ def test_sheet_v2_baut_kategorien_um(conn: Verbindung, tmp_path: Path) -> None:
             FROM meta.lauf WHERE regelsatz = 'v1' AND status IN ('fertig', 'unveraendert')
             """
         )
-        # Ein neuer Regelsatz übernimmt die Quellzuordnung seiner Basis (regelaenderung.regelsatz_sicherstellen).
-        conn.execute(
-            """
-            INSERT INTO stat.quellzuordnung (regelsatz, quelle, merkmal, version, geliefert, klassifikation, code,
-                                             regel_id)
-            SELECT 'v2', quelle, merkmal, version, geliefert, klassifikation, code, regel_id
-            FROM stat.quellzuordnung WHERE regelsatz = 'v1'
-            """
-        )
+        # Ein neuer Regelsatz entsteht als Kopie seiner Basis mit Regeln und Quellzuordnung; das Sheet liest
+        # die Zeitraumart aus seiner Bestandsregel (hier wie v1: Stichtag).
+        regelsatz_sicherstellen(conn, "v2", "v1")
         conn.execute(
             """
             INSERT INTO stat.stat_beschaeftigte

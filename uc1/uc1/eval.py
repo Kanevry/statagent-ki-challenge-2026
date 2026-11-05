@@ -1620,6 +1620,9 @@ class EndeFall:
     nicht_erwartet_ok: bool | None = None
     paar_ok: bool | None = None
     modell: str = ""
+    # Diagnose (#155): erkannte Leistungen und Gründe verworfener Aussagen, nur im Bericht, nie gezählt.
+    leistungen: tuple[str, ...] = ()
+    verworfen: tuple[str, ...] = ()
 
     @property
     def zitierte(self) -> frozenset[tuple[str, ...]]:
@@ -1796,6 +1799,14 @@ def bewerte_ende(
         satzlaenge=round(satzlaenge, 1),
         rueckfragen=len(rueckfragen),
         modell=modell,
+        leistungen=tuple(
+            str(x) for x in (getattr(endantwort, "leistungen", None) or [] if not fehler else [])
+        ),
+        verworfen=tuple(
+            str(v.get("grund") or "")
+            for v in (getattr(endantwort, "verworfen", None) or [] if not fehler else [])
+            if isinstance(v, dict)
+        ),
         **werte,
     )
 
@@ -1973,7 +1984,13 @@ def ende_bericht(
             f"### {e.id}",
             "",
             f"- Erwartete Quellen: {_quelltext(f.get('erwartete_quellen') or []) or '–'}",
+            f"- Erkannte Leistungen: {', '.join(e.leistungen) or '–'}",
         ]
+        if e.verworfen:
+            gruende = Counter(e.verworfen)
+            zeilen.append(
+                "- Verworfene Aussagen: " + "; ".join(f"{g} ({n})" for g, n in gruende.most_common())
+            )
         for nr, w in enumerate(e.wechsel, 1):
             zeilen.append(
                 f"- Wechsel {nr} ({w.ms:.0f} ms, Kern: {w.verhalten_kern or '–'}):"

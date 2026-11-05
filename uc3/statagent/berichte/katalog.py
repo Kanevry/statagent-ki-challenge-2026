@@ -255,7 +255,8 @@ def _bezug(
 ) -> list[dict[str, Any]]:
     """Regeln, auf die sich die Prüfung bezieht: ``parameter.regel`` (voller Name) und „Regel X“ in der Grundlage
     (Kurzname, z. B. E03 → E03_datum_pruefen)."""
-    namen = [str(parameter["regel"])] if parameter.get("regel") else []
+    angabe = parameter.get("regel")
+    namen = [str(n) for n in angabe] if isinstance(angabe, list) else ([str(angabe)] if angabe else [])
     namen += _REGEL_IM_TEXT.findall(grundlage)
     gefunden: dict[str, dict[str, Any]] = {}
     for n in namen:

@@ -26,9 +26,10 @@ from statagent.db import Verbindung
 HOECHSTENS_ZEILEN = 200
 ZEITLIMIT = "10s"
 #: Spalten, die eine Person oder ein Beschäftigungsverhältnis kennzeichnen (Einzeldaten).
-GESPERRTE_SPALTEN = frozenset({"person_id", "vvh_id"})
-#: Prüftreffer tragen Beispiel-Kennungen in ``beispiele``; auch die gehen nicht an das Modell.
-GESPERRTE_WOERTER = (*sorted(GESPERRTE_SPALTEN), "beispiele")
+#: Prüftreffer, Rückfragen und Revisionsursachen tragen Beispiel-Kennungen in ``beispiele``; auch die gehen nicht an
+#: das Modell. Eine Tabelle mit einer dieser Spalten ist für freie Abfragen ganz gesperrt (auch über to_jsonb(t)).
+GESPERRTE_SPALTEN = frozenset({"person_id", "vvh_id", "beispiele"})
+GESPERRTE_WOERTER = tuple(sorted(GESPERRTE_SPALTEN))
 #: Struktur (ohne Daten) für ``schema_lesen``.
 SCHEMAS = ("stat", "meta", "bereinigt", "klassifikation")
 #: Was eine freie Abfrage lesen darf: Aggregate, Regeln, Läufe, Klassifikationen. Keine Tabelle dort trägt
@@ -140,6 +141,18 @@ def sql_lesen(conn: Verbindung, query: str) -> dict[str, Any]:
                 raise AbfrageVerweigert(
                     f"Die Abfrage liest außerhalb von stat/meta/klassifikation: {', '.join(fremd)}"
                 )
+            if tabellen:
+                cur.execute(
+                    b"""SELECT DISTINCT table_schema || '.' || table_name AS tabelle FROM information_schema.columns
+                        WHERE table_schema || '.' || table_name = ANY(%s) AND lower(column_name) = ANY(%s)""",
+                    (sorted(tabellen), sorted(GESPERRTE_SPALTEN)),
+                )
+                mit_kennung = sorted(str(z["tabelle"]) for z in cur.fetchall())
+                if mit_kennung:
+                    raise AbfrageVerweigert(
+                        f"{', '.join(mit_kennung)} trägt Kennungen ({', '.join(sorted(GESPERRTE_SPALTEN))}) "
+                        "und ist für freie Abfragen gesperrt."
+                    )
             cur.execute(text.encode())
             spalten = [s.name for s in (cur.description or [])]
             gesperrt = sorted({s for s in spalten if s.lower() in GESPERRTE_SPALTEN})
@@ -200,6 +213,23 @@ def klassifikation_lesen(conn: Verbindung, begriff: str) -> dict[str, list[dict[
     return ergebnis
 
 
+#: Kennzeichen einer Zelle, die nur unterdrückt ist, damit sich eine „<5“-Zelle nicht aus der Summe zurückrechnen lässt.
+SEKUNDAER = "geheim"
+
+
+def _verteilung(werte: dict[str, int]) -> dict[str, int | str]:
+    """Anzahl je Code mit Geheimhaltung: Zellen 1–4 als „<5“. Ist genau eine Zelle so unterdrückt, wird zusätzlich
+    die kleinste übrige Zelle über 0 als „geheim“ ausgewiesen (sekundäre Sperrung), weil die Zeilenzahl der Lieferung
+    exakt bekannt ist und die einzelne Zelle sonst als Differenz ablesbar wäre."""
+    aus: dict[str, int | str] = {k: _zelle(n) for k, n in werte.items()}
+    primaer = [k for k, v in aus.items() if isinstance(v, str)]
+    if len(primaer) == 1:
+        offen = sorted((n, k) for k, n in werte.items() if k not in primaer and n > 0)
+        if offen:
+            aus[offen[0][1]] = SEKUNDAER
+    return aus
+
+
 def _zelle(n: int) -> int | str:
     """Geheimhaltung: Zellen von 1 bis MINDESTZELLE - 1 gehen nur als „<5“ hinaus (0 bleibt 0)."""
     return n if n == 0 or n >= MINDESTZELLE else f"<{MINDESTZELLE}"
@@ -243,7 +273,7 @@ def roh_kennzahlen(conn: Verbindung, lieferung: str) -> dict[str, Any]:
             ).format(m=sql.Identifier(m)),
             (lieferung,),
         ).fetchall()
-        je_code[m] = {str(c["code"]): _zelle(int(str(c["n"]))) for c in codes}
+        je_code[m] = _verteilung({str(c["code"]): int(str(c["n"])) for c in codes})
     leere_felder: dict[str, dict[str, int | float | str]] = {}
     for f in ROH_FELDER:
         n = int(str(z[f]))

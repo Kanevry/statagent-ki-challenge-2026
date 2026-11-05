@@ -165,12 +165,10 @@ function AntragVorbereitet({
 
 /** /uc1/antrag: Schritt 3. Ohne Antwort ein ehrlicher Leerzustand; mit Antrag-Angebot der Knopf zum Vorbereiten. */
 export function AntragSeite() {
-  const { antrag, verlauf, aufnahme, aufgezeichnet, antragVorbereiten } = useLotse();
+  const { antrag, verlauf, aufnahme, antragVorbereiten } = useLotse();
   const traeger = verlauf.at(-1)?.antwort.traeger ?? [];
   const letzte = verlauf.at(-1)?.antwort;
   const angebot = letzte?.verhalten === "antwort" ? letzte.antraege : [];
-  // Im Beispiel gibt es nur aufgezeichnete Anträge; die anderen nennt ein ehrlicher Satz.
-  const ohneAufnahme = aufgezeichnet === null ? [] : angebot.filter((art) => !aufgezeichnet.includes(art));
   const einer = antrag.art === "bereit" && antrag.antraege.length === 1 ? antrag.antraege[0] : undefined;
   return (
     <>
@@ -212,11 +210,6 @@ export function AntragSeite() {
               </Knopf>
             </div>
           ))}
-        {antrag.art === "bereit" && ohneAufnahme.length > 0 && (
-          <Fliesstext groesse={14} ton="gedaempft" data-testid="uc1-ohne-aufnahme">
-            {`Für ${ohneAufnahme.map(antragName).join(" und ")} gibt es auch einen Antrag. Im Beispiel ist er nicht aufgezeichnet. Im echten Gespräch füllt der Lotse ihn auch aus.`}
-          </Fliesstext>
-        )}
         {antrag.art === "leer" &&
           (angebot.length > 0 ? (
             <Leerzustand

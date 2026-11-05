@@ -7,7 +7,7 @@ Zwei Läufe mit denselben Daten und Regeln liefern denselben Ergebnis-Hash.
 
 ## Voraussetzungen
 
-- Python **3.12** oder neuer, [uv](https://docs.astral.sh/uv/) 0.9 oder neuer
+- Python **3.12** oder neuer, [uv](https://docs.astral.sh/uv/) 0.12 oder neuer
 - PostgreSQL **16** mit den Daten des Startpakets (`roh.lieferung`, `klassifikation.*`), Port **5433**:
   im Startpaket `DB_PORT=5433 docker compose up -d`, warten bis `docker logs statagent-db` „fertig“ meldet
 - Startpaket-Ordner (Beispielbericht, Vorlagen) unter `../svbox/uc3` neben dem Repo oder über `STATAGENT_STARTPAKET`
@@ -40,19 +40,27 @@ uv run uc3 berichte --alle && uv run uc3 sheet   # 24 Qualitätsberichte und Agg
 | `regeln zeigen` / `regeln export` | Regeln als Daten mit Parametern, Begründung, Grundlage und Freigabe |
 | `regeln freigeben --name "Vorname Nachname"` | gibt offene Regeln mit Namen und Zeitpunkt frei („Team“ wird abgelehnt) |
 | `lauf --lieferung JJJJ-MM` | ein Produktionslauf: genau eine Lieferung, nur eigene und frühere Lieferungen |
-| `laeufe` | Läufe mit Status, Abrechnung und Ergebnis-Hash |
+| `laeufe` | Läufe mit Status, Abrechnung und Ergebnis-Hash; für den Hash-Vergleich `laeufe --json` (voller Hash, die Textausgabe kürzt auf 12 Zeichen) |
 | `eichen` | Zellvergleich gegen `beispielbericht_2024-08.xlsx` |
 | `veroeffentlichen --lieferung JJJJ-MM --name "…"` | gibt einen Monat frei: vorläufig → endgültig, danach unveränderlich |
 | `berichte`, `sheet`, `pruefe-abgabe` | Qualitätsberichte, Aggregations-Sheet, Prüfung der Abgabedateien |
+| `ministerium --monat JJJJ-MM --name "…"` | Ministeriums-Lieferung (Auftrag 3): prüft die Definition gegen Annahme A13 (Altcodes wie Regel Q01, angehaltene Lieferungen überspringen), schreibt die CSV außerhalb jedes Git-Repos und gibt den Beleg (sha256, Zeilenzahl) unter `abgabe/` mit Namen frei; Ausgabe mit beiden Parametern und Zeilenzahl |
 | `protokoll` | Protokoll aller Änderungen: Git-Commits mit `Freigegeben-von`, Regelfreigaben, veröffentlichte Monate |
+| `klass [begriff] [code] [--version V] [--unterklassen N]` | erklärt eine Klassifikation (oenace, region, qualifikation, beschaeftigungskategorie, geschlecht, alter): Versionen mit Codes; mit Code Bezeichnung je Version, Übergänge aus `stat.uebergang` (ÖNACE 2008 zu 2025 lädt `db init` aus dem Umsteiger des Startpakets), Quellzuordnungen und Verhältnisse im letzten veröffentlichten Monat mit SQL |
+| `export-online --ziel datei.sql [--pg-dump "…"] [--rolle kic_app]` | Plain-SQL-Dump nur von `stat` und `meta` (nie `roh`, `bereinigt`; sonst wird die Datei gelöscht) mit Leserechten für die Rolle, einspielbar in PostgreSQL 16; Ausgabe Pfad, Größe, Tabellen je Schema, sha256 |
+
+Der Ergebnis-Hash eines Laufs ist SHA-256 über alle Zellen des Monats: je Zelle eine Zeile
+`zeitraum_art|zeitraum_von|zeitraum_bis|region|oenace|oenace_version|geschlecht|qualifikation|alter|variable|wert`,
+sortiert (Sortierfolge `C`) und mit Zeilenumbruch verbunden. Zwei Läufe mit denselben Daten und Regeln ergeben
+denselben Hash.
 
 ## Wie ein Lauf rechnet
 
 1. **Bereinigen** (`bereinigt.abschnitt`): Spaltentausch BEGINN/ENDE erkennen, Volldubletten verdichten, Daten
-   prüfen (Geburtsmonat 13 behält das Jahr), Merkmale über `stat.quellzuordnung` auf Klassifikationscodes führen
+   prüfen (Geburtsmonat 13 behält das Jahr, Ersatztag 1. Juli), Merkmale über `stat.quellzuordnung` auf Klassifikationscodes führen
    (leer → unbekannt, ÖNACE-2003-Unterabschnitte DA–DN → C). Kein Satz geht verloren.
 2. **Zählen** (`stat.stat_beschaeftigte`, Long-Format nach Anhang B): Verhältnis zählt, wenn ein Abschnitt am
-   Stichtag besteht; Merkmale aus diesem Abschnitt; Alter in vollendeten Jahren, über 100 als unbekannt.
+   Stichtag besteht; Merkmale aus diesem Abschnitt; Alter in vollendeten Jahren am Stichtag; bei Geburtsmonat 13 gilt der 1. Juli als Geburtstag, über 110 Jahre als unbekannt.
 3. **Revisionsbedarf**: die zwei Vormonate aus der eigenen Lieferung nachrechnen und mit dem Veröffentlichten
    vergleichen (Nachmeldungen, rückwirkende Abmeldungen, nicht mehr enthalten).
 4. **Prüfen** (Prüfkatalog P01–P24 in `meta.regel`): Auffälligkeiten mit Einstufung erklärt-plausibel,
