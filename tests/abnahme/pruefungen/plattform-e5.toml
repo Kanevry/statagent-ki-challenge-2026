@@ -1,13 +1,5 @@
-# Prüfsätze E5 Präsentation. Vorschläge von b-abnahme-30/agent-e5 05.11. 18:1x, gesichtet von b-abnahme-30.
-
-# Prüfsatz-Vorschläge E5 Präsentation (Teil E5 im Bereich plattform): 26-1, 88-x, 89-x, 90-x, 134-x, 141-x.
-# Erzeugt 05.11.2026 von b-abnahme-30/messer-e5. Gemessen auf dem Checkout b-abnahme (nah an main 1195302).
-# Vieles liegt im offenen MR !80 (Szenen v4, Nacharbeit #141) und ist auf main noch nicht da: dort "nicht bestanden".
-# art = "hand": kein Befehl, ein Mensch prüft die Beschreibung. schwer = true: Browser, Datenbank oder Prüfrechner.
-# Alle Befehle schreiben nur in ein temporäres Verzeichnis (mktemp), nie ins Repo. screens_manifest.py wird nie ohne
-# --wurzel auf ein temporäres Verzeichnis oder nur mit --check aufgerufen, weil es sonst screens-manifest.md überschreibt.
-
-# ---------------------------------------------------------------- Epic #26
+# Prüfsätze E5 Präsentation. #26 und #90: Vorschläge agent-e5 18:1x; #88, #89, #134, #141: v4-Wortlaut
+# (Owner-Kurswechsel 16:0x, bestätigt von Lead a7 18:1x), Vorschläge agent-e5-v4 18:3x; gesichtet von b-abnahme-30.
 
 [[pruefung]]
 id = "26-1"
@@ -40,254 +32,6 @@ befund = "probe.md nennt keine Gesamtdauer Ist oder sie liegt über 10:00."
 grund = "probe.md trägt eine Gesamtdauer von höchstens 10:00 ein."
 
 # ---------------------------------------------------------------- #88 Screenshots
-
-[[pruefung]]
-id = "88-1"
-hash = "1f2c2ed5de"
-befehl = '''uv run --isolated --package plattform python -I -c '
-import hashlib, pathlib, re, struct
-d = pathlib.Path("docs/praesentation/screens")
-soll = ["SC%02d.png" % n for n in range(1, 13)]
-png = sorted(p.name for p in d.glob("*.png"))
-print("pngs", len(png))
-print("namen_ok", int(png == soll))
-m = pathlib.Path("docs/praesentation/screens-manifest.md")
-mt = m.read_text(encoding="utf-8") if m.is_file() else ""
-breit = zeilen = 0
-for n in soll:
-    p = d / n
-    if not p.is_file():
-        continue
-    b = p.read_bytes()
-    if b[:8] != b"\x89PNG\r\n\x1a\n" or b[12:16] != b"IHDR":
-        continue
-    w, h = struct.unpack(">II", b[16:24])
-    if w >= 1920:
-        breit += 1
-    sha = hashlib.sha256(b).hexdigest()
-    z = [l for l in mt.splitlines() if l.startswith("| " + n[:4] + " ")]
-    if z and sha in mt and re.search(r"\| %d \| %d \|" % (w, h), z[0]):
-        zeilen += 1
-print("breit_ok", breit)
-print("manifest_ok", zeilen)
-' '''
-erwartet = ['^pngs 12$', '^namen_ok 1$', '^breit_ok 12$', '^manifest_ok 12$']
-deckung = "voll"
-zeitlimit = 60
-quelle = "Issue #88, Kriterium 88-1 (Wortlaut)"
-befund = "docs/praesentation/screens/ enthält nicht genau SC01.png bis SC12.png mit mindestens 1920 Pixel Breite, oder screens-manifest.md nennt Name, Breite, Höhe und SHA-256 nicht für alle 12."
-grund = "12 lesbare PNGs SC01 bis SC12, alle mindestens 1920 Pixel breit, und das Manifest stimmt für 12 von 12 mit Breite, Höhe und SHA-256 überein."
-gegenprobe = '''ls docs/praesentation/screens/*.png | grep -c '^docs/praesentation/screens/SC1[3-9]\.png$' | grep -c '^[1-9]' '''
-
-[[pruefung]]
-id = "88-2"
-hash = "4f48e3c3e7"
-befehl = '''uv run --isolated --package plattform python -I -c '
-import json, re
-d = json.load(open("docs/praesentation/screens/quellen.json", encoding="utf-8"))
-voll = mock = 0
-for e in d:
-    if (e.get("route") or e.get("quelle")) and e.get("commit") and e.get("lauf") and e.get("pen_frame") and e.get("art") in ("live", "testdaten", "aufzeichnung"):
-        voll += 1
-    if e.get("art") == "live" and re.search(r"mock|replay|testdaten|aufzeichnung", str(e.get("hinweis") or ""), re.I):
-        mock += 1
-print("eintraege", len(d))
-print("vollstaendig", voll)
-print("mock_als_live", mock)
-m = open("docs/praesentation/screens-manifest.md", encoding="utf-8").read()
-kopf = [l for l in m.splitlines() if l.startswith("| Bild ")]
-print("manifest_pen_spalte", int(bool(kopf) and bool(re.search(r"Pen", kopf[0]))))
-print("manifest_offen", len(re.findall(r"\| offen \|", m)))
-' '''
-erwartet = ['^eintraege 12$', '^vollstaendig 12$', '^mock_als_live 0$', '^manifest_pen_spalte 1$', '^manifest_offen 0$']
-deckung = "teil"
-zeitlimit = 60
-quelle = "Issue #88, Kriterium 88-2 (Wortlaut: Route, Commit, Daten-/Lauf-ID, Pen-Frame-ID, live/mock/replay)"
-befund = "Nicht alle 12 Einträge in quellen.json haben Route oder Quelle, Commit, Lauf, Pen-Frame und eine Art, oder das Manifest hat keine Pen-Frame-Spalte und noch offene Bilder."
-grund = "12 von 12 Einträge vollständig, kein Mock- oder Replay-Bild als live ausgegeben, Manifest mit Pen-Frame-Spalte und ohne offene Bilder."
-
-[[pruefung]]
-id = "88-2"
-hash = "4f48e3c3e7"
-art = "hand"
-deckung = "teil"
-beschreibung = "Der Prüfer öffnet screens-manifest.md und quellen.json und sieht für jedes der 12 Bilder nach, ob die Angaben stimmen: Das Bild mit Art live stammt wirklich von der Live-Seite mit echtem Lauf (Commit und Lauf-ID passen), Testdaten- und Aufzeichnungsbilder sind als solche gekennzeichnet. Zusätzlich muss für jede nach #64 (Frame-Abnahme) festgestellte Abweichung zwischen Pen-Frame und Bild ein Status im Manifest oder in quellen.json stehen. Bestanden: bei keinem Bild widerspricht die Art der Herkunft, und jede Abweichung hat einen Status."
-quelle = "Issue #88, Kriterium 88-2 (Wortlaut, zweiter Satz)"
-befund = "Das Manifest nennt für Abweichungen aus #64 keinen Status je Bild, oder eine Art stimmt nicht mit der Herkunft überein."
-grund = "Art und Herkunft jedes Bildes stimmen, Abweichungen aus #64 haben je Bild einen Status."
-
-[[pruefung]]
-id = "88-3"
-hash = "01aa9f2666"
-befehl = '''uv run --isolated --package plattform python -I -c '
-import re
-t = open("docs/praesentation/screens-sichtpruefung.md", encoding="utf-8").read()
-ok = 0
-for z in t.splitlines():
-    c = [x.strip() for x in z.strip().strip("|").split("|")]
-    if len(c) == 7 and re.fullmatch(r"SC\d\d", c[0]) and c[1] and re.fullmatch(r"\d{4}-\d\d-\d\d|\d\d\.\d\d\.\d{4}", c[2]) and c[3] == "nein" and c[4] == "nein" and c[5] and c[6] == "ok":
-        ok += 1
-print("zeilen_ok", ok)
-m = re.search(r"Offene Befunde: (\d+)", t)
-print("offene_befunde", m.group(1) if m else "fehlt")
-' '''
-erwartet = ['^zeilen_ok 12$', '^offene_befunde 0$']
-deckung = "teil"
-zeitlimit = 60
-quelle = "Issue #88, Kriterium 88-3 (Wortlaut: Reviewer, Datum, Befund je PNG; 0 offene Befunde)"
-befund = "screens-sichtpruefung.md hat nicht für alle 12 Bilder Prüfer, Datum, Befund und Status ok mit Nein zu Tokens und Gesundheitsdaten, oder offene Befunde stehen noch."
-grund = "12 von 12 Zeilen ausgefüllt mit Status ok und die Datei meldet 0 offene Befunde."
-
-[[pruefung]]
-id = "88-3"
-hash = "01aa9f2666"
-art = "hand"
-deckung = "voll"
-beschreibung = "Eine zweite Person (nicht die, die die Bilder aufgenommen hat) öffnet jedes der 12 PNGs in docs/praesentation/screens/ in voller Größe und sieht sie an. Sie sucht sichtbare Tokens, Schlüssel, Adressen mit Zugangsdaten und echte Gesundheits- oder Sozialdaten (zum Beispiel echte Namen, Versicherungsnummern, VVH_IDs einzelner Verhältnisse). Ein Textscan allein zählt nicht. Sie trägt je Bild Namen, Datum und Befund in screens-sichtpruefung.md ein. Bestanden: 12 von 12 Bildern ohne solche Inhalte, und der Bericht nennt 0 offene Befunde."
-quelle = "Issue #88, Kriterium 88-3 (Wortlaut)"
-befund = "Es gibt keine unabhängige Sichtprüfung; screens-sichtpruefung.md ist leer und nennt 12 offene Befunde."
-grund = "Eine unabhängige Sichtprüfung hat alle 12 Bilder angesehen und keinen offenen Befund hinterlassen."
-
-# ---------------------------------------------------------------- #89 Folien
-
-[[pruefung]]
-id = "89-1"
-hash = "65dfa35995"
-befehl = '''uv run --isolated --package plattform python -I docs/praesentation/werkzeug/slides_check.py && uv run --isolated --package plattform python -I -c '
-import pathlib, re
-sb = open("docs/praesentation/storyboard.md", encoding="utf-8").read()
-dateien = sorted(p.name for p in pathlib.Path("web/content/slides").glob("*.md"))
-print("folien_dateien", len(dateien))
-zu = 0
-for z in sb.splitlines():
-    c = [x.strip() for x in z.strip().strip("|").split("|")]
-    if len(c) >= 6 and re.fullmatch(r"`\d\d-[^`]+\.md`", c[1]) and c[1].strip("`") in dateien and re.fullmatch(r"`[A-Za-z0-9_-]{4,}`", c[5]):
-        zu += 1
-print("storyboard_pen_frame", zu)
-' '''
-erwartet = ['^slides_check: 11/11 gültig$', '^folien_dateien 11$', '^storyboard_pen_frame 11$']
-deckung = "voll"
-zeitlimit = 90
-quelle = "Issue #89, Kriterium 89-1 (Wortlaut: genau 11 Dateien, Frontmatter titel und layout, Sprechernotizen, Storyboard ordnet Pen-Frame zu)"
-befund = "web/content/slides/ hat nicht genau 11 gültige Folien mit titel, layout und Sprechernotizen, oder storyboard.md ordnet nicht jede Datei einem Pen-Frame zu."
-grund = "slides_check meldet 11/11 gültig und das Storyboard ordnet alle 11 Dateien einem Pen-Frame zu."
-gegenprobe = '''ls web/content/slides/*.md | grep -c '/1[2-9]-' | grep -c '^[1-9]' '''
-
-[[pruefung]]
-id = "89-2"
-hash = "1aa85bc7ee"
-befehl = '''uv run --isolated --package plattform python -I -c '
-import glob, re
-reg = open("docs/praesentation/belegregister.md", encoding="utf-8").read()
-zeilen = ok = 0
-for z in reg.splitlines():
-    c = [x.strip() for x in z.strip().strip("|").split("|")]
-    if len(c) >= 5 and re.fullmatch(r"F\d+", c[0]):
-        zeilen += 1
-        if re.search(r"`[^`]*[/.][^`]*`|Abfrage|Qualitätsbericht|Beispielbericht", c[-2]) and re.search(r"\d{2}\.\d{2}\.\d{4}", c[-1]):
-            ok += 1
-print("register_zeilen", zeilen)
-print("register_luecken", zeilen - ok)
-zahl = re.compile(r"(?<![\d.])\d{1,3}(?:\.\d{3})+(?:,\d+)?(?![\d.])|(?<![\d.])\d+,\d+(?![\d.])")
-unbelegt = set()
-for p in sorted(glob.glob("web/content/slides/*.md")):
-    t = open(p, encoding="utf-8").read().split("---", 2)[-1]
-    for m in zahl.findall(t):
-        if m not in reg:
-            unbelegt.add(m)
-print("unbelegte_zahlen", len(unbelegt))
-' '''
-erwartet = ['^register_zeilen (1[6-9]|[2-9]\d)$', '^register_luecken 0$', '^unbelegte_zahlen 0$']
-deckung = "teil"
-zeitlimit = 60
-quelle = "Issue #89, Kriterium 89-2 (Wortlaut: jede Ergebniszahl mit Messartefakt, Datenstand, Dateipfad; 0 unbelegte Zahlen)"
-befund = "Im Belegregister fehlt bei einer Kennung Messartefakt, Abfrage oder Datenstand, oder eine Zahl mit Tausenderpunkt oder Komma auf einer Folie steht nicht im Register (der Dateipfad je Zeile ist nur Stichwort, nicht streng geprüft)."
-grund = "Alle Register-Zeilen haben Abfrage oder Pfad und Datenstand, und jede größere oder gebrochene Zahl der 11 Folien steht im Belegregister."
-
-[[pruefung]]
-id = "89-2"
-hash = "1aa85bc7ee"
-befehl = '''uv run --isolated --package plattform python -I -c '
-import glob, re
-n = {
-    "loesung": r"Lösung|drei Schritte",
-    "fehler": r"Datenfehler|Fehler",
-    "annahme": r"Annahme",
-    "live_aenderung": r"Änderung",
-    "datenanfrage": r"Datenanfrage|Datenfrage",
-}
-notizen = ""
-for p in sorted(glob.glob("web/content/slides/*.md")):
-    t = open(p, encoding="utf-8").read()
-    if "## Sprechernotizen" in t:
-        notizen += t.split("## Sprechernotizen", 1)[1]
-tr = sum(1 for k, r in n.items() if re.search(r, notizen))
-print("inhalt_punkte", tr)
-' '''
-erwartet = ['^inhalt_punkte 5$']
-deckung = "teil"
-zeitlimit = 60
-quelle = "Issue #89, Kriterium 89-2 (Wortlaut: Sprechernotizen behandeln Lösung, Fehler, 1 Annahme, Live-Änderung, Datenanfragen; 5/5)"
-befund = "In den Sprechernotizen der Folien fehlt eines der fünf Pflichtthemen (Lösung, Fehler, Annahme, Live-Änderung, Datenanfragen)."
-grund = "Alle fünf Pflichtthemen kommen in den Sprechernotizen vor (nur Stichwortsuche, die inhaltliche Prüfung macht ein Mensch)."
-
-[[pruefung]]
-id = "89-2"
-hash = "1aa85bc7ee"
-art = "hand"
-deckung = "voll"
-beschreibung = "Ein Prüfer liest die Sprechernotizen der 11 Folien (web/content/slides, Abschnitt Sprechernotizen) und hakt fünf Punkte einzeln ab: 1 Lösung wird erklärt, 2 gefundene Fehler mit Beispiel, 3 eine begründete Annahme im Detail, 4 Live-Änderung, 5 Datenanfragen. Dazu prüft er drei Stichproben von Zahlen auf Folien gegen belegregister.md (Abfrage ausführbar, Datenstand genannt). Bestanden: 5 von 5 Punkten belegt und alle drei Stichproben stimmen."
-quelle = "Issue #89, Kriterium 89-2 (Wortlaut: 5/5 Punkte in der Inhaltsprüfung)"
-befund = "Eine der fünf Pflichtaussagen fehlt in den Sprechernotizen oder eine Stichprobenzahl ist nicht belegt."
-grund = "Die Inhaltsprüfung ergibt 5 von 5 Punkten."
-
-[[pruefung]]
-id = "89-3"
-hash = "71f6ce7b59"
-befehl = '''uv run --isolated --package plattform python -I -c '
-import glob, re
-n = pen = 0
-for p in sorted(glob.glob("web/content/slides/*.md")):
-    t = open(p, encoding="utf-8").read()
-    fm, koerper = t.split("---", 2)[1], t.split("---", 2)[2]
-    if re.search(r"^pen_frame: *\S+", fm, re.M):
-        pen += 1
-    inhalt = koerper.split("## Sprechernotizen", 1)[0]
-    if all(re.search(u, inhalt) for u in ("UC1", "UC2", "UC3")):
-        n += 1
-print("folien_mit_uc1_uc2_uc3", n)
-print("folien_mit_pen_frame", pen)
-' '''
-erwartet = ['^folien_mit_uc1_uc2_uc3 [1-9]', '^folien_mit_pen_frame 11$']
-deckung = "teil"
-zeitlimit = 60
-quelle = "Issue #89, Kriterium 89-3 (Wortlaut: mindestens 1 Folie mit UC1, UC2, UC3; alle 11 Folien Pen-Frames zugeordnet)"
-befund = "Keine Folie nennt im sichtbaren Text UC1, UC2 und UC3 zusammen, oder nicht alle 11 Folien tragen ein Feld pen_frame."
-grund = "Mindestens eine Folie nennt UC1, UC2 und UC3, und alle 11 Folien tragen einen Pen-Frame."
-
-[[pruefung]]
-id = "89-3"
-hash = "71f6ce7b59"
-befehl = "ABGABE=1 timeout 900 pnpm --dir web exec playwright test tests/slop.spec.ts --reporter=line"
-erwartet = ['\d+ passed']
-deckung = "teil"
-schwer = true
-zeitlimit = 900
-quelle = "Issue #89, Kriterium 89-3 (Wortlaut: Schablonenmessung #62 mit 0 Treffern); Messung deckt Route /praesentation laut web/tests/slop.spec.ts"
-befund = "Die Schablonenmessung findet auf einer Route (auch /praesentation) mindestens einen Treffer, oder der Test läuft nicht durch."
-grund = "Alle Schablonenmessungen inklusive /praesentation haben 0 Treffer."
-
-[[pruefung]]
-id = "89-3"
-hash = "71f6ce7b59"
-art = "hand"
-deckung = "teil"
-beschreibung = "Der Prüfer liest die Folie mit den nächsten Entwicklungsschritten (vermutlich Folie 10 und 11) und sieht nach, ob zu UC1, UC2 und UC3 je ein Satz zu nächsten Schritten und Nutzen steht. Er öffnet storyboard.md: Falls /praesentation gerendert wird, gilt der Screenshot-Vergleich der Folien mit den Pen-Frames P01 bis P11 (kein sichtbarer Unterschied im Aufbau). Falls nicht gerendert wird, muss der Runtime-Fallback in storyboard.md beschrieben sein. Bestanden: je ein Satz zu UC1, UC2, UC3 und entweder Screenshot-Vergleich ohne Abweichung oder dokumentierter Fallback."
-quelle = "Issue #89, Kriterium 89-3 (Wortlaut)"
-befund = "Es fehlt ein Satz zu nächsten Schritten und Nutzen für einen der drei Use Cases, oder weder Screenshot-Vergleich noch Fallback sind dokumentiert."
-grund = "Folie enthält je einen Satz zu UC1, UC2, UC3, und der Vergleich mit Pen oder der Fallback ist belegt."
-
-# ---------------------------------------------------------------- #90 Probe, Backup-Video, Ausfallprobe
 
 [[pruefung]]
 id = "90-1"
@@ -416,28 +160,310 @@ grund = "Der Wechsel auf die Aufzeichnung dauerte höchstens 30 Sekunden, ist ge
 # und rufen das Werkzeug mit --wurzel darauf auf. Das Repo bleibt unverändert.
 
 [[pruefung]]
-id = "134-1"
-hash = "ba089b9a06"
+id = "88-1"
+hash = "97fe64aeff"
 befehl = '''uv run --isolated --package plattform python -I -c '
-import json, pathlib, shutil, subprocess, sys, tempfile
-t = pathlib.Path(tempfile.mkdtemp())
-shutil.copytree("docs/praesentation/screens", t / "docs/praesentation/screens")
-q = t / "docs/praesentation/screens/quellen.json"
-d = json.loads(q.read_text(encoding="utf-8"))
-for e in d:
-    if e["bild"] == "SC11":
-        e.update(quelle="oberflaeche", route="/uc4", commit="4495de3cf9f5", lauf="lauf-1", pen_frame="", art="live", hinweis="", aufgenommen_am="2026-11-05")
-q.write_text(json.dumps(d), encoding="utf-8")
-r = subprocess.run([sys.executable, "docs/praesentation/werkzeug/screens_manifest.py", "--wurzel", str(t), "--check"], capture_output=True, text=True)
-print(r.stdout)
-shutil.rmtree(t)
+import datetime, hashlib, json, pathlib, re, struct
+d = pathlib.Path("docs/praesentation/screens")
+soll = ["SC%02d" % n for n in (1, 2, 6, 7, 8, 9, 10, 11, 12)]
+png = sorted(p.stem for p in d.glob("*.png"))
+print("pngs", len(png))
+print("namen_ok", int(png == soll))
+mt = pathlib.Path("docs/praesentation/screens-manifest.md").read_text(encoding="utf-8") if pathlib.Path("docs/praesentation/screens-manifest.md").is_file() else ""
+q = {e["bild"]: e for e in json.loads((d / "quellen.json").read_text(encoding="utf-8"))}
+umbau = datetime.datetime.fromisoformat("2026-11-05T18:05:36+01:00")
+lesbar = breit = zeilen = nach_umbau = 0
+for n in soll:
+    p = d / (n + ".png")
+    if not p.is_file():
+        continue
+    b = p.read_bytes()
+    if b[:8] != b"\x89PNG\r\n\x1a\n" or b[12:16] != b"IHDR" or b[-8:-4] != b"IEND":
+        continue
+    lesbar += 1
+    w, h = struct.unpack(">II", b[16:24])
+    if w >= 1920:
+        breit += 1
+    sha = hashlib.sha256(b).hexdigest()
+    z = [l for l in mt.splitlines() if l.startswith("| " + n + " ")]
+    if z and sha in mt and re.search(r"\| %d \| %d \|" % (w, h), z[0]):
+        zeilen += 1
+    am = (q.get(n) or {}).get("aufgenommen_am")
+    try:
+        if am and datetime.datetime.fromisoformat(am) >= umbau:
+            nach_umbau += 1
+    except ValueError:
+        pass
+print("lesbar_ok", lesbar)
+print("breit_ok", breit)
+print("manifest_ok", zeilen)
+print("aufnahme_nach_umbau", nach_umbau)
+print("entfall_begruendet", sum(1 for n in ("SC03", "SC04", "SC05") if "entfällt in v4" in str((q.get(n) or {}).get("hinweis") or "")))
 ' '''
-erwartet = ['^SC11: .*pen_frame']
+erwartet = ['^pngs 9$', '^namen_ok 1$', '^lesbar_ok 9$', '^breit_ok 9$', '^manifest_ok 9$', '^aufnahme_nach_umbau 9$', '^entfall_begruendet 3$']
+deckung = "voll"
+zeitlimit = 60
+quelle = "Issue #88, Kriterium 88-1 (Wortlaut: SC01, SC02, SC06 bis SC12 = 9 Bilder, mindestens 1920 Pixel breit, Manifest mit Name, Breite, Höhe, SHA-256, Begründung SC03 bis SC05 in quellen.json, Aufnahme nach dem Umbau der UI-Regie)"
+befund = "docs/praesentation/screens/ enthält nicht genau die 9 lesbaren PNGs SC01, SC02 und SC06 bis SC12 mit mindestens 1920 Pixel Breite, oder das Manifest nennt Breite, Höhe und SHA-256 nicht für alle 9, oder ein Bild ist vor dem Umbau der UI-Regie aufgenommen, oder der Entfall von SC03 bis SC05 ist nicht in quellen.json begründet."
+grund = "9 lesbare PNGs SC01, SC02, SC06 bis SC12, alle mindestens 1920 Pixel breit, Manifest stimmt für 9 von 9, alle nach dem Umbau der UI-Regie aufgenommen, Entfall von SC03 bis SC05 begründet."
+gegenprobe = "test -e docs/praesentation/screens/SC03.png"
+
+[[pruefung]]
+id = "88-2"
+hash = "9e82d185c1"
+befehl = '''uv run --isolated --package plattform python -I -c '
+import json, pathlib, re
+d = json.loads(pathlib.Path("docs/praesentation/screens/quellen.json").read_text(encoding="utf-8"))
+sc = {e["bild"]: e for e in d}
+soll = ["SC%02d" % n for n in (1, 2, 6, 7, 8, 9, 10, 11, 12)]
+voll = mock = 0
+for n in soll:
+    e = sc.get(n) or {}
+    if e.get("route") and e.get("commit") and e.get("lauf") and e.get("art") in ("live", "testdaten", "aufzeichnung"):
+        voll += 1
+    if e.get("art") == "live" and re.search(r"mock|replay|testdaten|aufzeichnung", str(e.get("hinweis") or ""), re.I):
+        mock += 1
+print("quellen_vollstaendig", voll)
+print("mock_als_live", mock)
+m = pathlib.Path("docs/praesentation/screens-manifest.md").read_text(encoding="utf-8")
+kopf = [l for l in m.splitlines() if l.startswith("| Bild ")]
+sp = [x.strip() for x in kopf[0].strip().strip("|").split("|")] if kopf else []
+print("manifest_spalten", int(all(s in sp for s in ("Route", "Commit", "Lauf", "Art"))))
+ok = 0
+for z in m.splitlines():
+    c = [x.strip() for x in z.strip().strip("|").split("|")]
+    if len(sp) == len(c) and c[0] in soll:
+        r = dict(zip(sp, c))
+        if r["Route"] != "–" and r["Commit"] != "–" and r["Lauf"] != "–" and r["Art"] in ("live", "testdaten", "aufzeichnung"):
+            ok += 1
+print("manifest_zeilen_vollstaendig", ok)
+' '''
+erwartet = ['^quellen_vollstaendig 9$', '^mock_als_live 0$', '^manifest_spalten 1$', '^manifest_zeilen_vollstaendig 9$']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #134, Aufgabe 1, erster Unterpunkt: pen_frame als Pflichtfeld prüfen"
-befund = "screens_manifest.py --check meldet kein Problem, wenn pen_frame eines Bildes leer ist."
-grund = "Ein leeres pen_frame wird von --check als Befund gemeldet."
+quelle = "Issue #88, Kriterium 88-2 (Wortlaut: Manifest pro Bild Route, Commit, Daten-/Lauf-ID, Kennzeichnung live/mock/replay; Pen-Frame-ID entfällt; 9/9 vollständig, 0 Mock-/Replay-Bilder als live)"
+befund = "Nicht alle 9 Bilder haben im Manifest und in quellen.json Route, Commit, Lauf und eine Art (live, testdaten, aufzeichnung), oder ein Mock- oder Replay-Bild ist als live ausgegeben."
+grund = "9 von 9 Einträge vollständig, im Manifest und in quellen.json, kein Mock- oder Replay-Bild als live ausgegeben; die Pen-Frame-ID wird nicht verlangt."
+gegenprobe = "test \"$(grep -c 'Pen-Frame' docs/praesentation/screens-manifest.md || true)\" -ge 1"
+
+[[pruefung]]
+id = "88-2"
+hash = "9e82d185c1"
+art = "hand"
+deckung = "teil"
+beschreibung = "Der Prüfer öffnet screens-manifest.md und quellen.json und sieht für jedes der 9 Bilder nach, ob die Art zur Herkunft passt: Ein Bild mit Art live stammt von der Live-Seite mit echtem Lauf (Commit und Lauf-ID passen zur Aufnahme), Bilder aus Testdaten oder Aufzeichnung sind als solche gekennzeichnet. Außerdem prüft er, ob zu jeder nach #64 (Frame-Abnahme) festgestellten Abweichung je Bild ein Status in screens-manifest.md oder quellen.json steht (Feld hinweis oder eine eigene Spalte). Die Pen-Frame-ID wird nicht mehr verlangt. Bestanden: bei keinem Bild widerspricht die Art der Herkunft, und jede Abweichung aus #64 hat einen Status."
+quelle = "Issue #88, Kriterium 88-2 (Wortlaut, letzter Satz: nach #64 festgestellte Abweichungen sind je Bild mit Status vermerkt)"
+befund = "Eine Art widerspricht der Herkunft, oder für eine Abweichung aus #64 fehlt der Status je Bild."
+grund = "Art und Herkunft jedes der 9 Bilder stimmen, Abweichungen aus #64 haben je Bild einen Status."
+
+[[pruefung]]
+id = "88-3"
+hash = "4cc346930f"
+befehl = '''uv run --isolated --package plattform python -I -c '
+import re
+t = open("docs/praesentation/screens-sichtpruefung.md", encoding="utf-8").read()
+soll = ["SC%02d" % n for n in (1, 2, 6, 7, 8, 9, 10, 11, 12)]
+ok = 0
+for z in t.splitlines():
+    c = [x.strip() for x in z.strip().strip("|").split("|")]
+    if len(c) == 7 and c[0] in soll and c[1] and re.fullmatch(r"\d{4}-\d\d-\d\d|\d\d\.\d\d\.\d{4}", c[2]) and c[3] == "nein" and c[4] == "nein" and c[5] and c[6] == "ok":
+        ok += 1
+print("zeilen_ok", ok)
+m = re.search(r"Offene Befunde: (\d+)", t)
+print("offene_befunde", m.group(1) if m else "fehlt")
+' '''
+erwartet = ['^zeilen_ok 9$', '^offene_befunde 0$']
+deckung = "teil"
+zeitlimit = 60
+quelle = "Issue #88, Kriterium 88-3 (Wortlaut: pro PNG Reviewer, Datum, Befund; 9/9 ohne sichtbare Tokens, Schlüssel oder echte Gesundheits-/Sozialdaten; Bericht mit 0 offenen Befunden)"
+befund = "screens-sichtpruefung.md hat nicht für alle 9 Bilder Prüfer, Datum, Befund und Status ok mit Nein zu Tokens und Gesundheitsdaten, oder die Datei meldet noch offene Befunde."
+grund = "9 von 9 Zeilen ausgefüllt mit Status ok, und die Datei meldet 0 offene Befunde."
+gegenprobe = "grep -c 'Offene Befunde: 12' docs/praesentation/screens-sichtpruefung.md | grep -c '^0$'"
+
+[[pruefung]]
+id = "88-3"
+hash = "4cc346930f"
+art = "hand"
+deckung = "voll"
+beschreibung = "Eine zweite Person (nicht die, die die Bilder aufgenommen hat; die Vorprüfung durch den Aufnahme-Agenten zählt nicht) öffnet jedes der 9 PNGs in docs/praesentation/screens/ (SC01, SC02, SC06 bis SC12) in voller Größe und sieht sie an. Sie sucht sichtbare Tokens, Schlüssel, Adressen mit Zugangsdaten und echte Gesundheits- oder Sozialdaten (zum Beispiel echte Namen, Versicherungsnummern, VVH_IDs einzelner Verhältnisse). Ein Textscan allein zählt nicht. Sie trägt je Bild Namen, Datum und Befund in screens-sichtpruefung.md ein. Bestanden: 9 von 9 Bildern ohne solche Inhalte, und der Bericht nennt 0 offene Befunde."
+quelle = "Issue #88, Kriterium 88-3 (Wortlaut)"
+befund = "Es gibt keine unabhängige Sichtprüfung; screens-sichtpruefung.md nennt offene Befunde oder trägt keine zweite Person ein."
+grund = "Eine unabhängige Sichtprüfung hat alle 9 Bilder angesehen und keinen offenen Befund hinterlassen."
+
+# ---------------------------------------------------------------- #89 Szenen (10 Dateien)
+
+[[pruefung]]
+id = "89-1"
+hash = "08e51f623d"
+befehl = '''uv run --isolated --package plattform python -I docs/praesentation/werkzeug/slides_check.py && uv run --isolated --package plattform python -I -c '
+import pathlib, re
+sb = open("docs/praesentation/storyboard.md", encoding="utf-8").read()
+dateien = sorted(p for p in pathlib.Path("web/content/slides").glob("*.md") if re.fullmatch(r"\d\d-.+\.md", p.name))
+print("folien_dateien", len(dateien))
+fm = nt = sb_ok = 0
+for p in dateien:
+    t = p.read_text(encoding="utf-8")
+    teile = t.split("---", 2)
+    f = dict(re.findall(r"^([a-z_]+): *(.*)$", teile[1], re.M)) if len(teile) == 3 else {}
+    if f.get("titel", "").strip() and f.get("layout", "").strip():
+        fm += 1
+    k = teile[-1]
+    i = k.find("## Sprechernotizen")
+    if i < 0:
+        i = k.find("<!-- notizen -->")
+    if i >= 0 and k[i:].split("\n", 1)[-1].strip():
+        nt += 1
+    if p.name in sb:
+        sb_ok += 1
+print("frontmatter_titel_layout", fm)
+print("sprechernotizen", nt)
+print("storyboard_nennt", sb_ok)
+' '''
+erwartet = ['^slides_check: 10/10 gültig$', '^folien_dateien 10$', '^frontmatter_titel_layout 10$', '^sprechernotizen 10$', '^storyboard_nennt 10$']
+deckung = "teil"
+zeitlimit = 90
+quelle = "Issue #89, Kriterium 89-1 (Wortlaut: genau 10 Dateien NN-*.md, titel und layout nichtleer, Sprechernotizen, storyboard.md nennt jede Datei, slides_check 10/10; das README.md im Ordner ist keine Folie). Das Urteil der UI-Regie ist der Hand-Prüfsatz 89-1."
+befund = "web/content/slides/ hat nicht genau 10 gültige Szenen mit titel, layout und Sprechernotizen, oder storyboard.md nennt nicht jede Datei, oder slides_check meldet nicht 10/10."
+grund = "slides_check meldet 10/10 gültig, 10 Dateien haben titel, layout und Sprechernotizen, und das Storyboard nennt alle 10."
+gegenprobe = "ls web/content/slides/1[1-9]-*.md"
+
+[[pruefung]]
+id = "89-1"
+hash = "08e51f623d"
+art = "hand"
+deckung = "teil"
+beschreibung = "Der Prüfer sucht das Urteil \"passt\" der UI-Regie (ui-regie-32) zu den Screenshots der Route /praesentation. Es muss als Kommentar in Issue #89 (oder in #59, MR !80) stehen, mit Datum und Uhrzeit nach dem letzten Umbau der Szenen (Commit e7ce069, 05.11. 18:05) und für alle 10 Szenen gelten, nicht nur für einen Teil. Gibt es mehrere Urteile, zählt das jüngste. Bestanden: ein \"passt\" der UI-Regie für alle 10 Szenen liegt vor und ist nicht älter als der letzte Umbau. Steht es später maschinenlesbar in einer Datei im Repo, ersetzt ein Prüfsatz auf diese Datei diesen Hand-Prüfsatz."
+quelle = "Issue #89, Kriterium 89-1 (Wortlaut: Statt der Zuordnung zu Pen-Frames gilt das \"passt\" der UI-Regie auf Screenshots von /praesentation)"
+befund = "Es liegt kein \"passt\" der UI-Regie zu den 10 Szenen auf /praesentation vor, oder es ist älter als der letzte Umbau."
+grund = "Die UI-Regie hat alle 10 Szenen auf /praesentation nach dem letzten Umbau mit passt bestätigt."
+
+[[pruefung]]
+id = "89-2"
+hash = "e93f294914"
+befehl = '''uv run --isolated --package plattform python -I -c '
+import glob, re
+reg = open("docs/praesentation/belegregister.md", encoding="utf-8").read()
+zeilen = abfrage = pfad = stand = 0
+for z in reg.splitlines():
+    c = [x.strip() for x in z.strip().strip("|").split("|")]
+    if len(c) >= 5 and re.fullmatch(r"F\d+", c[0]):
+        zeilen += 1
+        if re.search(r"Abfrage|SELECT|uv run|uc3 |Lauf:|Gegenrechnung|Orakel|Qualitätsbericht|Test", c[-2]):
+            abfrage += 1
+        if re.search(r"`[^`]*(/|\.md|\.py|\.csv|\.xlsx|\.json)[^`]*`", c[-2]):
+            pfad += 1
+        if re.search(r"\d{2}\.\d{2}\.\d{4}", c[-1]):
+            stand += 1
+print("register_zeilen_ok", int(zeilen >= 20))
+print("ohne_abfrage", zeilen - abfrage)
+print("ohne_pfad", zeilen - pfad)
+print("ohne_datenstand", zeilen - stand)
+zahl = re.compile(r"(?<![\d.])\d{1,3}(?:\.\d{3})+(?:,\d+)?(?![\d.])|(?<![\d.])\d+,\d+(?![\d.])")
+unbelegt = set()
+for p in sorted(glob.glob("web/content/slides/[0-9][0-9]-*.md")):
+    t = open(p, encoding="utf-8").read().split("---", 2)[-1]
+    for m in zahl.findall(t):
+        if m not in reg:
+            unbelegt.add(m)
+print("unbelegte_zahlen", len(unbelegt))
+' '''
+erwartet = ['^register_zeilen_ok 1$', '^ohne_abfrage 0$', '^ohne_pfad 0$', '^ohne_datenstand 0$', '^unbelegte_zahlen 0$']
+deckung = "teil"
+zeitlimit = 60
+quelle = "Issue #89, Kriterium 89-2 (Wortlaut: jede Ergebniszahl der 10 Szenen mit Messartefakt/Abfrage, Datenstand und Dateipfad; 0 unbelegte Ergebniszahlen)"
+befund = "Im Belegregister fehlt bei einer Kennung Abfrage, Dateipfad oder Datenstand, oder eine Zahl mit Tausenderpunkt oder Komma auf einer Szene steht nicht im Register (Zahlen ohne Trennzeichen werden nicht erfasst)."
+grund = "Alle Register-Zeilen haben Abfrage, Dateipfad und Datenstand, und jede größere oder gebrochene Zahl der 10 Szenen steht im Belegregister."
+gegenprobe = "grep -c 'F99' docs/praesentation/belegregister.md | grep -c '^[1-9]'"
+
+[[pruefung]]
+id = "89-2"
+hash = "e93f294914"
+befehl = '''uv run --isolated --package plattform python -I -c '
+import glob, re
+n = {
+    "loesung": r"Lösung|drei Schritte|Kern",
+    "fehler": r"Datenfehler|Fehler",
+    "annahme": r"Annahme|13\. Monat",
+    "live_aenderung": r"Änderung|Freigabe",
+    "datenanfragen": r"Datenanfrage|Datenfrage|Frage",
+}
+notizen = ""
+for p in sorted(glob.glob("web/content/slides/[0-9][0-9]-*.md")):
+    t = open(p, encoding="utf-8").read()
+    for marke in ("## Sprechernotizen", "<!-- notizen -->"):
+        if marke in t:
+            notizen += t.split(marke, 1)[1]
+            break
+tr = sum(1 for k, r in n.items() if re.search(r, notizen))
+print("inhalt_punkte", tr)
+' '''
+erwartet = ['^inhalt_punkte 5$']
+deckung = "teil"
+zeitlimit = 60
+quelle = "Issue #89, Kriterium 89-2 (Wortlaut: Sprechernotizen behandeln Lösung, gefundene Fehler, 1 begründete Annahme, Live-Änderung und Datenanfragen; 5/5 Punkte). Nur Stichwortsuche, die Inhaltsprüfung macht der Hand-Prüfsatz."
+befund = "In den Sprechernotizen der 10 Szenen fehlt eines der fünf Pflichtthemen (Lösung, Fehler, Annahme, Live-Änderung, Datenanfragen)."
+grund = "Alle fünf Pflichtthemen kommen in den Sprechernotizen vor (Stichwortsuche)."
+gegenprobe = "grep -c 'Zebrastreifen' web/content/slides/*.md | grep -c ':[1-9]'"
+
+[[pruefung]]
+id = "89-2"
+hash = "e93f294914"
+art = "hand"
+deckung = "voll"
+beschreibung = "Ein Prüfer liest die Sprechernotizen der 10 Szenen (web/content/slides, Abschnitt Sprechernotizen) und hakt fünf Punkte einzeln ab: 1 Lösung wird erklärt, 2 gefundene Fehler mit Beispiel, 3 genau eine begründete Annahme im Detail, 4 Live-Änderung (Szenen oder Demo-Drehbuch D2), 5 Datenanfragen (Demo-Drehbuch D3). Dazu prüft er drei Stichproben von Zahlen aus den Szenen gegen belegregister.md (Abfrage ausführbar, Datenstand genannt, Dateipfad vorhanden). Bestanden: 5 von 5 Punkten belegt und alle drei Stichproben stimmen."
+quelle = "Issue #89, Kriterium 89-2 (Wortlaut: 5/5 Punkte in der Inhaltsprüfung)"
+befund = "Eine der fünf Pflichtaussagen fehlt in den Sprechernotizen oder eine Stichprobenzahl ist nicht belegt."
+grund = "Die Inhaltsprüfung ergibt 5 von 5 Punkten."
+
+[[pruefung]]
+id = "89-3"
+hash = "c1346b29a8"
+befehl = '''uv run --isolated --package plattform python -I -c '
+import glob, re
+drei = kuerzel = 0
+for p in sorted(glob.glob("web/content/slides/[0-9][0-9]-*.md")):
+    t = open(p, encoding="utf-8").read()
+    k = t.split("---", 2)[-1]
+    sicht = re.split(r"## Sprechernotizen|<!-- notizen -->", k)[0]
+    if all(re.search(w, sicht) for w in ("StatAgent", "Simulator", "Lotse")):
+        drei += 1
+    kuerzel += len(re.findall(r"\bUC[123]\b", sicht))
+print("szenen_mit_statagent_simulator_lotse", drei)
+print("uc_kuerzel_sichtbar", kuerzel)
+' '''
+erwartet = ['^szenen_mit_statagent_simulator_lotse [1-9]', '^uc_kuerzel_sichtbar 0$']
+deckung = "teil"
+zeitlimit = 60
+quelle = "Issue #89, Kriterium 89-3 (Wortlaut: mindestens 1 Szene nennt StatAgent (UC3), Simulator (UC2) und Lotse (UC1); die Kürzel UC1 bis UC3 stehen bewusst nicht auf den Folien)"
+befund = "Keine Szene nennt im sichtbaren Text StatAgent, Simulator und Lotse zusammen, oder UC1, UC2 oder UC3 stehen als Kürzel im sichtbaren Text."
+grund = "Mindestens eine Szene nennt StatAgent, Simulator und Lotse, und kein Kürzel UC1 bis UC3 steht im sichtbaren Text."
+gegenprobe = "grep -l 'Zebrastreifen' web/content/slides/*.md"
+
+[[pruefung]]
+id = "89-3"
+hash = "c1346b29a8"
+befehl = "ABGABE=1 timeout 900 pnpm --dir web exec playwright test tests/slop.spec.ts --reporter=line"
+erwartet = ['\d+ passed']
+deckung = "teil"
+schwer = true
+zeitlimit = 900
+quelle = "Issue #89, Kriterium 89-3 (Wortlaut: vorhandene Schablonenmessung #62 mit 0 Treffern); web/tests/slop.spec.ts misst unter anderem die Route /praesentation"
+befund = "Die Schablonenmessung findet auf einer Route (auch /praesentation) mindestens einen Treffer, oder der Test läuft nicht durch."
+grund = "Alle Schablonenmessungen inklusive /praesentation haben 0 Treffer."
+
+[[pruefung]]
+id = "89-3"
+hash = "c1346b29a8"
+art = "hand"
+deckung = "teil"
+beschreibung = "Der Prüfer liest die Szene mit den nächsten Entwicklungsschritten (Szene 9 \"Zielbild\", Datei 09-einstieg.md, sonst die Szene, die storyboard.md dafür nennt) und sieht nach, ob zu StatAgent, Simulator und Lotse je ein Satz zu nächsten Schritten und Nutzen steht (drei Sätze, einer je Produkt). Dazu sucht er das Urteil \"passt\" der UI-Regie zu den Screenshots von /praesentation (siehe Prüfsatz 89-1, Hand) und den Screenshotvergleich. Bestanden: je ein Satz zu StatAgent, Simulator, Lotse, ein \"passt\" der UI-Regie zu /praesentation, und die Schablonenmessung (#62, Prüfsatz 89-3 schwer) mit 0 Treffern."
+quelle = "Issue #89, Kriterium 89-3 (Wortlaut)"
+befund = "Es fehlt ein Satz zu nächsten Schritten und Nutzen für eines der drei Produkte, oder das \"passt\" der UI-Regie fehlt."
+grund = "Die Szene enthält je einen Satz zu StatAgent, Simulator und Lotse, und die UI-Regie hat /praesentation freigegeben."
+
+# ---------------------------------------------------------------- #134 Folgepunkte Werkzeuge und PRD
+# Die Prüfsätze 134-1 und 134-2 bauen ein temporäres Wurzelverzeichnis (mktemp) mit Kopien aus dem Repo, ändern nur die Kopie
+# und rufen das Werkzeug mit --wurzel darauf auf. Das Repo bleibt unverändert.
 
 [[pruefung]]
 id = "134-1"
@@ -450,7 +476,7 @@ q = t / "docs/praesentation/screens/quellen.json"
 d = json.loads(q.read_text(encoding="utf-8"))
 for e in d:
     if e["bild"] == "SC11":
-        e.update(quelle="oberflaeche", route="/uc4", commit="4495de3cf9f5", lauf="", pen_frame="vJ2qx", art="live", hinweis="", aufgenommen_am="2026-11-05")
+        e.update(quelle="oberflaeche", route="/uc4", commit="4495de3cf9f5", lauf="", pen_frame=None, art="live", hinweis="", aufgenommen_am="2026-11-05T18:10:00+01:00")
 q.write_text(json.dumps(d), encoding="utf-8")
 r = subprocess.run([sys.executable, "docs/praesentation/werkzeug/screens_manifest.py", "--wurzel", str(t), "--check"], capture_output=True, text=True)
 print(r.stdout)
@@ -459,7 +485,7 @@ shutil.rmtree(t)
 erwartet = ['^SC11: .*lauf']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #134, Aufgabe 1, erster Unterpunkt: lauf als Pflichtfeld prüfen"
+quelle = "Issue #134, Aufgabe 1: lauf als Pflichtfeld prüfen"
 befund = "screens_manifest.py --check meldet kein Problem, wenn lauf eines Bildes leer ist."
 grund = "Ein leeres lauf wird von --check als Befund gemeldet."
 
@@ -474,7 +500,32 @@ q = t / "docs/praesentation/screens/quellen.json"
 d = json.loads(q.read_text(encoding="utf-8"))
 for e in d:
     if e["bild"] == "SC11":
-        e.update(quelle="oberflaeche", route="/uc4", commit="4495de3cf9f5", lauf="lauf-1", pen_frame="vJ2qx", art="live", hinweis="MOCK-Lauf aus Testlauf", aufgenommen_am="2026-11-05")
+        e.update(quelle="oberflaeche", route="/uc4", commit="4495de3cf9f5", lauf="lauf-1", pen_frame=None, art="live", hinweis="", aufgenommen_am="2026-11-05T18:10:00+01:00")
+q.write_text(json.dumps(d), encoding="utf-8")
+r = subprocess.run([sys.executable, "docs/praesentation/werkzeug/screens_manifest.py", "--wurzel", str(t), "--check"], capture_output=True, text=True)
+print("sc11_befunde", sum(1 for l in r.stdout.splitlines() if l.startswith("SC11:")))
+print("pen_frame_befunde", sum(1 for l in r.stdout.splitlines() if "pen_frame" in l))
+shutil.rmtree(t)
+' '''
+erwartet = ['^sc11_befunde 0$', '^pen_frame_befunde 0$']
+deckung = "teil"
+zeitlimit = 60
+quelle = "Issue #134, Aufgabe 1: pen_frame entfällt (kein Pflichtfeld mehr; leeres pen_frame darf keinen Befund auslösen)"
+befund = "screens_manifest.py --check verlangt noch pen_frame und meldet ein Bild ohne Pen-Frame als Befund."
+grund = "Ein Bild ohne pen_frame, aber sonst vollständig, löst keinen Befund aus."
+
+[[pruefung]]
+id = "134-1"
+hash = "ba089b9a06"
+befehl = '''uv run --isolated --package plattform python -I -c '
+import json, pathlib, shutil, subprocess, sys, tempfile
+t = pathlib.Path(tempfile.mkdtemp())
+shutil.copytree("docs/praesentation/screens", t / "docs/praesentation/screens")
+q = t / "docs/praesentation/screens/quellen.json"
+d = json.loads(q.read_text(encoding="utf-8"))
+for e in d:
+    if e["bild"] == "SC11":
+        e.update(quelle="oberflaeche", route="/uc4", commit="4495de3cf9f5", lauf="lauf-1", pen_frame=None, art="live", hinweis="MOCK-Lauf aus Testlauf", aufgenommen_am="2026-11-05T18:10:00+01:00")
 q.write_text(json.dumps(d), encoding="utf-8")
 r = subprocess.run([sys.executable, "docs/praesentation/werkzeug/screens_manifest.py", "--wurzel", str(t), "--check"], capture_output=True, text=True)
 print(r.stdout)
@@ -483,7 +534,7 @@ shutil.rmtree(t)
 erwartet = ['(?i)^SC11: .*mock']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #134, Aufgabe 1, zweiter Unterpunkt: mock unabhängig von Groß- und Kleinschreibung erkennen"
+quelle = "Issue #134, Aufgabe 1: mock unabhängig von Groß- und Kleinschreibung erkennen"
 befund = "screens_manifest.py --check erkennt MOCK in Großbuchstaben im Hinweis eines als live ausgegebenen Bildes nicht."
 grund = "Ein Hinweis mit MOCK bei art live wird als Befund gemeldet."
 
@@ -494,18 +545,19 @@ befehl = '''uv run --isolated --package plattform python -I -c '
 import pathlib, shutil, subprocess, sys, tempfile
 t = pathlib.Path(tempfile.mkdtemp())
 shutil.copytree("docs/praesentation/screens", t / "docs/praesentation/screens")
+(t / "docs/praesentation/screens/SC11.png").unlink()
 a = subprocess.run([sys.executable, "docs/praesentation/werkzeug/screens_manifest.py", "--wurzel", str(t), "--check"], capture_output=True, text=True)
 b = subprocess.run([sys.executable, "docs/praesentation/werkzeug/screens_manifest.py", "--wurzel", str(t)], capture_output=True, text=True)
-print("check_stdout_befunde", sum(1 for l in a.stdout.splitlines() if "Datei fehlt" in l))
+print("check_stdout_sc11_datei_fehlt", sum(1 for l in a.stdout.splitlines() if l.startswith("SC11:") and "fehlt" in l))
 print("check_stderr_zeichen", len(a.stderr))
 print("lauf_stdout_stand", sum(1 for l in b.stdout.splitlines() if "Stand:" in l))
 print("lauf_stderr_zeichen", len(b.stderr))
 shutil.rmtree(t)
 ' '''
-erwartet = ['^check_stdout_befunde 11$', '^check_stderr_zeichen 0$', '^lauf_stdout_stand 1$', '^lauf_stderr_zeichen 0$']
+erwartet = ['^check_stdout_sc11_datei_fehlt [1-9]', '^check_stderr_zeichen 0$', '^lauf_stdout_stand 1$', '^lauf_stderr_zeichen 0$']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #134, Aufgabe 1, dritter Unterpunkt: Ausgabe über stdout (Auslegung: Befunde und Stand gehen nach stdout, nichts nach stderr)"
+quelle = "Issue #134, Aufgabe 1: Ausgabe über stdout (Auslegung: Befunde und Stand gehen nach stdout, nichts nach stderr)"
 befund = "screens_manifest.py schreibt Befunde oder Stand nicht über stdout."
 grund = "Alle Befunde und der Stand erscheinen auf stdout, stderr bleibt leer."
 
@@ -533,7 +585,7 @@ shutil.rmtree(t)
 erwartet = ['^pfad_befund [1-9]', '^fremde_datei_gelesen 0$']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #134, Aufgabe 1, vierter Unterpunkt: Pfadgrenze vor dem Dateizugriff prüfen, nur docs/praesentation/screens/ lesen"
+quelle = "Issue #134, Aufgabe 1: Pfadgrenze vor dem Dateizugriff prüfen, nur docs/praesentation/screens/ lesen"
 befund = "screens_manifest.py liest eine Datei außerhalb von docs/praesentation/screens/, wenn quellen.json einen Bildnamen mit .. enthält."
 grund = "Ein Bildname mit .. wird abgelehnt, die fremde Datei wird nicht gelesen."
 
@@ -541,43 +593,44 @@ grund = "Ein Bildname mit .. wird abgelehnt, die fremde Datei wird nicht gelesen
 id = "134-2"
 hash = "a4ffeb6171"
 befehl = '''uv run --isolated --package plattform python -I -c '
-import pathlib, shutil, subprocess, sys, tempfile
+import glob, pathlib, shutil, subprocess, sys, tempfile
 t = pathlib.Path(tempfile.mkdtemp())
 shutil.copytree("web/content/slides", t / "web/content/slides")
 (t / "docs/praesentation").mkdir(parents=True)
 for n in ("storyboard.md", "belegregister.md"):
     shutil.copy("docs/praesentation/" + n, t / "docs/praesentation" / n)
-p = t / "web/content/slides/01-cover.md"
-p.write_text(p.read_text(encoding="utf-8").replace("\n## Sprechernotizen", "\nDas ist—ein Test.\n\n## Sprechernotizen", 1), encoding="utf-8")
+p = sorted(glob.glob(str(t / "web/content/slides/01-*.md")))[0]
+x = pathlib.Path(p)
+x.write_text(x.read_text(encoding="utf-8").replace("\n## Sprechernotizen", "\nDas ist—ein Test.\n\n## Sprechernotizen", 1), encoding="utf-8")
 r = subprocess.run([sys.executable, "docs/praesentation/werkzeug/slides_check.py", "--wurzel", str(t)], capture_output=True, text=True)
 print(r.stdout)
 shutil.rmtree(t)
 ' '''
-erwartet = ['^01-cover.md: Gedankenstrich']
+erwartet = ['^01-.+\.md: .*Gedankenstrich']
 deckung = "teil"
 zeitlimit = 60
 quelle = "Issue #134, Aufgabe 2: Gedankenstrich ohne Leerzeichen soll auffallen"
 befund = "slides_check.py meldet einen Gedankenstrich ohne Leerzeichen (Wort—Wort) nicht."
-grund = "Ein Gedankenstrich ohne Leerzeichen in einer Folie wird als Befund gemeldet."
+grund = "Ein Gedankenstrich ohne Leerzeichen in einer Szene wird als Befund gemeldet."
 
 [[pruefung]]
 id = "134-2"
 hash = "a4ffeb6171"
 befehl = '''uv run --isolated --package plattform python -I -c '
-import pathlib, shutil, subprocess, sys, tempfile
+import glob, pathlib, shutil, subprocess, sys, tempfile
 t = pathlib.Path(tempfile.mkdtemp())
 shutil.copytree("web/content/slides", t / "web/content/slides")
 (t / "docs/praesentation").mkdir(parents=True)
 for n in ("storyboard.md", "belegregister.md"):
     shutil.copy("docs/praesentation/" + n, t / "docs/praesentation" / n)
-p = t / "web/content/slides/01-cover.md"
-p.write_text(p.read_text(encoding="utf-8").replace("\n## Sprechernotizen", "\nDie Zeit 0:20–1:20 und 1.000–2.000 Zeichen.\n\n## Sprechernotizen", 1), encoding="utf-8")
+x = pathlib.Path(sorted(glob.glob(str(t / "web/content/slides/01-*.md")))[0])
+x.write_text(x.read_text(encoding="utf-8").replace("\n## Sprechernotizen", "\nDie Zeit 0:20–1:20 und 1.000–2.000 Zeichen.\n\n## Sprechernotizen", 1), encoding="utf-8")
 r = subprocess.run([sys.executable, "docs/praesentation/werkzeug/slides_check.py", "--wurzel", str(t)], capture_output=True, text=True)
 print(r.stdout)
 print("exit", r.returncode)
 shutil.rmtree(t)
 ' '''
-erwartet = ['^slides_check: 11/11 gültig$', '^exit 0$']
+erwartet = ['^slides_check: \d+/\d+ gültig$', '^exit 0$']
 deckung = "teil"
 zeitlimit = 60
 quelle = "Issue #134, Aufgabe 2: Zahlenbereiche wie 0:20–1:20 sollen nicht auffallen"
@@ -587,19 +640,19 @@ grund = "Zahlenbereiche mit Halbgeviertstrich werden nicht gemeldet."
 [[pruefung]]
 id = "134-2"
 hash = "a4ffeb6171"
-befehl = "cat web/content/slides/*.md | grep -cE '—| – ' || true"
+befehl = "cat web/content/slides/[0-9][0-9]-*.md | grep -cE '—| – ' || true"
 erwartet = ['^0$']
 deckung = "teil"
 zeitlimit = 30
 quelle = "Issue #134, Aufgabe 2 und Sprachregel (keine Gedankenstriche in Folien)"
-befund = "Mindestens eine Folie enthält einen Gedankenstrich."
-grund = "Keine der 11 Folien enthält einen Gedankenstrich (Em-Dash oder Halbgeviertstrich mit Leerzeichen)."
-gegenprobe = "cat web/content/slides/*.md | grep -cE 'StatAgent' | grep -c '^0$'"
+befund = "Mindestens eine Szene enthält einen Gedankenstrich."
+grund = "Keine der 10 Szenen enthält einen Gedankenstrich (Em-Dash oder Halbgeviertstrich mit Leerzeichen)."
+gegenprobe = "cat web/content/slides/[0-9][0-9]-*.md | grep -cE 'Vertrauen' | grep -c '^0$'"
 
 [[pruefung]]
 id = "134-3"
 hash = "98ea12fc35"
-befehl = '''echo "em_dashes $(grep -c '—' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"; echo "interne_verweise $(grep -ciE 'vault|lead-session|svbox|\.orchestrator|~/|mentor-konzept' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"'''
+befehl = '''echo "em_dashes $(grep -c '—' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"; echo "interne_verweise $(grep -ciE 'vault|lead-session|svbox|\.orchestrator|~/|mentor-konzept|lead-session-orchestrator' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"'''
 erwartet = ['^em_dashes 0$', '^interne_verweise 0$']
 deckung = "teil"
 zeitlimit = 30
@@ -611,20 +664,20 @@ gegenprobe = '''echo "em_dashes $(grep -c 'StatAgent' docs/praesentation/2026-11
 [[pruefung]]
 id = "134-4"
 hash = "8757085643"
-befehl = '''ci=$(grep -c 'slides_check' .gitlab-ci.yml || true); an=$(timeout 60 glab api --paginate 'projects/259/issues/53/notes?per_page=100' 2>/dev/null | grep -o 'slides_check' | wc -l | tr -d ' '); echo "ci $ci antrag $an"'''
+befehl = '''ci=$(grep -c 'slides_check' .gitlab-ci.yml || true); an=$(timeout 60 glab api projects/259/issues/53/notes/272419 2>/dev/null | grep -o 'slides_check' | wc -l | tr -d ' '); echo "ci $ci antrag $an"'''
 erwartet = ['^(ci [1-9][0-9]* antrag [0-9]+|ci [0-9]+ antrag [1-9][0-9]*)$']
 deckung = "voll"
 zeitlimit = 90
-quelle = "Issue #134, Aufgabe 4: slides_check.py in die CI oder Antrag als Kommentar in #53 (Lane E0)"
-befund = "slides_check.py steht weder in .gitlab-ci.yml noch in einem Kommentar von #53."
-grund = "Die CI ruft slides_check.py auf oder #53 enthält den Antrag dazu."
+quelle = "Issue #134, Aufgabe 4: slides_check.py in die CI aufnehmen oder Antrag als Kommentar in #53 (Lane E0); laut Issue-Stand 18:2x steht der Antrag in #53, note_272419"
+befund = "slides_check.py steht weder in .gitlab-ci.yml noch im Antrag in #53 (note_272419)."
+grund = "Die CI ruft slides_check.py auf oder der Kommentar in #53 enthält den Antrag dazu."
 
 [[pruefung]]
 id = "134-5"
 hash = "3b7e284758"
 art = "hand"
 deckung = "voll"
-beschreibung = "Sammelkriterium: Es gilt als bestanden, wenn die Prüfsätze 134-1 (screens_manifest.py: pen_frame und lauf Pflicht, mock ohne Rücksicht auf Groß- und Kleinschreibung, Ausgabe über stdout, Pfadgrenze) und 134-2 (slides_check.py: Gedankenstrich ohne Leerzeichen meldet, Zahlenbereiche nicht) alle bestanden sind. Ein Mensch (oder der Lead) liest dazu das Ergebnis dieser Prüfsätze und bestätigt das Urteil."
+beschreibung = "Sammelkriterium: Es gilt als bestanden, wenn die Prüfsätze 134-1 (screens_manifest.py: lauf Pflicht, pen_frame kein Pflichtfeld mehr, mock ohne Rücksicht auf Groß- und Kleinschreibung, Ausgabe über stdout, Pfadgrenze) und 134-2 (slides_check.py: Gedankenstrich ohne Leerzeichen meldet, Zahlenbereiche nicht) alle bestanden sind. Ein Mensch (oder der Lead) liest dazu das Ergebnis dieser Prüfsätze und bestätigt das Urteil."
 quelle = "Issue #134, Abschnitt Fertig wenn, erster Punkt"
 befund = "Eines der beiden Werkzeuge prüft einen der Punkte aus 134-1 oder 134-2 noch nicht."
 grund = "Alle Prüfsätze 134-1 und 134-2 sind bestanden."
@@ -643,12 +696,12 @@ grund = "ruff check ist im ganzen Repo sauber und die Werkzeugdateien sind forma
 [[pruefung]]
 id = "134-7"
 hash = "af01824e7d"
-befehl = '''echo "em_dashes $(grep -c '—' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"; echo "interne_verweise $(grep -ciE 'vault|lead-session|svbox|\.orchestrator|~/|mentor-konzept' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"'''
+befehl = '''echo "em_dashes $(grep -c '—' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"; echo "interne_verweise $(grep -ciE 'vault|lead-session|svbox|\.orchestrator|~/|mentor-konzept|lead-session-orchestrator' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"'''
 erwartet = ['^em_dashes 0$', '^interne_verweise 0$']
 deckung = "voll"
 zeitlimit = 30
 quelle = "Issue #134, Abschnitt Fertig wenn, dritter Punkt (Auslegung: interne Verweise sind Vault, Lead-Sessions, svbox, .orchestrator, Heimatpfade)"
-befund = "Die PRD enthält noch Em-Dashes (Zeilen 133 bis 138) oder Verweise auf Vault und Lead-Sessions (Zeilen 32, 36, 127)."
+befund = "Die PRD enthält noch Em-Dashes oder Verweise auf Vault und Lead-Sessions."
 grund = "Die PRD hat 0 Em-Dashes und 0 Treffer für interne Verweise."
 gegenprobe = '''echo "em_dashes $(grep -c 'StatAgent' docs/praesentation/2026-11-05-prd-e5-praesentation.md || true)"'''
 
@@ -666,59 +719,56 @@ f = open("docs/praesentation/fragenkatalog.md", encoding="utf-8").read()
 soll = ["392.236", "399.027", "211.603", "180.633", "213.129", "185.898", "3,42", "7.498", "28.548", "23.809", "24.679", "ÖNACE R"]
 print("d3_fehlt", sum(1 for s in soll if s not in d3))
 print("fragenkatalog_fehlt", sum(1 for s in soll if s not in f))
+print("d3_zeilen_mit_frage", len(re.findall(r"^\| [1-8] \|", d3, re.M)))
+sperr = ["Gastronomie", "Wien und Tirol", "Alter", "von März bis Juni"]
+print("sperrliste_fehlt", sum(1 for s in sperr if s not in d3.split("Nicht vorführen", 1)[-1]) if "Nicht vorführen" in d3 else len(sperr))
 ' '''
-erwartet = ['^d3_fehlt 0$', '^fragenkatalog_fehlt 0$']
+erwartet = ['^d3_fehlt 0$', '^fragenkatalog_fehlt 0$', '^d3_zeilen_mit_frage 8$', '^sperrliste_fehlt 0$']
 deckung = "voll"
 zeitlimit = 60
-quelle = "Issue #141, Aufgabe 1 (Sollzahlen aus der Aufgabenliste: Zeitreihe 392.236 bis 399.027, M/F 08/2024 211.603/180.633, M/F 07/2026 213.129/185.898, Fluktuation 3,42, Wien 7.498, Bau 28.548, ÖNACE R, Bau 2025 23.809 bis 24.679)"
-befund = "Drehbuch D3 oder der Fragenkatalog nennen nicht alle 8 Datenanfragen mit ihren Sollzahlen."
-grund = "Drehbuch D3 und Fragenkatalog enthalten alle Sollzahlen der 8 Datenanfragen."
-gegenprobe = '''uv run --isolated --package plattform python -I -c 'print("d3_fehlt", 1 if "392.237" in open("docs/praesentation/demo-drehbuch.md", encoding="utf-8").read() else 0); print("fragenkatalog_fehlt", 0)' | grep -c '^d3_fehlt 0$' '''
+quelle = "Issue #141, Aufgabe 1 (Sollzahlen: Zeitreihe 392.236 bis 399.027, M/F 08/2024 211.603/180.633, M/F 07/2026 213.129/185.898, Fluktuation 3,42, Wien 7.498, Bau 28.548, ÖNACE R, Bau 2025 23.809 bis 24.679; Sperrliste: Umgangssprache bei Branchen (Gastronomie), Wien und Tirol, Alter, Zeiträume von März bis Juni)"
+befund = "Drehbuch D3 oder der Fragenkatalog nennen nicht alle 8 Datenanfragen mit ihren Sollzahlen, oder die Sperrliste der nicht vorzuführenden Fragen fehlt in D3."
+grund = "Drehbuch D3 und Fragenkatalog enthalten alle Sollzahlen der 8 Datenanfragen, D3 hat 8 Fragezeilen und nennt die vier nicht vorzuführenden Arten."
+gegenprobe = '''uv run --isolated --package plattform python -I -c 'print("d3_fehlt", 1 if "392.237" in open("docs/praesentation/demo-drehbuch.md", encoding="utf-8").read() else 0)' | grep -c '^d3_fehlt 1$' '''
 
 [[pruefung]]
 id = "141-1"
 hash = "e7d40b0046"
 art = "hand"
 deckung = "teil"
-beschreibung = "Der Prüfer führt die 8 Anfragen auf /uc3/fragen (oder mit uc3 frage) aus und vergleicht die angezeigten Zahlen mit den Sollwerten im Drehbuch D3 und im Fragenkatalog. Außerdem steht dort ausdrücklich, was NICHT vorgeführt wird, solange der Fix von bb fehlt (Umgangssprache bei Branchen wie Gastronomie, Wien und Tirol, Alter, Zeiträume wie von März bis Juni). Bestanden: alle 8 Zahlen stimmen mit dem Ergebnis überein, die vier Sperrpunkte sind genannt."
-quelle = "Issue #141, Aufgabe 1 (Quelle laut Issue: Kommentar 271969 in #74)"
-befund = "Die Sollwerte sind nicht gegen die laufende Oberfläche oder den Befehl geprüft, oder die Sperrliste der nicht vorzuführenden Fragen fehlt."
-grund = "Die 8 Anfragen liefern live die Sollwerte, die Sperrliste steht im Drehbuch."
+beschreibung = "Der Prüfer führt die 8 Anfragen auf /uc3/fragen (oder mit uc3 frage) aus und vergleicht die angezeigten Zahlen mit den Sollwerten im Drehbuch D3 und im Fragenkatalog (Quelle: Kommentar 271969 in #74). Bestanden: alle 8 Zahlen stimmen mit dem Ergebnis überein. Die vier Arten der Sperrliste (Umgangssprache bei Branchen, Wien und Tirol, Alter, Zeiträume) werden nicht ausgeführt, nur gelesen."
+quelle = "Issue #141, Aufgabe 1 (Quelle laut Issue: Kommentar 271969 in #74, gemessen 17:15)"
+befund = "Die Sollwerte sind nicht gegen die laufende Oberfläche oder den Befehl geprüft."
+grund = "Die 8 Anfragen liefern live die Sollwerte."
 
 [[pruefung]]
 id = "141-2"
-hash = "7bbc48095b"
+hash = "8fd2eef2a2"
 befehl = '''uv run --isolated --package plattform python -I -c '
-import glob, pathlib, re
-sc = set()
-for p in glob.glob("web/content/slides/*.md"):
-    for z in re.findall(r"^screenshot:.*$", open(p, encoding="utf-8").read(), re.M):
-        sc.update(int(n) for n in re.findall(r"SC0?(\d+)", z))
-print("folien_screens", len(sc))
+import glob, json, pathlib, re, subprocess, sys
+r = subprocess.run([sys.executable, "docs/praesentation/werkzeug/screens_manifest.py", "--check"], capture_output=True, text=True)
+fremd = [l for l in r.stdout.splitlines() if l.strip() and not l.startswith("screens_manifest --check") and not re.match(r"SC0[345]: ", l)]
+print("befunde_ausser_sc03_bis_sc05", len(fremd))
+q = {e["bild"]: e for e in json.loads(pathlib.Path("docs/praesentation/screens/quellen.json").read_text(encoding="utf-8"))}
+print("entfall_begruendet", sum(1 for n in ("SC03", "SC04", "SC05") if "entfällt in v4" in str((q.get(n) or {}).get("hinweis") or "")))
 b = pathlib.Path("web/components/praesentation/bilder.ts")
 bt = b.read_text(encoding="utf-8") if b.is_file() else ""
-print("bilder_ts", int(b.is_file()))
-print("bilder_ts_ohne_eintrag", sum(1 for n in sc if not re.search(r"SC0?%d\b" % n, bt)))
-dat = [f for f in glob.glob("web/content/slides/bilder/*") if f.lower().endswith((".png", ".webp", ".jpg", ".jpeg"))]
-print("bilder_unter_soll", max(0, len(sc) - len(dat)))
+dat = [pathlib.Path(f).stem for f in glob.glob("web/content/slides/bilder/*") if f.lower().endswith((".png", ".webp", ".jpg", ".jpeg"))]
+print("bilder_ohne_eintrag", sum(1 for s in dat if s not in bt))
+fehlt = 0
+for p in glob.glob("web/content/slides/[0-9][0-9]-*.md"):
+    for z in re.findall(r"^screenshot: *(\S+)", open(p, encoding="utf-8").read(), re.M):
+        if z not in ("null", "~") and z.strip("\"") not in dat:
+            fehlt += 1
+print("folien_verweise_ohne_bild", fehlt)
 ' '''
-erwartet = ['^folien_screens [1-9]', '^bilder_ts 1$', '^bilder_ts_ohne_eintrag 0$', '^bilder_unter_soll 0$']
+erwartet = ['^befunde_ausser_sc03_bis_sc05 0$', '^entfall_begruendet 3$', '^bilder_ohne_eintrag 0$', '^folien_verweise_ohne_bild 0$']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #141, Aufgabe 2: Aufnahmen in web/content/slides/bilder/ und web/components/praesentation/bilder.ts registrieren"
-befund = "web/components/praesentation/bilder.ts fehlt oder nennt nicht alle in den Folien verwendeten Screenshots, oder web/content/slides/bilder/ hat zu wenige Bilddateien."
-grund = "Jedes in den Folien benannte Bild ist in bilder.ts eingetragen und als Datei in web/content/slides/bilder/ vorhanden."
-
-[[pruefung]]
-id = "141-2"
-hash = "7bbc48095b"
-befehl = "uv run --isolated --package plattform python -I docs/praesentation/werkzeug/screens_manifest.py --check"
-erwartet = ['^screens_manifest --check: Stand: 12/12 vorhanden, 12/12 gültig, 0 Befunde$']
-deckung = "teil"
-zeitlimit = 60
-quelle = "Issue #141, Aufgabe 2: Manifest mit screens_manifest.py --check"
-befund = "screens_manifest.py --check meldet weniger als 12 von 12 gültige Bilder."
-grund = "screens_manifest.py --check meldet 12/12 gültig ohne Befunde."
+quelle = "Issue #141, Aufgabe 2 (Wortlaut: Manifest mit screens_manifest.py --check; SC03 bis SC05 entfallen in v4, Begründung in quellen.json; Bilder in bilder/ und bilder.ts nur, falls eine Szene eines braucht). Die Aufnahme nach dem Umbau misst 88-1."
+befund = "screens_manifest.py --check meldet Befunde für andere Bilder als SC03 bis SC05 (Bilder fehlen oder sind unvollständig), oder der Entfall von SC03 bis SC05 ist nicht in quellen.json begründet, oder bilder/ und bilder.ts passen nicht zusammen."
+grund = "Außer den in v4 entfallenen SC03 bis SC05 meldet --check keinen Befund, der Entfall ist begründet, Bilder und bilder.ts stimmen überein."
+gegenprobe = "test \"$(grep -c 'SC13' docs/praesentation/screens/quellen.json || true)\" -ge 1"
 
 [[pruefung]]
 id = "141-3"
@@ -744,7 +794,7 @@ id = "141-3"
 hash = "3ef9d375f7"
 art = "hand"
 deckung = "teil"
-beschreibung = "Der Prüfer vergleicht C16 im Fragenkatalog vor Fr 06.11.2026 07:00 mit dem echten Stand auf main: Ist der UC1-Adapter (!68) gemergt, ist der UC2-Adapter (#103) gemergt, sind beide im Router registriert, fordern UC1 und UC2 die Freigabe mit Vor- und Nachnamen? Stimmt jede Aussage in C16 mit dem Stand überein, und zeigt Folie 9 wirklich das Zielbild? Bestanden: keine Aussage in C16 ist veraltet oder falsch."
+beschreibung = "Der Prüfer vergleicht C16 im Fragenkatalog vor Fr 06.11.2026 07:00 mit dem echten Stand auf main: Ist der UC1-Adapter (!68) gemergt, ist der UC2-Adapter (#103) gemergt, sind beide im Router registriert, fordern UC1 und UC2 die Freigabe mit Vor- und Nachnamen? Stimmt jede Aussage in C16 mit dem Stand überein, und zeigt Szene 9 (09-einstieg.md) wirklich das Zielbild? Bestanden: keine Aussage in C16 ist veraltet oder falsch."
 quelle = "Issue #141, Aufgabe 3 (Wortlaut: vor Fr 06.11.2026 07:00 aktualisieren)"
 befund = "C16 beschreibt einen Stand, der nicht mit main übereinstimmt."
 grund = "C16 gibt den tatsächlichen Tagesstand UC4 wieder."
@@ -778,20 +828,20 @@ id = "141-4"
 hash = "d55a88e096"
 art = "hand"
 deckung = "teil"
-beschreibung = "Der Prüfer fragt nach: Die Aufnahme wurde auf dem Freeze-Kandidaten (dem Commit, der um 07:00 eingefroren wird) gemacht und auf dem Zweitrechner gerendert, nicht auf dem Vortragsrechner. Die Angaben dazu stehen im Metadatenbericht (Stand Commit, Anmerkungen). Bestanden: Commit der Aufnahme gleich Freeze-Commit oder spätere Änderungen sind in den Anmerkungen vermerkt, und Render auf dem Zweitrechner ist angegeben."
-quelle = "Issue #141, Aufgabe 4 (Wortlaut)"
+beschreibung = "Der Prüfer fragt nach: Die Aufnahme wurde auf dem Freeze-Kandidaten (dem Commit, der um 07:00 eingefroren wird) gemacht und auf dem Zweitrechner gerendert, nicht auf dem Vortragsrechner. Die Angaben dazu stehen im Metadatenbericht backup-video.md (Stand Commit, Anmerkungen). Bestanden: Commit der Aufnahme gleich Freeze-Commit oder spätere Änderungen sind in den Anmerkungen vermerkt, und Render auf dem Zweitrechner ist angegeben."
+quelle = "Issue #141, Aufgabe 4 (Wortlaut: Aufnahme auf dem Freeze-Kandidaten, Render auf dem Zweitrechner)"
 befund = "Im Metadatenbericht fehlt der Stand der aufgenommenen App oder der Hinweis auf den Zweitrechner."
 grund = "Aufnahme auf dem Freeze-Kandidaten, Render auf dem Zweitrechner, beides im Bericht vermerkt."
 
 [[pruefung]]
 id = "141-5"
-hash = "f881c6c449"
+hash = "ca2d4077e6"
 art = "hand"
 deckung = "voll"
-beschreibung = "Der Prüfer öffnet design/ki-challenge.pen (liegt außerhalb des Abgabe-Repos) über Pencil-MCP und prüft zuerst mit get_app_state den aktiven Canvas. Er sieht sich die Frames P01 bis P11 an: Entweder sind sie auf die Fassung v4 (Szenen 1 + 2 + 3 = 4) nachgezogen und zeigen dieselben Titel und Inhalte wie web/content/slides, oder sie sind ausdrücklich als Entwurf gekennzeichnet (zum Beispiel Namenszusatz oder Hinweis). Bestanden: eines von beidem ist erkennbar. Das Kriterium ist laut Issue optional."
-quelle = "Issue #141, Aufgabe 5 (optional)"
-befund = "Die Pen-Frames P01 bis P11 zeigen die erste Fassung ohne Kennzeichnung als Entwurf."
-grund = "Die Pen-Frames sind auf v4 nachgezogen oder als Entwurf gekennzeichnet."
+beschreibung = "Optionales Kriterium, laut Issue bereits abgehakt. Der Prüfer öffnet design/ki-challenge.pen (liegt außerhalb des Abgabe-Repos) über Pencil-MCP, prüft zuerst mit get_app_state den aktiven Canvas und sieht, dass die Frames P01 bis P11 noch vorhanden sind (nicht gelöscht, nicht überschrieben). Sie bleiben als Entwurf stehen: Eine Nachführung auf v4 ist nicht nötig, maßgeblich ist das Urteil der UI-Regie auf Screenshots (siehe 89-1). Bestanden: P01 bis P11 sind unverändert als Entwurf vorhanden, und weder Storyboard noch Folien nennen sie als maßgeblich. Das Kriterium ist optional, ein Fehlen bricht die Abnahme nicht."
+quelle = "Issue #141, Aufgabe 5 (optional; Wortlaut: Pen-Frames P01 bis P11 bleiben als Entwurf stehen; Pen-Frames sind nicht mehr maßgeblich)"
+befund = "Die Pen-Frames P01 bis P11 fehlen oder werden noch als maßgeblich ausgegeben."
+grund = "Die Pen-Frames stehen als Entwurf, ohne maßgeblich zu sein."
 
 [[pruefung]]
 id = "141-6"
@@ -803,35 +853,41 @@ m = re.search(r"^### D3.*?(?=^### |\Z)", d, re.M | re.S)
 d3 = m.group(0) if m else ""
 soll = ["392.236", "399.027", "211.603", "180.633", "213.129", "185.898", "3,42", "7.498", "28.548", "23.809", "24.679", "ÖNACE R"]
 print("d3_fehlt", sum(1 for s in soll if s not in d3))
+print("d3_zeilen_mit_frage", len(re.findall(r"^\| [1-8] \|", d3, re.M)))
 ' '''
-erwartet = ['^d3_fehlt 0$']
+erwartet = ['^d3_fehlt 0$', '^d3_zeilen_mit_frage 8$']
 deckung = "voll"
 zeitlimit = 60
 quelle = "Issue #141, Abschnitt Fertig wenn, erster Punkt (Sollwerte aus der Aufgabenliste von #141)"
-befund = "Drehbuch D3 nennt nicht alle 8 Anfragen mit ihren Sollwerten (fehlend sind die Zahlen von Zeitreihe, M/F Juli 2026, Fluktuation, Wien, Bau und ÖNACE R)."
-grund = "Drehbuch D3 enthält die Sollwerte aller 8 Datenanfragen."
-gegenprobe = '''uv run --isolated --package plattform python -I -c 'print("d3_fehlt", 1)' '''
+befund = "Drehbuch D3 nennt nicht alle 8 Anfragen mit ihren Sollwerten."
+grund = "Drehbuch D3 enthält die Sollwerte aller 8 Datenanfragen in 8 Fragezeilen."
+gegenprobe = '''uv run --isolated --package plattform python -I -c 'print("d3_fehlt", 1)' | grep -c '^d3_fehlt 0$' '''
 
 [[pruefung]]
 id = "141-7"
 hash = "297e23d76b"
-befehl = "uv run --isolated --package plattform python -I docs/praesentation/werkzeug/screens_manifest.py --check"
-erwartet = ['^screens_manifest --check: Stand: 12/12 vorhanden, 12/12 gültig, 0 Befunde$']
+befehl = '''uv run --isolated --package plattform python -I -c '
+import glob, json, pathlib, re, subprocess, sys
+r = subprocess.run([sys.executable, "docs/praesentation/werkzeug/screens_manifest.py", "--check"], capture_output=True, text=True)
+stand = re.search(r"Stand: 12/12 vorhanden, 12/12 gültig, 0 Befunde", r.stdout)
+q = {e["bild"]: e for e in json.loads(pathlib.Path("docs/praesentation/screens/quellen.json").read_text(encoding="utf-8"))}
+entfallen = [n for n in ("SC%02d" % i for i in range(1, 13)) if not pathlib.Path("docs/praesentation/screens/%s.png" % n).is_file()]
+unbegruendet = [n for n in entfallen if "entfällt in v4" not in str((q.get(n) or {}).get("hinweis") or "")]
+verweis = 0
+for p in glob.glob("web/content/slides/[0-9][0-9]-*.md"):
+    for z in re.findall(r"^screenshot: *(.*)$", open(p, encoding="utf-8").read(), re.M):
+        verweis += sum(1 for n in entfallen if n in z)
+print("manifest_12_von_12", int(bool(stand)))
+print("fehlende_bilder", len(entfallen))
+print("fehlende_unbegruendet", len(unbegruendet))
+print("verweise_auf_fehlende", verweis)
+' '''
+erwartet = ['^manifest_12_von_12 0$', '^fehlende_bilder [0-9]+$', '^fehlende_unbegruendet 0$', '^verweise_auf_fehlende 0$']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #141, Abschnitt Fertig wenn, zweiter Punkt (Auslegung: der zweite Weg, SC durch v4 entfallen und dokumentiert, wird nicht mechanisch geprüft)"
-befund = "screens_manifest.py --check meldet nicht 12/12 gültig (heute 1/12), und entfallene SC sind nicht dokumentiert."
-grund = "screens_manifest.py --check meldet 12/12 gültig ohne Befunde."
-
-[[pruefung]]
-id = "141-7"
-hash = "297e23d76b"
-art = "hand"
-deckung = "teil"
-beschreibung = "Nur wenn --check nicht 12/12 meldet: Der Prüfer liest screens-manifest.md und storyboard.md und sieht nach, dass jede nicht vorhandene SC-Nummer als durch v4 entfallen dokumentiert ist (mit Begründung und Folie, die das Bild nicht mehr braucht), und dass keine Folie noch auf ein entfallenes Bild verweist. Bestanden: jede fehlende SC ist dokumentiert und kein Verweis läuft ins Leere."
-quelle = "Issue #141, Abschnitt Fertig wenn, zweiter Punkt (zweiter Teil: dokumentiert, welche SC durch v4 entfallen)"
-befund = "Fehlende SC-Bilder sind nicht als entfallen dokumentiert."
-grund = "Jedes fehlende Bild ist als durch v4 entfallen begründet."
+quelle = "Issue #141, Abschnitt Fertig wenn, zweiter Punkt (Wortlaut: --check meldet 12/12 oder dokumentiert, welche SC durch v4 entfallen). Auslegung: 12/12 ist entweder erreicht, oder jedes fehlende Bild trägt in quellen.json den Hinweis \"entfällt in v4\" und keine Szene verweist darauf. Der Prüfsatz 141-2 verlangt zusätzlich, dass nur SC03 bis SC05 fehlen. Das erste Soll manifest_12_von_12 0 gilt für den Entfall-Weg; bei 12/12 darf es 1 sein"
+befund = "Es fehlen Bilder, die nicht als durch v4 entfallen in quellen.json begründet sind, oder eine Szene verweist auf ein fehlendes Bild."
+grund = "Jedes fehlende SC-Bild ist als durch v4 entfallen begründet und kein Verweis läuft ins Leere (oder alle 12 Bilder sind da)."
 
 [[pruefung]]
 id = "141-8"
@@ -846,7 +902,7 @@ for z in t.splitlines():
     c = [x.strip() for x in z.strip().strip("|").split("|")]
     if len(c) == 7 and re.fullmatch(r"\d+|8[a-e]", c[0]) and not (c[4] and c[5] and c[6]):
         ab += 1
-vorl = len(re.findall(r"\bja / nein\b|\bbestanden / nicht bestanden\b|___", t))
+vorl = len(re.findall(r"\bja / nein\b|\bbestanden / nicht bestanden\b|___|\(Vorlage\)", t))
 print("leere_werte", leer)
 print("vorlage_reste", vorl)
 print("abschnitte_offen", ab)
@@ -855,5 +911,35 @@ erwartet = ['^leere_werte 0$', '^vorlage_reste 0$', '^abschnitte_offen 0$']
 deckung = "teil"
 zeitlimit = 60
 quelle = "Issue #141, Abschnitt Fertig wenn, dritter Punkt (Probe-Protokoll ist ausgefüllt)"
-befund = "probe.md ist noch die Vorlage: Werte sind leer, Auswahlen wie ja / nein nicht getroffen, Abschnittszeiten nicht eingetragen."
+befund = "probe.md ist noch die Vorlage: Werte sind leer, Auswahlen wie ja / nein nicht getroffen, Abschnittszeiten nicht eingetragen, Titel trägt noch (Vorlage)."
 grund = "Alle Felder der Tabellen in probe.md sind ausgefüllt und keine Auswahl ist mehr offen."
+
+[[pruefung]]
+id = "141-9"
+hash = "0e76cae96e"
+befehl = '''uv run --isolated --package plattform python -I -c '
+import re
+d = open("docs/praesentation/demo-drehbuch.md", encoding="utf-8").read()
+m = re.search(r"^### D2.*?(?=^### |\Z)", d, re.M | re.S)
+d2 = m.group(0) if m else ""
+print("d2_da", int(bool(m)))
+print("stand_der_probe", int(bool(re.search(r"Stand der Probe[^\n]*\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}", d2))))
+print("ungeprobte_live_befehle", len(re.findall(r"uv run uc3 (agent|freigabe|vorschlag freigeben)\b", d2)))
+' '''
+erwartet = ['^d2_da 1$', '^stand_der_probe 1$', '^ungeprobte_live_befehle 0$']
+deckung = "teil"
+zeitlimit = 60
+quelle = "Issue #141, Abschnitt Fertig wenn, vierter Punkt (Wortlaut: Drehbuch D2 zeigt nur Schritte, die E5 selbst geprobt hat; Auslegung: D2 nennt den Stand der Probe mit Uhrzeit und enthält keinen Live-Befehl agent oder freigabe)"
+befund = "Drehbuch D2 nennt keinen Stand der Probe mit Uhrzeit oder enthält Live-Befehle (uc3 agent, uc3 freigabe), die E5 nicht geprobt hat."
+grund = "D2 nennt den Stand der Probe mit Uhrzeit und enthält keinen ungeprobten Live-Befehl."
+gegenprobe = "grep -c 'Stand der Probe' docs/praesentation/demo-drehbuch.md | grep -c '^0$'"
+
+[[pruefung]]
+id = "141-9"
+hash = "0e76cae96e"
+art = "hand"
+deckung = "voll"
+beschreibung = "Der Prüfer legt die Schritte von D2 (demo-drehbuch.md) neben das Probe-Protokoll probe.md (Abschnitt D2) und den Probelauf Fr 06.11. 06:00 bis 07:00: Jeder Schritt von D2 (Auftrag zeigen, vorschlag zeigen, Protokoll mit Freigabe) wurde im Probelauf mit Uhrzeit tatsächlich ausgeführt und lief durch. Schritte, die im Probelauf scheiterten oder nie liefen, dürfen nicht in D2 stehen. Bestanden: jeder D2-Schritt hat einen Eintrag im Probe-Protokoll mit Ergebnis bestanden, und D2 enthält keinen weiteren Schritt."
+quelle = "Issue #141, Abschnitt Fertig wenn, vierter Punkt (Wortlaut: Drehbuch D2 zeigt nur Schritte, die E5 selbst geprobt hat; Anweisung Lead c0, 05.11. 17:5x)"
+befund = "D2 enthält einen Schritt, der im Probelauf nicht oder nicht erfolgreich gelaufen ist."
+grund = "Jeder Schritt von D2 ist im Probe-Protokoll als geprobt und bestanden eingetragen."

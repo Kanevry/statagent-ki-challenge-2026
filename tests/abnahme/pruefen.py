@@ -70,7 +70,9 @@ UMGEBUNG_FEHLT = re.compile(
 
 # „<Pfad zu svbox/uc3>“, „<24 Monate>“: Vorschläge mit Platzhaltern sind keine Prüfsätze
 # (gemessen 05.11. 18:12: sie ergaben über einen Syntaxfehler fälschlich „nicht bestanden“).
-PLATZHALTER = re.compile(r"<[^<>|;&$'\"]*[A-Za-zÄÖÜäöüß]{3,}[^<>|;&$'\"]*>")
+PLATZHALTER = re.compile(
+    r"<(?!!--)[^<>|;&$'\"]*[A-Za-zÄÖÜäöüß]{3,}[^<>|;&$'\"]*>"
+)  # HTML-Kommentare sind echt
 
 
 def pruefsatz_fehler(p: dict) -> str:
