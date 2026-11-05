@@ -18,7 +18,8 @@ LAYOUTS = {"titel", "text", "schritte", "zahl", "live"}
 LAYOUT_ALIASE = {"cover": "titel"}  # alte Namen, die die Runtime weiter versteht
 SZENE_MUSTER = re.compile(r"^[a-z0-9-]+$")
 DATEINAME = re.compile(r"^(\d{2})-.+\.md$")
-# Gedankenstrich: jeder Geviertstrich, und ein Halbgeviertstrich, der nicht zwischen zwei Ziffern steht (0:20–1:20 bleibt erlaubt).
+# Gedankenstrich: jeder Geviertstrich und jeder Halbgeviertstrich, der nicht zwischen zwei Ziffern steht.
+# Zeitspannen wie 0:20–1:20 bleiben erlaubt.
 GEDANKENSTRICH = re.compile(r"—|(?<!\d)–|–(?!\d)")
 BELEG_KENNUNG = re.compile(r"^F\d+$")
 NOTIZ_KOMMENTAR = "<!-- notizen -->"
