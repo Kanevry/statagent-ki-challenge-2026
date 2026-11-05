@@ -12,3 +12,6 @@ and ([$s.app.environment | to_entries[] | select(.key | endswith("_DATABASE_URL"
 # Geld (#100): online gilt der Merker, und das Tagesbudget ist eine ganze Zahl ab 1
 and ($s.app.environment.KIC_ONLINE == "1")
 and (($s.app.environment.LLM_TAGESBUDGET_AUFRUFE // "") | test("^[1-9][0-9]*$"))
+# Budget zählt nur mit beschreibbarem Protokoll: Pfad im Volume app_protokoll
+and (($s.app.environment.PLATTFORM_PROTOKOLL // "") | startswith("/app/var/protokoll/"))
+and ([$s.app.volumes[]? | select(.type == "volume" and .source == "app_protokoll" and .target == "/app/var/protokoll")] | length == 1)
