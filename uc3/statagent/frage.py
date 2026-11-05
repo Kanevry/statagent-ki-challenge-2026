@@ -84,6 +84,9 @@ NICHT_LESBAR = (
 _STATUS_TEXT = {"vorlaeufig": "vorläufig", "endgueltig": "endgültig", "gesperrt": "gesperrt"}
 
 _JAHR = re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)")
+_VERGLEICH_VORMONAT = re.compile(
+    r"(?:vergleich|gegenüber|gegenueber|veränderung|veraenderung)\b.*\bvormonat", re.IGNORECASE
+)
 _DEFINITION = re.compile(
     r"\b(was\s+(ist|sind|bedeutet|heißt|heisst|zählt|zaehlt)|definition|bedeutung|definiert)\b"
 )
@@ -287,6 +290,11 @@ def _normalisieren(frage: str, letzter: str) -> tuple[str, list[str], bool]:
     „Jahresdurchschnitt 2025“ wird zu Jänner bis Dezember 2025; eine bloße Jahreszahl bleibt (Rückfrage, #74 AC2).
     """
     frage, notizen, mittel = umschreiben(frage, letzter)
+    vormonat = _VERGLEICH_VORMONAT.search(frage)
+    genannt = monate_lesen(frage)
+    if vormonat and len(set(genannt)) == 1:
+        # „März 2025 gegenüber dem Vormonat“ meint zwei Monate, nicht nur den März.
+        frage = f"{_monat_anzeige(monat_verschieben(genannt[0], -1))} {frage}"
     if _LETZTES_JAHR.search(frage):
         vorjahr = str(int(LETZTE_LIEFERUNG[:4]) - 1)  # das Jahr vor der letzten Lieferung der Aufgabe
         frage = _LETZTES_JAHR.sub(f" {vorjahr} ", frage)
@@ -603,10 +611,11 @@ def _filter(
             )
         filter_.append((merkmal, werte[0]))
         etiketten.append(codes[werte[0]])
-    if _FREIER_DV.search(frage.lower()):
+    freier_dv = _FREIER_DV.search(frage.lower())
+    if freier_dv:
         filter_.append((FREIER_DV, "true"))
         etiketten.append("freie Dienstverträge")
-        erkannt.append("freie dienstverträge")
+        erkannt += ["freie dienstverträge", freier_dv.group(0)]
     for kette in _ORT_KETTE.findall(frage):
         for wort in re.split(r"\s*(?:,|\bund\b|\boder\b|\bsowie\b)\s*", kette, flags=re.IGNORECASE):
             if not _wort_bekannt(wort, erkannt):
@@ -1344,9 +1353,9 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         notizen.insert(0, hinweis_tag)
     typ = fragetyp(frage)
     absage = nicht_auswertbar(frage, mittel=mittel and len(set(monate_lesen(frage))) > 1)
-    if absage is None and not re.search(r"[a-zäöüß]{3}", frage.lower()) and not monate_lesen(frage):
-        if jahr_ohne_monat(frage) is None:
-            absage = f"Das ist keine Frage, die ich verstehe. {KANN}"
+    ohne_wort = not re.search(r"[a-zäöüß]{3}", frage.lower())
+    if absage is None and ohne_wort and not monate_lesen(frage) and jahr_ohne_monat(frage) is None:
+        absage = f"Das ist keine Frage, die ich verstehe. {KANN}"
     if absage is not None:
         return _antwort(typ, absage, hinweise=[absage])
     try:

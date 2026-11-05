@@ -649,7 +649,6 @@ def test_hoechste_nennt_schwelle() -> None:
     [
         "Um wie viele Beschäftigte handelt es sich im August 2024?",
         "Beschäftigte laut Datenbank im August 2024",
-        "Beschäftigte mit Ausbildung im August 2024",
     ],
 )
 def test_branchen_nur_ganze_woerter(gerechnet: Verbindung, frage: str) -> None:

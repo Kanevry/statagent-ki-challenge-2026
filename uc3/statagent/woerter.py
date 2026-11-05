@@ -14,7 +14,12 @@ from statagent.zeitraum import MONATSNAMEN
 
 _WORT = re.compile(r"[a-zäöüß]+(?:-[a-zäöüß]+)*")
 
-_FUELLWOERTER = frozenset(
+
+def _liste(text: str) -> frozenset[str]:
+    return frozenset(text.split())
+
+
+_FUELLWOERTER = _liste(
     """
     ab alle allen aller alles als am an auch auf aus bei beim bin bis bitte da damit dann das dass dem den denn der des
     dessen die dies diese diesem diesen dieser dieses doch dort du durch ein eine einem einen einer eines er es für fuer
@@ -25,9 +30,9 @@ _FUELLWOERTER = frozenset(
     wurde wurden wäre wären zu zum zur zwar danke dank vielen voraus hilfe frage fragen wüsste wuesste gerade bericht
     abteilung präsentation vorstand brauche brauchen benötige möglich möglichst genau ungefähr etwa rund handelt
     viel viele vieler sagen sag zeig zeige zeigen steht stehen stand
-    """.split()
+    """
 )
-_SACHE = frozenset(
+_SACHE = _liste(
     """
     anzahl arbeit arbeite arbeiten arbeitend arbeitende arbeitenden arbeitet arbeitete arbeiteten arbeitnehmer
     arbeitnehmerinnen beschäftigung beschaeftigung beschäftigungen beschäftigt beschaeftigt beschäftigte beschäftigten
@@ -35,17 +40,17 @@ _SACHE = frozenset(
     beschäftigungsverhältnissen daten datenbank dienstnehmer dienstverhältnis dienstverhältnisse job jobs leute
     menschen mitarbeiter mitarbeiterinnen personen stelle stellen statistik verhältnis verhältnisse verhältnissen zahl
     zahlen
-    """.split()
+    """
 )
-_ZEIT = frozenset(
+_ZEIT = _liste(
     """
     aktuell aktuelle aktuellen derzeit gegenwärtig gegenwaertig heute momentan zurzeit zuletzt jeweils letzte letzten
     letzter letztes vergangene vergangenen vergangener
     jahr jahre jahren jahres monat monate monaten monats monatsletzten monatsletzter monatsende monatsweise stichtag
     stichtage ende anfang mitte beginn jahresende jahresanfang jahresmitte zeitraum
-    """.split()
+    """
 )
-_AUSWERTUNG = frozenset(
+_AUSWERTUNG = _liste(
     """
     abgang abgänge abgängen abgaenge abschnitt abschnitte abschnitten anteil anteile anteils aufgeteilt aufteilung
     bereich bereichen branche branchen bundesland bundesländer bundesländern bundeslaender durchschnitt durchschnitte
@@ -54,9 +59,10 @@ _AUSWERTUNG = frozenset(
     jahresdurchschnitt jahresmittel kategorie kategorien mittel mittelwert monatsdurchschnitt männeranteil oenace
     önace österreich oesterreich prozent regel summe tabelle verglichen vergleich vergleichen verlauf vs
     wirtschaftsbereich wirtschaftsbereiche wirtschaftsbereichen wirtschaftsabschnitt wirtschaftszweig zeitreihe
-    zugang zugänge zugängen zugaenge
+    zugang zugänge zugängen zugaenge veränderung veraenderung verändert stieg sank gestiegen gesunken gewachsen
+    vormonat vormonats vorjahr
     beschäftigungskategorie beschäftigungskategorien über ueber unter alter
-    """.split()
+    """
 )
 BEKANNT = _FUELLWOERTER | _SACHE | _ZEIT | _AUSWERTUNG | frozenset(MONATSNAMEN)
 

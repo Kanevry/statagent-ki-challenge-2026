@@ -32,6 +32,7 @@ def test_unbekanntes_wort(frage: str, erkannt: list[str], erwartet: str | None) 
     [
         "Wie viele Beschäftigte mit Kindern gab es im September 2024?",
         "Wie viele Betriebe gab es im September 2024 in Wien?",
+        "Beschäftigte mit Ausbildung im September 2024",
         "Beschäftigte außer Wien im September 2024",
         "How many employees in September 2024?",
         "Was kostet eine Pizza?",
@@ -51,3 +52,12 @@ def test_einwohner_meinen_das_bundesland(conn: Verbindung) -> None:
     wiener = antwort_frage(conn, "Wie viele Wiener arbeiteten im September 2024?")
     wien = antwort_frage(conn, "Wie viele Beschäftigte arbeiteten im September 2024 in Wien?")
     assert wiener["zahlen"][0]["wert"] == wien["zahlen"][0]["wert"]
+
+
+# Fängt: „gegenüber dem Vormonat“ zeigte nur den genannten Monat und ließ den Vergleich still weg.
+def test_vergleich_zum_vormonat_zeigt_beide_monate(conn: Verbindung) -> None:
+    lauf_ausfuehren(conn, "2024-08", "v1")
+    lauf_ausfuehren(conn, "2024-09", "v1")
+    daten = antwort_frage(conn, "Beschäftigte im September 2024 im Vergleich zum Vormonat")
+    monate = [z["bezeichnung"] for z in daten["zahlen"]]
+    assert any("August 2024" in m for m in monate) and any("September 2024" in m for m in monate)
