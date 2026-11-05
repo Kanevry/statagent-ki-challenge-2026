@@ -402,7 +402,11 @@ function StationKarte({
   );
 }
 
-/** Die erste Zeile ist die Kernaussage der Station; sie steht ganz da, solange sie kurz genug ist (Jury 05.11.). */
+/**
+ * Station 1 zeigt mit Zahl nur den ersten Satz, der Rest („Verstanden: …“) steht unter „Ganze Antwort“. Ohne Zahl ist ihr
+ * Text die Rückfrage: Die steht ganz da, sonst fehlt die eigentliche Frage. Die anderen Stationen zeigen ihre erste
+ * Zeile, die Kernaussage (Jury 05.11.). Beides nur, solange es kurz genug ist.
+ */
 const GANZ_BIS = 320;
 /** Die übrigen Belege stehen in der ganzen Antwort; oben reicht einer, zweimal „Beleg“ untereinander sagt nichts. */
 const BELEGE_OBEN = 1;
@@ -423,7 +427,8 @@ function belegeOben(antwort: UcAntwort): UcAntwort["belege"] {
 function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcAntwort; dauerMs: number; erste: boolean }) {
   const text = antwort.text.trim();
   const ersteZeile = text.split("\n", 1)[0]!.trim();
-  const gezeigt = ersteZeile.length <= GANZ_BIS ? ersteZeile : kern;
+  const nurErsterSatz = erste && antwort.zahlen.length > 0 && !kern.trim().endsWith("…");
+  const gezeigt = !nurErsterSatz && ersteZeile.length <= GANZ_BIS ? ersteZeile : kern;
   const mehr = text !== gezeigt.trim();
   return (
     <div className="flex flex-col gap-3" data-uc4-antwort="">

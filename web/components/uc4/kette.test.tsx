@@ -251,3 +251,20 @@ it("ohne Zahl von Station 1 steht nur deren Rückfrage da, ohne leere Stationen"
   expect(seite.textContent).toContain("Bitte nennen Sie einen Monat");
   expect(seite.textContent).not.toContain("Fertig in");
 });
+
+it("Station 1 mit Zahl zeigt den ersten Satz, der Rest steht unter „Ganze Antwort“", async () => {
+  // Fängt den Lauf mit !192: Bis 320 Zeichen stand „Verstanden: …, übernommen, gezählt …“ groß in der Karte, darüber
+  // hinaus nur der erste Satz, je nach Frage verschieden lang.
+  const lang = "Am 31.10.2025 gab es 390.900 Beschäftigungsverhältnisse. Verstanden: Oktober 2025. Die Zahlen sind vorläufig.";
+  const seite = await fragen(strom(antwort("uc3", lang, [BELEG_UC3], [ZAHL])));
+  await waitFor(() => expect(seite.querySelector("[data-uc4-antwort] p")?.textContent).toBe("Am 31.10.2025 gab es 390.900 Beschäftigungsverhältnisse"));
+  expect(screen.getByText("Ganze Antwort")).toBeTruthy();
+});
+
+it("eine Rückfrage von Station 1 steht ganz da, nicht nur ihr erster Satz", async () => {
+  // Fängt: „… zwölf Werte.“ steht da, die eigentliche Frage „Meinen Sie …?“ ist unter „Ganze Antwort“ versteckt.
+  const rueckfrage = "Für 2025 gibt es zwölf Werte. Meinen Sie einen Monat oder den Durchschnitt?";
+  const seite = await fragen(strom(antwort("uc3", rueckfrage, [], [])));
+  await waitFor(() => expect(seite.querySelector("[data-uc4-antwort] p")?.textContent).toBe(rueckfrage));
+  expect(screen.queryByText("Ganze Antwort")).toBeNull();
+});
