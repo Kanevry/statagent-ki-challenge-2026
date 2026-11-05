@@ -12,7 +12,13 @@ from typing import Any
 import psycopg
 
 from uc2.verhandlung import matrix
-from uc2.verhandlung.speicher import lies_ereignisse, lies_fall, lies_positionen, lies_teilnahme
+from uc2.verhandlung.speicher import (
+    lies_ereignisse,
+    lies_fall,
+    lies_freigabe,
+    lies_positionen,
+    lies_teilnahme,
+)
 
 PRUEF_ARTEN = ("zahl_ohne_beleg", "beleg_ungueltig", "zitat", "ungueltige_ausgabe", "zahl_widerspruch")
 
@@ -102,6 +108,7 @@ def bericht(verbindung: psycopg.Connection[Any], fall_id: int) -> dict[str, Any]
         for e in ereignisse
         if e["art"] in PRUEF_ARTEN
     ]
+    freigabe = lies_freigabe(verbindung, fall_id)
     return {
         "fall": {k: _iso(v) for k, v in fall.items()},
         "auftrag": auftrag,
@@ -115,4 +122,5 @@ def bericht(verbindung: psycopg.Connection[Any], fall_id: int) -> dict[str, Any]
         "experte": experte,
         "ergebnis": ergebnis,
         "ereignisse": len(ereignisse),
+        "freigabe": None if freigabe is None else {k: _iso(v) for k, v in freigabe.items()},
     }
