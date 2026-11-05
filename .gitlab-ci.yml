@@ -73,8 +73,9 @@ python:
     - uv run ruff format --check .
     # Typprüfung des gemeinsamen Pakets (UC-Pakete hängen sich mit ihrem Pfad an, z. B. uc3/statagent)
     - uv run mypy shared/py/plattform
-    # je UC mit src/ und eigener [tool.mypy] in ucN/pyproject.toml (Antrag UC2, heute nur uc2)
-    - for d in uc1 uc2 uc3; do if [ -d "$d/src" ] && grep -q '^\[tool.mypy\]' "$d/pyproject.toml"; then (cd "$d" && uv run mypy src) || exit 1; fi; done
+    # je UC mit eigener [tool.mypy] in ucN/pyproject.toml, Paketpfad je UC; uc3/statagent auf Antrag der UC3-Lane
+    # (lokal grün), greift, sobald das Paket auf dem Branch liegt
+    - for e in uc1:uc1 uc2:src uc3:statagent; do d=${e%%:*}; p=${e#*:}; if [ -d "$d/$p" ] && grep -q '^\[tool.mypy\]' "$d/pyproject.toml"; then (cd "$d" && uv run mypy "$p") || exit 1; fi; done
     - uv run pytest -q -m "not daten" shared/py/tests
     # je UC im eigenen Ordner mit eigener pytest-Config (gleichnamige Tests, Paket heißt wie der Ordner)
     - for d in uc1 uc2 uc3; do if [ -d "$d/tests" ]; then (cd "$d" && uv run pytest -q -m "not daten") || exit 1; fi; done
