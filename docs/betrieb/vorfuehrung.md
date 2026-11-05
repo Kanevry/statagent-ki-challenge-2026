@@ -66,9 +66,11 @@ Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset
 
 ### Dieselbe Folge ohne Rechen-Datenbank
 
-Ist der Rechner mit der Rechen-Datenbank nicht erreichbar, entfällt Schritt 1. Die Vorlage auf dem Server bleibt, sie enthält den
-letzten eingespielten Dump samt Pensionen, und der liegt auch noch auf dem Server. Was sich seither an `statistik` geändert hat,
-fehlt dann; das ist nicht messbar und gehört am Tisch nicht behauptet.
+Plan für Fr 05:57, solange der Rechner mit der Rechen-Datenbank nicht erreichbar ist (seit 06.11. 00:35). Schritt 1 entfällt. Die
+Vorlage auf dem Server bleibt, sie enthält den letzten eingespielten Dump samt Pensionen, und der liegt auch noch auf dem Server.
+
+**Einschränkung:** Der Stand von `statistik` ist damit nur bis etwa 23:00 am 05.11. belegt. Was sich seither dort geändert hat, fehlt
+in der Vorführung und ist nicht messbar, das gehört am Tisch nicht behauptet. Die Abgabe selbst berührt das nicht.
 
 1. `scripts/vorfuehrung.sh up <ref>`: Volume und Vorlage bleiben, der Checkout entsteht neu.
 2. `scripts/vorfuehrung.sh reset`, dann `scripts/vorfuehrung.sh klassifikationen <klass-datei>` und `scripts/vorfuehrung.sh
