@@ -8,6 +8,7 @@ import {
   formatZahl,
   FreigabeKarte,
   HerkunftChip,
+  ModellPille,
   WarnChip,
   type FreigabeEintrag,
 } from "@kic/ui/bausteine";
@@ -70,6 +71,16 @@ export function BausteineBeispiele() {
           <WarnChip />
           <FehlerChip>Lieferung unvollständig</FehlerChip>
           <FehlerChip />
+        </div>
+      </Teil>
+
+      <Teil titel="Modell-Pille">
+        <div className="flex flex-wrap items-center gap-4">
+          <ModellPille>
+            <span>Modell:</span>
+            <span className="font-mono">azure · gpt-5-4-mini</span>
+            <span>· austauschbar</span>
+          </ModellPille>
         </div>
       </Teil>
 
