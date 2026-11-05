@@ -16,3 +16,6 @@ next-env.d.ts
 .orchestrator/runtime/
 .DS_Store
 *.log
+.orchestrator/session.lock
+.orchestrator/current-session.json
+.orchestrator/host.json
