@@ -437,6 +437,37 @@ def beleg_zelle(b: dict | None, grund: str) -> str:
     return " ".join(teile)
 
 
+RASTER = WURZEL / "docs" / "abnahme" / "raster-uc3.csv"
+
+
+def raster_tabelle(zeilen: list[dict], belege: dict[str, dict]) -> list[str]:
+    """Kurztabelle je Bewertungsbereich (UC3-Raster, 6 x 20 Punkte); Zuordnung je Issue aus raster-uc3.csv."""
+    if not RASTER.exists():
+        return []
+    import csv
+
+    out = [
+        "",
+        "## Je Bewertungsbereich (Jury-Raster)",
+        "",
+        "Zuordnung je Issue in `docs/abnahme/raster-uc3.csv`; keine Punkteschätzung, nur Kriterienstand.",
+        "",
+        "| Bereich | bestanden | nicht bestanden | nicht geprüft | nach Abgabe | bestandene Kriterien |",
+        "|---|---:|---:|---:|---:|---|",
+    ]
+    with RASTER.open() as f:
+        for r in csv.DictReader(f, delimiter=";"):
+            iids = {int(x) for x in r["issues"].split()}
+            ks = [k for k in zeilen if k["iid"] in iids]
+            st = Counter(stand(k, belege)[0] for k in ks)
+            ok = ", ".join(k["id"] for k in ks if stand(k, belege)[0] == "bestanden") or "keins"
+            out.append(
+                f"| {r['bereich']} | {st['bestanden']} | {st['nicht bestanden']} | {st['nicht geprüft']} "
+                f"| {st['nach Abgabe']} | {ok} |"
+            )
+    return [*out, ""]
+
+
 def matrix_schreiben(zeilen: list[dict], belege: dict[str, dict], sha: str, zeit: str) -> None:
     z = zaehlen(zeilen, belege)
     for ber in BEREICHE:
@@ -454,11 +485,13 @@ def matrix_schreiben(zeilen: list[dict], belege: dict[str, dict], sha: str, zeit
         ]
         out += [f"| {s} | {c[s]} |" for s in STAENDE]
         out += [
-            f"| gesamt | {sum(c.values())} |",
+            f"| gesamt | {sum(c[s] for s in STAENDE)} |",
             "",
             "| Kriterium | Teil | Art | Kriterium im Wortlaut | Stand | Beleg | main-SHA | Uhrzeit |",
             "|---|---|---|---|---|---|---|---|",
         ]
+        if ber == "uc3":
+            out += raster_tabelle([k for k in zeilen if k["bereich"] == ber], belege)
         for k in (k for k in zeilen if k["bereich"] == ber):
             s, b, grund = stand(k, belege)
             art = ("☑" if k["abgehakt"] else "☐") if k["art"] == "checkbox" else "Text"

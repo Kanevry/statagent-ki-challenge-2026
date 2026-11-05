@@ -1,6 +1,6 @@
 # Abnahme-Matrix UC3 StatAgent (bewertet)
 
-Erzeugt von `tests/abnahme/matrix.py` am 2026-11-05 18:07 (Europe/Vienna) auf main `11953026`.
+Erzeugt von `tests/abnahme/matrix.py` am 2026-11-05 18:09 (Europe/Vienna) auf main `11953026`.
 Nicht von Hand ändern. Belege stehen in `docs/abnahme/belege.jsonl`,
 der jüngste Eintrag je Kriterium gilt. Ein Kriterium ist nur `bestanden`,
 wenn der Prüfer den Befehl in seiner Session ausgeführt und die Ausgabe gelesen hat.
@@ -11,10 +11,25 @@ wenn der Prüfer den Befehl in seiner Session ausgeführt und die Ausgabe gelese
 | nicht bestanden | 27 |
 | nicht geprüft | 24 |
 | nach Abgabe | 11 |
-| gesamt | 89 |
+| gesamt | 68 |
 
 | Kriterium | Teil | Art | Kriterium im Wortlaut | Stand | Beleg | main-SHA | Uhrzeit |
 |---|---|---|---|---|---|---|---|
+
+## Je Bewertungsbereich (Jury-Raster)
+
+Zuordnung je Issue in `docs/abnahme/raster-uc3.csv`; keine Punkteschätzung, nur Kriterienstand.
+
+| Bereich | bestanden | nicht bestanden | nicht geprüft | nach Abgabe | bestandene Kriterien |
+|---|---:|---:|---:|---:|---|
+| Datenmanagement | 2 | 1 | 5 | 0 | 13-AC1, 13-AC4 |
+| Klassifikation | 0 | 2 | 1 | 6 | keins |
+| Qualitätssicherung | 0 | 0 | 7 | 0 | keins |
+| Reporting | 0 | 0 | 2 | 0 | keins |
+| Weiterentwicklung und Betrieb | 0 | 13 | 3 | 0 | keins |
+| Bedienbarkeit | 4 | 6 | 4 | 1 | 135-1, 135-4, 135-10, 135-11 |
+| Abgabe und Querschnitt | 0 | 5 | 2 | 2 | keins |
+
 | #13-AC1 (geschlossen) | UC3 | ☐ | **AC1:** `uv run statagent --help` listet `lauf`, `berichte`, `freigabe`, `frage`; alle vier `--help` enden mit Exit 0. `KI-Challenge_UseCase.yaml` enthält weiterhin `uc3`; kein erneuter Auswahlprozess. **Datenbasis:** svbox/uc3/StatAgent Aufgabenstellung für die Teams.md:134; vault/05-business/career/hackathons-2026-27/ki-challenge/vor-ort-05-11.md:162; YAML-Status gemäß Owner. **Abhängig von #53. Lane:** `uc3/`. | bestanden | `for c in lauf berichte freigabe frage; do timeout 120 uv run --isolated --package statagent statagent $c --help >/dev/null 2>&1; echo "$c exit $?"; done; grep -n uc3 KI-Challenge_UseCase.yaml` → lauf exit 0 berichte exit 0 freigabe exit 0 frage exit 0 6:#   uc3 = StatAgent              (agentengestützter Statistikprozess) 8:  - uc3 (Alle vier Befehle stehen in der Hilfe und enden mit Exit 0; die YAML enthaelt weiter uc3.) | 11953026 | 2026-11-05 18:05 |
 | #13-AC2 (geschlossen) | UC3 | ☐ | **AC2:** `DB_PORT=5433 docker compose up -d` und ein Schema-Smoke dokumentieren PostgreSQL 16; zuerst `shared/py/plattform/sql/meta.sql` von #55 einspielen, danach UC3-eigene `meta.regel`, `meta.pruefung`, `meta.lauf` und `stat_beschaeftigte`, `beschreibung`, `variable`, `klass_*`, Übergänge und Quellzuordnung. Zweiter Schema-Lauf ohne Datenverlust; Schema-Snapshot unter `uc3/db/`. **Datenbasis:** svbox/uc3/docker-compose.yml:2–18; svbox/uc3/datenbank/01_schema.sql:1–25; svbox/uc3/StatAgent Aufgabenstellung für die Teams.md:148–159. **Abhängig von #53, #55. Lane:** `db/`. | nicht geprüft | `DB_PORT=5433 docker compose up -d && uv run --isolated --package statagent statagent db init && uv run --isolated --package statagent statagent db init && psql "$UC3_DATABASE_URL" -c 'select version()' -c '\dt meta.*' -c '\dt stat.*'` → ls uc3/db zeigt 16 DDL-Dateien (001_schemas.sql bis 160_bewegung.sql), aber keine Datei mit pg_dump-Snapshot. uc3/db (Beleg veraltet: main hat sich seit d283a78a geändert; zuletzt nicht geprüft auf d283a78a) | d283a78a | 2026-11-05 17:22 |
 | #13-AC3 (geschlossen) | UC3 | ☐ | **AC3:** Ladeprotokoll weist genau 24 verschiedene Lieferungen 2024-08 bis 2026-07 aus; je Datei stimmen gelesene CSV-Datensätze und `roh.ladeprotokoll.zeilen` überein. Alle Rohfelder bleiben Text und jeder Satz behält seinen Lieferungsstand. **Datenbasis:** svbox/uc3/datenbank/02_laden.sql:5–22; svbox/uc3/Fachbeschreibung.md:11–14; svbox/uc3/StatAgent Aufgabenstellung für die Teams.md:59. **Abhängig von #53. Lane:** `db/`. | nicht geprüft | `uv run --isolated --package statagent statagent db pruefen` → Nicht ausgefuehrt (Datenbankzugriff verboten, CSV unter svbox nicht lesbar). (Beleg veraltet: main hat sich seit d283a78a geändert; zuletzt nicht geprüft auf d283a78a) | d283a78a | 2026-11-05 17:22 |

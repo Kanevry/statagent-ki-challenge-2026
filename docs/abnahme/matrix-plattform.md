@@ -1,6 +1,6 @@
 # Abnahme-Matrix Plattform: E0, E5 Präsentation, E6 Abgabe, UC4, E4
 
-Erzeugt von `tests/abnahme/matrix.py` am 2026-11-05 18:07 (Europe/Vienna) auf main `11953026`.
+Erzeugt von `tests/abnahme/matrix.py` am 2026-11-05 18:09 (Europe/Vienna) auf main `11953026`.
 Nicht von Hand ändern. Belege stehen in `docs/abnahme/belege.jsonl`,
 der jüngste Eintrag je Kriterium gilt. Ein Kriterium ist nur `bestanden`,
 wenn der Prüfer den Befehl in seiner Session ausgeführt und die Ausgabe gelesen hat.
@@ -11,7 +11,7 @@ wenn der Prüfer den Befehl in seiner Session ausgeführt und die Ausgabe gelese
 | nicht bestanden | 8 |
 | nicht geprüft | 115 |
 | nach Abgabe | 1 |
-| gesamt | 201 |
+| gesamt | 131 |
 
 | Kriterium | Teil | Art | Kriterium im Wortlaut | Stand | Beleg | main-SHA | Uhrzeit |
 |---|---|---|---|---|---|---|---|
