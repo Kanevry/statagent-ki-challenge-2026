@@ -43,3 +43,22 @@ uv run uc2 verhandlung --fall wartezeiten --provider claude --belege fixture --m
   Maskierung (#43) nur mit `mock` erlaubt; mit echtem Provider bricht der Lauf vorher ab.
 - Szenario-Mock (`uc2.modelle.szenario`): Er antwortet aus dem Kontextblock des Prompts.
   `UC2_MOCK_KAPUTT=<akteur>:<runde>` liefert für genau diesen Zug kaputtes JSON.
+
+## UC4-Adapter (#103)
+
+`uc2.antwort.antwort(frage, kontext) -> UcAntwort` (Entry-Point `kic.uc_antwort: uc2`) beantwortet eine
+Frage aus der Kette uc3 → uc2 → uc1, ohne PG:
+
+- Fall per Stichwort aus `faelle/*.yaml` (sonst `wartezeiten`), der Experte rechnet dessen Paket.
+- Zahlen aus `kontext` (etwa UC3) gehen samt Beleg in die Antwort und als `kontext_zahlen` ans Panel.
+- Kurzverhandlung: Moderator, höchstens 4 Akteure, Runde 1 Position und Runde 2 Debatte, über
+  `plattform.llm` (Zweck `uc2.panel`). Mit `LLM_PROVIDER=mock` deterministisch.
+- Belege: `quelle=presse` je Akteur mit Medium im Text, sonst „Modellannahme“; Experte als
+  `quelle=uc2.experte`, `ref=<paket>`. Belegquelle `FixtureQuelle`, unmaskiert nur mit mock.
+- Den Text schreibt der Code. Zahlen ohne Eintrag in `zahlen` werden ersetzt, bleibt eine übrig, wirft der
+  Adapter `FreieZahl`. Modellfehler werfen; der Router meldet UC2 dann als fehlend.
+- `protokoll_id` ist `None`, weil der Kurzlauf nicht in PG schreibt.
+
+```bash
+LLM_PROVIDER=mock uv run python -c "from uc2.antwort import antwort; print(antwort('Wie entwickeln sich die Wartezeiten?', []).text)"
+```
