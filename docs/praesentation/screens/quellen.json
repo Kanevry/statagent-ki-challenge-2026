@@ -4,26 +4,26 @@
     "motiv": "Läufe-Übersicht, 24 Monate mit Status",
     "folie": 2,
     "quelle": "oberflaeche",
-    "route": null,
+    "route": "/uc3",
     "commit": null,
     "lauf": null,
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "noch nicht aufgenommen"
+    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38)"
   },
   {
     "bild": "SC02",
     "motiv": "Eine Regel mit Gültigkeit, Begründung, Freigabe",
     "folie": 3,
     "quelle": "oberflaeche",
-    "route": null,
+    "route": "/uc3/berichte/regeln",
     "commit": null,
     "lauf": null,
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "noch nicht aufgenommen"
+    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38); Ziel: Regel R4_stichtag_eigene_lieferung"
   },
   {
     "bild": "SC03",
@@ -36,7 +36,7 @@
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "noch nicht aufgenommen"
+    "hinweis": "entfällt in v4: Terminal-Motiv, keine Webseite zeigt den Aufruf uc3 lauf"
   },
   {
     "bild": "SC04",
@@ -49,7 +49,7 @@
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "noch nicht aufgenommen"
+    "hinweis": "entfällt in v4: keine Webseite zeigt den Zellvergleich 2.880 von 2.880"
   },
   {
     "bild": "SC05",
@@ -62,72 +62,72 @@
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "noch nicht aufgenommen"
+    "hinweis": "entfällt in v4: das Aggregations-Sheet ist eine Datei, keine Webseite zeigt Tab1"
   },
   {
     "bild": "SC06",
     "motiv": "Qualitätsbericht 2025-03 mit Einstufungen",
     "folie": 6,
     "quelle": "oberflaeche",
-    "route": null,
+    "route": "/uc3/berichte/2025-03",
     "commit": null,
     "lauf": null,
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "noch nicht aufgenommen"
+    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38)"
   },
   {
     "bild": "SC07",
     "motiv": "Qualitätsbericht 2025-10, Lauf angehalten",
     "folie": 6,
     "quelle": "oberflaeche",
-    "route": null,
+    "route": "/uc3/berichte/2025-10",
     "commit": null,
     "lauf": null,
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "noch nicht aufgenommen"
+    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38)"
   },
   {
     "bild": "SC08",
     "motiv": "Regel R5_alter als Daten",
     "folie": 7,
     "quelle": "oberflaeche",
-    "route": null,
+    "route": "/uc3/berichte/regeln",
     "commit": null,
     "lauf": null,
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "noch nicht aufgenommen"
+    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38); Ziel: Regel R5_alter"
   },
   {
     "bild": "SC09",
     "motiv": "Rückfrage R1 an die Fachabteilung",
     "folie": 7,
-    "quelle": "datei",
-    "route": null,
+    "quelle": "oberflaeche",
+    "route": "/uc3/berichte/2025-03",
     "commit": null,
     "lauf": null,
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "noch nicht aufgenommen"
+    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38); Ziel: Abschnitt 3 Rückfragen"
   },
   {
     "bild": "SC10",
     "motiv": "Protokoll mit Freigabe, Name, Zeit, Wirkung",
     "folie": 9,
     "quelle": "oberflaeche",
-    "route": null,
+    "route": "/uc3/freigaben?reiter=erledigt",
     "commit": null,
     "lauf": null,
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "noch nicht aufgenommen"
+    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38); Ziel: erste erledigte Freigabe"
   },
   {
     "bild": "SC11",
@@ -146,13 +146,13 @@
     "bild": "SC12",
     "motiv": "Agent-Vorschlag mit Diff vor der Freigabe",
     "folie": 8,
-    "quelle": "terminal",
-    "route": null,
+    "quelle": "oberflaeche",
+    "route": "/uc3/freigaben",
     "commit": null,
     "lauf": null,
     "pen_frame": null,
     "art": "offen",
     "aufgenommen_am": null,
-    "hinweis": "noch nicht aufgenommen"
+    "hinweis": "offen: UC3-Daten online nicht lesbar (17:38); Ziel: erster offener Vorschlag, Abschnitt Verschiebung"
   }
 ]
