@@ -78,14 +78,12 @@ _ALTERSSPANNE = re.compile(r"^(\d{1,3})-(\d{1,3})$")
 _ZUORDNUNG = re.compile(r"^([^=]{1,40})=([^=]{1,40})$")
 
 
-def _zaehlregel(regeln: list[Regel], art: str) -> Regel | None:
-    """Optionale Zählregel (Ausschluss, Gruppierung): fehlt sie, zählt der Regelsatz wie bisher."""
-    treffer = [r for r in regeln if r.typ == "zaehl" and r.art == art]
-    if len(treffer) > 1:
-        raise RegelFehler(
-            f"mehrere aktive zaehl-Regeln der Art '{art}': {', '.join(r.name for r in treffer)}"
-        )
-    return treffer[0] if treffer else None
+def _zaehlregeln(regeln: list[Regel], art: str) -> list[Regel]:
+    """Optionale Zählregeln (Ausschluss, Gruppierung), in fester Reihenfolge. Fehlen sie, zählt der Regelsatz wie
+    bisher. Ein Regelsatz darf mehrere tragen („ohne Beamte“ und „ohne Kinder unter 15“)."""
+    return sorted(
+        (r for r in regeln if r.typ == "zaehl" and r.art == art), key=lambda r: (r.reihenfolge, r.name)
+    )
 
 
 def ausschluss_bedingung(regel: Regel, qual_ausdruck: sql.Composable) -> sql.Composable:
@@ -192,19 +190,23 @@ def zaehlen(
         raise RegelFehler(f"{r_dim.name}: qualifikation muss 'code' oder 'beschaeftigungskategorie' sein")
 
     # Optionale Regeln (nur in Regelsätzen, die sie enthalten; ohne sie zählt der Code wie bisher).
-    r_aus = _zaehlregel(regeln, "ausschluss")
-    r_grp = _zaehlregel(regeln, "gruppierung")
+    r_aus = _zaehlregeln(regeln, "ausschluss")
+    r_grp = _zaehlregeln(regeln, "gruppierung")
     ausdruck: dict[str, sql.Composable] = {
         "region": sql.SQL("b.bundesland"),
         "oenace": sql.SQL("b.oenace"),
         "geschlecht": sql.SQL("b.geschlecht"),
         "qualifikation": qual_ausdruck,
     }
-    if r_grp is not None:
-        g_merkmal, g_zuordnung = gruppierung_zuordnung(r_grp)
+    gruppierte: set[str] = set()
+    for r_g in r_grp:
+        g_merkmal, g_zuordnung = gruppierung_zuordnung(r_g)
+        if g_merkmal in gruppierte:
+            raise RegelFehler(f"{r_g.name}: das Merkmal {g_merkmal} hat schon eine Gruppierungsregel")
+        gruppierte.add(g_merkmal)
         ausdruck[g_merkmal] = _gruppiert(ausdruck[g_merkmal], g_zuordnung)
-    filter_ = sql.SQL("WHERE NOT b.ausgeschlossen") if r_aus is not None else sql.SQL("")
-    filter_geliefert = sql.SQL("AND NOT b.ausgeschlossen") if r_aus is not None else sql.SQL("")
+    filter_ = sql.SQL("WHERE NOT b.ausgeschlossen") if r_aus else sql.SQL("")
+    filter_geliefert = sql.SQL("AND NOT b.ausgeschlossen") if r_aus else sql.SQL("")
 
     if praefix not in ("_", "_rev_", "_alt_"):
         raise ValueError(f"unzulässiges Tabellen-Präfix {praefix!r}")
@@ -249,27 +251,28 @@ def zaehlen(
             "amin": int(wert(r_alter, "min_plausibel")),
         },
     )
-    if r_aus is not None:
+    if r_aus:
         # Ausgeschlossene bleiben im Bestand (Abrechnung, Prüfungen); nur die Zellen lassen sie weg.
         conn.execute(
             sql.SQL("ALTER TABLE {} ADD COLUMN ausgeschlossen boolean NOT NULL DEFAULT false").format(
                 t_bestand
             )
         )
-        conn.execute(
-            sql.SQL("UPDATE {} b SET ausgeschlossen = true WHERE {}").format(
-                t_bestand,
-                # Im UPDATE gibt es keinen Join auf klass_qualifikation; die Kategorie kommt aus einer Unterabfrage.
-                ausschluss_bedingung(
-                    r_aus,
-                    sql.SQL(
-                        "(SELECT k.beschaeftigungskategorie FROM stat.klass_qualifikation k WHERE k.code = b.qualifikation)"
-                    )
-                    if dim == "beschaeftigungskategorie"
-                    else qual_ausdruck,
-                ),
+        for r_a in r_aus:
+            conn.execute(
+                sql.SQL("UPDATE {} b SET ausgeschlossen = true WHERE {}").format(
+                    t_bestand,
+                    # Im UPDATE gibt es keinen Join auf klass_qualifikation; die Kategorie kommt aus einer Unterabfrage.
+                    ausschluss_bedingung(
+                        r_a,
+                        sql.SQL(
+                            "(SELECT k.beschaeftigungskategorie FROM stat.klass_qualifikation k WHERE k.code = b.qualifikation)"
+                        )
+                        if dim == "beschaeftigungskategorie"
+                        else qual_ausdruck,
+                    ),
+                )
             )
-        )
     conn.execute(
         sql.SQL(
             """
@@ -366,7 +369,7 @@ def zaehlen(
         alter_unbekannt=int(str(abschnitte["alter_unbekannt"])),
         zellen=int(str(kennzahlen["zellen"])),
         ergebnis_hash=str(kennzahlen["hash"]),
-        ausgeschlossen_merkmal=_anzahl_ausgeschlossen(conn, t_bestand) if r_aus is not None else 0,
+        ausgeschlossen_merkmal=_anzahl_ausgeschlossen(conn, t_bestand) if r_aus else 0,
     )
 
 

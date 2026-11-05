@@ -186,7 +186,8 @@ def _gleicher_typ(alt: object, neu: object) -> bool:
 
 def _wert_pruefen(art: str, schluessel: str, alt: object, neu: object, regel: str) -> None:
     erlaubt = _ZULAESSIG.get((art, schluessel))
-    if isinstance(erlaubt, set) and neu not in erlaubt:
+    # Erst der Typ: ein Listenwert wie ["Stichtag"] ist nicht hashbar und wäre sonst ein Absturz statt einer Meldung.
+    if isinstance(erlaubt, set) and (not isinstance(neu, str) or neu not in erlaubt):
         werte = ", ".join(sorted(erlaubt))
         raise VorschlagUngueltig(
             f"{regel}.{schluessel}: {neu!r} ist für die Art {art} nicht zulässig ({werte})"
@@ -631,6 +632,9 @@ def vorschlag_pruefen(
             neu = {**alt, **neu_teil}
             if str(r["art"]) == "bestand":
                 _bestand_pruefen(a.regel_name, neu)
+            if str(r["art"]) in NEUE_ZAEHL_ARTEN:
+                # Auch beim Ändern gilt: bekannte Werte, sonst schlösse „auch ohne Wien“ statt Code 9 nichts aus.
+                _neue_zaehlart_pruefen(conn, a.regel_name, str(r["art"]), neu, basis)
             if r["typ"] == "pruefung" and set(neu_teil) <= _PRUEFTEXTE:
                 raise VorschlagUngueltig(
                     f"{a.regel_name}: nur der Meldungstext einer Prüfregel ändert sich; das ändert keine Zahl. "
@@ -645,14 +649,21 @@ def vorschlag_pruefen(
     elif antwort.typ == "regel_neu":
         if not antwort.neue_regeln:
             raise VorschlagUngueltig("regel_neu ohne Regel")
+        namen_neu: set[str] = set()
+        gruppiert_neu: set[str] = set()
         for n in antwort.neue_regeln:
             if n.name in regeln:
                 raise VorschlagUngueltig(f"Regel {n.name} gibt es schon; bitte regel_aendern")
+            if n.name in namen_neu:
+                raise VorschlagUngueltig(
+                    f"Regel {n.name} steht zweimal im Vorschlag; jede Regel braucht einen Namen"
+                )
+            namen_neu.add(n.name)
             if n.typ not in rolle.regeltypen:
                 raise RolleUnzustaendig(f"Die Rolle {rolle.name} darf keine {n.typ}-Regeln anlegen", n.typ)
             gleiche_art = [r for r in regeln.values() if r["typ"] == n.typ and r["art"] == n.art]
             parameter = _parameter(n.parameter)
-            if n.typ == "zaehl" and not auswertung and n.art in NEUE_ZAEHL_ARTEN and not gleiche_art:
+            if n.typ == "zaehl" and not auswertung and n.art in NEUE_ZAEHL_ARTEN:
                 if (
                     n.art == "gruppierung"
                     and parameter.get("merkmal") == "beschaeftigungskategorie"
@@ -662,6 +673,15 @@ def vorschlag_pruefen(
                     # qualifikation (Probe 19:44: „Arbeiter und Angestellte zusammen“ scheiterte daran).
                     parameter = {**parameter, "merkmal": "qualifikation"}
                 _neue_zaehlart_pruefen(conn, n.name, n.art, parameter, basis)
+                if n.art == "gruppierung":
+                    merkmal = str(parameter["merkmal"])
+                    vorhanden = {str(dict(r["parameter"]).get("merkmal")) for r in gleiche_art}
+                    if merkmal in vorhanden or merkmal in gruppiert_neu:
+                        raise VorschlagUngueltig(
+                            f"{n.name}: das Merkmal {merkmal} hat schon eine Gruppierungsregel; bitte alle "
+                            "Zuordnungen dieses Merkmals in einer Regel nennen"
+                        )
+                    gruppiert_neu.add(merkmal)
                 for k, w in parameter.items():
                     _wert_pruefen(n.art, k, None, w, n.name)
                 regel = n.model_dump(exclude={"parameter"}) | {"parameter": parameter}
@@ -777,7 +797,10 @@ _WEGWEISER = {
     "Ausprägungen zusammenlegen (Bundesländer zu Regionen, Kategorien zusammen)": "neue zaehl-Regel der Art "
     "gruppierung auf dem bestehenden Merkmal (z. B. region mit zuordnung ['1=Ost', '3=Ost', '9=Ost']); eine neue "
     "Klassifikation ist dafür nicht nötig",
-    "Schwellen, ab wann ein Monat angehalten oder gemeldet wird": "Prüfregel (typ pruefung), Rolle qs",
+    "Schwellen, ab wann ein Monat angehalten oder gemeldet wird": "Prüfregel (typ pruefung), Rolle qs; Bestand "
+    "gegen Vormonat ist P15, verschwundene Verhältnisse P16; ändere nur die eine, die die Anweisung meint",
+    "Mehrere Dinge ausschließen (ohne Beamte und ohne Kinder unter 15)": "je Merkmal eine eigene neue zaehl-Regel "
+    "der Art ausschluss",
 }
 
 
@@ -1009,6 +1032,7 @@ def agent_ausfuehren(
     kontext = kontext_bauen(conn, basis, probe_lieferung, ziel)
     versucht: set[str] = set()
     nachgefasst = False
+    mehrere_bestaetigt = False
     while True:
         ergebnis.rolle = rolle.name
         versucht.add(rolle.name)
@@ -1092,6 +1116,23 @@ def agent_ausfuehren(
                         "content": f"Das Programm hat den Vorschlag nicht angenommen: {fehler}. Korrigiere den "
                         "Vorschlag (andere Regel, zulässiger Wert, bekannte Ausprägung) oder stelle eine Rückfrage, "
                         "wenn die Anweisung so nicht umsetzbar ist.",
+                    },
+                ]
+                continue
+            if len(g.aenderungen) > 1 and not mehrere_bestaetigt:
+                # Einmal nachfragen (Probe 20:36: „anhalten ab 3 Prozent“ änderte P15 und ungefragt auch P16). Sind
+                # wirklich alle verlangt, kommt derselbe Vorschlag wieder und gilt.
+                mehrere_bestaetigt = True
+                namen = ", ".join(str(a.get("regel_name") or a["regel"]["name"]) for a in g.aenderungen)
+                ergebnis.korrekturen.append(f"Mehrere Regeln, nachgefragt: {namen}")
+                nachrichten = [
+                    *nachrichten,
+                    {"role": "assistant", "content": antwort.model_dump_json()},
+                    {
+                        "role": "user",
+                        "content": f"Dein Vorschlag ändert mehrere Regeln: {namen}. Nimm nur die Regeln, die die "
+                        "Anweisung verlangt; lass ähnliche Regeln unverändert. Verlangt sie wirklich alle, gib "
+                        "denselben Vorschlag noch einmal aus.",
                     },
                 ]
                 continue

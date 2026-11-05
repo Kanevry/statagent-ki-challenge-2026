@@ -52,6 +52,7 @@ class Rolle:
             "Bei regel_aendern nennt parameter_neu nur Schlüssel, die im Feld parameter der Regel schon stehen, "
             "in derselben Schreibweise und mit einem der dort erlaubten Werte; Beschreibung, Begründung und "
             "der Regelname sind keine Parameter. "
+            "Ändere nur, was die Anweisung verlangt, auch keine ähnliche Regel nebenbei. "
             "Regeln sind Daten: ändere bevorzugt Parameter einer bestehenden Regel (regel_aendern), lege nur "
             "dann eine neue Regel an (regel_neu), wenn es ihre Art schon gibt oder sie unter neue_zaehlregel_arten "
             "steht, und schreibe Code (code_datei) nur für Sonderauswertungen: Python mit def run(conn, lieferung) "

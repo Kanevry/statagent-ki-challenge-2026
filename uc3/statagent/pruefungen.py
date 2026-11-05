@@ -569,13 +569,14 @@ def _ausgeschlossen(k: Kontext, nur_geliefert: bool = False) -> int:
     return _int(z["n"])
 
 
-def _gruppen(k: Kontext) -> tuple[str, list[str]] | None:
-    """Merkmal und Gruppennamen einer Gruppierungsregel des Laufs (z. B. region, ['Ost'])."""
-    r = next((r for r in k.regeln if r.typ == "zaehl" and r.art == "gruppierung"), None)
-    if r is None:
-        return None
-    merkmal, zuordnung = gruppierung_zuordnung(r)
-    return merkmal, sorted(set(zuordnung.values()))
+def _gruppen(k: Kontext) -> dict[str, list[str]]:
+    """Gruppennamen je Merkmal aus den Gruppierungsregeln des Laufs (z. B. {'region': ['Ost']})."""
+    ergebnis: dict[str, list[str]] = {}
+    for r in k.regeln:
+        if r.typ == "zaehl" and r.art == "gruppierung":
+            merkmal, zuordnung = gruppierung_zuordnung(r)
+            ergebnis[merkmal] = sorted(set(zuordnung.values()))
+    return ergebnis
 
 
 def _blattsummen(k: Kontext, regel: Regel) -> Befund:
@@ -604,8 +605,8 @@ def _blattsummen(k: Kontext, regel: Regel) -> Befund:
                 sql.SQL(" AND k.version = z.oenace_version") if dict(spez).get("version") else sql.SQL("")
             )
             zusatz = (
-                sql.SQL(" OR z.{} = ANY({})").format(_gliederung(regel, str(g)), sql.Literal(gruppen[1]))
-                if gruppen is not None and gruppen[0] == str(g)
+                sql.SQL(" OR z.{} = ANY({})").format(_gliederung(regel, str(g)), sql.Literal(gruppen[str(g)]))
+                if str(g) in gruppen
                 else sql.SQL("")
             )
             summen.append(

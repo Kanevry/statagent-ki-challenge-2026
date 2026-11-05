@@ -468,3 +468,138 @@ def test_alter_vorschlag_mit_ziel_eines_gerechneten_regelsatzes_wird_nicht_freig
         freigabe_ausfuehren(conn, erg.vorschlag_id, NAME, repo, freigeben=plattform_freigeben)
     assert _stand(conn, "v2") == stand and git(repo, "rev-parse", "HEAD") == kopf
     assert vorschlag_lesen(conn, erg.vorschlag_id).status == "offen"
+
+
+def _neu_mehrere(*regeln: tuple[str, str, dict[str, Any]]) -> dict[str, Any]:
+    antwort = _neu(*regeln[0])
+    for art, name, parameter in regeln[1:]:
+        antwort["neue_regeln"] += _neu(art, name, parameter)["neue_regeln"]
+    return antwort
+
+
+def test_listenwert_ist_meldung_kein_absturz(live_conn: Verbindung) -> None:
+    # Fängt (Review 9b): ["Stichtag"] ist nicht hashbar; `in erlaubt` warf einen TypeError statt einer Meldung.
+    falsch = _aendern("R2_R4_stichtag_eigene_lieferung", {"zeitraum_art": ["Stichtag"]})
+    erg = agent_ausfuehren(live_conn, "Stichtag am 15.", complete=_modell("datenmanagement", falsch))
+    assert erg.vorschlag_id is None and erg.abgelehnt is not None and "nicht zulässig" in erg.abgelehnt
+
+
+def test_aendern_einer_ausschlussregel_prueft_die_werte(live_conn: Verbindung) -> None:
+    # Fängt (Review 9b): „auch ohne Wien“ auf einer bestehenden Regel ging mit „Wien“ statt Code 9 durch und schloss
+    # Wien nicht aus.
+    with live_conn.transaction():
+        regelsatz_sicherstellen(live_conn, "v2", "v1")
+        live_conn.execute(
+            """INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, beschreibung, begruendung,
+                                       grundlage, gueltig_ab_lieferung)
+               VALUES ('v2', 'R8_regionen', 'zaehl', 'ausschluss', 80, '{"merkmal": "region", "werte": ["8"]}'::jsonb,
+                       'Live', 'Live', 'Test', '2024-08')"""
+        )
+    falsch = _aendern("R8_regionen", {"werte": ["8", "Wien"]})
+    richtig = _aendern("R8_regionen", {"werte": ["8", "9"]})
+    erg = agent_ausfuehren(
+        live_conn, "Auch ohne Wien", complete=_modell("klassifikation", falsch, richtig), regelsatz_basis="v2"
+    )
+    assert erg.vorschlag_id is not None, erg.abgelehnt
+    assert erg.korrekturen and "gibt es beim Merkmal region nicht" in erg.korrekturen[0]
+
+
+def test_zwei_ausschluesse_zaehlen_jedes_verhaeltnis_einmal(live_conn: Verbindung) -> None:
+    # Fängt (Review 9b): „Beamte und Kinder unter 15“ brach die Probe mit „mehrere aktive zaehl-Regeln“ ab.
+    antwort = _neu_mehrere(
+        ("ausschluss", "R8_ohne_beamte", {"merkmal": "qualifikation", "werte": ["Beamte"]}),
+        ("ausschluss", "R9_ohne_ab_40", {"merkmal": "alter", "werte": ["40-120"]}),
+    )
+    erg = agent_ausfuehren(
+        live_conn,
+        "Beamte und Personen ab 40 nicht zählen",
+        complete=_modell("klassifikation", antwort),
+        probe_lieferung=MONAT,
+    )
+    assert erg.vorschlag_id is not None, erg.abgelehnt
+    p = vorschlag_lesen(live_conn, erg.vorschlag_id).probe[MONAT]
+    assert "Beamte" not in p["nachher"]["je_merkmal"]["qualifikation"]
+    alt_vorher = sum(
+        w
+        for k, w in p["vorher"]["je_merkmal"]["altersgruppe"].items()
+        if k not in ("unbekannt", "0-14", "15-24", "25-34")
+    )
+    assert alt_vorher > 0
+    assert (
+        p["nachher"]["gesamt"] < p["vorher"]["gesamt"] - p["vorher"]["je_merkmal"]["qualifikation"]["Beamte"]
+    )
+    assert p["nachher"]["gesamt"] == sum(p["nachher"]["je_merkmal"]["region"].values())
+    assert any("Mehrere Regeln" in k for k in erg.korrekturen)
+
+
+@pytest.mark.parametrize(
+    ("antwort", "grund"),
+    [
+        (
+            _neu_mehrere(
+                ("gruppierung", "R9_a", {"merkmal": "region", "zuordnung": ["1=Ost"]}),
+                ("gruppierung", "R9_b", {"merkmal": "region", "zuordnung": ["8=West"]}),
+            ),
+            "schon eine Gruppierungsregel",
+        ),
+        (
+            _neu_mehrere(
+                ("ausschluss", "R8_a", {"merkmal": "region", "werte": ["8"]}),
+                ("ausschluss", "R8_a", {"merkmal": "region", "werte": ["9"]}),
+            ),
+            "zweimal im Vorschlag",
+        ),
+    ],
+    ids=["gruppierung_doppelt", "name_doppelt"],
+)
+def test_doppelte_neue_regel_ist_eine_meldung(
+    live_conn: Verbindung, antwort: dict[str, Any], grund: str
+) -> None:
+    erg = agent_ausfuehren(
+        live_conn, "Regionen", complete=_modell("klassifikation", antwort), probe_lieferung=MONAT
+    )
+    assert erg.vorschlag_id is None and erg.abgelehnt is not None and grund in erg.abgelehnt
+
+
+def test_vorschlag_mit_mehreren_regeln_wird_einmal_nachgefragt(live_conn: Verbindung) -> None:
+    # Fängt: „anhalten ab 3 Prozent“ änderte P15 und ungefragt P16 (Probe 20:36).
+    beide = _aendern("P15_bestand_vs_vormonat", {"schwelle": 0.03})
+    beide["aenderungen"] += _aendern("P16_verhaeltnisse_verschwunden", {"schwelle": 0.03})["aenderungen"]
+    nur_p15 = _aendern("P15_bestand_vs_vormonat", {"schwelle": 0.03})
+    modell = _modell("qs", beide, nur_p15)
+    erg = agent_ausfuehren(live_conn, "Anhalten ab 3 Prozent unter dem Vormonat", complete=modell)
+    assert erg.vorschlag_id is not None, erg.abgelehnt
+    v = vorschlag_lesen(live_conn, erg.vorschlag_id)
+    assert [a["regel_name"] for a in v.aenderungen] == ["P15_bestand_vs_vormonat"]
+    assert erg.korrekturen == [
+        "Mehrere Regeln, nachgefragt: P15_bestand_vs_vormonat, P16_verhaeltnisse_verschwunden"
+    ]
+
+
+def test_ruecknahme_von_zwei_ausschluessen_stellt_den_stand_wieder_her(
+    live_conn: Verbindung, repo: Path
+) -> None:
+    conn = live_conn
+    vorher = _stand(conn, "v1")
+    antwort = _neu_mehrere(
+        ("ausschluss", "R8_ohne_beamte", {"merkmal": "qualifikation", "werte": ["Beamte"]}),
+        ("ausschluss", "R9_ohne_kinder", {"merkmal": "alter", "werte": ["0-14"]}),
+    )
+    erg = agent_ausfuehren(
+        conn, "Beamte und Kinder nicht zählen", complete=_modell("klassifikation", antwort)
+    )
+    assert erg.vorschlag_id is not None, erg.abgelehnt
+    assert freigabe_ausfuehren(conn, erg.vorschlag_id, NAME, repo, freigeben=plattform_freigeben).angewendet
+    zurueck = SequenzModell(
+        {
+            "agent.koordinator": [
+                {"rolle": "klassifikation", "auftrag": "x", "ruecknahme_von": erg.vorschlag_id}
+            ]
+        }
+    )
+    r = agent_ausfuehren(
+        conn, f"Nimm Vorschlag {erg.vorschlag_id} zurück", complete=zurueck, regelsatz_basis=None
+    )
+    assert r.vorschlag_id is not None, r.abgelehnt
+    assert freigabe_ausfuehren(conn, r.vorschlag_id, NAME, repo, freigeben=plattform_freigeben).angewendet
+    assert _stand(conn, produktions_regelsatz(conn)) == vorher
