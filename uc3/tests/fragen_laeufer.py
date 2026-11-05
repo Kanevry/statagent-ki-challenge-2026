@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from fragen_orakel import Soll, Urteil, Zeile, katalog_lesen, matrix, soll_rechnen, urteilen
 from plattform.router import kern_satz
+
 from statagent.db import Verbindung, verbinden
 from statagent.frage import als_webantwort, antwort_frage
 from statagent.uc4 import uc4_antwort

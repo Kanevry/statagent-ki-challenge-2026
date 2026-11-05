@@ -39,6 +39,7 @@ from statagent.uc4 import (
     _monat_anzeige,
     jahr_rueckfrage,
 )
+from statagent.woerter import unbekanntes_wort
 from statagent.zeitraum import (
     KEIN_JAHR,
     MONATSNAMEN,
@@ -206,7 +207,7 @@ FREIER_DV = Merkmal(
 BRANCHEN: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
     (re.compile(r"\bbau(?:s|e|en|gewerbe|branche|wirtschaft)?\b"), ("Bau",)),
     (
-        re.compile(r"\b(gastronomie|gastgewerbe|beherbergung|hotellerie|hotels?|tourismus)\b"),
+        re.compile(r"\b(gastro|gastronomie|gastgewerbe|beherbergung|hotellerie|hotels?|restaurants?|tourismus)\b"),
         ("Beherbergung",),
     ),
     (re.compile(r"\bhandels?\b"), ("Handel",)),
@@ -230,7 +231,22 @@ BRANCHEN: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
     ),
     (re.compile(r"\b(landwirtschaft|forstwirtschaft|agrar)\b"), ("Land- und Forstwirtschaft",)),
     (re.compile(r"\b(energie|energieversorgung|strom)\b"), ("Energieversorgung",)),
+    (re.compile(r"\bbergbaus?\b"), ("Bergbau",)),
+    (re.compile(r"\bkunst\b"), ("Kunst",)),
+    (re.compile(r"\b(immobilien|wohnungswesen)\b"), ("Grundstücks",)),
 )
+#: Wer in einem Bundesland lebt, wird in der Frage oft mit dem Bundesland gemeint („die Wiener“).
+EINWOHNER: dict[str, tuple[str, ...]] = {
+    "Wien": ("wiener",),
+    "Niederösterreich": ("niederösterreicher",),
+    "Oberösterreich": ("oberösterreicher",),
+    "Steiermark": ("steirer",),
+    "Tirol": ("tiroler",),
+    "Vorarlberg": ("vorarlberger",),
+    "Burgenland": ("burgenländer",),
+    "Kärnten": ("kärntner",),
+    "Salzburg": ("salzburger",),
+}
 _FRAU = re.compile(r"\b(frau|frauen|weiblich\w*)\b")
 _MANN = re.compile(r"\b(mann|männer|maenner|männlich\w*|maennlich\w*)\b")
 #: Wortstämme nach „im/in/Branche“, die kein Merkmal meinen („in den Wirtschaftsbereichen“, „in Prozent“).
@@ -244,7 +260,7 @@ _FUNKTIONSWORT = frozenset(
     {"im", "in", "der", "den", "dem", "die", "das", "welchem", "welcher", "welchen", "welche", "diesem",
      "dieser", "diesen", "ganz", "ganzen", "gesamten", "allen", "alle", "einem", "einer", "einen", "letzten",
      "letztem", "vergangenen", "laufenden", "form", "höhe", "hoehe", "relation", "bezug", "folge", "etwa",
-     "zeit", "punkto", "und", "oder", "sowie"}
+     "zeit", "punkto", "und", "oder", "sowie", "hat", "hatte", "hatten", "haben", "ist", "war", "waren"}
 )  # fmt: skip
 _ORT_KETTE = re.compile(
     r"\b(?:im|in der|in den|in|branche|bereich)\s+([\w-]+(?:\s*(?:,|\bund\b|\boder\b|\bsowie\b)\s*[\w-]+)*)",
@@ -312,6 +328,11 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
         t = _treffer(text, bezeichnung)
         if t:
             gefunden[code] = t.group(0)
+    if merkmal is BUNDESLAND:
+        for code, bezeichnung in codes.items():
+            for einwohner in EINWOHNER.get(bezeichnung, ()):
+                if re.search(rf"\b{einwohner}\b", text):
+                    gefunden.setdefault(code, einwohner)
     if merkmal is GESCHLECHT:
         for code, muster in (("W", _FRAU), ("M", _MANN)):
             t = muster.search(text)
@@ -590,6 +611,9 @@ def _filter(
         for wort in re.split(r"\s*(?:,|\bund\b|\boder\b|\bsowie\b)\s*", kette, flags=re.IGNORECASE):
             if not _wort_bekannt(wort, erkannt):
                 raise _KeineZahl(f"Das Wort „{wort}“ kenne ich nicht als Bundesland oder Branche. {KANN}")
+    fremd = unbekanntes_wort(frage, erkannt)
+    if fremd is not None:
+        raise _KeineZahl(f"Das Wort „{fremd[:40]}“ kann ich in dieser Frage nicht einordnen, darum keine Zahl. {KANN}")
     return filter_, etiketten
 
 
@@ -1317,6 +1341,9 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         notizen.insert(0, hinweis_tag)
     typ = fragetyp(frage)
     absage = nicht_auswertbar(frage, mittel=mittel and len(set(monate_lesen(frage))) > 1)
+    if absage is None and not re.search(r"[a-zäöüß]{3}", frage.lower()) and not monate_lesen(frage):
+        if jahr_ohne_monat(frage) is None:
+            absage = f"Das ist keine Frage, die ich verstehe. {KANN}"
     if absage is not None:
         return _antwort(typ, absage, hinweise=[absage])
     try:
