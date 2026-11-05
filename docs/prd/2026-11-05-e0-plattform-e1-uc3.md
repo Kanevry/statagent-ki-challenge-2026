@@ -3,7 +3,7 @@
 **Date:** 2026-11-05
 **Author:** Bernhard Götzendorfer + Claude (AI-assisted planning, Session app-c3, Lead lead-session-orchestrator-09)
 **Status:** Draft
-**Appetite:** E0 Kern bis Do 18:00, E0 Rest bis Fr 03:00; E1 nach Wellen #13–#20, Feature-Stopp Fr 05:00
+**Appetite:** E0 Kern bis Do 18:00, E0 Rest bis Fr 03:00; E1 nach Wellen #13–#20, Feature-Stopp Fr 06:30 (Lead, 05.11.)
 **Parent Project:** agents/ki-challenge-2026 (Repo-Wurzel `app/`), Epics #21 (E0) und #22 (E1)
 
 > Kompakt auf Owner-Wunsch (12:3x „straffe Planung“): Dieses Dokument ist die Schnittstellen-SSOT für E0, auf
@@ -172,16 +172,21 @@ der Modell-Badge liest `GET /api/plattform/modell` (E0-Route, führt `uv run pyt
 
 ### Voice (Vertrag V, Konzept nach everlast, Code neu)
 
-- `plattform.voice.erstelle_router(antwort)` mit `antwort(nachrichten, sitzung) -> {text, belege: list[Beleg]}`
-  liefert einen FastAPI-Router mit `POST /chat/completions` (OpenAI-kompatibel, Vapi „Custom LLM“ ruft mit
+- `plattform.voice.erstelle_router(antwort, *, uc=None)` mit `antwort(nachrichten, sitzung) -> VoiceAntwort
+  {text, belege: list[Beleg]}` (oder ein dict derselben Form); `uc` ist optional (`uc1`…`uc4`, sonst
+  `metadata.uc` der Anfrage, sonst `unbekannt`). Der Aufruf liefert einen FastAPI-Router mit `POST /chat/completions` (OpenAI-kompatibel, Vapi „Custom LLM“ ruft mit
   `stream: true`: Antwort als SSE `chat.completion.chunk` mit `delta.content` und `data: [DONE]`; Bearer-Schlüssel
   `VAPI_CUSTOM_LLM_KEY` Pflicht, sonst 401) und `POST /vapi/webhook` (Secret `x-vapi-secret` in konstanter Zeit
   verglichen, 503 wenn `VAPI_WEBHOOK_SECRET` fehlt, 401 vor dem Body-Lesen, andere Typen 200 `ignored`, nur
-  `end-of-call-report`, Inhalte nicht loggen). Belege werden gesprochen („Beleg: roh.lieferung 2025-03“) und in
+  `end-of-call-report`, genau eine Zeile je Anruf in `voice.jsonl` mit call_id-Hash, Dauer und Endgrund aus einer
+  Allowlist, Inhalte nicht loggen). Grenzen: Body höchstens 256 KiB (413), `antwort` mit Frist
+  `VOICE_ANTWORT_TIMEOUT_S` (Std. 20, 504), gültige Aufrufe je IP `VOICE_RATENLIMIT_PRO_MINUTE` (Std. 30, 429),
+  `BudgetErschoepft` aus `plattform.llm` wird 429. Belege werden gesprochen („Beleg: roh.lieferung 2025-03“) und in
   der Sitzung für die UI abgelegt; ein Header reicht nicht, Vapi liest ihn nicht.
 - Geheimnis für `/chat/completions`: Vapi sendet den im Assistant konfigurierten Custom-LLM-Schlüssel als
   `Authorization: Bearer`; der Router prüft ihn gegen `VAPI_CUSTOM_LLM_KEY` (Spike 1 in UC1 #28 misst, ob Vapi den
-  Header so setzt; Fallback: Token im Pfad `/chat/completions/<token>`). `sitzung` enthält `call_id` aus dem
+  Header so setzt). Kein Token im Pfad: Vapi hängt `/chat/completions` an die Basis-URL, und der Schlüssel stünde in
+  Proxy-Logs. `sitzung` enthält `call_id` aus dem
   Vapi-Body (`call.id`), `uc` und `gestartet`; die UC bindet daran ihre eigene Sitzung.
 - Tunnel-Middleware in `plattform.voice`: Anfragen über die Tunnel-Domain (Host- oder `CF-Connecting-IP`-Header)
   dürfen nur `/chat/completions` und `/vapi/webhook` erreichen, alles andere 404; lokal bleibt die ganze API offen.
@@ -190,9 +195,11 @@ der Modell-Badge liest `GET /api/plattform/modell` (E0-Route, führt `uv run pyt
   Oberfläche; Text-Fallback ist Pflicht (gleiche `antwort`-Funktion über Chat; neu gegenüber everlast).
 - Vapi ist ein US-Dienst: Datenfluss im README offenlegen; kein Einzeldatum in die Antwort, nur Aggregate mit Beleg.
 - Erreichbarkeit: `PUBLIC_URL` per cloudflared (named tunnel mit fester URL, sonst nach jedem Start
-  `python -m plattform.voice sync`, das die Custom-LLM-URL im Assistant aktualisiert). Fehlt `PUBLIC_URL`, ist der
+  `python -m plattform.voice sync`, das die Custom-LLM-URL im Assistant aktualisiert; Demo-Ablauf mit `serve`,
+  `scripts/tunnel.sh`, `sync`, `smoke` in `docs/voice.md`). Fehlt `PUBLIC_URL`, ist der
   VoiceKnopf deaktiviert mit Hinweis, der Text-Fallback bleibt.
-- Umgebungsvariablen: `VAPI_API_KEY`, `VAPI_PUBLIC_KEY`, `VAPI_WEBHOOK_SECRET`, `VAPI_CUSTOM_LLM_KEY`, `PUBLIC_URL`.
+- Umgebungsvariablen: `VAPI_API_KEY`, `VAPI_PUBLIC_KEY`, `VAPI_WEBHOOK_SECRET`, `VAPI_CUSTOM_LLM_KEY`, `PUBLIC_URL`,
+  `VAPI_ASSISTANT_ID`; optional `VOICE_RATENLIMIT_PRO_MINUTE`, `VOICE_ANTWORT_TIMEOUT_S`, `PLATTFORM_VOICE_PROTOKOLL`.
 
 ### Design (Vertrag D)
 
@@ -374,7 +381,7 @@ Oracle: Vitest; Screenshot gegen Frame QVMco (Herkunft-Chip), NeqAs (Warn-Chip),
 
 ### E0-9 Voice
 ```gherkin
-Given die UC3-FastAPI mit `erstelle_router(antwort)` und LLM_PROVIDER=mock
+Given die UC3-FastAPI mit `erstelle_router(antwort, uc="uc3")` und LLM_PROVIDER=mock
 When `POST /chat/completions` mit der aufgezeichneten Vapi-Anfrage (`stream: true`, Bearer) kommt
 Then die Antwort ist SSE mit `delta.content`-Chunks, deren Summe antwort.text samt gesprochenem Beleg ist, endet mit
      `[DONE]`; `sitzung.call_id` = `call.id` des Bodys; ohne oder mit falschem Bearer 401; Webhook ohne Secret 401,
@@ -467,7 +474,7 @@ kein pgvector).
 | Vapi braucht öffentlichen Tunnel; US-Dienst | mittel | Text-Fallback Pflicht; Datenfluss im README; nur Aggregate | Implement |
 | Pen-Frames ab x=12000 können sich bis zur Abnahme noch ändern | niedrig | Frame-ID in jeder AC, Vergleich erst bei EA-2 | Implement |
 | pnpm/uv-Workspace bricht den CI-Vorschlag (cd web) | niedrig | CI-Pfade in E0-1 anpassen, erster MR ist der Test | Implement |
-| Feature-Stopp 05:00 (uc3-bauplan) gegen 07:00 (Konzept) | niedrig | 05:00 gilt (Rangfolge Quellenkarte § 8) | Implement |
+| Feature-Stopp 05:00 (uc3-bauplan) gegen 07:00 (Konzept) | niedrig | 06:30 gilt (Lead-Entscheid 05.11.; vorher 05:00 nach Quellenkarte § 8) | Implement |
 | Zwei Schlüsselwege (.env.local an Wurzel, web braucht NEXT_PUBLIC_*) | niedrig | web-Skripte starten über `dotenv -o -e ../.env.local`; nur VAPI_PUBLIC_KEY wird NEXT_PUBLIC_ | Implement |
 | everlast-Code im öffentlichen Repo | mittel | nur Konzept, Code neu; README weist Herkunft aus | Reject (Code-Übernahme) |
 | CI-Vorschlag bricht mit Workspace (`cd web`, Cache-Key `web/pnpm-lock.yaml`, `uv sync` ohne `--all-packages`, leerer CI-Postgres) `.gitlab-ci.yml:50,66-70` | hoch | E0-1 schreibt CI um; `pytest.mark.daten` nur lokal | Implement |
