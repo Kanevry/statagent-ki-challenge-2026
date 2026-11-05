@@ -1,8 +1,8 @@
 import { inlineText } from "../../../lib/praesentation/markdown";
 import { absatzTexte, kopfzeile, listenPunkte } from "../../../lib/praesentation/szenen-daten";
-import { an, Blick, Fuss, Getippt, k, Kopf, Kreis, taktAn, vars, type SzeneProps } from "./gemeinsam";
+import { an, Fuss, k, Kopf, taktAn, vars, type SzeneProps } from "./gemeinsam";
 
-// Gestaltung: Lage je Regel (von oben), Zeichen je Regel, Kreise rechts daneben (ohne Flug, der Kopf hat Kreis 3).
+// Gestaltung: Lage je Regel (von oben), Zeichen je Regel.
 const OBEN = [250, 380, 570] as const;
 
 function Zeichen({ nr }: { nr: number }) {
@@ -34,20 +34,20 @@ function Zeichen({ nr }: { nr: number }) {
 }
 
 /**
- * Szene 4 (drei Takte, je Regel einer): reine Textzeilen mit gezeichnetem Zeichen, ohne Flächen. Unter der zweiten
- * Regel tippt sich `name`, danach gleitet das echte Bild herein (bilder.ts). Mit der dritten landen die Kreise.
- * Unten klein der erste Absatz, ab Beginn.
+ * Szene 4 (drei Takte, je Regel einer): reine Textzeilen mit gezeichnetem Zeichen, ohne Flächen. Mit der zweiten
+ * Regel kommt rechts eine ruhige Karte mit der echten Freigabe: `freigabe_name`, `freigabe_datum`, `freigabe_regel`
+ * aus dem Frontmatter, je eine Zeile. Unten klein der erste Absatz, ab Beginn.
  */
-export function Kern({ folie, aktiv, takt }: SzeneProps) {
+export function Kern({ folie, takt }: SzeneProps) {
   const regeln = listenPunkte(folie).map(inlineText);
   const [fuss] = absatzTexte(folie);
-  const name = folie.daten.name;
+  const { freigabe_name: name, freigabe_datum: datum, freigabe_regel: regel } = folie.daten;
   return (
     <>
       <Kopf titel={kopfzeile(folie)} />
       <ol className={k("s4-regeln")}>
-        {regeln.slice(0, 3).map((regel, i) => {
-          const saetze = regel.split(/(?<=\.)\s+/);
+        {regeln.slice(0, 3).map((text, i) => {
+          const saetze = text.split(/(?<=\.)\s+/);
           return (
             <li key={i} className={k("s4-regel", an(i + 1, takt))} {...taktAn(i + 1)} style={{ top: OBEN[i] }}>
               <Zeichen nr={i} />
@@ -58,20 +58,18 @@ export function Kern({ folie, aktiv, takt }: SzeneProps) {
                     {s}
                   </span>
                 ))}
-                {i === 1 && name && (
-                  <span className={k("s4-name")}>
-                    <Getippt text={name} aktiv={aktiv && takt >= 2} start={700} ms={40} />
-                  </span>
-                )}
               </p>
             </li>
           );
         })}
       </ol>
-      {[1, 2, 3].map((n, i) => (
-        <Kreis key={n} n={n} x={950 + i * 110} y={420} d={96} t={1 + i * 0.15} klasse="s4-kr" flip={false} ab={3} takt={takt} />
-      ))}
-      <Blick folie={folie} ab={2} takt={takt} tt={1.7} lage={{ right: 80, top: 196, width: 546, height: 700 }} />
+      {name && (
+        <div className={k("s4-karte", an(2, takt))} {...taktAn(2)} style={vars({ tt: 0.5 })}>
+          <p className={k("s4-karte-name")}>{name}</p>
+          {datum && <p className={k("s4-karte-datum")}>{datum}</p>}
+          {regel && <p className={k("s4-karte-regel")}>{regel}</p>}
+        </div>
+      )}
       {fuss && (
         <p className={k("s4-fuss", "a")} style={vars({ t: 0.6 })}>
           {fuss}

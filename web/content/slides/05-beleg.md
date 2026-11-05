@@ -25,10 +25,11 @@ angehalten: [März 2025, Oktober 2025]
 
 0 Abweichungen
 
-Die Regeln stammen aus der Fachbeschreibung. Zwei Lücken schließt der Bericht selbst: Geburtsmonat 13 und die Altersgrenze. Für die anderen 23 Monate gibt es keinen Vergleichsbericht, dort wachen 24 Prüfregeln.
+Für die anderen 23 Monate wachen 24 Prüfregeln.
 
 Herkunft: Vergleich mit der Vorlage des Veranstalters für August 2024 und unabhängige Gegenrechnung
 
 ## Sprechernotizen
 
-Woher wissen wir, dass StatAgent richtig rechnet? Der Veranstalter hat für August 2024 einen Bericht als Vorlage mitgegeben: 13 Tabellen, 2.880 Zahlen. StatAgent rechnet ihn selbst nach. Alle 2.880 stimmen. Die Regeln stammen aus der Fachbeschreibung, nur zwei Lücken schließt der Bericht. Für die anderen 23 Monate wachen 24 Prüfregeln. Zwei Monate halten sie an, März und Oktober 2025.
+Woher wissen wir, dass StatAgent richtig rechnet? Der Veranstalter hat für August 2024 einen Bericht als Vorlage mitgegeben: 13 Tabellen, 2.880 Zahlen. StatAgent rechnet ihn selbst nach. Alle 2.880 stimmen. Die Regeln stammen aus der Fachbeschreibung, nur zwei Lücken schließt der Bericht.
+[→] Für die anderen 23 Monate gibt es keinen Vergleichsbericht. Dort wachen 24 Prüfregeln. Zwei Monate halten sie an, März und Oktober 2025.

@@ -53,13 +53,13 @@ Die Szenen 3 bis 9 tragen einen einheitlichen Kopf: kleiner Kreis 3, daneben die
 |---|---|---|---|
 | `gleichung` | 0 | `#` Satz unter 1 + 2 + 3 = 4, 1. Absatz: Zeile klein | keine |
 | `drei-fragen` | 0 | Tabelle Aufgabe, Person, Frage (tippt sich), Lösung; Absatz: Satz über der Linie | keine |
-| `falsche-zahl` | 3 | `#` Titel, Liste mit drei Sätzen (je Takt einer), Tabelle Monat (JJJJ-MM) und Wert, Spaltenkopf über dem Diagramm | `monat_bruch`, `zahl_geliefert`, `vergleich`, `vorlaeufig`, `stempel` |
-| `kern` | 3 | `#` Titel, Liste mit drei Regeln (je Takt eine, von oben), Absatz unten klein | `name`: tippt sich unter der zweiten Regel; `screenshot`, `bild_alt` |
-| `beleg` | 0 | `#` Titel, Tabelle mit drei Spalten-Köpfen (Bericht, eigene Rechnung, übrige Monate), Absätze: Zählzeile, Ergebnis, Satz | `zahl`, z. B. `2.880`: Zahl der Quadrate je Raster |
+| `falsche-zahl` | 3 | `#` Titel, Liste mit drei Sätzen (je Takt einer), Tabelle Monat (JJJJ-MM) und Wert, Spaltenkopf über dem Diagramm | `monat_bruch` (Säule gelb mit Pause-Zeichen), `zahl_gross` (Takt 1 rechts), `zahl_geliefert`, `vergleich` (Takt 2), `vorlaeufig` (Takt 3) |
+| `kern` | 3 | `#` Titel, Liste mit drei Regeln (je Takt eine, von oben), Absatz unten klein | `freigabe_name`, `freigabe_datum`, `freigabe_regel`: Karte rechts ab Takt 2 |
+| `beleg` | 1 | `#` Titel, Tabelle mit drei Spalten-Köpfen (Bericht, eigene Rechnung, übrige Monate; die dritte erst in Takt 1), Absätze: Zählzeile, Ergebnis, Satz | `zahl`, z. B. `2.880`: Zahl der Quadrate je Raster; `angehalten`: Monate mit Pause-Zeichen statt Haken |
 | `fehler` | 3 | `#` Titel, Tabelle Muster, Fehler, Anzahl, Lieferung (je Takt eine Zeile), Absatz im dritten Takt | keine |
 | `woerterbuecher` | 0 | `#` Titel, zwei Tabellen (alte und neue Liste, Kopf: Name und Gültigkeit), Absätze: Teilung, Satz | `uebergang`, z. B. `C-C J-J Q-R J-K`; ein Code mit zwei Zielen teilt sich gelb |
 | `annahme` | 3 | `#` Titel, 1. Absatz (Takt 1), Tabelle Rechenweg und Spaltenkopf mit Gesamtzahl (Takt 2), Schlusssatz (Takt 3) | `treffer`: Satz neben dem Haken |
-| `einstieg` | 3 | `#` Titel, 1. Absatz Frage (tippt sich), Liste mit drei Antworten (je Takt eine), 2. Absatz unter Kreis 4 | keine |
+| `einstieg` | 3 | `#` Titel, 1. Absatz Frage (tippt sich), Liste mit drei Antworten (je Takt eine), 2. Absatz unter Kreis 4 | `belegt`: Namen, deren Antwort einen Haken trägt; die übrigen zeigen einen offenen Kreis |
 | `schluss` | 0 | `#` erster Satz, Absätze: zweiter Satz, Live-Zeile, Nebenzeile, Adresse unten | keine |
 
 Jeder sichtbare Satz steht im Markdown, auch kurze wie der Stempel oder der Treffer-Satz. Monate im sichtbaren Text
@@ -69,8 +69,8 @@ gleiten beim Wechsel von ihrer alten an ihre neue Stelle. Gelb steht nur für Pr
 
 ### Blick in die App
 
-`screenshot: freigabe-echt` nennt die Aufnahme, die eine Szene als ruhiges Fenster zeigt (heute nur `kern`, im
-zweiten Takt). Sie erscheint nur, wenn die Datei hier unter `bilder/` liegt und in
+`screenshot: <kennung>` nennt eine Aufnahme, die eine Szene als ruhiges Fenster zeigt. Heute nutzt keine Szene
+eines (UI-Regie 05.11.: auf dem Projektor nicht lesbar). Sie erscheint nur, wenn die Datei hier unter `bilder/` liegt und in
 `web/components/praesentation/bilder.ts` unter derselben Kennung statisch importiert ist; den Alt-Text trägt
 `bild_alt`. Sonst bleibt der Platz leer. Nur echte Aufnahmen aus der App, ohne Beschriftung.
 

@@ -52,11 +52,12 @@ describe("Hilfen", () => {
   });
 });
 
-it("die zehn Folien laufen alle als Szene; Takte in falsche-zahl, kern, fehler, annahme und einstieg", () => {
+it("die zehn Folien laufen alle als Szene; Takte in falsche-zahl, kern, beleg, fehler, annahme und einstieg", () => {
   expect(folien.map((f) => f.szene)).toEqual(Object.keys(SZENEN));
   expect(Object.entries(SZENEN).filter(([, e]) => e.takte > 0).map(([id, e]) => [id, e.takte])).toEqual([
     ["falsche-zahl", 3],
     ["kern", 3],
+    ["beleg", 1],
     ["fehler", 3],
     ["annahme", 3],
     ["einstieg", 3],
@@ -69,7 +70,8 @@ it("nur Folien mit einer echten Aufnahme in bilder.ts nennen ein Bild", () => {
     const kennung = screenshotKennung(f);
     if (kennung) expect(bildFuer(kennung), `${f.id}: ${kennung} fehlt in bilder.ts`).toBeDefined();
   }
-  expect(folien.filter((f) => screenshotKennung(f)).map((f) => f.szene)).toEqual(["kern"]);
+  // Auf dem Projektor nicht lesbar: keine Szene zeigt mehr ein verkleinertes Bild (UI-Regie, Szene 4).
+  expect(folien.filter((f) => screenshotKennung(f)).map((f) => f.szene)).toEqual([]);
 });
 
 it("sichtbare Monatsangaben stehen ausgeschrieben (außer Tabellen der Monatswerte und Datenmustern)", () => {
@@ -113,22 +115,33 @@ describe.each(mitSzene)("Szene %s", (id, folie, nr) => {
   });
 });
 
-it("falsche-zahl: eine Säule je Monatswert, Achse in Kurzform, rechts geliefert, Vergleich und vorläufig", () => {
+it("falsche-zahl: eine Säule je Monatswert, Achse in Kurzform, rechts große Zahl, geliefert, Vergleich und vorläufig", () => {
   const [, folie, nr] = folieMit("falsche-zahl");
   const el = zeige("falsche-zahl", folie, nr, 3);
   const zeilen = tabellen(folie)[0]?.zeilen ?? [];
   expect(el.querySelectorAll('[style*="--h:"]')).toHaveLength(zeilen.length);
   const text = el.textContent ?? "";
   for (const i of [0, zeilen.length - 1]) expect(text).toContain(monatText(zeilen[i]?.[0] ?? ""));
-  for (const s of [folie.daten.zahl_geliefert, folie.daten.vergleich, folie.daten.vorlaeufig, folie.daten.stempel]) expect(text).toContain(s);
+  for (const s of [folie.daten.zahl_gross, folie.daten.zahl_geliefert, folie.daten.vergleich, folie.daten.vorlaeufig]) expect(text).toContain(s);
   expect(text).not.toMatch(MONAT_ALS_ZIFFERN);
 });
 
-it("kern: das echte Bild hängt am zweiten Takt", () => {
+it("falsche-zahl: der angehaltene Monat trägt das Pause-Zeichen, nie einen Haken", () => {
+  const [, folie, nr] = folieMit("falsche-zahl");
+  const el = zeige("falsche-zahl", folie, nr, 3);
+  const okt = el.querySelector<HTMLElement>('[style*="--hg:"]');
+  expect(okt?.querySelector('svg[class*="pause"]')).not.toBeNull();
+  expect(el.querySelector('svg[class*="haken"]')).toBeNull();
+});
+
+it("kern: ohne Bild, die Freigabe-Karte mit Name, Datum und Regel aus dem Frontmatter hängt am zweiten Takt", () => {
   const [, folie, nr] = folieMit("kern");
-  const figur = zeige("kern", folie, nr, 2).querySelector("figure");
-  expect(figur?.dataset.takt).toBe("2");
-  expect(figur?.querySelector("img")?.getAttribute("alt")).toBe(folie.daten.bild_alt);
+  const el = zeige("kern", folie, nr, 3);
+  expect(el.querySelector("figure, img")).toBeNull();
+  const { freigabe_name: name, freigabe_datum: datum, freigabe_regel: regel } = folie.daten;
+  expect(name).toBeDefined();
+  const karte = [...el.querySelectorAll<HTMLElement>('[data-takt="2"]')].find((e) => e.textContent?.includes(name ?? ""));
+  expect(karte?.textContent).toBe(`${name}${datum}${regel}`);
 });
 
 it("woerterbuecher: eine Linie je Übergang, ein geteilter Code läuft gelb", () => {
@@ -148,6 +161,8 @@ it("beleg: Monate ab September 2024, angehaltene Monate tragen Pause statt Haken
   expect(halt.map((li) => li.textContent)).toEqual(angehalten.map((m) => `${m}, angehalten`));
   for (const li of halt) expect(li.querySelector('svg[class*="haken"]')).toBeNull();
   expect(monate.filter((li) => li.querySelector('svg[class*="haken"]'))).toHaveLength(monate.length - halt.length);
+  // Beim Betreten nur Vorlage = StatAgent; das Raster der Monate kommt erst mit Takt 1.
+  expect(monate[0]?.closest<HTMLElement>("[data-takt]")?.dataset.takt).toBe("1");
 });
 
 it("einstieg: Haken nur für Antworten, deren Name in belegt steht", () => {

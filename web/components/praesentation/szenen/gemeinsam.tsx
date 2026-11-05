@@ -130,6 +130,23 @@ export function Haken({ klasse, viewBox, d, t, dauer }: { klasse?: string; viewB
 }
 
 /**
+ * Gelbes Pause-Zeichen für einen angehaltenen Monat (Szenen 3 und 5): gleiche Bildsprache, Klasse `pause`. Mit `t`
+ * zeichnen sich die Striche beim Betreten (Sekunden), ohne `t` steuert die Szene den Auftritt selbst.
+ */
+export function Pause({ klasse, t, dauer }: { klasse?: string; t?: number; dauer?: number }) {
+  return (
+    <svg className={k(klasse, "pause")} viewBox="0 0 40 36" aria-hidden="true">
+      <path
+        className={k("strich", t !== undefined && "zeichnet")}
+        style={t === undefined ? undefined : vars({ t, ...(dauer ? { dauer: `${dauer}s` } : {}) })}
+        pathLength={1}
+        d="M15 9v18M25 9v18"
+      />
+    </svg>
+  );
+}
+
+/**
  * Blick in die App: ruhiges Fenster mit einer echten Aufnahme aus bilder.ts, ab Takt `ab`. Ohne Bild zur Kennung aus
  * `screenshot:` erscheint nichts. Der Alt-Text steht im Frontmatter unter `bild_alt`.
  */

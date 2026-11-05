@@ -1,5 +1,5 @@
 import { kopfzeile, listenPunkte, tabelle, zahlWert } from "../../../lib/praesentation/szenen-daten";
-import { Fuss, k, Kopf, Text, vars, type SzeneProps } from "./gemeinsam";
+import { Fuss, k, Kopf, Pause, Text, vars, type SzeneProps } from "./gemeinsam";
 
 // Gestaltung, kein Inhalt: Achse von 0 bis 400.000 und die Breite der Säulenfläche in px.
 const ACHSE_OBEN = 400_000;
@@ -21,9 +21,11 @@ export function monatText(monat: string, lang = false): string {
 const hoehe = (v: number) => Math.min(1, Math.max(0, v / ACHSE_OBEN)).toFixed(4);
 
 /**
- * Szene 3 (drei Takte): Säulen aus der Tabelle, Achse ab 0. Die Säule aus `monat_bruch` fällt in Takt 1 auf
- * `zahl_geliefert` (gelb, rechts groß mit `vergleich`), bekommt in Takt 2 den `stempel` und steigt in Takt 3 als
- * gefüllter Mint-Balken mit Haken zurück (rechts `vorlaeufig`). Die Takt-Sätze sind die Liste.
+ * Szene 3 (drei Takte): Säulen aus der Tabelle, Achse ab 0. Die Säule aus `monat_bruch` fällt in Takt 1 gelb auf
+ * `zahl_geliefert`, rechts steht nur `zahl_gross`. In Takt 2 bekommt sie das Pause-Zeichen (wie die angehaltenen
+ * Monate in Szene 5), rechts kommt `zahl_geliefert` mit `vergleich`. In Takt 3 steigt sie gelb auf den Tabellenwert,
+ * das Pause-Zeichen bleibt, rechts kommt `vorlaeufig`. Kein Haken: der Monat ist angehalten, nicht in Ordnung.
+ * Die Takt-Sätze sind die Liste.
  */
 export function FalscheZahl({ folie, takt }: SzeneProps) {
   const t = tabelle(folie);
@@ -34,7 +36,8 @@ export function FalscheZahl({ folie, takt }: SzeneProps) {
   const spalte = (i: number) => i * (w + LUECKE) + w / 2;
   const letzte = reihen.length - 1;
   const beschriftet = [0, bruch, letzte].filter((i, j, alle) => i >= 0 && alle.indexOf(i) === j);
-  const { zahl_geliefert: geliefert, vergleich, vorlaeufig, stempel } = folie.daten;
+  const { zahl_gross: gross, zahl_geliefert: geliefert, vergleich, vorlaeufig } = folie.daten;
+  const [, grossZahl = gross ?? "", grossRest = ""] = /^([\d.]+)\s*(.*)$/.exec(gross ?? "") ?? [];
 
   return (
     <div className={k(takt >= 1 && "takt-1", takt >= 2 && "takt-2", takt >= 3 && "takt-3")}>
@@ -66,10 +69,7 @@ export function FalscheZahl({ folie, takt }: SzeneProps) {
               {i === bruch && (
                 <>
                   <div className={k("s3-marke")} />
-                  {stempel && <p className={k("s3-stempel")}>{stempel}</p>}
-                  <svg className={k("s3-haken", "haken")} viewBox="0 0 64 56" aria-hidden="true">
-                    <path className={k("strich")} pathLength={1} d="M8 30l14 14L56 10" />
-                  </svg>
+                  <Pause klasse="s3-pause" />
                 </>
               )}
             </div>
@@ -91,10 +91,21 @@ export function FalscheZahl({ folie, takt }: SzeneProps) {
         ))}
       </div>
       <div className={k("s3-rechts")}>
-        {geliefert && (
+        {grossZahl && (
           <p className={k("s3-r1")}>
-            <b>{geliefert}</b>
-            {vergleich && <span>{vergleich}</span>}
+            <b>{grossZahl}</b>
+            {grossRest && (
+              <>
+                {" "}
+                <span>{grossRest}</span>
+              </>
+            )}
+          </p>
+        )}
+        {geliefert && (
+          <p className={k("s3-r2")}>
+            {geliefert}
+            {vergleich && ` ${vergleich}`}
           </p>
         )}
         {vorlaeufig && <p className={k("s3-r3")}>{vorlaeufig}</p>}

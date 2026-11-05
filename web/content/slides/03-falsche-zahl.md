@@ -3,11 +3,11 @@ nummer: 3
 titel: Eine falsche Zahl kostet Vertrauen
 layout: text
 szene: falsche-zahl
+zahl_gross: 78.949 fehlen
 zahl_geliefert: 313.154
 monat_bruch: 2025-10
 vergleich: statt 394.200
 vorlaeufig: vorläufig 390.900
-stempel: angehalten
 zeit: "0:45–1:45"
 dauer_s: 60
 bereiche: [Datenmanagement, Qualitätssicherung]
@@ -56,4 +56,4 @@ Herkunft: Qualitätsberichte August 2024 bis Juli 2026, Qualitätsbericht Oktobe
 Ein Fall aus den Daten der Challenge. Jeden Monat kommt eine Lieferung. Daraus wird eine Zahl: wie viele Beschäftigungsverhältnisse es gibt.
 [→] Im Oktober 2025 fehlen in der Lieferung 78.949 Beschäftigungsverhältnisse, jedes fünfte. Wer einfach zählt, meldet für Oktober 81.046 Beschäftigungsverhältnisse weniger. Einen Einbruch, den es nie gab.
 [→] StatAgent veröffentlicht nicht. Er hält an und schreibt eine Rückfrage.
-[→] Im November 2025 sind 78.733 davon wieder da.
+[→] Im November 2025 sind 78.733 davon wieder da. Der Oktober bleibt vorläufig bei 390.900.

@@ -21,7 +21,7 @@ export interface SzenenEintrag {
 
 /**
  * Registry `szene` (Frontmatter) zu Komponente, Szenenfolge v4 „1 + 2 + 3 = 4“ mit zehn Szenen (#59, Lane E5).
- * Takte (je ein Klick, ein Satz, eine Bewegung) in falsche-zahl, kern, fehler, annahme und einstieg.
+ * Takte (je ein Klick, ein Satz, eine Bewegung) in falsche-zahl, kern, beleg, fehler, annahme und einstieg.
  * Nur was hier steht, wird als Szene gezeigt; eine unbekannte oder fehlende `szene` fällt auf `layout` zurück.
  */
 export const SZENEN: Readonly<Record<string, SzenenEintrag>> = {
@@ -29,7 +29,7 @@ export const SZENEN: Readonly<Record<string, SzenenEintrag>> = {
   "drei-fragen": { Komponente: DreiFragen, takte: 0 },
   "falsche-zahl": { Komponente: FalscheZahl, takte: 3 },
   kern: { Komponente: Kern, takte: 3 },
-  beleg: { Komponente: BelegSzene, takte: 0 },
+  beleg: { Komponente: BelegSzene, takte: 1 },
   fehler: { Komponente: Fehler, takte: 3 },
   woerterbuecher: { Komponente: Woerterbuecher, takte: 0 },
   annahme: { Komponente: Annahme, takte: 3 },
