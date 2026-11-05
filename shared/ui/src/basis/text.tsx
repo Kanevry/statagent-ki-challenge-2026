@@ -55,6 +55,17 @@ export function Fliesstext({ groesse = 16, ton = "normal", className, children, 
 
 const zahlFormat = new Intl.NumberFormat("de-AT", { maximumFractionDigits: 2 });
 
+/**
+ * Zahl im Format 1.234,5 mit echtem Minus (U+2212). ICU liefert für de-AT ein geschütztes Leerzeichen als
+ * Tausendertrennung und einen Bindestrich als Minus, deshalb werden beide Zeichen hier gesetzt.
+ */
+export function formatiereZahl(wert: number): string {
+  return zahlFormat
+    .formatToParts(wert)
+    .map((teil) => (teil.type === "group" ? "." : teil.type === "minusSign" ? "\u2212" : teil.value))
+    .join("");
+}
+
 export type ZahlProps = HTMLAttributes<HTMLSpanElement> & {
   /** Zahlen werden deutsch formatiert (1.234,5), Text bleibt wie geliefert. */
   wert: number | string;
@@ -63,7 +74,7 @@ export type ZahlProps = HTMLAttributes<HTMLSpanElement> & {
 
 /** Zahl in JetBrains Mono mit Ziffern gleicher Breite, damit Spalten bündig stehen. */
 export function Zahl({ wert, einheit, className, ...rest }: ZahlProps) {
-  const text = typeof wert === "number" ? zahlFormat.format(wert) : wert;
+  const text = typeof wert === "number" ? formatiereZahl(wert) : wert;
   return (
     <span className={klassen("font-mono tabular-nums", className)} {...rest}>
       {einheit ? `${text} ${einheit}` : text}
