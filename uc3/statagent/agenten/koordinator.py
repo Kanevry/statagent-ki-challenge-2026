@@ -1102,13 +1102,33 @@ def agent_ausfuehren(
             try:
                 g = vorschlag_pruefen(conn, rolle, antwort, regelsatz_basis=basis, regelsatz_ziel=ziel)
             except RolleUnzustaendig as fehler:
+                if fehler.typ == "pruefung" and weiche not in (None, "qs") and runde < REPARATURRUNDEN:
+                    # Die Anweisung ist eine Zählfrage, die Rolle griff zu einer Prüfregel. Nicht an qs umleiten: die
+                    # nähme sie an, und es entstünde ein Vorschlag, der keine Zahl ändert (Stichprobe 20:5x:
+                    # „Abschnitt O zählt nicht mehr“ strich ÖNACE aus der Prüfregel P13).
+                    runde += 1
+                    ergebnis.korrekturen.append(str(fehler))
+                    nachrichten = [
+                        *nachrichten,
+                        {"role": "assistant", "content": antwort.model_dump_json()},
+                        {
+                            "role": "user",
+                            "content": "Eine Prüfregel meldet nur und ändert keine Zahl; die Anweisung verlangt aber "
+                            "eine andere Zählung. Schlage eine Zählregel vor (Wegweiser im Kontext) oder stelle eine "
+                            "Rückfrage.",
+                        },
+                    ]
+                    continue
                 # Der Koordinator hat die falsche Rolle gewählt (Live-Probe 05.11.: Geburtsmonat 13 ging an qs, die
                 # keine Zählregeln ändern darf). Einmal die Rolle fragen, die diesen Regeltyp ändern darf.
                 zustaendig = next(
                     (
                         r
                         for r in ROLLEN.values()
-                        if fehler.typ in r.regeltypen and antwort.typ in r.typen and r.name not in versucht
+                        if fehler.typ in r.regeltypen
+                        and antwort.typ in r.typen
+                        and r.name not in versucht
+                        and not (r.name == "qs" and weiche not in (None, "qs"))
                     ),
                     None,
                 )

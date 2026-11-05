@@ -194,6 +194,40 @@ LOCKER = {
 AUFTRAEGE = tuple(replace(a, locker=LOCKER.get(a.kurz)) for a in AUFTRAEGE)
 
 
+def _zwei_ausschluesse(v: Vorschlag) -> bool:
+    if v.typ != "regel_neu" or len(v.aenderungen) != 2:
+        return False
+    p = [a["regel"]["parameter"] for a in v.aenderungen if a["regel"]["art"] == "ausschluss"]
+    beamte = [x for x in p if x["merkmal"] in ("qualifikation", "beschaeftigungskategorie")]
+    alter = [x for x in p if x["merkmal"] == "alter"]
+    return (
+        len(beamte) == 1
+        and len(alter) == 1
+        and beamte[0]["werte"] == ["Beamte"]
+        and alter[0]["werte"] == ["0-14"]
+    )
+
+
+#: Zusatz (nur mit --auftraege): Stellen, die die zehn Aufträge nicht abdecken. Stichprobe 20:5x, Review 9b.
+ZUSATZ: tuple[Auftrag, ...] = (
+    Auftrag(
+        "K_ohne_maenner",
+        "Männer werden nicht mehr gezählt.",
+        lambda v: _ausschluss(v, {"geschlecht"}, {"M"}),
+    ),
+    Auftrag(
+        "L_ohne_oenace_o",
+        "Der Abschnitt O der ÖNACE zählt nicht mehr mit.",
+        lambda v: _ausschluss(v, {"oenace"}, {"O"}),
+    ),
+    Auftrag(
+        "M_beamte_und_kinder",
+        "Beamte und Kinder unter 15 Jahren zählen wir nicht mehr.",
+        _zwei_ausschluesse,
+    ),
+)
+
+
 def _jetzt() -> str:
     return datetime.now(WIEN).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -420,7 +454,9 @@ def main() -> int:
             "Abbruch: Proben nur gegen eine eigene Kopie, nie gegen die Datenbank statistik", file=sys.stderr
         )
         return 2
-    auswahl = [a for a in AUFTRAEGE if not args.auftraege or a.kurz in args.auftraege]
+    auswahl = [
+        a for a in (*AUFTRAEGE, *ZUSATZ) if (a.kurz in args.auftraege if args.auftraege else a in AUFTRAEGE)
+    ]
     code = subprocess.run(
         ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True
     ).stdout.strip()

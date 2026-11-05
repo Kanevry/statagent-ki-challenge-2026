@@ -632,3 +632,33 @@ def test_probe_zeigt_nur_geaenderte_auspraegungen_die_groesste_zuerst() -> None:
     text = _geaenderte_codes(vorher, nachher)
     assert text.startswith("C 500 → 400, 19 100 → 120")
     assert "gleich" not in text and text.endswith("und 13 weitere")
+
+
+def test_zaehlfrage_wird_nie_zum_vorschlag_an_einer_pruefregel(live_conn: Verbindung) -> None:
+    # Fängt (Stichprobe 20:5x): „Abschnitt O zählt nicht mehr“: klassifikation griff zu P13, die Umleitung an qs nahm
+    # das an, und es entstand ein Vorschlag, der keine Zahl ändert.
+    pruefregel = _aendern("P13_auspraegung_verschwunden", {"schwelle": 50})
+    richtig = _neu("ausschluss", "R8_ohne_o", {"merkmal": "region", "werte": ["8"]})
+    modell = SequenzModell(
+        {
+            "agent.koordinator": [{"rolle": "klassifikation", "auftrag": "x"}],
+            "agent.klassifikation": [pruefregel, richtig],
+            "agent.qs": [pruefregel],
+        }
+    )
+    erg = agent_ausfuehren(live_conn, "Vorarlberg zählt nicht mehr mit.", complete=modell)
+    assert erg.rolle == "klassifikation" and erg.vorschlag_id is not None, erg.abgelehnt
+    assert vorschlag_lesen(live_conn, erg.vorschlag_id).aenderungen[0]["regel"]["art"] == "ausschluss"
+    assert not [z for z, _ in modell.aufrufe if z == "agent.qs"]
+
+
+def test_bleibt_es_bei_der_pruefregel_gibt_es_keinen_vorschlag(live_conn: Verbindung) -> None:
+    pruefregel = _aendern("P13_auspraegung_verschwunden", {"schwelle": 50})
+    modell = SequenzModell(
+        {
+            "agent.koordinator": [{"rolle": "klassifikation", "auftrag": "x"}],
+            "agent.klassifikation": [pruefregel],
+        }
+    )
+    erg = agent_ausfuehren(live_conn, "Vorarlberg zählt nicht mehr mit.", complete=modell)
+    assert erg.vorschlag_id is None and erg.abgelehnt is not None
