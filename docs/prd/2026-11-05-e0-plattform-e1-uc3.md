@@ -3,7 +3,7 @@
 **Date:** 2026-11-05
 **Author:** Bernhard Götzendorfer + Claude (AI-assisted planning, Session app-c3, Lead lead-session-orchestrator-09)
 **Status:** Draft
-**Appetite:** E0 Kern bis Do 18:00, E0 Rest bis Fr 03:00; E1 nach Wellen #13–#20, Feature-Stopp Fr 05:00
+**Appetite:** E0 Kern bis Do 18:00, E0 Rest bis Fr 03:00; E1 nach Wellen #13–#20, Feature-Stopp Fr 06:30 (Lead, 05.11.)
 **Parent Project:** agents/ki-challenge-2026 (Repo-Wurzel `app/`), Epics #21 (E0) und #22 (E1)
 
 > Kompakt auf Owner-Wunsch (12:3x „straffe Planung“): Dieses Dokument ist die Schnittstellen-SSOT für E0, auf
@@ -474,7 +474,7 @@ kein pgvector).
 | Vapi braucht öffentlichen Tunnel; US-Dienst | mittel | Text-Fallback Pflicht; Datenfluss im README; nur Aggregate | Implement |
 | Pen-Frames ab x=12000 können sich bis zur Abnahme noch ändern | niedrig | Frame-ID in jeder AC, Vergleich erst bei EA-2 | Implement |
 | pnpm/uv-Workspace bricht den CI-Vorschlag (cd web) | niedrig | CI-Pfade in E0-1 anpassen, erster MR ist der Test | Implement |
-| Feature-Stopp 05:00 (uc3-bauplan) gegen 07:00 (Konzept) | niedrig | 05:00 gilt (Rangfolge Quellenkarte § 8) | Implement |
+| Feature-Stopp 05:00 (uc3-bauplan) gegen 07:00 (Konzept) | niedrig | 06:30 gilt (Lead-Entscheid 05.11.; vorher 05:00 nach Quellenkarte § 8) | Implement |
 | Zwei Schlüsselwege (.env.local an Wurzel, web braucht NEXT_PUBLIC_*) | niedrig | web-Skripte starten über `dotenv -o -e ../.env.local`; nur VAPI_PUBLIC_KEY wird NEXT_PUBLIC_ | Implement |
 | everlast-Code im öffentlichen Repo | mittel | nur Konzept, Code neu; README weist Herkunft aus | Reject (Code-Übernahme) |
 | CI-Vorschlag bricht mit Workspace (`cd web`, Cache-Key `web/pnpm-lock.yaml`, `uv sync` ohne `--all-packages`, leerer CI-Postgres) `.gitlab-ci.yml:50,66-70` | hoch | E0-1 schreibt CI um; `pytest.mark.daten` nur lokal | Implement |
