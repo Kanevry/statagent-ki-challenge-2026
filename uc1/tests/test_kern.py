@@ -763,3 +763,26 @@ def test_hilfe_im_alltag_nur_bei_pflege() -> None:
     )
     assert not any("Hilfe im Alltag" in s for s in kern.naechste_schritte([], [], [angebot], "de"))
     assert any("Hilfe im Alltag" in s for s in kern.naechste_schritte(["pflegegeld"], [], [angebot], "de"))
+
+
+def test_aufzaehlungsnummer_ist_kein_satzende() -> None:
+    """Fängt ein Zitat, das bei der Listennummer „: 1.“ endet, weil die Nummer als Satzende galt."""
+    text = (
+        "Anspruch auf Pflegegeld besteht für nachstehende Personen, sofern sie ihren gewöhnlichen Aufenthalt "
+        "im Inland haben: 1. Bezieher einer Vollpension nach dem ASVG; 2. Bezieher einer Pension nach "
+        "dem GSVG;"
+    )
+    zitat = (
+        "Anspruch auf Pflegegeld besteht für nachstehende Personen, sofern sie ihren gewöhnlichen Aufenthalt"
+    )
+    assert kern.vervollstaendige_zitat(zitat, text).endswith("Vollpension nach dem ASVG;")
+
+
+def test_gleiche_stelle_fuer_zwei_leistungen_nur_einmal() -> None:
+    """Fängt „Zuständig: PVA“ zweimal hintereinander, wenn Pflegegeld und Reha bei derselben Stelle liegen."""
+    traeger = [
+        {"name": "Pensionsversicherungsanstalt (PVA)", "fundstelle": "BPGG § 22 Abs. 1 Z 1"},
+        {"name": "Pensionsversicherungsanstalt (PVA)", "fundstelle": "ASVG § 300"},
+    ]
+    text = kern.setze_text([], traeger, [], sprache="de", stil="einfach", vorbehalt=[])
+    assert text.count("Zuständig:") == 1 and "BPGG § 22 Abs. 1 Z 1; ASVG § 300" in text

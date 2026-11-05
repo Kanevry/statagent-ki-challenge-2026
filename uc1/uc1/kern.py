@@ -530,7 +530,7 @@ def zitat_gueltig(zitat: str, abschnitt_text: str) -> bool:
 # Zitat bis zum Satzende (Sichtprüfung #35): Ein Zitat, das mitten im Satz endet, kann das Gegenteil der
 # Aussage lesen lassen („… erhalten für die Dauer von vier Wochen“ ohne „… kein Arbeitslosengeld.“).
 _ABKUERZUNG = re.compile(
-    r"(?:^|[\s(])(?:Abs|Art|Z|Nr|lit|bzw|vgl|ca|idF|iVm|gem|Pkt|bzgl|insb|usw|etc|Dr|Mag|[a-zA-Z])$"
+    r"(?:^|[\s(])(?:Abs|Art|Z|Nr|lit|bzw|vgl|ca|idF|iVm|gem|Pkt|bzgl|insb|usw|etc|Dr|Mag|[a-zA-Z]|\d+)$"
 )
 ZITAT_VERLAENGERUNG = 300  # höchstens so viele Zeichen über das Modell-Zitat hinaus
 
@@ -1018,8 +1018,14 @@ def setze_text(
     zeilen = [" ".join(_mit_halbsatz(a, tx) for a in aussagen)]
     if any(a.betrag and a.hinweis_hoehe for a in aussagen):
         zeilen.append(tx["hinweis_hoehe"])
+    # Dieselbe Stelle für zwei Leistungen nur einmal nennen, mit beiden Fundstellen (Sichtprüfung #35).
+    fundstellen: dict[str, list[str]] = {}
     for stelle in traeger:
-        zeilen.append(tx["zustaendig"].format(name=stelle["name"], fundstelle=stelle["fundstelle"]))
+        liste = fundstellen.setdefault(stelle["name"], [])
+        if stelle["fundstelle"] not in liste:
+            liste.append(stelle["fundstelle"])
+    for name, liste in fundstellen.items():
+        zeilen.append(tx["zustaendig"].format(name=name, fundstelle="; ".join(liste)))
     if schritte:
         zeilen.append(tx["schritte"])
         zeilen += [f"{i}. {s}" for i, s in enumerate(schritte, start=1)]
