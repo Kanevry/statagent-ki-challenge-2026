@@ -156,3 +156,35 @@ export function antragUnterzeile(antrag: Pick<WebAntrag, "code" | "befuellt" | "
   const formular = antrag.code ? `Im Formular (${antrag.code}): ` : "";
   return `${formular}${teil1}, ${teil2}.`;
 }
+
+export type OffenerPunkt = WebAntrag["noch_offen"][number];
+export type OffeneGruppe = {
+  /** Formularseite, `null` für Punkte ohne Beleg. */
+  seite: number | null;
+  /** Nummer des ersten Punkts der Gruppe; die Nummerierung läuft über alle Gruppen durch. */
+  start: number;
+  punkte: OffenerPunkt[];
+  /** Ein Beleg je Gruppe: Wortlaute der Seite, jeder nur einmal. */
+  wortlaut: string | null;
+};
+
+/**
+ * Offene Punkte nach Formularseite (Urteil ui-regie-32: eine Gruppe je Seite, ein Herkunft-Chip je Gruppe statt je
+ * Punkt). Seiten aufsteigend, Punkte ohne Beleg zuletzt; innerhalb einer Seite bleibt die Reihenfolge des Kerns.
+ */
+export function offenNachSeite(punkte: readonly OffenerPunkt[]): OffeneGruppe[] {
+  const nachSeite = new Map<number | null, OffenerPunkt[]>();
+  for (const p of punkte) {
+    const seite = p.beleg?.seite ?? null;
+    nachSeite.set(seite, [...(nachSeite.get(seite) ?? []), p]);
+  }
+  const seiten = [...nachSeite.keys()].sort((a, b) => (a ?? Number.POSITIVE_INFINITY) - (b ?? Number.POSITIVE_INFINITY));
+  let start = 1;
+  return seiten.map((seite) => {
+    const gruppe = nachSeite.get(seite) ?? [];
+    const wortlaute = [...new Set(gruppe.flatMap((p) => (p.beleg ? [p.beleg.wortlaut] : [])))];
+    const eintrag = { seite, start, punkte: gruppe, wortlaut: wortlaute.length > 0 ? wortlaute.join(" · ") : null };
+    start += gruppe.length;
+    return eintrag;
+  });
+}

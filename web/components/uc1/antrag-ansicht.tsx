@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Fliesstext, Knopf, knopfKlassen, Leerzustand, Status, Tabelle, Ueberschrift } from "@kic/ui/basis";
-import { antragUnterzeile, type AntragBeleg, type WebAntrag } from "./antrag";
+import { antragUnterzeile, offenNachSeite, type AntragBeleg, type WebAntrag } from "./antrag";
 import type { Traeger } from "./antwort";
 import { EntwurfPruefung } from "./entwurf-pruefung";
 import { antragLeistung, antragName } from "./leistungen";
@@ -95,16 +95,27 @@ function AntragVorbereitet({
               <Ueberschrift stufe={3} als={ebene} id={`${titelId}-offen`}>
                 Das ergänzen Sie selbst
               </Ueberschrift>
-              <ol className="flex list-decimal flex-col gap-3 pl-6 font-sans text-16 text-ink">
-                {antrag.noch_offen.map((punkt) => (
-                  <li key={punkt.id} data-uc1-offen={punkt.id}>
-                    <div className="flex flex-col items-start gap-1">
-                      <Fliesstext>{punkt.text}</Fliesstext>
-                      <QuellenBeleg kurz={antrag.kurz} beleg={punkt.beleg} />
+              {/* Je Formularseite eine Gruppe mit genau einem Beleg an der Gruppenzeile; die Nummern laufen durch. */}
+              {offenNachSeite(antrag.noch_offen).map((gruppe) => {
+                const name = gruppe.seite === null ? "Ohne Seitenangabe" : `Seite ${gruppe.seite}`;
+                return (
+                  <div key={gruppe.seite ?? "ohne"} role="group" aria-label={name} className="flex flex-col gap-2" data-uc1-offen-seite={gruppe.seite ?? ""}>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <Fliesstext className="font-semibold">{name}</Fliesstext>
+                      {gruppe.seite !== null && gruppe.wortlaut && (
+                        <BelegChip quelle={`${antrag.kurz}, S. ${gruppe.seite}`} zitat={gruppe.wortlaut} />
+                      )}
                     </div>
-                  </li>
-                ))}
-              </ol>
+                    <ol start={gruppe.start} className="flex list-decimal flex-col gap-3 pl-6 font-sans text-16 text-ink">
+                      {gruppe.punkte.map((punkt) => (
+                        <li key={punkt.id} data-uc1-offen={punkt.id}>
+                          <Fliesstext>{punkt.text}</Fliesstext>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                );
+              })}
             </section>
           )}
 

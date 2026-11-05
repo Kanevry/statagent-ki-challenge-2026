@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { leistungName } from "../components/uc1/leistungen";
+import { leistungenTitel } from "../components/uc1/leistungen";
 
 const hier = path.dirname(fileURLToPath(import.meta.url));
 const MESSSKRIPT = path.join(hier, "lib", "slop-measure.js");
@@ -35,12 +35,8 @@ const AUFNAHME_MODELL = `mit ${[LETZTE.provider, LETZTE.modell].filter(Boolean).
 const ERSTE = PFLEGE.schritte[0]?.antwort;
 if (!ERSTE) throw new Error("Aufnahme ohne Rückfrage");
 const OPTIONEN = ERSTE.rueckfrage_optionen ?? [];
-/** Überschrift der Leistungen, wie die Seite sie bildet: „A kommt …“, „A und B kommen für Sie in Frage“. */
-const NAMEN = LETZTE.leistungen.map(leistungName);
-const LEISTUNGEN_TITEL =
-  NAMEN.length === 1
-    ? `${NAMEN[0]} kommt für Sie in Frage`
-    : `${NAMEN.slice(0, -1).join(", ")} und ${NAMEN.at(-1)} kommen für Sie in Frage`;
+/** Überschrift der Leistungen, wie die Seite sie bildet: „Pflegegeld kommt …“, „Zwei Leistungen kommen für Sie in Frage“. */
+const LEISTUNGEN_TITEL = leistungenTitel(LETZTE.leistungen);
 /** Zuständigkeiten mit Leistung und Fundstelle. */
 const ZUSTAENDIG = LETZTE.traeger.filter((t): t is Traeger & { leistung: string } => Boolean(t.leistung && t.fundstelle));
 const TERMIN = "Einen Termin vereinbaren Sie direkt bei der Stelle.";
@@ -221,6 +217,11 @@ test("/uc1?beispiel=pflege spielt ohne Netz in drei Schritten bis zum Antrag mit
   await expect(page.getByRole("columnheader", { name: "Herkunft" })).toHaveCount(0);
   await expect(page.getByText("bitte ergänzen")).toHaveCount(0);
   await expect(page.locator("ol > [data-uc1-offen]").first()).toBeVisible();
+  // Offene Punkte nach Formularseite: genau ein Beleg je Seitengruppe, keine Pillen-Kette je Punkt.
+  const offen = page.getByRole("region", { name: "Das ergänzen Sie selbst" });
+  const seitenGruppen = await offen.locator("[data-uc1-offen-seite]").count();
+  expect(seitenGruppen).toBeGreaterThan(0);
+  await expect(offen.getByText("Zitat ansehen")).toHaveCount(seitenGruppen);
   await expect(page.getByText("Abgeschickt wird nichts. Sie prüfen, unterschreiben und senden selbst.")).toBeVisible();
   await expect(page.locator("[data-uc1-unterlagen] summary")).toHaveText("Details: Unterlagen");
   const antragStelle = page.getByRole("region", { name: "Zuständige Stelle" }).filter({ visible: true });

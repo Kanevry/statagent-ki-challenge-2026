@@ -6,7 +6,7 @@ import { Fliesstext, Knopf, knopfKlassen, Leerzustand } from "@kic/ui/basis";
 import { Antworten, BeispielStart } from "./antworten";
 import { useLotse, type Wechsel } from "./lotse-kontext";
 import { Situation, SITUATION_FELD_ID } from "./situation";
-import { leistungName } from "./leistungen";
+import { leistungenTitel } from "./leistungen";
 import { Kopf } from "./teile";
 
 const linkKnopf =
@@ -27,17 +27,6 @@ function SituationKurz({ text, aendern, neu }: { text: string; aendern: () => vo
       </button>
     </div>
   );
-}
-
-/**
- * Konkrete Überschrift: „Pflegegeld kommt für Sie in Frage“, bei mehreren „A und B kommen für Sie in Frage“. Die
- * Person („für Ihre Mutter“) nennt der Kern nicht sicher, deshalb immer „für Sie“.
- */
-export function leistungenTitel(ids: readonly string[]): string {
-  const namen = ids.map(leistungName);
-  const letzter = namen.at(-1) ?? "";
-  if (namen.length <= 1) return `${letzter} kommt für Sie in Frage`;
-  return `${namen.slice(0, -1).join(", ")} und ${letzter} kommen für Sie in Frage`;
 }
 
 /**

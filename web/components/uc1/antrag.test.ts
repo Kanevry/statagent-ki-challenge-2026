@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { abbildenAntrag, antragUnterzeile, formularKurz, parseQuelle } from "./antrag";
+import { abbildenAntrag, antragUnterzeile, formularKurz, offenNachSeite, parseQuelle } from "./antrag";
 import pflege from "./fixtures/pflege.json";
 
 const ROH = { ...pflege.antrag, pdf: "/Users/irgendwer/repo/uc1/laufzeit/antraege/pflegegeld-x-entwurf.pdf" };
@@ -54,5 +54,31 @@ describe("parseQuelle und formularKurz", () => {
     const antrag = abbildenAntrag(ROH);
     if (!antrag) throw new Error("Abbildung fehlgeschlagen");
     expect(antragUnterzeile(antrag)).toBe("Im Formular (PAL080): 7 Angaben stehen schon drin, 11 Punkte ergänzen Sie selbst.");
+  });
+});
+
+describe("offenNachSeite", () => {
+  const beleg = (seite: number, wortlaut: string) => ({ seite, wortlaut });
+  // Fängt: ein Chip je Punkt (Pillen-Kette), Nummern, die je Seite neu bei 1 beginnen, oder Punkte ohne Beleg vorn.
+  it("gruppiert nach Seite, zählt durch und legt Punkte ohne Beleg ans Ende", () => {
+    const gruppen = offenNachSeite([
+      { id: "a", text: "A", beleg: beleg(2, "„X“") },
+      { id: "b", text: "B", beleg: null },
+      { id: "c", text: "C", beleg: beleg(1, "„Y“") },
+      { id: "d", text: "D", beleg: beleg(2, "„Z“") },
+      { id: "e", text: "E", beleg: beleg(2, "„X“") },
+    ]);
+    expect(gruppen.map((g) => [g.seite, g.start, g.punkte.map((p) => p.id), g.wortlaut])).toEqual([
+      [1, 1, ["c"], "„Y“"],
+      [2, 2, ["a", "d", "e"], "„X“ · „Z“"],
+      [null, 5, ["b"], null],
+    ]);
+  });
+
+  it("hält die Aufnahme bei vier Seitengruppen und elf Punkten", () => {
+    const antrag = abbildenAntrag(ROH);
+    const gruppen = offenNachSeite(antrag?.noch_offen ?? []);
+    expect(gruppen.map((g) => g.seite)).toEqual([1, 2, 3, 4]);
+    expect(gruppen.reduce((n, g) => n + g.punkte.length, 0)).toBe(antrag?.noch_offen.length);
   });
 });

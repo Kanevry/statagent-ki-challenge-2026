@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { findeRepoWurzel } from "../../lib/plattform/modell";
-import { LEISTUNGEN, leistungName } from "./leistungen";
+import { LEISTUNGEN, leistungenTitel, leistungName } from "./leistungen";
 
 const DATEI = path.join(findeRepoWurzel(), "uc1", "daten", "leistungen.yaml");
 
@@ -59,5 +59,14 @@ describe("Leistungsnamen", () => {
     expect(leistungName("pflegegeld")).toBe("Pflegegeld");
     expect(leistungName("unfallversicherung")).toBe("Unfallversicherung");
     expect(leistungName("zahn_spange")).toBe("Zahn spange");
+  });
+});
+
+describe("leistungenTitel", () => {
+  // Fängt: Namensliste in der Überschrift bei mehreren Leistungen (Urteil ui-regie-32) oder falsche Einzahl.
+  it("nennt eine Leistung beim Namen und zählt mehrere als Zahlwort", () => {
+    expect(leistungenTitel(["pflegegeld"])).toBe(`${leistungName("pflegegeld")} kommt für Sie in Frage`);
+    expect(leistungenTitel(["pflegegeld", "rehabilitation"])).toBe("Zwei Leistungen kommen für Sie in Frage");
+    expect(leistungenTitel(["a", "b", "c"])).toBe("Drei Leistungen kommen für Sie in Frage");
   });
 });
