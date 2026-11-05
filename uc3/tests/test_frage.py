@@ -662,6 +662,7 @@ def test_geschlecht_synonyme(gerechnet: Verbindung, wort: str, code: str) -> Non
         "Beschäftigte in Wien im Gesundheits- und Sozialwesen im August 2024",  # Vorführfrage 5
         "Fluktuation in Prozent im September 2024",
         "Beschäftigte im August 2024 im Vergleich zum Vormonat",
+        "Beschäftigte im Vormonat August 2024",
     ],
 )
 def test_keine_fehlabsage_bei_beugung(gerechnet: Verbindung, frage: str) -> None:
@@ -697,7 +698,16 @@ def test_zwei_oenace_codes_abgesagt(gerechnet: Verbindung) -> None:
 
 
 # Fängt: freie Dienstverträge werden fälschlich als nicht vorhanden abgesagt; sie sind die FD-Qualifikationen.
-def test_freie_dienstvertraege_gezaehlt(gerechnet: Verbindung) -> None:
+# „freie DV“ fiel durch (dv ≠ dienstv) und lieferte still den ungefilterten Bestand (Review 69).
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Wie viele freie Dienstverträge gab es im August 2024?",
+        "Wie viele freie DV gab es im August 2024?",
+        "Anzahl der freien DV im August 2024",
+    ],
+)
+def test_freie_dienstvertraege_gezaehlt(gerechnet: Verbindung, frage: str) -> None:
     stand = letzter_lauf(gerechnet, "2024-08")
     assert stand is not None
     z = gerechnet.execute(
@@ -708,7 +718,7 @@ def test_freie_dienstvertraege_gezaehlt(gerechnet: Verbindung) -> None:
         (stand.regelstand,),
     ).fetchone()
     assert z is not None
-    daten = antwort_frage(gerechnet, "Wie viele freie Dienstverträge gab es im August 2024?")
+    daten = antwort_frage(gerechnet, frage)
     assert [x["wert"] for x in daten["zahlen"]] == [int(str(z["n"]))] and "nur freie Dienstverträge" in daten[
         "text"
     ]
@@ -720,13 +730,28 @@ def test_freie_dienstvertraege_gezaehlt(gerechnet: Verbindung) -> None:
     [
         "Beschäftigte nach alter Regel im August 2024",
         "Beschäftigte gegenüber dem vorjährigen Monat August 2024",
-        "Beschäftigte, die über 2 Jahre beschäftigt sind, im August 2024",
         "Wie ist der Name von ÖNACE K?",
         "Gab es im August 2024 über 10000 Beschäftigte?",
     ],
 )
 def test_keine_fehlabsage_signalwort(frage: str) -> None:
     assert frage_modul.nicht_auswertbar(frage) is None
+
+
+# Fängt: Alter außerhalb 14–99 und Dauerfragen fallen durch und liefern still den Gesamtbestand (Review 69).
+@pytest.mark.parametrize(
+    ("frage", "grund"),
+    [
+        ("Wie viele Beschäftigte unter 10 Jahren gab es im August 2024?", "alter"),
+        ("Beschäftigte über 100 Jahre im August 2024", "alter"),
+        ("Wie viele sind über 100 Jahre alt im August 2024?", "alter"),
+        ("Beschäftigte, die über 2 Jahre beschäftigt sind, im August 2024", "wie lange"),
+        ("Wie viele sind seit über 2 Jahren beschäftigt im August 2024?", "wie lange"),
+    ],
+)
+def test_absage_alter_und_dauer(frage: str, grund: str) -> None:
+    text = frage_modul.nicht_auswertbar(frage)
+    assert text is not None and grund in text.lower()
 
 
 # Fängt: Notizen („Letztes Jahr heißt …“) stehen vor dem Verstanden-Satz statt danach.

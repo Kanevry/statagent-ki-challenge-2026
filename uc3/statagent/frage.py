@@ -142,11 +142,20 @@ KANN = (
 #: Signalwörter für Merkmale, die es in den Daten der Anfrage nicht gibt: lieber ehrlich absagen als eine Zahl
 #: ohne diese Einschränkung zu liefern. Sprachverständnis, kein Rechenregelwerk (docs/plan/uc3/annahmen.md).
 NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
+    # Dauer vor Alter prüfen: „seit über 2 Jahren beschäftigt“ ist keine Altersfrage, aber genauso nicht in den Daten.
+    (
+        re.compile(
+            r"beschäftigungsdauer|\bseit\s+(?:(?:über|ueber|mehr als|unter|weniger als)\s+)?\d{1,3}\s*(?:jahre|jahren|monate|monaten)\b"
+            r"|\b(?:über|ueber|unter|länger als|mehr als|weniger als)\s+\d{1,3}\s*(?:jahre|jahren|monate|monaten)\s+"
+            r"(?:beschäftigt|angestellt|tätig|im job|im betrieb)"
+        ),
+        "Wie lange ein Beschäftigungsverhältnis schon besteht, wertet StatAgent bei Datenanfragen nicht aus.",
+    ),
     (
         re.compile(
             r"\b(alter|altersgruppen?|lebensalter)\b(?!\s+(regel|regeln|version|fassung|stand|zählung|lieferung))"
             r"|durchschnittsalter|jahre alt|\b\d{1,3}-?jährig|jugendlich"
-            r"|\b(unter|über|ueber|ab|bis)\s+(1[4-9]|[2-9]\d)\s*(jahre|jahren)\b"
+            r"|\b(unter|über|ueber|ab|bis)\s+\d{1,3}\s*(jahre|jahren)\b"
         ),
         "Das Alter wertet StatAgent bei Datenanfragen nicht aus.",
     ),
@@ -170,7 +179,7 @@ _MENGENWORT = frozenset(
 )
 #: Freie Dienstverträge: im Regelsatz v1 Qualifikationen mit Kennzeichen freier_dienstvertrag (ArbeiterFD,
 #: AngestellteFD), im Sheet je Qualifikation ausgewiesen.
-_FREIER_DV = re.compile(r"\bfreie[nmrs]?\s+dienstv\w*|\bfd\b")
+_FREIER_DV = re.compile(r"\bfreie[nmrs]?\s+(?:dienstv\w*|dv)\b|\bfd\b")
 FREIER_DV = Merkmal(
     "freier Dienstvertrag",
     "q.freier_dienstvertrag",
