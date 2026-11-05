@@ -36,7 +36,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:22"
 id = "13-AC4"
 hash = "69d5f6e7f3"
 befehl = "timeout 175 uv run --isolated --package statagent --with pytest pytest -q -p no:cacheprovider uc3/tests/test_llm_smoke.py; grep -rn 'def complete\\|def freigeben' uc3/statagent; echo \"exit $?\"; grep -rlnE 'CREATE TABLE[^;]*meta\\.(protokoll|freigabe)\\b' uc3/db uc3/statagent; echo \"exit $?\"; timeout 120 uv run --package statagent python -c \"import sys, statagent.lauf, statagent.cli; print('plattform.llm geladen' if 'plattform.llm' in sys.modules else 'plattform.llm nicht geladen')\"; test -s docs/plan/uc3/vertragsnutzung.md && echo 'vertragsnutzung vorhanden'"
-erwartet = ["2 passed", "(?s)exit 1.*exit 1", "^plattform\\.llm nicht geladen$", "^vertragsnutzung vorhanden$"]
+erwartet = ["^\\d+ passed in", "(?s)exit 1.*exit 1", "^plattform\\.llm nicht geladen$", "^vertragsnutzung vorhanden$"]
 schwer = false
 deckung = "voll"
 grund = "Mock-Smoke gruen, der Befehl lauf laedt plattform.llm nicht, 0 eigene Definitionen von complete/freigeben und 0 DDL der Protokolltabellen in uc3/statagent und uc3/db (nur ein Test-Spy complete in uc3/tests/test_agenten_werkzeuge.py:44)."
@@ -47,7 +47,7 @@ geprueft_von = "b-abnahme-30: Produktions-CLI ohne plattform.llm und Review-Bele
 id = "135-1"
 hash = "a19fddcd40"
 befehl = "grep -n \"Vormonat fehlt\" web/components/uc3/monatsstand.test.ts; grep -n \"angehalten, vorläufig\" web/components/uc3/monatsstand.test.ts; timeout 150 pnpm --dir web exec vitest --run components/uc3/monatsstand.test.ts 2>&1 | grep -E \"Tests|Test Files\""
-erwartet = ["Vormonat fehlt", "angehalten, vorläufig", "Tests\\s+4 passed"]
+erwartet = ["Vormonat fehlt", "angehalten, vorläufig", "^\\s*Tests\\s+\\d+ passed \\(\\d+\\)"]
 schwer = false
 deckung = "voll"
 grund = "Der Test liegt seit der Verschiebung der Funktionen in web/components/uc3/monatsstand.test.ts, deckt beide Texte ab und 4 Tests sind grün."
@@ -171,7 +171,7 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 id = "14-AC1"
 hash = "d8d0194719"
 befehl = "STATAGENT_STARTPAKET=<Pfad zu svbox/uc3> uv run --isolated --package statagent --with pytest pytest -q uc3/tests/test_goldenset.py -m daten"
-erwartet = ["\\d+ passed"]
+erwartet = ["(^|= )\\d+ passed"]
 schwer = true
 deckung = "teil"
 befund = "Braucht PostgreSQL mit allen Lieferungen und den Beispielbericht des Veranstalters (beides verboten). Der Koordinator fuehrt den Befehl auf dem Pruefrechner aus."
@@ -400,7 +400,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 id = "22-2"
 hash = "a1f42ab5d4"
 befehl = "STATAGENT_STARTPAKET=<Pfad zu svbox/uc3> uv run --isolated --package statagent --with pytest pytest -q uc3/tests/test_goldenset.py -m daten; uv run statagent pruefkatalog"
-erwartet = ["\\d+ passed"]
+erwartet = ["(^|= )\\d+ passed"]
 schwer = true
 deckung = "teil"
 befund = "Golden Set 2880 Zellen und die Pruefregeln gegen 2025-03 und 2025-10 brauchen die Datenbank; Messung beim Koordinator auf dem Pruefrechner."
@@ -463,7 +463,7 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 id = "71-AC1"
 hash = "4b5d5cfed4"
 befehl = "timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_sonderauswertung.py"
-erwartet = ["\\d+ passed"]
+erwartet = ["(^|= )\\d+ passed"]
 schwer = true
 deckung = "teil"
 befund = "Der Befehl ministerium existiert (uc3/statagent/cli.py:404), aber Grenzfixtures und SQL-Gegenrechnung (symmetrische Differenz=0) brauchen die Datenbank. Messbefehl: pytest test_sonderauswertung plus SQL-Gegenrechnung gegen die Personenmenge"
@@ -547,7 +547,7 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 id = "74-AC1"
 hash = "1e6babf147"
 befehl = "timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_frage.py"
-erwartet = ["\\d+ passed"]
+erwartet = ["(^|= )\\d+ passed"]
 schwer = true
 deckung = "teil"
 befund = "Von test_frage.py liefen 9 Tests ohne Datenbank (Frage lesen, Nullbestand, kein LLM-Import) grün; Zeitreihe, M/W und Fluktuation mit Gegenrechnung brauchen die Datenbank. Messbefehl: ganze Datei test_frage.py mit Test-DB auf dem Prüfrechner"
@@ -557,7 +557,7 @@ herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
 id = "74-AC2"
 hash = "0fb1276b75"
 befehl = "timeout 600 uv run --frozen --package statagent pytest -q -p no:cacheprovider uc3/tests/test_frage.py -k 'rueckfrage_statt_zahl or definition_oenace or nur_lese_rolle'"
-erwartet = ["\\d+ passed"]
+erwartet = ["(^|= )\\d+ passed"]
 schwer = true
 deckung = "teil"
 befund = "Rückfrage, ÖNACE-Definition und Nur-Lese-Rolle (INSERT/UPDATE/DELETE abgewiesen) sind in uc3/tests/test_frage.py vorgesehen (Zeilen 199, 208, 287), laufen aber nur mit Datenbank. Messbefehl siehe Befehl, auf dem Prüfrechner."
