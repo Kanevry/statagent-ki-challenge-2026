@@ -4,7 +4,7 @@
 
 Zählt distinct VVH_ID mit BEGINN <= Monatsletzter und ENDE leer oder >= Monatserster. `--stichtag` (#14 AC2):
 am Monatsletzten aktive Sätze, die übrigen und ihre Volldubletten. Ausgegeben werden nur Zahlen, keine Zeilen
-(die Lieferung enthält Einzeldaten). Startpaket: `STATAGENT_STARTPAKET`, sonst ../svbox/uc3 neben dem Checkout.
+(die Lieferung enthält Einzeldaten). Startpaket: `STATAGENT_STARTPAKET`, sonst ../svbox/uc3.
 """
 
 from __future__ import annotations
