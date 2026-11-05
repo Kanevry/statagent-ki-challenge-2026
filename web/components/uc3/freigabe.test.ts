@@ -403,6 +403,8 @@ describe("Auftragszitat (Sichtprüfung bb, #18)", () => {
       "In der Statistik wird nicht mehr unterschieden. Die Beschäftigungskategorie hat nur noch drei Ausprägungen. Die Änderung gilt rückwirkend.",
     );
     expect(auftraggeber({ gesagtVon: null, anweisung })).toBe("Änderungsauftrag aus der Aufgabenstellung");
+    // Fehler, den das fängt: „Ohne Namen erfasst“ liest sich vor der Jury wie ein Mangel.
+    expect(auftraggeber({ gesagtVon: null, anweisung: "Bitte die Region anders ausweisen." })).toBe("Änderungsauftrag");
   });
 
   // Fehler (Review !77 Runde 2): jeder Doppelpunkt in den ersten 120 Zeichen schnitt den Anfang ab.
