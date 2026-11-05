@@ -615,7 +615,11 @@ def text(daten: dict[str, Any]) -> str:
         zeilen.append(f"{b.titel}: {len(daten['versionen'])} Version(en).")
         for v in daten["versionen"]:
             kopf = _versionsname(b, v["version"]) or b.titel
-            art = ebene_name(daten.get("ebene", "1"), mehrzahl=len(v["codes"]) != 1) if b.nur_abschnitte else "Codes"
+            art = (
+                ebene_name(daten.get("ebene", "1"), mehrzahl=len(v["codes"]) != 1)
+                if b.nur_abschnitte
+                else "Codes"
+            )
             zeilen.append(
                 f"{kopf}, {gueltig_text(v['gueltig_von'], v['gueltig_bis'])}, {v['anzahl']} Codes"
                 + (f", davon {len(v['codes'])} {art}:" if b.nur_abschnitte else ":")
