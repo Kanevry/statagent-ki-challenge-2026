@@ -250,7 +250,7 @@ test("/uc1?beispiel=pflege spielt ohne Netz in drei Schritten bis zum Antrag mit
   // ab (Platzhalter „muster“), deshalb ein echter Name. Feld und Knopf sind mindestens 44 px hoch.
   const stand = page.getByTestId("uc1-entwurf-stand");
   await expect(stand).toHaveText("Entwurf nicht geprüft");
-  await expect(page.getByText("Ihr Name steht nur auf diesem Entwurf und gilt in dieser Sitzung")).toBeVisible();
+  await expect(page.getByText("Ihr Name wird nicht gespeichert und nicht verschickt. Er steht nicht im PDF.")).toBeVisible();
   const name = page.getByLabel("Ihr Vor- und Nachname");
   const markieren = page.getByRole("button", { name: "Entwurf als geprüft markieren" });
   for (const ziel of [name, markieren]) await tippziel(ziel);

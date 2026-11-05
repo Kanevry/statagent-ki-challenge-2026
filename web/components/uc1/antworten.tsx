@@ -109,7 +109,7 @@ function AntragKnopf({ art }: { art: string }) {
   );
 }
 
-/** Erste Aussage, die die Leistung beim Namen nennt („Pflegegeld gibt es ab 65 Stunden monatlich.“), sonst keine. */
+/** Erste Aussage, die die Leistung beim Namen nennt („Pflegegeld gibt es, wenn der Pflegebedarf … mehr als 65 Stunden …“), sonst keine. */
 export function begruendungFuer(id: string, aussagen: readonly Aussage[]): Aussage | undefined {
   const namen = [leistungName(id), id].map((n) => n.toLowerCase());
   return aussagen.find((a) => namen.some((n) => a.text.toLowerCase().includes(n)));
