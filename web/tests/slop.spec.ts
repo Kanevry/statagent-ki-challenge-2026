@@ -40,7 +40,8 @@ const NOCH_OFFEN: Record<string, string> = {
 };
 
 const ROUTEN: string[] = ["/", ...bereiche.map((uc) => uc.route), "/praesentation", "/_bausteine"];
-const MAX_SEITEN = 40;
+// 120 je Viewport: UC-Unterseiten (z. B. je Lieferung) sollen das Gate nicht über die Grenze treiben (Lead 58)
+const MAX_SEITEN = 120;
 
 /** Gültiger Modell-Status mit abweichendem „zuletzt“, damit der Hinweis im Badge mitgemessen wird. */
 const MODELL_STATUS = {

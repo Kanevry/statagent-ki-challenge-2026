@@ -76,7 +76,7 @@ keine fremde Lane. Hart wird es nur mit `ABGABE=1`: Dann muss `NOCH_OFFEN` leer 
 
 - **Breitensuche:** Startrouten sind `/`, die UC-Routen, `/praesentation` und `/_bausteine`. Von jeder gemessenen
   Seite folgt das Gate den Links mit gleichem Ursprung (`a[href^="/"]`, ohne `/api/`, Dateien und Anker), mit
-  Besucht-Menge und höchstens 40 Seiten je Viewport. Die Seitenliste hängt als Anhang `seiten` am Bericht.
+  Besucht-Menge und höchstens 120 Seiten je Viewport; mehr Seiten machen den Test rot. Die Seitenliste hängt als Anhang `seiten` am Bericht.
 - **Zustände nach Interaktion:** Auf `/uc3` wird je Viewport auch gemessen, wenn der Modell-Badge den Hinweis
   „zuletzt“ zeigt (Antwort per `page.route` vorgegeben) und wenn die Protokoll-Schublade offen ist
   (`KIC_FIXTURE=1` füllt sie). Der Fehlerzustand des Badges ist im Lauf ohne vorgegebene Antwort abgedeckt.
