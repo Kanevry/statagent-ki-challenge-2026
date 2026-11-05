@@ -1187,7 +1187,8 @@ KARENZ_AUSSAGE = {
 def test_stelle_folgt_aus_der_zitierten_leistung(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fängt die PVA als Stelle, wenn Pflegegeld und Pflegekarenzgeld erkannt sind, die Antwort aber nur das
     Pflegekarenzgeld (BPGG § 21c) trägt: Zuständig ist dann allein das Sozialministeriumservice."""
-    monkeypatch.setattr(kern, "deckung_regeln", lambda: {**kern.deckung_regeln(), "schwelle": 0.0})
+    regeln = kern.deckung_regeln() | {"schwelle": 0.0}
+    monkeypatch.setattr(kern, "deckung_regeln", lambda: regeln)
     text = "Ich will weniger arbeiten, um meine Mutter in Wien zu pflegen. Ihre Pension kommt von der PVA."
     modell = Skript(
         [analyse(person="angehoerige", status="pva", bundesland="wien")], [antwort_mit(KARENZ_AUSSAGE)]
@@ -1204,7 +1205,8 @@ def test_stelle_folgt_aus_der_zitierten_leistung(monkeypatch: pytest.MonkeyPatch
 def test_stelle_der_zitierten_leistung_auch_ohne_erkannte_leistung(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fängt eine Antwort aus der Unfallversicherung (ASVG § 175) ohne Stelle, weil kein Auslöser die
     Leistung erkannt hatte (Dev-Set x12): Die AUVA steht dann mit Fundstelle da."""
-    monkeypatch.setattr(kern, "deckung_regeln", lambda: {**kern.deckung_regeln(), "schwelle": 0.0})
+    regeln = kern.deckung_regeln() | {"schwelle": 0.0}
+    monkeypatch.setattr(kern, "deckung_regeln", lambda: regeln)
     asvg_175 = treffer(
         401,
         "§ 175. (1) Arbeitsunfälle sind Unfälle, die sich im örtlichen, zeitlichen und ursächlichen "
@@ -1285,7 +1287,8 @@ def test_zweiter_versuch_wenn_die_pruefung_alles_verwirft() -> None:
 def test_sprachbefund_kostet_nur_die_betroffene_aussage(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fängt eine ganze Antwort, die zur Ersatzantwort wird, weil eine von zwei Aussagen einen Sprachbefund
     hat (Dev-Set x07, satz_lang): Die geprüfte Aussage bleibt, die andere fällt mit Grund weg."""
-    monkeypatch.setattr(kern, "deckung_regeln", lambda: {**kern.deckung_regeln(), "schwelle": 0.0})
+    regeln = kern.deckung_regeln() | {"schwelle": 0.0}
+    monkeypatch.setattr(kern, "deckung_regeln", lambda: regeln)
     schlecht = GUELTIG | {"text": "Als KI sage ich: Pflegegeld bekommt, wer ständig Betreuung braucht."}
     modell = Skript(
         [analyse(person="angehoerige", status="pva", bundesland="wien")], [antwort_mit(GUELTIG, schlecht)]
