@@ -441,6 +441,8 @@ def _adapter_liest_gleich(conn: Verbindung, frage: str, regelsatz: str) -> bool:
     """Liest der Adapter jede Ausprägung, die /uc3/fragen in der Frage findet, und bleibt kein Wort unbekannt?"""
     from statagent import frage as weg
 
+    if weg._ZEITREIHE.search(frage.lower()):
+        return False  # „Wien gegenüber Tirol entwickelt“: der Adapter zeigt einen Stand, keine Entwicklung
     gelesen = weg.normalisieren(frage)[0]
     genannt = weg.monate_lesen(gelesen)
     monat = genannt[-1] if genannt else weg._letzter_monat(conn, regelsatz)

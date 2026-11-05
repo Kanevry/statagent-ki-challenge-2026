@@ -101,6 +101,7 @@ def test_mehrere_werte_bleiben_je_wert(gerechnet: Verbindung) -> None:
     [
         "Beschäftigte in Wien und Tirol im Gesundheitswesen im September 2024",
         "Beschäftigte in Wien und Tirol im Bergbaubetrieb im September 2024",
+        "Wie hat sich Wien gegenüber Tirol im September 2024 entwickelt?",
     ],
 )
 def test_mehrere_werte_mit_ungelesener_einschraenkung(gerechnet: Verbindung, frage: str) -> None:
