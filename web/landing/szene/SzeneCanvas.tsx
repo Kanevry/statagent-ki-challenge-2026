@@ -11,6 +11,7 @@ import type { SzeneCanvasProps, SzeneVariante } from "./vertrag";
  * dahin steht ein statisches Bild der 24 Säulen in derselben Lage und Farbwelt wie Schritt 1, der
  * Motor übernimmt ohne Ladeanimation. Ohne WebGL2 bleibt ein statisches SVG der 24 Lieferungen.
  * Größe und Lage steuert die Seite über `className` (Breite und Höhe müssen dort festgelegt sein).
+ * Der Start ist in kurze Aufgaben geteilt (Kontext, Laden, Motor), damit kein Long Task entsteht.
  */
 export default function SzeneCanvas({ fortschritt, variante, reduziert, className }: SzeneCanvasProps) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -26,16 +27,21 @@ export default function SzeneCanvas({ fortschritt, variante, reduziert, classNam
 
     const start = async () => {
       if (abgebrochen) return;
-      if (!hatWebgl2()) {
+      // Ein Kontext für Prüfung und Motor (eine zweite Erzeugung kostet spürbar Zeit)
+      const kontext = webgl2Kontext(canvas);
+      if (!kontext) {
         setOhneWebgl(true);
         return;
       }
       try {
         const [motor, karte] = await Promise.all([import("./motor/motor"), import("./motor/karte")]);
+        // three.js ist eben ausgewertet: erst in der nächsten Aufgabe den Motor starten
+        await naechsteAufgabe();
         if (abgebrochen) return;
         const punkte = planePartikel(variante).kartenPartikel;
         handle = motor.starteSzene({
           canvas,
+          kontext,
           fortschritt,
           variante,
           reduziert,
@@ -96,16 +102,29 @@ export default function SzeneCanvas({ fortschritt, variante, reduziert, classNam
   );
 }
 
-function hatWebgl2(): boolean {
+/** WebGL2-Kontext mit den Attributen, die der Motor sonst selbst anfordern würde; null ohne WebGL2. */
+function webgl2Kontext(canvas: HTMLCanvasElement): WebGL2RenderingContext | null {
   try {
-    const c = document.createElement("canvas");
-    const gl = c.getContext("webgl2");
-    if (!gl) return false;
-    gl.getExtension("WEBGL_lose_context")?.loseContext();
-    return true;
+    return canvas.getContext("webgl2", {
+      alpha: true,
+      antialias: true,
+      premultipliedAlpha: true,
+      depth: true,
+      stencil: false,
+      preserveDrawingBuffer: false,
+      powerPreference: "high-performance",
+      failIfMajorPerformanceCaveat: false,
+    });
   } catch {
-    return false;
+    return null;
   }
+}
+
+/** Gibt den Hauptthread einmal ab (scheduler.yield, sonst setTimeout 0). */
+function naechsteAufgabe(): Promise<void> {
+  const planer = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+  if (typeof planer?.yield === "function") return planer.yield();
+  return new Promise((weiter) => window.setTimeout(weiter, 0));
 }
 
 /**
