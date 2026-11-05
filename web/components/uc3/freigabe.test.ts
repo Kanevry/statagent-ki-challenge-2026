@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { UC3_ARGV, type Ausfuehren, type CliLauf } from "./cli";
 import {
+  auftraggeber,
+  auftragsZitat,
   entscheidungArgv,
   ergebnisPfad,
   erstelleFreigabeAntwort,
@@ -197,7 +199,7 @@ describe("Freigabe-Waage", () => {
     expect(w!.umverteilung).toBe(true);
     // Nicht „Arbeiter 0 → 210.000“ groß: das läse sich wie 210.000 zusätzliche Verhältnisse.
     expect(w!.haupt).toMatchObject({ merkmal: "gesamt", vorher: 410587, nachher: 410587, differenz: 0 });
-    expect(waageSatz(w!)).toBe("Im Oktober 2025 verteilen sich die 410.587 Verhältnisse neu, gesamt bleibt 410.587.");
+    expect(waageSatz(w!)).toBe("Im Oktober 2025 verteilen sich die 410.587 Beschäftigungsverhältnisse neu, gesamt bleibt 410.587.");
     // Alle verschobenen Kategorien stehen darunter, unveränderte (Geschlecht) nicht.
     expect(w!.weitere).toHaveLength(6);
     expect(w!.weitere.map((z) => z.merkmal)).not.toContain("geschlecht");
@@ -366,5 +368,17 @@ describe("wirkungJeKategorie", () => {
       ["Arbeiter", 143076],
       ["Beamte", 12134],
     ]);
+  });
+});
+
+describe("Auftragszitat (Sichtprüfung bb, #18)", () => {
+  // Fehler: das Zitat zeigte die Arbeitsanweisung an den Agenten samt Dateinamen und Spaltennamen.
+  it("zeigt nur den fachlichen Auftrag", () => {
+    const anweisung =
+      "Auftrag 1, Dienstvertrag und freier Dienstvertrag zusammen: In der Statistik wird nicht mehr unterschieden. Die Beschäftigungskategorie hat nur noch drei Ausprägungen (siehe Spalte BESCHAEFTIGUNGSKATEGORIE in qualifikation.csv). Die Änderung gilt rückwirkend. Ändere dafür nur die Zählregel. Ziel ist der neue Regelsatz v2.";
+    expect(auftragsZitat(anweisung)).toBe(
+      "In der Statistik wird nicht mehr unterschieden. Die Beschäftigungskategorie hat nur noch drei Ausprägungen. Die Änderung gilt rückwirkend.",
+    );
+    expect(auftraggeber({ gesagtVon: null, anweisung })).toBe("Änderungsauftrag aus der Aufgabenstellung");
   });
 });
