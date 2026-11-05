@@ -138,9 +138,7 @@ def test_oenace_unterklasse_statt_abschnitt(tief: Verbindung) -> None:
     daten = antwort_frage(tief, "Was ist ÖNACE C 10.11-0?")
     text = daten["text"]
     assert daten["typ"] == "definition"
-    assert (
-        "Der Code (C 10.11-0) ist eine Unterklasse der ÖNACE und heißt „Erfundene Unterklasse 2025“." in text
-    )
+    assert "Der Code C 10.11-0 ist eine Unterklasse der ÖNACE und heißt „Erfundene Unterklasse 2025“." in text
     assert "In ÖNACE 2008 hieß er „Erfundene Unterklasse 2008“." in text
     assert "Klasse Erfundene Klasse 2025 (C 10.11)" in text
     assert "(C 10.1)" in text and "(C 10)" in text and "(C)." in text
@@ -157,7 +155,7 @@ def test_pfad_nur_einmal_ausser_der_code_wandert(tief: Verbindung) -> None:
     gleich = antwort_frage(tief, "Was ist ÖNACE C 10.11-0?")["text"]
     assert gleich.count("gehört") == 1
     wandert = antwort_frage(tief, "Was ist ÖNACE 58.21-0?")["text"]
-    assert "Der Code (J 58.21-0) / (K 58.21-0) ist eine Unterklasse der ÖNACE" in wandert
+    assert "Der Code J 58.21-0 / K 58.21-0 ist eine Unterklasse der ÖNACE" in wandert
     assert "In ÖNACE 2008 gehört er zu: Abschnitt" in wandert
     assert "In ÖNACE 2025 gehört er zu: Abschnitt" in wandert
 
@@ -175,7 +173,7 @@ def test_nackte_nummer_nach_oenace_gibt_keine_rueckfrage(tief: Verbindung) -> No
     """Fängt den gemessenen Fehler: „oenace 10.11-0“ führte zu einer Rückfrage."""
     daten = antwort_frage(tief, "oenace 10.11-0")
     assert not daten["rueckfrage"]
-    assert "Der Code (C 10.11-0) ist eine Unterklasse der ÖNACE" in daten["text"]
+    assert "Der Code C 10.11-0 ist eine Unterklasse der ÖNACE" in daten["text"]
 
 
 def test_gemeinde_ist_keine_kennung(tief: Verbindung) -> None:
@@ -183,7 +181,7 @@ def test_gemeinde_ist_keine_kennung(tief: Verbindung) -> None:
     daten = antwort_frage(tief, "Was ist die Gemeinde 90001?")
     text = daten["text"]
     assert "Einzeldaten" not in text
-    assert "Der Code (90001) ist eine Gemeinde und heißt „Neudorf“." in text
+    assert "Der Code 90001 ist eine Gemeinde und heißt „Neudorf“." in text
     assert "Den Code gibt es seit Jänner 2011." in text
     assert "Von Jänner 2011 bis Dezember 2011: „Altdorf“." in text
     assert f"gehört zu: Bezirk Erfundener Bezirk (101), Bundesland {_bundesland_9(tief)} (9)." in text
@@ -194,16 +192,16 @@ def test_gemeinde_ist_keine_kennung(tief: Verbindung) -> None:
 def test_bezirk_ohne_sinnlosen_uebergang_auf_sich_selbst(tief: Verbindung) -> None:
     """Fängt „Erfundener Bezirk (101) wird zu Erfundener Bezirk (101)“: Das sagt niemandem etwas."""
     text = antwort_frage(tief, "Bezirk 101")["text"]
-    assert "Der Code (101) ist ein Bezirk und heißt „Erfundener Bezirk“." in text
+    assert "Der Code 101 ist ein Bezirk und heißt „Erfundener Bezirk“." in text
     assert "wird zu" not in text and "(101) wird" not in text
 
 
 @pytest.mark.parametrize(
     ("frage", "satz"),
     [
-        ("Was ist ÖNACE Z 99.99-9?", "Den Code (Z 99.99-9) gibt es in der ÖNACE nicht."),
-        ("Was ist die Gemeinde 99999?", "Eine Gemeinde mit dem Code (99999) gibt es nicht."),
-        ("Bezirk 999", "Einen Bezirk mit dem Code (999) gibt es nicht."),
+        ("Was ist ÖNACE Z 99.99-9?", "Den Code Z 99.99-9 gibt es in der ÖNACE nicht."),
+        ("Was ist die Gemeinde 99999?", "Eine Gemeinde mit dem Code 99999 gibt es nicht."),
+        ("Bezirk 999", "Einen Bezirk mit dem Code 999 gibt es nicht."),
     ],
 )
 def test_unbekannter_code_weicht_nicht_aus(tief: Verbindung, frage: str, satz: str) -> None:
@@ -218,17 +216,17 @@ def test_unbekannter_code_weicht_nicht_aus(tief: Verbindung, frage: str, satz: s
     [
         (
             "Was ist ÖNACE C 10.11-0?",
-            "Die Ebenen unter dem ÖNACE-Abschnitt sind hier nicht geladen. Darum kann ich den Code (C 10.11-0) nicht prüfen.",
+            "Die Ebenen unter dem ÖNACE-Abschnitt sind in dieser Fassung nicht dabei. Den Code C 10.11-0 kann StatAgent darum nicht prüfen.",
             "„Was ist ÖNACE C?“",
         ),
         (
             "Was ist die Gemeinde 90001?",
-            "Die Gemeinden sind hier nicht geladen. Darum kann ich den Code (90001) nicht prüfen.",
+            "Die Gemeinden sind in dieser Fassung nicht dabei. Den Code 90001 kann StatAgent darum nicht prüfen.",
             None,
         ),
         (
             "Bezirk 101",
-            "Die Bezirke sind hier nicht geladen. Darum kann ich den Code (101) nicht prüfen.",
+            "Die Bezirke sind in dieser Fassung nicht dabei. Den Code 101 kann StatAgent darum nicht prüfen.",
             None,
         ),
     ],
@@ -250,7 +248,7 @@ def test_zahlenfrage_zaehlt_nicht_still_den_abschnitt(tief: Verbindung) -> None:
     text = daten["text"]
     assert daten["zahlen"] == []
     assert text.startswith("Die Statistik zählt nach Abschnitt und Bundesland, nicht tiefer.")
-    assert "Für den Code (C 10.11-0) gibt es darum keine Zahl." in text
+    assert "Für den Code C 10.11-0 gibt es darum keine Zahl." in text
     assert "(C)." in text
     assert "„Wie viele Beschäftigte gibt es in ÖNACE C im März 2025?“" in text
     assert daten["hinweise"] == [text]
@@ -284,7 +282,7 @@ def test_zahlenfrage_mit_unbekanntem_code_und_ohne_geladene_ebene(conn: Verbindu
     _tiefe_ebenen_leeren(conn)
     daten = antwort_frage(conn, "Wie viele Beschäftigte gibt es in ÖNACE C 10.11-0 im März 2025?")
     assert daten["zahlen"] == []
-    assert "hier nicht geladen" in daten["text"]
+    assert "in dieser Fassung nicht dabei" in daten["text"]
     assert "„Wie viele Beschäftigte gibt es in ÖNACE C im März 2025?“" in daten["text"]
 
 
@@ -343,7 +341,7 @@ def test_welche_bezirke_nennt_die_liste_statt_einer_zahl(tief: Verbindung) -> No
     """Fängt den gemessenen Fehler: „Welche Bezirke hat Tirol?“ antwortete mit 36.320 Verhältnissen."""
     land = _bundesland_9(tief)
     daten = antwort_frage(tief, f"Welche Bezirke hat {land}?")
-    assert f"{land} hat im Stand vom 1. Jänner 2012 1 Bezirk: Erfundener Bezirk (101)." in daten["text"]
+    assert f"{land} hat 1 Bezirk (Stand 1. Jänner 2012): Erfundener Bezirk (101)." in daten["text"]
     assert daten["zahlen"] == []
 
 
@@ -351,7 +349,7 @@ def test_welche_gemeinden_hat_ein_bezirk(tief: Verbindung) -> None:
     for frage in ("Welche Gemeinden hat der Bezirk 101?", "Wie viele Gemeinden hat Erfundener Bezirk?"):
         text = antwort_frage(tief, frage)["text"]
         assert (
-            "Der Bezirk Erfundener Bezirk (101) hat im Stand vom 1. Jänner 2012 1 Gemeinde: Neudorf (90001)."
+            "Der Bezirk Erfundener Bezirk (101) hat 1 Gemeinde (Stand 1. Jänner 2012): Neudorf (90001)."
             in text
         )
 
@@ -364,4 +362,7 @@ def test_welche_gemeinden_in_einem_stand_den_es_nicht_gibt(tief: Verbindung) -> 
 
 def test_welche_bezirke_ohne_geladene_ebene(tief: Verbindung) -> None:
     _tiefe_ebenen_leeren(tief)
-    assert antwort_frage(tief, "Welche Bezirke hat Tirol?")["text"] == "Die Bezirke sind hier nicht geladen."
+    assert (
+        antwort_frage(tief, "Welche Bezirke hat Tirol?")["text"]
+        == "Die Bezirke sind in dieser Fassung nicht dabei. Die Statistik zählt nach Bundesland."
+    )

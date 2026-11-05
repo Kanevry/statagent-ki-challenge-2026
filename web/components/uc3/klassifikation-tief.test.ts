@@ -90,7 +90,7 @@ describe("regionSaetze", () => {
   });
 
   it("nennt dieselbe Zusammenlegung von der alten Gemeinde aus", () => {
-    expect(regionSaetze("60301", "2014-01-01", [zeile({})])).toEqual(["Ab 1. Jänner 2015 gehört das zu Gleisdorf (60345)."]);
+    expect(regionSaetze("60301", "2014-01-01", [zeile({})])).toEqual(["Ab 1. Jänner 2015 gehört das Gebiet zu Gleisdorf (60345)."]);
   });
 
   it("nennt nur den Code, wenn der Name bleibt und der Code wechselt", () => {
@@ -102,7 +102,7 @@ describe("regionSaetze", () => {
   it("kürzt lange Listen", () => {
     const zeilen = ["1", "2", "3", "4", "5"].map((n) => zeile({ code_alt: n, name_alt: `G${n}` }));
     expect(regionSaetze("60345", stand2026, zeilen)).toEqual([
-      "Seit 1. Jänner 2015 zusammengelegt aus G1 (1), G2 (2), G3 (3) und 2 weitere.",
+      "Seit 1. Jänner 2015 zusammengelegt aus G1 (1), G2 (2), G3 (3) und 2 weiteren.",
     ]);
   });
 

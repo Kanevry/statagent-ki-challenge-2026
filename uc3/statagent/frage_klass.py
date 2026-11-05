@@ -188,7 +188,9 @@ def _liste_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
         "SELECT DISTINCT version FROM stat.klass_region WHERE ebene = 'gemeinde' ORDER BY version",
     )]  # fmt: skip
     if not staende:
-        satz = f"Die {was.capitalize()} sind hier nicht geladen."
+        satz = (
+            f"Die {was.capitalize()} sind in dieser Fassung nicht dabei. Die Statistik zählt nach Bundesland."
+        )
         return _antwort("definition", satz, hinweise=[satz])
     jahr = _JAHR.search(frage)
     stand = staende[-1]
@@ -197,11 +199,12 @@ def _liste_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
         if gesucht not in staende:
             satz = (
                 f"Einen Stand für {jahr.group(1)} gibt es nicht. "
-                f"Geladen sind die Stände von {_monat(staende[0])} bis {_monat(staende[-1])}."
+                f"Es gibt die Stände von {_monat(staende[0])} bis {_monat(staende[-1])}."
             )
             return _antwort("definition", satz, hinweise=[satz])
         stand = gesucht
     ort = f"im Stand vom 1. {_monat(stand)}"
+    klammer = f"(Stand 1. {_monat(stand)})"
     v = sql.Literal(stand)
     # Nur was die Antwort braucht: Alle Gemeinden auf einmal lägen über der Zeilengrenze von sql_lesen.
     bezirke_sql = (
@@ -248,7 +251,7 @@ def _liste_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
     if code:
         bezirk = next((b for b in bezirke if b["code"] == code.group(1)), None)
         if bezirk is None:
-            satz = f"Einen Bezirk mit dem Code ({code.group(1)}) gibt es {ort} nicht."
+            satz = f"Einen Bezirk mit dem Code {code.group(1)} gibt es {ort} nicht."
             return _antwort("definition", satz, hinweise=[satz])
     land = None
     if bezirk is None:
@@ -280,7 +283,7 @@ def _liste_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
         namen = [_genannt(region_name(g["bezeichnung"]), g["code"]) for g in unter[:LISTE_MAX]]
         rest = f" und {len(unter) - LISTE_MAX} weitere" if len(unter) > LISTE_MAX else ""
         anzahl = f"{len(unter)} Gemeinde" if len(unter) == 1 else f"{len(unter)} Gemeinden"
-        satz = f"Der Bezirk {name} ({bezirk['code']}) hat {ort} {anzahl}: {', '.join(namen)}{rest}."
+        satz = f"Der Bezirk {name} ({bezirk['code']}) hat {anzahl} {klammer}: {', '.join(namen)}{rest}."
         return antwort(satz, f"Gemeinden im Bezirk {bezirk['code']}: {len(unter)}", gemeinden_sql)
     if land is not None:
         unter_bezirke = [b for b in bezirke if b["uebergeordnet"] == land["code"]]
@@ -289,18 +292,18 @@ def _liste_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
             anzahl = (
                 f"{len(unter_bezirke)} Bezirk" if len(unter_bezirke) == 1 else f"{len(unter_bezirke)} Bezirke"
             )
-            satz = f"{land['bezeichnung']} hat {ort} {anzahl}: {', '.join(namen)}."
+            satz = f"{land['bezeichnung']} hat {anzahl} {klammer}: {', '.join(namen)}."
             return antwort(satz, f"Bezirke in {land['bezeichnung']}: {len(unter_bezirke)}")
         anzahl_g, abfrage = gemeinden_zahl([str(b["code"]) for b in unter_bezirke])
         satz = (
-            f"{land['bezeichnung']} hat {ort} {anzahl_g} Gemeinden. "
-            "Alle stehen auf der Seite Regeln und Klassifikationen."
+            f"{land['bezeichnung']} hat {anzahl_g} Gemeinden {klammer}. "
+            "Alle stehen auf der Seite Klassifikationen."
         )
         return antwort(satz, f"Gemeinden in {land['bezeichnung']}: {anzahl_g}", abfrage)
     anzahl_alle, abfrage = gemeinden_zahl(None)
     satz = (
-        f"Österreich hat {ort} {len(bezirke)} Bezirke und {anzahl_alle} Gemeinden. "
-        "Alle stehen auf der Seite Regeln und Klassifikationen."
+        f"Österreich hat {len(bezirke)} Bezirke und {anzahl_alle} Gemeinden {klammer}. "
+        "Alle stehen auf der Seite Klassifikationen."
     )
     return antwort(satz, f"Österreich: {len(bezirke)} Bezirke, {anzahl_alle} Gemeinden", abfrage)
 
@@ -418,15 +421,15 @@ def _nicht_geladen_text(tief: TieferCode) -> str:
         if tief.art == OENACE
         else f"Die {klass.ebene_name(tief.art, mehrzahl=True)} sind"
     )
-    return f"{was} hier nicht geladen. Darum kann ich den Code ({tief.code}) nicht prüfen."
+    return f"{was} in dieser Fassung nicht dabei. Den Code {tief.code} kann StatAgent darum nicht prüfen."
 
 
 def _unbekannt_text(tief: TieferCode) -> str:
     if tief.art == OENACE:
-        return f"Den Code ({tief.code}) gibt es in der ÖNACE nicht."
+        return f"Den Code {tief.code} gibt es in der ÖNACE nicht."
     if tief.art == GEMEINDE:
-        return f"Eine Gemeinde mit dem Code ({tief.code}) gibt es nicht."
-    return f"Einen Bezirk mit dem Code ({tief.code}) gibt es nicht."
+        return f"Eine Gemeinde mit dem Code {tief.code} gibt es nicht."
+    return f"Einen Bezirk mit dem Code {tief.code} gibt es nicht."
 
 
 def region_name(name: object) -> str:
@@ -440,9 +443,10 @@ def _monat(wert: object) -> str:
     return monat_anzeige(str(wert)[:7])
 
 
-def _liste(teile: list[str]) -> str:
+def _liste(teile: list[str], rest: str = "weitere") -> str:
+    """Höchstens drei Namen; ``rest`` nach dem Fall im Satz: „auf … und 2 weitere“, „aus … und 2 weiteren“."""
     gezeigt = ", ".join(teile[:HOECHSTENS])
-    return f"{gezeigt} und {len(teile) - HOECHSTENS} weitere" if len(teile) > HOECHSTENS else gezeigt
+    return f"{gezeigt} und {len(teile) - HOECHSTENS} {rest}" if len(teile) > HOECHSTENS else gezeigt
 
 
 def _genannt(name: object, code: object) -> str:
@@ -485,7 +489,9 @@ def _region_uebergaenge(daten: dict[str, Any]) -> list[str]:
         herein = [u for u in gruppe if u["code_neu"] == code and u["code_alt"] != code]
         hinaus = [u for u in gruppe if u["code_alt"] == code and u["code_neu"] != code]
         if len(herein) > 1:
-            namen = _liste([_genannt(region_name(u["bezeichnung_alt"]), u["code_alt"]) for u in herein])
+            namen = _liste(
+                [_genannt(region_name(u["bezeichnung_alt"]), u["code_alt"]) for u in herein], "weiteren"
+            )
             saetze.append(f"Seit {datum} zusammengelegt aus {namen}.")
         elif herein:
             u = herein[0]
@@ -503,7 +509,7 @@ def _region_uebergaenge(daten: dict[str, Any]) -> list[str]:
             saetze.append(
                 f"Ab {datum} mit neuem Code ({u['code_neu']})."
                 if u["bezeichnung_alt"] == u["bezeichnung_neu"]
-                else f"Ab {datum} gehört das zu {_genannt(region_name(u['bezeichnung_neu']), u['code_neu'])}."
+                else f"Ab {datum} gehört das Gebiet zu {_genannt(region_name(u['bezeichnung_neu']), u['code_neu'])}."
             )
     return saetze
 
@@ -513,7 +519,7 @@ def _pfad_codes(pfad: list[dict[str, Any]]) -> tuple[str, ...]:
 
 
 def _oenace_text(tief: TieferCode, daten: dict[str, Any]) -> str:
-    codes = " / ".join(f"({c})" for c in daten["codes"])
+    codes = " / ".join(str(c) for c in daten["codes"])
     namen = daten["bezeichnungen"]
     neueste = namen[-1]
     ebene = daten["ebene_name"]
@@ -558,7 +564,7 @@ def _region_text(tief: TieferCode, daten: dict[str, Any]) -> str:
     letzter = raeume[-1]
     jetzt = letzter["gueltig_bis"] is None
     saetze = [
-        f"Der Code ({daten['code']}) ist {'eine' if gemeinde else 'ein'} {ebene} und "
+        f"Der Code {daten['code']} ist {'eine' if gemeinde else 'ein'} {ebene} und "
         f"{'heißt' if jetzt else 'hieß'} „{region_name(letzter['bezeichnung'])}“."
     ]
     pfad = _gezeigter_pfad(letzter)
@@ -671,7 +677,7 @@ def _absage_text(befunde: list[_Befund], monate: list[str]) -> str:
         if befund.daten is None and not befund.mehrdeutig:
             saetze.append(_unbekannt_text(tief) if befund.geladen else _nicht_geladen_text(tief))
         else:
-            saetze.append(f"Für den Code ({tief.code}) gibt es darum keine Zahl.")
+            saetze.append(f"Für den Code {tief.code} gibt es darum keine Zahl.")
         vorschlag = _vorschlag(befund, monat)
         if vorschlag is not None:
             saetze.append(vorschlag[0])

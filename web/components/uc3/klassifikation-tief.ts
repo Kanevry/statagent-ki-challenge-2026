@@ -143,9 +143,10 @@ export interface UebergangZeile {
 
 const LISTE_MAX = 3;
 
-function liste(teile: readonly string[]): string {
+/** Höchstens drei Namen; `rest` nach dem Fall im Satz: „auf … und 2 weitere“, „aus … und 2 weiteren“. */
+function liste(teile: readonly string[], rest = "weitere"): string {
   const gezeigt = teile.slice(0, LISTE_MAX).join(", ");
-  return teile.length > LISTE_MAX ? `${gezeigt} und ${teile.length - LISTE_MAX} weitere` : gezeigt;
+  return teile.length > LISTE_MAX ? `${gezeigt} und ${teile.length - LISTE_MAX} ${rest}` : gezeigt;
 }
 
 function benannt(name: string | null, code: string): string {
@@ -166,7 +167,7 @@ export function regionSaetze(code: string, stand: string, zeilen: readonly Ueber
     const vorher = gruppe.filter((z) => z.code_neu === code && z.version_neu <= stand);
     const danach = gruppe.filter((z) => z.code_alt === code && z.version_alt >= stand);
     if (vorher.length > 1) {
-      saetze.push(`Seit ${datum} zusammengelegt aus ${liste(vorher.map((z) => benannt(z.name_alt, z.code_alt)))}.`);
+      saetze.push(`Seit ${datum} zusammengelegt aus ${liste(vorher.map((z) => benannt(z.name_alt, z.code_alt)), "weiteren")}.`);
     } else if (vorher.length === 1) {
       const z = vorher[0]!;
       if (z.code_alt !== code) saetze.push(`Seit ${datum} mit diesem Code, davor ${z.name_alt === z.name_neu ? `(${z.code_alt})` : benannt(z.name_alt, z.code_alt)}.`);
@@ -177,7 +178,7 @@ export function regionSaetze(code: string, stand: string, zeilen: readonly Ueber
       saetze.push(`Ab ${datum} aufgeteilt auf ${liste(danach.map((z) => benannt(z.name_neu, z.code_neu)))}.`);
     } else if (danach.length === 1) {
       const z = danach[0]!;
-      if (z.code_neu !== code) saetze.push(z.name_alt === z.name_neu ? `Ab ${datum} mit neuem Code (${z.code_neu}).` : `Ab ${datum} gehört das zu ${benannt(z.name_neu, z.code_neu)}.`);
+      if (z.code_neu !== code) saetze.push(z.name_alt === z.name_neu ? `Ab ${datum} mit neuem Code (${z.code_neu}).` : `Ab ${datum} gehört das Gebiet zu ${benannt(z.name_neu, z.code_neu)}.`);
       else if (z.name_alt !== z.name_neu && z.name_neu) saetze.push(`Ab ${datum} mit neuem Namen: ${z.name_neu}.`);
       else saetze.push(`Ab ${datum} mit geändertem Gebiet.`);
     }
