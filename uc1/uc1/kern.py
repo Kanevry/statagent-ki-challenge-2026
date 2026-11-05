@@ -286,6 +286,8 @@ class LotseAntwort:
     sitzung_id: str
     aussagen: list[Aussage] = field(default_factory=list)
     rueckfrage: str | None = None
+    # Antwortknöpfe zur Rückfrage (daten/leistungen.yaml felder.<feld>.optionen): {text, antwort}
+    rueckfrage_optionen: list[dict[str, str]] = field(default_factory=list)
     traeger: list[dict[str, str]] = field(default_factory=list)
     naechste_schritte: list[str] = field(default_factory=list)
     belege: list[dict[str, Any]] = field(default_factory=list)
@@ -1429,6 +1431,10 @@ def frage(
     if ungefragt and int(zustand.get("rueckfragen", 0)) < MAX_RUECKFRAGEN:
         feld_ = ungefragt[0]
         antwort.rueckfrage = str(felder()[feld_]["rueckfrage"][sprache_])
+        antwort.rueckfrage_optionen = [
+            {"text": str(o["text"][sprache_]), "antwort": str(o["antwort"][sprache_])}
+            for o in felder()[feld_].get("optionen") or []
+        ]
         antwort.text = antwort.rueckfrage
         antwort.verhalten = "rueckfrage"
         zustand["rueckfragen"] = int(zustand.get("rueckfragen", 0)) + 1

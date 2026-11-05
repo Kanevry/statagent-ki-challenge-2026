@@ -25,6 +25,13 @@ felder:
     rueckfrage:
       de: "Wer zahlt die Pension? Meist ist das die Pensionsversicherung (PVA), sonst die Versicherung für Selbständige (SVS) oder die für Beamte und Bahn (BVAEB). Sie können auch sagen: keine Pension."
       en: "Who pays the pension? Usually the pension insurance (PVA), otherwise the insurance for the self-employed (SVS) or for civil servants and railways (BVAEB). You can also say: no pension."
+    # Antwortknöpfe der UC1-Seite (UI-Regie): `text` auf dem Knopf, `antwort` geht als Nachricht an den Kern
+    # und wird von erkenne_status (traeger.yaml) erkannt.
+    optionen:
+      - {text: {de: "Pensionsversicherung (PVA)", en: "Pension insurance (PVA)"}, antwort: {de: "Die Pension kommt von der PVA.", en: "The pension comes from the PVA."}}
+      - {text: {de: "Selbständige (SVS)", en: "Self-employed (SVS)"}, antwort: {de: "Die Pension kommt von der SVS.", en: "The pension comes from the SVS."}}
+      - {text: {de: "Beamte und Bahn (BVAEB)", en: "Civil servants and railways (BVAEB)"}, antwort: {de: "Die Pension kommt von der BVAEB.", en: "The pension comes from the BVAEB."}}
+      - {text: {de: "Keine Pension", en: "No pension"}, antwort: {de: "Keine Pension.", en: "Keine Pension."}}
   person:
     rang: 2
     bezeichnung: {de: "wer die Hilfe braucht", en: "who needs the help"}

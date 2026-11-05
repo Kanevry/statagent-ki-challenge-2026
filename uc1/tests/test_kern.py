@@ -1081,3 +1081,12 @@ def test_geburtsdatum_vor_oder_nach_dem_hinweis(text: str) -> None:
     """Fängt „ist am 12.03.1942 geboren“: Seit der Maskierung liefert nur die Regel das Geburtsdatum, und sie
     kannte nur den Hinweis vor dem Datum (Aufnahme v6: Antrag ohne Geburtsdatum)."""
     assert kern.regel_antrag(text)["person.geburtsdatum"] == "12.03.1942"
+
+
+def test_status_antwortknoepfe_werden_erkannt() -> None:
+    """Fängt einen Antwortknopf der Rückfrage, dessen Nachricht der Kern nicht als Status erkennt: Der Knopf
+    „Selbständige (SVS)“ schickte dann eine Antwort ins Leere und die Rückfrage käme wieder."""
+    optionen = kern.felder()["status"]["optionen"]
+    erkannt = [kern.erkenne_status(o["antwort"]["de"]) for o in optionen]
+    assert erkannt == ["pva", "svs", "bvaeb", "keine_pension"]
+    assert all(kern.erkenne_status(o["antwort"]["en"]) for o in optionen)
