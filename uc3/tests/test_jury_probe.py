@@ -56,7 +56,7 @@ ERWARTUNGEN = (
     ("Wie hoch ist die Fluktuation je Wirtschaftsbereich im Oktober 2024?", "zahl"),
     ("Wie hoch war die Fluktuation 2025?", "rueckfrage"),
     ("Was ist Fluktuation?", "definition"),
-    ("Wie viele Beschäftigte unter 25 Jahren gab es im Juli 2026?", "absage"),
+    ("Wie viele Beschäftigte unter 25 Jahren gab es im Juli 2026?", "zahl"),
     ("Wie viele Beschäftigte gibt es aktuell?", "zahl"),
     ("Wie viele Beschäftigte gab es Ende 2025?", "zahl"),
     ("Wie viele Beschäftigte gab es im März 2023?", "absage"),

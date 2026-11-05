@@ -7,13 +7,13 @@ Spalten:
 
 - `soll`: `zahl`, `rueckfrage`, `absage` oder `definition`.
 - `monate`: die Monate mit Daten, die zur Frage gehören (`von..bis` oder eine Liste). Leer: keine Zahl möglich.
-- Die Zeilen `A…` stammen aus der Prüfung von !227. Zum Alter gilt vorerst die Absage; sobald !227 in main ist, gilt dort die Zahl.
+- Die Zeilen `A…` stammen aus der Prüfung von !227.
 - `filter`: `region`, `geschlecht`, `kategorie`, `oenace` (Buchstabe), `branche` (Name, `%` als Platzhalter, gilt je
-  ÖNACE-Version), `freier_dv`.
+  ÖNACE-Version), `freier_dv`, `alter` (`von-bis`).
 - `optionen`: `mittel` (Durchschnitt muss dabei sein), `muss` (Rückfrage oder Absage reichen nicht), `auch=…` (weitere
   erlaubte Ausgänge), `gruppe=…` (eine Zahl je Gruppe), `werte_je=merkmal:a,b`, `art=anteil|fluktuation`,
   `anteil=merkmal:code`, `regelsatz=v2` (der Regelsatz des Solls), `aufruf=v2` (Regelsatz beim Aufruf), `text=…`
-  (dieser Text muss in der Antwort stehen).
+  (dieser Text muss in der Antwort stehen), `frei` (Tabelle, die der Katalog nicht nachrechnet).
 
 Jahreszeiten: meteorologisch, „Winter 2025“ endet 2025 (Dezember 2024 bis Februar 2025). Der jüngste Monat ist Juli 2026.
 
@@ -208,13 +208,13 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | M063 | merkmal:kategorie,form:gliederung | zahl | 2025-03 | - | gruppe=kategorie;muss | Beschäftigte nach Beschäftigungskategorie im März 2025 |
 | M064 | merkmal:kategorie | zahl | 2025-03 | freier_dv=1 | muss | Wie viele freie Dienstverträge gab es im März 2025? |
 | M065 | merkmal:kategorie,form:zwei_werte | zahl | 2025-03 | - | werte_je=kategorie:Arbeiter,Angestellte;auch=absage,rueckfrage | Wie viele Arbeiter und Angestellte gab es im März 2025? |
-| M070 | merkmal:alter | absage | - | - | auch=rueckfrage | Wie viele Beschäftigte unter 25 Jahren gab es im März 2025? |
-| M071 | merkmal:alter | absage | - | - | auch=rueckfrage | Wie viele Beschäftigte über 50 Jahre gab es im März 2025? |
-| M072 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte nach Altersgruppen im März 2025 |
+| M070 | merkmal:alter | zahl | 2025-03 | alter=0-24 | muss | Wie viele Beschäftigte unter 25 Jahren gab es im März 2025? |
+| M071 | merkmal:alter | zahl | 2025-03 | alter=51-130 | muss | Wie viele Beschäftigte über 50 Jahre gab es im März 2025? |
+| M072 | merkmal:alter | zahl | 2025-03 | - | frei | Beschäftigte nach Altersgruppen im März 2025 |
 | M073 | merkmal:alter | absage | - | - | auch=rueckfrage | Wie viele Jugendliche arbeiteten im März 2025? |
-| M074 | merkmal:alter | absage | - | - | auch=rueckfrage | Wie viele 30-Jährige arbeiteten im März 2025? |
+| M074 | merkmal:alter | zahl | 2025-03 | alter=30-30 | muss | Wie viele 30-Jährige arbeiteten im März 2025? |
 | M075 | merkmal:alter | absage | - | - | auch=rueckfrage | Wie hoch ist das Durchschnittsalter im März 2025? |
-| M076 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte nach Alter im März 2025 |
+| M076 | merkmal:alter | zahl | 2025-03 | - | frei | Beschäftigte nach Alter im März 2025 |
 | M080 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;auch=absage,rueckfrage | Wie viele Beschäftigte gab es im März 2025 im Regelsatz v2? |
 | M081 | merkmal:regelsatz | zahl | 2025-03 | - | auch=absage,rueckfrage | Wie viele Beschäftigte gab es im März 2025 im Regelsatz v1? |
 | M082 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;auch=absage,rueckfrage | Beschäftigte März 2025 nach v2 |
@@ -437,9 +437,9 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | A002 | form:menge,merkmal:bundesland | zahl | 2026-07 | region=7 | muss | Gab es im Juli 2026 unter 40.000 Beschäftigte in Tirol? |
 | A003 | form:menge | absage | - | - | auch=rueckfrage | Lag die Zahl im Juli 2026 über 20,5 Prozent? |
 | A004 | merkmal:alter,zeit:ohne | absage | - | - | auch=rueckfrage | Beschäftigte unter 25 |
-| A005 | merkmal:alter | absage | - | - | auch=rueckfrage | Über-50-Jährige im Juli 2026 |
-| A006 | merkmal:alter | absage | - | - | auch=rueckfrage | Unter-25-Jährige im Juli 2026 |
-| A007 | merkmal:alter | absage | - | - | auch=rueckfrage | 30 Jahre alt oder älter im Juli 2026 |
+| A005 | merkmal:alter | zahl | 2026-07 | alter=51-130 | muss | Über-50-Jährige im Juli 2026 |
+| A006 | merkmal:alter | zahl | 2026-07 | alter=0-24 | muss | Unter-25-Jährige im Juli 2026 |
+| A007 | merkmal:alter | zahl | 2026-07 | alter=30-130 | muss | 30 Jahre alt oder älter im Juli 2026 |
 | A008 | merkmal:dauer | absage | - | - | auch=rueckfrage | Beschäftigte ab 2 Jahren Dauer im Juli 2026 |
 | A009 | merkmal:dauer | absage | - | - | auch=rueckfrage | Beschäftigte bis 25 Jahre Betriebszugehörigkeit im Juli 2026 |
 | A010 | merkmal:dauer | absage | - | - | auch=rueckfrage | Beschäftigte, die über 2 Jahre dabei sind, im Juli 2026 |
@@ -448,14 +448,14 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | A013 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte ab 50 im Juli 2026 |
 | A014 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte bis 25 im Juli 2026 |
 | A015 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte zwischen 25 und 34 im Juli 2026 |
-| A016 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte 50 Jahre und älter im Juli 2026 |
+| A016 | merkmal:alter | zahl | 2026-07 | alter=50-130 | muss | Beschäftigte 50 Jahre und älter im Juli 2026 |
 | A017 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte 50+ im Juli 2026 |
 | A018 | merkmal:alter,form:vergleich | absage | - | - | auch=rueckfrage | Vergleich unter 25 und über 50 im Juli 2026 |
 | A019 | merkmal:alter,form:gliederung | absage | - | - | auch=rueckfrage | Frauen über 50 nach Bundesland im Juli 2026 |
 | A020 | merkmal:alter,form:gliederung | absage | - | - | auch=rueckfrage | Beschäftigte nach Altersstufen im Juli 2026 |
 | A021 | merkmal:alter,form:fluktuation | absage | - | - | auch=rueckfrage | Fluktuation nach Altersgruppe im Oktober 2024 |
-| A022 | merkmal:alter | absage | - | - | auch=rueckfrage | Altersgruppen im Juli 2026 |
-| A023 | merkmal:alter | absage | - | - | auch=rueckfrage | Altersverteilung im Juli 2026 |
+| A022 | merkmal:alter | zahl | 2026-07 | - | frei | Altersgruppen im Juli 2026 |
+| A023 | merkmal:alter | zahl | 2026-07 | - | frei | Altersverteilung im Juli 2026 |
 | D001 | zeit:monat,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale,form:stichwort,form:fachjury,blind3 | zahl | 2026-01 | region=6;geschlecht=W | muss | Beschäftigte Frauen Steiermark 01/2026 |
 | D002 | zeit:monat,merkmal:kategorie,merkmal:bundesland,kreuz:merkmale,form:stichwort,form:fachjury,blind3 | zahl | 2025-12 | region=3;kategorie=Beamte | muss | Beamte Niederösterreich Dezember 2025 |
 | D003 | zeit:quartal,merkmal:branche,form:stichwort,form:fachjury,blind3 | zahl | 2026-04..2026-06 | branche=Energieversorgung | mittel;muss | Energieversorgung, Durchschnitt 2. Quartal 2026 |
@@ -618,3 +618,7 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | E080 | zeit:ausserhalb,zeit:relativ,zeit:verschachtelt,blind4 | absage | - | - | auch=rueckfrage | Wie viele Beschäftigte gab es drei Jahre vor dem jüngsten Monat? |
 | A024 | merkmal:unbekannt,form:menge | absage | - | - | auch=rueckfrage | Gab es über 50 Betriebe in Wien im Juli 2026? |
 | A025 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte mit 25 Jahren im Juli 2026 |
+| A026 | merkmal:alter,form:menge | absage | - | - | auch=rueckfrage | Gab es im Juli 2026 über 50 Frauen in Wien? |
+| A027 | merkmal:alter | zahl | 2026-07 | alter=0-24 | muss | Wie viele Beschäftigte unter 25 Jahren gab es im Juli 2026? |
+| A028 | merkmal:alter | zahl | 2026-07 | alter=50-130 | muss | Wie viele Beschäftigte ab 50 Jahren gab es im Juli 2026? |
+| A029 | merkmal:regelsatz | zahl | 2026-07 | - | muss | Beschäftigte nach alter Regel im Juli 2026 |

@@ -157,6 +157,10 @@ def _bedingungen(conn: Any, zeile: Zeile, parameter: dict[str, Any]) -> list[str
         parameter["kategorie"] = f["kategorie"]
     if "freier_dv" in f:
         bedingungen.append("q.freier_dienstvertrag IS TRUE")
+    if "alter" in f:
+        von, _, bis = f["alter"].partition("-")
+        bedingungen.append("s.alter BETWEEN %(alter_von)s AND %(alter_bis)s")
+        parameter["alter_von"], parameter["alter_bis"] = int(von), int(bis)
     return bedingungen
 
 
@@ -357,6 +361,8 @@ def urteilen(zeile: Zeile, soll: Soll, antwort: dict[str, Any], kern: str | None
             return Urteil("richtig", "", mangel)
         erlaubt = zeile.soll in ("rueckfrage", "absage") or ausgang in zeile.auch
         return Urteil(ausgang, "" if erlaubt else "Zahl erwartet", mangel, erlaubt)
+    if "frei" in zeile.optionen and zeile.soll == "zahl":
+        return Urteil("richtig", "", mangel)  # Tabelle, die der Katalog nicht nachrechnet (Summe prüft test_frage).
     if zeile.soll != "zahl" and "zahl" not in zeile.auch:
         wert = zahlen[0].get("wert")
         return Urteil("falsch", f"Zahl statt {zeile.soll}: {wert} ({zahlen[0].get('bezeichnung')})", ziel=False)
