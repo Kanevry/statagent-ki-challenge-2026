@@ -34,10 +34,11 @@ type Kopie = "bereit" | "kopiert" | "fehler";
 const LAUF_KURZ = 8;
 
 /**
- * Beleg einer Zahl (Pen-Frame QVMco): grüne Pille mit Datenbank-Symbol, Quelle, Zeitpunkt, Regelstand und Lauf;
- * beim Öffnen das SQL mit „Kopieren“. Quelle und Zeitpunkt stehen in Mono (Daten), die Wörter in Inter.
+ * Beleg einer Zahl: ruhiger Textlink „Beleg“ (bei Zitaten die Quelle) mit Datenbank- bzw. Dokument-Symbol;
+ * Quelle, Zeitpunkt, Regelstand und Lauf stehen im Namen des Knopfs und aufgeklappt in den Angaben, dazu das SQL
+ * mit „Kopieren“ (UI-Regie 05.11.: keine Pille an jeder Zahl).
  * Steht als Block neben der Zahl (nicht innerhalb eines `<p>`), weil der geöffnete Bereich ein `<pre>` enthält.
- * Ohne SQL heißt der Chip „Beleg ansehen“ und zeigt nur Quelle, Lieferung, Lauf und Verweis.
+ * Ohne SQL zeigt der aufgeklappte Beleg nur Quelle, Lieferung, Lauf und Verweis, ohne Kopieren.
  */
 export function HerkunftChip({
   sql,

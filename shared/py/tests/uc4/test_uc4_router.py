@@ -1,5 +1,6 @@
 """Router UC4 (#97): Reihenfolge, Kontext, eigenes Schrittprotokoll, fehlende Adapter, R2."""
 
+import ast
 import json
 import re
 import subprocess
@@ -162,11 +163,203 @@ def test_r2_antwortform_und_plattform_laden_weder_router_noch_llm():
     assert lauf.stdout.strip() == "[]"
 
 
+def _importiert_llm_oder_router(datei: Path) -> bool:
+    """Echte Import-Anweisungen (auch in Funktionen), nicht Erwähnungen in Docstrings oder Kommentaren."""
+    for knoten in ast.walk(ast.parse(datei.read_text("utf-8"))):
+        if isinstance(knoten, ast.Import):
+            namen = [alias.name for alias in knoten.names]
+        elif isinstance(knoten, ast.ImportFrom):
+            modul = knoten.module or ""
+            namen = [modul, *(f"{modul}.{alias.name}" for alias in knoten.names)]
+        else:
+            continue
+        if any(re.fullmatch(r"plattform\.(llm|router)(\..*)?", name) for name in namen):
+            return True
+    return False
+
+
 def test_r2_uc3_lauf_importiert_weder_router_noch_llm():
-    """R2: der UC3-Lauf (``uc3 lauf``) läuft ohne Sprachmodell, auch nicht über den Router."""
-    dateien = sorted((WURZEL / "uc3").rglob("lauf*.py")) if (WURZEL / "uc3").is_dir() else []
+    """R2: ``uc3 lauf`` und der UC3-Adapter ``uc3/statagent/uc4.py`` laufen ohne Sprachmodell, auch nicht über
+    den Router. ``OHNE_MODELL`` im Router baut darauf (Online-Stufe A ohne Budget, Review !94)."""
+    uc3 = WURZEL / "uc3"
+    dateien = sorted([*uc3.rglob("lauf*.py"), *uc3.rglob("statagent/uc4.py")]) if uc3.is_dir() else []
     if not dateien:
         pytest.skip("uc3/**/lauf*.py liegt in diesem Stand nicht vor")
-    verboten = re.compile(r"plattform\.(llm|router)\b|from plattform import [^\n]*\b(llm|router)\b")
-    treffer = [str(d.relative_to(WURZEL)) for d in dateien if verboten.search(d.read_text("utf-8"))]
+    assert any(d.name == "uc4.py" for d in dateien), "UC3-Adapter fehlt in der Prüfung"
+    treffer = [str(d.relative_to(WURZEL)) for d in dateien if _importiert_llm_oder_router(d)]
     assert treffer == []
+
+
+def test_r2_pruefung_erkennt_import_aber_nicht_docstring(tmp_path):
+    datei = tmp_path / "x.py"
+    datei.write_text('"""Importiert ``plattform.llm`` nicht."""\n', encoding="utf-8")
+    assert not _importiert_llm_oder_router(datei)
+    datei.write_text("def f():\n    from plattform import llm\n", encoding="utf-8")
+    assert _importiert_llm_oder_router(datei)
+    datei.write_text("import plattform.router as r\n", encoding="utf-8")
+    assert _importiert_llm_oder_router(datei)
+
+
+# --- --kette (Online-Demo Stufe A: nur UC3, ohne Modell) ----------------------------------------------------
+
+
+def test_cli_kette_uc3_fragt_nur_uc3(protokoll, capsys):
+    """Fängt: `--kette uc3` lässt UC2 und UC1 trotzdem laufen (online kämen Mock-Texte)."""
+    assert main(["frage", "--json", "--mock", "--kette", "uc3", "--", "Wie viele?"]) == 0
+    ausgabe = json.loads(capsys.readouterr().out)
+    assert [a["uc"] for a in ausgabe["antworten"]] == ["uc3"]
+    assert ausgabe["fehlend"] == []
+
+
+def test_cli_kette_haelt_die_standardreihenfolge(protokoll, capsys):
+    assert main(["frage", "--json", "--mock", "--kette", "uc1,uc3", "--", "Wie viele?"]) == 0
+    assert [a["uc"] for a in json.loads(capsys.readouterr().out)["antworten"]] == ["uc3", "uc1"]
+
+
+@pytest.mark.parametrize("kette", ["", "uc4", "uc3,uc3", "uc3,x"])
+def test_cli_ungueltige_kette_bricht_ab(protokoll, kette):
+    with pytest.raises(SystemExit) as abbruch:
+        main(["frage", "--json", "--mock", "--kette", kette, "--", "Wie viele?"])
+    assert abbruch.value.code == 2
+
+
+def test_cli_kette_nur_uc3_braucht_kein_budget(protokoll, monkeypatch, capsys):
+    """Fängt: Stufe A online (kein Modell) sperrt, sobald das Tagesbudget aus Stufe B verbraucht ist."""
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "1")
+    complete([{"role": "user", "content": "x"}], zweck="smoke")
+    uc3 = {"text": "7.498", "belege": [], "zahlen": [], "uc": "uc3"}
+    monkeypatch.setattr(router, "_REGISTRY", {"uc3": lambda f, k: uc3})
+
+    assert main(["frage", "--json", "--kette", "uc3", "--", "Wie viele?"]) == 0
+    assert [a["uc"] for a in json.loads(capsys.readouterr().out)["antworten"]] == ["uc3"]
+    assert main(["frage", "--json", "--", "Wie viele?"]) == 3
+
+
+# --- --strom (Seite /uc4 zeigt die Stationen nacheinander, ui-regie-32) -------------------------------------
+
+
+def _ereignisse(capsys) -> list[dict]:
+    return [json.loads(z) for z in capsys.readouterr().out.splitlines()]
+
+
+def test_strom_meldet_start_stationen_antworten_und_ende_in_reihenfolge(protokoll, capsys, monkeypatch):
+    """Fängt: Strom erst am Ende, fehlende Station vor der Antwort, Ereignisse ohne Stufe oder Kern."""
+    monkeypatch.setattr(router, "MOCK_PAUSE_S", 0.0)
+    assert main(["frage", "--strom", "--mock", "--", "Wie viele?"]) == 0
+    ereignisse = _ereignisse(capsys)
+    assert [(e["art"], e.get("uc")) for e in ereignisse] == [
+        ("start", None),
+        ("station", "uc3"),
+        ("antwort", "uc3"),
+        ("station", "uc2"),
+        ("antwort", "uc2"),
+        ("station", "uc1"),
+        ("antwort", "uc1"),
+        ("ende", None),
+    ]
+    assert ereignisse[0]["kette"] == ["uc3", "uc2", "uc1"]
+    uc3 = ereignisse[2]
+    assert uc3["stufe"] == 1 and uc3["antwort"]["zahlen"][0]["wert"] == 412345
+    assert uc3["kern"] == "Im März 2025 waren 412.345 Personen unselbständig beschäftigt (Mock)."
+    assert ereignisse[-1]["fehlend"] == []
+
+
+def test_strom_meldet_fehlende_station_mit_grund(protokoll):
+    ereignisse: list[dict] = []
+    uc3 = {"text": "7.498 Beschäftigte.", "belege": [], "zahlen": [], "uc": "uc3"}
+    durchreichen(
+        "Wie viele?", kette=("uc3", "uc2"), adapter={"uc3": lambda f, k: uc3}, melden=ereignisse.append
+    )
+    assert ereignisse[-2] == {"art": "fehlt", "uc": "uc2", "stufe": 2, "grund": "kein_adapter"}
+    assert ereignisse[-1]["fehlend"] == [{"uc": "uc2", "grund": "kein_adapter"}]
+
+
+def test_strom_mit_mock_wartet_je_station(protokoll, capsys, monkeypatch):
+    pausen: list[float] = []
+    monkeypatch.setattr(router.time, "sleep", pausen.append)
+    assert main(["frage", "--strom", "--mock", "--", "x"]) == 0
+    assert pausen == [router.MOCK_PAUSE_S] * 3
+
+
+def test_strom_mit_erschoepftem_budget_meldet_fehler_als_eine_zeile(protokoll, monkeypatch, capsys):
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "1")
+    complete([{"role": "user", "content": "x"}], zweck="smoke")
+    assert main(["frage", "--strom", "--", "Wie viele?"]) == 3
+    assert _ereignisse(capsys) == [
+        {
+            "art": "fehler",
+            "fehler": "budget_erschoepft",
+            "meldung": "Das Tageskontingent für Modellaufrufe ist aufgebraucht.",
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("text", "kern"),
+    [
+        (
+            "Am 31.03.2025 gab es 7.498 Verhältnisse; vorläufig. Zweiter Satz.",
+            "Am 31.03.2025 gab es 7.498 Verhältnisse; vorläufig.",
+        ),
+        ("Erste Zeile ohne Punkt\nZweite Zeile.", "Erste Zeile ohne Punkt"),
+        ("Das sind z. B. Pflegekräfte in Wien. Mehr folgt.", "Das sind z. B. Pflegekräfte in Wien."),
+        ("Es sind ca. 7.500 Stellen. Mehr folgt.", "Es sind ca. 7.500 Stellen."),
+        ("Stichtag ist der 31. März 2025. Mehr folgt.", "Stichtag ist der 31. März 2025."),
+        ("Es sind 12. Weitere Angaben folgen.", "Es sind 12."),
+        ("Code a. n. g. Gesundheit zählt mit. Mehr folgt.", "Code a. n. g. Gesundheit zählt mit."),
+        ("Erst das. danach klein weiter. Ende.", "Erst das. danach klein weiter."),
+        ("wort " * 40, ("wort " * 27).strip() + "…"),
+    ],
+)
+def test_kern_ist_der_erste_satz_hoechstens_140_zeichen(text, kern):
+    assert router.kern_satz(text) == kern
+    assert len(router.kern_satz(text)) <= router.KERN_ZEICHEN
+
+
+def test_strom_meldet_jede_station_bevor_die_naechste_laeuft(protokoll):
+    """Fängt (Review !96): Ereignisse gesammelt und erst am Ende ausgegeben statt sofort beim Eintreten."""
+    ablauf: list[str] = []
+
+    def adapter(uc: str):
+        def antworten(frage, kontext):
+            ablauf.append(f"rechnet {uc}")
+            return {"text": f"{uc}.", "belege": [], "zahlen": [], "uc": uc}
+
+        return antworten
+
+    durchreichen(
+        "x",
+        adapter={uc: adapter(uc) for uc in ("uc3", "uc2", "uc1")},
+        melden=lambda e: ablauf.append(f"{e['art']} {e.get('uc', '')}".strip()),
+    )
+    assert ablauf == [
+        "start",
+        "station uc3",
+        "rechnet uc3",
+        "antwort uc3",
+        "station uc2",
+        "rechnet uc2",
+        "antwort uc2",
+        "station uc1",
+        "rechnet uc1",
+        "antwort uc1",
+        "ende",
+    ]
+
+
+def test_strom_zeile_wird_sofort_geflusht(monkeypatch):
+    """Fängt: Zeilen bleiben im Puffer von stdout, wenn stdout eine Pipe ist (Web-Route)."""
+    aufrufe: list[str] = []
+
+    class Ausgabe:
+        def write(self, text: str) -> None:
+            aufrufe.append("write")
+
+        def flush(self) -> None:
+            aufrufe.append("flush")
+
+    monkeypatch.setattr(router.sys, "stdout", Ausgabe())
+    router._zeile({"art": "start", "kette": ["uc3"]})
+    assert aufrufe == ["write", "flush"]
