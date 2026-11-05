@@ -64,28 +64,28 @@ Jede Änderung an Regeln oder Code und jede Veröffentlichung eines Monats steht
 
 | Berichtsmonat | Regelsatz | Freigegeben von | Zeitpunkt | Verhältnisse | Ergebnis-Hash |
 |---|---|---|---|---|---|
-| 2024-08 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 392236 | `de35e5b8837c` |
-| 2024-09 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 393454 | `d7b32d2bed1c` |
-| 2024-10 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 391033 | `676240a20cd5` |
-| 2024-11 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 389141 | `0a5e7bef37c3` |
-| 2024-12 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 387390 | `22c406871f2a` |
-| 2025-01 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 385033 | `68ba0b5a3704` |
-| 2025-02 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 386996 | `5a9aa6c9babb` |
-| 2025-04 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 387601 | `3a917452e284` |
-| 2025-05 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 390001 | `47f863da9087` |
-| 2025-06 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 394252 | `5dec1780ffa2` |
-| 2025-07 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 397419 | `5a0128470ba8` |
-| 2025-08 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 393712 | `cf4b69d616c4` |
-| 2025-09 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 394200 | `155252e0e863` |
-| 2025-11 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 389823 | `66a453d93287` |
-| 2025-12 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 388231 | `5b125df6c742` |
-| 2026-01 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 385573 | `6e40a4577df6` |
-| 2026-02 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 387947 | `224e7722de8d` |
-| 2026-03 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 391475 | `901b5e763328` |
-| 2026-04 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 389361 | `74db783ba6c0` |
-| 2026-05 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 391871 | `be2cf1392f6e` |
-| 2026-06 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 395320 | `472dd18a5d1e` |
-| 2026-07 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 399027 | `0f1f7def0db7` |
+| 2024-08 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 392.236 | `de35e5b8837c` |
+| 2024-09 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 393.454 | `d7b32d2bed1c` |
+| 2024-10 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 391.033 | `676240a20cd5` |
+| 2024-11 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 389.141 | `0a5e7bef37c3` |
+| 2024-12 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 387.390 | `22c406871f2a` |
+| 2025-01 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 385.033 | `68ba0b5a3704` |
+| 2025-02 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 386.996 | `5a9aa6c9babb` |
+| 2025-04 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 387.601 | `3a917452e284` |
+| 2025-05 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 390.001 | `47f863da9087` |
+| 2025-06 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 394.252 | `5dec1780ffa2` |
+| 2025-07 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 397.419 | `5a0128470ba8` |
+| 2025-08 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 393.712 | `cf4b69d616c4` |
+| 2025-09 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 394.200 | `155252e0e863` |
+| 2025-11 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 389.823 | `66a453d93287` |
+| 2025-12 | v1 | Bernhard Götzendorfer | 05.11.2026 16:13 | 388.231 | `5b125df6c742` |
+| 2026-01 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 385.573 | `6e40a4577df6` |
+| 2026-02 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 387.947 | `224e7722de8d` |
+| 2026-03 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 391.475 | `901b5e763328` |
+| 2026-04 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 389.361 | `74db783ba6c0` |
+| 2026-05 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 391.871 | `be2cf1392f6e` |
+| 2026-06 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 395.320 | `472dd18a5d1e` |
+| 2026-07 | v1 | Bernhard Götzendorfer | 05.11.2026 16:14 | 399.027 | `0f1f7def0db7` |
 
 ## 5 Lieferungen nach außen (Ministerium)
 
