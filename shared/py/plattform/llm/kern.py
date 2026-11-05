@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
 import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Literal, overload
 
 import jsonschema
@@ -89,15 +91,30 @@ class _Verstoss(ValueError):
         self.kennung = kennung
 
 
+#: Schlüssel, unter denen ein JSON-Schema Daten statt Schema trägt; „properties“ dort zählen nicht.
+_DATEN_SCHLUESSEL = frozenset({"default", "examples", "example", "const", "enum"})
+
+
+#: Schema-Schlüssel, deren Werte Namen → Teilschema abbilden; ihre Schlüssel sind Namen, keine Schema-Wörter.
+_NAMEN_ABBILDUNGEN = frozenset({"properties", "patternProperties", "$defs", "definitions"})
+
+
 def _bekannte_namen(knoten: Any) -> set[str]:
-    """Alle im JSON-Schema deklarierten Eigenschaftsnamen (rekursiv)."""
+    """Alle im JSON-Schema deklarierten Eigenschaftsnamen (rekursiv), ohne Beispiel- und Vorgabewerte.
+
+    Übersprungen werden nur Datenpositionen (``default``, ``enum`` …) eines Schema-Knotens; eine Eigenschaft,
+    die selbst ``default`` oder ``enum`` heißt, steht unter ``properties`` und zählt mit (Review !66).
+    """
     namen: set[str] = set()
     if isinstance(knoten, dict):
-        eigenschaften = knoten.get("properties")
-        if isinstance(eigenschaften, dict):
-            namen |= set(eigenschaften)
-        for wert in knoten.values():
-            namen |= _bekannte_namen(wert)
+        for schluessel, wert in knoten.items():
+            if schluessel in _NAMEN_ABBILDUNGEN and isinstance(wert, dict):
+                if schluessel == "properties":
+                    namen |= set(wert)
+                for teilschema in wert.values():
+                    namen |= _bekannte_namen(teilschema)
+            elif schluessel not in _DATEN_SCHLUESSEL:
+                namen |= _bekannte_namen(wert)
     elif isinstance(knoten, list):
         for wert in knoten:
             namen |= _bekannte_namen(wert)
@@ -493,33 +510,105 @@ def _budget_grenze() -> int | None:
     return grenze
 
 
-def _verbraucht_heute() -> int:
-    """Zeilen der Sprachmodell-Provider mit UTC-Datum von heute in der Protokolldatei.
+#: Einträge vor heute in Folge, nach denen die Rückwärtszählung endet (Wettlauf um Mitternacht, Review !66).
+_NACHLAUF = 50
 
-    Die Datei ist der Zähler, weil die Web-App je Anfrage einen eigenen Python-Prozess startet. Zeilen von
-    ``router`` und ``lokal`` (Embeddings) sind keine Modellaufrufe und zählen nicht; Fehlversuche schon,
-    denn auch sie belasten das Kontingent.
+
+def _verbraucht_heute() -> int:
+    """``complete``-Aufrufe der Sprachmodell-Provider mit UTC-Datum von heute in der Protokolldatei.
+
+    Einheit ist der ``complete``-Aufruf (eine Protokollzeile je Aufruf); Ausweichstufen und die
+    Schema-Wiederholung können dabei mehr Anfragen an Anbieter auslösen. Die Datei ist der Zähler, weil die
+    Web-App je Anfrage einen eigenen Python-Prozess startet. Zeilen von ``router`` und ``lokal`` (Embeddings)
+    zählen nicht; Fehlversuche schon, denn auch sie belasten das Kontingent. Gelesen wird von hinten: die
+    Datei wächst in zeitlicher Folge. Gleichzeitige Prozesse können um Mitternacht eine Zeile von gestern nach
+    einer von heute schreiben, deshalb endet die Zählung erst nach ``_NACHLAUF`` Einträgen vor heute in Folge.
     """
     datei = protokoll_datei()
     if not datei.is_file():
         return 0
     heute = datetime.now(UTC).date()
     anzahl = 0
-    for zeile in datei.read_text(encoding="utf-8").splitlines():
+    aelter_in_folge = 0
+    for zeile in reversed(datei.read_text(encoding="utf-8").splitlines()):
         try:
             eintrag = json.loads(zeile)
             tag = datetime.fromisoformat(eintrag["zeit"]).astimezone(UTC).date()
         except (json.JSONDecodeError, KeyError, TypeError, ValueError):
             continue
+        if tag < heute:
+            aelter_in_folge += 1
+            if aelter_in_folge >= _NACHLAUF:
+                break
+            continue
+        aelter_in_folge = 0
         if tag == heute and eintrag.get("provider") in FABRIKEN:
             anzahl += 1
     return anzahl
 
 
+BUDGET_TEXT = "Das Tageskontingent für Modellaufrufe ist aufgebraucht. Morgen (UTC) ist es wieder frei."
+
+
+def _reservierungen_datei() -> Path:
+    """Reservierungen des Tagesbudgets neben dem Modellprotokoll (gleiches beschreibbares Volume online)."""
+    return protokoll_datei().with_name("budget-reservierungen.jsonl")
+
+
+def _reserviert_heute(zeilen: list[str]) -> int:
+    """Reservierungen mit UTC-Datum von heute; Zeilen anderer Tage und kaputte Zeilen zählen nicht."""
+    heute = datetime.now(UTC).date()
+    anzahl = 0
+    for zeile in zeilen:
+        try:
+            if datetime.fromisoformat(json.loads(zeile)["zeit"]).astimezone(UTC).date() == heute:
+                anzahl += 1
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            continue
+    return anzahl
+
+
+def _reserviere(grenze: int) -> None:
+    """Reserviert atomar einen Aufruf des Tagesbudgets oder wirft ``BudgetErschoepft``.
+
+    Unter einer exklusiven Dateisperre (``flock``) auf der Reservierungsdatei: verbraucht ist das Maximum aus
+    heutigen Reservierungen und heutigen Protokollzeilen; ist noch etwas frei, kommt eine Reservierung dazu.
+    Gleichzeitige Prozesse (die Web-App startet je Anfrage einen) warten an der Sperre aufeinander. Die Grenze
+    kann so nicht mehr um die Zahl laufender Aufrufe überschritten werden (Review !94, Bedingung Stufe B).
+    Jeder ``complete``-Aufruf reserviert genau einmal, auch wenn er danach scheitert.
+    """
+    datei = _reservierungen_datei()
+    try:
+        with datei.open("a+", encoding="utf-8") as handle:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            try:
+                handle.seek(0)
+                reserviert = _reserviert_heute(handle.read().splitlines())
+                if max(reserviert, _verbraucht_heute()) >= grenze:
+                    raise BudgetErschoepft(BUDGET_TEXT)
+                handle.write(
+                    json.dumps({"zeit": datetime.now(UTC).isoformat(timespec="milliseconds")}) + "\n"
+                )
+                handle.flush()
+                os.fsync(handle.fileno())
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    except OSError as fehler:
+        raise KonfigFehler(
+            f"{BUDGET_VARIABLE} braucht eine beschreibbare Reservierungsdatei ({datei.name}): "
+            f"{fehler.strerror or fehler}"
+        ) from fehler
+
+
 def budget_status() -> dict[str, int | None]:
-    """Tagesbudget: ``grenze`` (``None`` = keins), heute ``verbraucht``, ``frei`` (``None`` ohne Grenze)."""
+    """Tagesbudget: ``grenze`` (``None`` = keins), heute ``verbraucht``, ``frei`` (``None`` ohne Grenze).
+
+    ``verbraucht`` ist das Maximum aus Reservierungen und Protokollzeilen von heute (wie ``_reserviere``).
+    """
     grenze = _budget_grenze()
-    verbraucht = _verbraucht_heute()
+    datei = _reservierungen_datei()
+    reserviert = _reserviert_heute(datei.read_text(encoding="utf-8").splitlines()) if datei.is_file() else 0
+    verbraucht = max(reserviert, _verbraucht_heute())
     frei = None if grenze is None else max(grenze - verbraucht, 0)
     return {"grenze": grenze, "verbraucht": verbraucht, "frei": frei}
 
@@ -558,8 +647,8 @@ def _pruefe_budget(kette: list[str]) -> None:
     - Mit Budget: Protokoll muss beschreibbar sein (``KonfigFehler``), heute verbraucht ≥ Grenze:
       ``BudgetErschoepft``.
 
-    Prüfen und Schreiben sind nicht atomar: laufen zwei Aufrufe gleichzeitig an der Grenze, kann einer
-    darüber gehen. Das Ratenlimit der Web-App hält diese Überschreitung klein.
+    Prüfen und Reservieren sind atomar (``_reserviere``, Dateisperre): auch gleichzeitig laufende Aufrufe
+    überschreiten die Grenze nicht.
     """
     grenze = _budget_grenze()
     if grenze is None:
@@ -570,10 +659,7 @@ def _pruefe_budget(kette: list[str]) -> None:
             )
         return
     _pruefe_protokoll_schreibbar()
-    if _verbraucht_heute() >= grenze:
-        raise BudgetErschoepft(
-            "Das Tageskontingent für Modellaufrufe ist aufgebraucht. Morgen (UTC) ist es wieder frei."
-        )
+    _reserviere(grenze)
 
 
 def aktives_modell(zweck: str = "") -> dict[str, Any]:

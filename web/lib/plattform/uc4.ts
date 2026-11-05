@@ -1,7 +1,18 @@
-import { execFile } from "node:child_process";
+import { spawn } from "node:child_process";
+import { createInterface } from "node:readline";
 import { findeRepoWurzel } from "./modell";
 import { erstelleRatenlimit, grenzeAus, type PruefeRatenlimit } from "./ratenlimit";
-import { BUDGET_MELDUNG, ergebnisSchema, frageSchema } from "./uc4-ergebnis";
+import {
+  BUDGET_MELDUNG,
+  ergebnisSchema,
+  frageSchema,
+  KETTE,
+  STROM_TYP,
+  stromEreignisSchema,
+  type KettenUc,
+  type Modellwahl,
+  type StromEreignis,
+} from "./uc4-ergebnis";
 
 export { BUDGET_MELDUNG };
 
@@ -12,7 +23,9 @@ export { BUDGET_MELDUNG };
 // (#100); Exit 3 heißt „Tagesbudget von plattform.llm verbraucht“ und wird wie das Ratenlimit ein 429.
 
 export const ROUTER_ARGV = ["run", "--frozen", "python", "-m", "plattform.router", "frage", "--json"] as const;
-export const TIMEOUT_MS = 60_000;
+// 180 s: Die Kette ruft nacheinander bis zu drei Adapter mit Modell auf. Gemessen am 05.11. mit Azure: UC3 1 s,
+// UC2 98 s (vier Akteure, zwei Runden), UC1 1 s. Mit 60 s brach die Route ab und die Seite zeigte gar keine Antwort.
+export const TIMEOUT_MS = 180_000;
 /** Drei Antworten mit Belegen passen weit hinein; mehr ist ein Fehler, kein Ergebnis. */
 export const MAX_BUFFER = 1024 * 1024;
 /** Exit-Code von `plattform.router frage`, wenn das Tagesbudget erschöpft ist (`router.BUDGET_ERSCHOEPFT`). */
@@ -27,23 +40,171 @@ export interface Lauf {
 export type Ausfuehren = (
   befehl: string,
   argv: readonly string[],
-  optionen: { cwd: string; timeout: number; maxBuffer: number },
+  optionen: {
+    cwd: string;
+    timeout: number;
+    maxBuffer: number;
+    zusatz?: Readonly<Record<string, string>>;
+    /** Abbruch des Clients: beendet die Prozessgruppe sofort statt erst am Timeout (#150). */
+    signal?: AbortSignal;
+  },
 ) => Promise<Lauf>;
 
-export const standardAusfuehren: Ausfuehren = (befehl, argv, { cwd, timeout, maxBuffer }) =>
+/** Nach SIGTERM an die Prozessgruppe so lange warten, dann SIGKILL. */
+export const NACHFRIST_MS = 2_000;
+
+/**
+ * Startet den Router in einer eigenen Prozessgruppe (detached). `uv run` startet Python als Kind; ein Signal nur an
+ * uv ließe Python als Waise weiterrechnen und stdout offen halten, dann käme „close“ nie und der Lauf-Slot bliebe
+ * belegt (Review !96). `beenden` schickt SIGTERM an die Gruppe und nach `NACHFRIST_MS` SIGKILL.
+ */
+function starteGruppe(befehl: string, argv: readonly string[], cwd: string, zusatz: Readonly<Record<string, string>>) {
+  // stderr verworfen: es kann Pfade, Umgebungswerte oder die Frage enthalten; nach außen gehen nur Exit-Codes.
+  const kind = spawn(befehl, [...argv], {
+    cwd,
+    env: { ...process.env, ...zusatz },
+    stdio: ["ignore", "pipe", "ignore"],
+    detached: true,
+  });
+  let beendet = false;
+  let abgebrochen = false;
+  kind.once("close", () => (beendet = true));
+  const gruppe = (signal: NodeJS.Signals) => {
+    if (kind.pid === undefined) return;
+    try {
+      process.kill(-kind.pid, signal);
+    } catch {
+      // Gruppe schon leer (ESRCH): nichts mehr zu beenden
+    }
+  };
+  const beenden = () => {
+    // Nach „close“ ist die Gruppe leer; ein Signal an eine später neu vergebene Gruppen-ID wäre falsch.
+    if (abgebrochen || beendet) return;
+    abgebrochen = true;
+    gruppe("SIGTERM");
+    // Ein Enkel, der SIGTERM ignoriert, bekommt SIGKILL, auch wenn uv schon weg ist.
+    setTimeout(() => gruppe("SIGKILL"), NACHFRIST_MS).unref();
+  };
+  return { kind, beenden, abgebrochen: () => abgebrochen };
+}
+
+export const standardAusfuehren: Ausfuehren = (befehl, argv, { cwd, timeout, maxBuffer, zusatz = {}, signal }) =>
   new Promise((aufloesen, ablehnen) => {
-    execFile(befehl, [...argv], { cwd, timeout, maxBuffer, env: process.env }, (fehler, stdout) => {
-      if (!fehler) aufloesen({ code: 0, stdout });
-      // Regulärer Exit ≠ 0 (z. B. 1 = keine Antwort): der Aufrufer entscheidet. Timeout und maxBuffer setzen
-      // `killed` bzw. einen Text-Code und gelten als Fehler.
-      else if (typeof fehler.code === "number" && !fehler.killed) aufloesen({ code: fehler.code, stdout });
-      else ablehnen(fehler);
+    const { kind, beenden } = starteGruppe(befehl, argv, cwd, zusatz);
+    const stuecke: Buffer[] = [];
+    let groesse = 0;
+    let grund: Error | null = null;
+    const abbruch = (name: string) => {
+      if (grund) return;
+      grund = Object.assign(new Error(name), { name });
+      beenden();
+    };
+    kind.stdout.on("data", (stueck: Buffer) => {
+      groesse += stueck.length;
+      if (groesse > maxBuffer) abbruch("MaxBufferError");
+      else stuecke.push(stueck);
+    });
+    const uhr = setTimeout(() => abbruch("TimeoutError"), timeout);
+    const beiAbbruch = () => abbruch("AbortError");
+    if (signal?.aborted) beiAbbruch();
+    else signal?.addEventListener("abort", beiAbbruch, { once: true });
+    kind.once("error", (fehler) => {
+      clearTimeout(uhr);
+      signal?.removeEventListener("abort", beiAbbruch);
+      ablehnen(fehler);
+    });
+    kind.once("close", (code) => {
+      clearTimeout(uhr);
+      signal?.removeEventListener("abort", beiAbbruch);
+      // Regulärer Exit ≠ 0 (z. B. 1 = keine Antwort): der Aufrufer entscheidet. Timeout, maxBuffer und ein Ende
+      // durch Signal gelten als Fehler.
+      if (grund) ablehnen(grund);
+      else if (code === null) ablehnen(Object.assign(new Error("Signal"), { name: "SignalError" }));
+      else aufloesen({ code, stdout: Buffer.concat(stuecke).toString("utf8") });
     });
   });
 
+/** Ein laufender Router im Strom-Modus: stdout Zeile für Zeile, Exit-Code am Ende, Abbruch von außen. */
+export interface StromLauf {
+  zeilen: AsyncIterable<string>;
+  /** Exit-Code; null nach Timeout, Abbruch oder Startfehler. */
+  ende: Promise<number | null>;
+  abbrechen: () => void;
+}
+
+export type StromStarten = (
+  befehl: string,
+  argv: readonly string[],
+  optionen: { cwd: string; timeout: number; zusatz?: Readonly<Record<string, string>> },
+) => StromLauf;
+
+export const standardStromStarten: StromStarten = (befehl, argv, { cwd, timeout, zusatz = {} }) => {
+  const { kind, beenden, abgebrochen } = starteGruppe(befehl, argv, cwd, zusatz);
+  const uhr = setTimeout(beenden, timeout);
+  const ende = new Promise<number | null>((aufloesen) => {
+    kind.once("error", () => aufloesen(null));
+    kind.once("close", (code) => aufloesen(abgebrochen() ? null : code));
+  }).finally(() => clearTimeout(uhr));
+  return { zeilen: createInterface({ input: kind.stdout, crlfDelay: Infinity }), ende, abbrechen: beenden };
+};
+
 /** argv für eine Frage; `--` davor, damit eine Frage wie „-h“ kein Schalter des Routers wird. */
-export function routerArgv(frage: string, mock: boolean): string[] {
-  return [...ROUTER_ARGV, ...(mock ? ["--mock"] : []), "--", frage];
+export function routerArgv(frage: string, mock: boolean, kette?: readonly KettenUc[]): string[] {
+  return [...ROUTER_ARGV, ...(mock ? ["--mock"] : []), ...(kette ? ["--kette", kette.join(",")] : []), "--", frage];
+}
+
+/** Volle Kette, wie `plattform.router.STANDARD_KETTE`. */
+export const STANDARD_KETTE = KETTE;
+/** UCs ohne Sprachmodell (UC3 rechnet nur mit SQL); wie `OHNE_MODELL` in `plattform.router`. */
+const OHNE_MODELL: ReadonlySet<KettenUc> = new Set(["uc3"]);
+
+type Umgebung = Readonly<Record<string, string | undefined>>;
+
+/**
+ * Kette aus `UC4_KETTE` (Komma-Liste, Teilmenge von uc3,uc2,uc1, Reihenfolge der Standardkette). Leer: lokal alle
+ * drei, online (`KIC_ONLINE=1`) nur uc3. Ein ungültiger Wert fällt auf „nur uc3“ zurück: ohne Modell, also ohne
+ * Kosten (fail-closed, Review !94).
+ */
+export function ketteAus(umgebung: Umgebung): readonly KettenUc[] {
+  const roh = (umgebung.UC4_KETTE ?? "").trim();
+  if (roh === "") return umgebung.KIC_ONLINE === "1" ? ["uc3"] : STANDARD_KETTE;
+  const teile = roh.split(",").map((teil) => teil.trim());
+  const gueltig =
+    teile.length > 0 &&
+    new Set(teile).size === teile.length &&
+    teile.every((teil): teil is KettenUc => (STANDARD_KETTE as readonly string[]).includes(teil));
+  if (!gueltig) {
+    console.warn("[uc4/frage] UC4_KETTE ungültig, es fragt nur UC3");
+    return ["uc3"];
+  }
+  return STANDARD_KETTE.filter((uc) => teile.includes(uc));
+}
+
+/** Ruft die Kette ein Sprachmodell auf? Nein, wenn sie nur aus UCs ohne Modell besteht (Online-Stufe A). */
+export function ketteMitModell(kette: readonly KettenUc[]): boolean {
+  return kette.some((uc) => !OHNE_MODELL.has(uc));
+}
+
+/**
+ * Dürfen Fragen gestellt werden? Online-Demo lesend (`KIC_ONLINE_LESEND=1`) sperrt sie, außer `KIC_ONLINE_FRAGEN=1`
+ * gibt Fragen frei (Stufe A); Freigaben und alles andere Schreibende bleiben dann gesperrt.
+ */
+export function fragenOffen(umgebung: Umgebung): boolean {
+  return umgebung.KIC_ONLINE_LESEND !== "1" || umgebung.KIC_ONLINE_FRAGEN === "1";
+}
+
+export interface Uc4Einstellung {
+  /** Stationen in Kettenreihenfolge; online in Stufe A nur ["uc3"]. */
+  kette: readonly KettenUc[];
+  fragenOffen: boolean;
+  /** Ruft eine Frage ein Modell auf? Nein: Modellwahl ausblenden, sie wirkt dann nicht. */
+  mitModell: boolean;
+}
+
+/** Für die Seite /uc4 (serverseitig): was die Route mit der aktuellen Umgebung tut. */
+export function uc4Einstellung(umgebung: Umgebung = process.env): Uc4Einstellung {
+  const kette = ketteAus(umgebung);
+  return { kette, fragenOffen: fragenOffen(umgebung), mitModell: ketteMitModell(kette) };
 }
 
 /** Größter Request-Body; eine Frage mit 500 Zeichen braucht als JSON höchstens rund 3 KiB (UTF-8, Escapes). */
@@ -52,6 +213,18 @@ export const MAX_BODY_BYTES = 4 * 1024;
 export const MAX_LAEUFE = 2;
 
 const UNGUELTIG = "Die Anfrage braucht JSON mit dem Feld frage als Text.";
+const NICHT_FREIGEGEBEN = "Dieses Modell ist hier nicht freigegeben.";
+
+/**
+ * Online (KIC_ONLINE=1, nur das Prod-Compose setzt es) darf die Wahl kein Geld kosten, das niemand freigegeben hat:
+ * erlaubt sind dann nur Testbetrieb und die Anbieter aus UC4_MODELLWAHL (Komma-Liste). Lokal ist jede Wahl offen.
+ * Review !72: sonst hebelte die Wahl LLM_PROVIDER=mock und „claude online aus“ des Compose aus.
+ */
+export function modellErlaubt(modell: Modellwahl, umgebung: Readonly<Record<string, string | undefined>>): boolean {
+  if (umgebung.KIC_ONLINE !== "1" || modell === "mock") return true;
+  const liste = (umgebung.UC4_MODELLWAHL ?? "").split(",").map((teil) => teil.trim());
+  return liste.includes(modell);
+}
 
 type Status = 400 | 403 | 413 | 429 | 502;
 
@@ -99,7 +272,7 @@ async function leseBody(anfrage: Request, grenze: number): Promise<string> {
 }
 
 /** Frage aus dem Body oder eine feste deutsche Meldung (keine zod-Texte an den Client). */
-function leseFrage(text: string): { frage: string } | { meldung: string } {
+function leseFrage(text: string): { frage: string; modell?: Modellwahl } | { meldung: string } {
   let roh: unknown;
   try {
     roh = JSON.parse(text);
@@ -111,11 +284,15 @@ function leseFrage(text: string): { frage: string } | { meldung: string } {
   }
   // Ab hier tragen nur noch die eigenen deutschen Meldungen aus frageSchema (leer, zu lang).
   const eingabe = frageSchema.safeParse(roh);
-  return eingabe.success ? { frage: eingabe.data.frage } : { meldung: eingabe.error.issues[0]?.message ?? UNGUELTIG };
+  return eingabe.success
+    ? { frage: eingabe.data.frage, modell: eingabe.data.modell }
+    : { meldung: eingabe.error.issues[0]?.message ?? UNGUELTIG };
 }
 
 export interface FrageOptionen {
   ausfuehren?: Ausfuehren;
+  /** Startet den Router im Strom-Modus (`--strom`); Standard: Subprozess mit zeilenweisem stdout. */
+  stromStarten?: StromStarten;
   umgebung?: Readonly<Record<string, string | undefined>>;
   wurzel?: () => string;
   maxLaeufe?: number;
@@ -126,12 +303,13 @@ export interface FrageOptionen {
 
 /**
  * Baut den Handler für POST /api/uc4/frage mit eigener Lauf-Zählung. Sperren in dieser Reihenfolge, alle vor dem
- * Subprozess: `KIC_ONLINE_LESEND=1` → 403 (Online-Demo, zweite Sperre hinter dem Proxy, #100), Ratenlimit je IP
+ * Subprozess: `KIC_ONLINE_LESEND=1` ohne `KIC_ONLINE_FRAGEN=1` → 403 (Online-Demo, zweite Sperre hinter dem Proxy), Ratenlimit je IP
  * → 429 mit `Retry-After`, Body > 4 KiB → 413, ungültige Frage → 400, schon `maxLaeufe` Läufe offen → 429. Der Slot
  * wird in `finally` frei, auch nach Fehlern. Nach dem Lauf: Exit 3 (Tagesbudget erschöpft) → 429.
  */
 export function erstelleFrageAntwort({
   ausfuehren = standardAusfuehren,
+  stromStarten = standardStromStarten,
   umgebung = process.env,
   wurzel = findeRepoWurzel,
   maxLaeufe = MAX_LAEUFE,
@@ -140,23 +318,165 @@ export function erstelleFrageAntwort({
 }: FrageOptionen = {}): (anfrage: Request) => Promise<Response> {
   let offen = 0;
 
-  async function fuehreAus(frage: string): Promise<Response> {
-    const argv = routerArgv(frage, umgebung.UC4_ADAPTER === "mock");
+  const kette = ketteAus(umgebung);
+  const mitModell = ketteMitModell(kette);
+
+  function laufParameter(frage: string, gewaehlt: Modellwahl | undefined) {
+    // Ohne Modell in der Kette (Stufe A, nur UC3) wirkt keine Modellwahl: auch „Testbetrieb“ darf die echte Zahl
+    // nicht durch die Mock-Zahl ersetzen.
+    const modell = mitModell ? gewaehlt : undefined;
+    // „Testbetrieb“ nimmt die festen Antworten des Routers (wie die Online-Demo), sonst fehlten Vorlagen je Zweck.
+    const argv = routerArgv(
+      frage,
+      umgebung.UC4_ADAPTER === "mock" || modell === "mock",
+      kette === STANDARD_KETTE ? undefined : kette,
+    );
+    // Gewähltes Modell als LLM_PROVIDER nur für diesen Lauf; ohne Wahl gilt die Einstellung der App.
+    const zusatz = modell ? { LLM_PROVIDER: modell } : undefined;
+    return { modell, argv, zusatz };
+  }
+
+  function budgetAntwort(): Response {
+    console.warn("[uc4/frage] Tagesbudget erschöpft");
+    return Response.json(
+      { fehler: BUDGET_MELDUNG },
+      { status: 429, headers: { "retry-after": String(bisMitternachtUtc(jetzt())), "cache-control": "no-store" } },
+    );
+  }
+
+  /**
+   * Strom (`Accept: application/x-ndjson`): Die erste Zeile entscheidet den Status. Budget erschöpft → 429, keine
+   * oder kaputte Zeile → 502, sonst 200 und jede weitere Zeile geprüft, sobald sie kommt. Eine Zeile außerhalb des
+   * Vertrags oder ein Abbruch ohne „ende“ endet mit einer „fehler“-Zeile. `freigeben` gibt den Lauf-Slot genau
+   * einmal frei: am Ende des Stroms, bei Abbruch durch den Client oder vor einer Fehlerantwort.
+   */
+  async function fuehreStromAus(
+    frage: string,
+    gewaehlt: Modellwahl | undefined,
+    freigeben: () => void,
+    signal: AbortSignal,
+  ): Promise<Response> {
+    const { modell, argv, zusatz } = laufParameter(frage, gewaehlt);
+    const startArgv = [...argv.slice(0, ROUTER_ARGV.length), "--strom", ...argv.slice(ROUTER_ARGV.length)];
+    let lauf: StromLauf;
+    try {
+      lauf = stromStarten("uv", startArgv, { cwd: wurzel(), timeout: TIMEOUT_MS, zusatz });
+    } catch (grund) {
+      freigeben();
+      console.warn(`[uc4/frage] Router nicht startbar (${(grund as Error).name ?? "Fehler"})`);
+      return fehler(502, "Die Kette hat nicht geantwortet. Bitte später noch einmal fragen.");
+    }
+    // Bricht der Client ab, endet der Router sofort, auch schon vor der ersten Zeile (Review !96).
+    const beiAbbruch = () => lauf.abbrechen();
+    if (signal.aborted) beiAbbruch();
+    else signal.addEventListener("abort", beiAbbruch, { once: true });
+    const loesen = () => signal.removeEventListener("abort", beiAbbruch);
+    const leser = lauf.zeilen[Symbol.asyncIterator]();
+    const naechstes = async (): Promise<StromEreignis | "kaputt" | null> => {
+      for (;;) {
+        const { done, value } = await leser.next();
+        if (done) return null;
+        if (value.trim() === "") continue;
+        try {
+          const roh: unknown = JSON.parse(value);
+          if (typeof roh === "object" && roh !== null && (roh as { fehler?: unknown }).fehler === "budget_erschoepft") {
+            return { art: "fehler", fehler: BUDGET_MELDUNG };
+          }
+          const geprueft = stromEreignisSchema.safeParse(roh);
+          return geprueft.success ? geprueft.data : "kaputt";
+        } catch {
+          return "kaputt";
+        }
+      }
+    };
+
+    const erstes = await naechstes();
+    if (erstes === null || erstes === "kaputt" || erstes.art !== "start") {
+      // Nur eine kaputte Zeile bricht ab; sonst endet der Router gerade selbst (Budget, Startfehler).
+      if (erstes === "kaputt") lauf.abbrechen();
+      const code = await lauf.ende;
+      loesen();
+      freigeben();
+      if (erstes !== null && erstes !== "kaputt" && erstes.art === "fehler" && erstes.fehler === BUDGET_MELDUNG) {
+        return budgetAntwort();
+      }
+      console.warn(`[uc4/frage] Strom ohne gültigen Start (Exit ${code ?? "abgebrochen"})`);
+      return fehler(502, "Die Kette hat in einem unerwarteten Format geantwortet.");
+    }
+
+    const kodierer = new TextEncoder();
+    const zeile = (ereignis: StromEreignis) => kodierer.encode(`${JSON.stringify(ereignis)}\n`);
+    let fertig = false;
+    let endeGesehen = false;
+    const schliessen = () => {
+      if (fertig) return;
+      fertig = true;
+      loesen();
+      freigeben();
+    };
+    const strom = new ReadableStream<Uint8Array>({
+      start(steuerung) {
+        steuerung.enqueue(zeile({ ...erstes, modell: modell ?? null }));
+      },
+      async pull(steuerung) {
+        let ereignis: Awaited<ReturnType<typeof naechstes>>;
+        try {
+          ereignis = await naechstes();
+        } catch (grund) {
+          // Lesefehler der Pipe: Router beenden, Seite bekommt einen Abschluss, Slot wird frei (Review !96).
+          console.warn(`[uc4/frage] Strom nicht lesbar (${(grund as Error).name ?? "Fehler"})`);
+          lauf.abbrechen();
+          steuerung.enqueue(zeile({ art: "fehler", fehler: "Die Kette ist mit einem Fehler abgebrochen." }));
+          steuerung.close();
+          schliessen();
+          return;
+        }
+        if (ereignis === "kaputt") {
+          console.warn("[uc4/frage] Strom-Zeile verletzt den Vertrag");
+          lauf.abbrechen();
+          steuerung.enqueue(zeile({ art: "fehler", fehler: "Die Kette hat in einem unerwarteten Format geantwortet." }));
+          steuerung.close();
+          schliessen();
+          return;
+        }
+        if (ereignis === null) {
+          const code = await lauf.ende;
+          // Ohne „ende“-Zeile bliebe die Seite auf „läuft“, auch bei Exit 0 oder 1 (Review !96). Nach „ende“ zählt
+          // trotzdem der Exit-Code: ein Absturz beim Aufräumen oder ein Signal ist ein Fehler (#150).
+          if (!endeGesehen || (code !== 0 && code !== 1)) {
+            console.warn(`[uc4/frage] Strom endet ohne Abschluss (Exit ${code ?? "abgebrochen"})`);
+            const meldung =
+              code === null ? "Die Kette hat nicht rechtzeitig geantwortet." : "Die Kette ist mit einem Fehler abgebrochen.";
+            steuerung.enqueue(zeile({ art: "fehler", fehler: meldung }));
+          }
+          steuerung.close();
+          schliessen();
+          return;
+        }
+        if (ereignis.art === "ende") endeGesehen = true;
+        steuerung.enqueue(zeile(ereignis));
+      },
+      cancel() {
+        lauf.abbrechen();
+        schliessen();
+      },
+    });
+    return new Response(strom, {
+      headers: { "content-type": `${STROM_TYP}; charset=utf-8`, "cache-control": "no-store", "x-accel-buffering": "no" },
+    });
+  }
+
+  async function fuehreAus(frage: string, gewaehlt: Modellwahl | undefined, signal: AbortSignal): Promise<Response> {
+    const { argv, zusatz } = laufParameter(frage, gewaehlt);
     let lauf: Lauf;
     try {
-      lauf = await ausfuehren("uv", argv, { cwd: wurzel(), timeout: TIMEOUT_MS, maxBuffer: MAX_BUFFER });
+      lauf = await ausfuehren("uv", argv, { cwd: wurzel(), timeout: TIMEOUT_MS, maxBuffer: MAX_BUFFER, zusatz, signal });
     } catch (grund) {
       // Nur die Art des Fehlers loggen: stderr und Meldung können Pfade, Umgebungswerte oder die Frage enthalten.
       console.warn(`[uc4/frage] Router nicht erreichbar (${(grund as Error).name ?? "Fehler"})`);
       return fehler(502, "Die Kette hat nicht geantwortet. Bitte später noch einmal fragen.");
     }
-    if (lauf.code === EXIT_BUDGET && budgetErschoepft(lauf.stdout)) {
-      console.warn("[uc4/frage] Tagesbudget erschöpft");
-      return Response.json(
-        { fehler: BUDGET_MELDUNG },
-        { status: 429, headers: { "retry-after": String(bisMitternachtUtc(jetzt())), "cache-control": "no-store" } },
-      );
-    }
+    if (lauf.code === EXIT_BUDGET && budgetErschoepft(lauf.stdout)) return budgetAntwort();
     if (lauf.code !== 0 && lauf.code !== 1) {
       console.warn(`[uc4/frage] Router beendet mit Exit ${lauf.code}`);
       return fehler(502, "Die Kette ist mit einem Fehler abgebrochen.");
@@ -176,7 +496,7 @@ export function erstelleFrageAntwort({
   }
 
   return async function frageAntwort(anfrage: Request): Promise<Response> {
-    if (umgebung.KIC_ONLINE_LESEND === "1") return fehler(403, "Fragen sind in der Online-Demo noch gesperrt.");
+    if (!fragenOffen(umgebung)) return fehler(403, "Fragen sind in der Online-Demo noch gesperrt.");
     const gedrosselt = ratenlimit(anfrage, jetzt());
     if (gedrosselt) return gedrosselt;
 
@@ -189,11 +509,27 @@ export function erstelleFrageAntwort({
     }
     const eingabe = leseFrage(text);
     if ("meldung" in eingabe) return fehler(400, eingabe.meldung);
+    if (mitModell && eingabe.modell && !modellErlaubt(eingabe.modell, umgebung)) return fehler(400, NICHT_FREIGEGEBEN);
 
     if (offen >= maxLaeufe) return fehler(429, "Gerade laufen schon genug Fragen. Bitte gleich noch einmal fragen.");
     offen += 1;
+    if ((anfrage.headers.get("accept") ?? "").includes(STROM_TYP)) {
+      let frei = false;
+      const freigeben = () => {
+        if (!frei) {
+          frei = true;
+          offen -= 1;
+        }
+      };
+      try {
+        return await fuehreStromAus(eingabe.frage, eingabe.modell, freigeben, anfrage.signal);
+      } catch (grund) {
+        freigeben();
+        throw grund;
+      }
+    }
     try {
-      return await fuehreAus(eingabe.frage);
+      return await fuehreAus(eingabe.frage, eingabe.modell, anfrage.signal);
     } finally {
       offen -= 1;
     }

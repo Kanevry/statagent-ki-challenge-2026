@@ -1,0 +1,214 @@
+# Leistungen, die der Lotse als Bündel kennt (Issue #31). Daten, nicht Code: Auslöser, Pflichtangaben,
+# Rückfragen, Suchgebiet, Formular und Unterlagen stehen hier.
+#
+# Quellen: Normen im Korpus lotse (Überschriften, z. B. „BPGG § 4 Anspruchsvoraussetzungen“,
+# „ASVG § 138 Krankengeld“, „ASVG § 162 Wochengeld“, „ASVG § 155 Maßnahmen zur Festigung der Gesundheit“,
+# „ASVG § 300 Rehabilitation“, „BPGG § 21c Pflegekarenzgeld“, „ASVG § 28 Sachliche Zuständigkeit der
+# Träger der Unfallversicherung“, „ASVG § 175 Arbeitsunfall“); Formulare unter
+# „Anträge und Formulare/“ in UC1_DATA_DIR (PAL080 = Antrag auf Pflegegeld der PVA).
+#
+# felder: Pflichtangaben mit Rückfragetext. `rang` legt die Reihenfolge der Rückfragen fest (klein zuerst):
+#   der Status bzw. Pensionsträger zuerst, weil er Träger und Suchgebiet zugleich setzt (Review N2).
+#   `werte`: Wert → reguläre Ausdrücke; Feld `status` erkennt seine Werte aus traeger.yaml.
+# leistungen: `ausloeser` (reguläre Ausdrücke, ohne Groß-/Kleinschreibung), `pflicht` (Felder),
+#   `bereich` (Spalte in traeger.yaml), `gesetze` (fest) oder `gesetze_aus_status: true`,
+#   `suchanfrage` (Fachbegriffe für die SozDok-Suche), `angebote` (Suche in Katalogen und Formularen,
+#   `regional`: Dateien nur für ein Bundesland), `stelle_fest` (Stelle unabhängig vom Status),
+#   `stelle_je_status` (Ausnahmen von `stelle_fest` je Status, z. B. SVS für die Unfallversicherung),
+#   `formular` (`fuer_stelle`: nur für diese Stellen, sonst kein fremdes Formular), `unterlagen`,
+#   `antrag` (Art für `lotse antrag`, Issue #32), `nur_regel: true` (zählt nur über `ausloeser`, nie über das
+#   Analyse-Modell).
+
+felder:
+  status:
+    rang: 1
+    bezeichnung: {de: "wer die Pension zahlt", en: "who pays the pension"}
+    rueckfrage:
+      de: "Wer zahlt die Pension? Meist ist das die Pensionsversicherung (PVA), sonst die Versicherung für Selbständige (SVS) oder die für Beamte und Bahn (BVAEB). Sie können auch sagen: keine Pension."
+      en: "Who pays the pension? Usually the pension insurance (PVA), otherwise the insurance for the self-employed (SVS) or for civil servants and railways (BVAEB). You can also say: no pension."
+    # Antwortknöpfe der UC1-Seite (UI-Regie): `text` auf dem Knopf, `antwort` geht als Nachricht an den Kern
+    # und wird von erkenne_status (traeger.yaml) erkannt.
+    optionen:
+      - {text: {de: "Pensionsversicherung (PVA)", en: "Pension insurance (PVA)"}, antwort: {de: "Die Pension kommt von der PVA.", en: "The pension comes from the PVA."}}
+      - {text: {de: "Selbständige (SVS)", en: "Self-employed (SVS)"}, antwort: {de: "Die Pension kommt von der SVS.", en: "The pension comes from the SVS."}}
+      - {text: {de: "Beamte und Bahn (BVAEB)", en: "Civil servants and railways (BVAEB)"}, antwort: {de: "Die Pension kommt von der BVAEB.", en: "The pension comes from the BVAEB."}}
+      - {text: {de: "Keine Pension", en: "No pension"}, antwort: {de: "Keine Pension.", en: "Keine Pension."}}
+  person:
+    rang: 2
+    bezeichnung: {de: "wer die Hilfe braucht", en: "who needs the help"}
+    rueckfrage:
+      de: "Wer braucht die Hilfe: Sie selbst oder jemand aus Ihrer Familie?"
+      en: "Who needs the help: you or someone in your family?"
+    werte:
+      angehoerige:
+        - '\b(?:meine?[mnrs]?|unsere?[mnrs]?)\s+(?:mutter|mama|vater|papa|mann|frau|ehemann|ehefrau|partner(?:in)?|lebensgef(?:ä|a)hrt(?:e|in)|oma|opa|gro(?:ß|ss)mutter|gro(?:ß|ss)vater|kind|sohn|tochter|schwester|bruder|schwiegermutter|schwiegervater|tante|onkel)\b'
+        - '\bmy\s+(?:mother|mum|mom|father|dad|husband|wife|partner|child|son|daughter|grandmother|grandfather)\b'
+        - '\b(?:sie|er) ist (?:pensionist|pensionär|in pension)'
+      selbst:
+        # „ich bin“ nicht vor einer Rolle für eine andere Person (#32: „Ich bin Case-Managerin“, „ich bin ihr Sohn“)
+        - '\bich (?:brauche|bin(?!\s+(?:ihr|sein|ihre|seine|die|der)?\s*(?:case|sozialarbeiter|betreuer|sohn|tochter|enkel|ehe|bruder|schwester|neffe|nichte))|kann|komme)\b'
+        - '\bi (?:need|am|can)\b'
+  bundesland:
+    rang: 3
+    bezeichnung: {de: "Bundesland", en: "province"}
+    rueckfrage:
+      de: "In welchem Bundesland wohnt die Person?"
+      en: "In which Austrian province does the person live?"
+    werte:
+      wien: ['\bwien\b', '\bvienna\b']
+      niederoesterreich: ['nieder(?:ö|o)sterreich', '\bn(?:ö|oe)\b']
+      oberoesterreich: ['ober(?:ö|o)sterreich', '\bo(?:ö|oe)\b']
+      steiermark: ['steiermark', '\bgraz\b']
+      tirol: ['\btirol\b', 'innsbruck']
+      kaernten: ['k(?:ä|a)rnten', 'klagenfurt']
+      salzburg: ['salzburg']
+      vorarlberg: ['vorarlberg', 'bregenz']
+      burgenland: ['burgenland', 'eisenstadt']
+
+leistungen:
+  pflegegeld:
+    name: {de: "Pflegegeld", en: "care allowance (Pflegegeld)"}
+    # Hilfe im Alltag (Kataloge, FSW): nur hier als nächster Schritt, Sichtprüfung #35. `name` bleibt die
+    # erste Zeile je Leistung, die UC1-Seite liest die Namen daraus (web/components/uc1/leistungen.test.ts).
+    alltagshilfe: true
+    lage: "Pflegebedarf"
+    ausloeser:
+      - 'pflege(?!karenz|teilzeit)'
+      - 'pflegebed(?:ü|u)rftig'
+      - 'allein nicht (?:mehr )?zurecht'
+      - 'nicht mehr (?:allein|alleine|selbst(?:ständig)?) (?:zurecht|versorgen|anziehen|waschen|kochen|einkaufen)'
+      - 'hilfe im alltag'
+      - '(?<!kinder)betreuung'
+      - 'chronisch krank'
+      - '\bcare\b'
+      - 'cannot cope'
+      - "can't cope"
+    pflicht: [person, status, bundesland]
+    bereich: pflegegeld
+    gesetze: [BPGG]
+    suchanfrage: "Pflegegeld Anspruchsvoraussetzungen Pflegebedarf ständiger Betreuung und Hilfe Antragstellung"
+    angebote:
+      suchanfrage: "Pflege zu Hause Unterstützung Betreuung Heimhilfe Förderung Pflegegeld Antrag"
+      # Dateien mit diesem Teilstring gelten nur für das genannte Bundesland (FSW = Fonds Soziales Wien).
+      regional:
+        wien: ["fsw-", "FSW-", "_Wien"]
+    antrag: pflegegeld  # Entwurf über `lotse antrag pflegegeld` (#32, formulare/pal080.felder.json)
+    formular:
+      bezeichnung: "Antrag auf Pflegegeld (PAL080) der PVA"
+      datei: "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf"
+      # Nur für diese Stellen; sonst „Fragen Sie die {Stelle} nach dem Antrag.“ (Review !68: SVS, BVAEB)
+      fuer_stelle: [PVA]
+    unterlagen:
+      - text: "Kopien Ihrer Befunde von Arzt, Ärztin oder Krankenhaus"
+        quelle: "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 2"
+  pflegekarenzgeld:
+    name: {de: "Pflegekarenzgeld", en: "care leave allowance (Pflegekarenzgeld)"}
+    alltagshilfe: true
+    lage: "Pflege einer angehörigen Person neben der Arbeit"
+    ausloeser:
+      - 'pflegekarenz'
+      - 'pflegeteilzeit'
+      - 'familienhospiz'
+      - 'weniger arbeiten.{0,40}pfleg'
+      - 'freistell'
+      - 'karenz.{0,40}pfleg'
+      - 'care leave'
+    pflicht: []
+    bereich: pflegegeld
+    stelle_fest: {stelle: SMS, fundstelle: "BPGG § 21c"}
+    gesetze: [BPGG, AlVG]
+    suchanfrage: "Pflegekarenzgeld Pflegekarenz Pflegeteilzeit Familienhospizkarenz"
+    unterlagen: []
+  rehabilitation:
+    name: {de: "Rehabilitation und Kur", en: "rehabilitation and spa treatment"}
+    lage: "Erholung nach Krankheit oder Operation"
+    ausloeser:
+      - '\breha\b'
+      - 'rehabilitation'
+      - '\bkur\b'
+      - 'kuraufenthalt'
+      - 'nach (?:der|meiner|seiner|ihrer) (?:operation|op)\b'
+      - '\brehab\b'
+    pflicht: [status]
+    bereich: pension
+    gesetze_aus_status: true
+    suchanfrage: "Rehabilitation medizinische Maßnahmen Festigung der Gesundheit Kuraufenthalt Gesundheitsvorsorge"
+    angebote:
+      suchanfrage: "Antrag Kur Rehabilitation Aufenthalt"
+    antrag: reha  # Entwurf über `lotse antrag reha` (#32, formulare/kur-reha.felder.json)
+    formular:
+      bezeichnung: "Antrag auf Kur und Rehabilitation"
+      datei: "Anträge und Formulare/Antrag Kur und Reha.pdf"
+    unterlagen:
+      - text: "die wichtigen Befunde Ihrer Ärztin oder Ihres Arztes"
+        quelle: "Anträge und Formulare/Antrag Kur und Reha.pdf, S. 2"
+  krankengeld:
+    name: {de: "Krankengeld", en: "sickness benefit (Krankengeld)"}
+    lage: "Arbeitsunfähigkeit durch Krankheit"
+    ausloeser:
+      - 'krankenstand'
+      - 'krankgeschrieben'
+      - 'krank geschrieben'
+      - 'arbeitsunf(?:ä|a)hig'
+      - 'krankengeld'
+      - 'sick leave'
+      - 'sickness benefit'
+    pflicht: [status]
+    bereich: krankenversicherung
+    gesetze_aus_status: true
+    suchanfrage: "Krankengeld Arbeitsunfähigkeit infolge Krankheit Dauer des Krankengeldanspruches"
+    unterlagen: []  # im Korpus keine Unterlagenliste belegt
+  wochengeld:
+    name: {de: "Wochengeld", en: "maternity allowance (Wochengeld)"}
+    lage: "Schwangerschaft und Geburt"
+    ausloeser:
+      - 'schwanger'
+      - 'wochengeld'
+      - 'mutterschutz'
+      - 'geburt'
+      - 'entbindung'
+      - 'pregnan'
+      - 'maternity'
+    pflicht: [status]
+    bereich: krankenversicherung
+    gesetze_aus_status: true
+    suchanfrage: "Wochengeld Mutterschaft Entbindung Leistungen aus dem Versicherungsfall der Mutterschaft"
+    unterlagen: []  # im Korpus keine Unterlagenliste belegt
+  unfallversicherung:
+    name: {de: "Unfallversicherung", en: "accident insurance (Unfallversicherung)"}
+    # Endmessung g21 (Heimweg von der Arbeit gestürzt) nannte PVA/ÖGK statt AUVA. Zuständig ist nach ASVG § 28
+    # Z 1 die AUVA, für Selbständige und Bäuerinnen und Bauern nach Z 2 die SVS (`stelle_je_status`).
+    # Beamtinnen und Beamte (Dienstunfall, B-KUVG, BVAEB) sind nicht abgebildet; sie bekommen die AUVA.
+    # „Arbeit“ allein löst nicht aus, nur Unfall, Weg oder Verletzung im Zusammenhang mit der Arbeit.
+    lage: "Arbeitsunfall, Wegunfall oder Berufskrankheit"
+    nur_regel: true  # „Sturz“ allein ist kein Arbeitsunfall; das Modell deutete ihn so (Aufnahme v8)
+    ausloeser:
+      - 'arbeitsunf(?:ä|a)ll'
+      - 'wegunf(?:ä|a)ll'
+      - 'berufskrankheit'
+      - 'unfallversicherung'
+      - '(?:auf dem|am) (?:heim)?weg (?:von der|zur|zu der|in die|nach der) arbeit'
+      - '(?:bei|in) der arbeit\b.{0,40}(?:gest(?:ü|u)rzt|verletzt|verungl(?:ü|u)ckt|unfall)'
+      - '(?:gest(?:ü|u)rzt|verletzt|verungl(?:ü|u)ckt)\b.{0,20}(?:bei|in) der arbeit\b'
+      - 'accident at work'
+      - 'work(?:place)?[- ]accident'
+      - 'commuting accident'
+      - 'occupational (?:disease|illness)'
+      - 'on (?:the|my) way (?:to|from|home from) work'
+      - '(?:injured|hurt|fell) at work'
+      - 'accident insurance'
+    pflicht: []
+    bereich: unfallversicherung
+    stelle_fest:
+      stelle: AUVA
+      fundstelle: "ASVG § 28 Z 1"
+      zitat: "Zur Durchführung der Unfallversicherung sind sachlich zuständig: 1. die Allgemeine Unfallversicherungsanstalt, soweit nicht der unter Z 2 genannte Versicherungsträger zuständig ist"
+    # Vorrang vor `stelle_fest`, wenn der Status bekannt ist (uc1.kern.zustaendige_stelle).
+    stelle_je_status:
+      svs:
+        stelle: SVS
+        fundstelle: "ASVG § 28 Z 2"
+        zitat: "2. die Sozialversicherungsanstalt der Selbständigen für a) die nach § 3 des Bauern-Sozialversicherungsgesetzes in der Unfallversicherung pflichtversicherten selbständig Erwerbstätigen"
+    gesetze: [ASVG]
+    suchanfrage: "Arbeitsunfall Wegunfall Weg zur oder von der Arbeitsstätte Unfallversicherung Berufskrankheit"
+    unterlagen: []  # im Korpus keine Unterlagenliste belegt

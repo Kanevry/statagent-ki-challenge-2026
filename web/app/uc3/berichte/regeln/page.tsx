@@ -4,8 +4,9 @@ import { Fliesstext, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
 import { formatZahl, HerkunftChip } from "@kic/ui/bausteine";
 import { leseRegeln, REGEL_TYPEN, sqlRegeln, type Regel, type RegelTyp } from "@/components/uc3/bericht";
 import { leerSatz } from "@/components/uc3/db";
-import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import { monatName } from "@/components/uc3/monat";
+import { alltag } from "@/components/uc3/sprache";
 
 // Regeln des Regelsatzes v1 (#18, Frame egqhg): gruppiert nach Einlesen, Zuordnen, Zählen, Prüfen, mit
 // Beschreibung, Begründung, Gültigkeit und Freigabe. Nur lesend; Freigaben laufen über die CLI.
@@ -70,13 +71,7 @@ export default async function Regeln() {
         </Fliesstext>
       </header>
 
-      <ul className="grid max-w-5xl gap-4 sm:grid-cols-3" aria-label="Begriffe auf dieser Seite">
-        {(["Regel", "Regelstand", "Freigabe"] as const).map((wort) => (
-          <li key={wort} className="font-sans text-14 font-semibold text-ink">
-            <Fachbegriff wort={wort} />
-          </li>
-        ))}
-      </ul>
+      <Begriffsliste worte={["Regel", "Regelstand", "Freigabe"] as const} label="Begriffe auf dieser Seite" className="grid max-w-5xl gap-4 sm:grid-cols-3" />
 
       {REGEL_TYPEN.map((typ) => {
         const gruppe = regeln.filter((r) => r.typ === typ);
@@ -95,14 +90,14 @@ export default async function Regeln() {
               {gruppe.map((r) => (
                 <li key={r.id} id={r.name} className="flex scroll-mt-24 flex-col gap-2 border-b border-line py-4 target:bg-paper" data-regel={r.name}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <Fliesstext className="max-w-3xl">{r.beschreibung}</Fliesstext>
+                    <Fliesstext className="max-w-3xl">{alltag(r.beschreibung)}</Fliesstext>
                     <Status art={r.freigegebenVon ? "ok" : "warnung"}>
                       {r.freigegebenVon
                         ? `freigegeben von ${r.freigegebenVon} am ${r.freigegebenAm ?? ""}`
                         : "noch ohne Freigabe"}
                     </Status>
                   </div>
-                  <Fliesstext groesse={14} ton="gedaempft" className="max-w-3xl">{`Begründung: ${r.begruendung}`}</Fliesstext>
+                  <Fliesstext groesse={14} ton="gedaempft" className="max-w-3xl">{`Begründung: ${alltag(r.begruendung)}`}</Fliesstext>
                   <p className="font-sans text-12 text-slate">
                     <span className="mr-2 break-all font-mono">{r.name}</span>
                     {gueltigkeit(r)}

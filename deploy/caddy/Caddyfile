@@ -24,7 +24,17 @@
 
 	# Online-Demo ist lesend (#68): nur GET und HEAD. Das sperrt Freigabe-POSTs, Modellaufrufe und Next Server
 	# Actions an der Kante, bevor sie die App erreichen. Eine Ausnahme (etwa Voice) braucht einen eigenen Matcher.
-	@schreibend not method GET HEAD
+	# Ausnahme: nur POST auf die zwei Frage-Wege (exakter Pfad; PUT, DELETE, OPTIONS dort bleiben 403). Die App
+	# nimmt sie nur mit KIC_ONLINE_FRAGEN=1 an (sonst 403), mit Body-Grenze und höchstens zwei Läufen je Prozess;
+	# /api/uc4/frage hat dazu ein Ratenlimit je IP und das Tagesbudget. Freigaben, Läufe und UC2-Fälle bleiben hier
+	# gesperrt. Geprüft im CI-Job deploy-check mit deploy/methoden-matrix.sh.
+	@schreibend {
+		not method GET HEAD
+		not {
+			method POST
+			path /api/uc3/frage /api/uc4/frage
+		}
+	}
 	respond @schreibend "Die Online-Demo ist lesend." 403
 
 	# platzhalter.caddy (statische Seite) oder app.caddy (Next.js-Web), umschaltbar über INHALT;

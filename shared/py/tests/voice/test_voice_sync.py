@@ -50,6 +50,8 @@ def test_konfiguration_deutsch_ohne_aufnahme():
     assert konfiguration["transcriber"]["language"] == "de"
     assert konfiguration["recordingEnabled"] is False
     assert konfiguration["artifactPlan"]["recordingEnabled"] is False
+    # Geld (Review !66): kein Anruf ohne Obergrenze, auch wenn niemand auflegt
+    assert konfiguration["maxDurationSeconds"] == 120
     assert konfiguration["model"]["provider"] == "custom-llm"
     assert konfiguration["server"]["url"] == "https://tunnel.example.org/vapi/webhook"
 
@@ -99,3 +101,12 @@ def test_sync_api_fehler_ohne_body_in_der_meldung(umgebung, capsys):
     assert main(["sync"], transport=mitschnitt.transport()) == 2
     fehler = capsys.readouterr().err
     assert "400" in fehler and SECRET not in fehler
+
+
+def test_zahlen_spricht_die_deutsche_stimme_nicht_vapis_englische_formatierung():
+    """Fängt: Vapis formatPlan schrieb „2025“ als „twentyfive“ aus (Web-Anruf 05.11.)."""
+    from plattform.voice.assistant import assistant_konfiguration
+
+    stimme = assistant_konfiguration("https://beispiel.example.org")["voice"]
+    assert stimme["provider"] == "azure" and stimme["voiceId"].startswith("de-")
+    assert stimme["chunkPlan"]["formatPlan"]["enabled"] is False
