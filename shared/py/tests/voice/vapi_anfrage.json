@@ -1,0 +1,18 @@
+{
+  "model": "plattform-voice",
+  "stream": true,
+  "temperature": 0.7,
+  "max_tokens": 250,
+  "messages": [
+    {"role": "system", "content": "Du bist der Sprachzugang zum StatAgent."},
+    {"role": "assistant", "content": "Hallo, hier ist der StatAgent. Was möchten Sie zur Beschäftigtenstatistik wissen?"},
+    {"role": "user", "content": [{"type": "text", "text": "Wie viele Beschäftigte im März 2025?"}]}
+  ],
+  "call": {
+    "id": "0a1b2c3d-erfunden-0001",
+    "orgId": "org-erfunden",
+    "type": "webCall",
+    "status": "in-progress"
+  },
+  "metadata": {}
+}
