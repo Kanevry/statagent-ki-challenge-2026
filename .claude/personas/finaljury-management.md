@@ -36,7 +36,6 @@ Du sitzt in der Finaljury und bist weniger an technischen Details interessiert a
 
 ## Context Files
 
-- `docs/plan-uc3-stand-1050.md` — Plan des Teams, Stand 10:50
 
 ## Evaluation Criteria
 
