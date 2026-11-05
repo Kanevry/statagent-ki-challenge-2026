@@ -1,4 +1,4 @@
-# uc2 – HealthPolicy Simulator
+# uc2: HealthPolicy Simulator
 
 Python-Paket für UC2 der KI Challenge 2026: Pressespiegel-Belege, Akteurs-Pool, Experte (Wirkungsmodell) und
 Verhandlung. Plan: `docs/plan/uc2/2026-11-05-healthpolicy-simulator.md`, Epic #24.
@@ -38,9 +38,18 @@ uv run uc2 verhandlung --fall wartezeiten --provider claude --belege fixture --m
   `beleg_ungueltig`, `zitat`, `zahl_widerspruch` und `ungueltige_ausgabe`.
 - Geschrieben werden `uc2.fall`, `uc2.teilnahme`, `uc2.ereignis` (mit `seq` je Fall) und `uc2.position`
   (DDL `sql/002_verhandlung.sql`, wendet die CLI idempotent an). Matrix und Einordnung rechnet der Code.
-- Belege: Standard ist `--belege fixture` mit erfundenen Belegen aus
-  `tests/fixtures/verhandlung/belege.json`. `--belege index` liest den echten Index und ist vor der
-  Maskierung (#43) nur mit `mock` erlaubt; mit echtem Provider bricht der Lauf vorher ab.
+- Belege: `--belege index` holt je Akteur die 8 besten maskierten Belege aus dem Index
+  (`uc2.belege.suche.belege_fuer_akteur`, mit Institutionsfaktor; ohne Vektoren oder Modell Volltext).
+  `--belege fixture` nimmt erfundene Belege aus `tests/fixtures/verhandlung/belege.json`.
+- Ohne Angabe gilt `index`, wenn `uc2.abschnitt` Zeilen hat und die Namensliste geladen ist, sonst `fixture`
+  mit Hinweis auf stderr. Geladen heißt: `UC2_NAMENSLISTE` zeigt auf eine vorhandene, nicht leere Datei
+  außerhalb des Repos. Ein ausdrückliches `--belege` gewinnt immer.
+- Echte Provider (`claude`, `azure`) bekommen Index-Belege nur mit geladener Namensliste; ohne sie maskieren
+  nur Muster, und der Lauf bricht vorher ab. Liste erzeugen:
+  `uv run uc2 namen sammeln --aus-index --autoren <datei> --ausgabe <pfad außerhalb des Repos>`.
+- Das Modell sieht `text_modell` (maskiert, Zitate bleiben) in einem markierten Block; die Prüfung `zitat`
+  vergleicht dagegen. Das Ereignis `belege` speichert je Beleg ID, Medium, Datum, Monat, Titel, `zitat`
+  (höchstens 300 Zeichen), `pdf_seite` und die Rangteile, aber keinen Text.
 - Szenario-Mock (`uc2.modelle.szenario`): Er antwortet aus dem Kontextblock des Prompts.
   `UC2_MOCK_KAPUTT=<akteur>:<runde>` liefert für genau diesen Zug kaputtes JSON.
 

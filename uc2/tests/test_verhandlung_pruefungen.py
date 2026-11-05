@@ -21,7 +21,7 @@ BELEG = Beleg(
     medium="Musterblatt",
     datum=date(2026, 9, 1),
     titel="Erfundener Titel",
-    text=(
+    text_modell=(
         "Die Kasse will im kommenden Jahr zusätzliche fachärztliche Stellen in ländlichen Bezirken "
         "ausschreiben."
     ),

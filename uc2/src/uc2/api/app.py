@@ -31,6 +31,7 @@ from starlette.concurrency import run_in_threadpool
 from uc2 import db
 from uc2.api.belegfilter import daten_fuer_ausgabe, ereignis_fuer_ausgabe
 from uc2.api.start import Lauf, Startauftrag, Starter, StartFehler, UnterprozessStarter
+from uc2.verhandlung.belege import lade_namensliste
 from uc2.verhandlung.bericht import bericht
 from uc2.verhandlung.cli import MAX_FRAGE, FrageFehler, pruefe_frage
 from uc2.verhandlung.fall import FALL_ID, bekannte_faelle
@@ -93,8 +94,10 @@ def erstelle_app(starter: Starter | None = None, verbinde: Verbinder | None = No
             raise HTTPException(404, f"unbekannter Fall {eingabe.fall!r}")
         if eingabe.provider != "mock" and os.environ.get(ECHTE_MODELLE) != "1":
             raise HTTPException(403, f"Provider {eingabe.provider!r} ist gesperrt ({ECHTE_MODELLE}=1 fehlt)")
-        if eingabe.belege == "index" and eingabe.provider != "mock":
-            raise HTTPException(422, "Belegquelle index ist vor der Maskierung (#43) nur mit mock erlaubt")
+        if eingabe.belege == "index" and eingabe.provider != "mock" and lade_namensliste() is None:
+            raise HTTPException(
+                422, "Belege aus dem Index gehen an ein echtes Modell nur mit Namensliste (UC2_NAMENSLISTE)"
+            )
         try:
             frage = None if eingabe.frage is None else pruefe_frage(eingabe.frage)
         except FrageFehler as fehler:

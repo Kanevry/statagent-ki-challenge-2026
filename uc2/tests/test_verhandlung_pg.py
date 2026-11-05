@@ -69,7 +69,8 @@ def test_kaputter_mock_zug_ergibt_ungueltige_ausgabe_und_lauf_endet_fertig(
 
 
 def test_index_quelle_mit_echtem_provider_wird_verweigert(pg_test: psycopg.Connection[Any]) -> None:
-    optionen = Laufoptionen(provider="claude", quelle=IndexQuelle(pg_test))
+    """Ohne Namensliste ist die Index-Quelle nicht maskiert; der Lauf bricht vor der Anlage ab."""
+    optionen = Laufoptionen(provider="claude", quelle=IndexQuelle(pg_test, namen=None))
     with pytest.raises(BelegFehler, match="nicht maskiert"):
         Verhandlung(pg_test, lade_fall("wartezeiten"), optionen).fuehre_aus()
 

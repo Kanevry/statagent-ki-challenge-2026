@@ -12,6 +12,10 @@ Für die API (`uc2.api`, #44) gibt es zwei Schalter:
   Zeile kennt die API die echte Fall-ID genau dann, wenn der Fall lesbar ist; SSE findet ihn sofort.
   Scheitert der Lauf vor der Anlage (Konfiguration, Belegfreigabe), kommt keine Zeile, und die API meldet
   den Start als gescheitert.
+
+Standard von `--belege` (`waehle_belege`): `index`, wenn `uc2.abschnitt` Zeilen hat und die Namensliste
+geladen ist (`UC2_NAMENSLISTE`, Datei außerhalb des Repos); sonst `fixture` mit Hinweis auf stderr. Ein
+ausdrückliches `--belege` gewinnt immer; mit echtem Provider prüft danach `pruefe_freigabe`.
 """
 
 from __future__ import annotations
@@ -22,11 +26,22 @@ import functools
 import json
 import sys
 import unicodedata
+from typing import Any
+
+import psycopg
 
 from uc2 import db
 from uc2.modelle import PROVIDER, ModellKonfigFehler, waehle_provider
 from uc2.verhandlung.ausgabe import als_text
-from uc2.verhandlung.belege import BelegFehler, Belegquelle, FixtureQuelle, IndexQuelle
+from uc2.verhandlung.belege import (
+    NAMENSLISTE_ANLEITUNG,
+    BelegFehler,
+    Belegquelle,
+    FixtureQuelle,
+    IndexQuelle,
+    hat_index,
+    lade_namensliste,
+)
 from uc2.verhandlung.bericht import bericht
 from uc2.verhandlung.fall import FallFehler, bekannte_faelle, lade_fall
 from uc2.verhandlung.lauf import PARALLEL_ECHT, Laufoptionen, Verhandlung, VerhandlungsFehler
@@ -62,6 +77,23 @@ def _melde_fall_id(fall_id: int) -> None:
     sys.stdout.flush()
 
 
+def waehle_belege(verbindung: psycopg.Connection[Any], ausdruecklich: str | None) -> Belegquelle:
+    """Belegquelle nach `--belege` oder, ohne Angabe, nach Index und Namensliste (siehe Moduldoku)."""
+    namen = lade_namensliste() if ausdruecklich != "fixture" else None
+    if ausdruecklich == "index":
+        return IndexQuelle(verbindung, namen=namen)
+    if ausdruecklich == "fixture":
+        return FixtureQuelle()
+    index = hat_index(verbindung)
+    if index and namen is not None:
+        return IndexQuelle(verbindung, namen=namen)
+    grund = (
+        "kein Index in uc2.abschnitt" if not index else f"keine Namensliste geladen ({NAMENSLISTE_ANLEITUNG})"
+    )
+    print(f"Hinweis: Belege aus der Fixture (erfunden), weil {grund}.", file=sys.stderr)
+    return FixtureQuelle()
+
+
 def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser(
         "verhandlung", help="Verhandlung eines Falls aus uc2/faelle/ laufen lassen (schreibt uc2.ereignis)"
@@ -77,8 +109,9 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     parser.add_argument(
         "--belege",
         choices=("fixture", "index"),
-        default="fixture",
-        help="Belegquelle: fixture (erfunden) oder index (echter Index, vor #43 nur mit mock)",
+        default=None,
+        help="Belegquelle: fixture (erfunden) oder index (maskierter Index; echte Provider nur mit "
+        "Namensliste). Standard: index, wenn Index und Namensliste da sind, sonst fixture",
     )
     parser.add_argument(
         "--max-akteure", type=int, help="Obergrenze der Akteure (Smoke), höchstens wie im Fall"
@@ -113,7 +146,11 @@ def ausfuehren(args: argparse.Namespace) -> int:
             print(f"Fehler: {name} muss mindestens 1 sein", file=sys.stderr)
             return 2
     with db.verbinde() as verbindung:
-        quelle: Belegquelle = FixtureQuelle() if args.belege == "fixture" else IndexQuelle(verbindung)
+        try:
+            quelle = waehle_belege(verbindung, args.belege)
+        except BelegFehler as fehler:
+            print(f"Fehler: {fehler}", file=sys.stderr)
+            return 2
         optionen = Laufoptionen(
             provider=provider,
             quelle=quelle,
