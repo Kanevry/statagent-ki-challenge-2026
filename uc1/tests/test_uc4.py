@@ -302,7 +302,7 @@ def _kette_kontext(*zahlen: uc4.Zahl) -> list[uc4.UcAntwort]:
 
 ARZT_MODELL = "Sie warten oft kürzer."
 ARZT = f"{uc4.KETTE_ANFANG} {ARZT_MODELL}"
-BELEGSATZ = "Die Zahl dahinter für Oktober 2025: 390.900 Beschäftigungsverhältnisse."
+BELEGSATZ = "Grundlage: 390.900 Beschäftigungsverhältnisse im Oktober 2025."
 
 
 def test_kette_zahl_von_uc3_und_uc2_steht_einmal_und_oben_die_bedeutung() -> None:
@@ -404,3 +404,15 @@ def test_kette_grenzfrage_bleibt_grenze_ohne_zahl() -> None:
         "Welches Medikament soll ich gegen Fieber nehmen?", _kette_kontext(), modell=modell
     )
     assert a.zahlen == [] and modell.aufrufe == []
+
+
+def test_kette_belegsatz_laesst_die_klammer_weg() -> None:
+    """Fängt den langen Belegsatz aus dem Probelauf: Die Gliederung steht schon bei StatAgent."""
+    wien = ZAHL_UC3.model_copy(
+        update={
+            "bezeichnung": "Beschäftigungsverhältnisse (Wien, Gesundheits- und Sozialwesen)",
+            "wert": 7498,
+        }
+    )
+    a = uc4.router_adapter("Wie viele?", _kette_kontext(wien), modell=modell_mit(ARZT_MODELL))
+    assert a.text.endswith("Grundlage: 7.498 Beschäftigungsverhältnisse im Oktober 2025.")
