@@ -11,13 +11,13 @@ uv run uc2 --help
 uv run pytest
 ```
 
-Daten liegen nie im Repo. Pfade über Umgebungsvariablen (Standard in Klammern):
+Daten liegen nie im Repo. Pfade über Umgebungsvariablen; ohne sie gilt die Ablage `KIC_ABLAGE` (Standard in Klammern, relativ dazu):
 
 | Variable | Inhalt |
 |---|---|
-| `UC2_PRESSE` | Pressespiegel-PDFs (`~/Projects/ki-challenge-2026/svbox/uc2/Presse`) |
-| `UC2_DATEN` | Kalibrierdaten (`~/Projects/ki-challenge-2026/data/uc2`) |
-| `UC2_ARBEIT` | Zwischenstände, Vektoren, Messberichte (`~/Projects/ki-challenge-2026/arbeit/uc2`) |
+| `UC2_PRESSE` | Pressespiegel-PDFs (`$KIC_ABLAGE/svbox/uc2/Presse`) |
+| `UC2_DATEN` | Kalibrierdaten (`$KIC_ABLAGE/data/uc2`) |
+| `UC2_ARBEIT` | Zwischenstände, Vektoren, Messberichte (`$KIC_ABLAGE/arbeit/uc2`) |
 | `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `UC2_DB` | PG (localhost, 5433, statistik, statistik, `healthpolicy`) |
 
 Teilmodule hängen ihre Befehle in `uc2.cli` über `register(subparsers)` ein.

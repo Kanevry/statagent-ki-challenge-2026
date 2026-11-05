@@ -96,8 +96,8 @@ where q.md5 = any(%s)
 order by q.ausgabedatum, a.artikeldatum, a.medium collate "C", a.titel collate "C", a.pdf_seite, s.nr,
          s.text_hash collate "C"
 """
-# collate "C": Die Sortierung darf nicht von der DB-Collation abhängen (gemessen 05.11.: M4 de_AT.UTF-8,
-# m5-Container en_US.utf8 → gleicher Inhalt, verschiedener Hash).
+# collate "C": Die Sortierung darf nicht von der DB-Collation abhängen (gemessen 05.11.: Rechner A de_AT.UTF-8,
+# Container auf Rechner B en_US.utf8 → gleicher Inhalt, verschiedener Hash).
 
 
 def inhalt_hash(verbindung: psycopg.Connection[Any], md5s: list[str]) -> str:
