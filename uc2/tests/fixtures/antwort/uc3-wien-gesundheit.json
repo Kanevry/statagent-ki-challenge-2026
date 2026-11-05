@@ -1,0 +1,27 @@
+{
+  "text": "Am Stichtag 31.03.2025 (März 2025) gab es 135.790 Beschäftigte (Wien, Gesundheits- und Sozialwesen); die Zahl ist endgültig (erfundener Wert, Testfixture).",
+  "belege": [
+    {
+      "uc": "uc3",
+      "quelle": "stat.stat_beschaeftigte",
+      "lieferung": "2025-03",
+      "monat": "2025-03",
+      "sql": "SELECT COALESCE(sum(s.wert), 0)::bigint AS wert FROM stat.stat_beschaeftigte s WHERE s.region = 'W' AND s.oenace = 'Q'",
+      "ref": "meta.lauf/1 regelstand r1 endgueltig",
+      "regelstand": "r1",
+      "lauf": "erfunden",
+      "stand": "endgueltig"
+    }
+  ],
+  "zahlen": [
+    {
+      "bezeichnung": "Beschäftigte (Wien, Gesundheits- und Sozialwesen)",
+      "wert": 135790,
+      "einheit": "Personen",
+      "beleg": 0
+    }
+  ],
+  "uc": "uc3",
+  "modell": null,
+  "protokoll_id": null
+}

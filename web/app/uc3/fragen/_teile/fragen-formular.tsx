@@ -70,7 +70,7 @@ function herunterladen(antwort: UcAntwort) {
   URL.revokeObjectURL(url);
 }
 
-/** Satz für die Online-Demo, in der nichts gerechnet und nichts geändert wird (KIC_ONLINE_LESEND=1). */
+/** Satz für die Online-Demo, wenn Fragen gesperrt sind (KIC_ONLINE_LESEND=1 ohne KIC_ONLINE_FRAGEN=1). */
 const NUR_ANSEHEN = "Online nur zum Ansehen: Fragen an die Daten stellen Sie in der lokalen Anwendung.";
 
 export function FragenFormular({
