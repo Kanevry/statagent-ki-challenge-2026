@@ -1057,7 +1057,7 @@
 }
 .s7b-box b {
   flex: 0 0 28px;
-  font-family: var(--f-mono);
+  font-family: var(--f-titel);
   font-size: 34px;
   font-weight: 500;
 }
