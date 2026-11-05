@@ -434,7 +434,60 @@ def uc4_antwort(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str
     daten = weg.antwort_frage(conn, frage, regelsatz)
     if daten["text"].startswith(weg.MEHRERE_WERTE) and _adapter_liest_gleich(conn, frage, regelsatz):
         return antwort_daten(conn, frage, regelsatz)
-    return {**weg.als_ucantwort(daten), "text": weg.als_webantwort(daten)["text"]}
+    if daten["typ"] == "fluktuation" and daten["zahlen"]:
+        return _fluktuation_kurz(daten)
+    return {
+        **weg.als_ucantwort(daten),
+        "text": _text_fuer_kette(weg.als_webantwort(daten)["text"], daten["zahlen"]),
+    }
+
+
+#: Teile des „Verstanden“-Satzes, die nichts eingrenzen.
+_ALLE = re.compile(r",\s+(?:Bundesland|Geschlecht|Branche|Beschäftigungskategorie): alle")
+_MONATSSATZ = re.compile(r"Am \d{1,2}\. (\S+) (\d{4}) gab es ([\d.]+ [^.]*\.)\s*")
+
+
+def _text_fuer_kette(text: str, zahlen: list[dict[str, Any]]) -> str:
+    """Der Text für die Stationen der Kette: Bei genau einer Zahl ist der erste Satz die Antwort, danach kommt
+    „Verstanden …“. Der erste Satz wird auch als Kern der Station verwendet, darum ohne Punkt nach dem Tag.
+    """
+    text = _ALLE.sub("", text)
+    satz = _MONATSSATZ.search(text)
+    if len(zahlen) != 1 or not text.startswith("Verstanden:") or satz is None:
+        return text
+    monat = f"{satz.group(2)}-{MONATSNAMEN[satz.group(1).lower()]:02d}"
+    tag = monatsletzter(monat).strftime("%d.%m.%Y")
+    antwort = f"Am {tag}, dem letzten Tag im {_monat_anzeige(monat)}, gab es {satz.group(3)}"
+    return f"{antwort} {text[: satz.start()].strip()} {text[satz.end() :].strip()}".strip()
+
+
+def _fluktuation_kurz(daten: dict[str, Any]) -> dict[str, Any]:
+    """Fluktuation in der Kette: eine Zahl (alle Wirtschaftsbereiche oder die gefragte Branche), die Tabelle je Branche
+    bleibt auf /uc3/fragen. Gibt es diese eine Zahl nicht, kommt nur der Verweis.
+    """
+    text = str(daten["text"])
+    monat = re.search(r"Fluktuation im (\S+ \d{4})", text)
+    wann = monat.group(1) if monat else ""
+    branche = re.search(r"gefragt war die Branche (\S)", text)
+    anfang = f"Fluktuation, ÖNACE {branche.group(1)} " if branche else "Fluktuation, alle Wirtschaftsbereiche"
+    treffer = [z for z in daten["zahlen"] if str(z["bezeichnung"]).startswith(anfang)]
+    verweis = "Die Zahlen je Branche stehen unter Fragen an die Daten."
+    if not treffer:
+        return {**_leer(f"Für {wann} gibt es diese Fluktuation nicht als eine Zahl. {verweis}")}
+    zahl = treffer[0]
+    wo = (
+        str(zahl["bezeichnung"]).removeprefix("Fluktuation, ÖNACE ")[2:]
+        if branche
+        else "alle Wirtschaftsbereiche"
+    )
+    wert = f"{zahl['wert']:.2f}".replace(".", ",")
+    saetze = [f"Die Fluktuation im {wann} war für {wo} {wert} Prozent.", verweis]
+    saetze += [h for h in daten["hinweise"] if "Zu- und Abgänge" in h]
+    return {
+        **_leer(" ".join(saetze)),
+        "belege": [daten["belege"][zahl["beleg"]]],
+        "zahlen": [{**zahl, "beleg": 0}],
+    }
 
 
 def _adapter_liest_gleich(conn: Verbindung, frage: str, regelsatz: str) -> bool:

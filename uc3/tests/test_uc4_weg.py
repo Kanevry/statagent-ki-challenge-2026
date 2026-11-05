@@ -51,12 +51,57 @@ def test_branche_im_alltagswort_wird_gelesen(gerechnet: Verbindung) -> None:
     assert "Gesundheits" in daten["zahlen"][0]["bezeichnung"]
 
 
-# Fängt (#176): Fluktuation ergab den Bestand; die Antwort darf keine Bestandszahl als Antwort nennen.
-def test_fluktuation_ist_kein_bestand(gerechnet: Verbindung) -> None:
-    daten = uc4_antwort(gerechnet, "Wie hoch ist die Fluktuation im September 2024?")
-    bestand = _direkt(gerechnet)
-    assert bestand not in _werte(daten)
-    assert any(z["bezeichnung"].startswith("Fluktuation") for z in daten["zahlen"])
+# Fängt (#176): Fluktuation ergab den Bestand. In der Kette steht genau eine Zahl, die Tabelle bleibt auf /uc3/fragen.
+def test_fluktuation_eine_zahl_kein_bestand(gerechnet: Verbindung) -> None:
+    frage = "Wie hoch ist die Fluktuation im September 2024?"
+    daten = uc4_antwort(gerechnet, frage)
+    voll = antwort_frage(gerechnet, frage)
+    gesamt = [z for z in voll["zahlen"] if z["bezeichnung"].startswith("Fluktuation, alle")]
+    assert [z["wert"] for z in daten["zahlen"]] == [gesamt[0]["wert"]] != [_direkt(gerechnet)]
+    assert daten["zahlen"][0]["beleg"] == 0 and len(daten["belege"]) == 1
+    assert "stat." in daten["belege"][0]["sql"]
+    assert daten["text"].startswith("Die Fluktuation im September 2024 war für alle Wirtschaftsbereiche ")
+    assert "Die Zahlen je Branche stehen unter Fragen an die Daten." in daten["text"]
+
+
+# Fängt: Gefragt war eine Branche, die Zahl für alle Branchen wäre eine andere Antwort.
+def test_fluktuation_gefragte_branche(gerechnet: Verbindung) -> None:
+    frage = "Fluktuation im Bau im September 2024"
+    daten = uc4_antwort(gerechnet, frage)
+    soll = [
+        z
+        for z in antwort_frage(gerechnet, frage)["zahlen"]
+        if z["bezeichnung"].startswith("Fluktuation, ÖNACE F ")
+    ]
+    assert [z["wert"] for z in daten["zahlen"]] == [soll[0]["wert"]]
+    assert "Bau" in daten["text"] and "alle Wirtschaftsbereiche" not in daten["text"]
+
+
+# Fängt: Bei genau einer Zahl steht „Verstanden …“ als Antwort der Station (ui-regie-36); „…: alle“ grenzt nichts ein.
+def test_eine_zahl_erster_satz_ist_die_antwort(gerechnet: Verbindung) -> None:
+    soll = _direkt(gerechnet)
+    daten = uc4_antwort(gerechnet, "Wie viele Beschäftigte gab es im September 2024?")
+    anfang = f"Am 30.09.2024, dem letzten Tag im September 2024, gab es {str(f'{soll:,}').replace(',', '.')} Beschäftigungsverhältnisse."
+    assert daten["text"].startswith(anfang)
+    assert ": alle" not in daten["text"]
+    assert "Verstanden: September 2024." in daten["text"]
+    wien = uc4_antwort(gerechnet, "Wie viele Beschäftigte gab es im September 2024 in Wien?")
+    assert (
+        wien["text"].startswith("Am 30.09.2024,")
+        and "Verstanden: September 2024, Bundesland Wien." in wien["text"]
+    )
+    kern = pytest.importorskip("plattform.router").kern_satz
+    assert kern(daten["text"]).startswith("Am 30.09.2024, dem letzten Tag im September 2024, gab es")
+
+
+# Fängt: „…: alle“ steht auch bei mehreren Zahlen im Text.
+def test_mehrere_zahlen_ohne_alle(gerechnet: Verbindung) -> None:
+    daten = uc4_antwort(gerechnet, "Zeitreihe 08/2024 bis 09/2024")
+    assert (
+        len(daten["zahlen"]) == 2
+        and ": alle" not in daten["text"]
+        and daten["text"].startswith("Verstanden:")
+    )
 
 
 # Fängt (#176): Eine Frage nach einer Person ergab den Gesamtbestand.
