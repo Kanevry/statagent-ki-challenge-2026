@@ -193,7 +193,13 @@ describe("VoiceKnopf Transkript", () => {
     expect(onTranskript).not.toHaveBeenCalled();
     sdk.emit("message", { type: "transcript", role: "user", transcriptType: "final", transcript: " Wie viele? " });
     sdk.emit("message", { type: "transcript", role: "assistant", transcriptType: "final", transcript: "Drei." });
-    expect(onTranskript.mock.calls).toEqual([[{ rolle: "nutzer", text: "Wie viele?" }], [{ rolle: "assistent", text: "Drei." }]]);
+    // Fängt ab (#120): neuere SDK-Stände senden den Typ mit Zusatz; der Abschnitt ging dann verloren.
+    sdk.emit("message", { type: 'transcript[transcriptType="final"]', role: "user", transcriptType: "final", transcript: "Und im April?" });
+    expect(onTranskript.mock.calls).toEqual([
+      [{ rolle: "nutzer", text: "Wie viele?" }],
+      [{ rolle: "assistent", text: "Drei." }],
+      [{ rolle: "nutzer", text: "Und im April?" }],
+    ]);
   });
 });
 

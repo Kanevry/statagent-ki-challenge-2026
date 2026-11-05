@@ -112,7 +112,7 @@ export default async function Bericht({ params, searchParams }: Props) {
           {titel}
         </Fliesstext>
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
-          {halt ? alltag(haltSatz(halt, lieferung)) : hauptsatz(lieferung, auffaelligkeiten)}
+          {halt && detail ? alltag(haltSatz(halt, lieferung, detail.fdCodes)) : hauptsatz(lieferung, auffaelligkeiten)}
         </Ueberschrift>
         {halt && detail ? (
           <>
@@ -203,7 +203,7 @@ function UeberblickAbschnitt({ b }: { b: Qualitaetsbericht }) {
   const { lauf, ueberblick: u, vormonat } = b;
   const { ausLieferung, gehtAuf } = abrechnung(lauf);
   const zeilen: [string, number][] = [
-    ["gelesene Sätze", u.gelesen],
+    ["gelesene Zeilen", u.gelesen],
     [`gezählt am Stichtag ${stichtag(lauf.lieferung)}`, u.gezaehlt],
     ...(u.fortgeschrieben > 0
       ? ([
@@ -220,7 +220,7 @@ function UeberblickAbschnitt({ b }: { b: Qualitaetsbericht }) {
     <Abschnitt
       nr={1}
       name="Überblick"
-      titel={`Aus ${formatZahl(u.gelesen)} gelesenen Sätzen ergeben sich ${formatZahl(u.gezaehlt)} Beschäftigungsverhältnisse am Stichtag.`}
+      titel={`Aus ${formatZahl(u.gelesen)} gelesenen Zeilen ergeben sich ${formatZahl(u.gezaehlt)} Beschäftigungsverhältnisse am Stichtag.`}
     >
       <HerkunftChip {...laufBeleg(lauf, { quelle: "meta.lauf", sql: sqlUeberblick(lauf) })} />
       <dl className="flex max-w-xl flex-col">
@@ -233,7 +233,7 @@ function UeberblickAbschnitt({ b }: { b: Qualitaetsbericht }) {
       </dl>
       <Status art={gehtAuf ? "ok" : "fehler"}>
         {gehtAuf
-          ? "Die Abrechnung geht auf: jeder gelesene Satz ist gezählt, nicht gezählt oder ausgeschlossen."
+          ? "Die Abrechnung geht auf: jede gelesene Zeile ist gezählt, nicht gezählt oder ausgeschlossen."
           : "Die Abrechnung geht nicht auf: gelesen ist nicht gleich gezählt, nicht gezählt und ausgeschlossen."}
       </Status>
       {vormonat && differenz !== null ? (
@@ -420,19 +420,27 @@ function AnnahmenAbschnitt({ b }: { b: Qualitaetsbericht }) {
                 {a.wirkungSaetze === null ? (
                   "Für diese Annahme gibt es in diesem Monat keine eindeutige Zahl, weil sie sich keiner einzelnen Prüfung zuordnen lässt."
                 ) : a.wirkungSaetze === 0 ? (
-                  "In diesem Monat hat die Regel keinen Satz verändert."
+                  a.wirkungQuelle === "pruefung" ? (
+                    <>
+                      {"Betrifft in diesem Monat "}
+                      <span className="font-mono tabular-nums">0</span>
+                      {` Beschäftigungsverhältnisse, die Prüfung (${a.wirkungRegel?.split("_")[0] ?? ""}) findet nichts.`}
+                    </>
+                  ) : (
+                    "In diesem Monat hat die Regel keine Zeile verändert."
+                  )
                 ) : a.wirkungQuelle === "pruefung" ? (
                   <>
                     {"Betrifft in diesem Monat "}
                     <span className="font-mono tabular-nums">{formatZahl(a.wirkungSaetze)}</span>
-                    {` ${a.wirkungSaetze === 1 ? "Beschäftigungsverhältnis" : "Beschäftigungsverhältnisse"}, so viele findet die Prüfung (${a.wirkungRegel}).`}
+                    {` ${a.wirkungSaetze === 1 ? "Beschäftigungsverhältnis" : "Beschäftigungsverhältnisse"}, so viele findet die Prüfung (${a.wirkungRegel?.split("_")[0] ?? ""}).`}
                   </>
                 ) : (
                   <>
                     {"Betrifft in diesem Monat "}
                     <span className="font-mono tabular-nums">{formatZahl(a.wirkungSaetze)}</span>
-                    {" Sätze."}
-                    {gesamt.has(a.wirkungSaetze) && " Diese Zahl umfasst alle geprüften Sätze, nicht nur die geänderten."}
+                    {a.wirkungSaetze === 1 ? " Zeile." : " Zeilen."}
+                    {gesamt.has(a.wirkungSaetze) && " Diese Zahl umfasst alle geprüften Zeilen, nicht nur die geänderten."}
                   </>
                 )}
               </Fliesstext>

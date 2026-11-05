@@ -41,4 +41,10 @@ describe("alltag", () => {
     expect(alltagOder(null)).toBeNull();
     expect(alltagOder("10 Verhältnisse")).toBe("10 Beschäftigungsverhältnisse");
   });
+
+  // Fehler (Review !77, Punkt 5): „Unbekannt (UNB bzw. 0), Satz zählt“ aus der Datenbank, die Seite sagt sonst „Zeile“.
+  it("macht aus Satz und Sätze Zeile und Zeilen, Regelsatz bleibt", () => {
+    expect(alltag("Unbekannt (UNB bzw. 0), Satz zählt.")).toBe("Unbekannt (UNB bzw. 0), Zeile zählt.");
+    expect(alltag("1.663 Sätze, Regelsatz v2")).toBe("1.663 Zeilen, Regelsatz v2");
+  });
 });

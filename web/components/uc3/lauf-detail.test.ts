@@ -100,10 +100,10 @@ describe("Lauf-Detail: Auffälligkeiten", () => {
         ],
       },
     });
-    expect(haltSatz(p13, "2025-03")).toBe(
+    expect(haltSatz(p13, "2025-03", ["AngestellteFD", "ArbeiterFD"])).toBe(
       "Im März 2025 fehlen alle freien Dienstverträge (Februar 2025: 1.492). Deshalb ist der Monat angehalten.",
     );
-    const gruppen = fehlendeGruppen([p13]);
+    const gruppen = fehlendeGruppen([p13], ["AngestellteFD", "ArbeiterFD"]);
     expect(
       massnahmeSatz(
         { name: "P16_verhaeltnisse_verschwunden", massnahme: "keine (Einzelfälle, z. B. Stornos)", einstufung: "erklaert-plausibel", anhalten: false },
@@ -114,6 +114,16 @@ describe("Lauf-Detail: Auffälligkeiten", () => {
       massnahmeSatz({ name, massnahme: "Monat angehalten", einstufung: "erklaert-datenproblem", anhalten: true, details: { rueckfrage: "R3" } });
     expect(new Set(["P15_x", "P16_x", "P17_x"].map(halt))).toEqual(
       new Set(["Der Monat ist angehalten, bis die Fachabteilung Rückfrage R3 beantwortet."]),
+    );
+    // Fehler (Review !77, Punkt 2): fehlt nur ArbeiterFD, stand trotzdem „alle freien Dienstverträge“.
+    const nurArbeiter = treffer({
+      art: "auspraegung_verschwunden",
+      anzahl: 1,
+      anhalten: true,
+      details: { auspraegungen: [{ code: "ArbeiterFD", gliederung: "qualifikation", aktuell: 0, vormonat: 361 }] },
+    });
+    expect(haltSatz(nurArbeiter, "2025-03", ["AngestellteFD", "ArbeiterFD"])).toBe(
+      "Im März 2025 fehlen freie Dienstverträge, im Februar 2025 waren es 361 (ArbeiterFD). Deshalb ist der Monat angehalten.",
     );
     expect(weiterSatz({ lieferung: "2025-10", fortgeschrieben: 77746 }, ["R3"])).toBe(
       "Wir übernehmen 77.746 Beschäftigungsverhältnisse aus der Lieferung September 2025 (Regel E07). Der Monat bleibt vorläufig, bis die Fachabteilung Rückfrage R3 beantwortet.",

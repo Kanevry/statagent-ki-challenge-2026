@@ -26,6 +26,11 @@ function antworte(status: number, body: unknown) {
 
 afterEach(() => vi.unstubAllGlobals());
 
+/** Bodies der POSTs an /api/uc4/frage; der Sprechknopf holt daneben seine Konfiguration. */
+function fragen(abruf: ReturnType<typeof antworte>): unknown[] {
+  return abruf.mock.calls.filter(([adresse]) => adresse === "/api/uc4/frage").map(([, optionen]) => JSON.parse(String(optionen?.body)));
+}
+
 const karten = () => Array.from(document.querySelectorAll<HTMLElement>("[data-uc-karte]"));
 
 it("Enter schickt ab; Karten stehen in Kettenreihenfolge, jede Zahl mit Herkunft, fehlender UC mit Grund", async () => {
@@ -36,7 +41,7 @@ it("Enter schickt ab; Karten stehen in Kettenreihenfolge, jede Zahl mit Herkunft
 
   await user.type(screen.getByLabelText("Frage an die Kette"), "Wie viele Beschäftigte?{Enter}");
   expect(await screen.findByText("Einfach erklärt.")).toBeTruthy();
-  expect(JSON.parse(String(abruf.mock.calls[0]?.[1]?.body))).toEqual({ frage: "Wie viele Beschäftigte?" });
+  expect(fragen(abruf)).toEqual([{ frage: "Wie viele Beschäftigte?" }]);
 
   expect(karten().map((k) => [k.dataset.ucKarte, k.dataset.zustand])).toEqual([
     ["uc3", "antwort"],
@@ -47,7 +52,7 @@ it("Enter schickt ab; Karten stehen in Kettenreihenfolge, jede Zahl mit Herkunft
   expect(zahlen).toHaveLength(1);
   for (const zahl of zahlen) expect(zahl.querySelector('[data-baustein="herkunft"]')).not.toBeNull();
   expect(within(karten()[1]!).getByText("Noch nicht angeschlossen")).toBeTruthy();
-  expect(screen.getByRole("status").textContent).toBe("2 Antworten da, es fehlt HealthPolicy Simulator.");
+  expect(document.querySelector("[data-uc4-ansage]")?.textContent).toBe("2 Antworten da, es fehlt HealthPolicy Simulator.");
 });
 
 it("ein gesperrter POST zeigt in jeder Karte den Hinweis auf die Online-Demo", async () => {
@@ -104,4 +109,22 @@ it("Zahl mit beleg = 1 zeigt den zweiten Beleg, durchgereichte Zahl trägt „vo
     "stat.beschaeftigte_monat Monat 2025-02 aus Lieferung 2025-03 · Regelstand v2 · Lauf abcdef01 · SQL ansehen",
   );
   expect(within(karten()[2]!).getByText("Antwort fehlgeschlagen")).toBeTruthy();
+});
+
+// Fängt ab (#113): Die Modellangabe je Karte war eine eigene Randlinie statt der Modell-Pille (Frame CKCV4), und
+// eine Karte ohne Modell (UC3 rechnet mit Code) stand in KI-Violett.
+it("Modell je Karte als Modell-Pille, ohne Modell ein ruhiger Satz ohne Pille", async () => {
+  const user = userEvent.setup();
+  const mitModell = { text: "Einfach erklärt.", belege: [], zahlen: [], uc: "uc1" as const, modell: "gpt-5-4-mini", protokoll_id: null };
+  antworte(200, { antworten: [{ ...uc3, modell: null }, mitModell], fehlend: [{ uc: "uc2", grund: "kein_adapter" }] });
+  render(<Einstieg />);
+  await user.type(screen.getByLabelText("Frage an die Kette"), "x{Enter}");
+  await screen.findByText("Einfach erklärt.");
+  const [uc3Karte, , uc1Karte] = karten();
+  const pille = within(uc1Karte!).getByTestId("uc4-modell");
+  expect(pille.getAttribute("data-baustein")).toBe("modell");
+  expect(pille.textContent).toBe("Modell:gpt-5-4-mini");
+  const ohne = within(uc3Karte!).getByTestId("uc4-modell");
+  expect(ohne.getAttribute("data-baustein")).toBeNull();
+  expect(ohne.textContent).toBe("Ohne KI gerechnet, nur mit Code.");
 });
