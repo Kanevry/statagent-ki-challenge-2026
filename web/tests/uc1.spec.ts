@@ -1,6 +1,6 @@
 /**
  * /uc1 SV KI-Lotse (#35) im Browser, je Projekt der Konfiguration (desktop 1440×900, mobil 390×844).
- * Das Replay läuft ohne Netz: jeder Aufruf unter /api/ wird abgebrochen. Läuft in der CI, lokal nicht auf dem M4.
+ * Das Replay läuft ohne Netz: jeder Aufruf unter /api/ wird abgebrochen. Läuft in der CI, nicht lokal.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
