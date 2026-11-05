@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Fliesstext, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
 import { Begriff, HerkunftChip } from "@kic/ui/bausteine";
+import { laufBeleg } from "@/lib/uc3/beleg";
 import { leerSatz } from "@/lib/uc3/db";
 import { Fachbegriff } from "@/lib/uc3/fachbegriff";
 import {
@@ -110,7 +111,7 @@ export default async function Klassifikationen() {
       </header>
 
       <ul className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Begriffe auf dieser Seite">
-        {(["Klassifikation", "Klassifikationswechsel", "Regel"] as const).map((wort) => (
+        {(["Klassifikation", "ÖNACE", "Klassifikationswechsel", "Regel"] as const).map((wort) => (
           <li key={wort} className="font-sans text-14 font-semibold text-ink">
             <Fachbegriff wort={wort} />
           </li>
@@ -131,18 +132,14 @@ export default async function Klassifikationen() {
         </Fliesstext>
         <div className="flex flex-wrap gap-2">
           <HerkunftChip quelle="stat.klass_oenace" sql={sqlAbschnitte()} />
-          {bestand && (
-            <HerkunftChip
-              quelle="stat.stat_beschaeftigte"
-              sql={sqlAbschnittBestand(bestand.alt, bestand.neu)}
-              regelstand={bestand.alt.regelstand === bestand.neu.regelstand ? bestand.alt.regelstand : null}
-              stand={bestand.alt.ergebnisStand === "vorlaeufig" || bestand.neu.ergebnisStand === "vorlaeufig" ? "vorlaeufig" : "endgueltig"}
-            />
-          )}
+          {bestand &&
+            [bestand.alt, bestand.neu].map((lauf) => (
+              <HerkunftChip key={lauf.lieferung} {...laufBeleg(lauf, { sql: sqlAbschnittBestand(bestand.alt, bestand.neu) })} />
+            ))}
         </div>
         {bestand && (
           <Fliesstext groesse={14} ton="gedaempft">
-            Die Zahlen sind Beschäftigungsverhältnisse am Stichtag, jeweils aus dem maßgeblichen Lauf des Monats.
+            Die Zahlen sind Beschäftigungsverhältnisse am Stichtag, jeweils aus dem maßgeblichen Lauf des Monats. Je Monat nennt ein Beleg Lieferung, Regelstand und Lauf.
           </Fliesstext>
         )}
         <Abschnittstabelle zeilen={abschnitte} bestand={bestand?.werte ?? null} />

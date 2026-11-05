@@ -248,7 +248,7 @@ export function sqlBerichtsliste(regelsatz = "v1"): string {
     "SELECT m.lieferung,",
     "  (SELECT count(*) FROM meta.pruefung_treffer p WHERE p.lauf_id = m.id AND p.anzahl > 0) AS auffaelligkeiten,",
     "  (SELECT count(*) FROM meta.pruefung_treffer p WHERE p.lauf_id = m.id AND p.anzahl > 0",
-    "     AND p.einstufung = 'nicht-erklaerbar') AS nicht_erklaerbar,",
+    "     AND coalesce(p.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar') AS nicht_erklaerbar,",
     "  EXISTS (SELECT 1 FROM meta.revision v WHERE v.lauf_id = m.id AND v.differenz <> 0) AS revisionsbedarf",
     "FROM massgeblich m ORDER BY m.lieferung;",
   ].join("\n");
@@ -272,7 +272,7 @@ export function sqlBerichtsuebersicht(regelsatz = "v1"): string {
     "SELECT (SELECT count(*) FROM massgeblich) AS monate_mit_bericht, q.nr AS offene_rueckfrage, q.titel,",
     "       count(DISTINCT m.lieferung) AS monate_wartend",
     "FROM massgeblich m",
-    "JOIN meta.pruefung_treffer t ON t.lauf_id = m.id AND t.anzahl > 0 AND t.einstufung = 'nicht-erklaerbar'",
+    "JOIN meta.pruefung_treffer t ON t.lauf_id = m.id AND t.anzahl > 0 AND coalesce(t.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar'",
     "JOIN meta.regel r ON r.id = t.regel_id",
     `JOIN meta.rueckfrage q ON ${OFFENE_RUECKFRAGE}`,
     "GROUP BY q.nr, q.titel ORDER BY monate_wartend DESC, q.nr;",
@@ -285,7 +285,7 @@ export function sqlOhneRueckfrage(regelsatz = "v1"): string {
     massgeblichCte(regelsatz),
     "SELECT count(DISTINCT m.lieferung) AS monate_mit_weiterem_offenen",
     "FROM massgeblich m",
-    "JOIN meta.pruefung_treffer t ON t.lauf_id = m.id AND t.anzahl > 0 AND t.einstufung = 'nicht-erklaerbar'",
+    "JOIN meta.pruefung_treffer t ON t.lauf_id = m.id AND t.anzahl > 0 AND coalesce(t.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar'",
     "JOIN meta.regel r ON r.id = t.regel_id",
     `WHERE NOT EXISTS (SELECT 1 FROM meta.rueckfrage q WHERE ${OFFENE_RUECKFRAGE});`,
   ].join("\n");
@@ -301,7 +301,7 @@ export function sqlUeberblick(lauf: Pick<Lauf, "id">): string {
 
 export function sqlAuffaelligkeiten(lauf: Pick<Lauf, "id">): string {
   return [
-    "SELECT r.name, t.ebene, t.anzahl, t.umfang, t.einstufung, t.anhalten",
+    "SELECT r.name, t.ebene, t.anzahl, t.umfang, coalesce(t.einstufung, 'nicht-erklaerbar') AS einstufung, t.anhalten",
     "FROM meta.pruefung_treffer t JOIN meta.regel r ON r.id = t.regel_id",
     `WHERE t.lauf_id = ${literal(lauf.id)} AND t.anzahl > 0`,
     "ORDER BY r.reihenfolge, r.name;",
@@ -390,7 +390,7 @@ export function leseBerichtsliste(regelsatz = "v1"): Promise<Lesung<Berichtszeil
         SELECT t.lauf_id, q.nr
         FROM meta.pruefung_treffer t JOIN meta.regel r ON r.id = t.regel_id
         LEFT JOIN meta.rueckfrage q ON q.antwort IS NULL AND (q.nr = t.details ->> 'rueckfrage' OR q.regel_name = r.name)
-        WHERE t.anzahl > 0 AND t.einstufung = 'nicht-erklaerbar' AND t.lauf_id IN (
+        WHERE t.anzahl > 0 AND coalesce(t.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar' AND t.lauf_id IN (
           SELECT id FROM meta.lauf WHERE regelsatz = ${regelsatz} AND status IN ('fertig', 'unveraendert'))`,
     ]);
     const mitRevision = new Set(revision.map((z) => Number(z.lauf_id)));
@@ -495,7 +495,7 @@ export function leseQualitaetsbericht(lieferung: string, regelsatz = "v1"): Prom
       sql<{ korrigiert: string | null }[]>`SELECT korrigiert FROM meta.lauf WHERE id = ${lauf.id}`,
       sql<{ n: string }[]>`SELECT count(*) AS n FROM meta.pruefung_treffer WHERE lauf_id = ${lauf.id}`,
       sql<TrefferZeile[]>`
-        SELECT t.ebene, t.anzahl, t.umfang, t.einstufung, t.massnahme, t.anhalten, t.beleg_sql,
+        SELECT t.ebene, t.anzahl, t.umfang, coalesce(t.einstufung, 'nicht-erklaerbar') AS einstufung, t.massnahme, t.anhalten, t.beleg_sql,
                t.details ->> 'rueckfrage' AS rueckfrage, r.name, r.beschreibung, r.parameter ->> 'satz' AS satz_vorlage
         FROM meta.pruefung_treffer t JOIN meta.regel r ON r.id = t.regel_id
         WHERE t.lauf_id = ${lauf.id} AND t.anzahl > 0

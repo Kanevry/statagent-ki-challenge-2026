@@ -2,7 +2,6 @@ import { Status } from "@kic/ui/basis";
 import { HerkunftChip, WarnChip } from "@kic/ui/bausteine";
 import { laufBeleg } from "@/lib/uc3/beleg";
 import {
-  beispielText,
   einstufungStatus,
   massnahmeSatz,
   sqlTreffer,
@@ -12,11 +11,10 @@ import {
 } from "@/lib/uc3/lauf-detail";
 import type { Lauf } from "@/lib/uc3/typen";
 
-/** Eine Auffälligkeit: Titel als Satz, Einstufung als Symbol und Wort, Maßnahme, Beispiele, Beleg. */
+/** Eine Auffälligkeit: Titel als Satz, Einstufung als Symbol und Wort, Maßnahme, Beleg. Einzeldaten (Verhältnis-Nummern) zeigt das Web nie. */
 function Eintrag({ lauf, treffer }: { lauf: Lauf; treffer: Treffer }) {
   const status = einstufungStatus(treffer.einstufung, treffer.offeneRueckfragen);
   const massnahme = massnahmeSatz(treffer);
-  const beispiele = beispielText(treffer.beispiele);
   return (
     <li className="flex flex-col gap-2 border-b border-line py-4" data-regel={treffer.name}>
       <div className="flex flex-wrap items-center gap-2">
@@ -33,7 +31,6 @@ function Eintrag({ lauf, treffer }: { lauf: Lauf; treffer: Treffer }) {
           {`Was wir tun: ${massnahme}`}
         </p>
       )}
-      {beispiele && <p className="break-words font-sans text-12 text-slate">{`Beispiele (Verhältnis-Nummer): ${beispiele}`}</p>}
       <HerkunftChip {...laufBeleg(lauf, { quelle: "meta.pruefung_treffer", sql: sqlTreffer(lauf, treffer) })} />
     </li>
   );

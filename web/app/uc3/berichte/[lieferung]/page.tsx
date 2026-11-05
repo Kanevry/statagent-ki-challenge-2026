@@ -129,7 +129,7 @@ export default async function Bericht({ params }: Props) {
       </header>
 
       <ul className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Begriffe auf dieser Seite">
-        {(["Qualitätsbericht", "Regelstand", "Auffälligkeit", "Einstufung", "Rückfrage", "Annahme", "Revisionsbedarf"] as const).map(
+        {(["Qualitätsbericht", "Regelstand", "Auffälligkeit", "Einstufung", "Rückfrage", "Annahme", "Revisionsbedarf", "Sätze"] as const).map(
           (wort) => (
             <li key={wort} className="font-sans text-14 font-semibold text-ink">
               <Fachbegriff wort={wort} />

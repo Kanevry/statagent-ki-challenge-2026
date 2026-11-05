@@ -2,26 +2,21 @@ import { describe, expect, it, vi } from "vitest";
 import { UC3_ARGV, type Ausfuehren, type CliLauf } from "./cli";
 import {
   entscheidungArgv,
+  ergebnisPfad,
   erstelleFreigabeAntwort,
+  gesamtZeile,
+  GRUND_UNBEKANNT,
   isoZeit,
   klartext,
   kurzerGrund,
   vorschlagId,
   waage,
   waageBeleg,
+  waageSatz,
 } from "./freigabe";
 
-// Nie die echte CLI: jede Antwort kommt aus einem gefälschten `ausfuehren`.
-// Echter Aufbau des Aufrufs aus cli.ts; nur der Standard-Ausführer wirft, damit nie die echte CLI läuft.
-vi.mock("./cli", async (importOriginal) => {
-  const echt = await importOriginal<typeof import("./cli")>();
-  return {
-    ...echt,
-    standardAusfuehren: async () => {
-      throw new Error("echte CLI im Test");
-    },
-  };
-});
+// Nie die echte CLI: jeder Handler bekommt ein gefälschtes `ausfuehren` (die Prozessgrenze); der Aufbau des
+// Aufrufs aus cli.ts (uv, UC3_ARGV, argv) bleibt echt.
 
 function anfrage(body: unknown): Request {
   return new Request("http://localhost/api/uc3/freigabe", {
@@ -91,17 +86,30 @@ describe("POST /api/uc3/freigabe", () => {
     expect(aus).not.toHaveBeenCalled();
   });
 
-  it("Fehler: stderr mit Pfaden landet beim Client. Exit 1 → 409 mit kurzem Grund ohne Pfad", async () => {
+  it("Fehler: stderr landet beim Client. Bekannter Fehler → 409 mit festem Satz, nichts aus stderr", async () => {
     const stderr =
       "nicht freigegeben: Vorschlag uc3/1 ist bereits freigegeben, angewendet in /Users/x/Projects/repo/uc3\nTraceback (most recent call last):\n  File \"/opt/geheim.py\"";
     const aus = fake({ code: 1, stderr });
     const antwort = await handler(aus)(anfrage({ id: 1, name: "Anna Beispiel", entscheidung: "ja" }));
     expect(antwort.status).toBe(409);
-    const text = JSON.stringify(await antwort.json());
-    expect(text).toContain("ist bereits freigegeben");
-    expect(text).not.toContain("/Users");
-    expect(text).not.toContain("Traceback");
-    expect(text).not.toContain("geheim");
+    const daten = await antwort.json();
+    expect(daten.grund).toBe("Über diese Änderung ist schon entschieden.");
+    const text = JSON.stringify(daten);
+    for (const teil of ["/Users", "Traceback", "geheim", "uc3/1", "angewendet in"]) expect(text).not.toContain(teil);
+  });
+
+  it("Fehler: Git-Fehler mit Pfad erreicht den Client. GitFehler → fester Satz, kein Pfad, kein git-Text", async () => {
+    const stderr =
+      "nicht freigegeben: git commit: fatal: Unable to create '/Users/anna/Projects/ki-challenge/.git/index.lock': File exists.";
+    const antwort = await handler(fake({ code: 1, stderr }))(anfrage({ id: 1, name: "Anna Beispiel", entscheidung: "ja" }));
+    expect(antwort.status).toBe(409);
+    const daten = await antwort.json();
+    expect(daten).toEqual({
+      fehler: `Die Entscheidung wurde nicht gespeichert. ${GRUND_UNBEKANNT}`,
+      grund: GRUND_UNBEKANNT,
+    });
+    const text = JSON.stringify(daten);
+    for (const teil of ["/Users", "index.lock", "git", "fatal"]) expect(text).not.toContain(teil);
   });
 
   it("Fehler: gespeicherte Freigabe, deren Anwenden scheiterte, gilt als abgewiesen. Exit 1 mit JSON → 200", async () => {
@@ -179,14 +187,40 @@ describe("Freigabe-Waage", () => {
     },
   };
 
-  it("Fehler: Waage zeigt die gleichbleibende Gesamtzahl. Sie zeigt die geänderte Kategorie", () => {
-    const w = waage(probe, { qualifikation: { Arbeiter: "Arbeiter" } });
+  it("Fehler: Umschlüsselung darf nicht als Zuwachs erscheinen. Gesamt gleich → Hauptzeile ist die Gesamtzahl", () => {
+    const w = waage(probe, { qualifikation: { Arbeiter: "Arbeiter", ArbeiterDV: "Arbeiter DV" } });
     expect(w).not.toBeNull();
-    expect(w!.haupt).toMatchObject({ code: "Arbeiter", vorher: 0, nachher: 210000, bezeichnung: "Arbeiter (Qualifikation)" });
-    expect(w!.haupt.merkmal).not.toBe("gesamt");
-    // Unveränderte Kategorien (Geschlecht) stehen auch nicht unter „weitere“.
+    expect(w!.umverteilung).toBe(true);
+    // Nicht „Arbeiter 0 → 210.000“ groß: das läse sich wie 210.000 zusätzliche Verhältnisse.
+    expect(w!.haupt).toMatchObject({ merkmal: "gesamt", vorher: 410587, nachher: 410587, differenz: 0 });
+    expect(waageSatz(w!)).toBe("Im Oktober 2025 verteilen sich die 410.587 Verhältnisse neu, gesamt bleibt 410.587.");
+    // Alle verschobenen Kategorien stehen darunter, unveränderte (Geschlecht) nicht.
+    expect(w!.weitere).toHaveLength(6);
     expect(w!.weitere.map((z) => z.merkmal)).not.toContain("geschlecht");
-    expect(w!.weitere).toHaveLength(5);
+    expect(w!.weitere.find((z) => z.code === "Arbeiter")).toMatchObject({ vorher: 0, nachher: 210000 });
+    expect(w!.weitere.find((z) => z.code === "ArbeiterDV")).toMatchObject({ vorher: 200000, nachher: 0 });
+    expect(gesamtZeile(w!)).toBeNull();
+    // Beleg der Hauptzeile zielt auf die Gesamtzahl.
+    expect(waageBeleg(1, w!).sql).toContain("probe->'2025-10'->'vorher'->>'gesamt'");
+  });
+
+  it("Fehler: Gesamtzahl ändert sich unbemerkt. Hauptzeile ist die Kategorie, dazu eine Zeile zur Gesamtzahl", () => {
+    const monat = probe["2025-10"];
+    const mitZuwachs = {
+      "2025-10": {
+        ...monat,
+        nachher: {
+          ...monat.nachher,
+          gesamt: 412000,
+          je_merkmal: { ...monat.vorher.je_merkmal, qualifikation: { ...monat.vorher.je_merkmal.qualifikation, ArbeiterDV: 201413 } },
+        },
+      },
+    };
+    const w = waage(mitZuwachs)!;
+    expect(w.umverteilung).toBe(false);
+    expect(w.haupt).toMatchObject({ code: "ArbeiterDV", vorher: 200000, nachher: 201413 });
+    expect(gesamtZeile(w)).toMatchObject({ merkmal: "gesamt", vorher: 410587, nachher: 412000, differenz: 1413 });
+    expect(waageBeleg(1, w, gesamtZeile(w)!).sql).toContain("->'nachher'->>'gesamt'");
   });
 
   it("Fehler: leere Probe erfindet Zahlen. Ohne Probe → null", () => {
@@ -196,7 +230,7 @@ describe("Freigabe-Waage", () => {
 
   it("Fehler: Beleg zeigt eine andere Zahl als die Waage. SQL zielt auf genau Merkmal und Code", () => {
     const w = waage(probe)!;
-    const sql = waageBeleg(1, w).sql ?? "";
+    const sql = waageBeleg(1, w, w.weitere.find((z) => z.code === "Arbeiter")).sql ?? "";
     expect(sql).toContain("probe->'2025-10'->'nachher'->'je_merkmal'->'qualifikation'->>'Arbeiter'");
     expect(sql).toContain("->'vorher'->");
     expect(sql).toContain("WHERE id = 1;");
@@ -219,6 +253,10 @@ describe("Hilfen", () => {
     expect(diff).toBe("- R6: qualifikation = „code“\n+ R6: qualifikation = „beschaeftigungskategorie“");
   });
 
+  it("Fehler: Ergebnis-Link zeigt nach der Freigabe die alten Zahlen. Er trägt den Regelsatz", () => {
+    expect(ergebnisPfad({ monat: "2025-10", regelsatz: "v2" })).toBe("/uc3/laeufe/2025-10?regelsatz=v2");
+  });
+
   it("Fehler: Routen-ID „1abc“ oder „0“ öffnet einen Vorschlag", () => {
     expect(vorschlagId("1")).toBe(1);
     for (const t of ["0", "1abc", "-1", "01", "99999999999"]) expect(vorschlagId(t)).toBeNull();
@@ -230,11 +268,17 @@ describe("Hilfen", () => {
     expect(isoZeit("None")).toBeNull();
   });
 
-  it("Fehler: ohne erkennbaren Grund wird stderr durchgereicht", () => {
-    expect(kurzerGrund("Traceback /opt/x.py")).toBeNull();
-    expect(kurzerGrund("nicht abgelehnt: Eine Ablehnung braucht eine Begründung")).toBe(
-      "Eine Ablehnung braucht eine Begründung",
+  it("Fehler: CLI-Text wird durchgereicht. Bekannte Fehler → fester Satz, alles andere → Standardsatz", () => {
+    expect(kurzerGrund("Traceback /opt/x.py")).toBe(GRUND_UNBEKANNT);
+    expect(kurzerGrund("nicht freigegeben: Rollenbezeichnung statt Name: 'team'")).toBe("Bitte Vor- und Nachname eingeben.");
+    expect(kurzerGrund("nicht freigegeben: Vorschlag 7 ist abgelehnt, nicht offen")).toBe(
+      "Über diese Änderung ist schon entschieden.",
     );
+    expect(kurzerGrund("nicht abgelehnt: Vorschlag uc3/9 gibt es nicht")).toBe("Diesen Vorschlag gibt es nicht.");
+    expect(kurzerGrund("nicht abgelehnt: Eine Ablehnung braucht eine Begründung")).toBe(
+      "Eine Ablehnung braucht eine Begründung.",
+    );
+    expect(kurzerGrund("nicht freigegeben: objekt_ref '/Users/x' liegt nicht innerhalb des Repos")).toBe(GRUND_UNBEKANNT);
     expect(entscheidungArgv({ id: 3, name: "Anna Beispiel", entscheidung: "ja" })).toEqual([
       "freigabe", "3", "--name", "Anna Beispiel", "--json",
     ]);

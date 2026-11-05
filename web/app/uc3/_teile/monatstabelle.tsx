@@ -3,16 +3,37 @@ import { Status } from "@kic/ui/basis";
 import { formatDifferenz, formatZahl, HerkunftChip } from "@kic/ui/bausteine";
 import { monatszeileBeleg, type Beleg } from "@/lib/uc3/beleg";
 import { abrechnung } from "@/lib/uc3/laeufe";
-import { monatName } from "@/lib/uc3/monat";
+import { monatName, verschieben } from "@/lib/uc3/monat";
 import { laufPfad } from "@/lib/uc3/navigation";
 import type { Monatslauf } from "@/lib/uc3/typen";
 
+type Stand = { art: "ok" | "warnung" | "fehler" | "info"; wort: string };
+
+/** Stand eines Monats: ein angehaltener Monat bleibt vorläufig, das steht dabei. */
+export function monatsStand(monat: Pick<Monatslauf, "angehalten" | "ergebnisStand"> & { gehtAuf: boolean }): Stand {
+  if (!monat.gehtAuf) return { art: "fehler", wort: "Abrechnung geht nicht auf" };
+  if (monat.angehalten) return { art: "warnung", wort: "angehalten, vorläufig" };
+  if (monat.ergebnisStand === "endgueltig") return { art: "ok", wort: "veröffentlicht" };
+  return { art: "info", wort: "vorläufig" };
+}
+
 /** Stand eines Monats als Symbol und Wort. */
 export function MonatsStatus({ monat }: { monat: Monatslauf }) {
-  if (!abrechnung(monat).gehtAuf) return <Status art="fehler">Abrechnung geht nicht auf</Status>;
-  if (monat.angehalten) return <Status art="warnung">angehalten</Status>;
-  if (monat.ergebnisStand === "endgueltig") return <Status art="ok">veröffentlicht</Status>;
-  return <Status art="info">vorläufig</Status>;
+  const stand = monatsStand({ ...monat, gehtAuf: abrechnung(monat).gehtAuf });
+  return <Status art={stand.art}>{stand.wort}</Status>;
+}
+
+/**
+ * Vergleichsmonat für „zum Vormonat“: der Kalendermonat davor, nur wenn er in der Liste steht. Sonst „erster Monat“
+ * (nichts davor gerechnet) oder „Vormonat fehlt“ (Lücke in der Liste).
+ */
+export function vormonatIn(
+  monat: Pick<Monatslauf, "lieferung">,
+  monate: readonly Pick<Monatslauf, "lieferung">[],
+): { lieferung: string } | "erster Monat" | "Vormonat fehlt" {
+  const davor = verschieben(monat.lieferung, -1);
+  if (monate.some((m) => m.lieferung === davor)) return { lieferung: davor };
+  return monate.some((m) => m.lieferung < monat.lieferung) ? "Vormonat fehlt" : "erster Monat";
 }
 
 /** Haben alle Monate denselben Regelstand? Dann steht er einmal über der Tabelle statt in jeder Zeile. */
@@ -21,16 +42,22 @@ export function gemeinsamerRegelstand(monate: readonly Monatslauf[]): string | n
   return erster && monate.every((m) => m.regelstand === erster) ? erster : null;
 }
 
-/** Beleg einer Zeile; Regelstand und Stand stehen schon über der Tabelle bzw. in der Spalte „Stand“. */
+/**
+ * Beleg einer Zeile; der Regelstand steht schon über der Tabelle. Den Stand behält der Chip, wenn der Monat
+ * angehalten ist oder Fortgeschriebene enthält: dann bleibt er vorläufig, auch wenn die Spalte „angehalten“ zeigt.
+ */
 function zeilenBeleg(monat: Monatslauf, regelstandOben: boolean): Beleg {
-  return { ...monatszeileBeleg(monat), stand: null, ...(regelstandOben ? { regelstand: null } : {}) };
+  const standZeigen = monat.angehalten || monat.fortgeschrieben > 0;
+  return { ...monatszeileBeleg(monat), ...(standZeigen ? {} : { stand: null }), ...(regelstandOben ? { regelstand: null } : {}) };
 }
 
-function Vormonat({ monat, vormonat }: { monat: Monatslauf; vormonat?: Monatslauf }) {
+function Vormonat({ monat, monate }: { monat: Monatslauf; monate: readonly Monatslauf[] }) {
+  const v = vormonatIn(monat, monate);
+  const vormonat = typeof v === "string" ? undefined : monate.find((m) => m.lieferung === v.lieferung);
   return vormonat ? (
     <>{formatDifferenz(monat.gezaehlt - vormonat.gezaehlt)}</>
   ) : (
-    <span className="font-sans text-12 text-slate">erster Monat</span>
+    <span className="font-sans text-12 text-slate">{typeof v === "string" ? v : "Vormonat fehlt"}</span>
   );
 }
 
@@ -90,7 +117,7 @@ export function Monatstabelle({ monate }: { monate: readonly Monatslauf[] }) {
           </tr>
         </thead>
         <tbody>
-          {monate.map((monat, index) => (
+          {monate.map((monat) => (
             <tr key={monat.lieferung} className="border-b border-line" data-lieferung={monat.lieferung}>
               <th scope="row" className={`${zelle} text-left font-medium`}>
                 <Link href={laufPfad(monat.lieferung)} className={monatsLink}>
@@ -102,7 +129,7 @@ export function Monatstabelle({ monate }: { monate: readonly Monatslauf[] }) {
                 <Fortgeschrieben monat={monat} />
               </td>
               <td className={zahlZelle}>
-                <Vormonat monat={monat} vormonat={monate[index - 1]} />
+                <Vormonat monat={monat} monate={monate} />
               </td>
               <td className={zahlZelle}>{formatZahl(monat.gelesen)}</td>
               <td className={zahlZelle}>{formatZahl(monat.nichtGezaehlt)}</td>
@@ -119,7 +146,7 @@ export function Monatstabelle({ monate }: { monate: readonly Monatslauf[] }) {
       </table>
 
       <ul className="flex flex-col md:hidden" aria-label="Monate">
-        {monate.map((monat, index) => (
+        {monate.map((monat) => (
           <li key={monat.lieferung} className="flex flex-col gap-2 border-b border-line py-4" data-lieferung={monat.lieferung}>
             <div className="flex items-baseline justify-between gap-4">
               <Link href={laufPfad(monat.lieferung)} className={`font-sans text-16 font-semibold ${monatsLink}`}>
@@ -131,7 +158,7 @@ export function Monatstabelle({ monate }: { monate: readonly Monatslauf[] }) {
               <span className="font-mono tabular-nums text-20">{formatZahl(monat.gezaehlt)}</span>
               {" Verhältnisse am Stichtag, zum Vormonat "}
               <span className="font-mono tabular-nums">
-                <Vormonat monat={monat} vormonat={monate[index - 1]} />
+                <Vormonat monat={monat} monate={monate} />
               </span>
               <Fortgeschrieben monat={monat} />
             </p>

@@ -23,7 +23,6 @@ export interface Treffer {
   ebene: string;
   anzahl: number;
   umfang: string | null;
-  beispiele: unknown[];
   einstufung: Einstufung | null;
   massnahme: string | null;
   anhalten: boolean;
@@ -43,7 +42,14 @@ export interface Revision {
   aktuell: number;
   differenz: number;
   statusVorher: string;
+  /** Summe gleich, aber Gruppen (Geschlecht, ÖNACE, Bundesland …) verschieben sich. */
+  umgeschichtet: boolean;
   ursachen: Ursache[];
+}
+
+/** Revisionsbedarf wie im Qualitätsbericht: Summe anders oder Umschichtung zwischen Gruppen. */
+export function hatRevisionsbedarf(r: Pick<Revision, "differenz" | "umgeschichtet">): boolean {
+  return r.differenz !== 0 || r.umgeschichtet;
 }
 
 export interface Region {
@@ -58,8 +64,19 @@ export interface Determinismus {
   hash: string;
 }
 
+/** Was `uv run uc3 veroeffentlichen` vor dem Veröffentlichen prüft (statagent/lauf.py, veroeffentlichen). */
+export interface VeroeffentlichenLage {
+  /** Aktive, für die Lieferung gültige Regeln ohne Freigabe mit Namen. */
+  regelnOhneFreigabe: number;
+  /** Ist der Regelstand des Laufs für diese Lieferung freigegeben (meta.regelstand_freigabe)? */
+  regelstandFreigegeben: boolean;
+  /** Offene Rückfragen, auf die der Monat wartet (anhaltende Prüfungen, Fortschreibung E07). */
+  wartetAuf: string[];
+}
+
 export interface LaufDetail {
   lauf: Lauf;
+  veroeffentlichen: VeroeffentlichenLage;
   vormonat: Lauf | null;
   /** Gibt es für den Monat davor bzw. danach einen Lauf? Dann verlinkt die Seite dorthin. */
   davor: boolean;
@@ -87,11 +104,15 @@ export function aufzaehlen(teile: readonly string[]): string {
   return teile.length < 2 ? (teile[0] ?? "") : `${teile.slice(0, -1).join(", ")} und ${teile.at(-1)}`;
 }
 
-/** Einstufung als Status: Art für Symbol und Farbe, Wort für den Text. */
+/**
+ * Einstufung als Status: Art für Symbol und Farbe, Wort für den Text. Ohne Einstufung gilt ein Treffer wie im
+ * Qualitätsbericht-Generator als nicht erklärbar.
+ */
 export function einstufungStatus(
-  e: Einstufung | null,
+  einstufung: Einstufung | null,
   offeneRueckfragen?: readonly string[],
 ): { art: "ok" | "warnung" | "fehler" | "info"; wort: string } {
+  const e = einstufung ?? "nicht-erklaerbar";
   const wartet = wartetSatz(offeneRueckfragen);
   if (e === "nicht-erklaerbar" && wartet) return { art: "warnung", wort: `nicht erklärbar, ${wartet}` };
   switch (e) {
@@ -99,10 +120,8 @@ export function einstufungStatus(
       return { art: "ok", wort: "erklärt, plausibel" };
     case "erklaert-datenproblem":
       return { art: "warnung", wort: "erklärt, Datenproblem" };
-    case "nicht-erklaerbar":
-      return { art: "fehler", wort: "nicht erklärbar" };
     default:
-      return { art: "info", wort: "noch nicht eingestuft" };
+      return { art: "fehler", wort: "nicht erklärbar" };
   }
 }
 
@@ -206,7 +225,7 @@ export function massnahmeSatz(
   const regel = MASSNAHME[t.name.split("_")[0] ?? ""];
   if (!regel) return rohAlsSatz(roh);
   return regel({
-    einstufung: t.einstufung,
+    einstufung: t.einstufung ?? "nicht-erklaerbar",
     anhalten: t.anhalten,
     rueckfrage: /Rückfrage|an die Fachabteilung/.test(roh),
     klammer: /^keine \((.+)\)/.exec(roh)?.[1] ?? null,
@@ -246,7 +265,7 @@ export function sortiereTreffer(treffer: readonly Treffer[]): Treffer[] {
     .sort(
       (a, b) =>
         Number(b.anhalten) - Number(a.anhalten) ||
-        (EINSTUFUNG_RANG[a.einstufung ?? ""] ?? 3) - (EINSTUFUNG_RANG[b.einstufung ?? ""] ?? 3) ||
+        (EINSTUFUNG_RANG[a.einstufung ?? "nicht-erklaerbar"] ?? 3) - (EINSTUFUNG_RANG[b.einstufung ?? "nicht-erklaerbar"] ?? 3) ||
         b.anzahl - a.anzahl,
     );
 }
@@ -348,10 +367,35 @@ export function ursachenSatz(ursachen: readonly Ursache[]): string | null {
   return teile.length ? `Gründe: ${aufzaehlen(teile)}.` : null;
 }
 
-/** Bis zu drei Beispiel-Kennungen als Text. */
-export function beispielText(beispiele: readonly unknown[], max = 3): string | null {
-  const ids = beispiele.filter((b) => typeof b === "number" || typeof b === "string").slice(0, max);
-  return ids.length ? ids.map(String).join(", ") : null;
+/**
+ * Kann der Befehl `veroeffentlichen` diesen Monat veröffentlichen? Spiegelt die Vorbedingungen der CLI: nicht schon
+ * endgültig, kein anhaltender Treffer, keine Fortgeschriebenen (E07), alle Regeln und der Regelstand freigegeben.
+ */
+export function kannVeroeffentlichen(
+  lauf: Pick<Lauf, "ergebnisStand" | "fortgeschrieben">,
+  angehalten: boolean,
+  lage: Pick<VeroeffentlichenLage, "regelnOhneFreigabe" | "regelstandFreigegeben">,
+): boolean {
+  return (
+    lauf.ergebnisStand !== "endgueltig" &&
+    !angehalten &&
+    lauf.fortgeschrieben === 0 &&
+    lage.regelnOhneFreigabe === 0 &&
+    lage.regelstandFreigegeben
+  );
+}
+
+/** „Der Monat bleibt vorläufig, bis die Rückfrage R3 beantwortet ist.“ */
+export function bleibtVorlaeufigSatz(wartetAuf: readonly string[]): string {
+  if (wartetAuf.length === 0) return "Der Monat bleibt vorläufig, bis die offene Frage geklärt ist.";
+  return wartetAuf.length === 1
+    ? `Der Monat bleibt vorläufig, bis die Rückfrage ${wartetAuf[0]} beantwortet ist.`
+    : `Der Monat bleibt vorläufig, bis die Rückfragen ${aufzaehlen(wartetAuf)} beantwortet sind.`;
+}
+
+/** Ein Satz je Berichtsmonat, in dem sich nur die Gruppen verschieben. */
+export function umschichtungSatz(r: Pick<Revision, "berichtsmonat">): string {
+  return `Mit dieser Lieferung bliebe die Summe für ${monatName(r.berichtsmonat)} gleich, aber Verhältnisse verschieben sich zwischen den Gruppen.`;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -394,7 +438,7 @@ export function sqlDeterminismus(lauf: Pick<Lauf, "lieferung" | "regelsatz" | "r
 /** Abfrage des Treffers (liefert alle gezeigten Angaben) und darunter die Prüfabfrage der Regel. */
 export function sqlTreffer(lauf: Pick<Lauf, "id">, t: Pick<Treffer, "regelId" | "ebene" | "belegSql">): string {
   const kopf = [
-    "SELECT r.name, p.anzahl, p.umfang, p.einstufung, p.massnahme, p.anhalten, p.beispiele,",
+    "SELECT r.name, p.anzahl, p.umfang, coalesce(p.einstufung, 'nicht-erklaerbar') AS einstufung, p.massnahme, p.anhalten,",
     "       ARRAY(SELECT q.nr FROM meta.rueckfrage q WHERE q.antwort IS NULL",
     "             AND (q.nr = p.details ->> 'rueckfrage' OR q.regel_name = r.name)) AS offene_rueckfragen",
     "FROM meta.pruefung_treffer p JOIN meta.regel r ON r.id = p.regel_id",
@@ -403,9 +447,13 @@ export function sqlTreffer(lauf: Pick<Lauf, "id">, t: Pick<Treffer, "regelId" | 
   return t.belegSql ? [...kopf, "", "-- Prüfabfrage der Regel, mit der die Anzahl gerechnet wurde:", t.belegSql.trim()].join("\n") : kopf.join("\n");
 }
 
+const UMGESCHICHTET =
+  "EXISTS (SELECT 1 FROM meta.revision g WHERE g.lauf_id = r.lauf_id AND g.berichtsmonat = r.berichtsmonat AND g.gliederung <> 'insgesamt' AND g.differenz <> 0)";
+
 export function sqlRevision(lauf: Pick<Lauf, "id">, berichtsmonat: string): string {
   return [
-    "SELECT r.berichtsmonat, r.veroeffentlicht, r.aktuell, r.differenz, r.status_vorher, u.ursache, u.anzahl",
+    "SELECT r.berichtsmonat, r.veroeffentlicht, r.aktuell, r.differenz, r.status_vorher, u.ursache, u.anzahl,",
+    `       ${UMGESCHICHTET} AS umgeschichtet`,
     "FROM meta.revision r",
     "LEFT JOIN meta.revision_ursache u ON u.lauf_id = r.lauf_id AND u.berichtsmonat = r.berichtsmonat",
     `WHERE r.lauf_id = ${literal(lauf.id)} AND r.gliederung = 'insgesamt' AND r.berichtsmonat = ${literal(berichtsmonat)}`,
@@ -414,7 +462,26 @@ export function sqlRevision(lauf: Pick<Lauf, "id">, berichtsmonat: string): stri
 }
 
 export function sqlKeineRevision(lauf: Pick<Lauf, "id">): string {
-  return `SELECT count(*) AS monate_mit_revisionsbedarf\nFROM meta.revision\nWHERE lauf_id = ${literal(lauf.id)} AND gliederung = 'insgesamt' AND differenz <> 0;`;
+  return [
+    "SELECT count(*) AS monate_mit_revisionsbedarf",
+    "FROM meta.revision r",
+    `WHERE r.lauf_id = ${literal(lauf.id)} AND r.gliederung = 'insgesamt'`,
+    `  AND (r.differenz <> 0 OR ${UMGESCHICHTET});`,
+  ].join("\n");
+}
+
+/** Was der Befehl veroeffentlichen prüft: Regeln ohne Freigabe, Freigabe des Regelstands, offene Rückfragen. */
+export function sqlVeroeffentlichen(lauf: Pick<Lauf, "id" | "lieferung" | "regelsatz" | "regelstand">): string {
+  const l = literal(lauf.lieferung);
+  return [
+    "SELECT (SELECT count(*) FROM meta.regel",
+    `         WHERE regelsatz = ${literal(lauf.regelsatz)} AND aktiv AND freigegeben_von IS NULL`,
+    `           AND gueltig_ab_lieferung <= ${l} AND (gueltig_bis_lieferung IS NULL OR gueltig_bis_lieferung >= ${l})) AS regeln_ohne_freigabe,`,
+    "       EXISTS (SELECT 1 FROM meta.regelstand_freigabe",
+    `               WHERE regelsatz = ${literal(lauf.regelsatz)} AND lieferung = ${l} AND regelstand = ${literal(lauf.regelstand)}) AS regelstand_freigegeben,`,
+    `       (SELECT fortgeschrieben FROM meta.lauf WHERE id = ${literal(lauf.id)}) AS fortgeschrieben,`,
+    `       (SELECT count(*) FROM meta.pruefung_treffer WHERE lauf_id = ${literal(lauf.id)} AND anhalten) AS anhaltende_treffer;`,
+  ].join("\n");
 }
 
 /** Bestand je Bundesland; ROLLUP liefert die Summenzeile (Bundesland leer) gleich mit. */
@@ -445,8 +512,7 @@ interface TrefferZeile {
   ebene: string;
   anzahl: string | number;
   umfang: string | null;
-  beispiele: unknown;
-  einstufung: Einstufung | null;
+  einstufung: Einstufung;
   massnahme: string | null;
   anhalten: boolean;
   beleg_sql: string | null;
@@ -456,7 +522,7 @@ interface TrefferZeile {
 async function ladeTreffer(sql: Sql, laufId: number): Promise<Treffer[]> {
   const zeilen = await sql<TrefferZeile[]>`
     SELECT p.regel_id, r.name, r.art, r.beschreibung, r.parameter->>'satz' AS satz, p.ebene, p.anzahl, p.umfang,
-           p.beispiele, p.einstufung, p.massnahme, p.anhalten, p.beleg_sql,
+           coalesce(p.einstufung, 'nicht-erklaerbar') AS einstufung, p.massnahme, p.anhalten, p.beleg_sql,
            ARRAY(SELECT q.nr FROM meta.rueckfrage q
                  WHERE q.antwort IS NULL AND (q.nr = p.details ->> 'rueckfrage' OR q.regel_name = r.name)
                  ORDER BY length(q.nr), q.nr) AS offene_rueckfragen
@@ -472,7 +538,6 @@ async function ladeTreffer(sql: Sql, laufId: number): Promise<Treffer[]> {
       ebene: z.ebene,
       anzahl: zahl(z.anzahl),
       umfang: z.umfang,
-      beispiele: Array.isArray(z.beispiele) ? z.beispiele : [],
       einstufung: z.einstufung,
       massnahme: z.massnahme,
       anhalten: z.anhalten,
@@ -484,9 +549,13 @@ async function ladeTreffer(sql: Sql, laufId: number): Promise<Treffer[]> {
 
 async function ladeRevisionen(sql: Sql, laufId: number): Promise<Revision[]> {
   const [revisionen, ursachen] = await Promise.all([
-    sql<{ berichtsmonat: string; veroeffentlicht: string; aktuell: string; differenz: string; status_vorher: string }[]>`
-      SELECT berichtsmonat, veroeffentlicht, aktuell, differenz, status_vorher
-      FROM meta.revision WHERE lauf_id = ${laufId} AND gliederung = 'insgesamt' ORDER BY berichtsmonat`,
+    sql<
+      { berichtsmonat: string; veroeffentlicht: string; aktuell: string; differenz: string; status_vorher: string; umgeschichtet: boolean }[]
+    >`
+      SELECT r.berichtsmonat, r.veroeffentlicht, r.aktuell, r.differenz, r.status_vorher,
+             EXISTS (SELECT 1 FROM meta.revision g WHERE g.lauf_id = r.lauf_id AND g.berichtsmonat = r.berichtsmonat
+                     AND g.gliederung <> 'insgesamt' AND g.differenz <> 0) AS umgeschichtet
+      FROM meta.revision r WHERE r.lauf_id = ${laufId} AND r.gliederung = 'insgesamt' ORDER BY r.berichtsmonat`,
     sql<{ berichtsmonat: string; ursache: string; anzahl: string }[]>`
       SELECT berichtsmonat, ursache, anzahl FROM meta.revision_ursache WHERE lauf_id = ${laufId}`,
   ]);
@@ -496,6 +565,7 @@ async function ladeRevisionen(sql: Sql, laufId: number): Promise<Revision[]> {
     aktuell: zahl(r.aktuell),
     differenz: zahl(r.differenz),
     statusVorher: r.status_vorher,
+    umgeschichtet: Boolean(r.umgeschichtet),
     ursachen: ursachen
       .filter((u) => u.berichtsmonat === r.berichtsmonat)
       .map((u) => ({ ursache: u.ursache, anzahl: zahl(u.anzahl) })),
@@ -530,11 +600,44 @@ async function ladeDeterminismus(sql: Sql, lauf: Lauf): Promise<Determinismus> {
   return { laeufe: zahl(z?.laeufe), hashes: zahl(z?.hashes), hash: z?.ergebnis_hash ?? "" };
 }
 
+async function ladeVeroeffentlichen(sql: Sql, lauf: Lauf, treffer: readonly Treffer[]): Promise<VeroeffentlichenLage> {
+  const [[z], e07] = await Promise.all([
+    sql<{ regeln_ohne_freigabe: string; regelstand_freigegeben: boolean }[]>`
+      SELECT (SELECT count(*) FROM meta.regel
+               WHERE regelsatz = ${lauf.regelsatz} AND aktiv AND freigegeben_von IS NULL
+                 AND gueltig_ab_lieferung <= ${lauf.lieferung}
+                 AND (gueltig_bis_lieferung IS NULL OR gueltig_bis_lieferung >= ${lauf.lieferung})) AS regeln_ohne_freigabe,
+             EXISTS (SELECT 1 FROM meta.regelstand_freigabe
+                     WHERE regelsatz = ${lauf.regelsatz} AND lieferung = ${lauf.lieferung}
+                       AND regelstand = ${lauf.regelstand}) AS regelstand_freigegeben`,
+    lauf.fortgeschrieben > 0
+      ? sql<{ nr: string }[]>`
+          SELECT nr FROM meta.rueckfrage
+          WHERE antwort IS NULL AND regel_name LIKE 'E07%' AND lieferungen LIKE ${`%${lauf.lieferung}%`}
+          ORDER BY length(nr), nr`
+      : Promise.resolve([] as { nr: string }[]),
+  ]);
+  const ausTreffern = treffer.filter((t) => t.anhalten).flatMap((t) => t.offeneRueckfragen ?? []);
+  const wartetAuf = [...new Set([...e07.map((r) => r.nr), ...ausTreffern])].sort(
+    (a, b) => a.length - b.length || a.localeCompare(b),
+  );
+  return {
+    regelnOhneFreigabe: zahl(z?.regeln_ohne_freigabe),
+    regelstandFreigegeben: Boolean(z?.regelstand_freigegeben),
+    wartetAuf,
+  };
+}
+
 async function hatLauf(sql: Sql, lieferungen: string[], regelsatz: string): Promise<Set<string>> {
   const zeilen = await sql<{ lieferung: string }[]>`
     SELECT DISTINCT lieferung FROM meta.lauf
     WHERE regelsatz = ${regelsatz} AND lieferung IN ${sql(lieferungen)} AND status IN ('fertig', 'unveraendert')`;
   return new Set(zeilen.map((z) => z.lieferung));
+}
+
+/** Regelsatz aus der Adresse: nur „v1“ oder „v2“, alles andere gilt als „v1“. */
+export function regelsatzAus(wert: string | string[] | undefined): "v1" | "v2" {
+  return wert === "v2" ? "v2" : "v1";
 }
 
 /** Alles für die Seite eines Monats; `null`, wenn es für den Monat keinen Lauf gibt. */
@@ -553,7 +656,8 @@ export async function ladeLaufDetail(sql: Sql, lieferung: string, regelsatz = "v
     ladeRegionen(sql, lauf),
     ladeDeterminismus(sql, lauf),
   ]);
-  return { lauf, vormonat, davor: nachbarn.has(davor), danach: nachbarn.has(danach), treffer, revisionen, regionen, determinismus };
+  const veroeffentlichen = await ladeVeroeffentlichen(sql, lauf, treffer);
+  return { lauf, veroeffentlichen, vormonat, davor: nachbarn.has(davor), danach: nachbarn.has(danach), treffer, revisionen, regionen, determinismus };
 }
 
 export function leseLaufDetail(lieferung: string, regelsatz = "v1"): Promise<Lesung<LaufDetail | null>> {

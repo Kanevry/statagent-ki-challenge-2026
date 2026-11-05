@@ -10,10 +10,14 @@ import { abrechnung } from "@/lib/uc3/laeufe";
 import {
   abrechnungSatz,
   bestandSatz,
+  bleibtVorlaeufigSatz,
   determinismusSatz,
   haltSatz,
   haltTreffer,
+  hatRevisionsbedarf,
+  kannVeroeffentlichen,
   leseLaufDetail,
+  regelsatzAus,
   revisionSatz,
   sqlBestandMitVormonat,
   sqlDeterminismus,
@@ -22,6 +26,8 @@ import {
   sqlRegionen,
   sqlRevision,
   sqlTreffer,
+  sqlVeroeffentlichen,
+  umschichtungSatz,
   ursachenSatz,
   type LaufDetail,
 } from "@/lib/uc3/lauf-detail";
@@ -35,7 +41,15 @@ import { Bundeslaender } from "./_teile/bundeslaender";
 // und Bundesländern. Alles kommt aus einer Lesung; ohne Datenbank zeigt die Seite den Leerzustand (HTTP 200).
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ lieferung: string }> };
+type Props = {
+  params: Promise<{ lieferung: string }>;
+  searchParams: Promise<{ regelsatz?: string | string[] }>;
+};
+
+/** Pfad eines Monats; mit Regelsatz v2 bleibt der Parameter erhalten. */
+function monatsPfad(lieferung: string, regelsatz: string): string {
+  return regelsatz === "v2" ? `${laufPfad(lieferung)}?regelsatz=v2` : laufPfad(lieferung);
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { lieferung } = await params;
@@ -46,7 +60,7 @@ const link = "font-sans text-14 text-ink underline underline-offset-4 hover:text
 
 function LaufStatus({ lauf, angehalten }: { lauf: Lauf; angehalten: boolean }) {
   if (!abrechnung(lauf).gehtAuf) return <Status art="fehler">Abrechnung geht nicht auf</Status>;
-  if (angehalten) return <Status art="warnung">angehalten</Status>;
+  if (angehalten) return <Status art="warnung">angehalten, vorläufig</Status>;
   if (lauf.ergebnisStand === "endgueltig") return <Status art="ok">veröffentlicht</Status>;
   return <Status art="info">vorläufig</Status>;
 }
@@ -61,7 +75,7 @@ function Kennzahl({ wort, wert, zusatz }: { wort: string; wert: number; zusatz?:
   );
 }
 
-function Weiter({ lieferung, davor, danach }: { lieferung: string; davor: boolean; danach: boolean }) {
+function Weiter({ lieferung, regelsatz, davor, danach }: { lieferung: string; regelsatz: string; davor: boolean; danach: boolean }) {
   const vor = verschieben(lieferung, -1);
   const nach = verschieben(lieferung, 1);
   return (
@@ -74,12 +88,12 @@ function Weiter({ lieferung, davor, danach }: { lieferung: string; davor: boolea
       <ul className="flex flex-wrap gap-x-6 gap-y-2">
         {davor && (
           <li>
-            <Link href={laufPfad(vor)} className={link}>{`Vormonat: ${monatName(vor)}`}</Link>
+            <Link href={monatsPfad(vor, regelsatz)} className={link}>{`Vormonat: ${monatName(vor)}`}</Link>
           </li>
         )}
         {danach && (
           <li>
-            <Link href={laufPfad(nach)} className={link}>{`Nächster Monat: ${monatName(nach)}`}</Link>
+            <Link href={monatsPfad(nach, regelsatz)} className={link}>{`Nächster Monat: ${monatName(nach)}`}</Link>
           </li>
         )}
         <li>
@@ -92,23 +106,44 @@ function Weiter({ lieferung, davor, danach }: { lieferung: string; davor: boolea
   );
 }
 
-export default async function LaufSeite({ params }: Props) {
+export default async function LaufSeite({ params, searchParams }: Props) {
   const { lieferung } = await params;
   if (!istMonat(lieferung)) notFound();
+  const regelsatz = regelsatzAus((await searchParams).regelsatz);
 
-  const lesung = await leseLaufDetail(lieferung);
+  const lesung = await leseLaufDetail(lieferung, regelsatz);
   if (!lesung.ok || lesung.daten === null) {
+    const name = monatName(lieferung);
+    const satz = !lesung.ok
+      ? leerSatz(lesung.grund)
+      : regelsatz === "v2"
+        ? `Für ${name} gibt es mit Regelsatz v2 noch keinen Lauf. Er entsteht, sobald die freigegebene Änderung gerechnet ist.`
+        : `Für ${name} gibt es noch keinen Lauf.`;
     return (
       <>
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
-          {monatName(lieferung)}
+          {name}
         </Ueberschrift>
+        {regelsatz === "v2" && (
+          <p className="font-sans text-14 font-semibold text-ink">
+            <Fachbegriff wort="Regelsatz" />
+          </p>
+        )}
         <Leerzustand
-          satz={lesung.ok ? `Für ${monatName(lieferung)} gibt es noch keinen Lauf.` : leerSatz(lesung.grund)}
+          satz={satz}
           aktion={
-            <Link href="/uc3" className={link}>
-              Alle Monatsläufe
-            </Link>
+            <ul className="flex flex-wrap gap-x-6 gap-y-2">
+              {regelsatz === "v2" && lesung.ok && (
+                <li>
+                  <Link href={laufPfad(lieferung)} className={link}>{`${name} mit Regelsatz v1`}</Link>
+                </li>
+              )}
+              <li>
+                <Link href="/uc3" className={link}>
+                  Alle Monatsläufe
+                </Link>
+              </li>
+            </ul>
           }
         />
       </>
@@ -118,6 +153,44 @@ export default async function LaufSeite({ params }: Props) {
   return <Detail detail={lesung.daten} />;
 }
 
+/** Wie es mit einem vorläufigen Monat weitergeht; den Befehl gibt es nur, wenn die CLI ihn auch ausführt. */
+function SoGehtEsWeiter({ detail, angehalten }: { detail: LaufDetail; angehalten: boolean }) {
+  const { lauf, veroeffentlichen } = detail;
+  if (lauf.ergebnisStand === "endgueltig") return null;
+  const name = monatName(lauf.lieferung);
+  const kann = kannVeroeffentlichen(lauf, angehalten, veroeffentlichen);
+  const wartet = angehalten || lauf.fortgeschrieben > 0;
+  const befehl = `uv run uc3 veroeffentlichen --lieferung ${lauf.lieferung}${lauf.regelsatz === "v1" ? "" : ` --regelsatz ${lauf.regelsatz}`} --name "Vorname Nachname"`;
+  return (
+    <section
+      aria-labelledby="weiter-titel"
+      className={`flex max-w-3xl flex-col items-start gap-2 border-l-2 pl-4 ${wartet ? "border-warn-fg" : "border-line"}`}
+    >
+      <Ueberschrift stufe={3} als="h2" id="weiter-titel">
+        {`So geht es mit ${name} weiter.`}
+      </Ueberschrift>
+      {kann ? (
+        <>
+          <Fliesstext>
+            Alle Regeln und der Regelstand sind mit Namen freigegeben, keine Prüfung hält den Monat an. Diese Seite
+            ändert nichts; veröffentlicht wird mit diesem Befehl:
+          </Fliesstext>
+          <code className="block w-full overflow-x-auto break-all bg-paper py-2 font-mono text-14 text-ink">{befehl}</code>
+        </>
+      ) : wartet ? (
+        <Fliesstext>{bleibtVorlaeufigSatz(veroeffentlichen.wartetAuf)}</Fliesstext>
+      ) : (
+        <Fliesstext>
+          {veroeffentlichen.regelnOhneFreigabe > 0
+            ? `Der Monat bleibt vorläufig, bis ${veroeffentlichen.regelnOhneFreigabe === 1 ? "die letzte Regel" : `${formatZahl(veroeffentlichen.regelnOhneFreigabe)} Regeln`} mit Namen freigegeben ${veroeffentlichen.regelnOhneFreigabe === 1 ? "ist" : "sind"}.`
+            : "Der Monat bleibt vorläufig, bis der Regelstand für diesen Monat mit Namen freigegeben ist."}
+        </Fliesstext>
+      )}
+      <HerkunftChip {...laufBeleg(lauf, { quelle: "meta.regel", sql: sqlVeroeffentlichen(lauf) })} />
+    </section>
+  );
+}
+
 function Detail({ detail }: { detail: LaufDetail }) {
   const { lauf, vormonat, treffer, revisionen, regionen, determinismus } = detail;
   const halt = haltTreffer(treffer);
@@ -125,12 +198,14 @@ function Detail({ detail }: { detail: LaufDetail }) {
   const tag = stichtag(lauf.lieferung);
   const bestandChip = laufBeleg(lauf, { quelle: "stat.stat_beschaeftigte", sql: sqlBestandMitVormonat(lauf, vormonat) });
   const kennzahlChip = laufBeleg(lauf, { quelle: "meta.lauf", sql: sqlKennzahlen(lauf) });
-  const mitRevision = revisionen.filter((r) => r.differenz !== 0);
+  const mitRevision = revisionen.filter(hatRevisionsbedarf);
 
   return (
     <>
       <header className="flex max-w-4xl flex-col gap-4">
-        <Fliesstext groesse={14} ton="gedaempft">{`Monatslauf ${name}, Stichtag ${tag}`}</Fliesstext>
+        <Fliesstext groesse={14} ton="gedaempft">
+          {`Monatslauf ${name}, Stichtag ${tag}${lauf.regelsatz === "v1" ? "" : `, gerechnet mit Regelsatz ${lauf.regelsatz}`}`}
+        </Fliesstext>
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
           {halt ? haltSatz(halt, lauf.lieferung) : bestandSatz(lauf, vormonat)}
         </Ueberschrift>
@@ -147,28 +222,23 @@ function Detail({ detail }: { detail: LaufDetail }) {
               : "Noch nicht veröffentlicht."}
           </Fliesstext>
         </div>
+        {lauf.regelsatz !== "v1" && (
+          <p className="font-sans text-14 font-semibold text-ink">
+            <Fachbegriff wort="Regelsatz" />
+          </p>
+        )}
       </header>
 
-      {halt && (
-        <section aria-labelledby="weiter-titel" className="flex max-w-3xl flex-col gap-2 border-l-2 border-warn-fg pl-4">
-          <Ueberschrift stufe={3} als="h2" id="weiter-titel">
-            {`So geht es mit ${name} weiter.`}
-          </Ueberschrift>
-          <Fliesstext>
-            {`Der Monat bleibt vorläufig, bis ein Mensch mit Vor- und Nachnamen entscheidet, ob er trotz der Auffälligkeit veröffentlicht wird. Diese Seite ändert nichts; entschieden wird mit diesem Befehl:`}
-          </Fliesstext>
-          <code className="block overflow-x-auto break-all bg-paper py-2 font-mono text-14 text-ink">
-            {`uv run uc3 veroeffentlichen --lieferung ${lauf.lieferung} --name "Vorname Nachname"`}
-          </code>
-        </section>
-      )}
+      <SoGehtEsWeiter detail={detail} angehalten={halt !== null} />
 
       <section aria-labelledby="zahlen-titel" className="flex max-w-4xl flex-col gap-4">
         <Ueberschrift stufe={3} als="h2" id="zahlen-titel">
           Jeder gelesene Satz ist gezählt, nicht gezählt oder ausgeschlossen.
         </Ueberschrift>
-        <ul className="grid gap-4 sm:grid-cols-3" aria-label="Begriffe in diesem Abschnitt">
-          {(lauf.fortgeschrieben > 0 ? (["Abrechnung", "fortgeschrieben", "vorläufig"] as const) : (["Abrechnung", "vorläufig"] as const)).map((wort) => (
+        <ul className="grid gap-4 sm:grid-cols-2" aria-label="Begriffe in diesem Abschnitt">
+          {(lauf.fortgeschrieben > 0
+            ? (["Abrechnung", "Sätze", "fortgeschrieben", "vorläufig"] as const)
+            : (["Abrechnung", "Sätze", "vorläufig"] as const)).map((wort) => (
             <li key={wort} className="font-sans text-14 font-semibold text-ink">
               <Fachbegriff wort={wort} />
             </li>
@@ -197,6 +267,9 @@ function Detail({ detail }: { detail: LaufDetail }) {
         </div>
         <div className="flex flex-col items-start gap-2">
           <Fliesstext groesse={14}>{`Dieselben Daten und Regeln ergeben dieselben Zahlen: ${determinismusSatz(determinismus)}`}</Fliesstext>
+          <p className="font-sans text-14 font-semibold text-ink">
+            <Fachbegriff wort="Ergebnis-Hash" />
+          </p>
           <HerkunftChip {...laufBeleg(lauf, { quelle: "meta.lauf", sql: sqlDeterminismus(lauf) })} />
         </div>
       </section>
@@ -234,7 +307,7 @@ function Detail({ detail }: { detail: LaufDetail }) {
               const gruende = ursachenSatz(r.ursachen);
               return (
                 <li key={r.berichtsmonat} className="flex flex-col items-start gap-2 border-b border-line py-4">
-                  <Fliesstext>{revisionSatz(r)}</Fliesstext>
+                  <Fliesstext>{r.differenz === 0 ? umschichtungSatz(r) : revisionSatz(r)}</Fliesstext>
                   {gruende && <Fliesstext groesse={14} ton="gedaempft">{gruende}</Fliesstext>}
                   <HerkunftChip
                     {...laufBeleg(lauf, { quelle: "meta.revision", monat: r.berichtsmonat, sql: sqlRevision(lauf, r.berichtsmonat) })}
@@ -258,7 +331,7 @@ function Detail({ detail }: { detail: LaufDetail }) {
         <HerkunftChip {...laufBeleg(lauf, { sql: sqlRegionen(lauf) })} />
       </section>
 
-      <Weiter lieferung={lauf.lieferung} davor={detail.davor} danach={detail.danach} />
+      <Weiter lieferung={lauf.lieferung} regelsatz={lauf.regelsatz} davor={detail.davor} danach={detail.danach} />
     </>
   );
 }

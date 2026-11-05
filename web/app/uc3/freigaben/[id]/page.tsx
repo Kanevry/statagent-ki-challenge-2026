@@ -5,19 +5,24 @@ import { Akzent, Fliesstext, knopfKlassen, Leerzustand, Ueberschrift } from "@ki
 import { formatDifferenz, formatZahl, HerkunftChip, type FreigabeEntscheidung } from "@kic/ui/bausteine";
 import { leerSatz } from "@/lib/uc3/db";
 import { Fachbegriff } from "@/lib/uc3/fachbegriff";
+import type { Uc3Begriff } from "@/lib/uc3/glossar";
 import {
   aenderungKurz,
+  ergebnisPfad,
+  gesamtZeile,
   klartext,
   leseVorschlag,
   rollenName,
+  sqlErgebnisLauf,
   vorschlagId,
   waage,
   waageBeleg,
   waageSatz,
   type Vorschlag,
+  type Waage,
+  type WaageZeile,
 } from "@/lib/uc3/freigabe";
-import { istMonat, monatName } from "@/lib/uc3/monat";
-import { laufPfad } from "@/lib/uc3/navigation";
+import { monatName } from "@/lib/uc3/monat";
 import { Entscheiden } from "./entscheiden";
 
 // Ein Vorschlag in drei Zonen (Frames qVTQj, oBcQu): das wurde gesagt, das ändert sich, Freigabe mit Namen.
@@ -48,13 +53,15 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
       </>
     );
   }
-  const { vorschlag: v, bezeichnungen } = lesung.daten;
+  const { vorschlag: v, bezeichnungen, ergebnis } = lesung.daten;
   if (!v) notFound();
 
   const w = waage(v.probe, bezeichnungen);
   const { worte, diff } = klartext(v);
   const entscheidung = entscheidungAus(v);
-  const lieferung = w?.lieferung && istMonat(w.lieferung) ? w.lieferung : null;
+  const gesamt = w ? gesamtZeile(w) : null;
+  // Probe steht ohne gerechnete Probe schon in Zone 2 neben dem Hinweis.
+  const begriffe: Uc3Begriff[] = w ? ["Freigabe", "Regel", "Regelsatz", "Probe"] : ["Freigabe", "Regel", "Regelsatz"];
   const titel =
     v.status === "offen"
       ? "Diese Änderung wartet auf Ihre Freigabe."
@@ -108,32 +115,33 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
             <>
               {regelInWorten}
               <Fliesstext ton="gedaempft">Die Probe ist noch nicht gerechnet, deshalb fehlen die Zahlen.</Fliesstext>
+              <div className="font-sans text-14 font-semibold text-ink">
+                <Fachbegriff wort="Probe" />
+              </div>
               {diff && <Regelzeilen text={diff} />}
             </>
           }
         />
 
-        {w && w.weitere.length > 0 && (
+        {w && w.umverteilung && (
+          <section className="flex flex-col gap-2" aria-labelledby="verschiebung">
+            <h2 id="verschiebung" className="font-sans text-16 font-semibold text-ink">
+              {`Diese ${formatZahl(w.weitere.length)} Kategorien tauschen Verhältnisse untereinander.`}
+            </h2>
+            <WaageZeilen vorschlag={v.id} waage={w} zeilen={w.weitere} />
+          </section>
+        )}
+
+        {w && !w.umverteilung && gesamt && <WaageZeilen vorschlag={v.id} waage={w} zeilen={[gesamt]} />}
+
+        {w && !w.umverteilung && w.weitere.length > 0 && (
           <details className="flex flex-col gap-2">
             <summary className="cursor-pointer font-sans text-14 font-semibold text-gruen">
               {`${w.weitere.length} weitere Kategorien ändern sich`}
             </summary>
-            <ul className="flex flex-col gap-1 pt-2">
-              {w.weitere.map((z) => (
-                <li key={`${z.merkmal}-${z.code}`} className="font-sans text-14 text-ink">
-                  {`${z.bezeichnung}: `}
-                  <span className="font-mono tabular-nums">
-                    {`${formatZahl(z.vorher)} → ${formatZahl(z.nachher)} (${formatDifferenz(z.differenz)})`}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <HerkunftChip
-              quelle="meta.vorschlag"
-              lieferung={w.lieferung}
-              stand="vorlaeufig"
-              sql={`SELECT probe->'${w.lieferung.replaceAll("'", "''")}' AS probe\nFROM meta.vorschlag\nWHERE id = ${v.id};`}
-            />
+            <div className="pt-2">
+              <WaageZeilen vorschlag={v.id} waage={w} zeilen={w.weitere} />
+            </div>
           </details>
         )}
 
@@ -146,22 +154,56 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
         </Akzent>
 
         <ul className="grid gap-4 sm:grid-cols-2" aria-label="Begriffe auf dieser Seite">
-          {(["Freigabe", "Regel"] as const).map((wort) => (
+          {begriffe.map((wort) => (
             <li key={wort} className="font-sans text-14 font-semibold text-ink">
               <Fachbegriff wort={wort} />
             </li>
           ))}
         </ul>
 
-        {v.status !== "offen" && lieferung && (
-          <div>
-            <Link href={laufPfad(lieferung)} className={knopfKlassen("sekundaer")}>
-              {`Ergebnis ansehen: ${monatName(lieferung)}`}
-            </Link>
+        {ergebnis && (
+          <div className="flex flex-col gap-2">
+            <div>
+              <Link href={ergebnisPfad(ergebnis)} className={knopfKlassen("sekundaer")}>
+                {`Ergebnis ansehen: ${monatName(ergebnis.monat)}, Regelsatz ${ergebnis.regelsatz}`}
+              </Link>
+            </div>
+            {v.status === "freigegeben" && !ergebnis.laufDa && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Fliesstext groesse={14}>
+                  {`Die neuen Zahlen entstehen, sobald der Monat mit Regelsatz ${ergebnis.regelsatz} gerechnet ist.`}
+                </Fliesstext>
+                <HerkunftChip
+                  quelle="meta.lauf"
+                  lieferung={ergebnis.monat}
+                  stand="vorlaeufig"
+                  sql={sqlErgebnisLauf(ergebnis.monat, ergebnis.regelsatz)}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
     </>
+  );
+}
+
+/** Zeilen „Arbeiter (Qualifikation): 0 → 210.000 (+210.000)“, jede mit Beleg auf genau ihre Zahlen. */
+function WaageZeilen({ vorschlag, waage: w, zeilen }: { vorschlag: number; waage: Waage; zeilen: WaageZeile[] }) {
+  return (
+    <ul className="flex flex-col gap-2">
+      {zeilen.map((z) => (
+        <li key={`${z.merkmal}-${z.code}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 font-sans text-14 text-ink">
+          <span className="break-words">
+            {`${z.merkmal === "gesamt" ? "Gesamt" : z.bezeichnung}: `}
+            <span className="font-mono tabular-nums">
+              {`${formatZahl(z.vorher)} → ${formatZahl(z.nachher)} (${formatDifferenz(z.differenz)})`}
+            </span>
+          </span>
+          <HerkunftChip {...waageBeleg(vorschlag, w, z)} />
+        </li>
+      ))}
+    </ul>
   );
 }
 

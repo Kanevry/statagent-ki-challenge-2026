@@ -19,7 +19,8 @@ function aufzaehlen(teile: readonly string[]): string {
   return teile.length < 2 ? (teile[0] ?? "") : `${teile.slice(0, -1).join(", ")} und ${teile.at(-1)}`;
 }
 
-const ZAHLWORT = ["Kein", "Ein", "Zwei", "Drei", "Vier", "Fünf"];
+/** Zahlwort vor „davon“: „Einer davon ist angehalten“, „Zwei davon sind angehalten“. */
+const ZAHLWORT = ["Keiner", "Einer", "Zwei", "Drei", "Vier", "Fünf"];
 
 export default async function Monatslaeufe() {
   const lesung = await leseMonatsuebersicht();
@@ -89,8 +90,8 @@ export default async function Monatslaeufe() {
         </div>
       </header>
 
-      <ul className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Begriffe auf dieser Seite">
-        {(["Stichtag", "Beschäftigungsverhältnis", "Abrechnung", "vorläufig"] as const).map((wort) => (
+      <ul className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Begriffe auf dieser Seite">
+        {(["Stichtag", "Beschäftigungsverhältnis", "Abrechnung", "Sätze", "vorläufig"] as const).map((wort) => (
           <li key={wort} className="font-sans text-14 font-semibold text-ink">
             <Fachbegriff wort={wort} />
           </li>

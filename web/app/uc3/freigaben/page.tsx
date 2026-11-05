@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Akzent, Fliesstext, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
-import { formatZahl, formatZeit, HerkunftChip } from "@kic/ui/bausteine";
+import { formatDifferenz, formatZahl, formatZeit, HerkunftChip } from "@kic/ui/bausteine";
 import { leerSatz } from "@/lib/uc3/db";
 import { Fachbegriff } from "@/lib/uc3/fachbegriff";
 import {
   aenderungKurz,
+  gesamtZeile,
   klartext,
   leseFreigaben,
   rollenName,
@@ -14,6 +15,7 @@ import {
   waageSatz,
   type ErledigtZeile,
   type Freigaben,
+  type Waage,
 } from "@/lib/uc3/freigabe";
 import { istMonat, monatName } from "@/lib/uc3/monat";
 
@@ -85,9 +87,13 @@ export default async function FreigabenSeite({
           Die Agenten schlagen Änderungen nur vor. Gerechnet wird damit erst, wenn ein Mensch sie mit Vor- und
           Nachnamen freigibt.
         </Fliesstext>
-        <div className="font-sans text-14 font-semibold text-ink">
-          <Fachbegriff wort="Freigabe" />
-        </div>
+        <ul className="grid gap-4 sm:grid-cols-3" aria-label="Begriffe auf dieser Seite">
+          {(["Freigabe", "Regelsatz", "Probe"] as const).map((wort) => (
+            <li key={wort} className="font-sans text-14 font-semibold text-ink">
+              <Fachbegriff wort={wort} />
+            </li>
+          ))}
+        </ul>
       </header>
 
       <div className="flex max-w-3xl flex-col gap-6">
@@ -123,6 +129,7 @@ function Wartet({ daten }: { daten: Freigaben }) {
               <Fliesstext>{satz}</Fliesstext>
             </Akzent>
             {w && <HerkunftChip {...waageBeleg(v.id, w)} />}
+            {w && <GesamtAenderung vorschlag={v.id} waage={w} />}
             <div className="flex flex-wrap items-center gap-4">
               <Status art="warnung">Wartet auf Freigabe</Status>
               <Link
@@ -161,7 +168,8 @@ function Erledigt({ zeilen }: { zeilen: ErledigtZeile[] }) {
             </Status>
             <Fliesstext className="break-words">
               {teile.join(" · ")}
-              {w && (
+              {w && w.umverteilung && ` · ${waageSatz(w)}`}
+              {w && !w.umverteilung && (
                 <>
                   {` · ${monat ? `${monat}: ` : ""}${w.haupt.bezeichnung} `}
                   <span className="font-mono tabular-nums">{`${formatZahl(w.haupt.vorher)} → ${formatZahl(w.haupt.nachher)}`}</span>
@@ -172,6 +180,7 @@ function Erledigt({ zeilen }: { zeilen: ErledigtZeile[] }) {
               <Fliesstext groesse={14}>{`Begründung: ${z.begruendung}`}</Fliesstext>
             )}
             {w && z.vorschlag && <HerkunftChip {...waageBeleg(z.vorschlag.id, w)} />}
+            {w && z.vorschlag && <GesamtAenderung vorschlag={z.vorschlag.id} waage={w} />}
             <div className="flex flex-wrap gap-4">
               {z.vorschlag && (
                 <Link
@@ -183,7 +192,10 @@ function Erledigt({ zeilen }: { zeilen: ErledigtZeile[] }) {
               )}
               {z.commit && (
                 <details>
-                  <summary className="cursor-pointer font-sans text-14 text-slate">Kennung im Repo</summary>
+                  <summary className="inline-flex min-h-11 cursor-pointer items-center font-sans text-14 text-slate">
+                    Nachweis der Änderung
+                  </summary>
+                  <Fliesstext groesse={14}>Unter dieser Nummer ist die Änderung dauerhaft gespeichert.</Fliesstext>
                   <code className="break-all font-mono text-12 text-ink">{z.commit}</code>
                 </details>
               )}
@@ -192,5 +204,22 @@ function Erledigt({ zeilen }: { zeilen: ErledigtZeile[] }) {
         );
       })}
     </ol>
+  );
+}
+
+/** Eine Zeile zur Gesamtzahl, wenn sie sich ändert und die Hauptzeile eine Kategorie ist. */
+function GesamtAenderung({ vorschlag, waage: w }: { vorschlag: number; waage: Waage }) {
+  const g = gesamtZeile(w);
+  if (!g) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <Fliesstext groesse={14}>
+        {"Gesamt: "}
+        <span className="font-mono tabular-nums">
+          {`${formatZahl(g.vorher)} → ${formatZahl(g.nachher)} (${formatDifferenz(g.differenz)})`}
+        </span>
+      </Fliesstext>
+      <HerkunftChip {...waageBeleg(vorschlag, w, g)} />
+    </div>
   );
 }

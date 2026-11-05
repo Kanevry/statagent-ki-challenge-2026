@@ -5,7 +5,10 @@ import {
   einstufungStatus,
   haltSatz,
   haltTreffer,
+  hatRevisionsbedarf,
+  kannVeroeffentlichen,
   massnahmeSatz,
+  regelsatzAus,
   revisionSatz,
   sortiereTreffer,
   trefferTitel,
@@ -23,7 +26,6 @@ function treffer(teil: Partial<Treffer>): Treffer {
     ebene: "satz",
     anzahl: 1,
     umfang: null,
-    beispiele: [],
     einstufung: null,
     massnahme: null,
     anhalten: false,
@@ -112,5 +114,34 @@ describe("massnahmeSatz und einstufungStatus", () => {
       wort: "nicht erklärbar, wartet auf Antwort der Fachabteilung (R8)",
     });
     expect(einstufungStatus("nicht-erklaerbar", []).art).toBe("fehler");
+    // Fehler: ohne Einstufung stand „noch nicht eingestuft“, der Qualitätsbericht zählt sie als nicht erklärbar.
+    expect(einstufungStatus(null)).toEqual({ art: "fehler", wort: "nicht erklärbar" });
+  });
+});
+
+describe("Lauf-Detail: Regelsatz, Veröffentlichen, Revisionsbedarf", () => {
+  // Fehler: ?regelsatz=x oder ?regelsatz=v3 landet ungeprüft in der Abfrage.
+  it("lässt nur v1 und v2 zu, alles andere ist v1", () => {
+    expect(regelsatzAus("v2")).toBe("v2");
+    expect(regelsatzAus(undefined)).toBe("v1");
+    expect(regelsatzAus("v3")).toBe("v1");
+    expect(regelsatzAus(["v2", "v2"])).toBe("v1");
+  });
+
+  // Fehler: angehaltene oder fortgeschriebene Monate (E07) zeigten einen Befehl, den die CLI ablehnt.
+  it("zeigt den Befehl nur, wenn die CLI veröffentlichen würde", () => {
+    const frei = { regelnOhneFreigabe: 0, regelstandFreigegeben: true };
+    const lauf = { ergebnisStand: "vorlaeufig" as const, fortgeschrieben: 0 };
+    expect(kannVeroeffentlichen(lauf, false, frei)).toBe(true);
+    expect(kannVeroeffentlichen(lauf, true, frei)).toBe(false);
+    expect(kannVeroeffentlichen({ ...lauf, fortgeschrieben: 77746 }, false, frei)).toBe(false);
+    expect(kannVeroeffentlichen(lauf, false, { ...frei, regelnOhneFreigabe: 1 })).toBe(false);
+    expect(kannVeroeffentlichen(lauf, false, { ...frei, regelstandFreigegeben: false })).toBe(false);
+  });
+
+  // Fehler: der Bericht zählte Umschichtungen als Revisionsbedarf, das Lauf-Detail nicht.
+  it("zählt eine Umschichtung bei gleicher Summe als Revisionsbedarf", () => {
+    expect(hatRevisionsbedarf({ differenz: 0, umgeschichtet: true })).toBe(true);
+    expect(hatRevisionsbedarf({ differenz: 0, umgeschichtet: false })).toBe(false);
   });
 });

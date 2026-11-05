@@ -226,15 +226,65 @@ export async function leseFreigaben(): Promise<Lesung<Freigaben>> {
   });
 }
 
-/** Ein Vorschlag mit Bezeichnungen; `null` in den Daten, wenn es ihn nicht gibt. */
+/** Wohin „Ergebnis ansehen“ führt: Monat, Regelsatz und ob es dafür schon einen fertigen Lauf gibt. */
+export interface ErgebnisZiel {
+  monat: string;
+  regelsatz: string;
+  /** false: für Monat und Regelsatz gibt es in meta.lauf noch keinen fertigen Lauf. */
+  laufDa: boolean;
+}
+
+/** Abfrage hinter `laufDa`: fertige Läufe eines Monats mit einem Regelsatz (für den Beleg-Chip). */
+export function sqlErgebnisLauf(monat: string, regelsatz: string): string {
+  return [
+    "SELECT count(*) AS laeufe",
+    "FROM meta.lauf",
+    `WHERE lieferung = ${literal(monat)} AND regelsatz = ${literal(regelsatz)} AND status IN ('fertig', 'unveraendert');`,
+  ].join("\n");
+}
+
+/** Pfad der Lauf-Detailseite mit Regelsatz, etwa /uc3/laeufe/2025-10?regelsatz=v2. */
+export function ergebnisPfad(z: Pick<ErgebnisZiel, "monat" | "regelsatz">): string {
+  return `/uc3/laeufe/${z.monat}?regelsatz=${encodeURIComponent(z.regelsatz)}`;
+}
+
+/**
+ * Ziel des Ergebnis-Links: nach einer Freigabe der Regelsatz des Vorschlags (regelsatz_ziel), nach einer Ablehnung
+ * der bisherige (regelsatz_basis). Monat ist der Monat der Probe, sonst der neueste Monat mit fertigem Lauf in einem
+ * der beiden Regelsätze. Ohne meta.lauf oder ohne Monat: null.
+ */
+async function ladeErgebnisZiel(sql: Sql, v: Vorschlag): Promise<ErgebnisZiel | null> {
+  if (v.status === "offen" || !(await tabelleDa(sql, "meta.lauf"))) return null;
+  const regelsatz = v.status === "freigegeben" ? v.regelsatzZiel : v.regelsatzBasis;
+  if (!regelsatz) return null;
+  let monat = probeMonate(v.probe).find((m) => istMonat(m.lieferung))?.lieferung ?? null;
+  if (!monat) {
+    const [z] = await sql`
+      SELECT max(lieferung) AS monat FROM meta.lauf
+      WHERE regelsatz IN (${v.regelsatzZiel}, ${v.regelsatzBasis}) AND status IN ('fertig', 'unveraendert')`;
+    monat = typeof z?.monat === "string" && istMonat(z.monat) ? z.monat : null;
+  }
+  if (!monat) return null;
+  const [l] = await sql`
+    SELECT count(*)::int AS laeufe FROM meta.lauf
+    WHERE lieferung = ${monat} AND regelsatz = ${regelsatz} AND status IN ('fertig', 'unveraendert')`;
+  return { monat, regelsatz, laufDa: Number(l?.laeufe ?? 0) > 0 };
+}
+
+/** Ein Vorschlag mit Bezeichnungen und Ergebnis-Ziel; `null` in den Daten, wenn es ihn nicht gibt. */
 export async function leseVorschlag(
   id: number,
-): Promise<Lesung<{ vorschlag: Vorschlag | null; bezeichnungen: Bezeichnungen }>> {
+): Promise<Lesung<{ vorschlag: Vorschlag | null; bezeichnungen: Bezeichnungen; ergebnis: ErgebnisZiel | null }>> {
   return lies(async (sql) => {
-    if (!(await tabelleDa(sql, "meta.vorschlag"))) return { vorschlag: null, bezeichnungen: {} };
+    if (!(await tabelleDa(sql, "meta.vorschlag"))) return { vorschlag: null, bezeichnungen: {}, ergebnis: null };
     const mitProtokoll = await tabelleDa(sql, "meta.protokoll");
     const [z] = await sql`SELECT * FROM (${vorschlagSelect(sql, mitProtokoll)}) x WHERE id = ${id}`;
-    return { vorschlag: z ? vorschlagAus(z) : null, bezeichnungen: await ladeBezeichnungen(sql) };
+    const vorschlag = z ? vorschlagAus(z) : null;
+    return {
+      vorschlag,
+      bezeichnungen: await ladeBezeichnungen(sql),
+      ergebnis: vorschlag ? await ladeErgebnisZiel(sql, vorschlag) : null,
+    };
   });
 }
 
@@ -331,10 +381,17 @@ export interface WaageZeile {
 
 export interface Waage {
   lieferung: string;
-  /** Die Kategorie mit dem größten Unterschied; nur wenn sich nichts ändert, die Gesamtzahl. */
+  /**
+   * Hauptzeile: die Kategorie mit dem größten Unterschied. Bei einer Umschlüsselung (Gesamtzahl gleich, Kategorien
+   * verschieben sich) und wenn sich nichts ändert die Gesamtzahl.
+   */
   haupt: WaageZeile;
-  /** Weitere geänderte Kategorien, größter Unterschied zuerst. */
+  /** Weitere geänderte Kategorien, größter Unterschied zuerst; bei einer Umschlüsselung alle verschobenen. */
   weitere: WaageZeile[];
+  /** Die Gesamtzahl vorher und nachher. */
+  gesamt: WaageZeile;
+  /** true: dieselben Verhältnisse verteilen sich auf andere Kategorien, die Gesamtzahl bleibt. */
+  umverteilung: boolean;
   gesamtVorher: number;
   gesamtNachher: number;
 }
@@ -359,8 +416,10 @@ function probeMonate(probe: unknown): { lieferung: string; vorher: ProbeZahlen; 
 }
 
 /**
- * Bildet die Waage: die Kategorie (Merkmal und Code) mit dem größten absoluten Unterschied zwischen vorher und
- * nachher. Eine Gesamtzahl, die gleich bleibt, ist nie die Hauptzeile, solange sich eine Kategorie ändert.
+ * Bildet die Waage. Ändert sich die Gesamtzahl, ist die Hauptzeile die Kategorie (Merkmal und Code) mit dem größten
+ * absoluten Unterschied, und `gesamt` trägt die Änderung der Gesamtzahl. Bleibt die Gesamtzahl gleich, während sich
+ * Kategorien ändern, ist das eine Umschlüsselung: Hauptzeile ist die Gesamtzahl, alle verschobenen Kategorien stehen
+ * unter `weitere`. Sonst stünde „Arbeiter 0 → 210.000“ groß da und läse sich wie 210.000 zusätzliche Verhältnisse.
  * Ohne gerechnete Probe: null (keine erfundenen Zahlen).
  */
 export function waage(probe: unknown, bezeichnungen: Bezeichnungen = {}): Waage | null {
@@ -398,25 +457,47 @@ export function waage(probe: unknown, bezeichnungen: Bezeichnungen = {}): Waage 
     nachher: gesamtNachher,
     differenz: gesamtNachher - gesamtVorher,
   };
+  const gesamtBekannt = monat.vorher.gesamt !== undefined && monat.nachher.gesamt !== undefined && gesamtVorher > 0;
+  const umverteilung = zeilen.length > 0 && gesamtBekannt && gesamtVorher === gesamtNachher;
+  if (umverteilung) {
+    return { lieferung: monat.lieferung, haupt: gesamt, weitere: zeilen, gesamt, umverteilung, gesamtVorher, gesamtNachher };
+  }
   const [haupt = gesamt, ...weitere] = zeilen;
-  return { lieferung: monat.lieferung, haupt, weitere, gesamtVorher, gesamtNachher };
+  return { lieferung: monat.lieferung, haupt, weitere, gesamt, umverteilung, gesamtVorher, gesamtNachher };
+}
+
+/**
+ * Eine Zeile zur Gesamtzahl, wenn sie sich ändert und nicht schon die Hauptzeile ist, etwa
+ * „Gesamt: 410.587 → 412.000 (+1.413)“. Sonst null.
+ */
+export function gesamtZeile(w: Waage): WaageZeile | null {
+  return w.haupt.merkmal !== "gesamt" && w.gesamt.differenz !== 0 ? w.gesamt : null;
 }
 
 /** Satz zur Waage, etwa „Im Oktober 2025 zählen wir Arbeiter (Qualifikation) 210.000 statt 0.“ */
 export function waageSatz(w: Waage): string {
   const monat = istMonat(w.lieferung) ? `Im ${monatName(w.lieferung)} ` : "";
   const { haupt } = w;
+  if (w.umverteilung) {
+    const zahl = formatZahl(w.gesamtVorher);
+    return monat
+      ? `${monat}verteilen sich die ${zahl} Verhältnisse neu, gesamt bleibt ${zahl}.`
+      : `Die ${zahl} Verhältnisse verteilen sich neu, gesamt bleibt ${zahl}.`;
+  }
   if (haupt.differenz === 0) return `${monat}bleibt ${haupt.bezeichnung} bei ${formatZahl(haupt.vorher)}.`.trim();
   const satz = `${monat}zählen wir ${haupt.bezeichnung} mit ${formatZahl(haupt.nachher)} statt ${formatZahl(haupt.vorher)}.`;
   return satz.charAt(0).toUpperCase() + satz.slice(1);
 }
 
-/** Beleg der Waage: die Abfrage auf meta.vorschlag.probe, die genau die Zahlen vorher und nachher liefert. */
-export function waageBeleg(vorschlagIdWert: number, w: Waage): Beleg {
+/**
+ * Beleg einer Zeile der Waage (Standard: Hauptzeile): die Abfrage auf meta.vorschlag.probe, die genau die Zahlen
+ * vorher und nachher dieser Zeile liefert.
+ */
+export function waageBeleg(vorschlagIdWert: number, w: Waage, zeile: WaageZeile = w.haupt): Beleg {
   const pfad = (seite: "vorher" | "nachher") =>
-    w.haupt.merkmal === "gesamt"
+    zeile.merkmal === "gesamt"
       ? `probe->${literal(w.lieferung)}->'${seite}'->>'gesamt'`
-      : `probe->${literal(w.lieferung)}->'${seite}'->'je_merkmal'->${literal(w.haupt.merkmal)}->>${literal(w.haupt.code)}`;
+      : `probe->${literal(w.lieferung)}->'${seite}'->'je_merkmal'->${literal(zeile.merkmal)}->>${literal(zeile.code)}`;
   return {
     quelle: "meta.vorschlag",
     lieferung: w.lieferung || null,
@@ -507,19 +588,30 @@ export function entscheidungArgv(e: Entscheidung): string[] {
     : ["ablehnen", String(e.id), "--name", e.name, "--begruendung", e.begruendung, "--json"];
 }
 
+/** Fester Satz für jeden Fehler, den die CLI nicht als bekannten fachlichen Fehler meldet (auch Git-Fehler). */
+export const GRUND_UNBEKANNT = "Bitte die Fachabteilung oder das Team fragen.";
+
 /**
- * Kurzer Grund aus stderr der CLI: nur der Text nach „nicht freigegeben: “ bzw. „nicht abgelehnt: “, erste Zeile,
- * ohne Dateipfade, höchstens 200 Zeichen. Alles andere (Tracebacks, Umgebung) bleibt auf dem Server.
+ * Bekannte fachliche Fehler der CLI (stderr „nicht freigegeben: …“ bzw. „nicht abgelehnt: …“) → fester Satz.
+ * Die Muster folgen den Meldungen von plattform.freigabe (NameUngueltig, VorschlagUngueltig) und
+ * statagent.agenten (VorschlagFehler). Text aus stderr erreicht den Client nie (SEC-009): Git-Fehler (GitFehler
+ * mit git-stderr), Tracebacks und alles Unbekannte ergeben GRUND_UNBEKANNT.
  */
-export function kurzerGrund(stderr: string): string | null {
-  const treffer = /nicht (?:freigegeben|abgelehnt): ([^\r\n]*)/.exec(stderr);
-  if (!treffer?.[1]) return null;
-  const grund = treffer[1]
-    .replace(/(?:[A-Za-z]:)?(?:[\\/][\w.@+~-]+){2,}[\\/]?/g, "…")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!grund) return null;
-  return grund.length > 200 ? `${grund.slice(0, 199)}…` : grund;
+const BEKANNTE_FEHLER: readonly [RegExp, string][] = [
+  [
+    /^(?:Name enthält Steuerzeichen|Name darf keinen Doppelpunkt|Vor- und Nachname nötig|kein Namensbestandteil|Rollenbezeichnung statt Name|Wörter wiederholen sich|nur Initialen)/,
+    "Bitte Vor- und Nachname eingeben.",
+  ],
+  [/^Vorschlag (?:uc3\/)?\d+ (?:ist bereits |ist \w+, nicht offen)/, "Über diese Änderung ist schon entschieden."],
+  [/^Vorschlag (?:uc3\/)?\d+ (?:gibt es nicht|existiert nicht)/, "Diesen Vorschlag gibt es nicht."],
+  [/^(?:Eine )?Ablehnung braucht eine Begründung/, "Eine Ablehnung braucht eine Begründung."],
+];
+
+export function kurzerGrund(stderr: string): string {
+  const treffer = /^nicht (?:freigegeben|abgelehnt): ([^\r\n]*)/m.exec(stderr);
+  const meldung = treffer?.[1]?.trim() ?? "";
+  for (const [muster, satz] of BEKANNTE_FEHLER) if (muster.test(meldung)) return satz;
+  return GRUND_UNBEKANNT;
 }
 
 /** Python `str(datetime)` („2026-11-05 14:41:07.655871+01:00“) → ISO, das jeder Browser liest. */
@@ -570,7 +662,7 @@ export interface FreigabeOptionen {
  * Handler für POST /api/uc3/freigabe. Sperren in dieser Reihenfolge, alle vor dem Subprozess:
  * `KIC_ONLINE_LESEND=1` → 403, Body > 4 KiB → 413, ungültige Anfrage → 400, Name ohne Vor- und Nachname → 400,
  * schon eine Entscheidung offen → 429. Danach `uc3 freigabe|ablehnen … --json`: Exit 0 → 200; Exit 1 → 409 mit
- * kurzem Grund, außer bei einer gespeicherten Freigabe, deren Anwenden scheiterte (200, angewendet: false);
+ * festem Satz je bekanntem Fehler (nie stderr), außer bei einer gespeicherten Freigabe, deren Anwenden scheiterte (200, angewendet: false);
  * Timeout oder Startfehler → 502. Name, Begründung und stderr werden nie geloggt.
  */
 export function erstelleFreigabeAntwort({
@@ -595,7 +687,9 @@ export function erstelleFreigabeAntwort({
     }
     if (lauf.code === 1) {
       const grund = kurzerGrund(lauf.stderr);
-      return fehler(409, "Die Entscheidung ist nicht gespeichert.", grund ?? undefined);
+      const meldung =
+        grund === GRUND_UNBEKANNT ? `Die Entscheidung wurde nicht gespeichert. ${GRUND_UNBEKANNT}` : "Die Entscheidung ist nicht gespeichert.";
+      return fehler(409, meldung, grund);
     }
     console.warn(`[uc3/freigabe] CLI beendet mit Exit ${lauf.code}`);
     return fehler(502, "Die Entscheidung konnte nicht gespeichert werden. Bitte gleich noch einmal versuchen.");
