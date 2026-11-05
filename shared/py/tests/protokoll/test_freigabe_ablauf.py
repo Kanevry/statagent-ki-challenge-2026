@@ -168,6 +168,37 @@ def test_gleiche_id_anderer_uc_wird_nicht_wiederverwendet(conn, repo):
     assert pruefe_freigegeben(conn, ref, repo) == vorschlag_id
 
 
+@pytest.mark.parametrize("ref", [".", "*.py", "../ausserhalb.py", "erzeugt"])
+def test_datei_ref_ist_genau_eine_datei_im_repo(conn, repo, ref):
+    """Fängt: ref „.“ oder ein Muster committet mehrere Dateien unter „Freigegeben-von“."""
+    (repo / "erzeugt").mkdir()
+    (repo / "erzeugt" / "a.py").write_text("a\n", encoding="utf-8")
+    (repo / "b.py").write_text("b\n", encoding="utf-8")
+    vorschlag_id = _vorschlag(conn, ref=ref)
+
+    with pytest.raises(ValueError):
+        freigeben(conn, vorschlag_id, "Bernhard Götzendorfer", repo, objekt_typ="datei")
+    assert _commits(repo) == 0
+    assert _status(conn, vorschlag_id) == "offen"
+
+
+def test_pruefe_freigegeben_verlangt_datei_freigabe(conn, repo):
+    """Fängt: ein Skript gilt als freigegeben, weil eine Regel-Freigabe denselben ref trägt."""
+    ref = f"erzeugt/{uuid.uuid4()}.py"
+    vorschlag_id = _vorschlag(conn, ref=ref)
+    freigeben(conn, vorschlag_id, "Bernhard Götzendorfer", repo)  # objekt_typ regel
+
+    with pytest.raises(NichtFreigegeben, match="keine Datei"):
+        pruefe_freigegeben(conn, ref, repo)
+
+
+def test_offene_transaktion_wird_abgelehnt(conn, repo):
+    """Fängt: autocommit=True, aber der Aufrufer hat schon eine Transaktion offen (nur Savepoint)."""
+    vorschlag_id = _vorschlag(conn)
+    with conn.transaction(), pytest.raises(ValueError, match="offene Transaktion"):
+        freigeben(conn, vorschlag_id, "Bernhard Götzendorfer", repo)
+
+
 def test_verbindung_ohne_autocommit_wird_abgelehnt(repo):
     """Fängt: Freigabe läuft als Savepoint einer fremden Transaktion und wird nie festgeschrieben."""
     url = os.environ.get("PLATTFORM_TEST_DATABASE_URL")

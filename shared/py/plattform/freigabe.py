@@ -105,7 +105,8 @@ def pruefe_name(name: str) -> str:
 
 
 def _git(repo_pfad: Path | str, *argumente: str) -> str:
-    umgebung = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "LC_ALL": "C"}
+    # GIT_LITERAL_PATHSPECS: ein ref wie „.“ oder „*.py“ ist ein Dateiname, nie ein Muster.
+    umgebung = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "LC_ALL": "C", "GIT_LITERAL_PATHSPECS": "1"}
     try:
         lauf = subprocess.run(
             ["git", "-C", str(repo_pfad), *argumente],
@@ -183,11 +184,24 @@ def _vorhandener_commit(repo_pfad: Path | str, kennung: str) -> str | None:
 
 
 def _pruefe_autocommit(conn: psycopg.Connection) -> None:
-    if not conn.autocommit:
+    """autocommit=True und keine offene Transaktion: sonst wäre die Freigabe nur ein Savepoint."""
+    from psycopg import pq
+
+    if not conn.autocommit or conn.info.transaction_status != pq.TransactionStatus.IDLE:
         raise ValueError(
-            "Verbindung braucht autocommit=True, sonst wäre die Freigabe nur ein Savepoint einer fremden"
-            " Transaktion"
+            "Verbindung braucht autocommit=True ohne offene Transaktion, sonst wäre die Freigabe nur ein"
+            " Savepoint einer fremden Transaktion"
         )
+
+
+def _pruefe_datei_im_repo(repo_pfad: Path | str, ref: str) -> None:
+    """Der ref einer Datei-Freigabe ist genau eine reguläre Datei innerhalb des Repos."""
+    wurzel = Path(_git(repo_pfad, "rev-parse", "--show-toplevel")).resolve()
+    ziel = (Path(repo_pfad) / ref).resolve()
+    if not ziel.is_relative_to(wurzel) or ziel == wurzel:
+        raise ValueError(f"objekt_ref {ref!r} liegt nicht innerhalb des Repos")
+    if not ziel.is_file():
+        raise ValueError(f"objekt_ref {ref!r} ist keine reguläre Datei")
 
 
 def _freigabe_schreiben(
@@ -242,8 +256,10 @@ def freigeben(
         if typ is None:
             raise ValueError("objekt_typ fehlt und vorschlag_typ ist keiner von " + ", ".join(OBJEKT_TYPEN))
         ziel_ref = objekt_ref if objekt_ref is not None else ref
-        if typ == "datei" and not ziel_ref:
-            raise ValueError("objekt_typ datei braucht objekt_ref (Pfad relativ zum Repo)")
+        if typ == "datei":
+            if not ziel_ref:
+                raise ValueError("objekt_typ datei braucht objekt_ref (Pfad relativ zum Repo)")
+            _pruefe_datei_im_repo(repo_pfad, ziel_ref)
         freigabe = _freigabe_schreiben(conn, vorschlag_id, name, "ja", None, typ, ziel_ref)
         commit_hash = _vorhandener_commit(repo_pfad, kennung)
         if commit_hash is None:
@@ -322,6 +338,9 @@ def pruefe_freigegeben(conn: psycopg.Connection, datei: Path | str, repo_pfad: P
     vorschlag_id, status, commit_hash, objekt_typ = zeile
     if status != "freigegeben" or objekt_typ is None:
         raise NichtFreigegeben(f"Vorschlag {vorschlag_id} zu {ref} ist {status}")
+    if objekt_typ != "datei":
+        # Ohne Inhaltsvergleich wäre ein Skript „freigegeben“, nur weil eine Regel denselben ref trägt.
+        raise NichtFreigegeben(f"Vorschlag {vorschlag_id} zu {ref} gibt keine Datei frei ({objekt_typ})")
     if objekt_typ == "datei":
         try:
             auf_platte = _git(repo_pfad, "hash-object", "--", ref)
