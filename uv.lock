@@ -558,8 +558,10 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "mypy" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "types-jsonschema" },
 ]
 
 [package.metadata]
@@ -567,8 +569,10 @@ requires-dist = [{ name = "plattform", editable = "shared/py" }]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "mypy", specifier = ">=1.18" },
     { name = "pytest", specifier = ">=8.4" },
     { name = "ruff", specifier = ">=0.14" },
+    { name = "types-jsonschema", specifier = ">=4.26.0.20261006" },
 ]
 
 [[package]]
