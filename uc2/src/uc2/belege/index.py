@@ -72,8 +72,11 @@ from uc2.abschnitt s
 join uc2.artikel a using (artikel_id)
 join uc2.quelle q on q.md5 = a.quelle_md5
 where q.md5 = any(%s)
-order by 1, 2, 3, 5, 6, 8, 9
+order by q.ausgabedatum, a.artikeldatum, a.medium collate "C", a.titel collate "C", a.pdf_seite, s.nr,
+         s.text_hash collate "C"
 """
+# collate "C": Die Sortierung darf nicht von der DB-Collation abhängen (gemessen 05.11.: M4 de_AT.UTF-8,
+# m5-Container en_US.utf8 → gleicher Inhalt, verschiedener Hash).
 
 
 def inhalt_hash(verbindung: psycopg.Connection[Any], md5s: list[str]) -> str:
