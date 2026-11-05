@@ -1,0 +1,1682 @@
+{
+  "datei": "PAL080_0125_Mpfl_052026.pdf",
+  "seiten": 8,
+  "zusammenfassung": {
+    "felder_gesamt": 97,
+    "widgets_gesamt": 136,
+    "je_typ": {
+      "/Btn": 34,
+      "/Tx": 63
+    },
+    "je_art": {
+      "checkbox": 34,
+      "text": 63
+    },
+    "pflicht": 0,
+    "nur_lesen": 0,
+    "mit_wert": 0,
+    "mit_tooltip": 51,
+    "ohne_seite": 0,
+    "need_appearances": false,
+    "xfa": false
+  },
+  "felder": [
+    {
+      "name": "Antrag Pflg",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 3,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02",
+        "/03"
+      ]
+    },
+    {
+      "name": "Fam.Name",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Familienname",
+      "max_laenge": 66
+    },
+    {
+      "name": "Vorname",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Vorname",
+      "max_laenge": 30
+    },
+    {
+      "name": "Titel",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Titel",
+      "max_laenge": 18
+    },
+    {
+      "name": "frühere Namen",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "frühere Namen",
+      "max_laenge": 30
+    },
+    {
+      "name": "Geburtsdatum",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Geburtsdatum"
+    },
+    {
+      "name": "Geschlecht",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Geschlecht",
+      "max_laenge": 47
+    },
+    {
+      "name": "Stabü",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": "Stabü-Österreich",
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "andere Staatsbürgerschaft",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "andere Staatsbürgerschaft",
+      "max_laenge": 40
+    },
+    {
+      "name": "Personenstand seit",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Personenstand seit",
+      "max_laenge": 10
+    },
+    {
+      "name": "Personenstand",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 6,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02",
+        "/03",
+        "/04",
+        "/05",
+        "/08"
+      ]
+    },
+    {
+      "name": "Adresse Straße",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Adresse - Straße, Gasse, Platz",
+      "max_laenge": 42
+    },
+    {
+      "name": "Hausnummer, Stiege, Tür",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Hausnummer, Stiege, Tür",
+      "max_laenge": 26
+    },
+    {
+      "name": "PLZ",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Postleitzahl",
+      "max_laenge": 6
+    },
+    {
+      "name": "Ort",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Ort",
+      "max_laenge": 27
+    },
+    {
+      "name": "Land",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 22
+    },
+    {
+      "name": "voruebergehend",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Bei einem vorübergehenden Aufenthalt in einem Heim, Krankenhaus, bie Familienangehörigen usw. geben Sie bitte die genaue Adresse bekannt. ",
+      "max_laenge": 72
+    },
+    {
+      "name": "Telefon",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Telefonnummer",
+      "max_laenge": 22
+    },
+    {
+      "name": "Email",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 39
+    },
+    {
+      "name": "Andere Person",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 3,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02",
+        "/03"
+      ]
+    },
+    {
+      "name": "Nachweis",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Familienname andere",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Familienname von ausfüllender Person",
+      "max_laenge": 66
+    },
+    {
+      "name": "Vorname andere Person",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Vorname andere Person",
+      "max_laenge": 30
+    },
+    {
+      "name": "Titel2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Titel",
+      "max_laenge": 18
+    },
+    {
+      "name": "Adresse Straße 1",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Adresse - Straße, Gasse, Platz von ausfüllender Person",
+      "max_laenge": 42
+    },
+    {
+      "name": "Hausnummer, Stiege, Tür2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Hausnummer, Stiege, Tür",
+      "max_laenge": 26
+    },
+    {
+      "name": "PLZ 1",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Postleitzahl - ausfüllende Person",
+      "max_laenge": 6
+    },
+    {
+      "name": "Ort 1",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Ort - ausfüllende Person",
+      "max_laenge": 27
+    },
+    {
+      "name": "Land2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 22
+    },
+    {
+      "name": "Telefon 1",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": "Telefonnummer - ausfüllende Person",
+      "max_laenge": 22
+    },
+    {
+      "name": "Email2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        1
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 39
+    },
+    {
+      "name": "VSNR_1",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 12582912,
+      "wert": null,
+      "seiten": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "widgets": 4,
+      "tooltip": "Versicherungsnummer mit Geburtsdatum in der Form TTMMJJ"
+    },
+    {
+      "name": "Leiden",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": "Wegen welcher Leiden ist Betreuung und Hilfe erforderlich bzw. hat sich Ihr Pflegebdarf erhöht?",
+      "max_laenge": 80
+    },
+    {
+      "name": "Leiden2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": "Wegen welcher Leiden ist Betreuung und Hilfe erforderlich bzw. hat sich Ihr Pflegebdarf erhöht?",
+      "max_laenge": 80
+    },
+    {
+      "name": "körperl. Einschränkung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Rollstuhlfahrer",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Sehbehinderung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "geistige Beeinträchtigung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Demenz",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "psychische Erkrankung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "regelm. Medikamente",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Medikamente",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": "Welche Medikamente nehmen Sie regelmäßig ein?",
+      "max_laenge": 69
+    },
+    {
+      "name": "Medikamente2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": "Welche Medikamente nehmen Sie regelmäßig ein?",
+      "max_laenge": 80
+    },
+    {
+      "name": "Hausbesuch",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Name weitere Person",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": "Familienname(n) und Vorname(n) sowie Adresse und Telefonnummer der weiteren Person, die noch verständigt werden soll.",
+      "max_laenge": 75
+    },
+    {
+      "name": "Adresse weitere Person",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": "Familienname(n) und Vorname(n) sowie Adresse und Telefonnummer der weiteren Person, die noch verständigt werden soll.",
+      "max_laenge": 80
+    },
+    {
+      "name": "Betreuung durch andere Person",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Person Stelle Pflegeperson",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": "Pflegeperson",
+      "export_werte": [
+        "/ja"
+      ]
+    },
+    {
+      "name": "Name und Adresse Pflegeperson",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": "Familienname(n) und Vorname(n) sowie Adresse der Pflegeperson",
+      "max_laenge": 24
+    },
+    {
+      "name": "Name und Adresse Pflegeperson2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": "Familienname(n) und Vorname(n) sowie Adresse der Pflegeperson",
+      "max_laenge": 24
+    },
+    {
+      "name": "Name und Adresse Pflegeperson3",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": "Familienname(n) und Vorname(n) sowie Adresse der Pflegeperson",
+      "max_laenge": 24
+    },
+    {
+      "name": "Familienhospiz",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Familienhospiz seit",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "Familienhospiz bis",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "Pflegekarenz/-teilzeit",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Pflegekarenz seit",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "Pflegekarenz bis",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "24 Stunden Betreuuung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "mobile Dienste",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/ja"
+      ]
+    },
+    {
+      "name": "Name mobiler Dienst",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8392704,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 75
+    },
+    {
+      "name": "Person Stelle ambulant teilstationär",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": "ambulante / teilstationäre Dienste (z.B. Behinderteneinrichtung, Tagesheimstätte, Tagespflege, Kindergarten, Hort)",
+      "export_werte": [
+        "/ja"
+      ]
+    },
+    {
+      "name": "ambulante teilstationäre Einrichtung, Kostenträger",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8392704,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": "Einrichtung sowie Adresse ambulante / teilstationäre Dienste und Kostenträger",
+      "max_laenge": 75
+    },
+    {
+      "name": "Wohnsituation",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 2,
+      "tooltip": "dauernde Unterbringung in einer stationären Einrichtung (z.B. Alten-, Pflege-, Wohn- oder Erziehungsheim, Krankenanstalt)",
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "dauernde Einrichtung, Kostenträger",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8392704,
+      "wert": null,
+      "seiten": [
+        2
+      ],
+      "widgets": 1,
+      "tooltip": "Einrichtung der dauernden Unterbringung sowie Adresse und Kostenträger",
+      "max_laenge": 75
+    },
+    {
+      "name": "Krankenhaus",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "KH von",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "KH bis",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "Spital",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": "Krankenanstalt, Aufenthalt von bis, Kostenträger",
+      "max_laenge": 45
+    },
+    {
+      "name": "KH von 2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "KH bis 2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "Spital2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": "Krankenanstalt, Aufenthalt von bis, Kostenträger",
+      "max_laenge": 45
+    },
+    {
+      "name": "Unfall",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Datum Unfall",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "Unfallhergang",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8392704,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": "Unfallhergang (stichwortartig)",
+      "max_laenge": 80
+    },
+    {
+      "name": "Unfallhergang2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8392704,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": "Unfallhergang (stichwortartig)",
+      "max_laenge": 80
+    },
+    {
+      "name": "Unfallschuld",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Arbeitsunfall",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Unfallanzeige",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Anzeige wo?",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": "Wenn ja, bei welcher Stelle wurde die Unfallanzeige erstattet?",
+      "max_laenge": 30
+    },
+    {
+      "name": "andere Leistung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "andere Leistung beantragt",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Art der Leistung?",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": "Art der Leistung, auszahlende Stelle, Aktenzeichen",
+      "max_laenge": 40
+    },
+    {
+      "name": "Art der Leistung seit",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "auszahlende Stelle",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": "Art der ausländischen Leistung und zuständige Stelle",
+      "max_laenge": 75
+    },
+    {
+      "name": "Pflegesachleistung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Pflegesachleistung aus EU",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": "Art der Pflegesachleistung, auszahlende Stelle und Aktenzeichen",
+      "max_laenge": 75
+    },
+    {
+      "name": "ausländische Pension",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "ausländische Pension benatragt",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Art der ausl. Leistung",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": "Art der Leistung, auszahlende Stelle, Aktenzeichen",
+      "max_laenge": 34
+    },
+    {
+      "name": "Art der Leistung seit2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "max_laenge": 10
+    },
+    {
+      "name": "ausl. Leistung Stelle",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        3
+      ],
+      "widgets": 1,
+      "tooltip": "letzte Dienstelle",
+      "max_laenge": 75
+    },
+    {
+      "name": "Pflegeberatung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        4
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Antragstellung andere Person",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        4
+      ],
+      "widgets": 1,
+      "tooltip": null,
+      "export_werte": [
+        "/01"
+      ]
+    },
+    {
+      "name": "Anweisung",
+      "typ": "/Btn",
+      "art": "checkbox",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 0,
+      "wert": null,
+      "seiten": [
+        4
+      ],
+      "widgets": 2,
+      "tooltip": null,
+      "export_werte": [
+        "/01",
+        "/02"
+      ]
+    },
+    {
+      "name": "Datum_1",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8388608,
+      "wert": null,
+      "seiten": [
+        4
+      ],
+      "widgets": 1,
+      "tooltip": "Antragsdatum",
+      "max_laenge": 10
+    },
+    {
+      "name": "Unterlagen",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8392704,
+      "wert": null,
+      "seiten": [
+        4
+      ],
+      "widgets": 1,
+      "tooltip": "Beilage(n):",
+      "max_laenge": 80
+    },
+    {
+      "name": "Unterlagen2",
+      "typ": "/Tx",
+      "art": "text",
+      "pflicht": false,
+      "nur_lesen": false,
+      "kein_export": false,
+      "ff": 8392704,
+      "wert": null,
+      "seiten": [
+        4
+      ],
+      "widgets": 1,
+      "tooltip": "Beilage(n):",
+      "max_laenge": 80
+    }
+  ]
+}

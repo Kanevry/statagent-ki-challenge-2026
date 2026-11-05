@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "JSON-Vertrag für ``GET /api/<uc>/protokoll`` (Schema: ``shared/schema/protokoll-eintrag.json``).",
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "integer"
+    },
+    "zeit": {
+      "format": "date-time",
+      "title": "Zeit",
+      "type": "string"
+    },
+    "uc": {
+      "title": "Uc",
+      "type": "string"
+    },
+    "akteur": {
+      "enum": [
+        "agent",
+        "mensch"
+      ],
+      "title": "Akteur",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "anweisung": {
+      "title": "Anweisung",
+      "type": "string"
+    },
+    "wirkung": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Wirkung"
+    },
+    "status": {
+      "enum": [
+        "offen",
+        "freigegeben",
+        "abgelehnt"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "modell": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Modell"
+    },
+    "ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Ref"
+    }
+  },
+  "required": [
+    "id",
+    "zeit",
+    "uc",
+    "akteur",
+    "name",
+    "anweisung",
+    "wirkung",
+    "status",
+    "modell",
+    "ref"
+  ],
+  "title": "ProtokollEintrag",
+  "type": "object"
+}

@@ -5,18 +5,36 @@
 
 # Node / Next.js
 node_modules/
+.pnpm-store/
 .next/
 out/
 dist/
 coverage/
 *.tsbuildinfo
 next-env.d.ts
+web/playwright-report/
+web/test-results/
 
-# Lokale Laufzeit
+# Python / uv
+.venv/
+.uv-cache/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Laufzeit (Modell-Protokoll, lokale Artefakte)
+var/
+
+# Session-Orchestrator (lokal)
 .orchestrator/runtime/
-.DS_Store
-*.log
 .orchestrator/session.lock
 .orchestrator/current-session.json
 .orchestrator/host.json
 .orchestrator/metrics/
+.claude/STATE.md
+.DS_Store
+*.log
+.claude/filescopes/
+.claude/wave-scope.json
+.orchestrator/wave-dispatch-scopes.*.json
