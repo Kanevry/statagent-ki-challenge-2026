@@ -6,6 +6,7 @@ Die Antworten laufen zusätzlich unter einer Nur-Lese-Rolle, die bereinigt.* nic
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import uuid
@@ -17,8 +18,10 @@ import psycopg
 import pytest
 from psycopg import sql
 
+from statagent import frage as frage_modul
 from statagent import konfig
-from statagent.agenten.werkzeuge import sql_lesen
+from statagent.agenten import werkzeuge
+from statagent.agenten.werkzeuge import AbfrageVerweigert, sql_lesen
 from statagent.db import Verbindung, verbinden
 from statagent.ergebnis import letzter_lauf, monat_verschieben, monatserster, monatsletzter
 from statagent.frage import als_ucantwort, antwort_frage, fragetyp, jahr_ohne_monat, monate_lesen, rate
@@ -87,6 +90,8 @@ def _pflichtfelder(daten: dict[str, Any]) -> None:
     assert all(0 <= z["beleg"] < len(daten["belege"]) for z in daten["zahlen"])
     assert daten["belege"][0]["sql"].lstrip().upper().startswith(("SELECT", "WITH"))
     assert "—" not in daten["text"] and daten["modell"] is None
+    # Sprache nach außen (docs/sprache.md): nie „Verhältnis“ allein, Monate ausgeschrieben.
+    assert not re.search(r"\bVerhältnis", daten["text"]) and not re.search(r"\d{4}-\d{2}", daten["text"])
 
 
 # Fängt: Monatsbereich mit Halbgeviertstrich oder Bindestrich wird zu falschen Monaten gelesen, Jahr ohne Monat
@@ -114,7 +119,8 @@ def test_zeitreihe_gleich_gegenrechnung(gerechnet: Verbindung) -> None:
     daten = antwort_frage(gerechnet, ZEITREIHE)
     _pflichtfelder(daten)
     erwartet = {
-        f"Beschäftigungsverhältnisse, {m}": _bestand(gerechnet, m)[()] for m in ("2024-08", "2024-09")
+        f"Beschäftigungsverhältnisse, {name}": _bestand(gerechnet, m)[()]
+        for m, name in (("2024-08", "August 2024"), ("2024-09", "September 2024"))
     }
     assert _werte(daten, "Beschäftigungsverhältnisse") == erwartet
     assert [s["monat"] for s in daten["stand"]] == ["2024-08", "2024-09"]
@@ -340,3 +346,109 @@ def test_fluktuation_ohne_bewegungsfunktion(gerechnet: Verbindung) -> None:
     daten = antwort_frage(gerechnet, "Fluktuation je ÖNACE im September 2024")
     assert daten["typ"] == "fluktuation" and daten["zahlen"] == []
     assert "uc3 db init" in daten["text"] and daten["hinweise"]
+
+
+# Fängt: sql_lesen schneidet nach HOECHSTENS_ZEILEN ab und die Antwort nennt eine Teilsumme, endet zu früh und
+# meldet die fehlenden Monate als „noch keinen Lauf“ (Zeitreihe je Bundesland über 24 Monate = 240 Zeilen).
+def test_abgeschnittenes_ergebnis_je_monat_gelesen(
+    gerechnet: Verbindung, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    frage = "Zeitreihe nach Bundesland 08/2024 bis 09/2024"
+    voll = antwort_frage(gerechnet, frage)
+    je_monat: dict[str, int] = {}
+    for z in voll["zahlen"]:
+        monat = z["bezeichnung"].split(", ")[1]
+        je_monat[monat] = je_monat.get(monat, 0) + 1
+    assert len(je_monat) == 2
+    monkeypatch.setattr(werkzeuge, "HOECHSTENS_ZEILEN", max(je_monat.values()))
+    geteilt = antwort_frage(gerechnet, frage)
+    assert [(z["bezeichnung"], z["wert"]) for z in geteilt["zahlen"]] == [
+        (z["bezeichnung"], z["wert"]) for z in voll["zahlen"]
+    ]
+    assert len(geteilt["belege"]) == 2 and geteilt["text"] == voll["text"]
+    monkeypatch.setattr(werkzeuge, "HOECHSTENS_ZEILEN", 1)
+    zu_viel = antwort_frage(gerechnet, frage)
+    assert zu_viel["zahlen"] == [] and "zu viele Zahlen" in zu_viel["text"]
+
+
+# Fängt: eine Reihe nach ÖNACE über den Wechsel 2008/2025 setzt gleiche Buchstaben gleich (2008-K Finanzen
+# erschiene als 2025-K) und springt ohne Hinweis.
+def test_oenace_reihe_ueber_versionswechsel_abgelehnt(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, "Zeitreihe nach ÖNACE 08/2024 bis 03/2025")
+    assert daten["zahlen"] == []
+    for teil in ("ÖNACE 2008", "ÖNACE 2025", "bis Dezember 2024", "von Jänner 2025 bis März 2025"):
+        assert teil in daten["text"]
+
+
+# Fängt: fortgeschriebene Beschäftigungsverhältnisse (Regel E07) zählen nie als Zu- oder Abgang, die Fluktuation
+# fällt zu niedrig aus, ohne dass die Antwort es sagt.
+def test_fortgeschriebene_ausgewiesen(gerechnet: Verbindung) -> None:
+    gerechnet.execute("UPDATE meta.lauf SET fortgeschrieben = 1234 WHERE lieferung = '2024-09'")
+    fluktuation = antwort_frage(gerechnet, FLUKTUATION)
+    assert any(
+        "1.234 fortgeschriebene" in h and "Zu- und Abgänge dieses Teils fehlen" in h
+        for h in fluktuation["hinweise"]
+    )
+    reihe = antwort_frage(gerechnet, ZEITREIHE)
+    assert any(h.startswith("September 2024 enthält 1.234 fortgeschriebene") for h in reihe["hinweise"])
+    assert not any("August 2024 enthält" in h for h in reihe["hinweise"])
+
+
+# Fängt: nach einer Regeländerung (Stichtag am 15.) rechnet stat.bewegung_oenace mit ihren eingebauten Regeln
+# weiter und liefert eine Fluktuation, die nicht zum Lauf passt; die Absage nennt einen internen Regelstand.
+def test_fluktuation_nur_mit_eingebauten_zaehlregeln(gerechnet: Verbindung) -> None:
+    stand_alt = letzter_lauf(gerechnet, "2024-09")
+    assert stand_alt is not None
+    gerechnet.execute(
+        """UPDATE meta.regel SET parameter = parameter || '{"von": "tag:15", "bis": "tag:15"}'::jsonb,
+             freigegeben_am = CASE WHEN freigegeben_von IS NULL THEN NULL ELSE now() END
+           WHERE regelsatz = 'v1' AND typ = 'zaehl' AND art = 'bestand'"""
+    )
+    geaendert = antwort_frage(gerechnet, FLUKTUATION)
+    assert geaendert["zahlen"] == [] and "Regeln wurden geändert" in geaendert["text"]
+    lauf_ausfuehren(gerechnet, "2024-09", "v1")
+    neu = antwort_frage(gerechnet, FLUKTUATION)
+    assert neu["zahlen"] == [] and "R2_R4_stichtag_eigene_lieferung" in neu["text"]
+    for daten in (geaendert, neu):
+        assert stand_alt.regelstand not in daten["text"] and "behebt" not in daten["text"]
+
+
+# Fängt: ein Lauf mit Monatszählung (zeitraum_art Monat) ergibt in der Stichtagsfrage 0 statt „keine Zahl“.
+def test_monatszaehlung_ergibt_keine_zahl(gerechnet: Verbindung) -> None:
+    gerechnet.execute(
+        "UPDATE stat.stat_beschaeftigte SET zeitraum_art = 'Monat', zeitraum_von = DATE '2024-09-01'"
+        " WHERE zeitraum_bis = DATE '2024-09-30'"
+    )
+    daten = antwort_frage(gerechnet, "Beschäftigte September 2024")
+    assert daten["zahlen"] == [] and "nicht am Stichtag" in daten["text"]
+    reihe = antwort_frage(gerechnet, "Zeitreihe 08/2024 bis 09/2024")
+    assert [z["bezeichnung"] for z in reihe["zahlen"]] == ["Beschäftigungsverhältnisse, August 2024"]
+
+
+# Fängt: Zeitlimit (QueryCanceled) oder eine verweigerte Abfrage enden im Traceback statt in einer Textantwort.
+@pytest.mark.parametrize(
+    "fehler", [AbfrageVerweigert("intern"), psycopg.errors.QueryCanceled("canceling statement")]
+)
+@pytest.mark.parametrize("frage", [GESCHLECHT, FLUKTUATION, DEFINITION, ZEITREIHE])
+def test_kein_traceback(
+    gerechnet: Verbindung, monkeypatch: pytest.MonkeyPatch, fehler: Exception, frage: str
+) -> None:
+    def wirft(conn: Verbindung, query: str) -> dict[str, Any]:
+        raise fehler
+
+    monkeypatch.setattr(frage_modul, "sql_lesen", wirft)
+    daten = antwort_frage(gerechnet, frage)
+    assert daten["zahlen"] == [] and daten["text"] == frage_modul.NICHT_LESBAR
+    assert "intern" not in daten["text"] and "canceling" not in daten["text"]
+
+
+# Fängt: „Die Zahlen sind endgültig und vorläufig.“ und „noch kein Lauf“ für Monate, zu denen es keine Lieferung
+# gibt (vor August 2024).
+def test_sprache_status_und_monate_ohne_lieferung(gerechnet: Verbindung) -> None:
+    staende = [{"monat": "2024-08", "status": "endgueltig"}, {"monat": "2024-09", "status": "vorlaeufig"}]
+    assert frage_modul._status_text(staende) == "teils endgültig, teils vorläufig (vorläufig: September 2024)"
+    for frage in ("Beschäftigte Juli 2024", "Fluktuation im Juli 2024"):
+        daten = antwort_frage(gerechnet, frage)
+        assert daten["zahlen"] == [] and "Für Juli 2024 gibt es keine Lieferung" in daten["text"]
+    reihe = antwort_frage(gerechnet, "Zeitreihe 06/2024 bis 09/2024")
+    assert any("2 Monate im Zeitraum gibt es keine Lieferung" in h for h in reihe["hinweise"])

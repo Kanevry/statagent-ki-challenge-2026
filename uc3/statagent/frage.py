@@ -12,15 +12,17 @@ Zahl. Die Antwort enthält die Felder einer ``UcAntwort`` und dazu Art, Definiti
 from __future__ import annotations
 
 import re
+from datetime import date
 from typing import Any
 
 import psycopg
 from psycopg import sql
 
-from statagent.agenten.werkzeuge import sql_lesen
+from statagent.agenten.werkzeuge import AbfrageVerweigert, sql_lesen
 from statagent.berichte.sheet import STICHTAG, STICHTAG_VARIABLE
 from statagent.db import Verbindung
 from statagent.ergebnis import letzter_lauf, monat_verschieben, monatserster, monatsletzter
+from statagent.regeln import Regel, regeln_laden, regelstand
 from statagent.uc4 import (
     _ISO,
     _NAME_MONAT,
@@ -43,12 +45,25 @@ UC_FELDER = ("text", "belege", "zahlen", "uc", "modell", "protokoll_id")
 FLUKTUATION_DEFINITION = (
     "Fluktuation = (Zugänge + Abgänge) / 2 / Bestand, in Prozent, je ÖNACE-Abschnitt und Berichtsmonat. "
     "Bestand: Beschäftigungsverhältnisse am Stichtag (Monatsletzter) laut stat.stat_beschaeftigte im Regelstand "
-    "des maßgeblichen Laufs. Zugang: ein Verhältnis besteht am Stichtag, aber nicht am Stichtag des Vormonats; "
+    "des maßgeblichen Laufs. Zugang: ein Beschäftigungsverhältnis besteht am Stichtag, aber nicht am Stichtag des Vormonats; "
     "Abgang: umgekehrt. Beide Stichtage aus der Lieferung des Berichtsmonats (stat.bewegung_oenace). Zugänge "
     "zählen beim Abschnitt am Stichtag, Abgänge beim Abschnitt am Vormonats-Stichtag. Bestand 0 ergibt keine Rate."
 )
 OENACE_ERKLAERUNG = (
     "ÖNACE ist die österreichische Einteilung der Wirtschaftsbereiche in Abschnitte (Buchstaben)."
+)
+#: Erste und letzte Lieferung der Aufgabe; davor und danach gibt es keine Daten (nicht: „noch kein Lauf“).
+ERSTE_LIEFERUNG, LETZTE_LIEFERUNG = "2024-08", "2026-07"
+#: Zählregeln, die stat.bewegung_oenace (uc3/db/160_bewegung.sql) fest eingebaut hat.
+EINGEBAUT = {
+    ("bestand", "zeitraum_art"): "Stichtag",
+    ("bestand", "von"): "monatsletzter",
+    ("bestand", "bis"): "monatsletzter",
+    ("abschnittswahl", "ordnung"): "spaetester_beginn",
+}
+NICHT_LESBAR = (
+    "Diese Frage lässt sich gerade nicht aus der Datenbank beantworten. Was tun: die Frage enger fassen, "
+    "zum Beispiel einen Monat statt eines ganzen Zeitraums, oder etwas später noch einmal fragen."
 )
 _STATUS_TEXT = {"vorlaeufig": "vorläufig", "endgueltig": "endgültig", "gesperrt": "gesperrt"}
 
@@ -178,8 +193,84 @@ def _beleg(sql_text: str, staende: list[dict[str, Any]], hash_: str | None = Non
 
 
 def _status_text(staende: list[dict[str, Any]]) -> str:
-    werte = sorted({_STATUS_TEXT.get(str(s["status"]), str(s["status"])) for s in staende})
-    return " und ".join(werte)
+    """„endgültig“, „vorläufig“ oder „teils endgültig, teils vorläufig (vorläufig: August 2024, …)“."""
+    offen = [s for s in staende if s["status"] != "endgueltig"]
+    if not offen:
+        return "endgültig"
+    if len(offen) == len(staende):
+        werte = {_STATUS_TEXT.get(str(s["status"]), str(s["status"])) for s in offen}
+        return " und ".join(sorted(werte))
+    monate = ", ".join(_monat_anzeige(str(s["monat"])) for s in offen)
+    return f"teils endgültig, teils vorläufig (vorläufig: {monate})"
+
+
+class _KeineZahl(Exception):
+    """Die Frage ist verstanden, aber ohne Zahl zu beantworten; die Nachricht ist der Text für Laien."""
+
+
+class _Abgeschnitten(Exception):
+    """sql_lesen hat nach HOECHSTENS_ZEILEN abgeschnitten: nie eine Teilsumme ausgeben."""
+
+
+def _lesen(conn: Verbindung, sql_text: str) -> list[dict[str, Any]]:
+    ergebnis = sql_lesen(conn, sql_text)
+    if ergebnis["abgeschnitten"]:
+        raise _Abgeschnitten
+    zeilen: list[dict[str, Any]] = ergebnis["zeilen"]
+    return zeilen
+
+
+def _tag_anzeige(tag: date) -> str:
+    return f"{tag.day}. {_monat_anzeige(f'{tag.year:04d}-{tag.month:02d}')}"
+
+
+def _ohne_lieferung(monat: str) -> bool:
+    return monat < ERSTE_LIEFERUNG or monat > LETZTE_LIEFERUNG
+
+
+def _kein_lauf_text(monat: str) -> str:
+    if _ohne_lieferung(monat):
+        return f"Für {_monat_anzeige(monat)} gibt es keine Lieferung, also auch keine Zahl."
+    return (
+        f"{_monat_anzeige(monat)} ist noch nicht gerechnet. Was tun: den Lauf für den Monat starten "
+        f"(uc3 lauf --lieferung {monat}) und dann noch einmal fragen."
+    )
+
+
+def _oenace_version(conn: Verbindung, monat: str) -> tuple[str, str] | None:
+    """ÖNACE-Version (Abschnitte), die im Monat gilt, mit ihrem ersten Monat."""
+    zeile = conn.execute(
+        """SELECT version, to_char(min(gueltig_von), 'YYYY-MM') AS ab FROM stat.klass_oenace
+           WHERE ebene = 1 AND gueltig_von <= %s AND (gueltig_bis IS NULL OR gueltig_bis >= %s)
+           GROUP BY version ORDER BY version DESC LIMIT 1""",
+        (monatsletzter(monat), monatserster(monat)),
+    ).fetchone()
+    return None if zeile is None else (str(zeile["version"]), str(zeile["ab"]))
+
+
+def _laufinfo(conn: Verbindung, regelsatz: str, staende: list[dict[str, Any]]) -> dict[int, tuple[int, bool]]:
+    """Je Lauf: fortgeschriebene Beschäftigungsverhältnisse (E07) und ob es Zahlen am Stichtag gibt."""
+    if not staende:
+        return {}
+    zeilen = conn.execute(
+        """SELECT l.id, l.fortgeschrieben, EXISTS (
+             SELECT 1 FROM stat.stat_beschaeftigte s WHERE s.regelsatz = l.regelsatz AND s.regelstand = l.regelstand
+               AND s.zeitraum_art = %s AND s.variable = %s AND to_char(s.zeitraum_bis, 'YYYY-MM') = l.lieferung
+           ) AS stichtag
+           FROM meta.lauf l WHERE l.regelsatz = %s AND l.id = ANY(%s)""",
+        (STICHTAG, STICHTAG_VARIABLE, regelsatz, [int(s["lauf"]) for s in staende]),
+    ).fetchall()
+    return {int(str(z["id"])): (int(str(z["fortgeschrieben"])), bool(z["stichtag"])) for z in zeilen}
+
+
+def _fortgeschrieben_hinweis(monat: str, anzahl: int, fluktuation: bool = False) -> str:
+    text = (
+        f"{_monat_anzeige(monat)} enthält {_deutsch(anzahl)} fortgeschriebene Beschäftigungsverhältnisse: "
+        "Sie fehlten in der Lieferung und wurden aus der Lieferung des Vormonats übernommen."
+    )
+    if fluktuation:
+        text += " Zu- und Abgänge dieses Teils fehlen, die Fluktuation ist dadurch zu niedrig."
+    return text
 
 
 def _filter(
@@ -292,87 +383,152 @@ def _bestand_antwort(
     gruppen: tuple[Merkmal, ...],
     typ: str,
 ) -> dict[str, Any]:
-    filter_, etiketten = _filter(conn, frage, bis, gruppen)
-    sql_text = bestand_sql(conn, regelsatz, von, bis, filter_, gruppen)
-    ergebnis = sql_lesen(conn, sql_text)
-    zeilen: list[dict[str, Any]] = ergebnis["zeilen"]
     definition, einheit = _definition_bestand(conn)
-    if not zeilen:
-        zeitraum = _monat_anzeige(von) if von == bis else f"{_monat_anzeige(von)} bis {_monat_anzeige(bis)}"
+    filter_, etiketten = _filter(conn, frage, bis, gruppen)
+    if OENACE in gruppen or any(m is OENACE for m, _ in filter_):
+        v_von, v_bis = _oenace_version(conn, von), _oenace_version(conn, bis)
+        if v_von and v_bis and v_von[0] != v_bis[0]:
+            letzter_alt = monat_verschieben(v_bis[1], -1)
+            raise _KeineZahl(
+                f"Die Wirtschaftsbereiche (ÖNACE) wurden neu eingeteilt: bis {_monat_anzeige(letzter_alt)} gilt "
+                f"ÖNACE {v_von[0]}, ab {_monat_anzeige(v_bis[1])} ÖNACE {v_bis[0]}. Gleiche Buchstaben meinen "
+                "dort teils andere Bereiche, eine Reihe über den Wechsel hinweg wäre irreführend. Bitte getrennt "
+                f"fragen: von {_monat_anzeige(von)} bis {_monat_anzeige(letzter_alt)} und von "
+                f"{_monat_anzeige(v_bis[1])} bis {_monat_anzeige(bis)}."
+            )
+    # Ein Ergebnis über HOECHSTENS_ZEILEN liest sql_lesen nur abgeschnitten: dann je Monat eine Abfrage.
+    abfragen: list[tuple[str, list[dict[str, Any]]]] = []
+    sql_text = bestand_sql(conn, regelsatz, von, bis, filter_, gruppen)
+    try:
+        abfragen.append((sql_text, _lesen(conn, sql_text)))
+    except _Abgeschnitten:
+        monate = _monate(von, bis)
+        if len(monate) > 120:
+            raise _KeineZahl(
+                "Der Zeitraum ist für eine Antwort zu lang. Bitte höchstens zehn Jahre auf einmal fragen."
+            ) from None
+        for monat in monate:
+            text_m = bestand_sql(conn, regelsatz, monat, monat, filter_, gruppen)
+            try:
+                zeilen_m = _lesen(conn, text_m)
+            except _Abgeschnitten:
+                raise _KeineZahl(
+                    f"Für {_monat_anzeige(monat)} wären es zu viele Zahlen für eine Antwort. Bitte enger fragen, "
+                    "zum Beispiel mit weniger Aufteilungen oder für ein Bundesland."
+                ) from None
+            if zeilen_m:
+                abfragen.append((text_m, zeilen_m))
+    alle = [z for _, zeilen in abfragen for z in zeilen]
+    staende = _staende(alle)
+    info = _laufinfo(conn, regelsatz, staende)
+    for s in staende:
+        s["fortgeschrieben"] = info.get(int(s["lauf"]), (0, True))[0]
+    hinweise: list[str] = []
+    ohne_stichtag = {str(s["monat"]) for s in staende if not info.get(int(s["lauf"]), (0, True))[1]}
+    if ohne_stichtag:
+        hinweise.append(
+            f"Für {', '.join(_monat_anzeige(m) for m in sorted(ohne_stichtag))} zählt der Lauf nicht am Stichtag "
+            "(letzter Tag des Monats); dafür gibt es hier keine Zahl."
+        )
+    fehlend = [m for m in _monate(von, bis) if m not in {str(s["monat"]) for s in staende}]
+    keine_lieferung = [m for m in fehlend if _ohne_lieferung(m)]
+    ungerechnet = [m for m in fehlend if not _ohne_lieferung(m)]
+    for monate, wie in (
+        (keine_lieferung, "gibt es keine Lieferung"),
+        (ungerechnet, "gibt es noch keinen Lauf"),
+    ):
+        if monate:
+            hinweise.append(
+                f"Für {_anzahl_monate(len(monate))} im Zeitraum {wie}: "
+                + ", ".join(_monat_anzeige(m) for m in monate[:6])
+                + (" und weitere" if len(monate) > 6 else "")
+                + "."
+            )
+    hinweise += [
+        _fortgeschrieben_hinweis(str(s["monat"]), int(s["fortgeschrieben"]))
+        for s in staende
+        if s["fortgeschrieben"] and str(s["monat"]) not in ohne_stichtag
+    ]
+    belege: list[dict[str, Any]] = []
+    zahlen: list[dict[str, Any]] = []
+    gezaehlt: list[dict[str, Any]] = []
+    labels: dict[tuple[str, str], dict[str, str]] = {}
+    zusatz = f" ({', '.join(etiketten)})" if etiketten else ""
+    for text_q, zeilen in abfragen:
+        staende_q = _staende(zeilen)
+        hash_ = None
+        if len(staende_q) == 1:
+            stand = letzter_lauf(conn, str(staende_q[0]["monat"]), regelsatz)
+            hash_ = stand.ergebnis_hash if stand and stand.lauf_id == staende_q[0]["lauf"] else None
+        belege.append(_beleg(text_q, staende_q, hash_))
+        for z in zeilen:
+            monat = str(z["monat"])
+            if monat in ohne_stichtag or (gruppen and z["g0"] is None):
+                continue  # keine Stichtagszahl, oder Monat ohne Zeile für die Gliederung
+            gezaehlt.append(z)
+            teile = [_monat_anzeige(monat)] if von != bis else []
+            for i, g in enumerate(gruppen):
+                code = str(z[f"g{i}"])
+                # Bezeichnung aus der Klassifikationsversion des Monats der Zeile (ÖNACE 2008 oder 2025).
+                namen = labels.setdefault((g.name, monat), _codes(conn, g, monat))
+                teile.append(
+                    namen.get(code, code) if g is not OENACE else f"{code} {namen.get(code, '')}".strip()
+                )
+            zahlen.append(
+                {
+                    "bezeichnung": "Beschäftigungsverhältnisse"
+                    + zusatz
+                    + (f", {', '.join(teile)}" if teile else ""),
+                    "wert": int(z["wert"]),
+                    "einheit": einheit,
+                    "beleg": len(belege) - 1,
+                }
+            )
+    if not zahlen:
+        if von == bis and not staende:
+            text = _kein_lauf_text(von)
+        else:
+            zeitraum = (
+                _monat_anzeige(von) if von == bis else f"{_monat_anzeige(von)} bis {_monat_anzeige(bis)}"
+            )
+            text = f"Für {zeitraum} gibt es keine Zahl."
         return _antwort(
             typ,
-            f"Für {zeitraum} gibt es noch keinen gerechneten Monat (Regelsatz {regelsatz}). "
-            "Erst ein Lauf für den Monat liefert Zahlen.",
+            " ".join([text, *hinweise]),
             definition=definition,
             einheit=einheit,
-            belege=[_beleg(sql_text, [])],
+            stand=staende,
+            belege=belege or [_beleg(sql_text, [])],
+            hinweise=hinweise,
         )
-    staende = _staende(zeilen)
-    hash_ = None
-    if len(staende) == 1:
-        stand = letzter_lauf(conn, str(staende[0]["monat"]), regelsatz)
-        hash_ = stand.ergebnis_hash if stand and stand.lauf_id == staende[0]["lauf"] else None
-    beleg = _beleg(sql_text, staende, hash_)
-    labels = [_codes(conn, g, bis) for g in gruppen]
-    zusatz = f" ({', '.join(etiketten)})" if etiketten else ""
-    zahlen: list[dict[str, Any]] = []
-    for z in zeilen:
-        teile = [str(z["monat"])] if von != bis else []
-        if gruppen and z["g0"] is None:
-            continue  # Monat mit Lauf, aber ohne Zeile für die Gliederung
-        for i, g in enumerate(gruppen):
-            code = str(z[f"g{i}"])
-            teile.append(
-                labels[i].get(code, code) if g is not OENACE else f"{code} {labels[i].get(code, '')}".strip()
-            )
-        zahlen.append(
-            {
-                "bezeichnung": "Beschäftigungsverhältnisse"
-                + zusatz
-                + (f", {', '.join(teile)}" if teile else ""),
-                "wert": int(z["wert"]),
-                "einheit": einheit,
-                "beleg": 0,
-            }
-        )
-    hinweise: list[str] = []
-    fehlend = _fehlende_monate(von, bis, {str(s["monat"]) for s in staende})
-    if fehlend:
-        hinweise.append(
-            f"Für {_anzahl_monate(len(fehlend))} im Zeitraum gibt es noch keinen gerechneten Lauf: "
-            + ", ".join(_monat_anzeige(m) for m in fehlend[:6])
-            + (" und weitere" if len(fehlend) > 6 else "")
-            + "."
-        )
-    text = _text_bestand(typ, zeilen, staende, gruppen, labels, zusatz)
+    gezaehlte_staende = [s for s in staende if str(s["monat"]) not in ohne_stichtag]
+    text = _text_bestand(typ, gezaehlt, gruppen, labels, zusatz)
     return _antwort(
         typ,
-        " ".join([text, *hinweise, _laien_bestand(), f"Die Zahlen sind {_status_text(staende)}."]),
+        " ".join([text, *hinweise, _laien_bestand(), f"Die Zahlen sind {_status_text(gezaehlte_staende)}."]),
         definition=definition,
         einheit=einheit,
         stand=staende,
-        belege=[beleg],
+        belege=belege,
         zahlen=zahlen,
         hinweise=hinweise,
     )
 
 
-def _fehlende_monate(von: str, bis: str, vorhanden: set[str]) -> list[str]:
-    fehlend: list[str] = []
+def _monate(von: str, bis: str) -> list[str]:
+    monate: list[str] = []
     monat = von
-    while monat <= bis and len(fehlend) < 600:
-        if monat not in vorhanden:
-            fehlend.append(monat)
+    while monat <= bis and len(monate) < 600:
+        monate.append(monat)
         monat = monat_verschieben(monat, 1)
-    return fehlend
+    return monate
 
 
 def _text_bestand(
     typ: str,
     zeilen: list[dict[str, Any]],
-    staende: list[dict[str, Any]],
     gruppen: tuple[Merkmal, ...],
-    labels: list[dict[str, str]],
+    labels: dict[tuple[str, str], dict[str, str]],
     zusatz: str,
 ) -> str:
     je_monat: dict[str, int] = {}
@@ -383,12 +539,12 @@ def _text_bestand(
         erster, letzter = monate[0], monate[-1]
         if erster == letzter:
             text = (
-                f"Beschäftigungsverhältnisse{zusatz} am Monatsende, {_monat_anzeige(erster)}: "
+                f"Beschäftigungsverhältnisse{zusatz} am Stichtag, {_monat_anzeige(erster)}: "
                 f"{_deutsch(je_monat[erster])}."
             )
         else:
             text = (
-                f"Beschäftigungsverhältnisse{zusatz} am Monatsende, {_monat_anzeige(erster)} bis "
+                f"Beschäftigungsverhältnisse{zusatz} am Stichtag, {_monat_anzeige(erster)} bis "
                 f"{_monat_anzeige(letzter)} ({_anzahl_monate(len(monate))}): von {_deutsch(je_monat[erster])} "
                 f"auf {_deutsch(je_monat[letzter])}."
             )
@@ -396,14 +552,16 @@ def _text_bestand(
             text += f" Aufgeteilt nach {', '.join(g.name for g in gruppen)}, eine Zahl je Monat und Gruppe."
         return text
     monat = monate[0]
-    stichtag = monatsletzter(monat).strftime("%d.%m.%Y")
-    text = f"Am {stichtag} ({_monat_anzeige(monat)}) gab es {_deutsch(je_monat[monat])} Beschäftigungsverhältnisse{zusatz}."
+    text = (
+        f"Am {_tag_anzeige(monatsletzter(monat))} gab es {_deutsch(je_monat[monat])} "
+        f"Beschäftigungsverhältnisse{zusatz}."
+    )
     if gruppen and gruppen[0] is GESCHLECHT:
         je_geschlecht: dict[str, int] = {}
         for z in zeilen:
-            if z["g0"] is not None:
-                je_geschlecht[str(z["g0"])] = je_geschlecht.get(str(z["g0"]), 0) + int(z["wert"])
-        teile = [f"{labels[0].get(c, c)}: {_deutsch(n)}" for c, n in sorted(je_geschlecht.items())]
+            je_geschlecht[str(z["g0"])] = je_geschlecht.get(str(z["g0"]), 0) + int(z["wert"])
+        namen = labels.get((GESCHLECHT.name, monat), {})
+        teile = [f"{namen.get(c, c)}: {_deutsch(n)}" for c, n in sorted(je_geschlecht.items())]
         text += " Davon " + ", ".join(teile) + "."
         if len(gruppen) > 1:
             text += " Unten stehen die Zahlen je Bundesland, getrennt nach Geschlecht."
@@ -447,39 +605,81 @@ def rate(zugaenge: int, abgaenge: int, bestand: int) -> float | None:
     return round(100.0 * (zugaenge + abgaenge) / 2 / bestand, 2)
 
 
+def _regel_abweichung(conn: Verbindung, regelsatz: str, monat: str, stand_regelstand: str) -> str | None:
+    """Text, wenn die Zählregeln des Monats nicht die in stat.bewegung_oenace eingebauten sind, sonst None."""
+    regeln: list[Regel] = regeln_laden(conn, regelsatz, monat)
+    was_tun = (
+        f" Was tun: den Monat neu rechnen lassen (uc3 lauf --lieferung {monat}) und dann noch einmal fragen."
+    )
+    if regelstand(conn, regeln) != stand_regelstand:
+        return (
+            f"Die Regeln wurden geändert, seit {_monat_anzeige(monat)} gerechnet wurde. Zu- und Abgänge passten "
+            "dann nicht sicher zu den Zahlen." + was_tun
+        )
+    for r in regeln:
+        if r.typ != "zaehl":
+            continue
+        for (art, schluessel), soll in EINGEBAUT.items():
+            if r.art == art and str(r.parameter.get(schluessel)) != soll:
+                return (
+                    f"Für {_monat_anzeige(monat)} zählt die Regel {r.name} anders, als die Fluktuation rechnen "
+                    "kann. Sie kennt nur den Stichtag am letzten Tag des Monats und, bei mehreren Abschnitten "
+                    "eines Beschäftigungsverhältnisses, den zuletzt begonnenen. Darum gibt es hier keine Zahl."
+                )
+    return None
+
+
+def _bewegung_fehlertext(fehler: psycopg.Error, monat: str) -> str:
+    """Laientext ohne interne Kennungen (Regelstand-Hashes) und mit dem nächsten Schritt."""
+    was_tun = (
+        f" Was tun: den Monat neu rechnen lassen (uc3 lauf --lieferung {monat}) und dann noch einmal fragen."
+    )
+    if isinstance(fehler, psycopg.errors.UndefinedFunction):
+        # Die Funktion kommt erst mit `uc3 db init` in eine bestehende Datenbank (uc3/db/160_bewegung.sql).
+        return (
+            "Die Datenbank kennt die Zählung der Zu- und Abgänge noch nicht. Was tun: einmal `uc3 db init` "
+            "ausführen, das ändert keine Daten."
+        )
+    meldung = fehler.diag.message_primary or ""
+    if "lokalen Auswertung" in meldung:
+        return meldung + "."
+    if "Regelstand" in meldung:
+        return "Die Einzeldaten dieses Monats wurden inzwischen mit anderen Regeln neu gerechnet." + was_tun
+    if "keine bereinigten Daten" in meldung:
+        return "Für diesen Monat liegen keine bereinigten Einzeldaten vor." + was_tun
+    return NICHT_LESBAR
+
+
 def _fluktuation_antwort(conn: Verbindung, monat: str, regelsatz: str) -> dict[str, Any]:
     stand = letzter_lauf(conn, monat, regelsatz)
     if stand is None:
         return _antwort(
-            "fluktuation",
-            f"Für {_monat_anzeige(monat)} gibt es noch keinen gerechneten Monat (Regelsatz {regelsatz}).",
-            definition=FLUKTUATION_DEFINITION,
-            einheit="Prozent",
+            "fluktuation", _kein_lauf_text(monat), definition=FLUKTUATION_DEFINITION, einheit="Prozent"
         )
+    fortgeschrieben = _laufinfo(conn, regelsatz, [{"lauf": stand.lauf_id}]).get(stand.lauf_id, (0, True))[0]
     staende = [
         {
             "monat": monat,
             "lauf": stand.lauf_id,
             "regelstand": stand.regelstand,
             "status": stand.ergebnis_status,
+            "fortgeschrieben": fortgeschrieben,
         }
     ]
     sql_text = _fluktuation_sql(conn, regelsatz, stand.regelstand, monat)
     beleg = _beleg(sql_text, staende, stand.ergebnis_hash)
-    try:
-        zeilen: list[dict[str, Any]] = sql_lesen(conn, sql_text)["zeilen"]
-    except (psycopg.errors.RaiseException, psycopg.errors.UndefinedFunction) as fehler:
-        if isinstance(fehler, psycopg.errors.UndefinedFunction):
-            # Die Funktion kommt erst mit `uc3 db init` in eine bestehende Datenbank (uc3/db/160_bewegung.sql).
-            grund = "Die Datenbank kennt die Zählung der Zu- und Abgänge noch nicht"
-            nachsatz = " Einmal `uc3 db init` ausführen, das ändert keine Daten."
-        else:
-            grund = fehler.diag.message_primary or str(fehler)
-            # Ohne Schema bereinigt (Online-Datenbank) hilft kein neuer Lauf; die Meldung der Funktion sagt das selbst.
-            nachsatz = "" if "lokalen Auswertung" in grund else " Ein neuer Lauf für den Monat behebt das."
+    abweichung = _regel_abweichung(conn, regelsatz, monat, stand.regelstand)
+    grund: str | None = abweichung
+    zeilen: list[dict[str, Any]] = []
+    if grund is None:
+        try:
+            zeilen = _lesen(conn, sql_text)
+        except (psycopg.errors.RaiseException, psycopg.errors.UndefinedFunction) as fehler:
+            grund = _bewegung_fehlertext(fehler, monat)
+    if grund is not None:
         return _antwort(
             "fluktuation",
-            f"Für {_monat_anzeige(monat)} lässt sich die Fluktuation nicht berechnen: {grund}.{nachsatz}",
+            f"Für {_monat_anzeige(monat)} lässt sich die Fluktuation nicht berechnen. {grund}",
             definition=FLUKTUATION_DEFINITION,
             einheit="Prozent",
             stand=staende,
@@ -515,12 +715,12 @@ def _fluktuation_antwort(conn: Verbindung, monat: str, regelsatz: str) -> dict[s
     ab = sum(int(z["abgaenge"]) for z in zeilen)
     best = sum(int(z["bestand"]) for z in zeilen)
     gesamt = rate(zu, ab, best)
-    stichtag = monatsletzter(monat).strftime("%d.%m.%Y")
-    vorher = monatsletzter(monat_verschieben(monat, -1)).strftime("%d.%m.%Y")
+    stichtag = _tag_anzeige(monatsletzter(monat))
+    vorher = _tag_anzeige(monatsletzter(monat_verschieben(monat, -1)))
     teile = [
         f"Fluktuation im {_monat_anzeige(monat)}: Wie viele Beschäftigungsverhältnisse kamen dazu oder endeten, "
         f"gemessen am Bestand? Zwischen {vorher} und {stichtag} gab es {_deutsch(zu)} Zugänge und "
-        f"{_deutsch(ab)} Abgänge bei {_deutsch(best)} Verhältnissen am {stichtag}."
+        f"{_deutsch(ab)} Abgänge bei {_deutsch(best)} Beschäftigungsverhältnissen am {stichtag}."
     ]
     if gesamt is not None:
         teile.append(f"Über alle Wirtschaftsbereiche sind das {_komma(gesamt)} Prozent.")
@@ -542,14 +742,15 @@ def _fluktuation_antwort(conn: Verbindung, monat: str, regelsatz: str) -> dict[s
         )
     hinweise: list[str] = []
     if ohne_bestand:
-        hinweis = (
+        hinweise.append(
             f"Für {', '.join(ohne_bestand)} gibt es am {stichtag} keine Beschäftigten; "
             "dort ist keine Rate berechenbar, es stehen nur Zu- und Abgänge da."
         )
-        hinweise.append(hinweis)
-        teile.append(hinweis)
+    if fortgeschrieben:
+        hinweise.append(_fortgeschrieben_hinweis(monat, fortgeschrieben, fluktuation=True))
+    teile += hinweise
     teile.append(
-        "Formel: (Zugänge + Abgänge) geteilt durch 2, geteilt durch den Bestand am Monatsende. "
+        "Formel: (Zugänge + Abgänge) geteilt durch 2, geteilt durch den Bestand am Stichtag. "
         f"ÖNACE-Abschnitte sind Wirtschaftsbereiche. Die Zahlen sind {_status_text(staende)}."
     )
     return _antwort(
@@ -577,7 +778,7 @@ def _definition_antwort(conn: Verbindung, frage: str) -> dict[str, Any]:
             .format(sql.Literal(code))
             .as_string(conn)
         )
-        zeilen: list[dict[str, Any]] = sql_lesen(conn, sql_text)["zeilen"]
+        zeilen = _lesen(conn, sql_text)
         beleg = {"uc": UC, "quelle": "stat.klass_oenace", "sql": sql_text, "ref": f"stat.klass_oenace/{code}"}
         if not zeilen:
             return _antwort(
@@ -639,8 +840,21 @@ def _rueckfrage_monat(typ: str, jahr: str | None) -> dict[str, Any]:
 
 
 def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str, Any]:
-    """Beantwortet eine Datenanfrage ohne Sprachmodell; mehrdeutige Fragen bekommen eine Rückfrage."""
+    """Beantwortet eine Datenanfrage ohne Sprachmodell; mehrdeutige Fragen bekommen eine Rückfrage.
+
+    Wirft nie: Was sich nicht beantworten lässt (Zeitlimit, verweigerte Abfrage, zu viele Zahlen), kommt als
+    Textantwort ohne Zahl und ohne interne Details zurück.
+    """
     typ = fragetyp(frage)
+    try:
+        return _antwort_frage(conn, frage, regelsatz, typ)
+    except _KeineZahl as grund:
+        return _antwort(typ, str(grund), hinweise=[str(grund)])
+    except (psycopg.Error, AbfrageVerweigert):
+        return _antwort(typ, NICHT_LESBAR, hinweise=[NICHT_LESBAR])
+
+
+def _antwort_frage(conn: Verbindung, frage: str, regelsatz: str, typ: str) -> dict[str, Any]:
     if typ == "definition":
         return _definition_antwort(conn, frage)
     monate = monate_lesen(frage)
@@ -657,7 +871,7 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
             von, bis = "0001-01", "9999-12"
         letzter_bekannt = _letzter_monat(conn, regelsatz)
         if letzter_bekannt is None:
-            return _antwort("zeitreihe", f"Es gibt noch keinen gerechneten Monat (Regelsatz {regelsatz}).")
+            return _antwort("zeitreihe", "Es ist noch kein Monat gerechnet.")
         if bis == "9999-12":
             bis = letzter_bekannt
         if von == "0001-01":
