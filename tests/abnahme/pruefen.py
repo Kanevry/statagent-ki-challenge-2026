@@ -357,6 +357,10 @@ def main() -> int:
         if (not a.id or p["id"] == a.id)
         and (not a.bereich or p["datei"].split(".")[0].split("-")[0] == a.bereich)
         and (a.schwer or not p.get("schwer"))
+        # Der schwere Lauf urteilt nur Kriterien mit schwerem Teil (alle ihre Teile). Rein leichte Kriterien
+        # misst der leichte Lauf: auf dem Prüfrechner fehlen glab und Nachbarordner, ein Urteil von dort
+        # würde ein jüngeres leichtes Urteil überdecken (Lauf 20:11: 134-4 nur dort nicht bestanden).
+        and (not a.schwer or p["id"] in hat_schwer)
     ]
     zeilen = [
         {

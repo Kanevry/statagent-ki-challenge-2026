@@ -222,7 +222,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:25"
 [[pruefung]]
 id = "16-AC4"
 hash = "a571160318"
-befehl = "ls abgabe/qualitaetsberichte/*.md | wc -l | tr -d ' '; timeout 170 uv run --package statagent statagent pruefe-abgabe | grep -E '^\\[ok\\] Qualitätsberichte'"
+befehl = "ls abgabe/qualitaetsberichte/*.md | wc -l | tr -d ' '; STATAGENT_ABGABE=abgabe timeout 170 uv run --package statagent statagent pruefe-abgabe | grep -E '^\\[ok\\] Qualitätsberichte'"
 erwartet = ["^24$", "^\\[ok\\] Qualitätsberichte 2024-08 bis 2026-07: 24 Berichte mit 5 Abschnitten"]
 schwer = false
 deckung = "teil"
@@ -244,7 +244,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "17-AC2"
 hash = "5efcdcf25c"
-befehl = "timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
+befehl = "STATAGENT_ABGABE=abgabe timeout 170 uv run --isolated --package statagent statagent pruefe-abgabe"
 erwartet = ["Abgabe vollständig"]
 schwer = false
 deckung = "teil"
