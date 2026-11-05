@@ -7,15 +7,15 @@ export type ChipProps = Omit<HTMLAttributes<HTMLSpanElement>, "children"> & {
   children?: ReactNode;
 };
 
-/** Gelber Chip für Auffälligkeiten, immer Symbol und Wort. */
+/** Gelber Chip für Auffälligkeiten (Pen-Frame NeqAs), immer Symbol und Wort. */
 export function WarnChip({ children, className, ...rest }: ChipProps) {
   return (
     <span
-      className={klassen("inline-flex items-center rounded-full bg-warn-bg px-2 py-1", className)}
+      className={klassen("inline-flex items-center rounded-full bg-warn-bg px-2.5 py-1", className)}
       data-baustein="warnung"
       {...rest}
     >
-      <Status art="warnung">{children}</Status>
+      <Status art="warnung" klein>{children}</Status>
     </span>
   );
 }
@@ -24,11 +24,11 @@ export function WarnChip({ children, className, ...rest }: ChipProps) {
 export function FehlerChip({ children, className, ...rest }: ChipProps) {
   return (
     <span
-      className={klassen("inline-flex items-center rounded-full bg-err-bg px-2 py-1", className)}
+      className={klassen("inline-flex items-center rounded-full bg-err-bg px-2.5 py-1", className)}
       data-baustein="fehler"
       {...rest}
     >
-      <Status art="fehler">{children}</Status>
+      <Status art="fehler" klein>{children}</Status>
     </span>
   );
 }

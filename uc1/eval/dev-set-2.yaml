@@ -1,0 +1,202 @@
+# Dev-Set 2 für die Suche (Issue #30). Zweites, unabhängiges Abstimm-Set neben dev-set.yaml (d01–d12).
+#
+# Herkunft: am 2026-11-05 in einem Durchgang geschrieben, Fragen und erwartete Normen von einem
+# einzigen Autor (Claude-Subagent). Freigabe durch einen Menschen steht aus. Vorgehen, Verteilung und
+# Belegabfragen: docs/plan/uc1/dev-set-2.md.
+#
+# Unabhängigkeit: Beim Schreiben waren lotse-set.yaml (Test-Set), messung.md, messung-dev.md und
+# uc1/laufzeit/ nicht geöffnet, auch nicht als Commit-Diff. dev-set.yaml wurde nur gelesen, um Dubletten
+# zu vermeiden und das Format zu übernehmen. Die Normen kommen aus dem Gesetzestext: per SQL in
+# lotse.dokument/lotse.abschnitt nach Gesetz, Nummer und Überschrift gesucht und gelesen. `lotse suche`
+# wurde nicht ausgeführt, kein Suchergebnis hat eine Frage oder Norm beeinflusst.
+#
+# Zählregel wie dev-set.yaml: Ein Treffer zählt, wenn (Gesetz, Art, Nummer) unter erwartete_quellen
+# steht oder die Überschrift (kontext) eines SozDok-Treffers ueberschrift_regex erfüllt (ohne Groß- und
+# Kleinschreibung). PDF-Quellen zählen über den Dateinamen (eval.trifft); `seite` nennt die Seite, die
+# die Antwort trägt, und wird beim Zählen nicht verglichen.
+#
+# Grenzen: n=24, ein Autor ohne Zweitprüfung, die Fragen sind formuliert und nicht von echten
+# Bürgerinnen und Bürgern gesammelt. 5 Fälle zielen auf PDF-Seiten, 2 Fragen sind auf Englisch.
+# Korpusstand 2026-11-05; jede Quelle war zu diesem Stand vorhanden und nicht aufgehoben.
+
+faelle:
+  # Pflege und Angehörige
+  - id: e01
+    frage: "Meine Oma braucht seit ihrem Sturz jeden Tag Hilfe beim Waschen, Anziehen und Einkaufen, und das wird wohl so bleiben. Bekommt sie dafür Geld und wie viel ungefähr?"
+    erwartete_quellen:
+      - {gesetz: BPGG, art: PARA, nummer: "4"}
+      - {gesetz: BPGG, art: PARA, nummer: "5"}
+    ueberschrift_regex: null
+    begruendung: "BPGG § 4 Abs. 1 und 2: Pflegegeld bei Pflegebedarf, der voraussichtlich mindestens sechs Monate dauert, Stufen nach Stunden pro Monat; § 5 Abs. 1 nennt die Beträge je Stufe."
+  - id: e02
+    frage: "Mein Vater ist Pensionist und wohnt in Graz. Wohin schicken wir den Antrag auf Pflegegeld, oder kann man den auch persönlich abgeben?"
+    erwartete_quellen:
+      - {datei: "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf", seite: 8}
+      - {datei: "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf", seite: 1}
+    ueberschrift_regex: null
+    begruendung: "PAL080 (Pflegegeld-Antrag der PVA) S. 8 „Unsere Adressen“ listet die Landesstellen mit Adresse in Graz und nennt den persönlichen Weg nach Terminvereinbarung; S. 1 trägt die Anschrift der Hauptstelle."
+
+  # Krankheit und Krankenstand
+  - id: e03
+    frage: "Ich bin seit August nach einer Rückenoperation im Krankenstand und mein Arbeitgeber zahlt bald kein Gehalt mehr. Wie lange bekomme ich dann noch Geld von der Krankenkasse?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "139"}
+      - {gesetz: ASVG, art: PARA, nummer: "138"}
+    ueberschrift_regex: "Dauer des Krankengeldanspruch"
+    begruendung: "ASVG § 139 Abs. 1: Krankengeld bis 26 Wochen, bei sechs Monaten Versicherung in den letzten zwölf Monaten bis 52 Wochen; § 138 Abs. 1: Anspruch ab dem vierten Tag der Arbeitsunfähigkeit."
+  - id: e04
+    frage: "Ich war mit hohem Fieber nur in der Spitalsambulanz. Gilt der Zettel von dort schon als Krankmeldung oder muss ich trotzdem noch zum Hausarzt?"
+    erwartete_quellen:
+      - {datei: "Leistungskataloge/Serviceratgeber-2026_Broschuere_A5_OEAM_99-19_klein_korr.pdf", seite: 26}
+    ueberschrift_regex: null
+    begruendung: "Serviceratgeber 2026 der ÖGK S. 26 (Broschüre S. 50–51): Bei ambulanter Krankenhausbehandlung gilt die Ambulanzkarte nicht als Krankmeldung, die Arbeitsunfähigkeit stellt die Vertragsärztin oder der Vertragsarzt fest."
+
+  # Rehabilitation und Kur
+  - id: e05
+    frage: "Mein Hausarzt meint, ich soll wegen meiner Knie auf Kur fahren. Welchen Teil vom Antrag fülle ich selbst aus und was macht der Arzt?"
+    erwartete_quellen:
+      - {datei: "Anträge und Formulare/Antrag Kur und Reha.pdf", seite: 1}
+      - {datei: "Anträge und Formulare/Antrag Kur und Reha.pdf", seite: 2}
+    ueberschrift_regex: null
+    begruendung: "Antrag Kur und Reha S. 1: „Von dem/der Versicherten (Antragsteller/in) in allen Teilen auszufüllen“; S. 2 ist die „Ärztliche Stellungnahme“."
+  - id: e06
+    frage: "Ich bin 47 und nach einem Burnout schon über ein Jahr nicht arbeitsfähig. Die Pension wurde abgelehnt, weil es wieder besser werden könnte. Wovon soll ich jetzt leben?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "143a"}
+      - {gesetz: ASVG, art: PARA, nummer: "255b"}
+    ueberschrift_regex: "Anspruches auf Rehabilitationsgeld"
+    begruendung: "ASVG § 143a Abs. 1: Rehabilitationsgeld für die Dauer der vorübergehenden Invalidität; § 255b: Anspruch, wenn vorübergehende Invalidität voraussichtlich mindestens sechs Monate dauert."
+
+  # Schwangerschaft und Kind
+  - id: e07
+    frage: "Ich bin im sechsten Monat schwanger und arbeite im Büro. Bekomme ich in den Wochen vor und nach der Geburt, wenn ich nicht arbeiten darf, trotzdem Geld?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "162"}
+    ueberschrift_regex: '^\S+ § \d+[a-z]* (Betriebshilfe \()?Wochengeld\)?$'
+    begruendung: "ASVG § 162 Abs. 1: Wochengeld für die letzten acht Wochen vor der Entbindung, den Entbindungstag und acht (bei Früh-, Mehrlings- oder Kaiserschnittgeburt zwölf) Wochen danach."
+  - id: e08
+    frage: "Our baby was born in September. My wife and I want to take turns staying at home and stretch the childcare benefit as long as possible. What is the longest we can get it for?"
+    erwartete_quellen:
+      - {gesetz: KBGG, art: PARA, nummer: "5"}
+      - {gesetz: KBGG, art: PARA, nummer: "3"}
+    ueberschrift_regex: null
+    begruendung: "KBGG § 5 Abs. 1 und 2: Anspruchsdauer bis 851 Tage, bei abwechselndem Bezug beider Elternteile bis 1063 Tage ab Geburt; § 3 Abs. 1 regelt die Grundvariante mit 365 Tagen."
+
+  # Pension und Hinterbliebene
+  - id: e09
+    frage: "Ich bin 61 und arbeite seit über 15 Jahren als Hilfsarbeiter am Bau. Mein Rücken macht das schwere Heben nicht mehr mit. Kann ich deshalb früher in Pension gehen?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "255"}
+    ueberschrift_regex: "Begriff der Invalidität"
+    begruendung: "ASVG § 255 Abs. 4: Invalid ist ab dem 60. Lebensjahr auch, wer die Tätigkeit nicht mehr ausüben kann, die er in den letzten 180 Kalendermonaten mindestens 120 Monate ausgeübt hat; Abs. 3 für nicht erlernte Berufe."
+  - id: e10
+    frage: "Ich bekomme seit sechs Jahren Witwenpension und möchte nächsten Sommer wieder heiraten. Fällt die Pension dann einfach weg?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "265"}
+    ueberschrift_regex: 'Wiederaufleben der Witwen\(Witwer\)pension'
+    begruendung: "ASVG § 265 Abs. 1: Bei Wiederverheiratung gebührt eine Abfertigung in Höhe des 35fachen der Witwenpension; Abs. 2: Wiederaufleben nach Auflösung der neuen Ehe."
+
+  # Arbeitsunfall
+  - id: e11
+    frage: "Ich bin in der Früh auf dem Weg in die Arbeit mit dem Rad gestürzt und habe mir den Arm gebrochen. Zählt das, obwohl es gar nicht in der Firma passiert ist?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "175"}
+    ueberschrift_regex: '^\S+ § \d+[a-z]* (Arbeitsunfall|Dienstunfall)$'
+    begruendung: "ASVG § 175 Abs. 2 Z 1: Arbeitsunfälle sind auch Unfälle auf einem mit der Beschäftigung zusammenhängenden Weg zur oder von der Arbeitsstätte."
+  - id: e12
+    frage: "Ich bin Friseurin und habe von den Färbemitteln so ein schlimmes Ekzem an den Händen, dass ich den Beruf wohl aufgeben muss. Zahlt da die Unfallversicherung irgendwas?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "177"}
+      - {gesetz: ASVG, art: ANL, nummer: "1"}
+    ueberschrift_regex: '^\S+ § \d+[a-z]* Berufskrankheiten$|Liste der Berufskrankheiten'
+    begruendung: "ASVG § 177 Abs. 1: Berufskrankheiten sind die in Anlage 1 bezeichneten Krankheiten; Anlage 1 führt Hauterkrankungen, wenn und solange sie zur Aufgabe schädigender Tätigkeiten zwingen."
+
+  # Kosten und Selbstbehalte
+  - id: e13
+    frage: "Ich war bei einer Hautärztin ohne Kassenvertrag und habe 120 Euro bezahlt. Bekomme ich davon etwas zurück?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "131"}
+    ueberschrift_regex: "Erstattung von Kosten der Krankenbehandlung"
+    begruendung: "ASVG § 131: Bei Inanspruchnahme eines Wahlarztes wird Kostenersatz im Ausmaß von 80 vH des Betrages geleistet, den der Versicherungsträger für den Vertragspartner aufgewendet hätte."
+  - id: e14
+    frage: "Mein Mann muss dreimal in der Woche zur Dialyse, das sind jedes Mal gut 30 Kilometer. Wir sind bei der ÖGK in Wien versichert. Bekommen wir für die Fahrten etwas ersetzt?"
+    erwartete_quellen:
+      - {datei: "Anträge und Formulare/Antrag-auf-Zuschuss-zu-Fahrtkosten_Wien.pdf", seite: 2}
+      - {gesetz: ASVG, art: PARA, nummer: "135"}
+    ueberschrift_regex: null
+    begruendung: "Fahrtkosten-Antrag ÖGK Wien S. 2: Fahrten zur Dialyse werden ohne Rücksicht auf die Rezeptgebührenbefreiung ersetzt, ab mehr als 20 km mit Pauschalen; ASVG § 135 Abs. 4: Ersatz der Reise(Fahrt)kosten."
+
+  # Mitversicherung
+  - id: e15
+    frage: "Meine Frau ist bei mir mitversichert, wir haben keine Kinder und sie ist gesund. Kostet mich das eigentlich extra?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "51d"}
+    ueberschrift_regex: "Zusatzbeitrag für Angehörige"
+    begruendung: "ASVG § 51d Abs. 1: Für Angehörige nach § 123 ist ein Zusatzbeitrag von 3,4 % der Beitragsgrundlage des Versicherten zu leisten, den der Versicherte trägt."
+  - id: e16
+    frage: "Unser Sohn ist 19 und hat im Oktober zu studieren angefangen. Was müssen wir der Kasse schicken, damit er weiter bei uns versichert bleibt?"
+    erwartete_quellen:
+      - {datei: "Leistungskataloge/Serviceratgeber-2026_Broschuere_A5_OEAM_99-19_klein_korr.pdf", seite: 6}
+      - {gesetz: ASVG, art: PARA, nummer: "123"}
+    ueberschrift_regex: "Anspruchsberechtigung für Angehörige"
+    begruendung: "Serviceratgeber 2026 S. 6 (Broschüre S. 10–11): Kinder nach dem 18. Lebensjahr bei ordentlichem Studium bis 27 mitversichert, mit Nachweis der Familienbeihilfe oder Fortsetzungsbestätigung; ASVG § 123: Angehörigeneigenschaft in Ausbildung bis zum 27. Lebensjahr."
+
+  # Selbständige (GSVG)
+  - id: e17
+    frage: "Ich bin angestellt und mache nebenbei ein paar Grafikaufträge auf Honorarbasis. Muss ich mich dafür extra bei der SVS versichern?"
+    erwartete_quellen:
+      - {gesetz: GSVG, art: PARA, nummer: "2"}
+      - {gesetz: GSVG, art: PARA, nummer: "4"}
+    ueberschrift_regex: null
+    begruendung: "GSVG § 2 Abs. 1 Z 4: Pflichtversicherung selbständig Erwerbstätiger mit betrieblichen Einkünften (neue Selbständige); § 4 Abs. 1 Z 5: ausgenommen, solange die Einkünfte das Zwölffache des Betrags nach § 25 Abs. 4 nicht übersteigen."
+  - id: e18
+    frage: "Ich habe ein kleines Kosmetikstudio ohne Angestellte und liege seit sechs Wochen mit einer Lungenentzündung flach. Kriege ich irgendwas, so wie Angestellte ihr Krankengeld?"
+    erwartete_quellen:
+      - {gesetz: GSVG, art: PARA, nummer: "104a"}
+    ueberschrift_regex: null
+    begruendung: "GSVG § 104a Abs. 1: Unterstützungsleistung bei lang andauernder Krankheit ab dem 43. Tag der Arbeitsunfähigkeit, rückwirkend ab dem 4. Tag."
+
+  # Bauern (BSVG)
+  - id: e19
+    frage: "Wir haben ein paar Hektar Wiese und Wald geerbt und bewirtschaften das neben dem Beruf. Müssen wir uns da bei der Bauernversicherung melden?"
+    erwartete_quellen:
+      - {gesetz: BSVG, art: PARA, nummer: "2"}
+    ueberschrift_regex: null
+    begruendung: "BSVG § 2: Pflichtversicherung in Kranken- und Pensionsversicherung für die Führung eines land(forst)wirtschaftlichen Betriebs auf eigene Rechnung, wenn der Einheitswert 1 500 € erreicht oder übersteigt."
+  - id: e20
+    frage: "Ich helfe am Hof von meinem Bruder bei der Heuernte mit und hab mir dabei die Hand gebrochen. Bin ich da überhaupt versichert?"
+    erwartete_quellen:
+      - {gesetz: BSVG, art: PARA, nummer: "3"}
+      - {gesetz: BSVG, art: PARA, nummer: "148c"}
+    ueberschrift_regex: null
+    begruendung: "BSVG § 3 Abs. 1 Z 2: In der Unfallversicherung pflichtversichert sind im Betrieb tätige Familienangehörige, darunter die Geschwister; § 148c Abs. 1: Arbeitsunfall im Zusammenhang mit der versicherten Tätigkeit."
+
+  # Öffentlich Bedienstete (B-KUVG)
+  - id: e21
+    frage: "Ich bin Lehrerin und bei der BVAEB versichert. Warum muss ich beim Kassenarzt immer einen Teil selber zahlen, und wie viel darf das höchstens sein?"
+    erwartete_quellen:
+      - {gesetz: B-KUVG, art: PARA, nummer: "63"}
+    ueberschrift_regex: null
+    begruendung: "B-KUVG § 63: Bei ärztlicher Hilfe ist ein Behandlungsbeitrag zu entrichten, den die Satzung festlegt; der Kostenanteil darf 20 % der Kosten nicht überschreiten."
+  - id: e22
+    frage: "Ich bin Beamter und arbeite zwei Tage pro Woche im Homeoffice. Wenn ich dort über das Laptopkabel stolpere, ist das dann ein Dienstunfall?"
+    erwartete_quellen:
+      - {gesetz: B-KUVG, art: PARA, nummer: "90"}
+    ueberschrift_regex: '^\S+ § \d+[a-z]* (Arbeitsunfall|Dienstunfall)$'
+    begruendung: "B-KUVG § 90 Abs. 1a: Dienstunfälle sind auch Unfälle bei Telearbeit im engeren oder weiteren Sinn, etwa in der eigenen Wohnung."
+
+  # Verfahren und Bescheid
+  - id: e23
+    frage: "Mein Antrag auf Pension wurde abgelehnt, den Bescheid habe ich letzte Woche bekommen. Kann ich mich dagegen wehren und bis wann?"
+    erwartete_quellen:
+      - {gesetz: ASGG, art: PARA, nummer: "67"}
+      - {gesetz: ASGG, art: PARA, nummer: "65"}
+    ueberschrift_regex: null
+    begruendung: "ASGG § 67 Abs. 2: Klage gegen den Bescheid binnen vier Wochen, bei Leistungen der Pensionsversicherung binnen drei Monaten ab Zustellung; § 65 Abs. 1 Z 1: Leistungsstreit ist Sozialrechtssache."
+  - id: e24
+    frage: "I asked my health insurance fund in writing for a formal decision on my claim. More than three months have passed and nothing has happened. Is there a deadline for them, and what can I do?"
+    erwartete_quellen:
+      - {gesetz: ASVG, art: PARA, nummer: "368"}
+      - {gesetz: ASGG, art: PARA, nummer: "67"}
+    ueberschrift_regex: null
+    begruendung: "ASVG § 368 Abs. 1: Bescheide über Leistungen der Krankenversicherung binnen zwei Wochen nach Antrag; ASGG § 67 Abs. 1 Z 2: Klage, wenn der Bescheid in der Krankenversicherung nicht binnen drei Monaten erlassen wurde."

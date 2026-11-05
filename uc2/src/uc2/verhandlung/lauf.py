@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import logging
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
@@ -20,12 +21,17 @@ import psycopg
 from uc2.akteure.laden import Akteur, lade_akteure
 from uc2.experte.modell import ergebnis as experte_ergebnis
 from uc2.experte.modell import lade_paket
-from uc2.modelle import Rollenmodell, UngueltigeAntwort, rollenmodell, rufe, szenario
+from uc2.modelle import ModellKonfigFehler, Rollenmodell, UngueltigeAntwort, rollenmodell, rufe, szenario
 from uc2.verhandlung import prompts
 from uc2.verhandlung.belege import Beleg, Belegquelle, pruefe_freigabe
 from uc2.verhandlung.fall import Falldefinition
 from uc2.verhandlung.matrix import Einordnung, Position, Runde, aenderungen, klassifikation, werte
-from uc2.verhandlung.pruefungen import experten_werte, haltungen_ohne_beleg, pruefe, validiere_zug
+from uc2.verhandlung.pruefungen import (
+    experten_ergebniswerte,
+    haltungen_ohne_beleg,
+    pruefe,
+    validiere_zug,
+)
 from uc2.verhandlung.speicher import Fallschreiber, Herzschlag, ddl_anwenden, neuer_fall
 
 MIN_TEILNEHMER = 2
@@ -34,10 +40,30 @@ RUNDEN_OHNE_ABBRUCH = 3
 PARALLEL_ECHT = 3
 """Gleichzeitige Akteursaufrufe bei echten Modellen (claude startet je Aufruf einen Subprozess)."""
 HERZSCHLAG_S = 20.0
+ABBRUCH_INTERN = "Der Lauf ist an einem internen Fehler gescheitert."
+
+_log = logging.getLogger(__name__)
 
 
 class VerhandlungsFehler(RuntimeError):
     """Der Moderator liefert keinen verwertbaren Auftrag; der Fall wird abgebrochen."""
+
+
+def abbruch_meldung(fehler: BaseException) -> str:
+    """Fester, einfacher Satz für das öffentliche Ereignis `abbruch` (SEC-009).
+
+    Nie der Fehlertext selbst: Er kann Env-Namen, Pfade, SQL oder Modelltext tragen. Die Einzelheiten gehen
+    nur ins Server-Log (`fuehre_aus`).
+    """
+    if isinstance(fehler, VerhandlungsFehler):
+        return "Das Modell hat nicht geantwortet."
+    if isinstance(fehler, ModellKonfigFehler):
+        return "Der Dienst ist gerade nicht bereit."
+    if isinstance(fehler, psycopg.Error):
+        return "Die Datenbank hat einen Fehler gemeldet."
+    if isinstance(fehler, KeyboardInterrupt | SystemExit):
+        return "Der Lauf wurde beendet."
+    return ABBRUCH_INTERN
 
 
 @dataclass
@@ -215,7 +241,7 @@ class Verhandlung:
         voll = experte_ergebnis(lade_paket(fall.paket))
         self.experte_voll = voll
         self.experte = prompts.experte_kurz(voll)
-        self.experte_werte = experten_werte(voll)
+        self.experte_werte = experten_ergebniswerte(voll)
 
     def _modelle(self) -> dict[str, Any]:
         return {
@@ -248,10 +274,12 @@ class Verhandlung:
                 schreiber.beende("fertig")
             except BaseException as fehler:
                 # Abgeschlossene Runden bleiben; der Abbruch darf den ursprünglichen Fehler nie verdecken.
+                # Nach außen (SSE, Bericht) nur Fehlertyp und fester Satz; die Einzelheiten ins Server-Log.
+                _log.error("Fall %s abgebrochen: %s: %s", fall_id, type(fehler).__name__, fehler)
                 with contextlib.suppress(psycopg.Error):
                     self.verbindung.rollback()
                     schreiber.ereignis(
-                        "abbruch", {"grund": type(fehler).__name__, "meldung": str(fehler)[:300]}
+                        "abbruch", {"grund": type(fehler).__name__, "meldung": abbruch_meldung(fehler)}
                     )
                     schreiber.beende("abgebrochen")
                 raise
@@ -288,8 +316,8 @@ class Verhandlung:
                 "zielpruefung": self.experte_voll["zielpruefung"]["ergebnis"],
                 "modus_erreicht": self.experte_voll["zielpruefung"]["modus_erreicht"],
                 "entscheidend": self.experte_voll["entscheidend"]["text"],
-                # Vollständiges Ergebnis: die Prüfung zahl_widerspruch vergleicht gegen alle Werte daraus,
-                # und pruefe_lauf.py muss dieselben Werte sehen (Qualitätslauf Fall 9, 05.11.).
+                # Vollständiges Ergebnis: zahl_widerspruch vergleicht gegen dessen Ergebniswerte
+                # (`experten_ergebniswerte`), und pruefe_lauf.py liest sie unabhängig daraus nach.
                 "ergebnis": self.experte_voll,
             },
         )

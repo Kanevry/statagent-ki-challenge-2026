@@ -1,7 +1,7 @@
 """Pfade zu Konfiguration (im Repo) und Daten (nie im Repo).
 
 Daten, Korpus, Zwischenstände und Vektoren liegen außerhalb des Repos. Umgebungsvariablen gewinnen,
-sonst gelten die Standardorte der Challenge-Ablage `~/Projects/ki-challenge-2026/`.
+sonst gelten die Standardorte unter der Challenge-Ablage `KIC_ABLAGE` (außerhalb des Repos).
 """
 
 from __future__ import annotations

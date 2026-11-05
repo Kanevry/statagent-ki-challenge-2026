@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sozdok xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" dokid="BPGG=PARA=4=12=2015-01-13=2015-01-01" xsi:noNamespaceSchemaLocation="Sozdok.xsd"><rvo dokidCms="BPGG=PARA=4=12=2015-01-13=2015-01-01">
+<metadaten gldsort="70" gldart="PARA" berkz="PFLEGE; AN; SELB; " urheber="Bund" titrvo="Bundes-Pflegegeldgesetz" gldnr="4" ikra="2015-01-01" abkrvo="BPGG" titaen="Jännernovelle 12/2015" dokart="BG" pubdat="2015-01-13">
+<durchfv><rvolink abkrvo="BPGGEinstV 1999">BPGGEinstV 1999</rvolink></durchfv><aendprot>
+<dfeintrag zeitpunkt="2002-01-25" perskz="glueck"/>
+</aendprot></metadaten>
+<nutzdaten>
+<abschnitt>
+<inhaltsvz typ="para" halign="l">§ 4 Inhaltsverzeichnis-Eintrag</inhaltsvz>
+<ueberschrift level="3" halign="c" typ="para">Anspruchsvoraussetzungen </ueberschrift>
+
+
+<absatz typ="abs" halign="j">
+<gldsym>§&#160;4.</gldsym> (1) Das Pflegegeld gebührt bei Zutreffen der übrigen Anspruchsvoraussetzungen, wenn der ständige Betreuungs- und Hilfsbedarf (Pflegebedarf) voraussichtlich mindestens sechs Monate andauern wird.</absatz><absatz typ="abs" halign="j">(2) Anspruch auf Pflegegeld besteht in Höhe der   </absatz><liste>
+<strichliste ebene="1">
+<listelem>
+<symbol/>
+</listelem>
+</strichliste>
+<schluss typ="Abs">Stufe 1:</schluss>
+<schluss typ="Abs">für Personen, deren Pflegebedarf nach Abs. 1 durchschnittlich mehr als 65 Stunden monatlich beträgt;</schluss>
+</liste>
+<absatz typ="abs" halign="j">(7) Die Verordnung kann festlegen: eine Definition der e<gdash/>card und der Kranken<bdash/>anstalten (<nolink>§&#160;8</nolink> des Bundesbehindertengesetzes):</absatz>
+<liste>
+<ziffernliste ebene="1">
+<listelem>
+<symbol stellen="2">1.</symbol>eine Definition der Begriffe ,,Betreuung“ und ,,Hilfe“,</listelem>
+</ziffernliste>
+</liste>
+</abschnitt>
+</nutzdaten>
+<layoutdaten paperf="7" paperh="841.9">Layout nicht indizieren</layoutdaten>
+</rvo></sozdok>

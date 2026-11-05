@@ -15,11 +15,15 @@ from typing import Any
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
+from plattform.llm import KonfigFehler  # type: ignore[import-untyped]
 
+import uc2.modelle
 from uc2 import db
 from uc2.api import erstelle_app
+from uc2.api.app import GESPERRT, NICHT_BEREIT, START_GESCHEITERT, ZU_OFT
 from uc2.api.belegfilter import BELEG_FELDER, MAX_ZEICHEN, daten_fuer_ausgabe, kuerze
-from uc2.api.start import Startauftrag
+from uc2.api.start import Startauftrag, StartFehler
+from uc2.modelle import ModellKonfigFehler
 from uc2.verhandlung.belege import FIXTURE, FixtureQuelle
 from uc2.verhandlung.fall import lade_fall
 from uc2.verhandlung.lauf import Laufoptionen, Verhandlung
@@ -48,6 +52,8 @@ def protokoll_im_tmp(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.delenv("UC2_MOCK_KAPUTT", raising=False)
     monkeypatch.delenv("UC2_API_ECHTE_MODELLE", raising=False)
     monkeypatch.delenv("KIC_VOLLTEXT_ONLINE", raising=False)
+    monkeypatch.delenv("KIC_ONLINE", raising=False)
+    monkeypatch.delenv("LLM_TAGESBUDGET_AUFRUFE", raising=False)
 
 
 @dataclass
@@ -188,6 +194,108 @@ def test_echte_modelle_nur_mit_schalter(monkeypatch: pytest.MonkeyPatch) -> None
     with TestClient(erstelle_app(starter=starte, verbinde=_verbinde)) as c:
         assert c.post("/faelle", json={"fall": "wartezeiten", "provider": "claude"}).status_code == 202
     assert gestartet[0].provider == "claude"
+
+
+# --- Review !47: Budget, Ratenlimit, feste Fehlertexte ----------------------------------------------------
+
+
+def test_online_ohne_budget_verweigert_echte_modelle_mit_503(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("UC2_API_ECHTE_MODELLE", "1")
+    monkeypatch.setenv("KIC_ONLINE", "1")
+    gestartet: list[Startauftrag] = []
+
+    def starte(auftrag: Startauftrag) -> Laeuft:
+        gestartet.append(auftrag)
+        return Laeuft()
+
+    with TestClient(erstelle_app(starter=starte, verbinde=_verbinde)) as c:
+        for budget in (None, "0", "viel"):
+            if budget is None:
+                monkeypatch.delenv("LLM_TAGESBUDGET_AUFRUFE", raising=False)
+            else:
+                monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", budget)
+            antwort = c.post("/faelle", json={"fall": "wartezeiten", "provider": "azure"})
+            assert antwort.status_code == 503 and antwort.json() == {"detail": NICHT_BEREIT}
+            assert "KIC_ONLINE" not in antwort.text and "LLM_TAGESBUDGET" not in antwort.text
+        assert gestartet == []
+        monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "5")
+        assert c.post("/faelle", json={"fall": "wartezeiten", "provider": "azure"}).status_code == 202
+    assert [a.provider for a in gestartet] == ["azure"]
+
+
+class ErstLaeuft:
+    """Läuft beim ersten Blick (Antwort `laufend`), danach ist der Lauf vorbei."""
+
+    def __init__(self, fall_id: int) -> None:
+        self.fall_id = fall_id
+        self.blicke = 0
+
+    def laeuft(self) -> bool:
+        self.blicke += 1
+        return self.blicke == 1
+
+
+def test_ratenlimit_ein_start_je_ip_und_minute() -> None:
+    jetzt = [1000.0]
+    gestartet: list[Startauftrag] = []
+
+    def starte(auftrag: Startauftrag) -> ErstLaeuft:
+        gestartet.append(auftrag)
+        return ErstLaeuft(len(gestartet))
+
+    app = erstelle_app(starter=starte, verbinde=_verbinde, uhr=lambda: jetzt[0])
+    with TestClient(app) as c:
+        assert c.post("/faelle", json={"fall": "wartezeiten"}).status_code == 202
+        jetzt[0] += 59.0
+        zweit = c.post("/faelle", json={"fall": "wartezeiten"})
+        assert zweit.status_code == 429 and zweit.json() == {"detail": ZU_OFT}
+        jetzt[0] += 1.0
+        assert c.post("/faelle", json={"fall": "wartezeiten"}).status_code == 202
+    assert len(gestartet) == 2
+
+
+def test_http_fehler_nennen_keine_env_namen(monkeypatch: pytest.MonkeyPatch) -> None:
+    def scheitert(_: Startauftrag) -> Laeuft:
+        raise StartFehler("Lauf hat keinen Fall angelegt (Exit 2): UC2_NAMENSLISTE fehlt")
+
+    with TestClient(erstelle_app(starter=scheitert, verbinde=_verbinde)) as c:
+        gesperrt = c.post("/faelle", json={"fall": "wartezeiten", "provider": "claude"})
+        assert gesperrt.status_code == 403 and gesperrt.json() == {"detail": GESPERRT}
+        assert "UC2_API_ECHTE_MODELLE" not in gesperrt.text
+        kaputt = c.post("/faelle", json={"fall": "wartezeiten"})
+        assert kaputt.status_code == 500 and kaputt.json() == {"detail": START_GESCHEITERT}
+        assert "UC2_NAMENSLISTE" not in kaputt.text and "Exit" not in kaputt.text
+
+
+def test_konfigfehler_mit_env_namen_geht_nur_ins_log(
+    pg_test: psycopg.Connection[Any], monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    geheim = "GEHEIMER_ENV_NAME fehlt, siehe /srv/kic/.env.local"
+
+    def kein_modell(*_: Any, **__: Any) -> Any:
+        raise KonfigFehler(geheim)
+
+    monkeypatch.setattr(uc2.modelle, "complete", kein_modell)
+
+    def starte(auftrag: Startauftrag) -> Fertig:
+        angelegt: list[int] = []
+        with db.verbinde(TEST_DB) as v:
+            optionen = Laufoptionen(provider="mock", quelle=FixtureQuelle(), bei_anlage=angelegt.append)
+            with pytest.raises(ModellKonfigFehler):
+                Verhandlung(v, lade_fall(auftrag.fall), optionen).fuehre_aus()
+        return Fertig(angelegt[0])
+
+    with TestClient(erstelle_app(starter=starte, verbinde=_verbinde)) as c:
+        antwort = c.post("/faelle", json={"fall": "wartezeiten"})
+        assert antwort.status_code == 202 and antwort.json()["status"] == "abgebrochen"
+        fall_id = antwort.json()["fall_id"]
+        text, bloecke = _lies_strom(c, fall_id)
+        bericht = c.get(f"/faelle/{fall_id}").text
+    abbruch = next(b["data"]["daten"] for b in bloecke if b.get("event") == "abbruch")
+    assert abbruch == {"grund": "ModellKonfigFehler", "meldung": NICHT_BEREIT}
+    for roh in (antwort.text, text, bericht):
+        assert "GEHEIMER_ENV_NAME" not in roh and "/srv/kic" not in roh
+    assert any("GEHEIMER_ENV_NAME" in r.getMessage() for r in caplog.records)
 
 
 # --- Belegfilter (Entscheid Lead 58, Owner-Klick #8705) ------------------------------------------------

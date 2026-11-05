@@ -2,20 +2,27 @@
 
 Start: `uv run uvicorn uc2.api:app --port 8102` (aus `uc2/`). Die API schreibt nie in einen Fall:
 `POST /faelle` startet `uv run uc2 verhandlung` als Unterprozess (`uc2.api.start`), alles andere liest PG.
-Höchstens ein laufender Fall je API-Prozess; ein zweiter Start ergibt 409. Das ersetzt ein Rate-Limit,
-weil die Seite öffentlich ist. Echte Modelle nur mit `UC2_API_ECHTE_MODELLE=1`, sonst 403;
-Standard ist `mock`.
+Höchstens ein laufender Fall je API-Prozess; ein zweiter Start ergibt 409. Dazu ein Ratenlimit: höchstens
+ein Start je Client-IP und Minute (im Speicher, 429). Hinter einem Proxy sieht die API nur dessen Adresse; das
+Limit gilt dann für alle zusammen, was strenger ist. `X-Forwarded-For` wird bewusst nicht gelesen (fälschbar).
+
+Echte Modelle nur mit `UC2_API_ECHTE_MODELLE=1`, sonst 403; Standard ist `mock`. Online (`KIC_ONLINE=1`)
+startet ein echtes Modell zusätzlich nur mit gültigem Tagesbudget (`LLM_TAGESBUDGET_AUFRUFE`, Logik in
+`plattform.llm`, !36), sonst 503. Der Lauf selbst bricht in `plattform.llm.complete` ebenso fail-closed ab.
 
 Jede Ausgabe läuft durch `uc2.api.belegfilter` (online nur Zitatfelder je Beleg). Eine PG-Verbindung je
-Anfrage, beim SSE-Strom für dessen Dauer; Fehler gehen als JSON ohne Stacktrace hinaus.
+Anfrage, beim SSE-Strom für dessen Dauer. Fehler gehen als JSON mit festen, einfachen Sätzen hinaus: keine
+Env-Namen, Pfade, SQL oder Exception-Texte (SEC-009); Einzelheiten nur ins Server-Log.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import threading
+import time
 from collections.abc import AsyncIterator, Callable
 from contextlib import closing
 from datetime import date, datetime
@@ -25,6 +32,7 @@ import psycopg
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, StreamingResponse
+from plattform.llm import KonfigFehler, budget_status  # type: ignore[import-untyped]  # kein py.typed
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
@@ -39,6 +47,9 @@ from uc2.verhandlung.speicher import lies_ereignisse, lies_fall, wirksamer_statu
 
 PORT = 8102
 ECHTE_MODELLE = "UC2_API_ECHTE_MODELLE"
+ONLINE = "KIC_ONLINE"
+RATE_S = 60.0
+"""Höchstens ein Start je Client-IP in diesem Abstand (Sekunden)."""
 NACHLADEN_S = 0.5
 WARTEZEICHEN_S = 15.0
 """Kommentarzeile im Strom, wenn so lange nichts kam (hält Proxys offen)."""
@@ -46,6 +57,16 @@ ENDSTATUS = ("fertig", "abgebrochen")
 LISTE_MAX = 200
 
 Verbinder = Callable[[], psycopg.Connection[Any]]
+
+# Feste Sätze nach außen (SEC-009); die Web-Oberfläche zeigt sie unverändert an.
+NICHT_BEREIT = "Der Dienst ist gerade nicht bereit."
+KONTINGENT_AUS = "Das Tageskontingent für Modellaufrufe ist aufgebraucht."
+GESPERRT = "Echte Modelle sind hier gesperrt."
+OHNE_NAMENSLISTE = "Belege aus dem Index sind ohne Namensliste gesperrt."
+ZU_OFT = "Bitte warte eine Minute, bevor du den nächsten Fall startest."
+START_GESCHEITERT = "Der Lauf konnte nicht starten."
+
+_log = logging.getLogger(__name__)
 
 
 class FallStart(BaseModel):
@@ -61,6 +82,27 @@ def _standard_verbinde() -> psycopg.Connection[Any]:
     return db.verbinde(autocommit=True)
 
 
+def budget_sperre() -> str | None:
+    """Grund, warum online kein echtes Modell starten darf, sonst `None`.
+
+    Nur mit `KIC_ONLINE=1`: ohne oder mit ungültigem `LLM_TAGESBUDGET_AUFRUFE` (fail-closed wie `complete`),
+    oder wenn das Tageskontingent verbraucht ist. Lokal entscheidet `complete` allein.
+    """
+    if os.environ.get(ONLINE, "").strip() != "1":
+        return None
+    try:
+        status = budget_status()
+    except KonfigFehler as fehler:
+        _log.warning("Start verweigert, Budget ungültig: %s", fehler)
+        return NICHT_BEREIT
+    if status["grenze"] is None:
+        _log.warning("Start verweigert: %s=1 ohne Tagesbudget", ONLINE)
+        return NICHT_BEREIT
+    if not status["frei"]:
+        return KONTINGENT_AUS
+    return None
+
+
 def _iso(wert: object) -> object:
     return wert.isoformat() if isinstance(wert, date | datetime) else wert
 
@@ -71,46 +113,67 @@ def sse(ereignis: dict[str, Any]) -> str:
     return f"id: {ereignis['seq']}\nevent: {ereignis['art']}\ndata: {daten}\n\n"
 
 
-def erstelle_app(starter: Starter | None = None, verbinde: Verbinder | None = None) -> FastAPI:
-    """App mit austauschbarem Starter (Tests: Lauf im Prozess) und Verbindungsfabrik."""
+def erstelle_app(
+    starter: Starter | None = None,
+    verbinde: Verbinder | None = None,
+    uhr: Callable[[], float] = time.monotonic,
+) -> FastAPI:
+    """App mit austauschbarem Starter (Tests: Lauf im Prozess), Verbindungsfabrik und Uhr (Ratenlimit)."""
     starte: Starter = starter or UnterprozessStarter()
     verbinde_pg: Verbinder = verbinde or _standard_verbinde
     sperre = threading.Lock()
     aktiv: list[Lauf] = []
+    letzte_starts: dict[str, float] = {}
 
     app = FastAPI(title="uc2 HealthPolicy Simulator", version="0.1.0")
 
     @app.exception_handler(psycopg.OperationalError)
-    async def _db_weg(_: Request, __: Exception) -> JSONResponse:
-        return JSONResponse({"detail": "Datenbank nicht erreichbar"}, status_code=503)
+    async def _db_weg(_: Request, fehler: Exception) -> JSONResponse:
+        _log.error("Datenbank nicht erreichbar: %s", fehler)
+        return JSONResponse({"detail": "Die Datenbank ist gerade nicht erreichbar."}, status_code=503)
 
     @app.exception_handler(Exception)
-    async def _intern(_: Request, __: Exception) -> JSONResponse:
-        return JSONResponse({"detail": "interner Fehler"}, status_code=500)
+    async def _intern(_: Request, fehler: Exception) -> JSONResponse:
+        _log.error("Interner Fehler: %s: %s", type(fehler).__name__, fehler)
+        return JSONResponse({"detail": "Es ist ein interner Fehler aufgetreten."}, status_code=500)
+
+    def _zu_oft(ip: str) -> bool:
+        """Ratenlimit je IP; nur unter `sperre` aufrufen. Räumt abgelaufene Einträge weg."""
+        jetzt = uhr()
+        for alt in [k for k, t in letzte_starts.items() if jetzt - t >= RATE_S]:
+            del letzte_starts[alt]
+        return ip in letzte_starts
 
     @app.post("/faelle", status_code=202)
-    def starte_fall(eingabe: FallStart) -> dict[str, Any]:
+    def starte_fall(eingabe: FallStart, request: Request) -> dict[str, Any]:
         if eingabe.fall not in bekannte_faelle():
             raise HTTPException(404, f"unbekannter Fall {eingabe.fall!r}")
-        if eingabe.provider != "mock" and os.environ.get(ECHTE_MODELLE) != "1":
-            raise HTTPException(403, f"Provider {eingabe.provider!r} ist gesperrt ({ECHTE_MODELLE}=1 fehlt)")
+        if eingabe.provider != "mock":
+            if os.environ.get(ECHTE_MODELLE) != "1":
+                raise HTTPException(403, GESPERRT)
+            grund = budget_sperre()
+            if grund is not None:
+                raise HTTPException(503, grund)
         if eingabe.belege == "index" and eingabe.provider != "mock" and lade_namensliste() is None:
-            raise HTTPException(
-                422, "Belege aus dem Index gehen an ein echtes Modell nur mit Namensliste (UC2_NAMENSLISTE)"
-            )
+            raise HTTPException(422, OHNE_NAMENSLISTE)
         try:
             frage = None if eingabe.frage is None else pruefe_frage(eingabe.frage)
         except FrageFehler as fehler:
             raise HTTPException(422, str(fehler)) from fehler
+        ip = request.client.host if request.client else "unbekannt"
         if not sperre.acquire(blocking=False):
             raise HTTPException(409, "Es startet gerade ein Fall")
         try:
             if aktiv and aktiv[-1].laeuft():
                 raise HTTPException(409, f"Fall {aktiv[-1].fall_id} läuft noch")
+            if _zu_oft(ip):
+                raise HTTPException(429, ZU_OFT)
+            letzte_starts[ip] = uhr()
             try:
                 lauf = starte(Startauftrag(eingabe.fall, eingabe.provider, eingabe.belege, frage))
             except StartFehler as fehler:
-                raise HTTPException(500, str(fehler)) from fehler
+                _log.error("Start gescheitert: %s", fehler)
+                raise HTTPException(500, START_GESCHEITERT) from fehler
             aktiv[:] = [lauf]
         finally:
             sperre.release()
