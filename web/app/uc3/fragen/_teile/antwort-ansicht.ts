@@ -48,6 +48,11 @@ export function kopfSagtVerstanden(kopf: string): boolean {
   return kopf.startsWith("Verstanden");
 }
 
+/** Summenzeile einer Tabelle, etwa „Alle Bundesländer“ oder „alle Wirtschaftsbereiche (Summe der Zeilen)“. */
+export function istSummenzeile(titel: string): boolean {
+  return /^alle\b/i.test(titel.trim());
+}
+
 export type AntwortTabelle = {
   /** Spaltentitel, etwa „Männer“ und „Frauen“; eine Spalte „Wert“, wenn nichts zu teilen ist. */
   spalten: { titel: string; einheit: string | null }[];

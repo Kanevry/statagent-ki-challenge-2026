@@ -76,6 +76,22 @@ def schema_einrichten(conn: Verbindung, verzeichnis: Path | None = None) -> list
     return angewendet
 
 
+def abgabe_regelsaetze_einrichten(conn: Verbindung, verzeichnis: Path | None = None) -> list[str]:
+    """Lädt die Regelsätze v2 und ministerium, wie die Abgabe sie gerechnet hat (idempotent, eine Transaktion).
+
+    `uc3 db init` ruft das nach ``schema_einrichten`` auf, damit eine frische Datenbank v2 und die
+    Ministeriums-Lieferung nachrechnen kann. ``schema_einrichten`` selbst bleibt beim Regelsatz v1: Der Weg vom
+    Änderungsauftrag über den Vorschlag zum Regelsatz beginnt dort (die Tests prüfen genau diesen Weg).
+    """
+    ordner = (verzeichnis or konfig.DB_VERZEICHNIS) / "abgabe_regelsaetze"
+    angewendet: list[str] = []
+    with conn.transaction():
+        for name in ("v2.sql", "ministerium.sql"):
+            conn.execute((ordner / name).read_text(encoding="utf-8").encode())
+            angewendet.append(f"abgabe_regelsaetze/{name}")
+    return angewendet
+
+
 def lieferungen(conn: Verbindung) -> list[str]:
     """Geladene Lieferungen laut roh.ladeprotokoll, aufsteigend."""
     zeilen = conn.execute("SELECT lieferung FROM roh.ladeprotokoll ORDER BY lieferung").fetchall()

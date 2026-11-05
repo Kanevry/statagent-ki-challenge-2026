@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { antwortTabelle, ersterSatz, kopfSagtVerstanden, kopfSatz, rueckfrageVorschlaege, verstandenSatz } from "./antwort-ansicht";
+import { antwortTabelle, ersterSatz, istSummenzeile, kopfSagtVerstanden, kopfSatz, rueckfrageVorschlaege, verstandenSatz } from "./antwort-ansicht";
 
 const beleg = { uc: "uc3" as const, quelle: "stat.stat_beschaeftigte", lieferung: "2025-03", monat: "2025-03" };
 
@@ -44,6 +44,14 @@ describe("Antwort-Ansicht (UI-Regie v1)", () => {
     expect(kopfSagtVerstanden(kopf)).toBe(true);
     expect(kopfSatz("Verstanden: März 2025, Branche: Bau.")).toBe("Verstanden: März 2025, Branche: Bau.");
     expect(kopfSagtVerstanden(kopfSatz("Im März 2025 gab es 7.498 Beschäftigungsverhältnisse."))).toBe(false);
+  });
+
+  // Fehler, den das fängt: Die Summe sieht aus wie eine Zeile mehr, oder Allentsteig wird fett.
+  it("erkennt die Summenzeile", () => {
+    expect(istSummenzeile("Alle Bundesländer")).toBe(true);
+    expect(istSummenzeile("alle Wirtschaftsbereiche (Summe der Zeilen)")).toBe(true);
+    expect(istSummenzeile("Wien")).toBe(false);
+    expect(istSummenzeile("Allentsteig")).toBe(false);
   });
 
   it("liest die Vorschläge einer Rückfrage", () => {

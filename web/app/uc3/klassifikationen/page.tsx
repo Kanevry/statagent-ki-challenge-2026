@@ -29,8 +29,8 @@ import { regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/n
 import { alltag } from "@/components/uc3/sprache";
 import { Gegenueberstellung } from "./_teile/gegenueberstellung";
 
-// Regeln und Klassifikationen (UI-Regie v2, #18): oben die Regeln als Hauptsatz (der Reiter heißt „Regeln“),
-// darunter die Qualifikationen je Regelsatz, dann ÖNACE 2008 gegen 2025 nach Namen (Anker #regeln, Ziel von
+// Regeln und Klassifikationen (UI-Regie v1, #18): oben ÖNACE 2008 gegen 2025 als Gegenüberstellung nach Namen,
+// darunter die Qualifikationen je Regelsatz, dann alle Regeln nach Art (Anker #regeln, Ziel von
 // /uc3/berichte/regeln). Die kleinen Code-Listen liegen hinter „Weitere Listen“. Nur lesend; ohne Datenbank zeigt
 // jeder Teil seinen Leerzustand (HTTP 200).
 export const dynamic = "force-dynamic";
@@ -52,9 +52,9 @@ function Branchen({ daten }: { daten: Klassifikationsdaten }) {
   const zeilen = gegenueberstellung(daten.abschnitte, daten.abschnittUebergaenge);
   const saetze = gegenueberSaetze(zeilen);
   return (
-    <section aria-labelledby="branchen-titel" className="flex flex-col gap-3">
-      <header className="flex max-w-4xl flex-col gap-2">
-        <Ueberschrift stufe={3} als="h2" id="branchen-titel" className="hyphens-auto break-words">
+    <>
+      <header className="flex max-w-4xl flex-col gap-3">
+        <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
           {saetze.haupt}
         </Ueberschrift>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -70,16 +70,26 @@ function Branchen({ daten }: { daten: Klassifikationsdaten }) {
           />
         </div>
       </header>
-      <Gegenueberstellung zeilen={zeilen} />
-      <div className="flex max-w-4xl flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-sans text-14 text-slate">
-          {daten.abschnittUebergaenge.length > 0
-            ? "Neue Namen und Teilungen kommen aus dem Umsteigeschlüssel von Statistik Austria."
-            : "Der Umsteigeschlüssel von ÖNACE 2008 auf 2025 ist noch nicht geladen."}
-        </span>
-        <BelegLink quelle="stat.uebergang" sql={`${sqlAbschnitte()}\n\n${sqlAbschnittUebergaenge()}`} />
-      </div>
-    </section>
+
+      <a href="#regeln" className={`${textLink} self-start`}>
+        Zu den Regeln
+      </a>
+
+      <section aria-labelledby="branchen-titel" className="flex flex-col gap-3">
+        <h2 id="branchen-titel" className={titel}>
+          Branchen 2008 und 2025
+        </h2>
+        <Gegenueberstellung zeilen={zeilen} />
+        <div className="flex max-w-4xl flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="font-sans text-14 text-slate">
+            {daten.abschnittUebergaenge.length > 0
+              ? "Neue Namen und Teilungen kommen aus dem Umsteigeschlüssel von Statistik Austria."
+              : "Der Umsteigeschlüssel von ÖNACE 2008 auf 2025 ist noch nicht geladen."}
+          </span>
+          <BelegLink quelle="stat.uebergang" sql={`${sqlAbschnitte()}\n\n${sqlAbschnittUebergaenge()}`} />
+        </div>
+      </section>
+    </>
   );
 }
 
@@ -119,7 +129,7 @@ function Qualifikationen({ daten }: { daten: Klassifikationsdaten }) {
           <span className="font-sans text-14 text-slate">
             {`Die Monate sind mit Regelsatz ${stand.regelsatz} gerechnet. Regelsatz ${staende[1]!.regelsatz} zeigen Sie mit dem Umschalter auf der Seite `}
             <Link href={uebersichtPfad(staende[1]!.regelsatz)} className="text-ink underline underline-offset-4 hover:text-gruen">
-              Monate
+              Läufe
             </Link>
             .
           </span>
@@ -225,30 +235,24 @@ async function Regeln({ regelsatz }: { regelsatz: Regelsatz }) {
 
   return (
     <section id="regeln" aria-labelledby="regeln-titel" className="flex max-w-4xl scroll-mt-24 flex-col gap-3">
-      <header className="flex flex-col gap-3">
-        <Ueberschrift stufe={2} als="h1" id="regeln-titel" className="hyphens-auto break-words">
-          {regeln.length === 0
-            ? "Regeln"
-            : `${formatZahl(regeln.length)} Regeln bestimmen, wie wir einlesen, zuordnen, zählen und prüfen.`}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <Ueberschrift stufe={3} als="h2" id="regeln-titel">
+          Regeln
         </Ueberschrift>
-        <div className="flex flex-col items-start gap-2">
-          {regeln.length > 0 && (
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <Fliesstext ton="gedaempft">
-                {`${freigabe} Jede Regel steht in der Datenbank, nicht im Programmcode.`}
-              </Fliesstext>
-              <BelegLink quelle="meta.regel" regelstand={`Regelsatz ${regelsatz}`} sql={sqlRegeln(regelsatz)} />
-            </div>
-          )}
-          <RegelsatzWahl aktiv={regelsatz} />
-        </div>
-      </header>
+        <RegelsatzWahl aktiv={regelsatz} />
+      </div>
       {regeln.length === 0 ? (
         <Leerzustand
           satz={lesung.ok ? `Für den Regelsatz ${regelsatz} ist noch keine Regel angelegt.` : leerSatz(lesung.grund)}
         />
       ) : (
         <>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <Fliesstext className="max-w-3xl">
+              {`${formatZahl(regeln.length)} Regeln bestimmen in Regelsatz ${regelsatz}, wie wir einlesen, zuordnen, zählen und prüfen. ${freigabe} Jede Regel steht in der Datenbank, nicht im Programmcode.`}
+            </Fliesstext>
+            <BelegLink quelle="meta.regel" regelstand={`Regelsatz ${regelsatz}`} sql={sqlRegeln(regelsatz)} />
+          </div>
           {REGEL_TYPEN.map((typ) => {
             const gruppe = regeln.filter((r) => r.typ === typ);
             if (gruppe.length === 0) return null;
@@ -355,23 +359,23 @@ export default async function RegelnUndKlassifikationen({ searchParams }: Props)
 
   return (
     <>
-      <Regeln regelsatz={regelsatz} />
       {daten ? (
         <>
-          <Qualifikationen daten={daten} />
           <Branchen daten={daten} />
-          <WeitereListen daten={daten} />
+          <Qualifikationen daten={daten} />
         </>
       ) : (
-        <section aria-labelledby="listen-titel" className="flex max-w-4xl flex-col gap-3">
-          <Ueberschrift stufe={3} als="h2" id="listen-titel">
-            Klassifikationen
+        <header className="flex max-w-4xl flex-col gap-3">
+          <Ueberschrift stufe={2} als="h1">
+            Regeln und Klassifikationen
           </Ueberschrift>
           <Leerzustand
             satz="Die Code-Listen sind noch nicht geladen. Sie kommen mit dem Startpaket in die Datenbank."
           />
-        </section>
+        </header>
       )}
+      <Regeln regelsatz={regelsatz} />
+      {daten && <WeitereListen daten={daten} />}
     </>
   );
 }
