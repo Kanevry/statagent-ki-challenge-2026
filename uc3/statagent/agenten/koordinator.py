@@ -294,16 +294,16 @@ def bekannte_werte(conn: Verbindung, basis: str) -> dict[str, list[str]]:
     werte["region"] |= {str(z["w"]) for z in regionen}
     kat = conn.execute("SELECT code, beschaeftigungskategorie AS k FROM stat.klass_qualifikation").fetchall()
     kategorien = {str(z["k"]) for z in kat}
-    r6 = next(
-        (r for r in _regeln(conn, basis).values() if r["typ"] == "zaehl" and r["art"] == "dimension"), None
-    )
-    nach_kategorie = (
-        r6 is not None and dict(r6["parameter"]).get("qualifikation") == "beschaeftigungskategorie"
-    )
+    nach_kategorie = _zaehlt_nach_kategorie(_regeln(conn, basis))
     ergebnis = {m: sorted(w) for m, w in werte.items()}
     ergebnis["qualifikation"] = sorted(kategorien if nach_kategorie else {str(z["code"]) for z in kat})
     ergebnis["beschaeftigungskategorie"] = sorted(kategorien)
     return ergebnis
+
+
+def _zaehlt_nach_kategorie(regeln: dict[str, dict[str, Any]]) -> bool:
+    r6 = next((r for r in regeln.values() if r["typ"] == "zaehl" and r["art"] == "dimension"), None)
+    return r6 is not None and dict(r6["parameter"]).get("qualifikation") == "beschaeftigungskategorie"
 
 
 def _regel_aus(name: str, art: str, parameter: dict[str, Any]) -> Regel:
@@ -577,6 +577,9 @@ def vorschlag_pruefen(
         raise VorschlagUngueltig("Ein Vorschlag braucht eine Begründung")
     ziel = antwort.regelsatz_ziel.strip() or "v2"
     if _V_REGELSATZ.fullmatch(ziel):
+        # Nennt das Modell einen Regelsatz mit veröffentlichten Monaten (v1), bleibt es bei der Ablehnung
+        # (Schutz veröffentlichter Monate); sonst bestimmt der Code das Ziel, nie in place.
+        _ziel_pruefen(conn, ziel)
         ziel = regelsatz_ziel or ziel_bestimmen(conn, regelsatz_basis, ziel)
     auswertung = _ziel_pruefen(conn, ziel)
     if auswertung:
@@ -649,6 +652,14 @@ def vorschlag_pruefen(
             gleiche_art = [r for r in regeln.values() if r["typ"] == n.typ and r["art"] == n.art]
             parameter = _parameter(n.parameter)
             if n.typ == "zaehl" and not auswertung and n.art in NEUE_ZAEHL_ARTEN and not gleiche_art:
+                if (
+                    n.art == "gruppierung"
+                    and parameter.get("merkmal") == "beschaeftigungskategorie"
+                    and _zaehlt_nach_kategorie(regeln)
+                ):
+                    # Zählt die Basis nach Kategorie, ist „beschaeftigungskategorie“ der Wert in der Spalte
+                    # qualifikation (Probe 19:44: „Arbeiter und Angestellte zusammen“ scheiterte daran).
+                    parameter = {**parameter, "merkmal": "qualifikation"}
                 _neue_zaehlart_pruefen(conn, n.name, n.art, parameter, basis)
                 for k, w in parameter.items():
                     _wert_pruefen(n.art, k, None, w, n.name)
@@ -996,6 +1007,7 @@ def agent_ausfuehren(
     ergebnis.regelsatz_ziel = ziel
     kontext = kontext_bauen(conn, basis, probe_lieferung, ziel)
     versucht: set[str] = set()
+    nachgefasst = False
     while True:
         ergebnis.rolle = rolle.name
         versucht.add(rolle.name)
@@ -1026,6 +1038,23 @@ def agent_ausfuehren(
                     rolle = ROLLEN[weiche]
                     umleiten = True
                     break
+                if not nachgefasst:
+                    # Einmal nachfassen (Probe 19:44: „Monat 13 → 1. Jänner“ fragte, ob P04 gemeint sei, obwohl
+                    # der Wegweiser R5_alter nennt). Eine echte Mehrdeutigkeit bleibt eine Rückfrage.
+                    nachgefasst = True
+                    ergebnis.korrekturen.append(f"Rückfrage der Rolle: {antwort.rueckfrage}")
+                    nachrichten = [
+                        *nachrichten,
+                        {"role": "assistant", "content": antwort.model_dump_json()},
+                        {
+                            "role": "user",
+                            "content": "Entscheide selbst mit dem Wegweiser im Kontext: Prüfregeln ändern keine "
+                            "Zahl, Zählregeln schon; Namen und Codes stehen in Klassifikation und bekannte_werte. "
+                            "Schlage die passende Änderung vor. Frage nur zurück, wenn zwei fachlich verschiedene "
+                            "Umsetzungen zu verschiedenen Zahlen führen, und nenne dann beide.",
+                        },
+                    ]
+                    continue
                 ergebnis.rueckfrage = antwort.rueckfrage
                 return ergebnis
             try:

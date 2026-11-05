@@ -36,9 +36,15 @@ from zoneinfo import ZoneInfo
 
 from statagent import konfig
 from statagent.agenten.anwenden import ablehnen_ausfuehren, freigabe_ausfuehren
-from statagent.agenten.koordinator import agent_ausfuehren, produktions_regelsatz
+from statagent.agenten.koordinator import agent_ausfuehren, produktions_regelsatz, ruecknahme_pruefen
 from statagent.agenten.regelaenderung import regelsatz_vorhanden
-from statagent.agenten.vorschlag import Vorschlag, vorschlag_lesen, vorschlag_schema_einrichten, wirkung_text
+from statagent.agenten.vorschlag import (
+    Vorschlag,
+    vorschlag_anlegen,
+    vorschlag_lesen,
+    vorschlag_schema_einrichten,
+    wirkung_text,
+)
 from statagent.db import Verbindung, verbinden
 from statagent.regeln import regeln_laden, regelstand
 
@@ -222,8 +228,36 @@ def _vorschlag(conn: Verbindung, anweisung: str, monat: str) -> tuple[Vorschlag 
     return vorschlag_lesen(conn, erg.vorschlag_id), dauer, korrektur.strip()
 
 
+#: Freigegebener Probe-Vorschlag, dessen Rücknahme noch aussteht (für das Aufräumen nach einem Fehler)
+_OFFEN: dict[str, int] = {}
+
+
+def _aufraeumen(conn: Verbindung, vorschlag_id: int, repo: Path) -> None:
+    """Stellt den Stand vor einem freigegebenen Vorschlag ohne Modell wieder her (Umkehrung aus dem Code), damit
+    ein gescheiterter Lauf die folgenden nicht verfälscht. Zählt nie als bestanden."""
+    basis = produktions_regelsatz(conn)
+    g = ruecknahme_pruefen(conn, vorschlag_id, basis)
+    vid = vorschlag_anlegen(
+        conn,
+        anweisung=f"Aufräumen der Probe: Vorschlag {vorschlag_id} zurücknehmen",
+        rolle="datenmanagement",
+        typ=g.typ,
+        regelsatz_ziel=g.regelsatz_ziel,
+        regelsatz_basis=g.regelsatz_basis,
+        begruendung=g.begruendung,
+        aenderungen=g.aenderungen,
+    )
+    freigabe_ausfuehren(conn, vid, NAME, repo)
+
+
 def ein_lauf(
-    conn: Verbindung, auftrag: Auftrag, nummer: int, monat: str, repo: Path, locker: bool = False
+    conn: Verbindung,
+    auftrag: Auftrag,
+    nummer: int,
+    monat: str,
+    repo: Path,
+    locker: bool = False,
+    referenz: str | None = None,
 ) -> dict[str, Any]:
     anweisung = auftrag.locker if locker and auftrag.locker else auftrag.anweisung
     zeile: dict[str, Any] = {
@@ -236,6 +270,12 @@ def ein_lauf(
     hinweise: list[str] = []
     basis = produktions_regelsatz(conn)
     stand_vorher = _stand(conn, basis, monat)
+    if referenz is not None and stand_vorher != referenz:
+        zeile |= {
+            "bestanden": False,
+            "hinweis": f"Ausgangsstand {basis} weicht vom Stand der Abgabe ab; Lauf nicht gewertet",
+        }
+        return zeile
 
     # 1–3: Vorschlag, Erwartung, Ablehnen
     v1, dauer1, h = _vorschlag(conn, anweisung, monat)
@@ -270,6 +310,8 @@ def ein_lauf(
     zeile["regel_richtig"] = richtig
     f2 = freigabe_ausfuehren(conn, v2.id, NAME, repo)
     zeile["vorschlag_freigegeben"] = v2.id
+    if f2.angewendet:
+        _OFFEN["id"] = v2.id
     zeile["freigabe_angewendet"] = f2.angewendet and _git_kopf(repo) != kopf
     if not f2.angewendet:
         hinweise.append(f"Freigabe nicht angewendet: {f2.meldung}")
@@ -281,6 +323,9 @@ def ein_lauf(
     hinweise.append(h)
     zeile["dauer_s"] = round(max(dauer1, dauer2, dauer3), 1)
     if v3 is None:
+        _aufraeumen(conn, v2.id, repo)
+        _OFFEN.pop("id", None)
+        hinweise.append("Rücknahme per Sprache gescheitert, ohne Modell aufgeräumt")
         zeile |= {
             "ruecknahme_hash_gleich": False,
             "bestanden": False,
@@ -289,6 +334,9 @@ def ein_lauf(
         return zeile
     f3 = freigabe_ausfuehren(conn, v3.id, NAME, repo)
     zeile["vorschlag_ruecknahme"] = v3.id
+    if not f3.angewendet:
+        _aufraeumen(conn, v2.id, repo)
+    _OFFEN.pop("id", None)
     nach = produktions_regelsatz(conn)
     zeile["ruecknahme_hash_gleich"] = f3.angewendet and _stand(conn, nach, monat) == stand_vorher
     p1, p3 = v2.probe.get(monat, {}), v3.probe.get(monat, {})
@@ -341,16 +389,26 @@ def main() -> int:
     neu = not args.csv.exists()
     with verbinden(url) as conn, args.csv.open("a", encoding="utf-8", newline="") as f:
         vorschlag_schema_einrichten(conn)
+        # Stand der Abgabe (Zählregeln von v2) als Ausgangsstand jedes Laufs
+        referenz = _stand(conn, produktions_regelsatz(conn), args.monat)
         schreiber = csv.DictWriter(f, fieldnames=SPALTEN, delimiter=";")
         if neu:
             schreiber.writeheader()
         for nummer in range(1, args.runden + 1):
             for auftrag in auswahl:
                 try:
-                    zeile = ein_lauf(conn, auftrag, nummer, args.monat, repo, locker=nummer == args.runden)
-                except (
-                    Exception
-                ) as fehler:  # ein Fehler ist ein nicht bestandener Lauf, kein Abbruch der Serie
+                    zeile = ein_lauf(
+                        conn,
+                        auftrag,
+                        nummer,
+                        args.monat,
+                        repo,
+                        locker=nummer == args.runden,
+                        referenz=referenz,
+                    )
+                except Exception as fehler:  # nicht bestanden, kein Abbruch der Serie
+                    if "id" in _OFFEN:
+                        _aufraeumen(conn, _OFFEN.pop("id"), repo)
                     zeile = {
                         "auftrag": auftrag.kurz,
                         "lauf": nummer,

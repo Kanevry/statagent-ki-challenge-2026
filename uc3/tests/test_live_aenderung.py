@@ -372,3 +372,77 @@ def test_bekannte_werte_ohne_lauf_der_basis_und_nach_kategorie(live_conn: Verbin
     assert set(werte["qualifikation"]) >= {"Arbeiter", "Angestellte", "Beamte"}
     assert "ArbeiterDV" not in werte["qualifikation"]
     assert "ArbeiterDV" in bekannte_werte(live_conn, "v1")["qualifikation"]
+
+
+@pytest.mark.parametrize(
+    ("art", "parameter"),
+    [
+        ("ausschluss", {"merkmal": "qualifikation", "werte": ["Beamte"]}),
+        ("gruppierung", {"merkmal": "region", "zuordnung": ["1=Ost", "3=Ost", "9=Ost"]}),
+    ],
+)
+def test_lauf_mit_neuer_zaehlregel_haelt_blattsummen_nicht_an(
+    live_conn: Verbindung, art: str, parameter: dict[str, Any]
+) -> None:
+    # Fängt (Review b-uc3-b6): P21 hielt jeden Monat an, weil der Bestand die Ausgeschlossenen mitzählte bzw.
+    # die Gruppe „Ost“ in keiner Klassifikation steht; danach verweigert veroeffentlichen.
+    conn = live_conn
+    with conn.transaction():
+        regelsatz_sicherstellen(conn, "v2", "v1")
+        conn.execute(
+            """INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, beschreibung, begruendung,
+                                       grundlage, gueltig_ab_lieferung)
+               VALUES ('v2', 'R8_live', 'zaehl', %s, 80, %s::jsonb, 'Live', 'Live', 'Test', '2024-08')""",
+            (art, json.dumps(parameter)),
+        )
+    lauf = lauf_ausfuehren(conn, MONAT, "v2", reihenfolge_pruefen=False)
+    treffer = conn.execute(
+        """SELECT r.name, t.anzahl, t.anhalten, t.details FROM meta.pruefung_treffer t
+           JOIN meta.regel r ON r.id = t.regel_id WHERE t.lauf_id = %s AND r.name LIKE 'P21%%'""",
+        (lauf.lauf_id,),
+    ).fetchall()
+    assert treffer and all(t["anzahl"] == 0 and not t["anhalten"] for t in treffer), treffer
+    nicht_gezaehlt = conn.execute(
+        "SELECT gelesen, gezaehlt, nicht_gezaehlt, ausgeschlossen FROM meta.lauf WHERE id = %s",
+        (lauf.lauf_id,),
+    ).fetchone()
+    assert nicht_gezaehlt is not None
+
+
+def test_rueckfrage_ohne_andere_rolle_wird_einmal_nachgefasst(live_conn: Verbindung) -> None:
+    # Fängt: „Monat 13 → 1. Jänner“ fragte, ob P04 gemeint sei (Probe 19:44); einmal nachfassen, dann Vorschlag.
+    antwort = _aendern("R5_alter", {"geburtsmonat_13": "ersatz:01-01"})
+    modell = _modell("datenmanagement", {"rueckfrage": "Ist P04 gemeint?"}, antwort)
+    erg = agent_ausfuehren(live_conn, "Bei Geburtsmonat 13 gilt der erste Jänner.", complete=modell)
+    assert erg.vorschlag_id is not None, erg.rueckfrage
+    assert erg.korrekturen == ["Rückfrage der Rolle: Ist P04 gemeint?"]
+
+
+def test_echte_rueckfrage_bleibt_nach_dem_nachfassen(live_conn: Verbindung) -> None:
+    modell = _modell("datenmanagement", {"rueckfrage": "Erster oder letzter Tag?"})
+    erg = agent_ausfuehren(live_conn, "Bei Geburtsmonat 13 anders rechnen.", complete=modell)
+    assert erg.vorschlag_id is None and erg.rueckfrage == "Erster oder letzter Tag?"
+    assert sum(1 for z, _ in modell.aufrufe if z == "agent.datenmanagement") == 2
+
+
+def test_gruppierung_nach_kategorie_heisst_qualifikation(live_conn: Verbindung) -> None:
+    # Fängt: „Arbeiter und Angestellte zusammen“ nannte merkmal beschaeftigungskategorie (Probe 19:44).
+    with live_conn.transaction():
+        live_conn.execute(
+            """UPDATE meta.regel SET parameter = '{"qualifikation": "beschaeftigungskategorie"}'::jsonb
+               WHERE regelsatz = 'v1' AND name = 'R6_beschaeftigungskategorie'"""
+        )
+    antwort = _neu(
+        "gruppierung",
+        "R9_unselbstaendige",
+        {
+            "merkmal": "beschaeftigungskategorie",
+            "zuordnung": ["Arbeiter=Unselbständige", "Angestellte=Unselbständige"],
+        },
+    )
+    erg = agent_ausfuehren(
+        live_conn, "Arbeiter und Angestellte zusammen", complete=_modell("klassifikation", antwort)
+    )
+    assert erg.vorschlag_id is not None, erg.abgelehnt
+    regel = vorschlag_lesen(live_conn, erg.vorschlag_id).aenderungen[0]["regel"]
+    assert regel["parameter"]["merkmal"] == "qualifikation"

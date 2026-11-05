@@ -25,7 +25,7 @@ from statagent import ergebnis
 from statagent.db import Verbindung
 from statagent.ergebnis import monat_verschieben, monatserster
 from statagent.regeln import Regel, RegelFehler
-from statagent.zaehlung import zeitraum
+from statagent.zaehlung import gruppierung_zuordnung, zeitraum
 
 #: Spalte ``meta.pruefung_treffer.beispiele`` hält höchstens fünf VVH_IDs (nie PERSON_ID).
 BEISPIELE_MAX = 5
@@ -559,6 +559,25 @@ def _sprung_aggregat(k: Kontext, regel: Regel) -> Befund:
     )
 
 
+def _ausgeschlossen(k: Kontext, nur_geliefert: bool = False) -> int:
+    """Verhältnisse, die eine Ausschlussregel des Laufs nicht zählt (0 ohne solche Regel). Sie stehen im Bestand
+    aus bereinigt.abschnitt, aber in keiner Zelle (Live-Änderung #80, z. B. „ohne Beamte“)."""
+    if not any(r.typ == "zaehl" and r.art == "ausschluss" for r in k.regeln):
+        return 0
+    filter_ = " AND herkunft = 'geliefert'" if nur_geliefert else ""
+    z = _eine_zeile(k, f"SELECT count(*) AS n FROM _bestand WHERE ausgeschlossen{filter_}", {})
+    return _int(z["n"])
+
+
+def _gruppen(k: Kontext) -> tuple[str, list[str]] | None:
+    """Merkmal und Gruppennamen einer Gruppierungsregel des Laufs (z. B. region, ['Ost'])."""
+    r = next((r for r in k.regeln if r.typ == "zaehl" and r.art == "gruppierung"), None)
+    if r is None:
+        return None
+    merkmal, zuordnung = gruppierung_zuordnung(r)
+    return merkmal, sorted(set(zuordnung.values()))
+
+
 def _blattsummen(k: Kontext, regel: Regel) -> Befund:
     gliederungen = _param(regel, "gliederungen")
     if not isinstance(gliederungen, dict):
@@ -568,6 +587,9 @@ def _blattsummen(k: Kontext, regel: Regel) -> Befund:
     # Arbeiter/Angestellte/Beamte statt der fünf Qualifikationscodes; dann gilt deren Klassifikation.
     r_dim = next((r for r in k.regeln if r.typ == "zaehl" and r.art == "dimension"), None)
     kategorie = r_dim is not None and r_dim.parameter.get("qualifikation") == "beschaeftigungskategorie"
+    # Eine Gruppierungsregel (z. B. Wien, NÖ, Burgenland = „Ost“) bringt Codes, die in keiner Klassifikation stehen;
+    # für ihr Merkmal gelten die Gruppennamen als zulässig.
+    gruppen = _gruppen(k)
 
     def abfrage(beleg: bool) -> Abfrage:
         summen = []
@@ -581,14 +603,20 @@ def _blattsummen(k: Kontext, regel: Regel) -> Befund:
             version = (
                 sql.SQL(" AND k.version = z.oenace_version") if dict(spez).get("version") else sql.SQL("")
             )
+            zusatz = (
+                sql.SQL(" OR z.{} = ANY({})").format(_gliederung(regel, str(g)), sql.Literal(gruppen[1]))
+                if gruppen is not None and gruppen[0] == str(g)
+                else sql.SQL("")
+            )
             summen.append(
                 sql.SQL(
-                    "coalesce(sum(z.wert) FILTER (WHERE EXISTS (SELECT 1 FROM {t} k WHERE k.code = z.{g}{v})), 0)"
+                    "coalesce(sum(z.wert) FILTER (WHERE EXISTS (SELECT 1 FROM {t} k WHERE k.code = z.{g}{v}){z}), 0)"
                     "::bigint AS {a}"
                 ).format(
                     t=sql.Identifier(*teile),
                     g=_gliederung(regel, str(g)),
                     v=version,
+                    z=zusatz,
                     a=sql.Identifier(str(g)),
                 )
             )
@@ -606,13 +634,15 @@ def _blattsummen(k: Kontext, regel: Regel) -> Befund:
         ).format(summen=sql.SQL(", ").join(summen), quelle=quelle)
 
     z = _eine_zeile(k, abfrage(False), k.params)
-    bestand, gesamt = _int(z["bestand"]), _int(z["gesamt"])
+    ausgeschlossen = _ausgeschlossen(k)
+    bestand, gesamt = _int(z["bestand"]) - ausgeschlossen, _int(z["gesamt"])
     summen = {str(g): _int(z[str(g)]) for g in gliederungen}
     abweichend = {g: s for g, s in summen.items() if s != gesamt}
     if gesamt != bestand:
         abweichend["gesamt"] = gesamt
     umfang = (
-        f"Summe je Gliederung = Gesamt {_n(gesamt)} (Bestand {_n(bestand)})"
+        f"Summe je Gliederung = Gesamt {_n(gesamt)} (Bestand {_n(bestand)}"
+        + (f", ohne {_n(ausgeschlossen)} nach Ausschlussregel)" if ausgeschlossen else ")")
         if not abweichend
         else "Abweichung: " + ", ".join(f"{g} {_n(s)}" for g, s in abweichend.items()) + f" ≠ {_n(bestand)}"
     )
@@ -621,7 +651,7 @@ def _blattsummen(k: Kontext, regel: Regel) -> Befund:
         umfang=umfang,
         fall=FALL_TREFFER if abweichend else FALL_OHNE,
         beleg_sql=_beleg(k, abfrage(True), k.params),
-        details={"bestand": bestand, "gesamt": gesamt, "summen": summen},
+        details={"bestand": bestand, "gesamt": gesamt, "summen": summen, "ausgeschlossen": ausgeschlossen},
     )
 
 
@@ -672,7 +702,8 @@ def _bestand_vs_vormonat(k: Kontext, regel: Regel) -> Befund:
                          (SELECT gezaehlt - fortgeschrieben FROM meta.lauf WHERE id = %(cmp_lauf)s) AS vormonat"""
     params = {**k.params, "cmp_lauf": vergleich_lauf}
     z = _eine_zeile(k, abfrage, params)
-    akt, vm = _int(z["aktuell"]), _int(z["vormonat"])
+    # Der Vormonat (meta.lauf.gezaehlt) zählt ohne Ausgeschlossene; der aktuelle Bestand darum auch.
+    akt, vm = _int(z["aktuell"]) - _ausgeschlossen(k, nur_geliefert=True), _int(z["vormonat"])
     verhaeltnis = akt / vm if vm else 0.0
     treffer = verhaeltnis < 1 - schwelle
     return Befund(
