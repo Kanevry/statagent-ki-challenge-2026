@@ -196,6 +196,7 @@ function ProbeTabelleAnsicht({ vorschlag, tabelle: t }: { vorschlag: number; tab
   const aendert = probeAendert(t);
   return (
     <div className="flex flex-col gap-2">
+      <div className="overflow-x-auto">
       <table className="w-full max-w-2xl border-collapse">
         <caption className="sr-only">{`${probeTitel(t.lieferung)}: Beschäftigungsverhältnisse vorher und nachher`}</caption>
         <thead>
@@ -236,6 +237,7 @@ function ProbeTabelleAnsicht({ vorschlag, tabelle: t }: { vorschlag: number; tab
           </tr>
         </tbody>
       </table>
+      </div>
       <div className="flex flex-wrap items-baseline gap-x-4">
         <span className="font-sans text-16 text-ink">
           {aendert.gesamt
