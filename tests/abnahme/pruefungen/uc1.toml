@@ -600,25 +600,25 @@ grund = "Keine .env-Datei im Repo und keine schlüsselähnliche Zuweisung in uc1
 [[pruefung]]
 id = "23-1"
 hash = "cc772ba601"
-befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_kern.py -k 'pflege_szenario_zwei_wechsel_buendel or ohne_gueltige_aussage_abstinenz'; test -f uc1/uc1/api.py && grep -c erstelle_router uc1/uc1/api.py"
-erwartet = ["(^|= )\\d+ passed", "^[1-9]\\d*$"]
+befehl = "timeout 200 uv run --isolated --package uc1 pytest -q -p no:cacheprovider uc1/tests/test_kern.py -k 'pflege_szenario_zwei_wechsel_buendel or ohne_gueltige_aussage_abstinenz'"
+erwartet = ["(^|= )\\d+ passed"]
 deckung = "teil"
 schwer = false
 zeitlimit = 200
-quelle = "Issue #23 (Epic-Fertig-Kriterium: Text und Stimme, jede Auskunft mit Quelle)"
-befund = "Der Text-Pfad besteht im Test, aber uc1/uc1/api.py mit dem Sprach-Router (Stimme) fehlt auf main."
-grund = "Text-Pfad besteht und der Dienst hängt den Sprach-Router ein (die Vorführung selbst misst dieser Satz nicht)."
+quelle = "Issue #23; Teil „per Stimme“ nach Abgabe (Entscheid Lead a7, 05.11. 20:3x, entscheide.jsonl)"
+befund = "Der Text-Pfad des Pflege-Szenarios besteht den Test nicht."
+grund = "Text-Pfad des Pflege-Szenarios besteht im Test (die Vorführung selbst misst der Hand-Prüfsatz)."
 
 [[pruefung]]
 id = "23-1"
 hash = "cc772ba601"
 art = "hand"
-beschreibung = "Ein Mensch führt das Pflege-Szenario einmal per Text und einmal per Stimme (Vapi über Tunnel oder Text-Fallback nach Voice-Abnahme) vor; jede Auskunft nennt die Quelle (Gesetz und Paragraf oder Dokument und Seite), und die Belegmengen beider Wege stimmen überein."
+beschreibung = "Ein Mensch führt das Pflege-Szenario Ende zu Ende per Text vor; jede Auskunft nennt die Quelle (Gesetz und Paragraf oder Dokument und Seite). Der Teil „per Stimme“ ist nach Abgabe (Entscheid Lead a7)."
 deckung = "voll"
 schwer = true
 quelle = "Issue #23"
-befund = "Ein Szenario Ende zu Ende per Text und per Stimme ist nicht vorgeführt."
-grund = "Beide Wege liefern dieselbe Auskunft mit Quelle."
+befund = "Ein Szenario Ende zu Ende per Text ist nicht vorgeführt."
+grund = "Das Szenario liefert per Text jede Auskunft mit Quelle."
 
 [[pruefung]]
 id = "34-1"

@@ -470,7 +470,10 @@ def tor(zeilen: list[dict], belege: dict[str, list[dict]]) -> int:
         if s not in ("nicht geprüft", "nicht bestanden"):
             continue
         e = entscheide.get(k["id"])
-        (entschieden if e and e.get("hash") == k["hash"] else offen).append((k, s, grund, e))
+        # Ein Teilentscheid (umfang = teil, z. B. 23-1: nur „per Stimme“ nach Abgabe) entscheidet das
+        # Kriterium nicht: der übrige Teil wird weiter gemessen.
+        ganz = e and e.get("hash") == k["hash"] and e.get("umfang") != "teil"
+        (entschieden if ganz else offen).append((k, s, grund, e))
     for k, s, _grund, e in entschieden:
         print(f"entschieden {k['teil']} {k['id']}: {s}; {e['entscheid']} ({e['wer']}, {e['quelle']})")
     for k, s, grund, _ in offen:
