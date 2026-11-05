@@ -27,9 +27,7 @@ function Inhalt({ knoten, offen, klappbar }: { knoten: Knoten; offen: boolean; k
       <span className="w-20 shrink-0 font-sans text-14 tabular-nums text-slate">{knoten.code}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="font-sans text-16 text-ink">{knoten.name}</span>
-        {knoten.pfad !== undefined && (
-          <span className="font-sans text-14 text-slate">{knoten.pfad ? `${knoten.ebene} in ${knoten.pfad}` : knoten.ebene}</span>
-        )}
+        {knoten.pfad && <span className="font-sans text-14 text-slate">{knoten.pfad}</span>}
         {knoten.aenderungen.map((satz) => (
           <span key={satz} className="font-sans text-14 text-slate">
             {satz}
@@ -241,7 +239,7 @@ export function Nachschlagen({ auswahl, start, startArt }: { auswahl: Auswahl; s
             value={suche}
             maxLength={60}
             onChange={(e) => setSuche(e.target.value)}
-            placeholder={art === "oenace" ? "Code oder Name, zum Beispiel 10.11 oder Fleisch" : "Code oder Name, zum Beispiel 70101 oder Innsbruck"}
+            placeholder={art === "oenace" ? "Zum Beispiel 10.11 oder Fleisch" : "Zum Beispiel 70101 oder Innsbruck"}
             className="min-h-11 w-full rounded-md border border-line bg-white px-3 font-sans text-16 text-ink placeholder:text-slate"
           />
         </div>

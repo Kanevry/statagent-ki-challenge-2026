@@ -29,7 +29,7 @@ export interface Knoten {
   hatKinder: boolean;
   /** Was sich an diesem Code geändert hat, in ganzen Sätzen; leer, wenn nichts. */
   aenderungen: string[];
-  /** Nur bei Treffern der Suche: wozu der Code gehört, leer auf der obersten Ebene. */
+  /** Nur bei Treffern der Suche: Ebene und wozu der Code gehört, als fertiger Text (`pfadSatz`). */
   pfad?: string;
 }
 
@@ -68,6 +68,24 @@ export function ebeneWort(ebene: string, anzahl = 1): string {
 export function standName(version: string): string {
   const t = /^(\d{4})-(\d{2})-(\d{2})$/.exec(version);
   return t ? datumLang(`${t[3]}.${t[2]}.${t[1]}`) : version;
+}
+
+/**
+ * Regionen stehen in der Quelle als „Graz(Stadt)“ und „Wien  1.,Innere Stadt“. Die Anzeige setzt die fehlenden Leerzeichen;
+ * Datenbank und Beleg behalten den Namen wie geliefert, die Suche vergleicht deshalb ohne Leerzeichen.
+ */
+export function regionName(name: string): string {
+  return name
+    .replace(/\s*\(/g, " (")
+    .replace(/,\s*/g, ", ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Wozu ein Treffer gehört: „Klasse in Herstellung von Waren (C)“, „Gemeinde, Steiermark › Weiz“, oben nur die Ebene. */
+export function pfadSatz(art: Art, ebene: string, pfad: string | undefined): string {
+  if (!pfad) return ebene;
+  return art === "oenace" ? `${ebene} in ${pfad}` : `${ebene}, ${pfad}`;
 }
 
 export function fassungName(art: Art, wert: string): string {
@@ -242,18 +260,28 @@ async function aenderungen(sql: Sql, art: Art, fassung: string, zeilen: readonly
     const saetze = regionSaetze(
       code,
       fassung,
-      roh.filter((z) => z.code_alt === code || z.code_neu === code),
+      roh
+        .filter((z) => z.code_alt === code || z.code_neu === code)
+        .map((z) => ({
+          ...z,
+          name_alt: z.name_alt && regionName(z.name_alt),
+          name_neu: z.name_neu && regionName(z.name_neu),
+        })),
     );
     if (saetze.length > 0) ergebnis.set(code, saetze);
   }
   return ergebnis;
 }
 
+function anzeigeZeile(art: Art, zeile: Roh): Roh {
+  return art === "region" ? { ...zeile, bezeichnung: regionName(zeile.bezeichnung) } : zeile;
+}
+
 async function alsKnoten(sql: Sql, art: Art, fassung: string, zeilen: readonly Roh[]): Promise<Knoten[]> {
   const saetze = await aenderungen(sql, art, fassung, zeilen);
   return zeilen.map((z) => ({
     code: z.code,
-    name: z.bezeichnung,
+    name: anzeigeZeile(art, z).bezeichnung,
     ebene: ebeneWort(String(z.ebene)),
     hatKinder: Boolean(z.hat_kinder),
     aenderungen: saetze.get(z.code) ?? [],
@@ -309,6 +337,8 @@ function sucheRoh(sql: Sql, art: Art, fassung: string, suche: string) {
   const mitNamen = suche.length >= 2;
   const muster = `%${roh}%`;
   const anfang = `${roh}%`;
+  // Regionen ohne Leerzeichen vergleichen: „Graz (Stadt)“ findet „Graz(Stadt)“ aus der Quelle.
+  const dicht = mitEscape(suche.replace(/\s+/g, ""));
   if (art === "oenace") {
     const kompakt = mitEscape(suche.replace(/\s+/g, "").toUpperCase());
     return sql<RohTreffer[]>`
@@ -333,12 +363,13 @@ function sucheRoh(sql: Sql, art: Art, fassung: string, suche: string) {
     SELECT k.code, k.bezeichnung, k.ebene, k.uebergeordnet, count(*) OVER () AS gesamt, k.ebene <> 'gemeinde' AS hat_kinder
     FROM stat.klass_region k
     WHERE ((k.version = ${fassung} AND k.ebene IN ('bezirk', 'gemeinde')) OR (k.ebene = 'bundesland' AND k.code <> '0'))
-      AND (k.code LIKE ${`${roh}%`} OR (${mitNamen}::boolean AND k.bezeichnung ILIKE ${muster}))
+      AND (k.code LIKE ${`${roh}%`}
+        OR (${mitNamen}::boolean AND regexp_replace(k.bezeichnung, '\s', '', 'g') ILIKE ${`%${dicht}%`}))
     ORDER BY
       CASE
         WHEN k.code = ${suche} THEN 0
         WHEN k.code LIKE ${`${roh}%`} THEN 1
-        WHEN k.bezeichnung ILIKE ${anfang} THEN 2
+        WHEN regexp_replace(k.bezeichnung, '\s', '', 'g') ILIKE ${`${dicht}%`} THEN 2
         ELSE 3
       END,
       k.code COLLATE "C"
@@ -369,7 +400,7 @@ async function pfade(sql: Sql, art: Art, fassung: string, zeilen: readonly Roh[]
     let c = z.uebergeordnet;
     while (c && bekannt.has(c)) {
       const e = bekannt.get(c)!;
-      teile.unshift(art === "oenace" ? `${e.name} (${c})` : e.name);
+      teile.unshift(art === "oenace" ? `${e.name} (${c})` : regionName(e.name));
       c = e.oben;
     }
     if (teile.length > 0) ergebnis.set(z.code, art === "oenace" ? teile[0]! : teile.join(" › "));
@@ -384,7 +415,7 @@ export function leseAnfrage(anfrage: Anfrage, optionen: { sql?: Sql | null } = {
       const roh = await sucheRoh(sql, art, fassung, anfrage.suche);
       const [knoten, pfad] = await Promise.all([alsKnoten(sql, art, fassung, roh), pfade(sql, art, fassung, roh)]);
       return {
-        knoten: knoten.map((k) => ({ ...k, pfad: pfad.get(k.code) ?? "" })),
+        knoten: knoten.map((k) => ({ ...k, pfad: pfadSatz(art, k.ebene, pfad.get(k.code)) })),
         gesamt: roh[0] ? Number(roh[0].gesamt) : 0,
       };
     }

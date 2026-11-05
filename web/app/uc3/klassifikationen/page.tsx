@@ -108,7 +108,7 @@ async function AlleCodes() {
       </h2>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="font-sans text-14 text-slate">
-          Die Statistik zählt nach Abschnitt und Bundesland. Darunter gibt es hier die Namen, keine Zahlen.
+          Die Statistik zählt nach Abschnitt und Bundesland. Für die Ebenen darunter gibt es hier die Namen, keine Zahlen.
         </span>
         <BelegLink quelle="stat.klass_oenace, stat.klass_region, stat.uebergang" sql={SQL_NACHSCHLAGEN} />
       </div>

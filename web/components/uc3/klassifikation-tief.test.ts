@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { anfrageAus, auswahlAus, ebeneWort, oenaceSaetze, regionSaetze, standName, type UebergangZeile } from "./klassifikation-tief";
+import {
+  anfrageAus,
+  auswahlAus,
+  ebeneWort,
+  oenaceSaetze,
+  pfadSatz,
+  regionName,
+  regionSaetze,
+  standName,
+  type UebergangZeile,
+} from "./klassifikation-tief";
 
 function zeile(teil: Partial<UebergangZeile>): UebergangZeile {
   return {
@@ -47,6 +57,19 @@ describe("Namen", () => {
     expect(ebeneWort("2", 24)).toBe("Abteilungen");
     expect(ebeneWort("gemeinde", 2)).toBe("Gemeinden");
     expect(standName("2026-01-01")).toBe("1. Jänner 2026");
+  });
+
+  it("setzt in Regionen die fehlenden Leerzeichen und lässt fertige Namen in Ruhe", () => {
+    expect(regionName("Graz(Stadt)")).toBe("Graz (Stadt)");
+    expect(regionName("Wien  1.,Innere Stadt")).toBe("Wien 1., Innere Stadt");
+    expect(regionName("Sankt Pölten (Land)")).toBe("Sankt Pölten (Land)");
+    expect(regionName("Weiz")).toBe("Weiz");
+  });
+
+  it("schreibt die Zugehörigkeit je Art anders", () => {
+    expect(pfadSatz("oenace", "Klasse", "Herstellung von Waren (C)")).toBe("Klasse in Herstellung von Waren (C)");
+    expect(pfadSatz("region", "Gemeinde", "Steiermark › Weiz")).toBe("Gemeinde, Steiermark › Weiz");
+    expect(pfadSatz("region", "Bundesland", undefined)).toBe("Bundesland");
   });
 
   it("zeigt die neueste Fassung und den neuesten Stand zuerst", () => {
