@@ -15,7 +15,7 @@ from test_regeln_freigabe import _repo
 
 from statagent.db import Verbindung
 from statagent.lauf import lauf_ausfuehren
-from statagent.regeln import NameUngueltig, regeln_freigeben
+from statagent.regeln import NameUngueltig, RegelFehler, regeln_freigeben
 from statagent.sonderauswertung import (
     LieferungBereitsFreigegeben,
     NichtFreigegeben,
@@ -55,10 +55,10 @@ def test_lieferung_braucht_freigegebene_definition_und_namen(conn: Verbindung, t
     # Fängt: Auswertung startet ohne freigegebene Definition (Regel 6d) oder mit Platzhalter-Namen (Regel 7).
     _auswertungsregel(conn)
     with pytest.raises(NichtFreigegeben):
-        ministerium_schreiben(conn, "2024-11", "Lena Gruber", ziel_dir=tmp_path)
+        ministerium_schreiben(conn, "2024-11", "Lena Gruber", ziel_dir=tmp_path, beleg_dir=tmp_path)
     regeln_freigeben(conn, "ministerium", "Lena Gruber")
     with pytest.raises(NameUngueltig):
-        ministerium_schreiben(conn, "2024-11", "Team", ziel_dir=tmp_path)
+        ministerium_schreiben(conn, "2024-11", "Team", ziel_dir=tmp_path, beleg_dir=tmp_path)
 
 
 def test_personentage_november(conn: Verbindung, tmp_path: Path) -> None:
@@ -66,7 +66,9 @@ def test_personentage_november(conn: Verbindung, tmp_path: Path) -> None:
     # ENDE als beendet gewertet, Ende vor dem Zeitraum gezählt, Sortierung oder CSV-Kopf falsch.
     _auswertungsregel(conn)
     regeln_freigeben(conn, "ministerium", "Lena Gruber")
-    datei, auswertung = ministerium_schreiben(conn, "2024-11", "Lena Gruber", ziel_dir=tmp_path)
+    datei, auswertung = ministerium_schreiben(
+        conn, "2024-11", "Lena Gruber", ziel_dir=tmp_path, beleg_dir=tmp_path
+    )
     assert auswertung.datenstand == {"2024-11": "2024-11"}
     assert datei.read_text(encoding="utf-8").splitlines() == [
         "PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE",
@@ -107,7 +109,9 @@ def test_freigabe_committet_den_beleg_mit_sha256_nicht_die_csv(conn: Verbindung,
     git(repo, "add", "fremd.txt")
     _auswertungsregel(conn)
     regeln_freigeben(conn, "ministerium", NAME)
-    datei, _ = ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+    datei, _ = ministerium_schreiben(
+        conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+    )
     assert git(repo, "log", "-1", "--format=%(trailers:key=Freigegeben-von,valueonly)") == NAME
     assert git(repo, "show", "--name-only", "--format=", "HEAD").splitlines() == [
         "abgabe/ministerium_2024-11.beleg.md"
@@ -125,7 +129,7 @@ def test_freigabe_committet_den_beleg_mit_sha256_nicht_die_csv(conn: Verbindung,
         "datei",
         "abgabe/ministerium_2024-11.beleg.md",
     )
-    assert _ausgaben(conn) == [("abgabe/ministerium_2024-11.csv", protokoll_id)]
+    assert _ausgaben(conn) == [("ministerium_2024-11.csv", protokoll_id)]
 
 
 def test_zweite_freigabe_desselben_monats_wird_abgewiesen(conn: Verbindung, tmp_path: Path) -> None:
@@ -134,14 +138,20 @@ def test_zweite_freigabe_desselben_monats_wird_abgewiesen(conn: Verbindung, tmp_
     repo = _repo(tmp_path / "repo")
     _auswertungsregel(conn)
     regeln_freigeben(conn, "ministerium", NAME)
-    datei, _ = ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+    datei, _ = ministerium_schreiben(
+        conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+    )
     kopf = git(repo, "rev-parse", "HEAD")
     inhalt = datei.read_bytes()
     with pytest.raises(LieferungBereitsFreigegeben, match=f"bereits freigegeben von {NAME} am"):
-        ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+        )
     conn.execute(b"UPDATE meta.ausgabe SET sha256 = 'anders' WHERE berichtsmonat = '2024-11'")
     with pytest.raises(LieferungBereitsFreigegeben, match="neuen Auftrag"):
-        ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+        )
     assert git(repo, "rev-parse", "HEAD") == kopf
     assert git(repo, "status", "--porcelain", "--untracked-files=no") == ""  # Beleg unverändert
     assert datei.read_bytes() == inhalt  # CSV (nicht im Repo) unverändert
@@ -161,7 +171,9 @@ def test_gescheitertes_git_lehnt_ab_und_schreibt_keine_ausgabe(conn: Verbindung,
     _auswertungsregel(conn)
     regeln_freigeben(conn, "ministerium", NAME)
     with pytest.raises(GitFehler):
-        ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+        )
     [(protokoll_id, status, commit)] = _lieferungs_protokoll(conn)
     assert (status, commit) == ("abgelehnt", None)
     f = conn.execute(
@@ -170,7 +182,7 @@ def test_gescheitertes_git_lehnt_ab_und_schreibt_keine_ausgabe(conn: Verbindung,
     assert [z["entscheidung"] for z in f] == ["nein"]
     assert _ausgaben(conn) == []
     assert git(repo, "rev-parse", "HEAD") == kopf
-    assert not (repo / "abgabe" / "ministerium_2024-11.csv").exists()
+    assert not (tmp_path / "extern" / "ministerium_2024-11.csv").exists()
     assert not (repo / "abgabe" / "ministerium_2024-11.beleg.md").exists()
 
 
@@ -182,13 +194,15 @@ def test_gescheitertes_git_stellt_vorhandene_datei_wieder_her(conn: Verbindung, 
     hook.parent.mkdir(parents=True, exist_ok=True)
     hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
     hook.chmod(0o755)
-    alt = repo / "abgabe" / "ministerium_2024-11.csv"
-    alt.parent.mkdir(parents=True)
+    alt = tmp_path / "extern" / "ministerium_2024-11.csv"
+    alt.parent.mkdir(parents=True, exist_ok=True)
     alt.write_text("alte Fassung\n", encoding="utf-8")
     _auswertungsregel(conn)
     regeln_freigeben(conn, "ministerium", NAME)
     with pytest.raises(GitFehler):
-        ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+        )
     assert alt.read_text(encoding="utf-8") == "alte Fassung\n"
 
 
@@ -249,9 +263,27 @@ def test_freigabe_im_protokoll_ohne_ausgabe_verhindert_zweite_freigabe(
     repo = _repo(tmp_path / "repo")
     _auswertungsregel(conn)
     regeln_freigeben(conn, "ministerium", NAME)
-    ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+    ministerium_schreiben(
+        conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+    )
     conn.execute(b"DELETE FROM meta.ausgabe WHERE art = 'ministerium' AND berichtsmonat = '2024-11'")
     kopf = git(repo, "rev-parse", "HEAD")
     with pytest.raises(LieferungBereitsFreigegeben, match="meta.protokoll"):
-        ministerium_schreiben(conn, "2024-11", NAME, ziel_dir=repo / "abgabe", repo_pfad=repo)
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=tmp_path / "extern", beleg_dir=repo / "abgabe", repo_pfad=repo
+        )
     assert git(repo, "rev-parse", "HEAD") == kopf
+
+
+def test_csv_mit_einzeldaten_darf_nicht_im_repo_liegen(conn: Verbindung, tmp_path: Path) -> None:
+    # Fängt: die Ministeriums-CSV (PERSON_ID) landet im Repo und damit im öffentlichen GitHub-Push (Review 57,
+    # Pflicht B; Entscheid Lead 58: Abgabe über den SV-Box-Teamordner, im Repo nur der Beleg).
+    repo = _repo(tmp_path / "repo")
+    _auswertungsregel(conn)
+    regeln_freigeben(conn, "ministerium", NAME)
+    with pytest.raises(RegelFehler, match="nicht im Repo"):
+        ministerium_schreiben(
+            conn, "2024-11", NAME, ziel_dir=repo / "abgabe", beleg_dir=repo / "abgabe", repo_pfad=repo
+        )
+    assert not (repo / "abgabe" / "ministerium_2024-11.csv").exists()
+    assert _ausgaben(conn) == []

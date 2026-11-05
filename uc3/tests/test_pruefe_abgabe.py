@@ -141,9 +141,12 @@ def _vollstaendig(wurzel: Path) -> Path:
     _sheet(abgabe / "aggregationen_v2.xlsx", VORLAGE_BLAETTER)
     for monat in berichtsmonate():
         (abgabe / "qualitaetsberichte" / f"{monat}.md").write_text(_bericht(monat), encoding="utf-8")
-    (abgabe / "ministerium_2026-07.csv").write_text(
-        "PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE\n2;W;1980;200\n10;M;1975;365\n", encoding="utf-8"
-    )
+    # Die CSV mit Einzeldaten liegt außerhalb des Repos (wurzel/extern), im Repo nur der Beleg mit ihrer sha256.
+    extern = wurzel / "extern"
+    extern.mkdir()
+    csv_inhalt = "PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE\n2;W;1980;200\n10;M;1975;365\n"
+    (extern / "ministerium_2026-07.csv").write_text(csv_inhalt, encoding="utf-8")
+    _beleg(abgabe, hashlib.sha256(csv_inhalt.encode("utf-8")).hexdigest())
     (abgabe / "protokoll.md").write_text("# Protokoll\n", encoding="utf-8")
     (wurzel / "docs").mkdir()
     (wurzel / "docs" / "models.md").write_text("# Modelle\n", encoding="utf-8")
@@ -155,7 +158,11 @@ def _vollstaendig(wurzel: Path) -> Path:
 def _pruefen(abgabe: Path, wurzel: Path, vorlagen: Path | None = None) -> dict[str, str]:
     """Hinweise der fehlenden Punkte; prüft nebenbei, dass `ok` nur ohne fehlende Punkte gilt."""
     erg = pruefe_abgabe(
-        abgabe, wurzel, blaetter=VORLAGE_BLAETTER, vorlagen_dir=vorlagen or _vorlage(wurzel / "vorlagen")
+        abgabe,
+        wurzel,
+        blaetter=VORLAGE_BLAETTER,
+        vorlagen_dir=vorlagen or _vorlage(wurzel / "vorlagen"),
+        lieferungen_dir=wurzel / "extern",
     )
     fehlend = {p.name: p.hinweis for p in erg.punkte if not p.ok}
     assert erg.ok is (not fehlend)
@@ -306,13 +313,10 @@ def test_ministerium_ohne_csv_reicht_der_beleg_mit_sha256(tmp_path: Path) -> Non
     # Fängt: die Jury-Kopie des Repos (CSV mit Einzeldaten bewusst nicht enthalten) gilt als unvollständig, oder
     # ein Beleg ohne sha256 gilt als Lieferung.
     abgabe = _vollstaendig(tmp_path)
-    csv_datei = abgabe / "ministerium_2026-07.csv"
-    sha = hashlib.sha256(csv_datei.read_bytes()).hexdigest()
-    csv_datei.unlink()
+    (tmp_path / "extern" / "ministerium_2026-07.csv").unlink()
+    assert "Ministeriums-Lieferung 2026-07" not in _pruefen(abgabe, tmp_path)
     (abgabe / "ministerium_2026-07.beleg.md").write_text("# ohne Prüfsumme\n", encoding="utf-8")
     assert "ohne sha256" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]
-    _beleg(abgabe, sha)
-    assert "Ministeriums-Lieferung 2026-07" not in _pruefen(abgabe, tmp_path)
 
 
 def test_ministerium_csv_muss_zur_sha256_im_beleg_passen(tmp_path: Path) -> None:
@@ -320,3 +324,12 @@ def test_ministerium_csv_muss_zur_sha256_im_beleg_passen(tmp_path: Path) -> None
     abgabe = _vollstaendig(tmp_path)
     _beleg(abgabe, "0" * 64)
     assert "passt nicht" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]
+
+
+def test_ministerium_csv_im_repo_ist_ein_mangel(tmp_path: Path) -> None:
+    # Fängt: die CSV mit PERSON_ID liegt unter abgabe/ und ginge mit dem öffentlichen Repo hinaus (Review 57, B).
+    abgabe = _vollstaendig(tmp_path)
+    (abgabe / "ministerium_2026-07.csv").write_text(
+        "PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE\n", encoding="utf-8"
+    )
+    assert "liegt im Repo" in _pruefen(abgabe, tmp_path)["Ministeriums-Lieferung 2026-07"]

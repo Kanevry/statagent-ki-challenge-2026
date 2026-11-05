@@ -331,6 +331,7 @@ def ministerium_schreiben(
     *,
     regelsatz: str = "ministerium",
     ziel_dir: Path | None = None,
+    beleg_dir: Path | None = None,
     repo_pfad: Path | None = None,
 ) -> tuple[Path, Auswertung]:
     """Rechnet die Lieferung, schreibt die CSV und gibt sie mit Namen frei.
@@ -344,28 +345,35 @@ def ministerium_schreiben(
     person = name_pruefen(name)
     regel = auswertung_regel(conn, regelsatz)
     auswertung = personentage(conn, regel, berichtsmonat)
-    datei = (ziel_dir or konfig.abgabe()) / str(wert(regel, "datei")).format(berichtsmonat=berichtsmonat)
+    datei = (ziel_dir or konfig.lieferungen_extern()) / str(wert(regel, "datei")).format(
+        berichtsmonat=berichtsmonat
+    )
+    if konfig.im_repo(datei, repo_pfad):
+        raise RegelFehler(
+            f"{datei.name} enthält Einzeldaten und darf nicht im Repo liegen; Ablage außerhalb, z. B. "
+            "STATAGENT_LIEFERUNGEN oder lieferungen/ neben dem Repo"
+        )
+    beleg = (beleg_dir or konfig.abgabe()) / f"{datei.stem}.beleg.md"
+    wurzel = (repo_pfad or konfig.REPO_WURZEL).resolve()
+    beleg_ref: str | None = None
+    if repo_pfad is not None:
+        try:
+            beleg_ref = beleg.resolve().relative_to(wurzel).as_posix()
+        except ValueError:
+            raise RegelFehler(
+                f"Der Beleg {beleg.name} muss im Repo liegen, sonst lässt er sich nicht freigeben"
+            ) from None
     inhalt = auswertung.csv([str(f) for f in wert(regel, "felder")], str(wert(regel, "trennzeichen")))
     sha = hashlib.sha256(inhalt.encode("utf-8")).hexdigest()
-    wurzel = (repo_pfad or konfig.REPO_WURZEL).resolve()
-    try:
-        relativ = datei.resolve().relative_to(wurzel).as_posix()
-    except ValueError:
-        if repo_pfad is not None:
-            raise RegelFehler(
-                f"{datei} liegt nicht im Repo {wurzel}; so lässt sie sich nicht freigeben"
-            ) from None
-        relativ = str(datei)
     _bisherige_lieferung(conn, berichtsmonat, sha)
     datei.parent.mkdir(parents=True, exist_ok=True)
-    beleg = datei.with_name(f"{datei.stem}.beleg.md")
+    beleg.parent.mkdir(parents=True, exist_ok=True)
     # Frühere Fassungen merken: scheitert die Freigabe, wird der alte Zustand wiederhergestellt statt gelöscht.
     vorher = {p: (p.read_bytes() if p.is_file() else None) for p in (datei, beleg)}
     datei.write_text(inhalt, encoding="utf-8")
     beleg.write_text(beleg_text(regel, auswertung, datei.name, sha, person), encoding="utf-8")
     protokoll_id: int | None = None
-    if repo_pfad is not None:
-        beleg_ref = beleg.resolve().relative_to(wurzel).as_posix()
+    if repo_pfad is not None and beleg_ref is not None:
         try:
             protokoll_id = _lieferung_freigeben(
                 conn, person, repo_pfad, beleg_ref, berichtsmonat, auswertung, sha
@@ -386,7 +394,7 @@ def ministerium_schreiben(
             (
                 berichtsmonat,
                 regel.id,
-                relativ,
+                datei.name,  # nur der Dateiname: die CSV liegt außerhalb des Repos, kein lokaler Pfad in Protokollen
                 len(auswertung.zeilen),
                 sha,
                 json.dumps(

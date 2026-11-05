@@ -72,6 +72,26 @@ def vorlagen() -> Path:
     return startpaket() / "vorlagen"
 
 
+def lieferungen_extern() -> Path:
+    """Ablage für Lieferungen mit Einzeldaten (Ministerium): außerhalb des Repos, nie versioniert.
+
+    Reihenfolge: `STATAGENT_LIEFERUNGEN`, sonst `lieferungen/` neben dem Haupt-Checkout (wie das Startpaket
+    `svbox/`). Abgegeben wird von dort über den SV-Box-Teamordner; im Repo steht nur der Beleg mit sha256.
+    """
+    umgebung_laden()
+    gesetzt = os.environ.get("STATAGENT_LIEFERUNGEN")
+    if gesetzt:
+        return Path(gesetzt).expanduser()
+    return _haupt_checkout(REPO_WURZEL).parent / "lieferungen"
+
+
+def im_repo(pfad: Path, repo: Path | None = None) -> bool:
+    """True, wenn `pfad` im Repo (oder in einem Worktree davon) liegt."""
+    ziel = pfad.resolve()
+    wurzeln = {(repo or REPO_WURZEL).resolve(), _haupt_checkout(repo or REPO_WURZEL).resolve()}
+    return any(ziel == w or w in ziel.parents for w in wurzeln)
+
+
 def abgabe() -> Path:
     """Ablage der erzeugten Ergebnisse (Sheet, Qualitätsberichte, Ministeriums-Lieferung, Protokoll)."""
     umgebung_laden()

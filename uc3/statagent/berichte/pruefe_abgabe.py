@@ -422,28 +422,32 @@ def _beleg_sha256(beleg: Path) -> str | None:
     return treffer.group(1) if treffer else None
 
 
-def _punkt_ministerium(abgabe_dir: Path) -> Punkt:
-    """Die CSV enthält Einzeldaten und liegt nicht im Repo (abgabe/.gitignore); im Repo steht der Beleg mit sha256.
+def _punkt_ministerium(abgabe_dir: Path, lieferungen_dir: Path | None = None) -> Punkt:
+    """Die CSV enthält Einzeldaten und liegt außerhalb des Repos; im Repo (abgabe/) steht nur der Beleg mit sha256.
 
-    Mit CSV (lokal, SV-Box) wird sie geprüft und gegen die sha256 des Belegs abgeglichen; ohne CSV reicht der
-    freigegebene Beleg (Entscheid Lead 58, #16).
+    Eine CSV in ``abgabe/`` ist ein Mangel (sie gehört nicht ins öffentliche Repo). Liegt die CSV in
+    ``lieferungen_dir`` (lokal vor der Abgabe über die SV-Box), wird sie geprüft und gegen die sha256 des Belegs
+    abgeglichen; ohne sie reicht der Beleg (Entscheid Lead 58, #16; Review 57 Pflicht B).
     """
     name = "Ministeriums-Lieferung 2026-07"
-    pfad = abgabe_dir / "ministerium_2026-07.csv"
+    datei = "ministerium_2026-07.csv"
+    if (abgabe_dir / datei).exists():
+        return Punkt(
+            name, False, f"{datei} liegt im Repo unter abgabe/; sie enthält Einzeldaten und gehört nach außen"
+        )
     beleg = abgabe_dir / "ministerium_2026-07.beleg.md"
-    sha = _beleg_sha256(beleg) if beleg.is_file() else None
-    if beleg.is_file() and sha is None:
+    if not beleg.is_file():
+        return Punkt(name, False, f"{beleg.name} nicht gefunden")
+    sha = _beleg_sha256(beleg)
+    if sha is None:
         return Punkt(name, False, f"{beleg.name} ohne sha256-Zeile")
-    if not pfad.is_file():
-        if sha is not None:
-            return Punkt(
-                name,
-                True,
-                f"{pfad.name} nicht im Repo (Einzeldaten, Abgabe über SV-Box); Beleg sha256 {sha[:12]}",
-            )
-        return Punkt(name, False, f"weder {pfad.name} noch {beleg.name} gefunden")
-    if sha is not None and hashlib.sha256(pfad.read_bytes()).hexdigest() != sha:
-        return Punkt(name, False, f"{pfad.name} passt nicht zur sha256 im Beleg")
+    pfad = (lieferungen_dir / datei) if lieferungen_dir is not None else None
+    if pfad is None or not pfad.is_file():
+        return Punkt(
+            name, True, f"{datei} nicht im Repo (Einzeldaten, Abgabe über SV-Box); Beleg sha256 {sha[:12]}"
+        )
+    if hashlib.sha256(pfad.read_bytes()).hexdigest() != sha:
+        return Punkt(name, False, f"{datei} passt nicht zur sha256 im Beleg")
     with pfad.open(encoding="utf-8", newline="") as f:
         zeilen = list(csv.reader(f, delimiter=";"))
     if not zeilen or zeilen[0] != MINISTERIUM_KOPF:
@@ -503,6 +507,7 @@ def pruefe_abgabe(
     *,
     conn: Verbindung | None = None,
     vorlagen_dir: Path | None = None,
+    lieferungen_dir: Path | None = None,
 ) -> Pruefergebnis:
     """Prüft den Abgabeordner.
 
@@ -516,7 +521,7 @@ def pruefe_abgabe(
             _punkt_sheet(abgabe_dir / "aggregationen_v1.xlsx", "Aggregations-Sheet v1", soll, conn),
             _punkt_berichte(abgabe_dir, struktur),
             vorlage_punkt,
-            _punkt_ministerium(abgabe_dir),
+            _punkt_ministerium(abgabe_dir, lieferungen_dir),
             _punkt_protokoll(abgabe_dir),
             _punkt_modelle(abgabe_dir, repo_wurzel),
             _punkt_sheet(
