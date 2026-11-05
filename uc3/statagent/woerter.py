@@ -32,11 +32,15 @@ _FUELLWOERTER = _liste(
     wurde wurden wäre wären zu zum zur zwar danke dank vielen voraus hilfe frage fragen wüsste wuesste gerade bericht
     abteilung präsentation vorstand brauche brauchen benötige möglich möglichst genau ungefähr etwa rund handelt
     viel viele vieler sagen sag zeig zeige zeigen steht stehen stand
+    servus grüß gott könnt könntet könntest ihr euch bräuchte bräuchten hätten würde würden nennen nenne nennt
+    angeben ausgeben liefern auskunft info information interessiert interessieren eigentlich überhaupt denn wohl
+    gabs gibts
     """
 )
 _SACHE = _liste(
     """
-    anzahl arbeit arbeite arbeiten arbeitend arbeitende arbeitenden arbeitet arbeitete arbeiteten arbeitnehmer
+    anzahl gesamtzahl gesamtanzahl gesamtbestand bestand bestanden bestehen besteht beschäftigtenstand
+    beschäftigtenzahl beschäftigtenzahlen tätig tätige tätigen arbeit arbeite arbeiten arbeitend arbeitende arbeitenden arbeitet arbeitete arbeiteten arbeitnehmer
     arbeitnehmerinnen beschäftigung beschaeftigung beschäftigungen beschäftigt beschaeftigt beschäftigte beschäftigten
     beschaeftigte beschaeftigten beschäftigter beschäftigungsverhältnis beschäftigungsverhältnisse
     beschäftigungsverhältnissen daten datenbank dienstnehmer dienstverhältnis dienstverhältnisse job jobs leute
@@ -56,7 +60,8 @@ _AUSWERTUNG = _liste(
     """
     abgang abgänge abgängen abgaenge abschnitt abschnitte abschnitten anteil anteile anteils aufgeteilt aufteilung
     bereich bereichen branche branchen bundesland bundesländer bundesländern bundeslaender durchschnitt durchschnitte
-    durchschnittlich durchschnittliche entwicklung entwickelt entwickelte fluktuation frauenanteil gegenüber
+    durchschnittlich durchschnittliche durchschnittlicher durchschnittliches durchschnittlichen verteilen verteilt
+    verteilung entwicklung entwickelt entwickelte fluktuation frauenanteil gegenüber
     gegenueber geschlecht geschlechter ganz ganzen gesamt gesamte gesamten hoch insgesamt
     jahresdurchschnitt jahresmittel kategorie kategorien mittel mittelwert monatsdurchschnitt männeranteil oenace
     önace österreich oesterreich prozent regel summe tabelle verglichen vergleich vergleichen verlauf vs

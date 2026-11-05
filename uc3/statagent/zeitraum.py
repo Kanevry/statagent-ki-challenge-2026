@@ -183,6 +183,14 @@ KEIN_JAHR = re.compile(
 )
 
 
+_MONAT_SCHRAEG = re.compile(rf"(?<!\w)({_MW})\.?\s*/\s*(?=(?:{_MW})(?!\w))", re.IGNORECASE)
+
+
+def schraegstrich_lesen(frage: str) -> str:
+    """„Mai/Juni 2026“ nennt zwei Monate; sonst zählte nur der zweite."""
+    return _MONAT_SCHRAEG.sub(r"\1 und ", frage)
+
+
 def _folgejahr(t: re.Match[str]) -> int | None:
     folge = _FOLGEJAHR.match(t.string, t.end())
     if folge is None or any(k.start() <= folge.start(1) < k.end() for k in KEIN_JAHR.finditer(t.string)):

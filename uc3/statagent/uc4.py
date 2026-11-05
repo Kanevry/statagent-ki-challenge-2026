@@ -701,6 +701,7 @@ def uc4_antwort(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str
     """
     from statagent import frage as weg  # hier, weil statagent.frage aus diesem Modul importiert
 
+    frage = weg.alltag_lesen(frage)
     daten = weg.antwort_frage(conn, frage, regelsatz)
     if (
         daten["typ"] in ("bestand", "geschlecht")

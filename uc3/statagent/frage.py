@@ -46,6 +46,7 @@ from statagent.zeitraum import (
     KEIN_JAHR,
     MONATSNAMEN,
     ZEITREIHE_WORT,
+    schraegstrich_lesen,
     tag_hinweis,
     umschreiben,
     unklar,
@@ -200,7 +201,7 @@ _MENGENWORT = frozenset(
 )
 #: Freie Dienstverträge: im Regelsatz v1 Qualifikationen mit Kennzeichen freier_dienstvertrag (ArbeiterFD,
 #: AngestellteFD), im Sheet je Qualifikation ausgewiesen.
-_FREIER_DV = re.compile(r"\bfreie[nmrs]?\s+(?:dienstv\w*|dv)\b|\bfd\b")
+_FREIER_DV = re.compile(r"\bfreie[nmrs]?\s+(?:dienstv\w*|dienstnehmer\w*|dv)\b|\bfd\b")
 FREIER_DV = Merkmal(
     "freier Dienstvertrag",
     "q.freier_dienstvertrag",
@@ -261,7 +262,7 @@ _KEIN_MERKMAL_STAMM = (
     "österreich", "oesterreich", "vergleich", "jahr", "monat", "zeitraum", "schnitt", "gesamt", "summe",
     "detail", "bundesl", "wirtschaftsbereich", "wirtschaftszweig", "abschnitt", "önace", "oenace",
     "berichtsmonat", "stichtag", "verlauf", "lauf", "bereich", "branche", "sektor", "prozent", "vormonat",
-    "vorjahr", "zahl", "tabelle", "beschäftigungskategorie", "kategorie", "geschlecht",
+    "vorjahr", "zahl", "tabelle", "beschäftigungskategorie", "kategorie", "geschlecht", "beschäftigung",
 )  # fmt: skip
 _FUNKTIONSWORT = frozenset(
     {"im", "in", "der", "den", "dem", "die", "das", "welchem", "welcher", "welchen", "welche", "diesem",
@@ -277,6 +278,27 @@ _MONATSWORT = "|".join(sorted(map(re.escape, MONATSNAMEN), key=len, reverse=True
 _LETZTES_JAHR = re.compile(r"\b(?:im\s+)?letzte[nms]?\s+jahr(?:es)?\b", re.IGNORECASE)
 _AKTUELL = re.compile(r"\b(aktuell|derzeit|zurzeit|momentan|jetzt)\b", re.IGNORECASE)
 KATEGORIE = _merkmal("Beschäftigungskategorie")
+
+
+#: Alltagsform → die Form, die der Rest des Lesens kennt. Nur, was dieselbe Bedeutung hat.
+_ALLTAG: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bim\s+schnitt\b", re.IGNORECASE), "im Durchschnitt"),
+    (re.compile(r"\barbeiterinnen\b", re.IGNORECASE), "Arbeiter Frauen"),
+    (re.compile(r"\bbeamtinnen\b", re.IGNORECASE), "Beamte Frauen"),
+    (re.compile(r"\bgabs\b", re.IGNORECASE), "gab es"),
+)
+#: „Wie viel Prozent … sind Frauen“ fragt nach dem Anteil, nicht nach der Menge.
+_PROZENT_ANTEIL = re.compile(r"\b(?:wie\s*viel(?:e)?\s+)?prozent\b", re.IGNORECASE)
+
+
+def alltag_lesen(frage: str) -> str:
+    """Schreibweisen vereinheitlichen, bevor Zeitraum und Merkmale gelesen werden."""
+    frage = schraegstrich_lesen(frage)
+    for muster, ersatz in _ALLTAG:
+        frage = muster.sub(ersatz, frage)
+    if _PROZENT_ANTEIL.search(frage) and not _FLUKTUATION.search(frage.lower()):
+        frage = _PROZENT_ANTEIL.sub("Anteil", frage)
+    return frage
 
 
 def normalisieren(frage: str, letzter: str = LETZTE_LIEFERUNG) -> tuple[str, list[str]]:
@@ -1427,6 +1449,7 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     """
     if ist_pensionsfrage(frage) and not _PERSON.search(frage.lower()):
         return _pensionsfrage(conn, frage)
+    frage = alltag_lesen(frage)
     try:
         letzter = _letzter_monat(conn, regelsatz)
     except psycopg.Error:
