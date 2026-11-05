@@ -415,8 +415,47 @@ def antwort(frage: str, kontext: list[Any]) -> Any:
     except ImportError as fehler:
         raise RuntimeError(
             "plattform.antwortform fehlt (Vertrag UcAntwort, #96, MR !30); "
-            "ohne ihn liefert nur statagent.uc4.antwort_daten ein dict."
+            "ohne ihn liefert nur statagent.uc4.uc4_antwort ein dict."
         ) from fehler
     with verbinden() as conn:
-        daten = antwort_daten(conn, frage)
+        daten = uc4_antwort(conn, frage)
     return UcAntwort.model_validate(daten)
+
+
+def uc4_antwort(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str, Any]:
+    """Felder der ``UcAntwort`` für /uc4: derselbe Weg wie /uc3/fragen, damit beide dasselbe sagen (#176).
+
+    Was dieser Weg nicht versteht, bekommt eine Absage oder Rückfrage, keine Zahl zu einer anderen Frage. Nur mehrere
+    Werte eines Merkmals („Wien und Tirol“) zeigt UC4 je Wert (#125); das rechnet ``antwort_daten``, und nur, wenn der
+    Adapter alle übrigen Einschränkungen der Frage genauso liest.
+    """
+    from statagent import frage as weg  # hier, weil statagent.frage aus diesem Modul importiert
+
+    daten = weg.antwort_frage(conn, frage, regelsatz)
+    if daten["text"].startswith(weg.MEHRERE_WERTE) and _adapter_liest_gleich(conn, frage, regelsatz):
+        return antwort_daten(conn, frage, regelsatz)
+    return {**weg.als_ucantwort(daten), "text": weg.als_webantwort(daten)["text"]}
+
+
+def _adapter_liest_gleich(conn: Verbindung, frage: str, regelsatz: str) -> bool:
+    """Liest der Adapter jede Ausprägung, die /uc3/fragen in der Frage findet, und bleibt kein Wort unbekannt?"""
+    from statagent import frage as weg
+
+    gelesen = weg.normalisieren(frage)[0]
+    genannt = weg.monate_lesen(gelesen)
+    monat = genannt[-1] if genannt else weg._letzter_monat(conn, regelsatz)
+    if monat is None or weg._FREIER_DV.search(gelesen.lower()):
+        return False
+    mehrfach: list[Merkmal] = []
+    for merkmal in MERKMALE:
+        codes = _codes(conn, merkmal, monat)
+        werte = weg._werte(gelesen, merkmal, codes)[0]
+        if not set(werte) <= set(_auspraegungen(gelesen, merkmal, codes)):
+            return False
+        if len(werte) > 1:
+            mehrfach.append(merkmal)
+    try:
+        weg._filter(conn, gelesen, monat, tuple(mehrfach))
+    except weg._KeineZahl:
+        return False
+    return True
