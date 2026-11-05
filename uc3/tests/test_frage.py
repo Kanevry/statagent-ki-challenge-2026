@@ -17,6 +17,8 @@ import psycopg
 import pytest
 from psycopg import sql
 
+from statagent import konfig
+from statagent.agenten.werkzeuge import sql_lesen
 from statagent.db import Verbindung, verbinden
 from statagent.ergebnis import letzter_lauf, monat_verschieben, monatserster, monatsletzter
 from statagent.frage import als_ucantwort, antwort_frage, fragetyp, jahr_ohne_monat, monate_lesen, rate
@@ -297,3 +299,35 @@ def test_cli_frage_json(gerechnet: Verbindung, arbeits_db: str, monkeypatch: pyt
     assert json.loads(ergebnis.output) == erwartet
     text = CliRunner().invoke(cli.app, ["frage", FLUKTUATION])
     assert text.exit_code == 0 and "SQL [0]: WITH bestand AS" in text.output and "Definition: " in text.output
+
+
+# Fängt: die SECURITY-DEFINER-Funktion nimmt beliebige Stichtage, ein Agent könnte über sql_lesen die Bewegungen
+# eines einzelnen Tages je Abschnitt abfragen (sehr kleine Zellen außerhalb der Definition).
+@pytest.mark.parametrize(
+    ("vorher", "stichtag"),
+    [
+        ("2024-09-29", "2024-09-30"),  # ein Tag Abstand
+        ("2024-08-31", "2024-09-15"),  # kein Monatsletzter
+        ("2024-07-31", "2024-09-30"),  # zwei Monate Abstand
+        ("2024-09-30", "2024-10-31"),  # Stichtag nicht im Monat der Lieferung
+    ],
+)
+def test_bewegung_nur_zwischen_monatsletzten(gerechnet: Verbindung, vorher: str, stichtag: str) -> None:
+    stand = letzter_lauf(gerechnet, "2024-09")
+    assert stand is not None
+    abfrage = (
+        "SELECT * FROM stat.bewegung_oenace('2024-09', 'v1', "
+        f"'{stand.regelstand}', DATE '{vorher}', DATE '{stichtag}')"
+    )
+    with pytest.raises(psycopg.errors.RaiseException, match="letzten Tag"):
+        sql_lesen(gerechnet, abfrage)
+
+
+# Fängt: online (nur stat/meta, ohne Schema bereinigt) stürzt `frage` mit UndefinedTable ab, statt zu antworten;
+# und 160_bewegung.sql lässt sich dort nicht anlegen.
+def test_fluktuation_ohne_schema_bereinigt(gerechnet: Verbindung) -> None:
+    gerechnet.execute("DROP SCHEMA bereinigt CASCADE")
+    gerechnet.execute((konfig.DB_VERZEICHNIS / "160_bewegung.sql").read_text(encoding="utf-8").encode())
+    daten = antwort_frage(gerechnet, "Fluktuation je ÖNACE im September 2024")
+    assert daten["typ"] == "fluktuation" and daten["zahlen"] == []
+    assert "keine bereinigten Einzeldaten" in daten["text"] and daten["hinweise"]

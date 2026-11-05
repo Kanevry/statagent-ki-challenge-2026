@@ -18,6 +18,19 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp A
 DECLARE
   v_regelstand text;
 BEGIN
+  -- Nur die Projektdefinition (zwei aufeinanderfolgende Monatsletzte der Lieferung): beliebige Stichtage würden
+  -- über sql_lesen sehr kleine Zellen (etwa Bewegungen eines einzigen Tages) offenlegen.
+  IF p_stichtag IS NULL OR p_stichtag_vorher IS NULL
+     OR p_stichtag <> (date_trunc('month', p_stichtag) + interval '1 month - 1 day')::date
+     OR p_stichtag_vorher <> (date_trunc('month', p_stichtag) - interval '1 day')::date
+     OR to_char(p_stichtag, 'YYYY-MM') IS DISTINCT FROM p_lieferung THEN
+    RAISE EXCEPTION 'Zu- und Abgänge gibt es nur zwischen dem letzten Tag des Vormonats und dem letzten Tag des Berichtsmonats % (angefragt: % bis %)', p_lieferung, p_stichtag_vorher, p_stichtag;
+  END IF;
+  -- Online liegen nur stat/meta vor (Lead-Entscheid); plpgsql prüft Tabellen erst beim Ausführen, die Funktion
+  -- lässt sich also auch ohne Schema bereinigt anlegen.
+  IF to_regclass('bereinigt.abschnitt') IS NULL THEN
+    RAISE EXCEPTION 'In dieser Datenbank liegen keine bereinigten Einzeldaten vor; die Fluktuation gibt es nur in der lokalen Auswertung';
+  END IF;
   SELECT l.regelstand INTO v_regelstand
   FROM bereinigt.abschnitt a JOIN meta.lauf l ON l.id = a.lauf_id
   WHERE a.lieferung = p_lieferung AND a.regelsatz = p_regelsatz
