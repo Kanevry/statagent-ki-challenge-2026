@@ -1,0 +1,78 @@
+# Vorschlag des Leads (lead-session-orchestrator-09, 2026-11-05) für agents/ki-challenge-2026 (Repo-Wurzel = app/).
+# Stack laut vault ki-challenge/uc3-architektur.md: Python 3.12+ mit uv (pipeline/), Next.js 16.4 (web/).
+# Nur MR-Pipelines (plus manuelle Web-Pipelines), kein Deploy. Tests mit LLM_PROVIDER=mock, kein Schlüssel in CI.
+# Übernahme durch die Bau-Session: Datei als .gitlab-ci.yml in app/ legen, Pfade prüfen, einmal per MR laufen lassen.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - when: never
+
+stages: [check, test]
+
+default:
+  interruptible: true
+
+gitleaks:
+  stage: check
+  image:
+    name: zricethezav/gitleaks:v8.28.0
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: 0
+  script:
+    # ganze Historie: Abgabe-Repo ist öffentlich, Schlüssel dürfen nie in einem Commit stehen
+    - gitleaks detect --source . --redact --no-banner --exit-code 1
+
+python:
+  stage: test
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+  services:
+    - name: postgres:16
+      alias: db
+  variables:
+    POSTGRES_DB: statistik
+    POSTGRES_USER: statistik
+    POSTGRES_PASSWORD: statistik
+    PGHOST: db
+    PGPORT: "5432"
+    PGDATABASE: statistik
+    PGUSER: statistik
+    PGPASSWORD: statistik
+    LLM_PROVIDER: mock
+    UV_CACHE_DIR: .uv-cache
+  cache:
+    key:
+      files: [uv.lock]
+    paths: [.uv-cache]
+  script:
+    - uv sync --frozen
+    - uv run ruff check .
+    - uv run ruff format --check .
+    # Fixture-Lieferung (20 Zeilen) aus tests/, keine 10-Mio-Läufe in CI
+    - uv run pytest -q
+  rules:
+    - exists: [pyproject.toml]
+
+web:
+  stage: test
+  image: node:24-bookworm-slim
+  variables:
+    LLM_PROVIDER: mock
+  before_script:
+    - corepack enable
+    - corepack prepare pnpm@10.34.5 --activate
+    - cd web
+  cache:
+    key:
+      files: [web/pnpm-lock.yaml]
+    paths: [web/.pnpm-store]
+  script:
+    - pnpm config set store-dir .pnpm-store
+    - pnpm install --frozen-lockfile
+    - pnpm exec next typegen
+    - timeout -k 5 300 pnpm exec tsgo --noEmit
+    - pnpm exec vitest --run
+  rules:
+    - exists: [web/package.json]

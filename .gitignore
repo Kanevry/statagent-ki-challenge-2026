@@ -19,3 +19,4 @@ next-env.d.ts
 .orchestrator/session.lock
 .orchestrator/current-session.json
 .orchestrator/host.json
+.orchestrator/metrics/
