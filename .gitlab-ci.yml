@@ -1,5 +1,6 @@
 # agents/ki-challenge-2026: Monorepo (pnpm-Workspace web + shared/ui, uv-Workspace shared/py + uc*).
-# Nur MR-Pipelines (plus manuelle Web-Pipelines), kein Deploy. Tests mit LLM_PROVIDER=mock, kein Schlüssel in CI.
+# Nur MR-Pipelines (plus manuelle Web-Pipelines). Tests mit LLM_PROVIDER=mock, kein Modellschlüssel in CI.
+# Deploy nur als manueller Job `deploy` in einer Web-Pipeline auf main (#68).
 # Golden-Set- und DB-Tests mit echten Daten tragen pytest.mark.daten und laufen nur lokal (CI-Postgres ist leer).
 
 workflow:
@@ -8,7 +9,7 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "web"
     - when: never
 
-stages: [check, test]
+stages: [check, test, deploy]
 
 default:
   interruptible: true
@@ -112,3 +113,56 @@ playwright:
   rules:
     # Anti-Schablonen-Gate (#62) hängt sich mit web/playwright.config.ts ein
     - exists: [web/playwright.config.ts]
+
+deploy-check:
+  # Prüft die Deploy-Konfiguration ohne Server (#68): shellcheck, Compose-Datei, Caddyfile für beide Inhalte
+  stage: check
+  image: caddy:2.11-alpine@sha256:f6228111e5fafa1a5238258d0858e103f10599b8d1659a146e7726681a002bb9
+  rules:
+    - changes: [deploy/**/*, scripts/deploy.sh, .gitlab-ci.yml]
+  script:
+    - apk add --no-cache bash shellcheck docker-cli-compose jq
+    - shellcheck -S warning scripts/deploy.sh
+    - cp -R deploy/caddy/. /etc/caddy/
+    # Dummy-Werte, keine echten Zugänge
+    - export SITE_ADDRESS=demo.example.org
+    - |
+      for inhalt in platzhalter app; do
+        INHALT=$inhalt caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+        echo "caddy validate ok: INHALT=$inhalt"
+      done
+    - printf "SITE_ADDRESS=demo.example.org\nPOSTGRES_PASSWORD=x\nKIC_APP_DB_PASSWORD=x\n" > /tmp/dummy.env
+    - docker compose --env-file /tmp/dummy.env -f deploy/docker-compose.prod.yml config --format json > /tmp/compose.json
+    # Invarianten: nur caddy veröffentlicht Ports; Härtung bleibt; die App verbindet sich nie als Superuser
+    - jq -e -f deploy/compose-invarianten.jq /tmp/compose.json
+    - echo "docker compose config ok, Invarianten erfüllt"
+
+deploy:
+  # Online-Deploy (#68): nur manuell und nur in einer Web-Pipeline auf main ("Run pipeline" oder
+  # `glab ci run -b main`), erst nach grünen check- und test-Jobs. Images baut der Server, nicht der Runner.
+  # Geschützte Projektvariablen: DEPLOY_SSH_KEY_B64 (masked), DEPLOY_KNOWN_HOSTS, DEPLOY_SSH_HOSTNAME,
+  # DEPLOY_SSH_USER, DEPLOY_BASIS, DEPLOY_DOMAIN. Der Schlüssel steht auf dem Server mit "restrict".
+  stage: deploy
+  image: alpine:3.22@sha256:2e0b81d60597f449baa56dc25d355367869d2dca4cd57e866f1e2b52af3eb55f
+  interruptible: false
+  resource_group: online-demo
+  environment:
+    name: produktion
+    url: https://$DEPLOY_DOMAIN
+  variables:
+    GIT_DEPTH: 1
+    DEPLOY_HOST: deploy-ziel
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  before_script:
+    - apk add --no-cache bash git openssh-client rsync curl coreutils
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+    - install -d -m 700 ~/.ssh
+    - printf '%s' "$DEPLOY_SSH_KEY_B64" | base64 -d > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - printf 'Host deploy-ziel\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_ed25519\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' "$DEPLOY_SSH_HOSTNAME" "$DEPLOY_SSH_USER" > ~/.ssh/config
+  script:
+    - bash scripts/deploy.sh up
+    - bash scripts/deploy.sh pruefen
