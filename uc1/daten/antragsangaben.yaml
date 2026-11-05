@@ -1,0 +1,57 @@
+# Angaben für das Vorausfüllen von Anträgen (Issue #32). Daten, nicht Code.
+#
+# Keine Personendaten ans Modell (Review !68): Geburtsdatum, Straße, Hausnummer, PLZ, Ort und Telefon sind
+# `nur_regel`. Der Kern maskiert sie im Verlauf vor jedem Modellaufruf („[Datum]“, „[Adresse]“, „[PLZ]“,
+# „[Telefon]“) und füllt sie nur über die Regeln unten. Namen gehen vorerst noch an den Analyse-Aufruf, weil
+# keine Regel sie sicher erkennt (Owner-Frage in #121).
+#
+# Der Kern übernimmt sie aus dem Gespräch in `lotse.sitzung.zustand.antrag` (Schlüssel mit Punkt, z. B.
+# `person.familienname`). Zwei Wege, Regeln haben Vorrang:
+#   - Regeln (unten `regeln`): Geburtsdatum, PLZ und Ort, Straße und Hausnummer, Beziehung.
+#   - der bestehende Analyse-Aufruf (Feld `antrag` im Schema, Schlüssel mit `_` statt Punkt).
+# Ein Wert des Modells gilt nur, wenn er im Gespräch steht (Groß-/Kleinschreibung egal); geraten wird nicht.
+# Antragsangaben lösen KEINE Rückfrage aus. Fehlen sie, stehen sie im Antrag unter „noch offen“.
+#
+# `person.*`: die Person, die die Leistung braucht (Pflegegeld: die pflegebedürftige Person; Reha: die
+# Patientin oder der Patient). `antragsteller.*`: wer das Gespräch führt und für sie handelt (Angehörige,
+# Case-Management). `person.pensionstraeger` kommt nicht aus dem Modell, sondern aus `angaben.status`.
+
+angaben:
+  person.vorname: {beschreibung: "Vorname der Person, die die Leistung braucht"}
+  person.familienname: {beschreibung: "Familienname der Person, die die Leistung braucht"}
+  person.geburtsdatum: {beschreibung: "Geburtsdatum dieser Person als TT.MM.JJJJ", art: datum, nur_regel: true}
+  person.strasse: {beschreibung: "Straße, Gasse oder Platz der Wohnadresse, ohne Hausnummer", nur_regel: true}
+  person.hausnummer: {beschreibung: "Hausnummer, Stiege, Tür der Wohnadresse", nur_regel: true}
+  person.plz: {beschreibung: "vierstellige Postleitzahl der Wohnadresse", art: plz, nur_regel: true}
+  person.ort: {beschreibung: "Ort der Wohnadresse", nur_regel: true}
+  person.telefon: {beschreibung: "Telefonnummer der Person, nur wenn ausdrücklich genannt", nur_regel: true}
+  antragsteller.vorname: {beschreibung: "Vorname der Person, die schreibt und für sie handelt"}
+  antragsteller.familienname: {beschreibung: "Familienname der Person, die schreibt und für sie handelt"}
+  antragsteller.beziehung:
+    beschreibung: "Beziehung der schreibenden Person zur Person, z. B. Sohn, Tochter, Case-Managerin"
+  antrag.art:
+    beschreibung: "Pflegegeld: zuerkennung (erstmals), erhoehung (bekommt schon Pflegegeld) oder weitergewaehrung (nach Befristung)"
+    werte: [zuerkennung, erhoehung, weitergewaehrung]
+    # Nur per Regel (unten): Im Azure-Lauf vom 2026-11-05 setzte das Modell „zuerkennung“, obwohl das
+    # Gespräch nichts über bisheriges Pflegegeld sagte. Das Modell wird danach nicht gefragt.
+    nur_regel: true
+
+# Status (traeger.yaml) → Kurzname des Pensionsträgers. Nur wer eine Pension aus der Pensionsversicherung
+# bezieht; `angestellt` und `keine_pension` haben keinen.
+pensionstraeger:
+  pva: PVA
+  svs: SVS
+
+regeln:
+  # Datum nur mit Hinweis auf die Geburt im selben Satzteil („geboren am 01.02.1943“, „geb. 1.2.1943“).
+  geburtsdatum: '(?:geb(?:oren|\.)?|geburtsdatum)\D{0,12}?(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4})'
+  # Österreichische PLZ (4 Ziffern, 1010 bis 9992) und der Ort danach.
+  plz_ort: '\b([1-9]\d{3})\s+([A-ZÄÖÜ][a-zäöüß]+(?:[ -][A-ZÄÖÜ][a-zäöüß]+)*)'
+  strasse: '\b([A-ZÄÖÜ][\wäöüß.-]*(?:straße|strasse|gasse|platz|weg|allee|ring|zeile|gürtel|kai))\s+(\d+[a-z]?(?:\s?/\s?\d+){0,3})'
+  # „ich bin ihr Sohn“, „als ihre Case-Managerin“: die schreibende Person.
+  beziehung: '\b(?:ich bin|als)\s+(?:ihr|sein|ihre|seine|der|die)?\s*(sohn|tochter|ehemann|ehefrau|enkel|enkelin|bruder|schwester|neffe|nichte|case[- ]?manager(?:in)?|sozialarbeiter(?:in)?|betreuer(?:in)?)\b'
+  # Telefon: mit Vorwahl +43/0043 oder nach einem Hinweiswort („Telefon“, „Tel.“, „Handy“, „erreichbar
+  # unter“). Gruppe 1 ist die Nummer.
+  telefon: '(?:(?:telefon(?:nummer)?|tel\.?|handy(?:nummer)?|mobil(?:nummer)?|erreichbar unter)\s*:?\s*((?:\+|00)?\d[\d /-]{4,}\d)|((?:\+|00)43[\d /-]{5,}\d))'
+  erhoehung: 'erh(?:ö|oe)h'
+  zuerkennung: '(?:noch kein(?:e)? pflegegeld|erstmal|zum ersten mal|erstantrag|neu beantragen)'

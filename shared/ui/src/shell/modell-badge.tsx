@@ -31,7 +31,7 @@ export function ModellBadge({
   quelle?: string;
   lang?: boolean;
   /** Modell der aktuellen Seite (`SeitenModell`); hat Vorrang vor der globalen Einstellung. */
-  vorgabe?: { provider: string; modell?: string | null } | null;
+  vorgabe?: { provider: string; modell?: string | null; gewaehlt?: boolean } | null;
 }) {
   const [zustand, setZustand] = useState<Zustand>({ art: "laden" });
 
@@ -70,13 +70,21 @@ export function ModellBadge({
 
   // Die Seite darf nur Testbetrieb melden oder den Anbieter bestätigen, den der Server wirklich meldet; sonst
   // zeigte der Badge einen erfundenen Anbieter (Review !66).
+  // Ausnahme: Die Seite wählt den Anbieter selbst für ihre Anfragen (gewaehlt, Modellwahl auf /uc4).
   const vorgabeGilt =
     vorgabe !== null &&
-    (vorgabe.provider === "mock" || (zustand.art === "ok" && zustand.status.provider === vorgabe.provider));
+    (vorgabe.provider === "mock" ||
+      vorgabe.gewaehlt === true ||
+      (zustand.art === "ok" && zustand.status.provider === vorgabe.provider));
   if (vorgabe && vorgabeGilt) {
     const seiteMock = vorgabe.provider === "mock";
     return (
-      <ModellPille aria-live="polite" title="Angabe dieser Seite" data-testid="modell-badge" data-modell-seite="">
+      <ModellPille
+        aria-live="polite"
+        title={vorgabe.gewaehlt ? "Auf dieser Seite gewählt" : "Angabe dieser Seite"}
+        data-testid="modell-badge"
+        data-modell-seite=""
+      >
         {seiteMock ? (
           <span data-modell-mock="">{TESTBETRIEB_TEXT}</span>
         ) : (

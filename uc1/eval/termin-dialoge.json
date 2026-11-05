@@ -1,0 +1,88 @@
+{
+  "fall": "termin-wien",
+  "issue": 81,
+  "dialoge": [
+    {
+      "id": "zeit-fehlt",
+      "erwartet_rueckfragen_zeitpraeferenz": 1,
+      "verlauf": [
+        {
+          "rolle": "person",
+          "text": "Meine Mutter ist 82, bekommt eine Pension von der PVA und wohnt in 1100 Wien. Sie kommt zu Hause allein nicht mehr zurecht. Ich möchte eine Beratung und einen Termin."
+        },
+        {
+          "rolle": "lotse",
+          "art": "rueckfrage",
+          "feld": "zeitpraeferenz",
+          "text": "Wann passt es Ihnen besser: vormittags oder nachmittags?"
+        },
+        {
+          "rolle": "person",
+          "text": "Vormittags."
+        },
+        {
+          "rolle": "lotse",
+          "art": "entwurf",
+          "text": "Ich schlage vor: Fonds Soziales Wien, Beratungszentrum Pflege und Betreuung, Guglgasse 7-9, 1030 Wien (FSW-Bedarfsmeldung Senioren-WG, S. 1). Ihr Wunsch: 17.11.2026, vormittags (08:00 bis 12:00). Das ist ein Terminentwurf, nicht gebucht. Den Termin vereinbaren Sie selbst mit der Stelle."
+        }
+      ],
+      "rueckfragen_gesamt": 1,
+      "rueckfragen_zeitpraeferenz": 1,
+      "freier_termin_behauptet": false,
+      "angaben": {
+        "plz": "1100",
+        "status": "pva",
+        "zeitpraeferenz": "vormittag"
+      },
+      "ergebnis": {
+        "stelle": "fsw_beratungszentrum",
+        "adresse": "Guglgasse 7-9, 1030 Wien",
+        "quelle": "Anträge und Formulare/Bedarfsmeldung-Senior_innen-Wohngemeinschaft_Basispaket.1736522017.pdf",
+        "seite": 1,
+        "status": "TENTATIVE",
+        "gebucht": false
+      },
+      "beleg_ids": [
+        72822,
+        72833,
+        72826
+      ]
+    },
+    {
+      "id": "zeit-bekannt",
+      "erwartet_rueckfragen_zeitpraeferenz": 0,
+      "verlauf": [
+        {
+          "rolle": "person",
+          "text": "Meine Mutter ist 82, bekommt eine Pension von der PVA und wohnt in 1100 Wien. Sie kommt zu Hause allein nicht mehr zurecht. Ich möchte eine Beratung und einen Termin, am liebsten vormittags."
+        },
+        {
+          "rolle": "lotse",
+          "art": "entwurf",
+          "text": "Ich schlage vor: Fonds Soziales Wien, Beratungszentrum Pflege und Betreuung, Guglgasse 7-9, 1030 Wien (FSW-Bedarfsmeldung Senioren-WG, S. 1). Ihr Wunsch: 17.11.2026, vormittags (08:00 bis 12:00). Das ist ein Terminentwurf, nicht gebucht. Den Termin vereinbaren Sie selbst mit der Stelle."
+        }
+      ],
+      "rueckfragen_gesamt": 0,
+      "rueckfragen_zeitpraeferenz": 0,
+      "freier_termin_behauptet": false,
+      "angaben": {
+        "plz": "1100",
+        "zeitpraeferenz": "vormittag",
+        "status": "pva"
+      },
+      "ergebnis": {
+        "stelle": "fsw_beratungszentrum",
+        "adresse": "Guglgasse 7-9, 1030 Wien",
+        "quelle": "Anträge und Formulare/Bedarfsmeldung-Senior_innen-Wohngemeinschaft_Basispaket.1736522017.pdf",
+        "seite": 1,
+        "status": "TENTATIVE",
+        "gebucht": false
+      },
+      "beleg_ids": [
+        72822,
+        72833,
+        72826
+      ]
+    }
+  ]
+}

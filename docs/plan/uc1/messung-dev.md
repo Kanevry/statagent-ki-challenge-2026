@@ -53,7 +53,7 @@ Rechner A, aus `uc1/`. `werkzeuge/messen.py` ruft `uc1.eval.cli` mit denselben A
 ```
 uv run python werkzeuge/messen.py --set eval/dev-set.yaml --erweiterung llm --nur-begriffe laufzeit/begriffe-llm.json
 uv run python werkzeuge/messen.py --nur-suche --set eval/dev-set.yaml --weg volltext \
-  --erweiterung aus,thesaurus,datei:laufzeit/begriffe-llm.json --ausgabe laufzeit/dev-m4-volltext.md
+  --erweiterung aus,thesaurus,datei:laufzeit/begriffe-llm.json --ausgabe laufzeit/dev-rechner-a-volltext.md
 bash werkzeuge/rechner-b.sh repo-packen          # Stand HEAD plus nicht committete Dateien
 scp laufzeit/repo.tar werkzeuge/rechner-b.sh laufzeit/begriffe-llm.json <rechner B>:<arbeitsordner B>/
 ```

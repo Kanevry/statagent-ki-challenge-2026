@@ -1,0 +1,50 @@
+# Sprachregeln für jeden Text, den ein Mensch sieht (uc1.sprache, Issues #31, #32, #81, #107).
+# Daten, nicht Code. Gefunden wird ohne Groß-/Kleinschreibung und mit Wortgrenzen.
+#
+# aktion:
+#   satz   - der ganze Satz fällt weg (reine Floskel, ohne Inhalt)
+#   weg    - nur die Fundstelle fällt weg, der Rest bleibt ein ganzer Satz (z. B. „Bitte beachten Sie:“)
+#   melden - nicht automatisch lösbar, ohne die Bedeutung zu ändern; pruefe() meldet es
+# Ziel Satzlänge (Owner-Vorgabe, PRD § 3 B): im Mittel unter 15 Wörtern, kein Satz über 25.
+
+satzlaenge:
+  mittel: 15
+  hoechstens: 25
+
+schablonen:
+  - {art: floskel, aktion: satz, muster: '\bgerne? helfe ich\b'}
+  - {art: floskel, aktion: satz, muster: '\bich helfe (?:ihnen )?gerne?\b'}
+  - {art: floskel, aktion: satz, muster: '\bich hoffe,? (?:das|dies|ich konnte)\b'}
+  - {art: floskel, aktion: satz, muster: '\bzögern sie nicht\b'}
+  - {art: floskel, aktion: satz, muster: '\b(?:ich )?stehe (?:ihnen )?(?:gerne? )?(?:jederzeit )?zur verfügung\b'}
+  - {art: floskel, aktion: satz, muster: '\bi hope (?:this|that) helps\b'}
+  - {art: floskel, aktion: satz, muster: '\b(?:feel free to|do not hesitate|don''t hesitate)\b'}
+  - {art: floskel, aktion: satz, muster: '\bhappy to help\b'}
+  - {art: floskel, aktion: satz, muster: '\bgute frage\b'}
+  - {art: einleitung, aktion: weg, muster: '\bbitte beachten sie:\s*'}
+  - {art: einleitung, aktion: weg, muster: '\b(?:wichtig|hinweis|zusammenfassend|fazit):\s*'}
+  - {art: einleitung, aktion: weg, muster: '\bplease note:\s*'}
+  # „, dass …“ verlangt das Verb am Ende; ohne Grammatik nicht sicher umzustellen.
+  - {art: einleitung, aktion: melden, muster: '\bbitte beachten sie\b'}
+  - {art: einleitung, aktion: melden, muster: '\bes ist (?:wichtig|zu beachten|zu betonen)\b'}
+  - {art: einleitung, aktion: melden, muster: '\bzusammenfassend\b'}
+  - {art: einleitung, aktion: melden, muster: '\bit is important to note\b'}
+  - {art: ki, aktion: melden, muster: '\bals (?:ki|künstliche intelligenz|sprachmodell|ai|language model)\b(?!-)'}
+  - {art: ki, aktion: melden, muster: '\bas an ai\b'}
+  # Attributiv („umfassende Beratung“) fällt das Wort weg, sonst wird gemeldet.
+  - {art: fuellwort, aktion: weg, muster: '\bumfassende[mnrs]?\s+(?=\w)'}
+  - {art: fuellwort, aktion: melden, muster: '\bumfassend\b'}
+  - {art: fuellwort, aktion: melden, muster: '\bcomprehensive\b'}
+
+# Ab so vielen Anschlüssen in einem Text gilt es als Kaskade („Zudem … Darüber hinaus …“): melden.
+kaskade:
+  ab: 2
+  muster: '\b(?:zudem|darüber hinaus|des weiteren|ferner|überdies|furthermore|moreover|additionally)\b'
+
+# Anzeigenamen für Dateien in Schritten und Quellen-Halbsätzen. Sonst kürzt kurzname() den Dateinamen.
+dateinamen:
+  PAL080_0125_Mpfl_052026: "Antrag PAL080"
+  Antrag Kur und Reha: "Antrag Kur und Reha"
+  fsw-antrag-auf-foerderung-von-leistungen: "FSW-Antrag auf Förderung"
+  Bedarfsmeldung-Senior_innen-Wohngemeinschaft_Basispaket: "FSW-Bedarfsmeldung Senioren-WG"
+  Serviceratgeber-2026_Broschuere_A5_OEAM_99-19_klein_korr: "Serviceratgeber 2026"
