@@ -398,8 +398,8 @@ function StationKarte({
 
 /** Die erste Zeile ist die Kernaussage der Station; sie steht ganz da, solange sie kurz genug ist (Jury 05.11.). */
 const GANZ_BIS = 320;
-/** Mehr Belege stehen in der ganzen Antwort; oben reicht, dass man sieht, worauf sich die Aussage stützt. */
-const BELEGE_OBEN = 2;
+/** Die übrigen Belege stehen in der ganzen Antwort; oben reicht einer, zweimal „Beleg“ untereinander sagt nichts. */
+const BELEGE_OBEN = 1;
 
 /**
  * Belege der Stationen nach der ersten: Die Zahl steht schon mit Beleg bei Station 1 (#164). Der Lotse zeigt den Beleg
