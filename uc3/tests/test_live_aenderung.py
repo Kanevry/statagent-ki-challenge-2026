@@ -535,7 +535,7 @@ def test_zwei_ausschluesse_zaehlen_jedes_verhaeltnis_einmal(live_conn: Verbindun
         p["nachher"]["gesamt"] < p["vorher"]["gesamt"] - p["vorher"]["je_merkmal"]["qualifikation"]["Beamte"]
     )
     assert p["nachher"]["gesamt"] == sum(p["nachher"]["je_merkmal"]["region"].values())
-    assert any("Mehrere Regeln" in k for k in erg.korrekturen)
+    assert any("Mehrere Änderungen" in k for k in erg.korrekturen)
 
 
 @pytest.mark.parametrize(
@@ -578,7 +578,7 @@ def test_vorschlag_mit_mehreren_regeln_wird_einmal_nachgefragt(live_conn: Verbin
     v = vorschlag_lesen(live_conn, erg.vorschlag_id)
     assert [a["regel_name"] for a in v.aenderungen] == ["P15_bestand_vs_vormonat"]
     assert erg.korrekturen == [
-        "Mehrere Regeln, nachgefragt: P15_bestand_vs_vormonat, P16_verhaeltnisse_verschwunden"
+        "Mehrere Änderungen, nachgefragt: P15_bestand_vs_vormonat, P16_verhaeltnisse_verschwunden"
     ]
 
 
@@ -662,3 +662,45 @@ def test_bleibt_es_bei_der_pruefregel_gibt_es_keinen_vorschlag(live_conn: Verbin
     )
     erg = agent_ausfuehren(live_conn, "Vorarlberg zählt nicht mehr mit.", complete=modell)
     assert erg.vorschlag_id is None and erg.abgelehnt is not None
+
+
+def test_mehrere_parameter_einer_regel_werden_einmal_nachgefragt(live_conn: Verbindung) -> None:
+    # Fängt (Probe 21:50): „Alter am Ersten“ änderte ungefragt auch geburtsmonat_13, das ändert Zahlen.
+    beides = _aendern("R5_alter", {"bezug": "von", "geburtsmonat_13": "ersatz:01-01"})
+    nur_bezug = _aendern("R5_alter", {"bezug": "von"})
+    erg = agent_ausfuehren(
+        live_conn, "Alter am Monatsersten", complete=_modell("datenmanagement", beides, nur_bezug)
+    )
+    assert erg.vorschlag_id is not None, erg.abgelehnt
+    v = vorschlag_lesen(live_conn, erg.vorschlag_id)
+    a = v.aenderungen[0]
+    assert (
+        a["parameter_neu"]["bezug"] == "von"
+        and a["parameter_neu"]["geburtsmonat_13"] == a["parameter_alt"]["geburtsmonat_13"]
+    )
+    assert erg.korrekturen == ["Mehrere Änderungen, nachgefragt: R5_alter.bezug, R5_alter.geburtsmonat_13"]
+
+
+def test_zeitraum_aus_mehreren_parametern_ist_eine_aenderung(live_conn: Verbindung) -> None:
+    antwort = _aendern("R2_R4_stichtag_eigene_lieferung", {"zeitraum_art": "Monat", "von": "monatserster"})
+    modell = _modell("datenmanagement", antwort)
+    erg = agent_ausfuehren(live_conn, "Ganzes Monat", complete=modell)
+    assert erg.vorschlag_id is not None and erg.korrekturen == [], erg.abgelehnt
+
+
+def test_aendert_nichts_nennt_die_regel_in_der_korrektur(live_conn: Verbindung) -> None:
+    # Fängt (Probe 21:50): „Arbeiter und Angestellte zusammen“ blieb dreimal bei R6 und endete ohne Vorschlag.
+    with live_conn.transaction():
+        live_conn.execute(
+            """UPDATE meta.regel SET parameter = '{"qualifikation": "beschaeftigungskategorie"}'::jsonb
+               WHERE regelsatz = 'v1' AND name = 'R6_beschaeftigungskategorie'"""
+        )
+    gleich = _aendern("R6_beschaeftigungskategorie", {"qualifikation": "beschaeftigungskategorie"})
+    richtig = _neu(
+        "gruppierung", "R9_u", {"merkmal": "qualifikation", "zuordnung": ["Arbeiter=U", "Angestellte=U"]}
+    )
+    modell = _modell("klassifikation", gleich, richtig)
+    erg = agent_ausfuehren(live_conn, "Arbeiter und Angestellte zusammen", complete=modell)
+    assert erg.vorschlag_id is not None, erg.abgelehnt
+    zweite_runde = [n for z, n in modell.aufrufe if z == "agent.klassifikation"][1]
+    assert "Schlage R6_beschaeftigungskategorie nicht noch einmal vor" in zweite_runde[-1]["content"]

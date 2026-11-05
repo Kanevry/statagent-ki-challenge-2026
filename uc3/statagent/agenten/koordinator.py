@@ -60,6 +60,14 @@ class VorschlagUngueltig(ValueError):
     """Der Vorschlag des Modells passt nicht zu den Regeln in der Datenbank."""
 
 
+class AendertNichts(VorschlagUngueltig):
+    """Der Vorschlag wiederholt, was schon in der Regel steht; ``regel`` nennt sie."""
+
+    def __init__(self, meldung: str, regel: str) -> None:
+        super().__init__(meldung)
+        self.regel = regel
+
+
 class RolleUnzustaendig(VorschlagUngueltig):
     """Die Rolle hat eine Regel eines Typs angefasst, den sie nicht ändern darf; ``typ`` nennt ihn."""
 
@@ -174,6 +182,22 @@ def _bestand_pruefen(regel: str, p: dict[str, Any]) -> None:
         raise VorschlagUngueltig(
             f"{regel}: bei zeitraum_art Monat ist von monatserster und bis monatsletzter, nicht {von!r} und {bis!r}"
         )
+
+
+def _mehrere_aenderungen(g: GeprueftVorschlag) -> str:
+    """Text, wenn der Vorschlag mehr als eine Sache ändert, sonst leer. Mehrere Regeln oder mehrere Parameter einer
+    Regel; ausgenommen sind der Meldungstext einer Prüfregel und von/bis/zeitraum_art, die nur zusammen einen
+    Zeitraum ergeben."""
+    if len(g.aenderungen) > 1:
+        return ", ".join(str(a.get("regel_name") or a["regel"]["name"]) for a in g.aenderungen)
+    if g.typ != "regel_aendern" or not g.aenderungen:
+        return ""
+    a = g.aenderungen[0]
+    alt, neu = dict(a["parameter_alt"]), dict(a["parameter_neu"])
+    geaendert = {k for k in set(alt) | set(neu) if alt.get(k) != neu.get(k)} - _PRUEFTEXTE
+    if len(geaendert) <= 1 or geaendert <= {"zeitraum_art", "von", "bis"}:
+        return ""
+    return ", ".join(f"{a['regel_name']}.{k}" for k in sorted(geaendert))
 
 
 def _gleicher_typ(alt: object, neu: object) -> bool:
@@ -658,10 +682,11 @@ def vorschlag_pruefen(
                     "Gemeint ist vermutlich eine Zählregel (z. B. R5_alter für Alter und Geburtsmonat 13)"
                 )
             if neu == alt:
-                raise VorschlagUngueltig(
+                raise AendertNichts(
                     f"{a.regel_name}: der Vorschlag ändert nichts (die Werte stehen schon so in der Regel; zusammenlegen "
                     "oder ausschließen ist eine neue Zählregel der Art gruppierung bzw. ausschluss; sonst ist "
-                    "vermutlich eine andere Regel gemeint, z. B. eine Zählregel statt einer Prüfregel)"
+                    "vermutlich eine andere Regel gemeint, z. B. eine Zählregel statt einer Prüfregel)",
+                    a.regel_name,
                 )
             aenderungen.append({"regel_name": a.regel_name, "parameter_alt": alt, "parameter_neu": neu})
     elif antwort.typ == "regel_neu":
@@ -1154,23 +1179,30 @@ def agent_ausfuehren(
                         "role": "user",
                         "content": f"Das Programm hat den Vorschlag nicht angenommen: {fehler}. Korrigiere den "
                         "Vorschlag (andere Regel, zulässiger Wert, bekannte Ausprägung) oder stelle eine Rückfrage, "
-                        "wenn die Anweisung so nicht umsetzbar ist.",
+                        "wenn die Anweisung so nicht umsetzbar ist."
+                        + (
+                            f" Schlage {fehler.regel} nicht noch einmal vor. Soll etwas zusammengelegt oder "
+                            "ausgeschlossen werden: typ regel_neu, neue_regeln mit art gruppierung oder ausschluss."
+                            if isinstance(fehler, AendertNichts)
+                            else ""
+                        ),
                     },
                 ]
                 continue
-            if len(g.aenderungen) > 1 and not mehrere_bestaetigt:
-                # Einmal nachfragen (Probe 20:36: „anhalten ab 3 Prozent“ änderte P15 und ungefragt auch P16). Sind
-                # wirklich alle verlangt, kommt derselbe Vorschlag wieder und gilt.
+            namen = _mehrere_aenderungen(g)
+            if namen and not mehrere_bestaetigt:
+                # Einmal nachfragen (Probe 20:36: „anhalten ab 3 Prozent“ änderte P15 und ungefragt auch P16; Probe
+                # 21:50: „Alter am Ersten“ änderte auch geburtsmonat_13). Sind wirklich alle verlangt, kommt derselbe
+                # Vorschlag wieder und gilt.
                 mehrere_bestaetigt = True
-                namen = ", ".join(str(a.get("regel_name") or a["regel"]["name"]) for a in g.aenderungen)
-                ergebnis.korrekturen.append(f"Mehrere Regeln, nachgefragt: {namen}")
+                ergebnis.korrekturen.append(f"Mehrere Änderungen, nachgefragt: {namen}")
                 nachrichten = [
                     *nachrichten,
                     {"role": "assistant", "content": antwort.model_dump_json()},
                     {
                         "role": "user",
-                        "content": f"Dein Vorschlag ändert mehrere Regeln: {namen}. Nimm nur die Regeln, die die "
-                        "Anweisung verlangt; lass ähnliche Regeln unverändert. Verlangt sie wirklich alle, gib "
+                        "content": f"Dein Vorschlag ändert mehreres: {namen}. Nimm nur, was die Anweisung verlangt; "
+                        "lass ähnliche Regeln und andere Parameter unverändert. Verlangt sie wirklich alles, gib "
                         "denselben Vorschlag noch einmal aus.",
                     },
                 ]
