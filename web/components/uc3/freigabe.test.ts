@@ -11,6 +11,7 @@ import {
   gruppenSatz,
   isoZeit,
   aenderungKurz,
+  klarerAenderungsSatz,
   klartext,
   kurzerGrund,
   probeTitel,
@@ -524,5 +525,48 @@ describe("Rücknahme einer Regel (#168)", () => {
     const normal = { ...ruecknahme, aenderungen: [{ regel_name: "X1_probe", parameter_alt: { a: 1 }, parameter_neu: { a: 2 } }] };
     expect(klartext(normal).worte).toEqual(["In der Regel X1_probe wird „a“ von 1 auf 2 geändert."]);
     expect(aenderungSatz(normal)).toBe("Ändert eine Regel im Regelsatz v2");
+  });
+});
+
+describe("Neue Regeln Ausschluss und Gruppierung als Satz (#168)", () => {
+  const neu = (regel: Record<string, unknown>) => ({ typ: "regel_neu" as const, aenderungen: [{ regel: { name: "R8_probe", ...regel } }] });
+  const namen = { region: { "1": "Burgenland", "3": "Niederösterreich", "9": "Wien" }, qualifikation: { Beamte: "Beamte" } };
+
+  // Fehler, den das fängt: Rohtext vom Modell, „region“ und Codes wie 9 auf der Freigabe-Seite vor der Jury.
+  it("schreibt einen Ausschluss mit Namen statt Codes", () => {
+    const k = klartext(neu({ art: "ausschluss", parameter: { merkmal: "region", werte: ["9"] }, beschreibung: "region 9 raus" }), namen);
+    expect(k.worte).toEqual(["Beschäftigungsverhältnisse mit Bundesland Wien zählen nicht mehr."]);
+    expect(k.diff).toBe("+ R8_probe: Beschäftigungsverhältnisse mit Bundesland Wien zählen nicht mehr.");
+    const beamte = klartext(neu({ art: "ausschluss", parameter: { merkmal: "beschaeftigungskategorie", werte: ["Beamte"] } }), namen);
+    expect(beamte.worte).toEqual(["Beschäftigungsverhältnisse mit Kategorie Beamte zählen nicht mehr."]);
+  });
+
+  it("legt in der Gruppierung je Gruppe einen Satz an, auch aus der Listenform der Parameter", () => {
+    const parameter = [{ schluessel: "merkmal", wert: "region" }, { schluessel: "zuordnung", wert: ["1=Ost", "3=Ost", "9=Ost"] }];
+    expect(klartext(neu({ art: "gruppierung", parameter }), namen).worte).toEqual([
+      "Burgenland, Niederösterreich und Wien werden zu „Ost“ zusammengelegt.",
+    ]);
+  });
+
+  it("fällt bei anderen Arten und unlesbaren Parametern auf die Beschreibung zurück", () => {
+    expect(klartext(neu({ art: "pruefung", parameter: {}, beschreibung: "Prüft etwas." })).worte).toEqual(["Prüft etwas."]);
+    expect(klartext(neu({ art: "ausschluss", parameter: { merkmal: "region" }, beschreibung: "Satz" })).worte).toEqual(["Satz"]);
+  });
+});
+
+describe("Sichtbarer Satz auf der Freigabe (#168)", () => {
+  it("steht bei Rücknahme und Ausschluss, nicht bei einer normalen Änderung", () => {
+    expect(
+      klarerAenderungsSatz({ typ: "regel_aendern", aenderungen: [{ regel_name: "X1", aktiv_neu: false }] }),
+    ).toBe("Die Regel X1 wird abgeschaltet, sie wird nicht gelöscht.");
+    expect(
+      klarerAenderungsSatz({
+        typ: "regel_neu",
+        aenderungen: [{ regel: { name: "R8", art: "ausschluss", parameter: { merkmal: "qualifikation", werte: ["Beamte"] } } }],
+      }),
+    ).toBe("Beschäftigungsverhältnisse mit Qualifikation Beamte zählen nicht mehr.");
+    expect(
+      klarerAenderungsSatz({ typ: "regel_aendern", aenderungen: [{ regel_name: "X1", parameter_alt: { a: 1 }, parameter_neu: { a: 2 } }] }),
+    ).toBeNull();
   });
 });

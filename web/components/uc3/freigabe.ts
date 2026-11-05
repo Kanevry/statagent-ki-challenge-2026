@@ -336,8 +336,54 @@ function objekt(x: unknown): Record<string, unknown> {
   return typeof x === "object" && x !== null && !Array.isArray(x) ? (x as Record<string, unknown>) : {};
 }
 
+const MERKMAL_WORT: Record<string, string> = {
+  region: "Bundesland",
+  geschlecht: "Geschlecht",
+  oenace: "Branche",
+  qualifikation: "Qualifikation",
+  beschaeftigungskategorie: "Kategorie",
+  alter: "Alter",
+};
+
+function aufzaehlung(teile: readonly string[]): string {
+  return teile.length < 2 ? (teile[0] ?? "") : `${teile.slice(0, -1).join(", ")} und ${teile[teile.length - 1]!}`;
+}
+
+/** Parameter einer neuen Regel: als Objekt gespeichert, als Liste {schluessel, wert} vom Agenten geliefert. */
+function regelParameter(x: unknown): Record<string, unknown> {
+  if (!Array.isArray(x)) return objekt(x);
+  return Object.fromEntries(x.map((e) => [String(objekt(e).schluessel ?? ""), objekt(e).wert]));
+}
+
+/**
+ * Neue Regel der Arten `ausschluss` und `gruppierung` als Satz aus den Parametern statt als Rohtext mit Codes (#168).
+ * Andere Arten und unlesbare Parameter: null, dann gilt die Beschreibung der Regel.
+ */
+function regelNeuSatz(r: Record<string, unknown>, bezeichnungen: Bezeichnungen): string | null {
+  const p = regelParameter(r.parameter);
+  const merkmal = String(p.merkmal ?? "");
+  const nachschlag = merkmal === "beschaeftigungskategorie" ? "qualifikation" : merkmal;
+  const name = (code: string) => codeName(nachschlag, code, bezeichnungen);
+  if (r.art === "ausschluss" && Array.isArray(p.werte) && p.werte.length > 0) {
+    const werte = p.werte.map((w) => name(String(w)));
+    return `Beschäftigungsverhältnisse mit ${MERKMAL_WORT[merkmal] ?? merkmal} ${aufzaehlung(werte)} zählen nicht mehr.`;
+  }
+  if (r.art === "gruppierung" && Array.isArray(p.zuordnung) && p.zuordnung.length > 0) {
+    const gruppen = new Map<string, string[]>();
+    for (const eintrag of p.zuordnung) {
+      const [code = "", gruppe = ""] = String(eintrag).split("=");
+      gruppen.set(gruppe.trim(), [...(gruppen.get(gruppe.trim()) ?? []), name(code.trim())]);
+    }
+    return [...gruppen].map(([gruppe, teile]) => `${aufzaehlung(teile)} werden zu „${gruppe}“ zusammengelegt.`).join(" ");
+  }
+  return null;
+}
+
 /** Regeländerung in Worten und als Zeilen mit „-“ (fällt weg) und „+“ (kommt dazu); nur geänderte Werte. */
-export function klartext(v: Pick<Vorschlag, "typ" | "aenderungen">): { worte: string[]; diff: string } {
+export function klartext(
+  v: Pick<Vorschlag, "typ" | "aenderungen">,
+  bezeichnungen: Bezeichnungen = {},
+): { worte: string[]; diff: string } {
   const worte: string[] = [];
   const zeilen: string[] = [];
   for (const roh of v.aenderungen) {
@@ -363,14 +409,34 @@ export function klartext(v: Pick<Vorschlag, "typ" | "aenderungen">): { worte: st
     } else if (v.typ === "regel_neu") {
       const r = objekt(a.regel);
       const name = String(r.name ?? "");
-      worte.push(typeof r.beschreibung === "string" ? r.beschreibung : `Die Regel ${name} kommt neu dazu.`);
-      zeilen.push(`+ ${name}: ${wert(r.parameter)}`);
+      const satz = regelNeuSatz(r, bezeichnungen);
+      worte.push(satz ?? (typeof r.beschreibung === "string" ? r.beschreibung : `Die Regel ${name} kommt neu dazu.`));
+      zeilen.push(`+ ${name}: ${satz ?? wert(r.parameter)}`);
     } else {
       worte.push("Eine Sonderauswertung kommt dazu. Sie ändert keine Regel und keine Zahl der Statistik.");
       zeilen.push(`+ Datei ${String(a.pfad ?? "")}`);
     }
   }
   return { worte, diff: zeilen.join("\n") };
+}
+
+/**
+ * Satz für den sichtbaren Teil der Freigabe, nur wenn die Änderung sonst unsichtbar bliebe: Rücknahme, Ausschluss,
+ * Zusammenlegung. Andere Änderungen zeigt die Probe; dort bleibt die Seite ruhig (null).
+ */
+export function klarerAenderungsSatz(
+  v: Pick<Vorschlag, "typ" | "aenderungen">,
+  bezeichnungen: Bezeichnungen = {},
+): string | null {
+  const teile = v.aenderungen.flatMap((roh) => {
+    const a = objekt(roh) as Aenderung;
+    if (v.typ === "regel_aendern" && a.aktiv_neu === false) {
+      return [`Die Regel ${String(a.regel_name ?? "")} wird abgeschaltet, sie wird nicht gelöscht.`];
+    }
+    const satz = v.typ === "regel_neu" ? regelNeuSatz(objekt(a.regel), bezeichnungen) : null;
+    return satz ? [satz] : [];
+  });
+  return teile.length > 0 ? teile.join(" ") : null;
 }
 
 /** Kurzform für das Protokoll: welche Regel oder Datei sich ändert. */
