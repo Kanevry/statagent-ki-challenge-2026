@@ -142,7 +142,7 @@ def test_budget_mit_schreibgeschuetztem_ordner_ist_konfigfehler(tmp_path, monkey
         ordner.chmod(0o700)
 
 
-# --- Folge Review !36 (#118) ---------------------------------------------------------------------------------
+# --- Folge Review !36 (#118) ----------------------------------------------------------------------
 
 
 def test_status_json_nennt_budget(protokoll, monkeypatch, capsys):
