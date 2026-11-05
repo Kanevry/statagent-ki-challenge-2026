@@ -16,7 +16,7 @@ belege: [F4]
 
 370 Beschäftigungsverhältnisse im August 2024
 
-| Rechenweg | Falsche Zahlen von 576 je Rechenweg. Unserer trifft alle. |
+| Rechenweg | So viele der 576 Zahlen liegen je Rechenweg daneben. Unserer trifft alle. |
 |---|---|
 | Alter bleibt leer | 408 |
 | ein Jahr jünger | 367 |
