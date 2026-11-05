@@ -62,8 +62,6 @@ services:
     build:
       context: ..
       dockerfile: deploy/app.Dockerfile
-      args:
-        VAPI_PUBLIC_KEY: ${VAPI_PUBLIC_KEY:-}
     image: ki-challenge-app:aktuell
     restart: unless-stopped
     # tini als PID 1: räumt beendete Router-Prozesse (uv, Python) ab, die die Route als eigene Gruppe startet
