@@ -366,7 +366,12 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
      "wieviel": "Die Meldungen nennen die Zahl der Pensionen, keine Beträge. Fragen Sie bitte nach der Anzahl.",
      "bekommen": "Die Meldungen nennen die Zahl der Pensionen, keine Beträge. Fragen Sie bitte nach der Anzahl.",
      "hinterbliebene": "Hinterbliebene sind Witwen, Witwer und Waisen, das sind zwei Pensionsarten. Fragen Sie bitte nach einer davon."},
+   "hinweis_vorzeitig": {
+     "knoten": ["INSG", "PV-SEL"], "bis_jahr": 2019,
+     "satz": "Bei den vorzeitigen Alterspensionen fehlt 2018 und 2019 das Notariat (VAN), es meldet diese Art nicht."},
    "hinweis_traeger": {
+     "INSG": "Nicht enthalten sind die öffentlich Bediensteten, die frühere BVA meldet keine Pensionen.",
+     "PV-UNS": "Nicht enthalten sind die öffentlich Bediensteten, die frühere BVA meldet keine Pensionen.",
      "PVA-ARB": "Arbeiter ist hier ein Versicherungsbereich der PVA, die frühere PVA der Arbeiter. Das ist nicht die Qualifikation Arbeiter der Beschäftigtenstatistik.",
      "PVA-ANG": "Angestellte ist hier ein Versicherungsbereich der PVA, die frühere PVA der Angestellten. Das ist nicht die Qualifikation Angestellte der Beschäftigtenstatistik.",
      "BVAEB": "Die BVAEB meldet hier nur Eisenbahn und Bergbau, die Beamten der früheren BVA fehlen."},

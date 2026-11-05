@@ -1133,7 +1133,10 @@ def tabelle(conn: Verbindung, jahr: int, nummer: str = "T12") -> dict[str, Any]:
 
 # ----------------------------------------------------------------------------------------------- Datenfrage
 
+NICHT_GELADEN = "Die Pensionszahlen sind in dieser Datenbank noch nicht geladen."
+NICHT_LESBAR = "Die Pensionszahlen lassen sich gerade nicht lesen. Es wurde nichts geändert."
 _PENSIONSWORT = re.compile(r"pension")
+_BESCHAEFTIGT = re.compile(r"beschäftig|beschaeftig")
 _FRAGEWORT = re.compile(r"[a-zäöüß0-9/§-]+")
 _MONATSWORT = re.compile(
     r"\b(jänner|januar|februar|feber|märz|maerz|april|mai|juni|juli|august|september|oktober|november|dezember)\b"
@@ -1204,6 +1207,8 @@ def pensionsantwort(conn: Verbindung, frage: str) -> dict[str, Any]:
 
     begriffe = _regelparameter(conn, "pension_frage")
     text = frage.lower()
+    if _BESCHAEFTIGT.search(text):
+        return _rueckfrage_text("Meinen Sie Beschäftigte (je Monat) oder Pensionen (je Jahr)?")
     if _MONATSWORT.search(text):
         return _ohne_zahl(
             "Die Träger melden Pensionen nur als Jahresdurchschnitt, nicht je Monat. Fragen Sie nach einem Jahr von "
@@ -1292,9 +1297,7 @@ def pensionsantwort(conn: Verbindung, frage: str) -> dict[str, Any]:
         geschlecht = None
     da = conn.execute("SELECT count(*) AS n FROM stat.stat_pensionen").fetchone()
     if not da or not da["n"]:
-        return _ohne_zahl(
-            "Die Pensionsmeldungen sind noch nicht geladen. Sie kommen mit `uv run uc3 pensionen laden`."
-        )
+        return _ohne_zahl(NICHT_GELADEN)
     abfrage = _frage_sql(von, bis, art, knoten, geschlecht, gliederung)
     zeilen = _lesen(conn, abfrage)
     namen = _bezeichnungen(conn)
@@ -1349,8 +1352,15 @@ def pensionsantwort(conn: Verbindung, frage: str) -> dict[str, Any]:
         hinweise.append("Stand vorläufig: Die Zahlen sind noch nicht mit Namen freigegeben.")
     if von < 2020 <= bis and knoten != "INSG":
         hinweise.append("Zum 1.1.2020 wurden Träger zusammengelegt; die Reihe ist dort nicht geglättet.")
-    if knoten in begriffe.get("hinweis_traeger", {}):
+    if knoten in begriffe["hinweis_traeger"]:
         hinweise.append(begriffe["hinweis_traeger"][knoten])
+    vorzeitig = begriffe["hinweis_vorzeitig"]
+    if (
+        knoten in vorzeitig["knoten"]
+        and von <= int(vorzeitig["bis_jahr"])
+        and (art == "T13" or art in knoten_arten["T13"])
+    ):
+        hinweise.append(str(vorzeitig["satz"]))
     return _antwort(
         "pensionen",
         " ".join([verstanden, satz, *hinweise]),

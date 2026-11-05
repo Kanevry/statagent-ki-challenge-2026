@@ -18,6 +18,7 @@ from typing import Any
 import psycopg
 from psycopg import sql
 
+from statagent import pensionen
 from statagent.agenten.werkzeuge import AbfrageVerweigert, sql_lesen
 from statagent.berichte.sheet import STICHTAG, STICHTAG_VARIABLE
 from statagent.db import Verbindung
@@ -1227,8 +1228,10 @@ def _pensionsfrage(conn: Verbindung, frage: str) -> dict[str, Any]:
     """Pensionen sind eine eigene Statistik mit eigenen Merkmalen (#77), kein Fall der Beschäftigtenstatistik."""
     try:
         return pensionsantwort(conn, frage)
-    except (PensionFehler, psycopg.Error, AbfrageVerweigert):
-        return _antwort("pensionen", NICHT_LESBAR, hinweise=[NICHT_LESBAR])
+    except (PensionFehler, psycopg.errors.UndefinedTable, AbfrageVerweigert):
+        return _antwort("pensionen", pensionen.NICHT_GELADEN, hinweise=[pensionen.NICHT_GELADEN])
+    except psycopg.Error:
+        return _antwort("pensionen", pensionen.NICHT_LESBAR, hinweise=[pensionen.NICHT_LESBAR])
 
 
 def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str, Any]:

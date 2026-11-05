@@ -365,8 +365,8 @@ async function Pensionen() {
         <div className="flex flex-wrap items-baseline justify-between gap-x-3">
           <Fliesstext>
             Durchschnitt je Jahr aus den Meldungen der Träger{vorlaeufig ? ", vorläufig" : ""}. Die vorzeitigen
-            Alterspensionen sind in „Insgesamt“ enthalten. Zum 1. Jänner 2020 wurden Träger zusammengelegt, die Zahlen sind
-            deshalb nicht angepasst.
+            Alterspensionen sind in „Insgesamt“ enthalten. Zum 1. Jänner 2020 wurden Träger zusammengelegt. Die Zahlen davor
+            und danach stehen unverändert nebeneinander.
           </Fliesstext>
           <BelegLink quelle="stat.stat_pensionen" sql={SQL_PENSIONEN} />
         </div>
@@ -392,6 +392,10 @@ async function Pensionen() {
             ))}
           </tbody>
         </table>
+        <Fliesstext>
+          Nicht enthalten sind die öffentlich Bediensteten, die frühere BVA meldet keine Pensionen. Bei „Vorzeitige“ fehlt 2018
+          und 2019 das Notariat, es meldet diese Art nicht.
+        </Fliesstext>
       </div>
     </details>
   );

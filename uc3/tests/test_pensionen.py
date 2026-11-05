@@ -449,10 +449,44 @@ def test_frage_ohne_sicheren_sinn_nennt_keine_zahl(conn: Verbindung, ordner: Pat
     assert frage_modul.antwort_frage(conn, frage)["zahlen"] == []
 
 
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte im Pensionsalter Juli 2026",
+        "Beschäftigte in der Pensionsversicherung",
+        "Pensionen der Beschäftigten 2025",
+    ],
+)
+def test_beschaeftigte_und_pensionen_fragt_zurueck(conn: Verbindung, ordner: Path, frage: str) -> None:
+    # Fängt: die Antwort spricht über Jahresdurchschnitte oder ein unbekanntes Wort, obwohl die Statistik unklar ist.
+    pensionen.laden(conn, ordner)
+    antwort = frage_modul.antwort_frage(conn, frage)
+    assert antwort["zahlen"] == [] and antwort["rueckfrage"] is True
+    assert antwort["text"] == "Meinen Sie Beschäftigte (je Monat) oder Pensionen (je Jahr)?"
+
+
+def test_summe_nennt_was_fehlt(conn: Verbindung, ordner: Path) -> None:
+    # Fängt: die Gesamtzahl wirkt vollständig, obwohl BVA und, bei Tabelle 13, die VAN fehlen.
+    pensionen.laden(conn, ordner)
+    gesamt = frage_modul.antwort_frage(conn, "Wie viele Pensionen gab es 2025?")["text"]
+    assert "frühere BVA" in gesamt and "Notariat" not in gesamt
+    assert "Notariat" in frage_modul.antwort_frage(conn, "Vorzeitige Pensionen 2018")["text"]
+    assert "Notariat" not in frage_modul.antwort_frage(conn, "Vorzeitige Pensionen 2020")["text"]
+    assert "BVA" not in frage_modul.antwort_frage(conn, "Pensionen der Selbständigen 2025")["text"]
+
+
+def test_fehlende_tabelle_gibt_keinen_falschen_rat(conn: Verbindung) -> None:
+    # Fängt: eine Datenbank vor `db init` rät bei Pensionen zu „einen Monat statt eines Zeitraums“ oder zeigt einen Befehl.
+    conn.execute("DROP TABLE stat.stat_pensionen")
+    antwort = frage_modul.antwort_frage(conn, "Wie viele Pensionen gab es 2025?")
+    assert antwort["zahlen"] == [] and antwort["text"] == pensionen.NICHT_GELADEN
+
+
 def test_frage_vor_dem_laden_sagt_das(conn: Verbindung) -> None:
     # Fängt: die Abnahme-Datenbank ist bis zur Freigabe leer; die Antwort darf nicht „0 Pensionen“ lauten.
     antwort = frage_modul.antwort_frage(conn, "Wie viele Pensionen gab es 2025?")
-    assert antwort["zahlen"] == [] and "noch nicht geladen" in antwort["text"]
+    assert antwort["zahlen"] == [] and antwort["text"] == pensionen.NICHT_GELADEN
+    assert "uv run" not in antwort["text"]
 
 
 def test_anhang_b_haelt_auch_mit_pensionsdaten(conn: Verbindung, ordner: Path) -> None:

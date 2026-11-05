@@ -5,7 +5,7 @@ Die Zahlen sind die Meldungen der Träger. Geprüft wird, was man aus den Dateie
 - **Dateien:** 28 von 28 geladen, 9 Formate erkannt.
 - **Werte:** 880 je Bereich, Pensionsart und Geschlecht.
 - **Summen der Dateien:** 394 nachgerechnet, 0 weichen ab.
-- **Stand:** vorläufig, noch nicht mit Namen freigegeben. Hash a52e55ebcec6b8cb, Regelstand 348e935f3dd077f2.
+- **Stand:** vorläufig, noch nicht mit Namen freigegeben. Hash a52e55ebcec6b8cb, Regelstand 5391e09b452daf06.
 
 ## Summen über alle Träger
 
