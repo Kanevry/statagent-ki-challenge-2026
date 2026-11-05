@@ -4,6 +4,10 @@ Runden: 1 Position, 2 Debatte, 3 Verhandlung, danach bis zu 2 Kompromissrunden. 
 sobald eine Runde keine Positionsänderung bringt, sonst nach Runde 5 (oder `max_runden`). Je Runde rufen die
 Akteure parallel auf (echte Modelle) und sehen nur das Zwischenergebnis der Vorrunde; geschrieben wird immer
 nach `akteur_id` sortiert, so ist `seq` je Fall deterministisch.
+
+Online-Schutz (#137): Jeder Modelltext und die Frage gehen vor dem Schreiben durch `uc2.verhandlung.schutz`
+(Namen zur Rolle). Eine wörtliche Übernahme aus einem Beleg (Prüfung `zitat`) wird vor dem Speichern des
+Zugs zu „[Zitat]“ (`sperre_zitate`); das Ereignis `zitat` bleibt als Hinweis.
 """
 
 from __future__ import annotations
@@ -19,6 +23,7 @@ from typing import Any
 import psycopg
 
 from uc2.akteure.laden import Akteur, lade_akteure
+from uc2.belege.namen import Namensliste
 from uc2.experte.modell import ergebnis as experte_ergebnis
 from uc2.experte.modell import lade_paket
 from uc2.modelle import ModellKonfigFehler, Rollenmodell, UngueltigeAntwort, rollenmodell, rufe, szenario
@@ -30,8 +35,10 @@ from uc2.verhandlung.pruefungen import (
     experten_ergebniswerte,
     haltungen_ohne_beleg,
     pruefe,
+    sperre_zitate,
     validiere_zug,
 )
+from uc2.verhandlung.schutz import Namensschutz, lade_schutz
 from uc2.verhandlung.speicher import Fallschreiber, Herzschlag, ddl_anwenden, neuer_fall
 
 MIN_TEILNEHMER = 2
@@ -88,6 +95,8 @@ class Laufoptionen:
     herzschlag_s: float = HERZSCHLAG_S
     bei_anlage: Callable[[int], None] | None = None
     """Wird mit der Fall-ID aufgerufen, sobald `uc2.fall` committet ist (CLI `--melde-fall-id`, API)."""
+    namen: Namensliste | None = None
+    """Namensliste für den Modelltext-Schutz; ohne sie lädt der Lauf `UC2_NAMENSLISTE` (`lade_schutz`)."""
 
 
 @dataclass
@@ -241,8 +250,13 @@ class Verhandlung:
         self, verbindung: psycopg.Connection[Any], fall: Falldefinition, optionen: Laufoptionen
     ) -> None:
         self.verbindung = verbindung
-        self.fall = fall
         self.optionen = optionen
+        # Einmal je Lauf; fail-closed bei echtem Provider ohne Namensliste (`SchutzFehler`, vor der Anlage).
+        self.schutz = (
+            lade_schutz(optionen.provider) if optionen.namen is None else Namensschutz(optionen.namen)
+        )
+        # Die Frage steht in `uc2.fall`, im Ereignis `start`, im Bericht und in jedem Prompt.
+        self.fall = replace(fall, frage=self.schutz.text(fall.frage))
         self.max_akteure = min(fall.max_akteure, optionen.max_akteure or fall.max_akteure)
         self.max_runden = min(fall.max_runden, optionen.max_runden or fall.max_runden)
         self.rm_moderator = rollenmodell("moderator", optionen.provider)
@@ -348,12 +362,14 @@ class Verhandlung:
         for t in antwort.json["themen"]:
             if t["id"] not in {x["id"] for x in themen}:
                 themen.append({"id": t["id"], "titel": t["titel"], "beschreibung": t["beschreibung"]})
-        auftrag = {
-            "themen": themen,
-            "kriterien": list(prompts.KRITERIEN),
-            "regeln": list(antwort.json["regeln"]),
-            "ziel": antwort.json["ziel"],
-        }
+        auftrag = self.schutz.auftrag(
+            {
+                "themen": themen,
+                "kriterien": list(prompts.KRITERIEN),
+                "regeln": list(antwort.json["regeln"]),
+                "ziel": antwort.json["ziel"],
+            }
+        )
         s.auftrag(auftrag)
         s.ereignis(
             "auftrag", {**auftrag, "provider": antwort.provider, "modell": antwort.modell}, akteur="moderator"
@@ -403,7 +419,7 @@ class Verhandlung:
         else:
             liste = sorted(daten["akteure"], key=lambda a: a["akteur"])
         eintraege = []
-        for a in sorted(liste, key=lambda x: x["akteur"]):
+        for a in self.schutz.auswahl(sorted(liste, key=lambda x: x["akteur"])):
             s.teilnahme(a["akteur"], a["eingeladen"], a["begruendung"], belegzahl[a["akteur"]])
             eintraege.append({**a, "belegzahl": belegzahl[a["akteur"]]})
         s.ereignis("auswahl", {"akteure": eintraege, "max_akteure": self.max_akteure}, akteur="moderator")
@@ -477,13 +493,21 @@ class Verhandlung:
                 if erg.zug is None:
                     s.ereignis(
                         "ungueltige_ausgabe",
-                        {"fehler": erg.fehler, "versuche": erg.versuche, "position": "unverändert"},
+                        {
+                            # Meldungen zitieren Modellwerte (etwa ein unbekanntes Thema)
+                            "fehler": [self.schutz.text(m) for m in erg.fehler],
+                            "versuche": erg.versuche,
+                            "position": "unverändert",
+                        },
                         runde=runde,
                         akteur=aid,
                     )
                     jetzt[aid] = {t: replace(p, quelle="unveraendert") for t, p in alt.items()}
                     continue
-                zug = erg.zug
+                # Prüfen am Originaltext, dann Übernahmen sperren und Namen maskieren: gespeichert,
+                # veröffentlicht und der nächsten Runde gezeigt wird nur der geschützte Zug.
+                befunde = pruefe(erg.zug, belege[aid], self.experte_werte)
+                zug = self.schutz.zug(sperre_zitate(erg.zug, belege[aid]))
                 gueltig[aid] = zug
                 s.ereignis(
                     "zug",
@@ -497,7 +521,7 @@ class Verhandlung:
                     runde=runde,
                     akteur=aid,
                 )
-                for befund in pruefe(zug, belege[aid], self.experte_werte):
+                for befund in befunde:
                     s.ereignis(befund.art, befund.daten, runde=runde, akteur=aid)
                     code_widersprueche.append(
                         {
@@ -604,10 +628,11 @@ class Verhandlung:
                 akteur="moderator",
             )
             return None
+        daten = self.schutz.notiz(antwort.json)
         s.ereignis(
             "moderator_notiz",
             {
-                **antwort.json,
+                **daten,
                 "code_widersprueche": code_widersprueche,
                 "haltungen_ohne_beleg": ohne_beleg,
                 "einigung_ohne_gegenstimme": einig,
@@ -615,4 +640,4 @@ class Verhandlung:
             runde=runde,
             akteur="moderator",
         )
-        return str(antwort.json["notiz"])
+        return str(daten["notiz"])

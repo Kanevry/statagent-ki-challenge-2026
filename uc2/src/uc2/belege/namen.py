@@ -984,6 +984,106 @@ def _standard_institutionen() -> Institutionen:
     return lade_institutionen()
 
 
+# --- Modelltext (#137) -----------------------------------------------------------------------------------
+
+MODELLTEXT_MUSTER = frozenset(
+    {"funktion", "apposition", "titel_akademisch", "vorname", "zuschreibung", "zuschreibung_zitat"}
+)
+"""Muster mit eigenem Namensbeleg (Funktion, Titel, Vorname, Zuschreibung); dazu `email` aus `ZUSATZ`."""
+ABGELEITETE_ENDUNGEN = (
+    "ene", "enen", "ige", "igen", "liche", "lichen", "ische", "ischen", "ende", "enden", "ierte", "ierten",
+    "rte", "rten", "gte", "gten",
+)  # fmt: skip
+"""Endungen nominalisierter Adjektive und Partizipien („Betroffene“, „Versicherte“, „Angehörige“): ein
+Listen-Einzelwort mit dieser Endung gilt im Modelltext als Allgemeinwort."""
+
+
+@lru_cache(maxsize=1)
+def fachwortschatz() -> frozenset[str]:
+    """Großwörter (kleingefaltet) aus Akteursdateien, Fällen, Paketen und `config/`: das Vokabular, in dem
+    die Modelle verhandeln. Die Dateien sind frei von Personennamen (`uc2 akteure pruefen`, Namensscan)."""
+    dateien = [
+        *sorted(pfade.AKTEURE.glob("*.md")),
+        *sorted(pfade.CONFIG.glob("*.yaml")),
+        *sorted((pfade.UC2_WURZEL / "faelle").glob("*.yaml")),
+        *sorted((pfade.UC2_WURZEL / "pakete").glob("*.yaml")),
+    ]
+    worte: set[str] = set()
+    for datei in dateien:
+        worte.update(w.casefold() for w in _WORT.findall(datei.read_text(encoding="utf-8")) if w[0].isupper())
+    return frozenset(worte)
+
+
+def _nach_artikel(text: str, wort: str) -> bool:
+    """`wort` steht irgendwo im Text nach einem Artikel oder flektierten Adjektiv („die Wartezeit“)."""
+    for m in re.finditer(r"(?<![\w-])" + re.escape(wort) + r"(?![\w-])", text):
+        davor = _wort_davor(text, m.start())
+        if davor is None:
+            continue
+        vorher = davor[0]
+        vfalt = vorher.casefold()
+        if vfalt in _ARTIKEL_DAVOR or (
+            vorher[:1].islower() and vfalt.endswith(_ADJEKTIV_ENDUNG) and vfalt not in _ZUSCHREIBUNG_WORTE
+        ):
+            return True
+    return False
+
+
+def _einzelwort_als_name(text: str, start: int, ende: int) -> bool:
+    """Ein einzelnes Wort aus der Namensliste zählt im Modelltext nur als Name, wenn es großgeschrieben mitten
+    im Satz steht und kein gängiges Hauptwort ist: nicht im `fachwortschatz`, ohne Substantiv- oder
+    Adjektivendung, kein Stoppwort und im selben Text nie nach Artikel oder flektiertem Adjektiv."""
+    stamm = _WORT.match(text[start:ende])
+    if stamm is None or not stamm.group(0)[0].isupper() or _satzanfang(text, start):
+        return False
+    kern = stamm.group(0)
+    falt = kern.casefold()
+    if not ist_namenswort(kern) or falt in fachwortschatz():
+        return False
+    if SUBSTANTIV_ENDUNG.search(falt) or falt.endswith(ABGELEITETE_ENDUNGEN):
+        return False
+    return not _nach_artikel(text, kern)
+
+
+def maskiere_modelltext(
+    text: str, namensliste: Namensliste | None, institutionen: Institutionen | None = None
+) -> str:
+    """Namen in einem Modelltext (Zug, Notiz, Auftrag, Frage) zur Rolle maskieren, ohne Sätze zu zerschießen.
+
+    Anders als `maskiere` (Pressetext) zählen nur Namen mit eigenem Beleg:
+
+    - Muster aus `MODELLTEXT_MUSTER` und E-Mail-Adressen. Bylines, Credits, Kürzel, Alters- und
+      Literaturmuster sind Pressetext-Formen und würden in Modellsätzen Hauptwörter treffen.
+    - Mehrteilige Einträge der Namensliste immer.
+    - Einzelwörter der Namensliste nur nach `_einzelwort_als_name`: Die Liste enthält Allgemeinwörter
+      (nominalisierte Adjektive, die als Nachname gesammelt wurden), und Modelltext ist kein Pressetext.
+    - Ist ein voller Name erkannt, gilt sein Nachname im ganzen Text als bekannt (auch am Satzanfang).
+
+    Grenze: Ein Einzelname aus der Liste am Satzanfang oder nach einem Artikel bleibt stehen, wenn ihn kein
+    Muster und kein voller Name im selben Text belegt.
+    """
+    if not text:
+        return text
+    institutionen = institutionen or _standard_institutionen()
+    funde = [f for f in _muster_funde(0, text, institutionen, None, False) if f.art in MODELLTEXT_MUSTER]
+    funde += [f for f in _zusatz_funde(0, text, institutionen) if f.art == "email"]
+    rollen = _bekannte_namen(funde)
+    for start, ende, eintrag in (namensliste or Namensliste()).finde(text):
+        if len(eintrag.name.split()) < 2 and not _einzelwort_als_name(text, start, ende):
+            continue
+        rolle = _rolle_aus_liste(eintrag, institutionen)
+        funde.append(Fund(0, start, ende, eintrag.name, "namensliste", rolle))
+        for name in {eintrag.name, eintrag.name.split()[-1]}:
+            if ist_namenswort(name.split()[-1]):
+                rollen.setdefault(name, rolle)
+    rollen_falt = {n.casefold() for n in rollen}
+    for start, ende, rolle in _finde(_baue_index(rollen.items()), text):
+        stamm = _genitiv_stamm(text[start:ende], rollen_falt)
+        name = stamm if stamm is not None else text[start:ende]
+        funde.append(Fund(0, start, ende, name, "bekannt", rolle, "gen" if stamm is not None else "nom"))
+    return _ersetze(text, funde, institutionen) if funde else text
+
+
 ZITAT = re.compile(r"„[^„“”\"]*[“”\"]|\"[^\"\n]*\"|»[^»«]*«|«[^«»]*»")
 """Direkte Zitate: „…“, „…”, "…", »…«, «…»."""
 

@@ -58,6 +58,11 @@ uv run uc2 verhandlung --fall wartezeiten --provider claude --belege fixture --m
 - Das Modell sieht `text_modell` (maskiert, Zitate bleiben) in einem markierten Block; die Prüfung `zitat`
   vergleicht dagegen. Das Ereignis `belege` speichert je Beleg ID, Medium, Datum, Monat, Titel, `zitat`
   (höchstens 300 Zeichen), `pdf_seite` und die Rangteile, aber keinen Text.
+- Online-Schutz (#137, `docs/plan/uc2/online-schutz.md`): Jeder Modelltext (Zug, Moderator-Notiz, Auftrag,
+  Auswahl) und die Frage gehen vor dem Schreiben durch `uc2.belege.namen.maskiere_modelltext`; Namen werden
+  zur Rolle. Ohne Namensliste bricht ein Lauf mit echtem Provider vor der Anlage ab, mock schützt mit Mustern.
+  Eine wörtliche Übernahme ab 8 Wörtern aus einem Beleg wird vor dem Speichern zu „[Zitat]“, das Ereignis
+  `zitat` bleibt als Hinweis. Eine Frage mit Kennung, Geburtsdatum oder E-Mail-Adresse wird abgelehnt.
 - Szenario-Mock (`uc2.modelle.szenario`): Er antwortet aus dem Kontextblock des Prompts.
   `UC2_MOCK_KAPUTT=<akteur>:<runde>` liefert für genau diesen Zug kaputtes JSON.
 
@@ -71,7 +76,7 @@ curl -sN 'localhost:8102/faelle/<fall_id>/ereignisse?seq=0'
 
 | Route | Antwort |
 |---|---|
-| `POST /faelle` | `{fall, frage?, provider?, belege?}` → 202 `{fall_id, status}`. Fall-ID nur aus `faelle/` (unbekannt 404, Pfad 422), Frage ≤ 500 Zeichen ohne Steuerzeichen (sonst 422). |
+| `POST /faelle` | `{fall, frage?, provider?, belege?}` → 202 `{fall_id, status}`. Fall-ID nur aus `faelle/` (unbekannt 404, Pfad 422), Frage ≤ 500 Zeichen ohne Steuerzeichen, Kennungen, Geburtsdatum oder E-Mail-Adresse (sonst 422 mit festem Satz); Namen darin werden maskiert. |
 | `GET /faelle` | Liste der letzten Fälle mit Status (60-s-Regel) und Zeiten |
 | `GET /faelle/{fall_id}/ereignisse?seq=n` | SSE ab `seq > n`: je Ereignis `id: <seq>`, `event: <art>`, `data: <json>`; `Last-Event-ID` gewinnt über `?seq`. Nachladen alle 0,5 s, Schluss mit `event: ende`, sobald der Fall `fertig` oder `abgebrochen` ist. |
 | `GET /faelle/{fall_id}` | Bericht als JSON (Matrix, Einordnung, Auswahl, Runden) |
