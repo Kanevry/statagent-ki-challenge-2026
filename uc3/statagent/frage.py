@@ -185,7 +185,7 @@ NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
     # „den ganzen Monat“, österreichisch „das ganze Monat“: gemeint ist durchgehend. Beide Zählweisen zählen etwas anderes.
     (
         re.compile(
-            r"(?<!über\s)(?<!ueber\s)\b(?:den|die|das|ein|des)\s+(?:ganze[ns]?|gesamte[ns]?)\s+monat|\bganze\s+monate"
+            r"(?<!über\s)(?<!ueber\s)\b(?:den|die|das|ein|des)\s+(?:ganze[ns]?|gesamte[ns]?)\s+monats?\b|\bganze\s+monate\b"
             r"|\bganzes\s+monat\s+(?:beschäftigt|gearbeitet|angestellt|tätig|dabei)|\bdurchgehend\s+beschäftigt"
         ),
         DURCHGEHEND_GRUND,
@@ -595,8 +595,8 @@ _BEZUG = re.compile(
 
 #: Die Frage meint den Regelsatz v2 (Änderungsaufträge, Zählung je Monat). Standard bleibt v1.
 _V2_WORT = re.compile(
-    r"(?<!\w)v2(?!\w)|regelsatz\s*(?:2|zwei)(?!\w)|änderungsauftr|aenderungsauftr|im\s+(?:ganzen|gesamten)\s+monat"
-    r"|(?<!\w)ganzes\s+monat|(?:über|ueber)\s+(?:das|den)\s+(?:ganze[ns]?|gesamte[ns]?)\s+monat",
+    r"(?<!\w)v2(?!\w)|regelsatz\s*(?:2|zwei)(?!\w)|änderungsauftr|aenderungsauftr|im\s+(?:ganzen|gesamten)\s+monats?\b"
+    r"|(?<!\w)ganzes\s+monats?\b|(?:über|ueber)\s+(?:das|den)\s+(?:ganze[ns]?|gesamte[ns]?)\s+monats?\b",
     re.IGNORECASE,
 )
 #: Ein genannter Regelsatz, auch einer, den es noch nicht gibt: „Regelsatz v3“, „v3“, „Regelsatz drei“.
@@ -608,7 +608,8 @@ _V1_WORT = re.compile(r"(?<!\w)v1(?!\w)|regelsatz\s*(?:1|eins)(?!\w)", re.IGNORE
 _V2_ZIEL = r"(?:(?:dem|den|der|die|des)\s+)?(?:regelsatz\s*(?:v?2|zwei)(?!\w)|v2(?!\w)|(?:änderungs|aenderungs)auftr)"
 #: „ohne die Änderungsaufträge“, „vor Umsetzung der Änderungsaufträge“, „nicht nach v2“: gerade nicht der Regelsatz v2.
 _V2_VERNEINT = re.compile(
-    rf"(?<!\w)(?:ohne|vor|nicht|statt|außer|ausser)\s+(?:umsetzung\s+)?(?:(?:nach|im|in|laut)\s+)?{_V2_ZIEL}",
+    rf"(?<!\w)(?:ohne|vor|nicht|statt|außer|ausser)\s+(?:(?:der|die)\s+)?"
+    rf"(?:(?:umsetzung|berücksichtigung|beruecksichtigung|anwendung)\s+)?(?:(?:nach|im|in|laut)\s+)?{_V2_ZIEL}",
     re.IGNORECASE,
 )
 #: „vor und nach den Änderungsaufträgen“, „mit und ohne v2“: beide Regelsätze zugleich.

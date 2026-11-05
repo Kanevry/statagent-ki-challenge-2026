@@ -9,7 +9,7 @@ from statagent import frage as frage_modul
 from statagent.agenten.regelaenderung import regelsatz_sicherstellen
 from statagent.db import Verbindung
 from statagent.ergebnis import letzter_lauf, monatserster, monatsletzter
-from statagent.frage import antwort_frage
+from statagent.frage import antwort_frage, nicht_auswertbar
 from statagent.lauf import lauf_ausfuehren
 
 MONAT = "2024-08"
@@ -331,3 +331,33 @@ def test_durchschnitt_ueber_einen_zeitraum_sagt_nicht_durchschnitte_ab(mit_v2: V
 def test_verlauf_zweier_bundeslaender_bekommt_den_grund(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Wie hat sich Wien gegenüber Tirol nach v2 entwickelt?")
     assert daten["zahlen"] == [] and "irgendwann im Monat" not in daten["text"]
+
+
+# Bank 49: Ein Wort zwischen „vor“ und den Änderungsaufträgen schaltete trotzdem auf v2.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte vor der Umsetzung der Änderungsaufträge im August 2024",
+        "Beschäftigte ohne Berücksichtigung der Änderungsaufträge im August 2024",
+    ],
+)
+def test_verneinung_mit_wort_dazwischen(mit_v2: Verbindung, frage: str) -> None:
+    daten = antwort_frage(mit_v2, frage)
+    assert daten["zahlen"] == [] and daten["text"].startswith("Ohne Änderungsaufträge gilt Regelsatz v1.")
+
+
+# Gegenfall: Ein anderes „ohne“ neben v2 ist keine Verneinung.
+def test_anderes_ohne_neben_v2_ist_keine_verneinung() -> None:
+    assert frage_modul._V2_VERNEINT.search("Frauen ohne Kinder im August 2024 nach v2") is None
+
+
+# Bank 49: Das Muster hatte kein Wortende, „Monatszahl“ und „Monatsbestand“ bekamen die Absage für durchgehend.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Wie hoch ist die gesamte Monatszahl im August 2024?",
+        "Wie hoch ist den gesamten Monatsbestand im August 2024?",
+    ],
+)
+def test_monatszahl_ist_nicht_durchgehend(frage: str) -> None:
+    assert nicht_auswertbar(frage) != frage_modul.DURCHGEHEND_GRUND
