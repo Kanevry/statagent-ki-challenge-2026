@@ -11,8 +11,13 @@ import { appTabs, istAktiv, marke } from "./navigation";
 // App-Header (Pen-Frame nas8Y): links die Marke, in der Mitte die Tabs aus der Registry, rechts Modell-Badge und
 // Protokoll-Knopf. Die Tabs sind Links (sie wechseln die Seite), daher `aria-current` statt ARIA-Tabs. Alle bleiben
 // mit Tab erreichbar; Pfeil links/rechts, Pos1 und Ende springen zusätzlich zwischen ihnen.
-// Ab 1400 px steht alles in einer Zeile (Frame 1440 × 64); die Marke gibt dort nach und bricht ihre zweite Zeile um.
-// Darunter bricht der Header in mehrere Zeilen um.
+// Die Kanten folgen `max-w-7xl` wie Unter-Navigation und Inhalt (Review !45). In diese 1216 px passen Tabs
+// (gemessen ≈ 850 px) und Badge mit Knopf (≈ 370 px, mit „zuletzt“ ≈ 480 px) nicht neben die Marke, ohne sie zu
+// zerdrücken. Daher zwei Zeilen: oben Marke links, Modell-Badge und Protokoll rechts; darunter die Tabs. Die
+// DOM-Reihenfolge folgt der Ansicht, damit die Tab-Folge nicht springt. Unter 1400 px darf die rechte Gruppe
+// schrumpfen und umbrechen, damit bei 390 px nichts waagrecht überläuft. Die Tabs brechen um statt zu scrollen
+// (Abnahme #64: bei 390 px waren UC2, UC4 und Präsentation unsichtbar); schmal entfällt der Vorsatz „UC3 · “,
+// so passen sie in zwei Zeilen.
 
 export interface AppHeaderProps {
   pfad: string;
@@ -60,17 +65,38 @@ export function AppHeader({
   const kopfMarke = marke(pfad, ucs);
   return (
     <header ref={kopfRef} className="border-b border-line bg-white">
-      <div className="flex min-h-16 flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-2 min-[1400px]:flex-nowrap min-[1400px]:px-6">
-        <div className="flex min-w-0 flex-col gap-0.5" data-marke="">
-          <p className="font-display text-20 font-bold text-navy">{kopfMarke.name}</p>
-          <p className="font-sans text-12 text-slate">{kopfMarke.zeile}</p>
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 px-4 pt-3 pb-1 md:px-8">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          <div className="flex min-w-0 flex-col gap-0.5" data-marke="">
+            <p className="font-display text-20 font-bold text-navy">{kopfMarke.name}</p>
+            <p className="font-sans text-12 text-slate">{kopfMarke.zeile}</p>
+          </div>
+          <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-3 min-[1400px]:shrink-0">
+            <ModellBadge quelle={modellQuelle} />
+            {/* Natives <button>, weil der Fokus per Ref zurückkommen muss (Knopf reicht keinen Ref). */}
+            <button
+              ref={protokollKnopfRef}
+              type="button"
+              className={klassen(
+                "inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 font-sans text-14 text-ink hover:bg-paper",
+                fokus,
+              )}
+              onClick={onProtokoll}
+              aria-expanded={protokollOffen}
+              aria-controls={protokollOffen ? schubladeId : undefined}
+              data-protokoll-knopf=""
+            >
+              <Piktogramm name="protokoll" />
+              Protokoll
+            </button>
+          </div>
         </div>
-        <nav aria-label="Bereiche" className="overflow-x-auto min-[1400px]:mr-auto min-[1400px]:shrink-0">
-          <ul className="flex items-center gap-1 whitespace-nowrap" onKeyDown={springe}>
+        <nav aria-label="Bereiche" className="-mx-1 p-1">
+          <ul className="flex flex-wrap items-center gap-1" onKeyDown={springe}>
             {tabs.map((tab) => {
               const aktiv = istAktiv(tab.href, pfad);
               return (
-                <li key={tab.schluessel}>
+                <li key={tab.schluessel} className="whitespace-nowrap">
                   <Verweis
                     href={tab.href}
                     aria-current={aktiv ? "page" : undefined}
@@ -81,7 +107,10 @@ export function AppHeader({
                       fokus,
                     )}
                   >
-                    <span>{tab.label}</span>
+                    <span>
+                      {tab.kuerzel && <span className="max-sm:hidden">{tab.kuerzel}</span>}
+                      {tab.name}
+                    </span>
                     {tab.bewertet && (
                       <span className="rounded bg-mint px-1.5 py-0.5 text-12 font-normal text-ink">bewertet</span>
                     )}
@@ -91,25 +120,6 @@ export function AppHeader({
             })}
           </ul>
         </nav>
-        <div className="flex shrink-0 items-center gap-3">
-          <ModellBadge quelle={modellQuelle} />
-          {/* Natives <button>, weil der Fokus per Ref zurückkommen muss (Knopf reicht keinen Ref). */}
-          <button
-            ref={protokollKnopfRef}
-            type="button"
-            className={klassen(
-              "inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 font-sans text-14 text-ink hover:bg-paper",
-              fokus,
-            )}
-            onClick={onProtokoll}
-            aria-expanded={protokollOffen}
-            aria-controls={protokollOffen ? schubladeId : undefined}
-            data-protokoll-knopf=""
-          >
-            <Piktogramm name="protokoll" />
-            Protokoll
-          </button>
-        </div>
       </div>
     </header>
   );

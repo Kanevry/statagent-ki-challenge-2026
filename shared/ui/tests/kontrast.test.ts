@@ -28,6 +28,7 @@ export function kontrast(a: string, b: string): number {
 
 const paare: Array<[string, string, string]> = [
   ["Aktiver Tab: weiß auf Grün", "white", "gruen"],
+  ["Hauptknopf beim Überfahren: weiß auf Grün-dunkel", "white", "gruen-dunkel"],
   ["Modell-Pille: Violett auf Violett-hell", "violett", "violett-bg"],
   ["Hinweis „zuletzt“ in der Pille: Navy auf Violett-hell", "navy", "violett-bg"],
   ["Chip bewertet: Ink auf Mint", "ink", "mint"],

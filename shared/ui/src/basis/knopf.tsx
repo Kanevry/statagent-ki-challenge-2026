@@ -4,7 +4,7 @@ import { fokus, klassen } from "./klassen";
 export type KnopfArt = "primaer" | "sekundaer";
 
 const artKlassen: Record<KnopfArt, string> = {
-  primaer: "bg-gruen text-white hover:bg-gruen/90",
+  primaer: "bg-gruen text-white hover:bg-gruen-dunkel",
   sekundaer: "border border-gruen text-gruen hover:bg-gruen-bg",
 };
 

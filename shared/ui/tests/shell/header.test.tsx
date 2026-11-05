@@ -61,7 +61,7 @@ describe("AppHeader nach Frame nas8Y", () => {
   it("zeigt links die Marke mit zweiter Zeile und rechts den Protokoll-Knopf mit Symbol", () => {
     zeige("/uc3");
     const kopf = screen.getByRole("banner");
-    expect(kopf.querySelector("[data-marke]")?.textContent).toBe("StatAgentby Bernhard Götzendorfer · Team OneShotAndy");
+    expect(kopf.querySelector("[data-marke]")?.textContent).toBe("StatAgentvon Bernhard Götzendorfer · Team OneShotAndy");
     const knopf = screen.getByRole("button", { name: "Protokoll" });
     expect(knopf.querySelector('[data-piktogramm="protokoll"]')).not.toBeNull();
     expect(knopf.className).toContain("border-line");
@@ -74,6 +74,28 @@ describe("AppHeader nach Frame nas8Y", () => {
       expect(marke(pfad).name, pfad).toBe("OneShotAndy");
     }
     expect(marke("/uc1").zeile).not.toContain("—");
+  });
+});
+
+describe("AppHeader schmal (Abnahme #64, Review !45)", () => {
+  // Fängt ab: eine Tab-Leiste, die bei 390 px still abschneidet (overflow-x-auto, nowrap), sodass UC2, UC4 und
+  // Präsentation ohne Hinweis unsichtbar sind.
+  it("bricht die Tabs um statt sie wegzuscrollen und blendet schmal nur den Vorsatz „UCn · “ aus", () => {
+    zeige("/uc3");
+    const nav = screen.getByRole("navigation", { name: "Bereiche" });
+    expect(nav.className).not.toMatch(/overflow-x-(auto|scroll)/);
+    expect(nav.querySelector("ul")?.className).toContain("flex-wrap");
+    const uc2 = nav.querySelector('[data-tab="uc2"]')!;
+    expect(uc2.textContent).toBe("UC2 · HealthPolicy");
+    expect(within(uc2 as HTMLElement).getByText("UC2 ·", { exact: false }).className).toContain("max-sm:hidden");
+  });
+
+  // Fängt ab: Kanten des Headers, die nicht an `max-w-7xl` von Unter-Navigation und Inhalt anliegen.
+  it("richtet die Kanten an max-w-7xl aus wie Unter-Navigation und Inhalt", () => {
+    zeige("/uc3");
+    const innen = screen.getByRole("banner").firstElementChild!;
+    expect(innen.className).toContain("max-w-7xl");
+    expect(innen.className).toContain("md:px-8");
   });
 });
 

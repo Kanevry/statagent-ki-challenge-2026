@@ -175,3 +175,40 @@ it("zeigt den Zeitpunkt, den der Server zurückgibt", async () => {
   await user.click(knopf);
   expect(await screen.findByText(`Freigegeben von Bernhard Götzendorfer, ${formatZeit(zeitpunkt)}`)).toBeTruthy();
 });
+
+// Fängt ab: Anleitung nur im Platzhalter (verschwindet beim Tippen) und ein gesperrter Knopf ohne Grund, bis
+// das Feld verlassen wird.
+it("hat ein sichtbares Label, einen dauerhaften Hinweis und nennt den Sperrgrund schon beim Tippen", async () => {
+  const user = userEvent.setup();
+  const { feld, knopf } = karte();
+  const label = document.querySelector(`label[for="${feld.id}"]`);
+  expect(label?.textContent).toBe("Vor- und Nachname");
+  expect(feld.getAttribute("placeholder")).toBeNull();
+  const hinweis = document.getElementById(feld.getAttribute("aria-describedby")!.split(" ")[0]!);
+  expect(hinweis?.textContent).toContain("wird mit der Änderung gespeichert");
+  await user.type(feld, "Bernhard");
+  expect(document.activeElement).toBe(feld);
+  expect(knopf.disabled).toBe(true);
+  expect(screen.getByText("Bitte Vor- und Nachname eingeben.")).toBeTruthy();
+  expect(feld.getAttribute("aria-describedby")?.split(" ")).toHaveLength(2);
+  expect(hinweis?.isConnected).toBe(true);
+});
+
+// Fängt ab: Fachwörter in der Karte, die ohne Vorwissen niemand versteht (Commit, Diff, Δ).
+it("spricht ohne Commit, Diff und Δ", () => {
+  karte({ eintrag: { ...eintrag, ref: "regel:P07@2" } });
+  const text = document.body.textContent ?? "";
+  expect(text).not.toMatch(/Commit|Diff|Δ/);
+  expect(text).toContain("Keine Regeländerung hinterlegt.");
+  expect(screen.getByText("Unterschied")).toBeTruthy();
+});
+
+// Fängt ab: der geklickte Knopf verschwindet und der Fokus fällt auf body.
+it("setzt den Fokus nach „Ablehnen“ ins Begründungsfeld und nach „Zurück“ wieder auf „Ablehnen“", async () => {
+  const user = userEvent.setup();
+  karte();
+  await user.click(screen.getByRole("button", { name: "Ablehnen" }));
+  expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "Begründung der Ablehnung" }));
+  await user.click(screen.getByRole("button", { name: "Zurück" }));
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Ablehnen" }));
+});

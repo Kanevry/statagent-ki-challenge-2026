@@ -96,7 +96,8 @@ describe("ModellBadge lädt periodisch neu", () => {
 });
 
 describe("ModellBadge nach Frames CKCV4 und nas8Y", () => {
-  it("ist eine violette Pille mit Punkt und Wechsel-Symbol, der Wert steht in Mono", async () => {
+  // Fängt ab: ein Auf-/Ab-Symbol, das eine Auswahl verspricht, die es nicht gibt.
+  it("ist eine violette Pille mit Punkt und ohne Wechsel-Symbol, der Wert steht in Mono", async () => {
     zeige({ ...gewaehlt, zuletzt: null });
     const wert = await screen.findByText("azure · gpt-5");
     expect(wert.className).toContain("font-mono");
@@ -104,21 +105,38 @@ describe("ModellBadge nach Frames CKCV4 und nas8Y", () => {
     expect(badge.className).toContain("rounded-full");
     expect(badge.className).toContain("bg-violett-bg");
     expect(badge.className).not.toContain("border-l-2");
-    expect(badge.querySelector('[data-piktogramm="wechseln"]')?.getAttribute("width")).toBe("14");
+    expect(badge.querySelector("[data-piktogramm]")).toBeNull();
   });
 
-  it("kurz im Header, „Modell:“ nur für Screenreader; lang mit „Modell:“ und „austauschbar“ sichtbar", async () => {
+  // Fängt ab: „Modell:“ nur für Screenreader; Sehende lesen dann eine Zeichenkette ohne Bezug.
+  it("zeigt „Modell:“ sichtbar, kurz und lang; lang zusätzlich „austauschbar“", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ...gewaehlt, zuletzt: null })));
     const kurz = render(<ModellBadge />);
     await screen.findByText("azure · gpt-5");
     expect(kurz.container.textContent).toBe("Modell:azure · gpt-5");
-    expect(screen.getByText("Modell:").className).toContain("sr-only");
+    expect(screen.getByText("Modell:").className).not.toContain("sr-only");
     kurz.unmount();
 
     const lang = render(<ModellBadge lang />);
     await screen.findByText("azure · gpt-5");
     expect(lang.container.textContent).toBe("Modell:azure · gpt-5· austauschbar");
     expect(screen.getByText("Modell:").className).not.toContain("sr-only");
+  });
+
+  // Fängt ab: der lange Hinweis „zuletzt mistral (Stufe 2)“ sprengt den Header bei 390 px.
+  it("zeigt im Header nur „zuletzt mistral“, die Stufe für Screenreader und im Titel", async () => {
+    zeige({ ...gewaehlt, zuletzt: zuletzt("mistral", 2) });
+    const hinweis = await screen.findByTestId("modell-zuletzt");
+    expect(screen.getByText("(Stufe 2)", { exact: false }).className).toContain("sr-only");
+    expect(hinweis.getAttribute("title")).toBe("Zuletzt hat mistral geantwortet, Stufe 2.");
+  });
+
+  // Fängt ab: „mock · mock“ im Badge, das niemand ohne Fachwissen versteht.
+  it("sagt im Mock-Betrieb in Alltagssprache, dass keine KI angeschlossen ist", async () => {
+    zeige({ provider: "mock", modell: "mock", version: null, quelle: "env", zuletzt: null });
+    await screen.findByText("Testbetrieb: keine KI angeschlossen");
+    expect(screen.getByTestId("modell-badge").textContent).toBe("Testbetrieb: keine KI angeschlossen");
+    expect(screen.queryByText(/mock/)).toBeNull();
   });
 
   it("zeigt den Fehlerzustand als Warn-Chip mit Symbol und Wort", async () => {

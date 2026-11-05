@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { Feld, Fliesstext, Knopf, Piktogramm, Status, Ueberschrift } from "../basis";
 import { fokus, klassen } from "../basis/klassen";
 import { HerkunftChip, type HerkunftChipProps } from "./herkunft-chip";
@@ -58,7 +58,7 @@ export type FreigabeKarteProps = {
 };
 
 const TITEL = "Vorschlag des Agenten";
-const NAME_PLATZHALTER = "Vor- und Nachname (Pflicht, „Team“ wird abgelehnt)";
+const NAME_HINWEIS = "Bitte den eigenen Vor- und Nachnamen eintragen, „Team“ gilt nicht. Der Name kommt ins Protokoll und wird mit der Änderung gespeichert.";
 
 function fehlertext(fehler: unknown): string {
   const meldung = fehler instanceof Error ? fehler.message.trim() : "";
@@ -117,7 +117,8 @@ function Diff({ text }: { text: string }) {
 /**
  * Freigabe einer Änderung (Pen-Frame FgY98) in fester Reihenfolge: Vorschlag mit Modell, wörtliche Anweisung,
  * Diff, Vorher und Nachher, Beleg, Name und „Freigeben“. Ein Ergebnis steht in der Live-Region darunter.
- * Der Knopf wird erst bei gültigem Vor- und Nachnamen aktiv; Enter im Namensfeld löst nichts aus.
+ * Der Knopf wird erst bei gültigem Vor- und Nachnamen aktiv; warum er gesperrt ist, steht schon beim Tippen
+ * unter dem Feld. Enter im Namensfeld löst nichts aus.
  */
 export function FreigabeKarte({
   eintrag,
@@ -135,7 +136,6 @@ export function FreigabeKarte({
 }: FreigabeKarteProps) {
   const basisId = useId();
   const [name, setName] = useState("");
-  const [nameVerlassen, setNameVerlassen] = useState(false);
   const [ablehnen, setAblehnen] = useState(false);
   const [begruendung, setBegruendung] = useState("");
   const [laeuft, setLaeuft] = useState(false);
@@ -144,6 +144,22 @@ export function FreigabeKarte({
   // Zählt Ergebnisse (gespeichert oder Fehler); jede Erhöhung legt den Fokus auf die Live-Region mit dem Ergebnis.
   const [fokusZaehler, setFokusZaehler] = useState(0);
   const freigabeId = `${basisId}-freigabe`;
+  const begruendungId = `${basisId}-begruendung`;
+  const ablehnenId = `${basisId}-ablehnen`;
+  // Nach „Ablehnen“ und „Zurück“ verschwindet der geklickte Knopf; der Fokus geht dann gezielt weiter
+  // (Begründungsfeld bzw. wieder „Ablehnen“) statt auf body zu fallen.
+  const fokusNachWechsel = useRef(false);
+
+  useEffect(() => {
+    if (!fokusNachWechsel.current) return;
+    fokusNachWechsel.current = false;
+    document.getElementById(ablehnen ? begruendungId : ablehnenId)?.focus();
+  }, [ablehnen, begruendungId, ablehnenId]);
+
+  function wechsleAblehnen(wert: boolean) {
+    fokusNachWechsel.current = true;
+    setAblehnen(wert);
+  }
 
   useEffect(() => {
     if (fokusZaehler > 0) document.getElementById(freigabeId)?.focus();
@@ -188,7 +204,9 @@ export function FreigabeKarte({
 
   const titelId = `${basisId}-titel`;
   const hatDetails = Boolean(eintrag.ref || eintrag.wirkung || !diff);
-  const nameFehler = nameVerlassen && name.trim() && !pruefung.gueltig ? pruefung.grund : undefined;
+  // Der Grund für den gesperrten Knopf steht sofort beim Tippen da, nicht erst beim Verlassen des Felds.
+  const nameFehler = name.trim() && !pruefung.gueltig ? pruefung.grund : undefined;
+  const nameFeldId = `${basisId}-name`;
   const nameFehlerId = `${basisId}-name-fehler`;
   const nameHinweisId = `${basisId}-name-hinweis`;
 
@@ -229,11 +247,11 @@ export function FreigabeKarte({
       <dl className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2" aria-label="Freigabe-Waage">
         <Waagschale titel="Bestand vorher" wert={formatZahl(vorher)} />
         <Waagschale titel="Bestand nachher" wert={formatZahl(nachher)} ton="gruen" />
-        <Waagschale titel="Δ Unterschied" wert={formatDifferenz(differenz)} art="zeile" />
+        <Waagschale titel="Unterschied" wert={formatDifferenz(differenz)} art="zeile" />
         {prozent === null ? (
-          <Waagschale titel="Δ in Prozent" wert="nicht berechenbar, vorher 0" art="zeile" />
+          <Waagschale titel="Unterschied in Prozent" wert="nicht berechenbar, vorher 0" art="zeile" />
         ) : (
-          <Waagschale titel="Δ in Prozent" wert={formatProzent(prozent)} art="zeile" />
+          <Waagschale titel="Unterschied in Prozent" wert={formatProzent(prozent)} art="zeile" />
         )}
       </dl>
 
@@ -259,50 +277,54 @@ export function FreigabeKarte({
                 </>
               )}
             </dl>
-            {!diff && <Fliesstext groesse={14} ton="gedaempft">Kein Diff hinterlegt.</Fliesstext>}
+            {!diff && <Fliesstext groesse={14} ton="gedaempft">Keine Regeländerung hinterlegt.</Fliesstext>}
           </div>
         </details>
       )}
 
       {!entschieden && (
         <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
-            <input
-              name="freigabe-name"
-              type="text"
-              autoComplete="off"
-              required
-              aria-label="Vor- und Nachname"
-              aria-invalid={nameFehler ? true : undefined}
-              aria-describedby={[nameHinweisId, nameFehler && nameFehlerId].filter(Boolean).join(" ")}
-              placeholder={NAME_PLATZHALTER}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => setNameVerlassen(true)}
-              onKeyDown={enterSperren}
-              className={klassen(
-                "h-10 min-w-0 flex-1 basis-60 rounded-lg border bg-white px-3 font-sans text-14 text-ink placeholder:text-slate",
-                nameFehler ? "border-err-fg" : "border-slate",
-                fokus,
+          <div className="flex flex-col gap-2">
+            <label htmlFor={nameFeldId} className="font-sans text-14 font-semibold text-ink">
+              Vor- und Nachname
+            </label>
+            <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
+              <input
+                id={nameFeldId}
+                name="freigabe-name"
+                type="text"
+                autoComplete="off"
+                required
+                aria-invalid={nameFehler ? true : undefined}
+                aria-describedby={[nameHinweisId, nameFehler && nameFehlerId].filter(Boolean).join(" ")}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={enterSperren}
+                className={klassen(
+                  "h-10 min-w-0 flex-1 basis-60 rounded-lg border bg-white px-3 font-sans text-14 text-ink",
+                  nameFehler ? "border-err-fg" : "border-slate",
+                  fokus,
+                )}
+              />
+              {!ablehnen && (
+                <Knopf disabled={!pruefung.gueltig || laeuft} onClick={() => void ausfuehren("freigegeben")}>
+                  <Piktogramm name="haken" />
+                  Freigeben
+                </Knopf>
               )}
-            />
-            {!ablehnen && (
-              <Knopf disabled={!pruefung.gueltig || laeuft} onClick={() => void ausfuehren("freigegeben")}>
-                <Piktogramm name="haken" />
-                Freigeben
-              </Knopf>
+            </div>
+            <p id={nameHinweisId} className="font-sans text-12 text-slate">
+              {NAME_HINWEIS}
+            </p>
+            {nameFehler && (
+              <Status id={nameFehlerId} art="fehler">
+                {nameFehler}
+              </Status>
             )}
           </div>
-          {nameFehler && (
-            <Status id={nameFehlerId} art="fehler">
-              {nameFehler}
-            </Status>
-          )}
-          <p id={nameHinweisId} className="font-sans text-12 text-slate">
-            Der Name kommt ins Protokoll und in den Commit.
-          </p>
           {ablehnen && (
             <Feld
+              id={begruendungId}
               label="Begründung der Ablehnung"
               name="freigabe-begruendung"
               autoComplete="off"
@@ -325,7 +347,7 @@ export function FreigabeKarte({
                 <button
                   type="button"
                   className={klassen("font-sans text-14 font-semibold text-ink underline underline-offset-4", fokus)}
-                  onClick={() => setAblehnen(false)}
+                  onClick={() => wechsleAblehnen(false)}
                   disabled={laeuft}
                 >
                   Zurück
@@ -333,9 +355,10 @@ export function FreigabeKarte({
               </>
             ) : (
               <button
+                id={ablehnenId}
                 type="button"
                 className={klassen("font-sans text-14 font-semibold text-ink underline underline-offset-4", fokus)}
-                onClick={() => setAblehnen(true)}
+                onClick={() => wechsleAblehnen(true)}
                 disabled={laeuft}
               >
                 Ablehnen
