@@ -1067,3 +1067,17 @@ def test_antragsangebot_bei_zwei_antraegen_nur_einmal() -> None:
     assert schritte.count(antrag) == 1
     assert len(schritte) == len(set(schritte))
     assert schritte.index(antrag) < schritte.index("Stellen Sie den Antrag auf Kur und Rehabilitation.")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Sie heißt Maria Beispiel, ist am 12.03.1942 geboren und wohnt in Wien.",
+        "Maria Beispiel, geboren am 12.03.1942, wohnt in Wien.",
+        "Maria Beispiel, geb. 12. 3. 1942, wohnt in Wien.",
+    ],
+)
+def test_geburtsdatum_vor_oder_nach_dem_hinweis(text: str) -> None:
+    """Fängt „ist am 12.03.1942 geboren“: Seit der Maskierung liefert nur die Regel das Geburtsdatum, und sie
+    kannte nur den Hinweis vor dem Datum (Aufnahme v6: Antrag ohne Geburtsdatum)."""
+    assert kern.regel_antrag(text)["person.geburtsdatum"] == "12.03.1942"

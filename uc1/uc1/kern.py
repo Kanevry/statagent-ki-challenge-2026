@@ -187,7 +187,9 @@ def regel_antrag(text: str) -> dict[str, str]:
     sauber = normalisiere(text)
     werte: dict[str, str] = {}
     m = re.search(regeln["geburtsdatum"], sauber, re.IGNORECASE)
-    if m and (datum := _datum_tmj(*m.groups())):
+    # Zwei Alternativen in der Regel (Hinweis vor oder nach dem Datum): die belegten drei Gruppen zählen.
+    teile = [g for g in m.groups() if g is not None][:3] if m else []
+    if len(teile) == 3 and (datum := _datum_tmj(*teile)):
         werte["person.geburtsdatum"] = datum
     if m := re.search(regeln["telefon"], sauber, re.IGNORECASE):
         werte["person.telefon"] = " ".join((m.group(1) or m.group(2)).split())
