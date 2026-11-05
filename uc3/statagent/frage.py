@@ -460,10 +460,11 @@ def _fluktuation_antwort(conn: Verbindung, monat: str, regelsatz: str) -> dict[s
         zeilen: list[dict[str, Any]] = sql_lesen(conn, sql_text)["zeilen"]
     except psycopg.errors.RaiseException as fehler:
         grund = fehler.diag.message_primary or str(fehler)
+        # Ohne Schema bereinigt (Online-Datenbank) hilft kein neuer Lauf; die Meldung der Funktion sagt das selbst.
+        nachsatz = "" if "lokalen Auswertung" in grund else " Ein neuer Lauf für den Monat behebt das."
         return _antwort(
             "fluktuation",
-            f"Für {_monat_anzeige(monat)} lässt sich die Fluktuation nicht berechnen: {grund}. "
-            "Ein neuer Lauf für den Monat behebt das.",
+            f"Für {_monat_anzeige(monat)} lässt sich die Fluktuation nicht berechnen: {grund}.{nachsatz}",
             definition=FLUKTUATION_DEFINITION,
             einheit="Prozent",
             stand=staende,
