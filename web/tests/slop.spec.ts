@@ -6,7 +6,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { ucs } from "../../shared/ui/src/ucs";
+import { bereiche } from "../../shared/ui/src/ucs";
 
 const hier = path.dirname(fileURLToPath(import.meta.url));
 const MESSSKRIPT = path.join(hier, "lib", "slop-measure.js");
@@ -39,7 +39,7 @@ const NOCH_OFFEN: Record<string, string> = {
   "/": "Landing-Session baut die Startseite noch",
 };
 
-const ROUTEN: string[] = ["/", ...ucs.map((uc) => uc.route), "/praesentation", "/_bausteine"];
+const ROUTEN: string[] = ["/", ...bereiche.map((uc) => uc.route), "/praesentation", "/_bausteine"];
 const MAX_SEITEN = 40;
 
 /** Gültiger Modell-Status mit abweichendem „zuletzt“, damit der Hinweis im Badge mitgemessen wird. */

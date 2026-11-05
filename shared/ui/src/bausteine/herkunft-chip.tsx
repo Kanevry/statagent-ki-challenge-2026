@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { Fragment, useId, useState } from "react";
 import { Knopf, Status } from "../basis";
 import { fokus, klassen } from "../basis/klassen";
 
@@ -9,7 +9,11 @@ export type HerkunftChipProps = {
   sql?: string | null;
   /** Monat der Lieferung, z. B. „2025-03“. */
   lieferung?: string | null;
-  /** Kennung des Laufs, der die Zahl erzeugt hat. */
+  /** Berichtsmonat der Zahl; weicht er von `lieferung` ab, ist die Zahl eine Revision aus einer späteren Lieferung. */
+  monat?: string | null;
+  /** Version des Regelsatzes (`meta.regel`), mit dem gerechnet wurde. */
+  regelstand?: string | null;
+  /** Kennung des Laufs, der die Zahl erzeugt hat; im Chip auf acht Zeichen gekürzt, offen voll. */
   lauf?: string | null;
   /** Tabelle der Rohdaten; Standard `roh.lieferung`. */
   quelle?: string;
@@ -22,14 +26,19 @@ export type HerkunftChipProps = {
 
 type Kopie = "bereit" | "kopiert" | "fehler";
 
+/** Länge, auf die der Chip eine Laufkennung (Hash) kürzt. */
+const LAUF_KURZ = 8;
+
 /**
- * Beleg einer Zahl: grüner Chip, der beim Öffnen Lauf und SQL zeigt, mit Knopf „Kopieren“.
+ * Beleg einer Zahl: grüner Chip mit Quelle, Zeitpunkt, Regelstand und Lauf; beim Öffnen das SQL mit „Kopieren“.
  * Steht als Block neben der Zahl (nicht innerhalb eines `<p>`), weil der geöffnete Bereich ein `<pre>` enthält.
  * Ohne SQL heißt der Chip „Beleg ansehen“ und zeigt nur Quelle, Lieferung, Lauf und Verweis.
  */
 export function HerkunftChip({
   sql,
   lieferung,
+  monat,
+  regelstand,
   lauf,
   quelle = "roh.lieferung",
   verweis,
@@ -41,9 +50,17 @@ export function HerkunftChip({
   const [kopie, setKopie] = useState<Kopie>("bereit");
 
   const vorlaeufig = stand === "vorlaeufig";
-  const kopf = [quelle, lieferung].filter(Boolean).join(" ");
+  const revision = Boolean(monat && lieferung && monat !== lieferung);
+  const zeitpunkt = revision ? `Monat ${monat} aus Lieferung ${lieferung}` : (lieferung ?? monat);
+  const laufKurz = lauf && lauf.length > LAUF_KURZ ? lauf.slice(0, LAUF_KURZ) : lauf;
+  const teile = [
+    regelstand && `Regelstand ${regelstand}`,
+    laufKurz && `Lauf ${laufKurz}`,
+    vorlaeufig && "vorläufig",
+  ].filter((teil): teil is string => Boolean(teil));
   const angaben = [
-    lieferung && `Lieferung ${lieferung}`,
+    zeitpunkt && (revision ? zeitpunkt : `Lieferung ${zeitpunkt}`),
+    regelstand && `Regelstand ${regelstand}`,
     lauf && `Lauf ${lauf}`,
     verweis && `Verweis ${verweis}`,
     vorlaeufig && "vorläufiger Stand",
@@ -73,18 +90,25 @@ export function HerkunftChip({
           setOffen(!offen);
           setKopie("bereit");
         }}
+        title={lauf && laufKurz !== lauf ? `Lauf ${lauf}` : undefined}
         className={klassen(
-          "inline-flex items-center gap-2 rounded-full bg-gruen-bg px-2 py-1 font-sans text-12 font-semibold text-gruen hover:underline",
+          "inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full bg-gruen-bg px-2 py-1 text-left font-sans text-12 font-semibold text-gruen hover:underline",
           fokus,
         )}
       >
-        <span className="font-mono">{kopf}</span>
-        {vorlaeufig && (
+        <span className="font-mono">{quelle}</span>
+        {zeitpunkt && (
           <>
-            {" · "}
-            <span>vorläufig</span>
+            {" "}
+            <span className={revision ? undefined : "font-mono"}>{zeitpunkt}</span>
           </>
         )}
+        {teile.map((teil) => (
+          <Fragment key={teil}>
+            {" · "}
+            <span>{teil}</span>
+          </Fragment>
+        ))}
         {" · "}
         <span>{sql ? "SQL ansehen" : "Beleg ansehen"}</span>
       </button>
