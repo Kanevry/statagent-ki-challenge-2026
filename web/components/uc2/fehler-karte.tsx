@@ -1,6 +1,7 @@
 "use client";
 
 import { Fliesstext, Knopf, Status } from "@kic/ui/basis";
+import type { Modus } from "../../app/api/uc2/_lib/proxy";
 import type { ModellWahl } from "../../app/api/uc2/_lib/vorbereitung";
 import { klartext } from "./namen";
 import type { FallZustand } from "./zustand";
@@ -40,15 +41,20 @@ export function FehlerKarte({
   laedt,
   meldung,
   onNeu,
+  modus = "live",
 }: {
   zustand: FallZustand;
   modelle: ModellWahl[];
   laedt: boolean;
   meldung: string | null;
   onNeu: (provider: ModellWahl["id"] | null) => void;
+  modus?: Modus;
 }) {
   const f = zustand.fehler;
-  const aktuell = zustand.provider ?? zustand.modelle?.akteur?.provider ?? null;
+  const lauf = zustand.provider ?? zustand.modelle?.akteur?.provider ?? null;
+  // "mock" ist kein Anbieter: das Testmodell der Aufzeichnung fällt nie aus und heißt hier nicht "Modell mock".
+  const aktuell = lauf && lauf !== "mock" ? lauf : null;
+  const vorfuehrung = modus === "vorfuehrung";
   const runde = f?.runde ?? zustand.runden.at(-1)?.nr ?? null;
   const andere = modelle.filter((m) => m.id !== aktuell);
 
@@ -57,7 +63,9 @@ export function FehlerKarte({
       <div className="flex flex-col gap-1">
         <Status art="fehler">{runde ? `Runde ${runde} ist abgebrochen` : "Die Verhandlung ist abgebrochen"}</Status>
         <Fliesstext data-teil="fehlertext">
-          {`${grundSatz(f?.grund, aktuell)}${f?.meldung ? ` ${f.meldung.replace(/\.$/, "").replace(/\b(\d+)\s?s\b/g, "$1 Sekunden")}.` : ""} ${rundenSatz(fertigeRunden(zustand))}`}
+          {vorfuehrung
+            ? `Testbetrieb, aufgezeichneter Abbruch. Hier ist kein Modell ausgefallen, die Seite zeigt nur, wie ein Abbruch aussieht. ${rundenSatz(fertigeRunden(zustand))}`
+            : `${grundSatz(f?.grund, aktuell)}${f?.meldung ? ` ${f.meldung.replace(/\.$/, "").replace(/\b(\d+)\s?s\b/g, "$1 Sekunden")}.` : ""} ${rundenSatz(fertigeRunden(zustand))}`}
         </Fliesstext>
         <Fliesstext groesse={14} ton="gedaempft">
           Ein neuer Versuch beginnt wieder bei Runde 1. Die Runden hier bleiben zum Nachlesen stehen.

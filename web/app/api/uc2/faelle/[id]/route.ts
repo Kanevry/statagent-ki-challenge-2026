@@ -1,5 +1,5 @@
 import { istMockId, mockBericht } from "../../_lib/mock";
-import { fehler, gueltigeId, mockErzwungen, ruftApi } from "../../_lib/proxy";
+import { fehler, fehlerAusApiStatus, gueltigeId, mockErzwungen, ruftApi } from "../../_lib/proxy";
 
 // GET /api/uc2/faelle/{id}: Bericht-JSON des Falls. Kennungen mit "mock-" liefern den aufgezeichneten Fall.
 export const dynamic = "force-dynamic";
@@ -14,8 +14,9 @@ export async function GET(_anfrage: Request, { params }: { params: Promise<{ id:
   }
   const antwort = await ruftApi(`/faelle/${encodeURIComponent(id)}`);
   if (!antwort) return fehler(502, "Die Schnittstelle des Panels ist nicht erreichbar.");
+  if (!antwort.ok) return fehlerAusApiStatus(antwort.status);
   return new Response(antwort.body, {
-    status: antwort.status,
+    status: 200,
     headers: { "content-type": antwort.headers.get("content-type") ?? "application/json", "cache-control": "no-store" },
   });
 }

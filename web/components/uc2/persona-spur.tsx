@@ -1,6 +1,6 @@
 import { akteurName, haltungWort, haltungZahl, themaKurz } from "./namen";
 import { BelegChip } from "./beleg-chip";
-import { belegeDesZugs, hatSichBewegt, verlaufVon, zuegeVon, type FallZustand } from "./zustand";
+import { belegeAllerZuege, hatSichBewegt, letzteAenderung, verlaufVon, zuegeVon, type FallZustand } from "./zustand";
 import { klassen } from "./klassen";
 
 // Eine Spur je Persona (Pen f1ct2, Karte links): Name, Marke (spricht gerade, bewegt, fest), je Thema die Haltung als
@@ -18,7 +18,7 @@ const MARKE_TEXT: Record<Marke, string> = {
 
 const MARKE_KLASSE: Record<Marke, string> = {
   spricht: "bg-gruen text-white",
-  bewegt: "bg-violett-bg text-violett",
+  bewegt: "bg-navy text-white",
   fest: "bg-line text-ink",
   erste: "border border-line text-slate",
   wartet: "border border-line text-slate",
@@ -32,7 +32,7 @@ export function markeVon(z: FallZustand, akteur: string): Marke {
   return hatSichBewegt(z, akteur) ? "bewegt" : "fest";
 }
 
-/** Fünf Kästchen von −2 bis +2. Das gefüllte ist die Haltung jetzt, das umrandete die erste. Zahl und Wort stehen daneben. */
+/** Fünf Kästchen von −2 bis +2. Das gefüllte ist die Haltung jetzt, das umrandete die Haltung vor der letzten Änderung. Zahl und Wort stehen daneben. */
 function Skala({ jetzt, frueher }: { jetzt: number; frueher?: number }) {
   return (
     <span aria-hidden="true" className="inline-flex gap-0.5" data-teil="skala">
@@ -57,7 +57,11 @@ export function PersonaSpur({ zustand, akteur }: { zustand: FallZustand; akteur:
   const marke = markeVon(zustand, akteur);
   const zug = zuegeVon(zustand, akteur).at(-1);
   const themen = zustand.themen.length > 0 ? zustand.themen.map((t) => t.id) : zug ? Object.keys(zug.themen) : [];
-  const belege = belegeDesZugs(zustand, akteur);
+  const alleBelege = belegeAllerZuege(zustand, akteur);
+  const letzteRunde = zug?.runde ?? 0;
+  // Belege des jüngsten Beitrags stehen offen in der Liste, die der früheren Runden zugeklappt darunter, nicht verloren.
+  const belege = alleBelege.filter((b) => b.runden.includes(letzteRunde));
+  const frueher = alleBelege.filter((b) => !b.runden.includes(letzteRunde));
   const eintrag = zustand.auswahl.find((a) => a.akteur === akteur);
   const spricht = marke === "spricht";
 
@@ -92,9 +96,8 @@ export function PersonaSpur({ zustand, akteur }: { zustand: FallZustand; akteur:
             const t = zug.themen[id];
             if (!t) return null;
             const verlauf = verlaufVon(zustand, akteur, id);
-            const erste = verlauf[0]?.haltung;
-            const geaendert = erste !== undefined && verlauf.some((v) => v.haltung !== erste);
-            const runde = geaendert ? verlauf.findLast((v, i) => i > 0 && v.haltung !== verlauf[i - 1]!.haltung)?.runde : undefined;
+            const aenderung = letzteAenderung(verlauf);
+            const geaendert = aenderung !== null;
             return (
               <li
                 key={id}
@@ -105,15 +108,15 @@ export function PersonaSpur({ zustand, akteur }: { zustand: FallZustand; akteur:
                 <span className="font-sans text-14 font-medium text-ink">
                   {themaKurz(id, zustand.themen.find((x) => x.id === id)?.titel)}
                 </span>
-                <Skala jetzt={t.haltung} frueher={geaendert ? erste : undefined} />
+                <Skala jetzt={t.haltung} frueher={aenderung?.vorher} />
                 <span className="col-span-2 flex flex-wrap items-baseline gap-x-2 font-sans text-14 text-ink">
                   <span className="font-mono font-semibold tabular-nums" data-teil="haltung-zahl">
                     {haltungZahl(t.haltung)}
                   </span>
                   <span data-teil="haltung-wort">{haltungWort(t.haltung)}</span>
-                  {geaendert && erste !== undefined && (
+                  {aenderung && (
                     <span className="text-slate" data-teil="aenderung">
-                      {`vorher ${haltungZahl(erste)} ${haltungWort(erste)}${runde ? `, geändert in Runde ${runde}` : ""}`}
+                      {`vorher ${haltungZahl(aenderung.vorher)} ${haltungWort(aenderung.vorher)}, geändert in Runde ${aenderung.runde}`}
                     </span>
                   )}
                 </span>
@@ -123,7 +126,7 @@ export function PersonaSpur({ zustand, akteur }: { zustand: FallZustand; akteur:
         </ul>
       )}
 
-      {belege.length > 0 && (
+      {(belege.length > 0 || frueher.length > 0) && (
         <div className="flex flex-col gap-2 border-t border-line pt-3" data-teil="belege">
           <p className="font-sans text-12 text-slate">Stützt sich auf</p>
           <div className="flex flex-col items-start gap-2">
@@ -131,6 +134,19 @@ export function PersonaSpur({ zustand, akteur }: { zustand: FallZustand; akteur:
               <BelegChip key={beleg.beleg_id} beleg={beleg} themen={stuetzt} />
             ))}
           </div>
+          {frueher.length > 0 && (
+            <details className="font-sans text-12" data-teil="belege-frueher">
+              <summary className="cursor-pointer text-slate">{`Belege früherer Runden (${frueher.length})`}</summary>
+              <div className="mt-2 flex flex-col items-start gap-2">
+                {frueher.map(({ beleg, themen: stuetzt, runden }) => (
+                  <div key={beleg.beleg_id} className="flex flex-col items-start gap-1">
+                    <span className="text-slate">{`Runde ${runden.join(", ")}`}</span>
+                    <BelegChip beleg={beleg} themen={stuetzt} />
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
         </div>
       )}
     </article>

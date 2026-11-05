@@ -3,7 +3,7 @@ import { abbruchSatz, akteurName, kategorieWort, themaKurz } from "./namen";
 import { endstand, zwischenstand, type FallZustand, type ThemaStand } from "./zustand";
 
 // "Was gilt" (Owner-Vorgabe, auf einen Blick): je Thema Einigung, Mehrheit dafür, Mehrheit dagegen oder noch strittig,
-// mit n dafür, m dagegen, k enthalten. Während der Verhandlung als Zwischenstand, nach dem Ende als Ergebnis.
+// mit n dafür, m dagegen, k unentschieden. Während der Verhandlung als Zwischenstand, nach dem Ende als Ergebnis.
 
 const ART: Record<string, StatusArt> = { konsens: "ok", mehrheit: "ok", abgelehnt: "fehler", offener_konflikt: "warnung" };
 
@@ -36,7 +36,8 @@ export function Stand({ zustand }: { zustand: FallZustand }) {
 
   const fertig = ende !== null && zustand.status === "fertig";
   const titelVon = (id: string) => themaKurz(id, zustand.themen.find((t) => t.id === id)?.titel);
-  const gesamt = themen[0] ? themen[0].dafuer.length + themen[0].dagegen.length + themen[0].enthalten.length : 0;
+  /** Wie viele Gruppen zu einem Thema zählen: je Thema aus den Teilnehmern, nicht vom ersten Thema übernommen. */
+  const gesamtVon = (t: ThemaStand) => t.dafuer.length + t.dagegen.length + t.enthalten.length;
   const bewegte = new Set(zustand.ergebnis?.aenderungen.map((a) => a.akteur) ?? []);
   const ueberschrift = fertig
     ? "Am Ende gilt"
@@ -56,7 +57,7 @@ export function Stand({ zustand }: { zustand: FallZustand }) {
             {`${abbruchSatz(zustand.ergebnis.runden, zustand.ergebnis.abbruch)} ${
               bewegte.size === 0
                 ? "Niemand hat die Position geändert."
-                : `${zustand.ergebnis.aenderungen.length === 1 ? "Eine Position hat" : `${zustand.ergebnis.aenderungen.length} Positionen haben`} sich bewegt, bei ${bewegte.size} von ${gesamt} Gruppen.`
+                : `${zustand.ergebnis.aenderungen.length === 1 ? "Eine Position hat" : `${zustand.ergebnis.aenderungen.length} Positionen haben`} sich bewegt, bei ${bewegte.size} von ${zustand.teilnehmer.length || themen.map(gesamtVon).reduce((a, b) => Math.max(a, b), 0)} Gruppen.`
             }`}
           </Fliesstext>
         )}
@@ -68,16 +69,16 @@ export function Stand({ zustand }: { zustand: FallZustand }) {
               <h3 className="font-display text-20 font-bold text-ink">{titelVon(t.thema)}</h3>
               <Status art={ART[t.kategorie] ?? "info"}>{kategorieWort(t.kategorie)}</Status>
             </div>
-            <div className="flex h-3 gap-0.5" role="img" aria-label={`${t.dafuer.length} dafür, ${t.dagegen.length} dagegen, ${t.enthalten.length} enthalten`}>
+            <div className="flex h-3 gap-0.5" role="img" aria-label={`${t.dafuer.length} dafür, ${t.dagegen.length} dagegen, ${t.enthalten.length} unentschieden`}>
               {t.dafuer.length > 0 && <span className="rounded-sm bg-gruen" style={{ flexGrow: t.dafuer.length }} />}
               {t.enthalten.length > 0 && <span className="rounded-sm bg-line" style={{ flexGrow: t.enthalten.length }} />}
               {t.dagegen.length > 0 && <span className="rounded-sm bg-err-fg" style={{ flexGrow: t.dagegen.length }} />}
             </div>
             <p className="font-sans text-14 font-medium text-ink" data-teil="zaehlung">
-              {`${t.dafuer.length} von ${gesamt} dafür, ${t.dagegen.length} dagegen, ${t.enthalten.length} enthalten`}
+              {`${t.dafuer.length} von ${gesamtVon(t)} dafür, ${t.dagegen.length} dagegen, ${t.enthalten.length} unentschieden`}
             </p>
             <p className="font-sans text-12 text-slate">
-              {`Dafür: ${namen(t.dafuer)}. Dagegen: ${namen(t.dagegen)}. Enthalten: ${namen(t.enthalten)}.`}
+              {`Dafür: ${namen(t.dafuer)}. Dagegen: ${namen(t.dagegen)}. Unentschieden: ${namen(t.enthalten)}.`}
             </p>
           </li>
         ))}

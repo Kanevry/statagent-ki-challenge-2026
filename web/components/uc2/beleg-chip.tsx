@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { fokus, klassen } from "./klassen";
-import { datumText, monatText, themaKurz, zitatText } from "./namen";
+import { datumText, monatText, ohneStriche, themaKurz, zitatText } from "./namen";
 import type { Beleg } from "./typen";
 
 // Herkunft-Chip für Presse-Belege (Pen QVMco). Der Baustein HerkunftChip aus @kic/ui ist auf Zahlen mit SQL gebaut
@@ -30,14 +30,14 @@ export function BelegChip({ beleg, themen = [] }: { beleg: Beleg; themen?: strin
           fokus,
         )}
       >
-        <span data-teil="medium">{beleg.medium}</span>
+        <span data-teil="medium">{ohneStriche(beleg.medium)}</span>
         {monat && <span className="font-mono" data-teil="monat">{monat}</span>}
         <span className="font-normal">{offen ? "Beleg schließen" : "Beleg ansehen"}</span>
       </button>
       {offen && (
         <div id={bereichId} className="flex w-full max-w-xl flex-col gap-1 border-l-2 border-gruen bg-white py-2 pl-4 pr-2" data-teil="beleg-offen">
-          {beleg.titel && <p className="font-sans text-14 font-semibold text-ink">{beleg.titel}</p>}
-          <p className="font-sans text-12 text-slate">{[beleg.medium, angaben].filter(Boolean).join(", ")}</p>
+          {beleg.titel && <p className="font-sans text-14 font-semibold text-ink" data-teil="titel">{ohneStriche(beleg.titel)}</p>}
+          <p className="font-sans text-12 text-slate">{[ohneStriche(beleg.medium), angaben].filter(Boolean).join(", ")}</p>
           <blockquote className="font-sans text-14 text-ink" data-teil="zitat">
             {`„${zitatText(beleg.zitat)}“`}
           </blockquote>

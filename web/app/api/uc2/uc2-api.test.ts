@@ -7,8 +7,16 @@ import { GET as modell } from "./modell/route";
 // API und mit UC2_MOCK=1 antworten die Handler mit dem aufgezeichneten Fall; echte Fälle gehen durch.
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
-const post = (body: unknown, roh?: string) =>
-  starten(new Request("http://x/api/uc2/faelle", { method: "POST", headers: { "content-type": "application/json" }, body: roh ?? JSON.stringify(body) }));
+let nummer = 0;
+// Jede Anfrage kommt von einer eigenen IP, damit das Ratenlimit (10 je Minute und IP) die Tests nicht stört.
+const post = (body: unknown, roh?: string, ip = `10.0.0.${++nummer}`) =>
+  starten(
+    new Request("http://x/api/uc2/faelle", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": ip },
+      body: roh ?? JSON.stringify(body),
+    }),
+  );
 
 beforeEach(() => {
   vi.stubEnv("UC2_MOCK_TAKT_MS", "0");
@@ -53,16 +61,19 @@ it("setzt über Last-Event-ID und ?seq= ab der genannten Nummer fort", async () 
 
 it("der Abbruch-Fall endet mit dem Ereignis abbruch nach Runde 2 und event: ende abgebrochen mit letzte_seq", async () => {
   const antwort = await ereignisse(new Request("http://x/api/uc2/faelle/mock-abbruch/ereignisse"), ctx("mock-abbruch"));
-  const teile = bloecke(await antwort.text());
+  const text = await antwort.text();
+  const teile = bloecke(text);
   const arten = teile.map((b) => b.event);
   expect(arten.at(-2)).toBe("abbruch");
   expect(arten).not.toContain("fehler");
   expect(arten.at(-1)).toBe("ende");
   expect(JSON.parse(teile.at(-1)!.data!)).toEqual({ status: "abgebrochen", letzte_seq: 37 });
   const abbruch = JSON.parse(teile.at(-2)!.data!) as { seq: number; runde: number; daten: { grund: string; meldung: string } };
-  expect(abbruch).toMatchObject({ seq: 37, runde: 3, daten: { grund: "TimeoutError" } });
+  expect(abbruch).toMatchObject({ seq: 37, runde: 3, daten: { grund: "SimulierterAbbruch" } });
   expect(abbruch.daten.meldung.length).toBeLessThanOrEqual(300);
-  expect(JSON.parse(teile[0]!.data!).daten).toMatchObject({ provider: "azure" });
+  // Kein erfundener Anbieter-Ausfall: die Aufzeichnung läuft über das Testmodell.
+  expect(JSON.parse(teile[0]!.data!).daten.modelle).toMatchObject({ akteur: { provider: "mock" }, moderator: { provider: "mock" } });
+  expect(text).not.toContain("azure");
   expect(arten.filter((a) => a === "runde_ende")).toHaveLength(2);
 });
 
@@ -99,6 +110,62 @@ it("GET /api/uc2/modell meldet im Vorführmodus Testbetrieb ohne KI, im Format d
   expect(antwort.status).toBe(200);
   expect(antwort.headers.get("x-uc2-modus")).toBe("vorfuehrung");
   expect(await antwort.json()).toEqual({ provider: "mock", modell: "mock", version: null, quelle: "uc2-vorfuehrung" });
+});
+
+describe("Sperren von POST /faelle", () => {
+  it("antwortet mit KIC_ONLINE_LESEND=1 sofort mit 403, ohne den Body zu lesen oder die API zu rufen", async () => {
+    vi.stubEnv("KIC_ONLINE_LESEND", "1");
+    const abruf = vi.fn();
+    vi.stubGlobal("fetch", abruf);
+    const anfrage = new Request("http://x/api/uc2/faelle", { method: "POST", body: "{}", headers: { "x-forwarded-for": "10.9.9.9" } });
+    const antwort = await starten(anfrage);
+    expect(antwort.status).toBe(403);
+    expect(await antwort.json()).toEqual({ fehler: "Starten ist in der Online-Demo gesperrt." });
+    expect(anfrage.bodyUsed).toBe(false);
+    expect(abruf).not.toHaveBeenCalled();
+  });
+
+  it("GET bleibt in der Online-Demo erlaubt (Replay)", async () => {
+    vi.stubEnv("KIC_ONLINE_LESEND", "1");
+    expect((await liste()).status).toBe(200);
+    expect((await ereignisse(new Request("http://x/"), ctx("mock-wartezeiten"))).status).toBe(200);
+  });
+
+  it("drosselt je IP mit 429 und Retry-After, andere IPs bleiben frei", async () => {
+    const ip = "10.7.7.7";
+    const stati: number[] = [];
+    for (let i = 0; i < 11; i++) stati.push((await post({}, undefined, ip)).status);
+    expect(stati.slice(0, 10)).toEqual(Array(10).fill(202));
+    expect(stati[10]).toBe(429);
+    const gedrosselt = await post({}, undefined, ip);
+    expect(gedrosselt.headers.get("retry-after")).toMatch(/^\d+$/);
+    expect((await post({}, undefined, "10.7.7.8")).status).toBe(202);
+  });
+
+  it("bricht einen zu großen Body auch ohne Content-Length beim Lesen ab (413)", async () => {
+    let geliefert = 0;
+    const stueck = new TextEncoder().encode("x".repeat(1024));
+    const body = new ReadableStream<Uint8Array>({
+      pull(c) {
+        if (geliefert >= 100) return c.close();
+        geliefert += 1;
+        c.enqueue(stueck);
+      },
+    });
+    const anfrage = new Request("http://x/api/uc2/faelle", { method: "POST", body, duplex: "half", headers: { "x-forwarded-for": "10.8.8.8" } } as RequestInit);
+    expect(anfrage.headers.get("content-length")).toBeNull();
+    const antwort = await starten(anfrage);
+    expect(antwort.status).toBe(413);
+    // Gelesen wurde nur bis knapp über die Grenze (4 KiB), nicht die ganzen 100 KiB.
+    expect(geliefert).toBeLessThan(20);
+  });
+
+  it("ein zu großer Body mit Content-Length wird ebenfalls mit 413 abgelehnt", async () => {
+    const antwort = await starten(
+      new Request("http://x/api/uc2/faelle", { method: "POST", headers: { "content-length": "99999", "x-forwarded-for": "10.8.8.9" }, body: "{}" }),
+    );
+    expect(antwort.status).toBe(413);
+  });
 });
 
 describe("ohne UC2_MOCK", () => {
@@ -140,7 +207,35 @@ describe("ohne UC2_MOCK", () => {
     expect(body).toMatchObject({ provider: "mock", modell: "mock" });
   });
 
-  it("gibt 409 der API weiter und meldet 502, wenn der Strom eines echten Falls nicht zu erreichen ist", async () => {
+  it("reicht Fehlerkörper der API nie durch, nur feste einfache Sätze (SEC-009)", async () => {
+    const geheim = "Traceback /srv/uc2/api.py line 12 password=hunter2";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ detail: geheim }), { status: 500 })));
+    const start = await post({});
+    expect(start.status).toBe(502);
+    const text = await start.text();
+    expect(text).not.toContain("Traceback");
+    expect(text).not.toContain("hunter2");
+    expect(JSON.parse(text)).toEqual({ fehler: "Das Panel hat nicht geantwortet. Bitte später noch einmal versuchen." });
+    const b = await bericht(new Request("http://x/"), ctx("17"));
+    expect(b.status).toBe(502);
+    expect(await b.text()).not.toContain("Traceback");
+    const l = await liste();
+    expect(l.status).toBe(502);
+    expect(await l.text()).not.toContain("hunter2");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ detail: geheim }), { status: 404 })));
+    const unbekannt = await bericht(new Request("http://x/"), ctx("99"));
+    expect(unbekannt.status).toBe(404);
+    expect(await unbekannt.json()).toEqual({ fehler: "Diesen Fall gibt es nicht." });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ detail: geheim }), { status: 422 })));
+    expect((await (await post({ provider: "claude" })).json())).toEqual({ fehler: "Das Panel nimmt dieses Modell oder diese Auswahl gerade nicht an." });
+  });
+
+  it("gibt bei Erfolg nur fall_id und status der API weiter, keine weiteren Felder", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ fall_id: 5, status: "laeuft", intern: "pfad=/srv" }, { status: 202 })));
+    expect(await (await post({})).json()).toEqual({ fall_id: "5", status: "laeuft" });
+  });
+
+  it("gibt 409 der API als festen Satz weiter und meldet 502, wenn der Strom eines echten Falls nicht zu erreichen ist", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail: "läuft schon" }, { status: 409 })));
     expect((await post({})).status).toBe(409);
     vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("fetch failed"))));

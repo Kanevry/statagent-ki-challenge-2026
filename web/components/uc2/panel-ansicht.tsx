@@ -1,10 +1,11 @@
-import { Fliesstext, Knopf, Status, Ueberschrift } from "@kic/ui/basis";
+import Link from "next/link";
+import { Fliesstext, Knopf, knopfKlassen, Status, Ueberschrift } from "@kic/ui/basis";
 import { Begriff } from "@kic/ui/bausteine";
 import type { ReactNode } from "react";
 import type { ModellWahl } from "../../app/api/uc2/_lib/vorbereitung";
 import { ExperteSpur } from "./experte-spur";
 import { FehlerKarte } from "./fehler-karte";
-import { klartext, akteurName, THEMEN } from "./namen";
+import { klartext, akteurName, modellText, THEMEN } from "./namen";
 import { ModeratorSpur } from "./moderator-spur";
 import { PersonaSpur } from "./persona-spur";
 import { Stand } from "./stand";
@@ -60,6 +61,26 @@ export interface PanelAnsichtProps {
 export function PanelAnsicht({ zustand, verbindung, fallId, modelle, neuLaedt = false, neuMeldung = null, onNeu, onNeuVerbinden, akteureIgnoriert = false, modus = "live" }: PanelAnsichtProps): ReactNode {
   const aktiverSchritt = zustand.status === "fertig" ? 3 : 2;
   const vorfuehrung = modus === "vorfuehrung";
+  if (verbindung === "nicht-gefunden") {
+    return (
+      <div className="flex max-w-3xl flex-col gap-4" data-fall={fallId} data-status="nicht-gefunden">
+        <Ueberschrift stufe={2} als="h1" data-testid="uc2-titel">
+          Fall nicht gefunden
+        </Ueberschrift>
+        <Fliesstext ton="gedaempft">
+          Zu dieser Adresse gibt es keinen Fall. Vielleicht stimmt die Adresse nicht, oder der Fall ist nicht mehr da.
+        </Fliesstext>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/uc2" className={knopfKlassen()}>
+            Fall stellen
+          </Link>
+          <Link href="/uc2/panel?fall=mock-wartezeiten" className={knopfKlassen("sekundaer")}>
+            Aufgezeichnete Verhandlung abspielen
+          </Link>
+        </div>
+      </div>
+    );
+  }
   const verloren = verbindung === "unterbrochen" && zustand.status !== "fertig" && zustand.status !== "abgebrochen";
   // Genau ein Modellhinweis: live die Angabe des Laufs, in der Vorführung der Hinweis auf die Aufzeichnung.
   const modell = vorfuehrung ? undefined : zustand.modelle?.akteur;
@@ -81,7 +102,7 @@ export function PanelAnsicht({ zustand, verbindung, fallId, modelle, neuLaedt = 
             {modell && (
               <p className="inline-flex items-center gap-2 border-l-2 border-violett pl-2 font-sans text-12" data-testid="uc2-modell">
                 <span className="text-slate">Modell</span>
-                <span className="font-mono text-ink">{[modell.provider, modell.modell].filter(Boolean).join(" · ")}</span>
+                <span className="font-mono text-ink">{modellText(modell.provider, modell.modell)}</span>
               </p>
             )}
             {akteureIgnoriert && (
@@ -101,7 +122,7 @@ export function PanelAnsicht({ zustand, verbindung, fallId, modelle, neuLaedt = 
       </p>
 
       {zustand.status === "abgebrochen" && onNeu && (
-        <FehlerKarte zustand={zustand} modelle={modelle} laedt={neuLaedt} meldung={neuMeldung} onNeu={onNeu} />
+        <FehlerKarte zustand={zustand} modelle={modelle} laedt={neuLaedt} meldung={neuMeldung} onNeu={onNeu} modus={modus} />
       )}
 
       {verloren && (

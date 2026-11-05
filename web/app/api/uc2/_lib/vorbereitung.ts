@@ -3,7 +3,8 @@ import { mockErzwungen, ruftApi, type Modus } from "./proxy";
 
 // Alles, was die Startseite (U2-0) vor dem ersten Klick braucht: der Fall, die Auswahl der Akteure mit Belegzahl und
 // welche Modelle wählbar sind. Die Liste der möglichen Akteure kennt die API erst nach einem Lauf; bis dahin kommt sie
-// aus dem aufgezeichneten Fall (`modus` sagt, ob live oder Vorführung läuft).
+// aus dem aufgezeichneten Fall. `herkunft` sagt das ehrlich: Fall und Belegzahlen sind immer ein Beispiel aus einer
+// Aufzeichnung, auch wenn die API läuft (`modus: "live"`). Echte Daten gibt es erst mit einer Kandidatenliste der API (#132).
 
 export interface AkteurAuswahl {
   akteur: string;
@@ -23,6 +24,8 @@ export interface ModellWahl {
 export interface Vorbereitung {
   /** "vorfuehrung": keine Python-API, es läuft die aufgezeichnete Verhandlung ohne Sprachmodell. */
   modus: Modus;
+  /** Woher Fall und Belegzahlen stammen. Heute immer "aufzeichnung", nie "api". */
+  herkunft: "aufzeichnung";
   fall: { id: string; frage: string; stichtag: string; paket: string; maxAkteure: number };
   akteure: AkteurAuswahl[];
   modelle: ModellWahl[];
@@ -41,7 +44,7 @@ export function modellWahl(): ModellWahl[] {
       id: "ollama",
       label: "ollama · lokal · Fallback",
       verfuegbar: ollama,
-      meldung: ollama ? undefined : "Das lokale Modell ist hier nicht eingerichtet. Ohne es gibt es keinen Notnagel.",
+      meldung: ollama ? undefined : "Das lokale Modell ist hier nicht eingerichtet.",
     },
   ];
 }
@@ -59,6 +62,7 @@ export async function ladeVorbereitung(): Promise<Vorbereitung> {
   const erfahren = (mockBerichtRoh.experte ?? {}) as { beschreibung?: string };
   return {
     modus: api ? "live" : "vorfuehrung",
+    herkunft: "aufzeichnung",
     fall: {
       id: String(mockFall.fall_name ?? "wartezeiten"),
       frage: String(mockFall.frage ?? ""),

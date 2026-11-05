@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { Fliesstext, Knopf, knopfKlassen, Status, Ueberschrift } from "@kic/ui/basis";
+import { Begriff } from "@kic/ui/bausteine";
 import type { Vorbereitung } from "../../app/api/uc2/_lib/vorbereitung";
-import { AKTEUR_KURZ, akteurName, datumText } from "./namen";
+import { AKTEUR_KURZ, akteurName, datumText, fachbegriffeIn, FACHBEGRIFFE } from "./namen";
 import { MOCK_FALL_ID, MOCK_FEHLER_ID, MERKE_FALL } from "./konstanten";
 import { Schritte } from "./schritte";
 import { Vorfuehrhinweis } from "./vorfuehrung";
@@ -93,7 +94,7 @@ export function FallStellen({ vorbereitung }: { vorbereitung: Vorbereitung }) {
           Frage an das Panel
         </Ueberschrift>
         <Fliesstext ton="gedaempft">
-          Sechs Gruppen aus dem Gesundheitswesen verhandeln die Frage. Ein Moderator führt durch die Runden, ein Experte
+          Bis zu sechs Gruppen aus dem Gesundheitswesen verhandeln die Frage. Ein Moderator führt durch die Runden, ein Experte
           prüft die Zahlen.
         </Fliesstext>
       </div>
@@ -121,11 +122,23 @@ export function FallStellen({ vorbereitung }: { vorbereitung: Vorbereitung }) {
           ))}
         </dl>
         {fall.paket && (
-          <p className="max-w-4xl font-sans text-14 text-ink">
-            <span className="text-slate">Geprüftes Maßnahmenpaket: </span>
-            {fall.paket}
-          </p>
+          <div className="flex max-w-4xl flex-col gap-2">
+            <p className="font-sans text-14 text-ink">
+              <span className="text-slate">Geprüftes Maßnahmenpaket: </span>
+              {fall.paket}
+            </p>
+            <ul className="flex flex-wrap gap-x-8 gap-y-2 font-sans text-14 font-semibold text-ink" data-teil="fachbegriffe">
+              {fachbegriffeIn(fall.paket).map((wort) => (
+                <li key={wort} className="max-w-xs">
+                  <Begriff wort={wort} erklaerung={FACHBEGRIFFE[wort] ?? ""} untertitel />
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
+        <p className="font-sans text-12 text-slate" data-testid="uc2-herkunft">
+          Beispiel aus einer Aufzeichnung: Fall, Paket und Belegzahlen stammen aus einem aufgezeichneten Lauf, nicht aus dem aktuellen Archiv.
+        </p>
       </section>
 
       <section aria-labelledby={`${gruppeId}-tisch`} className="flex flex-col gap-4 border-t border-line pt-6">

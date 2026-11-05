@@ -402,3 +402,35 @@ export function belegeDesZugs(z: FallZustand, akteur: string): { beleg: Beleg; t
     return beleg ? [{ beleg, themen }] : [];
   });
 }
+
+/**
+ * Alle Belege, auf die sich ein Akteur in irgendeiner Runde gestützt hat, mit den Themen und Runden. Belege früherer
+ * Runden bleiben so nach späteren Runden erhalten.
+ */
+export function belegeAllerZuege(z: FallZustand, akteur: string): { beleg: Beleg; themen: string[]; runden: number[] }[] {
+  const nachId = new Map<string, { themen: Set<string>; runden: Set<number> }>();
+  for (const zug of zuegeVon(z, akteur)) {
+    for (const t of Object.values(zug.themen)) {
+      for (const id of t.beleg_ids) {
+        const eintrag = nachId.get(id) ?? { themen: new Set<string>(), runden: new Set<number>() };
+        eintrag.themen.add(t.thema);
+        eintrag.runden.add(zug.runde);
+        nachId.set(id, eintrag);
+      }
+    }
+  }
+  return [...nachId.entries()].flatMap(([id, e]) => {
+    const beleg = z.belegIndex[id];
+    return beleg ? [{ beleg, themen: [...e.themen], runden: [...e.runden].sort((a, b) => a - b) }] : [];
+  });
+}
+
+/** Haltung direkt vor der letzten Änderung und die Runde dieser Änderung, `null` wenn sich nichts geändert hat. */
+export function letzteAenderung(verlauf: { runde: number; haltung: number }[]): { vorher: number; jetzt: number; runde: number } | null {
+  for (let i = verlauf.length - 1; i > 0; i--) {
+    if (verlauf[i]!.haltung !== verlauf[i - 1]!.haltung) {
+      return { vorher: verlauf[i - 1]!.haltung, jetzt: verlauf[i]!.haltung, runde: verlauf[i]!.runde };
+    }
+  }
+  return null;
+}

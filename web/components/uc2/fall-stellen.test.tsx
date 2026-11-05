@@ -19,6 +19,7 @@ const akteure = [
 
 const vorbereitung: Vorbereitung = {
   modus: "vorfuehrung",
+  herkunft: "aufzeichnung",
   fall: { id: "wartezeiten", frage: "Wie können die Wartezeiten sinken?", stichtag: "2026-09-30", paket: "Paket A", maxAkteure: 6 },
   akteure,
   modelle: [],
@@ -39,6 +40,23 @@ it("zeigt die Frage, die Akteure mit Belegzahl und den Hinweis auf den aufgezeic
   expect(screen.getByLabelText(/Pharma/).closest("label")?.textContent).toContain("0 Belege");
   expect(screen.getByTestId("uc2-zaehler").textContent).toContain("6 von 6 gewählt");
   expect(screen.getByText("Presseartikel bis")).toBeTruthy();
+});
+
+it("kennzeichnet Fall und Belegzahlen als Beispiel aus einer Aufzeichnung, auch live", () => {
+  render(<FallStellen vorbereitung={{ ...vorbereitung, modus: "live" }} />);
+  expect(screen.getByTestId("uc2-herkunft").textContent).toContain("Beispiel aus einer Aufzeichnung");
+  expect(document.body.textContent).not.toMatch(/\bapi\b/i);
+});
+
+it("Sprache: Bis zu sechs Gruppen, Fachbegriffe mit Erklärung, kein Notnagel-Satz", () => {
+  render(<FallStellen vorbereitung={{ ...vorbereitung, fall: { ...vorbereitung.fall, paket: "Fachärztliche Kassenstellen +3 % und digitale Triage" } }} />);
+  expect(screen.getByText(/^Bis zu sechs Gruppen aus dem Gesundheitswesen/)).toBeTruthy();
+  const begriffe = [...document.querySelectorAll('[data-teil="fachbegriffe"] [data-baustein="begriff"]')].map((b) => b.textContent);
+  expect(begriffe).toEqual([
+    "KassenstellenArztpraxen, die direkt mit der Krankenkasse abrechnen.",
+    "TriageEin Online-Check klärt vorab, wer wie dringend zur Fachärztin oder zum Facharzt muss.",
+  ]);
+  expect(document.body.textContent).not.toContain("Notnagel");
 });
 
 it("Vorführmodus: ein ruhiger Hinweis, kein Fehlertext; live: kein Hinweis", () => {

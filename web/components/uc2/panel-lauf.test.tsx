@@ -1,7 +1,8 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { mockEreignisse, MOCK_ABBRUCH } from "../../app/api/uc2/_lib/mock";
+import { MOCK_ABBRUCH } from "../../app/api/uc2/_lib/mock";
 import { modellWahl } from "../../app/api/uc2/_lib/vorbereitung";
+import { abbruchMitAnbieter } from "./testhilfen";
 import { PanelSeite } from "./panel-lauf";
 
 // Neuer Versuch nach dem Abbruch: Modellwechsel startet einen neuen Fall; lehnt die API das Modell mit 422 ab, steht
@@ -44,7 +45,7 @@ afterEach(() => {
 function abgebrochenerLauf() {
   render(<PanelSeite fallId={MOCK_ABBRUCH} modelle={modellWahl()} />);
   act(() => {
-    for (const e of mockEreignisse(MOCK_ABBRUCH)!) Quelle.letzte!.sende(e.art, e);
+    for (const e of abbruchMitAnbieter("azure", "gpt-5-4-mini") as { art: string }[]) Quelle.letzte!.sende(e.art, e);
     Quelle.letzte!.sende("ende", { status: "abgebrochen", letzte_seq: 37 });
   });
 }

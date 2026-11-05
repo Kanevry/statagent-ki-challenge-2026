@@ -1,6 +1,7 @@
 import { Akzent, Ueberschrift } from "@kic/ui/basis";
 import { WarnChip } from "@kic/ui/bausteine";
-import { akteurName, klartext, themaKurz } from "./namen";
+import { BelegChip } from "./beleg-chip";
+import { akteurName, haltungWort, haltungZahl, klartext, themaKurz } from "./namen";
 import type { FallZustand, RundeZustand, Zug } from "./zustand";
 
 // Gesprächsverlauf (Pen f1ct2, unten): die Beiträge in der Reihenfolge, in der sie gesprochen wurden, nach Runden
@@ -53,15 +54,30 @@ export function Verlauf({ zustand }: { zustand: FallZustand }) {
                     <li key={akteur} className="flex flex-col gap-1" data-beitrag={akteur}>
                       <p className="flex flex-wrap items-center gap-2 font-sans text-12 text-slate">
                         <span className="font-semibold text-ink">{akteurName(akteur)}</span>
-                        {bewegt && <span className="rounded bg-violett-bg px-2 py-0.5 font-semibold text-violett">bewegt</span>}
+                        {bewegt && <span className="rounded bg-navy px-2 py-0.5 font-semibold text-white">bewegt</span>}
                         {ohneQuelle && <WarnChip>Zahl ohne Quelle</WarnChip>}
                       </p>
-                      {themen.map((t) => (
-                        <p key={t} className="max-w-3xl font-sans text-14 text-ink text-pretty">
-                          <span className="font-semibold">{`${themaKurz(t)}: `}</span>
-                          {klartext(zug.themen[t]?.begruendung ?? "")}
-                        </p>
-                      ))}
+                      {themen.map((t) => {
+                        const thema = zug.themen[t];
+                        // Belege dieses Beitrags: die Quellen, die in genau dieser Runde zum Thema genannt wurden.
+                        const belege = (thema?.beleg_ids ?? []).flatMap((id) => (zustand.belegIndex[id] ? [zustand.belegIndex[id]] : []));
+                        return (
+                          <div key={t} className="flex flex-col items-start gap-1" data-thema={t}>
+                            <p className="max-w-3xl font-sans text-14 text-ink text-pretty">
+                              <span className="font-semibold">{`${themaKurz(t)}: `}</span>
+                              {thema && (
+                                <span className="font-mono tabular-nums" data-teil="haltung">
+                                  {`${haltungZahl(thema.haltung)} ${haltungWort(thema.haltung)}. `}
+                                </span>
+                              )}
+                              {klartext(thema?.begruendung ?? "")}
+                            </p>
+                            {belege.map((b) => (
+                              <BelegChip key={b.beleg_id} beleg={b} themen={[t]} />
+                            ))}
+                          </div>
+                        );
+                      })}
                     </li>
                   );
                 })}

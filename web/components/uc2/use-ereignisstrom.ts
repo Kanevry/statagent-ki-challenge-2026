@@ -8,7 +8,8 @@ import { LEER, wende, type FallZustand } from "./zustand";
 // sich selbst neu und schickt `Last-Event-ID`; wende() übergeht schon gesehene Nummern. Gibt der Server auf (404, 502),
 // bleibt `unterbrochen`, und `neuVerbinden` startet einen neuen Versuch ab der letzten Nummer.
 
-export type Verbindung = "verbindet" | "offen" | "unterbrochen" | "zu";
+/** "nicht-gefunden": der Server kennt den Fall nicht (404), das ist keine abgebrochene Verbindung. */
+export type Verbindung = "verbindet" | "offen" | "unterbrochen" | "zu" | "nicht-gefunden";
 
 export function useEreignisstrom(fallId: string): {
   zustand: FallZustand;
@@ -30,7 +31,20 @@ export function useEreignisstrom(fallId: string): {
     const quelle = new EventSource(`/api/uc2/faelle/${encodeURIComponent(fallId)}/ereignisse${ab}`);
 
     quelle.onopen = () => setVerbindung("offen");
-    quelle.onerror = () => setVerbindung(quelle.readyState === EventSource.CLOSED ? "unterbrochen" : "verbindet");
+    quelle.onerror = () => {
+      if (quelle.readyState !== EventSource.CLOSED) {
+        setVerbindung("verbindet");
+        return;
+      }
+      // EventSource nennt den Statuscode nicht. Kam noch nichts an, fragt ein einzelner Abruf, ob es den Fall gibt.
+      if (letzte.current > 0) {
+        setVerbindung("unterbrochen");
+        return;
+      }
+      fetch(`/api/uc2/faelle/${encodeURIComponent(fallId)}`, { cache: "no-store" })
+        .then((antwort) => setVerbindung(antwort.status === 404 ? "nicht-gefunden" : "unterbrochen"))
+        .catch(() => setVerbindung("unterbrochen"));
+    };
 
     const hoeren = (art: string) => (ereignis: Event) => {
       let daten: unknown;

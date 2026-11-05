@@ -84,3 +84,21 @@ it("meldet 'verbindet', solange der Browser selbst neu versucht", () => {
   act(() => q.onerror?.());
   expect(screen.getByTestId("s").textContent).toContain("verbindet");
 });
+
+it("ein 404 auf den Fall meldet nicht-gefunden statt unterbrochen", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 404 })));
+  render(<Anzeige id="gibt-es-nicht" />);
+  const q = Quelle.alle[0]!;
+  q.readyState = 2;
+  await act(async () => q.onerror?.());
+  expect(screen.getByTestId("s").textContent).toBe("wartet|0|nicht-gefunden");
+});
+
+it("ein Fall, den es gibt, aber ohne Strom, bleibt unterbrochen", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({}, { status: 200 })));
+  render(<Anzeige id="17" />);
+  const q = Quelle.alle[0]!;
+  q.readyState = 2;
+  await act(async () => q.onerror?.());
+  expect(screen.getByTestId("s").textContent).toBe("wartet|0|unterbrochen");
+});

@@ -72,7 +72,26 @@ export const THEMEN: Record<string, ThemaText> = {
 };
 
 export function themaKurz(id: string, titel?: string): string {
-  return THEMEN[id]?.kurz ?? titel ?? id.replaceAll("_", " ");
+  return THEMEN[id]?.kurz ?? (titel ? ohneStriche(titel) : id.replaceAll("_", " "));
+}
+
+/** Fachbegriffe aus dem Maßnahmenpaket und ihre Erklärung in Alltagssprache (Glossar-Untertitel). */
+export const FACHBEGRIFFE: Record<string, string> = {
+  Kassenstellen: "Arztpraxen, die direkt mit der Krankenkasse abrechnen.",
+  Triage: "Ein Online-Check klärt vorab, wer wie dringend zur Fachärztin oder zum Facharzt muss.",
+};
+
+/** Die Fachbegriffe, die in einem Text vorkommen, in der Reihenfolge ihres Auftretens. */
+export function fachbegriffeIn(text: string): string[] {
+  return Object.keys(FACHBEGRIFFE)
+    .filter((wort) => text.includes(wort))
+    .sort((a, b) => text.indexOf(a) - text.indexOf(b));
+}
+
+/** Provider und Modell in Klartext. Das Testmodell der Aufzeichnung heißt nirgends roh "mock · mock-fixture". */
+export function modellText(provider: string | null | undefined, modell: string | null | undefined): string {
+  if (!provider || provider === "mock") return "Testmodell ohne KI";
+  return [provider, modell].filter(Boolean).join(" · ");
 }
 
 const HALTUNG_WORT: Record<number, string> = {

@@ -7,6 +7,7 @@ import { MAX_ZITAT, klartext, ohneStriche, zitatText } from "./namen";
 import { grundSatz } from "./fehler-karte";
 import { PanelAnsicht, sprecherText, titelText } from "./panel-ansicht";
 import { ableiten, type FallZustand } from "./zustand";
+import { abbruchMitAnbieter, mitAnbieter } from "./testhilfen";
 
 // Fängt ab: Persona ohne Haltung, Herkunft ohne Medium und Monat, Moderator-Spur fehlt oder vermischt sich mit den
 // Personas, Zitate über 300 Zeichen, Gedankenstriche im sichtbaren Text, Abbruch, der die fertigen Runden verschluckt.
@@ -46,7 +47,7 @@ it("genau ein Modellhinweis: live die Angabe des Laufs, in der Vorführung nur d
   expect(screen.queryByTestId("uc2-modell")).toBeNull();
   expect(document.body.textContent).not.toContain("mock-fixture");
   unmount();
-  zeige(ableiten(mockEreignisse(MOCK_ABBRUCH)!), "42", { modus: "live" });
+  zeige(ableiten(mitAnbieter(mockEreignisse(MOCK_ABBRUCH)!, "azure", "gpt-5-4-mini")), "42", { modus: "live" });
   expect(screen.queryByTestId("uc2-vorfuehrung")).toBeNull();
   expect(screen.getByTestId("uc2-modell").textContent).toContain("azure · gpt-5-4-mini");
 });
@@ -81,7 +82,7 @@ it("markiert, wer sich bewegt hat und wer fest blieb, und zeigt am Ende, was gil
     kassenstellen: "mehrheit",
     patientenlenkung: "konsens",
   });
-  expect(stand.querySelector('[data-thema="kassenstellen"] [data-teil="zaehlung"]')?.textContent).toBe("4 von 6 dafür, 0 dagegen, 2 enthalten");
+  expect(stand.querySelector('[data-thema="kassenstellen"] [data-teil="zaehlung"]')?.textContent).toBe("4 von 6 dafür, 0 dagegen, 2 unentschieden");
   expect(stand.textContent).toContain("Einigung");
   expect(stand.textContent).toContain("Noch strittig");
   expect(screen.getByTestId("uc2-titel").textContent).toBe("Das Panel ist nach 4 Runden fertig");
@@ -149,11 +150,23 @@ it("Prüfhinweise stehen gelb beim Experten, in Alltagssprache und ohne Doppelun
 
 describe("Modellfehler (U2-1a)", () => {
   const abbruch = ableiten(mockEreignisse(MOCK_ABBRUCH)!);
+  // Ein echter Lauf über azure, der nach Runde 2 mit einem Zeitfehler abbricht (Vertrag #44: Ereignis abbruch).
+  const live = ableiten(abbruchMitAnbieter("azure", "gpt-5-4-mini"));
+
+  it("Vorführung: sagt Testbetrieb, aufgezeichneter Abbruch, und erfindet keinen Ausfall eines Anbieters", () => {
+    zeige(abbruch, MOCK_ABBRUCH, { onNeu: vi.fn(), modus: "vorfuehrung" });
+    const text = screen.getByRole("alert").textContent ?? "";
+    expect(text).toContain("Testbetrieb, aufgezeichneter Abbruch");
+    expect(text).toContain("Hier ist kein Modell ausgefallen");
+    expect(document.body.textContent).not.toMatch(/azure hat nicht|Modell azure|mock-fixture|mock · /);
+    expect(text).toContain("Die Runden 1 und 2 sind fertig und bleiben stehen.");
+    expect(document.querySelectorAll("[data-akteur]")).toHaveLength(6);
+  });
 
   it("behält die fertigen Runden und zeigt Erneut und die Modellwahl, ollama nur mit sichtbarer Meldung", () => {
     const neu = vi.fn();
-    zeige(abbruch, MOCK_ABBRUCH, { onNeu: neu });
-    expect(abbruch.status).toBe("abgebrochen");
+    zeige(live, "42", { onNeu: neu, modus: "live" });
+    expect(live.status).toBe("abgebrochen");
     expect(screen.getByRole("alert").textContent).toContain("Runde 3 ist abgebrochen");
     expect(screen.getByRole("alert").textContent).toContain("Die Runden 1 und 2 sind fertig und bleiben stehen.");
     // Alltagssprache vorn, der Fehlertyp nur klein dahinter.
@@ -178,7 +191,7 @@ describe("Modellfehler (U2-1a)", () => {
   it("Erneut und Modellwechsel rufen den Neustart mit dem gewählten Modell auf", async () => {
     const user = userEvent.setup();
     const neu = vi.fn();
-    zeige(abbruch, MOCK_ABBRUCH, { onNeu: neu });
+    zeige(live, "42", { onNeu: neu, modus: "live" });
     await user.click(screen.getByTestId("uc2-erneut"));
     await user.click(screen.getByTestId("uc2-modell-claude"));
     expect(neu.mock.calls).toEqual([[null], ["claude"]]);
@@ -187,7 +200,7 @@ describe("Modellfehler (U2-1a)", () => {
   it("ein eingerichtetes ollama ist wählbar", () => {
     vi.stubEnv("OLLAMA_MODEL", "qwen3:8b");
     const neu = vi.fn();
-    zeige(abbruch, MOCK_ABBRUCH, { onNeu: neu, modelle: modellWahl() });
+    zeige(live, "42", { onNeu: neu, modelle: modellWahl(), modus: "live" });
     expect((screen.getByTestId("uc2-modell-ollama") as HTMLButtonElement).disabled).toBe(false);
     vi.unstubAllEnvs();
   });
@@ -221,4 +234,105 @@ it("eine unterbrochene Verbindung bietet Neu verbinden an und behält den Stand"
   expect(document.querySelectorAll("[data-akteur]")).toHaveLength(6);
   await user.click(screen.getByRole("button", { name: "Neu verbinden" }));
   expect(verbinden).toHaveBeenCalledOnce();
+});
+
+describe("Verlauf: je Beitrag Haltung und Herkunft, auch aus früheren Runden", () => {
+  it("Beiträge aus Runde 1 und 2 zeigen nach Runde 4 Haltung und Herkunft-Chip", () => {
+    zeige(fertig);
+    for (const runde of [1, 2, 3, 4]) {
+      const beitraege = document.querySelectorAll(`[data-spur="verlauf"] [data-runde="${runde}"] [data-beitrag]:not([data-beitrag="moderator"])`);
+      expect(beitraege.length, `Runde ${runde}`).toBe(6);
+      for (const b of beitraege) {
+        expect(b.querySelector('[data-teil="haltung"]')?.textContent, `${b.getAttribute("data-beitrag")} R${runde} Haltung`).toMatch(/^[+−0]\d? .+\. $/);
+        const chip = b.querySelector('[data-baustein="herkunft"] [data-teil="medium"]');
+        expect(chip?.textContent, `${b.getAttribute("data-beitrag")} R${runde} Herkunft`).toMatch(/\(Beispiel\)$/);
+      }
+    }
+  });
+
+  it("die Persona-Karte behält Belege früherer Runden zugeklappt, auch wenn Runde 4 andere nennt", () => {
+    // Die Ärztekammer zitiert in Runde 4 nichts mehr: ihre Belege aus Runde 1 bis 3 dürfen nicht verschwinden.
+    const z = ableiten(
+      alle.map((e) => {
+        const x = JSON.parse(JSON.stringify(e)) as { art: string; runde: number; akteur: string; daten: { zug?: { themen: { beleg_ids: string[] }[] } } };
+        if (x.art === "zug" && x.runde === 4 && x.akteur === "aerztekammer") for (const t of x.daten.zug!.themen) t.beleg_ids = [];
+        return x;
+      }),
+    );
+    zeige(z);
+    const frueher = document.querySelector('[data-akteur="aerztekammer"] [data-teil="belege-frueher"]')!;
+    expect(frueher.querySelector("summary")?.textContent).toMatch(/^Belege früherer Runden \(\d+\)$/);
+    expect(frueher.textContent).toMatch(/Runde 1, 2, 3/);
+    expect(frueher.querySelectorAll('[data-baustein="herkunft"]').length).toBeGreaterThan(1);
+  });
+});
+
+describe("richtige Anzeigen", () => {
+  it("vorher ist die Haltung direkt vor der letzten Änderung: aus −2, −1, 0 wird vorher −1 in Runde 3", () => {
+    zeige(fertig);
+    const zeile = document.querySelector('[data-akteur="sv"] [data-thema="finanzierung"]')!;
+    expect(zeile.querySelector('[data-teil="haltung-zahl"]')?.textContent).toBe("0");
+    expect(zeile.querySelector('[data-teil="aenderung"]')?.textContent).toBe("vorher −1 eher dagegen, geändert in Runde 3");
+  });
+
+  it("n von N zählt je Thema aus den Teilnehmern dieses Themas", () => {
+    const z = ableiten([
+      { seq: 1, art: "start", daten: {} },
+      {
+        seq: 2,
+        art: "ergebnis",
+        daten: {
+          runden: 1,
+          klassifikation: {
+            a: { kategorie: "mehrheit", zustimmend: ["sv", "patienten", "aerztekammer"], ablehnend: [], enthalten: [] },
+            b: { kategorie: "offener_konflikt", zustimmend: ["sv"], ablehnend: ["patienten"], enthalten: [] },
+          },
+        },
+      },
+    ]);
+    zeige(z);
+    const zaehlung = Object.fromEntries([...document.querySelectorAll<HTMLElement>('[data-spur="stand"] [data-thema]')].map((t) => [t.dataset.thema, t.querySelector('[data-teil="zaehlung"]')?.textContent]));
+    expect(zaehlung).toEqual({ a: "3 von 3 dafür, 0 dagegen, 0 unentschieden", b: "1 von 2 dafür, 1 dagegen, 0 unentschieden" });
+  });
+
+  it("ein unbekannter Fall zeigt Fall nicht gefunden, nicht Vorbereitung und nicht Verbindung abgebrochen", () => {
+    zeige(ableiten([]), "gibt-es-nicht", { verbindung: "nicht-gefunden" });
+    expect(screen.getByTestId("uc2-titel").textContent).toBe("Fall nicht gefunden");
+    expect(screen.getByRole("link", { name: "Fall stellen" })).toBeTruthy();
+    expect(document.body.textContent).not.toContain("wird vorbereitet");
+    expect(document.body.textContent).not.toContain("Verbindung zum Panel ist abgebrochen");
+  });
+});
+
+describe("Sprache und Farbe", () => {
+  it("sagt unentschieden statt enthalten und nennt kein Modell roh", () => {
+    zeige(fertig);
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("unentschieden");
+    expect(text).not.toMatch(/\benthalten\b/i);
+    expect(text).not.toMatch(/mock-fixture|mock · /);
+  });
+
+  it("die Marke bewegt ist nicht violett (Violett ist nur das KI-Label)", () => {
+    zeige(fertig);
+    const marke = document.querySelector('[data-marke="bewegt"] [data-teil="marke"]')!;
+    expect(marke.className).not.toMatch(/violett/);
+    for (const el of document.querySelectorAll('[data-spur="verlauf"] .rounded')) expect(el.className).not.toMatch(/violett/);
+  });
+
+  it("Gedankenstriche in Belegtitel und Medium werden nicht angezeigt", async () => {
+    const user = userEvent.setup();
+    const verseucht = ableiten(
+      alle.map((e) => {
+        const x = JSON.parse(JSON.stringify(e)) as { art: string; daten: { belege?: { medium: string; titel: string }[] } };
+        if (x.art === "belege") for (const b of x.daten.belege ?? []) Object.assign(b, { medium: `${b.medium} – Süd`, titel: `${b.titel} — Teil 2` });
+        return x;
+      }),
+    );
+    zeige(verseucht);
+    for (const k of document.querySelectorAll<HTMLButtonElement>('[data-baustein="herkunft"] button')) await user.click(k);
+    expect(document.body.textContent).not.toMatch(/[—–]/);
+    expect(document.querySelector('[data-teil="titel"]')?.textContent).toMatch(/, Teil 2$/);
+    expect(document.querySelector('[data-teil="medium"]')?.textContent).toContain(", Süd");
+  });
 });
