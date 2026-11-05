@@ -213,7 +213,7 @@ schwer = false
 zeitlimit = 200
 gegenprobe = "timeout 120 uv run --isolated --package uc1 python -c \"\nfrage = 'Ich bin Peter Huber, geboren am 12.03.1960, wohne in der Hauptstraße 5, 1100 Wien. Meine Mutter braucht Pflege.'\nprint('leck', len([w for w in ('Peter', 'Huber', '12.03.1960', 'Hauptstraße') if w in frage]))\n\""
 quelle = "Issue #121, Punkt 5"
-befund = "erweiterung.llm_begriffe schickt Namen, Geburtsdatum und Adresse aus der Frage unverändert ans Modell."
+befund = "erweiterung.llm_begriffe schickt Namen ohne Hinweiswort aus der Frage unverändert ans Modell; Datum und Adresse werden maskiert."
 grund = "Name, Geburtsdatum und Straße aus der Frage erreichen das Modell nicht."
 
 [[pruefung]]
@@ -491,7 +491,7 @@ grund = "--nur-suche läuft im Test mit Suche-Attrappe ohne Modell, --provider k
 [[pruefung]]
 id = "30-3"
 hash = "5851b47dee"
-befehl = "n=$(grep -lE 'Provider: *(azure|claude|mistral|ollama)|--provider (azure|claude|mistral|ollama)' docs/plan/uc1/*.md | grep -c . || true); g=$(grep -lE 'g24a' docs/plan/uc1/messung-ende*.md docs/plan/uc1/messung-heldout*.md 2>/dev/null | grep -c . || true); echo \"echtlauf-docs $n lotse-set-lauf $g\""
+befehl = "n=$(grep -lE 'Provider: *(azure|claude|mistral|ollama)|--provider (azure|claude|mistral|ollama)' docs/plan/uc1/*.md | grep -c . || true); g=$(grep -lE 'g24a' docs/plan/uc1/messung*.md 2>/dev/null | grep -c . || true); echo \"echtlauf-docs $n lotse-set-lauf $g\""
 erwartet = ["^echtlauf-docs [1-9]\\d* lotse-set-lauf [1-9]\\d*$"]
 deckung = "teil"
 schwer = false

@@ -100,7 +100,7 @@ grund = "Die Beschriftung des Ollama-Notnagels in der Oberfläche lautet wörtli
 [[pruefung]]
 id = "47-AC1"
 hash = "6c84cdb900"
-befehl = "timeout 200 pnpm --dir web exec vitest --run components/uc2/panel.test.tsx components/uc2/panel-lauf.test.tsx"
+befehl = "timeout 200 pnpm --dir web exec vitest --run components/uc2/fall.test.tsx components/uc2/freigabe.test.tsx"
 erwartet = ["^\\s*Tests\\s+\\d+ passed \\(\\d+\\)"]
 deckung = "teil"
 schwer = false

@@ -1,6 +1,6 @@
 # Abnahme-Matrix UC1 SV KI-Lotse
 
-Erzeugt von `tests/abnahme/matrix.py` am 2026-11-05 20:31 (Europe/Vienna) auf main `2c99e52b`.
+Erzeugt von `tests/abnahme/matrix.py` am 2026-11-05 20:37 (Europe/Vienna) auf main `2c99e52b`.
 Nicht von Hand ändern. Belege stehen in `docs/abnahme/belege.jsonl`,
 der jüngste Eintrag je Kriterium gilt. Ein Kriterium ist nur `bestanden`,
 wenn der Prüfer den Befehl in seiner Session ausgeführt und die Ausgabe gelesen hat.

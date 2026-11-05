@@ -1,6 +1,6 @@
 # Abnahme-Matrix UC3 StatAgent (bewertet)
 
-Erzeugt von `tests/abnahme/matrix.py` am 2026-11-05 20:31 (Europe/Vienna) auf main `2c99e52b`.
+Erzeugt von `tests/abnahme/matrix.py` am 2026-11-05 20:37 (Europe/Vienna) auf main `2c99e52b`.
 Nicht von Hand ändern. Belege stehen in `docs/abnahme/belege.jsonl`,
 der jüngste Eintrag je Kriterium gilt. Ein Kriterium ist nur `bestanden`,
 wenn der Prüfer den Befehl in seiner Session ausgeführt und die Ausgabe gelesen hat.
@@ -97,4 +97,4 @@ Zuordnung je Issue in `docs/abnahme/raster-uc3.csv`; keine Punkteschätzung, nur
 | #135-9 | UC3 | ☐ | Web-Lint als Gate (in `web/` ist kein eslint installiert). | nicht geprüft | `grep -cE '"lint"' web/package.json \|\| true` → 1 (Teil-Prüfsatz erfüllt, der volle Prüfsatz fehlt noch) | 2c99e52b | 2026-11-05 20:29 |
 | #135-10 | UC3 | ☑ | `next dev`/`next start` für die Vorführung an 127.0.0.1 binden (Review !51: Freigabe-Route im WLAN erreichbar). | bestanden | `grep -nE '"(dev\|start)": .*next (dev\|start) -H 127\.0\.0\.1' web/package.json` → 7:    "dev": "dotenv -o --no-expand -e ../.env.local -- next dev -H 127.0.0.1", 9:    "start": "dotenv -o --no-expand -e ../.env.local -- next start -H 127.0.0.1", (next dev und next start binden an 127.0.0.1 (web/package.json)) | 2c99e52b | 2026-11-05 20:29 |
 | #135-11 | UC3 | ☑ | `vitest.config.ts` kennt den Alias `@/` nicht (deshalb importiert `web/components/uc3/cli.ts` relativ). | bestanden | `grep -nF 'find: /^@\//' web/vitest.config.ts` → 10:  resolve: { alias: [{ find: /^@\//, replacement: fileURLToPath(new URL("./", import.meta.url)) }] }, (vitest.config.ts löst den Alias @/ auf) | 2c99e52b | 2026-11-05 20:29 |
-| #135-12 | UC3 | ☐ | FreigabeKarte (`shared/ui`) setzt „Nicht gespeichert.“ vor die Fehlermeldung der Route; Texte der Route und der Karte abstimmen. | bestanden | `node tests/abnahme/p/ui_fehlertext.mjs && echo route_doppelt $(grep -ci 'ist nicht gespeichert' web/components/uc3/freigabe.ts \|\| true)` → route_satz_einmal ja route_schon_gesagt_einmal ja leer_fallback ja route_doppelt 0 (Die Karte sagt „Nicht gespeichert“ genau einmal, auch wenn die Route es schon sagt; kein Routensatz wiederholt es) | 2c99e52b | 2026-11-05 20:29 |
+| #135-12 | UC3 | ☑ | FreigabeKarte (`shared/ui`) setzt „Nicht gespeichert.“ vor die Fehlermeldung der Route; Texte der Route und der Karte abstimmen. | bestanden | `node tests/abnahme/p/ui_fehlertext.mjs && echo route_doppelt $(grep -ci 'ist nicht gespeichert' web/components/uc3/freigabe.ts \|\| true)` → route_satz_einmal ja route_schon_gesagt_einmal ja leer_fallback ja route_doppelt 0 (Die Karte sagt „Nicht gespeichert“ genau einmal, auch wenn die Route es schon sagt; kein Routensatz wiederholt es) | 2c99e52b | 2026-11-05 20:29 |

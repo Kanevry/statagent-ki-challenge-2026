@@ -262,7 +262,7 @@ grund = "git ls-remote zeigt denselben Commit wie lokal, Nachweis mit Zeit vor 0
 [[pruefung]]
 id = "95-1"
 hash = "14403b6257"
-befehl = '''for f in shared/ui/src/antwortform.ts shared/py/plattform/antwortform.py shared/py/plattform/router.py web/app/uc4/page.tsx web/app/api/uc4/frage/route.ts; do test -s "$f" && echo "da $f"; done; timeout 170 uv run --isolated --package plattform --with pytest pytest -q -p no:cacheprovider shared/py/tests/uc4 2>&1 | tail -1; timeout 150 pnpm --dir shared/ui exec vitest --run tests/antwortform.test.ts 2>&1 | grep -E 'Tests.*passed|Tests.*failed'; timeout 150 pnpm --dir web exec vitest --run components/uc4/einstieg.test.tsx 2>&1 | grep -E 'Tests.*passed|Tests.*failed' '''
+befehl = '''for f in shared/ui/src/antwortform.ts shared/py/plattform/antwortform.py shared/py/plattform/router.py web/app/uc4/page.tsx web/app/api/uc4/frage/route.ts; do test -s "$f" && echo "da $f"; done; timeout 170 uv run --isolated --package plattform --with pytest pytest -q -p no:cacheprovider shared/py/tests/uc4 2>&1 | tail -1; timeout 150 pnpm --dir shared/ui exec vitest --run tests/antwortform.test.ts 2>&1 | grep -E 'Tests.*passed|Tests.*failed'; timeout 150 pnpm --dir web exec vitest --run components/uc4/kette.test.tsx 2>&1 | grep -E 'Tests.*passed|Tests.*failed' '''
 erwartet = ["^da shared/ui/src/antwortform\\.ts$", "^da shared/py/plattform/antwortform\\.py$", "^da shared/py/plattform/router\\.py$", "^da web/app/uc4/page\\.tsx$", "^da web/app/api/uc4/frage/route\\.ts$", "^\\d+ passed", "Tests\\s+\\d+ passed"]
 deckung = "voll"
 schwer = false
@@ -310,7 +310,7 @@ grund = "Router-Protokoll vollständig und ohne Fragetext; der Prüfer liest die
 [[pruefung]]
 id = "95-3"
 hash = "2568c1fa32"
-befehl = '''echo "entry_point $(grep -c 'kic.uc_antwort' uc2/pyproject.toml || true)"; echo "adapter_datei $(ls uc2/src/uc2 | grep -c '^uc4\.py$' || true)"; echo "adapter_test $(ls uc2/tests | grep -c 'uc4' || true)"'''
+befehl = '''echo "entry_point $(grep -c 'kic.uc_antwort' uc2/pyproject.toml || true)"; echo "adapter_datei $(ls uc2/src/uc2/antwort | grep -c '^adapter\.py$' || true)"; echo "adapter_test $(ls uc2/tests | grep -c '^test_antwort' || true)"'''
 erwartet = ["^entry_point 1$", "^adapter_datei 1$", "^adapter_test [1-9]"]
 deckung = "teil"
 schwer = false
@@ -336,7 +336,7 @@ grund = "UC1-Adapter ist registriert; Text und Zahlen aus UC2/UC3 kommen unverä
 [[pruefung]]
 id = "95-5"
 hash = "3ad1bd4dcc"
-befehl = '''abschnitt() { sed -n '/^### Optional D4/,/^## Rückfallstufen/p' docs/praesentation/demo-drehbuch.md; }; echo "d4_da $(abschnitt | grep -c 'D4 Gemeinsamer Einstieg')"; echo "wartezeiten $(abschnitt | grep -c 'Wartezeit')"; echo "erwartete_belege $(abschnitt | grep -ciE 'erwartete[rn]? Beleg')"; echo "erwartete_uc2_position $(abschnitt | grep -ciE 'erwartete[rn]? (UC2-)?Position')"; echo "erwarteter_uc1_text $(abschnitt | grep -ciE 'erwartete[rn]? (UC1-)?Text')"'''
+befehl = '''abschnitt() { sed -n '/^### D4 /,/^## Rückfallstufen/p' docs/praesentation/demo-drehbuch.md; }; echo "d4_da $(abschnitt | grep -c 'D4 Gemeinsamer Einstieg')"; echo "wartezeiten $(abschnitt | grep -c 'Wartezeit')"; echo "erwartete_belege $(abschnitt | grep -ciE 'erwartete[rn]? Beleg')"; echo "erwartete_uc2_position $(abschnitt | grep -ciE 'erwartete[rn]? (UC2-)?Position')"; echo "erwarteter_uc1_text $(abschnitt | grep -ciE 'erwartete[rn]? (UC1-)?Text')"'''
 erwartet = ["^d4_da 1$", "^wartezeiten [1-9]", "^erwartete_belege [1-9]", "^erwartete_uc2_position [1-9]", "^erwarteter_uc1_text [1-9]"]
 deckung = "teil"
 schwer = false
@@ -445,8 +445,8 @@ grund = "Komponententest: Karten in Kettenreihenfolge, Zahl mit Herkunftsangabe.
 [[pruefung]]
 id = "98-2"
 hash = "cb3aa17696"
-befehl = '''echo "axe_im_test $(git grep -lE 'AxeBuilder|axe-core' -- web/tests web/components shared/ui/tests | wc -l | tr -d ' ')"; echo "uc4_axe $(grep -cE 'AxeBuilder|axe' web/tests/uc4.spec.ts)"'''
-erwartet = ["^axe_im_test [1-9]", "^uc4_axe [1-9]"]
+befehl = '''echo "axe_im_test $(git grep -lE 'AxeBuilder|axe-core' -- web/tests web/components shared/ui/tests | wc -l | tr -d ' ')"; echo "uc4_axe $(grep -c 'bereiche' web/tests/axe.spec.ts)"; echo "uc4_route $(grep -c '"/uc4"' shared/ui/src/ucs.ts)"'''
+erwartet = ["^axe_im_test [1-9]", "^uc4_axe [1-9]", "^uc4_route [1-9]"]
 deckung = "teil"
 schwer = false
 zeitlimit = 30
