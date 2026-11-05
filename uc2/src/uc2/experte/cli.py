@@ -78,7 +78,8 @@ def als_text(daten: dict[str, Any]) -> str:
         f"≤ {_p(ziel['kosten_aenderung_prozent_hoechstens'], 2)} % Kosten in {ziel['zieljahr']} Jahren“: "
         f"{daten['zielpruefung']['ergebnis']} "
         f"({daten['zielpruefung']['ecken_erreicht']} von {daten['zielpruefung']['ecken']} Ecken "
-        "erreichen beide Ziele)",
+        "erreichen beide Ziele; Modus "
+        f"{'erreicht' if daten['zielpruefung']['modus_erreicht'] else 'verfehlt'} beide Ziele)",
         daten["entscheidend"]["text"],
         f"Ziel laut {ziel['quelle']}",
         "",

@@ -36,6 +36,7 @@ def test_zwei_laeufe_byte_gleich(capsys: pytest.CaptureFixture[str]) -> None:
     assert "kein Sprachmodell" in erster
 
 
+@pytest.mark.daten
 def test_ausgangsausgaben_gleich_pdf() -> None:
     pdf = pfade.daten() / PDF
     if not pdf.exists() or shutil.which("pdftotext") is None:
@@ -170,3 +171,27 @@ def test_ziel_kommt_aus_daten() -> None:
     daten = modell.ergebnis(paket)
     assert daten["zielpruefung"]["ergebnis"] == "nicht erfüllt"
     assert daten["ziel"]["wartezeit_aenderung_prozent_hoechstens"] == -25.0
+
+
+def test_gegenlaeufige_annahme_ergibt_offen_statt_nicht_erfuellt(tmp_path: Path) -> None:
+    # Kassenstellen +6 % bei ρ₀ 0,8, Bestand 4.200, 13 Mio. EUR je Stelle, Besetzung 0,60/0,85/1,00:
+    # Modus Δμ = 0,051 → −20,32 %, Kosten 252 · 0,85 · 13 / 61.338 = +4,54 %, beide Ziele erreicht.
+    # Ecke 0,60 verfehlt die Wartezeit (−15,25 %), Ecke 1,00 die Kosten (+5,34 %): keine Ecke erreicht beide.
+    def fest(wert: float) -> dict[str, float]:
+        return {"min": wert, "modus": wert, "max": wert}
+
+    datei = _paket(
+        tmp_path,
+        {
+            "massnahmen": [{"id": "kassenstellen", "umfang": 6}],
+            "annahmen": {
+                "rho0": fest(0.8),
+                "kassenstellen_bestand": fest(4200),
+                "kosten_je_kassenstelle": fest(13),
+                "kassenstellen_besetzung": {"min": 0.6, "modus": 0.85, "max": 1.0},
+            },
+        },
+    )
+    pruefung = modell.ergebnis(modell.lade_paket(datei))["zielpruefung"]
+    assert (pruefung["ecken_erreicht"], pruefung["modus_erreicht"]) == (0, True)
+    assert pruefung["ergebnis"] == "offen"

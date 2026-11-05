@@ -510,10 +510,26 @@ def ecken(paket: Paket) -> list[Punkt]:
 
 
 def zielpruefung(punkte: Sequence[Punkt], ziel: Ziel) -> Zielergebnis:
-    anzahl = sum(erreicht(p, ziel) for p in punkte)
-    if anzahl == len(punkte):
+    """Urteil über die Ecken der Spanne.
+
+    - `erfüllt`: jede Ecke erreicht beide Ziele.
+    - `nicht erfüllt`: nur bei nachgewiesener Unmöglichkeit, also wenn schon die beste Ecke für die Wartezeit
+      das Wartezeitziel verfehlt oder schon die beste Ecke für die Kosten das Kostenziel.
+    - `offen`: alles andere. Dass keine Ecke beide Ziele zugleich erreicht, reicht nicht für „nicht erfüllt“:
+      Eine gegenläufige Annahme (hohe Besetzung: bessere Wartezeit, höhere Kosten) kann an jeder Ecke ein
+      Ziel verfehlen, während ein innerer Punkt wie der Modus beide erreicht.
+
+    Warum die Ecken genügen: Jede Kennzahl ist in jeder einzelnen Annahme monoton. Wirkungen und Kosten sind
+    Produkte und Quotienten nicht negativer Annahmen (`Formel.wert`). Kapazität Π(1+Δμ) und Nachfrage
+    Π(1−Δλ) sind darin monoton, ebenso ρ₁ = ρ₀·k und W(ρ₁)/W(ρ₀) = k(1−ρ₀)/(1−kρ₀) in k und in ρ₀. Eine
+    Funktion, die in jeder Koordinate monoton ist, hat ihr Minimum über dem Quader an einer Ecke: Man schiebt
+    jede Annahme einzeln an ihr günstiges Ende, ohne die Kennzahl zu verschlechtern.
+    """
+    if all(erreicht(p, ziel) for p in punkte):
         return "erfüllt"
-    if anzahl == 0:
+    beste_wartezeit = min(p.wartezeit for p in punkte)
+    beste_kosten = min(p.kosten_anteil for p in punkte)
+    if beste_wartezeit > ziel.wartezeit + TOLERANZ or beste_kosten > ziel.kosten + TOLERANZ:
         return "nicht erfüllt"
     return "offen"
 
