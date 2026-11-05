@@ -56,12 +56,13 @@ const OHNE_MODELL: ReadonlySet<KettenUc> = new Set(["uc3"]);
 type Umgebung = Readonly<Record<string, string | undefined>>;
 
 /**
- * Kette aus `UC4_KETTE` (Komma-Liste, Teilmenge von uc3,uc2,uc1, Reihenfolge der Standardkette). Leer: alle drei.
- * Ein ungültiger Wert fällt auf „nur uc3“ zurück: ohne Modell, also ohne Kosten (fail-closed).
+ * Kette aus `UC4_KETTE` (Komma-Liste, Teilmenge von uc3,uc2,uc1, Reihenfolge der Standardkette). Leer: lokal alle
+ * drei, online (`KIC_ONLINE=1`) nur uc3. Ein ungültiger Wert fällt auf „nur uc3“ zurück: ohne Modell, also ohne
+ * Kosten (fail-closed, Review !94).
  */
 export function ketteAus(umgebung: Umgebung): readonly KettenUc[] {
   const roh = (umgebung.UC4_KETTE ?? "").trim();
-  if (roh === "") return STANDARD_KETTE;
+  if (roh === "") return umgebung.KIC_ONLINE === "1" ? ["uc3"] : STANDARD_KETTE;
   const teile = roh.split(",").map((teil) => teil.trim());
   const gueltig =
     teile.length > 0 &&

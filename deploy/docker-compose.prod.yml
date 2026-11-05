@@ -85,8 +85,9 @@ services:
       KIC_ONLINE_LESEND: "1"
       # Stufe A: "1" öffnet nur die Fragen (/api/uc3/frage, /api/uc4/frage); leer = gesperrt (403)
       KIC_ONLINE_FRAGEN: ${KIC_ONLINE_FRAGEN:-}
-      # Stationen auf /uc4: "uc3" = nur die Zahl, ohne Modell (Stufe A); leer = uc3, uc2, uc1 (Stufe B)
-      UC4_KETTE: ${UC4_KETTE-uc3}
+      # Stationen auf /uc4: "uc3" = nur die Zahl, ohne Modell (Stufe A, auch wenn leer); Stufe B setzt die Liste
+      # ausdrücklich: uc3,uc2,uc1
+      UC4_KETTE: ${UC4_KETTE:-uc3}
       # Stufe B: erlaubte Modellwahl auf /uc4 (Komma-Liste, z. B. azure); leer = nur Testbetrieb
       UC4_MODELLWAHL: ${UC4_MODELLWAHL:-}
       # Fragen je IP und Minute (Standard der App: 10)
