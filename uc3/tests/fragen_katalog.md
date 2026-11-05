@@ -210,11 +210,11 @@ Jahreszeiten: meteorologisch, „Winter 2025“ endet 2025 (Dezember 2024 bis Fe
 | M074 | merkmal:alter | absage | - | - | auch=rueckfrage | Wie viele 30-Jährige arbeiteten im März 2025? |
 | M075 | merkmal:alter | absage | - | - | auch=rueckfrage | Wie hoch ist das Durchschnittsalter im März 2025? |
 | M076 | merkmal:alter | absage | - | - | auch=rueckfrage | Beschäftigte nach Alter im März 2025 |
-| M080 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;muss | Wie viele Beschäftigte gab es im März 2025 im Regelsatz v2? |
-| M081 | merkmal:regelsatz | zahl | 2025-03 | - | muss | Wie viele Beschäftigte gab es im März 2025 im Regelsatz v1? |
-| M082 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;muss | Beschäftigte März 2025 nach v2 |
-| M083 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;aufruf=v2;muss | Wie viele Beschäftigte gab es im März 2025? |
-| M084 | merkmal:regelsatz,merkmal:kategorie | zahl | 2025-03 | kategorie=Arbeiter | regelsatz=v2;muss | Wie viele Arbeiter gab es im März 2025 im Regelsatz v2? |
+| M080 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;auch=absage,rueckfrage | Wie viele Beschäftigte gab es im März 2025 im Regelsatz v2? |
+| M081 | merkmal:regelsatz | zahl | 2025-03 | - | auch=absage,rueckfrage | Wie viele Beschäftigte gab es im März 2025 im Regelsatz v1? |
+| M082 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;auch=absage,rueckfrage | Beschäftigte März 2025 nach v2 |
+| M083 | merkmal:regelsatz | zahl | 2025-03 | - | regelsatz=v2;aufruf=v2;auch=absage,rueckfrage | Wie viele Beschäftigte gab es im März 2025? |
+| M084 | merkmal:regelsatz,merkmal:kategorie | zahl | 2025-03 | kategorie=Arbeiter | regelsatz=v2;auch=absage,rueckfrage | Wie viele Arbeiter gab es im März 2025 im Regelsatz v2? |
 | M085 | merkmal:regelsatz,merkmal:kategorie | absage | - | - | auch=rueckfrage | Freie Dienstverträge im März 2025 im Regelsatz v2 |
 | M086 | merkmal:regelsatz,merkmal:unbekannt | absage | - | - | auch=rueckfrage | Beschäftigte im März 2025 im Regelsatz v9 |
 | K001 | kreuz:merkmale | zahl | 2025-03 | region=9;geschlecht=W;branche=Bau | muss | Wie viele Frauen arbeiteten im März 2025 in Wien im Bau? |
@@ -238,7 +238,7 @@ Jahreszeiten: meteorologisch, „Winter 2025“ endet 2025 (Dezember 2024 bis Fe
 | F020 | form:vergleich | zahl | 2025-03 | - | werte_je=region:9,7;auch=absage,rueckfrage | Vergleich Wien und Tirol im März 2025 |
 | F021 | form:vergleich | zahl | 2025-03,2026-03 | - | auch=rueckfrage | Beschäftigte im März 2025 im Vergleich zu März 2026 |
 | F022 | form:vergleich | rueckfrage | - | - | auch=absage | Beschäftigte im März 2025 im Vergleich zum Vorjahr |
-| F023 | form:vergleich,zeit:jahreszeit | zahl | 2024-12..2025-08 | - | auch=rueckfrage,absage | Beschäftigte im Sommer 2025 im Vergleich zum Winter 2025 |
+| F023 | form:vergleich,zeit:jahreszeit | zahl | 2024-12..2025-02,2025-06..2025-08 | - | auch=rueckfrage,absage | Beschäftigte im Sommer 2025 im Vergleich zum Winter 2025 |
 | F030 | form:anteil | zahl | 2025-03 | region=9 | art=anteil;anteil=geschlecht:W;auch=rueckfrage,absage | Wie hoch ist der Frauenanteil in Wien im März 2025? |
 | F031 | form:anteil | zahl | 2025-03 | - | art=anteil;anteil=geschlecht:W;auch=rueckfrage,absage | Anteil der Frauen im März 2025 |
 | F032 | form:anteil | zahl | 2025-03 | - | art=anteil;anteil=geschlecht:M;auch=rueckfrage,absage | Wie hoch ist der Männeranteil im März 2025? |
@@ -294,3 +294,7 @@ Jahreszeiten: meteorologisch, „Winter 2025“ endet 2025 (Dezember 2024 bis Fe
 | F128 | form:anderes_thema | absage | - | - | auch=rueckfrage | Wie viele Ärzte gab es im März 2025 in Wien? |
 | M016 | merkmal:bundesland,form:umgangssprache | zahl | 2025-03 | region=9 | auch=rueckfrage,absage | Wie viele Wiener arbeiteten im März 2025? |
 | M017 | merkmal:bundesland,form:umgangssprache | zahl | 2025-03 | region=7 | auch=rueckfrage,absage | Wie viele Tiroler arbeiteten im März 2025? |
+| F014 | form:zwei_werte,zeit:jahreszeit | zahl | 2025-06..2025-08 | region=9,7 | auch=absage,rueckfrage | Beschäftigte in Wien und Tirol im Sommer 2025 |
+| F034 | form:anteil,zeit:jahreszeit | rueckfrage | - | - | auch=absage | Wie hoch war der Frauenanteil im Sommer 2025? |
+| F132 | form:rang | absage | - | - | auch=rueckfrage | Welches Bundesland hat die höchste Zahl an Beschäftigten im März 2025? |
+| Z162 | zeit:liste | zahl | 2025-03,2025-07 | region=9 | auch=rueckfrage | Beschäftigte in Wien im März und im Juli 2025 |

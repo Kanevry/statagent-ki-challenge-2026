@@ -4,6 +4,7 @@ Jedes Wort einer Frage muss bekannt sein: ein Füllwort, ein Wort für die gezä
 erkanntes Merkmal. Bleibt ein Wort übrig („mit Kindern“, „Betriebe“, „Pizza“, „employees“), kann die Zahl zu einer
 anderen Frage gehören; dann gibt es keine Zahl. Sprachverständnis, kein Rechenregelwerk. Die Liste ist bewusst
 eine Positivliste: Ein fehlendes Füllwort kostet eine Zahl, ein fehlendes Merkmal kostete die Wahrheit.
+„höchste“ steht nicht darin: Nur die Fluktuation kennt einen Höchstwert, sie gibt das Wort selbst frei.
 """
 
 from __future__ import annotations
@@ -12,7 +13,8 @@ import re
 
 from statagent.zeitraum import MONATSNAMEN
 
-_WORT = re.compile(r"[a-zäöüß]+(?:-[a-zäöüß]+)*")
+#: Ziffern am Wort zählen mit: „v2“ ist kein einzelner Buchstabe, sondern eine Angabe, die sonst still wegfiele.
+_WORT = re.compile(r"[a-zäöüß]+(?:-[a-zäöüß]+)*\d*")
 
 
 def _liste(text: str) -> frozenset[str]:
@@ -55,7 +57,7 @@ _AUSWERTUNG = _liste(
     abgang abgänge abgängen abgaenge abschnitt abschnitte abschnitten anteil anteile anteils aufgeteilt aufteilung
     bereich bereichen branche branchen bundesland bundesländer bundesländern bundeslaender durchschnitt durchschnitte
     durchschnittlich durchschnittliche entwicklung entwickelt entwickelte fluktuation frauenanteil gegenüber
-    gegenueber geschlecht geschlechter ganz ganzen gesamt gesamte gesamten hoch höchste höchsten hoechste insgesamt
+    gegenueber geschlecht geschlechter ganz ganzen gesamt gesamte gesamten hoch insgesamt
     jahresdurchschnitt jahresmittel kategorie kategorien mittel mittelwert monatsdurchschnitt männeranteil oenace
     önace österreich oesterreich prozent regel summe tabelle verglichen vergleich vergleichen verlauf vs
     wirtschaftsbereich wirtschaftsbereiche wirtschaftsbereichen wirtschaftsabschnitt wirtschaftszweig zeitreihe

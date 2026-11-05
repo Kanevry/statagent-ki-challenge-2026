@@ -48,6 +48,7 @@ from statagent.zeitraum import (
     umschreiben,
     unklar,
     zeitraum_anzeige,
+    zeitraum_lesen,
 )
 
 UC = "uc3"
@@ -348,8 +349,9 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
                 gefunden.setdefault(code, t.group(0))
     if merkmal is OENACE:
         for t in _OENACE_CODE.finditer(text):
-            if t.group(1).upper() in codes:
-                gefunden[t.group(1).upper()] = t.group(0)
+            if t.group(1).upper() not in codes:
+                raise _KeineZahl(f"Einen ÖNACE-Abschnitt {t.group(1).upper()} gibt es in diesem Monat nicht. {KANN}")
+            gefunden[t.group(1).upper()] = t.group(0)
         # „ÖNACE C und F“: alle Buchstaben, sonst zählte nur der erste, ohne Hinweis.
         for liste in _OENACE_LISTE.finditer(text):
             for t in re.finditer(r"(?<!\w)[a-z](?!\w)", liste.group(1)):
@@ -620,6 +622,8 @@ def _filter(
         for wort in re.split(r"\s*(?:,|\bund\b|\boder\b|\bsowie\b)\s*", kette, flags=re.IGNORECASE):
             if not _wort_bekannt(wort, erkannt):
                 raise _KeineZahl(f"Das Wort „{wort}“ kenne ich nicht als Bundesland oder Branche. {KANN}")
+    if _FLUKTUATION.search(frage.lower()):
+        erkannt += ["höchste", "höchsten", "hoechste", "am höchsten"]
     fremd = unbekanntes_wort(frage, erkannt)
     if fremd is not None:
         raise _KeineZahl(f"Das Wort „{fremd[:40]}“ kann ich in dieser Frage nicht einordnen, darum keine Zahl. {KANN}")
@@ -745,7 +749,9 @@ def _bestand_antwort(
     gruppen: tuple[Merkmal, ...],
     typ: str,
     mittel: bool = False,
+    nur: tuple[str, ...] = (),
 ) -> dict[str, Any]:
+    """``nur``: aufgezählte Monate („März und Juli 2025“); die Monate dazwischen gehören nicht zur Frage."""
     definition, einheit = _definition_bestand(conn)
     filter_, etiketten = _filter(conn, frage, bis, gruppen)
     verstanden = _verstanden(von, bis, filter_, etiketten, gruppen)
@@ -793,6 +799,8 @@ def _bestand_antwort(
                     ) from None
                 if zeilen_m:
                     abfragen.append((text_m, zeilen_m))
+    if nur:
+        abfragen = [(text_q, [z for z in zeilen if str(z["monat"]) in nur]) for text_q, zeilen in abfragen]
     alle = [z for _, zeilen in abfragen for z in zeilen]
     staende = _staende(alle)
     info = _laufinfo(conn, regelsatz, staende)
@@ -804,7 +812,7 @@ def _bestand_antwort(
             f"Für {', '.join(_monat_anzeige(m) for m in sorted(ohne_stichtag))} zählt der Lauf nicht am Stichtag "
             "(letzter Tag des Monats); dafür gibt es hier keine Zahl."
         )
-    fehlend = [m for m in _monate(von, bis) if m not in {str(s["monat"]) for s in staende}]
+    fehlend = [m for m in (nur or _monate(von, bis)) if m not in {str(s["monat"]) for s in staende}]
     keine_lieferung = [m for m in fehlend if _ohne_lieferung(m)]
     ungerechnet = [m for m in fehlend if not _ohne_lieferung(m)]
     for monate, wie in (
@@ -1379,7 +1387,8 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         return _antwort(typ, NICHT_LESBAR, hinweise=[NICHT_LESBAR])
     if notizen:
         text = daten["text"]
-        ende = text.find(". ") + 1 if text.startswith("Verstanden:") else 0
+        # Ohne „Verstanden“ (Rückfrage, Absage) zuerst der Text: Die Kette zeigt nur den ersten Satz.
+        ende = text.find(". ") + 1 if text.startswith("Verstanden:") else len(text)
         daten["text"] = " ".join(t for t in (text[:ende].strip(), *notizen, text[ende:].strip()) if t)
     return daten
 
@@ -1395,9 +1404,24 @@ def _antwort_frage(
     monate = monate_lesen(frage)
     jahr = jahr_ohne_monat(frage)
     text = frage.lower()
+    if "anteil" in text and typ != "fluktuation":
+        if not _GESCHLECHT.search(text):
+            raise _KeineZahl(
+                "Einen Anteil rechnet StatAgent nur für Frauen und Männer. Für alles andere: beide Zahlen einzeln "
+                f"fragen, zum Beispiel „Beschäftigte nach Bundesland im März 2025“. {KANN}"
+            )
+        if len(set(monate)) > 1:
+            return _rueckfrage(
+                "Den Anteil gibt es je Monat. Für welchen Monat möchten Sie ihn, zum Beispiel "
+                f"„Frauenanteil im {_monat_anzeige(monate[-1])}“?"
+            )
     if typ == "zeitreihe":
-        if len(monate) >= 2:
-            von, bis = min(monate[0], monate[-1]), max(monate[0], monate[-1])
+        aufzaehlung = zeitraum_lesen(frage, _letzter_monat(conn, regelsatz))
+        nur = aufzaehlung.nur if aufzaehlung is not None and aufzaehlung.art == "liste" else ()
+        if nur:
+            von, bis = nur[0], nur[-1]
+        elif len(monate) >= 2:
+            von, bis = min(monate), max(monate)
         elif len(monate) == 1:
             von, bis = monate[0], "9999-12"
         elif jahr is not None:
@@ -1414,7 +1438,7 @@ def _antwort_frage(
         gruppen: tuple[Merkmal, ...] = (
             (GESCHLECHT,) if _geschlecht_gegliedert(text) else tuple(g for g in (_gliederung(frage),) if g)
         )
-        return _bestand_antwort(conn, frage, regelsatz, von, bis, gruppen, "zeitreihe", mittel)
+        return _bestand_antwort(conn, frage, regelsatz, von, bis, gruppen, "zeitreihe", mittel, nur)
     if typ == "fluktuation" and len(monate) > 1:
         return _rueckfrage_monat(typ, monate[-1][:4])
     if len(monate) != 1:

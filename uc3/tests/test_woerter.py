@@ -36,6 +36,10 @@ def test_unbekanntes_wort(frage: str, erkannt: list[str], erwartet: str | None) 
         "Beschäftigte außer Wien im September 2024",
         "How many employees in September 2024?",
         "Was kostet eine Pizza?",
+        "Beschäftigte im September 2024 nach v2",
+        "Beschäftigte in ÖNACE Z im September 2024",
+        "Welches Bundesland hat die höchste Zahl im September 2024?",
+        "Welchen Anteil hat Wien an allen Beschäftigten im September 2024?",
         "42",
     ],
 )
@@ -61,3 +65,12 @@ def test_vergleich_zum_vormonat_zeigt_beide_monate(conn: Verbindung) -> None:
     daten = antwort_frage(conn, "Beschäftigte im September 2024 im Vergleich zum Vormonat")
     monate = [z["bezeichnung"] for z in daten["zahlen"]]
     assert any("August 2024" in m for m in monate) and any("September 2024" in m for m in monate)
+
+
+# Fängt: „März und Juli“ zeigte auch die Monate dazwischen.
+def test_aufzaehlung_nur_die_genannten_monate(conn: Verbindung) -> None:
+    for monat in ("2024-08", "2024-09", "2024-10"):
+        lauf_ausfuehren(conn, monat, "v1")
+    daten = antwort_frage(conn, "Beschäftigte im August 2024 und im Oktober 2024")
+    namen = " ".join(z["bezeichnung"] for z in daten["zahlen"])
+    assert "August 2024" in namen and "Oktober 2024" in namen and "September 2024" not in namen

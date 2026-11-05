@@ -370,3 +370,12 @@ def test_klassifikationsjahr_und_median() -> None:
     median = nicht_auswertbar("Median der Beschäftigten Juni 2025 bis August 2025", mittel=True)
     assert median is not None and median.startswith("Durchschnitte")
     assert nicht_auswertbar("Durchschnitt der Beschäftigten Juni 2025 bis August 2025", mittel=True) is None
+
+
+# Fängt: „13/2025“ fiel still weg, die Antwort kam für den jüngsten Monat.
+def test_monat_dreizehn_ist_unklar() -> None:
+    from statagent.zeitraum import unklar
+
+    satz = unklar("Beschäftigte im 13/2025", "2026-07")
+    assert satz is not None and "kein Monat" in satz
+    assert unklar("Beschäftigte im 12/2025", "2026-07") is None

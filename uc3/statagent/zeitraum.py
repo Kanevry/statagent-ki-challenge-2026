@@ -741,6 +741,13 @@ def unklar(frage: str, letzter: str | None = None) -> str | None:
     „Sommerhalbjahr“ und „Wintersaison“ meinen je nach Fach andere Monate, „Winter 2025/27“ widerspricht sich. Mit
     ``letzter`` (jüngster Monat mit Daten) auch: Monat ohne Jahr neben Jahren, die nicht eindeutig zu ihm gehören.
     """
+    for muster, gruppe in ((ZAHL_MONAT, 1), (ISO, 2)):
+        for t in muster.finditer(frage):
+            if not 1 <= int(t.group(gruppe)) <= 12:
+                return (
+                    f"„{t.group(0)}“ ist kein Monat, ein Jahr hat zwölf. "
+                    "Welchen Monat meinen Sie, zum Beispiel „Beschäftigte im März 2025“?"
+                )
     t = _HALBJAHR_SAISON.search(frage)
     if t:
         return (
