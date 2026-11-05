@@ -72,8 +72,14 @@ KERN_SCHEMA: dict[str, Any] = {
 KERN_ZEICHEN = 170
 """Längster Kernsatz: Die Station zeigt die erste Zeile nur bis 320 Zeichen ganz
 (web/components/uc4/kette.tsx)."""
+_GELD = re.compile(
+    r"\b(?:Beitr\w+|Einnahm\w+|Geld\w*|\w*kosten\w*|kostet|zahl(?:t|en)|bezahl\w*|Budget\w*|\w*finanz\w*|Mittel)\b",
+    re.IGNORECASE,
+)
+"""Über Geld sagt die Station nur etwas, wenn ein Paket durchgerechnet ist: ohne Rechenmodell gibt es
+keinen Beleg."""
 FESTER_KERN = (
-    "Mehr Personal heißt meist kürzere Wartezeiten und mehr Betreuung, kostet aber mehr.",
+    "Mehr Personal heißt meist kürzere Wartezeiten und mehr Betreuung.",
     "Weniger Personal heißt meist längere Wartezeiten und mehr Druck auf die Beschäftigten.",
 )
 """Kernsätze, wenn das Modell keinen brauchbaren Text liefert oder die Frist um ist: allgemein, ohne Zahl."""
@@ -134,30 +140,30 @@ def kern_nachrichten(frage: str, lage: dict[str, Any], stimmen: list[dict[str, A
         f"# Frage\n{frage}\n\n# "
         f"Ausgangslage\n{json.dumps(lage, ensure_ascii=False, indent=1, sort_keys=True)}\n\n"
         f"# Haltungen der Interessenvertretungen\n{json.dumps(stimmen, ensure_ascii=False, indent=1)}\n\n"
-        "# Aufgabe\nSag Menschen ohne Fachwissen in zwei Sätzen, was die Abwägung ergibt. `mehr`: Was mehr "
-        "Personal "
-        "bedeutet, beginnt mit „Mehr Personal“. `weniger`: Was weniger Personal bedeutet, beginnt mit "
-        "„Weniger "
-        "Personal“. Geht es um die ganze Wirtschaft und nicht ums Gesundheitswesen, schreibe „Mehr "
-        "Beschäftigte“ und "
-        "„Weniger Beschäftigte“ und sage, was das für die Beiträge zur Krankenversicherung und die "
-        "Versorgung heißt. "
-        "Je Satz höchstens 15 Wörter und etwas Greifbares: Wartezeit, Betreuung, Kosten, Belastung. Nenne "
-        "einen "
-        "Streitpunkt nur, wenn es ihn wirklich gibt, und dann konkret, etwa „, aber wer es zahlt, ist "
-        "umstritten“. "
-        "Das sind allgemeine Zusammenhänge, schreibe „heißt meist“, "
-        "keine Vorhersage. Keine Zahlen, weder als Ziffern noch als Wörter. Wiederhole die Zahl aus der "
-        "Statistik "
+        "# Aufgabe\nSag Menschen ohne Fachwissen in zwei Sätzen, was mehr oder weniger Personal in der "
+        "Versorgung "
+        "bedeutet. `mehr` beginnt mit „Mehr Personal“, `weniger` beginnt mit „Weniger Personal“. Das gilt "
+        "auch, "
+        "wenn die Frage nach allen Branchen fragt. Je Satz höchstens 15 Wörter und nur Greifbares: "
+        "Wartezeit, "
+        "Betreuung, Belastung im Alltag. Nichts über Geld: keine Kosten, Beiträge, Einnahmen, Finanzierung. "
+        "Das "
+        "sind allgemeine Zusammenhänge, schreibe „heißt meist“, keine Vorhersage. Keine Zahlen, weder als "
+        "Ziffern noch als Wörter. Wiederhole die Zahl aus der Statistik "
         f"nicht.\n\n{kontext_block(kontext)}"
     )
     return [{"role": "system", "content": prompts.MODERATOR_SYSTEM}, {"role": "user", "content": text}]
 
 
 def kern_text(daten: dict[str, Any]) -> str | None:
-    """Die zwei Sätze als eine Zeile, oder `None`, wenn einer fehlt, zu lang ist oder eine Ziffer trägt."""
-    saetze = [" ".join(str(daten.get(feld) or "").split()) for feld in ("mehr", "weniger")]
-    if not all(saetze) or any(len(s) > KERN_ZEICHEN or re.search(r"\d", s) for s in saetze):
+    """Die zwei Sätze als eine Zeile, oder `None`, wenn einer fehlt, zu lang ist, eine Ziffer trägt, nicht
+    beim
+    Personal anfängt oder über Geld spricht."""
+    mehr, weniger = (" ".join(str(daten.get(feld) or "").split()) for feld in ("mehr", "weniger"))
+    saetze = [mehr, weniger]
+    if not mehr.startswith("Mehr Personal") or not weniger.startswith("Weniger Personal"):
+        return None
+    if any(len(s) > KERN_ZEICHEN or re.search(r"\d", s) or _GELD.search(s) for s in saetze):
         return None
     return " ".join(s if s.endswith((".", "!", "?")) else f"{s}." for s in saetze)
 

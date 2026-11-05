@@ -569,8 +569,21 @@ def test_modellkern_steht_oben(monkeypatch: pytest.MonkeyPatch) -> None:
         {"mehr": "", "weniger": "Weniger Personal heißt länger warten."},
         {"mehr": "Mehr Personal " * 20, "weniger": "Weniger Personal heißt länger warten."},
         UngueltigeAntwort("kaputt", "json $"),
+        {
+            "mehr": "Mehr Personal heißt mehr Beiträge zur Krankenversicherung.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
+        {
+            "mehr": "Mehr Personal heißt kürzer warten, aber wer es zahlt, ist umstritten.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
+        {"mehr": "Mehr Personal heißt höhere Kosten.", "weniger": "Weniger Personal heißt länger warten."},
+        {
+            "mehr": "Mehr Beschäftigte heißt kürzer warten.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
     ],
-    ids=["ziffer", "leer", "zu-lang", "modellfehler"],
+    ids=["ziffer", "leer", "zu-lang", "modellfehler", "beitraege", "wer-zahlt", "kosten", "falscher-anfang"],
 )
 def test_unbrauchbarer_kern_ergibt_feste_saetze(monkeypatch: pytest.MonkeyPatch, kern: Any) -> None:
     """Fängt: Bei einer Ziffer, einem leeren oder überlangen Satz oder einem Modellfehler bleibt die Zeile
@@ -640,3 +653,11 @@ def test_allgemeine_frage_waegen_aerzte_versicherte_und_kassen_ab(praes: UcAntwo
     zeilen = _akteurszeilen(praes.text)
     assert {z[2:].split(":", 1)[0] for z in zeilen} >= {namen["aerztekammer"], namen["sv"]}
     assert len(zeilen) == len(TEILNEHMER)
+
+
+def test_feste_kernsaetze_und_prompt_sagen_nichts_ueber_geld() -> None:
+    """Fängt den Widerspruch zur Lotsen-Karte: Über Beiträge oder Kosten gibt es ohne Rechenmodell keinen
+    Beleg."""
+    from uc2.antwort.allgemein import kern_text
+
+    assert kern_text(dict(zip(("mehr", "weniger"), FESTER_KERN, strict=True))) == " ".join(FESTER_KERN)
