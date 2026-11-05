@@ -1281,6 +1281,12 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     """
     if ist_pensionsfrage(frage) and not _PERSON.search(frage.lower()):
         return _pensionsfrage(conn, frage)
+    # Tiefe Codes (#189) vor Absage und Zählung. Import hier, weil frage_klass dieses Modul braucht.
+    from statagent.frage_klass import tiefer_code_antwort
+
+    tief = tiefer_code_antwort(conn, frage)
+    if tief is not None:
+        return tief
     try:
         letzter = _letzter_monat(conn, regelsatz)
     except psycopg.Error:
