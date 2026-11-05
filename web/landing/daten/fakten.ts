@@ -5,7 +5,7 @@
  * - Zeilen je Lieferung: `select lieferung, count(*) from roh.lieferung group by 1`, lokal PG 5433,
  *   gemessen 05.11.2026 (Summe 10.152.292, deckt sich mit PRD E0/E1 Pre-Mortem).
  * - Bundesländer 08/2024 und alle Befunde: Gegenrechnung Beispielbericht gegen Rohdaten
- *   (Golden Set 08/2024, Lead-Session 05.11.2026), Abschnitte 1, 3, 7, 8, 9.
+ *   (Golden Set 08/2024, Gegenrechnung des Teams vom 05.11.2026), Abschnitte 1, 3, 7, 8, 9.
  * Nichts hier wird zur Laufzeit gerechnet; die Zahlen rechnet die Datenbank, nicht die Seite.
  */
 
@@ -83,7 +83,7 @@ export const GOLDEN_SET = {
   zellenExakt: 2_880,
   zellenGesamt: 2_880,
   tabellen: 13,
-  /** Kern-Abfrage, gekürzt, wie in der Gegenrechnung Abschnitt 2 */
+  /** Vollständige Abfrage; ergibt lokal (PG 5433, 05.11.2026) genau `bestand` = 392.236. */
   belegSql:
     "select count(distinct vvh_id) from roh.lieferung\n" +
     " where lieferung = '2024-08'\n" +
@@ -132,16 +132,17 @@ export const BEFUNDE: readonly Befund[] = [
   },
   {
     id: "oenace-2003",
-    befund: "ÖNACE-2003-Codes DA bis DM",
-    lieferung: "alle",
-    saetze: "50",
+    befund: "Alte Branchencodes (ÖNACE 2003, DA bis DM)",
+    lieferung: "alle 24",
+    // gemessen 05.11.2026 je Lieferung: 40 (2025-10) bis 51 (2025-09) Zeilen, meist 49 oder 50
+    saetze: "40 bis 51 je Lieferung",
     einstufung: "erklaert-plausibel",
     einstufungText: "erklärt, plausibel",
     beleg: "oenace ~ '^D[A-N]$' → C",
   },
   {
     id: "bl-oenace-leer",
-    befund: "Bundesland und ÖNACE leer, immer gemeinsam",
+    befund: "Bundesland und Branche fehlen, immer gemeinsam",
     lieferung: "2024-08",
     saetze: "1.996",
     einstufung: "erklaert-datenproblem",
@@ -150,7 +151,7 @@ export const BEFUNDE: readonly Befund[] = [
   },
   {
     id: "volldubletten",
-    befund: "Volldubletten",
+    befund: "Doppelte Zeilen, alle Felder gleich",
     lieferung: "2025-03",
     saetze: "1.663 Zeilen, 1.523 doppelt am Stichtag",
     einstufung: "erklaert-datenproblem",

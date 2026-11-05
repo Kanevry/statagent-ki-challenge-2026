@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { BUNDESLAENDER_2024_08, GOLDEN_SET, zahl } from "../daten/fakten";
 import { berechneLayout, standardRaender, type BefundId, type SzeneLayout } from "../szene/motor/layout";
 import { MARKEN, RUHE_P, schrittAnteil } from "../szene/motor/zeitplan";
@@ -10,6 +10,7 @@ import {
   STRECKE_VH,
   erzeugeFortschritt,
   type FortschrittSpeicher,
+  type SchrittId,
   type SzeneVariante,
 } from "../szene/vertrag";
 import { BELEG, HERO, SCHRITT_TEXTE } from "../texte/inhalt";
@@ -185,14 +186,28 @@ export default function HeroSzene() {
         ],
       });
     };
-    // Vor dem ersten Bild des Motors (mobil: bis zur ersten Interaktion) dieselbe Rechnung ohne Kartenmeta
+    // Vor dem ersten Bild des Motors (mobil: bis zur ersten Interaktion) dieselbe Rechnung ohne
+    // Kartenmeta. Marken und Tabelle sind erst ab Schritt 2 sichtbar: im Leerlauf rechnen, nicht in
+    // der Aufgabe der Hydration, und nur bei geänderter Größe neu.
     let vomMotor = false;
+    let gemessen = "";
     const messen = () => {
       if (vomMotor) return;
       const { width: b, height: hh } = buehne.getBoundingClientRect();
+      const schluessel = `${b}x${hh}`;
+      if (schluessel === gemessen) return;
+      gemessen = schluessel;
       if (b < 200 || hh < 200) return setAnker(null);
       const v = modus.variante;
       uebernehmen(berechneLayout(b, hh, v, null, standardRaender(b, hh, v, true)));
+    };
+    const mitIdle = typeof window.requestIdleCallback === "function";
+    let auftrag = 0;
+    const planen = () => {
+      if (auftrag) return;
+      auftrag = mitIdle
+        ? window.requestIdleCallback(() => ((auftrag = 0), messen()), { timeout: 600 })
+        : window.setTimeout(() => ((auftrag = 0), messen()), 200);
     };
     const vomEvent = (e: Event) => {
       const l = (e as CustomEvent<SzeneLayout>).detail;
@@ -200,13 +215,17 @@ export default function HeroSzene() {
       vomMotor = true;
       uebernehmen(l);
     };
-    messen();
     buehne.addEventListener("szenelayout", vomEvent);
-    const beobachter = new ResizeObserver(messen);
+    // Der erste Aufruf des Beobachters kommt sofort nach observe und plant die erste Messung.
+    const beobachter = new ResizeObserver(planen);
     beobachter.observe(buehne);
     return () => {
       beobachter.disconnect();
       buehne.removeEventListener("szenelayout", vomEvent);
+      if (auftrag) {
+        if (mitIdle) window.cancelIdleCallback(auftrag);
+        else window.clearTimeout(auftrag);
+      }
     };
   }, [modus]);
 
@@ -257,26 +276,7 @@ export default function HeroSzene() {
         <div className={h.ebene}>
           <div className={h.texte}>
             <div className={h.erststand} data-lage={lage(-1)}>
-              <h1 id="hero-titel" className={h.titel}>
-                {HERO.titel} <span className={h.autor}>{HERO.autor}</span>
-              </h1>
-              <p className={h.leitmotiv}>
-                {HERO.leitmotiv.map((wort, i) => (
-                  <span key={wort} className={h.motivTeil} style={{ "--n": i } as CSSProperties}>
-                    {i > 0 ? (
-                      <>
-                        <span className={h.pfeil} aria-hidden="true">
-                          →
-                        </span>
-                        <span className={s.nurLeser}> führt zu </span>
-                      </>
-                    ) : null}
-                    <span className={i === HERO.leitmotiv.length - 1 ? h.motivZiel : undefined}>{wort}</span>
-                  </span>
-                ))}
-              </p>
-              <p className={h.satz}>{HERO.satz}</p>
-              <p className={h.hinweis}>{HERO.hinweis}</p>
+              <ErststandInhalt />
             </div>
 
             {SCHRITTE.map((schritt, i) => {
@@ -290,9 +290,7 @@ export default function HeroSzene() {
                   aria-labelledby={`schritt-${schritt.id}`}
                 >
                   <div className={h.schrittText}>
-                    <h2 id={`schritt-${schritt.id}`} className={h.schrittTitel}>
-                      {t.titel}
-                    </h2>
+                    <SchrittTitel id={schritt.id} />
                     <p className={h.kennzahlZeile}>
                       <Kennzahl
                         wert={t.kennzahl}
@@ -302,15 +300,7 @@ export default function HeroSzene() {
                       />
                       <span className={h.einheit}>{t.einheit}</span>
                     </p>
-                    <p className={h.schrittSatz}>{t.text}</p>
-                    {schritt.id === "belegen" ? (
-                      <figure className={h.beleg}>
-                        <pre className={h.code}>
-                          <code>{BELEG.sql}</code>
-                        </pre>
-                        <figcaption className={h.belegText}>{BELEG.unterschrift}</figcaption>
-                      </figure>
-                    ) : null}
+                    <SchrittErklaerung id={schritt.id} />
                   </div>
                   {schritt.id === "belegen" ? <LaenderTabelle anker={anker} /> : null}
                 </article>
@@ -349,6 +339,78 @@ export default function HeroSzene() {
     </section>
   );
 }
+
+/**
+ * Statische Textblöcke als memo-Komponenten: Sie ändern sich nie, Re-Renders der Szene (Modus,
+ * aktiver Schritt, Anker) überspringen sie.
+ */
+const ErststandInhalt = memo(function ErststandInhalt() {
+  return (
+    <>
+      <h1 id="hero-titel" className={h.titel}>
+        {HERO.titel} <span className={h.autor}>{HERO.autor}</span>
+      </h1>
+      <p className={h.leitmotiv}>
+        {HERO.leitmotiv.map((wort, i) => (
+          <span key={wort} className={h.motivTeil} style={{ "--n": i } as CSSProperties}>
+            {i > 0 ? (
+              <>
+                <span className={h.pfeil} aria-hidden="true">
+                  →
+                </span>
+                <span className={s.nurLeser}> führt zu </span>
+              </>
+            ) : null}
+            <span className={i === HERO.leitmotiv.length - 1 ? h.motivZiel : undefined}>{wort}</span>
+          </span>
+        ))}
+      </p>
+      <p className={h.satz}>{HERO.satz}</p>
+      <div className={h.ergebnis}>
+        <dl className={h.ergebnisListe} aria-label={HERO.ergebnisBereich}>
+          {HERO.ergebnis.map((e) => (
+            <div key={e.text} className={h.ergebnisPunkt}>
+              <dt className={h.ergebnisText}>{e.text}</dt>
+              <dd className={h.ergebnisWert}>{e.wert}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className={h.ergebnisQuelle}>{HERO.ergebnisQuelle}</p>
+      </div>
+      <p className={h.hinweis}>{HERO.hinweis}</p>
+    </>
+  );
+});
+
+const SchrittTitel = memo(function SchrittTitel({ id }: { id: SchrittId }) {
+  return (
+    <h2 id={`schritt-${id}`} className={h.schrittTitel}>
+      {SCHRITT_TEXTE[id].titel}
+    </h2>
+  );
+});
+
+const SchrittErklaerung = memo(function SchrittErklaerung({ id }: { id: SchrittId }) {
+  const t = SCHRITT_TEXTE[id];
+  return (
+    <>
+      <p className={h.schrittSatz}>{t.text}</p>
+      {t.glossar.map((g) => (
+        <p key={g.begriff} className={h.glossar}>
+          <dfn>{g.begriff}</dfn>: {g.erklaerung}
+        </p>
+      ))}
+      {id === "belegen" ? (
+        <figure className={h.beleg}>
+          <pre className={h.code}>
+            <code>{BELEG.sql}</code>
+          </pre>
+          <figcaption className={h.belegText}>{BELEG.unterschrift}</figcaption>
+        </figure>
+      ) : null}
+    </>
+  );
+});
 
 /** Große Kennzahl; zählt beim Aktivwerden in höchstens 600 ms hoch. SSR und ohne JS: Endwert. */
 function Kennzahl({
@@ -398,7 +460,7 @@ function Kennzahl({
  * Auflösung der Karte). Sichtbarkeit steuert `data-marken` am Abschnitt, damit Text und Partikel
  * gemeinsam ruhen. Die Zahlen stehen zugänglich in Schritt-Texten, Tabelle und Abschnitt Datenfehler.
  */
-function SzenenMarken({ layout: l }: { layout: SzeneLayout }) {
+const SzenenMarken = memo(function SzenenMarken({ layout: l }: { layout: SzeneLayout }) {
   const mobil = l.variante === "mobil";
   const k = l.karte;
   const linien = l.bundeslaender
@@ -455,9 +517,9 @@ function SzenenMarken({ layout: l }: { layout: SzeneLayout }) {
       </div>
     </div>
   );
-}
+});
 
-function LaenderTabelle({ anker }: { anker: TabellenAnker | null }) {
+const LaenderTabelle = memo(function LaenderTabelle({ anker }: { anker: TabellenAnker | null }) {
   const nachCode = new Map(BUNDESLAENDER_2024_08.map((b) => [b.code as number, b]));
   const absteigend = [...BUNDESLAENDER_2024_08]
     .filter((b) => b.code !== 0)
@@ -530,4 +592,4 @@ function LaenderTabelle({ anker }: { anker: TabellenAnker | null }) {
       </table>
     </div>
   );
-}
+});

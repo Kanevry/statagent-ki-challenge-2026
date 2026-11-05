@@ -89,11 +89,36 @@
   line-height: 1.45;
 }
 
+/* Neutral statt Warnfarbe: die Gegenrechnung ist ein Stand, kein Defekt (Roast K5). */
 .quelleBeispiel {
-  padding: 8px 12px;
-  border-radius: 4px;
-  background: var(--l-warn-bg);
-  color: var(--l-warn-fg);
+  font-family: var(--l-mono);
+  font-size: 12px;
+  color: var(--l-slate);
+}
+
+.glossar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 32px;
+  margin: 32px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--l-slate);
+}
+
+.glossar dt {
+  font-weight: 600;
+  color: var(--l-ink);
+}
+
+.glossar dd {
+  margin: 2px 0 0;
+}
+
+@media (max-width: 767px) {
+  .glossar {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .quelleLive {

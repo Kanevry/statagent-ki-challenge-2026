@@ -1,0 +1,17 @@
+/*
+ * Abschnitte unterhalb der Szene: Der Browser rechnet Stil und Layout erst, wenn sie in die Nähe des
+ * Viewports kommen. Vor dem ersten Bild entfällt damit ihre Layoutarbeit, und Schriften, die nur
+ * dort vorkommen (Inter griechisch für „Δ“), laden nicht im kritischen Pfad. Inhalt bleibt im DOM,
+ * im Accessibility-Baum, in der Seitensuche und für Sprungmarken erreichbar.
+ * Die Höhe vor dem ersten Rendern ist eine Schätzung; danach merkt sich der Browser die echte (auto).
+ */
+.spaeter {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 4200px;
+}
+
+@media (max-width: 767px) {
+  .spaeter {
+    contain-intrinsic-size: auto 6400px;
+  }
+}
