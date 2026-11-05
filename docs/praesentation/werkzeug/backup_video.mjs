@@ -67,7 +67,9 @@ function ebenen(kennzeichen) {
       "position:fixed;left:24px;bottom:24px;z-index:2147483647;background:rgba(11,17,23,.92);color:#fff;" +
       "font:500 26px/1.3 system-ui,sans-serif;padding:12px 18px;border-radius:8px;max-width:1500px;pointer-events:none";
     u.textContent = window.__aufzZeile || "";
-    document.body.append(k, u);
+    const s = document.createElement("style");
+    s.textContent = "nextjs-portal{display:none!important}";
+    document.body.append(k, u, s);
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bau);
   else bau();
