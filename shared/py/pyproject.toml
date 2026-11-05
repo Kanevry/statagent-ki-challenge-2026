@@ -16,7 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Nur lokal, nicht in CI: torch macht jede Pipeline Minuten länger (#67).
-embeddings = ["sentence-transformers>=5.1"]
+embeddings = ["sentence-transformers>=6.2"]
 
 [build-system]
 requires = ["hatchling>=1.27"]
