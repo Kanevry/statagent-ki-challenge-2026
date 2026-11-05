@@ -1,0 +1,33 @@
+[project]
+name = "kic-2026"
+version = "0.1.0"
+description = "KI Challenge 2026, Team OneShotAndy: Workspace-Wurzel (nicht installiert)"
+requires-python = ">=3.12"
+dependencies = ["plattform"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+plattform = { workspace = true }
+
+[tool.uv.workspace]
+# uc1/ uc2/ uc3/ hängen sich mit eigener pyproject.toml ein; danach `uv lock` an der Wurzel.
+members = ["shared/py", "uc*"]
+
+[dependency-groups]
+dev = ["pytest>=8.4", "ruff>=0.14"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = [".uv-cache", "web", "shared/ui", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["shared/py/tests", "uc1/tests", "uc2/tests", "uc3/tests"]
+markers = [
+  "daten: braucht die echten Daten in PostgreSQL 5433 (nur lokal; CI läuft mit -m 'not daten')",
+]

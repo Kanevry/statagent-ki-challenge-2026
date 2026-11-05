@@ -55,9 +55,9 @@ Teams, die Mitglieder suchen, melden sich beim Helpdesk.
 ## 3. Veranstalter-Modell: Azure AI Foundry
 
 Aus `Beispiel Verbindung API KEY.docx`: OpenAI-kompatibler Endpunkt
-`https://aif-dvsv-dev-hackathon-01-we-01.services.ai.azure.com/openai/v1`, Deployment `gpt-5-4-mini`, Beispiel mit
+`https://aif-dvsv-dev-hackathon-01-we-16.services.ai.azure.com/openai/v1`, Deployment `gpt-5-4-mini`, Beispiel mit
 `chat/completions` (`max_completion_tokens`, `reasoning_effort: medium`) und mit dem Python-SDK `openai` über
-`client.responses.create`. Region laut Hostname West Europe („we-01“). **Den Schlüssel gibt es bei der Anmeldung**; er
+`client.responses.create`. Region laut Hostname West Europe („we-16“, Endpunkt laut Lead-Smoke 05.11. 12:2x). **Den Schlüssel gibt es bei der Anmeldung**; er
 gehört in `.env.local` als `AZURE_API_KEY`, nie ins Repo. UC3 schreibt vor: „Für die Agenten verwendet ihr die
 bereitgestellten Modelle am Azure-Endpunkt. Das Modell muss austauschbar sein.“ Mistral bleibt der Schalter dahinter.
 
