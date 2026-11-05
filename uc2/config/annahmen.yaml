@@ -1,0 +1,199 @@
+# Annahmenregister des Experten (#42). Jede Zahl, mit der `uc2 experte` rechnet, steht hier.
+# Typ: B = belegt aus Daten, D = abgeleitet (Herleitung in `quelle`), A = Annahme/Expertenschätzung.
+# Die Spanne (alle Min/Max-Ecken) läuft nur über A-Annahmen mit min < max; B und D gehen mit dem Modus ein.
+# Jede B-Quelle nennt Herausgeber, Datei unter `data/uc2/` (nicht im Repo), Seite oder Tabelle und Jahr.
+# Ohne prüfbare Primärquelle ist eine Zahl Typ A („Unbelegt, Expertenschätzung“).
+# Ein Paket (`uc2/pakete/*.yaml`) darf nur A-Annahmen überschreiben; die Ausgabe markiert das und nennt das
+# Paket als Quelle. B und D sind Daten und für Pakete gesperrt.
+#
+# Bezugsgröße (ein Pool für Wirkung und Kosten): die fachärztliche Kassenversorgung. ρ₀, der
+# Kassenstellen-Bestand und die Umfänge aller Maßnahmen beziehen sich auf diesen Pool, weil die Leitfrage
+# (PRD S10) nach Wartezeiten auf Facharzttermine fragt. Allgemeinmedizin wirkt nur über die Nachfrage beim
+# Pool (PVE, Triage).
+#
+# Werteregeln (beim Laden geprüft): alle Werte ≥ 0, Einheit „Anteil“ ≤ 1, ρ₀ zwischen 0 und 1
+# (ausschließlich), Kostenbasen > 0, Teiler einer Formel > 0, min ≤ modus ≤ max.
+version: 1
+annahmen:
+  # --- Basis -------------------------------------------------------------------------------------------
+  - id: rho0
+    symbol: ρ₀
+    beschreibung: Auslastung der fachärztlichen Kassenversorgung im Ausgangsjahr (Nachfrage/Kapazität)
+    min: 0.70
+    modus: 0.80
+    max: 0.95
+    einheit: Anteil
+    typ: A
+    quelle: >-
+      Unbelegt, Expertenschätzung. Keine Datenquelle zur Auslastung gefunden; Modell W ∝ ρ/(1−ρ) ist
+      Vorgabe aus Issue #42. Die Spanne 0,70 bis 0,95 ist bewusst weit (PRD-Risiko „Zielprüfung hängt an
+      unbelegtem ρ₀“).
+  - id: ausgangsausgaben
+    beschreibung: Laufende Gesundheitsausgaben Österreich laut System of Health Accounts (öffentlich und privat)
+    min: 61338
+    modus: 61338
+    max: 61338
+    einheit: Mio. EUR
+    jahr: 2025
+    typ: B
+    quelle: >-
+      Statistik Austria, Pressemitteilung 14 202-121/26 vom 11.06.2026, Datei
+      data/uc2/statistik_at_gesundheitsausgaben/20260611Gesundheitsausgaben2025.pdf, Seite 2, Tabelle,
+      Zeile „Laufende Gesundheitsausgaben“, Spalte 2025 (erste Schätzung).
+  - id: basis_niedergelassen
+    beschreibung: >-
+      Laufende Gesundheitsausgaben für die kurative und rehabilitative niedergelassene Versorgung
+      (Zusatzkennzahl, nicht Teil der Zielprüfung)
+    min: 11800
+    modus: 11800
+    max: 11800
+    einheit: Mio. EUR
+    jahr: 2024
+    typ: B
+    quelle: >-
+      Parlamentarischer Budgetdienst, „Finanzierung des österreichischen Gesundheitssystems“, Datei
+      data/uc2/parlament_budgetdienst/BD-Finanzierung-des-oesterreichischen-Gesundheitssystems.pdf,
+      PDF-Seite 37: „im Jahr 2024 mit 11,8 Mrd. EUR bzw. 24 % auf die kurative und rehabilitative
+      niedergelassene Versorgung“ (enthält auch Zahnärzt:innen und andere Gesundheitsberufe; Jahr 2024).
+  - id: bevoelkerung
+    beschreibung: Bevölkerung Österreich 2025 (Jahresmitte)
+    min: 9209827
+    modus: 9209827
+    max: 9209827
+    einheit: Personen
+    jahr: 2025
+    typ: B
+    quelle: >-
+      Statistik Austria, Bevölkerungsprognose 2025, Hauptszenario, Datei
+      data/uc2/statistik_at_bevoelkerungsprognose/Oesterreich_Hauptszenario_2025.ods, Tabelle
+      „5_Bev_5j_Jahresmitte“, Zeile „Zusammen“, Jahr 2025.
+  # --- Kassenstellen -----------------------------------------------------------------------------------
+  - id: kassenstellen_bestand
+    beschreibung: Bestand an fachärztlichen Kassenstellen (Vollstellen, Pool der Bezugsgröße)
+    min: 3500
+    modus: 4200
+    max: 5000
+    einheit: Stellen
+    typ: A
+    quelle: >-
+      Unbelegt, Expertenschätzung. Die ÖÄK-Ärztestatistik 2025
+      (data/uc2/aerztekammer_aerztestatistik/20260729_pk-unterlage-arztestatistik-2025.pdf) nennt keine Zahl
+      der Kassenstellen, nur dass die Zahl der Kassenärzt:innen seit 20 Jahren etwa gleich ist. Startwert:
+      rund die Hälfte von rund 8.250 Kassenärzt:innen (Köpfe, Sekundärangabe), weite Spanne.
+  - id: kassenstellen_besetzung
+    beschreibung: Anteil zusätzlicher Kassenstellen, die besetzt und voll versorgungswirksam werden
+    min: 0.60
+    modus: 0.85
+    max: 1.00
+    einheit: Anteil
+    typ: A
+    quelle: >-
+      Unbelegt, Expertenschätzung. Richtung: Die ÖÄK-Ärztestatistik 2025 (Pressetext, Datei wie bei
+      kassenstellen_bestand) nennt offene Kassenstellen, ohne Zahl; neue Stellen werden nicht sicher besetzt.
+  - id: kosten_je_kassenstelle
+    beschreibung: Mehrkosten je besetzter zusätzlicher Kassenstelle (Honorar und Förderung)
+    min: 0.30
+    modus: 0.45
+    max: 0.60
+    einheit: Mio. EUR pro Jahr und Stelle
+    typ: A
+    quelle: Expertenschätzung, keine Quelle gelesen; Größenordnung eines Kassenhonorars je Vollstelle.
+  # --- Telemedizin -------------------------------------------------------------------------------------
+  - id: telemedizin_substitution
+    beschreibung: Anteil der Telekontakte, die einen Kontakt vor Ort tatsächlich ersetzen
+    min: 0.30
+    modus: 0.50
+    max: 0.80
+    einheit: Anteil
+    typ: A
+    quelle: Expertenschätzung, keine Quelle gelesen.
+  - id: kosten_telemedizin
+    beschreibung: Mehrkosten je Prozentpunkt telemedizinischer Kontakte (Plattform, Tarifzuschlag)
+    min: 8
+    modus: 15
+    max: 30
+    einheit: Mio. EUR pro Jahr und Prozentpunkt
+    typ: A
+    quelle: >-
+      Unbelegt, Expertenschätzung. Größenordnung: 1 Prozentpunkt von angenommen rund 83 Mio. Kontakten
+      (9,2 Mio. Personen × angenommen 9 Kontakte) ≈ 0,83 Mio. Telekontakte × 10 bis 35 EUR Zusatzkosten.
+  # --- Digitale Facharzt-Triage ------------------------------------------------------------------------
+  - id: triage_vermeidung
+    beschreibung: Anteil digital triagierter Überweisungen, die keinen Facharztkontakt mehr brauchen
+    min: 0.05
+    modus: 0.15
+    max: 0.25
+    einheit: Anteil
+    typ: A
+    quelle: >-
+      Unbelegt, Expertenschätzung (geringe Befolgung und Fehlsteuerung der Lenkung begrenzen die Wirkung).
+  - id: kosten_triage
+    beschreibung: Mehrkosten je Prozentpunkt digital triagierter Überweisungen (Betrieb, ärztliche Sichtung)
+    min: 2
+    modus: 4
+    max: 8
+    einheit: Mio. EUR pro Jahr und Prozentpunkt
+    typ: A
+    quelle: Expertenschätzung, keine Quelle gelesen.
+  # --- Kompetenzen Gesundheitsberufe (Task-Shifting) ---------------------------------------------------
+  - id: kompetenzen_entlastung
+    beschreibung: Freiwerdende ärztliche Kapazität je delegierter Leistung
+    min: 0.50
+    modus: 0.70
+    max: 0.90
+    einheit: Anteil
+    typ: A
+    quelle: Expertenschätzung, keine Quelle gelesen (Delegation bindet Rücksprache und Aufsicht).
+  - id: kosten_kompetenzen
+    beschreibung: Mehrkosten je Prozentpunkt delegierter fachärztlicher Leistungen (Ausbildung, Honorar)
+    min: 10
+    modus: 20
+    max: 40
+    einheit: Mio. EUR pro Jahr und Prozentpunkt
+    typ: A
+    quelle: Expertenschätzung, keine Quelle gelesen.
+  # --- Öffnungszeiten ----------------------------------------------------------------------------------
+  - id: oeffnungszeiten_produktivitaet
+    beschreibung: Versorgungswirksamer Anteil zusätzlicher Ordinationsstunden
+    min: 0.50
+    modus: 0.80
+    max: 1.00
+    einheit: Anteil
+    typ: A
+    quelle: Expertenschätzung, keine Quelle gelesen (Randzeiten sind schwächer gebucht).
+  - id: kosten_oeffnungszeiten
+    beschreibung: Mehrkosten je Prozent zusätzlicher Ordinationsstunden in Kassenordinationen
+    min: 30
+    modus: 50
+    max: 80
+    einheit: Mio. EUR pro Jahr und Prozent
+    typ: A
+    quelle: >-
+      Unbelegt, Expertenschätzung. Obergrenze der Bezugsgröße: niedergelassene Versorgung 11,8 Mrd. EUR 2024
+      (basis_niedergelassen, Budgetdienst PDF-Seite 37); fachärztliche Kassenhonorare sind ein Teil davon.
+  # --- Primärversorgungseinheiten ----------------------------------------------------------------------
+  - id: pve_versicherte
+    beschreibung: Betreute Versicherte je zusätzlicher Primärversorgungseinheit
+    min: 3000
+    modus: 6000
+    max: 12000
+    einheit: Personen je PVE
+    typ: A
+    quelle: Unbelegt, Expertenschätzung; bei GÖG oder ÖGK zu verifizieren.
+  - id: pve_entlastung
+    beschreibung: Minderung der Facharzt-Nachfrage je betreuter versicherter Person
+    min: 0.00
+    modus: 0.05
+    max: 0.10
+    einheit: Anteil
+    typ: A
+    quelle: >-
+      Unbelegt, Expertenschätzung. Richtung (Entlastung mit Zeitverzug) plausibel, Größenordnung offen.
+  - id: pve_zusatzkosten
+    beschreibung: Zusatzkosten je Primärversorgungseinheit
+    min: 0.3
+    modus: 0.6
+    max: 1.2
+    einheit: Mio. EUR pro Jahr und PVE
+    typ: A
+    quelle: Unbelegt, Expertenschätzung; Fördermodelle und ÖGK-Honorarordnung zu prüfen.

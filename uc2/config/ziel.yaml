@@ -1,0 +1,10 @@
+# Ziel der Zielprüfung des Experten (#42). Anteile, nicht Prozent: −0.20 = −20 %, 0.05 = +5 %.
+# Mehrkosten beziehen sich auf die jährlichen Mehrkosten im Zieljahr in Anteilen der Ausgangsausgaben 2025
+# (`ausgangsausgaben` in annahmen.yaml), nicht kumuliert.
+version: 1
+wartezeit_aenderung_hoechstens: -0.20
+kosten_aenderung_hoechstens: 0.05
+zieljahr: 5
+quelle: >-
+  PRD docs/plan/uc2/2026-11-05-healthpolicy-simulator.md, S10 (Leitfrage: Wartezeiten auf Facharzttermine
+  innerhalb von fünf Jahren um 20 % reduzieren) und S4 (Zielprüfung „−20 % Wartezeit, ≤ +5 % Kosten“)
