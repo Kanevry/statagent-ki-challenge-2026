@@ -1,0 +1,113 @@
+{
+  "szenario": "pflege",
+  "aufgenommen": "2026-11-05T15:40:41Z",
+  "quelle": "lotse frage --json, Kern feat/uc1-kern-31 582fded, Provider azure",
+  "schritte": [
+    {
+      "eingabe": {
+        "text": "Meine Mutter kommt allein nicht mehr zurecht. Sie ist 84, wohnt in Wien, war im Oktober nach einem Sturz im Spital.",
+        "stil": "einfach"
+      },
+      "antwort": {
+        "text": "Von wem bekommt die Person ihre Pension? Zum Beispiel PVA, SVS oder BVAEB. Sie können auch sagen: keine Pension.",
+        "verhalten": "rueckfrage",
+        "sitzung_id": "0433fcd6-89d3-469e-9fc6-6c7e5bad8fc2",
+        "rueckfrage": "Von wem bekommt die Person ihre Pension? Zum Beispiel PVA, SVS oder BVAEB. Sie können auch sagen: keine Pension.",
+        "aussagen": [],
+        "traeger": [],
+        "naechste_schritte": [],
+        "leistungen": [
+          "pflegegeld"
+        ],
+        "antraege": [
+          "pflegegeld"
+        ],
+        "modell": "gpt-5-4-mini",
+        "provider": "azure",
+        "grenze": false,
+        "uebergabe_an": null,
+        "hinweise": []
+      }
+    },
+    {
+      "eingabe": {
+        "text": "Sie bekommt ihre Pension von der PVA.",
+        "stil": "einfach"
+      },
+      "antwort": {
+        "text": "Pflegegeld braucht meist mehr als sechs Monate Bedarf (BPGG § 4). Pflegegeld Stufe 1 braucht mehr als 65 Stunden monatlich (BPGG § 4). Pflegegeld beantragen Familienmitglieder ohne Bevollmächtigung (BPGG § 25). Dort beantragt man Pflege und Betreuung zu Hause (FSW-Antrag auf Förderung, S. 5).\nZuständig: Pensionsversicherungsanstalt (PVA) (BPGG § 22 Abs. 1 Z 1).\nSo geht es weiter:\n1. Stellen Sie den Antrag auf Pflegegeld (PAL080) der PVA.\n2. Legen Sie Kopien Ihrer Befunde von Arzt, Ärztin oder Krankenhaus bei (Antrag PAL080, S. 2).\n3. Ich kann den Antrag für Sie vorausfüllen. Abgeschickt wird nichts.\n4. Hilfe im Alltag: FSW-Antrag auf Förderung, S. 5.\n5. Hilfe im Alltag: Serviceratgeber 2026, S. 11.\n6. Fragen klären Sie direkt mit: Pensionsversicherungsanstalt (PVA).\nDiese Auskunft kommt von einem KI-Lotsen. Die Entscheidung trifft der Träger.",
+        "verhalten": "antwort",
+        "sitzung_id": "0433fcd6-89d3-469e-9fc6-6c7e5bad8fc2",
+        "rueckfrage": null,
+        "aussagen": [
+          {
+            "text": "Pflegegeld braucht meist mehr als sechs Monate Bedarf.",
+            "zitat": "der ständige Betreuungs- und Hilfsbedarf (Pflegebedarf) voraussichtlich mindestens sechs Monate andauern wird oder würde.",
+            "quelle": "BPGG § 4",
+            "stand": "2015-01-01",
+            "betrag": false,
+            "hinweis_hoehe": false,
+            "angebot": false
+          },
+          {
+            "text": "Pflegegeld Stufe 1 braucht mehr als 65 Stunden monatlich.",
+            "zitat": "Stufe 1: für Personen, deren Pflegebedarf nach Abs. 1 durchschnittlich mehr als 65 Stunden monatlich beträgt;",
+            "quelle": "BPGG § 4",
+            "stand": "2015-01-01",
+            "betrag": false,
+            "hinweis_hoehe": false,
+            "angebot": false
+          },
+          {
+            "text": "Pflegegeld beantragen Familienmitglieder ohne Bevollmächtigung.",
+            "zitat": "auch durch Familienmitglieder oder Haushaltsangehörige ohne Nachweis der Bevollmächtigung gestellt werden",
+            "quelle": "BPGG § 25",
+            "stand": "2018-07-01",
+            "betrag": false,
+            "hinweis_hoehe": false,
+            "angebot": false
+          },
+          {
+            "text": "Dort beantragt man Pflege und Betreuung zu Hause.",
+            "zitat": "Pflege und Betreuung zu Hause / Tagesbetreuung Ich beantrage eine Förderung für:",
+            "quelle": "FSW-Antrag auf Förderung, S. 5",
+            "stand": null,
+            "betrag": false,
+            "hinweis_hoehe": false,
+            "angebot": true
+          }
+        ],
+        "traeger": [
+          {
+            "leistung": "pflegegeld",
+            "stelle": "PVA",
+            "name": "Pensionsversicherungsanstalt (PVA)",
+            "fundstelle": "BPGG § 22 Abs. 1 Z 1",
+            "status": "pva",
+            "zitat": "der für die Gewährung der Vollrente, Pension oder des Sonderruhegeldes zuständige Sozialversicherungsträger"
+          }
+        ],
+        "naechste_schritte": [
+          "Stellen Sie den Antrag auf Pflegegeld (PAL080) der PVA.",
+          "Legen Sie Kopien Ihrer Befunde von Arzt, Ärztin oder Krankenhaus bei (Antrag PAL080, S. 2).",
+          "Ich kann den Antrag für Sie vorausfüllen. Abgeschickt wird nichts.",
+          "Hilfe im Alltag: FSW-Antrag auf Förderung, S. 5.",
+          "Hilfe im Alltag: Serviceratgeber 2026, S. 11.",
+          "Fragen klären Sie direkt mit: Pensionsversicherungsanstalt (PVA)."
+        ],
+        "leistungen": [
+          "pflegegeld"
+        ],
+        "antraege": [
+          "pflegegeld"
+        ],
+        "modell": "gpt-5-4-mini",
+        "provider": "azure",
+        "grenze": false,
+        "uebergabe_an": null,
+        "hinweise": []
+      }
+    }
+  ],
+  "belege_sha256": "58a54821560309917bff750a1451c12d7065311571cdeb3901a1aae5b6b8833b"
+}
