@@ -471,8 +471,10 @@ describe("POST /api/uc4/frage, Strom der Stationen", () => {
       ende(null);
     });
     const haengt = {
+      // Hängt bis zum Abbruch und endet dann ohne eine einzige Zeile (das leere yield* hält require-yield ein).
       zeilen: (async function* () {
         await new Promise<void>((los) => (weiter = los));
+        yield* [];
       })(),
       ende: new Promise<number | null>((aufloesen) => (ende = aufloesen)),
       abbrechen,
