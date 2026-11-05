@@ -127,6 +127,7 @@ Zusatz (12:00–13:00), eine ehrliche Absage, nur wenn Zeit bleibt: „Entwicklu
 
 **Nicht vorführen:**
 
+- Fragen nach Bezirken, Gemeinden oder tiefen ÖNACE-Codes: „Welche Bezirke hat Tirol?“ liefert die Zahl für Tirol statt einer Liste, „C 10.11-0“ antwortet nur zu Abschnitt C (#189).
 - Alter wie „unter 25“. Die Frage liefert still die Gesamtzahl 399.027, ohne Hinweis. Gemeldet an die UC3-Lane.
 - Was eine Zahl liefert, aber nicht gegen das Orakel geprüft ist: Branchen in Umgangssprache („Gastronomie“, „Gesundheitswesen“, „Handel“), „freie Dienstverträge“, Zeiträume („von März bis Juni 2025“).
 
