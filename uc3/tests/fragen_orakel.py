@@ -218,6 +218,9 @@ def _soll_bestand(conn: Any, zeile: Zeile) -> Soll:
         soll.erlaubt.add(float(sum(int(z["wert"]) for z in zeilen)))
         return soll
     zeilen = _bestand(conn, zeile, gruppe)
+    if not zeilen and not gruppe:
+        # Keine Zeile heißt: In diesem Monat gibt es 0 davon, nicht „keine Antwort“.
+        return Soll(pflicht={m: 0.0 for m in zeile.monate})
     for z in zeilen:
         schluessel = f"{z['monat']} {z['gruppe']}" if gruppe else str(z["monat"])
         soll.pflicht[schluessel] = float(z["wert"])

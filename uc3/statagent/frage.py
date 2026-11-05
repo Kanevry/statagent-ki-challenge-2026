@@ -257,6 +257,18 @@ EINWOHNER: dict[str, tuple[str, ...]] = {
 _ZEITWORT_OHNE_MONAT = re.compile(r"\b(?:jahr|jahre|jahren|jahres|monat|monate|monaten|monats|zeitraum)\b", re.IGNORECASE)
 #: Fragt nach einer Änderung: Der Stand eines Monats allein wäre eine andere Antwort.
 _VERAENDERUNG = re.compile(r"\b(?:veränder\w*|veraender\w*|gestiegen|gesunken|gewachsen|stieg|sank)\b", re.IGNORECASE)
+_MONATSWORT = "|".join(sorted(map(re.escape, MONATSNAMEN), key=len, reverse=True))
+#: „im Monat nach Dezember 2025“, „vor Juni“, „nach dem Ende des Winters“: Der Monat in der Frage ist nicht der gemeinte.
+_ZEITBEZUG = re.compile(
+    rf"\b(?:vor|nach)\s+(?:dem\s+|der\s+|den\s+)?(?:ende\b|beginn\b|anfang\b|start\b|sommer|winter|herbst|frühling|frühjahr"
+    rf"|(?:{_MONATSWORT})\b)",
+    re.IGNORECASE,
+)
+#: „Wie viele Bundesländer …“ fragt nach etwas anderem als nach Beschäftigungsverhältnissen.
+_ZAEHLT_ANDERES = re.compile(
+    r"\bwie\s*viele\s+(?:der\s+|von\s+den\s+)?(?:bundesl\w*|branchen|wirtschaftsbereich\w*|abschnitte|kategorien|monate)\b",
+    re.IGNORECASE,
+)
 _VERNEINUNG = frozenset({"außer", "ausser", "ohne", "nicht", "kein", "keine", "keinen", "keiner", "ausgenommen"})
 _FRAU = re.compile(r"\b(frau|frauen|weiblich\w*)\b")
 _MANN = re.compile(r"\b(mann|männer|maenner|männlich\w*|maennlich\w*)\b")
@@ -278,7 +290,6 @@ _ORT_KETTE = re.compile(
     r"\b(?:im|in der|in den|in|branche|bereich)\s+([\w-]+(?:\s*(?:,|\bund\b|\boder\b|\bsowie\b)\s*[\w-]+)*)",
     re.IGNORECASE,
 )
-_MONATSWORT = "|".join(sorted(map(re.escape, MONATSNAMEN), key=len, reverse=True))
 _LETZTES_JAHR = re.compile(r"\b(?:im\s+)?letzte[nms]?\s+jahr(?:es)?\b", re.IGNORECASE)
 _AKTUELL = re.compile(r"\b(aktuell|derzeit|zurzeit|momentan|jetzt)\b", re.IGNORECASE)
 KATEGORIE = _merkmal("Beschäftigungskategorie")
@@ -1494,6 +1505,16 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     grund = unklar(frage, letzter or LETZTE_LIEFERUNG)
     if grund is not None:
         return _rueckfrage(grund)
+    if _ZEITBEZUG.search(frage):
+        return _rueckfrage(
+            "Zeitangaben mit Bezug auf einen anderen Zeitpunkt rechnet StatAgent nicht um. "
+            f"Welchen Monat meinen Sie, zum Beispiel „Beschäftigte im {_monat_anzeige(LETZTE_LIEFERUNG)}“?"
+        )
+    if _ZAEHLT_ANDERES.search(frage):
+        return _antwort(
+            fragetyp(frage),
+            f"StatAgent zählt Beschäftigungsverhältnisse, nicht Bundesländer, Branchen oder Monate. {KANN}",
+        )
     hinweis_tag = tag_hinweis(frage)
     frage, notizen, mittel = _normalisieren(frage, letzter or LETZTE_LIEFERUNG)
     if hinweis_tag:

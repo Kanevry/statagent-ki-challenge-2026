@@ -4,7 +4,7 @@ Jedes Wort einer Frage muss bekannt sein: ein Füllwort, ein Wort für die gezä
 erkanntes Merkmal. Bleibt ein Wort übrig („mit Kindern“, „Betriebe“, „Pizza“, „employees“), kann die Zahl zu einer
 anderen Frage gehören; dann gibt es keine Zahl. Sprachverständnis, kein Rechenregelwerk. Die Liste ist bewusst
 eine Positivliste: Ein fehlendes Füllwort kostet eine Zahl, ein fehlendes Merkmal kostete die Wahrheit.
-„höchste“ steht nicht darin: Nur die Fluktuation kennt einen Höchstwert, sie gibt das Wort selbst frei.
+„mehr“ steht nicht darin: „mehr als ein Job“ und „mehr als 100.000“ sind Bedingungen, keine Füllwörter. „höchste“ auch nicht: Nur die Fluktuation kennt einen Höchstwert, sie gibt das Wort selbst frei.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ _FUELLWOERTER = _liste(
     ab alle allen aller alles als am an auch auf aus bei beim bin bis bitte da damit dann das dass dem den denn der des
     dessen die dies diese diesem diesen dieser dieses doch dort du durch ein eine einem einen einer eines er es für fuer
     gab gegeben gerne gern gibt gäbe guten geben habe haben hallo hat hatte hatten hätte hätten ich ihre ihrer ihnen im
-    in ist ja je jetzt kann können koennen könnten laut mal man mehr meine mich mir mit möchte möchten moechte müsste
+    in ist ja je jetzt kann können koennen könnten laut mal man meine mich mir mit möchte möchten moechte müsste
     nach nur oder pro schon sehr seien sein seit sich sie sind so soll sollen sollte tag um und uns von vom vor war
     waren was welche welchem welchen welcher welches wenn wer werden wie wieviel wieviele wir wird wissen
     wurde wurden wäre wären zu zum zur zwar danke dank vielen voraus hilfe frage fragen wüsste wuesste gerade bericht
