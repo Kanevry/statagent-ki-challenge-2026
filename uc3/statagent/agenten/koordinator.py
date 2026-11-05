@@ -659,8 +659,9 @@ def vorschlag_pruefen(
                 )
             if neu == alt:
                 raise VorschlagUngueltig(
-                    f"{a.regel_name}: der Vorschlag ändert nichts (die Werte stehen schon so in der Regel; "
-                    "vermutlich ist eine andere Regel gemeint, z. B. eine Zählregel statt einer Prüfregel)"
+                    f"{a.regel_name}: der Vorschlag ändert nichts (die Werte stehen schon so in der Regel; zusammenlegen "
+                    "oder ausschließen ist eine neue Zählregel der Art gruppierung bzw. ausschluss; sonst ist "
+                    "vermutlich eine andere Regel gemeint, z. B. eine Zählregel statt einer Prüfregel)"
                 )
             aenderungen.append({"regel_name": a.regel_name, "parameter_alt": alt, "parameter_neu": neu})
     elif antwort.typ == "regel_neu":
@@ -812,8 +813,9 @@ _WEGWEISER = {
     "Ausprägungen nicht zählen (ohne Beamte, ohne ein Bundesland, Kinder unter einem Alter)": "neue zaehl-Regel "
     "der Art ausschluss (Rolle klassifikation); eine Prüfregel kann niemanden ausschließen",
     "Ausprägungen zusammenlegen (Bundesländer zu Regionen, Kategorien zusammen)": "neue zaehl-Regel der Art "
-    "gruppierung auf dem bestehenden Merkmal (z. B. region mit zuordnung ['1=Ost', '3=Ost', '9=Ost']); eine neue "
-    "Klassifikation ist dafür nicht nötig",
+    "gruppierung auf dem bestehenden Merkmal (z. B. region mit zuordnung ['1=Ost', '3=Ost', '9=Ost'], oder "
+    "qualifikation mit ['Arbeiter=Unselbständige', 'Angestellte=Unselbständige']); R6 bleibt dabei, wie es ist, und "
+    "eine neue Klassifikation ist nicht nötig",
     "Schwellen, ab wann ein Monat angehalten oder gemeldet wird": "Prüfregel (typ pruefung), Rolle qs; Bestand "
     "gegen Vormonat ist P15, verschwundene Verhältnisse P16; ändere nur die eine, die die Anweisung meint",
     "Mehrere Dinge ausschließen (ohne Beamte und ohne Kinder unter 15)": "je Merkmal eine eigene neue zaehl-Regel "

@@ -122,6 +122,15 @@ def _ausschluss(v: Vorschlag, merkmale: set[str], werte: set[str]) -> bool:
     return r is not None and r["parameter"]["merkmal"] in merkmale and set(r["parameter"]["werte"]) == werte
 
 
+def _schwelle_3_prozent(v: Vorschlag) -> bool:
+    """Genau P15 auf 3 %. Der Meldungstext derselben Regel darf mit; nennt er eine Zahl, dann die neue: „mehr als 5 %“
+    bei einer Schwelle von 3 % wäre falsch. Eine andere Regel nebenbei fällt durch (Probe 20:36: P16)."""
+    g = _geaendert(v, "P15")
+    if g.pop("schwelle", None) != (0.05, 0.03) or not set(g) <= {"satz", "massnahme"}:
+        return False
+    return all("5 %" not in str(neu) for _, neu in g.values())
+
+
 #: Zehn Aufträge, bewusst anders formuliert als die Abnahme-Muster (A, B, C aus #80 darunter).
 AUFTRAEGE: tuple[Auftrag, ...] = (
     Auftrag(
@@ -179,7 +188,7 @@ AUFTRAEGE: tuple[Auftrag, ...] = (
     Auftrag(
         "J_anhalten_3_prozent",
         "Haltet einen Monat schon an, wenn der Bestand mehr als 3 Prozent unter dem Vormonat liegt.",
-        lambda v: _geaendert(v, "P15") == {"schwelle": (0.05, 0.03)},
+        _schwelle_3_prozent,
     ),
 )
 #: Fünf Fassungen in lockerer Schreibweise, wie sie live getippt werden (Owner 05.11. 19:3x: getippter Text reicht,
