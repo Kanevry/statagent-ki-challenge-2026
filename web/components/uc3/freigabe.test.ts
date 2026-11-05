@@ -541,6 +541,16 @@ describe("Neue Regeln Ausschluss und Gruppierung als Satz (#168)", () => {
     expect(beamte.worte).toEqual(["Beschäftigungsverhältnisse mit Kategorie Beamte zählen nicht mehr."]);
   });
 
+  // Fehler, den das fängt: „mit Alter 0-14“ beim naheliegenden Jury-Auftrag „Kinder unter 15“ (Review 9b).
+  it("schreibt Altersspannen in Worten", () => {
+    expect(klartext(neu({ art: "ausschluss", parameter: { merkmal: "alter", werte: ["0-14"] } })).worte).toEqual([
+      "Beschäftigungsverhältnisse im Alter von 0 bis 14 Jahren zählen nicht mehr.",
+    ]);
+    expect(klartext(neu({ art: "ausschluss", parameter: { merkmal: "alter", werte: ["0-14", "65-110"] } })).worte).toEqual([
+      "Beschäftigungsverhältnisse im Alter von 0 bis 14 und 65 bis 110 Jahren zählen nicht mehr.",
+    ]);
+  });
+
   it("legt in der Gruppierung je Gruppe einen Satz an, auch aus der Listenform der Parameter", () => {
     const parameter = [{ schluessel: "merkmal", wert: "region" }, { schluessel: "zuordnung", wert: ["1=Ost", "3=Ost", "9=Ost"] }];
     expect(klartext(neu({ art: "gruppierung", parameter }), namen).worte).toEqual([

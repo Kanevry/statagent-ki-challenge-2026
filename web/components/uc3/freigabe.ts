@@ -365,6 +365,10 @@ function regelNeuSatz(r: Record<string, unknown>, bezeichnungen: Bezeichnungen):
   const nachschlag = merkmal === "beschaeftigungskategorie" ? "qualifikation" : merkmal;
   const name = (code: string) => codeName(nachschlag, code, bezeichnungen);
   if (r.art === "ausschluss" && Array.isArray(p.werte) && p.werte.length > 0) {
+    if (merkmal === "alter") {
+      const spannen = p.werte.map((w) => String(w).replace("-", " bis "));
+      return `Beschäftigungsverhältnisse im Alter von ${aufzaehlung(spannen)} Jahren zählen nicht mehr.`;
+    }
     const werte = p.werte.map((w) => name(String(w)));
     return `Beschäftigungsverhältnisse mit ${MERKMAL_WORT[merkmal] ?? merkmal} ${aufzaehlung(werte)} zählen nicht mehr.`;
   }
