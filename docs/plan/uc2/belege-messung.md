@@ -80,6 +80,59 @@ Interviewer-Name steht im Fließtext.
 **Betrieb:** Ohne `HF_HUB_OFFLINE=1` fragt sentence-transformers bei jedem Laden den Hub nach Dateien ab. Für den Demo-Betrieb
 ohne Netz `HF_HUB_OFFLINE=1` setzen; das Modell liegt im Cache.
 
+## 3b. Lauf v4 nach dem Review !32 (m5, 05.11. 14:58–15:07 CET)
+
+Code `bbd4470` (Fix-Liste der Review-Bank). Neu im Prüfskript sind ein Seitentext-Abgleich je Artikel, eine
+Dubletten-Ausnahme nur mit eigenem Textbeleg, „Artikel ohne Abschnitt = 0“, höchstens 1 Abweichung je Ausgabe und
+„Autor:in“ an jeder Stelle der Zeile. Der Lauf hat neu extrahiert, neu eingebettet und zweimal indexiert.
+
+| Prüfung (pruefe_index.py, 187 PDF) | Ergebnis |
+|---|---|
+| md5 | 187 Dateien, 186 eindeutig = 186 in PG |
+| Inhaltsverzeichnis | 186 Ausgaben, 0 Abweichungen; 10 Text-Dubletten-Ausnahmen, alle mit Textbeleg (erwartet 10) |
+| Seitentext | 2.915 Artikel gegen ihre PDF-Seite, 0 Abweichungen, 0 ohne Startzeile |
+| Artikel ohne Abschnitt | 0 |
+| Autor:in | 0 Abschnitte und 0 Titel mit Autor:in-Zeile; 165 von 395 Autor:in-Werten im Fließtext (622 Abschnitte, für #43) |
+| Text-Hash-Dubletten | 0 |
+| Vektoren | 7.806 |
+
+v4 ist inhaltlich gleich v3:
+- zweimal Inhalts-Hash `e79db68f…`;
+- `abschnitte.jsonl` und `vektoren.npy` bitgleich zu v3 (sha256 je gleich), `max_seq_length = 1024` verändert also keinen Vektor;
+- neu ist nur `eingaben_sha256` in `vektoren.json`. Der eingespielte v3-Index auf dem M4 gilt damit weiter.
+- Dump `healthpolicy-uc2-v4.dump` auf dem m5, sha256 `a0f5f189…`.
+
+**Stichprobe v4** (Seed 20261106, 10 Zufallsartikel, Gutachter mit frischem Kontext gegen `pdftotext` der PDF-Seiten)
+
+Geprüft wurden:
+- Start nach Startzeile und Titel;
+- Titel, Medium und Datum;
+- Vollständigkeit bis zum Feldblock, auch über Seitenwechsel;
+- keine Kopf- oder Fußzeile, kein Feldblock, keine Layout-Kopie und keine Autor:in-Zeile.
+
+| artikel_id | PDF-Seite | Abschnitte | Urteil |
+|---|---|---|---|
+| daf32afaf321-005 | 10 | 3 | ok |
+| 14e28e515192-013 | 28 | 3 | ok |
+| 1f5717670522-015 | 40 | 3 | ok |
+| 301253469019-010 | 37 | 1 | ok |
+| 4ed0c27ce1fc-003 | 10 | 2 | ok |
+| 054b6543bc63-005 | 15 | 2 | ok |
+| cb28586bf327-002 | 4 | 3 | ok |
+| 665e4657cd04-008 | 28 | 1 | ok |
+| 858ae9b66ed1-011 | 32 | 2 | ok |
+| 5b8e6f785f39-032 | 98 | 15 | ok (im zweiten Durchgang mit den Seiten 98–108 nachgeprüft, vollständig bis zum Feldblock auf S. 104) |
+
+Ergebnis **10/10 ok**. Radio und TV sind in dieser Stichprobe nicht vertreten. Den Rundfunkzweig deckt die Seitentext-Prüfung über alle 2.915 Artikel ab.
+
+Grenzfälle für den Personenschutz (#43), so im PDF-Textfluss und daher im Text:
+- Bylines im ersten Absatz und eigene Zeilen „Von …“;
+- Mitarbeit-Zeilen;
+- E-Mail-Adressen mit Klarnamen am Textende;
+- Bildunterschriften und Fotocredits;
+- Zitatkästen mit Namensnennung;
+- Privatpersonen mit Vollnamen, Alter, Wohnort und Gesundheitsangaben.
+
 ## 4. Suchgüte (Vollbestand, 10 Fragen, k = 8)
 
 Methode:

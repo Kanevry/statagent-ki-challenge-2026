@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
  * Abnahme der Landingpage gegen einen laufenden Server: Screenshots Desktop/Mobil entlang der Scroll-Erzählung,
- * measureSlop je Größe, optional Reduced-Motion-Bild. Läuft auf m5 (Lastgrenze M4), z. B.:
- *   offload run -H m5-remote <worktree> -- bash -lc 'cd web && pnpm build && (pnpm exec next start -p 3999 &) && \
- *     node landing/werkzeug/abnahme.mjs http://localhost:3999 ../docs/landing/v1 /tmp/slop-measure.js'
+ * measureSlop je Größe, optional Reduced-Motion-Bild. Üblicher Aufruf über abnahme-build.sh, direkt z. B.:
+ *   cd web && pnpm build && (pnpm exec next start -p 3999 &) && \
+ *     node landing/werkzeug/abnahme.mjs http://localhost:3999 ../docs/landing/v2 /pfad/zu/slop-measure.js
  *
  * Argumente: <basis-url> <ausgabe-ordner> <pfad zu slop-measure.js (impeccable-Katalog, Apache-2.0)>
- * Ausgabe: PNGs und abnahme.json (measureSlop-Zählungen, Konsolenfehler) im Ausgabe-Ordner.
+ * Ausgabe: PNGs und abnahme.json (volles measureSlop-Ergebnis je Variante unter `slop`, die Zähler unter
+ * `slop.counts`; Konsolenfehler) im Ausgabe-Ordner. Exit 1, sobald ein Zähler über 0 liegt.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -42,6 +43,7 @@ try {
       const fehler = [];
       seite.on("console", (m) => m.type() === "error" && fehler.push(m.text()));
       seite.on("pageerror", (e) => fehler.push(String(e)));
+      seite.on("response", (r) => r.status() >= 400 && fehler.push(`HTTP ${r.status()} ${r.url()}`));
       await seite.goto(basis + "/", { waitUntil: "load", timeout: 60_000 });
       await warte(1800);
       const praefix = `${g.name}${reduziert ? "-reduziert" : ""}`;
@@ -101,8 +103,11 @@ try {
   await browser.close();
 }
 writeFileSync(join(ausgabe, "abnahme.json"), JSON.stringify(bericht, null, 2));
+let trefferGesamt = 0;
 for (const [k, v] of Object.entries(bericht.groessen)) {
   const counts = v.slop?.counts ?? {};
   const treffer = Object.entries(counts).filter(([, n]) => typeof n === "number" && n > 0);
+  trefferGesamt += treffer.length;
   console.log(`${k}: Konsolenfehler ${v.konsolenfehler.length}; measureSlop Treffer: ${JSON.stringify(Object.fromEntries(treffer))}`);
 }
+if (trefferGesamt > 0) process.exitCode = 1;

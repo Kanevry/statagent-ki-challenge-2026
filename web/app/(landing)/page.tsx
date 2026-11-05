@@ -9,6 +9,7 @@ import s from "@/landing/sektionen/seite.module.css";
 import Team from "@/landing/sektionen/Team";
 import UseCases from "@/landing/sektionen/UseCases";
 import { SEITE } from "@/landing/texte/inhalt";
+import l from "./landing.module.css";
 
 export const metadata: Metadata = {
   title: SEITE.titel,
@@ -28,10 +29,13 @@ export default async function Startseite() {
       <Navigation />
       <main id="inhalt">
         <HeroSzene />
-        <Ansatz />
-        <Datenfehler tabelle={tabelle} />
-        <UseCases />
-        <Team />
+        {/* Erst rendern, wenn sie in die Nähe kommen (eine Hülle, damit `.abschnitt + .abschnitt` greift) */}
+        <div className={l.spaeter}>
+          <Ansatz />
+          <Datenfehler tabelle={tabelle} />
+          <UseCases />
+          <Team />
+        </div>
       </main>
       <Fusszeile />
     </div>
