@@ -45,9 +45,9 @@ Berichtsmonat 2026-07, zwölf Monate, Abschnitt C, Schwelle 200 Tage.
 | Variante | Parameter | Personen | Quelle |
 |---|---|---|---|
 | ohne Altcodes, Teil-Lieferung 2025-10 übersprungen | `altcodes_als_abschnitt: []`, `angehaltene_lieferungen: ueberspringen` | **32.713** | finaler Code, gemessen 05.11.2026 15:0x |
-| DA bis DM als C, Teil-Lieferung 2025-10 übersprungen | `altcodes_als_abschnitt: ["DA", …, "DM"]`, `angehaltene_lieferungen: ueberspringen` | **32.741** | finaler Code, gemessen 05.11.2026 15:0x |
+| DA bis DN als C, Teil-Lieferung 2025-10 übersprungen (Abgabezahl) | `altcodes_als_abschnitt: ["DA", …, "DN"]`, `angehaltene_lieferungen: ueberspringen` | **32.741** | finaler Code, gemessen 05.11.2026 15:0x |
 | ohne Altcodes, August 2025 aus der Teil-Lieferung 2025-10 | – | 32.639 | Forensik, Lead note 269248 |
-| DA bis DM als C, August 2025 aus der Teil-Lieferung 2025-10 | – | 32.667 | früherer Prototyp |
+| DA bis DN als C, August 2025 aus der Teil-Lieferung 2025-10 | – | 32.667 | früherer Prototyp |
 | DA bis DM als C, August 2025 aus Lieferung 2025-11 | Datenstand weicht vom Fenster ab (kein Parameterwert) | 32.706 | Orakel-Angabe |
 
 Gemessen mit dem Code dieses Branches auf der Datenbank `statistik` (24 Läufe v1, nicht freigegeben), ohne
@@ -75,8 +75,10 @@ die Lieferung trägt dort `Unbekannt` (39 Personen in 2026-07). Der Ersatztag 1.
 Alter in der Statistik, nicht für das Feld der Lieferung.
 
 **Offen:** Die amtliche Lieferung entsteht erst mit `uv run uc3 ministerium --name …`, nachdem der Owner die
-Definition (Regelsatz `ministerium`) mit seinem Namen freigegeben hat. Welche Altcode-Variante gilt, entscheidet
-diese Freigabe; Annahme A13 nimmt DA bis DM als C (wie die Bereinigung in v1).
+Definition (Regelsatz `ministerium`) mit seinem Namen freigegeben hat. Die Definition setzt
+`altcodes_als_abschnitt` auf DA bis DN und `angehaltene_lieferungen` auf `ueberspringen`; damit ergibt sie die
+Abgabezahl 32.741 (Annahme A13). Die CSV liegt außerhalb des Repos (`lieferungen/` neben dem Repo), im Repo steht
+nur `abgabe/ministerium_2026-07.beleg.md`.
 
 ## Freigabe der Lieferung (Regel 7)
 
