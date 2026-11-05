@@ -39,6 +39,21 @@ function fehlerTexte(fehler: unknown, tiefe = 0): string[] {
   return [...eigene, ...fehlerTexte(o.error, tiefe + 1), ...fehlerTexte(o.cause, tiefe + 1)];
 }
 
+/** Fehlerarten aus `@vapi-ai/web` 3.x, nach denen kein Gespräch mehr läuft. */
+const FATALE_FEHLER: ReadonlySet<string> = new Set(["start-method-error", "daily-error", "daily-call-join-error"]);
+
+/**
+ * true, wenn ein Ereignis `error` das Gespräch beendet: Start gescheitert, Mikrofon-Vorprüfung gescheitert
+ * oder Verbindung weg. Alles andere läuft weiter, etwa `audio-processing-setup-error` (Rauschfilter fehlt,
+ * „the call continues“), `audio-observer-setup-error` (Pegel fehlt) und `audio-start-failed` (Autoplay).
+ */
+export function istFatalerFehler(fehler: unknown): boolean {
+  if (typeof fehler !== "object" || fehler === null) return false;
+  const art = (fehler as { type?: unknown }).type;
+  if (typeof art !== "string") return false;
+  return FATALE_FEHLER.has(art) || art.startsWith("microphone-preflight");
+}
+
 /** true, wenn der Browser das Mikrofon verweigert hat oder keines findet. */
 export function istMikrofonFehler(fehler: unknown): boolean {
   return fehlerTexte(fehler).some((t) => mikrofonNamen.test(t) || mikrofonText.test(t));

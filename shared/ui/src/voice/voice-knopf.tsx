@@ -5,7 +5,7 @@ import { Knopf } from "../basis/knopf";
 import { klassen } from "../basis/klassen";
 import { Status } from "../basis/status";
 import { VOICE_KONFIGURATION_QUELLE, voiceKonfigurationSchema, type VoiceKonfiguration } from "./konfiguration";
-import { istMikrofonFehler, type VoiceSdk, type VoiceSdkLader, type VoiceTranskript } from "./sdk";
+import { istFatalerFehler, istMikrofonFehler, type VoiceSdk, type VoiceSdkLader, type VoiceTranskript } from "./sdk";
 
 // VoiceKnopf (#61, Pen-Frame eE7uh): Start/Stopp-Knopf, darunter die Pegel-Zeile aus Mikrofon, 17 schmalen
 // Balken und dem Zustand in Worten („Hört zu · 0:07“, „Denkt“, „Spricht“), darunter der Hinweis in Slate.
@@ -18,7 +18,8 @@ export type VoiceZustand = "pruefen" | "aus" | "bereit" | "verbindet" | "hoert" 
 export type VoiceFehler = "konfiguration" | "laden" | "mikrofon" | "start" | "verbindung";
 
 export const VOICE_AUS_TEXT = "Sprache ist hier nicht eingerichtet, die Frage geht auch als Text.";
-export const VOICE_SPEICHER_HINWEIS = "Sprechen oder tippen. Aufgezeichnet wird nur der Text, nicht die Stimme.";
+export const VOICE_SPEICHER_HINWEIS =
+  "Sprechen oder tippen. Ihre Stimme geht live an den Sprachdienst Vapi in den USA. Hier gespeichert wird nur der Text.";
 export const VOICE_BEENDEN_HINWEIS = "Erneut klicken oder Esc beendet das Gespräch.";
 
 export const VOICE_FEHLER_TEXT: Record<VoiceFehler, string> = {
@@ -62,7 +63,10 @@ const MIT_ZEIT: ReadonlySet<VoiceZustand> = new Set(["hoert", "denkt", "spricht"
 export type VoiceVorschau = { zustand: VoiceZustand; pegel?: number; sekunden?: number; fehler?: VoiceFehler };
 
 export type VoiceKnopfProps = {
-  /** Assistent dieses Raums. Fehlt er, gilt `assistantId` aus der Konfiguration. */
+  /**
+   * Assistent dieses Raums. Fehlt er, gilt `assistantId` aus der Konfiguration. Er schaltet den Knopf nie ein:
+   * ohne `aktiv: true` aus der Konfiguration bleibt der Knopf aus.
+   */
   assistantId?: string | null;
   /** Erhält jeden finalen Transkript-Abschnitt, nie Zwischenstände. */
   onTranskript?: (transkript: VoiceTranskript) => void;
@@ -147,6 +151,8 @@ export function VoiceKnopf({
   const laufRef = useRef<LaufZustand>("bereit");
   const sdkRef = useRef<VoiceSdk | null>(null);
   const sitzungRef = useRef(0);
+  /** Ende eines laufenden `start()` samt Abräumen, falls dessen Sitzung abgebrochen wurde. */
+  const ausstehendRef = useRef<Promise<void> | null>(null);
   const startZeitRef = useRef(0);
   const pegelFernRef = useRef(0);
   const pegelNahRef = useRef<number | null>(null);
@@ -188,11 +194,10 @@ export function VoiceKnopf({
 
   const wert = konfig.art === "ok" ? konfig.wert : null;
   const assistantId = assistantIdProp || wert?.assistantId || null;
-  // `aktiv` beschreibt den Standard-Assistenten der Route. Ein Raum mit eigenem Assistenten braucht nur den
-  // öffentlichen Schlüssel; scheitert der Custom-LLM-Weg, zeigt der Knopf den Fehler und der Text bleibt.
-  const eingerichtet = Boolean(
-    ladeSdk && wert?.publicKey && assistantId && (wert.aktiv || Boolean(assistantIdProp)),
-  );
+  // `aktiv` sagt, ob der Server Voice überhaupt zulässt (Schlüssel, Assistent, PUBLIC_URL für den
+  // Custom-LLM-Weg). Ohne `aktiv === true` bleibt der Knopf aus, auch mit eigenem Assistenten des Raums:
+  // lokal ohne Tunnel darf kein Anruf starten (Review !41).
+  const eingerichtet = Boolean(ladeSdk && wert?.publicKey && assistantId && wert.aktiv === true);
 
   const beenden = useCallback(() => {
     sitzungRef.current += 1;
@@ -239,6 +244,9 @@ export function VoiceKnopf({
       });
       sdk.on("error", (e) => {
         if (!IM_GESPRAECH.has(laufRef.current)) return;
+        // Nicht jeder Fehler beendet das Gespräch: fehlt nur der Rauschfilter, die Pegelanzeige oder spielt der
+        // Browser die Antwort nicht sofort ab, läuft der Anruf weiter. Dann bleibt der Zustand stehen.
+        if (!istFatalerFehler(e)) return;
         const art: VoiceFehler = istMikrofonFehler(e)
           ? "mikrofon"
           : laufRef.current === "verbindet"
@@ -256,32 +264,79 @@ export function VoiceKnopf({
     [setze],
   );
 
+  // Ein SDK, dessen Sitzung nicht mehr gilt, wird beendet, verliert alle Listener und wird nicht wieder benutzt.
+  const verwerfe = useCallback((sdk: VoiceSdk) => {
+    if (sdkRef.current === sdk) sdkRef.current = null;
+    try {
+      Promise.resolve(sdk.stop()).catch(() => undefined);
+    } catch {
+      // ignoriert
+    }
+    try {
+      sdk.removeAllListeners?.();
+    } catch {
+      // ignoriert
+    }
+  }, []);
+
+  // Escape, ein zweiter Klick oder das Verlassen der Seite zählen `sitzungRef` hoch. Nach jedem await prüft
+  // `starten`, ob seine Sitzung noch gilt. `stop()` unterbricht einen laufenden `start()` nicht (@vapi-ai/web
+  // 3.x), deshalb beendet `starten` einen abgebrochenen Anruf erst, wenn dessen Start fertig ist.
   const starten = useCallback(async () => {
-    if (!ladeSdk || !wert?.publicKey || !assistantId) return;
+    if (!eingerichtet || !ladeSdk || !wert?.publicKey || !assistantId) return;
+    const publicKey = wert.publicKey;
     const sitzung = ++sitzungRef.current;
+    const gilt = () => sitzung === sitzungRef.current;
     setSekunden(0);
     setze("verbindet");
+
+    // Ein abgebrochener Start läuft vielleicht noch: erst abwarten, bis er beendet und abgeräumt ist.
+    const vorher = ausstehendRef.current;
+    if (vorher) {
+      await vorher;
+      if (!gilt()) return;
+    }
+
     let sdk = sdkRef.current;
     if (!sdk) {
+      let neu: VoiceSdk;
       try {
-        sdk = await ladeSdk(wert.publicKey);
+        neu = await ladeSdk(publicKey);
       } catch {
-        if (sitzung === sitzungRef.current) setze("fehler", "laden");
+        if (gilt()) setze("fehler", "laden");
         return;
       }
-      sdkRef.current = sdk;
-      verbinde(sdk);
-    }
-    if (sitzung !== sitzungRef.current) return;
-    try {
-      const anruf = await sdk.start(assistantId);
-      if (sitzung === sitzungRef.current && anruf === null && laufRef.current === "verbindet") {
-        setze("fehler", "start");
+      if (!gilt()) {
+        verwerfe(neu);
+        return;
       }
-    } catch (e) {
-      if (sitzung === sitzungRef.current) setze("fehler", istMikrofonFehler(e) ? "mikrofon" : "start");
+      sdkRef.current = neu;
+      verbinde(neu);
+      sdk = neu;
     }
-  }, [assistantId, ladeSdk, setze, verbinde, wert?.publicKey]);
+
+    const aktuell = sdk;
+    const zusage = new Promise<unknown>((aufloesen) => aufloesen(aktuell.start(assistantId)));
+    const erledigt: Promise<void> = zusage
+      .then(
+        () => undefined,
+        () => undefined,
+      )
+      .then(() => {
+        if (!gilt()) verwerfe(aktuell);
+        if (ausstehendRef.current === erledigt) ausstehendRef.current = null;
+      });
+    ausstehendRef.current = erledigt;
+
+    let anruf: unknown;
+    try {
+      anruf = await zusage;
+    } catch (e) {
+      if (gilt()) setze("fehler", istMikrofonFehler(e) ? "mikrofon" : "start");
+      return;
+    }
+    if (gilt() && anruf === null && laufRef.current === "verbindet") setze("fehler", "start");
+  }, [assistantId, eingerichtet, ladeSdk, setze, verbinde, verwerfe, wert?.publicKey]);
 
   // Sekundenzähler, 1 Hz.
   useEffect(() => {

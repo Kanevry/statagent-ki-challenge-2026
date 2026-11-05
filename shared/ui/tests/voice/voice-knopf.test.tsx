@@ -107,6 +107,19 @@ describe("VoiceKnopf Zustände", () => {
     expect(zustand()).toBe("Verbindet");
   });
 
+  // Fängt ab: ein Raum mit eigenem Assistenten startet lokal ohne Tunnel trotzdem einen Anruf.
+  it("bleibt aus, wenn die Prop assistantId gesetzt ist, die Konfiguration aber aktiv false sagt", async () => {
+    const { sdk, ladeSdk } = zeige({
+      assistantId: "asst-raum",
+      konfiguration: { publicKey: "pk-test", assistantId: null, aktiv: false },
+    });
+    expect(knopf()).toHaveProperty("disabled", true);
+    expect(screen.getByText(VOICE_AUS_TEXT)).toBeTruthy();
+    await klicke();
+    expect(ladeSdk).not.toHaveBeenCalled();
+    expect(sdk.start).not.toHaveBeenCalled();
+  });
+
   it("startet mit der assistantId aus der Prop vor der aus der Konfiguration", async () => {
     const { sdk } = zeige({ assistantId: "asst-raum" });
     await klicke();
@@ -163,10 +176,12 @@ describe("VoiceKnopf Pegel-Zeile (Frame eE7uh)", () => {
     expect(pegelHoehen(0.5).every((h, i) => h <= PEGEL_GRUNDFORM[i]!)).toBe(true);
   });
 
-  it("nennt den Hinweis wortgleich zum Frame", () => {
+  it("sagt ehrlich, wohin die Stimme geht und was gespeichert wird", () => {
+    const text =
+      "Sprechen oder tippen. Ihre Stimme geht live an den Sprachdienst Vapi in den USA. Hier gespeichert wird nur der Text.";
     zeige();
-    expect(screen.getByText("Sprechen oder tippen. Aufgezeichnet wird nur der Text, nicht die Stimme.")).toBeTruthy();
-    expect(VOICE_SPEICHER_HINWEIS).toBe("Sprechen oder tippen. Aufgezeichnet wird nur der Text, nicht die Stimme.");
+    expect(screen.getByText(text)).toBeTruthy();
+    expect(VOICE_SPEICHER_HINWEIS).toBe(text);
   });
 });
 
@@ -214,7 +229,120 @@ describe("VoiceKnopf Beenden", () => {
   });
 });
 
+function aufschub<T>() {
+  let aufloesen!: (wert: T) => void;
+  const zusage = new Promise<T>((r) => {
+    aufloesen = r;
+  });
+  return { zusage, aufloesen };
+}
+
+async function loese<T>(a: { aufloesen: (wert: T) => void }, wert: T) {
+  await act(async () => {
+    a.aufloesen(wert);
+    await new Promise((r) => setTimeout(r, 0));
+  });
+}
+
+const abbrechen = {
+  Escape: async () => {
+    fireEvent.keyDown(document.body, { key: "Escape" });
+  },
+  "zweiter Klick": klicke,
+};
+
+// Fängt ab: Escape, zweiter Klick oder Verlassen der Seite während Laden oder Start beenden den Anruf nicht.
+// Dann tritt er später doch bei, die Anzeige sagt „Bereit“, der Assistent spricht und die Minuten laufen.
+describe("VoiceKnopf Abbruch während des Starts", () => {
+  it.each(Object.entries(abbrechen))("%s während das SDK lädt: kein Start, SDK beendet, keine Listener", async (_, tue) => {
+    const sdk = new FalschesSdk();
+    const laden = aufschub<VoiceSdk>();
+    zeige({ ladeSdk: vi.fn(() => laden.zusage) });
+    await klicke();
+    expect(zustand()).toBe("Verbindet");
+    await tue();
+    expect(zustand()).toBe("Bereit");
+    await loese(laden, sdk);
+    expect(sdk.start).not.toHaveBeenCalled();
+    expect(sdk.stop).toHaveBeenCalled();
+    expect(sdk.handler.size).toBe(0);
+    expect(zustand()).toBe("Bereit");
+  });
+
+  it("Verlassen der Seite während das SDK lädt: kein Start, keine Listener", async () => {
+    const sdk = new FalschesSdk();
+    const laden = aufschub<VoiceSdk>();
+    const { unmount } = zeige({ ladeSdk: vi.fn(() => laden.zusage) });
+    await klicke();
+    unmount();
+    await loese(laden, sdk);
+    expect(sdk.start).not.toHaveBeenCalled();
+    expect(sdk.stop).toHaveBeenCalled();
+    expect(sdk.handler.size).toBe(0);
+  });
+
+  it.each(Object.entries(abbrechen))("%s während start läuft: nach dem Start stop() und Listener weg", async (_, tue) => {
+    const z = zeige();
+    const start = aufschub<unknown>();
+    z.sdk.start.mockImplementationOnce(() => start.zusage);
+    await klicke();
+    expect(z.sdk.start).toHaveBeenCalledTimes(1);
+    await tue();
+    const stopVorher = z.sdk.stop.mock.calls.length;
+    await loese(start, { id: "anruf-1" });
+    expect(z.sdk.stop.mock.calls.length).toBeGreaterThan(stopVorher);
+    expect(z.sdk.removeAllListeners).toHaveBeenCalled();
+    z.sdk.emit("call-start");
+    expect(zustand()).toBe("Bereit");
+  });
+
+  it("Verlassen der Seite während start läuft: nach dem Start stop()", async () => {
+    const z = zeige();
+    const start = aufschub<unknown>();
+    z.sdk.start.mockImplementationOnce(() => start.zusage);
+    await klicke();
+    z.unmount();
+    const stopVorher = z.sdk.stop.mock.calls.length;
+    await loese(start, { id: "anruf-1" });
+    expect(z.sdk.stop.mock.calls.length).toBeGreaterThan(stopVorher);
+    expect(z.sdk.removeAllListeners).toHaveBeenCalled();
+  });
+
+  // Fängt ab: das Abräumen des alten Starts beendet das neue Gespräch, das der Nutzer gleich danach beginnt.
+  it("ein neuer Start nach dem Abbruch wartet auf den alten und läuft mit frischem SDK", async () => {
+    const alt = new FalschesSdk();
+    const neu = new FalschesSdk();
+    const start = aufschub<unknown>();
+    alt.start.mockImplementationOnce(() => start.zusage);
+    const ladeSdk = vi.fn(async () => alt).mockResolvedValueOnce(alt).mockResolvedValueOnce(neu);
+    render(<VoiceKnopf konfiguration={aktiv} ladeSdk={ladeSdk} />);
+    await klicke();
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    await klicke();
+    expect(zustand()).toBe("Verbindet");
+    await loese(start, { id: "anruf-alt" });
+    expect(alt.removeAllListeners).toHaveBeenCalled();
+    expect(neu.start).toHaveBeenCalledWith("asst-test");
+    neu.emit("call-start");
+    expect(zustand()).toMatch(/^Hört zu/);
+    expect(neu.stop).not.toHaveBeenCalled();
+  });
+});
+
 describe("VoiceKnopf Fehler", () => {
+  // Fängt ab: ein fehlender Rauschfilter, eine fehlende Pegelanzeige oder Autoplay beenden das Gespräch,
+  // Autoplay sogar als Mikrofon-Meldung. Laut SDK läuft der Anruf in diesen Fällen weiter.
+  it.each(["audio-processing-setup-error", "audio-observer-setup-error", "audio-start-failed"])(
+    "%s im Gespräch: Zustand bleibt Hört zu, kein stop()",
+    async (art) => {
+      const { sdk } = await imGespraech();
+      sdk.emit("error", { type: art, error: { name: "NotAllowedError", message: "play() failed" } });
+      expect(zustand()).toMatch(/^Hört zu/);
+      expect(sdk.stop).not.toHaveBeenCalled();
+      expect(screen.queryByText(VOICE_FEHLER_TEXT.mikrofon)).toBeNull();
+    },
+  );
+
   it("konfiguration: Route nicht erreichbar, Knopf gesperrt", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("kaputt", { status: 500 })));
     render(<VoiceKnopf ladeSdk={vi.fn()} />);
