@@ -161,7 +161,7 @@ grund = "Der Wechsel auf die Aufzeichnung dauerte höchstens 30 Sekunden, ist ge
 
 [[pruefung]]
 id = "88-1"
-hash = "97fe64aeff"
+hash = "c531a564eb"
 befehl = '''uv run --isolated --package plattform python -I -c '
 import datetime, hashlib, json, pathlib, re, struct
 d = pathlib.Path("docs/praesentation/screens")
@@ -943,3 +943,16 @@ beschreibung = "Der Prüfer legt die Schritte von D2 (demo-drehbuch.md) neben da
 quelle = "Issue #141, Abschnitt Fertig wenn, vierter Punkt (Wortlaut: Drehbuch D2 zeigt nur Schritte, die E5 selbst geprobt hat; Anweisung Lead c0, 05.11. 17:5x)"
 befund = "D2 enthält einen Schritt, der im Probelauf nicht oder nicht erfolgreich gelaufen ist."
 grund = "Jeder Schritt von D2 ist im Probe-Protokoll als geprobt und bestanden eingetragen."
+
+[[pruefung]]
+id = "88-4"
+hash = "0dcfa4303b"
+befehl = "uv run --isolated --package plattform python -I -c '\nimport json, pathlib\nd = pathlib.Path(\"docs/praesentation/screens\")\nq = json.loads((d / \"quellen.json\").read_text(encoding=\"utf-8\"))\nbelegt = set()\nfor e in q:\n    png = d / (str(e.get(\"bild\")) + \".png\")\n    echt = png.is_file() or (e.get(\"art\") == \"live\" and e.get(\"route\"))\n    if echt and isinstance(e.get(\"folie\"), int):\n        belegt.add(e[\"folie\"])\nluecken = [n for n in range(1, 11) if n not in belegt]\nprint(\"szenen_mit_beleg\", len([n for n in range(1, 11) if n in belegt]))\nprint(\"luecken\", \" \".join(map(str, luecken)) or \"keine\")\n' "
+erwartet = ["^szenen_mit_beleg 10$", "^luecken keine$"]
+deckung = "voll"
+schwer = false
+zeitlimit = 120
+quelle = "Kriterium 88-4 (Lead a7, 05.11. 18:2x)"
+grund = "Jede der 10 Szenen hat in quellen.json mindestens einen echten Beleg (vorhandenes PNG oder Live-Ausschnitt mit Route)"
+befund = "Mindestens eine Szene ohne echten Beleg in quellen.json"
+
