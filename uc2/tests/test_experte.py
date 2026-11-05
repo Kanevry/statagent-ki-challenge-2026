@@ -103,3 +103,70 @@ def test_kapazitaet_und_nachfrage_multiplikativ(tmp_path: Path) -> None:
     punkt = modell.rechne(paket, paket.modus_werte())
     assert punkt.rho1 == pytest.approx(0.6857142857, abs=1e-9)
     assert punkt.wartezeit == pytest.approx(-0.4545454545, abs=1e-9)
+
+
+def _paket(tmp_path: Path, inhalt: dict[str, object]) -> Path:
+    datei = tmp_path / "paket.yaml"
+    datei.write_text(yaml.safe_dump(inhalt, allow_unicode=True), encoding="utf-8")
+    return datei
+
+
+def test_text_zeigt_wartezeit_mit_zwei_stellen(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # Umfang 4,99: W(0,8/1,0499)/W(0,8) = 0,8/0,2499/4 = 0,80032 → −19,97 %, Ziel verfehlt.
+    # Mit einer Nachkommastelle stand „−20,0 %“ neben „nicht erfüllt“.
+    fest = {"min": 0.8, "modus": 0.8, "max": 0.8}
+    datei = _paket(
+        tmp_path,
+        {
+            "massnahmen": [{"id": "kassenstellen", "umfang": 4.99}],
+            "annahmen": {"rho0": fest, "kassenstellen_besetzung": {"min": 1.0, "modus": 1.0, "max": 1.0}},
+        },
+    )
+    assert main(["experte", "--paket", str(datei)]) == 0
+    text = capsys.readouterr().out
+    assert "Wartezeitänderung: −19,97 %" in text
+    assert ": nicht erfüllt" in text
+
+
+def test_tippfehler_im_paket_wird_abgelehnt(tmp_path: Path) -> None:
+    datei = _paket(tmp_path, {"massnahmen": [{"id": "kassenstellen", "umfnag": 5}]})
+    with pytest.raises(ValueError, match="umfnag"):
+        modell.lade_paket(datei)
+
+
+def test_teiler_null_wird_beim_laden_abgelehnt(tmp_path: Path) -> None:
+    register = yaml.safe_load((pfade.CONFIG / "annahmen.yaml").read_text(encoding="utf-8"))
+    for eintrag in register["annahmen"]:
+        if eintrag["id"] == "bevoelkerung":
+            eintrag.update(min=0, modus=0, max=0)
+    datei = tmp_path / "annahmen.yaml"
+    datei.write_text(yaml.safe_dump(register, allow_unicode=True), encoding="utf-8")
+    with pytest.raises(ValueError, match="bevoelkerung"):
+        modell.lade_massnahmen(modell.lade_annahmen(datei), modell.lade_ziel())
+
+
+def test_umfang_ueber_100_prozent_wird_abgelehnt(tmp_path: Path) -> None:
+    datei = _paket(tmp_path, {"massnahmen": [{"id": "triage", "umfang": 150}]})
+    with pytest.raises(ValueError, match="zwischen 0 und 100"):
+        modell.lade_paket(datei)
+
+
+def test_belegte_annahme_im_paket_gesperrt(tmp_path: Path) -> None:
+    datei = _paket(
+        tmp_path,
+        {
+            "massnahmen": [{"id": "kassenstellen", "umfang": 5}],
+            "annahmen": {"ausgangsausgaben": {"min": 1000, "modus": 1000, "max": 1000}},
+        },
+    )
+    with pytest.raises(ValueError, match="Typ B"):
+        modell.lade_paket(datei)
+
+
+def test_ziel_kommt_aus_daten() -> None:
+    # −20 % erfüllt das Ziel −20 %, aber nicht ein strengeres Ziel −25 %.
+    ziel = modell.Ziel(wartezeit=-0.25, kosten=0.05, zieljahr=5, quelle="Test")
+    paket = modell.lade_paket(PAKETE / "test-kassenstellen-5.yaml", ziel=ziel)
+    daten = modell.ergebnis(paket)
+    assert daten["zielpruefung"]["ergebnis"] == "nicht erfüllt"
+    assert daten["ziel"]["wartezeit_aenderung_prozent_hoechstens"] == -25.0

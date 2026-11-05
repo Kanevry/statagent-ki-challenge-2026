@@ -5,14 +5,20 @@
 # Formeln (linear im Umfang, alle Zahlen aus `annahmen.yaml`):
 #   Wirkung (Anteil) = Umfang · skala · Π faktoren / Π teiler
 #   Kosten (Mio. EUR pro Jahr) = Umfang · skala · Π faktoren / Π teiler
+# Pool: fachärztliche Kassenversorgung (siehe annahmen.yaml). Alle Umfänge in % beziehen sich auf diesen Pool.
+# `max_umfang` begrenzt den Umfang im Paket (Anteile höchstens 100 %).
+# Kosten: jährliche Mehrkosten im Zieljahr, bezogen auf die nominalen Ausgangsausgaben 2025, nicht kumuliert.
+# Wartezeit: W ∝ ρ/(1 − ρ) ohne Faktor 1/μ (Vorgabe Issue #42); M/M/1 ergäbe beim Pflicht-Testwert −23,8 %
+# statt −20 %.
 # Pfade: kumulierter Anteil des Umfangs je Jahr 1 bis 5. `umsetzungspfad` treibt die Kosten,
-# `wirkungspfad` (Standard: wie `umsetzungspfad`) die Wirkung. Ausgabe im Zieljahr 5 plus Jahrespfad.
+# `wirkungspfad` (Standard: wie `umsetzungspfad`) die Wirkung. Länge = Zieljahr aus ziel.yaml.
 version: 1
 massnahmen:
   - id: kassenstellen
     name: Zusätzliche Kassenstellen
     wirkt_auf: kapazitaet
-    einheit: "% zusätzliche Kassenstellen gegenüber dem Bestand"
+    einheit: "% zusätzliche fachärztliche Kassenstellen gegenüber dem Bestand"
+    max_umfang: 100
     wirkung:
       skala: 0.01
       faktoren: [kassenstellen_besetzung]
@@ -27,6 +33,7 @@ massnahmen:
     name: Telemedizin-Anteil
     wirkt_auf: nachfrage
     einheit: "% der fachärztlichen Kontakte, die telemedizinisch stattfinden"
+    max_umfang: 100
     wirkung:
       skala: 0.01
       faktoren: [telemedizin_substitution]
@@ -40,7 +47,8 @@ massnahmen:
   - id: triage
     name: Digitale Facharzt-Triage
     wirkt_auf: nachfrage
-    einheit: "% der Überweisungen zu Fachärzt:innen, die digital triagiert werden"
+    einheit: "% der fachärztlichen Kontakte, denen eine digitale Triage vorgeschaltet wird"
+    max_umfang: 100
     wirkung:
       skala: 0.01
       faktoren: [triage_vermeidung]
@@ -55,6 +63,7 @@ massnahmen:
     name: Kompetenzen Gesundheitsberufe (Task-Shifting)
     wirkt_auf: kapazitaet
     einheit: "% der fachärztlichen Leistungen, die an Gesundheitsberufe delegiert werden"
+    max_umfang: 100
     wirkung:
       skala: 0.01
       faktoren: [kompetenzen_entlastung]
@@ -68,7 +77,8 @@ massnahmen:
   - id: oeffnungszeiten
     name: Erweiterte Öffnungszeiten
     wirkt_auf: kapazitaet
-    einheit: "% zusätzliche Ordinationsstunden in Kassenordinationen"
+    einheit: "% zusätzliche Ordinationsstunden in fachärztlichen Kassenordinationen"
+    max_umfang: 100
     wirkung:
       skala: 0.01
       faktoren: [oeffnungszeiten_produktivitaet]
@@ -83,6 +93,7 @@ massnahmen:
     name: Primärversorgungseinheiten (PVE)
     wirkt_auf: nachfrage
     einheit: zusätzliche Primärversorgungseinheiten
+    max_umfang: 1000
     wirkung:
       skala: 1
       faktoren: [pve_versicherte, pve_entlastung]
@@ -94,4 +105,4 @@ massnahmen:
     wirkungspfad: [0.0, 0.1, 0.3, 0.5, 0.7]
     quelle: >-
       PVE betreuen Versicherte wohnortnah und mindern so die Facharzt-Nachfrage im Bevölkerungsanteil.
-      Wirkung mit Zeitverzug (WIFO: 2 bis 6 Jahre, Recherche § 6.4), Kosten ab Gründung.
+      Wirkung mit Zeitverzug (Annahme), Kosten ab Gründung. max_umfang 1000 PVE als Obergrenze (Annahme).

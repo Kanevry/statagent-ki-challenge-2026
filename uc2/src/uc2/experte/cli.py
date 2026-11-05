@@ -46,8 +46,8 @@ def _mio(wert: float) -> str:
 def als_text(daten: dict[str, Any]) -> str:
     k = daten["kennzahlen"]
     w, c, r1 = k["wartezeit_aenderung_prozent"], k["kosten_aenderung_prozent"], k["rho1"]
-    mk = k["mehrkosten_mio_eur"]
-    ausgang = daten["ausgangsausgaben"]
+    mk, cn = k["mehrkosten_mio_eur"], k["kosten_aenderung_niedergelassen_prozent"]
+    ausgang, nieder, ziel = daten["ausgangsausgaben"], daten["basis_niedergelassen"], daten["ziel"]
     zeilen = [
         f"Experte: Paket {daten['paket']}" + (f" ({daten['beschreibung']})" if daten["beschreibung"] else ""),
         f"Hinweis: {daten['hinweis']}.",
@@ -66,24 +66,27 @@ def als_text(daten: dict[str, Any]) -> str:
         "",
         f"Zieljahr {daten['zieljahr']} (Modus; Spanne über {daten['zielpruefung']['ecken']} Ecken):",
         f"  Auslastung ρ₁: {r1['modus']:.4f} (Spanne {r1['min']:.4f} bis {r1['max']:.4f})".replace(".", ","),
-        f"  Wartezeitänderung: {_p(w['modus'])} % (Spanne {_p(w['min'])} % bis {_p(w['max'])} %)",
+        f"  Wartezeitänderung: {_p(w['modus'], 2)} % (Spanne {_p(w['min'], 2)} % bis {_p(w['max'], 2)} %)",
         f"  Kostenänderung: {_p(c['modus'], 2)} % der Ausgangsausgaben "
         f"(Spanne {_p(c['min'], 2)} % bis {_p(c['max'], 2)} %), "
         f"Mehrkosten {_mio(mk['modus'])} Mio. EUR/Jahr",
         f"  Ausgangsausgaben: {_mio(ausgang['wert'])} {ausgang['einheit']} ({ausgang['jahr']})",
+        f"  Zusatzkennzahl: {_p(cn['modus'], 2)} % der niedergelassenen Versorgung "
+        f"({_mio(nieder['wert'])} {nieder['einheit']}, {nieder['jahr']}; nicht Teil der Zielprüfung)",
         "",
-        f"Zielprüfung „{_p(daten['ziel']['wartezeit_aenderung_prozent_hoechstens'], 0)} % Wartezeit, "
-        f"≤ {_p(daten['ziel']['kosten_aenderung_prozent_hoechstens'], 0)} % Kosten“: "
+        f"Zielprüfung „{_p(ziel['wartezeit_aenderung_prozent_hoechstens'], 2)} % Wartezeit, "
+        f"≤ {_p(ziel['kosten_aenderung_prozent_hoechstens'], 2)} % Kosten in {ziel['zieljahr']} Jahren“: "
         f"{daten['zielpruefung']['ergebnis']} "
         f"({daten['zielpruefung']['ecken_erreicht']} von {daten['zielpruefung']['ecken']} Ecken "
         "erreichen beide Ziele)",
         daten["entscheidend"]["text"],
+        f"Ziel laut {ziel['quelle']}",
         "",
         "Jahrespfad (Modus):",
     ]
     for j in daten["jahrespfad"]:
         zeilen.append(
-            f"  Jahr {j['jahr']}: Wartezeit {_p(j['wartezeit_aenderung_prozent'])} %, "
+            f"  Jahr {j['jahr']}: Wartezeit {_p(j['wartezeit_aenderung_prozent'], 2)} %, "
             f"Kosten {_p(j['kosten_aenderung_prozent'], 2)} % ({_mio(j['mehrkosten_mio_eur'])} Mio. EUR)"
         )
     zeilen += ["", "Verwendete Annahmen (Typ B belegt, D abgeleitet, A Annahme):"]
@@ -102,6 +105,9 @@ def ausfuehren(args: argparse.Namespace) -> int:
         daten = modell.ergebnis(modell.lade_paket(pfad))
     except (OSError, ValueError) as fehler:
         print(f"Fehler: {fehler}", file=sys.stderr)
+        return 1
+    except ArithmeticError as fehler:
+        print(f"Fehler: Rechnung nicht möglich ({type(fehler).__name__}: {fehler})", file=sys.stderr)
         return 1
     sys.stdout.write(als_json(daten) if args.json else als_text(daten))
     return 0
