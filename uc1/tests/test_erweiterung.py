@@ -63,3 +63,24 @@ def test_llm_ausfall_faellt_auf_thesaurus_zurueck() -> None:
     )
     assert e.quelle == "thesaurus-ersatz"
     assert "Ausgleichszulage" in e.begriffe
+
+
+def test_erweiterung_schickt_keine_personendaten_ans_modell() -> None:
+    """Fängt die Abnahme 121-5: Name, Geburtsdatum und Adresse gingen ungefiltert an das Modell der
+    Anfrage-Erweiterung (gemessen 4 von 4 erfundenen Angaben)."""
+    gesehen: list[str] = []
+
+    def modell(
+        nachrichten: list[dict[str, str]], schema: dict[str, Any], provider: str | None
+    ) -> dict[str, Any]:
+        gesehen.append(nachrichten[-1]["content"])
+        return {"begriffe": ["Pflegegeld"]}
+
+    frage = (
+        "Meine Mutter heißt Maria Beispiel, ist am 12.03.1942 geboren, wohnt in der Favoritenstraße 1, "
+        "1100 Wien, Telefon 0664 1234567. Bekommt sie Pflegegeld?"
+    )
+    erw.llm_begriffe(frage, modell=modell)
+    for angabe in ("Maria", "Beispiel", "12.03.1942", "Favoritenstraße 1", "1100", "1234567"):
+        assert angabe not in gesehen[0]
+    assert "Pflegegeld" in gesehen[0] and "Wien" in gesehen[0]

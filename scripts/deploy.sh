@@ -215,9 +215,13 @@ cmd_pruefen() {
   code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "https://$DOMAIN/gibt-es-nicht-$RANDOM") || code=000
   if [[ $code == 404 ]]; then echo "pruefen: unbekannter Pfad 404"; else echo "pruefen: unbekannter Pfad liefert $code statt 404" >&2; fehler=1; fi
 
-  # lesend: alles außer GET und HEAD weist Caddy ab, bevor es die App erreicht
-  code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 -X POST -d x=1 "https://$DOMAIN/api/probe") || code=000
-  if [[ $code == 403 ]]; then echo "pruefen: POST abgewiesen (403, lesend)"; else echo "pruefen: POST liefert $code statt 403" >&2; fehler=1; fi
+  # lesend: alles außer GET und HEAD weist Caddy ab, bevor es die App erreicht; Ausnahme nur POST auf die zwei
+  # Frage-Wege (Stufe A). Freigaben und UC2-Fälle bleiben auch nach dem Umschalten 403 (Review !94).
+  local pfad
+  for pfad in /api/probe /api/uc3/freigabe /api/uc2/faelle; do
+    code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 -X POST -d x=1 "https://$DOMAIN$pfad") || code=000
+    if [[ $code == 403 ]]; then echo "pruefen: POST $pfad abgewiesen (403, lesend)"; else echo "pruefen: POST $pfad liefert $code statt 403" >&2; fehler=1; fi
+  done
 
   # auf dem Server: jeder Dienst läuft und meldet healthy
   local zustand

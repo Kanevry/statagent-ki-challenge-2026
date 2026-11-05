@@ -208,3 +208,20 @@ def test_bekannte_namen_ignoriert_beispiel_und_vorgabewerte():
     namen = kern._bekannte_namen(schema)
     assert namen == {"zahl"}
     assert kern._ort(["aus_beispiel", 0], namen) == "$.*[0]"
+
+
+def test_bekannte_namen_zaehlt_eigenschaften_namens_default_und_enum():
+    """Fängt (Review !66): eine Eigenschaft, die selbst default oder enum heißt, fehlte im Protokoll-Ort."""
+    from plattform.llm import kern
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "default": {"type": "string", "default": {"properties": {"aus_default": 1}}},
+            "enum": {"type": "object", "properties": {"innen": {"type": "string", "enum": ["a"]}}},
+        },
+        "$defs": {"teil": {"properties": {"aus_defs": {"type": "integer"}}}},
+    }
+    namen = kern._bekannte_namen(schema)
+    assert namen == {"default", "enum", "innen", "aus_defs"}
+    assert kern._ort(["enum", "innen"], namen) == "$.enum.innen"

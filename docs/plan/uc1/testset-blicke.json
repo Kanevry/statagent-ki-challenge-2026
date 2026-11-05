@@ -13,6 +13,12 @@
       "zeitpunkt": "2026-11-05T14:52+01:00",
       "befehl": "lotse eval --nur-suche --weg volltext --erweiterung aus,thesaurus,llm --grep-grundlinie --ausgabe docs/plan/uc1/messung.md",
       "ergebnis": "volltext+aus 6/15, volltext+thesaurus 6/15, volltext+llm 6/15, grep 4/15"
+    },
+    {
+      "n": 3,
+      "zeitpunkt": "2026-11-05T17:39+01:00",
+      "befehl": "lotse eval --ende --provider azure --ausgabe ../docs/plan/uc1/messung.md",
+      "ergebnis": "verhalten_ok 23/27, quellen_ok 10/15, zitiertreue 45/45"
     }
   ]
 }
