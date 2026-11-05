@@ -1,7 +1,8 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppHeader } from "../../src/shell/header";
-import { marke, protokollUc, zeigtHeader } from "../../src/shell/navigation";
+import { renderToString } from "react-dom/server";
+import { marke, protokollUc, zeigtHeader, zeigtModell } from "../../src/shell/navigation";
 
 function zeige(pfad: string) {
   vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
@@ -9,6 +10,28 @@ function zeige(pfad: string) {
 }
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe("Modell im Header", () => {
+  it("fehlt auf allen UC3-Seiten, auch im Server-HTML, und fragt den Server nicht", () => {
+    const html = renderToString(<AppHeader pfad="/uc3/freigaben" protokollOffen={false} onProtokoll={() => {}} schubladeId="s" />);
+    expect(html).not.toContain("modell-badge");
+    expect(html).not.toContain("wird geprüft");
+    const abruf = vi.fn(() => new Promise(() => {}));
+    vi.stubGlobal("fetch", abruf);
+    render(<AppHeader pfad="/uc3" protokollOffen={false} onProtokoll={() => {}} schubladeId="s" />);
+    expect(screen.queryByTestId("modell-badge")).toBeNull();
+    expect(abruf).not.toHaveBeenCalled();
+  });
+
+  it("bleibt auf den anderen Bereichen und auf ähnlichen Pfaden", () => {
+    for (const pfad of ["/uc1", "/uc2/simulation", "/uc4", "/praesentation", "/uc30"]) {
+      expect(zeigtModell(pfad)).toBe(true);
+    }
+    expect(zeigtModell("/uc3")).toBe(false);
+    zeige("/uc1");
+    expect(screen.getByTestId("modell-badge")).toBeTruthy();
+  });
+});
 
 describe("AppHeader", () => {
   it("rendert sechs Tabs aus der Registry in fester Reihenfolge, ohne Abzeichen", () => {
