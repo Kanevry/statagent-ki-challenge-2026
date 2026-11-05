@@ -12,7 +12,7 @@ abgeschaltet: `bg-blue-500`, `text-lg` oder `font-serif` erzeugen nichts.
 |---|---|---|
 | Farben | `paper` `white` `ink` `slate` `line` `gruen` `gruen-bg` `mint` `navy` `violett` `violett-bg` `gelb` `gelb-bg` `warn-fg` `warn-bg` `err-fg` `err-bg` | `bg-paper`, `text-ink`, `border-line`, `border-violett` |
 | Schriften | `display` (Space Grotesk), `sans` (Inter, Standard), `mono` (JetBrains Mono) | `font-display`, `font-sans`, `font-mono` |
-| Größen | `56` `32` `20` `16` `14` `12` (px, mit eigener Zeilenhöhe) | `text-56` … `text-12` |
+| Größen | `56` `32` `28` `20` `16` `14` `13` `12` `11` (px, mit eigener Zeilenhöhe) | `text-56` … `text-11` |
 | Abstände | Tailwind-Standard `--spacing` = 4 px; Stufen 4/8/16/24/32/48/64 | `p-1` `p-2` `p-4` `p-6` `p-8` `p-12` `p-16` (ebenso `gap-*`, `m-*`) |
 
 Regeln: Violett nur für KI-Label und 2-px-Linie, Gelb nur als Fläche, nie als Schrift. Hell, kein Dark Mode.
