@@ -1,7 +1,8 @@
 """Unabhängiges Prüfskript (Oracle) für einen Verhandlungslauf (Issue #44, PRD § 3 „Verhandlung (S5)“).
 
 Importiert keinen uc2-Laufzeitcode, nur Standardbibliothek, psycopg und jsonschema. Es liest `uc2.fall`,
-`uc2.teilnahme` und `uc2.ereignis`, den Akteurs-Pool aus den Dateinamen `uc2/akteure/*.md` und das Zugschema
+`uc2.teilnahme`, `uc2.ereignis` und (eigene SQL) `uc2.abschnitt`, den Akteurs-Pool aus den Dateinamen
+`uc2/akteure/*.md` und das Zugschema
 `uc2/src/uc2/akteure/zug.schema.json` als Datei. Das Zahlenmuster ist hier eigenständig formuliert.
 
 Aufruf (aus `uc2/`):
@@ -29,12 +30,15 @@ Prüfungen:
    Annahmen, Umfang und Ecken sind Eingaben und zählen nicht.
 6. `belege`: jede Beleg-ID in `themen[].beleg_ids` und `zahlen[].quelle` stammt aus dem Ereignis `belege`
    desselben Akteurs und derselben Runde, sonst gibt es `beleg_ungueltig` mit dieser ID. Jede Zahl in
-   `zahlen[]` mit gültiger Beleg-Quelle steht im `zitat` dieses Belegs (betragsgleich auf 0,05, Einheit
-   egal), oder sie ist als `zahl_ohne_beleg` mit derselben Quelle und demselben Wert markiert. Umgekehrt ist
-   eine solche Markierung falsch, wenn die Zahl im Zitat steht.
-   Grenze: PG speichert vom Beleg nur das `zitat` (höchstens 300 Zeichen ab dem besten Satz), nicht den Text,
-   den das Modell sah (`text_modell`). Steht eine Zahl nur außerhalb des Zitats im Beleg, meldet das Orakel
-   einen Verstoß, den der Lauf zu Recht nicht markiert hat (falscher Alarm, nie ein falsches Grün).
+   `zahlen[]` mit gültiger Beleg-Quelle steht im vollen Abschnittstext dieses Belegs (betragsgleich auf
+   0,05, Einheit egal), oder sie ist als `zahl_ohne_beleg` mit derselben Quelle und demselben Wert
+   markiert. Umgekehrt ist eine solche Markierung falsch, wenn die Zahl im Abschnitt steht.
+   Der Abschnitt kommt aus `uc2.abschnitt` (`abschnitt_id` = Beleg-ID; eine Artikel-ID ohne letzten Teil
+   umfasst alle Abschnitte des Artikels), unmaskiert. Das ist derselbe Bezug wie `text_modell` der
+   Laufzeitprüfung `zahl_ohne_beleg`; Namen zu maskieren ändert keine Zahl. Der Vergleich mit dem `zitat`
+   (höchstens 300 Zeichen) wäre zu eng und meldete Zahlen, die der Lauf zu Recht nicht markiert hat.
+   Grenze: Gibt es den Abschnitt nicht in PG (Fixture-Belege im mock-Lauf, gelöschter Index), fällt die
+   Prüfung für diese ID auf das `zitat` zurück; die Meldung nennt das („Abschnitt nicht in PG, nur Zitat“).
 7. `protokoll`: `seq` lückenlos ab 1, gespeicherter Fallstatus `fertig`.
 
 Datenschutz: Ausgegeben werden nur IDs, Runden, Zahlen und Prüfungsnamen, kein Beleg- oder Begründungstext.
@@ -142,6 +146,31 @@ def ergebniswerte(experte: dict[str, Any]) -> list[float]:
     for jahr in erg.get("jahrespfad") or []:
         werte += [w for k, v in jahr.items() if k != "jahr" for w in _zahl(v)]
     return werte
+
+
+def lade_abschnitte(conn: psycopg.Connection[Any], beleg_ids: set[str]) -> dict[str, str]:
+    """Voller Abschnittstext je Beleg-ID aus `uc2.abschnitt` (eigene SQL, kein uc2-Import).
+
+    Eine Beleg-ID ist `abschnitt_id` (`<md5[:12]>-<artikelnr:03d>-<abschnittnr:02d>`); ohne letzten Teil ist
+    sie eine `artikel_id` und steht für alle Abschnitte des Artikels (nach `nr` verbunden). IDs ohne Zeile
+    fehlen im Ergebnis (der Aufrufer fällt dann auf das Zitat zurück)."""
+    if not beleg_ids:
+        return {}
+    zeile = conn.execute("select to_regclass('uc2.abschnitt') is not null").fetchone()
+    if not zeile or not zeile[0]:
+        return {}
+    ids = sorted(beleg_ids)
+    je_id: dict[str, list[str]] = defaultdict(list)
+    for abschnitt_id, artikel_id, text in conn.execute(
+        "select abschnitt_id, artikel_id, text from uc2.abschnitt "
+        "where abschnitt_id = any(%s) or artikel_id = any(%s) order by artikel_id, nr",
+        (ids, ids),
+    ):
+        if abschnitt_id in beleg_ids:
+            je_id[abschnitt_id].append(text)
+        if artikel_id in beleg_ids:
+            je_id[artikel_id].append(text)
+    return {bid: "\n".join(texte) for bid, texte in je_id.items()}
 
 
 def pool() -> list[str]:
@@ -336,7 +365,11 @@ def pruefe_experte(lauf: Lauf, zuege: list[dict[str, Any]]) -> dict[str, Any]:
     return ergebnis("experte", verstoesse, zahlen=geprueft, experten_werte=len(werte))
 
 
-def pruefe_belege(lauf: Lauf, zuege: list[dict[str, Any]]) -> dict[str, Any]:
+def pruefe_belege(
+    lauf: Lauf, zuege: list[dict[str, Any]], abschnitte: dict[str, str] | None = None
+) -> dict[str, Any]:
+    """`abschnitte`: voller Text je Beleg-ID (`lade_abschnitte`); fehlt eine ID, gilt das Zitat."""
+    abschnitte = abschnitte or {}
     verstoesse = []
     geprueft = 0
     zahlen = 0
@@ -360,9 +393,10 @@ def pruefe_belege(lauf: Lauf, zuege: list[dict[str, Any]]) -> dict[str, Any]:
                 continue
             zahlen += 1
             wert = float(e["wert"])
-            im_zitat = any(
-                gleich(wert, w) for w in zahlen_ohne_einheit(lauf.zitate[(runde, aid, e["quelle"])])
-            )
+            volltext = abschnitte.get(e["quelle"])
+            bezug = "Abschnitt" if volltext is not None else "Zitat"
+            text = volltext if volltext is not None else lauf.zitate[(runde, aid, e["quelle"])]
+            im_text = any(gleich(wert, w) for w in zahlen_ohne_einheit(text))
             marke = any(
                 m.get("quelle") == e["quelle"]
                 and isinstance(m.get("wert"), int | float)
@@ -370,13 +404,15 @@ def pruefe_belege(lauf: Lauf, zuege: list[dict[str, Any]]) -> dict[str, Any]:
                 for m in nicht_im_beleg
             )
             ort = f"seq {z['seq']} (Runde {runde}, {aid})"
-            if not im_zitat and not marke:
+            hinweis = "" if volltext is not None else " (Abschnitt nicht in PG, nur Zitat)"
+            if not im_text and not marke:
                 verstoesse.append(
-                    f"{ort}: Zahl {wert} steht nicht im Zitat von {e['quelle']}, kein zahl_ohne_beleg"
+                    f"{ort}: Zahl {wert} steht nicht im {bezug} von {e['quelle']}, "
+                    f"kein zahl_ohne_beleg{hinweis}"
                 )
-            elif im_zitat and marke:
+            elif im_text and marke:
                 verstoesse.append(
-                    f"{ort}: Zahl {wert} steht im Zitat von {e['quelle']}, aber zahl_ohne_beleg"
+                    f"{ort}: Zahl {wert} steht im {bezug} von {e['quelle']}, aber zahl_ohne_beleg{hinweis}"
                 )
     return ergebnis("belege", verstoesse, beleg_ids=geprueft, beleg_zahlen=zahlen)
 
@@ -400,13 +436,14 @@ def pruefe(conn: psycopg.Connection[Any], fall_id: int) -> list[dict[str, Any]] 
     schema = json.loads(ZUG_SCHEMA.read_text(encoding="utf-8"))
     validator = jsonschema.Draft202012Validator(schema)
     schema_erg, gueltig = gueltige_zuege(lauf, validator)
+    abschnitte = lade_abschnitte(conn, {b for ids in lauf.belege.values() for b in ids})
     return [
         pruefe_teilnahme(lauf, pool()),
         pruefe_runden(lauf),
         schema_erg,
         pruefe_zahlen(lauf, gueltig),
         pruefe_experte(lauf, gueltig),
-        pruefe_belege(lauf, gueltig),
+        pruefe_belege(lauf, gueltig, abschnitte),
         pruefe_protokoll(lauf),
     ]
 
