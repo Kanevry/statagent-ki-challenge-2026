@@ -6,7 +6,8 @@ import { leseFolien, zeitStart, zeitText } from "@/lib/praesentation/folien";
 import { folieAusParam } from "@/lib/praesentation/navigation";
 
 // Folienschau vor der Jury (#59). Die Folien liegen als Markdown in web/content/slides/ (Format: README dort),
-// der Server liest und baut sie, die Navigation im Browser macht `Schau`. Dunkel ist nur die Bühne.
+// der Server liest sie. Folien mit `szene` laufen als animierte Szene (web/components/praesentation/szenen),
+// alle anderen im generischen Layout. Navigation und Takte macht `Schau`. Dunkel ist nur die Bühne.
 export const metadata: Metadata = { title: "Präsentation · OneShotAndy" };
 
 type Props = { searchParams: Promise<{ folie?: string | string[] }> };
@@ -33,6 +34,8 @@ export default async function Praesentation({ searchParams }: Props) {
     zeitText: zeitText(f.zeit),
     inhalt: <FolieAnsicht folie={f} />,
     notizen: f.notizen.length > 0 ? <NotizBlocks blocks={f.notizen} /> : null,
+    // Ohne Sprechtext an den Browser: die Szene braucht nur Inhalt und Frontmatter.
+    ...(f.szene ? { szene: { id: f.szene, folie: { ...f, notizen: [] } } } : {}),
   }));
 
   return (

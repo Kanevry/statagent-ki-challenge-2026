@@ -1,8 +1,7 @@
 # Folien für /praesentation
 
 Jede Folie ist eine Markdown-Datei in diesem Ordner. Die Reihenfolge ergibt sich aus dem Dateinamen
-(`01-cover.md`, `02-problem.md`, ..., `10-...` kommt nach `09-...`). Diese README ist keine Folie.
-Die drei Dateien `*-beispiel-*` sind Platzhalter und werden gelöscht, sobald die echten Folien da sind.
+(`01-titel.md`, `02-falsche-zahl.md`, ..., `10-...` kommt nach `09-...`). Diese README ist keine Folie.
 
 ## Aufbau einer Datei
 
@@ -37,7 +36,33 @@ Sprechtext. Steht nie auf der Folie.
 | `zahl` | nein | Nur bei `zahl`: die große Zahl. |
 | `beleg` | nein | Nur bei `zahl`: die Zeile unter der Zahl. |
 
-Weitere Schlüssel (`nummer`, `bereiche`, `belege` und so weiter) sind erlaubt und werden ignoriert.
+| `szene` | nein | Animierte Szene, siehe unten. Unbekannt oder leer: es gilt `layout`. |
+
+Weitere Schlüssel (`nummer`, `bereiche`, `belege` und so weiter) sind erlaubt. Die Szenen lesen manche davon
+als Zusatz (Tabelle unten), alle anderen werden ignoriert.
+
+## Szenen
+
+Steht `szene` im Frontmatter, läuft die Folie als animierte Szene auf der dunklen Bühne (1920 × 1080). Die Registry
+ist `web/components/praesentation/szenen/index.ts`. Jede Szene nimmt ihren Text, ihre Zahlen und Tabellen aus dem
+Markdown; im Code stehen nur Gestaltungstexte ohne Inhalt. Die Zeile `Herkunft: …` steht unten links, Nummer und
+Zeit unten rechts. `layout` bleibt der Rückfall, falls die Szene fehlt.
+
+| `szene` | Erwartet im Markdown | Zusätze im Frontmatter |
+|---|---|---|
+| `titel` | `#` Marke, 1. Absatz: Sätze, die nacheinander erscheinen, 2. Absatz: Zeile unten | `hervorheben`: Wort, das zuletzt Mint wird |
+| `falsche-zahl` | `#` Titel, Liste mit drei Sätzen (je Takt einer), Tabelle Monat und Wert | `monat_bruch`, `zahl_geliefert` |
+| `beleg` | 1. Absatz Satz, 2. Absatz Brücke | `zahl`, z. B. `2.880 von 2.880`: Raster und Hochzählen |
+| `annahme` | `#` Titel, Unterzeile, Tabelle Variante, Behandlung, `… von N`, Schlusssatz | keine |
+| `einstieg` | 1. Absatz Frage (tippt sich), Liste `**UCn Name:** Satz`, Tabelle, Absatz Kern | keine |
+| `schluss` | `#` erster Satz, 1. Absatz zweiter Satz, 2. Absatz Zeile klein | keine |
+
+### Takte
+
+Eine Szene kann Takte haben: Schritte innerhalb der Szene, die nur auf Tastendruck kommen. Pfeil rechts zeigt erst
+den nächsten Takt, nach dem letzten Takt die nächste Folie. Pfeil links geht erst die Takte zurück; wer eine Szene
+von hinten betritt, sieht alle Takte. Die Adresse trägt nur `?folie=N`, eine Folie startet dort mit Takt 0.
+Bei reduzierter Bewegung und im Druck zeigt jede Szene sofort alle Takte. Heute hat nur `falsche-zahl` Takte (drei).
 
 ## Layouts
 
@@ -58,6 +83,6 @@ Weitere Schlüssel (`nummer`, `bereiche`, `belege` und so weiter) sind erlaubt u
 
 ## Bedienung
 
-Pfeil rechts, Leertaste und Bild ab: weiter. Pfeil links und Bild auf: zurück. Pos1 und Ende: erste und letzte
+Pfeil rechts, Leertaste und Bild ab: weiter (erst Takt, dann Folie). Pfeil links und Bild auf: zurück. Pos1 und Ende: erste und letzte
 Folie. F: Vollbild. N: Notizen. Die Adresse trägt die Folie (`/praesentation?folie=3`, ab 1 gezählt). Eine
 ungültige Zahl öffnet Folie 1.

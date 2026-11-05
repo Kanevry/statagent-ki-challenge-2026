@@ -1,27 +1,27 @@
 ---
 nummer: 4
 titel: Was wo läuft
-layout: diagramm
-zeit: "2:00–2:45"
-dauer_s: 45
+layout: text
+szene: stack
+zeit: "2:10–2:40"
+dauer_s: 30
 bereiche: [Weiterentwicklung und Betrieb, Bedienbarkeit]
 screenshot: SC3
-pen_frame: QpM2f
+pen_frame: null
 belege: [F16]
 ---
 
 # Was wo läuft
 
-**PostgreSQL 16:** Rohdaten, Klassifikationen, Regeln in `meta.regel`
+- **Oberfläche:** zeigt und startet
+- **Programm `statagent`, Befehl `uc3`:** liest ein, rechnet, prüft, berichtet
+- **PostgreSQL 16:** Rohdaten, Klassifikationen, Regeln
 
-**Python-Programm `statagent`, Befehl `uc3`:** liest ein, rechnet, prüft, schreibt Berichte
+**Agenten:** schreiben Vorschläge für Regeln und Code. Modell austauschbar. Sehen Regeln und Summen, keine Einzeldaten.
 
-**Oberfläche:** zeigt Läufe und Berichte und startet Befehle
-
-**Agenten:** schreiben Vorschläge für Regeln und Code. Das Modell ist austauschbar. Es sieht Regeln und Summen, keine Einzeldaten.
-
-Herkunft: `uc3/README.md`
+Herkunft: uc3/README.md
 
 ## Sprechernotizen
 
-So ist es gebaut. Unten liegt PostgreSQL 16, die Datenbank. Darüber liegt das Python-Paket statagent mit dem Befehl uc3. Es liest, prüft und rechnet. Die Oberfläche in Next.js liest nur und startet diesen Befehl. Die Agenten sprechen über eine einzige Schnittstelle mit dem Modell. Das Modell ist austauschbar. Es sieht Regeln, Schemata und Summen. Einzeldaten sieht es nie.
+So ist es gebaut. Unten die Datenbank, darüber das Programm, oben die Oberfläche.
+Die Agenten machen nur Vorschläge. Welches Modell dahinter steht, ist ein Schalter. Einzelne Datensätze sieht es nie.

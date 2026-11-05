@@ -42,6 +42,14 @@ describe("parseFolie", () => {
     expect(f.zahl).toBeUndefined();
   });
 
+  it("liest szene klein geschrieben und behält alle Frontmatter-Werte in daten", () => {
+    const f = parseFolie("02-x.md", "---\ntitel: A\nlayout: text\nszene: Falsche-Zahl\nzahl_geliefert: 313.154\nscreenshot: null\n---\n# A");
+    expect(f.szene).toBe("falsche-zahl");
+    expect(f.daten).toMatchObject({ titel: "A", layout: "text", zahl_geliefert: "313.154" });
+    expect(f.daten).not.toHaveProperty("screenshot");
+    expect(parseFolie("a.md", "# A").szene).toBeUndefined();
+  });
+
   it("nimmt auch die Überschrift „Sprechernotizen“ als Trenner", () => {
     const f = parseFolie("a.md", "# A\n\ntext\n\n## Sprechernotizen\n\nleise\n");
     expect(f.inhalt).toHaveLength(2);

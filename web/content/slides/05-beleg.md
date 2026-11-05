@@ -2,11 +2,13 @@
 nummer: 5
 titel: 2.880 von 2.880
 layout: zahl
-zeit: "2:45–3:15"
-dauer_s: 30
+szene: beleg
+zahl: 2.880 von 2.880
+zeit: "2:40–3:15"
+dauer_s: 35
 bereiche: [Qualitätssicherung, Reporting]
 screenshot: SC4
-pen_frame: uzmdd
+pen_frame: null
 belege: [F1, F2]
 ---
 
@@ -14,10 +16,11 @@ belege: [F1, F2]
 
 Alle Zahlenzellen des Beispielberichts 08/2024 exakt nachgerechnet. 0 Abweichungen.
 
-392.284 Zeilen geliefert, 48 vor dem Stichtag beendet, 392.236 Beschäftigungsverhältnisse am Stichtag 31.08.2024.
+392.284 Zeilen geliefert, 48 vor dem Stichtag beendet, 392.236 Beschäftigungsverhältnisse am 31.08.2024.
 
-Herkunft: Zellvergleich `uc3 eichen --lieferung 2024-08` und eine unabhängige Gegenrechnung
+Herkunft: uc3 eichen --lieferung 2024-08 und eine unabhängige Gegenrechnung
 
 ## Sprechernotizen
 
-Zuerst der Beleg. Der Beispielbericht für August 2024 ist unser Golden Set, also die Vorlage zum Prüfen. Er hat 2.880 Zahlenzellen. Wir haben alle nachgerechnet, null Abweichungen. Auch die Brücke geht auf: 392.284 Zeilen, minus 48 Abschnitte, die vor dem Stichtag enden, gleich 392.236. Der Stichtag ist der Monatsletzte.
+Woher wissen wir, dass es stimmt? Der Veranstalter hat einen Beispielbericht für August 2024 mitgegeben.
+Wir rechnen alle 2.880 Zahlen darin nach. Alle stimmen. Keine weicht ab.

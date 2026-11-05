@@ -12,21 +12,11 @@ import sys
 from pathlib import Path
 
 ANZAHL = 11
-MAX_DAUER_S = 600
-PFLICHTFELDER = ("nummer", "titel", "layout", "zeit", "dauer_s", "bereiche", "belege")
-LAYOUTS = {
-    "cover",
-    "aussage",
-    "schritte",
-    "diagramm",
-    "zahl",
-    "tafel",
-    "annahme",
-    "live",
-    "grenzen",
-    "einstieg",
-    "schluss",
-}
+MAX_DAUER_S = 600  # Summe aller dauer_s; Ziel 9:30, Puffer 30 s
+PFLICHTFELDER = ("nummer", "titel", "layout", "szene", "zeit", "dauer_s", "bereiche", "belege")
+LAYOUTS = {"titel", "text", "schritte", "zahl", "live"}
+LAYOUT_ALIASE = {"cover": "titel"}  # alte Namen, die die Runtime weiter versteht
+SZENE_MUSTER = re.compile(r"^[a-z0-9-]+$")
 DATEINAME = re.compile(r"^(\d{2})-.+\.md$")
 GEDANKENSTRICH = re.compile(r" [—–] ")
 BELEG_KENNUNG = re.compile(r"^F\d+$")
@@ -127,8 +117,11 @@ def datei_pruefen(pfad: Path, storyboard: str, kennungen: set[str]) -> tuple[lis
             if not nummer.strip().isdigit() or int(nummer) != int(treffer.group(1)):
                 befunde.append(f"nummer {nummer} passt nicht zum Dateinamen")
         layout = felder.get("layout")
-        if isinstance(layout, str) and layout and layout not in LAYOUTS:
+        if isinstance(layout, str) and layout and layout not in LAYOUTS and layout not in LAYOUT_ALIASE:
             befunde.append(f"layout {layout} ist nicht erlaubt")
+        szene = felder.get("szene")
+        if isinstance(szene, str) and szene.strip() and not SZENE_MUSTER.match(szene.strip()):
+            befunde.append(f"szene {szene} passt nicht zum Muster [a-z0-9-]+")
         if layout == "live":
             route = felder.get("route")
             if not isinstance(route, str) or not route.startswith("/"):
@@ -143,7 +136,7 @@ def datei_pruefen(pfad: Path, storyboard: str, kennungen: set[str]) -> tuple[lis
         if isinstance(belege, list):
             for kennung in belege:
                 if not BELEG_KENNUNG.match(kennung):
-                    befunde.append(f"Beleg {kennung} ist keine Kennung F1…F16")
+                    befunde.append(f"Beleg {kennung} ist keine Kennung Fn (F1, F2, …)")
                 elif kennung not in kennungen:
                     befunde.append(f"Beleg {kennung} fehlt im Belegregister")
         elif isinstance(belege, str) and belege.strip():
@@ -171,7 +164,10 @@ def main(argv: list[str] | None = None) -> int:
     if not kennungen:
         befunde.append("docs/praesentation/belegregister.md: keine Zeilen | Fn | gefunden")
 
-    dateien = sorted(folien_dir.glob("*.md")) if folien_dir.is_dir() else []
+    # README.md im Ordner ist keine Folie.
+    dateien = (
+        sorted(p for p in folien_dir.glob("*.md") if p.name != "README.md") if folien_dir.is_dir() else []
+    )
     nummern: list[int] = []
     for pfad in dateien:
         treffer = DATEINAME.match(pfad.name)

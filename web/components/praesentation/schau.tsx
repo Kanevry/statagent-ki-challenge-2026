@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Knopf } from "@kic/ui/basis";
-import { naechsteFolie, schalterFuerTaste } from "../../lib/praesentation/navigation";
+import type { Folie } from "../../lib/praesentation/folien";
+import { naechsterStand, schalterFuerTaste, type Stand } from "../../lib/praesentation/navigation";
 import { BUEHNE, BUEHNE_BREITE, BUEHNE_HOEHE } from "./buehne-klassen";
+import { istRuhig, k } from "./szenen/gemeinsam";
+import { szeneFuer } from "./szenen";
 
 /** Eine Folie, wie die Schau sie braucht: Beschriftung für die Leiste und fertig gebaute Teile vom Server. */
 export interface SchauFolie {
@@ -13,9 +16,12 @@ export interface SchauFolie {
   zeit?: string;
   /** Zeitangabe zum Lesen, z. B. `3:15 bis 4:15` */
   zeitText?: string;
+  /** Generisches Layout vom Server; gilt, wenn `szene` fehlt oder unbekannt ist. */
   inhalt: ReactNode;
   /** `null`, wenn die Folie keinen Sprechtext hat */
   notizen: ReactNode | null;
+  /** Animierte Szene aus der Registry (web/components/praesentation/szenen), mit den Daten der Folie. */
+  szene?: { id: string; folie: Folie };
 }
 
 /** Tasten, die in Formularen und auf Bedienelementen ihre eigene Aufgabe haben. */
@@ -29,21 +35,47 @@ const FOKUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visi
 
 export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }) {
   const anzahl = folien.length;
-  const [nr, setNr] = useState(start);
+  const takte = useMemo(() => folien.map((f) => szeneFuer(f.szene?.id)?.takte ?? 0), [folien]);
+  const [stand, setStand] = useState<Stand>({ folie: start, takt: 0 });
   const [notizenAn, setNotizenAn] = useState(false);
   const [vollbild, setVollbild] = useState(false);
   const [kannVollbild, setKannVollbild] = useState(true);
   const [skala, setSkala] = useState(0.5);
   const wurzel = useRef<HTMLDivElement>(null);
   const platz = useRef<HTMLDivElement>(null);
+  const nr = stand.folie;
+  const takt = stand.takt;
+  const maxTakt = takte[nr - 1] ?? 0;
   const folie = folien[nr - 1] ?? folien[0];
 
-  const gehe = useCallback((ziel: number) => {
-    setNr(ziel);
+  const wechsle = useCallback((neu: Stand) => {
+    setStand(neu);
     const adresse = new URL(window.location.href);
-    adresse.searchParams.set("folie", String(ziel));
-    window.history.replaceState(null, "", adresse);
+    if (adresse.searchParams.get("folie") !== String(neu.folie)) {
+      adresse.searchParams.set("folie", String(neu.folie));
+      window.history.replaceState(null, "", adresse);
+    }
   }, []);
+
+  /** Sprung auf eine Folie (Leiste): Takt 0, bei reduzierter Bewegung alle Takte. */
+  const gehe = useCallback(
+    (ziel: number) => wechsle({ folie: ziel, takt: istRuhig() ? (takte[ziel - 1] ?? 0) : 0 }),
+    [takte, wechsle],
+  );
+
+  const schritt = useCallback(
+    (taste: string) => {
+      const neu = naechsterStand(stand, takte, taste, istRuhig());
+      if (neu && (neu.folie !== stand.folie || neu.takt !== stand.takt)) wechsle(neu);
+      return neu !== null;
+    },
+    [stand, takte, wechsle],
+  );
+
+  // Reduzierte Bewegung: schon die Startfolie zeigt alle Takte (Endzustand wie im Prototyp).
+  useEffect(() => {
+    if (istRuhig()) setStand((s) => ({ ...s, takt: takte[s.folie - 1] ?? 0 }));
+  }, [takte]);
 
   const schalteVollbild = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
@@ -60,10 +92,8 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
   useEffect(() => {
     const beiTaste = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || gehoertDemElement(e.target, e.key)) return;
-      const ziel = naechsteFolie(nr, anzahl, e.key);
-      if (ziel !== null) {
+      if (schritt(e.key)) {
         e.preventDefault();
-        if (ziel !== nr) gehe(ziel);
         return;
       }
       const schalter = schalterFuerTaste(e.key);
@@ -72,7 +102,7 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
     };
     window.addEventListener("keydown", beiTaste);
     return () => window.removeEventListener("keydown", beiTaste);
-  }, [nr, anzahl, gehe, schalteVollbild]);
+  }, [schritt, schalteVollbild]);
 
   // Die Bühne ist immer 1920 × 1080 und wird auf den freien Platz verkleinert. Im Fenster zählt die Breite, im Vollbild auch die Höhe.
   useLayoutEffect(() => {
@@ -96,11 +126,11 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
     <div
       ref={wurzel}
       data-vollbild={vollbild ? "an" : "aus"}
-      className={`flex min-h-0 flex-1 ${vollbild ? `h-dvh flex-col gap-4 p-4 ${BUEHNE.grund}` : ""}`}
+      className={`${k("praesentation")} flex min-h-0 flex-1 ${vollbild ? `h-dvh flex-col gap-4 p-4 ${BUEHNE.grund}` : ""}`}
     >
       <nav
         aria-label="Folien"
-        className={`${vollbild ? "hidden" : "hidden lg:flex"} w-[300px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-line bg-white p-4`}
+        className={`${k("ohne-druck")} ${vollbild ? "hidden" : "hidden lg:flex"} w-[300px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-line bg-white p-4`}
       >
         <p className="font-display text-16 font-bold text-ink">Folien</p>
         <p className="mb-3 font-sans text-12 text-slate">Pfeiltasten wechseln die Folie.</p>
@@ -123,7 +153,7 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
             </li>
           ))}
         </ol>
-        <p className="mt-auto pt-4 font-sans text-12 text-slate">Pfeiltasten: Folie. F: Vollbild. N: Notizen.</p>
+        <p className="mt-auto pt-4 font-sans text-12 text-slate">Pfeiltasten: Folie und Takt. F: Vollbild. N: Notizen.</p>
       </nav>
 
       <div className={`flex min-w-0 flex-1 flex-col gap-4 ${vollbild ? "min-h-0" : "p-4 md:p-6"}`}>
@@ -133,35 +163,60 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
             aria-label={`Folie ${nr} von ${anzahl}: ${folie.titel}`}
             data-folie={nr}
             data-folie-id={folie.id}
+            data-takt={takt}
             style={{ width: BUEHNE_BREITE * skala, height: BUEHNE_HOEHE * skala }}
-            className={`relative shrink-0 overflow-hidden ${BUEHNE.grund}`}
+            className={`${k("rahmen")} relative shrink-0 overflow-hidden ${BUEHNE.grund}`}
           >
             <div
               style={{ width: BUEHNE_BREITE, height: BUEHNE_HOEHE, transform: `scale(${skala})`, transformOrigin: "top left" }}
-              className="absolute left-0 top-0"
+              className={`${k("buehne")} absolute left-0 top-0`}
             >
-              {folie.inhalt}
+              {/* Alle Folien liegen im DOM, sichtbar ist nur die aktive (.aktiv). Beim Betreten starten ihre
+                  Keyframes neu; im Druck stehen alle untereinander im Endzustand. */}
+              {folien.map((f, i) => {
+                const aktiv = i + 1 === nr;
+                const eintrag = szeneFuer(f.szene?.id);
+                return (
+                  <div
+                    key={f.id}
+                    className={k("szene", aktiv && "aktiv")}
+                    data-szene={eintrag ? f.szene?.id : undefined}
+                    data-aktiv={aktiv ? "ja" : undefined}
+                  >
+                    {eintrag && f.szene ? (
+                      <eintrag.Komponente
+                        folie={f.szene.folie}
+                        nr={i + 1}
+                        aktiv={aktiv}
+                        takt={aktiv ? takt : (takte[i] ?? 0)}
+                      />
+                    ) : (
+                      f.inhalt
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </section>
         </div>
 
-        <p role="status" className="sr-only">{`Folie ${nr} von ${anzahl}: ${folie.titel}`}</p>
+        <p role="status" className="sr-only">{`Folie ${nr} von ${anzahl}: ${folie.titel}${maxTakt > 0 ? `, Takt ${takt} von ${maxTakt}` : ""}`}</p>
 
         {notizenAn && (
           <section
             aria-label="Sprechnotizen"
-            className={`flex flex-col gap-1 border-t pt-3 ${vollbild ? `${BUEHNE.linie} text-paper` : "border-line text-slate"}`}
+            className={`${k("ohne-druck")} flex flex-col gap-1 border-t pt-3 ${vollbild ? `${BUEHNE.linie} text-paper` : "border-line text-slate"}`}
           >
             <h2 className={`font-sans text-14 font-bold ${vollbild ? "text-paper" : "text-ink"}`}>{`Sprechtext${zeitZeile}`}</h2>
             {folie.notizen ?? <p className="font-sans text-14">Zu dieser Folie gibt es keinen Sprechtext.</p>}
           </section>
         )}
 
-        <div className={`${vollbild ? "hidden" : "flex"} flex-wrap items-center gap-[10px]`}>
-          <Knopf art="sekundaer" onClick={() => gehe(nr - 1)} disabled={nr <= 1}>
+        <div className={`${k("ohne-druck")} ${vollbild ? "hidden" : "flex"} flex-wrap items-center gap-[10px]`}>
+          <Knopf art="sekundaer" onClick={() => schritt("ArrowLeft")} disabled={nr <= 1 && takt <= 0}>
             Vorherige Folie
           </Knopf>
-          <Knopf art="primaer" onClick={() => gehe(nr + 1)} disabled={nr >= anzahl}>
+          <Knopf art="primaer" onClick={() => schritt("ArrowRight")} disabled={nr >= anzahl && takt >= maxTakt}>
             Nächste Folie
           </Knopf>
           <span className="px-2 font-sans text-14 tabular-nums text-slate">{`${nr} von ${anzahl}`}</span>

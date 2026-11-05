@@ -2,22 +2,28 @@
 nummer: 3
 titel: Einlesen, rechnen, freigeben
 layout: schritte
-zeit: "1:15–2:00"
-dauer_s: 45
+szene: drei-schritte
+abgelehnt: Team
+abgelehnt_hinweis: wird abgelehnt
+name: Bernhard Götzendorfer
+zeit: "1:20–2:10"
+dauer_s: 50
 bereiche: [Datenmanagement, Weiterentwicklung und Betrieb]
 screenshot: SC2
-pen_frame: uw3eY
+pen_frame: null
 belege: [F15, F16]
 ---
 
 # Einlesen, rechnen, freigeben
 
-1. **Einlesen und prüfen.** Jede Lieferung bleibt, wie sie kam. Nichts wird gelöscht.
-2. **Rechnen nach Regeln.** Die Regeln stehen als Daten in der Datenbank. Das Programm rechnet ohne Sprachmodell.
-3. **Freigeben.** Ein Mensch gibt jede Regel und jeden Monat mit Vor- und Nachnamen frei.
+1. **Einlesen.** Jede Lieferung bleibt, wie sie kam. Nichts wird gelöscht.
+2. **Rechnen.** Regeln als Daten. Kein Sprachmodell rechnet.
+3. **Freigeben.** Mit Vor- und Nachname.
 
-Herkunft: Regelsatz v1 mit 15 Regeln zum Einlesen, Zuordnen und Zählen und 24 Prüfregeln
+Herkunft: Regelsatz v1 in meta.regel: 15 Regeln zum Einlesen, Zuordnen und Zählen, 24 Prüfregeln
 
 ## Sprechernotizen
 
-Der Ablauf hat drei Schritte. Erstens lesen wir eine Lieferung ein und prüfen sie. Nichts wird gelöscht. Zweitens stehen die Regeln als Daten in der Tabelle meta.regel. Das Programm rechnet mit diesen Regeln, ganz ohne Sprachmodell. Zwei Läufe mit gleichen Daten ergeben gleiche Zahlen. Drittens gibt ein Mensch frei, mit Vor- und Nachnamen. Der Name Team wird abgelehnt.
+Die Lösung hat drei Schritte. Wir lesen jede Lieferung ein und löschen nichts.
+Das Programm rechnet nach Regeln, die als Daten in der Datenbank stehen. Ein Sprachmodell rechnet nie mit.
+Und ein Mensch gibt frei, mit Vor- und Nachname. Unter jeder Zahl steht ein Name.

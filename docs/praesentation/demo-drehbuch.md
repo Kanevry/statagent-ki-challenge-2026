@@ -1,6 +1,6 @@
-# Demo-Drehbuch (Folie 8, 5:00–8:30)
+# Demo-Drehbuch (Szene 8, 5:00–8:20)
 
-Gehört zu GitLab #90, Epic #26. Zahlen tragen ihre Kennung aus dem Belegregister (F1 bis F16).
+Gehört zu GitLab #90, Epic #26. Zahlen tragen ihre Kennung aus dem Belegregister (F1 bis F17).
 
 Feature-Stopp und Freeze für Code, Präsentation und Demo: **Fr 06.11.2026 07:00 (Europe/Vienna)**. Nach dem Freeze ändert niemand mehr etwas. Die Demo läuft auf dem Stand vom Freeze.
 
@@ -8,23 +8,23 @@ Feature-Stopp und Freeze für Code, Präsentation und Demo: **Fr 06.11.2026 07:0
 
 | Zeit | Schritt | Dauer |
 |---|---|---|
-| 5:00–5:15 | Überleitung von Folie 7 | 0:15 |
-| 5:15–6:20 | D1 Lauf 2025-03 und Qualitätsbericht | 1:05 |
-| 6:20–7:40 | D2 Änderung per Sprache mit Freigabe | 1:20 |
-| 7:40–8:20 | D3 Datenanfrage Männer und Frauen je Bundesland | 0:40 |
-| 8:20–8:30 | UC-Wechsel im App-Header | 0:10 |
-| 8:30 | Weiter mit Folie 9 | |
+| 5:00–5:10 | Überleitung von Szene 7 | 0:10 |
+| 5:10–6:15 | D1 Lauf 2025-03 und Qualitätsbericht | 1:05 |
+| 6:15–7:35 | D2 Änderung per Sprache mit Freigabe | 1:20 |
+| 7:35–8:10 | D3 Datenanfrage Männer und Frauen je Bundesland | 0:35 |
+| 8:10–8:20 | UC-Wechsel im App-Header | 0:10 |
+| 8:20 | Weiter mit Szene 9 | |
 
-Die Demo selbst dauert 3:15 (5:15–8:30). Optional D4 steht am Ende dieses Blatts und hat keine eigene Zeit.
+Die Demo selbst dauert 3:10 (5:10–8:20). Optional D4 steht am Ende dieses Blatts und hat keine eigene Zeit.
 
 ## Schritte
 
-### Überleitung (5:00–5:15)
+### Überleitung (5:00–5:10)
 
-- Sagt Bernhard: „Bisher waren das Folien. Jetzt zeige ich dieselbe Pipeline am echten Stand.“
-- Jury sieht: Folie 8 „Jetzt live“, danach der Wechsel zum Browser.
+- Sagt Bernhard: „Jetzt zeige ich es live.“
+- Jury sieht: Szene 8 „Jetzt live“, danach der Wechsel zum Browser.
 
-### D1 Lauf 2025-03 und Qualitätsbericht (5:15–6:20)
+### D1 Lauf 2025-03 und Qualitätsbericht (5:10–6:15)
 
 - Klickweg: Web-UI, Seite `/uc3`, dann „Lauf-Detail 2025-03“. Dort steht der Qualitätsbericht des Monats.
 - CLI-Rückfall: `uv run uc3 lauf --lieferung 2025-03`, danach `uv run uc3 laeufe`. Bericht: `abgabe/qualitaetsberichte/2025-03.md`.
@@ -35,19 +35,19 @@ Die Demo selbst dauert 3:15 (5:15–8:30). Optional D4 steht am Ende dieses Blat
   - Status des Monats: angehalten und vorläufig.
   - Nichts wurde gelöscht. Die Rohdaten bleiben.
 
-### D2 Änderung per Sprache (6:20–7:40)
+### D2 Änderung per Sprache (6:15–7:35)
 
 Geübter Auftrag: Plausibilitätsgrenze für das Alter von 110 auf 100 senken. Das ändert keine Zahlen (F5). So zeigt die Demo Diff und Freigabe ohne Risiko.
 
 Ablauf mit den Befehlen (im Terminal oder in der Web-UI, gleiche Schritte):
 
-1. 6:20 Auftrag stellen. Der Agent erzeugt nur einen Vorschlag und ändert nichts:
+1. 6:15 Auftrag stellen. Der Agent erzeugt nur einen Vorschlag und ändert nichts:
    `uv run uc3 agent "Setze die Plausibilitätsgrenze für das Alter von 110 auf 100" --probe 2024-08`
-2. 6:50 Vorschlag ansehen:
+2. 6:45 Vorschlag ansehen:
    `uv run uc3 vorschlag zeigen <id>`
-3. 7:10 Freigeben mit Vor- und Nachnamen:
+3. 7:05 Freigeben mit Vor- und Nachnamen:
    `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`
-4. 7:25 Protokoll zeigen:
+4. 7:20 Protokoll zeigen:
    `uv run uc3 protokoll --zeigen`
 
 - Sagt Bernhard (bei 1): „Ich sage der Maschine in einem Satz, was sich ändern soll. Sie schreibt nur einen Vorschlag.“
@@ -61,7 +61,7 @@ Ablauf mit den Befehlen (im Terminal oder in der Web-UI, gleiche Schritte):
   - Eintrag im Protokoll.
 - Vorher prüfen: Ist `<id>` beim Üben vergeben worden, nimm die neue Kennung aus der Ausgabe von Schritt 1. Nie eine Kennung von gestern übernehmen.
 
-### D3 Datenanfrage Männer und Frauen je Bundesland (7:40–8:20)
+### D3 Datenanfrage Männer und Frauen je Bundesland (7:35–8:10)
 
 - Klickweg oder Befehl: Der Befehl `frage` ist noch nicht fertig (Issue #74). Bis dahin läuft die Anfrage als SQL mit `psql` gegen die UC3-Datenbank. Die fertige Abfrage steht in `docs/praesentation/fragenkatalog.md`, Teil A2.
 - Sagt Bernhard: „Die Frage lautet: Männer und Frauen je Bundesland. Die SQL sehen Sie hier vollständig. Die Summe stimmt mit dem Beispielbericht überein.“
@@ -71,7 +71,7 @@ Ablauf mit den Befehlen (im Terminal oder in der Web-UI, gleiche Schritte):
   - Zur Kontrolle für Bernhard (Stand 08/2024): gesamt 392.236, Männer 211.603, Frauen 180.633 (F14). Wien 90.799, Niederösterreich 64.505 (F14).
 - Die Zahlen oben gelten für den Stichtag 31.08.2024. Läuft die Anfrage auf einem anderen Monat, steht der Monat sichtbar in der SQL.
 
-### UC-Wechsel (8:20–8:30)
+### UC-Wechsel (8:10–8:20)
 
 - Klickweg: App-Header, UC-Wechsel einmal öffnen und zurück zu UC3.
 - Sagt Bernhard: „Derselbe Kern trägt auch die anderen Räume. Dazu gleich mehr.“
@@ -79,7 +79,7 @@ Ablauf mit den Befehlen (im Terminal oder in der Web-UI, gleiche Schritte):
 
 ### Optional D4 Gemeinsamer Einstieg (UC4)
 
-- Eine Frage läuft durch UC3, UC2 und UC1: „Wie viele Menschen arbeiten in Wien im Gesundheits- und Sozialwesen (März 2025), und was heißt das für Wartezeiten beim Arzt?“ UC3 liefert die Zahl für ÖNACE-Abschnitt Q, Wien, 2025-03 mit Beleg, UC2 die Abwägung, UC1 die Erklärung in einfacher Sprache.
+- Eine Frage läuft durch UC3, UC2 und UC1: „Wie viele Menschen arbeiten in Wien im Gesundheits- und Sozialwesen (März 2025), und was heißt das für Wartezeiten beim Arzt?“ UC3 liefert die Zahl für ÖNACE-2025-Abschnitt R (Gesundheits- und Sozialwesen), Wien, 2025-03 mit Beleg, UC2 die Abwägung, UC1 die Erklärung in einfacher Sprache.
 - Die Frage stammt aus dem Abgleich der Review-Bank. Die Wartezeiten selbst kann UC3 nicht beantworten, es kennt nur Beschäftigte. Online antworten die Modelle bis #100 im Testmodus (mock); das wird angesagt.
 - Nur wenn `/uc4` bis zum Freeze grün ist. Sonst entfällt D4 ohne Ersatz.
 - **Entscheid am Fr 06:45.** Wer entscheidet: Lead mit Bernhard. Ergebnis in `probe.md` eintragen.
@@ -115,7 +115,7 @@ Jeder Punkt wird abgehakt, sobald er geprüft ist. Uhrzeit nur aus der Uhr (`TZ=
 - [ ] Video lokal geöffnet und startklar (Stufe 3).
 - [ ] Netz aus getestet: Stufe 2 und Stufe 3 laufen ohne Netz.
 - [ ] Keine Secrets sichtbar. Umgebungsvariablen nicht im Terminal anzeigen, keine `.env.local` öffnen.
-- [ ] Zahlen auf den Folien gegen `abgabe/` abgeglichen.
+- [ ] Zahlen in den Szenen gegen `abgabe/` abgeglichen.
 - [ ] Übungsauftrag aus D2 einmal trocken gelaufen, `<id>` notiert, Zustand danach zurückgesetzt.
 - [ ] Entscheid D4 um 06:45 getroffen und in `probe.md` eingetragen.
 - [ ] Freeze um 07:00 (Europe/Vienna) bestätigt. Danach keine Änderung mehr.

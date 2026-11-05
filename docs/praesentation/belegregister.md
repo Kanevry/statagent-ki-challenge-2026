@@ -1,7 +1,7 @@
 # Belegregister: jede Zahl der Präsentation mit Herkunft
 
-Stand 05.11.2026. Gehört zu #89. Jede Ergebniszahl auf den 11 Folien in `web/content/slides/` steht hier mit Kennung, Quelle, Abfrage und Datenstand.
-Die Kennung (F1 bis F16) steht im Feld `belege` der Folie. Skript, Fragenkatalog und Drehbuch verwenden dieselben Kennungen.
+Stand 05.11.2026. Gehört zu #89. Jede Ergebniszahl auf den 11 Szenen (Szenen v2) in `web/content/slides/` steht hier mit Kennung, Quelle, Abfrage und Datenstand.
+Die Kennung (F1 bis F17) steht im Feld `belege` der Szene. Die Spalte „Szene“ nennt die Nummer der Szene (Datei `NN-*.md`). Skript, Fragenkatalog und Drehbuch verwenden dieselben Kennungen.
 
 Zwei Quellen rechnen unabhängig voneinander:
 
@@ -12,24 +12,25 @@ Eine Zahl gilt als belegt, wenn beide Quellen sie liefern oder wenn eine Quelle 
 
 ## Register
 
-| Kennung | Zahl auf der Folie | Folie | Bedeutung | Quelle und Abfrage | Datenstand |
+| Kennung | Zahl in der Szene | Szene | Bedeutung | Quelle und Abfrage | Datenstand |
 |---|---|---|---|---|---|
 | F1 | 2.880 von 2.880, 0 Abweichungen | 5 | Zahlenzellen Tab1 bis Tab13 des Beispielberichts 08/2024, exakt nachgerechnet | Lauf: `uv run uc3 eichen --lieferung 2024-08` meldet „Zellen 2880, abweichend 0“; Test `uc3/tests/test_goldenset.py`. Gegenrechnung: Zellvergleich Tab1 12, Tab2 132, Tab3 bis Tab12 2.160, Tab13 576 Zellen | 05.11.2026 |
 | F2 | 392.284, 48, 392.236 | 5 | Zeilen der Lieferung 2024-08, davon vor dem Stichtag beendet, Bestand am 31.08.2024 | Lauf: `abgabe/qualitaetsberichte/2024-08.md` Abschnitt 1. Gegenrechnung: Abfrage A1 | 05.11.2026 |
-| F3 | 24 Lieferungen, 10.152.292 Zeilen | 2 | Datenbasis 2024-08 bis 2026-07 | `docs/plan/uc3/annahmen.md`, Lesehinweise; `SELECT count(*) FROM roh.lieferung` | 05.11.2026 |
+| F3 | 24 Lieferungen, 10.152.292 Zeilen | keine | Datenbasis 2024-08 bis 2026-07 | `docs/plan/uc3/annahmen.md`, Lesehinweise; `SELECT count(*) FROM roh.lieferung` | 05.11.2026 |
 | F4 | 370; 576 Zellen; 416, 408, 367, 0 | 6, 7 | Geburtsmonat 13 am Stichtag 08/2024; Varianten A bis D gegen Tab13 | Lauf: `abgabe/qualitaetsberichte/2024-08.md` Auffälligkeit 1 (P04), Regel `R5_alter`. Gegenrechnung: Abfrage A2 und Variantenvergleich | 05.11.2026 |
-| F5 | 7; 117 bis 153 Jahre | 6, 8 | Alter über der Plausibilitätsgrenze, zählt als unbekannt | Lauf: Qualitätsbericht 2024-08 Auffälligkeit 2 (P06), `docs/plan/uc3/annahmen.md` A5. Gegenrechnung: Abfrage A3 | 05.11.2026 |
+| F5 | 7; 117 bis 153 Jahre | 6 | Alter über der Plausibilitätsgrenze, zählt als unbekannt | Lauf: Qualitätsbericht 2024-08 Auffälligkeit 2 (P06), `docs/plan/uc3/annahmen.md` A5. Gegenrechnung: Abfrage A3 | 05.11.2026 |
 | F6 | 50 | 6 | ÖNACE-2003-Codes am Stichtag 08/2024, zählen zu C. In den Daten kommen DA bis DM vor, ohne DE; die Regel deckt DA bis DN ab | Lauf: Qualitätsbericht 2024-08 Auffälligkeit 4 (P11). Gegenrechnung: C = 62.154 + 50 = 62.204 wie Tab3 | 05.11.2026 |
 | F7 | 1.996 | 6 | Bundesland und ÖNACE leer, immer gemeinsam | Lauf: Qualitätsbericht 2024-08 Auffälligkeit 3 (P10). Gegenrechnung: Abfrage A4 | 05.11.2026 |
-| F8 | 1.663 | 6, 8 | doppelte Zeilen in Lieferung 2025-03, in allen Feldern gleich | Lauf: Qualitätsbericht 2025-03 Auffälligkeit 1 (P01). Gegenrechnung: Abfrage A5 | 05.11.2026 |
-| F9 | 1.492 | 6, 8 | freie Dienstverträge, die am 28.02.2025 bestehen und in 2025-03 fehlen | Lauf: Qualitätsbericht 2025-03 Auffälligkeit 7 (P13, AngestellteFD 1.131 und ArbeiterFD 361). Gegenrechnung: Abfrage A6 | 05.11.2026 |
+| F8 | 1.663 | 6 | doppelte Zeilen in Lieferung 2025-03, in allen Feldern gleich | Lauf: Qualitätsbericht 2025-03 Auffälligkeit 1 (P01). Gegenrechnung: Abfrage A5 | 05.11.2026 |
+| F9 | 1.492 | 6 | freie Dienstverträge, die am 28.02.2025 bestehen und in 2025-03 fehlen | Lauf: Qualitätsbericht 2025-03 Auffälligkeit 7 (P13, AngestellteFD 1.131 und ArbeiterFD 361). Gegenrechnung: Abfrage A6 | 05.11.2026 |
 | F10 | 388.115 | 6 | Zeilen ohne Beginn in Lieferung 2025-06 (von 432.086) | Lauf: `docs/plan/uc3/annahmen.md` A6, Qualitätsbericht 2025-06 (P03). Abfrage A7 | 05.11.2026 |
-| F11 | 78.949; „jede fünfte“; „fast alle wieder“ | 6 | am 30.09.2025 offene Verhältnisse, die in 2025-10 fehlen (20,0 % von 394.200); 78.733 davon wieder in 2025-11 | Lauf: Qualitätsbericht 2025-10 (P15, P16, P17). Gegenrechnung: Abfrage A8 | 05.11.2026 |
+| F11 | 78.949; „jede fünfte“; „fast alle wieder“; 313.154; 390.900 | 2, 6 | am 30.09.2025 offene Verhältnisse, die in 2025-10 fehlen (20,0 % von 394.200); 78.733 davon wieder in 2025-11; 313.154 so geliefert am 31.10.2025 (P15) und 390.900 vorläufig nach Fortschreibung | Lauf: Qualitätsbericht 2025-10 (P15, P16, P17), Status und Abschnitt 1 Überblick (313.154 „davon geliefert gezählt“, 390.900 „davon gezählt am Stichtag“). Gegenrechnung: Abfrage A8 | 05.11.2026 |
 | F12 | −260; 0,067 % | 9 | Revisionsbedarf Dezember 2024: 387.390 veröffentlicht, 387.130 laut Lieferung 2025-01. Der Bericht rundet auf 0,1 %, die 0,067 % stammen aus der Gegenrechnung | Lauf: Qualitätsbericht 2025-01 Auffälligkeit 8 (P23). Gegenrechnung: Abfrage A9 | 05.11.2026 |
 | F15 | 15 Regeln, 24 Prüfregeln | 3 | Regelsatz v1 in `meta.regel` | `uv run uc3 regeln zeigen`; `docs/plan/uc3/annahmen.md`, Lesehinweise | 05.11.2026 |
 | F16 | (keine Zahl) zwei Läufe, derselbe Hash | 3, 4 | Determinismus | `uv run uc3 laeufe` zeigt den Ergebnis-Hash je Lauf; `uc3/README.md` | 05.11.2026 |
+| F17 | 24 Monatswerte | 2 | Beschäftigungsverhältnisse am Stichtag, 2024-08 bis 2026-07, jeweils der Wert der Zeile „Beschäftigungsverhältnisse am Stichtag“ | Lauf: `abgabe/qualitaetsberichte/<Monat>.md` Abschnitt 1, Zeile „Beschäftigungsverhältnisse am Stichtag“. Status vorläufig bis zur Freigabe des Regelsatzes; 2025-03 und 2025-10 sind angehalten | Läufe vom 05.11.2026 |
 
-F13 (Klassifikationswechsel, 189.170 Verhältnisse) und F14 (Kernzahlen 08/2024) kommen nicht auf den Folien vor, nur im Skript und im Fragenkatalog. Sie stehen der Vollständigkeit halber unten.
+F13 (Klassifikationswechsel, 189.170 Verhältnisse) und F14 (Kernzahlen 08/2024) kommen in keiner Szene vor, nur im Skript und im Fragenkatalog. Sie stehen der Vollständigkeit halber unten.
 
 | Kennung | Zahl | Bedeutung | Quelle | Datenstand |
 |---|---|---|---|---|
@@ -95,5 +96,5 @@ SELECT lieferung, count(DISTINCT vvh_id) FROM roh.lieferung
 
 ## Prüfung
 
-- Vor der Probe am Fr 06.11.2026 werden F1 bis F12 gegen die Dateien in `abgabe/` des gemergten Stands abgeglichen. Weicht eine Zahl ab, gilt die Zahl aus dem Lauf, und Folie, Skript und dieses Register werden in einem Zug geändert.
-- Zahlen ohne Kennung stehen auf keiner Folie. Uhrzeiten, Datumsangaben und Folienzeiten sind keine Ergebniszahlen.
+- Vor der Probe am Fr 06.11.2026 werden F1 bis F12 und F17 gegen die Dateien in `abgabe/` des gemergten Stands abgeglichen. Weicht eine Zahl ab, gilt die Zahl aus dem Lauf, und Szene, Skript und dieses Register werden in einem Zug geändert.
+- Zahlen ohne Kennung stehen in keiner Szene. Uhrzeiten, Datumsangaben und Szenenzeiten sind keine Ergebniszahlen.

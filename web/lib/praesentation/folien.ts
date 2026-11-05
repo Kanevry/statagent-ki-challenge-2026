@@ -22,6 +22,10 @@ export interface Folie {
   zahl?: string;
   /** Nur bei `zahl`: die Beleg-Zeile unter der Zahl. */
   beleg?: string;
+  /** Animierte Szene aus web/components/praesentation/szenen, z. B. `falsche-zahl`. Fehlt sie, gilt `layout`. */
+  szene?: string;
+  /** Alle gesetzten Frontmatter-Werte als Text (Listen wie `[a, b]` bleiben roh). Szenen lesen hier ihre Zusätze. */
+  daten: Record<string, string>;
   inhalt: Block[];
   notizen: Block[];
 }
@@ -69,9 +73,11 @@ export function parseFolie(dateiname: string, quelle: string): Folie {
     id,
     titel: daten.titel ?? (ersteUeberschrift ? inlineText(ersteUeberschrift.inline) : id.replace(/^\d+[-_ ]*/, "")),
     layout,
+    daten,
     inhalt,
     notizen,
   };
+  if (daten.szene !== undefined) folie.szene = daten.szene.toLowerCase();
   if (layout === "live" && daten.route !== undefined) folie.route = daten.route;
   if (daten.zeit !== undefined) folie.zeit = daten.zeit;
   if (daten.zahl !== undefined) folie.zahl = daten.zahl;

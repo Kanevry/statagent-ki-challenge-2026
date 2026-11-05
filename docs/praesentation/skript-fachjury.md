@@ -1,8 +1,8 @@
 # Sprech-Skript Fachjury: StatAgent, Use Case 3
 
-Dieses Skript enthält den Sprechtext für den 10-Minuten-Vortrag, die Stichpunkte für das Gespräch am Tisch und die 5-Minuten-Fassung für das Finale. Der Sprechtext steht in der Ich-Form von Bernhard Götzendorfer und ist so geschrieben, wie er ihn laut sagt.
+Dieses Skript enthält den Sprechtext für den 10-Minuten-Vortrag (Szenen v2), die Stichpunkte für das Gespräch am Tisch und die 5-Minuten-Fassung für das Finale. Der Sprechtext steht in der Ich-Form von Bernhard Götzendorfer und ist so geschrieben, wie er ihn laut sagt.
 
-- **Stand:** 05.11.2026
+- **Stand:** 05.11.2026, Szenen v2
 - **Zeiten:** Freeze für Code, Präsentation und Demo am Fr 06.11.2026 um 07:00. Probe Fr 06:00–07:00. Fachjury ab 09:00, etwa 15 Minuten je Team: 10 Minuten Vortrag mit Demo, danach Live-Änderung der Jury und Datenanfragen.
 - **Belege:** Zahlen mit Kennung F… (zum Beispiel F3) stehen im Belegregister `docs/praesentation/belegregister.md`. Unter jedem Abschnitt steht, welche Kennungen darin vorkommen. Die Kennungen werden nicht mitgesprochen.
 - **Demo:** Ablauf und Rückfallwege stehen im Demo-Drehbuch `docs/praesentation/demo-drehbuch.md`.
@@ -12,80 +12,80 @@ Dieses Skript enthält den Sprechtext für den 10-Minuten-Vortrag, die Stichpunk
 
 ## 1 Vortrag, 10 Minuten
 
-Sprechtempo: 130 Wörter je Minute. Die Folienzeiten sind verbindlich, die Summe ist 9:40. Es bleiben 20 Sekunden Puffer.
+Sprechtempo: 130 Wörter je Minute. Die Szenenzeiten sind verbindlich, die Summe ist 9:30. Es bleiben 30 Sekunden Puffer. Der Sprechtext ist wörtlich der Text unter `## Sprechernotizen` der Szene in `web/content/slides/`.
 
-### Folie 1 · StatAgent · 0:00–0:30
+### Szene 1 · StatAgent · 0:00–0:20
 
-> Guten Morgen. Ich bin Bernhard Götzendorfer, Team OneShotAndy. Das ist StatAgent. Die KI schreibt Code. Das Programm rechnet. Der Mensch gibt frei.
+> Ich bin Bernhard Götzendorfer. Das ist StatAgent. Die KI schreibt Code. Das Programm rechnet. Der Mensch gibt frei.
 
 Belege: keine Zahl.
 
-### Folie 2 · Eine falsche Zahl kostet Vertrauen · 0:30–1:15
+### Szene 2 · Eine falsche Zahl · 0:20–1:20
 
-> Das Statistik-Team des Dachverbands arbeitet mit Hochrisikodaten. Es geht um Beschäftigte und ihre Geburtsdaten. Wir haben 24 Lieferungen bekommen, das sind die Monatsdateien. Zusammen sind es 10.152.292 Zeilen. Wenn eine veröffentlichte Zahl falsch ist, geht Vertrauen verloren. Darum haben wir eine Frage gestellt: Woher kommt jede Zahl, und wer hat sie freigegeben?
+> Das Statistik-Team des Dachverbands veröffentlicht jeden Monat eine Zahl: wie viele Menschen beschäftigt sind. Viele verlassen sich darauf. Im Oktober 2025 kam eine Lieferung, in der jede fünfte Beschäftigung fehlte. Wer sie einfach zählt, meldet 78.949 Beschäftigte weniger. StatAgent hat angehalten. Im November waren fast alle wieder da. Darum geht es: Bei Hochrisikodaten zählt Vertrauen.
 
-Belege: F3.
+Belege: F11, F17.
 
-### Folie 3 · Einlesen, rechnen, freigeben · 1:15–2:00
+### Szene 3 · Einlesen, rechnen, freigeben · 1:20–2:10
 
-> Der Ablauf hat drei Schritte. Erstens lesen wir eine Lieferung ein und prüfen sie. Nichts wird gelöscht. Zweitens stehen die Regeln als Daten in der Tabelle meta.regel. Das Programm rechnet mit diesen Regeln, ganz ohne Sprachmodell. Zwei Läufe mit gleichen Daten ergeben gleiche Zahlen. Drittens gibt ein Mensch frei, mit Vor- und Nachnamen. Der Name Team wird abgelehnt.
+> Die Lösung hat drei Schritte. Wir lesen jede Lieferung ein und löschen nichts. Das Programm rechnet nach Regeln, die als Daten in der Datenbank stehen. Ein Sprachmodell rechnet nie mit. Und ein Mensch gibt frei, mit Vor- und Nachname. Unter jeder Zahl steht ein Name.
 
 Belege: F15, F16.
 
-### Folie 4 · Was wo läuft · 2:00–2:45
+### Szene 4 · Was wo läuft · 2:10–2:40
 
-> So ist es gebaut. Unten liegt PostgreSQL 16, die Datenbank. Darüber liegt das Python-Paket statagent mit dem Befehl uc3. Es liest, prüft und rechnet. Die Oberfläche in Next.js liest nur und startet diesen Befehl. Die Agenten sprechen über eine einzige Schnittstelle mit dem Modell. Das Modell ist austauschbar. Es sieht Regeln, Schemata und Summen. Einzeldaten sieht es nie.
+> So ist es gebaut. Unten die Datenbank, darüber das Programm, oben die Oberfläche. Die Agenten machen nur Vorschläge. Welches Modell dahinter steht, ist ein Schalter. Einzelne Datensätze sieht es nie.
 
-Belege: Stack laut `uc3/README.md`, keine Zahl.
+Belege: F16 (Stack laut `uc3/README.md`, keine Zahl im Sprechtext).
 
-### Folie 5 · 2.880 von 2.880 · 2:45–3:15
+### Szene 5 · 2.880 von 2.880 · 2:40–3:15
 
-> Zuerst der Beleg. Der Beispielbericht für August 2024 ist unser Golden Set, also die Vorlage zum Prüfen. Er hat 2.880 Zahlenzellen. Wir haben alle nachgerechnet, null Abweichungen. Auch die Brücke geht auf: 392.284 Zeilen, minus 48 Abschnitte, die vor dem Stichtag enden, gleich 392.236. Der Stichtag ist der Monatsletzte.
+> Woher wissen wir, dass es stimmt? Der Veranstalter hat einen Beispielbericht für August 2024 mitgegeben. Wir rechnen alle 2.880 Zahlen darin nach. Alle stimmen. Keine weicht ab.
 
 Belege: F1, F2.
 
-### Folie 6 · Acht Datenfehler, nichts gelöscht · 3:15–4:15
+### Szene 6 · Acht Fallen in den Daten · 3:15–4:15
 
-> Wir haben acht Datenfehler gefunden. Gelöscht haben wir keinen. Erstens: 370 Beschäftigungsverhältnisse haben Geburtsmonat 13. Zweitens: Sieben Verhältnisse haben ein Alter von 117 bis 153 Jahren. Drittens: 50 Verhältnisse tragen Branchencodes von 2003. Viertens: Bei 1.996 fehlen Bundesland und Branche. Das sind Zahlen für August 2024. Fünftens: Im März 2025 sind 1.663 Zeilen doppelt. Sechstens: Im selben Monat fehlen 1.492 freie Dienstverträge. Siebtens: Im Juni 2025 sind Beginn und Ende vertauscht, bei 388.115 Zeilen. Achtens: Im Oktober 2025 fehlen 78.949 Verhältnisse. Bei Fehler sechs und acht hält das Programm den Monat an. Alles steht im Qualitätsbericht.
+> Das sind die Fallen, die in den Daten stecken. Acht Stück, jede mit Zahl und Lieferung. Vier davon sind schon in der ersten Lieferung: ein Geburtsmonat 13, sieben Verhältnisse mit 117 bis 153 Jahren, alte Branchencodes und leere Felder. Im März 2025 kommen Zeilen doppelt, und die freien Dienstverträge fehlen ganz. Im Juni 2025 sind Beginn und Ende vertauscht. Im Oktober 2025 fehlt jede fünfte Beschäftigung. Wir löschen nichts. Das Programm korrigiert nach einer Regel oder hält den Monat an. Alles steht mit Abfrage im Qualitätsbericht.
 
 Belege: F4, F5, F6, F7, F8, F9, F10, F11.
 
-### Folie 7 · Geburtsmonat 13 · 4:15–5:00
+### Szene 7 · Geburtsmonat 13 · 4:15–5:00
 
-> Eine Annahme im Detail: Geburtsmonat 13, zum Beispiel 1963-13-09. Wir haben vier Varianten gegen die Tabelle 13 des Beispielberichts getestet. Sie hat 576 Zellen. Variante A liegt bei 416 Zellen falsch, B bei 408, C bei 367. Nur D trifft, null falsch. D heißt: Alter gleich Berichtsjahr minus Geburtsjahr. Als Ersatztag nehmen wir den 1. Juli. Ob das fachlich passt, fragen wir die Fachabteilung in Rückfrage R1.
+> Eine Annahme im Detail: Geburtsmonat 13. In der ersten Lieferung betrifft das 370 Verhältnisse. Diesen Monat gibt es nicht. Wir haben nicht geraten. Wir haben vier Varianten gegen die Alterstabelle des Beispielberichts gerechnet. Nur Variante D trifft alle 576 Zellen: Alter gleich Berichtsjahr minus Geburtsjahr. Offen ist der Ersatztag. Für August ist er egal, für Monate vor Juli nicht. Wir nehmen den 1. Juli und fragen nach, Rückfrage R1.
 
 Belege: F4.
 
-### Folie 8 · Jetzt live · 5:00–8:30
+### Szene 8 · Jetzt live · 5:00–8:20
 
-Überleitung, 15 Sekunden (5:00–5:15):
+Überleitung, 10 Sekunden (5:00–5:10):
 
-> Jetzt zeige ich es live, in der öffentlichen Demo. Drei Schritte: Lauf und Bericht, eine Änderung per Sprache, eine Datenanfrage.
+> Jetzt zeige ich es live.
 
-Demo-Gerüst, 3:15 (195 Sekunden). Ablauf, Klickwege und Rückfälle stehen im Demo-Drehbuch `docs/praesentation/demo-drehbuch.md`. Hier steht nur, was Bernhard sagt.
+Demo-Gerüst, 3:10 (190 Sekunden, 5:10–8:20). Ablauf, Klickwege und Rückfälle stehen im Demo-Drehbuch `docs/praesentation/demo-drehbuch.md`. Hier steht nur, was Bernhard sagt.
 
-- **5:15 D1, Lauf und Qualitätsbericht 2025-03 (65 s).** Sage: „Ich starte den Lauf für März 2025. Der Bericht zeigt die doppelten Zeilen und die fehlenden freien Dienstverträge, jeweils mit Einstufung.“
-- **6:20 D2, Änderung per Sprache mit Freigabe (80 s).** Sage: „Ich gebe einen Änderungsauftrag. Der Agent macht nur einen Vorschlag. Sie sehen den Unterschied in den Regeln und die Zahlen vorher und nachher. Dann gebe ich mit meinem Namen frei.“
-- **7:40 D3, Datenanfrage Männer und Frauen je Bundesland (40 s).** Sage: „Jetzt eine Datenanfrage. Die Zahlen kommen aus einer Abfrage, die Sie sehen können.“
-- **8:20 UC-Wechsel kurz zeigen (10 s).** Sage: „Derselbe Kern trägt auch die anderen Anwendungsfälle.“
+- **5:10 D1, Lauf und Qualitätsbericht 2025-03 (65 s).** Sage: „Ich starte den Lauf für März 2025. Der Bericht zeigt die doppelten Zeilen und die fehlenden freien Dienstverträge, jeweils mit Einstufung.“
+- **6:15 D2, Änderung per Sprache mit Freigabe (80 s).** Sage: „Ich gebe einen Änderungsauftrag. Der Agent macht nur einen Vorschlag. Sie sehen den Unterschied in den Regeln und die Zahlen vorher und nachher. Dann gebe ich mit meinem Namen frei.“
+- **7:35 D3, Datenanfrage Männer und Frauen je Bundesland (35 s).** Sage: „Jetzt eine Datenanfrage. Die Zahlen kommen aus einer Abfrage, die Sie sehen können.“
+- **8:10 UC-Wechsel kurz zeigen (10 s).** Sage: „Derselbe Kern trägt auch die anderen Anwendungsfälle.“
 
-Belege: keine neue Zahl im Sprechtext.
+Belege: keine neue Zahl im Sprechtext (Szene 8 führt F5, F8, F9 im Kopf).
 
-### Folie 9 · Was wir nicht anfassen · 8:30–9:00
+### Szene 9 · Veröffentlicht bleibt veröffentlicht · 8:20–8:50
 
-> Was wir nicht anfassen: Veröffentlichtes bleibt, wie es ist. Ändert eine spätere Lieferung einen alten Monat, steht das als Revisionsbedarf im Bericht. Beispiel Dezember 2024: minus 260 Verhältnisse. Die Zahl bleibt veröffentlicht, die Abweichung ist dokumentiert. Und das Modell sieht keine Einzeldaten.
+> Zwei Grenzen ziehen wir hart. Was veröffentlicht ist, bleibt. Zeigt eine spätere Lieferung den Dezember anders, schreiben wir den Unterschied in den Bericht, hier 260 Verhältnisse. Die Zahl selbst ändern wir nicht. Und das Modell sieht nie einzelne Datensätze.
 
 Belege: F12.
 
-### Folie 10 · Ein Kern, ein Einstieg · 9:00–9:25
+### Szene 10 · Ein Kern, ein Einstieg · 8:50–9:15
 
-> Bewertet wird Use Case 3. Der Kern trägt mehr: Belege, Freigabe mit Namen, Modell-Schalter. Darauf laufen der KI-Lotse und der HealthPolicy Simulator. Nächster Schritt: ein gemeinsamer Einstieg. Eine Frage bekommt die geprüfte Zahl, die Abwägung und eine einfache Erklärung.
+> Bewertet wird Use Case 3. Der Kern trägt mehr: Belege, Freigabe mit Namen, Modell-Schalter. Nächster Schritt: ein gemeinsamer Einstieg. Eine Frage bekommt die geprüfte Zahl, die Abwägung und eine einfache Erklärung.
 
 Belege: keine Zahl.
 
-### Folie 11 · Jede Zahl nachrechenbar · 9:25–9:40
+### Szene 11 · Jede Zahl nachrechenbar · 9:15–9:30
 
-> Jede Zahl ist nachrechenbar. Jede Änderung ist freigegeben. Alles liegt offen im Repo KIChallenge/OneShotAndy. Danke.
+> Das ist StatAgent. Jede Zahl lässt sich nachrechnen. Jede Änderung hat einen Namen. Danke. Jetzt gern Ihre Änderung und Ihre Fragen.
 
 Belege: keine Zahl.
 
@@ -93,25 +93,25 @@ Belege: keine Zahl.
 
 ## 2 Zeittabelle
 
-Messung: Wörter je Sprechtext mit `wc -w` gezählt. Schätzung: Wörter × 60 / 130 Sekunden. Die Demo ist mit festen 195 Sekunden angesetzt. Grenze: Summe der Schätzung höchstens 580 Sekunden.
+Messung: Wörter je Sprechtext mit `wc -w` gezählt. Schätzung: Wörter × 60 / 130 Sekunden, gerundet. Die Demo ist mit festen 190 Sekunden angesetzt. Grenze: Summe der Schätzung höchstens 570 Sekunden.
 
-| Folie | Soll (s) | Wörter im Sprechtext | Schätzung bei 130 Wörtern/min (s) |
+| Szene | Soll (s) | Wörter im Sprechtext | Schätzung bei 130 Wörtern/min (s) |
 |---|---|---|---|
-| 1 StatAgent | 30 | 22 | 10 |
-| 2 Eine falsche Zahl kostet Vertrauen | 45 | 52 | 24 |
-| 3 Einlesen, rechnen, freigeben | 45 | 58 | 27 |
-| 4 Was wo läuft | 45 | 58 | 27 |
-| 5 2.880 von 2.880 | 30 | 49 | 23 |
-| 6 Acht Datenfehler, nichts gelöscht | 60 | 96 | 44 |
-| 7 Geburtsmonat 13 | 45 | 67 | 31 |
-| 8 Überleitung | 15 | 20 | 9 |
-| 8 Demo D1 bis UC-Wechsel | 195 | (Demo, nicht gezählt) | 195 |
-| 9 Was wir nicht anfassen | 30 | 42 | 19 |
-| 10 Ein Kern, ein Einstieg | 25 | 39 | 18 |
-| 11 Jede Zahl nachrechenbar | 15 | 15 | 7 |
-| **Summe** | **580** | **518** | **434** |
+| 1 StatAgent | 20 | 18 | 8 |
+| 2 Eine falsche Zahl | 60 | 55 | 25 |
+| 3 Einlesen, rechnen, freigeben | 50 | 45 | 21 |
+| 4 Was wo läuft | 30 | 30 | 14 |
+| 5 2.880 von 2.880 | 35 | 27 | 12 |
+| 6 Acht Fallen in den Daten | 60 | 86 | 40 |
+| 7 Geburtsmonat 13 | 45 | 69 | 32 |
+| 8 Überleitung | 10 | 5 | 2 |
+| 8 Demo D1 bis UC-Wechsel | 190 | (Demo, nicht gezählt) | 190 |
+| 9 Veröffentlicht bleibt veröffentlicht | 30 | 39 | 18 |
+| 10 Ein Kern, ein Einstieg | 25 | 31 | 14 |
+| 11 Jede Zahl nachrechenbar | 15 | 21 | 10 |
+| **Summe** | **570** | **426** | **386** |
 
-Ergebnis: Schätzung 434 s (höchstens 580 s erlaubt), Soll 580 s gleich 9:40, Puffer zu 10:00 sind 20 s. Die Schätzung liegt unter dem Soll, weil Pausen, Klicks und Blickkontakt dazukommen.
+Ergebnis: Schätzung 386 s (höchstens 570 s erlaubt), Soll 570 s gleich 9:30, Puffer zu 10:00 sind 30 s. Die Schätzung liegt unter dem Soll, weil Pausen, Klicks und Blickkontakt dazukommen.
 
 ---
 
@@ -186,25 +186,25 @@ Beispiele, Kurzantworten und Fundstellen stehen im Fragenkatalog `docs/praesenta
 
 ## 4 Finale, 5 Minuten
 
-Nur falls das Team unter die ersten drei kommt. Das Publikum ist ein Manager-Gremium mit weniger Technik, mehr Anwendung und Verantwortung. Folienfolge: 1, 2, 3, 5, 6 (gekürzt auf vier Befunde), 11 plus Verantwortung in drei Sätzen. Keine Technikfolie am Schluss: Die Verantwortung kommt vor dem Schlussbild.
+Nur falls das Team unter die ersten drei kommt. Das Publikum ist ein Manager-Gremium mit weniger Technik, mehr Anwendung und Verantwortung. Szenenfolge: 1, 2, 3, 5, 6 (gekürzt auf vier Befunde), 11 plus Verantwortung in drei Sätzen. Keine Technikszene am Schluss: Die Verantwortung kommt vor dem Schlussbild.
 
-### Finale · Folie 1 · StatAgent · 0:00–0:20
+### Finale · Szene 1 · StatAgent · 0:00–0:20
 
 > Guten Tag. Ich bin Bernhard Götzendorfer, Team OneShotAndy. Das ist StatAgent. Die KI schreibt Code. Das Programm rechnet. Der Mensch gibt frei. Heute zeige ich, wie jede Zahl nachrechenbar entsteht.
 
-### Finale · Folie 2 · Eine falsche Zahl kostet Vertrauen · 0:20–1:00
+### Finale · Szene 2 · Eine falsche Zahl · 0:20–1:00
 
 > Stellen Sie sich vor: Eine Statistik über Beschäftigte wird veröffentlicht, und eine Zahl stimmt nicht. Das kostet Vertrauen. Das sind Hochrisikodaten: Es geht um Menschen und ihre Arbeit. Wer darauf Entscheidungen aufbaut, muss sich verlassen können. Wir haben 24 Monatsdateien bekommen, zusammen 10.152.292 Zeilen. Jede Zahl daraus braucht einen Beleg.
 
-### Finale · Folie 3 · Einlesen, rechnen, freigeben · 1:00–1:45
+### Finale · Szene 3 · Einlesen, rechnen, freigeben · 1:00–1:45
 
 > Wir arbeiten in drei Schritten. Wir lesen eine Monatsdatei ein und prüfen sie. Nichts wird gelöscht. Dann rechnet ein Programm nach Regeln, die als Daten gespeichert sind. Dabei kommt kein Sprachmodell zum Einsatz. Das Ergebnis ist jedes Mal gleich. Zuletzt gibt ein Mensch frei, mit Vor- und Nachnamen. Wer freigibt, steht mit seinem Namen dafür ein.
 
-### Finale · Folie 5 · 2.880 von 2.880 · 1:45–2:15
+### Finale · Szene 5 · 2.880 von 2.880 · 1:45–2:15
 
 > Der Beleg: Unser Beispielbericht für August 2024 ist die Vorlage, gegen die wir prüfen. Er hat 2.880 Zahlenzellen. Wir haben alle nachgerechnet. Alle 2.880 stimmen. Null Abweichungen.
 
-### Finale · Folie 6 (gekürzt) · Vier Datenfehler, nichts gelöscht · 2:15–3:05
+### Finale · Szene 6 (gekürzt) · Vier Datenfehler, nichts gelöscht · 2:15–3:05
 
 > In den Daten stecken Fehler. Vier Beispiele. 370 Beschäftigungsverhältnisse haben als Geburtsmonat die Zahl 13. In einem Monat fehlen 1.492 freie Dienstverträge ganz. In einem anderen sind Beginn und Ende vertauscht, bei 388.115 Zeilen. In einer Lieferung fehlen 78.949 Verhältnisse. Wir löschen nichts. Fehlen Daten, hält das Programm den Monat an. Alles steht im Bericht. Jeder Fall hat eine Zahl, eine Lieferung und eine Einstufung.
 
@@ -212,7 +212,7 @@ Nur falls das Team unter die ersten drei kommt. Das Publikum ist ein Manager-Gre
 
 > Jede Regeländerung und jede Lieferung gibt ein Mensch mit Vor- und Nachnamen frei, und der Zeitpunkt wird festgehalten. Veröffentlichte Zahlen bleiben unverändert, und Abweichungen stehen im Bericht, statt dass wir etwas überschreiben. Das Modell sieht keine Einzeldaten, und die Verantwortung für jede Zahl bleibt bei Menschen.
 
-### Finale · Folie 11 · Jede Zahl nachrechenbar · 3:50–4:05
+### Finale · Szene 11 · Jede Zahl nachrechenbar · 3:50–4:05
 
 > Jede Zahl ist nachrechenbar. Jede Änderung ist freigegeben. Das Repo heißt KIChallenge/OneShotAndy. Danke.
 
@@ -220,18 +220,18 @@ Nur falls das Team unter die ersten drei kommt. Das Publikum ist ein Manager-Gre
 
 | Teil | Fenster (s) | Wörter im Sprechtext | Schätzung bei 130 Wörtern/min (s) |
 |---|---|---|---|
-| Folie 1 · StatAgent | 20 | 30 | 14 |
-| Folie 2 · Eine falsche Zahl kostet Vertrauen | 40 | 50 | 23 |
-| Folie 3 · Einlesen, rechnen, freigeben | 45 | 56 | 26 |
-| Folie 5 · 2.880 von 2.880 | 30 | 27 | 12 |
-| Folie 6 (gekürzt) · Vier Datenfehler, nichts gelöscht | 50 | 65 | 30 |
+| Szene 1 · StatAgent | 20 | 30 | 14 |
+| Szene 2 · Eine falsche Zahl | 40 | 50 | 23 |
+| Szene 3 · Einlesen, rechnen, freigeben | 45 | 56 | 26 |
+| Szene 5 · 2.880 von 2.880 | 30 | 27 | 12 |
+| Szene 6 (gekürzt) · Vier Datenfehler, nichts gelöscht | 50 | 65 | 30 |
 | Verantwortung in drei Sätzen | 45 | 46 | 21 |
-| Folie 11 · Jede Zahl nachrechenbar | 15 | 13 | 6 |
+| Szene 11 · Jede Zahl nachrechenbar | 15 | 13 | 6 |
 | **Summe** | **245** | **287** | **132** |
 
-Ergebnis: Fenster zusammen 245 s gleich 4:05, Grenze ist 4:45. Die reine Sprechzeit liegt bei etwa 132 s. Der Rest sind Folienwechsel und Pausen.
+Ergebnis: Fenster zusammen 245 s gleich 4:05, Grenze ist 4:45. Die reine Sprechzeit liegt bei etwa 132 s. Der Rest sind Szenenwechsel und Pausen.
 
-Belege Finale: F3 (Folie 2), F1 (Folie 5), F4, F9, F10, F11 (Folie 6).
+Belege Finale: F3 (Szene 2), F1 (Szene 5), F4, F9, F10, F11 (Szene 6).
 
 ---
 
