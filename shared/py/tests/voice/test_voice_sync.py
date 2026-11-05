@@ -50,6 +50,8 @@ def test_konfiguration_deutsch_ohne_aufnahme():
     assert konfiguration["transcriber"]["language"] == "de"
     assert konfiguration["recordingEnabled"] is False
     assert konfiguration["artifactPlan"]["recordingEnabled"] is False
+    # Geld (Review !66): kein Anruf ohne Obergrenze, auch wenn niemand auflegt
+    assert konfiguration["maxDurationSeconds"] == 120
     assert konfiguration["model"]["provider"] == "custom-llm"
     assert konfiguration["server"]["url"] == "https://tunnel.example.org/vapi/webhook"
 

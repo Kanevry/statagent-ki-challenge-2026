@@ -105,7 +105,7 @@ export function AppHeader({
                     aria-current={aktiv ? "page" : undefined}
                     data-tab={tab.schluessel}
                     className={klassen(
-                      "inline-flex items-center gap-2 rounded-lg px-3.5 py-2 font-sans text-14",
+                      "inline-flex min-h-11 items-center gap-2 rounded-lg px-3.5 py-2 font-sans text-14",
                       aktiv ? "bg-gruen font-bold text-white" : "text-ink hover:bg-paper",
                       fokus,
                     )}
