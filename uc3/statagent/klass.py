@@ -7,6 +7,11 @@ hier kennt nur die Struktur der Tabellen, keine Zuordnung.
 Dazu der Lader für den amtlichen Umsteiger ÖNACE 2008 → 2025 (``OENACE2008_OENACE2025_DE_12B.txt`` aus dem
 Startpaket): je Unterklasse ein Übergang (Klassifikation ``oenace_unterklasse``) und je Abschnitt die
 Abschnitte, auf die seine Unterklassen führen (Klassifikation ``oenace``), mit Anteil in ``quelle``.
+
+Tiefe Ebenen (Bewertungsbereich 2): ÖNACE 2008 und 2025 bis zur Unterklasse (Ebenen 2 bis 5, Code wie
+``C 10.11-0``, ``uebergeordnet`` = Code eine Ebene höher) und Bezirke und Gemeinden je Stand (Version
+``JJJJ-01-01``) stehen in denselben Tabellen. Die Statistik zählt weiter nach Abschnitt und Bundesland; die
+Listen ohne Code zeigen deshalb diese Ebene, die Erklärung eines Codes geht jede Ebene hinunter.
 Importiert ``plattform.llm`` nicht (R2).
 """
 
@@ -46,6 +51,8 @@ class Begriff:
     join_qualifikation: bool = False
     ganzzahl: bool = False
     nur_abschnitte: bool = False  # bei der Codeliste nur Ebene 1
+    #: SQL-Bedingung für die Liste ohne Code: nur die Ebene, nach der die Statistik zählt.
+    listen_ebenen: str | None = None
 
 
 BEGRIFFE: dict[str, Begriff] = {
@@ -53,7 +60,8 @@ BEGRIFFE: dict[str, Begriff] = {
     for b in (
         Begriff("oenace", "ÖNACE (Wirtschaftszweig)", "klass_oenace", True, True, "s.oenace", "oenace",
                 nur_abschnitte=True),
-        Begriff("region", "Region (Bundesland)", "klass_region", True, True, "s.region", "bundesland"),
+        Begriff("region", "Region (Bundesland, Bezirk, Gemeinde)", "klass_region", True, True, "s.region",
+                "bundesland", listen_ebenen="ebene IN ('staat', 'bundesland')"),
         Begriff("qualifikation", "Qualifikation", "klass_qualifikation", False, True, "s.qualifikation",
                 "qualifikation"),
         Begriff("beschaeftigungskategorie", "Beschäftigungskategorie", "klass_beschaeftigungskategorie", False,
@@ -69,6 +77,43 @@ ALIASE = {
     "bundesländer": "region", "kategorie": "beschaeftigungskategorie", "beschäftigungskategorie":
     "beschaeftigungskategorie", "qual": "qualifikation",
 }  # fmt: skip
+
+
+#: Ebenen in Worten (Einzahl, Mehrzahl). ÖNACE: Zahl in stat.klass_oenace.ebene, Region: Text.
+EBENEN: dict[str, tuple[str, str]] = {
+    "1": ("Abschnitt", "Abschnitte"), "2": ("Abteilung", "Abteilungen"), "3": ("Gruppe", "Gruppen"),
+    "4": ("Klasse", "Klassen"), "5": ("Unterklasse", "Unterklassen"),
+    "staat": ("Staat", "Staaten"), "bundesland": ("Bundesland", "Bundesländer"), "bezirk": ("Bezirk", "Bezirke"),
+    "gemeinde": ("Gemeinde", "Gemeinden"),
+}  # fmt: skip
+#: Ebenen der Region, nach denen die Statistik nicht zählt; ihre Übergänge stehen unter diesem Namen.
+REGION_TIEF = ("bezirk", "gemeinde")
+#: Wie viele Unterklassen-Übergänge eine Abteilung, Gruppe oder Klasse ohne --unterklassen zeigt.
+TIEF_GRENZE = 30
+
+
+def ebene_name(ebene: object, code: str = "", mehrzahl: bool = False) -> str:
+    """Ebene in Worten. ÖNACE 2003 hat auf Ebene 2 Unterabschnitte aus zwei Buchstaben (DA)."""
+    schluessel = str(ebene)
+    if schluessel == "2" and code.isalpha():
+        return "Unterabschnitte" if mehrzahl else "Unterabschnitt"
+    namen = EBENEN.get(schluessel)
+    if namen is None:
+        return f"Ebene {schluessel}"
+    return namen[1] if mehrzahl else namen[0]
+
+
+def _tief(b: Begriff, zeile: dict[str, Any]) -> bool:
+    """Code einer Ebene, nach der die Statistik nicht zählt (ÖNACE-Ebenen 2 bis 5, Bezirk, Gemeinde).
+
+    Die Unterabschnitte der ÖNACE 2003 (DA, ohne Leerzeichen) bleiben beim bisherigen Weg: ihre Übergänge
+    stehen unter ``oenace`` und sie werden über die Quellzuordnung gezählt.
+    """
+    if b.name == "oenace":
+        return str(zeile.get("ebene")) not in ("1", "None") and " " in str(zeile["code"])
+    if b.name == "region":
+        return str(zeile.get("ebene")) in REGION_TIEF
+    return False
 
 
 class KlassFehler(ValueError):
@@ -103,17 +148,25 @@ def _gueltig_spalten(b: Begriff) -> sql.Composable:
     return sql.SQL("NULL::date AS gueltig_von, NULL::date AS gueltig_bis")
 
 
-def versionen(conn: Verbindung, b: Begriff, version: str | None = None) -> list[dict[str, Any]]:
-    """Versionen mit Gültigkeit und Anzahl Codes; je Version die Codes mit Bezeichnung (ÖNACE: Abschnitte)."""
+def versionen(
+    conn: Verbindung, b: Begriff, version: str | None = None, ebene: int | None = None
+) -> list[dict[str, Any]]:
+    """Versionen mit Gültigkeit und Anzahl Codes; je Version die Codes mit Bezeichnung (ÖNACE: Abschnitte).
+
+    ÖNACE: ``anzahl`` zählt alle Codes der Version, ``je_ebene`` die Codes je Ebene; ``ebene`` wählt die
+    Ebene der Codeliste (Standard Abschnitte). Region: nur Staat und Bundesländer (``listen_ebenen``).
+    """
     abfrage = sql.SQL(
-        "SELECT {v} AS version, code::text AS code, bezeichnung, {g}{e} FROM stat.{t} ORDER BY 1, {o}"
+        "SELECT {v} AS version, code::text AS code, bezeichnung, {g}{e} FROM stat.{t}{w} ORDER BY 1, {o}"
     ).format(
         v=_version_spalte(b),
         g=_gueltig_spalten(b),
         e=sql.SQL(", ebene::text AS ebene") if b.versioniert else sql.SQL(""),
         t=sql.Identifier(b.tabelle),
+        w=sql.SQL(" WHERE " + b.listen_ebenen) if b.listen_ebenen else sql.SQL(""),
         o=sql.SQL("code") if b.ganzzahl else sql.SQL('code COLLATE "C"'),
     )
+    liste_ebene = str(ebene or 1)
     gruppen: dict[str, dict[str, Any]] = {}
     for z in conn.execute(abfrage).fetchall():
         v = str(z["version"])
@@ -124,6 +177,10 @@ def versionen(conn: Verbindung, b: Begriff, version: str | None = None) -> list[
                 "codes": []},
         )  # fmt: skip
         g["anzahl"] += 1
+        if b.versioniert:
+            je = g.setdefault("je_ebene", {})
+            anzahl, beispiel = je.get(str(z["ebene"]), (0, str(z["code"])))
+            je[str(z["ebene"])] = (anzahl + 1, beispiel)
         von, bis = z["gueltig_von"], z["gueltig_bis"]
         if isinstance(von, date) and (not isinstance(g["gueltig_von"], date) or von < g["gueltig_von"]):
             g["gueltig_von"] = von
@@ -131,21 +188,130 @@ def versionen(conn: Verbindung, b: Begriff, version: str | None = None) -> list[
             g["gueltig_bis"] = None
         elif isinstance(bis, date) and isinstance(g["gueltig_bis"], date) and bis > g["gueltig_bis"]:
             g["gueltig_bis"] = bis
-        if not b.nur_abschnitte or str(z.get("ebene")) == "1":
+        if not b.nur_abschnitte or str(z.get("ebene")) == liste_ebene:
             g["codes"].append({"code": z["code"], "bezeichnung": z["bezeichnung"]})
+    for g in gruppen.values():
+        if "je_ebene" in g:
+            g["je_ebene"] = [
+                {"ebene": e, "name": ebene_name(e, beispiel, mehrzahl=True), "anzahl": n}
+                for e, (n, beispiel) in g["je_ebene"].items()
+            ]
     return list(gruppen.values())
 
 
+def staende(conn: Verbindung, version: str | None = None) -> list[dict[str, Any]]:
+    """Bezirke und Gemeinden je Stand von stat.klass_region (Version ``JJJJ-01-01``), ältester zuerst."""
+    zeilen = conn.execute(
+        """SELECT version, min(gueltig_von) AS gueltig_von,
+                  CASE WHEN bool_or(gueltig_bis IS NULL) THEN NULL ELSE max(gueltig_bis) END AS gueltig_bis,
+                  count(*) FILTER (WHERE ebene = 'bezirk')::int AS bezirke,
+                  count(*) FILTER (WHERE ebene = 'gemeinde')::int AS gemeinden
+           FROM stat.klass_region WHERE ebene IN ('bezirk', 'gemeinde')
+             AND (%(v)s::text IS NULL OR version = %(v)s)
+           GROUP BY version ORDER BY min(gueltig_von), version""",
+        {"v": version},
+    ).fetchall()
+    return [dict(z) for z in zeilen]
+
+
 def _bezeichnungen(conn: Verbindung, b: Begriff, code: str) -> list[dict[str, Any]]:
-    bedingung = (
-        sql.SQL("code = {}").format(sql.Literal(int(code)))
-        if b.ganzzahl
-        else sql.SQL("upper(code) = upper({})").format(sql.Literal(code))
-    )
+    """Zeilen des Codes in jeder Version. ÖNACE: auch ohne Leerzeichen (C10.11-0) und ohne Buchstaben (10.11-0)."""
+    if b.ganzzahl:
+        bedingung = sql.SQL("code = {}").format(sql.Literal(int(code)))
+    elif b.name == "oenace":
+        bedingung = sql.SQL(
+            "replace(upper(code), ' ', '') = replace(upper({c}), ' ', '')"
+            " OR ({c} ~ '^[0-9]' AND split_part(code, ' ', 2) = {c})"
+        ).format(c=sql.Literal(code))
+    else:
+        bedingung = sql.SQL("upper(code) = upper({})").format(sql.Literal(code))
     abfrage = sql.SQL(
-        "SELECT {v} AS version, code::text AS code, bezeichnung, {g} FROM stat.{t} WHERE {b} ORDER BY 1"
-    ).format(v=_version_spalte(b), g=_gueltig_spalten(b), t=sql.Identifier(b.tabelle), b=bedingung)
-    return [dict(z) for z in conn.execute(abfrage).fetchall()]
+        "SELECT {v} AS version, code::text AS code, bezeichnung, {g}{e} FROM stat.{t} WHERE {b}"
+        " ORDER BY gueltig_von, 1"
+        if b.gueltigkeit
+        else "SELECT {v} AS version, code::text AS code, bezeichnung, {g}{e} FROM stat.{t} WHERE {b} ORDER BY 1"
+    ).format(
+        v=_version_spalte(b),
+        g=_gueltig_spalten(b),
+        e=sql.SQL(", ebene::text AS ebene, uebergeordnet") if b.versioniert else sql.SQL(""),
+        t=sql.Identifier(b.tabelle),
+        b=bedingung,
+    )
+    zeilen = [dict(z) for z in conn.execute(abfrage).fetchall()]
+    je_version: dict[str, set[str]] = defaultdict(set)
+    for z in zeilen:
+        je_version[str(z["version"])].add(str(z["code"]))
+    mehrdeutig = sorted({c for codes in je_version.values() if len(codes) > 1 for c in codes})
+    if mehrdeutig:
+        raise KlassFehler(
+            f"Der Code ({code}) ist nicht eindeutig: " + ", ".join(f"({c})" for c in mehrdeutig) + "."
+        )
+    return zeilen
+
+
+def _pfade(
+    conn: Verbindung, b: Begriff, zeilen: list[dict[str, Any]]
+) -> dict[tuple[str, str], list[dict[str, Any]]]:
+    """Je (Version, Code) die übergeordneten Codes von oben nach unten (ohne den Code selbst).
+
+    Der übergeordnete Code steht in derselben Version; fehlt er dort (Bezirk zu Bundesland), gilt die
+    Version, in der es ihn gibt.
+    """
+    paare = [(str(z["version"]), str(z["code"])) for z in zeilen if z.get("uebergeordnet")]
+    if not paare:
+        return {}
+    abfrage = sql.SQL(
+        """WITH RECURSIVE p AS (
+             SELECT k.version AS start_version, k.code AS start_code, k.version, k.code, k.bezeichnung,
+                    k.ebene::text AS ebene, k.uebergeordnet, 0 AS tiefe
+             FROM stat.{t} k JOIN unnest(%(v)s::text[], %(c)s::text[]) AS s(version, code)
+               ON k.version = s.version AND k.code = s.code
+             UNION ALL
+             SELECT p.start_version, p.start_code, k.version, k.code, k.bezeichnung, k.ebene::text,
+                    k.uebergeordnet, p.tiefe + 1
+             FROM p JOIN stat.{t} k ON k.code = p.uebergeordnet
+               AND (k.version = p.version OR NOT EXISTS (
+                     SELECT 1 FROM stat.{t} x WHERE x.version = p.version AND x.code = p.uebergeordnet))
+             WHERE p.tiefe < 6
+           )
+           SELECT DISTINCT ON (start_version, start_code, tiefe) start_version, start_code, tiefe, version,
+                  code, bezeichnung, ebene
+           FROM p WHERE tiefe > 0 ORDER BY start_version, start_code, tiefe DESC, version DESC"""
+    ).format(t=sql.Identifier(b.tabelle))
+    pfade: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    zeilen_p = conn.execute(abfrage, {"v": [v for v, _ in paare], "c": [c for _, c in paare]}).fetchall()
+    for z in zeilen_p:
+        pfade[(str(z["start_version"]), str(z["start_code"]))].append(
+            {"version": z["version"], "code": z["code"], "bezeichnung": z["bezeichnung"], "ebene": z["ebene"],
+             "ebene_name": ebene_name(z["ebene"], str(z["code"]))}
+        )  # fmt: skip
+    return dict(pfade)
+
+
+def _zeitraeume(namen: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Aufeinanderfolgende Stände mit gleichem Namen und gleichem Pfad zu einem Zeitraum zusammengefasst."""
+    raeume: list[dict[str, Any]] = []
+    for n in namen:
+        schluessel = (n["bezeichnung"], tuple((p["code"], p["bezeichnung"]) for p in n.get("pfad", [])))
+        letzter = raeume[-1] if raeume else None
+        if (
+            letzter is not None
+            and letzter["schluessel"] == schluessel
+            and isinstance(letzter["gueltig_bis"], date)
+            and isinstance(n["gueltig_von"], date)
+            and (n["gueltig_von"] - letzter["gueltig_bis"]).days == 1
+        ):
+            letzter["gueltig_bis"] = n["gueltig_bis"]
+            letzter["staende"].append(n["version"])
+            continue
+        raeume.append({
+            "schluessel": schluessel, "code": n["code"], "bezeichnung": n["bezeichnung"],
+            "gueltig_von": n["gueltig_von"], "gueltig_bis": n["gueltig_bis"], "staende": [n["version"]],
+            "pfad": n.get("pfad", []),
+        })  # fmt: skip
+    for r in raeume:
+        del r["schluessel"]
+    return raeume
 
 
 def _uebergaenge(
@@ -186,6 +352,44 @@ def _uebergaenge(
         abfrage += " LIMIT %(grenze)s"
         parameter["grenze"] = grenze
     return [dict(z) for z in conn.execute(abfrage.encode(), parameter).fetchall()]
+
+
+def _uebergaenge_tief(
+    conn: Verbindung,
+    klassifikation: str,
+    b: Begriff,
+    zeilen: list[dict[str, Any]],
+    praefix: bool,
+    grenze: int | None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Übergänge der gefundenen (Version, Code)-Paare, alt oder neu. ``praefix``: alle Codes darunter
+    (ÖNACE-Abteilung, -Gruppe, -Klasse über ihre Unterklassen). Liefert Zeilen und Gesamtzahl."""
+    versionen_ = [str(z["version"]) for z in zeilen]
+    muster = [str(z["code"]) + ("%" if praefix else "") for z in zeilen]
+    bedingung = """u.klassifikation = %(k)s AND EXISTS (
+            SELECT 1 FROM unnest(%(v)s::text[], %(m)s::text[]) AS s(version, muster)
+            WHERE (u.version_alt = s.version AND u.code_alt LIKE s.muster)
+               OR (u.version_neu = s.version AND u.code_neu LIKE s.muster))"""
+    parameter: dict[str, Any] = {"k": klassifikation, "v": versionen_, "m": muster}
+    gesamt = conn.execute(
+        f"SELECT count(*) AS n FROM stat.uebergang u WHERE {bedingung}".encode(), parameter
+    ).fetchone()
+    abfrage = f"""
+        SELECT u.version_alt, u.code_alt, ka.bezeichnung AS bezeichnung_alt,
+               u.version_neu, u.code_neu, kn.bezeichnung AS bezeichnung_neu,
+               u.beziehung, u.gueltig_ab, u.quelle
+        FROM stat.uebergang u
+        LEFT JOIN stat.{b.tabelle} ka ON ka.version = u.version_alt AND ka.code = u.code_alt
+        LEFT JOIN stat.{b.tabelle} kn ON kn.version = u.version_neu AND kn.code = u.code_neu
+        WHERE {bedingung}
+        ORDER BY u.gueltig_ab, u.version_alt, (left(u.code_alt, 1) = left(u.code_neu, 1)),
+                 u.code_alt COLLATE "C", u.code_neu COLLATE "C"
+    """
+    if grenze is not None:
+        abfrage += " LIMIT %(grenze)s"
+        parameter["grenze"] = grenze
+    liste = [dict(z) for z in conn.execute(abfrage.encode(), parameter).fetchall()]
+    return liste, int(str(gesamt["n"])) if gesamt else len(liste)
 
 
 def _unterklassen_anzahl(conn: Verbindung, code: str, version: str | None) -> int:
@@ -271,15 +475,27 @@ def erklaeren(
     version: str | None = None,
     regelsatz: str = "v1",
     unterklassen: int = 0,
+    ebene: int | None = None,
 ) -> dict[str, Any]:
-    """Erklärung eines Begriffs (ohne Code: Versionen und Codes) oder eines Codes (Bezeichnung, Übergänge,
-    Quellzuordnungen, Verhältnisse im letzten veröffentlichten Monat)."""
+    """Erklärung eines Begriffs (ohne Code: Versionen und Codes) oder eines Codes (Bezeichnung, Ebene, Pfad,
+    Übergänge, Quellzuordnungen, Verhältnisse im letzten veröffentlichten Monat)."""
     b = begriff_finden(begriff)
+    if ebene is not None and (b.name != "oenace" or code is not None):
+        raise KlassFehler("Die Option --ebene gibt es nur bei ÖNACE ohne Code (1 bis 5).")
+    if ebene is not None and str(ebene) not in ("1", "2", "3", "4", "5"):
+        raise KlassFehler(f"ÖNACE hat die Ebenen 1 bis 5, nicht {ebene}.")
     if code is None:
-        liste = versionen(conn, b, version)
-        if version is not None and not liste:
+        liste = versionen(conn, b, version, ebene)
+        daten_liste: dict[str, Any] = {"begriff": b.name, "titel": b.titel, "versionen": liste}
+        if ebene is not None:
+            daten_liste["ebene"] = str(ebene)
+        if b.name == "region":
+            daten_liste["staende"] = staende(conn, version)
+            if version is not None and not liste and not daten_liste["staende"]:
+                raise KlassFehler(f"{b.titel} hat keine Version „{version}“.")
+        elif version is not None and not liste:
             raise KlassFehler(f"{b.titel} hat keine Version „{version}“.")
-        return {"begriff": b.name, "titel": b.titel, "versionen": liste}
+        return daten_liste
 
     if b.ganzzahl and not re.fullmatch(r"-?\d+", code.strip()):
         raise KlassFehler(f"Bei {b.titel} ist der Code eine ganze Zahl, nicht „{code}“.")
@@ -291,16 +507,44 @@ def erklaeren(
             f"Den Code ({code}) gibt es in {b.titel}{f' Version {version}' if version else ''} nicht."
         )
     echt = str(namen[0]["code"])
+    tief = _tief(b, namen[0])
+    if b.versioniert:
+        pfade = _pfade(conn, b, namen)
+        for n in namen:
+            n["ebene_name"] = ebene_name(n["ebene"], str(n["code"]))
+            n["pfad"] = pfade.get((str(n["version"]), str(n["code"])), [])
     daten: dict[str, Any] = {
         "begriff": b.name,
         "titel": b.titel,
         "code": echt,
         "bezeichnungen": namen,
-        "uebergaenge": _uebergaenge(conn, b.name, b, echt, version) if b.versioniert else [],
-        "quellzuordnungen": _quellzuordnungen(conn, b, echt, regelsatz),
-        "verhaeltnisse": _verhaeltnisse(conn, b, echt, regelsatz),
+        "uebergaenge": [],
+        "quellzuordnungen": [] if tief else _quellzuordnungen(conn, b, echt, regelsatz),
+        "verhaeltnisse": None if tief else _verhaeltnisse(conn, b, echt, regelsatz),
         "regelsatz": regelsatz,
     }
+    if b.versioniert:
+        daten["ebene"] = str(namen[0]["ebene"])
+        daten["ebene_name"] = namen[0]["ebene_name"]
+        daten["codes"] = sorted({str(n["code"]) for n in namen})
+    if tief:
+        # Die Statistik zählt nach Abschnitt bzw. Bundesland; Codes darunter haben eigene Übergänge.
+        oben = "Abschnitt" if b.name == "oenace" else "Bundesland"
+        daten["gezaehlt_nach"] = oben
+        if b.name == "oenace":
+            klassifikation, praefix = UNTERKLASSE, daten["ebene"] != "5"
+            grenze = (unterklassen or TIEF_GRENZE) if praefix else None
+        else:
+            klassifikation, praefix, grenze = daten["ebene"], False, None
+        daten["uebergang_klassifikation"] = klassifikation
+        daten["uebergaenge"], daten["uebergaenge_gesamt"] = _uebergaenge_tief(
+            conn, klassifikation, b, namen, praefix, grenze
+        )
+        if b.name == "region":
+            daten["zeitraeume"] = _zeitraeume(namen)
+        return daten
+    if b.versioniert:
+        daten["uebergaenge"] = _uebergaenge(conn, b.name, b, echt, version)
     if b.name == "oenace" and unterklassen > 0:
         daten["unterklassen"] = _uebergaenge(conn, UNTERKLASSE, b, echt, version, grenze=unterklassen)
         daten["unterklassen_gesamt"] = _unterklassen_anzahl(conn, echt, version)
@@ -317,7 +561,13 @@ def _deutsch(wert: int) -> str:
 def _versionsname(b: Begriff, version: str) -> str:
     if b.name == "oenace":
         return f"ÖNACE {version}"
+    if b.name == "region" and re.fullmatch(r"\d{4}-\d{2}-\d{2}", version):
+        return f"Stand {version[8:10]}.{version[5:7]}.{version[:4]}"
     return "" if version in ("-", "BL") else f"Version {version}"
+
+
+def _pfad_text(pfad: list[dict[str, Any]]) -> str:
+    return ", ".join(f"{p['ebene_name']} {p['bezeichnung']} ({p['code']})" for p in reversed(pfad))
 
 
 def _seite(b: Begriff, version: str, code: str, bezeichnung: object) -> str:
@@ -365,27 +615,66 @@ def text(daten: dict[str, Any]) -> str:
         zeilen.append(f"{b.titel}: {len(daten['versionen'])} Version(en).")
         for v in daten["versionen"]:
             kopf = _versionsname(b, v["version"]) or b.titel
-            art = "Abschnitte" if b.nur_abschnitte else "Codes"
+            art = ebene_name(daten.get("ebene", "1"), mehrzahl=True) if b.nur_abschnitte else "Codes"
             zeilen.append(
                 f"{kopf}, {gueltig_text(v['gueltig_von'], v['gueltig_bis'])}, {v['anzahl']} Codes"
                 + (f", davon {len(v['codes'])} {art}:" if b.nur_abschnitte else ":")
             )
+            if b.nur_abschnitte and len(v.get("je_ebene", [])) > 1:
+                zeilen.append(
+                    "  Codes je Ebene: "
+                    + ", ".join(f"{e['name']} {_deutsch(e['anzahl'])}" for e in v["je_ebene"])
+                )
             zeilen.extend(f"  {c['bezeichnung']} ({c['code']})" for c in v["codes"])
+        if daten.get("staende"):
+            zeilen.append(f"Bezirke und Gemeinden, {len(daten['staende'])} Stände (stat.klass_region):")
+            for s in daten["staende"]:
+                zeilen.append(
+                    f"- {_versionsname(b, s['version'])}, {gueltig_text(s['gueltig_von'], s['gueltig_bis'])}: "
+                    f"{_deutsch(s['bezirke'])} Bezirke, {_deutsch(s['gemeinden'])} Gemeinden"
+                )
         return "\n".join(zeilen)
 
-    zeilen.append(f"{b.titel}, Code ({daten['code']})")
-    zeilen.append("Bezeichnung je Version:")
-    for n in daten["bezeichnungen"]:
-        kopf = _versionsname(b, n["version"])
-        gilt = gueltig_text(n["gueltig_von"], n["gueltig_bis"])
-        zeilen.append(f"- {kopf + ', ' if kopf else ''}{gilt}: {n['bezeichnung']} ({n['code']})")
+    codes = " / ".join(f"({c})" for c in daten.get("codes", [daten["code"]]))
+    ebene = f", {daten['ebene_name']}" if daten.get("ebene_name") else ""
+    zeilen.append(f"{b.titel}, Code {codes}{ebene}")
+    if "zeitraeume" in daten:
+        zeilen.append(f"Gültigkeit über {len(daten['bezeichnungen'])} Stände:")
+        for r in daten["zeitraeume"]:
+            pfad = _pfad_text(r["pfad"])
+            zeilen.append(
+                f"- {gueltig_text(r['gueltig_von'], r['gueltig_bis'])}: {r['bezeichnung']} ({r['code']})"
+                + (f", {pfad}" if pfad else "")
+            )
+    else:
+        zeilen.append("Bezeichnung je Version:")
+        for n in daten["bezeichnungen"]:
+            kopf = _versionsname(b, n["version"])
+            gilt = gueltig_text(n["gueltig_von"], n["gueltig_bis"])
+            zeilen.append(f"- {kopf + ', ' if kopf else ''}{gilt}: {n['bezeichnung']} ({n['code']})")
+            if n.get("pfad"):
+                zeilen.append(f"  gehört zu: {_pfad_text(n['pfad'])}")
 
     if b.versioniert:
         if daten["uebergaenge"]:
-            zeilen.append("Übergänge zwischen den Versionen (stat.uebergang):")
+            gesamt = daten.get("uebergaenge_gesamt", len(daten["uebergaenge"]))
+            anteil = (
+                f", {len(daten['uebergaenge'])} von {gesamt}" if gesamt > len(daten["uebergaenge"]) else ""
+            )
+            zeilen.append(
+                f"Übergänge zwischen den Versionen (stat.uebergang, "
+                f"{daten.get('uebergang_klassifikation', b.name)}{anteil}):"
+            )
             zeilen.extend(_uebergang_zeilen(b, daten["uebergaenge"]))
         else:
             zeilen.append("Übergänge: keine in stat.uebergang.")
+
+    if "gezaehlt_nach" in daten:
+        zeilen.append(
+            f"Die Statistik zählt nach {daten['gezaehlt_nach']}, nicht nach {daten['ebene_name']}; "
+            "Verhältnisse und gelieferte Werte gibt es für diesen Code deshalb nicht."
+        )
+        return "\n".join(zeilen)
     if "unterklassen" in daten:
         zeilen.append(
             f"Unterklassen (zuerst die, die den Abschnitt wechseln), {len(daten['unterklassen'])} von "

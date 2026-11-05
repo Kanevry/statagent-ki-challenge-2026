@@ -194,11 +194,43 @@ def _oenace_versionen(conn: Verbindung, monat: str) -> set[str]:
     zeilen = conn.execute(
         """
         SELECT DISTINCT version FROM stat.klass_oenace
-        WHERE gueltig_von <= %s AND (gueltig_bis IS NULL OR gueltig_bis >= %s)
+        WHERE ebene = 1 AND gueltig_von <= %s AND (gueltig_bis IS NULL OR gueltig_bis >= %s)
         """,
         (ergebnis.monatserster(monat), ergebnis.monatsletzter(monat)),
     ).fetchall()
     return {str(z["version"]) for z in zeilen}
+
+
+def merkmal_von(conn: Verbindung, blatt: str) -> tuple[str, str, dict[str, str]]:
+    """Merkmal, Version und Bezeichnungen je Blatt (für ergänzte Zeilen).
+
+    Nur die Ebene, nach der die Statistik zählt: Bundesländer (Region) und Abschnitte (ÖNACE). Bezirke,
+    Gemeinden und die ÖNACE-Ebenen 2 bis 5 stehen in denselben Tabellen und gehören nicht ins Sheet.
+    """
+    if blatt == BLATT_BUNDESLAND:
+        return (
+            "bundesland",
+            "-",
+            _dict(
+                conn,
+                "SELECT code, bezeichnung FROM stat.klass_region WHERE ebene IN ('staat', 'bundesland')"
+                " ORDER BY version",
+            ),
+        )
+    if blatt == BLATT_GESCHLECHT:
+        return "geschlecht", "-", _dict(conn, "SELECT code, bezeichnung FROM stat.klass_geschlecht")
+    if blatt == BLATT_KATEGORIE:
+        return "qualifikation", "-", _dict(conn, "SELECT code, bezeichnung FROM stat.klass_qualifikation")
+    version = blatt.removeprefix(OENACE_PRAEFIX)
+    return (
+        "oenace",
+        version,
+        _dict(
+            conn,
+            "SELECT code, bezeichnung FROM stat.klass_oenace WHERE version = %s AND ebene = 1",
+            (version,),
+        ),
+    )
 
 
 def _zip_fest(daten: bytes, zeit: datetime, ersetzen: dict[str, bytes]) -> bytes:
@@ -284,25 +316,6 @@ def sheet_schreiben(
             werte[BLATT_KATEGORIE][monat][str(z["qualifikation"])] += wert
             werte[OENACE_PRAEFIX + str(z["oenace_version"])][monat][str(z["oenace"])] += wert
 
-    # Merkmal, Version und Bezeichnungen je Blatt (für ergänzte Zeilen).
-    def merkmal_von(blatt: str) -> tuple[str, str, dict[str, str]]:
-        if blatt == BLATT_BUNDESLAND:
-            return (
-                "bundesland",
-                "-",
-                _dict(conn, "SELECT code, bezeichnung FROM stat.klass_region ORDER BY version"),
-            )
-        if blatt == BLATT_GESCHLECHT:
-            return "geschlecht", "-", _dict(conn, "SELECT code, bezeichnung FROM stat.klass_geschlecht")
-        if blatt == BLATT_KATEGORIE:
-            return "qualifikation", "-", _dict(conn, "SELECT code, bezeichnung FROM stat.klass_qualifikation")
-        version = blatt.removeprefix(OENACE_PRAEFIX)
-        return (
-            "oenace",
-            version,
-            _dict(conn, "SELECT code, bezeichnung FROM stat.klass_oenace WHERE version = %s", (version,)),
-        )
-
     # Kategorien statt Qualifikationen (Regelsatz mit Änderungsauftrag 1)?
     kat_codes = {c for m in werte[BLATT_KATEGORIE].values() for c, w in m.items() if w}
     ist_kategorie = bool(kat_codes) and kat_codes <= set(kategorien) and not kat_codes <= set(qual_kategorie)
@@ -313,7 +326,7 @@ def sheet_schreiben(
         if name not in blatt_monate:
             continue
         blatt = _blatt_lesen(wb[name])
-        merkmal, version, texte = merkmal_von(name)
+        merkmal, version, texte = merkmal_von(conn, name)
         unb = unbekannt.get((merkmal, version))
         belegt = {c for m in werte[name].values() for c, w in m.items() if w}
 
