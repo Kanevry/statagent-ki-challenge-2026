@@ -56,8 +56,8 @@ Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset
 3. **Probe.** `scripts/vorfuehrung.sh pruefen`, danach einmal D1 bis D4 im Browser, dann `scripts/vorfuehrung.sh reset`.
 4. **07:00, Freigabe.** Der Owner gibt die Pensionen mit seinem Namen frei, bis dahin steht dort „vorläufig“.
 5. **Direkt danach:** `scripts/vorfuehrung.sh festschreiben`. Keine Probe dazwischen, sonst wird sie mit festgeschrieben.
-6. **Gegenprobe.** `scripts/vorfuehrung.sh reset`: Die Freigabe steht danach noch da, `status` zeigt 0 Commits seit dem
-   Ausgangsstand. Das ist der Stand für die Vorführung um 09:00.
+6. **Gegenprobe.** `scripts/vorfuehrung.sh reset`: Es meldet 0 Commits seit dem Ausgangsstand, und die Freigabe steht danach
+   noch auf der Seite. Das ist der Stand für die Vorführung um 09:00.
 
 ## Vorführen
 
