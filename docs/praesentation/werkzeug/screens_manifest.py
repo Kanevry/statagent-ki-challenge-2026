@@ -180,9 +180,7 @@ def main(argv: list[str] | None = None) -> int:
     screens = praes / "screens"
 
     eintraege, befunde = quellen_laden(screens / "quellen.json")
-    infos = {
-        str(e.get("bild")): png_lesen(screens / f"{e.get('bild')}.png") for e in eintraege
-    }
+    infos = {str(e.get("bild")): png_lesen(screens / f"{e.get('bild')}.png") for e in eintraege}
     pruef: dict[str, list[str]] = {
         str(e.get("bild")): eintrag_befunde(e, infos[str(e.get("bild"))]) for e in eintraege
     }
