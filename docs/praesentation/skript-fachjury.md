@@ -36,7 +36,7 @@ Belege: F15, F16.
 
 > So ist es gebaut. Unten liegt PostgreSQL 16, die Datenbank. Darüber liegt das Python-Paket statagent mit dem Befehl uc3. Es liest, prüft und rechnet. Die Oberfläche in Next.js liest nur und startet diesen Befehl. Die Agenten sprechen über eine einzige Schnittstelle mit dem Modell. Das Modell ist austauschbar. Es sieht Regeln, Schemata und Summen. Einzeldaten sieht es nie.
 
-Belege: Stack laut Faktenblatt, keine Zahl.
+Belege: Stack laut `uc3/README.md`, keine Zahl.
 
 ### Folie 5 · 2.880 von 2.880 · 2:45–3:15
 
@@ -153,7 +153,7 @@ Je ein Satz mit Zahl, Lieferung und Einstufung. Die Einstufungen stehen so in de
 7. **Spaltentausch (F10):** 388.115 von 432.086 Zeilen ohne Beginn, Lieferung 2025-06. Einstufung: erklärt, Datenproblem. Die Regel E01 tauscht Beginn und Ende.
 8. **Teil-Lieferung (F11):** 78.949 Verhältnisse fehlen (20,0 %), Lieferung 2025-10, 78.733 davon sind in 2025-11 wieder da. Einstufung: erklärt, Datenproblem. Das Programm hält den Lauf an.
 
-Ehrlich dazu: Alle acht sind in den Berichten als erklärt, Datenproblem eingestuft. Die Stufe nicht erklärbar gibt es auch. Sie steht zum Beispiel bei einzelnen Branchensprüngen im Bericht 2025-03 und beim Revisionsbedarf im Bericht 2025-10. Diese Fälle gehen an die Fachabteilung. Die Zahlen dazu stehen nicht im Faktenblatt und werden deshalb nicht genannt.
+Ehrlich dazu: Alle acht sind in den Berichten als erklärt, Datenproblem eingestuft. Die Stufe nicht erklärbar gibt es auch. Sie steht zum Beispiel bei einzelnen Branchensprüngen im Bericht 2025-03 und beim Revisionsbedarf im Bericht 2025-10. Diese Fälle gehen an die Fachabteilung. Ihre Zahlen stehen nicht im Belegregister und werden deshalb nicht genannt.
 
 
 ### Eine Annahme im Detail: Geburtsmonat 13 (60 s)

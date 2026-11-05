@@ -37,7 +37,7 @@ Optional D4 kommt nicht ins Video. Eine Einblendung „Aufzeichnung vom [Datum]�
 - Keine Stimme. Eingeblendete Texte erklären jeden Schritt, kurz und gut lesbar.
 - Es wird keine Klonstimme und kein Avatar verwendet.
 - Falls doch Stimme oder Avatar zum Einsatz kommen: sichtbare Kennzeichnung „KI-generiert“ ab Sekunde 0 bis zum letzten Bild, wie es Art. 50 Abs. 4 AI Act verlangt. Dann den Text vorher freigeben lassen und im Bericht vermerken.
-- Texte folgen der Sprachregel: kurze Sätze, keine Gedankenstriche als Stilmittel, jede Zahl mit Kennung aus dem Faktenblatt.
+- Texte folgen der Sprachregel: kurze Sätze, keine Gedankenstriche als Stilmittel, jede Zahl mit Kennung aus dem Belegregister.
 
 ## Ablage
 

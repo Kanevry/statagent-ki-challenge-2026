@@ -5,7 +5,7 @@ Die Kennung (F1 bis F16) steht im Feld `belege` der Folie. Skript, Fragenkatalog
 
 Zwei Quellen rechnen unabhängig voneinander:
 
-- **Lauf**: der UC3-Kern (`uc3/`, Befehl `uv run uc3 …`), Ergebnisse in `abgabe/`. Datenstand: Läufe vom 05.11.2026 auf dem Stand von MR !13 (Kopf `fbaeac2f981e`).
+- **Lauf**: der UC3-Kern (`uc3/`, Befehl `uv run uc3 …`), Ergebnisse in `abgabe/`. Datenstand: Läufe vom 05.11.2026 aus MR !13 (Kopf `fbaeac2f981e`), seit dem 05.11.2026 auf `main`.
 - **Gegenrechnung**: eine unabhängige Nachrechnung vom 05.11.2026 direkt auf `roh.lieferung`, nur lesend, ohne den UC3-Code. Die Abfragen dazu stehen unten.
 
 Eine Zahl gilt als belegt, wenn beide Quellen sie liefern oder wenn eine Quelle sie mit Abfrage liefert und die andere ihr nicht widerspricht.

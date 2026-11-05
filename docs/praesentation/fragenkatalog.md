@@ -4,7 +4,7 @@ Der Katalog hilft am Tisch, wenn die Fachjury nachfragt. Er enthält die drei Da
 
 Regel: Jede Antwort ist in unter 30 Sekunden lesbar. Aufbau je Frage: Frage, Kurzantwort, Antwortweg, Fundstelle im Repo, Zahlen mit Kennung F….
 
-Der Vermerk „(mit !13)“ heißt: Die Datei kommt erst mit dem Merge Request !13 (UC3-Kern) auf `main`. Die Kennungen F1 bis F16 stehen im Faktenblatt der Präsentation.
+Die Kennungen F1 bis F16 stehen im Belegregister `belegregister.md`.
 
 Stand der Befehle: `uv run uc3 frage` ist noch nicht fertig (#74). Bis dahin läuft jede Datenanfrage als SQL mit `psql` gegen die UC3-Datenbank. Der Befehl `uv run uc3 antwort "…"` beantwortet einfache Fragen zu einem Monat, zum Beispiel „Beschäftigte in Wien im März 2025“, ohne Sprachmodell.
 
@@ -49,7 +49,7 @@ GROUP BY zeitraum_bis
 ORDER BY zeitraum_bis;
 ```
 
-**Fundstelle im Repo:** `uc3/db/030_bereinigt_stat.sql` (Tabelle), `uc3/statagent/zaehlung.py` (Zählregel), `abgabe/aggregationen_v1.xlsx` (alle Monate als Sheet), alle mit !13.
+**Fundstelle im Repo:** `uc3/db/030_bereinigt_stat.sql` (Tabelle), `uc3/statagent/zaehlung.py` (Zählregel), `abgabe/aggregationen_v1.xlsx` (alle Monate als Sheet).
 
 **Zahlen:** Erste Zeile muss 392.236 ergeben (F2). Datenbasis 24 Monatslieferungen (F3). Alle anderen Monate: Ergebnis live aus der Abfrage.
 
@@ -80,7 +80,7 @@ GROUP BY r.code, r.bezeichnung
 ORDER BY r.code;
 ```
 
-**Fundstelle im Repo:** `uc3/db/020_stat_metadaten.sql` (Klassifikationen), `uc3/db/100_klass_daten.sql` (Codes), `uc3/statagent/uc4.py` (gleiche Abfrage ohne Sprachmodell), alle mit !13.
+**Fundstelle im Repo:** `uc3/db/020_stat_metadaten.sql` (Klassifikationen), `uc3/db/100_klass_daten.sql` (Codes), `uc3/statagent/uc4.py` (gleiche Abfrage ohne Sprachmodell).
 
 **Zahlen (08/2024, F14):** gesamt 392.236 · Männer 211.603 · Frauen 180.633 · Wien 90.799 · Niederösterreich 64.505. Alle übrigen Bundesländer: Ergebnis live aus der Abfrage.
 
@@ -135,7 +135,7 @@ ORDER BY 1;
 
 **Grenze der Skizze:** Abschnitte, die bei einem Lieferausfall aus der Vorlieferung fortgeschrieben wurden (Spalte `herkunft`), zählen mit. Für 2025-03 und 2025-10 deshalb den Hinweis „vorläufig“ mitsagen (F9, F11). Vor der Freigabe des Regelsatzes gilt „vorläufig“ für alle Monate.
 
-**Fundstelle im Repo:** `uc3/db/030_bereinigt_stat.sql` (Tabelle `bereinigt.abschnitt`), `uc3/db/035_herkunft.sql`, `docs/plan/uc3/annahmen.md`, alle mit !13.
+**Fundstelle im Repo:** `uc3/db/030_bereinigt_stat.sql` (Tabelle `bereinigt.abschnitt`), `uc3/db/035_herkunft.sql`, `docs/plan/uc3/annahmen.md`.
 
 **Zahlen:** Ergebnis live aus der Abfrage.
 
@@ -143,7 +143,7 @@ ORDER BY 1;
 
 Ablauf immer gleich: Satz sprechen, `agent` erzeugt nur einen Vorschlag, `vorschlag zeigen` zeigt Regel-Unterschied und Zahlen vorher und nachher, `freigabe` macht ihn wirksam. Änderungen landen im Regelsatz `v2`, `v1` bleibt unverändert. Die Freigabe schreibt einen Commit mit dem Trailer `Freigegeben-von`.
 
-Befehle (Fundstelle jeweils `uc3/statagent/cli.py` und `uc3/statagent/agenten/` mit !13):
+Befehle (Fundstelle jeweils `uc3/statagent/cli.py` und `uc3/statagent/agenten/`):
 
 ```bash
 uv run uc3 agent "<Auftrag>" --probe JJJJ-MM
@@ -228,7 +228,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Antwortweg:** `uv run uc3 regeln zeigen`, Regeln `R2_R4_stichtag_eigene_lieferung` und `R1_R3_verhaeltnis_einmal`.
 
-**Fundstelle:** `uc3/db/110_regelsatz_v1.sql`, `abgabe/qualitaetsberichte/2024-08.md` (beide mit !13).
+**Fundstelle:** `uc3/db/110_regelsatz_v1.sql`, `abgabe/qualitaetsberichte/2024-08.md`.
 
 ### C2 Warum nur eigene und frühere Lieferungen?
 
@@ -236,7 +236,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Antwortweg:** Regel `R2_R4_stichtag_eigene_lieferung`, Qualitätsbericht 2025-01, Abschnitt 2.
 
-**Fundstelle:** `uc3/db/110_regelsatz_v1.sql`, `abgabe/qualitaetsberichte/2025-01.md` (beide mit !13).
+**Fundstelle:** `uc3/db/110_regelsatz_v1.sql`, `abgabe/qualitaetsberichte/2025-01.md`.
 
 ### C3 Sieht das Sprachmodell Einzeldaten?
 
@@ -244,7 +244,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Antwortweg:** Datei `abgabe/modelle.md` zeigen.
 
-**Fundstelle:** `abgabe/modelle.md`, `uc3/statagent/agenten/rollen.py`, `uc3/statagent/agenten/werkzeuge.py` (alle mit !13).
+**Fundstelle:** `abgabe/modelle.md`, `uc3/statagent/agenten/rollen.py`, `uc3/statagent/agenten/werkzeuge.py`.
 
 ### C4 Läuft das auch lokal und offline?
 
@@ -252,7 +252,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Antwortweg:** `uv run uc3 lauf --lieferung 2024-08` ohne Netz zeigen.
 
-**Fundstelle:** `uc3/README.md`, `abgabe/modelle.md` (beide mit !13).
+**Fundstelle:** `uc3/README.md`, `abgabe/modelle.md`.
 
 ### C5 Ist das Ergebnis reproduzierbar?
 
@@ -260,7 +260,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Antwortweg:** `uv run uc3 laeufe`, `uv run uc3 eichen --lieferung 2024-08`.
 
-**Fundstelle:** `uc3/tests/test_goldenset.py`, `uc3/statagent/ergebnis.py` (beide mit !13).
+**Fundstelle:** `uc3/tests/test_goldenset.py`, `uc3/statagent/ergebnis.py`.
 
 ### C6 Welches Modell nutzen Sie, und lässt es sich tauschen?
 
@@ -268,7 +268,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Antwortweg:** `abgabe/modelle.md` zeigen. Der Schalter steht in `.env.example`.
 
-**Fundstelle:** `abgabe/modelle.md` (mit !13), `shared/py/plattform/llm/`.
+**Fundstelle:** `abgabe/modelle.md`, `shared/py/plattform/llm/`.
 
 ### C7 Was passiert, wenn das Modell ausfällt?
 
@@ -276,7 +276,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Antwortweg:** Live zeigen: `uv run uc3 lauf --lieferung 2024-08` läuft, `agent` meldet den Fehler.
 
-**Fundstelle:** `uc3/statagent/cli.py` (Befehl `agent`), `uc3/tests/test_cli_agenten.py` (beide mit !13).
+**Fundstelle:** `uc3/statagent/cli.py` (Befehl `agent`), `uc3/tests/test_cli_agenten.py`.
 
 ### C8 Was ist mit bereits Veröffentlichtem?
 
@@ -284,7 +284,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Antwortweg:** `uv run uc3 berichte --lieferung 2025-01 --zeigen`.
 
-**Fundstelle:** `uc3/db/030_bereinigt_stat.sql` (Trigger `stat_besch_endgueltig`), `abgabe/qualitaetsberichte/2025-01.md` (beide mit !13).
+**Fundstelle:** `uc3/db/030_bereinigt_stat.sql` (Trigger `stat_besch_endgueltig`), `abgabe/qualitaetsberichte/2025-01.md`.
 
 ### C9 Wie gehen Sie mit dem Wechsel der ÖNACE-Version um?
 
@@ -292,7 +292,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Antwortweg:** `uv run uc3 regeln zeigen`, Regel `R7_oenace_nach_berichtsmonat`.
 
-**Fundstelle:** `uc3/db/110_regelsatz_v1.sql`, `uc3/db/120_pruefregeln_v1.sql`, `uc3/db/020_stat_metadaten.sql` (Tabelle `stat.uebergang`), alle mit !13.
+**Fundstelle:** `uc3/db/110_regelsatz_v1.sql`, `uc3/db/120_pruefregeln_v1.sql`, `uc3/db/020_stat_metadaten.sql` (Tabelle `stat.uebergang`).
 
 ### C10 Warum löschen Sie nichts?
 
@@ -300,7 +300,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Antwortweg:** Qualitätsbericht 2025-03, Abschnitt 1 (Abrechnung) und 2 (Auffälligkeiten).
 
-**Fundstelle:** `abgabe/qualitaetsberichte/2025-03.md`, `uc3/db/030_bereinigt_stat.sql` (beide mit !13).
+**Fundstelle:** `abgabe/qualitaetsberichte/2025-03.md`, `uc3/db/030_bereinigt_stat.sql`.
 
 ### C11 Wie kommt eine neue Regel in Kraft?
 
@@ -308,7 +308,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Antwortweg:** `uv run uc3 regeln zeigen`, `uv run uc3 regeln freigeben --name "Vor- und Nachname"`, `uv run uc3 protokoll --zeigen`.
 
-**Fundstelle:** `uc3/db/010_meta.sql`, `uc3/db/045_freigabe_schutz.sql`, `uc3/statagent/regeln.py`, `docs/plan/uc3/regeln-v1.csv` (alle mit !13).
+**Fundstelle:** `uc3/db/010_meta.sql`, `uc3/db/045_freigabe_schutz.sql`, `uc3/statagent/regeln.py`, `docs/plan/uc3/regeln-v1.csv`.
 
 ### C12 Wie hängt der gemeinsame Einstieg (UC4) mit UC3 zusammen?
 
@@ -316,7 +316,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Antwortweg:** `uv run uc3 antwort "Beschäftigte in Wien im März 2025"`. In der Oberfläche die Seite für den gemeinsamen Einstieg zeigen.
 
-**Fundstelle:** `uc3/statagent/uc4.py` (mit !13), `shared/py/plattform/router.py`, `shared/py/plattform/antwortform.py`, `web/app/uc4/page.tsx`.
+**Fundstelle:** `uc3/statagent/uc4.py`, `shared/py/plattform/router.py`, `shared/py/plattform/antwortform.py`, `web/app/uc4/page.tsx`.
 
 ### C13 Was habt ihr bei der Teil-Lieferung 2025-10 gemacht?
 
@@ -324,7 +324,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Antwortweg:** Qualitätsbericht 2025-10, Prüfregeln P15, P16, P17.
 
-**Fundstelle:** `abgabe/qualitaetsberichte/2025-10.md`, `docs/plan/uc3/annahmen.md` (beide mit !13).
+**Fundstelle:** `abgabe/qualitaetsberichte/2025-10.md`, `docs/plan/uc3/annahmen.md`.
 
 ### C14 Was löst die Lösung nicht?
 
@@ -336,7 +336,7 @@ Viertens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Paramet
 
 **Antwortweg:** `uc3/README.md`, Abschnitt Grenzen, und Rückfrage R1 zeigen.
 
-**Fundstelle:** `uc3/README.md`, `abgabe/rueckfragen/R1.md`, `docs/plan/uc3/annahmen.md` (alle mit !13).
+**Fundstelle:** `uc3/README.md`, `abgabe/rueckfragen/R1.md`, `docs/plan/uc3/annahmen.md`.
 
 ## Wenn eine Frage nicht im Katalog steht
 

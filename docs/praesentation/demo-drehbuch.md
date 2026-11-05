@@ -1,6 +1,6 @@
 # Demo-Drehbuch (Folie 8, 5:00–8:30)
 
-Gehört zu GitLab #90, Epic #26. Zahlen tragen ihre Kennung aus dem Faktenblatt (F1 bis F16).
+Gehört zu GitLab #90, Epic #26. Zahlen tragen ihre Kennung aus dem Belegregister (F1 bis F16).
 
 Feature-Stopp und Freeze für Code, Präsentation und Demo: **Fr 06.11.2026 07:00 (Europe/Vienna)**. Nach dem Freeze ändert niemand mehr etwas. Die Demo läuft auf dem Stand vom Freeze.
 
