@@ -20,7 +20,9 @@ from plattform.freigabe import freigeben as plattform_freigeben
 from statagent.agenten.anwenden import ablehnen_ausfuehren, freigabe_ausfuehren
 from statagent.agenten.koordinator import (
     agent_ausfuehren,
+    bekannte_werte,
     produktions_regelsatz,
+    rolle_nach_worten,
     ruecknahme_gemeint,
     ziel_bestimmen,
 )
@@ -303,5 +305,70 @@ def test_ausschluss_wenn_nach_beschaeftigungskategorie_gezaehlt_wird(conn: Verbi
 def test_nur_meldungstext_einer_pruefregel_ist_kein_vorschlag(live_conn: Verbindung) -> None:
     # Fängt: „Monat 13 → 1. Jänner“ änderte nur den Maßnahmetext von P04; das ändert keine Zahl.
     text = _aendern("P04_geburtsdatum_monat_13", {"massnahme": "Ersatztag 1. Jänner"})
-    erg = agent_ausfuehren(live_conn, "Monat 13 heißt 1. Jänner", complete=_modell("qs", text))
+    erg = agent_ausfuehren(
+        live_conn, "Prüfregel P04 soll Monat 13 anders melden", complete=_modell("qs", text)
+    )
     assert erg.vorschlag_id is None and erg.abgelehnt is not None and "keine Zahl" in erg.abgelehnt
+
+
+@pytest.mark.parametrize(
+    ("anweisung", "rolle"),
+    [
+        ("Haltet einen Monat schon an, wenn der Bestand mehr als 3 Prozent unter dem Vormonat liegt.", "qs"),
+        (
+            "Beschäftigungsverhältnisse von Kindern unter 15 Jahren zählen wir nicht mehr mit.",
+            "klassifikation",
+        ),
+        ("kinder unter fünfzehn jahren zählen wir ab jetzt nicht mehr", "klassifikation"),
+        ("beamte zählen wir nicht mehr", "klassifikation"),
+        ("beamtinnen und beamte bitte nicht mehr mitzählen", "klassifikation"),
+        ("wien niederösterreich und burgenland zusammen als ostregion ausweisen", "klassifikation"),
+        ("bei geburtsmonat dreizehn nehmt bitte den ersten jänner als ersatztag", "datenmanagement"),
+        ("ab jetzt zählt nur mehr wer am fünfzehnten des monats beschäftigt ist", "datenmanagement"),
+        (
+            "Ab sofort zählen wir nicht mehr das ganze Monat, sondern nur, wer am 15. beschäftigt ist.",
+            "datenmanagement",
+        ),
+    ],
+)
+def test_wort_weiche_auch_fuer_lockere_schreibweise(anweisung: str, rolle: str) -> None:
+    assert rolle_nach_worten(anweisung) == rolle
+
+
+def test_qs_ohne_schwellenwort_geht_an_die_zaehlrolle(live_conn: Verbindung) -> None:
+    # Fängt: „Kinder unter 15 nicht mehr zählen“ ging an qs, die P13 umschrieb (Probe 19:23).
+    antwort = _neu("ausschluss", "R8_unter_15", {"merkmal": "alter", "werte": ["0-14"]})
+    modell = SequenzModell(
+        {"agent.koordinator": [{"rolle": "qs", "auftrag": "x"}], "agent.klassifikation": [antwort]}
+    )
+    erg = agent_ausfuehren(live_conn, "Kinder unter 15 Jahren zählen wir nicht mehr mit.", complete=modell)
+    assert erg.rolle == "klassifikation" and erg.vorschlag_id is not None, erg.abgelehnt
+    assert not [z for z, _ in modell.aufrufe if z == "agent.qs"]
+
+
+def test_rueckfrage_der_rolle_holt_eine_zweite_meinung(live_conn: Verbindung) -> None:
+    antwort = _aendern("R5_alter", {"geburtsmonat_13": "ersatz:01-01"})
+    modell = SequenzModell(
+        {
+            "agent.koordinator": [{"rolle": "klassifikation", "auftrag": "x"}],
+            "agent.klassifikation": [{"rueckfrage": "Welche Regel?"}],
+            "agent.datenmanagement": [antwort],
+        }
+    )
+    erg = agent_ausfuehren(live_conn, "Bei Geburtsmonat 13 gilt der erste Jänner.", complete=modell)
+    assert erg.rolle == "datenmanagement" and erg.vorschlag_id is not None, erg.rueckfrage
+
+
+def test_bekannte_werte_ohne_lauf_der_basis_und_nach_kategorie(live_conn: Verbindung) -> None:
+    # Fängt: neuer Regelsatz ohne Läufe → leere Liste → Rückfrage (Probe 19:25, Ostregion und Vorarlberg).
+    with live_conn.transaction():
+        regelsatz_sicherstellen(live_conn, "v2", "v1")
+        live_conn.execute(
+            """UPDATE meta.regel SET parameter = '{"qualifikation": "beschaeftigungskategorie"}'::jsonb
+               WHERE regelsatz = 'v2' AND name = 'R6_beschaeftigungskategorie'"""
+        )
+    werte = bekannte_werte(live_conn, "v2")
+    assert {"1", "3", "8", "9"} <= set(werte["region"])
+    assert set(werte["qualifikation"]) >= {"Arbeiter", "Angestellte", "Beamte"}
+    assert "ArbeiterDV" not in werte["qualifikation"]
+    assert "ArbeiterDV" in bekannte_werte(live_conn, "v1")["qualifikation"]

@@ -27,7 +27,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -104,6 +104,8 @@ class Auftrag:
     kurz: str
     anweisung: str
     erwartung: Callable[[Vorschlag], bool]
+    #: lockere Schreibweise (klein, ohne Satzzeichen, Tippfehler, Zahlwörter); gilt im letzten Lauf
+    locker: str | None = None
 
 
 def _ausschluss(v: Vorschlag, merkmale: set[str], werte: set[str]) -> bool:
@@ -171,6 +173,16 @@ AUFTRAEGE: tuple[Auftrag, ...] = (
         lambda v: _geaendert(v, "P15") == {"schwelle": (0.05, 0.03)},
     ),
 )
+#: Fünf Fassungen in lockerer Schreibweise, wie sie live getippt werden (Owner 05.11. 19:3x: getippter Text reicht,
+#: robust gegen Kleinschreibung, fehlende Satzzeichen und Tippfehler).
+LOCKER = {
+    "A_stichtag_15": "ab jetzt zählt nur mehr wer am fünfzehnten des monats beschäftigt ist",
+    "B_ohne_beamte": "beamtinen und beamte bitte nciht mehr mitzählen",
+    "C_ostregion": "wien niederösterreich und burgenland zusamen als ostregion ausweisen",
+    "D_monat13_jaenner": "bei geburtsmonat 13 nehmt bitte den ersten jänner als ersatztag",
+    "G_ohne_unter_15": "kinder unter 15 jahren zählen wir ab jetzt nicht mehr",
+}
+AUFTRAEGE = tuple(replace(a, locker=LOCKER.get(a.kurz)) for a in AUFTRAEGE)
 
 
 def _jetzt() -> str:
@@ -210,11 +222,14 @@ def _vorschlag(conn: Verbindung, anweisung: str, monat: str) -> tuple[Vorschlag 
     return vorschlag_lesen(conn, erg.vorschlag_id), dauer, korrektur.strip()
 
 
-def ein_lauf(conn: Verbindung, auftrag: Auftrag, nummer: int, monat: str, repo: Path) -> dict[str, Any]:
+def ein_lauf(
+    conn: Verbindung, auftrag: Auftrag, nummer: int, monat: str, repo: Path, locker: bool = False
+) -> dict[str, Any]:
+    anweisung = auftrag.locker if locker and auftrag.locker else auftrag.anweisung
     zeile: dict[str, Any] = {
-        "auftrag": auftrag.kurz,
+        "auftrag": auftrag.kurz + ("_locker" if anweisung == auftrag.locker else ""),
         "lauf": nummer,
-        "anweisung": auftrag.anweisung,
+        "anweisung": anweisung,
         "name": NAME,
     }
     zeile["zeit"] = _jetzt()
@@ -223,7 +238,7 @@ def ein_lauf(conn: Verbindung, auftrag: Auftrag, nummer: int, monat: str, repo: 
     stand_vorher = _stand(conn, basis, monat)
 
     # 1–3: Vorschlag, Erwartung, Ablehnen
-    v1, dauer1, h = _vorschlag(conn, auftrag.anweisung, monat)
+    v1, dauer1, h = _vorschlag(conn, anweisung, monat)
     hinweise.append(h)
     zeile["dauer_s"] = round(dauer1, 1)
     if v1 is None:
@@ -245,7 +260,7 @@ def ein_lauf(conn: Verbindung, auftrag: Auftrag, nummer: int, monat: str, repo: 
     )
 
     # 4: noch einmal, Freigabe
-    v2, dauer2, h = _vorschlag(conn, auftrag.anweisung, monat)
+    v2, dauer2, h = _vorschlag(conn, anweisung, monat)
     hinweise.append(h)
     zeile["dauer_s"] = round(max(dauer1, dauer2), 1)
     if v2 is None:
@@ -332,7 +347,7 @@ def main() -> int:
         for nummer in range(1, args.runden + 1):
             for auftrag in auswahl:
                 try:
-                    zeile = ein_lauf(conn, auftrag, nummer, args.monat, repo)
+                    zeile = ein_lauf(conn, auftrag, nummer, args.monat, repo, locker=nummer == args.runden)
                 except (
                     Exception
                 ) as fehler:  # ein Fehler ist ein nicht bestandener Lauf, kein Abbruch der Serie

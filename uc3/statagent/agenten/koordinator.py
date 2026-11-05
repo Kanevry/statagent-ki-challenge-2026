@@ -270,32 +270,40 @@ def ziel_bestimmen(conn: Verbindung, basis: str, gewuenscht: str | None = None) 
 
 
 def bekannte_werte(conn: Verbindung, basis: str) -> dict[str, list[str]]:
-    """Ausprägungen je Merkmal, wie sie in der Statistik des Basisregelsatzes stehen (Aggregate, keine Einzeldaten).
+    """Ausprägungen je Merkmal, wie sie in der Statistik stehen (Aggregate und Klassifikation, keine Einzeldaten).
 
     Grundlage für Ausschluss und Gruppierung: das Modell nennt Werte nur aus dieser Liste (Live-Probe: „Wien“
-    statt Code „9“ hätte nichts ausgeschlossen).
+    statt Code „9“ hätte nichts ausgeschlossen). Quelle ist der jüngste Lauf der Basis, sonst der jüngste Lauf
+    überhaupt (ein neuer Regelsatz nach einer Rücknahme hat noch keine Läufe; Probe 19:25 fragte darum zurück),
+    dazu die Bundesländer aus stat.klass_region. ``qualifikation`` folgt R6 der Basis: Codes oder Kategorien.
     """
-    werte: dict[str, list[str]] = {}
+    werte: dict[str, set[str]] = {m: set() for m in ("region", "geschlecht", "oenace")}
     lauf = conn.execute(
-        """SELECT max(id) AS id FROM meta.lauf WHERE regelsatz = %s AND status IN ('fertig', 'unveraendert')""",
+        """SELECT id FROM meta.lauf WHERE status IN ('fertig', 'unveraendert')
+           ORDER BY (regelsatz = %s) DESC, id DESC LIMIT 1""",
         (basis,),
     ).fetchone()
-    lauf_id = None if lauf is None else lauf["id"]
-    if lauf_id is not None:
-        for merkmal in ("region", "geschlecht", "oenace", "qualifikation"):
+    if lauf is not None:
+        for merkmal in werte:
             zeilen = conn.execute(
-                f"SELECT DISTINCT {merkmal} AS w FROM stat.stat_beschaeftigte WHERE lauf_id = %s ORDER BY 1".encode(),
-                (lauf_id,),
+                f"SELECT DISTINCT {merkmal} AS w FROM stat.stat_beschaeftigte WHERE lauf_id = %s".encode(),
+                (lauf["id"],),
             ).fetchall()
-            werte[merkmal] = [str(z["w"]) for z in zeilen]
-    kat = conn.execute(
-        "SELECT DISTINCT beschaeftigungskategorie AS w FROM stat.klass_qualifikation ORDER BY 1"
-    ).fetchall()
-    werte["beschaeftigungskategorie"] = [str(z["w"]) for z in kat]
-    codes = conn.execute("SELECT code AS w FROM stat.klass_qualifikation ORDER BY 1").fetchall()
-    werte.setdefault("qualifikation", [])
-    werte["qualifikation"] = sorted(set(werte["qualifikation"]) | {str(z["w"]) for z in codes})
-    return werte
+            werte[merkmal] |= {str(z["w"]) for z in zeilen}
+    regionen = conn.execute("SELECT code AS w FROM stat.klass_region WHERE ebene = 'bundesland'").fetchall()
+    werte["region"] |= {str(z["w"]) for z in regionen}
+    kat = conn.execute("SELECT code, beschaeftigungskategorie AS k FROM stat.klass_qualifikation").fetchall()
+    kategorien = {str(z["k"]) for z in kat}
+    r6 = next(
+        (r for r in _regeln(conn, basis).values() if r["typ"] == "zaehl" and r["art"] == "dimension"), None
+    )
+    nach_kategorie = (
+        r6 is not None and dict(r6["parameter"]).get("qualifikation") == "beschaeftigungskategorie"
+    )
+    ergebnis = {m: sorted(w) for m, w in werte.items()}
+    ergebnis["qualifikation"] = sorted(kategorien if nach_kategorie else {str(z["code"]) for z in kat})
+    ergebnis["beschaeftigungskategorie"] = sorted(kategorien)
+    return ergebnis
 
 
 def _regel_aus(name: str, art: str, parameter: dict[str, Any]) -> Regel:
@@ -838,6 +846,35 @@ def ruecknahme_gemeint(anweisung: str) -> bool:
     return bool(_RUECKNAHME_WORT.search(anweisung))
 
 
+#: Wort-Weiche für die Rollenwahl, nur als Absicherung: der Koordinator wählte in der Probe 19:2x für „Kinder unter
+#: 15 nicht mehr zählen“ die Rolle qs (Vorschlag an P13) und für „Monat 13 → Jänner“ qs (Rückfrage zu P04).
+#: Reihenfolge = Vorrang. Diktat-tauglich: Kleinschreibung, Zahlwörter.
+_WEICHE: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("qs", re.compile(r"anhalt|schwelle|prozent|warn|melde[nt]?\b|prüfregel|pruefregel", re.IGNORECASE)),
+    (
+        "klassifikation",
+        re.compile(
+            r"zusammen|gemeinsam|ausschlie|herausf|heraus\b|weglass|nicht mehr (?:mit)?(?:gez|z(?:ä|ae)hl|vorkomm)|nicht mehr mit\b|z(?:ä|ae)hl\w* (?:\w+ ){0,4}nicht mehr\b(?! das| den| die| am| nur)|"
+            r"nicht mitz|\bohne\b|region|bundesl(?:ä|ae)nd|kategorie|beamt|arbeiter|angestellt|gruppe",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "datenmanagement",
+        re.compile(
+            r"geburt|alter|jahre|stichtag|monatslet|monatserst|ganze[sn]? monat|tag des monats|plausib|"
+            r"\bam \w+ten\b|\d{1,2}\.",
+            re.IGNORECASE,
+        ),
+    ),
+)
+
+
+def rolle_nach_worten(anweisung: str) -> str | None:
+    """Rolle laut Wort-Weiche oder None, wenn kein Wort passt."""
+    return next((rolle for rolle, muster in _WEICHE if muster.search(anweisung)), None)
+
+
 #: Wie oft eine Rolle einen vom Programm abgelehnten Vorschlag korrigieren darf (Reparaturrunde).
 REPARATURRUNDEN = 2
 
@@ -902,6 +939,10 @@ def agent_ausfuehren(
             return ergebnis
         return _anlegen(conn, ergebnis, rolle, g, probe_lieferung)
 
+    weiche = rolle_nach_worten(anweisung)
+    if rolle.name == "qs" and weiche not in (None, "qs"):
+        # qs ändert nur Prüfregeln; ohne Schwellen-Wort ist die Anweisung eine Zählfrage.
+        rolle = ROLLEN[weiche]
     ziel = ziel_bestimmen(conn, basis)
     ergebnis.regelsatz_ziel = ziel
     kontext = kontext_bauen(conn, basis, probe_lieferung, ziel)
@@ -930,6 +971,12 @@ def agent_ausfuehren(
             ergebnis.modell = ergebnis.aufrufe[-1]["modell"]
             ergebnis.provider = ergebnis.aufrufe[-1]["provider"]
             if antwort.rueckfrage:
+                # Zweite Meinung: fragt die Rolle zurück und nennt die Wort-Weiche eine andere, noch nicht gefragte
+                # Rolle, fragt der Code diese einmal (Probe 19:25: qs fragte zu P04, datenmanagement kann R5).
+                if weiche is not None and weiche not in versucht:
+                    rolle = ROLLEN[weiche]
+                    umleiten = True
+                    break
                 ergebnis.rueckfrage = antwort.rueckfrage
                 return ergebnis
             try:
