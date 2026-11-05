@@ -293,10 +293,13 @@ function Antwort({
             ))}
           </div>
         ) : (
+          // Nur bei einer echten Rückfrage: Eine Erklärung oder Absage ohne Zahl braucht keinen Monat (#189).
+          rueckfrage !== null &&
           !/monat/i.test(text) && (
             <p className="font-sans text-16 text-slate">Nennen Sie bitte auch den Monat, zum Beispiel „März 2025“.</p>
           )
         )}
+        {rueckfrage === null && antwort.belege[0] && <BelegLink quelle={antwort.belege[0].quelle} sql={antwort.belege[0].sql} />}
       </div>
     );
   }
