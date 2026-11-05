@@ -210,6 +210,19 @@
   letter-spacing: -0.01em;
   white-space: nowrap;
 }
+/* Beschriftung des Kreises 3 im Kopf: über dem Kreis (darunter beginnt in Szene 3 und 9 schon der Inhalt bei 176 px),
+   links bündig mit ihm, endet vor dem Titel bei 220 px. Sans in normaler Schreibung, kein Mono- oder Versal-Etikett. */
+.kopf-uc {
+  position: absolute;
+  left: 120px;
+  top: 46px;
+  margin: 0;
+  font-family: var(--f-text);
+  font-size: 20px;
+  line-height: 1.2;
+  color: var(--neben);
+  white-space: nowrap;
+}
 .titel-lang {
   font-size: 46px;
   top: 100px;
@@ -1452,7 +1465,14 @@
   color: var(--text);
 }
 
-/* 6. Reduzierte Bewegung und Druck: Endzustand */
+/* 6. Stille Folie (Sprung aus der Folienliste), reduzierte Bewegung und Druck: Endzustand */
+.szene.still,
+.szene.still *,
+.szene.still *::before,
+.szene.still *::after {
+  animation: none !important;
+  transition: none !important;
+}
 @media (prefers-reduced-motion: reduce) {
   .szene,
   .szene *,

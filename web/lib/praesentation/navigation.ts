@@ -24,6 +24,15 @@ export interface Stand {
 }
 
 /**
+ * Stand beim Betreten von `folie` (wird auf 1 bis Folienzahl begrenzt): Takt 0, mit `alle` sofort alle Takte, also der
+ * Endzustand der Szene. Die Folienliste und reduzierte Bewegung betreten mit `alle`.
+ */
+export function betreten(folie: number, takte: readonly number[], alle = false): Stand {
+  const nr = Math.min(Math.max(folie, 1), Math.max(takte.length, 1));
+  return { folie: nr, takt: alle ? Math.max(takte[nr - 1] ?? 0, 0) : 0 };
+}
+
+/**
  * Stand nach einem Tastendruck, mit Takten innerhalb einer Szene. `takte[i]` ist die Taktzahl von Folie i + 1.
  * Vor: erst den nächsten Takt, dann die nächste Folie (dort Takt 0). Zurück: erst einen Takt zurück, dann die
  * vorige Folie mit allen Takten. `alleTakte` (reduzierte Bewegung): jede betretene Folie zeigt sofort alle Takte,
@@ -33,23 +42,20 @@ export interface Stand {
 export function naechsterStand(stand: Stand, takte: readonly number[], taste: string, alleTakte = false): Stand | null {
   const anzahl = Math.max(takte.length, 1);
   const max = (folie: number) => Math.max(takte[folie - 1] ?? 0, 0);
-  const betreten = (folie: number, vonHinten = false): Stand => ({
-    folie,
-    takt: vonHinten || alleTakte ? max(folie) : 0,
-  });
+  const rein = (folie: number, vonHinten = false): Stand => betreten(folie, takte, vonHinten || alleTakte);
   const folie = Math.min(Math.max(stand.folie, 1), anzahl);
   const takt = Math.min(Math.max(stand.takt, 0), max(folie));
 
   if (VOR.has(taste)) {
     if (!alleTakte && takt < max(folie)) return { folie, takt: takt + 1 };
-    return folie < anzahl ? betreten(folie + 1) : { folie, takt: alleTakte ? max(folie) : takt };
+    return folie < anzahl ? rein(folie + 1) : { folie, takt: alleTakte ? max(folie) : takt };
   }
   if (ZURUECK.has(taste)) {
     if (!alleTakte && takt > 0) return { folie, takt: takt - 1 };
-    return folie > 1 ? betreten(folie - 1, true) : { folie, takt };
+    return folie > 1 ? rein(folie - 1, true) : { folie, takt };
   }
-  if (taste === "Home") return betreten(1);
-  if (taste === "End") return betreten(anzahl);
+  if (taste === "Home") return rein(1);
+  if (taste === "End") return rein(anzahl);
   return null;
 }
 
