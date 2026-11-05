@@ -30,7 +30,7 @@ const ZEIT = new Intl.DateTimeFormat("de-AT", {
 }).format(new Date());
 const KENNZEICHEN = `Aufzeichnung vom ${ZEIT}`;
 
-// Sollzahlen aus dem Fragenkatalog (F14, F23); Prüfung lead-session-orchestrator-bb, #74.
+// Sollzahlen aus dem Fragenkatalog (F14, F23); Prüfung im Team, #74.
 const FRAGEN = [
   {
     text: "Zeigen Sie mir die Zeitreihe der Beschäftigten, jeweils zum Monatsletzten.",
