@@ -54,8 +54,13 @@ export default function Datenfehler({ tabelle }: { tabelle: BefundTabelle }) {
           <div className={s.block}>
             <p className={tabelle.quelle === "beispieldaten" ? a.quelleBeispiel : a.quelleLive}>
               {tabelle.quelle === "beispieldaten"
-                ? DATENFEHLER.beispieldaten
+                ? tabelle.grund === "keine-treffer"
+                  ? DATENFEHLER.keineTreffer
+                  : DATENFEHLER.beispieldaten
                 : `${DATENFEHLER.datenbank} ${standText(tabelle.stand)}.`}
+              {tabelle.quelle === "datenbank" && tabelle.anzahl > tabelle.zeilen.length
+                ? ` ${DATENFEHLER.auswahl(tabelle.zeilen.length, tabelle.anzahl)}`
+                : null}
             </p>
 
             <table className={a.befunde}>
@@ -109,6 +114,15 @@ export default function Datenfehler({ tabelle }: { tabelle: BefundTabelle }) {
                 </li>
               ))}
             </ul>
+
+            <dl className={a.glossar}>
+              {DATENFEHLER.glossar.map((g) => (
+                <div key={g.begriff}>
+                  <dt>{g.begriff}</dt>
+                  <dd>{g.erklaerung}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </Einblenden>
       </div>

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Abnahme der Landingpage auf dem Offload-Host (m5): Produktions-Build, Server, Screenshots, measureSlop, Lighthouse.
-# Aufruf aus dem Repo-Wurzelordner des Offload-Checkouts:
-#   bash web/landing/werkzeug/abnahme-m5.sh <ausgabe-ordner> <slop-measure.js> [port]
+# Abnahme der Landingpage im Produktions-Build: Build, Server, Screenshots, measureSlop, Lighthouse.
+# Gedacht für einen Rechner mit freier CPU (Build und Lighthouse sind rechenintensiv).
+# Aufruf aus dem Repo-Wurzelordner:
+#   bash web/landing/werkzeug/abnahme-build.sh <ausgabe-ordner> <slop-measure.js> [port]
 # Ergebnis: PNGs, abnahme.json, lighthouse-{mobil,desktop}.json und lighthouse.txt im Ausgabe-Ordner.
 set -euo pipefail
 AUSGABE=${1:?Ausgabe-Ordner fehlt}
