@@ -248,6 +248,40 @@ def test_unbekannter_wert_und_falsches_jahr_brechen_ab(conn: Verbindung, ordner:
         pensionen.laden(conn, ordner)
 
 
+@pytest.mark.parametrize(
+    ("quelle", "jahr", "blatt", "zelle"),
+    [
+        ("VAEB", 2019, "Pensionen", "A17"),  # Zeile nach der Leerzeile
+        ("VAEB", 2019, "Pensionen", "C8"),
+        ("VAN", 2019, "Pensionen 2019", "A16"),
+        ("VAN", 2019, "Pensionen 2019", "D6"),
+        ("SVS-BIS-2022", 2021, "Daten", "G2"),
+        ("SVS-BIS-2022", 2021, "Daten", "F200"),
+        ("PVA-BIS-2021", 2020, "Tabelle 12", "C20"),
+        ("PVA-AB-2022", 2023, "Pensionsstand", "C20"),
+        ("SVA", 2019, "Pensionsstand", "D5"),
+        ("SVA", 2019, "Legende", "D1"),
+    ],
+)
+def test_zelle_ausserhalb_der_gelesenen_bricht_ab(
+    conn: Verbindung, ordner: Path, quelle: str, jahr: int, blatt: str, zelle: str
+) -> None:
+    # Fängt: eine Zusatzzeile bleibt still ungelesen, die Summen stimmen trotzdem, und eine Zahl fehlt unbemerkt.
+    pfad = ordner / str(jahr) / _dateiname(_format(conn, quelle), jahr)
+    _aendern(pfad, lambda wb: wb[blatt].__setitem__(zelle, 123))
+    with pytest.raises(PensionFehler, match="gehört zu keiner gelesenen|unbekanntes Format"):
+        pensionen.laden(conn, ordner)
+    assert _anzahl(conn) == 0
+
+
+def test_falsches_jahr_auf_einem_anderen_blatt_bricht_ab(conn: Verbindung, ordner: Path) -> None:
+    # Fängt: Das Jahr stand nur auf einem Blatt im Vergleich, eine zweite Tabelle aus dem Vorjahr liefe still durch.
+    pfad = ordner / "2020" / _dateiname(_format(conn, "PVA-BIS-2021"), 2020)
+    _aendern(pfad, lambda wb: wb["Tabelle 13"].__setitem__("A2", "Jahresdurchschnitt 2019"))
+    with pytest.raises(PensionFehler, match="Das Jahr im Ordner ist 2020"):
+        pensionen.laden(conn, ordner)
+
+
 def test_fehlender_bereich_und_fehlende_datei_brechen_ab(conn: Verbindung, ordner: Path) -> None:
     # Fängt: eine Zeile oder eine ganze Datei fehlt, und die Summen über die Träger fallen unbemerkt zu klein aus.
     van = ordner / "2019" / _dateiname(_format(conn, "VAN"), 2019)
@@ -286,11 +320,19 @@ def test_doppellauf_gleicher_hash_und_freigabe_schuetzt(conn: Verbindung, ordner
 
     with pytest.raises(NameUngueltig):
         pensionen.freigeben(conn, "Team")
+    # Die Testwerte verletzen Tabelle 13 ≤ Alter: Das sperrt die Freigabe wie eine abweichende Summe.
+    with pytest.raises(PensionFehler, match="größer als die Alterspensionen"):
+        pensionen.freigeben(conn, "Hanna Berger")
+    conn.execute(
+        "UPDATE stat.stat_pensionen SET wert = 0 WHERE pensionsart IN (SELECT code FROM stat.klass_pensionsart WHERE uebergeordnet = 'T13')"
+    )
     frei = pensionen.freigeben(conn, "Hanna Berger")
     assert frei["zellen"] == _anzahl(conn) and frei["regeln"] > 0
     zeile = conn.execute("SELECT DISTINCT status FROM stat.stat_pensionen").fetchone()
     assert zeile is not None and zeile["status"] == "endgueltig"
     assert pensionen.laden(conn, ordner)["unveraendert"] is True
+    with pytest.raises(PensionFehler, match="schon freigegeben"):
+        pensionen.freigeben(conn, "Karl Berger")
 
     pfad = ordner / "2025" / _dateiname(_format(conn, "SVS-AB-2023"), 2025)
     _aendern(pfad, lambda wb: wb["Daten"].__setitem__("F2", 7))
@@ -302,7 +344,6 @@ def test_regelstand_der_beschaeftigten_bleibt_gleich(conn: Verbindung) -> None:
     # Fängt: eine Pensionszeile rutscht in den Hash von v1. Dann gälten alle Läufe als veraltet und die Abgabe bräche.
     mit = regelstand(conn, regeln_laden(conn, "v1"))
     conn.execute("DELETE FROM stat.quellzuordnung WHERE regelsatz = %s", (pensionen.REGELSATZ,))
-    conn.execute("DELETE FROM meta.regel WHERE regelsatz = %s", (pensionen.REGELSATZ,))
     assert regelstand(conn, regeln_laden(conn, "v1")) == mit
 
 
@@ -319,6 +360,16 @@ def test_traegergliederung_ist_getrennt_und_uebergang_steht_in_daten(conn: Verbi
     gw = next(u for u in ue["zeilen"] if u["ziel"] == "SVS-GW" and u["tabelle"] == "T13")
     assert gw["ohne_meldung"] == "VAN" and "VAN" in gw["vorgaenger"]
     assert "nicht geglättet" in ue["annahme"]
+
+
+def _summe_witwe(conn: Verbindung, geschlecht: str) -> int:
+    zeile = conn.execute(
+        """SELECT sum(wert)::bigint AS n FROM stat.stat_pensionen
+           WHERE zeitraum_von = '2025-01-01' AND pensionsart = 'WITWE' AND geschlecht = %s""",
+        (geschlecht,),
+    ).fetchone()
+    assert zeile is not None
+    return int(str(zeile["n"]))
 
 
 def test_frage_nennt_die_zahl_aus_der_datenbank(conn: Verbindung, ordner: Path) -> None:
@@ -352,6 +403,16 @@ def test_frage_nennt_die_zahl_aus_der_datenbank(conn: Verbindung, ordner: Path) 
     reihe = frage_modul.antwort_frage(conn, "Entwicklung der Pensionen seit 2018")["zahlen"]
     assert len(reihe) == 8
 
+    # Witwer und Witwen sind verschiedene Zahlen; die übliche Schreibweise „nach Trägern“ gliedert auch.
+    assert frage_modul.antwort_frage(conn, "Witwerpensionen 2025")["zahlen"][0]["wert"] == _summe_witwe(
+        conn, "M"
+    )
+    assert frage_modul.antwort_frage(conn, "Witwenpensionen 2025")["zahlen"][0]["wert"] == _summe_witwe(
+        conn, "W"
+    )
+    assert len(frage_modul.antwort_frage(conn, "Pensionen der Witwen und Witwer 2025")["zahlen"]) == 2
+    assert len(frage_modul.antwort_frage(conn, "Pensionen 2025 nach Trägern")["zahlen"]) == 3
+
     # „vorzeitige Alterspensionen“ ist Tabelle 13, nicht zwei Arten; nach Art sind es deren fünf.
     arten = frage_modul.antwort_frage(conn, "Vorzeitige Alterspensionen 2024 nach Art")["zahlen"]
     assert len(arten) == 5
@@ -369,7 +430,17 @@ def test_frage_nennt_die_zahl_aus_der_datenbank(conn: Verbindung, ordner: Path) 
         "Vorzeitige Pensionen der VAN 2019",  # nicht gemeldet
         "Pensionen der SVS 2019",  # Träger gibt es noch nicht
         "Schwerarbeit Pensionen 2023",  # ASVG oder APG
-        "Wie lange beziehen Pensionisten 2023",  # keine Anzahl
+        "Wie lange bezogen Witwen Pensionen 2023?",  # eine Dauer, keine Anzahl
+        "Alterspensionen bei Schwerarbeit 2023",  # das Wort darf nicht verschwinden
+        "Pensionen nach Alter 2025",  # keine Gliederung nach Lebensalter
+        "Pensionen nach ASVG 2025",
+        "Wie viel Pension bekommen Männer 2025?",  # ein Betrag
+        "Wie viele Pensionisten gab es 2025?",  # Personen, nicht Pensionen
+        "Hinterbliebene Pensionen 2025",  # zwei Arten
+        "Pensionen nach 2020",  # Zeitraum, nicht dieses Jahr
+        "Pensionen bis 2023",
+        "Entwicklung der Pensionen bis 2023",
+        "Pensionen 2025 nach Träger und Geschlecht",  # zwei Gliederungen
     ],
 )
 def test_frage_ohne_sicheren_sinn_nennt_keine_zahl(conn: Verbindung, ordner: Path, frage: str) -> None:

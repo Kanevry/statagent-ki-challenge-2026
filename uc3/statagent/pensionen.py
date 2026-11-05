@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from openpyxl import load_workbook
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import coordinate_to_tuple, get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from statagent import konfig
@@ -433,6 +433,52 @@ def _gueltig(k: Knoten, jahr: int) -> bool:
     return k.von <= date(jahr, 12, 31) and (k.bis is None or k.bis >= date(jahr, 1, 1))
 
 
+def _jahre_pruefen(wb: Any, f: Format, jahr: int, datei: str) -> None:
+    """Jedes Jahr in Blattnamen und Kopfzeilen ist das Jahr des Ordners, außer eine Zeile nennt fest ein anderes."""
+    for ws in wb.worksheets:
+        for gefunden in _JAHR.findall(ws.title):
+            if gefunden != str(jahr):
+                raise PensionFehler(f"{datei}: Das Jahr im Ordner ist {jahr}, das Blatt heißt „{ws.title}“.")
+    for k in f.kopf:
+        if k.get("jahr_frei"):
+            continue
+        ws = _blatt(wb, k["blatt"])
+        for zelle in ws[int(k["zeile"])]:
+            if isinstance(zelle.value, str) and any(j != str(jahr) for j in _JAHR.findall(zelle.value)):
+                raise PensionFehler(
+                    f"{datei}, {ws.title}!{zelle.coordinate}: Das Jahr im Ordner ist {jahr}, "
+                    f"in der Datei steht „{zelle.value}“."
+                )
+
+
+def _keine_fremden_zellen(wb: Any, f: Format, rohzellen: list[Rohzelle], datei: str) -> None:
+    """Jede gefüllte Zelle gehört zum Fingerabdruck oder zu einer gelesenen Zeile. Alles andere bricht ab.
+
+    Sonst bliebe eine Zusatzzeile unter den Daten oder eine Zusatzspalte still ungelesen, und die Zahlen stimmten trotzdem.
+    """
+    kopfzeilen: dict[str, set[int]] = defaultdict(set)
+    kopfspalten: dict[str, set[int]] = defaultdict(set)
+    for k in f.kopf:
+        titel = _blatt(wb, k["blatt"]).title
+        kopfzeilen[titel].add(int(k["zeile"]))
+        kopfspalten[titel] |= {i for i, wert in enumerate(k["zellen"], 1) if wert is not None}
+    letzte: dict[tuple[str, int], int] = {}
+    for r in rohzellen:
+        zeile, spalte = coordinate_to_tuple(r.zelle)
+        letzte[(r.blatt, zeile)] = max(spalte, letzte.get((r.blatt, zeile), 0))
+    for ws in wb.worksheets:
+        for reihe in ws.iter_rows():
+            for z in reihe:
+                if z.value is None or z.row in kopfzeilen[ws.title]:
+                    continue
+                bis = letzte.get((ws.title, z.row))
+                if bis is None or (z.column > bis and z.column not in kopfspalten[ws.title]):
+                    raise PensionFehler(
+                        f"{datei}, {ws.title}!{z.coordinate}: „{z.value}“ gehört zu keiner gelesenen Zeile oder "
+                        "Spalte. Nichts wurde geladen."
+                    )
+
+
 def datei_lesen(pfad: Path, jahr: int, werk: Regelwerk) -> DateiErgebnis:
     """Liest eine Meldung vollständig. Wirft bei allem, was nicht zu den Regeln passt; schreibt nichts."""
     datei = f"{jahr}/{pfad.name}"
@@ -445,9 +491,12 @@ def datei_lesen(pfad: Path, jahr: int, werk: Regelwerk) -> DateiErgebnis:
             "Das ist ein Formatbruch und braucht eine eigene Regel."
         )
     ergebnis = DateiErgebnis(datei, jahr, f, hashlib.sha256(inhalt).hexdigest())
+    _jahre_pruefen(wb, f, jahr, datei)
+    rohzellen = list(_rohzellen(wb, f, datei, jahr))
+    _keine_fremden_zellen(wb, f, rohzellen, datei)
     gesehen: dict[tuple[str, str, str], Wert] = {}
     roh_summen: list[tuple[str, str, str | None, int, str, str]] = []
-    for r in _rohzellen(wb, f, datei, jahr):
+    for r in rohzellen:
         wo = f"{datei}, {r.blatt}!{r.zelle}"
         traeger = werk.code(f.quelle, "versicherungstraeger", r.traeger, wo)
         if not _gueltig(werk.traeger[traeger], jahr):
@@ -669,9 +718,12 @@ def freigeben(conn: Verbindung, name: str, repo_pfad: Path | None = None) -> dic
     bericht = pruefbericht(conn)
     if not bericht["ladung"]["dateien"]:
         raise PensionFehler("Es sind keine Pensionszahlen geladen: zuerst `uc3 pensionen laden`.")
-    if bericht["summen"]["abweichend"]:
+    if bericht["ladung"]["freigegeben_von"]:
+        raise PensionFehler(f"Die Zahlen sind schon freigegeben von {bericht['ladung']['freigegeben_von']}.")
+    if bericht["summen"]["abweichend"] or bericht["vorzeitig"]:
         raise PensionFehler(
-            f"{bericht['summen']['abweichend']} Summen weichen ab: Das muss zuerst geklärt werden."
+            f"{bericht['summen']['abweichend']} Summen weichen ab, in {len(bericht['vorzeitig'])} Fällen ist Tabelle 13 "
+            "größer als die Alterspensionen: Das muss zuerst geklärt werden."
         )
     offen = conn.execute(
         "SELECT count(*) AS n FROM meta.regel WHERE regelsatz = %s AND aktiv AND freigegeben_von IS NULL",
@@ -1092,10 +1144,18 @@ _NACH_TEXT = {"traeger": "Träger", "art": "Pensionsart", "geschlecht": "Geschle
 _NACH = {
     "träger": "traeger",
     "traeger": "traeger",
+    "trägern": "traeger",
+    "versicherungsträger": "traeger",
+    "versicherungsträgern": "traeger",
     "art": "art",
+    "arten": "art",
     "pensionsart": "art",
+    "pensionsarten": "art",
     "geschlecht": "geschlecht",
 }
+_GLIEDERWORT = ("nach", "je", "pro")
+_ARTIKEL = ("dem", "den", "der", "die", "das")
+_JAHRWORT = ("jahr", "jahre", "jahren", "jahres")
 
 
 def ist_pensionsfrage(frage: str) -> bool:
@@ -1114,13 +1174,24 @@ def _ohne_zahl(frage_text: str) -> dict[str, Any]:
     return _antwort("pensionen", frage_text, hinweise=[frage_text])
 
 
-def _gliederung_der_frage(woerter: list[str], text: str) -> str | None:
-    if "männer und frauen" in text or "frauen und männer" in text:
-        return "geschlecht"
-    for i, wort in enumerate(woerter[:-1]):
-        if wort in ("nach", "je", "pro") and woerter[i + 1] in _NACH:
-            return _NACH[woerter[i + 1]]
-    return None
+def _gliederungen(woerter: list[str], g_codes: set[str]) -> tuple[set[str], str | None]:
+    """Wonach die Frage gliedern will, und ein Wort nach „nach“, „je“ oder „pro“, das keine Gliederung ist."""
+    menge: set[str] = {"geschlecht"} if len(g_codes) == 2 else set()
+    falsch = None
+    erste = None
+    for i, wort in enumerate(woerter):
+        if wort not in _GLIEDERWORT:
+            continue
+        folge = [w for w in woerter[i + 1 :] if w not in _ARTIKEL]
+        if not folge or folge[0] in _JAHRWORT or re.fullmatch(r"\d{4}", folge[0]):
+            continue
+        if folge[0] in _NACH:
+            erste = i if erste is None else erste
+        else:
+            falsch = folge[0]
+    if erste is not None:
+        menge |= {_NACH[w] for w in woerter[erste:] if w in _NACH}
+    return menge, falsch
 
 
 def pensionsantwort(conn: Verbindung, frage: str) -> dict[str, Any]:
@@ -1142,7 +1213,11 @@ def pensionsantwort(conn: Verbindung, frage: str) -> dict[str, Any]:
     arten: dict[str, list[str]] = begriffe["arten"]
     traeger: dict[str, list[str]] = begriffe["traeger"]
     geschlechter: dict[str, list[str]] = begriffe["geschlecht"]
-    mehrdeutig: dict[str, str] = begriffe["mehrdeutig"]
+    mehrdeutig: dict[str, dict[str, Any]] = begriffe["mehrdeutig"]
+    abgelehnt: dict[str, str] = begriffe["abgelehnt"]
+    satz_abgelehnt = next((abgelehnt[w] for w in woerter if w in abgelehnt), None)
+    if satz_abgelehnt:
+        return _rueckfrage_text(satz_abgelehnt)
     bekannt = set(begriffe["fuellwoerter"]) | set(_NACH) | set(mehrdeutig)
     art_codes = {c for c, ws in arten.items() if any(w in ws for w in woerter)}
     # „vorzeitige Alterspensionen“ meint Tabelle 13, „Pensionsstand Waisen“ nur die Waisen: das Engere gilt.
@@ -1163,28 +1238,39 @@ def pensionsantwort(conn: Verbindung, frage: str) -> dict[str, Any]:
             f"Das Wort „{unbekannt[0]}“ kenne ich bei Pensionen nicht, darum nenne ich keine Zahl. Pensionen gibt es "
             f"je Jahr von {ERSTES_JAHR} bis {LETZTES_JAHR}, nach Träger, Pensionsart und Geschlecht."
         )
-    if not art_codes - set(TABELLEN):
-        offen = next((satz for wort, satz in mehrdeutig.items() if wort in woerter), None)
-        if offen:
-            return _rueckfrage_text(offen)
-    if len(art_codes) > 1 or len(traeger_codes) > 1 or len(g_codes) > 1:
-        gliederung = _gliederung_der_frage(woerter, text)
-        if not (
-            gliederung == "geschlecht"
-            and len(g_codes) == 2
-            and len(art_codes) <= 1
-            and len(traeger_codes) <= 1
-        ):
-            return _rueckfrage_text(
-                "Die Frage nennt mehr als eine Pensionsart oder mehr als einen Träger. Fragen Sie bitte nach einem davon, "
-                "oder nach einer Gliederung wie „nach Träger“."
-            )
+    for wort, eintrag in mehrdeutig.items():
+        if wort in woerter and not art_codes & set(eintrag["codes"]):
+            return _rueckfrage_text(str(eintrag["satz"]))
+    gliederungen, nach_falsch = _gliederungen(woerter, g_codes)
+    if nach_falsch:
+        return _rueckfrage_text(
+            f"Nach „{nach_falsch}“ lässt sich nicht gliedern. Pensionen gibt es nach Träger, Pensionsart und Geschlecht. "
+            f"Wenn Sie nur „{nach_falsch}“ meinen, fragen Sie bitte ohne „nach“."
+        )
+    if len(gliederungen) > 1:
+        return _rueckfrage_text(
+            "Bitte nur eine Gliederung auf einmal: nach Träger, Pensionsart oder Geschlecht."
+        )
+    gliederung = next(iter(gliederungen), None)
+    if len(art_codes) > 1 or len(traeger_codes) > 1:
+        return _rueckfrage_text(
+            "Die Frage nennt mehr als eine Pensionsart oder mehr als einen Träger. Fragen Sie bitte nach einem davon, "
+            "oder nach einer Gliederung wie „nach Träger“."
+        )
+    if len(g_codes) == 2:
         g_codes = set()
     falsch = [j for j in jahre if not ERSTES_JAHR <= j <= LETZTES_JAHR]
     if falsch:
         return _ohne_zahl(
             f"Für {falsch[0]} gibt es keine Meldung. Pensionen gibt es von {ERSTES_JAHR} bis {LETZTES_JAHR}."
         )
+    if len(jahre) == 1:
+        davor = woerter[woerter.index(str(jahre[0])) - 1] if woerter.index(str(jahre[0])) > 0 else ""
+        if davor in ("nach", "bis"):
+            return _rueckfrage_text(
+                f"Meinen Sie genau {jahre[0]} oder einen Zeitraum? Für einen Zeitraum nennen Sie bitte beide Jahre, "
+                f"zum Beispiel {ERSTES_JAHR} bis {jahre[0]}."
+            )
     if _ZEITREIHE.search(text) and len(jahre) <= 1:
         von, bis = (jahre[0] if jahre else ERSTES_JAHR), LETZTES_JAHR
     elif len(jahre) == 2 and " bis " in text:
@@ -1196,7 +1282,6 @@ def pensionsantwort(conn: Verbindung, frage: str) -> dict[str, Any]:
     art = art_codes.pop() if art_codes else "T12"
     knoten = traeger_codes.pop() if traeger_codes else "INSG"
     geschlecht = g_codes.pop() if g_codes else None
-    gliederung = _gliederung_der_frage(woerter, text)
     if gliederung == "traeger" and knoten not in ("INSG", "PV-UNS", "PV-SEL"):
         return _rueckfrage_text("Die Frage nennt einen Träger und will nach Trägern gliedern. Welches davon?")
     if gliederung == "art" and art not in TABELLEN:
