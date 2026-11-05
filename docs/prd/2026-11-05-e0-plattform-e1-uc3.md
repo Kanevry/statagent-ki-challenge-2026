@@ -308,7 +308,7 @@ Then jede Route antwortet 200, der Header zeigt fünf Einträge mit aktivem Zust
 ```
 Oracle: Playwright-Lauf mit AX-Snapshot und Konsole; Screenshot gegen Frame nas8Y (Header) und CKCV4 (Modell-Badge) → EA-2.
 ```gherkin
-Given die Registry hat einen UC-Eintrag mit status "aktiv" und web/app/uc3/layout.tsx nutzt <UcBereich>
+Given web/app/uc3/layout.tsx nutzt <UcBereich> (mit page.tsx; die Registry trägt keinen Status, Entscheid Lead 05.11.)
 When /uc3 geöffnet wird
 Then die Unter-Navigation des UC erscheint unter dem Header und die Protokoll-Schublade listet GET /api/uc3/protokoll,
      dessen Antwort gegen `shared/schema/protokoll-eintrag.json` validiert (ebenso `uv run uc3 protokoll --json`)
