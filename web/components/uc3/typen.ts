@@ -8,8 +8,10 @@ export type Ergebnisstand = "vorlaeufig" | "endgueltig";
 export interface Lauf {
   id: number;
   /**
-   * Lauf, aus dem Prüftreffer, Regelwirkung und Revision stammen: bei einem veröffentlichten Monat der Lauf, der
-   * veröffentlicht hat (wie `_veroeffentlichender_lauf` in qualitaetsbericht.py), sonst `id`.
+   * Lauf, aus dem Prüftreffer und Regelwirkung stammen: bei einem veröffentlichten Monat der Lauf, der veröffentlicht
+   * hat (wie `_veroeffentlichender_lauf` in qualitaetsbericht.py), sonst `id`. Revisionen kommen dagegen immer aus
+   * `id`, dem jüngsten Lauf, wie § 5 des Generators (`_revision(conn, stand.lauf_id, …)`): rechnet ein späterer Lauf
+   * einen veröffentlichten Monat nach, gehört sein Revisionsbedarf zu ihm.
    */
   quelleId: number;
   /** Berichtsmonat = Lieferung, „JJJJ-MM“. Ein Lauf rechnet genau eine Lieferung. */

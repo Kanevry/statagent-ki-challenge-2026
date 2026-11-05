@@ -12,7 +12,8 @@ WHERE regelsatz = $1 AND status IN ('fertig', 'unveraendert')
 ORDER BY lieferung, (ergebnis_status = 'endgueltig') DESC, id DESC`;
 
 /**
- * SQL-Ausdruck für den Lauf, dessen Prüftreffer, Regelwirkung und Revision gelten: bei einem veröffentlichten Monat
+ * SQL-Ausdruck für den Lauf, dessen Prüftreffer und Regelwirkung gelten (Revisionen nie: die kommen aus dem jüngsten
+ * Lauf, wie § 5 des Generators): bei einem veröffentlichten Monat
  * der Lauf, der die endgültigen Zellen geschrieben hat, sonst der Lauf selbst. Der Generator (qualitaetsbericht.py,
  * `_veroeffentlichender_lauf`) liest dafür min(lauf_id) der endgültigen Zellen; die schreibt laut lauf.py immer der
  * letzte Lauf mit Status „fertig“ dieses Regelstands („unveraendert“ schreibt nichts). Über meta.lauf statt über

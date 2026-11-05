@@ -252,7 +252,7 @@ export function sqlBerichtsliste(regelsatz = "v1"): string {
     "  (SELECT count(*) FROM meta.pruefung_treffer p WHERE p.lauf_id = m.quelle_id AND p.anzahl > 0) AS auffaelligkeiten,",
     "  (SELECT count(*) FROM meta.pruefung_treffer p WHERE p.lauf_id = m.quelle_id AND p.anzahl > 0",
     "     AND coalesce(p.einstufung, 'nicht-erklaerbar') = 'nicht-erklaerbar') AS nicht_erklaerbar,",
-    "  EXISTS (SELECT 1 FROM meta.revision v WHERE v.lauf_id = m.quelle_id AND v.differenz <> 0) AS revisionsbedarf",
+    "  EXISTS (SELECT 1 FROM meta.revision v WHERE v.lauf_id = m.id AND v.differenz <> 0) AS revisionsbedarf",
     "FROM massgeblich m ORDER BY m.lieferung;",
   ].join("\n");
 }
@@ -354,7 +354,7 @@ export function sqlRevision(lauf: Pick<Lauf, "id" | "quelleId">): string {
     "LEFT JOIN LATERAL (SELECT ursache, anzahl FROM meta.revision_ursache u",
     "  WHERE u.lauf_id = v.lauf_id AND u.berichtsmonat = v.berichtsmonat",
     "  ORDER BY abs(anzahl) DESC, ursache LIMIT 1) u ON true",
-    `WHERE v.lauf_id = ${literal(lauf.quelleId)} AND v.gliederung = 'insgesamt'`,
+    `WHERE v.lauf_id = ${literal(lauf.id)} AND v.gliederung = 'insgesamt'`,
     "ORDER BY v.berichtsmonat;",
   ].join("\n");
 }
@@ -404,7 +404,7 @@ export function leseBerichtsliste(regelsatz = "v1"): Promise<Lesung<Berichtszeil
       );
       return {
         monat,
-        revisionsbedarf: mitRevision.has(monat.quelleId),
+        revisionsbedarf: mitRevision.has(monat.id),
         wartet,
         ohneRueckfrage: eigene.filter((z) => !z.nr).length,
       };
@@ -529,7 +529,7 @@ export function leseQualitaetsbericht(lieferung: string, regelsatz = "v1"): Prom
           WHERE u.lauf_id = v.lauf_id AND u.berichtsmonat = v.berichtsmonat
           ORDER BY abs(anzahl) DESC, ursache LIMIT 1
         ) u ON true
-        WHERE v.lauf_id = ${lauf.quelleId} AND v.gliederung = 'insgesamt'
+        WHERE v.lauf_id = ${lauf.id} AND v.gliederung = 'insgesamt'
         ORDER BY v.berichtsmonat`,
     ]);
     const ausTabelle = Boolean(annahmeDa[0]?.da);

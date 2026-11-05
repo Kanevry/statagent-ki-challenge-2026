@@ -461,7 +461,7 @@ export function sqlRevision(lauf: Pick<Lauf, "id" | "quelleId">, berichtsmonat: 
     `       ${UMGESCHICHTET} AS umgeschichtet`,
     "FROM meta.revision r",
     "LEFT JOIN meta.revision_ursache u ON u.lauf_id = r.lauf_id AND u.berichtsmonat = r.berichtsmonat",
-    `WHERE r.lauf_id = ${literal(lauf.quelleId)} AND r.gliederung = 'insgesamt' AND r.berichtsmonat = ${literal(berichtsmonat)}`,
+    `WHERE r.lauf_id = ${literal(lauf.id)} AND r.gliederung = 'insgesamt' AND r.berichtsmonat = ${literal(berichtsmonat)}`,
     "ORDER BY u.anzahl DESC;",
   ].join("\n");
 }
@@ -470,7 +470,7 @@ export function sqlKeineRevision(lauf: Pick<Lauf, "id" | "quelleId">): string {
   return [
     "SELECT count(*) AS monate_mit_revisionsbedarf",
     "FROM meta.revision r",
-    `WHERE r.lauf_id = ${literal(lauf.quelleId)} AND r.gliederung = 'insgesamt'`,
+    `WHERE r.lauf_id = ${literal(lauf.id)} AND r.gliederung = 'insgesamt'`,
     `  AND (r.differenz <> 0 OR ${UMGESCHICHTET});`,
   ].join("\n");
 }
@@ -655,7 +655,7 @@ export async function ladeLaufDetail(sql: Sql, lieferung: string, regelsatz = "v
   if (!lauf) return null;
   const [treffer, revisionen, regionen, determinismus] = await Promise.all([
     ladeTreffer(sql, lauf.quelleId),
-    ladeRevisionen(sql, lauf.quelleId),
+    ladeRevisionen(sql, lauf.id),
     ladeRegionen(sql, lauf),
     ladeDeterminismus(sql, lauf),
   ]);
