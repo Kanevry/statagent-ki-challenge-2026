@@ -1141,7 +1141,8 @@ export function auftragKopf(anweisung: string): { nummer: string | null; titel: 
     const titel = rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : `Auftrag ${treffer[1]}`;
     return { nummer: treffer[1] ?? null, titel: alltag(titel) };
   }
-  const [satz = ""] = anweisung.trim().split(/(?<=[.!?])\s+/);
+  // „1. Juli“ und „z. B.“ beenden keinen Satz; sonst bricht die Überschrift bei „nicht mit dem 1“ ab.
+  const [satz = ""] = anweisung.trim().split(/(?<![0-9]\.)(?<!(?:^|\s)\p{L}\.)(?<=[.!?])\s+/u);
   const kurz = satz.length <= 90 ? satz.replace(/[.!?]$/, "") : `${satz.slice(0, 90).replace(/\s+\S*$/, "")} …`;
   return { nummer: null, titel: alltag(kurz || "Änderung an den Regeln") };
 }
