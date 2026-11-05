@@ -13,12 +13,12 @@ Stand 05.11.2026. Regelsatz `v1` (`meta.regel`; Regeln immer über `name` anspre
 
 | Nr. | Kurzname | Betroffene Sätze | Regel in `meta.regel` | Rückfrage |
 |---|---|---|---|---|
-| A1 | Volldubletten einmal zählen | 1.663 Zeilen verdichtet (nur 2025-03); 1.523 Sätze am 31.03.2025 | `E02_volldubletten` | R3 |
+| A1 | Volldubletten einmal zählen | 1.663 Zeilen verdichtet (nur 2025-03); 1.523 Sätze am 31.03.2025 | `E02_volldubletten` | R7 |
 | A2 | Leere Merkmale sind „unbekannt" | 1.996 am Stichtag 2024-08; 1.587 bis 2.031 je Lieferung am Stichtag | `Q02_leer_unbekannt` (mit `E05_quellzuordnung`) | keine |
-| A3 | ÖNACE-2003-Unterabschnitte nach C | 50 am Stichtag 2024-08; 40 bis 51 je Lieferung | `Q01_oenace_2003_unterabschnitte` | F5 (laut Regel) |
+| A3 | ÖNACE-2003-Unterabschnitte nach C | 50 am Stichtag 2024-08; 40 bis 51 je Lieferung | `Q01_oenace_2003_unterabschnitte` | keine |
 | A4 | Geburtsmonat 13 | 370 am Stichtag 2024-08; 305 bis 399 je Lieferung | `E03_datum_pruefen`, `R5_alter` | R1 |
-| A5 | Unplausibles Alter | 7 am Stichtag 2024-08 | `R5_alter` (`max_plausibel = 110`) | R2 |
-| A6 | Spaltentausch BEGINN/ENDE | 388.115 von 432.086 (nur 2025-06) | `E01_spaltentausch_beginn_ende` | F3 (laut Regel) |
+| A5 | Unplausibles Alter | 7 am Stichtag 2024-08 | `R5_alter` (`max_plausibel = 110`) | R6 |
+| A6 | Spaltentausch BEGINN/ENDE | 388.115 von 432.086 (nur 2025-06) | `E01_spaltentausch_beginn_ende` | R5 |
 | A7 | Abschnittswahl am Stichtag | 0 am Stichtag; Lücken 0 bis 7 und Überlappungen 0 bis 4 je Lieferung | `R1_R3_verhaeltnis_einmal` | keine |
 | A8 | Abrechnung „nicht gezählt" | 48 in 2024-08 | `R2_R4_stichtag_eigene_lieferung` | keine |
 | A9 | Erstlieferung kein Vollabzug | ganze Lieferung 2024-08 (392.284) | `R2_R4_stichtag_eigene_lieferung` | keine |
@@ -57,7 +57,7 @@ SELECT count(*) FROM (SELECT vvh_id FROM (SELECT DISTINCT * FROM roh.lieferung W
 
 **Verworfene Alternativen.** Vergleich nur über VVH_ID: würde 357 echte Zeitabschnitte zusammenlegen. Dubletten doppelt zählen: widerspricht Anhang A Nr. 1 und dem Beispielbericht.
 
-**Offene Rückfrage.** R3.
+**Offene Rückfrage.** R7.
 
 ---
 
@@ -114,7 +114,7 @@ SELECT count(*) FROM stat.quellzuordnung q JOIN meta.regel g ON g.id = q.regel_i
 
 **Verworfene Alternativen.** Altcodes als „unbekannt": Tab3 des Beispielberichts würde nicht stimmen. DE und DN gehen nach derselben Mehrheitsregel nach C (DE: 25 von 32 Sechsstellern nach C, 6 nach J; DN: 48 von 61); beide kommen in keiner der 24 Lieferungen vor, die Zuordnung ändert also keine Zahl (Review !13).
 
-**Offene Rückfrage.** F5 (Nummer laut `meta.regel`, Text in GitLab #72 zu prüfen).
+**Offene Rückfrage.** Keine (Zuordnung belegt durch Beispielbericht Tab3, Regel `Q01_oenace_2003_unterabschnitte`).
 
 ---
 
@@ -122,11 +122,11 @@ SELECT count(*) FROM stat.quellzuordnung q JOIN meta.regel g ON g.id = q.regel_i
 
 **Befund.** Geburtsdaten der Form JJJJ-13-TT. In 2024-08 sind es 370, alle am Stichtag, der Tag liegt zwischen 01 und 28 (gemessen). Je Lieferung ganz 336 bis 444, am Stichtag 305 bis 399 (gemessen). Andere ungültige Geburtsdaten gibt es in 2024-08 nicht (gemessen, 0). Beispiele: 101551, 102661, 102767.
 
-**Annahme.** Alter = Berichtsjahr minus Geburtsjahr. Das ist gleichbedeutend mit dem Ersatzmonat Jänner für jeden Monatsletzten als Stichtag. Das Geburtsjahr bleibt erhalten, der Satz zählt.
+**Annahme.** Der Geburtstag ist unbekannt: Ersatztag ist der 1. Juli des Geburtsjahres, gezählt wird das vollendete Alter am Stichtag (siehe Nachtrag unten). Für 08/2024 ergibt das dieselben Zahlen wie Berichtsjahr minus Geburtsjahr. Das Geburtsjahr bleibt erhalten, der Satz zählt.
 
 **Begründung.** Beispielbericht 2024-08 Tab13 führt die 370 Fälle in den Altersjahren nach Berichtsjahr minus Geburtsjahr; Variante D der Lead-Gegenrechnung trifft 576 von 576 Zellen (Quelle: Lead-Gegenrechnung bzw. Forensik 05.11.).
 
-**Umgesetzt als.** `E03_datum_pruefen` (Parameter `geburtsmonat_13: geburtsjahr_behalten`, Status `monat_13`) und `R5_alter` (Parameter `geburtsmonat_13: jahresdifferenz`).
+**Umgesetzt als.** `E03_datum_pruefen` (Parameter `geburtsmonat_13: geburtsjahr_behalten`, Status `monat_13`) und `R5_alter` (Parameter `geburtsmonat_13: ersatz:07-01`).
 
 **Gültigkeit.** Ab Lieferung 2024-08.
 
@@ -154,9 +154,9 @@ SELECT count(*) FROM roh.lieferung WHERE lieferung='2024-08'
 
 **Begründung.** Beispielbericht 2024-08 Tab13: nur die 7 Fälle mit 117 bis 153 Jahren stehen unter „unbekannt"; für 2024-08 liefern die Grenzen 74 und 100 dieselben Zahlen (Zeile „75 u. mehr" = 0). Fachbeschreibung § 4 Nr. 5.
 
-**Umgesetzt als.** `R5_alter`, Parameter `{"max_plausibel": 100, "min_plausibel": 0, "bezug": "bis"}`.
+**Umgesetzt als.** `R5_alter`, Parameter `{"bezug": "bis", "geburtsmonat_13": "ersatz:07-01", "max_plausibel": 110, "min_plausibel": 0}`.
 
-**Gültigkeit.** Ab Lieferung 2024-08. Die Grenze 100 ist für 2024-09 und später entscheidend.
+**Gültigkeit.** Ab Lieferung 2024-08. Ab 2024-09 kommt es darauf an, dass die Grenze über 77 Jahren liegt; 100 und 110 liefern dieselben Zahlen.
 
 **Beleg-SQL.**
 
@@ -170,7 +170,7 @@ FROM roh.lieferung WHERE lieferung='2024-08' AND AKTIV('2024-08-31') AND 2024-le
 
 **Verworfene Alternativen.** Grenze „Alter über 74": würde ab 2024-09 echte 75- bis 77-Jährige als Fehler zählen. Keine Grenze: 7 Fälle mit 117 bis 153 Jahren stünden in den Altersjahren und Tab13 stimmte nicht.
 
-**Offene Rückfrage.** R2.
+**Offene Rückfrage.** R6.
 
 ---
 
@@ -199,7 +199,7 @@ SELECT count(*) FROM roh.lieferung WHERE lieferung='2025-06' AND ende<>'' AND en
 
 **Verworfene Alternativen.** Nur die Zeilen mit leerem BEGINN tauschen: ließe 43.914 Zeilen mit BEGINN nach ENDE zurück. BEGINN durch Fensterbeginn ersetzen (`E04`): würde alle 388.115 Verhältnisse mit falschem Beginn zählen und die Enddaten verwerfen.
 
-**Offene Rückfrage.** F3 (Nummer laut `meta.regel`, Text in GitLab #72 zu prüfen).
+**Offene Rückfrage.** R5.
 
 ---
 
@@ -314,7 +314,7 @@ SELECT min(c), max(c) FROM (SELECT count(*) c FROM roh.lieferung WHERE vvh_id ~ 
 
 ```sql
 SELECT id, name, gueltig_ab_lieferung, aktiv, freigegeben_von IS NOT NULL AS freigegeben FROM meta.regel ORDER BY id;
--- Ergebnis 05.11.2026: 14 Regeln (13 + E06_ende_ungueltig), alle aktiv, gueltig_ab 2024-08, freigegeben: f
+-- Ergebnis 05.11.2026, Regelsatz v1: 15 Einlese-, Zuordnungs- und Zählregeln (7 + 3 + 5) und 24 Prüfregeln, alle aktiv, gueltig_ab 2024-08, freigegeben: f
 ```
 
 ## Abweichungen der Messung von den übernommenen Zahlen
@@ -327,12 +327,12 @@ SELECT id, name, gueltig_ab_lieferung, aktiv, freigegeben_von IS NOT NULL AS fre
 | A5 | keine Fälle 78 bis 116 Jahre | stimmt für vollendetes Alter; nach Jahresdifferenz 2 bis 5 Fälle mit 78 in 2026-01 bis 2026-07 | Zahlen 62 / 211 / 310 bestätigt |
 | A10 | etwa 213 je Lieferung, nur eine Lieferung sichtbar | 131 bis 218 je Lieferung, Bereich in allen 24 Lieferungen | Deutung nicht bestätigt |
 
-## Nachtrag 05.11.2026 nachmittags (Review !13, Recherche R1–R5)
+## Nachtrag 05.11.2026 nachmittags (Review !13, Recherche zu den Rückfragen)
 
 | Nr. | Änderung | Regel | Wirkung |
 |---|---|---|---|
 | A4 | Geburtsmonat 13: Ersatztag **1. Juli** des Geburtsjahres, vollendetes Alter (Jahresmitte, beste Schätzung bei nur bekanntem Jahr; Praxis z. B. NHS England, Person Birth Date). Vorher Jahresdifferenz (= Ersatztag Jänner). | `R5_alter` (`geburtsmonat_13 = ersatz:07-01`) | 08/2024 unverändert (Tab13 576/576, Golden Set grün); in Berichtsmonaten Jänner bis Juni sind die betroffenen Personen ein Jahr jünger als nach Jahresdifferenz. Rückfrage R1 bleibt offen. |
 | A5 | Plausibilitätsgrenze **110** statt 100 Jahre | `R5_alter` (`max_plausibel = 110`) | keine Zahl ändert sich (zwischen 78 und 116 Jahren gibt es keinen Fall) |
 | A11 | Ungültiges ENDE (z. B. `2024-02-30`): Monatsletzter von JJJJ-MM (`2024-02-29`); nur ein unlesbares ENDE gilt als „läuft“. Datumsprüfung per Muster `JJJJ-MM-TT` plus gültiges Datum (`today`, `infinity` gelten nicht). | `E06_ende_ungueltig`, `E03_datum_pruefen` | 0 Fälle in 24 Lieferungen (gemessen), Beleg: `SELECT count(*) FROM roh.lieferung WHERE ende IS NOT NULL AND NOT (ende ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' AND pg_input_is_valid(ende, 'date'));` = 0, ebenso für BEGINN außer 2025-06 vor dem Spaltentausch |
-| A12 | Fortschreibung bei belegtem Lieferausfall: fehlen mehr als 1 % der Vormonats-Verhältnisse (Basis mindestens 1.000) oder fällt eine Qualifikation mit über 100 Verhältnissen ganz aus, werden die fehlenden Verhältnisse **einmalig aus der Vorlieferung** ergänzt, wenn dort ein am neuen Stichtag gültiger Abschnitt vorliegt. Markiert als `herkunft = fortgeschrieben`, getrennt ausgewiesen, Monat bleibt vorläufig, Fortgeschriebenes wird nie weitergetragen. | `E07_fortschreibung_lieferausfall` | betrifft 2025-03 (FD, 1.492 Verhältnisse vom 28.02.) und 2025-10 (Teil-Lieferung, 78.949 fehlende vom 30.09.); P13/P15/P16 messen weiter nur Geliefertes und zeigen den Ausfall. Praxis: einperiodige Fortschreibung (Beschäftigtenpanel der Statistischen Ämter, Metadatenreport § 2.5.3). Rückfragen R4, R5. |
+| A12 | Fortschreibung bei belegtem Lieferausfall: fehlen mehr als 1 % der Vormonats-Verhältnisse (Basis mindestens 1.000) oder fällt eine Qualifikation mit über 100 Verhältnissen ganz aus, werden die fehlenden Verhältnisse **einmalig aus der Vorlieferung** ergänzt, wenn dort ein am neuen Stichtag gültiger Abschnitt vorliegt. Markiert als `herkunft = fortgeschrieben`, getrennt ausgewiesen, Monat bleibt vorläufig, Fortgeschriebenes wird nie weitergetragen. | `E07_fortschreibung_lieferausfall` | betrifft 2025-03 (FD, 1.492 Verhältnisse vom 28.02.) und 2025-10 (Teil-Lieferung, 78.949 fehlende vom 30.09.); P13/P15/P16 messen weiter nur Geliefertes und zeigen den Ausfall. Praxis: einperiodige Fortschreibung (Beschäftigtenpanel der Statistischen Ämter, Metadatenreport § 2.5.3). Rückfragen R3, R4. |
 | A13 | Ministeriums-Lieferung (Auftrag 3): Abschnitt C umfasst auch die ÖNACE-2003-Altcodes DA–DM (Regel Q01). | `Q01_oenace_2003_unterabschnitte` | 32.667 Personen; ohne Altcodes (nur gelieferter Code C) wären es 32.639 (gemessen, Differenz 28 Personen). |

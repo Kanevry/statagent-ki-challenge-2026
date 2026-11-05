@@ -61,6 +61,18 @@ Die fünfte Zeile entsteht nicht durch einen Parameterwert. Eine Lieferung 2025-
 September bis November 2025, also keinen August. Wer August 2025 aus ihr nimmt, verlässt die Regel „jüngste
 Lieferung, die den Tag enthält“. Die Zahl steht hier nur, damit sich die Abweichung zum Orakel erklären lässt.
 
+**Entscheid (Lead 58, autonom, 05.11.2026, Kommentar in #72):** Abgabezahl ist Variante S, also 32.713 ohne bzw.
+32.741 mit DA–DM. Sie passt zum Entscheid E07, die Teil-Lieferung 2025-10 als Lieferausfall zu behandeln. Die
+wörtliche Lesart H („jüngste Lieferung, die den Tag enthält“, August 2025 aus der Teil-Lieferung 2025-10) ergibt
+32.639 bzw. 32.667 und ist das bisherige Soll des Leads (note 269248). Drei unabhängige Rechnungen und die
+Forensik stimmen dort überein. Die Wahl S statt H ist eine Annahme und steht als Rückfrage R3 (Lead: F1) an die
+Fachabteilung. Das unabhängige Orakel von 4f bestätigt S: 0 Abweichungen bei Personen und Tagen, Kopf bytegleich
+zur Vorlage. Eine Schwelle „mehr als 200 Tage“ statt „mindestens 200“ ergäbe 14 Personen weniger.
+
+**GEBURTSJAHR:** Ein Geburtsdatum mit Monat 13 ist kein gültiges Datum und gilt nach Auftrag 3 als unplausibel:
+die Lieferung trägt dort `Unbekannt` (39 Personen in 2026-07). Der Ersatztag 1. Juli (R5_alter) gilt nur für das
+Alter in der Statistik, nicht für das Feld der Lieferung.
+
 **Offen:** Die amtliche Lieferung entsteht erst mit `uv run uc3 ministerium --name …`, nachdem der Owner die
 Definition (Regelsatz `ministerium`) mit seinem Namen freigegeben hat. Welche Altcode-Variante gilt, entscheidet
 diese Freigabe; Annahme A13 nimmt DA bis DM als C (wie die Bereinigung in v1).

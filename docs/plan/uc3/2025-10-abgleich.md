@@ -8,7 +8,7 @@ In Lieferung 2025-09 liegt kein Ende nach dem 30.09.2025 (größtes Ende: `2025-
 
 ## Menge A: Audit-Zahl 78.949
 
-Verhältnisse, die am 30.09.2025 laut Lieferung 2025-09 offen sind und in Lieferung 2025-10 ganz fehlen. Dieselbe Abfrage steht in Rückfrage R5 (`uc3/db/130_rueckfragen.sql`).
+Verhältnisse, die am 30.09.2025 laut Lieferung 2025-09 offen sind und in Lieferung 2025-10 ganz fehlen. Dieselbe Abfrage steht in Rückfrage R3 (`uc3/db/130_rueckfragen.sql`).
 
 ```sql
 SELECT count(*)

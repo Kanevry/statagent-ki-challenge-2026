@@ -158,7 +158,7 @@ def personentage(conn: Verbindung, regel: Regel, berichtsmonat: str) -> Auswertu
           FROM seg ORDER BY person_id, lieferung DESC, vvh_id
         )
         SELECT p.person_id, p.geschlecht,
-               CASE WHEN p.geburtsdatum_status = 'ungueltig' OR p.geburtsjahr IS NULL
+               CASE WHEN p.geburtsdatum_status <> 'gueltig' OR p.geburtsjahr IS NULL
                       OR coalesce(extract(year FROM age(%(stichtag)s::date, p.geburtsdatum))::int,
                                   extract(year FROM %(stichtag)s::date)::int - p.geburtsjahr) > %(amax)s
                     THEN %(unbekannt)s ELSE p.geburtsjahr::text END AS geburtsjahr,

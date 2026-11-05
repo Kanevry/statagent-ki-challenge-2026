@@ -13,7 +13,7 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  '{"ebene": "satz", "regel": "E02_volldubletten", "einstufung": "erklaert-datenproblem", "massnahme": "zu einem Satz verdichtet (E02), Verhältnis zählt einmal", "anhalten": false}',
  'Zeilen, die in allen neun Feldern einer anderen Zeile gleichen und zu einem Satz verdichtet wurden (Summe roh_zeilen − 1).',
  'Lieferung 2025-03 enthält 1.663 Volldubletten, alle anderen Lieferungen keine. Kommt ein Satz mehrfach vor, zählt das Verhältnis einmal (Anhang A Nr. 1).',
- 'Anhang A Nr. 1; Regel E02; Rückfrage R3'),
+ 'Anhang A Nr. 1; Regel E02; Rückfrage R7'),
 
 ('v1', 'P02_mehrere_abschnitte_im_zeitraum', 'pruefung', 'mehrere_abschnitte', 2,
  '{"ebene": "satz", "regel": "R1_R3_verhaeltnis_einmal", "einstufung": "erklaert-datenproblem", "massnahme": "Merkmale aus dem Abschnitt mit spätestem Beginn (R1_R3), Verhältnis zählt einmal", "anhalten": false}',
@@ -25,7 +25,7 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  '{"ebene": "lieferung", "regel": "E01_spaltentausch_beginn_ende", "bezug": "lieferung", "einstufung": "erklaert-datenproblem", "massnahme": "BEGINN und ENDE für die ganze Lieferung getauscht (E01)", "anhalten": false}',
  'Sätze, bei denen die Einleseregel E01 BEGINN und ENDE getauscht hat.',
  'Lieferung 2025-06: BEGINN mehrheitlich leer, ENDE immer gefüllt; ohne Tausch bestünden am Stichtag 21 Verhältnisse, mit Tausch 394.252. Betroffen sind alle 432.086 Sätze, sonst keine Lieferung.',
- 'Anhang A Nr. 1; Regel E01; Rückfrage F3'),
+ 'Anhang A Nr. 1; Regel E01; Rückfrage R5'),
 
 ('v1', 'P04_geburtsdatum_monat_13', 'pruefung', 'geburtsdatum_status', 4,
  '{"ebene": "satz", "status": "monat_13", "einstufung": "erklaert-datenproblem", "massnahme": "Geburtstag unbekannt: 1. Juli des Geburtsjahres als Ersatztag (R5 ersatz:07-01), Alter in vollendeten Jahren am Stichtag (E03, R5)", "anhalten": false, "rueckfrage": "R1"}',
@@ -40,10 +40,10 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  'Fachbeschreibung § 2, § 4 Nr. 5; Regel E03'),
 
 ('v1', 'P06_alter_unplausibel', 'pruefung', 'alter_bereich', 6,
- '{"ebene": "satz", "regel": "R5_alter", "bereich": "unplausibel", "einstufung": "erklaert-datenproblem", "massnahme": "Alter unbekannt (-1), Verhältnis zählt", "anhalten": false, "rueckfrage": "R2"}',
+ '{"ebene": "satz", "regel": "R5_alter", "bereich": "unplausibel", "einstufung": "erklaert-datenproblem", "massnahme": "Alter unbekannt (-1), Verhältnis zählt", "anhalten": false, "rueckfrage": "R6"}',
  'Verhältnisse am Stichtag, deren Alter außerhalb der Plausibilitätsgrenzen der Zählregel R5_alter liegt (über max_plausibel oder unter min_plausibel).',
  '2024-08: 7 Fälle mit 117–153 Jahren, der Beispielbericht weist sie unter „unbekannt“ aus. Zwischen 78 und 116 Jahren gibt es keinen Fall.',
- 'Fachbeschreibung § 4 Nr. 5; Regel R5_alter; Rückfrage R2'),
+ 'Fachbeschreibung § 4 Nr. 5; Regel R5_alter; Rückfrage R6'),
 
 ('v1', 'P07_alter_hoch_plausibel', 'pruefung', 'alter_bereich', 7,
  '{"ebene": "satz", "regel": "R5_alter", "bereich": "hoch", "ab": 75, "einstufung": "erklaert-plausibel", "massnahme": "gezählt, Zeile 75 u. mehr", "anhalten": false}',
@@ -73,7 +73,7 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  '{"ebene": "satz", "regel": "Q01_oenace_2003_unterabschnitte", "bezug": "stichtag", "einstufung": "erklaert-datenproblem", "massnahme": "→ C (Umsteiger ÖNACE 2003 → 2008)", "anhalten": false}',
  'Verhältnisse am Stichtag mit einem ÖNACE-2003-Unterabschnitt (DA–DN), der nach C geführt wurde.',
  'Rund 50 Sätze je Lieferung (2024-08: 50). Beispielbericht C = 62.154 + 50.',
- 'Fachbeschreibung § 4 Nr. 8; Regel Q01; Rückfrage F5'),
+ 'Fachbeschreibung § 4 Nr. 8; Regel Q01'),
 
 ('v1', 'P12_code_unbekannt', 'pruefung', 'korrektur', 12,
  '{"ebene": "satz", "regel": "Q03_sonst_unbekannt", "bezug": "stichtag", "einstufung": "nicht-erklaerbar", "massnahme": "unbekannt, Satz zählt; Code an die Fachabteilung", "anhalten": false, "rueckfrage": "neu"}',
@@ -94,22 +94,22 @@ INSERT INTO meta.regel (regelsatz, name, typ, art, reihenfolge, parameter, besch
  'Fachbeschreibung § 3, § 4 Nr. 7; Qualitätsbericht § 2'),
 
 ('v1', 'P15_bestand_vs_vormonat', 'pruefung', 'bestand_vs_vormonat', 15,
- '{"ebene": "lieferung", "schwelle": 0.05, "vergleich": "letzter_nicht_angehaltener", "einstufung": "erklaert-datenproblem", "massnahme": "Monat angehalten; Lieferung prüfen lassen", "anhalten": true, "rueckfrage": "R5"}',
+ '{"ebene": "lieferung", "schwelle": 0.05, "vergleich": "letzter_nicht_angehaltener", "einstufung": "erklaert-datenproblem", "massnahme": "Monat angehalten; Lieferung prüfen lassen", "anhalten": true, "rueckfrage": "R3"}',
  'Der Bestand am Stichtag fällt um mehr als 5 % unter den Bestand des Vormonats. War der Vormonat selbst angehalten (Teil-Lieferung), wird mit dem letzten nicht angehaltenen Monat verglichen.',
  'Monatliche Änderungen liegen unter 1,5 %. 2025-10: 313.154 gegen 394.200 (−20,6 %), weil rund 79.000 Verhältnisse in der Lieferung fehlen.',
- 'Fachbeschreibung § 2; Rückfrage R5'),
+ 'Fachbeschreibung § 2; Rückfrage R3'),
 
 ('v1', 'P16_verhaeltnisse_verschwunden', 'pruefung', 'verhaeltnisse_verschwunden', 16,
- '{"ebene": "lieferung", "schwelle": 0.01, "einstufung": "erklaert-datenproblem", "einstufung_unter_schwelle": "erklaert-plausibel", "massnahme": "Monat angehalten; Nachlieferung anfordern", "massnahme_unter_schwelle": "keine (Einzelfälle, z. B. Stornos)", "anhalten": true, "rueckfrage": "R5"}',
+ '{"ebene": "lieferung", "schwelle": 0.01, "einstufung": "erklaert-datenproblem", "einstufung_unter_schwelle": "erklaert-plausibel", "massnahme": "Monat angehalten; Nachlieferung anfordern", "massnahme_unter_schwelle": "keine (Einzelfälle, z. B. Stornos)", "anhalten": true, "rueckfrage": "R3"}',
  'Verhältnisse, die laut Vormonats-Lieferung am Vormonats-Stichtag bestanden, aber in der aktuellen Lieferung gar nicht vorkommen. Über 1 % des Vormonatsbestands hält den Monat an.',
  'Die Lieferung ist ein Vollabzug über drei Monate; ein Verhältnis, das am Vormonats-Stichtag bestand, muss wieder vorkommen (mit Ende oder ohne). Normal sind rund 200 Fälle, 2025-10 sind es 78.949.',
- 'Fachbeschreibung § 2; Rückfrage R5'),
+ 'Fachbeschreibung § 2; Rückfrage R3'),
 
 ('v1', 'P17_zeilenzahl_vs_vormonat', 'pruefung', 'zeilenzahl_vs_vormonat', 17,
- '{"ebene": "lieferung", "untergrenze": 0.9, "obergrenze": 1.1, "vergleich": "letzter_nicht_angehaltener", "einstufung": "erklaert-datenproblem", "massnahme": "Monat angehalten; Lieferumfang prüfen lassen", "anhalten": true, "rueckfrage": "R5"}',
+ '{"ebene": "lieferung", "untergrenze": 0.9, "obergrenze": 1.1, "vergleich": "letzter_nicht_angehaltener", "einstufung": "erklaert-datenproblem", "massnahme": "Monat angehalten; Lieferumfang prüfen lassen", "anhalten": true, "rueckfrage": "R3"}',
  'Die Zeilenzahl der Lieferung liegt außerhalb von 90 % bis 110 % der Zeilenzahl der Vormonats-Lieferung. War der Vormonat selbst angehalten, gilt der letzte nicht angehaltene Monat als Vergleich (sonst hielte die Erholung nach einer Teil-Lieferung, etwa 2025-11, ebenfalls an).',
  'Lieferungen haben 392.284 bis 438.181 Zeilen und ändern sich um weniger als 4 % je Monat. 2025-10: 345.078 gegen 434.104.',
- 'Fachbeschreibung § 2; Rückfrage R5'),
+ 'Fachbeschreibung § 2; Rückfrage R3'),
 
 ('v1', 'P18_merkmalswelle', 'pruefung', 'merkmalswelle', 18,
  '{"ebene": "satz", "merkmale": ["oenace", "bundesland"], "schwelle": 100, "beginn_im_berichtsmonat": true, "einstufung": "nicht-erklaerbar", "massnahme": "gezählt wie geliefert; Rückfrage an die Fachabteilung", "anhalten": false, "rueckfrage": "neu"}',

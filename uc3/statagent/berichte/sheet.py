@@ -67,6 +67,8 @@ class SheetErgebnis:
     abweichungen: list[str]
     #: vorläufige Monate mit Grund (meta.lauf.meldung)
     vorlaeufig: dict[str, str]
+    #: Monate mit fortgeschriebenen Verhältnissen (Regel E07): Anzahl, in den Werten enthalten
+    fortgeschrieben: dict[str, int]
     #: True, wenn das Blatt Beschäftigungskategorie auf Kategorien umgebaut wurde
     kategorien: bool
     #: je Blatt die ergänzten Zeilen-Codes (unbekannt bzw. Umbau)
@@ -237,12 +239,13 @@ def sheet_schreiben(
     werte: dict[str, dict[str, dict[str, int]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     blatt_monate: dict[str, list[str]] = defaultdict(list)
     vorlaeufig: dict[str, str] = {}
+    fortgeschrieben: dict[str, int] = {}
     letztes_ende: datetime | None = None
     for monat in monate:
         stand = ergebnis.letzter_lauf(conn, monat, regelsatz)
         assert stand is not None
         lauf = conn.execute(
-            "SELECT beendet_am, meldung FROM meta.lauf WHERE id = %s", (stand.lauf_id,)
+            "SELECT beendet_am, meldung, fortgeschrieben FROM meta.lauf WHERE id = %s", (stand.lauf_id,)
         ).fetchone()
         assert lauf is not None
         ende = lauf["beendet_am"]
@@ -253,6 +256,8 @@ def sheet_schreiben(
             for z in ergebnis.monatswerte(conn, monat, regelsatz)
             if z["zeitraum_art"] == STICHTAG and z["variable"] == STICHTAG_VARIABLE
         ]
+        if int(str(lauf["fortgeschrieben"] or 0)) > 0:
+            fortgeschrieben[monat] = int(str(lauf["fortgeschrieben"]))
         if stand.ergebnis_status == "vorlaeufig" or any(z["status"] == "vorlaeufig" for z in zellen):
             vorlaeufig[monat] = str(lauf["meldung"] or "Ergebnis vorläufig")
         versionen = _oenace_versionen(conn, monat) | {str(z["oenace_version"]) for z in zellen}
@@ -335,9 +340,14 @@ def sheet_schreiben(
                 ws.cell(r, spalte).value = werte[name][monat].get(code, 0)
             summen[name][monat] = sum(werte[name][monat].get(code, 0) for code in blatt.zeilen)
             if monat in vorlaeufig:
-                ws.cell(blatt.kopfzeile, spalte).comment = Comment(
-                    f"vorläufig: {vorlaeufig[monat]}", KOMMENTAR_AUTOR
-                )
+                text = f"vorläufig: {vorlaeufig[monat]}"
+                if monat in fortgeschrieben:
+                    anzahl = f"{fortgeschrieben[monat]:,}".replace(",", ".")
+                    text += (
+                        f" · enthält {anzahl} fortgeschriebene Verhältnisse aus der Vorlieferung"
+                        " (Regel E07), getrennt ausgewiesen im Qualitätsbericht"
+                    )
+                ws.cell(blatt.kopfzeile, spalte).comment = Comment(text, KOMMENTAR_AUTOR)
 
     gesamt = summen.get(BLATT_BUNDESLAND, {})
     abweichungen = sorted(
@@ -354,6 +364,15 @@ def sheet_schreiben(
             f"Erzeugt aus stat.stat_beschaeftigte, Regelsatz {regelsatz}, Monate {spanne}; "
             f"vorläufig: {vorl}. 0 = gerechnet, keine Fälle; leer = Monat nicht gerechnet."
         )
+        if fortgeschrieben:
+            liste = "; ".join(
+                f"{m}: {n:,} Verhältnisse".replace(",", ".") for m, n in sorted(fortgeschrieben.items())
+            )
+            hinweise.cell(zeile + 1, 1).value = (
+                "Fortgeschrieben, vorläufig (Regel E07, belegter Lieferausfall): fehlende Verhältnisse einmalig aus der "
+                f"Vorlieferung ergänzt und in den Werten enthalten – {liste}. Getrennt ausgewiesen im Qualitätsbericht "
+                "des Monats, § 1."
+            )
 
     if letztes_ende is not None:
         fest = letztes_ende.astimezone(UTC).replace(tzinfo=None, microsecond=0)
@@ -376,6 +395,7 @@ def sheet_schreiben(
         summen=summen,
         abweichungen=abweichungen,
         vorlaeufig=vorlaeufig,
+        fortgeschrieben=fortgeschrieben,
         kategorien=ist_kategorie,
         ergaenzt=ergaenzt,
     )

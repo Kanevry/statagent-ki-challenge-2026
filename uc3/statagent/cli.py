@@ -359,6 +359,17 @@ def laufmanifest(regelsatz: Annotated[str, typer.Option()] = "v1") -> None:
         raise typer.Exit(1)
 
 
+@app.command("rueckfragen")
+def rueckfragen() -> None:
+    """Rückfragen an die Fachabteilung nach Vorlage (Satzzahl und Beispiel-IDs neu gemessen) → abgabe/rueckfragen/."""
+    from statagent.berichte.rueckfragen import rueckfragen_schreiben
+
+    with verbinden() as conn:
+        dateien = rueckfragen_schreiben(conn, konfig.abgabe() / "rueckfragen")
+    for datei in dateien:
+        typer.echo(f"Rückfrage geschrieben: {datei}")
+
+
 @app.command("pruefkatalog")
 def pruefkatalog(regelsatz: Annotated[str, typer.Option()] = "v1") -> None:
     """Prüfkatalog P01–P24 aus meta.regel (Status, Ebene, Schwelle, Einstufung, Maßnahme) → uc3/pruefkatalog.csv."""
@@ -371,11 +382,20 @@ def pruefkatalog(regelsatz: Annotated[str, typer.Option()] = "v1") -> None:
 
 
 @app.command("pruefe-abgabe")
-def pruefe_abgabe(als_json: JsonOption = False) -> None:
+def pruefe_abgabe(
+    als_json: JsonOption = False,
+    mit_db: Annotated[
+        bool, typer.Option("--mit-db", help="Blattsummen je Monat zusätzlich gegen die Datenbank prüfen")
+    ] = False,
+) -> None:
     """Prüft die Abgabedateien unter abgabe/ (Sheet alt und neu, 24 Qualitätsberichte, Ministerium, Protokoll, Modelle)."""
     from statagent.berichte.pruefe_abgabe import pruefe_abgabe as pruefen
 
-    erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL)
+    if mit_db:
+        with verbinden() as conn:
+            erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL, conn=conn)
+    else:
+        erg = pruefen(konfig.abgabe(), konfig.REPO_WURZEL)
     _ausgabe(erg.als_dict(), als_json, erg.als_text())
     if not erg.ok:
         raise typer.Exit(1)

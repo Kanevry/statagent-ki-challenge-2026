@@ -1,7 +1,14 @@
-"""Prüfung der Abgabedateien vor dem Hochladen (Vollständigkeit und Form, ohne Datenbank).
+"""Prüfung der Abgabedateien vor dem Hochladen (Vollständigkeit, Form und Inhalt).
 
 Jeder Punkt ist entweder erfüllt oder „fehlt“ mit Hinweis; ein fehlender oder kaputter Teil bricht die
 Prüfung nicht ab. `ok` gilt nur, wenn alle Punkte erfüllt sind.
+
+- Qualitätsberichte werden gegen ``qualitaetsbericht_vorlage.md`` des Veranstalters geprüft (Titel,
+  Abschnittsüberschriften, Einstufungen), nicht gegen den eigenen Generator. Fehlt die Vorlage, prüft die
+  Struktur gegen den Generator und der Punkt „Vorlage Qualitätsbericht“ fehlt (kein stilles ok).
+- Sheets werden inhaltlich geprüft: Monatsspalten je Ergebnisblatt vorhanden und gefüllt, Insgesamt als
+  ``=SUM`` über genau die Datenzeilen, gleiche Summe je Monat auf allen Blättern. Mit Datenbank (`conn`)
+  zusätzlich Summe je Monat = Gesamtzahl aus stat.stat_beschaeftigte des maßgeblichen Laufs.
 """
 
 from __future__ import annotations
@@ -12,8 +19,19 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from statagent import konfig
+from statagent import ergebnis, konfig
 from statagent.berichte.qualitaetsbericht import ABSCHNITTE, GUELTIGE_EINSTUFUNGEN
+from statagent.berichte.sheet import (
+    BLATT_BUNDESLAND,
+    BLATT_GESCHLECHT,
+    BLATT_KATEGORIE,
+    OENACE_PRAEFIX,
+    STICHTAG,
+    STICHTAG_VARIABLE,
+    VORLAGE_DATEI,
+    _blatt_lesen,
+)
+from statagent.db import Verbindung
 from statagent.ergebnis import monat_verschieben
 
 ERSTER_MONAT, MONATE = "2024-08", 24
@@ -32,6 +50,39 @@ VORLAGE_BLAETTER = [
 # nicht als Treffer zählt.
 KONSTANTEN_MUSTER = re.compile(r"""(['"])U""" + r"""NB\1|D\[""" + "A-")
 _ZELLGRENZE = re.compile(r"(?<!\\)\|")
+
+BERICHT_VORLAGE = "qualitaetsbericht_vorlage.md"
+MONAT_PLATZHALTER = "JJJJ-MM"
+#: Ein Bericht mit weniger Zeilen gilt als leer (der kürzeste echte Bericht hat über 150).
+MINDEST_ZEILEN = 20
+#: Ergebnisblätter des Sheets; ÖNACE 2008 bis 2024-12, ÖNACE 2025 ab 2025-01 (Hinweise-Blatt der Vorlage).
+ERGEBNIS_BLAETTER = (
+    BLATT_BUNDESLAND,
+    BLATT_GESCHLECHT,
+    OENACE_PRAEFIX + "2008",
+    OENACE_PRAEFIX + "2025",
+    BLATT_KATEGORIE,
+)
+OENACE_WECHSEL = "2025-01"
+_ABRECHNUNG = re.compile(
+    r"Abrechnung in Zahlen: ([\d.]+) gelesen(?: \+ ([\d.]+) fortgeschrieben)? = ([\d.]+) gezählt"
+    r" \+ ([\d.]+) nicht gezählt \+ ([\d.]+) ausgeschlossen \((geht auf|geht NICHT auf)\)"
+)
+_HOECHSTENS = 8
+
+
+@dataclass(frozen=True)
+class BerichtStruktur:
+    """Was ein Qualitätsbericht tragen muss: Titel (mit JJJJ-MM), Abschnitte, erlaubte Einstufungen."""
+
+    titel: str
+    abschnitte: tuple[str, ...]
+    einstufungen: frozenset[str]
+
+
+GENERATOR_STRUKTUR = BerichtStruktur(
+    f"# Qualitätsbericht – Berichtsmonat {MONAT_PLATZHALTER}", tuple(ABSCHNITTE), GUELTIGE_EINSTUFUNGEN
+)
 
 
 @dataclass(frozen=True)
@@ -62,9 +113,9 @@ def berichtsmonate() -> list[str]:
     return [monat_verschieben(ERSTER_MONAT, i) for i in range(MONATE)]
 
 
-def vorlage_blaetter() -> list[str]:
+def vorlage_blaetter(vorlagen_dir: Path | None = None) -> list[str]:
     """Blattnamen der Veranstaltervorlage; ohne Startpaket die bekannte Liste."""
-    vorlage = konfig.vorlagen() / "aggregationen_vorlage.xlsx"
+    vorlage = (vorlagen_dir or konfig.vorlagen()) / VORLAGE_DATEI
     if vorlage.is_file():
         try:
             return _blaetter(vorlage)
@@ -87,18 +138,66 @@ def _zellen(zeile: str) -> list[str]:
     return [z.strip() for z in _ZELLGRENZE.split(zeile.strip().strip("|"))]
 
 
-def einstufungen_aus_bericht(text: str) -> list[str]:
-    """Inhalte der Spalte „Einstufung“ in der Tabelle von Abschnitt 2."""
-    zeilen = text.splitlines()
+def struktur_aus_vorlage(text: str) -> BerichtStruktur:
+    """Titel, Abschnittsüberschriften und Einstufungen (fett in der Zeile „Einstufung:“) der Vorlage."""
+    zeilen = [z.rstrip() for z in text.splitlines()]
+    titel = next((z for z in zeilen if z.startswith("# ")), "")
+    abschnitte = tuple(z for z in zeilen if z.startswith("## "))
+    legende = next((z for z in zeilen if z.startswith("Einstufung:")), "")
+    return BerichtStruktur(titel, abschnitte, frozenset(re.findall(r"\*\*(.+?)\*\*", legende)))
+
+
+def bericht_struktur(vorlagen_dir: Path | None = None) -> tuple[BerichtStruktur, Punkt]:
+    """Struktur aus der Vorlage des Veranstalters; fehlt sie, die des Generators und ein fehlender Punkt."""
+    name = "Vorlage Qualitätsbericht"
+    pfad = (vorlagen_dir or konfig.vorlagen()) / BERICHT_VORLAGE
+    if not pfad.is_file():
+        return GENERATOR_STRUKTUR, Punkt(
+            name, False, "Vorlage nicht gefunden: Struktur nur gegen den Generator geprüft"
+        )
+    struktur = struktur_aus_vorlage(pfad.read_text(encoding="utf-8"))
+    luecken = [
+        teil
+        for teil, wert in (
+            ("Titel mit JJJJ-MM", MONAT_PLATZHALTER in struktur.titel),
+            ("Abschnitte", bool(struktur.abschnitte)),
+            ("Einstufungen", bool(struktur.einstufungen)),
+        )
+        if not wert
+    ]
+    if luecken:
+        return GENERATOR_STRUKTUR, Punkt(
+            name, False, f"{pfad.name} ohne {', '.join(luecken)}: Struktur nur gegen den Generator geprüft"
+        )
+    return struktur, Punkt(
+        name,
+        True,
+        f"{pfad.name}: {len(struktur.abschnitte)} Abschnitte, {len(struktur.einstufungen)} Einstufungen",
+    )
+
+
+def _abschnitt(zeilen: list[str], ueberschrift: str) -> list[str] | None:
+    """Zeilen eines Abschnitts bis zur nächsten Überschrift ``## ``; None, wenn er fehlt."""
     try:
-        start = zeilen.index(ABSCHNITTE[1])
+        start = zeilen.index(ueberschrift)
     except ValueError:
-        return []
-    spalte: int | None = None
-    werte: list[str] = []
+        return None
+    aus: list[str] = []
     for zeile in zeilen[start + 1 :]:
         if zeile.startswith("## "):
             break
+        aus.append(zeile)
+    return aus
+
+
+def einstufungen_aus_bericht(text: str, abschnitt: str = ABSCHNITTE[1]) -> list[str]:
+    """Inhalte der Spalte „Einstufung“ in der Tabelle von Abschnitt 2 (eine je Datenzeile)."""
+    zeilen = _abschnitt([z.rstrip() for z in text.splitlines()], abschnitt)
+    if zeilen is None:
+        return []
+    spalte: int | None = None
+    werte: list[str] = []
+    for zeile in zeilen:
         if not zeile.startswith("|"):
             continue
         zellen = _zellen(zeile)
@@ -112,38 +211,181 @@ def einstufungen_aus_bericht(text: str) -> list[str]:
     return werte
 
 
-def bericht_maengel(text: str) -> list[str]:
-    """Mängel eines Qualitätsberichts: fehlende Abschnitte, falsche Reihenfolge, ungültige Einstufung."""
+def _zahl(text: str | None) -> int:
+    return int(text.replace(".", "")) if text else 0
+
+
+def _abrechnung_mangel(ueberblick: list[str]) -> str | None:
+    """§ 1 muss die Zeile „Abrechnung in Zahlen“ tragen, und sie muss aufgehen (Text und Rechnung)."""
+    treffer = next((t for t in map(_ABRECHNUNG.search, ueberblick) if t), None)
+    if treffer is None:
+        return "§ 1 ohne Zeile „Abrechnung in Zahlen“"
+    gelesen, fort, gezaehlt, nicht, aus = (_zahl(treffer.group(i)) for i in range(1, 6))
+    if treffer.group(6) != "geht auf" or gelesen + fort != gezaehlt + nicht + aus:
+        return "Abrechnung in § 1 geht nicht auf"
+    return None
+
+
+def bericht_maengel(
+    text: str, struktur: BerichtStruktur = GENERATOR_STRUKTUR, monat: str | None = None
+) -> list[str]:
+    """Mängel eines Qualitätsberichts gegen die Struktur der Vorlage.
+
+    Geprüft: Länge, Titel (mit `monat`, wenn angegeben), alle Abschnitte in der Reihenfolge der Vorlage,
+    Abrechnungszeile in § 1, mindestens eine Tabellenzeile in § 2, nur erlaubte Einstufungen.
+    """
     maengel: list[str] = []
-    ueberschriften = [z.rstrip() for z in text.splitlines() if z.startswith("## ")]
-    vorhanden = [u for u in ueberschriften if u in ABSCHNITTE]
-    fehlend = [u for u in ABSCHNITTE if u not in vorhanden]
+    zeilen = [z.rstrip() for z in text.splitlines()]
+    if len([z for z in zeilen if z.strip()]) < MINDEST_ZEILEN:
+        maengel.append(f"weniger als {MINDEST_ZEILEN} Zeilen (leer)")
+    titel = next((z for z in zeilen if z.startswith("# ")), "")
+    if monat is not None and titel != struktur.titel.replace(MONAT_PLATZHALTER, monat):
+        maengel.append(f"Titel „{titel[2:]}“ passt nicht zu {monat}")
+    vorhanden = [u for u in zeilen if u.startswith("## ") and u in struktur.abschnitte]
+    fehlend = [u for u in struktur.abschnitte if u not in vorhanden]
     if fehlend:
         maengel.append("fehlt " + ", ".join(f"„{u[3:]}“" for u in fehlend))
-    elif vorhanden != list(ABSCHNITTE):
+    elif vorhanden != list(struktur.abschnitte):
         maengel.append("Abschnitte nicht in der Reihenfolge der Vorlage")
-    falsch = sorted({e for e in einstufungen_aus_bericht(text) if e not in GUELTIGE_EINSTUFUNGEN})
-    if falsch:
-        maengel.append("ungültige Einstufung " + ", ".join(f"„{e}“" for e in falsch))
+    ueberblick = _abschnitt(zeilen, struktur.abschnitte[0]) if struktur.abschnitte else None
+    if ueberblick is not None:
+        mangel = _abrechnung_mangel(ueberblick)
+        if mangel:
+            maengel.append(mangel)
+    if len(struktur.abschnitte) > 1:
+        einstufungen = einstufungen_aus_bericht(text, struktur.abschnitte[1])
+        if struktur.abschnitte[1] in zeilen and not einstufungen:
+            maengel.append(f"„{struktur.abschnitte[1][3:]}“ ohne Tabellenzeile")
+        falsch = sorted({e for e in einstufungen if e not in struktur.einstufungen})
+        if falsch:
+            maengel.append("ungültige Einstufung " + ", ".join(f"„{e}“" for e in falsch))
     return maengel
+
+
+def blatt_monate(blatt: str) -> list[str]:
+    """Berichtsmonate, die ein Ergebnisblatt tragen muss (ÖNACE-Wechsel zum 2025-01)."""
+    alle = berichtsmonate()
+    if blatt == OENACE_PRAEFIX + "2008":
+        return [m for m in alle if m < OENACE_WECHSEL]
+    if blatt == OENACE_PRAEFIX + "2025":
+        return [m for m in alle if m >= OENACE_WECHSEL]
+    return alle
+
+
+def _ist_zahl(wert: object) -> bool:
+    if isinstance(wert, bool):
+        return False
+    return isinstance(wert, int) or (isinstance(wert, float) and wert.is_integer())
+
+
+def _db_gesamt(conn: Verbindung, monat: str, regelsatz: str) -> int | None:
+    """Beschäftigungsverhältnisse am Stichtag des maßgeblichen Laufs (Muster `sheet.sheet_schreiben`)."""
+    if ergebnis.letzter_lauf(conn, monat, regelsatz) is None:
+        return None
+    return sum(
+        int(str(z["wert"]))
+        for z in ergebnis.monatswerte(conn, monat, regelsatz)
+        if z["zeitraum_art"] == STICHTAG and z["variable"] == STICHTAG_VARIABLE
+    )
+
+
+def sheet_maengel(pfad: Path, conn: Verbindung | None = None, regelsatz: str | None = None) -> list[str]:
+    """Inhaltliche Mängel eines Aggregations-Sheets (Monatsspalten, Insgesamt-Formel, Blattsummen, DB)."""
+    from openpyxl import load_workbook
+    from openpyxl.utils import get_column_letter
+
+    mappe = load_workbook(pfad)  # Formeln, nicht zwischengespeicherte Werte
+    maengel: list[str] = []
+    summen: dict[str, dict[str, int]] = {}
+    try:
+        for name in ERGEBNIS_BLAETTER:
+            if name not in mappe.sheetnames:
+                maengel.append(f"Blatt {name} fehlt")
+                continue
+            try:
+                blatt = _blatt_lesen(mappe[name])
+            except ValueError as fehler:
+                maengel.append(str(fehler))
+                continue
+            datenzeilen = sorted(blatt.zeilen.values())
+            if not datenzeilen:
+                maengel.append(f"{name}: keine Datenzeilen")
+                continue
+            summen[name] = {}
+            for monat in blatt_monate(name):
+                spalte = blatt.spalten.get(monat)
+                if spalte is None:
+                    maengel.append(f"{name}: Spalte {monat} fehlt")
+                    continue
+                werte = [blatt.ws.cell(r, spalte).value for r in datenzeilen]
+                belegt = [w for w in werte if w is not None and str(w).strip()]
+                if not belegt:
+                    maengel.append(f"{name} {monat}: Spalte leer")
+                    continue
+                if not all(_ist_zahl(w) for w in belegt):
+                    maengel.append(f"{name} {monat}: Werte nicht ganzzahlig")
+                    continue
+                summen[name][monat] = sum(int(w) for w in belegt)
+                b = get_column_letter(spalte)
+                soll = f"=SUM({b}{datenzeilen[0]}:{b}{datenzeilen[-1]})"
+                ist = blatt.ws.cell(blatt.insgesamt, spalte).value
+                if not (isinstance(ist, str) and ist.replace(" ", "").upper() == soll):
+                    maengel.append(f"{name} {monat}: Insgesamt {ist!r} statt {soll}")
+    finally:
+        mappe.close()
+
+    for monat in berichtsmonate():
+        je_blatt = {n: s[monat] for n, s in summen.items() if monat in s}
+        if not je_blatt:
+            continue
+        if len(set(je_blatt.values())) > 1:
+            maengel.append(
+                f"{monat}: Blattsummen ungleich ({', '.join(f'{n} {w}' for n, w in je_blatt.items())})"
+            )
+            continue
+        summe = next(iter(je_blatt.values()))
+        if summe <= 0:
+            maengel.append(f"{monat}: Summe {summe}")
+        elif conn is not None and regelsatz is not None:
+            soll_db = _db_gesamt(conn, monat, regelsatz)
+            if soll_db is None:
+                maengel.append(f"{monat}: kein Lauf für Regelsatz {regelsatz}")
+            elif soll_db != summe:
+                maengel.append(f"{monat}: Blattsumme {summe} ≠ stat.stat_beschaeftigte {soll_db}")
+    return maengel
+
+
+def _gekuerzt(maengel: list[str]) -> str:
+    rest = len(maengel) - _HOECHSTENS
+    return "; ".join(maengel[:_HOECHSTENS]) + (f"; … und {rest} weitere" if rest > 0 else "")
 
 
 # --- Punkte ------------------------------------------------------------------------------------------
 
 
-def _punkt_sheet(pfad: Path, name: str, blaetter: list[str] | None) -> Punkt:
+def _punkt_sheet(pfad: Path, name: str, blaetter: list[str] | None, conn: Verbindung | None) -> Punkt:
     if not pfad.is_file():
         return Punkt(name, False, f"{pfad.name} nicht gefunden")
     try:
         gelesen = _blaetter(pfad)
+        # aggregationen_<regelsatz>.xlsx (sheet.sheet_schreiben)
+        maengel = sheet_maengel(pfad, conn, pfad.stem.removeprefix("aggregationen_"))
     except Exception as fehler:
         return Punkt(name, False, f"{pfad.name} nicht lesbar ({type(fehler).__name__})")
     if blaetter is not None and gelesen != blaetter:
-        return Punkt(name, False, f"Blätter {gelesen} statt {blaetter} wie in der Vorlage")
-    return Punkt(name, True, f"{pfad.name} lesbar, {len(gelesen)} Blätter")
+        maengel.insert(0, f"Blätter {gelesen} statt {blaetter} wie in der Vorlage")
+    if maengel:
+        return Punkt(name, False, f"{pfad.name}: {_gekuerzt(maengel)}")
+    db = ", Summen = stat.stat_beschaeftigte" if conn is not None else ", ohne Datenbankabgleich"
+    return Punkt(
+        name,
+        True,
+        f"{pfad.name}: {len(gelesen)} Blätter, Monatsspalten gefüllt, Insgesamt-Formeln und Blattsummen"
+        f" stimmen{db}",
+    )
 
 
-def _punkt_berichte(abgabe_dir: Path) -> Punkt:
+def _punkt_berichte(abgabe_dir: Path, struktur: BerichtStruktur) -> Punkt:
     name = "Qualitätsberichte 2024-08 bis 2026-07"
     ordner = abgabe_dir / "qualitaetsberichte"
     fehlend: list[str] = []
@@ -153,16 +395,21 @@ def _punkt_berichte(abgabe_dir: Path) -> Punkt:
         if not datei.is_file():
             fehlend.append(monat)
             continue
-        maengel = bericht_maengel(datei.read_text(encoding="utf-8"))
+        maengel = bericht_maengel(datei.read_text(encoding="utf-8"), struktur, monat)
         if maengel:
             mangelhaft.append(f"{monat} ({'; '.join(maengel)})")
     if not fehlend and not mangelhaft:
-        return Punkt(name, True, f"{MONATE} Berichte mit fünf Abschnitten und gültigen Einstufungen")
+        return Punkt(
+            name,
+            True,
+            f"{MONATE} Berichte mit {len(struktur.abschnitte)} Abschnitten, Monat im Titel, aufgehender"
+            " Abrechnung und gültigen Einstufungen",
+        )
     hinweise = []
     if fehlend:
         hinweise.append(f"{len(fehlend)} von {MONATE} fehlen: {', '.join(fehlend)}")
     if mangelhaft:
-        hinweise.append("mangelhaft: " + ", ".join(mangelhaft))
+        hinweise.append("mangelhaft: " + _gekuerzt(mangelhaft))
     return Punkt(name, False, "; ".join(hinweise))
 
 
@@ -223,18 +470,34 @@ def _punkt_konstanten(repo_wurzel: Path) -> Punkt:
     return Punkt(name, True, "kein Treffer außerhalb von regeln.py")
 
 
-def pruefe_abgabe(abgabe_dir: Path, repo_wurzel: Path, blaetter: list[str] | None = None) -> Pruefergebnis:
-    """Prüft den Abgabeordner. `blaetter` überschreibt die Blattnamen der Vorlage (sonst aus dem Startpaket)."""
-    soll = blaetter if blaetter is not None else vorlage_blaetter()
+def pruefe_abgabe(
+    abgabe_dir: Path,
+    repo_wurzel: Path,
+    blaetter: list[str] | None = None,
+    *,
+    conn: Verbindung | None = None,
+    vorlagen_dir: Path | None = None,
+) -> Pruefergebnis:
+    """Prüft den Abgabeordner.
+
+    `blaetter` überschreibt die Blattnamen der Vorlage, `vorlagen_dir` den Vorlagenordner (sonst
+    `konfig.vorlagen()`). Mit `conn` werden die Sheet-Summen zusätzlich gegen die Datenbank geprüft.
+    """
+    soll = blaetter if blaetter is not None else vorlage_blaetter(vorlagen_dir)
+    struktur, vorlage_punkt = bericht_struktur(vorlagen_dir)
     return Pruefergebnis(
         [
-            _punkt_sheet(abgabe_dir / "aggregationen_v1.xlsx", "Aggregations-Sheet v1", soll),
-            _punkt_berichte(abgabe_dir),
+            _punkt_sheet(abgabe_dir / "aggregationen_v1.xlsx", "Aggregations-Sheet v1", soll, conn),
+            _punkt_berichte(abgabe_dir, struktur),
+            vorlage_punkt,
             _punkt_ministerium(abgabe_dir),
             _punkt_protokoll(abgabe_dir),
             _punkt_modelle(abgabe_dir, repo_wurzel),
             _punkt_sheet(
-                abgabe_dir / "aggregationen_v2.xlsx", "Aggregations-Sheet v2 (nach Änderungsaufträgen)", None
+                abgabe_dir / "aggregationen_v2.xlsx",
+                "Aggregations-Sheet v2 (nach Änderungsaufträgen)",
+                None,
+                conn,
             ),
             _punkt_konstanten(repo_wurzel),
         ]

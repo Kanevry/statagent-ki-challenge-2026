@@ -201,3 +201,18 @@ def test_grenzfaelle_schwelle_ueberlappung_und_altcodes(conn: Verbindung) -> Non
 
     assert tage([]) == {5202: 30, 5203: 30}
     assert tage(["DA", "DB"]) == {5202: 30, 5203: 30, 5204: 30}
+
+
+def test_geburtsmonat_13_ist_unplausibles_geburtsjahr(conn: Verbindung) -> None:
+    # Fängt: Datum mit Monat 13 liefert in GEBURTSJAHR ein Jahr; Auftrag 3 verlangt für unplausible Geburtsdaten
+    # „Unbekannt“ (der Ersatztag 1. Juli gilt nur für das Alter in der Statistik, Review 4f / Lead 58).
+    with conn.transaction():
+        conn.execute(
+            f"""INSERT INTO roh.lieferung ({ROH_SPALTEN})
+                VALUES ('2024-11', '5301', '5301', '1975-13-04', 'M', '2020-01-01', NULL, 'ArbeiterDV', 'C', '9')"""
+        )
+    _auswertungsregel(conn)
+    regeln_freigeben(conn, "ministerium", NAME)
+    zeilen = {z[0]: z for z in personentage(conn, auswertung_regel(conn, "ministerium"), "2024-11").zeilen}
+    assert zeilen[5301][2] == "Unbekannt"
+    assert zeilen[7001][2] == "1970"
