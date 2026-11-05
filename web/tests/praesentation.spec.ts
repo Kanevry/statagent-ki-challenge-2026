@@ -171,9 +171,15 @@ test.describe("mit Bewegung", () => {
     const nr = folieMitSzene("falsche-zahl");
     test.skip(nr === 0 || nr === ANZAHL, "keine Folie mit szene: falsche-zahl vor dem Ende");
     const fehler = fehlerSammeln(page);
-    await bereit(page, nr);
     const buehne = page.locator("[data-folie]");
+    // Der Direktlink öffnet die Szene im Endzustand mit allen Takten (UI-Regie, keine Zwischenstände).
+    await bereit(page, nr);
+    await expect(buehne).toHaveAttribute("data-takt", "3");
+    // Von der vorigen Folie mit Pfeil rechts betreten: Takt 0, dann schalten drei Pfeile die Takte.
+    await bereit(page, nr - 1);
+    await page.keyboard.press("ArrowRight");
     await expect(page.locator('[data-szene="falsche-zahl"]')).toBeVisible();
+    await expect(buehne).toHaveAttribute("data-folie", String(nr));
     await expect(buehne).toHaveAttribute("data-takt", "0");
     for (const takt of ["1", "2", "3"]) {
       await page.keyboard.press("ArrowRight");
