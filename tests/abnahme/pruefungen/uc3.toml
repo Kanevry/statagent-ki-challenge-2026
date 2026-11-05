@@ -865,3 +865,16 @@ zeitlimit = 620
 grund = "test_anhang_b.py besteht: Quellzuordnung und Anti-Join auf der gerechneten Prüf-DB"
 befund = "test_anhang_b.py scheitert"
 herkunft = "b-abnahme-4c 2026-11-05 21:20"
+
+[[pruefung]]
+id = "72-AC1"
+hash = "a02509875c"
+befehl = "timeout 170 python3 tests/abnahme/p/uc3_rueckfragen.py"
+erwartet = ["^R1 fehlt 0 ids [345] belegt [345]$", "^R2 fehlt 0 ids [345] belegt [345]$", "^R3 fehlt 0 ids [345] belegt [345]$", "^R4 fehlt 0 ids [345] belegt [345]$", "^R5 fehlt 0 ids [345] belegt [345]$", "^maengel 0$"]
+schwer = false
+deckung = "voll"
+zeitlimit = 180
+quelle = "Kriterium 72-AC1; Rohlieferungen des Startpakets, ohne Produktcode"
+grund = "R1 bis R5 decken die fünf Themen und alle Pflichtteile ab; jede Beispiel-ID zeigt in der Rohlieferung genau den behaupteten Befund (Monat 13, fehlt in der Teil-Lieferung, Beginn fehlt)"
+befund = "In R1 bis R5 fehlt ein Pflichtteil, oder eine Beispiel-ID zeigt in der Rohlieferung den behaupteten Befund nicht"
+herkunft = "b-abnahme-4c 2026-11-05 21:30"
