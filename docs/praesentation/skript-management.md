@@ -66,7 +66,7 @@ Belege: F19, F26, F27.
 
 ## Folie 8 · Gerechnet wird ohne KI, und das Ergebnis ist jedes Mal gleich. · 7:15–8:15
 
-> Jetzt zu den Zahlen, nach denen Sie vermutlich fragen wollen. Alle 24 Monatslieferungen, zusammen gut zehn Millionen Zeilen, rechnet das Programm in rund 13 Minuten, gemessen auf unserem Rechner, der dabei auch anderes zu tun hatte. Dabei fällt kein einziger Modellaufruf an, auch nicht bei einer Frage an die Daten. Und wir haben das 72-mal wiederholt: 72-mal genau dasselbe Ergebnis. Was ich Ihnen nicht sagen kann, ist die Ersparnis. Wir wissen nicht, wie lange der Prozess bisher dauert. Darum frage ich Sie: Wie lange dauert das bei Ihnen heute?
+> Jetzt zu den Zahlen, nach denen Sie vermutlich fragen wollen. Alle 24 Monatslieferungen, zusammen gut zehn Millionen Zeilen, rechnet das Programm nach den alten Regeln in 8,4 Minuten, nach den neuen in knapp 13 Minuten. Gemessen auf einem frischen Klon, ohne Netz. Dabei fällt kein einziger Modellaufruf an, auch nicht bei einer Frage an die Daten. Und wir haben das 72-mal wiederholt: 72-mal genau dasselbe Ergebnis. Was ich Ihnen nicht sagen kann, ist die Ersparnis. Wir wissen nicht, wie lange der Prozess bisher dauert. Darum frage ich Sie: Wie lange dauert das bei Ihnen heute?
 
 Belege: F16, F28.
 
@@ -107,8 +107,8 @@ Geschätzt mit 130 Wörtern je Minute. Gemessen wird in der Probe (`probe.md`).
 | 5 | 60 | 64 | 30 |
 | 6 | 60 | 85 | 39 |
 | 7 | 60 | 99 | 46 |
-| 8 | 60 | 89 | 41 |
+| 8 | 60 | 95 | 44 |
 | 9 | 45 | 50 | 23 |
 | 10 | 45 | 59 | 27 |
 | 11 | 15 | 17 | 8 |
-| **Summe** | **600** | **765** | **354** |
+| **Summe** | **600** | **771** | **357** |

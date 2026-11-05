@@ -139,7 +139,7 @@ Stichpunkte, keine ganzen Sätze zum Ablesen. Die Zeiten sind Richtwerte. Monate
 - PostgreSQL 16 mit den Schemas `roh`, `klassifikation`, `bereinigt`, `stat`, `meta`.
 - Python-Paket `statagent`, Befehl `uc3`. Ein Lauf ist eine Lieferung (`lauf --lieferung JJJJ-MM`).
 - Next.js-Oberfläche `/uc3` mit Läufen, Berichten, Freigaben und Fragen. Rückfall ist die CLI.
-- Regel „lokal“: Läuft lokal wie gefordert, und zusätzlich auf einem Server, den wir selbst betreiben. Die Abgabezahlen sind auf der eigenen Datenbank gerechnet, online läuft nur die Vorführung (FAQ Frage 14).
+- Regel „lokal“: Läuft lokal wie gefordert, und zusätzlich auf einem Server, den wir selbst betreiben. Sie können es selbst nachbauen, ab frischem Klon rund 24 Minuten (F30). Die Abgabezahlen sind auf der eigenen Datenbank gerechnet, online läuft nur die Vorführung (FAQ Frage 14).
 - Modelle nur über `plattform.llm`. Standard für die UC3-Agenten ist Azure (gpt-5-4-mini). Umschaltbar über `LLM_PROVIDER`. Das Modell sieht Regeln, Schemata und Summen, keine Einzeldaten.
 
 ### Herausforderungen (45 s)
