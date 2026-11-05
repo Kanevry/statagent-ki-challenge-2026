@@ -7,6 +7,7 @@
 #   scripts/vorfuehrung.sh up [REF]       Stand REF (Standard HEAD) bauen und starten, Git-Checkout neu aus REF, Caddy neu laden
 #   scripts/vorfuehrung.sh daten DATEI    pg_dump -Fc (lokale Datei) hochladen, als Vorlage einspielen, Arbeitskopie anlegen
 #   scripts/vorfuehrung.sh reset          Ausgangsstand: Arbeitskopie neu aus der Vorlage, Freigabe-Commits weg, App neu
+#   scripts/vorfuehrung.sh klassifikationen DATEI   .sql.gz (lokale Datei) in einer Transaktion in die Arbeitskopie, ohne neuen Dump
 #   scripts/vorfuehrung.sh pensionen-freigeben "Vor- und Nachname"   Freigabe der Pensionen in der Instanz, Commit im eigenen Checkout
 #   scripts/vorfuehrung.sh festschreiben  heutiger Stand wird Ausgangsstand (etwa nach der Freigabe der Pensionen), reset behält ihn
 #   scripts/vorfuehrung.sh pruefen        von außen: ohne Zugang 401, mit Zugang Seiten, öffentliche Demo weiter gesperrt
@@ -163,6 +164,9 @@ haupt() {
   exec 9>"$v/.lock"
   flock -w 300 9 || { echo "up: ein anderer Vorgang läuft seit über 5 Minuten" >&2; return 1; }
   local compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  # Platte: Der Server teilt sie mit der öffentlichen Demo, und jeder Bau hinterlässt Cache (05.11.: 38 GB). Nur Cache älter als
+  # 6 Stunden; ein Fehler hier bricht nichts ab.
+  docker builder prune -f --filter until=6h </dev/null >/dev/null 2>&1 || echo "up: Build-Cache nicht aufgeräumt" >&2
   # 1. prüfen und bauen; die laufende Instanz bleibt bis dahin unberührt
   cd "$neu/deploy"
   "${compose[@]}" config --quiet </dev/null
@@ -269,6 +273,32 @@ haupt() {
   "${compose[@]}" exec -T vorfuehrung-db psql -X -q -At -U statistik -d statistik_vorfuehrung \
     -c "select 'reset: Läufe ' || (select count(*) from meta.lauf) || ', offene Vorschläge ' || (select count(*) from meta.vorschlag where status = 'offen')" </dev/null
   echo "reset: fertig in $((SECONDS - start)) s"
+}
+haupt "$@"
+EOF
+}
+
+cmd_klassifikationen() {
+  local datei=${1:?klassifikationen braucht eine lokale .sql.gz-Datei}
+  [[ -f $datei && $datei == *.sql.gz ]] || { echo "klassifikationen: $datei ist keine .sql.gz-Datei" >&2; exit 1; }
+  gzip -t "$datei" || { echo "klassifikationen: $datei ist kein vollständiges gzip" >&2; exit 1; }
+  rsync -a --partial --no-owner --no-group -e "ssh ${SSH_OPTS[*]}" "$datei" "$HOST:$V_BASIS/daten/klassifikationen.sql.gz"
+  remote bash -s -- "$BASIS" "$V_BASIS" <<'EOF'
+haupt() {
+  set -euo pipefail
+  local basis=$1 v=$2 s
+  exec 9>"$v/.lock"
+  flock -w 300 9 || { echo "klassifikationen: ein anderer Vorgang läuft seit über 5 Minuten" >&2; return 1; }
+  cd "$v/repo/deploy"
+  local compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  echo "klassifikationen: sha256 $(sha256sum "$v/daten/klassifikationen.sql.gz" | cut -c1-16)…"
+  # eine Transaktion: commit nur, wenn gzip bis zum Ende gelesen hat; ein Fehler lässt die Arbeitskopie, wie sie war
+  { echo 'begin;'; gunzip -c "$v/daten/klassifikationen.sql.gz" && echo 'commit;'; } |
+    "${compose[@]}" exec -T vorfuehrung-db psql -X -q -v ON_ERROR_STOP=1 -U statistik -d statistik_vorfuehrung >/dev/null
+  for s in stat meta; do
+    "${compose[@]}" exec -T vorfuehrung-db psql -X -q -At -U statistik -d statistik_vorfuehrung \
+      -v schema="$s" -f /deploy-sql/inhaltshash.sql </dev/null | grep GESAMT | sed "s/^/klassifikationen: $s /"
+  done
 }
 haupt "$@"
 EOF
@@ -388,12 +418,13 @@ case "${1:-}" in
   up) lade_ziel; cmd_up "${2:-}" ;;
   daten) lade_ziel; cmd_daten "${2:-}" ;;
   reset) lade_ziel; cmd_reset ;;
+  klassifikationen) lade_ziel; cmd_klassifikationen "${2:-}" ;;
   pensionen-freigeben) lade_ziel; cmd_pensionen_freigeben "${2:-}" ;;
   festschreiben) lade_ziel; cmd_festschreiben ;;
   pruefen) lade_ziel; cmd_pruefen ;;
   status) lade_ziel; cmd_status ;;
   *)
-    sed -n '2,16p' "$0"
+    sed -n '2,17p' "$0"
     exit 2
     ;;
 esac

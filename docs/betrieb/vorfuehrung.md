@@ -64,6 +64,19 @@ Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset
 6. **Gegenprobe.** `scripts/vorfuehrung.sh reset`. Der Beleg ist die Freigabe, die danach noch auf der Seite steht; die Meldung
    „0 Commits“ gilt immer. Das ist der Stand für die Vorführung um 09:00.
 
+### Dieselbe Folge ohne Rechen-Datenbank
+
+Plan für Fr 05:57, solange der Rechner mit der Rechen-Datenbank nicht erreichbar ist (seit 06.11. 00:35). Schritt 1 entfällt. Die
+Vorlage auf dem Server bleibt, sie enthält den letzten eingespielten Dump samt Pensionen, und der liegt auch noch auf dem Server.
+
+**Einschränkung:** Der Stand von `statistik` ist damit nur bis etwa 23:00 am 05.11. belegt. Was sich seither dort geändert hat, fehlt
+in der Vorführung und ist nicht messbar, das gehört am Tisch nicht behauptet. Die Abgabe selbst berührt das nicht.
+
+1. `scripts/vorfuehrung.sh up <ref>`: Volume und Vorlage bleiben, der Checkout entsteht neu.
+2. `scripts/vorfuehrung.sh reset`, dann `scripts/vorfuehrung.sh klassifikationen <klass-datei>` und `scripts/vorfuehrung.sh
+   festschreiben`, damit die Vorlage sie behält. Ohne die Datei entfällt das, und die tiefen Klassifikationen fehlen.
+3. Probe wie oben, dann `reset`, Freigabe 07:00, `festschreiben`, Gegenprobe.
+
 ## Vorführen
 
 1. Hotspot an, `<vorführ-adresse>` öffnen, Nutzer und Passwort eingeben.
