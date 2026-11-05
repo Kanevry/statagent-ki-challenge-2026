@@ -217,3 +217,11 @@ def test_verworfener_beleg_zaehlt_nicht(tmp_path: Path, monkeypatch: pytest.Monk
     belege = matrix.belege_lesen()
     assert "1-1" not in belege
     assert belege["1-2"][0]["stand"] == "bestanden"
+
+
+def test_fehlende_sperrliste_warnt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(matrix, "_SPERRDATEI", tmp_path / "gibt-es-nicht")
+    assert matrix._sperrnamen() == r"(?!)"
+    assert "Sperrliste fehlt" in capsys.readouterr().err

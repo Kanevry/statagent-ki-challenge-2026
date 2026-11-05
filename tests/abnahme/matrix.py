@@ -67,7 +67,9 @@ _SPERRDATEI = Path(
 
 def _sperrnamen() -> str:
     if not _SPERRDATEI.is_file():
-        return r"(?!)"  # ohne Datei: kein Name (die allgemeinen Muster greifen trotzdem)
+        # Ohne Datei filtert schwaerzen keine Rechnernamen (allgemeine Muster greifen trotzdem; Review 4d).
+        print("Warnung: Sperrliste fehlt, Rechnernamen ungefiltert (ABNAHME_SPERRNAMEN)", file=sys.stderr)
+        return r"(?!)"
     zeilen = [z.strip() for z in _SPERRDATEI.read_text().splitlines() if z.strip() and not z.startswith("#")]
     return "|".join(f"(?:{z})" for z in zeilen) or r"(?!)"
 
