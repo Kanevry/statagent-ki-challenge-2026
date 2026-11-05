@@ -25,6 +25,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import tomllib
 from pathlib import Path
@@ -38,6 +39,9 @@ LAEUFE = WURZEL / "docs" / "abnahme" / "laeufe"
 ABZUEGE = Path(os.environ.get("ABNAHME_ABZUG_DIR", "/tmp/kic-abnahme-abzug"))
 
 GESPERRT = "postgresql://gesperrt:gesperrt@127.0.0.1:9/gesperrt"
+# Leere, echte Datei: plattform.umgebung verlangt seit #93 is_file(), /dev/null besteht das nicht (28-1).
+LEERE_ENV = Path(tempfile.gettempdir()) / "kic-abnahme-leer.env"
+LEERE_ENV.write_text("")
 UMGEBUNG = {
     "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
     "HOME": os.environ.get("HOME", "/tmp"),
@@ -51,7 +55,7 @@ UMGEBUNG = {
     "PGPORT": "9",
     "DB_PORT": "9",
     "LLM_PROVIDER": "gesperrt",
-    "KIC_ENV_DATEI": "/dev/null",
+    "KIC_ENV_DATEI": str(LEERE_ENV),
     "UV_FROZEN": "1",
     "NO_COLOR": "1",
     "FORCE_COLOR": "0",

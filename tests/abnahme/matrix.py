@@ -67,7 +67,9 @@ _SPERRDATEI = Path(
 
 def _sperrnamen() -> str:
     if not _SPERRDATEI.is_file():
-        return r"(?!)"  # ohne Datei: kein Name (die allgemeinen Muster greifen trotzdem)
+        # Ohne Datei filtert schwaerzen keine Rechnernamen (allgemeine Muster greifen trotzdem; Review 4d).
+        print("Warnung: Sperrliste fehlt, Rechnernamen ungefiltert (ABNAHME_SPERRNAMEN)", file=sys.stderr)
+        return r"(?!)"
     zeilen = [z.strip() for z in _SPERRDATEI.read_text().splitlines() if z.strip() and not z.startswith("#")]
     return "|".join(f"(?:{z})" for z in zeilen) or r"(?!)"
 
@@ -470,7 +472,10 @@ def tor(zeilen: list[dict], belege: dict[str, list[dict]]) -> int:
         if s not in ("nicht geprüft", "nicht bestanden"):
             continue
         e = entscheide.get(k["id"])
-        (entschieden if e and e.get("hash") == k["hash"] else offen).append((k, s, grund, e))
+        # Ein Teilentscheid (umfang = teil, z. B. 23-1: nur „per Stimme“ nach Abgabe) entscheidet das
+        # Kriterium nicht: der übrige Teil wird weiter gemessen.
+        ganz = e and e.get("hash") == k["hash"] and e.get("umfang") != "teil"
+        (entschieden if ganz else offen).append((k, s, grund, e))
     for k, s, _grund, e in entschieden:
         print(f"entschieden {k['teil']} {k['id']}: {s}; {e['entscheid']} ({e['wer']}, {e['quelle']})")
     for k, s, grund, _ in offen:
