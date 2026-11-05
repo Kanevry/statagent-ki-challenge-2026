@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Fliesstext, Ueberschrift } from "@kic/ui/basis";
-import { nurLesend } from "@/components/uc3/cli";
+import { fragenGesperrt } from "@/components/uc3/cli";
 import { lies } from "@/components/uc3/db";
 import { type Definition, FragenFormular } from "./_teile/fragen-formular";
 
@@ -36,7 +36,7 @@ export default async function FragenAnDieDaten() {
           der Datenbank und zeigt diese Abfrage mit an.
         </Fliesstext>
       </header>
-      <FragenFormular definitionen={definitionen} nurLesen={nurLesend()} />
+      <FragenFormular definitionen={definitionen} nurLesen={fragenGesperrt()} />
     </>
   );
 }

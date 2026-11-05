@@ -205,7 +205,11 @@ export function erstelleFrageAntwort({
   }
 
   return async function frageAntwort(anfrage: Request): Promise<Response> {
-    if (umgebung.KIC_ONLINE_LESEND === "1") return fehler(403, "Fragen an die Daten sind in der Online-Demo gesperrt.");
+    // Gleiche Bedingung wie fragenGesperrt in cli.ts; hier ausgeschrieben, weil diese Datei nur Typen aus cli.ts
+    // importiert (die Fragen-Seite lädt sie im Browser).
+    if (umgebung.KIC_ONLINE_LESEND === "1" && umgebung.KIC_ONLINE_FRAGEN !== "1") {
+      return fehler(403, "Fragen an die Daten sind in der Online-Demo gesperrt.");
+    }
 
     let text: string;
     try {
