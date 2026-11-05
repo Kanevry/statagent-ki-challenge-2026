@@ -18,8 +18,8 @@ Gehört zu GitLab #90, Epic #26. Wird am Fr 06.11.2026 ab 06:00 ausgefüllt.
 | Start (Uhr) | |
 | Ende (Uhr) | |
 | Gesamtdauer Ist | |
-| Soll | Gesamtdauer ist der Vortrag von Pfad B, höchstens 10:00. Pfad A bis 14:00 ohne Fragen |
-| Pfad A Dauer Ist | |
+| Gesamtdauer Ist Pfad A | |
+| Soll | Die Dauer wird je Pfad getrennt gemessen. „Gesamtdauer Ist“ ist Pfad B, höchstens 10:00. „Gesamtdauer Ist Pfad A“ mit allen fünf Pflichtschritten, höchstens 14:00, ohne Fragen |
 | Pfad A ≤ 14:00 | ja / nein |
 | Pfad B ≤ 10:00 | ja / nein |
 | D1 Monat | 2025-10 / 2025-03 |
@@ -113,3 +113,15 @@ Gemessen wird der Wechsel auf die Aufzeichnung, Nachweis für #90. Ziel: höchst
 | Freeze bestätigt (Uhr aus `TZ=Europe/Vienna date`) | |
 | Stand (Commit) beim Freeze | |
 | Offene Punkte | |
+
+## 5. Probe 2
+
+Der Owner hält sie ab 07:15, voller Vortrag samt Demo. Die Abschnitte oben gehören zu Probe 1.
+
+| Feld | Wert |
+|---|---|
+| Probe 2 Start (Uhr) | |
+| Probe 2 Ende (Uhr) | |
+| Probe 2 Dauer Pfad A | |
+| Probe 2 Dauer Pfad B | |
+| Probe 2 Befunde | |
