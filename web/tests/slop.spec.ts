@@ -94,9 +94,28 @@ function anhangName(route: string, zustand = ""): string {
   return `slop${route === "/" ? "-start" : route.replaceAll("/", "-")}${zustand}`;
 }
 
-/** Misst die gerade geladene Seite: alle zwölf Schlüssel vorhanden und 0. Sammelt Verstöße, ohne abzubrechen. */
+/**
+ * Fängt ab: eine Seite, die waagrecht über den Viewport hinausläuft (Review !45: Header bei 390 px mit
+ * „zuletzt mistral (Stufe 2)“). Hart, nicht soft: eine überlaufende Seite ist auf dem Handy kaputt.
+ */
+async function pruefeKeinUeberlauf(page: Page, testInfo: TestInfo, ort: string): Promise<void> {
+  const masse = await page.evaluate(() => ({
+    breite: document.documentElement.scrollWidth,
+    fenster: window.innerWidth,
+  }));
+  expect(
+    masse.breite,
+    `Waagrechter Überlauf auf ${ort} (${testInfo.project.name}): scrollWidth ${masse.breite} > innerWidth ${masse.fenster}`,
+  ).toBeLessThanOrEqual(masse.fenster);
+}
+
+/**
+ * Misst die gerade geladene Seite: kein waagrechter Überlauf (hart) und alle zwölf Schlüssel vorhanden und 0
+ * (soft, sammelt Verstöße, ohne abzubrechen).
+ */
 async function pruefeSeite(page: Page, testInfo: TestInfo, ort: string, zustand = ""): Promise<void> {
   await vorbereiten(page);
+  await pruefeKeinUeberlauf(page, testInfo, `${ort}${zustand}`);
   const messung = await messen(page);
   await anhaengen(testInfo, anhangName(ort, zustand), messung);
   expect.soft(fehlendeSchluessel(messung.counts), `Schlüssel fehlen im Messergebnis (${ort}${zustand})`).toEqual([]);

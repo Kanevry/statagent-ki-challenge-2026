@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from "react";
-import { Feld, Fliesstext, Knopf, Status, Ueberschrift } from "../basis";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { Feld, Fliesstext, Knopf, Piktogramm, Status, Ueberschrift } from "../basis";
 import { fokus, klassen } from "../basis/klassen";
 import { HerkunftChip, type HerkunftChipProps } from "./herkunft-chip";
 import { formatDifferenz, formatProzent, formatZahl, formatZeit, veraenderung } from "./format";
+import { ModellPille } from "./modell-pille";
 import { pruefeName } from "./name";
 
 /** Ausschnitt eines Protokolleintrags (Schema `shared/schema/protokoll-eintrag.json`). */
@@ -49,16 +50,15 @@ export type FreigabeKarteProps = {
   onAblehnen: (name: string, begruendung: string) => FreigabeAntwort | Promise<FreigabeAntwort>;
   /** Beleg der Zahl „Nachher“: Abfrage und Lieferung, erscheint als Herkunft-Chip unter der Waage. */
   beleg?: Omit<HerkunftChipProps, "className">;
-  /** Schon entschieden, z. B. aus dem Protokoll: Zone 3 zeigt dann das Ergebnis statt der Eingabe. */
+  /** Schon entschieden, z. B. aus dem Protokoll: die Karte zeigt dann das Ergebnis statt der Eingabe. */
   entscheidung?: FreigabeEntscheidung;
-  /** Ebene der Zonen-Überschriften im Seitenaufbau. */
+  /** Ebene der Überschrift „Vorschlag des Agenten“ im Seitenaufbau. */
   ebene?: "h2" | "h3" | "h4";
   className?: string;
 };
 
-const ZONE_GESAGT = "Das wurde gesagt";
-const ZONE_AENDERUNG = "Das ändert sich";
-const ZONE_FREIGABE = "Freigabe mit Vor- und Nachname";
+const TITEL = "Vorschlag des Agenten";
+const NAME_HINWEIS = "Bitte den eigenen Vor- und Nachnamen eintragen, „Team“ gilt nicht. Der Name kommt ins Protokoll und wird mit der Änderung gespeichert.";
 
 function fehlertext(fehler: unknown): string {
   const meldung = fehler instanceof Error ? fehler.message.trim() : "";
@@ -71,38 +71,41 @@ function serverZeit(antwort: FreigabeAntwort): string {
   return typeof zeitpunkt === "string" && zeitpunkt.trim() ? zeitpunkt : new Date().toISOString();
 }
 
-function Zone({ id, titel, ebene, children }: { id: string; titel: string; ebene: "h2" | "h3" | "h4"; children: ReactNode }) {
+function Waagschale({
+  titel,
+  wert,
+  art = "feld",
+  ton = "ink",
+}: {
+  titel: string;
+  wert: string;
+  art?: "feld" | "zeile";
+  ton?: "ink" | "gruen";
+}) {
+  const feld = art === "feld";
   return (
-    <section aria-labelledby={id} className="flex flex-col gap-4 border-t border-line pt-6 first:border-t-0 first:pt-0">
-      {/* tabIndex -1: nach einem Ergebnis setzt die Karte den Fokus hierher, die Tab-Folge bleibt gleich. */}
-      <Ueberschrift stufe={3} als={ebene} id={id} tabIndex={-1} className={fokus}>
-        {titel}
-      </Ueberschrift>
-      {children}
-    </section>
-  );
-}
-
-function Waagschale({ titel, wert, gross = true }: { titel: string; wert: string; gross?: boolean }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="font-sans text-14 text-slate">{titel}</dt>
-      <dd className={klassen("font-mono tabular-nums text-ink", gross ? "text-56" : "text-20")}>{wert}</dd>
+    <div className={klassen("flex flex-col gap-0.5", feld && "rounded-lg border border-line p-3")}>
+      <dt className="font-sans text-12 text-slate">{titel}</dt>
+      <dd
+        className={klassen(
+          "tabular-nums",
+          feld ? "font-display text-28 font-bold" : "font-mono text-14",
+          ton === "gruen" ? "text-gruen" : "text-ink",
+        )}
+      >
+        {wert}
+      </dd>
     </div>
   );
 }
 
 function Diff({ text }: { text: string }) {
   return (
-    <pre className="max-w-full overflow-x-auto rounded border border-line bg-paper p-2 font-mono text-12 text-ink">
+    <pre className="flex max-w-full flex-col gap-1 overflow-x-auto rounded-lg bg-paper p-3 font-mono text-12 text-ink">
       {text.split("\n").map((zeile, index) => (
         <span
           key={index}
-          className={klassen(
-            "block",
-            zeile.startsWith("+") && "bg-gruen-bg",
-            zeile.startsWith("-") && "bg-err-bg",
-          )}
+          className={klassen("block", zeile.startsWith("+") && "text-gruen", zeile.startsWith("-") && "text-err-fg")}
         >
           {zeile || " "}
         </span>
@@ -112,8 +115,10 @@ function Diff({ text }: { text: string }) {
 }
 
 /**
- * Freigabe einer Änderung in drei festen Zonen: was gesagt wurde, was sich ändert, wer freigibt.
- * Der Knopf wird erst bei gültigem Vor- und Nachnamen aktiv; Enter im Namensfeld löst nichts aus.
+ * Freigabe einer Änderung (Pen-Frame FgY98) in fester Reihenfolge: Vorschlag mit Modell, wörtliche Anweisung,
+ * Diff, Vorher und Nachher, Beleg, Name und „Freigeben“. Ein Ergebnis steht in der Live-Region darunter.
+ * Der Knopf wird erst bei gültigem Vor- und Nachnamen aktiv; warum er gesperrt ist, steht schon beim Tippen
+ * unter dem Feld. Enter im Namensfeld löst nichts aus.
  */
 export function FreigabeKarte({
   eintrag,
@@ -131,15 +136,30 @@ export function FreigabeKarte({
 }: FreigabeKarteProps) {
   const basisId = useId();
   const [name, setName] = useState("");
-  const [nameVerlassen, setNameVerlassen] = useState(false);
   const [ablehnen, setAblehnen] = useState(false);
   const [begruendung, setBegruendung] = useState("");
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const [ergebnis, setErgebnis] = useState<FreigabeEntscheidung | null>(null);
-  // Zählt Ergebnisse (gespeichert oder Fehler); jede Erhöhung legt den Fokus auf die Überschrift der Zone 3.
+  // Zählt Ergebnisse (gespeichert oder Fehler); jede Erhöhung legt den Fokus auf die Live-Region mit dem Ergebnis.
   const [fokusZaehler, setFokusZaehler] = useState(0);
   const freigabeId = `${basisId}-freigabe`;
+  const begruendungId = `${basisId}-begruendung`;
+  const ablehnenId = `${basisId}-ablehnen`;
+  // Nach „Ablehnen“ und „Zurück“ verschwindet der geklickte Knopf; der Fokus geht dann gezielt weiter
+  // (Begründungsfeld bzw. wieder „Ablehnen“) statt auf body zu fallen.
+  const fokusNachWechsel = useRef(false);
+
+  useEffect(() => {
+    if (!fokusNachWechsel.current) return;
+    fokusNachWechsel.current = false;
+    document.getElementById(ablehnen ? begruendungId : ablehnenId)?.focus();
+  }, [ablehnen, begruendungId, ablehnenId]);
+
+  function wechsleAblehnen(wert: boolean) {
+    fokusNachWechsel.current = true;
+    setAblehnen(wert);
+  }
 
   useEffect(() => {
     if (fokusZaehler > 0) document.getElementById(freigabeId)?.focus();
@@ -154,8 +174,6 @@ export function FreigabeKarte({
     (differenz === 0
       ? `Die Zahl bleibt bei ${formatZahl(vorher)}${einheit}.`
       : `Ab jetzt zählen wir ${formatZahl(nachher)}${einheit} statt ${formatZahl(vorher)}.`);
-  const zone3Titel =
-    entschieden?.art === "freigegeben" ? "Freigegeben" : entschieden?.art === "abgelehnt" ? "Abgelehnt" : ZONE_FREIGABE;
 
   // Enter soll nie freigeben, auch nicht über ein umgebendes Formular (implizites Absenden).
   function enterSperren(e: KeyboardEvent<HTMLInputElement>) {
@@ -184,39 +202,65 @@ export function FreigabeKarte({
     }
   }
 
+  const titelId = `${basisId}-titel`;
+  const hatDetails = Boolean(eintrag.ref || eintrag.wirkung || !diff);
+  // Der Grund für den gesperrten Knopf steht sofort beim Tippen da, nicht erst beim Verlassen des Felds.
+  const nameFehler = name.trim() && !pruefung.gueltig ? pruefung.grund : undefined;
+  const nameFeldId = `${basisId}-name`;
+  const nameFehlerId = `${basisId}-name-fehler`;
+  const nameHinweisId = `${basisId}-name-hinweis`;
+
   return (
     <article
-      className={klassen("flex flex-col gap-6 rounded border border-line bg-white p-6", className)}
+      aria-labelledby={titelId}
+      className={klassen("flex flex-col gap-4 rounded-xl border border-line bg-white p-6", className)}
       data-baustein="freigabe"
       data-zustand={entschieden?.art ?? "offen"}
     >
-      <Zone id={`${basisId}-gesagt`} titel={ZONE_GESAGT} ebene={ebene}>
-        <blockquote className="border-l-2 border-line pl-4">
-          <Fliesstext>{`„${eintrag.anweisung}“`}</Fliesstext>
+      <div className="flex flex-wrap items-center gap-3">
+        <Ueberschrift stufe={3} als={ebene} id={titelId}>
+          {TITEL}
+        </Ueberschrift>
+        {eintrag.modell && (
+          <ModellPille>
+            <span>Modell:</span>
+            <span className="font-mono">{eintrag.modell}</span>
+            <span>· austauschbar</span>
+          </ModellPille>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <blockquote>
+          <p className="font-sans text-16 italic text-pretty text-slate">{`„${eintrag.anweisung}“`}</p>
         </blockquote>
-        <Fliesstext groesse={14} ton="gedaempft">
+        <Fliesstext groesse={12} ton="gedaempft">
           {eintrag.name}
           {" · "}
           <time dateTime={eintrag.zeit}>{formatZeit(eintrag.zeit)}</time>
         </Fliesstext>
-      </Zone>
+      </div>
 
-      <Zone id={`${basisId}-aenderung`} titel={ZONE_AENDERUNG} ebene={ebene}>
-        <Fliesstext>{aenderungsSatz}</Fliesstext>
-        <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2" aria-label="Freigabe-Waage">
-          <Waagschale titel="Vorher" wert={formatZahl(vorher)} />
-          <Waagschale titel="Nachher" wert={formatZahl(nachher)} />
-          <Waagschale titel="Δ Unterschied" wert={formatDifferenz(differenz)} />
-          {prozent === null ? (
-            <Waagschale titel="Δ in Prozent" wert="nicht berechenbar, vorher 0" gross={false} />
-          ) : (
-            <Waagschale titel="Δ in Prozent" wert={formatProzent(prozent)} />
-          )}
-        </dl>
-        {beleg && <HerkunftChip {...beleg} />}
+      {diff && <Diff text={diff} />}
+
+      <Fliesstext groesse={14}>{aenderungsSatz}</Fliesstext>
+      <dl className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2" aria-label="Freigabe-Waage">
+        <Waagschale titel="Bestand vorher" wert={formatZahl(vorher)} />
+        <Waagschale titel="Bestand nachher" wert={formatZahl(nachher)} ton="gruen" />
+        <Waagschale titel="Unterschied" wert={formatDifferenz(differenz)} art="zeile" />
+        {prozent === null ? (
+          <Waagschale titel="Unterschied in Prozent" wert="nicht berechenbar, vorher 0" art="zeile" />
+        ) : (
+          <Waagschale titel="Unterschied in Prozent" wert={formatProzent(prozent)} art="zeile" />
+        )}
+      </dl>
+
+      {beleg && <HerkunftChip {...beleg} />}
+
+      {hatDetails && (
         <details>
           <summary className={klassen("cursor-pointer font-sans text-14 font-semibold text-gruen", fokus)}>
-            Details und Regeländerung
+            Details zum Vorschlag
           </summary>
           <div className="flex flex-col gap-4 pt-4">
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 font-sans text-14">
@@ -226,12 +270,6 @@ export function FreigabeKarte({
                   <dd className="font-mono text-ink">{eintrag.ref}</dd>
                 </>
               )}
-              {eintrag.modell && (
-                <>
-                  <dt className="text-slate">Modell</dt>
-                  <dd className="font-mono text-ink">{eintrag.modell}</dd>
-                </>
-              )}
               {eintrag.wirkung && (
                 <>
                   <dt className="text-slate">Wirkung</dt>
@@ -239,96 +277,124 @@ export function FreigabeKarte({
                 </>
               )}
             </dl>
-            {diff ? <Diff text={diff} /> : <Fliesstext groesse={14} ton="gedaempft">Kein Diff hinterlegt.</Fliesstext>}
+            {!diff && <Fliesstext groesse={14} ton="gedaempft">Keine Regeländerung hinterlegt.</Fliesstext>}
           </div>
         </details>
-      </Zone>
+      )}
 
-      <Zone id={freigabeId} titel={zone3Titel} ebene={ebene}>
-        {!entschieden && (
-          <div className="flex flex-col gap-4">
-            <Fliesstext>Wer gibt frei? Ihr Name kommt ins Protokoll und in den Commit.</Fliesstext>
-            <Feld
-              label="Vor- und Nachname"
-              name="freigabe-name"
-              autoComplete="off"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => setNameVerlassen(true)}
-              onKeyDown={enterSperren}
-              hinweis="Zum Beispiel Anna Beispiel. Rollen wie „Team“ zählen nicht."
-              fehler={nameVerlassen && name.trim() && !pruefung.gueltig ? pruefung.grund : undefined}
-            />
-            {ablehnen && (
-              <Feld
-                label="Begründung der Ablehnung"
-                name="freigabe-begruendung"
+      {!entschieden && (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <label htmlFor={nameFeldId} className="font-sans text-14 font-semibold text-ink">
+              Vor- und Nachname
+            </label>
+            <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
+              <input
+                id={nameFeldId}
+                name="freigabe-name"
+                type="text"
                 autoComplete="off"
                 required
-                value={begruendung}
-                onChange={(e) => setBegruendung(e.target.value)}
+                aria-invalid={nameFehler ? true : undefined}
+                aria-describedby={[nameHinweisId, nameFehler && nameFehlerId].filter(Boolean).join(" ")}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 onKeyDown={enterSperren}
+                className={klassen(
+                  "h-10 min-w-0 flex-1 basis-60 rounded-lg border bg-white px-3 font-sans text-14 text-ink",
+                  nameFehler ? "border-err-fg" : "border-slate",
+                  fokus,
+                )}
               />
-            )}
-            <div className="flex flex-wrap items-center gap-6">
-              {ablehnen ? (
-                <>
-                  <Knopf
-                    art="sekundaer"
-                    disabled={!pruefung.gueltig || !begruendung.trim() || laeuft}
-                    onClick={() => void ausfuehren("abgelehnt")}
-                  >
-                    Ablehnung speichern
-                  </Knopf>
-                  <button
-                    type="button"
-                    className={klassen("font-sans text-14 font-semibold text-ink underline underline-offset-4", fokus)}
-                    onClick={() => setAblehnen(false)}
-                    disabled={laeuft}
-                  >
-                    Zurück
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Knopf disabled={!pruefung.gueltig || laeuft} onClick={() => void ausfuehren("freigegeben")}>
-                    Ja, so rechnen wir ab jetzt
-                  </Knopf>
-                  <button
-                    type="button"
-                    className={klassen("font-sans text-14 font-semibold text-ink underline underline-offset-4", fokus)}
-                    onClick={() => setAblehnen(true)}
-                    disabled={laeuft}
-                  >
-                    Ablehnen
-                  </button>
-                </>
+              {!ablehnen && (
+                <Knopf disabled={!pruefung.gueltig || laeuft} onClick={() => void ausfuehren("freigegeben")}>
+                  <Piktogramm name="haken" />
+                  Freigeben
+                </Knopf>
               )}
             </div>
+            <p id={nameHinweisId} className="font-sans text-12 text-slate">
+              {NAME_HINWEIS}
+            </p>
+            {nameFehler && (
+              <Status id={nameFehlerId} art="fehler">
+                {nameFehler}
+              </Status>
+            )}
           </div>
-        )}
-        {/* Die Live-Region steht von Anfang an (leer); Screenreader melden nur Änderungen in einer
-            Region, die schon da war. Ergebnis, Speichern und Fehler werden hier eingesetzt. */}
-        <div aria-live="polite" data-meldung="freigabe" className="flex flex-col gap-2">
-          {entschieden ? (
-            entschieden.art === "freigegeben" ? (
-              <Status art="ok">{`Freigegeben von ${entschieden.name}, ${formatZeit(entschieden.zeit)}`}</Status>
-            ) : (
+          {ablehnen && (
+            <Feld
+              id={begruendungId}
+              label="Begründung der Ablehnung"
+              name="freigabe-begruendung"
+              autoComplete="off"
+              required
+              value={begruendung}
+              onChange={(e) => setBegruendung(e.target.value)}
+              onKeyDown={enterSperren}
+            />
+          )}
+          <div className="flex flex-wrap items-center gap-6">
+            {ablehnen ? (
               <>
-                <Status art="info">{`Abgelehnt von ${entschieden.name}, ${formatZeit(entschieden.zeit)}`}</Status>
-                <Fliesstext groesse={14}>{`Begründung: ${entschieden.begruendung}`}</Fliesstext>
+                <Knopf
+                  art="sekundaer"
+                  disabled={!pruefung.gueltig || !begruendung.trim() || laeuft}
+                  onClick={() => void ausfuehren("abgelehnt")}
+                >
+                  Ablehnung speichern
+                </Knopf>
+                <button
+                  type="button"
+                  className={klassen("font-sans text-14 font-semibold text-ink underline underline-offset-4", fokus)}
+                  onClick={() => wechsleAblehnen(false)}
+                  disabled={laeuft}
+                >
+                  Zurück
+                </button>
               </>
-            )
-          ) : laeuft ? (
-            <Status art="info">Wird gespeichert</Status>
-          ) : fehler ? (
-            <Status art="fehler" role="alert">
-              {fehler}
-            </Status>
-          ) : null}
+            ) : (
+              <button
+                id={ablehnenId}
+                type="button"
+                className={klassen("font-sans text-14 font-semibold text-ink underline underline-offset-4", fokus)}
+                onClick={() => wechsleAblehnen(true)}
+                disabled={laeuft}
+              >
+                Ablehnen
+              </button>
+            )}
+          </div>
         </div>
-      </Zone>
+      )}
+      {/* Die Live-Region steht von Anfang an (leer); Screenreader melden nur Änderungen in einer Region, die schon
+          da war. Ergebnis, Speichern und Fehler werden hier eingesetzt. tabIndex -1: nach einem Ergebnis setzt die
+          Karte den Fokus hierher, die Tab-Folge bleibt gleich. Leer nimmt sie über `empty:-mt-4`
+          keinen Platz ein, ohne aus dem Baum zu verschwinden (display: none würde die Ansage verschlucken). */}
+      <div
+        id={freigabeId}
+        tabIndex={-1}
+        aria-live="polite"
+        data-meldung="freigabe"
+        className={klassen("flex flex-col gap-2 empty:-mt-4", fokus)}
+      >
+        {entschieden ? (
+          entschieden.art === "freigegeben" ? (
+            <Status art="ok">{`Freigegeben von ${entschieden.name}, ${formatZeit(entschieden.zeit)}`}</Status>
+          ) : (
+            <>
+              <Status art="info">{`Abgelehnt von ${entschieden.name}, ${formatZeit(entschieden.zeit)}`}</Status>
+              <Fliesstext groesse={14}>{`Begründung: ${entschieden.begruendung}`}</Fliesstext>
+            </>
+          )
+        ) : laeuft ? (
+          <Status art="info">Wird gespeichert</Status>
+        ) : fehler ? (
+          <Status art="fehler" role="alert">
+            {fehler}
+          </Status>
+        ) : null}
+      </div>
     </article>
   );
 }

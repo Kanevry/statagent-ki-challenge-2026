@@ -148,3 +148,19 @@ def test_claude_fuer_uc3_zweck_verboten(umgebung):
     """Fängt: ein UC3-Zweck lässt claude zu."""
     with pytest.raises(ZweckFehler):
         complete([{"role": "user", "content": "x"}], provider="claude", zweck="agent.koordinator")
+
+
+def test_nur_text_nimmt_bei_teile_listen_nur_textteile():
+    """Fängt: mistral-large-4 liefert content als Liste (Denk- und Textteile); text war dann eine Liste."""
+    from types import SimpleNamespace
+
+    from plattform.llm.openai_basis import nur_text
+
+    teile = [
+        {"type": "thinking", "thinking": [{"type": "text", "text": "intern"}]},
+        {"type": "text", "text": "Ber"},
+        SimpleNamespace(type="text", text="eit."),
+    ]
+    assert nur_text(teile) == "Bereit."
+    assert nur_text("Bereit.") == "Bereit."
+    assert nur_text(None) == ""
