@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+from statagent import cli
 from statagent.db import Verbindung
 from statagent.ergebnis import letzter_lauf, monatserster, monatsletzter
 from statagent.frage import als_ucantwort, antwort_frage
@@ -57,11 +59,67 @@ def test_fluktuation_eine_zahl_kein_bestand(gerechnet: Verbindung) -> None:
     daten = uc4_antwort(gerechnet, frage)
     voll = antwort_frage(gerechnet, frage)
     gesamt = [z for z in voll["zahlen"] if z["bezeichnung"].startswith("Fluktuation, alle")]
-    assert [z["wert"] for z in daten["zahlen"]] == [gesamt[0]["wert"]] != [_direkt(gerechnet)]
+    assert [z["wert"] for z in daten["zahlen"]] == [gesamt[0]["wert"]]
+    assert daten["zahlen"][0]["einheit"] == "Prozent"
     assert daten["zahlen"][0]["beleg"] == 0 and len(daten["belege"]) == 1
     assert "stat." in daten["belege"][0]["sql"]
-    assert daten["text"].startswith("Die Fluktuation im September 2024 war für alle Wirtschaftsbereiche ")
+    assert daten["text"].startswith(
+        "Über alle Wirtschaftsbereiche zusammen lag die Fluktuation im September 2024 bei "
+    )
     assert "Die Zahlen je Branche stehen unter Fragen an die Daten." in daten["text"]
+    assert "Die Zahl ist " in daten["text"]
+
+
+# Fängt: Der Hinweis zu Abschnitten ohne Bestand steht in der Kette, oder der Hinweis zur Fortschreibung fehlt.
+def test_fluktuation_nur_der_passende_hinweis(gerechnet: Verbindung) -> None:
+    gerechnet.execute("UPDATE meta.lauf SET fortgeschrieben = 1234 WHERE lieferung = '2024-09'")
+    text = uc4_antwort(gerechnet, "Fluktuation im September 2024")["text"]
+    assert "zu niedrig" in text and "keine Beschäftigten" not in text
+
+
+# Fängt (Prüfung !192): Die Weiche zum Adapter gab bei zwei Werten wieder den Bestand: der Fehler aus #176.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Fluktuation in Wien und Tirol im September 2024",
+        "Fluktuation bei Männern und Frauen im September 2024",
+        "Beschäftigte in Wien und Tirol von 08/2024 bis 09/2024",
+        "Frauenanteil in Wien und Tirol im September 2024",
+    ],
+)
+def test_zwei_werte_kein_bestand_als_antwort(gerechnet: Verbindung, frage: str) -> None:
+    daten = uc4_antwort(gerechnet, frage)
+    assert daten["zahlen"] == [] and daten["text"]
+
+
+# Fängt (Prüfung !192): „ÖNACE C und F“ ergab nur C, ohne Hinweis; auf /uc3/fragen heißt das eine Absage.
+def test_oenace_liste(gerechnet: Verbindung) -> None:
+    frage = "Beschäftigte in ÖNACE C und F im September 2024"
+    c, f = _direkt(gerechnet, " AND oenace = 'C'"), _direkt(gerechnet, " AND oenace = 'F'")
+    assert _werte(uc4_antwort(gerechnet, frage)) == [c, f, c + f]
+    absage = antwort_frage(gerechnet, frage)
+    assert absage["zahlen"] == [] and "mehrere Werte" in absage["text"]
+
+
+# Fängt (Prüfung !192): Eine Absage beim Nachlesen brach die Station ab, statt die Absage zu zeigen.
+def test_adapter_pruefung_wirft_nicht(gerechnet: Verbindung, monkeypatch: pytest.MonkeyPatch) -> None:
+    from statagent import frage as weg
+    from statagent import uc4
+
+    def wirft(*_: object) -> None:
+        raise weg._KeineZahl("Die Branche gibt es nicht.")
+
+    monkeypatch.setattr(weg, "_werte", wirft)
+    assert (
+        uc4._adapter_liest_gleich(gerechnet, "Beschäftigte in Wien und Tirol im September 2024", "v1")
+        is False
+    )
+
+
+# Fängt (Prüfung !192): Die Konsole sagte weiter die Zahl des alten Wegs.
+def test_konsole_nimmt_denselben_weg() -> None:
+    quelle = Path(cli.__file__).read_text(encoding="utf-8")
+    assert "uc4_antwort(conn, frage_text, regelsatz)" in quelle
 
 
 # Fängt: Gefragt war eine Branche, die Zahl für alle Branchen wäre eine andere Antwort.
@@ -74,7 +132,8 @@ def test_fluktuation_gefragte_branche(gerechnet: Verbindung) -> None:
         if z["bezeichnung"].startswith("Fluktuation, ÖNACE F ")
     ]
     assert [z["wert"] for z in daten["zahlen"]] == [soll[0]["wert"]]
-    assert "Bau" in daten["text"] and "alle Wirtschaftsbereiche" not in daten["text"]
+    assert daten["text"].startswith("In der Branche Bau lag die Fluktuation im September 2024 bei ")
+    assert "alle Wirtschaftsbereiche" not in daten["text"]
 
 
 # Fängt: Bei genau einer Zahl steht „Verstanden …“ als Antwort der Station (ui-regie-36); „…: alle“ grenzt nichts ein.

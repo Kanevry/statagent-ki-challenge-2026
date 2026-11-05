@@ -839,10 +839,10 @@ def antwort(
     als_json: JsonOption = False,
 ) -> None:
     """UC4-Antwort von UC3: Zahl aus stat.stat_beschaeftigte mit Beleg (ohne Sprachmodell, #106)."""
-    from statagent.uc4 import antwort_daten
+    from statagent.uc4 import uc4_antwort
 
     with verbinden() as conn:
-        daten = antwort_daten(conn, frage_text, regelsatz)
+        daten = uc4_antwort(conn, frage_text, regelsatz)
     zeilen = [daten["text"]]
     for zahl in daten["zahlen"]:
         beleg = daten["belege"][zahl["beleg"]]

@@ -702,7 +702,12 @@ def uc4_antwort(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str
     from statagent import frage as weg  # hier, weil statagent.frage aus diesem Modul importiert
 
     daten = weg.antwort_frage(conn, frage, regelsatz)
-    if daten["text"].startswith(weg.MEHRERE_WERTE) and _adapter_liest_gleich(conn, frage, regelsatz):
+    if (
+        daten["typ"] in ("bestand", "geschlecht")
+        and daten["text"].startswith(weg.MEHRERE_WERTE)
+        and "anteil" not in frage.lower()
+        and _adapter_liest_gleich(conn, frage, regelsatz)
+    ):
         return antwort_daten(conn, frage, regelsatz)
     if daten["typ"] == "fluktuation" and daten["zahlen"]:
         return _fluktuation_kurz(daten)
@@ -743,16 +748,19 @@ def _fluktuation_kurz(daten: dict[str, Any]) -> dict[str, Any]:
     treffer = [z for z in daten["zahlen"] if str(z["bezeichnung"]).startswith(anfang)]
     verweis = "Die Zahlen je Branche stehen unter Fragen an die Daten."
     if not treffer:
-        return {**_leer(f"Für {wann} gibt es diese Fluktuation nicht als eine Zahl. {verweis}")}
+        return _leer(f"Für {wann} gibt es keine Gesamtzahl zur Fluktuation. {verweis}")
     zahl = treffer[0]
-    wo = (
-        str(zahl["bezeichnung"]).removeprefix("Fluktuation, ÖNACE ")[2:]
-        if branche
-        else "alle Wirtschaftsbereiche"
-    )
     wert = f"{zahl['wert']:.2f}".replace(".", ",")
-    saetze = [f"Die Fluktuation im {wann} war für {wo} {wert} Prozent.", verweis]
-    saetze += [h for h in daten["hinweise"] if "Zu- und Abgänge" in h]
+    if branche:
+        name = str(zahl["bezeichnung"]).removeprefix(anfang)
+        satz = f"In der Branche {name} lag die Fluktuation im {wann} bei {wert} Prozent."
+    else:
+        satz = f"Über alle Wirtschaftsbereiche zusammen lag die Fluktuation im {wann} bei {wert} Prozent."
+    saetze = [satz, verweis]
+    saetze += [h for h in daten["hinweise"] if "zu niedrig" in h]
+    stand = re.search(r"Die Zahlen sind ([^.]*)\.", text)
+    if stand:
+        saetze.append(f"Die Zahl ist {stand.group(1)}.")
     return {
         **_leer(" ".join(saetze)),
         "belege": [daten["belege"][zahl["beleg"]]],
@@ -772,14 +780,14 @@ def _adapter_liest_gleich(conn: Verbindung, frage: str, regelsatz: str) -> bool:
     if monat is None or weg._FREIER_DV.search(gelesen.lower()):
         return False
     mehrfach: list[Merkmal] = []
-    for merkmal in MERKMALE:
-        codes = _codes(conn, merkmal, monat)
-        werte = weg._werte(gelesen, merkmal, codes)[0]
-        if not set(werte) <= set(_auspraegungen(gelesen, merkmal, codes)):
-            return False
-        if len(werte) > 1:
-            mehrfach.append(merkmal)
     try:
+        for merkmal in MERKMALE:
+            codes = _codes(conn, merkmal, monat)
+            werte = weg._werte(gelesen, merkmal, codes)[0]
+            if not set(werte) <= set(_auspraegungen(gelesen, merkmal, codes)):
+                return False
+            if len(werte) > 1:
+                mehrfach.append(merkmal)
         weg._filter(conn, gelesen, monat, tuple(mehrfach))
     except weg._KeineZahl:
         return False

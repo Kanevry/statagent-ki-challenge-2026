@@ -27,6 +27,7 @@ from statagent.uc4 import (
     _ISO,
     _NAME_MONAT,
     _OENACE_CODE,
+    _OENACE_LISTE,
     _ZAHL_MONAT,
     MERKMALE,
     Merkmal,
@@ -318,6 +319,11 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
         for t in _OENACE_CODE.finditer(text):
             if t.group(1).upper() in codes:
                 gefunden[t.group(1).upper()] = t.group(0)
+        # „ÖNACE C und F“: alle Buchstaben, sonst zählte nur der erste, ohne Hinweis.
+        for liste in _OENACE_LISTE.finditer(text):
+            for t in re.finditer(r"(?<!\w)[a-z](?!\w)", liste.group(1)):
+                if t.group(0).upper() in codes:
+                    gefunden.setdefault(t.group(0).upper(), liste.group(0))
         for muster, anfaenge in BRANCHEN:
             t = muster.search(text)
             if not t:
