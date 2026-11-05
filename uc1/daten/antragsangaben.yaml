@@ -43,8 +43,9 @@ pensionstraeger:
   svs: SVS
 
 regeln:
-  # Datum nur mit Hinweis auf die Geburt im selben Satzteil („geboren am 01.02.1943“, „geb. 1.2.1943“).
-  geburtsdatum: '(?:geb(?:oren|\.)?|geburtsdatum)\D{0,12}?(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4})'
+  # Datum nur mit Hinweis auf die Geburt im selben Satzteil („geboren am 01.02.1943“, „geb. 1.2.1943“) oder
+  # direkt danach („ist am 12.03.1942 geboren“). Seit der Maskierung (#121) liefert nur noch die Regel das Datum.
+  geburtsdatum: '(?:geb(?:oren|\.)?|geburtsdatum)\D{0,12}?(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4})|(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4})\D{0,6}geboren'
   # Österreichische PLZ (4 Ziffern, 1010 bis 9992) und der Ort danach.
   plz_ort: '\b([1-9]\d{3})\s+([A-ZÄÖÜ][a-zäöüß]+(?:[ -][A-ZÄÖÜ][a-zäöüß]+)*)'
   strasse: '\b([A-ZÄÖÜ][\wäöüß.-]*(?:straße|strasse|gasse|platz|weg|allee|ring|zeile|gürtel|kai))\s+(\d+[a-z]?(?:\s?/\s?\d+){0,3})'

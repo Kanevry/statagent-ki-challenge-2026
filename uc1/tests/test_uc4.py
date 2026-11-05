@@ -104,7 +104,7 @@ def test_zwei_zahlen_server_setzt_zahlensaetze_und_prompt_verbietet_ziffern() ->
         )
 
     a = uc4.antwort(FRAGE, kontext(), modell=fn)
-    assert "keine Ziffern" in gesehen[0]
+    assert "weder als Ziffern noch als Wörter" in gesehen[0]
     assert a["text"].count("Tage.") == 2 and "19,6" in a["text"] and "23,1" in a["text"]
 
 
@@ -206,3 +206,65 @@ def test_vorzeichen_der_zahl_zaehlt() -> None:
     assert "+0,5" not in a["text"] and "-0,5" in a["text"]
     a = uc4.antwort(FRAGE, ktx, modell=modell_mit("Die Wartezeit änderte sich um -0,5 Tage."))
     assert a["text"].startswith("Die Wartezeit änderte sich um -0,5 Tage.")
+
+
+# ---------------------------------------------------------------- /uc4-Probelauf Szene 8 (E0)
+
+WIEN = {
+    "uc": "uc2",
+    "text": "Im März 2025 gab es in Wien im Gesundheits- und Sozialwesen 7.498 Beschäftigungsverhältnisse.",
+    "belege": [
+        {"uc": "uc3", "quelle": "Demo-Statistik (erfunden)"},
+        {"uc": "uc2", "quelle": "Demo (erfunden)"},
+    ],
+    "zahlen": [
+        {
+            "bezeichnung": "Beschäftigungsverhältnisse (Wien, Gesundheits- und Sozialwesen)",
+            "wert": 7498,
+            "einheit": "Anzahl",
+            "beleg": 0,
+        },
+        {
+            "bezeichnung": "Beschäftigungsverhältnisse (Wien, Gesundheits- und Sozialwesen)",
+            "wert": 7498,
+            "einheit": "Anzahl",
+            "beleg": 1,
+        },
+    ],
+}
+FRAGE_WIEN = "Wie viele Menschen arbeiten im März 2025 in Wien im Gesundheits- und Sozialwesen?"
+
+
+@pytest.mark.parametrize(
+    "satz",
+    [
+        "In Wien arbeiten sieben tausend vierhundert achtundneunzig Menschen in diesem Bereich.",
+        "Es sind fast siebentausendfünfhundert Stellen.",
+        "Das sind zwei Zahlen aus der Statistik.",
+        "About seven thousand people work there.",
+    ],
+)
+def test_zahl_als_wort_faellt_weg(satz: str) -> None:
+    """Fängt den /uc4-Probelauf: Ab zwei Zahlen durfte das Modell keine Ziffern schreiben und schrieb die Zahl
+    als Wörter („sieben tausend vierhundert achtundneunzig“), ungeprüft gegen den Kontext."""
+    a = uc4.antwort(FRAGE_WIEN, WIEN, modell=modell_mit("Viele Menschen arbeiten im Gesundheitswesen.", satz))
+    assert satz not in a["text"] and a["text"].startswith("Viele Menschen arbeiten im Gesundheitswesen.")
+
+
+@pytest.mark.parametrize("satz", ["Das ist eine große Zahl.", "Ein Teil davon arbeitet in Spitälern."])
+def test_ein_und_eine_sind_kein_zahlwort(satz: str) -> None:
+    """Fängt eine Zahlwortprüfung, die schon „ein“ oder „eine“ als Zahl liest und jeden Satz verwirft."""
+    a = uc4.antwort(FRAGE_WIEN, WIEN, modell=modell_mit(satz))
+    assert a["text"].startswith(satz)
+
+
+def test_gleiche_zahl_aus_zwei_ucs_steht_einmal_ohne_einheit_anzahl() -> None:
+    """Fängt den doppelten Satz „Beschäftigungsverhältnisse (…): 7.498 Anzahl.“, wenn UC3 und UC2 dieselbe
+    Zahl liefern, und die Einheit „Anzahl“ als Wort im Satz. ``zahlen`` und ``belege`` bleiben (AC #107)."""
+    a = uc4.antwort(FRAGE_WIEN, WIEN, modell=modell_mit("Viele Menschen arbeiten im Gesundheitswesen."))
+    assert a["text"] == (
+        "Viele Menschen arbeiten im Gesundheitswesen. "
+        "Beschäftigungsverhältnisse (Wien, Gesundheits- und Sozialwesen): 7.498."
+    )
+    assert [(z["wert"], z["beleg"]) for z in a["zahlen"]] == [(7498, 0), (7498, 1)]
+    assert len(a["belege"]) == 2
