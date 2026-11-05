@@ -5,6 +5,7 @@ Laufen auch in CI. ``_bibliothek`` liefert gefälschte Module (sentence_transfor
 """
 
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -167,6 +168,19 @@ def test_mps_ohne_grenze_und_unbekanntes_geraet_starten_nicht(umgebung, monkeypa
     with pytest.raises(ValueError, match=meldung):
         embeddings.einbetten(["1"], zweck="test")
     assert umgebung.geladen == []
+
+
+def test_mps_untergrenze_folgt_der_oberen(umgebung, monkeypatch):
+    """Fängt: torch bricht mit „invalid low watermark ratio 1.4“ ab, wenn nur die obere Grenze gesetzt ist."""
+    monkeypatch.setenv("EMBEDDINGS_GERAET", "mps")
+    monkeypatch.setenv("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "0.7")
+    monkeypatch.delenv("PYTORCH_MPS_LOW_WATERMARK_RATIO", raising=False)
+    embeddings.einbetten(["1"], zweck="test")
+    assert os.environ["PYTORCH_MPS_LOW_WATERMARK_RATIO"] == "0.7"
+
+    monkeypatch.setenv("PYTORCH_MPS_LOW_WATERMARK_RATIO", "0.9")
+    with pytest.raises(ValueError, match="LOW_WATERMARK"):
+        embeddings.einbetten(["1"], zweck="test")
 
 
 def test_geraete_cache_wird_je_scheibe_geleert(umgebung, monkeypatch):

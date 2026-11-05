@@ -20,7 +20,7 @@ Umgebung (falsche Werte sind ein ``ValueError`` vor dem Laden):
 - ``EMBEDDINGS_REVISION``: Standard ``REVISION_STANDARD``.
 - ``EMBEDDINGS_GERAET``: ``cpu`` (Standard), ``cuda`` oder ``mps``. ``mps`` nur zusammen mit
   ``PYTORCH_MPS_HIGH_WATERMARK_RATIO`` (> 0, vor dem Prozessstart gesetzt), damit der Grafikspeicher
-  begrenzt ist.
+  begrenzt ist. Fehlt ``PYTORCH_MPS_LOW_WATERMARK_RATIO``, setzt das Modul es auf die obere Grenze.
 - ``EMBEDDINGS_STAPEL``: Texte je Vorwärtslauf, Standard 16, erlaubt 1 bis 256.
 - ``EMBEDDINGS_MAX_TOKEN``: Token je Text, Standard 2048, erlaubt 1 bis 8192 (``KONTEXT``). Längere Texte
   schneidet das Modell ab; was danach steht, geht nicht in den Vektor ein.
@@ -77,6 +77,10 @@ SCHEIBE = 256
 #: Erlaubte Werte für ``EMBEDDINGS_GERAET``.
 GERAETE = ("cpu", "cuda", "mps")
 _MPS_GRENZE = "PYTORCH_MPS_HIGH_WATERMARK_RATIO"
+#: torch verlangt untere Grenze ≤ obere; ihr Standard (1,4 auf Apple Silicon) liegt über üblichen oberen
+#: Grenzen wie 0,7, dann bricht torch beim ersten mps-Tensor ab („invalid low watermark ratio“, m5, 05.11.).
+_MPS_UNTERGRENZE = "PYTORCH_MPS_LOW_WATERMARK_RATIO"
+_MPS_UNTERGRENZE_STANDARD = 1.4
 _LADEN_BEFEHL = "uv run python -m plattform.embeddings laden"
 _BEDINGUNGEN = "Gemma Terms of Use: https://ai.google.dev/gemma/terms"
 #: Nur Text: Bild- und Audio-Encoder werden nicht geladen (740M → 271M Parameter, laut Modellkarte).
@@ -158,7 +162,27 @@ def _geraet_wunsch() -> str:
                 f"EMBEDDINGS_GERAET=mps braucht {_MPS_GRENZE} > 0 (z. B. 0.7), gesetzt vor dem Start des "
                 "Prozesses; ohne Grenze belegt mps womöglich den ganzen Speicher. Sonst cpu nehmen."
             )
+        _mps_untergrenze(float(grenze))
     return geraet
+
+
+def _mps_untergrenze(obere: float) -> None:
+    """Setzt die untere mps-Grenze auf die obere, wenn sie fehlt und ihr torch-Standard darüber läge.
+
+    Läuft vor dem ersten mps-Tensor (torch liest beide Werte, wenn der mps-Speicher angelegt wird). Eine
+    gesetzte untere Grenze über der oberen ist ein Fehler, kein stilles Anpassen.
+    """
+    roh = os.environ.get(_MPS_UNTERGRENZE, "").strip()
+    if not roh:
+        if obere < _MPS_UNTERGRENZE_STANDARD:
+            os.environ[_MPS_UNTERGRENZE] = repr(obere)
+        return
+    try:
+        untere = float(roh)
+    except ValueError:
+        untere = -1.0
+    if not 0 < untere <= obere:
+        raise ValueError(f"{_MPS_UNTERGRENZE}={roh!r} ungültig; erlaubt: > 0 und ≤ {_MPS_GRENZE} ({obere})")
 
 
 def _ganzzahl(variable: str, standard: int, hoechstens: int) -> int:
