@@ -1,0 +1,466 @@
+# Prüfsätze Plattform (E6 Abgabe, UC4). Vorschläge von b-abnahme-30/agent-e6-uc4 05.11. 17:5x, gesichtet von
+# b-abnahme-30 (92-1: Ministeriums-CSV muss im Manifest stehen, nicht im Repo; Owner-Entscheid).
+
+# Prüfsatz-Vorschläge E6 Abgabe (27-1, 27-AC1, 91-x, 92-x) und UC4 (95-x bis 98-x).
+# Erzeugt 05.11.2026 von b-abnahme-30/messer-e6uc4, gemessen auf einem Abzug von main 77183ba.
+# art = "hand": kein Befehl, ein Mensch prüft die Beschreibung. schwer = true: Datenbank, Docker, Browser oder Prüfrechner.
+
+# ---------------------------------------------------------------- E6 Abgabe
+
+[[pruefung]]
+id = "27-1"
+hash = "b71e3a1f94"
+art = "hand"
+deckung = "voll"
+beschreibung = "Der Lead liest abgabe/CHECKLISTE.md Punkt für Punkt gegen die Aufgabenstellung (Use Case 3 StatAgent, Abschnitt Abgabe) und gegen das Repo und vermerkt in der Checkliste Namen, Zeitpunkt und Ergebnis der Gegenprüfung. Maschinell prüfbar ist nur, dass die Datei existiert (siehe 27-AC1)."
+quelle = "Issue #27, Titel des Kriteriums"
+befund = "Es gibt keine abgabe/CHECKLISTE.md und keinen Vermerk einer Gegenprüfung durch den Lead."
+grund = "Der Lead hat die Checkliste gegengeprüft und mit Namen und Zeit vermerkt."
+
+[[pruefung]]
+id = "27-AC1"
+hash = "747297f356"
+befehl = '''test -s abgabe/CHECKLISTE.md || { echo "CHECKLISTE fehlt"; exit 1; }; for k in "Freeze" "07:00" "09:00" "GitHub"; do echo "$k $(grep -c "$k" abgabe/CHECKLISTE.md)"; done; echo "erledigt_mail_yaml $(grep -E '^- \[x\]' abgabe/CHECKLISTE.md | grep -ciE 'mail|yaml')"; echo "offen_mail_yaml $(grep -E '^- \[ \]' abgabe/CHECKLISTE.md | grep -ciE 'mail|yaml' || true)"; echo "github_neben_0900 $(grep -cE 'GitHub.*09:00|09:00.*GitHub' abgabe/CHECKLISTE.md)"'''
+erwartet = ["^Freeze [1-9]", "^07:00 [1-9]", "^09:00 [1-9]", "^GitHub [1-9]", "^erledigt_mail_yaml [2-9]", "^offen_mail_yaml 0$", "^github_neben_0900 [1-9]"]
+deckung = "voll"
+schwer = false
+zeitlimit = 30
+befund_art = "fehlt"
+quelle = "Issue #27 Kriterium AC1 (Wortlaut); Freeze 07:00 und Abgabe 09:00 laut Aufgabenstellung"
+befund = "abgabe/CHECKLISTE.md fehlt oder nennt Freeze 07:00, Abgabe 09:00, den GitHub-Push vor 09:00 oder die erledigten Mail- und YAML-Punkte nicht."
+grund = "Die Checkliste nennt Freeze 07:00 und Abgabe 09:00, hängt den GitHub-Push an 09:00 und hat Mail und YAML als erledigt, ohne offene Mailaufgabe."
+
+# --- 91-1: README
+
+[[pruefung]]
+id = "91-1"
+hash = "fa351bccf5"
+befehl = '''uv run --isolated --package plattform python -I -c '
+import re
+t = open("README.md", encoding="utf-8").read()
+P = ["Lösung und Ansatz", "Ausführung", "Abhängigkeiten und Voraussetzungen", "Konfiguration", "Grenzen und offene Punkte", "Vorab Entstandenes", "Lizenzen"]
+ok = 0
+for p in P:
+    m = re.search(r"^## " + re.escape(p) + r"\n(.*?)(?=^## |\Z)", t, re.S | re.M)
+    if m and len([z for z in m.group(1).splitlines() if z.strip()]) >= 3:
+        ok += 1
+print("readme_abschnitte", ok)
+r = open("docs/abgabe/readme-pruefung.md", encoding="utf-8").read()
+links = set(re.findall(r"README\.md#([^)\]]+)", r))
+print("pruefung_links", sum(1 for p in P if p.lower().replace(" ", "-") in links))
+print("pruefung_7von7", "7 von 7" in r or "7/7" in r)
+'; test -f .env.example && echo "env_example da"; timeout 150 uv run --isolated --package statagent statagent lauf --help >/dev/null 2>&1; echo "lauf_hilfe_exit $?"'''
+erwartet = ["^readme_abschnitte 7$", "^pruefung_links 7$", "^pruefung_7von7 True$", "^env_example da$", "^lauf_hilfe_exit 0$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 170
+quelle = "Issue #91 Kriterium (Wortlaut): 7 Pflichtabschnitte, readme-pruefung.md mit 7/7 und Abschnittslink"
+befund = "Im README fehlt einer der sieben Pflichtabschnitte oder er hat weniger als drei Zeilen, oder readme-pruefung.md führt nicht 7/7 mit Abschnittslinks."
+grund = "Alle sieben Pflichtabschnitte stehen im README mit Inhalt, readme-pruefung.md verlinkt alle sieben und meldet 7/7; die Start-Hilfe läuft mit Exit 0."
+
+[[pruefung]]
+id = "91-1"
+hash = "fa351bccf5"
+befehl = '''uv run --isolated --package plattform python -I -c '
+import re
+t = open("README.md", encoding="utf-8").read()
+P = ["Lösung und Ansatz", "Ausführung", "Abhängigkeiten und Voraussetzungen", "Konfiguration", "Grenzen und offene Punkte", "Vorab Entstandenes", "Lizenzen"]
+ok = sum(1 for p in P if (m := re.search(r"^## " + re.escape(p) + r"\n(.*?)(?=^## |\Z)", t, re.S | re.M)) and len([z for z in m.group(1).splitlines() if z.strip()]) >= 3)
+print("readme_abschnitte", ok)
+r = open("docs/abgabe/readme-pruefung.md", encoding="utf-8").read()
+print("pruefung_7von7", "7 von 7" in r or "7/7" in r)
+'; bash tests/abnahme/66_readme_weg.sh'''
+erwartet = ["^readme_abschnitte 7$", "^pruefung_7von7 True$", "lauf_alle_exit=0", "^laeufe=24$", "^== ende$"]
+deckung = "voll"
+schwer = true
+zeitlimit = 2400
+quelle = "Issue #91 Kriterium (Wortlaut); der Start- und Beispiellauf in frischer Umgebung ist der README-Weg aus #66"
+befund = "Entweder fehlt ein README-Pflichtabschnitt, oder der im README beschriebene Beispiellauf (uc3 lauf --alle auf frischer Prüf-DB) endet nicht mit Exit 0 und 24 Läufen."
+grund = "7 von 7 Pflichtabschnitte vorhanden und der README-Weg läuft auf frischer Datenbank mit Exit 0 und 24 Läufen durch."
+
+# --- 91-2: Herkunft und Lizenz
+
+[[pruefung]]
+id = "91-2"
+hash = "777e5767bb"
+befehl = '''uv run --isolated --package plattform python -I -c '
+h = open("docs/abgabe/herkunft.md", encoding="utf-8").read()
+rows = [z for z in h.splitlines() if z.startswith("| ") and not z.startswith("| Komponente")]
+cells = [z.strip().strip("|").split("|") for z in rows]
+print("zeilen_mindestens_10", len(rows) >= 10)
+print("alle_6_spalten", all(len(c) == 6 for c in cells))
+print("leere_zellen", sum(1 for c in cells for x in c if not x.strip()))
+print("einordnung_gueltig", all(c[-1].strip().startswith(("neu", "vorab", "Konzept", "extern")) for c in cells))
+print("everlast_ausdruecklich", sum(1 for z in rows if "everlast" in z and "kein Code übernommen" in z))
+print("owner_entscheid_datum", "Owner-Entscheid" in h and "05.11.2026" in h)
+lic = open("LICENSE", encoding="utf-8").read()
+r = open("README.md", encoding="utf-8").read()
+print("license_mit", lic.startswith("MIT License"))
+print("readme_nennt_mit_und_dv", "MIT-Lizenz" in r and "Dachverband" in r)
+print("keine_andere_lizenzname", "GPL" not in r.split("## Lizenzen")[1].split("## ")[0])
+'; git ls-files --error-unmatch LICENSE'''
+erwartet = ["^zeilen_mindestens_10 True$", "^alle_6_spalten True$", "^leere_zellen 0$", "^einordnung_gueltig True$", "^everlast_ausdruecklich 1$", "^owner_entscheid_datum True$", "^license_mit True$", "^readme_nennt_mit_und_dv True$", "^keine_andere_lizenzname True$", "^LICENSE$"]
+deckung = "voll"
+schwer = false
+zeitlimit = 120
+quelle = "Issue #91 Kriterium (Wortlaut): Spalten der Herkunftstabelle, everlast ausdrücklich, LICENSE mit Owner-Entscheid und README-Angabe"
+befund = "docs/abgabe/herkunft.md hat eine Zeile mit leerer Spalte oder ungültiger Einordnung, nennt everlast nicht ausdrücklich, oder LICENSE und README widersprechen sich."
+grund = "Jede Zeile der Herkunftstabelle ist ausgefüllt, everlast steht mit 'kein Code übernommen', LICENSE (MIT) ist mit Owner-Entscheid belegt und das README nennt sie."
+
+[[pruefung]]
+id = "91-2"
+hash = "777e5767bb"
+art = "hand"
+deckung = "teil"
+beschreibung = "Ein Mensch (Owner) prüft, ob die Zeile 'nicht einzeln geprüft: übrige Python- und npm-Pakete aus den Lockfiles' in docs/abgabe/herkunft.md reicht, damit '0 ungeklärte Rechtepositionen' stimmt, und dass keine OSS-Lizenz erfunden wurde, wo der Owner nur die MIT-Wahl und die DV-Nutzungsregel entschieden hat."
+quelle = "Issue #91 Kriterium (Wortlaut), Satz '0 ungeklärte Rechtepositionen vor Veröffentlichung'"
+befund = "Die Lockfile-Pakete sind laut herkunft.md nicht einzeln geprüft; ob das als geklärt gilt, entscheidet der Owner."
+grund = "Der Owner bestätigt, dass keine Rechteposition offen ist."
+
+# --- 91-3: Modellangaben
+
+[[pruefung]]
+id = "91-3"
+hash = "0b11f80af0"
+befehl = '''for k in "gpt-5.4-mini" "gpt-5-4-mini" "Mistral" "10 €" "Ollama" "Opus 5.5" "embeddinggemma-2" "Vapi" "LLM_PROVIDER=mock"; do echo "$k $(grep -c -- "$k" README.md)"; done; echo "abgabe_modelle_azure $(grep -c 'gpt-5.4-mini' abgabe/modelle.md)"; echo "fremde_gpt_namen $(cat README.md abgabe/modelle.md docs/abgabe/readme-pruefung.md | grep -cE 'gpt-4|gpt-5\.[0-35-9]|gpt-5-mini|gpt-5\.4-nano' || true)"; echo "geheime_werte $(cat README.md abgabe/modelle.md docs/models.md .env.example | grep -cE '(sk-[A-Za-z0-9]{20,}|API_KEY=[A-Za-z0-9]{8,}|[A-Za-z0-9]{40,})' || true)"; echo "widersprueche_null $(grep -c '0 Widersprüche' docs/abgabe/readme-pruefung.md)"'''
+erwartet = ["^gpt-5.4-mini [1-9]", "^gpt-5-4-mini [1-9]", "^Mistral [1-9]", "^10 € [1-9]", "^Ollama [1-9]", "^Opus 5.5 [1-9]", "^embeddinggemma-2 [1-9]", "^Vapi [1-9]", "^LLM_PROVIDER=mock [1-9]", "^abgabe_modelle_azure [1-9]", "^fremde_gpt_namen 0$", "^geheime_werte 0$", "^widersprueche_null [1-9]"]
+deckung = "teil"
+schwer = false
+zeitlimit = 30
+quelle = "Issue #91 Kriterium (Wortlaut) und docs/models.md als Modell-SSOT"
+befund = "Im README fehlt eine der geforderten Modellangaben (Azure gpt-5.4-mini, Deployment gpt-5-4-mini, Mistral 10 €, Ollama, Claude Opus 5.5, embeddinggemma-2), oder es stehen widersprüchliche Modellnamen oder geheime Werte in den Dokumenten."
+grund = "Alle geforderten Modellangaben stehen im README, die Abgabe-Modellangabe nennt dasselbe Standardmodell, es gibt keine fremden GPT-Namen und keine geheimen Werte, readme-pruefung.md meldet 0 Widersprüche."
+
+[[pruefung]]
+id = "91-3"
+hash = "0b11f80af0"
+art = "hand"
+deckung = "teil"
+beschreibung = "Ein Mensch prüft, dass die im README ausgewiesenen Modelle der tatsächlichen Nutzung entsprechen (Mistral und Ollama wirklich genutzt oder ehrlich als nur vorgesehen benannt; Voice: nur ausweisen, was gebaut ist, #61) und dass der Abschnitt über Produktionsbetrieb ohne LLM und die Grenzen externer Voice-Dienste (Vapi, US-Dienst) für einen Laien verständlich sind."
+quelle = "Issue #91 Kriterium (Wortlaut): 'nach tatsächlicher Nutzung ausgewiesen', 'Grenzen externer Voice-Dienste erläutert'"
+befund = "Ob die Modellangaben der tatsächlichen Nutzung entsprechen, lässt sich nur mit Kenntnis des Betriebs beurteilen."
+grund = "Ein Mensch bestätigt, dass die Angaben zur Nutzung stimmen und die Grenzen der Voice-Dienste erklärt sind."
+
+# --- 92: Abgabepaket
+
+[[pruefung]]
+id = "92-1"
+hash = "02151f5061"
+befehl = '''echo "manifest_ministerium $(grep -c ministerium_2026-07.csv docs/abgabe/manifest.json 2>/dev/null || echo 0)"; echo "checkliste_ministerium $(grep -c ministerium_2026-07.csv abgabe/CHECKLISTE.md 2>/dev/null || echo 0)"; for f in abgabe/CHECKLISTE.md docs/abgabe/manifest.json abgabe/aggregationen_v1.xlsx abgabe/aggregationen_v2.xlsx abgabe/protokoll.md abgabe/modelle.md; do test -s "$f" && echo "da $f" || echo "fehlt $f"; done; echo "berichte $(ls abgabe/qualitaetsberichte | grep -c '^20[0-9][0-9]-[0-9][0-9]\.md$')"; echo "manifest_berichte $(grep -o 'qualitaetsberichte/20[0-9-]*\.md' docs/abgabe/manifest.json 2>/dev/null | sort -u | wc -l | tr -d ' ')"; echo "manifest_sha256 $(grep -o 'sha256' docs/abgabe/manifest.json 2>/dev/null | wc -l | tr -d ' ')"; echo "checkliste_erledigt $(grep -cE '^- \[x\]' abgabe/CHECKLISTE.md 2>/dev/null)"; echo "checkliste_offen $(grep -cE '^- \[ \]' abgabe/CHECKLISTE.md 2>/dev/null)"; timeout 150 uv run --isolated --package statagent statagent pruefe-abgabe >/dev/null 2>&1; echo "pruefe_abgabe_exit $?"'''
+erwartet = ["^da abgabe/CHECKLISTE.md$", "^da docs/abgabe/manifest.json$", "^manifest_ministerium [1-9]", "^checkliste_ministerium [1-9]", "^da abgabe/aggregationen_v1.xlsx$", "^da abgabe/aggregationen_v2.xlsx$", "^da abgabe/protokoll.md$", "^da abgabe/modelle.md$", "^berichte 24$", "^manifest_berichte 24$", "^manifest_sha256 (29|[3-9][0-9]|[1-9][0-9][0-9])$", "^checkliste_erledigt [5-9]$", "^checkliste_offen 0$", "^pruefe_abgabe_exit 0$"]
+deckung = "voll"
+schwer = false
+zeitlimit = 170
+gegenprobe = '''ls abgabe/qualitaetsberichte | grep -c '^20[0-9][0-9]-[0-9][0-9]\.md$' | grep -c '^25$' '''
+quelle = "Issue #92 Kriterium (Wortlaut); Aufgabenstellung Use Case 3 StatAgent, Abschnitt Abgabe (24 Berichte, Sheet alt und neu, Ministeriums-Lieferung, Protokoll, Modellangabe)"
+befund = "Im Abgabepaket fehlen abgabe/CHECKLISTE.md, docs/abgabe/manifest.json, aggregationen_v2.xlsx und ministerium_2026-07.csv; statagent pruefe-abgabe endet mit Exit 1."
+grund = "Alle Abgabedateien und das Manifest mit SHA-256 sind da, 24 Berichte sind verzeichnet, pruefe-abgabe meldet Exit 0, die Checkliste hat alle Gruppen bestätigt."
+
+[[pruefung]]
+id = "92-1"
+hash = "02151f5061"
+befehl = '''timeout 150 uv run --isolated --package statagent statagent pruefe-abgabe 2>&1 | grep -E '^\[(ok|fehlt)\]|^Abgabe'; echo "exit ${PIPESTATUS[0]}"'''
+erwartet = ["^Abgabe vollständig\\.$", "^exit 0$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 170
+befund_art = "fehlt"
+quelle = "Issue #92 Kriterium: statagent pruefe-abgabe meldet Exit 0"
+befund = "statagent pruefe-abgabe meldet fehlende Dateien (Qualitätsbericht-Vorlage, Ministeriums-Lieferung 2026-07, Aggregations-Sheet v2) und endet mit Exit 1."
+grund = "Die UC3-Abgabeprüfung findet alle Dateien und endet mit Exit 0."
+
+[[pruefung]]
+id = "92-2"
+hash = "1a36c858a7"
+befehl = '''timeout 150 gitleaks detect --source . --log-opts="--all" --redact --no-banner --report-format json --report-path - 2>&1 | grep -c 'no leaks found' ; echo "dateiliste $(git ls-files | grep -cE '(^|/)\.env\.local$|\.pem$|\.p12$|id_rsa|\.key$|^svbox/' || true)"; echo "checkliste_gitleaks $(grep -ci 'gitleaks' abgabe/CHECKLISTE.md 2>/dev/null)"'''
+erwartet = ["^1$", "^dateiliste 0$", "^checkliste_gitleaks [1-9]$"]
+deckung = "voll"
+schwer = false
+zeitlimit = 170
+quelle = "Issue #92 Kriterium (Wortlaut): gitleaks über die gesamte Historie, Dateiliste ohne .env.local und Schlüsseldateien, Checkliste verweist auf den Bericht"
+befund = "Die Checkliste (abgabe/CHECKLISTE.md) existiert nicht und verweist daher nicht auf den gitleaks-Bericht; gitleaks selbst und die Dateiliste sind sauber."
+grund = "gitleaks findet in der ganzen Historie 0 Befunde, kein .env.local oder Schlüssel ist versioniert, die Checkliste verweist auf den Bericht."
+
+[[pruefung]]
+id = "92-2"
+hash = "1a36c858a7"
+befehl = '''timeout 150 gitleaks detect --source . --log-opts="--all" --redact --no-banner --report-format json --report-path - 2>&1 | grep -E 'commits scanned|no leaks found|leaks found' '''
+erwartet = ["commits scanned", "no leaks found"]
+deckung = "teil"
+schwer = false
+zeitlimit = 170
+quelle = "Issue #92 Kriterium: gitleaks über --all, 0 Befunde"
+befund = "gitleaks findet Geheimnisse in der Historie."
+grund = "gitleaks meldet über alle Commits 'no leaks found'."
+
+[[pruefung]]
+id = "92-2"
+hash = "1a36c858a7"
+art = "hand"
+deckung = "teil"
+beschreibung = "Ein Mensch geht die Dateiliste des Abgabe- und Push-Satzes (git ls-files) durch und bestätigt, dass kein unfreigegebenes Dokument darin liegt (zum Beispiel interne Pläne, Mails, Personendaten, Ministeriums-CSV mit PERSON_ID). Der gitleaks-Bericht liegt außerhalb des Repos und wird von der Checkliste nur genannt."
+quelle = "Issue #92 Kriterium (Wortlaut): 'unfreigegebene Dokumente im Abgabe-/Push-Satz'"
+befund = "Ob ein Dokument freigegeben ist, kann nur der Owner beurteilen."
+grund = "Der Owner bestätigt die Dateiliste."
+
+[[pruefung]]
+id = "92-3"
+hash = "66362f50d5"
+befehl = '''test -s docs/abgabe/transfernachweis.json || { echo "transfernachweis fehlt"; exit 1; }; uv run --isolated --package plattform python -I -c '
+import json
+d = json.load(open("docs/abgabe/transfernachweis.json", encoding="utf-8"))
+print("differenzen", d.get("differenzen"))
+print("anzahl_positiv", isinstance(d.get("anzahl"), int) and d["anzahl"] > 0)
+print("zeit_da", bool(d.get("zeit")))
+t = json.dumps(d).lower()
+print("credentials", sum(t.count(w) for w in ("password", "passwort", "token", "secret", "apikey")))
+' '''
+erwartet = ["^differenzen 0$", "^anzahl_positiv True$", "^zeit_da True$", "^credentials 0$"]
+deckung = "teil"
+schwer = false
+zeitlimit = 60
+befund_art = "fehlt"
+quelle = "Issue #92 Kriterium (Wortlaut): transfernachweis.json mit Zeit, Anzahl, 0 Differenzen, ohne Credentials. Feldnamen zeit, anzahl, differenzen sind eine Annahme der Abnahme."
+befund = "docs/abgabe/transfernachweis.json fehlt; der Upload in den SV-Box-Teamordner ist noch nicht erfolgt oder nicht nachgewiesen."
+grund = "Der Transfernachweis liegt vor, nennt Zeit und Anzahl, 0 Differenzen und keine Zugangsdaten."
+
+[[pruefung]]
+id = "92-3"
+hash = "66362f50d5"
+art = "hand"
+deckung = "voll"
+beschreibung = "Nach dem vom Owner freigegebenen Upload: Ein Mensch liest die Dateiliste des zugewiesenen SV-Box-Teamordners zurück, vergleicht relative Pfade und Größen mit docs/abgabe/manifest.json (100 %), lädt alle Abgabedateien herunter und vergleicht die SHA-256-Werte, und prüft, dass die Zeit im Transfernachweis spätestens Fr 06.11.2026 09:00 liegt. Nur über SV-Box möglich, nicht automatisierbar."
+quelle = "Issue #92 Kriterium (Wortlaut), Aufgabenstellung Use Case 3 StatAgent, Abschnitt Abgabe"
+befund = "Der SV-Box-Upload ist nicht zurückgelesen; ohne Upload gibt es nichts zu vergleichen."
+grund = "Pfade, Größen und SHA-256 stimmen für alle Abgabedateien, der Upload liegt vor 09:00 im Teamordner."
+
+[[pruefung]]
+id = "92-4"
+hash = "35cf27f5e4"
+befehl = '''test -s abgabe/CHECKLISTE.md || { echo "CHECKLISTE fehlt"; exit 1; }; echo "ziel $(grep -c 'KIChallenge/OneShotAndy' abgabe/CHECKLISTE.md)"; echo "branch_commit $(grep -ciE 'branch|commit' abgabe/CHECKLISTE.md)"; echo "zeitpunkt $(grep -cE '0[0-9]:[0-9][0-9]' abgabe/CHECKLISTE.md)"'''
+erwartet = ["^ziel [1-9]", "^branch_commit [1-9]", "^zeitpunkt [1-9]"]
+deckung = "teil"
+schwer = false
+zeitlimit = 30
+befund_art = "fehlt"
+quelle = "Issue #92 Kriterium (Wortlaut): Push-Vorbereitung mit Ziel, Branch, lokalem Commit und Zeitpunkt. Annahme der Abnahme: die Vorbereitung steht in abgabe/CHECKLISTE.md."
+befund = "Es gibt keine dokumentierte Push-Vorbereitung (Ziel KIChallenge/OneShotAndy, Branch, Commit, Zeitpunkt), die Checkliste fehlt."
+grund = "Die Push-Vorbereitung ist dokumentiert: Ziel, Branch, lokaler Commit und Zeitpunkt kurz vor 09:00."
+
+[[pruefung]]
+id = "92-4"
+hash = "35cf27f5e4"
+art = "hand"
+deckung = "voll"
+beschreibung = "Nach dem vom Owner ausdrücklich freigegebenen Push (nicht früher, Fr 06.11.2026 vor 09:00): Ein Mensch führt 'git ls-remote <github-remote> <branch>' aus und vergleicht den Commit mit 'git rev-parse HEAD' des Abgabestands; beide müssen gleich sein. Zeit, Commit und Ergebnis stehen im Nachweis. README, Code und Ausführungsdateien liegen in diesem Commit. Vorher darf es auf GitHub keinen Push geben (kein früher Push)."
+quelle = "Issue #92 Kriterium (Wortlaut)"
+befund = "Der GitHub-Push ist nicht freigegeben und nicht erfolgt; der Vergleich lokaler und entfernter Commit ist noch nicht möglich."
+grund = "git ls-remote zeigt denselben Commit wie lokal, Nachweis mit Zeit vor 09:00."
+
+# ---------------------------------------------------------------- UC4
+
+[[pruefung]]
+id = "95-1"
+hash = "14403b6257"
+befehl = '''for f in shared/ui/src/antwortform.ts shared/py/plattform/antwortform.py shared/py/plattform/router.py web/app/uc4/page.tsx web/app/api/uc4/frage/route.ts; do test -s "$f" && echo "da $f"; done; timeout 170 uv run --isolated --package plattform --with pytest pytest -q -p no:cacheprovider shared/py/tests/uc4 2>&1 | tail -1; timeout 150 pnpm --dir shared/ui exec vitest --run tests/antwortform.test.ts 2>&1 | grep -E 'Tests.*passed|Tests.*failed'; timeout 150 pnpm --dir web exec vitest --run components/uc4/einstieg.test.tsx 2>&1 | grep -E 'Tests.*passed|Tests.*failed' '''
+erwartet = ["^da shared/ui/src/antwortform\\.ts$", "^da shared/py/plattform/antwortform\\.py$", "^da shared/py/plattform/router\\.py$", "^da web/app/uc4/page\\.tsx$", "^da web/app/api/uc4/frage/route\\.ts$", "^\\d+ passed", "Tests\\s+\\d+ passed"]
+deckung = "voll"
+schwer = false
+zeitlimit = 500
+quelle = "Issue #95 Aufgabe E0 (Wortlaut); Testzahlen aus der Messung 05.11.2026 (pytest shared/py/tests/uc4, Vitest antwortform und einstieg)"
+befund = "Antwortform (TypeScript oder Python), Router oder UC4-Route fehlt oder ihre Tests schlagen fehl."
+grund = "TypeScript-Typ, Python-Pendant, Router und /uc4 mit API-Route sind da und ihre Tests sind grün."
+
+[[pruefung]]
+id = "95-2"
+hash = "a50a4f2417"
+befehl = '''grep -c 'kic.uc_antwort' uc3/pyproject.toml; grep -c '^uc3 = "statagent.uc4:antwort"' uc3/pyproject.toml; timeout 170 uv run --isolated --package statagent --with pytest pytest -q -p no:cacheprovider uc3/tests/test_uc4.py -k "monat_lesen or importiert_kein_llm" 2>&1 | tail -1'''
+erwartet = ["^1$", "^1$", "^\\d+ passed"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #95 Aufgabe UC3 (Wortlaut); Issue #106"
+befund = "Der UC3-Adapter ist nicht als Entry-Point kic.uc_antwort/uc3 registriert oder die Monatserkennung und die LLM-Freiheit sind gebrochen."
+grund = "Der Adapter ist registriert, erkennt Monate und importiert kein Sprachmodell."
+
+[[pruefung]]
+id = "95-2"
+hash = "a50a4f2417"
+befehl = '''timeout 600 uv run --isolated --package statagent --with pytest pytest -q -p no:cacheprovider uc3/tests/test_uc4.py 2>&1 | tail -2'''
+erwartet = ["^\\d+ passed"]
+deckung = "voll"
+schwer = true
+zeitlimit = 700
+quelle = "Issue #95 Aufgabe UC3 (Wortlaut): liefert Zahlen mit Beleg; test_vertrag_ucantwort und test_auspraegung_gliederung_beleg_und_sql prüfen Zahl, Beleg und SQL gegen die Test-Datenbank"
+befund = "Der UC3-Adapter liefert eine Zahl ohne gültigen Beleg oder eine Zahl, die von der direkten Summe abweicht."
+grund = "Alle 12 Tests des Adapters sind grün, darunter Vertrag UcAntwort und Beleg-SQL gegen die Datenbank."
+
+[[pruefung]]
+id = "95-2"
+hash = "a50a4f2417"
+befehl = '''timeout 900 uv run python tests/abnahme/95_kette.py | tail -1 | grep -o '"router_ohne_fragetext": true'; echo "exit ${PIPESTATUS[0]}"'''
+erwartet = ["\"router_ohne_fragetext\": true", "^exit 0$"]
+deckung = "teil"
+schwer = true
+zeitlimit = 1000
+quelle = "docs/abnahme/95.md: Dreifachvergleich Zahl, eigene Abfrage, Beleg-SQL (14 von 14 am 05.11.2026 16:36); das Skript urteilt selbst nur über die Router-Protokolldatei, der Zahlenvergleich steht in der JSON-Zeile"
+befund = "Die Kette schreibt nicht je Frage drei Protokollzeilen ohne Fragetext, oder eine UC3-Zahl weicht von der eigenen Abfrage ab (siehe JSON-Zeile)."
+grund = "Router-Protokoll vollständig und ohne Fragetext; der Prüfer liest die Zahlenvergleiche aus der JSON-Zeile."
+
+[[pruefung]]
+id = "95-3"
+hash = "2568c1fa32"
+befehl = '''echo "entry_point $(grep -c 'kic.uc_antwort' uc2/pyproject.toml || true)"; echo "adapter_datei $(ls uc2/src/uc2 | grep -c '^uc4\.py$' || true)"; echo "adapter_test $(ls uc2/tests | grep -c 'uc4' || true)"'''
+erwartet = ["^entry_point 1$", "^adapter_datei 1$", "^adapter_test [1-9]"]
+deckung = "teil"
+schwer = false
+zeitlimit = 30
+befund_art = "fehlt"
+quelle = "Issue #95 Aufgabe UC2 (Wortlaut); Muster der Adapter von uc1 und uc3: Entry-Point kic.uc_antwort in der pyproject, Modul uc4.py, Test test_uc4.py. Dateinamen sind Annahme."
+befund = "uc2 hat keinen Adapter antwort() und keinen Entry-Point kic.uc_antwort; die Kette meldet uc2 als kein_adapter."
+grund = "uc2 registriert den Adapter, hat ein Modul und einen Test dafür."
+
+[[pruefung]]
+id = "95-4"
+hash = "72bf74de5d"
+befehl = '''grep -c 'kic.uc_antwort' uc1/pyproject.toml; timeout 170 uv run --isolated --package uc1 --with pytest pytest -q -p no:cacheprovider uc1/tests/test_uc4.py 2>&1 | tail -1'''
+erwartet = ["^1$", "^\\d+ passed"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+gegenprobe = '''timeout 170 uv run --isolated --package uc1 --with pytest pytest -q -p no:cacheprovider uc1/tests/test_uc4.py 2>&1 | tail -1 | grep -c '99 passed' '''
+quelle = "Issue #95 Aufgabe UC1 (Wortlaut); Issue #107. Der Test nutzt ein Mock-Modell, 'einfache Sprache' prüft er nur über die mittlere Satzlänge."
+befund = "Der UC1-Adapter ist nicht registriert, verändert Zahlen oder Belege der anderen UCs, oder die Tests schlagen fehl."
+grund = "UC1-Adapter ist registriert; Text und Zahlen aus UC2/UC3 kommen unverändert mit Beleg durch, die 22 Tests sind grün."
+
+[[pruefung]]
+id = "95-5"
+hash = "3ad1bd4dcc"
+befehl = '''abschnitt() { sed -n '/^### Optional D4/,/^## Rückfallstufen/p' docs/praesentation/demo-drehbuch.md; }; echo "d4_da $(abschnitt | grep -c 'D4 Gemeinsamer Einstieg')"; echo "wartezeiten $(abschnitt | grep -c 'Wartezeit')"; echo "erwartete_belege $(abschnitt | grep -ciE 'erwartete[rn]? Beleg')"; echo "erwartete_uc2_position $(abschnitt | grep -ciE 'erwartete[rn]? (UC2-)?Position')"; echo "erwarteter_uc1_text $(abschnitt | grep -ciE 'erwartete[rn]? (UC1-)?Text')"'''
+erwartet = ["^d4_da 1$", "^wartezeiten [1-9]", "^erwartete_belege [1-9]", "^erwartete_uc2_position [1-9]", "^erwarteter_uc1_text [1-9]"]
+deckung = "teil"
+schwer = false
+zeitlimit = 30
+quelle = "Issue #95 Zuschnitt Punkt 4: 'eine Frage, erwartete Belege, erwartete UC2-Position, erwarteter UC1-Text in einfacher Sprache; Orakel-Vergleich durch b2'"
+befund = "docs/praesentation/demo-drehbuch.md hat nur einen Optional-D4-Absatz mit der Frage; erwartete Belege, UC2-Position und UC1-Text als Abnahmekriterien fehlen."
+grund = "Das Drehbuch 'Wartezeiten' nennt zur Frage die erwarteten Belege, die UC2-Position und den UC1-Text."
+
+[[pruefung]]
+id = "95-6"
+hash = "91830eb585"
+befehl = '''grep -c 'name: "Gemeinsamer Einstieg"' web/landing/texte/inhalt.ts; grep -c 'route: "/uc4"' web/landing/texte/inhalt.ts; grep -c 'name: "Gemeinsamer Einstieg"' shared/ui/src/ucs.ts; timeout 170 pnpm --dir web exec vitest --run landing/sektionen/UseCases.test.tsx 2>&1 | grep -E 'Tests.*passed|Tests.*failed' '''
+erwartet = ["^1$", "^1$", "^1$", "Tests\\s+\\d+ passed"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #95 Aufgabe Landing (Wortlaut); Issue #58. Karte als verdeckter Eintrag 'Use Case 4'; der Link erscheint, sobald die Registry uc4 führt."
+befund = "Die Landing hat keine UC4-Karte 'Gemeinsamer Einstieg' oder die Registry führt uc4 nicht, sodass der Link auf /uc4 fehlt."
+grund = "Landing-Inhalt und Registry führen 'Gemeinsamer Einstieg' mit Route /uc4, die Vitest-Tests der Sektion sind grün."
+
+[[pruefung]]
+id = "96-1"
+hash = "0376a932ad"
+befehl = '''timeout 170 uv run --isolated --package plattform --with pytest pytest -p no:cacheprovider shared/py/tests/uc4/test_uc4_antwortform.py -v 2>&1 | grep -E 'test_schema_datei_aktuell_und_fixture_gueltig|test_zahl_mit_ungueltigem_beleg_index_wird_abgelehnt|passed|failed' '''
+erwartet = ["test_schema_datei_aktuell_und_fixture_gueltig PASSED", "test_zahl_mit_ungueltigem_beleg_index_wird_abgelehnt PASSED", "= \\d+ passed"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #96 Kriterium (Wortlaut): Fixture gültig, Zahl ohne gültigen Beleg-Index abgelehnt, eingechecktes Schema gleich erzeugtem Schema"
+befund = "Die Fixture ist nicht gültig, eine Zahl mit ungültigem Beleg-Index wird nicht abgelehnt, oder das eingecheckte JSON-Schema weicht vom erzeugten ab."
+grund = "Die pytest-Tests zu Fixture, Beleg-Index und Schema-Gleichheit sind grün."
+
+[[pruefung]]
+id = "96-2"
+hash = "068d05ac97"
+befehl = '''timeout 150 pnpm --dir shared/ui exec vitest --run tests/antwortform.test.ts --reporter=verbose 2>&1 | grep -E 'die Fixture erfüllt den Vertrag|weist eine Zahl mit ungültigem Beleg-Index ab|Tests.*passed|Tests.*failed' '''
+erwartet = ["✓.*die Fixture erfüllt den Vertrag", "✓.*weist eine Zahl mit ungültigem Beleg-Index ab", "Tests\\s+\\d+ passed"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #96 Kriterium (Wortlaut): zod-Typ validiert Fixture und lehnt Zahl ohne Beleg ab"
+befund = "Der zod-Typ akzeptiert die Fixture nicht oder lässt eine Zahl mit ungültigem Beleg-Index durch."
+grund = "Die Vitest-Tests zu Fixture und Beleg-Index sind grün."
+
+[[pruefung]]
+id = "97-1"
+hash = "659844fbe2"
+befehl = '''timeout 170 uv run --isolated --package plattform --with pytest pytest -p no:cacheprovider shared/py/tests/uc4/test_uc4_router.py -k "reihenfolge_und_uc2_sieht_uc3_zahl or schrittzeilen_in_eigener_datei_ohne_fragetext" -v 2>&1 | grep -E 'PASSED|FAILED|passed|failed' '''
+erwartet = ["test_reihenfolge_und_uc2_sieht_uc3_zahl PASSED", "test_schrittzeilen_in_eigener_datei_ohne_fragetext PASSED", "= \\d+ passed"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #97 Kriterium (Wortlaut): drei Mock-Adapter, Reihenfolge uc3, uc2, uc1, uc2 sieht Zahlen von uc3, drei Protokollzeilen ohne Fragetext"
+befund = "Der Router ruft die Adapter nicht in der Reihenfolge uc3, uc2, uc1, uc2 sieht die UC3-Zahlen nicht, oder das Protokoll enthält den Fragetext."
+grund = "Beide Router-Tests sind grün."
+
+[[pruefung]]
+id = "97-2"
+hash = "ba0298b9d2"
+befehl = '''timeout 170 uv run --isolated --package plattform --with pytest pytest -p no:cacheprovider shared/py/tests/uc4/test_uc4_router.py -k "fehlender_oder_kaputter_adapter_steht_mit_grund_in_fehlend" -v 2>&1 | grep -E 'PASSED|FAILED|passed|failed' '''
+erwartet = ["PASSED", "= \\d+ passed"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #97 Kriterium (Wortlaut): fehlt ein Adapter, läuft die Kette mit den vorhandenen weiter und das Ergebnis nennt den fehlenden UC"
+befund = "Bei einem fehlenden oder kaputten Adapter bricht die Kette ab oder das Ergebnis nennt den fehlenden UC nicht."
+grund = "Der Router-Test für fehlende und kaputte Adapter ist grün (Kette läuft weiter, 'fehlend' nennt UC und Grund)."
+
+[[pruefung]]
+id = "97-3"
+hash = "2ba95336da"
+befehl = '''grep -c plattform.router uc3/statagent/lauf* || true; timeout 170 uv run --isolated --package plattform --with pytest pytest -p no:cacheprovider shared/py/tests/uc4/test_uc4_router.py -k "r2_uc3_lauf" 2>&1 | tail -1'''
+erwartet = ["^0$", "= 1 passed"]
+deckung = "voll"
+schwer = false
+zeitlimit = 200
+gegenprobe = '''grep -c plattform.router uc3/statagent/uc4.py | grep -c '^0$' '''
+quelle = "Issue #97 Kriterium (Wortlaut): grep -c plattform.router uc3/statagent/lauf* = 0 (Regel R2)"
+befund = "uc3/statagent/lauf.py erwähnt plattform.router oder importiert den Router oder das Sprachmodell."
+grund = "uc3/statagent/lauf* enthält 0 Treffer für plattform.router und der R2-Test (Import ohne Router und LLM) ist grün."
+
+[[pruefung]]
+id = "98-1"
+hash = "24548b96a9"
+befehl = '''timeout 900 pnpm --dir web exec playwright test tests/uc4.spec.ts --reporter=line >/dev/null 2>&1; echo "exit $?"'''
+erwartet = ["^exit 0$"]
+deckung = "voll"
+schwer = true
+zeitlimit = 1000
+quelle = "Issue #98 Kriterium (Wortlaut): /uc4 liefert 200, Frage absenden (mock), drei Karten in Reihenfolge, jede Zahl mit HerkunftChip, Schablonen-Gate 0 in den Projekten desktop und mobil (web/tests/uc4.spec.ts, Gate #62)"
+befund = "Mindestens ein Test von web/tests/uc4.spec.ts schlägt in Desktop oder Mobil fehl (Seite, Kartenreihenfolge, HerkunftChip oder Schablonen-Gate)."
+grund = "Alle Playwright-Tests von /uc4 sind in Desktop und Mobil grün, das Schablonen-Gate meldet 0 Treffer."
+
+[[pruefung]]
+id = "98-1"
+hash = "24548b96a9"
+befehl = '''timeout 170 pnpm --dir web exec vitest --run components/uc4/einstieg.test.tsx --reporter=verbose 2>&1 | grep -E 'Karten stehen in Kettenreihenfolge|Zahl mit beleg = 1|Tests.*passed|Tests.*failed' '''
+erwartet = ["✓.*Karten stehen in Kettenreihenfolge", "✓.*durchgereichte Zahl trägt", "Tests\\s+\\d+ passed"]
+deckung = "teil"
+schwer = false
+zeitlimit = 200
+quelle = "Issue #98 Kriterium: drei Karten in Reihenfolge, Zahl mit Herkunft (Komponententest im jsdom, ohne Browser)"
+befund = "Die Komponente zeigt die Karten nicht in der Reihenfolge uc3, uc2, uc1 oder eine Zahl ohne Herkunft."
+grund = "Komponententest: Karten in Kettenreihenfolge, Zahl mit Herkunftsangabe."
+
+[[pruefung]]
+id = "98-2"
+hash = "cb3aa17696"
+befehl = '''echo "axe_im_test $(git grep -lE 'AxeBuilder|axe-core' -- web/tests web/components shared/ui/tests | wc -l | tr -d ' ')"; echo "uc4_axe $(grep -cE 'AxeBuilder|axe' web/tests/uc4.spec.ts)"'''
+erwartet = ["^axe_im_test [1-9]", "^uc4_axe [1-9]"]
+deckung = "teil"
+schwer = false
+zeitlimit = 30
+befund_art = "fehlt"
+quelle = "Issue #98 Kriterium (Wortlaut): Orakel axe 0 critical/serious. @axe-core/playwright steht in web/package.json, wird aber in keinem Test benutzt."
+befund = "Kein Test lässt axe über /uc4 laufen, obwohl @axe-core/playwright installiert ist; 'Kontrast und Tastatur' sind nicht gemessen."
+grund = "web/tests/uc4.spec.ts enthält einen axe-Lauf über /uc4."
+
+[[pruefung]]
+id = "98-2"
+hash = "cb3aa17696"
+art = "hand"
+deckung = "teil"
+beschreibung = "Ein Mensch öffnet /uc4 (Desktop 1440 und Mobil 390), stellt eine Frage im Testmodus und prüft: (1) Blickführung: die Hauptaussage steht oben und die nächste Handlung (Frage-Feld) ist sofort erkennbar; (2) Kontrast von Text und Chips mindestens 4,5:1 (zum Beispiel mit dem Browser-Werkzeug für Kontrast); (3) alles Wesentliche ist allein mit Tab, Enter und Esc bedienbar, der Fokus ist sichtbar; (4) ein axe-Lauf (Browser-Erweiterung oder @axe-core/playwright) meldet 0 critical und 0 serious."
+quelle = "Issue #98 Kriterium (Wortlaut): Owner-Vorgabe Blickführung, Kontrast >= 4,5:1, Tastatur; Orakel axe"
+befund = "Blickführung und Tastaturbedienung sind nicht automatisch messbar; axe wurde nicht ausgeführt."
+grund = "Ein Mensch bestätigt Blickführung, Kontrast, Tastatur und axe 0 critical/serious."

@@ -303,12 +303,10 @@ export function Antworten({ onAendern, situationFehler = false }: AntwortenProps
       </p>
       {lage.art === "fehler" && lage.replay && (
         <div className="flex flex-col items-start gap-4" data-testid="uc1-fehler">
-          <Status art="fehler">{lage.meldung}</Status>
-          <Fliesstext groesse={14} ton="gedaempft">
-            Sie können sich ein aufgezeichnetes Beispiel ansehen.
-          </Fliesstext>
-          <Knopf art="sekundaer" className="min-h-11" onClick={() => void beispielAbspielen()}>
-            Beispiel ansehen
+          {/* Ruhig statt rot: der Lotse ist hier nicht erreichbar, das aufgezeichnete Gespräch schon (UI-Regie 05.11.). */}
+          <Fliesstext>Der Lotse antwortet gerade nicht. Sehen Sie sich ein aufgezeichnetes Gespräch an.</Fliesstext>
+          <Knopf className="min-h-11" onClick={() => void beispielAbspielen()}>
+            Aufgezeichnetes Gespräch ansehen
           </Knopf>
         </div>
       )}
