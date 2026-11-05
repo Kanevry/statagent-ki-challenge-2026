@@ -480,8 +480,11 @@ ANTWORT_SCHEMA: dict[str, Any] = {
         },
         "verhalten": {"type": "string", "enum": ["antwort", "abstinenz", "uebergabe"]},
         "uebergabe_an": {"type": ["string", "null"]},
+        # Beantworten die Aussagen die gestellte Frage selbst? false: Abstinenz statt Aussagen zu einem
+        # Nachbarthema (Dev-Set x19, x20: Landesstelle und Honorarordnung zu Termin und Privattarif, #162).
+        "beantwortet": {"type": "boolean"},
     },
-    "required": ["aussagen", "verhalten", "uebergabe_an"],
+    "required": ["aussagen", "verhalten", "uebergabe_an", "beantwortet"],
     "additionalProperties": False,
 }
 
@@ -555,7 +558,8 @@ def _antwort_prompt(sprache: Sprache, stil: Stil, modus: Modus = "text") -> str:
             f"4. {_TREUE}\n"
             "5. Euro-Beträge nur, wenn sie wörtlich im Zitat stehen. Keine Diagnose, keine Therapie- und "
             "keine Medikamentenempfehlung. Keine Paragraphennummern im Satz.\n"
-            "6. Beantworten die Abschnitte die Frage nicht: verhalten abstinenz, aussagen leer.\n"
+            "6. Beantworten die Abschnitte die Frage nicht: verhalten abstinenz, aussagen leer, beantwortet "
+            "false. Sonst beantwortet true.\n"
             f"7. Sprache: {sprachname}. Antworte knapp."
         )
     stilregel = (
@@ -578,7 +582,10 @@ def _antwort_prompt(sprache: Sprache, stil: Stil, modus: Modus = "text") -> str:
         "Katalogen und Formularen (Datei und Seite in quelle). Ist einer davon dabei, ist genau eine Aussage "
         "dazu Pflicht: welche Unterstützung man dort beantragen kann, mit Zitat aus diesem Abschnitt.\n"
         "6. Beantworten die Abschnitte die Frage nicht: verhalten abstinenz, aussagen leer, uebergabe_an die "
-        "zuständige Stelle. Muss die Stelle im Einzelfall entscheiden: verhalten uebergabe.\n"
+        "zuständige Stelle. Muss die Stelle im Einzelfall entscheiden: verhalten uebergabe. beantwortet ist "
+        "true nur, wenn deine Aussagen genau das beantworten, was gefragt ist; Aussagen zu einem "
+        "Nachbarthema (eine Adresse statt eines Termins, Kassentarife statt eines Privattarifs) beantworten "
+        "sie nicht.\n"
         f"7. Sprache der Aussagen: {sprachname}. {stilregel}\n"
         "8. Keine Paragraphennummern und keine Kontaktaufforderungen im Aussagetext; Quelle und Stelle "
         "hängt das System selbst an.\n"
@@ -1531,6 +1538,10 @@ def _antwort_aufruf(
         antwort.hinweise.append(f"Antwort ohne Modell ({type(fehler).__name__})")
         return [], True
     antwort.modell, antwort.provider = ergebnis.modell, ergebnis.provider
+    if ergebnis.json.get("beantwortet") is False and ergebnis.json.get("aussagen"):
+        # Das Modell sagt selbst, dass die Aussagen die Frage nur streifen: Abstinenz (#162).
+        antwort.hinweise.append("Antwort-Modell: Aussagen beantworten die Frage nicht")
+        return [], False
     return list(ergebnis.json.get("aussagen") or []), False
 
 

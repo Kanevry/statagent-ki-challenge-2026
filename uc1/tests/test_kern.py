@@ -1371,3 +1371,24 @@ def test_aussage_ohne_schwelle_wird_verworfen() -> None:
     }
     aussagen, verworfen = kern.pruefe_aussagen([schwach], [treffer()])
     assert aussagen == [] and "Schwelle" in verworfen[0]["grund"]
+
+
+def test_streifende_aussagen_werden_zur_abstinenz() -> None:
+    """Fängt wörtlich richtige, aber themenfremde Aussagen als Antwort, wenn das Modell selbst meldet, dass
+    sie die Frage nicht beantworten (Dev-Set x19, x20: Landesstelle statt Arzttermin, #162). Ohne das Feld
+    (alte Aufnahmen, Mock) gilt die Antwort wie bisher."""
+    streift = antwort_mit(GUELTIG) | {"beantwortet": False}
+    modell = Skript([analyse(person="angehoerige", status="pva", bundesland="wien")], [streift])
+    a = kern.frage(
+        PFLEGE, modell=modell, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher()
+    )
+    assert a.verhalten == "abstinenz" and a.aussagen == [] and modell.aufrufe == 2
+    assert "Antwort-Modell: Aussagen beantworten die Frage nicht" in a.hinweise
+
+    ohne_feld = Skript(
+        [analyse(person="angehoerige", status="pva", bundesland="wien")], [antwort_mit(GUELTIG)]
+    )
+    b = kern.frage(
+        PFLEGE, modell=ohne_feld, suche_fn=FesteSuche([treffer()]), speicher=kern.SpeicherImSpeicher()
+    )
+    assert b.verhalten == "antwort"
