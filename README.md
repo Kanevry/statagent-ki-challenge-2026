@@ -198,9 +198,9 @@ Die Angaben stimmen mit `docs/models.md` überein. Das ist dort die Hauptquelle,
 - **UC2:** Die Akteure spielt ein Sprachmodell. Das ist eine Simulation, keine echte Verhandlung. Die Antwort auf
   `/uc4` sagt das in einem eigenen Satz.
 - **UC4:** Die drei Antworten kommen nacheinander. Mit Azure dauerte die ganze Frage am 05.11. gemessen 5 bis 7
-  Sekunden; die Seite wartet höchstens drei Minuten und zeigt jede Antwort, sobald sie da ist. Fällt ein Bereich aus, nennt die Seite ihn
-  als „fehlt“ und zeigt die anderen. Online kann UC2 statt echter Presse-Belege gekennzeichnete Beispielbelege
-  zeigen, solange dort die Namensliste zur Maskierung von Personennamen fehlt.
+  Sekunden; die Seite wartet höchstens drei Minuten und zeigt jede Antwort, sobald sie da ist. Fällt ein Bereich
+  aus, nennt die Seite ihn als „fehlt“ und zeigt die anderen. Online kann UC2 statt echter Presse-Belege
+  gekennzeichnete Beispielbelege zeigen, solange dort die Namensliste zur Maskierung von Personennamen fehlt.
 - **Voice:** Server und Sprechknopf sind gebaut. Ein Anruf geht erst nach der Einrichtung (Tunnel, Vapi-Konto mit
   Zahlungsmittel, Schlüssel). Die Tunnel-Adresse wechselt bei jedem Start, danach muss der Assistent neu
   eingetragen werden (`docs/voice.md`). Vapi ist ein US-Dienst. Der Text-Weg ersetzt Voice vollständig.
