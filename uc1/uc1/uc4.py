@@ -10,6 +10,7 @@ Ablauf:
     Das Modell sieht nur den Kontext (Text, Position, Zahlen mit Schreibweise), keine Einzeldaten.
  3. Zahlenprüfung: Ein Satz mit einer Zahl, die nicht genau so im Kontext steht („rund 20 %“ statt „19,6 %“),
     fällt weg. Fehlt danach eine Zahl des Kontexts im Text, hängt der Server einen festen Satz mit ihr an.
+    Ab zwei Zahlen schreibt das Modell keine Ziffern; der Server setzt alle Zahlensätze selbst.
  4. Nachprüfung der Grenze auf den fertigen Text.
  5. Eine Zeile in ``meta.protokoll`` ohne Inhalte (keine Frage, kein Text), wenn eine Verbindung da ist.
 
@@ -25,6 +26,7 @@ import re
 import sys
 import time
 from collections.abc import Sequence
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Literal
 
@@ -77,51 +79,71 @@ _ZAHL_IM_TEXT = re.compile(r"\d+(?:[.,]\d+)*")
 
 
 def anzeige(zahl: Zahl) -> str:
-    """Schreibweise einer Zahl im Text: deutsch, Dezimalkomma, Tausenderpunkt, nicht gerundet."""
+    """Schreibweise einer Zahl im Text: deutsch, Dezimalkomma, Tausenderpunkt, nicht gerundet.
+
+    Über ``Decimal`` aus der kürzesten Darstellung (``repr``) des Werts: das Vorzeichen bleibt („-0,07“),
+    und wissenschaftliche Schreibweise (``1e-07``) wird ausgeschrieben („0,0000001“) statt zu werfen."""
     wert = zahl.wert
-    if isinstance(wert, int):
-        return f"{wert:,}".replace(",", ".")
-    ganz, _, rest = repr(wert).partition(".")
-    ganz_de = f"{int(ganz):,}".replace(",", ".")
-    return f"{ganz_de},{rest}" if rest and rest != "0" else ganz_de
+    roh = format(Decimal(wert if isinstance(wert, int) else repr(wert)), "f")
+    minus = roh.startswith("-")
+    ganz, _, rest = roh.lstrip("-").partition(".")
+    rest = rest.rstrip("0")
+    text = f"{int(ganz):,}".replace(",", ".") + (f",{rest}" if rest else "")
+    return f"-{text}" if minus and text != "0" else text
 
 
 def _zahlen_in(text: str) -> list[str]:
     return _ZAHL_IM_TEXT.findall(text)
 
 
-def erlaubte_zahlen(frage: str, kontext: Kontext) -> set[str]:
-    """Zahlen, die im Text stehen dürfen: die Schreibweise jeder Kontext-Zahl und jede Zahl in Frage, Text,
-    Position, Lieferung und Monat des Kontexts (nicht aus ``sql``)."""
+def erlaubte_zahlen(kontext: Kontext) -> set[str]:
+    """Zahlen, die im Text stehen dürfen: die Schreibweise jeder Kontext-Zahl und jede Zahl in Text,
+    Position, Lieferung und Monat des Kontexts (nicht aus ``sql``).
+
+    Die Frage zählt nicht als Quelle: Bei „Stimmt es, dass 500.000 Frauen …?“ stünde die 500.000 sonst mit
+    den Belegen des Kontexts im Text, obwohl kein Beleg sie trägt (Review !68)."""
     erlaubt = {z for zahl in kontext.zahlen for z in _zahlen_in(anzeige(zahl))}
-    quellen = [frage, kontext.text, kontext.position or ""]
+    quellen = [kontext.text, kontext.position or ""]
     quellen += [f"{b.lieferung or ''} {b.monat or ''}" for b in kontext.belege]
     for teil in quellen:
         erlaubt.update(_zahlen_in(teil))
     return erlaubt
 
 
-def pruefe_zahlen(saetze: Sequence[str], frage: str, kontext: Kontext) -> tuple[list[str], list[str]]:
-    """Behält nur Sätze, deren Zahlen alle genau so im Kontext stehen; ergänzt fehlende Kontext-Zahlen mit
-    einem festen Satz. Liefert (Sätze, verworfene Sätze)."""
-    erlaubt = erlaubte_zahlen(frage, kontext)
+def _zahlensatz(zahl: Zahl) -> str:
+    einheit = f" {zahl.einheit}" if zahl.einheit else ""
+    return f"{zahl.bezeichnung}: {anzeige(zahl)}{einheit}."
+
+
+def pruefe_zahlen(saetze: Sequence[str], kontext: Kontext) -> tuple[list[str], list[str]]:
+    """Prüft die Zahlen der Modellsätze. Liefert (Sätze, verworfene Sätze).
+
+    Eine Kontext-Zahl: Ein Satz bleibt nur, wenn jede Zahl darin genau so im Kontext steht; fehlt die Zahl
+    danach, hängt der Server einen festen Satz mit ihr an.
+    Ab zwei Kontext-Zahlen schreibt das Modell keine Ziffern: Jeder Modellsatz mit einer Ziffer fällt weg, und
+    der Server setzt je Zahl einen Satz aus ``bezeichnung`` und ``anzeige``. Die Prüfung „kommt irgendwo vor“
+    ließ sonst vertauschte Werte durch (Juli statt August, Männer statt Frauen, Review !68)."""
+    erlaubt = erlaubte_zahlen(kontext)
+    mehrere = len(kontext.zahlen) >= 2
     behalten: list[str] = []
     verworfen: list[str] = []
     for satz in saetze:
         sauber = " ".join(normalisiere(satz).split())
         if not sauber:
             continue
-        if all(z in erlaubt for z in _zahlen_in(sauber)):
+        zahlen = _zahlen_in(sauber)
+        if not zahlen if mehrere else all(z in erlaubt for z in zahlen):
             behalten.append(sauber if sauber.endswith((".", "!", "?")) else sauber + ".")
         else:
             verworfen.append(sauber)
+    if mehrere:
+        return behalten + [_zahlensatz(z) for z in kontext.zahlen], verworfen
     for zahl in kontext.zahlen:
         text = anzeige(zahl)
         im_text = set(_zahlen_in(" ".join(behalten)))
         teile = _zahlen_in(text)
         if not (all(t in im_text for t in teile) if teile else text in " ".join(behalten)):
-            einheit = f" {zahl.einheit}" if zahl.einheit else ""
-            behalten.append(f"{zahl.bezeichnung}: {text}{einheit}.")
+            behalten.append(_zahlensatz(zahl))
     return behalten, verworfen
 
 
@@ -136,8 +158,16 @@ SCHEMA: dict[str, Any] = {
 }
 
 
-def _prompt(sprache: Literal["de", "en"]) -> str:
+def _prompt(sprache: Literal["de", "en"], zahlen: int = 1) -> str:
+    """Systemprompt; ab zwei Zahlen schreibt das Modell keine Ziffern, die Zahlensätze setzt der Server."""
     sprachname = "Englisch" if sprache == "en" else "Deutsch"
+    zahlenregel = (
+        "3. Schreibe keine Ziffern und keine Zahlen. Die Sätze mit den Zahlen aus <zahlen> setzt das System "
+        "selbst an das Ende. Ein Satz mit einer Ziffer fällt weg.\n"
+        if zahlen >= 2
+        else "3. Zahlen schreibst du genau in der Schreibweise aus <zahlen> (Feld anzeige). Nicht runden, "
+        "nicht umrechnen, keine anderen Zahlen, keine Wörter wie rund oder etwa vor einer Zahl.\n"
+    )
     return (
         "Du bist der SV KI-Lotse. Du erklärst Bürgerinnen und Bürgern eine Auskunft der österreichischen "
         "Sozialversicherung in einfacher Sprache. Regeln:\n"
@@ -145,9 +175,8 @@ def _prompt(sprache: Literal["de", "en"]) -> str:
         f"2. 3 bis {MAX_SAETZE} Sätze, je höchstens {SATZ_WOERTER} Wörter. Zuerst der Nutzen: was die "
         "Auskunft für die Person bedeutet. Dann die Zahlen, dann die Position (Vergleich, Rang), wenn sie im "
         "Kontext steht.\n"
-        "3. Zahlen schreibst du genau in der Schreibweise aus <zahlen> (Feld anzeige). Nicht runden, nicht "
-        "umrechnen, keine anderen Zahlen, keine Wörter wie rund oder etwa vor einer Zahl.\n"
-        "4. Keine Diagnose, keine Befundbewertung, keine Therapie- und keine Medikamentenempfehlung. Keine "
+        + zahlenregel
+        + "4. Keine Diagnose, keine Befundbewertung, keine Therapie- und keine Medikamentenempfehlung. Keine "
         "Ursachen und keine Prognosen, die nicht im Kontext stehen.\n"
         "5. Keine Quellenangaben im Satz; die Belege hängt das System an.\n"
         "6. Bürgersprache: Sie-Form, aktiv, ein Gedanke je Satz. Fachwörter wie Median erklärst du in "
@@ -231,7 +260,7 @@ def antwort(
     try:
         ergebnis = modell_fn(
             [
-                {"role": "system", "content": _prompt(sprache_)},
+                {"role": "system", "content": _prompt(sprache_, len(ktx.zahlen))},
                 {"role": "user", "content": _nachricht(frage, ktx)},
             ],
             SCHEMA,
@@ -246,7 +275,7 @@ def antwort(
             raise
         # Modell aus: nur die festen Zahlensätze aus pruefe_zahlen, kein erfundener Text.
 
-    saetze, _ = pruefe_zahlen(saetze, frage, ktx)
+    saetze, _ = pruefe_zahlen(saetze, ktx)
     text = sprache.glaette(" ".join(saetze))
     befund = grenze.nachpruefung(text)
     if befund is not None:

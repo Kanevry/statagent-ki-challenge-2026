@@ -13,11 +13,14 @@ Code: `uc1/uc1/kern.py`, `uc1/uc1/grenze.py`, `uc1/uc1/erweiterung.py`. Daten: `
    Schmerz, Stechen, Druck oder Enge ist Notfall (144, 1450). Eine Beschwerde (Brust, Herz, Atem, Kopf, Bauch,
    Schmerz, Stechen, Fieber, Blutung, Schwindel, Lähmung) mit Deutungsfrage („Was habe ich“, „Ist das …“, „Was
    bedeutet …“) ist Grenze. Herzinfarkt ist nur akut ein Notfall; „Krankengeld nach einem Herzinfarkt“ bleibt
-   eine Leistungsfrage (Test `test_leistungsfrage_mit_krankheitswort_ist_keine_grenze`).
+   eine Leistungsfrage (Test `test_leistungsfrage_mit_krankheitswort_ist_keine_grenze`). Eine abgewiesene
+   Nachricht kommt nicht in den gespeicherten Verlauf.
 2. **Sitzung laden** (`lotse.sitzung.zustand`). Lage, Leistungen und Angaben kommen aus zwei Quellen:
    - aus Regeln (Auslöser in `leistungen.yaml`, Status-Muster in `traeger.yaml`);
    - im Modus `llm` zusätzlich aus EINEM Analyse-Aufruf mit Schema: Lage, Leistungen, Angaben und Fachbegriffe.
    Werte außerhalb der Enums verwirft der Kern. Wo eine Regel etwas erkennt, hat sie Vorrang vor dem Modell.
+   Vor jedem Modellaufruf maskiert `maskiere_personendaten` im Verlauf Datum, Telefon, Straße mit Hausnummer und
+   PLZ („[Datum]“, „[Telefon]“, „[Adresse]“, „[PLZ]“). Namen gehen vorerst noch ans Modell (Owner-Frage #121).
 3. **Rückfrage**, wenn eine Pflichtangabe fehlt. Es kommt genau eine Rückfrage, die nach Rang wichtigste zuerst; der
    Status bzw. Pensionsträger hat Rang 1. Jedes Feld wird höchstens einmal erfragt, höchstens 3-mal je Sitzung.
    Danach antwortet der Kern mit „Vorbehalt: Mir fehlen Angaben (…)“.
@@ -39,16 +42,21 @@ Code: `uc1/uc1/kern.py`, `uc1/uc1/grenze.py`, `uc1/uc1/erweiterung.py`. Daten: `
    Abstinenz und Übergabe an die Stelle bzw. an eine Beratung.
 7. **Beträge**:
    - Ein Euro-Betrag im Aussagetext muss mit demselben Zahlenwert im Zitat stehen, sonst fällt die Aussage weg.
+     Englische Aussagen: Jede Ziffernfolge muss im Zitat stehen.
+   - Ein Betrag ohne Stand der Fassung fällt weg.
    - Der Stand steht kurz im Halbsatz: „(BPGG § 5, Stand 2020)“.
    - Bei einer Fassung vor 2026-01-01 folgt „heute vielleicht höher“ im Halbsatz und einmal „Den aktuellen
-     Betrag nennt Ihnen der Träger.“; ohne Stand „Stand unbekannt“.
-   - Platzhalterdaten (vor 1900 oder ab 9000, z. B. 1111-11-11) erscheinen nie als Stand.
+     Betrag nennt Ihnen der Träger.“
+   - Platzhalterdaten (vor 1900 oder ab 9000, z. B. 1111-11-11) gelten nicht als Stand.
 8. **Nachprüfung** (`grenze.nachpruefung`) auf den fertigen Text. Sie prüft auf Diagnose („Sie haben eine …“),
    Dosierangaben und Befundbewertung; bei einem Treffer kommt der Grenztext.
 9. **Text** (Sprache: `docs/plan/uc1/sprache.md`): Hauptaussage zuerst, je Aussage ein Satz mit Quelle im
    Halbsatz „(BPGG § 4)“. Zitat und Stand der Fassung stehen nur in `aussagen`/`belege` („Beleg anzeigen“).
    Danach folgen die zuständige Stelle mit Fundstelle und die nächsten Schritte in Sie-Form (Formular,
-   Unterlagen mit Kurzquelle, Angebot mit Seite, Stelle). `sprache.glaette` läuft vor der Nachprüfung. Die
+   Unterlagen mit Kurzquelle, Angebot mit Seite, Stelle). Ein Formular nennt der Kern nur für die Stellen in
+   `fuer_stelle` (PAL080: PVA), sonst „Fragen Sie die {Stelle} nach dem Antrag.“ `sprache.glaette` läuft vor der
+   Nachprüfung. Meldet `sprache.pruefe` danach im Modelltext noch etwas (außer dem Mittelwert der Satzlänge),
+   kommt eine Ersatzantwort ohne Modelltext: fester Satz, Stelle, Schritte. Die
    Sprache ist DE oder EN (`eval.sprache`); Zitate bleiben im deutschen Original.
 10. **Speichern**: Zustand nach `lotse.sitzung`, jedes geprüfte Zitat nach `lotse.beleg` (`call_id` für Voice).
 
@@ -91,11 +99,11 @@ ist zweispaltig verwürfelt, und das Modell glättet ihn beim Zitieren.
 
 `frage(..., modus="sprache")`, CLI `lotse frage --modus sprache`: kein Analyse-Aufruf (Angaben aus Regeln, Begriffe
 aus dem Thesaurus), ein Antwort-Aufruf mit `aufwand="niedrig"` (`complete` kennt kein `max_tokens`), höchstens 2
-Aussagen und halb so viel Abschnittstext. Text: höchstens 2 Sätze plus eine Zeile `Quelle: …` (ohne Stand), ohne Zitat und ohne
+Aussagen und halb so viel Abschnittstext. Text: höchstens 2 Sätze plus eine Zeile `Quelle: …` (bei Beträgen mit Stand), ohne Zitat und ohne
 Liste; Träger, Schritte und Zitate bleiben in `LotseAntwort`. Der KI-Hinweis fehlt im Sprechtext und gehört in die
 Ansage zu Gesprächsbeginn.
 
-Gemessen am 2026-11-05 (M4, Azure `gpt-5-4-mini`, 3 Wechsel, 2 Läufe):
+Gemessen am 2026-11-05 (Rechner A, Azure `gpt-5-4-mini`, 3 Wechsel, 2 Läufe):
 
 | Wechsel | Lauf 1 | Lauf 2 |
 |---|---:|---:|
@@ -119,7 +127,7 @@ ein kleineres Modell, nicht der Kern.
 | `grenzen.yaml` | Muster vor/nach, Notfall-, Grenz- und Injection-Text DE/EN | 144 Rettung, 1450 Gesundheitsberatung |
 | `texte.yaml` | Textbausteine DE/EN | abgestimmt auf `eval/verhalten.yaml` (Antworten enthalten keine Übergabe-Phrasen) |
 
-## Latenz je Schritt (gemessen 2026-11-05, M4, Azure `gpt-5-4-mini`, Modus `llm`)
+## Latenz je Schritt (gemessen 2026-11-05, Rechner A, Azure `gpt-5-4-mini`, Modus `llm`)
 
 | Schritt | Wechsel 1 (Rückfrage) | Wechsel 2 (Bündel) | Grenzfall 23 |
 |---|---:|---:|---:|
@@ -150,7 +158,10 @@ genau den Feldern von `UcAntwort` (#96, lokale Kopie, nach dem Merge wechselt nu
 der Grenze, ein Modellaufruf (`{saetze: [str]}`, Stil einfach), Zahlenprüfung, Nachprüfung, eine inhaltsfreie
 Zeile in `meta.protokoll` (`vorschlag_typ = auskunft`). Zahlen und Belege gehen unverändert durch. Ein Satz mit
 einer Zahl, die nicht genau so im Kontext steht („rund 20“ statt „19,6“), fällt weg. Fehlt danach eine
-Kontext-Zahl, hängt der Server „Bezeichnung: Wert Einheit.“ an. Demo-Kontext (erfunden):
+Kontext-Zahl, hängt der Server „Bezeichnung: Wert Einheit.“ an. Ab zwei Kontext-Zahlen schreibt das Modell keine
+Ziffern: Jeder Modellsatz mit Ziffer fällt weg, der Server setzt alle Zahlensätze selbst (sonst bestanden
+vertauschte Werte). Zahlen aus der Frage gelten nicht als belegt. `anzeige` rechnet über `Decimal`: Das Minus
+bleibt, `1e-07` wird „0,0000001“. Demo-Kontext (erfunden):
 `uc1/tests/fixtures/uc4-wartezeiten.json`. Azure-Lauf 2026-11-05: 778 ms, mittlere Satzlänge 8,0 Wörter, Text
 „Im Monat 08/2026 warteten Versicherte im Median 19,6 Tage. Das ist kürzer als im Vormonat. Im Vormonat waren es
 23,1 Tage.“; Zahlen (19.6, Beleg 0) und (23.1, Beleg 1) unverändert. Einen UC1-eigenen Beleg fügt der Adapter noch
@@ -172,10 +183,11 @@ und Beziehung des Antragstellers (`antragsteller.*`) und die Antragsart (`antrag
 `daten/antragsangaben.yaml`.
 
 - **Regeln** (`regel_antrag`, Vorrang): Geburtsdatum nach „geboren/geb.“, als TT.MM.JJJJ und nur, wenn es das
-  Datum gibt; österreichische PLZ mit Ort; Straße mit Hausnummer; Beziehung („ich bin ihr Sohn“, „als
+  Datum gibt; österreichische PLZ mit Ort; Straße mit Hausnummer; Telefon (+43 oder nach „Telefon“); Beziehung („ich bin ihr Sohn“, „als
   Case-Managerin“); Antragsart („erhöhen“, „noch kein Pflegegeld“).
-- **Analyse-Aufruf:** Das Schema hat ein Feld `antrag` (`person_vorname` …, Text oder null). Ein Wert gilt nur,
-  wenn er im Gespräch steht (`modell_antrag`); ein Datum muss als Datum im Gespräch vorkommen. `antrag.art`
+- **Analyse-Aufruf:** Das Schema hat ein Feld `antrag` (nur Namen, Text oder null). Ein Wert gilt nur, wenn er
+  im Gespräch steht (`modell_antrag`). Geburtsdatum, Adresse und Telefon sind `nur_regel` und gehen maskiert ans
+  Modell. `antrag.art`
   (`nur_regel`) fragt der Kern das Modell nicht: Im Azure-Lauf riet es „zuerkennung“.
 - **Keine Rückfrage:** Antragsangaben stehen nicht in `pflicht` der Leistungen. Rückfragen bleiben bei höchstens
   3, Status zuerst. Was fehlt, steht im Antrag unter „noch offen“ (`docs/plan/uc1/antrag.md`).

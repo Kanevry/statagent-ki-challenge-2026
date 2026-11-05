@@ -1,6 +1,6 @@
 # Messung: Suche im Lotse-Kern (`--kern`), Issue #30
 
-Stand 2026-11-05, Rechner A (M4), DB `lotse` lokal (Port 5433), Weg `volltext`, Modell über `plattform.llm`
+Stand 2026-11-05, Rechner A, DB `lotse` lokal (Port 5433), Weg `volltext`, Modell über `plattform.llm`
 (Azure). Gemessen nur auf den Dev-Sets: `uc1/eval/dev-set.yaml` (d01–d12) und `uc1/eval/dev-set-2.yaml`
 (e01–e24, 21 SozDok-zählend, 5 mit PDF-Quelle). Das Test-Set `lotse-set.yaml` wurde nicht gemessen
 (Blickzähler unverändert 2 von 3).

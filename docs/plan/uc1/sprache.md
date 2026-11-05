@@ -30,7 +30,7 @@ Nachher: ein Absatz, je Aussage ein Satz mit Halbsatz „(BPGG § 4)“; Beträg
 Träger.“ Dann „Zuständig: …“, „So geht es weiter:“ mit Handlungen in Sie-Form. Fehlende Angaben heißen jetzt
 „wer die Pension zahlt“ statt `status`.
 
-## Messung (2026-11-05, M4, Azure `gpt-5-4-mini`, je ein Lauf)
+## Messung (2026-11-05, Rechner A, Azure `gpt-5-4-mini`, je ein Lauf)
 
 Gespräche: Pflege in 2 Wechseln (Rückfrage, dann Antwort), Case-Managerin Reha, Grenzfrage Tabletten,
 englische Pflegefrage; dazu `lotse antrag pflegegeld`, `lotse termin --fall termin-wien`, ein UC4-Lauf

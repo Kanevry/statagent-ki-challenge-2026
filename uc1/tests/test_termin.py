@@ -117,7 +117,7 @@ def test_zustaendiger_traeger_ohne_belegte_adresse_bleibt_nicht_belegt() -> None
     assert len(traeger) == 1 and traeger[0].adresse_text == "nicht belegt"
     assert traeger[0].zustaendig == "BPGG § 22 Abs. 1 Z 1"
     assert all(not s.belegt for s in stellen)
-    assert set(suche.wege) == {"volltext"}  # kein Embedding-Modell auf dem M4
+    assert set(suche.wege) == {"volltext"}  # kein Embedding-Modell auf dem Demo-Rechner
 
 
 def test_adresse_normiert_bindestrich_und_umbruch() -> None:
@@ -148,6 +148,19 @@ def test_ics_genau_ein_vevent_tentative_nicht_gebucht() -> None:
         assert teil in ev["DESCRIPTION"]
     assert not termin.behauptet_termin(ev["DESCRIPTION"])
     assert bericht["zeilen_zu_lang"] == 0 and bericht["nur_crlf"]
+
+
+def test_ics_text_ohne_abschnitt_id_und_ohne_doppelten_kurznamen() -> None:
+    """Fängt „(Abschnitt 7)“ im ICS-Text für Menschen und „(PAL080) der PVA (Antrag PAL080)“ (Review !68).
+    Die Abschnitt-ID bleibt im JSON der Stelle."""
+    stelle = stelle_fsw()
+    beschreibung = termin.parse_ics(termin.ics_inhalt(FALL, stelle, wunsch=FALL["wunsch"]))["events"][0][
+        "DESCRIPTION"
+    ]
+    assert "Abschnitt" not in beschreibung and beschreibung.count("PAL080") == 2  # Unterlage S. 2, Formular
+    assert "(Antrag PAL080)" not in beschreibung
+    assert "- Antrag auf Pflegegeld (PAL080) der PVA\n" in beschreibung
+    assert stelle.als_dict()["abschnitt_id"] == 7
 
 
 def test_kein_entwurf_ohne_belegte_adresse() -> None:

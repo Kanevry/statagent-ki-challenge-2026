@@ -13,7 +13,8 @@
 #   `bereich` (Spalte in traeger.yaml), `gesetze` (fest) oder `gesetze_aus_status: true`,
 #   `suchanfrage` (Fachbegriffe für die SozDok-Suche), `angebote` (Suche in Katalogen und Formularen,
 #   `regional`: Dateien nur für ein Bundesland), `stelle_fest` (Stelle unabhängig vom Status),
-#   `formular`, `unterlagen`, `antrag` (Art für `lotse antrag`, Issue #32).
+#   `formular` (`fuer_stelle`: nur für diese Stellen, sonst kein fremdes Formular), `unterlagen`,
+#   `antrag` (Art für `lotse antrag`, Issue #32).
 
 felder:
   status:
@@ -84,6 +85,8 @@ leistungen:
     formular:
       bezeichnung: "Antrag auf Pflegegeld (PAL080) der PVA"
       datei: "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf"
+      # Nur für diese Stellen; sonst „Fragen Sie die {Stelle} nach dem Antrag.“ (Review !68: SVS, BVAEB)
+      fuer_stelle: [PVA]
     unterlagen:
       - text: "Kopien Ihrer Befunde von Arzt, Ärztin oder Krankenhaus"
         quelle: "Anträge und Formulare/PAL080_0125_Mpfl_052026.pdf, S. 2"

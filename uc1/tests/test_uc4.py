@@ -56,15 +56,67 @@ def test_zahlen_und_belege_bleiben_unveraendert_ueber_mock(
     uc4.UcAntwort.model_validate(a)
 
 
+def eine_zahl() -> dict[str, Any]:
+    ktx = kontext()
+    ktx["zahlen"] = ktx["zahlen"][:1]
+    return ktx
+
+
 def test_veraenderte_zahl_wird_abgefangen() -> None:
     """Fängt „rund 20“ statt „19,6“: der Satz mit der gerundeten Zahl fällt weg, die echte steht da."""
+    modell = modell_mit("Sie warten jetzt kürzer.", "Im August waren es rund 20 Tage.")
+    a = uc4.antwort(FRAGE, eine_zahl(), modell=modell)
+    assert "rund 20" not in a["text"] and "20 Tage" not in a["text"]
+    assert a["text"].startswith("Sie warten jetzt kürzer.") and "19,6 Tage" in a["text"]
+    assert [z["wert"] for z in a["zahlen"]] == [19.6]
+
+
+def test_eine_zahl_im_modellsatz_bleibt() -> None:
+    """Fängt eine Prüfung, die bei nur einer Kontext-Zahl auch den richtigen Modellsatz verwirft."""
+    a = uc4.antwort(FRAGE, eine_zahl(), modell=modell_mit("Im August warteten Sie 19,6 Tage."))
+    assert a["text"] == "Im August warteten Sie 19,6 Tage."
+
+
+def test_vertauschte_zahlen_kommen_nicht_durch() -> None:
+    """Fängt vertauschte Werte (Juli statt August): beide Zahlen stehen im Kontext, die alte Prüfung „kommt
+    irgendwo vor“ ließ den Satz durch (Review !68). Ab zwei Zahlen fällt jeder Modellsatz mit Ziffer weg."""
     modell = modell_mit(
-        "Sie warten jetzt kürzer.", "Im August waren es rund 20 Tage.", "Im Juli waren es 23,1 Tage."
+        "Sie warten jetzt kürzer.", "Im August waren es 23,1 Tage.", "Im Juli waren es 19,6 Tage."
     )
     a = uc4.antwort(FRAGE, kontext(), modell=modell)
-    assert "rund 20" not in a["text"] and "20 Tage" not in a["text"]
-    assert "19,6 Tage" in a["text"] and "23,1 Tage" in a["text"]
-    assert [z["wert"] for z in a["zahlen"]] == [19.6, 23.1]
+    assert "Im August waren es 23,1" not in a["text"] and "Im Juli waren es 19,6" not in a["text"]
+    assert a["text"] == (
+        "Sie warten jetzt kürzer. Wartezeit auf eine Rehabilitation im Median, 08/2026: 19,6 Tage. "
+        "Wartezeit auf eine Rehabilitation im Median, 07/2026: 23,1 Tage."
+    )
+
+
+def test_zwei_zahlen_server_setzt_zahlensaetze_und_prompt_verbietet_ziffern() -> None:
+    """Fängt einen Prompt, der ab zwei Zahlen weiter Ziffern verlangt, und Zahlensätze, die fehlen."""
+    gesehen: list[str] = []
+
+    def fn(
+        nachrichten: list[dict[str, str]], schema: dict[str, Any], provider: str | None
+    ) -> kern.ModellErgebnis:
+        gesehen.append(nachrichten[0]["content"])
+        return kern.ModellErgebnis(
+            json={"saetze": ["Sie warten jetzt kürzer."]}, provider="t", modell="t", dauer_ms=0
+        )
+
+    a = uc4.antwort(FRAGE, kontext(), modell=fn)
+    assert "keine Ziffern" in gesehen[0]
+    assert a["text"].count("Tage.") == 2 and "19,6" in a["text"] and "23,1" in a["text"]
+
+
+def test_zahl_aus_der_frage_ist_keine_belegte_zahl() -> None:
+    """Fängt die 500.000 aus „Stimmt es, dass 500.000 Frauen …?“, die mit den Belegen des Kontexts im Text
+    stand, weil die Frage als Quelle erlaubter Zahlen galt (Review !68)."""
+    a = uc4.antwort(
+        "Stimmt es, dass 500.000 Frauen auf eine Reha warten?",
+        eine_zahl(),
+        modell=modell_mit("Ja, 500.000 Frauen warten.", "Sie warten im Median 19,6 Tage."),
+    )
+    assert "500" not in a["text"] and "19,6 Tage" in a["text"]
 
 
 def test_grenzfrage_ergibt_grenzantwort_ohne_modell() -> None:
@@ -83,18 +135,30 @@ def test_beleg_index_ohne_beleg_wird_abgelehnt() -> None:
         uc4.antwort(FRAGE, ktx, modell=modell_mit("egal"))
 
 
-@pytest.mark.parametrize(("wert", "text"), [(19.6, "19,6"), (1234, "1.234"), (12345.5, "12.345,5")])
+@pytest.mark.parametrize(
+    ("wert", "text"),
+    [
+        (19.6, "19,6"),
+        (1234, "1.234"),
+        (12345.5, "12.345,5"),
+        (-0.07, "-0,07"),
+        (-1234, "-1.234"),
+        (1e-07, "0,0000001"),
+        (2.5e-05, "0,000025"),
+        (1e20, "100.000.000.000.000.000.000"),
+        (0.1 + 0.2, "0,30000000000000004"),
+    ],
+)
 def test_anzeige_rundet_nicht(wert: Any, text: str) -> None:
-    """Fängt eine Schreibweise, die rundet oder das Dezimalkomma verliert."""
+    """Fängt eine Schreibweise, die rundet, das Dezimalkomma oder das Minus verliert (-0,07 wurde 0,07) oder
+    bei wissenschaftlicher Schreibweise wirft (1e-07 gab ValueError bei UC2-Zahlen, Review !68)."""
     assert uc4.anzeige(uc4.Zahl(bezeichnung="x", wert=wert, beleg=0)) == text
 
 
 def test_modelltext_wird_geglaettet() -> None:
     """Fängt einen UC4-Text mit Em-Dash oder Floskel des Modells, der ungeglättet rausgeht (uc1.sprache)."""
-    modell = modell_mit(
-        "Gerne helfe ich Ihnen.", "Sie warten jetzt kürzer — im Median 19,6 Tage.", "Vorher 23,1 Tage."
-    )
-    a = uc4.antwort(FRAGE, kontext(), modell=modell)
+    modell = modell_mit("Gerne helfe ich Ihnen.", "Sie warten jetzt kürzer — im Median 19,6 Tage.")
+    a = uc4.antwort(FRAGE, eine_zahl(), modell=modell)
     assert "—" not in a["text"] and "Gerne" not in a["text"]
     assert a["text"].startswith("Sie warten jetzt kürzer, im Median 19,6 Tage.")
     assert all(b["uc"] == "uc3" for b in a["belege"])

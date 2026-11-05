@@ -21,12 +21,6 @@
         "antrag": {
           "person_vorname": null,
           "person_familienname": null,
-          "person_geburtsdatum": null,
-          "person_strasse": null,
-          "person_hausnummer": null,
-          "person_plz": null,
-          "person_ort": null,
-          "person_telefon": null,
           "antragsteller_vorname": null,
           "antragsteller_familienname": null,
           "antragsteller_beziehung": null

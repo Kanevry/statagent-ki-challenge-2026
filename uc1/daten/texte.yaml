@@ -6,6 +6,7 @@
 
 de:
   quelle: "Quelle: {schluessel}"
+  quelle_betrag: "Quelle: {schluessel}, Stand {jahr}"
   halbsatz: "({schluessel})"
   # Beträge: Stand kurz im Halbsatz. Alte Fassung (vor 2026) oder ohne Stand: Hinweis „heute vielleicht höher“.
   halbsatz_betrag: "({schluessel}, Stand {jahr})"
@@ -15,11 +16,13 @@ de:
   zustaendig: "Zuständig: {name} ({fundstelle})."
   schritte: "So geht es weiter:"
   schritt_formular: "Stellen Sie den {bezeichnung}."
+  schritt_formular_stelle: "Fragen Sie die {name} nach dem Antrag."
   schritt_unterlage: "Legen Sie {text} bei ({quelle})."
   schritt_antrag: "Ich kann den Antrag für Sie vorausfüllen. Abgeschickt wird nichts."
   schritt_angebot: "Hilfe im Alltag: {schluessel}."
   schritt_stelle: "Fragen klären Sie direkt mit: {name}."
   vorbehalt: "Mir fehlen noch Angaben: {felder}. Darum ist die Auskunft allgemein."
+  ersatz: "Meine Antwort hat die Sprachprüfung nicht bestanden. Darum nenne ich nur Stelle und Schritte."
   abstinenz: "Dazu habe ich keinen Beleg in meinen Quellen. Ich will Ihnen nichts Falsches sagen."
   uebergabe: "Bitte wenden Sie sich an die {name}."
   uebergabe_beratung: "Bitte wenden Sie sich an Ihre Sozialversicherung oder an eine Sozialberatung."
@@ -27,6 +30,7 @@ de:
   ki_hinweis: "Diese Auskunft kommt von einem KI-Lotsen. Die Entscheidung trifft der Träger."
 en:
   quelle: "Source: {schluessel}"
+  quelle_betrag: "Source: {schluessel}, as of {jahr}"
   halbsatz: "({schluessel})"
   halbsatz_betrag: "({schluessel}, as of {jahr})"
   halbsatz_betrag_alt: "({schluessel}, as of {jahr}, may be higher today)"
@@ -35,11 +39,13 @@ en:
   zustaendig: "Responsible: {name} ({fundstelle})."
   schritte: "Next steps:"
   schritt_formular: "Apply with the form {bezeichnung}."
+  schritt_formular_stelle: "Ask {name} for the application form."
   schritt_unterlage: "Attach: {text} ({quelle})."
   schritt_antrag: "I can pre-fill the form for you. Nothing is sent."
   schritt_angebot: "Help at home: {schluessel}."
   schritt_stelle: "For questions, contact: {name}."
   vorbehalt: "Some details are still missing: {felder}. So this answer is general."
+  ersatz: "My answer did not pass the language check. So I only name the office and the next steps."
   abstinenz: "I have no reliable source for this in my documents. I do not want to tell you anything wrong."
   uebergabe: "Please contact {name}."
   uebergabe_beratung: "Please contact your social insurance provider or a social counselling service."

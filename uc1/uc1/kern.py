@@ -41,6 +41,7 @@ from uc1.eval import mittlere_satzlaenge, zitat_treu
 from uc1.eval import sprache as erkenne_sprache
 from uc1.ingest import normalisiere
 from uc1.sprache import glaette, kurze_quelle
+from uc1.sprache import pruefe as pruefe_sprache
 from uc1.typen import SucheFn, SuchFilter, Treffer
 
 DATEN_DIR = Path(__file__).resolve().parent.parent / "daten"
@@ -173,14 +174,16 @@ def _datum_tmj(tag: str, monat: str, jahr: str) -> str | None:
 
 
 def regel_antrag(text: str) -> dict[str, str]:
-    """Antragsangaben rein regelbasiert (#32): Geburtsdatum, PLZ und Ort, Straße und Hausnummer, Beziehung,
-    Antragsart. Regeln aus daten/antragsangaben.yaml; Namen erkennt nur der Analyse-Aufruf."""
+    """Antragsangaben rein regelbasiert (#32): Geburtsdatum, PLZ und Ort, Straße und Hausnummer, Telefon,
+    Beziehung, Antragsart. Regeln aus daten/antragsangaben.yaml; Namen erkennt nur der Analyse-Aufruf."""
     regeln = antrag_daten()["regeln"]
     sauber = normalisiere(text)
     werte: dict[str, str] = {}
     m = re.search(regeln["geburtsdatum"], sauber, re.IGNORECASE)
     if m and (datum := _datum_tmj(*m.groups())):
         werte["person.geburtsdatum"] = datum
+    if m := re.search(regeln["telefon"], sauber, re.IGNORECASE):
+        werte["person.telefon"] = " ".join((m.group(1) or m.group(2)).split())
     if m := re.search(regeln["plz_ort"], sauber):
         werte["person.plz"], werte["person.ort"] = m.group(1), m.group(2)
     if m := re.search(regeln["strasse"], sauber):
@@ -192,6 +195,24 @@ def regel_antrag(text: str) -> dict[str, str]:
     elif re.search(regeln["zuerkennung"], sauber, re.IGNORECASE):
         werte["antrag.art"] = "zuerkennung"
     return werte
+
+
+def maskiere_personendaten(text: str) -> str:
+    """Verlauf für einen Modellaufruf: Was ``regel_antrag`` per Regel erkennt, wird maskiert (Review !68).
+
+    Jedes Datum TT.MM.JJJJ wird „[Datum]“, eine Telefonnummer „[Telefon]“, Straße mit Hausnummer „[Adresse]“
+    und die PLZ vor dem Ort „[PLZ]“ (der Ort bleibt, er trägt das Bundesland). Namen bleiben vorerst: Keine
+    Regel erkennt sie sicher, der Analyse-Aufruf liest sie noch aus dem Verlauf (Owner-Frage in #121)."""
+    regeln = antrag_daten()["regeln"]
+    sauber = _DATUM.sub("[Datum]", normalisiere(text))
+
+    def telefon(m: re.Match[str]) -> str:
+        gruppe = 1 if m.group(1) else 2
+        return m.group(0)[: m.start(gruppe) - m.start(0)] + "[Telefon]"
+
+    sauber = re.sub(regeln["telefon"], telefon, sauber, flags=re.IGNORECASE)
+    sauber = re.sub(regeln["strasse"], "[Adresse]", sauber)
+    return re.sub(regeln["plz_ort"], lambda m: "[PLZ] " + m.group(2), sauber)
 
 
 def modell_antrag(roh: dict[str, Any] | None, verlauf: str) -> dict[str, str]:
@@ -496,7 +517,7 @@ def _antwort_prompt(sprache: Sprache, stil: Stil, modus: Modus = "text") -> str:
 
 _BETRAG = re.compile(
     r"(?:€|EUR)\s?\d{1,3}(?:\.?\d{3})*(?:,\d{1,2}|,-)?"
-    r"|\d{1,3}(?:\.?\d{3})*(?:,\d{1,2}|,-)?\s?(?:€|EUR\b|Euro\b)",
+    r"|\d{1,3}(?:\.?\d{3})*(?:,\d{1,2}|,-)?\s?(?:€|EUR\b|Euros?\b)",
     re.IGNORECASE,
 )
 # Tausenderpunkt ja, Leerzeichen nein: „Stufe 1 200,80 Euro“ sind zwei Zahlen (1 und 200,80).
@@ -517,6 +538,16 @@ def betrag_belegt(betrag: str, zitat: str) -> bool:
     """Steht derselbe Zahlenwert im Zitat (Tausendertrenner egal)?"""
     wert = _zahlwert(betrag)
     return bool(wert) and wert in {z.replace(".", "") for z in _ZAHL.findall(normalisiere(zitat))}
+
+
+_ZIFFERN = re.compile(r"\d+")
+
+
+def ziffern_belegt(text: str, zitat: str) -> bool:
+    """Steht jede Ziffernfolge der Aussage auch im Zitat? Für englische Aussagen, die keine Deckungsprüfung
+    haben: „200.80 euros“ und „200,80 Euro“ teilen die Folgen 200 und 80 (Review !68)."""
+    im_zitat = set(_ZIFFERN.findall(normalisiere(zitat)))
+    return all(z in im_zitat for z in _ZIFFERN.findall(text))
 
 
 def zitat_gueltig(zitat: str, abschnitt_text: str) -> bool:
@@ -645,7 +676,8 @@ def pruefe_aussagen(
 ) -> tuple[list[Aussage], list[dict[str, Any]]]:
     """Server-Prüfung der Modell-Aussagen: ID gehört zu den Treffern, Zitat gültig, Beträge belegt, Aussage
     durch Zitat und Kontext gedeckt. Die Deckung gilt nur für deutsche Aussagen; eine englische Aussage teilt
-    mit dem deutschen Zitat kaum Wörter (Deckung bleibt dann None)."""
+    mit dem deutschen Zitat kaum Wörter (Deckung bleibt dann None). Dafür muss dort jede Ziffernfolge im Zitat
+    stehen. Beträge brauchen einen Stand der Fassung, sonst fällt die Aussage weg."""
     nach_id = {t.abschnitt_id: t for t in treffer}
     schwelle = float(deckung_regeln()["schwelle"])
     gueltig: list[Aussage] = []
@@ -667,8 +699,14 @@ def pruefe_aussagen(
             grund = "Aussagetext nennt die interne abschnitt_id"
         elif not zitat_gueltig(zitat, t.text):
             grund = "Zitat steht nicht wörtlich im Abschnitt oder ist zu kurz"
-        elif any(not betrag_belegt(b, zitat) for b in betraege(text)):
+        elif sprache == "en" and not ziffern_belegt(text, zitat):
+            grund = "Zahl steht nicht im Zitat"
+        elif sprache != "en" and any(not betrag_belegt(b, zitat) for b in betraege(text)):
+            # Englisch schreibt „200.80 euros“; dort prüft ``ziffern_belegt`` jede Ziffernfolge.
             grund = "Betrag steht nicht im Zitat"
+        elif betraege(text) and stand_von(t) is None:
+            # Ein Betrag ohne Fassungsstand ist nicht prüfbar aktuell; ein Hinweis allein reichte nicht.
+            grund = "Betrag ohne Stand der Fassung"
         elif gedeckt is not None and gedeckt < schwelle:
             # Verwerfen statt kürzen: eine Kürzung ohne Modell könnte nur das Zitat selbst wiederholen.
             grund = f"Aussage geht über das Zitat hinaus (Deckung {gedeckt:.2f} < {schwelle:.2f})"
@@ -928,8 +966,12 @@ def sammle_treffer(
 
 
 def _quelle(a: Aussage, tx: dict[str, str]) -> str:
-    """Voice: „Quelle: BPGG § 4“. Stand und Zitat stehen in ``aussagen``/``belege``."""
-    return tx["quelle"].format(schluessel=kurze_quelle(a.schluessel))
+    """Voice: „Quelle: BPGG § 4“, bei Beträgen mit Stand („Quelle: BPGG § 5, Stand 2026“). Das Zitat steht
+    in ``aussagen``/``belege``."""
+    schluessel = kurze_quelle(a.schluessel)
+    if a.betrag and a.stand:
+        return tx["quelle_betrag"].format(schluessel=schluessel, jahr=a.stand[:4])
+    return tx["quelle"].format(schluessel=schluessel)
 
 
 def _halbsatz(a: Aussage, tx: dict[str, str]) -> str:
@@ -967,7 +1009,14 @@ def naechste_schritte(
     for lid in leistung_ids:
         leistung = leistungen()[lid]
         formular = leistung.get("formular")
-        if formular:
+        stelle = next((s for s in traeger if s.get("leistung") == lid), None)
+        # Das Formular gilt nur für die Stellen in `fuer_stelle` (PAL080 ist das Formular der PVA). Ist eine
+        # andere Stelle zuständig, nennt der Lotse kein fremdes Formular (Review !68: SVS bekam PAL080).
+        fuer = (formular or {}).get("fuer_stelle")
+        if formular and fuer and stelle is not None and stelle["stelle"] not in fuer:
+            schritte.append(tx["schritt_formular_stelle"].format(name=stelle["name"]))
+            formular = None
+        elif formular:
             schritte.append(tx["schritt_formular"].format(**formular))
         for unterlage in leistung.get("unterlagen") or []:
             quelle = kurze_quelle(unterlage["quelle"])
@@ -1031,6 +1080,31 @@ def setze_text(
         zeilen += [f"{i}. {s}" for i, s in enumerate(schritte, start=1)]
     if vorbehalt:
         zeilen.append(tx["vorbehalt"].format(felder=feld_namen(vorbehalt, sprache)))
+    zeilen.append(tx["ki_hinweis"])
+    return "\n".join(zeilen)
+
+
+_SPRACHE_ERLAUBT = {"mittel_lang"}  # das Mittel prüft der Stil, nicht jede Antwort
+
+
+def _sprachbefunde(aussagen: Sequence[Aussage]) -> list[str]:
+    """Arten der Sprachbefunde, die nach ``glaette`` im Modelltext der Aussagen bleiben."""
+    if not aussagen:
+        return []
+    modelltext = glaette(" ".join(a.text for a in aussagen))
+    arten = [b.art for b in pruefe_sprache(modelltext) if b.art not in _SPRACHE_ERLAUBT]
+    return list(dict.fromkeys(arten))
+
+
+def _ersatz_text(traeger: Sequence[dict[str, str]], schritte: Sequence[str], sprache: str) -> str:
+    """Geprüfte Ersatzantwort ohne Modelltext: fester Satz, zuständige Stelle, nächste Schritte."""
+    tx = texte(sprache)
+    zeilen = [tx["ersatz"]]
+    for name in dict.fromkeys(s["name"] for s in traeger):
+        zeilen.append(tx["uebergabe"].format(name=name))
+    if schritte:
+        zeilen.append(tx["schritte"])
+        zeilen += [f"{i}. {s}" for i, s in enumerate(schritte, start=1)]
     zeilen.append(tx["ki_hinweis"])
     return "\n".join(zeilen)
 
@@ -1101,7 +1175,7 @@ def _analysiere(
                             ensure_ascii=False,
                         )
                         + "</zustand>\n<nachricht>"
-                        + verlauf_text
+                        + maskiere_personendaten(verlauf_text)
                         + "</nachricht>",
                     },
                 ],
@@ -1261,7 +1335,8 @@ def frage(
 
     sid = sitzung_id or str(uuid.uuid4())
     zustand = (speicher.lade(sid) if sitzung_id else None) or _neuer_zustand()
-    zustand["verlauf"] = [*zustand.get("verlauf", []), normalisiere(text)][-VERLAUF:]
+    verlauf_vorher = list(zustand.get("verlauf", []))
+    zustand["verlauf"] = [*verlauf_vorher, normalisiere(text)][-VERLAUF:]
     sprache_ = sprache or zustand.get("sprache") or erkenne_sprache(text)
     zustand["sprache"] = sprache_
     antwort = LotseAntwort(
@@ -1273,6 +1348,9 @@ def frage(
     befund = grenze.vorpruefung(text)
     dauer["vorpruefung"] = _ms(t0)
     if befund is not None:
+        # Eine abgewiesene Nachricht (Notfall, Injection, Diagnosefrage) bleibt nicht im Verlauf: Sie ginge
+        # sonst mit der nächsten Frage doch ans Modell (Review !68).
+        zustand["verlauf"] = verlauf_vorher
         return _grenzantwort(antwort, befund, zustand, speicher, dauer, gesamt)
 
     # 2. Lage und Angaben: Regeln, dazu ein Analyse-Aufruf (Modus llm)
@@ -1331,7 +1409,7 @@ def frage(
                     {
                         "role": "user",
                         "content": "<frage>"
-                        + verlauf_text
+                        + maskiere_personendaten(verlauf_text)
                         + "</frage>\n<lage>"
                         + json.dumps(
                             {"lage": lage, "leistungen": erkannt, "angaben": angaben, "stellen": traeger},
@@ -1367,7 +1445,31 @@ def frage(
     antwort.angebot_zitiert = any(a.angebot for a in aussagen)
     dauer["pruefung"] = _ms(t0)
 
-    if aussagen:
+    # Sprachprüfung des Modelltexts (uc1.sprache): ``glaette`` behebt Striche und Floskeln, was danach noch
+    # gemeldet wird (KI-Selbstbezug, Kaskade, Schablone, zu langer Satz), geht nicht raus (Review !68).
+    sprachbefunde = _sprachbefunde(aussagen)
+    if sprachbefunde:
+        antwort.hinweise.append("Sprachprüfung: " + ", ".join(sprachbefunde))
+        antwort.verworfen += [
+            {
+                "abschnitt_id": a.abschnitt_id,
+                "grund": "Sprachprüfung: " + ", ".join(sprachbefunde),
+                "zitat": a.zitat[:200],
+                "text": a.text[:200],
+                "deckung": a.deckung,
+            }
+            for a in aussagen
+        ]
+        aussagen = []
+        antwort.angebot_zitiert = False
+
+    if sprachbefunde:
+        schritte = naechste_schritte(erkannt, traeger, angebote, sprache_)
+        fertig = _ersatz_text(traeger, schritte, sprache_)
+        antwort.verhalten = "uebergabe" if traeger else "abstinenz"
+        antwort.uebergabe_an = traeger[0]["name"] if traeger else None
+        antwort.naechste_schritte = schritte
+    elif aussagen:
         schritte = naechste_schritte(erkannt, traeger, angebote, sprache_)
         # Offene Pflichtfelder nach 3 Rückfragen: Antwort mit Vorbehalt.
         if modus == "sprache":

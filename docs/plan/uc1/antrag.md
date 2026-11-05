@@ -89,7 +89,7 @@ Textfelder, eines mit MaxLen, und eine Knopfgruppe mit Kindern. Jeder Test benen
 | `daten`: `test_pflegegeld_entwurf_mit_echtem_pal080` | Werte, die nicht ankommen; den Vermerk auf allen 8 Seiten |
 | `daten`: `test_reha_waehlt_kur_und_reha_…` | die Wahl von Reha_n_Unfall, eine fehlende ärztliche Begründung |
 
-## Demo-Lauf (2026-11-05, M4, Azure `gpt-5-4-mini`, erfundene Daten)
+## Demo-Lauf (2026-11-05, Rechner A, Azure `gpt-5-4-mini`, erfundene Daten)
 
 **Pflegegeld:** drei Wechsel. (1) „Meine Mutter Erika Musterfrau, geboren am 01.02.1943, kommt allein nicht mehr
 zurecht. Ich bin ihr Sohn Karl Musterfrau.“ ergibt die Rückfrage nach dem Status. (2) „PVA, Musterstraße 1,

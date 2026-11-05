@@ -336,7 +336,9 @@ def checkliste(lage: Mapping[str, Any], stelle: Stelle, wunsch: Mapping[str, Any
     ]
     formular = leistung.get("formular")
     if formular:
-        unterlagen.append(f"{formular['bezeichnung']} ({sprache.kurzname(formular['datei'])})")
+        # Nur die Bezeichnung: Sie nennt das Formular schon („Antrag auf Pflegegeld (PAL080) der PVA“); der
+        # Kurzname dahinter wiederholte es („… (Antrag PAL080)“, Review !68).
+        unterlagen.append(str(formular["bezeichnung"]))
     angaben: Mapping[str, Any] = lage.get("angaben", {})
     wohnort = f"{angaben['plz']} Wien" if angaben.get("plz") else "nicht genannt"
     naehe = [f"Ihr Wohnort: {wohnort}. Die Stelle: {stelle.adresse_text}."]
@@ -356,7 +358,8 @@ def _beschreibung(lage: Mapping[str, Any], stelle: Stelle, wunsch: Mapping[str, 
     zeilen += ["Nähe:"] + [f"- {n}" for n in liste["naehe"]]
     zeilen += ["Zeitpräferenz:"] + [f"- {z}" for z in liste["zeitpraeferenz"]]
     beleg = sprache.kurze_quelle(f"{stelle.quelle}, S. {stelle.seite}")
-    zeilen += ["", f"Quelle: {beleg} (Abschnitt {stelle.abschnitt_id})"]
+    # Die interne Abschnitt-ID steht nur im JSON (``Stelle.als_dict``), nicht im Text für Menschen.
+    zeilen += ["", f"Quelle: {beleg}"]
     return sprache.glaette("\n".join(zeilen))
 
 
