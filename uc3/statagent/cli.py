@@ -695,10 +695,72 @@ def frage(
 
 @app.command("klass")
 def klass(
-    begriff: Annotated[str, typer.Argument(help="z. B. oenace, region, qualifikation")] = "oenace",
+    begriff: Annotated[
+        str,
+        typer.Argument(
+            help="oenace, region, qualifikation, beschaeftigungskategorie, geschlecht oder alter"
+        ),
+    ] = "oenace",
+    code: Annotated[str | None, typer.Argument(help="z. B. C; ohne Code: Versionen und Codes")] = None,
+    version: Annotated[str | None, typer.Option("--version", help="nur diese Version, z. B. 2025")] = None,
+    unterklassen: Annotated[
+        int, typer.Option(help="bei ÖNACE zusätzlich so viele Unterklassen-Übergänge zeigen")
+    ] = 0,
+    regelsatz: Annotated[str, typer.Option()] = "v1",
+    als_json: JsonOption = False,
 ) -> None:
-    """Zeigt eine Klassifikation mit Versionen und Übergängen."""
-    _fehlt("#75", "klass")
+    """Erklärt eine Klassifikation: Versionen, Codes, Übergänge, Quellzuordnungen und Verhältnisse (#75)."""
+    from statagent.klass import KlassFehler, erklaeren
+    from statagent.klass import text as klass_text
+
+    with verbinden() as conn:
+        try:
+            daten = erklaeren(conn, begriff, code, version, regelsatz, unterklassen)
+        except KlassFehler as fehler:
+            typer.echo(str(fehler), err=True)
+            raise typer.Exit(1) from fehler
+    _ausgabe(daten, als_json, klass_text(daten))
+
+
+@app.command("export-online")
+def export_online(
+    ziel: Annotated[Path, typer.Option("--ziel", help="Zieldatei (.sql), am besten außerhalb des Repos")],
+    pg_dump: Annotated[
+        str,
+        typer.Option(
+            "--pg-dump",
+            help="pg_dump-Befehl, z. B. „docker exec -e PGUSER -e PGPASSWORD -e PGDATABASE <container> pg_dump“"
+            " (ohne Shell; die Verbindung kommt als PG*-Umgebung aus UC3_DATABASE_URL)",
+        ),
+    ] = "pg_dump",
+    rolle: Annotated[str, typer.Option("--rolle", help="Rolle, die Leserechte bekommt")] = "kic_app",
+    als_json: JsonOption = False,
+) -> None:
+    """Dump der Schemata stat und meta für den Online-Server, ohne roh und bereinigt, mit Leserechten."""
+    from statagent.export_online import ExportFehler, exportieren
+
+    try:
+        erg = exportieren(ziel, konfig.datenbank_url(), pg_dump, rolle)
+    except (ExportFehler, OSError) as fehler:
+        typer.echo(f"Export gescheitert, keine Datei geschrieben: {fehler}", err=True)
+        raise typer.Exit(1) from fehler
+    daten = {
+        "pfad": str(erg.pfad),
+        "groesse": erg.groesse,
+        "sha256": erg.sha256,
+        "tabellen": erg.tabellen,
+        "entfernt": erg.entfernt,
+        "rolle": rolle,
+    }
+    zeilen = [
+        f"Geschrieben: {erg.pfad} ({erg.groesse / 1_048_576:.1f} MB)",
+        "Tabellen: " + ", ".join(f"{s} {n}" for s, n in erg.tabellen.items()),
+        f"sha256: {erg.sha256}",
+        f"Leserechte für {rolle} angehängt.",
+    ]
+    if erg.entfernt:
+        zeilen.append("Für PostgreSQL 16 auskommentiert: " + ", ".join(sorted(set(erg.entfernt))))
+    _ausgabe(daten, als_json, "\n".join(zeilen))
 
 
 @app.command("protokoll")
