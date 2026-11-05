@@ -27,6 +27,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from collections import Counter
 from pathlib import Path
 
@@ -54,13 +55,20 @@ PUNKT = re.compile(r"^\s{0,3}(?:[-*+]|\d+[.)])\s+(.*\S)\s*$")
 
 # Was nie in eine Datei, ein Issue oder eine Nachricht darf.
 VERBOTEN = re.compile(
-    r"(/Users/|/home/|\.local\b|m5-remote|win-wsl|\b\d{1,3}(?:\.\d{1,3}){3}\b|://[^@\s/]+:[^@\s/]+@)"
+    r"(/Users/|/home/|(?<!\.env)\.local\b|m5-remote|win-wsl|\b(?!127\.0\.0\.1\b|0\.0\.0\.0\b)\d{1,3}(?:\.\d{1,3}){3}\b|://[^@\s/]+:[^@\s/]+@)"
 )
 
 
-def glab_json(pfad: str) -> object:
-    aus = subprocess.run(["glab", "api", pfad], capture_output=True, text=True, check=True)
-    return json.loads(aus.stdout)
+def glab_json(pfad: str, versuche: int = 3) -> object:
+    """GET über glab; vorübergehende Fehler der API werden bis zu dreimal wiederholt."""
+    for nr in range(1, versuche + 1):
+        aus = subprocess.run(["glab", "api", pfad], capture_output=True, text=True)
+        if aus.returncode == 0:
+            return json.loads(aus.stdout)
+        if nr == versuche:
+            raise RuntimeError(f"glab api {pfad} scheitert: {aus.stderr.strip()[:200]}")
+        time.sleep(2 * nr)
+    raise AssertionError("unerreichbar")
 
 
 def issues_holen(cache: Path | None) -> list[dict]:
@@ -354,9 +362,51 @@ def abhaken(issues: list[dict], kid: str, belege: dict[str, dict], ja: bool) -> 
     return 0 if neu_k["abgehakt"] else 1
 
 
+def befunde(zeilen: list[dict], belege: dict[str, dict], wahl: str | None, ja: bool) -> int:
+    """Ein Kommentar je Issue mit allen nicht bestandenen Kriterien; nur wenn sich der Befund geändert hat."""
+    je_issue: dict[int, list[tuple[dict, dict]]] = {}
+    for k in zeilen:
+        if wahl and k["bereich"] != wahl:
+            continue
+        s, b, _ = stand(k, belege)
+        if s == "nicht bestanden" and b:
+            je_issue.setdefault(k["iid"], []).append((k, b))
+    gepostet = 0
+    for iid, liste in sorted(je_issue.items()):
+        kern = json.dumps([(k["id"], b.get("grund"), b.get("ausgabe")) for k, b in liste], ensure_ascii=False)
+        marke = f"<!-- abnahme-befund:{hashlib.sha1(kern.encode()).hexdigest()[:12]} -->"
+        wort = "Kriterium" if len(liste) == 1 else "Kriterien"
+        teile = [f"Abnahme: **{len(liste)} {wort} nicht bestanden** (Prüfer b-abnahme)", ""]
+        for k, b in liste:
+            teile.append(f"- **{k['id']}** auf main `{b['sha']}`, {b['zeit']}: {b.get('grund', '')}")
+            if b.get("befehl"):
+                teile.append(f"  Befehl: `{b['befehl'][:300]}`")
+            if b.get("ausgabe"):
+                teile.append(f"  Gemessen: {b['ausgabe'][:300]}")
+        teile += ["", "Fix macht die Lane, der der Code gehört; abgehakt wird nur nach neuer Messung.", marke]
+        text = "\n".join(teile)
+        if not ja:
+            print(f"--- #{iid} (Trockenlauf)\n{text}\n")
+            continue
+        notizen = glab_json(f"projects/{PROJEKT}/issues/{iid}/notes?per_page=100")
+        if any(marke in (n.get("body") or "") for n in notizen):
+            print(f"#{iid}: Befund unverändert, kein neuer Kommentar")
+            continue
+        subprocess.run(
+            ["glab", "api", "-X", "POST", f"projects/{PROJEKT}/issues/{iid}/notes", "-f", f"body={text}"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        gepostet += 1
+        print(f"#{iid}: Befund kommentiert ({len(liste)})")
+    print(f"{gepostet} Kommentare")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("befehl", choices=("schreiben", "zaehler", "liste", "einlesen", "abhaken"))
+    ap.add_argument("befehl", choices=("schreiben", "zaehler", "liste", "einlesen", "abhaken", "befunde"))
     ap.add_argument("arg", nargs="?")
     ap.add_argument("--bereich", choices=BEREICHE)
     ap.add_argument("--cache", type=Path, help="Issue-Abzug als JSON (zum Wiederholen ohne API)")
@@ -393,6 +443,8 @@ def main() -> int:
         return 0
     if a.befehl == "abhaken":
         return abhaken(issues, a.arg, belege, a.ja)
+    if a.befehl == "befunde":
+        return befunde(zeilen, belege, a.bereich, a.ja)
 
     sha, zeit = main_sha(), jetzt()
     if a.befehl == "schreiben":
