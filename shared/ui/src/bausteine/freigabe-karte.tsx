@@ -1,8 +1,9 @@
 "use client";
 
-import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Feld, Fliesstext, Knopf, Status, Ueberschrift } from "../basis";
 import { fokus, klassen } from "../basis/klassen";
+import { HerkunftChip, type HerkunftChipProps } from "./herkunft-chip";
 import { formatDifferenz, formatProzent, formatZahl, formatZeit, veraenderung } from "./format";
 import { pruefeName } from "./name";
 
@@ -23,6 +24,12 @@ export type FreigabeEntscheidung =
   | { art: "freigegeben"; name: string; zeit: string }
   | { art: "abgelehnt"; name: string; zeit: string; begruendung: string };
 
+/**
+ * Antwort des Servers auf eine Entscheidung. `zeitpunkt` ist der ISO-String aus `meta.freigabe.zeitpunkt`;
+ * die Karte zeigt dann diese Zeit statt der Uhr des Browsers.
+ */
+export type FreigabeAntwort = { zeitpunkt?: string | null } | void;
+
 export type FreigabeKarteProps = {
   eintrag: FreigabeEintrag;
   vorher: number;
@@ -33,9 +40,15 @@ export type FreigabeKarteProps = {
   groesse?: string;
   /** Diff der Regel, Zeilen mit `+` und `-`; steht in den Details. */
   diff?: string;
-  /** Erhält den geprüften, getrimmten Namen. Ein abgelehntes Promise zeigt den Fehler an. */
-  onFreigeben: (name: string) => void | Promise<void>;
-  onAblehnen: (name: string, begruendung: string) => void | Promise<void>;
+  /**
+   * Erhält den geprüften, getrimmten Namen. Ein abgelehntes Promise zeigt den Fehler an.
+   * Gibt der Server `{ zeitpunkt }` zurück, steht diese Zeit im Ergebnis.
+   */
+  onFreigeben: (name: string) => FreigabeAntwort | Promise<FreigabeAntwort>;
+  /** Erhält Namen und getrimmte Begründung; Rückgabe wie bei `onFreigeben`. */
+  onAblehnen: (name: string, begruendung: string) => FreigabeAntwort | Promise<FreigabeAntwort>;
+  /** Beleg der Zahl „Nachher“: Abfrage und Lieferung, erscheint als Herkunft-Chip unter der Waage. */
+  beleg?: Omit<HerkunftChipProps, "className">;
   /** Schon entschieden, z. B. aus dem Protokoll: Zone 3 zeigt dann das Ergebnis statt der Eingabe. */
   entscheidung?: FreigabeEntscheidung;
   /** Ebene der Zonen-Überschriften im Seitenaufbau. */
@@ -52,10 +65,17 @@ function fehlertext(fehler: unknown): string {
   return meldung ? `Nicht gespeichert. ${meldung}` : "Nicht gespeichert. Bitte noch einmal versuchen.";
 }
 
+function serverZeit(antwort: FreigabeAntwort): string {
+  // `void` lässt sich nicht verengen; die Antwort kommt außerdem zur Laufzeit vom Server.
+  const zeitpunkt = (antwort as { zeitpunkt?: unknown } | undefined | null)?.zeitpunkt;
+  return typeof zeitpunkt === "string" && zeitpunkt.trim() ? zeitpunkt : new Date().toISOString();
+}
+
 function Zone({ id, titel, ebene, children }: { id: string; titel: string; ebene: "h2" | "h3" | "h4"; children: ReactNode }) {
   return (
     <section aria-labelledby={id} className="flex flex-col gap-4 border-t border-line pt-6 first:border-t-0 first:pt-0">
-      <Ueberschrift stufe={3} als={ebene} id={id}>
+      {/* tabIndex -1: nach einem Ergebnis setzt die Karte den Fokus hierher, die Tab-Folge bleibt gleich. */}
+      <Ueberschrift stufe={3} als={ebene} id={id} tabIndex={-1} className={fokus}>
         {titel}
       </Ueberschrift>
       {children}
@@ -104,6 +124,7 @@ export function FreigabeKarte({
   diff,
   onFreigeben,
   onAblehnen,
+  beleg,
   entscheidung,
   ebene = "h3",
   className,
@@ -116,6 +137,13 @@ export function FreigabeKarte({
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const [ergebnis, setErgebnis] = useState<FreigabeEntscheidung | null>(null);
+  // Zählt Ergebnisse (gespeichert oder Fehler); jede Erhöhung legt den Fokus auf die Überschrift der Zone 3.
+  const [fokusZaehler, setFokusZaehler] = useState(0);
+  const freigabeId = `${basisId}-freigabe`;
+
+  useEffect(() => {
+    if (fokusZaehler > 0) document.getElementById(freigabeId)?.focus();
+  }, [fokusZaehler, freigabeId]);
 
   const pruefung = pruefeName(name);
   const entschieden = entscheidung ?? ergebnis;
@@ -142,16 +170,17 @@ export function FreigabeKarte({
     setFehler(null);
     try {
       if (art === "freigegeben") {
-        await onFreigeben(pruefung.name);
-        setErgebnis({ art, name: pruefung.name, zeit: new Date().toISOString() });
+        const antwort = await onFreigeben(pruefung.name);
+        setErgebnis({ art, name: pruefung.name, zeit: serverZeit(antwort) });
       } else {
-        await onAblehnen(pruefung.name, grund);
-        setErgebnis({ art, name: pruefung.name, zeit: new Date().toISOString(), begruendung: grund });
+        const antwort = await onAblehnen(pruefung.name, grund);
+        setErgebnis({ art, name: pruefung.name, zeit: serverZeit(antwort), begruendung: grund });
       }
     } catch (e) {
       setFehler(fehlertext(e));
     } finally {
       setLaeuft(false);
+      setFokusZaehler((n) => n + 1);
     }
   }
 
@@ -184,6 +213,7 @@ export function FreigabeKarte({
             <Waagschale titel="Δ in Prozent" wert={formatProzent(prozent)} />
           )}
         </dl>
+        {beleg && <HerkunftChip {...beleg} />}
         <details>
           <summary className={klassen("cursor-pointer font-sans text-14 font-semibold text-gruen", fokus)}>
             Details und Regeländerung
@@ -214,19 +244,8 @@ export function FreigabeKarte({
         </details>
       </Zone>
 
-      <Zone id={`${basisId}-freigabe`} titel={zone3Titel} ebene={ebene}>
-        {entschieden ? (
-          <div className="flex flex-col gap-2" role="status">
-            {entschieden.art === "freigegeben" ? (
-              <Status art="ok">{`Freigegeben von ${entschieden.name}, ${formatZeit(entschieden.zeit)}`}</Status>
-            ) : (
-              <>
-                <Status art="info">{`Abgelehnt von ${entschieden.name}, ${formatZeit(entschieden.zeit)}`}</Status>
-                <Fliesstext groesse={14}>{`Begründung: ${entschieden.begruendung}`}</Fliesstext>
-              </>
-            )}
-          </div>
-        ) : (
+      <Zone id={freigabeId} titel={zone3Titel} ebene={ebene}>
+        {!entschieden && (
           <div className="flex flex-col gap-4">
             <Fliesstext>Wer gibt frei? Ihr Name kommt ins Protokoll und in den Commit.</Fliesstext>
             <Feld
@@ -287,16 +306,28 @@ export function FreigabeKarte({
                 </>
               )}
             </div>
-            <div aria-live="polite">
-              {laeuft && <Status art="info">Wird gespeichert</Status>}
-              {fehler && (
-                <Status art="fehler" role="alert">
-                  {fehler}
-                </Status>
-              )}
-            </div>
           </div>
         )}
+        {/* Die Live-Region steht von Anfang an (leer); Screenreader melden nur Änderungen in einer
+            Region, die schon da war. Ergebnis, Speichern und Fehler werden hier eingesetzt. */}
+        <div aria-live="polite" data-meldung="freigabe" className="flex flex-col gap-2">
+          {entschieden ? (
+            entschieden.art === "freigegeben" ? (
+              <Status art="ok">{`Freigegeben von ${entschieden.name}, ${formatZeit(entschieden.zeit)}`}</Status>
+            ) : (
+              <>
+                <Status art="info">{`Abgelehnt von ${entschieden.name}, ${formatZeit(entschieden.zeit)}`}</Status>
+                <Fliesstext groesse={14}>{`Begründung: ${entschieden.begruendung}`}</Fliesstext>
+              </>
+            )
+          ) : laeuft ? (
+            <Status art="info">Wird gespeichert</Status>
+          ) : fehler ? (
+            <Status art="fehler" role="alert">
+              {fehler}
+            </Status>
+          ) : null}
+        </div>
       </Zone>
     </article>
   );

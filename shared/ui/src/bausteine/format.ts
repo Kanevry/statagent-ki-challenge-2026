@@ -1,41 +1,31 @@
-// Zahlen- und Zeitformat der Bausteine. ICU liefert für de-AT ein geschütztes Leerzeichen als
-// Tausendertrennung („387 390“) und einen Bindestrich als Minus. Vorgabe ist 387.390 und das echte
-// Minuszeichen U+2212, deshalb werden Trennzeichen und Vorzeichen hier gesetzt.
-const MINUS = "−";
-const GESCHUETZT = " ";
+// Zahlen- und Zeitformat der Bausteine. Die Abbildung von Tausendertrennung (Punkt) und Minus (U+2212)
+// kommt allein aus `formatiereZahl` der Basis, damit Bausteine und `<Zahl>` gleich schreiben.
+import { formatiereZahl } from "../basis/text";
 
-function deAt(format: Intl.NumberFormat, wert: number): string {
-  return format
-    .formatToParts(wert)
-    .map((teil) => {
-      if (teil.type === "group") return ".";
-      if (teil.type === "minusSign") return MINUS;
-      return teil.value;
-    })
-    .join("");
+const GESCHUETZT = "\u00a0";
+
+// −0 schreibt Intl als „−0“; eine Null ohne Vorzeichen ist gemeint.
+function ohneMinusNull(wert: number): number {
+  return Object.is(wert, -0) ? 0 : wert;
 }
 
-const ganzzahl = new Intl.NumberFormat("de-AT", { maximumFractionDigits: 0 });
-const differenz = new Intl.NumberFormat("de-AT", { maximumFractionDigits: 0, signDisplay: "exceptZero" });
-const prozent = new Intl.NumberFormat("de-AT", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-  signDisplay: "exceptZero",
-});
-
-/** Ganze Zahl im Format 387.390. */
+/** Zahl im Format 387.390, genau wie `formatiereZahl` aus `@kic/ui/basis`. */
 export function formatZahl(wert: number): string {
-  return deAt(ganzzahl, wert);
+  return formatiereZahl(ohneMinusNull(wert));
 }
 
 /** Differenz mit Vorzeichen: +12, −260, 0. */
 export function formatDifferenz(wert: number): string {
-  return deAt(differenz, wert);
+  const text = formatZahl(wert);
+  return wert > 0 ? `+${text}` : text;
 }
 
 /** Prozentwert mit zwei Nachkommastellen und Vorzeichen: −0,07 %. */
 export function formatProzent(wert: number): string {
-  return `${deAt(prozent, wert)}${GESCHUETZT}%`;
+  // Kaufmännisch vom Betrag aus runden, wie Intl: −0,065 wird −0,07.
+  const gerundet = ohneMinusNull((Math.sign(wert) * Math.round(Math.abs(wert) * 100)) / 100);
+  const [ganz, nachkomma = ""] = formatDifferenz(gerundet).split(",");
+  return `${ganz},${nachkomma.padEnd(2, "0")}${GESCHUETZT}%`;
 }
 
 /** Unterschied von vorher zu nachher; Prozent ist `null`, wenn vorher 0 ist. */

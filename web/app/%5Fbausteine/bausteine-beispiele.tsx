@@ -85,7 +85,15 @@ export function BausteineBeispiele() {
       </Teil>
 
       <Teil titel="Freigabe-Karte, offen">
-        <FreigabeKarte {...gemeinsam} onFreigeben={kurzWarten} onAblehnen={kurzWarten} />
+        <FreigabeKarte
+          {...gemeinsam}
+          beleg={{ sql, lieferung: "2025-03", lauf: "L-0412" }}
+          onFreigeben={async () => {
+            await kurzWarten();
+            return { zeitpunkt: "2026-11-05T09:20:00+00:00" };
+          }}
+          onAblehnen={kurzWarten}
+        />
       </Teil>
 
       <Teil titel="Freigabe-Karte, Server nimmt nicht an">
@@ -118,7 +126,7 @@ export function BausteineBeispiele() {
           onAblehnen={kurzWarten}
           entscheidung={{
             art: "abgelehnt",
-            name: "Max Muster",
+            name: "Clara Beispiel",
             zeit: "2026-11-05T09:25:00+00:00",
             begruendung: "Erst mit der Lieferung 2025-04 prüfen.",
           }}

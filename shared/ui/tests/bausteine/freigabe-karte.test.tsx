@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { FreigabeKarte, type FreigabeKarteProps } from "../../src/bausteine";
+import { FreigabeKarte, formatZeit, type FreigabeKarteProps } from "../../src/bausteine";
 
 const eintrag = {
   anweisung: "Prüfregel P07 ab 2025-01 als Fehler statt Warnung führen",
@@ -94,4 +94,59 @@ it("zeigt einen Fehler und bleibt offen, wenn der Server ablehnt", async () => {
   expect((await screen.findByRole("alert")).textContent).toContain("Name abgelehnt.");
   expect(screen.queryByRole("heading", { name: "Freigegeben" })).toBeNull();
   expect(knopf.disabled).toBe(false);
+});
+
+// Fängt ab: eine Live-Region, die erst mit dem Ergebnis entsteht (Screenreader melden sie oft nicht),
+// und ein Fokus, der mit dem verschwundenen Knopf im Nichts landet.
+it("setzt das Ergebnis in die schon vorhandene Live-Region und fokussiert die Überschrift", async () => {
+  const user = userEvent.setup();
+  const { knopf, feld } = karte();
+  const region = document.querySelector('[data-meldung="freigabe"]');
+  expect(region?.getAttribute("aria-live")).toBe("polite");
+  expect(region?.textContent).toBe("");
+  await user.type(feld, "Bernhard Götzendorfer");
+  await user.click(knopf);
+  const ueberschrift = await screen.findByRole("heading", { name: "Freigegeben" });
+  expect(document.querySelector('[data-meldung="freigabe"]')).toBe(region);
+  expect(region?.textContent).toContain("Freigegeben von Bernhard Götzendorfer");
+  expect(document.activeElement).toBe(ueberschrift);
+});
+
+// Fängt ab: Ablehnung ohne Begründung, oder eine Begründung, die nicht beim Aufrufer ankommt.
+it("verlangt beim Ablehnen eine Begründung und übergibt Name und Begründung", async () => {
+  const user = userEvent.setup();
+  const { onAblehnen, feld } = karte();
+  await user.type(feld, "Bernhard Götzendorfer");
+  await user.click(screen.getByRole("button", { name: "Ablehnen" }));
+  const speichern = screen.getByRole("button", { name: "Ablehnung speichern" }) as HTMLButtonElement;
+  expect(speichern.disabled).toBe(true);
+  await user.type(screen.getByRole("textbox", { name: "Begründung der Ablehnung" }), "  Erst 2025-04 prüfen ");
+  expect(speichern.disabled).toBe(false);
+  await user.click(speichern);
+  expect(onAblehnen).toHaveBeenCalledTimes(1);
+  expect(onAblehnen).toHaveBeenCalledWith("Bernhard Götzendorfer", "Erst 2025-04 prüfen");
+});
+
+// Fängt ab: Doppelklick während der Server noch antwortet erzeugt zwei Freigaben.
+it("hält den Knopf gesperrt, solange die Freigabe läuft", async () => {
+  const user = userEvent.setup();
+  const onFreigeben = vi.fn(() => new Promise<void>(() => {}));
+  const { knopf, feld } = karte({ onFreigeben });
+  await user.type(feld, "Bernhard Götzendorfer");
+  await user.click(knopf);
+  expect(knopf.disabled).toBe(true);
+  await user.click(knopf);
+  expect(onFreigeben).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("Wird gespeichert")).toBeTruthy();
+});
+
+// Fängt ab: die Karte zeigt die Uhr des Browsers statt des Zeitpunkts aus meta.freigabe.
+it("zeigt den Zeitpunkt, den der Server zurückgibt", async () => {
+  const user = userEvent.setup();
+  const zeitpunkt = "2020-01-02T03:04:00+00:00";
+  const { knopf, feld } = karte({ onFreigeben: () => Promise.resolve({ zeitpunkt }) });
+  await user.type(feld, "Bernhard Götzendorfer");
+  await user.click(knopf);
+  await screen.findByRole("heading", { name: "Freigegeben" });
+  expect(screen.getByText(`Freigegeben von Bernhard Götzendorfer, ${formatZeit(zeitpunkt)}`)).toBeTruthy();
 });

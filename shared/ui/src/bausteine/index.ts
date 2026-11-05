@@ -5,6 +5,7 @@ export { FehlerChip, WarnChip, type ChipProps } from "./chips";
 export { formatDifferenz, formatProzent, formatZahl, formatZeit, veraenderung } from "./format";
 export {
   FreigabeKarte,
+  type FreigabeAntwort,
   type FreigabeEintrag,
   type FreigabeEntscheidung,
   type FreigabeKarteProps,
