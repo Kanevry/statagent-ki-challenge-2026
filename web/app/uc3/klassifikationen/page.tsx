@@ -379,9 +379,9 @@ async function Pensionen() {
                 <tr className="border-b border-line text-left text-slate">
                   <th scope="col" className="py-1 pr-2 font-normal">Jahr</th>
                   <th scope="col" className="py-1 pr-2 text-right font-normal">Insgesamt</th>
-                  <th scope="col" className="py-1 pr-2 text-right font-normal">Unselbständige</th>
-                  <th scope="col" className="py-1 pr-2 text-right font-normal">Selbständige</th>
-                  <th scope="col" className="py-1 text-right font-normal">Vorzeitige</th>
+                  <th scope="col" className="py-1 pr-2 text-right font-normal">{"Un\u00adselbst\u00adändige"}</th>
+                  <th scope="col" className="py-1 pr-2 text-right font-normal">{"Selbst\u00adändige"}</th>
+                  <th scope="col" className="py-1 text-right font-normal">{"Vor\u00adzeitige"}</th>
                 </tr>
               </thead>
               <tbody>

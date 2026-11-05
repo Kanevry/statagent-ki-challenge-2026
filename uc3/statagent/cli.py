@@ -29,7 +29,8 @@ db_app = typer.Typer(help="Datenbank: Schema einrichten und Rohdaten prüfen.", 
 regeln_app = typer.Typer(help="Regeln als Daten: anzeigen, exportieren, freigeben.", no_args_is_help=True)
 vorschlag_app = typer.Typer(help="Vorschläge der Agenten ansehen.", no_args_is_help=True)
 pensionen_app = typer.Typer(
-    help="Pensionsstatistik 2018 bis 2025: Meldungen der Träger laden, prüfen, ausgeben.", no_args_is_help=True
+    help="Pensionsstatistik 2018 bis 2025: Meldungen der Träger laden, prüfen, ausgeben.",
+    no_args_is_help=True,
 )
 app.add_typer(db_app, name="db")
 app.add_typer(regeln_app, name="regeln")
@@ -886,7 +887,9 @@ def pensionen_laden(
 
 @pensionen_app.command("pruefen")
 def pensionen_pruefen(
-    ausgabe: Annotated[Path | None, typer.Option(help="Bericht als Markdown in diese Datei schreiben")] = None,
+    ausgabe: Annotated[
+        Path | None, typer.Option(help="Bericht als Markdown in diese Datei schreiben")
+    ] = None,
     als_json: JsonOption = False,
 ) -> None:
     """Prüfbericht: Summen gegen die Dateien, Lücken, Übergang 2019/2020, Auffälligkeiten. Ändert keine Zahl."""
@@ -905,7 +908,9 @@ def pensionen_pruefen(
 @pensionen_app.command("tabelle")
 def pensionen_tabelle(
     jahr: Annotated[int, typer.Option(help="Jahr 2018 bis 2025")],
-    nummer: Annotated[str, typer.Option("--tabelle", help="T12 Pensionsstand, T13 vorzeitige Alterspensionen")] = "T12",
+    nummer: Annotated[
+        str, typer.Option("--tabelle", help="T12 Pensionsstand, T13 vorzeitige Alterspensionen")
+    ] = "T12",
     als_json: JsonOption = False,
 ) -> None:
     """Tabelle 12 oder 13 eines Jahres mit den selbst gebildeten Summen über die Träger."""
@@ -918,7 +923,8 @@ def pensionen_tabelle(
             typer.echo(str(fehler), err=True)
             raise typer.Exit(2) from fehler
     text = "\n".join(
-        f"{z['bezeichnung']:<60} {z['pensionsart']:<12} {z['geschlecht']} {z['wert']:>10}" for z in daten["zeilen"]
+        f"{z['bezeichnung']:<60} {z['pensionsart']:<12} {z['geschlecht']} {z['wert']:>10}"
+        for z in daten["zeilen"]
     )
     _ausgabe(daten, als_json, text or f"Keine Zahlen für {jahr}: zuerst `uc3 pensionen laden`.")
 
