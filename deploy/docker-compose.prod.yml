@@ -76,6 +76,10 @@ services:
     # Modellprotokoll (#100): einziger beschreibbarer Ort; das Tagesbudget zählt hier, sonst lehnt plattform.llm ab
     volumes:
       - app_protokoll:/app/var/protokoll
+      # UC2-Namensliste für den echten Presse-Index (Maskierung, nie im Repo): absoluter Host-Pfad aus
+      # UC2_NAMENSLISTE in .env.server, schreibgeschützt. Ohne Wert /dev/null: dann nimmt UC2 die gekennzeichneten
+      # Beispielbelege („beispielbeleg (erfunden)“), nie ungeschützte Presse an das Modell.
+      - ${UC2_NAMENSLISTE:-/dev/null}:/etc/kic/uc2-namensliste:ro
     depends_on:
       db:
         condition: service_healthy
@@ -117,6 +121,8 @@ services:
       # Rolle kic_app: nur SELECT, default_transaction_read_only (deploy/sql/app-rolle.sql); statistik bleibt Admin
       UC1_DATABASE_URL: postgresql://kic_app:${KIC_APP_DB_PASSWORD:?KIC_APP_DB_PASSWORD fehlt, zuerst scripts/deploy.sh init}@db:5432/lotse
       UC2_DATABASE_URL: postgresql://kic_app:${KIC_APP_DB_PASSWORD:?KIC_APP_DB_PASSWORD fehlt, zuerst scripts/deploy.sh init}@db:5432/healthpolicy
+      # Pfad im Container, gemountet oben; die Datei ist nur geladen, wenn sie nicht leer ist
+      UC2_NAMENSLISTE: /etc/kic/uc2-namensliste
       UC3_DATABASE_URL: postgresql://kic_app:${KIC_APP_DB_PASSWORD:?KIC_APP_DB_PASSWORD fehlt, zuerst scripts/deploy.sh init}@db:5432/statistik
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"]
