@@ -6,6 +6,7 @@ Jeder Befehl läuft ohne Sprachmodell. `--json` liefert maschinenlesbare Ausgabe
 from __future__ import annotations
 
 import csv
+import dataclasses
 import gzip
 import json
 import sys
@@ -339,6 +340,32 @@ def sheet(regelsatz: Annotated[str, typer.Option()] = "v1") -> None:
     typer.echo(f"Sheet geschrieben: {getattr(erg, 'pfad', erg)}")
 
 
+@app.command("laufmanifest")
+def laufmanifest(regelsatz: Annotated[str, typer.Option()] = "v1") -> None:
+    """Laufmanifest je Berichtsmonat (maßgeblicher Lauf, verwendete Lieferungen) → docs/plan/uc3/laufmanifest-<regelsatz>.csv."""
+    from statagent.berichte.katalog import laufmanifest_luecken, laufmanifest_schreiben
+
+    pfad = konfig.REPO_WURZEL / "docs" / "plan" / "uc3" / f"laufmanifest-{regelsatz}.csv"
+    with verbinden() as conn:
+        geschrieben = laufmanifest_schreiben(conn, pfad, regelsatz)
+        luecken = laufmanifest_luecken(conn, regelsatz)
+    typer.echo(f"Laufmanifest geschrieben: {geschrieben}")
+    if luecken:
+        typer.echo(f"ohne erfolgreichen Lauf: {', '.join(luecken)}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command("pruefkatalog")
+def pruefkatalog(regelsatz: Annotated[str, typer.Option()] = "v1") -> None:
+    """Prüfkatalog P01–P24 aus meta.regel (Status, Ebene, Schwelle, Einstufung, Maßnahme) → uc3/pruefkatalog.csv."""
+    from statagent.berichte.katalog import pruefkatalog_schreiben
+
+    name = "pruefkatalog.csv" if regelsatz == "v1" else f"pruefkatalog_{regelsatz}.csv"
+    with verbinden() as conn:
+        geschrieben = pruefkatalog_schreiben(conn, konfig.UC3_WURZEL / name, regelsatz)
+    typer.echo(f"Prüfkatalog geschrieben: {geschrieben}")
+
+
 @app.command("pruefe-abgabe")
 def pruefe_abgabe(als_json: JsonOption = False) -> None:
     """Prüft die Abgabedateien unter abgabe/ (Sheet alt und neu, 24 Qualitätsberichte, Ministerium, Protokoll, Modelle)."""
@@ -371,25 +398,175 @@ def ministerium(
         typer.echo(f"  {m} aus Lieferung {lieferung}{hinweis}")
 
 
+def _vorschlag_dict(v: Any) -> dict[str, Any]:
+    """Vorschlag als dict für --json, mit Status in Alltagssprache und der Wirkung in einem Satz."""
+    from statagent.agenten.vorschlag import wirkung_text
+
+    return {
+        **dataclasses.asdict(v),
+        "zustand": v.zustand,
+        "ref": v.ref,
+        "datei_pfad": v.datei_pfad,
+        "wirkung": wirkung_text(v.typ, v.aenderungen, v.regelsatz_ziel),
+    }
+
+
+def _entscheidung_fehler() -> tuple[type[BaseException], ...]:
+    """Fehler, mit denen Freigabe und Ablehnung sauber abbrechen (Meldung, Exit 1, kein Traceback)."""
+    from statagent.agenten.plattform_bruecke import PlattformFehlt
+    from statagent.agenten.vorschlag import VorschlagFehler
+
+    fehler: tuple[type[BaseException], ...] = (NameUngueltig, VorschlagFehler, PlattformFehlt)
+    try:
+        from plattform import freigabe as plattform_freigabe
+    except ModuleNotFoundError:
+        return fehler
+    return (
+        *fehler,
+        plattform_freigabe.NichtFreigegeben,
+        plattform_freigabe.VorschlagUngueltig,
+        plattform_freigabe.GitFehler,
+    )
+
+
 @app.command("agent")
-def agent(anweisung: Annotated[str, typer.Argument(help="Änderungsauftrag in Sprache")]) -> None:
+def agent(
+    anweisung: Annotated[str, typer.Argument(help="Änderungsauftrag in Sprache")],
+    regelsatz_basis: Annotated[str, typer.Option(help="Regelsatz, von dem der Vorschlag ausgeht")] = "v1",
+    probe: Annotated[
+        str | None, typer.Option(help="Probemonat JJJJ-MM: Zahlen vorher/nachher gleich mitrechnen")
+    ] = None,
+    als_json: JsonOption = False,
+) -> None:
     """Gibt einen Änderungsauftrag an den Koordinator-Agenten (erzeugt einen Vorschlag, ändert nichts)."""
-    _fehlt("#15", "agent")
+    from statagent.agenten.koordinator import agent_ausfuehren
+    from statagent.agenten.plattform_bruecke import PlattformFehlt
+    from statagent.agenten.vorschlag import VorschlagFehler, vorschlag_lesen, wirkung_text
+    from statagent.lauf import LaufFehler
+
+    modell_fehler: tuple[type[BaseException], ...] = (PlattformFehlt,)
+    try:
+        from plattform.llm import LlmFehler
+    except ModuleNotFoundError:
+        pass
+    else:
+        modell_fehler = (PlattformFehlt, LlmFehler)
+
+    with verbinden() as conn:
+        try:
+            erg = agent_ausfuehren(conn, anweisung, regelsatz_basis=regelsatz_basis, probe_lieferung=probe)
+        except modell_fehler as fehler:
+            typer.echo(f"Modell nicht erreichbar, kein Vorschlag: {fehler}", err=True)
+            raise typer.Exit(1) from fehler
+        except (VorschlagFehler, LaufFehler, RegelFehler) as fehler:
+            typer.echo(f"abgebrochen: {fehler}", err=True)
+            raise typer.Exit(1) from fehler
+        v = None if erg.vorschlag_id is None else vorschlag_lesen(conn, erg.vorschlag_id)
+
+    daten: dict[str, Any] = dataclasses.asdict(erg)
+    zeilen: list[str] = []
+    if v is not None:
+        wirkung = wirkung_text(v.typ, v.aenderungen, v.regelsatz_ziel)
+        daten |= {"regelsatz_ziel": v.regelsatz_ziel, "wirkung": wirkung}
+        zeilen += [
+            f"Vorschlag uc3/{v.id} (Rolle {v.rolle}), offen, Ziel-Regelsatz {v.regelsatz_ziel}",
+            f"Wirkung: {wirkung}",
+        ]
+    if erg.rueckfrage:
+        zeilen.append(f"Rückfrage: {erg.rueckfrage}")
+    if erg.abgelehnt:
+        zeilen.append(f"Kein Vorschlag: {erg.abgelehnt}")
+    if v is not None:
+        zeilen += [
+            f"Nächster Schritt: uv run uc3 vorschlag zeigen {v.id}",
+            f'Wirksam erst nach Freigabe mit Namen: uv run uc3 freigabe {v.id} --name "Vorname Nachname"'
+            f" (oder uv run uc3 ablehnen {v.id} --name … --begruendung …)",
+        ]
+    _ausgabe(daten, als_json, "\n".join(zeilen))
+    if erg.abgelehnt:
+        raise typer.Exit(1)
 
 
 @vorschlag_app.command("zeigen")
-def vorschlag_zeigen(vorschlag_id: Annotated[int, typer.Argument()]) -> None:
-    """Zeigt einen Vorschlag mit Regel-Diff und Zahlen vorher/nachher."""
-    _fehlt("#15", "vorschlag zeigen")
+def vorschlag_zeigen(
+    vorschlag_id: Annotated[int, typer.Argument(help="ID des Vorschlags")],
+    als_json: JsonOption = False,
+) -> None:
+    """Zeigt einen Vorschlag mit Regel-Diff, Zahlen vorher/nachher und Code-Datei."""
+    from statagent.agenten.vorschlag import VorschlagFehler, diff_text, vorschlag_lesen
+
+    try:
+        with verbinden() as conn:
+            v = vorschlag_lesen(conn, vorschlag_id)
+    except VorschlagFehler as fehler:
+        typer.echo(str(fehler), err=True)
+        raise typer.Exit(1) from fehler
+    text = diff_text(v)
+    if v.datei_inhalt is not None:
+        text += f"\n--- {v.datei_pfad} ---\n{v.datei_inhalt}"
+    _ausgabe(_vorschlag_dict(v), als_json, text)
 
 
 @app.command("freigabe")
 def freigabe(
     vorschlag_id: Annotated[int, typer.Argument(help="ID des Vorschlags")],
     name: Annotated[str, typer.Option(help="Vor- und Nachname der freigebenden Person")],
+    als_json: JsonOption = False,
 ) -> None:
     """Gibt einen Vorschlag mit Namen frei (Regel aktiv, Commit mit Trailer Freigegeben-von)."""
-    _fehlt("#15", "freigabe")
+    from statagent.agenten.anwenden import freigabe_ausfuehren
+    from statagent.agenten.vorschlag import vorschlag_lesen
+
+    try:
+        with verbinden() as conn:
+            erg = freigabe_ausfuehren(conn, vorschlag_id, name, konfig.REPO_WURZEL)
+            v = vorschlag_lesen(conn, vorschlag_id)
+    except _entscheidung_fehler() as fehler:
+        typer.echo(f"nicht freigegeben: {fehler}", err=True)
+        raise typer.Exit(1) from fehler
+    daten = dataclasses.asdict(erg) | {
+        "freigegeben_am": v.freigegeben_am,
+        "ref": v.ref,
+        "protokoll_id": v.protokoll_id,
+    }
+    zeit = f"{v.freigegeben_am:%d.%m.%Y %H:%M}" if v.freigegeben_am else "?"
+    zeilen = [
+        f"Vorschlag uc3/{erg.vorschlag_id} freigegeben von {erg.name} am {zeit}",
+        f"Commit {erg.commit_hash or '-'} · Protokoll {v.protokoll_id}",
+    ]
+    if erg.angewendet:
+        zeilen.append(f"aktiv: {v.ref.replace(',', ', ')}")
+    else:
+        zeilen.append(
+            f"NICHT angewendet ({erg.fehler}): {erg.meldung}. Die Freigabe bleibt bestehen; "
+            "das Anwenden lässt sich wiederholen."
+        )
+    _ausgabe(daten, als_json, "\n".join(zeilen))
+    if not erg.angewendet:
+        raise typer.Exit(1)
+
+
+@app.command("ablehnen")
+def ablehnen(
+    vorschlag_id: Annotated[int, typer.Argument(help="ID des Vorschlags")],
+    name: Annotated[str, typer.Option(help="Vor- und Nachname der ablehnenden Person")],
+    begruendung: Annotated[str, typer.Option(help="Warum der Vorschlag nicht kommt (Pflicht)")],
+    als_json: JsonOption = False,
+) -> None:
+    """Lehnt einen Vorschlag mit Namen und Begründung ab (Regeln und Repo bleiben unverändert)."""
+    from statagent.agenten.anwenden import ablehnen_ausfuehren
+
+    try:
+        with verbinden() as conn:
+            v = ablehnen_ausfuehren(conn, vorschlag_id, name, konfig.REPO_WURZEL, begruendung=begruendung)
+    except _entscheidung_fehler() as fehler:
+        typer.echo(f"nicht abgelehnt: {fehler}", err=True)
+        raise typer.Exit(1) from fehler
+    _ausgabe(
+        _vorschlag_dict(v),
+        als_json,
+        f"Vorschlag uc3/{v.id} abgelehnt von {v.abgelehnt_von}: {v.ablehnungsgrund}",
+    )
 
 
 @app.command("frage")
