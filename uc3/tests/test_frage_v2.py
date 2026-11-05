@@ -170,3 +170,49 @@ def test_durchgehend_beschaeftigt_gibt_keine_zahl(mit_v2: Verbindung, frage: str
 def test_gliederung_neben_v2_bleibt(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Beschäftigte im August 2024 nach v2 und Bundesland")
     assert len(daten["zahlen"]) > 1
+
+
+# Vorab-Lesung Bank !230, Punkt 1: Eine Verneinung schaltete trotzdem auf v2.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte ohne Änderungsaufträge im August 2024",
+        "Beschäftigte vor den Änderungsaufträgen im August 2024",
+        "Beschäftigte im August 2024 nicht nach v2",
+        "Beschäftigte im August 2024 statt nach Regelsatz v2",
+    ],
+)
+def test_verneinung_von_v2_gibt_keine_v2_zahl(mit_v2: Verbindung, frage: str) -> None:
+    daten = antwort_frage(mit_v2, frage)
+    assert daten["zahlen"] == [] and "nur einen Regelsatz" in daten["text"]
+
+
+# Vorab-Lesung Bank !230, Punkt 2: Österreichisch heißt es „das ganze Monat“.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Wie viele waren das ganze Monat August 2024 beschäftigt?",
+        "Wie viele waren ein ganzes Monat beschäftigt im August 2024?",
+        "Wie viele haben im August 2024 ganzes Monat gearbeitet?",
+    ],
+)
+def test_das_ganze_monat_heisst_durchgehend(mit_v2: Verbindung, frage: str) -> None:
+    daten = antwort_frage(mit_v2, frage)
+    assert daten["zahlen"] == [] and daten["text"].startswith("Wie lange jemand im Monat")
+
+
+def test_ganzes_monat_ohne_verb_meint_v2(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "Beschäftigte ganzes Monat August 2024")
+    assert [z["wert"] for z in daten["zahlen"]] == [_summe(mit_v2, "v2", "Monat")]
+
+
+# Vorab-Lesung Bank !230, Punkt 3: Das bloße Wort „Bundesland“ gab still die Summe.
+def test_blosses_gliederungswort_teilt_auf(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "August 2024 v2 Bundesland")
+    assert len(daten["zahlen"]) > 1 and "aufgeteilt nach Bundesland" in daten["text"]
+
+
+# Gegenfall: „Bundesland Wien“ ist ein Filter und keine Aufteilung.
+def test_bundesland_mit_wert_bleibt_filter(mit_v2: Verbindung) -> None:
+    daten = antwort_frage(mit_v2, "August 2024 v2 Bundesland Wien")
+    assert len(daten["zahlen"]) == 1
