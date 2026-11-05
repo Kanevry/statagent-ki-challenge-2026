@@ -71,7 +71,10 @@ Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset
 
 Die Zahlen nachher kommen in der Vorführung aus der Probe auf dem Vorschlag. Ein neuer Regelsatz rechnet Monate nur in
 zeitlicher Reihenfolge ab dem ersten Monat, alle 24 sind live nicht machbar; die Seite bietet deshalb nur rechenbare Monate an.
-Nicht jeder Auftrag ändert in jedem Monat eine Zahl: Der Auftrag zum Geburtsmonat 13 ändert im Juli 2026 keine.
+Nicht jeder Auftrag ändert in jedem Monat eine Zahl: Der Auftrag zum Geburtsmonat 13 wirkt nur in Jänner bis Juni, im Juli 2026
+ändert er keine. Für ihn Juni 2026 wählen (Gesamtzahl gleich, die Altersgruppen verschieben sich um wenige Personen, gemessen in
+der Lane Live-Änderung). März und Oktober 2025 bietet die Seite für die Probe nicht an: Dort enthält der Bestand Fortschreibungen,
+und die Probe zeigt bisher eine falsche Gesamtzahl.
 
 ## Zurück auf den Ausgangsstand
 
