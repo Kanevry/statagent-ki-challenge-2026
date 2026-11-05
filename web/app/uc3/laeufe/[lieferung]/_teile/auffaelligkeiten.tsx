@@ -38,8 +38,8 @@ function Eintrag({ lauf, treffer, gruppen }: { lauf: Lauf; treffer: Treffer; gru
   );
 }
 
-export function Auffaelligkeiten({ lauf, treffer }: { lauf: Lauf; treffer: readonly Treffer[] }) {
-  const gruppen = fehlendeGruppen(treffer);
+export function Auffaelligkeiten({ lauf, treffer, fdCodes }: { lauf: Lauf; treffer: readonly Treffer[]; fdCodes: readonly string[] }) {
+  const gruppen = fehlendeGruppen(treffer, fdCodes);
   return (
     <ul className="flex flex-col" aria-label="Auffälligkeiten">
       {treffer.map((t) => (

@@ -123,7 +123,7 @@ export default async function Berichte({ searchParams }: Props) {
               {`In ${monateText(weitere)} ist eine Auffälligkeit nicht erklärbar, zu der noch keine Rückfrage gestellt ist. ${ohneJePruefung
                 .map(
                   (p) =>
-                    `${p.monate.length === 1 ? `Im ${monatName(p.monate[0])}` : `In ${monateText(p.monate.length)}`}: ${pruefungText(p.name)} (${p.name.split("_")[0]}).`,
+                    `${p.monate.length === 1 ? `Im ${monatName(p.monate[0])}` : `In ${monateText(p.monate.length)}`}: ${pruefungText(p.name)} (Prüfung ${p.name.split("_")[0]}).`,
                 )
                 .join(" ")} Der Bericht des Monats nennt die Zahlen.`}
             </Fliesstext>

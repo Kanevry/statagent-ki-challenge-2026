@@ -79,3 +79,11 @@ describe("befundSatz", () => {
     expect(befundSatz(t, "2025-10")).toBe("Im Oktober 2025 sind 1.980 Merkmale leer {x}.");
   });
 });
+
+describe("ersterSatz nach Zahlen (Review !77, Punkt 7)", () => {
+  // Fehler: nach jeder Zahl mit Punkt endete kein Satz mehr („… Grenze 110. Die ILO …“ lief weiter).
+  it("endet nach einer Zahl, außer vor einem Monatsnamen", () => {
+    expect(ersterSatz("Die obere Grenze ist 110. Die ILO zählt anders.")).toBe("Die obere Grenze ist 110.");
+    expect(ersterSatz("Wir rechnen mit dem 1. Juli des Jahres. Danach mehr.")).toBe("Wir rechnen mit dem 1. Juli des Jahres.");
+  });
+});

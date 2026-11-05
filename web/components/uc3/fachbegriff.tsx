@@ -26,10 +26,13 @@ export function Begriffsliste({
   worte,
   label = "Begriffe in diesem Abschnitt",
   className = "grid gap-4 sm:grid-cols-2",
+  weitere = [],
 }: {
   worte: readonly Uc3Begriff[];
   label?: string;
   className?: string;
+  /** Begriffe außerhalb des UC3-Glossars, etwa „Umsteigeschlüssel“ auf den Klassifikationen. */
+  weitere?: readonly { wort: string; erklaerung: string }[];
 }) {
   const liste = (
     <ul className={className} aria-label={label}>
@@ -38,14 +41,20 @@ export function Begriffsliste({
           <Fachbegriff wort={wort} />
         </li>
       ))}
+      {weitere.map((b) => (
+        <li key={b.wort} className="font-sans text-14 font-semibold text-ink">
+          <Begriff wort={b.wort} erklaerung={b.erklaerung} untertitel />
+        </li>
+      ))}
     </ul>
   );
+  const anzahl = worte.length + weitere.length;
   return (
     <>
       <div className="hidden md:block">{liste}</div>
       <details className="md:hidden">
-        <summary className="min-h-6 cursor-pointer font-sans text-14 text-ink underline underline-offset-4">
-          {`${worte.length === 1 ? "Ein Begriff" : `${worte.length} Begriffe`} erklärt`}
+        <summary className="inline-flex min-h-11 cursor-pointer items-center font-sans text-14 text-ink underline underline-offset-4">
+          {`${anzahl === 1 ? "Ein Begriff" : `${anzahl} Begriffe`} erklärt`}
         </summary>
         <div className="pt-2">{liste}</div>
       </details>

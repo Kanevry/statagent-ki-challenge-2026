@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Fliesstext, Leerzustand, Status, Ueberschrift } from "@kic/ui/basis";
-import { Begriff, HerkunftChip } from "@kic/ui/bausteine";
+import { HerkunftChip } from "@kic/ui/bausteine";
 import { datum } from "@/components/uc3/bericht";
 import { laufBeleg } from "@/components/uc3/beleg";
 import { leerSatz } from "@/components/uc3/db";
-import { Fachbegriff } from "@/components/uc3/fachbegriff";
+import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import {
   kategorieSaetze,
   leseKlassifikationen,
@@ -126,16 +126,12 @@ export default async function Klassifikationen() {
         </Fliesstext>
       </header>
 
-      <ul className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Begriffe auf dieser Seite">
-        {(["Klassifikation", "ÖNACE", "Klassifikationswechsel", "Regel"] as const).map((wort) => (
-          <li key={wort} className="font-sans text-14 font-semibold text-ink">
-            <Fachbegriff wort={wort} />
-          </li>
-        ))}
-        <li className="font-sans text-14 font-semibold text-ink">
-          <Begriff wort="Umsteigeschlüssel" erklaerung={UMSTEIGESCHLUESSEL} untertitel />
-        </li>
-      </ul>
+      <Begriffsliste
+        worte={["Klassifikation", "ÖNACE", "Klassifikationswechsel", "Regel"]}
+        weitere={[{ wort: "Umsteigeschlüssel", erklaerung: UMSTEIGESCHLUESSEL }]}
+        label="Begriffe auf dieser Seite"
+        className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      />
 
       <section aria-labelledby="wechsel-titel" className="flex flex-col gap-4">
         <Ueberschrift stufe={3} als="h2" id="wechsel-titel">

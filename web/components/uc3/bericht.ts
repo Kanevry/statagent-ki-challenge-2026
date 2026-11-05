@@ -2,7 +2,7 @@ import { formatZahl } from "@kic/ui/bausteine";
 import { literal } from "./beleg";
 import { lies, type Lesung, type Sql } from "./db";
 import { ladeMassgeblichenLauf, ladeMonatslaeufe, MASSGEBLICH_SQL, quelleSql } from "./laeufe";
-import { massnahmeSatz, trefferTitel } from "./lauf-detail";
+import { fehlendeGruppen, ladeFdCodes, massnahmeSatz, trefferTitel, type TrefferDetails } from "./lauf-detail";
 import { monatName, verschieben } from "./monat";
 import { alltag, alltagOder } from "./sprache";
 import type { Lauf, Monatslauf } from "./typen";
@@ -177,8 +177,14 @@ export function einstufungAus(code: string | null | undefined): Einstufung {
   return EINSTUFUNGEN[(code ?? "") as EinstufungCode] ?? EINSTUFUNGEN["nicht-erklaerbar"];
 }
 
-// Abkürzungen und Ordinalzahlen („1.“, „15.“), nach denen ein Punkt keinen Satz beendet.
-const ABKUERZUNG = /(?:(?:^|[\s(])(?:[A-Za-zÄÖÜäöü]|\d+)|\bNr|\bca|\bbzw|\binkl|\bvgl|\bAbs|\bbzgl|\busw|\bggf)$/;
+// Abkürzungen, nach denen ein Punkt keinen Satz beendet.
+const ABKUERZUNG = /(?:(?:^|[\s(])[A-Za-zÄÖÜäöü]|\bNr|\bca|\bbzw|\binkl|\bvgl|\bAbs|\bbzgl|\busw|\bggf)$/;
+// Eine Zahl mit Punkt ist nur vor einem Monatsnamen eine Ordinalzahl („der 1. Juli“); „Grenze 110. Die …“ endet
+// dort (Review !77, Punkt 7). Vor einem kleinen Wort endet ohnehin kein Satz.
+const ZAHL_AM_ENDE = /(?:^|[\s(])\d+$/;
+const MONAT_DANACH = /^ (?:Jänner|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\b/;
+// … oder nach Artikel oder Präposition („mit dem 1. Tag“, „ab 15. Juli“).
+const ORDINAL_DAVOR = /(?:^|\s)(?:dem|den|der|die|das|am|vom|zum|zur|im|ab|bis|seit|einem|einen|eine)\s+\d+$/i;
 
 /** Erster Satz eines Textes; Abkürzungen wie „z. B.“, „Nr. 1“ oder „der 1. Juli“ beenden keinen Satz. */
 export function ersterSatz(text: string): string {
@@ -189,6 +195,7 @@ export function ersterSatz(text: string): string {
     const rest = s.slice(i + 1);
     if (rest !== "" && !/^ [A-ZÄÖÜ„]/.test(rest)) continue;
     if (zeichen === "." && ABKUERZUNG.test(s.slice(0, i))) continue;
+    if (zeichen === "." && ZAHL_AM_ENDE.test(s.slice(0, i)) && (MONAT_DANACH.test(rest) || ORDINAL_DAVOR.test(s.slice(0, i)))) continue;
     return s.slice(0, i + 1);
   }
   return s;
@@ -231,7 +238,7 @@ export function befundSatz(
   t: { anzahl: number; umfang: string | null; vorlage: string | null; beschreibung: string; regel: string },
   monat: string,
 ): string {
-  const umfang = t.umfang?.trim() ? t.umfang.split(/\s+/).join(" ") : `${formatZahl(t.anzahl)} Sätze`;
+  const umfang = t.umfang?.trim() ? t.umfang.split(/\s+/).join(" ") : `${formatZahl(t.anzahl)} ${t.anzahl === 1 ? "Zeile" : "Zeilen"}`;
   if (t.vorlage) {
     const werte: Record<string, string> = { anzahl: formatZahl(t.anzahl), umfang, monat: monatName(monat) };
     return t.vorlage.replace(/\{(\w+)\}/g, (ganz, name: string) => werte[name] ?? ganz).split(/\s+/).join(" ");
@@ -441,17 +448,19 @@ function annahmenSql(lieferung: string, quelleId: string): string {
     "    (SELECT p.anzahl FROM p WHERE p.nr = a.nr AND p.eigene_regel) AS eigene_pruefung,",
     "    (SELECT count(*) FROM p WHERE p.nr = a.nr) AS pruefungen,",
     "    (SELECT min(p.name) FROM p WHERE p.nr = a.nr) AS pruefung,",
-    "    (SELECT min(p.anzahl) FROM p WHERE p.nr = a.nr) AS pruefung_anzahl",
+    "    (SELECT min(p.anzahl) FROM p WHERE p.nr = a.nr) AS pruefung_anzahl,",
+    "    EXISTS (SELECT 1 FROM meta.regel r WHERE r.name = a.regel_name AND r.typ = 'pruefung') AS eigene_ist_pruefung",
     "  FROM a",
     ")",
     "SELECT e.nr, e.rueckfrage, e.satz, e.begruendung, e.regel_name,",
     "  CASE WHEN e.annahmen_je_regel = 1 AND e.regel_saetze IS NOT NULL THEN 'regel'",
-    "       WHEN e.eigene_pruefung IS NOT NULL OR e.pruefungen = 1 THEN 'pruefung' END AS wirkung_quelle,",
+    "       WHEN e.eigene_pruefung IS NOT NULL OR e.eigene_ist_pruefung OR e.pruefungen = 1 THEN 'pruefung' END AS wirkung_quelle,",
     "  CASE WHEN e.annahmen_je_regel = 1 AND e.regel_saetze IS NOT NULL THEN e.regel_name",
-    "       WHEN e.eigene_pruefung IS NOT NULL THEN e.regel_name",
+    "       WHEN e.eigene_pruefung IS NOT NULL OR e.eigene_ist_pruefung THEN e.regel_name",
     "       WHEN e.pruefungen = 1 THEN e.pruefung END AS wirkung_regel,",
     "  CASE WHEN e.annahmen_je_regel = 1 AND e.regel_saetze IS NOT NULL THEN e.regel_saetze",
     "       WHEN e.eigene_pruefung IS NOT NULL THEN e.eigene_pruefung",
+    "       WHEN e.eigene_ist_pruefung THEN 0",
     "       WHEN e.pruefungen = 1 THEN e.pruefung_anzahl END AS wirkung_saetze,",
     "  (SELECT q.beleg_sql FROM meta.rueckfrage q WHERE q.nr = e.rueckfrage) AS beleg_sql",
     "FROM e ORDER BY length(e.nr), e.nr;",
@@ -536,8 +545,10 @@ type TrefferZeile = {
   beleg_sql: string | null;
   rueckfrage: string | null;
   name: string;
+  art: string | null;
   beschreibung: string;
   satz_vorlage: string | null;
+  details: TrefferDetails | null;
 };
 
 type RueckfrageZeile = {
@@ -607,13 +618,13 @@ export function leseQualitaetsbericht(lieferung: string, regelsatz = "v1"): Prom
   return lies(async (sql) => {
     const lauf = await ladeMassgeblichenLauf(sql, lieferung, regelsatz);
     if (!lauf) return null;
-    const [vormonat, kennzahl, gelaufen, treffer, rueckfragen, annahmeDa, revision] = await Promise.all([
+    const [vormonat, kennzahl, gelaufen, treffer, rueckfragen, annahmeDa, revision, fdCodes] = await Promise.all([
       ladeMassgeblichenLauf(sql, verschieben(lieferung, -1), regelsatz),
       sql<{ korrigiert: string | null }[]>`SELECT korrigiert FROM meta.lauf WHERE id = ${lauf.id}`,
       sql<{ n: string }[]>`SELECT count(*) AS n FROM meta.pruefung_treffer WHERE lauf_id = ${lauf.quelleId}`,
       sql<TrefferZeile[]>`
         SELECT t.ebene, t.anzahl, t.umfang, coalesce(t.einstufung, 'nicht-erklaerbar') AS einstufung, t.massnahme, t.anhalten, t.beleg_sql,
-               t.details ->> 'rueckfrage' AS rueckfrage, r.name, r.beschreibung, r.parameter ->> 'satz' AS satz_vorlage
+               t.details ->> 'rueckfrage' AS rueckfrage, t.details, r.name, r.art, r.beschreibung, r.parameter ->> 'satz' AS satz_vorlage
         FROM meta.pruefung_treffer t JOIN meta.regel r ON r.id = t.regel_id
         WHERE t.lauf_id = ${lauf.quelleId} AND t.anzahl > 0
         ORDER BY r.reihenfolge, r.name, array_position(ARRAY['satz', 'aggregat', 'lieferung'], t.ebene)`,
@@ -645,6 +656,7 @@ export function leseQualitaetsbericht(lieferung: string, regelsatz = "v1"): Prom
         ) u ON true
         WHERE v.lauf_id = ${lauf.id} AND v.gliederung = 'insgesamt'
         ORDER BY v.berichtsmonat`,
+      ladeFdCodes(sql),
     ]);
     const ausTabelle = Boolean(annahmeDa[0]?.da);
     const annahmen = await ladeAnnahmen(sql, lauf, ausTabelle);
@@ -655,6 +667,8 @@ export function leseQualitaetsbericht(lieferung: string, regelsatz = "v1"): Prom
       if (t.rueckfrage && nrn.has(t.rueckfrage) && !liste.includes(t.rueckfrage)) liste.push(t.rueckfrage);
       return liste;
     };
+    // Wie die Lauf-Seite (auffaelligkeiten.tsx): Maßnahmen kennen Rückfrage und fehlende Gruppen (Review !77, Punkt 1).
+    const gruppen = fehlendeGruppen(treffer.map((t) => ({ art: t.art ?? "", details: t.details })), fdCodes);
     const verweise = {
       nrn: new Set(treffer.map((t) => t.rueckfrage).filter((n): n is string => Boolean(n))),
       regeln: new Set(treffer.map((t) => t.name)),
@@ -683,15 +697,20 @@ export function leseQualitaetsbericht(lieferung: string, regelsatz = "v1"): Prom
           ),
         ),
         anzahl: zahl(t.anzahl),
-        umfang: alltag(t.umfang?.trim() || `${formatZahl(zahl(t.anzahl))} Sätze`),
+        umfang: alltag(t.umfang?.trim() || `${formatZahl(zahl(t.anzahl))} ${zahl(t.anzahl) === 1 ? "Zeile" : "Zeilen"}`),
         einstufung: einstufungAus(t.einstufung),
         massnahme: alltag(
-          massnahmeSatz({
-            name: t.name,
-            massnahme: t.massnahme,
-            einstufung: einstufungAus(t.einstufung).code,
-            anhalten: Boolean(t.anhalten),
-          }) ?? "",
+          massnahmeSatz(
+            {
+              name: t.name,
+              massnahme: t.massnahme,
+              einstufung: einstufungAus(t.einstufung).code,
+              anhalten: Boolean(t.anhalten),
+              details: t.details,
+              offeneRueckfragen: verweiseVon(t).filter((nr) => rueckfragen.some((r) => r.nr === nr && !r.antwort)),
+            },
+            { fehlendeGruppen: gruppen },
+          ) ?? "",
         ),
         massnahmeRoh: alltagOder(t.massnahme),
         anhalten: Boolean(t.anhalten),

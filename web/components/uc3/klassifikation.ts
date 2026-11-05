@@ -420,10 +420,10 @@ function zieleJeMerkmal(zuordnungen: readonly Zuordnung[]): string {
 export function regelSatz(regel: Zuordnungsregel, bezeichnung: (code: string) => string | undefined): string {
   const geliefert = new Set(regel.zuordnungen.map((z) => z.geliefert));
   if (geliefert.size === 1 && geliefert.has("<leer>")) {
-    return `Ist ein Feld leer, zählen wir den Satz als unbekannt: ${zieleJeMerkmal(regel.zuordnungen)}.`;
+    return `Ist ein Feld leer, zählen wir die Zeile unter unbekannt: ${zieleJeMerkmal(regel.zuordnungen)}.`;
   }
   if (geliefert.size === 1 && geliefert.has("<sonst>")) {
-    return `Kennt keine Liste den gelieferten Wert, zählen wir den Satz ebenfalls als unbekannt (${zieleJeMerkmal(regel.zuordnungen)}) und melden ihn als Auffälligkeit.`;
+    return `Kennt keine Liste den gelieferten Wert, zählen wir die Zeile ebenfalls unter unbekannt (${zieleJeMerkmal(regel.zuordnungen)}) und melden ihn als Auffälligkeit.`;
   }
   const ziele = new Set(regel.zuordnungen.map((z) => z.code));
   const merkmale = new Set(regel.zuordnungen.map((z) => z.merkmal));

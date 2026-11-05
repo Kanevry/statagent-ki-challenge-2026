@@ -94,6 +94,8 @@ export interface LaufDetail {
   revisionen: Revision[];
   regionen: Region[];
   determinismus: Determinismus;
+  /** Qualifikationen mit freiem Dienstvertrag (stat.klass_qualifikation), für „alle freien Dienstverträge“. */
+  fdCodes: string[];
 }
 
 function zahl(wert: unknown): number {
@@ -181,24 +183,39 @@ export interface MassnahmeLage {
 /** Ganze Gruppen, die im Monat fehlen (P13), mit der Zahl aus dem Vormonat. */
 export interface FehlendeGruppen {
   anzahl: number;
-  /** „alle freien Dienstverträge“ oder „2 Gruppen (AngestellteX, ArbeiterY)“. */
+  /** „alle freien Dienstverträge“, „die freien Dienstverträge (ArbeiterFD)“ oder „2 Gruppen (X, Y)“. */
   wort: string;
+  /** Fehlen genau alle Qualifikationen mit freiem Dienstvertrag laut stat.klass_qualifikation? */
   alleFreienDienstvertraege: boolean;
+  /** Fehlen nur Qualifikationen mit freiem Dienstvertrag (alle oder ein Teil)? */
+  nurFreieDienstvertraege: boolean;
 }
 
-/** Fehlende Gruppen aus einer P13-Prüfung des Monats; ohne P13 oder ohne Angaben null. */
-export function fehlendeGruppen(treffer: readonly Pick<Treffer, "art" | "details">[]): FehlendeGruppen | null {
+/**
+ * Fehlende Gruppen aus einer P13-Prüfung des Monats; ohne P13 oder ohne Angaben null. `fdCodes` sind die Codes mit
+ * freier_dienstvertrag aus stat.klass_qualifikation: „alle“ steht nur, wenn genau diese fehlen (Review !77, Punkt 2).
+ */
+export function fehlendeGruppen(
+  treffer: readonly Pick<Treffer, "art" | "details">[],
+  fdCodes: readonly string[] = [],
+): FehlendeGruppen | null {
   const p13 = treffer.find((t) => t.art === "auspraegung_verschwunden" && t.details?.auspraegungen?.length);
   const liste = p13?.details?.auspraegungen ?? [];
   if (liste.length === 0) return null;
   const anzahl = liste.reduce((s, a) => s + (Number(a.vormonat) || 0), 0);
-  const alleFd = liste.every((a) => a.gliederung === "qualifikation" && /FD$/.test(a.code));
+  const fd = new Set(fdCodes);
+  const nurFd = fd.size > 0 && liste.every((a) => a.gliederung === "qualifikation" && fd.has(a.code));
+  const alleFd = nurFd && [...fd].every((code) => liste.some((a) => a.code === code));
+  const codes = liste.map((a) => a.code).join(", ");
   return {
     anzahl,
     alleFreienDienstvertraege: alleFd,
+    nurFreieDienstvertraege: nurFd,
     wort: alleFd
       ? "alle freien Dienstverträge"
-      : `${formatZahl(liste.length)} ${liste.length === 1 ? "Gruppe" : "Gruppen"} (${liste.map((a) => a.code).join(", ")})`,
+      : nurFd
+        ? `die freien Dienstverträge (${codes})`
+        : `${formatZahl(liste.length)} ${liste.length === 1 ? "Gruppe" : "Gruppen"} (${codes})`,
   };
 }
 
@@ -235,7 +252,7 @@ const MASSNAHME: Record<string, (l: MassnahmeLage) => string> = {
     l.anhalten
       ? angehaltenBis(l, "Der Monat ist angehalten, bis die fehlenden Beschäftigungsverhältnisse nachgeliefert sind.")
       : l.fehlendeGruppen
-        ? `${formatZahl(l.fehlendeGruppen.anzahl)} davon sind ${l.fehlendeGruppen.alleFreienDienstvertraege ? "die fehlenden freien Dienstverträge" : `die fehlenden ${l.fehlendeGruppen.wort}`}, die übrigen sind Einzelfälle wie Stornos.`
+        ? `${formatZahl(l.fehlendeGruppen.anzahl)} davon sind ${l.fehlendeGruppen.nurFreieDienstvertraege ? "die fehlenden freien Dienstverträge" : `die fehlenden ${l.fehlendeGruppen.wort}`}, die übrigen sind Einzelfälle wie Stornos.`
         : "Nichts zu tun, es sind Einzelfälle wie Stornos.",
   P17: (l) => angehaltenBis(l, "Der Monat ist angehalten, bis jemand geprüft hat, ob die Lieferung vollständig ist."),
   P18: () => "Sie zählen wie geliefert. Die Fachabteilung soll den Wechsel erklären.",
@@ -364,6 +381,7 @@ export function anteilWort(anteil: number | undefined | null): string | null {
 export function haltSatz(
   t: Pick<Treffer, "art" | "anzahl" | "name" | "beschreibung" | "satz" | "umfang"> & { details?: TrefferDetails | null },
   lieferung: string,
+  fdCodes: readonly string[] = [],
 ): string {
   const im = `Im ${monatName(lieferung)}`;
   const vm = monatName(verschieben(lieferung, -1));
@@ -381,8 +399,12 @@ export function haltSatz(
     case "bestand_vs_vormonat":
       return `${im} wären es ${verhaeltnisse(n)} weniger als im ${vm}. ${deshalb}`;
     case "auspraegung_verschwunden": {
-      const g = fehlendeGruppen([t]);
+      const g = fehlendeGruppen([t], fdCodes);
       if (g?.alleFreienDienstvertraege) return `${im} fehlen ${g.wort} (${vm}: ${formatZahl(g.anzahl)}). ${deshalb}`;
+      if (g?.nurFreieDienstvertraege) {
+        const codes = g.wort.replace(/^die freien Dienstverträge /, "");
+        return `${im} fehlen freie Dienstverträge, im ${vm} waren es ${formatZahl(g.anzahl)} ${codes}. ${deshalb}`;
+      }
       if (g) return `${im} fehlen ${g.wort} ganz, die es im ${vm} noch gab. ${deshalb}`;
       return n === 1
         ? `${im} fehlt eine Gruppe ganz, die es im ${vm} noch gab. ${deshalb}`
@@ -703,6 +725,17 @@ async function ladeRegionen(sql: Sql, lauf: Lauf): Promise<Region[]> {
   }));
 }
 
+/** Codes der Qualifikationen mit freiem Dienstvertrag; ältere Stände ohne Spalte ergeben eine leere Liste. */
+export async function ladeFdCodes(sql: Sql): Promise<string[]> {
+  try {
+    const zeilen = await sql<{ code: string }[]>`
+      SELECT code FROM stat.klass_qualifikation WHERE freier_dienstvertrag ORDER BY code`;
+    return zeilen.map((z) => z.code);
+  } catch {
+    return [];
+  }
+}
+
 async function ladeDeterminismus(sql: Sql, lauf: Lauf): Promise<Determinismus> {
   const [z] = await sql<{ laeufe: string; hashes: string; ergebnis_hash: string | null }[]>`
     SELECT count(*) AS laeufe, count(DISTINCT ergebnis_hash) AS hashes, min(ergebnis_hash) AS ergebnis_hash
@@ -760,14 +793,26 @@ export async function ladeLaufDetail(sql: Sql, lieferung: string, regelsatz = "v
     hatLauf(sql, [davor, danach], regelsatz),
   ]);
   if (!lauf) return null;
-  const [treffer, revisionen, regionen, determinismus] = await Promise.all([
+  const [treffer, revisionen, regionen, determinismus, fdCodes] = await Promise.all([
     ladeTreffer(sql, lauf.quelleId),
     ladeRevisionen(sql, lauf.id),
     ladeRegionen(sql, lauf),
     ladeDeterminismus(sql, lauf),
+    ladeFdCodes(sql),
   ]);
   const veroeffentlichen = await ladeVeroeffentlichen(sql, lauf, treffer);
-  return { lauf, veroeffentlichen, vormonat, davor: nachbarn.has(davor), danach: nachbarn.has(danach), treffer, revisionen, regionen, determinismus };
+  return {
+    lauf,
+    veroeffentlichen,
+    vormonat,
+    davor: nachbarn.has(davor),
+    danach: nachbarn.has(danach),
+    treffer,
+    revisionen,
+    regionen,
+    determinismus,
+    fdCodes,
+  };
 }
 
 export function leseLaufDetail(lieferung: string, regelsatz = "v1"): Promise<Lesung<LaufDetail | null>> {

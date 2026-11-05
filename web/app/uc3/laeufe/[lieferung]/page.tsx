@@ -208,7 +208,7 @@ function Detail({ detail }: { detail: LaufDetail }) {
           {`Monatslauf ${name}, Stichtag ${tag}${lauf.regelsatz === "v1" ? "" : `, gerechnet mit Regelsatz ${lauf.regelsatz}`}`}
         </Fliesstext>
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
-          {halt ? haltSatz(halt, lauf.lieferung) : bestandSatz(lauf, vormonat)}
+          {halt ? haltSatz(halt, lauf.lieferung, detail.fdCodes) : bestandSatz(lauf, vormonat)}
         </Ueberschrift>
         {halt ? (
           <HerkunftChip {...laufBeleg(lauf, { quelle: "meta.pruefung_treffer", sql: sqlTreffer(lauf, halt) })} />
@@ -279,7 +279,7 @@ function Detail({ detail }: { detail: LaufDetail }) {
             : `In diesem Monat ${treffer.length === 1 ? "ist eine Prüfung" : `sind ${formatZahl(treffer.length)} Prüfungen`} auffällig.`}
         </Ueberschrift>
         <Begriffsliste worte={["Auffälligkeit", "Einstufung"] as const} label="Begriffe in diesem Abschnitt" className="grid gap-4 sm:grid-cols-2" />
-        {treffer.length > 0 && <Auffaelligkeiten lauf={lauf} treffer={treffer} />}
+        {treffer.length > 0 && <Auffaelligkeiten lauf={lauf} treffer={treffer} fdCodes={detail.fdCodes} />}
       </section>
 
       <section aria-labelledby="revision-titel" className="flex max-w-4xl flex-col gap-4">
