@@ -9,11 +9,13 @@ Alles, was aus dem Index an ein Modell oder in die Anzeige geht, läuft vorher d
      Mustermann“, „Gesundheitsministerin Musterfrau“; Funktion = Wort auf eine Endung aus `FUNKTIONEN`.
      Ein einzelnes Großwort danach zählt nur nach einer Amtsfunktion (`ist_amtsfunktion`), nicht nach
      Berufswörtern (`BERUFE`) wie „Facharzt Termin“.
-   - `apposition`: `<Vorname> <Nachname>, <Funktion> [der|des <Institution>]`.
+   - `apposition`: `<Vorname> <Nachname>, [erster|stellvertretende|ehemaliger …] <Funktion> [der|des
+     <Institution>]`.
    - `titel_akademisch`: `Dr.`, `Mag.a`, `Prof.`, `Univ.-Prof.` … + Großwort (+ Großwort).
    - `vorname`: häufiger Vorname (`VORNAMEN_ALLE`) + Großwort.
    - `zuschreibung`: nachgestellt `, sagt|so|betont|meint|erklärt <Name>` („…, sagt Musterfrau.“,
-     „…“, so Musterfrau); ohne Komma oder Anführungszeichen davor ist das Großwort oft ein Objekt.
+     „…“, so Musterfrau); ohne Komma oder Anführungszeichen davor ist das Großwort oft ein Objekt. Zwei
+     Großwörter zählen mit bekanntem Vornamen, sonst nur vor Satzzeichen und nicht nach einem Genitiv.
    - `zuschreibung_zitat`: `“ kritisiert|fordert|warnt|schreibt|… <Name>.` nur direkt nach einem Zitat
      und vor Satzzeichen, weil nach diesen Verben sonst meist ein Objekt steht („…, fordert Reformen.“).
    - `laut`: `laut <Name>`, nur wenn der Name schon bekannt ist.
@@ -26,10 +28,16 @@ Alles, was aus dem Index an ein Modell oder in die Anzeige geht, läuft vorher d
      Agenturkürzeln wie „(APA)“).
    - `mitarbeit`: `Mitarbeit: <Name>, <Name>` (jeder Name der Zeile).
    - `credit`: `Foto:`, `Fotos:`, `Bild:`, `(Foto: …)`, `© …` → der Nachweis wird zu „[Bildnachweis]“,
-     Namen darin (auch nach „Agentur/“) gelten als bekannt.
+     Namen darin (auch nach „Agentur/“) gelten als bekannt. `Bild:` leitet auch Bildunterschriften ein
+     und zählt nur, wenn die Zeile aus Namen mit Vorname besteht (`credit_bild`).
    - `alter`: `<Name> <Name> (54)` und `-jährige[rn] [<Wort>] <Vorname> <Nachname>`: nur der Name wird
      „eine Person“, die Altersangabe bleibt (Gesundheitsdaten Dritter).
    - `zitatkasten`: `“ – <Name>` nach einem Zitat.
+   Zusatzmuster aus der Recall-Stichprobe (Gutachter mit frischem Kontext):
+   - `autorenliste`: Literaturangabe `Nachname AB, Nachname C` (mindestens zwei Einträge, verschiedene
+     Nachnamen).
+   - `kuerzel`: Autorenkürzel am Ende eines Teils, `… Satzende. abc` oder `… (abc)` → „[Kürzel]“ (nicht
+     Agenturkürzel wie „(red)“).
 2. **Namensliste** (`Namensliste`, Datei aus Env `UC2_NAMENSLISTE`, nie im Repo).
 3. **Bekannte Namen im selben Artikel:** Ist ein voller Name erkannt, wird im ganzen Artikel (Titel und
    alle Abschnitte) auch der Nachname allein maskiert, ebenso der Genitiv („Mustermanns Vorschlag“).
@@ -122,6 +130,10 @@ _TITEL = (
     r"(?:Univ\.-Prof|Priv\.-Doz|Dipl\.-Ing|DDr|MMag|Prim|Dr|Mag|Prof|Ing|DI)(?:\.(?:in|a|ª)|in|a|ª)?\.?"
     r"(?:\s*(?:Dr|Mag|med|rer|nat|phil|iur|univ|techn|vet|dent)\.(?:in|a)?)*"
 )
+_ATTRIBUT = (
+    r"(?:erst|zweit|dritt|stellvertretend|ehemalig|früher|designiert|amtierend|langjährig|neu)(?:e[rn]?)?"
+)
+"""Attribut zwischen Komma und Funktion in der Apposition („…, erster Vizepräsident der …“)."""
 _VERBEN = "sagt|sagte|so|betont|betonte|meint|meinte|erklärt|erklärte"
 """Zuschreibungsverben, nach denen ein Großwort selten ein Objekt ist."""
 _VERBEN_TRANSITIV = (
@@ -134,7 +146,7 @@ MUSTER: dict[str, re.Pattern[str]] = {
     # Lookahead: Treffer überlappen nicht und verbrauchen keinen Text (sonst verdeckt „Die Maria“ den Namen).
     "apposition": re.compile(
         r"(?<![\w-])(?=(?P<name>(?:" + _TITEL + r"\s*)?" + _NT + r"\s+" + _INITIALE + _NT + r")\s*,\s*"
-        r"(?:der\s+|die\s+)?" + _FW + r"(?:\s+" + _INST + r")?)"
+        r"(?:der\s+|die\s+)?(?:" + _ATTRIBUT + r"\s+)?" + _FW + r"(?:\s+" + _INST + r")?)"
     ),
     # nur an Stellen angewandt, an denen `ist_funktion` ein Funktionswort findet (siehe `_muster_funde`)
     "funktion": re.compile(
@@ -149,7 +161,7 @@ MUSTER: dict[str, re.Pattern[str]] = {
     ),
     "titel_akademisch": re.compile(r"(?<![\w.])" + _TITEL + r"\s*(?P<name>" + _NT + r"(?:\s+" + _NT + r")?)"),
     "vorname": re.compile(r"(?<![\w-])(?=(?P<name>" + _NT + r"\s+" + _INITIALE + _NT + r")(?![\w-]))"),
-    "zuschreibung": re.compile(r"[,“”\"«»]\s*(?:" + _VERBEN + r")\s+(?P<name>" + _NT + r")(?![\w-])"),
+    "zuschreibung": re.compile(r"[,“”\"«»]\s*(?:" + _VERBEN + r")\s+(?P<name>" + _NAME12 + r")(?![\w-])"),
     "zuschreibung_zitat": re.compile(
         r"[“”\"«»],?\s*(?:" + _VERBEN_TRANSITIV + r")\s+(?P<name>" + _NT + r")(?=\s*[.,;!?])"
     ),
@@ -172,6 +184,7 @@ MUSTER: dict[str, re.Pattern[str]] = {
 
 _DASH = r"\s*[–—-]"
 _AGENTUREN = frozenset({"APA", "dpa", "DPA", "OTS", "SDA", "AFP", "Reuters", "red", "RED", "KAP", "APA-OTS"})
+_AGENTUREN_KLEIN = frozenset(a.casefold() for a in _AGENTUREN)
 
 ZUSATZ: dict[str, re.Pattern[str]] = {
     "email": re.compile(r"(?<![\w.+-])(?P<lokal>[\w+-]+(?:\.[\w+-]+)*)@[\w-]+(?:\.[\w-]+)+"),
@@ -201,8 +214,23 @@ ZUSATZ: dict[str, re.Pattern[str]] = {
     ),
     "mitarbeit": re.compile(r"^[ \t]*(?:Mitarbeit|MITARBEIT)[ \t]*:[ \t]*(?P<liste>[^\n]+)", re.MULTILINE),
     "credit": re.compile(
-        r"(?:(?<![\w])(?:Fotos?|FOTOS?|Bilder?|BILDER?|Grafik|Illustration)[ \t]*:|©)[ \t]*"
+        r"(?:(?<![\w])(?:Fotos?|FOTOS?|Bilder|BILDER|Grafik|Illustration)[ \t]*:|©)[ \t]*"
         r"(?P<liste>[^\n);]{1,80})"
+    ),
+    # „Bild:“ leitet auch Bildunterschriften ein: nur eine Zeile aus Namen, je mit Vorname, ggf. „Agentur/“
+    "credit_bild": re.compile(
+        r"^[ \t]*(?:Bild|BILD)[ \t]*:[ \t]*(?P<liste>(?:"
+        + _NT
+        + r"[ \t]*/[ \t]*)?"
+        + _NT
+        + r"[ \t]+"
+        + _NT
+        + r"(?:[ \t]*[,/][ \t]*"
+        + _NT
+        + r"[ \t]+"
+        + _NT
+        + r")*)[ \t]*$",
+        re.MULTILINE,
     ),
     "alter": re.compile(
         r"(?<![\w-])(?=(?P<name>" + _NT + r"[ \t]+" + _INITIALE + _NT + r")[ \t]*\(\d{1,3}\))"
@@ -210,6 +238,20 @@ ZUSATZ: dict[str, re.Pattern[str]] = {
     "alter_jaehrig": re.compile(r"-jährige[rn]?\s+(?P<liste>" + _NT + r"(?:\s+" + _NT + r"){0,2})"),
     "zitatkasten": re.compile(
         r"[“”\"»«][ \t]*[–—-][ \t]*(?P<name>" + _NT + r"(?:[ \t]+" + _INITIALE + _NT + r")?)"
+    ),
+    # Literaturangabe „Nachname AB, Nachname C, …“: mindestens zwei Einträge mit verschiedenen Nachnamen
+    "autorenliste": re.compile(
+        r"(?<![\w-])(?P<liste>"
+        + _NT
+        + r"[ \t]+[A-Z]{1,3}(?:[ \t]*,[ \t]*"
+        + _NT
+        + r"[ \t]+[A-Z]{1,3})+)(?![\w-])"
+    ),
+    # Autorenkürzel am Ende eines Teils: „… Satzende. abc“ oder „… (abc)“, klein geschrieben; ohne Klammer
+    # nur nach Satzzeichen (nicht „… „mit der Axt“ aus“)
+    "kuerzel": re.compile(
+        r"(?:(?:(?<=[.!?])|(?<=[.!?][“”\"»«]))[ \t\n]+(?P<k1>[a-zäöüß]{2,5})"
+        r"|[ \t]*\((?P<k2>[a-zäöüß]{2,5})\))[ \t\n]*\Z"
     ),
 }
 """Zusatzmuster (Stichprobe Index v4): Bylines, Credits, Kontakte, Privatpersonen mit Alter."""
@@ -230,7 +272,7 @@ _STOPP_EXTRA = """
     september oktober november dezember montag dienstag mittwoch donnerstag freitag samstag sonntag
     gesundheit gesundheitsreform reform studie umfrage zeitung apa orf krone kurier presse standard
     interview text foto fotos bild bilder quelle seite mehr neue neuen viele weitere andere erste zweite
-    deshalb trotzdem außerdem gleichzeitig daher denn sondern also bitte danke wo was wer warum wie
+    austria deshalb trotzdem außerdem gleichzeitig daher denn sondern also bitte danke wo was wer warum wie
     vertreter vertreterin vertreters vertreterinnen person personen
     """
 STOPP: frozenset[str] = STOPPWOERTER | frozenset(_STOPP_EXTRA.split())
@@ -536,6 +578,7 @@ _VORNAMEN_EXTRA = """
     Sigrid Hanna Ilse Inge Ingeborg Isabella Jasmin Katrin Kathrin Marion Nora Olivia Regina Ruth Sylvia
     Tamara Viktoria Agnes Alice Eveline Evelyn Gudrun Iris Antonia Christiane Dagmar Franziska Heike Ilona
     Jutta Karoline Carmen Marianne Rita Roswitha Sabina Susanna Theresia Elfriede Anneliese Erwin Gabi
+    Raimund Heribert Winfried Anita Pedro
     """
 VORNAMEN_ALLE: frozenset[str] = VORNAMEN | frozenset(_VORNAMEN_EXTRA.split())
 """Vornamen aus `uc2.akteure.namensscan` (nur gelesen) plus häufige Ergänzungen für Pressetext."""
@@ -628,6 +671,16 @@ def _muster_funde(
                     continue  # Institution („kritisiert Ärztekammer“), kein Name
                 if art in ("vorname", "apposition") and (len(kern) < 2 or not ist_vorname(kern[0])):
                     continue
+                if (
+                    art == "zuschreibung"
+                    and len(kern) > 1
+                    and not ist_vorname(kern[0])
+                    and (kern[0].endswith("s") or re.match(r"\s*[,.;:!?]", text[m.end(gruppe) :]) is None)
+                ):
+                    # zwei Großwörter ohne bekannten Vornamen nur vor Satzzeichen und nicht nach Genitiv
+                    # („…, sagt Mustermann Reportern“, „…, so Mustermanns Kritik.“)
+                    name = name[: name.index(kern[0]) + len(kern[0])]
+                    kern = kern[:1]
                 if art == "funktion" and len(kern) > 1 and not ist_vorname(kern[0]) and not amt:
                     name = name[: name.index(kern[0]) + len(kern[0])]  # „Minister Mustermann Pläne“
                     kern = kern[:1]
@@ -686,6 +739,27 @@ def _zusatz_funde(teil: int, text: str, institutionen: Institutionen) -> list[Fu
             ende = m.start("liste") + satzende.start()
         funde.append(Fund(teil, m.start("liste"), ende, "", "credit", PERSON, ersatz="[Bildnachweis]"))
         funde.extend(_namen_in(teil, text, m.start("liste"), ende, "credit"))
+    for m in ZUSATZ["credit_bild"].finditer(text):
+        namen = _namen_in(teil, text, m.start("liste"), m.end("liste"), "credit")
+        if namen and all(ist_vorname(f.name.split()[0]) for f in namen if len(f.name.split()) > 1):
+            ende = m.end("liste")
+            funde.append(Fund(teil, m.start("liste"), ende, "", "credit", PERSON, ersatz="[Bildnachweis]"))
+            funde.extend(f for f in namen if len(f.name.split()) > 1)
+    for m in ZUSATZ["autorenliste"].finditer(text):
+        eintraege = list(re.finditer(r"(?P<n>" + _NT + r")[ \t]+[A-Z]{1,3}", m.group("liste")))
+        nachnamen = [e.group("n") for e in eintraege]
+        if len(set(nachnamen)) < len(nachnamen) or not all(
+            ist_namenswort(n) and institutionen.finde(n) is None for n in nachnamen
+        ):
+            continue  # „Vitamin D, Vitamin C“, „Typ A, Typ B“
+        for e in eintraege:
+            start = m.start("liste") + e.start()
+            funde.append(Fund(teil, start, m.start("liste") + e.end(), "", "autorenliste", PERSON))
+    for m in ZUSATZ["kuerzel"].finditer(text):
+        gruppe = "k1" if m.group("k1") else "k2"
+        if m.group(gruppe) not in _AGENTUREN_KLEIN and m.group(gruppe) not in STOPP:
+            start, ende = m.start(gruppe), m.end(gruppe)
+            funde.append(Fund(teil, start, ende, "", "kuerzel", PERSON, ersatz="[Kürzel]"))
     for m in ZUSATZ["alter_jaehrig"].finditer(text):
         worte = list(re.finditer(_NT, m.group("liste")))
         erster = next((i for i, w in enumerate(worte) if ist_vorname(w.group(0))), None)
