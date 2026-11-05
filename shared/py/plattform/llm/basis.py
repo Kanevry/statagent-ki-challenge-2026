@@ -38,6 +38,10 @@ class KonfigFehler(LlmFehler):
     """Harte Fehlkonfiguration, die kein Fallback heilen darf (z. B. ANTHROPIC_API_KEY bei claude)."""
 
 
+class BudgetErschoepft(LlmFehler):
+    """Das Tagesbudget ``LLM_TAGESBUDGET_AUFRUFE`` ist verbraucht: kein Aufruf, keine Protokollzeile."""
+
+
 class FixtureFehlt(LlmFehler):
     """Der mock-Provider findet keine Fixture für den Zweck."""
 
