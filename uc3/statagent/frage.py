@@ -327,7 +327,8 @@ ALTERSGRUPPE = Merkmal(
     ("alter",),
 )
 _ALTER_GRUPPEN = re.compile(
-    r"\b(?:nach|je|pro)\s+(?:\w+\s+)?(?:alter|altersgruppen?)\b|\baltersgruppen\b|\baltersverteilung\b"
+    r"\b(?:nach|je|pro)\s+(?:\w+\s+)?(?:alter|altersgruppen?)\b(?!\s+(?:regel|regeln|version|fassung|stand|zählung|lieferung))"
+    r"|\baltersgruppen\b|\baltersverteilung\b"
 )
 _ALTER_NICHT = re.compile(r"durchschnittsalter|jugendlich|jahrgang|jahrgänge|geburtsjahr")
 _JAHRE = r"\s*-?\s*(?:jahren?|jährig\w*)"

@@ -1098,6 +1098,13 @@ def test_fluktuation_nach_altersgruppe_sagt_ab(gerechnet: Verbindung) -> None:
     assert daten["zahlen"] == [] and "oder Alter" in daten["text"]
 
 
+# Fix-Liste !227, A1: Die Jury-Frage „nach alter Regel“ meint keine Altersgruppen und bekam eine Tabelle je Alter.
+def test_nach_alter_regel_ist_eine_zahl(gerechnet: Verbindung) -> None:
+    daten = antwort_frage(gerechnet, "Beschäftigte nach alter Regel im August 2024")
+    assert [z["wert"] for z in daten["zahlen"]] == [_bestand(gerechnet, "2024-08")[()]]
+    assert "je Alter" not in daten["text"]
+
+
 # Fix-Liste !227, Punkt 7: „Altersgruppen im Monat“ bekam „Das kann StatAgent nicht beantworten“ vor dem Angebot „Alter“.
 @pytest.mark.parametrize(
     "frage",
