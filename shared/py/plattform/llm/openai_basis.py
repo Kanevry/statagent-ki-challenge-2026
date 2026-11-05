@@ -16,6 +16,26 @@ from openai.types.chat import ChatCompletionChunk
 
 from .basis import Nachricht, Provider, Rohantwort, SchluesselFehlt, Strom, VoruebergehenderFehler
 
+
+def nur_text(inhalt: object) -> str:
+    """Antworttext als ``str``; manche Modelle (etwa ``mistral-large-4``) liefern ``content`` als Teile-Liste.
+
+    Gezählt werden nur Textteile (``{"type": "text", "text": …}`` oder Objekte mit ``text``); Denk-Teile und
+    andere Typen fallen weg. Gemessen 05.11.2026: ohne das kam bei ``mistral-large-4`` eine Liste.
+    """
+    if inhalt is None:
+        return ""
+    if isinstance(inhalt, str):
+        return inhalt
+    teile: list[str] = []
+    for teil in inhalt if isinstance(inhalt, list) else [inhalt]:
+        art = teil.get("type") if isinstance(teil, dict) else getattr(teil, "type", "text")
+        text = teil.get("text") if isinstance(teil, dict) else getattr(teil, "text", None)
+        if art in (None, "text") and isinstance(text, str):
+            teile.append(text)
+    return "".join(teile)
+
+
 ZEITLIMIT_S = 60.0
 
 
@@ -92,7 +112,7 @@ class OpenAiKompatibel(Provider):
             raise
         usage = antwort.usage
         return Rohantwort(
-            text=(antwort.choices[0].message.content or "") if antwort.choices else "",
+            text=nur_text(antwort.choices[0].message.content) if antwort.choices else "",
             modell=modell,
             version=antwort.model or None,
             tokens_in=usage.prompt_tokens if usage else None,
@@ -133,7 +153,9 @@ class OpenAiKompatibel(Provider):
                         ergebnis.tokens_out = stueck.usage.completion_tokens
                     for wahl in stueck.choices:
                         if wahl.delta and wahl.delta.content:
-                            yield wahl.delta.content
+                            text = nur_text(wahl.delta.content)
+                            if text:
+                                yield text
             except (openai.APIError, httpx.HTTPError) as fehler:
                 # Abriss beim Lesen: vor dem ersten Teil übernimmt die nächste Stufe, danach Abbruch.
                 raise VoruebergehenderFehler(
