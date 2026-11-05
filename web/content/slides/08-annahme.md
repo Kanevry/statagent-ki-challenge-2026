@@ -14,9 +14,9 @@ belege: [F4]
 
 # Geboren im 13. Monat: So rechnen wir das Alter.
 
-370 Beschäftigungsverhältnisse im August 2024
+370 Beschäftigungsverhältnisse mit Geburtsmonat 13, August 2024
 
-| Rechenweg | So viele der 576 Zahlen in der Alterstabelle des Veranstalters wären falsch. |
+| Rechenweg | Von 576 Zahlen in der Alterstabelle des Veranstalters wären je nach Regel bis zu 408 falsch. |
 |---|---|
 | Alter bleibt leer | 408 |
 | ein Jahr jünger | 367 |

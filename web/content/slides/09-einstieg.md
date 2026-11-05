@@ -22,7 +22,7 @@ belegt: [StatAgent, Simulator, Lotse]
 
 Ein Einstieg für alle drei
 
-Herkunft: 7.498 gemessen mit uc3 frage am 5. November 2026, Wien, ÖNACE 2025 Abschnitt R, März 2025
+Herkunft: 7.498 gemessen mit der Datenfrage von StatAgent am 5. November 2026, Wien, ÖNACE 2025 Abschnitt R, März 2025
 
 ## Sprechernotizen
 

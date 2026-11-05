@@ -1,6 +1,6 @@
 ---
 nummer: 7
-titel: Zwei Branchenlisten, ein Übergang
+titel: Im Jänner 2025 wechselt die Branchenliste
 layout: text
 szene: woerterbuecher
 uebergang: C-C J-J Q-R J-K

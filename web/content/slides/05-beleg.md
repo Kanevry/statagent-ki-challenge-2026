@@ -19,7 +19,7 @@ angehalten: [März 2025, Oktober 2025]
 |---|---|
 | Bericht des Veranstalters | August 2024 · 13 Tabellen |
 | StatAgent rechnet selbst | aus den Rohdaten |
-| Die anderen 23 Monate, September 2024 bis Juli 2026 | 24 Prüfregeln, angehalten im März und Oktober 2025 |
+| Die anderen 23 Monate, September 2024 bis Juli 2026 | angehalten im März und Oktober 2025 |
 
 2.880 von 2.880 gleich
 
