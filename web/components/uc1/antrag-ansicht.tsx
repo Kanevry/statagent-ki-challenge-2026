@@ -5,16 +5,18 @@ import type { ReactNode } from "react";
 import { Akzent, Fliesstext, Knopf, knopfKlassen, Leerzustand, Status, Tabelle, Ueberschrift } from "@kic/ui/basis";
 import { antragUnterzeile, type AntragBeleg, type WebAntrag } from "./antrag";
 import { traegerName, type Traeger } from "./antwort";
-import { leistungName } from "./leistungen";
+import { EntwurfPruefung } from "./entwurf-pruefung";
+import { antragLeistung, antragName, leistungName } from "./leistungen";
 import { useLotse } from "./lotse-kontext";
-import { AufnahmeHinweis, BelegKnopf, Kopf } from "./teile";
+import { BelegChip } from "./beleg-chip";
+import { AufnahmeHinweis, Kopf } from "./teile";
 
 // Schritt 3 „Antrag vorbereitet“ (Pen-Frame ZHSFO) und Schritt 4 „Stelle“. Der Lotse füllt aus, was im Gespräch
 // gesagt wurde; abgeschickt wird nichts (`eingereicht: false` aus dem Kern).
 
 function QuellenBeleg({ kurz, beleg }: { kurz: string; beleg: AntragBeleg | null }) {
   if (!beleg) return null;
-  return <BelegKnopf quelle={`${kurz}, S. ${beleg.seite}`} zitat={beleg.wortlaut} />;
+  return <BelegChip quelle={`${kurz}, S. ${beleg.seite}`} zitat={beleg.wortlaut} />;
 }
 
 function Kasten({ titel, als, children }: { titel: string; als: "h2" | "h3"; children: ReactNode }) {
@@ -32,14 +34,14 @@ function StelleText({ stelle }: { stelle: Pick<Traeger, "name" | "fundstelle" | 
   return (
     <div className="flex flex-col items-start gap-2">
       <Fliesstext className="font-semibold">{stelle.name}</Fliesstext>
-      {stelle.zitat && stelle.fundstelle && <BelegKnopf quelle={stelle.fundstelle} zitat={stelle.zitat} />}
+      {stelle.zitat && stelle.fundstelle && <BelegChip quelle={stelle.fundstelle} zitat={stelle.zitat} />}
     </div>
   );
 }
 
 /** Titel eines vorbereiteten Antrags, wie im Pen-Frame ZHSFO. */
 export function antragTitel(antrag: Pick<WebAntrag, "art">): string {
-  return `${leistungName(antrag.art)}: Antrag vorbereitet`;
+  return `${antragName(antrag.art)}: Antrag vorbereitet`;
 }
 
 /** `mitTitel`: eigene Überschrift, nur wenn mehrere Anträge auf der Seite stehen; sonst trägt die Seite den Titel. */
@@ -140,16 +142,9 @@ function AntragVorbereitet({ antrag, live, mitTitel }: { antrag: WebAntrag; live
         </div>
       </div>
 
+      <EntwurfPruefung antrag={antrag} live={live} pdf={pdf} ebene={ebene} />
+
       <div className="flex flex-wrap items-center gap-4">
-        {live ? (
-          <a href={pdf} download={`antrag-${antrag.art}-entwurf.pdf`} className={knopfKlassen("primaer", "min-h-11")}>
-            Antrag als PDF speichern
-          </a>
-        ) : (
-          <Fliesstext groesse={14} ton="gedaempft">
-            Das PDF entsteht nur im echten Gespräch. Hier sehen Sie ein aufgezeichnetes Beispiel.
-          </Fliesstext>
-        )}
         <Link href="/uc1/stelle" className={knopfKlassen("sekundaer", "min-h-11")}>
           Weiter zur zuständigen Stelle
         </Link>
@@ -160,9 +155,11 @@ function AntragVorbereitet({ antrag, live, mitTitel }: { antrag: WebAntrag; live
 
 /** /uc1/antrag: Schritt 3. Ohne Antwort ein ehrlicher Leerzustand; mit Antrag-Angebot der Knopf zum Vorbereiten. */
 export function AntragSeite() {
-  const { antrag, verlauf, aufnahme, antragVorbereiten } = useLotse();
+  const { antrag, verlauf, aufnahme, aufgezeichnet, antragVorbereiten } = useLotse();
   const letzte = verlauf.at(-1)?.antwort;
   const angebot = letzte?.verhalten === "antwort" ? letzte.antraege : [];
+  // Im Beispiel gibt es nur aufgezeichnete Anträge; die anderen nennt ein ehrlicher Satz.
+  const ohneAufnahme = aufgezeichnet === null ? [] : angebot.filter((art) => !aufgezeichnet.includes(art));
   const einer = antrag.art === "bereit" && antrag.antraege.length === 1 ? antrag.antraege[0] : undefined;
   return (
     <>
@@ -193,12 +190,17 @@ export function AntragSeite() {
         )}
         {antrag.art === "bereit" &&
           antrag.antraege.map((a) => (
-            <AntragVorbereitet key={a.art} antrag={a} live={aufnahme === null} mitTitel={!einer} />
+            <AntragVorbereitet key={`${a.art}-${a.sitzung_id}`} antrag={a} live={aufnahme === null} mitTitel={!einer} />
           ))}
+        {antrag.art === "bereit" && ohneAufnahme.length > 0 && (
+          <Fliesstext groesse={14} ton="gedaempft" data-testid="uc1-ohne-aufnahme">
+            {`Für ${ohneAufnahme.map(antragName).join(" und ")} gibt es auch einen Antrag. Im Beispiel ist er nicht aufgezeichnet. Im echten Gespräch füllt der Lotse ihn auch aus.`}
+          </Fliesstext>
+        )}
         {antrag.art === "leer" &&
           (angebot.length > 0 ? (
             <Leerzustand
-              satz={`Für ${angebot.map(leistungName).join(" und ")} gibt es einen Antrag. Der Lotse kann ihn vorausfüllen.`}
+              satz={`Für ${angebot.map(antragName).join(" und ")} gibt es einen Antrag. Der Lotse kann ihn vorausfüllen.`}
               aktion={<Knopf className="min-h-11" onClick={() => void antragVorbereiten(angebot)}>Antrag vorbereiten</Knopf>}
             />
           ) : (
@@ -231,7 +233,7 @@ export function StelleSeite() {
   if (antrag.art === "bereit") {
     for (const a of antrag.antraege) {
       if (a.stelle && !stellen.some((s) => traegerName(s) === a.stelle?.name)) {
-        stellen.push({ leistung: a.art, stelle: a.stelle.kurz, name: a.stelle.name, fundstelle: a.stelle.fundstelle, zitat: a.stelle.zitat });
+        stellen.push({ leistung: antragLeistung(a.art), stelle: a.stelle.kurz, name: a.stelle.name, fundstelle: a.stelle.fundstelle, zitat: a.stelle.zitat });
       }
     }
   }

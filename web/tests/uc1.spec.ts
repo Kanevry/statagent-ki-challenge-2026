@@ -82,6 +82,7 @@ test("/uc1?beispiel=pflege spielt ohne Netz bis zu Antrag und Stelle", async ({ 
 
   // Rückfrage als Hauptaussage, die Situation nur klein darüber, das große Eingabefeld ist weg.
   await expect(page.locator('[data-uc1-antwort="rueckfrage"]')).toHaveCount(1);
+  await expect(page.locator('[data-uc1-antwort="rueckfrage"]')).toContainText("Wer zahlt die Pension?");
   await expect(page.getByTestId("uc1-situation-kurz")).toContainText(PFLEGE.schritte[0]?.eingabe.text ?? "");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Eine Angabe fehlt noch");
   await expect(page.getByLabel("Ihre Situation")).toHaveCount(0);
@@ -96,6 +97,11 @@ test("/uc1?beispiel=pflege spielt ohne Netz bis zu Antrag und Stelle", async ({ 
   await expect(titel).toBeFocused();
   await expect(page.locator('[data-uc1-leistung="pflegegeld"]')).toBeVisible();
   await expect(page.getByRole("heading", { name: "Pflegegeld" })).toBeVisible();
+  // Für Reha gibt es keine Aufnahme: kein Knopf, der ins Leere führt, sondern ein ehrlicher Satz.
+  const reha = page.locator('[data-uc1-leistung="rehabilitation"]');
+  await expect(reha).toBeVisible();
+  await expect(reha).toContainText("Im Beispiel ist er nicht aufgezeichnet.");
+  await expect(reha.getByRole("button", { name: "Antrag vorbereiten" })).toHaveCount(0);
   await bild(page, "uc1-schritt-2-leistungen");
 
   // KI-Kennzeichnung an jeder Antwort, mit Modellname (frühere Schritte eingeklappt, aber vorhanden)
@@ -103,11 +109,14 @@ test("/uc1?beispiel=pflege spielt ohne Netz bis zu Antrag und Stelle", async ({ 
   await expect(ki).toHaveCount(PFLEGE.schritte.length);
   await expect(ki.first()).toContainText("Antwort von einer KI");
 
-  await page.getByRole("button", { name: /Beleg anzeigen/ }).first().click();
+  // Beleg-Chip in der Optik des HerkunftChip: aufklappen zeigt das Zitat wörtlich.
+  const chip = page.locator('[data-baustein="herkunft"]').first().getByRole("button", { name: /Zitat ansehen/ });
+  await chip.click();
+  await expect(chip).toHaveAttribute("aria-expanded", "true");
   const zitat = page.locator("[data-uc1-zitat]").first();
   await expect(zitat).toBeVisible();
   const text = (await zitat.textContent()) ?? "";
-  expect(ZITATE).toContain(text.replace(/^„|“$/g, ""));
+  expect(ZITATE).toContain(text.trim());
   await bild(page, "uc1-schritt-2-beleg");
   await axePruefen(page);
   await gateMessen(page, "/uc1?beispiel=pflege");
@@ -131,6 +140,21 @@ test("/uc1?beispiel=pflege spielt ohne Netz bis zu Antrag und Stelle", async ({ 
   await bild(page, "uc1-schritt-3-antrag");
   await axePruefen(page);
   await gateMessen(page, "/uc1/antrag (Beispiel)");
+
+  // Freigabe des Entwurfs: erst nach Vor- und Nachnamen gilt er als geprüft. „Maria Muster“ lehnt die Namensregel
+  // ab (Platzhalter „muster“), deshalb ein echter Name.
+  const stand = page.getByTestId("uc1-entwurf-stand");
+  await expect(stand).toHaveText("Entwurf nicht geprüft");
+  await expect(page.getByText("Die Prüfung gilt für diesen Entwurf auf diesem Gerät. Abgeschickt wird nichts.")).toBeVisible();
+  const name = page.getByLabel("Vor- und Nachname");
+  await name.fill("Team");
+  await expect(page.getByRole("button", { name: "Freigeben" })).toBeDisabled();
+  await name.fill("Maria Huber");
+  await page.getByRole("button", { name: "Freigeben" }).click();
+  await expect(stand).toContainText("Entwurf geprüft von Maria Huber");
+  await bild(page, "uc1-schritt-3-geprueft");
+  await axePruefen(page);
+  await gateMessen(page, "/uc1/antrag (geprüft)");
 
   // Schritt 4: zuständige Stelle mit Beleg.
   await page.getByRole("link", { name: "Weiter zur zuständigen Stelle" }).click();

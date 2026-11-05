@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, type FormEvent } from "react";
 import { Akzent, Fliesstext, Knopf, knopfKlassen, Status, Ueberschrift } from "@kic/ui/basis";
 import { jaNeinFrage, traegerName, type WebAntwort } from "./antwort";
-import { leistungName } from "./leistungen";
+import { antragLeistung, leistungName } from "./leistungen";
 import { useLotse, type Lage, type Wechsel } from "./lotse-kontext";
 import { GESPERRT } from "./situation";
 import { AufnahmeHinweis, Beleg, KiKennzeichnung, KOPF_ID, MitTelefon } from "./teile";
@@ -103,12 +103,16 @@ function AntragKnopf({ antwort }: { antwort: WebAntwort }) {
 
 /** Leistungen, Aussagen mit Beleg und nächste Schritte. Die Überschrift „Das kommt für Sie in Frage“ trägt die Seite. */
 function Ergebnis({ antwort, letzte }: { antwort: WebAntwort; letzte: boolean }) {
+  const { aufgezeichnet } = useLotse();
   return (
     <div className="flex flex-col gap-6">
       {antwort.leistungen.length > 0 && (
         <ul className="flex flex-col gap-4" aria-label="Erkannte Leistungen">
           {antwort.leistungen.map((id) => {
             const stellen = antwort.traeger.filter((t) => !t.leistung || t.leistung === id);
+            const art = antwort.antraege.find((a) => antragLeistung(a) === id);
+            // Im Beispiel gibt es nur die aufgezeichneten Anträge; für die anderen steht ein ehrlicher Satz.
+            const ohneAufnahme = art !== undefined && aufgezeichnet !== null && !aufgezeichnet.includes(art);
             return (
               <li key={id} data-uc1-leistung={id} className="flex flex-col gap-2 rounded border border-line bg-white p-4 md:p-6">
                 <Ueberschrift stufe={3} als="h2">
@@ -119,8 +123,13 @@ function Ergebnis({ antwort, letzte }: { antwort: WebAntwort; letzte: boolean })
                     {`Zuständig: ${traegerName(stelle)}${stelle.fundstelle ? ` (${stelle.fundstelle})` : ""}.`}
                   </Fliesstext>
                 ))}
-                {antwort.antraege.includes(id) &&
-                  (letzte ? (
+                {art &&
+                  (letzte && ohneAufnahme ? (
+                    <Fliesstext groesse={14} ton="gedaempft" data-uc1-ohne-aufnahme={art}>
+                      Dafür gibt es einen Antrag. Im Beispiel ist er nicht aufgezeichnet. Im echten Gespräch füllt der Lotse
+                      ihn auch aus.
+                    </Fliesstext>
+                  ) : letzte ? (
                     <AntragKnopf antwort={antwort} />
                   ) : (
                     <Fliesstext groesse={14} ton="gedaempft">

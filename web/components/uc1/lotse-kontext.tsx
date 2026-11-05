@@ -39,6 +39,8 @@ interface LotseWert {
   lage: Lage;
   /** Gesetzt, solange eine Aufnahme statt einer Live-Antwort läuft oder zu sehen ist (Datum der Aufnahme). */
   aufnahme: string | null;
+  /** Im Replay die Anträge, für die es eine Aufnahme gibt; live `null`. */
+  aufgezeichnet: readonly string[] | null;
   /** Wahr, solange die Aufnahme abgespielt wird; Eingaben sind dann gesperrt. */
   spielt: boolean;
   entwurf: string;
@@ -130,6 +132,7 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
   const [verlauf, setVerlauf] = useState<readonly Wechsel[]>([]);
   const [lage, setLage] = useState<Lage>({ art: "leer" });
   const [aufnahme, setAufnahme] = useState<string | null>(null);
+  const [aufgezeichnet, setAufgezeichnet] = useState<readonly string[] | null>(null);
   const [spielt, setSpielt] = useState(false);
   const [entwurf, setEntwurf] = useState("");
   const [antwortEntwurf, setAntwortEntwurf] = useState("");
@@ -145,6 +148,7 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
       const nummer = ++ablauf.current;
       const sitzung = neu ? undefined : verlauf.at(-1)?.antwort.sitzung_id;
       setAufnahme(null);
+      setAufgezeichnet(null);
       setSpielt(false);
       aufnahmeAntrag.current = null;
       if (neu) {
@@ -176,6 +180,7 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
     if (nummer !== ablauf.current) return;
     if (!pruefung.ok) {
       setAufnahme(null);
+      setAufgezeichnet(null);
       setSpielt(false);
       aufnahmeAntrag.current = null;
       setLage({
@@ -191,6 +196,7 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
     }
     const { replay } = pruefung;
     aufnahmeAntrag.current = replay.antrag ?? null;
+    setAufgezeichnet(replay.antrag ? [replay.antrag.art] : []);
     setAufnahme(formatAufnahme(replay.aufgenommen));
     setSpielt(true);
     const erster = replay.schritte[0]?.eingabe;
@@ -215,6 +221,7 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
     aufnahmeAntrag.current = null;
     setVerlauf([]);
     setAufnahme(null);
+    setAufgezeichnet(null);
     setSpielt(false);
     setEntwurf("");
     setAntwortEntwurf("");
@@ -258,6 +265,7 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
       verlauf,
       lage,
       aufnahme,
+      aufgezeichnet,
       spielt,
       entwurf,
       setEntwurf,
@@ -272,7 +280,7 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
       antrag,
       antragVorbereiten,
     }),
-    [verlauf, lage, aufnahme, spielt, entwurf, antwortEntwurf, einstellungen, fragen, beispielAbspielen, neuBeginnen, antrag, antragVorbereiten],
+    [verlauf, lage, aufnahme, aufgezeichnet, spielt, entwurf, antwortEntwurf, einstellungen, fragen, beispielAbspielen, neuBeginnen, antrag, antragVorbereiten],
   );
 
   return <LotseKontext.Provider value={wert}>{children}</LotseKontext.Provider>;

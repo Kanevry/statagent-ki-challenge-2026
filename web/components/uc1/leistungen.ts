@@ -15,3 +15,19 @@ export function leistungName(id: string): string {
   const woerter = id.replace(/[_-]+/g, " ").trim();
   return woerter ? woerter.charAt(0).toUpperCase() + woerter.slice(1) : id;
 }
+
+/**
+ * Anträge des Kerns heißen nicht immer wie ihre Leistung (`reha` gehört zu `rehabilitation`). Nur Anzeige: so steht
+ * der Antrag-Knopf bei der richtigen Leistung und der Antrag trägt deren Namen.
+ */
+export const ANTRAG_LEISTUNG: Readonly<Record<string, string>> = { reha: "rehabilitation" };
+
+/** Leistung, zu der ein Antrag gehört. */
+export function antragLeistung(art: string): string {
+  return ANTRAG_LEISTUNG[art] ?? art;
+}
+
+/** Anzeigename eines Antrags, über seine Leistung („reha“ → „Rehabilitation und Kur“). */
+export function antragName(art: string): string {
+  return leistungName(antragLeistung(art));
+}

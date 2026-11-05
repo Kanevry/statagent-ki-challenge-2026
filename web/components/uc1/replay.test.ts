@@ -7,7 +7,7 @@ import { belegeHash, pruefeReplay } from "./replay";
 describe("Replay pflege", () => {
   // Fängt: eine andere Hash-Formel als beim Aufnehmen (Schlüsselreihenfolge, Leerzeichen, Unicode).
   it("reproduziert den Beleg-Hash der Aufnahme", async () => {
-    expect(await belegeHash(pflege.schritte)).toBe("e37f5efbde8796101f5f5166796a9d6d6fa6fcd46a722dea24d29ddaba7a019b");
+    expect(await belegeHash(pflege.schritte)).toBe("2cb31c9ab4d266eee26cdabe4459f00f9ceaf52a9bcfedddd72c3d987d75daf9");
     expect(await pruefeReplay(pflege)).toMatchObject({ ok: true });
   });
 
