@@ -13,19 +13,23 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import psycopg
+from plattform.protokoll import NeuerEintrag, ddl_einspielen  # type: ignore[import-untyped]  # kein py.typed
+from plattform.protokoll import schreibe as protokoll_schreibe
 from psycopg.types.json import Jsonb
 
 from uc2 import pfade
 from uc2.verhandlung.matrix import Position, Runde
 
 DDL = pfade.SQL / "002_verhandlung.sql"
+DDL_FREIGABE = pfade.SQL / "003_freigabe.sql"
 ABBRUCH_S = 60
 STATUS = ("laufend", "fertig", "abgebrochen")
 
 
 def ddl_anwenden(verbindung: psycopg.Connection[Any]) -> None:
-    """Schema der Verhandlung idempotent anlegen."""
+    """Schema der Verhandlung und der Freigabe idempotent anlegen."""
     verbindung.execute(DDL.read_text(encoding="utf-8"))
+    verbindung.execute(DDL_FREIGABE.read_text(encoding="utf-8"))
     verbindung.commit()
 
 
@@ -231,3 +235,72 @@ def lies_positionen(verbindung: psycopg.Connection[Any], fall_id: int) -> dict[i
             quelle=str(z[6]),
         )
     return runden
+
+
+# --- Freigabe des Berichts -----------------------------------------------------------------------------
+
+
+def lies_freigabe(verbindung: psycopg.Connection[Any], fall_id: int) -> dict[str, Any] | None:
+    """Entscheidung zum Bericht (`name`, `zeit`, `entscheidung`, `begruendung`) oder `None`, wenn offen.
+
+    Fehlt die Tabelle (Datenbank ohne `003_freigabe.sql`), gilt der Bericht als offen. Der Savepoint hält
+    eine bereits offene Transaktion des Aufrufers brauchbar.
+    """
+    try:
+        with verbindung.transaction():
+            zeile = verbindung.execute(
+                "select name, zeitpunkt, entscheidung, begruendung from uc2.freigabe where fall_id = %s",
+                (fall_id,),
+            ).fetchone()
+    except psycopg.errors.UndefinedTable:
+        return None
+    if zeile is None:
+        return None
+    return {"name": zeile[0], "zeit": zeile[1], "entscheidung": zeile[2], "begruendung": zeile[3]}
+
+
+def schreibe_freigabe(
+    verbindung: psycopg.Connection[Any],
+    fall_id: int,
+    name: str,
+    entscheidung: str,
+    begruendung: str | None,
+    fall_name: str,
+) -> datetime | None:
+    """Speichert die Entscheidung und eine Zeile im gemeinsamen Protokoll (`meta.protokoll`), zusammen.
+
+    Gibt den Zeitpunkt zurück, oder `None`, wenn der Fall schon entschieden ist. Namen und Zustand des Falls
+    prüft der Aufrufer (`uc2.verhandlung.freigabe`). Die Verbindung braucht `autocommit=True`.
+    """
+    if entscheidung not in ("freigegeben", "abgelehnt"):
+        raise ValueError(f"unbekannte Entscheidung {entscheidung!r}")
+    verbindung.execute(DDL_FREIGABE.read_text(encoding="utf-8"))
+    ddl_einspielen(verbindung)
+    with verbindung.transaction():
+        zeile = verbindung.execute(
+            "insert into uc2.freigabe (fall_id, name, entscheidung, begruendung) values (%s, %s, %s, %s) "
+            "on conflict (fall_id) do nothing returning zeitpunkt",
+            (fall_id, name, entscheidung, begruendung),
+        ).fetchone()
+        if zeile is None:
+            return None
+        ok = entscheidung == "freigegeben"
+        protokoll_id = protokoll_schreibe(
+            verbindung,
+            NeuerEintrag(
+                uc="uc2",
+                akteur="mensch",
+                name=name,
+                anweisung=f"Bericht der Verhandlung {fall_name} (Fall {fall_id}) "
+                + ("freigeben" if ok else "ablehnen"),
+                wirkung="Ergebnis als geprüft markiert" if ok else f"Abgelehnt: {begruendung}",
+                vorschlag_typ="bericht",
+                status="freigegeben" if ok else "abgelehnt",
+                ref=f"uc2/fall/{fall_id}",
+            ),
+        )
+        verbindung.execute(
+            "update uc2.freigabe set protokoll_id = %s where fall_id = %s", (protokoll_id, fall_id)
+        )
+    zeitpunkt: datetime = zeile[0]
+    return zeitpunkt
