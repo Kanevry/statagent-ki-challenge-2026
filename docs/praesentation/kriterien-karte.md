@@ -1,6 +1,6 @@
 # Kriterien-Karte StatAgent (Use Case 3)
 
-Sechs Bereiche, je 20 von 120 Punkten. Die Spalte „Raster“ steht wörtlich wie in der Aufgabenstellung, Abschnitt Bewertung. Die Spalte „Stand“ sagt, was im Repo auf `main` ist: **erfüllt**, **teilweise** oder **offen**. Zahlen tragen ihre Kennung aus dem Belegregister.
+Sechs Bereiche, je 20 von 120 Punkten. Die Spalte „Raster“ steht wörtlich wie in der Aufgabenstellung, Abschnitt Bewertung. Die Spalte „Stand“ sagt, was im Repo auf `main` ist: **erfüllt**, **teilweise** oder **offen**. Kennungen wie F4 in Klammern verweisen auf das Belegregister, nicht auf die Annahmen F1 bis F10 in den Berichten.
 
 **Gemessen:** 05.11.2026 auf `main` `3cb60c2`, Klassifikationen in der Abgabe-Datenbank.
 
@@ -16,7 +16,7 @@ Sechs Bereiche, je 20 von 120 Punkten. Die Spalte „Raster“ steht wörtlich w
 | 3 Qualitätssicherung | Mindest | erkennt einen Teil der Fehler, Qualitätsbericht je Monat | **erfüllt** | 24 Berichte, 24 Prüfregeln (F15), acht Arten von Fehlern (F4 bis F11). | `/uc3/berichte/2025-03`, `abgabe/qualitaetsberichte/` |
 | | Optimum | erkennt alle Fehler | **teilweise** | Der offizielle Bericht August 2024 stimmt ganz, 2.880 von 2.880 (F1). Für die anderen 23 Monate gibt es keinen Vergleich. Ob es alle Fehler sind, können wir nicht belegen. | Szene 5 und 6 |
 | | Optimum | unterscheidet sie von echten Entwicklungen | **teilweise** | Jeder Befund trägt eine Einstufung. Ein Teil bleibt „nicht erklärbar“, die Rückfragen R1 bis R10 sind unbeantwortet. Der Bericht Jänner 2025 nennt den Wechsel der Branchenliste nicht. | Demo D1, `abgabe/rueckfragen/` |
-| | Optimum | jede Annahme begründet und dokumentiert | **erfüllt** | Annahmen A1 bis A13 mit Begründung, je Monat im Bericht. Beispiel Geburtsmonat 13 (F4). | Szene 8, `docs/plan/uc3/annahmen.md` |
+| | Optimum | jede Annahme begründet und dokumentiert | **erfüllt** | Annahmen F1 bis F10 je Monat im Bericht, Herleitung A1 bis A13 im Plan. Beispiel Geburtsmonat 13 (Beleg F4). | Szene 8, `docs/plan/uc3/annahmen.md` |
 | 4 Reporting | Mindest | Aggregations-Sheet nach den Regeln der Fachbeschreibung | **erfüllt** | Sheet nach alten und neuen Regeln. Kernzahlen August 2024 exakt (F14). | `abgabe/aggregationen_v1.xlsx`, `abgabe/aggregationen_v2.xlsx` |
 | | Optimum | Datenanfragen (können sich auch auf Klassifikationen und Metadaten beziehen) richtig beantwortet | **teilweise** | Acht geprüfte Fragen mit Sollzahl (F21 bis F25). Freie Fragen sind nicht alle geprüft. | Demo D3, `/uc3/fragen`, Fragenkatalog |
 | | Optimum | Dashboard | **erfüllt** | Übersicht aller Monate mit Verlauf und Status. | `/uc3` |
@@ -39,4 +39,4 @@ Die Karte zeigt nur, was auf `main` ist. Nach jedem dieser Merges die Zeile neu 
 - !150 (unbekannte Live-Änderungen): Bereich 5 Live-Änderung
 - !179 (frische Datenbank kennt v2): Bereich 5 Mindest
 - Pensionen (#77): Bereich 1
-- Umbenennung des Menüpunkts „Regeln“ durch die UI-Regie: Bereich 6
+- !196 (Menü mit Annahmen und Klassifikationen, neue Seite `/uc3/annahmen`): Bereich 6 lautet dann „Alle sechs Inhalte sind im Web. Annahmen und Klassifikationen sind eigene Menüpunkte. Aufträge gibt man nur in der Konsole ein.“, unter „Wo zu sehen“ kommt `/uc3/annahmen` dazu, auch bei Bereich 3 „jede Annahme“
