@@ -138,10 +138,11 @@ der Modell-Badge liest `GET /api/plattform/modell` (E0-Route, führt `uv run pyt
   Auf `/` und `/praesentation` zeigt die Schublade UC3 (bewertet). Der JSON-Vertrag `Eintrag` liegt als
   `shared/schema/protokoll-eintrag.json` (aus pydantic erzeugt) und wird von pytest (CLI `--json`) und Vitest/zod
   (Route-Antwort) geprüft.
-- Registry `shared/ui/src/ucs.ts`: `{id, name, kurz, route, bewertet, status: "leer"|"aktiv"}`; die Shell rendert
-  daraus Header und Landing-Karten. Ein UC hängt sich ein, indem er (1) seinen Eintrag in der Registry setzt,
-  (2) `web/app/<uc>/layout.tsx` mit `<UcBereich uc="uc3" nav={[...]}>` anlegt (Unter-Navigation des UC),
-  (3) seine Route-Handler unter `web/app/api/<uc>/**` liefert. Leere Bereiche zeigen den Leerzustand-Baustein.
+- Registry `shared/ui/src/ucs.ts`: `{id, name, kurz, route, bewertet}` (ohne `status`, Entscheid Lead 05.11.: UC-Lanes
+  schreiben die Registry nicht); die Shell rendert daraus Header und Landing-Karten. Ein UC hängt sich ein, indem er
+  (1) `web/app/<uc>/layout.tsx` mit `<UcBereich uc="uc3" nav={[...]}>` plus `page.tsx` anlegt (die statische Route
+  gewinnt gegen den Fallback `web/app/[uc]`) und (2) seine Route-Handler unter `web/app/api/<uc>/**` liefert.
+  Liefert der Handler nichts, zeigt die Shell den Leerzustand-Baustein.
 - Datenweg: Route-Handler lesen die UC-Datenbank lesend (postgres.js) oder starten die UC-CLI als Subprozess mit
   `--json`. Streaming (Chat, Voice) geht an die FastAPI des UC (Port 810N), nie an das Modell direkt.
 

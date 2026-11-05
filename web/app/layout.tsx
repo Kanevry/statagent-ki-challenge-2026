@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { ShellRahmen } from "@/lib/plattform/shell-rahmen";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,12 +8,14 @@ export const metadata: Metadata = {
   description: "StatAgent, SV KI-Lotse und HealthPolicy Simulator auf einer gemeinsamen Plattform",
 };
 
-// Root-Layout ohne App-Header: die Route-Gruppe (landing) rendert frei (Session b-landing, `/`).
-// Die Shell mit Header, Modell-Badge und Protokoll-Schublade für /uc1 /uc2 /uc3 /praesentation kommt mit #57.
+// Root-Layout: ShellRahmen setzt Header, Modell-Badge und Protokoll-Schublade (#57) überall außer auf `/`.
+// Die Landing (Route-Gruppe (landing), `/`) rendert frei und muss dafür nichts tun.
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="de">
-      <body>{children}</body>
+      <body className="flex min-h-dvh flex-col bg-paper font-sans text-ink antialiased">
+        <ShellRahmen>{children}</ShellRahmen>
+      </body>
     </html>
   );
 }
