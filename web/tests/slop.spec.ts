@@ -125,9 +125,10 @@ async function pruefeSeite(page: Page, testInfo: TestInfo, ort: string, zustand 
 
 /** Interne Seitenlinks (gleicher Ursprung, ohne API, Dateien und Anker) als Pfade. */
 async function interneLinks(page: Page): Promise<string[]> {
+  // getAttribute statt .href: Links in SVG (Monatsgrafik UC3) sind SVGAElement, deren href kein String ist.
   const pfade = await page.$$eval('a[href^="/"]', (links) =>
     links.map((a) => {
-      const url = new URL((a as HTMLAnchorElement).href);
+      const url = new URL(a.getAttribute("href") ?? "", location.href);
       return url.origin === location.origin ? url.pathname : "";
     }),
   );

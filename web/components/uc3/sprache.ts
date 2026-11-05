@@ -21,8 +21,16 @@ const MONAT = /(?<![\p{L}\p{N}_'/.-])(\d{4}-(?:0[1-9]|1[0-2]))(?![\p{L}\p{N}_'/-
 const SATZ = /(?<![\p{L}\p{N}_-])(Satz|Sätze|Sätzen)(?![\p{L}\p{N}_-])/gu;
 const ZEILE: Record<string, string> = { Satz: "Zeile", Sätze: "Zeilen", Sätzen: "Zeilen" };
 
+// Artikel vor „Satz“ passen zur „Zeile“ (weiblich): „zu einem Satz“ wird „zu einer Zeile“.
+const ARTIKEL_SATZ = /\b(einem|einen|ein|jeder|jeden|der|den|dem|kein|keinen|keinem)\s+Satz\b/g;
+const ARTIKEL_ZEILE: Record<string, string> = {
+  einem: "einer", einen: "eine", ein: "eine", jeder: "jede", jeden: "jede", der: "die", den: "die", dem: "der",
+  kein: "keine", keinen: "keine", keinem: "keiner",
+};
+
 export function alltag(text: string): string {
   return text
+    .replace(ARTIKEL_SATZ, (_ganz: string, artikel: string) => `${ARTIKEL_ZEILE[artikel] ?? artikel} Zeile`)
     .replace(SATZ, (wort: string) => ZEILE[wort] ?? wort)
     .replace(VERHAELTNIS, (ganz: string, endung: string | undefined, stelle: number, quelle: string) => {
       if (IM_VERHAELTNIS_ZU.test(quelle.slice(0, stelle)) && NACH_ZU.test(quelle.slice(stelle + ganz.length))) return ganz;

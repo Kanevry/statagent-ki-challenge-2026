@@ -13,21 +13,20 @@ ORDER BY lieferung, (ergebnis_status = 'endgueltig') DESC, id DESC`;
 
 /**
  * SQL-Ausdruck für den Lauf, dessen Prüftreffer und Regelwirkung gelten (Revisionen nie: die kommen aus dem jüngsten
- * Lauf, wie § 5 des Generators): bei einem veröffentlichten Monat
- * der Lauf, der die endgültigen Zellen geschrieben hat, sonst der Lauf selbst. Der Generator (qualitaetsbericht.py,
- * `_veroeffentlichender_lauf`) liest dafür min(lauf_id) der endgültigen Zellen; die schreibt laut lauf.py immer der
- * letzte Lauf mit Status „fertig“ dieses Regelstands („unveraendert“ schreibt nichts). Über meta.lauf statt über
- * stat.* gerechnet: 0,1 ms statt 154 ms je Monat, gleiches Ergebnis in 22 von 22 veröffentlichten Monaten
- * (gemessen 05.11.2026). `alias` ist der Name von meta.lauf in der umgebenden Abfrage; fester Text, nur mit festem
- * Alias aus diesem Code gebaut, deshalb per `sql.unsafe` einsetzbar.
+ * Lauf, wie § 5 des Generators). Gleiche Bedingung wie `_veroeffentlichender_lauf` in qualitaetsbericht.py (b-uc3-84,
+ * 05.11.2026, Review !50): der erste Lauf mit Freigabe (freigegeben_von) auf Lieferung, Regelsatz und Regelstand des
+ * maßgeblichen Laufs; ohne Freigabe (z. B. März und Oktober 2025, alles in v2) der maßgebliche Lauf selbst. Die
+ * frühere Fassung nahm den letzten „fertig“-Lauf vor der Freigabe (49–72) und zeigte damit andere Treffer als der
+ * Bericht. `alias` ist der Name von meta.lauf in der umgebenden Abfrage; fester Text, nur mit festem Alias aus diesem
+ * Code gebaut, deshalb per `sql.unsafe` einsetzbar.
  */
 export function quelleSql(alias: "m" | "l" | "meta.lauf"): string {
   const a = alias;
   return [
-    `CASE WHEN ${a}.ergebnis_status = 'endgueltig' THEN coalesce((`,
-    "  SELECT max(w.id) FROM meta.lauf w",
+    "coalesce((",
+    "  SELECT min(w.id) FROM meta.lauf w",
     `  WHERE w.lieferung = ${a}.lieferung AND w.regelsatz = ${a}.regelsatz AND w.regelstand = ${a}.regelstand`,
-    `    AND w.status = 'fertig'), ${a}.id) ELSE ${a}.id END`,
+    `    AND w.freigegeben_von IS NOT NULL AND w.status IN ('fertig', 'unveraendert')), ${a}.id)`,
   ].join("\n");
 }
 
