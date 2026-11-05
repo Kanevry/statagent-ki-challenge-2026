@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 import pytest
+from typer.testing import CliRunner
 
 from statagent import cli
 from statagent.db import Verbindung
@@ -132,9 +134,30 @@ def test_adapter_pruefung_wirft_nicht(gerechnet: Verbindung, monkeypatch: pytest
 
 
 # Fängt (Prüfung !192): Die Konsole sagte weiter die Zahl des alten Wegs.
-def test_konsole_nimmt_denselben_weg() -> None:
-    quelle = Path(cli.__file__).read_text(encoding="utf-8")
-    assert "uc4_antwort(conn, frage_text, regelsatz)" in quelle
+def test_konsole_nimmt_denselben_weg(gerechnet: Verbindung, monkeypatch: pytest.MonkeyPatch) -> None:
+    @contextmanager
+    def verbindung() -> Iterator[Verbindung]:
+        yield gerechnet
+
+    monkeypatch.setattr(cli, "verbinden", verbindung)
+    ergebnis = CliRunner().invoke(
+        cli.app, ["antwort", "Wie viele Jobs hatte Person 1234567 im September 2024?"]
+    )
+    assert ergebnis.exit_code == 0 and "Einzeldaten" in ergebnis.output
+    wien = CliRunner().invoke(cli.app, ["antwort", "Beschäftigte in Wien im September 2024"])
+    assert f"{_direkt(gerechnet, " AND region = '9'")}" in wien.output
+
+
+# Fängt (Prüfung !192): Bei „Zugänge“ stand die Fluktuation in Prozent statt der Zahl der Zugänge.
+@pytest.mark.parametrize(
+    "frage", ["Wie viele Zugänge gab es im September 2024?", "Abgänge im Bau im September 2024"]
+)
+def test_zugaenge_und_abgaenge_keine_kurzfassung(gerechnet: Verbindung, frage: str) -> None:
+    daten = uc4_antwort(gerechnet, frage)
+    voll = antwort_frage(gerechnet, frage)
+    assert daten["zahlen"] == voll["zahlen"] and "Die Zahlen je Branche stehen" not in daten["text"]
+    assert any(z["bezeichnung"].startswith(("Zugänge", "Abgänge")) for z in daten["zahlen"])
+    assert "Zwischen" in daten["text"]
 
 
 # Fängt: Gefragt war eine Branche, die Zahl für alle Branchen wäre eine andere Antwort.

@@ -2,7 +2,7 @@
 -- Jede Abfrage liefert genau eine Zeile mit `pruefung` und `fehlend`; Soll ist überall fehlend = 0.
 -- Nur lesend. Ausführen: psql -f docs/plan/uc3/anhang-b-schema.sql gegen eine UC3-Datenbank nach `uc3 db init`
 -- und mindestens einem Lauf; automatisch geprüft in uc3/tests/test_anhang_b.py (Fixture-Lieferungen).
--- Pensionen sind nicht importiert (Optimum Bereich 1, offen); die Abfragen gelten für die Beschäftigung.
+-- B1 bis B11 gelten für die Beschäftigung, B12 bis B15 für die Pensionen (#77); sie halten auch vor dem ersten Laden.
 
 -- B1 Long-Format: Pflichtspalten von stat.stat_beschaeftigte (Zeitraum, Dimensionen, Variable, Wert, Status, Stand)
 SELECT 'B1 Pflichtspalten stat_beschaeftigte' AS pruefung, count(*) AS fehlend
@@ -96,3 +96,28 @@ WHERE NOT EXISTS (SELECT 1 FROM stat.klass_region k WHERE k.code = s.region)
    OR NOT EXISTS (SELECT 1 FROM stat.klass_oenace k WHERE k.code = s.oenace AND k.version = s.oenace_version)
    OR NOT EXISTS (SELECT 1 FROM stat.klass_geschlecht k WHERE k.code = s.geschlecht)
    OR NOT EXISTS (SELECT 1 FROM stat.klass_alter k WHERE k.code = s."alter");
+
+-- B12 Versicherungsbereiche sind keine Qualifikation: kein Code der Trägergliederung steht in klass_qualifikation
+SELECT 'B12 Trägerbereich in klass_qualifikation' AS pruefung, count(*) AS fehlend
+FROM stat.klass_qualifikation q
+WHERE q.code IN (SELECT code FROM stat.klass_versicherungstraeger);
+
+-- B13 Anti-Join: jede Variable der Pensionsdaten steht in stat.variable
+SELECT 'B13 Variable der Pensionen ohne Eintrag in stat.variable' AS pruefung, count(*) AS fehlend
+FROM (SELECT DISTINCT variable FROM stat.stat_pensionen) s
+WHERE NOT EXISTS (SELECT 1 FROM stat.variable v WHERE v.statistik = 'pensionen' AND v.code = s.variable);
+
+-- B14 Quellzuordnung der Pensionen führt nur auf vorhandene Codes
+SELECT 'B14 Quellzuordnung Pensionen ohne Klassifikationszeile' AS pruefung, count(*) AS fehlend
+FROM stat.quellzuordnung q
+WHERE q.regelsatz = 'pensionen-v1'
+  AND NOT EXISTS (SELECT 1 FROM stat.klass_versicherungstraeger k
+                  WHERE q.merkmal = 'versicherungstraeger' AND k.code = q.code)
+  AND NOT EXISTS (SELECT 1 FROM stat.klass_pensionsart k WHERE q.merkmal = 'pensionsart' AND k.code = q.code)
+  AND NOT EXISTS (SELECT 1 FROM stat.klass_geschlecht k WHERE q.merkmal = 'geschlecht' AND k.code = q.code);
+
+-- B15 Pensionszellen nur auf Blättern: Summen gehören nicht in die Statistik
+SELECT 'B15 Pensionszelle auf einem Summencode' AS pruefung, count(*) AS fehlend
+FROM stat.stat_pensionen s
+WHERE EXISTS (SELECT 1 FROM stat.klass_versicherungstraeger k WHERE k.uebergeordnet = s.versicherungstraeger)
+   OR EXISTS (SELECT 1 FROM stat.klass_pensionsart k WHERE k.uebergeordnet = s.pensionsart);

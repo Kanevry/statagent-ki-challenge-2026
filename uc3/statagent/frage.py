@@ -18,10 +18,12 @@ from typing import Any
 import psycopg
 from psycopg import sql
 
+from statagent import pensionen
 from statagent.agenten.werkzeuge import AbfrageVerweigert, sql_lesen
 from statagent.berichte.sheet import STICHTAG, STICHTAG_VARIABLE
 from statagent.db import Verbindung
 from statagent.ergebnis import letzter_lauf, monat_verschieben, monatserster, monatsletzter
+from statagent.pensionen import PensionFehler, ist_pensionsfrage, pensionsantwort
 from statagent.regeln import Regel, regeln_laden, regelstand
 from statagent.uc4 import (
     _ISO,
@@ -484,6 +486,35 @@ def als_webantwort(daten: dict[str, Any]) -> dict[str, Any]:
         "definition": daten["definition"],
         "rueckfrage": text if daten["rueckfrage"] else None,
     }
+
+
+#: Wörter, die eine Frage nach dem Bestand erkennen lassen.
+_BEZUG = re.compile(
+    r"beschäftig|beschaeftig|verhältnis|verhaeltnis|arbeit|leute|personen|menschen|\bjobs?\b|\bstellen\b"
+    r"|wie\s*viele?\b|anzahl|bestand|\bstand\b|aktuell|derzeit|zurzeit|momentan|jetzt"
+)
+
+
+def _ohne_bezug(conn: Verbindung, frage: str, letzter: str) -> bool:
+    """Weder ein Wort zum Bestand noch ein Merkmal, und außer der Zeitangabe stehen andere Wörter da.
+
+    „März 2025“ allein bleibt eine Frage nach dem Bestand, „asdf im März 2025“ nicht. ``_filter`` sagt ab, wenn nach
+    „in“ ein unbekanntes Wort steht („in Wein“, „in Vienna“), auch bei einer bloßen Jahreszahl.
+    """
+    text = frage.lower()
+    genannt = monate_lesen(frage)
+    if _filter(conn, frage, genannt[-1] if genannt else letzter, ())[0]:
+        return False
+    if _BEZUG.search(text) or _gliederung(frage) is not None:
+        return False
+    jahr = jahr_ohne_monat(frage)
+    if not genannt and jahr is None:
+        return True
+    for muster in (_NAME_MONAT, _ZAHL_MONAT, _ISO):
+        text = muster.sub(" ", text)
+    if jahr is not None:
+        text = text.replace(jahr, " ")
+    return any(w not in _FUNKTIONSWORT and w != "bitte" for w in re.findall(r"[\wäöüß-]+", text))
 
 
 def _rueckfrage(text: str) -> dict[str, Any]:
@@ -1342,12 +1373,24 @@ def _rueckfrage_monat(typ: str, jahr: str | None) -> dict[str, Any]:
     return _rueckfrage(f"Für welchen Monat möchten Sie {was} wissen? Zum Beispiel „{beispiel} März 2025“.")
 
 
+def _pensionsfrage(conn: Verbindung, frage: str) -> dict[str, Any]:
+    """Pensionen sind eine eigene Statistik mit eigenen Merkmalen (#77), kein Fall der Beschäftigtenstatistik."""
+    try:
+        return pensionsantwort(conn, frage)
+    except (PensionFehler, psycopg.errors.UndefinedTable, AbfrageVerweigert):
+        return _antwort("pensionen", pensionen.NICHT_GELADEN, hinweise=[pensionen.NICHT_GELADEN])
+    except psycopg.Error:
+        return _antwort("pensionen", pensionen.NICHT_LESBAR, hinweise=[pensionen.NICHT_LESBAR])
+
+
 def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str, Any]:
     """Beantwortet eine Datenanfrage ohne Sprachmodell; mehrdeutige Fragen bekommen eine Rückfrage.
 
     Wirft nie: Was sich nicht beantworten lässt (Zeitlimit, verweigerte Abfrage, zu viele Zahlen, ein Merkmal,
     das es nicht gibt), kommt als Textantwort ohne Zahl und ohne interne Details zurück.
     """
+    if ist_pensionsfrage(frage) and not _PERSON.search(frage.lower()):
+        return _pensionsfrage(conn, frage)
     try:
         letzter = _letzter_monat(conn, regelsatz)
     except psycopg.Error:
@@ -1367,6 +1410,12 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     if absage is not None:
         return _antwort(typ, absage, hinweise=[absage])
     try:
+        # Unsinn bekommt keinen Bestand und keine Rückfrage zu einem Monat, sondern die Absage (Kette stoppt, #176).
+        if typ == "bestand" and _ohne_bezug(conn, frage, letzter or LETZTE_LIEFERUNG):
+            genannt = monate_lesen(frage)
+            vorschlag = f" Meinen Sie „Beschäftigte im {_monat_anzeige(genannt[-1])}“?" if genannt else ""
+            text = f"Das kann StatAgent nicht beantworten. {KANN}{vorschlag}"
+            return _antwort(typ, text, hinweise=[text])
         if (
             typ in ("bestand", "geschlecht", "fluktuation")
             and not monate_lesen(frage)

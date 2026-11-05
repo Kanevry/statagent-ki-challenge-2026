@@ -7,6 +7,7 @@
 #   scripts/vorfuehrung.sh up [REF]       Stand REF (Standard HEAD) bauen und starten, Git-Checkout neu aus REF, Caddy neu laden
 #   scripts/vorfuehrung.sh daten DATEI    pg_dump -Fc (lokale Datei) hochladen, als Vorlage einspielen, Arbeitskopie anlegen
 #   scripts/vorfuehrung.sh reset          Ausgangsstand: Arbeitskopie neu aus der Vorlage, Freigabe-Commits weg, App neu
+#   scripts/vorfuehrung.sh festschreiben  heutiger Stand wird Ausgangsstand (etwa nach der Freigabe der Pensionen), reset behält ihn
 #   scripts/vorfuehrung.sh pruefen        von außen: ohne Zugang 401, mit Zugang Seiten, öffentliche Demo weiter gesperrt
 #   scripts/vorfuehrung.sh status         Container, Revision, Regelsatz, Läufe, Commits
 #
@@ -268,6 +269,35 @@ haupt "$@"
 EOF
 }
 
+cmd_festschreiben() {
+  remote bash -s -- "$BASIS" "$V_BASIS" <<'EOF'
+haupt() {
+  set -euo pipefail
+  local basis=$1 v=$2 start=$SECONDS
+  exec 9>"$v/.lock"
+  flock -w 300 9 || { echo "festschreiben: ein anderer Vorgang läuft seit über 5 Minuten" >&2; return 1; }
+  cd "$v/repo/deploy"
+  local compose=(docker compose --env-file "$basis/.env.server" --env-file "$v/.env" --env-file "$v/.env.azure" -f docker-compose.vorfuehrung.yml)
+  local psql=("${compose[@]}" exec -T vorfuehrung-db psql -X -q -At -v ON_ERROR_STOP=1 -U statistik -d postgres)
+  als_app() { HOME=/nonexistent setpriv --reuid=1001 --regid=1001 --clear-groups git -c 'safe.directory=*' -C "$v/checkout" "$@"; }
+  # App weg, sonst scheitert die Kopie an offenen Verbindungen. Erst die neue Vorlage bauen, dann die alte ersetzen:
+  # Scheitert die Kopie, bleibt der bisherige Ausgangsstand.
+  "${compose[@]}" stop vorfuehrung-app </dev/null
+  "${psql[@]}" -c 'drop database if exists statistik_vorfuehrung_vorlage_neu' </dev/null
+  "${psql[@]}" -c 'create database statistik_vorfuehrung_vorlage_neu template statistik_vorfuehrung' </dev/null
+  "${psql[@]}" -c 'drop database if exists statistik_vorfuehrung_vorlage with (force)' </dev/null
+  "${psql[@]}" -c 'alter database statistik_vorfuehrung_vorlage_neu rename to statistik_vorfuehrung_vorlage' </dev/null
+  echo "festschreiben: Commits seit dem alten Ausgangsstand: $(als_app rev-list --count ausgangsstand..HEAD)"
+  als_app tag -f ausgangsstand HEAD >/dev/null
+  "${compose[@]}" up -d --wait --wait-timeout 180 vorfuehrung-app </dev/null
+  "${compose[@]}" exec -T vorfuehrung-db psql -X -q -At -U statistik -d statistik_vorfuehrung_vorlage \
+    -c "select 'festschreiben: Vorlage mit ' || (select count(*) from meta.lauf) || ' Läufen, ' || (select count(*) from meta.vorschlag where status = 'offen') || ' offenen Vorschlägen'" </dev/null
+  echo "festschreiben: fertig in $((SECONDS - start)) s"
+}
+haupt "$@"
+EOF
+}
+
 cmd_status() {
   remote bash -s -- "$BASIS" "$V_BASIS" <<'EOF'
 haupt() {
@@ -330,10 +360,11 @@ case "${1:-}" in
   up) lade_ziel; cmd_up "${2:-}" ;;
   daten) lade_ziel; cmd_daten "${2:-}" ;;
   reset) lade_ziel; cmd_reset ;;
+  festschreiben) lade_ziel; cmd_festschreiben ;;
   pruefen) lade_ziel; cmd_pruefen ;;
   status) lade_ziel; cmd_status ;;
   *)
-    sed -n '2,14p' "$0"
+    sed -n '2,15p' "$0"
     exit 2
     ;;
 esac
