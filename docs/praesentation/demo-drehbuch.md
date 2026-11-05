@@ -26,7 +26,7 @@ Die Zeiten sind Richtwerte, gemessen wird in der Probe. Wichtig ist die Reihenfo
 
 - **Online über Hotspot** (Owner 05.11.2026). Vorführ-Adresse mit Passwort, Modell Azure. Einen Lauf ohne Netz gibt es nicht. Die Adresse meldet die Lane Vorführung, sie steht nicht im Repo.
 - **Datenbank der Vorführung:** eine eigene Kopie der Abgabe-Datenbank, nie `statistik` selbst, auch nach 09:00 nicht. Die Abgabezahlen sind auf der eigenen Datenbank gerechnet, online läuft nur die Vorführung. So bleibt die Abgabe jederzeit nachrechenbar.
-- **Klickwege für D1 und D2:** Beide laufen im Browser auf der Vorführ-Adresse. Wörtlich trägt sie Bernhard hier ein, sobald die Lane Vorführung Pfad und Texte gemeldet hat (`docs/betrieb/vorfuehrung.md`). Bis dahin zeigt dieses Drehbuch den Weg im Terminal.
+- **Klickwege für D1 und D2:** Beide laufen im Browser auf der Vorführ-Adresse, Seite `/uc3/auftrag` (`docs/betrieb/vorfuehrung.md`). Die Knöpfe stehen hier wie im Code auf main, der Durchlauf auf dem aktuellen Stand kommt in der Probe. Der Weg im Terminal bleibt die Reserve.
 - **Was die Zahlen im D2 zeigen:** D1 läuft vor D2. Die Zahlen nachher kommen aus der Probe auf dem Vorschlag, ein Monat auf dem neuen Regelsatz wird live nicht gerechnet. Offene Vorschläge nacheinander ablehnen, zwei können auf denselben neuen Regelsatz zielen (#169).
 - **Zwischen zwei Durchläufen:** Zurücksetzen nach `docs/betrieb/vorfuehrung.md`, damit die Proben nicht in der Vorführung stehen.
 
@@ -38,8 +38,8 @@ Standard ist Oktober 2025. Alternative ist März 2025. Bernhard wählt vorab ein
 
 - Sagt Bernhard (Einstieg auf `/uc3`): „24 Monatslieferungen, eine Zahl pro Monat. Zwei Monate hat das Programm angehalten, statt sie zu veröffentlichen. Das zeige ich Ihnen zuerst.“
 
-- CLI-Weg (Standard): `uv run uc3 lauf --lieferung 2025-10`, danach `uv run uc3 laeufe`. Bericht: `abgabe/qualitaetsberichte/2025-10.md`. Alternative: `--lieferung 2025-03` und `abgabe/qualitaetsberichte/2025-03.md`.
-- Klickweg: Seite `/uc3`, dann der gewählte Monat. Dort steht der Qualitätsbericht.
+- Reserve im Terminal: `uv run uc3 lauf --lieferung 2025-10`, danach `uv run uc3 laeufe`. Bericht: `abgabe/qualitaetsberichte/2025-10.md`. Alternative: `--lieferung 2025-03` und `abgabe/qualitaetsberichte/2025-03.md`.
+- Klickweg: `/uc3/auftrag`, unten „Einen Monat rechnen“, Monat wählen, dann „Monat und Qualitätsbericht ansehen“. Gemessen für Oktober 2025: 92,9 s und 102,0 s (Lane Vorführung).
 - Sagt Bernhard (Oktober 2025): „Es kommen 313.154 gegen 394.200 im Vormonat (F17). 78.949 Verhältnisse fehlen in der Lieferung (F11). Das Programm hält den Monat an und markiert ihn als vorläufig.“
 - Sagt Bernhard (März 2025): „März 2025 hat zwei Fehler auf einmal. 1.663 Zeilen sind doppelt (F8), und die freien Dienstverträge fehlen ganz, 1.492 Verhältnisse (F9). Das Programm hält den Monat an und markiert ihn als vorläufig.“
 - Jury muss sehen (Oktober 2025):
@@ -61,7 +61,7 @@ Folie 8 öffnen (`/praesentation?folie=8`, Tab liegt bereit), Stichpunkte: Skrip
 
 ### D2 Änderung per Sprache (5:00–9:30)
 
-Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „Per Sprache“ heißt: Die Anweisung ist ein Satz in Alltagssprache, den Bernhard ins Terminal tippt (Owner-Wort 05.11.2026 19:3x).
+Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „Per Sprache“ heißt: Die Anweisung ist ein Satz in Alltagssprache, den Bernhard tippt (Owner-Wort 05.11.2026 19:3x).
 
 **Datenbank:** Die ganze Demo läuft gegen die Kopie `statistik_vorfuehrung` (`UC3_DATABASE_URL` auf die Kopie), nie gegen `statistik`. Die Freigabe schreibt einen Commit; deshalb läuft D2 auf einem eigenen Demo-Branch im Checkout des Vortragsrechners, der Commit wird nie gepusht. Geprobt wird vorher nur auf `statistik_probe`.
 
@@ -75,25 +75,27 @@ Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „
 - Sagt Bernhard (Entwurf, Wortlaut stimmt er um 07:00 ab, FAQ Frage 11): „Die drei Aufträge der Aufgabe habe ich in Sätzen gestellt, die Agenten schrieben Vorschläge. Die Freigaben hat in meinem Auftrag eine KI-Sitzung eingegeben, ich habe sie um 18:22 mit meinem Namen bestätigt. Das steht offen im Protokoll.“
 - Sagt Bernhard (bei 1): „Der Gesamtbestand bleibt bei 392.236. Die Kategorien verschieben sich, zum Beispiel Angestellte von 0 auf 236.961.“
 
-**Teil 2, live per Sprache (6:00–9:30):** Laut Aufgabenstellung gibt die Jury eine kleine, unbekannte Änderung vor. Bernhard fragt: „Nennen Sie mir eine Regel, die ich jetzt ändern soll.“ Er wiederholt den Wunsch der Jury in einem Satz und tippt diesen Satz. Die vier geübten Änderungen im Fragenkatalog Teil B decken die naheliegenden Wünsche ab (Altersgrenze, Geburtsmonat 13, Schwelle Bestandsrückgang, Spaltentausch). Nennt die Jury nichts, nimmt Bernhard B2.
+**Teil 2, live per Sprache (6:00–9:30):** Laut Aufgabenstellung gibt die Jury eine kleine, unbekannte Änderung vor. Bernhard fragt: „Nennen Sie mir eine Regel, die ich jetzt ändern soll.“ Er wiederholt den Wunsch der Jury in einem Satz und tippt diesen Satz. Die vier geübten Änderungen im Fragenkatalog Teil B decken die naheliegenden Wünsche ab (Altersgrenze, Geburtsmonat 13, Schwelle Bestandsrückgang, Spaltentausch). Nennt die Jury nichts, nimmt Bernhard den Standard-Satz unten.
 
-1. Im Terminal tippen: `uv run uc3 agent "<Satz>" --probe JJJJ-MM` und Enter. Im Satz den Zielwert nennen. Ersatz B2: `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2026-06`. Der Agent schreibt einen Vorschlag. Solange der Fix aus !150 nicht auf main ist, nie mit `--probe 2025-03` oder `--probe 2025-10` proben: Dort zeigt die Probe eine falsche Gesamtzahl.
-2. `uv run uc3 vorschlag zeigen <id>`: Regel-Unterschied und Zahlen vorher und nachher. Bei B2: `R5_alter`, `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`.
-3. `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`, dann `uv run uc3 protokoll --zeigen`.
+**Standard-Satz:** „Beamte zählen nicht mehr mit“, Monat Juli 2026. Die Seite zeigt: Gesamt 407.604 → 395.315, „Gesamt ändert sich um −12.289“, Beamte 12.289 → 0, Angestellte und Arbeiter gleich. Der Vorschlag dauert rund 145 s. Rücknahme: neuer Auftrag „Nimm Vorschlag <n> zurück“, +12.289, 93 s. Einmal gemessen von der UI-Regie, 05.11.2026 22:44 bis 22:56, noch vor !229 und !234. Der Satz braucht !150: Ausschluss und Rücknahme stehen noch nicht auf main. Ist !150 beim Merge-Stopp nicht auf main, gilt um 06:45 Teil 1 allein.
+
+1. `/uc3/auftrag`: Satz tippen, Monat für die Zahlen wählen, „Vorschlag schreiben lassen“. Im Satz den Zielwert nennen. Bei einer Änderung an Geburtsmonat 13 Juni 2026 wählen. Reserve im Terminal: `uv run uc3 agent "<Satz>" --probe JJJJ-MM`, zum Beispiel B2: `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2026-06`. Der Agent schreibt einen Vorschlag. Solange der Fix aus !150 nicht auf main ist, nie mit `--probe 2025-03` oder `--probe 2025-10` proben: Dort zeigt die Probe eine falsche Gesamtzahl.
+2. „Vorher und nachher ansehen, dann entscheiden“: Regel-Unterschied und Zahlen vorher und nachher. Reserve: `uv run uc3 vorschlag zeigen <id>`. Bei B2: `R5_alter`, `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`.
+3. Vor- und Nachnamen eintragen, freigeben. Die Seite nennt den Commit. Reserve: `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`, dann `uv run uc3 protokoll --zeigen`.
 
 - Sagt Bernhard (bei 1): „Ich sage dem Agenten in einem Satz, was er ändern soll.“
-- Sagt Bernhard (bei 2): „Hier ist, was sich ändern würde, vorher und nachher. Wirksam wird es erst mit meinem Namen.“ Bei B2 zusätzlich: „Der Gesamtbestand bleibt gleich, im Juni 2026 wechseln wenige Verhältnisse die Altersgruppe.“
-- Rückfall Agent: Kommt „Kein Vorschlag“, sendet Bernhard den Satz einmal neu und nennt den Zielwert ausdrücklich. Kommt er wieder, sagt er „Das zeige ich Ihnen mit einer geübten Änderung“ und nimmt B2. Scheitert auch das, bleibt es beim Rückblick aus Teil 1.
-- Will die Jury etwas, das eine neue Regel oder Code braucht (keine Änderung eines Parameters), sagt Bernhard: „Das wäre eine neue Regel. Der Agent schlägt sie vor, freigeben würde ich sie erst nach einer Probe.“ und nimmt B2.
+- Sagt Bernhard (bei 2): „Hier ist, was sich ändern würde, vorher und nachher. Wirksam wird es erst mit meinem Namen.“ Bei B2 zusätzlich: „Der Gesamtbestand bleibt gleich. Die Regel ändert nur das Alter, diese Tabelle zählt Beschäftigungskategorien, deshalb bewegt sich hier keine Zahl.“
+- Rückfall Agent: Kommt „Kein Vorschlag“, sendet Bernhard den Satz einmal neu und nennt den Zielwert ausdrücklich. Kommt er wieder, sagt er „Das zeige ich Ihnen mit einer geübten Änderung“ und nimmt den Standard-Satz. Eine Rückfrage statt eines Vorschlags ist möglich, das ist nicht gemessen. Scheitert auch das, bleibt es beim Rückblick aus Teil 1.
+- Will die Jury etwas, das eine neue Regel oder Code braucht (keine Änderung eines Parameters), sagt Bernhard: „Das wäre eine neue Regel. Der Agent schlägt sie vor, freigeben würde ich sie erst nach einer Probe.“ und nimmt den Standard-Satz.
 - Azure antwortet nicht: Hotspot wechseln (10 s), Satz noch einmal. Geht es dann nicht, reicht Teil 1 als Beleg, und Bernhard sagt das offen.
 
 **Jury muss sehen:**
 - Die Anweisung als Satz in Alltagssprache.
-- Regel-Diff und Zahlen vorher und nachher (F19 für Auftrag 1, live für B2).
+- Regel-Diff und Zahlen vorher und nachher (F19 für Auftrag 1, live für den Standard-Satz).
 - Freigabe mit Vor- und Nachname, „Team“ wird abgelehnt (`shared/py/plattform/freigabe.py`, `pruefe_name`).
 - Eintrag im Protokoll (F26).
 
-**Stand der Proben:** 05.11.2026 17:56 bis 17:58 auf main 321a7176: B1, B2, B3 ohne Vorschlag oder abgebrochen. 18:20 bis 18:25 mit dem Code von !50: B2 dreimal von drei gültig. Das war mit 2025-03. Am selben Abend maß die UC3-Lane dort 396.762 → 395.292 (−1.470) bei einer reinen Altersänderung: In der Probe fehlen die Fortschreibungen von 2025-03 und 2025-10, der Fix kommt mit !150, die Abgabe ist nicht betroffen. Mit 2026-06 bleibt die Gesamtzahl bei 403.301 (einmal gemessen von der UC3-Lane, 22:40, Commit d888e09, bis zum Vorschlag), dreimal gegen die Vorführ-Instanz ist noch offen. Juli bis Dezember zeigen bei B2 keinen Unterschied, das ist fachlich richtig.
+**Stand der Proben:** 05.11.2026 17:56 bis 17:58 auf main 321a7176: B1, B2, B3 ohne Vorschlag oder abgebrochen. 18:20 bis 18:25 mit dem Code von !50: B2 dreimal von drei gültig. Das war mit 2025-03. Am selben Abend maß die UC3-Lane dort 396.762 → 395.292 (−1.470) bei einer reinen Altersänderung: In der Probe fehlen die Fortschreibungen von 2025-03 und 2025-10, der Fix kommt mit !150, die Abgabe ist nicht betroffen. Mit 2026-06 bleibt die Gesamtzahl bei 403.301 (einmal gemessen von der UC3-Lane, 22:40, Commit d888e09, bis zum Vorschlag). Im Browser zeigt die Tabelle dort keine bewegte Zahl, sie zählt Beschäftigungskategorien. Juli bis Dezember zeigen bei B2 keinen Unterschied, das ist fachlich richtig.
 
 - Nie `freigabe` üben: Es committet ins Repo, einen Reset gibt es nicht. Proben nur gegen `statistik_probe`.
 - Entscheid in `probe.md` (Fr 06:45): Teil 1 allein oder Teil 1 und Teil 2.
@@ -144,9 +146,9 @@ Fragt die Jury so etwas, sagt Bernhard: „Das zeige ich Ihnen mit einer Abfrage
 
 ### D4 Gemeinsamer Einstieg (13:00–14:00)
 
-- Die Wien-Frage in `/uc4`: „Wie viele Menschen arbeiten in Wien im Gesundheits- und Sozialwesen (März 2025), und was heißt das für Wartezeiten beim Arzt?“
-- Sollwert für UC3: **7.498** Beschäftigungsverhältnisse (F18), Wien, ÖNACE 2025 Abschnitt R (Gesundheits- und Sozialwesen), Stichtag 31.03.2025, mit Beleg. UC2 liefert die Abwägung, UC1 die Erklärung in einfacher Sprache.
-- Die Frage stammt aus dem Abgleich der Review-Bank. Die Wartezeiten selbst kann UC3 nicht beantworten, es kennt nur Beschäftigte.
+- Die Wien-Frage in `/uc4` mit einem Klick auf das erste Beispiel: „Wie viele Beschäftigte gab es im März 2025 in Wien im Gesundheits- und Sozialwesen?“ Sie steht wörtlich auf Folie 9.
+- Sollwert für UC3: **7.498** Beschäftigungsverhältnisse (F18), Wien, ÖNACE 2025 Abschnitt R (Gesundheits- und Sozialwesen), Stichtag 31.03.2025, mit Beleg. Der Simulator sagt, was mehr oder weniger Personal für Wartezeit und Betreuung heißt, der Lotse sagt es für den nächsten Arzttermin (fester Text, an der Karte steht „Fester Text“). Dauer online 9 bis 12 s.
+- **Nicht „Wartezeiten“ in die Frage nehmen.** Dann läuft der Simulator über das Rechenmodell und nennt „Wartezeit −22,2 %, Mehrkosten 128,2 Mio. Euro pro Jahr“ (online gemessen 05.11.2026 23:08, 22 s). Das ist eine Schätzung, kein Beleg aus dem Register. Fragt die Jury danach, sagt Bernhard: „Das ist ein Rechenmodell ohne KI. Es schätzt das fünfte Jahr, je nach Annahmen −62,8 % bis −8,6 %. Das ist keine gemessene Zahl.“
 - Was von UC1 und UC2 läuft, steht im Tagesstand des Fragenkatalogs (Teil C, „Läuft der gemeinsame Einstieg schon?“). Bernhard sagt nur, was dort steht.
 - Nur wenn die Wien-Frage um 06:45 echt läuft (nicht im Testmodus). Sonst entfällt D4 ohne Ersatz.
 - **Entscheid am Fr 06:45.** Wer entscheidet: Lead mit Bernhard. Ergebnis in `probe.md` eintragen.
@@ -185,7 +187,7 @@ Jeder Punkt wird abgehakt, sobald er geprüft ist. Uhrzeit nur aus der Uhr (`TZ=
 - [ ] D1: Monat gewählt (2025-10 oder 2025-03) und in `probe.md` eingetragen.
 - [ ] D3: Die acht geprüften Fragen auf `/uc3/fragen` und mit `uv run uc3 frage "…"` geprobt, jede Zahl gegen die Sollzahl der Tabelle. SQL A1 bis A3 als Rückfall bereit, `<regelstand>` eingesetzt.
 - [ ] D4: Sollwert 7.498 (F18) gegen die Abfrage im Belegregister geprüft. Testmodus-Ansage bereit.
-- [ ] D2: `uv run uc3 vorschlag zeigen 24` und `uv run uc3 protokoll --zeigen` laufen auf dem Vortragsrechner. B2 nur, wenn es mit `--probe 2026-06` dreimal gegen `statistik_vorfuehrung` geklappt hat. Nie `freigabe` geübt.
+- [ ] D2: `uv run uc3 vorschlag zeigen 24` und `uv run uc3 protokoll --zeigen` laufen auf dem Vortragsrechner. B2 zeigt auf der Seite keine bewegte Zahl (im Browser gemessen, Lane Vorführung). Nie `freigabe` geübt.
 - [ ] Datenbank: `UC3_DATABASE_URL` zeigt auf `statistik_vorfuehrung`, nicht auf `statistik`. Prüfung ohne Wert: Datenbankname im Kopf der App oder `uv run uc3 laeufe` liefert die 24 Läufe der Kopie. Checkout steht auf einem Demo-Branch, der für diesen Lauf frisch ab main angelegt ist.
 - [ ] Protokolleintrag der Freigabe von Auftrag 1 (05.11.2026 16:54) gefunden, Fenster für den Rückblick bereit.
 - [ ] Entscheid D4 um 06:45 getroffen und in `probe.md` eingetragen.

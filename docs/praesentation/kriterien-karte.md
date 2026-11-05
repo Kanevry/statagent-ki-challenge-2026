@@ -8,7 +8,7 @@ Sechs Bereiche, je 20 von 120 Punkten. Die Spalte „Raster“ steht wörtlich w
 |---|---|---|---|---|---|
 | 1 Datenmanagement | Mindest | liest alle Lieferungen korrekt ein, Datenmodell nach Vorgabe | **erfüllt** | 24 Lieferungen, 10.152.292 Zeilen (F3). Tabellen nach Anhang B. | `/uc3`, `uc3/db/020_stat_metadaten.sql`, `uc3/db/030_bereinigt_stat.sql` |
 | | Optimum | versionierter Bestand über alle Lieferungen | **erfüllt** | Jede Lieferung bleibt. Fehlende Verhältnisse werden fortgeschrieben, nichts wird gelöscht (F9, F11). | Szene 3, Demo D1, `uc3/statagent/bereinigung.py` |
-| | Optimum | Pensionsmeldungen aller Träger trotz unterschiedlicher Formate eingelesen | **offen** | Nicht eingelesen. | Fragenkatalog C14 |
+| | Optimum | Pensionsmeldungen aller Träger trotz unterschiedlicher Formate eingelesen | **erfüllt** | 28 von 28 Dateien, 9 Formate, 394 Summen ohne Abweichung. 2025: 2.584.909, vorläufig bis zur Freigabe mit Namen. Öffentlich Bedienstete fehlen, die frühere BVA meldet keine. | `docs/uc3/pensionen-pruefbericht.md`, Fragenkatalog C14 |
 | 2 Klassifikation | Mindest | legt die benötigten Klassifikationen an, je Begriff nur einmal | **erfüllt** | Geschlecht, Region, Qualifikation, Kategorie, ÖNACE und Alter, je einmal. | `/uc3/klassifikationen`, `uc3/db/020_stat_metadaten.sql` |
 | | Optimum | ÖNACE bis zum 5-Steller und Regionen Österreichs vollständig historisiert | **teilweise** | ÖNACE 2008 und 2025 nur als Abschnitte (22 und 23), mit Gültigkeit. Regionen nur als Bundesländer. Gezählt wird kein 5-Steller, keine Bezirke, keine Gemeinden. | `/uc3/klassifikationen`, Szene 7 |
 | | Optimum | Übergänge aus den amtlichen Änderungslisten | **teilweise** | 1.180 Übergänge aus den amtlichen Umsteigern: 1.115 von ÖNACE 2008 nach 2025 auf der tiefsten Ebene, 65 auf Abschnitten, darunter 2003 nach 2008. Für Regionen keine. | `uc3/statagent/klass.py`, Tabelle `stat.uebergang` |
@@ -37,4 +37,3 @@ Die Karte zeigt nur, was auf `main` ist. Nach jedem dieser Merges die Zeile neu 
 
 - !193 (5-Steller, Bezirke, Gemeinden): Bereich 2, Bereich 4 Datenanfragen
 - !150 (unbekannte Live-Änderungen): Bereich 5 Live-Änderung
-- Pensionen (#77): Bereich 1
