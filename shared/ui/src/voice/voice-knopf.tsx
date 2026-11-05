@@ -7,9 +7,10 @@ import { Status } from "../basis/status";
 import { VOICE_KONFIGURATION_QUELLE, voiceKonfigurationSchema, type VoiceKonfiguration } from "./konfiguration";
 import { istMikrofonFehler, type VoiceSdk, type VoiceSdkLader, type VoiceTranskript } from "./sdk";
 
-// VoiceKnopf (#61, Sprach-Pegel): ein Knopf mit Mikrofon, daneben ein flacher Pegelbalken und der Zustand in
-// Worten („Hört zu · 0:07“, „Denkt“, „Spricht“). Kein Glow, kein Orb, keine Animation schneller als 3 Hz; bei
-// `prefers-reduced-motion` springt der Balken ohne Übergang und nur einmal je Sekunde.
+// VoiceKnopf (#61, Pen-Frame eE7uh): Start/Stopp-Knopf, darunter die Pegel-Zeile aus Mikrofon, 17 schmalen
+// Balken und dem Zustand in Worten („Hört zu · 0:07“, „Denkt“, „Spricht“), darunter der Hinweis in Slate.
+// Kein Glow, kein Orb, keine Animation schneller als 3 Hz; bei `prefers-reduced-motion` springen die Balken
+// ohne Übergang und nur einmal je Sekunde.
 // Voice ist Zusatz: Ohne Schlüssel oder Assistent bleibt der Knopf deaktiviert und sagt, dass die Frage als
 // Text geht. Keine Next-Imports, das SDK kommt über `ladeSdk` herein (siehe ./sdk.ts).
 
@@ -17,8 +18,8 @@ export type VoiceZustand = "pruefen" | "aus" | "bereit" | "verbindet" | "hoert" 
 export type VoiceFehler = "konfiguration" | "laden" | "mikrofon" | "start" | "verbindung";
 
 export const VOICE_AUS_TEXT = "Sprache ist hier nicht eingerichtet, die Frage geht auch als Text.";
-export const VOICE_SPEICHER_HINWEIS = "Nur der Text wird gespeichert.";
-const BEENDEN_HINWEIS = "Erneut klicken oder Esc beendet das Gespräch.";
+export const VOICE_SPEICHER_HINWEIS = "Sprechen oder tippen. Aufgezeichnet wird nur der Text, nicht die Stimme.";
+export const VOICE_BEENDEN_HINWEIS = "Erneut klicken oder Esc beendet das Gespräch.";
 
 export const VOICE_FEHLER_TEXT: Record<VoiceFehler, string> = {
   konfiguration: "Die Spracheinstellung ist nicht erreichbar. Die Frage geht als Text.",
@@ -37,6 +38,17 @@ const ZUSTAND_WORT: Record<Exclude<VoiceZustand, "fehler">, string> = {
   denkt: "Denkt",
   spricht: "Spricht",
 };
+
+/** Ruhige Grundform der 17 Balken in px (Frame eE7uh, Gesamthöhe 24 px). */
+export const PEGEL_GRUNDFORM: readonly number[] = [6, 10, 16, 22, 14, 8, 18, 24, 12, 6, 16, 20, 10, 6, 14, 8, 4];
+/** Höhe flacher Balken im Ruhezustand. */
+export const PEGEL_FLACH_PX = 3;
+
+/** Balkenhöhen für einen Pegel 0..1: die Grundform skaliert, bei Pegel 1 genau die Grundhöhe. */
+export function pegelHoehen(pegel: number): number[] {
+  const p = begrenze(pegel);
+  return PEGEL_GRUNDFORM.map((g) => Math.max(PEGEL_FLACH_PX, Math.round(g * (0.25 + 0.75 * p))));
+}
 
 /** Abstand zwischen zwei Pegel-Anzeigen: 340 ms, also unter 3 Hz. Mit reduzierter Bewegung 1 s. */
 export const PEGEL_TAKT_MS = 340;
@@ -79,8 +91,8 @@ function MikrofonSymbol() {
   return (
     <svg
       viewBox="0 0 16 16"
-      width="16"
-      height="16"
+      width="18"
+      height="18"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.5"
@@ -88,7 +100,8 @@ function MikrofonSymbol() {
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
-      className="size-4 shrink-0"
+      className="size-4.5 shrink-0 text-gruen"
+      data-testid="voice-mikrofon"
     >
       <rect x="5.5" y="1.75" width="5" height="8" rx="2.5" />
       <path d="M3.25 7.5a4.75 4.75 0 0 0 9.5 0" />
@@ -341,13 +354,8 @@ export function VoiceKnopf({
 
   const imGespraech = IM_GESPRAECH.has(zustand);
   const gesperrt = zustand === "aus" || zustand === "pruefen" || fehlerArt === "konfiguration";
-  const balken = !gesperrt;
-  const hinweis =
-    zustand === "aus"
-      ? VOICE_AUS_TEXT
-      : imGespraech
-        ? `${VOICE_SPEICHER_HINWEIS} ${BEENDEN_HINWEIS}`
-        : VOICE_SPEICHER_HINWEIS;
+  const ausschlag = MIT_ZEIT.has(zustand);
+  const hoehen = ausschlag ? pegelHoehen(anzeigePegel) : PEGEL_GRUNDFORM.map(() => PEGEL_FLACH_PX);
 
   const beiKlick = () => {
     if (vorschau || gesperrt) return;
@@ -356,32 +364,46 @@ export function VoiceKnopf({
   };
 
   return (
-    <div className={klassen("flex flex-col gap-2", className)} data-voice-zustand={zustand}>
+    <div className={klassen("flex flex-col gap-2.5", className)} data-voice-zustand={zustand}>
       <div className="flex flex-wrap items-center gap-4">
         <Knopf
           art={imGespraech ? "primaer" : "sekundaer"}
           aria-pressed={imGespraech}
-          aria-describedby={hinweisId}
+          aria-describedby={imGespraech ? `${hinweisId} ${hinweisId}-beenden` : hinweisId}
           disabled={gesperrt}
           onClick={beiKlick}
           className="min-h-11"
         >
-          <MikrofonSymbol />
           {beschriftung}
         </Knopf>
-        {balken && (
-          <div
-            className="h-2 w-32 shrink-0 overflow-hidden rounded-sm bg-line"
-            aria-hidden="true"
-            data-testid="voice-pegel"
-          >
-            <div
-              className="h-full bg-gruen transition-[width] duration-300 ease-out motion-reduce:transition-none"
-              style={{ width: `${Math.round(anzeigePegel * 100)}%` }}
-            />
-          </div>
+        {imGespraech && (
+          <span id={`${hinweisId}-beenden`} className="font-sans text-13 text-slate">
+            {VOICE_BEENDEN_HINWEIS}
+          </span>
         )}
-        <p role="status" aria-live="polite" className="font-sans text-14 text-ink" data-testid="voice-zustand">
+      </div>
+      <div className="flex flex-wrap items-center gap-2.5" data-testid="voice-pegelzeile">
+        <MikrofonSymbol />
+        <div className="flex h-6 shrink-0 items-center gap-0.75" aria-hidden="true" data-testid="voice-pegel">
+          {hoehen.map((hoehe, i) => (
+            <span
+              // Die Balken sind fest 17, die Position ist ihre Identität.
+              key={i}
+              data-testid="voice-balken"
+              className={klassen(
+                "block w-0.75 transition-[height] duration-300 ease-out motion-reduce:transition-none",
+                ausschlag ? "bg-gruen" : "bg-line",
+              )}
+              style={{ height: `${hoehe}px` }}
+            />
+          ))}
+        </div>
+        <p
+          role="status"
+          aria-live="polite"
+          className="font-sans text-13 font-medium text-gruen"
+          data-testid="voice-zustand"
+        >
           {zustand === "fehler" && fehlerArt ? (
             <Status art="fehler">{VOICE_FEHLER_TEXT[fehlerArt]}</Status>
           ) : (
@@ -397,8 +419,8 @@ export function VoiceKnopf({
           )}
         </p>
       </div>
-      <p id={hinweisId} className="font-sans text-12 text-slate">
-        {hinweis}
+      <p id={hinweisId} className="font-sans text-13 text-slate">
+        {zustand === "aus" ? VOICE_AUS_TEXT : VOICE_SPEICHER_HINWEIS}
       </p>
     </div>
   );

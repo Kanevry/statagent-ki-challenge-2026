@@ -1,6 +1,9 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import {
+  PEGEL_FLACH_PX,
+  PEGEL_GRUNDFORM,
   PEGEL_TAKT_MS,
+  pegelHoehen,
   VOICE_AUS_TEXT,
   VOICE_FEHLER_TEXT,
   VOICE_SPEICHER_HINWEIS,
@@ -42,6 +45,8 @@ function zeige(props: Partial<VoiceKnopfProps> = {}) {
   return { sdk, ladeSdk, onTranskript, ...ansicht };
 }
 
+const balken = () => screen.getAllByTestId("voice-balken") as HTMLElement[];
+const hoehen = () => balken().map((b) => Number.parseFloat(b.style.height));
 const knopf = () => screen.getByRole("button", { name: /Mit Stimme fragen/ });
 const zustand = () => screen.getByTestId("voice-zustand").textContent;
 
@@ -122,16 +127,46 @@ describe("VoiceKnopf Zustände", () => {
     expect(zustand()).toMatch(/^Hört zu · 0:0\d$/);
   });
 
-  it("übernimmt den Pegel aus volume-level höchstens alle 340 ms", async () => {
+  it("übernimmt den Pegel aus volume-level höchstens alle 340 ms und skaliert die Grundform", async () => {
     vi.useFakeTimers();
     const { sdk } = await imGespraech();
     sdk.emit("speech-start");
-    sdk.emit("volume-level", 0.6);
-    const fuellung = () => (screen.getByTestId("voice-pegel").firstElementChild as HTMLElement).style.width;
-    expect(fuellung()).toBe("0%");
+    sdk.emit("volume-level", 1);
+    expect(hoehen()).toEqual(pegelHoehen(0));
     act(() => vi.advanceTimersByTime(PEGEL_TAKT_MS));
-    expect(fuellung()).toBe("60%");
+    expect(hoehen()).toEqual([...PEGEL_GRUNDFORM]);
+    expect(balken()[0]?.className).toContain("bg-gruen");
     expect(PEGEL_TAKT_MS).toBeGreaterThanOrEqual(1000 / 3);
+  });
+});
+
+describe("VoiceKnopf Pegel-Zeile (Frame eE7uh)", () => {
+  it("hat 17 Balken mit der Grundform aus dem Frame, höchstens 24 px", () => {
+    expect(PEGEL_GRUNDFORM).toEqual([6, 10, 16, 22, 14, 8, 18, 24, 12, 6, 16, 20, 10, 6, 14, 8, 4]);
+    zeige();
+    expect(balken()).toHaveLength(17);
+    expect(Math.max(...PEGEL_GRUNDFORM)).toBe(24);
+  });
+
+  it("zeigt die Balken in bereit und aus flach in der Linienfarbe", () => {
+    for (const konfiguration of [aktiv, { publicKey: null, assistantId: null, aktiv: false }]) {
+      const { unmount } = zeige({ konfiguration });
+      expect(hoehen()).toEqual(Array(17).fill(PEGEL_FLACH_PX));
+      expect(balken().every((b) => b.className.includes("bg-line") && !b.className.includes("bg-gruen"))).toBe(true);
+      unmount();
+    }
+  });
+
+  it("erreicht bei Pegel 1 genau die Grundhöhe und fällt nie unter 3 px", () => {
+    expect(pegelHoehen(1)).toEqual([...PEGEL_GRUNDFORM]);
+    expect(Math.min(...pegelHoehen(0))).toBe(PEGEL_FLACH_PX);
+    expect(pegelHoehen(0.5).every((h, i) => h <= PEGEL_GRUNDFORM[i]!)).toBe(true);
+  });
+
+  it("nennt den Hinweis wortgleich zum Frame", () => {
+    zeige();
+    expect(screen.getByText("Sprechen oder tippen. Aufgezeichnet wird nur der Text, nicht die Stimme.")).toBeTruthy();
+    expect(VOICE_SPEICHER_HINWEIS).toBe("Sprechen oder tippen. Aufgezeichnet wird nur der Text, nicht die Stimme.");
   });
 });
 
@@ -233,7 +268,7 @@ describe("VoiceKnopf Vorschau", () => {
     vi.stubGlobal("fetch", holen);
     render(<VoiceKnopf vorschau={{ zustand: "hoert", pegel: 0.4, sekunden: 7 }} />);
     expect(zustand()).toBe("Hört zu · 0:07");
-    expect((screen.getByTestId("voice-pegel").firstElementChild as HTMLElement).style.width).toBe("40%");
+    expect(hoehen()).toEqual(pegelHoehen(0.4));
     expect(holen).not.toHaveBeenCalled();
   });
 });
