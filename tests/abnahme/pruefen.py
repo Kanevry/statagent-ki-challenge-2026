@@ -70,6 +70,12 @@ UMGEBUNG_FEHLT = re.compile(
 
 def pruefsatz_fehler(p: dict) -> str:
     """Leer, wenn der Prüfsatz formal gültig ist; sonst warum nicht."""
+    if p.get("art") == "hand":
+        return (
+            ""
+            if p.get("beschreibung") and p.get("id") and p.get("hash")
+            else "Hand-Prüfsatz ohne beschreibung"
+        )
     for feld in ("id", "hash", "befehl"):
         if not p.get(feld):
             return f"Feld {feld} fehlt"
@@ -98,13 +104,18 @@ def pruefsaetze(ort: Path) -> list[dict]:
 
 
 def abzug(sha: str, werkzeug: str) -> Path:
-    """Sauberer Abzug: Prüfling = main an `sha` (einmal je Stand gebaut, mit Python- und Node-Umgebung),
-    Prüfwerkzeug = `tests/abnahme` aus dem Abnahme-Commit `werkzeug` (bei jedem Lauf neu eingesetzt)."""
-    ziel = ABZUEGE / sha[:12]
+    """Sauberer Abzug als geteilter Klon (mit Git-Historie für git- und gitleaks-Prüfsätze).
+
+    Prüfling = main an `sha` (einmal je Stand gebaut, mit Python- und Node-Umgebung); Prüfwerkzeug =
+    `tests/abnahme` aus dem Abnahme-Commit `werkzeug`, bei jedem Lauf neu eingesetzt.
+    """
+    ziel = ABZUEGE / f"{sha[:12]}-git"
     if not (ziel / ".fertig").exists():
-        ziel.mkdir(parents=True, exist_ok=True)
-        archiv = subprocess.run(["git", "-C", str(WURZEL), "archive", sha], capture_output=True, check=True)
-        subprocess.run(["tar", "-x", "-C", str(ziel)], input=archiv.stdout, check=True)
+        shutil.rmtree(ziel, ignore_errors=True)
+        subprocess.run(
+            ["git", "clone", "-q", "--shared", "--no-checkout", str(WURZEL), str(ziel)], check=True
+        )
+        subprocess.run(["git", "-C", str(ziel), "checkout", "-q", "--detach", sha], check=True)
         subprocess.run(["uv", "sync", "--frozen", "--all-packages", "-q"], cwd=ziel, check=True, env=UMGEBUNG)
         subprocess.run(
             ["pnpm", "install", "--frozen-lockfile", "--offline", "--ignore-scripts", "--silent"],
@@ -114,10 +125,7 @@ def abzug(sha: str, werkzeug: str) -> Path:
         )
         (ziel / ".fertig").write_text(sha)
     shutil.rmtree(ziel / "tests" / "abnahme", ignore_errors=True)
-    archiv = subprocess.run(
-        ["git", "-C", str(WURZEL), "archive", werkzeug, "tests/abnahme"], capture_output=True, check=True
-    )
-    subprocess.run(["tar", "-x", "-C", str(ziel)], input=archiv.stdout, check=True)
+    subprocess.run(["git", "-C", str(ziel), "checkout", "-q", werkzeug, "--", "tests/abnahme"], check=True)
     return ziel
 
 
@@ -139,6 +147,21 @@ def urteil(p: dict, code: int, stdout: str, stderr: str = "") -> tuple[str, str]
     if fehlt:
         teile.append("nicht gefunden: " + "; ".join(fehlt))
     return "nicht bestanden", p.get("befund", "") + (" " if p.get("befund") else "") + ", ".join(teile)
+
+
+def hand_teil(p: dict, k: dict, belege: dict[str, dict], sha: str) -> dict:
+    """Hand-Prüfsatz: zählt als voller Teil, wenn der Prüfer einen gültigen Hand-Beleg abgelegt hat."""
+    b = belege.get(p["id"])
+    leer = {"exit": None, "text": ""}
+    if not b or b.get("art") != "hand" or b.get("hash") != k["hash"] or matrix.ist_vorschlag(b):
+        return leer | {"stand": "nicht geprüft", "grund": f"Hand-Prüfung offen: {p['beschreibung'][:200]}"}
+    if alt := matrix.veraltet(b, sha, k["bereich"]):
+        return leer | {
+            "stand": "nicht geprüft",
+            "grund": f"Hand-Beleg veraltet ({alt}): {p['beschreibung'][:120]}",
+        }
+    text = f"Hand-Beleg {b['pruefer']} {b['zeit']}: {b.get('ausgabe', '')}"
+    return leer | {"stand": b["stand"], "grund": b.get("grund", ""), "text": text}
 
 
 def ausfuehren(befehl: str, ort: Path, sekunden: int) -> tuple[int, str, str, float]:
@@ -205,6 +228,7 @@ def main() -> int:
             "schwer": a.schwer,
         }
     ]
+    hand_belege = matrix.belege_lesen()
     teile: dict[str, list[dict]] = {}
     for p in wahl:
         k = kriterien.get(p["id"])
@@ -226,6 +250,8 @@ def main() -> int:
                 "exit": None,
                 "text": "",
             }
+        elif p.get("art") == "hand":
+            r = hand_teil(p, k, hand_belege, sha)
         else:
             code, out, err, dauer = ausfuehren(p["befehl"], ort, p.get("zeitlimit", 180))
             s, grund = urteil(p, code, out, err)
@@ -251,7 +277,7 @@ def main() -> int:
             "id": kid,
             "hash": rs[0]["hash"],
             "stand": s,
-            "befehl": "\n".join(r["p"]["befehl"] for r in rs),
+            "befehl": "\n".join(r["p"].get("befehl", "(Hand-Prüfung)") for r in rs),
             "ausgabe": auszug("\n---\n".join(r["text"] for r in rs)),
             "exit": [r["exit"] for r in rs],
             "dauer_s": round(sum(r.get("dauer", 0.0) for r in rs), 1),
