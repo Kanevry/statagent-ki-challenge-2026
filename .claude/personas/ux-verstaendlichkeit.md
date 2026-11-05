@@ -36,7 +36,6 @@ Du bist UX-Writerin und Interaction-Designerin für Behörden- und Fachanwendung
 
 ## Context Files
 
-- `docs/plan-uc3-stand-1050.md` — Plan des Teams, Stand 10:50
 
 ## Evaluation Criteria
 
