@@ -5,12 +5,12 @@
     "folie": 3,
     "quelle": "oberflaeche",
     "route": "/uc3",
-    "commit": null,
-    "lauf": null,
+    "commit": "fd936b3",
+    "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
-    "art": "offen",
-    "aufgenommen_am": null,
-    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
+    "art": "live",
+    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {
     "bild": "SC02",
@@ -18,12 +18,12 @@
     "folie": 4,
     "quelle": "oberflaeche",
     "route": "/uc3/berichte/regeln",
-    "commit": null,
-    "lauf": null,
+    "commit": "fd936b3",
+    "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
-    "art": "offen",
-    "aufgenommen_am": null,
-    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
+    "art": "live",
+    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {
     "bild": "SC03",
@@ -31,12 +31,12 @@
     "folie": 1,
     "quelle": "oberflaeche",
     "route": "/uc4",
-    "commit": null,
-    "lauf": null,
+    "commit": "fd936b3",
+    "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
-    "art": "offen",
-    "aufgenommen_am": null,
-    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
+    "art": "live",
+    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {
     "bild": "SC04",
@@ -44,12 +44,12 @@
     "folie": 5,
     "quelle": "oberflaeche",
     "route": "/uc3/berichte/2024-08",
-    "commit": null,
-    "lauf": null,
+    "commit": "fd936b3",
+    "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
-    "art": "offen",
-    "aufgenommen_am": null,
-    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
+    "art": "live",
+    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {
     "bild": "SC05",
@@ -57,12 +57,12 @@
     "folie": 7,
     "quelle": "oberflaeche",
     "route": "/uc3/klassifikationen",
-    "commit": null,
-    "lauf": null,
+    "commit": "fd936b3",
+    "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
-    "art": "offen",
-    "aufgenommen_am": null,
-    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
+    "art": "live",
+    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {
     "bild": "SC06",
@@ -70,12 +70,12 @@
     "folie": 6,
     "quelle": "oberflaeche",
     "route": "/uc3/berichte/2025-03",
-    "commit": null,
-    "lauf": null,
+    "commit": "fd936b3",
+    "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
-    "art": "offen",
-    "aufgenommen_am": null,
-    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
+    "art": "live",
+    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {
     "bild": "SC07",
@@ -83,12 +83,12 @@
     "folie": 3,
     "quelle": "oberflaeche",
     "route": "/uc3/berichte/2025-10",
-    "commit": null,
-    "lauf": null,
+    "commit": "fd936b3",
+    "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
-    "art": "offen",
-    "aufgenommen_am": null,
-    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
+    "art": "live",
+    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {
     "bild": "SC08",
@@ -96,12 +96,12 @@
     "folie": 8,
     "quelle": "oberflaeche",
     "route": "/uc3/berichte/regeln",
-    "commit": null,
-    "lauf": null,
+    "commit": "fd936b3",
+    "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
-    "art": "offen",
-    "aufgenommen_am": null,
-    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
+    "art": "live",
+    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {
     "bild": "SC09",
@@ -109,50 +109,50 @@
     "folie": 2,
     "quelle": "oberflaeche",
     "route": "/",
-    "commit": null,
-    "lauf": null,
+    "commit": "fd936b3",
+    "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
-    "art": "offen",
-    "aufgenommen_am": null,
-    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
+    "art": "live",
+    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {
     "bild": "SC10",
     "motiv": "Erledigte Freigabe mit Name und Wirkung",
     "folie": 10,
     "quelle": "oberflaeche",
-    "route": "/uc3/freigaben?reiter=erledigt",
-    "commit": null,
-    "lauf": null,
+    "route": "/uc3/freigaben/26",
+    "commit": "fd936b3",
+    "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
-    "art": "offen",
-    "aufgenommen_am": null,
-    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
+    "art": "live",
+    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {
     "bild": "SC11",
-    "motiv": "Gemeinsamer Einstieg mit Antwort und Beleg",
+    "motiv": "Gemeinsamer Einstieg mit der Wien-Frage: drei Antworten, 7.498 mit Beleg",
     "folie": 9,
     "quelle": "oberflaeche",
     "route": "/uc4",
-    "commit": "4495de3cf9f53fc73d218d8968cf00ac24252e7b",
-    "lauf": null,
+    "commit": "fd936b3",
+    "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
     "art": "live",
-    "aufgenommen_am": "2026-11-05T16:27:58+01:00",
-    "hinweis": "Öffentliche Demo, Stand origin/main zur Aufnahmezeit; Demo-Commit auf der Seite nicht sichtbar. Modelle online im Testmodus."
+    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {
     "bild": "SC12",
     "motiv": "Agent-Vorschlag mit Diff vor der Freigabe",
     "folie": 4,
     "quelle": "oberflaeche",
-    "route": "/uc3/freigaben",
-    "commit": null,
-    "lauf": null,
+    "route": "/uc3/freigaben/24",
+    "commit": "fd936b3",
+    "lauf": "Online-Demo, Stand 05.11.2026",
     "pen_frame": null,
-    "art": "offen",
-    "aufgenommen_am": null,
-    "hinweis": "offen: Aufnahme nach dem Umbau der UI-Regie (Lead c0 17:5x)"
+    "art": "live",
+    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   }
 ]
