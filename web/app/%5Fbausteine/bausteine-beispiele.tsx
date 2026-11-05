@@ -11,6 +11,8 @@ import {
   WarnChip,
   type FreigabeEintrag,
 } from "@kic/ui/bausteine";
+import { VoiceKnopf } from "@kic/ui/voice";
+import { ladeVapi } from "@/lib/plattform/voice-lader";
 
 // Beispiele der Bausteine (#60) mit erfundenen Inhalten. Client-Komponente, weil die Freigabe-Karten
 // Funktionen als Handler brauchen, die aus der Server-Seite nicht übergeben werden können.
@@ -131,6 +133,22 @@ export function BausteineBeispiele() {
             begruendung: "Erst mit der Lieferung 2025-04 prüfen.",
           }}
         />
+      </Teil>
+
+      <Teil titel="Sprach-Knopf, nicht eingerichtet">
+        <VoiceKnopf
+          ladeSdk={ladeVapi}
+          konfiguration={{ publicKey: null, assistantId: null, aktiv: false }}
+        />
+      </Teil>
+
+      <Teil titel="Sprach-Knopf im Gespräch, Vorschau ohne SDK">
+        <div className="flex flex-col gap-6">
+          <VoiceKnopf vorschau={{ zustand: "hoert", pegel: 0.45, sekunden: 7 }} />
+          <VoiceKnopf vorschau={{ zustand: "denkt", sekunden: 12 }} />
+          <VoiceKnopf vorschau={{ zustand: "spricht", pegel: 0.7, sekunden: 15 }} />
+          <VoiceKnopf vorschau={{ zustand: "fehler", fehler: "mikrofon" }} />
+        </div>
       </Teil>
 
       <Teil titel="Keine offene Freigabe">
