@@ -666,9 +666,31 @@ def annahmen_befehl(
 
 
 @app.command("frage")
-def frage(text: Annotated[str, typer.Argument(help="Frage an die Daten")]) -> None:
-    """Beantwortet eine Datenanfrage aus der Datenbank, mit sichtbarer Abfrage und Definition."""
-    _fehlt("#74", "frage")
+def frage(
+    text: Annotated[
+        str, typer.Argument(help="Frage an die Daten, z. B. „Fluktuation je ÖNACE im März 2025“")
+    ],
+    regelsatz: Annotated[str, typer.Option()] = "v1",
+    als_json: JsonOption = False,
+) -> None:
+    """Beantwortet eine Datenanfrage aus der Datenbank, mit sichtbarer Abfrage und Definition (#74)."""
+    from statagent.frage import als_webantwort, antwort_frage
+
+    with verbinden() as conn:
+        daten = antwort_frage(conn, text, regelsatz)
+    zeilen = [daten["text"]]
+    for zahl in daten["zahlen"]:
+        zeilen.append(f"- {zahl['bezeichnung']}: {zahl['wert']} {zahl['einheit'] or ''}".rstrip())
+    if daten["definition"]:
+        zeilen.append(f"Definition: {daten['definition']}")
+    if daten["einheit"]:
+        zeilen.append(f"Einheit: {daten['einheit']}")
+    for s in daten["stand"]:
+        zeilen.append("Stand: " + ", ".join(f"{k} {v}" for k, v in s.items()))
+    for nummer, beleg in enumerate(daten["belege"]):
+        zeilen.append(f"SQL [{nummer}]: {beleg['sql']}")
+    # --json ist die Antwortform der Webseite (#74, !51); die Textausgabe zeigt zusätzlich Einheit und Stand.
+    _ausgabe(als_webantwort(daten) if als_json else daten, als_json, "\n".join(zeilen))
 
 
 @app.command("klass")
