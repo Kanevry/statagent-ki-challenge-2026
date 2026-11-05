@@ -482,6 +482,10 @@ def _status_text(staende: list[dict[str, Any]]) -> str:
     return f"teils endgültig, teils vorläufig (vorläufig: {monate})"
 
 
+#: Anfang der Absage bei zwei Werten eines Merkmals; UC4 zeigt in diesem Fall je Wert eine Zahl (#125).
+MEHRERE_WERTE = "Die Frage nennt mehrere Werte"
+
+
 class _KeineZahl(Exception):
     """Die Frage ist verstanden, aber ohne Zahl zu beantworten; die Nachricht ist der Text für Laien."""
 
@@ -565,7 +569,7 @@ def _filter(
         if len(werte) > 1:
             namen = " und ".join(codes[c] for c in werte)
             raise _KeineZahl(
-                f"Die Frage nennt mehrere Werte für {merkmal.name}: {namen}. Eine Zahl für alle zusammen wäre "
+                f"{MEHRERE_WERTE} für {merkmal.name}: {namen}. Eine Zahl für alle zusammen wäre "
                 f"missverständlich. Bitte getrennt fragen oder alle auf einmal mit „je {merkmal.name}“."
             )
         filter_.append((merkmal, werte[0]))
