@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Feld, Fliesstext, Knopf, Status, Ueberschrift, Zahl } from "@kic/ui/basis";
 import { HerkunftChip } from "@kic/ui/bausteine";
 import { findeUc } from "@kic/ui/ucs";
-import type { UcAntwort } from "@kic/ui/antwortform";
+import type { Beleg, UcAntwort } from "@kic/ui/antwortform";
 import {
   ergebnisSchema,
   frageSchema,
@@ -35,32 +35,27 @@ function kontextSatz(stelle: number): string {
   return `Bekommt die Frage und die Antwort von ${davor.join(" und ")}.`;
 }
 
-/** Felder eines Belegs, die der Chip zeigt; passt auf die Antwortform vor und nach Review !30. */
-type BelegAnsicht = {
-  quelle: string;
-  lieferung?: string | null;
-  sql?: string | null;
-  ref?: string | null;
-  lauf?: string | null;
-  stand?: "endgueltig" | "vorlaeufig" | null;
-};
-
 function Zahlen({ antwort }: { antwort: UcAntwort }) {
   if (antwort.zahlen.length === 0) return null;
   return (
     <ul className="flex flex-col gap-4 border-t border-line pt-4">
       {antwort.zahlen.map((zahl, nummer) => {
-        const beleg: BelegAnsicht | undefined = antwort.belege[zahl.beleg];
+        const beleg: Beleg | undefined = antwort.belege[zahl.beleg];
+        // Zitiert ein späterer Schritt eine Zahl, bleibt `Beleg.uc` der liefernde UC (Vertrag A).
+        const durchgereicht = beleg && beleg.uc !== antwort.uc ? findeUc(beleg.uc).name : null;
         return (
           <li key={`${zahl.bezeichnung}-${nummer}`} className="flex flex-col items-start gap-2" data-zahl="">
             <p className="flex flex-wrap items-baseline gap-2 font-sans text-14 text-slate">
               <span>{zahl.bezeichnung}</span>
               <Zahl wert={zahl.wert} einheit={zahl.einheit ?? undefined} className="text-20 font-semibold text-ink" />
+              {durchgereicht && <span data-testid="uc4-von">{`von ${durchgereicht}`}</span>}
             </p>
             {beleg && (
               <HerkunftChip
                 quelle={beleg.quelle}
                 lieferung={beleg.lieferung}
+                monat={beleg.monat}
+                regelstand={beleg.regelstand}
                 sql={beleg.sql}
                 lauf={beleg.lauf}
                 verweis={beleg.ref}

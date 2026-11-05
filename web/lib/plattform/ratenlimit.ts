@@ -56,6 +56,3 @@ export function erstelleRatenlimit({ proMinute, maxSchluessel = MAX_SCHLUESSEL }
 }
 
 export type PruefeRatenlimit = ReturnType<typeof erstelleRatenlimit>;
-
-/** Prozessweites Limit für die Route-Handler. */
-export const pruefeRatenlimit = erstelleRatenlimit({ proMinute: grenzeAus(process.env) });

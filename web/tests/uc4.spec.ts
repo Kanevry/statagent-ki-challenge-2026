@@ -10,6 +10,40 @@ import { expect, test, type Page } from "@playwright/test";
 
 const hier = path.dirname(fileURLToPath(import.meta.url));
 const uc3 = JSON.parse(readFileSync(path.join(hier, "../../shared/schema/fixtures/uc-antwort.json"), "utf8"));
+const MESSSKRIPT = path.join(hier, "lib", "slop-measure.js");
+
+/** Die zwölf Schlüssel des Anti-Schablonen-Gates, wie in slop.spec.ts (Katalog: docs/design.md). */
+const SCHLUESSEL = [
+  "kickersMono",
+  "kickersCaps",
+  "iconTiles",
+  "shadowCards",
+  "ghostCards",
+  "gradientText",
+  "glassBlur",
+  "lightOrbs",
+  "pulsingDecor",
+  "sparklesNonAi",
+  "emDashes",
+  "questionHeadings",
+] as const;
+
+test.use({ reducedMotion: "reduce" });
+
+/** Misst die Seite wie slop.spec.ts (root body, nach den Schriften): alle zwölf Schlüssel vorhanden und 0. */
+async function gateMessen(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
+  await page.addScriptTag({ path: MESSSKRIPT });
+  const counts = await page.evaluate(() => {
+    // @ts-expect-error measureSlop kommt aus dem eingespielten Skript
+    return (measureSlop({ root: "body" }) as { counts: Record<string, unknown> }).counts;
+  });
+  expect(SCHLUESSEL.filter((k) => !(k in counts)), "Schlüssel fehlen im Messergebnis").toEqual([]);
+  const treffer = Object.fromEntries(SCHLUESSEL.map((k) => [k, counts[k]]).filter(([, v]) => v !== 0));
+  expect(treffer, "Treffer auf /uc4 mit Antwort").toEqual({});
+}
 
 /** Ergebnis aus drei Antworten in Kettenreihenfolge; uc2 übernimmt Zahl und Beleg von uc3 wie der Mock-Router. */
 const ERGEBNIS = {
@@ -35,7 +69,7 @@ test("/uc4 liefert 200 und zeigt Hauptaussage, Frage-Feld und drei leere Karten"
   await expect(page.locator('[data-zustand="leer"]')).toHaveCount(3);
 });
 
-test("Frage absenden: drei Karten in Reihenfolge uc3, uc2, uc1, jede Zahl mit HerkunftChip", async ({ page }) => {
+test("Frage absenden: drei Karten in Reihenfolge uc3, uc2, uc1, jede Zahl mit HerkunftChip, Gate 0", async ({ page }) => {
   let gesendet: unknown = null;
   await page.route("**/api/uc4/frage", async (route) => {
     gesendet = route.request().postDataJSON();
@@ -55,6 +89,9 @@ test("Frage absenden: drei Karten in Reihenfolge uc3, uc2, uc1, jede Zahl mit He
     await expect(zahl.locator('[data-baustein="herkunft"]')).toHaveCount(1);
   }
   await expect(page.getByRole("status").filter({ hasText: "3 Antworten da." })).toHaveCount(1);
+  await expect(page.locator('[data-uc-karte="uc2"]').getByText("von StatAgent")).toHaveCount(1);
+
+  await gateMessen(page);
 });
 
 test("gesperrter POST (Online-Demo) zeigt den Hinweis in jeder Karte, die Seite bleibt bedienbar", async ({ page }) => {

@@ -1,12 +1,24 @@
 import fixture from "../../../shared/schema/fixtures/uc-antwort.json";
 import { erstelleRatenlimit, type PruefeRatenlimit } from "./ratenlimit";
-import { BUDGET_MELDUNG, frageAntwort, ROUTER_ARGV, standardAusfuehren, type Ausfuehren } from "./uc4";
+import {
+  BUDGET_MELDUNG,
+  erstelleFrageAntwort,
+  ROUTER_ARGV,
+  standardAusfuehren,
+  type Ausfuehren,
+  type FrageOptionen,
+} from "./uc4";
 import { ergebnisSchema, type Ergebnis } from "./uc4-ergebnis";
 
 // Fängt ab: Kette in falscher Reihenfolge, Frage ohne Grenze, ein Router-Fehler als 500 oder halbe Daten,
 // Mock-Schalter ohne Wirkung, eine Frage, die als Schalter des Routers gelesen wird, und „keine Antwort“
-// (Exit 1) als Fehler statt als Ergebnis; ein Ratenlimit ohne Wirkung auf die Route und ein erschöpftes
-// Tagesbudget (Exit 3) als 502 statt 429.
+// (Exit 1) als Fehler statt als Ergebnis. Dazu die zweite Sperre hinter dem Proxy: Online-Demo nur lesend,
+// zu großer Body, mehr als zwei Läufe gleichzeitig und ein Slot, der nach einem Fehler belegt bleibt. Aus #100: ein
+// Ratenlimit ohne Wirkung auf die Route oder erst nach dem Body-Lesen, und ein erschöpftes Tagesbudget (Exit 3)
+// als 502 statt 429.
+
+/** Ein frischer Handler je Aufruf, damit die Lauf-Zählung eines Tests keinen anderen berührt. */
+const frageAntwort = (a: Request, optionen: FrageOptionen) => erstelleFrageAntwort(optionen)(a);
 
 const ergebnis: Ergebnis = {
   antworten: [
@@ -76,10 +88,18 @@ describe("POST /api/uc4/frage", () => {
 
   it("weist eine leere, zu lange oder fehlende Frage mit 400 ab, ohne den Router zu starten", async () => {
     const ausfuehren = liefert(JSON.stringify(ergebnis));
-    for (const body of [{ frage: "   " }, { frage: "a".repeat(501) }, {}, "kein json"]) {
-      const antwort = await frageAntwort(anfrage(body), { ausfuehren, umgebung: {}, wurzel: () => "/r", ratenlimit: offen });
+    const faelle: Array<[unknown, string]> = [
+      [{ frage: "   " }, "Bitte eine Frage eingeben."],
+      [{ frage: "a".repeat(501) }, "Höchstens 500 Zeichen."],
+      [{}, "Die Anfrage braucht JSON mit dem Feld frage als Text."],
+      [{ frage: 1 }, "Die Anfrage braucht JSON mit dem Feld frage als Text."],
+      ["null", "Die Anfrage braucht JSON mit dem Feld frage als Text."],
+      ["kein json", "Die Anfrage braucht JSON mit dem Feld frage als Text."],
+    ];
+    for (const [body, meldung] of faelle) {
+      const antwort = await frageAntwort(anfrage(body), { ausfuehren, umgebung: {}, wurzel: () => "/r" });
       expect(antwort.status).toBe(400);
-      expect(typeof (await antwort.json()).fehler).toBe("string");
+      expect((await antwort.json()).fehler).toBe(meldung);
     }
     expect(ausfuehren).not.toHaveBeenCalled();
   });
@@ -101,13 +121,72 @@ describe("POST /api/uc4/frage", () => {
   });
 });
 
+describe("Sperren vor dem Subprozess", () => {
+  it("KIC_ONLINE_LESEND=1 liefert 403 ohne Subprozess", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    const antwort = await frageAntwort(anfrage({ frage: "x" }), { ausfuehren, umgebung: { KIC_ONLINE_LESEND: "1" }, wurzel: () => "/r" });
+    expect(antwort.status).toBe(403);
+    expect(ausfuehren).not.toHaveBeenCalled();
+  });
+
+  it("ein Body über 4 KiB liefert 413, per Content-Length und beim Lesen ohne Angabe", async () => {
+    const ausfuehren = liefert(JSON.stringify(ergebnis));
+    const gross = JSON.stringify({ frage: "a".repeat(5000) });
+    const ohneLaenge = new Request("http://lokal/api/uc4/frage", {
+      method: "POST",
+      body: new ReadableStream({
+        start(strom) {
+          strom.enqueue(new TextEncoder().encode(gross));
+          strom.close();
+        },
+      }),
+      duplex: "half",
+    } as RequestInit);
+    expect(ohneLaenge.headers.get("content-length")).toBeNull();
+    for (const a of [anfrage(gross), ohneLaenge]) {
+      expect((await frageAntwort(a, { ausfuehren, umgebung: {}, wurzel: () => "/r" })).status).toBe(413);
+    }
+    expect(ausfuehren).not.toHaveBeenCalled();
+  });
+
+  it("der dritte gleichzeitige Lauf bekommt 429, ein Slot wird auch nach einem Fehler frei", async () => {
+    const offen: Array<(lauf: { code: number; stdout: string }) => void> = [];
+    let wirft = false;
+    const ausfuehren = vi.fn<Ausfuehren>(() => {
+      if (wirft) return Promise.reject(new Error("kaputt"));
+      return new Promise((aufloesen) => offen.push(aufloesen));
+    });
+    const frage = erstelleFrageAntwort({ ausfuehren, umgebung: {}, wurzel: () => "/r" });
+
+    const erste = frage(anfrage({ frage: "a" }));
+    const zweite = frage(anfrage({ frage: "b" }));
+    await vi.waitFor(() => expect(offen).toHaveLength(2));
+    expect((await frage(anfrage({ frage: "c" }))).status).toBe(429);
+
+    offen[0]!({ code: 0, stdout: "kaputt" }); // Vertragsbruch: 502, Slot muss trotzdem frei werden
+    expect((await erste).status).toBe(502);
+    wirft = true;
+    expect((await frage(anfrage({ frage: "d" }))).status).toBe(502); // Subprozess wirft, Slot wieder frei
+    wirft = false;
+    const dritte = frage(anfrage({ frage: "e" }));
+    await vi.waitFor(() => expect(offen).toHaveLength(3));
+    offen[1]!({ code: 0, stdout: JSON.stringify(ergebnis) });
+    offen[2]!({ code: 0, stdout: JSON.stringify(ergebnis) });
+    expect([(await zweite).status, (await dritte).status]).toEqual([200, 200]);
+    expect(ausfuehren).toHaveBeenCalledTimes(4);
+  });
+});
+
 describe("POST /api/uc4/frage, Ratenlimit und Tagesbudget (#100)", () => {
-  it("das Ratenlimit greift vor dem Subprozess", async () => {
+  it("das Ratenlimit greift vor Body-Lesen und Subprozess", async () => {
     const ausfuehren = liefert(JSON.stringify(ergebnis));
     const ratenlimit = erstelleRatenlimit({ proMinute: 1 });
     const optionen = { ausfuehren, umgebung: {}, wurzel: () => "/r", ratenlimit, jetzt: () => 0 };
     expect((await frageAntwort(anfrage({ frage: "x" }), optionen)).status).toBe(200);
-    expect((await frageAntwort(anfrage({ frage: "x" }), optionen)).status).toBe(429);
+    // Ein zu großer Body wäre 413; das Limit kommt vorher.
+    const gesperrt = await frageAntwort(anfrage({ frage: "a".repeat(5000) }), optionen);
+    expect(gesperrt.status).toBe(429);
+    expect(gesperrt.headers.get("retry-after")).toBe("60");
     expect(ausfuehren).toHaveBeenCalledTimes(1);
   });
 

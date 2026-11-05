@@ -143,6 +143,13 @@ def test_cli_mock_liefert_json_mit_drei_antworten(protokoll, capsys):
     assert ausgabe["fehlend"] == []
 
 
+def test_cli_frage_nach_doppelstrich_ist_kein_schalter(protokoll, capsys):
+    """Die Web-Route setzt `--` vor die Frage (#98): eine Frage wie „-h“ bleibt eine Frage."""
+    assert main(["frage", "--json", "--mock", "--", "-h"]) == 0
+    ausgabe = json.loads(capsys.readouterr().out)
+    assert [a["uc"] for a in ausgabe["antworten"]] == ["uc3", "uc2", "uc1"]
+
+
 def test_r2_antwortform_und_plattform_laden_weder_router_noch_llm():
     """R2: UC3-Adapter importieren plattform.antwortform; das darf plattform.llm nicht nachladen."""
     code = (

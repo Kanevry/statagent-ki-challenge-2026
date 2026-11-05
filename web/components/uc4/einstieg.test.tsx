@@ -67,3 +67,29 @@ it("429 (Ratenlimit oder Tagesbudget, #100) zeigt den Hinweis aus der Antwort, n
   await user.type(screen.getByLabelText("Frage an die Kette"), "x{Enter}");
   expect(await screen.findAllByText("Das Tageskontingent für Modellaufrufe ist aufgebraucht.")).toHaveLength(4);
 });
+
+// Fängt ab: der Chip zeigt den ersten statt des referenzierten Belegs (ein Test mit nur belege[0] bliebe grün),
+// und eine von StatAgent durchgereichte Zahl steht in der Panel-Karte ohne Herkunft (Review !34).
+it("Zahl mit beleg = 1 zeigt den zweiten Beleg, durchgereichte Zahl trägt „von StatAgent“", async () => {
+  const user = userEvent.setup();
+  const erster = { ...uc3.belege[0]!, lieferung: "2025-01", monat: "2025-01" };
+  const zweiter = { ...uc3.belege[0]!, lieferung: "2025-03", monat: "2025-02", regelstand: "v2", lauf: "abcdef0123456789" };
+  const uc2 = {
+    ...uc3,
+    uc: "uc2" as const,
+    modell: "mock",
+    belege: [erster, zweiter],
+    zahlen: [{ ...uc3.zahlen[0]!, beleg: 1 }],
+  };
+  antworte(200, { antworten: [uc3, uc2], fehlend: [{ uc: "uc1", grund: "ValueError" }] });
+  render(<Einstieg />);
+  await user.type(screen.getByLabelText("Frage an die Kette"), "x{Enter}");
+
+  const panel = (await screen.findAllByText("von StatAgent")).map((el) => el.closest("[data-uc-karte]"));
+  expect(panel.map((k) => k?.getAttribute("data-uc-karte"))).toEqual(["uc2"]);
+  const chip = within(karten()[1]!).getByRole("button", { name: /ansehen$/ });
+  expect(chip.textContent).toBe(
+    "stat.beschaeftigte_monat Monat 2025-02 aus Lieferung 2025-03 · Regelstand v2 · Lauf abcdef01 · SQL ansehen",
+  );
+  expect(within(karten()[2]!).getByText("Antwort fehlgeschlagen")).toBeTruthy();
+});
