@@ -73,9 +73,9 @@ _DEFINITION = re.compile(
     r"\b(was\s+(ist|sind|bedeutet|heißt|heisst|zählt|zaehlt)|definition|bedeutung|definiert)\b"
 )
 _FLUKTUATION = re.compile(r"fluktu|zugäng|abgäng|zugaeng|abgaeng|zu- und abg")
-_ZEITREIHE = re.compile(
-    r"zeitreihe|entwicklung|entwickelt|verlauf|vergleich|gegenüber|monatsweise|je monat|pro monat|\bseit\b"
-)
+_ZEITREIHE = re.compile(r"zeitreihe|entwicklung|entwickelt|verlauf|monatsweise|je monat|pro monat|\bseit\b")
+#: „Vergleich“ ist nur ohne genau einen Monat eine Zeitreihe („Vergleich Männer und Frauen im März 2025“ nicht).
+_VERGLEICH = re.compile(r"vergleich|gegenüber")
 _GESCHLECHT = re.compile(r"männer|maenner|frauen|geschlecht|männlich|weiblich")
 _BUNDESLAND = re.compile(r"bundesl|länder|laender")
 
@@ -124,7 +124,8 @@ def fragetyp(frage: str) -> str:
         return "definition"
     if _FLUKTUATION.search(text):
         return "fluktuation"
-    if _ZEITREIHE.search(text) or len(set(monate_lesen(frage))) > 1:
+    monate = set(monate_lesen(frage))
+    if _ZEITREIHE.search(text) or len(monate) > 1 or (_VERGLEICH.search(text) and len(monate) != 1):
         return "zeitreihe"
     if _GESCHLECHT.search(text):
         return "geschlecht"
@@ -139,18 +140,13 @@ KANN = (
     "Begriffserklärungen."
 )
 #: Signalwörter für Merkmale, die es in den Daten der Anfrage nicht gibt: lieber ehrlich absagen als eine Zahl
-#: ohne diese Einschränkung zu liefern.
+#: ohne diese Einschränkung zu liefern. Sprachverständnis, kein Rechenregelwerk (docs/plan/uc3/annahmen.md).
 NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
     (
-        re.compile(r"freie[nr]? dienstv|freien? dv\b"),
-        "Freie Dienstverträge sind in dieser Statistik kein eigenes Merkmal, sondern stecken in den "
-        "Beschäftigungskategorien Arbeiter und Angestellte. Vorschlag: „Beschäftigte nach Beschäftigungskategorie "
-        "im Juli 2026“.",
-    ),
-    (
         re.compile(
-            r"\balter\b|\baltersgruppe|durchschnittsalter|jahre alt|jährig|jugendlich"
-            r"|\b(unter|über|ueber|ab|bis)\s+\d{1,3}\s*(jahre|jahren)\b"
+            r"\b(alter|altersgruppen?|lebensalter)\b(?!\s+(regel|regeln|version|fassung|stand|zählung|lieferung))"
+            r"|durchschnittsalter|jahre alt|\b\d{1,3}-?jährig|jugendlich"
+            r"|\b(unter|über|ueber|ab|bis)\s+(1[4-9]|[2-9]\d)\s*(jahre|jahren)\b"
         ),
         "Das Alter wertet StatAgent bei Datenanfragen nicht aus.",
     ),
@@ -166,33 +162,71 @@ NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
         "Die Staatsbürgerschaft ist nicht in den Daten.",
     ),
 )
-_PERSON = re.compile(r"\bperson\b|personen-?id|\bid\b|\bname\b|\badresse|(?<![\d./])\d{5,}(?![\d./])")
-#: Umgangssprachliche Branchennamen → Anfang der ÖNACE-Bezeichnung; aufgelöst über die Version des Monats
-#: (Gesundheit ist 2008 Abschnitt Q, 2025 Abschnitt R).
+_PERSON = re.compile(r"\bperson\b|personen-?id|\bid\b|\badresse|versicherungsnummer|\bsvnr\b")
+#: Eine lange Zahl ist eine Kennung, außer sie ist eine Mengenangabe („über 10000“).
+_LANGE_ZAHL = re.compile(r"(?:(\w+)\s+)?(?<![\d./])\d{5,}(?![\d./])")
+_MENGENWORT = frozenset(
+    {"über", "ueber", "unter", "mehr", "weniger", "als", "ab", "bis", "rund", "etwa", "von"}
+)
+#: Freie Dienstverträge: im Regelsatz v1 Qualifikationen mit Kennzeichen freier_dienstvertrag (ArbeiterFD,
+#: AngestellteFD), im Sheet je Qualifikation ausgewiesen.
+_FREIER_DV = re.compile(r"\bfreie[nmrs]?\s+dienstv\w*|\bfd\b")
+FREIER_DV = Merkmal(
+    "freier Dienstvertrag",
+    "q.freier_dienstvertrag",
+    "SELECT 'true' AS code, 'freie Dienstverträge' AS bezeichnung",
+    (),
+    join_qualifikation=True,
+)
+#: Umgangssprachliche Branchennamen (nur ganze Wörter) → Anfang der ÖNACE-Bezeichnung; aufgelöst über die
+#: Version des Monats (Gesundheit ist 2008 Abschnitt Q, 2025 Abschnitt R). Sprachverständnis, kein Rechenregelwerk.
 BRANCHEN: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
     (re.compile(r"\bbau(?:s|e|en|gewerbe|branche|wirtschaft)?\b"), ("Bau",)),
-    (re.compile(r"gastronomie|gastgewerbe|beherbergung|hotel|tourismus"), ("Beherbergung",)),
-    (re.compile(r"\bhandel"), ("Handel",)),
-    (re.compile(r"gesundheit|pflege|spital|krankenh"), ("Gesundheits",)),
-    (re.compile(r"industrie|herstellung|produktion"), ("Herstellung von Waren",)),
     (
-        re.compile(r"\bit\b|\bit-|informatik|software|informationstechn"),
+        re.compile(r"\b(gastronomie|gastgewerbe|beherbergung|hotellerie|hotels?|tourismus)\b"),
+        ("Beherbergung",),
+    ),
+    (re.compile(r"\bhandels?\b"), ("Handel",)),
+    (
+        re.compile(
+            r"\b(gesundheit|gesundheitswesen|gesundheitsbereich|pflege|spitäler|spital|krankenhaus|krankenhäuser)\b"
+        ),
+        ("Gesundheits",),
+    ),
+    (re.compile(r"\b(industrie|herstellung|produktion|sachgüterproduktion)\b"), ("Herstellung von Waren",)),
+    (
+        re.compile(r"\b(it|it-branche|informatik|software|informationstechnologie)\b"),
         ("Telekommunikation, Softwareentwicklung", "Information und Kommunikation"),
     ),
-    (re.compile(r"verkehr|transport|logistik"), ("Verkehr",)),
-    (re.compile(r"bildung|schule|unterricht|erziehung"), ("Erziehung",)),
-    (re.compile(r"verwaltung|behörde"), ("Öffentliche Verwaltung",)),
-    (re.compile(r"finanz|bank|versicherungsdienst|versicherungen\b"), ("Erbringung von Finanz",)),
-    (re.compile(r"landwirtschaft|forstwirtschaft|agrar"), ("Land- und Forstwirtschaft",)),
-    (re.compile(r"energie|\bstrom"), ("Energieversorgung",)),
+    (re.compile(r"\b(verkehr|transport|logistik)\b"), ("Verkehr",)),
+    (re.compile(r"\b(bildung|bildungswesen|schulen?|unterricht|erziehung)\b"), ("Erziehung",)),
+    (re.compile(r"\b(öffentliche[nr]? verwaltung|verwaltung|behörden?)\b"), ("Öffentliche Verwaltung",)),
+    (
+        re.compile(r"\b(finanzen|finanzwesen|finanzdienstleistungen|banken?|versicherungen)\b"),
+        ("Erbringung von Finanz",),
+    ),
+    (re.compile(r"\b(landwirtschaft|forstwirtschaft|agrar)\b"), ("Land- und Forstwirtschaft",)),
+    (re.compile(r"\b(energie|energieversorgung|strom)\b"), ("Energieversorgung",)),
 )
-#: Wörter nach „im/in/Branche“, die kein Merkmal meinen.
-_KEIN_MERKMAL = frozenset(
-    {"österreich", "oesterreich", "vergleich", "jahr", "jahre", "jahren", "monat", "zeitraum", "schnitt",
-     "gesamt", "summe", "detail", "bundesland", "bundesländern", "wirtschaftsbereich", "abschnitt",
-     "önace", "oenace", "önace-abschnitt", "berichtsmonat", "stichtag", "verlauf", "laufe"}
+_FRAU = re.compile(r"\b(frau|frauen|weiblich\w*)\b")
+_MANN = re.compile(r"\b(mann|männer|maenner|männlich\w*|maennlich\w*)\b")
+#: Wortstämme nach „im/in/Branche“, die kein Merkmal meinen („in den Wirtschaftsbereichen“, „in Prozent“).
+_KEIN_MERKMAL_STAMM = (
+    "österreich", "oesterreich", "vergleich", "jahr", "monat", "zeitraum", "schnitt", "gesamt", "summe",
+    "detail", "bundesl", "wirtschaftsbereich", "wirtschaftszweig", "abschnitt", "önace", "oenace",
+    "berichtsmonat", "stichtag", "verlauf", "lauf", "bereich", "branche", "sektor", "prozent", "vormonat",
+    "vorjahr", "zahl", "tabelle", "beschäftigungskategorie", "kategorie", "geschlecht",
 )  # fmt: skip
-_WORT_NACH_ORT = re.compile(r"\b(?:im|in der|in den|in|branche|bereich)\s+([A-ZÄÖÜ][\w\-äöüßÄÖÜ]*)")
+_FUNKTIONSWORT = frozenset(
+    {"im", "in", "der", "den", "dem", "die", "das", "welchem", "welcher", "welchen", "welche", "diesem",
+     "dieser", "diesen", "ganz", "ganzen", "gesamten", "allen", "alle", "einem", "einer", "einen", "letzten",
+     "letztem", "vergangenen", "laufenden", "form", "höhe", "hoehe", "relation", "bezug", "folge", "etwa",
+     "zeit", "punkto", "und", "oder", "sowie"}
+)  # fmt: skip
+_ORT_KETTE = re.compile(
+    r"\b(?:im|in der|in den|in|branche|bereich)\s+([\w-]+(?:\s*(?:,|\bund\b|\boder\b|\bsowie\b)\s*[\w-]+)*)",
+    re.IGNORECASE,
+)
 _MONATSWORT = "|".join(sorted(map(re.escape, MONATSNAMEN), key=len, reverse=True))
 _VON_BIS_JAHR = re.compile(rf"\b({_MONATSWORT})\.?\s+bis\s+({_MONATSWORT})\.?\s+(\d{{4}})", re.IGNORECASE)
 _LETZTES_JAHR = re.compile(r"\b(?:im\s+)?letzte[nms]?\s+jahr(?:es)?\b", re.IGNORECASE)
@@ -204,11 +238,19 @@ KATEGORIE = _merkmal("Beschäftigungskategorie")
 def normalisieren(frage: str) -> tuple[str, list[str]]:
     """Zeitangaben der Alltagssprache in Monate übersetzen; dazu Sätze, die das Verstandene offenlegen.
 
-    „März bis Juni 2025“: das Jahr gilt für beide Monate. „letztes Jahr“ ist das Jahr vor der letzten Lieferung.
-    „Ende 2025“ ist Dezember 2025.
+    „März bis Juni 2025“: das Jahr gilt für beide Monate; „November bis Februar 2025“ beginnt im Vorjahr.
+    „letztes Jahr“ ist das Jahr vor der letzten Lieferung. „Ende 2025“ ist Dezember 2025.
     """
     notizen: list[str] = []
-    frage = _VON_BIS_JAHR.sub(lambda t: f"{t.group(1)} {t.group(3)} bis {t.group(2)} {t.group(3)}", frage)
+
+    def von_bis(t: re.Match[str]) -> str:
+        erster, zweiter, jahr = t.group(1), t.group(2), int(t.group(3))
+        anfang = jahr - 1 if MONATSNAMEN[erster.lower()] > MONATSNAMEN[zweiter.lower()] else jahr
+        if anfang != jahr:
+            notizen.append(f"„{t.group(0)}“ heißt hier {erster} {anfang} bis {zweiter} {jahr}.")
+        return f"{erster} {anfang} bis {zweiter} {jahr}"
+
+    frage = _VON_BIS_JAHR.sub(von_bis, frage)
     if _LETZTES_JAHR.search(frage):
         jahr = str(int(LETZTE_LIEFERUNG[:4]) - 1)
         frage = _LETZTES_JAHR.sub(f" {jahr} ", frage)
@@ -223,7 +265,8 @@ def normalisieren(frage: str) -> tuple[str, list[str]]:
 def nicht_auswertbar(frage: str) -> str | None:
     """Absagetext, wenn die Frage Einzeldaten oder ein Merkmal verlangt, das es nicht gibt; sonst None."""
     text = frage.lower()
-    if _PERSON.search(text):
+    kennung = any((t.group(1) or "") not in _MENGENWORT for t in _LANGE_ZAHL.finditer(text))
+    if _PERSON.search(text) or kennung:
         return "Einzeldaten gibt StatAgent nicht heraus, auch nicht zu einer einzelnen Person. " + KANN
     for muster, grund in NICHT_AUSGEWERTET:
         if muster.search(text):
@@ -243,10 +286,15 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
         t = _treffer(text, bezeichnung)
         if t:
             gefunden[code] = t.group(0)
+    if merkmal is GESCHLECHT:
+        for code, muster in (("W", _FRAU), ("M", _MANN)):
+            t = muster.search(text)
+            if t and code in codes:
+                gefunden.setdefault(code, t.group(0))
     if merkmal is OENACE:
-        t = _OENACE_CODE.search(text)
-        if t and t.group(1).upper() in codes:
-            gefunden[t.group(1).upper()] = t.group(0)
+        for t in _OENACE_CODE.finditer(text):
+            if t.group(1).upper() in codes:
+                gefunden[t.group(1).upper()] = t.group(0)
         for muster, anfaenge in BRANCHEN:
             t = muster.search(text)
             if not t:
@@ -264,6 +312,27 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
     doppelt = {c for c in gefunden for d in gefunden if c != d and codes[c].lower() in codes[d].lower()}
     werte = [c for c in gefunden if c not in doppelt]
     return werte, list(gefunden.values())
+
+
+def _wort_bekannt(wort: str, erkannt: list[str]) -> bool:
+    """Ein Wort nach „im/in/Branche“ ist bekannt, wenn es ein Monat, ein Füllwort oder ein erkanntes Merkmal ist.
+
+    Erkannt heißt: das Wort ist der Anfang einer erkannten Wendung („Gesundheits-“ in „Gesundheits- und
+    Sozialwesen“) oder eine erkannte Wendung mit höchstens zwei Buchstaben Endung („Wiens“). Eine Zusammensetzung
+    („Produktionslauf“, „Hausverwaltung“) ist damit unbekannt.
+    """
+    klein = wort.lower().strip("-")
+    if not klein or klein.isdigit() or klein in MONATSNAMEN or klein in _FUNKTIONSWORT:
+        return True
+    if any(klein.startswith(stamm) for stamm in _KEIN_MERKMAL_STAMM):
+        return True
+    for e in (x.lower() for x in erkannt):
+        if (len(klein) >= 3 and e.startswith(klein)) or (klein.startswith(e) and len(klein) - len(e) <= 2):
+            return True
+        # Teil einer mehrwortigen erkannten Wendung („Sozialwesen“ in „Gesundheits- und Sozialwesen“).
+        if len(klein) >= 3 and re.search(rf"(?<!\w){re.escape(klein)}(?!\w)", e):
+            return True
+    return False
 
 
 def _verstanden(
@@ -285,12 +354,14 @@ def _verstanden(
             teile.append(f"{wort} {code} {etikett}" if merkmal is OENACE else f"{wort} {etikett}")
         else:
             teile.append(f"{wort}: alle")
+    if FREIER_DV.name in gefiltert:
+        teile.append("nur freie Dienstverträge")
     return "Verstanden: " + ", ".join(teile) + "."
 
 
 def _geschlecht_gegliedert(text: str) -> bool:
     """Männer und Frauen getrennt (beide genannt, „Geschlecht“ oder ein Anteil); sonst ist es ein Filter."""
-    beide = bool(re.search(r"männer|maenner", text)) and "frauen" in text
+    beide = bool(_MANN.search(text)) and bool(_FRAU.search(text))
     return beide or "geschlecht" in text or "anteil" in text
 
 
@@ -482,12 +553,14 @@ def _filter(
             )
         filter_.append((merkmal, werte[0]))
         etiketten.append(codes[werte[0]])
-    for wort in _WORT_NACH_ORT.findall(frage):
-        klein = wort.lower().rstrip("-")
-        if klein in MONATSNAMEN or klein in _KEIN_MERKMAL:
-            continue
-        if not any(klein in e.lower() or e.lower() in klein for e in erkannt):
-            raise _KeineZahl(f"Das Wort „{wort}“ kenne ich nicht als Bundesland oder Branche. {KANN}")
+    if _FREIER_DV.search(frage.lower()):
+        filter_.append((FREIER_DV, "true"))
+        etiketten.append("freie Dienstverträge")
+        erkannt.append("freie dienstverträge")
+    for kette in _ORT_KETTE.findall(frage):
+        for wort in re.split(r"\s*(?:,|\bund\b|\boder\b|\bsowie\b)\s*", kette, flags=re.IGNORECASE):
+            if not _wort_bekannt(wort, erkannt):
+                raise _KeineZahl(f"Das Wort „{wort}“ kenne ich nicht als Bundesland oder Branche. {KANN}")
     return filter_, etiketten
 
 
@@ -587,6 +660,10 @@ def _bestand_antwort(
     definition, einheit = _definition_bestand(conn)
     filter_, etiketten = _filter(conn, frage, bis, gruppen)
     verstanden = _verstanden(von, bis, filter_, etiketten, gruppen)
+    if any(m is FREIER_DV for m, _ in filter_) and regelsatz != "v1":
+        raise _KeineZahl(
+            f"Freie Dienstverträge kann die Datenanfrage nur im Regelsatz v1 trennen, nicht in {regelsatz}. {KANN}"
+        )
     if OENACE in gruppen or any(m is OENACE for m, _ in filter_):
         v_von, v_bis = _oenace_version(conn, von), _oenace_version(conn, bis)
         if v_von and v_bis and v_von[0] != v_bis[0]:
@@ -873,6 +950,25 @@ def _bewegung_fehlertext(fehler: psycopg.Error, monat: str) -> str:
     return NICHT_LESBAR
 
 
+def hoechste_satz(zeilen: list[dict[str, Any]], namen: dict[str, str]) -> str | None:
+    """„Am höchsten“ nur unter Abschnitten mit mindestens MINDESTBESTAND_HOECHSTE, und das steht im Satz:
+    die Tabelle darunter kann einen kleineren Abschnitt mit höherer Rate zeigen."""
+    mit_rate = [
+        z
+        for z in zeilen
+        if z["fluktuation_prozent"] is not None and int(z["bestand"]) >= MINDESTBESTAND_HOECHSTE
+    ]
+    if not mit_rate:
+        return None
+    hoechste = max(mit_rate, key=lambda z: float(z["fluktuation_prozent"]))
+    code = str(hoechste["oenace"])
+    return (
+        f"Unter den Abschnitten mit mindestens {_deutsch(MINDESTBESTAND_HOECHSTE)} Beschäftigungsverhältnissen "
+        f"ist sie am höchsten in Abschnitt {code} ({namen.get(code, code)}) mit "
+        f"{_komma(float(hoechste['fluktuation_prozent']))} Prozent."
+    )
+
+
 def _fluktuation_antwort(conn: Verbindung, monat: str, regelsatz: str) -> dict[str, Any]:
     stand = letzter_lauf(conn, monat, regelsatz)
     if stand is None:
@@ -957,18 +1053,9 @@ def _fluktuation_antwort(conn: Verbindung, monat: str, regelsatz: str) -> dict[s
             }
         )
     # Kleinstbereiche (z. B. Private Haushalte, rund 250) schwanken stark; „am höchsten“ nur ab 1.000.
-    mit_rate = [
-        z
-        for z in zeilen
-        if z["fluktuation_prozent"] is not None and int(z["bestand"]) >= MINDESTBESTAND_HOECHSTE
-    ]
-    if mit_rate:
-        hoechste = max(mit_rate, key=lambda z: float(z["fluktuation_prozent"]))
-        code = str(hoechste["oenace"])
-        teile.append(
-            f"Am höchsten ist sie in Abschnitt {code} ({namen.get(code, code)}) mit "
-            f"{_komma(float(hoechste['fluktuation_prozent']))} Prozent."
-        )
+    satz = hoechste_satz(zeilen, namen)
+    if satz:
+        teile.append(satz)
     hinweise: list[str] = []
     if ohne_bestand:
         hinweise.append(
@@ -1104,7 +1191,9 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     except (psycopg.Error, AbfrageVerweigert):
         return _antwort(typ, NICHT_LESBAR, hinweise=[NICHT_LESBAR])
     if notizen:
-        daten["text"] = " ".join([*notizen, daten["text"]])
+        text = daten["text"]
+        ende = text.find(". ") + 1 if text.startswith("Verstanden:") else 0
+        daten["text"] = " ".join(t for t in (text[:ende].strip(), *notizen, text[ende:].strip()) if t)
     return daten
 
 
