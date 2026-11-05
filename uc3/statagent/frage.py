@@ -307,6 +307,9 @@ _ALTER_MUSTER: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(rf"\b(?:über|ueber)\s+(\d{{1,3}}){_JAHRE}"), "ueber"),
     (re.compile(rf"\bab\s+(\d{{1,3}}){_JAHRE}"), "ab"),
     (re.compile(rf"\bbis\s+(\d{{1,3}}){_JAHRE}"), "bis"),
+    # Ohne „Jahre“ nur direkt vor der Zeitangabe oder am Satzende: „über 2000 Beschäftigte“ ist eine Menge.
+    (re.compile(r"\bunter\s+(\d{2})(?=\s*(?:$|[?.,]|im\b|in\b|am\b|von\b))"), "unter"),
+    (re.compile(r"\b(?:über|ueber)\s+(\d{2})(?=\s*(?:$|[?.,]|im\b|in\b|am\b|von\b))"), "ueber"),
     (re.compile(r"\bim\s+alter\s+von\s+(\d{1,3})\b"), "genau"),
     (re.compile(r"\b(\d{1,3})\s*-?\s*jährig\w*"), "genau"),
     (re.compile(r"\b(\d{1,3})\s+jahre\s+alt\b"), "genau"),
