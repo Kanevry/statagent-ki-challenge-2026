@@ -50,12 +50,27 @@ Zeit unten rechts. `layout` bleibt der Rückfall, falls die Szene fehlt.
 
 | `szene` | Erwartet im Markdown | Zusätze im Frontmatter |
 |---|---|---|
-| `titel` | `#` Marke, 1. Absatz: Sätze, die nacheinander erscheinen, 2. Absatz: Zeile unten | `hervorheben`: Wort, das zuletzt Mint wird |
-| `falsche-zahl` | `#` Titel, Liste mit drei Sätzen (je Takt einer), Tabelle Monat und Wert | `monat_bruch`, `zahl_geliefert` |
-| `beleg` | 1. Absatz Satz, 2. Absatz Brücke | `zahl`, z. B. `2.880 von 2.880`: Raster und Hochzählen |
-| `annahme` | `#` Titel, Unterzeile, Tabelle Variante, Behandlung, `… von N`, Schlusssatz | keine |
-| `einstieg` | 1. Absatz Frage (tippt sich), Liste `**UCn Name:** Satz`, Tabelle, Absatz Kern | keine |
-| `schluss` | `#` erster Satz, 1. Absatz zweiter Satz, 2. Absatz Zeile klein | keine |
+| `gleichung` | `#` Satz unter 1 + 2 + 3 = 4, 1. Absatz: Zeile klein | keine |
+| `drei-fragen` | Tabelle Aufgabe, Person, Frage (tippt sich), Use Case; Absatz: Satz über der Linie | `hervorheben`: Aufgabe mit Mint-Chip |
+| `falsche-zahl` | `#` Titel, Liste mit drei Sätzen (je Takt einer), Tabelle Monat (JJJJ-MM) und Wert | `monat_bruch`, `zahl_geliefert`, `stempel` |
+| `kern` | `#` Titel, Liste mit drei Regeln (erste liegt unten) | `name`: tippt sich unter der zweiten Regel |
+| `beleg` | `#` Titel, 1. Absatz Satz | `zahl`, z. B. `2.880`: Raster und Hochzählen |
+| `fallen` | `#` Titel, Tabelle Muster, Falle, Umfang (drei Zeilen), Absatz darunter | keine |
+| `annahme` | `#` Titel, 1. Absatz neben dem 13. Monat, Tabelle Möglichkeit und `… von N`, Schlusssatz | `treffer`: Satz neben dem Haken |
+| `einstieg` | `#` Titel, 1. Absatz Frage (tippt sich), Liste `**UCn:** Antwort`, 2. Absatz unter Kreis 4 | keine |
+| `schluss` | `#` erster Satz, 1. Absatz zweiter Satz, 2. Absatz Zeile klein | `route` (nur aus `live.tsx`), `knopf` |
+
+Jeder sichtbare Satz steht im Markdown, auch kurze wie der Stempel oder der Treffer-Satz. Monate im sichtbaren Text
+ausgeschrieben („Oktober 2025“); nur Tabellen tragen sie als Daten (`2025-10`), die Säulenachse macht daraus
+„Okt 2025“. Die Kreise 1 bis 4, die Zeichen + und = und die Achsenwerte sind Gestaltung. Kreise mit gleicher Nummer gleiten beim Wechsel von
+ihrer alten an ihre neue Stelle.
+
+### Blick in die App
+
+`screenshot: SC07` nennt das Bildschirmfoto, das die Szenen `falsche-zahl`, `kern`, `beleg` und `fallen` als
+ruhiges Fenster zeigen. Es erscheint nur, wenn die Datei `bilder/SC07.png` hier liegt und in
+`web/components/praesentation/bilder.ts` statisch importiert ist. Sonst bleibt der Platz leer. Nur echte
+Aufnahmen aus der App, ohne Beschriftung.
 
 ### Takte
 

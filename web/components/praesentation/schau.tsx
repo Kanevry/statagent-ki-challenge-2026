@@ -77,6 +77,45 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
     if (istRuhig()) setStand((s) => ({ ...s, takt: takte[s.folie - 1] ?? 0 }));
   }, [takte]);
 
+  // Szenenwechsel wie im Prototyp: die alte Szene blendet 300 ms aus (.geht), Kreise mit gleicher Nummer
+  // (data-k) gleiten per FLIP von ihrer alten an ihre neue Stelle. Bei reduzierter Bewegung: harter Wechsel.
+  const buehne = useRef<HTMLDivElement>(null);
+  const vorher = useRef(nr);
+  useLayoutEffect(() => {
+    const alt = vorher.current;
+    vorher.current = nr;
+    const el = buehne.current;
+    if (!el || alt === nr) return;
+    const [geht, geflogen, mitgenommen] = [k("geht"), k("geflogen"), k("mitgenommen")];
+    el.querySelectorAll(`.${geht}`).forEach((s) => s.classList.remove(geht));
+    el.querySelectorAll("[data-k]").forEach((kr) => kr.classList.remove(geflogen, mitgenommen));
+    const altEl = el.querySelector<HTMLElement>(`[data-nr="${alt}"]`);
+    const neuEl = el.querySelector<HTMLElement>(`[data-nr="${nr}"]`);
+    if (!altEl || !neuEl || istRuhig()) return;
+    altEl.classList.add(geht);
+    const uhr = window.setTimeout(() => altEl.classList.remove(geht), 320);
+    const massstab = el.getBoundingClientRect().width / BUEHNE_BREITE || 1;
+    for (const neu of neuEl.querySelectorAll<HTMLElement>("[data-k]")) {
+      const altKreis = altEl.querySelector<HTMLElement>(`[data-k="${neu.dataset.k ?? ""}"]`);
+      if (!altKreis) continue;
+      const a = altKreis.getBoundingClientRect();
+      const b = neu.getBoundingClientRect();
+      if (b.width === 0) continue;
+      const dx = (a.left - b.left) / massstab;
+      const dy = (a.top - b.top) / massstab;
+      const sc = a.width / b.width;
+      neu.classList.add(geflogen);
+      altKreis.classList.add(mitgenommen);
+      if (typeof neu.animate === "function" && (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5 || Math.abs(sc - 1) > 0.005)) {
+        neu.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${sc})` }, { transform: "none" }], {
+          duration: 800,
+          easing: "cubic-bezier(.2,.7,.2,1)",
+        });
+      }
+    }
+    return () => window.clearTimeout(uhr);
+  }, [nr]);
+
   const schalteVollbild = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
     else void wurzel.current?.requestFullscreen().catch(() => {});
@@ -169,6 +208,7 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
           >
             <div
               style={{ width: BUEHNE_BREITE, height: BUEHNE_HOEHE, transform: `scale(${skala})`, transformOrigin: "top left" }}
+              ref={buehne}
               className={`${k("buehne")} absolute left-0 top-0`}
             >
               {/* Alle Folien liegen im DOM, sichtbar ist nur die aktive (.aktiv). Beim Betreten starten ihre
@@ -180,6 +220,7 @@ export function Schau({ folien, start }: { folien: SchauFolie[]; start: number }
                   <div
                     key={f.id}
                     className={k("szene", aktiv && "aktiv")}
+                    data-nr={i + 1}
                     data-szene={eintrag ? f.szene?.id : undefined}
                     data-aktiv={aktiv ? "ja" : undefined}
                   >
