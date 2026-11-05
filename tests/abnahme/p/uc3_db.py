@@ -47,7 +47,8 @@ def abrechnung(lieferung: str, regelsatz: str) -> int:
     print(f"ausgeschlossen {aus}")
     print(f"fortgeschrieben {fort}")
     print(f"ergebnis_status {status}")
-    print(f"aufgehend {'ja' if gelesen == gezaehlt + nicht + aus else 'nein'}")
+    # gezaehlt enthält die E07-Fortschreibung; sie stammt nicht aus der eigenen Lieferung
+    print(f"aufgehend {'ja' if gelesen == gezaehlt - fort + nicht + aus else 'nein'}")
     return 0
 
 

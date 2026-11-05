@@ -253,11 +253,11 @@ ENTSCHEIDE = WURZEL / "docs" / "abnahme" / "entscheide.jsonl"
 LAEUFE = WURZEL / "docs" / "abnahme" / "laeufe"
 
 
-def belege_lesen() -> dict[str, dict]:
-    """Je Kriterium der Beleg mit der jüngsten Messzeit.
+def belege_lesen() -> dict[str, list[dict]]:
+    """Alle Belege je Kriterium, nach Messzeit aufsteigend (bei gleicher Zeit in Lesereihenfolge).
 
-    Quellen: `belege.jsonl` (von Hand) und alle abgeschlossenen Läufe (`laeufe/*.jsonl` mit Schlusszeile);
-    bei gleicher Zeit gewinnt der später gelesene.
+    Quellen: `belege.jsonl` (von Hand) und alle abgeschlossenen Läufe (`laeufe/*.jsonl` mit Schlusszeile).
+    Welcher gilt, entscheidet `beleg_fuer`: der jüngste zum aktuellen Wortlaut, nie einer zu einem alten.
     """
     quellen: list[list[dict]] = []
     if BELEGE.exists():
@@ -266,13 +266,13 @@ def belege_lesen() -> dict[str, dict]:
         zeilen = [json.loads(z) for z in datei.read_text().splitlines() if z.strip()]
         if zeilen and zeilen[-1].get("abgeschlossen"):
             quellen.append([z for z in zeilen if "id" in z])
-    jueng: dict[str, dict] = {}
+    alle: dict[str, list[dict]] = {}
     for quelle in quellen:
         for b in quelle:
-            alt = jueng.get(b["id"])
-            if not alt or str(b.get("zeit", "")) >= str(alt.get("zeit", "")):
-                jueng[b["id"]] = b
-    return jueng
+            alle.setdefault(b["id"], []).append(b)
+    for liste in alle.values():
+        liste.sort(key=lambda b: str(b.get("zeit", "")))
+    return alle
 
 
 def git(*args: str) -> subprocess.CompletedProcess:
@@ -305,15 +305,25 @@ def entscheide_lesen() -> dict[str, dict]:
     return {e["id"]: e for e in (json.loads(z) for z in ENTSCHEIDE.read_text().splitlines() if z.strip())}
 
 
-def beleg_fuer(k: dict, belege: dict[str, dict]) -> dict | None:
-    """Beleg zur ID; verschiebt sich die laufende Nummer, wird er über Issue und Hash wiedergefunden."""
-    b = belege.get(k["id"])
-    if b and b.get("hash") == k["hash"]:
-        return b
-    passend = [
-        x for x in belege.values() if x.get("hash") == k["hash"] and x["id"].split("-")[0] == str(k["iid"])
-    ]
-    return max(passend, key=lambda x: str(x.get("zeit", ""))) if passend else b
+def beleg_fuer(k: dict, belege: dict[str, list[dict]]) -> dict | None:
+    """Der jüngste Beleg zum aktuellen Wortlaut (Hash).
+
+    Verschiebt sich die laufende Nummer, wird er über Issue und Hash wiedergefunden. Gibt es keinen zum
+    aktuellen Wortlaut, gilt der jüngste überhaupt (die Matrix zeigt dann „Kriterium geändert“).
+    """
+    eigene = belege.get(k["id"], [])
+    passend = [b for b in eigene if b.get("hash") == k["hash"]]
+    if not passend:
+        passend = [
+            b
+            for kid, liste in belege.items()
+            if kid.split("-")[0] == str(k["iid"])
+            for b in liste
+            if b.get("hash") == k["hash"]
+        ]
+    if passend:
+        return max(passend, key=lambda b: str(b.get("zeit", "")))
+    return eigene[-1] if eigene else None
 
 
 def ist_vorschlag(b: dict) -> bool:
@@ -322,7 +332,7 @@ def ist_vorschlag(b: dict) -> bool:
     return not (pruefer.startswith("lauf ") or (pruefer.startswith(ABNAHME_SESSION) and "/" not in pruefer))
 
 
-def stand(k: dict, belege: dict[str, dict], ziel: str | None = None) -> tuple[str, dict | None, str]:
+def stand(k: dict, belege: dict[str, list[dict]], ziel: str | None = None) -> tuple[str, dict | None, str]:
     """Stand eines Kriteriums. `ziel` ist der main-Stand, für den geurteilt wird (Standard origin/main)."""
     b = beleg_fuer(k, belege)
     gemessen, grund = "nicht geprüft", ""
@@ -356,7 +366,7 @@ TEILE = ("UC3", "E6", "UC4", "UC1", "UC2", "E5", "E0", "E4")
 TOR_TEILE = ("UC3", "E6")
 
 
-def zaehlen(zeilen: list[dict], belege: dict[str, dict]) -> dict[str, Counter]:
+def zaehlen(zeilen: list[dict], belege: dict[str, list[dict]]) -> dict[str, Counter]:
     """Zähler je Bereich (Matrix-Datei) und je Teil (E6 und UC4 getrennt von E0).
 
     Zusatzschlüssel: `fehlt` (nicht bestanden, weil etwas auf main fehlt) und `geschlossen` (aus geschlossenen
@@ -364,11 +374,13 @@ def zaehlen(zeilen: list[dict], belege: dict[str, dict]) -> dict[str, Counter]:
     """
     z: dict[str, Counter] = {b: Counter() for b in (*BEREICHE, *TEILE)}
     for k in zeilen:
-        s, b, _ = stand(k, belege)
+        s, b, grund = stand(k, belege)
         for schluessel in (k["bereich"], k["teil"]):
             z[schluessel][s] += 1
             if s == "nicht bestanden" and b and b.get("befund_art") == "fehlt":
                 z[schluessel]["fehlt"] += 1
+            if s == "nicht geprüft" and b and b.get("stand") == "bestanden" and "veraltet" in grund:
+                z[schluessel]["veraltet_ok"] += 1
             if k["state"] == "closed":
                 z[schluessel]["geschlossen"] += 1
     return z
@@ -377,7 +389,8 @@ def zaehlen(zeilen: list[dict], belege: dict[str, dict]) -> dict[str, Counter]:
 def zaehler_text(z: dict[str, Counter], sha: str, zeit: str) -> str:
     teile = [
         f"Zähler {zeit}, geurteilt für main {sha}:",
-        "bestanden / nicht bestanden (davon fehlt auf main) / nicht geprüft / nach Abgabe",
+        "bestanden / nicht bestanden (davon fehlt auf main) /"
+        " nicht geprüft (davon veraltet, zuletzt bestanden) / nach Abgabe",
     ]
     for b in (*BEREICHE, *TEILE):
         c = z[b]
@@ -386,13 +399,14 @@ def zaehler_text(z: dict[str, Counter], sha: str, zeit: str) -> str:
             continue
         name = f"  Teil {b}" if b in TEILE else b
         teile.append(
-            f"{name} {c['bestanden']} / {c['nicht bestanden']} ({c['fehlt']}) / {c['nicht geprüft']} / "
+            f"{name} {c['bestanden']} / {c['nicht bestanden']} ({c['fehlt']}) / "
+            f"{c['nicht geprüft']} ({c['veraltet_ok']}) / "
             f"{c['nach Abgabe']} (von {gesamt}, {c['geschlossen']} aus geschlossenen Issues)"
         )
     return "\n".join(teile)
 
 
-def tor(zeilen: list[dict], belege: dict[str, dict]) -> int:
+def tor(zeilen: list[dict], belege: dict[str, list[dict]]) -> int:
     """Tor vor dem Merge-Stopp für UC3 und E6.
 
     Jedes Kriterium ist bestanden, verschoben oder per Entscheid (Lead oder Owner, mit Quelle in
@@ -440,7 +454,7 @@ def beleg_zelle(b: dict | None, grund: str) -> str:
 RASTER = WURZEL / "docs" / "abnahme" / "raster-uc3.csv"
 
 
-def raster_tabelle(zeilen: list[dict], belege: dict[str, dict]) -> list[str]:
+def raster_tabelle(zeilen: list[dict], belege: dict[str, list[dict]]) -> list[str]:
     """Kurztabelle je Bewertungsbereich (UC3-Raster, 6 x 20 Punkte); Zuordnung je Issue aus raster-uc3.csv."""
     if not RASTER.exists():
         return []
@@ -468,7 +482,7 @@ def raster_tabelle(zeilen: list[dict], belege: dict[str, dict]) -> list[str]:
     return [*out, ""]
 
 
-def matrix_schreiben(zeilen: list[dict], belege: dict[str, dict], sha: str, zeit: str) -> None:
+def matrix_schreiben(zeilen: list[dict], belege: dict[str, list[dict]], sha: str, zeit: str) -> None:
     z = zaehlen(zeilen, belege)
     for ber in BEREICHE:
         c = z[ber]
@@ -550,7 +564,7 @@ def beleg_pruefen(b: dict, bekannt: dict[str, dict]) -> list[str]:
     return fehler
 
 
-def abhaken(kid: str, belege: dict[str, dict], ja: bool) -> int:
+def abhaken(kid: str, belege: dict[str, list[dict]], ja: bool) -> int:
     """Hakt eine Checkbox ab, nur mit gültigem Beleg; liest das Issue dafür immer frisch (nie aus dem Cache).
 
     Wiederholbar: ist der Haken schon gesetzt, wird nur ein fehlender Kommentar nachgeholt (Marke je Beleg).
@@ -599,7 +613,7 @@ def abhaken(kid: str, belege: dict[str, dict], ja: bool) -> int:
     return 0 if neu_k["abgehakt"] and andere == vorher else 1
 
 
-def haken_pruefen(zeilen: list[dict], belege: dict[str, dict], ja: bool) -> int:
+def haken_pruefen(zeilen: list[dict], belege: dict[str, list[dict]], ja: bool) -> int:
     """Haken in offenen Issues, die nicht (mehr) belegt sind, werden entfernt, mit Kommentar.
 
     Entfernt wird ein Haken, wenn es nie einen Abnahme-Beleg gab (Bau-Lane hakt nie selbst ab) oder wenn der
@@ -642,7 +656,7 @@ def haken_pruefen(zeilen: list[dict], belege: dict[str, dict], ja: bool) -> int:
     return 0
 
 
-def befunde(zeilen: list[dict], belege: dict[str, dict], wahl: str | None, ja: bool) -> int:
+def befunde(zeilen: list[dict], belege: dict[str, list[dict]], wahl: str | None, ja: bool) -> int:
     """Ein Kommentar je Issue mit allen nicht bestandenen Kriterien; nur wenn sich der Befund geändert hat."""
     je_issue: dict[int, list[tuple[dict, dict]]] = {}
     for k in zeilen:

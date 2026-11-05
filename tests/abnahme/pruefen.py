@@ -195,9 +195,9 @@ def db_umgebung(datei: Path) -> str:
     return ""
 
 
-def hand_teil(p: dict, k: dict, belege: dict[str, dict], sha: str) -> dict:
+def hand_teil(p: dict, k: dict, belege: dict[str, list[dict]], sha: str) -> dict:
     """Hand-Prüfsatz: zählt als voller Teil, wenn der Prüfer einen gültigen Hand-Beleg abgelegt hat."""
-    b = belege.get(p["id"])
+    b = matrix.beleg_fuer(k, belege)
     leer = {"exit": None, "text": ""}
     if not b or b.get("art") != "hand" or b.get("hash") != k["hash"] or matrix.ist_vorschlag(b):
         return leer | {"stand": "nicht geprüft", "grund": f"Hand-Prüfung offen: {p['beschreibung'][:200]}"}
