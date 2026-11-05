@@ -23,7 +23,7 @@ Herkunft: Lieferungen August 2024 bis Juli 2026, Protokoll der Freigaben
 
 ## Sprechernotizen
 
-Das ist die eine Idee dahinter, und sie gilt für alle drei Aufgaben. Drei Rollen, sauber getrennt.
+Drei Rollen, sauber getrennt, in allen drei Aufgaben.
 [→] Die KI versteht, was jemand in einem Satz will, und schreibt daraus einen Vorschlag. Mehr darf sie nicht.
 [→] Wirksam wird ein Vorschlag erst mit dem Vor- und Nachnamen eines Menschen. Das steht mit Uhrzeit im Protokoll. „Team“ als Name lehnt das Programm ab.
 [→] Und gerechnet wird ohne KI. Zwei Läufe mit denselben Daten ergeben dieselben Zahlen. Eine Zahl, die jedes Mal anders herauskommt, wäre für eine Statistik wertlos.

@@ -12,7 +12,7 @@ belege: [F16, F28]
 
 | Zahl | Text |
 |---|---|
-| 8,4 min | für alle 24 Lieferungen nach den alten Regeln, gemessen |
+| 8,4 min | für alle 24 Lieferungen nach den alten Regeln, im schnellsten Lauf |
 | 0 | Modellaufrufe im Monatslauf und bei Fragen an die Daten |
 | 72 von 72 | Wiederholungen mit genau demselben Ergebnis |
 
@@ -22,4 +22,4 @@ Herkunft: Messung auf einer frischen Datenbank am 5. November 2026, Abnahmeberic
 
 ## Sprechernotizen
 
-Jetzt zu den Zahlen, nach denen Sie vermutlich fragen wollen. Alle 24 Monatslieferungen, zusammen gut zehn Millionen Zeilen, rechnet das Programm nach den alten Regeln in 8,4 Minuten, nach den neuen in knapp 13 Minuten. Gemessen auf einer frischen Datenbank ohne Netz. Dabei fällt kein einziger Modellaufruf an, auch nicht bei einer Frage an die Daten. Und wir haben 72 Monatsläufe wiederholt: 72-mal genau dasselbe Ergebnis. Was ich Ihnen nicht sagen kann, ist die Ersparnis. Wir wissen nicht, wie lange der Prozess bisher dauert. Darum frage ich Sie: Wie lange dauert das bei Ihnen heute?
+Alle 24 Monatslieferungen, zusammen gut zehn Millionen Zeilen, rechnet das Programm nach den alten Regeln in 8,4 Minuten, nach den neuen in knapp 13 Minuten. Gemessen auf einer frischen Datenbank ohne Netz. Unter Last waren es rund 13 und knapp 20 Minuten. Dabei fällt kein einziger Modellaufruf an, auch nicht bei einer Frage an die Daten. Und wir haben 72 Monatsläufe wiederholt: 72-mal genau dasselbe Ergebnis. Was ich Ihnen nicht sagen kann, ist die Ersparnis. Wir wissen nicht, wie lange der Prozess bisher dauert. Darum frage ich Sie: Wie lange dauert das bei Ihnen heute?

@@ -7,7 +7,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { bereiche } from "../../shared/ui/src/ucs";
 
-const ROUTEN: string[] = ["/", ...bereiche.map((uc) => uc.route), "/praesentation", "/_bausteine"];
+const ROUTEN: string[] = ["/", ...bereiche.map((uc) => uc.route), "/praesentation", "/praesentation/management", "/_bausteine"];
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 const HART = new Set(["critical", "serious"]);
 

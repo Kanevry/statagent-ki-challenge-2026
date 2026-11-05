@@ -4,18 +4,18 @@ Jedes Bild wird von einer zweiten Person oder einem unabhängigen Prüfer angese
 
 | Bild | Prüfer | Datum | Sichtbare Tokens/Schlüssel (ja/nein) | Echte Gesundheits- oder Sozialdaten (ja/nein) | Befund | Status (offen/ok) |
 |---|---|---|---|---|---|---|
-| SC01 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
-| SC02 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
-| SC03 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Alter /uc4-Stand: abgeschnittenes Feld, „Text: gpt-5-4-mini“, Lotse ohne Bedingung. Neu aufnehmen nach !192 und !210. Geprüft bei 1000 px Breite | offen |
-| SC04 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
-| SC05 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
-| SC06 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
-| SC07 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
-| SC08 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
-| SC09 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
-| SC10 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
-| SC11 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Alter /uc4-Stand: abgeschnittenes Feld, „Text: gpt-5-4-mini“, Lotse ohne Bedingung. Neu aufnehmen nach !192 und !210. Geprüft bei 1000 px Breite | offen |
-| SC12 | Agent ui-regie-e6, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC01 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC02 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC03 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Alter /uc4-Stand: abgeschnittenes Feld, „Text: gpt-5-4-mini“, Lotse ohne Bedingung. Neu aufnehmen nach !192 und !210. Geprüft bei 1000 px Breite | offen |
+| SC04 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC05 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC06 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC07 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC08 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC09 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC10 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
+| SC11 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Alter /uc4-Stand: abgeschnittenes Feld, „Text: gpt-5-4-mini“, Lotse ohne Bedingung. Neu aufnehmen nach !192 und !210. Geprüft bei 1000 px Breite | offen |
+| SC12 | Agent UI-Regie, nicht Mensch | 2026-11-05 | nein | nein, Daten synthetisch laut Aufgabe | Geprüft bei 1000 px Breite, Kleinstschrift nicht lesbar geprüft | ok |
 
 Offene Befunde: 2 (SC03, SC11)
 

@@ -71,7 +71,7 @@ Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „
 1. `uv run uc3 vorschlag zeigen 24`: Regel-Unterschied und Zahlen vorher und nachher von Auftrag 1.
 2. `uv run uc3 protokoll --zeigen`, Abschnitt 2: alle drei Aufträge mit Status „freigegeben“ und Name.
 
-- Sagt Bernhard: „Die drei Aufträge der Aufgabe habe ich der Maschine in Sätzen gegeben. Sie schrieb Vorschläge, wirksam wurden sie erst mit meinem Namen.“
+- Sagt Bernhard (Entwurf, Wortlaut stimmt er um 07:00 ab, FAQ Frage 11): „Die drei Aufträge der Aufgabe habe ich in Sätzen gestellt, die Agenten schrieben Vorschläge. Die Freigaben hat in meinem Auftrag eine KI-Sitzung eingegeben, ich habe sie um 18:22 mit meinem Namen bestätigt. Das steht offen im Protokoll.“
 - Sagt Bernhard (bei 1): „Der Gesamtbestand bleibt bei 392.236. Die Kategorien verschieben sich, zum Beispiel Angestellte von 0 auf 236.961.“
 
 **Teil 2, live per Sprache (6:00–9:30):** Laut Aufgabenstellung gibt die Jury eine kleine, unbekannte Änderung vor. Bernhard fragt: „Nennen Sie mir eine Regel, die ich jetzt ändern soll.“ Er wiederholt den Wunsch der Jury in einem Satz und tippt diesen Satz. Die fünf geübten Änderungen im Fragenkatalog Teil B decken die naheliegenden Wünsche ab (Altersgrenze, Geburtsmonat 13, Schwelle Bestandsrückgang, Spaltentausch, Gegenprobe). Nennt die Jury nichts, nimmt Bernhard B2.
@@ -122,12 +122,14 @@ Drei Anfragen der Aufgabenstellung, je etwa 25 Sekunden: Zeitreihe, Männer und 
 
 Zusatz (12:00–13:00), eine ehrliche Absage, nur wenn Zeit bleibt: „Entwicklung im Bau seit August 2024“. Das Programm sagt ab, weil die Branchen ab 2025 nach ÖNACE 2025 gezählt werden (F13). Sagt Bernhard: „Hier sagt das Programm ehrlich nein, statt zwei verschiedene Einteilungen zu vergleichen.“
 
-**Nicht vorführen:** Alter wie „unter 25“. Die Frage liefert still die Gesamtzahl 399.027, ohne Hinweis. Gemeldet an die UC3-Lane.
+**Nicht vorführen:**
+
+- Alter wie „unter 25“. Die Frage liefert still die Gesamtzahl 399.027, ohne Hinweis. Gemeldet an die UC3-Lane.
+- Was eine Zahl liefert, aber nicht gegen das Orakel geprüft ist: Branchen in Umgangssprache („Gastronomie“, „Gesundheitswesen“, „Handel“), „freie Dienstverträge“, Zeiträume („von März bis Juni 2025“).
 
 **Stand der freien Fragen** (gemessen 05.11.2026 auf dem Testserver, Stand `main` `fd936b3`, um 06:45 neu messen):
 
 - Sagt ehrlich ab: zwei Werte eines Merkmals („Wien und Tirol“, „Arbeiter und Angestellte“), „Durchschnittsalter“, Fluktuation mit Filter („in Wien“) oder für August 2024, Fragen nach einer einzelnen Person.
-- Liefert eine Zahl, nicht gegen das Orakel geprüft: Branchen in Umgangssprache („Gastronomie“, „Gesundheitswesen“, „Handel“), „freie Dienstverträge“, Zeiträume („von März bis Juni 2025“).
 - Holpert: „Welche Branche hat die höchste Fluktuation“ sagt ab, aber mit „Das Wort ‚hat‘ kenne ich nicht“.
 
 Fragt die Jury so etwas, sagt Bernhard: „Das zeige ich Ihnen mit einer Abfrage aus dem Katalog“ und nimmt die passende SQL aus Teil A oder eine Frage aus der Tabelle.

@@ -27,5 +27,5 @@ Herkunft: Vergleich mit dem Bericht des Veranstalters für August 2024 und unabh
 
 ## Sprechernotizen
 
-Woher wissen wir, dass das Programm richtig rechnet? Das ist die Frage, die ich an Ihrer Stelle stellen würde. Der Veranstalter hat einen offiziellen Bericht für August 2024 mitgegeben: 13 Tabellen, 2.880 Zahlen. StatAgent rechnet ihn aus den Rohdaten selbst nach, und eine zweite Rechnung ohne unseren Code prüft das gegen. Alle 2.880 stimmen, null Abweichungen.
+Ob das Programm richtig rechnet, lässt sich prüfen. Der Veranstalter hat einen offiziellen Bericht für August 2024 mitgegeben: 13 Tabellen, 2.880 Zahlen. StatAgent rechnet ihn aus den Rohdaten selbst nach, und eine zweite Rechnung ohne unseren Code prüft das gegen. Alle 2.880 stimmen, null Abweichungen.
 [→] Das ist ein Monat. Für die anderen 23 gibt es keinen Vergleich, das sage ich Ihnen offen. Dort wachen 24 Prüfregeln, und zwei Monate haben sie angehalten: März und Oktober 2025.

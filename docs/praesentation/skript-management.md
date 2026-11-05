@@ -22,13 +22,13 @@ Belege: F11, F17.
 
 ## Folie 3 · StatAgent veröffentlicht nicht, er hält an und fragt nach. · 2:30–3:15
 
-> Und jetzt der Unterschied, um den es uns geht. StatAgent veröffentlicht diesen Monat nicht. Er hält an und schreibt eine Rückfrage an die Fachabteilung. Bis zur Antwort übernimmt er 77.746 fehlende Verhältnisse aus dem September und kennzeichnet den Monat als vorläufig. Gelöscht wird nichts, überschrieben wird nichts. Im November sind 78.733 der 78.949 fehlenden wieder da. Das Programm hat nichts entschieden. Es hat gemerkt, dass etwas nicht stimmt, und einem Menschen die Frage gestellt.
+> StatAgent veröffentlicht diesen Monat nicht. Er hält an und schreibt eine Rückfrage an die Fachabteilung. Bis zur Antwort übernimmt er 77.746 fehlende Verhältnisse aus dem September und kennzeichnet den Monat als vorläufig. Gelöscht wird nichts, überschrieben wird nichts. Im November sind 78.733 der 78.949 fehlenden wieder da. Das Programm hat nichts entschieden. Es hat gemerkt, dass etwas nicht stimmt, und einem Menschen die Frage gestellt.
 
 Belege: F11.
 
 ## Folie 4 · Den offiziellen Bericht nachgerechnet: 2.880 von 2.880 Zahlen stimmen. · 3:15–4:15
 
-> Woher wissen wir, dass das Programm richtig rechnet? Das ist die Frage, die ich an Ihrer Stelle stellen würde. Der Veranstalter hat einen offiziellen Bericht für August 2024 mitgegeben: 13 Tabellen, 2.880 Zahlen. StatAgent rechnet ihn aus den Rohdaten selbst nach, und eine zweite Rechnung ohne unseren Code prüft das gegen. Alle 2.880 stimmen, null Abweichungen.
+> Ob das Programm richtig rechnet, lässt sich prüfen. Der Veranstalter hat einen offiziellen Bericht für August 2024 mitgegeben: 13 Tabellen, 2.880 Zahlen. StatAgent rechnet ihn aus den Rohdaten selbst nach, und eine zweite Rechnung ohne unseren Code prüft das gegen. Alle 2.880 stimmen, null Abweichungen.
 >
 > → Das ist ein Monat. Für die anderen 23 gibt es keinen Vergleich, das sage ich Ihnen offen. Dort wachen 24 Prüfregeln, und zwei Monate haben sie angehalten: März und Oktober 2025.
 
@@ -48,7 +48,7 @@ Belege: F4, F5, F7, F8, F9.
 
 ## Folie 6 · Die KI versteht, ein Mensch gibt frei, das Programm rechnet. · 5:15–6:15
 
-> Das ist die eine Idee dahinter, und sie gilt für alle drei Aufgaben. Drei Rollen, sauber getrennt.
+> Drei Rollen, sauber getrennt, in allen drei Aufgaben.
 >
 > → Die KI versteht, was jemand in einem Satz will, und schreibt daraus einen Vorschlag. Mehr darf sie nicht.
 >
@@ -58,15 +58,15 @@ Belege: F4, F5, F7, F8, F9.
 
 Belege: F3, F26.
 
-## Folie 7 · Drei Aufträge in Alltagssprache, am selben Tag umgesetzt. · 6:15–7:15
+## Folie 7 · Drei Aufträge, am selben Tag umgesetzt. · 6:15–7:15
 
-> Die Aufgabe stellt drei Änderungsaufträge, zum Beispiel: Dienstvertrag und freien Dienstvertrag zusammenfassen. Die habe ich der Maschine in Sätzen gegeben. Sie schrieb Vorschläge, mit den Zahlen vorher und nachher. Wirksam wurden sie erst nach Prüfung und mit Namen. Ein Vorschlag braucht beim Modell drei bis neun Sekunden und kostet zum Listenpreis rund einen Cent. Ehrlich dazu: Nicht jeder Satz sitzt beim ersten Mal. Zwei der drei Aufträge haben mehrere Anläufe gebraucht. Alle Versuche rund um die drei Aufträge zusammen haben rund 40 Cent gekostet. Die Kosten sind also nicht das Problem. Die Arbeit ist die Prüfung durch den Menschen.
+> Die Aufgabe stellt drei Änderungsaufträge, zum Beispiel: Dienstvertrag und freien Dienstvertrag zusammenfassen. Die habe ich in Sätzen gestellt, die Agenten schrieben Vorschläge. Die Freigaben hat in meinem Auftrag eine KI-Sitzung eingegeben, ich habe sie um 18:22 mit meinem Namen bestätigt. Das steht offen im Protokoll. (Entwurf: Wortlaut stimmt Bernhard um 07:00 ab, FAQ Frage 11.) Ein Vorschlag braucht beim Modell drei bis neun Sekunden und kostet zum Listenpreis rund einen Cent. Nicht jeder Satz sitzt beim ersten Mal. Zwei der drei Aufträge haben mehrere Anläufe gebraucht. Alle Versuche rund um die drei Aufträge zusammen haben rund 40 Cent gekostet.
 
 Belege: F19, F26, F27.
 
 ## Folie 8 · Gerechnet wird ohne KI, und das Ergebnis ist jedes Mal gleich. · 7:15–8:15
 
-> Jetzt zu den Zahlen, nach denen Sie vermutlich fragen wollen. Alle 24 Monatslieferungen, zusammen gut zehn Millionen Zeilen, rechnet das Programm nach den alten Regeln in 8,4 Minuten, nach den neuen in knapp 13 Minuten. Gemessen auf einer frischen Datenbank ohne Netz. Dabei fällt kein einziger Modellaufruf an, auch nicht bei einer Frage an die Daten. Und wir haben 72 Monatsläufe wiederholt: 72-mal genau dasselbe Ergebnis. Was ich Ihnen nicht sagen kann, ist die Ersparnis. Wir wissen nicht, wie lange der Prozess bisher dauert. Darum frage ich Sie: Wie lange dauert das bei Ihnen heute?
+> Alle 24 Monatslieferungen, zusammen gut zehn Millionen Zeilen, rechnet das Programm nach den alten Regeln in 8,4 Minuten, nach den neuen in knapp 13 Minuten. Gemessen auf einer frischen Datenbank ohne Netz. Unter Last waren es rund 13 und knapp 20 Minuten. Dabei fällt kein einziger Modellaufruf an, auch nicht bei einer Frage an die Daten. Und wir haben 72 Monatsläufe wiederholt: 72-mal genau dasselbe Ergebnis. Was ich Ihnen nicht sagen kann, ist die Ersparnis. Wir wissen nicht, wie lange der Prozess bisher dauert. Darum frage ich Sie: Wie lange dauert das bei Ihnen heute?
 
 Belege: F16, F28.
 
@@ -84,7 +84,7 @@ Belege: F18.
 
 ## Folie 10 · Die Verantwortung bleibt beim Menschen. · 9:00–9:45
 
-> Drei Sätze zur Verantwortung, weil das am Ende der Punkt ist. Jede Regeländerung und jede Lieferung trägt einen Vor- und Nachnamen und einen Zeitpunkt. Ist ein Monat veröffentlicht, bleibt seine Zahl, und Abweichungen stehen im Bericht, statt dass wir etwas überschreiben. Und das Modell sieht keine Einzeldaten, nur Regeln und Summen. Die Verantwortung für jede Zahl bleibt bei Menschen.
+> Drei Sätze zur Verantwortung. Jede Regeländerung und jede Lieferung trägt einen Vor- und Nachnamen und einen Zeitpunkt. Ist ein Monat veröffentlicht, bleibt seine Zahl, und Abweichungen stehen im Bericht, statt dass wir etwas überschreiben. Und das Modell sieht keine Einzeldaten, nur Regeln und Summen. Die Verantwortung für jede Zahl bleibt bei Menschen.
 
 Belege: keine Zahl.
 
@@ -102,13 +102,13 @@ Geschätzt mit 130 Wörtern je Minute. Gemessen wird in der Probe (`probe.md`).
 |---|---|---|---|
 | 1 | 60 | 77 | 36 |
 | 2 | 90 | 64 | 30 |
-| 3 | 45 | 74 | 34 |
-| 4 | 60 | 87 | 40 |
+| 3 | 45 | 65 | 30 |
+| 4 | 60 | 76 | 35 |
 | 5 | 60 | 64 | 30 |
-| 6 | 60 | 85 | 39 |
+| 6 | 60 | 76 | 35 |
 | 7 | 60 | 99 | 46 |
 | 8 | 60 | 95 | 44 |
 | 9 | 45 | 50 | 23 |
-| 10 | 45 | 59 | 27 |
+| 10 | 45 | 52 | 24 |
 | 11 | 15 | 17 | 8 |
-| **Summe** | **600** | **771** | **357** |
+| **Summe** | **600** | **735** | **341** |

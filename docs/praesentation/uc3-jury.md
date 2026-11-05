@@ -55,7 +55,7 @@ Die Runde will die Geschichte, den Mehrwert und die Zahlen. Eine Live-Demo gibt 
 | 3:15 | Den offiziellen Bericht nachgerechnet: 2.880 von 2.880 Zahlen stimmen. | Warum man der Zahl traut |
 | 4:15 | Acht Arten von Fehlern gefunden, nichts gelöscht. | Die Daten sind nicht sauber, das Programm weiß das |
 | 5:15 | Die KI versteht, ein Mensch gibt frei, das Programm rechnet. | Die eine Idee |
-| 6:15 | Drei Aufträge in Alltagssprache, am selben Tag umgesetzt. | Änderungen kosten wenig |
+| 6:15 | Drei Aufträge, am selben Tag umgesetzt. | Änderungen kosten wenig |
 | 7:15 | Gerechnet wird ohne KI. | Unsere gemessene Dauer und die offene Frage nach Ihrer |
 | 8:15 | Eine Frage, drei Antworten: Statistik, Simulator, Lotse. | Ein Kern für alle drei. Nur wenn die Wien-Frage um 06:45 echt läuft |
 | 9:00 | Die Verantwortung bleibt beim Menschen. | Name, Zeit, keine Einzeldaten |

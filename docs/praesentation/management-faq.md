@@ -37,7 +37,7 @@ Beleg: `README.md`, Abschnitt Lizenzen. Dauer einer Einführung: nicht gemessen.
 | Auftrag 1 (Vorschlag uc3/24) | 2 | 13.447 und 273 | 3,3 s | 1,0 bis 1,1 Cent |
 | Auftrag 2 (Vorschlag uc3/25) | 2 | 13.604 und 510 | 5,2 s | 1,1 bis 1,2 Cent |
 | Auftrag 3 (Vorschlag uc3/26) | 2 | 13.789 und 802 | 8,8 s | 1,3 bis 1,4 Cent |
-| Alle Anläufe rund um die drei Aufträge (05.11.2026) | 50 | 457.462 und 19.342 | | 39 bis 43 Cent |
+| Alle Anläufe rund um die drei Aufträge (05.11.2026) | 50 | 457.462 und 19.342 | | 39 bis 42 Cent |
 | Typischer Lauf (Median) aus 246 Läufen in den Proben | 2 | 15.380 und 320 | 3,0 s | 1,2 bis 1,3 Cent |
 
 - **Preis:** Azure-Preisliste (`prices.azure.com`, Region West Europe, abgerufen 05.11.2026): GPT 5.4 mini, je Million Tokens, Global 0,6733 € hinein und 4,0397 € heraus, Data Zone 0,7406 € und 4,4436 €. Die Spanne oben kommt aus diesen zwei Preisen, welcher für unsere Bereitstellung gilt, wissen wir nicht. Den Zugang stellt der Veranstalter.
@@ -46,7 +46,7 @@ Beleg: `README.md`, Abschnitt Lizenzen. Dauer einer Einführung: nicht gemessen.
 - **Monatliche Betriebskosten:** nicht gemessen.
 
 **7. Wie viel Zeit spart das Statistik-Team?**
-„Das wissen wir nicht, wir kennen die Dauer Ihres Prozesses nicht. Wie lange dauert das bei Ihnen heute? Von uns kann ich Ihnen die gemessene Dauer sagen: Alle 24 Lieferungen dauern bei uns 8,4 Minuten nach den alten Regeln und knapp 13 Minuten nach den neuen, gemessen auf einer frischen Datenbank ohne Netz.“
+„Das wissen wir nicht, wir kennen die Dauer Ihres Prozesses nicht. Wie lange dauert das bei Ihnen heute? Von uns kann ich Ihnen die gemessene Dauer sagen: Alle 24 Lieferungen dauern bei uns 8,4 Minuten nach den alten Regeln und knapp 13 Minuten nach den neuen, gemessen auf einer frischen Datenbank ohne Netz. Unter Last waren es rund 13 und knapp 20 Minuten.“
 Beleg: frische Datenbank ohne Netz, Stand `f7b985e`: Regelsatz v1 504 s, v2 770 s; frischer Klon unter Last, main `87de2b0`: 793 s und 1169 s (F28). Zeitersparnis: nicht gemessen. Keine Schätzung nennen.
 
 **8. Wie schnell kommt die Antwort auf eine Datenfrage?**
@@ -65,7 +65,7 @@ Beleg: `abgabe/modelle.md`; 72 Wiederholungsläufe, 72-mal derselbe Hash (`abgab
 
 **11. Wer hat freigegeben, Mensch oder KI?**
 *Wortlaut stimmt Bernhard um 07:00 ab. Bis dahin nicht verwenden.* Der Entwurf folgt dem Protokoll:
-„Regelsatz v1 und die 22 veröffentlichten Monate habe ich selbst freigegeben. Die Vorschläge 24 bis 26 und den Regelsatz v2 hat in meinem Auftrag eine KI-Sitzung eingegeben, das habe ich um 18:22 bestätigt, mit meinem Namen. Das steht offen im Protokoll. Die Ministeriums-Lieferung habe ich selbst freigegeben.“
+„Regelsatz v1 und die 22 veröffentlichten Monate habe ich selbst freigegeben. Die Freigaben der Vorschläge 24 bis 26 und des Regelsatzes v2 hat in meinem Auftrag eine KI-Sitzung eingegeben, das habe ich um 18:22 bestätigt, mit meinem Namen. Das steht offen im Protokoll. Die Ministeriums-Lieferung habe ich selbst freigegeben.“
 Beleg: `abgabe/protokoll.md`, Abschnitt „Hinweise zu den Freigaben“ und Abschnitt 1; Commit `2ba95e5`.
 
 **12. Was haben Sie an den Daten korrigiert?**
@@ -81,7 +81,7 @@ Beleg: `kriterien-karte.md`, Fragenkatalog C14. Vor dem Freeze mit `main` abglei
 **14. Muss das nicht lokal und offline laufen?**
 „Es läuft lokal wie gefordert, und zusätzlich auf einem Server, den wir selbst betreiben. Sie können es selbst nachbauen. Die Abgabezahlen sind auf der eigenen Datenbank gerechnet, online läuft nur die Vorführung.“
 Dazu, wenn gefragt: „Der ganze Weg ab einem frischen Klon dauerte 36 Minuten, auf einer frischen Datenbank im vorhandenen Klon 24 Minuten, jeweils mit den Datentests.“
-Beleg: Messung des Jury-Wegs durch die Review-Bank am 05.11.2026, frischer Klon auf main `87de2b0`, ohne Netz: Hash und Regelstand 24 von 24 je Regelsatz, 2.880 Zellen ohne Abweichung, Ministerium 32.741, `pruefe-abgabe` Exit 0 (F30).
+Beleg: Messung des Jury-Wegs durch die Review-Bank am 05.11.2026, frischer Klon auf main `87de2b0`. Die Läufe liefen ohne Netz, Pakete und Docker-Image lagen vorab da. Hash und Regelstand 24 von 24 je Regelsatz, 2.880 Zellen ohne Abweichung, Ministerium 32.741, `pruefe-abgabe` Exit 0 (F30).
 Nur wenn gefragt: Neu erzeugte Sheets und Berichte weichen byteweise ab (Status, Lauf-IDs, Kommentare), die Zellwerte nicht.
 
 **15. Was passiert, wenn das Modell ausfällt?**

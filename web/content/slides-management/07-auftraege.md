@@ -8,7 +8,7 @@ dauer_s: 60
 belege: [F19, F26, F27]
 ---
 
-# Drei Aufträge in Alltagssprache, am selben Tag umgesetzt.
+# Drei Aufträge, am selben Tag umgesetzt.
 
 | Zahl | Text |
 |---|---|
@@ -20,4 +20,4 @@ Herkunft: Protokoll der Änderungen, Protokoll der Modellaufrufe, Azure-Preislis
 
 ## Sprechernotizen
 
-Die Aufgabe stellt drei Änderungsaufträge, zum Beispiel: Dienstvertrag und freien Dienstvertrag zusammenfassen. Die habe ich der Maschine in Sätzen gegeben. Sie schrieb Vorschläge, mit den Zahlen vorher und nachher. Wirksam wurden sie erst nach Prüfung und mit Namen. Ein Vorschlag braucht beim Modell drei bis neun Sekunden und kostet zum Listenpreis rund einen Cent. Ehrlich dazu: Nicht jeder Satz sitzt beim ersten Mal. Zwei der drei Aufträge haben mehrere Anläufe gebraucht. Alle Versuche rund um die drei Aufträge zusammen haben rund 40 Cent gekostet. Die Kosten sind also nicht das Problem. Die Arbeit ist die Prüfung durch den Menschen.
+Die Aufgabe stellt drei Änderungsaufträge, zum Beispiel: Dienstvertrag und freien Dienstvertrag zusammenfassen. Die habe ich in Sätzen gestellt, die Agenten schrieben Vorschläge. Die Freigaben hat in meinem Auftrag eine KI-Sitzung eingegeben, ich habe sie um 18:22 mit meinem Namen bestätigt. Das steht offen im Protokoll. (Entwurf: Wortlaut stimmt Bernhard um 07:00 ab, FAQ Frage 11.) Ein Vorschlag braucht beim Modell drei bis neun Sekunden und kostet zum Listenpreis rund einen Cent. Nicht jeder Satz sitzt beim ersten Mal. Zwei der drei Aufträge haben mehrere Anläufe gebraucht. Alle Versuche rund um die drei Aufträge zusammen haben rund 40 Cent gekostet.
