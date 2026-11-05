@@ -44,9 +44,9 @@ function text(o: Record<string, unknown> | null, ...schluessel: string[]): strin
 
 export function zeileAusTreffer(t: TrefferRoh): BefundZeile {
   const bekannt = t.einstufung && t.einstufung in EINSTUFUNG_TEXT;
-  // Ohne Einstufung gilt der Treffer als offen; in der Tabelle steht er wie „nicht erklärbar“ markiert.
+  // Ohne Einstufung gilt der Treffer als nicht eingestuft; in der Tabelle steht er wie „nicht erklärbar“ markiert.
   const einstufung = (bekannt ? t.einstufung : "nicht-erklaerbar") as Einstufung;
-  const einstufungText = bekannt ? EINSTUFUNG_TEXT[t.einstufung as string] : "offen";
+  const einstufungText = bekannt ? EINSTUFUNG_TEXT[t.einstufung as string] : "nicht eingestuft";
   const beleg = t.beleg_sql?.split("\n").find((z) => z.trim())?.trim().slice(0, 80);
   return {
     befund:
