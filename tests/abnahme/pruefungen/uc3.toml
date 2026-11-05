@@ -728,3 +728,48 @@ quelle = "Kriterium 16-AC5; Validator pruefe-abgabe liest das Sheet zurück"
 grund = "Readback: 6 Blätter, Monatsspalten gefüllt, Insgesamt-Formeln und Blattsummen stimmen; zusammen mit Sheet = Orakel (keine zusätzlichen Ausprägungen) und Blattsummen = DB-Gesamtzahl"
 befund = "Der Readback des Sheets v1 meldet einen Mangel bei Blättern, Monatsspalten oder Formeln"
 herkunft = "b-abnahme-4c 2026-11-05 21:00"
+
+[[pruefung]]
+id = "16-AC4"
+hash = "a571160318"
+befehl = '''python3 tests/abnahme/p/uc3_berichte.py'''
+erwartet = ["^berichte 24$", "^ohne_fuenf_abschnitte 0$", "^auffaelligkeiten [1-9]", "^ohne_umfang_abfrage_massnahme 0$", "^einstufung_falsch 0$", "^ohne_annahme 0$", "^ohne_revisionsbedarf 0$"]
+schwer = false
+deckung = "voll"
+grund = "24 Berichte, fünf Abschnitte, jede Auffälligkeit mit Umfang, Abfrage, Maßnahme und gültiger Einstufung, Annahmen und Revisionsbedarf vorhanden; eigene Prüfung neben dem Validator"
+befund = "Ein Bericht verletzt Struktur oder Einstufung, oder eine Auffälligkeit nennt Umfang, Abfrage oder Maßnahme nicht"
+herkunft = "b-abnahme-4c 2026-11-05 21:10"
+
+[[pruefung]]
+id = "20-1"
+hash = "26310d5b3d"
+befehl = '''test -s abgabe/CHECKLISTE.md || { echo "CHECKLISTE fehlt"; exit 1; }; for k in "Freeze" "07:00" "09:00" "GitHub"; do echo "$k $(grep -c "$k" abgabe/CHECKLISTE.md)"; done; echo "erledigt_mail_yaml $(grep -iE 'mail|yaml' abgabe/CHECKLISTE.md | grep -ci 'erledigt' || true)"; echo "offen_mail_yaml $(grep -iE 'mail' abgabe/CHECKLISTE.md | grep -iE '\[ \]|\| *(offen|geplant) *\|' | grep -civ 'erledigt' || true)"; echo "github_neben_0900 $(grep -cE 'GitHub.*09:00|09:00.*GitHub' abgabe/CHECKLISTE.md)"'''
+erwartet = ["^Freeze [1-9]", "^07:00 [1-9]", "^09:00 [1-9]", "^GitHub [1-9]", "^erledigt_mail_yaml [1-9]", "^offen_mail_yaml 0$", "^github_neben_0900 [1-9]"]
+schwer = false
+deckung = "voll"
+grund = "Die Checkliste nennt Freeze 07:00 und Abgabe 09:00, hängt den GitHub-Push an 09:00 und führt Mail und YAML als erledigt, ohne neue Mailaufgabe"
+befund = "abgabe/CHECKLISTE.md nennt Freeze, Abgabe, GitHub-Push oder die erledigte Mail und YAML nicht"
+herkunft = "b-abnahme-4c 2026-11-05 21:10"
+
+[[pruefung]]
+id = "22-2"
+hash = "a1f42ab5d4"
+befehl = '''UC3_DATEN_URL="$UC3_DATABASE_URL" timeout 900 uv run --package statagent pytest -q -p no:cacheprovider -m daten uc3/tests/test_pruefungen.py 2>&1 | tail -1'''
+erwartet = ["^\\d+ passed in"]
+schwer = true
+deckung = "voll"
+zeitlimit = 920
+grund = "Prüfregeln gegen die echten Lieferungen belegt (auch 2025-03 und 2025-10), kein Test übersprungen; Golden Set misst der zweite Teil"
+befund = "Prüfregeln gegen die Lieferungen scheitern oder werden übersprungen"
+herkunft = "b-abnahme-4c 2026-11-05 21:10"
+
+[[pruefung]]
+id = "71-AC3"
+hash = "96b42f8b52"
+befehl = '''echo sql $(grep -c '^SELECT' docs/plan/uc3/ministerium-oracle.md); echo regelstand $(grep -c 'Regelstand' docs/plan/uc3/ministerium-oracle.md); echo zahl_32741 $(grep -c '32\.741' docs/plan/uc3/ministerium-oracle.md); echo vergleich_32639 $(grep -c '32\.639' docs/plan/uc3/ministerium-oracle.md); echo vergleich_32706 $(grep -c '32\.706' docs/plan/uc3/ministerium-oracle.md); echo mengenvergleich $(grep -c 'Mengenvergleich' docs/plan/uc3/ministerium-oracle.md); echo regel_juengste $(grep -ci 'juengste_lieferung_je_tag\|jüngste Lieferung' docs/plan/uc3/ministerium-oracle.md)'''
+erwartet = ["^sql [1-9]", "^regelstand [1-9]", "^zahl_32741 [1-9]", "^vergleich_32639 [1-9]", "^vergleich_32706 [1-9]", "^mengenvergleich [1-9]", "^regel_juengste [1-9]"]
+schwer = false
+deckung = "voll"
+grund = "Das Oracle-Dokument nennt Abfrage, Regelstand, Ergebniszahl 32.741, beide Vergleichswerte, die Regel jüngste Lieferung je Tag und den Mengenvergleich"
+befund = "ministerium-oracle.md nennt Abfrage, Regelstand, Ergebniszahl, Vergleichswerte oder Mengenvergleich nicht"
+herkunft = "b-abnahme-4c 2026-11-05 21:10"
