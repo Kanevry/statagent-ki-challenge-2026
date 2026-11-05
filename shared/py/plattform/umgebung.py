@@ -56,11 +56,18 @@ def finde_env_local(start: Path | None = None) -> Path | None:
 def lade_env_local(start: Path | None = None) -> Path | None:
     """Lädt `.env.local` mit Vorrang vor geerbten Variablen; gibt den Pfad zurück (nie Werte).
 
-    ``KIC_ENV_DATEI`` zeigt auf eine andere Datei (Tests, Jury-Rechner).
+    ``KIC_ENV_DATEI`` zeigt auf eine andere Datei (Tests, Jury-Rechner). Fehlt diese Datei, ist das ein
+    Fehler: sonst rechnet ein Lauf nach einem Tippfehler im Pfad still mit geerbten Shell-Werten.
     """
     explizit = os.environ.get("KIC_ENV_DATEI")
-    pfad = Path(explizit) if explizit else finde_env_local(start)
-    if pfad is None or not pfad.is_file():
+    pfad: Path | None
+    if explizit:
+        pfad = Path(explizit)
+        if not pfad.is_file():
+            raise FileNotFoundError(f"KIC_ENV_DATEI zeigt auf keine Datei: {pfad}")
+    else:
+        pfad = finde_env_local(start)
+    if pfad is None:
         return None
     # interpolate=False: ein Wert mit `$` bleibt wörtlich (sonst ersetzt python-dotenv still Teile davon).
     load_dotenv(pfad, override=True, interpolate=False)
