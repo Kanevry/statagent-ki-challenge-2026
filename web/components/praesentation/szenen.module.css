@@ -1485,6 +1485,64 @@
     display: none;
   }
 }
+/* Szene zahlen (Management-Fassung): bis zu drei große Zahlen oder eine Liste von Sätzen */
+.z-zahlen {
+  position: absolute;
+  left: 120px;
+  right: 120px;
+  top: 340px;
+  display: flex;
+  gap: 80px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.z-kachel {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.z-zahl {
+  margin: 0;
+  font-family: var(--f-titel);
+  font-weight: 700;
+  font-size: 104px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--mint);
+}
+.z-text {
+  margin: 24px 0 0;
+  font-size: 36px;
+  line-height: 1.3;
+}
+.z-saetze {
+  position: absolute;
+  left: 120px;
+  right: 160px;
+  top: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.z-satz {
+  font-size: 48px;
+  line-height: 1.25;
+  font-weight: 500;
+}
+.z-fuss {
+  position: absolute;
+  left: 120px;
+  right: 160px;
+  top: 740px;
+  margin: 0;
+  font-size: 44px;
+  line-height: 1.3;
+  font-weight: 500;
+}
+
 @media print {
   @page {
     size: 1920px 1080px;

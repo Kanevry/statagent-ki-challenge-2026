@@ -278,7 +278,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C4 Läuft das auch lokal und offline?
 
-**Kurzantwort:** Ja. Die Rechnung läuft in PostgreSQL 16 und Python auf dem eigenen Rechner. Kein Befehl von `uc3 lauf` ruft ein Sprachmodell auf (F16). Nur die Agenten brauchen ein Modell. Dafür gibt es den Schalter `LLM_PROVIDER=ollama` für den Betrieb ohne Netz.
+**Kurzantwort:** Es läuft lokal wie gefordert, und zusätzlich auf einem Server, den wir selbst betreiben. Die Abgabezahlen sind auf der eigenen Datenbank gerechnet, online läuft nur die Vorführung. Kein Befehl von `uc3 lauf` ruft ein Sprachmodell auf (F16). Nur die Agenten brauchen ein Modell. „Sie können es selbst nachbauen“ erst sagen, wenn die Messung des Jury-Wegs vorliegt.
 
 **Antwortweg:** `uv run uc3 lauf --lieferung 2024-08` ohne Netz zeigen.
 
@@ -419,6 +419,14 @@ Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.
 **Antwortweg:** `uv run uc3 vorschlag zeigen <id>` (Regel-Unterschied, Zahlen vorher und nachher), `uv run uc3 protokoll --zeigen`. Danach `uc3/statagent/lauf.py` auf Importe prüfen: kein `plattform.llm`.
 
 **Fundstelle:** `uc3/statagent/agenten/koordinator.py`, `uc3/statagent/cli.py` (Befehl `agent`, Import von `plattform.llm` nur dort), `abgabe/modelle.md`.
+
+### C18 Warum stimmt die Summe von v2 nicht mit v1 überein?
+
+**Kurzantwort:** v2 trägt beide Aufträge zusammen. Deshalb stimmt die Summe gegen v1 nicht je Kategorie allein. August 2024: Arbeiter +28, Angestellte +19, Beamte +1, zusammen +48 (392.284 statt 392.236). Das kommt ganz aus Auftrag 2 (ganzes Monat statt Stichtag). Auftrag 1 allein lässt die Monatssumme in allen 24 Monaten gleich. Ein eigenes Sheet nur mit Auftrag 1 gibt es bewusst nicht.
+
+**Antwortweg:** `abgabe/aggregationen_v1.xlsx` und `abgabe/aggregationen_v2.xlsx` nebeneinander.
+
+**Fundstelle:** Blatt `Beschaeftigungskategorie` beider Sheets, Spalte 2024-08 (nachgerechnet 05.11.2026); `docs/plan/uc3/aenderungsauftraege-matrix.md`.
 
 ## Wenn eine Frage nicht im Katalog steht
 

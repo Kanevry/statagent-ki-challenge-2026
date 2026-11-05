@@ -1,0 +1,23 @@
+---
+nummer: 7
+titel: Drei Aufträge am selben Tag
+layout: text
+szene: zahlen
+zeit: "6:15–7:15"
+dauer_s: 60
+belege: [F19, F26, F27]
+---
+
+# Drei Aufträge in Alltagssprache, am selben Tag umgesetzt.
+
+| Zahl | Text |
+|---|---|
+| 3 von 3 | Aufträge der Aufgabe umgesetzt, jeder mit Namen im Protokoll |
+| 3 bis 9 s | rechnet das Modell an einem Vorschlag |
+| 1 Cent | kostet ein Vorschlag, rund, zum Azure-Listenpreis |
+
+Herkunft: Protokoll der Änderungen, Protokoll der Modellaufrufe, Azure-Preisliste vom 5. November 2026
+
+## Sprechernotizen
+
+Die Aufgabe stellt drei Änderungsaufträge, zum Beispiel: Dienstvertrag und freien Dienstvertrag zusammenfassen. Die habe ich der Maschine in Sätzen gegeben. Sie schrieb Vorschläge, mit den Zahlen vorher und nachher. Wirksam wurden sie erst nach Prüfung und mit Namen. Ein Vorschlag braucht beim Modell drei bis neun Sekunden und kostet zum Listenpreis rund einen Cent. Ehrlich dazu: Nicht jeder Satz sitzt beim ersten Mal. Zwei der drei Aufträge haben mehrere Anläufe gebraucht. Alle Versuche rund um die drei Aufträge zusammen haben rund 40 Cent gekostet. Die Kosten sind also nicht das Problem. Die Arbeit ist die Prüfung durch den Menschen.

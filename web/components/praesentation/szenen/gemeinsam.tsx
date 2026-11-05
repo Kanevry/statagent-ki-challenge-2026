@@ -119,7 +119,7 @@ export function Kopf({ titel, lang = false, t = 0.1 }: { titel: string; lang?: b
         Use Case 3
       </p>
       <Kreis n={3} x={120} y={92} d={72} />
-      <h2 className={k("titel", lang && "titel-lang", "a")} style={vars({ t })}>
+      <h2 className={k("titel", (lang || titel.length > 52) && "titel-lang", "a")} style={vars({ t })}>
         {titel}
       </h2>
     </>

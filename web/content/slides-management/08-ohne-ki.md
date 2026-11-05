@@ -1,0 +1,25 @@
+---
+nummer: 8
+titel: Gerechnet wird ohne KI
+layout: text
+szene: zahlen
+zeit: "7:15–8:15"
+dauer_s: 60
+belege: [F16, F28]
+---
+
+# Gerechnet wird ohne KI, und das Ergebnis ist jedes Mal gleich.
+
+| Zahl | Text |
+|---|---|
+| 13 Minuten | für alle 24 Lieferungen, gemessen |
+| 0 | Modellaufrufe im Monatslauf und bei Fragen an die Daten |
+| 72 von 72 | Wiederholungen mit genau demselben Ergebnis |
+
+Wie lange dauert das bei Ihnen heute?
+
+Herkunft: Zeitmessung am 5. November 2026 auf einer Kopie der Abgabe-Datenbank, Abnahmebericht Abschnitt 3
+
+## Sprechernotizen
+
+Jetzt zu den Zahlen, nach denen Sie vermutlich fragen wollen. Alle 24 Monatslieferungen, zusammen gut zehn Millionen Zeilen, rechnet das Programm in rund 13 Minuten, gemessen auf unserem Rechner, der dabei auch anderes zu tun hatte. Dabei fällt kein einziger Modellaufruf an, auch nicht bei einer Frage an die Daten. Und wir haben das 72-mal wiederholt: 72-mal genau dasselbe Ergebnis. Was ich Ihnen nicht sagen kann, ist die Ersparnis. Wir wissen nicht, wie lange der Prozess bisher dauert. Darum frage ich Sie: Wie lange dauert das bei Ihnen heute?

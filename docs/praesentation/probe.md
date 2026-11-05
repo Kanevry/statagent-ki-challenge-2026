@@ -6,10 +6,9 @@ Gehört zu GitLab #90, Epic #26. Wird am Fr 06.11.2026 ab 06:00 ausgefüllt.
 - **Feature-Stopp und Freeze: Fr 06.11.2026 07:00 (Europe/Vienna).** Nach dem Freeze ändert niemand Code, Folien oder Demo.
 - Ältere Dokumente nennen teils 05:00. Es gilt 07:00 laut Owner.
 - Uhrzeiten nur aus der Uhr eintragen: `TZ=Europe/Vienna date`. Nie schätzen, nie runden.
-- **Bedingung für die Web-Oberfläche:** Die Seite `/uc3` liegt in MR !51. Nur wenn sie bis zum Freeze auf main ist, wird die Web-Oberfläche gezeigt (Stufe 1). Sonst ist der CLI-Weg (Stufe 2) der Standard. Der Stand wird um 06:45 geprüft und in der Tabelle unten eingetragen.
-- **Live heißt auf dem Rechner von Bernhard** (Modell Azure). Die öffentliche Demo läuft im Testmodus und wird so angesagt.
-- **Üben ohne Folgen:** Den Änderungsauftrag aus D2 nur bis `vorschlag zeigen <id>` üben, dann `ablehnen <id>`. Nie `freigabe` üben (siehe Demo-Drehbuch, D2).
-- Das Soll kommt aus der Szenenfolge (10 Szenen, Präsentation 0:00–5:05) und aus `docs/praesentation/demo-drehbuch.md` (Demo 5:05–9:30). Danach folgen Live-Änderung und Datenanfragen der Jury bis etwa 15:00. Sie gehören nicht zu diesem Durchlauf.
+- **Live heißt online** über Hotspot auf der Vorführ-Adresse, Modell Azure (Owner 05.11.2026). Einen Lauf ohne Netz gibt es nicht.
+- **Üben ohne Folgen:** Den Änderungsauftrag aus D2 nur bis zum Vorschlag üben, dann ablehnen. Nie `freigabe` üben (siehe Demo-Drehbuch, D2).
+- Das Soll kommt aus `uc3-jury.md`: Pfad A Fachjury 15 bis 20 Minuten, Pfad B Management 10 Minuten plus 5 Minuten Fragen. Beide werden gemessen, nach der Uhr.
 
 ## 1. Durchlauf
 
@@ -19,16 +18,16 @@ Gehört zu GitLab #90, Epic #26. Wird am Fr 06.11.2026 ab 06:00 ausgefüllt.
 | Start (Uhr) | |
 | Ende (Uhr) | |
 | Gesamtdauer Ist | |
-| Soll | Präsentation 5:05, mit Demo 9:30 |
-| Präsentation ≤ 5:05 | ja / nein |
-| Gesamtdauer mit Demo ≤ 9:30 | ja / nein |
+| Soll | Gesamtdauer ist der Vortrag von Pfad B, höchstens 10:00. Pfad A bis 14:00 ohne Fragen |
+| Pfad A Dauer Ist | |
+| Pfad A ≤ 14:00 | ja / nein |
+| Pfad B ≤ 10:00 | ja / nein |
 | D1 Monat | 2025-10 / 2025-03 |
-| `/uc3` (MR !51) beim Freeze auf main | ja / nein (bei nein ist Stufe 2 der Standard) |
-| Stufe der Demo | 1 Web-UI (nur bei `/uc3` auf main) / 2 CLI / 3 Video |
+| Hotspot-Wechsel geübt, Dauer in Sekunden | |
 | Stand (Commit) | |
-| D4 gezeigt (Entscheid 06:45) | ja / nein (bei nein endet die Demo um 9:00) |
-| D2 (Entscheid 06:45) | Rückblick auf Vorschlag 24 allein / plus B2 live, wenn !50 beim Freeze auf main ist. Probe 05.11. 17:56 bis 17:58 auf main 321a7176: B1, B2, B3 ohne Vorschlag oder abgebrochen. Probe 18:20 bis 18:25 mit !50 (4cbcf47): B2 3 von 3 gültig (Vorschläge 34 bis 36) |
-| Datenbank der Vorführung | `statistik_vorfuehrung` (Kopie des Abgabe-Stands), geprüft um ____ von ____. Nie `statistik` |
+| D4 und Folie 9 (Entscheid 06:45) | ja / nein, die Wien-Frage läuft echt, nicht im Testmodus |
+| D2 Teil 2 (Entscheid 06:45) | ja / nein. Stand der Proben: `demo-drehbuch.md`, D2 |
+| Datenbank der Vorführung | Kopie des Abgabe-Stands, geprüft um ____ von ____. Nie `statistik` |
 | D3 freie Fragen | nein, nur die acht geprüften (ja erst, wenn der Folge-MR von bb auf main ist) |
 | Zahlen in den Szenen gegen `abgabe/` abgeglichen | ja / nein |
 
@@ -38,20 +37,25 @@ Ist-Dauer ist das Ende minus der Start des Abschnitts. Beide Uhrzeiten eintragen
 
 | Nr | Abschnitt | Soll-Fenster | Soll-Dauer | Start Ist | Ende Ist | Dauer Ist |
 |---|---|---|---|---|---|---|
-| 1 | Szene 1 Gleichung „1 + 2 + 3 = 4“ | 0:00–0:15 | 0:15 | | | |
-| 2 | Szene 2 Drei Menschen, drei Fragen | 0:15–0:45 | 0:30 | | | |
-| 3 | Szene 3 Eine falsche Zahl kostet Vertrauen | 0:45–1:45 | 1:00 | | | |
-| 4 | Szene 4 Aus Aufgabe 3 wurde der Kern für alle drei | 1:45–2:20 | 0:35 | | | |
-| 5 | Szene 5 Wir rechnen den offiziellen Bericht nach | 2:20–2:50 | 0:30 | | | |
-| 6 | Szene 6 Acht Arten von Fehlern gefunden. Nichts gelöscht | 2:50–3:25 | 0:35 | | | |
-| 7 | Szene 7 Im Januar 2025 wechselt die Branchenliste | 3:25–3:50 | 0:25 | | | |
-| 8 | Szene 8 Das Alter bei Geburtsmonat 13 nachgerechnet | 3:50–4:25 | 0:35 | | | |
-| 9 | Szene 9 Eine Frage, drei Antworten, jede mit Beleg | 4:25–4:55 | 0:30 | | | |
-| 10 | Szene 10 Jede Zahl nachrechenbar. Jede Änderung mit Namen | 4:55–5:05 | 0:10 | | | |
-| D1 | Demo D1 Lauf und Qualitätsbericht | 5:05–6:15 | 1:10 | | | |
-| D2 | Demo D2 Rückblick auf die Freigabe von Auftrag 1 | 6:15–7:45 | 1:30 | | | |
-| D3 | Demo D3 Datenanfragen | 7:45–9:00 | 1:15 | | | |
-| D4 | Demo D4 Gemeinsamer Einstieg, Wien-Frage in `/uc4` (Entscheid 06:45) | 9:00–9:30 | 0:30 | | | |
+| 1 | Pfad A: Lösung und Fehler, Oktober 2025 | 0:00–3:00 | 3:00 | | | |
+| 2 | Pfad A: Bericht August 2024 | 3:00–4:00 | 1:00 | | | |
+| 3 | Pfad A: Annahme, Folie 8 | 4:00–5:00 | 1:00 | | | |
+| 4 | Pfad A: D2 Teil 1 Rückblick | 5:00–6:00 | 1:00 | | | |
+| 5 | Pfad A: D2 Teil 2 Änderung der Jury | 6:00–9:30 | 3:30 | | | |
+| 6 | Pfad A: D3 Datenanfragen | 9:30–12:00 | 2:30 | | | |
+| 7 | Pfad A: Absage | 12:00–13:00 | 1:00 | | | |
+| 8 | Pfad A: D4 Wien-Frage (Entscheid 06:45) | 13:00–14:00 | 1:00 | | | |
+| 9 | Pfad B: Folie 1 Drei Menschen | 0:00–1:00 | 1:00 | | | |
+| 10 | Pfad B: Folie 2 Oktober 2025 | 1:00–2:30 | 1:30 | | | |
+| 11 | Pfad B: Folie 3 StatAgent hält an | 2:30–3:15 | 0:45 | | | |
+| 12 | Pfad B: Folie 4 Nachgerechnet | 3:15–4:15 | 1:00 | | | |
+| 13 | Pfad B: Folie 5 Acht Arten von Fehlern | 4:15–5:15 | 1:00 | | | |
+| 14 | Pfad B: Folie 6 Wer was macht | 5:15–6:15 | 1:00 | | | |
+| 15 | Pfad B: Folie 7 Drei Aufträge | 6:15–7:15 | 1:00 | | | |
+| 16 | Pfad B: Folie 8 Gerechnet ohne KI | 7:15–8:15 | 1:00 | | | |
+| 17 | Pfad B: Folie 9 Eine Frage, drei Antworten | 8:15–9:00 | 0:45 | | | |
+| 18 | Pfad B: Folie 10 Verantwortung | 9:00–9:45 | 0:45 | | | |
+| 19 | Pfad B: Folie 11 Schluss | 9:45–10:00 | 0:15 | | | |
 
 ### Pflichtschritte
 
@@ -59,9 +63,9 @@ Alle fünf müssen im Durchlauf vorkommen. Die Spalte „vom Lead bestätigt“ 
 
 | Nr | Pflichtschritt | Wo im Ablauf | Uhr (Ist) | Vom Lead bestätigt (Name, Uhr) |
 |---|---|---|---|---|
-| 1 | Lösung | Szenen 4 und 5 | | |
-| 2 | Fehlerbeispiel | Szenen 3 und 6 und D1 | | |
-| 3 | Eine begründete Annahme | Szene 8 | | |
+| 1 | Lösung | Pfad A: `/uc3`, Bericht August 2024 | | |
+| 2 | Fehlerbeispiel | Pfad A: D1 | | |
+| 3 | Eine begründete Annahme | Pfad A: Folie 8 | | |
 | 4 | Live-Änderung mit Vorher/Nachher | D2 | | |
 | 5 | Eine Datenfrage | D3 | | |
 
@@ -86,10 +90,7 @@ Der Metadatenbericht steht in `docs/praesentation/backup-video.md`, Abschnitt �
 
 ## 3. Ausfallprobe
 
-Das Live-Modell wird absichtlich nicht verfügbar gemacht. Gemessen werden zwei Wege getrennt:
-
-- Weg (a): Wechsel auf die Aufzeichnung. Das ist der Nachweis für #90. Ziel: höchstens 30 Sekunden.
-- Weg (b): Stufe 2 im Terminal mit `LLM_PROVIDER=mock`. Damit laufen nur D1 und D3 (D3 über SQL), denn sie brauchen kein Modell. Für D2 gibt es keinen Mock-Weg, weil die Fixture `agent.koordinator.json` fehlt (`shared/py/plattform/llm/mock.py`, Zeile 56). D2 geht ohne Modell auf die Aufzeichnung, das ist Weg (a). Weg (b) wird zusätzlich protokolliert und ersetzt Weg (a) nicht.
+Gemessen wird der Wechsel auf die Aufzeichnung, Nachweis für #90. Ziel: höchstens 30 Sekunden. Der Wechsel des Hotspots steht oben im Durchlauf.
 
 | Feld | Wert |
 |---|---|
@@ -99,7 +100,6 @@ Das Live-Modell wird absichtlich nicht verfügbar gemacht. Gemessen werden zwei 
 | Uhr beim ersten sichtbaren Bild der Aufzeichnung | |
 | Dauer des Wechsels in Sekunden | |
 | Dauer ≤ 30 s | ja / nein |
-| Weg (b) Stufe 2 mit `LLM_PROVIDER=mock` für D1 und D3: Dauer in Sekunden und Ergebnis | |
 | Aufzeichnung gekennzeichnet („Das ist eine Aufzeichnung von heute früh“ gesagt) | ja / nein |
 | Kennzeichnung im Bild sichtbar | ja / nein |
 | Wiederholt nach Fehlschlag | ja / nein, Dauer |
