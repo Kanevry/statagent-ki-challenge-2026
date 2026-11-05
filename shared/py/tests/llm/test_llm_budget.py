@@ -192,3 +192,52 @@ def test_zeile_von_gestern_nach_einer_von_heute_beendet_die_zaehlung_nicht(proto
     )
     monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "10")
     assert budget_status()["verbraucht"] == 2
+
+    assert budget_status() == {"grenze": 10, "verbraucht": 2, "frei": 8}
+
+
+# --- atomare Reservierung (Review !94, Bedingung für Online-Stufe B) ----------------------------------------
+
+_GLEICHZEITIG = """
+import sys, time
+from plattform.llm import complete, BudgetErschoepft
+from plattform.llm import mock
+original = mock.MockProvider.rufe
+def langsam(self, *a, **k):
+    time.sleep(0.4)  # langes Fenster zwischen Prüfung und Protokollzeile, wie ein echter Modellaufruf
+    return original(self, *a, **k)
+mock.MockProvider.rufe = langsam
+try:
+    complete([{"role": "user", "content": "x"}], zweck="smoke")
+    print("ok")
+except BudgetErschoepft:
+    print("voll")
+"""
+
+
+def test_gleichzeitige_prozesse_ueberschreiten_die_grenze_nicht(protokoll, monkeypatch):
+    """Fängt: acht gleichzeitige Prozesse prüfen alle vor der ersten Protokollzeile und rufen alle."""
+    import subprocess
+    import sys
+
+    umgebung = {**os.environ, "LLM_TAGESBUDGET_AUFRUFE": "3", "LLM_PROVIDER": "mock"}
+    prozesse = [
+        subprocess.Popen(
+            [sys.executable, "-c", _GLEICHZEITIG], env=umgebung, stdout=subprocess.PIPE, text=True
+        )
+        for _ in range(8)
+    ]
+    ergebnisse = [p.communicate(timeout=60)[0].strip() for p in prozesse]
+    assert sorted(ergebnisse) == ["ok"] * 3 + ["voll"] * 5
+    monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "3")
+    assert budget_status() == {"grenze": 3, "verbraucht": 3, "frei": 0}
+
+
+def test_reservierungen_von_gestern_zaehlen_nicht(protokoll, monkeypatch):
+    gestern = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+    (protokoll.parent / "budget-reservierungen.jsonl").write_text(
+        "".join(json.dumps({"zeit": gestern}) + "\n" for _ in range(5)) + "kaputt\n", encoding="utf-8"
+    )
+    monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "2")
+    complete(NACHRICHT, zweck="smoke")
+    assert budget_status() == {"grenze": 2, "verbraucht": 1, "frei": 1}
