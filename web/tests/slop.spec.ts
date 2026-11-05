@@ -12,9 +12,8 @@ const hier = path.dirname(fileURLToPath(import.meta.url));
 const MESSSKRIPT = path.join(hier, "lib", "slop-measure.js");
 const FIXTURE = path.join(hier, "fixtures", "slop-positive.html");
 const FIXTURE_VERSTECKT = path.join(hier, "fixtures", "slop-versteckt.html");
-/** Feature-Stopp: ab hier gilt ABGABE von selbst, ohne Variable (docs/design.md). */
-const ABGABE_AB = Date.parse("2026-11-06T06:30:00+01:00");
-const ABGABE = process.env.ABGABE === "1" || Date.now() >= ABGABE_AB;
+/** Harte Prüfung (#102): in CI gesetzt (Job playwright), lokal per ABGABE=1. */
+const ABGABE = process.env.ABGABE === "1";
 
 /** Die zwölf geprüften Schlüssel. `genericFontShare` ist ausgenommen (Inter ist Vertrag, siehe docs/design.md). */
 const SCHLUESSEL = [

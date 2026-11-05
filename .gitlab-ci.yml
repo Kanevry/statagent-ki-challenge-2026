@@ -1,12 +1,15 @@
 # agents/ki-challenge-2026: Monorepo (pnpm-Workspace web + shared/ui, uv-Workspace shared/py + uc*).
-# Nur MR-Pipelines (plus manuelle Web-Pipelines). Tests mit LLM_PROVIDER=mock, kein Modellschlüssel in CI.
-# Deploy nur als manueller Job `deploy` in einer Web-Pipeline auf main (#68).
+# Nur MR-Pipelines, plus manuelle Web- und API-Pipelines auf main. Tests mit LLM_PROVIDER=mock, kein Modellschlüssel.
+# Deploy nur als manueller Job `deploy` in einer Web- oder API-Pipeline auf main (#68, #111).
 # Golden-Set- und DB-Tests mit echten Daten tragen pytest.mark.daten und laufen nur lokal (CI-Postgres ist leer).
 
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_PIPELINE_SOURCE == "web"
+    # glab ci run -b main (#111): API-Start nur auf dem Standardzweig, damit der manuelle deploy-Job aus einer
+    # Session erreichbar ist
+    - if: $CI_PIPELINE_SOURCE == "api" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - when: never
 
 stages: [check, test, deploy]
@@ -101,6 +104,9 @@ playwright:
     # das Playwright-Image hat Node, aber kein corepack
     - npm install -g pnpm@10.34.5
     - pnpm config set store-dir .pnpm-store
+  variables:
+    # Harte Prüfung (#102): NOCH_OFFEN muss leer sein und jede Route 200 liefern (docs/design.md)
+    ABGABE: "1"
   script:
     - pnpm install --frozen-lockfile
     - pnpm --filter web run test:slop
@@ -153,7 +159,7 @@ deploy:
     GIT_DEPTH: 1
     DEPLOY_HOST: deploy-ziel
   rules:
-    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: ($CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api") && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: manual
   before_script:
     - apk add --no-cache bash git openssh-client rsync curl coreutils
