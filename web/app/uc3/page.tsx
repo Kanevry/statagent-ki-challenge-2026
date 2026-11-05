@@ -183,7 +183,7 @@ export default async function Monate({ searchParams }: Props) {
           regelsatz={regelsatz}
           titel={
             <h2 id="monate-titel" className="font-sans text-16 font-semibold text-ink">
-              Alle Monate
+              Alle Läufe, je Monat mit Qualitätsbericht
             </h2>
           }
           rechts={
