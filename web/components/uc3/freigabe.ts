@@ -1212,6 +1212,24 @@ export interface ProbeTabelle {
  * Ohne gerechnete Probe null.
  */
 /**
+ * Legt die Probe Bundesländer zusammen? Die Tabelle zeigt nur Beschäftigungskategorien, also sagt es dieser Satz, mit
+ * den Zahlen aus `je_merkmal.region`. Die neue Gruppe („Ost“) steht in keiner Klassifikation und heißt wie im Vorschlag.
+ */
+export function regionenSatz(probe: unknown, bezeichnungen: Bezeichnungen = {}): string | null {
+  const [monat] = probeMonate(probe);
+  if (!monat) return null;
+  const v = objekt(objekt(monat.vorher.je_merkmal).region);
+  const n = objekt(objekt(monat.nachher.je_merkmal).region);
+  const weg = Object.keys(v).filter((code) => zahl(v[code]) > 0 && n[code] === undefined);
+  const neu = Object.keys(n).filter((code) => v[code] === undefined);
+  const [gruppe] = neu;
+  if (weg.length < 2 || neu.length !== 1 || gruppe === undefined) return null;
+  const teile = weg.map((code) => `${codeName("region", code, bezeichnungen)} ${formatZahl(zahl(v[code]))}`);
+  const liste = `${teile.slice(0, -1).join(", ")} und ${teile.at(-1)}`;
+  return `${liste} zählen nachher zusammen als „${gruppe}“: ${formatZahl(zahl(n[gruppe]))}.`;
+}
+
+/**
  * Ändert die Probe etwas an den Beschäftigungskategorien (je_merkmal.qualifikation) oder an der Gesamtzahl? Andere
  * Merkmale (Bundesland, Alter) prüft diese Funktion nicht; der Satz auf der Seite nennt deshalb die Kategorien.
  */

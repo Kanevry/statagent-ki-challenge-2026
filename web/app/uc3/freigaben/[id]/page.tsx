@@ -25,6 +25,7 @@ import {
   zitatDoppelt,
   probeTabelleBeleg,
   probeTitel,
+  regionenSatz,
   sqlErgebnisLauf,
   sqlWirkung,
   vorgeschlagenVon,
@@ -82,6 +83,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
   const quelle = kopf.nummer ? `Änderungsauftrag ${kopf.nummer} aus der Aufgabenstellung` : auftraggeber(v);
   const gesagtAm = v.gesagtAm ?? v.erstelltAm;
   const tabelle = probeJeKategorie(v.probe, kategorien);
+  const regionen = regionenSatz(v.probe, bezeichnungen);
   const entscheidung = entscheidungAus(v);
 
   return (
@@ -119,6 +121,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
           {tabelle ? probeTitel(tabelle.lieferung) : "Keine Probe"}
         </h2>
         <p className="font-sans text-14 text-slate">{`${vorgeschlagenVon(v)}.`}</p>
+        {regionen && <p className="font-sans text-16 font-semibold text-ink">{regionen}</p>}
         {tabelle ? (
           <ProbeTabelleAnsicht vorschlag={v.id} tabelle={tabelle} />
         ) : (

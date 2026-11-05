@@ -13,6 +13,7 @@ import {
   aenderungKurz,
   klarerAenderungsSatz,
   zitatDoppelt,
+  regionenSatz,
   klartext,
   kurzerGrund,
   probeTitel,
@@ -588,5 +589,24 @@ describe("Überschrift und Zitat der Freigabe", () => {
     expect(zitatDoppelt("Beamte zählen nicht mehr mit", "Beamte zählen nicht mehr mit.")).toBe(true);
     expect(zitatDoppelt("Rechne bei Geburtsmonat 13 nur …", "Rechne bei Geburtsmonat 13 nur mit der Differenz.")).toBe(false);
     expect(zitatDoppelt("Dienstvertrag zusammen", "In der Statistik wird nicht mehr unterschieden.")).toBe(false);
+  });
+});
+
+describe("Zusammenlegung von Bundesländern in der Probe", () => {
+  const probe = (vorher: Record<string, number>, nachher: Record<string, number>) => ({
+    "2026-07": { vorher: { je_merkmal: { region: vorher } }, nachher: { je_merkmal: { region: nachher } } },
+  });
+  const namen = { region: { "1": "Burgenland", "3": "Niederösterreich" } };
+
+  // Fehler: Die Tabelle zeigte nur Kategorien, vorher gleich nachher, die Änderung war nicht zu sehen.
+  it("nennt die Bundesländer und die neue Gruppe mit Zahlen", () => {
+    expect(regionenSatz(probe({ "1": 100, "3": 2000, "9": 5 }, { Ost: 2100, "9": 5 }), namen)).toBe(
+      "Burgenland 100 und Niederösterreich 2.000 zählen nachher zusammen als „Ost“: 2.100.",
+    );
+  });
+
+  it("schweigt, wenn nichts zusammengelegt wird", () => {
+    expect(regionenSatz(probe({ "1": 100, "3": 2000 }, { "1": 90, "3": 2000 }), namen)).toBeNull();
+    expect(regionenSatz({}, namen)).toBeNull();
   });
 });
