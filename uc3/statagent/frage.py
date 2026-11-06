@@ -222,7 +222,13 @@ NICHT_AUSGEWERTET: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"durchschnitt|mittelwert|median"),
         DURCHSCHNITT_GRUND,
     ),
-    (re.compile(r"\blohn|löhne|gehalt|gehälter|einkommen|verdienst"), "Einkommen sind nicht in den Daten."),
+    # „angehalten“ und „hereinkommen“ enthalten die Wörter, meinen aber nichts davon. „Monatslohn“ schon.
+    (
+        re.compile(
+            r"\blohn|lohn(?:e?s)?\b|löhne|gehalt(?!en|ene)|gehälter|(?<!her)(?<!hin)einkommen|verdienst"
+        ),
+        "Einkommen sind nicht in den Daten.",
+    ),
     (re.compile(r"teilzeit|vollzeit|arbeitszeit|stunden"), "Die Arbeitszeit ist nicht in den Daten."),
     (re.compile(r"lehrling|lehre\b"), "Lehrlinge sind in dieser Statistik kein eigenes Merkmal."),
     (
@@ -1934,8 +1940,113 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     """Beantwortet eine Datenanfrage ohne Sprachmodell; mehrdeutige Fragen bekommen eine Rückfrage.
 
     Wirft nie: Was sich nicht beantworten lässt (Zeitlimit, verweigerte Abfrage, zu viele Zahlen, ein Merkmal,
-    das es nicht gibt), kommt als Textantwort ohne Zahl und ohne interne Details zurück.
+    das es nicht gibt), kommt als Textantwort ohne Zahl und ohne interne Details zurück. Eine Antwort ohne Zahl
+    bekommt, wenn es geht, einen Vorschlag zur Frage, der vorher gelaufen ist.
     """
+    # Import hier, weil frage_app dieses Modul braucht.
+    from statagent.frage_app import app_antwort
+
+    zur_anwendung = app_antwort(conn, frage, regelsatz)
+    if zur_anwendung is not None:
+        return zur_anwendung
+    daten = _antwort_kern(conn, frage, regelsatz)
+    daten["text"] = _UEBERNOMMEN.sub(_UEBERNOMMEN_KLAR, daten["text"])
+    daten["hinweise"] = [_UEBERNOMMEN.sub(_UEBERNOMMEN_KLAR, h) for h in daten["hinweise"]]
+    return _mit_vorschlag(conn, frage, regelsatz, daten)
+
+
+#: Die Zahl der übernommenen Verhältnisse gilt für den ganzen Lauf, nicht für die gefragte Gruppe.
+_UEBERNOMMEN = re.compile(
+    r"\b(Im \S+ \d{4}) sind ([\d.]+) Beschäftigungsverhältnisse aus der Lieferung des Vormonats"
+)
+_UEBERNOMMEN_KLAR = (
+    r"\1 sind in ganz Österreich \2 Beschäftigungsverhältnisse aus der Lieferung des Vormonats"
+)
+
+
+# --- Vorschlag: passt zur Frage und ist vor dem Zeigen gelaufen -----------------------------------------------------
+_KEIN_VORSCHLAG = re.compile(r"Einzeldaten gibt StatAgent")
+#: Die Antwort nennt schon eine Folgefrage („Frauen im Juli 2026“, „Was ist ÖNACE C?“).
+_BEISPIEL_DA = re.compile(r"„[^“]*(?:\b20\d{2}\b|\?)[^“]*“")
+
+
+def _teile_der_frage(conn: Verbindung, frage: str, monat: str) -> tuple[str, list[str], str]:
+    """Was die Frage sicher gelesen nennt: Wer, die Einschränkungen und die Aufteilung. Nie ein fremdes Wort."""
+    text = frage.lower()
+    frau = bool(re.search(r"\bfrauen\b|frauenanteil|weiblich", text))
+    mann = bool(re.search(r"\bmänner\w*|maenner|männlich|männeranteil", text))
+    was = "Männer und Frauen" if frau and mann else "Frauen" if frau else "Männer" if mann else ""
+    orte: list[str] = []
+    je = ""
+    for merkmal in (BUNDESLAND, OENACE, KATEGORIE):
+        try:
+            codes = _codes(conn, merkmal, monat)
+            werte, stellen = _werte(frage, merkmal, codes)
+        except _KeineZahl:
+            continue
+        if len(werte) > 1:
+            je = _JE_ALLTAG.get(merkmal.name, f"je {merkmal.name}")
+        elif werte and merkmal is BUNDESLAND:
+            orte.append(f"in {codes[werte[0]]}")
+        elif werte and merkmal is OENACE:
+            wortlaut = next(
+                (
+                    t.group(0)
+                    for s in stellen
+                    if (t := re.search(rf"\b(?:im|in der|in|beim)\s+{re.escape(s)}\b", frage, re.IGNORECASE))
+                ),
+                None,
+            )
+            orte.append(wortlaut or f"ÖNACE {werte[0]}")
+        elif werte:
+            was = f"{codes[werte[0]]} {was}".strip()
+    gliederung = _gliederung(frage)
+    if not je and gliederung is not None and gliederung is not GESCHLECHT:
+        je = _JE_ALLTAG.get(gliederung.name, f"je {gliederung.name}")
+    if not je and frau and mann and _BUNDESLAND.search(text):
+        je = "je Bundesland"
+    return was, orte, je
+
+
+def _vorschlaege(conn: Verbindung, frage: str, letzter: str) -> list[str]:
+    gelesen = _normalisieren(alltag_lesen(frage), letzter)[0]
+    genannt = [m for m in monate_lesen(gelesen) if ERSTE_LIEFERUNG <= m <= letzter]
+    monat = genannt[-1] if genannt else letzter
+    zeit = f"im {_monat_anzeige(monat)}"
+    if _FLUKTUATION.search(gelesen.lower()):
+        return [f"Fluktuation je Wirtschaftsbereich {zeit}"]
+    was, orte, je = _teile_der_frage(conn, gelesen, monat)
+    wer = was or "Beschäftigungsverhältnisse"
+    ende = f" {je}" if je else ""
+    kandidaten = [f"{' '.join([wer, *orte, zeit])}{ende}", f"{wer} {zeit}{ende}", f"{wer} {zeit}"]
+    return list(dict.fromkeys(kandidaten))
+
+
+def _mit_vorschlag(conn: Verbindung, frage: str, regelsatz: str, daten: dict[str, Any]) -> dict[str, Any]:
+    """Hängt an eine Antwort ohne Zahl einen Vorschlag an, der eine Zahl liefert. Ohne Fragezeichen: keine Rückfrage."""
+    if (
+        daten["zahlen"]
+        or daten["typ"] in ("definition", "pensionen")
+        or regelsatz != "v1"
+        or _regelsatz_der_frage(alltag_lesen(frage))
+        or _KEIN_VORSCHLAG.search(daten["text"])
+        or _BEISPIEL_DA.search(daten["text"])
+    ):
+        return daten
+    try:
+        for kandidat in _vorschlaege(conn, frage, _letzter_monat(conn, regelsatz) or LETZTE_LIEFERUNG):
+            if (
+                kandidat.lower() != frage.strip(" ?.!").lower()
+                and _antwort_kern(conn, kandidat, regelsatz)["zahlen"]
+            ):
+                daten["text"] = f"{daten['text']} Zum Beispiel: „{kandidat}“."
+                break
+    except (psycopg.Error, ValueError, _KeineZahl, _Abgeschnitten, AbfrageVerweigert, RegelFehler):
+        return daten  # Ohne Vorschlag bleibt die Absage richtig.
+    return daten
+
+
+def _antwort_kern(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str, Any]:
     if ist_pensionsfrage(frage) and not _PERSON.search(frage.lower()):
         return _pensionsfrage(conn, frage)
     frage = _PROZENTZEICHEN.sub(" Prozent", frage)
@@ -2071,9 +2182,13 @@ def _antwort_frage(
         erlaubt = (GESCHLECHT,) if typ == "zeitreihe" or "anteil" in text else (GESCHLECHT, BUNDESLAND)
         if je is not None and je not in erlaubt:
             # Sonst fiele „je Branche“ still weg, die Antwort gälte für ganz Österreich.
+            wie = _JE_ALLTAG.get(je.name, f"je {je.name}")
+            if je is BUNDESLAND and typ == "zeitreihe" and "anteil" not in text:
+                raise _KeineZahl(
+                    f"Männer und Frauen {wie} zeigt StatAgent nur für einen Monat, nicht über einen Zeitraum."
+                )
             raise _KeineZahl(
-                f"Männer und Frauen {_JE_ALLTAG.get(je.name, 'je ' + je.name)} zeigt StatAgent nicht auf einmal. "
-                f"Bitte einzeln fragen, zum Beispiel „Frauen im Bau im {_monat_anzeige(LETZTE_LIEFERUNG)}“."
+                f"Männer und Frauen {wie} zeigt StatAgent nicht auf einmal. Bitte einzeln fragen."
             )
     if "anteil" in text and typ != "fluktuation":
         if not _GESCHLECHT.search(text):

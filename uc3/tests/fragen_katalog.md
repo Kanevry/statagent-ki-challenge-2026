@@ -719,3 +719,8 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | U008 | form:anteil,zeit:seit | rueckfrage | - | - | auch=absage | Frauenanteil seit Jänner 2025 |
 | U009 | merkmal:regelsatz,form:gliederung | zahl | 2026-06 | - | regelsatz=v2;gruppe=geschlecht;auch=absage,rueckfrage | Beschäftigte im Juni 2026 aufgeschlüsselt nach Geschlecht, nach den Änderungsaufträgen gerechnet |
 | U010 | merkmal:kategorie,merkmal:bundesland | zahl | 2025-11 | region=5 | werte_je=kategorie:Arbeiter,Angestellte,Beamte;auch=absage,rueckfrage | Beschäftigte in Salzburg im November 2025, unterteilt in Arbeiter, Angestellte und Beamte |
+| G050 | form:app | definition | - | - | text=Regeln | Was ist ein Regelsatz? |
+| G051 | form:app | definition | - | - | text=Mensch entscheiden | Was heißt angehalten? |
+| G053 | form:app,zeit:monat | zahl | 2025-10 | - | art=pruefung;muss | Warum ist Oktober 2025 angehalten? |
+| G056 | form:absage | absage | - | - | - | Warum ist der Himmel im Oktober 2025 blau? |
+| G057 | form:absage,zeit:jahreszeit | absage | - | - | auch=rueckfrage | Männer und Frauen im Sommer 2025 je Bundesland |
