@@ -695,7 +695,7 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | T001 | form:anteil | absage | - | - | auch=rueckfrage | Welcher Anteil der Frauen arbeitet im Bau im Juli 2026? |
 | T002 | form:anteil,merkmal:alter | absage | - | - | auch=rueckfrage | Wie viel Prozent der Frauen sind über 50 Jahre alt? Stand Juli 2026 |
 | T003 | form:anteil,merkmal:kategorie | absage | - | - | auch=rueckfrage | Wie viel Prozent der Frauen haben einen freien Dienstvertrag? Stand Juli 2026 |
-| T004 | form:zwei_werte,merkmal:bundesland | zahl | 2026-07 | - | werte_je=region:9,7;muss | Beschäftigte in den Bundesländern Wien und Tirol im Juli 2026 |
+| T004 | form:zwei_werte,merkmal:bundesland | zahl | 2026-07 | - | werte_je=region:9,7;auch=absage,rueckfrage | Beschäftigte in den Bundesländern Wien und Tirol im Juli 2026 |
 | T005 | form:gliederung,merkmal:branche | zahl | 2026-07 | - | gruppe=oenace;muss | Beschäftigte aufgeteilt auf ÖNACE-Abschnitte im Juli 2026 |
 | T006 | form:gliederung,merkmal:bundesland | zahl | 2026-07 | - | gruppe=region;muss | Beschäftigte aufgeteilt auf Bundesland im Juli 2026 |
 | T007 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte im März-25. |
