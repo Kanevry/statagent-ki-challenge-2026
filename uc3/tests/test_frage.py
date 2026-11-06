@@ -498,6 +498,24 @@ def test_nur_die_fluktuation_rechnet_laenger(gerechnet: Verbindung, monkeypatch:
     assert {grenze for fest, grenze in grenzen if not fest} == {werkzeuge.ZEITLIMIT} == {"10s"}
 
 
+# Fängt: nach einem Zeitabbruch rechnet der Vorschlag dieselbe Abfrage ein zweites Mal, die Wartezeit verdoppelt
+# sich und die Seite antwortet nicht mehr rechtzeitig.
+def test_nach_zeitabbruch_kein_zweiter_lauf(gerechnet: Verbindung, monkeypatch: pytest.MonkeyPatch) -> None:
+    echt = frage_modul.sql_lesen
+    bewegung: list[str] = []
+
+    def bricht_ab(conn: Verbindung, query: str, zeitlimit: str = werkzeuge.ZEITLIMIT) -> dict[str, Any]:
+        if "bewegung_oenace" in query:
+            bewegung.append(query)
+            raise psycopg.errors.QueryCanceled("canceling statement due to statement timeout")
+        return echt(conn, query, zeitlimit)
+
+    monkeypatch.setattr(frage_modul, "sql_lesen", bricht_ab)
+    daten = antwort_frage(gerechnet, "Wie hoch ist die Fluktuation je Wirtschaftsbereich im September 2024?")
+    assert daten["zahlen"] == [] and daten["text"] == frage_modul.NICHT_LESBAR
+    assert len(bewegung) == 1
+
+
 # Fängt: „Die Zahlen sind endgültig und vorläufig.“ und „noch kein Lauf“ für Monate, zu denen es keine Lieferung
 # gibt (vor August 2024).
 def test_sprache_status_und_monate_ohne_lieferung(gerechnet: Verbindung) -> None:

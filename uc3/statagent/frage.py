@@ -2035,6 +2035,8 @@ def _mit_vorschlag(conn: Verbindung, frage: str, regelsatz: str, daten: dict[str
         or _regelsatz_der_frage(alltag_lesen(frage))
         or _KEIN_VORSCHLAG.search(daten["text"])
         or _BEISPIEL_DA.search(daten["text"])
+        # Die Datenbank hat gerade nicht geantwortet: Ein Vorschlag würde dieselbe Abfrage noch einmal rechnen.
+        or daten["text"] == NICHT_LESBAR
     ):
         return daten
     try:
