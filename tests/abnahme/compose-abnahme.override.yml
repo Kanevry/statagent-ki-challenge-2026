@@ -6,3 +6,9 @@
 services:
   db:
     container_name: kic-abnahme-db
+    # Nur Loopback: Das Startpaket veröffentlicht den Port auf allen Adressen, mit festem Passwort (Entscheid #92).
+    ports: !override
+      - "127.0.0.1:${DB_PORT:-5444}:5432"
+    # Grenzen des Ersatzrechners, aus abnahme.env; 0 heißt ohne Grenze.
+    cpus: ${ABNAHME_DB_CPUS:-0}
+    mem_limit: ${ABNAHME_DB_MEM:-0}
