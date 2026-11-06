@@ -3,7 +3,7 @@ import { ladeBefunde } from "@/landing/daten/befunde";
 import Ansatz from "@/landing/sektionen/Ansatz";
 import Datenfehler from "@/landing/sektionen/Datenfehler";
 import Fusszeile from "@/landing/sektionen/Fusszeile";
-import HeroSzene from "@/landing/sektionen/HeroSzene";
+import Geschichte from "@/landing/sektionen/Geschichte";
 import Navigation from "@/landing/sektionen/Navigation";
 import s from "@/landing/sektionen/seite.module.css";
 import Team from "@/landing/sektionen/Team";
@@ -29,13 +29,13 @@ export default async function Startseite() {
     <div className={s.seite}>
       <Navigation />
       <main id="inhalt">
-        <HeroSzene />
+        <Geschichte />
         {/* Erst rendern, wenn sie in die Nähe kommen (eine Hülle, damit `.abschnitt + .abschnitt` greift) */}
         <div className={l.spaeter}>
-          {/* Nach dem Einstieg zuerst der Weg in die App (UI-Regie 05.11.), dann Ansatz und Befunde. */}
+          {/* Die Geschichte endet mit dem Knopf zur App; darunter die ganze Liste der Prüfung, dann das Drumherum. */}
+          <Datenfehler tabelle={tabelle} />
           <UseCases />
           <Ansatz />
-          <Datenfehler tabelle={tabelle} />
           <Team />
         </div>
       </main>

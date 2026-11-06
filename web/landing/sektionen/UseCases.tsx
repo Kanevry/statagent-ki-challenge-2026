@@ -1,5 +1,4 @@
-import * as registry from "@kic/ui/ucs";
-import { ucs, type UcId } from "@kic/ui/ucs";
+import { einstieg, ucs, type UcId } from "@kic/ui/ucs";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { USE_CASES } from "../texte/inhalt";
@@ -9,75 +8,21 @@ import s from "./seite.module.css";
 
 const REIHENFOLGE: UcId[] = ["uc3", "uc1", "uc2"];
 
-/**
- * UC4 steht in der Registry der Plattform nicht in `ucs`, sondern in `bereiche` (= `ucs` plus `einstieg`,
- * #98). Gesucht wird in `bereiche`, falls die Registry sie exportiert, sonst in `ucs`; so erscheint der
- * Link, sobald die Plattform den Eintrag führt, ohne dass die Landing vorher bricht.
- */
-export function findeEinstieg(
-  quelle: Record<string, unknown> = registry as unknown as Record<string, unknown>,
-): { id: string; route: string } | undefined {
-  const liste = (Array.isArray(quelle.bereiche) ? quelle.bereiche : quelle.ucs) as
-    | readonly { id: string; route: string }[]
-    | undefined;
-  return liste?.find((b) => b.id === "uc4");
-}
-
-/**
- * Use Case 4 „Gemeinsamer Einstieg“ (Epic #95) als verdeckter Eintrag: geschwärzt wie eine
- * Hochrisiko-Akte, `<details>` deckt ihn auf (ohne JavaScript, Tastatur und Screenreader inklusive).
- * Der Link erscheint erst, wenn die Registry (shared/ui/src/ucs.ts) einen Eintrag uc4 führt (`findeEinstieg`).
- */
+/** Der gemeinsame Einstieg (Epic #95) als letzte Zeile: kein eigenes Produkt, sondern die Kette der drei. */
 function UseCaseVier({ index }: { index: number }) {
   const t = USE_CASES.uc4;
-  const eintrag = findeEinstieg();
   return (
-    <li className={`${s.zeile} ${a.uc} ${a.ucVier}`} style={{ "--i": index } as CSSProperties}>
-      <details className={a.akte}>
-        <summary className={a.akteKopf}>
-          <span className={a.ucName}>
-            <span className={a.akteVerdeckt}>{t.verdeckt}</span>
-            <span className={a.akteName}>{t.name}</span>
-          </span>
-          <span className={a.akteVorschau} aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </span>
-          <span className={a.akteSchalter} aria-hidden="true">
-            <span className={a.akteAuf}>{t.aufdecken}</span>
-            <span className={a.akteZu}>{t.zudecken}</span>
-          </span>
-        </summary>
-        <div className={a.akteInhalt}>
-          <p className={a.ucText}>{t.text}</p>
-          <p className={a.akteBeispiel}>
-            <span className={s.nurLeser}>{t.beispielLabel}: </span>
-            {t.beispiel}
-          </p>
-          <p className={a.ucSchritte}>
-            {t.schritte.map((schritt, k) => (
-              <span key={schritt}>
-                {k > 0 ? (
-                  <span className={a.ucPfeil} aria-hidden="true">
-                    {" → "}
-                  </span>
-                ) : null}
-                {k > 0 ? <span className={s.nurLeser}>, </span> : null}
-                {schritt}
-              </span>
-            ))}
-          </p>
-          {eintrag ? (
-            <Link href={eintrag.route} className={a.knopfLinie}>
-              {USE_CASES.oeffnen}
-              <span className={s.nurLeser}> {t.name}</span>
-            </Link>
-          ) : (
-            <p className={a.akteStatus}>{t.inArbeit}</p>
-          )}
-        </div>
-      </details>
+    <li className={`${s.zeile} ${a.uc}`} style={{ "--i": index } as CSSProperties}>
+      <div className={a.ucKopf}>
+        <h3 className={a.ucName}>{einstieg.name}</h3>
+      </div>
+      <div className={a.ucInhalt}>
+        <p className={a.ucText}>{t.text}</p>
+      </div>
+      <Link href={einstieg.route} className={a.knopfLinie}>
+        {USE_CASES.oeffnen}
+        <span className={s.nurLeser}> {einstieg.name}</span>
+      </Link>
     </li>
   );
 }
@@ -111,23 +56,9 @@ export default function UseCases() {
                 >
                   <div className={a.ucKopf}>
                     <h3 className={a.ucName}>{uc.name}</h3>
-                    {uc.bewertet ? <span className={a.plakette}>{USE_CASES.bewertet}</span> : null}
                   </div>
                   <div className={a.ucInhalt}>
                     <p className={a.ucText}>{text.text}</p>
-                    <p className={a.ucSchritte}>
-                      {text.schritte.map((schritt, k) => (
-                        <span key={schritt}>
-                          {k > 0 ? (
-                            <span className={a.ucPfeil} aria-hidden="true">
-                              {" → "}
-                            </span>
-                          ) : null}
-                          {k > 0 ? <span className={s.nurLeser}>, </span> : null}
-                          {schritt}
-                        </span>
-                      ))}
-                    </p>
                   </div>
                   <Link href={uc.route} className={uc.bewertet ? a.knopfVoll : a.knopfLinie}>
                     {USE_CASES.oeffnen}
