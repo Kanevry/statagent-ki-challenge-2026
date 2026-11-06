@@ -243,6 +243,11 @@ export function AuftragFormular({
               Rechnen
             </Knopf>
           </div>
+          {rechenbar.length === 1 && (
+            <p className="font-sans text-14 text-slate">
+              {`Mit Regelsatz ${regelsatz} ist noch kein Monat gerechnet. Gerechnet wird der Reihe nach, zuerst ${monatName(rechenbar[0]!)}.`}
+            </p>
+          )}
         </form>
       )}
     </div>

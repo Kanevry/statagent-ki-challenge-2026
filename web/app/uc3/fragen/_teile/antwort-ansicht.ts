@@ -25,7 +25,9 @@ export function teileBezeichnung(bezeichnung: string): { was: string; wo: string
 export function verstandenSatz(antwort: UcAntwort): string | null {
   const [erste] = antwort.zahlen;
   const wo = antwort.zahlen.length === 1 && erste ? teileBezeichnung(erste.bezeichnung).wo : null;
-  const teile = [wo, antwortMonat(antwort)].filter(Boolean);
+  // Die Zahl allein sagt nicht, nach welchem Regelsatz sie zählt: 407.604 und 399.027 sind beide „Juli 2026“.
+  const regelsatz = /^Nach Regelsatz (v\d+):/.exec(antwort.text)?.[1];
+  const teile = [wo, antwortMonat(antwort), regelsatz ? `Regelsatz ${regelsatz}` : null].filter(Boolean);
   return teile.length > 0 ? `Verstanden: ${teile.join(", ")}` : null;
 }
 
@@ -109,4 +111,13 @@ export function antwortTabelle(zahlen: readonly Zahl[]): AntwortTabelle {
 export function rueckfrageVorschlaege(text: string): string[] {
   const treffer = [...text.matchAll(/„([^“”"]{3,120})[“”"]/g)].map((t) => t[1]!.trim());
   return [...new Set(treffer)].slice(0, 3);
+}
+
+/**
+ * Was unter einer Antwort ohne Zahl zum Knopf wird. Bei einer Rückfrage alle Vorschläge; sonst nur, was sich fragen lässt:
+ * eine Frage oder ein Beispiel mit Jahr. Namen in Anführungszeichen aus einer Erklärung bleiben Text (#189).
+ */
+export function antwortKnoepfe(text: string, rueckfrage: string | null): string[] {
+  const vorschlaege = rueckfrageVorschlaege(text);
+  return rueckfrage !== null ? vorschlaege : vorschlaege.filter((v) => v.endsWith("?") || /\b20\d{2}\b/.test(v));
 }

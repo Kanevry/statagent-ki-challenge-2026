@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { antwortTabelle, ersterSatz, istSummenzeile, kopfSagtVerstanden, kopfSatz, rueckfrageVorschlaege, verstandenSatz } from "./antwort-ansicht";
+import { antwortKnoepfe } from "./antwort-ansicht";
 
 const beleg = { uc: "uc3" as const, quelle: "stat.stat_beschaeftigte", lieferung: "2025-03", monat: "2025-03" };
 
@@ -14,6 +15,18 @@ describe("Antwort-Ansicht (UI-Regie v1)", () => {
     };
     expect(verstandenSatz(antwort)).toBe("Verstanden: Wien, Gesundheits- und Sozialwesen, März 2025");
     expect(ersterSatz(antwort.text)).toBe("Am 31. März 2025 gab es 7.498 Beschäftigungsverhältnisse (Wien, Gesundheits- und Sozialwesen).");
+  });
+
+  // Fehler, den das fängt: „Juli 2026 nach Regelsatz v2“ zeigte 407.604 und nur „Verstanden: Juli 2026“.
+  it("nennt den Regelsatz, wenn die Antwort nach einem anderen zählt", () => {
+    const antwort = {
+      uc: "uc3" as const,
+      text: "Nach Regelsatz v2: Im Juli 2026 gab es 407.604 Beschäftigungsverhältnisse. Die Zahl ist vorläufig.",
+      belege: [{ ...beleg, monat: "2026-07" }],
+      zahlen: [{ bezeichnung: "Beschäftigungsverhältnisse", wert: 407604, einheit: "Anzahl", beleg: 0 }],
+    };
+    expect(verstandenSatz(antwort)).toContain("Regelsatz v2");
+    expect(verstandenSatz({ ...antwort, text: "Am 31. Juli 2026 gab es 399.027 Beschäftigungsverhältnisse." })).not.toContain("Regelsatz");
   });
 
   // Fehler, den das fängt: 20 Zahlen je Bundesland als lange Liste statt Tabelle Männer | Frauen.
@@ -57,5 +70,22 @@ describe("Antwort-Ansicht (UI-Regie v1)", () => {
   it("liest die Vorschläge einer Rückfrage", () => {
     const text = "Meinen Sie „Beschäftigte Dezember 2025“, oder „Zeitreihe 01/2025 bis 12/2025“?";
     expect(rueckfrageVorschlaege(text)).toEqual(["Beschäftigte Dezember 2025", "Zeitreihe 01/2025 bis 12/2025"]);
+  });
+});
+
+describe("antwortKnoepfe", () => {
+  it("macht aus Namen einer Erklärung keine Knöpfe, behält aber die Frage darin", () => {
+    const text = "Der Code C 10.11-0 heißt „Schlachten, ohne Schlachten von Geflügel“. Den Abschnitt erklärt die Frage „Was ist ÖNACE C?“.";
+    expect(antwortKnoepfe(text, null)).toEqual(["Was ist ÖNACE C?"]);
+  });
+
+  it("behält das Beispiel einer Absage, auch ohne Fragezeichen", () => {
+    const text = "Zum Beispiel: „Beschäftigte ab 50 Jahren im Juli 2026“";
+    expect(antwortKnoepfe(text, null)).toEqual(["Beschäftigte ab 50 Jahren im Juli 2026"]);
+  });
+
+  it("lässt bei einer Rückfrage alles durch", () => {
+    const text = "Welchen Monat meinen Sie, zum Beispiel „Beschäftigte im März“?";
+    expect(antwortKnoepfe(text, text)).toEqual(["Beschäftigte im März"]);
   });
 });
