@@ -16,7 +16,7 @@ bestanden, verschoben oder als Restmangel entschieden.
 | Kriterium | Issue-Beschreibung in GitLab; ID `<iid>-ACn` (Marke im Text) oder `<iid>-<n>`; Hash über den ganzen Block | Lead und Lanes im Issue |
 | Prüfsatz | `tests/abnahme/pruefungen/<bereich>.toml` | nur die Abnahme-Lane |
 | Prüfskript | `tests/abnahme/p/*.py`, Sollwerte in `tests/abnahme/orakel/` | nur die Abnahme-Lane |
-| Lauf | `docs/abnahme/laeufe/<zeit>-<sha>.jsonl`, eine Datei je Lauf, nie geändert | `pruefen.py` |
+| Lauf | `docs/abnahme/laeufe/<zeit>-<sha>.jsonl`, eine Datei je Lauf, nie geändert; seit 06.11. im Branch `abnahme/laeufe`, siehe `laeufe/README.md` | `pruefen.py` |
 | Hand-Beleg | `docs/abnahme/belege.jsonl` | Prüfer (Mess-Agents nur als Vorschlag) |
 | Entscheid | `docs/abnahme/entscheide.jsonl` (verschoben oder Restmangel, mit Quelle) | Lead oder Owner, eingetragen von der Abnahme |
 | Verworfener Beleg | `docs/abnahme/verworfen.jsonl` (Lauf, IDs, Grund, wer): ein Werkzeugfehler hat ihn verfälscht; die Laufdatei bleibt unverändert. Verwerfen kann ein älteres „bestanden“ wieder gültig machen: jede neue Zeile geht ausdrücklich an die Review-Bank | Abnahme |

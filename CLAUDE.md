@@ -27,7 +27,7 @@ Schnittstellen-SSOT: `docs/prd/2026-11-05-e0-plattform-e1-uc3.md` (Verträge O, 
   UC3-Lauf. `web/` ruft nie ein Modell direkt. Keine Einzeldaten an das Modell.
 - Ein Lauf = eine Lieferung (`lauf --lieferung JJJJ-MM`), nur eigene und frühere Lieferungen; veröffentlichte
   Monate bleiben unverändert, Abweichungen stehen als Revisionsbedarf im Qualitätsbericht.
-- **Ausnahme everlast:** `everlast-voice-interviewer` dient nur als Konzept für Voice (Owner 05.11. 12:4x). Code
+- **Ausnahme früheres Voice-Projekt:** Ein früheres eigenes Projekt (ein Sprach-Interview mit Vapi) dient nur als Konzept für Voice (Owner 05.11. 12:4x). Code
   entsteht hier neu und ist im README als vorab entstandenes Konzept ausgewiesen; keine `@goetzendorfer/*`-Pakete.
 
 ## Struktur und Lanes

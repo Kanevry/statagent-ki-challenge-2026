@@ -200,7 +200,7 @@ nennt die Lücke. Für den `claude`-Provider gelten diese Anforderungen an E0:
 - **pgvector, unaccent**: fehlen bzw. nicht installiert; der deutsche Stemmer faltet Umlaute. (Embeddings sind seit dem
   Nachtrag vom 05.11. 13:10 in Scope, ohne pgvector.)
 - **Framework einbetten** (TinyTroupe MIT, Concordia Apache-2.0, MiroFish/AgentTorch AGPL): nur Muster.
-- **Code aus eigenen Produkten** (persona-panel-Code, everlast, Pflegegeld-Prüfer): verboten im öffentlichen Repo.
+- **Code aus eigenen Produkten** (persona-panel-Code, früheres Voice-Projekt, Pflegegeld-Prüfer): verboten im öffentlichen Repo.
 - **Abgabe von UC2:** bewertet wird nur UC3; nichts nach GitHub vor Fr kurz vor 09:00.
 
 ### First Real Use / Kill

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { fassungsText, useFassung } from "../../lib/plattform/fassungs-knopf";
+import { FassungsInhalt, fassungsLink, useFassung } from "../../lib/plattform/fassungs-knopf";
 import { NAVIGATION, SEITE } from "../texte/inhalt";
 import n from "./navigation.module.css";
 
@@ -81,8 +81,8 @@ export default function Navigation() {
           ))}
           {fassung && (
             <li>
-              <a href={fassung.adresse} className={n.link} data-fassung={fassung.art}>
-                {fassungsText(fassung)}
+              <a {...fassungsLink(fassung)} className={n.link}>
+                <FassungsInhalt fassung={fassung} />
               </a>
             </li>
           )}
@@ -116,8 +116,8 @@ export default function Navigation() {
           ))}
           {fassung && (
             <li>
-              <a href={fassung.adresse} className={n.menueLink} data-fassung={fassung.art}>
-                {fassungsText(fassung)}
+              <a {...fassungsLink(fassung)} className={n.menueLink}>
+                <FassungsInhalt fassung={fassung} />
               </a>
             </li>
           )}
