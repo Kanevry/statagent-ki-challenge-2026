@@ -54,3 +54,21 @@ it("event ende mit abgebrochen und letzte_seq setzt auch ohne abbruch-Ereignis d
   expect(z.status).toBe("abgebrochen");
 });
 
+
+it("Moderator-Notiz eines Live-Laufs nennt eigene Themen mit ihrem Titel statt der ID", () => {
+  // Fängt rohe Schlüssel wie „digitale_triage“ im Verlauf (Befund UI-Regie 06.11.).
+  const mitAuftrag = wende(LEER, {
+    seq: 1,
+    art: "auftrag",
+    akteur: "moderator",
+    daten: { ziel: "x", regeln: [], themen: [{ id: "digitale_triage", titel: "Digitale Ersteinschätzung", beschreibung: "" }] },
+  });
+  const z = wende(mitAuftrag, {
+    seq: 2,
+    art: "moderator_notiz",
+    runde: 1,
+    akteur: "moderator",
+    daten: { notiz: "Kassenstellen und digitale_triage sind einig.", widersprueche: [], belege_eingefordert: [] },
+  });
+  expect(z.runden.find((r) => r.nr === 1)?.notiz?.text).toBe("Kassenstellen und Digitale Ersteinschätzung sind einig.");
+});

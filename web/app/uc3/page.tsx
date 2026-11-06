@@ -9,7 +9,6 @@ import { haltKurz, haltTreffer, leseLaufDetail, sqlTreffer } from "@/components/
 import { kopfSatz, leseDashboard } from "@/components/uc3/dashboard";
 import { monatName, verschieben } from "@/components/uc3/monat";
 import { laufPfad, regelsatzAus, uebersichtPfad } from "@/components/uc3/navigation";
-import { nurLesend } from "@/components/uc3/cli";
 import { mitRegeln, satzAnfang } from "@/components/uc3/regelsatz-name";
 import { RegelsatzWahl } from "@/components/uc3/regelsatz-wahl";
 import type { Monatslauf } from "@/components/uc3/typen";
@@ -108,7 +107,6 @@ export default async function Monate({ searchParams }: Props) {
           {kopfSatz(monate)}
         </Ueberschrift>
         {beideRegelsaetze && <RegelsatzWahl aktiv={regelsatz} pfad={uebersichtPfad} andereZahl={andereZahl} />}
-        {nurLesend() && <p className="font-sans text-14 text-slate">Hier sehen Sie die Ergebnisse. Gerechnet und freigegeben wird im Programm.</p>}
       </header>
 
       <Monatsgrafik key={regelsatz} monate={monate} regelsatz={regelsatz} beleg={<BelegLink quelle="meta.lauf" sql={sqlZeitreihe(regelsatz)} />} />
@@ -122,6 +120,9 @@ export default async function Monate({ searchParams }: Props) {
           <h2 id="angehalten-titel" className="font-sans text-16 font-semibold text-ink">
             Angehalten
           </h2>
+          <p className="max-w-3xl font-sans text-16 text-slate">
+            Angehalten heißt: Eine Prüfung hat beim Rechnen etwas so Großes gefunden, dass ein Mensch entscheiden muss.
+          </p>
           <ul className="flex flex-col">
             {angehalten.map((a) => (
               <li

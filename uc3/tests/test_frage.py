@@ -472,13 +472,48 @@ def test_monatszaehlung_ergibt_keine_zahl(gerechnet: Verbindung) -> None:
 def test_kein_traceback(
     gerechnet: Verbindung, monkeypatch: pytest.MonkeyPatch, fehler: Exception, frage: str
 ) -> None:
-    def wirft(conn: Verbindung, query: str) -> dict[str, Any]:
+    def wirft(conn: Verbindung, query: str, zeitlimit: str = werkzeuge.ZEITLIMIT) -> dict[str, Any]:
         raise fehler
 
     monkeypatch.setattr(frage_modul, "sql_lesen", wirft)
     daten = antwort_frage(gerechnet, frage)
     assert daten["zahlen"] == [] and daten["text"] == frage_modul.NICHT_LESBAR
     assert "intern" not in daten["text"] and "canceling" not in daten["text"]
+
+
+# Fängt: die Zu- und Abgänge laufen wieder in die Zeitgrenze freier Abfragen (Abnahme 74-AC1), oder eine andere
+# Abfrage der Antworten bekommt die längere Grenze mit.
+def test_nur_die_fluktuation_rechnet_laenger(gerechnet: Verbindung, monkeypatch: pytest.MonkeyPatch) -> None:
+    echt = frage_modul.sql_lesen
+    grenzen: list[tuple[bool, str]] = []
+
+    def merkt(conn: Verbindung, query: str, zeitlimit: str = werkzeuge.ZEITLIMIT) -> dict[str, Any]:
+        grenzen.append(("bewegung_oenace" in query, zeitlimit))
+        return echt(conn, query, zeitlimit)
+
+    monkeypatch.setattr(frage_modul, "sql_lesen", merkt)
+    for frage in (FLUKTUATION, GESCHLECHT, ZEITREIHE):
+        assert antwort_frage(gerechnet, frage)["zahlen"]
+    assert {grenze for fest, grenze in grenzen if fest} == {frage_modul.FLUKTUATION_ZEITLIMIT} == {"30s"}
+    assert {grenze for fest, grenze in grenzen if not fest} == {werkzeuge.ZEITLIMIT} == {"10s"}
+
+
+# Fängt: nach einem Zeitabbruch rechnet der Vorschlag dieselbe Abfrage ein zweites Mal, die Wartezeit verdoppelt
+# sich und die Seite antwortet nicht mehr rechtzeitig.
+def test_nach_zeitabbruch_kein_zweiter_lauf(gerechnet: Verbindung, monkeypatch: pytest.MonkeyPatch) -> None:
+    echt = frage_modul.sql_lesen
+    bewegung: list[str] = []
+
+    def bricht_ab(conn: Verbindung, query: str, zeitlimit: str = werkzeuge.ZEITLIMIT) -> dict[str, Any]:
+        if "bewegung_oenace" in query:
+            bewegung.append(query)
+            raise psycopg.errors.QueryCanceled("canceling statement due to statement timeout")
+        return echt(conn, query, zeitlimit)
+
+    monkeypatch.setattr(frage_modul, "sql_lesen", bricht_ab)
+    daten = antwort_frage(gerechnet, "Wie hoch ist die Fluktuation je Wirtschaftsbereich im September 2024?")
+    assert daten["zahlen"] == [] and daten["text"] == frage_modul.NICHT_LESBAR
+    assert len(bewegung) == 1
 
 
 # Fängt: „Die Zahlen sind endgültig und vorläufig.“ und „noch kein Lauf“ für Monate, zu denen es keine Lieferung

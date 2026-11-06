@@ -1,12 +1,12 @@
-# Prüfsätze E5 Präsentation. #26 und #90: Vorschläge agent-e5 18:1x; #88, #89, #134, #141: v4-Wortlaut
-# (Owner-Kurswechsel 16:0x, bestätigt von Lead a7 18:1x), Vorschläge agent-e5-v4 18:3x; gesichtet von b-abnahme-30.
+# Prüfsätze E5 Präsentation. #26 und #90: Vorschläge eines Agenten 18:1x; #88, #89, #134, #141: v4-Wortlaut
+# (Owner-Kurswechsel 16:0x, bestätigt vom Lead um 18:1x), Vorschläge eines Agenten 18:3x; gesichtet vom Abnahme-Prüfer.
 
 [[pruefung]]
 id = "26-1"
 hash = "04600bfc65"
 art = "hand"
 deckung = "voll"
-beschreibung = "Fr 06.11. früh (Probe 2 ab 07:15, Entscheid Lead f7 in #141) hält Bernhard den vollen Vortrag samt Demo mit Stoppuhr (Start und Ende aus der Uhr, nicht geschätzt). Bestanden ist, je Pfad gemessen (Entscheid Lead f7 in #90): Pfad B höchstens 10:00, Pfad A höchstens 14:00 und in Pfad A kamen alle fünf Pflichtschritte vor (Lösung, Fehlerbeispiel, eine begründete Annahme, Live-Änderung mit Vorher/Nachher, eine Datenfrage). Danach stellt der Lead als Jury drei Fragen aus dem Fragenkatalog und eine außerhalb. Bestanden ist: alle vier Fragen sind in unter 30 Sekunden beantwortet, ohne Pflichtlücke. Der Lead trägt Name, Uhrzeit und Ergebnis der Jury-Simulation in probe.md (Tabelle Auffälligkeiten) oder als Kommentar in #26 ein. Die Dauer allein misst der Prüfsatz 26-1 (Dauer)."
+beschreibung = "Fr 06.11. früh (Probe 2 ab 07:15, Entscheid des Leads in #141) hält Bernhard den vollen Vortrag samt Demo mit Stoppuhr (Start und Ende aus der Uhr, nicht geschätzt). Bestanden ist, je Pfad gemessen (Entscheid des Leads in #90): Pfad B höchstens 10:00, Pfad A höchstens 14:00 und in Pfad A kamen alle fünf Pflichtschritte vor (Lösung, Fehlerbeispiel, eine begründete Annahme, Live-Änderung mit Vorher/Nachher, eine Datenfrage). Danach stellt der Lead als Jury drei Fragen aus dem Fragenkatalog und eine außerhalb. Bestanden ist: alle vier Fragen sind in unter 30 Sekunden beantwortet, ohne Pflichtlücke. Der Lead trägt Name, Uhrzeit und Ergebnis der Jury-Simulation in probe.md (Tabelle Auffälligkeiten) oder als Kommentar in #26 ein. Die Dauer allein misst der Prüfsatz 26-1 (Dauer)."
 quelle = "Issue #26, Abschnitt Fertig wenn"
 befund = "Es gibt keinen ausgefüllten Probelauf mit Stoppuhr und keinen Vermerk des Leads zur Jury-Simulation."
 grund = "Probelauf höchstens 10:00 mit allen fünf Pflichtschritten und Jury-Simulation durch den Lead bestanden."
@@ -29,7 +29,7 @@ print("pfad_a_le_14min", int(bool(a) and 0 < int(a[1]) * 60 + int(a[2]) <= 840))
 erwartet = ['^gesamtdauer_gesetzt 1$', '^gesamt_le_10min 1$', '^pfad_a_le_14min 1$']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #26, Abschnitt Fertig wenn (Probelauf höchstens 10 min); Entscheide Lead f7 in #90 und #141: je Pfad, Pfad B höchstens 10:00, Pfad A höchstens 14:00, gemessen in Probe 2 des Owners"
+quelle = "Issue #26, Abschnitt Fertig wenn (Probelauf höchstens 10 min); Entscheide des Leads in #90 und #141: je Pfad, Pfad B höchstens 10:00, Pfad A höchstens 14:00, gemessen in Probe 2 des Owners"
 befund = "probe.md nennt eine der beiden Dauern von Probe 2 nicht, oder Pfad B liegt über 10:00 oder Pfad A über 14:00."
 grund = "probe.md trägt für Probe 2 des Owners Pfad B mit höchstens 10:00 und Pfad A mit höchstens 14:00 ein."
 
@@ -70,7 +70,7 @@ print("ergebnis", m.group(1) if m else "offen")
 erwartet = ['^start_ende 1$', '^gesamt_le_10min 1$', '^pfad_a_le_14min 1$', '^abschnitte_alle_gefuellt 1$', '^pflichtschritte_bestaetigt 5$', '^ergebnis 5$']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #90, Kriterium 90-1 (Wortlaut: Start/Ende, Abschnittszeiten, Gesamtdauer höchstens 10:00, 5/5 Schritte vom Lead bestätigt); Entscheid Lead f7 in #90 (Owner 21:2x, zwei Termine): je Pfad gemessen, Pfad A mit allen fünf Pflichtschritten höchstens 14:00 (Feld Gesamtdauer Ist Pfad A), Pfad B höchstens 10:00 (Feld Gesamtdauer Ist)"
+quelle = "Issue #90, Kriterium 90-1 (Wortlaut: Start/Ende, Abschnittszeiten, Gesamtdauer höchstens 10:00, 5/5 Schritte vom Lead bestätigt); Entscheid des Leads in #90 (Owner 21:2x, zwei Termine): je Pfad gemessen, Pfad A mit allen fünf Pflichtschritten höchstens 14:00 (Feld Gesamtdauer Ist Pfad A), Pfad B höchstens 10:00 (Feld Gesamtdauer Ist)"
 befund = "probe.md ist nicht ausgefüllt: Start, Ende, eine der beiden Gesamtdauern, Abschnittszeiten oder die Bestätigung der fünf Pflichtschritte in Pfad A fehlen, oder Pfad A liegt über 14:00 oder Pfad B über 10:00."
 grund = "probe.md hat Start, Ende und alle Abschnittszeiten, Pfad A höchstens 14:00, Pfad B höchstens 10:00, und der Lead hat 5 von 5 Pflichtschritten in Pfad A bestätigt."
 
@@ -337,7 +337,7 @@ id = "89-1"
 hash = "08e51f623d"
 art = "hand"
 deckung = "teil"
-beschreibung = "Der Prüfer sucht das Urteil \"passt\" der UI-Regie (ui-regie-32) zu den Screenshots der Route /praesentation. Es muss als Kommentar in Issue #89 (oder in #59, MR !80) stehen, mit Datum und Uhrzeit nach dem letzten Umbau der Szenen (Commit e7ce069, 05.11. 18:05) und für alle 10 Szenen gelten, nicht nur für einen Teil. Gibt es mehrere Urteile, zählt das jüngste. Bestanden: ein \"passt\" der UI-Regie für alle 10 Szenen liegt vor und ist nicht älter als der letzte Umbau. Steht es später maschinenlesbar in einer Datei im Repo, ersetzt ein Prüfsatz auf diese Datei diesen Hand-Prüfsatz."
+beschreibung = "Der Prüfer sucht das Urteil \"passt\" der UI-Regie (UI-Prüfung) zu den Screenshots der Route /praesentation. Es muss als Kommentar in Issue #89 (oder in #59, MR !80) stehen, mit Datum und Uhrzeit nach dem letzten Umbau der Szenen (Commit e7ce069, 05.11. 18:05) und für alle 10 Szenen gelten, nicht nur für einen Teil. Gibt es mehrere Urteile, zählt das jüngste. Bestanden: ein \"passt\" der UI-Regie für alle 10 Szenen liegt vor und ist nicht älter als der letzte Umbau. Steht es später maschinenlesbar in einer Datei im Repo, ersetzt ein Prüfsatz auf diese Datei diesen Hand-Prüfsatz."
 quelle = "Issue #89, Kriterium 89-1 (Wortlaut: Statt der Zuordnung zu Pen-Frames gilt das \"passt\" der UI-Regie auf Screenshots von /praesentation)"
 befund = "Es liegt kein \"passt\" der UI-Regie zu den 10 Szenen auf /praesentation vor, oder es ist älter als der letzte Umbau."
 grund = "Die UI-Regie hat alle 10 Szenen auf /praesentation nach dem letzten Umbau mit passt bestätigt."
@@ -769,7 +769,7 @@ print("folien_verweise_ohne_bild", fehlt)
 erwartet = ['^befunde 0$', '^bilder_ohne_eintrag 0$', '^folien_verweise_ohne_bild 0$']
 deckung = "teil"
 zeitlimit = 60
-quelle = "Issue #141, Aufgabe 2 (Wortlaut neu, Entscheid Lead 05.11.: 12 Bilder, keines entfällt; Manifest mit screens_manifest.py --check; Bilder in bilder/ und bilder.ts nur, falls eine Szene eines braucht). Die Aufnahme nach dem Umbau misst 88-1."
+quelle = "Issue #141, Aufgabe 2 (Wortlaut neu, Entscheid des Leads 05.11.: 12 Bilder, keines entfällt; Manifest mit screens_manifest.py --check; Bilder in bilder/ und bilder.ts nur, falls eine Szene eines braucht). Die Aufnahme nach dem Umbau misst 88-1."
 befund = "screens_manifest.py --check meldet Befunde (Bilder fehlen oder sind unvollständig), oder Bilder und bilder.ts stimmen nicht überein."
 grund = "--check meldet keinen Befund für die 12 Bilder, Bilder und bilder.ts stimmen überein."
 gegenprobe = "test \"$(grep -c 'SC13' docs/praesentation/screens/quellen.json || true)\" -ge 1"
@@ -949,7 +949,7 @@ hash = "0e76cae96e"
 art = "hand"
 deckung = "voll"
 beschreibung = "Der Prüfer legt die Schritte von D2 (demo-drehbuch.md) neben das Probe-Protokoll probe.md (Abschnitt D2) und den Probelauf Fr 06.11. 06:00 bis 07:00: Jeder Schritt von D2 (Auftrag zeigen, vorschlag zeigen, Protokoll mit Freigabe) wurde im Probelauf mit Uhrzeit tatsächlich ausgeführt und lief durch. Schritte, die im Probelauf scheiterten oder nie liefen, dürfen nicht in D2 stehen. Bestanden: jeder D2-Schritt hat einen Eintrag im Probe-Protokoll mit Ergebnis bestanden, und D2 enthält keinen weiteren Schritt."
-quelle = "Issue #141, Abschnitt Fertig wenn, vierter Punkt (Wortlaut: Drehbuch D2 zeigt nur Schritte, die E5 selbst geprobt hat; Anweisung Lead c0, 05.11. 17:5x)"
+quelle = "Issue #141, Abschnitt Fertig wenn, vierter Punkt (Wortlaut: Drehbuch D2 zeigt nur Schritte, die E5 selbst geprobt hat; Anweisung des Leads, 05.11. 17:5x)"
 befund = "D2 enthält einen Schritt, der im Probelauf nicht oder nicht erfolgreich gelaufen ist."
 grund = "Jeder Schritt von D2 ist im Probe-Protokoll als geprobt und bestanden eingetragen."
 
@@ -961,7 +961,7 @@ erwartet = ["^szenen_mit_beleg 10$", "^luecken keine$"]
 deckung = "voll"
 schwer = false
 zeitlimit = 120
-quelle = "Kriterium 88-4 (Lead a7, 05.11. 18:2x)"
+quelle = "Kriterium 88-4 (Lead, 05.11. 18:2x)"
 grund = "Jede der 10 Szenen hat in quellen.json mindestens einen echten Beleg (vorhandenes PNG oder Live-Ausschnitt mit Route)"
 befund = "Mindestens eine Szene ohne echten Beleg in quellen.json"
 

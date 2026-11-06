@@ -5,7 +5,7 @@
         --spalte wert_v1_mit_e07
 
 Ausgabe (deterministisch): `zellen <n>`, `abweichend <m>`, `fehlend <k>`, danach höchstens zehn Abweichungen.
-Das Orakel stammt aus einer eigenen Rechnung direkt auf den Lieferungen (lead-session-orchestrator-bb,
+Das Orakel stammt aus einer eigenen Rechnung direkt auf den Lieferungen (Lead,
 05.11.2026), nicht aus dem Code, der geprüft wird. Die Zeile „Insgesamt“ ist im Sheet eine Formel; sie wird
 als Summe der übrigen Zeilen des Blatts nachgerechnet und mit dem Orakel verglichen.
 """

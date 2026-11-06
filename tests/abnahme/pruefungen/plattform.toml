@@ -1,8 +1,8 @@
-# Prüfsätze Plattform (E6 Abgabe, UC4). Vorschläge von b-abnahme-30/agent-e6-uc4 05.11. 17:5x, gesichtet von
-# b-abnahme-30 (92-1: Ministeriums-CSV muss im Manifest stehen, nicht im Repo; Owner-Entscheid).
+# Prüfsätze Plattform (E6 Abgabe, UC4). Vorschläge von Abnahme-Prüfer/Mess-Agent 05.11. 17:5x, gesichtet vom
+# Abnahme-Prüfer (92-1: Ministeriums-CSV muss im Manifest stehen, nicht im Repo; Owner-Entscheid).
 
 # Prüfsatz-Vorschläge E6 Abgabe (27-1, 27-AC1, 91-x, 92-x) und UC4 (95-x bis 98-x).
-# Erzeugt 05.11.2026 von b-abnahme-30/messer-e6uc4, gemessen auf einem Abzug von main 77183ba.
+# Erzeugt 05.11.2026 von Abnahme-Prüfer/Mess-Agent, gemessen auf einem Abzug von main 77183ba.
 # art = "hand": kein Befehl, ein Mensch prüft die Beschreibung. schwer = true: Datenbank, Docker, Browser oder Prüfrechner.
 
 # ---------------------------------------------------------------- E6 Abgabe
@@ -152,7 +152,7 @@ deckung = "voll"
 schwer = false
 zeitlimit = 170
 gegenprobe = '''ls abgabe/qualitaetsberichte | grep -c '^20[0-9][0-9]-[0-9][0-9]\.md$' | grep -c '^25$' '''
-quelle = "Issue #92 Kriterium (Wortlaut, Pfad abgabe/manifest.json nach Entscheid Lead a7 20:5x: ein Manifest); Aufgabenstellung Use Case 3 StatAgent, Abschnitt Abgabe (24 Berichte, Sheet alt und neu, Ministeriums-Lieferung, Protokoll, Modellangabe)"
+quelle = "Issue #92 Kriterium (Wortlaut, Pfad abgabe/manifest.json nach Entscheid des Leads 20:5x: ein Manifest); Aufgabenstellung Use Case 3 StatAgent, Abschnitt Abgabe (24 Berichte, Sheet alt und neu, Ministeriums-Lieferung, Protokoll, Modellangabe)"
 befund = "Abgabepaket unvollständig: eine verlangte Datei fehlt (abgabe/CHECKLISTE.md, abgabe/manifest.json), das Manifest verzeichnet Berichte oder Ministerium nicht, die Checkliste bestätigt weniger als 5 Gruppen oder pruefe-abgabe endet nicht mit Exit 0."
 grund = "Alle Abgabedateien und das Manifest mit SHA-256 sind da, 24 Berichte sind verzeichnet, pruefe-abgabe meldet Exit 0, die Checkliste hat alle Gruppen bestätigt."
 

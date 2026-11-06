@@ -1,8 +1,8 @@
 # Vorführung am Freitag (06.11.2026): online auf einer eigenen Instanz
 
 Die Live-Demo läuft auf dem Demo-Server unter einer eigenen Adresse mit Passwort, über den Hotspot des Vortragenden.
-Die öffentliche Demo bleibt lesend und daneben unverändert. Gerechnet wird ohne Modell, nur die Agenten rufen das
-Azure-Modell (`gpt-5-4-mini`).
+Die öffentliche Demo bleibt lesend und daneben unverändert. Gerechnet wird ohne Modell. Das Azure-Modell (`gpt-5-4-mini`)
+rufen nur die Agenten von UC3 und die Verhandlung von UC2.
 Stand 05.11.2026. Was nicht gemessen ist, steht als „nicht gemessen“.
 
 Platzhalter: `<vorführ-adresse>` ist die Adresse der Instanz, `<dump>` eine `pg_dump -Fc`-Datei der Abgabe-DB. Zugang: Nutzer
@@ -16,7 +16,8 @@ Platzhalter: `<vorführ-adresse>` ist die Adresse der Instanz, `<dump>` eine `pg
 | App | eigenes Compose-Projekt `ki-challenge-vorfuehrung`, eigenes Image mit git, ohne `KIC_ONLINE_LESEND`, mit `KIC_VORFUEHRUNG=1` |
 | DB | eigener Container in eigenem Netz, `statistik_vorfuehrung` plus Vorlage. Enthält `roh` und `bereinigt`, die öffentliche App erreicht ihn nicht |
 | UC1 | wie öffentlich nur das aufgezeichnete Gespräch, ohne Eingabefeld. Die Datenbank des Lotsen gibt es online nicht (#143) |
-| UC2 | lesend aus der öffentlichen DB (Rolle `kic_app`) |
+| UC2 | die App liest lesend aus der öffentlichen DB (Rolle `kic_app`); eine Live-Verhandlung läuft über den Dienst `vorfuehrung-uc2` |
+| UC2 live | Dienst `vorfuehrung-uc2`: dasselbe Image wie die App, `uvicorn uc2.api:app` auf Port 8102, kein Port nach außen, nur im eigenen Netz, schreibgeschütztes Dateisystem, 1 Kern, 768 MB. Eigene Datenbank `healthpolicy_vorfuehrung` im Container `vorfuehrung-db`. Die App erreicht ihn über `UC2_API_URL` |
 | Git | eigener Checkout mit einem Commit „Ausgangsstand“, kein Remote, also kein Push. Die Freigabe committet dorthin |
 | Modell | nur Azure, kein Rückfall auf Mistral: Scheitert Azure, steht das als Fehler auf der Seite. Eigenes Tagesbudget (`VORFUEHRUNG_TAGESBUDGET`, Standard 2000, Grenze je UTC-Tag), eigenes Protokoll-Volume |
 
@@ -43,7 +44,7 @@ Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset
 `statistik` wird dabei nur gelesen und bekommt die Pensionen bis nach 09:00 nicht. Server-Schritte startet nur der Lead.
 
 1. **Ab 05:57, neuer Dump mit Pensionen, nach den letzten Läufen.** Auf dem Rechner mit der Rechen-Datenbank, mit einem
-   Code-Stand ab Merge Request 214:
+   Code-Stand ab MR 214:
    ```bash
    scripts/vorfuehrung-db.sh --ersetzen statistik statistik_vorfuehrung_pensionen
    # mit UC3_DATABASE_URL auf diese Kopie und gesetztem STATAGENT_STARTPAKET:
@@ -53,7 +54,7 @@ Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset
    docker exec statagent-db pg_dump -U statistik -Fc -d statistik_vorfuehrung_pensionen > <dump>
    psql "<kopie>" -X -q -At -v schema=stat -f deploy/sql/inhaltshash.sql | grep GESAMT   # dasselbe für meta, beide notieren
    ```
-   Probe am 05.11. mit einem Zwischenstand von Merge Request 214: 2 min 33 s bis zum fertigen Dump, 457 MB.
+   Probe am 05.11. mit einem Zwischenstand von MR 214: 2 min 33 s bis zum fertigen Dump, 457 MB.
    Die Klassifikations-Datei lief auf einer Wegwerf-Kopie in 1 s, ein zweites Mal ohne Änderung; `meta` bleibt gleich, `stat` bekommt
    einen neuen Hash. Darum gelten nur die GESAMT-Zeilen dieses Schritts als Vergleich für `daten`, keine älteren.
 2. **Stand und Daten auf den Server.** `scripts/vorfuehrung.sh up <ref>` mit dem Stand, der vorgeführt wird, dann
@@ -88,12 +89,42 @@ in der Vorführung und ist nicht messbar, das gehört am Tisch nicht behauptet. 
 4. **D3 Datenanfragen:** `/uc3/fragen`. Eine Frage braucht rund 3 s. Höchstens zwei rechnen gleichzeitig, also die Antwort abwarten:
    Die dritte Frage innerhalb dieser 3 s bekommt „Gerade rechnet das Programm schon zwei Fragen“.
 5. **D4 Gemeinsamer Einstieg:** `/uc4`.
+6. **UC2 live:** `/uc2`, „Neu verhandeln lassen, mit Modell“. Eine Verhandlung mit Modell dauert rund fünf Minuten, die Runden erscheinen
+   laufend. Am Ende Vor- und Nachname eintragen und freigeben. Während des Laufs geht kein zweiter Start: Er bekommt „Es läuft
+   schon eine Verhandlung.“
 
 Die Zahlen nachher kommen in der Vorführung aus der Probe auf dem Vorschlag. Ein neuer Regelsatz rechnet Monate nur in
 zeitlicher Reihenfolge ab dem ersten Monat, alle 24 sind live nicht machbar; die Seite bietet deshalb nur rechenbare Monate an.
 Nicht jeder Auftrag ändert in jedem Monat eine Zahl: Der Auftrag zum Geburtsmonat 13 wirkt nur in Jänner bis Juni, im Juli 2026
 ändert er keine. Für ihn Juni 2026 wählen (Gesamtzahl gleich, die Altersgruppen verschieben sich um wenige Personen, gemessen in
 der Lane Live-Änderung).
+
+## UC2 live
+
+Stand 06.11.2026. Auf `/uc2` lässt sich hier eine echte Verhandlung starten, statt nur die Aufzeichnung zu lesen. Die
+öffentliche Demo bleibt lesend und zeigt weiter nur die Aufzeichnung. Starten ist dort gesperrt.
+
+- **Modell:** Der Knopf schickt den Anbieter `azure` mit (`UC2_START_PROVIDER`). Es antwortet `gpt-5-4-mini`, ohne Rückfall
+  auf ein anderes Modell. Einen anderen Anbieter lehnt die Instanz ab.
+- **Schutz:** Höchstens eine Verhandlung gleichzeitig und höchstens ein Start je Minute. Dazu kommt ein eigenes Tageslimit von
+  300 Modellaufrufen (`VORFUEHRUNG_UC2_TAGESBUDGET`), getrennt vom Budget der UC3-Agenten, Grenze je UTC-Tag. Das reicht für rund
+  acht Verhandlungen am Tag. Ist es erreicht, steht auf der Seite „Eine neue Live-Verhandlung ist gerade nicht möglich. Die
+  aufgezeichnete Verhandlung bleibt.“
+- **Belege:** Live nutzt die Verhandlung nur erfundene Beispielbelege, keine Pressetexte. Das legt die Instanz fest, auch
+  wenn eine Anfrage etwas anderes verlangt. Die Seite kennzeichnet sie am Beleg
+  („Beleg (erfundene Beispielquelle): …“) und im Satz unter der Verhandlung („Die Belege sind erfundene Beispiele.“).
+- **Namensschutz:** Texte, die das Modell schreibt, laufen vor dem Speichern durch die Namensliste. Ohne Namensliste startet
+  kein echtes Modell.
+- **Freigabe:** Am Ende gibt ein Mensch das Ergebnis mit Vor- und Nachnamen frei. Gespeichert wird der Name. Nach dem Neuladen
+  zeigt die Seite nur „Freigegeben am <Zeit>“. Die Instanz gilt als online und liefert dann keine Namen aus.
+- **Daten:** Die Verhandlungen liegen in der eigenen Datenbank `healthpolicy_vorfuehrung`. `up` legt sie an, falls sie fehlt,
+  und startet danach den Dienst in einem eigenen Schritt. `reset`, `daten` und `festschreiben` berühren Dienst und Datenbank
+  nicht. Gespeicherte Verhandlungen bleiben also über ein `reset` hinweg.
+- **Rückfall:** Scheitert dieser Schritt bei `up`, läuft die Instanz weiter, und `/uc2` zeigt die Aufzeichnung.
+
+Prüfen nach `up`: `scripts/vorfuehrung.sh status` zeigt den Dienst `vorfuehrung-uc2`. `scripts/vorfuehrung.sh pruefen` meldet
+„pruefen: UC2 live (Dienst erreichbar)“ oder „pruefen: UC2 zeigt die Aufzeichnung (Dienst nicht erreichbar)“. Die zweite
+Meldung ist kein Fehler des Befehls. Sie heißt nur, dass `/uc2` die Aufzeichnung zeigt.
 
 ## Zurück auf den Ausgangsstand
 
@@ -119,7 +150,7 @@ Bricht `daten`, `reset` oder `festschreiben` mitten ab, startet das Skript die A
 
 ## Messungen
 
-Gemessen am 05.11.2026 auf der echten Adresse im Browser, mit dem Stand aus Merge Request 229. Freigaben mit einem Probe-Namen, vor jedem
+Gemessen am 05.11.2026 auf der echten Adresse im Browser, mit dem Stand aus MR 229. Freigaben mit einem Probe-Namen, vor jedem
 Durchlauf `reset`.
 
 | Messung | Durchlauf 1 (23:00) | Durchlauf 2 (23:06, gedrosselt) |
@@ -151,6 +182,10 @@ Das ersetzt keine Messung über einen echten Hotspot, die steht aus und liegt be
 | Folge ohne Rechen-Datenbank (06.11. 00:49 bis 00:54) | bestanden: `up`, `reset`, `klassifikationen`, `festschreiben` 53 s, `reset`, `pruefen`; danach Inhalts-Hash `stat` wie auf der Probe-Kopie, Regelstände v1, v2 und `ministerium` gleich dem Soll |
 | Lauf Oktober 2025 mit den tiefen Klassifikationen | `unveraendert`, 397.514, Hash `63f106818887` |
 | Ratenlimit vor der Änderung | sechs Fragen hintereinander 200, je rund 3 s; die elfte in einer Minute 429 |
+| UC2-Verhandlung per CLI auf einem zweiten Rechner, nicht auf der Instanz (06.11., sechs Gruppen, fünf Runden, Azure `gpt-5-4-mini`) | 321 s, 37 Modellaufrufe, Status `fertig` |
+| UC2-Verhandlung über `uc2.api` auf dem zweiten Rechner (06.11.) | Start nach 0,4 s, Ereignisstrom 282 s mit 95 Ereignissen, 37 Modellaufrufe, Status `fertig` |
+| UC2-Verhandlung im Container `vorfuehrung-uc2` auf dem zweiten Rechner (06.11., schreibgeschütztes Dateisystem, 1 Kern, 768 MB) | Dienst gesund nach 5 s, Start nach 0,9 s, Status `fertig` nach 236 s, 37 Modellaufrufe, im Leerlauf 80 MB |
+| UC2: zweiter Start während des Laufs, Freigabe mit Probe-Namen, Start bei verbrauchtem Tageslimit | 409, 200 (danach 409 „schon entschieden“), 503 ohne Modellaufruf |
 
 ## Reserve: lokal
 

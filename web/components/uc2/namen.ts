@@ -132,6 +132,17 @@ const ID_MUSTER = new RegExp(
  * Macht aus Modelltext Anzeigetext: Kennungen wie `sv` oder `kassenstellen` werden zu Namen, Striche verschwinden.
  * Zahlen und Satzbau bleiben unverändert.
  */
+/**
+ * Themen-IDs aus dem Auftrag eines Live-Laufs (etwa `digitale_triage`) im Modelltext durch ihren Titel ersetzen. Die feste
+ * Liste THEMEN kennt nur die Themen der Aufzeichnung; `klartext` übernimmt den Rest.
+ */
+export function mitThemenTiteln(text: string, themen: { id: string; titel: string }[]): string {
+  const eigene = themen.filter((t) => t.id && !THEMEN[t.id] && t.titel).sort((a, b) => b.id.length - a.id.length);
+  if (eigene.length === 0) return text;
+  const muster = new RegExp(`\\b(${eigene.map((t) => t.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "g");
+  return text.replace(muster, (id) => eigene.find((t) => t.id === id)?.titel ?? id);
+}
+
 export function klartext(text: string): string {
   return ohneStriche(text).replace(ID_MUSTER, (id) => AKTEUR_NAMEN[id] ?? THEMEN[id]?.kurz ?? id);
 }

@@ -5,6 +5,11 @@ import { knopfKlassen } from "@kic/ui/basis";
 import type { Modus } from "../../../app/api/uc2/_lib/proxy";
 import { FreigabeBericht, useEntscheidung } from "../freigabe";
 import { akteurName, klartext, monatText, themaKurz } from "../namen";
+
+/** Themenname mit dem Titel aus dem Auftrag: Ein Live-Lauf hat eigene Themen, die die feste Liste nicht kennt. */
+function themaName(z: FallZustand, id: string): string {
+  return themaKurz(id, z.themen.find((t) => t.id === id)?.titel);
+}
 import { endstand, type FallZustand } from "../zustand";
 import { Brett } from "./brett";
 import { buehneAus, ersterSatz, haltungWort, hauptaussage, kategorieWort, kuerzel, type Buehne } from "./takt";
@@ -59,7 +64,7 @@ export function PanelBuehne({ fallId, modus }: { fallId: string; modus: Modus })
               ? `Ergebnis nach ${z.ergebnis?.runden ?? z.runden.length} Runden`
               : rundeNr
                 ? `Runde ${rundeNr}${z.maxRunden ? ` von höchstens ${z.maxRunden}` : ""}${phase ? `: ${PHASE[phase] ?? phase}` : ""}`
-                : "Das Panel setzt sich an den Tisch"}
+                : "Die Gruppen setzen sich an den Tisch"}
           </h1>
           {!fertig && (
             <div className="flex items-center gap-2">
@@ -118,7 +123,8 @@ export function PanelBuehne({ fallId, modus }: { fallId: string; modus: Modus })
 export function modellSatz(modus: Modus, z: FallZustand): string {
   const akteur = z.modelle?.akteur;
   if (modus === "live" && akteur?.modell && akteur.provider !== "mock") {
-    return `Die Sätze der Gruppen schreibt eine KI (${akteur.provider ?? ""} ${akteur.modell}). Die Zahlen rechnet der Experte ohne KI.`;
+    const satz = `Die Sätze der Gruppen schreibt eine KI (${akteur.provider ?? ""} ${akteur.modell}). Die Zahlen rechnet der Experte ohne KI.`;
+    return z.belegquelle === "fixture" ? `${satz} Die Belege sind erfundene Beispiele.` : satz;
   }
   // Live, aber das Ereignis „start“ mit den Modellen ist noch nicht da: nichts behaupten (Review !101).
   if (modus === "live" && !akteur) return "Die Verhandlung startet.";
@@ -133,9 +139,13 @@ function ModellZeile({ modus, zustand }: { modus: Modus; zustand: FallZustand })
   );
 }
 
-/** In der Aufzeichnung sind die Medien erfunden; das steht dann am Beleg, nicht nur in der Kopfzeile (Jury 05.11.). */
-function belegName(medium: string, modus: Modus): string {
-  if (modus === "vorfuehrung" && !/beispiel/i.test(medium)) return `Beleg (erfundene Beispielquelle): ${medium}`;
+/**
+ * In der Aufzeichnung und in Live-Läufen mit Beispielbelegen (`belegquelle: "fixture"`) sind die Medien erfunden; das
+ * steht dann am Beleg, nicht nur in der Kopfzeile (Jury 05.11.). Belege aus dem Index bleiben „Beleg: <Medium>“.
+ */
+export function belegName(medium: string, modus: Modus, belegquelle?: string): string {
+  const erfunden = modus === "vorfuehrung" || belegquelle === "fixture";
+  if (erfunden && !/beispiel/i.test(medium)) return `Beleg (erfundene Beispielquelle): ${medium}`;
   return `Beleg: ${medium}`;
 }
 
@@ -243,7 +253,7 @@ function Szene({ buehne, zustand: z, modus }: { buehne: Buehne; zustand: FallZus
               {beleg && (
                 <details className="group max-w-xl">
                   <summary className="inline-flex min-h-11 cursor-pointer items-center font-sans text-14 text-gruen underline underline-offset-4">
-                    {belegName(klartext(beleg.medium), modus)}
+                    {belegName(klartext(beleg.medium), modus, z.belegquelle)}
                     {beleg.monat || beleg.datum ? `, ${monatText(beleg.monat ?? beleg.datum)}` : ""}
                   </summary>
                   <p className="mt-2 font-sans text-14 text-slate">„{klartext(beleg.zitat)}“</p>
@@ -276,7 +286,7 @@ function Szene({ buehne, zustand: z, modus }: { buehne: Buehne; zustand: FallZus
             <ul className="flex flex-col gap-2">
               {aenderungen.slice(0, 5).map((a) => (
                 <li key={`${a.akteur}-${a.thema}`} className="font-sans text-16 text-ink">
-                  {akteurName(a.akteur)} bei {themaKurz(a.thema)}: {haltungWort(a.alt)} → {haltungWort(a.neu)}
+                  {akteurName(a.akteur)} bei {themaName(z, a.thema)}: {haltungWort(a.alt)} → {haltungWort(a.neu)}
                 </li>
               ))}
             </ul>
@@ -366,7 +376,7 @@ function Ergebnis({ zustand: z }: { zustand: FallZustand }) {
       <ul className="flex flex-col divide-y divide-line border-y border-line">
         {stand.map((t) => (
           <li key={t.thema} className="flex flex-wrap items-baseline justify-between gap-2 py-3">
-            <span className="font-sans text-16 font-semibold text-ink">{themaKurz(t.thema)}</span>
+            <span className="font-sans text-16 font-semibold text-ink">{themaName(z, t.thema)}</span>
             <span className="font-sans text-16 text-ink">
               {kategorieWort(t.kategorie)}
               {t.dagegen.length > 0 && <span className="text-slate">, dagegen: {t.dagegen.map(akteurName).join(", ")}</span>}
@@ -410,7 +420,7 @@ function Verlauf({ zustand: z }: { zustand: FallZustand }) {
                 <li key={akteur} className="font-sans text-14 text-slate">
                   <span className="font-semibold text-ink">{akteurName(akteur)}:</span>{" "}
                   {Object.values(zug.themen)
-                    .map((t) => `${themaKurz(t.thema)} ${haltungWort(t.haltung)}`)
+                    .map((t) => `${themaName(z, t.thema)} ${haltungWort(t.haltung)}`)
                     .join(", ")}
                 </li>
               ))}
