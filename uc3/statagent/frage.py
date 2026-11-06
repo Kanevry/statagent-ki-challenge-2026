@@ -1952,6 +1952,8 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         return zur_anwendung
     gelesen = alltag_lesen(frage)
     rang = _rang_lesen(gelesen) if regelsatz == "v1" and not _regelsatz_der_frage(gelesen) else None
+    if rang is not None and _rang_nennt_gruppe(conn, rang):
+        rang = None  # „… Wien oder Tirol?“ nennt selbst Bundesländer: keine Rangfrage, der alte Weg sagt ehrlich ab.
     daten = _antwort_kern(conn, rang.frage if rang else frage, regelsatz)
     if rang:
         daten = _rang_anwenden(conn, daten, rang)
@@ -2032,12 +2034,38 @@ def _rang_lesen(frage: str) -> _Rang | None:
 
 _RANG_RUECKFRAGE = "Die Rangfolge gibt es je Monat. Für welchen Monat möchten Sie sie?"
 _RANG_ZEILE = re.compile(r"^(Beschäftigungsverhältnisse(?: \([^)]*\))?), (.+)$")
+_RANG_FEHLER = (psycopg.Error, ValueError, _KeineZahl, _Abgeschnitten, AbfrageVerweigert, RegelFehler)
+
+
+def _rang_nennt_gruppe(conn: Verbindung, rang: _Rang) -> bool:
+    """Nennt die Frage selbst Werte des Merkmals, nach dem gereiht wird? Bei einem Fehler: ja, keine Rangfrage."""
+    merkmal = {"Welches Bundesland": BUNDESLAND, "Welche Kategorie": KATEGORIE}.get(rang.gruppe, OENACE)
+    text = re.sub(r"\s+je\s+\w+$", "", rang.frage)
+    try:
+        genannt = [m for m in monate_lesen(text) if ERSTE_LIEFERUNG <= m <= LETZTE_LIEFERUNG]
+        monat = genannt[-1] if genannt else _letzter_monat(conn, "v1") or LETZTE_LIEFERUNG
+        return bool(_werte(text, merkmal, _codes(conn, merkmal, monat))[0])
+    except _RANG_FEHLER:
+        return True
+
+
+def _ueber_mehrere_monate(frage: str) -> bool:
+    """Nennt die Frage mehr als einen Monat (Zeitraum, Jahreszeit, Quartal, Jahr ohne Monat, Zeitreihe)?"""
+    zeit = zeitraum_lesen(frage, LETZTE_LIEFERUNG)
+    return (
+        (zeit is not None and zeit.von != zeit.bis)
+        or len(set(monate_lesen(frage))) > 1
+        or jahr_ohne_monat(frage) is not None
+        or fragetyp(frage) == "zeitreihe"
+    )
 
 
 def _rang_anwenden(conn: Verbindung, daten: dict[str, Any], rang: _Rang) -> dict[str, Any]:
     """Setzt den Spitzenwert vor die Antwort. Rechnet keine neue Zahl, reiht nur die Zeilen der Tabelle.
 
-    Über mehrere Monate gibt es keinen einen Spitzenwert, dann kommt eine Rückfrage nach dem Monat.
+    Über mehrere Monate gibt es keinen einen Spitzenwert, dann kommt eine Rückfrage nach dem Monat. Ob es
+    mehrere sind, entscheidet die Frage, nicht der Stand der Antwort (ein Zeitraum kann nur einen Monat mit Daten
+    haben); und ohne genau einen Monat im Stand wird nie gereiht.
     """
     jahr = jahr_ohne_monat(rang.frage)
     if jahr is not None and not ERSTE_LIEFERUNG[:4] <= jahr <= LETZTE_LIEFERUNG[:4]:
@@ -2045,21 +2073,10 @@ def _rang_anwenden(conn: Verbindung, daten: dict[str, Any], rang: _Rang) -> dict
     if not daten["zahlen"] and not (daten["typ"] == "rueckfrage" and jahr):
         return daten
     monate = {str(s.get("monat")) for s in daten["stand"]}
-    if len(monate) != 1:
-        # Auch „… 2025“: Die Rückfrage nach dem Jahr böte Monate ohne Rangfolge an.
-        monat_rang = (
-            max(monate) if monate else min(f"{jahr}-12", LETZTE_LIEFERUNG) if jahr else LETZTE_LIEFERUNG
-        )
-        # Das Beispiel gibt nur wieder, was ``_teile_der_frage`` liest; eine Altersangabe fiele weg.
-        text = rang.frage.lower()
-        if _alter_lesen(text) or _ALTER_GRUPPEN.search(text) or _ALTER_GRENZE.search(text):
-            return _rueckfrage(_RANG_RUECKFRAGE)
-        was, orte, _ = _teile_der_frage(conn, rang.frage, monat_rang)
-        wer = " ".join([was or "Beschäftigten", *orte])
-        return _rueckfrage(
-            f"{_RANG_RUECKFRAGE} Zum Beispiel „{rang.gruppe} hat die {rang.rangwort} {wer} "
-            f"im {_monat_anzeige(monat_rang)}?“"
-        )
+    if len(monate) != 1 or _ueber_mehrere_monate(rang.frage):
+        # Auch „… 2025“. Ohne Beispielfrage: Sie müsste jede Einschränkung der Frage tragen (Alter, freier
+        # Dienstvertrag), sonst führte sie zu einer Zahl für eine andere Gruppe.
+        return _rueckfrage(_RANG_RUECKFRAGE)
     monat = _monat_anzeige(next(iter(monate)))
     reihe: list[tuple[str, float, dict[str, Any]]] = []
     ohne_unbekannt = False
@@ -2069,8 +2086,8 @@ def _rang_anwenden(conn: Verbindung, daten: dict[str, Any], rang: _Rang) -> dict
         if treffer is None:
             continue
         name = treffer.group(2)
-        # Summen- und Gesamtzeilen („Alle Bundesländer“, „Durchschnitt …“) sind keine Gruppe der Rangfolge.
-        if name.startswith(("Alle ", "Durchschnitt")):
+        # Summen- und Gesamtzeilen („Männer, Alle Bundesländer“, „Durchschnitt …“) sind keine Gruppe der Rangfolge.
+        if "Alle " in name or name.startswith("Durchschnitt"):
             continue
         if "unbekannt" in name.lower():
             ohne_unbekannt = True

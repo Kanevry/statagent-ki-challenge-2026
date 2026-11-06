@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
+import psycopg
 import pytest
 
-from statagent.frage import _BEISPIEL_DA, _Rang, _rang_anwenden, _rang_lesen, nicht_auswertbar
+from statagent import frage as frage_modul
+from statagent.frage import (
+    _BEISPIEL_DA,
+    _Rang,
+    _rang_anwenden,
+    _rang_lesen,
+    _rang_nennt_gruppe,
+    nicht_auswertbar,
+)
 from statagent.frage_app import _WARUM, _WAS_IST, BEGRIFFE, _ohne_monat
 
 
@@ -128,6 +137,8 @@ def test_rangfrage_nicht_fuer_kreuzung_und_anteil(frage: str) -> None:
 def test_summenzeile_wird_nie_sieger() -> None:
     zeilen = [
         ("Beschäftigungsverhältnisse, Alle Bundesländer", 900),
+        # Das echte Etikett der Summenzeile aus ``_bestand_antwort`` (Bank B5).
+        ("Beschäftigungsverhältnisse, Männer, Alle Bundesländer", 800),
         ("Beschäftigungsverhältnisse, Bundesland unbekannt", 500),
         ("Beschäftigungsverhältnisse, Tirol", 20),
         ("Beschäftigungsverhältnisse, Wien", 300),
@@ -171,4 +182,26 @@ def test_rueckfrage_ueber_jahr_ohne_beispiel_bei_alter() -> None:
     daten = {"typ": "rueckfrage", "text": "Für welchen Monat?", "stand": [], "zahlen": []}
     antwort = _rang_anwenden(None, daten, rang)  # type: ignore[arg-type]  # Alter: ohne Beispiel, keine Abfrage
     assert antwort["typ"] == "rueckfrage"
+    assert antwort["text"] == "Die Rangfolge gibt es je Monat. Für welchen Monat möchten Sie sie?"
+
+
+class _Abbruch:
+    """Attrappe einer Verbindung, deren Abfragen am Zeitlimit abbrechen."""
+
+    def execute(self, *_: object, **__: object) -> None:
+        raise psycopg.errors.QueryCanceled("Zeitlimit")
+
+
+# Fängt (Bank B4): Ein Zeitabbruch beim Lesen der Codes stieg aus der Rangfrage hoch, obwohl antwort_frage nie wirft.
+def test_rangfrage_zeitabbruch_wirft_nicht(monkeypatch: pytest.MonkeyPatch) -> None:
+    rang = _rang_lesen("Welches Bundesland hat die meisten Beschäftigten 2025?")
+    assert rang is not None
+    assert _rang_nennt_gruppe(_Abbruch(), rang) is True  # type: ignore[arg-type]  # Fehler: keine Rangfrage
+
+    def abbruch(*_: object) -> None:
+        raise psycopg.errors.QueryCanceled("Zeitlimit")
+
+    monkeypatch.setattr(frage_modul, "_teile_der_frage", abbruch)
+    daten = {"typ": "rueckfrage", "text": "Für welchen Monat?", "stand": [], "zahlen": []}
+    antwort = _rang_anwenden(_Abbruch(), daten, rang)  # type: ignore[arg-type]
     assert antwort["text"] == "Die Rangfolge gibt es je Monat. Für welchen Monat möchten Sie sie?"
