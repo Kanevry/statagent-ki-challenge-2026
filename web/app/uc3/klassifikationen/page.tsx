@@ -24,14 +24,16 @@ import {
   sqlKategorieRegel,
   type Klassifikationsdaten,
 } from "@/components/uc3/klassifikation";
+import { leseNachschlagen, SQL_NACHSCHLAGEN } from "@/components/uc3/klassifikation-tief";
 import { monatName } from "@/components/uc3/monat";
 import { lesePensionen, SQL_PENSIONEN } from "@/components/uc3/pensionen";
 import { regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/navigation";
 import { alltag } from "@/components/uc3/sprache";
 import { Gegenueberstellung } from "./_teile/gegenueberstellung";
+import { Nachschlagen } from "./_teile/nachschlagen";
 
 // Regeln und Klassifikationen (UI-Regie v1, #18): oben ÖNACE 2008 gegen 2025 als Gegenüberstellung nach Namen,
-// darunter die Qualifikationen je Regelsatz, dann alle Regeln nach Art (Anker #regeln, Ziel von
+// darunter das Nachschlagen bis zur Unterklasse und Gemeinde, die Qualifikationen je Regelsatz, dann alle Regeln nach Art (Anker #regeln, Ziel von
 // /uc3/berichte/regeln). Die kleinen Code-Listen liegen hinter „Weitere Listen“. Nur lesend; ohne Datenbank zeigt
 // jeder Teil seinen Leerzustand (HTTP 200).
 export const dynamic = "force-dynamic";
@@ -91,6 +93,27 @@ function Branchen({ daten }: { daten: Klassifikationsdaten }) {
         </div>
       </section>
     </>
+  );
+}
+
+async function AlleCodes() {
+  const lesung = await leseNachschlagen();
+  // Wie bei den Pensionen: Sind die tiefen Ebenen nicht geladen, gibt es hier nichts zu zeigen.
+  if (!lesung.ok || !lesung.daten) return null;
+  const { auswahl, start, art } = lesung.daten;
+  return (
+    <section aria-labelledby="codes-titel" className="flex max-w-4xl flex-col gap-3">
+      <h2 id="codes-titel" className={titel}>
+        Alle Codes bis zur Unterklasse und Gemeinde
+      </h2>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="font-sans text-14 text-slate">
+          Die Statistik zählt nach Abschnitt und Bundesland. Für die Ebenen darunter gibt es hier die Namen, keine Zahlen.
+        </span>
+        <BelegLink quelle="stat.klass_oenace, stat.klass_region, stat.uebergang" sql={SQL_NACHSCHLAGEN} />
+      </div>
+      <Nachschlagen auswahl={auswahl} start={start} startArt={art} />
+    </section>
   );
 }
 
@@ -413,6 +436,7 @@ export default async function RegelnUndKlassifikationen({ searchParams }: Props)
       {daten ? (
         <>
           <Branchen daten={daten} />
+          <AlleCodes />
           <Qualifikationen daten={daten} />
           <Pensionen />
         </>
