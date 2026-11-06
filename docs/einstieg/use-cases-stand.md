@@ -175,7 +175,7 @@ auszugeben ([`adapter.py`](../../uc2/src/uc2/antwort/adapter.py), Zeile 17 bis 1
 Testbetrieb mehr: Ist nur ein Anbieter freigegeben, nennt der Kopf der Seite das Modell (Commits `f1911da` und
 `a7297f2`). Der Server lässt weiterhin nur die Anbieter zu, die in `UC4_MODELLWAHL` freigegeben sind
 ([`web/lib/plattform/uc4.ts`](../../web/lib/plattform/uc4.ts), Funktion `modellErlaubt`). Laut
-[README](../../README.md) ist das online Azure. Je Internetanschluss gehen standardmäßig höchstens 10 Fragen in der
+[Ausführung, Online-Demo](ausfuehrung.md#online-demo) ist das online Azure. Je Internetanschluss gehen standardmäßig höchstens 10 Fragen in der
 Minute, dazu kommt ein Tagesbudget für Modellaufrufe ([Ausführung, Online-Demo](ausfuehrung.md#online-demo)).
 
 ## Für alle, die weiterbauen wollen

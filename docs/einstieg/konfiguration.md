@@ -23,6 +23,7 @@ Schlüsselnamen und Erklärungen: `.env.example`. **Werte stehen nie im Repo.** 
 | Grenzen für Modellaufrufe | `LLM_TAGESBUDGET_AUFRUFE` (Aufrufe je Tag, online Pflicht), `RATENLIMIT_PRO_MINUTE` (Fragen je IP und Minute), `PLATTFORM_PROTOKOLL` (Ort des Modellprotokolls, dort wird gezählt) |
 | Voice | `VAPI_API_KEY`, `VAPI_PUBLIC_KEY`, `VAPI_WEBHOOK_SECRET`, `VAPI_CUSTOM_LLM_KEY`, `VAPI_ASSISTANT_ID`, `PUBLIC_URL`; optional `VOICE_RATENLIMIT_PRO_MINUTE`, `VOICE_ANTWORT_TIMEOUT_S`, `PLATTFORM_VOICE_PROTOKOLL` |
 | Weitere Schalter der Web-App | `UC2_API_URL` (Adresse der UC2-Schnittstelle, ohne Angabe `http://localhost:8102`), `KIC_ONLINE_UC1` (`1` zeigt auf der lesenden Online-Demo das Fragefeld von `/uc1`, die Schnittstelle bleibt dort gesperrt; online nicht gesetzt), `KIC_VORFUEHRUNG` (`1` öffnet `/uc3/auftrag` und `/api/uc3/auftrag` für die Vorführ-Instanz, sonst 404 oder gesperrt; wirkt nicht zusammen mit `KIC_ONLINE_LESEND=1`) |
+| Vorführ-Instanz | `UC2_START_PROVIDER` (Anbieter für Starts auf `/uc2`, die Instanz lehnt jeden anderen ab), `UC2_API_ECHTE_MODELLE` (`1` erlaubt der UC2-Schnittstelle echte Modelle, sonst 403), `UC2_NAMENSLISTE` (Namensliste für den echten UC2-Presse-Index; leer zeigt gekennzeichnete Beispielbelege), `VORFUEHRUNG_UC2_TAGESBUDGET` (eigenes Limit von 300 Modellaufrufen je UTC-Tag für UC2) |
 
 ## Modelle
 

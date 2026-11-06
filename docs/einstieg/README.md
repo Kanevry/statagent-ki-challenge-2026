@@ -50,7 +50,9 @@ Technikwissen. Jede Seite ist für eine Lesergruppe geschrieben und verweist fü
 
 - Jede Zahl trägt ihre Quelle: eine Datei im Repo oder den Befehl, mit dem sie gezählt wurde.
 - Stand ist der 06.11.2026 auf `main` mit dem Commit `48761dcc`. Die Messungen stammen von Ständen desselben Morgens,
-  nicht vom abgegebenen Stand; abgegeben ist der Stand von `main` beim letzten Push.
+  nicht vom abgegebenen Stand. Abgabefrist war der 06.11.2026 um 09:00. Abgegeben sind die Dateien aus `abgabe/` in der SV-Box und auf GitHub der Stand
+  `d130a9ef` (gepusht 08:56, Code gleich `7dff9bdb`). Danach kamen bis 12:00 Doku, weitere Fragen an die Daten (UC3),
+  eine Wartungsseite und die Live-Verhandlung für UC2 dazu; `abgabe/` ist unverändert.
 - Was noch offen ist, steht im Wurzel-README unter
   [Grenzen und offene Punkte](../../README.md#grenzen-und-offene-punkte).
 

@@ -137,7 +137,7 @@ def test_rangfrage_nicht_fuer_kreuzung_und_anteil(frage: str) -> None:
 def test_summenzeile_wird_nie_sieger() -> None:
     zeilen = [
         ("Beschäftigungsverhältnisse, Alle Bundesländer", 900),
-        # Das echte Etikett der Summenzeile aus ``_bestand_antwort`` (Bank B5).
+        # Das echte Etikett der Summenzeile aus ``_bestand_antwort`` (Review B5).
         ("Beschäftigungsverhältnisse, Männer, Alle Bundesländer", 800),
         ("Beschäftigungsverhältnisse, Bundesland unbekannt", 500),
         ("Beschäftigungsverhältnisse, Tirol", 20),
@@ -192,7 +192,7 @@ class _Abbruch:
         raise psycopg.errors.QueryCanceled("Zeitlimit")
 
 
-# Fängt (Bank B4): Ein Zeitabbruch beim Lesen der Codes stieg aus der Rangfrage hoch, obwohl antwort_frage nie wirft.
+# Fängt (Review B4): Ein Zeitabbruch beim Lesen der Codes stieg aus der Rangfrage hoch, obwohl antwort_frage nie wirft.
 def test_rangfrage_zeitabbruch_wirft_nicht(monkeypatch: pytest.MonkeyPatch) -> None:
     rang = _rang_lesen("Welches Bundesland hat die meisten Beschäftigten 2025?")
     assert rang is not None

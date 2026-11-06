@@ -6,8 +6,10 @@ Zusatz.
 
 Gemessen wurde am 06.11.2026 auf zwei Ständen von `main`. Die Bereiche in der Tabelle stammen aus der
 Kriterien-Karte, gemessen auf `ceef8b1` (online 07:27 bis 07:35, Bereich 5 auf der Vorführ-Adresse 06:15 bis 06:28, auf einem früheren Stand von `main`).
-Die Zahlen der Abnahme unten sind für `14c86cc3` geurteilt (07:50, Prüfläufe 07:39 bis 07:50). Abgegeben ist der
-Stand von `main` beim letzten Push.
+Die Zahlen der Abnahme unten sind für `14c86cc3` geurteilt (07:50, Prüfläufe 07:39 bis 07:50).
+Abgabefrist war der 06.11.2026 um 09:00. Abgegeben sind die Dateien aus `abgabe/` in der SV-Box und auf GitHub der Stand
+`d130a9ef` (gepusht 08:56, Code gleich `7dff9bdb`). Danach kamen bis 12:00 Doku, weitere Fragen an die Daten (UC3),
+eine Wartungsseite und die Live-Verhandlung für UC2 dazu; `abgabe/` ist unverändert.
 
 Zurück zum [README](../../README.md#stand-zur-abgabe-06112026).
 
@@ -39,7 +41,7 @@ Was man dazu wissen muss:
   veröffentlicht: Alle 24 Monate sind dort vorläufig (so steht es im Kopf jedes Berichts in
   [`abgabe/qualitaetsberichte_v2/`](../../abgabe/qualitaetsberichte_v2/)).
 - **Pensionen:** Die Pensionsmeldungen aller Träger sind eingelesen (28 von 28 Dateien, 394 Summen ohne
-  Abweichung), der Stand ist vorläufig und öffentlich noch nicht mit Namen freigegeben
+  Abweichung), sie sind online sichtbar (`/uc3/pensionen`), vorläufig und nicht mit Namen freigegeben
   ([`docs/uc3/pensionen-pruefbericht.md`](../uc3/pensionen-pruefbericht.md)). Sie kamen dazu, nachdem die
   Abgabedateien eingefroren waren. Deshalb sagt [`abgabe/uc3-abnahme.md`](../../abgabe/uc3-abnahme.md) in Zeile 68 noch
   „Pensionen sind nicht importiert“.

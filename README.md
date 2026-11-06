@@ -8,6 +8,9 @@ Ein KI-Agent schlägt Änderungen an den Regeln vor, ein Mensch gibt sie mit sei
 
 **Direkt zu Use Case 3 StatAgent:** https://ki-challenge.gotzendorfer.at/uc3
 
+**Eine Frage, drei Antworten (UC4, Zusatz):** https://ki-challenge.gotzendorfer.at/uc4. Bei der Wien-Frage zum
+März 2025 rechnet StatAgent 7.498 Beschäftigungsverhältnisse, der Simulator wägt ab, der Lotse sagt, was es heißt.
+
 **Keine Zeit?** Aufzeichnung der Vorführung, 2:45 min, ohne Ton:
 [docs/praesentation/backup-demo.mp4](docs/praesentation/backup-demo.mp4).
 So sieht eine Freigabe aus, auch online ohne Passwort:
@@ -157,7 +160,9 @@ Alle Schlüssel und die Grenzen der Online-Demo: [docs/einstieg/konfiguration.md
 
 ## Stand zur Abgabe, 06.11.2026
 
-Stand je Bewertungsbereich der Aufgabenstellung. Abgegeben ist der Stand von main zum Zeitpunkt des letzten Pushs.
+Stand je Bewertungsbereich der Aufgabenstellung. Abgabefrist war der 06.11.2026 um 09:00. Abgegeben sind die Dateien aus `abgabe/` in der SV-Box und auf GitHub der Stand
+`d130a9ef` (gepusht 08:56, Code gleich `7dff9bdb`). Danach kamen bis 12:00 Doku, weitere Fragen an die Daten (UC3),
+eine Wartungsseite und die Live-Verhandlung für UC2 dazu; `abgabe/` ist unverändert.
 Die Messungen stammen von früheren Ständen desselben Morgens.
 
 | Bereich | Mindestanforderung | Optimum | Was zum Optimum fehlt |
@@ -178,7 +183,7 @@ KI-Sitzung in seinem Auftrag eingegeben; er hat sie am selben Abend selbst best�
 die Zeit nach der Abgabe vorgesehen. Das ist kein „alles bestanden“. Die Kriterien sind die eigene Prüfliste des Teams,
 nicht das Bewertungsraster. Beleg: [docs/abnahme/schlusslauf-2026-11-06.md](docs/abnahme/schlusslauf-2026-11-06.md),
 jedes Kriterium mit Befehl: [docs/abnahme/matrix-uc3.md](docs/abnahme/matrix-uc3.md). Die Matrix zählt inzwischen mehr
-Kriterien, weil nach dem Schlusslauf neue dazukamen; bestanden sind dort ebenfalls 53 (Stand `7dff9bdb`, 08:49: 53 von 78). Beleg je Zeile: [Kriterien-Karte](docs/praesentation/kriterien-karte.md). Grenzen bei Fragen an die
+Kriterien, weil nach dem Schlusslauf neue dazukamen; bestanden sind dort ebenfalls 53 (Matrix vom 06.11.2026, 09:57, auf `7dff9bdb`: 53 von 80). Beleg je Zeile: [Kriterien-Karte](docs/praesentation/kriterien-karte.md). Grenzen bei Fragen an die
 Daten, Stand von UC1, UC2 und UC4, Abnahme: [docs/einstieg/stand-zur-abgabe.md](docs/einstieg/stand-zur-abgabe.md).
 
 ## Grenzen und offene Punkte

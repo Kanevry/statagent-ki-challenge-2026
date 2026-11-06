@@ -271,7 +271,7 @@ Testbetrieb (`LLM_PROVIDER=mock`):
 | Grenze | Quelle |
 |---|---|
 | Nur synthetische Daten des Veranstalters, nicht im Repo; an ein Modell gehen nie Einzeldaten | [`README.md`](../../README.md), „Grenzen und offene Punkte“ |
-| Für Berichtsmonate vor Juli hängt das Alter bei Geburtsmonat 13 von der Antwort auf Rückfrage R1 ab | [`README.md`](../../README.md), [`uc3/README.md`](../../uc3/README.md) |
+| Für Berichtsmonate vor Juli hängt das Alter bei Geburtsmonat 13 von der Antwort auf Rückfrage R1 ab | [`uc3/README.md`](../../uc3/README.md) |
 | Ein Server für Caddy, App und Datenbank; Sicherung auf derselben Platte | [`docs/betrieb/skalierung.md`](../betrieb/skalierung.md) |
 | Python startet je Frage als eigener Prozess; ab dem dritten gleichzeitigen Nutzer eines Frage-Wegs kommt 429 | [`docs/betrieb/skalierung.md`](../betrieb/skalierung.md) |
 | Ratenlimit im Speicher des Web-Prozesses, Tagesbudget in einer Datei: bei mehreren Containern zählt jeder für sich. Auch UC3-Fragen haben ein Ratenlimit je Internetanschluss (Standard 10 je Minute) und höchstens 2 gleichzeitige Läufe | [`docs/betrieb/skalierung.md`](../betrieb/skalierung.md), [`web/components/uc3/antwort.ts`](../../web/components/uc3/antwort.ts) |
