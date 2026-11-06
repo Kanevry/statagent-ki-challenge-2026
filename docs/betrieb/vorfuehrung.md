@@ -15,7 +15,8 @@ Platzhalter: `<vorführ-adresse>` ist die Adresse der Instanz, `<dump>` eine `pg
 | Caddy | der öffentliche Container mit einem zweiten Site-Block aus `<basis>/vorfuehrung/caddy/`, Basic-Auth, alle Methoden |
 | App | eigenes Compose-Projekt `ki-challenge-vorfuehrung`, eigenes Image mit git, ohne `KIC_ONLINE_LESEND`, mit `KIC_VORFUEHRUNG=1` |
 | DB | eigener Container in eigenem Netz, `statistik_vorfuehrung` plus Vorlage. Enthält `roh` und `bereinigt`, die öffentliche App erreicht ihn nicht |
-| UC1, UC2 | lesend aus der öffentlichen DB (Rolle `kic_app`) |
+| UC1 | wie öffentlich nur das aufgezeichnete Gespräch, ohne Eingabefeld. Die Datenbank des Lotsen gibt es online nicht (#143) |
+| UC2 | lesend aus der öffentlichen DB (Rolle `kic_app`) |
 | Git | eigener Checkout mit einem Commit „Ausgangsstand“, kein Remote, also kein Push. Die Freigabe committet dorthin |
 | Modell | nur Azure, kein Rückfall auf Mistral: Scheitert Azure, steht das als Fehler auf der Seite. Eigenes Tagesbudget (`VORFUEHRUNG_TAGESBUDGET`, Standard 2000, Grenze je UTC-Tag), eigenes Protokoll-Volume |
 
