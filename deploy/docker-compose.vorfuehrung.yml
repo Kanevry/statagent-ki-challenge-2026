@@ -86,7 +86,9 @@ services:
       AZURE_API_KEY: ${AZURE_API_KEY:?AZURE_API_KEY fehlt, zuerst scripts/vorfuehrung.sh init}
       UC4_KETTE: ${UC4_KETTE:-uc3}
       UC4_MODELLWAHL: ${UC4_MODELLWAHL:-}
-      RATENLIMIT_PRO_MINUTE: ${RATENLIMIT_PRO_MINUTE:-}
+      # Ein Vortragender hinter Basic-Auth, nicht die öffentliche Grenze von 10 je Minute: Die elfte Frage am Tisch bekäme sonst
+      # „Zu viele Fragen“ (gemessen 06.11.). Das Tagesbudget der Modellaufrufe gilt weiter.
+      RATENLIMIT_PRO_MINUTE: "120"
       PUBLIC_URL: https://${VORFUEHRUNG_DOMAIN:?VORFUEHRUNG_DOMAIN fehlt, zuerst scripts/vorfuehrung.sh init}
       # Die Abgabe-DB ist das nie: eigener Container, eigene Kopie
       UC3_DATABASE_URL: postgresql://statistik:${VORFUEHRUNG_DB_PASSWORD}@vorfuehrung-db:5432/statistik_vorfuehrung
