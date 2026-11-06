@@ -350,7 +350,8 @@ ERSATZ_TITEL = ("Erstes Thema", "Zweites Thema", "Drittes Thema")
 
 
 _ZAHL_IM_TITEL = re.compile(
-    r"\s*\b(?:um|auf|von|ab|bis|mit|rund|ca\.?|etwa)?\s*\d+(?:[.,]\d+)*\s*(?:%|prozent\b|euro\b|jahre?n?\b)?",
+    r"\s*\b(?:um|auf|von|ab|bis|mit|rund|ca\.?|etwa)?\s*\d+(?:[.,]\d+)*"
+    r"\s*(?:%|prozent\b|euro\b|jahre?n?\b)?",
     re.IGNORECASE,
 )
 
@@ -396,8 +397,8 @@ def freier_auftrag_nachrichten(frage: str, experte: dict[str, Any]) -> list[dict
         "# Aufgabe\nÜbersetze die Frage in einen kurzen Auftrag für eine Abwägung unter "
         f"Interessenvertretungen des Gesundheitswesens: höchstens {MAX_THEMEN} Themen (id in Kleinbuchstaben "
         "mit Unterstrich, Titel, kurze Beschreibung), Regeln für die Runden und das Ziel. Jedes Thema nennt "
-        "einen Vorschlag, der genau zur Frage gehört, in einfachen Worten. Erfinde keine Zahlen; auch wenn die "
-        "Frage eine Zahl nennt, steht im Titel keine.\n\n"
+        "einen Vorschlag, der genau zur Frage gehört, in einfachen Worten. Erfinde keine Zahlen; auch wenn "
+        "die Frage eine Zahl nennt, steht im Titel keine. Schreib mit Umlauten.\n\n"
         f"{kontext_block(kontext)}"
     )
     return [{"role": "system", "content": prompts.MODERATOR_SYSTEM}, {"role": "user", "content": text}]

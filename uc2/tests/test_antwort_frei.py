@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import date
 from typing import Any
 
 import pytest
@@ -10,6 +11,7 @@ from plattform.antwortform import Beleg, UcAntwort, Zahl  # type: ignore[import-
 
 from uc2.antwort import adapter, allgemein, antwort
 from uc2.antwort.allgemein import FESTER_KERN, FREI_KEIN_MODELL, freie_lage, freier_auftrag_nachrichten
+from uc2.verhandlung.belege import Beleg as PresseBeleg
 from uc2.verhandlung.belege import FixtureQuelle
 
 FRAGE = "Sollen Apotheken in Österreich impfen dürfen?"
@@ -157,3 +159,15 @@ def test_umbruch_im_modelltext_macht_keine_neue_zeile(monkeypatch: pytest.Monkey
 )
 def test_titel_ohne_zahl(titel: str, ergebnis: str) -> None:
     assert allgemein.titel_ohne_zahl(titel, 0) == ergebnis
+
+
+def test_lange_uebernahme_aus_der_presse_faellt_weg() -> None:
+    presse = (
+        "Die Apotheken im ganzen Land wollen künftig auch ohne ärztliche Aufsicht gegen Grippe und viele "
+        "andere Krankheiten impfen dürfen sagt der Verband"
+    )
+    beleg = PresseBeleg(beleg_id="b", medium="Kurier", datum=date(2026, 8, 1), titel="T", text_modell=presse)
+    geschuetzt = adapter._ohne_uebernahme(f"{presse}.", [beleg])
+    assert presse not in geschuetzt
+    assert allgemein.saetze_ohne_menge(geschuetzt) == ""
+    assert adapter._ohne_uebernahme("Wir sind dafür.", [beleg]) == "Wir sind dafür."
