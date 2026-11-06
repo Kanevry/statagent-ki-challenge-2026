@@ -76,6 +76,8 @@ services:
     environment:
       # Öffnet Auftrag, Lauf und Freigabe. KIC_ONLINE_LESEND steht bewusst nicht hier.
       KIC_VORFUEHRUNG: "1"
+      # Knopf im Kopf zurück zur öffentlichen Fassung
+      KIC_OEFFENTLICHE_ADRESSE: https://${SITE_ADDRESS:?SITE_ADDRESS fehlt in .env.server}
       # plattform.llm: echtes Modell nur mit Tagesbudget (#100), Protokoll im eigenen Volume
       KIC_ONLINE: "1"
       LLM_TAGESBUDGET_AUFRUFE: "${VORFUEHRUNG_TAGESBUDGET:?VORFUEHRUNG_TAGESBUDGET fehlt, zuerst scripts/vorfuehrung.sh init}"

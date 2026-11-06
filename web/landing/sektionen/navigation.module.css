@@ -85,6 +85,7 @@
 }
 
 .link {
+  white-space: nowrap;
   font-size: 14px;
   color: var(--kopf-leise);
   text-decoration: none;
@@ -158,7 +159,8 @@
   text-decoration: none;
 }
 
-@media (max-width: 767px) {
+/* Mit dem Eintrag zur anderen Fassung passt die Leiste erst ab 1280 px auf eine Zeile (gemessen bei 1024 brach sie um) */
+@media (max-width: 1279px) {
   .leiste {
     justify-content: space-between;
     gap: 12px;
@@ -178,7 +180,7 @@
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1280px) {
   .menue {
     display: none;
   }

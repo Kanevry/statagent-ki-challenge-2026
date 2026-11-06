@@ -15,6 +15,8 @@ export interface AppShellProps {
   children: ReactNode;
   ucs?: readonly UcEintrag[];
   modellQuelle?: string;
+  /** Weiterer Eintrag rechts im Kopf, vor „Protokoll“. */
+  kopfZusatz?: ReactNode;
   protokollQuelle?: (uc: BereichId) => string;
 }
 
@@ -26,7 +28,7 @@ export interface AppShellProps {
  * an, damit Badge und Knopf sichtbar bleiben. Beim Schließen geht der Fokus ausdrücklich an den Knopf
  * „Protokoll“ (Ref), nicht an `document.activeElement`: Safari fokussiert Buttons beim Klick nicht.
  */
-export function AppShell({ pfad, Verweis = StandardVerweis, children, ucs, modellQuelle, protokollQuelle }: AppShellProps) {
+export function AppShell({ pfad, Verweis = StandardVerweis, children, ucs, kopfZusatz, modellQuelle, protokollQuelle }: AppShellProps) {
   const [offen, setOffen] = useState(false);
   const [oben, setOben] = useState(0);
   const schubladeId = useId();
@@ -87,6 +89,7 @@ export function AppShell({ pfad, Verweis = StandardVerweis, children, ucs, model
           schubladeId={schubladeId}
           protokollKnopfRef={knopf}
           kopfRef={kopf}
+          kopfZusatz={kopfZusatz}
         />
         {children}
       </div>

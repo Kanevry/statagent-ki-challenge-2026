@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { fassungsText, useFassung } from "../../lib/plattform/fassungs-knopf";
 import { NAVIGATION, SEITE } from "../texte/inhalt";
 import n from "./navigation.module.css";
 
@@ -16,6 +17,7 @@ export default function Navigation() {
   // Nur die Startseite beginnt auf Navy; sonst blitzte die Leiste auf Papier-Seiten dunkel auf.
   const [aufNavy, setAufNavy] = useState(usePathname() === "/");
   const [offen, setOffen] = useState(false);
+  const fassung = useFassung();
 
   useEffect(() => {
     let rahmen = 0;
@@ -77,6 +79,13 @@ export default function Navigation() {
               </Link>
             </li>
           ))}
+          {fassung && (
+            <li>
+              <a href={fassung.adresse} className={n.link} data-fassung={fassung.art}>
+                {fassungsText(fassung)}
+              </a>
+            </li>
+          )}
         </ul>
 
         <div className={n.rechts}>
@@ -105,6 +114,13 @@ export default function Navigation() {
               </Link>
             </li>
           ))}
+          {fassung && (
+            <li>
+              <a href={fassung.adresse} className={n.menueLink} data-fassung={fassung.art}>
+                {fassungsText(fassung)}
+              </a>
+            </li>
+          )}
         </ul>
       </div>
     </header>
