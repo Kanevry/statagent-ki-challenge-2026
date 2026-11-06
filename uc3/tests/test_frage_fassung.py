@@ -18,7 +18,7 @@ import pytest
 from statagent import frage_fassung, konfig
 from statagent.db import Verbindung
 from statagent.frage import NICHT_LESBAR, antwort_frage
-from statagent.frage_fassung import Vergleich, vergleich_erkennen
+from statagent.frage_fassung import Vergleich, _aufzaehlung, vergleich_erkennen
 from statagent.klass import UNTERKLASSE, umsteiger_laden, umsteiger_uebergaenge
 from statagent.klass_quellen import oenace_lesen
 
@@ -122,29 +122,19 @@ def test_goldfall_1n_von_der_quellzeile_bis_zur_antwort(conn: Verbindung, tmp_pa
     daten = antwort_frage(conn, gold["frage"])
 
     assert daten["typ"] == "definition" and daten["rueckfrage"] is False and daten["zahlen"] == []
-    text = daten["text"]
-    assert f"Mehrdeutig ist zum Beispiel {gold['code_alt']} (1:n)" in text
-    for ziel in gold["ziele"]:
-        assert f"{ziel['code']} ({ziel['beschreibung']})" in text
-    assert "keine eindeutige Umcodierung" in text
-    assert "das Programm wählt keinen aus" in text
-    assert f"Quelle: Umsteiger {gold['quelle']['datei_umsteiger']}." in text
-
-
-def test_goldfall_1n_nennt_die_bezeichnung_mit_tiefen_ebenen(conn: Verbindung, tmp_path: Path) -> None:
-    """Fängt: Sind die tiefen Ebenen geladen, fehlt der Name des alten Codes aus der Quelle."""
-    gold = _gold("oenace-1n-c-16.10-0.json")
-    _umsteiger_leeren(conn)
-    _umsteiger_einspielen(conn, tmp_path, gold["quellzeilen"])
-    conn.execute(
-        "INSERT INTO stat.klass_oenace (version, code, bezeichnung, ebene, uebergeordnet, gueltig_von, gueltig_bis) "
-        "VALUES ('2008', %s, %s, 5, 'C', %s, %s)",
-        (gold["code_alt"], gold["bezeichnung_alt"], date(2008, 1, 1), date(2024, 12, 31)),
-    )
-
-    text = antwort_frage(conn, gold["frage"])["text"]
-
-    assert f"{gold['code_alt']} „{gold['bezeichnung_alt']}“ (1:n)" in text
+    ziele = [ziel["code"] for ziel in gold["ziele"]]
+    assert (
+        f"keine eindeutige Umcodierung: {gold['code_alt']} kann {ziele[0]} oder {ziele[1]} sein, "
+        "das Programm wählt keinen aus."
+    ) in daten["text"]
+    assert "Quelle: Umsteigeschlüssel von Statistik Austria." in daten["text"]
+    # Der Text bleibt kurz: Dateiname und 1:n gehören in den Beleg.
+    assert UMSTEIGER not in daten["text"] and "1:n" not in daten["text"]
+    fall = daten["belege"][-1]
+    assert UMSTEIGER in fall["quelle"] and gold["code_alt"] in fall["ref"]
+    assert "'1:n'" in fall["sql"]
+    for ziel in ziele:
+        assert any(z["code_neu"] == ziel for z in conn.execute(fall["sql"].encode()).fetchall())
 
 
 def test_beide_fassungen_und_belege(conn: Verbindung, tmp_path: Path) -> None:
@@ -157,14 +147,14 @@ def test_beide_fassungen_und_belege(conn: Verbindung, tmp_path: Path) -> None:
 
     name = gold["bezeichnung"]["2008"]
     assert name == gold["bezeichnung"]["2025"]
-    assert f"ÖNACE C heißt in beiden Fassungen gleich: „{name}“." in daten["text"]
-    assert (
-        "Die Fassung 2008 gilt von Jänner 2008 bis Dezember 2024, die Fassung 2025 ab Jänner 2025."
-        in daten["text"]
-    )
+    assert f"ÖNACE C heißt in beiden Fassungen „{name}“." in daten["text"]
+    assert "Die Fassung 2008 gilt bis Dezember 2024, die Fassung 2025 ab Jänner 2025." in daten["text"]
     assert daten["definition"] == f"ÖNACE 2008 C: {name}; ÖNACE 2025 C: {name}"
     assert [s["version"] for s in daten["stand"]] == ["2008", "2025"]
-    assert [b["quelle"] for b in daten["belege"]] == ["stat.klass_oenace", *["stat.uebergang"] * 3]
+    assert [b["quelle"] for b in daten["belege"]] == [
+        "stat.klass_oenace",
+        *[f"stat.uebergang, {UMSTEIGER}"] * 3,
+    ]
     for beleg in daten["belege"]:  # Jede Beleg-SQL muss so laufen, wie sie dasteht.
         conn.execute(beleg["sql"].encode()).fetchall()
 
@@ -187,16 +177,17 @@ def test_buchstabe_wechselt_den_bereich(conn: Verbindung, tmp_path: Path) -> Non
 
     assert "ÖNACE Q heißt je Fassung anders." in text
     assert "Fassung 2008: „Gesundheits- und Sozialwesen“. Fassung 2025: „Erziehung und Unterricht“." in text
-    assert "führt die 2 Unterklassen aus Q ganz oder teilweise weiter: 2 nach R (Gesundheits-" in text
-    assert "Das meiste aus Q steht in der Fassung 2025 unter R." in text
-    assert "In Q (Fassung 2025) kommen" not in text
-    assert "Dazu kommen in Q: 1 aus P (Erziehung und Unterricht)." in text
-    assert "Alle 2 Unterklassen aus Q führen auf genau einen Code." in text
-    assert "Mehrdeutig" not in text
+    assert (
+        "Der Buchstabe allein reicht hier nicht: Das meiste aus Q steht in der Fassung 2025 unter R." in text
+    )
+    assert "Das meiste in Q (Fassung 2025) kommt aus P." in text
+    assert "Von den 2 Unterklassen aus Q führt jede auf genau einen Code der Fassung 2025." in text
+    assert "Unterklassen wechseln den Abschnitt" not in text
+    assert "keine eindeutige Umcodierung" not in text
 
 
-def test_nur_mn_faelle_werden_nicht_zu_1n(conn: Verbindung, tmp_path: Path) -> None:
-    """Fängt: Ein Code mit mehreren Zielen und geteilten Zielen (m:n) trägt die Marke 1:n."""
+def test_beispiel_bevorzugt_den_echten_1n_fall(conn: Verbindung, tmp_path: Path) -> None:
+    """Fängt: Das Beispiel ist ein m:n-Code, obwohl das Kriterium einen 1:n-Fall verlangt und es einen gibt."""
     _umsteiger_leeren(conn)
     _umsteiger_einspielen(
         conn,
@@ -206,13 +197,33 @@ def test_nur_mn_faelle_werden_nicht_zu_1n(conn: Verbindung, tmp_path: Path) -> N
             _zeile("C 10.10-0", "C 10.11-0", "a"),
             _zeile("C 10.10-0", "C 10.12-0", "b"),
             _zeile("C 10.20-0", "C 10.12-0", "c"),
+            _zeile("C 11.10-0", "C 11.11-0", "d"),
+            _zeile("C 11.10-0", "C 11.12-0", "e"),
         ],
     )
-
     text = antwort_frage(conn, "ÖNACE C 2008 vs 2025")["text"]
+    assert "C 11.10-0 kann C 11.11-0 oder C 11.12-0 sein" in text
+    assert "Von den 3 Unterklassen aus C führen 1 auf" not in text
+    assert "führt 1 auf genau einen Code der Fassung 2025 und 2 auf mehrere." in text
 
-    assert "Mehrdeutig ist zum Beispiel C 10.10-0:" in text
-    assert "(1:n)" not in text
+
+def test_teile_wechseln_den_abschnitt(conn: Verbindung, tmp_path: Path) -> None:
+    """Fängt: Der Satz nennt Abschnitte, die nichts abgeben, oder fehlt, wenn einzelne Unterklassen wandern."""
+    _umsteiger_leeren(conn)
+    _umsteiger_einspielen(
+        conn,
+        tmp_path,
+        [
+            KOPF,
+            *[_zeile(f"C 1{i}.10-0", f"C 1{i}.10-0", "bleibt") for i in range(5)],
+            _zeile("C 15.10-0", "C 15.10-0", "bleibt"),
+            _zeile("C 15.10-0", "A 01.10-0", "geht"),
+            _zeile("E 38.10-0", "C 16.10-0", "kommt"),
+        ],
+    )
+    text = antwort_frage(conn, "ÖNACE C 2008 vs 2025")["text"]
+    assert "Manche Unterklassen wechseln den Abschnitt: Teile gehen nach A, Teile kommen aus E." in text
+    assert "Der Buchstabe allein" not in text
 
 
 def test_ohne_liste_der_unterklassen_kein_erfundener_fall(conn: Verbindung) -> None:
@@ -233,8 +244,8 @@ def test_ohne_liste_der_unterklassen_kein_erfundener_fall(conn: Verbindung) -> N
 
     assert "Für C gibt es also keine eindeutige Umcodierung." in daten["text"]
     assert "darum folgt hier kein Einzelfall" in daten["text"]
-    assert "Mehrdeutig ist zum Beispiel" not in daten["text"]
-    assert f"Quelle: Umsteiger {UMSTEIGER}." in daten["text"]
+    assert " kann " not in daten["text"]
+    assert UMSTEIGER in daten["belege"][-1]["quelle"]
 
 
 @pytest.mark.parametrize(
@@ -244,7 +255,7 @@ def test_ohne_liste_der_unterklassen_kein_erfundener_fall(conn: Verbindung) -> N
         ("ÖNACE V 2008 vs 2025", "ÖNACE V gibt es nur in der Fassung 2025"),
         (
             "ÖNACE D 2003 vs 2025",
-            "Einen direkten Umsteiger zwischen den Fassungen 2003 und 2025 gibt es nicht.",
+            "Einen direkten Umsteigeschlüssel zwischen den Fassungen 2003 und 2025 gibt es nicht.",
         ),
     ],
 )
@@ -259,7 +270,7 @@ def test_umsteiger_nennt_den_code_nicht(conn: Verbindung, tmp_path: Path) -> Non
     _umsteiger_leeren(conn)
     _umsteiger_einspielen(conn, tmp_path, [KOPF, _zeile("C 10.10-0", "C 10.11-0", "a")])
     text = antwort_frage(conn, "ÖNACE B 2008 vs 2025")["text"]
-    assert "Der Umsteiger zwischen den Fassungen 2008 und 2025 nennt B nicht." in text
+    assert "Der Umsteigeschlüssel zwischen den Fassungen 2008 und 2025 nennt B nicht." in text
 
 
 def test_ueberblick_ohne_abschnitt(conn: Verbindung, tmp_path: Path) -> None:
@@ -273,7 +284,7 @@ def test_ueberblick_ohne_abschnitt(conn: Verbindung, tmp_path: Path) -> None:
 
     assert daten["rueckfrage"] is False and daten["zahlen"] == []
     assert "Derselbe Buchstabe meint also nicht immer dasselbe." in daten["text"]
-    assert "Mehrdeutig ist zum Beispiel C 16.10-0 (1:n)" in daten["text"]
+    assert "C 16.10-0 kann C 16.11-0 oder C 16.12-0 sein" in daten["text"]
     assert "„ÖNACE C 2008 vs 2025“" in daten["text"]
 
 
@@ -350,11 +361,10 @@ def test_goldfaelle_gegen_startpaket(conn: Verbindung) -> None:
     with conn.transaction():
         umsteiger_laden(conn, datei)
     text = antwort_frage(conn, abschnitt["frage"])["text"]
-    assert f"die {abschnitt['unterklassen_2008']} Unterklassen aus C" in text
-    assert f"{abschnitt['eindeutig']} Unterklassen aus C führen auf genau einen Code" in text
-    assert f"{abschnitt['mehrdeutig']} auf mehrere" in text
-    for buchstabe, anzahl in abschnitt["nach"].items():
-        assert f"{anzahl} nach {buchstabe}" in text
-    for buchstabe, anzahl in abschnitt["aus"].items():
-        assert f"{anzahl} aus {buchstabe}" in text
-    assert f"Mehrdeutig ist zum Beispiel {fall['code_alt']}" in text
+    assert (
+        f"Von den {abschnitt['unterklassen_2008']} Unterklassen aus C führen {abschnitt['eindeutig']} auf genau einen "
+        f"Code der Fassung 2025 und {abschnitt['mehrdeutig']} auf mehrere."
+    ) in text
+    assert f"Teile gehen nach {_aufzaehlung(sorted(set(abschnitt['nach']) - {'C'}))}" in text
+    assert f"Teile kommen aus {_aufzaehlung(sorted(abschnitt['aus']))}" in text
+    assert f"{fall['code_alt']} kann" in text

@@ -1,8 +1,9 @@
 """Zwei ÖNACE-Fassungen vergleichen (78-AC2): „ÖNACE C 2008 vs 2025“ meint Fassungen, keinen Zeitraum.
 
-Die Antwort nennt beide Fassungen mit Name und Gültigkeit, die Wege des amtlichen Umsteigers und einen Code, der auf
-mehrere neue Codes führt, ausdrücklich als mehrdeutig. Sie nennt keine Beschäftigtenzahl und keine erfundene
-Umcodierung. Alle Namen, Codes und Beziehungen kommen aus ``stat.klass_oenace`` und ``stat.uebergang``.
+Die Antwort nennt beide Fassungen mit Name und Gültigkeit, wie viele Unterklassen auf einen oder mehrere Codes führen,
+einen Code ohne eindeutige Umcodierung und welche Abschnitte Teile abgeben oder aufnehmen. Sie nennt keine
+Beschäftigtenzahl und wählt kein Ziel aus. Alle Namen, Codes und Beziehungen kommen aus ``stat.klass_oenace`` und
+``stat.uebergang``; Dateiname und 1:n stehen im Beleg, nicht im Text.
 
 Antwortet nur, wenn beide Jahre echte Fassungen sind und die Frage weder Zahl noch Monat noch Merkmal nennt; alles
 andere bleibt beim bisherigen Weg. Nur lesend. Importiert ``plattform.llm`` nicht (R2).
@@ -48,8 +49,6 @@ from statagent.frage_klass import (
 
 ABSCHNITTE = "oenace"
 UNTERKLASSEN = klass.UNTERKLASSE
-#: So lang darf eine Beschreibung aus dem Umsteiger in der Antwort stehen.
-BESCHREIBUNG_MAX = 120
 _ABSCHNITT_BEISPIEL = "ÖNACE C 2008 vs 2025"
 
 #: Woran man erkennt, dass die zwei Jahre gegenübergestellt werden. „von 2008 bis 2025“ bleibt ein Zeitraum.
@@ -152,23 +151,17 @@ def _wege_sql(conn: Verbindung, v: Vergleich, code: str) -> str:
     """Von welchem Abschnitt zu welchem führen wie viele Unterklassen, in beide Richtungen um ``code``."""
     return (
         "SELECT split_part(u.code_alt, ' ', 1) AS von, split_part(u.code_neu, ' ', 1) AS nach, "
-        "count(DISTINCT u.code_alt) AS codes, ka.bezeichnung AS name_von, kn.bezeichnung AS name_nach, "
-        "min(u.quelle) AS quelle FROM stat.uebergang u "
-        "LEFT JOIN stat.klass_oenace ka ON ka.version = u.version_alt AND ka.code = split_part(u.code_alt, ' ', 1) "
-        "LEFT JOIN stat.klass_oenace kn ON kn.version = u.version_neu AND kn.code = split_part(u.code_neu, ' ', 1) "
+        "count(DISTINCT u.code_alt) AS codes, min(u.quelle) AS quelle FROM stat.uebergang u "
         f"WHERE {_paar(conn, v, UNTERKLASSEN)} AND (split_part(u.code_alt, ' ', 1) = {_wert(conn, code)} "
         f"OR split_part(u.code_neu, ' ', 1) = {_wert(conn, code)}) "
-        "GROUP BY 1, 2, ka.bezeichnung, kn.bezeichnung ORDER BY 3 DESC, 1, 2"
+        "GROUP BY 1, 2 ORDER BY 3 DESC, 1, 2"
     )
 
 
 def _abschnitts_wege_sql(conn: Verbindung, v: Vergleich, code: str) -> str:
-    """Dieselbe Frage ohne Unterklassen: die Abschnittszeilen des Umsteigers."""
+    """Dieselbe Frage ohne Unterklassen: die Abschnittszeilen des Umsteigeschlüssels."""
     return (
-        "SELECT u.code_alt AS von, u.code_neu AS nach, u.beziehung, ka.bezeichnung AS name_von, "
-        "kn.bezeichnung AS name_nach, u.quelle FROM stat.uebergang u "
-        "LEFT JOIN stat.klass_oenace ka ON ka.version = u.version_alt AND ka.code = u.code_alt "
-        "LEFT JOIN stat.klass_oenace kn ON kn.version = u.version_neu AND kn.code = u.code_neu "
+        "SELECT u.code_alt AS von, u.code_neu AS nach, u.beziehung, u.quelle FROM stat.uebergang u "
         f"WHERE {_paar(conn, v, ABSCHNITTE)} AND (u.code_alt = {_wert(conn, code)} OR u.code_neu = {_wert(conn, code)}) "
         'ORDER BY u.code_alt COLLATE "C", u.code_neu COLLATE "C"'
     )
@@ -187,10 +180,7 @@ def _fall_sql(conn: Verbindung, v: Vergleich, code: str | None, nur_rein: bool) 
     """Der erste Code mit mehreren Zielen und alle seine Ziele. ``nur_rein``: nur ein echter 1:n-Fall."""
     rein = " AND bool_and(u.beziehung = '1:n')" if nur_rein else ""
     return (
-        "SELECT z.code_alt, ka.bezeichnung AS name_alt, z.code_neu, kn.bezeichnung AS name_neu, z.beziehung, z.quelle "
-        "FROM stat.uebergang z "
-        "LEFT JOIN stat.klass_oenace ka ON ka.version = z.version_alt AND ka.code = z.code_alt "
-        "LEFT JOIN stat.klass_oenace kn ON kn.version = z.version_neu AND kn.code = z.code_neu "
+        "SELECT z.code_alt, z.code_neu, z.beziehung, z.quelle FROM stat.uebergang z "
         f"WHERE z.klassifikation = {_wert(conn, UNTERKLASSEN)} AND z.version_alt = {_wert(conn, v.alt)} "
         f"AND z.version_neu = {_wert(conn, v.neu)} AND z.code_alt = ("
         f"SELECT u.code_alt FROM stat.uebergang u WHERE {_paar(conn, v, UNTERKLASSEN)}{_aus_abschnitt(conn, code)} "
@@ -199,17 +189,29 @@ def _fall_sql(conn: Verbindung, v: Vergleich, code: str | None, nur_rein: bool) 
     )
 
 
-# --- Texte ----------------------------------------------------------------------------------------------------
+def _fall_lesen(
+    conn: Verbindung, v: Vergleich, code: str | None, zaehlung: dict[str, Any]
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Ein Beispiel: zuerst ein echter 1:n-Fall, sonst irgendein Code mit mehreren Zielen."""
+    if int(zaehlung["mehrdeutig"]) == 0:
+        return [], None
+    abfrage = _fall_sql(conn, v, code, nur_rein=True)
+    fall = _lesen(conn, abfrage)
+    if not fall:
+        abfrage = _fall_sql(conn, v, code, nur_rein=False)
+        fall = _lesen(conn, abfrage)
+    return fall, abfrage
 
 
-def _zeit(zeile: dict[str, Any]) -> str:
-    von, bis = zeile["gueltig_von"], zeile["gueltig_bis"]
-    return f"von {_monat(von)} bis {_monat(bis)}" if bis else f"ab {_monat(von)}"
+def _hat_abschnitts_umsteiger(conn: Verbindung, v: Vergleich) -> bool:
+    zeilen = _lesen(conn, f"SELECT count(*) AS n FROM stat.uebergang u WHERE {_paar(conn, v, ABSCHNITTE)}")
+    return int(zeilen[0]["n"]) > 0
 
 
-def _gueltigkeit_satz(fassungen: dict[str, dict[str, Any]]) -> str:
-    alt, neu = sorted(fassungen)
-    return f"Die Fassung {alt} gilt {_zeit(fassungen[alt])}, die Fassung {neu} {_zeit(fassungen[neu])}."
+def _umsteiger_beleg(sql_text: str, zeilen: list[dict[str, Any]], ref: str) -> dict[str, Any]:
+    """Der Dateiname gehört in den Beleg, nicht in den Text."""
+    dateien = sorted({_datei(z.get("quelle")) for z in zeilen} - {""})
+    return _beleg(", ".join(["stat.uebergang", *dateien]), sql_text, ref)
 
 
 def _datei(quelle: object) -> str:
@@ -218,63 +220,57 @@ def _datei(quelle: object) -> str:
     return treffer.group(0) if treffer else ""
 
 
-def _quelle_satz(zeilen: list[dict[str, Any]]) -> str:
-    dateien = sorted({_datei(z.get("quelle")) for z in zeilen} - {""})
-    return f"Quelle: Umsteiger {', '.join(dateien)}." if dateien else ""
+# --- Texte ----------------------------------------------------------------------------------------------------
+
+QUELLE_SATZ = "Quelle: Umsteigeschlüssel von Statistik Austria."
 
 
-def _beschreibung(quelle: object) -> str:
-    """Was der Umsteiger zu diesem Weg schreibt, gekürzt an einer Wortgrenze."""
-    _, _, text = str(quelle or "").partition(": ")
-    text = text.strip()
-    if len(text) <= BESCHREIBUNG_MAX:
-        return text
-    return text[:BESCHREIBUNG_MAX].rsplit(" ", 1)[0] + " …"
+def _zeit(zeile: dict[str, Any]) -> str:
+    von, bis = zeile["gueltig_von"], zeile["gueltig_bis"]
+    return f"von {_monat(von)} bis {_monat(bis)}" if bis else f"ab {_monat(von)}"
 
 
-def _aufzaehlung(teile: list[str]) -> str:
+def _gueltigkeit_satz(fassungen: dict[str, dict[str, Any]], kurz: bool = False) -> str:
+    alt, neu = sorted(fassungen)
+    zeit_alt = f"bis {_monat(fassungen[alt]['gueltig_bis'])}" if kurz else _zeit(fassungen[alt])
+    return f"Die Fassung {alt} gilt {zeit_alt}, die Fassung {neu} {_zeit(fassungen[neu])}."
+
+
+def _aufzaehlung(teile: list[str], wort: str = "und") -> str:
     if len(teile) < 2:
         return "".join(teile)
-    return f"{', '.join(teile[:-1])} und {teile[-1]}"
+    return f"{', '.join(teile[:-1])} {wort} {teile[-1]}"
 
 
 def _anzahl(zahl: object, einzahl: str, mehrzahl: str) -> str:
     return f"{klass._deutsch(int(str(zahl)))} {einzahl if int(str(zahl)) == 1 else mehrzahl}"
 
 
-def _ziel_text(zeile: dict[str, Any]) -> str:
-    beschreibung = _beschreibung(zeile["quelle"]) or zeile["name_neu"]
-    return f"{zeile['code_neu']} ({beschreibung})" if beschreibung else str(zeile["code_neu"])
-
-
 def _mehrdeutig_saetze(
     zaehlung: dict[str, Any], fall: list[dict[str, Any]], neu: str, herkunft: str
 ) -> list[str]:
-    """Die Zahl der mehrdeutigen Codes und ein Beispiel, das sagt, warum die Umcodierung offen bleibt."""
+    """Wie viele Unterklassen auf einen oder mehrere Codes führen, und ein Beispiel ohne gewähltes Ziel."""
     codes, mehrdeutig = int(zaehlung["codes"]), int(zaehlung["mehrdeutig"])
+    gesamt = _anzahl(codes, "Unterklasse", "Unterklassen")
     if mehrdeutig == 0:
-        return [
-            f"Alle {_anzahl(codes, 'Unterklasse', 'Unterklassen')} {herkunft} führen auf genau einen Code."
-        ]
+        if codes == 1:
+            return [f"Die {gesamt} {herkunft} führt auf genau einen Code der Fassung {neu}."]
+        return [f"Von den {gesamt} {herkunft} führt jede auf genau einen Code der Fassung {neu}."]
     eindeutig = codes - mehrdeutig
     verb = "führt" if eindeutig == 1 else "führen"
     saetze = [
-        f"{_anzahl(eindeutig, 'Unterklasse', 'Unterklassen')} {herkunft} {verb} auf genau einen Code der Fassung {neu}, "
-        f"{klass._deutsch(mehrdeutig)} auf mehrere. Für diese {klass._deutsch(mehrdeutig)} gibt es keine eindeutige "
-        "Umcodierung."
+        f"Von {'der' if codes == 1 else 'den'} {gesamt} {herkunft} {verb} {klass._deutsch(eindeutig)} auf genau einen "
+        f"Code der Fassung {neu} und {klass._deutsch(mehrdeutig)} auf mehrere."
     ]
-    if fall:
-        erster = fall[0]
-        name = f" „{erster['name_alt']}“" if erster["name_alt"] else ""
-        art = " (1:n)" if all(z["beziehung"] == "1:n" for z in fall) else ""
-        ziele = [_ziel_text(z) for z in fall[:HOECHSTENS]]
-        weitere = len(fall) - len(ziele)
-        if weitere:
-            ziele.append(_anzahl(weitere, "weiteren Code", "weitere Codes"))
-        saetze.append(
-            f"Mehrdeutig ist zum Beispiel {erster['code_alt']}{name}{art}: Der Code führt auf {_aufzaehlung(ziele)}. "
-            "Welcher davon gilt, hängt von der einzelnen Tätigkeit ab, das Programm wählt keinen aus."
-        )
+    gezeigt = [str(z["code_neu"]) for z in fall[:HOECHSTENS]]
+    weitere = len(fall) - len(gezeigt)
+    if weitere:
+        gezeigt.append(_anzahl(weitere, "weiterer Code", "weitere Codes"))
+    diese = "diese eine" if mehrdeutig == 1 else f"diese {klass._deutsch(mehrdeutig)}"
+    saetze.append(
+        f"Für {diese} gibt es keine eindeutige Umcodierung: {fall[0]['code_alt']} kann "
+        f"{_aufzaehlung(gezeigt, 'oder')} sein, das Programm wählt keinen aus."
+    )
     return saetze
 
 
@@ -282,70 +278,62 @@ def _name_satz(code: str, zeilen: dict[str, dict[str, Any]], v: Vergleich) -> st
     alt, neu = zeilen.get(v.alt), zeilen.get(v.neu)
     if alt and neu:
         if alt["bezeichnung"] == neu["bezeichnung"]:
-            return f"ÖNACE {code} heißt in beiden Fassungen gleich: „{alt['bezeichnung']}“."
+            return f"ÖNACE {code} heißt in beiden Fassungen „{alt['bezeichnung']}“."
         return (
             f"ÖNACE {code} heißt je Fassung anders. Fassung {v.alt}: „{alt['bezeichnung']}“. "
             f"Fassung {v.neu}: „{neu['bezeichnung']}“."
         )
-    if alt or neu:
-        version, zeile = (v.alt, alt) if alt else (v.neu, neu)
-        assert zeile is not None
-        fehlt = v.neu if alt else v.alt
-        return (
-            f"ÖNACE {code} gibt es nur in der Fassung {version}: „{zeile['bezeichnung']}“. "
-            f"In der Fassung {fehlt} gibt es diesen Abschnitt nicht."
-        )
-    return ""
+    version, zeile, fehlt = (v.alt, alt, v.neu) if alt else (v.neu, neu, v.alt)
+    assert zeile is not None
+    return (
+        f"ÖNACE {code} gibt es nur in der Fassung {version}: „{zeile['bezeichnung']}“. "
+        f"In der Fassung {fehlt} gibt es diesen Abschnitt nicht."
+    )
 
 
-def _abschnitt_name(zeile: dict[str, Any], seite: str) -> str:
-    name = zeile[f"name_{seite}"]
-    return f"{zeile[seite]} ({name})" if name else str(zeile[seite])
-
-
-def _wege_saetze(wege: list[dict[str, Any]], code: str, v: Vergleich, gesamt: int) -> list[str]:
+def _hauptweg_saetze(wege: list[dict[str, Any]], code: str, v: Vergleich) -> list[str]:
+    """Führt das meiste aus dem Abschnitt woanders hin oder kommt von woanders, trägt der Buchstabe nicht."""
     hinaus = [w for w in wege if w["von"] == code]
     herein = [w for w in wege if w["nach"] == code and w["von"] != code]
     saetze = []
-    if hinaus:
-        teile = [
-            f"{klass._deutsch(int(w['codes']))} nach "
-            f"{w['nach'] if w['nach'] == code else _abschnitt_name(w, 'nach')}"
-            for w in hinaus[:HOECHSTENS]
-        ]
-        weitere = len(hinaus) - len(teile)
-        if weitere:
-            teile.append(f"weitere nach {_anzahl(weitere, 'anderem Abschnitt', 'anderen Abschnitten')}")
+    if hinaus and hinaus[0]["nach"] != code:
         saetze.append(
-            f"Der Umsteiger führt die {_anzahl(gesamt, 'Unterklasse', 'Unterklassen')} aus {code} "
-            "ganz oder teilweise weiter: "
-            f"{_aufzaehlung(teile)}."
+            f"Der Buchstabe allein reicht hier nicht: Das meiste aus {code} steht in der Fassung {v.neu} "
+            f"unter {hinaus[0]['nach']}."
         )
-        groesster = hinaus[0]
-        if groesster["nach"] != code:
-            saetze.append(
-                f"Der Buchstabe allein reicht hier nicht: Das meiste aus {code} steht in der Fassung {v.neu} unter "
-                f"{groesster['nach']}."
-            )
+    elif hinaus:
+        return []
     if herein:
-        teile = [
-            f"{klass._deutsch(int(w['codes']))} aus {_abschnitt_name(w, 'von')}" for w in herein[:HOECHSTENS]
-        ]
-        weitere = len(herein) - len(teile)
-        if weitere:
-            teile.append(f"weitere aus {_anzahl(weitere, 'anderem Abschnitt', 'anderen Abschnitten')}")
-        anfang = f"Dazu kommen in {code}" if hinaus else f"In {code} (Fassung {v.neu}) kommen"
-        saetze.append(f"{anfang}: {_aufzaehlung(teile)}.")
+        saetze.append(f"Das meiste in {code} (Fassung {v.neu}) kommt aus {herein[0]['von']}.")
     return saetze
 
 
+def _wechsel_saetze(wege: list[dict[str, Any]], code: str, gesamt: int) -> list[str]:
+    """Nur wenn der Abschnitt im Wesentlichen bleibt: wer Teile abgibt und aufnimmt."""
+    hinaus = [w for w in wege if w["von"] == code]
+    if not hinaus or hinaus[0]["nach"] != code:
+        return []
+    weg = [w for w in hinaus if w["nach"] != code]
+    her = [w for w in wege if w["nach"] == code and w["von"] != code]
+    if not weg and not her:
+        return []
+    bewegt = sum(int(w["codes"]) for w in [*weg, *her])
+    wie_viele = "Einzelne" if bewegt * 10 <= gesamt else "Manche"
+    teile = []
+    if weg:
+        teile.append(f"Teile gehen nach {_aufzaehlung([str(w['nach']) for w in weg])}")
+    if her:
+        teile.append(f"Teile kommen aus {_aufzaehlung([str(w['von']) for w in her])}")
+    return [f"{wie_viele} Unterklassen wechseln den Abschnitt: {', '.join(teile)}."]
+
+
 def _abschnitts_wege_saetze(wege: list[dict[str, Any]], code: str, v: Vergleich) -> list[str]:
-    """Ohne Unterklassen: nur was die Abschnittszeilen des Umsteigers hergeben, ohne Anzahl und ohne Einzelfall."""
-    hinaus = [_abschnitt_name(w, "nach") for w in wege if w["von"] == code]
-    herein = [_abschnitt_name(w, "von") for w in wege if w["nach"] == code]
+    """Ohne Unterklassen: nur was die Abschnittszeilen hergeben, ohne Anzahl und ohne Einzelfall."""
+    hinaus = [str(w["nach"]) for w in wege if w["von"] == code]
+    herein = [str(w["von"]) for w in wege if w["nach"] == code]
     saetze = []
     if hinaus:
-        saetze.append(f"Laut Umsteiger führt {code} (Fassung {v.alt}) nach {_kurzliste(hinaus)}.")
+        saetze.append(f"{code} (Fassung {v.alt}) führt nach {_kurzliste(hinaus)}.")
     if herein:
         saetze.append(f"Nach {code} (Fassung {v.neu}) führen {_kurzliste(herein)}.")
     if len(hinaus) > 1:
@@ -365,21 +353,7 @@ def _kurzliste(teile: list[str]) -> str:
 
 
 def _kein_umsteiger(v: Vergleich) -> str:
-    return f"Einen direkten Umsteiger zwischen den Fassungen {v.alt} und {v.neu} gibt es nicht."
-
-
-def _fall_lesen(
-    conn: Verbindung, v: Vergleich, code: str | None, zaehlung: dict[str, Any]
-) -> tuple[list[dict[str, Any]], str | None]:
-    """Ein Beispiel: zuerst ein echter 1:n-Fall, sonst irgendein Code mit mehreren Zielen."""
-    if int(zaehlung["mehrdeutig"]) == 0:
-        return [], None
-    abfrage = _fall_sql(conn, v, code, nur_rein=True)
-    fall = _lesen(conn, abfrage)
-    if not fall:
-        abfrage = _fall_sql(conn, v, code, nur_rein=False)
-        fall = _lesen(conn, abfrage)
-    return fall, abfrage
+    return f"Einen direkten Umsteigeschlüssel zwischen den Fassungen {v.alt} und {v.neu} gibt es nicht."
 
 
 def _abschnitt_antwort(
@@ -391,41 +365,49 @@ def _abschnitt_antwort(
     )
     namen = {str(z["version"]): z for z in _lesen(conn, namen_sql)}
     ref = f"stat.klass_oenace/{code}"
+    belege = [_beleg("stat.klass_oenace", namen_sql, ref)]
     if not namen:
         if len(code) > 1:
             return None  # „ÖNACE UND …“ in Großbuchstaben: ein Wort, kein Code.
         satz = f"Einen Abschnitt {code} gibt es in den Fassungen {v.alt} und {v.neu} nicht."
-        return _antwort(
-            "definition", satz, hinweise=[satz], belege=[_beleg("stat.klass_oenace", namen_sql, ref)]
-        )
-    saetze = [_name_satz(code, namen, v), _gueltigkeit_satz(fassungen)]
-    belege = [_beleg("stat.klass_oenace", namen_sql, ref)]
+        return _antwort("definition", satz, hinweise=[satz], belege=belege)
+    saetze = [_name_satz(code, namen, v), _gueltigkeit_satz(fassungen, kurz=True)]
     wege_sql = _wege_sql(conn, v, code)
     wege = _lesen(conn, wege_sql)
     if wege:
         zaehlung_sql = _zaehlung_sql(conn, v, code)
         zaehlung = _lesen(conn, zaehlung_sql)[0]
         fall, fall_sql = _fall_lesen(conn, v, code, zaehlung)
-        saetze += _wege_saetze(wege, code, v, int(zaehlung["codes"]))
+        saetze += _hauptweg_saetze(wege, code, v)
         if int(zaehlung["codes"]) > 0:
             saetze += _mehrdeutig_saetze(zaehlung, fall, v.neu, f"aus {code}")
-        saetze.append(_quelle_satz(wege))
+        saetze += _wechsel_saetze(wege, code, int(zaehlung["codes"]))
+        saetze.append(QUELLE_SATZ)
         umsteiger = f"stat.uebergang/{UNTERKLASSEN}/{code}"
-        belege += [_beleg("stat.uebergang", s, umsteiger) for s in (wege_sql, zaehlung_sql, fall_sql) if s]
+        belege += [
+            _umsteiger_beleg(wege_sql, wege, umsteiger),
+            _umsteiger_beleg(zaehlung_sql, wege, umsteiger),
+        ]
+        if fall_sql:
+            belege.append(_umsteiger_beleg(fall_sql, fall, f"{umsteiger}/{fall[0]['code_alt']}"))
     else:
         abschnitts_sql = _abschnitts_wege_sql(conn, v, code)
         abschnitts_wege = _lesen(conn, abschnitts_sql)
         if abschnitts_wege:
             saetze += _abschnitts_wege_saetze(abschnitts_wege, code, v)
-            saetze.append(_quelle_satz(abschnitts_wege))
-            belege.append(_beleg("stat.uebergang", abschnitts_sql, f"stat.uebergang/{ABSCHNITTE}/{code}"))
+            saetze.append(QUELLE_SATZ)
+            belege.append(
+                _umsteiger_beleg(abschnitts_sql, abschnitts_wege, f"stat.uebergang/{ABSCHNITTE}/{code}")
+            )
         elif _hat_abschnitts_umsteiger(conn, v):
-            saetze.append(f"Der Umsteiger zwischen den Fassungen {v.alt} und {v.neu} nennt {code} nicht.")
+            saetze.append(
+                f"Der Umsteigeschlüssel zwischen den Fassungen {v.alt} und {v.neu} nennt {code} nicht."
+            )
         else:
             saetze.append(_kein_umsteiger(v))
     return _antwort(
         "definition",
-        " ".join(s for s in saetze if s),
+        " ".join(saetze),
         definition="; ".join(f"ÖNACE {version} {code}: {z['bezeichnung']}" for version, z in namen.items()),
         stand=[{"klassifikation": "stat.klass_oenace", "version": version} for version in namen],
         belege=belege,
@@ -435,7 +417,7 @@ def _abschnitt_antwort(
 def _ueberblick_antwort(
     conn: Verbindung, v: Vergleich, fassungen: dict[str, dict[str, Any]]
 ) -> dict[str, Any]:
-    """Ohne Abschnitt: Zahl der Abschnitte, gleich gebliebene Namen und der Umsteiger im Ganzen."""
+    """Ohne Abschnitt: Zahl der Abschnitte, gleich gebliebene Namen und der Umsteigeschlüssel im Ganzen."""
     abschnitte_sql = (
         "SELECT version, count(*) AS abschnitte FROM stat.klass_oenace "
         f"WHERE ebene = 1 AND length(code) = 1 AND version IN ({_wert(conn, v.alt)}, {_wert(conn, v.neu)}) "
@@ -457,8 +439,8 @@ def _ueberblick_antwort(
     )
     if int(namen["anders"]) > 0:
         saetze.append(
-            f"Bei {_anzahl(namen['gleich'], 'Buchstaben', 'Buchstaben')} bleibt der Name gleich, bei "
-            f"{_anzahl(namen['anders'], 'Buchstaben', 'Buchstaben')} ändert er sich. "
+            f"Bei {klass._deutsch(int(namen['gleich']))} Buchstaben bleibt der Name gleich, bei "
+            f"{klass._deutsch(int(namen['anders']))} Buchstaben ändert er sich. "
             "Derselbe Buchstabe meint also nicht immer dasselbe."
         )
     belege = [
@@ -470,25 +452,20 @@ def _ueberblick_antwort(
     if int(zaehlung["codes"]) > 0:
         fall, fall_sql = _fall_lesen(conn, v, None, zaehlung)
         saetze += _mehrdeutig_saetze(zaehlung, fall, v.neu, f"der Fassung {v.alt}")
-        saetze.append(_quelle_satz(fall))
+        saetze.append(QUELLE_SATZ)
         umsteiger = f"stat.uebergang/{UNTERKLASSEN}"
-        belege += [_beleg("stat.uebergang", s, umsteiger) for s in (zaehlung_sql, fall_sql) if s]
+        belege.append(_umsteiger_beleg(zaehlung_sql, fall, umsteiger))
+        if fall_sql:
+            belege.append(_umsteiger_beleg(fall_sql, fall, f"{umsteiger}/{fall[0]['code_alt']}"))
+    elif _hat_abschnitts_umsteiger(conn, v):
+        saetze.append("Die Liste je Unterklasse ist für diese Fassungen nicht dabei.")
     else:
-        saetze.append(_kein_umsteiger(v) if not _hat_abschnitts_umsteiger(conn, v) else _ohne_unterklassen())
+        saetze.append(_kein_umsteiger(v))
     saetze.append(f"Zu einem einzelnen Abschnitt fragen Sie zum Beispiel: „{_ABSCHNITT_BEISPIEL}“.")
     return _antwort(
         "definition",
-        " ".join(s for s in saetze if s),
+        " ".join(saetze),
         definition=f"ÖNACE {v.alt} und ÖNACE {v.neu}",
         stand=[{"klassifikation": "stat.klass_oenace", "version": version} for version in sorted(fassungen)],
         belege=belege,
     )
-
-
-def _hat_abschnitts_umsteiger(conn: Verbindung, v: Vergleich) -> bool:
-    zeilen = _lesen(conn, f"SELECT count(*) AS n FROM stat.uebergang u WHERE {_paar(conn, v, ABSCHNITTE)}")
-    return int(zeilen[0]["n"]) > 0
-
-
-def _ohne_unterklassen() -> str:
-    return "Die Liste je Unterklasse ist für diese Fassungen nicht dabei."
