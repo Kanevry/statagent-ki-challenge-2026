@@ -1165,9 +1165,9 @@ def _filter(
             f"einzeln fragen. {KANN}"
         )
     if fremd is not None:
-        wort = "die Angabe" if fremd.isdigit() else "das Wort"
+        wort = "Die Angabe" if fremd.isdigit() else "Das Wort"
         raise _KeineZahl(
-            f"Das kann ich nicht beantworten, weil ich {wort} „{fremd[:40]}“ hier nicht kenne. {KANN}"
+            f"{wort} „{fremd[:40]}“ kann ich in dieser Frage nicht einordnen, darum keine Zahl. {KANN}"
         )
     return filter_, etiketten
 
@@ -2183,7 +2183,7 @@ def _antwort_frage(
         if je is not None and je not in erlaubt:
             # Sonst fiele „je Branche“ still weg, die Antwort gälte für ganz Österreich.
             wie = _JE_ALLTAG.get(je.name, f"je {je.name}")
-            if je is BUNDESLAND:
+            if je is BUNDESLAND and typ == "zeitreihe" and "anteil" not in text:
                 raise _KeineZahl(
                     f"Männer und Frauen {wie} zeigt StatAgent nur für einen Monat, nicht über einen Zeitraum."
                 )

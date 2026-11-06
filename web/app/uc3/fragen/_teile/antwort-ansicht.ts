@@ -78,9 +78,7 @@ export function antwortTabelle(zahlen: readonly Zahl[]): AntwortTabelle {
   const rest = teile.map((t) => t.slice(gemeinsam));
   const spaltenNamen = [...new Set(rest.map((t) => t[0] ?? ""))];
   const zellen = new Map<string, Zahl>();
-  // Monate als Spalten bis zu einem Jahr (Fluktuation 2025): sonst wäre es eine Liste aus Hunderten Zeilen.
-  const nurMonate = spaltenNamen.every((s) => /^\S+ 20\d{2}$/.test(s));
-  let passt = spaltenNamen.length >= 2 && spaltenNamen.length <= (nurMonate ? 12 : 5) && rest.every((t) => t.length >= 2);
+  let passt = spaltenNamen.length >= 2 && spaltenNamen.length <= 5 && rest.every((t) => t.length >= 2);
   if (passt) {
     rest.forEach((t, i) => {
       const schluessel = `${t.slice(1).join(", ")}|${t[0]}`;
