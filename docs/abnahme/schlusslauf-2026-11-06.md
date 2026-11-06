@@ -10,6 +10,8 @@ Geprüfter Stand: main `b9508d6ac8b298e113ac5d93f2300c1d23a86b8f`, Merge-Stopp-S
 
 Der Zweitrechner fiel in der Nacht aus, deshalb der Ersatz (Entscheid #92). `c16fa881` unterscheidet sich von `b9508d6a` nur in README, `docs/`, `scripts/vorfuehrung.sh` und einer Folie; Rechenpfade und UC3-Web: 0 Änderungen.
 
+Die genannten Laufdateien liegen unverändert im GitLab-Branch `abnahme/laeufe`, siehe `laeufe/README.md`.
+
 ## Zähler
 
 Geurteilt für main `c16fa881`, 06:07. Kein „alles bestanden“: Das Tor ist offen.
