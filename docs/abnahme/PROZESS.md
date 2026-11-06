@@ -1,6 +1,6 @@
 # Abnahme-Prozess: jedes Kriterium mit Beleg, bei jedem neuen main wiederholt
 
-Stand v0.3, 05.11.2026 18:10 (Europe/Vienna), b-abnahme-30 (v0.2 17:43 nach Review). Geprüft von Fable 5.1 und Astra (Codex, gpt-6-astra)
+Stand v0.3, 05.11.2026 18:10 (Europe/Vienna), Abnahme-Prüfer (v0.2 17:43 nach Review). Geprüft von Fable 5.1 und Astra (Codex, gpt-6-astra)
 unabhängig voneinander; was übernommen und was verworfen wurde, steht unten.
 
 ## Ziel

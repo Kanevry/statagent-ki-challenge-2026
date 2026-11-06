@@ -1,4 +1,4 @@
-# Prüfsätze UC3. Erzeugt 05.11. aus den gesichteten Messungen von messer-c und messer-d (b-abnahme-30),
+# Prüfsätze UC3. Erzeugt 05.11. aus den gesichteten Messungen zweier Mess-Agenten (Abnahme-Prüfer),
 # danach von Hand gepflegt. deckung = "voll" nur, wo der Befehl das ganze Kriterium misst; "teil" kann höchstens
 # „nicht bestanden“ ergeben. schwer = true braucht Datenbank, Docker, Browser oder einen Lauf (Prüfrechner).
 
@@ -10,7 +10,7 @@ erwartet = ["lauf exit 0", "berichte exit 0", "freigabe exit 0", "frage exit 0",
 schwer = false
 deckung = "voll"
 grund = "Alle vier Befehle stehen in der Hilfe und enden mit Exit 0; die YAML enthaelt weiter uc3."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:22"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:22"
 
 [[pruefung]]
 id = "13-AC3"
@@ -20,7 +20,7 @@ erwartet = ["24", "(?i)abweichung\\w*\\D*0|ok"]
 schwer = true
 deckung = "teil"
 befund = "Braucht die Datenbank mit den Rohdaten. Messen mit db pruefen und SQL: select count(distinct lieferung) from roh.ladeprotokoll (erwartet 24); je Lieferung zeilen = count(*) in roh.lieferung."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:22"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:22"
 
 [[pruefung]]
 id = "13-AC4"
@@ -30,8 +30,8 @@ erwartet = ["^\\d+ passed(, \\d+ deselected)? in", "(?s)exit 1.*exit 1", "^platt
 schwer = false
 deckung = "voll"
 grund = "Mock-Smoke gruen, der Befehl lauf laedt plattform.llm nicht, 0 eigene Definitionen von complete/freigeben und 0 DDL der Protokolltabellen in uc3/statagent und uc3/db (nur ein Test-Spy complete in uc3/tests/test_agenten_werkzeuge.py:44)."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:22"
-geprueft_von = "b-abnahme-30: Produktions-CLI ohne plattform.llm und Review-Beleg ergänzt (Agent hatte beides nicht gemessen)"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:22"
+geprueft_von = "Abnahme-Prüfer: Produktions-CLI ohne plattform.llm und Review-Beleg ergänzt (Agent hatte beides nicht gemessen)"
 
 [[pruefung]]
 id = "135-1"
@@ -41,7 +41,7 @@ erwartet = ["Vormonat fehlt", "angehalten, vorläufig", "^\\s*Tests\\s+\\d+ pass
 schwer = false
 deckung = "voll"
 grund = "Der Test liegt seit der Verschiebung der Funktionen in web/components/uc3/monatsstand.test.ts, deckt beide Texte ab und 4 Tests sind grün."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "135-10"
@@ -52,8 +52,8 @@ schwer = false
 deckung = "voll"
 befund = "Kriterium auf main wieder verfehlt"
 grund = "next dev und next start binden an 127.0.0.1 (web/package.json)"
-geprueft_von = "b-abnahme-30 nach Fix 043885a"
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+geprueft_von = "Abnahme-Prüfer nach Fix 043885a"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "135-11"
@@ -64,8 +64,8 @@ schwer = false
 deckung = "voll"
 befund = "Kriterium auf main wieder verfehlt"
 grund = "vitest.config.ts löst den Alias @/ auf"
-geprueft_von = "b-abnahme-30 nach Fix 043885a"
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+geprueft_von = "Abnahme-Prüfer nach Fix 043885a"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "135-12"
@@ -76,7 +76,7 @@ schwer = false
 deckung = "voll"
 grund = "Die Karte sagt „Nicht gespeichert“ genau einmal, auch wenn die Route es schon sagt; kein Routensatz wiederholt es"
 befund = "Die Fehlermeldung nennt „Nicht gespeichert“ doppelt oder gar nicht, oder ein Routensatz wiederholt es"
-herkunft = "b-abnahme-4c 2026-11-05 20:50 (Hinweis 3e: alter Prüfsatz grepte den Wortlaut, nicht das Verhalten)"
+herkunft = "Abnahme-Prüfer 2026-11-05 20:50 (Hinweis der Lead-Assistenz: alter Prüfsatz grepte den Wortlaut, nicht das Verhalten)"
 
 [[pruefung]]
 id = "135-2"
@@ -86,7 +86,7 @@ erwartet = ["^[1-9]"]
 schwer = true
 deckung = "teil"
 befund = "Die Berichte-Seite liest ?regelsatz (web/app/uc3/berichte/page.tsx:45), der Beleg mit echten v2-Daten fehlt. Messen im Browser: /uc3/berichte?regelsatz=v2 gegen die Datenbank des Prüfrechners, sobald die 24 v2-Läufe fertig sind."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "135-3"
@@ -96,7 +96,7 @@ erwartet = ["^[1-9]"]
 schwer = true
 deckung = "teil"
 befund = "Braucht den Browser und einen Vorschlag mit Probe in meta.vorschlag. Messen: Seite /uc3/freigaben mit Playwright gegen die Datenbank."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "135-4"
@@ -106,7 +106,7 @@ erwartet = ["frageArgv", "command\\(\"frage\"\\)", "Tests\\s+\\d+ passed"]
 schwer = false
 deckung = "voll"
 grund = "uc3 frage --json gibt es in uc3/statagent/cli.py:612, die Fragen-Seite ruft es zuerst auf (web/components/uc3/antwort.ts:18) und fällt nur bei Exit 2 auf antwort zurück; die Unit-Tests dazu sind grün."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "135-5"
@@ -116,7 +116,7 @@ erwartet = ["\"berichte\""]
 schwer = false
 deckung = "teil"
 befund = "Die Seite liest die Berichte weiter direkt aus der Datenbank (web/components/uc3/bericht.ts:12 sagt: später aus uc3 berichte --json). uc3/statagent/cli.py liefert lauf_id, regelstand, umgeschichtet und pruefungen_gelaufen nicht (0 Treffer);"
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "135-6"
@@ -126,7 +126,7 @@ erwartet = ["^0$"]
 schwer = false
 deckung = "teil"
 befund = "Der Wortlaut des Kriteriums schiebt es ausdrücklich nach die Abgabe; gemessen: Kürzel D unverändert (demo-modus.tsx:49)."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "135-7"
@@ -136,7 +136,7 @@ erwartet = ["^[1-9]"]
 schwer = false
 deckung = "teil"
 befund = "Der Job playwright in .gitlab-ci.yml (ab Zeile 100) hat keinen Seed und keine UC3-Datenbank (0 Treffer)."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "135-8"
@@ -146,7 +146,7 @@ erwartet = ["^[1-9]"]
 schwer = false
 deckung = "teil"
 befund = "Im Verzeichnis web/tests kommt AxeBuilder nicht vor (0 Dateien); @axe-core/playwright steht nur in web/package.json:24."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "135-9"
@@ -156,7 +156,7 @@ erwartet = ["^[1-9]"]
 schwer = false
 deckung = "teil"
 befund = "web/package.json hat kein lint-Skript und .gitlab-ci.yml kein Web-Lint (0 Treffer)."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "14-AC3"
@@ -167,7 +167,7 @@ schwer = false
 deckung = "teil"
 grund = "Snapshot regeln-v1.csv: R6 und R7 mit Gültigkeit, Begründung, Grundlage und Freigabe (Name und Zeitpunkt); Anti-Join gegen die Klassifikation braucht die DB"
 befund = "Im Snapshot regeln-v1.csv fehlt bei R6 oder R7 Gültigkeit, Begründung, Grundlage oder Freigabe (Name und Zeitpunkt)"
-herkunft = "b-abnahme-4c 2026-11-05 20:45 (Messbefund 3e: alter Prüfsatz maß den Stand von 17:2x)"
+herkunft = "Abnahme-Prüfer 2026-11-05 20:45 (Messbefund der Lead-Assistenz: alter Prüfsatz maß den Stand von 17:2x)"
 
 [[pruefung]]
 id = "14-AC4"
@@ -177,7 +177,7 @@ erwartet = ["(?s)(True True.*){10}"]
 schwer = true
 deckung = "teil"
 befund = "Dokument und Regel sind belegt, aber 0 unbegruendete Ausschluesse braucht die Datenbank und die Freigabe ueber #55 ist im Snapshot noch leer (freigegeben_von)."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:23"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:23"
 
 [[pruefung]]
 id = "15-AC1"
@@ -188,7 +188,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "Die verlangte Datei docs/plan/uc3/agenten-routing.json gibt es auf main nicht (erwartet 4 Anweisungen mit Rolle und Protokoll-ID, gemessen 0). Kommentar 271257 bestaetigt das."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:24"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:24"
 
 [[pruefung]]
 id = "15-AC2"
@@ -199,7 +199,7 @@ schwer = false
 deckung = "teil"
 grund = "abgabe/protokoll.md führt freigegebene Änderungen mit Trailer Freigegeben-von (Aufruf freigeben() und Ablehnung ohne Commit misst dieser Teil nicht)"
 befund = "abgabe/protokoll.md zeigt keine freigegebene Änderung mit Trailer Freigegeben-von"
-herkunft = "b-abnahme-4c 2026-11-05 20:45 (Messbefund 3e: alter Prüfsatz maß den Stand von 17:2x)"
+herkunft = "Abnahme-Prüfer 2026-11-05 20:45 (Messbefund der Lead-Assistenz: alter Prüfsatz maß den Stand von 17:2x)"
 
 [[pruefung]]
 id = "15-AC3"
@@ -210,7 +210,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "Die Testdatei uc3/tests/test_prompt_grenzen.py gibt es auf main nicht (Kommentar 271257: liegt auf feat/uc3-betrieb), also gibt es keinen Spy-Test fuer die Modellnachrichten."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:24"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:24"
 
 [[pruefung]]
 id = "16-AC2"
@@ -220,7 +220,7 @@ erwartet = ["^24 P01 P24 \\[\\]$", "(?m)\\b0$"]
 schwer = true
 deckung = "teil"
 befund = "Teile fehlen: Residuum je Monat in der DB, getrennte Verhaeltniszaehlung und die Zuordnung zu den 19 Forensikpruefungen sind nicht gemessen; ob 'umgesetzt' nicht nur ein Platzhalter ist, prueft nur ein Lauf (uc3/tests/test_katalog.py brauch"
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "16-AC4"
@@ -231,7 +231,7 @@ schwer = false
 deckung = "teil"
 anmerkung = "Annahmen, Revisionsbedarf und ÖNACE-Strukturänderungen misst dieser Prüfsatz nicht; Hand-Beleg nötig"
 grund = "24 Dateien, der Validator meldet 0 Struktur- und Einstufungsfehler; eigene Pruefung: 219 Auffaelligkeitszeilen mit Umfang, Beleg, Einstufung und Massnahme, 0 Luecken."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "17-AC1"
@@ -242,7 +242,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "Die Matrix docs/plan/uc3/aenderungsauftraege-matrix.md fehlt; abgabe/protokoll.md zeigt auch noch keine umgesetzte Anweisung (Abschnitt 1: Noch keine freigegebene Aenderung)."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:26"
 
 [[pruefung]]
 id = "17-AC2"
@@ -252,7 +252,7 @@ erwartet = ["Abgabe vollständig"]
 schwer = false
 deckung = "teil"
 befund = "Es gibt nur das Sheet v1 (alt); Sheet neu (aggregationen_v2.xlsx) und ministerium_2026-07.csv fehlen im Checkout, der Validator endet mit 'Abgabe NICHT vollständig'."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:26"
 
 [[pruefung]]
 id = "18-AC1"
@@ -263,7 +263,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "layout.tsx nutzt UcBereich und @kic/ui, aber die verlangte Datei web/tests/uc3-frame-matrix.json fehlt; eine Matrix liegt stattdessen unter docs/plan/uc3/uc3-frame-matrix.json (Frames bgAUw, fFDc8, L6f3Mp, P6gBQD enthalten, beide Viewports)"
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:26"
 
 [[pruefung]]
 id = "18-AC3"
@@ -273,7 +273,7 @@ erwartet = ["passed"]
 schwer = true
 deckung = "teil"
 befund = "Playwright ist verboten; der Bericht im Repo ist eine fremde Messung und kein eigener Lauf. Der Fehlerfall 2025-10 (angehalten) ist dort als Seite gelistet, aber hier nicht nachgesehen."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:26"
 
 [[pruefung]]
 id = "20-1"
@@ -284,7 +284,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "Die Datei abgabe/CHECKLISTE.md fehlt im Checkout."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:26"
 
 [[pruefung]]
 id = "20-AC1"
@@ -297,7 +297,7 @@ deckung = "teil"
 quelle = "Entscheid #16 (Einzeldaten nur SV-Box): CSV extern, im Repo der Beleg; Orakel ministerium-varianten.csv Variante S"
 grund = "Validator meldet Abgabe vollständig; Beleg der Ministeriums-CSV (sha256, Zeilen) gleich Orakel Variante S, keine CSV im Repo (die CSV selbst prüft 71-AC2)"
 befund = "Validator oder Ministeriums-Beleg weicht ab (Exit, sha256 oder CSV im Repo)"
-herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
+herkunft = "Abnahme-Prüfer 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead)"
 
 [[pruefung]]
 id = "20-AC1"
@@ -309,7 +309,7 @@ deckung = "voll"
 befund_art = "fehlt"
 grund = "abgabe/manifest.json nennt je Datei Name, Größe, SHA256, Regelsatz und Stand, und die Werte stimmen (Ministerium über den Beleg)"
 befund = "abgabe/manifest.json fehlt oder Einträge stimmen nicht (Name, Größe, SHA256, Regelsatz, Stand); Lane uc3"
-herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
+herkunft = "Abnahme-Prüfer 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead)"
 
 [[pruefung]]
 id = "20-AC2"
@@ -320,7 +320,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "Die Abnahmedatei abgabe/uc3-abnahme.md fehlt im Checkout."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:26"
 
 [[pruefung]]
 id = "20-AC3"
@@ -331,7 +331,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "Die Datei docs/praesentation/uc3-jury.md fehlt; nebenan liegen skript-fachjury.md, storyboard.md und probe.md, aber nicht unter dem verlangten Namen."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:26"
 
 [[pruefung]]
 id = "22-1"
@@ -344,7 +344,7 @@ deckung = "teil"
 quelle = "Entscheid #16 (Einzeldaten nur SV-Box): CSV extern, im Repo der Beleg"
 grund = "Abgabedateien vollständig (Validator), Ministerium per Beleg und sha256 belegt"
 befund = "Validator oder Ministeriums-Beleg weicht ab (Exit, sha256 oder CSV im Repo)"
-herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
+herkunft = "Abnahme-Prüfer 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead)"
 
 [[pruefung]]
 id = "22-1"
@@ -357,7 +357,7 @@ befund_art = "fehlt"
 quelle = "Jury-Probe 4d 05.11. 20:03, Hürde B1: db init lädt nur Regelsatz v1"
 grund = "Auf der frisch nach README aufgebauten Prüf-DB sind die Regelsätze v1, v2 und ministerium aktiv, also sind Sheet v2 und Ministerium per CLI nachrechenbar"
 befund = "Auf frischer DB fehlen aktive Regeln für v2 oder ministerium; Sheet v2 und Ministerium sind dort nicht per CLI reproduzierbar (B1, Lane uc3)"
-herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
+herkunft = "Abnahme-Prüfer 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead)"
 
 [[pruefung]]
 id = "22-3"
@@ -367,7 +367,7 @@ erwartet = ["(?m)^0$"]
 schwer = true
 deckung = "teil"
 befund = "Eine geuebte Live-Aenderung per Sprache laesst sich mit den erlaubten Mitteln nicht messen; im Protokoll steht noch keine freigegebene Aenderung, ein Beleg ist die Probe mit Freigabe durch den Owner."
-herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:26"
 
 [[pruefung]]
 id = "69-AC1"
@@ -378,7 +378,7 @@ schwer = false
 deckung = "teil"
 grund = "abgabe/protokoll.md führt die Freigabe von R6_beschaeftigungskategorie in Regelsatz v2 mit Name und Zeit; Anti-Join und die Lesart „neue Klassifikationsversion“ misst dieser Teil nicht"
 befund = "abgabe/protokoll.md führt R6_beschaeftigungskategorie nicht mit Name und Zeit der Freigabe"
-herkunft = "b-abnahme-4c 2026-11-05 20:40 (Audit: alter Satz las das Protokoll aus der leeren Prüf-DB)"
+herkunft = "Abnahme-Prüfer 2026-11-05 20:40 (Audit: alter Satz las das Protokoll aus der leeren Prüf-DB)"
 
 [[pruefung]]
 id = "69-AC2"
@@ -388,10 +388,10 @@ erwartet = ["^DA$"]
 schwer = false
 deckung = "teil"
 befund_art = "fehlt"
-quelle = "Wortlaut nennt aggregationen_v2a.xlsx; Lead a7 (über 3e, 05.11. 20:4x): die Abgabe heißt aggregationen_v2.xlsx"
+quelle = "Wortlaut nennt aggregationen_v2a.xlsx; Lead (über die Lead-Assistenz, 05.11. 20:4x): die Abgabe heißt aggregationen_v2.xlsx"
 grund = "Sheet nach Änderungsauftrag liegt als abgabe/aggregationen_v2.xlsx vor (SQL-Vergleich je Monat und v1-Hash misst dieser Teil nicht)"
 befund = "abgabe/aggregationen_v2.xlsx fehlt auf main"
-herkunft = "b-abnahme-4c 2026-11-05 20:45 (Messbefund 3e: alter Prüfsatz maß den Stand von 17:2x)"
+herkunft = "Abnahme-Prüfer 2026-11-05 20:45 (Messbefund der Lead-Assistenz: alter Prüfsatz maß den Stand von 17:2x)"
 
 [[pruefung]]
 id = "70-AC1"
@@ -402,7 +402,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "Die geforderte Testdatei uc3/tests/test_monatszaehlung.py fehlt auf main; im Repo gibt es auch keinen Regelsatz v2 (nur docs/plan/uc3/regeln-v1.csv). Die Regel v2/R2_R4 ist laut Kommentar 271817 nur auf Branch feat/uc3-betrieb."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "70-AC2"
@@ -416,7 +416,7 @@ zeitlimit = 200
 quelle = "Orakel bb, sheet-v2.csv Spalte wert_a12_mit_e07; CSV-Filter aus dem Wortlaut, ohne Produktcode"
 grund = "Unabhängiger CSV-Filter Juli 2026 = 407604; Sheet v2 Zelle für Zelle gleich dem Orakel; DB-Ergebnis laut v2-Bericht 2026-07 = 407.604; v1 per SHA256 gleich dem Manifest. Neuberechnung der v2-Läufe auf frischer DB misst 22-1"
 befund = "Juli 2026 oder Sheet v2 weicht vom unabhängigen Filter oder Orakel ab, oder v1 passt nicht zum Manifest"
-herkunft = "b-abnahme-4c 2026-11-05 20:55"
+herkunft = "Abnahme-Prüfer 2026-11-05 20:55"
 
 [[pruefung]]
 id = "71-AC1"
@@ -426,7 +426,7 @@ erwartet = ["(^|= )\\d+ passed"]
 schwer = true
 deckung = "teil"
 befund = "Der Befehl ministerium existiert (uc3/statagent/cli.py:404), aber Grenzfixtures und SQL-Gegenrechnung (symmetrische Differenz=0) brauchen die Datenbank. Messbefehl: pytest test_sonderauswertung plus SQL-Gegenrechnung gegen die Personenmenge"
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "71-AC2"
@@ -439,7 +439,7 @@ deckung = "voll"
 quelle = "Entscheid #16: CSV extern (../lieferungen neben dem Checkout), im Repo der Beleg; Orakel Variante S"
 grund = "CSV am externen Ort: Vorlagenkopf, Semikolon, PERSON_ID eindeutig aufsteigend, TAGE 200 bis 365, Unbekannt wie Orakel, sha256 = Beleg; Freigabe mit Vor- und Nachnamen im Beleg (Zeitpunkt prüfen die Kriterien von #55)"
 befund = "Ministeriums-CSV am externen Ort verletzt Form oder passt nicht zum Beleg (Lane uc3)"
-herkunft = "b-abnahme-4c 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead a7)"
+herkunft = "Abnahme-Prüfer 2026-11-05 20:15 (Entscheid #16: Beleg + sha256 statt CSV im Checkout, Lead)"
 
 [[pruefung]]
 id = "71-AC3"
@@ -449,7 +449,7 @@ erwartet = ["^[1-9]"]
 schwer = false
 deckung = "teil"
 befund = "docs/plan/uc3/ministerium-oracle.md nennt die Zahlen 32.713, 32.741, 32.639, 32.706 und die Entscheide, enthält aber keine SQL-Abfrage, keinen Regelstand-Hash und keinen Mengenvergleich (Treffer für select/regelstand/hash = 0)."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "72-AC1"
@@ -460,7 +460,7 @@ schwer = true
 deckung = "teil"
 befund_art = "fehlt"
 befund = "Die fünf Dateien R1 bis R5 sind vorhanden und tragen alle Pflichtabschnitte, je 5 Beispiel-IDs, SQL, Vorschlag und Frage (mit Skript geprüft). Ob Satzzahlen und IDs tatsächlich stimmen, braucht die SQL aus den Dateien gegen die Datenbank: j"
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "72-AC2"
@@ -470,7 +470,7 @@ erwartet = ["^[1-9]"]
 schwer = true
 deckung = "teil"
 befund = "Keine Antwort eingegangen (Frist Do 20:00 noch nicht erreicht), und uc3/statagent/berichte/pruefe_abgabe.py prüft nicht auf Antwort- oder Annahmestatus. Messbar nur über meta.rueckfrage: SELECT count(*) FROM meta.rueckfrage WHERE antwort IS"
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "73-AC1"
@@ -481,7 +481,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "docs/plan/uc3/anhang-b-schema.sql fehlt auf main. Das Schema stat.stat_beschaeftigte (uc3/db/030_bereinigt_stat.sql:29) hat Zeitraumart, von, bis, Dimensionen, variable, wert, status, stand; der Schema-Readback mit 0 fehlenden Pflichtfelder"
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "73-AC2"
@@ -491,7 +491,7 @@ erwartet = ["^0$"]
 schwer = true
 deckung = "teil"
 befund = "Tabellen stat.variable und stat.klass_* sind in uc3/db/020_stat_metadaten.sql angelegt; der Anti-Join gegen (Statistik,Code) braucht die Datenbank. SQL ist ein Vorschlag, Statistikname vor dem Lauf prüfen."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "73-AC3"
@@ -502,7 +502,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "Die geforderte Testdatei uc3/tests/test_anhang_b.py fehlt auf main. stat.quellzuordnung (uc3/db/020_stat_metadaten.sql:72) hat Regelsatz- und Versionsbezug; der Anti-Join gegen das Mapping ist nicht gemessen."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "74-AC1"
@@ -512,7 +512,7 @@ erwartet = ["(^|= )\\d+ passed"]
 schwer = true
 deckung = "teil"
 befund = "Von test_frage.py liefen 9 Tests ohne Datenbank (Frage lesen, Nullbestand, kein LLM-Import) grün; Zeitreihe, M/W und Fluktuation mit Gegenrechnung brauchen die Datenbank. Messbefehl: ganze Datei test_frage.py mit Test-DB auf dem Prüfrechner"
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "74-AC2"
@@ -522,7 +522,7 @@ erwartet = ["^\\d+ passed(, \\d+ deselected)? in"]
 schwer = true
 deckung = "voll"
 befund = "Rückfrage, ÖNACE-Definition und Nur-Lese-Rolle (INSERT/UPDATE/DELETE abgewiesen) sind in uc3/tests/test_frage.py vorgesehen (Zeilen 199, 208, 287), laufen aber nur mit Datenbank. Messbefehl siehe Befehl, auf dem Prüfrechner."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "79-AC1"
@@ -533,7 +533,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "uc3/statagent/voice.py fehlt auf main, ebenso docs/plan/uc3/voice-abnahme.md. Der Vergleich psql, Text und Stimme (387180) ist nicht messbar."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "79-AC2"
@@ -544,7 +544,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "Der Voice-Adapter uc3/statagent/voice.py fehlt auf main; damit gibt es keine Änderungsanweisung per Stimme, keinen Adapter-Spy und keinen Test auf 0 automatische Freigaben."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "80-AC1"
@@ -555,7 +555,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "docs/plan/uc3/live-proben.csv fehlt auf main; die 9 Proben (A, B, C je dreimal unter 4 Minuten) sind nicht belegt."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "80-AC2"
@@ -566,7 +566,7 @@ schwer = false
 deckung = "teil"
 befund_art = "fehlt"
 befund = "docs/plan/uc3/live-ruecknahme.md fehlt auf main; Ablehnen und Rücknahme sind nicht belegt."
-herkunft = "b-abnahme-30/messer-d 2026-11-05 17:25"
+herkunft = "Abnahme-Prüfer/Mess-Agent 2026-11-05 17:25"
 
 [[pruefung]]
 id = "16-AC5"
@@ -617,7 +617,7 @@ zeitlimit = 130
 quelle = "Kriterium 14-AC2; unabhängiger Filter über die Rohlieferung, ohne Produktcode"
 grund = "Rohlieferung 2024-08 unabhängig gezählt: 392236 distinct VVH_ID am Stichtag, 48 nicht aktiv ohne Volldubletten, Personen mit mehreren VVH mehrfach gezählt; zusammen mit der SQL-Abrechnung der Prüf-DB"
 befund = "Die Rohlieferung 2024-08 ergibt nicht 392236 am Stichtag und 48 nicht aktive Sätze ohne Volldubletten"
-herkunft = "b-abnahme-4c 2026-11-05 21:00"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:00"
 
 [[pruefung]]
 id = "16-AC1"
@@ -703,7 +703,7 @@ zeitlimit = 620
 quelle = "Kriterium 16-AC1, letzter Halbsatz: Neulauf überschreibt keine veröffentlichte v1"
 grund = "Neulauf lässt die veröffentlichten Kennzahlen stehen, zweite Veröffentlichung bricht ab; zusammen mit 24 Läufen = Manifest und 0 späteren Lieferungen"
 befund = "Ein Neulauf kann einen veröffentlichten Monat überschreiben"
-herkunft = "b-abnahme-4c 2026-11-05 21:00"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:00"
 
 [[pruefung]]
 id = "16-AC3"
@@ -715,7 +715,7 @@ deckung = "voll"
 quelle = "Kriterium 16-AC3; Laufmanifest v1 und docs/plan/uc3/2025-10-abgleich.md"
 grund = "2025-10 ist vorläufig und nutzt keine spätere Lieferung; der Abgleich nennt beide Zahlen mit eigenen Abfragen und einer Differenzdefinition"
 befund = "2025-10 nutzt eine spätere Lieferung oder der Abgleich nennt beide Zahlen nicht mit Abfragen und Differenz"
-herkunft = "b-abnahme-4c 2026-11-05 21:00"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:00"
 
 [[pruefung]]
 id = "16-AC5"
@@ -727,7 +727,7 @@ deckung = "voll"
 quelle = "Kriterium 16-AC5; Validator pruefe-abgabe liest das Sheet zurück"
 grund = "Readback: 6 Blätter, Monatsspalten gefüllt, Insgesamt-Formeln und Blattsummen stimmen; zusammen mit Sheet = Orakel (keine zusätzlichen Ausprägungen) und Blattsummen = DB-Gesamtzahl"
 befund = "Der Readback des Sheets v1 meldet einen Mangel bei Blättern, Monatsspalten oder Formeln"
-herkunft = "b-abnahme-4c 2026-11-05 21:00"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:00"
 
 [[pruefung]]
 id = "16-AC4"
@@ -738,7 +738,7 @@ schwer = false
 deckung = "voll"
 grund = "24 Berichte, fünf Abschnitte, jede Auffälligkeit mit Umfang, Abfrage, Maßnahme und gültiger Einstufung, Annahmen und Revisionsbedarf vorhanden; eigene Prüfung neben dem Validator"
 befund = "Ein Bericht verletzt Struktur oder Einstufung, oder eine Auffälligkeit nennt Umfang, Abfrage oder Maßnahme nicht"
-herkunft = "b-abnahme-4c 2026-11-05 21:10"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:10"
 
 [[pruefung]]
 id = "20-1"
@@ -749,7 +749,7 @@ schwer = false
 deckung = "voll"
 grund = "Die Checkliste nennt Freeze 07:00 und Abgabe 09:00, hängt den GitHub-Push an 09:00 und führt Mail und YAML als erledigt, ohne neue Mailaufgabe"
 befund = "abgabe/CHECKLISTE.md nennt Freeze, Abgabe, GitHub-Push oder die erledigte Mail und YAML nicht"
-herkunft = "b-abnahme-4c 2026-11-05 21:10"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:10"
 
 [[pruefung]]
 id = "22-2"
@@ -761,7 +761,7 @@ deckung = "voll"
 zeitlimit = 920
 grund = "Prüfregeln gegen die echten Lieferungen belegt (auch 2025-03 und 2025-10), kein Test übersprungen; Golden Set misst der zweite Teil"
 befund = "Prüfregeln gegen die Lieferungen scheitern oder werden übersprungen"
-herkunft = "b-abnahme-4c 2026-11-05 21:10"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:10"
 
 [[pruefung]]
 id = "71-AC3"
@@ -772,7 +772,7 @@ schwer = false
 deckung = "voll"
 grund = "Das Oracle-Dokument nennt Abfrage, Regelstand, Ergebniszahl 32.741, beide Vergleichswerte, die Regel jüngste Lieferung je Tag und den Mengenvergleich"
 befund = "ministerium-oracle.md nennt Abfrage, Regelstand, Ergebniszahl, Vergleichswerte oder Mengenvergleich nicht"
-herkunft = "b-abnahme-4c 2026-11-05 21:10"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:10"
 
 [[pruefung]]
 id = "15-AC1"
@@ -783,7 +783,7 @@ schwer = false
 deckung = "voll"
 grund = "agenten-routing.json ordnet vier Anweisungen je einer erlaubten Rolle mit Protokoll-ID zu; akteur bleibt agent oder mensch"
 befund = "agenten-routing.json nennt nicht vier Anweisungen mit Rolle und Protokoll-ID, oder der Code setzt eine Rolle als akteur"
-herkunft = "b-abnahme-4c 2026-11-05 21:20"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:20"
 
 [[pruefung]]
 id = "15-AC3"
@@ -795,7 +795,7 @@ deckung = "voll"
 zeitlimit = 620
 grund = "Adapter-Spies prüfen die tatsächlichen Modellnachrichten: keine Einzeldaten, Schema bleibt erlaubt"
 befund = "test_prompt_grenzen.py scheitert: Einzeldaten könnten das Modell erreichen"
-herkunft = "b-abnahme-4c 2026-11-05 21:20"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:20"
 
 [[pruefung]]
 id = "17-AC1"
@@ -806,7 +806,7 @@ schwer = false
 deckung = "voll"
 grund = "Die Matrix verlinkt die vier Teilissues, die Aufträge 1 bis 3 gehen über uc3 agent mit Rollenrouting und Freigabe mit Name und Zeit"
 befund = "aenderungsauftraege-matrix.md verlinkt ein Teilissue nicht oder nennt Agentenweg und Freigabe nicht"
-herkunft = "b-abnahme-4c 2026-11-05 21:20"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:20"
 
 [[pruefung]]
 id = "17-AC2"
@@ -817,7 +817,7 @@ schwer = false
 deckung = "voll"
 grund = "Das Manifest führt Sheet alt und neu getrennt, 24 v2-Berichte und die Ministeriums-CSV; Datenstand jüngste Lieferung je Tag; der Validator liest alles zurück"
 befund = "Das Manifest führt Sheets, v2-Berichte oder Ministeriums-CSV nicht, oder der Validator meldet einen Mangel"
-herkunft = "b-abnahme-4c 2026-11-05 21:20"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:20"
 
 [[pruefung]]
 id = "20-AC2"
@@ -828,7 +828,7 @@ schwer = false
 deckung = "voll"
 grund = "uc3-abnahme.md enthält Prüfausgaben und Bezüge auf #63, #65, #66 und die Teilissues, nennt Azure und das Deployment; das Protokoll führt Namen"
 befund = "uc3-abnahme.md nennt einen Bezug, Azure, das Deployment oder die Prüfausgabe nicht"
-herkunft = "b-abnahme-4c 2026-11-05 21:20"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:20"
 
 [[pruefung]]
 id = "70-AC1"
@@ -840,7 +840,7 @@ deckung = "voll"
 zeitlimit = 620
 grund = "test_monatszaehlung.py besteht: Ein-Tages-Fall, offenes Ende, zwei Abschnitte, zwei VVH, Monatsgrenzen"
 befund = "test_monatszaehlung.py scheitert"
-herkunft = "b-abnahme-4c 2026-11-05 21:20"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:20"
 
 [[pruefung]]
 id = "73-AC1"
@@ -852,7 +852,7 @@ deckung = "voll"
 zeitlimit = 620
 grund = "anhang-b-schema.sql hat die prüfbaren Abfragen, alle ergeben auf der gerechneten Prüf-DB 0 Fehlstellen"
 befund = "Die Prüfabfragen aus anhang-b-schema.sql finden Fehlstellen"
-herkunft = "b-abnahme-4c 2026-11-05 21:20"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:20"
 
 [[pruefung]]
 id = "73-AC3"
@@ -864,7 +864,7 @@ deckung = "voll"
 zeitlimit = 620
 grund = "test_anhang_b.py besteht: Quellzuordnung und Anti-Join auf der gerechneten Prüf-DB"
 befund = "test_anhang_b.py scheitert"
-herkunft = "b-abnahme-4c 2026-11-05 21:20"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:20"
 
 [[pruefung]]
 id = "72-AC1"
@@ -877,7 +877,7 @@ zeitlimit = 180
 quelle = "Kriterium 72-AC1; Rohlieferungen des Startpakets, ohne Produktcode"
 grund = "R1 bis R5 decken die fünf Themen und alle Pflichtteile ab; jede Beispiel-ID zeigt in der Rohlieferung genau den behaupteten Befund (Monat 13, fehlt in der Teil-Lieferung, Beginn fehlt)"
 befund = "In R1 bis R5 fehlt ein Pflichtteil, oder eine Beispiel-ID zeigt in der Rohlieferung den behaupteten Befund nicht"
-herkunft = "b-abnahme-4c 2026-11-05 21:30"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:30"
 
 [[pruefung]]
 id = "13-AC2"
@@ -889,7 +889,7 @@ deckung = "voll"
 zeitlimit = 320
 grund = "PostgreSQL 16, alle Pflichttabellen auf der frisch aufgebauten Prüf-DB; zweiter Schema-Lauf ohne Datenverlust misst der erste Teil"
 befund = "Die frische Prüf-DB ist nicht PostgreSQL 16 oder eine Pflichttabelle fehlt"
-herkunft = "b-abnahme-4c 2026-11-05 21:40"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:40"
 
 [[pruefung]]
 id = "13-AC3"
@@ -901,7 +901,7 @@ deckung = "voll"
 zeitlimit = 320
 grund = "24 Lieferungen; Ladeprotokoll gleich der Rohtabelle und gleich den Zeilen der Dateien; alle Rohfelder Text; jeder Satz trägt seine Lieferung"
 befund = "Ladeprotokoll, Rohtabelle und Dateien stimmen nicht überein, oder ein Rohfeld ist nicht Text"
-herkunft = "b-abnahme-4c 2026-11-05 21:40"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:40"
 
 [[pruefung]]
 id = "73-AC2"
@@ -913,7 +913,7 @@ deckung = "voll"
 zeitlimit = 320
 grund = "variable, klass_oenace und uebergang haben die Pflichtspalten; der Anti-Join misst der erste Teil"
 befund = "Pflichtspalten fehlen in stat.variable, stat.klass_oenace oder stat.uebergang (Ausgabe nennt sie)"
-herkunft = "b-abnahme-4c 2026-11-05 21:40"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:40"
 
 [[pruefung]]
 id = "14-AC3"
@@ -925,7 +925,7 @@ deckung = "voll"
 zeitlimit = 620
 grund = "Die Prüfabfragen aus Anhang B ergeben 0 Fehlstellen, also keine verwendeten Codes außerhalb der Klassifikation; R6 und R7 mit Freigabe misst der erste Teil"
 befund = "Anti-Join: verwendete Codes liegen außerhalb der gültigen Klassifikation"
-herkunft = "b-abnahme-4c 2026-11-05 21:40"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:40"
 
 [[pruefung]]
 id = "14-AC4"
@@ -936,7 +936,7 @@ schwer = false
 deckung = "voll"
 grund = "Geburtsmonat 13 und unplausibles Alter stehen in den Annahmen; Grenze ist max_plausibel, keine globale Regel über 74; plausible 75+ bleiben (P07); im Snapshot sind alle Regeln freigegeben"
 befund = "Annahmen A4 oder A5 fehlen, die 75+-Fälle bleiben nicht erhalten, oder eine Regel im Snapshot ist nicht freigegeben"
-herkunft = "b-abnahme-4c 2026-11-05 21:40"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:40"
 
 [[pruefung]]
 id = "15-AC2"
@@ -948,7 +948,7 @@ deckung = "voll"
 zeitlimit = 620
 grund = "Code läuft nur mit Freigabe (NichtFreigegeben), Freigabe mit Namen ändert Regel und Commit, Ablehnen ändert nichts; Trailer im Protokoll misst der erste Teil"
 befund = "Freigabe-Ablauf: Code läuft ohne Freigabe, oder Ablehnen ändert etwas"
-herkunft = "b-abnahme-4c 2026-11-05 21:40"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:40"
 
 [[pruefung]]
 id = "71-AC1"
@@ -960,7 +960,7 @@ deckung = "voll"
 gegenprobe = "python3 tests/abnahme/p/uc3_ministerium.py --nur-beleg --variante E"
 grund = "Die Lieferung gleicht dem unabhängigen Orakel (drei unabhängige Rechnungen, sha256), also dieselbe Personenmenge; Grenzfälle misst der erste Teil"
 befund = "Der Beleg der Ministeriums-Lieferung weicht vom unabhängigen Orakel ab"
-herkunft = "b-abnahme-4c 2026-11-05 21:40"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:40"
 
 [[pruefung]]
 id = "72-AC2"
@@ -977,7 +977,7 @@ deckung = "voll"
 befund_art = "fehlt"
 grund = "Jede Rückfrage im Bericht trägt Antwort oder begründete vorläufige Annahme, und der Validator prüft das"
 befund = "Rückfragen im Bericht stehen ohne Antwort- oder Annahmestatus, oder der Validator prüft den Status nicht (Wortlaut: „Validator prüft 0 Rückfragen ohne Antwort- oder Annahmestatus“)"
-herkunft = "b-abnahme-4c 2026-11-05 21:40"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:40"
 
 [[pruefung]]
 id = "74-AC1"
@@ -989,7 +989,7 @@ deckung = "voll"
 zeitlimit = 620
 grund = "Zeitreihe, M/W je Bundesland und Fluktuation gleich der SQL-Gegenrechnung; Nullbestand ohne erfundene Rate"
 befund = "Eine Jury-Frage weicht von der SQL-Gegenrechnung ab, oder Nullbestand ergibt eine Rate"
-herkunft = "b-abnahme-4c 2026-11-05 21:40"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:40"
 
 [[pruefung]]
 id = "18-AC1"
@@ -1001,8 +1001,8 @@ deckung = "voll"
 quelle = "Kriterium 18-AC1; web/tests/uc3-frame-matrix.json; Bildgröße aus dem JPEG-Kopf"
 grund = "Jeder zugeordnete Frame hat eine Route mit Screenshots in 1440x900 und 390x844 und einen Vergleich ohne Einschränkung"
 befund = "Zu mindestens einem zugeordneten Frame fehlt der Screenshot oder der Vergleich (Liste in der Ausgabe, Zeilen offen und route)"
-anmerkung = "Ausgenommen per Entscheid Lead 21:4x: U3-2 (L6f3Mp) nach Abgabe, S6 Restmangel bis !193 Bereich 2. Ob die Frame-IDs in der Pen-Datei existieren, misst dieser Prüfsatz nicht"
-herkunft = "b-abnahme-9d 2026-11-05 21:35"
+anmerkung = "Ausgenommen per Entscheid des Leads 21:4x: U3-2 (L6f3Mp) nach Abgabe, S6 Restmangel bis !193 Bereich 2. Ob die Frame-IDs in der Pen-Datei existieren, misst dieser Prüfsatz nicht"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:35"
 
 [[pruefung]]
 id = "69-AC1"
@@ -1012,10 +1012,10 @@ erwartet = ["^fachkategorien 3$", "^ausgangscodes 5$", "^kategorie Unbekannt cod
 schwer = true
 deckung = "voll"
 zeitlimit = 330
-quelle = "Kriterium 69-AC1; Entscheid Lead 05.11. 20:4x (Zählregel in v2 mit Freigabe gilt als neue Version, #69); Anhang-B-Abfragen auf der vollen Prüf-DB"
+quelle = "Kriterium 69-AC1; Entscheid des Leads 05.11. 20:4x (Zählregel in v2 mit Freigabe gilt als neue Version, #69); Anhang-B-Abfragen auf der vollen Prüf-DB"
 grund = "Fünf Ausgangscodes auf drei Fachkategorien, Unbekannt gesondert, alle Anhang-B-Abfragen einschließlich Anti-Join ergeben 0"
 befund = "Die Zuordnung der Ausgangscodes weicht ab oder eine Anhang-B-Abfrage findet fehlende Zeilen"
-herkunft = "b-abnahme-9d 2026-11-05 21:35"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:35"
 
 [[pruefung]]
 id = "69-AC2"
@@ -1025,11 +1025,11 @@ erwartet = ["^monate_v1 24$", "^monate_gleich True$", "^codes_v2 Angestellte,Arb
 schwer = false
 deckung = "voll"
 zeitlimit = 120
-quelle = "Kriterium 69-AC2; Entscheid Lead 05.11. 21:4x; docs/plan/uc3/aenderungsauftraege-matrix.md (kein Sheet nur mit Auftrag 1); Orakel zeitreihe.csv"
+quelle = "Kriterium 69-AC2; Entscheid des Leads 05.11. 21:4x; docs/plan/uc3/aenderungsauftraege-matrix.md (kein Sheet nur mit Auftrag 1); Orakel zeitreihe.csv"
 grund = "v2 führt die drei Kategorien in 24 Monaten, Auftrag 1 allein ändert die Monatssumme nicht, v1 gleicht dem Manifest"
 befund = "Blatt Beschäftigungskategorie oder v1-Hash weichen ab"
 anmerkung = "Die Summen v2 = DV + FD gelten wörtlich nicht gegen v1, weil v2 Auftrag 2 mitträgt (identitaet_gegen_v1_monate 0); die Zellen von v2 misst 70-AC2 gegen das Orakel"
-herkunft = "b-abnahme-9d 2026-11-05 21:35"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:35"
 
 [[pruefung]]
 id = "135-2"
@@ -1042,7 +1042,7 @@ quelle = "Kriterium 135-2; navigation.ts, Monatsseite rendert Lauf und Bericht g
 grund = "Der Bericht nimmt ?regelsatz=v2 entgegen und die Berichtsliste verlinkt mit dem Regelsatz; v2-Berichte liegen für 24 Monate vor"
 befund = "Der Bericht übernimmt den Regelsatz nicht oder v2-Berichte fehlen"
 anmerkung = "Nur im Code gemessen, ohne Browser"
-herkunft = "b-abnahme-9d 2026-11-05 21:35"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:35"
 
 [[pruefung]]
 id = "135-7"
@@ -1054,7 +1054,7 @@ deckung = "voll"
 quelle = "Kriterium 135-7; Job playwright in .gitlab-ci.yml"
 grund = "Der Playwright-Job seedet UC3 ohne Einzeldaten und misst die gefüllten Seiten"
 befund = "CI-Seed oder Spec für gefüllte UC3-Seiten fehlt, oder der Seed schreibt in roh"
-herkunft = "b-abnahme-9d 2026-11-05 21:35"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:35"
 
 [[pruefung]]
 id = "135-8"
@@ -1066,7 +1066,7 @@ deckung = "voll"
 quelle = "Kriterium 135-8; web/tests/axe.spec.ts"
 grund = "axe-Spec prüft WCAG 2 A und AA, critical und serious sind hart, die Spec liegt im Playwright-Gate"
 befund = "axe-Spec fehlt im Playwright-Gate oder prüft nicht WCAG 2 A/AA mit critical/serious als Fehler"
-herkunft = "b-abnahme-9d 2026-11-05 21:35"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:35"
 
 [[pruefung]]
 id = "135-9"
@@ -1078,7 +1078,7 @@ deckung = "voll"
 quelle = "Kriterium 135-9; Pipeline 41842 Job web grün"
 grund = "ESLint ist in web/ installiert und läuft im Job web als Gate"
 befund = "Web-Lint ist nicht installiert oder nicht im CI-Job"
-herkunft = "b-abnahme-9d 2026-11-05 21:35"
+herkunft = "Abnahme-Prüfer 2026-11-05 21:35"
 
 [[pruefung]]
 id = "22-1"
@@ -1093,7 +1093,7 @@ quelle = "Kriterium 22-1; abgabe/README.md, Abschnitt Auf einer frischen Datenba
 grund = "Auf frischer Prüf-DB ohne Modell: 24 Läufe v2 gleich Orakel, Sheet v2 gleich Orakel in 1003 Zellen, Ministeriums-CSV mit sha256 wie Beleg"
 befund = "Der CLI-Weg aus abgabe/README.md reproduziert v2, Sheet v2 oder die Ministeriums-CSV auf frischer DB nicht (Zeile kette_exit und die Ausgabe davor)"
 anmerkung = "Eigener Lauf: schwer_ausloesen.sh <env> 22-1 (auf der Prüf-DB des letzten schweren Laufs). Kettenende per Exit-Code, damit jedes Abweichend zählt; 124 bleibt Lauf-Fehler. Freigaben nur auf der Prüf-DB, der lokale Commit im Prüf-Klon wird zurückgesetzt, die CSV entsteht in einem Wegwerf-Ordner und wird gelöscht; `uc3 ministerium` verlangt den Beleg im Repo, deshalb STATAGENT_ABGABE=abgabe. Braucht frische Prüf-DB: nach dem schweren Lauf, nicht zweimal auf derselben"
-herkunft = "b-abnahme-9d 2026-11-05 22:14"
+herkunft = "Abnahme-Prüfer 2026-11-05 22:14"
 
 [[pruefung]]
 id = "75-AC1"
@@ -1106,8 +1106,8 @@ zeitlimit = 220
 quelle = "Kriterium 75-AC1; Quelldateien OENACE2008_DE_CTI.txt, OENACE2025_DE_CTI.txt; UNB steht in klassifikationen/oenace_2008.csv und oenace_2025.csv des Startpakets, nicht in den CTI-Dateien"
 grund = "ÖNACE 2008 und 2025 bis zum 5-Steller stimmen in beide Richtungen mit den Quelldateien überein"
 befund = "Codes oder Ebenen von ÖNACE 2008 oder 2025 weichen von den Quelldateien ab"
-anmerkung = "Teil: 2003 bis zum 5-Steller und das Importprotokoll (Dateiname, Encoding, Hash) sind Restmangel (Entscheid Lead f7 in #189), das Kriterium bleibt offen"
-herkunft = "b-abnahme-9d 2026-11-06 00:25"
+anmerkung = "Teil: 2003 bis zum 5-Steller und das Importprotokoll (Dateiname, Encoding, Hash) sind Restmangel (Entscheid des Leads in #189), das Kriterium bleibt offen"
+herkunft = "Abnahme-Prüfer 2026-11-06 00:25"
 
 [[pruefung]]
 id = "75-AC2"
@@ -1120,8 +1120,8 @@ zeitlimit = 220
 quelle = "Kriterium 75-AC2; OENACE2008_OENACE2025_DE_12B.txt"
 grund = "1115 Paare 2008 zu 2025 mit Typen, jede Elternkette endet beim Abschnitt, der Bericht 2025-01 sagt, dass Zahlen je Abschnitt über den Wechsel nicht direkt vergleichbar sind"
 befund = "Umsteiger, Elternketten oder der Hinweis im Bericht 2025-01 auf die fehlende Vergleichbarkeit fehlen"
-anmerkung = "Keine eigene Fußnote an Abschnitt C, Wortlaut „nicht eindeutig“ fehlt: nicht wörtlich erfüllt (Entscheid Lead f7 in #75)"
-herkunft = "b-abnahme-9d 2026-11-06 00:25"
+anmerkung = "Keine eigene Fußnote an Abschnitt C, Wortlaut „nicht eindeutig“ fehlt: nicht wörtlich erfüllt (Entscheid des Leads in #75)"
+herkunft = "Abnahme-Prüfer 2026-11-06 00:25"
 
 [[pruefung]]
 id = "76-AC1"
@@ -1134,8 +1134,8 @@ zeitlimit = 320
 quelle = "Kriterium 76-AC1; regionen/*.csv im Startpaket"
 grund = "16 Stände mit Bezirken und Gemeinden gleich den Quelldateien, Übergänge mit Datum und Quelle, keine Gemeinde verschwindet ohne Übergang"
 befund = "Stände, Codes oder Übergänge der Regionen weichen von den Quelldateien ab, oder eine Gemeinde verschwindet ohne Übergang"
-anmerkung = "Teil: Das Importmanifest mit Hash und Zeilenzahl je CSV ist Restmangel (Entscheid Lead f7 in #189), das Kriterium bleibt offen"
-herkunft = "b-abnahme-9d 2026-11-06 00:25"
+anmerkung = "Teil: Das Importmanifest mit Hash und Zeilenzahl je CSV ist Restmangel (Entscheid des Leads in #189), das Kriterium bleibt offen"
+herkunft = "Abnahme-Prüfer 2026-11-06 00:25"
 
 [[pruefung]]
 id = "76-AC2"
@@ -1149,7 +1149,7 @@ quelle = "Kriterium 76-AC2; docs/plan/uc3/regionen-stichprobe.md"
 grund = "Drei Übergänge verschiedener Art stehen in der Stichprobe, und die Datenbank nennt dieselben Nachfolger"
 befund = "Die Stichprobe fehlt oder die Datenbank nennt andere Nachfolger"
 anmerkung = "Teil: Die Bestätigung des Reviewers ist hier nicht gemessen"
-herkunft = "b-abnahme-9d 2026-11-06 00:25"
+herkunft = "Abnahme-Prüfer 2026-11-06 00:25"
 
 [[pruefung]]
 id = "78-AC1"
@@ -1159,10 +1159,10 @@ erwartet = ["62280", "30741", "Lenzing an der Ager", "Gültigkeit über \\d+ St�
 schwer = true
 deckung = "voll"
 zeitlimit = 460
-quelle = "Kriterium 78-AC1; Entscheid Lead f7 in #189: gemessen wird das Verhalten, nicht der Name (uc3 klass region statt erklaere-region)"
+quelle = "Kriterium 78-AC1; Entscheid des Leads in #189: gemessen wird das Verhalten, nicht der Name (uc3 klass region statt erklaere-region)"
 grund = "Drei belegte Übergänge nennen Stände, Datum, Nachfolger und Quelle, ein unbekannter Code bekommt keinen erfundenen Übergang"
 befund = "uc3 klass region nennt Nachfolger, Stände oder Quelle nicht, oder ein unbekannter Code wird nicht abgewiesen"
-herkunft = "b-abnahme-9d 2026-11-06 01:45"
+herkunft = "Abnahme-Prüfer 2026-11-06 01:45"
 
 [[pruefung]]
 id = "78-AC2"
@@ -1172,10 +1172,10 @@ erwartet = ["^fixtures [2-9]", "2008", "2025", "keine eindeutige Umcodierung"]
 schwer = true
 deckung = "voll"
 zeitlimit = 180
-quelle = "Kriterium 78-AC2 (Wortlaut: Frage zu ÖNACE C 2008 und 2025, zwei Golden-Fixtures); „mehrdeutig“ steht als „keine eindeutige Umcodierung“ im Text (Hinweis b-uc3-tief-e2, !271)"
+quelle = "Kriterium 78-AC2 (Wortlaut: Frage zu ÖNACE C 2008 und 2025, zwei Golden-Fixtures); „mehrdeutig“ steht als „keine eindeutige Umcodierung“ im Text (Hinweis der UC3-Lane, !271)"
 grund = "Die Frage zeigt beide Fassungen und nennt einen mehrdeutigen Übergang, zwei Fixtures liegen vor"
 befund = "Golden-Fixtures fehlen oder die Frage zeigt beide Fassungen nicht mit ausdrücklich mehrdeutigem Übergang"
-herkunft = "b-abnahme-9d 2026-11-06 00:25"
+herkunft = "Abnahme-Prüfer 2026-11-06 00:25"
 
 [[pruefung]]
 id = "80-AC1"
@@ -1188,7 +1188,7 @@ quelle = "Kriterium 80-AC1; docs/plan/uc3/live-proben.csv; „gesprochene Anweis
 grund = "Laut Belegdatei, kein neuer Lauf: A, B und C je dreimal unter 4 Minuten mit Regelsatz, Protokoll, Name, Zeit, Diff und Zahlen, alle bestanden"
 befund = "Für A, B oder C fehlen Läufe oder Felder, ein Lauf dauert 4 Minuten oder länger, oder ein Lauf ist nicht bestanden"
 anmerkung = "Die Serie lief auf d888e09, die Nachprobe auf dem Endkopf steht in live-ruecknahme.md Abschnitt 6; gemessen wird die Datei, kein neuer Modelllauf"
-herkunft = "b-abnahme-9d 2026-11-06 04:55"
+herkunft = "Abnahme-Prüfer 2026-11-06 04:55"
 
 [[pruefung]]
 id = "80-AC2"
@@ -1201,7 +1201,7 @@ quelle = "Kriterium 80-AC2; docs/plan/uc3/live-ruecknahme.md"
 grund = "Laut Belegdatei, kein neuer Lauf: Ablehnen ohne Änderungscommit und mit gleichem Hash, Rücknahmen als neue Vorgänge mit Regelstand und Ergebnis von v2"
 befund = "Ablehnen ändert den Stand, oder eine Rücknahme stellt Regelstand und Ergebnis nicht her"
 anmerkung = "Beleg laut Datei: Auftrag J (Prüfregel) belegt beim Hash nichts, weil der Regelstand Prüfregeln auslässt; Messung auf einer Kopie der Abgabe-DB"
-herkunft = "b-abnahme-9d 2026-11-06 04:55"
+herkunft = "Abnahme-Prüfer 2026-11-06 04:55"
 
 [[pruefung]]
 id = "20-AC3"
@@ -1214,7 +1214,7 @@ quelle = "Kriterium 20-AC3; docs/praesentation/uc3-jury.md"
 grund = "Der Ablauf nennt Dauer, gefundene Fehler, eine Annahme, die Live-Änderung, Datenfragen, Probe und Video; der Push steht erst in der Checkliste"
 befund = "Im Jury-Ablauf fehlt einer der verlangten Teile"
 anmerkung = "Wörter gezählt, Inhalt und die drei Arten Datenfragen bleiben im Probelauf zu sehen"
-herkunft = "b-abnahme-9d 2026-11-06 04:55"
+herkunft = "Abnahme-Prüfer 2026-11-06 04:55"
 
 [[pruefung]]
 id = "16-AC2"
@@ -1226,7 +1226,7 @@ deckung = "voll"
 quelle = "Kriterium 16-AC2; uc3/pruefkatalog.csv; meta.lauf"
 grund = "24 Plätze ohne leere Felder, Status umgesetzt, Verhältnisse im Bericht getrennt, Residuum in keinem Lauf ungleich 0"
 befund = "Der Prüfkatalog hat leere Felder oder Platzhalter, oder ein Lauf hat ein Residuum"
-herkunft = "b-abnahme-9d 2026-11-06 04:55"
+herkunft = "Abnahme-Prüfer 2026-11-06 04:55"
 
 [[pruefung]]
 id = "76-AC2"
@@ -1234,11 +1234,11 @@ hash = "de7af96954"
 art = "hand"
 deckung = "voll"
 beschreibung = "Ein Reviewer vergleicht die drei Übergänge in docs/plan/uc3/regionen-stichprobe.md mit den amtlichen Dateien des Startpakets (ODS-Blatt und Zeile, Stände davor und danach) und bestätigt 0 unbegründete Abweichungen."
-quelle = "Kriterium 76-AC2; Review lead-session-orchestrator-49, 06.11. 04:50; Entscheid Lead f7: bestanden mit Anmerkung"
+quelle = "Kriterium 76-AC2; Review, 06.11. 04:50; Entscheid des Leads: bestanden mit Anmerkung"
 befund = "Die Bestätigung des Reviewers fehlt"
 grund = "Reviewer bestätigt 0 unbegründete Abweichungen, Umbenennung und Bezirkswechsel sind keine Löschung"
 anmerkung = "SQL genannt, Ergebniszeilen nicht in der Datei, Beziehungen nicht neu gemessen"
-herkunft = "b-abnahme-9d 2026-11-06 05:00"
+herkunft = "Abnahme-Prüfer 2026-11-06 05:00"
 
 [[pruefung]]
 id = "135-3"
@@ -1250,7 +1250,7 @@ quelle = "Kriterium 135-3"
 befund = "Die Waage ist nicht im Browser gesehen"
 grund = "Waage im Browser gesehen: vorher und nachher plausibel zur Probe"
 anmerkung = "Geprüft von einem Agenten im Browser, kein Mensch"
-herkunft = "b-abnahme-9d 2026-11-06 05:02"
+herkunft = "Abnahme-Prüfer 2026-11-06 05:02"
 
 [[pruefung]]
 id = "74-AC1"
@@ -1260,7 +1260,7 @@ erwartet = ["(^|= )\\d+ passed"]
 schwer = true
 deckung = "teil"
 zeitlimit = 520
-quelle = "Datengebundene Jury-Probe uc3/tests/test_jury_probe.py (#139), Auftrag Lead 3d, 06.11. 07:23"
+quelle = "Datengebundene Jury-Probe uc3/tests/test_jury_probe.py (#139), Auftrag des Leads, 06.11. 07:23"
 grund = "Die Jury-Probe mit allen 24 Lieferungen ist grün"
 befund = "Die Jury-Probe hat rote Fälle"
-herkunft = "b-abnahme-9d 2026-11-06 07:24"
+herkunft = "Abnahme-Prüfer 2026-11-06 07:24"

@@ -1,6 +1,6 @@
-# Prüfsätze UC2. Vorschläge von b-abnahme-30/agent-uc2 05.11. 18:0x, gesichtet von b-abnahme-30.
+# Prüfsätze UC2. Vorschläge von Abnahme-Prüfer/Mess-Agent 05.11. 18:0x, gesichtet vom Abnahme-Prüfer.
 
-# Prüfsatz-Vorschläge Bereich uc2 (Abnahme, Jury-Sicht). Erzeugt 05.11. von b-abnahme-30/messer-uc2.
+# Prüfsatz-Vorschläge Bereich uc2 (Abnahme, Jury-Sicht). Erzeugt 05.11. von Abnahme-Prüfer/Mess-Agent.
 # Soll steht im Kriterium, nicht im Code. Stand von main gelesen über origin/main (1195302); offene MRs (!73, !75, !97) zählen nicht.
 # Hinweis pytest: uc2/pyproject.toml setzt addopts = "-q"; ein zweites -q unterdrückt die Schlusszeile, deshalb steht hier keins.
 
