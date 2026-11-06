@@ -4,7 +4,7 @@
 #
 #   scripts/vorfuehrung.sh zugang         lokal: VORFUEHRUNG_ZUGANG in .env.local anlegen, falls er fehlt (Wert nie ausgeben)
 #   scripts/vorfuehrung.sh init           auf dem Server: Passwort, Budget, Azure-Zugang, Caddy-Fragment (nur der Hash)
-#   scripts/vorfuehrung.sh up [REF] [--checkout-neu]   Stand REF (Standard HEAD) bauen und starten, Caddy neu laden. Der Git-Checkout
+#   scripts/vorfuehrung.sh up [REF] [--checkout-neu]   Stand REF (Standard HEAD) bauen und starten (mit UC2 live), Caddy neu laden. Der Git-Checkout
 #                                         entsteht neu aus REF, außer er trägt schon festgeschriebene Freigaben: Die bleiben
 #   scripts/vorfuehrung.sh daten DATEI    pg_dump -Fc (lokale Datei) hochladen, als Vorlage einspielen, Arbeitskopie anlegen
 #   scripts/vorfuehrung.sh reset          Ausgangsstand: Arbeitskopie neu aus der Vorlage, Freigabe-Commits weg, App neu
@@ -208,6 +208,15 @@ haupt() {
   # 3. starten; das Git-Verzeichnis ist neu, also die App neu erzeugen
   cd "$v/repo/deploy"
   "${compose[@]}" up -d --no-build --force-recreate --wait --wait-timeout 180 vorfuehrung-db vorfuehrung-app </dev/null
+  # 3b. UC2 live: eigene Datenbank der Verhandlungen anlegen, falls sie fehlt, dann der Dienst. Darf nicht scheitern:
+  # Ohne den Dienst zeigt /uc2 die Aufzeichnung, der Rest der Vorführung läuft weiter.
+  if { "${compose[@]}" exec -T vorfuehrung-db psql -X -U statistik -d postgres -Atc "select 1 from pg_database where datname = 'healthpolicy_vorfuehrung'" </dev/null | grep -q 1 ||
+    "${compose[@]}" exec -T vorfuehrung-db createdb -U statistik healthpolicy_vorfuehrung </dev/null; } &&
+    "${compose[@]}" up -d --no-build --force-recreate --wait --wait-timeout 90 vorfuehrung-uc2 </dev/null; then
+    echo "up: UC2 live läuft"
+  else
+    echo "up: UC2 live nicht gestartet, /uc2 zeigt die Aufzeichnung" >&2
+  fi
   cp "$neu/REVISION" "$v/repo/REVISION"
   "${compose[@]}" ps --format 'table {{.Service}}\t{{.Status}}' </dev/null
 
@@ -398,7 +407,7 @@ mit_zugang() {
 
 cmd_pruefen() {
   lade_env_lokal
-  local code fehler=0 pfad antwort ziel="https://$V_DOMAIN"
+  local code fehler=0 pfad antwort modus ziel="https://$V_DOMAIN"
   [[ -n $(lokal_wert VORFUEHRUNG_ZUGANG) ]] || { echo "pruefen: VORFUEHRUNG_ZUGANG fehlt" >&2; return 1; }
 
   code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$ziel/uc3") || code=000
@@ -413,6 +422,10 @@ cmd_pruefen() {
   # leerer Auftrag: 400 aus der App, ohne Lauf und ohne Modell; belegt, dass Schreibwege offen sind
   code=$(mit_zugang -sS -o /dev/null -w '%{http_code}' --max-time 30 -X POST -H 'content-type: application/json' -d '{}' "$ziel/api/uc3/auftrag") || code=000
   if [[ $code == 400 ]]; then echo "pruefen: POST Auftrag erreicht die App (400)"; else echo "pruefen: POST Auftrag $code statt 400" >&2; fehler=1; fi
+  # UC2: Die App meldet im Kopf x-uc2-modus, ob der Dienst antwortet. Nur Auskunft, kein Fehler: sonst gilt die Aufzeichnung.
+  modus=$(mit_zugang -sS -o /dev/null -D - --max-time 30 "$ziel/api/uc2/modell" | tr -d '\r' |
+    awk -F': *' 'tolower($1) == "x-uc2-modus" { print $2 }' | tail -n 1) || modus=""
+  if [[ $modus == live ]]; then echo "pruefen: UC2 live (Dienst erreichbar)"; else echo "pruefen: UC2 zeigt die Aufzeichnung (Dienst nicht erreichbar)"; fi
 
   # Die öffentliche Demo bleibt zu: Auftrag und Freigabe weist die Kante ab, die Seite gibt es dort nicht
   for pfad in /api/uc3/auftrag /api/uc3/freigabe; do

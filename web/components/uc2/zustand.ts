@@ -1,4 +1,4 @@
-import { akteurName, klartext, themaKurz } from "./namen";
+import { akteurName, klartext, mitThemenTiteln, themaKurz } from "./namen";
 import {
   daten as schema,
   ereignisHuelle,
@@ -206,7 +206,7 @@ export function wende(zustand: FallZustand, roh: unknown): FallZustand {
       const nr = e.runde;
       let mit = mitRunde(basis, nr, (r) => ({
         ...r,
-        notiz: { runde: nr, text: klartext(d.notiz), eingefordert: d.belege_eingefordert.length },
+        notiz: { runde: nr, text: klartext(mitThemenTiteln(d.notiz, zustand.themen)), eingefordert: d.belege_eingefordert.length },
       }));
       for (const w of d.widersprueche) {
         // Zahlen ohne Beleg meldet der Code zusätzlich als eigenes Ereignis; dieselbe Auffälligkeit nur einmal zeigen.

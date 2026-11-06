@@ -4,6 +4,8 @@
 #
 # Eigene Datenbank in eigenem Netz: Die Kopie enthält roh und bereinigt, die öffentliche App erreicht sie nicht.
 # UC1 und UC2 liest die Instanz lesend aus der öffentlichen db (Rolle kic_app), UC3 schreibt nur in die eigene Kopie.
+# Eine Live-Verhandlung (UC2) schreibt der Dienst vorfuehrung-uc2 in die eigene Datenbank healthpolicy_vorfuehrung, mit
+# Beispielbelegen statt Pressetexten. Fällt er aus, zeigt /uc2 die Aufzeichnung.
 name: ki-challenge-vorfuehrung
 
 services:
@@ -97,6 +99,10 @@ services:
       UC1_DATABASE_URL: postgresql://kic_app:${KIC_APP_DB_PASSWORD:?KIC_APP_DB_PASSWORD fehlt in .env.server}@db:5432/lotse
       UC2_DATABASE_URL: postgresql://kic_app:${KIC_APP_DB_PASSWORD}@db:5432/healthpolicy
       UC2_NAMENSLISTE: /etc/kic/uc2-namensliste
+      # Live-Verhandlung über den Dienst vorfuehrung-uc2; ohne ihn bleibt /uc2 bei der Aufzeichnung
+      UC2_API_URL: http://vorfuehrung-uc2:8102
+      # Der Startknopf auf /uc2 verhandelt hier mit dem Modell des Veranstalters
+      UC2_START_PROVIDER: azure
       # Commit-Identität nur für diese Instanz. /app gehört root, das Git-Verzeichnis dem App-Nutzer, deshalb
       # safe.directory; der Freigebende steht im Trailer Freigegeben-von.
       GIT_CONFIG_COUNT: "3"
@@ -113,6 +119,52 @@ services:
       retries: 6
       start_period: 10s
 
+  vorfuehrung-uc2:
+    # uc2.api (FastAPI): startet je Verhandlung `uv run uc2 verhandlung` als Unterprozess. Genau ein Prozess, keine
+    # --workers: Die API erlaubt nur eine laufende Verhandlung je Prozess und einen Start je Minute.
+    image: ki-challenge-vorfuehrung:aktuell
+    restart: unless-stopped
+    init: true
+    mem_limit: 768m
+    # Vier Kerne teilen sich UC3, die Fragen und die öffentliche Demo
+    cpus: 1.0
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    working_dir: /app/uc2
+    command: ["uvicorn", "uc2.api:app", "--host", "0.0.0.0", "--port", "8102"]
+    volumes:
+      # eigenes Protokoll, also eigenes Tageslimit
+      - uc2_protokoll:/app/var/protokoll
+      - ${UC2_NAMENSLISTE:-/dev/null}:/etc/kic/uc2-namensliste:ro
+    depends_on:
+      vorfuehrung-db:
+        condition: service_healthy
+    # nur das eigene Netz: dort liegen vorfuehrung-db und die App
+    networks: [intern]
+    environment:
+      KIC_ONLINE: "1"
+      UC2_API_ECHTE_MODELLE: "1"
+      # Eigenes Tageslimit, rund 37 Aufrufe je Verhandlung, also etwa acht am Tag; getrennt vom Budget der App
+      LLM_TAGESBUDGET_AUFRUFE: "${VORFUEHRUNG_UC2_TAGESBUDGET:-300}"
+      PLATTFORM_PROTOKOLL: /app/var/protokoll/modellaufrufe.jsonl
+      LLM_PROVIDER: azure
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL:?AZURE_OPENAI_BASE_URL fehlt, zuerst scripts/vorfuehrung.sh init}
+      AZURE_OPENAI_MODEL: ${AZURE_OPENAI_MODEL:?AZURE_OPENAI_MODEL fehlt, zuerst scripts/vorfuehrung.sh init}
+      AZURE_API_KEY: ${AZURE_API_KEY:?AZURE_API_KEY fehlt, zuerst scripts/vorfuehrung.sh init}
+      # Schreibt nur in die eigene Datenbank; scripts/vorfuehrung.sh up legt sie an
+      UC2_DATABASE_URL: postgresql://statistik:${VORFUEHRUNG_DB_PASSWORD}@vorfuehrung-db:5432/healthpolicy_vorfuehrung
+      UC2_NAMENSLISTE: /etc/kic/uc2-namensliste
+    healthcheck:
+      # ohne curl; GET /faelle liefert auch ohne Tabellen []
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8102/faelle', timeout=4).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
 networks:
   intern: {}
   oeffentlich:
@@ -122,3 +174,4 @@ networks:
 volumes:
   db_daten:
   app_protokoll:
+  uc2_protokoll:

@@ -89,6 +89,9 @@ curl -sN 'localhost:8102/faelle/<fall_id>/ereignisse?seq=0'
 - Standard-Provider ist `mock`. `claude` und `azure` laufen nur mit `UC2_API_ECHTE_MODELLE=1`, sonst gibt es 403.
   Mit `KIC_ONLINE=1` braucht ein echter Provider zusätzlich ein gültiges `LLM_TAGESBUDGET_AUFRUFE`, sonst
   gibt es 503. Auch der Lauf selbst bricht dann in `plattform.llm.complete` ab, bevor ein Modell gerufen wird.
+- Online läuft `uc2.api` nur auf der Vorführ-Instanz, als eigener Dienst `vorfuehrung-uc2` mit eigener Datenbank
+  und eigenem Tageslimit. Die öffentliche Demo startet keine Verhandlung. Aufbau, Schutz und Prüfen:
+  `docs/betrieb/vorfuehrung.md`, Abschnitt „UC2 live“.
 - Fehler gehen nur als feste, einfache Sätze hinaus, ohne Env-Namen, Pfade oder Fehlertexte.
   `belege: index` geht vor #43 nur mit `mock`.
 - Belege gehen online nur als Zitatfelder hinaus: `beleg_id`, `medium`, `datum`/`monat`, `titel`, `pdf_seite`
