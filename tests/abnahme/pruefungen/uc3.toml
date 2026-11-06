@@ -1140,7 +1140,7 @@ herkunft = "b-abnahme-9d 2026-11-06 00:25"
 [[pruefung]]
 id = "76-AC2"
 hash = "de7af96954"
-befehl = "U='uv run --package statagent'; echo zeilen $(grep -cE '^[|] (Zusammenlegung|Bezirkswechsel|Umbenennung) [|]' docs/plan/uc3/regionen-stichprobe.md); timeout 60 $U uc3 klass region 62252; timeout 60 $U uc3 klass region 32424; timeout 60 $U uc3 klass region 41713"
+befehl = "U='uv run --package statagent'; echo zeilen $(grep -cE '^[|] (Zusammenlegung|Bezirkswechsel|Umbenennung) [|]' docs/plan/uc3/regionen-stichprobe.md); timeout 60 $U uc3 klass region 62252; timeout 60 $U uc3 klass region 32424; timeout 60 $U uc3 klass region 41713; timeout 60 $U python tests/abnahme/p/uc3_klass.py stichprobe"
 erwartet = ["^zeilen 3$", "62280", "30741", "Lenzing an der Ager"]
 schwer = true
 deckung = "teil"
@@ -1176,3 +1176,66 @@ quelle = "Kriterium 78-AC2 (Wortlaut: Frage zu ÖNACE C 2008 und 2025, zwei Gold
 grund = "Die Frage zeigt beide Fassungen und nennt einen mehrdeutigen Übergang, zwei Fixtures liegen vor"
 befund = "Golden-Fixtures fehlen oder die Frage zeigt beide Fassungen nicht mit ausdrücklich mehrdeutigem Übergang"
 herkunft = "b-abnahme-9d 2026-11-06 00:25"
+
+[[pruefung]]
+id = "80-AC1"
+hash = "dd18f79833"
+befehl = "python3 tests/abnahme/p/uc3_live.py"
+erwartet = ["^variante_A laeufe 3 unter_4min 3 felder_voll 3$", "^variante_B laeufe 3 unter_4min 3 felder_voll 3$", "^variante_C laeufe 3 unter_4min 3 felder_voll 3$", "^bestanden True$"]
+schwer = false
+deckung = "voll"
+quelle = "Kriterium 80-AC1; docs/plan/uc3/live-proben.csv; „gesprochene Anweisung“ ist nach Owner 05.11. 19:3x getippter Text"
+grund = "A, B und C je dreimal unter 4 Minuten mit Regelsatz, Protokoll, Name, Zeit, Diff und Zahlen, alle bestanden"
+befund = "Für A, B oder C fehlen Läufe oder Felder, ein Lauf dauert 4 Minuten oder länger, oder ein Lauf ist nicht bestanden"
+anmerkung = "Die Serie lief auf d888e09, die Nachprobe auf dem Endkopf steht in live-ruecknahme.md Abschnitt 6; gemessen wird die Datei, kein neuer Modelllauf"
+herkunft = "b-abnahme-9d 2026-11-06 04:55"
+
+[[pruefung]]
+id = "80-AC2"
+hash = "20264b81bf"
+befehl = "python3 tests/abnahme/p/uc3_live.py; echo abgelehnt_null_commits $(grep -cE '^[|] uc3/[0-9]+ [|] .*[|] abgelehnt [|] .*[|] 0 [|]' docs/plan/uc3/live-ruecknahme.md); echo ruecknahmen_gleich_v2 $(grep -E '^[|] v[0-9]+ [|] Rücknahme freigegeben' docs/plan/uc3/live-ruecknahme.md | grep -c '0bfa2c5bdb38c51a.*1b6fd3dc865de5ae')"
+erwartet = ["^ablehnen_hash_gleich True$", "^ruecknahme_hash_gleich True$", "^ruecknahme_zahlen_gleich True$", "^abgelehnt_null_commits [2-9]", "^ruecknahmen_gleich_v2 [2-9]"]
+schwer = false
+deckung = "voll"
+quelle = "Kriterium 80-AC2; docs/plan/uc3/live-ruecknahme.md"
+grund = "Ablehnen ohne Änderungscommit und mit gleichem Hash, Rücknahmen als neue Vorgänge mit Regelstand und Ergebnis von v2"
+befund = "Ablehnen ändert den Stand, oder eine Rücknahme stellt Regelstand und Ergebnis nicht her"
+anmerkung = "Beleg laut Datei: Auftrag J (Prüfregel) belegt beim Hash nichts, weil der Regelstand Prüfregeln auslässt; Messung auf einer Kopie der Abgabe-DB"
+herkunft = "b-abnahme-9d 2026-11-06 04:55"
+
+[[pruefung]]
+id = "20-AC3"
+hash = "8831d54086"
+befehl = "f=docs/praesentation/uc3-jury.md; echo minuten $(grep -c '15 bis 20 Minuten' $f); echo fehler $(grep -c 'Gefundene Fehler' $f); echo annahme $(grep -c 'Annahme' $f); echo live $(grep -c 'Live-Änderung' $f); echo probe $(grep -cE 'probe[.]md|Probe' $f); echo video $(grep -ciE 'backup|video' $f); echo daten $(grep -ciE 'Datenanfrage|Datenfrage' $f); echo uc3_push $(grep -cE 'github_push|GitHub-Push' abgabe/CHECKLISTE.md)"
+erwartet = ["^minuten [1-9]", "^fehler [1-9]", "^annahme [1-9]", "^live [1-9]", "^probe [1-9]", "^video [1-9]", "^daten [1-9]", "^uc3_push [1-9]"]
+schwer = false
+deckung = "voll"
+quelle = "Kriterium 20-AC3; docs/praesentation/uc3-jury.md"
+grund = "Der Ablauf nennt Dauer, gefundene Fehler, eine Annahme, die Live-Änderung, Datenfragen, Probe und Video; der Push steht erst in der Checkliste"
+befund = "Im Jury-Ablauf fehlt einer der verlangten Teile"
+anmerkung = "Wörter gezählt, Inhalt und die drei Arten Datenfragen bleiben im Probelauf zu sehen"
+herkunft = "b-abnahme-9d 2026-11-06 04:55"
+
+[[pruefung]]
+id = "16-AC2"
+hash = "173ddad634"
+befehl = "python3 -c \"import csv;q=list(csv.DictReader(open('uc3/pruefkatalog.csv',encoding='utf-8')));print('plaetze',len(q));print('status',','.join(sorted({x['status'] for x in q})));print('leer',sum(1 for x in q for k in ('status','ebene','schwelle','einstufung','massnahme','begruendung','sql','forensik') if not x[k].strip()))\"; echo verhaeltnis $(grep -c 'Verhältnis' abgabe/qualitaetsberichte/2025-03.md); psql \"$UC3_DATABASE_URL\" -Atc \"select 'residuum_monate ' || count(*) from meta.lauf where gelesen + coalesce(fortgeschrieben, 0) - (gezaehlt + nicht_gezaehlt + ausgeschlossen) <> 0\""
+erwartet = ["^plaetze 24$", "^status umgesetzt$", "^leer 0$", "^verhaeltnis [1-9]", "^residuum_monate 0$"]
+schwer = true
+deckung = "voll"
+quelle = "Kriterium 16-AC2; uc3/pruefkatalog.csv; meta.lauf"
+grund = "24 Plätze ohne leere Felder, Status umgesetzt, Verhältnisse im Bericht getrennt, Residuum in keinem Lauf ungleich 0"
+befund = "Der Prüfkatalog hat leere Felder oder Platzhalter, oder ein Lauf hat ein Residuum"
+herkunft = "b-abnahme-9d 2026-11-06 04:55"
+
+[[pruefung]]
+id = "76-AC2"
+hash = "de7af96954"
+art = "hand"
+deckung = "voll"
+beschreibung = "Ein Reviewer vergleicht die drei Übergänge in docs/plan/uc3/regionen-stichprobe.md mit den amtlichen Dateien des Startpakets (ODS-Blatt und Zeile, Stände davor und danach) und bestätigt 0 unbegründete Abweichungen."
+quelle = "Kriterium 76-AC2; Review lead-session-orchestrator-49, 06.11. 04:50; Entscheid Lead f7: bestanden mit Anmerkung"
+befund = "Die Bestätigung des Reviewers fehlt"
+grund = "Reviewer bestätigt 0 unbegründete Abweichungen, Umbenennung und Bezirkswechsel sind keine Löschung"
+anmerkung = "SQL genannt, Ergebniszeilen nicht in der Datei, Beziehungen nicht neu gemessen"
+herkunft = "b-abnahme-9d 2026-11-06 05:00"

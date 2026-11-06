@@ -132,6 +132,18 @@ def regionen(conn: psycopg.Connection) -> int:
     return 0
 
 
+def stichprobe(conn: psycopg.Connection) -> int:
+    """Die drei Übergänge aus docs/plan/uc3/regionen-stichprobe.md als Ergebniszeilen (#76 AC2)."""
+    zeilen = conn.execute(
+        """select code_alt, code_neu, beziehung from stat.uebergang
+           where klassifikation = 'gemeinde' and code_alt in ('62252', '62267', '32424', '41713')
+           order by 1, 2"""
+    ).fetchall()
+    for alt, neu, beziehung in zeilen:
+        print(f"stichprobe {alt} {neu} {beziehung}")
+    return 0
+
+
 def _trenner(f: io.TextIOBase) -> str:
     kopf = f.readline()
     f.seek(0)
@@ -140,11 +152,11 @@ def _trenner(f: io.TextIOBase) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("was", choices=["oenace", "regionen"])
+    ap.add_argument("was", choices=["oenace", "regionen", "stichprobe"])
     a = ap.parse_args()
     with psycopg.connect(os.environ["UC3_DATABASE_URL"], connect_timeout=5) as conn:
         conn.read_only = True
-        return oenace(conn) if a.was == "oenace" else regionen(conn)
+        return {"oenace": oenace, "regionen": regionen, "stichprobe": stichprobe}[a.was](conn)
 
 
 if __name__ == "__main__":
