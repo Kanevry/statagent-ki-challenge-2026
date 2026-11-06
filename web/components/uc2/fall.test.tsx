@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Fall } from "./fall";
 import type { Vorbereitung } from "../../app/api/uc2/_lib/vorbereitung";
 
@@ -38,3 +39,21 @@ it("eigene Frage: leiser Link, nur wenn die Route sie annimmt", () => {
   expect(screen.getByRole("link", { name: "Eigene Frage ausprobieren" }).getAttribute("href")).toBe("/uc2/frage");
 });
 
+
+it("Hinweis zur Dauer steht nur im Modus live", () => {
+  const satz = "Eine neue Verhandlung dauert rund fünf Minuten. Die Runden erscheinen, sobald sie fertig sind.";
+  const { rerender } = render(<Fall vorbereitung={basis} />);
+  expect(screen.queryByText(satz)).toBeNull();
+  rerender(<Fall vorbereitung={{ ...basis, modus: "live" }} />);
+  expect(screen.getByText(satz)).toBeTruthy();
+});
+
+it("ein gescheiterter Start zeigt den Satz der Route statt eines allgemeinen Satzes", async () => {
+  // Fängt den Fall 504 und 503: Der feste Satz der Route sagt, was los ist und was zu tun ist.
+  const satz = "Der Start dauert gerade zu lange. Bitte in einer Minute noch einmal versuchen.";
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ fehler: satz }, { status: 504 })));
+  render(<Fall vorbereitung={{ ...basis, modus: "live" }} />);
+  await userEvent.click(screen.getByRole("button", { name: "Neu verhandeln lassen, mit Modell" }));
+  expect((await screen.findByRole("status")).textContent).toBe(satz);
+  vi.unstubAllGlobals();
+});

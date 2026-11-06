@@ -14,7 +14,7 @@ stehen hier sinngemäß, bei den Bewertungsbereichen wörtlich gekürzt. Kurzfas
 |---|---|---|---|
 | UC3 StatAgent | Veranstalter | gewählt und bewertet (Commit „Select use case uc3“, 05.11.2026 12:10; [`KI-Challenge_UseCase.yaml`](../../KI-Challenge_UseCase.yaml)) | Alle fünf Abgabeteile liegen vor, die Mindestanforderung ist in allen sechs Bewertungsbereichen erfüllt, das Optimum in zwei ganz und in vier teilweise. |
 | UC1 SV KI-Lotse | Veranstalter | Zusatz, nicht bewertet | Der Lotse antwortet mit einem Zitat an jeder Aussage; online läuft nur ein aufgezeichneter Fall, eigene Fragen gehen nur lokal. |
-| UC2 HealthPolicy Simulator | Veranstalter | Zusatz, nicht bewertet | Institutionen verhandeln mit Moderator über die Wartezeiten auf Facharzttermine; online als Aufzeichnung mit gekennzeichneten erfundenen Beispielbelegen und seit dem 06.11. mit der Seite `/uc2/frage`, auf der ein Modell live auf eine eigene Frage antwortet. |
+| UC2 HealthPolicy Simulator | Veranstalter | Zusatz, nicht bewertet | Institutionen verhandeln mit Moderator über die Wartezeiten auf Facharzttermine; online als Aufzeichnung mit gekennzeichneten erfundenen Beispielbelegen und seit dem 06.11. mit der Seite `/uc2/frage`, auf der ein Modell live auf eine eigene Frage antwortet. Auf der Vorführ-Instanz hinter Passwort lässt sich eine Verhandlung live starten; öffentlich bleibt die Aufzeichnung. |
 | UC4 Gemeinsamer Einstieg | eigene Idee des Teams | Zusatz, nicht bewertet | Eine Frage läuft durch drei Stationen. Die erste holt die Zahl aus der Datenbank. Die zweite rechnet nur, wenn die Frage das Wort „Wartezeit“ enthält, sonst ist sie Modelltext oder feste Sätze. Die dritte ist eine Vorlage. |
 
 ## Use Case 3 StatAgent
@@ -128,15 +128,21 @@ Experten geprüft ([`uc2/README.md`](../../uc2/README.md), „Verhandlung“). E
 mit Namen freigibt ([README](../../README.md), Tabelle „Was gebaut wurde“).
 
 **Was online läuft.** Zwei Dinge. Erstens eine aufgezeichnete Verhandlung; Starten und Freigeben lehnt der Server ab
-([`web/app/api/uc2/faelle/route.ts`](../../web/app/api/uc2/faelle/route.ts), Zeile 38). Die Belege der Aufzeichnung
+([`web/app/api/uc2/faelle/route.ts`](../../web/app/api/uc2/faelle/route.ts), Zeile 52). Die Belege der Aufzeichnung
 sind erfunden und am Beleg selbst als „erfundene Beispielquelle“ gekennzeichnet
-([`web/components/uc2/buehne/buehne.tsx`](../../web/components/uc2/buehne/buehne.tsx), Zeile 136 bis 138). Zweitens
+([`web/components/uc2/buehne/buehne.tsx`](../../web/components/uc2/buehne/buehne.tsx), Zeile 137 bis 143). Zweitens
 seit dem 06.11. die Seite `/uc2/frage`: Auf eine eigene Frage zur Gesundheitspolitik wägen drei Interessenvertretungen
 ab, ihre Rollen und Sätze schreibt ein Modell (Azure `gpt-5-4-mini`). Online gemessen am 06.11.2026 um 06:52 vom
 zuständigen Bereich: Die Seite antwortet live, höchstens 5 Fragen je Minute, und nennt je Organisation echte Medien
 als „Quelle: Medium, Monat“, ohne Link auf den Artikel; eine Haltung ohne passenden Artikel steht ohne Quelle da.
 Persönliche Angaben und Fragen außerhalb der Gesundheitspolitik bekommen ohne Modellaufruf einen festen Satz. Es ist
 keine echte Verhandlung und keine Aussage dieser Organisationen.
+
+Auf der Vorführ-Instanz hinter Passwort lässt sich auf `/uc2` zusätzlich eine Verhandlung live starten, mit Azure
+`gpt-5-4-mini` und nur mit erfundenen Beispielbelegen. Die Seite sagt das auch im Satz unter der Verhandlung
+([`buehne.tsx`](../../web/components/uc2/buehne/buehne.tsx), Zeile 122). Das Ergebnis gibt am Ende ein Mensch mit
+Namen frei. Öffentlich bleibt es bei der Aufzeichnung. Aufbau und Schutz:
+[`docs/betrieb/vorfuehrung.md`](../betrieb/vorfuehrung.md), Abschnitt „UC2 live“.
 
 **Was offen ist.** Den optionalen spieltheoretischen Modus gibt es nicht: Er ist zurückgestellt, dafür gibt es
 weder Code noch Daten noch eine Oberfläche ([`docs/plan/uc2/scope-abgleich.md`](../plan/uc2/scope-abgleich.md),

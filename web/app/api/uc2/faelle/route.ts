@@ -3,7 +3,7 @@ import { erstelleRatenlimit, grenzeAus } from "../../../../lib/plattform/ratenli
 import { leseBodyText, ZuGross } from "../_lib/body";
 import { MOCK_FALL, mockListe } from "../_lib/mock";
 import { fehler, fehlerAusApiStatus, MODUS_KOPF, mockErzwungen, ruftApi } from "../_lib/proxy";
-import { ollamaKonfiguriert } from "../_lib/vorbereitung";
+import { apiErreichbar, ollamaKonfiguriert } from "../_lib/vorbereitung";
 
 // POST /api/uc2/faelle  {fall?, frage?, provider?, belege?, akteure?}: startet einen Fall, 202 {fall_id, status}.
 // GET  /api/uc2/faelle: Liste mit Status.
@@ -20,10 +20,13 @@ export const runtime = "nodejs";
 
 export const MAX_BODY = 4 * 1024;
 
+const ANBIETER = ["mock", "claude", "azure", "ollama"] as const;
+type Anbieter = (typeof ANBIETER)[number];
+
 const startSchema = z.object({
   fall: z.string().regex(/^[a-z0-9-]{1,40}$/).default("wartezeiten"),
   frage: z.string().trim().min(1).max(500).optional(),
-  provider: z.enum(["mock", "claude", "azure", "ollama"]).optional(),
+  provider: z.enum(ANBIETER).optional(),
   belege: z.enum(["fixture", "index"]).optional(),
   akteure: z.array(z.string().regex(/^[a-z0-9_]{1,40}$/)).max(6).optional(),
 });
@@ -31,6 +34,17 @@ const startSchema = z.object({
 const antwortSchema = z.object({ fall_id: z.union([z.string(), z.number()]), status: z.string().optional() });
 
 const KEIN_CACHE = { "cache-control": "no-store" } as const;
+
+// Die API antwortet auf POST /faelle erst, wenn der Unterprozess den Fall angelegt hat: typisch wenige Sekunden, im
+// schlechtesten Fall bis zu 90 s. 30 s decken den üblichen Start mit Reserve ab, ohne die Seite eine Minute warten zu
+// lassen. Läuft die Frist ab, sagt die Route das ehrlich (504) statt still die Aufzeichnung zu zeigen.
+const START_FRIST_MS = 30_000;
+
+/** Standard-Anbieter für Starts ohne `provider` (UC2_START_PROVIDER). Je Anfrage gelesen; ungültig zählt wie leer. */
+function startAnbieter(): Anbieter | undefined {
+  const wert = process.env.UC2_START_PROVIDER;
+  return ANBIETER.find((a) => a === wert);
+}
 
 const ratenlimit = erstelleRatenlimit({ proMinute: grenzeAus(process.env) });
 
@@ -49,6 +63,8 @@ export async function POST(anfrage: Request): Promise<Response> {
   const start = startSchema.safeParse(roh);
   if (!start.success) return fehler(400, "Die Anfrage passt nicht: fall, frage, provider, belege oder akteure sind ungültig.");
   const { akteure, ...vertrag } = start.data;
+  // Ein ausdrücklicher `provider` gewinnt; sonst der Standard der Instanz, sonst keiner (die API nimmt dann `mock`).
+  vertrag.provider ??= startAnbieter();
 
   if (vertrag.provider === "ollama" && !ollamaKonfiguriert()) {
     return fehler(422, "Das lokale Modell ollama ist hier nicht eingerichtet.");
@@ -60,7 +76,7 @@ export async function POST(anfrage: Request): Promise<Response> {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(inhalt),
-        frist: 5000,
+        frist: START_FRIST_MS,
       });
     let antwort = await senden(akteure ? { ...vertrag, akteure } : vertrag);
     let ignoriert = false;
@@ -78,6 +94,11 @@ export async function POST(anfrage: Request): Promise<Response> {
         { fall_id: String(geprueft.data.fall_id), status: geprueft.data.status ?? "laeuft" },
         { status: antwort.status === 200 ? 200 : 202, headers: kopf },
       );
+    }
+    // Keine Antwort in der Frist: Ist die API trotzdem da, läuft der Start vielleicht noch. Dann keine Aufzeichnung
+    // vortäuschen. Nur ohne API (Rechner ohne Python-Dienst) bleibt der Rückfall auf die Aufzeichnung.
+    if (await apiErreichbar()) {
+      return fehler(504, "Der Start dauert gerade zu lange. Bitte in einer Minute noch einmal versuchen.");
     }
   }
 

@@ -2,7 +2,8 @@ import { act, render, renderHook, screen, waitFor } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import ereignisseJson from "../../../app/api/uc2/_fixtures/ereignisse-mock.json";
 import { useEntscheidung } from "../freigabe";
-import { PanelBuehne } from "./buehne";
+import type { FallZustand } from "../zustand";
+import { belegName, modellSatz, PanelBuehne } from "./buehne";
 
 vi.mock("next/link", () => ({ default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a> }));
 
@@ -103,4 +104,20 @@ it("„Zum Ergebnis“ wirkt auch, wenn beim Klick noch nichts angekommen ist", 
   for (const ereignis of alle) act(() => quelle.sende([ereignis]));
   act(() => quelle.sende([{ art: "ende" }]));
   await waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("Ergebnis nach"));
+});
+
+it("Live-Lauf mit Beispielbelegen kennzeichnet Belege und Kopfzeile als erfunden, mit Index-Belegen nicht", () => {
+  // Fängt den Live-Lauf auf der Vorführ-Instanz: erfundene Medien standen dort ohne Kennzeichnung.
+  const modelle = { akteur: { provider: "azure", modell: "gpt-5-4-mini" } } as FallZustand["modelle"];
+  const live = (belegquelle: string) => ({ status: "laeuft", belegquelle, modelle }) as unknown as FallZustand;
+  expect(belegName("Regionalanzeiger", "live", "fixture")).toBe("Beleg (erfundene Beispielquelle): Regionalanzeiger");
+  expect(modellSatz("live", live("fixture"))).toBe(
+    "Die Sätze der Gruppen schreibt eine KI (azure gpt-5-4-mini). Die Zahlen rechnet der Experte ohne KI. Die Belege sind erfundene Beispiele.",
+  );
+  expect(belegName("Regionalanzeiger", "live", "index")).toBe("Beleg: Regionalanzeiger");
+  expect(modellSatz("live", live("index"))).not.toContain("erfundene");
+  // Aufzeichnung unverändert.
+  expect(belegName("Regionalanzeiger", "vorfuehrung", "fixture")).toBe("Beleg (erfundene Beispielquelle): Regionalanzeiger");
+  expect(belegName("Beispielblatt", "live", "fixture")).toBe("Beleg: Beispielblatt");
+  expect(modellSatz("vorfuehrung", live("fixture"))).toBe("Aufgezeichnete Verhandlung mit Beispiel-Belegen, ohne Sprachmodell.");
 });

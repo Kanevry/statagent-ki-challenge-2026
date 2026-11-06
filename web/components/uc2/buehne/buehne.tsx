@@ -118,7 +118,8 @@ export function PanelBuehne({ fallId, modus }: { fallId: string; modus: Modus })
 export function modellSatz(modus: Modus, z: FallZustand): string {
   const akteur = z.modelle?.akteur;
   if (modus === "live" && akteur?.modell && akteur.provider !== "mock") {
-    return `Die Sätze der Gruppen schreibt eine KI (${akteur.provider ?? ""} ${akteur.modell}). Die Zahlen rechnet der Experte ohne KI.`;
+    const satz = `Die Sätze der Gruppen schreibt eine KI (${akteur.provider ?? ""} ${akteur.modell}). Die Zahlen rechnet der Experte ohne KI.`;
+    return z.belegquelle === "fixture" ? `${satz} Die Belege sind erfundene Beispiele.` : satz;
   }
   // Live, aber das Ereignis „start“ mit den Modellen ist noch nicht da: nichts behaupten (Review !101).
   if (modus === "live" && !akteur) return "Die Verhandlung startet.";
@@ -133,9 +134,13 @@ function ModellZeile({ modus, zustand }: { modus: Modus; zustand: FallZustand })
   );
 }
 
-/** In der Aufzeichnung sind die Medien erfunden; das steht dann am Beleg, nicht nur in der Kopfzeile (Jury 05.11.). */
-function belegName(medium: string, modus: Modus): string {
-  if (modus === "vorfuehrung" && !/beispiel/i.test(medium)) return `Beleg (erfundene Beispielquelle): ${medium}`;
+/**
+ * In der Aufzeichnung und in Live-Läufen mit Beispielbelegen (`belegquelle: "fixture"`) sind die Medien erfunden; das
+ * steht dann am Beleg, nicht nur in der Kopfzeile (Jury 05.11.). Belege aus dem Index bleiben „Beleg: <Medium>“.
+ */
+export function belegName(medium: string, modus: Modus, belegquelle?: string): string {
+  const erfunden = modus === "vorfuehrung" || belegquelle === "fixture";
+  if (erfunden && !/beispiel/i.test(medium)) return `Beleg (erfundene Beispielquelle): ${medium}`;
   return `Beleg: ${medium}`;
 }
 
@@ -243,7 +248,7 @@ function Szene({ buehne, zustand: z, modus }: { buehne: Buehne; zustand: FallZus
               {beleg && (
                 <details className="group max-w-xl">
                   <summary className="inline-flex min-h-11 cursor-pointer items-center font-sans text-14 text-gruen underline underline-offset-4">
-                    {belegName(klartext(beleg.medium), modus)}
+                    {belegName(klartext(beleg.medium), modus, z.belegquelle)}
                     {beleg.monat || beleg.datum ? `, ${monatText(beleg.monat ?? beleg.datum)}` : ""}
                   </summary>
                   <p className="mt-2 font-sans text-14 text-slate">„{klartext(beleg.zitat)}“</p>

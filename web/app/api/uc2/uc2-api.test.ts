@@ -262,4 +262,43 @@ describe("ohne UC2_MOCK", () => {
     expect(antwort.headers.get("x-uc2-akteure")).toBe("ignoriert");
     expect(abruf).toHaveBeenCalledTimes(2);
   });
+
+  it("schickt UC2_START_PROVIDER als provider mit, ein provider im Body gewinnt, ohne Variable geht keiner mit", async () => {
+    const abruf = vi.fn(async (_u: string | URL | Request, _o?: RequestInit) => Response.json({ fall_id: "3", status: "laeuft" }, { status: 202 }));
+    vi.stubGlobal("fetch", abruf);
+    const gesendet = () => JSON.parse(String(abruf.mock.calls.at(-1)?.[1]?.body)) as { provider?: string };
+    vi.stubEnv("UC2_START_PROVIDER", "azure");
+    await post({ akteure: ["sv"] });
+    expect(gesendet().provider).toBe("azure");
+    await post({ provider: "claude" });
+    expect(gesendet().provider).toBe("claude");
+    vi.stubEnv("UC2_START_PROVIDER", "gpt");
+    await post({});
+    expect(gesendet()).not.toHaveProperty("provider");
+    vi.stubEnv("UC2_START_PROVIDER", "");
+    await post({});
+    expect(gesendet()).not.toHaveProperty("provider");
+  });
+
+  it("Start ohne Antwort in der Frist bei erreichbarer API: 504 mit festem Satz, keine Aufzeichnung", async () => {
+    // Fängt den stillen Rückfall: Der Start lief im Hintergrund weiter, die Seite zeigte aber die Aufzeichnung.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_u: string | URL | Request, o?: RequestInit) =>
+        o?.method === "POST" ? Promise.reject(new DOMException("abgebrochen", "AbortError")) : Response.json([]),
+      ),
+    );
+    const antwort = await post({});
+    expect(antwort.status).toBe(504);
+    const text = await antwort.text();
+    expect(JSON.parse(text)).toEqual({ fehler: "Der Start dauert gerade zu lange. Bitte in einer Minute noch einmal versuchen." });
+    expect(text).not.toContain("mock-wartezeiten");
+  });
+
+  it("gibt 503 der API (Tageslimit) als eigenen festen Satz weiter", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail: "limit 3/3" }, { status: 503 })));
+    const antwort = await post({});
+    expect(antwort.status).toBe(503);
+    expect(await antwort.json()).toEqual({ fehler: "Heute sind keine neuen Live-Verhandlungen mehr möglich. Die aufgezeichnete Verhandlung bleibt." });
+  });
 });

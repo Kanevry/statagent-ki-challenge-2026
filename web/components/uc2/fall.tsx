@@ -35,7 +35,10 @@ export function Fall({ vorbereitung, eigeneFrage = false }: { vorbereitung: Vorb
         router.push(`/uc2/panel?fall=${encodeURIComponent(id)}`);
         return;
       }
-      setMeldung(antwort.status === 409 ? "Es läuft schon eine Verhandlung." : "Die Verhandlung konnte nicht starten. Sehen Sie sich die aufgezeichnete an.");
+      const satz = daten && typeof daten === "object" && "fehler" in daten ? (daten as { fehler: unknown }).fehler : null;
+      if (antwort.status === 409) setMeldung("Es läuft schon eine Verhandlung.");
+      else if (typeof satz === "string" && satz.trim() !== "") setMeldung(satz);
+      else setMeldung("Die Verhandlung konnte nicht starten. Sehen Sie sich die aufgezeichnete an.");
     } catch {
       setMeldung("Keine Verbindung zum Server.");
     }
@@ -78,10 +81,13 @@ export function Fall({ vorbereitung, eigeneFrage = false }: { vorbereitung: Vorb
         )}
         {modus === "live" && (
           <button type="button" onClick={neuVerhandeln} disabled={laedt} className="min-h-11 font-sans text-14 text-gruen underline underline-offset-4 disabled:opacity-50">
-            {laedt ? "Startet …" : "Neu verhandeln lassen, mit Modell"}
+            {laedt ? "Startet, das kann eine halbe Minute dauern …" : "Neu verhandeln lassen, mit Modell"}
           </button>
         )}
       </div>
+      {modus === "live" && (
+        <p className="-mt-6 font-sans text-14 text-slate">Eine neue Verhandlung dauert rund fünf Minuten. Die Runden erscheinen, sobald sie fertig sind.</p>
+      )}
       {meldung && (
         <p role="status" className="font-sans text-14 text-ink">
           {meldung}
