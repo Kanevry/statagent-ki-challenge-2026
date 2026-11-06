@@ -286,7 +286,7 @@ function massgeblichMitLiteral(regelsatz: string): string {
 }
 
 /** Maßgeblicher Lauf je Monat mit Quelle der Prüftreffer; `ausdruck` ist „$1“ (ausgeführt) oder ein Literal (Beleg). */
-function massgeblichMit(ausdruck: string): string {
+export function massgeblichMit(ausdruck: string): string {
   return MASSGEBLICH_SQL.replace("$1", ausdruck).replace(
     "SELECT DISTINCT ON (lieferung) *",
     `SELECT DISTINCT ON (lieferung) id, lieferung,\n  ${quelleSql("meta.lauf").split("\n").join("\n  ")} AS quelle_id`,
