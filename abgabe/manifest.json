@@ -1,6 +1,6 @@
 {
   "abgabe": "UC3 StatAgent, Team OneShotAndy",
-  "stand": "33b4d17 2026-11-05",
+  "stand": "5328291 2026-11-06",
   "dateien": [
     {
       "datei": ".gitignore",
@@ -13,10 +13,10 @@
     {
       "datei": "CHECKLISTE.md",
       "ort": "repo",
-      "groesse": 5766,
-      "sha256": "c435d41c01f60af96f56cdf7ae4a6c967089e9159ad8aa8ad6eb96eab9c1cafa",
+      "groesse": 6236,
+      "sha256": "1de0afde910ce1dff12884c020ace0e2a3b3540d300e7da4a0d186df8a362512",
       "regelsatz": "-",
-      "stand": "72f1bda 2026-11-05"
+      "stand": "d0a1de7 2026-11-05"
     },
     {
       "datei": "README.md",
