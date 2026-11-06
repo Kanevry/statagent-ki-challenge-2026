@@ -122,11 +122,11 @@
     "folie": 10,
     "quelle": "oberflaeche",
     "route": "/uc3/freigaben/26",
-    "commit": "fd936b3",
-    "lauf": "Online-Demo, Stand 05.11.2026",
+    "commit": "809da6d",
+    "lauf": "Online-Demo, Stand 06.11.2026",
     "pen_frame": null,
     "art": "live",
-    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "aufgenommen_am": "2026-11-06T03:05+01:00",
     "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   },
   {
@@ -148,11 +148,11 @@
     "folie": 4,
     "quelle": "oberflaeche",
     "route": "/uc3/freigaben/24",
-    "commit": "fd936b3",
-    "lauf": "Online-Demo, Stand 05.11.2026",
+    "commit": "809da6d",
+    "lauf": "Online-Demo, Stand 06.11.2026",
     "pen_frame": null,
     "art": "live",
-    "aufgenommen_am": "2026-11-05T22:11+01:00",
+    "aufgenommen_am": "2026-11-06T03:05+01:00",
     "hinweis": "Aufnahme von der Online-Demo mit aufnahme.mjs, Commit ist der Stand von main zur Aufnahme."
   }
 ]
