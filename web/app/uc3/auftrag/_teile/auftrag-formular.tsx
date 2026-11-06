@@ -29,12 +29,24 @@ function dauerText(s: number): string {
 function Ergebnis({ stand, jetzt }: { stand: AuftragStand; jetzt: number }) {
   const dauer = dauerText(sekunden(stand, jetzt));
   if (stand.zustand === "laeuft") {
+    if (stand.art !== "agent") {
+      return (
+        <p role="status" className="font-sans text-16 text-ink">
+          {`${monatName(stand.text)} wird gerechnet, seit ${dauer}.`}
+        </p>
+      );
+    }
+    // Der Server meldet keine Zwischenschritte, nur „läuft“. Deshalb ein Satz und eine Uhr, kein erfundener Balken.
     return (
-      <p role="status" className="font-sans text-16 text-ink">
-        {stand.art === "agent"
-          ? `Die Agenten arbeiten und rechnen die Zahlen nach, seit ${dauer}. Das kann einige Minuten dauern.`
-          : `${monatName(stand.text)} wird gerechnet, seit ${dauer}.`}
-      </p>
+      <div className="flex flex-col gap-2">
+        <p role="status" className="font-sans text-16 text-pretty text-ink">
+          Der Agent schreibt den Vorschlag. Dann wird der Monat zweimal gerechnet, nach den bisherigen Regeln und nach der neuen Regel, und vorher und nachher werden verglichen. Das dauert rund 3 Minuten, geändert ist noch nichts.
+        </p>
+        <p aria-hidden="true" className="flex items-center gap-2 font-sans text-14 tabular-nums text-slate">
+          <span className="size-2 animate-pulse rounded-full bg-gruen motion-reduce:animate-none" />
+          {`Läuft seit ${dauer}`}
+        </p>
+      </div>
     );
   }
   if (stand.zustand === "vorschlag") {

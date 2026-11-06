@@ -235,12 +235,10 @@ async function Regeln({ regelsatz }: { regelsatz: Regelsatz }) {
 
   return (
     <section id="regeln" aria-labelledby="regeln-titel" className="flex max-w-4xl scroll-mt-24 flex-col gap-3">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <Ueberschrift stufe={3} als="h2" id="regeln-titel">
-          Regeln
-        </Ueberschrift>
-        <RegelsatzWahl aktiv={regelsatz} pfad={pfad} />
-      </div>
+      <Ueberschrift stufe={3} als="h2" id="regeln-titel">
+        Regeln
+      </Ueberschrift>
+      <RegelsatzWahl aktiv={regelsatz} pfad={pfad} />
       {regeln.length === 0 ? (
         <Leerzustand
           satz={lesung.ok ? `Für „${regelsatzName(regelsatz)}“ ist noch keine Regel angelegt.` : leerSatz(lesung.grund)}
