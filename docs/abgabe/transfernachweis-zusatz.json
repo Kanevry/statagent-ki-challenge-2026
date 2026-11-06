@@ -1,0 +1,15 @@
+{
+  "zeit": "2026-11-06T08:37:47+01:00",
+  "beginn": "2026-11-06T08:37:26+01:00",
+  "ziel": "SV-Box-Teamordner OneShotAndy",
+  "datei": "zusatz/stand-uc1-uc2-uc4.md",
+  "groesse": 6635,
+  "sha256": "38f2fe9eea0876af11e2a293552d0cc90ec21b81454fccbab202d2ee8df63a2f",
+  "groesse_svbox": 6635,
+  "sha256_svbox": "38f2fe9eea0876af11e2a293552d0cc90ec21b81454fccbab202d2ee8df63a2f",
+  "gleich": true,
+  "vermerk": "außerhalb des Manifests, vom Owner am 06.11. freigegeben",
+  "dateien_im_teamordner": 68,
+  "manifest_dateien_abweichend": [],
+  "fremd_im_teamordner": []
+}
