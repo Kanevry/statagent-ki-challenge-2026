@@ -72,7 +72,7 @@ _AUSWERTUNG = _liste(
     bereich bereichen branche branchen bundesland bundesländer bundesländern bundeslaender durchschnitt durchschnitte
     fluktuationsrate rate durchschnittlich durchschnittliche durchschnittlicher durchschnittliches durchschnittlichen verteilen verteilt
     verteilung gegliedert gliederung aufgeschlüsselt aufgegliedert aufschlüsselung entwicklung entwickelt entwickelte fluktuation frauenanteil gegenüber
-    gegenueber geschlecht geschlechter ganz ganzen gesamt gesamte gesamten hoch insgesamt
+    gegenueber geschlecht geschlechter geschlechtern ganz ganzen gesamt gesamte gesamten hoch insgesamt
     jahresdurchschnitt jahresmittel kategorie kategorien mittel mittelwert monatsdurchschnitt männeranteil oenace
     önace österreich oesterreich prozent regel summe tabelle verglichen vergleich vergleichen verlauf vs
     wirtschaftsbereich wirtschaftsbereiche wirtschaftsbereichen wirtschaftsabschnitt wirtschaftszweig wirtschaftszweige
