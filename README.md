@@ -238,9 +238,6 @@ KI Challenge 2026 stehen die Ergebnisse (dieses Repository) neben dem Team auch 
   `web/public/landing/logos/`. Sie gehören den beiden Organisationen und nennen auf der Startseite nur die
   Veranstalter. Quellen stehen in `docs/landing/logos-quellen.md`.
 
-Die Umrisse der Bundesländer auf der Startseite (`web/public/landing/oesterreich-*`) stammen von Statistik Austria
-(data.statistik.gv.at), bearbeitet von Flooh Perlot, Lizenz CC BY 4.0. Die Quelle steht auf der Seite.
-
 Fremde Bibliotheken behalten ihre eigenen Lizenzen. Die Schriften Inter, Space Grotesk und JetBrains Mono kommen
 über `@fontsource-variable/*` unter der OFL-1.1, `three` steht unter MIT. Die Messfunktion des Anti-Schablonen-Gates
 (`web/tests/lib/slop-measure.js`) folgt dem impeccable-Katalog von Paul Bakaus und steht unter Apache-2.0
