@@ -561,24 +561,39 @@ def _oenace_uebergaenge(tief: TieferCode, daten: dict[str, Any]) -> list[str]:
     return saetze
 
 
-def _region_uebergaenge(daten: dict[str, Any]) -> list[str]:
+def _umbenennungen(zeilen: list[dict[str, Any]], code: object) -> list[dict[str, Any]]:
+    """Übergänge, bei denen der Code bleibt und nur der Name wechselt."""
+    return [
+        u
+        for u in zeilen
+        if u["code_alt"] == u["code_neu"] == code
+        and u["bezeichnung_alt"]
+        and u["bezeichnung_neu"] not in (None, u["bezeichnung_alt"])
+    ]
+
+
+def _region_uebergaenge(daten: dict[str, Any], wer: str, jetzt: bool) -> list[str]:
     """Zusammenlegung, Teilung und neuer Code; ein neuer Name steht schon bei den Zeiträumen."""
     code = daten["code"]
     je_datum: dict[object, list[dict[str, Any]]] = {}
     for u in daten["uebergaenge"]:
         je_datum.setdefault(u["gueltig_ab"], []).append(u)
+    namen = _umbenennungen(daten["uebergaenge"], code)
+    # „Seit … heißt … so“ stimmt nur für die letzte Umbenennung eines Codes, den es noch gibt.
+    letzte = max(namen, key=lambda u: str(u["gueltig_ab"])) if namen and jetzt else None
     saetze = []
     for ab in sorted(je_datum, key=str):
         gruppe = je_datum[ab]
         datum = _monat(ab)
         herein = [u for u in gruppe if u["code_neu"] == code and u["code_alt"] != code]
         hinaus = [u for u in gruppe if u["code_alt"] == code and u["code_neu"] != code]
-        if any(
-            u["code_alt"] == u["code_neu"] == code
-            and u["bezeichnung_neu"] not in (None, u["bezeichnung_alt"])
-            for u in gruppe
-        ):
-            saetze.append(f"Neuer Name seit {datum}.")
+        for u in _umbenennungen(gruppe, code):
+            alt, neu = region_name(u["bezeichnung_alt"]), region_name(u["bezeichnung_neu"])
+            saetze.append(
+                f"Seit {datum} heißt {wer} so, davor „{alt}“."
+                if u is letzte
+                else f"Ab {datum} hieß {wer} „{neu}“, davor „{alt}“."
+            )
         if len(herein) > 1:
             namen = _liste(
                 [_genannt(region_name(u["bezeichnung_alt"]), u["code_alt"]) for u in herein], "weiteren"
@@ -676,7 +691,7 @@ def _region_text(tief: TieferCode, daten: dict[str, Any]) -> str:
     pfad = _gezeigter_pfad(letzter)
     if pfad:
         saetze.append(f"{pron.capitalize()} {'gehört' if jetzt else 'gehörte'} zu: {klass._pfad_text(pfad)}.")
-    aenderungen = _region_uebergaenge(daten)
+    aenderungen = _region_uebergaenge(daten, "die Gemeinde" if gemeinde else "der Bezirk", jetzt)
     seit = f"Seit {_monat(raeume[0]['gueltig_von'])} "
     if not jetzt:
         saetze.append(
@@ -684,20 +699,23 @@ def _region_text(tief: TieferCode, daten: dict[str, Any]) -> str:
         )
     elif not any(a.startswith(seit) for a in aenderungen):  # sonst stünde dasselbe Datum zweimal da
         saetze.append(f"In den Listen steht der Code seit {_monat(raeume[0]['gueltig_von'])}.")
-    frueher = raeume[:-1]
+    # Frühere Zeiträume nur, wenn sie mehr sagen als die Umbenennung: Dann fehlt das Datum der Änderung nicht.
+    alte_namen = {u["bezeichnung_alt"] for u in _umbenennungen(daten["uebergaenge"], daten["code"])}
     nachher_pfad = _pfad_codes(pfad)
-    teile: list[str] = []
-    for r in reversed(frueher[-(HOECHSTENS - 1) :]):
+    frueher: list[str] = []
+    for r in reversed(raeume[:-1]):
         oben = _gezeigter_pfad(r)
         zu = f", {klass._pfad_text(oben)}" if oben and _pfad_codes(oben) != nachher_pfad else ""
         nachher_pfad = _pfad_codes(oben)
-        teile.insert(
-            0,
-            f"In den Listen {_listen_zeit(r['gueltig_von'], r['gueltig_bis'])}: "
-            f"„{region_name(r['bezeichnung'])}“{zu}.",
-        )
-    if len(frueher) > HOECHSTENS - 1:
-        teile.insert(0, f"Davor {len(frueher) - (HOECHSTENS - 1)} weitere Zeiträume.")
+        if zu or r["bezeichnung"] not in alte_namen:
+            frueher.insert(
+                0,
+                f"In den Listen {_listen_zeit(r['gueltig_von'], r['gueltig_bis'])}: "
+                f"„{region_name(r['bezeichnung'])}“{zu}.",
+            )
+    teile = frueher[-(HOECHSTENS - 1) :]
+    if len(frueher) > len(teile):
+        teile.insert(0, f"Davor {len(frueher) - len(teile)} weitere Zeiträume.")
     saetze += teile
     saetze += aenderungen
     saetze.append(f"Die Statistik zählt nach Bundesland, nicht nach {ebene}.")

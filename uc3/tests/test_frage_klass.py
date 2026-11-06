@@ -193,8 +193,8 @@ def test_gemeinde_ist_keine_kennung(tief: Verbindung) -> None:
     assert "Einzeldaten" not in text
     assert "Der Code 90001 ist eine Gemeinde und heißt „Neudorf“." in text
     assert "In den Listen steht der Code seit Jänner 2011." in text
-    assert "In den Listen von Jänner 2011: „Altdorf“." in text
-    assert "Neuer Name seit Jänner 2012." in text
+    assert "Seit Jänner 2012 heißt die Gemeinde so, davor „Altdorf“." in text
+    assert "In den Listen von" not in text
     assert f"gehört zu: Bezirk Erfundener Bezirk (101), Bundesland {_bundesland_9(tief)} (9)." in text
     assert text.count("gehört zu") == 1  # beide Stände haben denselben Pfad
     assert "Die Statistik zählt nach Bundesland, nicht nach Gemeinde." in text
