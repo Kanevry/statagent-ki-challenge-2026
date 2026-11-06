@@ -19,7 +19,8 @@ nur_id="${2:-}"
 : "${PRUEFRECHNER:?}" "${PRUEFRECHNER_DIR:?}"
 # Eigene Verbindungen, nie der geteilte SSH-Master.
 SSH_OPT=(-o ConnectTimeout=10 -o ControlMaster=no -o ControlPath=none)
-sperre="/tmp/kic-abnahme-schwer.lock"
+# Eine Sperre je Prüf-DB: Vorprüfung auf einem zweiten Rechner setzt ABNAHME_SPERRE.
+sperre="${ABNAHME_SPERRE:-/tmp/kic-abnahme-schwer.lock}"
 mkdir "$sperre" 2>/dev/null || { echo "schwerer Lauf läuft schon"; exit 0; }
 trap 'rmdir "$sperre"' EXIT
 stand_datei="/tmp/kic-abnahme-schwer.letzter"
