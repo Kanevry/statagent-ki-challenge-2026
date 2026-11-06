@@ -11,7 +11,7 @@ Stand: 05.11.2026, `main` d50990d plus E0-Züge 7 und 8. Geprüft wurde das READ
 | 3 | Abhängigkeiten und Voraussetzungen | [README.md#abhängigkeiten-und-voraussetzungen](../../README.md#abhängigkeiten-und-voraussetzungen) | Versionen aus `.python-version`, `pyproject.toml`, `package.json`, `shared/py/pyproject.toml`, `uc3/pyproject.toml`. |
 | 4 | Konfiguration | [README.md#konfiguration](../../README.md#konfiguration) | Schlüsselnamen gegen `.env.example` verglichen. Das README nennt keine Werte. |
 | 5 | Grenzen und offene Punkte | [README.md#grenzen-und-offene-punkte](../../README.md#grenzen-und-offene-punkte) | Je Punkt ein Beleg im Repo: `uc1/`, `uc2/src/`, `shared/py/plattform/router.py`, `docs/voice.md`, Issue #100, `abgabe/rueckfragen/`. |
-| 6 | Vorab Entstandenes | [README.md#vorab-entstandenes](../../README.md#vorab-entstandenes) | `docs/abgabe/herkunft.md` und die Suche `git grep -n -i everlast`. |
+| 6 | Vorab Entstandenes | [README.md#vorab-entstandenes](../../README.md#vorab-entstandenes) | `docs/abgabe/herkunft.md` und eine Suche nach dem Namen des früheren eigenen Projekts im Quelltext (kein Treffer). |
 | 7 | Lizenzen | [README.md#lizenzen](../../README.md#lizenzen) | `LICENSE`, `docs/landing/logos-quellen.md`, `docs/abgabe/herkunft.md`. |
 
 Ergebnis: **7/7 vorhanden und ausgefüllt.**
