@@ -63,6 +63,7 @@ export function StartSeite({ beispiel, nurAufzeichnung = false }: { beispiel: bo
         <Kopf titel="So läuft ein Gespräch" unter="Der Lotse erkennt Leistungen der Sozialversicherung, nennt die Quelle und bereitet den Antrag vor." schritt={1} />
         <div className="flex max-w-3xl flex-col items-start gap-4" data-testid="uc1-nur-aufzeichnung">
           <Fliesstext>Hier sehen Sie ein aufgezeichnetes Gespräch: „Meine Mutter kommt allein nicht mehr zurecht.“</Fliesstext>
+          <Fliesstext groesse={12} ton="gedaempft">Eigene Fragen gehen auf dieser Seite nicht, weil die Quellen des Lotsen nicht auf diesem Server liegen.</Fliesstext>
           <Knopf className="min-h-11" disabled={spielt} onClick={() => void beispielAbspielen()}>
             Aufgezeichnetes Gespräch ansehen
           </Knopf>

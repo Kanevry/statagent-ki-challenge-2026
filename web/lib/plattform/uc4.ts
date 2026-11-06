@@ -208,6 +208,11 @@ export function uc4Einstellung(umgebung: Umgebung = process.env): Uc4Einstellung
   return { kette, fragenOffen: fragenOffen(umgebung), mitModell: ketteMitModell(kette) };
 }
 
+/** Für /uc2 und /uc2/frage: Nimmt die Route gerade Fragen an diese eine Station an? */
+export function stationOffen(station: KettenUc, umgebung: Umgebung = process.env): boolean {
+  return fragenOffen(umgebung) && ketteAus(umgebung).includes(station);
+}
+
 /** Größter Request-Body; eine Frage mit 500 Zeichen braucht als JSON höchstens rund 3 KiB (UTF-8, Escapes). */
 export const MAX_BODY_BYTES = 4 * 1024;
 /** Router-Läufe, die ein Prozess gleichzeitig startet; jeder Lauf ist ein Python-Prozess. */
@@ -273,7 +278,7 @@ async function leseBody(anfrage: Request, grenze: number): Promise<string> {
 }
 
 /** Frage aus dem Body oder eine feste deutsche Meldung (keine zod-Texte an den Client). */
-function leseFrage(text: string): { frage: string; modell?: Modellwahl } | { meldung: string } {
+function leseFrage(text: string): { frage: string; modell?: Modellwahl; station?: KettenUc } | { meldung: string } {
   let roh: unknown;
   try {
     roh = JSON.parse(text);
@@ -286,7 +291,7 @@ function leseFrage(text: string): { frage: string; modell?: Modellwahl } | { mel
   // Ab hier tragen nur noch die eigenen deutschen Meldungen aus frageSchema (leer, zu lang).
   const eingabe = frageSchema.safeParse(roh);
   return eingabe.success
-    ? { frage: eingabe.data.frage, modell: eingabe.data.modell }
+    ? { frage: eingabe.data.frage, modell: eingabe.data.modell, station: eingabe.data.station }
     : { meldung: eingabe.error.issues[0]?.message ?? UNGUELTIG };
 }
 
@@ -322,7 +327,7 @@ export function erstelleFrageAntwort({
   const kette = ketteAus(umgebung);
   const mitModell = ketteMitModell(kette);
 
-  function laufParameter(frage: string, gewaehlt: Modellwahl | undefined) {
+  function laufParameter(frage: string, gewaehlt: Modellwahl | undefined, station?: KettenUc) {
     // Ohne Modell in der Kette (Stufe A, nur UC3) wirkt keine Modellwahl: auch „Testbetrieb“ darf die echte Zahl
     // nicht durch die Mock-Zahl ersetzen.
     const modell = mitModell ? gewaehlt : undefined;
@@ -330,7 +335,7 @@ export function erstelleFrageAntwort({
     const argv = routerArgv(
       frage,
       umgebung.UC4_ADAPTER === "mock" || modell === "mock",
-      kette === STANDARD_KETTE ? undefined : kette,
+      station ? [station] : kette === STANDARD_KETTE ? undefined : kette,
     );
     // Gewähltes Modell als LLM_PROVIDER nur für diesen Lauf; ohne Wahl gilt die Einstellung der App.
     const zusatz = modell ? { LLM_PROVIDER: modell } : undefined;
@@ -356,8 +361,9 @@ export function erstelleFrageAntwort({
     gewaehlt: Modellwahl | undefined,
     freigeben: () => void,
     signal: AbortSignal,
+    station?: KettenUc,
   ): Promise<Response> {
-    const { modell, argv, zusatz } = laufParameter(frage, gewaehlt);
+    const { modell, argv, zusatz } = laufParameter(frage, gewaehlt, station);
     const startArgv = [...argv.slice(0, ROUTER_ARGV.length), "--strom", ...argv.slice(ROUTER_ARGV.length)];
     let lauf: StromLauf;
     try {
@@ -467,8 +473,13 @@ export function erstelleFrageAntwort({
     });
   }
 
-  async function fuehreAus(frage: string, gewaehlt: Modellwahl | undefined, signal: AbortSignal): Promise<Response> {
-    const { argv, zusatz } = laufParameter(frage, gewaehlt);
+  async function fuehreAus(
+    frage: string,
+    gewaehlt: Modellwahl | undefined,
+    signal: AbortSignal,
+    station?: KettenUc,
+  ): Promise<Response> {
+    const { argv, zusatz } = laufParameter(frage, gewaehlt, station);
     let lauf: Lauf;
     try {
       lauf = await ausfuehren("uv", argv, { cwd: wurzel(), timeout: TIMEOUT_MS, maxBuffer: MAX_BUFFER, zusatz, signal });
@@ -511,6 +522,8 @@ export function erstelleFrageAntwort({
     const eingabe = leseFrage(text);
     if ("meldung" in eingabe) return fehler(400, eingabe.meldung);
     if (mitModell && eingabe.modell && !modellErlaubt(eingabe.modell, umgebung)) return fehler(400, NICHT_FREIGEGEBEN);
+    // Eine einzelne Station gibt es nur, wenn sie in der eingestellten Kette steht: Mit UC4_KETTE=uc3 öffnet sie kein Modell.
+    if (eingabe.station && !kette.includes(eingabe.station)) return fehler(403, "Fragen sind in der Online-Demo noch gesperrt.");
 
     if (offen >= maxLaeufe) return fehler(429, "Gerade laufen schon genug Fragen. Bitte gleich noch einmal fragen.");
     offen += 1;
@@ -523,14 +536,14 @@ export function erstelleFrageAntwort({
         }
       };
       try {
-        return await fuehreStromAus(eingabe.frage, eingabe.modell, freigeben, anfrage.signal);
+        return await fuehreStromAus(eingabe.frage, eingabe.modell, freigeben, anfrage.signal, eingabe.station);
       } catch (grund) {
         freigeben();
         throw grund;
       }
     }
     try {
-      return await fuehreAus(eingabe.frage, eingabe.modell, anfrage.signal);
+      return await fuehreAus(eingabe.frage, eingabe.modell, anfrage.signal, eingabe.station);
     } finally {
       offen -= 1;
     }

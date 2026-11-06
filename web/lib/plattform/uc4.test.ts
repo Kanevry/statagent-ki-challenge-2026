@@ -572,3 +572,37 @@ describe("standardStromStarten mit echtem Prozess", () => {
     await vi.waitFor(() => expect(lebt(Number(value))).toBe(false), { timeout: 3_000 });
   });
 });
+
+describe("station: eine einzelne Station statt der Kette (/uc2/frage)", () => {
+  const leer = JSON.stringify({ antworten: [], fehlend: [] });
+
+  it("fragt nur uc2, wenn uc2 in der Kette steht", async () => {
+    const ausfuehren = vi.fn(async () => ({ code: 1, stdout: leer }));
+    const antwort = await frageAntwort(anfrage({ frage: "x", station: "uc2" }), {
+      ausfuehren,
+      umgebung: { UC4_KETTE: "uc3,uc2,uc1" },
+      wurzel: () => "/r",
+    });
+    expect(antwort.status).toBe(200);
+    const argv = (ausfuehren.mock.calls[0] as unknown as [string, string[]])[1];
+    expect(argv.slice(argv.indexOf("--kette"), argv.indexOf("--kette") + 2)).toEqual(["--kette", "uc2"]);
+  });
+
+  it("öffnet ohne uc2 in der Kette kein Modell (Online Stufe A)", async () => {
+    const ausfuehren = vi.fn(async () => ({ code: 1, stdout: leer }));
+    const antwort = await frageAntwort(anfrage({ frage: "x", station: "uc2" }), {
+      ausfuehren,
+      umgebung: { KIC_ONLINE: "1", KIC_ONLINE_LESEND: "1", KIC_ONLINE_FRAGEN: "1", UC4_KETTE: "uc3" },
+      wurzel: () => "/r",
+    });
+    expect(antwort.status).toBe(403);
+    expect(ausfuehren).not.toHaveBeenCalled();
+  });
+
+  it("nimmt nur uc2 als Station an", async () => {
+    const ausfuehren = vi.fn(async () => ({ code: 1, stdout: leer }));
+    const antwort = await frageAntwort(anfrage({ frage: "x", station: "uc1" }), { ausfuehren, umgebung: {}, wurzel: () => "/r" });
+    expect(antwort.status).toBe(400);
+    expect(ausfuehren).not.toHaveBeenCalled();
+  });
+});

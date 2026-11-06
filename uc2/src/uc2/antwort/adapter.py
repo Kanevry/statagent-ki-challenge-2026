@@ -508,6 +508,12 @@ def _antwort(
     s = _Sammlung()
     kontextzahlen = _kontextzahlen(kontext, s)
     kontext_prompt = _kontext_fuer_prompt(kontextzahlen)
+    # Eigene Frage auf /uc2/frage: kein Fall, keine Zahl davor. Dann bildet der Moderator die Themen aus der
+    # Frage; die festen Themen und Kernsätze handeln vom Personal und gehören zur Zahl von StatAgent.
+    eigene_frage = fall is None and not kontext
+    absage = allgemein.frei_absage(frage) if eigene_frage else None
+    if absage:
+        return UcAntwort(text=absage, belege=[], zahlen=[], uc="uc2", modell=None, protokoll_id=None)
     # Kontextzahlen gelten im Kurzlauf als vorgegeben: Mit Quelle `experte` sind sie kein Widerspruch.
     werte = {float(z.wert) for z, _ in kontextzahlen}
 
@@ -521,6 +527,9 @@ def _antwort(
             experte["kontext_zahlen"] = kontext_prompt
         werte |= set(experten_ergebniswerte(voll))
         auftrag_nachrichten = prompts.auftrag_nachrichten
+    elif eigene_frage:
+        experte = allgemein.freie_lage()
+        auftrag_nachrichten = allgemein.freier_auftrag_nachrichten
     else:
         experte = allgemein.ausgangslage(kontext_prompt)
         auftrag_nachrichten = allgemein.auftrag_nachrichten
@@ -542,15 +551,18 @@ def _antwort(
             # Die Notiz steht nur im Fall-Weg im Text; im allgemeinen Weg spart das einen Aufruf.
             notiz=fall is not None,
             # Allgemeine Fragen: feste Themen statt Auftragsaufruf (gemessen 38,5 s mit Aufruf bei azure).
-            fester_auftrag=allgemein.fester_auftrag(frage) if fall is None else None,
-            kern=fall is None,
+            fester_auftrag=allgemein.fester_auftrag(frage) if fall is None and not eigene_frage else None,
+            kern=fall is None and not eigene_frage,
             feste_teilnehmer=allgemein.TEILNEHMER if fall is None else (),
         )
     except KurzlaufFehler as fehler:
         raise AntwortFehler(f"Panel: {fehler}") from fehler
 
     beispiel = isinstance(quelle, FixtureQuelle)
-    zeilen = [_kernzeile(ergebnis, ez), _ausgangslage(kontextzahlen), _einleitung(ergebnis)]
+    if eigene_frage:
+        zeilen = [allgemein.FREI_KEIN_MODELL, _einleitung(ergebnis)]
+    else:
+        zeilen = [_kernzeile(ergebnis, ez), _ausgangslage(kontextzahlen), _einleitung(ergebnis)]
     if voll is not None:
         zeilen += _experte_text(voll, ez)
     zeilen += _abwaegung(ergebnis, akteure, s, beispiel)

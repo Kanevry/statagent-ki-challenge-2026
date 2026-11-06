@@ -129,6 +129,69 @@ def auftrag_nachrichten(frage: str, experte: dict[str, Any]) -> list[dict[str, s
     return [{"role": "system", "content": prompts.MODERATOR_SYSTEM}, {"role": "user", "content": text}]
 
 
+FREI_HINWEIS = (
+    "Zu dieser Frage gibt es kein Rechenmodell und keine Zahl aus der Statistik. Nenne keine Zahlen. Bleib "
+    "bei dem, worum die Frage geht, und sag, was es aus deiner Sicht für Versorgung und Kosten heißt."
+)
+FREI_KEIN_MODELL = "Zu dieser Frage gibt es kein Rechenmodell, deshalb stehen hier keine berechneten Zahlen."
+"""Erste Zeile der Antwort auf eine eigene Frage: was fehlt, bevor die Abwägung beginnt."""
+
+
+THEMENWOERTER = (
+    "gesund", "arzt", "ärzt", "kasse", "versicher", "spital", "krank", "klinik", "ambulan", "pflege",
+    "impf", "apothek", "medika", "arznei", "therap", "patient", "wartezeit", "vorsorge", "prävention",
+    "reha", "psych", "zahn", "hebamme", "selbstbehalt", "rettung", "notfall", "elga", "versorgung",
+)  # fmt: skip
+"""Wortstämme einer Frage zur Gesundheitspolitik. Lieber einmal zu streng: Eine Absage kostet kein Modell."""
+FREI_THEMA = (
+    "Diese Frage gehört nicht zur Gesundheitspolitik. Hier wägen Interessenvertretungen nur solche Fragen "
+    "ab, zum Beispiel: Sollen Apotheken impfen dürfen?"
+)
+FREI_PERSOENLICH = (
+    "Das klingt nach einer persönlichen Frage. Dieser Prototyp wägt nur allgemeine Fragen ab und berät nicht "
+    "im Einzelfall. Bitte fragen Sie ohne Angaben zu Ihrer Person, oder wenden Sie sich an Ihre Krankenkasse."
+)
+_PERSOENLICH = re.compile(
+    r"\b(?:ich|mein|meine|meinem|meinen|meiner|meines)\b"  # eigene Lage
+    r"|\b\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}\b"  # Datum, etwa ein Geburtsdatum
+    r"|\b\d{4}\s?\d{6}\b"  # Versicherungsnummer
+    r"|\S+@\S+\.\S+"  # Mailadresse
+    r"|(?:\+|\b0)\d[\d /-]{6,}\d\b",  # Telefonnummer
+    re.IGNORECASE,
+)
+
+
+def frei_absage(frage: str) -> str | None:
+    """Fester Satz statt Modellaufruf: bei persönlichen Angaben und außerhalb des Themas, sonst `None`."""
+    if _PERSOENLICH.search(frage):
+        return FREI_PERSOENLICH
+    text = frage.casefold()
+    return None if any(wort in text for wort in THEMENWOERTER) else FREI_THEMA
+
+
+def freie_lage() -> dict[str, Any]:
+    """Block für Prompts bei einer eigenen Frage auf /uc2/frage: ohne Zahl, ohne Rechenmodell."""
+    return {"hinweis": FREI_HINWEIS, "rechenmodell": None, "kontext_zahlen": []}
+
+
+def freier_auftrag_nachrichten(frage: str, experte: dict[str, Any]) -> list[dict[str, str]]:
+    """Auftrag des Moderators für eine eigene Frage: Die Themen kommen aus der Frage, nicht aus einer Zahl.
+
+    Gleiche Rolle und gleiches Schema wie `auftrag_nachrichten`, nur die Aufgabe ist eine andere.
+    """
+    kontext = {"rolle": ROLLE_AUFTRAG, "frage": frage, "max_themen": MAX_THEMEN, "ausgangslage": experte}
+    text = (
+        f"# Frage\n{frage}\n\n# Ausgangslage\n"
+        f"{json.dumps(experte, ensure_ascii=False, indent=1, sort_keys=True)}\n\n"
+        "# Aufgabe\nÜbersetze die Frage in einen kurzen Auftrag für eine Abwägung unter "
+        f"Interessenvertretungen des Gesundheitswesens: höchstens {MAX_THEMEN} Themen (id in Kleinbuchstaben "
+        "mit Unterstrich, Titel, kurze Beschreibung), Regeln für die Runden und das Ziel. Jedes Thema nennt "
+        "einen Vorschlag, der genau zur Frage gehört, in einfachen Worten. Erfinde keine Zahlen.\n\n"
+        f"{kontext_block(kontext)}"
+    )
+    return [{"role": "system", "content": prompts.MODERATOR_SYSTEM}, {"role": "user", "content": text}]
+
+
 def fester_auftrag(frage: str) -> dict[str, Any]:
     """Auftrag für allgemeine Fragen ohne Modellaufruf: feste Themen, Kriterien und Regeln.
 
