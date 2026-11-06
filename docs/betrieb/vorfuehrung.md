@@ -104,12 +104,13 @@ Stand 06.11.2026. Auf `/uc2` lässt sich hier eine echte Verhandlung starten, st
 öffentliche Demo bleibt lesend und zeigt weiter nur die Aufzeichnung. Starten ist dort gesperrt.
 
 - **Modell:** Der Knopf schickt den Anbieter `azure` mit (`UC2_START_PROVIDER`). Es antwortet `gpt-5-4-mini`, ohne Rückfall
-  auf ein anderes Modell.
+  auf ein anderes Modell. Einen anderen Anbieter lehnt die Instanz ab.
 - **Schutz:** Höchstens eine Verhandlung gleichzeitig und höchstens ein Start je Minute. Dazu kommt ein eigenes Tageslimit von
   300 Modellaufrufen (`VORFUEHRUNG_UC2_TAGESBUDGET`), getrennt vom Budget der UC3-Agenten, Grenze je UTC-Tag. Das reicht für rund
-  acht Verhandlungen am Tag. Ist es erreicht, steht auf der Seite „Heute sind keine neuen Live-Verhandlungen mehr möglich. Die
+  acht Verhandlungen am Tag. Ist es erreicht, steht auf der Seite „Eine neue Live-Verhandlung ist gerade nicht möglich. Die
   aufgezeichnete Verhandlung bleibt.“
-- **Belege:** Live nutzt die Verhandlung nur erfundene Beispielbelege, keine Pressetexte. Die Seite kennzeichnet sie am Beleg
+- **Belege:** Live nutzt die Verhandlung nur erfundene Beispielbelege, keine Pressetexte. Das legt die Instanz fest, auch
+  wenn eine Anfrage etwas anderes verlangt. Die Seite kennzeichnet sie am Beleg
   („Beleg (erfundene Beispielquelle): …“) und im Satz unter der Verhandlung („Die Belege sind erfundene Beispiele.“).
 - **Namensschutz:** Texte, die das Modell schreibt, laufen vor dem Speichern durch die Namensliste. Ohne Namensliste startet
   kein echtes Modell.
@@ -181,6 +182,9 @@ Das ersetzt keine Messung über einen echten Hotspot, die steht aus und liegt be
 | Lauf Oktober 2025 mit den tiefen Klassifikationen | `unveraendert`, 397.514, Hash `63f106818887` |
 | Ratenlimit vor der Änderung | sechs Fragen hintereinander 200, je rund 3 s; die elfte in einer Minute 429 |
 | UC2-Verhandlung per CLI auf einem zweiten Rechner, nicht auf der Instanz (06.11., sechs Gruppen, fünf Runden, Azure `gpt-5-4-mini`) | 321 s, 37 Modellaufrufe, Status `fertig` |
+| UC2-Verhandlung über `uc2.api` auf dem zweiten Rechner (06.11.) | Start nach 0,4 s, Ereignisstrom 282 s mit 95 Ereignissen, 37 Modellaufrufe, Status `fertig` |
+| UC2-Verhandlung im Container `vorfuehrung-uc2` auf dem zweiten Rechner (06.11., schreibgeschütztes Dateisystem, 1 Kern, 768 MB) | Dienst gesund nach 5 s, Start nach 0,9 s, Status `fertig` nach 236 s, 37 Modellaufrufe, im Leerlauf 80 MB |
+| UC2: zweiter Start während des Laufs, Freigabe mit Probe-Namen, Start bei verbrauchtem Tageslimit | 409, 200 (danach 409 „schon entschieden“), 503 ohne Modellaufruf |
 
 ## Reserve: lokal
 

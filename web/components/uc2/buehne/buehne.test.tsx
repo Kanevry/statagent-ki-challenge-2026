@@ -121,3 +121,15 @@ it("Live-Lauf mit Beispielbelegen kennzeichnet Belege und Kopfzeile als erfunden
   expect(belegName("Beispielblatt", "live", "fixture")).toBe("Beleg: Beispielblatt");
   expect(modellSatz("vorfuehrung", live("fixture"))).toBe("Aufgezeichnete Verhandlung mit Beispiel-Belegen, ohne Sprachmodell.");
 });
+
+it("Bühne eines Live-Laufs mit Beispielbelegen zeigt am Beleg „erfundene Beispielquelle“", async () => {
+  // Fängt, wenn die Szene die Belegquelle nicht an belegName weitergibt.
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const start = alle[0] as unknown as { daten: Record<string, unknown> };
+  const liveStart = { ...start, daten: { ...start.daten, belegquelle: "fixture", modelle: { akteur: { provider: "azure", modell: "gpt-5-4-mini" } } } };
+  const { container } = render(<PanelBuehne fallId="15" modus="live" />);
+  act(() => FakeQuelle.letzte!.sende([liveStart as unknown as { art: string }, ...alle.slice(1)]));
+  for (let i = 0; i < 40 && !container.textContent?.includes("erfundene Beispielquelle"); i++) await act(() => vi.advanceTimersByTimeAsync(2000));
+  vi.useRealTimers();
+  expect(container.textContent).toContain("Beleg (erfundene Beispielquelle):");
+});

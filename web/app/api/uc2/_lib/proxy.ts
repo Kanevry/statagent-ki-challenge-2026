@@ -73,9 +73,6 @@ export function fehlerAusApiStatus(status: number): Response {
   if (status === 404) return fehler(404, "Diesen Fall gibt es nicht.");
   if (status === 409) return fehler(409, "Es läuft schon eine Verhandlung.");
   if (status === 422) return fehler(422, "Das Panel nimmt dieses Modell oder diese Auswahl gerade nicht an.");
-  // 503: Tageslimit der Live-Verhandlungen verbraucht oder Dienst nicht bereit. 403 (echte Modelle gesperrt) bleibt beim
-  // allgemeinen Satz für 4xx.
-  if (status === 503) return fehler(503, "Heute sind keine neuen Live-Verhandlungen mehr möglich. Die aufgezeichnete Verhandlung bleibt.");
   if (status === 429) return fehler(429, "Das Panel hat gerade zu viele Anfragen. Bitte gleich noch einmal versuchen.");
   if (status >= 400 && status < 500) return fehler(400, "Das Panel hat die Anfrage abgelehnt.");
   return fehler(502, "Das Panel hat nicht geantwortet. Bitte später noch einmal versuchen.");

@@ -63,8 +63,15 @@ export async function POST(anfrage: Request): Promise<Response> {
   const start = startSchema.safeParse(roh);
   if (!start.success) return fehler(400, "Die Anfrage passt nicht: fall, frage, provider, belege oder akteure sind ungültig.");
   const { akteure, ...vertrag } = start.data;
-  // Ein ausdrücklicher `provider` gewinnt; sonst der Standard der Instanz, sonst keiner (die API nimmt dann `mock`).
-  vertrag.provider ??= startAnbieter();
+  // Ist UC2_START_PROVIDER gesetzt, legt die Instanz Modell und Belege fest: ein anderes Modell im Body wird abgelehnt,
+  // und live gibt es nur erfundene Beispielbelege (`fixture`), keine Pressetexte. Ohne die Variable geht der Body durch
+  // (fehlt `provider`, nimmt die API ihren Standard `mock`).
+  const instanz = startAnbieter();
+  if (instanz) {
+    if (vertrag.provider && vertrag.provider !== instanz) return fehler(422, "Hier verhandelt nur das eingestellte Modell.");
+    vertrag.provider = instanz;
+    vertrag.belege = "fixture";
+  }
 
   if (vertrag.provider === "ollama" && !ollamaKonfiguriert()) {
     return fehler(422, "Das lokale Modell ollama ist hier nicht eingerichtet.");
@@ -85,6 +92,11 @@ export async function POST(anfrage: Request): Promise<Response> {
       ignoriert = true;
     }
     if (antwort) {
+      // 503 beim Start: Tageslimit erreicht oder Dienst nicht bereit. Nur hier, weil GET-Wege 503 auch bei fehlender
+      // Datenbank sehen und dort der allgemeine Satz gilt.
+      if (antwort.status === 503) {
+        return fehler(503, "Eine neue Live-Verhandlung ist gerade nicht möglich. Die aufgezeichnete Verhandlung bleibt.");
+      }
       if (!antwort.ok) return fehlerAusApiStatus(antwort.status);
       const geprueft = antwortSchema.safeParse(await antwort.json().catch(() => null));
       if (!geprueft.success) return fehler(502, "Das Panel hat in einem unerwarteten Format geantwortet.");

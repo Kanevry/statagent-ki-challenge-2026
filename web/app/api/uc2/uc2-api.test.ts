@@ -263,21 +263,26 @@ describe("ohne UC2_MOCK", () => {
     expect(abruf).toHaveBeenCalledTimes(2);
   });
 
-  it("schickt UC2_START_PROVIDER als provider mit, ein provider im Body gewinnt, ohne Variable geht keiner mit", async () => {
+  it("UC2_START_PROVIDER legt Modell und Belege fest: anderes Modell 422 ohne API-Aufruf, Belege immer fixture", async () => {
     const abruf = vi.fn(async (_u: string | URL | Request, _o?: RequestInit) => Response.json({ fall_id: "3", status: "laeuft" }, { status: 202 }));
     vi.stubGlobal("fetch", abruf);
-    const gesendet = () => JSON.parse(String(abruf.mock.calls.at(-1)?.[1]?.body)) as { provider?: string };
+    const gesendet = () => JSON.parse(String(abruf.mock.calls.at(-1)?.[1]?.body)) as { provider?: string; belege?: string };
     vi.stubEnv("UC2_START_PROVIDER", "azure");
-    await post({ akteure: ["sv"] });
-    expect(gesendet().provider).toBe("azure");
-    await post({ provider: "claude" });
-    expect(gesendet().provider).toBe("claude");
+    await post({ akteure: ["sv"], belege: "index" });
+    expect(gesendet()).toMatchObject({ provider: "azure", belege: "fixture" });
+    expect((await post({ provider: "azure" })).status).toBe(202);
+    abruf.mockClear();
+    const anders = await post({ provider: "claude" });
+    expect(anders.status).toBe(422);
+    expect(await anders.json()).toEqual({ fehler: "Hier verhandelt nur das eingestellte Modell." });
+    expect(abruf).not.toHaveBeenCalled();
+    // Ungültiger Wert zählt wie nicht gesetzt: der Body geht unverändert durch.
     vi.stubEnv("UC2_START_PROVIDER", "gpt");
-    await post({});
-    expect(gesendet()).not.toHaveProperty("provider");
+    await post({ belege: "index" });
+    expect(gesendet()).toEqual({ fall: "wartezeiten", belege: "index" });
     vi.stubEnv("UC2_START_PROVIDER", "");
-    await post({});
-    expect(gesendet()).not.toHaveProperty("provider");
+    await post({ provider: "claude" });
+    expect(gesendet()).toEqual({ fall: "wartezeiten", provider: "claude" });
   });
 
   it("Start ohne Antwort in der Frist bei erreichbarer API: 504 mit festem Satz, keine Aufzeichnung", async () => {
@@ -295,10 +300,29 @@ describe("ohne UC2_MOCK", () => {
     expect(text).not.toContain("mock-wartezeiten");
   });
 
-  it("gibt 503 der API (Tageslimit) als eigenen festen Satz weiter", async () => {
+  it("503 der API: beim Start ein eigener fester Satz, bei der Liste der allgemeine Satz", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail: "limit 3/3" }, { status: 503 })));
     const antwort = await post({});
     expect(antwort.status).toBe(503);
-    expect(await antwort.json()).toEqual({ fehler: "Heute sind keine neuen Live-Verhandlungen mehr möglich. Die aufgezeichnete Verhandlung bleibt." });
+    expect(await antwort.json()).toEqual({ fehler: "Eine neue Live-Verhandlung ist gerade nicht möglich. Die aufgezeichnete Verhandlung bleibt." });
+    // GET sieht 503 auch bei fehlender Datenbank: dort kein Satz über Live-Verhandlungen.
+    const l = await liste();
+    expect(await l.text()).not.toContain("Live-Verhandlung");
+    expect(l.status).toBe(502);
+  });
+
+  it("Weg der Oberfläche: akteure abgelehnt, der zweite Start bleibt aus, API erreichbar → 504 nach genau zwei POSTs", async () => {
+    const abruf = vi.fn(async (_u: string | URL | Request, o?: RequestInit) => {
+      if (o?.method !== "POST") return Response.json([]);
+      if (String(o.body).includes("akteure")) return new Response("{}", { status: 422 });
+      throw new DOMException("abgebrochen", "AbortError");
+    });
+    vi.stubGlobal("fetch", abruf);
+    const antwort = await post({ akteure: ["sv"] });
+    expect(antwort.status).toBe(504);
+    const text = await antwort.text();
+    expect(JSON.parse(text)).toEqual({ fehler: "Der Start dauert gerade zu lange. Bitte in einer Minute noch einmal versuchen." });
+    expect(text).not.toContain("mock-wartezeiten");
+    expect(abruf.mock.calls.filter((c) => c[1]?.method === "POST")).toHaveLength(2);
   });
 });
