@@ -30,6 +30,8 @@ fi
 echo "== holen $(TZ=Europe/Vienna date '+%H:%M')"
 git -C "$ABNAHME_REPO" fetch -q "$bundle" \
   "+refs/remotes/origin/main:refs/heads/main-abnahme" "+refs/heads/test/abnahme-matrix:refs/heads/abnahme-werkzeug"
+# Vorprüfung eines MR-Kopfs: Das Bundle bringt ihn als eigenen Ref mit.
+git -C "$ABNAHME_REPO" fetch -q "$bundle" "+refs/remotes/origin/pruef-ziel:refs/heads/pruef-ziel" 2>/dev/null || true
 # ABNAHME_REPO ist laut abnahme.env der Prüf-Klon der Abnahme; die Marke erlaubt pruefen.py das harte Zurücksetzen.
 touch "$ABNAHME_REPO/.kic-abnahme-pruefklon"
 # Hart zurücksetzen: frühere Prüfsätze können Dateien im Klon verändert haben (Review 4d, 19:00).

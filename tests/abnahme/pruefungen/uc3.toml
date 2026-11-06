@@ -1251,3 +1251,16 @@ befund = "Die Waage ist nicht im Browser gesehen"
 grund = "Waage im Browser gesehen: vorher und nachher plausibel zur Probe"
 anmerkung = "Geprüft von einem Agenten im Browser, kein Mensch"
 herkunft = "b-abnahme-9d 2026-11-06 05:02"
+
+[[pruefung]]
+id = "74-AC1"
+hash = "1e6babf147"
+befehl = "timeout 500 uv run --package statagent pytest -q -p no:cacheprovider -m daten uc3/tests/test_jury_probe.py"
+erwartet = ["(^|= )\\d+ passed"]
+schwer = true
+deckung = "teil"
+zeitlimit = 520
+quelle = "Datengebundene Jury-Probe uc3/tests/test_jury_probe.py (#139), Auftrag Lead 3d, 06.11. 07:23"
+grund = "Die Jury-Probe mit allen 24 Lieferungen ist grün"
+befund = "Die Jury-Probe hat rote Fälle"
+herkunft = "b-abnahme-9d 2026-11-06 07:24"
