@@ -323,9 +323,12 @@ function Liste({ titel: name, quelle, sql, children }: { titel: string; quelle: 
 function WeitereListen({ daten }: { daten: Klassifikationsdaten }) {
   const { bundeslaender, geschlechter, qualifikationen, altersgruppen } = daten;
   return (
-    <details className="max-w-4xl border-y border-line">
-      <summary className="flex min-h-11 cursor-pointer items-center font-sans text-16 text-ink underline-offset-4 hover:underline">
-        Weitere Listen: Bundesland, Geschlecht, Qualifikation und Alter
+    <details className="group max-w-4xl border-y border-line">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-sans text-16 text-ink underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
+        <span>Weitere Listen: Bundesland, Geschlecht, Qualifikation und Alter</span>
+        <span aria-hidden="true" className="shrink-0 text-slate transition-transform group-open:rotate-90 motion-reduce:transition-none">
+          ›
+        </span>
       </summary>
       <div className="flex flex-col pb-3">
         <Liste titel={`Bundesland, ${bundeslaender.length} Codes`} quelle="stat.klass_region" sql={SQL_BUNDESLAENDER}>
@@ -380,9 +383,12 @@ async function Pensionen() {
   if (!lesung.ok || lesung.daten.jahre.length === 0) return null;
   const { jahre, vorlaeufig } = lesung.daten;
   return (
-    <details className="max-w-4xl border-b border-line">
-      <summary className="flex min-h-11 cursor-pointer items-center font-sans text-16 text-ink underline-offset-4 hover:underline">
-        Pensionen 2018 bis 2025
+    <details className="group max-w-4xl border-b border-line">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-sans text-16 text-ink underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
+        <span>Pensionen 2018 bis 2025</span>
+        <span aria-hidden="true" className="shrink-0 text-slate transition-transform group-open:rotate-90 motion-reduce:transition-none">
+          ›
+        </span>
       </summary>
       <div className="flex flex-col gap-2 pb-3">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3">
