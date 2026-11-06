@@ -556,7 +556,7 @@ def test_rang_rueckfrage_ohne_fremden_vorschlag(zwei_monate: Verbindung) -> None
     assert daten["text"] == "Die Rangfolge gibt es je Monat. Für welchen Monat möchten Sie sie?"
 
 
-# Fängt (Bank B1): Nennt die Rangfrage selbst Bundesländer, fielen sie still weg und die Antwort reihte alle neun.
+# Fängt (Review B1): Nennt die Rangfrage selbst Bundesländer, fielen sie still weg und die Antwort reihte alle neun.
 @pytest.mark.parametrize(
     "frage",
     [
@@ -583,7 +583,7 @@ def test_rangfrage_mit_filter_eines_anderen_merkmals_bleibt(zwei_monate: Verbind
     assert rang is not None and _rang_nennt_gruppe(zwei_monate, rang) is False
 
 
-# Fängt (Bank B2): Ein Zeitraum mit nur einem Monat mit Daten galt als ein Monat und wurde gereiht.
+# Fängt (Review B2): Ein Zeitraum mit nur einem Monat mit Daten galt als ein Monat und wurde gereiht.
 def test_rangfrage_ueber_zeitraum_mit_einem_datenmonat_fragt_nach(zwei_monate: Verbindung) -> None:
     daten = antwort_frage(
         zwei_monate, "Welches Bundesland hat die meisten Beschäftigten von Juli bis August 2024?"
@@ -592,7 +592,7 @@ def test_rangfrage_ueber_zeitraum_mit_einem_datenmonat_fragt_nach(zwei_monate: V
     assert daten["text"].startswith("Die Rangfolge gibt es je Monat.")
 
 
-# Fängt (Bank B3): Die Rückfrage trug ein Beispiel ohne die Einschränkungen der Frage (freier Dienstvertrag), das
+# Fängt (Review B3): Die Rückfrage trug ein Beispiel ohne die Einschränkungen der Frage (freier Dienstvertrag), das
 # zu einer Zahl für eine andere Gruppe geführt hätte. Die Rückfrage kommt ohne Beispiel.
 @pytest.mark.parametrize(
     "frage",
