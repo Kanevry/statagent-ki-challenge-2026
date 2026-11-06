@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { AppShell, type VerweisProps } from "@kic/ui/shell";
 
 // Verbindet die Shell aus @kic/ui mit Next: Pfad aus usePathname, Links über next/link.
-// Auf `/` (Landing, Route-Gruppe (landing)) rendert AppShell ohne Header; die Landing muss dafür nichts tun.
+// Auf `/` und `/ablauf` (Route-Gruppe (landing)) rendert AppShell ohne Header; die Landing muss dafür nichts tun.
 
 function NextVerweis({ href, children, ...rest }: VerweisProps) {
   return (

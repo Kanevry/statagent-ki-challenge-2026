@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { NAVIGATION, SEITE } from "../texte/inhalt";
 import n from "./navigation.module.css";
@@ -12,7 +13,8 @@ import n from "./navigation.module.css";
 export default function Navigation() {
   const kopfRef = useRef<HTMLElement>(null);
   const knopfRef = useRef<HTMLButtonElement>(null);
-  const [aufNavy, setAufNavy] = useState(true);
+  // Nur die Startseite beginnt auf Navy; sonst blitzte die Leiste auf Papier-Seiten dunkel auf.
+  const [aufNavy, setAufNavy] = useState(usePathname() === "/");
   const [offen, setOffen] = useState(false);
 
   useEffect(() => {
