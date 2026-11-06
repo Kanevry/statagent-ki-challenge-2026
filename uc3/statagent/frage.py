@@ -2201,18 +2201,17 @@ def _antwort_frage(
     monate = monate_lesen(frage)
     jahr = jahr_ohne_monat(frage)
     text = frage.lower()
+    # Männer und Frauen je Bundesland über einen Zeitraum: eine Zahl je Monat, Geschlecht und Bundesland.
+    kreuz = False
     if typ != "fluktuation" and _geschlecht_gegliedert(text):
         je = _gliederung(frage)
         if je is GESCHLECHT:
             je = _zweite_aufteilung(conn, frage, monate[-1] if monate else LETZTE_LIEFERUNG) or GESCHLECHT
+        kreuz = je is BUNDESLAND and typ == "zeitreihe" and "anteil" not in text
         erlaubt = (GESCHLECHT,) if typ == "zeitreihe" or "anteil" in text else (GESCHLECHT, BUNDESLAND)
-        if je is not None and je not in erlaubt:
+        if je is not None and je not in erlaubt and not kreuz:
             # Sonst fiele „je Branche“ still weg, die Antwort gälte für ganz Österreich.
             wie = _JE_ALLTAG.get(je.name, f"je {je.name}")
-            if je is BUNDESLAND and typ == "zeitreihe" and "anteil" not in text:
-                raise _KeineZahl(
-                    f"Männer und Frauen {wie} zeigt StatAgent nur für einen Monat, nicht über einen Zeitraum."
-                )
             raise _KeineZahl(
                 f"Männer und Frauen {wie} zeigt StatAgent nicht auf einmal. Bitte einzeln fragen."
             )
@@ -2252,6 +2251,15 @@ def _antwort_frage(
         gruppen: tuple[Merkmal, ...] = (
             (GESCHLECHT,) if _geschlecht_gegliedert(text) else tuple(g for g in (_aufteilung(frage),) if g)
         )
+        if kreuz:
+            # 6 Monate mal 2 Geschlechter mal 11 Bundesländer (mit „unbekannt“) bleiben eine Abfrage und eine Tabelle.
+            if len(_monate(von, bis)) > MONATE_IM_TEXT:
+                raise _KeineZahl(
+                    f"Männer und Frauen je Bundesland zeigt StatAgent für höchstens {MONATE_IM_TEXT} Monate auf einmal. "
+                    f"Bitte einen kürzeren Zeitraum nennen, zum Beispiel „Männer und Frauen je Bundesland von "
+                    f"{_monat_anzeige(max(von, monat_verschieben(bis, 1 - MONATE_IM_TEXT)))} bis {_monat_anzeige(bis)}“."
+                )
+            gruppen = (GESCHLECHT, BUNDESLAND)
         return _bestand_antwort(conn, frage, regelsatz, von, bis, gruppen, "zeitreihe", mittel, nur)
     if typ == "fluktuation" and len(monate) > 1:
         return _rueckfrage_monat(typ, monate[-1][:4])

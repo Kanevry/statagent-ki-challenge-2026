@@ -403,20 +403,39 @@ def test_je_branche_im_satz(zwei_monate: Verbindung) -> None:
 @pytest.mark.parametrize(
     ("frage", "absage"),
     [
-        ("Beschäftigte von August bis September 2024 nach Geschlecht und Bundesland", "je Bundesland zeigt"),
-        ("Beschäftigte von August bis September 2024 je Geschlecht und Bundesland", "je Bundesland zeigt"),
         ("Beschäftigte von August bis September 2024 nach Geschlecht und Branche", "je Branche zeigt"),
-        (
-            "Beschäftigte von August bis September 2024 nach Geschlecht in den Bundesländern",
-            "je Bundesland zeigt",
-        ),
         ("Beschäftigte im August 2024 nach Geschlecht und Branche", "je Branche zeigt"),
         ("Beschäftigte im August 2024 nach Geschlecht pro Branche", "je Branche zeigt"),
+        # Über 6 Monate wäre die Tabelle zu lang: ehrliche Absage statt einer Teilmenge.
+        ("Männer und Frauen je Bundesland von Jänner bis Dezember 2024", "je Bundesland zeigt"),
     ],
 )
 def test_zweite_aufteilung_faellt_nicht_weg(zwei_monate: Verbindung, frage: str, absage: str) -> None:
     daten = uc4_antwort(zwei_monate, frage)
     assert not daten["zahlen"] and daten["text"].startswith(f"Männer und Frauen {absage} StatAgent")
+
+
+# Fängt (#207): Männer und Frauen je Bundesland über einen Zeitraum bekamen eine Absage statt der Zahlen. Je Monat
+# ergeben alle Bundesländer (mit „unbekannt“) und beide Geschlechter zusammen die Gesamtzahl des Monats.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte von August bis September 2024 nach Geschlecht und Bundesland",
+        "Beschäftigte von August bis September 2024 je Geschlecht und Bundesland",
+        "Beschäftigte von August bis September 2024 nach Geschlecht in den Bundesländern",
+    ],
+)
+def test_geschlecht_und_bundesland_ueber_zeitraum(zwei_monate: Verbindung, frage: str) -> None:
+    daten = uc4_antwort(zwei_monate, frage)
+    verstanden = "Verstanden: August 2024 bis September 2024, je Bundesland, je Geschlecht"
+    assert verstanden in daten["text"]
+    for monat in ("August 2024", "September 2024"):
+        gesamt = antwort_frage(zwei_monate, f"Beschäftigte im {monat}")["zahlen"][0]["wert"]
+        zeilen = [z for z in daten["zahlen"] if z["bezeichnung"].split(", ")[1] == monat]
+        assert {z["bezeichnung"].split(", ")[2] for z in zeilen} == {"Männer", "Frauen"}
+        # Je Bundesland und Geschlecht eine Zeile, keine doppelt.
+        assert len({z["bezeichnung"] for z in zeilen}) == len(zeilen) > 2
+        assert sum(z["wert"] for z in zeilen) == gesamt
 
 
 # Fängt (#207): ein genannter Wert nach „Geschlecht,“ ist eine Einschränkung; die Frage bekäme sonst die Absage
