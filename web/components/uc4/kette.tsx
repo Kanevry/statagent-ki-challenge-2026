@@ -454,10 +454,10 @@ function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcA
   const gezeigt = !nurErsterSatz && ersteZeile.length <= GANZ_BIS ? ersteZeile : kern;
   const mehr = text !== gezeigt.trim();
   // Der Monat ist angehalten: Karte 1 sagt das im Satz, sonst stünde es erst unter „Ganze Antwort“ (UI-Regie 06.11.).
-  const vorlaeufig = erste && gezeigt.endsWith(".") && antwort.zahlen.some((z) => antwort.belege[z.beleg]?.stand === "vorlaeufig");
+  const vorlaeufig = erste && !gezeigt.endsWith("…") && antwort.zahlen.some((z) => antwort.belege[z.beleg]?.stand === "vorlaeufig");
   return (
     <div className="flex flex-col gap-3" data-uc4-antwort="">
-      <p className={`${gezeigt.length >= LANG_AB ? "font-sans text-16" : "font-display text-20 font-medium"} text-ink text-pretty`}>{vorlaeufig ? `${gezeigt.slice(0, -1)}, vorläufig.` : gezeigt}</p>
+      <p className={`${gezeigt.length >= LANG_AB ? "font-sans text-16" : "font-display text-20 font-medium"} text-ink text-pretty`}>{vorlaeufig ? `${gezeigt.replace(/\.$/, "")}, vorläufig.` : gezeigt}</p>
       {!erste && belegeOben(antwort).map((beleg, i) => (
         <HerkunftChip
           key={`${beleg.quelle}-${i}`}
