@@ -201,7 +201,10 @@ export interface Uc4Einstellung {
   fragenOffen: boolean;
   /** Ruft eine Frage ein Modell auf? Nein: Modellwahl ausblenden, sie wirkt dann nicht. */
   mitModell: boolean;
-  /** Was man wählen darf: Online nicht freigegebene Anbieter stehen gar nicht erst zur Wahl (sonst Fehler 400). */
+  /**
+   * Was man wählen darf. Online nur freigegebene Anbieter (sonst Fehler 400) und kein Testbetrieb: Ein Klick zeigte der
+   * Jury eine erfundene Zahl (UI-Regie 06.11.). Der Server nimmt ihn weiter an, die Seite bietet ihn nur nicht an.
+   */
   modellwahl: readonly Modellwahl[];
 }
 
@@ -212,7 +215,9 @@ export function uc4Einstellung(umgebung: Umgebung = process.env): Uc4Einstellung
     kette,
     fragenOffen: fragenOffen(umgebung),
     mitModell: ketteMitModell(kette),
-    modellwahl: MODELLWAHL.filter((modell) => modellErlaubt(modell, umgebung)),
+    modellwahl: MODELLWAHL.filter(
+      (modell) => modellErlaubt(modell, umgebung) && !(umgebung.KIC_ONLINE === "1" && modell === "mock"),
+    ),
   };
 }
 

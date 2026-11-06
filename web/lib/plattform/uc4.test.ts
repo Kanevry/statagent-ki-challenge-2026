@@ -340,8 +340,9 @@ describe("POST /api/uc4/frage, Online-Stufe A", () => {
 
   it("uc4Einstellung bietet online nur an, was der Server annimmt", () => {
     // Fängt Mistral und Claude auf der öffentlichen Seite: wählbar, dann Fehler 400 (online gemessen 06.11.).
-    expect(uc4Einstellung({ KIC_ONLINE: "1", UC4_MODELLWAHL: "azure" }).modellwahl).toEqual(["azure", "mock"]);
-    expect(uc4Einstellung({ KIC_ONLINE: "1" }).modellwahl).toEqual(["mock"]);
+    // Und ohne Testbetrieb: Ein Klick zeigte der Jury eine erfundene Zahl (UI-Regie 06.11.).
+    expect(uc4Einstellung({ KIC_ONLINE: "1", UC4_MODELLWAHL: "azure" }).modellwahl).toEqual(["azure"]);
+    expect(uc4Einstellung({ KIC_ONLINE: "1" }).modellwahl).toEqual([]);
     expect(uc4Einstellung({}).modellwahl).toEqual(["azure", "mistral", "claude", "mock"]);
     for (const modell of uc4Einstellung({ KIC_ONLINE: "1", UC4_MODELLWAHL: "azure" }).modellwahl) {
       expect(modellErlaubt(modell, { KIC_ONLINE: "1", UC4_MODELLWAHL: "azure" })).toBe(true);

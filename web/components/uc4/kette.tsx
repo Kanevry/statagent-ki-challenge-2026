@@ -304,7 +304,8 @@ export function Kette({
             </ul>
           </div>
           {sprache && <Stimme konfiguration={sprache} />}
-          {mitModell && (
+          {/* Mit nur einem Anbieter gibt es nichts zu wählen; der Kopf der Seite nennt das Modell. */}
+          {mitModell && modellwahl.length > 1 && (
             <details className="font-sans text-14 text-slate">
               <summary className="inline-flex min-h-11 cursor-pointer items-center underline underline-offset-4">Modell wählen</summary>
               <fieldset className="mt-2 flex flex-wrap gap-x-5 gap-y-2" disabled={laeuft}>
