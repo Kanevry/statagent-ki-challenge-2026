@@ -396,7 +396,7 @@ def test_lagerei_gehoert_zum_verkehr(zwei_monate: Verbindung) -> None:
 
 def test_je_branche_im_satz(zwei_monate: Verbindung) -> None:
     daten = uc4_antwort(zwei_monate, "Männer und Frauen je Branche im August 2024")
-    assert daten["text"].startswith("Männer und Frauen je Branche zeigt StatAgent nicht auf einmal.")
+    assert daten["zahlen"] and "Unten stehen die Zahlen je Branche" in daten["text"]
 
 
 # Fängt (Blind-Runden, #186): die andere Richtung beim Anteil, in weiteren Formen.
