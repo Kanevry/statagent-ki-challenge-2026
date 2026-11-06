@@ -305,8 +305,8 @@ def test_kette_verschiedene_fragen_ergeben_verschiedenen_text() -> None:
     assert wien.text == (
         "Sie fragten nach Wien, Gesundheits- und Sozialwesen im Oktober 2025. StatAgent nennt dafür "
         "vorläufig 7.498 Beschäftigungsverhältnisse. Für Ihren nächsten Arzttermin in Wien heißt das: Wie "
-        "rasch Sie einen Termin bekommen und wie viel Zeit man für Sie hat, hängt auch davon ab, wie viele Menschen dort "
-        "arbeiten."
+        "rasch Sie einen Termin bekommen und wie viel Zeit man für Sie hat, hängt auch davon ab, wie viele "
+        "Menschen dort arbeiten."
     )
     assert alle.text == (
         "Sie fragten nach allen Branchen im Oktober 2025. StatAgent nennt dafür vorläufig 390.900 "
