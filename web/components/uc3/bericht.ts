@@ -311,7 +311,7 @@ export function sqlBerichtsliste(regelsatz = "v1"): string {
   ].join("\n");
 }
 
-function massgeblichCte(ausdruck: string): string {
+export function massgeblichCte(ausdruck: string): string {
   return [
     "WITH massgeblich AS (",
     massgeblichMit(ausdruck)

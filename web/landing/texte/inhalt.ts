@@ -261,7 +261,7 @@ export const DATENFEHLER = {
     "Beispiel vom 5. November 2026, nicht live: In dieser Datenbank ist noch keine Lieferung geprüft.",
   /** Hinweis, wenn die Datenbank mehr Treffer hat, als die Tabelle zeigt */
   auswahl: (gezeigt: number, gesamt: number) =>
-    `Gezeigt werden ${zahl(gezeigt)} von ${zahl(gesamt)} Auffälligkeiten, nicht erklärbare zuerst, dann die größten.`,
+    `Gezeigt werden ${zahl(gezeigt)} von ${zahl(gesamt)} Auffälligkeiten: was einen Monat anhält zuerst, dann nicht erklärbare, dann die größten.`,
   /** Aufklapper unter den ersten Zeilen (UI-Regie): weitere Auffälligkeiten, falls es welche gibt, und immer die Begriffe. */
   mehr: (weitere: number) => (weitere > 0 ? `${zahl(weitere)} weitere Auffälligkeiten und Begriffe` : "Begriffe"),
   /** Glossar zur Spalte Einstufung (Roast K9); die drei Stufen stammen aus der Qualitätsbericht-Vorlage der Aufgabe. */
@@ -272,6 +272,8 @@ export const DATENFEHLER = {
     begriff("Revisionsbedarf"),
   ],
   datenbank: "Live aus der Datenbank von StatAgent, Stand",
+  /** Weg zur ganzen Liste; steht nur bei Daten aus der Datenbank, die Beispieldaten haben keine Berichte dahinter. */
+  berichte: { text: "Alle Auffälligkeiten je Monat stehen in den Qualitätsberichten", href: "/uc3/berichte" },
 } as const;
 
 export const USE_CASES = {

@@ -1,10 +1,15 @@
 import postgres from "postgres";
+import { ersterSatz, massgeblichCte } from "@/components/uc3/bericht";
+import { titelUndMesswerte } from "@/components/uc3/lauf-detail";
+import { alltag } from "@/components/uc3/sprache";
 import { befundeAusFixture } from "./befunde-fixture";
 import { zahl, type Einstufung } from "./fakten";
 import type { BefundTabelle, BefundZeile } from "./typen";
 
 /**
- * Tabelle „Gefundene Datenfehler“: lesend aus meta.pruefung_treffer der UC3-Datenbank (UC3_DATABASE_URL).
+ * Tabelle „Gefundene Datenfehler“: lesend aus meta.pruefung_treffer der UC3-Datenbank (UC3_DATABASE_URL), nur die
+ * Treffer des maßgeblichen Laufs je Monat im Regelsatz v1. Damit steht hier dasselbe wie auf /uc3/berichte; über alle
+ * Läufe gezählt wären es 1.299 Zeilen, und abgebrochene Versuche sähen aus wie angehaltene Monate.
  * Ohne Datenbank, bei Timeout oder ohne Treffer: die 8 Befunde der Gegenrechnung als „Beispieldaten“.
  * Nur serverseitig importieren (postgres.js).
  */
@@ -14,6 +19,25 @@ const ZEITLIMIT_MS = 2_500;
 /** Verbindung steht, aber die Prüfung hat noch keine Treffer geschrieben: kein Defekt, nur noch kein Lauf. */
 class KeineTreffer extends Error {}
 const MAX_ZEILEN = 50;
+
+/** Die Startseite zeigt den Stand der Fachbeschreibung; v2 hat seinen eigenen Weg über /uc3?regelsatz=v2. */
+const REGELSATZ = "v1";
+
+const CTE = massgeblichCte("$1");
+const TREFFER = "FROM massgeblich m\nJOIN meta.pruefung_treffer t ON t.lauf_id = m.quelle_id AND t.anzahl > 0";
+
+// Fester Text aus diesem Modul, der Regelsatz geht als Parameter $1 hinein. Was den Monat anhält zuerst, dann nicht
+// Erklärbares, dann die größten; nicht Eingestuftes zuletzt.
+const SQL_ZEILEN = [
+  CTE,
+  "SELECT t.anzahl, t.umfang, t.einstufung, t.anhalten, m.lieferung, r.name, r.beschreibung, r.parameter->>'satz' AS satz",
+  TREFFER,
+  "LEFT JOIN meta.regel r ON r.id = t.regel_id",
+  "ORDER BY t.anhalten DESC NULLS LAST, (t.einstufung = 'nicht-erklaerbar') DESC NULLS LAST,",
+  `  (t.einstufung IS NULL), t.anzahl DESC, m.lieferung DESC LIMIT ${MAX_ZEILEN}`,
+].join("\n");
+
+const SQL_ANZAHL = [CTE, "SELECT count(*)::text AS anzahl", TREFFER].join("\n");
 
 const EINSTUFUNG_TEXT: Record<string, string> = {
   "erklaert-plausibel": "erklärt, plausibel",
@@ -25,21 +49,11 @@ interface TrefferRoh {
   anzahl: string | number;
   umfang: string | null;
   einstufung: string | null;
-  beleg_sql: string | null;
   anhalten: boolean;
-  /** Ganze Zeile aus meta.lauf und meta.regel als JSON, damit die Seite nicht an deren Spaltennamen hängt. */
-  lauf: Record<string, unknown> | null;
-  regel: Record<string, unknown> | null;
-}
-
-function text(o: Record<string, unknown> | null, ...schluessel: string[]): string | undefined {
-  if (!o) return undefined;
-  for (const k of schluessel) {
-    const v = o[k];
-    if (typeof v === "string" && v.trim()) return v.trim();
-    if (typeof v === "number") return String(v);
-  }
-  return undefined;
+  lieferung: string;
+  name: string | null;
+  beschreibung: string | null;
+  satz: string | null;
 }
 
 export function zeileAusTreffer(t: TrefferRoh): BefundZeile {
@@ -47,15 +61,19 @@ export function zeileAusTreffer(t: TrefferRoh): BefundZeile {
   // Ohne Einstufung gilt der Treffer als nicht eingestuft; in der Tabelle steht er wie „nicht erklärbar“ markiert.
   const einstufung = (bekannt ? t.einstufung : "nicht-erklaerbar") as Einstufung;
   const einstufungText = bekannt ? EINSTUFUNG_TEXT[t.einstufung as string] : "nicht eingestuft";
-  const beleg = t.beleg_sql?.split("\n").find((z) => z.trim())?.trim().slice(0, 80);
+  const anzahl = Number(t.anzahl);
+  // Klartext wie auf der Monatsseite, nie der Rohname der Regel und nie SQL: Belege gehören in den Qualitätsbericht.
+  // Nur der erste Satz: Folgesätze der Vorlagen meinen die Monatsseite („steht unten als Revisionsbedarf“).
+  const { titel } = titelUndMesswerte(
+    { name: t.name ?? "", beschreibung: t.beschreibung ?? "", satz: t.satz, anzahl, umfang: t.umfang },
+    t.lieferung,
+  );
   return {
-    befund:
-      text(t.regel, "name", "titel", "bezeichnung", "beschreibung", "kurz", "code") ?? "Prüfregel ohne Namen",
-    lieferung: text(t.lauf, "lieferung", "lieferung_id", "monat") ?? "unbekannt",
-    saetze: t.umfang?.trim() || zahl(Number(t.anzahl)),
+    befund: ersterSatz(alltag(titel)) || "Prüfung ohne Beschreibung",
+    lieferung: t.lieferung,
+    saetze: zahl(anzahl),
     einstufung,
-    einstufungText: t.anhalten ? `${einstufungText} · Lauf angehalten` : einstufungText,
-    beleg,
+    einstufungText: t.anhalten ? `${einstufungText} · hält den Monat an` : einstufungText,
   };
 }
 
@@ -64,19 +82,8 @@ async function ausDatenbank(url: string, stand: string): Promise<BefundTabelle> 
   try {
     const abfrage = (async () => {
       const [zeilen, [{ anzahl }]] = await Promise.all([
-        sql<TrefferRoh[]>`
-          select t.anzahl, t.umfang, t.einstufung, t.beleg_sql, t.anhalten,
-                 to_jsonb(l) as lauf, to_jsonb(r) as regel
-            from meta.pruefung_treffer t
-            left join meta.lauf l on l.id = t.lauf_id
-            left join meta.regel r on r.id = t.regel_id
-           -- Nur echte Funde (Jury-Kritik 05.11.: „P01 … 0 Zeilen · nicht eingestuft“ stand oben). Was den Lauf
-           -- anhält und nicht erklärbar ist zuerst, dann die größten; nicht Eingestuftes zuletzt.
-           where t.anzahl > 0
-           order by t.anhalten desc nulls last, (t.einstufung = 'nicht-erklaerbar') desc nulls last,
-                    (t.einstufung is null), t.anzahl desc
-           limit ${MAX_ZEILEN}`,
-        sql<{ anzahl: string }[]>`select count(*)::text as anzahl from meta.pruefung_treffer where anzahl > 0`,
+        sql.unsafe<TrefferRoh[]>(SQL_ZEILEN, [REGELSATZ]),
+        sql.unsafe<{ anzahl: string }[]>(SQL_ANZAHL, [REGELSATZ]),
       ]);
       return { zeilen, anzahl: Number(anzahl) };
     })();

@@ -32,22 +32,39 @@ describe("ladeBefunde", () => {
 });
 
 describe("zeileAusTreffer", () => {
-  it("liest Lieferung und Regelnamen aus den JSON-Zeilen und markiert fehlende Einstufung als nicht eingestuft", () => {
-    const z = zeileAusTreffer({
-      anzahl: "78949",
-      umfang: null,
-      einstufung: null,
-      beleg_sql: "\nselect count(*) from roh.lieferung",
-      anhalten: true,
-      lauf: { id: 7, lieferung: "2025-10" },
-      regel: { id: 3, name: "Bestandsrückgang über 5 %" },
-    });
-    expect(z).toMatchObject({
-      befund: "Bestandsrückgang über 5 %",
-      lieferung: "2025-10",
-      saetze: "78.949",
-      einstufungText: "nicht eingestuft · Lauf angehalten",
-      beleg: "select count(*) from roh.lieferung",
-    });
+  const roh = {
+    anzahl: "78949",
+    umfang: "Vormonat 78.949" as string | null,
+    einstufung: "erklaert-datenproblem" as string | null,
+    anhalten: true,
+    lieferung: "2025-10",
+    name: "P16_verhaeltnisse_verschwunden" as string | null,
+    beschreibung: "Roher Text der Regel." as string | null,
+    satz: null as string | null,
+  };
+
+  it("zeigt Klartext statt Rohname und keinen SQL-Beleg", () => {
+    const z = zeileAusTreffer(roh);
+    expect(z.befund).toBe("Beschäftigungsverhältnisse des Vormonats fehlen in der Lieferung.");
+    expect(z.befund).not.toContain("P16");
+    expect(z.beleg).toBeUndefined();
+    expect(z).toMatchObject({ lieferung: "2025-10", saetze: "78.949", einstufungText: "erklärt, Datenproblem · hält den Monat an" });
+  });
+
+  it("nimmt die Satzvorlage der Regel und schreibt den Monat aus", () => {
+    const z = zeileAusTreffer({ ...roh, satz: "Im {monat} fehlen {anzahl} Zeilen.", anhalten: false });
+    expect(z.befund).toBe("Im Oktober 2025 fehlen 78.949 Zeilen.");
+    expect(z.einstufungText).toBe("erklärt, Datenproblem");
+  });
+
+  it("zeigt nur den ersten Satz, Folgesätze meinen die Monatsseite", () => {
+    const z = zeileAusTreffer({ ...roh, satz: "Frühere Monate sehen anders aus. Das steht unten als Revisionsbedarf." });
+    expect(z.befund).toBe("Frühere Monate sehen anders aus.");
+  });
+
+  it("markiert eine fehlende Einstufung als nicht eingestuft", () => {
+    const z = zeileAusTreffer({ ...roh, einstufung: null, anhalten: false });
+    expect(z.einstufung).toBe("nicht-erklaerbar");
+    expect(z.einstufungText).toBe("nicht eingestuft");
   });
 });

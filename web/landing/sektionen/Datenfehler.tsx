@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Einstufung } from "../daten/fakten";
 import type { BefundTabelle, BefundZeile } from "../daten/typen";
 import { DATENFEHLER, monateLesbar } from "../texte/inhalt";
@@ -141,6 +142,11 @@ export default function Datenfehler({ tabelle }: { tabelle: BefundTabelle }) {
                 ))}
               </dl>
             </details>
+            {tabelle.quelle === "datenbank" && (
+              <p className={a.berichteWeg}>
+                <Link href={DATENFEHLER.berichte.href}>{DATENFEHLER.berichte.text}</Link>
+              </p>
+            )}
           </div>
         </Einblenden>
       </div>
