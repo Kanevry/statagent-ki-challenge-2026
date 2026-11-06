@@ -303,13 +303,13 @@ def test_kette_verschiedene_fragen_ergeben_verschiedenen_text() -> None:
     wien = uc4.router_adapter("Wien?", _kette_kontext(ZAHL_WIEN))
     alle = uc4.router_adapter("Oktober?", _kette_kontext())
     assert wien.text == (
-        "Sie fragten nach Wien, Gesundheits- und Sozialwesen im Oktober 2025. StatAgent nennt dafür 7.498 "
-        "Beschäftigungsverhältnisse. Für Ihren nächsten Arzttermin in Wien heißt das: Wie rasch Sie einen "
+        "Sie fragten nach Wien, Gesundheits- und Sozialwesen im Oktober 2025. StatAgent nennt dafür "
+        "vorläufig 7.498 Beschäftigungsverhältnisse. Für Ihren nächsten Arzttermin in Wien heißt das: Wie rasch Sie einen "
         "Termin bekommen und wie viel Zeit man für Sie hat, hängt auch davon ab, wie viele Menschen dort "
         "arbeiten."
     )
     assert alle.text == (
-        "Sie fragten nach allen Branchen im Oktober 2025. StatAgent nennt dafür 390.900 "
+        "Sie fragten nach allen Branchen im Oktober 2025. StatAgent nennt dafür vorläufig 390.900 "
         "Beschäftigungsverhältnisse. Für Ihren nächsten Arzttermin sagt diese Zahl allein wenig. Fragen Sie "
         "nach dem Gesundheits- und Sozialwesen, dann wird es konkreter."
     )
@@ -332,6 +332,47 @@ def test_kette_monat_nur_wenn_alle_zahlen_denselben_haben() -> None:
     assert text.startswith("Sie fragten nach Wien, Gesundheits- und Sozialwesen. ") and "2025" not in text
 
 
+def test_kette_sagt_was_die_runde_von_station_2_ergab() -> None:
+    """Fängt den Fund aus Audit b: `router_adapter` warf den Text von Station 2 weg, die Karte versprach aber
+    deren Antwort. Der Satz folgt der Einordnung, nicht einer festen Annahme."""
+    uc3, uc2 = _kette_kontext(ZAHL_WIEN)
+    zeile = "So stehen die Beteiligten zu den Themen: Mehr Personal in der Versorgung: {}; Geld: alle dafür."
+    for einordnung, satz in uc4.KETTE_SIMULATOR.items():
+        mit_runde = uc2.model_copy(update={"text": f"{uc2.text}\n{zeile.format(einordnung)}"})
+        assert uc4.router_adapter("Wien?", [uc3, mit_runde]).text.endswith(satz)
+
+
+def test_kette_ohne_runde_kein_satz_zum_simulator() -> None:
+    """Fängt eine Behauptung über eine Runde, die nie lief: Ohne Versorgung wägt Station 2 nicht ab."""
+    assert "Simulator" not in uc4.router_adapter("Oktober?", _kette_kontext()).text
+
+
+def test_kette_vorlaeufig_steht_nur_bei_vorlaeufiger_zahl() -> None:
+    """Fängt 390.900 ohne „vorläufig“ (Audit b): Bei StatAgent steht es erst unter „Ganze Antwort“."""
+    uc3, _ = _kette_kontext()
+    assert "nennt dafür vorläufig 390.900" in uc4.router_adapter("Oktober?", [uc3]).text
+    endgueltig = BELEG_UC3.model_copy(update={"stand": "endgueltig"})
+    uc3 = uc3.model_copy(update={"belege": [endgueltig]})
+    assert "nennt dafür 390.900" in uc4.router_adapter("Oktober?", [uc3]).text
+
+
+@pytest.mark.parametrize(
+    ("land", "wo", "gefragt"),
+    [
+        ("Steiermark", "in der Steiermark", "der Steiermark"),
+        ("Burgenland", "im Burgenland", "dem Burgenland"),
+        ("Tirol", "in Tirol", "Tirol"),
+    ],
+)
+def test_kette_laender_mit_artikel(land: str, wo: str, gefragt: str) -> None:
+    """Fängt „Arzttermin in Steiermark“ (Bank 06.11.)."""
+    zahl = ZAHL_WIEN.model_copy(
+        update={"bezeichnung": f"Beschäftigungsverhältnisse ({land}, Gesundheits- und Sozialwesen)"}
+    )
+    text = uc4.router_adapter("?", _kette_kontext(zahl)).text
+    assert f"Arzttermin {wo} heißt das:" in text and text.startswith(f"Sie fragten nach {gefragt},")
+
+
 def test_kette_prozent_steht_mit_ihrem_wort() -> None:
     """Fängt „StatAgent nennt dafür 6,2 %“: Ohne „Fluktuation“ sagt die Zahl nichts."""
     zahl = ZAHL_UC3.model_copy(
@@ -341,7 +382,10 @@ def test_kette_prozent_steht_mit_ihrem_wort() -> None:
             "einheit": "%",
         }
     )
-    assert "StatAgent nennt dafür Fluktuation 6,2 %." in uc4.router_adapter("?", _kette_kontext(zahl)).text
+    assert (
+        "StatAgent nennt dafür vorläufig Fluktuation 6,2 %."
+        in uc4.router_adapter("?", _kette_kontext(zahl)).text
+    )
 
 
 def test_kette_lotse_wiederholt_den_simulator_nicht() -> None:
@@ -420,7 +464,7 @@ def test_kette_paket_sagt_die_richtung_aus_dem_rechenmodell(wert: float, wirkung
     )
     text = uc4.router_adapter("Wartezeiten?", [uc3, uc2]).text
     assert wirkung in text and "22,24" not in text
-    assert "StatAgent nennt dafür 7.498 Beschäftigungsverhältnisse." in text
+    assert "StatAgent nennt dafür vorläufig 7.498 Beschäftigungsverhältnisse." in text
 
 
 def test_kette_zahl_von_uc3_und_uc2_steht_einmal() -> None:

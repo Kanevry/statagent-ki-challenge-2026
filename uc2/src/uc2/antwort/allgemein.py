@@ -117,6 +117,11 @@ _BUNDESLAENDER = frozenset(
     }
 )
 """Wie im Lotsen (`uc1.uc4`); UC2 importiert UC1 nicht."""
+_MIT_ARTIKEL = {
+    "Steiermark": ("In der Steiermark", "die Steiermark"),
+    "Burgenland": ("Im Burgenland", "das Burgenland"),
+}
+"""Die beiden Länder mit Artikel: „In Steiermark“ wäre falsch (Bank 06.11.)."""
 
 VORLAGE_OBEN = "Die Sätze zum Personal oben sind eine feste Vorlage, nicht von der KI geschrieben."
 """Steht im Text, wenn das Modell keinen brauchbaren Kernsatz lieferte. Die Karte erkennt die Vorlage an genau
@@ -149,12 +154,14 @@ class Bezug:
     monat: str | None
     zahl: str | None
     """Die Zahl mit ihrem Wort („7.498 Beschäftigungsverhältnisse“); `None` bei mehreren Zahlen."""
+    vorlaeufig: bool = False
+    """Der Monat ist noch nicht endgültig; das steht bei StatAgent und muss auch hier stehen."""
 
     @property
     def ort(self) -> str:
         """Gliederung als Text; ohne Branche zählt die Zahl alle Branchen, das gehört dazu."""
-        teile = list(self.teile)
-        if set(teile) <= _BUNDESLAENDER:
+        teile = [_MIT_ARTIKEL[t][1] if t in _MIT_ARTIKEL else t for t in self.teile]
+        if set(self.teile) <= _BUNDESLAENDER:
             teile.append("alle Branchen")
         return ", ".join(teile)
 
@@ -171,15 +178,13 @@ class Bezug:
         """Der Bezugssatz, den der Code schreibt; darin steht die Zahl. Nur hier, nie aus dem Modell."""
         wann = f" im {self.monat}" if self.monat else ""
         was = self.zahl or "mehrere Zahlen"
-        return f"Für {self.ort}{wann} nennt StatAgent {was}."
+        vorlaeufig = "vorläufig " if self.vorlaeufig else ""
+        return f"Für {self.ort}{wann} nennt StatAgent {vorlaeufig}{was}."
 
     @property
     def anker(self) -> tuple[str, ...]:
         """Wortstämme, von denen die Modellsätze einen nennen müssen, sonst passen sie zu jeder Frage. Der
-        Monat zählt nicht: „heißt kürzere Wartezeit im Oktober“ bleibt ein Lehrbuchsatz. Zählt die Zahl alle
-        Branchen, muss das dastehen."""
-        if set(self.teile) <= _BUNDESLAENDER:
-            return ("branch",)
+        Monat zählt nicht: „heißt kürzere Wartezeit im März“ bleibt ein Lehrbuchsatz."""
         return tuple(t.split()[0].rstrip("-,").casefold()[:6] for t in self.teile)
 
 
@@ -197,6 +202,7 @@ def bezug_aus(kontext_zahlen: list[dict[str, Any]]) -> Bezug | None:
         teile=tuple(gemeinsam),
         monat=monat_text(str(monat)) if monat else None,
         zahl=_zahl_mit_wort(uc3[0]) if len(uc3) == 1 else None,
+        vorlaeufig=any(z.get("stand") == "vorlaeufig" for z in uc3),
     )
 
 
@@ -213,25 +219,25 @@ def _zahl_mit_wort(zahl: dict[str, Any]) -> str:
 
 def feste_saetze(bezug: Bezug | None) -> dict[str, str]:
     """Kernsätze ohne Modell, wenn es keinen brauchbaren Text liefert oder die Frist um ist; mit Bezug passen
-    sie zur Frage: Für eine Zahl aus einer anderen Branche ist die Versorgung nicht das Thema."""
+    sie zur Frage. Nur für Zahlen aus der Versorgung: Sonst wägt der Simulator nicht ab (`ohne_abwaegung`)."""
     if bezug is None:
         return dict(zip(("mehr", "weniger"), FESTER_KERN, strict=True))
-    if not bezug.gesundheit:
-        wort = "sagt diese Zahl" if bezug.zahl else "sagen diese Zahlen"
-        return {
-            "mehr": (
-                f"Für Praxis und Spital {wort} allein wenig; mehr Personal dort heißt meist kürzere "
-                "Wartezeiten."
-            ),
-            "weniger": "Weniger Personal dort heißt meist längere Wartezeiten.",
-        }
-    ort = f"In {bezug.region}" if bezug.region else "Im Gesundheits- und Sozialwesen"
+    if bezug.region is None:
+        ort = "Im Gesundheits- und Sozialwesen"
+    else:
+        ort = _MIT_ARTIKEL.get(bezug.region, (f"In {bezug.region}",))[0]
     return {
         "mehr": f"{ort} heißt mehr Personal meist kürzere Wartezeiten und mehr Betreuung.",
         "weniger": (
             "Weniger Personal heißt dort meist längere Wartezeiten und mehr Druck auf die Beschäftigten."
         ),
     }
+
+
+def ohne_abwaegung(bezug: Bezug) -> str:
+    """Erste Zeile für eine Zahl, die nicht die Versorgung zählt: Ein Satz zu Wartezeiten passte nicht zur
+    Frage, und die Runde kostete Modellaufrufe für nichts."""
+    return f"{bezug.satz} Über die Versorgung sagt das allein wenig, darum wägt der Simulator hier nicht ab."
 
 
 def ausgangslage(kontext_zahlen: list[dict[str, Any]]) -> dict[str, Any]:
@@ -288,10 +294,6 @@ def kern_nachrichten(
             "etwa „In Wien heißt mehr Personal …“. Schreib die Angaben nicht als Liste davor. Monat und Jahr "
             "nennst du nicht. Ein Satz, der auch zu jeder anderen Frage passen würde, ist falsch. "
         )
-        if not bezug.gesundheit:
-            zum_bezug += (
-                f"Die Zahl gilt für {bezug.ort}, nicht für die Versorgung allein: Sag das in `mehr` zuerst. "
-            )
     text = (
         f"# Frage\n{frage}\n\n# "
         f"Ausgangslage\n{json.dumps(lage, ensure_ascii=False, indent=1, sort_keys=True)}\n\n"

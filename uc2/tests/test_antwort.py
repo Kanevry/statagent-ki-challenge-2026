@@ -17,6 +17,7 @@ from typing import Any
 import jsonschema
 import pytest
 from plattform.antwortform import SCHEMA_DATEI, UcAntwort, Zahl
+from plattform.antwortform import Beleg as AntwortBeleg
 from plattform.llm import BudgetErschoepft
 from plattform.router import durchreichen, mock_adapter
 
@@ -673,25 +674,78 @@ def _kontextzahl(bezeichnung: str, wert: float = 390900, einheit: str = "Anzahl"
     return {"bezeichnung": bezeichnung, "wert": wert, "einheit": einheit, "uc": "uc3", "monat": "2025-10"}
 
 
-def test_frage_ueber_alle_branchen_sagt_das_und_nennt_die_zahl() -> None:
-    """Fängt den Lehrbuchsatz zu „Wie viele Beschäftigte gab es im Oktober 2025?“: Die Zahl zählt alle
-    Branchen."""
-    bezug = bezug_aus([_kontextzahl("Beschäftigungsverhältnisse")])
-    assert bezug is not None
-    assert (
-        bezug.satz == "Für alle Branchen im Oktober 2025 nennt StatAgent 390.900 Beschäftigungsverhältnisse."
+def _uc3_zahl(bezeichnung: str, stand: str = "endgueltig") -> UcAntwort:
+    beleg = AntwortBeleg(
+        uc="uc3", quelle="stat.stat_beschaeftigte", lieferung="2025-10", monat="2025-10", stand=stand
     )
-    assert feste_saetze(bezug)["mehr"].startswith("Für Praxis und Spital sagt diese Zahl allein wenig;")
-    assert bezug.anker == ("branch",)
+    zahl = Zahl(bezeichnung=bezeichnung, wert=390900, einheit="Anzahl", beleg=0)
+    return UcAntwort(text="Zahl.", belege=[beleg], zahlen=[zahl], uc="uc3", modell=None)
+
+
+@pytest.mark.parametrize(
+    ("bezeichnung", "stand", "erste"),
+    [
+        (
+            "Beschäftigungsverhältnisse",
+            "vorlaeufig",
+            "Für alle Branchen im Oktober 2025 nennt StatAgent vorläufig 390.900 Beschäftigungsverhältnisse.",
+        ),
+        (
+            "Beschäftigungsverhältnisse (Bau)",
+            "endgueltig",
+            "Für Bau im Oktober 2025 nennt StatAgent 390.900 Beschäftigungsverhältnisse.",
+        ),
+    ],
+    ids=["alle-branchen-vorlaeufig", "andere-branche"],
+)
+def test_zahl_ohne_versorgung_wird_abgefangen(
+    monkeypatch: pytest.MonkeyPatch, bezeichnung: str, stand: str, erste: str
+) -> None:
+    """Fängt den Wartezeit-Satz zu einer Frage, die nichts mit der Versorgung zu tun hat (Lead 06.11.).
+    Geworfen statt gezählt: Eine Runde hieße Modellaufrufe für nichts."""
+
+    def keine_runde(**kw: Any) -> Any:
+        raise AssertionError("Runde gestartet")
+
+    monkeypatch.setattr(adapter_modul, "kurzverhandlung", keine_runde)
+    a = antwort("Wie viele?", [_uc3_zahl(bezeichnung, stand)], provider="azure", quelle=FixtureQuelle())
+    zeile = a.text.splitlines()[0]
+    assert (
+        zeile == f"{erste} Über die Versorgung sagt das allein wenig, darum wägt der Simulator hier nicht ab."
+    )
+    assert "Wartezeit" not in a.text and a.modell is None and a.zahlen[0].wert == 390900
+
+
+@pytest.mark.parametrize(
+    ("land", "fuer", "anfang"),
+    [
+        ("Steiermark", "Für die Steiermark,", "In der Steiermark heißt"),
+        ("Burgenland", "Für das Burgenland,", "Im Burgenland heißt"),
+        ("Tirol", "Für Tirol,", "In Tirol heißt"),
+    ],
+)
+def test_laender_mit_artikel(land: str, fuer: str, anfang: str) -> None:
+    """Fängt „In Steiermark heißt …“ (Bank 06.11.)."""
+    bezug = bezug_aus([_kontextzahl(f"Beschäftigte ({land}, Gesundheits- und Sozialwesen)")])
+    assert bezug is not None
+    assert bezug.satz.startswith(fuer) and feste_saetze(bezug)["mehr"].startswith(anfang)
+
+
+def test_vorlaeufig_steht_auch_im_bezug_mit_abwaegung() -> None:
+    """Fängt 7.498 ohne „vorläufig“ auf Karte 2, wenn StatAgent die Zahl vorläufig nennt."""
+    bezug = bezug_aus(
+        [{**_kontextzahl("Beschäftigte (Wien, Gesundheits- und Sozialwesen)", 7498), "stand": "vorlaeufig"}]
+    )
+    assert bezug is not None and "nennt StatAgent vorläufig 7.498 Beschäftigte." in bezug.satz
 
 
 def test_monat_angehaengt_ist_kein_bezug_zur_frage() -> None:
-    """Fängt den echten Modellsatz vom 06.11.: „Mehr Personal heißt meist kürzere Wartezeit im Oktober.“"""
-    bezug = bezug_aus([_kontextzahl("Beschäftigungsverhältnisse")])
+    """Fängt einen echten Modellsatz vom 06.11.: Der Monat steht nur dabei, sonst passt er zu jeder Frage."""
+    bezug = bezug_aus([_kontextzahl("Beschäftigte (Wien, Gesundheits- und Sozialwesen)")])
     weniger = "Weniger Personal heißt meist längere Wartezeit."
     angehaengt = {"mehr": "Mehr Personal heißt kürzere Wartezeit im Oktober.", "weniger": weniger}
     assert kern_text(angehaengt, bezug) is None
-    mehr = "Die Zahl zählt alle Branchen; mehr Personal in Praxen heißt kürzere Wartezeit."
+    mehr = "Im Gesundheitswesen heißt mehr Personal in Praxen kürzere Wartezeit."
     assert kern_text({"mehr": mehr, "weniger": weniger}, bezug) == f"{mehr} {weniger}"
 
 
@@ -807,7 +861,7 @@ def test_feste_kernsaetze_und_prompt_sagen_nichts_ueber_geld() -> None:
     """Fängt den Widerspruch zur Lotsen-Karte: Über Beiträge oder Kosten gibt es ohne Rechenmodell keinen
     Beleg."""
     assert kern_text(dict(zip(("mehr", "weniger"), FESTER_KERN, strict=True))) == " ".join(FESTER_KERN)
-    bezug = bezug_aus([{"bezeichnung": "Beschäftigte (Bau)", "wert": 5, "einheit": "Anzahl", "uc": "uc3"}])
+    bezug = bezug_aus([_kontextzahl("Beschäftigte (Wien, Gesundheits- und Sozialwesen)")])
     assert not _GELD.search(" ".join(feste_saetze(bezug).values()))
 
 

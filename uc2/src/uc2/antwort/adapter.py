@@ -500,6 +500,16 @@ def _antwort(
     s = _Sammlung()
     kontextzahlen = _kontextzahlen(kontext, s)
     kontext_prompt = _kontext_fuer_prompt(kontextzahlen)
+    bezug = allgemein.bezug_aus(kontext_prompt)
+    if fall is None and bezug is not None and not bezug.gesundheit:
+        # Zählt die Zahl nicht die Versorgung, gibt es nichts abzuwägen: keine Runde, kein Modell.
+        zeilen = [allgemein.ohne_abwaegung(bezug), _ausgangslage(kontextzahlen)]
+        text = "\n".join(_ohne_entfernte_zahl(bereinige(z, s.zahlen)) for z in zeilen)
+        if frei := freie_zahlen(text, s.zahlen):
+            raise FreieZahl(f"Zahl ohne Eintrag in zahlen: {', '.join(frei)}")
+        return UcAntwort(
+            text=text, belege=s.belege, zahlen=s.zahlen, uc="uc2", modell=None, protokoll_id=None
+        )
     # Kontextzahlen gelten im Kurzlauf als vorgegeben: Mit Quelle `experte` sind sie kein Widerspruch.
     werte = {float(z.wert) for z, _ in kontextzahlen}
 
@@ -542,7 +552,6 @@ def _antwort(
         raise AntwortFehler(f"Panel: {fehler}") from fehler
 
     beispiel = isinstance(quelle, FixtureQuelle)
-    bezug = allgemein.bezug_aus(kontext_prompt)
     einleitung = _einleitung(ergebnis, vorlage_oben=not ez and ergebnis.kern is None)
     zeilen = [_kernzeile(ergebnis, ez, bezug), _ausgangslage(kontextzahlen), einleitung]
     if voll is not None:
