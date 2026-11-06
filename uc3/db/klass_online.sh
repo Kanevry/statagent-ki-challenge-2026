@@ -4,8 +4,9 @@
 # Gemeinden und Bezirke. Keine Rohdaten, keine Läufe, keine Zählung, kein Regelstand; nur öffentliche Nachschlagedaten.
 #
 #   uc3/db/klass_online.sh [--container NAME] QUELLE ZIELORDNER      Quelle im Docker-Container
-#   uc3/db/klass_online.sh --url ADRESSE QUELLE ZIELORDNER            Quelle über psql, ADRESSE ohne Datenbanknamen
-#                                                                     (postgres://nutzer:passwort@rechner:port)
+#   uc3/db/klass_online.sh --url ADRESSE QUELLE ZIELORDNER            Quelle über psql, ADRESSE ohne Datenbanknamen und
+#                                                                     ohne Passwort (postgres://nutzer@rechner:port), das
+#                                                                     Passwort kommt aus PGPASSWORD (nicht in die Prozessliste)
 #
 # QUELLE (eine Datenbank mit geladenen Klassifikationen) wird nur gelesen. Sie entsteht auch ohne Rechen-Datenbank aus dem
 # Startpaket: leere Datenbank anlegen, dann statagent.db.schema_einrichten. Ergebnis, gleich bei gleichen Daten:
@@ -19,6 +20,10 @@ container=statagent-db
 url=""
 if [[ ${1:-} == --container ]]; then container=${2:?--container braucht einen Namen}; shift 2; fi
 if [[ ${1:-} == --url ]]; then url=${2:?--url braucht eine Adresse}; shift 2; fi
+if [[ $url =~ ://[^/@]*:[^/@]*@ ]]; then
+  echo "klass_online: die Adresse darf kein Passwort enthalten, es kommt aus PGPASSWORD" >&2
+  exit 2
+fi
 quelle=${1:?QUELLE fehlt}
 ziel=${2:?ZIELORDNER fehlt}
 [[ $quelle =~ ^[a-z][a-z0-9_]{0,62}$ ]] || { echo "ungültiger Name: $quelle" >&2; exit 2; }

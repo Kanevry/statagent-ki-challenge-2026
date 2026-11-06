@@ -139,6 +139,8 @@ export interface UebergangZeile {
   version_neu: string;
   code_neu: string;
   name_neu: string | null;
+  /** Ab wann die Änderung gilt; kann mitten im Jahr liegen, der Stand danach beginnt immer am 1. Jänner. */
+  gueltig_ab: string;
 }
 
 const LISTE_MAX = 3;
@@ -155,7 +157,7 @@ function benannt(name: string | null, code: string): string {
 
 function nachDatum(zeilen: readonly UebergangZeile[]): UebergangZeile[][] {
   const gruppen = new Map<string, UebergangZeile[]>();
-  for (const z of zeilen) gruppen.set(z.version_neu, [...(gruppen.get(z.version_neu) ?? []), z]);
+  for (const z of zeilen) gruppen.set(z.gueltig_ab, [...(gruppen.get(z.gueltig_ab) ?? []), z]);
   return [...gruppen.keys()].sort().map((d) => gruppen.get(d)!);
 }
 
@@ -163,7 +165,7 @@ function nachDatum(zeilen: readonly UebergangZeile[]): UebergangZeile[][] {
 export function regionSaetze(code: string, stand: string, zeilen: readonly UebergangZeile[]): string[] {
   const saetze: string[] = [];
   for (const gruppe of nachDatum(zeilen)) {
-    const datum = standName(gruppe[0]!.version_neu);
+    const datum = standName(gruppe[0]!.gueltig_ab);
     const vorher = gruppe.filter((z) => z.code_neu === code && z.version_neu <= stand);
     const danach = gruppe.filter((z) => z.code_alt === code && z.version_alt >= stand);
     if (vorher.length > 1) {
@@ -234,7 +236,7 @@ async function aenderungen(sql: Sql, art: Art, fassung: string, zeilen: readonly
     const codes = zeilen.filter((z) => String(z.ebene) === "5").map((z) => z.code);
     if (codes.length === 0) return ergebnis;
     const roh = await sql<UebergangZeile[]>`
-      SELECT u.version_alt, u.code_alt, a.bezeichnung AS name_alt, u.version_neu, u.code_neu, n.bezeichnung AS name_neu
+      SELECT u.version_alt, u.code_alt, a.bezeichnung AS name_alt, u.version_neu, u.code_neu, n.bezeichnung AS name_neu, u.gueltig_ab::text AS gueltig_ab
       FROM stat.uebergang u
       LEFT JOIN stat.klass_oenace a ON a.version = u.version_alt AND a.code = u.code_alt
       LEFT JOIN stat.klass_oenace n ON n.version = u.version_neu AND n.code = u.code_neu
@@ -250,7 +252,7 @@ async function aenderungen(sql: Sql, art: Art, fassung: string, zeilen: readonly
   const codes = zeilen.filter((z) => z.ebene === "bezirk" || z.ebene === "gemeinde").map((z) => z.code);
   if (codes.length === 0) return ergebnis;
   const roh = await sql<UebergangZeile[]>`
-    SELECT u.version_alt, u.code_alt, a.bezeichnung AS name_alt, u.version_neu, u.code_neu, n.bezeichnung AS name_neu
+    SELECT u.version_alt, u.code_alt, a.bezeichnung AS name_alt, u.version_neu, u.code_neu, n.bezeichnung AS name_neu, u.gueltig_ab::text AS gueltig_ab
     FROM stat.uebergang u
     LEFT JOIN stat.klass_region a ON a.version = u.version_alt AND a.code = u.code_alt
     LEFT JOIN stat.klass_region n ON n.version = u.version_neu AND n.code = u.code_neu

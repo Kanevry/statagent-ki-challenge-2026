@@ -108,6 +108,11 @@ def _bundesland_9(conn: Verbindung) -> str:
         ("Gemeindecode 90001.", ["90001"]),
         ("Bezirk 101", ["101"]),
         ("Bezirkscode 101", ["101"]),
+        ("Beschäftigte in ÖNACE C 10,11 im März 2025", ["C 10.11"]),
+        ("ÖNACE C-10", ["C 10"]),
+        ("ÖNACE C 1", ["C 1"]),
+        ("ÖNACE C 101", ["C 101"]),
+        ("ÖNACE C 10.111", ["C 10.111"]),
         # Kein Code:
         ("10.11", []),
         ("10", []),
@@ -120,6 +125,11 @@ def _bundesland_9(conn: Verbindung) -> str:
         ("10 Personen", []),
         ("ÖNACE 10 Personen", []),
         ("ÖNACE C", []),
+        ("ÖNACE C 2025", []),
+        ("ÖNACE C 10.11.2025", []),
+        ("ÖNACE C 03/2025", []),
+        ("ÖNACE C 1. März 2025", []),
+        ("ÖNACE C 3 Monate", []),
         ("Was ist ÖNACE C?", []),
         ("ÖNACE 2008", []),
         ("Was ist Regel E07?", []),
@@ -182,8 +192,9 @@ def test_gemeinde_ist_keine_kennung(tief: Verbindung) -> None:
     text = daten["text"]
     assert "Einzeldaten" not in text
     assert "Der Code 90001 ist eine Gemeinde und heißt „Neudorf“." in text
-    assert "Den Code gibt es seit Jänner 2011." in text
-    assert "Von Jänner 2011 bis Dezember 2011: „Altdorf“." in text
+    assert "In den Listen steht der Code seit Jänner 2011." in text
+    assert "In den Listen von Jänner 2011: „Altdorf“." in text
+    assert "Neuer Name seit Jänner 2012." in text
     assert f"gehört zu: Bezirk Erfundener Bezirk (101), Bundesland {_bundesland_9(tief)} (9)." in text
     assert text.count("gehört zu") == 1  # beide Stände haben denselben Pfad
     assert "Die Statistik zählt nach Bundesland, nicht nach Gemeinde." in text
@@ -418,3 +429,27 @@ def test_einordnung_ist_keine_zahlenfrage(tief: Verbindung, frage: str) -> None:
 def test_regelcode_mit_leerzeichen_ist_kein_oenace_code(tief: Verbindung, frage: str) -> None:
     """Fängt: „Regel E 07“ bekam „Den Code E 07 gibt es in der ÖNACE nicht“."""
     assert frage_klass.tiefer_code_antwort(tief, frage) is None
+
+
+@pytest.mark.parametrize(
+    "frage", ["Wie viele Gemeinden gab es im Juli 2026?", "Wie viele Gemeinden gibt es im März?"]
+)
+def test_monat_ist_kein_unbekannter_ort(tief: Verbindung, frage: str) -> None:
+    """Fängt „„2026“ kenne ich nicht“: Der Monat ist keine Ortsangabe."""
+    assert "kenne ich nicht" not in antwort_frage(tief, frage)["text"]
+
+
+def test_unbekannter_ort_nennt_das_wort_selbst(tief: Verbindung) -> None:
+    """Fängt „„insgesamt“ kenne ich nicht“: Früher kamen einfach die letzten Wörter der Frage."""
+    text = antwort_frage(tief, "Wie viele Gemeinden hat Bayern insgesamt?")["text"]
+    assert "„Bayern“ kenne ich nicht" in text
+
+
+@pytest.mark.parametrize(
+    "frage", ["Beschäftigte in ÖNACE C 10,11 im März 2025", "Beschäftigte in ÖNACE C 1 im März 2025"]
+)
+def test_kein_stilles_ausweichen_auf_abschnitt_c(tief: Verbindung, frage: str) -> None:
+    """Fängt den Kernfehler des MR in anderer Schreibweise: Komma oder eine Ziffer ergaben still die Zahl von C."""
+    daten = antwort_frage(tief, frage)
+    assert daten["zahlen"] == []
+    assert "Die Statistik zählt nach Abschnitt und Bundesland" in daten["text"]

@@ -39,7 +39,7 @@ from statagent.frage import (
     monate_lesen,
     nicht_auswertbar,
 )
-from statagent.zeitraum import monat_anzeige
+from statagent.zeitraum import MONATSNAMEN, monat_anzeige
 
 OENACE, BEZIRK, GEMEINDE = "oenace", "bezirk", "gemeinde"
 #: So viele Stände und Übergänge nennt eine Antwort, der Rest steht als „und N weitere“ da.
@@ -52,11 +52,21 @@ _ENDE = r"(?![\w%]|[.,/-]\d)"
 _KEINE_MENGE = r"(?!\s*%)(?!\s*(?:prozent|personen|leute|menschen|mal|euro|jahre|jahren|monate|monaten|tage|tagen|uhr)\b)"
 _MIT_PUNKT = r"\d{2}(?:\.\d(?!\d)|\.\d{2}(?:-\d)?)"
 _NUMMER = rf"(?:{_MIT_PUNKT}|\d{{2}})"
+#: Nach dem Wort ÖNACE ist auch das Dezimalkomma gemeint: „ÖNACE C 10,11“.
+_NUMMER_WORT = r"(?:\d{2}(?:[.,]\d(?!\d)|[.,]\d{2}(?:-\d)?)|\d{2})"
+#: Kein Code hinter „ÖNACE C“: Jahr, Datum, Monat und Jahr, Tag und Monatsname.
+_KEIN_DATUM = (
+    r"(?!(?:19|20)\d{2}(?!\d))(?!\d{1,2}[./]\d{1,2}[./]\d{2,4})(?!\d{1,2}[./](?:19|20)\d{2})"
+    r"(?!\d{1,2}\.?\s*(?:jän|jaen|jan|feb|mär|maer|mrz|apr|mai|jun|jul|aug|sep|okt|nov|dez))"
+)
 _OENACE_CODE = re.compile(
     # Nach dem Wort darf die Zahl allein stehen („oenace 10.11“), auch mit Fassung („ÖNACE 2025 C 10“).
     r"(?<!\w)(?:önace|oenace|nace)(?:[\s-]+(?:19|20)\d{2})?[\s:-]*"
     r"(?:(?:abschnitt|abteilung|gruppe|klasse|unterklasse|code|kode)[\s:-]*)?"
-    rf"(?P<buchstabe_1>[a-z]?)\s*(?P<nummer_1>{_NUMMER}){_ENDE}{_KEINE_MENGE}"
+    rf"(?P<buchstabe_1>[a-z]?)[\s-]*(?P<nummer_1>{_NUMMER_WORT}){_ENDE}{_KEINE_MENGE}"
+    # Nach „ÖNACE C“ ist jede andere Ziffernfolge ein Code, den es nicht gibt („C 1“, „C 101“), nie still Abschnitt C.
+    r"|(?<!\w)(?:önace|oenace|nace)(?:[\s-]+(?:19|20)\d{2})?[\s:-]*"
+    rf"(?P<buchstabe_5>[a-z])[\s-]*{_KEIN_DATUM}(?P<nummer_5>\d+(?:[.,-]\d+)*){_ENDE}{_KEINE_MENGE}"
     # Ohne das Wort braucht die Zahl einen Buchstaben davor; ohne Leerzeichen nur mit Punkt, denn E07, A13 und R10
     # sind hier Regeln, Annahmen und Rückfragen ...
     rf"|(?<![\w.,/-])(?P<buchstabe_2>[a-z])(?:\s(?P<nummer_2>{_NUMMER})|(?P<nummer_4>{_MIT_PUNKT})){_ENDE}{_KEINE_MENGE}"
@@ -106,8 +116,14 @@ def codes_erkennen(frage: str) -> list[TieferCode]:
     gefunden: list[TieferCode] = []
     for treffer in _OENACE_CODE.finditer(text):
         werte = treffer.groupdict()
-        nummer = werte["nummer_1"] or werte["nummer_2"] or werte["nummer_3"] or werte["nummer_4"]
-        buchstabe = (werte["buchstabe_1"] or werte["buchstabe_2"] or "").upper()
+        nummer = (
+            werte["nummer_1"]
+            or werte["nummer_2"]
+            or werte["nummer_3"]
+            or werte["nummer_4"]
+            or werte["nummer_5"]
+        ).replace(",", ".")
+        buchstabe = (werte["buchstabe_1"] or werte["buchstabe_2"] or werte["buchstabe_5"] or "").upper()
         code = f"{buchstabe} {nummer}" if buchstabe else nummer
         gefunden.append(TieferCode(OENACE, code, treffer.start(), treffer.end()))
     for treffer in _REGION_CODE.finditer(text):
@@ -360,10 +376,10 @@ def _liste_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
         satz = f"{name} hat {klass._deutsch(anzahl_g)} Gemeinden {klammer}.{gleich} Alle stehen auf der Seite Klassifikationen."
         return antwort(satz, f"Gemeinden in {land['bezeichnung']}: {klass._deutsch(anzahl_g)}")
     # Bleibt ein Wort übrig, ist ein Ort gemeint, den es nicht gibt: nicht still die Summe von Österreich nennen.
-    woerter = re.findall(r"[^\W\d_][\w.-]*", frage.lower())
-    unbekannt = [w for w in woerter if w not in _FUELLWOERTER]
+    woerter = re.findall(r"[^\W\d_][\w.-]*", frage)
+    unbekannt = [w for w in woerter if w.lower() not in _FUELLWOERTER and w.lower() not in MONATSNAMEN]
     if unbekannt:
-        ort_wort = " ".join(frage.split()[-len(unbekannt) :]).rstrip("?!. ")
+        ort_wort = " ".join(unbekannt)
         satz = (
             f"„{ort_wort}“ kenne ich nicht als Bundesland oder Bezirk. "
             "Fragen Sie zum Beispiel: „Welche Bezirke hat Tirol?“"
@@ -557,6 +573,12 @@ def _region_uebergaenge(daten: dict[str, Any]) -> list[str]:
         datum = _monat(ab)
         herein = [u for u in gruppe if u["code_neu"] == code and u["code_alt"] != code]
         hinaus = [u for u in gruppe if u["code_alt"] == code and u["code_neu"] != code]
+        if any(
+            u["code_alt"] == u["code_neu"] == code
+            and u["bezeichnung_neu"] not in (None, u["bezeichnung_alt"])
+            for u in gruppe
+        ):
+            saetze.append(f"Neuer Name seit {datum}.")
         if len(herein) > 1:
             namen = _liste(
                 [_genannt(region_name(u["bezeichnung_alt"]), u["code_alt"]) for u in herein], "weiteren"
@@ -628,6 +650,12 @@ def _oenace_text(tief: TieferCode, daten: dict[str, Any]) -> str:
     return " ".join(saetze)
 
 
+def _listen_zeit(von: Any, bis: Any) -> str:
+    """Stände statt Kalender: Der Stand 1. Jänner 2024 gilt bis Jahresende, die Änderung kann mitten im Jahr liegen."""
+    letzter = monat_anzeige(f"{bis.year:04d}-01")
+    return f"von {_monat(von)} bis {letzter}" if von.year != bis.year else f"von {letzter}"
+
+
 def _gezeigter_pfad(raum: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         {**p, "bezeichnung": region_name(p["bezeichnung"])} for p in raum["pfad"] if p["ebene"] != "staat"
@@ -652,10 +680,10 @@ def _region_text(tief: TieferCode, daten: dict[str, Any]) -> str:
     seit = f"Seit {_monat(raeume[0]['gueltig_von'])} "
     if not jetzt:
         saetze.append(
-            f"Den Code gab es von {_monat(raeume[0]['gueltig_von'])} bis {_monat(letzter['gueltig_bis'])}."
+            f"In den Listen stand der Code {_listen_zeit(raeume[0]['gueltig_von'], letzter['gueltig_bis'])}."
         )
     elif not any(a.startswith(seit) for a in aenderungen):  # sonst stünde dasselbe Datum zweimal da
-        saetze.append(f"Den Code gibt es seit {_monat(raeume[0]['gueltig_von'])}.")
+        saetze.append(f"In den Listen steht der Code seit {_monat(raeume[0]['gueltig_von'])}.")
     frueher = raeume[:-1]
     nachher_pfad = _pfad_codes(pfad)
     teile: list[str] = []
@@ -665,7 +693,7 @@ def _region_text(tief: TieferCode, daten: dict[str, Any]) -> str:
         nachher_pfad = _pfad_codes(oben)
         teile.insert(
             0,
-            f"Von {_monat(r['gueltig_von'])} bis {_monat(r['gueltig_bis'])}: "
+            f"In den Listen {_listen_zeit(r['gueltig_von'], r['gueltig_bis'])}: "
             f"„{region_name(r['bezeichnung'])}“{zu}.",
         )
     if len(frueher) > HOECHSTENS - 1:

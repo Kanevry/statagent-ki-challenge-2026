@@ -19,6 +19,7 @@ function zeile(teil: Partial<UebergangZeile>): UebergangZeile {
     version_neu: "2015-01-01",
     code_neu: "60345",
     name_neu: "Gleisdorf",
+    gueltig_ab: "2015-01-01",
     ...teil,
   };
 }
@@ -97,6 +98,20 @@ describe("regionSaetze", () => {
     const code = zeile({ name_alt: "Gleisdorf", name_neu: "Gleisdorf" });
     expect(regionSaetze("60345", stand2026, [code])).toEqual(["Seit 1. Jänner 2015 mit diesem Code, davor (60301)."]);
     expect(regionSaetze("60301", "2014-01-01", [code])).toEqual(["Ab 1. Jänner 2015 mit neuem Code (60345)."]);
+  });
+
+  it("nimmt das Datum der Änderung, nicht den Beginn des nächsten Stands", () => {
+    const lenzing = zeile({
+      version_alt: "2024-01-01",
+      version_neu: "2025-01-01",
+      code_alt: "41713",
+      code_neu: "41713",
+      name_alt: "Lenzing",
+      name_neu: "Lenzing an der Ager",
+      gueltig_ab: "2024-11-28",
+    });
+    expect(regionSaetze("41713", stand2026, [lenzing])).toEqual(["Seit 28. November 2024 unter diesem Namen, davor Lenzing."]);
+    expect(regionSaetze("41713", "2024-01-01", [lenzing])).toEqual(["Ab 28. November 2024 mit neuem Namen: Lenzing an der Ager."]);
   });
 
   it("kürzt lange Listen", () => {
