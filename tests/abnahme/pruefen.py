@@ -236,6 +236,10 @@ def db_umgebung(datei: Path) -> str:
         if teile.port != PRUEF_DB_PORT or teile.hostname not in ("localhost", "127.0.0.1"):
             return f"{name} zeigt nicht auf die lokale Prüf-DB (Port {PRUEF_DB_PORT})"
         UMGEBUNG[name] = wert
+        if name == "UC3_DATABASE_URL":
+            # Die Test-Fixtures von uc3 legen sich eine eigene DB an und fallen sonst auf den Bau-Port zurück:
+            # auf einem Rechner ohne Bau-DB werden die Tests still übersprungen, sonst treffen sie die Bau-DB.
+            UMGEBUNG["UC3_TEST_ADMIN_URL"] = teile._replace(path="/postgres").geturl()
     UMGEBUNG.pop("PGHOST", None)
     UMGEBUNG["PGPORT"] = str(PRUEF_DB_PORT)
     UMGEBUNG["DB_PORT"] = str(PRUEF_DB_PORT)

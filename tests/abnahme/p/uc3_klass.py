@@ -51,7 +51,8 @@ def oenace(conn: psycopg.Connection) -> int:
             ).fetchall()
         }
         print(f"antijoin_quelle_nicht_db_{version} {sum(1 for c in soll if c not in ist)}")
-        print(f"antijoin_db_nicht_quelle_{version} {sum(1 for c in ist if c not in soll)}")
+        nur_db = sorted(c for c in ist if c not in soll)
+        print(f"antijoin_db_nicht_quelle_{version} {len(nur_db)} {','.join(nur_db[:5])}".rstrip())
         print(f"ebene_abweichend_{version} {sum(1 for c, e in soll.items() if c in ist and ist[c] != e)}")
         waisen = conn.execute(
             """with recursive kette as (
@@ -66,12 +67,12 @@ def oenace(conn: psycopg.Connection) -> int:
         ).fetchone()
         print(f"fuenfsteller_{version} {waisen[1]}")
         print(f"fuenfsteller_ohne_abschnitt_{version} {waisen[0]}")
-    for alt, neu in (("2003", "2008"), ("2008", "2025")):
+    for alt, neu, klasse in (("2003", "2008", "oenace"), ("2008", "2025", "oenace_unterklasse")):
         zeilen = conn.execute(
             """select beziehung, count(*) from stat.uebergang
-               where version_alt = %s and version_neu = %s and klassifikation like 'oenace%%'
+               where version_alt = %s and version_neu = %s and klassifikation = %s
                group by 1 order by 1""",
-            (alt, neu),
+            (alt, neu, klasse),
         ).fetchall()
         print(f"uebergang_{alt}_{neu} {sum(n for _, n in zeilen)} " + " ".join(f"{b}={n}" for b, n in zeilen))
     datei = quelle / "OENACE2008_OENACE2025_DE_12B.txt"
