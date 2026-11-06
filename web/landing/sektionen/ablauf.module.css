@@ -1,0 +1,99 @@
+/* Seite „Ablauf“: eine ruhige Spalte in Fließtext-Breite auf Papier. Tokens aus seite.module.css. */
+.ablauf {
+  max-width: 1440px;
+  margin-inline: auto;
+  padding: calc(var(--l-nav-h) + 64px) var(--l-rand) 96px;
+}
+
+.ablauf > * {
+  max-width: 68ch;
+}
+
+.titel {
+  margin: 0;
+  font-family: var(--l-display);
+  font-size: clamp(32px, 3.2vw, 44px);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: var(--l-ink);
+}
+
+.satz {
+  margin: 16px 0 0;
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--l-ink);
+  text-wrap: pretty;
+}
+
+.zahlen {
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--l-slate);
+  text-wrap: pretty;
+}
+
+.h2 {
+  margin: 56px 0 16px;
+  font-family: var(--l-display);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--l-ink);
+}
+
+/* Zeitleiste: je Zeile Zeitpunkt und ein Satz */
+.zeitleiste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zeitleiste li {
+  display: grid;
+  grid-template-columns: 152px minmax(0, 1fr);
+  column-gap: 24px;
+  padding-block: 10px;
+  border-top: 1px solid var(--l-line);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.zeitleiste time {
+  color: var(--l-slate);
+  font-variant-numeric: tabular-nums;
+}
+
+.absatz {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--l-ink);
+  text-wrap: pretty;
+}
+
+.absatz + .absatz {
+  margin-top: 10px;
+}
+
+@media (max-width: 767px) {
+  .ablauf {
+    padding: calc(var(--l-nav-h) + 32px) 20px 64px;
+  }
+
+  .satz {
+    font-size: 17px;
+  }
+
+  .h2 {
+    margin-top: 44px;
+  }
+
+  .zeitleiste li {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+  }
+}

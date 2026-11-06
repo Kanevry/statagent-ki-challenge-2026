@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useRef, useState, type FormEvent } from "react";
 import { formatiereZahl } from "@kic/ui/basis";
 import { HerkunftChip, ModellPille } from "@kic/ui/bausteine";
 import { SeitenModell, TESTBETRIEB_TEXT } from "@kic/ui/shell";
@@ -91,7 +91,17 @@ function useSprache(): VoiceKonfiguration | null {
   return konfig;
 }
 
-export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly KettenUc[]; fragenOffen: boolean; mitModell: boolean }) {
+export function Kette({
+  kette,
+  fragenOffen,
+  mitModell,
+  modellwahl = MODELLWAHL,
+}: {
+  kette: readonly KettenUc[];
+  fragenOffen: boolean;
+  mitModell: boolean;
+  modellwahl?: readonly Modellwahl[];
+}) {
   const [frage, setFrage] = useState("");
   const [modell, setModell] = useState<Modellwahl | null>(null);
   const [eingabeFehler, setEingabeFehler] = useState<string | null>(null);
@@ -294,12 +304,13 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
             </ul>
           </div>
           {sprache && <Stimme konfiguration={sprache} />}
-          {mitModell && (
+          {/* Mit nur einem Anbieter gibt es nichts zu wählen; der Kopf der Seite nennt das Modell. */}
+          {mitModell && modellwahl.length > 1 && (
             <details className="font-sans text-14 text-slate">
               <summary className="inline-flex min-h-11 cursor-pointer items-center underline underline-offset-4">Modell wählen</summary>
               <fieldset className="mt-2 flex flex-wrap gap-x-5 gap-y-2" disabled={laeuft}>
                 <legend className="sr-only">Welches Modell schreibt die Sätze?</legend>
-                {[{ wert: null as Modellwahl | null, name: "Voreinstellung" }, ...MODELLWAHL.map((wert) => ({ wert, name: MODELL_NAMEN[wert] }))].map(
+                {[{ wert: null as Modellwahl | null, name: "Voreinstellung" }, ...modellwahl.map((wert) => ({ wert, name: MODELL_NAMEN[wert] }))].map(
                   ({ wert, name }) => (
                     <label key={name} className="inline-flex min-h-11 items-center gap-2 text-ink">
                       <input type="radio" name="modell" checked={modell === wert} onChange={() => setModell(wert)} className="size-4 accent-gruen" />
@@ -432,19 +443,20 @@ export function weitereZahlenText(anzahl: number): string | null {
 }
 
 /**
- * Belege der Stationen nach der ersten: Die Zahl steht schon mit Beleg bei Station 1 (#164). Der Lotse zeigt den Beleg
- * der Zahl aus seinem Satz. Der Simulator zeigt den Beleg des Rechenmodells, wenn es eines gab, denn dann stehen dessen
- * Zahlen in seiner ersten Zeile; sonst seine eigenen Quellen, ohne die weitergereichte Zahl.
+ * Belege der Stationen nach der ersten: Der Lotse zeigt den Beleg der Zahl aus seinem Satz. Der Simulator nennt oben die
+ * Zahl von StatAgent, zeigt also deren Beleg (Bank 06.11.), dazu den Beleg des Rechenmodells, wenn es eines gab, sonst
+ * eine eigene Quelle.
  */
 function belegeOben(antwort: UcAntwort): UcAntwort["belege"] {
   if (antwort.uc === "uc1") {
     const beleg = antwort.zahlen[0] && antwort.belege[antwort.zahlen[0].beleg];
     return beleg ? [beleg] : [];
   }
+  const statagent = antwort.zahlen.map((z) => antwort.belege[z.beleg]).filter((b) => b?.uc === "uc3").slice(0, 1);
   const rechenmodell = antwort.belege.find((b) => b.quelle === "uc2.experte");
-  if (rechenmodell) return [rechenmodell];
+  if (rechenmodell) return [...statagent, rechenmodell];
   const eigene = antwort.belege.filter((b) => b.uc === antwort.uc);
-  return eigene.filter((b, i) => eigene.findIndex((x) => x.quelle === b.quelle && x.monat === b.monat) === i).slice(0, BELEGE_OBEN);
+  return [...statagent, ...eigene.filter((b, i) => eigene.findIndex((x) => x.quelle === b.quelle && x.monat === b.monat) === i).slice(0, BELEGE_OBEN)];
 }
 
 function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcAntwort; dauerMs: number; erste: boolean }) {
@@ -458,19 +470,29 @@ function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcA
   return (
     <div className="flex flex-col gap-3" data-uc4-antwort="">
       <p className={`${gezeigt.length >= LANG_AB ? "font-sans text-16" : "font-display text-20 font-medium"} text-ink text-pretty`}>{vorlaeufig ? `${gezeigt.replace(/\.$/, "")}, vorläufig.` : gezeigt}</p>
-      {!erste && belegeOben(antwort).map((beleg, i) => (
-        <HerkunftChip
-          key={`${beleg.quelle}-${i}`}
-          quelle={beleg.quelle}
-          lieferung={beleg.lieferung}
-          monat={beleg.monat}
-          regelstand={beleg.regelstand}
-          sql={beleg.sql}
-          lauf={beleg.lauf}
-          verweis={beleg.ref}
-          stand={beleg.stand}
-        />
-      ))}
+      {!erste && belegeOben(antwort).map((beleg, i, alle) => {
+        const chip = (
+          <HerkunftChip
+            quelle={beleg.quelle}
+            lieferung={beleg.lieferung}
+            monat={beleg.monat}
+            regelstand={beleg.regelstand}
+            sql={beleg.sql}
+            lauf={beleg.lauf}
+            verweis={beleg.ref}
+            stand={beleg.stand}
+          />
+        );
+        // Zwei gleiche „Beleg“ sagen nicht, was sie belegen (UI-Regie 06.11.); einer allein braucht keinen Zusatz.
+        if (alle.length < 2) return <Fragment key={`${beleg.quelle}-${i}`}>{chip}</Fragment>;
+        const wozu = i === 0 ? "zur Zahl" : beleg.quelle === "uc2.experte" ? "zum Rechenmodell" : "zur Quelle";
+        return (
+          <div key={`${beleg.quelle}-${i}`} className="flex flex-wrap items-baseline gap-x-1 font-sans text-12 text-slate" data-beleg-wozu="">
+            {chip}
+            <span>{wozu}</span>
+          </div>
+        );
+      })}
       {erste && antwort.zahlen.length > 0 && (
         <ul className="flex flex-col gap-2">
           {antwort.zahlen.slice(0, ZAHLEN_AUF_KARTE).map((zahl, i) => {

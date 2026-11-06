@@ -212,9 +212,21 @@ _KEINE_BRANCHE = frozenset(
         "Angestellte",
         "Arbeiter",
         "Beschäftigungskategorie unbekannt",
+        "freie Dienstverträge",
+        "Bundesland unbekannt",
     }
 )
-"""Geschlecht und Beschäftigungskategorie aus `stat.klass_*`: Sie dürfen nicht „der Branche Frauen“ heißen."""
+"""Merkmale aus `stat.klass_*` und UC3, die keine Branche sind: Nicht „der Branche Frauen“."""
+_DATIV = {
+    "freie Dienstverträge": "freien Dienstverträgen",
+    "Männer": "Männern",
+    "Beamte": "Beamten",
+    "Angestellte": "Angestellten",
+    "Arbeiter": "Arbeitern",
+}
+"""Für „Sie fragten nach …“."""
+_FLUKTUATION = "Fluktuation, "
+_OENACE_NAME = re.compile(r"^ÖNACE [A-Z] ")
 _MIT_ARTIKEL = {
     "Steiermark": ("in der Steiermark", "der Steiermark"),
     "Burgenland": ("im Burgenland", "dem Burgenland"),
@@ -291,18 +303,18 @@ def _bezugssaetze(kontext: Kontext) -> str | None:
         return None
     teile = [_gliederung(z) for z in uc3]
     gemeinsam = set.intersection(*teile)
+    # „Bau und Handel“: Einzelzeilen haben nichts gemeinsam, die Summenzeile nennt, wonach gefragt wurde.
+    summe = sorted(t for z in teile for t in z if t.endswith(" zusammen"))
+    gemeinsam = gemeinsam or set(summe[:1])
     # Reihenfolge wie in der Bezeichnung; ohne Branche zählt die Zahl alle Branchen.
-    gefragt = [
-        _MIT_ARTIKEL[t.strip()][1] if t.strip() in _MIT_ARTIKEL else t.strip()
-        for t in re.split(r"[(),]", uc3[0].bezeichnung)
-        if t.strip() in gemeinsam
-    ]
+    reihe = dict.fromkeys(_gliederung_liste(uc3[0]) + summe[:1])
+    gefragt = [_fuer_frage(t) for t in reihe if t in gemeinsam]
     if gemeinsam <= _BUNDESLAENDER:
         gefragt.append("allen Branchen")
     elif not gemeinsam & (_BUNDESLAENDER | _KEINE_BRANCHE) and not re.search(
-        r"zusammen|\d", " ".join(gemeinsam)
+        r"zusammen|Jahre", " ".join(gemeinsam)
     ):
-        gefragt[0] = f"der Branche {gefragt[0]}"
+        gefragt = [f"der Branche {', '.join(gefragt)}"]
     monate = {kontext.belege[z.beleg].monat for z in uc3}
     monat = monate.pop() if len(monate) == 1 else None
     wann = f" im {_monat_text(monat)}" if monat else ""
@@ -310,11 +322,11 @@ def _bezugssaetze(kontext: Kontext) -> str | None:
     if len(uc3) > 1:
         return f"{frage} {KETTE_VERWEIS}"
     zahl = uc3[0]
-    kopf = zahl.bezeichnung.split(" (", 1)[0]
+    kopf = re.split(r" \(|, ", zahl.bezeichnung, maxsplit=1)[0]
     ohne_einheit = not zahl.einheit or zahl.einheit.casefold() in _EINHEIT_OHNE_WORT
     was = f"{anzeige(zahl)} {kopf if ohne_einheit else zahl.einheit}"
-    if zahl.einheit == "%":
-        was = f"{kopf} {was}"
+    if zahl.einheit in ("%", "Prozent"):
+        was = f"eine {kopf} von {was}"
     vorlaeufig = "vorläufig " if kontext.belege[zahl.beleg].stand == "vorlaeufig" else ""
     return f"{frage} StatAgent nennt dafür {vorlaeufig}{was}."
 
@@ -334,11 +346,26 @@ def _monat_text(monat: str) -> str:
     return f"{_MONAT[int(treffer.group(2)) - 1]} {treffer.group(1)}"
 
 
-def _gliederung(zahl: Zahl) -> set[str]:
-    """Was die Zahl eingrenzt, aus ihrer Bezeichnung: „… (Wien, Gesundheits- und Sozialwesen)“ → beide
-    Teile."""
+def _gliederung_liste(zahl: Zahl) -> list[str]:
+    """Was die Zahl eingrenzt. Zwei Formen von UC3: „Beschäftigte (Wien, Bau)“, „Fluktuation, ÖNACE R Name“;
+    bei der Fluktuation ist der ganze Rest ein Name, auch mit Komma. Über alle Bereiche grenzt nichts ein."""
+    if zahl.bezeichnung.startswith(_FLUKTUATION):
+        rest = zahl.bezeichnung.removeprefix(_FLUKTUATION)
+        return [] if rest.startswith("alle Wirtschaftsbereiche") else [_OENACE_NAME.sub("", rest)]
     treffer = re.search(r"\((.*)\)", zahl.bezeichnung)
-    return {teil.strip() for teil in treffer.group(1).split(",")} if treffer else set()
+    return [teil.strip() for teil in treffer.group(1).split(",")] if treffer else []
+
+
+def _gliederung(zahl: Zahl) -> set[str]:
+    """Dasselbe als Menge, zum Vergleich mehrerer Zahlen."""
+    return set(_gliederung_liste(zahl))
+
+
+def _fuer_frage(teil: str) -> str:
+    """Ein Merkmal, wie es hinter „Sie fragten nach“ steht."""
+    if "Jahre" in teil:
+        return f"der Altersgruppe {teil}"
+    return _MIT_ARTIKEL[teil][1] if teil in _MIT_ARTIKEL else _DATIV.get(teil, teil)
 
 
 def _paket_wirkung(wert: float) -> str:

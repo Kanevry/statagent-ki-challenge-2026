@@ -79,9 +79,9 @@ export function istAktiv(href: string, pfad: string): boolean {
   return pfad === href || pfad.startsWith(`${href}/`);
 }
 
-/** Der App-Header erscheint überall außer auf der Landingpage `/`, die frei rendert. */
+/** Der App-Header erscheint überall außer auf der Landingpage `/` und ihrer Seite `/ablauf`, die frei rendern. */
 export function zeigtHeader(pfad: string): boolean {
-  return pfad !== "/";
+  return pfad !== "/" && pfad !== "/ablauf";
 }
 
 /** UC, dessen Protokoll die Schublade zeigt: der UC der Route, sonst UC3 (bewertet). */
