@@ -47,10 +47,14 @@ Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset
    scripts/vorfuehrung-db.sh --ersetzen statistik statistik_vorfuehrung_pensionen
    # mit UC3_DATABASE_URL auf diese Kopie und gesetztem STATAGENT_STARTPAKET:
    uv run uc3 db init && uv run uc3 pensionen laden && uv run uc3 pensionen pruefen
+   # tiefe Klassifikationen (ÖNACE bis 5-Steller, Bezirk, Gemeinde); eine Transaktion, ein Fehler lässt alles, wie es war
+   { echo 'begin;'; gunzip -c <klass-datei>; echo 'commit;'; } | psql "<kopie>" -X -q -v ON_ERROR_STOP=1
    docker exec statagent-db pg_dump -U statistik -Fc -d statistik_vorfuehrung_pensionen > <dump>
    psql "<kopie>" -X -q -At -v schema=stat -f deploy/sql/inhaltshash.sql | grep GESAMT   # dasselbe für meta, beide notieren
    ```
    Probe am 05.11. mit einem Zwischenstand von !214: 2 min 33 s bis zum fertigen Dump, 457 MB.
+   Die Klassifikations-Datei lief auf einer Wegwerf-Kopie in 1 s, ein zweites Mal ohne Änderung; `meta` bleibt gleich, `stat` bekommt
+   einen neuen Hash. Darum gelten nur die GESAMT-Zeilen dieses Schritts als Vergleich für `daten`, keine älteren.
 2. **Stand und Daten auf den Server.** `scripts/vorfuehrung.sh up <ref>` mit dem Stand, der vorgeführt wird, dann
    `scripts/vorfuehrung.sh daten <dump>`. `daten` gibt die GESAMT-Zeilen aus, sie müssen denen aus Schritt 1 gleichen.
 3. **Probe.** `scripts/vorfuehrung.sh pruefen`, danach einmal D1 bis D4 im Browser, dann `scripts/vorfuehrung.sh reset`.
@@ -59,6 +63,19 @@ Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset
 5. **Direkt danach:** `scripts/vorfuehrung.sh festschreiben`. Keine Probe dazwischen, sonst wird sie mit festgeschrieben.
 6. **Gegenprobe.** `scripts/vorfuehrung.sh reset`. Der Beleg ist die Freigabe, die danach noch auf der Seite steht; die Meldung
    „0 Commits“ gilt immer. Das ist der Stand für die Vorführung um 09:00.
+
+### Dieselbe Folge ohne Rechen-Datenbank
+
+Plan für Fr 05:57, solange der Rechner mit der Rechen-Datenbank nicht erreichbar ist (seit 06.11. 00:35). Schritt 1 entfällt. Die
+Vorlage auf dem Server bleibt, sie enthält den letzten eingespielten Dump samt Pensionen, und der liegt auch noch auf dem Server.
+
+**Einschränkung:** Der Stand von `statistik` ist damit nur bis etwa 23:00 am 05.11. belegt. Was sich seither dort geändert hat, fehlt
+in der Vorführung und ist nicht messbar, das gehört am Tisch nicht behauptet. Die Abgabe selbst berührt das nicht.
+
+1. `scripts/vorfuehrung.sh up <ref>`: Volume und Vorlage bleiben, der Checkout entsteht neu.
+2. `scripts/vorfuehrung.sh reset`, dann `scripts/vorfuehrung.sh klassifikationen <klass-datei>` und `scripts/vorfuehrung.sh
+   festschreiben`, damit die Vorlage sie behält. Ohne die Datei entfällt das, und die tiefen Klassifikationen fehlen.
+3. Probe wie oben, dann `reset`, Freigabe 07:00, `festschreiben`, Gegenprobe.
 
 ## Vorführen
 
@@ -126,7 +143,7 @@ Das ersetzt keine Messung über einen echten Hotspot, die steht aus und liegt be
 | Erster Monat auf einem neuen Regelsatz (2024-08) | 41 s |
 | Basisregelsatz von `uc3 agent` | v2, Ziel v3, nach Rücknahme Ziel v4 |
 | App-Neustart nach einer Freigabe, dann ein Lauf | läuft; ein Code-Vorschlag ist dabei nicht geprüft |
-| `pensionen-freigeben`, `festschreiben`, `reset`, zurück mit `daten` | nicht gemessen |
+| Generalprobe `up`, `daten`, `pensionen-freigeben`, `festschreiben`, `reset`, zurück mit `daten` (23:34 bis 23:46) | bestanden: Hashes gleich, `festschreiben` 53 s, `reset` 51 s, Freigabe danach noch auf der Seite, nach `daten` wieder „vorläufig“ |
 
 ## Reserve: lokal
 
@@ -144,4 +161,17 @@ pnpm dev   # App auf http://127.0.0.1:3000
 
 `web` startet mit `dotenv -o`: Ein Schlüssel aus `.env.local` überschreibt das `export`, also dort prüfen, dass
 `UC3_DATABASE_URL` nicht gesetzt ist. Die Freigabe committet hier in den Worktree, deshalb ein eigener Demo-Branch ohne Push.
-Einmal gemessen: nicht gemessen, folgt, sobald die Server-Instanz steht.
+
+Befehle auf dem Zweitrechner gemessen, auf dem Vortragsrechner nicht gemessen. Ob der Vortragsrechner das trägt, ist damit offen; für einen
+Server-Ausfall am Tisch gilt das Backup-Video.
+
+Gemessen am 05.11.2026, Dump mit Pensionen, `vorfuehrung/stand`:
+
+| Schritt | Ergebnis |
+|---|---|
+| Einspielen und `analyze` | 77 s und 5 s, Inhalts-Hashes von `stat` und `meta` gleich wie auf dem Server |
+| App antwortet | 5 s, alle Seiten 200 |
+| Auftrag „Beamte zählen nicht mehr mit“, Azure | Vorschlag nach 92 s, neue Regel `R8_beamte_ausschluss` |
+| Freigabe mit Probe-Namen | Commit mit Trailer im Worktree, kein Push |
+| Datenanfrage | 2 s, 7.498, gleich wie auf dem Server |
+

@@ -27,7 +27,9 @@ Gegenprobe mit ehrlicher Absage: „Entwicklung im Bau seit August 2024“. Das 
 
 Freie Fragen, Stand 05.11.2026 (Testserver, `main` `fd936b3`): Zwei Werte eines Merkmals („Wien und Tirol“), „Durchschnittsalter“, Fluktuation mit Filter und Fragen nach einer Person sagt das Programm ehrlich ab.
 
-Nicht vorführen: Alter wie „unter 25“, die Frage liefert still die Gesamtzahl. Dazu, was eine Zahl liefert, aber nicht gegen das Orakel geprüft ist: Branchen in Umgangssprache („Gastronomie“), „freie Dienstverträge“ und Zeiträume („von März bis Juni 2025“). Um 06:45 neu messen.
+Alter geht seit !227, online gemessen 06.11.2026 00:45 auf main `2005e01`: „Wie viele Beschäftigte unter 25 Jahren gab es im Juli 2026?“ 41.626, „Wie viele 30-Jährige gab es im August 2024?“ 9.017, „Beschäftigte ab 50 Jahren im Juli 2026“ 124.728. Falle: „über 50“ heißt 51 Jahre und älter (115.451), „ab 50“ ohne „Jahren“ sagt ab. Gegen das Orakel ist das nicht belegt, Entscheid um 06:45.
+
+Nicht vorführen, weil eine Zahl kommt, aber nicht gegen das Orakel geprüft ist: Branchen in Umgangssprache („Gastronomie“), „freie Dienstverträge“ und Zeiträume („von März bis Juni 2025“). Um 06:45 neu messen.
 
 ## Gemeinsame Bausteine für das SQL
 
@@ -199,7 +201,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Erwartete Wirkung:** Der Gesamtbestand ändert sich nie, nur das Alter einzelner Verhältnisse mit Monat 13. Für August 2024 gilt Jahresdifferenz gleich Ersatztag 1. Juli, der Beispielbericht bleibt exakt (F4). Im Juni 2026 liegt der Stichtag vor dem 1. Juli: Mit Jahresdifferenz sind diese Verhältnisse ein Jahr älter, der Vorschlag zeigt wenige verschobene Altersgruppen, der Gesamtbestand bleibt 403.301 (einmal gemessen von der UC3-Lane, 05.11.2026 22:40, Commit d888e09, bis zum Vorschlag). Juli bis Dezember zeigen keinen Unterschied, das ist fachlich richtig.
 
-**Auf der Seite:** Die Tabelle von „Vorher und nachher ansehen“ zählt Beschäftigungskategorien. In Juni und Juli 2026 zeigt sie überall gleiche Werte und den Satz „Bei den Beschäftigungskategorien ändert die Probe keine Zahl, die Gesamtzahl bleibt gleich“ (im Browser gemessen, Lane Vorführung; der Vorschlag dauert rund 145 s). Das ist kein Fehler, sieht aber nach nichts aus: B2 nur nehmen, wenn die Jury genau das wünscht.
+**Auf der Seite:** Die Tabelle von „Vorher und nachher ansehen“ zählt Beschäftigungskategorien und bleibt in Juni 2026 gleich. Seit !239 steht darunter: „Die Änderung zeigt sich an anderer Stelle. Altersgruppe 15-24: 42.422 statt 42.428; Altersgruppe 35-44: 98.940 statt 98.946; Altersgruppe 55-64: 74.472 statt 74.466; dazu 3 weitere Zeilen.“ Im Browser gesehen von der UI-Regie, Instanz-Stand 04060ad, 2 min 51 s bis zum Vorschlag. Die Wirkung ist klein: B2 nur nehmen, wenn die Jury genau das wünscht.
 
 **Falle:** Mit `--probe 2025-03` zeigt die Probe 396.762 → 395.292 (−1.470), obwohl sich nur das Alter ändert. In der Probe fehlen die Fortschreibungen von 2025-03 und 2025-10. Der Fix kommt mit !150, die Abgabe ist nicht betroffen.
 
@@ -353,7 +355,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 Erstens sind die Daten synthetisch.
 Zweitens hängt das Alter bei Geburtsmonat 13 vor Juli von der Antwort der Fachabteilung auf Rückfrage R1 ab (F4).
 Drittens fehlen bei den Pensionen die öffentlich Bediensteten, die frühere BVA meldet keine. Die Zahlen sind vorläufig, bis sie mit Namen freigegeben sind.
-Viertens zählen wir auf ÖNACE-Abschnitt und Bundesland, nicht bis zum 5-Steller und nicht nach Bezirk oder Gemeinde. Die Tabelle für weitere Ebenen ist angelegt.
+Viertens zählen wir nach ÖNACE-Abschnitt und Bundesland, nicht bis zum 5-Steller und nicht nach Bezirk oder Gemeinde, denn die Lieferungen haben nur das. Die tiefen Klassifikationen sind geladen und nachgeprüft, aber nur auf `statistik_probe`, online sind sie nicht sichtbar.
 Fünftens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parameter und lässt sich ändern (F5).
 
 **Antwortweg:** `uc3/README.md`, Abschnitt Grenzen, und Rückfrage R1 zeigen.
@@ -396,7 +398,7 @@ Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.
 | Frage mit „Wartezeiten“ | Mit Wien und März 2025: Der Simulator rechnet über das Rechenmodell, Wartezeit −22,2 %, 128,2 Mio. Euro pro Jahr, 22 s. Nicht vorführen. Ohne Monat und Ort: StatAgent fragt zurück, welchen Begriff es erklären soll, die Kette stoppt | gemessen 23:06 und 23:08 |
 | „Zugänge Oktober 2024“ | Öffentliche Adresse: keine Zahl, Hinweis auf die lokale Auswertung. Vorführ-Instanz nicht gemessen | gemessen 23:07 und 23:08 |
 | Live-Änderung per Agent (D2 Teil 2) | Endserie läuft, MR !150 Stand 20:00 noch rot; Teil 2 nur, wenn beim Freeze auf main | Prüfpunkt Lead 20:00 |
-| Klassifikation bis 5-Steller und Gemeinden | kommt gegen 23:00 als Klassifikation; gezählt wird weiter nach Abschnitt und Bundesland (Rohdaten haben nur das) | Prüfpunkt Lead 20:00 |
+| Klassifikation bis 5-Steller und Gemeinden | auf main d3e221f und auf der Datenbank `statistik_probe` geladen, online nicht sichtbar: Die Seite zeigt Abschnitte, „Bezirk“ kennt die Frage nicht. Gezählt wird weiter nach Abschnitt und Bundesland | online gemessen 23:53, #189 |
 | Pensionsmeldungen der Träger | eingelesen: 28 von 28 Dateien, 9 Formate, 394 Summen ohne Abweichung. Online 2025 im Jahresdurchschnitt 2.584.909, vorläufig | `docs/uc3/pensionen-pruefbericht.md`, online gemessen 23:16 |
 | Lotse, verdeckter Test | Trefferquote 8 von 10, Träger richtig 6 von 10, Grenzen erkannt 3 von 8; Verbesserung eingespielt, Nachmessung offen | Prüfpunkt Lead 20:00 |
 | Simulator ohne passenden Zeitungsartikel | sagt offen „Modellannahme“, erfindet keinen Beleg | Prüfpunkt Lead 20:00, Messung E0 19:50 |
