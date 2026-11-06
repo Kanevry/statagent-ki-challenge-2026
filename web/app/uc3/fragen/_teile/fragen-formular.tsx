@@ -38,14 +38,15 @@ type Zustand =
 // Beleg; Tabellen als schlichte Tabelle; eine Rückfrage als Frage mit Knöpfen für die Folgefrage. Online gesperrt
 // (nurLesen) ein gestalteter Zustand ohne Feld und Knopf. API und Logik: components/uc3/antwort.ts, POST /api/uc3/frage.
 
-// Je ein Beispiel für eine Zahl, eine Tabelle, eine Aufteilung und eine Rückfrage statt einer
-// geratenen Zahl; alle am 05.11. gegen `uc3 frage --json` auf der UC3-Datenbank geprüft (Sichtprüfung bb, #18).
+// Je ein Beispiel für eine Zahl, eine Tabelle, eine Aufteilung und eine Erklärung; die ersten drei am 05.11. gegen
+// `uc3 frage --json` auf der UC3-Datenbank geprüft (Sichtprüfung bb, #18). Die Erklärfrage ersetzt am 06.11. die
+// Rückfrage „Beschäftigte 2025“, weil sie zeigt, warum ein Monat angehalten ist.
 const BEISPIELE = [
   "Beschäftigte in Wien im Gesundheits- und Sozialwesen im März 2025",
   "Männer und Frauen im Oktober 2025 je Bundesland",
   // „Fluktuation je Wirtschaftsbereich“ entfällt: online fehlt bereinigt.abschnitt, die Frage scheiterte (Jury 05.11.).
   "Männer und Frauen in Tirol im Juli 2026",
-  "Beschäftigte 2025",
+  "Warum ist Oktober 2025 angehalten?",
 ] as const;
 
 const FEHLERSATZ: Record<number, string> = {
@@ -187,7 +188,7 @@ export function FragenFormular({
               value={frage}
               maxLength={500}
               autoComplete="off"
-              placeholder="Zum Beispiel: Beschäftigte in Wien im März 2025"
+              placeholder="Zum Beispiel: Wien, März 2025"
               aria-invalid={eingabeFehler ? true : undefined}
               aria-describedby={eingabeFehler ? fehlerId : undefined}
               onChange={(e) => setFrage(e.target.value)}
