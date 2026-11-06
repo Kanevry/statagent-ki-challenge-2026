@@ -112,7 +112,8 @@ scripts/vorfuehrung.sh festschreiben   # heutiger Stand wird Vorlage, der Commit
 ```
 
 Das ersetzt die Vorlage. Zurück geht es nur mit `daten <dump>`. Also nur auf einem geprüften Stand, nie nach einer Probe.
-Ein späteres `up` legt den Checkout neu an: Der Freigabe-Commit ist dann weg, die Freigabe in der Datenbank bleibt.
+Ein späteres `up` behält den Checkout samt Freigabe-Commit; `uc3 pensionen freigeben` ließe sich auch gar nicht wiederholen. Neu legt
+ihn nur `up <ref> --checkout-neu` an, dann ist der Commit weg, die Freigabe in der Datenbank bleibt.
 Bricht `daten`, `reset` oder `festschreiben` mitten ab, startet das Skript die App wieder; danach den Befehl wiederholen.
 
 ## Messungen

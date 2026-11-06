@@ -19,7 +19,7 @@ Beleg: `abgabe/modelle.md`, Abschnitt „Im Betrieb“.
 Beleg: Prüfung des Namens in `shared/py/plattform/freigabe.py`, „Team“ wird abgelehnt.
 
 **4. Warum Microsoft und nicht Europa?**
-„Das Modell gibt die Challenge vor: Azure, Standort West Europe. Es ist ein Schalter. Mistral aus der EU und ein Modell im eigenen Haus laufen am selben Code.“
+„Das Modell gibt die Challenge vor: Azure, Standort West Europe. Es ist ein Schalter. Mistral aus der EU läuft am selben Code. Ein Modell im eigenen Haus ist vorgesehen, gelaufen ist es bei uns noch nicht.“
 Beleg: `abgabe/modelle.md`. Mistral gerufen am 05.11.2026 laut Modell-Protokoll, einmal, Koordinator.
 
 **5. Wie schnell geht das in den Echtbetrieb?**
@@ -64,7 +64,7 @@ Beleg: F1, F15.
 Beleg: `abgabe/modelle.md`; 72 Wiederholungsläufe, 72-mal derselbe Hash (`abgabe/uc3-abnahme.md`, Abschnitt 3; F16).
 
 **11. Wer hat freigegeben, Mensch oder KI?**
-*Wortlaut stimmt Bernhard um 07:00 ab. Bis dahin nicht verwenden.* Der Entwurf folgt dem Protokoll:
+Der Wortlaut folgt dem Protokoll, vom Owner bestätigt am 06.11.2026:
 „Regelsatz v1 und die 22 veröffentlichten Monate habe ich selbst freigegeben. Die Freigaben der Vorschläge 24 bis 26 und des Regelsatzes v2 hat in meinem Auftrag eine KI-Sitzung eingegeben, das habe ich um 18:22 bestätigt, mit meinem Namen. Das steht offen im Protokoll. Die Ministeriums-Lieferung habe ich selbst freigegeben.“
 Beleg: `abgabe/protokoll.md`, Abschnitt „Hinweise zu den Freigaben“ und Abschnitt 1; Commit `2ba95e5`.
 

@@ -29,7 +29,7 @@ und im README unter Grenzen.
 | Azure `gpt-5.4-mini`, Deployment `gpt-5-4-mini`, Pflicht und Standard für UC3 | Tabelle Provider, Zeile `azure`; Smoke-Tabelle (Version `gpt-5.4-mini-2026-03-17`) | gleich |
 | Mistral (EU) als Zweitanbieter | Tabelle Provider, Zeile `mistral`; Smoke ok | gleich |
 | Mistral Projektbudget 10 € | nicht in `docs/models.md`. Quelle: Issue #54 und PRD Zeile 99. | Ergänzung, kein Widerspruch |
-| Ollama lokal, Offline-Notnagel | Tabelle Provider, Zeile `ollama` | gleich |
+| Ollama lokal, Offline-Notnagel, nicht gelaufen | Tabelle Provider, Zeile `ollama` | gleich |
 | Claude Opus 5.5 über die CLI, nur UC1 und UC2 und Vergleiche, nie UC3 | Zeile `claude` (`claude-opus-5-5`); Abschnitt Auswahl: UC3-Zwecke erlauben claude nicht | gleich |
 | Embeddings `google/embeddinggemma-2`, lokal, Gewichte nicht im Repo | Abschnitt Embeddings | gleich |
 | Ohne Schlüssel `LLM_PROVIDER=mock` | Zeile `mock` | gleich |

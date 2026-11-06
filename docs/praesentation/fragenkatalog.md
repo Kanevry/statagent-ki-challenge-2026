@@ -23,7 +23,7 @@ Nur diese Fragen werden vorgeführt, wörtlich so getippt. Jede Zahl ist gegen e
 | 7 | „Was ist ÖNACE R?“ | ÖNACE 2025: Gesundheits- und Sozialwesen; ÖNACE 2008: Kunst, Unterhaltung und Erholung | F13 |
 | 8 | „Zeitreihe Bau 2025“ | Werte 23.809 bis 24.679 | F25 |
 
-Gegenprobe mit ehrlicher Absage: „Entwicklung im Bau seit August 2024“. Das Programm sagt ab, weil die Branchen ab 2025 nach ÖNACE 2025 gezählt werden (F13).
+Gegenprobe mit ehrlicher Absage: „Wie viele Beschäftigte gab es im Juli 2026 in Wien und Tirol?“ Das Programm gibt keine Zahl und bittet, getrennt zu fragen. „Entwicklung im Bau seit August 2024“ liefert jetzt 28.858 bis 28.548 mit dem Hinweis, dass der Vergleich über den Wechsel nur ungefähr ist (F13).
 
 Freie Fragen, Stand 05.11.2026 (Testserver, `main` `fd936b3`): Zwei Werte eines Merkmals („Wien und Tirol“), „Durchschnittsalter“, Fluktuation mit Filter und Fragen nach einer Person sagt das Programm ehrlich ab.
 
@@ -285,7 +285,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C6 Welches Modell nutzen Sie, und lässt es sich tauschen?
 
-**Kurzantwort:** Die Agenten laufen standardmäßig auf Azure (gpt-5-4-mini). Über den Schalter `LLM_PROVIDER` geht auch `mistral` oder `ollama`. `mock` liefert feste Antworten für Tests. Schnittstelle und Protokoll bleiben gleich. Das Modell schlägt nur vor, die Rechnung macht das Programm.
+**Kurzantwort:** Die Agenten laufen standardmäßig auf Azure (gpt-5-4-mini). Über den Schalter `LLM_PROVIDER` geht auch `mistral`. `ollama` ist vorgesehen, gelaufen ist es bei uns noch nicht (`docs/plan/uc2/modell-fallback.md`). `mock` liefert feste Antworten für Tests. Schnittstelle und Protokoll bleiben gleich. Das Modell schlägt nur vor, die Rechnung macht das Programm.
 
 **Antwortweg:** `abgabe/modelle.md` zeigen. Der Schalter steht in `.env.example`.
 
@@ -293,7 +293,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C7 Was passiert, wenn das Modell ausfällt?
 
-**Kurzantwort:** Der Lauf rechnet trotzdem, denn er braucht kein Modell (F16). Es fehlen nur die Vorschläge der Agenten. Der Befehl `agent` meldet den Modellfehler als Meldung, ohne die Daten anzufassen. Dann hilft der Wechsel des Anbieters (`mistral`, `ollama`). `mock` hilft dem Agenten nicht, denn die Fixture `agent.koordinator.json` fehlt (`shared/py/plattform/llm/mock.py`, Zeile 56). In der Demo geht D2 dann auf die Aufzeichnung.
+**Kurzantwort:** Der Lauf rechnet trotzdem, denn er braucht kein Modell (F16). Es fehlen nur die Vorschläge der Agenten. Der Befehl `agent` meldet den Modellfehler als Meldung, ohne die Daten anzufassen. Dann hilft der Wechsel des Anbieters auf `mistral`. `mock` hilft dem Agenten nicht, denn die Fixture `agent.koordinator.json` fehlt (`shared/py/plattform/llm/mock.py`, Zeile 56). In der Demo geht D2 dann auf die Aufzeichnung.
 
 **Antwortweg:** Live zeigen: `uv run uc3 lauf --lieferung 2024-08` läuft, `agent` meldet den Fehler.
 
