@@ -248,6 +248,19 @@ def _ist_profilname(text: str, start: int, ende: int, profil: Profil) -> bool:
     return wort in vorwoerter or wort in _PROFIL_VORWORT or wort.endswith(_PROFIL_ENDUNG)
 
 
+_ALTERSETIKETT = re.compile(r"(?:unter |ab )?\d+(?: bis \d+)? Jahre(?: und älter)?")
+
+
+def _in_altersetikett(text: str, start: int, ende: int, zahlen: Sequence[Zahl]) -> bool:
+    """Grenze einer Altersgruppe, wie sie in der Bezeichnung einer Zahl steht („unter 25 Jahre“)."""
+    for zahl in zahlen:
+        for etikett in _ALTERSETIKETT.findall(zahl.bezeichnung):
+            stelle = text.find(etikett, max(0, start - len(etikett)))
+            if 0 <= stelle <= start and ende <= stelle + len(etikett):
+                return True
+    return False
+
+
 def _freie_stellen(text: str, zahlen: Sequence[Zahl], profil: Profil | None = None) -> list[tuple[int, int]]:
     """Spannen (Beginn, Ende) der Zahlen ohne passenden Eintrag, je mit Vorzeichen und Einheit.
 
@@ -261,6 +274,8 @@ def _freie_stellen(text: str, zahlen: Sequence[Zahl], profil: Profil | None = No
         if m.start() < weiter_ab:
             continue
         gruppe = m.group(0)
+        if _in_altersetikett(text, m.start(), m.end(), zahlen):
+            continue
         einheit = menge.match(text, m.end())
         if einheit is None and _ist_profilname(text, m.start(), m.end(), profil):
             continue

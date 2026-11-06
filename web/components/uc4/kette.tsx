@@ -432,19 +432,20 @@ export function weitereZahlenText(anzahl: number): string | null {
 }
 
 /**
- * Belege der Stationen nach der ersten: Die Zahl steht schon mit Beleg bei Station 1 (#164). Der Lotse zeigt den Beleg
- * der Zahl aus seinem Satz. Der Simulator zeigt den Beleg des Rechenmodells, wenn es eines gab, denn dann stehen dessen
- * Zahlen in seiner ersten Zeile; sonst seine eigenen Quellen, ohne die weitergereichte Zahl.
+ * Belege der Stationen nach der ersten: Der Lotse zeigt den Beleg der Zahl aus seinem Satz. Der Simulator nennt oben die
+ * Zahl von StatAgent, zeigt also deren Beleg (Bank 06.11.), dazu den Beleg des Rechenmodells, wenn es eines gab, sonst
+ * eine eigene Quelle.
  */
 function belegeOben(antwort: UcAntwort): UcAntwort["belege"] {
   if (antwort.uc === "uc1") {
     const beleg = antwort.zahlen[0] && antwort.belege[antwort.zahlen[0].beleg];
     return beleg ? [beleg] : [];
   }
+  const statagent = antwort.zahlen.map((z) => antwort.belege[z.beleg]).filter((b) => b?.uc === "uc3").slice(0, 1);
   const rechenmodell = antwort.belege.find((b) => b.quelle === "uc2.experte");
-  if (rechenmodell) return [rechenmodell];
+  if (rechenmodell) return [...statagent, rechenmodell];
   const eigene = antwort.belege.filter((b) => b.uc === antwort.uc);
-  return eigene.filter((b, i) => eigene.findIndex((x) => x.quelle === b.quelle && x.monat === b.monat) === i).slice(0, BELEGE_OBEN);
+  return [...statagent, ...eigene.filter((b, i) => eigene.findIndex((x) => x.quelle === b.quelle && x.monat === b.monat) === i).slice(0, BELEGE_OBEN)];
 }
 
 function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcAntwort; dauerMs: number; erste: boolean }) {

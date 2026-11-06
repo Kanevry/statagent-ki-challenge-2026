@@ -392,19 +392,56 @@ def test_kette_nur_eine_branche_heisst_so(klammer: str, anfang: str) -> None:
     assert uc4.router_adapter("?", _kette_kontext(zahl)).text.startswith(anfang)
 
 
-def test_kette_prozent_steht_mit_ihrem_wort() -> None:
-    """Fängt „StatAgent nennt dafür 6,2 %“: Ohne „Fluktuation“ sagt die Zahl nichts."""
-    zahl = ZAHL_UC3.model_copy(
-        update={
-            "bezeichnung": "Fluktuation (Wien, Gesundheits- und Sozialwesen)",
-            "wert": 6.2,
-            "einheit": "%",
-        }
-    )
-    assert (
-        "StatAgent nennt dafür vorläufig Fluktuation 6,2 %."
-        in uc4.router_adapter("?", _kette_kontext(zahl)).text
-    )
+@pytest.mark.parametrize(
+    ("bezeichnung", "anfang"),
+    [
+        (
+            "Fluktuation, ÖNACE R Gesundheits- und Sozialwesen",
+            "Sie fragten nach der Branche Gesundheits- und Sozialwesen im Oktober 2025. StatAgent nennt "
+            "dafür vorläufig eine Fluktuation von 2,09 Prozent.",
+        ),
+        (
+            "Fluktuation, ÖNACE F Bau",
+            "Sie fragten nach der Branche Bau im Oktober 2025. StatAgent nennt dafür vorläufig eine "
+            "Fluktuation von 2,09 Prozent.",
+        ),
+        (
+            "Fluktuation, alle Wirtschaftsbereiche (Summe der Zeilen)",
+            "Sie fragten nach allen Branchen im Oktober 2025. StatAgent nennt dafür vorläufig eine "
+            "Fluktuation von 2,09 Prozent.",
+        ),
+    ],
+    ids=["gesundheit", "bau", "gesamt"],
+)
+def test_kette_fluktuation_in_der_form_von_uc3(bezeichnung: str, anfang: str) -> None:
+    """Fängt „Sie fragten nach allen Branchen“ zur Fluktuation im Gesundheitswesen und „die Branche Summe der
+    Zeilen“ (Opus zu !303): UC3 schreibt „Fluktuation, ÖNACE R …“ ohne Klammer, Einheit „Prozent“."""
+    zahl = ZAHL_UC3.model_copy(update={"bezeichnung": bezeichnung, "wert": 2.09, "einheit": "Prozent"})
+    assert uc4.router_adapter("?", _kette_kontext(zahl)).text.startswith(anfang)
+
+
+@pytest.mark.parametrize(
+    ("klammer", "anfang"),
+    [
+        ("freie Dienstverträge", "Sie fragten nach freien Dienstverträgen im"),
+        ("Männer", "Sie fragten nach Männern im"),
+        ("unter 25 Jahre", "Sie fragten nach der Altersgruppe unter 25 Jahre im"),
+    ],
+)
+def test_kette_merkmale_sind_keine_branche(klammer: str, anfang: str) -> None:
+    """Fängt „der Branche freie Dienstverträge“ und „Sie fragten nach unter 25 Jahre“ (Opus zu !303)."""
+    zahl = ZAHL_UC3.model_copy(update={"bezeichnung": f"Beschäftigungsverhältnisse ({klammer})"})
+    assert uc4.router_adapter("?", _kette_kontext(zahl)).text.startswith(anfang)
+
+
+def test_kette_summenzeile_nennt_was_gefragt_war() -> None:
+    """Fängt „Sie fragten nach allen Branchen“ zu Bau und Handel (Opus zu !303)."""
+    zeilen = [
+        ZAHL_UC3.model_copy(update={"bezeichnung": f"Beschäftigungsverhältnisse ({k})", "wert": w})
+        for k, w in (("Bau", 1), ("Handel", 2), ("Bau und Handel zusammen", 3))
+    ]
+    text = uc4.router_adapter("?", _kette_kontext(*zeilen)).text
+    assert text.startswith("Sie fragten nach Bau und Handel zusammen im Oktober 2025.")
 
 
 def test_kette_lotse_wiederholt_den_simulator_nicht() -> None:

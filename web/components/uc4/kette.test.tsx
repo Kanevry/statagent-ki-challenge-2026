@@ -225,15 +225,17 @@ it("die Zahl steht mit ihren Angaben nur bei Station 1, nicht dreimal (#164)", a
   expect(seite.querySelector('[data-uc-karte="uc3"] [data-zahl]')).not.toBeNull();
 });
 
-it("der Simulator zeigt oben seine Aussage und seine eigenen Quellen, nicht die Zahl von StatAgent", async () => {
+it("der Simulator zeigt oben seine Aussage, den Beleg der Zahl von StatAgent und eine eigene Quelle", async () => {
   const seite = await fragen(strom(UC3, UC2, UC1));
   await screen.findByText(/Fertig in/);
   const karte = seite.querySelector('[data-uc-karte="uc2"]')!;
   const aussage = karte.querySelector("[data-uc4-antwort] p")!.textContent;
   expect(aussage).toBe("Mehr Personal heißt meist kürzere Wartezeiten. Weniger Personal heißt meist längere Wartezeiten.");
-  // Zwei gleiche Quellen zählen einmal, die weitergereichte Zahl fehlt hier.
-  expect(karte.querySelectorAll('[data-baustein="herkunft"]')).toHaveLength(1);
-  expect(karte.querySelector('[data-baustein="herkunft"]')!.textContent).toContain("presse: Kurier");
+  // Zwei gleiche Quellen zählen einmal; oben steht die Zahl von StatAgent, also auch ihr Beleg (Bank 06.11.).
+  const chips = karte.querySelectorAll('[data-baustein="herkunft"]');
+  expect(chips).toHaveLength(2);
+  expect(chips[0]!.textContent).toContain("stat.stat_beschaeftigte");
+  expect(chips[1]!.textContent).toContain("presse: Kurier");
 });
 
 it("Karte 2 und 3 nennen dieselbe Herkunft: die Zahl von StatAgent", async () => {
@@ -360,6 +362,7 @@ it("nennt die erste Zeile Zahlen des Rechenmodells, steht dessen Beleg sichtbar 
   const seite = await fragen(strom(UC3, fall, UC1));
   await screen.findByText(/Fertig in/);
   const chips = seite.querySelectorAll('[data-uc-karte="uc2"] [data-baustein="herkunft"]');
-  expect(chips).toHaveLength(1);
-  expect(chips[0]!.textContent).toContain("uc2.experte");
+  expect(chips).toHaveLength(2);
+  expect(chips[0]!.textContent).toContain("stat.stat_beschaeftigte");
+  expect(chips[1]!.textContent).toContain("uc2.experte");
 });
