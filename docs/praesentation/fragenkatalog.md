@@ -195,15 +195,13 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Satz der Jury:** „Rechnen Sie bei Geburtsmonat 13 nur mit der Differenz der Jahre, nicht mit dem 1. Juli.“
 
-**Befehl:** `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2026-06`. Der Vorschlag selbst ist am 05.11.2026 18:20 bis 18:25 mit dem Stand von !50 geprobt, 3 von 3 gültig, damals mit 2025-03. Diesen Monat nicht mehr nehmen, siehe unten.
+**Befehl:** `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2026-06`. Der Vorschlag selbst ist am 05.11.2026 18:20 bis 18:25 mit dem Stand von !50 geprobt, 3 von 3 gültig, damals mit 2025-03.
 
 **Was der Vorschlag ändert:** Regel `R5_alter`, Parameter `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`. Der Agent darf für diesen Parameter nur `jahresdifferenz` oder `unbekannt` vorschlagen (`uc3/statagent/agenten/koordinator.py`, Zeile 81). Einen anderen Ersatztag wie den 1. Jänner weist er ab.
 
 **Erwartete Wirkung:** Der Gesamtbestand ändert sich nie, nur das Alter einzelner Verhältnisse mit Monat 13. Für August 2024 gilt Jahresdifferenz gleich Ersatztag 1. Juli, der Beispielbericht bleibt exakt (F4). Im Juni 2026 liegt der Stichtag vor dem 1. Juli: Mit Jahresdifferenz sind diese Verhältnisse ein Jahr älter, der Vorschlag zeigt wenige verschobene Altersgruppen, der Gesamtbestand bleibt 403.301 (einmal gemessen von der UC3-Lane, 05.11.2026 22:40, Commit d888e09, bis zum Vorschlag). Juli bis Dezember zeigen keinen Unterschied, das ist fachlich richtig.
 
 **Auf der Seite:** Die Tabelle von „Vorher und nachher ansehen“ zählt Beschäftigungskategorien und bleibt in Juni 2026 gleich. Seit !239 steht darunter: „Die Änderung zeigt sich an anderer Stelle. Altersgruppe 15-24: 42.422 statt 42.428; Altersgruppe 35-44: 98.940 statt 98.946; Altersgruppe 55-64: 74.472 statt 74.466; dazu 3 weitere Zeilen.“ Im Browser gesehen von der UI-Regie, Instanz-Stand 04060ad, 2 min 51 s bis zum Vorschlag. Die Wirkung ist klein: B2 nur nehmen, wenn die Jury genau das wünscht.
-
-**Falle:** Mit `--probe 2025-03` zeigt die Probe 396.762 → 395.292 (−1.470), obwohl sich nur das Alter ändert. In der Probe fehlen die Fortschreibungen von 2025-03 und 2025-10. Der Fix kommt mit !150, die Abgabe ist nicht betroffen.
 
 **Wozu die Übung dient:** Sie zeigt, dass die offene Frage R1 an die Fachabteilung ein Regelparameter ist und keine Programmänderung.
 
@@ -217,7 +215,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Was der Vorschlag ändert:** Prüfregel `P15_bestand_vs_vormonat` (Typ `pruefung`), Parameter `schwelle` von 0.05 auf 0.03.
 
-**Erwartete Wirkung:** Der Bestand ändert sich nicht, eine Prüfregel ändert keine Zahl. Im Juli 2026 bleibt die Gesamtzahl 407.604 (einmal gemessen von der UC3-Lane, 05.11.2026, Commit d888e09, mit fast gleichem Satz). Die Probe zeigt also keinen Unterschied. Das sagen wir dazu: Es ändert sich nur, welche Monate anhalten, und das sieht man in dieser Probe nicht. Nicht mit `--probe 2025-10` proben, dort fehlen in der Probe die Fortschreibungen (siehe B2).
+**Erwartete Wirkung:** Der Bestand ändert sich nicht, eine Prüfregel ändert keine Zahl. Im Juli 2026 bleibt die Gesamtzahl 407.604 (einmal gemessen von der UC3-Lane, 05.11.2026, Commit d888e09, mit fast gleichem Satz). Die Probe zeigt also keinen Unterschied. Das sagen wir dazu: Es ändert sich nur, welche Monate anhalten, und das sieht man in dieser Probe nicht.
 
 **Freigabe:** `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`
 
@@ -396,8 +394,8 @@ Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.
 | Wien-Frage liefert drei Antworten | online ja: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator mit Modell gpt-5-4-mini, Lotse fester Text, beide mit dem Beleg aus UC3; nichts fehlt; 9 bis 12 s | gemessen 23:04, zweimal |
 | Frage ohne Zahl | „Wie heißt der Hund von Pippi Langstrumpf?“: Die Kette stoppt bei StatAgent, ohne Zahl, 3 s | gemessen 23:06 |
 | Frage mit „Wartezeiten“ | Mit Wien und März 2025: Der Simulator rechnet über das Rechenmodell, Wartezeit −22,2 %, 128,2 Mio. Euro pro Jahr, 22 s. Nicht vorführen. Ohne Monat und Ort: StatAgent fragt zurück, welchen Begriff es erklären soll, die Kette stoppt | gemessen 23:06 und 23:08 |
-| „Zugänge Oktober 2024“ | Öffentliche Adresse: keine Zahl, Hinweis auf die lokale Auswertung. Vorführ-Instanz nicht gemessen | gemessen 23:07 und 23:08 |
-| Live-Änderung per Agent (D2 Teil 2) | Endserie läuft, MR !150 Stand 20:00 noch rot; Teil 2 nur, wenn beim Freeze auf main | Prüfpunkt Lead 20:00 |
+| „Zugänge Oktober 2024“ | Öffentliche Adresse: keine Zahl, Hinweis auf die lokale Auswertung. Vorführ-Instanz: 12.215 Zugänge, 14.557 Abgänge, Fluktuation je Branche, alle drei Stationen, 19 s | gemessen 23:07 und 23:08, Instanz 06.11.2026 02:40 |
+| Live-Änderung per Agent (D2 Teil 2) | auf main seit !150. „Beamte zählen nicht mehr mit“, Juli 2026: 407.604 → 395.315, −12.289, 2 min 55 s bis zum Vorschlag, nicht freigegeben | gemessen 06.11.2026 02:36, Vorführ-Instanz 1a4e0b8. Probe der Lane auf Kopien der Abgabe-DB: 13 von 14, `docs/plan/uc3/live-ruecknahme.md` |
 | Klassifikation bis 5-Steller und Gemeinden | online nachzuschlagen auf `/uc3/klassifikationen` mit Suche, und die Frage erklärt tiefe Codes, Gemeinden und Bezirke. Gezählt wird weiter nach Abschnitt und Bundesland, „Bezirk“ als Filter sagt ab | online gemessen 06.11.2026 01:34, main `275ffb2` |
 | Pensionsmeldungen der Träger | eingelesen: 28 von 28 Dateien, 9 Formate, 394 Summen ohne Abweichung. Online 2025 im Jahresdurchschnitt 2.584.909, vorläufig | `docs/uc3/pensionen-pruefbericht.md`, online gemessen 23:16 |
 | Lotse, verdeckter Test | Trefferquote 8 von 10, Träger richtig 6 von 10, Grenzen erkannt 3 von 8; Verbesserung eingespielt, Nachmessung offen | Prüfpunkt Lead 20:00 |
