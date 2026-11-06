@@ -328,6 +328,8 @@ _ZAEHLT_ANDERES = re.compile(
 )
 _KEIN_DATUM = f"Daten gibt es nur für {zeitraum_anzeige(ERSTE_LIEFERUNG, LETZTE_LIEFERUNG)}. Bitte einen Zeitraum darin nennen."
 _VOR_ZEIT = re.compile(r"\b(?:vormonats?|vorjahr(?:es)?)\b", re.IGNORECASE)
+#: Das Alltagswort für die Aufteilung in einem Satz an Nutzer.
+_JE_ALLTAG = {"ÖNACE-Abschnitt": "je Branche", "Beschäftigungskategorie": "je Beschäftigungskategorie"}
 _VERNEINUNG = frozenset(
     {"außer", "ausser", "ohne", "nicht", "kein", "keine", "keinen", "keiner", "ausgenommen"}
 )
@@ -2037,8 +2039,8 @@ def _antwort_frage(
         if je is not None and je not in erlaubt:
             # Sonst fiele „je Branche“ still weg, die Antwort gälte für ganz Österreich.
             raise _KeineZahl(
-                f"Männer und Frauen zusammen mit „je {je.name}“ zeigt StatAgent hier nicht. Bitte einzeln fragen, "
-                f"zum Beispiel „Frauen im Bau im {_monat_anzeige(LETZTE_LIEFERUNG)}“."
+                f"Männer und Frauen {_JE_ALLTAG.get(je.name, 'je ' + je.name)} zeigt StatAgent nicht auf einmal. "
+                f"Bitte einzeln fragen, zum Beispiel „Frauen im Bau im {_monat_anzeige(LETZTE_LIEFERUNG)}“."
             )
     if "anteil" in text and typ != "fluktuation":
         if not _GESCHLECHT.search(text):

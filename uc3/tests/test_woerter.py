@@ -392,3 +392,8 @@ def test_lagerei_gehoert_zum_verkehr(zwei_monate: Verbindung) -> None:
     mit = uc4_antwort(zwei_monate, "Beschäftigte im Verkehr und in der Lagerei im August 2024")
     ohne = uc4_antwort(zwei_monate, "Beschäftigte im Verkehr im August 2024")
     assert [z["wert"] for z in mit["zahlen"]] == [z["wert"] for z in ohne["zahlen"]]
+
+
+def test_je_branche_im_satz(zwei_monate: Verbindung) -> None:
+    daten = uc4_antwort(zwei_monate, "Männer und Frauen je Branche im August 2024")
+    assert daten["text"].startswith("Männer und Frauen je Branche zeigt StatAgent nicht auf einmal.")
