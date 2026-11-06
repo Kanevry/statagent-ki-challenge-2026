@@ -20,7 +20,7 @@ Quelle: GitLab-Projekt des Teams, alle Aufgaben, gelesen über die Schnittstelle
 - **Status:** „erledigt“ heißt, die Aufgabe ist im Aufgabensystem geschlossen. „offen“ heißt, sie ist dort nicht geschlossen. Was davon im Code läuft, steht im [README](../../README.md) und unter [Stand der Use Cases](use-cases-stand.md).
 - **Nummern:** `#12` ist eine Aufgabe, `!12` ein Änderungsantrag (Merge Request) im privaten GitLab-Projekt.
 - **Labels:** `uc1` bis `uc4` nennen den Use Case. `epic::…` nennt das große Arbeitspaket. `kern` ist der gemeinsame Kern, `ablauf` der Zeitplan. `status::in-progress` heißt in Arbeit. `prio::nach-abgabe` heißt bewusst auf nach der Abgabe gelegt. `owner` heißt, die Aufgabe braucht eine Entscheidung von Bernhard.
-- **Was fehlt:** Beschreibungen und Kommentare stehen hier nicht, nur Titel und Labels. 13 Titel sind leicht geändert (Rechnernamen, ein Anbietername, interne Verweise und Rollenwörter ersetzt, fünf Titel zum Betrieb der Online-Demo allgemeiner gefasst), 1 Titel fehlt, weil er einen persönlichen Bezug hat.
+- **Was fehlt:** Beschreibungen und Kommentare stehen hier nicht, nur Titel und Labels. 14 Titel sind leicht geändert (Rechnernamen, ein Anbietername, interne Verweise und Rollenwörter ersetzt, fünf Titel zum Betrieb der Online-Demo allgemeiner gefasst), 1 Titel fehlt, weil er einen persönlichen Bezug hat.
 
 ## Epics (die großen Arbeitspakete)
 
@@ -263,7 +263,7 @@ Quelle: GitLab-Projekt des Teams, alle Aufgaben, gelesen über die Schnittstelle
 
 | Nr. | Titel | Status | Labels |
 |---:|---|---|---|
-| #91 | E6 README, Lizenz und Herkunft: ausführbare Anleitung und geklärte everlast-Anteile | offen | `ablauf`, `compliance`, `epic::e6-abgabe`, `owner`, `status::in-progress` |
+| #91 | E6 README, Lizenz und Herkunft: ausführbare Anleitung und geklärte Herkunft übernommener Konzepte | offen | `ablauf`, `compliance`, `epic::e6-abgabe`, `owner`, `status::in-progress` |
 | #92 | E6 Abgabe Fr 09:00: vollständige SV-Box-Artefakte und zeitlich kontrollierter GitHub-Push | offen | `ablauf`, `compliance`, `epic::e6-abgabe`, `owner` |
 
 ## Übergreifend: Ablauf, Abnahme, Betrieb
