@@ -121,6 +121,26 @@ def pruefsaetze(ort: Path) -> list[dict]:
     return saetze
 
 
+def alte_abzuege_entfernen(behalten: int = 2, ordner: Path | None = None) -> list[str]:
+    """Lässt nur die neuesten Abzüge stehen; je main entsteht sonst einer, und die Platte läuft voll (06.11.).
+
+    Fasst nur Ordner mit SHA-Namen an, nie die Links auf die Nachbarordner mit den Daten.
+    """
+    wurzel = ordner or ABZUEGE
+    if not wurzel.is_dir():
+        return []
+    stand = [
+        p
+        for p in wurzel.iterdir()
+        if re.fullmatch(r"[0-9a-f]{12}(-git)?", p.name) and p.is_dir() and not p.is_symlink()
+    ]
+    stand.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    weg = stand[behalten:]
+    for p in weg:
+        shutil.rmtree(p, ignore_errors=True)
+    return sorted(p.name for p in weg)
+
+
 def abzug(sha: str, werkzeug: str) -> Path:
     """Sauberer Abzug als geteilter Klon (mit Git-Historie für git- und gitleaks-Prüfsätze).
 
@@ -153,6 +173,7 @@ def abzug(sha: str, werkzeug: str) -> Path:
         (ziel / MARKE_KLON).write_text("Prüf-Klon der Abnahme; wird vor jedem Lauf hart zurückgesetzt.\n")
     nachbarn_verlinken()
     zuruecksetzen(ziel, sha, werkzeug)
+    alte_abzuege_entfernen()
     return ziel
 
 
