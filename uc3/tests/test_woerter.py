@@ -466,6 +466,7 @@ def test_wert_nach_geschlecht_bleibt_einschraenkung(
 def test_dort_ohne_ort_fragt_nach(zwei_monate: Verbindung) -> None:
     ohne = uc4_antwort(zwei_monate, "Wie viele Frauen im Handel gibt es dort im August 2024?")
     assert not ohne["zahlen"] and ohne["text"].startswith("Die Frage sagt „dort“, nennt aber keinen Ort.")
+    assert "Zum Beispiel" not in ohne["text"]
     mit = antwort_frage(
         zwei_monate, "Beschäftigung in Tirol im August 2024: Wie viele Menschen hatten dort einen Job?"
     )
