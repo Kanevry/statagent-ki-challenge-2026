@@ -7,7 +7,7 @@ export default function Ablauf() {
     <article className={g.ablauf}>
       <h1 className={g.titel}>{ABLAUF.titel}</h1>
       <p className={g.satz}>{ABLAUF.satz}</p>
-      <p className={g.stand}>{ABLAUF.stand}</p>
+      <p className={g.zahlen}>{ABLAUF.zahlen}</p>
 
       <section aria-labelledby="ablauf-zeit">
         <h2 id="ablauf-zeit" className={g.h2}>

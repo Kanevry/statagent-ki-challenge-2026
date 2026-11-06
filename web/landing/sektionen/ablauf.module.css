@@ -27,10 +27,12 @@
   text-wrap: pretty;
 }
 
-.stand {
+.zahlen {
   margin: 12px 0 0;
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.5;
   color: var(--l-slate);
+  text-wrap: pretty;
 }
 
 .h2 {

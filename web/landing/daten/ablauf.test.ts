@@ -4,7 +4,7 @@ import { ABLAUF } from "./ablauf";
 const alles = [
   ABLAUF.titel,
   ABLAUF.satz,
-  ABLAUF.stand,
+  ABLAUF.zahlen,
   ...ABLAUF.zeitleiste.flatMap((p) => [p.zeit, p.satz]),
   ...ABLAUF.abschnitte.flatMap((a) => [a.titel, ...a.saetze]),
 ];
@@ -36,6 +36,8 @@ describe("Seite Ablauf", () => {
     ["MR- oder Issue-Nummer", /(?:^|\s)[!#]\d+/],
     ["Sitzungsname", /\b(lead-session|b-[a-z0-9]+-[0-9a-f]{2}|ui-regie|e5-szenen)\b/i],
     ["Gedankenstrich", /[—–]/],
+    ["Verhältnis ohne „Beschäftigungs“", /(?<!Beschäftigungs)[Vv]erhältnis/],
+    ["Regelsatz-Kürzel", /\bv[12]\b/],
     ["nicht Gemessenes", /nicht gemessen/i],
   ])("kein %s auf der öffentlichen Seite", (_name, muster) => {
     expect(alles.filter((t) => muster.test(t))).toEqual([]);
