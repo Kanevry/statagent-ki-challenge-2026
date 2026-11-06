@@ -132,7 +132,7 @@ const Saeulen = memo(function Saeulen() {
           style={{ "--i": i } as CSSProperties}
         />
       ))}
-      <line className={g.fadenOkt} x1={mitte(OKT)} x2={mitte(OKT)} y1="88" y2={y(EINBRUCH.geliefert) - 10} />
+      <line className={g.fadenOkt} x1={mitte(OKT)} x2={mitte(OKT)} y1="114" y2={y(EINBRUCH.geliefert) - 10} />
 
       <rect
         className={g.raster}
