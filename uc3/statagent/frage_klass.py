@@ -578,9 +578,9 @@ def _region_uebergaenge(daten: dict[str, Any], wer: str, jetzt: bool) -> list[st
     je_datum: dict[object, list[dict[str, Any]]] = {}
     for u in daten["uebergaenge"]:
         je_datum.setdefault(u["gueltig_ab"], []).append(u)
-    namen = _umbenennungen(daten["uebergaenge"], code)
+    umbenannt = _umbenennungen(daten["uebergaenge"], code)
     # „Seit … heißt … so“ stimmt nur für die letzte Umbenennung eines Codes, den es noch gibt.
-    letzte = max(namen, key=lambda u: str(u["gueltig_ab"])) if namen and jetzt else None
+    letzte = max(umbenannt, key=lambda u: str(u["gueltig_ab"])) if umbenannt and jetzt else None
     saetze = []
     for ab in sorted(je_datum, key=str):
         gruppe = je_datum[ab]
