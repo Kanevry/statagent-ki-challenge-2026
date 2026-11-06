@@ -161,7 +161,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
             ) : (
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <span className="font-sans text-16 text-ink">
-                  {`Die neuen Zahlen entstehen, sobald ${monatName(ergebnis.monat)} mit Regelsatz ${ergebnis.regelsatz} gerechnet ist.`}
+                  {`Die neuen Zahlen für ${monatName(ergebnis.monat)} entstehen, wenn Regelsatz ${ergebnis.regelsatz} Monat für Monat bis dorthin gerechnet ist.`}
                 </span>
                 <BelegLink
                   quelle="meta.lauf"
