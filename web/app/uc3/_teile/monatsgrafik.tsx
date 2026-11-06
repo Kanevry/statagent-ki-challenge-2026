@@ -18,7 +18,8 @@ import { bestandJeMonat, imZeitraum, zeitraumArtAus } from "@/components/uc3/zei
 
 type Masse = { breite: number; hoehe: number; links: number; rechts: number; oben: number; unten: number; schrift: number };
 
-const DESKTOP: Masse = { breite: 960, hoehe: 264, links: 64, rechts: 12, oben: 12, unten: 28, schrift: 12 };
+// Höhe 216: So stehen bei 1440 × 900 die vier Kennzahlen unter der Kurve ganz im ersten Bildschirm (#206).
+const DESKTOP: Masse = { breite: 960, hoehe: 216, links: 64, rechts: 12, oben: 12, unten: 28, schrift: 12 };
 /** Bis dahin sind Linie (900 ms) und letzter Punkt (Verzögerung bis 900 ms, dazu 300 ms) sicher fertig. */
 const ANIMATION_MS = 1_300;
 
@@ -32,6 +33,12 @@ export function achsenBeginn(werte: readonly number[]): number {
 /** Obere Achsengrenze: volles Fünftausend über dem größten Wert. */
 export function achsenEnde(werte: readonly number[]): number {
   return Math.ceil((Math.max(...werte) + 1) / 5_000) * 5_000;
+}
+
+/** Satz unter der Kurve: sagt, dass die Achse nicht bei 0 beginnt (#206). */
+export function achsenHinweis(beginn: number): string {
+  if (beginn <= 0) return "Die Achse beginnt bei 0.";
+  return `Die Achse beginnt bei ${formatZahl(beginn)}, nicht bei 0. So werden kleine Schwankungen sichtbar.`;
 }
 
 /** Zwei beschriftete Hilfslinien: Achsenbeginn und Achsenende. */
@@ -191,7 +198,7 @@ export function Monatsgrafik({ monate, regelsatz, beleg }: { monate: readonly Mo
             angehalten
           </span>
         )}
-        <span>{`Die Achse beginnt bei ${formatZahl(achsenBeginn(werte))}.`}</span>
+        <span>{achsenHinweis(achsenBeginn(werte))}</span>
         {beleg}
       </figcaption>
     </figure>
