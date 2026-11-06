@@ -11,7 +11,8 @@ Spalten:
 - `filter`: `region`, `geschlecht`, `kategorie`, `oenace` (Buchstabe), `branche` (Name, `%` als Platzhalter, gilt je
   ÖNACE-Version), `freier_dv`, `alter` (`von-bis`).
 - `optionen`: `mittel` (Durchschnitt muss dabei sein), `muss` (Rückfrage oder Absage reichen nicht), `auch=…` (weitere
-  erlaubte Ausgänge), `gruppe=…` (eine Zahl je Gruppe), `werte_je=merkmal:a,b`, `art=anteil|fluktuation`,
+  erlaubte Ausgänge), `gruppe=…` (eine Zahl je Gruppe; `geschlecht+region` je Kombination), `summen` (bei
+  `gruppe`: Summenzeilen dürfen dabei sein), `werte_je=merkmal:a,b`, `art=anteil|fluktuation`,
   `anteil=merkmal:code`, `regelsatz=v2` (der Regelsatz des Solls), `aufruf=v2` (Regelsatz beim Aufruf), `text=…`
   (dieser Text muss in der Antwort stehen), `frei` (Tabelle, die der Katalog nicht nachrechnet).
 
@@ -723,4 +724,18 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | G051 | form:app | definition | - | - | text=Mensch entscheiden | Was heißt angehalten? |
 | G053 | form:app,zeit:monat | zahl | 2025-10 | - | art=pruefung;muss | Warum ist Oktober 2025 angehalten? |
 | G056 | form:absage | absage | - | - | - | Warum ist der Himmel im Oktober 2025 blau? |
-| G057 | form:absage,zeit:jahreszeit | absage | - | - | auch=rueckfrage | Männer und Frauen im Sommer 2025 je Bundesland |
+| G057 | kreuz:merkmale,zeit:jahreszeit | zahl | 2025-06..2025-08 | - | gruppe=geschlecht+region;summen;muss | Männer und Frauen im Sommer 2025 je Bundesland |
+
+Die Zeilen `X…` stammen aus der Blind-Runde zu !328. X002 bekommt die Zahl je Monat, Geschlecht und Bundesland
+(#207), für höchstens 6 Monate; darüber gibt es eine Absage (X104). In X036 hat „dort“
+keinen Bezug: Das Programm fragt nach dem Bundesland, statt eine Zahl für ganz Österreich zu nennen.
+
+| id | achsen | soll | monate | filter | optionen | frage |
+| --- | --- | --- | --- | --- | --- | --- |
+| X001 | zeit:monat,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale,blind | zahl | 2026-07 | - | gruppe=geschlecht+region;summen | Wie viele Männer und Frauen gibt es in jedem Bundesland im Juli 2026? |
+| X002 | zeit:winter,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale,blind | zahl | 2024-12..2025-02 | - | gruppe=geschlecht+region;summen;muss | Beschäftigte im Winter 2025 nach Geschlecht und Bundesland |
+| X036 | zeit:winter,zeit:ohne_jahr,merkmal:geschlecht,merkmal:alter,merkmal:branche,blind | rueckfrage | - | - | text=dort | Wie viele Frauen unter 30 im Handel gibt es dort im Winter? |
+| X101 | zeit:bereich,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale | zahl | 2025-03..2025-04 | - | gruppe=geschlecht+region;summen;muss | Männer und Frauen je Bundesland von März bis April 2025 |
+| X102 | zeit:quartal,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale | zahl | 2025-01..2025-03 | - | gruppe=geschlecht+region;summen;muss | Beschäftigte im ersten Quartal 2025 nach Geschlecht und Bundesland |
+| X103 | zeit:winter,merkmal:geschlecht,merkmal:bundesland | zahl | 2024-12..2025-02 | region=7 | gruppe=geschlecht;muss | Männer und Frauen in Tirol im Winter 2025 |
+| X104 | zeit:jahr,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale | absage | - | - | - | Zeitreihe Männer und Frauen je Bundesland 2025 |

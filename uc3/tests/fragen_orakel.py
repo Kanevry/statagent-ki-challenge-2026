@@ -177,7 +177,10 @@ def _bestand(conn: Any, zeile: Zeile, gruppe: str | None) -> list[dict[str, Any]
     }
     bedingungen = _bedingungen(conn, zeile, parameter)
     spalte = None
-    if gruppe:
+    if gruppe and "+" in gruppe:
+        # „geschlecht+region“: eine Zahl je Kombination (ohne Kategorie, die bräuchte den Join).
+        spalte = "concat_ws('+', " + ", ".join(str(_SPALTE_GRUPPE[g]) for g in gruppe.split("+")) + ")"
+    elif gruppe:
         spalte = _SPALTE_GRUPPE[gruppe] or _kategorie_spalte(zeile.regelsatz)
     join_q = (zeile.regelsatz == "v1" and ("kategorie" in zeile.filter or gruppe == "kategorie")) or (
         "freier_dv" in zeile.filter

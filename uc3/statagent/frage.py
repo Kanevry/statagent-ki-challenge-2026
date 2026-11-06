@@ -105,6 +105,17 @@ _ZEITREIHE = ZEITREIHE_WORT
 _VERGLEICH = re.compile(r"vergleich|gegenüber")
 _GESCHLECHT = re.compile(r"männer|maenner|frauen|geschlecht|männlich|weiblich")
 _BUNDESLAND = re.compile(r"bundesl|länder|laender")
+#: „nach Geschlecht und Bundesland“: ohne diese Wörter findet _gliederung die zweite Aufteilung (#207).
+_GESCHLECHT_UND = re.compile(r"geschlecht(?:ern)?(?:\s*[,/&]\s*|\s+(?:und|sowie|bzw\.?|beziehungsweise)\s+)")
+#: „nach Geschlecht pro Branche“, „nach Bundesland und Geschlecht“: die Aufteilung nach Geschlecht selbst.
+_NACH_GESCHLECHT = re.compile(
+    r"(?:(?:nach|je|pro|und|sowie|bzw\.?|beziehungsweise)\s+|[,/&]\s*)geschlecht(?:ern)?\b"
+)
+#: „dort“ braucht einen Ort in derselben Frage.
+_DORT = re.compile(r"(?<!\w)dort(?!\w)")
+#: „dort in Österreich“ nennt den Ort selbst. „Österreicher“ ist kein Ort.
+_DORT_OESTERREICH = re.compile(r"(?<!\w)(?:österreich|oesterreich)(?:s|weit)?(?!\w)")
+_DORT_RUECKFRAGE = "Die Frage sagt „dort“, nennt aber keinen Ort. Welches Bundesland meinen Sie?"
 
 
 def _merkmal(name: str) -> Merkmal:
@@ -1969,9 +1980,27 @@ _UEBERNOMMEN_KLAR = (
 
 
 # --- Vorschlag: passt zur Frage und ist vor dem Zeigen gelaufen -----------------------------------------------------
-_KEIN_VORSCHLAG = re.compile(r"Einzeldaten gibt StatAgent")
+#: Keine Folgefrage nach der Absage zu Einzeldaten. Und keine nach der Rückfrage zu „dort“: Ein Vorschlag ohne Ort
+#: gäbe die Zahl für ganz Österreich, nach der niemand gefragt hat.
+_KEIN_VORSCHLAG = re.compile(r"Einzeldaten gibt StatAgent|nennt aber keinen Ort")
 #: Die Antwort nennt schon eine Folgefrage („Frauen im Juli 2026“, „Was ist ÖNACE C?“).
 _BEISPIEL_DA = re.compile(r"„[^“]*(?:\b20\d{2}\b|\?)[^“]*“")
+
+
+def _zweite_aufteilung(conn: Verbindung, frage: str, monat: str) -> Merkmal | None:
+    """Die Aufteilung neben dem Geschlecht („nach Geschlecht und Bundesland“), sonst fiele sie still weg (#207).
+
+    ``_gliederung`` liefert nur das erste Merkmal. Nennt die Frage einen Wert des zweiten Merkmals („nach
+    Geschlecht, Bundesland Tirol“), ist es eine Einschränkung und keine Aufteilung.
+    """
+    zweite = _gliederung(_NACH_GESCHLECHT.sub("", _GESCHLECHT_UND.sub("", frage.lower())))
+    if zweite is None or zweite is GESCHLECHT:
+        return None
+    try:
+        werte, _ = _werte(frage, zweite, _codes(conn, zweite, monat))
+    except _KeineZahl:
+        return zweite
+    return None if werte else zweite
 
 
 def _teile_der_frage(conn: Verbindung, frage: str, monat: str) -> tuple[str, list[str], str]:
@@ -1979,7 +2008,9 @@ def _teile_der_frage(conn: Verbindung, frage: str, monat: str) -> tuple[str, lis
     text = frage.lower()
     frau = bool(re.search(r"\bfrauen\b|frauenanteil|weiblich", text))
     mann = bool(re.search(r"\bmänner\w*|maenner|männlich|männeranteil", text))
-    was = "Männer und Frauen" if frau and mann else "Frauen" if frau else "Männer" if mann else ""
+    # „nach Geschlecht“: der Vorschlag nennt beide (#207). Das bloße Wort „Geschlecht“ reicht dafür nicht.
+    beide = (frau and mann) or _NACH_GESCHLECHT.search(text) is not None
+    was = "Männer und Frauen" if beide else "Frauen" if frau else "Männer" if mann else ""
     orte: list[str] = []
     je = ""
     for merkmal in (BUNDESLAND, OENACE, KATEGORIE):
@@ -2005,6 +2036,8 @@ def _teile_der_frage(conn: Verbindung, frage: str, monat: str) -> tuple[str, lis
         elif werte:
             was = f"{codes[werte[0]]} {was}".strip()
     gliederung = _gliederung(frage)
+    if gliederung is GESCHLECHT:
+        gliederung = _zweite_aufteilung(conn, frage, monat)
     if not je and gliederung is not None and gliederung is not GESCHLECHT:
         je = _JE_ALLTAG.get(gliederung.name, f"je {gliederung.name}")
     if not je and frau and mann and _BUNDESLAND.search(text):
@@ -2052,6 +2085,16 @@ def _mit_vorschlag(conn: Verbindung, frage: str, regelsatz: str, daten: dict[str
     return daten
 
 
+def _dort_ohne_ort(conn: Verbindung, frage: str) -> bool:
+    """„dort“ braucht einen Ort in derselben Frage, sonst gälte die Zahl still für ganz Österreich."""
+    text = frage.lower()
+    if not _DORT.search(text) or _DORT_OESTERREICH.search(text):
+        return False
+    monate = monate_lesen(frage)
+    orte, _ = _werte(frage, BUNDESLAND, _codes(conn, BUNDESLAND, monate[-1] if monate else LETZTE_LIEFERUNG))
+    return not orte
+
+
 def _antwort_kern(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str, Any]:
     if ist_pensionsfrage(frage) and not _PERSON.search(frage.lower()):
         return _pensionsfrage(conn, frage)
@@ -2091,6 +2134,9 @@ def _antwort_kern(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
                 "Männeranteil an allen. Zum Beispiel „Wie viel Prozent der Beschäftigten in Wien sind Frauen?“."
             )
             return _antwort(fragetyp(frage), text, hinweise=[text])
+        if fragetyp(frage) != "definition" and _dort_ohne_ort(conn, frage):
+            # Vor der Wahl des Regelsatzes: Die Rückfrage gilt für beide Regelstände.
+            return _rueckfrage(_DORT_RUECKFRAGE)
         if regelsatz == "v1":
             regelsatz = _regelsatz_der_frage(frage) or regelsatz
         if regelsatz != "v1":
@@ -2183,16 +2229,17 @@ def _antwort_frage(
     monate = monate_lesen(frage)
     jahr = jahr_ohne_monat(frage)
     text = frage.lower()
+    # Männer und Frauen je Bundesland über einen Zeitraum: eine Zahl je Monat, Geschlecht und Bundesland.
+    kreuz = False
     if typ != "fluktuation" and _geschlecht_gegliedert(text):
         je = _gliederung(frage)
+        if je is GESCHLECHT:
+            je = _zweite_aufteilung(conn, frage, monate[-1] if monate else LETZTE_LIEFERUNG) or GESCHLECHT
+        kreuz = je is BUNDESLAND and typ == "zeitreihe" and "anteil" not in text
         erlaubt = (GESCHLECHT,) if typ == "zeitreihe" or "anteil" in text else (GESCHLECHT, BUNDESLAND)
-        if je is not None and je not in erlaubt:
+        if je is not None and je not in erlaubt and not kreuz:
             # Sonst fiele „je Branche“ still weg, die Antwort gälte für ganz Österreich.
             wie = _JE_ALLTAG.get(je.name, f"je {je.name}")
-            if je is BUNDESLAND and typ == "zeitreihe" and "anteil" not in text:
-                raise _KeineZahl(
-                    f"Männer und Frauen {wie} zeigt StatAgent nur für einen Monat, nicht über einen Zeitraum."
-                )
             raise _KeineZahl(
                 f"Männer und Frauen {wie} zeigt StatAgent nicht auf einmal. Bitte einzeln fragen."
             )
@@ -2232,6 +2279,20 @@ def _antwort_frage(
         gruppen: tuple[Merkmal, ...] = (
             (GESCHLECHT,) if _geschlecht_gegliedert(text) else tuple(g for g in (_aufteilung(frage),) if g)
         )
+        if kreuz:
+            # Höchstens 6 Monate mit Daten: 6 mal 2 Geschlechter mal 11 Bundesländer (mit „unbekannt“) bleiben eine
+            # Abfrage und eine Tabelle. Gezählt werden die gefragten Monate, bei einer Aufzählung nur die genannten.
+            mit_daten = [m for m in (nur or _monate(von, bis)) if ERSTE_LIEFERUNG <= m <= letzter_bekannt]
+            if len(mit_daten) > MONATE_IM_TEXT:
+                # Der Vorschlag nennt nur Monate, für die es Daten gibt.
+                ende = mit_daten[-1]
+                anfang = max(von, ERSTE_LIEFERUNG, monat_verschieben(ende, 1 - MONATE_IM_TEXT))
+                raise _KeineZahl(
+                    f"Männer und Frauen je Bundesland zeigt StatAgent für höchstens {MONATE_IM_TEXT} Monate auf einmal. "
+                    "Bitte einen kürzeren Zeitraum nennen, zum Beispiel „Männer und Frauen je Bundesland von "
+                    f"{_monat_anzeige(anfang)} bis {_monat_anzeige(ende)}“."
+                )
+            gruppen = (GESCHLECHT, BUNDESLAND)
         return _bestand_antwort(conn, frage, regelsatz, von, bis, gruppen, "zeitreihe", mittel, nur)
     if typ == "fluktuation" and len(monate) > 1:
         return _rueckfrage_monat(typ, monate[-1][:4])
@@ -2274,7 +2335,13 @@ def _antwort_frage(
         return daten
     if typ == "geschlecht" and _geschlecht_gegliedert(text):
         _aufteilung(frage)  # Männer und Frauen je Altersgruppe: Absage
-        gruppen = (GESCHLECHT, BUNDESLAND) if _BUNDESLAND.search(text) else (GESCHLECHT,)
+        je_bundesland = _BUNDESLAND.search(text) is not None
+        if je_bundesland:
+            # „im Bundesland Tirol“ nennt einen Wert: Das ist eine Einschränkung, keine Aufteilung. Sonst
+            # überspränge der Filter den Wert und die Antwort zeigte alle Bundesländer.
+            genannt, _ = _werte(frage, BUNDESLAND, _codes(conn, BUNDESLAND, monat))
+            je_bundesland = not genannt
+        gruppen = (GESCHLECHT, BUNDESLAND) if je_bundesland else (GESCHLECHT,)
         return _bestand_antwort(conn, frage, regelsatz, monat, monat, gruppen, "geschlecht")
     gliederung = _aufteilung(frage)
     return _bestand_antwort(
