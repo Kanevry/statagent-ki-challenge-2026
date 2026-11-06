@@ -138,6 +138,8 @@ Das ersetzt keine Messung über einen echten Hotspot, die steht aus und liegt be
 
 | Weitere Messung | Ergebnis |
 |---|---|
+| Durchlauf auf dem Endstand der Nacht (06.11. 03:08 bis 03:15, Auftrag „Beamte zählen nicht mehr mit“) | 387,7 s ohne Fehler; Vorschlag 164,9 s, Freigabe 3,7 s, Rücknahme 97,8 s und 2,5 s; Beamte 12.289 zu 0, Gesamt 407.604 zu 395.315 |
+| 25 Fragen hintereinander (Limit der Instanz) | ohne Fehler |
 | Lauf Oktober 2025 gegen die Rechen-Datenbank | gleich: 397.514, Hash `63f106818887` |
 | Reset | 51 bis 53 s, fünfmal |
 | Erster Monat auf einem neuen Regelsatz (2024-08) | 41 s |
