@@ -19,7 +19,7 @@ Jahreszeiten: meteorologisch, „Winter 2025“ endet 2025 (Dezember 2024 bis Fe
 
 Die Zeilen `B…`, `C…`, `D…` und `E…` schrieben Agenten, die den Lese-Code nicht kannten. Zwei Soll-Werte sind danach korrigiert: B023 „zwischen
 Dezember 2024 und Dezember 2025“ meint den ganzen Bereich, B065 „zwischen Mai und Oktober“ ohne Jahr den jüngsten solchen
-Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Zahl vom 31.07.2026, weil der erste Satz das Datum offen nennt. C006 „Wie hat sich … entwickelt?“ ohne Zeit zeigt alle Monate, das ist keine falsche Zahl. Bei C003, E019, E028, E029 und E030 reicht eine Rückfrage oder Absage, weil dort ein Zeitbezug oder eine Zusammenfassung steht, die das Programm nicht rechnet.
+Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Zahl vom 31.07.2026, weil der erste Satz das Datum offen nennt. C009 und A004 stammen von vor !227: Das Alter gibt es jetzt, darum die Zahl. C006 „Wie hat sich … entwickelt?“ ohne Zeit zeigt alle Monate, das ist keine falsche Zahl. Bei C003, E019, E028, E029 und E030 reicht eine Rückfrage oder Absage, weil dort ein Zeitbezug oder eine Zusammenfassung steht, die das Programm nicht rechnet.
 
 | id | achsen | soll | monate | filter | optionen | frage |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -381,7 +381,7 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | C006 | zeit:unklar,form:amtlich,blind2 | zahl | 2024-08..2026-07 | - | auch=rueckfrage,absage | Wie hat sich der Bestand der unselbständig Beschäftigten entwickelt? |
 | C007 | zeit:stichtag,merkmal:branche,merkmal:bundesland,kreuz:merkmale,form:stichwort,blind2 | zahl | 2026-01 | region=2;branche=Beherbergung und Gastronomie | muss | Bestand Beherbergung und Gastronomie, Stichtag 31.01.2026, Kärnten |
 | C008 | zeit:monat,merkmal:geschlecht,form:nebensatz,blind2 | zahl | 2026-05 | geschlecht=W | muss | Wie viele unselbständig Beschäftigte gab es Ende Mai 2026, wenn man nur die Frauen betrachtet? |
-| C009 | merkmal:alter,merkmal:branche,form:nebensatz,blind2 | absage | - | - | auch=rueckfrage | Wie hoch war der Bestand im Bau Ende Mai 2026, soweit die Beschäftigten über 55 Jahre alt waren? |
+| C009 | merkmal:alter,merkmal:branche,form:nebensatz,blind2 | zahl | 2026-05 | branche=Bau;alter=56-130 | muss | Wie hoch war der Bestand im Bau Ende Mai 2026, soweit die Beschäftigten über 55 Jahre alt waren? |
 | C010 | zeit:stichtag,merkmal:kategorie,form:nebensatz,blind2 | zahl | 2026-03 | kategorie=Beamte | muss | Wie viele Beschäftigte gab es, soweit sie Beamte sind, zum Stichtag 31. März 2026? |
 | C011 | zeit:winter,form:amtlich,blind2 | zahl | 2025-12..2026-02 | - | mittel;muss | Bestand der Beschäftigten im Winter 2026, insgesamt |
 | C012 | merkmal:einkommen,merkmal:branche,zeit:stichtag,form:amtlich,blind2 | absage | - | - | auch=rueckfrage | Summe der Beitragsgrundlagen im Handel, Stichtag 31.10.2025 |
@@ -436,7 +436,7 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | A001 | form:menge,merkmal:bundesland | zahl | 2026-07 | region=9 | muss | Gab es im Juli 2026 über 20.000 Beschäftigte in Wien? |
 | A002 | form:menge,merkmal:bundesland | zahl | 2026-07 | region=7 | muss | Gab es im Juli 2026 unter 40.000 Beschäftigte in Tirol? |
 | A003 | form:menge | absage | - | - | auch=rueckfrage | Lag die Zahl im Juli 2026 über 20,5 Prozent? |
-| A004 | merkmal:alter,zeit:ohne | absage | - | - | auch=rueckfrage | Beschäftigte unter 25 |
+| A004 | merkmal:alter,zeit:ohne | zahl | 2026-07 | alter=0-24 | muss | Beschäftigte unter 25 |
 | A005 | merkmal:alter | zahl | 2026-07 | alter=51-130 | muss | Über-50-Jährige im Juli 2026 |
 | A006 | merkmal:alter | zahl | 2026-07 | alter=0-24 | muss | Unter-25-Jährige im Juli 2026 |
 | A007 | merkmal:alter | zahl | 2026-07 | alter=30-130 | muss | 30 Jahre alt oder älter im Juli 2026 |
