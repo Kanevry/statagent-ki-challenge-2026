@@ -105,7 +105,7 @@ Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „
 
 ### D3 Datenanfragen (9:30–12:00)
 
-Drei Anfragen der Aufgabenstellung, je etwa 25 Sekunden: Zeitreihe, Männer und Frauen je Bundesland, Fluktuation je Branche. Jede Antwort abwarten, bevor die nächste Frage kommt. Alle drei stammen aus der Liste der acht geprüften Fragen unten.
+Drei Anfragen der Aufgabenstellung, je etwa 25 Sekunden: Zeitreihe, Männer und Frauen je Bundesland, Fluktuation je Branche. Jede Antwort abwarten, bevor die nächste Frage kommt. Alle drei stammen aus der Liste der acht geprüften Fragen unten. Reihenfolge: zuerst Männer und Frauen, dann Fluktuation, die Zeitreihe zuletzt. Sie dauerte auf der Vorführ-Adresse 16 bis 35 s (gemessen 06.11.2026 im Video und von der UI-Regie), in der Zeit erklärt Bernhard, was die Frage zeigt.
 
 **Nur geprüfte Fragen.** Vorgeführt werden ausschließlich die acht Fragen aus der Tabelle, wörtlich so getippt. Jede ist gegen eigenes SQL und das unabhängige Orakel nachgerechnet (Prüfung im Team, 05.11.2026 17:15 bis 17:19, #74). Ob Bernhard freie Fragen der Jury eintippt, wird um 06:45 entschieden und in `probe.md` eingetragen. Sonst bietet er eine Frage aus der Liste an.
 

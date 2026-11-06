@@ -67,31 +67,31 @@ Alle Werte bleiben leer, bis die Datei fertig ist. Nie schätzen.
 
 | Feld | Wert |
 |---|---|
-| Datei (Pfad) | |
-| Ablage (Repo oder lokal außerhalb) | |
-| Dauer (Minuten:Sekunden, aus `ffprobe`) | |
-| Größe in Byte (> 0) | |
-| SHA-256 (`shasum -a 256`) | |
-| Auflösung (`ffprobe`, Soll 1920 × 1080) | |
-| Aufgenommen am (Datum, Uhr) | |
-| Stand (Commit) der aufgenommenen App | |
+| Datei (Pfad) | `docs/praesentation/backup-demo.mp4`, Kopie in `~/Movies/ki-challenge/` auf dem Rechner der Aufnahme |
+| Ablage (Repo oder lokal außerhalb) | Repo, kleiner als 25 MB |
+| Dauer (Minuten:Sekunden, aus `ffprobe`) | 2:45 |
+| Größe in Byte (> 0) | 4141777 |
+| SHA-256 (`shasum -a 256`) | `8ff01e63913c3854b10e9854e99aff9399f633b595bb93742160e8a6f0faa972` |
+| Auflösung (`ffprobe`, Soll 1920 × 1080) | 1920 × 1080 |
+| Aufgenommen am (Datum, Uhr) | 06.11.2026, 03:21 |
+| Stand (Commit) der aufgenommenen App | `809da6d`, Vorführ-Instanz `93a491d`, gleicher Inhalt laut Lane Vorführung |
 | Abspieltest offline: Datum | |
 | Abspieltest offline: Uhrzeit | |
 | Abspieltest offline: Ergebnis | bestanden / nicht bestanden |
-| Kennzeichnung „Aufzeichnung“ im Bild von Sekunde 0 | ja / nein |
-| Anmerkungen | |
+| Kennzeichnung „Aufzeichnung“ im Bild von Sekunde 0 | ja |
+| Anmerkungen | Aufnahme gegen die Vorführ-Adresse, nur lesend. Render auf dem Rechner der Session statt auf dem Zweitrechner, der seit 00:35 ausgefallen ist (Auftrag des Leads; 184 s, 834 MB). Geschnitten: 1,7 s Anfang und 11,4 s Wartezeit bei der Zeitreihe, im Bild genannt. Zeigt D1, D2 Rückblick, Vorschlag 24 und D3, nicht die Live-Änderung und nicht D4. Kein Terminal im Bild. Der Abspieltest ohne Netz folgt in der Probe. |
 
 ### Sichtprüfung
 
 | Prüfpunkt | Ergebnis |
 |---|---|
-| Ergebniszahl sichtbar | ja / nein |
-| Protokoll sichtbar | ja / nein |
-| Eingeblendete Texte lesbar | ja / nein |
-| Sichtbare Secrets | 0 / Anzahl |
+| Ergebniszahl sichtbar | ja |
+| Protokoll sichtbar | ja, als Hinweis auf den Protokoll-Commit bei Vorschlag 24 |
+| Eingeblendete Texte lesbar | ja |
+| Sichtbare Secrets | 0 |
 
 | Feld | Wert |
 |---|---|
-| Prüfer | |
-| Datum | |
-| Uhrzeit | |
+| Prüfer | Agent UI-Regie, nicht Mensch |
+| Datum | 06.11.2026 |
+| Uhrzeit | 03:25 |

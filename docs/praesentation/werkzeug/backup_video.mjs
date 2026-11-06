@@ -53,6 +53,11 @@ const FRAGEN = [
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Schnitt in Sekunden ab Beginn der Aufnahme: der Anfang vor dem ersten Bild und lange Wartezeiten auf eine Antwort.
+// Eine gekürzte Wartezeit steht im Bild, die Zahlen bleiben ungeschnitten.
+const WARTE_KUERZEN_AB_S = 10;
+const schnitte = [];
+
 // Kennzeichnung und Untertitel als feste Ebenen über der Seite; sie überstehen jede Navigation.
 function ebenen(kennzeichen) {
   const bau = () => {
@@ -123,9 +128,12 @@ try {
     throw new Error(`Unerwarteter Dialog: ${d.message()}`);
   });
   await page.mouse.move(960, 540);
+  const beginn = Date.now();
+  const sek = () => (Date.now() - beginn) / 1000;
 
   // D1 Qualitätsbericht Oktober 2025 (F11, F17)
   await oeffne(page, "/uc3/berichte/2025-10", "D1 Qualitätsbericht Oktober 2025: Die Lieferung ist unvollständig, der Monat ist angehalten");
+  schnitte.push([0, sek()]);
   await warte(6000);
   await rolle(page, 6, 4000);
 
@@ -139,7 +147,7 @@ try {
   await rolle(page, 3, 3000);
 
   // D2 Vorschlag 24 (Auftrag 1) im Detail, Zahlen vorher und nachher (F19)
-  await oeffne(page, "/uc3/freigaben/24", "D2 Änderung per Sprache: Vorschlag 24, Zahlen vorher und nachher, freigegeben mit Namen");
+  await oeffne(page, "/uc3/freigaben/24", "D2 Änderung aus der Aufgabenstellung: Vorschlag 24, Zahlen vorher und nachher, freigegeben mit Namen");
   await warte(6000);
   await rolle(page, 6, 4000);
 
@@ -153,6 +161,8 @@ try {
     await feld.pressSequentially(f.text, { delay: 35 });
     await warte(800);
     await page.locator('form[aria-label="Frage an die Daten"] button[type="submit"]').click();
+    const gefragt = sek();
+    await zeile(page, "Das Programm rechnet. Lange Wartezeiten sind in der Aufzeichnung gekürzt.");
     const ergebnis = page.locator('section[aria-labelledby="ergebnis-titel"]');
     const soll = ergebnis.getByText(f.soll, { exact: false });
     await soll.first().waitFor({ state: "attached", timeout: 45000 });
@@ -163,7 +173,10 @@ try {
     }
     await soll.locator("visible=true").first().waitFor({ timeout: 15000 });
     // Die Einblendung kommt erst mit dem Ergebnis, nie über der alten Tabelle.
-    await zeile(page, f.zeile);
+    const dauer = sek() - gefragt;
+    const gekuerzt = dauer > WARTE_KUERZEN_AB_S;
+    if (gekuerzt) schnitte.push([gefragt + 3, sek() - 2]);
+    await zeile(page, gekuerzt ? `${f.zeile}. Wartezeit gekürzt, die Antwort dauerte ${Math.round(dauer)} s` : f.zeile);
     await warte(9000);
     await rolle(page, 2, 2500);
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }));
@@ -180,10 +193,21 @@ try {
 if (ok) {
   const webm = readdirSync(ordner).find((n) => n.endsWith(".webm"));
   if (!webm) throw new Error("kein Video aufgenommen");
+  // Behalten wird, was zwischen den Schnitten liegt.
+  const teile = [];
+  let von = 0;
+  for (const [a, b] of schnitte) {
+    if (a > von) teile.push(`[0:v]trim=${von.toFixed(2)}:${a.toFixed(2)},setpts=PTS-STARTPTS[t${teile.length}]`);
+    von = b;
+  }
+  teile.push(`[0:v]trim=start=${von.toFixed(2)},setpts=PTS-STARTPTS[t${teile.length}]`);
+  const namen = teile.map((_, i) => `[t${i}]`).join("");
+  const filter = `${teile.join(";")};${namen}concat=n=${teile.length}:v=1:a=0[aus]`;
+  console.log(`Schnitte: ${schnitte.map(([a, b]) => `${a.toFixed(1)} bis ${b.toFixed(1)} s`).join(", ")}`);
   const lauf = spawnSync(
     FFMPEG,
-    ["-y", "-loglevel", "error", "-i", join(ordner, webm), "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "24",
-      "-preset", "medium", "-movflags", "+faststart", "-an", AUSGABE],
+    ["-y", "-loglevel", "error", "-i", join(ordner, webm), "-filter_complex", filter, "-map", "[aus]", "-c:v", "libx264",
+      "-pix_fmt", "yuv420p", "-crf", "24", "-preset", "medium", "-movflags", "+faststart", "-an", AUSGABE],
     { stdio: "inherit" },
   );
   if (lauf.status !== 0) throw new Error(`ffmpeg endete mit ${lauf.status}`);
