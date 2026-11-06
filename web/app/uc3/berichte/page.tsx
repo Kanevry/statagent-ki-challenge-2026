@@ -148,7 +148,7 @@ export default async function Berichte({ searchParams }: Props) {
 
       <section aria-labelledby="liste-titel" className="flex flex-col gap-4">
         <Ueberschrift stufe={3} als="h2" id="liste-titel">
-          Jeder Monat hat seinen eigenen Bericht aus seinem maßgeblichen Lauf.
+          Die Berichte je Monat
         </Ueberschrift>
         <HerkunftChip quelle="meta.pruefung_treffer" sql={sqlBerichtsliste(regelsatz)} />
         <Liste zeilen={zeilen} regelsatz={regelsatz} />

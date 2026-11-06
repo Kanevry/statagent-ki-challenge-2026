@@ -52,7 +52,7 @@ export function Monatsliste({
             onClick={() => setAbrechnung(!abrechnung)}
             className="inline-flex min-h-11 items-center font-sans text-14 text-slate underline decoration-line underline-offset-4 hover:text-ink"
           >
-            {abrechnung ? "Abrechnung ausblenden" : "Abrechnung zeigen"}
+            {abrechnung ? "Zeilen ausblenden" : "Zeilen zeigen"}
           </button>
           {rechts}
         </div>

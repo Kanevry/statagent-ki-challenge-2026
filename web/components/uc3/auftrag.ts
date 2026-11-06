@@ -78,7 +78,7 @@ export function leseEingabe(text: string): AuftragEingabe | { meldung: string } 
     if (satz.length > MAX_ANWEISUNG) return { meldung: `Der Auftrag ist länger als ${MAX_ANWEISUNG} Zeichen.` };
     // Ohne Probemonat nimmt `uc3 agent` den jüngsten gerechneten Monat
     if (probe === undefined || probe === "") return { art, anweisung: satz };
-    if (typeof probe !== "string" || !istMonat(probe)) return { meldung: "Bitte wählen Sie einen Monat für die Probe." };
+    if (typeof probe !== "string" || !istMonat(probe)) return { meldung: "Bitte wählen Sie einen Monat für die Testrechnung." };
     return { art, anweisung: satz, probe };
   }
   if (art === "lauf") {

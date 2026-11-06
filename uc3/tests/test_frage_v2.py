@@ -78,7 +78,7 @@ def test_frage_nach_v2_gibt_die_monatszahl(mit_v2: Verbindung, frage: str) -> No
     daten = antwort_frage(mit_v2, frage)
     soll = _summe(mit_v2, "v2", "Monat")
     assert [z["wert"] for z in daten["zahlen"]] == [soll] != [_summe(mit_v2, "v1", "Stichtag")]
-    assert daten["text"].startswith("Nach Regelsatz v2: ")
+    assert daten["text"].startswith("Nach den Änderungsaufträgen: ")
     assert "s.zeitraum_art = 'Monat'" in daten["belege"][0]["sql"] and "irgendwann im Monat" in daten["text"]
 
 
@@ -92,7 +92,7 @@ def test_schalter_regelsatz(mit_v2: Verbindung) -> None:
 def test_ohne_v2_wort_bleibt_v1(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Beschäftigte im August 2024")
     assert [z["wert"] for z in daten["zahlen"]] == [_summe(mit_v2, "v1", "Stichtag")]
-    assert "Nach Regelsatz v2" not in daten["text"]
+    assert "Nach den Änderungsaufträgen" not in daten["text"]
 
 
 # Fängt: Stichtag und Monat werden still gemischt; was der Weg nicht liest, bekommt keine Zahl.

@@ -5,6 +5,7 @@ import {
   beispieleFuer,
   ebeneWort,
   nachschlagenKopf,
+  oenace2003Aus,
   oenaceSaetze,
   pfadSatz,
   regionName,
@@ -176,5 +177,25 @@ describe("Einstieg ins Nachschlagen", () => {
   it("zeigt nur Beispiele aus geladenen Fassungen", () => {
     expect(beispieleFuer(voll)).toHaveLength(3);
     expect(beispieleFuer(auswahlAus(["2025"], [])).map((b) => b.suche)).toEqual(["C 10.13-0"]);
+  });
+});
+
+describe("ÖNACE 2003 nach 2008", () => {
+  const roh = (code_alt: string, code_neu: string, name_neu = "Herstellung von Waren") => ({ code_alt, name_alt: `Name ${code_alt}`, code_neu, name_neu });
+
+  it("fasst je altem Code die Ziele zusammen und nennt, wer sich teilt", () => {
+    const daten = oenace2003Aus([roh("DA", "C"), roh("DE", "C"), roh("DE", "J", "Information und Kommunikation")]);
+    expect(daten?.zeilen).toEqual([
+      { code: "DA", name: "Name DA", ziele: ["C"] },
+      { code: "DE", name: "Name DE", ziele: ["C", "J"] },
+    ]);
+    expect(daten?.satz).toBe(
+      "2 Unterabschnitte aus ÖNACE 2003 gehören ab ÖNACE 2008 mehrheitlich zu C (Herstellung von Waren). Bei DE geht ein Teil nach J (Information und Kommunikation).",
+    );
+  });
+
+  // Fängt: In einer Datenbank ohne diese Übergänge behauptet die Seite einen Übergang, der dort gar nicht liegt.
+  it("zeigt ohne Übergänge nichts", () => {
+    expect(oenace2003Aus([])).toBeNull();
   });
 });

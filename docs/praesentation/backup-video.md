@@ -71,15 +71,15 @@ Alle Werte bleiben leer, bis die Datei fertig ist. Nie schätzen.
 | Ablage (Repo oder lokal außerhalb) | Repo, kleiner als 25 MB |
 | Dauer (Minuten:Sekunden, aus `ffprobe`) | 2:45 |
 | Größe in Byte (> 0) | 4141777 |
-| SHA-256 (`shasum -a 256`) | `8ff01e63913c3854b10e9854e99aff9399f633b595bb93742160e8a6f0faa972` |
+| SHA-256 (`shasum -a 256`) | 8ff01e63913c3854b10e9854e99aff9399f633b595bb93742160e8a6f0faa972 |
 | Auflösung (`ffprobe`, Soll 1920 × 1080) | 1920 × 1080 |
 | Aufgenommen am (Datum, Uhr) | 06.11.2026, 03:21 |
 | Stand (Commit) der aufgenommenen App | `809da6d`, Vorführ-Instanz `93a491d`, gleicher Inhalt laut Lane Vorführung |
-| Abspieltest offline: Datum | |
-| Abspieltest offline: Uhrzeit | |
-| Abspieltest offline: Ergebnis | bestanden / nicht bestanden |
+| Abspieltest offline: Datum | 06.11.2026 |
+| Abspieltest offline: Uhrzeit | 06:21 bis 06:24 |
+| Abspieltest offline: Ergebnis | bestanden, bis zum Ende, nur der Browser ohne Netz, der Rechner nicht |
 | Kennzeichnung „Aufzeichnung“ im Bild von Sekunde 0 | ja |
-| Anmerkungen | Aufnahme gegen die Vorführ-Adresse, nur lesend. Render auf dem Rechner der Session statt auf dem Zweitrechner, der seit 00:35 ausgefallen ist (Auftrag des Leads; 184 s, 834 MB). Geschnitten: 1,7 s Anfang und 11,4 s Wartezeit bei der Zeitreihe, im Bild genannt. Zeigt D1, D2 Rückblick, Vorschlag 24 und D3, nicht die Live-Änderung und nicht D4. Kein Terminal im Bild. Nach der Aufnahme änderten sich bis main `a6dd221` nur `frage.py`, `woerter.py` und Tests; die drei gezeigten Fragen um 04:17 auf der Instanz nachgeprüft, gleiche Zahlen. Der Abspieltest ohne Netz folgt in der Probe. |
+| Anmerkungen | Aufnahme gegen die Vorführ-Adresse, nur lesend. Render auf dem Rechner der Session statt auf dem Zweitrechner, der seit 00:35 ausgefallen ist (Auftrag des Leads; 184 s, 834 MB). Geschnitten: 1,7 s Anfang und 11,4 s Wartezeit bei der Zeitreihe, im Bild genannt. Zeigt D1, D2 Rückblick, Vorschlag 24 und D3, nicht die Live-Änderung und nicht D4. Kein Terminal im Bild. Nach der Aufnahme änderten sich bis main `a6dd221` nur `frage.py`, `woerter.py` und Tests; die drei gezeigten Fragen um 04:17 auf der Instanz nachgeprüft, gleiche Zahlen. Zeigt in D1 die alten Regeln (313.154 + 77.746 = 390.900), „Rechnen“ rechnet live nach den Änderungsaufträgen (397.514). |
 
 ### Sichtprüfung
 

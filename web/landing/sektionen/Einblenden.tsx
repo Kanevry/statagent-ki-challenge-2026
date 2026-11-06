@@ -21,7 +21,7 @@ function gemeinsamerBeobachter(): IntersectionObserver {
 
 /**
  * Lage ohne erzwungenes Layout: Beim Laden ganz oben und ohne Sprungmarke liegen alle Abschnitte
- * unter der Sticky-Szene (mindestens 360 vh), also sicher unterhalb des Viewports. Nur sonst wird
+ * unter der Geschichte (mehrere Bildschirmhöhen), also sicher unterhalb des Viewports. Nur sonst wird
  * gemessen (die Abschnitte stehen in einer Hülle mit `content-visibility: auto`, eine Messung
  * würde sie sofort layouten).
  */

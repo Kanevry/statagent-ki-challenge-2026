@@ -21,7 +21,7 @@ const GROESSEN = [
   { name: "desktop", width: 1440, height: 900, mobil: false },
   { name: "mobil", width: 390, height: 844, mobil: true },
 ];
-// Fortschritt in der Sticky-Strecke: Mitte je Schritt (SCHRITTE in web/landing/szene/vertrag.ts).
+// Fortschritt in der Geschichte (web/landing/sektionen/Geschichte.tsx).
 const FORTSCHRITTE = [0, 0.12, 0.37, 0.63, 0.88, 1];
 const ABSCHNITTE = ["ansatz", "datenfehler", "use-cases", "team"];
 
