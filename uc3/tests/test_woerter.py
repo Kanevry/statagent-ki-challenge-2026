@@ -406,11 +406,33 @@ def test_je_branche_im_satz(zwei_monate: Verbindung) -> None:
         ("Beschäftigte von August bis September 2024 nach Geschlecht und Bundesland", "je Bundesland zeigt"),
         ("Beschäftigte von August bis September 2024 je Geschlecht und Bundesland", "je Bundesland zeigt"),
         ("Beschäftigte von August bis September 2024 nach Geschlecht und Branche", "je Branche zeigt"),
+        (
+            "Beschäftigte von August bis September 2024 nach Geschlecht in den Bundesländern",
+            "je Bundesland zeigt",
+        ),
+        ("Beschäftigte im August 2024 nach Geschlecht und Branche", "je Branche zeigt"),
+        ("Beschäftigte im August 2024 nach Geschlecht pro Branche", "je Branche zeigt"),
     ],
 )
 def test_zweite_aufteilung_faellt_nicht_weg(zwei_monate: Verbindung, frage: str, absage: str) -> None:
     daten = uc4_antwort(zwei_monate, frage)
     assert not daten["zahlen"] and daten["text"].startswith(f"Männer und Frauen {absage} StatAgent")
+
+
+# Fängt (#207): ein genannter Wert nach „Geschlecht,“ ist eine Einschränkung; die Frage bekäme sonst die Absage
+# zur Aufteilung statt ihrer Zahl.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte von August bis September 2024 nach Geschlecht, Bundesland Tirol",
+        "Beschäftigte von August bis September 2024 nach Geschlecht und im Bundesland Tirol",
+        "Beschäftigte im August 2024 nach Geschlecht, Branche Bau",
+        "Beschäftigte im August 2024 nach Geschlecht und Bundesland",
+    ],
+)
+def test_wert_nach_geschlecht_bleibt_einschraenkung(zwei_monate: Verbindung, frage: str) -> None:
+    daten = uc4_antwort(zwei_monate, frage)
+    assert daten["zahlen"] and "zeigt StatAgent" not in daten["text"]
 
 
 # Fängt (Blind-Runden, #186): die andere Richtung beim Anteil, in weiteren Formen.

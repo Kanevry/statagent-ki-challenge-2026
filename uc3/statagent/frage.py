@@ -103,6 +103,8 @@ _GESCHLECHT = re.compile(r"männer|maenner|frauen|geschlecht|männlich|weiblich"
 _BUNDESLAND = re.compile(r"bundesl|länder|laender")
 #: „nach Geschlecht und Bundesland“: ohne diese Wörter findet _gliederung die zweite Aufteilung (#207).
 _GESCHLECHT_UND = re.compile(r"geschlecht(?:\s*,\s*|\s+(?:und|sowie)\s+)")
+#: „nach Geschlecht pro Branche“, „nach Bundesland und Geschlecht“: die Aufteilung nach Geschlecht selbst.
+_NACH_GESCHLECHT = re.compile(r"(?:(?:nach|je|pro|und|sowie)\s+|,\s*)geschlecht(?:ern)?\b")
 
 
 def _merkmal(name: str) -> Merkmal:
@@ -1972,12 +1974,29 @@ _KEIN_VORSCHLAG = re.compile(r"Einzeldaten gibt StatAgent")
 _BEISPIEL_DA = re.compile(r"„[^“]*(?:\b20\d{2}\b|\?)[^“]*“")
 
 
+def _zweite_aufteilung(conn: Verbindung, frage: str, monat: str) -> Merkmal | None:
+    """Die Aufteilung neben dem Geschlecht („nach Geschlecht und Bundesland“), sonst fiele sie still weg (#207).
+
+    ``_gliederung`` liefert nur das erste Merkmal. Nennt die Frage einen Wert des zweiten Merkmals („nach
+    Geschlecht, Bundesland Tirol“), ist es eine Einschränkung und keine Aufteilung.
+    """
+    zweite = _gliederung(_NACH_GESCHLECHT.sub("", _GESCHLECHT_UND.sub("", frage.lower())))
+    if zweite is None or zweite is GESCHLECHT:
+        return None
+    try:
+        werte, _ = _werte(frage, zweite, _codes(conn, zweite, monat))
+    except _KeineZahl:
+        return zweite
+    return None if werte else zweite
+
+
 def _teile_der_frage(conn: Verbindung, frage: str, monat: str) -> tuple[str, list[str], str]:
     """Was die Frage sicher gelesen nennt: Wer, die Einschränkungen und die Aufteilung. Nie ein fremdes Wort."""
     text = frage.lower()
     frau = bool(re.search(r"\bfrauen\b|frauenanteil|weiblich", text))
     mann = bool(re.search(r"\bmänner\w*|maenner|männlich|männeranteil", text))
-    beide = frau and mann or "geschlecht" in text  # „nach Geschlecht“: der Vorschlag nennt beide (#207)
+    # „nach Geschlecht“: der Vorschlag nennt beide (#207). Das bloße Wort „Geschlecht“ reicht dafür nicht.
+    beide = (frau and mann) or _NACH_GESCHLECHT.search(text) is not None
     was = "Männer und Frauen" if beide else "Frauen" if frau else "Männer" if mann else ""
     orte: list[str] = []
     je = ""
@@ -2003,7 +2022,9 @@ def _teile_der_frage(conn: Verbindung, frage: str, monat: str) -> tuple[str, lis
             orte.append(wortlaut or f"ÖNACE {werte[0]}")
         elif werte:
             was = f"{codes[werte[0]]} {was}".strip()
-    gliederung = _gliederung(_GESCHLECHT_UND.sub("", text))
+    gliederung = _gliederung(frage)
+    if gliederung is GESCHLECHT:
+        gliederung = _zweite_aufteilung(conn, frage, monat)
     if not je and gliederung is not None and gliederung is not GESCHLECHT:
         je = _JE_ALLTAG.get(gliederung.name, f"je {gliederung.name}")
     if not je and frau and mann and _BUNDESLAND.search(text):
@@ -2183,8 +2204,7 @@ def _antwort_frage(
     if typ != "fluktuation" and _geschlecht_gegliedert(text):
         je = _gliederung(frage)
         if je is GESCHLECHT:
-            # _gliederung liefert nur das erste Merkmal; das zweite fiele sonst still weg (#207).
-            je = _gliederung(_GESCHLECHT_UND.sub("", text)) or GESCHLECHT
+            je = _zweite_aufteilung(conn, frage, monate[-1] if monate else LETZTE_LIEFERUNG) or GESCHLECHT
         erlaubt = (GESCHLECHT,) if typ == "zeitreihe" or "anteil" in text else (GESCHLECHT, BUNDESLAND)
         if je is not None and je not in erlaubt:
             # Sonst fiele „je Branche“ still weg, die Antwort gälte für ganz Österreich.
