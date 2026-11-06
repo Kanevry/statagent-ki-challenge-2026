@@ -43,7 +43,7 @@ Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset
 `statistik` wird dabei nur gelesen und bekommt die Pensionen bis nach 09:00 nicht. Server-Schritte startet nur der Lead.
 
 1. **Ab 05:57, neuer Dump mit Pensionen, nach den letzten Läufen.** Auf dem Rechner mit der Rechen-Datenbank, mit einem
-   Code-Stand ab Änderungsantrag 214:
+   Code-Stand ab Merge Request 214:
    ```bash
    scripts/vorfuehrung-db.sh --ersetzen statistik statistik_vorfuehrung_pensionen
    # mit UC3_DATABASE_URL auf diese Kopie und gesetztem STATAGENT_STARTPAKET:
@@ -53,7 +53,7 @@ Die Reihenfolge zählt, weil `daten` Vorlage und Arbeitskopie ersetzt und `reset
    docker exec statagent-db pg_dump -U statistik -Fc -d statistik_vorfuehrung_pensionen > <dump>
    psql "<kopie>" -X -q -At -v schema=stat -f deploy/sql/inhaltshash.sql | grep GESAMT   # dasselbe für meta, beide notieren
    ```
-   Probe am 05.11. mit einem Zwischenstand von Änderungsantrag 214: 2 min 33 s bis zum fertigen Dump, 457 MB.
+   Probe am 05.11. mit einem Zwischenstand von Merge Request 214: 2 min 33 s bis zum fertigen Dump, 457 MB.
    Die Klassifikations-Datei lief auf einer Wegwerf-Kopie in 1 s, ein zweites Mal ohne Änderung; `meta` bleibt gleich, `stat` bekommt
    einen neuen Hash. Darum gelten nur die GESAMT-Zeilen dieses Schritts als Vergleich für `daten`, keine älteren.
 2. **Stand und Daten auf den Server.** `scripts/vorfuehrung.sh up <ref>` mit dem Stand, der vorgeführt wird, dann
@@ -119,7 +119,7 @@ Bricht `daten`, `reset` oder `festschreiben` mitten ab, startet das Skript die A
 
 ## Messungen
 
-Gemessen am 05.11.2026 auf der echten Adresse im Browser, mit dem Stand aus Änderungsantrag 229. Freigaben mit einem Probe-Namen, vor jedem
+Gemessen am 05.11.2026 auf der echten Adresse im Browser, mit dem Stand aus Merge Request 229. Freigaben mit einem Probe-Namen, vor jedem
 Durchlauf `reset`.
 
 | Messung | Durchlauf 1 (23:00) | Durchlauf 2 (23:06, gedrosselt) |

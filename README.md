@@ -16,8 +16,8 @@ https://ki-challenge.gotzendorfer.at/uc3/freigaben/24
 ![Freigabe-Seite in StatAgent zum Änderungsauftrag 1 „Dienstvertrag und freier Dienstvertrag zusammen“. Die Testrechnung für August 2024 zeigt die Zahlen vorher und nachher. Aus 235.819 und 1.142 Angestellten werden 236.961. Gesamt bleibt 392.236. Darunter steht, wer freigegeben hat und wann.](docs/praesentation/screens/SC12.png)
 
 Oben steht der Auftrag im Wortlaut. In der Mitte rechnet das Programm die Zahlen vorher und nachher. Unten steht
-die Freigabe mit Vor- und Nachnamen und Uhrzeit. Diese Freigabe hat eine KI-Sitzung in seinem Auftrag eingegeben; er
-hat sie am selben Abend selbst bestätigt ([Stand zur Abgabe](#stand-zur-abgabe-06112026)).
+die Freigabe mit Vor- und Nachnamen und Uhrzeit. Diese Freigabe ist eine der vier, die eine KI-Sitzung im Auftrag von
+Bernhard Götzendorfer eingegeben hat; er hat sie am selben Abend bestätigt (Commit `2ba95e5`, [Stand zur Abgabe](#stand-zur-abgabe-06112026)).
 
 Die öffentliche Demo ist lesend: Man kann alles ansehen und Fragen an die Daten stellen. Aufträge an die Agenten und
 Freigaben mit Namen laufen auf einer eigenen Vorführ-Adresse mit Passwort und lokal.
@@ -56,8 +56,8 @@ Alle Einstiegsseiten im Überblick: [docs/einstieg/README.md](docs/einstieg/READ
 
 `CLAUDE.md`, `.claude/`, `.orchestrator/`, `docs/plan/` und `docs/abnahme/` sind Arbeitsdateien der Coding-Agenten und bleiben als
 Nachweis drin ([docs/einstieg/arbeitsweise-agentisch.md](docs/einstieg/arbeitsweise-agentisch.md)).
-`abgabe/CHECKLISTE.md` ist die interne Ablaufliste der Abgabenacht. `KI-Challenge_UseCase.yaml` ist die Pflichtdatei
-des Veranstalters mit den Angaben zum Beitrag.
+`abgabe/CHECKLISTE.md` ist die interne Ablaufliste der Abgabenacht.
+`KI-Challenge_UseCase.yaml` ist die Pflichtdatei des Veranstalters mit den Angaben zum Beitrag.
 
 ## Lösung und Ansatz
 
@@ -170,7 +170,7 @@ Die Messungen stammen von früheren Ständen desselben Morgens.
 | 6 Bedienbarkeit | erfüllt | erfüllt | |
 
 22 der 24 Monate sind nach den alten Regeln mit Namen veröffentlicht, die Zahlen nach den Änderungsaufträgen sind
-noch vorläufig. Die Pensionsmeldungen sind eingelesen, ihr Stand ist ebenfalls vorläufig. Den Regelsatz v1 und die
+noch vorläufig. Die Pensionsmeldungen sind eingelesen, ihr Stand ist ebenfalls vorläufig. Die alten Regeln (technisch `v1`) und die
 Veröffentlichung der 22 Monate hat Bernhard Götzendorfer selbst freigegeben. Vier Freigaben vom 05.11.2026 hat eine
 KI-Sitzung in seinem Auftrag eingegeben; er hat sie am selben Abend selbst bestätigt (Commit `2ba95e5`,
 [abgabe/protokoll.md](abgabe/protokoll.md), „Hinweise zu den Freigaben“). Im Schlusslauf der Abnahme
@@ -178,7 +178,7 @@ KI-Sitzung in seinem Auftrag eingegeben; er hat sie am selben Abend selbst best�
 die Zeit nach der Abgabe vorgesehen. Das ist kein „alles bestanden“. Die Kriterien sind die eigene Prüfliste des Teams,
 nicht das Bewertungsraster. Beleg: [docs/abnahme/schlusslauf-2026-11-06.md](docs/abnahme/schlusslauf-2026-11-06.md),
 jedes Kriterium mit Befehl: [docs/abnahme/matrix-uc3.md](docs/abnahme/matrix-uc3.md). Die Matrix zählt inzwischen mehr
-Kriterien, weil nach dem Schlusslauf neue dazukamen; bestanden sind dort ebenfalls 53. Beleg je Zeile: [Kriterien-Karte](docs/praesentation/kriterien-karte.md). Grenzen bei Fragen an die
+Kriterien, weil nach dem Schlusslauf neue dazukamen; bestanden sind dort ebenfalls 53 (Stand `7dff9bdb`, 08:49: 53 von 78). Beleg je Zeile: [Kriterien-Karte](docs/praesentation/kriterien-karte.md). Grenzen bei Fragen an die
 Daten, Stand von UC1, UC2 und UC4, Abnahme: [docs/einstieg/stand-zur-abgabe.md](docs/einstieg/stand-zur-abgabe.md).
 
 ## Grenzen und offene Punkte

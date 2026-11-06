@@ -57,7 +57,8 @@ Was man dazu wissen muss:
   die Zeit der Freigabe (Issue #210). Beides steht auf der Seite `/uc3/freigaben` und in
   [`abgabe/protokoll.md`](../../abgabe/protokoll.md).
 - **Abnahme:** Im Schlusslauf sind für UC3 53 von 76 Kriterien bestanden, 2 nicht bestanden, 4 nicht geprüft und
-  17 für die Zeit nach der Abgabe vorgesehen. Das ist kein „alles bestanden“
+  17 für die Zeit nach der Abgabe vorgesehen. Gezählt ist die eigene Prüfliste des Teams, nicht das Bewertungsraster.
+  Das ist kein „alles bestanden“
   ([`docs/abnahme/schlusslauf-2026-11-06.md`](../abnahme/schlusslauf-2026-11-06.md), Nachtrag auf dem letzten
   Code-Stand).
 
