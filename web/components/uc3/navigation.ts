@@ -5,9 +5,9 @@ import type { UcNavPunkt } from "@kic/ui/shell";
  * hier: das Anti-Schablonen-Gate folgt jedem Link und verlangt HTTP 200.
  */
 export const UC3_NAVIGATION: readonly UcNavPunkt[] = [
-  // Die Wörter des Bewertungsrasters (Bereich 6), damit die Jury sie findet. Berichte gehören zu „Läufe“ (die
-  // Monatsseite ist zugleich der Qualitätsbericht), die Regeln stehen auf „Klassifikationen“.
+  // Die Wörter des Bewertungsrasters (Bereich 6), damit die Jury sie findet. Die Regeln stehen auf „Klassifikationen“.
   { href: "/uc3", label: "Läufe" },
+  { href: "/uc3/berichte", label: "Qualitätsberichte" },
   { href: "/uc3/freigaben", label: "Freigaben" },
   { href: "/uc3/fragen", label: "Fragen" },
   { href: "/uc3/annahmen", label: "Annahmen" },
