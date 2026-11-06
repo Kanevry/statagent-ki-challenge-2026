@@ -53,7 +53,7 @@
   },
   {
     "bild": "SC05",
-    "motiv": "Zwei Branchenlisten mit Gültigkeit",
+    "motiv": "Klassifikationen nachschlagen: Suche bis zum 5-Steller und zur Gemeinde",
     "folie": 7,
     "quelle": "oberflaeche",
     "route": "/uc3/klassifikationen",
@@ -118,7 +118,7 @@
   },
   {
     "bild": "SC10",
-    "motiv": "Erledigte Freigabe mit Name und Wirkung",
+    "motiv": "Vorschlag 26: Liste für das Ministerium, freigegeben",
     "folie": 10,
     "quelle": "oberflaeche",
     "route": "/uc3/freigaben/26",
@@ -144,7 +144,7 @@
   },
   {
     "bild": "SC12",
-    "motiv": "Agent-Vorschlag mit Diff vor der Freigabe",
+    "motiv": "Vorschlag 24 mit Zahlen vorher und nachher, freigegeben",
     "folie": 4,
     "quelle": "oberflaeche",
     "route": "/uc3/freigaben/24",
