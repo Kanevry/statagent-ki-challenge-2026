@@ -23,7 +23,7 @@ WURZEL = Path(__file__).resolve().parents[2]
 JURY = Path(__file__).parent / "fixtures" / "jury"
 
 # Reihenfolge der ersten Nennung in fragen-48.txt und fragen-18.txt, ohne Dubletten.
-# Absagen: nicht unterstützte Merkmale, mehrere Filterwerte, ÖNACE-Wechsel oder fehlende Lieferung.
+# Absagen: nicht unterstützte Merkmale, mehrere Filterwerte, fehlende Lieferung oder ÖNACE-Wechsel einer Branche, die danach anders heißt.
 # Fluktuation braucht einen einzelnen Monat; die erste Lieferung erlaubt keine ehrliche Bewegungszahl.
 ERWARTUNGEN = (
     ("Zeigen Sie mir die Zeitreihe der Beschäftigten, jeweils zum Monatsletzten.", "zahl"),
@@ -35,8 +35,8 @@ ERWARTUNGEN = (
     ("Zeitreihe der Beschäftigten in Wien von 01/2025 bis 12/2025", "zahl"),
     ("Verlauf Männer und Frauen 2025", "zahl"),
     ("Wie hat sich Wien gegenüber Tirol entwickelt?", "absage"),
-    ("Wie hat sich die Gastronomie seit August 2024 entwickelt?", "absage"),
-    ("Entwicklung im Bau seit August 2024", "absage"),
+    ("Wie hat sich die Gastronomie seit August 2024 entwickelt?", "zahl"),
+    ("Entwicklung im Bau seit August 2024", "zahl"),
     ("Wie viele Männer und Frauen sind im August 2024 je Bundesland beschäftigt?", "zahl"),
     ("Männer und Frauen im Juli 2026", "zahl"),
     ("Wie viele Frauen arbeiten im Juli 2026 in Wien?", "zahl"),

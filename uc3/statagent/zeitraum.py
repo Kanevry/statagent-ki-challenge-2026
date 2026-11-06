@@ -183,6 +183,21 @@ KEIN_JAHR = re.compile(
 )
 
 
+#: „Winter 24/25“, „Q1/25“, „März/25“, „03/25“: Ein zweistelliges Jahr wäre sonst still ein anderer Zeitraum.
+_KURZES_JAHR = re.compile(
+    rf"(?<![\w/.-])(?:(?:{_MW}|frühlings?|frühjahrs?|sommers?|herbst(?:es|s)?|winters?|q[1-4])\.?\s*[/ -]\s*\d{{2}}"
+    rf"(?:\s*/\s*\d{{2}})?|\d{{1,2}}/\d{{2}}|\d{{1,2}}\.\d{{2}}|\d{{1,2}}\.\d{{1,2}}\.\d{{2}})"
+    rf"(?![\w/]|\.\s?\d|\s*(?:jahre|jahren)\b)",
+    re.IGNORECASE,
+)
+_MONAT_SCHRAEG = re.compile(rf"(?<!\w)({_MW})\.?\s*/\s*(?=(?:{_MW})(?!\w))", re.IGNORECASE)
+
+
+def schraegstrich_lesen(frage: str) -> str:
+    """„Mai/Juni 2026“ nennt zwei Monate; sonst zählte nur der zweite."""
+    return _MONAT_SCHRAEG.sub(r"\1 und ", frage)
+
+
 def _folgejahr(t: re.Match[str]) -> int | None:
     folge = _FOLGEJAHR.match(t.string, t.end())
     if folge is None or any(k.start() <= folge.start(1) < k.end() for k in KEIN_JAHR.finditer(t.string)):
@@ -741,6 +756,20 @@ def unklar(frage: str, letzter: str | None = None) -> str | None:
     „Sommerhalbjahr“ und „Wintersaison“ meinen je nach Fach andere Monate, „Winter 2025/27“ widerspricht sich. Mit
     ``letzter`` (jüngster Monat mit Daten) auch: Monat ohne Jahr neben Jahren, die nicht eindeutig zu ihm gehören.
     """
+    kurz = _KURZES_JAHR.search(frage)
+    if kurz:
+        return (
+            # Ohne Anführungszeichen: In /uc3/fragen würde das Zitat ein Knopf, der dieselbe Frage noch einmal stellt.
+            f"Bei {kurz.group(0).strip()} ist das Jahr nicht eindeutig. Bitte das Jahr vierstellig nennen, "
+            "zum Beispiel „Winter 2024/25“ oder „März 2025“."
+        )
+    for muster, gruppe in ((ZAHL_MONAT, 1), (ISO, 2)):
+        for fund in muster.finditer(frage):
+            if not 1 <= int(fund.group(gruppe)) <= 12:
+                return (
+                    f"„{fund.group(0)}“ ist kein Monat, ein Jahr hat zwölf. "
+                    "Welchen Monat meinen Sie, zum Beispiel „Beschäftigte im März 2025“?"
+                )
     t = _HALBJAHR_SAISON.search(frage)
     if t:
         return (

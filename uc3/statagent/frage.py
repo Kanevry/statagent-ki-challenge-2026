@@ -43,14 +43,17 @@ from statagent.uc4 import (
     antwort_daten,
     jahr_rueckfrage,
 )
+from statagent.woerter import BEKANNT, unbekanntes_wort
 from statagent.zeitraum import (
     KEIN_JAHR,
     MONATSNAMEN,
     ZEITREIHE_WORT,
+    schraegstrich_lesen,
     tag_hinweis,
     umschreiben,
     unklar,
     zeitraum_anzeige,
+    zeitraum_lesen,
 )
 
 UC = "uc3"
@@ -76,6 +79,8 @@ EINGEBAUT = {
     ("bestand", "bis"): "monatsletzter",
     ("abschnittswahl", "ordnung"): "spaetester_beginn",
 }
+#: Bis zu so vielen Monaten nennt der Text jeden Monat einzeln (Jahreszeit, Quartal, Halbjahr).
+MONATE_IM_TEXT = 6
 #: „Am höchsten“ nennt nur Abschnitte mit mindestens so vielen Beschäftigungsverhältnissen am Stichtag.
 MINDESTBESTAND_HOECHSTE = 1000
 NICHT_LESBAR = (
@@ -85,6 +90,8 @@ NICHT_LESBAR = (
 _STATUS_TEXT = {"vorlaeufig": "vorläufig", "endgueltig": "endgültig", "gesperrt": "gesperrt"}
 
 _JAHR = re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)")
+_VERGLEICH_VORMONAT = re.compile(r"\bvormonats?\b", re.IGNORECASE)
+_SEIT = re.compile(r"\bseit\b", re.IGNORECASE)
 _DEFINITION = re.compile(
     r"\b(was\s+(ist|sind|bedeutet|heißt|heisst|zählt|zaehlt)|definition|bedeutung|definiert)\b"
 )
@@ -177,6 +184,7 @@ _ALTER_GRENZE_MUSTER = (
     r"\b(?:unter|über|ueber|ab|bis|zwischen)[\s-]+\d{2}(?![./,-]?\d)(?!\s+\d{4})"
     r"(?!\.?\s*(?:jän|jan|feb|mär|mae|apr|mai|jun|jul|aug|sep|okt|nov|dez))"
     r"(?!\s*(?:prozent|%|beschäftig|personen|leute|menschen|verhältnis|mitarbeit|arbeitnehm|dienstnehm|betrieb"
+    r"|frauen|männer|maenner|arbeiter|angestellte|beamte"
     r"|jobs?\b|stellen\b|tausend|tsd))"
 )
 _ALTER_GRENZE = re.compile(_ALTER_GRENZE_MUSTER)
@@ -230,7 +238,7 @@ _MENGENWORT = frozenset(
 )
 #: Freie Dienstverträge: im Regelsatz v1 Qualifikationen mit Kennzeichen freier_dienstvertrag (ArbeiterFD,
 #: AngestellteFD), im Sheet je Qualifikation ausgewiesen.
-_FREIER_DV = re.compile(r"\bfreie[nmrs]?\s+(?:dienstv\w*|dv)\b|\bfd\b")
+_FREIER_DV = re.compile(r"\bfreie[nmrs]?\s+(?:dienstv\w*|dienstnehmer\w*|dv)\b|\bfd\b")
 FREIER_DV = Merkmal(
     "freier Dienstvertrag",
     "q.freier_dienstvertrag",
@@ -243,7 +251,9 @@ FREIER_DV = Merkmal(
 BRANCHEN: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
     (re.compile(r"\bbau(?:s|e|en|gewerbe|branche|wirtschaft)?\b"), ("Bau",)),
     (
-        re.compile(r"\b(gastronomie|gastgewerbe|beherbergung|hotellerie|hotels?|tourismus)\b"),
+        re.compile(
+            r"\b(gastro|gastronomie|gastgewerbe|beherbergung|hotellerie|hotels?|restaurants?|tourismus)\b"
+        ),
         ("Beherbergung",),
     ),
     (re.compile(r"\bhandels?\b"), ("Handel",)),
@@ -258,7 +268,7 @@ BRANCHEN: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
         re.compile(r"\b(it|it-branche|informatik|software|informationstechnologie)\b"),
         ("Telekommunikation, Softwareentwicklung", "Information und Kommunikation"),
     ),
-    (re.compile(r"\b(verkehr|transport|logistik)\b"), ("Verkehr",)),
+    (re.compile(r"\b(verkehr|transport|logistik|lagerei)\b"), ("Verkehr",)),
     (re.compile(r"\b(bildung|bildungswesen|schulen?|unterricht|erziehung)\b"), ("Erziehung",)),
     (re.compile(r"\b(öffentliche[nr]? verwaltung|verwaltung|behörden?)\b"), ("Öffentliche Verwaltung",)),
     (
@@ -267,15 +277,71 @@ BRANCHEN: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
     ),
     (re.compile(r"\b(landwirtschaft|forstwirtschaft|agrar)\b"), ("Land- und Forstwirtschaft",)),
     (re.compile(r"\b(energie|energieversorgung|strom)\b"), ("Energieversorgung",)),
+    (re.compile(r"\bbergbaus?\b"), ("Bergbau",)),
+    (re.compile(r"\bkunst\b"), ("Kunst",)),
+    (re.compile(r"\b(immobilien|wohnungswesen)\b"), ("Grundstücks",)),
+)
+#: Wer in einem Bundesland lebt, wird in der Frage oft mit dem Bundesland gemeint („die Wiener“).
+EINWOHNER: dict[str, tuple[str, ...]] = {
+    "Wien": ("wiener",),
+    "Niederösterreich": ("niederösterreicher",),
+    "Oberösterreich": ("oberösterreicher",),
+    "Steiermark": ("steirer",),
+    "Tirol": ("tiroler",),
+    "Vorarlberg": ("vorarlberger",),
+    "Burgenland": ("burgenländer",),
+    "Kärnten": ("kärntner",),
+    "Salzburg": ("salzburger",),
+}
+_ZEITWORT_OHNE_MONAT = re.compile(
+    r"\b(?:jahr|jahre|jahren|jahres|monat|monate|monaten|monats|zeitraum|vormonats?|vorjahr(?:es)?)\b",
+    re.IGNORECASE,
+)
+#: Fragt nach einer Änderung: Der Stand eines Monats allein wäre eine andere Antwort.
+_VERAENDERUNG = re.compile(
+    r"\b(?:veränder\w*|veraender\w*|gestiegen|gesunken|gewachsen|stieg|sank)\b", re.IGNORECASE
+)
+_MONATSWORT = "|".join(sorted(map(re.escape, MONATSNAMEN), key=len, reverse=True))
+#: „im Monat nach Dezember 2025“, „vor Juni“, „nach dem Ende des Winters“: Der Monat in der Frage ist nicht der gemeinte.
+_ZEITBEZUG = re.compile(
+    rf"\bvormonats?\s+(?:von|zu|des)\b|\b(?:vor|nach)\s+(?:dem\s+|der\s+|den\s+)?(?:ende\b|beginn\b|anfang\b|start\b|sommer|winter|herbst|frühling|frühjahr"
+    rf"|(?:{_MONATSWORT})\b)",
+    re.IGNORECASE,
+)
+#: „Wie viel Prozent der Männer arbeiten im Bau“ ist der Anteil an den Männern, nicht der Männeranteil im Bau.
+#: Gilt mit einem weiteren Merkmal; „Prozent der Beschäftigten in Wien sind Frauen“ ist der Männer- und Frauenanteil.
+_PROZENT_VON_GRUPPE = re.compile(
+    r"\bprozent\s+(?:der|aller|von\s+den)\s+(?:frauen|männer|männern|maenner|maennern)\b"
+    r"|\banteil\s+(?:der|aller)\s+(?:frauen|männer|maenner)\s*,?\s+die\b"
+    r"|\banteil\s+(?:der|aller)\s+(?:frauen|männer|maenner)\s+(?:arbeite\w*|(?:ist|war|sind|waren)\s+(?:in|im|bei)\b)",
+    re.IGNORECASE,
+)
+#: „nur einen Job“, „genau eine Stelle“: Das fragt nach Personen, gezählt werden Verhältnisse.
+_EIN_VERHAELTNIS = re.compile(
+    r"\b(?:nur|genau|mit)\s+ein\w*\s+(?:job|stelle|verhältnis|beschäftigungsverhältnis|arbeitsverhältnis)\b",
+    re.IGNORECASE,
+)
+#: „Wie viele Bundesländer …“ fragt nach etwas anderem als nach Beschäftigungsverhältnissen.
+_ZAEHLT_ANDERES = re.compile(
+    r"\bwie\s*viele\s+(?:der\s+|von\s+den\s+)?(?:bundesl\w*|branchen|wirtschaftsbereich\w*|abschnitte|kategorien|monate|regeln|regelsätze)\b",
+    re.IGNORECASE,
+)
+_KEIN_DATUM = f"Daten gibt es nur für {zeitraum_anzeige(ERSTE_LIEFERUNG, LETZTE_LIEFERUNG)}. Bitte einen Zeitraum darin nennen."
+_VOR_ZEIT = re.compile(r"\b(?:vormonats?|vorjahr(?:es)?)\b", re.IGNORECASE)
+#: Das Alltagswort für die Aufteilung in einem Satz an Nutzer.
+_JE_ALLTAG = {"ÖNACE-Abschnitt": "je Branche", "Beschäftigungskategorie": "je Beschäftigungskategorie"}
+_VERNEINUNG = frozenset(
+    {"außer", "ausser", "ohne", "nicht", "kein", "keine", "keinen", "keiner", "ausgenommen"}
 )
 _FRAU = re.compile(r"\b(frau|frauen|weiblich\w*)\b")
-_MANN = re.compile(r"\b(mann|männer|maenner|männlich\w*|maennlich\w*)\b")
+_MANN = re.compile(r"\b(mann|männer|maenner|männern|maennern|männlich\w*|maennlich\w*)\b")
 #: Wortstämme nach „im/in/Branche“, die kein Merkmal meinen („in den Wirtschaftsbereichen“, „in Prozent“).
 _KEIN_MERKMAL_STAMM = (
     "österreich", "oesterreich", "vergleich", "jahr", "monat", "zeitraum", "schnitt", "gesamt", "summe",
     "detail", "bundesl", "wirtschaftsbereich", "wirtschaftszweig", "abschnitt", "önace", "oenace",
     "berichtsmonat", "stichtag", "verlauf", "lauf", "bereich", "branche", "sektor", "prozent", "vormonat",
-    "vorjahr", "zahl", "tabelle", "beschäftigungskategorie", "kategorie", "geschlecht", "regelsatz",
+    "vorjahr", "zahl", "tabelle", "beschäftigungskategorie", "kategorie", "geschlecht", "regelsatz", "beschäftigung",
+    "durchschnitt",
 )  # fmt: skip
 #: Nur als ganzes Wort: „Altersheim“ und „Altersteilzeit“ sind keine Merkmale.
 _KEIN_MERKMAL_WORT = frozenset({"alter", "alters", "altersgruppe", "altersgruppen", "altersverteilung"})
@@ -283,16 +349,55 @@ _FUNKTIONSWORT = frozenset(
     {"im", "in", "der", "den", "dem", "die", "das", "welchem", "welcher", "welchen", "welche", "diesem",
      "dieser", "diesen", "ganz", "ganzen", "gesamten", "allen", "alle", "einem", "einer", "einen", "letzten",
      "letztem", "vergangenen", "laufenden", "form", "höhe", "hoehe", "relation", "bezug", "folge", "etwa",
-     "zeit", "punkto", "und", "oder", "sowie"}
+     "zeit", "punkto", "und", "oder", "sowie", "hat", "hatte", "hatten", "haben", "ist", "war", "waren", "nur"}
 )  # fmt: skip
 _ORT_KETTE = re.compile(
     r"\b(?:im|in der|in den|in|branche|bereich)\s+([\w-]+(?:\s*(?:,|\bund\b|\boder\b|\bsowie\b)\s*[\w-]+)*)",
     re.IGNORECASE,
 )
-_MONATSWORT = "|".join(sorted(map(re.escape, MONATSNAMEN), key=len, reverse=True))
 _LETZTES_JAHR = re.compile(r"\b(?:im\s+)?letzte[nms]?\s+jahr(?:es)?\b", re.IGNORECASE)
 _AKTUELL = re.compile(r"\b(aktuell|derzeit|zurzeit|momentan|jetzt)\b", re.IGNORECASE)
 KATEGORIE = _merkmal("Beschäftigungskategorie")
+
+
+#: Alltagsform → die Form, die der Rest des Lesens kennt. Nur, was dieselbe Bedeutung hat.
+_ALLTAG: tuple[tuple[re.Pattern[str], str], ...] = (
+    # Binnen-I und Gendersternchen meinen alle. Genau in dieser Schreibweise: „Arbeiterinnen“ bleibt die Frauen.
+    (re.compile(r"\bArbeiter(?:Innen|[*:_]innen)\b"), "Arbeiter"),
+    (re.compile(r"\bBeamt(?:Innen|[*:_]innen)\b"), "Beamte"),
+    (re.compile(r"\bAngestellt(?:eR|e[*:_]r)\b"), "Angestellte"),
+    # Die Doppelnennung meint alle, darum vor der Regel, die nur die Frauen zählt.
+    (
+        re.compile(r"\b(?:arbeiterinnen\s+und\s+arbeiter|arbeiter\s+und\s+arbeiterinnen)\b", re.IGNORECASE),
+        "Arbeiter",
+    ),
+    (re.compile(r"\b(?:beamtinnen\s+und\s+beamte|beamte\s+und\s+beamtinnen)\b", re.IGNORECASE), "Beamte"),
+    (re.compile(r"\b(?:angestellte\s+und\s+angestellter)\b", re.IGNORECASE), "Angestellte"),
+    (re.compile(r"\barbeiterinnen\b", re.IGNORECASE), "Arbeiter Frauen"),
+    (re.compile(r"\bbeamtinnen\b", re.IGNORECASE), "Beamte Frauen"),
+    (re.compile(r"\bim\s+schnitt\b", re.IGNORECASE), "im Durchschnitt"),
+    (re.compile(r"(?<!\w)schnitt\b", re.IGNORECASE), "Durchschnitt"),
+    (re.compile(r"\bgabs\b", re.IGNORECASE), "gab es"),
+    (re.compile(r"\bgrad\b", re.IGNORECASE), "derzeit"),
+    (re.compile(r"\b(?:in\s+jedem|jedes|jedem)\s+bundesland\b", re.IGNORECASE), "je Bundesland"),
+    (re.compile(r"\b(?:in\s+jeder|jede|jeder)\s+branche\b", re.IGNORECASE), "je Branche"),
+    (re.compile(r"\boö\b", re.IGNORECASE), "Oberösterreich"),
+    (re.compile(r"\bnö\b", re.IGNORECASE), "Niederösterreich"),
+    (re.compile(r"\bstmk\b\.?", re.IGNORECASE), "Steiermark"),
+)
+#: „Wie viel Prozent … sind Frauen“ fragt nach dem Anteil, nicht nach der Menge.
+_PROZENTZEICHEN = re.compile(r"\s*%")
+_PROZENT_ANTEIL = re.compile(r"\b(?:wie\s*viel(?:e)?\s+)?prozent\b", re.IGNORECASE)
+
+
+def alltag_lesen(frage: str) -> str:
+    """Schreibweisen vereinheitlichen, bevor Zeitraum und Merkmale gelesen werden."""
+    frage = schraegstrich_lesen(_PROZENTZEICHEN.sub(" Prozent", frage))
+    for muster, ersatz in _ALLTAG:
+        frage = muster.sub(ersatz, frage)
+    if _PROZENT_ANTEIL.search(frage) and not _FLUKTUATION.search(frage.lower()):
+        frage = _PROZENT_ANTEIL.sub("Anteil", frage)
+    return frage
 
 
 def normalisieren(frage: str, letzter: str = LETZTE_LIEFERUNG) -> tuple[str, list[str]]:
@@ -310,6 +415,12 @@ def _normalisieren(frage: str, letzter: str) -> tuple[str, list[str], bool]:
     „Jahresdurchschnitt 2025“ wird zu Jänner bis Dezember 2025; eine bloße Jahreszahl bleibt (Rückfrage, #74 AC2).
     """
     frage, notizen, mittel = umschreiben(frage, letzter)
+    # „seit März 2025 verändert“ ist schon ein Zeitraum bis zum jüngsten Monat.
+    vormonat = _VERGLEICH_VORMONAT.search(frage) or (_VERAENDERUNG.search(frage) and not _SEIT.search(frage))
+    genannt = monate_lesen(frage)
+    if vormonat and len(set(genannt)) == 1:
+        # „März 2025 gegenüber dem Vormonat“ meint zwei Monate, nicht nur den März.
+        frage = f"{_monat_anzeige(monat_verschieben(genannt[0], -1))} {frage}"
     if _LETZTES_JAHR.search(frage):
         vorjahr = str(int(LETZTE_LIEFERUNG[:4]) - 1)  # das Jahr vor der letzten Lieferung der Aufgabe
         frage = _LETZTES_JAHR.sub(f" {vorjahr} ", frage)
@@ -391,6 +502,14 @@ def _alter_lesen(frage: str) -> tuple[Merkmal, str, str] | None:
     return Merkmal("Alter", f"(s.alter BETWEEN {von} AND {bis})", "", ()), "true", etikett
 
 
+def _ohne_altersangabe(frage: str) -> str:
+    """Die Frage ohne die Stelle, die ``_alter_lesen`` als Alter gelesen hat („über 50 Jahre“, „30-Jährige“)."""
+    text = frage.lower()
+    for muster, _ in _ALTER_MUSTER:
+        text = muster.sub(" ", text)
+    return re.sub(r"\b(?:jahre\s+)?alt\b", " ", text)
+
+
 def nicht_auswertbar(frage: str, mittel: bool = False) -> str | None:
     """Absagetext, wenn die Frage Einzeldaten oder ein Merkmal verlangt, das es nicht gibt; sonst None.
 
@@ -429,10 +548,16 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
     """Alle in der Frage genannten Codes eines Merkmals und die Textstellen, die sie getroffen haben."""
     text = frage.lower()
     gefunden: dict[str, str] = {}
+    weitere: list[str] = []  # Weitere Wörter derselben Branche („Pflege und Spitäler“)
     for code, bezeichnung in codes.items():
         t = _treffer(text, bezeichnung)
         if t:
             gefunden[code] = t.group(0)
+    if merkmal is BUNDESLAND:
+        for code, bezeichnung in codes.items():
+            for einwohner in EINWOHNER.get(bezeichnung, ()):
+                if re.search(rf"\b{einwohner}\b", text):
+                    gefunden.setdefault(code, einwohner)
     if merkmal is GESCHLECHT:
         for code, muster in (("W", _FRAU), ("M", _MANN)):
             t = muster.search(text)
@@ -440,8 +565,11 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
                 gefunden.setdefault(code, t.group(0))
     if merkmal is OENACE:
         for t in _OENACE_CODE.finditer(text):
-            if t.group(1).upper() in codes:
-                gefunden[t.group(1).upper()] = t.group(0)
+            if t.group(1).upper() not in codes:
+                raise _KeineZahl(
+                    f"Einen ÖNACE-Abschnitt {t.group(1).upper()} gibt es in diesem Monat nicht. {KANN}"
+                )
+            gefunden[t.group(1).upper()] = t.group(0)
         # „ÖNACE C und F“: alle Buchstaben, sonst zählte nur der erste, ohne Hinweis.
         for liste in _OENACE_LISTE.finditer(text):
             for t in re.finditer(r"(?<!\w)[a-z](?!\w)", liste.group(1)):
@@ -451,6 +579,7 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
             t = muster.search(text)
             if not t:
                 continue
+            weitere += [w.group(0) for w in muster.finditer(text)]
             branche = next(
                 (c for a in anfaenge for c, b in codes.items() if b.startswith(a)),
                 None,
@@ -461,9 +590,15 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
                 )
             gefunden.setdefault(branche, t.group(0))
     # Ein Name, der in einem längeren genannten Namen steckt, zählt nicht extra.
-    doppelt = {c for c in gefunden for d in gefunden if c != d and codes[c].lower() in codes[d].lower()}
+    # Nur ganze Wörter: „Bau“ steckt in „Bergbau und Gewinnung“, meint aber etwas anderes.
+    doppelt = {
+        c
+        for c in gefunden
+        for d in gefunden
+        if c != d and re.search(rf"(?<!\w){re.escape(codes[c].lower())}(?!\w)", codes[d].lower())
+    }
     werte = [c for c in gefunden if c not in doppelt]
-    return werte, list(gefunden.values())
+    return werte, [*gefunden.values(), *weitere]
 
 
 def _wort_bekannt(wort: str, erkannt: list[str]) -> bool:
@@ -480,6 +615,7 @@ def _wort_bekannt(wort: str, erkannt: list[str]) -> bool:
         or klein in MONATSNAMEN
         or klein in _FUNKTIONSWORT
         or klein in _KEIN_MERKMAL_WORT
+        or klein in BEKANNT
     ):
         return True
     if any(klein.startswith(stamm) for stamm in _KEIN_MERKMAL_STAMM):
@@ -658,8 +794,12 @@ def _kein_regelsatz(conn: Verbindung, frage: str, regelsatz: str) -> dict[str, A
 
 def _gliederung_ohne_nach(conn: Verbindung, frage: str, letzter: str) -> str:
     """„Juli 2026 v2 Bundesland“: Das bloße Wort meint die Aufteilung, sonst fiele sie still weg."""
-    genannt = monate_lesen(frage)
-    if _gliederung(frage) is not None or _filter(conn, frage, genannt[-1] if genannt else letzter, ())[0]:
+    gelesen = _normalisieren(frage, letzter)[
+        0
+    ]  # „Sommer 2025“ kennt die Wörter-Prüfung in _filter nur als Monate.
+    genannt = monate_lesen(gelesen)
+    monat = genannt[-1] if genannt else letzter
+    if _gliederung(frage) is not None or _filter(conn, gelesen, monat, (), woerter=False)[0]:
         return frage
     for merkmal in MERKMALE:
         for wort in merkmal.gliederung:
@@ -705,7 +845,9 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
     erster = _erster_monat(conn, regelsatz) or letzter
     # Der Grund aus der Prüfung passt zur Frage („mehrere Bundesländer“), die allgemeine Liste widerspräche ihr.
     frage = _gliederung_ohne_nach(conn, frage, letzter)
-    ohne_bezug = _ohne_bezug(conn, frage, letzter)
+    # Übersetzt lesen: „Sommer 2025“ ist hier noch kein Monat, die Wörter-Prüfung in _filter kennt nur Monate.
+    gelesen = _normalisieren(frage, letzter)[0]
+    ohne_bezug = _ohne_bezug(conn, gelesen, letzter, woerter=False)
     if ohne_bezug and not genannt and jahr is None:
         if regelsatz != "v2":
             return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
@@ -736,14 +878,26 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
         )
     if ohne_bezug:
         return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
+    # Erst hier die Wörter-Prüfung, sonst verdrängt sie Erklärung und Regelsatz-Sätze. Alle Merkmale ausgenommen:
+    # Zwei Werte eines Merkmals („Wien und Tirol“) darf dieser Weg zeigen. „ohne Kinder“ fiele sonst still weg.
+    monate_v2 = monate_lesen(gelesen)
+    _filter(conn, gelesen, monate_v2[-1] if monate_v2 else letzter, MERKMALE)
     if not _adapter_liest_gleich(conn, frage, regelsatz):
         return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
     daten = antwort_daten(conn, frage, regelsatz)
     text = f"Nach Regelsatz {regelsatz}: {daten['text']}" if daten["zahlen"] else daten["text"]
-    return _antwort(typ, text, belege=daten["belege"], zahlen=daten["zahlen"])
+    antwort = _antwort(typ, text, belege=daten["belege"], zahlen=daten["zahlen"])
+    # In der Kette zählt der erste Satz: Beim Zeitraum der Durchschnitt, nicht die Erklärung des Zeitraums.
+    mittel = [z for z in daten["zahlen"] if ", Durchschnitt " in str(z["bezeichnung"])]
+    if mittel:
+        name, _, zeit = str(mittel[0]["bezeichnung"]).partition(", Durchschnitt ")
+        antwort["antwortsatz"] = (
+            f"Im Durchschnitt waren es {_deutsch(int(mittel[0]['wert']))} {name}, {zeit}, nach Regelsatz {regelsatz}."
+        )
+    return antwort
 
 
-def _ohne_bezug(conn: Verbindung, frage: str, letzter: str) -> bool:
+def _ohne_bezug(conn: Verbindung, frage: str, letzter: str, woerter: bool = True) -> bool:
     """Weder ein Wort zum Bestand noch ein Merkmal, und außer der Zeitangabe stehen andere Wörter da.
 
     „März 2025“ allein bleibt eine Frage nach dem Bestand, „asdf im März 2025“ nicht. ``_filter`` sagt ab, wenn nach
@@ -751,7 +905,7 @@ def _ohne_bezug(conn: Verbindung, frage: str, letzter: str) -> bool:
     """
     text = frage.lower()
     genannt = monate_lesen(frage)
-    if _filter(conn, frage, genannt[-1] if genannt else letzter, ())[0]:
+    if _filter(conn, frage, genannt[-1] if genannt else letzter, (), woerter=woerter)[0]:
         return False
     if _BEZUG.search(text) or _gliederung(frage) is not None or _ALTER_GRUPPEN.search(text):
         return False
@@ -847,6 +1001,25 @@ def _kein_lauf_text(monat: str) -> str:
     )
 
 
+def _ausserhalb_text(von: str, bis: str) -> str:
+    """Rückfrage zu einem Zeitraum ganz außerhalb der Daten; ein Winter, der noch im Vorjahr beginnt, hat einen Nachbarn.
+
+    „Winter 2024“ heißt Dezember 2023 bis Februar 2024. Gemeint ist oft Dezember 2024 bis Februar 2025, das sagen wir.
+    """
+    zeit = zeitraum_anzeige(von, bis)
+    daten = zeitraum_anzeige(ERSTE_LIEFERUNG, LETZTE_LIEFERUNG)
+    neu_von, neu_bis = monat_verschieben(von, 12), monat_verschieben(bis, 12)
+    if von[5:7] == "12" and bis[5:7] == "02" and neu_von >= ERSTE_LIEFERUNG and neu_bis <= LETZTE_LIEFERUNG:
+        return (
+            f"Für {zeit} gibt es keine Zahl, Daten gibt es nur für {daten}. "
+            f"Meinen Sie den Winter {neu_von[:4]}/{neu_bis[2:4]}, also {zeitraum_anzeige(neu_von, neu_bis)}?"
+        )
+    return (
+        f"Für {zeit} gibt es keine Zahl, Daten gibt es nur für {daten}. "
+        f"Meinen Sie „Beschäftigte im {_monat_anzeige(LETZTE_LIEFERUNG)}“?"
+    )
+
+
 def _oenace_version(conn: Verbindung, monat: str) -> tuple[str, str] | None:
     """ÖNACE-Version (Abschnitte), die im Monat gilt, mit ihrem ersten Monat."""
     zeile = conn.execute(
@@ -873,8 +1046,35 @@ def _laufinfo(conn: Verbindung, regelsatz: str, staende: list[dict[str, Any]]) -
     return {int(str(z["id"])): (int(str(z["fortgeschrieben"])), bool(z["stichtag"])) for z in zeilen}
 
 
+def _weiteres_merkmal(conn: Verbindung, frage: str, letzter: str) -> bool:
+    """Nennt die Frage neben dem Geschlecht noch ein Merkmal („im Bau“, „Angestellte“)?"""
+    gelesen = _normalisieren(frage, letzter)[0]
+    genannt = monate_lesen(gelesen)
+    monat = genannt[-1] if genannt else letzter
+    if _alter_lesen(gelesen) is not None or _FREIER_DV.search(gelesen.lower()):
+        return True
+    alle = tuple(m for m in MERKMALE if m is not GESCHLECHT)
+    return any(_werte(gelesen, m, _codes(conn, m, monat))[0] for m in alle)
+
+
+def _zwei_merkmale_mit_und(frage: str, je_merkmal: list[tuple[str, str]]) -> None:
+    """„Frauen und Beamte“ nennt zwei Merkmale: Beide zugleich oder zwei Zahlen? Das rechnen wir nicht still."""
+    text = frage.lower()
+    for name_a, a in je_merkmal:
+        for name_b, b in je_merkmal:
+            if name_a != name_b and re.search(
+                rf"(?<!\w){re.escape(a.lower())}\s+(?:und|oder)\s+(?:(?:in|im|der|den|die|bei)\s+)*"
+                rf"{re.escape(b.lower())}(?!\w)",
+                text,
+            ):
+                raise _KeineZahl(
+                    f"Soll für „{a}“ und „{b}“ beides zugleich gelten, oder möchten Sie zwei Zahlen? "
+                    "Bitte getrennt fragen."
+                )
+
+
 def _filter(
-    conn: Verbindung, frage: str, monat: str, ohne: tuple[Merkmal, ...]
+    conn: Verbindung, frage: str, monat: str, ohne: tuple[Merkmal, ...], woerter: bool = True
 ) -> tuple[list[tuple[Merkmal, str]], list[str]]:
     """Ausprägungen der Frage (z. B. „Wien“, „ÖNACE F“, „Gastronomie“) als Filter, außer für gegliederte Merkmale.
 
@@ -884,10 +1084,12 @@ def _filter(
     filter_: list[tuple[Merkmal, str]] = []
     etiketten: list[str] = []
     erkannt: list[str] = []
+    je_merkmal: list[tuple[str, str]] = []
     for merkmal in MERKMALE:
         codes = _codes(conn, merkmal, monat)
         werte, stellen = _werte(frage, merkmal, codes)
         erkannt += stellen
+        je_merkmal += [(merkmal.name, s) for s in stellen]
         if merkmal in ohne or not werte:
             continue
         if len(werte) > 1:
@@ -898,10 +1100,12 @@ def _filter(
             )
         filter_.append((merkmal, werte[0]))
         etiketten.append(codes[werte[0]])
-    if _FREIER_DV.search(frage.lower()):
+    _zwei_merkmale_mit_und(frage, je_merkmal)
+    freier_dv = _FREIER_DV.search(frage.lower())
+    if freier_dv:
         filter_.append((FREIER_DV, "true"))
         etiketten.append("freie Dienstverträge")
-        erkannt.append("freie dienstverträge")
+        erkannt += ["freie dienstverträge", freier_dv.group(0)]
     alter = _alter_lesen(frage)
     if alter is not None:
         filter_.append((alter[0], alter[1]))
@@ -911,7 +1115,48 @@ def _filter(
         for wort in re.split(r"\s*(?:,|\bund\b|\boder\b|\bsowie\b)\s*", kette, flags=re.IGNORECASE):
             if not _wort_bekannt(wort, erkannt):
                 raise _KeineZahl(f"Das Wort „{wort}“ kenne ich nicht als Bundesland oder Branche. {KANN}")
+    if not woerter:
+        return filter_, etiketten
+    if _FLUKTUATION.search(frage.lower()):
+        erkannt += ["höchste", "höchsten", "höchster", "höchstem", "höchstes", "hoechste", "am höchsten"]
+    fremd = unbekanntes_wort(_ohne_altersangabe(frage) if alter is not None else frage, erkannt)
+    if fremd is not None and fremd.lower() in _VERNEINUNG:
+        raise _KeineZahl(
+            f"Eine Zahl für alle außer einer Gruppe rechnet StatAgent nicht. Bitte nach allen und nach der Gruppe "
+            f"einzeln fragen. {KANN}"
+        )
+    if fremd is not None:
+        wort = "Die Angabe" if fremd.isdigit() else "Das Wort"
+        raise _KeineZahl(
+            f"{wort} „{fremd[:40]}“ kann ich in dieser Frage nicht einordnen, darum keine Zahl. {KANN}"
+        )
     return filter_, etiketten
+
+
+def _branche_ueber_wechsel(
+    conn: Verbindung, frage: str, filter_: list[tuple[Merkmal, str]], letzter_alt: str, neu_ab: str
+) -> tuple[list[tuple[Merkmal, str]], str] | None:
+    """Filter für die Monate vor dem ÖNACE-Wechsel und ein Hinweissatz, wenn die Branche beide Male gleich heißt.
+
+    „Gesundheits- und Sozialwesen“ ist bis Dezember 2024 Abschnitt Q, ab Jänner 2025 Abschnitt R. Heißt die Branche
+    verschieden („Handel“) oder meint derselbe Buchstabe zwei Bereiche („ÖNACE Q“), gibt es keine gemeinsame Zahl.
+    """
+    code_neu = next(code for m, code in filter_ if m is OENACE)
+    namen_alt, namen_neu = _codes(conn, OENACE, letzter_alt), _codes(conn, OENACE, neu_ab)
+    werte_alt = _werte(frage, OENACE, namen_alt)[0]
+    if len(werte_alt) != 1 or namen_alt[werte_alt[0]] != namen_neu.get(code_neu):
+        return None
+    code_alt, name = werte_alt[0], namen_neu[code_neu]
+    filter_alt = [(m, code_alt if m is OENACE else code) for m, code in filter_]
+    wie = (
+        f"bleibt dabei Abschnitt {code_neu}"
+        if code_alt == code_neu
+        else f"ist bis {_monat_anzeige(letzter_alt)} Abschnitt {code_alt}, ab {_monat_anzeige(neu_ab)} Abschnitt {code_neu}"
+    )
+    return filter_alt, (
+        f"Die Wirtschaftsbereiche wurden im {_monat_anzeige(neu_ab)} neu eingeteilt: {name} {wie}. "
+        "Über den Wechsel hinweg ist der Vergleich darum nur ungefähr."
+    )
 
 
 def bestand_sql(
@@ -1007,60 +1252,84 @@ def _bestand_antwort(
     gruppen: tuple[Merkmal, ...],
     typ: str,
     mittel: bool = False,
+    nur: tuple[str, ...] = (),
 ) -> dict[str, Any]:
+    """``nur``: aufgezählte Monate („März und Juli 2025“); die Monate dazwischen gehören nicht zur Frage."""
     definition, einheit = _definition_bestand(conn)
     filter_, etiketten = _filter(conn, frage, bis, gruppen)
     verstanden = _verstanden(von, bis, filter_, etiketten, gruppen)
+    if nur:
+        # Nur die genannten Monate: „bis“ stimmte hier nicht.
+        verstanden = verstanden.replace(
+            f"{_monat_anzeige(von)} bis {_monat_anzeige(bis)}",
+            _aufzaehlung([_monat_anzeige(m) for m in nur]),
+            1,
+        )
     if any(m is FREIER_DV for m, _ in filter_) and regelsatz != "v1":
         raise _KeineZahl(
             f"Freie Dienstverträge kann die Datenanfrage nur im Regelsatz v1 trennen, nicht in {regelsatz}. {KANN}"
         )
+    abschnitte = [(von, bis, filter_)]
+    hinweise: list[str] = []
     if OENACE in gruppen or any(m is OENACE for m, _ in filter_):
         v_von, v_bis = _oenace_version(conn, von), _oenace_version(conn, bis)
         if v_von and v_bis and v_von[0] != v_bis[0]:
             letzter_alt = monat_verschieben(v_bis[1], -1)
-            raise _KeineZahl(
-                f"Die Wirtschaftsbereiche (ÖNACE) wurden neu eingeteilt: bis {_monat_anzeige(letzter_alt)} gilt "
-                f"ÖNACE {v_von[0]}, ab {_monat_anzeige(v_bis[1])} ÖNACE {v_bis[0]}. Gleiche Buchstaben meinen "
-                "dort teils andere Bereiche, eine Reihe über den Wechsel hinweg wäre irreführend. Bitte getrennt "
-                f"fragen: von {_monat_anzeige(von)} bis {_monat_anzeige(letzter_alt)} und von "
-                f"{_monat_anzeige(v_bis[1])} bis {_monat_anzeige(bis)}."
+            ueber = (
+                None
+                if OENACE in gruppen
+                else _branche_ueber_wechsel(conn, frage, filter_, letzter_alt, v_bis[1])
             )
+            if ueber is None:
+                raise _KeineZahl(
+                    f"Für diesen Zeitraum gibt es keine gemeinsame Zahl, weil die Wirtschaftsbereiche im "
+                    f"{_monat_anzeige(v_bis[1])} neu eingeteilt wurden. Bitte getrennt fragen: "
+                    f"{zeitraum_anzeige(von, letzter_alt)} und {zeitraum_anzeige(v_bis[1], bis)}."
+                )
+            filter_alt, hinweis = ueber
+            abschnitte = [(von, letzter_alt, filter_alt), (v_bis[1], bis, filter_)]
+            hinweise.append(hinweis)
+            # Der Buchstabe gilt nur für einen Teil des Zeitraums; der Hinweis nennt beide.
+            code_neu = next(code for m, code in filter_ if m is OENACE)
+            verstanden = verstanden.replace(f"Branche {code_neu} ", "Branche ", 1)
+    if len(_monate(von, bis)) > 120:
+        raise _KeineZahl(
+            f"Daten gibt es nur für {zeitraum_anzeige(ERSTE_LIEFERUNG, LETZTE_LIEFERUNG)}. "
+            "Bitte einen Zeitraum darin nennen."
+        )
     # Ein Ergebnis über HOECHSTENS_ZEILEN liest sql_lesen nur abgeschnitten: dann je Monat eine Abfrage.
     abfragen: list[tuple[str, list[dict[str, Any]]]] = []
-    sql_text = bestand_sql(conn, regelsatz, von, bis, filter_, gruppen)
-    try:
-        abfragen.append((sql_text, _lesen(conn, sql_text)))
-    except _Abgeschnitten:
-        monate = _monate(von, bis)
-        if len(monate) > 120:
-            raise _KeineZahl(
-                "Der Zeitraum ist für eine Antwort zu lang. Bitte höchstens zehn Jahre auf einmal fragen."
-            ) from None
-        for monat in monate:
-            text_m = bestand_sql(conn, regelsatz, monat, monat, filter_, gruppen)
-            try:
-                zeilen_m = _lesen(conn, text_m)
-            except _Abgeschnitten:
-                raise _KeineZahl(
-                    f"Für {_monat_anzeige(monat)} wären es zu viele Zahlen für eine Antwort. Bitte enger fragen, "
-                    "zum Beispiel mit weniger Aufteilungen oder für ein Bundesland."
-                ) from None
-            if zeilen_m:
-                abfragen.append((text_m, zeilen_m))
+    sql_text = ""
+    for teil_von, teil_bis, teil_filter in abschnitte:
+        sql_text = bestand_sql(conn, regelsatz, teil_von, teil_bis, teil_filter, gruppen)
+        try:
+            abfragen.append((sql_text, _lesen(conn, sql_text)))
+        except _Abgeschnitten:
+            for monat in _monate(teil_von, teil_bis):
+                text_m = bestand_sql(conn, regelsatz, monat, monat, teil_filter, gruppen)
+                try:
+                    zeilen_m = _lesen(conn, text_m)
+                except _Abgeschnitten:
+                    raise _KeineZahl(
+                        f"Für {_monat_anzeige(monat)} wären es zu viele Zahlen für eine Antwort. Bitte enger fragen, "
+                        "zum Beispiel mit weniger Aufteilungen oder für ein Bundesland."
+                    ) from None
+                if zeilen_m:
+                    abfragen.append((text_m, zeilen_m))
+    if nur:
+        abfragen = [(text_q, [z for z in zeilen if str(z["monat"]) in nur]) for text_q, zeilen in abfragen]
     alle = [z for _, zeilen in abfragen for z in zeilen]
     staende = _staende(alle)
     info = _laufinfo(conn, regelsatz, staende)
     for s in staende:
         s["fortgeschrieben"] = info.get(int(s["lauf"]), (0, True))[0]
-    hinweise: list[str] = []
     ohne_stichtag = {str(s["monat"]) for s in staende if not info.get(int(s["lauf"]), (0, True))[1]}
     if ohne_stichtag:
         hinweise.append(
             f"Für {', '.join(_monat_anzeige(m) for m in sorted(ohne_stichtag))} zählt der Lauf nicht am Stichtag "
             "(letzter Tag des Monats); dafür gibt es hier keine Zahl."
         )
-    fehlend = [m for m in _monate(von, bis) if m not in {str(s["monat"]) for s in staende}]
+    fehlend = [m for m in (nur or _monate(von, bis)) if m not in {str(s["monat"]) for s in staende}]
     keine_lieferung = [m for m in fehlend if _ohne_lieferung(m)]
     ungerechnet = [m for m in fehlend if not _ohne_lieferung(m)]
     for monate, wie in (
@@ -1119,13 +1388,13 @@ def _bestand_antwort(
                 }
             )
     if not zahlen:
+        if von != bis and (bis < ERSTE_LIEFERUNG or von > LETZTE_LIEFERUNG):
+            # Ganz außerhalb der Daten: zuerst das, die Kette zeigt nur den ersten Satz.
+            return _rueckfrage(_ausserhalb_text(von, bis))
         if von == bis and not staende:
             text = _kein_lauf_text(von)
         else:
-            zeitraum = (
-                _monat_anzeige(von) if von == bis else f"{_monat_anzeige(von)} bis {_monat_anzeige(bis)}"
-            )
-            text = f"Für {zeitraum} gibt es keine Zahl."
+            text = f"Für {zeitraum_anzeige(von, bis)} gibt es keine Zahl."
         return _antwort(
             typ,
             " ".join([verstanden, text, *hinweise]),
@@ -1138,6 +1407,7 @@ def _bestand_antwort(
     gezaehlte_staende = [s for s in staende if str(s["monat"]) not in ohne_stichtag]
     text = _text_bestand(typ, gezaehlt, gruppen, labels, zusatz)
     je_monat = sorted({str(z["monat"]) for z in gezaehlt})
+    antwortsatz, ersetzt = _antwortsatz(gezaehlt, zusatz, text)
     if mittel and len(je_monat) > 1:
         if gruppen:
             text += " Einen Durchschnitt gibt es hier nur ohne Aufteilung."
@@ -1161,10 +1431,13 @@ def _bestand_antwort(
                     "beleg": len(belege) - 1,
                 }
             )
-            text += (
-                f" Im Durchschnitt waren es {_deutsch(durchschnitt)} "
+            durchschnitts_satz = (
+                f"Im Durchschnitt waren es {_deutsch(durchschnitt)} "
                 f"(Mittelwert der {_anzahl_monate(len(je_monat))}, auf ganze Zahlen gerundet)."
             )
+            text += f" {durchschnitts_satz}"
+            antwortsatz = f"Im Durchschnitt waren es {_deutsch(durchschnitt)} Beschäftigungsverhältnisse{zusatz}, {zeitraum}."
+            ersetzt = durchschnitts_satz
     if "anteil" in frage.lower() and gruppen == (GESCHLECHT,) and von == bis:
         summe = sum(int(z["wert"]) for z in zahlen)
         anteile = []
@@ -1178,6 +1451,10 @@ def _bestand_antwort(
                 anteile.append(f"{name} {_komma(wert)} Prozent")
         if anteile:
             text += " Anteil an allen: " + ", ".join(anteile) + "."
+            antwortsatz, ersetzt = (
+                f"Anteil an allen{zusatz} im {_monat_anzeige(von)}: {', '.join(anteile)}.",
+                "",
+            )
     if gruppen == (ALTERSGRUPPE,) and von == bis:
         # Summe aller Alter für die letzte Tabellenzeile, als eigene Abfrage mit eigenem Beleg.
         alle_sql = bestand_sql(conn, regelsatz, von, bis, filter_, ())
@@ -1210,7 +1487,7 @@ def _bestand_antwort(
             for z in summen
             if z["g0"] is not None
         )
-    return _antwort(
+    daten = _antwort(
         typ,
         " ".join(
             [
@@ -1228,6 +1505,8 @@ def _bestand_antwort(
         zahlen=zahlen,
         hinweise=hinweise,
     )
+    daten["antwortsatz"], daten["ersetzt"] = antwortsatz, ersetzt
+    return daten
 
 
 def _monate(von: str, bis: str) -> list[str]:
@@ -1237,6 +1516,31 @@ def _monate(von: str, bis: str) -> list[str]:
         monate.append(monat)
         monat = monat_verschieben(monat, 1)
     return monate
+
+
+def _antwortsatz(zeilen: list[dict[str, Any]], zusatz: str, text: str) -> tuple[str, str]:
+    """Der Satz, mit dem die Kette auf /uc4 die Antwort beginnt, und der Teil des Textes, den er ersetzt.
+
+    Die Station zeigt nur den ersten Satz: Darin muss die Zahl stehen, nicht die Erklärung der Frage (Winter 2025).
+    """
+    je_monat: dict[str, int] = {}
+    for z in zeilen:
+        je_monat[str(z["monat"])] = je_monat.get(str(z["monat"]), 0) + int(z["wert"])
+    monate = sorted(je_monat)
+    if len(monate) == 1:
+        monat = monate[0]
+        tag = monatsletzter(monat).strftime("%d.%m.%Y")
+        satz = (
+            f"Am {tag}, dem letzten Tag im {_monat_anzeige(monat)}, gab es {_deutsch(je_monat[monat])} "
+            f"Beschäftigungsverhältnisse{zusatz}."
+        )
+        erster = re.match(r"Am .*?Beschäftigungsverhältnisse[^.]*\.", text)
+        return satz, erster.group(0) if erster else ""
+    satz = (
+        f"Von {_deutsch(je_monat[monate[0]])} im {_monat_anzeige(monate[0])} auf {_deutsch(je_monat[monate[-1]])} "
+        f"Beschäftigungsverhältnisse{zusatz} im {_monat_anzeige(monate[-1])}."
+    )
+    return satz, ""
 
 
 def _text_bestand(
@@ -1257,12 +1561,22 @@ def _text_bestand(
                 f"Beschäftigungsverhältnisse{zusatz} am Stichtag, {_monat_anzeige(erster)}: "
                 f"{_deutsch(je_monat[erster])}."
             )
+        elif monate != _monate(erster, letzter):
+            text = f"Beschäftigungsverhältnisse{zusatz} am Stichtag:"
+            text += " " + ", ".join(f"{_monat_anzeige(m)} {_deutsch(je_monat[m])}" for m in monate) + "."
+            return text
         else:
             text = (
                 f"Beschäftigungsverhältnisse{zusatz} am Stichtag, {_monat_anzeige(erster)} bis "
                 f"{_monat_anzeige(letzter)} ({_anzahl_monate(len(monate))}): von {_deutsch(je_monat[erster])} "
                 f"auf {_deutsch(je_monat[letzter])}."
             )
+            if len(monate) <= MONATE_IM_TEXT and not gruppen:
+                text += (
+                    " Je Monat: "
+                    + ", ".join(f"{_monat_anzeige(m)} {_deutsch(je_monat[m])}" for m in monate)
+                    + "."
+                )
         if gruppen:
             text += f" Aufgeteilt nach {', '.join(g.name for g in gruppen)}, eine Zahl je Monat und Gruppe."
         return text
@@ -1591,6 +1905,9 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     """
     if ist_pensionsfrage(frage) and not _PERSON.search(frage.lower()):
         return _pensionsfrage(conn, frage)
+    frage = _PROZENTZEICHEN.sub(" Prozent", frage)
+    prozent_von_gruppe = _PROZENT_VON_GRUPPE.search(frage) is not None
+    frage = alltag_lesen(frage)
     try:
         letzter = _letzter_monat(conn, regelsatz)
     except psycopg.Error:
@@ -1604,7 +1921,26 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     grund = unklar(frage, letzter or LETZTE_LIEFERUNG)
     if grund is not None:
         return _rueckfrage(grund)
+    if _EIN_VERHAELTNIS.search(frage):
+        text = f"Wie viele Jobs eine Person hat, wertet StatAgent nicht aus. {KANN}"
+        return _antwort(fragetyp(frage), text, hinweise=[text])
+    if _ZEITBEZUG.search(frage):
+        return _rueckfrage(
+            "Zeitangaben mit Bezug auf einen anderen Zeitpunkt rechnet StatAgent nicht um. "
+            f"Welchen Monat meinen Sie, zum Beispiel „Beschäftigte im {_monat_anzeige(LETZTE_LIEFERUNG)}“?"
+        )
+    if _ZAEHLT_ANDERES.search(frage):
+        return _antwort(
+            fragetyp(frage),
+            f"StatAgent zählt Beschäftigungsverhältnisse, nicht Bundesländer, Branchen, Monate oder Regeln. {KANN}",
+        )
     try:
+        if prozent_von_gruppe and _weiteres_merkmal(conn, frage, letzter or LETZTE_LIEFERUNG):
+            text = (
+                "Einen Anteil an den Frauen oder an den Männern rechnet StatAgent nicht, nur den Frauen- und "
+                "Männeranteil an allen. Zum Beispiel „Wie viel Prozent der Beschäftigten in Wien sind Frauen?“."
+            )
+            return _antwort(fragetyp(frage), text, hinweise=[text])
         if regelsatz == "v1":
             regelsatz = _regelsatz_der_frage(frage) or regelsatz
         if regelsatz != "v1":
@@ -1615,8 +1951,16 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         return _antwort(fragetyp(frage), str(fehler), hinweise=[str(fehler)])
     except (psycopg.Error, AbfrageVerweigert, RegelFehler):
         return _antwort(fragetyp(frage), NICHT_LESBAR, hinweise=[NICHT_LESBAR])
+    except ValueError:  # „März 0000“: Dieses Datum gibt es nicht.
+        return _antwort(fragetyp(frage), _KEIN_DATUM, hinweise=[_KEIN_DATUM])
     hinweis_tag = tag_hinweis(frage)
-    frage, notizen, mittel = _normalisieren(frage, letzter or LETZTE_LIEFERUNG)
+    try:
+        frage, notizen, mittel = _normalisieren(frage, letzter or LETZTE_LIEFERUNG)
+    except ValueError:  # „Jänner 0000 gegenüber dem Vormonat“: Den Monat davor gibt es nicht.
+        return _antwort(fragetyp(frage), _KEIN_DATUM, hinweise=[_KEIN_DATUM])
+    if _VOR_ZEIT.search(frage) and not monate_lesen(frage) and jahr_ohne_monat(frage) is None:
+        # „gegenüber dem Vormonat“ ohne Monat: Eine ganze Reihe wäre eine andere Antwort.
+        return _rueckfrage_monat("fluktuation" if _FLUKTUATION.search(frage.lower()) else "bestand", None)
     if hinweis_tag:
         notizen.insert(0, hinweis_tag)
     typ = fragetyp(frage)
@@ -1636,8 +1980,14 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
             and jahr_ohne_monat(frage) is None
             and letzter is not None
         ):
+            if _ZEITWORT_OHNE_MONAT.search(frage):
+                # „pro Jahr“, „je Quartal“: Das meint nicht den jüngsten Monat.
+                return _rueckfrage_monat(typ, None)
             # Mit „im“: „unter 25“ am Satzende bleibt sonst nicht als Alter lesbar und fiele still weg.
             frage = f"{frage.rstrip(' ?.!')} im {_monat_anzeige(letzter)}"
+            if _VERAENDERUNG.search(frage):
+                frage = f"{_monat_anzeige(monat_verschieben(letzter, -1))} {frage}"
+                typ = fragetyp(frage)
             if _AKTUELL.search(frage):
                 notizen.append(
                     f"„Aktuell“ heißt hier der zuletzt gerechnete Monat, {_monat_anzeige(letzter)}."
@@ -1649,9 +1999,12 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         return _antwort(typ, str(grund), hinweise=[str(grund)])
     except (psycopg.Error, AbfrageVerweigert):
         return _antwort(typ, NICHT_LESBAR, hinweise=[NICHT_LESBAR])
+    except ValueError:  # „März 0000“: Dieses Datum gibt es nicht.
+        return _antwort(typ, _KEIN_DATUM, hinweise=[_KEIN_DATUM])
     if notizen:
         text = daten["text"]
-        ende = text.find(". ") + 1 if text.startswith("Verstanden:") else 0
+        # Ohne „Verstanden“ (Rückfrage, Absage) zuerst der Text: Die Kette zeigt nur den ersten Satz.
+        ende = text.find(". ") + 1 if text.startswith("Verstanden:") else len(text)
         daten["text"] = " ".join(t for t in (text[:ende].strip(), *notizen, text[ende:].strip()) if t)
     return daten
 
@@ -1680,10 +2033,34 @@ def _antwort_frage(
     monate = monate_lesen(frage)
     jahr = jahr_ohne_monat(frage)
     text = frage.lower()
+    if typ != "fluktuation" and _geschlecht_gegliedert(text):
+        je = _gliederung(frage)
+        erlaubt = (GESCHLECHT,) if typ == "zeitreihe" or "anteil" in text else (GESCHLECHT, BUNDESLAND)
+        if je is not None and je not in erlaubt:
+            # Sonst fiele „je Branche“ still weg, die Antwort gälte für ganz Österreich.
+            raise _KeineZahl(
+                f"Männer und Frauen {_JE_ALLTAG.get(je.name, 'je ' + je.name)} zeigt StatAgent nicht auf einmal. "
+                f"Bitte einzeln fragen, zum Beispiel „Frauen im Bau im {_monat_anzeige(LETZTE_LIEFERUNG)}“."
+            )
+    if "anteil" in text and typ != "fluktuation":
+        if not _GESCHLECHT.search(text):
+            raise _KeineZahl(
+                "Einen Anteil rechnet StatAgent nur für Frauen und Männer. Für alles andere: beide Zahlen einzeln "
+                f"fragen, zum Beispiel „Beschäftigte nach Bundesland im März 2025“. {KANN}"
+            )
+        if len(set(monate)) > 1:
+            return _rueckfrage(
+                "Den Anteil gibt es je Monat. Für welchen Monat möchten Sie ihn, zum Beispiel "
+                f"„Frauenanteil im {_monat_anzeige(monate[-1])}“?"
+            )
     if typ == "zeitreihe":
         _aufteilung(frage)  # Männer und Frauen je Altersgruppe: Absage
-        if len(monate) >= 2:
-            von, bis = min(monate[0], monate[-1]), max(monate[0], monate[-1])
+        aufzaehlung = zeitraum_lesen(frage, _letzter_monat(conn, regelsatz))
+        nur = aufzaehlung.nur if aufzaehlung is not None and aufzaehlung.art == "liste" else ()
+        if nur:
+            von, bis = nur[0], nur[-1]
+        elif len(monate) >= 2:
+            von, bis = min(monate), max(monate)
         elif len(monate) == 1:
             von, bis = monate[0], "9999-12"
         elif jahr is not None:
@@ -1700,7 +2077,7 @@ def _antwort_frage(
         gruppen: tuple[Merkmal, ...] = (
             (GESCHLECHT,) if _geschlecht_gegliedert(text) else tuple(g for g in (_aufteilung(frage),) if g)
         )
-        return _bestand_antwort(conn, frage, regelsatz, von, bis, gruppen, "zeitreihe", mittel)
+        return _bestand_antwort(conn, frage, regelsatz, von, bis, gruppen, "zeitreihe", mittel, nur)
     if typ == "fluktuation" and len(monate) > 1:
         return _rueckfrage_monat(typ, monate[-1][:4])
     if len(monate) != 1:
