@@ -1,3 +1,4 @@
+import { mitRegeln, satzAnfang } from "./regelsatz-name";
 import { literal } from "./beleg";
 import { ersterSatz } from "./bericht";
 import { lies, type Lesung, type Sql } from "./db";
@@ -611,12 +612,12 @@ function zaehltSatz(regelsatz: string, spalte: string | null, liste: readonly Qu
   const kategorien = [...new Set(bekannt.map((q) => q.kategorie))];
   const und = (xs: string[]) => (xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} und ${xs.at(-1)}`);
   if (spalte === "code") {
-    return `In Regelsatz ${regelsatz} zählen wir die ${bekannt.length} gelieferten Qualifikationen einzeln, wie geliefert: ${und(bekannt.map((q) => q.bezeichnung))}.`;
+    return `${satzAnfang(mitRegeln(regelsatz))} zählen wir die ${bekannt.length} gelieferten Qualifikationen einzeln, wie geliefert: ${und(bekannt.map((q) => q.bezeichnung))}.`;
   }
   if (spalte === "beschaeftigungskategorie") {
-    return `In Regelsatz ${regelsatz} fassen wir die ${bekannt.length} Qualifikationen zu ${kategorien.length} Beschäftigungskategorien zusammen: ${und(kategorien)}. Dienstvertrag und freier Dienstvertrag zählen gemeinsam.`;
+    return `${satzAnfang(mitRegeln(regelsatz))} fassen wir die ${bekannt.length} Qualifikationen zu ${kategorien.length} Beschäftigungskategorien zusammen: ${und(kategorien)}. Dienstvertrag und freier Dienstvertrag zählen gemeinsam.`;
   }
-  return `In Regelsatz ${regelsatz} zählen wir die Qualifikation nach der Spalte „${spalte ?? "unbekannt"}“.`;
+  return `${satzAnfang(mitRegeln(regelsatz))} zählen wir die Qualifikation nach der Spalte „${spalte ?? "unbekannt"}“.`;
 }
 
 /**
@@ -634,15 +635,15 @@ export function kategorieSaetze(
   const kurz = a ? (a.titel.split(",")[0]?.trim() ?? a.titel) : "";
   let auftrag: string | null = null;
   if (a?.status === "offen") {
-    auftrag = `„${a.titel}“ wartet auf Freigabe. Gezählt wird mit Regelsatz ${stand.regelsatz}, bis ${kurz} freigegeben ist.`;
+    auftrag = `„${a.titel}“ wartet auf Freigabe. Gezählt wird ${mitRegeln(stand.regelsatz)}, bis ${kurz} freigegeben ist.`;
   } else if (a?.status === "freigegeben") {
     const wer = a.von && a.am ? ` von ${a.von} am ${wienerZeit(a.am)}` : "";
-    auftrag = `„${a.titel}“ ist als Regelsatz ${a.regelsatzZiel} freigegeben${wer}. ${zaehltSatz(a.regelsatzZiel, a.zielSpalte, liste)}`;
+    auftrag = `„${a.titel}“ ist freigegeben${wer}. ${zaehltSatz(a.regelsatzZiel, a.zielSpalte, liste)}`;
   } else if (a?.status === "abgelehnt") {
     const wer = a.von && a.am ? ` von ${a.von} am ${wienerZeit(a.am)}` : "";
-    auftrag = `„${a.titel}“ ist abgelehnt${wer}. Gezählt wird weiter mit Regelsatz ${stand.regelsatz}.`;
+    auftrag = `„${a.titel}“ ist abgelehnt${wer}. Gezählt wird weiter ${mitRegeln(stand.regelsatz)}.`;
   }
-  const zahlen = zahlenRegelsatz ? `Die Zahlen auf dieser Seite sind mit Regelsatz ${zahlenRegelsatz} gerechnet.` : null;
+  const zahlen = zahlenRegelsatz ? `Die Zahlen auf dieser Seite sind ${mitRegeln(zahlenRegelsatz)} gerechnet.` : null;
   return { regel, auftrag, zahlen };
 }
 
@@ -814,12 +815,12 @@ function qualifikationsSatz(regelsatz: string, spalte: string | null, liste: rea
   const kategorien = [...new Set(bekannt.map((q) => q.kategorie))];
   const und = (xs: string[]) => (xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} und ${xs.at(-1)}`);
   if (spalte === "code") {
-    return `Regelsatz ${regelsatz} zählt die ${bekannt.length} Qualifikationen einzeln, so wie sie geliefert werden.`;
+    return `${satzAnfang(mitRegeln(regelsatz))} zählen wir die ${bekannt.length} Qualifikationen einzeln, so wie sie geliefert werden.`;
   }
   if (spalte === "beschaeftigungskategorie") {
-    return `Regelsatz ${regelsatz} fasst sie zu ${kategorien.length} Beschäftigungskategorien zusammen: ${und(kategorien)}. Dienstvertrag und freier Dienstvertrag zählen dort gemeinsam.`;
+    return `${satzAnfang(mitRegeln(regelsatz))} fassen wir sie zu ${kategorien.length} Beschäftigungskategorien zusammen: ${und(kategorien)}. Dienstvertrag und freier Dienstvertrag zählen dort gemeinsam.`;
   }
-  return `Regelsatz ${regelsatz} zählt die Qualifikation nach der Spalte „${spalte ?? "unbekannt"}“.`;
+  return `${satzAnfang(mitRegeln(regelsatz))} zählen wir die Qualifikation nach der Spalte „${spalte ?? "unbekannt"}“.`;
 }
 
 const freigabeText = (von: string | null | undefined, am: string | null | undefined) =>

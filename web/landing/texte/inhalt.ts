@@ -11,16 +11,14 @@
  */
 import { GRUPPEN } from "@/components/uc3/einstufung-gruppen";
 import type { UcId } from "@kic/ui/ucs";
-import type { BefundId } from "../szene/motor/layout";
-import type { SchrittId } from "../szene/vertrag";
 import {
+  ABGABE,
   ANZAHL_LIEFERUNGEN,
-  BUNDESLAENDER_2024_08,
+  EINBRUCH,
+  FREIGABE,
   GOLDEN_SET,
   LIEFERUNGEN,
-  BEFUNDE,
   MASSSTAB_TEIL_VON_OESTERREICH,
-  MONATE_JE_LIEFERUNG,
   SUMME_ZEILEN,
   SZENE_BEFUNDE,
   zahl,
@@ -58,23 +56,9 @@ export function monateLesbar(text: string): string {
   return text.replace(/\b(\d{4})-(\d{2})\b/g, "$2/$1");
 }
 
-/** auf Zehntausender gerundet, für „rund …“ */
-const rund = (n: number) => Math.round(n / 10_000) * 10_000;
-
-/** „31.08.2024“ → „31. August 2024“ */
-function datumLang(ttMmJjjj: string): string {
-  const [tag, monat, jahr] = ttMmJjjj.split(".");
-  return `${Number(tag)}.\u00a0${MONATE[Number(monat) - 1]}\u00a0${jahr}`;
-}
-
 const ERSTE = LIEFERUNGEN[0].lieferung;
 const LETZTE = LIEFERUNGEN[LIEFERUNGEN.length - 1].lieferung;
-const LAENDER = BUNDESLAENDER_2024_08.filter((b) => b.code !== 0);
-const UNBEKANNT = BUNDESLAENDER_2024_08.find((b) => b.code === 0);
-const ZAHLWORT: Record<number, string> = { 3: "drei", 4: "vier", 5: "fünf", 9: "neun" };
-const ORDNUNGSZAHL: Record<number, string> = { 4: "vierte", 5: "fünfte", 10: "zehnte" };
 const BRUCHWORT: Record<number, string> = { 10: "ein Zehntel" };
-const ZEILEN_JE_LIEFERUNG = rund(SUMME_ZEILEN / ANZAHL_LIEFERUNGEN);
 
 /**
  * Glossar-Erklärungen nach docs/sprache.md. Die Einträge Lieferung, Beleg, Revisionsbedarf, Qualitätsbericht
@@ -84,8 +68,6 @@ export const BEGRIFFE = {
   Lieferung: "Die Daten, die die Sozialversicherungsträger jeden Monat schicken.",
   Beschäftigungsverhältnis: "ein sozialversicherter Job; wer zwei Jobs hat, zählt zweimal",
   "Freier Dienstvertrag": "ein Job ohne Anstellung, trotzdem sozialversichert",
-  Stichtag: "der letzte Tag des Monats; gezählt wird jedes Beschäftigungsverhältnis, das an diesem Tag besteht",
-  Beispielbericht: `der Monatsbericht ${monatJahr(GOLDEN_SET.lieferung)} aus der Aufgabe, ${zahl(GOLDEN_SET.tabellen)} Tabellen im Layout des Dachverbands`,
   Beleg: "Zeigt, woher eine Zahl kommt: aus welcher Lieferung und mit welcher Abfrage sie gerechnet wurde.",
   Revisionsbedarf:
     "Eine schon veröffentlichte Zahl wäre mit den neuen Daten anders. Sie bleibt stehen, der Unterschied kommt in den Qualitätsbericht.",
@@ -105,9 +87,10 @@ export const NAVIGATION = {
   team: "OneShotAndy",
   startseite: "StatAgent, zum Seitenanfang",
   marken: [
-    { href: "#ansatz", text: "Ansatz" },
+    { href: "#schritt-1", text: "Geschichte" },
     { href: "#datenfehler", text: "Auffälligkeiten" },
     { href: "#use-cases", text: "Use Cases" },
+    { href: "#ansatz", text: "So arbeiten wir" },
     { href: "#team", text: "Team" },
   ],
   app: { href: "/uc3", text: "Zur App" },
@@ -116,125 +99,117 @@ export const NAVIGATION = {
 } as const;
 
 export const HERO = {
-  titel: "StatAgent",
-  autor: "von Bernhard Götzendorfer",
-  satz: `StatAgent macht aus ${zahl(ANZAHL_LIEFERUNGEN)} Monatslieferungen der Sozialversicherung eine geprüfte Beschäftigtenstatistik. Die KI schreibt Code und Regeln, gerechnet wird ohne KI, ein Mensch gibt mit Namen frei.`,
-  /** Ergebnis auf einen Blick (Roast K3); Zahlen aus fakten.ts, Herkunft in `ergebnisQuelle`. */
-  ergebnis: [
-    { wert: zahl(ANZAHL_LIEFERUNGEN), text: "Monatslieferungen" },
-    { wert: zahl(SUMME_ZEILEN), text: "Zeilen zusammen" },
-    { wert: zahl(BEFUNDE.length), text: "Arten von Auffälligkeiten" },
-    { wert: `${zahl(GOLDEN_SET.zellenExakt)} von ${zahl(GOLDEN_SET.zellenGesamt)}`, text: "Zahlen stimmen genau" },
-  ],
-  ergebnisBereich: "Ergebnis auf einen Blick",
-  ergebnisQuelle: `Nachgerechnet am Beispielbericht der Aufgabe für ${monatJahr(GOLDEN_SET.lieferung)}, Stand 5. November 2026. Gelöscht wird nichts.`,
-  hinweis: `Weiter nach unten: in ${ZAHLWORT[4]} Schritten von den Rohdaten zur belegten Zahl.`,
-  schritteBereich: "Die vier Schritte",
-  springeZu: "Zu Schritt",
+  titel: "StatAgent macht aus den Monatslieferungen der Sozialversicherung eine geprüfte Beschäftigten\u00adstatistik für den Dachverband.",
+  satz: "Die KI schreibt den Code, gerechnet wird ohne KI, und ein Mensch gibt mit Namen frei.",
+  knopf: "StatAgent öffnen",
+  autor: "Von Bernhard Götzendorfer, Team OneShotAndy, KI Challenge 2026",
+  hinweis: "Weiter nach unten: der Weg der Daten in fünf Schritten.",
 } as const;
 
-export interface SchrittText {
-  /** kurzer Name in der Fortschrittsleiste */
-  marke: string;
+export interface GeschichteSchritt {
   titel: string;
-  kennzahl: number;
-  /** Zeile unter der Kennzahl */
-  einheit: string;
   text: string;
-  /** Glossar-Untertitel je Fachbegriff (PRD Vertrag D, Roast K9) */
-  glossar: { begriff: string; erklaerung: string }[];
+  /** Erklärung eines Fachbegriffs unter dem Text */
+  begriff?: { begriff: string; erklaerung: string };
 }
 
-const tl = SZENE_BEFUNDE.teilLieferung2025_10;
+const OKT = monatJahr(EINBRUCH.lieferung);
 const fd = SZENE_BEFUNDE.fdFehlen2025_03;
-/** „fünfte“: jedes wievielte Beschäftigungsverhältnis im Oktober 2025 fehlt */
-const TEIL_FEHLT = ORDNUNGSZAHL[Math.round(100 / tl.anteilProzent)];
-/** Monat nach der Teil-Lieferung, in dem fast alle wieder da sind (SZENE_BEFUNDE.wiederIn2025_11) */
-const FOLGEMONAT = MONATE[Number(tl.lieferung.split("-")[1]) % 12];
 
-export const SCHRITT_TEXTE: Record<SchrittId, SchrittText> = {
-  lieferungen: {
-    marke: "Einlesen",
-    titel: "Jeden Monat kommen neue Daten",
-    kennzahl: SUMME_ZEILEN,
-    einheit: `Zeilen in ${zahl(ANZAHL_LIEFERUNGEN)} Monatslieferungen zusammen`,
-    text: `Jede Säule ist ein Monat, von ${monatJahr(ERSTE)} bis ${monatJahr(LETZTE)}, mit rund ${zahl(ZEILEN_JE_LIEFERUNG)} Zeilen. Jede Lieferung soll alle Beschäftigungsverhältnisse der letzten ${ZAHLWORT[MONATE_JE_LIEFERUNG]} Monate enthalten, viele stehen deshalb in mehreren Lieferungen. Die Daten sind erfunden, in der Größe etwa ${BRUCHWORT[MASSSTAB_TEIL_VON_OESTERREICH]} Österreichs.`,
-    glossar: [begriff("Lieferung"), begriff("Beschäftigungsverhältnis")],
+/** Die fünf Schritte der Startseite. Jeder ist ohne Bewegung und ohne die Bühne vollständig lesbar. */
+export const GESCHICHTE: readonly GeschichteSchritt[] = [
+  {
+    titel: `${zahl(ANZAHL_LIEFERUNGEN)} Lieferungen kommen an`,
+    text: `Jeden Monat schicken die Sozialversicherungsträger ihre Daten, von ${monatJahr(ERSTE)} bis ${monatJahr(LETZTE)}. Das sind ${zahl(SUMME_ZEILEN)} Zeilen. Die Daten sind erfunden, in der Größe etwa ${BRUCHWORT[MASSSTAB_TEIL_VON_OESTERREICH]} Österreichs.`,
+    begriff: begriff("Lieferung"),
   },
-  pruefen: {
-    marke: "Prüfen",
-    titel: "Die Prüfung findet, was nicht stimmt",
-    kennzahl: tl.fehlen,
-    einheit: `Beschäftigungsverhältnisse fehlen im ${monatJahr(tl.lieferung)}`,
-    text: `Das ist jedes ${TEIL_FEHLT}, im ${FOLGEMONAT} sind fast alle wieder da: Die Lieferung war unvollständig. Ohne Prüfung hätte die Statistik einen Einbruch gezeigt, den es so nicht gab. Im ${monatJahr(fd.lieferung)} fehlen alle ${zahl(fd.verhaeltnisse)} freien Dienstverträge.`,
-    glossar: [begriff("Freier Dienstvertrag")],
+  {
+    titel: "Das Programm prüft jede Zeile",
+    text: `Feste Regeln laufen über alle Lieferungen und finden Auffälligkeiten, zum Beispiel ${zahl(SZENE_BEFUNDE.geburtsmonat13.saetze)} Geburtsdaten mit Monat 13 im ${monatJahr(SZENE_BEFUNDE.geburtsmonat13.lieferung)} oder ${zahl(fd.verhaeltnisse)} fehlende freie Dienstverträge im ${monatJahr(fd.lieferung)}. Die Oktober-Lieferung 2025 ist viel kleiner als sonst. Gelöscht wird nichts, jede Auffälligkeit wird vermerkt.`,
+    begriff: begriff("Freier Dienstvertrag"),
   },
-  zaehlen: {
-    marke: "Zählen",
-    titel: "Gezählt wird nach festen Regeln",
-    kennzahl: GOLDEN_SET.bestand,
-    einheit: `Beschäftigungsverhältnisse am ${datumLang(GOLDEN_SET.stichtag)}`,
-    text: `Gezählt wird am Stichtag, verteilt auf ${ZAHLWORT[LAENDER.length]} Bundesländer. ${zahl(UNBEKANNT?.anzahl ?? 0)} haben kein Bundesland: Sie zählen trotzdem mit und bleiben als eigene Gruppe sichtbar.`,
-    glossar: [begriff("Stichtag")],
+  {
+    titel: `Im ${OKT} bricht die Zahl ein`,
+    text: `In der Lieferung stehen ${zahl(EINBRUCH.geliefert)} Beschäftigungsverhältnisse, im Monat davor waren es ${zahl(EINBRUCH.vormonat)}. Im Monat danach sind fast alle wieder da, die Lieferung war also unvollständig. Das Programm hält den Monat an, statt den Einbruch zu veröffentlichen. ${zahl(EINBRUCH.uebernommen)} übernehmen wir aus der Lieferung davor, deshalb steht in der App ${zahl(EINBRUCH.vorlaeufig)}, vorläufig.`,
+    begriff: begriff("Beschäftigungsverhältnis"),
   },
-  belegen: {
-    marke: "Belegen",
-    titel: "Jede Zahl hat einen Beleg",
-    kennzahl: GOLDEN_SET.zellenExakt,
-    einheit: `von ${zahl(GOLDEN_SET.zellenGesamt)} Zahlen stimmen genau`,
-    text: `Die Aufgabe liefert einen Beispielbericht mit ${zahl(GOLDEN_SET.tabellen)} Tabellen. StatAgent rechnet ihn aus den Rohdaten nach, keine Zahl weicht ab. Zu jeder Zahl gehört die Abfrage, die sie erzeugt.`,
-    glossar: [begriff("Beispielbericht"), begriff("Beleg")],
+  {
+    titel: "Ein Mensch gibt frei, mit Namen",
+    text: `Das Programm veröffentlicht nichts allein. ${FREIGABE.name} hat ${zahl(FREIGABE.monate)} Monate mit Namen und Zeitpunkt freigegeben. ${MONATE[Number(FREIGABE.vorlaeufig[0].split("-")[1]) - 1]} und ${MONATE[Number(FREIGABE.vorlaeufig[1].split("-")[1]) - 1]} 2025 bleiben angehalten. Eine Freigabe mit „Team“ als Namen lehnt das System ab.`,
   },
-};
+  {
+    titel: "Zahlen und Berichte stehen",
+    text: `Zur Kontrolle rechnet StatAgent den Beispielbericht der Aufgabe für ${monatJahr(GOLDEN_SET.lieferung)} aus den Rohdaten nach: ${zahl(GOLDEN_SET.zellenExakt)} von ${zahl(GOLDEN_SET.zellenGesamt)} Zahlen stimmen genau. Dazu kommen ${zahl(ABGABE.qualitaetsberichte)} Qualitätsberichte und die Lieferung ans Ministerium für ${monatJahr(ABGABE.ministeriumMonat)} mit ${zahl(ABGABE.ministeriumPersonen)} Personen.`,
+    begriff: begriff("Beleg"),
+  },
+];
 
+/** Beschriftungen auf der Bühne. Alles steht auch im Text der Schritte, die Bühne ist für Screenreader ausgeblendet. */
+export const BUEHNE = {
+  erste: monatKurz(ERSTE),
+  mitte: monatKurz(EINBRUCH.lieferung),
+  letzte: monatKurz(LETZTE),
+  erklaerung: "Jede Säule ist eine Monatslieferung.",
+  ankunft: { wert: zahl(SUMME_ZEILEN), text: `Zeilen in ${zahl(ANZAHL_LIEFERUNGEN)} Lieferungen` },
+  stand: (n: number) => `Schritt ${zahl(n)} von ${zahl(GESCHICHTE.length)}`,
+  marken: [
+    { wert: zahl(SZENE_BEFUNDE.geburtsmonat13.saetze), text: "mit Geburtsmonat 13" },
+    { wert: zahl(fd.verhaeltnisse), text: "freie Dienstverträge fehlen" },
+    { wert: zahl(EINBRUCH.zeilen), text: `Zeilen statt ${zahl(EINBRUCH.zeilenVormonat)}` },
+  ],
+  vormonat: { wert: zahl(EINBRUCH.vormonat), text: monatJahr("2025-09") },
+  einbruch: { wert: zahl(EINBRUCH.geliefert), text: OKT, folge: `−${EINBRUCH.prozent} %, angehalten` },
+  freigabe: {
+    feld: "Freigegeben von",
+    falsch: "Team",
+    abgelehnt: "abgelehnt: Vor- und Nachname nötig",
+    name: FREIGABE.name,
+    zeit: `freigegeben am ${FREIGABE.zeit}`,
+    gruen: `${zahl(FREIGABE.monate)} Monate veröffentlicht`,
+    gelb: `${zahl(FREIGABE.vorlaeufig.length)} angehalten`,
+  },
+  raster: `Jedes Kästchen ist eine Zahl im Beispielbericht, alle ${zahl(GOLDEN_SET.zellenGesamt)} stimmen.`,
+  ergebnis: [
+    { wert: `${zahl(GOLDEN_SET.zellenExakt)} von ${zahl(GOLDEN_SET.zellenGesamt)}`, text: "Zahlen stimmen genau" },
+    { wert: zahl(ABGABE.qualitaetsberichte), text: "Qualitätsberichte" },
+    { wert: zahl(ABGABE.ministeriumPersonen), text: `Personen fürs Ministerium, ${monatKurz(ABGABE.ministeriumMonat)}` },
+  ],
+} as const;
+
+/** Beleg im letzten Schritt: die echte Abfrage hinter einer Zahl. */
 export const BELEG = {
   sql: GOLDEN_SET.belegSql,
   unterschrift: `Diese Abfrage ergibt ${zahl(GOLDEN_SET.bestand)}, genau so, wie sie hier steht.`,
-  tabelle: `Beschäftigungsverhältnisse am ${GOLDEN_SET.stichtag} nach Bundesland`,
-  spalteLand: "Bundesland",
-  spalteAnzahl: "Anzahl",
-  summe: "Österreich",
-} as const;
-
-/** Beschriftungen an der Szene. Zahlen kommen aus dem Layout, das sie aus daten/fakten.ts übernimmt. */
-export const SZENE_TEXTE = {
-  befund: {
-    "geburtsmonat-13": "mit Geburtsmonat 13",
-    "bl-oenace-leer": "ohne Bundesland",
-    volldubletten: "Zeilen doppelt",
-    "fd-fehlen": "freie Dienstverträge fehlen",
-    "teil-lieferung": "Beschäftigungsverhältnisse fehlen",
-  } satisfies Record<BefundId, string>,
-  /** mobil steht die Beschriftung einzeilig in 390 px; der Schritt-Text darunter nennt die Einheit */
-  befundMobil: { "teil-lieferung": `fehlen, jedes ${TEIL_FEHLT}` } as Partial<Record<BefundId, string>>,
-  unbekannt: "ohne Bundesland",
-  legende: (n: number) => `1 Punkt steht für rund ${zahl(n)} Beschäftigungsverhältnisse`,
 } as const;
 
 export const ANSATZ = {
   titel: "So arbeiten wir",
-  einleitung: `${ZAHLWORT[5].replace(/^./, (c) => c.toUpperCase())} Regeln, an die sich das ganze Projekt hält. Sie machen jede Zahl nachprüfbar.`,
+  einleitung: "Fünf Regeln, an die sich das ganze Projekt hält. Sie machen jede Zahl nachprüfbar.",
   punkte: [
     {
-      titel: "Agenten schreiben Code, das Programm rechnet",
-      text: "Eigene Agenten setzen Änderungsaufträge um: Sie schreiben Code und Regeln. Die Zahlen rechnet dieser Code allein, ohne Sprachmodell. Zwei Läufe mit denselben Daten und Regeln liefern dieselben Zahlen.",
+      bild: "rechnen",
+      titel: "Die KI schreibt, das Programm rechnet",
+      text: "Eigene Agenten schreiben Code und Regeln. Die Zahlen rechnet dieser Code ohne Sprachmodell, zwei Läufe ergeben dieselben Zahlen.",
     },
     {
+      bild: "regeln",
       titel: "Regeln sind Daten",
-      text: "Wie eingelesen, geprüft und gezählt wird, steht als Regel in der Datenbank, mit Gültigkeit, Begründung und Freigabe. Ändert sich eine Regel, bleibt die alte nachlesbar. Nichts davon ist im Code versteckt.",
+      text: "Jede Regel steht mit Gültigkeit und Begründung in der Datenbank, die alte bleibt nachlesbar.",
     },
     {
-      titel: "Ein Mensch gibt frei, mit Namen",
-      text: "Ein Agent schlägt jede Änderung vor, ein Mensch gibt sie mit Vor- und Nachnamen frei, das Protokoll hält Auftrag, Vorschlag und Freigabe fest. Auch jede Lieferung wird so freigegeben. Eine Freigabe mit „Team“ als Namen lehnt das System ab.",
-      beispiel: "Freigegeben-von: Bernhard Götzendorfer",
+      bild: "freigabe",
+      titel: "Ein Mensch gibt frei",
+      text: "Jede Änderung und jede Lieferung trägt Vor- und Nachnamen und Zeitpunkt.",
     },
     {
+      bild: "beleg",
       titel: "Jede Zahl hat einen Beleg",
-      text: "Zu jeder Zahl im Bericht gehört die Abfrage, die sie erzeugt hat. Wer nachrechnen will, kann das Zeile für Zeile.",
+      text: "Zu jeder Zahl im Bericht gehört die Abfrage, die sie erzeugt hat.",
     },
     {
-      titel: "Statistikdaten bleiben lokal",
-      text: "Die Statistikdaten von StatAgent liegen in einer Datenbank auf dem eigenen Rechner und verlassen ihn nicht. Das Sprachmodell sieht nur Regeln und den Aufbau der Tabellen, nie einzelne Zeilen.",
+      bild: "lokal",
+      titel: "Keine Einzeldaten ans Modell",
+      text: "Das Sprachmodell sieht nur Regeln und den Aufbau der Tabellen, nie einzelne Zeilen.",
     },
   ],
   modell: {
@@ -277,36 +252,22 @@ export const DATENFEHLER = {
 
 export const USE_CASES = {
   titel: "Drei Use\u00a0Cases, ein Kern",
-  einleitung: "Drei Anwendungen teilen sich eine Plattform. Die Jury bewertet StatAgent. Ein vierter Eintrag ist noch verdeckt.",
+  einleitung: "Drei Anwendungen teilen sich eine Plattform, dazu kommt ein gemeinsamer Einstieg. Die Jury bewertet StatAgent.",
   oeffnen: "Öffnen",
-  bewertet: "bewertet",
   eintraege: {
     uc3: {
       text: `${zahl(ANZAHL_LIEFERUNGEN)} Monatslieferungen prüfen, zählen und belegen: eine Beschäftigtenstatistik mit Qualitätsbericht je Monat und Ministeriums-Lieferung.`,
-      schritte: ["Einlesen", "Prüfen", "Zählen", "Freigeben", "Bereitstellen"],
     },
     uc1: {
       text: "Von der Situation bis zum Antrag: Leistungen der Sozialversicherung erkennen, mit Quelle, Antrag vorbereiten.",
-      schritte: ["Situation", "Leistung", "Quelle", "Antrag"],
     },
     uc2: {
-      text: "Institutionelle Personas verhandeln eine gesundheitspolitische Frage, Positionen und ihre Änderungen bleiben sichtbar.",
-      schritte: ["Frage", "Personas", "Positionen", "Änderungen"],
+      text: "Sechs Gruppen des Gesundheitswesens verhandeln eine Frage, ihre Positionen und Änderungen bleiben sichtbar.",
     },
-  } satisfies Record<UcId, { text: string; schritte: string[] }>,
-  /** Use Case 4 (Epic #95): verdeckt, deckt sich auf Klick auf. */
+  } satisfies Record<UcId, { text: string }>,
+  /** Gemeinsamer Einstieg (Epic #95): Name und Route aus der Registry. */
   uc4: {
-    verdeckt: "Use Case 4",
-    aufdecken: "Aufdecken",
-    zudecken: "Wieder verdecken",
-    name: "Gemeinsamer Einstieg",
-    plakette: "neu",
-    text: "Kein viertes Produkt, sondern die Verbindung der drei. Eine Frage läuft durch alle Räume: StatAgent liefert die geprüften Zahlen mit Beleg, das Panel verhandelt daraus eine Position, der KI-Lotse erklärt in einfacher Sprache, was das im Alltag bedeutet.",
-    beispiel: "„Wie entwickelt sich die Beschäftigung im Gesundheits- und Sozialwesen in meinem Bundesland, und was heißt das für mich?“",
-    beispielLabel: "Beispielfrage",
-    schritte: ["StatAgent: Zahlen mit Beleg", "Panel: Position", "KI-Lotse: einfache Sprache"],
-    inArbeit: "Entsteht gerade",
-    route: "/uc4",
+    text: "StatAgent rechnet die Zahl, der Simulator wägt ab, der Lotse sagt, was es für Sie heißt.",
   },
 } as const;
 
@@ -319,7 +280,6 @@ export const TEAM = {
 export const FUSSZEILE = {
   repo: { href: "https://github.com/KIChallenge/OneShotAndy", text: "github.com/KIChallenge/OneShotAndy" },
   hinweise: ["Synthetische Daten, keine echten Personen"],
-  quelle: "Grenzen der Bundesländer: Statistik Austria, data.statistik.gv.at, bearbeitet von Flooh Perlot, CC BY 4.0",
 } as const;
 
 /**

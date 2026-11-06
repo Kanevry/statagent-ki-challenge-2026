@@ -73,7 +73,7 @@ Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „
 2. `uv run uc3 protokoll --zeigen`, Abschnitt 2: alle drei Aufträge mit Status „freigegeben“ und Name.
 
 - Sagt Bernhard (FAQ Frage 11): „Die drei Aufträge der Aufgabe habe ich in Sätzen gestellt, die Agenten schrieben Vorschläge. Die Freigaben hat in meinem Auftrag eine KI-Sitzung eingegeben, ich habe sie um 18:22 mit meinem Namen bestätigt. Das steht offen im Protokoll.“
-- Sagt Bernhard (bei 1): „Der Gesamtbestand bleibt bei 392.236. Die Kategorien verschieben sich, zum Beispiel Angestellte von 0 auf 236.961.“
+- Sagt Bernhard (bei 1): „Der Gesamtbestand bleibt bei 392.236. Die Kategorien verschieben sich: Angestellte mit Dienstvertrag 235.819 und mit freiem Dienstvertrag 1.142 werden zu Angestellten, 236.961.“
 
 **Teil 2, live per Sprache (6:00–9:30):** Laut Aufgabenstellung gibt die Jury eine kleine, unbekannte Änderung vor. Bernhard fragt: „Nennen Sie mir eine Regel, die ich jetzt ändern soll.“ Er wiederholt den Wunsch der Jury in einem Satz und tippt diesen Satz. Die vier geübten Änderungen im Fragenkatalog Teil B decken die naheliegenden Wünsche ab (Altersgrenze, Geburtsmonat 13, Schwelle Bestandsrückgang, Spaltentausch). Nennt die Jury nichts, nimmt Bernhard den Standard-Satz unten.
 

@@ -27,14 +27,18 @@ import {
 import {
   beispieleFuer,
   leseNachschlagen,
+  leseOenace2003,
   nachschlagenKopf,
   SQL_NACHSCHLAGEN,
+  SQL_OENACE_2003,
   type Art,
   type Auswahl,
   type Kinder,
 } from "@/components/uc3/klassifikation-tief";
 import { monatName } from "@/components/uc3/monat";
 import { regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/navigation";
+import { mitRegeln, regelsatzName } from "@/components/uc3/regelsatz-name";
+import { RegelsatzWahl } from "@/components/uc3/regelsatz-wahl";
 import { alltag } from "@/components/uc3/sprache";
 import { Gegenueberstellung } from "./_teile/gegenueberstellung";
 import { Nachschlagen } from "./_teile/nachschlagen";
@@ -129,6 +133,48 @@ function AlleCodes({ auswahl, start, art }: { auswahl: Auswahl; start: Kinder; a
   );
 }
 
+async function Oenace2003Uebergang() {
+  const lesung = await leseOenace2003();
+  // Nur zeigen, was in dieser Datenbank liegt: Ohne Übergänge fällt der Abschnitt weg.
+  if (!lesung.ok || !lesung.daten) return null;
+  const { zeilen, satz } = lesung.daten;
+  return (
+    <section aria-labelledby="oenace-2003-titel" className="flex max-w-4xl flex-col gap-2">
+      <h2 id="oenace-2003-titel" className={titel}>
+        Von ÖNACE 2003 nach 2008
+      </h2>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="font-sans text-16 text-ink">{satz}</span>
+        <BelegLink
+          quelle="stat.uebergang, stat.klass_oenace"
+          verweis="Aus dem Umsteigeschlüssel von Statistik Austria, je Unterabschnitt nach der Mehrheit seiner Codes"
+          sql={SQL_OENACE_2003}
+        />
+      </div>
+      <table className="w-full border-collapse font-sans text-14 text-ink">
+        <caption className="sr-only">Unterabschnitte von ÖNACE 2003 und ihr Abschnitt in ÖNACE 2008</caption>
+        <thead>
+          <tr className="border-b border-ink text-left text-slate">
+            <th scope="col" className="py-2 pr-3 font-normal">ÖNACE 2003</th>
+            <th scope="col" className="py-2 pr-3 font-normal">Branche</th>
+            <th scope="col" className="py-2 text-right font-normal">ÖNACE 2008</th>
+          </tr>
+        </thead>
+        <tbody>
+          {zeilen.map((z) => (
+            <tr key={z.code} className="border-b border-line">
+              <th scope="row" className="py-2 pr-3 text-left align-baseline font-normal">{z.code}</th>
+              <td className="py-2 pr-3 align-baseline">{z.name}</td>
+              <td className="py-2 text-right align-baseline">{z.ziele.join(", ")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="font-sans text-14 text-slate">ÖNACE 2003 ist hier nur bis zu den Unterabschnitten geladen.</p>
+    </section>
+  );
+}
+
 function Qualifikationen({ daten }: { daten: Klassifikationsdaten }) {
   const stand = daten.kategorieStand;
   if (!stand) return null;
@@ -137,7 +183,7 @@ function Qualifikationen({ daten }: { daten: Klassifikationsdaten }) {
   return (
     <section aria-labelledby="qualifikation-titel" className="flex max-w-4xl flex-col gap-2">
       <h2 id="qualifikation-titel" className={titel}>
-        Qualifikationen je Regelsatz
+        So zählen die Regeln die Qualifikationen
       </h2>
       <ul className="flex flex-col">
         {staende.map((s) => (
@@ -163,7 +209,7 @@ function Qualifikationen({ daten }: { daten: Klassifikationsdaten }) {
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         {staende.length > 1 && (
           <span className="font-sans text-14 text-slate">
-            {`Die Monate sind mit Regelsatz ${stand.regelsatz} gerechnet. Regelsatz ${staende[1]!.regelsatz} zeigen Sie mit dem Umschalter auf der Seite `}
+            {`Die Monate sind ${mitRegeln(stand.regelsatz)} gerechnet. Den anderen Stand zeigen Sie mit dem Umschalter auf der Seite `}
             <Link href={uebersichtPfad(staende[1]!.regelsatz)} className="text-ink underline underline-offset-4 hover:text-gruen">
               Läufe
             </Link>
@@ -232,32 +278,6 @@ function Regelpunkt({ regel }: { regel: Regel }) {
   );
 }
 
-function RegelsatzWahl({ aktiv }: { aktiv: Regelsatz }) {
-  const punkte: Array<[Regelsatz, string]> = [
-    ["v1", "Regelsatz v1: nach der Fachbeschreibung."],
-    ["v2", "Regelsatz v2: mit den freigegebenen Änderungsaufträgen."],
-  ];
-  return (
-    <nav aria-label="Regelsatz" className="flex items-center gap-2 font-sans text-14 text-slate">
-      <span>Regelsatz</span>
-      <ul className="flex overflow-hidden rounded-md border border-line">
-        {punkte.map(([wert, erklaerung]) => (
-          <li key={wert}>
-            <Link
-              href={pfad(wert)}
-              title={erklaerung}
-              aria-current={wert === aktiv ? "page" : undefined}
-              className={`inline-flex min-h-11 min-w-11 items-center justify-center px-3 ${wert === aktiv ? "bg-ink text-white" : "text-ink hover:bg-paper"}`}
-            >
-              {wert}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
-}
-
 async function Regeln({ regelsatz }: { regelsatz: Regelsatz }) {
   const lesung = await leseRegeln(regelsatz);
   const regeln = lesung.ok ? lesung.daten : [];
@@ -271,23 +291,21 @@ async function Regeln({ regelsatz }: { regelsatz: Regelsatz }) {
 
   return (
     <section id="regeln" aria-labelledby="regeln-titel" className="flex max-w-4xl scroll-mt-24 flex-col gap-3">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <Ueberschrift stufe={3} als="h2" id="regeln-titel">
-          Regeln
-        </Ueberschrift>
-        <RegelsatzWahl aktiv={regelsatz} />
-      </div>
+      <Ueberschrift stufe={3} als="h2" id="regeln-titel">
+        Regeln
+      </Ueberschrift>
+      <RegelsatzWahl aktiv={regelsatz} pfad={pfad} />
       {regeln.length === 0 ? (
         <Leerzustand
-          satz={lesung.ok ? `Für den Regelsatz ${regelsatz} ist noch keine Regel angelegt.` : leerSatz(lesung.grund)}
+          satz={lesung.ok ? `Für „${regelsatzName(regelsatz)}“ ist noch keine Regel angelegt.` : leerSatz(lesung.grund)}
         />
       ) : (
         <>
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <Fliesstext className="max-w-3xl">
-              {`${formatZahl(regeln.length)} Regeln bestimmen in Regelsatz ${regelsatz}, wie wir einlesen, zuordnen, zählen und prüfen. ${freigabe} Jede Regel steht in der Datenbank, nicht im Programmcode.`}
+              {`${formatZahl(regeln.length)} Regeln bestimmen hier, wie wir einlesen, zuordnen, zählen und prüfen. ${freigabe} Jede Regel steht in der Datenbank, nicht im Programmcode.`}
             </Fliesstext>
-            <BelegLink quelle="meta.regel" regelstand={`Regelsatz ${regelsatz}`} sql={sqlRegeln(regelsatz)} />
+            <BelegLink quelle="meta.regel" regelstand={regelsatzName(regelsatz)} sql={sqlRegeln(regelsatz)} />
           </div>
           {REGEL_TYPEN.map((typ) => {
             const gruppe = regeln.filter((r) => r.typ === typ);
@@ -405,6 +423,7 @@ export default async function RegelnUndKlassifikationen({ searchParams }: Props)
         <>
           {nachschlagen && <AlleCodes {...nachschlagen} />}
           <Branchen daten={daten} oben={!nachschlagen} />
+          <Oenace2003Uebergang />
           <Qualifikationen daten={daten} />
         </>
       ) : (
