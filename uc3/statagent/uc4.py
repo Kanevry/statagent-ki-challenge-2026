@@ -86,7 +86,15 @@ MERKMALE: tuple[Merkmal, ...] = (
         "s.oenace",
         "SELECT code, bezeichnung FROM stat.klass_oenace WHERE ebene = 1 AND gueltig_von <= %(bis)s"
         " AND (gueltig_bis IS NULL OR gueltig_bis >= %(von)s)",
-        ("önace", "oenace", "branche", "wirtschaftsabschnitt", "abschnitt"),
+        (
+            "önace",
+            "oenace",
+            "branche",
+            "wirtschaftsabschnitt",
+            "abschnitt",
+            "wirtschaftsbereich",
+            "wirtschaftszweig",
+        ),
     ),
     Merkmal(
         "Beschäftigungskategorie",
@@ -139,10 +147,41 @@ def _auspraegung(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> str | N
     return None
 
 
+#: „aufgeteilt auf die Bundesländer“: nur die Mehrzahl. „bezogen auf das Bundesland Wien“ ist ein Filter.
+_GLIEDERUNG_MEHRZAHL = {
+    "Bundesland": "bundesländer|bundeslaender",
+    "Geschlecht": "geschlechter",
+    "ÖNACE-Abschnitt": "branchen|wirtschaftsbereiche|wirtschaftszweige|abschnitte",
+    "Beschäftigungskategorie": "kategorien|beschäftigungskategorien",
+}
+
+
+_NACH_MEHRZAHL = r"(?:im|in|am|von|vom|bis|seit|nach|zum|zur|für|und|oder|jeweils|insgesamt)\b"
+#: „aufgeteilt auf Bundesland“: Das Verb macht aus „auf“ eine Aufteilung, „bezogen auf das Bundesland Wien“ bleibt Filter.
+_AUFGETEILT_AUF = r"(?:aufgeteilt|verteilt|aufgeschlüsselt|aufgegliedert)\s+auf\s+(?:\w+\s+)?"
+#: „in den Wirtschaftszweigen“ fragt je Gruppe; die Gesamtzahl wäre eine andere Antwort.
+_GLIEDERUNG_IN_DEN = {
+    "Bundesland": "bundesländern|bundeslaendern",
+    "ÖNACE-Abschnitt": "branchen|wirtschaftsbereichen|wirtschaftszweigen|abschnitten",
+}
+
+
 def _gliederung(frage: str) -> Merkmal | None:
     text = frage.lower()
     for merkmal in MERKMALE:
         if any(re.search(rf"(?<!\w)(?:nach|je|pro)\s+(?:\w+\s+)?{w}", text) for w in merkmal.gliederung):
+            return merkmal
+    for merkmal in MERKMALE:
+        if any(re.search(rf"(?<!\w){_AUFGETEILT_AUF}{w}", text) for w in merkmal.gliederung):
+            return merkmal
+        mehrzahl = _GLIEDERUNG_MEHRZAHL.get(merkmal.name)
+        if mehrzahl and re.search(rf"(?<!\w)auf\s+(?:die\s+|alle\s+)?(?:{mehrzahl})(?!\w)", text):
+            return merkmal
+        wem = _GLIEDERUNG_IN_DEN.get(merkmal.name)
+        # Nur ohne Namen danach: „in den Bundesländern Wien und Tirol“ meint diese beiden.
+        if wem and re.search(
+            rf"(?<!\w)in\s+(?:den|allen)\s+(?:{wem})(?!\w)(?!\s+(?!{_NACH_MEHRZAHL})\w)", text
+        ):
             return merkmal
     return None
 
@@ -311,8 +350,10 @@ def _fortgeschrieben(conn: Verbindung, lauf_id: int) -> int:
 
 
 def _mit_notizen(daten: dict[str, Any], notizen: list[str]) -> dict[str, Any]:
+    """Die Sätze zum Verstandenen. Ohne Zahl stehen sie hinten: Die Absage muss der erste Satz der Station sein."""
     if notizen:
-        daten["text"] = " ".join([*notizen, daten["text"]])
+        teile = [*notizen, daten["text"]] if daten["zahlen"] else [daten["text"], *notizen]
+        daten["text"] = " ".join(teile)
     return daten
 
 
@@ -701,7 +742,9 @@ def uc4_antwort(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str
     """
     from statagent import frage as weg  # hier, weil statagent.frage aus diesem Modul importiert
 
+    # Ungelesen: antwort_frage erkennt „Prozent der Frauen“, bevor daraus „Anteil“ wird.
     daten = weg.antwort_frage(conn, frage, regelsatz)
+    frage = weg.alltag_lesen(frage)
     if (
         daten["typ"] in ("bestand", "geschlecht")
         and daten["text"].startswith(weg.MEHRERE_WERTE)
@@ -716,27 +759,46 @@ def uc4_antwort(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str
         return _fluktuation_kurz(daten)
     return {
         **weg.als_ucantwort(daten),
-        "text": _text_fuer_kette(weg.als_webantwort(daten)["text"], daten["zahlen"]),
+        "text": _text_fuer_kette(weg.als_webantwort(daten)["text"], daten),
+        "zahlen": _durchschnitt_zuerst(daten["zahlen"]),
     }
 
 
 #: Teile des „Verstanden“-Satzes, die nichts eingrenzen.
 _ALLE = re.compile(r",\s+(?:Bundesland|Geschlecht|Branche|Beschäftigungskategorie): alle")
-_MONATSSATZ = re.compile(r"Am \d{1,2}\. (\S+) (\d{4}) gab es ([\d.]+ [^.]*\.)\s*")
 
 
-def _text_fuer_kette(text: str, zahlen: list[dict[str, Any]]) -> str:
-    """Der Text für die Stationen der Kette: Bei genau einer Zahl ist der erste Satz die Antwort, danach kommt
-    „Verstanden …“. Der erste Satz wird auch als Kern der Station verwendet, darum ohne Punkt nach dem Tag.
+def _durchschnitt_zuerst(zahlen: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Die folgenden Stationen nehmen die erste Zahl als Hauptzahl: Beim Zeitraum ist das der Durchschnitt."""
+    mittel = [z for z in zahlen if ", Durchschnitt " in str(z["bezeichnung"])]
+    return [*(_kurz(z) for z in mittel), *(z for z in zahlen if z not in mittel)]
+
+
+def _kurz(zahl: dict[str, Any]) -> dict[str, Any]:
+    """Station 2 beginnt mit Name und Zahl und zeigt 140 Zeichen: Der Name muss kurz sein, sonst fällt die Zahl weg."""
+    treffer = re.fullmatch(r"[^,(]+?(?: \((.*)\))?, (Durchschnitt .*)", str(zahl["bezeichnung"]))
+    if treffer is None:
+        return zahl
+    merkmale = f" ({treffer.group(1)})" if treffer.group(1) else ""
+    return {**zahl, "bezeichnung": f"{treffer.group(2)}{merkmale}"}
+
+
+def _text_fuer_kette(text: str, daten: dict[str, Any]) -> str:
+    """Der Text für die Stationen der Kette: Der erste Satz ist die Antwort, danach kommt „Verstanden …“.
+
+    Die Station zeigt nur den ersten Satz; stünde dort die Erklärung der Frage, sähe man die Zahl nicht.
     """
     text = _ALLE.sub("", text)
-    satz = _MONATSSATZ.search(text)
-    if len(zahlen) != 1 or not text.startswith("Verstanden:") or satz is None:
+    satz = daten.get("antwortsatz")
+    if not daten["zahlen"] and text.startswith("Verstanden:"):
+        # Ohne Zahl ist die Aussage der zweite Satz; „Verstanden“ allein sagt der Station nichts.
+        ende = text.find(". ") + 1
+        return f"{text[ende:].strip()} {text[:ende]}".strip() if ende else text
+    if not satz or not daten["zahlen"]:
         return text
-    monat = f"{satz.group(2)}-{MONATSNAMEN[satz.group(1).lower()]:02d}"
-    tag = monatsletzter(monat).strftime("%d.%m.%Y")
-    antwort = f"Am {tag}, dem letzten Tag im {_monat_anzeige(monat)}, gab es {satz.group(3)}"
-    return f"{antwort} {text[: satz.start()].strip()} {text[satz.end() :].strip()}".strip()
+    ersetzt = daten.get("ersetzt") or ""
+    rest = " ".join(text.replace(ersetzt, "", 1).split()) if ersetzt else text
+    return f"{satz} {rest}".strip()
 
 
 def _fluktuation_kurz(daten: dict[str, Any]) -> dict[str, Any]:

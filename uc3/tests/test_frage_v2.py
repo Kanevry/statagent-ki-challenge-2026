@@ -412,3 +412,20 @@ def test_regelsatz_ohne_lauf_einzahl(conn: Verbindung) -> None:
 def test_beispiel_der_zeitreihen_absage_rechnet(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Beschäftigte August bis September 2024 nach Regelsatz v2")
     assert daten["zahlen"]
+
+
+# Dasselbe im v2-Weg: Er liest die Frage in _regelsatz_antwort und ruft _filter sonst nur ohne die Prüfung.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Frauen ohne Kinder im August 2024 nach v2",
+        "Beschäftigte mit Kindern im August 2024 nach v2",
+        "Betriebe im August 2024 nach v2",
+    ],
+)
+def test_unbekanntes_wort_im_v2_weg(mit_v2: Verbindung, frage: str) -> None:
+    assert antwort_frage(mit_v2, frage)["zahlen"] == []
+
+
+def test_v2_gegenprobe_mit_zahl(mit_v2: Verbindung) -> None:
+    assert antwort_frage(mit_v2, "Frauen im August 2024 nach v2")["zahlen"]
