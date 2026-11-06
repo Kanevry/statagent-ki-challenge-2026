@@ -16,6 +16,18 @@ describe("Antwort-Ansicht (UI-Regie v1)", () => {
     expect(ersterSatz(antwort.text)).toBe("Am 31. März 2025 gab es 7.498 Beschäftigungsverhältnisse (Wien, Gesundheits- und Sozialwesen).");
   });
 
+  // Fehler, den das fängt: „Juli 2026 nach Regelsatz v2“ zeigte 407.604 und nur „Verstanden: Juli 2026“.
+  it("nennt den Regelsatz, wenn die Antwort nach einem anderen zählt", () => {
+    const antwort = {
+      uc: "uc3" as const,
+      text: "Nach Regelsatz v2: Im Juli 2026 gab es 407.604 Beschäftigungsverhältnisse. Die Zahl ist vorläufig.",
+      belege: [{ ...beleg, monat: "2026-07" }],
+      zahlen: [{ bezeichnung: "Beschäftigungsverhältnisse", wert: 407604, einheit: "Anzahl", beleg: 0 }],
+    };
+    expect(verstandenSatz(antwort)).toContain("Regelsatz v2");
+    expect(verstandenSatz({ ...antwort, text: "Am 31. Juli 2026 gab es 399.027 Beschäftigungsverhältnisse." })).not.toContain("Regelsatz");
+  });
+
   // Fehler, den das fängt: 20 Zahlen je Bundesland als lange Liste statt Tabelle Männer | Frauen.
   it("baut aus den Bezeichnungen eine Tabelle", () => {
     const z = (b: string, wert: number) => ({ bezeichnung: `Beschäftigungsverhältnisse, ${b}`, wert, einheit: "Anzahl", beleg: 0 });
