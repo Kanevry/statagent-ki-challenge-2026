@@ -30,6 +30,7 @@ import contextlib
 import re
 import time
 from collections.abc import Iterator, Sequence
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -48,7 +49,7 @@ from uc2.verhandlung import prompts
 from uc2.verhandlung.belege import Beleg as PresseBeleg
 from uc2.verhandlung.belege import Belegquelle, FixtureQuelle, IndexQuelle, hat_index, lade_namensliste
 from uc2.verhandlung.fall import Falldefinition, bekannte_faelle, lade_fall
-from uc2.verhandlung.pruefungen import experten_ergebniswerte
+from uc2.verhandlung.pruefungen import experten_ergebniswerte, sperre_zitate
 
 from . import allgemein
 from .kurzlauf import FRIST_S, KURZ_MAX_AKTEURE, KURZ_RUNDEN, Kurzergebnis, KurzlaufFehler, kurzverhandlung
@@ -308,7 +309,8 @@ def _akteur_zeile(
     zeile = f"- {akteur.name}: {' '.join(teile)}"
     if themen:
         grund = _namen_statt_ids(positionen[themen[0]].begruendung, akteure)
-        zeile += f" Grund: {grund}"
+        if grund:
+            zeile += f" Grund: {grund}"
     # Belege: nur IDs, die der Akteur zitiert hat und die ihm die Belegquelle gegeben hat.
     erlaubt = ergebnis.belege.get(akteur.id, {})
     zitiert: list[PresseBeleg] = []
@@ -342,6 +344,45 @@ def _ausgangslage(kontext: list[tuple[Zahl, Beleg]]) -> str:
     if len(kontext) > len(gezeigt):
         text += " Weitere Zahlen stehen in der Liste der Zahlen."
     return text
+
+
+def _ohne_uebernahme(text: str, belege: Sequence[PresseBeleg]) -> str:
+    """`sperre_zitate` wie im vollen Lauf: Längere wörtliche Übernahmen aus der Presse werden zu „[Zitat]“."""
+    zug: dict[str, Any] = {"themen": [{"begruendung": text, "bedingungen": [], "zugestaendnis": None}]}
+    return str(sperre_zitate(zug, belege)["themen"][0]["begruendung"])
+
+
+def _modelltexte_gesaeubert(ergebnis: Kurzergebnis, *, ohne_mengen: bool) -> Kurzergebnis:
+    """Modelltexte für die öffentliche Seite /uc2/frage: ein Absatz, keine Übernahme aus der Presse und, wenn
+    kein Rechenmodell dahintersteht, keine Zahl. Sätze mit Zahl oder Übernahme fallen ganz weg."""
+
+    def text_von(aid: str, roh: str) -> str:
+        geschuetzt = _ohne_uebernahme(roh, list(ergebnis.belege.get(aid, {}).values()))
+        return allgemein.saetze_ohne_menge(geschuetzt) if ohne_mengen else allgemein.ein_absatz(geschuetzt)
+
+    themen = []
+    for i, thema in enumerate(ergebnis.auftrag["themen"]):
+        titel = allgemein.ein_absatz(str(thema["titel"]))
+        if ohne_mengen and allgemein.hat_menge(titel):
+            titel = allgemein.titel_ohne_zahl(titel, i)
+        themen.append({**thema, "titel": titel})
+    positionen = {
+        aid: {t: replace(p, begruendung=text_von(aid, p.begruendung)) for t, p in je_thema.items()}
+        for aid, je_thema in ergebnis.positionen.items()
+    }
+    zuege = {
+        aid: {
+            **zug,
+            "themen": [
+                {**t, "bedingungen": [b for b in (text_von(aid, b) for b in t["bedingungen"]) if b]}
+                for t in zug.get("themen", [])
+            ],
+        }
+        for aid, zug in ergebnis.zuege.items()
+    }
+    return replace(
+        ergebnis, auftrag={**ergebnis.auftrag, "themen": themen}, positionen=positionen, zuege=zuege
+    )
 
 
 def _abwaegung(ergebnis: Kurzergebnis, akteure: dict[str, Akteur], s: _Sammlung, beispiel: bool) -> list[str]:
@@ -496,10 +537,18 @@ def _antwort(
     stichtag: date | None,
     frist_bis: float,
 ) -> UcAntwort:
+    # Ohne Kontext kommt die Frage direkt von /uc2/frage. Die Absage liegt vor der Fallwahl: Auch mit
+    # „Wartezeit“ in der Frage gehen persönliche Angaben nie an ein Modell.
+    absage = allgemein.frei_absage(frage) if not kontext else None
+    if absage:
+        return UcAntwort(text=absage, belege=[], zahlen=[], uc="uc2", modell=None, protokoll_id=None)
     fall = waehle_fall(frage)
     s = _Sammlung()
     kontextzahlen = _kontextzahlen(kontext, s)
     kontext_prompt = _kontext_fuer_prompt(kontextzahlen)
+    # Eigene Frage auf /uc2/frage: kein Fall, keine Zahl davor. Dann bildet der Moderator die Themen aus der
+    # Frage; die festen Themen und Kernsätze handeln vom Personal und gehören zur Zahl von StatAgent.
+    eigene_frage = fall is None and not kontext
     bezug = allgemein.bezug_aus(kontext_prompt)
     if fall is None and bezug is not None and not bezug.gesundheit:
         # Zählt die Zahl nicht die Versorgung, gibt es nichts abzuwägen: keine Runde, kein Modell.
@@ -523,6 +572,9 @@ def _antwort(
             experte["kontext_zahlen"] = kontext_prompt
         werte |= set(experten_ergebniswerte(voll))
         auftrag_nachrichten = prompts.auftrag_nachrichten
+    elif eigene_frage:
+        experte = allgemein.freie_lage()
+        auftrag_nachrichten = allgemein.freier_auftrag_nachrichten
     else:
         experte = allgemein.ausgangslage(kontext_prompt)
         auftrag_nachrichten = allgemein.auftrag_nachrichten
@@ -544,16 +596,22 @@ def _antwort(
             # Die Notiz steht nur im Fall-Weg im Text; im allgemeinen Weg spart das einen Aufruf.
             notiz=fall is not None,
             # Allgemeine Fragen: feste Themen statt Auftragsaufruf (gemessen 38,5 s mit Aufruf bei azure).
-            fester_auftrag=allgemein.fester_auftrag(frage) if fall is None else None,
-            kern=fall is None,
+            fester_auftrag=allgemein.fester_auftrag(frage) if fall is None and not eigene_frage else None,
+            kern=fall is None and not eigene_frage,
             feste_teilnehmer=allgemein.TEILNEHMER if fall is None else (),
         )
     except KurzlaufFehler as fehler:
         raise AntwortFehler(f"Panel: {fehler}") from fehler
 
+    if not kontext:
+        ergebnis = _modelltexte_gesaeubert(ergebnis, ohne_mengen=eigene_frage)
     beispiel = isinstance(quelle, FixtureQuelle)
-    einleitung = _einleitung(ergebnis, vorlage_oben=not ez and ergebnis.kern is None)
-    zeilen = [_kernzeile(ergebnis, ez, bezug), _ausgangslage(kontextzahlen), einleitung]
+    if eigene_frage:
+        # Hier steht keine Kernzeile oben, also auch keine Vorlage, auf die der Satz zeigen könnte.
+        zeilen = [allgemein.FREI_KEIN_MODELL, _einleitung(ergebnis, vorlage_oben=False)]
+    else:
+        einleitung = _einleitung(ergebnis, vorlage_oben=not ez and ergebnis.kern is None)
+        zeilen = [_kernzeile(ergebnis, ez, bezug), _ausgangslage(kontextzahlen), einleitung]
     if voll is not None:
         zeilen += _experte_text(voll, ez)
     zeilen += _abwaegung(ergebnis, akteure, s, beispiel)

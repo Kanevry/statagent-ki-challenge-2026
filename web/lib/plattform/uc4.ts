@@ -208,6 +208,24 @@ export function uc4Einstellung(umgebung: Umgebung = process.env): Uc4Einstellung
   return { kette, fragenOffen: fragenOffen(umgebung), mitModell: ketteMitModell(kette) };
 }
 
+/** Deckel der Probierseite /uc2/frage: rund 100 Modellaufrufe am Tag, eine Frage kostet in der Regel 4 bis 5. */
+export const STATION_FRAGEN_PRO_TAG = 20;
+export const STATION_PRO_MINUTE = 5;
+export const STATION_LAEUFE = 1;
+export const DECKEL_MELDUNG = "Für heute sind die Probierfragen aufgebraucht. Morgen geht es wieder. Die aufgezeichnete Verhandlung bleibt offen.";
+
+/** Station aus der URL (`?station=uc2`), damit das richtige Limit greift, bevor der Body gelesen wird. */
+function stationAus(anfrage: Request): KettenUc | "ungueltig" | undefined {
+  const wert = new URL(anfrage.url).searchParams.get("station");
+  if (wert === null) return undefined;
+  return wert === "uc2" ? wert : "ungueltig";
+}
+
+/** Für /uc2 und /uc2/frage: Nimmt die Route gerade Fragen an diese eine Station an? */
+export function stationOffen(station: KettenUc, umgebung: Umgebung = process.env): boolean {
+  return fragenOffen(umgebung) && ketteAus(umgebung).includes(station);
+}
+
 /** Größter Request-Body; eine Frage mit 500 Zeichen braucht als JSON höchstens rund 3 KiB (UTF-8, Escapes). */
 export const MAX_BODY_BYTES = 4 * 1024;
 /** Router-Läufe, die ein Prozess gleichzeitig startet; jeder Lauf ist ein Python-Prozess. */
@@ -299,6 +317,8 @@ export interface FrageOptionen {
   maxLaeufe?: number;
   /** Ratenlimit je Client-IP (#100); Standard: eigenes Limit dieses Handlers mit `RATENLIMIT_PRO_MINUTE`. */
   ratenlimit?: PruefeRatenlimit;
+  /** Eigenes Limit der Probierseite, getrennt von `ratenlimit`. */
+  stationRatenlimit?: PruefeRatenlimit;
   jetzt?: () => number;
 }
 
@@ -315,14 +335,20 @@ export function erstelleFrageAntwort({
   wurzel = findeRepoWurzel,
   maxLaeufe = MAX_LAEUFE,
   ratenlimit = erstelleRatenlimit({ proMinute: grenzeAus(umgebung) }),
+  stationRatenlimit = erstelleRatenlimit({ proMinute: STATION_PRO_MINUTE }),
   jetzt = Date.now,
 }: FrageOptionen = {}): (anfrage: Request) => Promise<Response> {
   let offen = 0;
+  // Eigener Deckel der Probierseite (/uc2/frage), getrennt von Lauf-Zählung und Limit der Kette. Im Speicher, wie das
+  // Ratenlimit: Je Container läuft ein Next-Prozess. Ein Neustart setzt ihn zurück; das Tagesbudget von plattform.llm bleibt.
+  let stationLaeuft = 0;
+  let deckelTag = "";
+  let deckelFragen = 0;
 
   const kette = ketteAus(umgebung);
   const mitModell = ketteMitModell(kette);
 
-  function laufParameter(frage: string, gewaehlt: Modellwahl | undefined) {
+  function laufParameter(frage: string, gewaehlt: Modellwahl | undefined, station?: KettenUc) {
     // Ohne Modell in der Kette (Stufe A, nur UC3) wirkt keine Modellwahl: auch „Testbetrieb“ darf die echte Zahl
     // nicht durch die Mock-Zahl ersetzen.
     const modell = mitModell ? gewaehlt : undefined;
@@ -330,7 +356,7 @@ export function erstelleFrageAntwort({
     const argv = routerArgv(
       frage,
       umgebung.UC4_ADAPTER === "mock" || modell === "mock",
-      kette === STANDARD_KETTE ? undefined : kette,
+      station ? [station] : kette === STANDARD_KETTE ? undefined : kette,
     );
     // Gewähltes Modell als LLM_PROVIDER nur für diesen Lauf; ohne Wahl gilt die Einstellung der App.
     const zusatz = modell ? { LLM_PROVIDER: modell } : undefined;
@@ -467,8 +493,13 @@ export function erstelleFrageAntwort({
     });
   }
 
-  async function fuehreAus(frage: string, gewaehlt: Modellwahl | undefined, signal: AbortSignal): Promise<Response> {
-    const { argv, zusatz } = laufParameter(frage, gewaehlt);
+  async function fuehreAus(
+    frage: string,
+    gewaehlt: Modellwahl | undefined,
+    signal: AbortSignal,
+    station?: KettenUc,
+  ): Promise<Response> {
+    const { argv, zusatz } = laufParameter(frage, gewaehlt, station);
     let lauf: Lauf;
     try {
       lauf = await ausfuehren("uv", argv, { cwd: wurzel(), timeout: TIMEOUT_MS, maxBuffer: MAX_BUFFER, zusatz, signal });
@@ -496,9 +527,47 @@ export function erstelleFrageAntwort({
     return Response.json(ergebnis.data, { headers: { "cache-control": "no-store" } });
   }
 
+  async function stationFrage(
+    frage: string,
+    gewaehlt: Modellwahl | undefined,
+    station: KettenUc,
+    signal: AbortSignal,
+  ): Promise<Response> {
+    const tag = new Date(jetzt()).toISOString().slice(0, 10);
+    if (deckelTag !== tag) {
+      deckelTag = tag;
+      deckelFragen = 0;
+    }
+    if (deckelFragen >= STATION_FRAGEN_PRO_TAG) {
+      return Response.json(
+        { fehler: DECKEL_MELDUNG },
+        { status: 429, headers: { "retry-after": String(bisMitternachtUtc(jetzt())), "cache-control": "no-store" } },
+      );
+    }
+    if (stationLaeuft >= STATION_LAEUFE) return fehler(429, "Gerade läuft schon eine Frage. Bitte gleich noch einmal.");
+    deckelFragen += 1;
+    stationLaeuft += 1;
+    try {
+      const antwort = await fuehreAus(frage, gewaehlt, signal, station);
+      // Eine Absage ohne Modell kostet nichts und zählt nicht; ein Fehler zählt, er kann schon Aufrufe gekostet haben.
+      if (antwort.ok) {
+        const daten = ergebnisSchema.safeParse(await antwort.clone().json());
+        if (daten.success && daten.data.antworten.every((a) => a.modell === null)) deckelFragen -= 1;
+      }
+      return antwort;
+    } finally {
+      stationLaeuft -= 1;
+    }
+  }
+
   return async function frageAntwort(anfrage: Request): Promise<Response> {
     if (!fragenOffen(umgebung)) return fehler(403, "Fragen sind in der Online-Demo noch gesperrt.");
-    const gedrosselt = ratenlimit(anfrage, jetzt());
+    const station = stationAus(anfrage);
+    if (station === "ungueltig") return fehler(400, "Diese Station gibt es hier nicht.");
+    // Eine einzelne Station gibt es nur, wenn sie in der eingestellten Kette steht: Mit UC4_KETTE=uc3 öffnet sie kein Modell.
+    if (station && !kette.includes(station)) return fehler(403, "Fragen sind in der Online-Demo noch gesperrt.");
+    // Die Probierseite hat ihr eigenes Limit: Sie darf das Limit von /uc4 nicht verbrauchen, und umgekehrt.
+    const gedrosselt = (station ? stationRatenlimit : ratenlimit)(anfrage, jetzt());
     if (gedrosselt) return gedrosselt;
 
     let text: string;
@@ -511,6 +580,7 @@ export function erstelleFrageAntwort({
     const eingabe = leseFrage(text);
     if ("meldung" in eingabe) return fehler(400, eingabe.meldung);
     if (mitModell && eingabe.modell && !modellErlaubt(eingabe.modell, umgebung)) return fehler(400, NICHT_FREIGEGEBEN);
+    if (station) return stationFrage(eingabe.frage, eingabe.modell, station, anfrage.signal);
 
     if (offen >= maxLaeufe) return fehler(429, "Gerade laufen schon genug Fragen. Bitte gleich noch einmal fragen.");
     offen += 1;
