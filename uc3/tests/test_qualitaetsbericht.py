@@ -192,7 +192,7 @@ def test_umschichtung_ist_revisionsbedarf(conn: Verbindung) -> None:
     assert "Kein Revisionsbedarf" not in revision
     assert "Umschichtung zwischen Ausprägungen, insgesamt unverändert" in revision
     zeilen = [z for z in revision.splitlines() if z.startswith("| 2024-08 | ÖNACE-Abschnitt |")]
-    # Klarnamen statt Codes in § 5 (Review-Bank 69, Runde 3), der Abschnittsbuchstabe bleibt in Klammern.
+    # Klarnamen statt Codes in § 5 (Review, Runde 3), der Abschnittsbuchstabe bleibt in Klammern.
     assert [z.split(" | ")[2][-3:] for z in zeilen] == ["(C)", "(D)"]
     assert zeilen[0].endswith("| +10 |") and zeilen[1].endswith("| -10 |")
 
@@ -233,7 +233,7 @@ def test_freigabe_kommt_vom_freigegebenen_lauf(conn: Verbindung) -> None:
     assert "noch nicht freigegeben" not in text
     assert f"freigegeben von: {NAME} am " in text and f"{NAME} hat sie am " in text
 
-    # Fängt (Review-Bank 69): § 2 kam vom Lauf mit den Zellen (erster), nicht vom freigegebenen (zweiter);
+    # Fängt (Review): § 2 kam vom Lauf mit den Zellen (erster), nicht vom freigegebenen (zweiter);
     # Prüfregeln stehen nicht im Regelstand, die beiden Läufe können also verschieden treffen. Und ein weiterer
     # Lauf mit gleichem Regelstand galt als „mit geänderten Regeln nachgerechnet“.
     dritter = lauf_ausfuehren(conn, "2024-08", "v1")

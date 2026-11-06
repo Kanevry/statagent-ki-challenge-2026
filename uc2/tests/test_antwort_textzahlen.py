@@ -122,7 +122,7 @@ def test_wort_der_bezeichnung_gilt_als_einheit() -> None:
     assert ERSATZ in bereinige("Es gibt 135.790 fehlende Stellen.", z)
 
 
-# --- Review-Bank 69 zu !73 ------------------------------------------------------------------------------
+# --- Review zu !73 --------------------------------------------------------------------------------------
 
 
 PROFIL = [

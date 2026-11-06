@@ -527,7 +527,7 @@ def _budget_bei(monkeypatch: pytest.MonkeyPatch, trifft: Any) -> None:
 
 
 def test_budget_erschoepft_bei_einem_akteur_trotz_zwei_gueltigen(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Review-Bank 69: Zwei gültige Züge reichen für ein Ergebnis, der Budgetfehler geht trotzdem weiter."""
+    """Review: Zwei gültige Züge reichen für ein Ergebnis, der Budgetfehler geht trotzdem weiter."""
     _budget_bei(monkeypatch, lambda rolle, n: rolle == "akteur" and n % 3 == 0)
     with pytest.raises(BudgetErschoepft):
         antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")])
@@ -536,7 +536,7 @@ def test_budget_erschoepft_bei_einem_akteur_trotz_zwei_gueltigen(monkeypatch: py
 
 
 def test_budget_erschoepft_in_der_notiz(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Review-Bank 69: Scheitert die Notiz am Budget, gibt es kein Ergebnis ohne Notiz, sondern den Fehler."""
+    """Review: Scheitert die Notiz am Budget, gibt es kein Ergebnis ohne Notiz, sondern den Fehler."""
     _budget_bei(monkeypatch, lambda rolle, n: rolle == "moderator_notiz")
     with pytest.raises(BudgetErschoepft):
         antwort(DEMO, [_uc3()])

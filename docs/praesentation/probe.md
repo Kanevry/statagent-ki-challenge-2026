@@ -27,10 +27,10 @@ Gehört zu GitLab #90, Epic #26. Wird am Fr 06.11.2026 ab 06:00 ausgefüllt.
 | D1 Monat | 2025-10 |
 | Hotspot-Wechsel geübt, Dauer in Sekunden | nicht geübt, nicht gemessen, Owner geht davon aus, dass es funktioniert |
 | Stand (Commit) | `b9508d6`, Instanz `d2621a2` |
-| D4 und Folie 9 (Entscheid 06:45) | ja, die Knopf-Frage, Lead 3d 06:34. In `/uc4` keine Fluktuationsfrage zeigen, bis der Lead den Fix zu !303 live meldet |
-| D2 Teil 2 (Entscheid 06:45) | ja, „Beamte zählen nicht mehr mit“, Soll −12.289, Lead 3d 06:34 |
+| D4 und Folie 9 (Entscheid 06:45) | ja, die Knopf-Frage, Lead 06:34. In `/uc4` keine Fluktuationsfrage zeigen, bis der Lead den Fix zu !303 live meldet |
+| D2 Teil 2 (Entscheid 06:45) | ja, „Beamte zählen nicht mehr mit“, Soll −12.289, Lead 06:34 |
 | Datenbank der Vorführung | Kopie des Abgabe-Stands, zurückgesetzt um 06:15 von der Lane Vorführung. Nie `statistik` |
-| D3 freie Fragen (Entscheid 06:45) | nur die acht geprüften Fragen und die Wien-Frage. Freie Fragen der Jury nur auf Nachfrage und mit dem Hinweis, dass sie nicht gegen das Orakel geprüft sind, Lead 3d 06:34 |
+| D3 freie Fragen (Entscheid 06:45) | nur die acht geprüften Fragen und die Wien-Frage. Freie Fragen der Jury nur auf Nachfrage und mit dem Hinweis, dass sie nicht gegen das Orakel geprüft sind, Lead 06:34 |
 | Zahlen in den Szenen gegen `abgabe/` abgeglichen | teilweise: die 17 Monatswerte von Folie 3 direkt, die übrigen über das Belegregister |
 
 ### Abschnittszeiten
@@ -65,11 +65,11 @@ Alle fünf müssen im Durchlauf vorkommen. Die Spalte „vom Lead bestätigt“ 
 
 | Nr | Pflichtschritt | Wo im Ablauf | Uhr (Ist) | Vom Lead bestätigt (Name, Uhr) |
 |---|---|---|---|---|
-| 1 | Lösung | Pfad A: `/uc3`, Bericht August 2024 | 06:15:35 bis 06:17:27 | Lead 3d, gelesen 06:28, Bild 01 |
-| 2 | Fehlerbeispiel | Pfad A: D1 | 06:27 bis 06:28, Nachmessung | Lead 3d, 06:29, Bild vom Bericht Oktober 2025 |
-| 3 | Eine begründete Annahme | Pfad A: Folie 8 | 06:17:30 bis 06:17:35 | Lead 3d, gelesen 06:28, Bild 03 |
-| 4 | Live-Änderung mit Vorher/Nachher | D2 | 06:17:40 bis 06:20:28 | Lead 3d, gelesen 06:28, Bild 05 |
-| 5 | Eine Datenfrage | D3 | 06:20:28 bis 06:20:57 | Lead 3d, gelesen 06:28, Bild 06 |
+| 1 | Lösung | Pfad A: `/uc3`, Bericht August 2024 | 06:15:35 bis 06:17:27 | Lead, gelesen 06:28, Bild 01 |
+| 2 | Fehlerbeispiel | Pfad A: D1 | 06:27 bis 06:28, Nachmessung | Lead, 06:29, Bild vom Bericht Oktober 2025 |
+| 3 | Eine begründete Annahme | Pfad A: Folie 8 | 06:17:30 bis 06:17:35 | Lead, gelesen 06:28, Bild 03 |
+| 4 | Live-Änderung mit Vorher/Nachher | D2 | 06:17:40 bis 06:20:28 | Lead, gelesen 06:28, Bild 05 |
+| 5 | Eine Datenfrage | D3 | 06:20:28 bis 06:20:57 | Lead, gelesen 06:28, Bild 06 |
 
 Ergebnis: 5 von 5 bestätigt (Ziel 5 von 5).
 
@@ -108,7 +108,7 @@ Automatisch auf dem Rechner der Session, nicht am Vortragsrechner. Gemessen wird
 | Aufzeichnung gekennzeichnet („Das ist eine Aufzeichnung von heute früh“ gesagt) | nein, kein Sprecher in Probe 1, Probe 2 prüft das |
 | Kennzeichnung im Bild sichtbar | ja |
 | Wiederholt nach Fehlschlag | nein |
-| Vom Lead bestätigt (Name, Uhr) | Lead 3d, 06:34, nach Bild; die Zeiten stammen von E5, nur Browser ohne Netz, Rechner online |
+| Vom Lead bestätigt (Name, Uhr) | Lead, 06:34, nach Bild; die Zeiten stammen von E5, nur Browser ohne Netz, Rechner online |
 
 ## 4. Freeze
 
