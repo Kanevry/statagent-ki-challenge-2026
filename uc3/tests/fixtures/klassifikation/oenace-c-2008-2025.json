@@ -1,0 +1,29 @@
+{
+  "frage": "ÖNACE C 2008 vs 2025",
+  "quelle": {
+    "datei_umsteiger": "OENACE2008_OENACE2025_DE_12B.txt",
+    "sha256_umsteiger": "bf4458eeef3bcf8575ab22e36d21b97b21fd78317b167bf18e5597ae4076d867",
+    "datei_namen": [
+      "OENACE2008_DE_CTI.txt",
+      "OENACE2025_DE_CTI.txt"
+    ]
+  },
+  "code": "C",
+  "bezeichnung": {
+    "2008": "Herstellung von Waren",
+    "2025": "Herstellung von Waren"
+  },
+  "unterklassen_2008": 243,
+  "eindeutig": 186,
+  "mehrdeutig": 57,
+  "nach": {
+    "A": 1,
+    "C": 243,
+    "S": 1
+  },
+  "aus": {
+    "E": 1,
+    "M": 1,
+    "N": 1
+  }
+}

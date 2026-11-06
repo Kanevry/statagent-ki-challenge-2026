@@ -1,0 +1,31 @@
+{
+  "frage": "ÖNACE C 2008 vs 2025",
+  "quelle": {
+    "datei_umsteiger": "OENACE2008_OENACE2025_DE_12B.txt",
+    "sha256_umsteiger": "bf4458eeef3bcf8575ab22e36d21b97b21fd78317b167bf18e5597ae4076d867",
+    "datei_namen": [
+      "OENACE2008_DE_CTI.txt",
+      "OENACE2025_DE_CTI.txt"
+    ]
+  },
+  "code_alt": "C 16.10-0",
+  "bezeichnung_alt": "Säge-, Hobel- und Holzimprägnierwerke",
+  "beziehung": "1:n",
+  "ziele": [
+    {
+      "code": "C 16.11-0",
+      "bezeichnung": "Säge- und Hobelwerke",
+      "beschreibung": "Säge-, Hobel- und Holzimprägnierwerke ohne Bearbeitung und Veredlung von Holz"
+    },
+    {
+      "code": "C 16.12-0",
+      "bezeichnung": "Bearbeitung und Veredlung von Holz",
+      "beschreibung": "Imprägnierung, Bearbeitung und Veredlung von Holz"
+    }
+  ],
+  "quellzeilen": [
+    "\"Ebene\";\"EDV-Code\";\"Code\";\"Titel\";\"korrespondierende Ebene\";\"korrespondierender EDV-Code\";\"korrespondierender Code\";\"korrespondierender Titel\";\"Korrespondenz-Beschreibung\"",
+    "5;\"C16100\";\"C 16.10-0\";\"Säge-, Hobel- und Holzimprägnierwerke\";5;\"C16110\";\"C 16.11-0\";\"Säge- und Hobelwerke\";\"Säge-, Hobel- und Holzimprägnierwerke ohne Bearbeitung und Veredlung von Holz\"",
+    "5;\"C16100\";\"C 16.10-0\";\"Säge-, Hobel- und Holzimprägnierwerke\";5;\"C16120\";\"C 16.12-0\";\"Bearbeitung und Veredlung von Holz\";\"Imprägnierung, Bearbeitung und Veredlung von Holz\""
+  ]
+}
