@@ -448,3 +448,18 @@ def test_v2_vergleich_mit_vormonat_ohne_zahl(mit_v2: Verbindung, frage: str) -> 
     assert daten["zahlen"] == [] and daten["text"].startswith(
         "Einen Vergleich mit dem Vormonat zeigt StatAgent"
     )
+
+
+# Fängt: „dort“ ohne Ort bekam auf dem Weg „nach den Änderungsaufträgen“ weiter eine Zahl für ganz Österreich,
+# weil dieser Weg vor der Prüfung abzweigt.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte dort im August 2024",
+        "Beschäftigte dort im August 2024 nach den Änderungsaufträgen",
+    ],
+)
+def test_dort_ohne_ort_in_beiden_regelstaenden(mit_v2: Verbindung, frage: str) -> None:
+    daten = uc4_antwort(mit_v2, frage)
+    assert not daten["zahlen"]
+    assert daten["text"] == "Die Frage sagt „dort“, nennt aber keinen Ort. Welches Bundesland meinen Sie?"

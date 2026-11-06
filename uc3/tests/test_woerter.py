@@ -499,6 +499,11 @@ def test_dort_ohne_ort_fragt_nach(zwei_monate: Verbindung) -> None:
         zwei_monate, "Beschäftigung in Tirol im August 2024: Wie viele Menschen hatten dort einen Job?"
     )
     assert mit["zahlen"] == antwort_frage(zwei_monate, "Beschäftigte in Tirol im August 2024")["zahlen"]
+    # „Österreicher“ ist kein Ort, „dort in Oesterreich“ nennt ihn.
+    leute = antwort_frage(zwei_monate, "Wie viele Österreicher arbeiten dort im August 2024?")
+    assert not leute["zahlen"] and leute["text"].startswith("Die Frage sagt „dort“")
+    land = antwort_frage(zwei_monate, "Wie viele Beschäftigte gab es dort in Oesterreich im August 2024?")
+    assert "Die Frage sagt „dort“" not in land["text"]
 
 
 # Fängt (Blind-Runden, #186): die andere Richtung beim Anteil, in weiteren Formen.

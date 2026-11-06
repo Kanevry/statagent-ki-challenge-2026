@@ -109,6 +109,9 @@ _NACH_GESCHLECHT = re.compile(
 )
 #: „dort“ braucht einen Ort in derselben Frage.
 _DORT = re.compile(r"(?<!\w)dort(?!\w)")
+#: „dort in Österreich“ nennt den Ort selbst. „Österreicher“ ist kein Ort.
+_DORT_OESTERREICH = re.compile(r"(?<!\w)(?:österreich|oesterreich)(?:s|weit)?(?!\w)")
+_DORT_RUECKFRAGE = "Die Frage sagt „dort“, nennt aber keinen Ort. Welches Bundesland meinen Sie?"
 
 
 def _merkmal(name: str) -> Merkmal:
@@ -2076,6 +2079,16 @@ def _mit_vorschlag(conn: Verbindung, frage: str, regelsatz: str, daten: dict[str
     return daten
 
 
+def _dort_ohne_ort(conn: Verbindung, frage: str) -> bool:
+    """„dort“ braucht einen Ort in derselben Frage, sonst gälte die Zahl still für ganz Österreich."""
+    text = frage.lower()
+    if not _DORT.search(text) or _DORT_OESTERREICH.search(text):
+        return False
+    monate = monate_lesen(frage)
+    orte, _ = _werte(frage, BUNDESLAND, _codes(conn, BUNDESLAND, monate[-1] if monate else LETZTE_LIEFERUNG))
+    return not orte
+
+
 def _antwort_kern(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str, Any]:
     if ist_pensionsfrage(frage) and not _PERSON.search(frage.lower()):
         return _pensionsfrage(conn, frage)
@@ -2115,6 +2128,9 @@ def _antwort_kern(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
                 "Männeranteil an allen. Zum Beispiel „Wie viel Prozent der Beschäftigten in Wien sind Frauen?“."
             )
             return _antwort(fragetyp(frage), text, hinweise=[text])
+        if fragetyp(frage) != "definition" and _dort_ohne_ort(conn, frage):
+            # Vor der Wahl des Regelsatzes: Die Rückfrage gilt für beide Regelstände.
+            return _rueckfrage(_DORT_RUECKFRAGE)
         if regelsatz == "v1":
             regelsatz = _regelsatz_der_frage(frage) or regelsatz
         if regelsatz != "v1":
@@ -2207,12 +2223,6 @@ def _antwort_frage(
     monate = monate_lesen(frage)
     jahr = jahr_ohne_monat(frage)
     text = frage.lower()
-    if _DORT.search(text) and "österreich" not in text:
-        # Ohne Ort in derselben Frage gälte die Zahl still für ganz Österreich.
-        monat_dort = monate[-1] if monate else LETZTE_LIEFERUNG
-        orte, _ = _werte(frage, BUNDESLAND, _codes(conn, BUNDESLAND, monat_dort))
-        if not orte:
-            return _rueckfrage("Die Frage sagt „dort“, nennt aber keinen Ort. Welches Bundesland meinen Sie?")
     # Männer und Frauen je Bundesland über einen Zeitraum: eine Zahl je Monat, Geschlecht und Bundesland.
     kreuz = False
     if typ != "fluktuation" and _geschlecht_gegliedert(text):
