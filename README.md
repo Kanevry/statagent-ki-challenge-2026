@@ -3,12 +3,44 @@
 Beitrag von Team OneShotAndy zur **KI Challenge 2026** des Dachverbands der österreichischen
 Sozialversicherungsträger und der WK Wien (05. bis 06.11.2026). Bewertet wird **Use Case 3, StatAgent**.
 
+## Wo fange ich an?
+
+| Ich bin … oder ich will … | Dann lies zuerst |
+|---|---|
+| neu hier und neugierig | [docs/einstieg/fuer-aussenstehende.md](docs/einstieg/fuer-aussenstehende.md) |
+| Entscheiderin oder Entscheider | [docs/einstieg/fuer-management.md](docs/einstieg/fuer-management.md) |
+| Technikerin oder Techniker | [docs/einstieg/architektur.md](docs/einstieg/architektur.md) |
+| es lokal starten | [docs/einstieg/schnellstart.md](docs/einstieg/schnellstart.md) |
+| selbst agentisch arbeiten, also mit KI-Agenten, die Code schreiben | [docs/einstieg/arbeitsweise-agentisch.md](docs/einstieg/arbeitsweise-agentisch.md) |
+| die Zahlen nachprüfen | [docs/einstieg/zahlen.md](docs/einstieg/zahlen.md) |
+| Fachjury | [abgabe/README.md](abgabe/README.md) und [docs/praesentation/kriterien-karte.md](docs/praesentation/kriterien-karte.md) |
+| es ohne Installation ansehen | die öffentliche Demo unter https://ki-challenge.gotzendorfer.at |
+
+Alle Einstiegsseiten im Überblick: [docs/einstieg/README.md](docs/einstieg/README.md).
+
 Die Pflichtabschnitte stehen in dieser Reihenfolge: [Lösung und Ansatz](#lösung-und-ansatz),
 [Ausführung](#ausführung), [Abhängigkeiten und Voraussetzungen](#abhängigkeiten-und-voraussetzungen),
 [Konfiguration](#konfiguration), [Grenzen und offene Punkte](#grenzen-und-offene-punkte),
 [Vorab Entstandenes](#vorab-entstandenes), [Lizenzen](#lizenzen). Prüfliste dazu: `docs/abgabe/readme-pruefung.md`.
 
 ## Lösung und Ansatz
+
+Das große Bild: Das Programm macht aus jeder Monatslieferung die Statistik, ohne KI. Die KI schlägt nur Änderungen
+an Regeln oder Code vor, und erst die Freigabe eines Menschen mit Namen lässt sie gelten.
+
+```mermaid
+flowchart LR
+  L["Monatslieferung"] --> P["Programm prüft und rechnet, ohne KI"]
+  P --> S["Statistik und Qualitätsbericht"]
+  S --> W["Weboberfläche und Fragen an die Daten"]
+  A["KI-Agent schlägt Regel oder Code vor"] --> M["Mensch gibt mit Namen frei"]
+  M --> P
+  A --> R["Protokoll"]
+  M --> R
+```
+
+Die Kette von der Monatslieferung bis zur Weboberfläche ist der Monatsbetrieb. Der zweite Weg ist eine Änderung:
+Vorschlag und Freigabe stehen im Protokoll, und nur eine freigegebene Änderung erreicht das Programm.
 
 Eine Plattform, drei Räume und ein gemeinsamer Einstieg. Der Grundsatz überall: **Die KI schreibt Code und Texte,
 das Programm rechnet.** Jede Zahl kommt aus der Datenbank und trägt ihren Beleg. Jede Änderung an Regeln oder
@@ -19,9 +51,14 @@ Code gibt ein Mensch mit Vor- und Nachnamen frei.
 | Raum | Was er tut | Stand | Details |
 |---|---|---|---|
 | **UC3 StatAgent** (bewertet) | Statistikprozess für die synthetische Beschäftigtenstatistik: 24 Monatslieferungen einlesen, nach Regeln bereinigen, zählen, prüfen, Qualitätsbericht und Aggregations-Sheet. Eigene Agenten setzen Änderungsaufträge um, ein Mensch gibt frei. | Gebaut. Die Seiten unter `/uc3` zeigen Läufe, Berichte, Klassifikationen, Freigaben und Datenanfragen, jede Zahl mit Beleg. | `uc3/README.md`, Ergebnisse in `abgabe/` |
-| UC1 SV KI-Lotse | Hilft bei Fragen zu Gesundheit und Sozialversicherung, mit Quelle an jeder Antwort | Gebaut. Auf `/uc1` erzählt man seine Lage, der Lotse fragt bei Bedarf nach und antwortet mit einem Zitat als Beleg an jeder Aussage. Er nennt Antrag, zuständige Stelle und Termin. `/uc1?beispiel=pflege` spielt einen aufgezeichneten Fall ohne Netz ab. Der Lotse ist auch an `/uc4` angeschlossen. | `uc1/`, `docs/plan/uc1/` |
+| UC1 SV KI-Lotse | Hilft bei Fragen zu Gesundheit und Sozialversicherung, mit Quelle an jeder Antwort | Gebaut. Auf `/uc1` erzählt man seine Lage, der Lotse fragt bei Bedarf nach und antwortet mit einem Zitat als Beleg an jeder Aussage. Er nennt Antrag, zuständige Stelle und Termin. `/uc1?beispiel=pflege` spielt einen aufgezeichneten Fall ohne Netz ab. Online zeigt `/uc1` nur diese Aufzeichnung, der Live-Dialog läuft lokal. Der Lotse ist auch an `/uc4` angeschlossen. | `uc1/`, `docs/plan/uc1/` |
 | UC2 HealthPolicy Simulator | Mehrere Akteure verhandeln politische, organisatorische und finanzielle Entscheidungen | Gebaut. Auf `/uc2` verhandeln Interessenvertretungen in Runden mit Moderator, mit Beleg aus dem Pressespiegel, wo es einen gibt; sonst ist die Haltung als Modellannahme markiert. Ein Mensch gibt das Ergebnis mit Namen frei, vorher heißt es „Entwurf“. Online zeigt `/uc2` eine aufgezeichnete Verhandlung; erfundene Beispielbelege sind dort als solche gekennzeichnet. | `uc2/README.md` |
 | UC4 Gemeinsamer Einstieg | Eine Frage läuft nacheinander durch UC3, UC2 und UC1 (nicht bewertet) | Seite `/uc4`, lokal mit Modellwahl (Azure, Mistral, Claude oder Testbetrieb), online mit Azure oder Testbetrieb. UC3 liefert die Zahl, UC2 die Abwägung, UC1 die Erklärung; jede Antwort erscheint, sobald sie da ist. | `/uc4` in der App |
+
+Ergänzt am 06.11.2026: Unter `/uc3` kamen nach dem Stand der Tabelle die Seiten `/uc3/annahmen` (Annahmen mit
+Begründung), `/uc3/ergebnisse` (Excel-Dateien und Liste für das Ministerium), `/uc3/pensionen` (Pensionen je Träger)
+und `/uc3/auftrag` (Auftrag an die Agenten, nur auf der Vorführ-Instanz) dazu, außerdem `/praesentation/management`.
+Neu sind auch `/uc2/frage` (eigene Frage an den Simulator) und `/ablauf` (wie das Projekt entstanden ist).
 
 Gemeinsamer Kern in `shared/`:
 
@@ -247,3 +284,27 @@ Fremde Bibliotheken behalten ihre eigenen Lizenzen. Die Schriften Inter, Space G
 
 Aufbau, Arbeitsteilung und Regeln für Änderungen: `docs/entwicklung.md`. Schnittstellen der Plattform:
 `docs/prd/2026-11-05-e0-plattform-e1-uc3.md`.
+
+## Dokumentation im Überblick
+
+| Datei | Was drinsteht |
+|---|---|
+| [docs/einstieg/README.md](docs/einstieg/README.md) | Übersicht der Einstiegsseiten und Lesereihenfolge je Lesertyp. |
+| [docs/einstieg/fuer-aussenstehende.md](docs/einstieg/fuer-aussenstehende.md) | Das Projekt in einfachen Worten, ohne Vorwissen. |
+| [docs/einstieg/fuer-management.md](docs/einstieg/fuer-management.md) | Was StatAgent nachweislich kann, was der Betrieb braucht und wo die Grenzen liegen. |
+| [docs/einstieg/architektur.md](docs/einstieg/architektur.md) | Aufbau des Systems: App, gemeinsamer Kern, Use Cases, Datenbank. |
+| [docs/einstieg/schnellstart.md](docs/einstieg/schnellstart.md) | Lokal starten, Schritt für Schritt. |
+| [docs/einstieg/zahlen.md](docs/einstieg/zahlen.md) | Die Zahlen des Projekts, jede mit Quelle. |
+| [docs/einstieg/arbeitsweise-agentisch.md](docs/einstieg/arbeitsweise-agentisch.md) | Wie das Team mit KI-Agenten gearbeitet hat und wie man das selbst macht. |
+| [docs/einstieg/use-cases-stand.md](docs/einstieg/use-cases-stand.md) | Stand von UC1 bis UC4: was läuft und was fehlt. |
+| [uc3/README.md](uc3/README.md) | Befehle, Regeln und Schritte eines UC3-Laufs, dazu der Vergleich mit dem Beispielbericht. |
+| [abgabe/README.md](abgabe/README.md) | Die abgegebenen Dateien und wie man sie auf einer frischen Datenbank nachrechnet. |
+| [docs/models.md](docs/models.md) | Welche Modelle wofür laufen, mit Tagesbudget, Ratenlimit und Messungen. |
+| [docs/voice.md](docs/voice.md) | Sprachzugang über Vapi: Datenfluss, Schutz, Einrichtung. |
+| [docs/design.md](docs/design.md) | Das Anti-Schablonen-Gate, das generische KI-Muster in der Oberfläche findet. |
+| [docs/sprache.md](docs/sprache.md) | Ein Wort für eine Sache: die Wortliste für alle Texte. |
+| [docs/entwicklung.md](docs/entwicklung.md) | Aufbau des Repos, Einrichten und Arbeitsteilung. |
+| [docs/abnahme/README.md](docs/abnahme/README.md) | Übersicht der Abnahmen mit Prüfablauf und Matrix je Bereich. |
+| [docs/praesentation/](docs/praesentation/) | [Demo-Drehbuch](docs/praesentation/demo-drehbuch.md), [Kriterien-Karte](docs/praesentation/kriterien-karte.md) (Stand je Bewertungsbereich) und [Belegregister](docs/praesentation/belegregister.md) (Herkunft jeder Zahl der Präsentation). |
+| [docs/betrieb/](docs/betrieb/) | [Vorführung](docs/betrieb/vorfuehrung.md) auf eigener Instanz und [Skalierung](docs/betrieb/skalierung.md) der Online-Demo. |
+| [docs/abgabe/herkunft.md](docs/abgabe/herkunft.md) | Übernommene Teile mit Herkunft, Lizenz und Rechtebeleg. |
