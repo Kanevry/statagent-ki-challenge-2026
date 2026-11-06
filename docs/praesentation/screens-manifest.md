@@ -14,9 +14,9 @@ Je Bild stehen Herkunft (Route, Commit, Lauf) und Art (live, Testdaten, Aufzeich
 | SC07 | Qualitätsbericht Oktober 2025, Monat angehalten | 3 | ja | 1920 | 1080 | `aa4ea228e3452768`[^SC07] | /uc3/berichte/2025-10 | fd936b3 | Online-Demo, Stand 05.11.2026 | live | 2026-11-05T22:11+01:00 |
 | SC08 | Regel R5_alter als Daten | 8 | ja | 1920 | 1080 | `cdbfac747cf62de2`[^SC08] | /uc3/berichte/regeln | fd936b3 | Online-Demo, Stand 05.11.2026 | live | 2026-11-05T22:11+01:00 |
 | SC09 | Übersicht: drei Use Cases, ein Kern | 2 | ja | 1920 | 1080 | `16719f54a2b32a07`[^SC09] | / | fd936b3 | Online-Demo, Stand 05.11.2026 | live | 2026-11-05T22:11+01:00 |
-| SC10 | Erledigte Freigabe mit Name und Wirkung | 10 | ja | 1920 | 1080 | `5a0035f8ca340db4`[^SC10] | /uc3/freigaben/26 | fd936b3 | Online-Demo, Stand 05.11.2026 | live | 2026-11-05T22:11+01:00 |
+| SC10 | Erledigte Freigabe mit Name und Wirkung | 10 | ja | 1920 | 1080 | `3acf913edaa03264`[^SC10] | /uc3/freigaben/26 | 809da6d | Online-Demo, Stand 06.11.2026 | live | 2026-11-06T03:05+01:00 |
 | SC11 | Gemeinsamer Einstieg mit der Wien-Frage: drei Antworten, 7.498 mit Beleg | 9 | ja | 1920 | 1080 | `bbc601eacc873fa9`[^SC11] | /uc4 | 11b5ff5 | Online-Demo, Stand 05.11.2026 | live | 2026-11-05T23:11+01:00 |
-| SC12 | Agent-Vorschlag mit Diff vor der Freigabe | 4 | ja | 1920 | 1080 | `4da0590773104b52`[^SC12] | /uc3/freigaben/24 | fd936b3 | Online-Demo, Stand 05.11.2026 | live | 2026-11-05T22:11+01:00 |
+| SC12 | Agent-Vorschlag mit Diff vor der Freigabe | 4 | ja | 1920 | 1080 | `9a9c59fa9eadebad`[^SC12] | /uc3/freigaben/24 | 809da6d | Online-Demo, Stand 06.11.2026 | live | 2026-11-06T03:05+01:00 |
 
 Stand: 12/12 vorhanden, 12/12 gültig
 
@@ -29,6 +29,6 @@ Stand: 12/12 vorhanden, 12/12 gültig
 [^SC07]: `aa4ea228e3452768ab6540d982098047e4400e4c25f693aee70ff015c29d7e20`
 [^SC08]: `cdbfac747cf62de20b362eb15517ea19171e85cd875daf8773943027ec56e348`
 [^SC09]: `16719f54a2b32a07333930777f47bc33b18feeac0817cee42ba9c3eb557a95b3`
-[^SC10]: `5a0035f8ca340db45e37eeb200202b22f1406104e16ca8912ef97bb78d11aa6a`
+[^SC10]: `3acf913edaa0326447a216adf81de3b1d683d49c096904099fa17b878b4f857b`
 [^SC11]: `bbc601eacc873fa9b721dc4c3edc16d394ef071597f390d3db5e5c8d19c953ef`
-[^SC12]: `4da0590773104b52a6aa4586b071d07a3735c2d0808b40638fb910aa6ba1b1a6`
+[^SC12]: `9a9c59fa9eadebadea5107e3b35400ed0c3bb278d37694f0e0f2cd1c9a614eda`
