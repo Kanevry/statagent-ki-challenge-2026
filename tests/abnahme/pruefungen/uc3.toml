@@ -1106,7 +1106,7 @@ zeitlimit = 220
 quelle = "Kriterium 75-AC1; Quelldateien OENACE2008_DE_CTI.txt, OENACE2025_DE_CTI.txt"
 grund = "ÖNACE 2008 und 2025 bis zum 5-Steller stimmen in beide Richtungen mit den Quelldateien überein"
 befund = "Codes oder Ebenen von ÖNACE 2008 oder 2025 weichen von den Quelldateien ab"
-anmerkung = "Teil: 2003 bis zum 5-Steller und das Importprotokoll (Dateiname, Encoding, Hash) misst dieser Satz nicht"
+anmerkung = "Teil: 2003 bis zum 5-Steller und das Importprotokoll (Dateiname, Encoding, Hash) sind Restmangel (Entscheid Lead f7 in #189), das Kriterium bleibt offen"
 herkunft = "b-abnahme-9d 2026-11-06 00:25"
 
 [[pruefung]]
@@ -1133,7 +1133,7 @@ zeitlimit = 320
 quelle = "Kriterium 76-AC1; regionen/*.csv im Startpaket"
 grund = "16 Stände mit Bezirken und Gemeinden gleich den Quelldateien, Übergänge mit Datum und Quelle, keine Gemeinde verschwindet ohne Übergang"
 befund = "Stände, Codes oder Übergänge der Regionen weichen von den Quelldateien ab, oder eine Gemeinde verschwindet ohne Übergang"
-anmerkung = "Teil: Ein Importmanifest mit Hash und Zeilenzahl je CSV misst dieser Satz nicht"
+anmerkung = "Teil: Das Importmanifest mit Hash und Zeilenzahl je CSV ist Restmangel (Entscheid Lead f7 in #189), das Kriterium bleibt offen"
 herkunft = "b-abnahme-9d 2026-11-06 00:25"
 
 [[pruefung]]
@@ -1153,15 +1153,15 @@ herkunft = "b-abnahme-9d 2026-11-06 00:25"
 [[pruefung]]
 id = "78-AC1"
 hash = "18c3af7737"
-befehl = "echo datei $(test -s uc3/tests/test_klassifikation_erklaeren.py && echo da || echo fehlt); uv run --package statagent uc3 --help | grep -c erklaere-region; timeout 60 uv run --package statagent uc3 klass region 62252"
-erwartet = ["^datei da$", "^[1-9]", "62280"]
+befehl = "U='uv run --package statagent'; timeout 60 $U uc3 klass region 62252; timeout 60 $U uc3 klass region 32424; timeout 60 $U uc3 klass region 41713; timeout 60 $U uc3 klass region 99999 > /dev/null 2>&1; echo unbekannt_exit $?; timeout 200 $U pytest -q -p no:cacheprovider uc3/tests/test_klass.py -k gemeinde"
+erwartet = ["62280", "30741", "Lenzing an der Ager", "Gültigkeit über \\d+ Stände", "Quelle: \\S", "^unbekannt_exit [1-9]", "(^|= )\\d+ passed"]
 schwer = true
-deckung = "teil"
-zeitlimit = 120
-quelle = "Kriterium 78-AC1 (Wortlaut: erklaere-region, test_klassifikation_erklaeren.py)"
-grund = "Befehl und Testdatei liegen wie im Wortlaut vor, die Erklärung nennt den Nachfolger"
-befund = "Befehl erklaere-region oder test_klassifikation_erklaeren.py fehlen (Funktion liegt als uc3 klass vor)"
-herkunft = "b-abnahme-9d 2026-11-06 00:25"
+deckung = "voll"
+zeitlimit = 460
+quelle = "Kriterium 78-AC1; Entscheid Lead f7 in #189: gemessen wird das Verhalten, nicht der Name (uc3 klass region statt erklaere-region)"
+grund = "Drei belegte Übergänge nennen Stände, Datum, Nachfolger und Quelle, ein unbekannter Code bekommt keinen erfundenen Übergang"
+befund = "uc3 klass region nennt Nachfolger, Stände oder Quelle nicht, oder ein unbekannter Code wird nicht abgewiesen"
+herkunft = "b-abnahme-9d 2026-11-06 01:45"
 
 [[pruefung]]
 id = "78-AC2"
