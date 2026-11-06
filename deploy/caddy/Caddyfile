@@ -37,6 +37,9 @@
 	}
 	respond @schreibend "Die Online-Demo ist lesend." 403
 
+	# Während eines Neustarts der App (502, 503, 504) eine ruhige Seite statt des Browser-Fehlers; nur diese drei Codes
+	import /etc/caddy/wartung.caddy
+
 	# platzhalter.caddy (statische Seite) oder app.caddy (Next.js-Web), umschaltbar über INHALT;
 	# ein unbekannter Wert lässt Caddy nicht starten (fail-closed)
 	import /etc/caddy/inhalt/{$INHALT}.caddy
