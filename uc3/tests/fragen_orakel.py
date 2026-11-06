@@ -177,12 +177,9 @@ def _bestand(conn: Any, zeile: Zeile, gruppe: str | None) -> list[dict[str, Any]
     }
     bedingungen = _bedingungen(conn, zeile, parameter)
     spalte = None
-    teile = gruppe.split("+") if gruppe else []  # „geschlecht+region“: eine Zahl je Paar
-    if teile:
-        spalte = " || ':' || ".join(
-            f"coalesce({_SPALTE_GRUPPE[t] or _kategorie_spalte(zeile.regelsatz)}, '?')" for t in teile
-        )
-    join_q = (zeile.regelsatz == "v1" and ("kategorie" in zeile.filter or "kategorie" in teile)) or (
+    if gruppe:
+        spalte = _SPALTE_GRUPPE[gruppe] or _kategorie_spalte(zeile.regelsatz)
+    join_q = (zeile.regelsatz == "v1" and ("kategorie" in zeile.filter or gruppe == "kategorie")) or (
         "freier_dv" in zeile.filter
     )
     abfrage = (
@@ -248,47 +245,16 @@ def _soll_bestand(conn: Any, zeile: Zeile) -> Soll:
 
 
 def _soll_anteil(conn: Any, zeile: Zeile) -> Soll:
-    """Anteil einer Ausprägung am Bestand mit denselben übrigen Filtern (Option ``anteil=merkmal:code``).
-
-    Mit ``je=merkmal`` je Wert dieses Merkmals; über mehrere Monate je Monat; ``code`` ``*``: jeder Wert.
-    """
+    """Anteil einer Ausprägung am Bestand mit denselben übrigen Filtern (Option ``anteil=merkmal:code``)."""
     merkmal, _, code = zeile.optionen["anteil"].partition(":")
-    je = zeile.optionen.get("je")
-    if je or code == "*" or len(zeile.monate) > 1:
-        return _soll_anteil_je(conn, zeile, merkmal, code, je)
     zeilen = _bestand(conn, zeile, merkmal)
     ganz = sum(int(z["wert"]) for z in zeilen)
     teil = sum(int(z["wert"]) for z in zeilen if str(z["gruppe"]) == code)
     return Soll(pflicht={"Anteil": _prozent(teil, ganz)}, nur_enthaelt=True)
 
 
-def _soll_anteil_je(conn: Any, zeile: Zeile, merkmal: str, code: str, je: str | None) -> Soll:
-    gruppe = f"{merkmal}+{je}" if je else merkmal
-    zeilen = _bestand(conn, zeile, gruppe)
-    ganz: dict[tuple[str, str], int] = {}
-    for z in zeilen:
-        schluessel = (str(z["monat"]), str(z["gruppe"]).partition(":")[2])
-        ganz[schluessel] = ganz.get(schluessel, 0) + int(z["wert"])
-    soll = Soll(nur_enthaelt=True)
-    for z in zeilen:
-        wert, _, rest = str(z["gruppe"]).partition(":")
-        if code in ("*", wert) and ganz[(str(z["monat"]), rest)]:
-            soll.pflicht[f"{z['monat']} {z['gruppe']}"] = _prozent(
-                int(z["wert"]), ganz[(str(z["monat"]), rest)]
-            )
-    return soll
-
-
 def _soll_fluktuation(conn: Any, zeile: Zeile) -> Soll:
-    """Je Monat (Zugänge + Abgänge) / 2 / Bestand: Bewegung aus der Aggregatfunktion der Datenbank, Formel hier."""
-    soll = Soll(nur_enthaelt=True)
-    for monat in zeile.monate:
-        einzeln = Zeile(**{**zeile.__dict__, "monate": (monat,)})
-        soll.pflicht[f"Fluktuation {monat}"] = _soll_fluktuation_monat(conn, einzeln)
-    return soll
-
-
-def _soll_fluktuation_monat(conn: Any, zeile: Zeile) -> float:
+    """(Zugänge + Abgänge) / 2 / Bestand: Bewegung aus der Aggregatfunktion der Datenbank, Formel hier."""
     monat = zeile.monate[0]
     stand = conn.execute(
         (_MASSGEBLICH + " SELECT regelstand FROM lauf WHERE lieferung = %(monat)s").encode(),
@@ -325,9 +291,21 @@ def _soll_fluktuation_monat(conn: Any, zeile: Zeile) -> float:
     zu = sum(w[0] for c, w in bewegung.items() if codes is None or c in codes)
     ab = sum(w[1] for c, w in bewegung.items() if codes is None or c in codes)
     best = sum(w for c, w in bestand.items() if codes is None or c in codes)
-    return float(
+    wert = float(
         (Decimal(zu + ab) * 100 / 2 / Decimal(best)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     )
+    return Soll(pflicht={"Fluktuation": wert}, nur_enthaelt=True)
+
+
+def _soll_pruefung(conn: Any, zeile: Zeile) -> Soll:
+    """Treffer der anhaltenden Prüfungen im jüngsten fertigen Lauf des Monats, ohne Spalte ``beispiele``."""
+    zeilen = conn.execute(
+        "SELECT t.anzahl FROM meta.pruefung_treffer t WHERE t.anhalten AND t.lauf_id = ("
+        "SELECT l.id FROM meta.lauf l WHERE l.lieferung = %s AND l.regelsatz = %s AND l.status IN ('fertig', 'unveraendert')"
+        " ORDER BY (l.ergebnis_status = 'endgueltig') DESC, l.id DESC LIMIT 1)",
+        (zeile.monate[0], zeile.regelsatz),
+    ).fetchall()
+    return Soll(pflicht={f"Prüfung {i}": float(z["anzahl"]) for i, z in enumerate(zeilen)}, nur_enthaelt=True)
 
 
 def soll_rechnen(conn: Any, zeile: Zeile) -> Soll:
@@ -335,6 +313,8 @@ def soll_rechnen(conn: Any, zeile: Zeile) -> Soll:
     if not zeile.monate:
         return Soll()
     art = zeile.optionen.get("art", "bestand")
+    if art == "pruefung":
+        return _soll_pruefung(conn, zeile)
     if art == "anteil":
         return _soll_anteil(conn, zeile)
     if art == "fluktuation":

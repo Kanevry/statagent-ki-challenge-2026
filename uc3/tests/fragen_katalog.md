@@ -719,39 +719,8 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | U008 | form:anteil,zeit:seit | rueckfrage | - | - | auch=absage | Frauenanteil seit Jänner 2025 |
 | U009 | merkmal:regelsatz,form:gliederung | zahl | 2026-06 | - | regelsatz=v2;gruppe=geschlecht;auch=absage,rueckfrage | Beschäftigte im Juni 2026 aufgeschlüsselt nach Geschlecht, nach den Änderungsaufträgen gerechnet |
 | U010 | merkmal:kategorie,merkmal:bundesland | zahl | 2025-11 | region=5 | werte_je=kategorie:Arbeiter,Angestellte,Beamte;auch=absage,rueckfrage | Beschäftigte in Salzburg im November 2025, unterteilt in Arbeiter, Angestellte und Beamte |
-| G001 | zeit:jahreszeit,form:kreuz | zahl | 2025-06..2025-08 | - | gruppe=geschlecht+region;muss | Männer und Frauen im Sommer 2025 je Bundesland |
-| G002 | zeit:quartal,form:kreuz | zahl | 2025-01..2025-03 | - | gruppe=geschlecht+region;muss | Männer und Frauen im 1. Quartal 2025 je Bundesland |
-| G003 | zeit:bereich,form:kreuz | zahl | 2025-03..2025-06 | - | gruppe=geschlecht+region;muss | Männer und Frauen von März bis Juni 2025 nach Bundesland |
-| G004 | zeit:monat,form:kreuz | zahl | 2025-10 | - | gruppe=geschlecht+oenace;summen;muss | Männer und Frauen im Oktober 2025 je Branche |
-| G005 | zeit:jahreszeit,form:kreuz | zahl | 2025-06..2025-08 | - | gruppe=geschlecht+oenace;muss | Männer und Frauen im Sommer 2025 je Branche |
-| G006 | zeit:monat,form:kreuz | zahl | 2026-07 | - | gruppe=geschlecht+kategorie;summen;muss | Männer und Frauen nach Kategorie im Juli 2026 |
-| G007 | zeit:monat,form:kreuz,merkmal:region | zahl | 2025-10 | region=9 | gruppe=geschlecht+oenace;summen;muss | Männer und Frauen in Wien im Oktober 2025 je Branche |
-| G008 | zeit:vergleich,form:kreuz | zahl | 2025-07,2026-07 | - | gruppe=geschlecht+region;muss | Vergleich Männer und Frauen Juli 2025 und Juli 2026 je Bundesland |
-| G010 | form:anteil,form:kreuz | zahl | 2026-07 | - | art=anteil;anteil=geschlecht:W;je=region;muss | Frauenanteil je Bundesland im Juli 2026 |
-| G011 | form:anteil,form:kreuz | zahl | 2026-07 | - | art=anteil;anteil=geschlecht:W;je=oenace;muss | Frauenanteil je Branche im Juli 2026 |
-| G012 | form:anteil,zeit:jahreszeit | zahl | 2025-06..2025-08 | - | art=anteil;anteil=geschlecht:W;muss | Frauenanteil im Sommer 2025 |
-| G013 | form:anteil,zeit:bereich | zahl | 2026-01..2026-03 | - | art=anteil;anteil=geschlecht:M;muss | Männeranteil von Jänner bis März 2026 |
-| G014 | form:anteil,zeit:jahreszeit,form:kreuz | zahl | 2025-06..2025-08 | - | art=anteil;anteil=geschlecht:W;je=region;muss | Frauenanteil je Bundesland im Sommer 2025 |
-| G015 | form:anteil | zahl | 2026-07 | - | art=anteil;anteil=region:*;muss | Anteil je Bundesland im Juli 2026 |
-| G016 | form:anteil,merkmal:region | zahl | 2026-07 | - | art=anteil;anteil=region:9;muss | Anteil von Wien an allen Beschäftigten im Juli 2026 |
-| G017 | form:anteil,merkmal:region | zahl | 2026-07 | - | art=anteil;anteil=region:9;muss | Wie viel Prozent der Beschäftigten sind in Wien im Juli 2026? |
-| G018 | form:anteil,merkmal:oenace | zahl | 2026-07 | - | art=anteil;anteil=oenace:F;muss | Anteil der Bauwirtschaft an allen Beschäftigten im Juli 2026 |
-| G019 | form:anteil,merkmal:oenace | zahl | 2026-07 | geschlecht=M | art=anteil;anteil=oenace:F;muss | Wie viel Prozent der Männer arbeiten im Bau im Juli 2026? |
-| G020 | form:anteil,merkmal:region | zahl | 2026-07 | geschlecht=W | art=anteil;anteil=region:9;muss | Von allen Frauen: Wie viel Prozent arbeiten in Wien im Juli 2026? |
-| G021 | form:anteil,form:absage | absage | - | - | auch=rueckfrage | Anteil der Arbeiter in Wien im Juli 2026 |
-| G030 | form:rang,merkmal:region | zahl | 2026-07 | - | gruppe=region;text=Am meisten im Juli 2026: Wien;muss | Welches Bundesland hat die meisten Beschäftigten im Juli 2026? |
-| G031 | form:rang,merkmal:oenace | zahl | 2026-07 | geschlecht=W | gruppe=oenace;text=Am meisten im Juli 2026: P ;muss | Welche Branche hat die meisten Frauen im Juli 2026? |
-| G032 | form:rang,merkmal:region | zahl | 2026-07 | geschlecht=M | gruppe=region;text=Am wenigsten im Juli 2026: Burgenland;muss | In welchem Bundesland arbeiten die wenigsten Männer im Juli 2026? |
-| G033 | form:rang,form:absage | rueckfrage | - | - | auch=absage | Welches Bundesland hat die wenigsten Beschäftigten im Sommer 2025? |
-| G034 | form:rang,form:anteil | zahl | 2026-07 | - | art=anteil;anteil=geschlecht:W;je=region;text=Burgenland mit 48,49 Prozent;muss | In welchem Bundesland ist der Frauenanteil am höchsten im Juli 2026? |
-| G040 | form:fluktuation,zeit:jahreszeit | zahl | 2025-06..2025-08 | - | art=fluktuation;muss | Fluktuation je Wirtschaftsbereich im Sommer 2025 |
-| G041 | form:fluktuation,zeit:quartal | zahl | 2026-01..2026-03 | - | art=fluktuation;muss | Fluktuation im 1. Quartal 2026 |
-| G042 | form:fluktuation,zeit:jahr | zahl | 2025-01..2025-12 | - | art=fluktuation;muss | Fluktuation je Wirtschaftsbereich 2025 |
-| G043 | form:fluktuation,zeit:vergleich | zahl | 2025-07,2026-07 | - | art=fluktuation;muss | Fluktuation im Juli 2025 und Juli 2026 |
 | G050 | form:app | definition | - | - | text=Regeln | Was ist ein Regelsatz? |
 | G051 | form:app | definition | - | - | text=Mensch entscheiden | Was heißt angehalten? |
-| G052 | form:app | definition | - | - | text=Selbständigen | Was ist die SVS? |
-| G053 | form:app,zeit:monat | zahl | 2025-10 | - | frei;muss | Warum ist Oktober 2025 angehalten? |
-| G054 | form:app,zeit:monat | zahl | 2025-10 | - | frei;muss | Welche Fehler gab es im Oktober 2025? |
-| G055 | form:app | definition | - | - | text=freigegeben | Was wurde wann geändert? |
+| G053 | form:app,zeit:monat | zahl | 2025-10 | - | art=pruefung;muss | Warum ist Oktober 2025 angehalten? |
 | G056 | form:absage | absage | - | - | - | Warum ist der Himmel im Oktober 2025 blau? |
+| G057 | form:absage,zeit:jahreszeit | absage | - | - | auch=rueckfrage | Männer und Frauen im Sommer 2025 je Bundesland |

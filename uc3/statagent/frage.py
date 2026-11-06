@@ -12,9 +12,7 @@ Zahl. Die Antwort enthält die Felder einer ``UcAntwort`` und dazu Art, Definiti
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 import psycopg
@@ -83,8 +81,6 @@ EINGEBAUT = {
 }
 #: Bis zu so vielen Monaten nennt der Text jeden Monat einzeln (Jahreszeit, Quartal, Halbjahr).
 MONATE_IM_TEXT = 6
-#: Über so viele Monate zeigt die Fluktuation eine Tabelle; jeder Monat ist eine eigene Rechnung.
-MONATE_FLUKTUATION = 12
 #: „Am höchsten“ nennt nur Abschnitte mit mindestens so vielen Beschäftigungsverhältnissen am Stichtag.
 MINDESTBESTAND_HOECHSTE = 1000
 NICHT_LESBAR = (
@@ -1471,16 +1467,6 @@ def _bestand_antwort(
             text += f" {durchschnitts_satz}"
             antwortsatz = f"Im Durchschnitt waren es {_deutsch(durchschnitt)} Beschäftigungsverhältnisse{zusatz}, {zeitraum}."
             ersetzt = durchschnitts_satz
-    if (
-        "anteil" in frage.lower()
-        and gruppen
-        and gruppen != (ALTERSGRUPPE,)
-        and (gruppen != (GESCHLECHT,) or von != bis)
-    ):
-        anteile_je, satz_anteil = _anteile_je_gruppe(frage, gezaehlt, zahlen, gruppen, zusatz, von, bis)
-        zahlen = [*anteile_je, *zahlen]
-        text += f" {satz_anteil}"
-        antwortsatz, ersetzt = satz_anteil, ""
     if "anteil" in frage.lower() and gruppen == (GESCHLECHT,) and von == bis:
         summe = sum(int(z["wert"]) for z in zahlen)
         anteile = []
@@ -1512,7 +1498,7 @@ def _bestand_antwort(
             }
             for z in alle
         )
-    if len(gruppen) == 2 and gruppen[0] is GESCHLECHT and von == bis and "anteil" not in frage.lower():
+    if gruppen == (GESCHLECHT, BUNDESLAND) and von == bis:
         # Summe je Geschlecht für die letzte Tabellenzeile, als eigene Abfrage mit eigenem Beleg. Nur für einen Monat:
         # Bestände mehrerer Monate darf man nicht addieren.
         summen_sql = bestand_sql(conn, regelsatz, von, bis, filter_, (GESCHLECHT,))
@@ -1522,7 +1508,7 @@ def _bestand_antwort(
         zahlen.extend(
             {
                 "bezeichnung": f"Beschäftigungsverhältnisse{zusatz}, "
-                f"{namen_geschlecht.get(str(z['g0']), str(z['g0']))}, Alle {_MEHRZAHL[gruppen[1].name]}",
+                f"{namen_geschlecht.get(str(z['g0']), str(z['g0']))}, Alle Bundesländer",
                 "wert": int(z["wert"]),
                 "einheit": einheit,
                 "beleg": len(belege) - 1,
@@ -1549,136 +1535,6 @@ def _bestand_antwort(
         hinweise=hinweise,
     )
     daten["antwortsatz"], daten["ersetzt"] = antwortsatz, ersetzt
-    return daten
-
-
-def _prozent(teil: int, ganz: int) -> float:
-    """Kaufmännisch auf zwei Stellen, wie die Prüfung im Fragen-Katalog."""
-    return float((Decimal(100 * teil) / Decimal(ganz)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
-
-
-def _anteile_je_gruppe(
-    frage: str,
-    gezaehlt: list[dict[str, Any]],
-    zahlen: list[dict[str, Any]],
-    gruppen: tuple[Merkmal, ...],
-    zusatz: str,
-    von: str,
-    bis: str,
-) -> tuple[list[dict[str, Any]], str]:
-    """Anteil je Zeile. Das Ganze sind alle Zeilen desselben Monats, bei Geschlecht auch derselben zweiten Gruppe.
-
-    ``gezaehlt`` und die ersten Einträge von ``zahlen`` gehören Zeile für Zeile zusammen.
-    """
-    geschlecht = gruppen[0] is GESCHLECHT
-
-    def schluessel(z: dict[str, Any]) -> tuple[str, str]:
-        return (str(z["monat"]), str(z["g1"]) if geschlecht and len(gruppen) > 1 else "")
-
-    ganz: dict[tuple[str, str], int] = {}
-    for z in gezaehlt:
-        ganz[schluessel(z)] = ganz.get(schluessel(z), 0) + int(z["wert"])
-    kopf = f"Beschäftigungsverhältnisse{zusatz}, "
-    neu: list[dict[str, Any]] = []
-    gefragt: list[tuple[str, float]] = []
-    frau = bool(re.search(r"frauen|weiblich", frage.lower()))
-    code_gefragt = "M" if not frau and re.search(r"männer|männlich|maenner|maennlich", frage.lower()) else "W"
-    for z, zahl in zip(gezaehlt, zahlen, strict=False):
-        if not ganz[schluessel(z)]:
-            continue
-        wert = _prozent(int(z["wert"]), ganz[schluessel(z)])
-        name = str(zahl["bezeichnung"]).removeprefix(kopf)
-        neu.append({**zahl, "bezeichnung": f"Anteil{zusatz}, {name}", "wert": wert, "einheit": "Prozent"})
-        if not geschlecht or str(z["g0"]) == code_gefragt:
-            ort = str(z["g1"]) if geschlecht and len(gruppen) > 1 else ""
-            unbekannt = "unbekannt" in name.lower() or ort == "?"
-            if not unbekannt:
-                gefragt.append((name, wert))
-    zeit = _monat_anzeige(von) if von == bis else zeitraum_anzeige(von, bis)
-    wer = "Frauenanteil" if code_gefragt == "W" else "Männeranteil"
-    if not geschlecht:
-        wer = "Anteil an allen"
-    if not gefragt:
-        return neu, f"{wer}{zusatz}, {zeit}: Die Zahlen stehen unten."
-    werte = [w for _, w in gefragt]
-    if len(gruppen) == 1 and geschlecht:
-        liste = ", ".join(f"{n.split(', ')[0]} {_komma(w)} Prozent" for n, w in gefragt)
-        return neu, f"{wer}{zusatz}: {liste}."
-    return (
-        neu,
-        f"{wer}{zusatz}, {zeit}: von {_komma(min(werte))} bis {_komma(max(werte))} Prozent, je Zeile unten.",
-    )
-
-
-def _anteil_einer_auspraegung(
-    conn: Verbindung, frage: str, regelsatz: str, typ: str, monate: list[str], an_gruppe: bool
-) -> dict[str, Any]:
-    """„Anteil von Wien an allen“ oder, mit ``an_gruppe``, „Prozent der Männer arbeiten im Bau“ (das Ganze sind die Männer).
-
-    Rechnet nur, wenn genau eine Einschränkung den Teil bestimmt und genau ein Monat genannt ist: Bei zwei
-    Einschränkungen („Arbeiter in Wien“) ist offen, was das Ganze ist.
-    """
-    if len(set(monate)) != 1:
-        raise _KeineZahl("Diesen Anteil rechnet StatAgent je Monat. Bitte einen Monat nennen.")
-    monat = monate[0]
-    filter_, etiketten = _filter(conn, frage, monat, ())
-    paare = list(zip(filter_, etiketten, strict=True))
-    basis = [p for p in paare if an_gruppe and p[0][0] is GESCHLECHT]
-    teil = [p for p in paare if p not in basis]
-    if len(teil) != 1 or (an_gruppe and len(basis) != 1):
-        raise _KeineZahl(
-            "Einen Anteil rechnet StatAgent, wenn genau eine Gruppe gefragt ist, etwa ein Bundesland oder eine Branche. "
-            "Bei mehreren Einschränkungen ist offen, wovon der Anteil gemeint wäre."
-        )
-    filter_ganz = [p[0] for p in basis]
-    sql_ganz = bestand_sql(conn, regelsatz, monat, monat, filter_ganz, ())
-    sql_teil = bestand_sql(conn, regelsatz, monat, monat, [*filter_ganz, teil[0][0]], ())
-    zeilen_ganz, zeilen_teil = _lesen(conn, sql_ganz), _lesen(conn, sql_teil)
-    if not zeilen_ganz or not int(zeilen_ganz[0]["wert"]):
-        return _antwort(typ, _kein_lauf_text(monat), hinweise=[_kein_lauf_text(monat)])
-    wert_ganz, wert_teil = int(zeilen_ganz[0]["wert"]), int(zeilen_teil[0]["wert"])
-    anteil = _prozent(wert_teil, wert_ganz)
-    wer = teil[0][1]
-    wovon = f"allen {basis[0][1]}" if basis else "allen"
-    if basis and basis[0][1] == "Männer":
-        wovon = "allen Männern"
-    definition, einheit = _definition_bestand(conn)
-    staende = _staende(zeilen_ganz)
-    belege = [_beleg(sql_teil, _staende(zeilen_teil)), _beleg(sql_ganz, staende)]
-    satz = (
-        f"{wer}: {_komma(anteil)} Prozent von {wovon} im {_monat_anzeige(monat)} "
-        f"({_deutsch(wert_teil)} von {_deutsch(wert_ganz)} Beschäftigungsverhältnissen)."
-    )
-    daten = _antwort(
-        typ,
-        f"Verstanden: Anteil von {wer} an {wovon}, {_monat_anzeige(monat)}. {satz} {_laien_bestand()} "
-        f"Die Zahlen sind {_status_text(staende)}.",
-        definition=definition,
-        einheit="Prozent",
-        stand=staende,
-        belege=belege,
-        zahlen=[
-            {
-                "bezeichnung": f"Anteil in Prozent: {wer} an {wovon}",
-                "wert": anteil,
-                "einheit": "Prozent",
-                "beleg": 0,
-            },
-            {
-                "bezeichnung": f"Beschäftigungsverhältnisse: {wer}",
-                "wert": wert_teil,
-                "einheit": einheit,
-                "beleg": 0,
-            },
-            {
-                "bezeichnung": f"Beschäftigungsverhältnisse: {wovon}",
-                "wert": wert_ganz,
-                "einheit": einheit,
-                "beleg": 1,
-            },
-        ],
-    )
-    daten["antwortsatz"], daten["ersetzt"] = satz, satz
     return daten
 
 
@@ -1766,8 +1622,7 @@ def _text_bestand(
         teile = [f"{namen.get(c, c)}: {_deutsch(n)}" for c, n in sorted(je_geschlecht.items())]
         text += " Davon " + ", ".join(teile) + "."
         if len(gruppen) > 1:
-            je = _JE_ALLTAG.get(gruppen[1].name, f"je {gruppen[1].name}")
-            text += f" Unten stehen die Zahlen {je}, getrennt nach Geschlecht."
+            text += " Unten stehen die Zahlen je Bundesland, getrennt nach Geschlecht."
     elif gruppen:
         text += f" Aufgeteilt nach {gruppen[0].name} in {len(zeilen)} Zahlen."
     return text
@@ -1845,10 +1700,7 @@ def _bewegung_fehlertext(fehler: psycopg.Error, monat: str) -> str:
         )
     meldung = fehler.diag.message_primary or ""
     if "lokalen Auswertung" in meldung:
-        return (
-            "Online liegen bewusst keine Einzeldaten, und nur aus ihnen lassen sich Zu- und Abgänge zählen. "
-            "Die Fluktuation rechnet darum die lokale Anwendung."
-        )
+        return meldung + "."
     if "Regelstand" in meldung:
         return "Die Einzeldaten dieses Monats wurden inzwischen mit anderen Regeln neu gerechnet." + was_tun
     if "keine bereinigten Daten" in meldung:
@@ -1987,72 +1839,6 @@ def _fluktuation_antwort(conn: Verbindung, monat: str, regelsatz: str) -> dict[s
     )
 
 
-def _fluktuation_zeitraum(conn: Verbindung, frage: str, regelsatz: str, genannt: list[str]) -> dict[str, Any]:
-    """Fluktuation je Monat über einen Zeitraum, ohne Mittel: Ein Wert über mehrere Monate wäre eine andere Rechnung."""
-    aufzaehlung = zeitraum_lesen(frage, _letzter_monat(conn, regelsatz))
-    liste = aufzaehlung.nur if aufzaehlung is not None and aufzaehlung.art == "liste" else ()
-    alle = [
-        m
-        for m in (list(liste) or _monate(min(genannt), max(genannt)))
-        if ERSTE_LIEFERUNG <= m <= LETZTE_LIEFERUNG
-    ]
-    if not alle or len(alle) > MONATE_FLUKTUATION:
-        return _rueckfrage_monat("fluktuation", genannt[-1][:4])
-    hinweise: list[str] = []
-    if alle[0] == ERSTE_LIEFERUNG:
-        alle = alle[1:]
-        hinweise.append(
-            f"Für {_monat_anzeige(ERSTE_LIEFERUNG)} gibt es keine Fluktuation: Die erste Lieferung enthält nicht alle Beschäftigungsverhältnisse des Vormonats."
-        )
-    zahlen: list[dict[str, Any]] = []
-    belege: list[dict[str, Any]] = []
-    staende: list[dict[str, Any]] = []
-    je_monat: list[str] = []
-    for monat in alle:
-        teil = _fluktuation_antwort(conn, monat, regelsatz)
-        if not teil["zahlen"]:
-            return teil  # Dieser Grund (etwa: keine Einzeldaten online) gilt auch für die übrigen Monate.
-        versatz = len(belege)
-        belege += teil["belege"]
-        staende += teil["stand"]
-        hinweise += teil["hinweise"]
-        for z in teil["zahlen"]:
-            if str(z["bezeichnung"]).startswith("Fluktuation, "):
-                name = str(z["bezeichnung"]).removeprefix("Fluktuation, ")
-                zahlen.append(
-                    {
-                        **z,
-                        "bezeichnung": f"Fluktuation, {_monat_anzeige(monat)}, {name}",
-                        "beleg": z["beleg"] + versatz,
-                    }
-                )
-                if name.startswith("alle Wirtschaftsbereiche"):
-                    je_monat.append(f"{_monat_anzeige(monat)} {_komma(float(z['wert']))} Prozent")
-    zeit = zeitraum_anzeige(alle[0], alle[-1])
-    satz = f"Fluktuation über alle Wirtschaftsbereiche: {', '.join(je_monat)}."
-    # Nicht „fluktuation“: Die Kurzfassung der Kette nimmt dort eine Gesamtzahl; hier gibt es je Monat eine.
-    daten = _antwort(
-        "zeitreihe",
-        " ".join(
-            [
-                f"Verstanden: Fluktuation je Monat, {zeit}, ganz Österreich, je Wirtschaftsbereich.",
-                satz,
-                "Sie gilt je Monat. Einen gemeinsamen Wert über mehrere Monate rechnet StatAgent nicht.",
-                *dict.fromkeys(hinweise),
-                f"Die Zahlen sind {_status_text(staende)}.",
-            ]
-        ),
-        definition=FLUKTUATION_DEFINITION,
-        einheit="Prozent",
-        stand=staende,
-        belege=belege,
-        zahlen=zahlen,
-        hinweise=list(dict.fromkeys(hinweise)),
-    )
-    daten["antwortsatz"], daten["ersetzt"] = satz, satz
-    return daten
-
-
 def _definition_antwort(conn: Verbindung, frage: str) -> dict[str, Any]:
     text = frage.lower()
     treffer = _OENACE_CODE.search(text)
@@ -2112,14 +1898,12 @@ def _definition_antwort(conn: Verbindung, frage: str) -> dict[str, Any]:
 # --- Einstieg -------------------------------------------------------------------------------------------------
 
 
-def _rueckfrage_monat(typ: str, jahr: str | None, passend: str = "") -> dict[str, Any]:
-    """``passend``: die Frage ohne Zeit, aus gelesenen Teilen, damit die Vorschläge zur Frage gehören."""
+def _rueckfrage_monat(typ: str, jahr: str | None) -> dict[str, Any]:
     was, beispiel = {
         "fluktuation": ("die Fluktuation", "Fluktuation"),
         "geschlecht": ("die Zahlen für Männer und Frauen", "Männer und Frauen"),
         "bestand": ("die Zahl der Beschäftigten", "Beschäftigte"),
     }[typ]
-    beispiel = passend or beispiel
     if typ == "fluktuation":
         im_jahr = min(f"{jahr}-12", LETZTE_LIEFERUNG) if jahr else ""
         monat = _monat_anzeige(im_jahr) if jahr and im_jahr >= f"{jahr}-01" else "März 2025"
@@ -2128,10 +1912,7 @@ def _rueckfrage_monat(typ: str, jahr: str | None, passend: str = "") -> dict[str
             f"Zum Beispiel „Fluktuation je Wirtschaftsbereich im {monat}“."
         )
     if jahr is not None:
-        text = jahr_rueckfrage(beispiel, jahr, ERSTE_LIEFERUNG, LETZTE_LIEFERUNG)
-        if passend:
-            text = text.replace("„Zeitreihe ", f"„Zeitreihe {passend} ")
-        return _rueckfrage(text)
+        return _rueckfrage(jahr_rueckfrage(beispiel, jahr, ERSTE_LIEFERUNG, LETZTE_LIEFERUNG))
     return _rueckfrage(f"Für welchen Monat möchten Sie {was} wissen? Zum Beispiel „{beispiel} März 2025“.")
 
 
@@ -2158,10 +1939,7 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     zur_anwendung = app_antwort(conn, frage, regelsatz)
     if zur_anwendung is not None:
         return zur_anwendung
-    rang = _rang_lesen(alltag_lesen(frage))
-    daten = _antwort_kern(conn, rang.frage if rang else frage, regelsatz)
-    if rang:
-        daten = _rang_anwenden(conn, daten, rang)
+    daten = _antwort_kern(conn, frage, regelsatz)
     daten["text"] = _UEBERNOMMEN.sub(_UEBERNOMMEN_KLAR, daten["text"])
     daten["hinweise"] = [_UEBERNOMMEN.sub(_UEBERNOMMEN_KLAR, h) for h in daten["hinweise"]]
     return _mit_vorschlag(conn, frage, regelsatz, daten)
@@ -2176,115 +1954,6 @@ _UEBERNOMMEN_KLAR = (
 )
 
 
-# --- Rangfrage: „Welches Bundesland hat die meisten …“ ist die Tabelle je Bundesland mit dem Spitzenwert vorne ------
-_RANG_WORT = (
-    r"(?:(?:die|der|den|das|am|mit\s+(?:den|der|dem))\s+)*"
-    r"(meisten?|wenigsten?|höchste[nrs]?|hoechste[nrs]?|niedrigste[nrs]?|größte[nrs]?|groesste[nrs]?|kleinste[nrs]?)"
-    r"(?:\s+(?:gesamt)?(?:zahl|anzahl)(?:\s+(?:an|von|der))?)?"
-)
-_RANG_GRUPPE = re.compile(
-    r"(?<!\w)(?:in\s+|bei\s+)?welche[mnrs]?\s+"
-    r"(bundesl\w*|branche\w*|wirtschaftsbereich\w*|wirtschaftszweig\w*|sektor\w*|abschnitt\w*"
-    r"|beschäftigungskategorie\w*|kategorie\w*)(?!\w)",
-    re.IGNORECASE,
-)
-_RANG_ZIEL = re.compile(_RANG_WORT, re.IGNORECASE)
-_RANG_KLEIN = re.compile(r"wenigst|niedrigst|kleinst", re.IGNORECASE)
-
-
-@dataclass(frozen=True)
-class _Rang:
-    frage: str
-    groesste: bool
-    gruppe: str  # „Welches Bundesland“, wie in der Frage
-    rangwort: str
-
-
-def _rang_lesen(frage: str) -> _Rang | None:
-    """Nur mit „welche(s) …“ und einem Rangwort. „die meisten Frauen in Wien“ allein bleibt eine Absage."""
-    gruppe, ziel = _RANG_GRUPPE.search(frage), _RANG_ZIEL.search(frage)
-    if gruppe is None or ziel is None or _FLUKTUATION.search(frage.lower()):
-        return None
-    wort = gruppe.group(1).lower()
-    je = "Bundesland" if wort.startswith("bundesl") else ("Kategorie" if "kategorie" in wort else "Branche")
-    rest = frage
-    for stelle in sorted((gruppe.span(), ziel.span()), reverse=True):
-        rest = f"{rest[: stelle[0]]} {rest[stelle[1] :]}"
-    welche = {
-        "Bundesland": "Welches Bundesland",
-        "Kategorie": "Welche Kategorie",
-        "Branche": "Welche Branche",
-    }[je]
-    klein = _RANG_KLEIN.search(ziel.group(0)) is not None
-    return _Rang(
-        f"{' '.join(rest.split()).rstrip(' ?.!')} je {je}",
-        not klein,
-        welche,
-        "wenigsten" if klein else "meisten",
-    )
-
-
-_RANG_ZEILE = re.compile(r"^(Beschäftigungsverhältnisse(?: \([^)]*\))?), (.+)$")
-_RANG_ANTEIL = re.compile(r"^Anteil(?: \([^)]*\))?, (Frauen|Männer), (.+)$")
-
-
-def _rang_anwenden(conn: Verbindung, daten: dict[str, Any], rang: _Rang) -> dict[str, Any]:
-    """Setzt den Spitzenwert vor die Antwort. Über mehrere Monate gibt es keinen einen Spitzenwert."""
-    if not daten["zahlen"]:
-        return daten
-    monate = {str(s.get("monat")) for s in daten["stand"]}
-    if len(monate) != 1:
-        monat_rang = max(monate) if monate else LETZTE_LIEFERUNG
-        was, orte, _ = _teile_der_frage(conn, rang.frage, monat_rang)
-        wer = " ".join([was or "Beschäftigten", *orte])
-        return _rueckfrage(
-            "Die Rangfolge gibt es je Monat. Für welchen Monat möchten Sie sie? Zum Beispiel "
-            f"„{rang.gruppe} hat die {rang.rangwort} {wer} im {_monat_anzeige(monat_rang)}?“"
-        )
-    monat = _monat_anzeige(next(iter(monate)))
-    anteil = "anteil" in rang.frage.lower()
-    gefragt = "Männer" if re.search(r"männer|maenner|männlich", rang.frage.lower()) else "Frauen"
-    reihe: list[tuple[str, float, dict[str, Any]]] = []
-    ohne_unbekannt = False
-    was = ""
-    for zahl in daten["zahlen"]:
-        bezeichnung = str(zahl["bezeichnung"])
-        treffer = _RANG_ANTEIL.match(bezeichnung) if anteil else _RANG_ZEILE.match(bezeichnung)
-        if treffer is None or (anteil and treffer.group(1) != gefragt):
-            continue
-        name = treffer.group(2)
-        if name.startswith("Alle "):
-            continue
-        if "unbekannt" in name.lower():
-            ohne_unbekannt = True
-            continue
-        if not anteil:
-            was = treffer.group(1).replace("verhältnisse", "verhältnissen")
-        reihe.append((name, float(zahl["wert"]), zahl))
-    if not reihe:
-        return daten
-    reihe.sort(key=lambda r: r[1], reverse=rang.groesste)
-    spitze = [r for r in reihe if r[1] == reihe[0][1]]
-    namen = _aufzaehlung([r[0] for r in spitze])
-    if anteil:
-        satz = (
-            f"{'Am höchsten' if rang.groesste else 'Am niedrigsten'} ist der Anteil der {gefragt} im {monat}: "
-            f"{namen} mit {_komma(reihe[0][1])} Prozent."
-        )
-    else:
-        satz = (
-            f"{'Am meisten' if rang.groesste else 'Am wenigsten'} im {monat}: {namen} mit "
-            f"{_deutsch(int(reihe[0][1]))} {was}."
-        )
-    if ohne_unbekannt:
-        satz += " Die Gruppe „unbekannt“ zählt dabei nicht mit."
-    gereiht = [r[2] for r in reihe]
-    daten["zahlen"] = [*gereiht, *(z for z in daten["zahlen"] if not any(z is g for g in gereiht))]
-    daten["text"] = f"{satz} {daten['text']}"
-    daten["antwortsatz"], daten["ersetzt"] = satz, satz
-    return daten
-
-
 # --- Vorschlag: passt zur Frage und ist vor dem Zeigen gelaufen -----------------------------------------------------
 _KEIN_VORSCHLAG = re.compile(r"Einzeldaten gibt StatAgent")
 #: Die Antwort nennt schon eine Folgefrage („Frauen im Juli 2026“, „Was ist ÖNACE C?“).
@@ -2294,10 +1963,8 @@ _BEISPIEL_DA = re.compile(r"„[^“]*(?:\b20\d{2}\b|\?)[^“]*“")
 def _teile_der_frage(conn: Verbindung, frage: str, monat: str) -> tuple[str, list[str], str]:
     """Was die Frage sicher gelesen nennt: Wer, die Einschränkungen und die Aufteilung. Nie ein fremdes Wort."""
     text = frage.lower()
-    frau, mann = (
-        bool(re.search(r"\bfrauen\b|frauenanteil|weiblich", text)),
-        bool(re.search(r"\bmänner\w*|maenner|männlich|männeranteil", text)),
-    )
+    frau = bool(re.search(r"\bfrauen\b|frauenanteil|weiblich", text))
+    mann = bool(re.search(r"\bmänner\w*|maenner|männlich|männeranteil", text))
     was = "Männer und Frauen" if frau and mann else "Frauen" if frau else "Männer" if mann else ""
     orte: list[str] = []
     je = ""
@@ -2305,7 +1972,7 @@ def _teile_der_frage(conn: Verbindung, frage: str, monat: str) -> tuple[str, lis
         try:
             codes = _codes(conn, merkmal, monat)
             werte, stellen = _werte(frage, merkmal, codes)
-        except (_KeineZahl, psycopg.Error):
+        except _KeineZahl:
             continue
         if len(werte) > 1:
             je = _JE_ALLTAG.get(merkmal.name, f"je {merkmal.name}")
@@ -2364,7 +2031,7 @@ def _mit_vorschlag(conn: Verbindung, frage: str, regelsatz: str, daten: dict[str
             ):
                 daten["text"] = f"{daten['text']} Zum Beispiel: „{kandidat}“."
                 break
-    except (psycopg.Error, ValueError, _KeineZahl, AbfrageVerweigert, RegelFehler):
+    except (psycopg.Error, ValueError, _KeineZahl, _Abgeschnitten, AbfrageVerweigert, RegelFehler):
         return daten  # Ohne Vorschlag bleibt die Absage richtig.
     return daten
 
@@ -2402,8 +2069,7 @@ def _antwort_kern(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
             f"StatAgent zählt Beschäftigungsverhältnisse, nicht Bundesländer, Branchen, Monate oder Regeln. {KANN}",
         )
     try:
-        anteil_an_gruppe = prozent_von_gruppe and _weiteres_merkmal(conn, frage, letzter or LETZTE_LIEFERUNG)
-        if anteil_an_gruppe and (regelsatz != "v1" or _regelsatz_der_frage(frage)):
+        if prozent_von_gruppe and _weiteres_merkmal(conn, frage, letzter or LETZTE_LIEFERUNG):
             text = (
                 "Einen Anteil an den Frauen oder an den Männern rechnet StatAgent nicht, nur den Frauen- und "
                 "Männeranteil an allen. Zum Beispiel „Wie viel Prozent der Beschäftigten in Wien sind Frauen?“."
@@ -2462,7 +2128,7 @@ def _antwort_kern(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
                 )
             else:
                 notizen.append(f"Ohne Zeitangabe zeigen wir den jüngsten Monat: {_monat_anzeige(letzter)}.")
-        daten = _antwort_frage(conn, frage, regelsatz, typ, mittel, anteil_an_gruppe)
+        daten = _antwort_frage(conn, frage, regelsatz, typ, mittel)
     except _KeineZahl as grund:
         return _antwort(typ, str(grund), hinweise=[str(grund)])
     except (psycopg.Error, AbfrageVerweigert):
@@ -2483,42 +2149,15 @@ def _aufteilung(frage: str) -> Merkmal | None:
     if not _ALTER_GRUPPEN.search(text):
         return _gliederung(frage)
     if _gliederung(frage) is not None or _geschlecht_gegliedert(text):
-        genannt = monate_lesen(frage)
-        monat = _monat_anzeige(genannt[-1] if genannt else LETZTE_LIEFERUNG)
         raise _KeineZahl(
             "Die Zahlen je Alter gibt es nur ohne eine zweite Aufteilung. Bitte getrennt fragen, zum Beispiel "
-            f"„Frauen nach Altersgruppe im {monat}“."
+            "„Frauen nach Altersgruppe im Juli 2026“."
         )
     return ALTERSGRUPPE
 
 
-def _passend_ohne_zeit(conn: Verbindung, frage: str, jahr: str | None) -> str:
-    """„Männer und Frauen je Bundesland“ aus der Frage; leer, wenn die Frage nur den Bestand meint."""
-    monat = min(f"{jahr}-12", LETZTE_LIEFERUNG) if jahr else LETZTE_LIEFERUNG
-    was, orte, je = _teile_der_frage(conn, frage, monat)
-    if not orte and not je and was in ("", "Männer und Frauen"):
-        return ""
-    return " ".join(t for t in (was or "Beschäftigte", *orte, je) if t)
-
-
-def _gruppen_der_frage(frage: str) -> tuple[Merkmal, ...]:
-    """Die Aufteilung der Frage. Männer und Frauen lassen sich mit einem zweiten Merkmal aufteilen, außer mit dem Alter."""
-    text = frage.lower()
-    je = _aufteilung(frage)  # Männer und Frauen je Altersgruppe: Absage
-    if not _geschlecht_gegliedert(text) or ("anteil" in text and not _GESCHLECHT.search(text)):
-        return (je,) if je else ()
-    if je is None and _BUNDESLAND.search(text):
-        je = BUNDESLAND
-    return (GESCHLECHT,) if je is None or je is GESCHLECHT else (GESCHLECHT, je)
-
-
 def _antwort_frage(
-    conn: Verbindung,
-    frage: str,
-    regelsatz: str,
-    typ: str,
-    mittel: bool = False,
-    anteil_an_gruppe: bool = False,
+    conn: Verbindung, frage: str, regelsatz: str, typ: str, mittel: bool = False
 ) -> dict[str, Any]:
     if typ == "definition":
         daten = _definition_antwort(conn, frage)
@@ -2528,12 +2167,31 @@ def _antwort_frage(
     monate = monate_lesen(frage)
     jahr = jahr_ohne_monat(frage)
     text = frage.lower()
-    if (
-        "anteil" in text
-        and typ != "fluktuation"
-        and (anteil_an_gruppe or (not _GESCHLECHT.search(text) and _gliederung(frage) is None))
-    ):
-        return _anteil_einer_auspraegung(conn, frage, regelsatz, typ, monate, anteil_an_gruppe)
+    if typ != "fluktuation" and _geschlecht_gegliedert(text):
+        je = _gliederung(frage)
+        erlaubt = (GESCHLECHT,) if typ == "zeitreihe" or "anteil" in text else (GESCHLECHT, BUNDESLAND)
+        if je is not None and je not in erlaubt:
+            # Sonst fiele „je Branche“ still weg, die Antwort gälte für ganz Österreich.
+            wie = _JE_ALLTAG.get(je.name, f"je {je.name}")
+            if je is BUNDESLAND:
+                raise _KeineZahl(
+                    f"Männer und Frauen {wie} zeigt StatAgent nur für einen Monat, nicht über einen Zeitraum."
+                )
+            raise _KeineZahl(
+                f"Männer und Frauen {wie} zeigt StatAgent nicht auf einmal. Bitte einzeln fragen."
+            )
+    if "anteil" in text and typ != "fluktuation":
+        if not _GESCHLECHT.search(text):
+            raise _KeineZahl(
+                "Einen Anteil rechnet StatAgent nur für Frauen und Männer. Für alles andere: beide Zahlen einzeln "
+                f"fragen, zum Beispiel „Beschäftigte nach Bundesland im März 2025“. {KANN}"
+            )
+        # Auch „seit Jänner 2025“: Das ist ein Zeitraum, die Antwort wäre sonst die Menge statt des Anteils.
+        if len(set(monate)) > 1 or typ == "zeitreihe":
+            return _rueckfrage(
+                "Den Anteil gibt es je Monat. Für welchen Monat möchten Sie ihn, zum Beispiel "
+                f"„Frauenanteil im {_monat_anzeige(monate[-1] if monate else LETZTE_LIEFERUNG)}“?"
+            )
     if typ == "zeitreihe":
         _aufteilung(frage)  # Männer und Frauen je Altersgruppe: Absage
         aufzaehlung = zeitraum_lesen(frage, _letzter_monat(conn, regelsatz))
@@ -2555,19 +2213,19 @@ def _antwort_frage(
             bis = letzter_bekannt
         if von == "0001-01":
             von = _erster_monat(conn, regelsatz) or bis
-        gruppen = _gruppen_der_frage(frage)
+        gruppen: tuple[Merkmal, ...] = (
+            (GESCHLECHT,) if _geschlecht_gegliedert(text) else tuple(g for g in (_aufteilung(frage),) if g)
+        )
         return _bestand_antwort(conn, frage, regelsatz, von, bis, gruppen, "zeitreihe", mittel, nur)
     if typ == "fluktuation" and len(monate) > 1:
-        return _fluktuation_zeitraum(conn, frage, regelsatz, monate)
-    if typ == "fluktuation" and jahr is not None and not monate:
-        return _fluktuation_zeitraum(conn, frage, regelsatz, [f"{jahr}-01", f"{jahr}-12"])
+        return _rueckfrage_monat(typ, monate[-1][:4])
     if len(monate) != 1:
         if len(monate) > 1:
             return _rueckfrage(
                 "Die Frage nennt mehrere Monate. Meinen Sie eine Zeitreihe („Zeitreihe von … bis …“) "
                 "oder einen einzelnen Monat?"
             )
-        return _rueckfrage_monat(typ, jahr, _passend_ohne_zeit(conn, frage, jahr))
+        return _rueckfrage_monat(typ, jahr)
     monat = monate[0]
     if typ == "fluktuation":
         if monat == ERSTE_LIEFERUNG:
@@ -2598,9 +2256,13 @@ def _antwort_frage(
                 1,
             )
         return daten
-    gruppen = _gruppen_der_frage(frage)
+    if typ == "geschlecht" and _geschlecht_gegliedert(text):
+        _aufteilung(frage)  # Männer und Frauen je Altersgruppe: Absage
+        gruppen = (GESCHLECHT, BUNDESLAND) if _BUNDESLAND.search(text) else (GESCHLECHT,)
+        return _bestand_antwort(conn, frage, regelsatz, monat, monat, gruppen, "geschlecht")
+    gliederung = _aufteilung(frage)
     return _bestand_antwort(
-        conn, frage, regelsatz, monat, monat, gruppen, "geschlecht" if GESCHLECHT in gruppen else "bestand"
+        conn, frage, regelsatz, monat, monat, (gliederung,) if gliederung else (), "bestand"
     )
 
 
