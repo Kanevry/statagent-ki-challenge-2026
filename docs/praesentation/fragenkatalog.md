@@ -195,15 +195,13 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Satz der Jury:** „Rechnen Sie bei Geburtsmonat 13 nur mit der Differenz der Jahre, nicht mit dem 1. Juli.“
 
-**Befehl:** `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2026-06`. Der Vorschlag selbst ist am 05.11.2026 18:20 bis 18:25 mit dem Stand von !50 geprobt, 3 von 3 gültig, damals mit 2025-03. Diesen Monat nicht mehr nehmen, siehe unten.
+**Befehl:** `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2026-06`. Der Vorschlag selbst ist am 05.11.2026 18:20 bis 18:25 mit dem Stand von !50 geprobt, 3 von 3 gültig, damals mit 2025-03.
 
 **Was der Vorschlag ändert:** Regel `R5_alter`, Parameter `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`. Der Agent darf für diesen Parameter nur `jahresdifferenz` oder `unbekannt` vorschlagen (`uc3/statagent/agenten/koordinator.py`, Zeile 81). Einen anderen Ersatztag wie den 1. Jänner weist er ab.
 
 **Erwartete Wirkung:** Der Gesamtbestand ändert sich nie, nur das Alter einzelner Verhältnisse mit Monat 13. Für August 2024 gilt Jahresdifferenz gleich Ersatztag 1. Juli, der Beispielbericht bleibt exakt (F4). Im Juni 2026 liegt der Stichtag vor dem 1. Juli: Mit Jahresdifferenz sind diese Verhältnisse ein Jahr älter, der Vorschlag zeigt wenige verschobene Altersgruppen, der Gesamtbestand bleibt 403.301 (einmal gemessen von der UC3-Lane, 05.11.2026 22:40, Commit d888e09, bis zum Vorschlag). Juli bis Dezember zeigen keinen Unterschied, das ist fachlich richtig.
 
 **Auf der Seite:** Die Tabelle von „Vorher und nachher ansehen“ zählt Beschäftigungskategorien und bleibt in Juni 2026 gleich. Seit !239 steht darunter: „Die Änderung zeigt sich an anderer Stelle. Altersgruppe 15-24: 42.422 statt 42.428; Altersgruppe 35-44: 98.940 statt 98.946; Altersgruppe 55-64: 74.472 statt 74.466; dazu 3 weitere Zeilen.“ Im Browser gesehen von der UI-Regie, Instanz-Stand 04060ad, 2 min 51 s bis zum Vorschlag. Die Wirkung ist klein: B2 nur nehmen, wenn die Jury genau das wünscht.
-
-**Falle:** Mit `--probe 2025-03` zeigt die Probe 396.762 → 395.292 (−1.470), obwohl sich nur das Alter ändert. In der Probe fehlen die Fortschreibungen von 2025-03 und 2025-10. Der Fix kommt mit !150, die Abgabe ist nicht betroffen.
 
 **Wozu die Übung dient:** Sie zeigt, dass die offene Frage R1 an die Fachabteilung ein Regelparameter ist und keine Programmänderung.
 
@@ -217,7 +215,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 **Was der Vorschlag ändert:** Prüfregel `P15_bestand_vs_vormonat` (Typ `pruefung`), Parameter `schwelle` von 0.05 auf 0.03.
 
-**Erwartete Wirkung:** Der Bestand ändert sich nicht, eine Prüfregel ändert keine Zahl. Im Juli 2026 bleibt die Gesamtzahl 407.604 (einmal gemessen von der UC3-Lane, 05.11.2026, Commit d888e09, mit fast gleichem Satz). Die Probe zeigt also keinen Unterschied. Das sagen wir dazu: Es ändert sich nur, welche Monate anhalten, und das sieht man in dieser Probe nicht. Nicht mit `--probe 2025-10` proben, dort fehlen in der Probe die Fortschreibungen (siehe B2).
+**Erwartete Wirkung:** Der Bestand ändert sich nicht, eine Prüfregel ändert keine Zahl. Im Juli 2026 bleibt die Gesamtzahl 407.604 (einmal gemessen von der UC3-Lane, 05.11.2026, Commit d888e09, mit fast gleichem Satz). Die Probe zeigt also keinen Unterschied. Das sagen wir dazu: Es ändert sich nur, welche Monate anhalten, und das sieht man in dieser Probe nicht.
 
 **Freigabe:** `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`
 
