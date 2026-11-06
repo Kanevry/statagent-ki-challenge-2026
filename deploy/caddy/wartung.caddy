@@ -17,7 +17,7 @@ handle_errors 502 503 504 {
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<meta http-equiv="refresh" content="5">
 		<meta name="robots" content="noindex, nofollow">
-		<title>Startet gerade neu</title>
+		<title>StatAgent startet gerade neu</title>
 		</head>
 		<body style="margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f4f7f5; color:#0b1f2a; font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; line-height:1.5">
 		<main style="box-sizing:border-box; max-width:34rem; margin:1.5rem; padding:2rem 1.75rem; background:#ffffff; border:1px solid #dce3df; border-top:4px solid #007a50; border-radius:12px">
