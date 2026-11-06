@@ -48,13 +48,13 @@ describe("zeileAusTreffer", () => {
     expect(z.befund).toBe("Beschäftigungsverhältnisse des Vormonats fehlen in der Lieferung.");
     expect(z.befund).not.toContain("P16");
     expect(z.beleg).toBeUndefined();
-    expect(z).toMatchObject({ lieferung: "2025-10", saetze: "78.949", anhalten: true, einstufungText: "erklärt, Datenproblem · hält den Monat an" });
+    expect(z).toMatchObject({ lieferung: "2025-10", saetze: "78.949", anhalten: true, einstufungText: "Fehler in den Daten · hält den Monat an" });
   });
 
   it("nimmt die Satzvorlage der Regel und schreibt den Monat aus", () => {
     const z = zeileAusTreffer({ ...roh, satz: "Im {monat} fehlen {anzahl} Zeilen.", anhalten: false });
     expect(z.befund).toBe("Im Oktober 2025 fehlen 78.949 Zeilen.");
-    expect(z.einstufungText).toBe("erklärt, Datenproblem");
+    expect(z.einstufungText).toBe("Fehler in den Daten");
   });
 
   it("zeigt nur den ersten Satz, Folgesätze meinen die Monatsseite", () => {
@@ -62,9 +62,9 @@ describe("zeileAusTreffer", () => {
     expect(z.befund).toBe("Frühere Monate sehen anders aus.");
   });
 
-  it("markiert eine fehlende Einstufung als nicht eingestuft", () => {
+  it("eine fehlende Einstufung gilt als noch nicht erklärt", () => {
     const z = zeileAusTreffer({ ...roh, einstufung: null, anhalten: false });
     expect(z.einstufung).toBe("nicht-erklaerbar");
-    expect(z.einstufungText).toBe("nicht eingestuft");
+    expect(z.einstufungText).toBe("Noch nicht erklärt");
   });
 });

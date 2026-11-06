@@ -1,5 +1,6 @@
 import postgres from "postgres";
 import { ersterSatz, massgeblichCte } from "@/components/uc3/bericht";
+import { gruppeAus, gruppeVon, type GruppeArt } from "@/components/uc3/einstufung-gruppen";
 import { titelUndMesswerte } from "@/components/uc3/lauf-detail";
 import { alltag } from "@/components/uc3/sprache";
 import { befundeAusFixture } from "./befunde-fixture";
@@ -39,10 +40,10 @@ const SQL_ZEILEN = [
 
 const SQL_ANZAHL = [CTE, "SELECT count(*)::text AS anzahl", TREFFER].join("\n");
 
-const EINSTUFUNG_TEXT: Record<string, string> = {
-  "erklaert-plausibel": "erklärt, plausibel",
-  "erklaert-datenproblem": "erklärt, Datenproblem",
-  "nicht-erklaerbar": "nicht erklärbar",
+const CODE: Record<GruppeArt, Einstufung> = {
+  fehler: "erklaert-datenproblem",
+  "kein-fehler": "erklaert-plausibel",
+  offen: "nicht-erklaerbar",
 };
 
 interface TrefferRoh {
@@ -57,10 +58,9 @@ interface TrefferRoh {
 }
 
 export function zeileAusTreffer(t: TrefferRoh): BefundZeile {
-  const bekannt = t.einstufung && t.einstufung in EINSTUFUNG_TEXT;
-  // Ohne Einstufung gilt der Treffer als nicht eingestuft; in der Tabelle steht er wie „nicht erklärbar“ markiert.
-  const einstufung = (bekannt ? t.einstufung : "nicht-erklaerbar") as Einstufung;
-  const einstufungText = bekannt ? EINSTUFUNG_TEXT[t.einstufung as string] : "nicht eingestuft";
+  // Dieselben Wörter wie im Monat und in der Tabelle der Berichte (roter Faden); ohne Einstufung: noch nicht erklärt.
+  const art = gruppeAus(t.einstufung);
+  const einstufungText = gruppeVon(art).titel;
   const anzahl = Number(t.anzahl);
   // Klartext wie auf der Monatsseite, nie der Rohname der Regel und nie SQL: Belege gehören in den Qualitätsbericht.
   // Nur der erste Satz: Folgesätze der Vorlagen meinen die Monatsseite („steht unten als Revisionsbedarf“).
@@ -72,7 +72,7 @@ export function zeileAusTreffer(t: TrefferRoh): BefundZeile {
     befund: ersterSatz(alltag(titel)) || "Prüfung ohne Beschreibung",
     lieferung: t.lieferung,
     saetze: zahl(anzahl),
-    einstufung,
+    einstufung: CODE[art],
     einstufungText: t.anhalten ? `${einstufungText} · hält den Monat an` : einstufungText,
     anhalten: t.anhalten,
   };

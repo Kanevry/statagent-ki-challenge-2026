@@ -13,7 +13,7 @@ const rand = "border-b border-line";
 const zahlZelle = `${rand} px-1 py-1 text-right align-top font-mono text-12 tabular-nums`;
 // Deckend, damit beim seitlichen Scrollen nichts durchscheint; schmal, damit am Handy die Zahlen Platz haben.
 const ersteSpalte = `sticky left-0 z-10 w-40 min-w-40 bg-paper py-1 pr-2 text-left align-top font-sans text-12 md:w-64 md:min-w-64 md:text-14`;
-// Direkt nach der Prüfung: Auf 1440 scrollen die letzten Monate seitlich, die Summen bleiben trotzdem im Blick.
+// Direkt nach der Prüfung: Wo die Monate seitlich scrollen, bleiben die Summen trotzdem im Blick.
 const summe = "px-1 py-1 pr-3 text-right align-top font-mono text-12 font-semibold tabular-nums text-ink";
 
 function Spaltenkopf({ lieferung, regelsatz }: { lieferung: string; regelsatz: string }) {
@@ -52,7 +52,8 @@ export function PruefungMalMonatTabelle({ daten, monate, regelsatz }: { daten: P
       <p className="max-w-3xl font-sans text-14 text-slate">
         Jede Zahl sagt, wie viel die Prüfung in diesem Monat gefunden hat: Zeilen, Beschäftigungsverhältnisse oder Gruppen. Die Summe zählt die Auffälligkeiten, also je Prüfung die Monate mit einem Fund. Ein Klick öffnet den Bericht des Monats.
       </p>
-      <div className="overflow-x-auto" role="region" aria-labelledby="pruefungen-titel" tabIndex={0}>
+      {/* Ab 1400 px ragt die Tabelle über die Textspalte hinaus, damit alle 24 Monate ohne Scrollen zu sehen sind. */}
+      <div className="overflow-x-auto min-[1400px]:-mx-[90px]" role="region" aria-labelledby="pruefungen-titel" tabIndex={0}>
         <table className="border-collapse">
           <caption className="sr-only">Auffälligkeiten je Prüfung und Monat mit Anzahl und Einstufung</caption>
           <thead>
