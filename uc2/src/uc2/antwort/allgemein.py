@@ -118,7 +118,7 @@ _BUNDESLAENDER = frozenset(
 )
 """Wie im Lotsen (`uc1.uc4`); UC2 importiert UC1 nicht."""
 
-VORLAGE_OBEN = "Die Sätze zum Personal oben sind eine Vorlage, kein Modelltext."
+VORLAGE_OBEN = "Die Sätze zum Personal oben sind eine feste Vorlage, nicht von der KI geschrieben."
 """Steht im Text, wenn das Modell keinen brauchbaren Kernsatz lieferte. Die Karte erkennt die Vorlage an genau
 diesem Satz (web/components/uc4/kette.tsx); die Antwortform hat dafür kein Feld."""
 

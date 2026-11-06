@@ -418,7 +418,7 @@ const GANZ_BIS = 400;
 /** Ab hier ist die Anzeigeschrift schwer zu lesen (UI-Regie 06.11.: neun Zeilen je Karte); kurze Sätze bleiben groß. */
 const LANG_AB = 160;
 /** Steht im Text, wenn oben die Vorlage steht und nicht das Modell; gleicher Satz wie `VORLAGE_OBEN` in uc2.antwort.allgemein. */
-const VORLAGE_OBEN = "Die Sätze zum Personal oben sind eine Vorlage, kein Modelltext.";
+const VORLAGE_OBEN = "Die Sätze zum Personal oben sind eine feste Vorlage, nicht von der KI geschrieben.";
 /** Die übrigen Belege stehen in der ganzen Antwort; oben reicht einer, zweimal „Beleg“ untereinander sagt nichts. */
 const BELEGE_OBEN = 1;
 /** Mehr Zahlen trägt die Karte nicht; „Zugänge im Oktober 2024“ liefert 89 (UI-Regie 05.11.). */

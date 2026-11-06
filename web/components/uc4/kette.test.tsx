@@ -245,7 +245,7 @@ it("Karte 2 und 3 nennen dieselbe Herkunft: die Zahl von StatAgent", async () =>
 
 it("steht oben die Vorlage, sagt die Karte das; steht dort Modelltext, sagt sie „Mit KI geschrieben“", async () => {
   // Fängt die Angabe, die für das Gelesene nicht stimmt (UI-Regie 06.11.).
-  const vorlage = antwort("uc2", `${UC2.text}\nDie Sätze zum Personal oben sind eine Vorlage, kein Modelltext.`, [BELEG_UC3], [ZAHL]);
+  const vorlage = antwort("uc2", `${UC2.text}\nDie Sätze zum Personal oben sind eine feste Vorlage, nicht von der KI geschrieben.`, [BELEG_UC3], [ZAHL]);
   const seite = await fragen(strom(UC3, vorlage, UC1));
   await screen.findByText(/Fertig in/);
   expect(seite.querySelector('[data-uc-karte="uc2"] [data-testid="uc4-modell"]')!.textContent).toMatch(/^Oben Vorlage, ganze Antwort mit KI geschrieben/);
