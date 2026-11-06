@@ -399,6 +399,20 @@ def test_je_branche_im_satz(zwei_monate: Verbindung) -> None:
     assert daten["text"].startswith("Männer und Frauen je Branche zeigt StatAgent nicht auf einmal.")
 
 
+# Fängt (#207): Bei „nach Geschlecht und Bundesland“ über einen Zeitraum fiel das Bundesland still weg.
+@pytest.mark.parametrize(
+    ("frage", "absage"),
+    [
+        ("Beschäftigte von August bis September 2024 nach Geschlecht und Bundesland", "je Bundesland zeigt"),
+        ("Beschäftigte von August bis September 2024 je Geschlecht und Bundesland", "je Bundesland zeigt"),
+        ("Beschäftigte von August bis September 2024 nach Geschlecht und Branche", "je Branche zeigt"),
+    ],
+)
+def test_zweite_aufteilung_faellt_nicht_weg(zwei_monate: Verbindung, frage: str, absage: str) -> None:
+    daten = uc4_antwort(zwei_monate, frage)
+    assert not daten["zahlen"] and daten["text"].startswith(f"Männer und Frauen {absage} StatAgent")
+
+
 # Fängt (Blind-Runden, #186): die andere Richtung beim Anteil, in weiteren Formen.
 @pytest.mark.parametrize(
     "frage",

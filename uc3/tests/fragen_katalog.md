@@ -11,7 +11,8 @@ Spalten:
 - `filter`: `region`, `geschlecht`, `kategorie`, `oenace` (Buchstabe), `branche` (Name, `%` als Platzhalter, gilt je
   ÖNACE-Version), `freier_dv`, `alter` (`von-bis`).
 - `optionen`: `mittel` (Durchschnitt muss dabei sein), `muss` (Rückfrage oder Absage reichen nicht), `auch=…` (weitere
-  erlaubte Ausgänge), `gruppe=…` (eine Zahl je Gruppe), `werte_je=merkmal:a,b`, `art=anteil|fluktuation`,
+  erlaubte Ausgänge), `gruppe=…` (eine Zahl je Gruppe; `geschlecht+region` je Kombination), `summen` (bei
+  `gruppe`: Summenzeilen dürfen dabei sein), `werte_je=merkmal:a,b`, `art=anteil|fluktuation`,
   `anteil=merkmal:code`, `regelsatz=v2` (der Regelsatz des Solls), `aufruf=v2` (Regelsatz beim Aufruf), `text=…`
   (dieser Text muss in der Antwort stehen), `frei` (Tabelle, die der Katalog nicht nachrechnet).
 
@@ -724,3 +725,13 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | G053 | form:app,zeit:monat | zahl | 2025-10 | - | art=pruefung;muss | Warum ist Oktober 2025 angehalten? |
 | G056 | form:absage | absage | - | - | - | Warum ist der Himmel im Oktober 2025 blau? |
 | G057 | form:absage,zeit:jahreszeit | absage | - | - | auch=rueckfrage | Männer und Frauen im Sommer 2025 je Bundesland |
+
+Die Zeilen `X…` stammen aus der Blind-Runde zu !328. X002 bekommt heute eine Absage (#207); rechnet das Programm
+später beide Aufteilungen über einen Zeitraum, gilt die Zahl je Monat, Geschlecht und Bundesland. In X036 hat „dort“
+keinen Bezug; das Programm liest es als ganz Österreich und nennt eine Zahl, eine Rückfrage wäre ebenso richtig.
+
+| id | achsen | soll | monate | filter | optionen | frage |
+| --- | --- | --- | --- | --- | --- | --- |
+| X001 | zeit:monat,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale,blind | zahl | 2026-07 | - | gruppe=geschlecht+region;summen | Wie viele Männer und Frauen gibt es in jedem Bundesland im Juli 2026? |
+| X002 | zeit:winter,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale,blind | zahl | 2024-12..2025-02 | - | gruppe=geschlecht+region;summen;auch=absage | Beschäftigte im Winter 2025 nach Geschlecht und Bundesland |
+| X036 | zeit:winter,zeit:ohne_jahr,merkmal:geschlecht,merkmal:alter,merkmal:branche,blind | rueckfrage | 2025-12..2026-02 | geschlecht=W;branche=Handel%;alter=0-29 | auch=zahl | Wie viele Frauen unter 30 im Handel gibt es dort im Winter? |

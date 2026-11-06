@@ -101,6 +101,8 @@ _ZEITREIHE = ZEITREIHE_WORT
 _VERGLEICH = re.compile(r"vergleich|gegenüber")
 _GESCHLECHT = re.compile(r"männer|maenner|frauen|geschlecht|männlich|weiblich")
 _BUNDESLAND = re.compile(r"bundesl|länder|laender")
+#: „nach Geschlecht und Bundesland“: ohne diese Wörter findet _gliederung die zweite Aufteilung (#207).
+_GESCHLECHT_UND = re.compile(r"geschlecht(?:\s*,\s*|\s+(?:und|sowie)\s+)")
 
 
 def _merkmal(name: str) -> Merkmal:
@@ -1975,7 +1977,8 @@ def _teile_der_frage(conn: Verbindung, frage: str, monat: str) -> tuple[str, lis
     text = frage.lower()
     frau = bool(re.search(r"\bfrauen\b|frauenanteil|weiblich", text))
     mann = bool(re.search(r"\bmänner\w*|maenner|männlich|männeranteil", text))
-    was = "Männer und Frauen" if frau and mann else "Frauen" if frau else "Männer" if mann else ""
+    beide = frau and mann or "geschlecht" in text  # „nach Geschlecht“: der Vorschlag nennt beide (#207)
+    was = "Männer und Frauen" if beide else "Frauen" if frau else "Männer" if mann else ""
     orte: list[str] = []
     je = ""
     for merkmal in (BUNDESLAND, OENACE, KATEGORIE):
@@ -2000,7 +2003,7 @@ def _teile_der_frage(conn: Verbindung, frage: str, monat: str) -> tuple[str, lis
             orte.append(wortlaut or f"ÖNACE {werte[0]}")
         elif werte:
             was = f"{codes[werte[0]]} {was}".strip()
-    gliederung = _gliederung(frage)
+    gliederung = _gliederung(_GESCHLECHT_UND.sub("", text))
     if not je and gliederung is not None and gliederung is not GESCHLECHT:
         je = _JE_ALLTAG.get(gliederung.name, f"je {gliederung.name}")
     if not je and frau and mann and _BUNDESLAND.search(text):
@@ -2179,6 +2182,9 @@ def _antwort_frage(
     text = frage.lower()
     if typ != "fluktuation" and _geschlecht_gegliedert(text):
         je = _gliederung(frage)
+        if je is GESCHLECHT:
+            # _gliederung liefert nur das erste Merkmal; das zweite fiele sonst still weg (#207).
+            je = _gliederung(_GESCHLECHT_UND.sub("", text)) or GESCHLECHT
         erlaubt = (GESCHLECHT,) if typ == "zeitreihe" or "anteil" in text else (GESCHLECHT, BUNDESLAND)
         if je is not None and je not in erlaubt:
             # Sonst fiele „je Branche“ still weg, die Antwort gälte für ganz Österreich.
