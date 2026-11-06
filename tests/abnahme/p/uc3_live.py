@@ -2,8 +2,8 @@
 
     python3 tests/abnahme/p/uc3_live.py
 
-Zählt je Variante A, B, C die Läufe, die Dauer unter 4 Minuten und ausgefüllte Belegfelder. Die Varianten mit dem
-Zusatz `_locker` sind Läufe derselben Variante mit anderem Wortlaut.
+Zählt je Variante A, B, C die Läufe, die Dauer unter 4 Minuten und ausgefüllte Belegfelder. Die Varianten mit
+dem Zusatz `_locker` sind Läufe derselben Variante mit anderem Wortlaut.
 """
 
 from __future__ import annotations
