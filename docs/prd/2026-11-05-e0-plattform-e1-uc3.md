@@ -1,7 +1,7 @@
 # Feature: E0 Plattform (Monorepo, Shell, Modell-Schalter, Protokoll/Freigabe, Design) und E1 UC3 StatAgent
 
 **Date:** 2026-11-05
-**Author:** Bernhard Götzendorfer + Claude (AI-assisted planning, Session app-c3, Lead lead-session-orchestrator-09)
+**Author:** Bernhard Götzendorfer + Claude (AI-assisted planning)
 **Status:** Draft
 **Appetite:** E0 Kern bis Do 18:00, E0 Rest bis Fr 03:00; E1 nach Wellen #13–#20, Feature-Stopp Fr 06:30 (Lead, 05.11.)
 **Parent Project:** agents/ki-challenge-2026 (Repo-Wurzel `app/`), Epics #21 (E0) und #22 (E1)
@@ -174,7 +174,7 @@ der Modell-Badge liest `GET /api/plattform/modell` (E0-Route, führt `uv run pyt
   oder Antworttext, nie in `modellaufrufe.jsonl` (das trägt nur Modellaufrufe, Vertrag M).
 - Web: `POST /api/uc4/frage` startet `python -m plattform.router frage --json` als Subprozess (#98).
 
-### Voice (Vertrag V, Konzept nach everlast, Code neu)
+### Voice (Vertrag V, Konzept nach einem früheren eigenen Projekt, Code neu)
 
 - `plattform.voice.erstelle_router(antwort, *, uc=None)` mit `antwort(nachrichten, sitzung) -> VoiceAntwort
   {text, belege: list[Beleg]}` (oder ein dict derselben Form); `uc` ist optional (`uc1`…`uc4`, sonst
@@ -196,7 +196,7 @@ der Modell-Badge liest `GET /api/plattform/modell` (E0-Route, führt `uv run pyt
   dürfen nur `/chat/completions` und `/vapi/webhook` erreichen, alles andere 404; lokal bleibt die ganze API offen.
 - `shared/ui` `<VoiceKnopf assistantId>`: Client-Komponente ohne SSR (`next/dynamic`, `ssr: false`), `@vapi-ai/web`
   in `web/package.json`, `NEXT_PUBLIC_VAPI_PUBLIC_KEY`, `recordingEnabled: false`; Transkript als Turns in der
-  Oberfläche; Text-Fallback ist Pflicht (gleiche `antwort`-Funktion über Chat; neu gegenüber everlast).
+  Oberfläche; Text-Fallback ist Pflicht (gleiche `antwort`-Funktion über Chat; neu gegenüber dem früheren Voice-Projekt).
 - Vapi ist ein US-Dienst: Datenfluss im README offenlegen; kein Einzeldatum in die Antwort, nur Aggregate mit Beleg.
 - Erreichbarkeit: `PUBLIC_URL` per cloudflared (named tunnel mit fester URL, sonst nach jedem Start
   `python -m plattform.voice sync`, das die Custom-LLM-URL im Assistant aktualisiert; Demo-Ablauf mit `serve`,
@@ -227,7 +227,7 @@ der Modell-Badge liest `GET /api/plattform/modell` (E0-Route, führt `uv run pyt
 
 ### In-Scope (E0)
 - [ ] Monorepo-Grundgerüst: pnpm- und uv-Workspace, CI (gitleaks, python, web) grün im ersten MR, `.env.example` auf
-      we-16 mit `LLM_PROVIDER`, `OLLAMA_*`, `VAPI_*`, `PUBLIC_URL`; CLAUDE.md Struktur und Ausnahme everlast-Konzept
+      we-16 mit `LLM_PROVIDER`, `OLLAMA_*`, `VAPI_*`, `PUBLIC_URL`; CLAUDE.md Struktur und Ausnahme Konzept aus dem früheren Voice-Projekt
 - [ ] `plattform.llm` mit fünf Providern, Protokollzeile, Smoke-Tests
 - [ ] `plattform.protokoll` und `plattform.freigabe` samt DDL und JSON-Vertrag
 - [ ] `shared/ui` Tokens und Basis-Elemente (Text, Knopf, Feld, Tabelle, Status, Leerzustand)
@@ -255,7 +255,7 @@ der Modell-Badge liest `GET /api/plattform/modell` (E0-Route, führt `uv run pyt
   des UC3-Agenten, nicht über Vapi-Tools
 - Deploy über Vercel: die Vorführung läuft lokal. Zusätzlich gibt es seit 05.11. ein Online-Deploy per Docker auf einem eigenen Server (#68, Owner-Wort 13:20, `deploy/README.md`)
 - Inhalte von UC1, UC2, Slides (eigene Tabs #23, #24, #26) und Abgabe-Ablauf (#27)
-- Code-Übernahme aus everlast: nur Konzept und Verträge, Code entsteht neu (Repo ist öffentlich)
+- Code-Übernahme aus dem früheren Voice-Projekt: nur Konzept und Verträge, Code entsteht neu (Repo ist öffentlich)
 
 ### First Real Use / Kill
 Erster echter Gebrauch: UC3-Session hängt am Do 05.11. bis 18:00 `web/app/uc3/` in die Shell und ruft
@@ -441,7 +441,7 @@ Oracle: Exit-Code des Validators; gehört zu #16/#20.
 | ID | Criterion | Oracle | Owner | Not before | Pass condition | Fallback if it cannot run |
 |----|-----------|--------|-------|------------|----------------|---------------------------|
 | EA-1 | E0-2 Live-Smoke azure, claude, mistral | Antwort des Dienstes, `docs/models.md` mit Zeitstempel | Bau-Session E0 | 2026-11-05 14:00 | drei Provider liefern Text < 30 s | mock in CI; Provider als „nicht belegt“ in models.md |
-| EA-2 | E0-5/6/7/8 und #18: Screens entsprechen Frames | Screenshot-Vergleich gegen die Pen-Frames (Vertrag D) | e5-praesentation-05 | 2026-11-05 18:00 | je Screen „entspricht Frame X“ als Kommentar von e5 | Vergleich gegen Frame qVTQj und Typo-Skala durch E0-Session, als „nicht abgenommen“ markiert |
+| EA-2 | E0-5/6/7/8 und #18: Screens entsprechen Frames | Screenshot-Vergleich gegen die Pen-Frames (Vertrag D) | Präsentation | 2026-11-05 18:00 | je Screen „entspricht Frame X“ als Kommentar von e5 | Vergleich gegen Frame qVTQj und Typo-Skala durch E0-Session, als „nicht abgenommen“ markiert |
 | EA-3 | E0-9 Voice-Anruf Ende-zu-Ende | Vapi end-of-call-report plus UI-Transkript | Owner (Vapi-Konto) | 2026-11-05 22:00 | gesprochene Zahl = vorab notierte psql-Zahl 2025-03 (387.180), Transkript sichtbar | Text-Fallback vorführen, Voice als „nicht belegt“ |
 | EA-4 | E1 Golden Set 08/2024 und Determinismus auf dem Jury-Weg (`DB_PORT=5433 docker compose down -v && up`, frischer Start, zwei Läufe) | `beispielbericht_2024-08.xlsx` plus sha256 über kanonisch sortiertes CSV aus `stat.*` | Bau-Session UC3 | nach #16 | 2.880/2.880 und Hash gleich | Homebrew-PG-Weg dokumentiert, Docker als Einschränkung im README |
 
@@ -452,7 +452,7 @@ Oracle: Exit-Code des Validators; gehört zu #16/#20.
 - `shared/py/plattform/{llm.py, protokoll.py, freigabe.py, voice.py, sql/meta.sql, fixtures/}`, `shared/py/tests/`
 - `shared/ui/src/{tokens.css, ucs.ts, Shell.tsx, Header.tsx, ModellBadge.tsx, HerkunftChip.tsx, FreigabeKarte.tsx, ProtokollSchublade.tsx, VoiceKnopf.tsx, Leerzustand.tsx}`
 - `web/app/{layout.tsx, page.tsx, praesentation/, api/plattform/modell/route.ts, uc1/, uc2/, uc3/}`, `web/tests/slop.spec.ts`, `web/tests/lib/slop-measure.js`
-- `.env.example`, `CLAUDE.md` (Struktur, Ausnahme everlast-Konzept), `docs/models.md`
+- `.env.example`, `CLAUDE.md` (Struktur, Ausnahme Konzept aus dem früheren Voice-Projekt), `docs/models.md`
 
 ### Architecture
 Eine Next.js-App, ein Python-Workspace. Web ist Bedienoberfläche: lesend auf PG, CLI als Subprozess, Streaming
@@ -480,7 +480,7 @@ kein pgvector).
 | pnpm/uv-Workspace bricht den CI-Vorschlag (cd web) | niedrig | CI-Pfade in E0-1 anpassen, erster MR ist der Test | Implement |
 | Feature-Stopp 05:00 (uc3-bauplan) gegen 07:00 (Konzept) | niedrig | 06:30 gilt (Lead-Entscheid 05.11.; vorher 05:00 nach Quellenkarte § 8) | Implement |
 | Zwei Schlüsselwege (.env.local an Wurzel, web braucht NEXT_PUBLIC_*) | niedrig | web-Skripte starten über `dotenv -o -e ../.env.local`; nur VAPI_PUBLIC_KEY wird NEXT_PUBLIC_ | Implement |
-| everlast-Code im öffentlichen Repo | mittel | nur Konzept, Code neu; README weist Herkunft aus | Reject (Code-Übernahme) |
+| Code aus dem früheren Voice-Projekt im öffentlichen Repo | mittel | nur Konzept, Code neu; README weist Herkunft aus | Reject (Code-Übernahme) |
 | CI-Vorschlag bricht mit Workspace (`cd web`, Cache-Key `web/pnpm-lock.yaml`, `uv sync` ohne `--all-packages`, leerer CI-Postgres) `.gitlab-ci.yml:50,66-70` | hoch | E0-1 schreibt CI um; `pytest.mark.daten` nur lokal | Implement |
 | `claude -p` kostet ca. 15 s Wandzeit und ca. 32k Cache-Tokens je Aufruf (gemessen) | mittel | `cwd` leeres Temp-Verzeichnis, nie im UC3-Lauf, AC < 60 s | Implement |
 | Vapi streamt und authentifiziert per Bearer; Header `x-belege` wird nicht gelesen (inference aus Vapi-Vertrag) | hoch | SSE-Antwort, Bearer-Pflicht, Beleg gesprochen; Fixture der echten Anfrage aufzeichnen (Next check) | Implement |

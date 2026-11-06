@@ -1,4 +1,4 @@
-"""Belegzitat für Anzeige und API: höchstens 300 Zeichen, ab dem passenden Satz (Entscheid Lead 58, #8705)."""
+"""Belegzitat für Anzeige und API: höchstens 300 Zeichen, ab dem passenden Satz (Entscheid des Owners)."""
 
 from __future__ import annotations
 

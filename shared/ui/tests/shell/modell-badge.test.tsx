@@ -147,7 +147,7 @@ describe("ModellBadge nach Frames CKCV4 und nas8Y", () => {
   });
 });
 
-// Fängt ab (Lead 58, UC2-Sichtprüfung): Die Seite läuft im Testbetrieb, der Header zeigt aber die globale
+// Fängt ab (Lead, UC2-Sichtprüfung): Die Seite läuft im Testbetrieb, der Header zeigt aber die globale
 // Einstellung „azure · gpt-5“. Die Seite meldet ihr Modell über SeitenModell; beim Verlassen gilt wieder global.
 describe("Modell der Seite", () => {
   it("SeitenModell mock schlägt die globale Angabe, nach dem Verlassen gilt sie wieder", async () => {
@@ -184,4 +184,44 @@ it("eine gewählte Vorgabe gilt auch gegen den gemessenen Anbieter", async () =>
   render(<ModellBadge vorgabe={{ provider: "mistral", gewaehlt: true }} />);
   expect(screen.getByTestId("modell-badge").textContent).toBe("Modell:mistral");
   expect(screen.getByTestId("modell-badge").getAttribute("title")).toBe("Auf dieser Seite gewählt");
+});
+
+// Fängt ab (UI-Regie, /uc2 und /uc1): Über einer aufgezeichneten Verhandlung stand „Ohne Sprachmodell“ oder ein
+// Live-Modell, als liefe die KI gerade. Meldet die Seite eine Aufzeichnung, steht „Aufzeichnung“; sonst nicht.
+describe("Aufzeichnung der Seite", () => {
+  const mock = { provider: "mock", modell: "mock", version: null, quelle: "env", zuletzt: null };
+
+  it("zeigt Aufzeichnung statt Ohne Sprachmodell und statt eines Live-Modells", async () => {
+    const { AppShell } = await import("../../src/shell/app-shell");
+    const { SeitenModell } = await import("../../src/shell/seiten-modell");
+    const { AUFZEICHNUNG_TEXT } = await import("../../src/shell/modell-badge");
+    for (const body of [mock, gewaehlt]) {
+      vi.stubGlobal("fetch", vi.fn(async () => Response.json(body)));
+      const { unmount } = render(
+        <AppShell pfad="/uc2/panel">
+          <SeitenModell aufzeichnung />
+        </AppShell>,
+      );
+      const badge = await screen.findByTestId("modell-badge");
+      expect(badge.textContent).toBe(AUFZEICHNUNG_TEXT);
+      expect(badge.getAttribute("title")).toBe("Diese Seite zeigt eine Aufzeichnung");
+      unmount();
+    }
+  });
+
+  it("ohne Meldung bleibt Ohne Sprachmodell, auch nach dem Verlassen der Aufzeichnung", async () => {
+    const { AppShell } = await import("../../src/shell/app-shell");
+    const { SeitenModell } = await import("../../src/shell/seiten-modell");
+    const { TESTBETRIEB_TEXT, AUFZEICHNUNG_TEXT } = await import("../../src/shell/modell-badge");
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json(mock)));
+    const { rerender } = render(
+      <AppShell pfad="/uc2/panel">
+        <SeitenModell aufzeichnung />
+      </AppShell>,
+    );
+    expect((await screen.findByTestId("modell-badge")).textContent).toBe(AUFZEICHNUNG_TEXT);
+    rerender(<AppShell pfad="/uc2/frage">ohne Angabe</AppShell>);
+    expect(await screen.findByText(TESTBETRIEB_TEXT)).toBeTruthy();
+    expect(screen.queryByText(AUFZEICHNUNG_TEXT)).toBeNull();
+  });
 });

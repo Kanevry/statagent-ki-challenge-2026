@@ -26,7 +26,7 @@ function zahl(wert: number, stellen = 1): string {
 }
 
 function prozent(wert: number): string {
-  return `${wert > 0 ? "+" : wert < 0 ? "−" : ""}${zahl(Math.abs(wert))} %`;
+  return `${wert > 0 ? "+" : wert < 0 ? "−" : ""}${zahl(Math.abs(wert))}\u00a0%`;
 }
 
 export function PanelBuehne({ fallId, modus }: { fallId: string; modus: Modus }) {
@@ -332,12 +332,12 @@ function ExperteKurz({ zustand: z }: { zustand: FallZustand }) {
       </h2>
       {w && k && (
         <p className="font-sans text-16 text-ink">
-          Wartezeit {prozent(w.modus)}, Ausgaben {prozent(k.modus)}. Das Ziel ist −20 % bei höchstens +5 %.
+          Wartezeit {prozent(w.modus)}, Ausgaben {prozent(k.modus)}. Das Ziel ist −20{"\u00a0"}% bei höchstens +5{"\u00a0"}%.
         </p>
       )}
       {w && (
         <p className="font-sans text-14 text-slate">
-          Im ungünstigen Fall sinkt die Wartezeit nur um {zahl(Math.abs(w.max))} %, dann wird das Ziel verfehlt. Gerechnet vom
+          Im ungünstigen Fall sinkt die Wartezeit nur um {zahl(Math.abs(w.max))}{"\u00a0"}%, dann wird das Ziel verfehlt. Gerechnet vom
           Experten ohne KI.
         </p>
       )}

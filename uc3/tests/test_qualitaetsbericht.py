@@ -561,7 +561,7 @@ def test_v2_texte_folgen_der_monatszaehlung_und_r10_nur_mit_verweis() -> None:
 
 def test_im_zeitraum_laesst_den_bezugstag_des_alters_stehen() -> None:
     # Fängt: In v2 stand „Alter in vollendeten Jahren im Berichtsmonat“, das Alter gilt aber am Stichtag
-    # (Review 5a, 05.11.); der Kopf des Bestands-Belegs folgt dagegen dem Zählzeitraum.
+    # (Review, 05.11.); der Kopf des Bestands-Belegs folgt dagegen dem Zählzeitraum.
     from statagent.berichte.qualitaetsbericht import im_zeitraum
 
     alter = "Alter in vollendeten Jahren am Stichtag (E03, R5)"

@@ -91,7 +91,7 @@ print("zeilen_mindestens_10", len(rows) >= 10)
 print("alle_6_spalten", all(len(c) == 6 for c in cells))
 print("leere_zellen", sum(1 for c in cells for x in c if not x.strip()))
 print("einordnung_gueltig", all(c[-1].strip().startswith(("neu", "vorab", "Konzept", "extern")) for c in cells))
-print("everlast_ausdruecklich", sum(1 for z in rows if "everlast" in z and "kein Code übernommen" in z))
+print("frueheres_projekt_kein_code", sum(1 for z in rows if "früheres eigenes Projekt" in z and "kein Code übernommen" in z))
 print("owner_entscheid_datum", "Owner-Entscheid" in h and "05.11.2026" in h)
 lic = open("LICENSE", encoding="utf-8").read()
 r = open("README.md", encoding="utf-8").read()
@@ -99,13 +99,13 @@ print("license_mit", lic.startswith("MIT License"))
 print("readme_nennt_mit_und_dv", "MIT-Lizenz" in r and "Dachverband" in r)
 print("keine_andere_lizenzname", "GPL" not in r.split("## Lizenzen")[1].split("## ")[0])
 '; git ls-files --error-unmatch LICENSE'''
-erwartet = ["^zeilen_mindestens_10 True$", "^alle_6_spalten True$", "^leere_zellen 0$", "^einordnung_gueltig True$", "^everlast_ausdruecklich 1$", "^owner_entscheid_datum True$", "^license_mit True$", "^readme_nennt_mit_und_dv True$", "^keine_andere_lizenzname True$", "^LICENSE$"]
+erwartet = ["^zeilen_mindestens_10 True$", "^alle_6_spalten True$", "^leere_zellen 0$", "^einordnung_gueltig True$", "^frueheres_projekt_kein_code 1$", "^owner_entscheid_datum True$", "^license_mit True$", "^readme_nennt_mit_und_dv True$", "^keine_andere_lizenzname True$", "^LICENSE$"]
 deckung = "voll"
 schwer = false
 zeitlimit = 120
-quelle = "Issue #91 Kriterium (Wortlaut): Spalten der Herkunftstabelle, everlast ausdrücklich, LICENSE mit Owner-Entscheid und README-Angabe"
-befund = "docs/abgabe/herkunft.md hat eine Zeile mit leerer Spalte oder ungültiger Einordnung, nennt everlast nicht ausdrücklich, oder LICENSE und README widersprechen sich."
-grund = "Jede Zeile der Herkunftstabelle ist ausgefüllt, everlast steht mit 'kein Code übernommen', LICENSE (MIT) ist mit Owner-Entscheid belegt und das README nennt sie."
+quelle = "Issue #91 Kriterium (Wortlaut): Spalten der Herkunftstabelle, das frühere eigene Projekt ausdrücklich, LICENSE mit Owner-Entscheid und README-Angabe"
+befund = "docs/abgabe/herkunft.md hat eine Zeile mit leerer Spalte oder ungültiger Einordnung, nennt das frühere eigene Projekt nicht ausdrücklich, oder LICENSE und README widersprechen sich."
+grund = "Jede Zeile der Herkunftstabelle ist ausgefüllt, das frühere eigene Projekt steht mit 'kein Code übernommen', LICENSE (MIT) ist mit Owner-Entscheid belegt und das README nennt sie."
 
 [[pruefung]]
 id = "91-2"

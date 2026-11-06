@@ -67,7 +67,7 @@ zeigt, dass derselbe Kern (Modell-Schalter, Belegschicht, Protokoll, „Mensch g
 | CI: `postgres:16` auf Port 5432, `LLM_PROVIDER: mock`, Job `web` prüft ganz `web/` | `.gitlab-ci.yml` | bestätigt (Datei ist Lead-Vorschlag) | 2026-11-05 @ 51341c6 |
 | Chat-Bausteine lokal, Apache-2.0: `references/ai-elements` (conversation, message, sources, inline-citation, reasoning) zielt auf `ai ^6`; `references/chatbot` pinnt `ai 7.0.15` | `package.json` beider Referenzen | Versionen verschieden | 2026-11-05 12:35 |
 | E0-Verträge stehen: `plattform.llm.complete(nachrichten, schema, stream, provider, zweck)`, `meta.protokoll`/`meta.freigabe` + `plattform.freigabe.freigeben()`, Lanes `web/app/uc2/**`, `web/app/api/uc2/**`, `web/components/uc2/**`, `@kic/ui`-Bausteine, je UC eigene DB auf 5433, optional FastAPI `uc2.api:app` auf 8102 | `glab api projects/:id/issues/21/notes/269372` | bestätigt; `complete()` hat keinen Parameter für Modell oder Denkaufwand | 2026-11-05 12:55 |
-| UC2-Frames in Pen: `bhI7X` U2-0 Fall stellen, `f1ct2` U2-1 Panel verhandelt, `NjP7Q` U2-1a Modellfehler inline, `k3wbtm` U2-2 Abgestimmte Antwort; Bausteine `nas8Y`, `QVMco`, `NeqAs`, `CKCV4`, `FgY98`, `yK42X` | Kommentar in #24 (e5-praesentation-05) | Positionsänderungen als Balkenreihe je Persona und Runde | 2026-11-05 12:40 |
+| UC2-Frames in Pen: `bhI7X` U2-0 Fall stellen, `f1ct2` U2-1 Panel verhandelt, `NjP7Q` U2-1a Modellfehler inline, `k3wbtm` U2-2 Abgestimmte Antwort; Bausteine `nas8Y`, `QVMco`, `NeqAs`, `CKCV4`, `FgY98`, `yK42X` | Kommentar in #24 (Präsentation) | Positionsänderungen als Balkenreihe je Persona und Runde | 2026-11-05 12:40 |
 | `claude -p --bare` liest kein OAuth/Abo, nur `ANTHROPIC_API_KEY` | `claude --help` (2.1.318) | bestätigt; `ANTHROPIC_API_KEY` ist nicht gesetzt | 2026-11-05 12:35 |
 | Azure-Schlüssel in `app/.env.local` leer | Quellenkarte Lead | **Hypothese** bis E0-Smoke-Test (#21) | 2026-11-05 12:30 |
 | Wartezeit-Ziel hängt an der Auslastung ρ₀ | Handrechnung W ∝ ρ/(1−ρ) | für −20 % braucht es +1,25 % Kapazität bei ρ₀ = 0,95, +5 % bei 0,80, +7,5 % bei 0,70; ρ₀ ist unbelegt (Typ A) | 2026-11-05 12:35 |
@@ -200,7 +200,7 @@ nennt die Lücke. Für den `claude`-Provider gelten diese Anforderungen an E0:
 - **pgvector, unaccent**: fehlen bzw. nicht installiert; der deutsche Stemmer faltet Umlaute. (Embeddings sind seit dem
   Nachtrag vom 05.11. 13:10 in Scope, ohne pgvector.)
 - **Framework einbetten** (TinyTroupe MIT, Concordia Apache-2.0, MiroFish/AgentTorch AGPL): nur Muster.
-- **Code aus eigenen Produkten** (persona-panel-Code, everlast, Pflegegeld-Prüfer): verboten im öffentlichen Repo.
+- **Code aus eigenen Produkten** (persona-panel-Code, früheres Voice-Projekt, Pflegegeld-Prüfer): verboten im öffentlichen Repo.
 - **Abgabe von UC2:** bewertet wird nur UC3; nichts nach GitHub vor Fr kurz vor 09:00.
 
 ### First Real Use / Kill

@@ -109,7 +109,7 @@ def _plan_tabellen(knoten: object) -> set[str]:
     return gefunden
 
 
-def sql_lesen(conn: Verbindung, query: str) -> dict[str, Any]:
+def sql_lesen(conn: Verbindung, query: str, zeitlimit: str = ZEITLIMIT) -> dict[str, Any]:
     """Führt eine geprüfte Leseabfrage aus: ``{spalten, zeilen, abgeschnitten}``.
 
     Braucht eine Verbindung ohne offene Transaktion (die Nur-Lese-Einstellung muss am Anfang stehen).
@@ -119,7 +119,7 @@ def sql_lesen(conn: Verbindung, query: str) -> dict[str, Any]:
         raise AbfrageVerweigert("sql_lesen braucht eine Verbindung ohne offene Transaktion.")
     with conn.transaction():
         conn.execute("SET TRANSACTION READ ONLY")
-        conn.execute(sql.SQL("SET LOCAL statement_timeout = {}").format(sql.Literal(ZEITLIMIT)))
+        conn.execute(sql.SQL("SET LOCAL statement_timeout = {}").format(sql.Literal(zeitlimit)))
         # Unqualifizierte Namen landen nur in den freien Schemas, nie in roh (auch wenn die Verbindung
         # vorher einen anderen search_path gesetzt hat).
         conn.execute(

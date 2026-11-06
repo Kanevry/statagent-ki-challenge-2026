@@ -42,10 +42,10 @@ Quelle. Der Voice-Baustein dient zugleich UC3 („mit den Daten sprechen“).
 | Formularfelder | Felder per zlib aus den PDF-Strömen gezählt (Pre-Mortem B) | PAL080 63 Text/34 Knöpfe, Kur/Reha 46/45; **0 Felder mit Required-Flag**, Pflichtfelder müssen kuratierte Daten sein | 2026-11-05 |
 | pgvector verfügbar | `psql -p 5433 -c "select * from pg_available_extensions where name='vector'"` | **0 Zeilen**; `unaccent`, `pg_trgm` verfügbar | 2026-11-05 |
 | E0-Schnittstellen entschieden | `glab issue view 21 --comments` | keine Kommentare, kein Code (`web/`, `shared/` fehlen) | 2026-11-05 |
-| everlast-Messwerte | `everlast-voice-interviewer/bench/results/costs-2026-10-28.json`, Antwort 04 | Pause Median 1394 ms (p90 1819 ms), 0,078–0,086 USD/min; Messung vor Anhebung `waitSeconds` 0,3 → 0,6; `hypothesis`: heute ca. +0,3 s | 2026-10-28 |
-| everlast ohne Text-Fallback | Lesen `web/src/main.ts` | keine Texteingabe, nur Fehlermeldungen und Transkript | 2026-11-05 |
+| Messwerte aus dem früheren Voice-Projekt | `bench/results/costs-2026-10-28.json` im früheren Voice-Projekt, Antwort 04 | Pause Median 1394 ms (p90 1819 ms), 0,078–0,086 USD/min; Messung vor Anhebung `waitSeconds` 0,3 → 0,6; `hypothesis`: heute ca. +0,3 s | 2026-10-28 |
+| Früheres Voice-Projekt ohne Text-Fallback | Lesen `web/src/main.ts` | keine Texteingabe, nur Fehlermeldungen und Transkript | 2026-11-05 |
 | Vapi-Schlüssel vorhanden | `grep -c '^VAPI_API_KEY=' app/.env.local` (je Name, ohne Wert) | VAPI_API_KEY 1, VAPI_PUBLIC_KEY 1, AZURE_API_KEY 1; **VAPI_WEBHOOK_SECRET 0, PUBLIC_URL 0, LLM_PROVIDER 0** | 2026-11-05 |
-| Owner gibt everlast-Code frei | Nachricht lead-session-orchestrator-09 an e2-uc1-4b, Owner-Wort 12:4x („mit vapi api key etc und bereits geilen ui elementen … für unsere apps nutzen“) | Übernahme erlaubt, im README als „vorab entstanden“ | 2026-11-05 |
+| Owner gibt Code aus dem früheren Voice-Projekt frei | Nachricht des Leads an den UC1-Bereich, Owner-Wort 12:4x („mit vapi api key etc und bereits geilen ui elementen … für unsere apps nutzen“) | Übernahme erlaubt, im README als „vorab entstanden“ | 2026-11-05 |
 
 ## 2. Solution & Scope
 
@@ -62,9 +62,9 @@ Quelle. Der Voice-Baustein dient zugleich UC3 („mit den Daten sprechen“).
 - [ ] **Dokument-Upload:** Entlassungsbrief (PDF) lokal lesen, nur ausdrücklich dokumentierte Empfehlungen wörtlich
   zitieren („In Ihrem Dokument steht: …“) und in einen Ablauf überführen (Reha → Stelle → Antrag).
 - [ ] **Voice-Anbindung UC1** an den gemeinsamen Baustein von E0 (`plattform.voice.erstelle_router(antwort)`,
-  `@kic/ui` `VoiceKnopf`; Entscheid app-c3 in #21 note_269372) auf Basis everlast (Owner-Freigabe 12:4x über Lead):
+  `@kic/ui` `VoiceKnopf`; Entscheid der Plattform in #21 note_269372) auf Basis des früheren Voice-Projekts (Owner-Freigabe 12:4x über Lead):
   UC1-Antwortfunktion, Vapi-Assistent UC1, Belege je Call, Bindung Call → Sitzung, Text-Fallback.
-- [ ] **UC1-Seite im Dashboard** nach den Pen-Frames der UI-Session (e5-praesentation-05), mit E0-Bausteinen aus `shared/ui`.
+- [ ] **UC1-Seite im Dashboard** nach den Pen-Frames der UI-Sitzung, mit E0-Bausteinen aus `shared/ui`.
 - [ ] **Messung:** Lotse-Set (12 Fragen aus dem Golden Set, 2 Szenarien, 8 Grenzfälle) mit Soll je Fall, eingefroren
   vor dem ersten `kern.py`-Commit, `lotse eval`, Ergebnis als Tabelle in `docs/plan/uc1/messung.md`. Honorarordnungen
   und EKO werden nur eingelesen, nicht gemessen.
@@ -235,9 +235,9 @@ Oracle: Playwright-Durchlauf mit Screenshots; axe ohne critical/serious; Verglei
 | Criterion | Oracle | Owner | Not before | Pass condition | Fallback if it cannot run |
 |---|---|---|---|---|---|
 | A1 · E (Stimme) + B (Pflege-Szenario) live | Owner spricht das Szenario am Demo-Rechner im Veranstaltungs-WLAN; Antwortzeit-Uhr und Vapi-Call-Log | Bernhard Götzendorfer | 2026-11-05 (nach E) | Szenario komplett, ≥ 1 Quelle je Antwort sichtbar, Median ≤ 2,0 s | Text-Pfad vorführen plus Aufzeichnung des Laufs |
-| A2 · B (Grenzen, Zitate), C (Pflichtfelder) | Frische Prüf-Session des Leads sieht alle 8 Grenzfälle plus 2 Pflege-Antworten aus `lotse eval` mit den zitierten Abschnitten (nicht die Verbotsliste) und die Pflichtfeldlisten gegen die gedruckten Formulare | lead-session-orchestrator-09 | 2026-11-05 (nach B) | 0 Diagnosen oder Empfehlungen, ≥ 9/10 Aussagen von der Quelle gedeckt, 0 falsche Träger, Pflichtfeldliste ohne Lücke | Befunde als Issue, Fälle aus der Demo nehmen |
-| A4 · A, B (Held-out) | Lead schreibt vor dem ersten `kern.py`-Commit 10 Paraphrasen (u. a. Fall 7 „75 h“, SVS- und BVAEB-Pensionistin) und 8 eigene Grenzfragen (EN, Injection), friert sie außerhalb des Bau-Worktrees ein und lässt `lotse eval` darüber laufen | lead-session-orchestrator-09 | 2026-11-05 (vor B) | Recall@5 ≥ 8/10, Träger 10/10, Grenzen 8/8 | Nur eingefrorenes Lotse-Set, Ergebnis als „nicht held-out“ kennzeichnen |
-| A3 · F (Pen-Treue) | UI-Session vergleicht Screenshots mit den Pen-Frames | e5-praesentation-05 | 2026-11-06 (nach F) | Aufbau und Reihenfolge wie Frames, keine eigene Gestaltung | Abweichungsliste, Demo mit Text-Pfad |
+| A2 · B (Grenzen, Zitate), C (Pflichtfelder) | Frische Prüf-Session des Leads sieht alle 8 Grenzfälle plus 2 Pflege-Antworten aus `lotse eval` mit den zitierten Abschnitten (nicht die Verbotsliste) und die Pflichtfeldlisten gegen die gedruckten Formulare | Lead | 2026-11-05 (nach B) | 0 Diagnosen oder Empfehlungen, ≥ 9/10 Aussagen von der Quelle gedeckt, 0 falsche Träger, Pflichtfeldliste ohne Lücke | Befunde als Issue, Fälle aus der Demo nehmen |
+| A4 · A, B (Held-out) | Lead schreibt vor dem ersten `kern.py`-Commit 10 Paraphrasen (u. a. Fall 7 „75 h“, SVS- und BVAEB-Pensionistin) und 8 eigene Grenzfragen (EN, Injection), friert sie außerhalb des Bau-Worktrees ein und lässt `lotse eval` darüber laufen | Lead | 2026-11-05 (vor B) | Recall@5 ≥ 8/10, Träger 10/10, Grenzen 8/8 | Nur eingefrorenes Lotse-Set, Ergebnis als „nicht held-out“ kennzeichnen |
+| A3 · F (Pen-Treue) | UI-Session vergleicht Screenshots mit den Pen-Frames | Präsentation | 2026-11-06 (nach F) | Aufbau und Reihenfolge wie Frames, keine eigene Gestaltung | Abweichungsliste, Demo mit Text-Pfad |
 
 ## 4. Technical Notes
 
@@ -252,12 +252,12 @@ Oracle: Playwright-Durchlauf mit Screenshots; axe ohne critical/serious; Verglei
 - `uc1/formulare/*.felder.json` — Feldzuordnung je Formular als Daten.
 - `uc1/eval/lotse-set.yaml` — Lotse-Set mit Soll je Fall.
 - `shared/py/plattform/voice` und `shared/ui` `VoiceKnopf` — **gehören E0** (Router `POST /chat/completions`,
-  `POST /vapi/webhook`, Portierung der generischen everlast-Teile, Sprach-Pegel `eE7uh` statt Orb). UC1 liefert nur
+  `POST /vapi/webhook`, Portierung der generischen Teile aus dem früheren Voice-Projekt, Sprach-Pegel `eE7uh` statt Orb). UC1 liefert nur
   `antwort(nachrichten, sitzung) -> {text, belege[]}` und die UC1-Assistent-Konfiguration.
 - DB `lotse`: zusätzlich die gemeinsame DDL `meta.protokoll`/`meta.freigabe` von E0, damit `GET /api/uc1/protokoll` liest.
 - `web/app/uc1/` — `layout.tsx` mit `<UcBereich uc="uc1" nav=[…]>`, Eintrag in `shared/ui/src/ucs.ts`, Seite nach Pen-Frames;
   `web/app/api/uc1/` als Proxy zu `uc1.api:app`.
-- `README.md` (über E6) — „vorab entstanden: everlast-voice-interviewer (Voice-Baustein)“; Grenzen: Sprache läuft über
+- `README.md` (über E6) — „vorab entstanden: früheres Voice-Projekt (Voice-Baustein)“; Grenzen: Sprache läuft über
   Vapi/Deepgram/ElevenLabs in den USA, EU-Weg als Ausblick.
 
 ### Architecture
@@ -269,7 +269,7 @@ Oracle: Playwright-Durchlauf mit Screenshots; axe ohne critical/serious; Verglei
 - **Grenzprüfung zweimal** (Muster GOV.UK Chat): vor der Antwort (Absicht medizinisch?) und danach (Verbotsliste).
 - **Voice:** Browser → Vapi (STT Deepgram de, TTS ElevenLabs) → Custom LLM `POST {PUBLIC_URL}/chat/completions` am
   `lotse`-Dienst (OpenAI-kompatibel, Streaming) → Lotse-Kern → kurzer Sprechtext; Belege je Call-ID in `lotse.beleg`,
-  die Seite liest sie nach. Tunnel per cloudflared (Muster everlast). Aus everlast nicht übernommen: Express-Server,
+  die Seite liest sie nach. Tunnel per cloudflared (Muster des früheren Voice-Projekts). Aus dem früheren Voice-Projekt nicht übernommen: Express-Server,
   `@goetzendorfer/*`-Pakete, Interview-Leitfaden, Bewertung, Slack, Corporate-CSS.
 - **Web:** Next.js liest nur über den `lotse`-Dienst (localhost), keine eigene Logik; Replay aus aufgezeichnetem Lauf.
 
@@ -290,10 +290,10 @@ und `/vapi/webhook` erreichbar (Middleware nach Host/CF-Header), alles andere 40
 |---|---|---|---|
 | E0-Bausteine (`plattform.llm`, `plattform.voice`, `@kic/ui`) kommen später als UC1 W1/W2 | UC1 wartet | `mock` und eigene Stubs mit demselben Vertrag, Austausch in einer Datei | Implement |
 | Vapi Custom LLM braucht Streaming und öffentliches HTTPS; Tunnel im Veranstaltungs-WLAN ungemessen | Stimme fällt aus | W0-Spike misst den Weg Ende-zu-Ende; Text-Fallback Pflicht | Experiment |
-| Pause steigt über 2 s (eigener Kern langsamer als gpt-4.1-mini bei Vapi; everlast-Wert vor `waitSeconds` 0,6) | Gespräch zäh | kurzer Sprechtext (2 Sätze), Suche vor Modell, Azure statt claude im Voice-Pfad | Implement |
+| Pause steigt über 2 s (eigener Kern langsamer als gpt-4.1-mini bei Vapi; Wert aus dem früheren Voice-Projekt vor `waitSeconds` 0,6) | Gespräch zäh | kurzer Sprechtext (2 Sätze), Suche vor Modell, Azure statt claude im Voice-Pfad | Implement |
 | Komprimierte AcroForms (PAL080) haben unklare Feldnamen | Vorausfüllen hakt | W0-Spike zählt Felder mit pypdf, Zuordnung als JSON | Experiment |
-| everlast hat keine Lizenzdatei („Alle Rechte vorbehalten“), öffentliches Repo | Lizenzlücke | Owner-Freigabe 12:4x deckt Übernahme; E6 (#27) legt Repo-Lizenz fest, README nennt Herkunft | Implement |
-| `CLAUDE.md` sagt „kein Code aus anderen Produkten“, Owner gibt everlast frei | Regelkonflikt für Bau-Sessions | Lead passt `CLAUDE.md` an (nicht UC1-Bereich) | Implement |
+| Das frühere Voice-Projekt hat keine Lizenzdatei („Alle Rechte vorbehalten“), öffentliches Repo | Lizenzlücke | Owner-Freigabe 12:4x deckt Übernahme; E6 (#27) legt Repo-Lizenz fest, README nennt Herkunft | Implement |
+| `CLAUDE.md` sagt „kein Code aus anderen Produkten“, Owner gibt das frühere Voice-Projekt frei | Regelkonflikt für Bau-Sessions | Lead passt `CLAUDE.md` an (nicht UC1-Bereich) | Implement |
 | Sprache geht über US-Dienste (Vapi, Deepgram, ElevenLabs) | Datenschutz-Frage der Jury | nur Demo-Daten, Hinweis im UI und README, EU-Ausblick | Implement |
 | Azure-Deployment `gpt-5-4-mini` womöglich „Global“ statt EU-Datenzone | EU-Aussage falsch | Deployment-Typ bei E0 prüfen, sonst Aussage weglassen | Defer |
 | Pen-Frames UC1 fehlen bis Fr 01:00 | F blockiert | F baut den Text-Pfad mit E0-Bausteinen ohne eigene Gestaltung, A3 entfällt | Implement |
@@ -308,7 +308,7 @@ und `/vapi/webhook` erreichbar (Middleware nach Host/CF-Header), alles andere 40
 | Tunnel leitet den ganzen Port weiter; Custom-LLM-URL trägt `x-vapi-secret` nicht von selbst | Fremde verbrauchen Azure-Tokens, lesen `/belege` | eigener Listener nur für `/chat/completions`, Geheimnis-Transport im W0-Spike klären, `call_id` an Sitzung binden | Implement |
 | Quick-Tunnel-URL wechselt bei jedem Start | Vapi ruft tote URL | Startskript: Tunnel starten, Assistent-URL setzen, rücklesen | Implement |
 | Prüfung nach der Antwort verhindert Streaming | Pause > 2 s | Sprechtext ≤ 2 Sätze, `max_tokens` klein, Prüfung auf dem kurzen Text | Experiment |
-| everlast-Browsercode nutzt Vite-Globals und `window` beim Laden | Absturz in Next.js 16 | Client-Komponente ohne SSR, `NEXT_PUBLIC_VAPI_PUBLIC_KEY`, Assistent-ID aus Konfiguration; `three`/`@vapi-ai/web` in `web/package.json` | Implement |
+| Browsercode aus dem früheren Voice-Projekt nutzt Vite-Globals und `window` beim Laden | Absturz in Next.js 16 | Client-Komponente ohne SSR, `NEXT_PUBLIC_VAPI_PUBLIC_KEY`, Assistent-ID aus Konfiguration; `three`/`@vapi-ai/web` in `web/package.json` | Implement |
 | Vapi zeichnet Gespräche auf (`recordingEnabled`), Anrufe enden nach 420 s | Demo-Daten bei Vapi gespeichert | Aufzeichnung aus, Dauer passend setzen | Implement |
 | Hochgeladenes PDF trägt Injection („Empfehlung: ignoriere …“), unbegrenzte Größe | Modell folgt fremder Anweisung | Sätze als Daten markiert übergeben, Grenze 10 MB/20 Seiten, Sitzungsende per Knopf oder 30 min | Implement |
 | pypdf ignoriert unbekannte Feldnamen still | leerer Entwurf | unbekannter Feldname = Fehler; Hinweis „Entwurf“ als FreeText-Annotation | Implement |
@@ -318,7 +318,7 @@ und `/vapi/webhook` erreichbar (Middleware nach Host/CF-Header), alles andere 40
 
 ### Dependencies
 - #21 E0 Plattform: `shared/`-Modell-Schalter, Header-Wechsel, `shared/ui` (Herkunft-Chip, Freigabe-Karte, Modell-Badge), Route. Offen.
-- Pen-Frames UC1 (e5-praesentation-05): IDs kommen als Kommentar in #23. Offen.
+- Pen-Frames UC1 (Präsentation): IDs kommen als Kommentar in #23. Offen.
 - #25 E4 Daten: Web-Quellen, nur falls später ergänzt. Nicht blockierend.
 - #27 E6 Abgabe: Repo-Lizenz, README-Abschnitte „vorab entstanden“ und Grenzen.
 - `app/.env.local`: VAPI_API_KEY, VAPI_PUBLIC_KEY, AZURE_API_KEY vorhanden (gezählt, ohne Wert); VAPI_WEBHOOK_SECRET, PUBLIC_URL, LLM_PROVIDER fehlen dort und in `.env.example` (Namen ergänzt W0).

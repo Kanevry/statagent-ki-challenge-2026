@@ -1,4 +1,4 @@
-"""Datenanfragen im Regelsatz v2: Zählung je Monat, gleiche Zahl wie die Aggregattabelle (Auftrag Lead, b-uc3-b6)."""
+"""Datenanfragen im Regelsatz v2: Zählung je Monat, gleiche Zahl wie die Aggregattabelle (Auftrag Lead)."""
 
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ def _summe(conn: Verbindung, regelsatz: str, art: str) -> int:
     return int(str(zeile["n"]))
 
 
-# Fängt: Eine Frage nach v2 gab die v1-Zahl oder keine Zahl (gemessen b-uc3-b6: alle v2-Zeilen sind „Monat“).
+# Fängt: Eine Frage nach v2 gab die v1-Zahl oder keine Zahl (gemessen: alle v2-Zeilen sind „Monat“).
 @pytest.mark.parametrize(
     "frage",
     [
@@ -336,7 +336,7 @@ def test_verlauf_zweier_bundeslaender_bekommt_den_grund(mit_v2: Verbindung) -> N
     assert daten["zahlen"] == [] and "irgendwann im Monat" not in daten["text"]
 
 
-# Bank 49: Ein Wort zwischen „vor“ und den Änderungsaufträgen schaltete trotzdem auf v2.
+# Review: Ein Wort zwischen „vor“ und den Änderungsaufträgen schaltete trotzdem auf v2.
 @pytest.mark.parametrize(
     "frage",
     [
@@ -356,7 +356,7 @@ def test_anderes_ohne_neben_v2_ist_keine_verneinung() -> None:
     assert frage_modul._V2_VERNEINT.search("Frauen ohne Kinder im August 2024 nach v2") is None
 
 
-# Bank 49: Das Muster hatte kein Wortende, „Monatszahl“ und „Monatsbestand“ bekamen die Absage für durchgehend.
+# Review: Das Muster hatte kein Wortende, „Monatszahl“ und „Monatsbestand“ bekamen die Absage für durchgehend.
 @pytest.mark.parametrize(
     "frage",
     [
@@ -368,7 +368,7 @@ def test_monatszahl_ist_nicht_durchgehend(frage: str) -> None:
     assert nicht_auswertbar(frage) != frage_modul.DURCHGEHEND_GRUND
 
 
-# Bank 49: /uc4 zeigte zu „Wien und Tirol … nach v2“ die v1-Zahlen ohne Hinweis (gemessen: 93.249 und 36.320).
+# Review: /uc4 zeigte zu „Wien und Tirol … nach v2“ die v1-Zahlen ohne Hinweis (gemessen: 93.249 und 36.320).
 def test_uc4_mehrere_werte_nach_v2_keine_v1_zahlen(mit_v2: Verbindung) -> None:
     daten = uc4_antwort(mit_v2, "Beschäftigte in Wien und Tirol im August 2024 nach v2")
     assert daten["zahlen"] == [] and "mehrere" in daten["text"]
@@ -382,7 +382,7 @@ def test_uc4_mehrere_werte_ohne_wort_und_als_schalter(mit_v2: Verbindung) -> Non
     assert len(v1) == 3 and len(v2) == 3 and [z["wert"] for z in v1] != [z["wert"] for z in v2]
 
 
-# Bank 49: „bevor“ fehlte bei der Verneinung, „vor oder nach“ und „Umsetzung“ bei beiden Regelsätzen.
+# Review: „bevor“ fehlte bei der Verneinung, „vor oder nach“ und „Umsetzung“ bei beiden Regelsätzen.
 def test_bevor_ist_eine_verneinung(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Beschäftigte im August 2024, bevor die Änderungsaufträge umgesetzt wurden")
     assert daten["zahlen"] == [] and daten["text"].startswith(
@@ -402,7 +402,7 @@ def test_vor_oder_nach_mit_umsetzung_fragt_beide(mit_v2: Verbindung, frage: str)
     assert daten["zahlen"] == [] and "nur einen Stand" in daten["text"]
 
 
-# Bank 49: Ein einzelner gerechneter Regelsatz steht in der Einzahl.
+# Review: Ein einzelner gerechneter Regelsatz steht in der Einzahl.
 def test_regelsatz_ohne_lauf_einzahl(conn: Verbindung) -> None:
     conn.execute("DELETE FROM meta.lauf WHERE regelsatz <> 'v1'")
     conn.execute(
@@ -412,7 +412,7 @@ def test_regelsatz_ohne_lauf_einzahl(conn: Verbindung) -> None:
     assert text == "Im Regelsatz v3 ist noch kein Monat gerechnet. Es gibt Zahlen im Regelsatz v1."
 
 
-# Bank 49: Der Satz zur Zeitreihe verweist auf einen Zeitraum, den es im Regelsatz v2 auch gibt.
+# Review: Der Satz zur Zeitreihe verweist auf einen Zeitraum, den es im Regelsatz v2 auch gibt.
 def test_beispiel_der_zeitreihen_absage_rechnet(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Beschäftigte August bis September 2024 nach Regelsatz v2")
     assert daten["zahlen"]
@@ -448,3 +448,18 @@ def test_v2_vergleich_mit_vormonat_ohne_zahl(mit_v2: Verbindung, frage: str) -> 
     assert daten["zahlen"] == [] and daten["text"].startswith(
         "Einen Vergleich mit dem Vormonat zeigt StatAgent"
     )
+
+
+# Fängt: „dort“ ohne Ort bekam auf dem Weg „nach den Änderungsaufträgen“ weiter eine Zahl für ganz Österreich,
+# weil dieser Weg vor der Prüfung abzweigt.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte dort im August 2024",
+        "Beschäftigte dort im August 2024 nach den Änderungsaufträgen",
+    ],
+)
+def test_dort_ohne_ort_in_beiden_regelstaenden(mit_v2: Verbindung, frage: str) -> None:
+    daten = uc4_antwort(mit_v2, frage)
+    assert not daten["zahlen"]
+    assert daten["text"] == "Die Frage sagt „dort“, nennt aber keinen Ort. Welches Bundesland meinen Sie?"

@@ -61,12 +61,12 @@ DEMO_FRAGEN = (
         ),
         ("Felix Probst warnt. Probst bleibt dabei.", "Eine Person warnt. Eine Person bleibt dabei."),
         ("Wie Quastlberger sagte, fehlt das Geld.", "Wie eine Person sagte, fehlt das Geld."),
-        # Review 5a zu !97: je Vorkommen entscheiden, Satzanfang und Präpositionen zählen mit
+        # Review zu !97: je Vorkommen entscheiden, Satzanfang und Präpositionen zählen mit
         ("Quastlberger sagte nichts.", "Eine Person sagte nichts."),
         ("Das reicht, aber Quastlberger fordert mehr.", "Das reicht, aber eine Person fordert mehr."),
         ("Das Geld reicht nicht für Quastlberger.", "Das Geld reicht nicht für eine Person."),
         ("Gestern bestätigte Quastlberger die Zahl.", "Gestern bestätigte eine Person die Zahl."),
-        # Review 4d zu !97: keine Ausnahme nach Artikel, Verb oder Relativpronomen, auch nicht vor Bindestrich
+        # Review zu !97: keine Ausnahme nach Artikel, Verb oder Relativpronomen, auch nicht vor Bindestrich
         ("Das bestätigte Quastlberger.", "Das bestätigte eine Person."),
         ("Dem stimmte Quastlberger zu.", "Dem stimmte eine Person zu."),
         ("Das hatte aber Quastlberger gesagt.", "Das hatte aber eine Person gesagt."),
@@ -221,7 +221,7 @@ def test_unter_acht_woertern_bleibt_die_begruendung() -> None:
         "Wartet eine Frau, geboren am 01.02.1980, länger?",
         "Welche Wartezeit hat Geburtsdatum 3.4.1975?",
         "Bitte Antwort an maria.beispiel@example.org senden.",
-        # Review 5a zu !97: weitere Datums- und Nummernformen, Kennung in Anführungszeichen
+        # Review zu !97: weitere Datums- und Nummernformen, Kennung in Anführungszeichen
         "Wartet eine Frau, geb. 01.02.80, länger?",
         "Geburtsdatum 1980-02-01: Wie lange wartet sie?",
         "Wartet die Versicherte 1234 01.02.80 länger?",
@@ -287,7 +287,7 @@ def _lauf_mit_namen_und_zitat(
         uebernahme.append(" ".join(beleg.text.split()[:9]))
         thema = erg.zug["themen"][0]
         thema["begruendung"] += f"{ZUSATZ} Laut Beleg: {uebernahme[0]}"
-        # Review 4d: Die Einheit geht über den Befund zahl_widerspruch nach außen.
+        # Review: Die Einheit geht über den Befund zahl_widerspruch nach außen.
         erg.zug["zahlen"].append(
             {"wert": 4711.5, "einheit": "Stellen laut Felix Probst", "quelle": "experte"}
         )

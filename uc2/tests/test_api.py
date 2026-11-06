@@ -298,7 +298,7 @@ def test_konfigfehler_mit_env_namen_geht_nur_ins_log(
     assert any("GEHEIMER_ENV_NAME" in r.getMessage() for r in caplog.records)
 
 
-# --- Belegfilter (Entscheid Lead 58, Owner-Klick #8705) ------------------------------------------------
+# --- Belegfilter (Entscheid des Owners) ------------------------------------------------
 
 
 def _belege_in(knoten: Any) -> Iterator[dict[str, Any]]:

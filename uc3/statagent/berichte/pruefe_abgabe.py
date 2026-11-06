@@ -308,7 +308,7 @@ def _rueckfrage_status_maengel(zeilen: list[str], rueckfragen: str) -> list[str]
 def _verweis_maengel(zeilen: list[str], auffaellig: str, rueckfragen: str) -> list[str]:
     """Jede Rückfrage, auf die eine Auffälligkeit in § 2 verweist (letzte Tabellenspalte), steht auch in § 3.
 
-    Fängt Berichte, deren § 2 noch alte Rückfrage-Nummern trägt, während § 3 die neuen nennt (Review 57, D).
+    Fängt Berichte, deren § 2 noch alte Rückfrage-Nummern trägt, während § 3 die neuen nennt (Review, D).
     """
     teil2 = _abschnitt(zeilen, auffaellig) or []
     teil3 = "\n".join(_abschnitt(zeilen, rueckfragen) or [])
@@ -527,7 +527,7 @@ def _punkt_ministerium(
     docs/plan/uc3/ministerium-oracle.md (die Zeilenzahl allein trennt die Varianten nicht; fehlt ein Sollwert, ist
     das ein Mangel). Liegt die CSV in
     ``lieferungen_dir`` (lokal vor der Abgabe über die SV-Box), wird sie geprüft und gegen die sha256 des Belegs
-    abgeglichen; ohne sie reicht der Beleg (Entscheid Lead 58, #16; Review 57 Pflicht B).
+    abgeglichen; ohne sie reicht der Beleg (Entscheid Lead, #16; Review Pflicht B).
     """
     name = "Ministeriums-Lieferung 2026-07"
     datei = "ministerium_2026-07.csv"
