@@ -48,7 +48,7 @@ fünfte Buchung, schreibt man nicht „das Geld ist weg“, sondern fragt zuerst
 Belege: [README](../../README.md), Abschnitte „Wie UC3 rechnet“ und „Freigabe durch einen Menschen“;
 `uc3/statagent/frage.py` („Beantwortet eine Datenanfrage ohne Sprachmodell“).
 
-Der Grundsatz steht im README wörtlich so: **„Die KI schreibt Code und Texte, das Programm rechnet.“** In der
+Der Grundsatz steht in der [Langfassung zu „Lösung und Ansatz“](loesung-und-ansatz.md) wörtlich so: **„Die KI schreibt Code und Texte, das Programm rechnet.“** In der
 gemeinsamen Wortliste des Teams ([`docs/sprache.md`](../sprache.md), Kernsätze) heißt er: **„Die KI schreibt Code und
 Regeln, gerechnet wird ohne KI, ein Mensch gibt mit Namen frei.“**
 

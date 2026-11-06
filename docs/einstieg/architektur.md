@@ -12,7 +12,7 @@ Datenbank, zählt die Beschäftigungsverhältnisse am Stichtag, prüft jede Lief
 Qualitätsbericht. Python und SQL rechnen, eine Weboberfläche in Next.js zeigt die Ergebnisse mit Beleg, und eigene
 Agenten setzen Änderungsaufträge als Vorschläge um, die ein Mensch freigibt.
 
-Die drei Grundsätze stehen im Wurzel-README ([`README.md`](../../README.md), Abschnitt „Lösung und Ansatz“) so:
+Die drei Grundsätze stehen in der Langfassung zu „Lösung und Ansatz“ ([`loesung-und-ansatz.md`](loesung-und-ansatz.md)) so:
 
 > **Die KI schreibt Code und Texte, das Programm rechnet.** Jede Zahl kommt aus der Datenbank und trägt ihren
 > Beleg. Jede Änderung an Regeln oder Code gibt ein Mensch mit Vor- und Nachnamen frei.
