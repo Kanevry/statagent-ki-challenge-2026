@@ -73,7 +73,7 @@ Beleg: `abgabe/protokoll.md`, Abschnitt „Hinweise zu den Freigaben“ und Absc
 Beleg: F4 bis F11; `abgabe/protokoll.md`; `abgabe/rueckfragen/` (R1 bis R10); `docs/plan/uc3/annahmen.md`.
 
 **13. Was fehlt noch?**
-„Bei den Pensionen fehlen die öffentlich Bediensteten, die frühere BVA meldet keine. Wir zählen nach Abschnitt und Bundesland, weil die Lieferungen nur das haben. Die tiefen Klassifikationen kann man online nachschlagen, gezählt wird nicht tiefer. Die Live-Änderung ist getippt, nicht gesprochen. Das steht alles offen auf unserer Karte.“
+„Die Pensionen kamen nach dem Einfrieren der Abgabe dazu, bei ihnen fehlen die öffentlich Bediensteten, die frühere BVA meldet keine. Wir zählen nach Abschnitt und Bundesland, weil die Lieferungen nur das haben. Die tiefen Klassifikationen kann man online nachschlagen, gezählt wird nicht tiefer. Die Live-Änderung ist getippt, nicht gesprochen. Das steht alles offen auf unserer Karte.“
 Beleg: `kriterien-karte.md`, Fragenkatalog C14. Vor dem Freeze mit `main` abgleichen.
 
 ## Betrieb und Regeln

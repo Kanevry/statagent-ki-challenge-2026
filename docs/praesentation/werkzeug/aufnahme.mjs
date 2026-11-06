@@ -29,7 +29,7 @@ const ALLE_ZIELE = [
   { bild: "SC07", route: "/uc3/berichte/2025-10" },
   { bild: "SC08", route: "/uc3/berichte/regeln", scroll: '[data-regel="R5_alter"]' },
   { bild: "SC09", route: "/" },
-  { bild: "SC10", route: "/uc3/freigaben", folge: 'main a[href^="/uc3/freigaben/"]' },
+  { bild: "SC10", route: "/uc3/freigaben/26" },
   {
     bild: "SC11",
     route: "/uc4",

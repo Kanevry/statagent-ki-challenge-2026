@@ -39,20 +39,20 @@ Standard ist Oktober 2025. Alternative ist März 2025. Bernhard wählt vorab ein
 - Sagt Bernhard (Einstieg auf `/uc3`): „24 Monatslieferungen, eine Zahl pro Monat. Zwei Monate hat das Programm angehalten, statt sie zu veröffentlichen. Das zeige ich Ihnen zuerst.“
 
 - Reserve im Terminal: `uv run uc3 lauf --lieferung 2025-10`, danach `uv run uc3 laeufe`. Bericht: `abgabe/qualitaetsberichte/2025-10.md`. Alternative: `--lieferung 2025-03` und `abgabe/qualitaetsberichte/2025-03.md`.
-- Klickweg: `/uc3/auftrag`, unten „Einen Monat rechnen“, Monat wählen, dann „Monat und Qualitätsbericht ansehen“. Gemessen für Oktober 2025: 92,9 s und 102,0 s (Lane Vorführung).
-- Sagt Bernhard (Oktober 2025): „Es kommen 313.154 gegen 394.200 im Vormonat (F17). 78.949 Verhältnisse fehlen in der Lieferung (F11). Das Programm hält den Monat an und markiert ihn als vorläufig.“
+- Klickweg: „Auftrag“, unten „Einen Monat rechnen, nach den Änderungsaufträgen“, Monat wählen, „Rechnen“, dann „Monat und Qualitätsbericht ansehen“. Gemessen für Oktober 2025 auf der Vorführ-Adresse: 92,9 s bis 106 s. Im ersten Bildschirm: „angehalten“, 78.949 fehlen, 319.768 + 77.746 = 397.514 (06.11.2026 06:28).
+- Sagt Bernhard (Oktober 2025): „Jedes fünfte Verhältnis fehlt in der Lieferung, 78.949 (F11). Das Programm hält den Monat an und markiert ihn als vorläufig. Im Video sehen Sie die alten Regeln, 390.900. Hier rechnet das Programm nach den Änderungsaufträgen, 397.514. Die 78.949 fehlen in beiden.“
 - Sagt Bernhard (März 2025): „März 2025 hat zwei Fehler auf einmal. 1.663 Zeilen sind doppelt (F8), und die freien Dienstverträge fehlen ganz, 1.492 Verhältnisse (F9). Das Programm hält den Monat an und markiert ihn als vorläufig.“
 - Jury muss sehen (Oktober 2025):
-  - Prüfregel P15: 313.154 gegen 394.200 (F17), Einstufung sichtbar.
+  - Prüfregel P15: nach den Änderungsaufträgen 82.556 unter dem Vormonat, nach den alten Regeln 313.154 gegen 394.200, also 81.046 (F17). Einstufung sichtbar.
   - Prüfregel P16: 78.949 von 394.200 Verhältnissen fehlen (F11).
   - Prüfregel P17: 345.078 Zeilen gegen 434.104 im Vormonat (F11).
-  - Status des Monats: angehalten und vorläufig. 77.746 Verhältnisse sind fortgeschrieben, 390.900 sind als vorläufiger Bestand ausgewiesen (F11).
+  - Status des Monats: angehalten und vorläufig. 77.746 Verhältnisse sind übernommen. Nach den Änderungsaufträgen 397.514, nach den alten Regeln 390.900 (F11).
   - Nichts wurde gelöscht. Die Rohdaten bleiben.
 - Jury muss sehen (März 2025):
   - Auffälligkeit Volldubletten mit 1.663 Zeilen (F8), Einstufung sichtbar.
   - Auffälligkeit fehlende freie Dienstverträge mit 1.492 Verhältnissen (F9), Einstufung sichtbar.
   - Status des Monats: angehalten und vorläufig.
-- Beleg danach (3:00–4:00): Bericht August 2024 öffnen. Sagt Bernhard: „Ihr Beispielbericht August 2024, 2.880 Zahlen. Wir rechnen ihn komplett nach: 2.880 stimmen (F1). Für die 23 anderen Monate wachen 24 Prüfregeln (F15).“
+- Beleg danach (3:00–4:00): „Qualitätsberichte“, August 2024. Sichtbar: 392.236. Sagt Bernhard: „Ihr Beispielbericht August 2024, 2.880 Zahlen. Wir rechnen ihn komplett nach: 2.880 stimmen (F1). Für die 23 anderen Monate wachen 24 Prüfregeln (F15).“ Die 2.880 steht nicht im ersten Bild, nur zugeklappt in einer Rückfrage.
 - Hinweis zu 81.046 und 78.949: Die Differenz der Bestände ist 394.200 minus 313.154, also 81.046 (F17). Die Zahl 78.949 zählt Verhältnisse, die in der Lieferung gar nicht vorkommen (F11). Das sind zwei verschiedene Messungen. Bernhard nennt in der Demo beide nur mit ihrer Bedeutung.
 
 ### Annahme im Detail (4:00–5:00)
@@ -72,18 +72,20 @@ Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „
 1. `uv run uc3 vorschlag zeigen 24`: Regel-Unterschied und Zahlen vorher und nachher von Auftrag 1.
 2. `uv run uc3 protokoll --zeigen`, Abschnitt 2: alle drei Aufträge mit Status „freigegeben“ und Name.
 
-- Sagt Bernhard (FAQ Frage 11): „Die drei Aufträge der Aufgabe habe ich in Sätzen gestellt, die Agenten schrieben Vorschläge. Die Freigaben hat in meinem Auftrag eine KI-Sitzung eingegeben, ich habe sie um 18:22 mit meinem Namen bestätigt. Das steht offen im Protokoll.“
+- Sagt Bernhard (FAQ Frage 11): „Die drei Aufträge der Aufgabe habe ich in Sätzen gestellt, die Agenten schrieben Vorschläge. Die Freigaben hat in meinem Auftrag eine KI-Sitzung eingegeben, ich habe sie um 18:22 mit meinem Namen bestätigt. Das steht offen in der Datei `abgabe/protokoll.md`.“ Das Web-Protokoll und die Freigaben zeigen nur „Freigegeben von Bernhard Götzendorfer“ mit 16:53 bis 16:54.
 - Sagt Bernhard (bei 1): „Der Gesamtbestand bleibt bei 392.236. Die Kategorien verschieben sich: Angestellte mit Dienstvertrag 235.819 und mit freiem Dienstvertrag 1.142 werden zu Angestellten, 236.961.“
 
 **Teil 2, live per Sprache (6:00–9:30):** Laut Aufgabenstellung gibt die Jury eine kleine, unbekannte Änderung vor. Bernhard fragt: „Nennen Sie mir eine Regel, die ich jetzt ändern soll.“ Er wiederholt den Wunsch der Jury in einem Satz und tippt diesen Satz. Die vier geübten Änderungen im Fragenkatalog Teil B decken die naheliegenden Wünsche ab (Altersgrenze, Geburtsmonat 13, Schwelle Bestandsrückgang, Spaltentausch). Nennt die Jury nichts, nimmt Bernhard den Standard-Satz unten.
 
-**Standard-Satz:** „Beamte zählen nicht mehr mit“, Monat Juli 2026. Die Seite zeigt: Gesamt 407.604 → 395.315, „Gesamt ändert sich um −12.289“, Beamte 12.289 → 0, Angestellte und Arbeiter gleich. Der Vorschlag dauert rund 3 Minuten: gemessen 06.11.2026 02:36 auf dem Instanz-Stand 1a4e0b8, 2 min 55 s, nur bis zum Vorschlag. Die Lane Vorführung maß 2 min 45 s, die UI-Regie 2 min 34 s. Rücknahme: neuer Auftrag „Nimm Vorschlag <n> zurück“, +12.289, rund 1,5 Minuten; bis #168 nennt die Seite dabei „Keine Regeländerung hinterlegt“. Ausschluss und Rücknahme sind seit !150 auf main (06.11.2026 02:06). Entscheid um 06:45.
+**Standard-Satz:** „Beamte zählen nicht mehr mit“, Monat Juli 2026. Die Seite zeigt: „Testrechnung für Juli 2026“, Gesamt 407.604 → 395.315, „Gesamt ändert sich in diesem Monat um −12.289“, Beamte 12.289 → 0, Angestellte und Arbeiter gleich. Der Vorschlag dauert rund 3 Minuten, die Seite sagt das selbst: gemessen 06.11.2026 06:17 bis 06:20, 2 min 46 s, zuvor 2 min 55 s, nur bis zum Vorschlag. Die Lane Vorführung maß 2 min 45 s, die UI-Regie 2 min 34 s. Rücknahme: neuer Auftrag „Nimm Vorschlag <n> zurück“, +12.289, rund 1,5 Minuten; bis #168 nennt die Seite dabei „Keine Regeländerung hinterlegt“. Ausschluss und Rücknahme sind seit !150 auf main (06.11.2026 02:06). D2 Teil 2 ja (Lead, 06:34).
+
+**Wenn jemand das Sheet aufschlägt:** Das Blatt Hinweise in `aggregationen_v2.xlsx` sagt „am Stichtag“, nach den Änderungsaufträgen zählt aber der ganze Monat, und alle 24 Monate sind dort vorläufig. Die Abgabe ist eingefroren. Sagt Bernhard: „Das Blatt trägt noch den alten Hinweis. Nach den Änderungsaufträgen zählt der ganze Monat, diese 24 Monate sind vorläufig.“
 
 **Knapp:** Von den 3:30 für Teil 2 gehen rund 3 Minuten ans Warten. In der Wartezeit sagt Bernhard: „Das Programm rechnet den Monat jetzt zweimal, nach der alten und nach der neuen Regel. Geändert ist noch nichts.“
 
 1. `/uc3/auftrag`: Satz tippen, Monat für die Zahlen wählen, „Vorschlag schreiben lassen“. Im Satz den Zielwert nennen. Bei einer Änderung an Geburtsmonat 13 Juni 2026 wählen. Reserve im Terminal: `uv run uc3 agent "<Satz>" --probe JJJJ-MM`, zum Beispiel B2: `uv run uc3 agent "Rechne bei Geburtsmonat 13 nur mit der Differenz der Jahre (Jahresdifferenz) statt mit dem 1. Juli." --probe 2026-06`. Der Agent schreibt einen Vorschlag. Seit !150 stimmt die Probe auch in 2025-03 und 2025-10 (396.762 und 397.514, gemessen von der UC3-Lane). Die Seite bietet alle 24 Monate an, auch diese zwei (gesehen 06.11.2026 02:36).
 2. „Vorher und nachher ansehen, dann entscheiden“: Regel-Unterschied und Zahlen vorher und nachher. Reserve: `uv run uc3 vorschlag zeigen <id>`. Bei B2: `R5_alter`, `geburtsmonat_13` von `ersatz:07-01` auf `jahresdifferenz`.
-3. Vor- und Nachnamen eintragen, „Ja, so rechnen wir ab jetzt“. Die Seite nennt den Commit. Reserve: `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`, dann `uv run uc3 protokoll --zeigen`.
+3. Vor- und Nachnamen eintragen, „Ja, so rechnen wir ab jetzt“. Die Seite nennt den Commit. Danach „Freigaben“ in der Unterleiste öffnen: Beim Auftrag stehen Gesamt 407.604 → 395.315, −12.289, Name und Uhrzeit, der Kopf zählt „4 Änderungen, alle mit Namen freigegeben.“ (UI-Regie, 07:33). Das Panel „Protokoll“ im Kopf für diesen Schritt nicht öffnen: Es nennt den Namen nicht und zeigt die Zeit des Vorschlags. Reserve: `uv run uc3 freigabe <id> --name "Bernhard Götzendorfer"`, dann `uv run uc3 protokoll --zeigen`.
 
 - Sagt Bernhard (bei 1): „Ich sage dem Agenten in einem Satz, was er ändern soll.“
 - Sagt Bernhard (bei 2): „Hier ist, was sich ändern würde, vorher und nachher. Wirksam wird es erst mit meinem Namen.“ Bei B2 zusätzlich: „Der Gesamtbestand bleibt gleich. Die Regel ändert nur das Alter, deshalb steht die Wirkung unter der Tabelle, bei den Altersgruppen.“
@@ -96,7 +98,7 @@ Bewertet in Bereich 5 („Live-Änderung per Sprache gelingt“, 20 Punkte). „
 - Die Anweisung als Satz in Alltagssprache.
 - Regel-Diff und Zahlen vorher und nachher (F19 für Auftrag 1, live für den Standard-Satz).
 - Freigabe mit Vor- und Nachname, „Team“ wird abgelehnt (`shared/py/plattform/freigabe.py`, `pruefe_name`).
-- Eintrag im Protokoll (F26).
+- Name und Uhrzeit beim Auftrag unter „Freigaben“. Die Datei `abgabe/protokoll.md` trägt die Aufträge der Aufgabe (F26).
 
 **Stand der Proben:** 05.11.2026 17:56 bis 17:58 auf main 321a7176: B1, B2, B3 ohne Vorschlag oder abgebrochen. 18:20 bis 18:25 mit dem Code von !50: B2 dreimal von drei gültig. Das war mit 2025-03. Am selben Abend maß die UC3-Lane dort 396.762 → 395.292 (−1.470) bei einer reinen Altersänderung: In der Probe fehlten die Fortschreibungen von 2025-03 und 2025-10, seit !150 ist das behoben, die Abgabe war nicht betroffen. Mit 2026-06 bleibt die Gesamtzahl bei 403.301 (einmal gemessen von der UC3-Lane, 22:40, Commit d888e09, bis zum Vorschlag). Im Browser bleibt die Tabelle dort gleich, darunter nennt die Seite die Altersgruppen (seit !239). Juli bis Dezember zeigen bei B2 keinen Unterschied, das ist fachlich richtig.
 
@@ -136,7 +138,7 @@ Zusatz (12:00–13:00), eine ehrliche Absage, nur wenn Zeit bleibt: „Wie viele
 **Stand der freien Fragen** (online gemessen 06.11.2026 00:46, Stand `main` `2005e01`, um 06:45 neu messen):
 
 - Neu seit #189, Klassifikationen (06.11.2026 01:34, main `275ffb2`): „Was ist ÖNACE C 10.11-0?“, „Was ist die Gemeinde 62280?“, „Welche Bezirke hat Tirol?“ werden erklärt, die Suche steht auf `/uc3/klassifikationen`. Nicht gegen das Orakel, Texte aus den Klassifikationen.
-- Neu seit !230, Regelsatz v2: „Beschäftigte im Juli 2026 nach Regelsatz v2“ 407.604, ohne „v2“ bleibt es 399.027. Fluktuation gibt es unter v2 nicht.
+- Neu seit !230, nach den Änderungsaufträgen: „Beschäftigte im Juli 2026 nach den Änderungsaufträgen“ 407.604, ohne den Zusatz bleibt es 399.027. Fluktuation gibt es dort nicht. „vorher und nachher“ in einer Frage sagt ab, also je einzeln fragen.
 - Neu seit !227, Alter: „Wie viele Beschäftigte unter 25 Jahren gab es im Juli 2026?“ 41.626, in Wien 8.352. „Wie viele 30-Jährige gab es im August 2024?“ 9.017. „Beschäftigte ab 50 Jahren im Juli 2026“ 124.728. Nicht gegen das Orakel belegt, Entscheid um 06:45. Falle: „über 50“ heißt 51 Jahre und älter (115.451).
 - Sagt ehrlich ab: zwei Werte eines Merkmals („Wien und Tirol“, „Arbeiter und Angestellte“), „Durchschnittsalter“, „ab 50“ ohne „Jahren“, Fluktuation mit Filter („in Wien“) oder für August 2024, Fragen nach einer einzelnen Person. Neu gemessen sind davon „Wien und Tirol“, „Durchschnittsalter“ und „ab 50“, der Rest stammt vom Stand `fd936b3`.
 - Holpert: „Welche Branche hat die höchste Fluktuation“ sagt ab, aber mit „Das Wort ‚hat‘ kenne ich nicht“.
@@ -152,12 +154,14 @@ Fragt die Jury so etwas, sagt Bernhard: „Das zeige ich Ihnen mit einer Abfrage
 
 ### D4 Gemeinsamer Einstieg (13:00–14:00)
 
+Nur wenn Zeit bleibt danach, rund 20 s: Adresse `/ablauf`. Sagt Bernhard: „So liefen die 24 Stunden wirklich, mit echten Zeiten.“ Fragt jemand nach Pensionen: „Die Pensionen kamen nach dem Einfrieren der Abgabe dazu.“
+
 - Die Wien-Frage in `/uc4` mit einem Klick auf das erste Beispiel: „Wie viele Beschäftigte gab es im März 2025 in Wien im Gesundheits- und Sozialwesen?“ Sie steht wörtlich auf Folie 9.
-- Sollwert für UC3: **7.498** Beschäftigungsverhältnisse (F18), Wien, ÖNACE 2025 Abschnitt R (Gesundheits- und Sozialwesen), Stichtag 31.03.2025, mit Beleg. Der Simulator sagt, was mehr oder weniger Personal für Wartezeit und Betreuung heißt, der Lotse sagt es für den nächsten Arzttermin (fester Text, an der Karte steht „Fester Text“). Dauer online 9 bis 12 s.
+- Sollwert für UC3: **7.498** Beschäftigungsverhältnisse (F18), Wien, ÖNACE 2025 Abschnitt R (Gesundheits- und Sozialwesen), Stichtag 31.03.2025, mit Beleg. Der Simulator sagt, was mehr oder weniger Personal für Wartezeit und Betreuung heißt, der Lotse sagt es für den nächsten Arzttermin (an der Karte steht „Vorlage, ohne KI“). Rund 15 s. Nie vor UC3, nur als Ausblick in 60 s, nur das Beispiel. Das zweite Beispiel ist Tirol im Juli 2026, 4.219.
 - In `/uc4` keine Fluktuationsfrage zeigen, bis der Lead den Fix zu !303 live meldet: Neben der richtigen Zahl stand ein falscher Satz zur Branche.
 - **Nur die Frage vom Knopf, ohne Zusatz.** Mit „und was heißt das für Wartezeiten beim Arzt?“ stoppt die Kette bei StatAgent, ohne Zahl (online gemessen 06.11.2026 05:02). Am Vorabend lief dieselbe Frage noch über das Rechenmodell, das ist überholt.
 - Was von UC1 und UC2 läuft, steht im Tagesstand des Fragenkatalogs (Teil C, „Läuft der gemeinsame Einstieg schon?“). Bernhard sagt nur, was dort steht.
-- Nur wenn die Wien-Frage um 06:45 echt läuft (nicht im Testmodus). Sonst entfällt D4 ohne Ersatz.
+- D4 ja, die Knopf-Frage (Lead, 06:34). Die Seite hat online keine Modellwahl mehr.
 - **Entscheid am Fr 06:45.** Wer entscheidet: Lead mit Bernhard. Ergebnis in `probe.md` eintragen.
 - Sagt Bernhard: „Eine Frage, drei Antworten. Die Zahl kommt aus UC3 und trägt ihren Beleg: 7.498.“
 
@@ -193,7 +197,7 @@ Jeder Punkt wird abgehakt, sobald er geprüft ist. Uhrzeit nur aus der Uhr (`TZ=
 - [ ] Zahlen in den Szenen gegen `abgabe/` abgeglichen.
 - [ ] D1: Monat gewählt (2025-10 oder 2025-03) und in `probe.md` eingetragen.
 - [ ] D3: Die acht geprüften Fragen auf `/uc3/fragen` und mit `uv run uc3 frage "…"` geprobt, jede Zahl gegen die Sollzahl der Tabelle. SQL A1 bis A3 als Rückfall bereit, `<regelstand>` eingesetzt.
-- [ ] D4: Sollwert 7.498 (F18) gegen die Abfrage im Belegregister geprüft. Testmodus-Ansage bereit.
+- [ ] D4: Sollwert 7.498 (F18) gegen die Abfrage im Belegregister geprüft.
 - [ ] D2: `uv run uc3 vorschlag zeigen 24` und `uv run uc3 protokoll --zeigen` laufen auf dem Vortragsrechner. B2 zeigt die Wirkung nur unter der Tabelle, bei den Altersgruppen (im Browser gesehen, UI-Regie). Nie `freigabe` geübt.
 - [ ] Datenbank: `UC3_DATABASE_URL` zeigt auf `statistik_vorfuehrung`, nicht auf `statistik`. Prüfung ohne Wert: Datenbankname im Kopf der App oder `uv run uc3 laeufe` liefert die 24 Läufe der Kopie. Checkout steht auf einem Demo-Branch, der für diesen Lauf frisch ab main angelegt ist.
 - [ ] Protokolleintrag der Freigabe von Auftrag 1 (05.11.2026 16:54) gefunden, Fenster für den Rückblick bereit.
