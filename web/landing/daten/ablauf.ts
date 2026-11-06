@@ -47,7 +47,7 @@ const zeitleiste: readonly AblaufPunkt[] = [
   {
     zeit: "23:26",
     iso: "2026-11-05T23:26:00+01:00",
-    satz: "Die Generalprobe bricht beim Festschreiben ab, um 23:46 besteht sie mit einem Fix.",
+    satz: "Die Generalprobe bricht beim Festschreiben ab, um 23:46 besteht sie nach einer Korrektur.",
     quelle: "Lage-Log",
   },
   {
@@ -81,7 +81,7 @@ export const ABLAUF = {
         // Lage-Log; Arbeitsweise der Plugins
         "Der Session Orchestrator führt eine einzelne KI-Sitzung: Sie plant ihre Arbeit in Wellen, parallele Agenten schreiben Code und Regeln und prüfen einander.",
         // 13: Lage-Log 22:54 und 06:31; 87: GitLab, alle Schreibweisen der Züge; 7: Lage-Log bis 06:18
-        "Der Lead Session Orchestrator führt viele Sitzungen zugleich, zeitweise 13: Er bündelt fertige Arbeit (87 gebündelte Merges), spielt sie ein und übergibt bei vollem Kontext an einen Nachfolger, bis 06:18 siebenmal.",
+        "Der Lead Session Orchestrator führt viele Sitzungen zugleich, zeitweise 13: Er bündelt fertige Arbeit zu 87 Zügen, spielt sie ein und übergibt an einen Nachfolger, sobald sein Arbeitsgedächtnis voll ist, bis 06:18 siebenmal.",
         "Ein Mensch entscheidet und gibt mit Namen frei, die KI schreibt den Code, gerechnet wird ohne KI.",
       ],
     },

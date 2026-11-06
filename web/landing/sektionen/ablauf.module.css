@@ -54,7 +54,7 @@
 
 .zeitleiste li {
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
+  grid-template-columns: 152px minmax(0, 1fr);
   column-gap: 24px;
   padding-block: 10px;
   border-top: 1px solid var(--l-line);
