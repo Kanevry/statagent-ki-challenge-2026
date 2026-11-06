@@ -303,14 +303,45 @@ def test_kette_verschiedene_fragen_ergeben_verschiedenen_text() -> None:
     wien = uc4.router_adapter("Wien?", _kette_kontext(ZAHL_WIEN))
     alle = uc4.router_adapter("Oktober?", _kette_kontext())
     assert wien.text == (
-        "Für Ihren nächsten Arzttermin in Wien heißt das: Wie rasch Sie einen Termin bekommen und wie viel "
-        "Zeit man "
-        "für Sie hat, hängt auch davon ab, wie viele Menschen dort arbeiten. Die Zahl von StatAgent: 7.498."
+        "Sie fragten nach Wien, Gesundheits- und Sozialwesen im Oktober 2025. StatAgent nennt dafür 7.498 "
+        "Beschäftigungsverhältnisse. Für Ihren nächsten Arzttermin in Wien heißt das: Wie rasch Sie einen "
+        "Termin bekommen und wie viel Zeit man für Sie hat, hängt auch davon ab, wie viele Menschen dort "
+        "arbeiten."
     )
     assert alle.text == (
-        "Für Ihren nächsten Arzttermin sagt diese Zahl allein wenig. Fragen Sie nach dem Gesundheits- und "
-        "Sozialwesen, dann wird es konkreter. Die Zahl von StatAgent: 390.900."
+        "Sie fragten nach allen Branchen im Oktober 2025. StatAgent nennt dafür 390.900 "
+        "Beschäftigungsverhältnisse. Für Ihren nächsten Arzttermin sagt diese Zahl allein wenig. Fragen Sie "
+        "nach dem Gesundheits- und Sozialwesen, dann wird es konkreter."
     )
+
+
+def test_kette_nennt_monat_des_belegs_und_keine_zahl_aus_der_frage() -> None:
+    """Fängt den Befund des Owners (06.11.): Station 3 griff die Frage nicht auf. Der Bezug kommt aus
+    Bezeichnung und Beleg von UC3, denn eine Zahl aus dem Wortlaut der Frage hat keinen Beleg (Review !68)."""
+    text = uc4.router_adapter("Stimmt es, dass es 500.000 waren?", _kette_kontext(ZAHL_WIEN)).text
+    assert text.startswith("Sie fragten nach Wien, Gesundheits- und Sozialwesen im Oktober 2025.")
+    assert "500.000" not in text and "7.498 Beschäftigungsverhältnisse" in text
+
+
+def test_kette_monat_nur_wenn_alle_zahlen_denselben_haben() -> None:
+    """Fängt einen falschen Monat im Satz: Bei Zahlen aus mehreren Monaten stimmt keiner für alle."""
+    maerz = BELEG_UC3.model_copy(update={"monat": "2025-03"})
+    zahlen = [ZAHL_WIEN, ZAHL_WIEN.model_copy(update={"wert": 7000, "beleg": 1})]
+    uc3 = uc4.UcAntwort(text="Zwei Monate.", belege=[BELEG_UC3, maerz], zahlen=zahlen, uc="uc3")
+    text = uc4.router_adapter("?", [uc3]).text
+    assert text.startswith("Sie fragten nach Wien, Gesundheits- und Sozialwesen. ") and "2025" not in text
+
+
+def test_kette_prozent_steht_mit_ihrem_wort() -> None:
+    """Fängt „StatAgent nennt dafür 6,2 %“: Ohne „Fluktuation“ sagt die Zahl nichts."""
+    zahl = ZAHL_UC3.model_copy(
+        update={
+            "bezeichnung": "Fluktuation (Wien, Gesundheits- und Sozialwesen)",
+            "wert": 6.2,
+            "einheit": "%",
+        }
+    )
+    assert "StatAgent nennt dafür Fluktuation 6,2 %." in uc4.router_adapter("?", _kette_kontext(zahl)).text
 
 
 def test_kette_lotse_wiederholt_den_simulator_nicht() -> None:
@@ -365,8 +396,9 @@ def test_kette_frage_ueber_alle_branchen_ist_keine_frage_zum_gesundheitswesen() 
     ]
     text = uc4.router_adapter("Beschäftigte nach Branche", _kette_kontext(*zeilen)).text
     assert text == (
-        "Für Ihren nächsten Arzttermin sagen diese Zahlen allein wenig. Fragen Sie nach dem Gesundheits- und "
-        f"Sozialwesen, dann wird es konkreter. {uc4.KETTE_VERWEIS}"
+        f"Sie fragten nach allen Branchen im Oktober 2025. {uc4.KETTE_VERWEIS} Für Ihren nächsten Arzttermin "
+        "sagen diese Zahlen allein wenig. Fragen Sie nach dem Gesundheits- und Sozialwesen, dann wird es "
+        "konkreter."
     )
 
 
@@ -388,7 +420,7 @@ def test_kette_paket_sagt_die_richtung_aus_dem_rechenmodell(wert: float, wirkung
     )
     text = uc4.router_adapter("Wartezeiten?", [uc3, uc2]).text
     assert wirkung in text and "22,24" not in text
-    assert text.endswith("Die Zahl von StatAgent: 7.498.")
+    assert "StatAgent nennt dafür 7.498 Beschäftigungsverhältnisse." in text
 
 
 def test_kette_zahl_von_uc3_und_uc2_steht_einmal() -> None:
@@ -418,14 +450,14 @@ def test_kette_englische_frage_bekommt_deutsche_antwort() -> None:
     a = uc4.router_adapter(
         "How many employees were there in Vienna in March 2025?", _kette_kontext(ZAHL_WIEN)
     )
-    assert a.text.startswith("Für Ihren nächsten Arzttermin in Wien heißt das:")
+    assert a.text.startswith("Sie fragten nach Wien") and "Arzttermin in Wien heißt das:" in a.text
 
 
 def test_kette_viele_zahlen_stehen_nicht_als_liste_im_text() -> None:
     """Fängt „nach Bundesland“: neun Zahlen als Liste im Satz, die Bedeutung geht unter."""
     viele = [ZAHL_UC3.model_copy(update={"bezeichnung": f"Land {n}", "wert": n}) for n in range(1, 10)]
     a = uc4.router_adapter("Beschäftigte nach Bundesland", _kette_kontext(*viele))
-    assert a.text.endswith(uc4.KETTE_VERWEIS) and len(a.zahlen) == 9
+    assert uc4.KETTE_VERWEIS in a.text and len(a.zahlen) == 9
 
 
 def test_kette_grenzfrage_bleibt_grenze_ohne_zahl() -> None:
@@ -452,11 +484,11 @@ def test_kette_belegsatz_nennt_keine_falsche_gliederung() -> None:
     """Fängt „Grundlage: 7.498 Beschäftigungsverhältnisse im März 2025“: Im März gab es rund 390.000, Wien und
     Branche fehlten im Satz. „Grundlage“ stimmt auch nicht, die festen Sätze folgen nicht aus der Zahl."""
     a = uc4.router_adapter("Wie viele?", _kette_kontext(ZAHL_WIEN))
-    assert a.text.endswith("Die Zahl von StatAgent: 7.498.") and "Grundlage" not in a.text
+    assert "Wien, Gesundheits- und Sozialwesen im Oktober 2025" in a.text and "Grundlage" not in a.text
 
 
 def test_kette_zwei_zahlen_stehen_nicht_ohne_bezeichnung_da() -> None:
     """Fängt „Die Zahlen von StatAgent: 3.611; 3.887“: Ohne Bezeichnung sagen sie nichts (Review !210)."""
     zwei = [ZAHL_UC3.model_copy(update={"bezeichnung": f"Land {n}", "wert": n}) for n in (3611, 3887)]
     a = uc4.router_adapter("Zwei?", _kette_kontext(*zwei))
-    assert a.text.endswith(uc4.KETTE_VERWEIS) and "3.611" not in a.text
+    assert uc4.KETTE_VERWEIS in a.text and "3.611" not in a.text

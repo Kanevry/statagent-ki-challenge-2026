@@ -83,10 +83,6 @@ _ZIELPRUEFUNG = {
 _STAND = {"endgueltig": "endgültig", "vorlaeufig": "vorläufig, die Zahl kann sich noch ändern"}
 _STATISTIK = {"uc3": "Beschäftigtenstatistik"}
 """Name der Statistik im Text; Tabelle, Lieferung und SQL stehen nur im Beleg."""
-_MONAT = (
-    "Jänner", "Februar", "März", "April", "Mai", "Juni",
-    "Juli", "August", "September", "Oktober", "November", "Dezember",
-)  # fmt: skip
 _WORT = {1: "eine", 2: "zwei", 3: "drei", 4: "vier", 5: "fünf", 6: "sechs"}
 _HOECHSTENS_KONTEXT_IM_TEXT = 3
 
@@ -226,14 +222,6 @@ def _zahl_text(zahl: Zahl) -> str:
     return f"{text} {einheit}" if einheit else text
 
 
-def _monat_text(monat: str) -> str:
-    """`2025-03` → „März 2025“; anderes bleibt, wie es ist."""
-    treffer = re.fullmatch(r"(\d{4})-(\d{2})", monat)
-    if treffer is None or not 1 <= int(treffer.group(2)) <= 12:
-        return monat
-    return f"{_MONAT[int(treffer.group(2)) - 1]} {treffer.group(1)}"
-
-
 def _herkunft(beleg: Beleg) -> str:
     """Herkunft zum Vorlesen: „laut Beschäftigtenstatistik, März 2025, endgültig“, ohne Tabelle und Lieferung.
 
@@ -241,7 +229,7 @@ def _herkunft(beleg: Beleg) -> str:
     """
     teile = [f"laut {_STATISTIK.get(beleg.uc, 'Statistik')}"]
     if beleg.monat:
-        teile.append(_monat_text(beleg.monat))
+        teile.append(allgemein.monat_text(beleg.monat))
     if beleg.stand:
         teile.append(_STAND.get(beleg.stand, beleg.stand))
     return ", ".join(teile)
@@ -334,7 +322,7 @@ def _akteur_zeile(
         art = "Beispielbeleg, erfunden" if beispiel else "Beleg"
         # Alle zitierten Belege stehen in `belege`; im Text steht jedes Medium mit Monat nur einmal.
         chips = "; ".join(
-            dict.fromkeys(f"{b.medium}, {_monat_text(b.datum.strftime('%Y-%m'))}" for b in zitiert)
+            dict.fromkeys(f"{b.medium}, {allgemein.monat_text(b.datum.strftime('%Y-%m'))}" for b in zitiert)
         )
         zeile += f" {art}: {chips}."
     else:
@@ -400,15 +388,18 @@ def _eine_schreibweise(zeile: str, ez: dict[str, Zahl]) -> str:
     return zeile
 
 
-def _kernzeile(ergebnis: Kurzergebnis, ez: dict[str, Zahl]) -> str:
-    """Erste Zeile der Antwort, was die Station oben zeigt; ohne Zahlenecho von UC3 (#164)."""
+def _kernzeile(ergebnis: Kurzergebnis, ez: dict[str, Zahl], bezug: allgemein.Bezug | None) -> str:
+    """Erste Zeile der Antwort, was die Station oben zeigt: zuerst worauf sie sich bezieht, mit der Zahl von
+    StatAgent, dann die Aussage dazu."""
     if ez:
-        return (
+        aussage = (
             "Das durchgerechnete Maßnahmenpaket bringt laut Rechenmodell: "
             f"Wartezeit {_eine_stelle(ez['wartezeit'])}, Mehrkosten {_eine_stelle(ez['kosten_mio'])} pro "
             f"Jahr."
         )
-    return ergebnis.kern or " ".join(allgemein.FESTER_KERN)
+    else:
+        aussage = ergebnis.kern or " ".join(allgemein.feste_saetze(bezug).values())
+    return f"{bezug.satz} {aussage}" if bezug else aussage
 
 
 def _einleitung(ergebnis: Kurzergebnis) -> str:
@@ -550,7 +541,8 @@ def _antwort(
         raise AntwortFehler(f"Panel: {fehler}") from fehler
 
     beispiel = isinstance(quelle, FixtureQuelle)
-    zeilen = [_kernzeile(ergebnis, ez), _ausgangslage(kontextzahlen), _einleitung(ergebnis)]
+    bezug = allgemein.bezug_aus(kontext_prompt)
+    zeilen = [_kernzeile(ergebnis, ez, bezug), _ausgangslage(kontextzahlen), _einleitung(ergebnis)]
     if voll is not None:
         zeilen += _experte_text(voll, ez)
     zeilen += _abwaegung(ergebnis, akteure, s, beispiel)

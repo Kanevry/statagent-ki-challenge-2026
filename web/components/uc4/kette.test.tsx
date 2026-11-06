@@ -236,6 +236,13 @@ it("der Simulator zeigt oben seine Aussage und seine eigenen Quellen, nicht die 
   expect(karte.querySelector('[data-baustein="herkunft"]')!.textContent).toContain("presse: Kurier");
 });
 
+it("die Karte sagt, was jede Station von wem bekommt: Der Lotse nimmt nur die Zahl von StatAgent", async () => {
+  const seite = await fragen(strom(UC3, UC2, UC1));
+  await screen.findByText(/Fertig in/);
+  expect(seite.querySelector('[data-uc-karte="uc2"]')!.textContent).toContain("mit der Antwort von StatAgent.");
+  expect(seite.querySelector('[data-uc-karte="uc1"]')!.textContent).toContain("mit der Zahl von StatAgent.");
+});
+
 it("der Lotse zeigt den Beleg seiner Zahl", async () => {
   const seite = await fragen(strom(UC3, UC2, UC1));
   await screen.findByText(/Fertig in/);
@@ -275,8 +282,8 @@ it("fester Text der Stationen danach heißt so, nicht „Mit KI geschrieben“",
   const seite = await fragen(strom(UC3, UC2, fest as UcAntwort));
   await screen.findByText(/Fertig in/);
   const zeile = seite.querySelector('[data-uc-karte="uc1"] [data-testid="uc4-modell"]')!.textContent;
-  // Keine Zeit beim festen Text: „Fester Text, 0,0 s“ sagte nichts (UI-Regie).
-  expect(zeile).toBe("Fester Text");
+  // Keine Zeit bei der Vorlage: „Fester Text, 0,0 s“ sagte nichts (UI-Regie).
+  expect(zeile).toBe("Vorlage, ohne KI");
   expect(seite.querySelector('[data-uc-karte="uc2"] [data-testid="uc4-modell"]')!.textContent).toContain("Mit KI geschrieben");
   expect(seite.querySelector('[data-uc-karte="uc3"] [data-testid="uc4-modell"]')!.textContent).toContain("Ohne KI, nur Code");
   // Die Schlusszeile darf dann nicht behaupten, das Modell schreibe die Sätze.

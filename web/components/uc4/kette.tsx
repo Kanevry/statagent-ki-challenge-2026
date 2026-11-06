@@ -385,7 +385,7 @@ function StationKarte({
           <h2 className="font-display text-20 font-bold text-ink">{name}</h2>
           <p className="font-sans text-14 text-slate">
             {ROLLE[uc]}
-            {vorher ? `, mit der Antwort von ${findeUc(vorher).name}` : ""}.
+            {vorher ? `, mit ${uc === "uc1" ? "der Zahl" : "der Antwort"} von ${findeUc(uc === "uc1" ? "uc3" : vorher).name}` : ""}.
           </p>
         </div>
       </div>
@@ -414,7 +414,7 @@ function StationKarte({
  * Text die Rückfrage: Die steht ganz da, sonst fehlt die eigentliche Frage. Die anderen Stationen zeigen ihre erste
  * Zeile, die Kernaussage (Jury 05.11.). Beides nur, solange es kurz genug ist.
  */
-const GANZ_BIS = 320;
+const GANZ_BIS = 400;
 /** Die übrigen Belege stehen in der ganzen Antwort; oben reicht einer, zweimal „Beleg“ untereinander sagt nichts. */
 const BELEGE_OBEN = 1;
 /** Mehr Zahlen trägt die Karte nicht; „Zugänge im Oktober 2024“ liefert 89 (UI-Regie 05.11.). */
@@ -509,7 +509,7 @@ function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcA
       )}
       <ModellPille data-testid="uc4-modell">
         {!antwort.modell && !erste ? (
-          "Fester Text"
+          "Vorlage, ohne KI"
         ) : (
           <>
             {antwort.modell ? (antwort.modell === "mock" ? TESTBETRIEB_TEXT : "Mit KI geschrieben") : "Ohne KI, nur Code"}
