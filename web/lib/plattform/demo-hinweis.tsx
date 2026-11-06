@@ -3,7 +3,7 @@ import { DEMO_HINWEIS } from "@/landing/texte/inhalt";
 /** Leiser Hinweis unter dem App-Kopf: die KI-Zugänge werden abgebaut, Rechnen und Ansehen bleiben (Text: DEMO_HINWEIS). */
 export function DemoHinweis() {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 md:px-8">
+    <aside aria-label="Hinweis zur Demo" className="mx-auto w-full max-w-7xl px-4 md:px-8">
       <p className="border-b border-line py-2 font-sans text-14 text-slate">
         {DEMO_HINWEIS.saetze.join(" ")}{" "}
         <a
@@ -13,6 +13,6 @@ export function DemoHinweis() {
           {DEMO_HINWEIS.code.text}
         </a>
       </p>
-    </div>
+    </aside>
   );
 }
