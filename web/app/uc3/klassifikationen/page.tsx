@@ -26,7 +26,6 @@ import {
 } from "@/components/uc3/klassifikation";
 import { leseNachschlagen, SQL_NACHSCHLAGEN } from "@/components/uc3/klassifikation-tief";
 import { monatName } from "@/components/uc3/monat";
-import { lesePensionen, SQL_PENSIONEN } from "@/components/uc3/pensionen";
 import { regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/navigation";
 import { alltag } from "@/components/uc3/sprache";
 import { Gegenueberstellung } from "./_teile/gegenueberstellung";
@@ -377,59 +376,6 @@ function WeitereListen({ daten }: { daten: Klassifikationsdaten }) {
 
 // ---------------------------------------------------------------------------------------------------------------
 
-async function Pensionen() {
-  const lesung = await lesePensionen();
-  // Ohne Datenbank oder vor dem Laden gibt es hier nichts zu zeigen, und online kann niemand laden.
-  if (!lesung.ok || lesung.daten.jahre.length === 0) return null;
-  const { jahre, vorlaeufig } = lesung.daten;
-  return (
-    <details className="group max-w-4xl border-b border-line">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-sans text-16 text-ink underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
-        <span>Pensionen 2018 bis 2025</span>
-        <span aria-hidden="true" className="shrink-0 text-slate transition-transform group-open:rotate-90 motion-reduce:transition-none">
-          ›
-        </span>
-      </summary>
-      <div className="flex flex-col gap-2 pb-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-          <Fliesstext>
-            Durchschnitt je Jahr aus den Meldungen der Träger{vorlaeufig ? ", vorläufig" : ""}. Die vorzeitigen
-            Alterspensionen sind in „Insgesamt“ enthalten. Zum 1. Jänner 2020 wurden Träger zusammengelegt. Die Zahlen davor
-            und danach stehen unverändert nebeneinander.
-          </Fliesstext>
-          <BelegLink quelle="stat.stat_pensionen" sql={SQL_PENSIONEN} />
-        </div>
-        <table className="w-full font-sans text-14 text-ink">
-          <thead>
-            <tr className="border-b border-line text-left text-slate">
-              <th scope="col" className="py-1 pr-2 font-normal">Jahr</th>
-              <th scope="col" className="py-1 pr-2 text-right font-normal">Insgesamt</th>
-              <th scope="col" className="py-1 pr-2 text-right font-normal">{"Un\u00adselbst\u00adändige"}</th>
-              <th scope="col" className="py-1 pr-2 text-right font-normal">{"Selbst\u00adändige"}</th>
-              <th scope="col" className="py-1 text-right font-normal">{"Vor\u00adzeitige"}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jahre.map((j) => (
-              <tr key={j.jahr} className="border-b border-line last:border-b-0">
-                <th scope="row" className="py-1 pr-2 text-left font-normal">{j.jahr}</th>
-                <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.insgesamt)}</td>
-                <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.unselbstaendige)}</td>
-                <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.selbstaendige)}</td>
-                <td className="py-1 text-right tabular-nums">{formatZahl(j.vorzeitig)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <Fliesstext>
-          Öffentlich Bedienstete fehlen in allen Jahren, die frühere BVA meldet keine Pensionen. Bei „Vorzeitige“ fehlt 2018 und
-          2019 das Notariat, es meldet diese Art nicht.
-        </Fliesstext>
-      </div>
-    </details>
-  );
-}
-
 export default async function RegelnUndKlassifikationen({ searchParams }: Props) {
   const regelsatz = regelsatzAus((await searchParams).regelsatz);
   // Die Klassifikationen hängen nicht am Regelsatz; der Auftrag für die Qualifikationen geht von v1 aus.
@@ -444,7 +390,6 @@ export default async function RegelnUndKlassifikationen({ searchParams }: Props)
           <Branchen daten={daten} />
           <AlleCodes />
           <Qualifikationen daten={daten} />
-          <Pensionen />
         </>
       ) : (
         <header className="flex max-w-4xl flex-col gap-3">
