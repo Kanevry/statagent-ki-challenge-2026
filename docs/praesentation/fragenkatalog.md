@@ -374,7 +374,7 @@ Fünftens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parame
 
 **Kurzantwort:** Die Szenen zeigen das Zielbild: eine Frage, drei Antworten. Was davon heute wirklich läuft, steht im Abschnitt „Stand“ darunter. Bernhard sagt nur, was dort steht. Sicher ist: Die Zahl kommt aus UC3, ohne Sprachmodell und mit Beleg, Sollwert 7.498 (F18).
 
-**Antwortweg:** In der Oberfläche die Seite `/uc4`, im Terminal `uv run uc3 antwort "Beschäftigte in Wien im März 2025"`. Laufen die Modelle im Testbetrieb, sagt Bernhard „Testbetrieb“ an.
+**Antwortweg:** In der Oberfläche die Seite `/uc4`, im Terminal `uv run uc3 antwort "Beschäftigte in Wien im März 2025"`. Die Seite hat online keine Modellwahl mehr.
 
 **Fundstelle:** `shared/py/plattform/router.py` (Router), Entry-Points `kic.uc_antwort` in `uc1/pyproject.toml`, `uc2/pyproject.toml`, `uc3/pyproject.toml`; `web/app/uc4/page.tsx`, `web/app/api/uc4/frage/route.ts`; siehe C12.
 
@@ -391,13 +391,13 @@ Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 06.11.
 | UC1-Adapter (Lotse) | registriert | `uc1/pyproject.toml`, `uc1.uc4:router_adapter` |
 | Freigabe mit Namen in UC2 | im Code | `uc2/src/uc2/verhandlung/freigabe.py`, `web/app/api/uc2/faelle/[id]/freigabe/route.ts` |
 | Freigabe mit Namen in UC1 | nicht gefunden | keine Fundstelle auf main |
-| Wien-Frage liefert drei Antworten | online ja: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator mit Modell gpt-5-4-mini, Lotse fester Text, beide mit dem Beleg aus UC3; nichts fehlt; 13 s | gemessen 05:01 |
+| Wien-Frage liefert drei Antworten | online ja: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator mit Modell gpt-5-4-mini, Lotse „Vorlage, ohne KI“, beide mit dem Beleg aus UC3; nichts fehlt; 13 s | gemessen 05:01, Bild SC11 07:33 |
 | Frage ohne Zahl | „Wie heißt der Hund von Pippi Langstrumpf?“: Die Kette stoppt bei StatAgent, ohne Zahl, 3 s. Die Antwort sagt: Das Wort „heißt“ kann ich nicht einordnen | gemessen 05:01 |
 | Frage mit Zusatz zu „Wartezeiten“ | Die Wien-Frage mit „und was heißt das für Wartezeiten beim Arzt?“ oder „was bedeutet das …“: Die Kette stoppt bei StatAgent, ohne Zahl, 3 s. Nicht vorführen | gemessen 05:02 und 05:03 |
 | „Zugänge Oktober 2024“ | Öffentliche Adresse: keine Zahl, Hinweis auf die lokale Auswertung. Vorführ-Instanz: 12.215 Zugänge, 14.557 Abgänge, Fluktuation je Branche, alle drei Stationen, 19 s | gemessen 23:07 und 23:08, Instanz 06.11.2026 02:40 |
 | Live-Änderung per Agent (D2 Teil 2) | auf main seit !150. „Beamte zählen nicht mehr mit“, Juli 2026: 407.604 → 395.315, −12.289, 2 min 55 s bis zum Vorschlag, nicht freigegeben | gemessen 06.11.2026 02:36, Vorführ-Instanz 1a4e0b8. Probe der Lane auf Kopien der Abgabe-DB: 13 von 14, `docs/plan/uc3/live-ruecknahme.md` |
 | Klassifikation bis 5-Steller und Gemeinden | online nachzuschlagen auf `/uc3/klassifikationen` mit Suche, und die Frage erklärt tiefe Codes, Gemeinden und Bezirke. Gezählt wird weiter nach Abschnitt und Bundesland, „Bezirk“ als Filter sagt ab | online gemessen 06.11.2026 01:34, main `275ffb2` |
-| Pensionsmeldungen der Träger | eingelesen: 28 von 28 Dateien, 9 Formate, 394 Summen ohne Abweichung. Online 2025 im Jahresdurchschnitt 2.584.909, vorläufig | `docs/uc3/pensionen-pruefbericht.md`, online gemessen 23:16 |
+| Pensionsmeldungen der Träger | eingelesen: 28 von 28 Dateien, 9 Formate, 394 Summen ohne Abweichung. Reiter `/uc3/pensionen`, 2025 im Schnitt 2.584.909, öffentlich vorläufig, auf der Vorführ-Adresse vom Owner freigegeben, nicht vergleichen. Kam nach dem Einfrieren der Abgabe dazu | `docs/uc3/pensionen-pruefbericht.md`, online gemessen 07:27 |
 | Lotse, verdeckter Test | Trefferquote 8 von 10, Träger richtig 6 von 10, Grenzen erkannt 3 von 8; Verbesserung eingespielt, Nachmessung offen | Prüfpunkt Lead 20:00 |
 | Simulator ohne passenden Zeitungsartikel | sagt offen „Modellannahme“, erfindet keinen Beleg | Prüfpunkt Lead 20:00, Messung E0 19:50 |
 | Online-Demo, Budget | 1.000 Modellaufrufe je Tag | Prüfpunkt Lead 20:00 |
