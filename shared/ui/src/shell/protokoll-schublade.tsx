@@ -78,7 +78,7 @@ function Zeile({ eintrag, heute }: { eintrag: Eintrag; heute: string }) {
           </Status>
         </p>
         <p className="break-words text-ink">{eintrag.anweisung}</p>
-        {eintrag.wirkung && <p className="break-words text-slate">{eintrag.wirkung}</p>}
+        {eintrag.wirkung && <p className="whitespace-pre-line break-words text-slate">{eintrag.wirkung}</p>}
       </div>
     </li>
   );
