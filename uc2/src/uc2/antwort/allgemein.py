@@ -117,6 +117,18 @@ _BUNDESLAENDER = frozenset(
     }
 )
 """Wie im Lotsen (`uc1.uc4`); UC2 importiert UC1 nicht."""
+_KEINE_BRANCHE = frozenset(
+    {
+        "Männer",
+        "Frauen",
+        "Geschlecht unbekannt",
+        "Beamte",
+        "Angestellte",
+        "Arbeiter",
+        "Beschäftigungskategorie unbekannt",
+    }
+)
+"""Geschlecht und Beschäftigungskategorie aus `stat.klass_*`: Sie dürfen nicht „die Branche Frauen“ heißen."""
 _MIT_ARTIKEL = {
     "Steiermark": ("In der Steiermark", "die Steiermark"),
     "Burgenland": ("Im Burgenland", "das Burgenland"),
@@ -160,10 +172,24 @@ class Bezug:
     @property
     def ort(self) -> str:
         """Gliederung als Text; ohne Branche zählt die Zahl alle Branchen, das gehört dazu."""
+        if self.nur_branche:
+            return f"die Branche {', '.join(self.teile)}"
         teile = [_MIT_ARTIKEL[t][1] if t in _MIT_ARTIKEL else t for t in self.teile]
         if set(self.teile) <= _BUNDESLAENDER:
             teile.append("alle Branchen")
         return ", ".join(teile)
+
+    @property
+    def nur_branche(self) -> bool:
+        """Nur eine Branche, ohne Land und ohne andere Merkmale; mehrere zusammen zählen nicht."""
+        text = " ".join(self.teile)
+        andere = _BUNDESLAENDER | _KEINE_BRANCHE
+        return (
+            bool(self.teile)
+            and not set(self.teile) & andere
+            and "zusammen" not in text
+            and not re.search(r"\d", text)
+        )
 
     @property
     def region(self) -> str | None:

@@ -693,7 +693,7 @@ def _uc3_zahl(bezeichnung: str, stand: str = "endgueltig") -> UcAntwort:
         (
             "Beschäftigungsverhältnisse (Bau)",
             "endgueltig",
-            "Für Bau im Oktober 2025 nennt StatAgent 390.900 Beschäftigungsverhältnisse.",
+            "Für die Branche Bau im Oktober 2025 nennt StatAgent 390.900 Beschäftigungsverhältnisse.",
         ),
     ],
     ids=["alle-branchen-vorlaeufig", "andere-branche"],
@@ -714,6 +714,23 @@ def test_zahl_ohne_versorgung_wird_abgefangen(
         zeile == f"{erste} Über die Versorgung sagt das allein wenig, darum wägt der Simulator hier nicht ab."
     )
     assert "Wartezeit" not in a.text and a.modell is None and a.zahlen[0].wert == 390900
+
+
+@pytest.mark.parametrize(
+    ("klammer", "anfang"),
+    [
+        ("Bau", "Für die Branche Bau im"),
+        ("Land- und Forstwirtschaft, Fischerei", "Für die Branche Land- und Forstwirtschaft, Fischerei im"),
+        ("Gesundheits- und Sozialwesen", "Für die Branche Gesundheits- und Sozialwesen im"),
+        ("Wien, Gesundheits- und Sozialwesen", "Für Wien, Gesundheits- und Sozialwesen im"),
+        ("Frauen", "Für Frauen im"),
+        ("Bau und Handel zusammen", "Für Bau und Handel zusammen im"),
+    ],
+)
+def test_nur_eine_branche_heisst_so(klammer: str, anfang: str) -> None:
+    """Fängt „Für Bau im März“ (UI-Regie 06.11.) und „die Branche Frauen“, wenn die Regel zu weit greift."""
+    bezug = bezug_aus([_kontextzahl(f"Beschäftigte ({klammer})")])
+    assert bezug is not None and bezug.satz.startswith(anfang)
 
 
 @pytest.mark.parametrize(

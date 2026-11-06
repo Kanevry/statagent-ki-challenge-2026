@@ -373,6 +373,25 @@ def test_kette_laender_mit_artikel(land: str, wo: str, gefragt: str) -> None:
     assert f"Arzttermin {wo} heißt das:" in text and text.startswith(f"Sie fragten nach {gefragt},")
 
 
+@pytest.mark.parametrize(
+    ("klammer", "anfang"),
+    [
+        ("Bau", "Sie fragten nach der Branche Bau im Oktober 2025."),
+        (
+            "Land- und Forstwirtschaft, Fischerei",
+            "Sie fragten nach der Branche Land- und Forstwirtschaft, Fischerei im",
+        ),
+        ("Wien, Bau", "Sie fragten nach Wien, Bau im Oktober 2025."),
+        ("Frauen", "Sie fragten nach Frauen im Oktober 2025."),
+        ("Bau und Handel zusammen", "Sie fragten nach Bau und Handel zusammen im Oktober 2025."),
+    ],
+)
+def test_kette_nur_eine_branche_heisst_so(klammer: str, anfang: str) -> None:
+    """Fängt „Sie fragten nach Bau“ (UI-Regie 06.11.) und „der Branche Frauen“, die Regel zu weit gefasst."""
+    zahl = ZAHL_UC3.model_copy(update={"bezeichnung": f"Beschäftigungsverhältnisse ({klammer})"})
+    assert uc4.router_adapter("?", _kette_kontext(zahl)).text.startswith(anfang)
+
+
 def test_kette_prozent_steht_mit_ihrem_wort() -> None:
     """Fängt „StatAgent nennt dafür 6,2 %“: Ohne „Fluktuation“ sagt die Zahl nichts."""
     zahl = ZAHL_UC3.model_copy(

@@ -33,7 +33,7 @@ const ROLLE: Record<KettenUc, string> = {
 
 const BEISPIELE = [
   "Wie viele Beschäftigte gab es im März 2025 in Wien im Gesundheits- und Sozialwesen?",
-  "Wie viele Beschäftigte gab es im Oktober 2025?",
+  "Wie viele Beschäftigte gab es im Juli 2026 in Tirol im Gesundheits- und Sozialwesen?",
 ];
 
 type Station =

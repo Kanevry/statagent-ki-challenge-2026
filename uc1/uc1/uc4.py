@@ -203,6 +203,18 @@ _BUNDESLAENDER = frozenset(
         "Wien",
     }
 )
+_KEINE_BRANCHE = frozenset(
+    {
+        "Männer",
+        "Frauen",
+        "Geschlecht unbekannt",
+        "Beamte",
+        "Angestellte",
+        "Arbeiter",
+        "Beschäftigungskategorie unbekannt",
+    }
+)
+"""Geschlecht und Beschäftigungskategorie aus `stat.klass_*`: Sie dürfen nicht „der Branche Frauen“ heißen."""
 _MIT_ARTIKEL = {
     "Steiermark": ("in der Steiermark", "der Steiermark"),
     "Burgenland": ("im Burgenland", "dem Burgenland"),
@@ -226,9 +238,9 @@ KETTE_PAKET = (
 )
 
 KETTE_SIMULATOR = {
-    "alle dafür": "Im Simulator sind alle Rollen für mehr Fachkräfte in der Versorgung.",
-    "Mehrheit dafür": "Im Simulator sind die meisten Rollen für mehr Fachkräfte in der Versorgung.",
-    "Mehrheit dagegen": "Im Simulator sind die meisten Rollen gegen mehr Fachkräfte in der Versorgung.",
+    "alle dafür": "Im Simulator sind alle Gruppen für mehr Fachkräfte in der Versorgung.",
+    "Mehrheit dafür": "Im Simulator sind die meisten Gruppen für mehr Fachkräfte in der Versorgung.",
+    "Mehrheit dagegen": "Im Simulator sind die meisten Gruppen gegen mehr Fachkräfte in der Versorgung.",
     "noch strittig": "Im Simulator ist noch strittig, ob es mehr Fachkräfte in der Versorgung braucht.",
 }
 """Einordnung aus `uc2.antwort.adapter._KATEGORIE`, für Bürgerinnen und Bürger gesagt."""
@@ -287,6 +299,10 @@ def _bezugssaetze(kontext: Kontext) -> str | None:
     ]
     if gemeinsam <= _BUNDESLAENDER:
         gefragt.append("allen Branchen")
+    elif not gemeinsam & (_BUNDESLAENDER | _KEINE_BRANCHE) and not re.search(
+        r"zusammen|\d", " ".join(gemeinsam)
+    ):
+        gefragt[0] = f"der Branche {gefragt[0]}"
     monate = {kontext.belege[z.beleg].monat for z in uc3}
     monat = monate.pop() if len(monate) == 1 else None
     wann = f" im {_monat_text(monat)}" if monat else ""
