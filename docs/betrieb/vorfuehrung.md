@@ -88,7 +88,7 @@ in der Vorführung und ist nicht messbar, das gehört am Tisch nicht behauptet. 
 4. **D3 Datenanfragen:** `/uc3/fragen`. Eine Frage braucht rund 3 s. Höchstens zwei rechnen gleichzeitig, also die Antwort abwarten:
    Die dritte Frage innerhalb dieser 3 s bekommt „Gerade rechnet das Programm schon zwei Fragen“.
 5. **D4 Gemeinsamer Einstieg:** `/uc4`.
-6. **UC2 live:** `/uc2`, „Neu verhandeln lassen, mit Modell“. Eine Verhandlung dauert rund fünf Minuten, die Runden erscheinen
+6. **UC2 live:** `/uc2`, „Neu verhandeln lassen, mit Modell“. Eine Verhandlung mit Modell dauert rund fünf Minuten, die Runden erscheinen
    laufend. Am Ende Vor- und Nachname eintragen und freigeben. Während des Laufs geht kein zweiter Start: Er bekommt „Es läuft
    schon eine Verhandlung.“
 

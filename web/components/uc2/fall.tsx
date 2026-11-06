@@ -80,13 +80,19 @@ export function Fall({ vorbereitung, eigeneFrage = false }: { vorbereitung: Vorb
           </Link>
         )}
         {modus === "live" && (
-          <button type="button" onClick={neuVerhandeln} disabled={laedt} className="min-h-11 font-sans text-14 text-gruen underline underline-offset-4 disabled:opacity-50">
+          <button
+            type="button"
+            onClick={neuVerhandeln}
+            disabled={laedt}
+            // Während des Startens ein Zustand in Grau, kein blasser Link (Sichtprüfung 06.11.)
+            className={laedt ? "min-h-11 font-sans text-14 text-slate" : "min-h-11 font-sans text-14 text-gruen underline underline-offset-4"}
+          >
             {laedt ? "Startet, das kann eine halbe Minute dauern …" : "Neu verhandeln lassen, mit Modell"}
           </button>
         )}
       </div>
       {modus === "live" && (
-        <p className="-mt-6 font-sans text-14 text-slate">Eine neue Verhandlung dauert rund fünf Minuten. Die Runden erscheinen, sobald sie fertig sind.</p>
+        <p className="-mt-6 font-sans text-14 text-slate">Eine neue Verhandlung mit Modell dauert rund fünf Minuten. Die Runden erscheinen, sobald sie fertig sind.</p>
       )}
       {meldung && (
         <p role="status" className="font-sans text-14 text-ink">

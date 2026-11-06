@@ -41,7 +41,7 @@ it("eigene Frage: leiser Link, nur wenn die Route sie annimmt", () => {
 
 
 it("Hinweis zur Dauer steht nur im Modus live", () => {
-  const satz = "Eine neue Verhandlung dauert rund fünf Minuten. Die Runden erscheinen, sobald sie fertig sind.";
+  const satz = "Eine neue Verhandlung mit Modell dauert rund fünf Minuten. Die Runden erscheinen, sobald sie fertig sind.";
   const { rerender } = render(<Fall vorbereitung={basis} />);
   expect(screen.queryByText(satz)).toBeNull();
   rerender(<Fall vorbereitung={{ ...basis, modus: "live" }} />);
