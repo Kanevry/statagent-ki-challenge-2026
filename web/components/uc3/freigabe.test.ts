@@ -13,6 +13,7 @@ import {
   aenderungKurz,
   klarerAenderungsSatz,
   zitatDoppelt,
+  zitatTeile,
   regionenSatz,
   probeWirkungSatz,
   klartext,
@@ -472,6 +473,15 @@ describe("Sätze der Freigabe-Seiten (UI-Regie v1)", () => {
     expect(auftragKopf("Beamte zählen nicht mit. Prüfe das bitte.").titel).toBe("Beamte zählen nicht mit");
   });
 
+  // Fehler, den das fängt: Auftrag 2 stand als Textwand von 30 Handyzeilen über den Zahlen.
+  it("zeigt von einem langen Auftrag oben nur den ersten Satz", () => {
+    const lang = `Gezählt wird das ganze Monat, nicht der 1. Juli. ${"Noch ein Satz dazu. ".repeat(20).trim()}`;
+    const { anfang, rest } = zitatTeile(lang);
+    expect(anfang).toBe("Gezählt wird das ganze Monat, nicht der 1. Juli.");
+    expect(`${anfang} ${rest}`).toBe(lang);
+    expect(zitatTeile("Beamte zählen nicht mit.")).toEqual({ anfang: "Beamte zählen nicht mit.", rest: "" });
+  });
+
   // Fehler, den das fängt: Regelcodes wie R6_… im Fließtext der Zeile.
   it("sagt ohne Regelcode, was sich ändert", () => {
     const satz = aenderungSatz({ typ: "regel_aendern", aenderungen: [{ regel_name: "R6_beschaeftigungskategorie" }], regelsatzZiel: "v2" });
@@ -544,6 +554,11 @@ describe("Rücknahme einer Regel (#168)", () => {
 describe("Neue Regeln Ausschluss und Gruppierung als Satz (#168)", () => {
   const neu = (regel: Record<string, unknown>) => ({ typ: "regel_neu" as const, aenderungen: [{ regel: { name: "R8_probe", ...regel } }] });
   const namen = { region: { "1": "Burgenland", "3": "Niederösterreich", "9": "Wien" }, qualifikation: { Beamte: "Beamte" } };
+
+  it("nennt einen Abschnitt ohne „mit Branche“", () => {
+    const k = klartext(neu({ art: "ausschluss", parameter: { merkmal: "oenace", werte: ["O"] } }), {});
+    expect(k.worte).toEqual(["Beschäftigungsverhältnisse im Abschnitt O zählen nicht mehr."]);
+  });
 
   // Fehler, den das fängt: Rohtext vom Modell, „region“ und Codes wie 9 auf der Freigabe-Seite vor der Jury.
   it("schreibt einen Ausschluss mit Namen statt Codes", () => {
