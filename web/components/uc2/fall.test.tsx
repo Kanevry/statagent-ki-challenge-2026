@@ -30,3 +30,11 @@ it("live (Python-API erreichbar): zusätzlich ein leiser Weg, neu mit Modell ver
   render(<Fall vorbereitung={{ ...basis, modus: "live" }} />);
   expect(screen.getByRole("button", { name: "Neu verhandeln lassen, mit Modell" })).toBeTruthy();
 });
+
+it("eigene Frage: leiser Link, nur wenn die Route sie annimmt", () => {
+  const { rerender } = render(<Fall vorbereitung={basis} />);
+  expect(screen.queryByRole("link", { name: "Eigene Frage ausprobieren" })).toBeNull();
+  rerender(<Fall vorbereitung={basis} eigeneFrage />);
+  expect(screen.getByRole("link", { name: "Eigene Frage ausprobieren" }).getAttribute("href")).toBe("/uc2/frage");
+});
+

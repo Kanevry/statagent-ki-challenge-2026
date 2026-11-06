@@ -823,6 +823,16 @@ def _gliederung_ohne_nach(conn: Verbindung, frage: str, letzter: str) -> str:
     return frage
 
 
+def _nach_regeln(regelsatz: str) -> str:
+    """Sichtbarer Name des Stands im Antwortsatz, gleiche Wörter wie ``mitRegeln`` in web/components/uc3/regelsatz-name.ts."""
+    if regelsatz == "v1":
+        return "nach den alten Regeln"
+    if regelsatz == "v2":
+        return "nach den Änderungsaufträgen"
+    nummer = re.fullmatch(r"v(\d+)", regelsatz)
+    return f"nach der neuen Fassung {nummer.group(1)}" if nummer else f"nach {regelsatz}"
+
+
 def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str, Any]:
     """Antwort in einem Regelsatz, der nicht am Stichtag zählt: über ``statagent.uc4.antwort_daten``, das die Zählweise
     und die Kategorien aus den Regeln liest. Was der Adapter nicht lesen kann, bekommt eine Absage statt einer Zahl.
@@ -907,14 +917,15 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
     if not _adapter_liest_gleich(conn, frage, regelsatz):
         return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
     daten = antwort_daten(conn, frage, regelsatz)
-    text = f"Nach Regelsatz {regelsatz}: {daten['text']}" if daten["zahlen"] else daten["text"]
+    nach = _nach_regeln(regelsatz)
+    text = f"{nach[0].upper()}{nach[1:]}: {daten['text']}" if daten["zahlen"] else daten["text"]
     antwort = _antwort(typ, text, belege=daten["belege"], zahlen=daten["zahlen"])
     # In der Kette zählt der erste Satz: Beim Zeitraum der Durchschnitt, nicht die Erklärung des Zeitraums.
     mittel = [z for z in daten["zahlen"] if ", Durchschnitt " in str(z["bezeichnung"])]
     if mittel:
         name, _, zeit = str(mittel[0]["bezeichnung"]).partition(", Durchschnitt ")
         antwort["antwortsatz"] = (
-            f"Im Durchschnitt waren es {_deutsch(int(mittel[0]['wert']))} {name}, {zeit}, nach Regelsatz {regelsatz}."
+            f"Im Durchschnitt waren es {_deutsch(int(mittel[0]['wert']))} {name}, {zeit}, {nach}."
         )
     return antwort
 

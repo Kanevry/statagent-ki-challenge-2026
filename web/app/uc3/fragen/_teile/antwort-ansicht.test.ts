@@ -21,12 +21,12 @@ describe("Antwort-Ansicht (UI-Regie v1)", () => {
   it("nennt den Regelsatz, wenn die Antwort nach einem anderen zählt", () => {
     const antwort = {
       uc: "uc3" as const,
-      text: "Nach Regelsatz v2: Im Juli 2026 gab es 407.604 Beschäftigungsverhältnisse. Die Zahl ist vorläufig.",
+      text: "Nach den Änderungsaufträgen: Im Juli 2026 gab es 407.604 Beschäftigungsverhältnisse. Die Zahl ist vorläufig.",
       belege: [{ ...beleg, monat: "2026-07" }],
       zahlen: [{ bezeichnung: "Beschäftigungsverhältnisse", wert: 407604, einheit: "Anzahl", beleg: 0 }],
     };
-    expect(verstandenSatz(antwort)).toContain("Regelsatz v2");
-    expect(verstandenSatz({ ...antwort, text: "Am 31. Juli 2026 gab es 399.027 Beschäftigungsverhältnisse." })).not.toContain("Regelsatz");
+    expect(verstandenSatz(antwort)).toContain("nach den Änderungsaufträgen");
+    expect(verstandenSatz({ ...antwort, text: "Am 31. Juli 2026 gab es 399.027 Beschäftigungsverhältnisse." })).not.toContain("nach den");
   });
 
   // Fehler, den das fängt: 20 Zahlen je Bundesland als lange Liste statt Tabelle Männer | Frauen.
