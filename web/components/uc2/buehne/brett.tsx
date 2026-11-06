@@ -47,7 +47,7 @@ export function Brett({ zustand, sprecher }: { zustand: FallZustand; sprecher: s
                 <span className="font-sans text-14 font-semibold text-ink">{themaKurz(thema.id, thema.titel)}</span>
                 <span className="font-sans text-14 text-slate">{kategorieWort(einordnung[thema.id])}</span>
               </div>
-              <div className="relative mx-10 h-[60px]" role="img" aria-label={beschreibung(thema.id, hier, stand)}>
+              <div className="relative mx-10 h-[60px]" role="img" aria-label={beschreibung(thema.id, hier, stand, thema.titel)}>
                 <div className="absolute inset-x-0 top-[13px] h-px bg-line" aria-hidden="true" />
                 {STUFEN.map((s) => (
                   <div
@@ -101,7 +101,7 @@ export function Brett({ zustand, sprecher }: { zustand: FallZustand; sprecher: s
   );
 }
 
-function beschreibung(thema: string, gruppen: string[], stand: Record<string, Record<string, number>>): string {
-  if (gruppen.length === 0) return `${themaKurz(thema)}: noch keine Haltungen.`;
-  return `${themaKurz(thema)}: ${gruppen.map((g) => `${akteurName(g)} ${haltungWort(stand[g]![thema])}`).join(", ")}.`;
+function beschreibung(thema: string, gruppen: string[], stand: Record<string, Record<string, number>>, titel?: string): string {
+  if (gruppen.length === 0) return `${themaKurz(thema, titel)}: noch keine Haltungen.`;
+  return `${themaKurz(thema, titel)}: ${gruppen.map((g) => `${akteurName(g)} ${haltungWort(stand[g]![thema])}`).join(", ")}.`;
 }
