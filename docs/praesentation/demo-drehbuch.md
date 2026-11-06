@@ -154,6 +154,7 @@ Fragt die Jury so etwas, sagt Bernhard: „Das zeige ich Ihnen mit einer Abfrage
 
 - Die Wien-Frage in `/uc4` mit einem Klick auf das erste Beispiel: „Wie viele Beschäftigte gab es im März 2025 in Wien im Gesundheits- und Sozialwesen?“ Sie steht wörtlich auf Folie 9.
 - Sollwert für UC3: **7.498** Beschäftigungsverhältnisse (F18), Wien, ÖNACE 2025 Abschnitt R (Gesundheits- und Sozialwesen), Stichtag 31.03.2025, mit Beleg. Der Simulator sagt, was mehr oder weniger Personal für Wartezeit und Betreuung heißt, der Lotse sagt es für den nächsten Arzttermin (fester Text, an der Karte steht „Fester Text“). Dauer online 9 bis 12 s.
+- In `/uc4` keine Fluktuationsfrage zeigen, bis der Lead den Fix zu !303 live meldet: Neben der richtigen Zahl stand ein falscher Satz zur Branche.
 - **Nur die Frage vom Knopf, ohne Zusatz.** Mit „und was heißt das für Wartezeiten beim Arzt?“ stoppt die Kette bei StatAgent, ohne Zahl (online gemessen 06.11.2026 05:02). Am Vorabend lief dieselbe Frage noch über das Rechenmodell, das ist überholt.
 - Was von UC1 und UC2 läuft, steht im Tagesstand des Fragenkatalogs (Teil C, „Läuft der gemeinsame Einstieg schon?“). Bernhard sagt nur, was dort steht.
 - Nur wenn die Wien-Frage um 06:45 echt läuft (nicht im Testmodus). Sonst entfällt D4 ohne Ersatz.
