@@ -302,6 +302,12 @@ function ProbeTabelleAnsicht({ vorschlag, tabelle: t, wirkung }: { vorschlag: nu
         <BelegLink {...probeTabelleBeleg(vorschlag, t)} />
       </div>
       {!aendert.gesamt && !aendert.gliederung && wirkung && <p className="font-sans text-16 text-ink">{wirkung}</p>}
+      {/* Annahme zur ersten Lieferung (Rückfrage R9): Sonst wirkt +48 neben +8.577 wie ein Widerspruch. */}
+      {aendert.gesamt && t.lieferung === "2024-08" && (
+        <p className="font-sans text-14 text-slate">
+          Die erste Lieferung enthält kaum Beschäftigungsverhältnisse, die im Monat enden. Deshalb ist der Unterschied hier klein.
+        </p>
+      )}
     </div>
   );
 }
