@@ -32,12 +32,37 @@ export function fassungsText(fassung: Fassung): string {
   return fassung.art === "live" ? "Live-Vorführung (mit Passwort)" : "Öffentliche Fassung";
 }
 
+/**
+ * Link-Eigenschaften je Fassung. Nur der Weg zur Live-Vorführung öffnet einen neuen Tab: Wer die Passwortabfrage
+ * abbricht, bleibt so auf dieser Seite (UI-Regie). Der Rückweg zur öffentlichen Fassung bleibt im selben Tab.
+ */
+export function fassungsLink(fassung: Fassung): {
+  href: string;
+  target?: "_blank";
+  rel?: string;
+  "data-fassung": Fassung["art"];
+} {
+  return fassung.art === "live"
+    ? { href: fassung.adresse, target: "_blank", rel: "noopener", "data-fassung": fassung.art }
+    : { href: fassung.adresse, "data-fassung": fassung.art };
+}
+
+/** Sichtbarer Text, beim neuen Tab mit einem Zusatz nur für Screenreader. */
+export function FassungsInhalt({ fassung }: { fassung: Fassung }) {
+  return (
+    <>
+      {fassungsText(fassung)}
+      {fassung.art === "live" && <span className="sr-only"> (öffnet in einem neuen Tab)</span>}
+    </>
+  );
+}
+
 export function FassungsKnopf() {
   const fassung = useFassung();
   if (!fassung) return null;
   return (
-    <a href={fassung.adresse} className={klasse} data-fassung={fassung.art}>
-      {fassungsText(fassung)}
+    <a {...fassungsLink(fassung)} className={klasse}>
+      <FassungsInhalt fassung={fassung} />
     </a>
   );
 }

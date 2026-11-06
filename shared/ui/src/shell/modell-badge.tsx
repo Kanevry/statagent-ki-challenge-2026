@@ -22,6 +22,9 @@ type Zustand = { art: "laden" } | { art: "ok"; status: ModellStatus } | { art: "
 /** Sichtbarer Satz statt „mock · mock“: auch für Bürger verständlich (Abnahme #64-5). */
 export const TESTBETRIEB_TEXT = "Ohne Sprachmodell";
 
+/** Über aufgezeichneten Inhalten (UI-Regie): sonst läse sich „Ohne Sprachmodell“ wie „keine KI im Spiel“. */
+export const AUFZEICHNUNG_TEXT = "Aufzeichnung";
+
 export function ModellBadge({
   quelle = "/api/plattform/modell",
   lang = false,
@@ -30,7 +33,7 @@ export function ModellBadge({
   quelle?: string;
   lang?: boolean;
   /** Modell der aktuellen Seite (`SeitenModell`); hat Vorrang vor der globalen Einstellung. */
-  vorgabe?: { provider: string; modell?: string | null; gewaehlt?: boolean } | null;
+  vorgabe?: { provider: string; modell?: string | null; gewaehlt?: boolean; aufzeichnung?: boolean } | null;
 }) {
   const [zustand, setZustand] = useState<Zustand>({ art: "laden" });
 
@@ -70,11 +73,25 @@ export function ModellBadge({
   // Die Seite darf nur Testbetrieb melden oder den Anbieter bestätigen, den der Server wirklich meldet; sonst
   // zeigte der Badge einen erfundenen Anbieter (Review !66).
   // Ausnahme: Die Seite wählt den Anbieter selbst für ihre Anfragen (gewaehlt, Modellwahl auf /uc4).
+  // „Aufzeichnung“ nennt keinen Anbieter, nur dass der gezeigte Inhalt aufgezeichnet ist; das weiß nur die Seite.
   const vorgabeGilt =
     vorgabe !== null &&
-    (vorgabe.provider === "mock" ||
+    (vorgabe.aufzeichnung === true ||
+      vorgabe.provider === "mock" ||
       vorgabe.gewaehlt === true ||
       (zustand.art === "ok" && zustand.status.provider === vorgabe.provider));
+  if (vorgabe && vorgabeGilt && vorgabe.aufzeichnung) {
+    return (
+      <ModellPille
+        aria-live="polite"
+        title="Diese Seite zeigt eine Aufzeichnung"
+        data-testid="modell-badge"
+        data-modell-seite=""
+      >
+        <span data-modell-aufzeichnung="">{AUFZEICHNUNG_TEXT}</span>
+      </ModellPille>
+    );
+  }
   if (vorgabe && vorgabeGilt) {
     const seiteMock = vorgabe.provider === "mock";
     return (
