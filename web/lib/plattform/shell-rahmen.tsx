@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { AppShell, type VerweisProps } from "@kic/ui/shell";
+import { AppShell, istAktiv, zeigtHeader, type VerweisProps } from "@kic/ui/shell";
+import { DemoHinweis } from "./demo-hinweis";
 import { FassungsKnopf } from "./fassungs-knopf";
 
 // Verbindet die Shell aus @kic/ui mit Next: Pfad aus usePathname, Links über next/link.
@@ -26,6 +27,11 @@ export function modellQuelleFuer(pfad: string): string | undefined {
   return pfad.startsWith("/uc2") ? "/api/uc2/modell" : undefined;
 }
 
+/** Der Hinweis zum Abbau der KI-Zugänge steht unter dem App-Kopf, nicht auf den Folien der Präsentation. */
+export function zeigtDemoHinweis(pfad: string): boolean {
+  return zeigtHeader(pfad) && !istAktiv("/praesentation", pfad);
+}
+
 export function ShellRahmen({ children }: { children: ReactNode }) {
   const pfad = usePathname() ?? "/";
   return (
@@ -37,6 +43,7 @@ export function ShellRahmen({ children }: { children: ReactNode }) {
       modellQuelle={modellQuelleFuer(pfad)}
       kopfZusatz={<FassungsKnopf />}
     >
+      {zeigtDemoHinweis(pfad) && <DemoHinweis />}
       {children}
     </AppShell>
   );
