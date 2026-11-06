@@ -74,6 +74,7 @@ export function zeileAusTreffer(t: TrefferRoh): BefundZeile {
     saetze: zahl(anzahl),
     einstufung,
     einstufungText: t.anhalten ? `${einstufungText} · hält den Monat an` : einstufungText,
+    anhalten: t.anhalten,
   };
 }
 

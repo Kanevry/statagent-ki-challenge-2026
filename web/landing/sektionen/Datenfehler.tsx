@@ -21,10 +21,12 @@ function standText(iso: string): string {
 }
 
 function Einstufungstext({ zeile }: { zeile: BefundZeile }) {
+  // Ein grünes Häkchen vor „hält den Monat an“ läse sich wie „alles gut“; die App zeigt denselben Monat gelb.
+  const warnung = zeile.anhalten || zeile.einstufung === "nicht-erklaerbar";
   return (
-    <span className={zeile.einstufung === "nicht-erklaerbar" ? a.warn : a.ok}>
+    <span className={warnung ? a.warn : a.ok}>
       <span className={a.zeichen} aria-hidden="true">
-        {ZEICHEN[zeile.einstufung]}
+        {zeile.anhalten ? ZEICHEN["nicht-erklaerbar"] : ZEICHEN[zeile.einstufung]}
       </span>
       <span>{zeile.einstufungText}</span>
       {zeile.rueckfrage ? (

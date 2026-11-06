@@ -12,6 +12,8 @@ export interface BefundZeile {
   saetze: string;
   einstufung: Einstufung;
   einstufungText: string;
+  /** Die Prüfung hält den Monat an: eine erklärte Ursache ändert nichts daran, dass der Monat noch nicht steht. */
+  anhalten?: boolean;
   rueckfrage?: string;
   /** Kurzer Beleg (Abfrage-Ausschnitt) */
   beleg?: string;

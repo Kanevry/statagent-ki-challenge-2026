@@ -48,7 +48,7 @@ describe("zeileAusTreffer", () => {
     expect(z.befund).toBe("Beschäftigungsverhältnisse des Vormonats fehlen in der Lieferung.");
     expect(z.befund).not.toContain("P16");
     expect(z.beleg).toBeUndefined();
-    expect(z).toMatchObject({ lieferung: "2025-10", saetze: "78.949", einstufungText: "erklärt, Datenproblem · hält den Monat an" });
+    expect(z).toMatchObject({ lieferung: "2025-10", saetze: "78.949", anhalten: true, einstufungText: "erklärt, Datenproblem · hält den Monat an" });
   });
 
   it("nimmt die Satzvorlage der Regel und schreibt den Monat aus", () => {
