@@ -719,6 +719,12 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | U008 | form:anteil,zeit:seit | rueckfrage | - | - | auch=absage | Frauenanteil seit Jänner 2025 |
 | U009 | merkmal:regelsatz,form:gliederung | zahl | 2026-06 | - | regelsatz=v2;gruppe=geschlecht;auch=absage,rueckfrage | Beschäftigte im Juni 2026 aufgeschlüsselt nach Geschlecht, nach den Änderungsaufträgen gerechnet |
 | U010 | merkmal:kategorie,merkmal:bundesland | zahl | 2025-11 | region=5 | werte_je=kategorie:Arbeiter,Angestellte,Beamte;auch=absage,rueckfrage | Beschäftigte in Salzburg im November 2025, unterteilt in Arbeiter, Angestellte und Beamte |
+| G030 | form:rang,merkmal:region | zahl | 2026-07 | - | gruppe=region;text=Am meisten im Juli 2026: Wien;muss | Welches Bundesland hat die meisten Beschäftigten im Juli 2026? |
+| G031 | form:rang,merkmal:oenace | zahl | 2026-07 | geschlecht=W | gruppe=oenace;text=Am meisten im Juli 2026: P Öffentliche;muss | Welche Branche hat die meisten Frauen im Juli 2026? |
+| G032 | form:rang,merkmal:region | zahl | 2026-07 | geschlecht=M | gruppe=region;text=Am wenigsten im Juli 2026: Burgenland;muss | In welchem Bundesland arbeiten die wenigsten Männer im Juli 2026? |
+| G033 | form:rang,zeit:jahreszeit | rueckfrage | - | - | auch=absage | Welches Bundesland hat die wenigsten Beschäftigten im Sommer 2025? |
+| G034 | form:rang,merkmal:oenace | zahl | 2025-03 | - | gruppe=oenace;text=Am wenigsten im März 2025:;muss | Welche Branche hat die wenigsten Beschäftigten im März 2025? |
+| G035 | form:absage,merkmal:region | absage | - | - | auch=rueckfrage | Die meisten Frauen in Wien im Juli 2026 |
 | G050 | form:app | definition | - | - | text=Regeln | Was ist ein Regelsatz? |
 | G051 | form:app | definition | - | - | text=Mensch entscheiden | Was heißt angehalten? |
 | G053 | form:app,zeit:monat | zahl | 2025-10 | - | art=pruefung;muss | Warum ist Oktober 2025 angehalten? |
