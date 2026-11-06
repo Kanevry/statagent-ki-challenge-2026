@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Fliesstext, Knopf, Status } from "@kic/ui/basis";
 import { ergebnisSchema, MAX_FRAGE, type Ergebnis } from "../../lib/plattform/uc4-ergebnis";
 import { kuerzel } from "./buehne/takt";
-import { gliedere } from "./eigene-frage-text";
+import { gliedere, OHNE_ARTIKEL } from "./eigene-frage-text";
 import { akteurName } from "./namen";
 
 // /uc2/frage: Feld, eine Hauptaktion, Antwort. Fragt nur die Station UC2 über /api/uc4/frage (Schutz siehe Route).
@@ -82,8 +82,9 @@ function Antwort({ frage, text }: { frage: string; text: string }) {
             <li key={stimme.name} className="flex flex-col gap-1 border-b border-line py-4">
               <h3 className="font-sans text-16 font-semibold text-ink">{stimme.name}</h3>
               {stimme.haltung && <p className="font-sans text-14 text-slate">{stimme.haltung}</p>}
-              <p className="font-sans text-16 text-ink">{stimme.grund}</p>
+              {stimme.grund && <p className="font-sans text-16 text-ink">{stimme.grund}</p>}
               {stimme.beleg && <p className="font-sans text-12 text-slate">Quelle: {stimme.beleg}</p>}
+              {stimme.ohneArtikel && <p className="font-sans text-12 text-slate">{OHNE_ARTIKEL}</p>}
             </li>
           ))}
         </ul>

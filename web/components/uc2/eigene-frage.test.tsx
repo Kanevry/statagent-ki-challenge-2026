@@ -27,8 +27,8 @@ function antwortet(status: number, daten: unknown) {
 it("gliedert Stimmen, Quelle, Kurzfassung und Bedingungen; Unbekanntes bleibt stehen", () => {
   const g = gliedere(TEXT);
   expect(g.themen).toEqual([{ thema: "Impfen in Apotheken", stand: "noch strittig" }, { thema: "Schutz", stand: "alle dafür" }]);
-  expect(g.stimmen[0]).toEqual({ name: "Ärztekammer", haltung: "Dafür bei: „Impfen in Apotheken“.", grund: "Mehr Hilfe vor Ort.", beleg: "Kurier, August 2026" });
-  expect(g.stimmen[1]).toEqual({ name: "Sozialversicherung", haltung: "", grund: "Eine Ergänzung.", beleg: null });
+  expect(g.stimmen[0]).toEqual({ name: "Ärztekammer", haltung: "Dafür bei: „Impfen in Apotheken“.", grund: "Mehr Hilfe vor Ort.", beleg: "Kurier, August 2026", ohneArtikel: false });
+  expect(g.stimmen[1]).toEqual({ name: "Sozialversicherung", haltung: "", grund: "Eine Ergänzung.", beleg: null, ohneArtikel: false });
   expect(g.stimmen[2]?.beleg).toBe("Beispiel, erfunden: Beispielblatt, Juli 2026");
   expect(g.bedingungen).toHaveLength(2);
   expect(g.rest).toEqual(["Zu dieser Frage gibt es kein Rechenmodell, deshalb stehen hier keine berechneten Zahlen."]);
@@ -64,5 +64,19 @@ it("zeigt eine Absage des Servers ohne KI-Kennzeichnung einer Antwort", async ()
   fireEvent.click(screen.getByRole("button", { name: "Abwägen lassen" }));
   expect((await screen.findByTestId("uc2-eigene-absage")).textContent).toContain("nicht zur Gesundheitspolitik");
   expect(screen.queryByTestId("uc2-eigene-antwort")).toBeNull();
+});
+
+it("nimmt Werkstattwörter aus der Stimme einer Organisation und nennt die Patientenvertretung wie auf /uc2", () => {
+  const g = gliedere(
+    [
+      "- Patient:innenvertretung: Dafür bei: „Schutz“. Grund: Wir sind dafür. Das ist eine Modellannahme, weil keine Zahl vorliegt. Das passt zur Sorge aus den Belegen. Die Patient:innenvertretung will klare Regeln. Modellannahme: Dazu gibt es keinen Zeitungsartikel. Die Haltung folgt nur aus der Beschreibung der Rolle.",
+      "- Sozialversicherung: Grund: Das ist belegt.",
+      "Bedingungen: Patient:innenvertretung: Klare Regeln.; Sozialversicherung: Nur mit Beleg.",
+    ].join("\n"),
+  );
+  expect(g.stimmen[0]).toEqual({ name: "Patientenvertretung", haltung: "Dafür bei: „Schutz“.", grund: "Wir sind dafür. Die Patientenvertretung will klare Regeln.", beleg: null, ohneArtikel: true });
+  expect(g.stimmen[1]?.grund).toBe("");
+  expect(g.bedingungen).toEqual(["Patientenvertretung: Klare Regeln."]);
+  expect(JSON.stringify(g)).not.toMatch(/Modellannahme|Beleg|innenvertretung/);
 });
 

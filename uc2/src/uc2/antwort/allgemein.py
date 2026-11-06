@@ -131,7 +131,9 @@ def auftrag_nachrichten(frage: str, experte: dict[str, Any]) -> list[dict[str, s
 
 FREI_HINWEIS = (
     "Zu dieser Frage gibt es kein Rechenmodell und keine Zahl aus der Statistik. Nenne keine Zahlen. Bleib "
-    "bei dem, worum die Frage geht, und sag, was es aus deiner Sicht für Versorgung und Kosten heißt."
+    "bei dem, worum die Frage geht, und sag, was es aus deiner Sicht für Versorgung und Kosten heißt. "
+    "Sprich als deine Organisation. Pflicht: Die Wörter Modellannahme, Beleg und Belege kommen in deinem "
+    "Text nie vor, auch nicht abgewandelt."
 )
 FREI_KEIN_MODELL = "Zu dieser Frage gibt es kein Rechenmodell, deshalb stehen hier keine berechneten Zahlen."
 """Erste Zeile der Antwort auf eine eigene Frage: was fehlt, bevor die Abwägung beginnt."""

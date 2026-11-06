@@ -19,6 +19,8 @@ def test_auftrag_nennt_die_frage_und_nicht_die_personalvorgabe() -> None:
     assert "mehr oder weniger Personal" not in text
     # Dieselbe Rolle wie in der Kette, sonst fände der Testbetrieb keine Vorlage.
     assert allgemein.ROLLE_AUFTRAG in text
+    # Die Rollen sprechen als Organisation, nicht über unsere Werkstatt (UI-Regie).
+    assert "Modellannahme, Beleg und Belege" in text
 
 
 def test_ohne_kontext_steht_kein_fester_kernsatz_in_der_antwort() -> None:
