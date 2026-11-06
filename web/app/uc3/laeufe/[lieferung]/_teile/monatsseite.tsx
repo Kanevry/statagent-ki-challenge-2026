@@ -48,6 +48,7 @@ import {
 import { istMonat, monatName, stichtag, verschieben } from "@/components/uc3/monat";
 import { abrechnung } from "@/components/uc3/laeufe";
 import { laufPfad, uebersichtPfad } from "@/components/uc3/navigation";
+import { mitRegeln, regelsatzName } from "@/components/uc3/regelsatz-name";
 import { OenaceWechselAbsatz } from "./oenace-wechsel-absatz";
 import type { Lauf } from "@/components/uc3/typen";
 import { alltag } from "@/components/uc3/sprache";
@@ -162,7 +163,7 @@ function WegWeiter({ detail, angehalten }: { detail: LaufDetail; angehalten: boo
     <p className="font-sans text-16 text-ink">
       {veroeffentlichen.regelnOhneFreigabe > 0
         ? `Bleibt vorläufig, bis ${veroeffentlichen.regelnOhneFreigabe === 1 ? "die letzte Regel" : `${formatZahl(veroeffentlichen.regelnOhneFreigabe)} Regeln`} mit Namen freigegeben ${veroeffentlichen.regelnOhneFreigabe === 1 ? "ist" : "sind"}.`
-        : "Bleibt vorläufig, bis der Regelstand für diesen Monat mit Namen freigegeben ist."}
+        : "Bleibt vorläufig, bis die Regeln für diesen Monat mit Namen freigegeben sind."}
     </p>
   );
 }
@@ -283,7 +284,7 @@ function AnnahmeZeile({ a, lauf }: { a: Annahme; lauf: Lauf }) {
       <details>
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 py-3 [&::-webkit-details-marker]:hidden">
           <span className="flex-1 font-sans text-16 text-ink">{annahmeSatz(a.satz).replace(/^Annahme:\s*/, "")}</span>
-          <span className="font-sans text-16 tabular-nums text-ink">{wirkung ?? ""}</span>
+          <span className="font-sans text-16 tabular-nums text-ink">{a.wirkungSaetze ? wirkung : ""}</span>
         </summary>
         <div className="flex flex-col gap-2 pb-4">
           <p className="font-sans text-14 text-slate">
@@ -396,6 +397,9 @@ function Abschnitte({ detail, bericht }: { detail: LaufDetail; bericht: Qualitae
         {!bericht && <p className="font-sans text-16 text-ink">{BERICHT_FEHLER}</p>}
         {annahmen.length > 0 && (
           <ul className="flex flex-col border-t border-line">
+            <li aria-hidden="true" className="flex justify-end border-b border-line py-1 font-sans text-12 font-semibold text-slate">
+              betrifft
+            </li>
             {annahmen.map((a) => (
               <AnnahmeZeile key={a.nr} a={a} lauf={lauf} />
             ))}
@@ -469,7 +473,7 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
   if (lesung.daten === null) {
     const satz =
       regelsatz !== "v1"
-        ? `Für ${name} gibt es mit Regelsatz ${regelsatz} noch keinen Lauf. Er entsteht, sobald die freigegebene Änderung gerechnet ist.`
+        ? `Für ${name} gibt es ${mitRegeln(regelsatz)} noch keinen Lauf. Er entsteht, sobald die freigegebene Änderung gerechnet ist.`
         : `Für ${name} gibt es noch keinen Lauf.`;
     return (
       <>
@@ -480,7 +484,7 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
           satz={satz}
           aktion={
             <Link href={regelsatz !== "v1" ? laufPfad(lieferung) : "/uc3"} className={knopfKlassen("sekundaer")}>
-              {regelsatz !== "v1" ? `${name} mit Regelsatz v1 ansehen` : "Alle Monate ansehen"}
+              {regelsatz !== "v1" ? `${name} ${mitRegeln("v1")} ansehen` : "Alle Monate ansehen"}
             </Link>
           }
         />
@@ -509,7 +513,7 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
           {lauf.regelsatz !== "v1" && (
             <>
               <span aria-hidden="true">·</span>
-              <span>{`Regelsatz ${lauf.regelsatz}`}</span>
+              <span>{regelsatzName(lauf.regelsatz)}</span>
             </>
           )}
           <span aria-hidden="true">·</span>
@@ -518,6 +522,7 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
           {halt ? haltSatz(halt, lauf.lieferung, detail.fdCodes) : bestandSatz(lauf, vormonat)}
         </Ueberschrift>
+        {/* Ohne Halt und ohne Übernahme wiederholte die Rechnung nur die Zahl der Überschrift, samt zweitem Beleg. */}
         <div>
           {halt ? (
             <BelegLink {...laufBeleg(lauf, { quelle: "meta.pruefung_treffer", sql: sqlTreffer(lauf, halt) })} />
@@ -525,7 +530,7 @@ export async function Monatsseite({ lieferung, regelsatz }: { lieferung: string;
             <BelegLink {...laufBeleg(lauf, { sql: sqlBestandMitVormonat(lauf, vormonat) })} />
           )}
         </div>
-        <Rechnung detail={detail} />
+        {(halt || lauf.fortgeschrieben > 0) && <Rechnung detail={detail} />}
         <WegWeiter detail={detail} angehalten={halt !== null} />
       </header>
 

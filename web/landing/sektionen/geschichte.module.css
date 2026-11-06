@@ -1,0 +1,888 @@
+/*
+ * Die Geschichte der Startseite: eine Bühne auf Navy, die stehen bleibt und sich durch fünf Schritte verwandelt.
+ * Grundregel: Ohne Animation steht jeder Zustand sofort richtig da, Keyframes liefern nur den Weg dorthin.
+ */
+.geschichte {
+  --g-gelb: #f5d54f;
+  --g-papier: #f4f7f5;
+  --g-leise: #b9c6d8;
+  --g-saeule: #8ea2c2;
+  --g-ruhe: #3a5788;
+
+  background: var(--l-navy);
+  color: var(--l-white);
+  scroll-margin-top: var(--l-nav-h);
+}
+
+.raster2 {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  grid-template-rows: auto 1fr;
+  column-gap: 64px;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: var(--l-rand);
+}
+
+/* Erstes Bild: Satz, Knopf, alles ohne Scrollen sichtbar */
+.kopf {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 100svh;
+  padding-block: calc(var(--l-nav-h) + 16px) 32px;
+}
+
+.titel {
+  margin: 0;
+  font-family: var(--l-display);
+  font-size: clamp(28px, 2.7vw, 38px);
+  font-weight: 500;
+  line-height: 1.16;
+  letter-spacing: -0.02em;
+  text-wrap: pretty;
+}
+
+.satz {
+  margin: 20px 0 0;
+  max-width: 38ch;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--g-papier);
+  text-wrap: pretty;
+}
+
+.knopf {
+  display: inline-flex;
+  align-items: center;
+  height: 60px;
+  margin-top: 28px;
+  padding-inline: 36px;
+  border-radius: 4px;
+  background: var(--l-gruen);
+  color: var(--l-white);
+  font-size: 20px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 160ms ease-out;
+}
+
+.knopf:hover {
+  background: #00915f;
+}
+
+.knopf:focus-visible {
+  outline: 2px solid var(--l-white);
+  outline-offset: 2px;
+}
+
+.autor {
+  margin: 20px 0 0;
+  font-size: 14px;
+  color: var(--g-leise);
+}
+
+.hinweis {
+  margin: 32px 0 0;
+  font-size: 14px;
+  color: var(--g-leise);
+}
+
+/* Die Texte der fünf Schritte: normaler Textfluss, also ohne Bühne und ohne JavaScript vollständig */
+.schritte {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+  padding: 0 0 96px;
+  list-style: none;
+}
+
+.schritt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 88svh;
+  scroll-margin-top: var(--l-nav-h);
+}
+
+.schrittTitel {
+  margin: 0;
+  font-family: var(--l-display);
+  font-size: clamp(26px, 2.5vw, 34px);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.schrittText {
+  margin: 16px 0 0;
+  max-width: 46ch;
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--g-papier);
+  text-wrap: pretty;
+}
+
+.begriff {
+  margin: 12px 0 0;
+  max-width: 46ch;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--g-leise);
+}
+
+.begriff strong {
+  font-weight: 600;
+  color: var(--g-papier);
+}
+
+.beleg {
+  align-self: stretch;
+  max-width: 46ch;
+  margin: 20px 0 0;
+}
+
+.beleg pre:focus-visible {
+  outline: 2px solid var(--l-mint);
+  outline-offset: 2px;
+}
+
+.beleg pre {
+  margin: 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 4px;
+  background: rgb(255 255 255 / 0.05);
+  font-family: var(--l-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.beleg figcaption {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--g-leise);
+}
+
+/* Die Bühne */
+.buehne {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  position: sticky;
+  top: var(--l-nav-h);
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: calc(100svh - var(--l-nav-h));
+  z-index: 2;
+}
+
+.feld {
+  position: relative;
+  width: 100%;
+  max-width: calc((100svh - var(--l-nav-h) - 72px) * 4 / 3);
+  margin-inline: auto;
+  aspect-ratio: 4 / 3;
+}
+
+.bild {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Fläche mit den Säulen: staucht sich für die Freigabe und tritt beim Ergebnis zurück. */
+.flaeche {
+  transform-origin: 0 480px;
+  transition:
+    transform 700ms var(--l-aus),
+    opacity 500ms ease-out;
+}
+
+.saeule {
+  fill: var(--g-saeule);
+  opacity: 0.6;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transform: scaleY(var(--zeilen));
+  transition:
+    transform 800ms var(--l-aus),
+    fill 350ms ease-out,
+    opacity 350ms ease-out;
+  animation: steigen 800ms var(--l-aus) backwards;
+  animation-delay: calc(var(--i) * 28ms);
+}
+
+@keyframes steigen {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+.achse {
+  stroke: rgb(255 255 255 / 0.4);
+  stroke-width: 1;
+}
+
+/* 1 Ankunft: je Monat fällt ein Paket in seine Säule, die Säule wird hell, wenn es ankommt. */
+.paket {
+  fill: var(--l-mint);
+  opacity: 0;
+}
+
+.feld[data-schritt="1"] .paket {
+  animation: fallen 620ms ease-in both;
+  animation-delay: calc(var(--i) * 70ms);
+}
+
+@keyframes fallen {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  92% {
+    transform: translateY(var(--ziel));
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(var(--ziel));
+    opacity: 0;
+  }
+}
+
+.feld[data-schritt="1"] .saeule {
+  fill: var(--g-papier);
+  opacity: 1;
+  transition-delay: 0ms, calc(var(--i) * 70ms + 520ms), calc(var(--i) * 70ms + 520ms);
+}
+
+/* 2 Prüfung: eine Linie läuft durch, was sie passiert hat, ist geprüft; drei Säulen bleiben gelb. */
+.pruefLinie {
+  opacity: 0;
+}
+
+.pruefLinie line {
+  stroke: var(--l-mint);
+  stroke-width: 2;
+}
+
+.feld[data-schritt="2"] .pruefLinie {
+  animation: pruefen 2400ms linear both;
+}
+
+@keyframes pruefen {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  96% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(712px);
+    opacity: 0;
+  }
+}
+
+.feld[data-schritt="2"] .saeule {
+  fill: #6f8fb8;
+  opacity: 1;
+  transition-delay: 0ms, calc(var(--i) * 96ms), calc(var(--i) * 96ms);
+}
+
+.feld[data-schritt="2"] .saeule[data-art] {
+  fill: var(--g-gelb);
+}
+
+.faden {
+  stroke: var(--g-gelb);
+  stroke-width: 1;
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+
+.feld[data-schritt="2"] .faden {
+  opacity: 0.8;
+  transition-delay: calc(var(--i) * 96ms + 120ms);
+}
+
+/* 3 Einbruch: Säulen werden zum Bestand, die Kurve zeichnet sich, Oktober fällt. */
+.feld[data-schritt="3"] .saeule {
+  fill: var(--g-ruhe);
+  opacity: 1;
+  transform: scaleY(var(--bestand));
+}
+
+.feld[data-schritt="3"] .saeule[data-art="okt"] {
+  fill: var(--g-gelb);
+}
+
+.kurve {
+  stroke: var(--g-papier);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transition:
+    stroke-dashoffset 300ms ease-out,
+    opacity 200ms ease-out;
+}
+
+.feld[data-schritt="3"] .kurve {
+  stroke-dashoffset: 0;
+  opacity: 1;
+  transition:
+    stroke-dashoffset 1500ms cubic-bezier(0.45, 0, 0.55, 1) 200ms,
+    opacity 100ms ease-out 200ms;
+}
+
+.bruch,
+.punkt,
+.punktOkt,
+.fadenOkt {
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+
+.bruch {
+  stroke: var(--g-gelb);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+
+.punkt {
+  fill: var(--g-papier);
+}
+
+.punktOkt {
+  fill: var(--g-gelb);
+  stroke: var(--l-navy);
+  stroke-width: 2;
+}
+
+.fadenOkt {
+  stroke: var(--g-gelb);
+  stroke-width: 1;
+}
+
+.feld[data-schritt="3"] .bruch,
+.feld[data-schritt="3"] .punkt,
+.feld[data-schritt="3"] .punktOkt,
+.feld[data-schritt="3"] .fadenOkt {
+  opacity: 1;
+  transition-delay: 1300ms;
+}
+
+/* 4 Freigabe: erst der Name, dann werden 22 Monate grün, zwei bleiben gelb. */
+.feld[data-schritt="4"] .flaeche {
+  transform: scaleY(0.6);
+}
+
+.feld[data-schritt="4"] .saeule {
+  fill: var(--l-mint);
+  opacity: 1;
+  transform: scaleY(var(--vorlaeufig));
+  transition-delay: 0ms, calc(var(--i) * 40ms + 1900ms), 0ms;
+}
+
+.feld[data-schritt="4"] .saeule[data-art="okt"],
+.feld[data-schritt="4"] .saeule[data-art="maerz"] {
+  fill: var(--g-gelb);
+  transition-delay: 0ms, 0ms, 0ms;
+}
+
+.karte {
+  position: absolute;
+  inset: 2% 0 auto 0;
+  padding: 16px 20px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 6px;
+  background: #0a2b63;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 300ms ease-out,
+    visibility 0s linear 300ms;
+}
+
+.feld[data-schritt="4"] .karte {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 300ms ease-out,
+    visibility 0s;
+}
+
+.kartenTitel {
+  margin: 0;
+  font-size: 13px;
+  color: var(--g-leise);
+}
+
+.zeileFalsch,
+.zeileRichtig {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 6px 0 0;
+  font-family: var(--l-mono);
+  font-size: 15px;
+}
+
+.eingabeFalsch {
+  color: var(--g-leise);
+  text-decoration: line-through;
+  text-decoration-color: var(--g-gelb);
+}
+
+.abgelehnt {
+  font-family: var(--l-sans);
+  font-size: 13px;
+  color: var(--g-gelb);
+}
+
+.eingabe {
+  display: inline-block;
+  min-width: 22ch;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--l-mint);
+}
+
+.tippen {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.feld[data-schritt="4"] .tippen {
+  animation: tippen 800ms steps(21) 500ms backwards;
+}
+
+@keyframes tippen {
+  from {
+    width: 0;
+  }
+  to {
+    width: 21ch;
+  }
+}
+
+.bestaetigt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--l-mint);
+}
+
+.feld[data-schritt="4"] .bestaetigt {
+  animation: auftauchen 240ms ease-out 1500ms backwards;
+}
+
+@keyframes auftauchen {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Beschriftungen auf der Bühne: nur im eigenen Schritt sichtbar */
+.etikett {
+  position: absolute;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.3;
+  opacity: 0;
+  transition: opacity 240ms ease-out;
+  pointer-events: none;
+}
+
+.etikett strong {
+  display: block;
+  font-family: var(--l-display);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.etikett span {
+  display: block;
+  color: var(--g-papier);
+}
+
+.erklaerung {
+  top: 12%;
+  left: 1%;
+  color: var(--g-papier);
+}
+
+.feld[data-schritt="0"] .erklaerung {
+  opacity: 1;
+  transition-delay: 800ms;
+}
+
+.ankunft {
+  top: 2%;
+  left: 1%;
+}
+
+.ankunft strong {
+  font-size: 38px;
+  line-height: 1.05;
+}
+
+.feld[data-schritt="1"] .ankunft {
+  opacity: 1;
+}
+
+.marke {
+  top: 1%;
+  width: 26%;
+  color: var(--g-gelb);
+}
+
+.marke strong {
+  color: var(--g-gelb);
+}
+
+.feld[data-schritt="2"] .marke {
+  opacity: 1;
+  transition-delay: calc(var(--i) * 96ms + 160ms);
+}
+
+.vormonat,
+.einbruch {
+  top: 2%;
+}
+
+.vormonat {
+  text-align: right;
+}
+
+.einbruch strong {
+  color: var(--g-gelb);
+}
+
+.folge {
+  color: var(--g-gelb) !important;
+  font-weight: 600;
+}
+
+.feld[data-schritt="3"] .vormonat,
+.feld[data-schritt="3"] .einbruch {
+  opacity: 1;
+  transition-delay: 1300ms;
+}
+
+.legende {
+  top: 91%;
+  left: 1%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+
+.legendeGruen {
+  color: var(--l-mint) !important;
+}
+
+.legendeGelb {
+  color: var(--g-gelb) !important;
+}
+
+.feld[data-schritt="4"] .legende {
+  opacity: 1;
+  transition-delay: 2600ms;
+}
+
+/* 5 Ergebnis: Die Säulen treten zurück, 2.880 Kästchen füllen sich Zeile für Zeile. */
+.feld[data-schritt="5"] .flaeche {
+  opacity: 0;
+}
+
+.raster {
+  opacity: 0;
+  fill: url(#kaestchen);
+  clip-path: inset(100% 0 0 0);
+  transition:
+    opacity 200ms ease-out,
+    clip-path 200ms ease-out;
+}
+
+.bild pattern rect {
+  fill: var(--l-mint);
+}
+
+.feld[data-schritt="5"] .raster {
+  opacity: 1;
+  clip-path: inset(0);
+  transition:
+    opacity 200ms ease-out 300ms,
+    clip-path 1500ms steps(48) 300ms;
+}
+
+.rasterText {
+  top: 63%;
+  left: 0;
+  width: 50%;
+}
+
+.feld[data-schritt="5"] .rasterText {
+  opacity: 1;
+  transition-delay: 1400ms;
+}
+
+.ergebnis {
+  position: absolute;
+  top: 7%;
+  left: 55%;
+  right: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ergebnis li {
+  padding-block: 14px;
+  border-top: 1px solid rgb(255 255 255 / 0.18);
+  opacity: 0;
+  transition: opacity 260ms ease-out;
+}
+
+.ergebnis strong {
+  display: block;
+  font-family: var(--l-display);
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.ergebnis span {
+  display: block;
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--g-papier);
+}
+
+.feld[data-schritt="5"] .ergebnis li {
+  opacity: 1;
+  transition-delay: calc(var(--k) * 260ms + 1100ms);
+}
+
+/* Monate an der Achse */
+.monat {
+  position: absolute;
+  top: 90%;
+  margin: 0;
+  font-size: 13px;
+  color: var(--g-leise);
+  font-variant-numeric: tabular-nums;
+  transition: opacity 240ms ease-out;
+}
+
+.monatErste {
+  left: 1%;
+}
+
+.monatLetzte {
+  right: 1%;
+}
+
+.feld[data-schritt="4"] .monat,
+.feld[data-schritt="5"] .monat {
+  opacity: 0;
+}
+
+/* Wo stehen wir */
+.stand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: calc((100svh - var(--l-nav-h) - 72px) * 4 / 3);
+  margin: 4px auto 0;
+  font-size: 13px;
+  color: var(--g-leise);
+}
+
+.stand[data-schritt="0"] {
+  visibility: hidden;
+}
+
+.standText {
+  flex: none;
+  min-width: 92px;
+}
+
+.standLeiste {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+}
+
+.standLeiste > span {
+  flex: 1;
+  height: 2px;
+  background: rgb(255 255 255 / 0.2);
+  transition: background-color 300ms ease-out;
+}
+
+.standLeiste > span[data-an] {
+  background: var(--l-mint);
+}
+
+/* Schmal: Satz und Knopf zuerst, dann klebt die Bühne oben und die Texte laufen darunter durch. */
+@media (max-width: 899px) {
+  .raster2 {
+    display: block;
+    padding-inline: 20px;
+  }
+
+  .kopf {
+    min-height: 0;
+    justify-content: flex-start;
+    padding-block: calc(var(--l-nav-h) + 24px) 24px;
+  }
+
+  .titel {
+    font-size: 27px;
+  }
+
+  .satz {
+    font-size: 16px;
+    margin-top: 14px;
+  }
+
+  .knopf {
+    width: 100%;
+    justify-content: center;
+    margin-top: 20px;
+  }
+
+  .autor {
+    margin-top: 14px;
+    font-size: 13px;
+  }
+
+  .hinweis {
+    display: none;
+  }
+
+  .buehne {
+    height: auto;
+    padding-block: 8px 6px;
+    background: var(--l-navy);
+  }
+
+  .feld,
+  .stand {
+    max-width: none;
+  }
+
+  .schritte {
+    padding-bottom: 64px;
+  }
+
+  .schritt {
+    justify-content: flex-start;
+    min-height: 62svh;
+    padding-top: 28px;
+    scroll-margin-top: calc(var(--l-nav-h) + 75vw + 40px);
+  }
+
+  .etikett {
+    font-size: 12px;
+  }
+
+  .etikett strong {
+    font-size: 15px;
+  }
+
+  .ankunft strong {
+    font-size: 24px;
+  }
+
+  .marke {
+    width: 28%;
+  }
+
+  .karte {
+    inset: 0 0 auto 0;
+    padding: 8px 12px;
+  }
+
+  .kartenTitel {
+    font-size: 12px;
+  }
+
+  .zeileFalsch,
+  .zeileRichtig {
+    margin-top: 3px;
+    font-size: 13px;
+  }
+
+  .abgelehnt {
+    font-size: 12px;
+  }
+
+  .bestaetigt {
+    margin-top: 4px;
+    font-size: 12px;
+  }
+
+  .legende {
+    top: 89%;
+  }
+
+  .ergebnis {
+    top: 4%;
+  }
+
+  .ergebnis li {
+    padding-block: 7px;
+  }
+
+  .ergebnis strong {
+    font-size: 16px;
+  }
+
+  .ergebnis span {
+    font-size: 12px;
+  }
+
+  .monat {
+    font-size: 12px;
+  }
+
+  .stand {
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .geschichte *,
+  .geschichte *::before {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .paket,
+  .pruefLinie {
+    display: none;
+  }
+}
