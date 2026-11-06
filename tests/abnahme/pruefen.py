@@ -251,7 +251,7 @@ def db_umgebung(datei: Path) -> str:
 
 def hand_teil(p: dict, k: dict, belege: dict[str, list[dict]], sha: str) -> dict:
     """Hand-Prüfsatz: zählt als voller Teil, wenn der Prüfer einen gültigen Hand-Beleg abgelegt hat."""
-    # Nur Hand-Belege ansehen: Der jüngste Eintrag ist sonst die Zeile des letzten Laufs und überdeckt den Beleg.
+    # Nur Hand-Belege ansehen: Der jüngste Eintrag ist sonst die Zeile des letzten Laufs.
     hand = [
         x
         for x in belege.get(k["id"], [])

@@ -273,7 +273,7 @@ def test_alte_abzuege_entfernen_schont_den_laufenden_abzug(tmp_path: Path) -> No
 
 
 def test_hand_beleg_wird_nicht_von_der_laufzeile_ueberdeckt(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Fängt: Nach dem ersten Lauf steht dessen Zeile als jüngster Eintrag vorn, der Hand-Beleg zählt nie wieder.
+    # Fängt: Nach dem ersten Lauf steht dessen Zeile vorn, der Hand-Beleg zählt nie wieder.
     monkeypatch.setattr(pruefen.matrix, "veraltet", lambda *a: "")
     k = {"id": "1-1", "hash": "h", "bereich": "uc3"}
     p = {"beschreibung": "Ein Mensch prüft."}
