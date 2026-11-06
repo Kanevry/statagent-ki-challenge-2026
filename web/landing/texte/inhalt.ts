@@ -150,7 +150,7 @@ export const BUEHNE = {
   erste: monatKurz(ERSTE),
   mitte: monatKurz(EINBRUCH.lieferung),
   letzte: monatKurz(LETZTE),
-  erklaerung: "Jede Säule ist eine Monatslieferung.",
+  erklaerung: "Jede Säule ist eine Monatslieferung. Die Lücke im Oktober 2025 hat das Programm gefunden.",
   ankunft: { wert: zahl(SUMME_ZEILEN), text: `Zeilen in ${zahl(ANZAHL_LIEFERUNGEN)} Lieferungen` },
   stand: (n: number) => `Schritt ${zahl(n)} von ${zahl(GESCHICHTE.length)}`,
   marken: [

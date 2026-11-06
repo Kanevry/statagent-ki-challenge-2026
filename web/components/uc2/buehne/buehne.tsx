@@ -59,7 +59,7 @@ export function PanelBuehne({ fallId, modus }: { fallId: string; modus: Modus })
               ? `Ergebnis nach ${z.ergebnis?.runden ?? z.runden.length} Runden`
               : rundeNr
                 ? `Runde ${rundeNr}${z.maxRunden ? ` von höchstens ${z.maxRunden}` : ""}${phase ? `: ${PHASE[phase] ?? phase}` : ""}`
-                : "Das Panel setzt sich an den Tisch"}
+                : "Die Gruppen setzen sich an den Tisch"}
           </h1>
           {!fertig && (
             <div className="flex items-center gap-2">

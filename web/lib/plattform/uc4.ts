@@ -221,8 +221,12 @@ export function uc4Einstellung(umgebung: Umgebung = process.env): Uc4Einstellung
   };
 }
 
-/** Deckel der Probierseite /uc2/frage: rund 100 Modellaufrufe am Tag, eine Frage kostet in der Regel 4 bis 5. */
-export const STATION_FRAGEN_PRO_TAG = 20;
+/**
+ * Deckel der Probierseite /uc2/frage, für alle Besucher zusammen: 60 Fragen am Tag, damit fünf Jurymitglieder je
+ * fünf Fragen den Tag nicht füllen. Eine Frage kostet in der Regel 4 bis 5 Modellaufrufe; der äußere Deckel bleibt
+ * das Tagesbudget von plattform.llm.
+ */
+export const STATION_FRAGEN_PRO_TAG = 60;
 export const STATION_PRO_MINUTE = 5;
 export const STATION_LAEUFE = 1;
 export const DECKEL_MELDUNG = "Für heute sind die Probierfragen aufgebraucht. Morgen geht es wieder. Die aufgezeichnete Verhandlung bleibt offen.";
