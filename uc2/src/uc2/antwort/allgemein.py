@@ -118,6 +118,10 @@ _BUNDESLAENDER = frozenset(
 )
 """Wie im Lotsen (`uc1.uc4`); UC2 importiert UC1 nicht."""
 
+VORLAGE_OBEN = "Die Sätze zum Personal oben sind eine Vorlage, kein Modelltext."
+"""Steht im Text, wenn das Modell keinen brauchbaren Kernsatz lieferte. Die Karte erkennt die Vorlage an genau
+diesem Satz (web/components/uc4/kette.tsx); die Antwortform hat dafür kein Feld."""
+
 ROLLE_NOTIZ = "moderator_notiz"
 _ZAHLWORT = {2: "zwei", 3: "drei", 4: "vier", 5: "fünf", 6: "sechs"}
 _AUFFAELLIGKEIT = {

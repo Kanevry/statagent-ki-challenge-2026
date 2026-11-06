@@ -385,7 +385,7 @@ function StationKarte({
           <h2 className="font-display text-20 font-bold text-ink">{name}</h2>
           <p className="font-sans text-14 text-slate">
             {ROLLE[uc]}
-            {vorher ? `, mit ${uc === "uc1" ? "der Zahl" : "der Antwort"} von ${findeUc(uc === "uc1" ? "uc3" : vorher).name}` : ""}.
+            {vorher ? `, mit der Zahl von ${findeUc("uc3").name}` : ""}.
           </p>
         </div>
       </div>
@@ -415,6 +415,10 @@ function StationKarte({
  * Zeile, die Kernaussage (Jury 05.11.). Beides nur, solange es kurz genug ist.
  */
 const GANZ_BIS = 400;
+/** Ab hier ist die Anzeigeschrift schwer zu lesen (UI-Regie 06.11.: neun Zeilen je Karte); kurze Sätze bleiben groß. */
+const LANG_AB = 160;
+/** Steht im Text, wenn oben die Vorlage steht und nicht das Modell; gleicher Satz wie `VORLAGE_OBEN` in uc2.antwort.allgemein. */
+const VORLAGE_OBEN = "Die Sätze zum Personal oben sind eine Vorlage, kein Modelltext.";
 /** Die übrigen Belege stehen in der ganzen Antwort; oben reicht einer, zweimal „Beleg“ untereinander sagt nichts. */
 const BELEGE_OBEN = 1;
 /** Mehr Zahlen trägt die Karte nicht; „Zugänge im Oktober 2024“ liefert 89 (UI-Regie 05.11.). */
@@ -451,7 +455,7 @@ function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcA
   const mehr = text !== gezeigt.trim();
   return (
     <div className="flex flex-col gap-3" data-uc4-antwort="">
-      <p className="font-display text-20 font-medium text-ink text-pretty">{gezeigt}</p>
+      <p className={`${gezeigt.length >= LANG_AB ? "font-sans text-16" : "font-display text-20 font-medium"} text-ink text-pretty`}>{gezeigt}</p>
       {!erste && belegeOben(antwort).map((beleg, i) => (
         <HerkunftChip
           key={`${beleg.quelle}-${i}`}
@@ -512,7 +516,13 @@ function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcA
           "Vorlage, ohne KI"
         ) : (
           <>
-            {antwort.modell ? (antwort.modell === "mock" ? TESTBETRIEB_TEXT : "Mit KI geschrieben") : "Ohne KI, nur Code"}
+            {antwort.modell
+              ? antwort.modell === "mock"
+                ? TESTBETRIEB_TEXT
+                : text.includes(VORLAGE_OBEN)
+                  ? "Oben Vorlage, ganze Antwort mit KI geschrieben"
+                  : "Mit KI geschrieben"
+              : "Ohne KI, nur Code"}
             {dauerMs > 0 ? `, ${sekunden(dauerMs)} s` : ""}
           </>
         )}

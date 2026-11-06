@@ -402,7 +402,7 @@ def _kernzeile(ergebnis: Kurzergebnis, ez: dict[str, Zahl], bezug: allgemein.Bez
     return f"{bezug.satz} {aussage}" if bezug else aussage
 
 
-def _einleitung(ergebnis: Kurzergebnis) -> str:
+def _einleitung(ergebnis: Kurzergebnis, *, vorlage_oben: bool) -> str:
     n = len(ergebnis.teilnehmer)
     runden = "einer Runde" if ergebnis.runden == 1 else f"{_WORT.get(ergebnis.runden, 'mehreren')} Runden"
     if ergebnis.modelle == ["mock"]:
@@ -411,10 +411,11 @@ def _einleitung(ergebnis: Kurzergebnis) -> str:
         )
     else:
         art = "Das ist eine Simulation: Die Rollen spielt eine KI, es ist keine echte Verhandlung."
-    return (
+    einleitung = (
         f"{_WORT.get(n, 'Mehrere').capitalize()} Interessenvertretungen haben die Frage in {runden} "
         f"abgewogen. {art}"
     )
+    return f"{einleitung} {allgemein.VORLAGE_OBEN}" if vorlage_oben else einleitung
 
 
 def _experte_text(voll: dict[str, Any], ez: dict[str, Zahl]) -> list[str]:
@@ -542,7 +543,8 @@ def _antwort(
 
     beispiel = isinstance(quelle, FixtureQuelle)
     bezug = allgemein.bezug_aus(kontext_prompt)
-    zeilen = [_kernzeile(ergebnis, ez, bezug), _ausgangslage(kontextzahlen), _einleitung(ergebnis)]
+    einleitung = _einleitung(ergebnis, vorlage_oben=not ez and ergebnis.kern is None)
+    zeilen = [_kernzeile(ergebnis, ez, bezug), _ausgangslage(kontextzahlen), einleitung]
     if voll is not None:
         zeilen += _experte_text(voll, ez)
     zeilen += _abwaegung(ergebnis, akteure, s, beispiel)

@@ -31,6 +31,7 @@ from uc2.antwort.allgemein import (
     KERN_SCHEMA,
     MOCK_THEMEN,
     TEILNEHMER,
+    VORLAGE_OBEN,
     bezug_aus,
     feste_saetze,
     fester_auftrag,
@@ -647,6 +648,25 @@ def test_unbrauchbarer_kern_ergibt_feste_saetze(monkeypatch: pytest.MonkeyPatch,
     _kern_aus_modell(monkeypatch, kern)
     text = antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")]).text
     assert text.splitlines()[0] == WIEN_ZEILE
+    # Daran erkennt die Karte die Vorlage (UI-Regie 06.11.); gleicher Satz in web/components/uc4/kette.tsx.
+    assert VORLAGE_OBEN in text
+
+
+def test_modelltext_oben_traegt_keinen_vorlagensatz(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt „Oben Vorlage“ an der Karte, obwohl das Modell die Sätze geschrieben hat."""
+    _kern_aus_modell(
+        monkeypatch,
+        {
+            "mehr": "In Wien heißt mehr Personal kürzer warten.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
+    )
+    assert VORLAGE_OBEN not in antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")]).text
+
+
+def test_rechenmodell_oben_ist_keine_vorlage(demo: UcAntwort) -> None:
+    """Fängt „Oben Vorlage“ beim Fallweg: Dort steht das Ergebnis des Rechenmodells, `kern` fehlt immer."""
+    assert VORLAGE_OBEN not in demo.text
 
 
 def _kontextzahl(bezeichnung: str, wert: float = 390900, einheit: str = "Anzahl") -> dict[str, Any]:

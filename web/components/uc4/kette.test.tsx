@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { UcAntwort } from "@kic/ui/antwortform";
 import { Kette } from "./kette";
@@ -236,11 +236,37 @@ it("der Simulator zeigt oben seine Aussage und seine eigenen Quellen, nicht die 
   expect(karte.querySelector('[data-baustein="herkunft"]')!.textContent).toContain("presse: Kurier");
 });
 
-it("die Karte sagt, was jede Station von wem bekommt: Der Lotse nimmt nur die Zahl von StatAgent", async () => {
+it("Karte 2 und 3 nennen dieselbe Herkunft: die Zahl von StatAgent", async () => {
   const seite = await fragen(strom(UC3, UC2, UC1));
   await screen.findByText(/Fertig in/);
-  expect(seite.querySelector('[data-uc-karte="uc2"]')!.textContent).toContain("mit der Antwort von StatAgent.");
+  expect(seite.querySelector('[data-uc-karte="uc2"]')!.textContent).toContain("mit der Zahl von StatAgent.");
   expect(seite.querySelector('[data-uc-karte="uc1"]')!.textContent).toContain("mit der Zahl von StatAgent.");
+});
+
+it("steht oben die Vorlage, sagt die Karte das; steht dort Modelltext, sagt sie „Mit KI geschrieben“", async () => {
+  // Fängt die Angabe, die für das Gelesene nicht stimmt (UI-Regie 06.11.).
+  const vorlage = antwort("uc2", `${UC2.text}\nDie Sätze zum Personal oben sind eine Vorlage, kein Modelltext.`, [BELEG_UC3], [ZAHL]);
+  const seite = await fragen(strom(UC3, vorlage, UC1));
+  await screen.findByText(/Fertig in/);
+  expect(seite.querySelector('[data-uc-karte="uc2"] [data-testid="uc4-modell"]')!.textContent).toMatch(/^Oben Vorlage, ganze Antwort mit KI geschrieben/);
+  cleanup();
+  const zweite = await fragen(strom(UC3, UC2, UC1));
+  await screen.findByText(/Fertig in/);
+  expect(zweite.querySelector('[data-uc-karte="uc2"] [data-testid="uc4-modell"]')!.textContent).toMatch(/^Mit KI geschrieben/);
+});
+
+it("lange Antworten stehen in der Leseschrift, kurze bleiben groß", async () => {
+  // Fängt neun Zeilen Anzeigeschrift je Karte (UI-Regie 06.11.). Grenze 160 Zeichen.
+  const lang = antwort("uc2", "a".repeat(160), [BELEG_UC3], [ZAHL]);
+  const kurz = antwort("uc2", "a".repeat(159), [BELEG_UC3], [ZAHL]);
+  const klasse = (s: HTMLElement) => s.querySelector('[data-uc-karte="uc2"] [data-uc4-antwort] p')!.className;
+  const seite = await fragen(strom(UC3, lang, UC1));
+  await screen.findByText(/Fertig in/);
+  expect(klasse(seite)).toContain("font-sans");
+  cleanup();
+  const zweite = await fragen(strom(UC3, kurz, UC1));
+  await screen.findByText(/Fertig in/);
+  expect(klasse(zweite)).toContain("font-display");
 });
 
 it("der Lotse zeigt den Beleg seiner Zahl", async () => {
