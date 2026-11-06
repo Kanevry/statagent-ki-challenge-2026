@@ -30,7 +30,7 @@ Zurück zum [README](../../README.md#grenzen-und-offene-punkte).
 
 Das Voice-Konzept (Vapi Custom LLM, Webhook, Text-Fallback) folgt einem früheren eigenen Projekt des Teams,
 einem Sprach-Interview mit Vapi. **Übernommen sind nur Konzept und Schnittstellen. Der Code ist hier neu
-geschrieben.** Das belegt eine Suche im Repo: Der Name des früheren Projekts kommt im Quelltext nicht vor.
+geschrieben.**
 Die Liste aller übernommenen Teile mit Herkunft, Version und Rechtebeleg: `docs/abgabe/herkunft.md`.
 
 ## Lizenzen

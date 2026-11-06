@@ -61,8 +61,8 @@ Offen gesagt: Vier Freigaben zu den Änderungsaufträgen hat eine KI-Sitzung im 
 
 | Thema | Stand | Nachweis |
 |---|---|---|
-| Lokal und offline | Die Aufgabe verlangt es (Technische Regel 2). Der Monatslauf braucht kein Netz und kein Sprachmodell, gerechnet wird in einer PostgreSQL-Datenbank (Version 16). | [README](../../README.md), Abschnitt „Beispiellauf UC3 (Jury-Weg)“ |
-| Modell austauschbar | Ein Schalter wählt das Modell. Standard ist das Azure-Modell des Veranstalters (Standort West Europe). Mistral aus der EU hat am selben Code geantwortet. Ein Modell im eigenen Haus (Ollama) ist angebunden, gelaufen ist es noch nicht. | [docs/models.md](../models.md), [README](../../README.md), Abschnitt „Modelle“ |
+| Lokal und offline | Die Aufgabe verlangt es (Technische Regel 2). Der Monatslauf braucht kein Netz und kein Sprachmodell, gerechnet wird in einer PostgreSQL-Datenbank (Version 16). | [Ausführung, Beispiellauf UC3](ausfuehrung.md#beispiellauf-uc3-jury-weg) |
+| Modell austauschbar | Ein Schalter wählt das Modell. Standard ist das Azure-Modell des Veranstalters (Standort West Europe). Mistral aus der EU hat am selben Code geantwortet. Ein Modell im eigenen Haus (Ollama) ist angebunden, gelaufen ist es noch nicht. | [docs/models.md](../models.md), [Konfiguration, Modelle](konfiguration.md#modelle) |
 | Wenn das Modell ausfällt | Rechnen, Berichte und Fragen an die Daten laufen weiter. Nur neue Änderungsvorschläge warten. | [Management-FAQ](../praesentation/management-faq.md), Frage 15 |
 | Datenschutz | Die Demo nutzt nur erfundene Daten des Veranstalters, sie liegen nicht im Repo. Ans Modell gehen nur Schema, Regeln und Summen; das Lese-Werkzeug der Agenten sperrt die Spalten mit den Kennungen von Personen und Beschäftigungsverhältnissen. Die Ministeriums-Liste mit Einzeldaten liegt nicht im öffentlichen Repo. | [README](../../README.md), Abschnitt „Grenzen und offene Punkte“; [werkzeuge.py](../../uc3/statagent/agenten/werkzeuge.py); [abgabe/README.md](../../abgabe/README.md) |
 | Modellkosten | Rund 1 Cent je Änderungsvorschlag zum Listenpreis. Welcher der zwei Azure-Preise für die Bereitstellung gilt, ist nicht bekannt. | [Management-FAQ](../praesentation/management-faq.md), Frage 6 |
@@ -91,7 +91,7 @@ StatAgent ist ein Prototyp aus der KI Challenge, für die der Veranstalter knapp
 | Grobe Gliederung | Gezählt wird nach Branchenabschnitt und Bundesland, weil die Lieferungen nicht mehr enthalten. | [Kriterien-Karte](../praesentation/kriterien-karte.md), Bereich 2 |
 | Pensionen vorläufig | Die Pensionsmeldungen sind eingelesen, aber nicht mit Namen freigegeben; die öffentlich Bediensteten fehlen in den Meldungen. | [Prüfbericht Pensionen](../uc3/pensionen-pruefbericht.md), [Kriterien-Karte](../praesentation/kriterien-karte.md), Bereich 1 |
 | Änderung getippt, nicht gesprochen | Änderungsaufträge gibt man als Text ein. Freie Fragen an die Daten sind nicht alle geprüft. | [Kriterien-Karte](../praesentation/kriterien-karte.md), Bereiche 4 und 5 |
-| Kein Modell im eigenen Haus erprobt | Angebunden, aber nicht gelaufen. | [README](../../README.md), Abschnitt „Modelle“ |
+| Kein Modell im eigenen Haus erprobt | Angebunden, aber nicht gelaufen. | [Konfiguration, Modelle](konfiguration.md#modelle) |
 | Keine rechtliche Prüfung | Zum AI Act gibt es nur eine eigene Einschätzung des Teams: StatAgent entscheidet über keine Person und keine Leistung. | [Management-FAQ](../praesentation/management-faq.md), Frage 18 |
 
 ## Mögliche nächste Schritte
@@ -101,7 +101,7 @@ Das sind Vorschläge aus den offenen Punkten im Repo, keine Zusagen.
 1. Eine echte Lieferung statt der erfundenen verarbeiten ([Management-FAQ](../praesentation/management-faq.md), Frage 5).
 2. Die Rückfragen R1 bis R10 der Fachabteilung stellen, damit März und Oktober 2025 endgültig werden können ([abgabe/README.md](../../abgabe/README.md)).
 3. Die Dauer des heutigen Prozesses im Haus messen. Erst dann lässt sich eine Zeitersparnis angeben ([Management-FAQ](../praesentation/management-faq.md), Frage 7).
-4. Ein Modell im eigenen Haus erproben, damit auch die Änderungsvorschläge ohne Cloud laufen ([README](../../README.md), Abschnitt „Modelle“).
+4. Ein Modell im eigenen Haus erproben, damit auch die Änderungsvorschläge ohne Cloud laufen ([Konfiguration, Modelle](konfiguration.md#modelle)).
 5. Für einen dauerhaften Betrieb: Datenbank mit Sicherung und Lese-Kopie, der Rechenkern als langlebiger Dienst, fertig gebaute Programmpakete aus der CI ([docs/betrieb/skalierung.md](../betrieb/skalierung.md), Abschnitt 4).
 
 ## Weiter lesen

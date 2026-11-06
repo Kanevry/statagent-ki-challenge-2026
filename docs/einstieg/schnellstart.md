@@ -41,7 +41,7 @@ uv sync --all-packages && pnpm install  # Python- und TypeScript-Workspace
 bash scripts/install-hooks.sh           # optional: gitleaks als pre-commit-Hook
 ```
 
-Die ersten beiden Zeilen stehen so im [`README.md`](../../README.md) (Abschnitt „Start“), die dritte in
+Die ersten beiden Zeilen stehen so im [`README.md`](../../README.md) (Abschnitt „Ausführung“), die dritte in
 [`docs/entwicklung.md`](../entwicklung.md). `uv sync --all-packages` installiert den gemeinsamen Kern
 (`shared/py`) und die drei Use-Case-Pakete. Laut [Abnahme 66](../abnahme/66.md) kommt dabei kein `torch` mit; die
 Pakete für lokale Embeddings stehen nur im Extra `plattform[embeddings]`.
@@ -69,7 +69,8 @@ uv run uc3 eichen --lieferung 2024-08       # Vergleich mit dem Beispielbericht,
 uv run uc3 berichte --alle && uv run uc3 sheet   # 24 Qualitätsberichte und Aggregations-Sheet nach abgabe/
 ```
 
-Die Befehle stehen so im [`README.md`](../../README.md) (Abschnitt „Beispiellauf UC3 (Jury-Weg)“) und in
+Die Befehle stehen so im [`README.md`](../../README.md) (Abschnitt „Ausführung“), in
+[`ausfuehrung.md`](ausfuehrung.md#beispiellauf-uc3-jury-weg) (Abschnitt „Beispiellauf UC3 (Jury-Weg)“) und in
 [`uc3/README.md`](../../uc3/README.md). Alle vier Befehle und der Schalter `--alle` sind in
 `uc3/statagent/cli.py` vorhanden; `uv run statagent …` ist gleichwertig.
 
@@ -106,11 +107,11 @@ Mit `LLM_PROVIDER=mock` (Schritt 2) braucht nichts einen Modellschlüssel. Was d
 |---|---|---|
 | UC3-Lauf, Eichen, Berichte, Sheet | geht ganz; der Lauf ruft ohnehin kein Modell | [`README.md`](../../README.md), [`docs/abnahme/66.md`](../abnahme/66.md) |
 | Fragen an die Daten (`uv run uc3 frage "…"`, Seite `/uc3/fragen`) | geht; die Frage wird ohne Sprachmodell gelesen | `uc3/statagent/frage.py`, [`README.md`](../../README.md) |
-| Seiten `/`, `/uc1`, `/uc2`, `/uc4`, `/praesentation` | laufen lokal; Modelle antworten mit festen Platzhaltern, Zahlen aus der Datenbank bleiben gleich | [`README.md`](../../README.md), Abschnitt „Start“ |
+| Seiten `/`, `/uc1`, `/uc2`, `/uc4`, `/praesentation` | laufen lokal; Modelle antworten mit festen Platzhaltern, Zahlen aus der Datenbank bleiben gleich | [`ausfuehrung.md`](ausfuehrung.md#start), Abschnitt „Start“ |
 | Tests und CI | laufen mit `mock`; die CI hat keinen Modellschlüssel | [`.gitlab-ci.yml`](../../.gitlab-ci.yml) |
 | Andere Modellaufrufe über `plattform.llm` | geht teilweise: `mock` antwortet aus Dateien `shared/py/plattform/fixtures/<zweck>.json`. Dort liegt im Repo nur `smoke.json`. Für einen Zweck ohne Datei bricht der Aufruf mit `FixtureFehlt` ab, statt zu raten. Tests bringen ihre eigenen Dateien über `PLATTFORM_FIXTURES` mit. | `shared/py/plattform/llm/mock.py`, [`docs/models.md`](../models.md) |
 | Änderungsaufträge an die UC3-Agenten (`uv run uc3 agent "…"`) | für echte Vorschläge ein Modell nötig; Pflicht für die UC3-Agenten ist Azure | [`docs/models.md`](../models.md) |
-| Voice | geht nicht ohne eingerichtetes Vapi-Konto und öffentliche Adresse | [`README.md`](../../README.md), Abschnitt „Grenzen“ |
+| Voice | geht nicht ohne eingerichtetes Vapi-Konto und öffentliche Adresse | [`README.md`](../../README.md#grenzen-und-offene-punkte), Abschnitt „Grenzen und offene Punkte“ |
 | Lokale Embeddings | brauchen einmal `uv run python -m plattform.embeddings laden`; ohne diesen Schritt bricht `einbetten` mit `ModellFehlt` ab | [`docs/models.md`](../models.md) |
 
 Für echte Modelle trägst du in `.env.local` die Schlüssel ein. Die Namen stehen mit Erklärung in
@@ -193,7 +194,7 @@ Was die CI zusätzlich macht:
 
 Die Tests mit dem Marker `daten` laufen nicht in der CI, weil sie die echten Lieferungen brauchen. Lokal mit
 gerechneten Läufen: `UC3_DATEN_URL=postgresql://statistik:statistik@localhost:5433/statistik uv run pytest -q -m daten uc3/tests`
-([`README.md`](../../README.md), Abschnitt „Tests“).
+([`README.md`](../../README.md#ausführung), Abschnitt „Ausführung“).
 
 ## Für Coding-Agenten
 
@@ -242,10 +243,10 @@ Gesperrt:
 | `lauf --alle` hing auf einer frisch geladenen Datenbank im dritten Monat | behoben: der Lauf führt jetzt selbst `ANALYZE bereinigt.abschnitt` aus (`uc3/statagent/bereinigung.py`, Zeile 406) | [`docs/abnahme/66.md`](../abnahme/66.md), Punkt 66-6 |
 | Auf einer frischen Datenbank bleiben alle Monate „vorläufig“, die Ministeriums-Lieferung startet nicht | die alten Regeln (`v1`) zuerst mit eigenem Namen freigeben: `uv run uc3 regeln freigeben --regelsatz v1 --name "Vor- und Nachname"` | [`abgabe/README.md`](../../abgabe/README.md) |
 | `uc3 sheet` oder `uc3 berichte` enden mit Exit 1 | für diesen Regelstand gibt es noch keinen fertigen Lauf; erst `uc3 lauf` | [`abgabe/README.md`](../../abgabe/README.md) |
-| Nach dem Neuerzeugen meldet `uc3 pruefe-abgabe` Abweichungen vom Manifest | erwartet; `git checkout abgabe/` holt den Abgabestand zurück | [`abgabe/README.md`](../../abgabe/README.md) |
+| Nach dem Neuerzeugen meldet `uc3 pruefe-abgabe` Abweichungen vom Manifest | erwartet; `git checkout abgabe/` holt den Abgabestand zurück, aber nur in einem mit `git clone` geholten Repo (mit Ordner `.git`), nicht in einer ZIP-Kopie | [`abgabe/README.md`](../../abgabe/README.md) |
 | `pytest -m daten` scheitert sofort | diese Tests brauchen die Datenbank mit allen 24 Lieferungen; ohne sie `-m "not daten"` wie die CI | `uc3/tests/test_goldenset.py`, `pyproject.toml` |
 | In einem zusätzlichen Git-Worktree findet `pnpm dev` keine Schlüssel | `.env.local` in den Worktree verlinken; die Python-Seite findet die Datei des Haupt-Checkouts selbst | [`docs/entwicklung.md`](../entwicklung.md) |
-| Die Online-Demo lehnt Freigaben und Läufe ab (403) | so gewollt: online sind nur Fragen erlaubt | [`README.md`](../../README.md), Abschnitt „Online-Demo“ |
+| Die Online-Demo lehnt Freigaben und Läufe ab (403) | so gewollt: online sind nur Fragen erlaubt | [Ausführung, Online-Demo](ausfuehrung.md#online-demo) |
 
 ## Weiter lesen
 

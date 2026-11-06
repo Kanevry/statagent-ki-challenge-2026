@@ -27,10 +27,4 @@ Sechs Bereiche, je 20 von 120 Punkten. Die Spalte „Raster“ steht wörtlich w
 | 6 Bedienbarkeit | Mindest | alles lässt sich über die Konsole steuern: Läufe starten, Ergebnisse und Qualitätsberichte ansehen, Änderungen freigeben | **erfüllt** | Alles über einen Befehl. | `uv run uc3 --help`, `uc3/statagent/cli.py` |
 | | Optimum | übersichtliche Weboberfläche für Läufe, Qualitätsberichte und Annahmen, Klassifikationen, Freigaben und Fragen an die Daten | **erfüllt** | Alle sechs Inhalte haben einen Reiter, auch Qualitätsberichte. Rechnen und Freigeben laufen auf der Vorführ-Adresse hinter einem Passwort (`/uc3/auftrag`); die öffentliche Seite verlinkt dorthin. Zu einem Lauf zeigt das Web Monat und Status, keinen Start und keine Dauer. | `/uc3`, `/uc3/berichte`, `/uc3/annahmen`, `/uc3/klassifikationen`, `/uc3/freigaben`, `/uc3/fragen` |
 
-## So benutzen wir die Karte am Tisch
-
-Die Karte liegt ausgedruckt vor der Jury. Bei einer Frage zeigt Bernhard auf die Zeile, nennt die Zahl und öffnet die Stelle. „Teilweise“ und „offen“ sagt er von sich aus.
-
-## Vor dem Druck (nicht mit ausdrucken)
-
-Die Karte zeigt nur, was auf `main` ist und online oder auf der Vorführ-Adresse zu sehen ist. Vor dem Druck die Zeilen neu messen und die Kopfzeile mit dem Commit anpassen.
+D1 bis D3 sind Schritte der Vorführung im [Demo-Drehbuch](demo-drehbuch.md), „Szene“ und „Folie“ mit Nummer meinen eine Folie unter `/praesentation`, etwa `/praesentation?folie=8`.

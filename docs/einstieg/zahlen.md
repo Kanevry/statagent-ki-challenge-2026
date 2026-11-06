@@ -2,7 +2,7 @@
 
 Diese Seite ist das Zahlen-Register der Doku. Sie ist für alle, die wissen wollen, mit welchen Zahlen das Team gearbeitet hat, und die jede Zahl selbst nachprüfen wollen. Jede Zeile nennt, was die Zahl bedeutet, worüber sie gemessen ist, wann, und wo man sie findet: als Link ins Repo oder als Befehl, mit dem sie gezählt wurde.
 
-**So liest man die Tabellen.** „Stand“ ist der Zeitpunkt der Messung. Zählbefehle laufen an der Repo-Wurzel auf dem Stand `48761dcc` (`main`, 06.11.2026). Die Daten der Challenge sind synthetisch, also erfunden ([CHECKLISTE](../../abgabe/CHECKLISTE.md), letzte Zeile). Die Kennungen F1 bis F30 verweisen auf das [Belegregister](../praesentation/belegregister.md); dort stehen auch die SQL-Abfragen der Gegenrechnung. Die zwei Regelstände heißen in der Oberfläche „Alte Regeln“ (technisch `v1`) und „Nach den Änderungsaufträgen“ (technisch `v2`).
+**So liest man die Tabellen.** „Stand“ ist der Zeitpunkt der Messung. Zählbefehle laufen an der Repo-Wurzel auf dem Stand `48761dcc` (`main`, 06.11.2026). Die Messungen stammen von früheren Ständen desselben Morgens; abgegeben ist der Stand von `main` beim letzten Push. Die Daten der Challenge sind synthetisch, also erfunden ([CHECKLISTE](../../abgabe/CHECKLISTE.md), letzte Zeile). Die Kennungen F1 bis F30 verweisen auf das [Belegregister](../praesentation/belegregister.md); dort stehen auch die SQL-Abfragen der Gegenrechnung. Die zwei Regelstände heißen in der Oberfläche „Alte Regeln“ (technisch `v1`) und „Nach den Änderungsaufträgen“ (technisch `v2`).
 
 ## 1 Die Daten
 
@@ -127,7 +127,7 @@ Gezählt ohne Ausführen, auf dem Stand `48761dcc`. Die Zahl der Testdateien sag
 | 27 | Seiten der Weboberfläche. | `find web/app -name page.tsx \| wc -l` | `48761dcc` |
 | 81 | Laufdateien der Abnahme, also gespeicherte Prüfläufe. | `ls docs/abnahme/laeufe \| wc -l` | `48761dcc` |
 
-**Belegte Abnahmen** laut [Abnahme-Übersicht](../abnahme/README.md), Stand 05.11.2026 16:37: Der Weg der Jury auf einer frischen Datenbank mit Vergleich zum Beispielbericht und Wiederholbarkeit ist „bestanden“ (#66), ebenso der Modell-Schalter mit drei Anbietern (#63) und der UC3-Teil des gemeinsamen Einstiegs (#95). Die Vorprüfung der Oberfläche gegen die Entwürfe war zu diesem Zeitpunkt „nicht bestanden“ (#64). Der [Schlusslauf](../abnahme/SCHLUSSLAUF.md) ab 06:30 ist geplant; sein Ergebnis liegt im Stand `48761dcc` nicht vor.
+**Belegte Abnahmen** laut [Abnahme-Übersicht](../abnahme/README.md), Stand 05.11.2026 16:37: Der Weg der Jury auf einer frischen Datenbank mit Vergleich zum Beispielbericht und Wiederholbarkeit ist „bestanden“ (#66), ebenso der Modell-Schalter mit drei Anbietern (#63) und der UC3-Teil des gemeinsamen Einstiegs (#95). Die Vorprüfung der Oberfläche gegen die Entwürfe war zu diesem Zeitpunkt „nicht bestanden“ (#64). Das Ergebnis des [Schlusslaufs](../abnahme/SCHLUSSLAUF.md) vom 06.11.2026 steht unten in Abschnitt 8.
 
 **Zeilen nach Sprache.** Physische Zeilen, Leerzeilen und Kommentare mitgezählt, Tests eingeschlossen. Befehl je Endung: `git ls-tree -r --name-only 48761dcc | grep -E '\.py$' | tr '\n' '\0' | xargs -0 cat | wc -l` (Arbeitsbaum sauber auf diesem Stand).
 
@@ -163,13 +163,13 @@ Diese Zahlen kommen aus dem GitLab-Projekt, gemessen am 06.11.2026 um 06:34, und
 |---|---|---|---|---|
 | 0 Modellaufrufe | Monatslauf, Prüfung, Qualitätsbericht, Aggregations-Sheet, Ministeriums-Lieferung und Fragen an die Daten rechnen ohne Sprachmodell. | Betrieb UC3 | 05.11.2026 | [abgabe/modelle.md](../../abgabe/modelle.md), [Management-FAQ, Frage 6](../praesentation/management-faq.md) |
 | Azure `gpt-5-4-mini` | Modell des Veranstalters. Die eigenen Agenten formulieren damit Änderungsaufträge als Vorschlag. | kurzer Probeaufruf, Antwort nach 0,9 Sekunden | 05.11.2026 16:17 | [abgabe/modelle.md](../../abgabe/modelle.md), [docs/models.md](../models.md) |
-| Mistral | Zweitanbieter aus der EU, gleiche Schnittstelle. Projektbudget 10 €. | kurzer Probeaufruf, Antwort nach 1,4 Sekunden | 05.11.2026 16:17 | [docs/models.md](../models.md), [README, Modelle](../../README.md) |
-| Ollama | Notnagel ohne Netz. Angebunden, gelaufen ist es noch nicht. | | 05.11.2026 | [README, Modelle](../../README.md) |
+| Mistral | Zweitanbieter aus der EU, gleiche Schnittstelle. Projektbudget 10 €. | kurzer Probeaufruf, Antwort nach 1,4 Sekunden | 05.11.2026 16:17 | [docs/models.md](../models.md), [Konfiguration, Modelle](konfiguration.md#modelle) |
+| Ollama | Notnagel ohne Netz. Angebunden, gelaufen ist es noch nicht. | | 05.11.2026 | [Konfiguration, Modelle](konfiguration.md#modelle) |
 | Claude Opus 5.5 | Damit hat das Team den Code geschrieben. Im Betrieb nur für UC1 und UC2, nie für UC3. | | 05.11.2026 | [abgabe/modelle.md](../../abgabe/modelle.md), [docs/models.md](../models.md) |
 | 2 Aufrufe je Auftrag | Modellaufrufe je Änderungsauftrag 1 bis 3; Kosten 1,0 bis 1,4 Cent je Auftrag zum Listenpreis. | Protokoll der Modellaufrufe (nicht im Repo) | 05.11.2026 | [Management-FAQ, Frage 6](../praesentation/management-faq.md), [Belegregister F27](../praesentation/belegregister.md) |
 | 50 Aufrufe, 39 bis 42 Cent | Alle Anläufe rund um die drei Änderungsaufträge, 457.462 Tokens hinein und 19.342 heraus (Tokens sind die Wortteile, nach denen ein Modell abrechnet). | Protokoll der Modellaufrufe (nicht im Repo) | 05.11.2026 | [Belegregister F27](../praesentation/belegregister.md) |
 | 2 Aufrufe, 1,2 bis 1,3 Cent | typischer Agentenlauf (Median aus 246 Läufen in den Proben). | Protokoll der Modellaufrufe (nicht im Repo) | 05.11.2026 | [Management-FAQ, Frage 6](../praesentation/management-faq.md) |
-| 10 je Minute | Fragen je Internetanschluss auf der öffentlichen Demo (Standardwert). Dazu ein Tagesbudget an Modellaufrufen; sein Wert steht nicht im Repo. | Einstellungen `RATENLIMIT_PRO_MINUTE`, `LLM_TAGESBUDGET_AUFRUFE` | `48761dcc` | [docs/models.md](../models.md), [README, Online-Demo](../../README.md) |
+| 10 je Minute | Fragen je Internetanschluss auf der öffentlichen Demo (Standardwert). Dazu ein Tagesbudget an Modellaufrufen; sein Wert steht nicht im Repo. | Einstellungen `RATENLIMIT_PRO_MINUTE`, `LLM_TAGESBUDGET_AUFRUFE` | `48761dcc` | [docs/models.md](../models.md), [Ausführung, Online-Demo](ausfuehrung.md#online-demo) |
 | 504 und 770 Sekunden | Dauer für alle 24 Lieferungen auf einer frischen Datenbank ohne Netz, Alte Regeln und Nach den Änderungsaufträgen. Unter Last 793 und 1.169 Sekunden. | eigene Nachmessung | 05.11.2026 | [Belegregister F28](../praesentation/belegregister.md) |
 
 Die Preise stammen aus der Azure-Preisliste (Region West Europe, abgerufen 05.11.2026). Welcher von zwei Listenpreisen für die Bereitstellung gilt, weiß das Team nicht; deshalb stehen Spannen da.
@@ -186,7 +186,7 @@ Die Preise stammen aus der Azure-Preisliste (Region West Europe, abgerufen 05.11
 | Antwortzeit am Ort der Vorführung | nicht gemessen; auf dem Testserver 0,4 bis 3,8 Sekunden | [Belegregister F29](../praesentation/belegregister.md) |
 | Lizenzen der Pakete einzeln | nicht gemessen | [Management-FAQ, Frage 17](../praesentation/management-faq.md) |
 | Rechtliche Prüfung zum AI Act | keine; es gibt nur eine eigene Einschätzung | [Management-FAQ, Frage 18](../praesentation/management-faq.md) |
-| Ob alle Abnahmekriterien bestanden sind | nein: Der Schlusslauf am 06.11. zählt für UC3 53 von 76 bestanden, 1 nicht bestanden, 5 nicht geprüft, 17 nach der Abgabe (geurteilt für `c16fa881`, 06:07); die anderen Teile sind für diesen Stand nicht einzeln nachgesehen | [Schlusslauf-Beleg](../abnahme/schlusslauf-2026-11-06.md) |
+| Ob alle Abnahmekriterien bestanden sind | nein: Der Schlusslauf am 06.11. zählt für UC3 53 von 76 bestanden, 2 nicht bestanden, 4 nicht geprüft, 17 nach der Abgabe (geurteilt für `14c86cc3`, 07:50). Gezählt ist die eigene Prüfliste des Teams, nicht das Bewertungsraster der Aufgabe. UC1, UC2, UC4 und E5 sind für diesen Stand nicht neu gezählt | [Schlusslauf-Beleg](../abnahme/schlusslauf-2026-11-06.md#nachtrag-auf-dem-letzten-code-stand), Abschnitt „Nachtrag auf dem letzten Code-Stand“ |
 
 ## Weiter lesen
 
