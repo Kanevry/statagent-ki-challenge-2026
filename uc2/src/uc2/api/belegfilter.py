@@ -1,7 +1,7 @@
 """Ausgabefilter für Belege: online nur Zitatfelder, nie der ganze Artikeltext.
 
 Zitat statt Volltext, weil die Jury den belegten Satz mit Quelle braucht und der APA-Kopf des Pressespiegels
-„persönliche Information“ lautet (Entscheid Lead, Owner-Klick #8705). Jede Route von `uc2.api` schickt ihre
+„persönliche Information“ lautet (Entscheid des Owners). Jede Route von `uc2.api` schickt ihre
 Daten durch `daten_fuer_ausgabe`; die CLI-Terminalausgabe ist lokal und bleibt unberührt.
 
 Je Beleg gehen nur `BELEG_FELDER` hinaus, Texte gekürzt auf `MAX_ZEICHEN` an einer Wortgrenze mit „…“. Fehlt
