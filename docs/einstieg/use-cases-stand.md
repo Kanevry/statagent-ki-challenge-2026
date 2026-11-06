@@ -62,7 +62,8 @@ und [`docs/uc3/pensionen-pruefbericht.md`](../uc3/pensionen-pruefbericht.md).
 **Die formale Abnahmeliste.** Neben dem Jury-Raster prüft das Team die Kriterien seiner eigenen Aufgaben
 (Issues) in [`docs/abnahme/matrix-uc3.md`](../abnahme/matrix-uc3.md). Der Schlusslauf am 06.11.2026, geurteilt für
 `main` `c16fa881` um 06:07, zählt für UC3: 53 von 76 Kriterien bestanden, 1 nicht bestanden, 5 nicht geprüft, 17 nach
-der Abgabe ([`schlusslauf-2026-11-06.md`](../abnahme/schlusslauf-2026-11-06.md)). Der Beleg sagt selbst: kein „alles
+der Abgabe; der Nachtrag auf dem letzten Code-Stand `14c86cc3` um 07:50 zählt 53, 2, 4 und 17
+([`schlusslauf-2026-11-06.md`](../abnahme/schlusslauf-2026-11-06.md)). Der Beleg sagt selbst: kein „alles
 bestanden“, das Tor ist offen. Das eine „nicht bestanden“ (13-AC4) ist als Restmangel angenommen:
 `uc3/statagent/pensionen.py` enthält eine eigene Funktion `freigeben`; die Regeln laufen darin über
 `plattform.freigabe` mit Commit und der Zeile `Freigegeben-von`. Offen sind unter anderem zwei Punkte zur Oberfläche
