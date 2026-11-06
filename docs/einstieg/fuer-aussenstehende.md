@@ -101,7 +101,7 @@ Tageskontingent an Modellaufrufen ([Ausführung, Online-Demo](ausfuehrung.md#onl
 
 Neben StatAgent sind drei weitere Bereiche entstanden; sie werden nicht bewertet. Der Stand im Einzelnen steht in
 [use-cases-stand.md](use-cases-stand.md). Alles hier stammt aus [Lösung und Ansatz](loesung-und-ansatz.md), Tabelle „Was gebaut
-wurde“ und „Grenzen und offene Punkte“.
+wurde“, und aus dem [README](../../README.md#grenzen-und-offene-punkte), „Grenzen und offene Punkte“.
 
 - **UC1, SV KI-Lotse:** Er hilft bei Fragen zu Gesundheit und Sozialversicherung, fragt bei Bedarf nach und belegt
   jede Aussage mit einem Zitat aus der Quelle. Er ersetzt keine Beratung, gibt keine Diagnose und keine

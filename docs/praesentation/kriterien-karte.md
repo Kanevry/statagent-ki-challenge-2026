@@ -2,7 +2,7 @@
 
 Sechs Bereiche, je 20 von 120 Punkten. Die Spalte „Raster“ steht wörtlich wie in der Aufgabenstellung, Abschnitt Bewertung. Die Spalte „Stand“ sagt, was im Repo auf `main` ist: **erfüllt**, **teilweise** oder **offen**. Kennungen wie F4 in Klammern verweisen auf das Belegregister, nicht auf die Annahmen F1 bis F10 in den Berichten.
 
-**Gemessen:** 06.11.2026 auf `main` `ceef8b1`. Online um 07:27 bis 07:35: alle Seiten dieser Karte, die acht Fragen, die Klassifikationsfragen und Pensionen. Bereich 5 auf der Vorführ-Adresse um 06:15 bis 06:28. Läufe nicht wiederholt.
+**Gemessen:** 06.11.2026 auf `main` `ceef8b1`. Online um 07:27 bis 07:35: alle Seiten dieser Karte, die acht Fragen, die Klassifikationsfragen und Pensionen. Bereich 5 auf der Vorführ-Adresse um 06:15 bis 06:28, auf einem früheren Stand von `main`. Läufe nicht wiederholt.
 
 | Bereich | Stufe | Raster | Stand | Was wirklich da ist | Wo zu sehen |
 |---|---|---|---|---|---|

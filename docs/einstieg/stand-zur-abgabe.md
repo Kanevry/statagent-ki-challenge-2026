@@ -5,7 +5,7 @@ Tag der Abgabe wirklich läuft und was offen ist, mit Beleg. Bewertet wird Use C
 Zusatz.
 
 Gemessen wurde am 06.11.2026 auf zwei Ständen von `main`. Die Bereiche in der Tabelle stammen aus der
-Kriterien-Karte, gemessen auf `ceef8b1` (online 07:27 bis 07:35, Bereich 5 auf der Vorführ-Adresse 06:15 bis 06:28).
+Kriterien-Karte, gemessen auf `ceef8b1` (online 07:27 bis 07:35, Bereich 5 auf der Vorführ-Adresse 06:15 bis 06:28, auf einem früheren Stand von `main`).
 Die Zahlen der Abnahme unten sind für `14c86cc3` geurteilt (07:50, Prüfläufe 07:39 bis 07:50). Abgegeben ist der
 Stand von `main` beim letzten Push.
 

@@ -2,7 +2,7 @@
 
 Diese Seite ist das Zahlen-Register der Doku. Sie ist für alle, die wissen wollen, mit welchen Zahlen das Team gearbeitet hat, und die jede Zahl selbst nachprüfen wollen. Jede Zeile nennt, was die Zahl bedeutet, worüber sie gemessen ist, wann, und wo man sie findet: als Link ins Repo oder als Befehl, mit dem sie gezählt wurde.
 
-**So liest man die Tabellen.** „Stand“ ist der Zeitpunkt der Messung. Zählbefehle laufen an der Repo-Wurzel auf dem Stand `48761dcc` (`main`, 06.11.2026). Die Messungen stammen von früheren Ständen desselben Morgens; abgegeben ist der Stand von `main` beim letzten Push. Die Daten der Challenge sind synthetisch, also erfunden ([CHECKLISTE](../../abgabe/CHECKLISTE.md), letzte Zeile). Die Kennungen F1 bis F30 verweisen auf das [Belegregister](../praesentation/belegregister.md); dort stehen auch die SQL-Abfragen der Gegenrechnung. Die zwei Regelstände heißen in der Oberfläche „Alte Regeln“ (technisch `v1`) und „Nach den Änderungsaufträgen“ (technisch `v2`).
+**So liest man die Tabellen.** „Stand“ ist der Zeitpunkt der Messung. Zählbefehle laufen an der Repo-Wurzel auf dem Stand `48761dcc` (`main`, 06.11.2026). Die Messungen stammen von Ständen desselben Morgens, nicht vom abgegebenen Stand; abgegeben ist der Stand von `main` beim letzten Push. Die Daten der Challenge sind synthetisch, also erfunden ([CHECKLISTE](../../abgabe/CHECKLISTE.md), letzte Zeile). Die Kennungen F1 bis F30 verweisen auf das [Belegregister](../praesentation/belegregister.md); dort stehen auch die SQL-Abfragen der Gegenrechnung. Die zwei Regelstände heißen in der Oberfläche „Alte Regeln“ (technisch `v1`) und „Nach den Änderungsaufträgen“ (technisch `v2`).
 
 ## 1 Die Daten
 

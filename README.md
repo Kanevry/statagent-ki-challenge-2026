@@ -16,7 +16,8 @@ https://ki-challenge.gotzendorfer.at/uc3/freigaben/24
 ![Freigabe-Seite in StatAgent zum Änderungsauftrag 1 „Dienstvertrag und freier Dienstvertrag zusammen“. Die Testrechnung für August 2024 zeigt die Zahlen vorher und nachher. Aus 235.819 und 1.142 Angestellten werden 236.961. Gesamt bleibt 392.236. Darunter steht, wer freigegeben hat und wann.](docs/praesentation/screens/SC12.png)
 
 Oben steht der Auftrag im Wortlaut. In der Mitte rechnet das Programm die Zahlen vorher und nachher. Unten steht
-die Freigabe mit Vor- und Nachnamen und Uhrzeit.
+die Freigabe mit Vor- und Nachnamen und Uhrzeit. Diese Freigabe hat eine KI-Sitzung in seinem Auftrag eingegeben; er
+hat sie am selben Abend selbst bestätigt ([Stand zur Abgabe](#stand-zur-abgabe-06112026)).
 
 Die öffentliche Demo ist lesend: Man kann alles ansehen und Fragen an die Daten stellen. Aufträge an die Agenten und
 Freigaben mit Namen laufen auf einer eigenen Vorführ-Adresse mit Passwort und lokal.
@@ -53,9 +54,10 @@ Alle Einstiegsseiten im Überblick: [docs/einstieg/README.md](docs/einstieg/READ
 | `docs/` | Dokumentation: Einstieg, Präsentation, Betrieb, Modelle, Abnahme, Plan |
 | `tests/`, `scripts/`, `deploy/` | Prüfungen für Abnahme und Abgabe, Hilfsskripte, Betrieb der Online-Demo |
 
-`CLAUDE.md`, `.claude/`, `docs/plan/` und `docs/abnahme/` sind Arbeitsdateien der Coding-Agenten und bleiben als
+`CLAUDE.md`, `.claude/`, `.orchestrator/`, `docs/plan/` und `docs/abnahme/` sind Arbeitsdateien der Coding-Agenten und bleiben als
 Nachweis drin ([docs/einstieg/arbeitsweise-agentisch.md](docs/einstieg/arbeitsweise-agentisch.md)).
-`abgabe/CHECKLISTE.md` ist die interne Ablaufliste der Abgabenacht.
+`abgabe/CHECKLISTE.md` ist die interne Ablaufliste der Abgabenacht. `KI-Challenge_UseCase.yaml` ist die Pflichtdatei
+des Veranstalters mit den Angaben zum Beitrag.
 
 ## Lösung und Ansatz
 
@@ -88,7 +90,7 @@ UC3 rechnet, Freigabe, Voice und Qualitätssicherung: [docs/einstieg/loesung-und
 
 ## Ausführung
 
-Mit `git clone` holen, nicht als ZIP: Ohne den Ordner `.git` fallen zwei Tests.
+Mit `git clone` holen, nicht als ZIP: Ohne den Ordner `.git` fallen einige Tests.
 
 ```bash
 git clone https://github.com/KIChallenge/OneShotAndy.git && cd OneShotAndy

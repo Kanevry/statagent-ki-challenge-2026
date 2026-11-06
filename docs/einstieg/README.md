@@ -48,8 +48,8 @@ Technikwissen. Jede Seite ist für eine Lesergruppe geschrieben und verweist fü
 ## Woran sich diese Doku hält
 
 - Jede Zahl trägt ihre Quelle: eine Datei im Repo oder den Befehl, mit dem sie gezählt wurde.
-- Stand ist der 06.11.2026 auf `main` mit dem Commit `48761dcc`. Die Messungen stammen von früheren Ständen
-  desselben Morgens; abgegeben ist der Stand von `main` beim letzten Push.
+- Stand ist der 06.11.2026 auf `main` mit dem Commit `48761dcc`. Die Messungen stammen von Ständen desselben Morgens,
+  nicht vom abgegebenen Stand; abgegeben ist der Stand von `main` beim letzten Push.
 - Was noch offen ist, steht im Wurzel-README unter
   [Grenzen und offene Punkte](../../README.md#grenzen-und-offene-punkte).
 
