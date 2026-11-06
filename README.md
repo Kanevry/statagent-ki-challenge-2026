@@ -186,7 +186,8 @@ Die Angaben stimmen mit `docs/models.md` überein. Das ist dort die Hauptquelle,
   **Pflicht und Standard für alle UC3-Agenten**.
 - **Mistral (EU)** ist der Zweitanbieter, zum Beispiel für den Wechsel vor der Jury. Das Projektbudget beträgt
   10 €. Der Testlauf in `docs/models.md` war ok.
-- **Ollama** läuft lokal ohne Netz und ist ein Notnagel für den Offline-Betrieb.
+- **Ollama** ist als Notnagel für den Offline-Betrieb vorgesehen. Die Anbindung im Modell-Schalter ist da, gelaufen
+  ist es bisher nicht.
 - **Claude Opus 5.5** läuft über die CLI und ist nur ein Qualitätsmodus für UC1 und UC2 und für Vergleiche.
   **Nie in der UC3-Zählung.**
 - **Embeddings:** `google/embeddinggemma-2`, lokal. Die Gewichte sind nicht im Repo (siehe Lizenzen).
@@ -207,8 +208,8 @@ Die Angaben stimmen mit `docs/models.md` überein. Das ist dort die Hauptquelle,
   Aussage ohne passendes Zitat aus der Quelle lässt er weg.
 - **UC2:** Die Akteure spielt ein Sprachmodell. Das ist eine Simulation, keine echte Verhandlung. Die Antwort auf
   `/uc4` sagt das in einem eigenen Satz.
-- **UC4:** Die drei Antworten kommen nacheinander. Mit Azure dauerte die ganze Frage am 05.11. gemessen 5 bis 7
-  Sekunden; die Seite wartet höchstens drei Minuten und zeigt jede Antwort, sobald sie da ist. Fällt ein Bereich
+- **UC4:** Die drei Antworten kommen nacheinander. Mit Azure dauerte die ganze Frage online 13 Sekunden, gemessen
+  am 06.11. um 05:01; die Seite wartet höchstens drei Minuten und zeigt jede Antwort, sobald sie da ist. Fällt ein Bereich
   aus, nennt die Seite ihn als „fehlt“ und zeigt die anderen. Online kann UC2 statt echter Presse-Belege
   gekennzeichnete Beispielbelege zeigen, solange dort die Namensliste zur Maskierung von Personennamen fehlt.
 - **Voice:** Server und Sprechknopf sind gebaut. Ein Anruf geht erst nach der Einrichtung (Tunnel, Vapi-Konto mit
