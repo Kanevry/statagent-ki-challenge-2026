@@ -1,2 +1,0 @@
-mobil: {"performance":97,"accessibility":100,"best-practices":100,"seo":100} LCP 2.4 s TBT 10 ms CLS 0
-desktop: {"performance":100,"accessibility":100,"best-practices":100,"seo":100} LCP 0.6 s TBT 0 ms CLS 0

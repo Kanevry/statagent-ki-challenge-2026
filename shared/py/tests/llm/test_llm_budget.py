@@ -149,6 +149,8 @@ def test_status_json_nennt_budget(protokoll, monkeypatch, capsys):
     """Fängt: status --json ohne Feld budget, die Web-App und der Lead sehen den Stand nicht."""
     from plattform.llm.__main__ import main
 
+    # main lädt .env.local mit Vorrang; ein leeres LLM_TAGESBUDGET_AUFRUFE dort überschriebe den Testwert.
+    monkeypatch.setattr("plattform.llm.__main__.lade_env_local", lambda *a, **k: None)
     monkeypatch.setenv("LLM_TAGESBUDGET_AUFRUFE", "3")
     complete(NACHRICHT, zweck="smoke")
     assert main(["status", "--json"]) == 0

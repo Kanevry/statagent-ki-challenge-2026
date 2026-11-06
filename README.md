@@ -209,6 +209,23 @@ und Marken Dritter. Fremde Bibliotheken behalten ihre Lizenzen. Die Messfunktion
 siehe [docs/design.md](docs/design.md)) steht unter Apache-2.0.
 Einzelheiten: [docs/einstieg/grenzen-herkunft-lizenzen.md](docs/einstieg/grenzen-herkunft-lizenzen.md#lizenzen).
 
+## Entstehung
+
+Das Repo ist während der KI Challenge mit vielen KI-Agenten entstanden. Gearbeitet wurde in einem privaten
+GitLab: Dort lagen Aufgaben und Änderungsanträge, und dort lief auch die CI (`.gitlab-ci.yml`). Auf GitHub
+läuft keine CI. Darum stehen in Doku, Kommentaren und Commits diese Wörter:
+
+| Wort | Bedeutung |
+|---|---|
+| `#123` | eine Aufgabe (Issue) im privaten GitLab |
+| `!123` | ein Änderungsantrag (Merge Request) im privaten GitLab |
+| Owner | der Mensch, der entscheidet und Fachliches mit seinem Namen freigibt |
+| Lead | die führende KI-Sitzung, die Arbeit verteilt und fertige Änderungen bündelt |
+| Lane | der Arbeitsbereich einer KI-Sitzung |
+| Zug | mehrere geprüfte Änderungen, die zusammen durch die CI und auf `main` gehen |
+
+Wie das im Einzelnen lief: [docs/einstieg/arbeitsweise-agentisch.md](docs/einstieg/arbeitsweise-agentisch.md).
+
 ## Dokumentation im Überblick
 
 Alle Seiten der Dokumentation mit einem Satz dazu: [docs/einstieg/README.md](docs/einstieg/README.md). Dort stehen die
