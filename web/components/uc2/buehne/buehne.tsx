@@ -5,6 +5,11 @@ import { knopfKlassen } from "@kic/ui/basis";
 import type { Modus } from "../../../app/api/uc2/_lib/proxy";
 import { FreigabeBericht, useEntscheidung } from "../freigabe";
 import { akteurName, klartext, monatText, themaKurz } from "../namen";
+
+/** Themenname mit dem Titel aus dem Auftrag: Ein Live-Lauf hat eigene Themen, die die feste Liste nicht kennt. */
+function themaName(z: FallZustand, id: string): string {
+  return themaKurz(id, z.themen.find((t) => t.id === id)?.titel);
+}
 import { endstand, type FallZustand } from "../zustand";
 import { Brett } from "./brett";
 import { buehneAus, ersterSatz, haltungWort, hauptaussage, kategorieWort, kuerzel, type Buehne } from "./takt";
@@ -281,7 +286,7 @@ function Szene({ buehne, zustand: z, modus }: { buehne: Buehne; zustand: FallZus
             <ul className="flex flex-col gap-2">
               {aenderungen.slice(0, 5).map((a) => (
                 <li key={`${a.akteur}-${a.thema}`} className="font-sans text-16 text-ink">
-                  {akteurName(a.akteur)} bei {themaKurz(a.thema)}: {haltungWort(a.alt)} → {haltungWort(a.neu)}
+                  {akteurName(a.akteur)} bei {themaName(z, a.thema)}: {haltungWort(a.alt)} → {haltungWort(a.neu)}
                 </li>
               ))}
             </ul>
@@ -371,7 +376,7 @@ function Ergebnis({ zustand: z }: { zustand: FallZustand }) {
       <ul className="flex flex-col divide-y divide-line border-y border-line">
         {stand.map((t) => (
           <li key={t.thema} className="flex flex-wrap items-baseline justify-between gap-2 py-3">
-            <span className="font-sans text-16 font-semibold text-ink">{themaKurz(t.thema)}</span>
+            <span className="font-sans text-16 font-semibold text-ink">{themaName(z, t.thema)}</span>
             <span className="font-sans text-16 text-ink">
               {kategorieWort(t.kategorie)}
               {t.dagegen.length > 0 && <span className="text-slate">, dagegen: {t.dagegen.map(akteurName).join(", ")}</span>}
@@ -415,7 +420,7 @@ function Verlauf({ zustand: z }: { zustand: FallZustand }) {
                 <li key={akteur} className="font-sans text-14 text-slate">
                   <span className="font-semibold text-ink">{akteurName(akteur)}:</span>{" "}
                   {Object.values(zug.themen)
-                    .map((t) => `${themaKurz(t.thema)} ${haltungWort(t.haltung)}`)
+                    .map((t) => `${themaName(z, t.thema)} ${haltungWort(t.haltung)}`)
                     .join(", ")}
                 </li>
               ))}
