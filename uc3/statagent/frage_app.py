@@ -53,6 +53,15 @@ _WARUM = re.compile(
 )
 
 
+#: Die Wörter von /uc3/berichte für die Prüfungen, die einen Lauf anhalten. Nur Anzeige; sonst gilt der Text der Regel.
+PRUEFUNG_WORTE = {
+    "P13": "Gruppen aus dem Vormonat fehlen ganz",
+    "P15": "Der Bestand fällt stark gegenüber dem Vormonat",
+    "P16": "Beschäftigungsverhältnisse des Vormonats fehlen in der Lieferung",
+    "P17": "Die Zeilenzahl weicht deutlich von der vorigen Lieferung ab",
+}
+
+
 def app_antwort(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str, Any] | None:
     """Antwort auf eine Frage zur Anwendung, sonst None. Wirft nicht."""
     try:
@@ -127,7 +136,7 @@ def _warum_angehalten(conn: Verbindung, frage: str, regelsatz: str) -> dict[str,
     )
     zahlen = [
         {
-            "bezeichnung": f"Gefundene Fälle, {_satz_kurz(str(z['beschreibung']))}",
+            "bezeichnung": f"Gefundene Fälle, {PRUEFUNG_WORTE.get(str(z['name'])[:3]) or _satz_kurz(str(z['beschreibung']))}",
             "wert": int(z["anzahl"]),
             "einheit": "Anzahl",
             "beleg": 0,
