@@ -7,6 +7,7 @@ import { formatZahl } from "@kic/ui/bausteine";
 import type { AuftragStand } from "@/components/uc3/auftrag";
 import { monatName } from "@/components/uc3/monat";
 import { laufPfad } from "@/components/uc3/navigation";
+import { mitRegeln, satzAnfang } from "@/components/uc3/regelsatz-name";
 
 // Eine Hauptaktion: Satz tippen, der Agent rechnet, dann weiter zur Freigabe. Der Stand kommt per Abfrage, damit ein
 // schwaches Netz den Lauf nicht abreißt; eine ausgefallene Abfrage wird still wiederholt und nur benannt.
@@ -222,7 +223,7 @@ export function AuftragFormular({
           className="flex flex-col gap-3 border-t border-line pt-6"
         >
           <label htmlFor={monatId} className="font-sans text-14 font-semibold text-ink">
-            {`Einen Monat rechnen, mit dem aktuellen Regelsatz ${regelsatz}`}
+            {`Einen Monat rechnen, ${mitRegeln(regelsatz)}`}
           </label>
           <div className="flex flex-wrap items-center gap-3">
             <select
@@ -243,7 +244,7 @@ export function AuftragFormular({
           </div>
           {rechenbar.length === 1 && (
             <p className="font-sans text-14 text-slate">
-              {`Mit Regelsatz ${regelsatz} ist noch kein Monat gerechnet. Gerechnet wird der Reihe nach, zuerst ${monatName(rechenbar[0]!)}.`}
+              {`${satzAnfang(mitRegeln(regelsatz))} ist noch kein Monat gerechnet. Gerechnet wird der Reihe nach, zuerst ${monatName(rechenbar[0]!)}.`}
             </p>
           )}
         </form>

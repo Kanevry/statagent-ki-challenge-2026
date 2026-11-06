@@ -1,10 +1,11 @@
-import { formatZahl, pruefeName } from "@kic/ui/bausteine";
+import { formatDifferenz, formatZahl, pruefeName } from "@kic/ui/bausteine";
 import { literal, type Beleg } from "./beleg";
 import { type Ausfuehren, standardAusfuehren, uc3 } from "./cli";
 import { lies, type Lesung, type Sql } from "./db";
 import { ladeMassgeblichenLauf } from "./laeufe";
 import { istMonat, monatName, monatsgrenzen } from "./monat";
 import type { Lauf } from "./typen";
+import { imStand, mitRegeln, regelsatzName } from "./regelsatz-name";
 import { alltag } from "./sprache";
 
 // Freigaben (UC3): Vorschläge der eigenen Agenten lesen, die Freigabe-Waage aus der Probe bilden und die Entscheidung
@@ -127,6 +128,9 @@ export interface Freigaben {
   offen: Vorschlag[];
   erledigt: ErledigtZeile[];
   bezeichnungen: Bezeichnungen;
+  kategorien: Kategorien;
+  /** Echte Wirkung je Vorschlag, der die Gesamtzahl ändert; die Übersicht zeigt sie statt der Testrechnung. */
+  wirkungen: Readonly<Record<number, EchteWirkung>>;
 }
 
 /** Bezeichnungen der Codes je Merkmal aus stat.klass_* (für die Waage); leer, wenn die Tabellen fehlen. */
@@ -228,7 +232,14 @@ export async function leseFreigaben(): Promise<Lesung<Freigaben>> {
       }
     }
     erledigt.sort((a, b) => b.zeit.localeCompare(a.zeit));
-    return { offen, erledigt, bezeichnungen };
+    const kategorien = await ladeKategorien(sql);
+    const wirkungen: Record<number, EchteWirkung> = {};
+    for (const v of vorschlaege) {
+      if (!aendertGesamt(v.probe)) continue;
+      const wirkung = await ladeEchteWirkung(sql, v);
+      if (wirkung) wirkungen[v.id] = wirkung;
+    }
+    return { offen, erledigt, bezeichnungen, kategorien, wirkungen };
   });
 }
 
@@ -453,7 +464,7 @@ export function aenderungKurz(v: Pick<Vorschlag, "typ" | "aenderungen" | "regels
     const name = `Regel ${String(a.regel_name ?? objekt(a.regel).name ?? "")}`;
     return a.aktiv_neu === false ? `${name} abschalten` : name;
   });
-  return v.typ === "code_datei" ? namen.join(", ") : `${namen.join(", ")} (Regelsatz ${v.regelsatzZiel})`;
+  return v.typ === "code_datei" ? namen.join(", ") : `${namen.join(", ")} (${regelsatzName(v.regelsatzZiel)})`;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -531,9 +542,9 @@ function probeMonate(probe: unknown): { lieferung: string; vorher: ProbeZahlen; 
     .sort((a, b) => b.lieferung.localeCompare(a.lieferung));
 }
 
-/** „Probe für August 2024“ aus dem Monat der Probe; ohne erkennbaren Monat „Probe“. */
+/** „Testrechnung für August 2024“ aus dem Monat der Probe; ohne erkennbaren Monat „Testrechnung“. */
 export function probeTitel(lieferung: string): string {
-  return istMonat(lieferung) ? `Probe für ${monatName(lieferung)}` : "Probe";
+  return istMonat(lieferung) ? `Testrechnung für ${monatName(lieferung)}` : "Testrechnung";
 }
 
 /**
@@ -625,7 +636,7 @@ export function waageBeleg(vorschlagIdWert: number, w: Waage, zeile: WaageZeile 
     lieferung: w.lieferung || null,
     monat: w.lieferung || null,
     stand: "vorlaeufig",
-    verweis: `Probe zu Vorschlag uc3/${vorschlagIdWert}, gerechnet und zurückgerollt`,
+    verweis: `Testrechnung zu Vorschlag uc3/${vorschlagIdWert}, gerechnet und zurückgerollt`,
     sql: [
       `SELECT coalesce((${pfad("vorher")})::bigint, 0) AS vorher,`,
       `       coalesce((${pfad("nachher")})::bigint, 0) AS nachher`,
@@ -743,7 +754,7 @@ export function gruppenBeleg(vorschlagIdWert: number, u: Umverteilung, g: Umvert
     lieferung: u.lieferung,
     monat: u.lieferung,
     stand: "vorlaeufig",
-    verweis: `Probe zu Vorschlag uc3/${vorschlagIdWert}, gerechnet und zurückgerollt`,
+    verweis: `Testrechnung zu Vorschlag uc3/${vorschlagIdWert}, gerechnet und zurückgerollt`,
     sql: [`SELECT ${spalten.join(",\n       ")}`, "FROM meta.vorschlag", `WHERE id = ${literal(vorschlagIdWert)};`].join("\n"),
   };
 }
@@ -1150,7 +1161,8 @@ export function auftragKopf(anweisung: string): { nummer: string | null; titel: 
   if (treffer) {
     const rest = (treffer[2] ?? "").trim();
     const titel = rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : `Auftrag ${treffer[1]}`;
-    return { nummer: treffer[1] ?? null, titel: alltag(titel) };
+    // Die Aufgabe schreibt „Ganzes Monat“, der Titel hier „Ganzer Monat“ (Wortliste). Das Zitat darunter bleibt wörtlich.
+    return { nummer: treffer[1] ?? null, titel: alltag(titel).replace(/\bGanzes Monat\b/, "Ganzer Monat") };
   }
   // „1. Juli“ und „z. B.“ beenden keinen Satz; sonst bricht die Überschrift bei „nicht mit dem 1“ ab.
   const [satz = ""] = anweisung.trim().split(/(?<![0-9]\.)(?<!(?:^|\s)\p{L}\.)(?<=[.!?])\s+/u);
@@ -1158,11 +1170,11 @@ export function auftragKopf(anweisung: string): { nummer: string | null; titel: 
   return { nummer: null, titel: alltag(kurz || "Änderung an den Regeln") };
 }
 
-/** Was die Änderung an den Regeln tut, ohne Regelcodes: „Ändert eine Regel im Regelsatz v2“. */
+/** Was die Änderung an den Regeln tut, ohne Regelcodes: „Ändert eine Regel im Stand nach den Änderungsaufträgen“. */
 export function aenderungSatz(v: Pick<Vorschlag, "typ" | "aenderungen" | "regelsatzZiel">): string {
   if (v.typ === "code_datei") return "Neue Sonderauswertung, sie ändert keine Zahl der Statistik";
   const n = Math.max(v.aenderungen.length, 1);
-  const wo = v.regelsatzZiel === "ministerium" ? "für die Ministeriums-Lieferung" : `im Regelsatz ${v.regelsatzZiel}`;
+  const wo = imStand(v.regelsatzZiel);
   if (v.typ === "regel_neu") return n === 1 ? `Neue Regel ${wo}` : `${formatZahl(n)} neue Regeln ${wo}`;
   const abgeschaltet = v.aenderungen.filter((roh) => objekt(roh).aktiv_neu === false).length;
   if (abgeschaltet === n) return n === 1 ? `Schaltet eine Regel ab ${wo}` : `Schaltet ${formatZahl(n)} Regeln ab ${wo}`;
@@ -1170,11 +1182,12 @@ export function aenderungSatz(v: Pick<Vorschlag, "typ" | "aenderungen" | "regels
 }
 
 /** Kopfsatz der Freigaben aus den Daten, etwa „3 Änderungen, alle mit Namen freigegeben.“ */
-export function freigabenKopf(offen: number, entschieden: readonly { art: "freigegeben" | "abgelehnt" }[]): string {
+export function freigabenKopf(offen: number, entschieden: readonly { art: "freigegeben" | "abgelehnt" }[], nurAuftraege = false): string {
   if (offen > 0) return offen === 1 ? "1 Änderung wartet auf Ihre Freigabe." : `${formatZahl(offen)} Änderungen warten auf Ihre Freigabe.`;
   const n = entschieden.length;
   if (n === 0) return "Noch hat kein Agent eine Änderung vorgeschlagen.";
   const abgelehnt = entschieden.filter((e) => e.art === "abgelehnt").length;
+  if (abgelehnt === 0 && nurAuftraege && n > 1) return `${formatZahl(n)} Änderungsaufträge, alle mit Namen freigegeben.`;
   if (abgelehnt === 0) return n === 1 ? "1 Änderung, mit Namen freigegeben." : `${formatZahl(n)} Änderungen, alle mit Namen freigegeben.`;
   if (abgelehnt === n) return n === 1 ? "1 Änderung, mit Namen abgelehnt." : `${formatZahl(n)} Änderungen, alle mit Namen abgelehnt.`;
   return `${formatZahl(n)} Änderungen mit Namen entschieden: ${formatZahl(n - abgelehnt)} freigegeben, ${formatZahl(abgelehnt)} abgelehnt.`;
@@ -1318,7 +1331,7 @@ export function probeTabelleBeleg(vorschlagIdWert: number, t: ProbeTabelle): Bel
     lieferung: t.lieferung || null,
     monat: t.lieferung || null,
     stand: "vorlaeufig",
-    verweis: `Probe zu Vorschlag uc3/${vorschlagIdWert}, gerechnet und zurückgerollt`,
+    verweis: `Testrechnung zu Vorschlag uc3/${vorschlagIdWert}, gerechnet und zurückgerollt`,
     sql: [
       "-- Je Gruppe der Lieferung: vorher getrennt (z. B. Dienstvertrag und freier Dienstvertrag), nachher je Kategorie",
       "SELECT coalesce(k.beschaeftigungskategorie, q.code) AS kategorie, q.code AS gruppe,",
@@ -1347,45 +1360,148 @@ export interface ProtokollZeile {
   art: "freigegeben" | "abgelehnt";
 }
 
+/** „Berichtsmonat 2026-07 (v1) veröffentlichen“ aus dem Protokoll. */
+const VEROEFFENTLICHT = /^Berichtsmonat (\d{4}-\d{2}) \((v\d+)\) veröffentlichen$/;
+const REGELSATZ_FREIGEBEN = /^Regelsatz (v\d+) freigeben$/;
+
+function fassungSatz(regelsatz: string, was: string): string {
+  return regelsatz === "v1" ? `Alte Regeln ${was}` : `Stand ${mitRegeln(regelsatz)} ${was}`;
+}
+
 /**
- * Weitere Einträge im Protokoll, die zu keinem Vorschlag gehören, in Worten. Die Regelstände eines Regelsatzes
- * (einer je Monat) werden zu einer Zeile, etwa „Regeln von Regelsatz v2 für 24 Monate festgehalten“.
+ * Weitere Einträge im Protokoll, die zu keinem Vorschlag gehören, in Worten. Regelstände und Veröffentlichungen eines
+ * Stands (je einer pro Monat) werden zu einer Zeile, etwa „22 Monate nach den alten Regeln veröffentlicht“.
  */
 export function protokollZeilen(zeilen: readonly ErledigtZeile[]): ProtokollZeile[] {
   const ergebnis: ProtokollZeile[] = [];
-  const gruppen = new Map<string, { regelsatz: string; name: string; zeit: string; monate: string[] }>();
+  type Gruppe = { art: "regelstand" | "veroeffentlicht"; regelsatz: string; name: string; zeit: string; monate: string[] };
+  const gruppen = new Map<string, Gruppe>();
+  const merke = (art: Gruppe["art"], regelsatz: string, z: ErledigtZeile, monat: string) => {
+    const schluessel = `${art}|${regelsatz}|${z.name}`;
+    const g = gruppen.get(schluessel) ?? gruppen.set(schluessel, { art, regelsatz, name: z.name, zeit: z.zeit, monate: [] }).get(schluessel)!;
+    if (z.zeit > g.zeit) g.zeit = z.zeit;
+    g.monate.push(monat);
+  };
   for (const z of zeilen) {
     if (z.vorschlag) continue;
     if (z.regelstand) {
-      const schluessel = `${z.regelstand.regelsatz}|${z.name}`;
-      const g = gruppen.get(schluessel) ?? gruppen.set(schluessel, { regelsatz: z.regelstand.regelsatz, name: z.name, zeit: z.zeit, monate: [] }).get(schluessel)!;
-      if (z.zeit > g.zeit) g.zeit = z.zeit;
-      g.monate.push(z.regelstand.lieferung);
+      merke("regelstand", z.regelstand.regelsatz, z, z.regelstand.lieferung);
       continue;
     }
-    const satz = z.anweisung ? auftragKopf(z.anweisung).titel : alltag(z.geaendert ?? "Änderung");
+    const roh = z.anweisung?.trim() ?? "";
+    const monat = VEROEFFENTLICHT.exec(roh);
+    if (monat && z.art === "freigegeben") {
+      merke("veroeffentlicht", monat[2]!, z, monat[1]!);
+      continue;
+    }
+    const fassung = REGELSATZ_FREIGEBEN.exec(roh);
+    const satz = fassung ? fassungSatz(fassung[1]!, "freigegeben") : z.anweisung ? auftragKopf(z.anweisung).titel : alltag(z.geaendert ?? "Änderung");
     ergebnis.push({ schluessel: z.schluessel, satz, name: z.name, zeit: z.zeit, art: z.art });
   }
   for (const [schluessel, g] of gruppen) {
     const monate = [...new Set(g.monate)].sort();
     const name = (m: string) => (istMonat(m) ? monatName(m) : m);
+    const was = g.art === "regelstand" ? `${g.regelsatz === "v1" ? "Alte Regeln" : `Regeln ${mitRegeln(g.regelsatz)}`} für` : "";
+    const tun = g.art === "regelstand" ? "festgehalten" : `${mitRegeln(g.regelsatz)} veröffentlicht`;
     const satz =
       monate.length === 1
-        ? `Regeln von Regelsatz ${g.regelsatz} für ${name(monate[0]!)} festgehalten`
-        : `Regeln von Regelsatz ${g.regelsatz} für ${formatZahl(monate.length)} Monate festgehalten, ${name(monate[0]!)} bis ${name(monate.at(-1)!)}`;
+        ? `${was} ${name(monate[0]!)} ${tun}`.trim()
+        : `${was} ${formatZahl(monate.length)} Monate ${tun}, ${name(monate[0]!)} bis ${name(monate.at(-1)!)}`.trim();
     ergebnis.push({ schluessel: `r-${schluessel}`, satz, name: g.name, zeit: g.zeit, art: "freigegeben" });
   }
   return ergebnis.sort((a, b) => b.zeit.localeCompare(a.zeit));
 }
 
+/** Überschrift, wenn es keine Testrechnung gibt: Ein Auftrag, der keine Zählung ändert, ist kein Mangel. */
+export function ohneProbeTitel(v: Pick<Vorschlag, "typ" | "regelsatzZiel">): string {
+  return v.regelsatzZiel === "ministerium" || v.typ === "code_datei" ? "Die Zahlen ändern sich nicht" : "Noch keine Testrechnung";
+}
+
 /**
- * Warum ein Vorschlag keine Probe mit vorher und nachher hat. Eine Regel für die Ministeriums-Lieferung und eine
- * Sonderauswertung ändern keine Zählung des Bestands; sonst ist die Probe nur noch nicht gerechnet.
+ * Warum ein Vorschlag keine Testrechnung mit vorher und nachher hat. Eine Regel für die Ministeriums-Lieferung und eine
+ * Sonderauswertung ändern keine Zählung des Bestands; sonst ist sie nur noch nicht gerechnet.
  */
 export function ohneProbeSatz(v: Pick<Vorschlag, "typ" | "regelsatzZiel">): string {
-  if (v.regelsatzZiel === "ministerium")
-    return "Diese Regel ändert keine Zählung des Bestands. Sie legt die Ministeriums-Lieferung an, deshalb gibt es kein vorher und nachher.";
-  if (v.typ === "code_datei")
-    return "Diese Sonderauswertung ändert keine Zählung des Bestands, deshalb gibt es kein vorher und nachher.";
-  return "Die Probe ist noch nicht gerechnet, deshalb fehlen die Zahlen vorher und nachher.";
+  if (v.regelsatzZiel === "ministerium") return "Dieser Auftrag ändert keine Zahl der Statistik. Er legt eine eigene Liste für das Ministerium an.";
+  if (v.typ === "code_datei") return "Diese Sonderauswertung ändert keine Zahl der Statistik.";
+  return "Die Testrechnung fehlt noch, deshalb gibt es keine Zahlen vorher und nachher.";
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Was ein Auftrag geändert hat, für die Übersicht
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Ändert die Testrechnung die Gesamtzahl? Ohne gerechnete Testrechnung: nein. */
+export function aendertGesamt(probe: unknown): boolean {
+  const [monat] = probeMonate(probe);
+  if (!monat || monat.vorher.gesamt === undefined || monat.nachher.gesamt === undefined) return false;
+  return zahl(monat.vorher.gesamt) !== zahl(monat.nachher.gesamt);
+}
+
+export interface AuftragZeile {
+  wort: string;
+  vorher: string;
+  nachher: string;
+  differenz: string | null;
+}
+
+export interface AuftragZahlen {
+  zeilen: AuftragZeile[];
+  satz: string | null;
+}
+
+/**
+ * Zahl vorher und nachher eines Auftrags, nur aus den Daten. Ändert er die Gesamtzahl, zählt der Vergleich der echten
+ * Läufe im jüngsten Monat, denn die Testrechnung deckt nur einen frühen Monat ab (August 2024: +48, Juli 2026: +8.577).
+ * Bleibt die Gesamtzahl gleich, zeigt die Testrechnung, wie sich die Gruppen zusammenfügen. Ohne Zahl nur ein Satz.
+ */
+export function auftragZahlen(
+  v: Pick<Vorschlag, "typ" | "regelsatzZiel" | "aenderungen" | "probe">,
+  kategorien: Kategorien,
+  wirkung: EchteWirkung | null | undefined,
+  bezeichnungen: Bezeichnungen = {},
+): AuftragZahlen {
+  if (v.regelsatzZiel === "ministerium" || v.typ === "code_datei") return { zeilen: [], satz: `${ohneProbeTitel(v)}.` };
+  if (wirkung && wirkung.ziel.gesamt !== wirkung.basis.gesamt) {
+    return {
+      zeilen: [
+        {
+          wort: monatName(wirkung.monat),
+          vorher: formatZahl(wirkung.basis.gesamt),
+          nachher: formatZahl(wirkung.ziel.gesamt),
+          differenz: formatDifferenz(wirkung.ziel.gesamt - wirkung.basis.gesamt),
+        },
+      ],
+      satz: `Beschäftigungsverhältnisse ${mitRegeln(wirkung.basis.lauf.regelsatz)} und ${mitRegeln(wirkung.ziel.lauf.regelsatz)}.`,
+    };
+  }
+  const u = umverteilung(v.probe, kategorien);
+  if (u) {
+    return {
+      zeilen: u.gruppen.map((g) => ({
+        wort: g.ziel,
+        vorher: g.teile.map((t) => teilWort(t, bezeichnungen.qualifikation?.[t.code])).join(" + "),
+        nachher: formatZahl(g.nachher),
+        differenz: null,
+      })),
+      satz: `${probeTitel(u.lieferung)}. Die Gesamtzahl bleibt bei ${formatZahl(u.gesamt)}.`,
+    };
+  }
+  const w = waage(v.probe, bezeichnungen);
+  if (w && w.gesamt.differenz !== 0) {
+    return {
+      zeilen: [{ wort: "Gesamt", vorher: formatZahl(w.gesamtVorher), nachher: formatZahl(w.gesamtNachher), differenz: formatDifferenz(w.gesamt.differenz) }],
+      satz: `${probeTitel(w.lieferung)}.`,
+    };
+  }
+  return { zeilen: [], satz: `${aenderungSatz(v)}.` };
+}
+
+/** Aufträge der Aufgabe in ihrer Reihenfolge 1, 2, 3 zuerst, alles andere danach in der gelieferten Folge. */
+export function auftragZuerst<T>(zeilen: readonly T[], anweisung: (zeile: T) => string): T[] {
+  const nummer = (z: T) => Number(auftragKopf(anweisung(z)).nummer ?? Number.POSITIVE_INFINITY);
+  return zeilen
+    .map((z, i) => ({ z, i }))
+    .sort((a, b) => nummer(a.z) - nummer(b.z) || a.i - b.i)
+    .map(({ z }) => z);
 }

@@ -45,11 +45,11 @@ export function satzAnfang(text: string): string {
 export function regelsatzSatz(aktiv: string, andere: number | null): string {
   const zahl = andere === null ? null : formatZahl(andere);
   if (aktiv === "v1") {
-    return `Sie sehen die alten Regeln: Gezählt wird am Monatsletzten. Nach den Änderungsaufträgen zählt der ganze Monat${zahl ? `: ${zahl}` : ""}.`;
+    return `Sie sehen die alten Regeln: Gezählt wird am Stichtag, dem letzten Tag des Monats. Nach den Änderungsaufträgen zählt der ganze Monat${zahl ? `: ${zahl}` : ""}.`;
   }
   if (aktiv === "v2") {
     return `Sie sehen den Stand nach den Änderungsaufträgen: Gezählt wird über den ganzen Monat. ${
-      zahl ? `Nach den alten Regeln, am Monatsletzten, sind es ${zahl}.` : "Nach den alten Regeln zählt der Monatsletzte."
+      zahl ? `Nach den alten Regeln, gezählt am Stichtag, sind es ${zahl}.` : "Nach den alten Regeln zählt der Stichtag."
     }`;
   }
   // v3 und höher entstehen erst aus einer freigegebenen Live-Änderung; was die zählen, sagt erst die Regel.

@@ -21,6 +21,7 @@ import {
   klarerAenderungsSatz,
   leseVorschlag,
   ohneProbeSatz,
+  ohneProbeTitel,
   probeAendert,
   probeJeKategorie,
   zitatDoppelt,
@@ -41,6 +42,7 @@ import {
   type Vorschlag,
 } from "@/components/uc3/freigabe";
 import { monatName } from "@/components/uc3/monat";
+import { mitRegeln, regelsatzName } from "@/components/uc3/regelsatz-name";
 import { Entscheiden } from "./entscheiden";
 
 // Ein Vorschlag (UI-Regie v1): oben der Auftrag im Wortlaut, in der Mitte die Probe als kleine Tabelle vorher und
@@ -128,9 +130,11 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
         {klarerSatz && <p className="font-sans text-16 font-semibold text-pretty text-ink">{klarerSatz}</p>}
       </header>
 
+      {wirkung && tabelle && probeAendert(tabelle).gesamt && <WirkungOben wirkung={wirkung} />}
+
       <section aria-labelledby="probe-titel" className="flex max-w-3xl flex-col gap-3">
         <h2 id="probe-titel" className="font-sans text-16 font-semibold text-ink">
-          {tabelle ? probeTitel(tabelle.lieferung) : "Keine Probe"}
+          {tabelle ? probeTitel(tabelle.lieferung) : ohneProbeTitel(v)}
         </h2>
         <p className="font-sans text-14 text-slate">{`${vorgeschlagenVon(v)}.`}</p>
         {regionen && <p className="font-sans text-16 font-semibold text-ink">{regionen}</p>}
@@ -166,13 +170,13 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
                   href={ergebnisPfad(ergebnis)}
                   className="inline-flex min-h-11 items-center font-sans text-16 font-medium text-gruen underline underline-offset-4"
                 >
-                  {`Ergebnis für ${monatName(ergebnis.monat)} mit Regelsatz ${ergebnis.regelsatz} ansehen`}
+                  {`Ergebnis für ${monatName(ergebnis.monat)} ${mitRegeln(ergebnis.regelsatz)} ansehen`}
                 </Link>
               </div>
             ) : (
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <span className="font-sans text-16 text-ink">
-                  {`Die neuen Zahlen für ${monatName(ergebnis.monat)} entstehen, wenn Regelsatz ${ergebnis.regelsatz} Monat für Monat bis dorthin gerechnet ist.`}
+                  {`Die neuen Zahlen für ${monatName(ergebnis.monat)} entstehen, wenn der Stand „${regelsatzName(ergebnis.regelsatz)}“ Monat für Monat bis dorthin gerechnet ist.`}
                 </span>
                 <BelegLink
                   quelle="meta.lauf"
@@ -290,15 +294,38 @@ function ProbeTabelleAnsicht({ vorschlag, tabelle: t, wirkung }: { vorschlag: nu
       <div className="flex flex-wrap items-baseline gap-x-4">
         <span className="font-sans text-16 text-ink">
           {aendert.gesamt
-            ? `Gesamt ändert sich um ${formatDifferenz(t.gesamt.nachher - t.gesamt.vorher)}.`
+            ? `Gesamt ändert sich in diesem Monat um ${formatDifferenz(t.gesamt.nachher - t.gesamt.vorher)}.`
             : aendert.gliederung
               ? "Gesamt bleibt gleich, nur die Gliederung ändert sich."
-              : "Bei den Beschäftigungskategorien ändert die Probe keine Zahl, die Gesamtzahl bleibt gleich."}
+              : "Bei den Beschäftigungskategorien ändert die Testrechnung keine Zahl, die Gesamtzahl bleibt gleich."}
         </span>
         <BelegLink {...probeTabelleBeleg(vorschlag, t)} />
       </div>
       {!aendert.gesamt && !aendert.gliederung && wirkung && <p className="font-sans text-16 text-ink">{wirkung}</p>}
     </div>
+  );
+}
+
+/** Die Zahl, um die es geht, gleich sichtbar statt unter „Details“: der jüngste Monat mit fertigem Lauf in beiden Ständen. */
+function WirkungOben({ wirkung: e }: { wirkung: EchteWirkung }) {
+  const unterschied = e.ziel.gesamt - e.basis.gesamt;
+  if (unterschied === 0) return null;
+  return (
+    <section aria-labelledby="wirkung-titel" className="flex max-w-3xl flex-col gap-2">
+      <h2 id="wirkung-titel" className="font-sans text-16 font-semibold text-ink">
+        {`Das ändert sich im ${monatName(e.monat)}`}
+      </h2>
+      <p className="flex flex-wrap items-baseline gap-x-3 font-sans tabular-nums text-ink">
+        <span className="text-20">{formatZahl(e.basis.gesamt)}</span>
+        <span aria-hidden="true" className="text-20 text-slate">
+          →
+        </span>
+        <span className="sr-only">wird zu</span>
+        <span className="text-32 font-semibold">{formatZahl(e.ziel.gesamt)}</span>
+        <span className="text-20 font-medium text-gruen">{formatDifferenz(unterschied)}</span>
+      </p>
+      <p className="font-sans text-14 text-slate">{`Beschäftigungsverhältnisse ${mitRegeln(e.basis.lauf.regelsatz)} und ${mitRegeln(e.ziel.lauf.regelsatz)}. Die Tabelle dazu steht unter „Details“.`}</p>
+    </section>
   );
 }
 
@@ -311,22 +338,22 @@ function WirkungTeil({ wirkung: e, kategorien }: { wirkung: EchteWirkung; katego
     quelle: "stat.stat_beschaeftigte",
     lieferung: e.monat,
     monat: e.monat,
-    regelstand: `${rb} ${e.basis.lauf.regelstand}, ${rz} ${e.ziel.lauf.regelstand}`,
-    verweis: `Regelsatz ${rb} und ${rz}, jüngster Monat mit fertigem Lauf in beiden`,
-    sql: [`-- Regelsatz ${rb}`, sqlWirkung(e.basis.lauf), "", `-- Regelsatz ${rz}`, sqlWirkung(e.ziel.lauf)].join("\n"),
+    regelstand: `${regelsatzName(rb)}: ${e.basis.lauf.regelstand}, ${regelsatzName(rz)}: ${e.ziel.lauf.regelstand}`,
+    verweis: "Jüngster Monat mit fertigem Lauf in beiden Ständen",
+    sql: [`-- ${regelsatzName(rb)}`, sqlWirkung(e.basis.lauf), "", `-- ${regelsatzName(rz)}`, sqlWirkung(e.ziel.lauf)].join("\n"),
   };
   return (
-    <DetailBlock titel={`Gerechnet für ${monatName(e.monat)}, Regelsatz ${rb} und ${rz}`}>
+    <DetailBlock titel={`${monatName(e.monat)}, beide Stände gerechnet`}>
       <div className="overflow-x-auto">
       <table className="w-full max-w-lg border-collapse">
-        <caption className="sr-only">{`Beschäftigungsverhältnisse ${monatName(e.monat)} mit Regelsatz ${rb} und ${rz}`}</caption>
+        <caption className="sr-only">{`Beschäftigungsverhältnisse ${monatName(e.monat)} ${mitRegeln(rb)} und ${mitRegeln(rz)}`}</caption>
         <thead>
           <tr className="border-b border-line">
             <th scope="col" className="py-2 pr-6 text-left">
               <span className="sr-only">Kategorie</span>
             </th>
-            <th scope="col" className={kopfZelle}>{`Regelsatz ${rb}`}</th>
-            <th scope="col" className={kopfZelle}>{`Regelsatz ${rz}`}</th>
+            <th scope="col" className={kopfZelle}>{regelsatzName(rb)}</th>
+            <th scope="col" className={kopfZelle}>{regelsatzName(rz)}</th>
             <th scope="col" className={kopfZelle}>
               Unterschied
             </th>
@@ -356,7 +383,7 @@ function WirkungTeil({ wirkung: e, kategorien }: { wirkung: EchteWirkung; katego
       </div>
       {e.auchImZiel.length > 0 && (
         <p className="font-sans text-14 text-slate">
-          {`Regelsatz ${rz} enthält auch ${e.auchImZiel.map((t) => `„${auftragKopf(`${t}:`).titel}“`).join(" und ")}. Der Unterschied kommt deshalb nicht nur aus diesem Auftrag.`}
+          {`Der Stand „${regelsatzName(rz)}“ enthält auch ${e.auchImZiel.map((t) => `„${auftragKopf(`${t}:`).titel}“`).join(" und ")}. Der Unterschied kommt deshalb nicht nur aus diesem Auftrag.`}
         </p>
       )}
       <div>

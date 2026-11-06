@@ -25,8 +25,8 @@ export const UC3_GLOSSAR = {
   Abrechnung: "Jede gelesene Zeile ist entweder gezählt, nicht gezählt oder ausgeschlossen; keine geht verloren.",
   ÖNACE: "Die österreichische Liste der Wirtschaftszweige, nach der wir Branchen zählen.",
   "Ergebnis-Hash": "Ein Fingerabdruck aller Zahlen eines Laufs: gleiche Daten und Regeln ergeben denselben Fingerabdruck.",
-  Probe: "Der Agent rechnet die geänderte Regel vorab, damit Sie die Wirkung vor der Freigabe sehen.",
-  Regelsatz: "Eine Fassung aller Regeln: v1 nach der Fachbeschreibung, v2 mit den Änderungsaufträgen.",
+  Testrechnung: "Der Agent rechnet die geänderte Regel vorab, damit Sie die Wirkung vor der Freigabe sehen.",
+  Regelsatz: "Eine Fassung aller Regeln: die alten Regeln oder der Stand nach den Änderungsaufträgen.",
   Zeile: "Ein Eintrag in einer Lieferung; er beschreibt einen Zeitabschnitt eines Beschäftigungsverhältnisses.",
 } as const satisfies Record<string, string>;
 

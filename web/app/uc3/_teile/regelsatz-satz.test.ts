@@ -19,16 +19,16 @@ describe("Satz neben dem Schalter", () => {
   // Fehler, den das fängt: 399.027 und 407.604 stehen nebeneinander, und niemand sagt, was der Unterschied ist.
   it("sagt, was hier zählt, und nennt die Zahl des anderen Stands", () => {
     expect(regelsatzSatz("v1", 407604)).toBe(
-      "Sie sehen die alten Regeln: Gezählt wird am Monatsletzten. Nach den Änderungsaufträgen zählt der ganze Monat: 407.604.",
+      "Sie sehen die alten Regeln: Gezählt wird am Stichtag, dem letzten Tag des Monats. Nach den Änderungsaufträgen zählt der ganze Monat: 407.604.",
     );
     expect(regelsatzSatz("v2", 399027)).toBe(
-      "Sie sehen den Stand nach den Änderungsaufträgen: Gezählt wird über den ganzen Monat. Nach den alten Regeln, am Monatsletzten, sind es 399.027.",
+      "Sie sehen den Stand nach den Änderungsaufträgen: Gezählt wird über den ganzen Monat. Nach den alten Regeln, gezählt am Stichtag, sind es 399.027.",
     );
     expect(regelsatzSatz("v3", 399027)).toBe("Sie sehen eine neue Fassung mit einer frisch freigegebenen Änderung. Nach den alten Regeln sind es 399.027.");
   });
 
   it("erfindet keine Zahl, wenn der andere Stand den Monat nicht gerechnet hat", () => {
-    expect(regelsatzSatz("v1", null)).toBe("Sie sehen die alten Regeln: Gezählt wird am Monatsletzten. Nach den Änderungsaufträgen zählt der ganze Monat.");
+    expect(regelsatzSatz("v1", null)).toBe("Sie sehen die alten Regeln: Gezählt wird am Stichtag, dem letzten Tag des Monats. Nach den Änderungsaufträgen zählt der ganze Monat.");
     expect(regelsatzSatz("v2", null)).not.toMatch(/\d/);
   });
 });
