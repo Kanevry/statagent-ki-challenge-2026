@@ -15,7 +15,10 @@ Viele Arbeits-Sitzungen bauen gleichzeitig, jede in ihrem eigenen Bereich, und u
 
 Den Code hat das Team mit dem Entwicklungswerkzeug Claude Code (Claude Opus 5.5) geschrieben
 ([`abgabe/modelle.md`](../../abgabe/modelle.md)). Eine Sitzung ist eine laufende Instanz dieses Werkzeugs mit eigenem
-Auftrag. Jede Arbeits-Sitzung kann selbst Unter-Agenten in Wellen starten; die Grundeinstellung steht in
+Auftrag. Die Commit-Zeilen `Co-Authored-By` auf `main` nennen 858-mal Claude Opus 5.5 und 4-mal Claude Fable 5.1
+(`git log --format=%B bcabeab | grep -c`, je Modellname). Geprüft hat nicht nur dasselbe Modell: Der Abnahme-Prozess
+wurde von Fable 5.1 und von Astra (Codex) unabhängig gegengelesen ([`PROZESS.md`](../abnahme/PROZESS.md)), und
+Prüf-Sitzungen haben Codex als zweiten Prüfer neben Opus eingesetzt. Jede Arbeits-Sitzung kann selbst Unter-Agenten in Wellen starten; die Grundeinstellung steht in
 [`CLAUDE.md`](../../CLAUDE.md), Abschnitt „Session Config“ (4 Wellen, bis zu 6 Agenten je Welle). Im Betrieb setzt das
 Entwicklungswerkzeug keine Änderung um: Das machen die eigenen Agenten der Anwendung, und auch dort rechnet kein
 Sprachmodell eine Zahl.
@@ -35,7 +38,7 @@ Sprachmodell eine Zahl.
 | 05.11. 18:50 | Engpass war die eine Prüf-Bank, nicht die CI: eine zweite Prüf-Bank kommt dazu. |
 | 05.11. 23:26 bis 23:46 | Die Generalprobe der Vorführung scheitert beim Schritt „festschreiben“; mit Fix um 23:46 bestanden. |
 | 06.11. ab 00:35 | Der Zweitrechner fällt aus, Prüfungen ziehen auf den CI-Server um. Dort ist der Weg der Jury von 03:04 bis 03:59 auf einem frischen Klon bestanden. |
-| 06.11. ab 05:37 | Schlusslauf der Abnahme auf dem festen Merge-Stopp-Stand, schwere Prüfungen von 05:38 bis 06:07 ([Beleg](../abnahme/SCHLUSSLAUF.md)). Ab 06:28 Baustopp: nur noch Abbau und kleine Korrekturen bis zur Abgabe. |
+| 06.11. ab 05:37 | Schlusslauf der Abnahme auf dem festen Merge-Stopp-Stand, schwere Prüfungen von 05:38 bis 06:07 ([Beleg](../abnahme/schlusslauf-2026-11-06.md)). Ab 06:28 Baustopp: nur noch Abbau und kleine Korrekturen bis zur Abgabe. |
 
 Quelle: Die Zeitpunkte mit Commit (03.11. 07:47 und 05.11. 12:10) sind mit `git log` nachprüfbar (Wiener Zeit). Alle
 anderen stammen aus dem Arbeitsprotokoll der führenden Sitzung, Stand 06.11.2026 06:34; dieses Protokoll liegt nicht

@@ -81,8 +81,8 @@ erreichbar. Bis zur Abgabe ändern sich noch Kleinigkeiten an der Oberfläche.
 
 | Seite (Pfad) | Was man dort sieht | Worauf man achten kann |
 |---|---|---|
-| Startseite `/` | Was StatAgent tut, erzählt in Szenen: Lieferungen kommen an, werden geprüft, gezählt und belegt. | Wie aus einer Lieferung eine Zahl mit Beleg wird. |
-| Monate `/uc3` | Alle 24 Monate mit Verlauf und Status, wahlweise nach „Alte Regeln“ (`v1`) oder „Nach den Änderungsaufträgen“ (`v2`). | Welche Monate vorläufig sind; an Zahlen lässt sich die Abfrage dahinter ansehen. |
+| Startseite `/` | Was StatAgent tut, erzählt als Weg der Daten in fünf Schritten: Lieferungen kommen an, werden geprüft, gezählt und belegt. | Wie aus einer Lieferung eine Zahl mit Beleg wird. |
+| Dashboard `/uc3` | Kurve, Kennzahlen und alle 24 Monate mit Status, wahlweise nach „Alte Regeln“ (`v1`) oder „Nach den Änderungsaufträgen“ (`v2`). | Welche Monate vorläufig sind; an Zahlen lässt sich die Abfrage dahinter ansehen. |
 | Qualitätsberichte `/uc3/berichte` | Je Monat einen Bericht mit Auffälligkeiten, Revisionsbedarf und Stand. | Oktober 2025 unter `/uc3/berichte/2025-10`: Warum der Monat angehalten ist. |
 | Annahmen `/uc3/annahmen` | Die Annahmen des Teams zu fehlerhaften Daten, jede als Regel umgesetzt. | Zu jeder Annahme die Begründung. |
 | Regeln und Klassifikationen `/uc3/klassifikationen` | Die Regeln und die Verzeichnisse für Branchen, Bundesländer, Bezirke und Gemeinden, mit Suche. | Wie eine Branche oder Gemeinde über die Jahre umbenannt oder zusammengelegt wurde. |
@@ -92,6 +92,7 @@ erreichbar. Bis zur Abgabe ändern sich noch Kleinigkeiten an der Oberfläche.
 | Pensionen `/uc3/pensionen` | Eine zweite Statistik aus den Meldungen der Pensionsversicherungsträger. | Jeder Träger liefert in seinem eigenen Excel-Format; die Summen bildet das Programm. |
 | Gemeinsamer Einstieg `/uc4` | Eine Frage, die nacheinander drei Bereiche beantworten. | Die Zahl kommt aus StatAgent, mit Beleg. |
 | Präsentation `/praesentation` | Die Folien für die Jury. | Die Kernzahlen auf einen Blick. |
+| Ablauf `/ablauf` | Wie das Projekt in der Challenge entstanden ist, mit Zeitleiste. | Die Zeitpunkte und die Zahl der Aufgaben und Änderungen, mit Stand. |
 
 Für Fragen gilt online eine Grenze: höchstens 10 Fragen in der Minute je Internetanschluss und ein festes
 Tageskontingent an Modellaufrufen ([README](../../README.md), „Online-Demo“).
@@ -107,8 +108,9 @@ wurde“ und „Grenzen und offene Punkte“.
   Medikamentenempfehlung und lässt Aussagen ohne passendes Zitat weg.
 - **UC2, HealthPolicy Simulator:** Interessenvertretungen verhandeln in Runden mit einem Moderator, mit Beleg aus dem
   Pressespiegel oder als Modellannahme markiert; ein Mensch gibt das Ergebnis mit Namen frei. Die Akteure spielt ein
-  Sprachmodell, es ist eine Simulation; online zeigt die Seite eine aufgezeichnete Verhandlung mit gekennzeichneten,
-  erfundenen Beispielbelegen.
+  Sprachmodell, es ist eine Simulation. Online zeigt `/uc2` eine aufgezeichnete Verhandlung mit gekennzeichneten,
+  erfundenen Beispielbelegen; seit dem 06.11. kann man auf `/uc2/frage` zusätzlich eine eigene Frage stellen, auf die
+  ein Modell live antwortet.
 - **UC4, Gemeinsamer Einstieg (eigene Idee des Teams):** Eine Frage läuft nacheinander durch StatAgent, den Simulator
   und den Lotsen: Zahl, Abwägung, Erklärung. Online dauerte eine ganze Frage mit Azure 13 Sekunden (gemessen am 06.11.
   um 05:01); fällt ein Bereich aus, steht er als „fehlt“ da.
@@ -139,8 +141,9 @@ Quellen: [`docs/sprache.md`](../sprache.md), [README](../../README.md), Unterlag
 ## Häufige Fragen
 
 **Rechnet die KI die Zahlen?** Nein: Der Monatslauf ruft kein Sprachmodell auf, und zwei Läufe mit denselben Daten
-und Regeln liefern dieselbe Prüfsumme ([README](../../README.md), „Wie UC3 rechnet“). Ein Modell schlägt nur
-Änderungen vor, und an das Modell gehen nie Einzeldaten ([`docs/models.md`](../models.md)).
+und Regeln liefern dieselbe Prüfsumme ([README](../../README.md), „Wie UC3 rechnet“). Bei StatAgent schlägt ein
+Modell nur Änderungen vor, und an das Modell gehen nie Einzeldaten ([`docs/models.md`](../models.md)). In UC1 und UC2
+schreibt ein Modell die Antworten; das steht dort auf der Seite dabei.
 
 **Kann die KI allein etwas ändern?** Nein: Jede Änderung an Regeln oder Code braucht eine Freigabe mit Vor- und
 Nachnamen, Rollen wie „Team“ werden abgelehnt. Ein Agenten-Skript startet nur, wenn genau dieser Dateistand

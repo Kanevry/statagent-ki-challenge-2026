@@ -4,7 +4,8 @@ Diese Seite ist für die Jury, für Technikerinnen und Techniker und für alle, 
 verlangt hat und was davon im Repo nachweislich läuft. Jede Aussage nennt ihren Beleg, eine Datei oder eine
 Codestelle. Was nur teilweise geht oder fehlt, steht ausdrücklich da.
 
-Stand: `main` vom 06.11.2026, Commit `48761dc`. Die Aufgabenstellungen des Veranstalters liegen nicht im Repo; sie
+Stand: `main` vom 06.11.2026, geprüft am Commit `48761dc`; die Abnahme-Zähler und der Online-Stand von UC2 und UC4
+sind auf `bcabeab` nachgezogen. Die Aufgabenstellungen des Veranstalters liegen nicht im Repo; sie
 stehen hier sinngemäß, bei den Bewertungsbereichen wörtlich gekürzt. Kurzfassung je Raum: Wurzel-[README](../../README.md).
 
 ## Überblick
@@ -13,7 +14,7 @@ stehen hier sinngemäß, bei den Bewertungsbereichen wörtlich gekürzt. Kurzfas
 |---|---|---|---|
 | UC3 StatAgent | Veranstalter | gewählt und bewertet (Commit „Select use case uc3“, 05.11.2026 12:10; [`KI-Challenge_UseCase.yaml`](../../KI-Challenge_UseCase.yaml)) | Alle fünf Abgabeteile liegen vor, die Mindestanforderung ist in allen sechs Bewertungsbereichen erfüllt, das Optimum in zwei ganz und in vier teilweise. |
 | UC1 SV KI-Lotse | Veranstalter | Zusatz, nicht bewertet | Der Lotse antwortet mit einem Zitat an jeder Aussage; online läuft nur ein aufgezeichneter Fall, eigene Fragen gehen nur lokal. |
-| UC2 HealthPolicy Simulator | Veranstalter | Zusatz, nicht bewertet | Institutionen verhandeln mit Moderator über die Wartezeiten auf Facharzttermine; online nur als Aufzeichnung mit gekennzeichneten erfundenen Beispielbelegen. |
+| UC2 HealthPolicy Simulator | Veranstalter | Zusatz, nicht bewertet | Institutionen verhandeln mit Moderator über die Wartezeiten auf Facharzttermine; online als Aufzeichnung mit gekennzeichneten erfundenen Beispielbelegen und seit dem 06.11. mit der Seite `/uc2/frage`, auf der ein Modell live auf eine eigene Frage antwortet. |
 | UC4 Gemeinsamer Einstieg | eigene Idee des Teams | Zusatz, nicht bewertet | Eine Frage läuft durch drei Stationen; nur die erste rechnet aus der Datenbank, die beiden anderen sind Modelltext oder Vorlage. |
 
 ## Use Case 3 StatAgent
@@ -59,12 +60,15 @@ eingelesen: [`uc3/README.md`](../../uc3/README.md) (Abschnitt „Pensionen“), 
 und [`docs/uc3/pensionen-pruefbericht.md`](../uc3/pensionen-pruefbericht.md).
 
 **Die formale Abnahmeliste.** Neben dem Jury-Raster prüft das Team die Kriterien seiner eigenen Aufgaben
-(Issues) in [`docs/abnahme/matrix-uc3.md`](../abnahme/matrix-uc3.md). Stand 06.11.2026 05:03 auf `9ad33e95`: 27 von 76
-Kriterien bestanden, 1 nicht bestanden, 31 nicht geprüft, 17 nach der Abgabe. Alle 31 „nicht geprüft“ tragen den
-Vermerk „Beleg veraltet“: Ein früherer Beleg stammt von einem älteren Stand und ist neu zu bestätigen. Das eine
-„nicht bestanden“ (13-AC4) schlägt an, weil `uc3/statagent/pensionen.py` eine eigene Funktion `freigeben` enthält.
-Den Schlusslauf ab 06:30 beschreibt [`SCHLUSSLAUF.md`](../abnahme/SCHLUSSLAUF.md); sein Ergebnis ist in diesem
-Stand noch nicht enthalten.
+(Issues) in [`docs/abnahme/matrix-uc3.md`](../abnahme/matrix-uc3.md). Der Schlusslauf am 06.11.2026, geurteilt für
+`main` `c16fa881` um 06:07, zählt für UC3: 53 von 76 Kriterien bestanden, 1 nicht bestanden, 5 nicht geprüft, 17 nach
+der Abgabe ([`schlusslauf-2026-11-06.md`](../abnahme/schlusslauf-2026-11-06.md)). Der Beleg sagt selbst: kein „alles
+bestanden“, das Tor ist offen. Das eine „nicht bestanden“ (13-AC4) ist als Restmangel angenommen:
+`uc3/statagent/pensionen.py` enthält eine eigene Funktion `freigeben`; die Regeln laufen darin über
+`plattform.freigabe` mit Commit und der Zeile `Freigegeben-von`. Offen sind unter anderem zwei Punkte zur Oberfläche
+(18-AC2, 18-AC3) und zwei zu den Klassifikationen (75-AC1, 76-AC1). Der volle Lauf 22-1 (24 Läufe und Sheet nach den
+Änderungsaufträgen, Liste für das Ministerium) ist danach bestanden. Nach dem Schlusslauf landeten noch Änderungen an
+der Weboberfläche; die Matrix zeigt UC3-Belege danach als veraltet, bis ein Nachtrag sie neu misst.
 
 ### Die acht technischen Regeln
 
@@ -122,12 +126,16 @@ Experten geprüft ([`uc2/README.md`](../../uc2/README.md), „Verhandlung“). E
 [`uc2/faelle/wartezeiten.yaml`](../../uc2/faelle/wartezeiten.yaml). Das Ergebnis heißt „Entwurf“, bis ein Mensch es
 mit Namen freigibt ([README](../../README.md), Tabelle „Was gebaut wurde“).
 
-**Was online läuft.** Eine aufgezeichnete Verhandlung. Starten und Freigeben lehnt der Server ab
+**Was online läuft.** Zwei Dinge. Erstens eine aufgezeichnete Verhandlung; Starten und Freigeben lehnt der Server ab
 ([`web/app/api/uc2/faelle/route.ts`](../../web/app/api/uc2/faelle/route.ts), Zeile 38). Die Belege der Aufzeichnung
 sind erfunden und am Beleg selbst als „erfundene Beispielquelle“ gekennzeichnet
-([`web/components/uc2/buehne/buehne.tsx`](../../web/components/uc2/buehne/buehne.tsx), Zeile 136 bis 138). Echte
-Presse-Belege fehlen online, solange dort die Namensliste zur Maskierung von Personennamen fehlt ([README](../../README.md),
-„Grenzen und offene Punkte“).
+([`web/components/uc2/buehne/buehne.tsx`](../../web/components/uc2/buehne/buehne.tsx), Zeile 136 bis 138). Zweitens
+seit dem 06.11. die Seite `/uc2/frage`: Auf eine eigene Frage zur Gesundheitspolitik wägen drei Interessenvertretungen
+ab, ihre Rollen und Sätze schreibt ein Modell (Azure `gpt-5-4-mini`). Online gemessen am 06.11.2026 um 06:52 vom
+zuständigen Bereich: Die Seite antwortet live, höchstens 5 Fragen je Minute, und nennt je Organisation echte Medien
+als „Quelle: Medium, Monat“, ohne Link auf den Artikel; eine Haltung ohne passenden Artikel steht ohne Quelle da.
+Persönliche Angaben und Fragen außerhalb der Gesundheitspolitik bekommen ohne Modellaufruf einen festen Satz. Es ist
+keine echte Verhandlung und keine Aussage dieser Organisationen.
 
 **Was offen ist.** Der Abgleich [`docs/plan/uc2/scope-abgleich.md`](../plan/uc2/scope-abgleich.md) stuft fünf der
 sechs Themen des Spieltheorie-Teils als „teilweise“ ein, die Verhandlungsmacht als „zurückgestellt“. Die
@@ -153,9 +161,10 @@ Findet Station 1 keine Zahl, hält die Kette an ([`router.py`](../../shared/py/p
 Station 2 prüft jede Zahl in ihrem Text gegen Beleg oder Kontext und bricht ab, statt eine unbelegte Zahl
 auszugeben ([`adapter.py`](../../uc2/src/uc2/antwort/adapter.py), Zeile 17 bis 19).
 
-**Online eingeschränkt.** Lokal ist jede Modellwahl offen. Online lässt der Server nur Testbetrieb und die Anbieter
-zu, die in `UC4_MODELLWAHL` freigegeben sind, und antwortet sonst „Dieses Modell ist hier nicht freigegeben.“
-([`web/lib/plattform/uc4.ts`](../../web/lib/plattform/uc4.ts), Funktion `modellErlaubt`, Zeile 217 bis 228). Laut
+**Online eingeschränkt.** Lokal ist jede Modellwahl offen. Online gibt es seit dem 06.11. keine Modellwahl und keinen
+Testbetrieb mehr: Ist nur ein Anbieter freigegeben, nennt der Kopf der Seite das Modell (Commits `f1911da` und
+`a7297f2`). Der Server lässt weiterhin nur die Anbieter zu, die in `UC4_MODELLWAHL` freigegeben sind
+([`web/lib/plattform/uc4.ts`](../../web/lib/plattform/uc4.ts), Funktion `modellErlaubt`). Laut
 [README](../../README.md) ist das online Azure. Je Internetanschluss gehen standardmäßig höchstens 10 Fragen in der
 Minute, dazu kommt ein Tagesbudget für Modellaufrufe (README, „Online-Demo“).
 
@@ -169,7 +178,7 @@ Vorschläge des Teams, abgeleitet nur aus den oben belegten offenen Punkten:
 | UC1 | Namen vor der Erweiterung der Suchbegriffe entfernen (Kriterium 121-5), danach Anliegen über mehrere Besuche (82). |
 | UC2 | Historische Presse und SozDok indizieren (84, `scope-abgleich.md`) und online echte Belege mit Namensliste zeigen. |
 | UC4 | Weitere Fälle in `uc2/faelle/` anlegen, damit Station 2 auch außerhalb der Versorgung abwägt. |
-| Abnahme | Die 31 veralteten UC3-Belege der Abnahmeliste auf dem aktuellen Stand neu bestätigen ([`SCHLUSSLAUF.md`](../abnahme/SCHLUSSLAUF.md)). |
+| Abnahme | Die offenen Punkte des Schlusslaufs schließen und die UC3-Belege nach den letzten Änderungen an der Weboberfläche neu messen ([`schlusslauf-2026-11-06.md`](../abnahme/schlusslauf-2026-11-06.md)). |
 
 ## Weiter lesen
 

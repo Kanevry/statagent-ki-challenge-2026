@@ -61,14 +61,14 @@ Die Monatswerte aller 22 veröffentlichten Monate stehen mit Prüfsumme im [Prot
 
 ## 3 Die Qualitätsprüfung
 
-Ein **Qualitätsbericht** sagt zu jeder Lieferung, was geprüft wurde, was auffiel und was das für die Zahlen heißt. Jede **Auffälligkeit** bekommt eine von drei Einstufungen: „erklärt, Datenproblem“ (Fehler mit bekannter Ursache, eine Regel behebt ihn), „erklärt, plausibel“ (ungewohnt, aber echt) oder „nicht erklärbar“ (geht als Rückfrage an die Fachabteilung).
+Ein **Qualitätsbericht** sagt zu jeder Lieferung, was geprüft wurde, was auffiel und was das für die Zahlen heißt. Jede **Auffälligkeit** bekommt eine von drei Einstufungen. In den Berichten heißen sie „erklärt, Datenproblem“, „erklärt, plausibel“ und „nicht erklärbar“, in der Weboberfläche „Fehler in den Daten“ (die Ursache ist bekannt, eine feste Regel behandelt sie), „Kein Fehler: echt oder üblich“ (ungewohnt, aber echt oder üblich, etwa Saison oder Nachmeldungen) und „Noch nicht erklärt“ (geht als Rückfrage an die Fachabteilung). Die Zuordnung steht in [`einstufung-gruppen.ts`](../../web/components/uc3/einstufung-gruppen.ts).
 
 | Zahl | Was sie bedeutet | Worüber gemessen | Stand | Quelle |
 |---|---|---|---|---|
 | 24 und 24 | Qualitätsberichte je Regelstand, einer je Monat. | `ls abgabe/qualitaetsberichte \| wc -l`, ebenso `qualitaetsberichte_v2` | `48761dcc` | [abgabe/qualitaetsberichte](../../abgabe/qualitaetsberichte/) |
 | 219 | Auffälligkeiten in allen 24 Berichten nach den Alten Regeln (218 nach den Änderungsaufträgen). | Zeilen der Tabelle in Abschnitt 2 jedes Berichts: `awk '/^## 2/{f=1;next} /^## /{f=0} f && /^\| [0-9]+ \|/' abgabe/qualitaetsberichte/*.md \| wc -l` | `48761dcc` | Zählbefehl links |
 | 103 | davon „erklärt, Datenproblem“ | dieselben Zeilen, Spalte Einstufung: `… \| awk -F'\|' '$7 ~ /Datenproblem/' \| wc -l` | `48761dcc` | Zählbefehl links |
-| 78 | davon „erklärt, plausibel“, also als echte Entwicklung eingestuft | wie oben, `/plausibel/` | `48761dcc` | Zählbefehl links |
+| 78 | davon „erklärt, plausibel“, in der Weboberfläche „Kein Fehler: echt oder üblich“ | wie oben, `/plausibel/` | `48761dcc` | Zählbefehl links |
 | 38 | davon „nicht erklärbar“ | wie oben, `/nicht erkl/` | `48761dcc` | Zählbefehl links |
 | 8 | Arten von Fehlern in den Daten, jede mit einer Regel oder einem Halt (Belege F4 bis F11). | alle 24 Lieferungen | 06.11.2026 | [Kriterien-Karte, Bereich 3](../praesentation/kriterien-karte.md) |
 | 24 | Prüfregeln P01 bis P24, die jede Lieferung prüfen. | Regelstand Alte Regeln | 05.11.2026 | [Belegregister F15](../praesentation/belegregister.md) |
@@ -186,7 +186,7 @@ Die Preise stammen aus der Azure-Preisliste (Region West Europe, abgerufen 05.11
 | Antwortzeit am Ort der Vorführung | nicht gemessen; auf dem Testserver 0,4 bis 3,8 Sekunden | [Belegregister F29](../praesentation/belegregister.md) |
 | Lizenzen der Pakete einzeln | nicht gemessen | [Management-FAQ, Frage 17](../praesentation/management-faq.md) |
 | Rechtliche Prüfung zum AI Act | keine; es gibt nur eine eigene Einschätzung | [Management-FAQ, Frage 18](../praesentation/management-faq.md) |
-| Ergebnis des Schlusslaufs am 06.11. ab 06:30 | im Stand `48761dcc` nicht enthalten | [Schlusslauf](../abnahme/SCHLUSSLAUF.md) |
+| Ob alle Abnahmekriterien bestanden sind | nein: Der Schlusslauf am 06.11. zählt für UC3 53 von 76 bestanden, 1 nicht bestanden, 5 nicht geprüft, 17 nach der Abgabe (geurteilt für `c16fa881`, 06:07); die anderen Teile sind für diesen Stand nicht einzeln nachgesehen | [Schlusslauf-Beleg](../abnahme/schlusslauf-2026-11-06.md) |
 
 ## Weiter lesen
 
