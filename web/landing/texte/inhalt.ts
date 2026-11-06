@@ -13,7 +13,6 @@ import type { UcId } from "@kic/ui/ucs";
 import {
   ABGABE,
   ANZAHL_LIEFERUNGEN,
-  BEFUNDE,
   EINBRUCH,
   FREIGABE,
   GOLDEN_SET,
@@ -125,7 +124,7 @@ export const GESCHICHTE: readonly GeschichteSchritt[] = [
   },
   {
     titel: "Das Programm prüft jede Zeile",
-    text: `Feste Regeln laufen über alle Lieferungen und finden ${zahl(BEFUNDE.length)} Arten von Auffälligkeiten, zum Beispiel ${zahl(SZENE_BEFUNDE.geburtsmonat13.saetze)} Geburtsdaten mit Monat 13 im ${monatJahr(SZENE_BEFUNDE.geburtsmonat13.lieferung)} oder ${zahl(fd.verhaeltnisse)} fehlende freie Dienstverträge im ${monatJahr(fd.lieferung)}. Die Oktober-Lieferung 2025 ist viel kleiner als sonst. Gelöscht wird nichts, jede Auffälligkeit wird vermerkt.`,
+    text: `Feste Regeln laufen über alle Lieferungen und finden Auffälligkeiten, zum Beispiel ${zahl(SZENE_BEFUNDE.geburtsmonat13.saetze)} Geburtsdaten mit Monat 13 im ${monatJahr(SZENE_BEFUNDE.geburtsmonat13.lieferung)} oder ${zahl(fd.verhaeltnisse)} fehlende freie Dienstverträge im ${monatJahr(fd.lieferung)}. Die Oktober-Lieferung 2025 ist viel kleiner als sonst. Gelöscht wird nichts, jede Auffälligkeit wird vermerkt.`,
     begriff: begriff("Freier Dienstvertrag"),
   },
   {
@@ -135,7 +134,7 @@ export const GESCHICHTE: readonly GeschichteSchritt[] = [
   },
   {
     titel: "Ein Mensch gibt frei, mit Namen",
-    text: `Das Programm veröffentlicht nichts allein. ${FREIGABE.name} hat ${zahl(FREIGABE.monate)} Monate mit Namen und Zeitpunkt freigegeben. ${MONATE[Number(FREIGABE.vorlaeufig[0].split("-")[1]) - 1]} und ${MONATE[Number(FREIGABE.vorlaeufig[1].split("-")[1]) - 1]} 2025 bleiben vorläufig. Eine Freigabe mit „Team“ als Namen lehnt das System ab.`,
+    text: `Das Programm veröffentlicht nichts allein. ${FREIGABE.name} hat ${zahl(FREIGABE.monate)} Monate mit Namen und Zeitpunkt freigegeben. ${MONATE[Number(FREIGABE.vorlaeufig[0].split("-")[1]) - 1]} und ${MONATE[Number(FREIGABE.vorlaeufig[1].split("-")[1]) - 1]} 2025 bleiben angehalten. Eine Freigabe mit „Team“ als Namen lehnt das System ab.`,
   },
   {
     titel: "Zahlen und Berichte stehen",
@@ -166,7 +165,7 @@ export const BUEHNE = {
     name: FREIGABE.name,
     zeit: `freigegeben am ${FREIGABE.zeit}`,
     gruen: `${zahl(FREIGABE.monate)} Monate veröffentlicht`,
-    gelb: "2 bleiben vorläufig",
+    gelb: `${zahl(FREIGABE.vorlaeufig.length)} angehalten`,
   },
   raster: `Jedes Kästchen ist eine Zahl im Beispielbericht, alle ${zahl(GOLDEN_SET.zellenGesamt)} stimmen.`,
   ergebnis: [
@@ -208,8 +207,8 @@ export const ANSATZ = {
     },
     {
       bild: "lokal",
-      titel: "Statistikdaten bleiben lokal",
-      text: "Sie verlassen den Rechner nicht. Das Sprachmodell sieht nur Regeln und den Aufbau der Tabellen, nie einzelne Zeilen.",
+      titel: "Keine Einzeldaten ans Modell",
+      text: "Das Sprachmodell sieht nur Regeln und den Aufbau der Tabellen, nie einzelne Zeilen.",
     },
   ],
   modell: {
@@ -256,25 +255,20 @@ export const USE_CASES = {
   titel: "Drei Use\u00a0Cases, ein Kern",
   einleitung: "Drei Anwendungen teilen sich eine Plattform, dazu kommt ein gemeinsamer Einstieg. Die Jury bewertet StatAgent.",
   oeffnen: "Öffnen",
-  bewertet: "bewertet",
   eintraege: {
     uc3: {
       text: `${zahl(ANZAHL_LIEFERUNGEN)} Monatslieferungen prüfen, zählen und belegen: eine Beschäftigtenstatistik mit Qualitätsbericht je Monat und Ministeriums-Lieferung.`,
-      schritte: ["Einlesen", "Prüfen", "Zählen", "Freigeben", "Bereitstellen"],
     },
     uc1: {
       text: "Von der Situation bis zum Antrag: Leistungen der Sozialversicherung erkennen, mit Quelle, Antrag vorbereiten.",
-      schritte: ["Situation", "Leistung", "Quelle", "Antrag"],
     },
     uc2: {
-      text: "Institutionelle Personas verhandeln eine gesundheitspolitische Frage, Positionen und ihre Änderungen bleiben sichtbar.",
-      schritte: ["Frage", "Personas", "Positionen", "Änderungen"],
+      text: "Sechs Gruppen des Gesundheitswesens verhandeln eine Frage, ihre Positionen und Änderungen bleiben sichtbar.",
     },
-  } satisfies Record<UcId, { text: string; schritte: string[] }>,
+  } satisfies Record<UcId, { text: string }>,
   /** Gemeinsamer Einstieg (Epic #95): Name und Route aus der Registry. */
   uc4: {
-    text: "Eine Frage läuft durch alle drei: StatAgent liefert die geprüften Zahlen mit Beleg, das Panel verhandelt daraus eine Position, der KI-Lotse erklärt in einfacher Sprache, was das im Alltag bedeutet.",
-    schritte: ["StatAgent: Zahlen mit Beleg", "Panel: Position", "KI-Lotse: einfache Sprache"],
+    text: "StatAgent rechnet die Zahl, der Simulator wägt ab, der Lotse sagt, was es für Sie heißt.",
   },
 } as const;
 

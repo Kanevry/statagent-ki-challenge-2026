@@ -18,19 +18,6 @@ function UseCaseVier({ index }: { index: number }) {
       </div>
       <div className={a.ucInhalt}>
         <p className={a.ucText}>{t.text}</p>
-        <p className={a.ucSchritte}>
-          {t.schritte.map((schritt, k) => (
-            <span key={schritt}>
-              {k > 0 ? (
-                <span className={a.ucPfeil} aria-hidden="true">
-                  {" → "}
-                </span>
-              ) : null}
-              {k > 0 ? <span className={s.nurLeser}>, </span> : null}
-              {schritt}
-            </span>
-          ))}
-        </p>
       </div>
       <Link href={einstieg.route} className={a.knopfLinie}>
         {USE_CASES.oeffnen}
@@ -69,23 +56,9 @@ export default function UseCases() {
                 >
                   <div className={a.ucKopf}>
                     <h3 className={a.ucName}>{uc.name}</h3>
-                    {uc.bewertet ? <span className={a.plakette}>{USE_CASES.bewertet}</span> : null}
                   </div>
                   <div className={a.ucInhalt}>
                     <p className={a.ucText}>{text.text}</p>
-                    <p className={a.ucSchritte}>
-                      {text.schritte.map((schritt, k) => (
-                        <span key={schritt}>
-                          {k > 0 ? (
-                            <span className={a.ucPfeil} aria-hidden="true">
-                              {" → "}
-                            </span>
-                          ) : null}
-                          {k > 0 ? <span className={s.nurLeser}>, </span> : null}
-                          {schritt}
-                        </span>
-                      ))}
-                    </p>
                   </div>
                   <Link href={uc.route} className={uc.bewertet ? a.knopfVoll : a.knopfLinie}>
                     {USE_CASES.oeffnen}

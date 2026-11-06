@@ -273,17 +273,6 @@
   color: var(--l-ink);
 }
 
-.plakette {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: var(--l-mint);
-  color: var(--l-ink);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.5;
-}
-
 .ucInhalt {
   grid-column: 6 / span 5;
 }
@@ -292,18 +281,6 @@
   margin: 0;
   color: var(--l-slate);
   text-wrap: pretty;
-}
-
-.ucSchritte {
-  margin: 12px 0 0;
-  font-family: var(--l-mono);
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--l-gruen);
-}
-
-.ucPfeil {
-  color: var(--l-slate);
 }
 
 .knopfVoll,
