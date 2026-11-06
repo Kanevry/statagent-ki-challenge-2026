@@ -103,17 +103,15 @@ def _warum_angehalten(conn: Verbindung, frage: str, regelsatz: str) -> dict[str,
     )
     zeilen: list[dict[str, Any]] = [dict(z) for z in conn.execute(sql_text.encode()).fetchall()]
     conn.rollback()
-    beleg = _beleg(
-        sql_text,
-        [
-            {
-                "monat": monat,
-                "lauf": stand.lauf_id,
-                "regelstand": stand.regelstand,
-                "status": stand.ergebnis_status,
-            }
-        ],
-    )
+    staende = [
+        {
+            "monat": monat,
+            "lauf": stand.lauf_id,
+            "regelstand": stand.regelstand,
+            "status": stand.ergebnis_status,
+        }
+    ]
+    beleg = {**_beleg(sql_text, staende), "quelle": "meta.pruefung_treffer"}
     if not zeilen:
         text = f"{name} ist nicht angehalten: Keine Prüfung hat den Lauf gestoppt."
         return _antwort("definition", text, belege=[beleg], hinweise=[text])
@@ -122,7 +120,11 @@ def _warum_angehalten(conn: Verbindung, frage: str, regelsatz: str) -> dict[str,
         f"{name} ist angehalten, weil {wie_viele} etwas so Großes gefunden "
         f"{'hat' if len(zeilen) == 1 else 'haben'}, dass ein Mensch entscheiden muss."
     )
-    text = f"{kopf} Die Zahlen des Monats bleiben vorläufig, bis ein Mensch entschieden hat."
+    # Ein endgültiger Lauf ist schon entschieden: Dann bleibt nichts vorläufig.
+    offen = stand.ergebnis_status != "endgueltig"
+    text = (
+        f"{kopf} Die Zahlen des Monats bleiben vorläufig, bis ein Mensch entschieden hat." if offen else kopf
+    )
     zahlen = [
         {
             "bezeichnung": f"Gefundene Fälle, {_satz_kurz(str(z['beschreibung']))}",
