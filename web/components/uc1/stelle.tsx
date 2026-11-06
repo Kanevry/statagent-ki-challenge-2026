@@ -6,7 +6,7 @@ import { traegerName, type Traeger } from "./antwort";
 import { antragLeistung, leistungName } from "./leistungen";
 import { Fundstelle, OHNE_STELLE } from "./teile";
 
-// Zuständige Stelle (#35, Urteil ui-regie-32): keine eigene Seite mehr, sondern die rechte Spalte von Leistungen und
+// Zuständige Stelle (#35, Urteil der Sichtprüfung): keine eigene Seite mehr, sondern die rechte Spalte von Leistungen und
 // Antrag. Es steht nur, was die Daten belegt liefern: Name und Fundstelle. Adresse und Telefon liefert der Kern nicht,
 // deshalb stehen sie hier nicht.
 

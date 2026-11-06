@@ -23,6 +23,6 @@ Monate sind geschützt (`stat.schuetze_endgueltig`), Abweichungen stehen als Rev
 
 ## Bestätigung durch die Person selbst
 
-Die Freigaben uc3/24 bis uc3/27 gab Lead c0 im Auftrag von Bernhard Götzendorfer ein. Bernhard Götzendorfer hat
+Die Freigaben uc3/24 bis uc3/27 gab der Lead im Auftrag von Bernhard Götzendorfer ein. Bernhard Götzendorfer hat
 sie danach selbst bestätigt (`uv run uc3 bestaetigen`, Commit `2ba95e5`, Technische Regel 7). Die
 Ministeriums-Lieferung hat er selbst ausgelöst (Commit `1b0f799`). Alles steht in `abgabe/protokoll.md`.

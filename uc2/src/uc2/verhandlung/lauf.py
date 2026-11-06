@@ -508,7 +508,7 @@ class Verhandlung:
                     continue
                 # Zitate am Originaltext prüfen, dann Übernahmen sperren und Namen maskieren: gespeichert,
                 # veröffentlicht und der nächsten Runde gezeigt wird nur der geschützte Zug. Die Zahlbefunde
-                # tragen die Einheit nach außen, darum prüfen sie die maskierten `zahlen` (Review 4d zu !97).
+                # tragen die Einheit nach außen, darum prüfen sie die maskierten `zahlen` (Review zu !97).
                 zug = self.schutz.zug(sperre_zitate(erg.zug, belege[aid]))
                 befunde = pruefe({**erg.zug, "zahlen": zug["zahlen"]}, belege[aid], self.experte_werte)
                 gueltig[aid] = zug

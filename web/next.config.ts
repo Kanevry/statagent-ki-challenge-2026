@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: ["@kic/ui"],
   // Kein `env` mit Vapi-Schlüssel: der Knopf holt ihn zur Laufzeit von /api/plattform/voice-config, und nur wenn
-  // Voice aktiv ist. Ein NEXT_PUBLIC_-Wert stünde fest im Browser-Code jedes Builds (Review 4d, 05.11.).
+  // Voice aktiv ist. Ein NEXT_PUBLIC_-Wert stünde fest im Browser-Code jedes Builds (Review, 05.11.).
 };
 
 export default nextConfig;

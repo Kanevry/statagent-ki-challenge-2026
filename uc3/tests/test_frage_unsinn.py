@@ -1,4 +1,4 @@
-"""Keine Zahl zu Unsinn und zu Fragen, die nichts mit den Daten zu tun haben (ui-regie-e6, b-uc4-99, #176)."""
+"""Keine Zahl zu Unsinn und zu Fragen, die nichts mit den Daten zu tun haben (Sichtprüfung, #176)."""
 
 from __future__ import annotations
 

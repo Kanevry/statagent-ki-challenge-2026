@@ -392,7 +392,7 @@ def test_bekannte_werte_ohne_lauf_der_basis_und_nach_kategorie(live_conn: Verbin
 def test_lauf_mit_neuer_zaehlregel_haelt_blattsummen_nicht_an(
     live_conn: Verbindung, art: str, parameter: dict[str, Any]
 ) -> None:
-    # Fängt (Review b-uc3-b6): P21 hielt jeden Monat an, weil der Bestand die Ausgeschlossenen mitzählte bzw.
+    # Fängt (Review): P21 hielt jeden Monat an, weil der Bestand die Ausgeschlossenen mitzählte bzw.
     # die Gruppe „Ost“ in keiner Klassifikation steht; danach verweigert veroeffentlichen.
     conn = live_conn
     with conn.transaction():
@@ -486,14 +486,14 @@ def _neu_mehrere(*regeln: tuple[str, str, dict[str, Any]]) -> dict[str, Any]:
 
 
 def test_listenwert_ist_meldung_kein_absturz(live_conn: Verbindung) -> None:
-    # Fängt (Review 9b): ["Stichtag"] ist nicht hashbar; `in erlaubt` warf einen TypeError statt einer Meldung.
+    # Fängt (Review): ["Stichtag"] ist nicht hashbar; `in erlaubt` warf einen TypeError statt einer Meldung.
     falsch = _aendern("R2_R4_stichtag_eigene_lieferung", {"zeitraum_art": ["Stichtag"]})
     erg = agent_ausfuehren(live_conn, "Stichtag am 15.", complete=_modell("datenmanagement", falsch))
     assert erg.vorschlag_id is None and erg.abgelehnt is not None and "nicht zulässig" in erg.abgelehnt
 
 
 def test_aendern_einer_ausschlussregel_prueft_die_werte(live_conn: Verbindung) -> None:
-    # Fängt (Review 9b): „auch ohne Wien“ auf einer bestehenden Regel ging mit „Wien“ statt Code 9 durch und schloss
+    # Fängt (Review): „auch ohne Wien“ auf einer bestehenden Regel ging mit „Wien“ statt Code 9 durch und schloss
     # Wien nicht aus.
     with live_conn.transaction():
         regelsatz_sicherstellen(live_conn, "v2", "v1")
@@ -513,7 +513,7 @@ def test_aendern_einer_ausschlussregel_prueft_die_werte(live_conn: Verbindung) -
 
 
 def test_zwei_ausschluesse_zaehlen_jedes_verhaeltnis_einmal(live_conn: Verbindung) -> None:
-    # Fängt (Review 9b): „Beamte und Kinder unter 15“ brach die Probe mit „mehrere aktive zaehl-Regeln“ ab.
+    # Fängt (Review): „Beamte und Kinder unter 15“ brach die Probe mit „mehrere aktive zaehl-Regeln“ ab.
     antwort = _neu_mehrere(
         ("ausschluss", "R8_ohne_beamte", {"merkmal": "qualifikation", "werte": ["Beamte"]}),
         ("ausschluss", "R9_ohne_ab_40", {"merkmal": "alter", "werte": ["40-120"]}),
@@ -614,7 +614,7 @@ def test_ruecknahme_von_zwei_ausschluessen_stellt_den_stand_wieder_her(
 
 
 def test_bekannte_werte_auch_wenn_der_juengste_lauf_keine_zellen_hat(live_conn: Verbindung) -> None:
-    # Fängt (Review 9b, auf der Abgabe-Kopie gemessen): der jüngste v2-Lauf ist „unveraendert“ und hat keine Zellen;
+    # Fängt (Review, auf der Abgabe-Kopie gemessen): der jüngste v2-Lauf ist „unveraendert“ und hat keine Zellen;
     # Geschlecht und ÖNACE waren leer, „Männer nicht zählen“ endete in einer Absage.
     lauf = lauf_ausfuehren(live_conn, MONAT, "v1", reihenfolge_pruefen=False)
     assert lauf.status == "unveraendert"
@@ -623,7 +623,7 @@ def test_bekannte_werte_auch_wenn_der_juengste_lauf_keine_zellen_hat(live_conn: 
 
 
 def test_probemonat_faellt_auf_den_juengsten_gerechneten_monat_zurueck(live_conn: Verbindung) -> None:
-    # Fängt (Review 9b): v3/v4 aus Freigabe oder Rücknahme haben keine Läufe, `uc3 agent` zeigte dann keine Zahlen.
+    # Fängt (Review): v3/v4 aus Freigabe oder Rücknahme haben keine Läufe, `uc3 agent` zeigte dann keine Zahlen.
     assert probe_monat(live_conn, "v1") == MONAT
     assert probe_monat(live_conn, "v9") == MONAT
 
@@ -710,7 +710,7 @@ def test_aendert_nichts_nennt_die_regel_in_der_korrektur(live_conn: Verbindung) 
 
 @pytest.mark.parametrize("tag", ["tag:0", "tag:00", "tag:32", "tag:99"])
 def test_unmoeglicher_tag_ist_eine_meldung(live_conn: Verbindung, tag: str) -> None:
-    # Fängt (Review 29): tag:0 passierte die Prüfung und warf in zaehlung.py einen ValueError, Traceback vor der Jury.
+    # Fängt (Review): tag:0 passierte die Prüfung und warf in zaehlung.py einen ValueError, Traceback vor der Jury.
     antwort = _aendern("R2_R4_stichtag_eigene_lieferung", {"von": tag, "bis": tag})
     erg = agent_ausfuehren(
         live_conn, "Stichtag am Tag", complete=_modell("datenmanagement", antwort), probe_lieferung=MONAT
@@ -730,7 +730,7 @@ def test_wort_weiche_kennt_angehalten_prozent_und_pruefung(satz: str) -> None:
 
 
 def test_was_nach_der_nachfrage_wegfaellt_steht_in_der_begruendung(live_conn: Verbindung) -> None:
-    # Fängt (Review 29): „Beamte und Kinder unter 15“ schrumpft auf Nachfrage still zu einer Regel.
+    # Fängt (Review): „Beamte und Kinder unter 15“ schrumpft auf Nachfrage still zu einer Regel.
     beide = _neu_mehrere(
         ("ausschluss", "R8_ohne_beamte", {"merkmal": "qualifikation", "werte": ["Beamte"]}),
         ("ausschluss", "R9_ohne_kinder", {"merkmal": "alter", "werte": ["0-14"]}),
@@ -747,7 +747,7 @@ def test_was_nach_der_nachfrage_wegfaellt_steht_in_der_begruendung(live_conn: Ve
 
 
 def test_aendert_nichts_erlaubt_die_ehrliche_rueckfrage(live_conn: Verbindung) -> None:
-    # Fängt (Review 29): „Alter am Monatsletzten“ steht schon so; die Korrektur darf nicht in eine fremde Änderung
+    # Fängt (Review): „Alter am Monatsletzten“ steht schon so; die Korrektur darf nicht in eine fremde Änderung
     # treiben, die Rolle sagt, dass es schon so ist.
     gleich = _aendern("R5_alter", {"bezug": "bis"})
     modell = _modell(
@@ -757,7 +757,7 @@ def test_aendert_nichts_erlaubt_die_ehrliche_rueckfrage(live_conn: Verbindung) -
     assert erg.vorschlag_id is None and erg.rueckfrage is not None and "schon so" in erg.rueckfrage
     zweite = [n for z, n in modell.aufrufe if z == "agent.datenmanagement"][1]
     assert "antworte mit einer Rückfrage" in zweite[-1]["content"]
-    # genau zwei Rollenaufrufe: kein Nachfassen und keine Umleitung überstimmt die ehrliche Rückfrage (Review 29)
+    # genau zwei Rollenaufrufe: kein Nachfassen und keine Umleitung überstimmt die ehrliche Rückfrage (Review)
     assert [z for z, _ in modell.aufrufe if z != "agent.koordinator"] == ["agent.datenmanagement"] * 2
 
 

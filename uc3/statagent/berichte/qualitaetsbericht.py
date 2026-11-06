@@ -297,7 +297,7 @@ def im_zeitraum(text: str, art: str) -> str:
     Regelsatz über den Monat, heißt es im Bericht „im Berichtsmonat“; die freigegebenen Regeln bleiben gleich."""
     if art != "Monat":
         return text
-    # Das Alter gilt weiter am Stichtag („Alter in vollendeten Jahren am Stichtag“, Review 5a); nur der Zählzeitraum
+    # Das Alter gilt weiter am Stichtag („Alter in vollendeten Jahren am Stichtag“, Review); nur der Zählzeitraum
     # wechselt. Der Kopf des Bestands-Belegs („-- _bestand: Verhältnisse am Stichtag …“) folgt dem Zeitraum.
     return _AM_STICHTAG_ZAEHLUNG.sub("im Berichtsmonat", text)
 

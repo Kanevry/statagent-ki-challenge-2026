@@ -572,12 +572,16 @@ def test_probe_erkennt_falschen_inhalt(box) -> None:
     assert not box.dateien and not box.ordner
 
 
-def _bare_mit_github_stand(tmp_path: Path) -> Path:
+def _bare_mit_github_stand(tmp_path: Path, *weitere: str) -> Path:
     arbeit = tmp_path / "gh-arbeit"
     arbeit.mkdir()
     _git(arbeit, "init", "-q", "-b", "main")
     (arbeit / "KI-Challenge_UseCase.yaml").write_text("use_case:\n  - uc3\n", encoding="utf-8")
     (arbeit / "README.md").write_text("kurz\n", encoding="utf-8")
+    for name in weitere:
+        pfad = arbeit / name
+        pfad.parent.mkdir(parents=True, exist_ok=True)
+        pfad.write_text("alt\n", encoding="utf-8")
     _git(arbeit, "add", ".")
     _git(arbeit, "commit", "-q", "-m", "GitHub-Stand")
     bare = tmp_path / "gh.git"
@@ -647,6 +651,27 @@ def test_github_push_mit_kopf_und_ruecklesen(tmp_path: Path, ohne_gitleaks, monk
     _git(bare, "merge-base", "--is-ancestor", kopf, neu)
     daten = json.loads(nachweis.read_text(encoding="utf-8"))
     assert daten["github_kopf_danach"] == neu == daten["abgabe_commit"] and daten["push_zeit"]
+
+
+@pytest.mark.parametrize(
+    ("entfernt", "rc"),
+    [
+        ("docs/abnahme/laeufe/2026-11-05T1738-5854102c.jsonl", 0),
+        ("docs/abnahme/laeufe/unter/ordner.jsonl", 0),
+        ("docs/abnahme/laeufe-kopie/a.jsonl", 1),  # gleicher Anfang, anderer Ordner
+        ("docs/abnahme/belege.jsonl", 1),
+        ("docs/abgabe/herkunft.md", 1),
+        ("laeufe/a.jsonl", 1),
+    ],
+)
+def test_github_dateien_nur_die_laeufe_duerfen_fehlen(
+    tmp_path: Path, ohne_gitleaks, entfernt: str, rc: int
+) -> None:
+    """Fängt: Die Ausnahme für die Rohläufe öffnet die Prüfung auch für jede andere entfernte Datei."""
+    bare = _bare_mit_github_stand(tmp_path, entfernt)
+    quelle, _ = _quelle(tmp_path)
+
+    assert _push(tmp_path, quelle, bare) == rc
 
 
 def test_github_falscher_kopf_pusht_nicht(tmp_path: Path, ohne_gitleaks, monkeypatch) -> None:

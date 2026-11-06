@@ -174,7 +174,7 @@ def test_fluktuation_gefragte_branche(gerechnet: Verbindung) -> None:
     assert "alle Wirtschaftsbereiche" not in daten["text"]
 
 
-# Fängt: Bei genau einer Zahl steht „Verstanden …“ als Antwort der Station (ui-regie-36); „…: alle“ grenzt nichts ein.
+# Fängt: Bei genau einer Zahl steht „Verstanden …“ als Antwort der Station (Sichtprüfung); „…: alle“ grenzt nichts ein.
 def test_eine_zahl_erster_satz_ist_die_antwort(gerechnet: Verbindung) -> None:
     soll = _direkt(gerechnet)
     daten = uc4_antwort(gerechnet, "Wie viele Beschäftigte gab es im September 2024?")

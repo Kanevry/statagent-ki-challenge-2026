@@ -1,6 +1,6 @@
 # UC2: Online-Schutz vor POST und echten Modellen
 
-Stand 05.11.2026, Issue #137 (Bedingung der Review-Bank 57 zu !47). Gilt, bevor `POST /faelle` oder echte
+Stand 05.11.2026, Issue #137 (Bedingung der Review zu !47). Gilt, bevor `POST /faelle` oder echte
 Modelle online gehen.
 
 ## Was geschützt ist
@@ -49,7 +49,7 @@ wurde. Deshalb zählt im Modelltext nur ein Name mit Beleg:
 - Ein so erkannter Name gilt danach im ganzen Text.
 - Die Zahlbefunde (`zahl_ohne_beleg`, `zahl_widerspruch`) tragen die maskierte Einheit.
 
-Messung (Review 5a und 4d zu !97, 05.11.): Die Maske ändert keinen von 2.000 Modelltexten des Qualitätslaufs 4
+Messung (Review zu !97, 05.11.): Die Maske ändert keinen von 2.000 Modelltexten des Qualitätslaufs 4
 (claude) und keinen von 234 Modelltexten der Vorführ-Aufzeichnung, mit der Index-Liste und mit der
 Server-Liste. Namensscan (`uc2/tests/pruefe_namen.py --lauf`) über alle Ereignisse des Laufs: 0 Treffer mit
 der Server-Liste. Die Index-Liste trifft nur „Austria“ in Institutionsnamen.

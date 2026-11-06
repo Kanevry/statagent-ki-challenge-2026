@@ -39,7 +39,7 @@ python3 -I scripts/abgabe/github_push.py \
 - Fehlt GitHub-main noch in der Historie, mergt es mit `--allow-unrelated-histories -s ours`. Der Inhalt bleibt dann genau unser main, und der Push ist ein Fast-Forward.
 - Danach prüft es:
   - die Pflichtdatei `KI-Challenge_UseCase.yaml`, die gleich sein muss wie auf GitHub,
-  - dass alle Dateien von GitHub erhalten bleiben,
+  - dass alle Dateien von GitHub erhalten bleiben; nur `docs/abnahme/laeufe/` darf dort verschwinden, die Rohläufe liegen nicht mehr auf main,
   - die Dateiliste im Baum und über die ganze Historie: keine `.env`-Dateien, keine Schlüssel, keine `ministerium_*.csv`, nichts aus `svbox/` oder `lieferungen/`,
   - dass keine Datei über 50 MB ist,
   - gitleaks über die ganze Historie,

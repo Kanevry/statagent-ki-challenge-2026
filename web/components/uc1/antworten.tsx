@@ -11,7 +11,7 @@ import { GESPERRT } from "./situation";
 import { StelleKasten, stellenGruppen } from "./stelle";
 import { Beleg, Fundstelle, KiKennzeichnung, KOPF_ID, MitTelefon, OHNE_STELLE } from "./teile";
 
-// Antworten des Lotsen (#35, Urteil ui-regie-32): Rückfrage mit Antwortknöpfen, Leistungen mit Begründung und
+// Antworten des Lotsen (#35, Urteil der Sichtprüfung): Rückfrage mit Antwortknöpfen, Leistungen mit Begründung und
 // „Antrag vorbereiten“, daneben die zuständige Stelle, Quellen hinter „Details“. Eine Einschätzung wie „sehr
 // wahrscheinlich“ rechnet der Kern nicht, deshalb steht sie hier nicht.
 

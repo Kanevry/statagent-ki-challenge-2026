@@ -1,7 +1,7 @@
 # Feature: E0 Plattform (Monorepo, Shell, Modell-Schalter, Protokoll/Freigabe, Design) und E1 UC3 StatAgent
 
 **Date:** 2026-11-05
-**Author:** Bernhard Götzendorfer + Claude (AI-assisted planning, Session app-c3, Lead lead-session-orchestrator-09)
+**Author:** Bernhard Götzendorfer + Claude (AI-assisted planning)
 **Status:** Draft
 **Appetite:** E0 Kern bis Do 18:00, E0 Rest bis Fr 03:00; E1 nach Wellen #13–#20, Feature-Stopp Fr 06:30 (Lead, 05.11.)
 **Parent Project:** agents/ki-challenge-2026 (Repo-Wurzel `app/`), Epics #21 (E0) und #22 (E1)
@@ -441,7 +441,7 @@ Oracle: Exit-Code des Validators; gehört zu #16/#20.
 | ID | Criterion | Oracle | Owner | Not before | Pass condition | Fallback if it cannot run |
 |----|-----------|--------|-------|------------|----------------|---------------------------|
 | EA-1 | E0-2 Live-Smoke azure, claude, mistral | Antwort des Dienstes, `docs/models.md` mit Zeitstempel | Bau-Session E0 | 2026-11-05 14:00 | drei Provider liefern Text < 30 s | mock in CI; Provider als „nicht belegt“ in models.md |
-| EA-2 | E0-5/6/7/8 und #18: Screens entsprechen Frames | Screenshot-Vergleich gegen die Pen-Frames (Vertrag D) | e5-praesentation-05 | 2026-11-05 18:00 | je Screen „entspricht Frame X“ als Kommentar von e5 | Vergleich gegen Frame qVTQj und Typo-Skala durch E0-Session, als „nicht abgenommen“ markiert |
+| EA-2 | E0-5/6/7/8 und #18: Screens entsprechen Frames | Screenshot-Vergleich gegen die Pen-Frames (Vertrag D) | Präsentation | 2026-11-05 18:00 | je Screen „entspricht Frame X“ als Kommentar von e5 | Vergleich gegen Frame qVTQj und Typo-Skala durch E0-Session, als „nicht abgenommen“ markiert |
 | EA-3 | E0-9 Voice-Anruf Ende-zu-Ende | Vapi end-of-call-report plus UI-Transkript | Owner (Vapi-Konto) | 2026-11-05 22:00 | gesprochene Zahl = vorab notierte psql-Zahl 2025-03 (387.180), Transkript sichtbar | Text-Fallback vorführen, Voice als „nicht belegt“ |
 | EA-4 | E1 Golden Set 08/2024 und Determinismus auf dem Jury-Weg (`DB_PORT=5433 docker compose down -v && up`, frischer Start, zwei Läufe) | `beispielbericht_2024-08.xlsx` plus sha256 über kanonisch sortiertes CSV aus `stat.*` | Bau-Session UC3 | nach #16 | 2.880/2.880 und Hash gleich | Homebrew-PG-Weg dokumentiert, Docker als Einschränkung im README |
 

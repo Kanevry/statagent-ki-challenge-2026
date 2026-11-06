@@ -45,7 +45,7 @@ Schnittstellen-SSOT: `docs/prd/2026-11-05-e0-plattform-e1-uc3.md` (Verträge O, 
 | `abgabe/` | erzeugte UC3-Ergebnisse: Aggregations-Sheet, Qualitätsberichte, Ministeriums-Lieferung, Protokoll | UC3 |
 | `docs/` | PRD, Annahmen, `models.md` | alle |
 
-Je Session ein Worktree, nur in der eigenen Lane schreiben. Abhängigkeiten (Entscheid Lead 09, 05.11.):
+Je Session ein Worktree, nur in der eigenen Lane schreiben. Abhängigkeiten (Entscheid Lead, 05.11.):
 - **Python:** Jede UC-Lane trägt Pakete nur in ihrer eigenen `ucN/pyproject.toml` ein. `uv lock` an der Wurzel
   läuft nach dem Rebase durch die Lane, die zuletzt mergt; das aktualisierte `uv.lock` ist Teil ihres MR und wird
   im Review geprüft. Lockfile-Konflikte nie von Hand lösen, sondern `uv lock` neu laufen lassen.
