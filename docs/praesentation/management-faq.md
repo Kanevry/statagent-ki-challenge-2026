@@ -19,7 +19,7 @@ Beleg: `abgabe/modelle.md`, Abschnitt „Im Betrieb“.
 Beleg: Prüfung des Namens in `shared/py/plattform/freigabe.py`, „Team“ wird abgelehnt.
 
 **4. Warum Microsoft und nicht Europa?**
-„Das Modell gibt die Challenge vor: Azure, Standort West Europe. Es ist ein Schalter. Mistral aus der EU und ein Modell im eigenen Haus laufen am selben Code.“
+„Das Modell gibt die Challenge vor: Azure, Standort West Europe. Es ist ein Schalter. Mistral aus der EU läuft am selben Code. Ein Modell im eigenen Haus ist vorgesehen, gelaufen ist es bei uns noch nicht.“
 Beleg: `abgabe/modelle.md`. Mistral gerufen am 05.11.2026 laut Modell-Protokoll, einmal, Koordinator.
 
 **5. Wie schnell geht das in den Echtbetrieb?**
