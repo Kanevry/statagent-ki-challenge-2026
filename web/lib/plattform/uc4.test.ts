@@ -9,6 +9,7 @@ import {
   ROUTER_ARGV,
   standardAusfuehren,
   standardStromStarten,
+  modellErlaubt,
   uc4Einstellung,
   type Ausfuehren,
   type StromStarten,
@@ -329,12 +330,22 @@ describe("POST /api/uc4/frage, Online-Stufe A", () => {
   });
 
   it("uc4Einstellung sagt der Seite Kette, ob Fragen offen sind und ob ein Modell läuft", () => {
-    expect(uc4Einstellung(stufeA)).toEqual({ kette: ["uc3"], fragenOffen: true, mitModell: false });
-    expect(uc4Einstellung({ KIC_ONLINE_LESEND: "1" })).toEqual({
+    expect(uc4Einstellung(stufeA)).toMatchObject({ kette: ["uc3"], fragenOffen: true, mitModell: false });
+    expect(uc4Einstellung({ KIC_ONLINE_LESEND: "1" })).toMatchObject({
       kette: ["uc3", "uc2", "uc1"],
       fragenOffen: false,
       mitModell: true,
     });
+  });
+
+  it("uc4Einstellung bietet online nur an, was der Server annimmt", () => {
+    // Fängt Mistral und Claude auf der öffentlichen Seite: wählbar, dann Fehler 400 (online gemessen 06.11.).
+    expect(uc4Einstellung({ KIC_ONLINE: "1", UC4_MODELLWAHL: "azure" }).modellwahl).toEqual(["azure", "mock"]);
+    expect(uc4Einstellung({ KIC_ONLINE: "1" }).modellwahl).toEqual(["mock"]);
+    expect(uc4Einstellung({}).modellwahl).toEqual(["azure", "mistral", "claude", "mock"]);
+    for (const modell of uc4Einstellung({ KIC_ONLINE: "1", UC4_MODELLWAHL: "azure" }).modellwahl) {
+      expect(modellErlaubt(modell, { KIC_ONLINE: "1", UC4_MODELLWAHL: "azure" })).toBe(true);
+    }
   });
 });
 

@@ -286,6 +286,13 @@ it("eine vorläufige Zahl heißt auf Karte 1 im Satz so, eine endgültige nicht"
   expect(satz(zweite)).not.toContain("vorläufig");
 });
 
+it("es stehen nur die Anbieter zur Wahl, die die Seite bekommt", () => {
+  // Fängt Mistral und Claude online: wählbar, dann Fehler 400 (Prüfer 06.11., online gemessen).
+  render(<Kette kette={["uc3", "uc2", "uc1"]} fragenOffen mitModell modellwahl={["azure", "mock"]} />);
+  const namen = screen.getAllByRole("radio", { hidden: true }).map((r) => r.closest("label")!.textContent);
+  expect(namen).toEqual(["Voreinstellung", "Azure", "Testbetrieb"]);
+});
+
 it("ein einzelner Beleg bleibt „Beleg“ ohne Zusatz", async () => {
   const seite = await fragen(strom(UC3, antwort("uc2", "Über die Versorgung sagt das allein wenig.", [BELEG_UC3], [ZAHL]), UC1));
   await screen.findByText(/Fertig in/);

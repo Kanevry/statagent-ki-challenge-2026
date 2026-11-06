@@ -91,7 +91,17 @@ function useSprache(): VoiceKonfiguration | null {
   return konfig;
 }
 
-export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly KettenUc[]; fragenOffen: boolean; mitModell: boolean }) {
+export function Kette({
+  kette,
+  fragenOffen,
+  mitModell,
+  modellwahl = MODELLWAHL,
+}: {
+  kette: readonly KettenUc[];
+  fragenOffen: boolean;
+  mitModell: boolean;
+  modellwahl?: readonly Modellwahl[];
+}) {
   const [frage, setFrage] = useState("");
   const [modell, setModell] = useState<Modellwahl | null>(null);
   const [eingabeFehler, setEingabeFehler] = useState<string | null>(null);
@@ -299,7 +309,7 @@ export function Kette({ kette, fragenOffen, mitModell }: { kette: readonly Kette
               <summary className="inline-flex min-h-11 cursor-pointer items-center underline underline-offset-4">Modell wählen</summary>
               <fieldset className="mt-2 flex flex-wrap gap-x-5 gap-y-2" disabled={laeuft}>
                 <legend className="sr-only">Welches Modell schreibt die Sätze?</legend>
-                {[{ wert: null as Modellwahl | null, name: "Voreinstellung" }, ...MODELLWAHL.map((wert) => ({ wert, name: MODELL_NAMEN[wert] }))].map(
+                {[{ wert: null as Modellwahl | null, name: "Voreinstellung" }, ...modellwahl.map((wert) => ({ wert, name: MODELL_NAMEN[wert] }))].map(
                   ({ wert, name }) => (
                     <label key={name} className="inline-flex min-h-11 items-center gap-2 text-ink">
                       <input type="radio" name="modell" checked={modell === wert} onChange={() => setModell(wert)} className="size-4 accent-gruen" />

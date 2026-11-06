@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: `${findeUc("uc4").name} · OneShotAnd
 export const dynamic = "force-dynamic";
 
 export default function GemeinsamerEinstieg() {
-  const { kette, fragenOffen, mitModell } = uc4Einstellung();
+  const { kette, fragenOffen, mitModell, modellwahl } = uc4Einstellung();
   const voll = kette.length > 1;
   return (
     <UcBereich uc="uc4">
@@ -25,7 +25,7 @@ export default function GemeinsamerEinstieg() {
             : "Das Programm rechnet die Antwort aus den Daten und zeigt, woher jede Zahl kommt."}
         </p>
       </div>
-      <Kette kette={kette} fragenOffen={fragenOffen} mitModell={mitModell} />
+      <Kette kette={kette} fragenOffen={fragenOffen} mitModell={mitModell} modellwahl={modellwahl} />
     </UcBereich>
   );
 }
