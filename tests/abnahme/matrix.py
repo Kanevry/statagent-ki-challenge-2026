@@ -75,6 +75,18 @@ def _sperrnamen() -> str:
 
 
 _RECHNER = re.compile(_sperrnamen())
+# Ersatzwörter für Texte aus Issues und alten Läufen: je Zeile „alt=>neu“ in einer Datei außerhalb des Repos.
+_ERSATZDATEI = Path(os.environ.get("ABNAHME_ERSATZ", Path.home() / ".config" / "kic-abnahme" / "ersatz"))
+
+
+def _ersatzliste() -> list[tuple[re.Pattern[str], str]]:
+    if not _ERSATZDATEI.is_file():
+        return []
+    paare = [z.split("=>", 1) for z in _ERSATZDATEI.read_text().splitlines() if "=>" in z]
+    return [(re.compile(re.escape(alt.strip()), re.I), neu.strip()) for alt, neu in paare]
+
+
+_ERSATZ = _ersatzliste()
 VERBOTEN = re.compile(
     r"(/Users/|/home/|~/|(?<!\.env)\.local\b|\b(?!127\.0\.0\.1\b|0\.0\.0\.0\b)\d{1,3}(?:\.\d{1,3}){3}\b"
     r"|://[^@\s/]+:[^@\s/]+@|" + _RECHNER.pattern + ")"
@@ -84,7 +96,10 @@ _PFAD = re.compile(r"(?:/Users/|/home/|~/)[^\s'\"`|)\]]*")
 
 def schwaerzen(text: str) -> str:
     """Entfernt Pfade auf Rechnern, Rechnernamen, Hostnamen und fremde IPs (für Repo, Issue, Nachricht)."""
-    text = _PFAD.sub("<pfad>", text or "")
+    text = text or ""
+    for muster, neu in _ERSATZ:
+        text = muster.sub(neu, text)
+    text = _PFAD.sub("<pfad>", text)
     text = _RECHNER.sub("<rechner>", text)
     return VERBOTEN.sub("<entfernt>", text)
 
@@ -278,7 +293,7 @@ ABNAHME_SESSION = "b-abnahme"  # Prüfer-Präfix der Abnahme-Lane; Agent-Belege 
 ENTSCHEIDE = WURZEL / "docs" / "abnahme" / "entscheide.jsonl"
 
 
-LAEUFE = WURZEL / "docs" / "abnahme" / "laeufe"
+LAEUFE = Path(os.environ.get("ABNAHME_LAEUFE", WURZEL / "docs" / "abnahme" / "laeufe"))
 
 
 VERWORFEN = WURZEL / "docs" / "abnahme" / "verworfen.jsonl"

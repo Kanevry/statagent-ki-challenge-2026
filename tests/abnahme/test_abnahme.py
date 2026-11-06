@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -291,3 +292,9 @@ def test_hand_beleg_wird_nicht_von_der_laufzeile_ueberdeckt(monkeypatch: pytest.
     }
     assert pruefen.hand_teil(p, k, belege, "abc")["stand"] == "bestanden"
     assert pruefen.hand_teil(p, k, {"1-1": belege["1-1"][1:]}, "abc")["stand"] == "nicht geprüft"
+
+
+def test_schwaerzen_ersetzt_woerter_aus_der_ersatzliste(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Fängt: Ein Wort aus einem Issue landet über die Matrix wieder im Repo.
+    monkeypatch.setattr(matrix, "_ERSATZ", [(re.compile("altname", re.I), "neuer Name")])
+    assert matrix.schwaerzen("Für AltName steht") == "Für neuer Name steht"
