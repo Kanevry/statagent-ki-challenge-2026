@@ -81,6 +81,10 @@ def test_vorhandenes_beispiel_verhindert_zweiten_vorschlag() -> None:
         "Beschäftigte nach Branche im Juli 2026",
         "Was ist ÖNACE R?",
         "Zeitreihe Bau 2025",
+        "Welches Bundesland hat die höchste Zahl?",
+        # Fängt: „zweitmeisten“ und „allermeisten“ wurden zu „zweit“ und „aller“ und abgesagt.
+        "Welches Bundesland hat die zweitmeisten Beschäftigten im Juli 2026?",
+        "Welches Bundesland hat die allermeisten Beschäftigten im Juli 2026?",
     ],
 )
 def test_rangfrage_nur_mit_welche_und_rangwort(frage: str) -> None:
@@ -138,3 +142,33 @@ def test_summenzeile_wird_nie_sieger() -> None:
     antwort = _rang_anwenden(None, daten, rang)  # type: ignore[arg-type]  # ein Monat: keine Abfrage
     assert antwort["text"].startswith("Am meisten im Juli 2026: Wien mit 300 Beschäftigungsverhältnissen.")
     assert [z["wert"] for z in antwort["zahlen"]][:2] == [300, 20]
+
+
+# Fängt: Gleichstand an der Spitze nennt nur eine Gruppe; der Zusatz zu „unbekannt“ ist verständlich.
+def test_gleichstand_nennt_beide_gruppen() -> None:
+    zeilen = [
+        ("Beschäftigungsverhältnisse, Tirol", 300),
+        ("Beschäftigungsverhältnisse, Bundesland unbekannt", 500),
+        ("Beschäftigungsverhältnisse, Wien", 300),
+        ("Beschäftigungsverhältnisse, Salzburg", 20),
+    ]
+    daten = {
+        "typ": "bestand",
+        "text": "Tabelle.",
+        "stand": [{"monat": "2026-07"}],
+        "zahlen": [{"bezeichnung": b, "wert": w} for b, w in zeilen],
+    }
+    rang = _Rang("Beschäftigte im Juli 2026 je Bundesland", True, "Welches Bundesland", "meisten")
+    satz = _rang_anwenden(None, daten, rang)["antwortsatz"]  # type: ignore[arg-type]  # ein Monat: keine Abfrage
+    assert "Tirol" in satz and "Wien" in satz and "Salzburg" not in satz
+    assert satz.endswith("Beschäftigungsverhältnisse ohne bekanntes Bundesland zählen hier nicht mit.")
+
+
+# Fängt: Die Rückfrage über ein Jahr bot ein Beispiel ohne „unter 25“ an, also eine Zahl für eine andere Gruppe.
+def test_rueckfrage_ueber_jahr_ohne_beispiel_bei_alter() -> None:
+    rang = _rang_lesen("Welches Bundesland hat die meisten Beschäftigten unter 25 im Jahr 2025?")
+    assert rang is not None
+    daten = {"typ": "rueckfrage", "text": "Für welchen Monat?", "stand": [], "zahlen": []}
+    antwort = _rang_anwenden(None, daten, rang)  # type: ignore[arg-type]  # Alter: ohne Beispiel, keine Abfrage
+    assert antwort["typ"] == "rueckfrage"
+    assert antwort["text"] == "Die Rangfolge gibt es je Monat. Für welchen Monat möchten Sie sie?"

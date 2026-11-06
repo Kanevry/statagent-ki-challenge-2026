@@ -1955,6 +1955,8 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     daten = _antwort_kern(conn, rang.frage if rang else frage, regelsatz)
     if rang:
         daten = _rang_anwenden(conn, daten, rang)
+        if daten["text"].startswith(_RANG_RUECKFRAGE):
+            return daten  # Der allgemeine Vorschlag wäre keine Rangfrage und passte nicht zur Frage.
     daten["text"] = _UEBERNOMMEN.sub(_UEBERNOMMEN_KLAR, daten["text"])
     daten["hinweise"] = [_UEBERNOMMEN.sub(_UEBERNOMMEN_KLAR, h) for h in daten["hinweise"]]
     return _mit_vorschlag(conn, frage, regelsatz, daten)
@@ -1972,7 +1974,7 @@ _UEBERNOMMEN_KLAR = (
 # --- Rangfrage: „Welches Bundesland hat die meisten …“ ist die Tabelle je Bundesland mit dem Spitzenwert vorne ------
 _RANG_WORT = (
     r"(?:(?:die|der|den|das|am|mit\s+(?:den|der|dem))\s+)*"
-    r"(meisten?|wenigsten?|höchste[nrs]?|hoechste[nrs]?|niedrigste[nrs]?|größte[nrs]?|groesste[nrs]?|kleinste[nrs]?)"
+    r"(?<!\w)(meisten?|wenigsten?|höchste[nrs]?|hoechste[nrs]?|niedrigste[nrs]?|größte[nrs]?|groesste[nrs]?|kleinste[nrs]?)"
     r"(?:\s+(?:gesamt)?(?:zahl|anzahl)(?:\s+(?:an|von|der))?)?"
 )
 _RANG_GRUPPE = re.compile(
@@ -2028,6 +2030,7 @@ def _rang_lesen(frage: str) -> _Rang | None:
     )
 
 
+_RANG_RUECKFRAGE = "Die Rangfolge gibt es je Monat. Für welchen Monat möchten Sie sie?"
 _RANG_ZEILE = re.compile(r"^(Beschäftigungsverhältnisse(?: \([^)]*\))?), (.+)$")
 
 
@@ -2047,11 +2050,15 @@ def _rang_anwenden(conn: Verbindung, daten: dict[str, Any], rang: _Rang) -> dict
         monat_rang = (
             max(monate) if monate else min(f"{jahr}-12", LETZTE_LIEFERUNG) if jahr else LETZTE_LIEFERUNG
         )
+        # Das Beispiel gibt nur wieder, was ``_teile_der_frage`` liest; eine Altersangabe fiele weg.
+        text = rang.frage.lower()
+        if _alter_lesen(text) or _ALTER_GRUPPEN.search(text) or _ALTER_GRENZE.search(text):
+            return _rueckfrage(_RANG_RUECKFRAGE)
         was, orte, _ = _teile_der_frage(conn, rang.frage, monat_rang)
         wer = " ".join([was or "Beschäftigten", *orte])
         return _rueckfrage(
-            "Die Rangfolge gibt es je Monat. Für welchen Monat möchten Sie sie? Zum Beispiel "
-            f"„{rang.gruppe} hat die {rang.rangwort} {wer} im {_monat_anzeige(monat_rang)}?“"
+            f"{_RANG_RUECKFRAGE} Zum Beispiel „{rang.gruppe} hat die {rang.rangwort} {wer} "
+            f"im {_monat_anzeige(monat_rang)}?“"
         )
     monat = _monat_anzeige(next(iter(monate)))
     reihe: list[tuple[str, float, dict[str, Any]]] = []
@@ -2080,7 +2087,11 @@ def _rang_anwenden(conn: Verbindung, daten: dict[str, Any], rang: _Rang) -> dict
         f"{_deutsch(int(reihe[0][1]))} {was}."
     )
     if ohne_unbekannt:
-        satz += " Die Gruppe „unbekannt“ zählt dabei nicht mit."
+        ohne = {
+            "Welches Bundesland": "bekanntes Bundesland",
+            "Welche Kategorie": "bekannte Beschäftigungskategorie",
+        }
+        satz += f" Beschäftigungsverhältnisse ohne {ohne.get(rang.gruppe, 'bekannte Branche')} zählen hier nicht mit."
     gereiht = [r[2] for r in reihe]
     daten["zahlen"] = [*gereiht, *(z for z in daten["zahlen"] if not any(z is g for g in gereiht))]
     daten["text"] = f"{satz} {daten['text']}"

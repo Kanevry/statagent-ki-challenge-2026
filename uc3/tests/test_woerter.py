@@ -413,3 +413,13 @@ def test_je_branche_im_satz(zwei_monate: Verbindung) -> None:
 )
 def test_anteil_andere_richtung_und_zeitraum_ohne_zahl(zwei_monate: Verbindung, frage: str) -> None:
     assert uc4_antwort(zwei_monate, frage)["zahlen"] == []
+
+
+# Fängt: an die Rückfrage einer Rangfrage mit Altersangabe hängt sich ein allgemeiner Vorschlag ohne Alter und ohne
+# Rangfolge („Beschäftigungsverhältnisse im …“), der nicht zur Frage passt.
+def test_rang_rueckfrage_ohne_fremden_vorschlag(zwei_monate: Verbindung) -> None:
+    daten = antwort_frage(
+        zwei_monate, "Welches Bundesland hat die meisten Beschäftigten unter 25 im Jahr 2024?"
+    )
+    assert not daten["zahlen"]
+    assert daten["text"] == "Die Rangfolge gibt es je Monat. Für welchen Monat möchten Sie sie?"
