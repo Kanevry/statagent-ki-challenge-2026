@@ -15,14 +15,18 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from plattform.llm import kern as _kern  # type: ignore[import-untyped]
 from plattform.llm.basis import Rohantwort  # type: ignore[import-untyped]
 
+from uc2.experte.modell import zahl_de
 from uc2.modelle.kontext import kontext_block, lies_kontext
 from uc2.modelle.szenario import SzenarioMock
 from uc2.verhandlung import prompts
+
+from .textzahlen import sichtbare_einheit
 
 ROLLE_AUFTRAG = "moderator_auftrag_allgemein"
 MAX_THEMEN = 3
@@ -69,9 +73,9 @@ KERN_SCHEMA: dict[str, Any] = {
     "required": ["mehr", "weniger"],
     "additionalProperties": False,
 }
-KERN_ZEICHEN = 170
-"""Längster Kernsatz: Die Station zeigt die erste Zeile nur bis 320 Zeichen ganz
-(web/components/uc4/kette.tsx)."""
+KERN_ZEICHEN = 150
+"""Längster Kernsatz: Vor den zwei Sätzen steht der Bezugssatz, und die Station zeigt die erste Zeile nur bis
+400 Zeichen ganz (web/components/uc4/kette.tsx)."""
 _GELD = re.compile(
     r"\b(?:Beitr\w+|Einnahm\w+|Geld\w*|\w*kosten\w*|kostet|zahl(?:t|en)|bezahl\w*|Budget\w*|\w*finanz\w*"
     r"|Mittel)\b",
@@ -94,7 +98,46 @@ FESTER_KERN = (
     "Mehr Personal heißt meist kürzere Wartezeiten und mehr Betreuung.",
     "Weniger Personal heißt meist längere Wartezeiten und mehr Druck auf die Beschäftigten.",
 )
-"""Kernsätze, wenn das Modell keinen brauchbaren Text liefert oder die Frist um ist: allgemein, ohne Zahl."""
+"""Kernsätze ganz ohne Zahl von StatAgent, also ohne Bezug; sonst `feste_saetze`."""
+_MONAT = (
+    "Jänner", "Februar", "März", "April", "Mai", "Juni",
+    "Juli", "August", "September", "Oktober", "November", "Dezember",
+)  # fmt: skip
+_BUNDESLAENDER = frozenset(
+    {
+        "Burgenland",
+        "Kärnten",
+        "Niederösterreich",
+        "Oberösterreich",
+        "Salzburg",
+        "Steiermark",
+        "Tirol",
+        "Vorarlberg",
+        "Wien",
+    }
+)
+"""Wie im Lotsen (`uc1.uc4`); UC2 importiert UC1 nicht."""
+_KEINE_BRANCHE = frozenset(
+    {
+        "Männer",
+        "Frauen",
+        "Geschlecht unbekannt",
+        "Beamte",
+        "Angestellte",
+        "Arbeiter",
+        "Beschäftigungskategorie unbekannt",
+    }
+)
+"""Geschlecht und Beschäftigungskategorie aus `stat.klass_*`: Sie dürfen nicht „die Branche Frauen“ heißen."""
+_MIT_ARTIKEL = {
+    "Steiermark": ("In der Steiermark", "die Steiermark"),
+    "Burgenland": ("Im Burgenland", "das Burgenland"),
+}
+"""Die beiden Länder mit Artikel: „In Steiermark“ wäre falsch (Bank 06.11.)."""
+
+VORLAGE_OBEN = "Die Sätze zum Personal oben sind eine feste Vorlage, nicht von der KI geschrieben."
+"""Steht im Text, wenn das Modell keinen brauchbaren Kernsatz lieferte. Die Karte erkennt die Vorlage an genau
+diesem Satz (web/components/uc4/kette.tsx); die Antwortform hat dafür kein Feld."""
 
 ROLLE_NOTIZ = "moderator_notiz"
 _ZAHLWORT = {2: "zwei", 3: "drei", 4: "vier", 5: "fünf", 6: "sechs"}
@@ -103,6 +146,124 @@ _AUFFAELLIGKEIT = {
     "beleg_ungueltig": "{akteur} nennt einen Beleg, der dieser Rolle nicht vorlag",
     "zahl_widerspruch": "Bei {akteur} weicht eine Zahl vom Rechenmodell ab",
 }
+
+
+def monat_text(monat: str) -> str:
+    """`2025-03` → „März 2025“; anderes bleibt, wie es ist."""
+    treffer = re.fullmatch(r"(\d{4})-(\d{2})", monat)
+    if treffer is None or not 1 <= int(treffer.group(2)) <= 12:
+        return monat
+    return f"{_MONAT[int(treffer.group(2)) - 1]} {treffer.group(1)}"
+
+
+@dataclass(frozen=True)
+class Bezug:
+    """Worauf sich die Antwort bezieht: was StatAgent gezählt hat, aus Bezeichnung, Beleg und Wert der Zahl.
+
+    Nie aus dem Wortlaut der Frage: Eine Zahl darin hat keinen Beleg (Lotse, Review !68)."""
+
+    teile: tuple[str, ...]
+    monat: str | None
+    zahl: str | None
+    """Die Zahl mit ihrem Wort („7.498 Beschäftigungsverhältnisse“); `None` bei mehreren Zahlen."""
+    vorlaeufig: bool = False
+    """Der Monat ist noch nicht endgültig; das steht bei StatAgent und muss auch hier stehen."""
+
+    @property
+    def ort(self) -> str:
+        """Gliederung als Text; ohne Branche zählt die Zahl alle Branchen, das gehört dazu."""
+        if self.nur_branche:
+            return f"die Branche {', '.join(self.teile)}"
+        teile = [_MIT_ARTIKEL[t][1] if t in _MIT_ARTIKEL else t for t in self.teile]
+        if set(self.teile) <= _BUNDESLAENDER:
+            teile.append("alle Branchen")
+        return ", ".join(teile)
+
+    @property
+    def nur_branche(self) -> bool:
+        """Nur eine Branche, ohne Land und ohne andere Merkmale; mehrere zusammen zählen nicht."""
+        text = " ".join(self.teile)
+        andere = _BUNDESLAENDER | _KEINE_BRANCHE
+        return (
+            bool(self.teile)
+            and not set(self.teile) & andere
+            and "zusammen" not in text
+            and not re.search(r"\d", text)
+        )
+
+    @property
+    def region(self) -> str | None:
+        return next(iter(sorted(set(self.teile) & _BUNDESLAENDER)), None)
+
+    @property
+    def gesundheit(self) -> bool:
+        return any("gesundheit" in t.casefold() for t in self.teile)
+
+    @property
+    def satz(self) -> str:
+        """Der Bezugssatz, den der Code schreibt; darin steht die Zahl. Nur hier, nie aus dem Modell."""
+        wann = f" im {self.monat}" if self.monat else ""
+        was = self.zahl or "mehrere Zahlen"
+        vorlaeufig = "vorläufig " if self.vorlaeufig else ""
+        return f"Für {self.ort}{wann} nennt StatAgent {vorlaeufig}{was}."
+
+    @property
+    def anker(self) -> tuple[str, ...]:
+        """Wortstämme, von denen die Modellsätze einen nennen müssen, sonst passen sie zu jeder Frage. Der
+        Monat zählt nicht: „heißt kürzere Wartezeit im März“ bleibt ein Lehrbuchsatz."""
+        return tuple(t.split()[0].rstrip("-,").casefold()[:6] for t in self.teile)
+
+
+def bezug_aus(kontext_zahlen: list[dict[str, Any]]) -> Bezug | None:
+    """`Bezug` aus den Kontextzahlen von StatAgent (Form wie in `ausgangslage`); ohne solche Zahl `None`."""
+    uc3 = [z for z in kontext_zahlen if z.get("uc") == "uc3"]
+    if not uc3:
+        return None
+    klammern = [re.search(r"\((.*)\)", str(z["bezeichnung"])) for z in uc3]
+    teile = [[t.strip() for t in k.group(1).split(",")] if k else [] for k in klammern]
+    gemeinsam = [t for t in teile[0] if all(t in andere for andere in teile)]
+    monate = {z.get("monat") for z in uc3}
+    monat = next(iter(monate)) if len(monate) == 1 else None
+    return Bezug(
+        teile=tuple(gemeinsam),
+        monat=monat_text(str(monat)) if monat else None,
+        zahl=_zahl_mit_wort(uc3[0]) if len(uc3) == 1 else None,
+        vorlaeufig=any(z.get("stand") == "vorlaeufig" for z in uc3),
+    )
+
+
+def _zahl_mit_wort(zahl: dict[str, Any]) -> str:
+    """„7.498 Beschäftigungsverhältnisse“, „135.790 Personen“, „Fluktuation 6,2 %“."""
+    wert = float(zahl["wert"])
+    text = zahl_de(wert, 0 if wert.is_integer() else (1 if round(wert, 1) == wert else 2))
+    kopf = str(zahl["bezeichnung"]).split(" (", 1)[0]
+    einheit = sichtbare_einheit(zahl.get("einheit"))
+    if not einheit:
+        return f"{text} {kopf}"
+    return f"{kopf} {text} {einheit}" if einheit == "%" else f"{text} {einheit}"
+
+
+def feste_saetze(bezug: Bezug | None) -> dict[str, str]:
+    """Kernsätze ohne Modell, wenn es keinen brauchbaren Text liefert oder die Frist um ist; mit Bezug passen
+    sie zur Frage. Nur für Zahlen aus der Versorgung: Sonst wägt der Simulator nicht ab (`ohne_abwaegung`)."""
+    if bezug is None:
+        return dict(zip(("mehr", "weniger"), FESTER_KERN, strict=True))
+    if bezug.region is None:
+        ort = "Im Gesundheits- und Sozialwesen"
+    else:
+        ort = _MIT_ARTIKEL.get(bezug.region, (f"In {bezug.region}",))[0]
+    return {
+        "mehr": f"{ort} heißt mehr Personal meist kürzere Wartezeiten und mehr Betreuung.",
+        "weniger": (
+            "Weniger Personal heißt dort meist längere Wartezeiten und mehr Druck auf die Beschäftigten."
+        ),
+    }
+
+
+def ohne_abwaegung(bezug: Bezug) -> str:
+    """Erste Zeile für eine Zahl, die nicht die Versorgung zählt: Ein Satz zu Wartezeiten passte nicht zur
+    Frage, und die Runde kostete Modellaufrufe für nichts."""
+    return f"{bezug.satz} Über die Versorgung sagt das allein wenig, darum wägt der Simulator hier nicht ab."
 
 
 def ausgangslage(kontext_zahlen: list[dict[str, Any]]) -> dict[str, Any]:
@@ -209,41 +370,55 @@ def fester_auftrag(frage: str) -> dict[str, Any]:
     }
 
 
-def kern_nachrichten(frage: str, lage: dict[str, Any], stimmen: list[dict[str, Any]]) -> list[dict[str, str]]:
-    """Moderator schreibt aus den Haltungen die zwei Sätze, die oben auf der Station stehen. Keine Zahlen
-    darin."""
-    kontext = {"rolle": ROLLE_KERN, "frage": frage}
+def kern_nachrichten(
+    frage: str, lage: dict[str, Any], stimmen: list[dict[str, Any]], bezug: Bezug | None = None
+) -> list[dict[str, str]]:
+    """Moderator schreibt aus Frage, Antwort von StatAgent und Haltungen die zwei Sätze, die oben auf der
+    Station stehen. Keine Zahlen darin: Die Zahl setzt der Code davor (`Bezug.satz`)."""
+    kontext = {"rolle": ROLLE_KERN, "frage": frage, "bezug": asdict(bezug) if bezug else None}
+    zum_bezug = ""
+    if bezug is not None:
+        zum_bezug = (
+            f"Die Antwort von StatAgent steht schon davor: „{bezug.satz}“ Wiederhole die Zahl nicht. Ein "
+            "Satz muss in einem natürlichen Satz nennen, worum es geht "
+            f"({' oder '.join(bezug.ort.split(', '))}), "
+            "etwa „In Wien heißt mehr Personal …“. Schreib die Angaben nicht als Liste davor. Monat und Jahr "
+            "nennst du nicht. Ein Satz, der auch zu jeder anderen Frage passen würde, ist falsch. "
+        )
     text = (
         f"# Frage\n{frage}\n\n# "
         f"Ausgangslage\n{json.dumps(lage, ensure_ascii=False, indent=1, sort_keys=True)}\n\n"
         f"# Haltungen der Interessenvertretungen\n{json.dumps(stimmen, ensure_ascii=False, indent=1)}\n\n"
         "# Aufgabe\nSag Menschen ohne Fachwissen in zwei Sätzen, was mehr oder weniger Personal in der "
-        "Versorgung "
-        "bedeutet. `mehr` beginnt mit „Mehr Personal“, `weniger` beginnt mit „Weniger Personal“. Das gilt "
-        "auch, "
-        "wenn die Frage nach allen Branchen fragt. Je Satz höchstens 15 Wörter und nur Greifbares: "
-        "Wartezeit, "
-        "Betreuung, Belastung im Alltag. Nichts über Geld: keine Kosten, Beiträge, Einnahmen, Finanzierung. "
-        "Das "
-        "sind allgemeine Zusammenhänge, schreibe „heißt meist“, keine Vorhersage. Keine Zahlen, weder als "
-        "Ziffern noch als Wörter. Wiederhole die Zahl aus der Statistik "
-        f"nicht.\n\n{kontext_block(kontext)}"
+        "Versorgung zu dieser Frage bedeutet. "
+        f"{zum_bezug}"
+        "`mehr` enthält „mehr Personal“, `weniger` enthält „weniger Personal“. Je Satz höchstens 15 Wörter "
+        "und nur Greifbares: Wartezeit, Betreuung, Belastung im Alltag. Nichts über Geld: keine Kosten, "
+        "Beiträge, Einnahmen, Finanzierung. Das sind allgemeine Zusammenhänge, schreibe „heißt meist“, keine "
+        "Vorhersage. Keine Zahlen, weder als Ziffern noch als Wörter."
+        f"\n\n{kontext_block(kontext)}"
     )
     return [{"role": "system", "content": prompts.MODERATOR_SYSTEM}, {"role": "user", "content": text}]
 
 
-def kern_text(daten: dict[str, Any]) -> str | None:
+def kern_text(daten: dict[str, Any], bezug: Bezug | None = None) -> str | None:
     """Die zwei Sätze als eine Zeile, oder `None`, wenn einer fehlt, zu lang ist, eine Zahl trägt (auch in
-    Worten), nicht beim Personal anfängt oder über Geld spricht."""
+    Worten), nicht vom Personal spricht, über Geld spricht, die Frage nicht aufgreift oder nur abschreibt."""
     mehr, weniger = (" ".join(str(daten.get(feld) or "").split()) for feld in ("mehr", "weniger"))
     saetze = [mehr, weniger]
-    if not mehr.startswith("Mehr Personal") or not weniger.startswith("Weniger Personal"):
+    if "mehr personal" not in mehr.casefold() or "weniger personal" not in weniger.casefold():
         return None
     if any(
         len(s) > KERN_ZEICHEN or re.search(r"\d", s) or _MENGE_IN_WORTEN.search(s) or _GELD.search(s)
         for s in saetze
     ):
         return None
+    if bezug is not None:
+        beide = f"{mehr} {weniger}".casefold()
+        # Abgeschrieben ist kein Bezug: „Wien, Gesundheits- und Sozialwesen: mehr Personal …“ (Modell 06.11.).
+        abgeschrieben = ", " in bezug.ort and bezug.ort.casefold() in beide
+        if abgeschrieben or not any(w in beide for w in bezug.anker):
+            return None
     return " ".join(s if s.endswith((".", "!", "?")) else f"{s}." for s in saetze)
 
 
@@ -308,7 +483,8 @@ class KurzMock(SzenarioMock):
                 roh.text = json.dumps(daten, ensure_ascii=False, sort_keys=True)
             return roh
         if k is not None and k.get("rolle") == ROLLE_KERN:
-            kern = json.dumps(dict(zip(("mehr", "weniger"), FESTER_KERN, strict=True)), ensure_ascii=False)
+            bezug = Bezug(**{**k["bezug"], "teile": tuple(k["bezug"]["teile"])}) if k.get("bezug") else None
+            kern = json.dumps(feste_saetze(bezug), ensure_ascii=False)
             return Rohantwort(
                 text=kern,
                 modell=modell,

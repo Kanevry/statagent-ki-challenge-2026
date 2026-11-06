@@ -101,6 +101,33 @@ export function auswahlAus(oenace: readonly string[], staende: readonly string[]
   };
 }
 
+/** Überschrift des Nachschlagens. Nennt nur, was geladen ist: das erste Jahr kommt aus den Ständen der Gemeinden. */
+export function nachschlagenKopf(auswahl: Auswahl): string {
+  const teile: string[] = [];
+  if (auswahl.oenace.length > 0) teile.push("ÖNACE bis zum 5-Steller");
+  const erster = auswahl.region.at(-1)?.wert.slice(0, 4);
+  if (erster) teile.push(`alle Gemeinden seit ${erster}`);
+  return `${teile.length > 1 ? "Jede Branche und jede Gemeinde nachschlagen" : "Zum Nachschlagen"}: ${teile.join(", ")}.`;
+}
+
+export interface Beispiel {
+  text: string;
+  art: Art;
+  fassung: string;
+  suche: string;
+}
+
+/** Drei Suchen, die zeigen, was die Listen können. Ein Beispiel entfällt, wenn seine Fassung nicht geladen ist. */
+const BEISPIELE: readonly Beispiel[] = [
+  { text: "C 10.13-0 Fleischverarbeitung", art: "oenace", fassung: "2025", suche: "C 10.13-0" },
+  { text: "C 16.10-0, ab 2025 aufgeteilt", art: "oenace", fassung: "2008", suche: "C 16.10-0" },
+  { text: "Fürstenfeld, 2025 zusammengelegt", art: "region", fassung: "2026-01-01", suche: "Fürstenfeld" },
+];
+
+export function beispieleFuer(auswahl: Auswahl): Beispiel[] {
+  return BEISPIELE.filter((b) => auswahl[b.art].some((w) => w.wert === b.fassung));
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Anfrage prüfen
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Einstufung } from "../daten/fakten";
 import type { BefundTabelle, BefundZeile } from "../daten/typen";
 import { DATENFEHLER, monateLesbar } from "../texte/inhalt";
@@ -20,10 +21,12 @@ function standText(iso: string): string {
 }
 
 function Einstufungstext({ zeile }: { zeile: BefundZeile }) {
+  // Ein grünes Häkchen vor „hält den Monat an“ läse sich wie „alles gut“; die App zeigt denselben Monat gelb.
+  const warnung = zeile.anhalten || zeile.einstufung === "nicht-erklaerbar";
   return (
-    <span className={zeile.einstufung === "nicht-erklaerbar" ? a.warn : a.ok}>
+    <span className={warnung ? a.warn : a.ok}>
       <span className={a.zeichen} aria-hidden="true">
-        {ZEICHEN[zeile.einstufung]}
+        {zeile.anhalten ? ZEICHEN["nicht-erklaerbar"] : ZEICHEN[zeile.einstufung]}
       </span>
       <span>{zeile.einstufungText}</span>
       {zeile.rueckfrage ? (
@@ -141,6 +144,11 @@ export default function Datenfehler({ tabelle }: { tabelle: BefundTabelle }) {
                 ))}
               </dl>
             </details>
+            {tabelle.quelle === "datenbank" && (
+              <p className={a.berichteWeg}>
+                <Link href={DATENFEHLER.berichte.href}>{DATENFEHLER.berichte.text}</Link>
+              </p>
+            )}
           </div>
         </Einblenden>
       </div>

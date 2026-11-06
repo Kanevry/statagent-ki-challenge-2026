@@ -29,6 +29,7 @@ def test_ohne_kontext_steht_kein_fester_kernsatz_in_der_antwort() -> None:
     assert zeilen[0] == FREI_KEIN_MODELL
     assert " ".join(FESTER_KERN) not in ergebnis.text
     assert "aus der Statistik vor" not in ergebnis.text
+    assert allgemein.VORLAGE_OBEN not in ergebnis.text
     assert ergebnis.zahlen == []
 
 
