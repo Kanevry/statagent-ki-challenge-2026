@@ -236,6 +236,8 @@ it("der Simulator zeigt oben seine Aussage, den Beleg der Zahl von StatAgent und
   expect(chips).toHaveLength(2);
   expect(chips[0]!.textContent).toContain("stat.stat_beschaeftigte");
   expect(chips[1]!.textContent).toContain("presse: Kurier");
+  // Fängt zwei gleiche „Beleg“ untereinander (UI-Regie 06.11.).
+  expect([...karte.querySelectorAll("[data-beleg-wozu] > span")].map((s) => s.textContent)).toEqual(["zur Zahl", "zur Quelle"]);
 });
 
 it("Karte 2 und 3 nennen dieselbe Herkunft: die Zahl von StatAgent", async () => {
@@ -282,6 +284,14 @@ it("eine vorläufige Zahl heißt auf Karte 1 im Satz so, eine endgültige nicht"
   const zweite = await fragen(strom(endgueltig));
   await waitFor(() => expect(satz(zweite)).toBeTruthy());
   expect(satz(zweite)).not.toContain("vorläufig");
+});
+
+it("ein einzelner Beleg bleibt „Beleg“ ohne Zusatz", async () => {
+  const seite = await fragen(strom(UC3, antwort("uc2", "Über die Versorgung sagt das allein wenig.", [BELEG_UC3], [ZAHL]), UC1));
+  await screen.findByText(/Fertig in/);
+  const karte = seite.querySelector('[data-uc-karte="uc2"]')!;
+  expect(karte.querySelectorAll('[data-baustein="herkunft"]')).toHaveLength(1);
+  expect(karte.querySelector("[data-beleg-wozu]")).toBeNull();
 });
 
 it("der Lotse zeigt den Beleg seiner Zahl", async () => {
@@ -365,4 +375,5 @@ it("nennt die erste Zeile Zahlen des Rechenmodells, steht dessen Beleg sichtbar 
   expect(chips).toHaveLength(2);
   expect(chips[0]!.textContent).toContain("stat.stat_beschaeftigte");
   expect(chips[1]!.textContent).toContain("uc2.experte");
+  expect(seite.querySelectorAll('[data-uc-karte="uc2"] [data-beleg-wozu] > span')[1]!.textContent).toBe("zum Rechenmodell");
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useRef, useState, type FormEvent } from "react";
 import { formatiereZahl } from "@kic/ui/basis";
 import { HerkunftChip, ModellPille } from "@kic/ui/bausteine";
 import { SeitenModell, TESTBETRIEB_TEXT } from "@kic/ui/shell";
@@ -459,19 +459,29 @@ function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcA
   return (
     <div className="flex flex-col gap-3" data-uc4-antwort="">
       <p className={`${gezeigt.length >= LANG_AB ? "font-sans text-16" : "font-display text-20 font-medium"} text-ink text-pretty`}>{vorlaeufig ? `${gezeigt.replace(/\.$/, "")}, vorläufig.` : gezeigt}</p>
-      {!erste && belegeOben(antwort).map((beleg, i) => (
-        <HerkunftChip
-          key={`${beleg.quelle}-${i}`}
-          quelle={beleg.quelle}
-          lieferung={beleg.lieferung}
-          monat={beleg.monat}
-          regelstand={beleg.regelstand}
-          sql={beleg.sql}
-          lauf={beleg.lauf}
-          verweis={beleg.ref}
-          stand={beleg.stand}
-        />
-      ))}
+      {!erste && belegeOben(antwort).map((beleg, i, alle) => {
+        const chip = (
+          <HerkunftChip
+            quelle={beleg.quelle}
+            lieferung={beleg.lieferung}
+            monat={beleg.monat}
+            regelstand={beleg.regelstand}
+            sql={beleg.sql}
+            lauf={beleg.lauf}
+            verweis={beleg.ref}
+            stand={beleg.stand}
+          />
+        );
+        // Zwei gleiche „Beleg“ sagen nicht, was sie belegen (UI-Regie 06.11.); einer allein braucht keinen Zusatz.
+        if (alle.length < 2) return <Fragment key={`${beleg.quelle}-${i}`}>{chip}</Fragment>;
+        const wozu = i === 0 ? "zur Zahl" : beleg.quelle === "uc2.experte" ? "zum Rechenmodell" : "zur Quelle";
+        return (
+          <div key={`${beleg.quelle}-${i}`} className="flex flex-wrap items-baseline gap-x-1 font-sans text-12 text-slate" data-beleg-wozu="">
+            {chip}
+            <span>{wozu}</span>
+          </div>
+        );
+      })}
       {erste && antwort.zahlen.length > 0 && (
         <ul className="flex flex-col gap-2">
           {antwort.zahlen.slice(0, ZAHLEN_AUF_KARTE).map((zahl, i) => {
