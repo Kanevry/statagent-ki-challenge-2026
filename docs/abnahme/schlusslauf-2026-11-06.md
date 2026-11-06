@@ -100,6 +100,8 @@ Der Prüfrechner ist abgeräumt.
 
 Dazugekommen sind 211-1 und 211-2 (bis 08:49) sowie 212-1 und 212-2 (bis 09:26). Beide Issues tragen das Label `prio::nach-abgabe` und wurden nie gemessen. Für die Abgabe gilt die Zeile von 07:50.
 
+In der Plattform-Matrix stieg „nach Abgabe“ beim Neuerzeugen um 09:36 von 1 auf 13 und „gesamt“ von 143 auf 155: neu sind 214-1 bis 214-5 und 215-1 bis 215-7, angelegt 09:21 mit `prio::nach-abgabe`. Kein bestehendes Kriterium hat seinen Stand geändert.
+
 ## Nach diesem Beleg
 
 Danach waren nur noch Doku und der Nachweis-Commit vorgesehen. Die Matrix zeigt bei Änderungen an UC3-Web mechanisch „veraltet“, das ist kein Rückfall.

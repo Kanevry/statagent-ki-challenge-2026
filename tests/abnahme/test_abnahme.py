@@ -308,40 +308,42 @@ def test_schwaerzen_macht_sitzungsnamen_zu_rollen_und_laesst_woerter_stehen() ->
     )
     # Fängt: Ein Sitzungsname landet über die Matrix im Repo; Wörter oder Dateinamen werden ersetzt.
     rollen = {
-        "Abnahme-Prüfer": ["b-abnahme", "b-abnahme-57"],
-        "UI-Prüfung": ["ui-regie-32"],
+        "Abnahme-Prüfer": ["b-abnahme", "b-abnahme-7q"],
+        "UI-Prüfung": ["ui-regie-4z"],
         "Lead": [
-            "Lead 58",
-            "Lead c0",
-            "Lead 3d",
-            "Lead a7",
-            "Lead 05",
-            "Lead 09",
-            "lead-session-orchestrator-09",
+            "Lead 4z",
+            "Lead z9",
+            "Lead 7k",
+            "Lead q4",
+            "Lead 0x",
+            "Lead 9w",
+            "lead-session-orchestrator-q7",
         ],
-        "Lead-Assistenz": ["Assistenz 3e"],
-        "Review": ["Bank 49", "Review-Bank 69"],
+        "Lead-Assistenz": ["Assistenz 8y"],
+        "Review": ["Bank 6z", "Review-Bank k3"],
         "Lane": [
-            "b-e0-folge-8d",
-            "b-e0-34",
-            "b-uc3-08",
-            "b-uc3-ui-7e",
-            "b-uc3-b6",
-            "b-deploy-20",
+            "b-e0-folge-9q",
+            "b-e0-7z",
+            "b-uc3-0z",
+            "b-uc3-ui-9k",
+            "b-uc3-z1",
+            "b-deploy-0q",
             "b-vorfuehrung",
             "b-landing",
-            "b-landing-v2b",
+            "b-landing-x9",
             "b-uc2-antwort",
-            "b-uc1-25",
-            "e5-praesentation-05",
+            "b-uc1-0x",
+            "e5-praesentation-0q",
             "e5-szenen",
-            "e5-szenen-45",
+            "e5-szenen-9z",
         ],
     }
     for rolle, namen in rollen.items():
         for name in namen:
             assert matrix.schwaerzen(f"Laut {name}, 05.11.") == f"Laut {rolle}, 05.11.", name
-    assert matrix.schwaerzen("b-abnahme-57/messer-c") == "Abnahme-Prüfer/messer-c"
+    assert matrix.schwaerzen("b-abnahme-7q/messer-x") == "Abnahme-Prüfer/messer-x"
+    # Fängt: Steht der Name hinter dem Wort UI-Regie, wird daraus nicht „UI-Regie UI-Prüfung“.
+    assert matrix.schwaerzen("gibt die UI-Regie ui-regie-4z frei") == "gibt die UI-Regie frei"
 
     for bleibt in (
         "Lead an",
@@ -351,7 +353,7 @@ def test_schwaerzen_macht_sitzungsnamen_zu_rollen_und_laesst_woerter_stehen() ->
         "Lead 05.11. 17:30",
         "docs/plan/uc3/anhang-b-schema.sql",
         "anhang-b-schema",
-        "docs/b-uc3-08/notiz",
+        "docs/b-uc3-0z/notiz",
         "docs/plan/2026-11-05-prd-e5-praesentation.md",
         "b-tree",
         "b-uc3-notiz.md",
@@ -365,11 +367,11 @@ def test_schwaerzen_macht_sitzungsnamen_zu_rollen_und_laesst_woerter_stehen() ->
             "title": "Testissue",
             "state": "opened",
             "labels": ["uc3"],
-            "description": "- [ ] Regel Lead a7 steht",
+            "description": "- [ ] Regel Lead q4 steht",
         }
     )[0]
-    assert k["wortlaut"] == "Regel Lead a7 steht"
-    assert k["hash"] == matrix.kriterium_hash("Regel Lead a7 steht")
+    assert k["wortlaut"] == "Regel Lead q4 steht"
+    assert k["hash"] == matrix.kriterium_hash("Regel Lead q4 steht")
 
 
 @pytest.mark.parametrize(

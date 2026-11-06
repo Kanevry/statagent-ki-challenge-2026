@@ -94,13 +94,14 @@ VERBOTEN = re.compile(
 _PFAD = re.compile(r"(?:/Users/|/home/|~/)[^\s'\"`|)\]]*")
 # Sitzungsnamen in Issue-Texten werden bei der Ausgabe zu Rollen. Nur Muster, keine Namensliste.
 # Ein Name steht frei: nicht hinter einem Pfad, nicht Teil eines Dateinamens oder längeren Worts
-# (anhang-b-schema.sql, b-tree). Ein „/“ danach ist erlaubt: „b-abnahme-57/messer-c“ ist ein Prüfername.
+# (anhang-b-schema.sql, b-tree). Ein „/“ danach ist erlaubt: „b-abnahme-7q/messer-x“ ist ein Prüfername.
 _FREI_VOR = r"(?<![\w\-/.])"
 _FREI_NACH = r"(?![\w\-]|\.\w)"
 # Kürzel aus genau 2 Zeichen mit Ziffer: „Lead an“ bleibt, ebenso Datum oder Uhrzeit wie „Lead 05.11.“.
 _KUERZEL = r" (?=[a-z]?\d)[0-9a-z]{2}(?![\w\-]|[.:]\d)"
 _LANES = "e0|uc1|uc2|uc3|uc4|deploy|vorfuehrung|landing|schema|story|regelsatz|qs|dashboard|pensionen|fragen"
 _ROLLEN = [
+    (re.compile(r"UI-Regie ui-regie-[0-9a-z]+" + _FREI_NACH), "UI-Regie"),
     (re.compile(_FREI_VOR + r"lead-session-orchestrator/[^\s;,)|`'\"]*"), "<pfad>"),
     (re.compile(_FREI_VOR + r"b-abnahme(?:-[0-9a-z]+)*" + _FREI_NACH), "Abnahme-Prüfer"),
     (re.compile(_FREI_VOR + r"ui-regie-[0-9a-z]+" + _FREI_NACH), "UI-Prüfung"),
