@@ -80,7 +80,7 @@ _AUSWERTUNG = _liste(
     zugang zugänge zugängen zugaenge veränderung veraenderung verändert stieg sank gestiegen gesunken gewachsen
     vormonat vormonats vorjahr
     beschäftigungskategorie beschäftigungskategorien über ueber unter alter alters altersgruppe altersgruppen
-    altersverteilung regelsatz v1 eins ganze ganzes gesamtes gezählt gezaehlt zählt zaehlt zählen zaehlen regeln getrennt
+    altersverteilung regelsatz v1 eins ganze ganzes gesamtes gezählt gezaehlt zählt zaehlt zählen zaehlen regeln getrennt gerechnet unterteilt
     berichtsmonat österreichweit
     """
 )
