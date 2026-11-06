@@ -32,7 +32,8 @@ describe("Seite Ablauf", () => {
   });
 
   it.each([
-    ["Rechnername", /\b(m4|m5|win-wsl|ci-server|sven|gitlab-box|runner-manager)\b/i],
+    // „CI-Server“ und „Zweitrechner“ sind die erlaubten Namen auf der Seite.
+    ["Rechnername", /\b(m4|m5|win-wsl|sven|gitlab-box|runner-manager)\b|\bci-server\b/],
     ["MR- oder Issue-Nummer", /(?:^|\s)[!#]\d+/],
     ["Sitzungsname", /\b(lead-session|b-[a-z0-9]+-[0-9a-f]{2}|ui-regie|e5-szenen)\b/i],
     ["Gedankenstrich", /[—–]/],
