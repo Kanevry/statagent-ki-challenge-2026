@@ -2003,6 +2003,21 @@ def _zweite_aufteilung(conn: Verbindung, frage: str, monat: str) -> Merkmal | No
     return None if werte else zweite
 
 
+#: Wörter für Geschlecht und Bundesland, die vor der Suche nach einem dritten Merkmal wegfallen.
+_GESCHLECHT_BUNDESLAND_WORT = re.compile(
+    r"(?<!\w)\w*(?:bundesl|länder|laender|geschlecht)\w*(?!\w)|(?<!\w)(?:und|sowie|bzw\.?)(?!\w)|[,&/]",
+    re.IGNORECASE,
+)
+
+
+def _dritte_aufteilung(frage: str) -> Merkmal | None:
+    """Ein Merkmal neben Geschlecht und Bundesland („je Bundesland und Branche“). ``_gliederung`` liefert nur das
+    erste; ohne die Wörter für Geschlecht und Bundesland zeigt sich das dritte."""
+    rest = " ".join(_GESCHLECHT_BUNDESLAND_WORT.sub(" ", frage.lower()).split())
+    dritte = _gliederung(rest)
+    return None if dritte is None or dritte in (GESCHLECHT, BUNDESLAND) else dritte
+
+
 def _teile_der_frage(conn: Verbindung, frage: str, monat: str) -> tuple[str, list[str], str]:
     """Was die Frage sicher gelesen nennt: Wer, die Einschränkungen und die Aufteilung. Nie ein fremdes Wort."""
     text = frage.lower()
@@ -2236,6 +2251,18 @@ def _antwort_frage(
         if je is GESCHLECHT:
             je = _zweite_aufteilung(conn, frage, monate[-1] if monate else LETZTE_LIEFERUNG) or GESCHLECHT
         kreuz = je is BUNDESLAND and typ == "zeitreihe" and "anteil" not in text
+        if kreuz:
+            # „nach Bundesland Tirol“ nennt einen Wert: eine Einschränkung, keine Aufteilung.
+            genannt, _ = _werte(
+                frage, BUNDESLAND, _codes(conn, BUNDESLAND, monate[-1] if monate else LETZTE_LIEFERUNG)
+            )
+            if genannt:
+                je, kreuz = GESCHLECHT, False
+        if kreuz:
+            # „je Bundesland und Branche“: Das dritte Merkmal fiele sonst still weg (Befund der Review-Bank).
+            weitere = _dritte_aufteilung(frage)
+            if weitere is not None:
+                je, kreuz = weitere, False
         erlaubt = (GESCHLECHT,) if typ == "zeitreihe" or "anteil" in text else (GESCHLECHT, BUNDESLAND)
         if je is not None and je not in erlaubt and not kreuz:
             # Sonst fiele „je Branche“ still weg, die Antwort gälte für ganz Österreich.

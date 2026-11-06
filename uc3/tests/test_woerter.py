@@ -409,6 +409,16 @@ def test_je_branche_im_satz(zwei_monate: Verbindung) -> None:
         ("Beschäftigte im August 2024 nach Geschlecht pro Branche", "je Branche zeigt"),
         ("Beschäftigte im August 2024 nach Geschlecht & Branche", "je Branche zeigt"),
         ("Beschäftigte im August 2024 nach Geschlecht bzw. Branche", "je Branche zeigt"),
+        # Drittes Merkmal neben Geschlecht und Bundesland über einen Zeitraum (Befund der Review-Bank).
+        ("Männer und Frauen je Bundesland und Branche von August bis September 2024", "je Branche zeigt"),
+        (
+            "Männer und Frauen nach Bundesland, Branche und Geschlecht von August bis September 2024",
+            "je Branche zeigt",
+        ),
+        (
+            "Männer und Frauen je Bundesland und Kategorie von August bis September 2024",
+            "je Beschäftigungskategorie zeigt",
+        ),
     ],
 )
 def test_zweite_aufteilung_faellt_nicht_weg(zwei_monate: Verbindung, frage: str, absage: str) -> None:
@@ -440,6 +450,16 @@ def test_geschlecht_und_bundesland_ueber_zeitraum(zwei_monate: Verbindung, frage
         # Je Bundesland und Geschlecht eine Zeile, keine doppelt.
         assert len({z["bezeichnung"] for z in zeilen}) == len(zeilen) > 2
         assert sum(z["wert"] for z in zeilen) == gesamt
+        # Jede Zeile trägt dieselbe Zahl wie die Monatsfrage für dasselbe Geschlecht und Bundesland: keine
+        # vertauschte Zuordnung (Wien und Tirol), die eine Summenprobe nicht sähe.
+        einzeln = antwort_frage(zwei_monate, f"Männer und Frauen im {monat} je Bundesland")["zahlen"]
+        soll = {
+            tuple(z["bezeichnung"].split(", ")[1:3]): z["wert"]
+            for z in einzeln
+            if "Alle " not in z["bezeichnung"]
+        }
+        ist = {tuple(z["bezeichnung"].split(", ")[2:4]): z["wert"] for z in zeilen}
+        assert ist == soll
 
 
 # Fängt: die Grenze zählt die Spanne statt der genannten Monate („im Jänner und September“ wären neun), oder der
@@ -472,6 +492,10 @@ def test_grenze_zaehlt_monate_mit_daten(zwei_monate: Verbindung, monkeypatch: py
             "Männer und Frauen in Tirol im August 2024",
         ),
         ("Männer und Frauen im Bundesland Tirol im August 2024", "Männer und Frauen in Tirol im August 2024"),
+        (
+            "Männer und Frauen nach Bundesland Tirol von August bis September 2024",
+            "Männer und Frauen in Tirol von August bis September 2024",
+        ),
         (
             "Beschäftigte im August 2024 nach Geschlecht, Branche Bau",
             "Männer und Frauen im Bau im August 2024",
@@ -520,3 +544,11 @@ def test_dort_ohne_ort_fragt_nach(zwei_monate: Verbindung) -> None:
 )
 def test_anteil_andere_richtung_und_zeitraum_ohne_zahl(zwei_monate: Verbindung, frage: str) -> None:
     assert uc4_antwort(zwei_monate, frage)["zahlen"] == []
+
+
+# Fängt (Review-Bank): genannte Bundesländer im Kreuzungsweg wurden still übergangen, die Antwort zeigte alle neun.
+def test_kreuzung_mit_genannten_bundeslaendern_sagt_ab(zwei_monate: Verbindung) -> None:
+    daten = uc4_antwort(
+        zwei_monate, "Männer und Frauen je Bundesland, nur Wien und Tirol, von August bis September 2024"
+    )
+    assert not daten["zahlen"] and daten["text"].startswith("Die Frage nennt mehrere Bundesländer")
