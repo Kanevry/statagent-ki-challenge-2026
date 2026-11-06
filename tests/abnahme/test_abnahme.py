@@ -258,3 +258,15 @@ def test_alte_abzuege_entfernen_laesst_die_neuesten_und_die_links(tmp_path: Path
         "svbox",
     ]
     assert (daten / "lieferung.csv").exists()
+
+
+def test_alte_abzuege_entfernen_schont_den_laufenden_abzug(tmp_path: Path) -> None:
+    # Fängt: Ein Lauf auf einem älteren Stand löscht seinen eigenen Abzug.
+    for i, name in enumerate(("aaaaaaaaaaaa-git", "bbbbbbbbbbbb-git", "cccccccccccc-git")):
+        (tmp_path / name).mkdir()
+        os.utime(tmp_path / name, (1000 + i, 1000 + i))
+
+    weg = pruefen.alte_abzuege_entfernen(1, tmp_path, aktuell=tmp_path / "aaaaaaaaaaaa-git")
+
+    assert weg == ["bbbbbbbbbbbb-git"]
+    assert (tmp_path / "aaaaaaaaaaaa-git").is_dir()
