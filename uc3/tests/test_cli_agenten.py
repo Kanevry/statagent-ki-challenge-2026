@@ -65,7 +65,7 @@ def test_agent_legt_vorschlag_an_und_nennt_naechsten_schritt(
     z = agent_db.execute("SELECT max(id) AS id FROM meta.vorschlag").fetchone()
     assert z is not None and z["id"] is not None
     assert f"Vorschlag uc3/{z['id']}" in ergebnis.output
-    assert "Ziel-Regelsatz v2" in ergebnis.output
+    assert "Regelsatz v1 → v2 (v1 bleibt unverändert)" in ergebnis.output
     assert f"uc3 vorschlag zeigen {z['id']}" in ergebnis.output
 
 
