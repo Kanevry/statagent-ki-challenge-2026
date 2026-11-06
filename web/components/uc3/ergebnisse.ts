@@ -69,8 +69,8 @@ export interface MinisteriumBeleg {
   sha256: string;
   personen: number;
   spalten: string[];
-  /** Der Beleg im Wortlaut, für „Beleg ansehen“. */
-  text: string;
+  /** Die Tabelle des Belegs im Wortlaut, für „Beleg ansehen“. */
+  zeilen: { angabe: string; wert: string }[];
 }
 
 /** Liest die Angaben aus dem Beleg, damit keine Zahl doppelt von Hand steht. Fehlt eine Angabe: null. */
@@ -83,7 +83,10 @@ export function ministeriumBelegAus(text: string): MinisteriumBeleg | null {
   try {
     const { felder } = JSON.parse(parameter) as { felder?: unknown };
     if (!Array.isArray(felder) || felder.length === 0) return null;
-    return { datei, sha256, personen: Number(personen), spalten: felder.map(String), text };
+    const zeilen = [...text.matchAll(/^\| (.+?) \| (.+) \|$/gm)]
+      .map(([, angabe, wert]) => ({ angabe: angabe ?? "", wert: (wert ?? "").replaceAll("`", "") }))
+      .filter((z) => z.angabe !== "Angabe" && z.angabe !== "---");
+    return { datei, sha256, personen: Number(personen), spalten: felder.map(String), zeilen };
   } catch {
     return null;
   }

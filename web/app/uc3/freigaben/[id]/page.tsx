@@ -197,7 +197,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
               href="/uc3/ergebnisse"
               className="inline-flex min-h-11 items-center font-sans text-14 font-medium text-gruen underline underline-offset-4"
             >
-              Alle Ergebnisse der Abgabe
+              Excel-Dateien der Abgabe herunterladen
             </Link>
           </div>
         </section>

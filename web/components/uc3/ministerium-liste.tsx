@@ -9,7 +9,8 @@ export async function MinisteriumListe() {
   return (
     <>
       <p className="font-sans text-16 text-pretty text-ink">
-        {`Die Datei ${beleg.datei} mit ${formatZahl(beleg.personen)} Personen und den Spalten ${aufzaehlen(beleg.spalten)} enthält Einzeldaten, deshalb liegt sie nicht hier, sondern im SV-Box-Teamordner.`}
+        {`Die Datei ${beleg.datei} mit ${formatZahl(beleg.personen)} Personen und den Spalten ${aufzaehlen(beleg.spalten)} enthält Einzeldaten, deshalb liegt sie nicht hier, sondern im `}
+        <span className="whitespace-nowrap">SV-Box-Teamordner</span>.
       </p>
       <p className="font-sans text-14 text-slate">
         {"sha256 "}
@@ -19,9 +20,14 @@ export async function MinisteriumListe() {
         <summary className="inline-flex min-h-11 cursor-pointer items-center font-sans text-14 text-slate underline decoration-line underline-offset-4 hover:text-ink">
           Beleg ansehen
         </summary>
-        <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words border border-line bg-white p-3 font-mono text-12 text-ink" tabIndex={0}>
-          {beleg.text}
-        </pre>
+        <dl className="flex max-h-80 flex-col gap-2 overflow-auto border border-line bg-white p-3" tabIndex={0}>
+          {beleg.zeilen.map((z) => (
+            <div key={z.angabe}>
+              <dt className="font-sans text-12 text-slate">{z.angabe}</dt>
+              <dd className="break-words font-mono text-12 text-ink">{z.wert}</dd>
+            </div>
+          ))}
+        </dl>
       </details>
     </>
   );

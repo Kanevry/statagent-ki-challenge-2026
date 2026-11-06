@@ -35,6 +35,9 @@ describe("Beleg der Ministeriums-Liste", () => {
       spalten: ["PERSON_ID", "GESCHLECHT", "GEBURTSJAHR", "TAGE"],
       sha256: "d8492f46dd5f21fcd391e82d3eb671d437e46de2bda96f4237fd1d5972e86379",
     });
+    expect(beleg?.zeilen.map((z) => z.angabe)).toContain("Abgabeweg");
+    expect(beleg?.zeilen.map((z) => z.angabe)).not.toContain("---");
+    expect(beleg?.zeilen.find((z) => z.angabe === "Datei")?.wert).toBe("ministerium_2026-07.csv");
   });
 
   it("ein Beleg ohne Angaben ergibt null, nie eine geratene Zahl", () => {
