@@ -4,7 +4,8 @@
 #
 #   scripts/vorfuehrung.sh zugang         lokal: VORFUEHRUNG_ZUGANG in .env.local anlegen, falls er fehlt (Wert nie ausgeben)
 #   scripts/vorfuehrung.sh init           auf dem Server: Passwort, Budget, Azure-Zugang, Caddy-Fragment (nur der Hash)
-#   scripts/vorfuehrung.sh up [REF]       Stand REF (Standard HEAD) bauen und starten, Git-Checkout neu aus REF, Caddy neu laden
+#   scripts/vorfuehrung.sh up [REF] [--checkout-neu]   Stand REF (Standard HEAD) bauen und starten, Caddy neu laden. Der Git-Checkout
+#                                         entsteht neu aus REF, außer er trägt schon festgeschriebene Freigaben: Die bleiben
 #   scripts/vorfuehrung.sh daten DATEI    pg_dump -Fc (lokale Datei) hochladen, als Vorlage einspielen, Arbeitskopie anlegen
 #   scripts/vorfuehrung.sh reset          Ausgangsstand: Arbeitskopie neu aus der Vorlage, Freigabe-Commits weg, App neu
 #   scripts/vorfuehrung.sh klassifikationen DATEI   .sql.gz (lokale Datei) in einer Transaktion in die Arbeitskopie, ohne neuen Dump
@@ -143,7 +144,8 @@ EOF
 
 cmd_up() {
   cd "$REPO_ROOT"
-  local ref=${1:-HEAD} rev
+  local ref=${1:-HEAD} checkout_neu=0 rev
+  if [[ ${2:-} == --checkout-neu ]]; then checkout_neu=1; elif [[ -n ${2:-} ]]; then echo "up: unbekannte Option $2" >&2; exit 2; fi
   rev=$(git rev-parse --verify "$ref^{commit}")
   TMP_DIR=$(mktemp -d)
   git archive --format=tar "$rev" | tar -x -C "$TMP_DIR"
@@ -155,10 +157,10 @@ cmd_up() {
   rsync -az --delete --no-owner --no-group -e "ssh ${SSH_OPTS[*]}" "$TMP_DIR/" "$HOST:$neu/"
   echo "up: Revision ${rev:0:8} übertragen"
 
-  remote bash -s -- "$BASIS" "$V_BASIS" "$neu" <<'EOF'
+  remote bash -s -- "$BASIS" "$V_BASIS" "$neu" "$checkout_neu" <<'EOF'
 haupt() {
   set -euo pipefail
-  local basis=$1 v=$2 neu=$3
+  local basis=$1 v=$2 neu=$3 checkout_neu=$4
   NEU_VERZ=$neu
   trap 'rm -rf "$NEU_VERZ"' EXIT
   exec 9>"$v/.lock"
@@ -180,16 +182,26 @@ haupt() {
   rsync -a --delete --exclude /REVISION "$neu/" "$v/repo/"
 
   # 2. eigener Checkout aus genau diesem Stand: ein Commit, Marke ausgangsstand, kein Remote, also kein Push
-  local rev git=(git -c safe.directory=* -c user.name=StatAgent -c user.email=vorfuehrung@example.invalid)
-  rev=$(cat "$neu/REVISION")
-  rm -rf "$v/checkout"
-  mkdir -p "$v/checkout"
-  rsync -a --exclude /REVISION "$neu/" "$v/checkout/"
-  "${git[@]}" -C "$v/checkout" init -q -b vorfuehrung
-  "${git[@]}" -C "$v/checkout" add -A
-  "${git[@]}" -C "$v/checkout" commit -q -m "Ausgangsstand der Vorführung (${rev:0:12})"
-  "${git[@]}" -C "$v/checkout" tag ausgangsstand
-  chown -R 1001:1001 "$v/checkout/.git"
+  # Hat der Ausgangsstand mehr als den Start-Commit, ist festgeschrieben: Diese Freigabe-Commits gehen nicht verloren, und
+  # `uc3 pensionen freigeben` lässt sich nicht wiederholen. Neu anlegen dann nur ausdrücklich mit --checkout-neu.
+  local festgeschrieben=0
+  if [ -d "$v/checkout/.git" ]; then
+    festgeschrieben=$(HOME=/nonexistent setpriv --reuid=1001 --regid=1001 --clear-groups git -c 'safe.directory=*' -C "$v/checkout" rev-list --count ausgangsstand 2>/dev/null || echo 0)
+  fi
+  if [ "$festgeschrieben" -gt 1 ] && [ "$checkout_neu" != 1 ]; then
+    echo "up: Checkout bleibt, Ausgangsstand trägt $festgeschrieben Commits"
+  else
+    local rev git=(git -c safe.directory=* -c user.name=StatAgent -c user.email=vorfuehrung@example.invalid)
+    rev=$(cat "$neu/REVISION")
+    rm -rf "$v/checkout"
+    mkdir -p "$v/checkout"
+    rsync -a --exclude /REVISION "$neu/" "$v/checkout/"
+    "${git[@]}" -C "$v/checkout" init -q -b vorfuehrung
+    "${git[@]}" -C "$v/checkout" add -A
+    "${git[@]}" -C "$v/checkout" commit -q -m "Ausgangsstand der Vorführung (${rev:0:12})"
+    "${git[@]}" -C "$v/checkout" tag ausgangsstand
+    chown -R 1001:1001 "$v/checkout/.git"
+  fi
 
   # 3. starten; das Git-Verzeichnis ist neu, also die App neu erzeugen
   cd "$v/repo/deploy"
@@ -415,7 +427,7 @@ cmd_pruefen() {
 case "${1:-}" in
   zugang) cmd_zugang ;;
   init) lade_ziel; cmd_init ;;
-  up) lade_ziel; cmd_up "${2:-}" ;;
+  up) lade_ziel; cmd_up "${2:-}" "${3:-}" ;;
   daten) lade_ziel; cmd_daten "${2:-}" ;;
   reset) lade_ziel; cmd_reset ;;
   klassifikationen) lade_ziel; cmd_klassifikationen "${2:-}" ;;
@@ -424,7 +436,7 @@ case "${1:-}" in
   pruefen) lade_ziel; cmd_pruefen ;;
   status) lade_ziel; cmd_status ;;
   *)
-    sed -n '2,17p' "$0"
+    sed -n '2,18p' "$0"
     exit 2
     ;;
 esac
