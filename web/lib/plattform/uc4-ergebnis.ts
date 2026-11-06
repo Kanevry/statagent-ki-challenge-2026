@@ -42,8 +42,6 @@ export const frageSchema = z.object({
   frage: z.string().trim().min(1, "Bitte eine Frage eingeben.").max(MAX_FRAGE, `Höchstens ${MAX_FRAGE} Zeichen.`),
   /** Ohne Angabe gilt LLM_PROVIDER der App. */
   modell: z.enum(MODELLWAHL, { message: "Dieses Modell gibt es hier nicht." }).optional(),
-  /** Nur diese Station statt der ganzen Kette (eigene Frage auf /uc2/frage); sie muss in UC4_KETTE stehen. */
-  station: z.literal("uc2", { message: "Diese Station gibt es hier nicht." }).optional(),
 });
 
 export type Fehlend = z.infer<typeof fehlendSchema>;

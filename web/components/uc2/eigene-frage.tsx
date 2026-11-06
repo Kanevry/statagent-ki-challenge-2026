@@ -28,10 +28,10 @@ type Lage =
 
 async function stelleFrage(frage: string): Promise<Lage> {
   try {
-    const antwort = await fetch("/api/uc4/frage", {
+    const antwort = await fetch("/api/uc4/frage?station=uc2", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ frage, station: "uc2" }),
+      body: JSON.stringify({ frage }),
       cache: "no-store",
     });
     const daten: unknown = await antwort.json().catch(() => null);
@@ -112,6 +112,7 @@ export function EigeneFrage() {
   const [frage, setFrage] = useState("");
   const [lage, setLage] = useState<Lage>({ art: "leer" });
   const laedt = lage.art === "laden";
+  const ansage = laedt ? "Die Frage wird abgewogen." : lage.art === "antwort" ? "Die Antwort steht jetzt unter dem Formular." : lage.art === "absage" ? lage.meldung : "";
 
   async function absenden(ereignis: FormEvent<HTMLFormElement>) {
     ereignis.preventDefault();
@@ -178,8 +179,12 @@ export function EigeneFrage() {
         )}
       </form>
 
+      {/* Bleibt immer im Baum: Screenreader sagen nur Änderungen in einer schon vorhandenen Region an. */}
+      <p role="status" className="sr-only">
+        {ansage}
+      </p>
       {laedt && (
-        <div role="status" className="flex max-w-3xl flex-col gap-3" data-testid="uc2-eigene-laden">
+        <div className="flex max-w-3xl flex-col gap-3" data-testid="uc2-eigene-laden">
           <ul aria-hidden="true" className="flex gap-3">
             {AM_TISCH.map((a, i) => (
               <li key={a} style={{ animationDelay: `${i * 300}ms` }} className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-white font-sans text-12 font-semibold text-slate motion-safe:animate-pulse">
@@ -190,9 +195,9 @@ export function EigeneFrage() {
           <Fliesstext>{`${AM_TISCH.map(akteurName).join(", ")} wägen ab. Das dauert meist unter einer Minute.`}</Fliesstext>
         </div>
       )}
-      {lage.art === "fehler" && <Status art="fehler">{lage.meldung}</Status>}
+      {lage.art === "fehler" && <Status art="fehler" role="alert">{lage.meldung}</Status>}
       {lage.art === "absage" && (
-        <p role="status" className="max-w-3xl border-t border-line pt-6 font-sans text-16 text-ink" data-testid="uc2-eigene-absage">
+        <p className="max-w-3xl border-t border-line pt-6 font-sans text-16 text-ink" data-testid="uc2-eigene-absage">
           {lage.meldung}
         </p>
       )}

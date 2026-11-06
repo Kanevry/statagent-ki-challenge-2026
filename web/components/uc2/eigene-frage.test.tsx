@@ -43,7 +43,9 @@ it("schickt nur die Station uc2 und zeigt die Antwort mit Kennzeichnung", async 
   const bereich = await screen.findByTestId("uc2-eigene-antwort");
   expect(bereich.textContent).toContain(KENNZEICHNUNG);
   expect(bereich.textContent).toContain("Quelle: Kurier, August 2026");
-  expect(JSON.parse((abruf.mock.calls[0] as unknown as [string, { body: string }])[1].body)).toEqual({ frage: "Sollen Apotheken impfen?", station: "uc2" });
+  const [ziel, optionen] = abruf.mock.calls[0] as unknown as [string, { body: string }];
+  expect(ziel).toBe("/api/uc4/frage?station=uc2");
+  expect(JSON.parse(optionen.body)).toEqual({ frage: "Sollen Apotheken impfen?" });
 });
 
 it("zeigt die Meldung der Route (Budget, Ratenlimit) und fragt ohne Text gar nicht", async () => {
@@ -80,3 +82,14 @@ it("nimmt Werkstattwörter aus der Stimme einer Organisation und nennt die Patie
   expect(JSON.stringify(g)).not.toMatch(/Modellannahme|Beleg|innenvertretung/);
 });
 
+it("sagt Antwort und Absage in einer festen Region an, Fehler als Alarm", async () => {
+  antwortet(429, { fehler: "Bitte später." });
+  render(<EigeneFrage />);
+  const region = screen.getByRole("status");
+  expect(region.textContent).toBe("");
+  fireEvent.change(screen.getByLabelText("Ihre Frage"), { target: { value: "Frage" } });
+  fireEvent.click(screen.getByRole("button", { name: "Abwägen lassen" }));
+  expect(region.textContent).toBe("Die Frage wird abgewogen.");
+  expect((await screen.findByRole("alert")).textContent).toContain("Bitte später.");
+  expect(screen.getByRole("status")).toBe(region);
+});
