@@ -1,6 +1,7 @@
 import { einstufungAus, massgeblichMit, type EinstufungCode } from "./bericht";
 import { literal } from "./beleg";
 import { lies, type Lesung, type Sql } from "./db";
+import { gruppeAus, gruppeVon } from "./einstufung-gruppen";
 import { ladeLaufDetail, type LaufDetail } from "./lauf-detail";
 import { MASSGEBLICH_SQL } from "./laeufe";
 import { monatName, monatsgrenzen } from "./monat";
@@ -19,7 +20,7 @@ const REIHE: readonly EinstufungCode[] = ["nicht-erklaerbar", "erklaert-datenpro
 export function einstufungsReihe(zeilen: readonly { einstufung: string | null; anzahl: string | number }[]): EinstufungsZahl[] {
   return REIHE.map((code) => ({
     code,
-    wort: einstufungAus(code).wort,
+    wort: gruppeVon(gruppeAus(code)).kurz,
     anzahl: zeilen.filter((z) => einstufungAus(z.einstufung).code === code).reduce((summe, z) => summe + Number(z.anzahl), 0),
   }));
 }

@@ -34,10 +34,10 @@ describe("einstufungsReihe", () => {
       { einstufung: null, anzahl: "2" },
       { einstufung: "nicht-erklaerbar", anzahl: 38 },
     ]);
-    expect(reihe.map((e) => [e.code, e.anzahl])).toEqual([
-      ["nicht-erklaerbar", 40],
-      ["erklaert-datenproblem", 0],
-      ["erklaert-plausibel", 78],
+    expect(reihe.map((e) => [e.wort, e.anzahl])).toEqual([
+      ["noch nicht erklärt", 40],
+      ["Fehler in den Daten", 0],
+      ["kein Fehler", 78],
     ]);
   });
 });

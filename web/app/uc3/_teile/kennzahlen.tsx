@@ -25,7 +25,7 @@ function Kennzahl({ frage, zahl, children, beleg }: { frage: string; zahl: strin
       <h3 className="font-sans text-14 font-medium text-slate">{frage}</h3>
       <p className="font-display text-32 font-bold tabular-nums text-ink">{zahl}</p>
       <div className="flex flex-col gap-2 font-sans text-14 text-pretty text-ink">{children}</div>
-      <div className="mt-auto pt-1">{beleg}</div>
+      <div className="pt-1">{beleg}</div>
     </div>
   );
 }
@@ -69,7 +69,8 @@ export function Kennzahlen({
 }) {
   const letzter = monate.at(-1)!;
   const name = monatName(letzter.lieferung);
-  const wann = imZeitraum(zeitraumArtAus(letzter.zeitraumArt));
+  // „im Monat im Juli 2026“ wäre doppelt, deshalb trägt nur der Stichtag ein Zeitwort.
+  const wann = zeitraumArtAus(letzter.zeitraumArt) === "Monat" ? "" : ` ${imZeitraum("Stichtag")}`;
   const ersterTreffer = sortiereTreffer(treffer).find((t) => t.anhalten || t.einstufung === "nicht-erklaerbar");
   const vorlaeufig = monate.filter((m) => m.ergebnisStand !== "endgueltig").length;
   const summe = einstufungen.reduce((s, e) => s + e.anzahl, 0);
@@ -82,7 +83,7 @@ export function Kennzahlen({
       </h2>
       <Kennzahl frage="Letzter Monat" zahl={formatZahl(letzter.gezaehlt)} beleg={<BelegLink {...bestandBeleg(letzter)} />}>
         <p>
-          {`Beschäftigungsverhältnisse ${wann} im ${name}`}
+          {`Beschäftigungsverhältnisse${wann} im ${name}`}
           {vormonat !== null && <span className="tabular-nums">{`, ${formatDifferenz(letzter.gezaehlt - vormonat)} zum Vormonat`}</span>}
           .
         </p>
@@ -92,18 +93,18 @@ export function Kennzahlen({
         zahl={formatZahl(letzter.nichtErklaerbar)}
         beleg={<BelegLink quelle="meta.pruefung_treffer" lieferung={letzter.lieferung} sql={sqlAuffaelligkeiten(letzter)} />}
       >
-        <p>{`nicht erklärbare ${anzahlWort} im ${name}, sie gehen als Rückfrage an die Fachabteilung.`}</p>
+        <p>{`noch nicht erklärte ${anzahlWort} im ${name}, ${letzter.nichtErklaerbar === 1 ? "sie geht" : "sie gehen"} als Rückfrage an die Fachabteilung.`}</p>
         {ersterTreffer && <p className="text-slate">{alltag(trefferTitel(ersterTreffer, letzter.lieferung))}</p>}
       </Kennzahl>
       <Kennzahl
-        frage="Monate vorläufig"
+        frage="Noch nicht veröffentlicht"
         zahl={`${formatZahl(vorlaeufig)} von ${formatZahl(monate.length)}`}
         beleg={<BelegLink quelle="meta.lauf" sql={sqlVorlaeufig(letzter.regelsatz)} />}
       >
         <p>{vorlaeufigSatz(monate)}</p>
       </Kennzahl>
       <Kennzahl
-        frage="Auffälligkeiten nach Einstufung"
+        frage="Auffälligkeiten"
         zahl={formatZahl(summe)}
         beleg={<BelegLink quelle="meta.pruefung_treffer" sql={sqlEinstufungen(letzter.regelsatz)} />}
       >
