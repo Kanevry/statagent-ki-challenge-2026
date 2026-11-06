@@ -35,10 +35,11 @@ const antwortSchema = z.object({ fall_id: z.union([z.string(), z.number()]), sta
 
 const KEIN_CACHE = { "cache-control": "no-store" } as const;
 
-// Die API antwortet auf POST /faelle erst, wenn der Unterprozess den Fall angelegt hat: typisch wenige Sekunden, im
-// schlechtesten Fall bis zu 90 s. 30 s decken den üblichen Start mit Reserve ab, ohne die Seite eine Minute warten zu
-// lassen. Läuft die Frist ab, sagt die Route das ehrlich (504) statt still die Aufzeichnung zu zeigen.
-const START_FRIST_MS = 30_000;
+// Die API antwortet auf POST /faelle erst, wenn der Unterprozess den Fall angelegt hat: typisch unter einer Sekunde,
+// im schlechtesten Fall bis zu 90 s (uc2.api.start.START_TIMEOUT_S), danach bricht sie den Start selbst ab. Die Frist
+// hier liegt darüber: Gäbe die Route früher auf, liefe der Fall trotzdem an, und der Nutzer sähe erst einen Fehler
+// und dann minutenlang „Es läuft schon eine Verhandlung“, ohne Weg zum laufenden Fall (Review !364).
+const START_FRIST_MS = 95_000;
 
 /** Standard-Anbieter für Starts ohne `provider` (UC2_START_PROVIDER). Je Anfrage gelesen; ungültig zählt wie leer. */
 function startAnbieter(): Anbieter | undefined {

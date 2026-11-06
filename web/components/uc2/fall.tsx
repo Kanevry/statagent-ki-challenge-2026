@@ -87,7 +87,7 @@ export function Fall({ vorbereitung, eigeneFrage = false }: { vorbereitung: Vorb
             // Während des Startens ein Zustand in Grau, kein blasser Link (Sichtprüfung 06.11.)
             className={laedt ? "min-h-11 font-sans text-14 text-slate" : "min-h-11 font-sans text-14 text-gruen underline underline-offset-4"}
           >
-            {laedt ? "Startet, das kann eine halbe Minute dauern …" : "Neu verhandeln lassen, mit Modell"}
+            {laedt ? "Startet, das kann bis zu anderthalb Minuten dauern …" : "Neu verhandeln lassen, mit Modell"}
           </button>
         )}
       </div>
