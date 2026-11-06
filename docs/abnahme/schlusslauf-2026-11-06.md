@@ -55,6 +55,35 @@ E0 hat keine Prüfsätze, das ist kein Urteil. UC1, UC2, UC4 und E5 sind für di
 
 Bis 06.11. 02:20 hatten die pytest-Sätze 14-AC3, 15-AC2, 16-AC1, 70-AC1, 73-AC1, 74-AC2 und 78-AC1 keine Adresse für ihre Test-Fixtures und fielen auf den Bau-Port zurück. Frühere Läufe dieser Sätze liefen damit vermutlich gegen den Bau-Server, nicht gegen die Prüf-DB. In diesem Lauf liefen sie auf der Prüf-DB und bestanden.
 
+## Nachtrag auf dem letzten Code-Stand
+
+Letzter Stand für App und Code: main `14c86cc3593167e322392cc08a00f02c687532d7` (Lead 3d). Leichter Lauf 07:46 bis 07:48 auf dem Arbeitsrechner, schwere Prüfsätze 07:39 bis 07:50 auf dem Ersatzrechner, ohne neue Rechnung auf der Prüf-DB vom Stand `b9508d6a`.
+
+**Diff `b9508d6a` bis `14c86cc3`:** Rechenpfade 0 Änderungen. Genannte Ausnahme Frage-Weg: `uc3/statagent/frage.py`, `uc3/statagent/frage_app.py`, dazu Tests und Fragenkatalog. `abgabe/` und Lockfiles 0 Änderungen. Web und `shared/ui`: 128 Dateien, darunter die Downloads der Abgabe-Excel.
+
+| Teil | bestanden | nicht bestanden | nicht geprüft | nach Abgabe | gesamt |
+|---|---:|---:|---:|---:|---:|
+| UC3 | 53 | 2 | 4 | 17 | 76 |
+| E6 | 4 | 1 | 4 | 0 | 9 |
+
+Geurteilt für `14c86cc3`, 07:50. Das Tor bleibt offen: 10 offen, 1 per Entscheid; mit dem Entscheid zu 74-AC1 und dem Beleg zu 92-2 sind es 8 offen, 2 per Entscheid: 18-AC3, 22-1, 75-AC1, 76-AC1, 91-2, 91-3, 92-3, 92-4.
+
+**74-AC1, Restmangel (Entscheid Lead 3d):** Die Frage nach der Fluktuation je Wirtschaftsbereich läuft unter Last in die Zeitgrenze und antwortet dann mit ‚später noch einmal fragen‘; allein gestellt liefert sie die Zahl (88 von 88, zweimal gemessen). Keine falsche Zahl. Gemessen: im vollen Lauf hinter den anderen Sätzen zweimal 86 von 88 (ceef8b15, 14c86cc3), allein zweimal 88 von 88. Benannt ist die Frage „Wie hoch ist die Fluktuation je Wirtschaftsbereich im Oktober 2024?“; der zweite rote Test ist vermutlich die Sammelprüfung derselben Frage, das ist nicht belegt. Dass es die Zeitgrenze ist, folgt aus dem Antworttext und dem Muster, gemessen ist die Grenze selbst nicht.
+
+**22-1 voll:** letzte Messung auf `c16fa881` bestanden, auf `14c86cc3` nicht wiederholt (26 min). Rechenpfade seither unverändert.
+
+**18-AC2 und 135-3:** bestanden, neu belegt von ui-regie-18 auf dem Stand gleich `ceef8b15`, Agent und kein Mensch. Trailer gelesen von b-vorfuehrung-d8. „Kein Modellaufruf aus web/“ per Suche des Prüfers auf main.
+
+**92-2:** Dateiliste gelesen von Lead 3d um 07:53, Einträge geprüft von der Assistenz um 07:44, Agent und kein Mensch.
+
+**91-2:** offen, weil sich `docs/abgabe/herkunft.md` nach der Lesung geändert hat (702d479); neue Lesung beauftragt. **91-3:** beim Owner.
+
+**Online gemessen 07:53:** `/api/uc3/ergebnisse/v1` und `v2` antworten 200 mit sha256 wie im Manifest, `ministerium` und `ministerium_2026-07.csv` antworten 404. Welcher Commit online läuft, ist von außen nicht abgelesen.
+
+**Nachgetragen nach dem Schlusslauf in den Prüfsätzen:** Hand-Belege wurden bis 07:39 von der Zeile des letzten Laufs überdeckt und erschienen als offen; behoben, kein Rückfall.
+
+Der Prüfrechner ist abgeräumt.
+
 ## Nach diesem Beleg
 
-Bis zum letzten Merge gegen 07:50 sind noch Web-Änderungen und der Frage-Weg (`uc3/statagent/frage*.py`, `woerter.py`, `zeitraum.py`) zugelassen. Die Matrix zeigt UC3 danach mechanisch als veraltet, weil UC3-Web zu den Belegpfaden zählt; das ist kein Rückfall. Für den Endstand kommt ein Nachtrag mit leichtem Lauf, schweren Prüfsätzen und Diff.
+Danach waren nur noch Doku und der Nachweis-Commit vorgesehen. Die Matrix zeigt bei Änderungen an UC3-Web mechanisch „veraltet“, das ist kein Rückfall.
