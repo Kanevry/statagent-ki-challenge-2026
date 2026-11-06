@@ -19,6 +19,8 @@ export interface SeitenModellWert {
   modell?: string | null;
   /** Die Seite schickt diesen Anbieter selbst mit jeder Anfrage (Modellwahl auf /uc4); dann gilt er immer. */
   gewaehlt?: boolean;
+  /** Die Seite zeigt gerade aufgezeichnete Inhalte statt einer Live-Antwort; dann steht „Aufzeichnung“ im Badge. */
+  aufzeichnung?: boolean;
 }
 
 export interface ShellWert {

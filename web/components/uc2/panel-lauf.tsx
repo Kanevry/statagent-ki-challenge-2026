@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { knopfKlassen } from "@kic/ui/basis";
+import { SeitenModell } from "@kic/ui/shell";
 import type { Modus } from "../../app/api/uc2/_lib/proxy";
 import { PanelBuehne } from "./buehne/buehne";
 import { MERKE_FALL, MOCK_FALL_ID } from "./konstanten";
@@ -37,5 +38,11 @@ export function PanelSeite({ fallId, modus = "live" }: { fallId: string | null; 
       </div>
     );
   }
-  return <PanelBuehne key={fallId} fallId={fallId} modus={modus} />;
+  // Der Server bestimmt den Modus: "vorfuehrung" ist die aufgezeichnete Verhandlung, dann steht „Aufzeichnung“ im Kopf.
+  return (
+    <>
+      {modus === "vorfuehrung" && <SeitenModell aufzeichnung />}
+      <PanelBuehne key={fallId} fallId={fallId} modus={modus} />
+    </>
+  );
 }
