@@ -40,7 +40,6 @@ function Ergebnis({ stand, jetzt }: { stand: AuftragStand; jetzt: number }) {
     return (
       <div role="status" className="flex flex-col gap-2">
         <p className="font-sans text-16 text-ink">Der Vorschlag liegt bereit, nach {dauer}. Noch ist nichts geändert.</p>
-        {stand.satz && <p className="font-sans text-14 text-slate">({stand.satz})</p>}
         <Link href={`/uc3/freigaben/${stand.vorschlagId}`} className={textLink}>
           Vorher und nachher ansehen, dann entscheiden
         </Link>
