@@ -75,12 +75,10 @@ function Ergebnis({ stand, jetzt }: { stand: AuftragStand; jetzt: number }) {
 
 export function AuftragFormular({
   monate,
-  probeMonate,
   rechenbar,
   regelsatz,
 }: {
   monate: readonly string[];
-  probeMonate: readonly string[];
   rechenbar: readonly string[];
   regelsatz: string;
 }) {
@@ -187,7 +185,7 @@ export function AuftragFormular({
               className={`h-10 w-fit rounded border border-slate bg-white px-4 font-sans text-16 text-ink ${fokus}`}
             >
               <option value="">{`${monatName(monate[0]!)} (jüngster Monat)`}</option>
-              {probeMonate.filter((m) => m !== monate[0]).map((m) => (
+              {monate.slice(1).map((m) => (
                 <option key={m} value={m}>
                   {monatName(m)}
                 </option>

@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Auftrag · StatAgent" };
 
 // Monate und aktueller Regelsatz (wie `produktions_regelsatz` in uc3/statagent/agenten/koordinator.py: der jüngste
 // v<Zahl> mit freigegebener Regel oder angewendetem Vorschlag). Nach einer Freigabe rechnet ein Lauf also den neuen Stand.
-async function leseStand(): Promise<{ monate: string[]; probeMonate: string[]; rechenbar: string[]; regelsatz: string }> {
+async function leseStand(): Promise<{ monate: string[]; rechenbar: string[]; regelsatz: string }> {
   const lesung = await lies(async (sql) => {
     const monate = await sql`SELECT DISTINCT lieferung FROM meta.lauf ORDER BY lieferung DESC`;
     const [aktuell] = await sql`
@@ -23,13 +23,9 @@ async function leseStand(): Promise<{ monate: string[]; probeMonate: string[]; r
     const regelsatz = String(aktuell?.regelsatz ?? "v1");
     const gerechnet = await sql`SELECT DISTINCT lieferung FROM meta.lauf WHERE regelsatz = ${regelsatz} AND status IN ('fertig', 'unveraendert')`;
     const alle = monate.map((z) => String(z.lieferung));
-    // Monate mit Fortschreibung zeigen in der Probe bisher eine falsche Gesamtzahl: Im neuen Regelsatz fehlt der Vormonat,
-    // also auch die Fortschreibung (gemessen in !150). Die Probe bietet sie erst an, wenn das dort behoben ist.
-    const fortgeschrieben = await sql`SELECT DISTINCT lieferung FROM meta.lauf WHERE fortgeschrieben > 0`;
-    const ohne = new Set(fortgeschrieben.map((z) => String(z.lieferung)));
-    return { monate: alle, probeMonate: alle.filter((m) => !ohne.has(m)), rechenbar: rechenbareMonate(alle, new Set(gerechnet.map((z) => String(z.lieferung)))), regelsatz };
+    return { monate: alle, rechenbar: rechenbareMonate(alle, new Set(gerechnet.map((z) => String(z.lieferung)))), regelsatz };
   });
-  return lesung.ok ? lesung.daten : { monate: [], probeMonate: [], rechenbar: [], regelsatz: "v1" };
+  return lesung.ok ? lesung.daten : { monate: [], rechenbar: [], regelsatz: "v1" };
 }
 
 export default async function AuftragSeite() {

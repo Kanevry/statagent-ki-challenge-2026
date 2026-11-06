@@ -92,8 +92,7 @@ Die Zahlen nachher kommen in der Vorführung aus der Probe auf dem Vorschlag. Ei
 zeitlicher Reihenfolge ab dem ersten Monat, alle 24 sind live nicht machbar; die Seite bietet deshalb nur rechenbare Monate an.
 Nicht jeder Auftrag ändert in jedem Monat eine Zahl: Der Auftrag zum Geburtsmonat 13 wirkt nur in Jänner bis Juni, im Juli 2026
 ändert er keine. Für ihn Juni 2026 wählen (Gesamtzahl gleich, die Altersgruppen verschieben sich um wenige Personen, gemessen in
-der Lane Live-Änderung). März und Oktober 2025 bietet die Seite für die Probe nicht an: Dort enthält der Bestand Fortschreibungen,
-und die Probe zeigt bisher eine falsche Gesamtzahl.
+der Lane Live-Änderung).
 
 ## Zurück auf den Ausgangsstand
 
@@ -145,6 +144,9 @@ Das ersetzt keine Messung über einen echten Hotspot, die steht aus und liegt be
 | Basisregelsatz von `uc3 agent` | v2, Ziel v3, nach Rücknahme Ziel v4 |
 | App-Neustart nach einer Freigabe, dann ein Lauf | läuft; ein Code-Vorschlag ist dabei nicht geprüft |
 | Generalprobe `up`, `daten`, `pensionen-freigeben`, `festschreiben`, `reset`, zurück mit `daten` (23:34 bis 23:46) | bestanden: Hashes gleich, `festschreiben` 53 s, `reset` 51 s, Freigabe danach noch auf der Seite, nach `daten` wieder „vorläufig“ |
+| Folge ohne Rechen-Datenbank (06.11. 00:49 bis 00:54) | bestanden: `up`, `reset`, `klassifikationen`, `festschreiben` 53 s, `reset`, `pruefen`; danach Inhalts-Hash `stat` wie auf der Probe-Kopie, Regelstände v1, v2 und `ministerium` gleich dem Soll |
+| Lauf Oktober 2025 mit den tiefen Klassifikationen | `unveraendert`, 397.514, Hash `63f106818887` |
+| Ratenlimit vor der Änderung | sechs Fragen hintereinander 200, je rund 3 s; die elfte in einer Minute 429 |
 
 ## Reserve: lokal
 
