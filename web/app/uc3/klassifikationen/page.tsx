@@ -24,7 +24,15 @@ import {
   sqlKategorieRegel,
   type Klassifikationsdaten,
 } from "@/components/uc3/klassifikation";
-import { leseNachschlagen, SQL_NACHSCHLAGEN } from "@/components/uc3/klassifikation-tief";
+import {
+  beispieleFuer,
+  leseNachschlagen,
+  nachschlagenKopf,
+  SQL_NACHSCHLAGEN,
+  type Art,
+  type Auswahl,
+  type Kinder,
+} from "@/components/uc3/klassifikation-tief";
 import { monatName } from "@/components/uc3/monat";
 import { lesePensionen, SQL_PENSIONEN } from "@/components/uc3/pensionen";
 import { regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/navigation";
@@ -32,8 +40,8 @@ import { alltag } from "@/components/uc3/sprache";
 import { Gegenueberstellung } from "./_teile/gegenueberstellung";
 import { Nachschlagen } from "./_teile/nachschlagen";
 
-// Regeln und Klassifikationen (UI-Regie v1, #18): oben ÖNACE 2008 gegen 2025 als Gegenüberstellung nach Namen,
-// darunter das Nachschlagen bis zur Unterklasse und Gemeinde, die Qualifikationen je Regelsatz, dann alle Regeln nach Art (Anker #regeln, Ziel von
+// Regeln und Klassifikationen (UI-Regie v1, #18): oben das Nachschlagen bis zur Unterklasse und Gemeinde, darunter
+// ÖNACE 2008 gegen 2025 als Gegenüberstellung nach Namen, die Qualifikationen je Regelsatz, dann alle Regeln nach Art (Anker #regeln, Ziel von
 // /uc3/berichte/regeln). Die kleinen Code-Listen liegen hinter „Weitere Listen“. Nur lesend; ohne Datenbank zeigt
 // jeder Teil seinen Leerzustand (HTTP 200).
 export const dynamic = "force-dynamic";
@@ -51,21 +59,27 @@ function pfad(regelsatz: Regelsatz): string {
 // ---------------------------------------------------------------------------------------------------------------
 // ÖNACE 2008 → 2025 und Qualifikationen
 
-function Branchen({ daten }: { daten: Klassifikationsdaten }) {
+function ZuDenRegeln() {
+  return (
+    <a href="#regeln" className={`${textLink} self-start`}>
+      Zu den Regeln
+    </a>
+  );
+}
+
+/** `oben`: Ohne Nachschlagen trägt der Vergleich die Überschrift der Seite. */
+function Branchen({ daten, oben }: { daten: Klassifikationsdaten; oben: boolean }) {
   const zeilen = gegenueberstellung(daten.abschnitte, daten.abschnittUebergaenge);
   const saetze = gegenueberSaetze(zeilen);
+  const Titel = oben ? "h2" : "h3";
   return (
     <>
       <header className="flex max-w-4xl flex-col gap-3">
-        <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
+        <Ueberschrift stufe={oben ? 2 : 3} als={oben ? "h1" : "h2"} className="hyphens-auto break-words">
           {saetze.haupt}
         </Ueberschrift>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="font-sans text-16 text-slate">{saetze.unter}</span>
-          <span className="font-sans text-14 text-slate">
-            Neuen Namen und Teilung ordnet die Seite aus dem Umsteigeschlüssel zu: Nachfolger ist, wer mindestens ein
-            Viertel der Unterklassen bekommt.
-          </span>
           <BelegLink
             quelle="stat.klass_oenace, stat.uebergang"
             verweis="Gezählt je Branchenname; neuer Name und Teilung aus dem Umsteigeschlüssel (Nachfolger mit mindestens 25 % der Unterklassen)"
@@ -74,14 +88,12 @@ function Branchen({ daten }: { daten: Klassifikationsdaten }) {
         </div>
       </header>
 
-      <a href="#regeln" className={`${textLink} self-start`}>
-        Zu den Regeln
-      </a>
+      {oben && <ZuDenRegeln />}
 
       <section aria-labelledby="branchen-titel" className="flex flex-col gap-3">
-        <h2 id="branchen-titel" className={titel}>
+        <Titel id="branchen-titel" className={titel}>
           Branchen 2008 und 2025
-        </h2>
+        </Titel>
         <Gegenueberstellung zeilen={zeilen} />
         <div className="flex max-w-4xl flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="font-sans text-14 text-slate">
@@ -96,24 +108,25 @@ function Branchen({ daten }: { daten: Klassifikationsdaten }) {
   );
 }
 
-async function AlleCodes() {
-  const lesung = await leseNachschlagen();
-  // Wie bei den Pensionen: Sind die tiefen Ebenen nicht geladen, gibt es hier nichts zu zeigen.
-  if (!lesung.ok || !lesung.daten) return null;
-  const { auswahl, start, art } = lesung.daten;
+function AlleCodes({ auswahl, start, art }: { auswahl: Auswahl; start: Kinder; art: Art }) {
   return (
-    <section aria-labelledby="codes-titel" className="flex max-w-4xl flex-col gap-3">
-      <h2 id="codes-titel" className={titel}>
-        Alle Codes bis zur Unterklasse und Gemeinde
-      </h2>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-sans text-14 text-slate">
-          Die Statistik zählt nach Abschnitt und Bundesland. Für die Ebenen darunter gibt es hier die Namen, keine Zahlen.
-        </span>
-        <BelegLink quelle="stat.klass_oenace, stat.klass_region, stat.uebergang" sql={SQL_NACHSCHLAGEN} />
-      </div>
-      <Nachschlagen auswahl={auswahl} start={start} startArt={art} />
-    </section>
+    <>
+      <header className="flex max-w-4xl flex-col gap-3">
+        <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
+          {nachschlagenKopf(auswahl)}
+        </Ueberschrift>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="font-sans text-16 text-slate">
+            Die Statistik zählt nach Abschnitt und Bundesland. Für die Ebenen darunter gibt es hier die Namen, keine Zahlen.
+          </span>
+          <BelegLink quelle="stat.klass_oenace, stat.klass_region, stat.uebergang" sql={SQL_NACHSCHLAGEN} />
+        </div>
+      </header>
+      <section aria-label="Nachschlagen" className="flex max-w-4xl flex-col gap-3">
+        <Nachschlagen auswahl={auswahl} start={start} startArt={art} beispiele={beispieleFuer(auswahl)} />
+      </section>
+      <ZuDenRegeln />
+    </>
   );
 }
 
@@ -436,13 +449,16 @@ export default async function RegelnUndKlassifikationen({ searchParams }: Props)
   const lesung = await leseKlassifikationen("v1");
   if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
   const daten = lesung.daten.abschnitte.length > 0 ? lesung.daten : null;
+  // Sind die tiefen Ebenen nicht geladen, gibt es nichts nachzuschlagen, und der Vergleich steht oben.
+  const codes = await leseNachschlagen();
+  const nachschlagen = codes.ok ? codes.daten : null;
 
   return (
     <>
       {daten ? (
         <>
-          <Branchen daten={daten} />
-          <AlleCodes />
+          {nachschlagen && <AlleCodes {...nachschlagen} />}
+          <Branchen daten={daten} oben={!nachschlagen} />
           <Qualifikationen daten={daten} />
           <Pensionen />
         </>
