@@ -256,13 +256,13 @@ def test_regelsatz_ohne_lauf_sagt_mit_namen_ab(mit_v2: Verbindung, frage: str) -
 def test_regelsatz_mit_lauf_nimmt_den_weg(mit_v2: Verbindung, monkeypatch: pytest.MonkeyPatch) -> None:
     gefragt: list[str] = []
 
-    def antwort(_conn: Verbindung, _frage: str, regelsatz: str) -> dict[str, str]:
+    def antwort(_conn: Verbindung, _frage: str, regelsatz: str) -> dict[str, object]:
         gefragt.append(regelsatz)
-        return {"text": "gefragt"}
+        return frage_modul._antwort("bestand", "gefragt")
 
     monkeypatch.setattr(frage_modul, "_letzter_monat", lambda _conn, _regelsatz: "2024-08")
     monkeypatch.setattr(frage_modul, "_regelsatz_antwort", antwort)
-    assert antwort_frage(mit_v2, "Beschäftigte im August 2024 im Regelsatz v3") == {"text": "gefragt"}
+    assert antwort_frage(mit_v2, "Beschäftigte im August 2024 im Regelsatz v3")["text"] == "gefragt"
     assert gefragt == ["v3"]
 
 

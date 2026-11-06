@@ -427,7 +427,8 @@ def test_fortgeschriebene_ausgewiesen(gerechnet: Verbindung) -> None:
     )
     reihe = antwort_frage(gerechnet, ZEITREIHE)
     assert any(
-        h.startswith("Im September 2024 sind 1.234 Beschäftigungsverhältnisse") for h in reihe["hinweise"]
+        h.startswith("Im September 2024 sind in ganz Österreich 1.234 Beschäftigungsverhältnisse")
+        for h in reihe["hinweise"]
     )
     assert not any("Im August 2024 sind" in h for h in reihe["hinweise"])
 

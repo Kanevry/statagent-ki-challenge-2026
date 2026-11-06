@@ -297,11 +297,24 @@ def _soll_fluktuation(conn: Any, zeile: Zeile) -> Soll:
     return Soll(pflicht={"Fluktuation": wert}, nur_enthaelt=True)
 
 
+def _soll_pruefung(conn: Any, zeile: Zeile) -> Soll:
+    """Treffer der anhaltenden Prüfungen im jüngsten fertigen Lauf des Monats, ohne Spalte ``beispiele``."""
+    zeilen = conn.execute(
+        "SELECT t.anzahl FROM meta.pruefung_treffer t WHERE t.anhalten AND t.lauf_id = ("
+        "SELECT l.id FROM meta.lauf l WHERE l.lieferung = %s AND l.regelsatz = %s AND l.status IN ('fertig', 'unveraendert')"
+        " ORDER BY (l.ergebnis_status = 'endgueltig') DESC, l.id DESC LIMIT 1)",
+        (zeile.monate[0], zeile.regelsatz),
+    ).fetchall()
+    return Soll(pflicht={f"Prüfung {i}": float(z["anzahl"]) for i, z in enumerate(zeilen)}, nur_enthaelt=True)
+
+
 def soll_rechnen(conn: Any, zeile: Zeile) -> Soll:
     """Das Soll der Zeile; ohne Monate gibt es keine Zahl, die stimmen könnte."""
     if not zeile.monate:
         return Soll()
     art = zeile.optionen.get("art", "bestand")
+    if art == "pruefung":
+        return _soll_pruefung(conn, zeile)
     if art == "anteil":
         return _soll_anteil(conn, zeile)
     if art == "fluktuation":
