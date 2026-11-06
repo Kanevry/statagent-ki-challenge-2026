@@ -1,5 +1,6 @@
 import { lies, type Lesung, type Sql } from "./db";
 import { istMonat, monatName } from "./monat";
+import { berichtPfad, berichtslistePfad } from "./navigation";
 import { alltag } from "./sprache";
 
 // Annahmen als eigener Bereich (Raster Bereich 6). Zwei Nummernkreise, beide echt: F1 bis F10 liegen in meta.annahme
@@ -14,10 +15,11 @@ export type AnnahmeZeile = {
   regelName: string | null;
   lieferungen: readonly string[] | null;
   satz: string;
+  begruendung: string;
 };
 
 export const SQL_ANNAHMEN = [
-  "SELECT a.nr, a.rueckfrage, a.regel_name, a.lieferungen, a.satz,",
+  "SELECT a.nr, a.rueckfrage, a.regel_name, a.lieferungen, a.satz, a.begruendung,",
   "       a.rueckfrage IS NOT NULL AND q.antwort IS NULL AS wartet",
   "  FROM meta.annahme a LEFT JOIN meta.rueckfrage q ON q.nr = a.rueckfrage",
   " ORDER BY substr(a.nr, 2)::int",
@@ -40,19 +42,22 @@ export const HERLEITUNG: readonly { nr: string; name: string }[] = [
   { nr: "A13", name: "Ministeriums-Lieferung" },
 ];
 
-/** „gilt für alle Monate“ oder „gilt für Mai 2025 und Februar 2026“. */
-export function geltungSatz(lieferungen: readonly string[] | null): string {
-  if (!lieferungen || lieferungen.length === 0) return "gilt für alle Monate";
-  const namen = lieferungen.map((m) => (istMonat(m) ? monatName(m) : m));
-  const letzter = namen[namen.length - 1]!;
-  return `gilt für ${namen.length > 1 ? `${namen.slice(0, -1).join(", ")} und ${letzter}` : letzter}`;
+/**
+ * Wofür eine Annahme gilt, als Ziele zum Klicken: je Monat dessen Qualitätsbericht, ohne Monate die Liste aller Berichte.
+ */
+export function geltungLinks(lieferungen: readonly string[] | null): { text: string; pfad: string }[] {
+  if (!lieferungen || lieferungen.length === 0) return [{ text: "alle Monate", pfad: berichtslistePfad() }];
+  return lieferungen.map((m) => ({ text: istMonat(m) ? monatName(m) : m, pfad: `${berichtPfad(m)}#annahmen` }));
 }
 
-/** Kopfsatz der Seite. Nur Annahmen mit offener Rückfrage warten auf die Fachabteilung, die anderen nicht. */
-export function annahmenKopf(anzahl: number, wartend: number): string {
-  const wir = `Wir rechnen mit ${anzahl} ${anzahl === 1 ? "Annahme" : "Annahmen"}.`;
-  if (wartend === 0) return wir;
-  return `${wir} ${wartend} ${wartend === 1 ? "wartet" : "warten"} auf die Fachabteilung.`;
+/**
+ * Kopfsatz der Seite. Jede Annahme hat eine Begründung (Pflichtspalte in meta.annahme). Nur Annahmen mit offener Rückfrage
+ * werden als offen genannt, die anderen nicht.
+ */
+export function annahmenKopf(anzahl: number, offen: number): string {
+  const kopf = anzahl === 1 ? "1 Annahme, begründet." : `${anzahl} Annahmen, jede begründet.`;
+  if (offen === 0) return kopf;
+  return `${kopf} Zu ${offen} ${offen === 1 ? "ist eine Rückfrage" : "sind Rückfragen"} an die Fachabteilung offen.`;
 }
 
 export function leseAnnahmen(optionen?: { sql?: Sql | null }): Promise<Lesung<AnnahmeZeile[]>> {
@@ -69,6 +74,7 @@ export function leseAnnahmen(optionen?: { sql?: Sql | null }): Promise<Lesung<An
         regel_name: string | null;
         lieferungen: string[] | null;
         satz: string;
+        begruendung: string;
       }[]
     >(SQL_ANNAHMEN);
     return zeilen.map((z) => ({
@@ -78,6 +84,7 @@ export function leseAnnahmen(optionen?: { sql?: Sql | null }): Promise<Lesung<An
       regelName: z.regel_name,
       lieferungen: z.lieferungen,
       satz: alltag(z.satz),
+      begruendung: alltag(z.begruendung),
     }));
   }, optionen);
 }

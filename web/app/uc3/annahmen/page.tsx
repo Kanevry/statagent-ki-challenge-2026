@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Fragment } from "react";
 import { Fliesstext, Leerzustand, Ueberschrift } from "@kic/ui/basis";
-import { annahmenKopf, geltungSatz, HERLEITUNG, leseAnnahmen, SQL_ANNAHMEN } from "@/components/uc3/annahmen";
+import { annahmenKopf, geltungLinks, HERLEITUNG, leseAnnahmen, SQL_ANNAHMEN } from "@/components/uc3/annahmen";
 import { BelegLink } from "@/components/uc3/beleg-link";
 import { DatenFehler } from "@/components/uc3/daten-fehler";
 
-// Annahmen (Raster Bereich 6): F1 bis F10 aus meta.annahme, wie sie in den Qualitätsberichten stehen; darunter
+// Annahmen (Raster Bereich 6): F1 bis F10 aus meta.annahme mit Begründung und Link zum Qualitätsbericht; darunter
 // aufklappbar die Herleitung A1 bis A13. Nur lesend; ohne die Tabelle ein Leerzustand mit HTTP 200.
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Annahmen · StatAgent" };
@@ -37,9 +39,21 @@ export default async function AnnahmenSeite() {
               <span className="w-8 shrink-0 font-sans text-14 text-slate">{a.nr}</span>
               <div className="flex min-w-0 flex-col gap-1">
                 <p className="max-w-3xl font-sans text-16 text-pretty text-ink">{a.satz}</p>
+                <p className="max-w-3xl font-sans text-16 text-pretty text-ink">
+                  <span className="font-semibold">Warum: </span>
+                  {a.begruendung}
+                </p>
                 <p className="font-sans text-14 text-slate">
-                  {geltungSatz(a.lieferungen)}
-                  {a.rueckfrage ? ` (Rückfrage ${a.rueckfrage}${a.wartet ? "" : ", beantwortet"})` : ""}
+                  {"Gilt für "}
+                  {geltungLinks(a.lieferungen).map((ziel, i, alle) => (
+                    <Fragment key={ziel.pfad}>
+                      {i > 0 && (i === alle.length - 1 ? " und " : ", ")}
+                      <Link href={ziel.pfad} className="text-ink underline underline-offset-4 hover:text-gruen">
+                        {ziel.text}
+                      </Link>
+                    </Fragment>
+                  ))}
+                  {a.rueckfrage ? ` (Rückfrage ${a.rueckfrage} ${a.wartet ? "offen" : "beantwortet"})` : ""}
                 </p>
               </div>
             </li>
