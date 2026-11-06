@@ -6,6 +6,7 @@ import { formatZahl } from "@kic/ui/bausteine";
 import { StandPunkt } from "@/components/uc3/beleg-link";
 import { nurLesend } from "@/components/uc3/cli";
 import { DatenFehler } from "@/components/uc3/daten-fehler";
+import { leseMinisteriumBeleg } from "@/components/uc3/ergebnisse";
 import {
   auftragKopf,
   auftragsZitat,
@@ -34,7 +35,7 @@ const pfeilLink =
   "inline-flex min-h-11 items-center font-sans text-16 font-medium text-gruen underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy";
 
 export default async function FreigabenSeite() {
-  const lesung = await leseFreigaben();
+  const [lesung, ministerium] = await Promise.all([leseFreigaben(), leseMinisteriumBeleg()]);
 
   if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
   const { offen, erledigt, kategorien, wirkungen, bezeichnungen } = lesung.daten;
@@ -45,7 +46,13 @@ export default async function FreigabenSeite() {
   const protokoll = protokollZeilen(erledigt);
   const nurAuftraege = entschieden.every((z) => auftragKopf(z.vorschlag.anweisung).nummer !== null);
   const kopf = freigabenKopf(offen.length, entschieden, nurAuftraege);
-  const zahlen = (v: Vorschlag) => auftragZahlen(v, kategorien, wirkungen[v.id], bezeichnungen);
+  const zahlen = (v: Vorschlag): AuftragZahlen => {
+    const z = auftragZahlen(v, kategorien, wirkungen[v.id], bezeichnungen);
+    // Die Personenzahl steht im Beleg der Abgabe; die Datei selbst enthält Einzeldaten und liegt nicht online.
+    return v.regelsatzZiel === "ministerium" && v.status === "freigegeben" && ministerium
+      ? { ...z, satz: `${z.satz ?? ""} Das Ergebnis ist eine eigene Liste mit ${formatZahl(ministerium.personen)} Personen.`.trim() }
+      : z;
+  };
 
   return (
     <>
