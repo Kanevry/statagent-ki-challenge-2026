@@ -16,6 +16,15 @@ function NextVerweis({ href, children, ...rest }: VerweisProps) {
   );
 }
 
+/**
+ * Woher das Abzeichen im Kopf den Modell-Zustand liest. /uc2 zeigt eine Aufzeichnung und fragt deshalb den UC2-Bereich;
+ * /uc2/frage antwortet mit dem Modell der Plattform (über /api/uc4/frage), dort gilt der Standard.
+ */
+export function modellQuelleFuer(pfad: string): string | undefined {
+  if (pfad === "/uc2/frage" || pfad.startsWith("/uc2/frage/")) return undefined;
+  return pfad.startsWith("/uc2") ? "/api/uc2/modell" : undefined;
+}
+
 export function ShellRahmen({ children }: { children: ReactNode }) {
   const pfad = usePathname() ?? "/";
   return (
@@ -24,7 +33,7 @@ export function ShellRahmen({ children }: { children: ReactNode }) {
     <AppShell
       pfad={pfad}
       Verweis={NextVerweis}
-      modellQuelle={pfad.startsWith("/uc2") ? "/api/uc2/modell" : undefined}
+      modellQuelle={modellQuelleFuer(pfad)}
     >
       {children}
     </AppShell>
