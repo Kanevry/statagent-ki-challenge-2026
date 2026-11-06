@@ -1973,7 +1973,9 @@ _UEBERNOMMEN_KLAR = (
 
 
 # --- Vorschlag: passt zur Frage und ist vor dem Zeigen gelaufen -----------------------------------------------------
-_KEIN_VORSCHLAG = re.compile(r"Einzeldaten gibt StatAgent")
+#: Keine Folgefrage nach der Absage zu Einzeldaten. Und keine nach der Rückfrage zu „dort“: Ein Vorschlag ohne Ort
+#: gäbe die Zahl für ganz Österreich, nach der niemand gefragt hat.
+_KEIN_VORSCHLAG = re.compile(r"Einzeldaten gibt StatAgent|nennt aber keinen Ort")
 #: Die Antwort nennt schon eine Folgefrage („Frauen im Juli 2026“, „Was ist ÖNACE C?“).
 _BEISPIEL_DA = re.compile(r"„[^“]*(?:\b20\d{2}\b|\?)[^“]*“")
 
