@@ -79,7 +79,7 @@ Alle Werte bleiben leer, bis die Datei fertig ist. Nie schätzen.
 | Abspieltest offline: Uhrzeit | |
 | Abspieltest offline: Ergebnis | bestanden / nicht bestanden |
 | Kennzeichnung „Aufzeichnung“ im Bild von Sekunde 0 | ja |
-| Anmerkungen | Aufnahme gegen die Vorführ-Adresse, nur lesend. Render auf dem Rechner der Session statt auf dem Zweitrechner, der seit 00:35 ausgefallen ist (Auftrag des Leads; 184 s, 834 MB). Geschnitten: 1,7 s Anfang und 11,4 s Wartezeit bei der Zeitreihe, im Bild genannt. Zeigt D1, D2 Rückblick, Vorschlag 24 und D3, nicht die Live-Änderung und nicht D4. Kein Terminal im Bild. Der Abspieltest ohne Netz folgt in der Probe. |
+| Anmerkungen | Aufnahme gegen die Vorführ-Adresse, nur lesend. Render auf dem Rechner der Session statt auf dem Zweitrechner, der seit 00:35 ausgefallen ist (Auftrag des Leads; 184 s, 834 MB). Geschnitten: 1,7 s Anfang und 11,4 s Wartezeit bei der Zeitreihe, im Bild genannt. Zeigt D1, D2 Rückblick, Vorschlag 24 und D3, nicht die Live-Änderung und nicht D4. Kein Terminal im Bild. Nach der Aufnahme änderten sich bis main `a6dd221` nur `frage.py`, `woerter.py` und Tests; die drei gezeigten Fragen um 04:17 auf der Instanz nachgeprüft, gleiche Zahlen. Der Abspieltest ohne Netz folgt in der Probe. |
 
 ### Sichtprüfung
 
