@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { namensLage } from "./monatsgrafik";
+import { achsenBeginn, achsenHinweis, namensLage } from "./monatsgrafik";
+
+describe("achsenHinweis", () => {
+  it("nennt den berechneten Achsenbeginn und sagt, dass er nicht 0 ist", () => {
+    const satz = achsenHinweis(achsenBeginn([386_996, 388_650, 390_900]));
+    expect(satz).toContain("Die Achse beginnt bei 385");
+    expect(satz).toContain("nicht bei 0");
+  });
+  it("behauptet nichts Falsches, wenn die Achse doch bei 0 beginnt", () => {
+    expect(achsenHinweis(0)).toBe("Die Achse beginnt bei 0.");
+  });
+});
 
 describe("namensLage", () => {
   it("setzt den Namen über eine Spitze und unter eine Senke", () => {
