@@ -7,7 +7,7 @@ Spalten:
 
 - `soll`: `zahl`, `rueckfrage`, `absage` oder `definition`.
 - `monate`: die Monate mit Daten, die zur Frage gehören (`von..bis` oder eine Liste). Leer: keine Zahl möglich.
-- Die Zeilen `A…`, `V…`, `P…` und `R…` stammen aus der Prüfung von !227, !230 und !242.
+- Die Zeilen `A…`, `V…`, `P…`, `R…` und `T…` stammen aus der Prüfung von !227, !230 und !242.
 - `filter`: `region`, `geschlecht`, `kategorie`, `oenace` (Buchstabe), `branche` (Name, `%` als Platzhalter, gilt je
   ÖNACE-Version), `freier_dv`, `alter` (`von-bis`).
 - `optionen`: `mittel` (Durchschnitt muss dabei sein), `muss` (Rückfrage oder Absage reichen nicht), `auch=…` (weitere
@@ -692,3 +692,20 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | R029 | form:vergleich | rueckfrage | - | - | auch=absage | Wie viele Männer waren im Vormonat von Dezember 2025 beschäftigt? |
 | R030 | form:gliederung,merkmal:branche | zahl | 2026-07 | - | gruppe=oenace;muss | Beschäftigte in den Wirtschaftszweigen im Juli 2026 |
 | R031 | form:gliederung,merkmal:bundesland | zahl | 2026-07 | - | gruppe=region;muss | Beschäftigte in den Bundesländern im Juli 2026 |
+| T001 | form:anteil | absage | - | - | auch=rueckfrage | Welcher Anteil der Frauen arbeitet im Bau im Juli 2026? |
+| T002 | form:anteil,merkmal:alter | absage | - | - | auch=rueckfrage | Wie viel Prozent der Frauen sind über 50 Jahre alt? Stand Juli 2026 |
+| T003 | form:anteil,merkmal:kategorie | absage | - | - | auch=rueckfrage | Wie viel Prozent der Frauen haben einen freien Dienstvertrag? Stand Juli 2026 |
+| T004 | form:zwei_werte,merkmal:bundesland | zahl | 2026-07 | - | werte_je=region:9,7;muss | Beschäftigte in den Bundesländern Wien und Tirol im Juli 2026 |
+| T005 | form:gliederung,merkmal:branche | zahl | 2026-07 | - | gruppe=oenace;muss | Beschäftigte aufgeteilt auf ÖNACE-Abschnitte im Juli 2026 |
+| T006 | form:gliederung,merkmal:bundesland | zahl | 2026-07 | - | gruppe=region;muss | Beschäftigte aufgeteilt auf Bundesland im Juli 2026 |
+| T007 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte im März-25. |
+| T008 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte Q1-25. |
+| T009 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte 03.25. |
+| T010 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte am 31.03.25. |
+| T011 | zeit:stichtag | zahl | 2025-03 | - | muss | Beschäftigte am 31.03.2025 |
+| T012 | form:anteil | zahl | 2026-07 | region=9 | art=anteil;anteil=geschlecht:W;muss | Wie viel % der Beschäftigten in Wien sind Frauen? Stand Juli 2026 |
+| T013 | form:anteil | absage | - | - | auch=rueckfrage | Wie viel % der Frauen arbeiten im Bau im Juli 2026? |
+| T014 | form:anteil,form:gliederung | absage | - | - | auch=rueckfrage | Frauenanteil je Branche im Juli 2026 |
+| T015 | form:gliederung | absage | - | - | auch=rueckfrage | Männer und Frauen je Branche im Juli 2026 |
+| T016 | form:fluktuation | rueckfrage | - | - | auch=absage | Fluktuation gegenüber dem Vormonat |
+| T017 | merkmal:branche,merkmal:kategorie | zahl | 2025-11 | branche=Verkehr und Lagerei;kategorie=Angestellte | muss | Wie viele Angestellte gab es im November 2025 im Verkehr und in der Lagerei? |

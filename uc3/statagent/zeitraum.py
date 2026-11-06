@@ -187,7 +187,7 @@ KEIN_JAHR = re.compile(
 _KURZES_JAHR = re.compile(
     rf"(?<![\w/.-])(?:(?:{_MW}|frühlings?|frühjahrs?|sommers?|herbst(?:es|s)?|winters?|q[1-4])\.?\s*[/ -]\s*\d{{2}}"
     rf"(?:\s*/\s*\d{{2}})?|\d{{1,2}}/\d{{2}}|\d{{1,2}}\.\d{{2}}|\d{{1,2}}\.\d{{1,2}}\.\d{{2}})"
-    rf"(?![\w/.]|\s*(?:jahre|jahren)\b)",
+    rf"(?![\w/]|\.\s?\d|\s*(?:jahre|jahren)\b)",
     re.IGNORECASE,
 )
 _MONAT_SCHRAEG = re.compile(rf"(?<!\w)({_MW})\.?\s*/\s*(?=(?:{_MW})(?!\w))", re.IGNORECASE)

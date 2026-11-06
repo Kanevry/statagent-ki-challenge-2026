@@ -327,3 +327,68 @@ def test_in_den_wirtschaftszweigen_ist_eine_gliederung(zwei_monate: Verbindung) 
     assert (
         len(uc4_antwort(zwei_monate, "Beschäftigte in den Wirtschaftszweigen im August 2024")["zahlen"]) > 1
     )
+
+
+# Fängt (Prüfung !242, Runde 3): falsche Richtung beim Anteil, Prozentzeichen, kurze Jahre mit Satzpunkt.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Welcher Anteil der Frauen arbeitet im August 2024 im Bau?",
+        "Wie viel Prozent der Frauen sind über 50 Jahre alt? Stand August 2024",
+        "Wie viel Prozent der Frauen haben einen freien Dienstvertrag? Stand August 2024",
+        "Wie viel % der Frauen arbeiten im August 2024 im Bau?",
+        "Beschäftigte im März-25.",
+        "Beschäftigte Q1-25.",
+        "Beschäftigte 03.25.",
+        "Beschäftigte am 31.03.25.",
+        "Frauenanteil je Branche im August 2024",
+        "Männer und Frauen je Branche im August 2024",
+    ],
+)
+def test_runde_drei_ohne_zahl(zwei_monate: Verbindung, frage: str) -> None:
+    assert uc4_antwort(zwei_monate, frage)["zahlen"] == []
+
+
+def test_prozentzeichen_liest_den_anteil(zwei_monate: Verbindung) -> None:
+    daten = uc4_antwort(zwei_monate, "Wie viel % der Beschäftigten in Wien sind Frauen? Stand August 2024")
+    assert daten["text"].startswith("Anteil an allen (Wien) im August 2024: ")
+
+
+def test_fluktuation_gegenueber_vormonat_fragt_nach_fluktuation(zwei_monate: Verbindung) -> None:
+    daten = antwort_frage(zwei_monate, "Fluktuation gegenüber dem Vormonat")
+    assert daten["zahlen"] == [] and "Fluktuation" in daten["text"]
+
+
+# Fängt (Prüfung !242, Runde 3): Zwei genannte Bundesländer galten als „in den Bundesländern“ und gaben die Tabelle.
+def test_in_den_bundeslaendern_mit_namen_ist_kein_aufteilen(zwei_monate: Verbindung) -> None:
+    daten = uc4_antwort(zwei_monate, "Beschäftigte in den Bundesländern Wien und Tirol im August 2024")
+    assert len(daten["zahlen"]) == 3
+
+
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte aufgeteilt auf ÖNACE-Abschnitte im August 2024",
+        "Beschäftigte aufgeteilt auf Bundesland im August 2024",
+    ],
+)
+def test_aufgeteilt_auf_ist_eine_gliederung(zwei_monate: Verbindung, frage: str) -> None:
+    assert len(uc4_antwort(zwei_monate, frage)["zahlen"]) > 1
+
+
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Männer und Frauen je Bundesland im August 2024",
+        "Beschäftigte am 31.08.2024",
+        "Gab es im August 2024 über 20.000 Beschäftigte in Wien?",
+    ],
+)
+def test_runde_drei_gegenfaelle_behalten_die_zahl(zwei_monate: Verbindung, frage: str) -> None:
+    assert uc4_antwort(zwei_monate, frage)["zahlen"]
+
+
+def test_lagerei_gehoert_zum_verkehr(zwei_monate: Verbindung) -> None:
+    mit = uc4_antwort(zwei_monate, "Beschäftigte im Verkehr und in der Lagerei im August 2024")
+    ohne = uc4_antwort(zwei_monate, "Beschäftigte im Verkehr im August 2024")
+    assert [z["wert"] for z in mit["zahlen"]] == [z["wert"] for z in ohne["zahlen"]]

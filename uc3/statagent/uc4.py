@@ -156,6 +156,9 @@ _GLIEDERUNG_MEHRZAHL = {
 }
 
 
+_NACH_MEHRZAHL = r"(?:im|in|am|von|vom|bis|seit|nach|zum|zur|für|und|oder|jeweils|insgesamt)\b"
+#: „aufgeteilt auf Bundesland“: Das Verb macht aus „auf“ eine Aufteilung, „bezogen auf das Bundesland Wien“ bleibt Filter.
+_AUFGETEILT_AUF = r"(?:aufgeteilt|verteilt|aufgeschlüsselt|aufgegliedert)\s+auf\s+(?:\w+\s+)?"
 #: „in den Wirtschaftszweigen“ fragt je Gruppe; die Gesamtzahl wäre eine andere Antwort.
 _GLIEDERUNG_IN_DEN = {
     "Bundesland": "bundesländern|bundeslaendern",
@@ -169,11 +172,16 @@ def _gliederung(frage: str) -> Merkmal | None:
         if any(re.search(rf"(?<!\w)(?:nach|je|pro)\s+(?:\w+\s+)?{w}", text) for w in merkmal.gliederung):
             return merkmal
     for merkmal in MERKMALE:
+        if any(re.search(rf"(?<!\w){_AUFGETEILT_AUF}{w}", text) for w in merkmal.gliederung):
+            return merkmal
         mehrzahl = _GLIEDERUNG_MEHRZAHL.get(merkmal.name)
         if mehrzahl and re.search(rf"(?<!\w)auf\s+(?:die\s+|alle\s+)?(?:{mehrzahl})(?!\w)", text):
             return merkmal
         wem = _GLIEDERUNG_IN_DEN.get(merkmal.name)
-        if wem and re.search(rf"(?<!\w)in\s+(?:den|allen)\s+(?:{wem})(?!\w)", text):
+        # Nur ohne Namen danach: „in den Bundesländern Wien und Tirol“ meint diese beiden.
+        if wem and re.search(
+            rf"(?<!\w)in\s+(?:den|allen)\s+(?:{wem})(?!\w)(?!\s+(?!{_NACH_MEHRZAHL})\w)", text
+        ):
             return merkmal
     return None
 

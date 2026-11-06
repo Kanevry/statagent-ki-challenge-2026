@@ -268,7 +268,7 @@ BRANCHEN: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
         re.compile(r"\b(it|it-branche|informatik|software|informationstechnologie)\b"),
         ("Telekommunikation, Softwareentwicklung", "Information und Kommunikation"),
     ),
-    (re.compile(r"\b(verkehr|transport|logistik)\b"), ("Verkehr",)),
+    (re.compile(r"\b(verkehr|transport|logistik|lagerei)\b"), ("Verkehr",)),
     (re.compile(r"\b(bildung|bildungswesen|schulen?|unterricht|erziehung)\b"), ("Erziehung",)),
     (re.compile(r"\b(öffentliche[nr]? verwaltung|verwaltung|behörden?)\b"), ("Öffentliche Verwaltung",)),
     (
@@ -312,7 +312,8 @@ _ZEITBEZUG = re.compile(
 #: Gilt mit einem weiteren Merkmal; „Prozent der Beschäftigten in Wien sind Frauen“ ist der Männer- und Frauenanteil.
 _PROZENT_VON_GRUPPE = re.compile(
     r"\bprozent\s+(?:der|aller|von\s+den)\s+(?:frauen|männer|männern|maenner|maennern)\b"
-    r"|\banteil\s+(?:der|aller)\s+(?:frauen|männer|maenner)\s*,?\s+die\b",
+    r"|\banteil\s+(?:der|aller)\s+(?:frauen|männer|maenner)\s*,?\s+die\b"
+    r"|\banteil\s+(?:der|aller)\s+(?:frauen|männer|maenner)\s+(?:arbeite\w*|(?:ist|war|sind|waren)\s+(?:in|im|bei)\b)",
     re.IGNORECASE,
 )
 #: „nur einen Job“, „genau eine Stelle“: Das fragt nach Personen, gezählt werden Verhältnisse.
@@ -383,12 +384,13 @@ _ALLTAG: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bstmk\b\.?", re.IGNORECASE), "Steiermark"),
 )
 #: „Wie viel Prozent … sind Frauen“ fragt nach dem Anteil, nicht nach der Menge.
+_PROZENTZEICHEN = re.compile(r"\s*%")
 _PROZENT_ANTEIL = re.compile(r"\b(?:wie\s*viel(?:e)?\s+)?prozent\b", re.IGNORECASE)
 
 
 def alltag_lesen(frage: str) -> str:
     """Schreibweisen vereinheitlichen, bevor Zeitraum und Merkmale gelesen werden."""
-    frage = schraegstrich_lesen(frage)
+    frage = schraegstrich_lesen(_PROZENTZEICHEN.sub(" Prozent", frage))
     for muster, ersatz in _ALLTAG:
         frage = muster.sub(ersatz, frage)
     if _PROZENT_ANTEIL.search(frage) and not _FLUKTUATION.search(frage.lower()):
@@ -1047,6 +1049,8 @@ def _weiteres_merkmal(conn: Verbindung, frage: str, letzter: str) -> bool:
     gelesen = _normalisieren(frage, letzter)[0]
     genannt = monate_lesen(gelesen)
     monat = genannt[-1] if genannt else letzter
+    if _alter_lesen(gelesen) is not None or _FREIER_DV.search(gelesen.lower()):
+        return True
     alle = tuple(m for m in MERKMALE if m is not GESCHLECHT)
     return any(_werte(gelesen, m, _codes(conn, m, monat))[0] for m in alle)
 
@@ -1899,6 +1903,7 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     """
     if ist_pensionsfrage(frage) and not _PERSON.search(frage.lower()):
         return _pensionsfrage(conn, frage)
+    frage = _PROZENTZEICHEN.sub(" Prozent", frage)
     prozent_von_gruppe = _PROZENT_VON_GRUPPE.search(frage) is not None
     frage = alltag_lesen(frage)
     try:
@@ -1953,7 +1958,7 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         return _antwort(fragetyp(frage), _KEIN_DATUM, hinweise=[_KEIN_DATUM])
     if _VOR_ZEIT.search(frage) and not monate_lesen(frage) and jahr_ohne_monat(frage) is None:
         # „gegenüber dem Vormonat“ ohne Monat: Eine ganze Reihe wäre eine andere Antwort.
-        return _rueckfrage_monat("bestand", None)
+        return _rueckfrage_monat("fluktuation" if _FLUKTUATION.search(frage.lower()) else "bestand", None)
     if hinweis_tag:
         notizen.insert(0, hinweis_tag)
     typ = fragetyp(frage)
@@ -2026,6 +2031,15 @@ def _antwort_frage(
     monate = monate_lesen(frage)
     jahr = jahr_ohne_monat(frage)
     text = frage.lower()
+    if typ != "fluktuation" and _geschlecht_gegliedert(text):
+        je = _gliederung(frage)
+        erlaubt = (GESCHLECHT,) if typ == "zeitreihe" or "anteil" in text else (GESCHLECHT, BUNDESLAND)
+        if je is not None and je not in erlaubt:
+            # Sonst fiele „je Branche“ still weg, die Antwort gälte für ganz Österreich.
+            raise _KeineZahl(
+                f"Männer und Frauen zusammen mit „je {je.name}“ zeigt StatAgent hier nicht. Bitte einzeln fragen, "
+                f"zum Beispiel „Frauen im Bau im {_monat_anzeige(LETZTE_LIEFERUNG)}“."
+            )
     if "anteil" in text and typ != "fluktuation":
         if not _GESCHLECHT.search(text):
             raise _KeineZahl(
