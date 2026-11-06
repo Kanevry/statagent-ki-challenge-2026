@@ -23,6 +23,7 @@ import {
   probeAendert,
   probeJeKategorie,
   zitatDoppelt,
+  zitatTeile,
   probeTabelleBeleg,
   probeTitel,
   probeWirkungSatz,
@@ -80,6 +81,7 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
   if (!v) notFound();
 
   const kopf = auftragKopf(v.anweisung);
+  const zitat = zitatTeile(auftragsZitat(v.anweisung));
   const klarerSatz = klarerAenderungsSatz(v, bezeichnungen);
   const quelle = kopf.nummer ? `Änderungsauftrag ${kopf.nummer} aus der Aufgabenstellung` : auftraggeber(v);
   const gesagtAm = v.gesagtAm ?? v.erstelltAm;
@@ -105,7 +107,15 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
         <figure className="flex flex-col gap-2">
           {/* Steht der ganze Auftrag schon in der Überschrift, wäre das Zitat derselbe Satz noch einmal. */}
           {!zitatDoppelt(kopf.titel, auftragsZitat(v.anweisung)) && (
-            <blockquote className="font-sans text-20 text-pretty text-ink">{`„${auftragsZitat(v.anweisung)}“`}</blockquote>
+            <blockquote className="font-sans text-20 text-pretty text-ink">{`„${zitat.anfang}${zitat.rest ? "" : "“"}`}</blockquote>
+          )}
+          {zitat.rest && !zitatDoppelt(kopf.titel, auftragsZitat(v.anweisung)) && (
+            <details>
+              <summary className="inline-flex min-h-11 cursor-pointer items-center font-sans text-14 text-slate underline decoration-line underline-offset-4">
+                Ganzer Auftrag
+              </summary>
+              <p className="font-sans text-16 text-pretty text-ink">{`${zitat.rest}“`}</p>
+            </details>
           )}
           <figcaption className="font-sans text-14 text-slate">
             {`${quelle}, `}

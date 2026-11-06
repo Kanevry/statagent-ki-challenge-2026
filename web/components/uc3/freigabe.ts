@@ -370,6 +370,8 @@ function regelNeuSatz(r: Record<string, unknown>, bezeichnungen: Bezeichnungen):
       return `Beschäftigungsverhältnisse im Alter von ${aufzaehlung(spannen)} Jahren zählen nicht mehr.`;
     }
     const werte = p.werte.map((w) => name(String(w)));
+    // Ohne Namen heißt der Wert schon „Abschnitt O“; „mit Branche Abschnitt O“ liest niemand gern.
+    if (werte.every((w) => w.startsWith("Abschnitt "))) return `Beschäftigungsverhältnisse im ${aufzaehlung(werte)} zählen nicht mehr.`;
     return `Beschäftigungsverhältnisse mit ${MERKMAL_WORT[merkmal] ?? merkmal} ${aufzaehlung(werte)} zählen nicht mehr.`;
   }
   if (r.art === "gruppierung" && Array.isArray(p.zuordnung) && p.zuordnung.length > 0) {
@@ -1098,6 +1100,15 @@ export function auftragsZitat(anweisung: string): string {
   const ende = saetze.findIndex((satz) => AN_DEN_AGENTEN.test(satz));
   const fachlich = (ende < 0 ? saetze : saetze.slice(0, ende)).join(" ").trim();
   return alltag(fachlich || anweisung.trim());
+}
+
+const ZITAT_GANZ_BIS = 240;
+
+/** Ein langer Auftrag stünde als Textwand über den Zahlen: oben der erste Satz, der Rest aufklappbar. */
+export function zitatTeile(zitat: string): { anfang: string; rest: string } {
+  if (zitat.length <= ZITAT_GANZ_BIS) return { anfang: zitat, rest: "" };
+  const [anfang = zitat, ...rest] = zitat.split(/(?<![0-9]\.)(?<=[.!?])\s+(?=[A-ZÄÖÜ])/);
+  return { anfang, rest: rest.join(" ") };
 }
 
 /** Wer den Auftrag gegeben hat: Name aus dem Protokoll, sonst die Herkunft „Auftrag N“ der Aufgabenstellung. */
