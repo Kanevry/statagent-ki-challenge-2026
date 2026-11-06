@@ -40,6 +40,7 @@ Technikwissen. Jede Seite ist für eine Lesergruppe geschrieben und verweist fü
 | [docs/sprache.md](../sprache.md) | Ein Wort für eine Sache: die Wortliste für alle Texte. |
 | [docs/entwicklung.md](../entwicklung.md) | Aufbau des Repos, Einrichten und Arbeitsteilung. |
 | [docs/prd/2026-11-05-e0-plattform-e1-uc3.md](../prd/2026-11-05-e0-plattform-e1-uc3.md) | Schnittstellen der Plattform. |
+| [docs/plan/README.md](../plan/README.md) | Planstände und Messprotokolle aus der Challenge, nicht nachgezogen. |
 | [docs/abnahme/README.md](../abnahme/README.md) | Übersicht der Abnahmen mit Prüfablauf und Matrix je Bereich. |
 | [docs/praesentation/](../praesentation/) | [Demo-Drehbuch](../praesentation/demo-drehbuch.md), [Kriterien-Karte](../praesentation/kriterien-karte.md) (Stand je Bewertungsbereich) und [Belegregister](../praesentation/belegregister.md) (Herkunft jeder Zahl der Präsentation). |
 | [docs/betrieb/](../betrieb/) | [Vorführung](../betrieb/vorfuehrung.md) auf eigener Instanz und [Skalierung](../betrieb/skalierung.md) der Online-Demo. |

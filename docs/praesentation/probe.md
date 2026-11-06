@@ -121,12 +121,12 @@ Automatisch auf dem Rechner der Session, nicht am Vortragsrechner. Gemessen wird
 
 ## 5. Probe 2
 
-Der Owner hält sie ab 07:15, voller Vortrag samt Demo. Die Abschnitte oben gehören zu Probe 1.
+Geplant war ein voller Vortrag des Owners samt Demo. Sie fand nicht statt. Die Abschnitte oben gehören zu Probe 1.
 
 | Feld | Wert |
 |---|---|
-| Probe 2 Start (Uhr) | |
-| Probe 2 Ende (Uhr) | |
-| Probe 2 Dauer Pfad A | |
-| Probe 2 Dauer Pfad B | |
-| Probe 2 Befunde | |
+| Probe 2 Start (Uhr) | nicht gehalten |
+| Probe 2 Ende (Uhr) | nicht gehalten |
+| Probe 2 Dauer Pfad A | nicht gemessen, kein Sprecher, keine Stoppuhr |
+| Probe 2 Dauer Pfad B | nicht gemessen, kein Sprecher, keine Stoppuhr |
+| Probe 2 Befunde | Keine Sprechprobe, Owner-Wort 06.11.2026 08:35 („machs pragmatisch“). Stattdessen die Klickwege D1 bis D4 auf dem Endstand der Vorführ-Adresse nachgemessen, 07:44 bis 07:50, ohne Abweichung von der Klickliste: D1 106 s, D2 Vorschlag 2:42, D3 8 bis 16 s, D4 14 s. 26-1 bleibt damit offen, 90-3 bleibt rot |

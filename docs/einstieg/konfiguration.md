@@ -16,6 +16,8 @@ Schlüsselnamen und Erklärungen: `.env.example`. **Werte stehen nie im Repo.** 
 | Ollama | `OLLAMA_BASE_URL`, `OLLAMA_MODEL` |
 | Claude | `CLAUDE_MODEL` (läuft über die Claude-Code-CLI im Abo, kein API-Schlüssel) |
 | Datenbanken | `UC1_DATABASE_URL`, `UC2_DATABASE_URL`, `UC3_DATABASE_URL` |
+| UC1 | `UC1_DATA_DIR` (Ordner mit dem Datenpaket des Veranstalters) |
+| UC2 | `KIC_ABLAGE` (Ablage außerhalb des Repos, Standard `~/Projects/ki-challenge-2026`; `uv run uc2` liest den Wert nur aus der Shell; weitere Pfade in `uc2/README.md`) |
 | UC3 | `STATAGENT_STARTPAKET`, `STATAGENT_ABGABE` (siehe `uc3/README.md`) |
 | UC4 und Online | `UC4_ADAPTER`, `UC4_KETTE` (welche Bereiche auf `/uc4` antworten), `UC4_MODELLWAHL`, `KIC_ONLINE_LESEND`, `KIC_ONLINE_FRAGEN` (Fragen online erlaubt), `KIC_ONLINE` (setzt nur das Prod-Compose) |
 | Grenzen für Modellaufrufe | `LLM_TAGESBUDGET_AUFRUFE` (Aufrufe je Tag, online Pflicht), `RATENLIMIT_PRO_MINUTE` (Fragen je IP und Minute), `PLATTFORM_PROTOKOLL` (Ort des Modellprotokolls, dort wird gezählt) |
