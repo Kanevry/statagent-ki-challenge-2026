@@ -17,7 +17,7 @@ const zeitleiste: readonly AblaufPunkt[] = [
   {
     zeit: "5. Nov., 10:36",
     iso: "2026-11-05T10:36:00+01:00",
-    satz: "Der Hackathon beginnt, alle anderen Projekte ruhen ab jetzt.",
+    satz: "Die Arbeit an der Aufgabe beginnt.",
     quelle: "Lage-Log",
   },
   {
@@ -47,7 +47,7 @@ const zeitleiste: readonly AblaufPunkt[] = [
   {
     zeit: "23:26",
     iso: "2026-11-05T23:26:00+01:00",
-    satz: "Die Generalprobe bricht beim Festschreiben ab, um 23:46 besteht sie nach einer Korrektur.",
+    satz: "Die Generalprobe bricht zuerst ab, um 23:46 besteht sie nach einer Korrektur.",
     quelle: "Lage-Log",
   },
   {
@@ -67,10 +67,9 @@ const zeitleiste: readonly AblaufPunkt[] = [
 export const ABLAUF = {
   titel: "So lief der Hackathon",
   satz: "Am 5. November um 10:36 begann die Arbeit an der Aufgabe, am 6. November um 09:00 ist Abgabe.",
-  /** GitLab-API, 06.11.2026, 06:34 bis 06:38 */
-  zahlen:
-    "Stand 6. November 2026, 06:38: 298 von 323 Änderungen (Merge Requests) sind im Hauptstand, 58 von 202 Aufgaben (Issues) sind erledigt, 144 offen.",
-  standIso: "2026-11-06T06:38:00+01:00",
+  /** GitLab-API, Zähler der Merge Requests (state=merged und state=all), gemessen zum genannten Zeitpunkt */
+  zahlen: "Stand 6. November 2026, 06:45: 303 von 327 Änderungen (Merge Requests) sind im Hauptstand.",
+  standIso: "2026-11-06T06:45:00+01:00",
   ueberschriften: { zeitleiste: "Zeitleiste" },
   zeitleiste,
   abschnitte: [
@@ -80,8 +79,8 @@ export const ABLAUF = {
       saetze: [
         // Lage-Log; Arbeitsweise der Plugins
         "Der Session Orchestrator führt eine einzelne KI-Sitzung: Sie plant ihre Arbeit in Wellen, parallele Agenten schreiben Code und Regeln und prüfen einander.",
-        // 13: Lage-Log 22:54 und 06:31; 87: GitLab, alle Schreibweisen der Züge; 7: Lage-Log bis 06:18
-        "Der Lead Session Orchestrator führt viele Sitzungen zugleich, zeitweise 13: Er bündelt fertige Arbeit zu 87 Zügen, spielt sie ein und übergibt an einen Nachfolger, sobald sein Arbeitsgedächtnis voll ist, bis 06:18 siebenmal.",
+        // 87: GitLab-API, alle Schreibweisen der Züge; 7: Lage-Log bis 06:18
+        "Der Lead Session Orchestrator führt viele Sitzungen zugleich: Er bündelt fertige Arbeit zu Zügen, bis 06:38 waren es 87, spielt sie ein und übergibt an einen Nachfolger, sobald sein Arbeitsgedächtnis voll ist, bis 06:18 siebenmal.",
         "Ein Mensch entscheidet und gibt mit Namen frei, die KI schreibt den Code, gerechnet wird ohne KI.",
       ],
     },
