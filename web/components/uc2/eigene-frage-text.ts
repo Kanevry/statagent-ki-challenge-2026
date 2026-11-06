@@ -43,15 +43,15 @@ function ohneWerkstatt(text: string): string {
 
 function stimmeAus(name: string, inhalt: string): Stimme {
   const grundBei = inhalt.indexOf("Grund: ");
-  const haltung = grundBei >= 0 ? inhalt.slice(0, grundBei).trim() : "";
-  const nachHaltung = grundBei >= 0 ? inhalt.slice(grundBei + 7) : inhalt;
-  const quelle = QUELLE.exec(nachHaltung);
-  const ohneQuelle = OHNE_QUELLE.exec(nachHaltung);
-  const grundEnde = quelle?.index ?? ohneQuelle?.index ?? nachHaltung.length;
+  const quelle = QUELLE.exec(inhalt);
+  const ohneQuelle = OHNE_QUELLE.exec(inhalt);
+  const ende = quelle?.index ?? ohneQuelle?.index ?? inhalt.length;
+  // Ohne „Grund:“ (alle Sätze sind weggefallen) ist der ganze Rest die Haltung, nicht der Grund.
+  const haltung = (grundBei >= 0 ? inhalt.slice(0, grundBei) : inhalt.slice(0, ende)).trim();
   return {
     name,
     haltung,
-    grund: ohneWerkstatt(nachHaltung.slice(0, grundEnde)),
+    grund: grundBei >= 0 ? ohneWerkstatt(inhalt.slice(grundBei + 7, ende)) : "",
     beleg: quelle ? `${quelle[1] === "Beleg" ? "" : "Beispiel, erfunden: "}${quelle[2]!.replace(/\.$/, "")}` : null,
     ohneArtikel: ohneQuelle !== null,
   };

@@ -171,3 +171,25 @@ def test_lange_uebernahme_aus_der_presse_faellt_weg() -> None:
     assert presse not in geschuetzt
     assert allgemein.saetze_ohne_menge(geschuetzt) == ""
     assert adapter._ohne_uebernahme("Wir sind dafür.", [beleg]) == "Wir sind dafür."
+
+
+@pytest.mark.parametrize(
+    "satz",
+    [
+        "Das hat sich verdoppelt.",
+        "Die Kosten doppelt so hoch.",
+        "Das wird halbiert.",
+        "Das ist halb so teuer.",
+        "Das kostet zweimal mehr.",
+        "Das ist dreifach teurer.",
+    ],
+)
+def test_mengenwoerter_fallen_weg(satz: str) -> None:
+    assert allgemein.saetze_ohne_menge(f"Wir sind dafür. {satz}") == "Wir sind dafür."
+
+
+def test_ohne_saetze_steht_kein_leerer_grund(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mit_modelltexten(monkeypatch, "Das hat sich verdoppelt.", "Impfen", "Klare Regeln")
+    text = antwort(FRAGE, [], provider="mock", quelle=FixtureQuelle()).text
+    assert "Grund:" not in text
+    assert "- Ärztekammer: " in text

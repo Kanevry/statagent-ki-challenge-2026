@@ -338,7 +338,9 @@ def frei_absage(frage: str) -> str | None:
 _MENGE = re.compile(
     r"\d|%|\[Zitat\]"
     r"|\b(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|hundert|tausend|prozent|drittel|viertel"
-    r"|hälfte|dutzend|doppelt|million\w*|milliarde\w*)\b"
+    r"|hälfte|dutzend|million\w*|milliarde\w*)\b"
+    r"|\b(?:ver)?doppel\w*|\bhalbier\w*|\bhalb\s+so\b"
+    r"|\b(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn)(?:mal|fach\w*)\b"
     r"|\b(?:drei|vier|fünf|sech|sieb|acht|neun)zehn\b"
     r"|\b(?:\w+und)?(?:zwan|vier|fünf|sech|sieb|acht|neun)zig\b|\b(?:\w+und)?drei(?:ß|ss)ig\b",
     re.IGNORECASE,

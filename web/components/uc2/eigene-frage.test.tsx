@@ -8,6 +8,7 @@ const TEXT = [
   "Wer ist dafür, wer dagegen:",
   "- Ärztekammer: Dafür bei: „Impfen in Apotheken“. Grund: Mehr Hilfe vor Ort. Beleg: Kurier, August 2026.",
   "- Sozialversicherung: Grund: Eine Ergänzung.",
+  "- Pflege: Dafür bei: „Schutz“. Beleg: Kurier, Mai 2026.",
   "- Patient:innenvertretung: Dafür bei: „Schutz“. Grund: Klare Regeln. Beispielbeleg, erfunden: Beispielblatt, Juli 2026.",
   "So stehen die Beteiligten zu den Themen: Impfen in Apotheken: noch strittig; Schutz: alle dafür.",
   "Kurz gesagt: Bei diesem Thema sind sich alle einig.",
@@ -29,7 +30,8 @@ it("gliedert Stimmen, Quelle, Kurzfassung und Bedingungen; Unbekanntes bleibt st
   expect(g.themen).toEqual([{ thema: "Impfen in Apotheken", stand: "noch strittig" }, { thema: "Schutz", stand: "alle dafür" }]);
   expect(g.stimmen[0]).toEqual({ name: "Ärztekammer", haltung: "Dafür bei: „Impfen in Apotheken“.", grund: "Mehr Hilfe vor Ort.", beleg: "Kurier, August 2026", ohneArtikel: false });
   expect(g.stimmen[1]).toEqual({ name: "Sozialversicherung", haltung: "", grund: "Eine Ergänzung.", beleg: null, ohneArtikel: false });
-  expect(g.stimmen[2]?.beleg).toBe("Beispiel, erfunden: Beispielblatt, Juli 2026");
+  expect(g.stimmen[2]).toEqual({ name: "Pflege", haltung: "Dafür bei: „Schutz“.", grund: "", beleg: "Kurier, Mai 2026", ohneArtikel: false });
+  expect(g.stimmen[3]?.beleg).toBe("Beispiel, erfunden: Beispielblatt, Juli 2026");
   expect(g.bedingungen).toHaveLength(2);
   expect(g.rest).toEqual(["Zu dieser Frage gibt es kein Rechenmodell, deshalb stehen hier keine berechneten Zahlen."]);
 });

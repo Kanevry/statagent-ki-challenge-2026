@@ -309,7 +309,8 @@ def _akteur_zeile(
     zeile = f"- {akteur.name}: {' '.join(teile)}"
     if themen:
         grund = _namen_statt_ids(positionen[themen[0]].begruendung, akteure)
-        zeile += f" Grund: {grund}"
+        if grund:
+            zeile += f" Grund: {grund}"
     # Belege: nur IDs, die der Akteur zitiert hat und die ihm die Belegquelle gegeben hat.
     erlaubt = ergebnis.belege.get(akteur.id, {})
     zitiert: list[PresseBeleg] = []
