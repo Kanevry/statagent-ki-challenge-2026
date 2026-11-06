@@ -14,6 +14,7 @@ Technikwissen. Jede Seite ist für eine Lesergruppe geschrieben und verweist fü
 | [zahlen.md](zahlen.md) | alle, die Zahlen nachprüfen wollen | woher jede Zahl kommt und wie man sie nachrechnet | zum Nachschlagen |
 | [arbeitsweise-agentisch.md](arbeitsweise-agentisch.md) | alle, die selbst mit KI-Agenten arbeiten wollen | wie das Team mit KI-Agenten gearbeitet hat, die Code schreiben, und was dabei schiefging | etwa 8 Minuten |
 | [use-cases-stand.md](use-cases-stand.md) | alle | was der Veranstalter verlangt hat, was in UC1 bis UC4 nachweislich läuft und was fehlt | etwa 10 Minuten |
+| [aufgaben-stand.md](aufgaben-stand.md) | alle, die den offenen Rest sehen wollen | welche Aufgaben erledigt und welche offen sind, mit Nummer, Titel und Labels | zum Nachschlagen |
 
 ## Empfohlene Reihenfolge
 
