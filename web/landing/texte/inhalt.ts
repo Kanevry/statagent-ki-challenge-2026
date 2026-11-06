@@ -117,6 +117,8 @@ export const DEMO_HINWEIS = {
     "Zahlen, Qualitätsberichte, Freigaben und Protokoll bleiben sichtbar, denn gerechnet wird ohne KI.",
     "Die Demo ist bis 6. Dezember 2026 online.",
   ],
+  /** Kurzfassung für das Band auf schmalen Bildschirmen (eine Zeile, damit der erste Bildschirm frei bleibt). */
+  kurz: "Die KI-Zugänge enden in den nächsten Tagen. Gerechnet wird ohne KI.",
   code: { href: "https://github.com/Kanevry/statagent-ki-challenge-2026", text: "Code auf GitHub" },
 } as const;
 
