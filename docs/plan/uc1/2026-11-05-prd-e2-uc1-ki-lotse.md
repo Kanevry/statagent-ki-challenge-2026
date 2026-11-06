@@ -45,7 +45,7 @@ Quelle. Der Voice-Baustein dient zugleich UC3 („mit den Daten sprechen“).
 | everlast-Messwerte | `everlast-voice-interviewer/bench/results/costs-2026-10-28.json`, Antwort 04 | Pause Median 1394 ms (p90 1819 ms), 0,078–0,086 USD/min; Messung vor Anhebung `waitSeconds` 0,3 → 0,6; `hypothesis`: heute ca. +0,3 s | 2026-10-28 |
 | everlast ohne Text-Fallback | Lesen `web/src/main.ts` | keine Texteingabe, nur Fehlermeldungen und Transkript | 2026-11-05 |
 | Vapi-Schlüssel vorhanden | `grep -c '^VAPI_API_KEY=' app/.env.local` (je Name, ohne Wert) | VAPI_API_KEY 1, VAPI_PUBLIC_KEY 1, AZURE_API_KEY 1; **VAPI_WEBHOOK_SECRET 0, PUBLIC_URL 0, LLM_PROVIDER 0** | 2026-11-05 |
-| Owner gibt everlast-Code frei | Nachricht lead-session-orchestrator-09 an e2-uc1-4b, Owner-Wort 12:4x („mit vapi api key etc und bereits geilen ui elementen … für unsere apps nutzen“) | Übernahme erlaubt, im README als „vorab entstanden“ | 2026-11-05 |
+| Owner gibt everlast-Code frei | Nachricht des Leads an den UC1-Bereich, Owner-Wort 12:4x („mit vapi api key etc und bereits geilen ui elementen … für unsere apps nutzen“) | Übernahme erlaubt, im README als „vorab entstanden“ | 2026-11-05 |
 
 ## 2. Solution & Scope
 
@@ -62,9 +62,9 @@ Quelle. Der Voice-Baustein dient zugleich UC3 („mit den Daten sprechen“).
 - [ ] **Dokument-Upload:** Entlassungsbrief (PDF) lokal lesen, nur ausdrücklich dokumentierte Empfehlungen wörtlich
   zitieren („In Ihrem Dokument steht: …“) und in einen Ablauf überführen (Reha → Stelle → Antrag).
 - [ ] **Voice-Anbindung UC1** an den gemeinsamen Baustein von E0 (`plattform.voice.erstelle_router(antwort)`,
-  `@kic/ui` `VoiceKnopf`; Entscheid app-c3 in #21 note_269372) auf Basis everlast (Owner-Freigabe 12:4x über Lead):
+  `@kic/ui` `VoiceKnopf`; Entscheid der Plattform in #21 note_269372) auf Basis everlast (Owner-Freigabe 12:4x über Lead):
   UC1-Antwortfunktion, Vapi-Assistent UC1, Belege je Call, Bindung Call → Sitzung, Text-Fallback.
-- [ ] **UC1-Seite im Dashboard** nach den Pen-Frames der UI-Session (e5-praesentation-05), mit E0-Bausteinen aus `shared/ui`.
+- [ ] **UC1-Seite im Dashboard** nach den Pen-Frames der UI-Sitzung, mit E0-Bausteinen aus `shared/ui`.
 - [ ] **Messung:** Lotse-Set (12 Fragen aus dem Golden Set, 2 Szenarien, 8 Grenzfälle) mit Soll je Fall, eingefroren
   vor dem ersten `kern.py`-Commit, `lotse eval`, Ergebnis als Tabelle in `docs/plan/uc1/messung.md`. Honorarordnungen
   und EKO werden nur eingelesen, nicht gemessen.
@@ -235,9 +235,9 @@ Oracle: Playwright-Durchlauf mit Screenshots; axe ohne critical/serious; Verglei
 | Criterion | Oracle | Owner | Not before | Pass condition | Fallback if it cannot run |
 |---|---|---|---|---|---|
 | A1 · E (Stimme) + B (Pflege-Szenario) live | Owner spricht das Szenario am Demo-Rechner im Veranstaltungs-WLAN; Antwortzeit-Uhr und Vapi-Call-Log | Bernhard Götzendorfer | 2026-11-05 (nach E) | Szenario komplett, ≥ 1 Quelle je Antwort sichtbar, Median ≤ 2,0 s | Text-Pfad vorführen plus Aufzeichnung des Laufs |
-| A2 · B (Grenzen, Zitate), C (Pflichtfelder) | Frische Prüf-Session des Leads sieht alle 8 Grenzfälle plus 2 Pflege-Antworten aus `lotse eval` mit den zitierten Abschnitten (nicht die Verbotsliste) und die Pflichtfeldlisten gegen die gedruckten Formulare | lead-session-orchestrator-09 | 2026-11-05 (nach B) | 0 Diagnosen oder Empfehlungen, ≥ 9/10 Aussagen von der Quelle gedeckt, 0 falsche Träger, Pflichtfeldliste ohne Lücke | Befunde als Issue, Fälle aus der Demo nehmen |
-| A4 · A, B (Held-out) | Lead schreibt vor dem ersten `kern.py`-Commit 10 Paraphrasen (u. a. Fall 7 „75 h“, SVS- und BVAEB-Pensionistin) und 8 eigene Grenzfragen (EN, Injection), friert sie außerhalb des Bau-Worktrees ein und lässt `lotse eval` darüber laufen | lead-session-orchestrator-09 | 2026-11-05 (vor B) | Recall@5 ≥ 8/10, Träger 10/10, Grenzen 8/8 | Nur eingefrorenes Lotse-Set, Ergebnis als „nicht held-out“ kennzeichnen |
-| A3 · F (Pen-Treue) | UI-Session vergleicht Screenshots mit den Pen-Frames | e5-praesentation-05 | 2026-11-06 (nach F) | Aufbau und Reihenfolge wie Frames, keine eigene Gestaltung | Abweichungsliste, Demo mit Text-Pfad |
+| A2 · B (Grenzen, Zitate), C (Pflichtfelder) | Frische Prüf-Session des Leads sieht alle 8 Grenzfälle plus 2 Pflege-Antworten aus `lotse eval` mit den zitierten Abschnitten (nicht die Verbotsliste) und die Pflichtfeldlisten gegen die gedruckten Formulare | Lead | 2026-11-05 (nach B) | 0 Diagnosen oder Empfehlungen, ≥ 9/10 Aussagen von der Quelle gedeckt, 0 falsche Träger, Pflichtfeldliste ohne Lücke | Befunde als Issue, Fälle aus der Demo nehmen |
+| A4 · A, B (Held-out) | Lead schreibt vor dem ersten `kern.py`-Commit 10 Paraphrasen (u. a. Fall 7 „75 h“, SVS- und BVAEB-Pensionistin) und 8 eigene Grenzfragen (EN, Injection), friert sie außerhalb des Bau-Worktrees ein und lässt `lotse eval` darüber laufen | Lead | 2026-11-05 (vor B) | Recall@5 ≥ 8/10, Träger 10/10, Grenzen 8/8 | Nur eingefrorenes Lotse-Set, Ergebnis als „nicht held-out“ kennzeichnen |
+| A3 · F (Pen-Treue) | UI-Session vergleicht Screenshots mit den Pen-Frames | Präsentation | 2026-11-06 (nach F) | Aufbau und Reihenfolge wie Frames, keine eigene Gestaltung | Abweichungsliste, Demo mit Text-Pfad |
 
 ## 4. Technical Notes
 
@@ -318,7 +318,7 @@ und `/vapi/webhook` erreichbar (Middleware nach Host/CF-Header), alles andere 40
 
 ### Dependencies
 - #21 E0 Plattform: `shared/`-Modell-Schalter, Header-Wechsel, `shared/ui` (Herkunft-Chip, Freigabe-Karte, Modell-Badge), Route. Offen.
-- Pen-Frames UC1 (e5-praesentation-05): IDs kommen als Kommentar in #23. Offen.
+- Pen-Frames UC1 (Präsentation): IDs kommen als Kommentar in #23. Offen.
 - #25 E4 Daten: Web-Quellen, nur falls später ergänzt. Nicht blockierend.
 - #27 E6 Abgabe: Repo-Lizenz, README-Abschnitte „vorab entstanden“ und Grenzen.
 - `app/.env.local`: VAPI_API_KEY, VAPI_PUBLIC_KEY, AZURE_API_KEY vorhanden (gezählt, ohne Wert); VAPI_WEBHOOK_SECRET, PUBLIC_URL, LLM_PROVIDER fehlen dort und in `.env.example` (Namen ergänzt W0).

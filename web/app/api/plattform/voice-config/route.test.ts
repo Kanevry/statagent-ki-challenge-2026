@@ -31,7 +31,7 @@ describe("GET /api/plattform/voice-config", () => {
     expect(antwort.headers.get("cache-control")).toBe("no-store");
   });
 
-  // Fängt ab (Geld, Lead a7): ausgeschaltet lieferte die Route den öffentlichen Schlüssel trotzdem aus.
+  // Fängt ab (Geld, Lead): ausgeschaltet lieferte die Route den öffentlichen Schlüssel trotzdem aus.
   it("ist ohne PUBLIC_URL nicht aktiv und liefert weder Schlüssel noch Assistent", async () => {
     vi.stubEnv("VAPI_PUBLIC_KEY", "pk-oeffentlich");
     vi.stubEnv("VAPI_ASSISTANT_ID", "asst-1");

@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 
 AUSSCHNITT_ZEICHEN = 200
 ZITAT_ZEICHEN = 300
-"""Höchstlänge des Belegzitats für Anzeige und API (Entscheid Lead 58, Owner-Klick #8705): online gehen je
+"""Höchstlänge des Belegzitats für Anzeige und API (Entscheid Lead, Owner-Klick #8705): online gehen je
 Beleg nur Zitat, Medium, Datum, Titel und PDF-Seite hinaus, nie der ganze Artikel. Die Jury braucht den
 belegten Satz mit Quelle, und der APA-Kopf des Pressespiegels lautet „persönliche Information“."""
 _SATZENDE = re.compile(r"(?<=[.!?…])\s+")
@@ -442,7 +442,7 @@ class Beleg:
     - `titel` maskiert; `text_modell` maskiert mit Zitaten (für das Modell, nur über `als_datenblock`);
       `text_anzeige` maskiert, direkte Zitate als „[Zitat]“ (nur lokal, `als_dict(mit_text=True)`);
     - `zitat` (belegter Satz, höchstens `ZITAT_ZEICHEN` Zeichen) und `pdf_seite`: online gehen nur Zitatfelder
-      hinaus, nie ein ganzer Abschnitt (Entscheid Lead 58, Owner-Klick #8705; `als_dict()` ohne Argument);
+      hinaus, nie ein ganzer Abschnitt (Entscheid Lead, Owner-Klick #8705; `als_dict()` ohne Argument);
     - Rangteile: `rang = relevanz · gewicht_alter · faktor_institution`, dazu `ts`, `cos`,
       `rang_volltext`, `rang_vektor` (RRF-Eingänge) zum Nachrechnen mit `tests/pruefe_rang.py`.
     """

@@ -60,4 +60,4 @@ Nicht geprobt, kann klappen: ÖNACE-Abschnitte oder Geschlecht zusammenlegen.
 - `/uc3/freigaben` zeigt eine Rücknahme einer neuen Regel noch falsch („Keine Regeländerung hinterlegt.“, #168). Rücknahme darum im Terminal zeigen, bis #168 gemergt ist.
 - Sheet und Qualitätsbericht für einen Regelsatz mit Ausschluss oder Gruppierung: #169. Live nur die Probe zeigen, kein Sheet erzeugen.
 - Ein ÖNACE-Buchstabe kann vor und ab 01/2025 etwas anderes bedeuten (O: 2008 Öffentliche Verwaltung, 2025 sonstige wirtschaftliche Dienstleistungen). Die Probe zeigt einen einzelnen Monat; über die Zeitreihe ist das eine Falle (#169).
-- Auf einer frisch aufgesetzten DB ist die Live-Änderung nicht geprobt; ui-regie-36 misst das nach dem Merge.
+- Auf einer frisch aufgesetzten DB ist die Live-Änderung nicht geprobt; die Sichtprüfung misst das nach dem Merge.

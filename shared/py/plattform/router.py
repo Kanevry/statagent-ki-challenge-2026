@@ -65,7 +65,7 @@ _REGISTRY: dict[str, Adapter] = {}
 
 #: Ereignis des Stroms (``frage --strom``), eine JSON-Zeile je Ereignis.
 Melden = Callable[[dict[str, Any]], None]
-#: Pause je Station im Mock-Strom, damit die Seite das Nacheinander auch ohne Modell zeigt (ui-regie-32).
+#: Pause je Station im Mock-Strom, damit die Seite das Nacheinander auch ohne Modell zeigt (Sichtprüfung).
 MOCK_PAUSE_S = 1.2
 #: Höchstlänge von ``kern`` im Ereignis ``antwort``.
 KERN_ZEICHEN = 140

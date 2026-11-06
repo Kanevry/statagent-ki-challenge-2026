@@ -14,7 +14,7 @@ ORDER BY lieferung, (ergebnis_status = 'endgueltig') DESC, id DESC`;
 
 /**
  * SQL-Ausdruck für den Lauf, dessen Prüftreffer und Regelwirkung gelten (Revisionen nie: die kommen aus dem jüngsten
- * Lauf, wie § 5 des Generators). Gleiche Bedingung wie `_veroeffentlichender_lauf` in qualitaetsbericht.py (b-uc3-84,
+ * Lauf, wie § 5 des Generators). Gleiche Bedingung wie `_veroeffentlichender_lauf` in qualitaetsbericht.py (UC3,
  * 05.11.2026, Review !50): der erste Lauf mit Freigabe (freigegeben_von) auf Lieferung, Regelsatz und Regelstand des
  * maßgeblichen Laufs; ohne Freigabe (z. B. März und Oktober 2025, alles in v2) der maßgebliche Lauf selbst. Die
  * frühere Fassung nahm den letzten „fertig“-Lauf vor der Freigabe (49–72) und zeigte damit andere Treffer als der

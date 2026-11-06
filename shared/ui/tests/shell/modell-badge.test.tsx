@@ -147,7 +147,7 @@ describe("ModellBadge nach Frames CKCV4 und nas8Y", () => {
   });
 });
 
-// Fängt ab (Lead 58, UC2-Sichtprüfung): Die Seite läuft im Testbetrieb, der Header zeigt aber die globale
+// Fängt ab (Lead, UC2-Sichtprüfung): Die Seite läuft im Testbetrieb, der Header zeigt aber die globale
 // Einstellung „azure · gpt-5“. Die Seite meldet ihr Modell über SeitenModell; beim Verlassen gilt wieder global.
 describe("Modell der Seite", () => {
   it("SeitenModell mock schlägt die globale Angabe, nach dem Verlassen gilt sie wieder", async () => {

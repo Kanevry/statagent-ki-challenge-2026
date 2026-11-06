@@ -226,7 +226,7 @@ describe("standardAusfuehren", () => {
   });
 });
 
-// Fängt ab (Modellwahl auf /uc4, Lead c0): das gewählte Modell kommt nicht beim Router an, ein beliebiger Wert
+// Fängt ab (Modellwahl auf /uc4, Lead): das gewählte Modell kommt nicht beim Router an, ein beliebiger Wert
 // gelangt als LLM_PROVIDER in den Subprozess, oder ohne Wahl wird die Einstellung der App überschrieben.
 describe("POST /api/uc4/frage, Modellwahl", () => {
   const optionen = (ausfuehren: Ausfuehren): FrageOptionen => ({ ausfuehren, umgebung: {}, wurzel: () => "/repo", ratenlimit: offen });
@@ -281,7 +281,7 @@ describe("POST /api/uc4/frage, Modellwahl", () => {
   });
 });
 
-// Online-Demo Stufe A (Lead c0, 05.11.): Fragen offen, aber ohne Modell, nur UC3. Fängt ab: Fragen bleiben trotz
+// Online-Demo Stufe A (Lead, 05.11.): Fragen offen, aber ohne Modell, nur UC3. Fängt ab: Fragen bleiben trotz
 // KIC_ONLINE_FRAGEN gesperrt, UC2/UC1 laufen online mit Mock-Texten mit, „Testbetrieb“ ersetzt die echte UC3-Zahl
 // durch die Mock-Zahl, ein Tippfehler in UC4_KETTE öffnet die volle Kette mit Modellaufrufen.
 describe("POST /api/uc4/frage, Online-Stufe A", () => {
@@ -350,7 +350,7 @@ describe("POST /api/uc4/frage, Online-Stufe A", () => {
   });
 });
 
-// Stationen-Strom (ui-regie-32): Fängt ab: Strom ohne Accept-Header, Status vor der ersten Zeile falsch, eine
+// Stationen-Strom (Sichtprüfung): Fängt ab: Strom ohne Accept-Header, Status vor der ersten Zeile falsch, eine
 // kaputte Zeile, die ungeprüft an die Seite geht, ein Abbruch ohne Schlusszeile, ein Slot, der nach dem Strom oder
 // nach einem Abbruch des Clients belegt bleibt, und ein erschöpftes Budget als 200.
 describe("POST /api/uc4/frage, Strom der Stationen", () => {

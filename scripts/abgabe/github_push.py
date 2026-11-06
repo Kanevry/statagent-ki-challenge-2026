@@ -39,7 +39,7 @@ ZIEL_BRANCH = "main"
 WIEN = ZoneInfo("Europe/Vienna")
 # Owner: GitHub-Push erst kurz vor 09:00 am Abgabetag.
 NICHT_VOR = "2026-11-06T08:30"
-# Entscheid Lead a7 (#92, 05.11.): Historie bleibt unverändert; bekannte Treffer in Commit-Nachrichten.
+# Entscheid Lead (#92, 05.11.): Historie bleibt unverändert; bekannte Treffer in Commit-Nachrichten.
 ERLAUBTE_COMMIT_TREFFER = 12
 # GitHub lehnt Dateien über 100 MB ab, warnt ab 50 MB.
 GROESSE_GRENZE = 50 * 1024 * 1024

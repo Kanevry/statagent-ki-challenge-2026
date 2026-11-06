@@ -90,4 +90,4 @@ Klassifikationen und Regeln sind ein ruhiger Link „Regeln und Klassifikationen
 - zuletzt. Erster Eindruck oben ruhig; die lange Scroll-Strecke wird nach UC3 geprüft.
 
 ## Präsentation /praesentation (!80)
-- passt nach vier Änderungen (an e5-szenen-45): Szene 3 Oktober gelb statt grünes Häkchen, Szene 4 Screenshot durch großen Freigabe-Baustein ersetzen, Szene 5 in zwei Takte teilen, Szene 8 Satz zu 576 umschreiben.
+- passt nach vier Änderungen (an die Präsentation): Szene 3 Oktober gelb statt grünes Häkchen, Szene 4 Screenshot durch großen Freigabe-Baustein ersetzen, Szene 5 in zwei Takte teilen, Szene 8 Satz zu 576 umschreiben.

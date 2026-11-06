@@ -239,7 +239,7 @@ def _nicht_unempfindlicher(v: Vorschlag) -> bool:
     return True
 
 
-#: Zusatz (nur mit --auftraege): Stellen, die die zehn Aufträge nicht abdecken. Stichprobe 20:5x, Review 9b.
+#: Zusatz (nur mit --auftraege): Stellen, die die zehn Aufträge nicht abdecken. Stichprobe 20:5x, Review.
 ZUSATZ: tuple[Auftrag, ...] = (
     Auftrag(
         "N_angehalten_10_prozent",
@@ -276,7 +276,7 @@ def _git_kopf(repo: Path) -> str:
 
 def _stand(conn: Verbindung, regelsatz: str, monat: str) -> str:
     """Regelstand plus Parameter der Prüfregeln: Der Regelstand allein lässt Prüfregeln aus, Auftrag J könnte sonst
-    bei den Hash-Prüfungen nie durchfallen (Review 29)."""
+    bei den Hash-Prüfungen nie durchfallen (Review)."""
     regeln = regeln_laden(conn, regelsatz, monat)
     pruefregeln = sorted(
         (r.name, json.dumps(r.parameter, sort_keys=True)) for r in regeln if r.typ == "pruefung"
@@ -490,7 +490,7 @@ def main() -> int:
         )
         return 2
     conn = verbinden(url) if url else verbinden()
-    # Gefragt wird die Datenbank selbst: die URL kann den Namen auch als dbname=… tragen (Review 9b).
+    # Gefragt wird die Datenbank selbst: die URL kann den Namen auch als dbname=… tragen (Review).
     datenbank = conn.execute("SELECT current_database() AS d").fetchone()
     if datenbank is None or datenbank["d"] == "statistik":
         conn.close()

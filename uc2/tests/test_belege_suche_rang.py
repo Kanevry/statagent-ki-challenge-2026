@@ -133,7 +133,7 @@ def test_institutionsfaktor_letzter_faktor_und_belege_maskiert(
     assert (lauf["modus"], lauf["institution"]) == ("hybrid", "aerztekammer")
     assert pruefe_rang.main([str(pfad), "--db", "healthpolicy_test"]) == 0
 
-    # Online-Grenze (Entscheid Lead 58): nur Zitatfelder, kein ganzer Abschnitt, in API und CLI
+    # Online-Grenze (Entscheid Lead): nur Zitatfelder, kein ganzer Abschnitt, in API und CLI
     for daten in [*(b.als_dict() for b in belege), *lauf["treffer"]]:
         assert not {"text_modell", "text_anzeige"} & set(daten)
         assert all(len(w) <= ZITAT_ZEICHEN for w in daten.values() if isinstance(w, str)), daten

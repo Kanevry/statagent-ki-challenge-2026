@@ -11,7 +11,7 @@ import { BelegChip } from "./beleg-chip";
 import { StelleKasten, stellenGruppen } from "./stelle";
 import { Kopf, SeitenKennzeichnung } from "./teile";
 
-// Schritt 3 „Antrag vorbereitet“ (Pen-Frame ZHSFO, Urteil ui-regie-32). Der Lotse füllt aus, was im Gespräch gesagt
+// Schritt 3 „Antrag vorbereitet“ (Pen-Frame ZHSFO, Urteil der Sichtprüfung). Der Lotse füllt aus, was im Gespräch gesagt
 // wurde; abgeschickt wird nichts (`eingereicht: false` aus dem Kern). Rechts stehen „Entwurf prüfen“ (ab md beim
 // Scrollen fest) und die zuständige Stelle; eine eigene Stelle-Seite gibt es nicht mehr.
 

@@ -1021,7 +1021,7 @@ def _einzelwort_als_name(text: str, start: int, ende: int) -> bool:
     """Ein einzelnes Wort aus der Namensliste zählt als Name, wenn es großgeschrieben ist und kein gängiges
     Hauptwort ist: nicht im `fachwortschatz`, ohne Substantiv- oder Adjektivendung, kein Stoppwort.
 
-    Die Stellung im Satz zählt nicht (#137, Review 5a und 4d): Ein Name steht am Satzanfang, nach „aber“, nach
+    Die Stellung im Satz zählt nicht (#137, Review): Ein Name steht am Satzanfang, nach „aber“, nach
     einem Artikel („die X“, auch umgangssprachlich und im Relativsatz „…, die X vorschlägt“) und vor einem
     Bindestrich („X-Pläne“). Eine Ausnahme nach Artikeln ließ Namen durch; ohne sie änderte die Maske keinen
     von 2.234 Modelltexten (Lauf 4 und Vorführ-Aufzeichnung, Index- und Server-Liste)."""
