@@ -45,7 +45,14 @@ from uc2.verhandlung.lauf import MIN_TEILNEHMER, Zugergebnis, fuehre_zug_aus, zw
 from uc2.verhandlung.matrix import Einordnung, Position, Runde, aenderungen, klassifikation, werte
 from uc2.verhandlung.pruefungen import haltungen_ohne_beleg, pruefe
 
-from .allgemein import KERN_SCHEMA, kern_nachrichten, kern_text, mock_einhaengen, mock_zuruecksetzen
+from .allgemein import (
+    KERN_SCHEMA,
+    bezug_aus,
+    kern_nachrichten,
+    kern_text,
+    mock_einhaengen,
+    mock_zuruecksetzen,
+)
 
 KURZ_MAX_AKTEURE = 3
 """Standard-Höchstzahl der Akteure für UC4 (Laufzeit); erlaubt sind bis `KURZ_GRENZE_AKTEURE`."""
@@ -356,14 +363,15 @@ class _Kurzlauf:
             for aid in teilnehmer
             for thema, position in jetzt.get(aid, {}).items()
         ]
-        nachrichten = kern_nachrichten(self.frage, self.experte, stimmen)
+        bezug = bezug_aus(self.experte.get("kontext_zahlen") or [])
+        nachrichten = kern_nachrichten(self.frage, self.experte, stimmen, bezug)
         try:
             antwort = rufe(self.rm_moderator, mit_alltagsregel(nachrichten), KERN_SCHEMA)
         except UngueltigeAntwort as fehler:
             _budget_weiter(fehler)
             return None
         self.modelle.add(modellname(antwort.provider, antwort.modell))
-        return kern_text(antwort.json)
+        return kern_text(antwort.json, bezug)
 
     def _notiz(
         self,

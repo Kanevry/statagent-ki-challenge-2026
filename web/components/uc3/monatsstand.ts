@@ -13,6 +13,20 @@ export function monatsStand(monat: Pick<Monatslauf, "angehalten" | "ergebnisStan
   return { art: "info", wort: "vorläufig" };
 }
 
+/** Kopfsatz der Berichte, etwa „22 veröffentlicht, 2 angehalten“: gleiche Reihenfolge der Bedingungen wie `monatsStand`. */
+export function standSumme(monate: readonly Pick<Monatslauf, "angehalten" | "ergebnisStand">[]): string {
+  const angehalten = monate.filter((m) => m.angehalten).length;
+  const veroeffentlicht = monate.filter((m) => !m.angehalten && m.ergebnisStand === "endgueltig").length;
+  const vorlaeufig = monate.length - angehalten - veroeffentlicht;
+  return [
+    veroeffentlicht > 0 ? `${veroeffentlicht} veröffentlicht` : "",
+    vorlaeufig > 0 ? `${vorlaeufig} vorläufig` : "",
+    angehalten > 0 ? `${angehalten} angehalten` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
 /**
  * Vergleichsmonat für „zum Vormonat“: der Kalendermonat davor, nur wenn er in der Liste steht. Sonst „erster Monat“
  * (nichts davor gerechnet) oder „Vormonat fehlt“ (Lücke in der Liste).

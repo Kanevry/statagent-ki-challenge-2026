@@ -16,7 +16,8 @@ from typing import Any
 
 import jsonschema
 import pytest
-from plattform.antwortform import SCHEMA_DATEI, UcAntwort
+from plattform.antwortform import SCHEMA_DATEI, UcAntwort, Zahl
+from plattform.antwortform import Beleg as AntwortBeleg
 from plattform.llm import BudgetErschoepft
 from plattform.router import durchreichen, mock_adapter
 
@@ -26,11 +27,16 @@ from uc2.antwort import AntwortFehler, FreieZahl, antwort, belegquelle, bereinig
 from uc2.antwort import adapter as adapter_modul
 from uc2.antwort.adapter import ERSATZ, MODELLANNAHME, QUELLE_BEISPIEL, waehle_fall
 from uc2.antwort.allgemein import (
+    _GELD,
     FESTER_KERN,
     KERN_SCHEMA,
     MOCK_THEMEN,
     TEILNEHMER,
+    VORLAGE_OBEN,
+    bezug_aus,
+    feste_saetze,
     fester_auftrag,
+    kern_text,
     mock_notiz,
 )
 from uc2.modelle import Modellantwort, UngueltigeAntwort
@@ -55,6 +61,13 @@ def mock_und_protokoll_im_tmp(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setenv("PLATTFORM_ROUTER_PROTOKOLL", str(tmp_path / "router.jsonl"))
     monkeypatch.delenv("UC2_MOCK_KAPUTT", raising=False)
     monkeypatch.delenv("UC2_NAMENSLISTE", raising=False)
+
+
+WIEN_BEZUG = "Für Wien, Gesundheits- und Sozialwesen im März 2025 nennt StatAgent 135.790 Personen."
+WIEN_ZEILE = (
+    f"{WIEN_BEZUG} In Wien heißt mehr Personal meist kürzere Wartezeiten und mehr Betreuung. "
+    "Weniger Personal heißt dort meist längere Wartezeiten und mehr Druck auf die Beschäftigten."
+)
 
 
 def _uc3(datei: str = "uc3-kontext.json") -> UcAntwort:
@@ -544,22 +557,40 @@ def _kern_aus_modell(monkeypatch: pytest.MonkeyPatch, antwort_oder_fehler: Any) 
     monkeypatch.setattr(kurzlauf, "rufe", rufe)
 
 
-def test_erste_zeile_sagt_was_personal_bedeutet_ohne_zahlenecho(praes: UcAntwort) -> None:
-    """Fängt #164: Die Station zeigt oben die Zahl von StatAgent statt einer Aussage zu mehr oder weniger
-    Personal."""
-    erste = praes.text.splitlines()[0]
-    assert erste == " ".join(FESTER_KERN)
-    assert "135.790" not in erste and "Statistik" not in erste
+def test_erste_zeile_greift_frage_und_zahl_auf(praes: UcAntwort) -> None:
+    """Fängt den Befund des Owners (06.11.): Oben stand ein Lehrbuchsatz, der zu jeder Frage gleich passt,
+    obwohl die Karte „mit der Antwort von StatAgent“ verspricht."""
+    assert praes.text.splitlines()[0] == WIEN_ZEILE
 
 
 def test_modellkern_steht_oben(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fängt einen Kernsatz des Modells, der gar nicht in die Antwort kommt (immer nur die festen Sätze)."""
     _kern_aus_modell(
         monkeypatch,
-        {"mehr": "Mehr Personal heißt kürzer warten", "weniger": "Weniger Personal heißt länger warten."},
+        {
+            "mehr": "In Wien heißt mehr Personal kürzer warten",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
     )
     text = antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")]).text
-    assert text.splitlines()[0] == "Mehr Personal heißt kürzer warten. Weniger Personal heißt länger warten."
+    assert text.splitlines()[0] == (
+        f"{WIEN_BEZUG} In Wien heißt mehr Personal kürzer warten. Weniger Personal heißt länger warten."
+    )
+
+
+def test_prompt_des_kerns_nennt_frage_und_antwort_von_statagent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt ein Modell, das Frage oder Zahl nicht sieht und darum nur Allgemeines schreiben kann."""
+    gesehen: list[str] = []
+    echt = kurzlauf.rufe
+
+    def spion(rm: Any, nachrichten: Any, schema: Any) -> Any:
+        if schema is KERN_SCHEMA:
+            gesehen.append(nachrichten[-1]["content"])
+        return echt(rm, nachrichten, schema)
+
+    monkeypatch.setattr(kurzlauf, "rufe", spion)
+    antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")])
+    assert len(gesehen) == 1 and PRAES in gesehen[0] and WIEN_BEZUG in gesehen[0]
 
 
 @pytest.mark.parametrize(
@@ -594,6 +625,7 @@ def test_modellkern_steht_oben(monkeypatch: pytest.MonkeyPatch) -> None:
             "mehr": "Mehr Personal heißt die Hälfte der Wartezeit.",
             "weniger": "Weniger Personal heißt länger warten.",
         },
+        {"mehr": "Mehr Personal heißt kürzer warten.", "weniger": "Weniger Personal heißt länger warten."},
     ],
     ids=[
         "ziffer",
@@ -607,6 +639,7 @@ def test_modellkern_steht_oben(monkeypatch: pytest.MonkeyPatch) -> None:
         "zahlwort",
         "zahlwort-hundert",
         "haelfte",
+        "ohne-bezug-zur-frage",
     ],
 )
 def test_unbrauchbarer_kern_ergibt_feste_saetze(monkeypatch: pytest.MonkeyPatch, kern: Any) -> None:
@@ -615,7 +648,169 @@ def test_unbrauchbarer_kern_ergibt_feste_saetze(monkeypatch: pytest.MonkeyPatch,
     Kette verliert den Simulator."""
     _kern_aus_modell(monkeypatch, kern)
     text = antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")]).text
-    assert text.splitlines()[0] == " ".join(FESTER_KERN)
+    assert text.splitlines()[0] == WIEN_ZEILE
+    # Daran erkennt die Karte die Vorlage (UI-Regie 06.11.); gleicher Satz in web/components/uc4/kette.tsx.
+    assert VORLAGE_OBEN in text
+
+
+def test_modelltext_oben_traegt_keinen_vorlagensatz(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fängt „Oben Vorlage“ an der Karte, obwohl das Modell die Sätze geschrieben hat."""
+    _kern_aus_modell(
+        monkeypatch,
+        {
+            "mehr": "In Wien heißt mehr Personal kürzer warten.",
+            "weniger": "Weniger Personal heißt länger warten.",
+        },
+    )
+    assert VORLAGE_OBEN not in antwort(PRAES, [_uc3("uc3-wien-gesundheit.json")]).text
+
+
+def test_rechenmodell_oben_ist_keine_vorlage(demo: UcAntwort) -> None:
+    """Fängt „Oben Vorlage“ beim Fallweg: Dort steht das Ergebnis des Rechenmodells, `kern` fehlt immer."""
+    assert VORLAGE_OBEN not in demo.text
+
+
+def _kontextzahl(bezeichnung: str, wert: float = 390900, einheit: str = "Anzahl") -> dict[str, Any]:
+    return {"bezeichnung": bezeichnung, "wert": wert, "einheit": einheit, "uc": "uc3", "monat": "2025-10"}
+
+
+def _uc3_zahl(bezeichnung: str, stand: str = "endgueltig") -> UcAntwort:
+    beleg = AntwortBeleg(
+        uc="uc3", quelle="stat.stat_beschaeftigte", lieferung="2025-10", monat="2025-10", stand=stand
+    )
+    zahl = Zahl(bezeichnung=bezeichnung, wert=390900, einheit="Anzahl", beleg=0)
+    return UcAntwort(text="Zahl.", belege=[beleg], zahlen=[zahl], uc="uc3", modell=None)
+
+
+@pytest.mark.parametrize(
+    ("bezeichnung", "stand", "erste"),
+    [
+        (
+            "Beschäftigungsverhältnisse",
+            "vorlaeufig",
+            "Für alle Branchen im Oktober 2025 nennt StatAgent vorläufig 390.900 Beschäftigungsverhältnisse.",
+        ),
+        (
+            "Beschäftigungsverhältnisse (Bau)",
+            "endgueltig",
+            "Für die Branche Bau im Oktober 2025 nennt StatAgent 390.900 Beschäftigungsverhältnisse.",
+        ),
+    ],
+    ids=["alle-branchen-vorlaeufig", "andere-branche"],
+)
+def test_zahl_ohne_versorgung_wird_abgefangen(
+    monkeypatch: pytest.MonkeyPatch, bezeichnung: str, stand: str, erste: str
+) -> None:
+    """Fängt den Wartezeit-Satz zu einer Frage, die nichts mit der Versorgung zu tun hat (Lead 06.11.).
+    Geworfen statt gezählt: Eine Runde hieße Modellaufrufe für nichts."""
+
+    def keine_runde(**kw: Any) -> Any:
+        raise AssertionError("Runde gestartet")
+
+    monkeypatch.setattr(adapter_modul, "kurzverhandlung", keine_runde)
+    a = antwort("Wie viele?", [_uc3_zahl(bezeichnung, stand)], provider="azure", quelle=FixtureQuelle())
+    zeile = a.text.splitlines()[0]
+    assert (
+        zeile == f"{erste} Über die Versorgung sagt das allein wenig, darum wägt der Simulator hier nicht ab."
+    )
+    assert "Wartezeit" not in a.text and a.modell is None and a.zahlen[0].wert == 390900
+
+
+@pytest.mark.parametrize(
+    ("klammer", "anfang"),
+    [
+        ("Bau", "Für die Branche Bau im"),
+        ("Land- und Forstwirtschaft, Fischerei", "Für die Branche Land- und Forstwirtschaft, Fischerei im"),
+        ("Gesundheits- und Sozialwesen", "Für die Branche Gesundheits- und Sozialwesen im"),
+        ("Wien, Gesundheits- und Sozialwesen", "Für Wien, Gesundheits- und Sozialwesen im"),
+        ("Frauen", "Für Frauen im"),
+        ("Bau und Handel zusammen", "Für Bau und Handel zusammen im"),
+    ],
+)
+def test_nur_eine_branche_heisst_so(klammer: str, anfang: str) -> None:
+    """Fängt „Für Bau im März“ (UI-Regie 06.11.) und „die Branche Frauen“, wenn die Regel zu weit greift."""
+    bezug = bezug_aus([_kontextzahl(f"Beschäftigte ({klammer})")])
+    assert bezug is not None and bezug.satz.startswith(anfang)
+
+
+@pytest.mark.parametrize(
+    ("land", "fuer", "anfang"),
+    [
+        ("Steiermark", "Für die Steiermark,", "In der Steiermark heißt"),
+        ("Burgenland", "Für das Burgenland,", "Im Burgenland heißt"),
+        ("Tirol", "Für Tirol,", "In Tirol heißt"),
+    ],
+)
+def test_laender_mit_artikel(land: str, fuer: str, anfang: str) -> None:
+    """Fängt „In Steiermark heißt …“ (Bank 06.11.)."""
+    bezug = bezug_aus([_kontextzahl(f"Beschäftigte ({land}, Gesundheits- und Sozialwesen)")])
+    assert bezug is not None
+    assert bezug.satz.startswith(fuer) and feste_saetze(bezug)["mehr"].startswith(anfang)
+
+
+def test_vorlaeufig_steht_auch_im_bezug_mit_abwaegung() -> None:
+    """Fängt 7.498 ohne „vorläufig“ auf Karte 2, wenn StatAgent die Zahl vorläufig nennt."""
+    bezug = bezug_aus(
+        [{**_kontextzahl("Beschäftigte (Wien, Gesundheits- und Sozialwesen)", 7498), "stand": "vorlaeufig"}]
+    )
+    assert bezug is not None and "nennt StatAgent vorläufig 7.498 Beschäftigte." in bezug.satz
+
+
+def test_monat_angehaengt_ist_kein_bezug_zur_frage() -> None:
+    """Fängt einen echten Modellsatz vom 06.11.: Der Monat steht nur dabei, sonst passt er zu jeder Frage."""
+    bezug = bezug_aus([_kontextzahl("Beschäftigte (Wien, Gesundheits- und Sozialwesen)")])
+    weniger = "Weniger Personal heißt meist längere Wartezeit."
+    angehaengt = {"mehr": "Mehr Personal heißt kürzere Wartezeit im Oktober.", "weniger": weniger}
+    assert kern_text(angehaengt, bezug) is None
+    mehr = "Im Gesundheitswesen heißt mehr Personal in Praxen kürzere Wartezeit."
+    assert kern_text({"mehr": mehr, "weniger": weniger}, bezug) == f"{mehr} {weniger}"
+
+
+def test_abgeschriebene_angaben_sind_kein_bezug_zur_frage() -> None:
+    """Fängt den echten Modellsatz vom 06.11.: Die Angaben standen als Liste vor jedem Satz und damit dreimal
+    auf der Karte."""
+    bezug = bezug_aus([_kontextzahl("Beschäftigte (Wien, Gesundheits- und Sozialwesen)")])
+    abgeschrieben = {
+        "mehr": "Wien, Gesundheits- und Sozialwesen: mehr Personal heißt meist kürzere Wartezeiten.",
+        "weniger": "Wien, Gesundheits- und Sozialwesen: weniger Personal heißt meist längere Wartezeiten.",
+    }
+    assert kern_text(abgeschrieben, bezug) is None
+    natuerlich = {
+        "mehr": "In Wien heißt mehr Personal meist kürzer warten.",
+        "weniger": "Weniger Personal dort nicht.",
+    }
+    assert kern_text(natuerlich, bezug) is not None
+
+
+def test_bezugssatz_besteht_die_zahlenpruefung_bei_einheit_anzahl() -> None:
+    """Fängt die echte UC3-Zahl (Einheit „Anzahl“): „7.498“ fiele sonst als Zahl ohne Beleg aus dem Satz."""
+    zahl = Zahl(
+        bezeichnung="Beschäftigungsverhältnisse (Wien, Gesundheits- und Sozialwesen)",
+        wert=7498,
+        einheit="Anzahl",
+        beleg=0,
+    )
+    bezug = bezug_aus([{**_kontextzahl(zahl.bezeichnung, 7498), "monat": "2025-03"}])
+    assert bezug is not None
+    assert bezug.satz == (
+        "Für Wien, Gesundheits- und Sozialwesen im März 2025 nennt StatAgent 7.498 "
+        "Beschäftigungsverhältnisse."
+    )
+    assert freie_zahlen(bezug.satz, [zahl]) == []
+    assert freie_zahlen("Es gab 7.498 Gesundheitszentren.", [zahl]) == ["7.498"]
+
+
+def test_mehrere_zahlen_stehen_nicht_im_bezugssatz() -> None:
+    bezug = bezug_aus([_kontextzahl("Beschäftigte (Bau)", 1), _kontextzahl("Beschäftigte (Handel)", 2)])
+    assert bezug is not None and bezug.satz == (
+        "Für alle Branchen im Oktober 2025 nennt StatAgent mehrere Zahlen."
+    )
+
+
+def test_ohne_zahl_von_statagent_kein_bezug() -> None:
+    assert bezug_aus([]) is None and feste_saetze(None) == dict(
+        zip(("mehr", "weniger"), FESTER_KERN, strict=True)
+    )
 
 
 def test_kern_haelt_das_budget_nicht_zurueck(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -631,7 +826,8 @@ def test_kern_haelt_das_budget_nicht_zurueck(monkeypatch: pytest.MonkeyPatch) ->
 def test_fallfrage_nennt_oben_wirkung_und_kosten_ohne_entfernte_zahl(demo: UcAntwort) -> None:
     """Fängt eine Kernzeile, aus der die Zahlenprüfung die Kosten streicht („(Zahl ohne Beleg entfernt)“)."""
     erste = demo.text.splitlines()[0]
-    assert erste.startswith("Das durchgerechnete Maßnahmenpaket bringt laut Rechenmodell: Wartezeit ")
+    assert erste.startswith("Für ") and "nennt StatAgent" in erste
+    assert " Das durchgerechnete Maßnahmenpaket bringt laut Rechenmodell: Wartezeit " in erste
     assert erste.endswith("Wartezeit −22,2 %, Mehrkosten 128,2 Mio. Euro pro Jahr.") and ERSATZ not in erste
 
 
@@ -681,15 +877,13 @@ def test_allgemeine_frage_waegen_aerzte_versicherte_und_kassen_ab(praes: UcAntwo
 def test_feste_kernsaetze_und_prompt_sagen_nichts_ueber_geld() -> None:
     """Fängt den Widerspruch zur Lotsen-Karte: Über Beiträge oder Kosten gibt es ohne Rechenmodell keinen
     Beleg."""
-    from uc2.antwort.allgemein import kern_text
-
     assert kern_text(dict(zip(("mehr", "weniger"), FESTER_KERN, strict=True))) == " ".join(FESTER_KERN)
+    bezug = bezug_aus([_kontextzahl("Beschäftigte (Wien, Gesundheits- und Sozialwesen)")])
+    assert not _GELD.search(" ".join(feste_saetze(bezug).values()))
 
 
 def test_kern_mit_ein_und_eine_bleibt() -> None:
     """Fängt einen zu breiten Zahlwort-Filter: „eine“ steht in fast jedem Satz, dann käme nur noch Fixtext."""
-    from uc2.antwort.allgemein import kern_text
-
     kern = {
         "mehr": "Mehr Personal heißt meist eine kürzere Wartezeit.",
         "weniger": "Weniger Personal heißt länger warten.",

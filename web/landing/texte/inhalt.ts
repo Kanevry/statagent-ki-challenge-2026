@@ -9,6 +9,7 @@
  * Kurzformen („Verhältnisse“, „Zellen“, „Sätze“, „Befunde“). Glossar-Texte, die es auch im gemeinsamen
  * Glossar gibt (shared/ui/src/bausteine/glossar.ts), sind wortgleich; inhalt.test.ts prüft das.
  */
+import { GRUPPEN } from "@/components/uc3/einstufung-gruppen";
 import type { UcId } from "@kic/ui/ucs";
 import type { BefundId } from "../szene/motor/layout";
 import type { SchrittId } from "../szene/vertrag";
@@ -261,17 +262,17 @@ export const DATENFEHLER = {
     "Beispiel vom 5. November 2026, nicht live: In dieser Datenbank ist noch keine Lieferung geprüft.",
   /** Hinweis, wenn die Datenbank mehr Treffer hat, als die Tabelle zeigt */
   auswahl: (gezeigt: number, gesamt: number) =>
-    `Gezeigt werden ${zahl(gezeigt)} von ${zahl(gesamt)} Auffälligkeiten, nicht erklärbare zuerst, dann die größten.`,
+    `Gezeigt werden ${zahl(gezeigt)} von ${zahl(gesamt)} Auffälligkeiten: was einen Monat anhält zuerst, dann noch nicht erklärte, dann die größten.`,
   /** Aufklapper unter den ersten Zeilen (UI-Regie): weitere Auffälligkeiten, falls es welche gibt, und immer die Begriffe. */
   mehr: (weitere: number) => (weitere > 0 ? `${zahl(weitere)} weitere Auffälligkeiten und Begriffe` : "Begriffe"),
-  /** Glossar zur Spalte Einstufung (Roast K9); die drei Stufen stammen aus der Qualitätsbericht-Vorlage der Aufgabe. */
+  /** Glossar zur Spalte Einstufung; die Wörter der Qualitätsbericht-Vorlage stehen als Brücke dabei. */
   glossar: [
-    { begriff: "erklärt, plausibel", erklaerung: "ungewohnt, aber echt: zählt mit und wird vermerkt" },
-    { begriff: "erklärt, Datenproblem", erklaerung: "ein Fehler in den Daten mit bekannter Ursache; eine feste Regel behebt ihn" },
-    { begriff: "nicht erklärbar", erklaerung: "geht als Rückfrage an die Fachabteilung; der Monat bleibt vorläufig" },
+    ...GRUPPEN.map((g) => ({ begriff: g.titel, erklaerung: `${g.satz} Im Bericht: ${g.vorlage}.` })),
     begriff("Revisionsbedarf"),
   ],
   datenbank: "Live aus der Datenbank von StatAgent, Stand",
+  /** Weg zur ganzen Liste; steht nur bei Daten aus der Datenbank, die Beispieldaten haben keine Berichte dahinter. */
+  berichte: { text: "Alle Auffälligkeiten je Monat stehen in den Qualitätsberichten", href: "/uc3/berichte" },
 } as const;
 
 export const USE_CASES = {

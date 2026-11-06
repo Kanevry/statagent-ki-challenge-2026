@@ -14,6 +14,11 @@ describe("Regelsatz im Pfad", () => {
 });
 
 describe("uc3Navigation", () => {
+  it("das Wort aus dem Bewertungsraster steht direkt nach den Läufen", () => {
+    expect(UC3_NAVIGATION.slice(0, 3).map((p) => p.label)).toEqual(["Läufe", "Qualitätsberichte", "Freigaben"]);
+    expect(UC3_NAVIGATION[1]?.href).toBe("/uc3/berichte");
+  });
+
   it("der Auftrag erscheint nur in der Vorführ-Instanz", () => {
     expect(uc3Navigation(false)).toBe(UC3_NAVIGATION);
     expect(uc3Navigation(true).map((p) => p.href)).toContain("/uc3/auftrag");

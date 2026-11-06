@@ -1,6 +1,7 @@
 import { formatZahl } from "@kic/ui/bausteine";
 import { literal } from "./beleg";
 import { lies, type Lesung, type Sql } from "./db";
+import { gruppeAus, type GruppeArt } from "./einstufung-gruppen";
 import { ladeMassgeblichenLauf, ladeMonatslaeufe, MASSGEBLICH_SQL, quelleSql } from "./laeufe";
 import { fehlendeGruppen, ladeFdCodes, massnahmeSatz, type TrefferDetails } from "./lauf-detail";
 import { monatName, verschieben } from "./monat";
@@ -127,6 +128,59 @@ export interface OffeneRueckfrage {
 export interface Berichtsliste {
   zeilen: Berichtszeile[];
   offeneRueckfragen: OffeneRueckfrage[];
+  pruefungen: PruefungMalMonat;
+}
+
+export interface PruefungsTreffer {
+  lieferung: string;
+  name: string;
+  anzahl: number;
+  einstufung: string | null;
+  anhalten: boolean;
+}
+
+export interface PruefungMalMonat {
+  /** Je Prüfung die Monate mit Fund, nach Regelname sortiert. */
+  zeilen: { name: string; zellen: Record<string, { anzahl: number; einstufung: string | null; anhalten: boolean }> }[];
+  /** Auffälligkeiten (Treffer), gleiche Zählung wie die Spalte „Auffälligkeiten“ der Monatsliste. */
+  jeMonat: Record<string, number>;
+  gesamt: number;
+  summen: Record<GruppeArt, { jeMonat: Record<string, number>; gesamt: number }>;
+}
+
+const RANG: Record<GruppeArt, number> = { offen: 0, fehler: 1, "kein-fehler": 2 };
+
+/** Treffer zu Tabelle und Summen. Hätte eine Prüfung zwei Treffer im Monat: Anzahl addiert, die ernstere Einstufung. */
+export function pruefungMalMonat(treffer: readonly PruefungsTreffer[]): PruefungMalMonat {
+  const zeilen = new Map<string, PruefungMalMonat["zeilen"][number]>();
+  const jeMonat: Record<string, number> = {};
+  const summen: PruefungMalMonat["summen"] = {
+    fehler: { jeMonat: {}, gesamt: 0 },
+    "kein-fehler": { jeMonat: {}, gesamt: 0 },
+    offen: { jeMonat: {}, gesamt: 0 },
+  };
+  for (const t of treffer) {
+    const zeile = zeilen.get(t.name) ?? { name: t.name, zellen: {} };
+    zeilen.set(t.name, zeile);
+    const art = gruppeAus(t.einstufung);
+    const alt = zeile.zellen[t.lieferung];
+    zeile.zellen[t.lieferung] = alt
+      ? {
+          anzahl: alt.anzahl + t.anzahl,
+          einstufung: RANG[gruppeAus(alt.einstufung)] <= RANG[art] ? alt.einstufung : t.einstufung,
+          anhalten: alt.anhalten || t.anhalten,
+        }
+      : { anzahl: t.anzahl, einstufung: t.einstufung, anhalten: t.anhalten };
+    jeMonat[t.lieferung] = (jeMonat[t.lieferung] ?? 0) + 1;
+    summen[art].jeMonat[t.lieferung] = (summen[art].jeMonat[t.lieferung] ?? 0) + 1;
+    summen[art].gesamt += 1;
+  }
+  return {
+    zeilen: [...zeilen.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    jeMonat,
+    gesamt: treffer.length,
+    summen,
+  };
 }
 
 /** Offene Rückfrage, an der ein Treffer t mit Regel r hängt. */
@@ -311,7 +365,7 @@ export function sqlBerichtsliste(regelsatz = "v1"): string {
   ].join("\n");
 }
 
-function massgeblichCte(ausdruck: string): string {
+export function massgeblichCte(ausdruck: string): string {
   return [
     "WITH massgeblich AS (",
     massgeblichMit(ausdruck)
@@ -367,6 +421,32 @@ function ohneRueckfrageSql(ausdruck: string): string {
 /** Offene Rückfragen je Monat (Kopf und Spalte „wartet auf Antwort“ der Übersicht). */
 export function sqlBerichtsuebersicht(regelsatz = "v1"): string {
   return wartetSql(literal(regelsatz));
+}
+
+/** Beleg zum Kopfsatz der Berichte: je Monat Stand des maßgeblichen Laufs und ob eine Prüfung ihn anhält. */
+export function sqlBerichtsstand(regelsatz = "v1"): string {
+  return [
+    massgeblichCte(literal(regelsatz)),
+    "SELECT m.lieferung, l.ergebnis_status,",
+    "  EXISTS (SELECT 1 FROM meta.pruefung_treffer p WHERE p.lauf_id = m.quelle_id AND p.anhalten) AS angehalten",
+    "FROM massgeblich m JOIN meta.lauf l ON l.id = m.id ORDER BY m.lieferung;",
+  ].join("\n");
+}
+
+function pruefungMalMonatSql(ausdruck: string): string {
+  return [
+    massgeblichCte(ausdruck),
+    "SELECT m.lieferung, r.name, t.anzahl, t.einstufung, t.anhalten",
+    "FROM massgeblich m",
+    "JOIN meta.pruefung_treffer t ON t.lauf_id = m.quelle_id AND t.anzahl > 0",
+    "JOIN meta.regel r ON r.id = t.regel_id",
+    "ORDER BY r.name, m.lieferung;",
+  ].join("\n");
+}
+
+/** Alle Auffälligkeiten aller maßgeblichen Läufe, eine Zeile je Prüfung und Monat. */
+export function sqlPruefungMalMonat(regelsatz = "v1"): string {
+  return pruefungMalMonatSql(literal(regelsatz));
 }
 
 /** Monate mit einem nicht erklärbaren Treffer, an dem keine offene Rückfrage hängt, je Prüfung und insgesamt. */
@@ -509,7 +589,7 @@ export function sqlRegeln(regelsatz = "v1"): string {
 /** Übersicht aller Monate mit Revisionsbedarf und offenen Rückfragen je Monat. */
 export function leseBerichtsliste(regelsatz = "v1"): Promise<Lesung<Berichtsliste>> {
   return lies(async (sql) => {
-    const [monate, revision, wartet, ohne] = await Promise.all([
+    const [monate, revision, wartet, ohne, pruefungen] = await Promise.all([
       ladeMonatslaeufe(sql, regelsatz),
       sql<{ lauf_id: number }[]>`
         SELECT DISTINCT v.lauf_id FROM meta.revision v
@@ -521,6 +601,10 @@ export function leseBerichtsliste(regelsatz = "v1"): Promise<Lesung<Berichtslist
         [regelsatz],
       ),
       sql.unsafe<{ pruefung: string; monate: string; lieferungen: string[] }[]>(ohneRueckfrageSql("$1"), [regelsatz]),
+      sql.unsafe<{ lieferung: string; name: string; anzahl: string; einstufung: string | null; anhalten: boolean }[]>(
+        pruefungMalMonatSql("$1"),
+        [regelsatz],
+      ),
     ]);
     const mitRevision = new Set(revision.map((z) => Number(z.lauf_id)));
     const nachNr = (a: string, b: string) => a.length - b.length || a.localeCompare(b);
@@ -539,7 +623,11 @@ export function leseBerichtsliste(regelsatz = "v1"): Promise<Lesung<Berichtslist
     const offeneRueckfragen = [...new Map(wartet.map((z) => [z.nr, { nr: z.nr, titel: z.titel, lieferungen: z.lieferungen }])).values()].sort(
       (a, b) => nachNr(a.nr, b.nr),
     );
-    return { zeilen, offeneRueckfragen };
+    return {
+      zeilen,
+      offeneRueckfragen,
+      pruefungen: pruefungMalMonat(pruefungen.map((z) => ({ ...z, anzahl: Number(z.anzahl) }))),
+    };
   });
 }
 
