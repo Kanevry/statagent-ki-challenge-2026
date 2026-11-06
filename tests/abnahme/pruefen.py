@@ -288,9 +288,7 @@ def ausfuehren(befehl: str, ort: Path, sekunden: int) -> tuple[int, str, str, fl
     return code, out, err, time.monotonic() - start
 
 
-MARKE_KLON = (
-    ".kic-abnahme-pruefklon"  # nur Verzeichnisse mit dieser Datei werden hart zurückgesetzt (Review 4d)
-)
+MARKE_KLON = ".kic-abnahme-pruefklon"  # nur Verzeichnisse mit dieser Datei werden hart zurückgesetzt (Review)
 ORT: Path | None = None  # Prüf-Klon des laufenden Laufs, wird in Ausgaben durch <pruefklon> ersetzt
 
 
@@ -306,7 +304,7 @@ def auszug(text: str, grenze: int = 600) -> str:
 def zuruecksetzen(ort: Path, sha: str, werkzeug: str) -> None:
     """Prüf-Klon hart auf main an `sha` plus Werkzeug-Commit; Reste früherer Prüfsätze werden entfernt.
 
-    Grund (Review 4d, 19:00): ein Prüfsatz schrieb abgabe/protokoll.md in den Klon; der nächste checkout
+    Grund (Review, 19:00): ein Prüfsatz schrieb abgabe/protokoll.md in den Klon; der nächste checkout
     scheiterte still. Umgebungen (.venv, node_modules) sind ignoriert und bleiben.
     """
     # Nur ein markierter Prüf-Klon wird hart zurückgesetzt. Auf dem Prüfrechner liegt pruefen.py im Klon
@@ -330,7 +328,7 @@ def ort_vorbereiten(ort: Path, sha: str, werkzeug: str) -> None:
     Auf dem Prüfrechner läuft pruefen.py im Prüf-Klon selbst; schwer_pruefrechner.sh hat ihn vorher hart
     zurückgesetzt. Dann wird nur geprüft (Marke da, Kopf = main-SHA), nicht erneut zurückgesetzt: ein
     Zurücksetzen würde tests/abnahme unter dem laufenden Skript ersetzen. Ohne Marke bleibt der eigene
-    Arbeitsbaum tabu (Abbruch 20:01 auf main 71ba5c82, Folge des Schutzes aus Review 4d).
+    Arbeitsbaum tabu (Abbruch 20:01 auf main 71ba5c82, Folge des Schutzes aus dem Review).
     """
     if ort.resolve() != WURZEL.resolve():
         zuruecksetzen(ort, sha, werkzeug)

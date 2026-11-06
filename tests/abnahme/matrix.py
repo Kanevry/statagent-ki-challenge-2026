@@ -67,7 +67,7 @@ _SPERRDATEI = Path(
 
 def _sperrnamen() -> str:
     if not _SPERRDATEI.is_file():
-        # Ohne Datei filtert schwaerzen keine Rechnernamen (allgemeine Muster greifen trotzdem; Review 4d).
+        # Ohne Datei filtert schwaerzen keine Rechnernamen (allgemeine Muster greifen trotzdem; Review).
         print("Warnung: Sperrliste fehlt, Rechnernamen ungefiltert (ABNAHME_SPERRNAMEN)", file=sys.stderr)
         return r"(?!)"
     zeilen = [z.strip() for z in _SPERRDATEI.read_text().splitlines() if z.strip() and not z.startswith("#")]
@@ -92,13 +92,34 @@ VERBOTEN = re.compile(
     r"|://[^@\s/]+:[^@\s/]+@|" + _RECHNER.pattern + ")"
 )
 _PFAD = re.compile(r"(?:/Users/|/home/|~/)[^\s'\"`|)\]]*")
+# Sitzungsnamen in Issue-Texten werden bei der Ausgabe zu Rollen. Nur Muster, keine Namensliste.
+# Ein Name steht frei: nicht hinter einem Pfad, nicht Teil eines Dateinamens oder längeren Worts
+# (anhang-b-schema.sql, b-tree). Ein „/“ danach ist erlaubt: „b-abnahme-57/messer-c“ ist ein Prüfername.
+_FREI_VOR = r"(?<![\w\-/.])"
+_FREI_NACH = r"(?![\w\-]|\.\w)"
+# Kürzel aus genau 2 Zeichen mit Ziffer: „Lead an“ bleibt, ebenso Datum oder Uhrzeit wie „Lead 05.11.“.
+_KUERZEL = r" (?=[a-z]?\d)[0-9a-z]{2}(?![\w\-]|[.:]\d)"
+_LANES = "e0|uc1|uc2|uc3|uc4|deploy|vorfuehrung|landing|schema|story|regelsatz|qs|dashboard|pensionen|fragen"
+_ROLLEN = [
+    (re.compile(_FREI_VOR + r"lead-session-orchestrator/[^\s;,)|`'\"]*"), "<pfad>"),
+    (re.compile(_FREI_VOR + r"b-abnahme(?:-[0-9a-z]+)*" + _FREI_NACH), "Abnahme-Prüfer"),
+    (re.compile(_FREI_VOR + r"ui-regie-[0-9a-z]+" + _FREI_NACH), "UI-Prüfung"),
+    (re.compile(_FREI_VOR + r"lead-session-orchestrator-[0-9a-z]+" + _FREI_NACH), "Lead"),
+    (re.compile(r"(?<![\w\-])(?:Lead-)?Assistenz" + _KUERZEL), "Lead-Assistenz"),
+    (re.compile(r"(?<![\w\-])Lead" + _KUERZEL), "Lead"),
+    (re.compile(r"(?<![\w\-])(?:Review-)?Bank" + _KUERZEL), "Review"),
+    (re.compile(_FREI_VOR + rf"b-(?:{_LANES})(?:-[0-9a-z]+)*" + _FREI_NACH), "Lane"),
+    (re.compile(_FREI_VOR + r"e5-(?:praesentation|szenen)(?:-[0-9a-z]+)*" + _FREI_NACH), "Lane"),
+]
 
 
 def schwaerzen(text: str) -> str:
-    """Entfernt Pfade auf Rechnern, Rechnernamen, Hostnamen und fremde IPs (für Repo, Issue, Nachricht)."""
+    """Entfernt Pfade, Rechnernamen und fremde IPs, Sitzungsnamen werden Rollen (Repo, Issue, Nachricht)."""
     text = text or ""
     for muster, neu in _ERSATZ:
         text = muster.sub(neu, text)
+    for muster, rolle in _ROLLEN:
+        text = muster.sub(rolle, text)
     text = _PFAD.sub("<pfad>", text)
     text = _RECHNER.sub("<rechner>", text)
     return VERBOTEN.sub("<entfernt>", text)
@@ -289,7 +310,7 @@ STANDARD_PFADE = {
     "uc2": ["uc2", "docs/plan/uc2", "web/app/uc2", "web/app/api/uc2", "web/components/uc2", *GEMEINSAM],
     "plattform": [".", ":(exclude)docs/abnahme", ":(exclude)tests/abnahme"],
 }
-ABNAHME_SESSION = "b-abnahme"  # Prüfer-Präfix der Abnahme-Lane; Agent-Belege mit „/“ im Namen sind Vorschläge
+ABNAHME_PRUEFER = "Abnahme-Prüfer"  # Prüfer-Präfix der Abnahme; Agent-Belege mit „/“ im Namen sind Vorschläge
 ENTSCHEIDE = WURZEL / "docs" / "abnahme" / "entscheide.jsonl"
 
 
@@ -392,9 +413,9 @@ def beleg_fuer(k: dict, belege: dict[str, list[dict]]) -> dict | None:
 
 
 def ist_vorschlag(b: dict) -> bool:
-    """Bestanden zählt nur aus einem Lauf oder von der Abnahme-Session selbst, nicht von einem Mess-Agent."""
+    """Bestanden zählt nur aus einem Lauf oder vom Abnahme-Prüfer selbst, nicht von einem Mess-Agent."""
     pruefer = str(b.get("pruefer", ""))
-    return not (pruefer.startswith("lauf ") or (pruefer.startswith(ABNAHME_SESSION) and "/" not in pruefer))
+    return not (pruefer.startswith("lauf ") or (pruefer.startswith(ABNAHME_PRUEFER) and "/" not in pruefer))
 
 
 def stand(k: dict, belege: dict[str, list[dict]], ziel: str | None = None) -> tuple[str, dict | None, str]:
@@ -561,8 +582,8 @@ def matrix_schreiben(zeilen: list[dict], belege: dict[str, list[dict]], sha: str
             f"Erzeugt von `tests/abnahme/matrix.py` am {zeit} (Europe/Vienna) auf main `{sha}`.",
             "Nicht von Hand ändern. Belege stehen in `docs/abnahme/belege.jsonl`,",
             "der jüngste Eintrag je Kriterium gilt. Ein Kriterium ist nur `bestanden`,",
-            "wenn der Prüfer den Befehl in seiner Session ausgeführt und die Ausgabe gelesen hat.",
-            "Bei Hand-Belegen kann eine andere Session geprüft haben: Wer es war, steht im Beleg, "
+            "wenn der Prüfer den Befehl selbst ausgeführt und die Ausgabe gelesen hat.",
+            "Bei Hand-Belegen kann jemand anderes geprüft haben: Wer es war, steht im Beleg, "
             "der Prüfer hat Ergebnis und Herkunft nachgelesen.",
             "",
             "| Stand | Anzahl |",
@@ -740,11 +761,11 @@ def befunde(zeilen: list[dict], belege: dict[str, list[dict]], wahl: str | None,
             je_issue.setdefault(k["iid"], []).append((k, b))
     gepostet = 0
     for iid, liste in sorted(je_issue.items()):
-        # Nur Kriterium und Wortlaut: ein Kommentar je Statuswechsel, nie je Lauf (Lead a7, 19:0x).
+        # Nur Kriterium und Wortlaut: ein Kommentar je Statuswechsel, nie je Lauf (Lead, 19:0x).
         kern = json.dumps(sorted((k["id"], k["hash"]) for k, _ in liste))
         marke = f"<!-- abnahme-befund:{hashlib.sha1(kern.encode()).hexdigest()[:12]} -->"
         wort = "Kriterium" if len(liste) == 1 else "Kriterien"
-        teile = [f"Abnahme: **{len(liste)} {wort} nicht bestanden** (Prüfer b-abnahme)", ""]
+        teile = [f"Abnahme: **{len(liste)} {wort} nicht bestanden** (Abnahme-Prüfer)", ""]
         for k, b in liste:
             teile.append(f"- **{k['id']}** auf main `{b['sha']}`, {b['zeit']}: {b.get('grund', '')}")
             if b.get("befehl"):

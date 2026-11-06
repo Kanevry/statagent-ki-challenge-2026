@@ -2,7 +2,7 @@
 
     uv run pytest -q tests/abnahme/test_abnahme.py
 
-Kern (Review-Bank 4d, 05.11. 19:0x): Zwei Läufe auf neuem main mit unverändertem Stand erzeugen genau einen
+Kern (Review, 05.11. 19:0x): Zwei Läufe auf neuem main mit unverändertem Stand erzeugen genau einen
 Kommentar je Kriterium; die Marke enthält weder SHA noch Zeit.
 """
 
@@ -285,7 +285,7 @@ def test_hand_beleg_wird_nicht_von_der_laufzeile_ueberdeckt(monkeypatch: pytest.
                 "art": "hand",
                 "stand": "bestanden",
                 "zeit": "2026-11-06 06:00",
-                "pruefer": "b-abnahme-9d",
+                "pruefer": "Abnahme-Prüfer",
             },
             {"hash": "h", "stand": "nicht geprüft", "zeit": "2026-11-06 07:00", "pruefer": "lauf x"},
         ]
@@ -298,3 +298,89 @@ def test_schwaerzen_ersetzt_woerter_aus_der_ersatzliste(monkeypatch: pytest.Monk
     # Fängt: Ein Wort aus einem Issue landet über die Matrix wieder im Repo.
     monkeypatch.setattr(matrix, "_ERSATZ", [(re.compile("altname", re.I), "neuer Name")])
     assert matrix.schwaerzen("Für AltName steht") == "Für neuer Name steht"
+
+
+def test_schwaerzen_macht_sitzungsnamen_zu_rollen_und_laesst_woerter_stehen() -> None:
+    # Fängt: Der Pfad des Lead-Repos aus Issue-Texten landet über die Matrix im Repo.
+    assert (
+        matrix.schwaerzen("siehe lead-session-orchestrator/.orchestrator/x.md:399; weiter")
+        == "siehe <pfad>; weiter"
+    )
+    # Fängt: Ein Sitzungsname landet über die Matrix im Repo; Wörter oder Dateinamen werden ersetzt.
+    rollen = {
+        "Abnahme-Prüfer": ["b-abnahme", "b-abnahme-57"],
+        "UI-Prüfung": ["ui-regie-32"],
+        "Lead": [
+            "Lead 58",
+            "Lead c0",
+            "Lead 3d",
+            "Lead a7",
+            "Lead 05",
+            "Lead 09",
+            "lead-session-orchestrator-09",
+        ],
+        "Lead-Assistenz": ["Assistenz 3e"],
+        "Review": ["Bank 49", "Review-Bank 69"],
+        "Lane": [
+            "b-e0-folge-8d",
+            "b-e0-34",
+            "b-uc3-08",
+            "b-uc3-ui-7e",
+            "b-uc3-b6",
+            "b-deploy-20",
+            "b-vorfuehrung",
+            "b-landing",
+            "b-landing-v2b",
+            "b-uc2-antwort",
+            "b-uc1-25",
+            "e5-praesentation-05",
+            "e5-szenen",
+            "e5-szenen-45",
+        ],
+    }
+    for rolle, namen in rollen.items():
+        for name in namen:
+            assert matrix.schwaerzen(f"Laut {name}, 05.11.") == f"Laut {rolle}, 05.11.", name
+    assert matrix.schwaerzen("b-abnahme-57/messer-c") == "Abnahme-Prüfer/messer-c"
+
+    for bleibt in (
+        "Lead an",
+        "Lead zu",
+        "Assistenz um",
+        "Lead im",
+        "Lead 05.11. 17:30",
+        "docs/plan/uc3/anhang-b-schema.sql",
+        "anhang-b-schema",
+        "docs/b-uc3-08/notiz",
+        "docs/plan/2026-11-05-prd-e5-praesentation.md",
+        "b-tree",
+        "b-uc3-notiz.md",
+    ):
+        assert matrix.schwaerzen(bleibt) == bleibt
+
+    # Der Hash kommt aus dem Rohwortlaut: Das Schwärzen darf keinen Beleg ungültig machen.
+    k = matrix.kriterien(
+        {
+            "iid": 900,
+            "title": "Testissue",
+            "state": "opened",
+            "labels": ["uc3"],
+            "description": "- [ ] Regel Lead a7 steht",
+        }
+    )[0]
+    assert k["wortlaut"] == "Regel Lead a7 steht"
+    assert k["hash"] == matrix.kriterium_hash("Regel Lead a7 steht")
+
+
+@pytest.mark.parametrize(
+    ("pruefer", "vorschlag"),
+    [
+        ("Abnahme-Prüfer", False),
+        ("lauf x", False),
+        ("Abnahme-Prüfer/Mess-Agent", True),
+        ("UI-Prüfung", True),
+    ],
+)
+def test_nur_abnahme_pruefer_und_lauf_zaehlen(pruefer: str, vorschlag: bool) -> None:
+    # Fängt: Der Beleg eines Mess-Agents oder einer anderen Rolle gilt als bestanden.
+    assert matrix.ist_vorschlag({"pruefer": pruefer}) is vorschlag
