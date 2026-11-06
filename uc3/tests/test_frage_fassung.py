@@ -108,6 +108,8 @@ def test_vergleich_erkannt(frage: str, code: str | None) -> None:
         "ÖNACE C 2008 vs 2025 in Prozent",
         "Unter 25-Jährige in ÖNACE C 2008 vs 2025",
         "ÖNACE C 2008 vs 2025 im Bezirk Innsbruck",
+        "Person 1234567 in ÖNACE C 2008 vs 2025",
+        "Einkommen in ÖNACE C 2008 vs 2025",
         "Zeitreihe ÖNACE C 2008 vs 2025",
         "ÖNACE C 1. Quartal 2008 vs 2025",
         "ÖNACE C Winter 2008 vs 2025",
@@ -259,6 +261,8 @@ def test_ohne_liste_der_unterklassen_kein_erfundener_fall(conn: Verbindung) -> N
 
     assert "Für C gibt es also keine eindeutige Umcodierung." in daten["text"]
     assert "darum folgt hier kein Einzelfall" in daten["text"]
+    assert "C (Fassung 2008) führt nach A und C." in daten["text"]
+    assert "Quelle: Umsteigeschlüssel von Statistik Austria." in daten["text"]
     assert " kann " not in daten["text"]
     assert UMSTEIGER in daten["belege"][-1]["quelle"]
 
@@ -270,7 +274,7 @@ def test_ohne_liste_der_unterklassen_kein_erfundener_fall(conn: Verbindung) -> N
         ("ÖNACE V 2008 vs 2025", "ÖNACE V gibt es nur in der Fassung 2025"),
         (
             "ÖNACE D 2003 vs 2025",
-            "Einen direkten Umsteigeschlüssel zwischen den Fassungen 2003 und 2025 gibt es nicht.",
+            "Ein direkter Umsteigeschlüssel zwischen den Fassungen 2003 und 2025 liegt hier nicht vor.",
         ),
     ],
 )
@@ -330,6 +334,69 @@ def test_offene_aeltere_fassung_wirft_nicht(conn: Verbindung) -> None:
 def test_ort_mit_code_bleibt_beim_bisherigen_weg(conn: Verbindung) -> None:
     """Fängt: Eine Frage nach einem Bezirk mit Code bekommt die Erklärung der Fassungen."""
     assert "Fassung 2008 gilt" not in antwort_frage(conn, "ÖNACE C 2008 vs 2025 Gemeinde 90001")["text"]
+
+
+@pytest.mark.parametrize(
+    ("frage", "absage"),
+    [
+        ("Person 1234567 in ÖNACE C 2008 vs 2025", "Einzeldaten gibt StatAgent nicht heraus"),
+        ("Einkommen in ÖNACE C 2008 vs 2025", "Einkommen sind nicht in den Daten"),
+    ],
+)
+def test_einzeldaten_und_fehlende_merkmale_bekommen_die_absage(
+    conn: Verbindung, frage: str, absage: str
+) -> None:
+    """Fängt: Die Weiche antwortet mit den Listen, oder die Frage endet in der Rückfrage nach einer Zeitreihe."""
+    daten = antwort_frage(conn, frage)
+    assert absage in daten["text"]
+    assert daten["rueckfrage"] is False and "Fassung 2008 gilt" not in daten["text"]
+
+
+def test_fassung_2003_steht_ueber_die_unterabschnitte_im_schluessel(conn: Verbindung) -> None:
+    """Fängt: „Der Schlüssel nennt D nicht“, obwohl DA bis DN darin stehen. Und die Zeilen 2003 → 2008 nennen nur das
+    Ziel der Mehrheit: Sie dürfen nicht wie der vollständige Schlüssel klingen (100_klass_daten.sql)."""
+    text = antwort_frage(conn, "ÖNACE D 2003 vs 2008")["text"]
+    assert (
+        "D steht im Schlüssel über seine Unterabschnitte DA bis DN, sie führen vor allem nach C, DE auch nach J."
+        in text
+    )
+    assert "nennt D nicht" not in text
+    assert "Quelle: abgeleitet aus dem Umsteigeschlüssel von Statistik Austria." in text
+
+    text = antwort_frage(conn, "ÖNACE DE 2003 vs 2008")["text"]
+    assert "DE (Fassung 2003) führt vor allem nach C und J." in text
+    assert "In den Listen der Fassung 2008 steht dieser Code nicht." in text
+    assert "Quelle: abgeleitet aus dem Umsteigeschlüssel von Statistik Austria." in text
+
+    assert "Nach J (Fassung 2008) führt vor allem DE." in antwort_frage(conn, "ÖNACE J 2003 vs 2008")["text"]
+    assert (
+        "Nach C (Fassung 2008) führen vor allem DA, DB, DC und 11 weitere."
+        in antwort_frage(conn, "ÖNACE C 2003 vs 2008")["text"]
+    )
+
+
+def test_zufluss_ohne_mehrheit_und_einzelner_code(conn: Verbindung, tmp_path: Path) -> None:
+    """Fängt: „In Q kommen Teile“ und „Von der 1 Unterklasse führen 0 …“."""
+    _umsteiger_leeren(conn)
+    _umsteiger_einspielen(
+        conn,
+        tmp_path,
+        [
+            KOPF,
+            _zeile("Q 86.10-0", "R 86.10-0", "a"),
+            _zeile("Q 86.10-0", "R 86.20-0", "b"),
+            _zeile("L 68.10-0", "Q 85.10-0", "c"),
+            _zeile("M 69.10-0", "Q 85.20-0", "d"),
+        ],
+    )
+    text = antwort_frage(conn, "ÖNACE Q 2008 vs 2025")["text"]
+    assert "Nach Q (Fassung 2025) kommen Teile aus L und M." in text
+    assert "Die einzige Unterklasse aus Q führt auf mehrere Codes der Fassung 2025." in text
+    assert (
+        "Für diese eine gibt es keine eindeutige Umcodierung: Q 86.10-0 kann R 86.10-0 oder R 86.20-0 sein"
+        in text
+    )
+    assert "führen 0" not in text
 
 
 def test_umsteiger_nennt_den_code_nicht(conn: Verbindung, tmp_path: Path) -> None:

@@ -32,7 +32,9 @@ from statagent.frage import (
     _antwort,
     _lesen,
     _treffer,
+    fragetyp,
     monate_lesen,
+    nicht_auswertbar,
 )
 from statagent.frage_klass import (
     _JAHR,
@@ -91,6 +93,14 @@ class Vergleich:
 
 def vergleich_erkennen(frage: str) -> Vergleich | None:
     """Reine Funktion ohne Datenbank: Ob die Jahre echte Fassungen sind, prüft erst die Antwort."""
+    vergleich = _gegenueberstellung(frage)
+    if vergleich is None or nicht_auswertbar(frage.lower(), mittel=True) is not None:
+        return None
+    return vergleich
+
+
+def _gegenueberstellung(frage: str) -> Vergleich | None:
+    """Die Form „zwei Jahre gegenübergestellt“, noch ohne die Frage, ob sie überhaupt auswertbar ist."""
     text = unicodedata.normalize("NFC", frage)
     klein = text.lower()
     if not _ÖNACE_WORT.search(text) or not _SIGNAL.search(klein):
@@ -108,9 +118,14 @@ def vergleich_erkennen(frage: str) -> Vergleich | None:
 
 def fassungsvergleich_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
     """Fertige Antwort, wenn die Frage zwei ÖNACE-Fassungen vergleicht; sonst None (bisheriger Weg). Wirft nie."""
-    vergleich = vergleich_erkennen(frage)
-    if vergleich is None:
+    if _gegenueberstellung(frage) is None:
         return None
+    # Einzeldaten und Merkmale, die es nicht gibt: ihre Absage, weder Erklärung der Listen noch Rückfrage zur Zeitreihe.
+    absage = nicht_auswertbar(frage.lower(), mittel=True)
+    if absage is not None:
+        return _antwort(fragetyp(frage), absage, hinweise=[absage])
+    vergleich = vergleich_erkennen(frage)
+    assert vergleich is not None
     try:
         return _beantworten(conn, frage, vergleich)
     except (psycopg.Error, AbfrageVerweigert, _Abgeschnitten):
@@ -198,6 +213,16 @@ def _abschnitts_wege_sql(conn: Verbindung, v: Vergleich, code: str) -> str:
     )
 
 
+def _kinder_wege_sql(conn: Verbindung, v: Vergleich, code: str) -> str:
+    """Die Abschnittszeilen der Ebene unter ``code``: ÖNACE 2003 D steht nur über DA bis DN im Schlüssel."""
+    return (
+        "SELECT u.code_alt AS von, u.code_neu AS nach, u.beziehung, u.quelle FROM stat.uebergang u "
+        "JOIN stat.klass_oenace k ON k.version = u.version_alt AND k.code = u.code_alt "
+        f"WHERE {_paar(conn, v, ABSCHNITTE)} AND k.uebergeordnet = {_wert(conn, code)} "
+        'ORDER BY u.code_alt COLLATE "C", u.code_neu COLLATE "C"'
+    )
+
+
 def _zaehlung_sql(conn: Verbindung, v: Vergleich, code: str | None) -> str:
     """Wie viele Unterklassen führen auf genau einen Code und wie viele auf mehrere."""
     return (
@@ -257,6 +282,9 @@ def _datei(quelle: object) -> str:
 # --- Texte ----------------------------------------------------------------------------------------------------
 
 QUELLE_SATZ = "Quelle: Umsteigeschlüssel von Statistik Austria."
+_ABGELEITET = re.compile(r"Mehrheit|Sechssteller|6-Steller")
+#: Die Abschnittszeilen 2003 → 2008 nennen nur das Ziel der Mehrheit, nicht jeden Weg.
+QUELLE_ABGELEITET = "Quelle: abgeleitet aus dem Umsteigeschlüssel von Statistik Austria."
 
 
 def _zeit(zeile: dict[str, Any]) -> str:
@@ -289,14 +317,19 @@ def _mehrdeutig_saetze(
     gesamt = _anzahl(codes, "Unterklasse", "Unterklassen")
     if mehrdeutig == 0:
         if codes == 1:
-            return [f"Die {gesamt} {herkunft} führt auf genau einen Code der Fassung {neu}."]
+            return [f"Die einzige Unterklasse {herkunft} führt auf genau einen Code der Fassung {neu}."]
         return [f"Von den {gesamt} {herkunft} führt jede auf genau einen Code der Fassung {neu}."]
     eindeutig = codes - mehrdeutig
     verb = "führt" if eindeutig == 1 else "führen"
-    saetze = [
-        f"Von {'der' if codes == 1 else 'den'} {gesamt} {herkunft} {verb} {klass._deutsch(eindeutig)} auf genau einen "
-        f"Code der Fassung {neu} und {klass._deutsch(mehrdeutig)} auf mehrere."
-    ]
+    if codes == 1:
+        saetze = [f"Die einzige Unterklasse {herkunft} führt auf mehrere Codes der Fassung {neu}."]
+    elif eindeutig == 0:
+        saetze = [f"Alle {gesamt} {herkunft} führen auf mehrere Codes der Fassung {neu}."]
+    else:
+        saetze = [
+            f"Von den {gesamt} {herkunft} {verb} {klass._deutsch(eindeutig)} auf genau einen "
+            f"Code der Fassung {neu} und {klass._deutsch(mehrdeutig)} auf mehrere."
+        ]
     if not fall:
         return saetze
     gezeigt = [str(z["code_neu"]) for z in fall[:HOECHSTENS]]
@@ -324,7 +357,7 @@ def _name_satz(code: str, zeilen: dict[str, dict[str, Any]], v: Vergleich) -> st
     assert zeile is not None
     return (
         f"ÖNACE {code} gibt es nur in der Fassung {version}: „{zeile['bezeichnung']}“. "
-        f"In den Listen der Fassung {fehlt} steht dieser Abschnitt nicht."
+        f"In den Listen der Fassung {fehlt} steht {'dieser Abschnitt' if len(code) == 1 else 'dieser Code'} nicht."
     )
 
 
@@ -360,7 +393,7 @@ def _hauptweg_saetze(wege: list[dict[str, Any]], code: str, v: Vergleich, gesamt
         saetze.append(f"Das meiste in {code} (Fassung {v.neu}) kommt aus {herein[0]['von']}.")
     elif herein:
         namen = _aufzaehlung([str(w["von"]) for w in herein])
-        saetze.append(f"In {code} (Fassung {v.neu}) kommen Teile aus {namen}.")
+        saetze.append(f"Nach {code} (Fassung {v.neu}) kommen Teile aus {namen}.")
     return saetze
 
 
@@ -390,17 +423,48 @@ def _abschnitts_wege_saetze(wege: list[dict[str, Any]], code: str, v: Vergleich)
     """Ohne Unterklassen: nur was die Abschnittszeilen hergeben, ohne Anzahl und ohne Einzelfall."""
     hinaus = [str(w["nach"]) for w in wege if w["von"] == code]
     herein = [str(w["von"]) for w in wege if w["nach"] == code]
+    vor_allem = "vor allem " if _nur_mehrheit(wege) else ""
     saetze = []
     if hinaus:
-        saetze.append(f"{code} (Fassung {v.alt}) führt nach {_kurzliste(hinaus)}.")
+        saetze.append(f"{code} (Fassung {v.alt}) führt {vor_allem}nach {_kurzliste(hinaus)}.")
     if herein:
-        saetze.append(f"Nach {code} (Fassung {v.neu}) führen {_kurzliste(herein)}.")
+        verb = "führt" if len(herein) == 1 else "führen"
+        saetze.append(f"Nach {code} (Fassung {v.neu}) {verb} {vor_allem}{_kurzliste(herein)}.")
     if len(hinaus) > 1:
         saetze.append(f"Für {code} gibt es also keine eindeutige Umcodierung.")
     saetze.append(
         "Die Liste je Unterklasse ist für diese Fassungen nicht dabei, darum folgt hier kein Einzelfall."
     )
     return saetze
+
+
+def _nur_mehrheit(wege: list[dict[str, Any]]) -> bool:
+    """Die Zeilen sind aus den 6-Stellern abgeleitet (Mehrheit oder „6 von 32 Sechsstellern“), nicht der ganze Weg.
+
+    Das steht nur in ``quelle``, nicht in einer eigenen Spalte (uc3/db/100_klass_daten.sql)."""
+    return any(_ABGELEITET.search(str(w.get("quelle") or "")) for w in wege)
+
+
+def _quelle_abschnitte(wege: list[dict[str, Any]]) -> str:
+    return QUELLE_ABGELEITET if _nur_mehrheit(wege) else QUELLE_SATZ
+
+
+def _kinder_satz(kinder: list[dict[str, Any]], code: str) -> str:
+    """Der Schlüssel nennt nur die Ebene darunter: „D steht im Schlüssel über seine Unterabschnitte DA bis DN …“."""
+    codes = sorted({str(w["von"]) for w in kinder})
+    je_ziel: dict[str, list[str]] = {}
+    for w in kinder:
+        je_ziel.setdefault(str(w["nach"]), []).append(str(w["von"]))
+    haupt = sorted(je_ziel, key=lambda ziel: (-len(je_ziel[ziel]), ziel))[0]
+    teile = [f"{'vor allem ' if _nur_mehrheit(kinder) else ''}nach {haupt}"]
+    for ziel in sorted(je_ziel):
+        if ziel != haupt:
+            teile += [f"{k} {'auch ' if k in je_ziel[haupt] else ''}nach {ziel}" for k in je_ziel[ziel]]
+    spanne = f"{codes[0]} bis {codes[-1]}" if len(codes) > 2 else _aufzaehlung(codes)
+    ebene = klass.ebene_name(2, codes[0], mehrzahl=True) if len(codes) > 1 else klass.ebene_name(2, codes[0])
+    verb = "führen" if len(codes) > 1 else "führt"
+    pronomen = "sie" if len(codes) > 1 else "er"
+    return f"{code} steht im Schlüssel über {'seine' if len(codes) > 1 else 'seinen'} {ebene} {spanne}, {pronomen} {verb} {', '.join(teile)}."
 
 
 def _kurzliste(teile: list[str]) -> str:
@@ -412,7 +476,7 @@ def _kurzliste(teile: list[str]) -> str:
 
 
 def _kein_umsteiger(v: Vergleich) -> str:
-    return f"Einen direkten Umsteigeschlüssel zwischen den Fassungen {v.alt} und {v.neu} gibt es nicht."
+    return f"Ein direkter Umsteigeschlüssel zwischen den Fassungen {v.alt} und {v.neu} liegt hier nicht vor."
 
 
 def _abschnitt_antwort(
@@ -452,21 +516,27 @@ def _abschnitt_antwort(
         abschnitts_wege = _lesen(conn, abschnitts_sql)
         if abschnitts_wege:
             saetze += _abschnitts_wege_saetze(abschnitts_wege, code, v)
-            saetze.append(QUELLE_SATZ)
+            saetze.append(_quelle_abschnitte(abschnitts_wege))
             belege.append(
                 _umsteiger_beleg(abschnitts_sql, abschnitts_wege, f"stat.uebergang/{ABSCHNITTE}/{code}")
             )
         else:
             # Die leere Abfrage ist der Beleg der Aussage, dazu die Zählung, ob es den Schlüssel überhaupt gibt.
             belege.append(_beleg("stat.uebergang", abschnitts_sql, f"stat.uebergang/{ABSCHNITTE}/{code}"))
-            belege.append(
-                _beleg("stat.uebergang", _hat_umsteiger_sql(conn, v), f"stat.uebergang/{ABSCHNITTE}")
-            )
-            saetze.append(
-                f"Der Umsteigeschlüssel zwischen den Fassungen {v.alt} und {v.neu} nennt {code} nicht."
-                if _hat_umsteiger(conn, v)
-                else _kein_umsteiger(v)
-            )
+            kinder_sql = _kinder_wege_sql(conn, v, code)
+            kinder = _lesen(conn, kinder_sql)
+            if kinder:
+                saetze += [_kinder_satz(kinder, code), _quelle_abschnitte(kinder)]
+                belege.append(_umsteiger_beleg(kinder_sql, kinder, f"stat.uebergang/{ABSCHNITTE}/{code}"))
+            else:
+                belege.append(
+                    _beleg("stat.uebergang", _hat_umsteiger_sql(conn, v), f"stat.uebergang/{ABSCHNITTE}")
+                )
+                saetze.append(
+                    f"Der Umsteigeschlüssel zwischen den Fassungen {v.alt} und {v.neu} nennt {code} nicht."
+                    if _hat_umsteiger(conn, v)
+                    else _kein_umsteiger(v)
+                )
     return _antwort(
         "definition",
         " ".join(saetze),
