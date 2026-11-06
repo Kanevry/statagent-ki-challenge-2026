@@ -12,7 +12,7 @@ import {
   istSummenzeile,
   kopfSagtVerstanden,
   kopfSatz,
-  rueckfrageVorschlaege,
+  antwortKnoepfe,
   teileBezeichnung,
   verstandenSatz,
 } from "./antwort-ansicht";
@@ -275,7 +275,7 @@ function Antwort({
 
   if (istRueckfrage(antwort, rueckfrage)) {
     const text = rueckfrage ?? antwort.text;
-    const vorschlaege = rueckfrageVorschlaege(text);
+    const vorschlaege = antwortKnoepfe(text, rueckfrage);
     return (
       <div className="flex flex-col gap-4">
         <p className="font-sans text-20 text-pretty text-ink">{text}</p>
@@ -293,10 +293,13 @@ function Antwort({
             ))}
           </div>
         ) : (
+          // Nur bei einer echten Rückfrage: Eine Erklärung oder Absage ohne Zahl braucht keinen Monat (#189).
+          rueckfrage !== null &&
           !/monat/i.test(text) && (
             <p className="font-sans text-16 text-slate">Nennen Sie bitte auch den Monat, zum Beispiel „März 2025“.</p>
           )
         )}
+        {rueckfrage === null && antwort.belege[0] && <BelegLink quelle={antwort.belege[0].quelle} sql={antwort.belege[0].sql} />}
       </div>
     );
   }
