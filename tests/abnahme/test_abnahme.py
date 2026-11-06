@@ -9,6 +9,7 @@ Kommentar je Kriterium; die Marke enthält weder SHA noch Zeit.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -232,3 +233,28 @@ def test_env_datei_ist_eine_echte_leere_datei() -> None:
     pfad = Path(pruefen.UMGEBUNG["KIC_ENV_DATEI"])
     assert pfad.is_file()
     assert pfad.read_text() == ""
+
+
+def test_alte_abzuege_entfernen_laesst_die_neuesten_und_die_links(tmp_path: Path) -> None:
+    # Fängt: Der Aufräumer löscht den laufenden Abzug oder folgt einem Link zu den Daten.
+    daten = tmp_path / "daten"
+    daten.mkdir()
+    (daten / "lieferung.csv").write_text("x")
+    ordner = tmp_path / "abzug"
+    ordner.mkdir()
+    (ordner / "svbox").symlink_to(daten)
+    (ordner / "notizen").mkdir()
+    for i, name in enumerate(("aaaaaaaaaaaa-git", "bbbbbbbbbbbb-git", "cccccccccccc-git", "dddddddddddd")):
+        (ordner / name).mkdir()
+        os.utime(ordner / name, (1000 + i, 1000 + i))
+
+    weg = pruefen.alte_abzuege_entfernen(2, ordner)
+
+    assert weg == ["aaaaaaaaaaaa-git", "bbbbbbbbbbbb-git"]
+    assert sorted(p.name for p in ordner.iterdir()) == [
+        "cccccccccccc-git",
+        "dddddddddddd",
+        "notizen",
+        "svbox",
+    ]
+    assert (daten / "lieferung.csv").exists()

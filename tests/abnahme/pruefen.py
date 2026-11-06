@@ -121,6 +121,26 @@ def pruefsaetze(ort: Path) -> list[dict]:
     return saetze
 
 
+def alte_abzuege_entfernen(behalten: int = 2, ordner: Path | None = None) -> list[str]:
+    """Lässt nur die neuesten Abzüge stehen; je main entsteht sonst einer, und die Platte läuft voll (06.11.).
+
+    Fasst nur Ordner mit SHA-Namen an, nie die Links auf die Nachbarordner mit den Daten.
+    """
+    wurzel = ordner or ABZUEGE
+    if not wurzel.is_dir():
+        return []
+    stand = [
+        p
+        for p in wurzel.iterdir()
+        if re.fullmatch(r"[0-9a-f]{12}(-git)?", p.name) and p.is_dir() and not p.is_symlink()
+    ]
+    stand.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    weg = stand[behalten:]
+    for p in weg:
+        shutil.rmtree(p, ignore_errors=True)
+    return sorted(p.name for p in weg)
+
+
 def abzug(sha: str, werkzeug: str) -> Path:
     """Sauberer Abzug als geteilter Klon (mit Git-Historie für git- und gitleaks-Prüfsätze).
 
@@ -153,6 +173,7 @@ def abzug(sha: str, werkzeug: str) -> Path:
         (ziel / MARKE_KLON).write_text("Prüf-Klon der Abnahme; wird vor jedem Lauf hart zurückgesetzt.\n")
     nachbarn_verlinken()
     zuruecksetzen(ziel, sha, werkzeug)
+    alte_abzuege_entfernen()
     return ziel
 
 
@@ -215,6 +236,10 @@ def db_umgebung(datei: Path) -> str:
         if teile.port != PRUEF_DB_PORT or teile.hostname not in ("localhost", "127.0.0.1"):
             return f"{name} zeigt nicht auf die lokale Prüf-DB (Port {PRUEF_DB_PORT})"
         UMGEBUNG[name] = wert
+        if name == "UC3_DATABASE_URL":
+            # Die Test-Fixtures von uc3 legen sich eine eigene DB an und fallen sonst auf den Bau-Port zurück:
+            # auf einem Rechner ohne Bau-DB werden die Tests still übersprungen, sonst treffen sie die Bau-DB.
+            UMGEBUNG["UC3_TEST_ADMIN_URL"] = teile._replace(path="/postgres").geturl()
     UMGEBUNG.pop("PGHOST", None)
     UMGEBUNG["PGPORT"] = str(PRUEF_DB_PORT)
     UMGEBUNG["DB_PORT"] = str(PRUEF_DB_PORT)

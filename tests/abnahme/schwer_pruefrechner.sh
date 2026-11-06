@@ -8,6 +8,7 @@
 # 2. README-Weg auf frischer Prüf-DB (eigenes Compose-Projekt, Port 5444, Zielprüfung; die Bau-DB wird verweigert).
 # 3. pruefen.py --schwer gegen die Prüf-DB; die Laufdatei liegt danach in ABNAHME_REPO/docs/abnahme/laeufe/.
 # Mit <kriterium>: kein README-Weg, nur dieser Prüfsatz gegen die Prüf-DB des letzten Laufs (`einzeln = true`).
+# Mit dem Wort „saetze“: kein README-Weg, alle schweren Prüfsätze gegen die Prüf-DB des letzten Laufs.
 # Jeder Fehler bricht ab. Konfiguration: abnahme.env neben diesem Skript (Vorlage abnahme.env.example).
 set -euo pipefail
 HIER="$(cd "$(dirname "$0")" && pwd)"
@@ -53,5 +54,5 @@ mkdir -p "$HIER/abgabe"
 printf 'UC3_DATABASE_URL=postgresql://statistik:statistik@localhost:%s/statistik\nSTATAGENT_STARTPAKET=%s\nSTATAGENT_ABGABE=%s\n' \
   "$PORT" "$STARTPAKET_UC3" "$HIER/abgabe" > "$HIER/pruef-db.env"
 (cd "$ABNAHME_REPO" && uv run python tests/abnahme/pruefen.py --schwer --ort . --sha "$sha" \
-  --werkzeug "$werkzeug" --cache "$issues" --db-env "$HIER/pruef-db.env" ${nur_id:+--id "$nur_id"})
+  --werkzeug "$werkzeug" --cache "$issues" --db-env "$HIER/pruef-db.env" $( [ "$nur_id" = "saetze" ] || echo "${nur_id:+--id $nur_id}" ))
 ls -t "$ABNAHME_REPO/docs/abnahme/laeufe/" | head -1
