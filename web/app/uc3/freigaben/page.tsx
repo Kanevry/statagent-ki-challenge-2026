@@ -179,7 +179,10 @@ function Zeile({
 }) {
   const kopf = auftragKopf(v.anweisung);
   // Kein Zitat, sondern der Inhalt in einem Satz: Codes wie „ArbeiterDV“ stehen im vollen Wortlaut auf der Detailseite.
-  const inhalt = zitatTeile(auftragsZitat(v.anweisung)).anfang.replace(/\s*\(Arbeiter[^)]*\)/, "");
+  const inhalt = zitatTeile(auftragsZitat(v.anweisung))
+    .anfang.replace(/\s*\(Arbeiter[^)]*\)/, "")
+    .replace("der Monatsletzte", "der Stichtag")
+    .replace("das ganze Monat", "der ganze Monat");
   const zweiZeilen = inhalt.trim().toLowerCase() !== kopf.titel.trim().toLowerCase();
   return (
     <li className="flex gap-x-5 border-b border-line py-6">

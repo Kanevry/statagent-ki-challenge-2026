@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { Leerzustand, Ueberschrift } from "@kic/ui/basis";
+import { Ueberschrift } from "@kic/ui/basis";
 import { formatDifferenz, formatZahl, type FreigabeEntscheidung } from "@kic/ui/bausteine";
 import { literal, type Beleg } from "@/components/uc3/beleg";
-import { BelegLink, StandPunkt } from "@/components/uc3/beleg-link";
+import { BelegLink } from "@/components/uc3/beleg-link";
 import { vorfuehrungOffen } from "@/components/uc3/auftrag";
 import { nurLesend } from "@/components/uc3/cli";
 import { DatenFehler } from "@/components/uc3/daten-fehler";
@@ -324,17 +324,19 @@ function WirkungOben({ wirkung: e }: { wirkung: EchteWirkung }) {
         <span className="text-32 font-semibold">{formatZahl(e.ziel.gesamt)}</span>
         <span className="text-20 font-medium text-gruen">{formatDifferenz(unterschied)}</span>
       </p>
-      <p className="font-sans text-14 text-slate">{`Beschäftigungsverhältnisse ${mitRegeln(e.basis.lauf.regelsatz)} und ${mitRegeln(e.ziel.lauf.regelsatz)}. Die Tabelle dazu steht unter „Details“.`}</p>
+      <div className="flex flex-wrap items-baseline gap-x-3">
+        <p className="font-sans text-14 text-slate">{`Beschäftigungsverhältnisse ${mitRegeln(e.basis.lauf.regelsatz)} und ${mitRegeln(e.ziel.lauf.regelsatz)}. Die Tabelle dazu steht unter „Details“.`}</p>
+        <BelegLink {...wirkungBeleg(e)} />
+      </div>
     </section>
   );
 }
 
-/** Vergleich der Regelsätze aus echten Läufen: je Kategorie und Gesamt, der jüngste Monat mit beiden Läufen. */
-function WirkungTeil({ wirkung: e, kategorien }: { wirkung: EchteWirkung; kategorien: Kategorien }) {
+/** Beleg des Vergleichs beider Stände: oben für die Gesamtzahl, unter „Details“ für die Tabelle. */
+function wirkungBeleg(e: EchteWirkung): Beleg {
   const rb = e.basis.lauf.regelsatz;
   const rz = e.ziel.lauf.regelsatz;
-  const zeilen = wirkungJeKategorie(e, kategorien).sort((a, b) => a.kategorie.localeCompare(b.kategorie, "de"));
-  const beleg: Beleg = {
+  return {
     quelle: "stat.stat_beschaeftigte",
     lieferung: e.monat,
     monat: e.monat,
@@ -342,6 +344,14 @@ function WirkungTeil({ wirkung: e, kategorien }: { wirkung: EchteWirkung; katego
     verweis: "Jüngster Monat mit fertigem Lauf in beiden Ständen",
     sql: [`-- ${regelsatzName(rb)}`, sqlWirkung(e.basis.lauf), "", `-- ${regelsatzName(rz)}`, sqlWirkung(e.ziel.lauf)].join("\n"),
   };
+}
+
+/** Vergleich der Regelsätze aus echten Läufen: je Kategorie und Gesamt, der jüngste Monat mit beiden Läufen. */
+function WirkungTeil({ wirkung: e, kategorien }: { wirkung: EchteWirkung; kategorien: Kategorien }) {
+  const rb = e.basis.lauf.regelsatz;
+  const rz = e.ziel.lauf.regelsatz;
+  const zeilen = wirkungJeKategorie(e, kategorien).sort((a, b) => a.kategorie.localeCompare(b.kategorie, "de"));
+  const beleg = wirkungBeleg(e);
   return (
     <DetailBlock titel={`${monatName(e.monat)}, beide Stände gerechnet`}>
       <div className="overflow-x-auto">
