@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppShell, type VerweisProps } from "@kic/ui/shell";
+import { FassungsKnopf } from "./fassungs-knopf";
 
 // Verbindet die Shell aus @kic/ui mit Next: Pfad aus usePathname, Links über next/link.
 // Auf `/` und `/ablauf` (Route-Gruppe (landing)) rendert AppShell ohne Header; die Landing muss dafür nichts tun.
@@ -34,6 +35,7 @@ export function ShellRahmen({ children }: { children: ReactNode }) {
       pfad={pfad}
       Verweis={NextVerweis}
       modellQuelle={modellQuelleFuer(pfad)}
+      kopfZusatz={<FassungsKnopf />}
     >
       {children}
     </AppShell>
