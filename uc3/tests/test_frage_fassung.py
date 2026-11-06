@@ -7,6 +7,7 @@ Antwort. Der Abschnitt C braucht den ganzen Umsteiger und läuft nur mit Startpa
 
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import date
 from pathlib import Path
@@ -69,6 +70,14 @@ def _zeile(alt: str, neu: str, text: str) -> str:
         ("ÖNACE-Abschnitt C 2008/2025", "C"),
         ("Was hat sich bei ÖNACE C von 2008 auf 2025 geändert?", "C"),
         ("ÖNACE UNB 2008 vs 2025", "UNB"),
+        ("ÖNACE C 2008 und ÖNACE C 2025", "C"),
+        ("Vergleiche ÖNACE 2008 und 2025 für Q", "Q"),
+        ("Unterschied bei C zwischen ÖNACE 2008 und 2025", "C"),
+        ("ÖNACE 2008 und 2025 C", "C"),
+        ("Wie viele Unterklassen aus ÖNACE C wechseln von 2008 auf 2025?", "C"),
+        # Die Endung gehört zum Wort: „Abschnitte“ ist nicht Abschnitt E.
+        ("Welche ÖNACE-Abschnitte unterscheiden sich 2008 vs 2025?", None),
+        ("ÖNACE-Abschnitts 2008 vs 2025", None),
         ("ÖNACE 2008 vs 2025", None),
         ("ÖNACE 2008 VS 2025", None),
         ("Was unterscheidet ÖNACE 2008 von ÖNACE 2025?", None),
@@ -93,6 +102,12 @@ def test_vergleich_erkannt(frage: str, code: str | None) -> None:
         "Fluktuation ÖNACE C 2008 vs 2025",
         "Frauen in ÖNACE C 2008 vs 2025",
         "ÖNACE C 2008 vs 2025 je Bundesland",
+        "Angestellte in ÖNACE C 2008 vs 2025",
+        "Anteil von ÖNACE C 2008 vs 2025",
+        "Wachstum in ÖNACE C von 2008 auf 2025",
+        "ÖNACE C 2008 vs 2025 in Prozent",
+        "Unter 25-Jährige in ÖNACE C 2008 vs 2025",
+        "ÖNACE C 2008 vs 2025 im Bezirk Innsbruck",
         "Zeitreihe ÖNACE C 2008 vs 2025",
         "ÖNACE C 1. Quartal 2008 vs 2025",
         "ÖNACE C Winter 2008 vs 2025",
@@ -265,6 +280,58 @@ def test_ehrlich_ohne_abschnitt_oder_umsteiger(conn: Verbindung, frage: str, erw
     assert erwartet in antwort_frage(conn, frage)["text"]
 
 
+def test_groesster_zufluss_zaehlt_neue_codes(conn: Verbindung, tmp_path: Path) -> None:
+    """Fängt: Sechs alte Codes auf einen neuen gelten als „das meiste“, obwohl fünf andere Codes den Abschnitt tragen
+    (so stand es bei ÖNACE M 2025 da: „kommt aus F“, gemessen führt L auf fünf von sechs neuen Codes)."""
+    _umsteiger_leeren(conn)
+    _umsteiger_einspielen(
+        conn,
+        tmp_path,
+        [
+            KOPF,
+            *[_zeile(f"F 41.{i}0-0", "M 68.10-0", "viele alte auf einen neuen") for i in range(6)],
+            *[_zeile(f"L 68.{i}0-0", f"M 68.{i + 2}0-0", "je einer") for i in range(5)],
+        ],
+    )
+    assert (
+        "Das meiste in M (Fassung 2025) kommt aus L." in antwort_frage(conn, "ÖNACE M 2008 vs 2025")["text"]
+    )
+
+
+def test_eine_unterklasse_wechselt(conn: Verbindung, tmp_path: Path) -> None:
+    """Fängt: „Einzelne Unterklassen wechseln“, obwohl es genau eine ist."""
+    _umsteiger_leeren(conn)
+    _umsteiger_einspielen(
+        conn,
+        tmp_path,
+        [KOPF, _zeile("E 38.10-0", "E 38.10-0", "bleibt"), _zeile("E 38.10-0", "C 20.10-0", "geht")],
+    )
+    text = antwort_frage(conn, "ÖNACE E 2008 vs 2025")["text"]
+    assert "Eine Unterklasse wechselt den Abschnitt: Teile gehen nach C." in text
+    assert "Die 1 Unterklasse aus E" not in text
+
+
+def test_fremdes_wort_wird_nicht_zum_code(conn: Verbindung) -> None:
+    """Fängt: „ÖNACE ROH …“ landet als Literal in der Abfrage und meldet „nicht lesbar“ wegen der Sperre für roh."""
+    _umsteiger_leeren(conn)
+    text = antwort_frage(conn, "ÖNACE ROH 2008 vs 2025")["text"]
+    assert text != NICHT_LESBAR
+    assert "Die Fassung 2008 gilt" in text
+
+
+def test_offene_aeltere_fassung_wirft_nicht(conn: Verbindung) -> None:
+    """Fängt: Hat die ältere Fassung kein Enddatum, wirft die Anzeige, und die Frage endet im Fehler statt in der Antwort."""
+    _umsteiger_leeren(conn)
+    conn.execute("UPDATE stat.klass_oenace SET gueltig_bis = NULL WHERE version = '2008'")
+    text = antwort_frage(conn, "ÖNACE C 2008 vs 2025")["text"]
+    assert "Die Fassung 2008 gilt ab Jänner 2008" in text
+
+
+def test_ort_mit_code_bleibt_beim_bisherigen_weg(conn: Verbindung) -> None:
+    """Fängt: Eine Frage nach einem Bezirk mit Code bekommt die Erklärung der Fassungen."""
+    assert "Fassung 2008 gilt" not in antwort_frage(conn, "ÖNACE C 2008 vs 2025 Gemeinde 90001")["text"]
+
+
 def test_umsteiger_nennt_den_code_nicht(conn: Verbindung, tmp_path: Path) -> None:
     """Fängt: „Keinen Umsteiger“ für einen einzelnen Code, obwohl es den Umsteiger für die Fassungen gibt."""
     _umsteiger_leeren(conn)
@@ -333,6 +400,7 @@ def test_goldfaelle_gegen_startpaket(conn: Verbindung) -> None:
         pytest.skip("Startpaket mit Klassifikationen nicht vorhanden")
     abschnitt, fall = _gold("oenace-c-2008-2025.json"), _gold("oenace-1n-c-16.10-0.json")
 
+    assert hashlib.sha256(datei.read_bytes()).hexdigest() == fall["quelle"]["sha256_umsteiger"]
     inhalt = datei.read_bytes().decode("cp1252").splitlines()
     assert all(z in inhalt for z in fall["quellzeilen"])
     for version in ("2008", "2025"):

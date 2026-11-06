@@ -55,15 +55,28 @@ _ABSCHNITT_BEISPIEL = "ÖNACE C 2008 vs 2025"
 _SIGNAL = re.compile(
     r"(?<![a-zäöü])(?:vs\.?|versus)(?![a-zäöü])|gegen|unterschied|unterscheid|vergleich|änder|aender|anders"
     r"|umsteig|umcodier|umstell|wechsel|übergang|uebergang|fassung|version"
-    r"|(?:19|20)\d{2}\s*(?:und|/|&)\s*(?:19|20)\d{2}"
+    # „2008 und 2025“, auch „2008 und ÖNACE C 2025“.
+    r"|(?:19|20)\d{2}\s*(?:und|/|&)\s*(?:\S+\s+){0,3}(?:19|20)\d{2}"
     r"|(?:19|20)\d{2}\s+(?:auf|nach|zu)\s+(?:19|20)\d{2}"
 )
 #: Zeitangaben, die monate_lesen nicht als Monat liest; dann ist ein Zeitraum gemeint, keine Fassung.
 _ZEIT_WORT = re.compile(r"quartal|halbjahr|winter|sommer|frühling|fruehling|herbst|saison|monat")
+#: Fragt nach Daten, ohne dass _ZAHLEN_FRAGE es merkt; eine Erklärung der Listen wäre daran vorbei geantwortet.
+_DATEN_WORT = re.compile(
+    r"angestellt|lehrling|beamt|anteil|prozent|%|wachstum|gewachsen|wächst|waechst|zunahme|abnahme|rückgang"
+    r"|rueckgang|gestiegen|gesunken|jährig|jaehrig|\balter\b|bezirk|gemeinde"
+)
+#: „Wie viele Unterklassen wechseln …“ zählt Codes, keine Menschen.
+_ZAEHLT_CODES = re.compile(r"(?:wie\s*viele?|anzahl\s+der)\s+(?:unterklassen|codes|abschnitte|buchstaben)")
 _ABSCHNITT = re.compile(
-    r"(?<!\w)(?:(?i:önace|oenace|nace)(?:[\s-]+(?:19|20)\d{2})?[\s:-]*(?:(?i:abschnitt)[\s:-]*)?|(?i:abschnitt)[\s:-]*)"
+    r"(?<!\w)(?:(?i:önace|oenace|nace)(?:[\s-]+(?:19|20)\d{2})?[\s:-]*(?:(?i:abschnitt)[\s:-]+)?|(?i:abschnitt)[\s:-]+)"
     # Einzelne Buchstaben in jeder Schreibweise, längere Codes (UNB, DA) nur groß; „VS“ ist das Vergleichswort.
     r"(?P<code>(?!VS(?!\w))[A-Z]{2,3}|[A-Za-z])(?!\w)"
+)
+#: Ohne das Wort davor nur groß: „Vergleiche ÖNACE 2008 und 2025 für Q“, „ÖNACE 2008 und 2025 C“.
+_ABSCHNITT_LOSE = re.compile(
+    r"(?<!\w)(?:(?i:für|fuer|bei|von|zu|in)\s+(?:(?i:den|dem)\s+)?(?:(?i:abschnitt)\s+)?|(?:19|20)\d{2}\s+)"
+    r"(?P<code>[A-Z])(?!\w)"
 )
 
 
@@ -85,9 +98,11 @@ def vergleich_erkennen(frage: str) -> Vergleich | None:
     jahre = sorted(set(_JAHR.findall(text)))
     if len(jahre) != 2 or monate_lesen(text) or _ZEIT_WORT.search(klein):
         return None
-    if any(m.search(klein) for m in (_ZAHLEN_FRAGE, _FLUKTUATION, _GESCHLECHT, _BUNDESLAND, _ZEITREIHE)):
+    ohne_codes = _ZAEHLT_CODES.sub(" ", klein)
+    merkmale = (_ZAHLEN_FRAGE, _FLUKTUATION, _GESCHLECHT, _BUNDESLAND, _ZEITREIHE, _DATEN_WORT)
+    if any(m.search(ohne_codes) for m in merkmale):
         return None
-    treffer = _ABSCHNITT.search(text)
+    treffer = _ABSCHNITT.search(text) or _ABSCHNITT_LOSE.search(text)
     return Vergleich(jahre[0], jahre[1], treffer.group("code").upper() if treffer else None)
 
 
@@ -109,13 +124,16 @@ def _beantworten(conn: Verbindung, frage: str, v: Vergleich) -> dict[str, Any] |
     laender = _lesen(conn, "SELECT bezeichnung FROM stat.klass_region WHERE ebene = 'bundesland'")
     if any(_treffer(frage.lower(), str(z["bezeichnung"])) for z in laender):
         return None  # „… in Wien“ fragt nach Daten, nicht nach den Listen.
-    tief = [c for c in codes_erkennen(frage) if c.art == OENACE]
-    if tief:
-        return _erklaerung([_nachsehen(conn, c) for c in tief])
-    if v.code is not None:
-        antwort = _abschnitt_antwort(conn, v, v.code, fassungen)
-        if antwort is not None:
-            return antwort
+    codes = codes_erkennen(frage)
+    if codes:
+        if any(c.art != OENACE for c in codes):
+            return None  # „… im Bezirk 701“ fragt nach Daten.
+        return _erklaerung([_nachsehen(conn, c) for c in codes])
+    code = v.code
+    if code and len(code) > 1 and code not in _laengere_codes(conn):
+        code = None  # „ÖNACE UND …“ oder „ÖNACE ROH …“ in Großbuchstaben: ein Wort, kein Code.
+    if code:
+        return _abschnitt_antwort(conn, v, code, fassungen)
     return _ueberblick_antwort(conn, v, fassungen)
 
 
@@ -136,6 +154,15 @@ def _fassungen_lesen(conn: Verbindung, v: Vergleich) -> dict[str, dict[str, Any]
     return {str(z["version"]): z for z in zeilen}
 
 
+def _laengere_codes(conn: Verbindung) -> set[str]:
+    """Codes aus mehreren Buchstaben (UNB, DA). Fremde Wörter kommen so nie als Literal in eine Abfrage."""
+    zeilen = _lesen(
+        conn,
+        "SELECT DISTINCT code FROM stat.klass_oenace WHERE length(code) > 1 AND code = upper(code) AND code !~ ' '",
+    )
+    return {str(z["code"]) for z in zeilen}
+
+
 def _paar(conn: Verbindung, v: Vergleich, klassifikation: str) -> str:
     return (
         f"u.klassifikation = {_wert(conn, klassifikation)} AND u.version_alt = {_wert(conn, v.alt)} "
@@ -151,7 +178,11 @@ def _wege_sql(conn: Verbindung, v: Vergleich, code: str) -> str:
     """Von welchem Abschnitt zu welchem führen wie viele Unterklassen, in beide Richtungen um ``code``."""
     return (
         "SELECT split_part(u.code_alt, ' ', 1) AS von, split_part(u.code_neu, ' ', 1) AS nach, "
-        "count(DISTINCT u.code_alt) AS codes, min(u.quelle) AS quelle FROM stat.uebergang u "
+        "count(DISTINCT u.code_alt) AS codes, count(DISTINCT u.code_neu) AS ziele, "
+        f"(SELECT count(DISTINCT g.code_neu) FROM stat.uebergang g WHERE g.klassifikation = {_wert(conn, UNTERKLASSEN)} "
+        f"AND g.version_alt = {_wert(conn, v.alt)} AND g.version_neu = {_wert(conn, v.neu)} "
+        f"AND split_part(g.code_neu, ' ', 1) = {_wert(conn, code)}) AS ziele_gesamt, "
+        "min(u.quelle) AS quelle FROM stat.uebergang u "
         f"WHERE {_paar(conn, v, UNTERKLASSEN)} AND (split_part(u.code_alt, ' ', 1) = {_wert(conn, code)} "
         f"OR split_part(u.code_neu, ' ', 1) = {_wert(conn, code)}) "
         "GROUP BY 1, 2 ORDER BY 3 DESC, 1, 2"
@@ -203,9 +234,12 @@ def _fall_lesen(
     return fall, abfrage
 
 
-def _hat_abschnitts_umsteiger(conn: Verbindung, v: Vergleich) -> bool:
-    zeilen = _lesen(conn, f"SELECT count(*) AS n FROM stat.uebergang u WHERE {_paar(conn, v, ABSCHNITTE)}")
-    return int(zeilen[0]["n"]) > 0
+def _hat_umsteiger_sql(conn: Verbindung, v: Vergleich) -> str:
+    return f"SELECT count(*) AS n FROM stat.uebergang u WHERE {_paar(conn, v, ABSCHNITTE)}"
+
+
+def _hat_umsteiger(conn: Verbindung, v: Vergleich) -> bool:
+    return int(_lesen(conn, _hat_umsteiger_sql(conn, v))[0]["n"]) > 0
 
 
 def _umsteiger_beleg(sql_text: str, zeilen: list[dict[str, Any]], ref: str) -> dict[str, Any]:
@@ -232,7 +266,8 @@ def _zeit(zeile: dict[str, Any]) -> str:
 
 def _gueltigkeit_satz(fassungen: dict[str, dict[str, Any]], kurz: bool = False) -> str:
     alt, neu = sorted(fassungen)
-    zeit_alt = f"bis {_monat(fassungen[alt]['gueltig_bis'])}" if kurz else _zeit(fassungen[alt])
+    bis = fassungen[alt]["gueltig_bis"]
+    zeit_alt = f"bis {_monat(bis)}" if kurz and bis else _zeit(fassungen[alt])
     return f"Die Fassung {alt} gilt {zeit_alt}, die Fassung {neu} {_zeit(fassungen[neu])}."
 
 
@@ -262,6 +297,8 @@ def _mehrdeutig_saetze(
         f"Von {'der' if codes == 1 else 'den'} {gesamt} {herkunft} {verb} {klass._deutsch(eindeutig)} auf genau einen "
         f"Code der Fassung {neu} und {klass._deutsch(mehrdeutig)} auf mehrere."
     ]
+    if not fall:
+        return saetze
     gezeigt = [str(z["code_neu"]) for z in fall[:HOECHSTENS]]
     weitere = len(fall) - len(gezeigt)
     if weitere:
@@ -287,30 +324,49 @@ def _name_satz(code: str, zeilen: dict[str, dict[str, Any]], v: Vergleich) -> st
     assert zeile is not None
     return (
         f"ÖNACE {code} gibt es nur in der Fassung {version}: „{zeile['bezeichnung']}“. "
-        f"In der Fassung {fehlt} gibt es diesen Abschnitt nicht."
+        f"In den Listen der Fassung {fehlt} steht dieser Abschnitt nicht."
     )
 
 
-def _hauptweg_saetze(wege: list[dict[str, Any]], code: str, v: Vergleich) -> list[str]:
+def _hinaus(wege: list[dict[str, Any]], code: str) -> list[dict[str, Any]]:
+    """Wege aus dem Abschnitt, der größte zuerst; bei Gleichstand bleibt der Abschnitt bei sich."""
+    return sorted(
+        (w for w in wege if w["von"] == code),
+        key=lambda w: (-int(w["codes"]), w["nach"] != code, str(w["nach"])),
+    )
+
+
+def _hauptweg_saetze(wege: list[dict[str, Any]], code: str, v: Vergleich, gesamt: int) -> list[str]:
     """Führt das meiste aus dem Abschnitt woanders hin oder kommt von woanders, trägt der Buchstabe nicht."""
-    hinaus = [w for w in wege if w["von"] == code]
-    herein = [w for w in wege if w["nach"] == code and w["von"] != code]
+    hinaus = _hinaus(wege, code)
+    if hinaus and hinaus[0]["nach"] == code:
+        return []
     saetze = []
-    if hinaus and hinaus[0]["nach"] != code:
+    if hinaus and int(hinaus[0]["codes"]) * 2 > gesamt:
         saetze.append(
             f"Der Buchstabe allein reicht hier nicht: Das meiste aus {code} steht in der Fassung {v.neu} "
             f"unter {hinaus[0]['nach']}."
         )
     elif hinaus:
-        return []
-    if herein:
+        saetze.append(
+            f"Der Buchstabe allein reicht hier nicht: {code} verteilt sich in der Fassung {v.neu} auf mehrere Abschnitte."
+        )
+    # Mehrere alte Codes können auf einen neuen führen: Das Gewicht zählt die neuen Codes, nicht die alten.
+    herein = sorted(
+        (w for w in wege if w["nach"] == code and w["von"] != code),
+        key=lambda w: (-int(w["ziele"]), str(w["von"])),
+    )
+    if herein and int(herein[0]["ziele"]) * 2 > int(herein[0]["ziele_gesamt"]):
         saetze.append(f"Das meiste in {code} (Fassung {v.neu}) kommt aus {herein[0]['von']}.")
+    elif herein:
+        namen = _aufzaehlung([str(w["von"]) for w in herein])
+        saetze.append(f"In {code} (Fassung {v.neu}) kommen Teile aus {namen}.")
     return saetze
 
 
 def _wechsel_saetze(wege: list[dict[str, Any]], code: str, gesamt: int) -> list[str]:
     """Nur wenn der Abschnitt im Wesentlichen bleibt: wer Teile abgibt und aufnimmt."""
-    hinaus = [w for w in wege if w["von"] == code]
+    hinaus = _hinaus(wege, code)
     if not hinaus or hinaus[0]["nach"] != code:
         return []
     weg = [w for w in hinaus if w["nach"] != code]
@@ -318,13 +374,16 @@ def _wechsel_saetze(wege: list[dict[str, Any]], code: str, gesamt: int) -> list[
     if not weg and not her:
         return []
     bewegt = sum(int(w["codes"]) for w in [*weg, *her])
-    wie_viele = "Einzelne" if bewegt * 10 <= gesamt else "Manche"
+    if bewegt == 1:
+        anfang = "Eine Unterklasse wechselt den Abschnitt"
+    else:
+        anfang = f"{'Einzelne' if bewegt * 10 <= gesamt else 'Manche'} Unterklassen wechseln den Abschnitt"
     teile = []
     if weg:
         teile.append(f"Teile gehen nach {_aufzaehlung([str(w['nach']) for w in weg])}")
     if her:
         teile.append(f"Teile kommen aus {_aufzaehlung([str(w['von']) for w in her])}")
-    return [f"{wie_viele} Unterklassen wechseln den Abschnitt: {', '.join(teile)}."]
+    return [f"{anfang}: {', '.join(teile)}."]
 
 
 def _abschnitts_wege_saetze(wege: list[dict[str, Any]], code: str, v: Vergleich) -> list[str]:
@@ -358,7 +417,7 @@ def _kein_umsteiger(v: Vergleich) -> str:
 
 def _abschnitt_antwort(
     conn: Verbindung, v: Vergleich, code: str, fassungen: dict[str, dict[str, Any]]
-) -> dict[str, Any] | None:
+) -> dict[str, Any]:
     namen_sql = (
         "SELECT version, code, bezeichnung, gueltig_von, gueltig_bis FROM stat.klass_oenace "
         f"WHERE code = {_wert(conn, code)} AND version IN ({_wert(conn, v.alt)}, {_wert(conn, v.neu)}) ORDER BY version"
@@ -367,8 +426,6 @@ def _abschnitt_antwort(
     ref = f"stat.klass_oenace/{code}"
     belege = [_beleg("stat.klass_oenace", namen_sql, ref)]
     if not namen:
-        if len(code) > 1:
-            return None  # „ÖNACE UND …“ in Großbuchstaben: ein Wort, kein Code.
         satz = f"Einen Abschnitt {code} gibt es in den Fassungen {v.alt} und {v.neu} nicht."
         return _antwort("definition", satz, hinweise=[satz], belege=belege)
     saetze = [_name_satz(code, namen, v), _gueltigkeit_satz(fassungen, kurz=True)]
@@ -378,7 +435,7 @@ def _abschnitt_antwort(
         zaehlung_sql = _zaehlung_sql(conn, v, code)
         zaehlung = _lesen(conn, zaehlung_sql)[0]
         fall, fall_sql = _fall_lesen(conn, v, code, zaehlung)
-        saetze += _hauptweg_saetze(wege, code, v)
+        saetze += _hauptweg_saetze(wege, code, v, int(zaehlung["codes"]))
         if int(zaehlung["codes"]) > 0:
             saetze += _mehrdeutig_saetze(zaehlung, fall, v.neu, f"aus {code}")
         saetze += _wechsel_saetze(wege, code, int(zaehlung["codes"]))
@@ -388,7 +445,7 @@ def _abschnitt_antwort(
             _umsteiger_beleg(wege_sql, wege, umsteiger),
             _umsteiger_beleg(zaehlung_sql, wege, umsteiger),
         ]
-        if fall_sql:
+        if fall_sql and fall:
             belege.append(_umsteiger_beleg(fall_sql, fall, f"{umsteiger}/{fall[0]['code_alt']}"))
     else:
         abschnitts_sql = _abschnitts_wege_sql(conn, v, code)
@@ -399,12 +456,17 @@ def _abschnitt_antwort(
             belege.append(
                 _umsteiger_beleg(abschnitts_sql, abschnitts_wege, f"stat.uebergang/{ABSCHNITTE}/{code}")
             )
-        elif _hat_abschnitts_umsteiger(conn, v):
+        else:
+            # Die leere Abfrage ist der Beleg der Aussage, dazu die Zählung, ob es den Schlüssel überhaupt gibt.
+            belege.append(_beleg("stat.uebergang", abschnitts_sql, f"stat.uebergang/{ABSCHNITTE}/{code}"))
+            belege.append(
+                _beleg("stat.uebergang", _hat_umsteiger_sql(conn, v), f"stat.uebergang/{ABSCHNITTE}")
+            )
             saetze.append(
                 f"Der Umsteigeschlüssel zwischen den Fassungen {v.alt} und {v.neu} nennt {code} nicht."
+                if _hat_umsteiger(conn, v)
+                else _kein_umsteiger(v)
             )
-        else:
-            saetze.append(_kein_umsteiger(v))
     return _antwort(
         "definition",
         " ".join(saetze),
@@ -433,11 +495,14 @@ def _ueberblick_antwort(
     )
     namen = _lesen(conn, namen_sql)[0]
     saetze = [_gueltigkeit_satz(fassungen)]
-    saetze.append(
-        f"Die Fassung {v.alt} hat {_anzahl(abschnitte.get(v.alt, 0), 'Abschnitt', 'Abschnitte')}, "
-        f"die Fassung {v.neu} {_anzahl(abschnitte.get(v.neu, 0), 'Abschnitt', 'Abschnitte')}."
-    )
-    if int(namen["anders"]) > 0:
+    # Von der Fassung 2003 liegt nur ein Teil vor (D und seine Unterabschnitte): Dann sagt die Zahl nichts.
+    vollstaendig = len(abschnitte) == 2 and min(abschnitte.values()) > 1
+    if vollstaendig:
+        saetze.append(
+            f"Die Fassung {v.alt} hat {_anzahl(abschnitte.get(v.alt, 0), 'Abschnitt', 'Abschnitte')}, "
+            f"die Fassung {v.neu} {_anzahl(abschnitte.get(v.neu, 0), 'Abschnitt', 'Abschnitte')}."
+        )
+    if vollstaendig and int(namen["anders"]) > 0:
         saetze.append(
             f"Bei {klass._deutsch(int(namen['gleich']))} Buchstaben bleibt der Name gleich, bei "
             f"{klass._deutsch(int(namen['anders']))} Buchstaben ändert er sich. "
@@ -455,12 +520,15 @@ def _ueberblick_antwort(
         saetze.append(QUELLE_SATZ)
         umsteiger = f"stat.uebergang/{UNTERKLASSEN}"
         belege.append(_umsteiger_beleg(zaehlung_sql, fall, umsteiger))
-        if fall_sql:
+        if fall_sql and fall:
             belege.append(_umsteiger_beleg(fall_sql, fall, f"{umsteiger}/{fall[0]['code_alt']}"))
-    elif _hat_abschnitts_umsteiger(conn, v):
-        saetze.append("Die Liste je Unterklasse ist für diese Fassungen nicht dabei.")
     else:
-        saetze.append(_kein_umsteiger(v))
+        belege.append(_beleg("stat.uebergang", _hat_umsteiger_sql(conn, v), f"stat.uebergang/{ABSCHNITTE}"))
+        saetze.append(
+            "Die Liste je Unterklasse ist für diese Fassungen nicht dabei."
+            if _hat_umsteiger(conn, v)
+            else _kein_umsteiger(v)
+        )
     saetze.append(f"Zu einem einzelnen Abschnitt fragen Sie zum Beispiel: „{_ABSCHNITT_BEISPIEL}“.")
     return _antwort(
         "definition",
