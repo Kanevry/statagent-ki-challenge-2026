@@ -260,7 +260,8 @@ export function Kette({
               value={frage}
               maxLength={MAX_FRAGE}
               onChange={(e) => setFrage(e.target.value)}
-              placeholder="Wie viele Beschäftigte gab es im März 2025?"
+              // Kurz, damit der Platzhalter bei 390 px nicht abgeschnitten wird (#206).
+              placeholder="Beschäftigte im März 2025?"
               aria-invalid={eingabeFehler ? true : undefined}
               aria-describedby={eingabeFehler ? "uc4-frage-fehler" : undefined}
               className="min-h-14 flex-1 rounded-lg border border-ink/30 bg-white px-4 font-sans text-20 text-ink placeholder:text-slate/70 focus-visible:border-gruen focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gruen"

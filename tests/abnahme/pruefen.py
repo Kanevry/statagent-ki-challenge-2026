@@ -35,7 +35,7 @@ import matrix  # noqa: E402
 
 WURZEL = matrix.WURZEL
 PRUEFUNGEN = WURZEL / "tests" / "abnahme" / "pruefungen"
-LAEUFE = WURZEL / "docs" / "abnahme" / "laeufe"
+LAEUFE = Path(os.environ.get("ABNAHME_LAEUFE", WURZEL / "docs" / "abnahme" / "laeufe"))
 ABZUEGE = Path(os.environ.get("ABNAHME_ABZUG_DIR", "/tmp/kic-abnahme-abzug"))
 
 GESPERRT = "postgresql://gesperrt:gesperrt@127.0.0.1:9/gesperrt"

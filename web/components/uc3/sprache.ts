@@ -1,4 +1,5 @@
 import { monatName } from "./monat";
+import { mitRegeln, satzAnfang } from "./regelsatz-name";
 
 /**
  * Anzeigetext aus der Datenbank in die Wortliste von docs/sprache.md bringen (Sichtprüfung bb, #18):
@@ -38,6 +39,35 @@ export function alltag(text: string): string {
     })
     .replace(LIEFERUNG_CODE, (_ganz: string, monat: string) => `Lieferung ${monatName(monat)}`)
     .replace(MONAT, (_ganz: string, monat: string) => monatName(monat));
+}
+
+// Rohwörter aus Antworttext und Definition (uc3/statagent/frage.py, uc3/db/100_klass_daten.sql).
+const VERSICHERUNGSVERHAELTNISSE = /Versicherungsverhältnisse \(VVH_ID\)/g;
+// „Regelsatz v1: am Stichtag …“ leitet einen Satz ein; daraus wird „Nach den alten Regeln gilt: Am Stichtag …“.
+const REGELSATZ_GILT = /\bRegelsatz (v\d+): (\p{Ll})/gu;
+const MONATSLETZTER = /Stichtag \(Monatsletzter\)/g;
+const IN_META_REGEL = /\bin meta\.regel(?: \(typ \w+\))?/g;
+const LAUT_STAT = /\blaut stat\.[a-z_]+/g;
+const KLAMMER_STAT = /\s*\(stat\.[a-z_]+\)/g;
+
+/**
+ * Für den Block „Details“ unter einer Antwort auf /uc3/fragen: wie `alltag`, dazu die Wörter der Datenbank
+ * („Regelsatz v1“, „VVH_ID“, „Stichtag (Monatsletzter)“, „meta.regel“, „stat.…“) in den Wörtern der App. Zahlen bleiben gleich.
+ */
+export function detailsText(text: string): string {
+  return alltag(text)
+    .replace(VERSICHERUNGSVERHAELTNISSE, "Beschäftigungsverhältnisse")
+    .replace(
+      REGELSATZ_GILT,
+      (_ganz: string, rs: string, erster: string) => `${satzAnfang(mitRegeln(rs))} gilt: ${erster.toUpperCase()}`,
+    )
+    .replace(MONATSLETZTER, (ganz: string, stelle: number, quelle: string) => {
+      const danach = quelle.charAt(stelle + ganz.length);
+      return /^$|[.,;:)]/.test(danach) ? "Stichtag, dem letzten Tag des Monats" : "Stichtag, dem letzten Tag des Monats,";
+    })
+    .replace(IN_META_REGEL, "in den freigegebenen Regeln")
+    .replace(LAUT_STAT, "laut der gerechneten Statistik")
+    .replace(KLAMMER_STAT, "");
 }
 
 /** Wie `alltag`, lässt `null` und `undefined` stehen. */
