@@ -13,14 +13,14 @@ export const EXCEL_DATEIEN = [
   {
     fassung: "v1",
     datei: "aggregationen_v1.xlsx",
-    titel: "Excel mit den Regeln vom Start (Regelsatz v1)",
+    titel: "Excel nach den alten Regeln",
     inhalt: "24 Berichtsmonate, August 2024 bis Juli 2026.",
   },
   {
     fassung: "v2",
     datei: "aggregationen_v2.xlsx",
-    titel: "Excel nach den Änderungsaufträgen 1 und 2 (Regelsatz v2)",
-    inhalt: "Gezählt über das ganze Monat, mit den Kategorien Arbeiter, Angestellte und Beamte.",
+    titel: "Excel nach den Änderungsaufträgen",
+    inhalt: "Gezählt über den ganzen Monat, mit den Kategorien Arbeiter, Angestellte und Beamte.",
   },
 ] as const;
 
