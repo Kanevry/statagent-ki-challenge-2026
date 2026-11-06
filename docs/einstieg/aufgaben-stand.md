@@ -19,8 +19,8 @@ Quelle: GitLab-Projekt des Teams, alle Aufgaben, gelesen über die Schnittstelle
 
 - **Status:** „erledigt“ heißt, die Aufgabe ist im Aufgabensystem geschlossen. „offen“ heißt, sie ist dort nicht geschlossen. Was davon im Code läuft, steht im [README](../../README.md) und unter [Stand der Use Cases](use-cases-stand.md).
 - **Nummern:** `#12` ist eine Aufgabe, `!12` ein Änderungsantrag (Merge Request) im privaten GitLab-Projekt.
-- **Labels:** `uc1` bis `uc4` nennen den Use Case. `epic::…` nennt das große Arbeitspaket. `kern` ist der gemeinsame Kern, `ablauf` der Zeitplan. `status::in-progress` heißt in Arbeit. `prio::nach-abgabe` heißt bewusst auf nach der Abgabe gelegt. `owner` heißt, die Aufgabe braucht eine Entscheidung des Auftraggebers.
-- **Was fehlt:** Beschreibungen und Kommentare stehen hier nicht, nur Titel und Labels. 8 Titel sind leicht geändert (Rechnernamen, ein Anbietername und ein interner Verweis ersetzt, fünf Titel zum Betrieb der Online-Demo allgemeiner gefasst), 1 Titel fehlt, weil er einen persönlichen Bezug hat.
+- **Labels:** `uc1` bis `uc4` nennen den Use Case. `epic::…` nennt das große Arbeitspaket. `kern` ist der gemeinsame Kern, `ablauf` der Zeitplan. `status::in-progress` heißt in Arbeit. `prio::nach-abgabe` heißt bewusst auf nach der Abgabe gelegt. `owner` heißt, die Aufgabe braucht eine Entscheidung von Bernhard.
+- **Was fehlt:** Beschreibungen und Kommentare stehen hier nicht, nur Titel und Labels. 13 Titel sind leicht geändert (Rechnernamen, ein Anbietername, interne Verweise und Rollenwörter ersetzt, fünf Titel zum Betrieb der Online-Demo allgemeiner gefasst), 1 Titel fehlt, weil er einen persönlichen Bezug hat.
 
 ## Epics (die großen Arbeitspakete)
 
@@ -67,7 +67,7 @@ Quelle: GitLab-Projekt des Teams, alle Aufgaben, gelesen über die Schnittstelle
 | #80 | UC3 W4 Live-Änderung A/B/C: Proben, Ablehnen und Rücknahme | offen | `epic::e1-uc3`, `uc3` |
 | #105 | UC3 Review-Restpunkte !13: regel_wirkung je Regel, Golden Set nach Veröffentlichung | offen | `epic::e1-uc3`, `uc3` |
 | #106 | E7-UC3 Adapter antwort(frage, kontext) über geprüfte Monatszahlen (Epic #95) | erledigt | `epic::e1-uc3`, `uc3` |
-| #122 | UC3 abgabe-v1 nach Owner-Freigabe von Regelsatz v1 als endgültig neu erzeugen | offen | `epic::e1-uc3`, `uc3` |
+| #122 | UC3 abgabe-v1 nach Bernhards Freigabe von Regelsatz v1 als endgültig neu erzeugen | offen | `epic::e1-uc3`, `uc3` |
 | #123 | UC3 Modellangabe in abgabe/modelle.md prüfen: Azure gpt-5-4-mini als Agentenmodell, kein Modell im Rechenweg | offen | `epic::e1-uc3`, `uc3` |
 | #125 | UC3 UC4-Adapter: mehrere Ausprägungen eines Merkmals in einer Frage („Männer und Frauen …“) | offen | `epic::e1-uc3`, `uc3` |
 | #126 | UC3 Berichte für die Web-UI: Rückfragen je Monat nach Lieferungen, berichte --json mit lauf_id, regelstand, umgeschichtet, pruefungen_gelaufen | offen | `epic::e1-uc3`, `prio::nach-abgabe`, `uc3` |
@@ -99,7 +99,7 @@ Quelle: GitLab-Projekt des Teams, alle Aufgaben, gelesen über die Schnittstelle
 | #190 | UC3-Antwort: Hinweis auf übernommene Verhältnisse nennt bei Filtern die Gesamtzahl | offen | `uc3` |
 | #197 | UC3 Rücknahme: Rückfrage des Modells sagt „im Kontext“, neue Absagesätze kommen nicht zum Zug | offen | `uc3` |
 | #198 | UI-Regie: 18-AC2 und 135-3 nach dem letzten up neu belegen | offen | `uc3` |
-| #199 | UI-Regie: !300 nach dem Merge live prüfen | offen | `uc3` |
+| #199 | UI-Regie: eine gemergte Änderung live prüfen | offen | `uc3` |
 | #200 | UI-Regie: SC10 nach dem letzten up neu aufnehmen und beurteilen | offen | `uc3` |
 | #206 | Sichtprüfung 06.11.: Favicon 404, y-Achse ab 385.000, Zähler in Schritt 1 | offen | `prio::nach-abgabe`, `shared-ui`, `status:in-progress`, `uc3` |
 
@@ -223,11 +223,11 @@ Quelle: GitLab-Projekt des Teams, alle Aufgaben, gelesen über die Schnittstelle
 | #111 | CI: workflow:rules lässt API-Pipelines (glab ci run) nicht zu, Deploy-Job nur per UI-Klick startbar | erledigt | `epic::e0-plattform` |
 | #114 | E0 Voice live: Vapi-Assistent per sync anlegen, Tunnel starten, Smoke-Test | offen | `epic::e0-plattform`, `kern`, `status::in-progress` |
 | #115 | E0 Header mit UC4-Tab bei 1440 px im Browser prüfen (nach !45) | erledigt | `epic::e0-plattform`, `kern` |
-| #116 | E0 sichtbare Texte nach Owner-Regel 15:4x prüfen (einfach, menschlich, Glossar, keine Em-Dashes) | offen | `epic::e0-plattform`, `kern`, `status::in-progress` |
+| #116 | E0 sichtbare Texte nach Bernhards Regel prüfen (einfach, menschlich, Glossar, keine Em-Dashes) | offen | `epic::e0-plattform`, `kern`, `status::in-progress` |
 | #118 | E0 Folge Review !36: Tagesbudget Doku und Zählung schärfen, XFF bei CDN | erledigt | `epic::e0-plattform` |
 | #119 | E0 Folge Review !38: Voice-Router Endgrund exakt, Webhook-Retry, Budget-Hinweis am Telefon, uc4 in metadata | erledigt | `epic::e0-plattform`, `kern` |
 | #120 | E0 Folge Review !41: VoiceKnopf Vertrag ladeSdk, Transkript-Filter, reduced-motion, Bausteine-Zustände, Frame eE7uh | offen | `epic::e0-plattform`, `kern` |
-| #124 | Landing: Klartext nach Owner-Feedback 15:5x und gemeinsame Wortliste docs/sprache.md | erledigt | `epic::e0-plattform` |
+| #124 | Landing: Klartext nach Bernhards Feedback und gemeinsame Wortliste docs/sprache.md | erledigt | `epic::e0-plattform` |
 | #129 | E0 Folge Review !45: Spiegel-Tests, Frame-Entscheide im MR, Touch-Ziele 44 px, Pen-Variable l-gruen-dunkel | offen | `epic::e0-plattform`, `kern` |
 | #133 | Landing Folge aus Review !54: Glossar-Test über alle Arrays, „keine Lieferung geprüft“ nur über meta.lauf, Personas erklären | offen | `epic::e0-plattform` |
 | #140 | E0 Folge Review !66: UTC-Test schärfen, Rückwärtszählung ohne Sortier-Annahme, Schema-Eigenschaften namens default/enum | erledigt | `epic::e0-plattform` |
@@ -281,7 +281,7 @@ Quelle: GitLab-Projekt des Teams, alle Aufgaben, gelesen über die Schnittstelle
 | #153 | Modell-Badge: bei Fallback das Modell nennen, das wirklich geantwortet hat | offen | `shared-ui` |
 | #165 | UI-Regie Rest: Handy-Sitzreihe UC2, Markenwechsel im Kopf, Teaser „Use Case 4“ auf der Landing | offen | keine |
 | #188 | E0: Trockenläufe der Abgabe-Skripte vom letzten main und Stand in der Checkliste | offen | `ablauf`, `status:in-progress` |
-| #191 | [Carryover] UI-Regie Nacht bis 06:05: Bögen, Nachprüfung, Fenster, Endvideo | offen | `carryover` |
+| #191 | UI-Regie: offene Punkte aus der Nacht (Bögen, Nachprüfung, Fenster, Endvideo) | offen | `carryover` |
 | #193 | UC3 Jury-Probe: „unter 25“ mit Sollwert prüfen statt nur Antwortart | offen | `priority::medium` |
 | #194 | UC3 Datenanfrage v2: Jahreszeiten und Zeitreihe ohne Zahl | offen | `priority::low` |
 | #195 | Abnahme: 13 „nicht bestanden“ aus Lauf 7de159d5 gegen main prüfen, Prüfsatz probe.md (15 oder 19 Abschnitte) | offen | `ablauf` |
