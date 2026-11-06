@@ -287,7 +287,10 @@ export default function Geschichte() {
     const b = new IntersectionObserver(
       (eintraege) => {
         for (const e of eintraege) {
-          if (e.isIntersecting) setSchritt(Number((e.target as HTMLElement).dataset.feld));
+          const feld = Number((e.target as HTMLElement).dataset.feld);
+          if (e.isIntersecting) setSchritt(feld);
+          // Schmal erreicht der kurze Kopf das Band nie: Läuft Schritt 1 nach unten hinaus, steht wieder das erste Bild.
+          else if (feld === 1 && e.rootBounds && e.boundingClientRect.top > e.rootBounds.bottom) setSchritt(0);
         }
       },
       { rootMargin: schmal ? "-70% 0px -29% 0px" : "-18% 0px -81% 0px" },
