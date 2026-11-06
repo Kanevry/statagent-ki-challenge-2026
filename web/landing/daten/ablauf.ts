@@ -1,6 +1,6 @@
 /**
  * Inhalte der Seite „Ablauf“: nur belegte Zeitpunkte und Zahlen, jede mit Quelle in Worten.
- * Quellen: GitLab-API (Abruf 06.11.2026, 06:34 bis 06:38), Lage-Log der Flotte, Git-Verlauf von main,
+ * Quellen: GitLab-API (Messzeit 06.11.2026, 06:34), Lage-Log der Flotte, Git-Verlauf von main,
  * abgabe/protokoll.md, Qualitätsberichte, Annahmen und Rückfragen im Repo. Keine Rechner- oder Sitzungsnamen.
  */
 export interface AblaufPunkt {
@@ -17,14 +17,14 @@ const zeitleiste: readonly AblaufPunkt[] = [
   {
     zeit: "5. Nov., 10:36",
     iso: "2026-11-05T10:36:00+01:00",
-    satz: "Die Arbeit an der Aufgabe beginnt.",
+    satz: "Ab jetzt zählt nur noch die Challenge.",
     quelle: "Lage-Log",
   },
   {
-    zeit: "10:54",
-    iso: "2026-11-05T10:54:00+01:00",
+    zeit: "12:10",
+    iso: "2026-11-05T12:10:00+01:00",
     satz: "Die Wahl fällt auf Use Case 3, den die Jury bewertet.",
-    quelle: "GitLab, Kommentar im Issue zur Wahl; als Commit festgehalten um 12:10",
+    quelle: "Git-Verlauf (Select use case uc3), Lage-Log",
   },
   {
     zeit: "gegen 14:35",
@@ -66,10 +66,10 @@ const zeitleiste: readonly AblaufPunkt[] = [
 
 export const ABLAUF = {
   titel: "So lief der Hackathon",
-  satz: "Am 5. November um 10:36 begann die Arbeit an der Aufgabe, am 6. November um 09:00 ist Abgabe.",
-  /** GitLab-API, Zähler der Merge Requests (state=merged und state=all), gemessen zum genannten Zeitpunkt */
-  zahlen: "Stand 6. November 2026, 06:45: 303 von 327 Änderungen (Merge Requests) sind im Hauptstand.",
-  standIso: "2026-11-06T06:45:00+01:00",
+  satz: "Seit dem 5. November um 10:36 zählt nur noch die Challenge, am 6. November um 09:00 ist Abgabe.",
+  /** GitLab-API, Abruf aller Merge Requests und Issues, Messzeit 06:34 */
+  zahlen: "Stand 6. November 2026, 06:34: 298 von 323 Änderungen (Merge Requests) sind im Hauptstand, 58 von 202 Aufgaben (Issues) sind erledigt.",
+  standIso: "2026-11-06T06:34:00+01:00",
   ueberschriften: { zeitleiste: "Zeitleiste" },
   zeitleiste,
   abschnitte: [
@@ -80,7 +80,7 @@ export const ABLAUF = {
         // Lage-Log; Arbeitsweise der Plugins
         "Der Session Orchestrator führt eine einzelne KI-Sitzung: Sie plant ihre Arbeit in Wellen, parallele Agenten schreiben Code und Regeln und prüfen einander.",
         // 87: GitLab-API, alle Schreibweisen der Züge; 7: Lage-Log bis 06:18
-        "Der Lead Session Orchestrator führt viele Sitzungen zugleich: Er bündelt fertige Arbeit zu Zügen, bis 06:38 waren es 87, spielt sie ein und übergibt an einen Nachfolger, sobald sein Arbeitsgedächtnis voll ist, bis 06:18 siebenmal.",
+        "Der Lead Session Orchestrator führt viele Sitzungen zugleich: Er bündelt fertige Arbeit zu Zügen, bis 06:34 waren es 87, spielt sie ein und übergibt an einen Nachfolger, sobald sein Arbeitsgedächtnis voll ist, bis 06:18 siebenmal.",
         "Ein Mensch entscheidet und gibt mit Namen frei, die KI schreibt den Code, gerechnet wird ohne KI.",
       ],
     },
@@ -101,7 +101,7 @@ export const ABLAUF = {
       titel: "Was offen ist",
       saetze: [
         // abgabe/rueckfragen/R1.md bis R10.md
-        "Zehn Rückfragen an die Fachabteilung sind geschrieben, aber noch nicht gestellt; bis zur Antwort gilt je eine begründete Annahme.",
+        "Zehn Rückfragen an die Fachabteilung sind geschrieben, beantwortet ist noch keine; bis zur Antwort gilt je eine begründete Annahme.",
         // abgabe/protokoll.md
         "März und Oktober 2025 bleiben angehalten, ihre Zahlen sind vorläufig.",
       ],
