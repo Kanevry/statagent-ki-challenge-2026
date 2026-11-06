@@ -39,7 +39,7 @@ Was man dazu wissen muss:
   veröffentlicht: Alle 24 Monate sind dort vorläufig (so steht es im Kopf jedes Berichts in
   [`abgabe/qualitaetsberichte_v2/`](../../abgabe/qualitaetsberichte_v2/)).
 - **Pensionen:** Die Pensionsmeldungen aller Träger sind eingelesen (28 von 28 Dateien, 394 Summen ohne
-  Abweichung), der Stand ist vorläufig und noch nicht mit Namen freigegeben
+  Abweichung), der Stand ist vorläufig und öffentlich noch nicht mit Namen freigegeben
   ([`docs/uc3/pensionen-pruefbericht.md`](../uc3/pensionen-pruefbericht.md)). Sie kamen dazu, nachdem die
   Abgabedateien eingefroren waren. Deshalb sagt [`abgabe/uc3-abnahme.md`](../../abgabe/uc3-abnahme.md) in Zeile 68 noch
   „Pensionen sind nicht importiert“.
@@ -53,9 +53,10 @@ Was man dazu wissen muss:
     (Abnahme 74-AC1, Restmangel).
   - „Vorher und nachher“ in einer einzigen Frage sagt das Programm ab und nennt ein Beispiel für zwei einzelne
     Fragen (`uc3/statagent/frage.py`).
-- **Protokoll in der Oberfläche:** Das Protokoll-Panel nennt bei einem freigegebenen Vorschlag weder den Namen noch
-  die Zeit der Freigabe (Issue #210). Beides steht auf der Seite `/uc3/freigaben` und in
-  [`abgabe/protokoll.md`](../../abgabe/protokoll.md).
+- **Protokoll in der Oberfläche:** Auf `14c86cc3` nannte das Protokoll-Panel bei einem freigegebenen Vorschlag weder
+  Namen noch Zeit der Freigabe (Issue #210). Seit Merge Request 343 zeigt es beides; online gemessen am 06.11.2026
+  um 09:27 ([Demo-Drehbuch](../praesentation/demo-drehbuch.md), Schritt D2). Beides steht auch auf der Seite
+  `/uc3/freigaben` und in [`abgabe/protokoll.md`](../../abgabe/protokoll.md).
 - **Abnahme:** Im Schlusslauf sind für UC3 53 von 76 Kriterien bestanden, 2 nicht bestanden, 4 nicht geprüft und
   17 für die Zeit nach der Abgabe vorgesehen. Gezählt ist die eigene Prüfliste des Teams, nicht das Bewertungsraster.
   Das ist kein „alles bestanden“

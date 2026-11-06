@@ -64,7 +64,7 @@ und [`docs/uc3/pensionen-pruefbericht.md`](../uc3/pensionen-pruefbericht.md).
 `main` `c16fa881` um 06:07, zählt für UC3: 53 von 76 Kriterien bestanden, 1 nicht bestanden, 5 nicht geprüft, 17 nach
 der Abgabe; der Nachtrag auf dem letzten Code-Stand `14c86cc3` um 07:50 zählt 53, 2, 4 und 17
 ([`schlusslauf-2026-11-06.md`](../abnahme/schlusslauf-2026-11-06.md)). Der Beleg sagt selbst: kein „alles
-bestanden“, das Tor ist offen. Das eine „nicht bestanden“ (13-AC4) ist als Restmangel angenommen:
+bestanden“, das Tor ist offen. Eines der „nicht bestanden“ (13-AC4) ist als Restmangel angenommen:
 `uc3/statagent/pensionen.py` enthält eine eigene Funktion `freigeben`; die Regeln laufen darin über
 `plattform.freigabe` mit Commit und der Zeile `Freigegeben-von`. Offen sind unter anderem zwei Punkte zur Oberfläche
 (18-AC2, 18-AC3) und zwei zu den Klassifikationen (75-AC1, 76-AC1). Der volle Lauf 22-1 (24 Läufe und Sheet nach den

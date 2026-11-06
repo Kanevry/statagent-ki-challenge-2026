@@ -184,7 +184,8 @@ Daten, Stand von UC1, UC2 und UC4, Abnahme: [docs/einstieg/stand-zur-abgabe.md](
 ## Grenzen und offene Punkte
 
 - **Daten:** nur die synthetischen Daten des Veranstalters und öffentliche Quellen, nicht im Repo. Einzige Ausnahme:
-  Die Rückfragen in `abgabe/rueckfragen/` nennen als Beispiel einige synthetische Kennungen. An ein Modell gehen nie
+  Die Rückfragen in `abgabe/rueckfragen/` nennen als Beispiel einige synthetische Kennungen, ebenso einzelne Tests
+  unter `uc3/tests/`. An ein Modell gehen nie
   Einzeldaten, nur Schema, Aggregate und Prüfergebnisse.
 - **UC1** ersetzt keine Beratung. **UC2** ist eine Simulation, keine echte Verhandlung.
 - **Voice** läuft über den US-Dienst Vapi und braucht ein eingerichtetes Konto. Der Text-Weg ersetzt Voice vollständig.
@@ -223,6 +224,11 @@ läuft keine CI. Darum stehen in Doku, Kommentaren und Commits diese Wörter:
 | Lead | die führende KI-Sitzung, die Arbeit verteilt und fertige Änderungen bündelt |
 | Lane | der Arbeitsbereich einer KI-Sitzung |
 | Zug | mehrere geprüfte Änderungen, die zusammen durch die CI und auf `main` gehen |
+| UI-Regie | die prüfende Rolle für Oberfläche und Bedienung, mit Veto ([docs/ux/regie.md](docs/ux/regie.md)) |
+| Pen, Pen-Frames | Entwürfe der Oberfläche im Design-Werkzeug Pen; ein Frame ist der Entwurf eines Bildschirms |
+| W0 bis W5 | Wellen im Bauplan: Arbeitsschritte, die nacheinander gebaut wurden |
+| Orakel | eine unabhängige Gegenrechnung mit bekannten Sollzahlen, gegen die das Programm geprüft wird |
+| Restmangel | ein Kriterium, das nicht bestanden ist und mit Begründung so angenommen wurde ([docs/abnahme/PROZESS.md](docs/abnahme/PROZESS.md)) |
 
 Wie das im Einzelnen lief: [docs/einstieg/arbeitsweise-agentisch.md](docs/einstieg/arbeitsweise-agentisch.md).
 
