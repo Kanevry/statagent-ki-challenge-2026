@@ -185,8 +185,10 @@ haupt() {
   # Hat der Ausgangsstand mehr als den Start-Commit, ist festgeschrieben: Diese Freigabe-Commits gehen nicht verloren, und
   # `uc3 pensionen freigeben` lässt sich nicht wiederholen. Neu anlegen dann nur ausdrücklich mit --checkout-neu.
   local festgeschrieben=0
-  if [ -d "$v/checkout/.git" ]; then
-    festgeschrieben=$(HOME=/nonexistent setpriv --reuid=1001 --regid=1001 --clear-groups git -c 'safe.directory=*' -C "$v/checkout" rev-list --count ausgangsstand 2>/dev/null || echo 0)
+  if [ -d "$v/checkout/.git" ] && [ "$checkout_neu" != 1 ]; then
+    # Nicht lesbar heißt nicht „nichts drin“: lieber abbrechen, als Freigabe-Commits zu löschen
+    festgeschrieben=$(HOME=/nonexistent setpriv --reuid=1001 --regid=1001 --clear-groups git -c 'safe.directory=*' -C "$v/checkout" rev-list --count ausgangsstand) ||
+      { echo "up: Checkout nicht lesbar, nichts gelöscht; bewusst neu nur mit --checkout-neu" >&2; return 1; }
   fi
   if [ "$festgeschrieben" -gt 1 ] && [ "$checkout_neu" != 1 ]; then
     echo "up: Checkout bleibt, Ausgangsstand trägt $festgeschrieben Commits"
