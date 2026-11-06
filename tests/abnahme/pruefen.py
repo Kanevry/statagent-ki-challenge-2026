@@ -251,9 +251,15 @@ def db_umgebung(datei: Path) -> str:
 
 def hand_teil(p: dict, k: dict, belege: dict[str, list[dict]], sha: str) -> dict:
     """Hand-Prüfsatz: zählt als voller Teil, wenn der Prüfer einen gültigen Hand-Beleg abgelegt hat."""
-    b = matrix.beleg_fuer(k, belege)
+    # Nur Hand-Belege ansehen: Der jüngste Eintrag ist sonst die Zeile des letzten Laufs und überdeckt den Beleg.
+    hand = [
+        x
+        for x in belege.get(k["id"], [])
+        if x.get("art") == "hand" and x.get("hash") == k["hash"] and not matrix.ist_vorschlag(x)
+    ]
+    b = max(hand, key=lambda x: x.get("zeit", ""), default=None)
     leer = {"exit": None, "text": ""}
-    if not b or b.get("art") != "hand" or b.get("hash") != k["hash"] or matrix.ist_vorschlag(b):
+    if not b:
         return leer | {"stand": "nicht geprüft", "grund": f"Hand-Prüfung offen: {p['beschreibung'][:200]}"}
     if alt := matrix.veraltet(b, sha, k["bereich"]):
         return leer | {

@@ -270,3 +270,24 @@ def test_alte_abzuege_entfernen_schont_den_laufenden_abzug(tmp_path: Path) -> No
 
     assert weg == ["bbbbbbbbbbbb-git"]
     assert (tmp_path / "aaaaaaaaaaaa-git").is_dir()
+
+
+def test_hand_beleg_wird_nicht_von_der_laufzeile_ueberdeckt(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Fängt: Nach dem ersten Lauf steht dessen Zeile als jüngster Eintrag vorn, der Hand-Beleg zählt nie wieder.
+    monkeypatch.setattr(pruefen.matrix, "veraltet", lambda *a: "")
+    k = {"id": "1-1", "hash": "h", "bereich": "uc3"}
+    p = {"beschreibung": "Ein Mensch prüft."}
+    belege = {
+        "1-1": [
+            {
+                "hash": "h",
+                "art": "hand",
+                "stand": "bestanden",
+                "zeit": "2026-11-06 06:00",
+                "pruefer": "b-abnahme-9d",
+            },
+            {"hash": "h", "stand": "nicht geprüft", "zeit": "2026-11-06 07:00", "pruefer": "lauf x"},
+        ]
+    }
+    assert pruefen.hand_teil(p, k, belege, "abc")["stand"] == "bestanden"
+    assert pruefen.hand_teil(p, k, {"1-1": belege["1-1"][1:]}, "abc")["stand"] == "nicht geprüft"
