@@ -1140,7 +1140,7 @@ herkunft = "b-abnahme-9d 2026-11-06 00:25"
 [[pruefung]]
 id = "76-AC2"
 hash = "de7af96954"
-befehl = "U='uv run --package statagent'; echo zeilen $(grep -cE '^[|] (Zusammenlegung|Bezirkswechsel|Umbenennung) [|]' docs/plan/uc3/regionen-stichprobe.md); timeout 60 $U uc3 klass region 62252; timeout 60 $U uc3 klass region 32424; timeout 60 $U uc3 klass region 41713"
+befehl = "U='uv run --package statagent'; echo zeilen $(grep -cE '^[|] (Zusammenlegung|Bezirkswechsel|Umbenennung) [|]' docs/plan/uc3/regionen-stichprobe.md); timeout 60 $U uc3 klass region 62252; timeout 60 $U uc3 klass region 32424; timeout 60 $U uc3 klass region 41713; timeout 60 $U python tests/abnahme/p/uc3_klass.py stichprobe"
 erwartet = ["^zeilen 3$", "62280", "30741", "Lenzing an der Ager"]
 schwer = true
 deckung = "teil"
@@ -1227,3 +1227,15 @@ quelle = "Kriterium 16-AC2; uc3/pruefkatalog.csv; meta.lauf"
 grund = "24 Plätze ohne leere Felder, Status umgesetzt, Verhältnisse im Bericht getrennt, Residuum in keinem Lauf ungleich 0"
 befund = "Der Prüfkatalog hat leere Felder oder Platzhalter, oder ein Lauf hat ein Residuum"
 herkunft = "b-abnahme-9d 2026-11-06 04:55"
+
+[[pruefung]]
+id = "76-AC2"
+hash = "de7af96954"
+art = "hand"
+deckung = "voll"
+beschreibung = "Ein Reviewer vergleicht die drei Übergänge in docs/plan/uc3/regionen-stichprobe.md mit den amtlichen Dateien des Startpakets (ODS-Blatt und Zeile, Stände davor und danach) und bestätigt 0 unbegründete Abweichungen."
+quelle = "Kriterium 76-AC2; Review lead-session-orchestrator-49, 06.11. 04:50; Entscheid Lead f7: bestanden mit Anmerkung"
+befund = "Die Bestätigung des Reviewers fehlt"
+grund = "Reviewer bestätigt 0 unbegründete Abweichungen, Umbenennung und Bezirkswechsel sind keine Löschung"
+anmerkung = "SQL genannt, Ergebniszeilen nicht in der Datei, Beziehungen nicht neu gemessen"
+herkunft = "b-abnahme-9d 2026-11-06 05:00"
