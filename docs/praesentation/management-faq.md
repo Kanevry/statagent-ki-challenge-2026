@@ -29,7 +29,7 @@ Beleg: `README.md`, Abschnitt Lizenzen. Dauer einer Einführung: nicht gemessen.
 ## Kosten und Dauer
 
 **6. Was kostet eine Anfrage?**
-„Eine Frage an die Daten kostet keinen Modellaufruf, denn dort rechnet das Programm. Ein Änderungsvorschlag kostet rund einen Cent.“
+„Eine Frage an die Daten kostet keinen Modellaufruf, denn dort rechnet das Programm. Ein Änderungsvorschlag kostet rund einen Cent und dauert rund drei Minuten, weil das Programm den Monat zweimal rechnet.“
 
 | Was | Modellaufrufe | Tokens hinein und heraus | Dauer beim Modell | Kosten zum Listenpreis |
 |---|---|---|---|---|
