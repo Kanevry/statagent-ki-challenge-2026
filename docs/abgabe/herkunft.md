@@ -6,7 +6,7 @@ Team neu geschrieben wurde, oder die das Repo nutzt. Jede Zeile hat einen Rechte
 **Ergebnis:** Für jede Zeile der Tabelle liegt ein Rechtebeleg vor, mit einer Ausnahme: Für die Formulartexte
 (Zeile „Formulartexte zweier Anträge“) ist die Frage der Veröffentlichung offen. Geprüft sind Herkunft und Lizenz der Teile, die im
 Repo liegen oder ausdrücklich übernommen wurden. **Nicht einzeln geprüft** sind die Lizenzen der übrigen Python- und
-npm-Pakete aus den Lockfiles, und die Abgrenzung zu everlast beruht auf einer Namenssuche (Hinweise unter der
+npm-Pakete aus den Lockfiles, und die Abgrenzung zum früheren eigenen Projekt beruht auf einer Namenssuche (Hinweise unter der
 Tabelle).
 
 Einordnung: **neu** (hier geschrieben), **vorab entstanden** (aus einem früheren Projekt übernommen), **Konzept**
@@ -15,7 +15,7 @@ Einordnung: **neu** (hier geschrieben), **vorab entstanden** (aus einem frühere
 | Komponente | Herkunft | Version oder Commit | Betroffene Dateien | Rechte- oder Lizenzbeleg | Einordnung |
 |---|---|---|---|---|---|
 | Eigener Code und eigene Texte | Team OneShotAndy | Git-Verlauf dieses Repos (`LICENSE` zuletzt geändert in 4b75b6c) | `shared/`, `uc1/`, `uc2/`, `uc3/`, `web/`, `deploy/`, `docs/` | MIT-Lizenz, `LICENSE` (Owner-Entscheid 05.11.2026, queue #8707). Die Teilnahmebedingungen geben dem Dachverband zusätzlich uneingeschränkte Nutzung (README, Abschnitt Lizenzen). | neu |
-| `everlast-voice-interviewer` | frühere Arbeit des Teams, nicht in diesem Repo | keine Version, **kein Code übernommen** | Konzept wirkt in `shared/py/plattform/voice/` und `docs/voice.md` (Vapi Custom LLM, Webhook, Tunnel) | Die Suche `git grep -n -i everlast` findet den Namen nur in `CLAUDE.md`, `docs/prd/` und `docs/plan/`, also in Regeln und Plänen. Im Quelltext (`shared/`, `uc*/`, `web/`, `scripts/`) kommt er nicht vor. `docs/voice.md` hält fest: Konzept vorab, Code neu. Regel in `CLAUDE.md` (Ausnahme everlast) und im PRD (`docs/prd/2026-11-05-e0-plattform-e1-uc3.md`, Zeilen 254 und 479). | Konzept |
+| Voice-Konzept aus einem früheren eigenen Projekt (ein Sprach-Interview mit Vapi) | früheres eigenes Projekt des Teams, nicht in diesem Repo | keine Version, **kein Code übernommen** | Konzept wirkt in `shared/py/plattform/voice/` und `docs/voice.md` (Vapi Custom LLM, Webhook, Tunnel) | Eine Suche nach dem Namen des früheren Projekts über das ganze Repo fand ihn nur in Regeln und Plänen. Im Quelltext (`shared/`, `uc*/`, `web/`, `scripts/`) kam er nicht vor. Seit dem 06.11.2026 steht der Name auch in Regeln und Plänen nicht mehr. `docs/voice.md` hält fest: Konzept vorab, Code neu. Regel in `CLAUDE.md` (Ausnahme früheres Voice-Projekt) und im PRD (`docs/prd/2026-11-05-e0-plattform-e1-uc3.md`, Zeilen 254 und 479). | Konzept |
 | Schriften Inter, Space Grotesk, JetBrains Mono | npm-Pakete `@fontsource-variable/inter`, `/space-grotesk`, `/jetbrains-mono` | je 5.3.0 (`pnpm-lock.yaml`) | `shared/ui/src/tokens.css` (Zeilen 12 bis 14); Dateien kommen beim Installieren, nicht aus dem Repo | Lizenzfeld in den installierten Paketen: OFL-1.1 (SIL Open Font License). Die Schriften werden nicht im Repo mitgeliefert. | extern |
 | Messregeln des Anti-Schablonen-Gates | impeccable-Katalog von Paul Bakaus, https://github.com/pbakaus/impeccable (Copyright 2025 Paul Bakaus) | Übernommen über eine Messfunktion mit Stand 25.09.2026; Upstream-Kopf an diesem Tag 9d715cc4f556 (gemessen per GitHub-API, der genaue Commit wurde damals nicht festgehalten). Im Repo seit unserem Commit 2b7081f | `web/tests/lib/slop-measure.js`, Lizenztext `web/tests/lib/LICENSE-impeccable` | Apache-2.0, SPDX-Kopf in der Datei, Lizenztext liegt daneben. Die Datei steht damit unter Apache-2.0, nicht unter MIT. | extern, angepasst |
 | `three` (3D-Bibliothek) | npm-Paket `three` | 0.187.0 (`pnpm-lock.yaml`), Typen `@types/three` | steht noch in `web/package.json`, wird nicht mehr importiert; die Startseite zeichnet mit SVG und CSS | Lizenzfeld im installierten Paket: MIT | extern |
@@ -33,11 +33,11 @@ Einordnung: **neu** (hier geschrieben), **vorab entstanden** (aus einem frühere
 
 ## Hinweise
 
-1. **everlast:** `docs/plan/uc1/2026-11-05-prd-e2-uc1-ki-lotse.md` (Zeilen 48, 65 und 295) kennt eine spätere
-   Owner-Freigabe, Browser-Code aus everlast zu übernehmen. Das Projekt hat keine Lizenzdatei („Alle Rechte
+1. **Früheres eigenes Projekt:** `docs/plan/uc1/2026-11-05-prd-e2-uc1-ki-lotse.md` (Zeilen 48, 65 und 295) kennt eine spätere
+   Owner-Freigabe, Browser-Code aus dem früheren Projekt zu übernehmen. Dieses Projekt hat keine Lizenzdatei („Alle Rechte
    vorbehalten“). Übernommen wurde kein solcher Code: Der Sprechknopf `VoiceKnopf` (`shared/ui/src/voice/`) ist
-   hier neu geschrieben, er nutzt das Vapi-SDK `@vapi-ai/web` (MIT) direkt, und der Name everlast kommt im Quelltext
-   nicht vor. Es ist also nichts zu klären. Käme später Code aus everlast dazu, braucht diese Zeile vorher einen
+   hier neu geschrieben, er nutzt das Vapi-SDK `@vapi-ai/web` (MIT) direkt, und der Name des früheren Projekts kommt im Quelltext
+   nicht vor. Es ist also nichts zu klären. Käme später Code aus dem früheren Projekt dazu, braucht diese Zeile vorher einen
    Eintrag mit Owner-Entscheid. Geprüft wurde per Namenssuche und
    Dateiliste, nicht mit einem Textvergleich beider Projekte.
 2. **Bibliotheken:** Python- und npm-Pakete werden installiert, nicht ins Repo kopiert. Ihre Versionen stehen in

@@ -323,9 +323,9 @@ Mehr dazu, mit Fundstellen im Code: [`docs/einstieg/use-cases-stand.md`](docs/ei
 
 ## Vorab Entstandenes
 
-Das Voice-Konzept (Vapi Custom LLM, Webhook, Text-Fallback) folgt dem vorab entstandenen Projekt
-`everlast-voice-interviewer` des Teams. **Übernommen sind nur Konzept und Schnittstellen. Der Code ist hier neu
-geschrieben.** Das belegt eine Suche im Repo: Der Name steht nur in Plänen und Regeln, nicht im Code.
+Das Voice-Konzept (Vapi Custom LLM, Webhook, Text-Fallback) folgt einem früheren eigenen Projekt des Teams,
+einem Sprach-Interview mit Vapi. **Übernommen sind nur Konzept und Schnittstellen. Der Code ist hier neu
+geschrieben.** Das belegt eine Suche im Repo: Der Name des früheren Projekts kommt im Quelltext nicht vor.
 Die Liste aller übernommenen Teile mit Herkunft, Version und Rechtebeleg: `docs/abgabe/herkunft.md`.
 
 ## Lizenzen
