@@ -84,7 +84,8 @@ in der Vorführung und ist nicht messbar, das gehört am Tisch nicht behauptet. 
 3. **D2 Live-Änderung:** `/uc3/auftrag`, Satz tippen, Monat für die Zahlen wählen, „Vorschlag schreiben lassen“. Danach „Vorher
    und nachher ansehen“, Name eintragen, freigeben. Die Seite nennt den Commit. Rücknahme: neuer Auftrag „Nimm Vorschlag <n>
    zurück“, wieder freigeben.
-4. **D3 Datenanfragen:** `/uc3/fragen`.
+4. **D3 Datenanfragen:** `/uc3/fragen`. Eine Frage braucht rund 3 s. Höchstens zwei rechnen gleichzeitig, also die Antwort abwarten:
+   Die dritte Frage innerhalb dieser 3 s bekommt „Gerade rechnet das Programm schon zwei Fragen“.
 5. **D4 Gemeinsamer Einstieg:** `/uc4`.
 
 Die Zahlen nachher kommen in der Vorführung aus der Probe auf dem Vorschlag. Ein neuer Regelsatz rechnet Monate nur in
