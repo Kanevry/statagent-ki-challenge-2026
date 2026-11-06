@@ -17,6 +17,7 @@ const SICHTBAR = alleTexte({
   SEITE: inhalt.SEITE,
   NAVIGATION: inhalt.NAVIGATION,
   HERO: inhalt.HERO,
+  DEMO_HINWEIS: inhalt.DEMO_HINWEIS.saetze,
   GESCHICHTE: inhalt.GESCHICHTE,
   BUEHNE: inhalt.BUEHNE,
   BELEG: { ...inhalt.BELEG, sql: "" },

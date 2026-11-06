@@ -85,6 +85,28 @@
   color: var(--g-leise);
 }
 
+/* Abbau der Modell-Zugänge (DEMO_HINWEIS): leise wie die Autorzeile, auch schmal sichtbar */
+.abbau {
+  margin: 16px 0 0;
+  max-width: 52ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--g-leise);
+  text-wrap: pretty;
+}
+
+.abbau a {
+  color: var(--g-papier);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.abbau a:focus-visible {
+  outline: 2px solid var(--l-mint);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
 .hinweis {
   margin: 32px 0 0;
   font-size: 14px;

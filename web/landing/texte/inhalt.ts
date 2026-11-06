@@ -107,6 +107,21 @@ export const HERO = {
   hinweis: "Weiter nach unten: der Weg der Daten in fünf Schritten.",
 } as const;
 
+/**
+ * Hinweis zum Abbau der Modell-Zugänge (Owner 06.11.2026): auf der Startseite im Hero und in der App unter dem Kopf
+ * (DemoHinweis). Fest im Code, weil die Demo nur bis 6. Dezember 2026 läuft; danach entfällt er mit der Seite.
+ */
+export const DEMO_HINWEIS = {
+  saetze: [
+    "Die KI-Funktionen laufen über Zugänge des Veranstalters der KI Challenge und antworten nicht mehr, sobald diese in den nächsten Tagen abgebaut sind.",
+    "Zahlen, Qualitätsberichte, Freigaben und Protokoll bleiben sichtbar, denn gerechnet wird ohne KI.",
+    "Die Demo ist bis 6. Dezember 2026 online.",
+  ],
+  /** Kurzfassung für das Band auf schmalen Bildschirmen (eine Zeile, damit der erste Bildschirm frei bleibt). */
+  kurz: "Die KI-Zugänge enden in den nächsten Tagen. Gerechnet wird ohne KI.",
+  code: { href: "https://github.com/Kanevry/statagent-ki-challenge-2026", text: "Code auf GitHub" },
+} as const;
+
 export interface GeschichteSchritt {
   titel: string;
   text: string;

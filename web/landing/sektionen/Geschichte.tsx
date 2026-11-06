@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { BESTAND_JE_MONAT, EINBRUCH, FREIGABE, GOLDEN_SET, LIEFERUNGEN, SUMME_ZEILEN, zahl } from "../daten/fakten";
-import { BELEG, BUEHNE, GESCHICHTE, HERO, NAVIGATION } from "../texte/inhalt";
+import { BELEG, BUEHNE, DEMO_HINWEIS, GESCHICHTE, HERO, NAVIGATION } from "../texte/inhalt";
 import g from "./geschichte.module.css";
 
 /*
@@ -315,6 +315,9 @@ export default function Geschichte() {
             {HERO.knopf}
           </Link>
           <p className={g.autor}>{HERO.autor}</p>
+          <p className={g.abbau}>
+            {DEMO_HINWEIS.saetze.join(" ")} <a href={DEMO_HINWEIS.code.href}>{DEMO_HINWEIS.code.text}</a>
+          </p>
           <p className={g.hinweis}>{HERO.hinweis}</p>
         </header>
         <Buehne schritt={schritt} />
