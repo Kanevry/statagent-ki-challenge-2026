@@ -249,3 +249,9 @@ def test_nur_ein_job_sagt_ab(zwei_monate: Verbindung) -> None:
     assert (
         antwort_frage(zwei_monate, "Wie viele Personen hatten im August 2024 nur einen Job?")["zahlen"] == []
     )
+
+
+# Fängt (Prüfung !242): „Das Wort „25““ nannte eine Zahl ein Wort.
+def test_lose_zahl_heisst_angabe(zwei_monate: Verbindung) -> None:
+    daten = antwort_frage(zwei_monate, "Beschäftigte mit 25 Jahren im August 2024")
+    assert daten["zahlen"] == [] and daten["text"].startswith("Die Angabe „25“")
