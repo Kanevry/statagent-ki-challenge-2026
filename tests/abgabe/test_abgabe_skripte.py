@@ -658,16 +658,23 @@ def test_github_push_mit_kopf_und_ruecklesen(tmp_path: Path, ohne_gitleaks, monk
     [
         ("docs/abnahme/laeufe/2026-11-05T1738-5854102c.jsonl", 0),
         ("docs/abnahme/laeufe/unter/ordner.jsonl", 0),
+        ("docs/landing/v1/desktop.png", 0),
+        ("docs/landing/v2/mobil.png", 0),
+        ("docs/plan/uc1/messung-dev-ende.md", 0),
+        ("docs/plan/uc2/freigabe-bericht.md", 0),
+        ("docs/landing/logos-quellen.md", 1),  # bleibt, liegt neben den Entwürfen
+        ("docs/landing/v3/desktop.png", 1),
+        ("docs/plan/uc1/anderer-plan.md", 1),
         ("docs/abnahme/laeufe-kopie/a.jsonl", 1),  # gleicher Anfang, anderer Ordner
         ("docs/abnahme/belege.jsonl", 1),
         ("docs/abgabe/herkunft.md", 1),
         ("laeufe/a.jsonl", 1),
     ],
 )
-def test_github_dateien_nur_die_laeufe_duerfen_fehlen(
+def test_github_dateien_nur_die_genannten_pfade_duerfen_fehlen(
     tmp_path: Path, ohne_gitleaks, entfernt: str, rc: int
 ) -> None:
-    """Fängt: Die Ausnahme für die Rohläufe öffnet die Prüfung auch für jede andere entfernte Datei."""
+    """Fängt: Die Ausnahmen öffnen die Prüfung auch für jede andere entfernte Datei."""
     bare = _bare_mit_github_stand(tmp_path, entfernt)
     quelle, _ = _quelle(tmp_path)
 

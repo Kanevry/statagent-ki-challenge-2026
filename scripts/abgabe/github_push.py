@@ -41,9 +41,15 @@ WIEN = ZoneInfo("Europe/Vienna")
 NICHT_VOR = "2026-11-06T08:30"
 # Entscheid Lead (#92, 05.11.): Historie bleibt unverändert; bekannte Treffer in Commit-Nachrichten.
 ERLAUBTE_COMMIT_TREFFER = 12
-# Entscheid Lead 3d (#188, 06.11.): Die Rohläufe der Abnahme liegen nicht mehr auf main. Nur dieser Ordner
-# darf auf GitHub verschwinden, jede andere entfernte Datei blockt weiter.
-DARF_AUF_GITHUB_FEHLEN = "docs/abnahme/laeufe/"
+# Entscheid Lead (#188, 06.11.): Die Rohläufe der Abnahme und die überholten Arbeitsdateien liegen nicht mehr
+# auf main. Nur diese Pfade dürfen auf GitHub verschwinden, jede andere entfernte Datei blockt weiter.
+DARF_AUF_GITHUB_FEHLEN = (
+    "docs/abnahme/laeufe/",
+    "docs/landing/v1/",
+    "docs/landing/v2/",
+    "docs/plan/uc1/messung-dev-ende.md",
+    "docs/plan/uc2/freigabe-bericht.md",
+)
 # GitHub lehnt Dateien über 100 MB ab, warnt ab 50 MB.
 GROESSE_GRENZE = 50 * 1024 * 1024
 # Dateien, die GitHub schon hat und die erhalten bleiben müssen (Vorgabe der Veranstalter).
@@ -263,7 +269,7 @@ def pruefe(arbeit: Path, muster: list[re.Pattern[str]], bericht_pfad: Path, erla
     entfernt = gh_pfade - set(pfade)
     fehlend = sorted(p for p in entfernt if not p.startswith(DARF_AUF_GITHUB_FEHLEN))
     gewollt = len(entfernt) - len(fehlend)
-    zusatz = f", {gewollt} gewollt entfernt unter {DARF_AUF_GITHUB_FEHLEN}" if gewollt else ""
+    zusatz = f", {gewollt} gewollt entfernt" if gewollt else ""
     bericht.add(
         "github-dateien",
         not fehlend,
