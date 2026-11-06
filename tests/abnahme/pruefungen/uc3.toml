@@ -1118,8 +1118,9 @@ schwer = true
 deckung = "voll"
 zeitlimit = 220
 quelle = "Kriterium 75-AC2; OENACE2008_OENACE2025_DE_12B.txt"
-grund = "1115 Paare 2008 zu 2025 mit Typen, jede Elternkette endet beim Abschnitt, der Bericht zum Wechsel nennt die nicht eindeutigen Übergänge"
-befund = "Umsteiger, Elternketten oder der Hinweis auf nicht eindeutige Übergänge im Bericht 2025-01 fehlen"
+grund = "1115 Paare 2008 zu 2025 mit Typen, jede Elternkette endet beim Abschnitt, der Bericht 2025-01 sagt, dass Zahlen je Abschnitt über den Wechsel nicht direkt vergleichbar sind"
+befund = "Umsteiger, Elternketten oder der Hinweis im Bericht 2025-01 auf die fehlende Vergleichbarkeit fehlen"
+anmerkung = "Keine eigene Fußnote an Abschnitt C, Wortlaut „nicht eindeutig“ fehlt: nicht wörtlich erfüllt (Entscheid Lead f7 in #75)"
 herkunft = "b-abnahme-9d 2026-11-06 00:25"
 
 [[pruefung]]

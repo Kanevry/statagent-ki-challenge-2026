@@ -146,6 +146,9 @@ Nicht übernommen, mit Grund:
 - Agent-Vorschläge mit Platzhaltern (`<Pfad zu …>`) ergaben über Syntaxfehler falsch „nicht bestanden“; ein Vorschlag
   startete `docker compose` auf dem Bau-Port 5433. Seitdem: Platzhalter, Syntaxfehler, Bau-Ports und Docker machen
   einen Prüfsatz ungültig.
+- Schwere Läufe bis 06.11. 02:20: Die sieben pytest-Sätze 14-AC3, 15-AC2, 16-AC1, 70-AC1, 73-AC1, 74-AC2 und 78-AC1 hatten
+  keine Adresse für ihre Test-Fixtures und fielen auf den Bau-Port zurück. Auf dem Ersatzrechner ohne Bau-DB wurden sie
+  übersprungen; frühere Läufe liefen damit vermutlich gegen den Bau-Server. Seither setzt `pruefen.py` die Adresse auf die Prüf-DB.
 - Eigene Werkzeugfehler, behoben: Prüfskripte fehlten im Abzug, Farbcodes, fehlende Node-Module, Abzug ohne Git,
   Befund-Kommentare wurden bei geänderter Laufzeit erneut gepostet (in UC3 und UC1 je ein doppelter Kommentar
   aus dem Lauf 18:05).
