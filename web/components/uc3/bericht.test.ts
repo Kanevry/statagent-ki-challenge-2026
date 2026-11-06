@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { annahmeSatz, befundSatz, einstufungAus, ersterSatz, rueckfrageBetrifft, rueckfragenInAllenMonaten } from "./bericht";
+import { annahmeSatz, befundSatz, einstufungAus, ersterSatz, pruefungMalMonat, rueckfrageBetrifft, rueckfragenInAllenMonaten } from "./bericht";
 
 describe("einstufungAus", () => {
   // Fehler: ein Treffer ohne Einstufung ('' in meta.pruefung_treffer) erschiene grün oder gar nicht; der
@@ -86,5 +86,38 @@ describe("ersterSatz nach Zahlen (Review !77, Punkt 7)", () => {
     expect(ersterSatz("Die obere Grenze ist 110. Die ILO zählt anders.")).toBe("Die obere Grenze ist 110.");
     expect(ersterSatz("Wir rechnen mit dem 1. Juli des Jahres. Danach mehr.")).toBe("Wir rechnen mit dem 1. Juli des Jahres.");
     expect(ersterSatz("Gezählt wird ein Alter bis 110. Die ILO zählt anders.")).toBe("Gezählt wird ein Alter bis 110.");
+  });
+});
+
+describe("pruefungMalMonat", () => {
+  const t = (lieferung: string, name: string, anzahl: number, einstufung: string | null, anhalten = false) => ({
+    lieferung,
+    name,
+    anzahl,
+    einstufung,
+    anhalten,
+  });
+
+  it("Summen je Gruppe und Monat ergeben die Gesamtzahl, ohne Einstufung zählt als noch nicht erklärt", () => {
+    const m = pruefungMalMonat([
+      t("2025-03", "P13_a", 2, "erklaert-datenproblem", true),
+      t("2025-03", "P19_b", 300, null),
+      t("2025-04", "P19_b", 310, "nicht-erklaerbar"),
+      t("2025-04", "P07_c", 5, "erklaert-plausibel"),
+    ]);
+    expect(m.gesamt).toBe(4);
+    expect(m.jeMonat).toEqual({ "2025-03": 2, "2025-04": 2 });
+    expect(m.summen.fehler.gesamt).toBe(1);
+    expect(m.summen["kein-fehler"].gesamt).toBe(1);
+    expect(m.summen.offen).toEqual({ gesamt: 2, jeMonat: { "2025-03": 1, "2025-04": 1 } });
+    expect(m.zeilen.map((z) => z.name)).toEqual(["P07_c", "P13_a", "P19_b"]);
+    expect(m.zeilen[1]?.zellen["2025-03"]).toEqual({ anzahl: 2, einstufung: "erklaert-datenproblem", anhalten: true });
+  });
+
+  it("zwei Treffer einer Prüfung im Monat: eine Zelle mit Summe und der ernsteren Einstufung, beide zählen", () => {
+    const m = pruefungMalMonat([t("2025-05", "P14_x", 1, "erklaert-plausibel"), t("2025-05", "P14_x", 2, "nicht-erklaerbar", true)]);
+    expect(m.zeilen[0]?.zellen["2025-05"]).toEqual({ anzahl: 3, einstufung: "nicht-erklaerbar", anhalten: true });
+    expect(m.jeMonat["2025-05"]).toBe(2);
+    expect(m.gesamt).toBe(2);
   });
 });

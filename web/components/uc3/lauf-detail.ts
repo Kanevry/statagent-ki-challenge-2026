@@ -323,10 +323,20 @@ export function wartetSatz(offeneRueckfragen: readonly string[] | undefined): st
   return offeneRueckfragen?.length ? `wartet auf Antwort der Fachabteilung (${aufzaehlen(offeneRueckfragen)})` : null;
 }
 
+/**
+ * Die Vorlage von P17 lässt die Richtung offen, „345.078 / 434.104 Zeilen gegen 2025-09 (-20,5 %)“ im Umfang kennt sie.
+ * Ohne Prozentangabe, etwa in der Tabelle über alle Monate, bleibt der offene Wortlaut. meta.regel bleibt unberührt.
+ */
+function mitRichtung(satz: string, umfang: string | null): string {
+  const prozent = umfang?.match(/\(([-−]?)\d[\d.,]*\s*%\)/);
+  if (!prozent) return satz;
+  return satz.replace("deutlich mehr oder weniger", prozent[1] ? "deutlich weniger" : "deutlich mehr");
+}
+
 /** Titel einer Auffälligkeit: Satzvorlage der Regel, sonst eigener Titel, sonst der erste Satz der Beschreibung. */
 export function trefferTitel(t: Pick<Treffer, "name" | "beschreibung" | "satz" | "anzahl" | "umfang">, lieferung: string): string {
   if (t.satz) {
-    return t.satz
+    return mitRichtung(t.satz, t.umfang)
       .replaceAll("{anzahl}", formatZahl(t.anzahl))
       .replaceAll("{monat}", monatName(lieferung))
       .replaceAll("{umfang}", t.umfang ?? "");
@@ -335,6 +345,11 @@ export function trefferTitel(t: Pick<Treffer, "name" | "beschreibung" | "satz" |
   if (eigen) return eigen;
   const erster = t.beschreibung.split(/(?<=\.)\s/)[0] ?? t.beschreibung;
   return erster || t.name;
+}
+
+/** Klartext einer Prüfung ohne Monatsbezug und ohne Punkt am Ende, z. B. „Teilsummen passen nicht zur Gesamtzahl“. */
+export function pruefungTitel(name: string): string {
+  return trefferTitel({ name, beschreibung: "", satz: null, anzahl: 0, umfang: null }, "").replace(/\.$/, "");
 }
 
 /**

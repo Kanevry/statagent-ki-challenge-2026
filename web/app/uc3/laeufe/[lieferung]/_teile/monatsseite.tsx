@@ -16,6 +16,7 @@ import {
   type Rueckfrage,
 } from "@/components/uc3/bericht";
 import { DatenFehler } from "@/components/uc3/daten-fehler";
+import { inGruppen } from "@/components/uc3/einstufung-gruppen";
 import {
   abrechnungSatz,
   ausLieferung,
@@ -196,39 +197,31 @@ function TrefferZeile({ detail, t }: { detail: LaufDetail; t: Treffer }) {
 function Auffaelligkeiten({ detail }: { detail: LaufDetail }) {
   const liste = sortiereTreffer(detail.treffer);
   const anhaltend = liste.filter((t) => t.anhalten);
-  const weitere = liste.filter((t) => !t.anhalten);
   const titel =
     liste.length === 0
       ? "In diesem Monat ist keine Prüfung auffällig."
       : `${formatZahl(liste.length)} ${liste.length === 1 ? "Prüfung" : "Prüfungen"} auffällig${
           anhaltend.length === 0 ? "" : `, ${anhaltend.length === 1 ? "eine hält" : `${formatZahl(anhaltend.length)} halten`} den Monat an`
         }.`;
-  const oben = anhaltend.length > 0 ? anhaltend : weitere.slice(0, 3);
-  const rest = anhaltend.length > 0 ? weitere : weitere.slice(3);
   return (
-    <section id="auffaelligkeiten" aria-labelledby="auffaelligkeiten-titel" className="flex max-w-4xl scroll-mt-24 flex-col gap-2">
+    <section id="auffaelligkeiten" aria-labelledby="auffaelligkeiten-titel" className="flex max-w-4xl scroll-mt-24 flex-col gap-6">
       <h2 id="auffaelligkeiten-titel" className={abschnittTitel}>
         {titel}
       </h2>
-      {oben.length > 0 && (
-        <ul className="flex flex-col border-t border-line">
-          {oben.map((t) => (
-            <TrefferZeile key={`${t.regelId}-${t.ebene}`} detail={detail} t={t} />
-          ))}
-        </ul>
-      )}
-      {rest.length > 0 && (
-        <details>
-          <summary className="inline-flex min-h-11 cursor-pointer items-center font-sans text-14 text-slate underline decoration-line underline-offset-4">
-            {`${formatZahl(rest.length)} weitere`}
-          </summary>
+      {inGruppen(liste).map(({ gruppe, eintraege }) => (
+        <div key={gruppe.art} data-gruppe={gruppe.art} className="flex flex-col gap-1">
+          <h3 className="font-sans text-16 font-semibold text-ink">
+            {gruppe.titel}
+            <span className="font-normal text-slate">{` · ${formatZahl(eintraege.length)} ${eintraege.length === 1 ? "Prüfung" : "Prüfungen"}`}</span>
+          </h3>
+          <p className="pb-1 font-sans text-14 text-slate">{gruppe.satz}</p>
           <ul className="flex flex-col border-t border-line">
-            {rest.map((t) => (
+            {eintraege.map((t) => (
               <TrefferZeile key={`${t.regelId}-${t.ebene}`} detail={detail} t={t} />
             ))}
           </ul>
-        </details>
-      )}
+        </div>
+      ))}
     </section>
   );
 }

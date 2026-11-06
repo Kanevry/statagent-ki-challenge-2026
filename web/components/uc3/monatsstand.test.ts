@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monatsStand, vormonatIn } from "./monatsstand";
+import { monatsStand, vormonatIn, standSumme } from "./monatsstand";
 
 describe("vormonatIn", () => {
   it("vergleicht nur mit dem Kalender-Vormonat, nie mit einem früheren Monat über eine Lücke", () => {
@@ -25,5 +25,13 @@ describe("monatsStand", () => {
 
   it("meldet eine nicht aufgehende Abrechnung vor jedem anderen Stand", () => {
     expect(monatsStand({ angehalten: true, ergebnisStand: "endgueltig", gehtAuf: false }).art).toBe("fehler");
+  });
+});
+
+describe("standSumme", () => {
+  it("zählt angehalten vor veröffentlicht und lässt Nullen weg", () => {
+    const m = (angehalten: boolean, ergebnisStand: "endgueltig" | "vorlaeufig") => ({ angehalten, ergebnisStand });
+    expect(standSumme([m(false, "endgueltig"), m(false, "endgueltig"), m(true, "vorlaeufig")])).toBe("2 veröffentlicht, 1 angehalten");
+    expect(standSumme([m(false, "vorlaeufig")])).toBe("1 vorläufig");
   });
 });
