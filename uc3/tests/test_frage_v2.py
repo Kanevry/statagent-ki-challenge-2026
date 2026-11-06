@@ -99,7 +99,7 @@ def test_ohne_v2_wort_bleibt_v1(mit_v2: Verbindung) -> None:
 @pytest.mark.parametrize(
     ("frage", "wort"),
     [
-        ("Fluktuation im August 2024 nach Regelsatz v2", "nur im Regelsatz v1"),
+        ("Fluktuation im August 2024 nach Regelsatz v2", "nur nach den alten Regeln"),
         ("Frauenanteil im August 2024 nach Regelsatz v2", "gibt es nur Zahlen nach"),
         ("Beschäftigte unter 25 Jahren im August 2024 nach Regelsatz v2", "gibt es nur Zahlen nach"),
         ("Beschäftigte nach Altersgruppe im August 2024 nach Regelsatz v2", "gibt es nur Zahlen nach"),
@@ -148,7 +148,7 @@ def test_unsinn_mit_v2_bekommt_keine_zahl(mit_v2: Verbindung) -> None:
 # Fängt: Wer zu einem Monat beide Regelsätze nennt, bekam still nur einen oder eine Absage ohne Weg.
 def test_beide_regelsaetze_einzeln_fragen(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Vergleiche August 2024 in v1 und v2")
-    assert daten["zahlen"] == [] and "nur einen Regelsatz" in daten["text"]
+    assert daten["zahlen"] == [] and "nur einen Stand" in daten["text"]
 
 
 # Fängt: „den ganzen Monat beschäftigt“ meint durchgehend; v2 zählt aber „irgendwann im Monat“, also etwas anderes.
@@ -189,7 +189,9 @@ def test_gliederung_neben_v2_bleibt(mit_v2: Verbindung) -> None:
 )
 def test_verneinung_von_v2_gibt_keine_v2_zahl(mit_v2: Verbindung, frage: str) -> None:
     daten = antwort_frage(mit_v2, frage)
-    assert daten["zahlen"] == [] and daten["text"].startswith("Ohne Änderungsaufträge gilt Regelsatz v1.")
+    assert daten["zahlen"] == [] and daten["text"].startswith(
+        "Ohne Änderungsaufträge gelten die alten Regeln."
+    )
 
 
 # Vorab-Lesung Bank !230, Punkt 2: Österreichisch heißt es „das ganze Monat“.
@@ -233,7 +235,7 @@ def test_bundesland_mit_wert_bleibt_filter(mit_v2: Verbindung) -> None:
 )
 def test_vor_und_nach_fragt_beide(mit_v2: Verbindung, frage: str) -> None:
     daten = antwort_frage(mit_v2, frage)
-    assert daten["zahlen"] == [] and "nur einen Regelsatz" in daten["text"]
+    assert daten["zahlen"] == [] and "nur einen Stand" in daten["text"]
 
 
 # Fix-Liste !230, B2: Ein Regelsatz ohne Lauf fiel still auf die v1-Zahl zurück.
@@ -285,8 +287,8 @@ def test_jahr_nach_v2_fragt_nach_dem_monat(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Beschäftigte 2024 nach v2")
     assert (
         daten["zahlen"] == []
-        and "Regelsatz v2 wissen" in daten["text"]
-        and "nach Regelsatz v2“" in daten["text"]
+        and "nach den Änderungsaufträgen wissen" in daten["text"]
+        and "nach den Änderungsaufträgen“" in daten["text"]
     )
     assert "letzten Tag" not in daten["text"]
 
@@ -310,16 +312,14 @@ def test_zwei_bundeslaender_bekommen_den_passenden_satz(mit_v2: Verbindung) -> N
 
 def test_zeitreihe_sagt_nur_ein_monat(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Zeitreihe der Beschäftigten 2024 nach v2")
-    assert daten["zahlen"] == [] and daten["text"].startswith(
-        "Fragen Sie im Regelsatz v2 nach einem Monat oder Zeitraum, "
-    )
+    assert daten["zahlen"] == [] and daten["text"].startswith("Bitte nennen Sie einen Monat oder Zeitraum, ")
 
 
 # Fix-Liste !230, B8: zwei Sätze, und die Absage ist keine Rückfrage.
 def test_fluktuation_absage_in_zwei_saetzen(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Fluktuation im August 2024 nach Regelsatz v2")
     assert daten["text"].startswith(
-        "Die Fluktuation vergleicht zwei Stichtage. Es gibt sie nur im Regelsatz v1"
+        "Die Fluktuation vergleicht zwei Stichtage. Es gibt sie nur nach den alten Regeln"
     )
     assert not daten["rueckfrage"]
 
@@ -346,7 +346,9 @@ def test_verlauf_zweier_bundeslaender_bekommt_den_grund(mit_v2: Verbindung) -> N
 )
 def test_verneinung_mit_wort_dazwischen(mit_v2: Verbindung, frage: str) -> None:
     daten = antwort_frage(mit_v2, frage)
-    assert daten["zahlen"] == [] and daten["text"].startswith("Ohne Änderungsaufträge gilt Regelsatz v1.")
+    assert daten["zahlen"] == [] and daten["text"].startswith(
+        "Ohne Änderungsaufträge gelten die alten Regeln."
+    )
 
 
 # Gegenfall: Ein anderes „ohne“ neben v2 ist keine Verneinung.
@@ -383,7 +385,9 @@ def test_uc4_mehrere_werte_ohne_wort_und_als_schalter(mit_v2: Verbindung) -> Non
 # Bank 49: „bevor“ fehlte bei der Verneinung, „vor oder nach“ und „Umsetzung“ bei beiden Regelsätzen.
 def test_bevor_ist_eine_verneinung(mit_v2: Verbindung) -> None:
     daten = antwort_frage(mit_v2, "Beschäftigte im August 2024, bevor die Änderungsaufträge umgesetzt wurden")
-    assert daten["zahlen"] == [] and daten["text"].startswith("Ohne Änderungsaufträge gilt Regelsatz v1.")
+    assert daten["zahlen"] == [] and daten["text"].startswith(
+        "Ohne Änderungsaufträge gelten die alten Regeln."
+    )
 
 
 @pytest.mark.parametrize(
@@ -395,7 +399,7 @@ def test_bevor_ist_eine_verneinung(mit_v2: Verbindung) -> None:
 )
 def test_vor_oder_nach_mit_umsetzung_fragt_beide(mit_v2: Verbindung, frage: str) -> None:
     daten = antwort_frage(mit_v2, frage)
-    assert daten["zahlen"] == [] and "nur einen Regelsatz" in daten["text"]
+    assert daten["zahlen"] == [] and "nur einen Stand" in daten["text"]
 
 
 # Bank 49: Ein einzelner gerechneter Regelsatz steht in der Einzahl.
