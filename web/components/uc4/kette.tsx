@@ -33,7 +33,7 @@ const ROLLE: Record<KettenUc, string> = {
 
 const BEISPIELE = [
   "Wie viele Beschäftigte gab es im März 2025 in Wien im Gesundheits- und Sozialwesen?",
-  "Wie viele Beschäftigte gab es im Oktober 2025?",
+  "Wie viele Beschäftigte gab es im Juli 2026 in Tirol im Gesundheits- und Sozialwesen?",
 ];
 
 type Station =
@@ -385,7 +385,7 @@ function StationKarte({
           <h2 className="font-display text-20 font-bold text-ink">{name}</h2>
           <p className="font-sans text-14 text-slate">
             {ROLLE[uc]}
-            {vorher ? `, mit der Antwort von ${findeUc(vorher).name}` : ""}.
+            {vorher ? `, mit der Zahl von ${findeUc("uc3").name}` : ""}.
           </p>
         </div>
       </div>
@@ -414,7 +414,11 @@ function StationKarte({
  * Text die Rückfrage: Die steht ganz da, sonst fehlt die eigentliche Frage. Die anderen Stationen zeigen ihre erste
  * Zeile, die Kernaussage (Jury 05.11.). Beides nur, solange es kurz genug ist.
  */
-const GANZ_BIS = 320;
+const GANZ_BIS = 400;
+/** Ab hier ist die Anzeigeschrift schwer zu lesen (UI-Regie 06.11.: neun Zeilen je Karte); kurze Sätze bleiben groß. */
+const LANG_AB = 160;
+/** Steht im Text, wenn oben die Vorlage steht und nicht das Modell; gleicher Satz wie `VORLAGE_OBEN` in uc2.antwort.allgemein. */
+const VORLAGE_OBEN = "Die Sätze zum Personal oben sind eine feste Vorlage, nicht von der KI geschrieben.";
 /** Die übrigen Belege stehen in der ganzen Antwort; oben reicht einer, zweimal „Beleg“ untereinander sagt nichts. */
 const BELEGE_OBEN = 1;
 /** Mehr Zahlen trägt die Karte nicht; „Zugänge im Oktober 2024“ liefert 89 (UI-Regie 05.11.). */
@@ -449,9 +453,11 @@ function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcA
   const nurErsterSatz = erste && antwort.zahlen.length > 0 && !kern.trim().endsWith("…");
   const gezeigt = !nurErsterSatz && ersteZeile.length <= GANZ_BIS ? ersteZeile : kern;
   const mehr = text !== gezeigt.trim();
+  // Der Monat ist angehalten: Karte 1 sagt das im Satz, sonst stünde es erst unter „Ganze Antwort“ (UI-Regie 06.11.).
+  const vorlaeufig = erste && !gezeigt.endsWith("…") && antwort.zahlen.some((z) => antwort.belege[z.beleg]?.stand === "vorlaeufig");
   return (
     <div className="flex flex-col gap-3" data-uc4-antwort="">
-      <p className="font-display text-20 font-medium text-ink text-pretty">{gezeigt}</p>
+      <p className={`${gezeigt.length >= LANG_AB ? "font-sans text-16" : "font-display text-20 font-medium"} text-ink text-pretty`}>{vorlaeufig ? `${gezeigt.replace(/\.$/, "")}, vorläufig.` : gezeigt}</p>
       {!erste && belegeOben(antwort).map((beleg, i) => (
         <HerkunftChip
           key={`${beleg.quelle}-${i}`}
@@ -509,10 +515,16 @@ function Antwort({ kern, antwort, dauerMs, erste }: { kern: string; antwort: UcA
       )}
       <ModellPille data-testid="uc4-modell">
         {!antwort.modell && !erste ? (
-          "Fester Text"
+          "Vorlage, ohne KI"
         ) : (
           <>
-            {antwort.modell ? (antwort.modell === "mock" ? TESTBETRIEB_TEXT : "Mit KI geschrieben") : "Ohne KI, nur Code"}
+            {antwort.modell
+              ? antwort.modell === "mock"
+                ? TESTBETRIEB_TEXT
+                : text.includes(VORLAGE_OBEN)
+                  ? "Oben Vorlage, ganze Antwort mit KI geschrieben"
+                  : "Mit KI geschrieben"
+              : "Ohne KI, nur Code"}
             {dauerMs > 0 ? `, ${sekunden(dauerMs)} s` : ""}
           </>
         )}

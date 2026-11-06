@@ -148,7 +148,7 @@ const TITEL: Record<string, string> = {
   P04: "Im Geburtsdatum steht der Monat 13.",
   P05: "Das Geburtsdatum fehlt oder ist ungültig.",
   P06: "Das Alter kann nicht stimmen.",
-  P07: "Sehr alte Beschäftigte, das Alter ist aber möglich.",
+  P07: "Menschen ab 75 Jahren, das Alter ist möglich.",
   P08: "Beginn oder Ende war kein gültiges Datum.",
   P09: "Der Beginn liegt nach dem Ende.",
   P10: "Bundesland oder Branche wurde leer geliefert.",
@@ -158,7 +158,7 @@ const TITEL: Record<string, string> = {
   P14: "Gruppen haben sich stark gegenüber dem Vormonat verändert.",
   P15: "Der Bestand fällt stark gegenüber dem Vormonat.",
   P16: "Beschäftigungsverhältnisse des Vormonats fehlen in der Lieferung.",
-  P17: "Die Lieferung hat deutlich mehr oder weniger Zeilen als die vorige.",
+  P17: "Die Zeilenzahl weicht deutlich von der vorigen Lieferung ab.",
   P18: "Viele gleiche Codewechsel am selben Tag.",
   P19: "Mögliche Doppelmeldung bei neuen Beschäftigungsverhältnissen.",
   P20: "Angaben einer Person passen nicht zusammen.",
@@ -323,10 +323,20 @@ export function wartetSatz(offeneRueckfragen: readonly string[] | undefined): st
   return offeneRueckfragen?.length ? `wartet auf Antwort der Fachabteilung (${aufzaehlen(offeneRueckfragen)})` : null;
 }
 
+/**
+ * Die Vorlage von P17 lässt die Richtung offen, „345.078 / 434.104 Zeilen gegen 2025-09 (-20,5 %)“ im Umfang kennt sie.
+ * Ohne Prozentangabe, etwa in der Tabelle über alle Monate, bleibt der offene Wortlaut. meta.regel bleibt unberührt.
+ */
+function mitRichtung(satz: string, umfang: string | null): string {
+  const prozent = umfang?.match(/\(([-−]?)\d[\d.,]*\s*%\)/);
+  if (!prozent) return satz;
+  return satz.replace("deutlich mehr oder weniger", prozent[1] ? "deutlich weniger" : "deutlich mehr");
+}
+
 /** Titel einer Auffälligkeit: Satzvorlage der Regel, sonst eigener Titel, sonst der erste Satz der Beschreibung. */
 export function trefferTitel(t: Pick<Treffer, "name" | "beschreibung" | "satz" | "anzahl" | "umfang">, lieferung: string): string {
   if (t.satz) {
-    return t.satz
+    return mitRichtung(t.satz, t.umfang)
       .replaceAll("{anzahl}", formatZahl(t.anzahl))
       .replaceAll("{monat}", monatName(lieferung))
       .replaceAll("{umfang}", t.umfang ?? "");
@@ -335,6 +345,11 @@ export function trefferTitel(t: Pick<Treffer, "name" | "beschreibung" | "satz" |
   if (eigen) return eigen;
   const erster = t.beschreibung.split(/(?<=\.)\s/)[0] ?? t.beschreibung;
   return erster || t.name;
+}
+
+/** Klartext einer Prüfung ohne Monatsbezug und ohne Punkt am Ende, z. B. „Teilsummen passen nicht zur Gesamtzahl“. */
+export function pruefungTitel(name: string): string {
+  return trefferTitel({ name, beschreibung: "", satz: null, anzahl: 0, umfang: null }, "").replace(/\.$/, "");
 }
 
 /**

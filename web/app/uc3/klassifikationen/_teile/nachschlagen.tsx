@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { formatZahl } from "@kic/ui/bausteine";
-import type { Art, Auswahl, Kinder, Knoten, Treffer } from "@/components/uc3/klassifikation-tief";
+import type { Art, Auswahl, Beispiel, Kinder, Knoten, Treffer } from "@/components/uc3/klassifikation-tief";
 
 // Nachschlagen (#189): ein Suchfeld und aufklappbare Ebenen, ÖNACE je Fassung und Regionen je Stand. Die Kinder kommen
 // erst beim Aufklappen, die Liste wäre sonst Zehntausende Zeilen lang. Nur lesend, ohne Zahlen: Die Statistik zählt nach
@@ -162,7 +162,17 @@ function Oberste({ daten, art, fassung }: { daten: Kinder; art: Art; fassung: st
 
 type Stand<T> = { zustand: "laedt" } | { zustand: "fehler" } | { zustand: "da"; daten: T };
 
-export function Nachschlagen({ auswahl, start, startArt }: { auswahl: Auswahl; start: Kinder; startArt: Art }) {
+export function Nachschlagen({
+  auswahl,
+  start,
+  startArt,
+  beispiele,
+}: {
+  auswahl: Auswahl;
+  start: Kinder;
+  startArt: Art;
+  beispiele: readonly Beispiel[];
+}) {
   const [art, setArt] = useState<Art>(startArt);
   const [fassungen, setFassungen] = useState<Record<Art, string>>({
     oenace: auswahl.oenace[0]?.wert ?? "",
@@ -218,6 +228,18 @@ export function Nachschlagen({ auswahl, start, startArt }: { auswahl: Auswahl; s
   const arten = (Object.keys(ART_WORT) as Art[]).filter((a) => auswahl[a].length > 0);
   const ort = wahlen.find((w) => w.wert === fassung)?.ort ?? "";
 
+  function artWaehlen(neu: Art) {
+    // Ein Name aus den Branchen passt selten zu den Regionen: Sonst stünde nach dem Wechsel „passt nichts“ da.
+    if (neu !== art) setSuche("");
+    setArt(neu);
+  }
+
+  function beispielZeigen(b: Beispiel) {
+    setArt(b.art);
+    setFassungen((f) => ({ ...f, [b.art]: b.fassung }));
+    setSuche(b.suche);
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
@@ -228,7 +250,7 @@ export function Nachschlagen({ auswahl, start, startArt }: { auswahl: Auswahl; s
                 key={a}
                 type="button"
                 aria-pressed={a === art}
-                onClick={() => setArt(a)}
+                onClick={() => artWaehlen(a)}
                 className={`inline-flex min-h-11 items-center px-3 font-sans text-14 ${a === art ? "bg-ink text-white" : "text-ink hover:bg-paper"}`}
               >
                 {ART_WORT[a]}
@@ -270,6 +292,22 @@ export function Nachschlagen({ auswahl, start, startArt }: { auswahl: Auswahl; s
           />
         </div>
       </div>
+
+      {beispiele.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4">
+          <span className={STATUS}>Zum Beispiel:</span>
+          {beispiele.map((b) => (
+            <button
+              key={b.suche}
+              type="button"
+              onClick={() => beispielZeigen(b)}
+              className="inline-flex min-h-11 items-center text-left font-sans text-14 text-ink underline underline-offset-4 hover:text-gruen"
+            >
+              {b.text}
+            </button>
+          ))}
+        </div>
+      )}
 
       <Unten
         suche={text ? (treffer?.fuer === schluessel ? treffer.stand : { zustand: "laedt" }) : null}

@@ -12,6 +12,7 @@ export const UC3_NAVIGATION: readonly UcNavPunkt[] = [
   { href: "/uc3/fragen", label: "Fragen" },
   { href: "/uc3/annahmen", label: "Annahmen" },
   { href: "/uc3/klassifikationen", label: "Klassifikationen" },
+  { href: "/uc3/pensionen", label: "Pensionen" },
 ];
 
 /** Nur Vorführ-Instanz: der Auftrag an die Agenten kommt nach den Monaten. */

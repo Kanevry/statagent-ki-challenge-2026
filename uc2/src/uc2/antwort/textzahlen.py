@@ -198,6 +198,11 @@ def _passt(zahl: Zahl, wert: float, text: str, start: int, ende: int, menge: re.
             # Zählwert („Anzahl“) ohne sichtbare Einheit: belegt, wenn seine volle Bezeichnung in derselben
             # Zeile davor steht, wie in der Ausgangslage des Adapters („Beschäftigte (Wien, …): 7.498“).
             return True
+        if not sichtbare_einheit(zahl.einheit) and text.startswith(
+            f" {zahl.bezeichnung.split(' (', 1)[0]}", ende
+        ):
+            # Oder ihr Wort direkt dahinter, wie im Bezugssatz („7.498 Beschäftigungsverhältnisse“).
+            return True
         # Nur die Einheit in einer ihrer festen Schreibweisen („135.790 Beschäftigte“ für „Personen“), nie ein
         # beliebiges Wort der Bezeichnung („135.790 Gesundheitszentren“ über „Gesundheits- und Sozialwesen“).
         einheit = _einheit_muster(zahl.einheit).match(text, ende)
