@@ -1,15 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { regelsatzSatz } from "./regelsatz-satz";
+import { imStand, mitRegeln, regelsatzName, regelsatzSatz } from "@/components/uc3/regelsatz-name";
 
-describe("Satz neben dem Regelsatz-Schalter", () => {
-  // Fehler, den das fängt: Die Jury erwartet 407.604, sieht 399.027 und erfährt nicht, warum.
-  it("sagt, was jeder zählt, und nennt die andere Zahl", () => {
-    expect(regelsatzSatz("v1", 407604)).toContain("Regelsatz v2 zählt das ganze Monat: 407.604.");
-    expect(regelsatzSatz("v2", 399027)).toContain("Regelsatz v1 zählt am Monatsletzten: 399.027.");
-    expect(regelsatzSatz("v3", 399027)).toBe("Das ist Regelsatz v3, mit einer freigegebenen Änderung. Regelsatz v1 zählt am Monatsletzten: 399.027.");
+describe("Wörter für die Fassungen der Regeln", () => {
+  // Fehler, den das fängt: Auf einer Seite steht wieder „v2“, das niemand ohne Vorwissen versteht.
+  it("zeigt nie die Kurzform aus der Adresse", () => {
+    for (const r of ["v1", "v2", "v3", "ministerium"]) {
+      for (const text of [regelsatzName(r), mitRegeln(r), imStand(r), regelsatzSatz(r, 399027)]) {
+        expect(text).not.toMatch(/\bv\d+\b|Regelsatz/);
+      }
+    }
+    expect(regelsatzName("v1")).toBe("Alte Regeln");
+    expect(regelsatzName("v2")).toBe("Nach den Änderungsaufträgen");
+    expect(regelsatzName("v3")).toBe("Neue Fassung 3");
+  });
+});
+
+describe("Satz neben dem Schalter", () => {
+  // Fehler, den das fängt: 399.027 und 407.604 stehen nebeneinander, und niemand sagt, was der Unterschied ist.
+  it("sagt, was hier zählt, und nennt die Zahl des anderen Stands", () => {
+    expect(regelsatzSatz("v1", 407604)).toBe(
+      "Sie sehen die alten Regeln: Gezählt wird am Stichtag, dem letzten Tag des Monats. Nach den Änderungsaufträgen zählt der ganze Monat: 407.604.",
+    );
+    expect(regelsatzSatz("v2", 399027)).toBe(
+      "Sie sehen den Stand nach den Änderungsaufträgen: Gezählt wird über den ganzen Monat. Nach den alten Regeln, gezählt am Stichtag, sind es 399.027.",
+    );
+    expect(regelsatzSatz("v3", 399027)).toBe("Sie sehen eine neue Fassung mit einer frisch freigegebenen Änderung. Nach den alten Regeln sind es 399.027.");
   });
 
-  it("erfindet keine Zahl, wenn der andere Regelsatz den Monat nicht gerechnet hat", () => {
-    expect(regelsatzSatz("v1", null)).toBe("Das ist Regelsatz v1, gezählt am Monatsletzten. Regelsatz v2 zählt das ganze Monat.");
+  it("erfindet keine Zahl, wenn der andere Stand den Monat nicht gerechnet hat", () => {
+    expect(regelsatzSatz("v1", null)).toBe("Sie sehen die alten Regeln: Gezählt wird am Stichtag, dem letzten Tag des Monats. Nach den Änderungsaufträgen zählt der ganze Monat.");
+    expect(regelsatzSatz("v2", null)).not.toMatch(/\d/);
   });
 });

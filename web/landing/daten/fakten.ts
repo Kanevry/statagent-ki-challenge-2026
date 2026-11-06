@@ -1,5 +1,5 @@
 /**
- * Fakten der Landingpage: jede Zahl mit Beleg. Einzige Quelle für Szene, Texte und Tabelle.
+ * Fakten der Landingpage: jede Zahl mit Beleg. Einzige Quelle für Geschichte, Texte und Tabelle.
  *
  * Herkunft:
  * - Zeilen je Lieferung: `select lieferung, count(*) from roh.lieferung group by 1`, lokal PG 5433,
@@ -127,7 +127,7 @@ export const BEFUNDE: readonly Befund[] = [
     lieferung: "ab 2024-08",
     saetze: "370",
     einstufung: "erklaert-datenproblem",
-    einstufungText: "erklärt, Datenproblem",
+    einstufungText: "Fehler in den Daten",
     rueckfrage: "R1",
     beleg: "substr(geburtsdatum, 6, 2) = '13'",
   },
@@ -137,7 +137,7 @@ export const BEFUNDE: readonly Befund[] = [
     lieferung: "2024-08",
     saetze: "7",
     einstufung: "erklaert-datenproblem",
-    einstufungText: "erklärt, Datenproblem",
+    einstufungText: "Fehler in den Daten",
     rueckfrage: "R6",
     beleg: "geburtsdatum < '1949-09-01'",
   },
@@ -148,7 +148,7 @@ export const BEFUNDE: readonly Befund[] = [
     // gemessen 05.11.2026 je Lieferung: 40 (2025-10) bis 51 (2025-09) Zeilen, meist 49 oder 50
     saetze: "40 bis 51 je Lieferung",
     einstufung: "erklaert-datenproblem",
-    einstufungText: "erklärt, Datenproblem",
+    einstufungText: "Fehler in den Daten",
     beleg: "oenace ~ '^D[A-N]$' → C",
   },
   {
@@ -157,7 +157,7 @@ export const BEFUNDE: readonly Befund[] = [
     lieferung: "2024-08",
     saetze: "1.996",
     einstufung: "erklaert-datenproblem",
-    einstufungText: "erklärt, Datenproblem",
+    einstufungText: "Fehler in den Daten",
     beleg: "bundesland is null and oenace is null",
   },
   {
@@ -166,7 +166,7 @@ export const BEFUNDE: readonly Befund[] = [
     lieferung: "2025-03",
     saetze: "1.663 Zeilen, 1.523 doppelt am Stichtag",
     einstufung: "erklaert-datenproblem",
-    einstufungText: "erklärt, Datenproblem",
+    einstufungText: "Fehler in den Daten",
     rueckfrage: "R7",
     beleg: "group by alle Felder having count(*) > 1",
   },
@@ -176,7 +176,7 @@ export const BEFUNDE: readonly Befund[] = [
     lieferung: "2025-03",
     saetze: "1.492",
     einstufung: "erklaert-datenproblem",
-    einstufungText: "erklärt, Datenproblem",
+    einstufungText: "Fehler in den Daten",
     rueckfrage: "R4",
     beleg: "count(*) filter (where qual like '%FD') = 0",
   },
@@ -186,7 +186,7 @@ export const BEFUNDE: readonly Befund[] = [
     lieferung: "2025-10",
     saetze: "78.949, davon 78.733 in 2025-11 wieder da",
     einstufung: "erklaert-datenproblem",
-    einstufungText: "erklärt, Datenproblem",
+    einstufungText: "Fehler in den Daten",
     rueckfrage: "R3",
     beleg: "offen in 2025-09, fehlt in 2025-10",
   },
@@ -201,7 +201,7 @@ export const BEFUNDE: readonly Befund[] = [
   },
 ] as const;
 
-/** Kennzahlen für die Szene (Schritt „Prüfen“). */
+/** Kennzahlen für die Geschichte (Schritt „Prüfen“). */
 export const SZENE_BEFUNDE = {
   dubletten2025_03: { lieferung: "2025-03", zeilen: 1_663, doppeltAmStichtag: 1_523 },
   fdFehlen2025_03: { lieferung: "2025-03", verhaeltnisse: 1_492, vorher: "2025-02", nachher: "2025-04" },
@@ -223,3 +223,46 @@ export function zahl(n: number): string {
   const s = Math.abs(Math.round(n)).toString();
   return vorzeichen + s.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
+
+/**
+ * Beschäftigungsverhältnisse am Stichtag je Monat: Zeile „Beschäftigungsverhältnisse am Stichtag“ in Abschnitt 1 von
+ * abgabe/qualitaetsberichte/<Monat>.md (Belegregister F20; bestand.test.ts liest die Berichte und vergleicht).
+ * Oktober 2025 steht hier mit dem Wert aus der Lieferung selbst (EINBRUCH.geliefert), weil die Kurve den Einbruch zeigt;
+ * März 2025 enthält die aus Februar übernommenen freien Dienstverträge, wie im Bericht.
+ */
+export const BESTAND_JE_MONAT: readonly number[] = [
+  392_236, 393_454, 391_033, 389_141, 387_390, 385_033, 386_996, 388_650, 387_601, 390_001, 394_252, 397_419,
+  393_712, 394_200, 313_154, 389_823, 388_231, 385_573, 387_947, 391_475, 389_361, 391_871, 395_320, 399_027,
+];
+
+/** Oktober 2025: Belegregister F11 und F17, Qualitätsbericht 2025-10 Abschnitt 1 und Auffälligkeit 7. */
+export const EINBRUCH = {
+  lieferung: "2025-10",
+  /** Bestand am Stichtag aus der Lieferung selbst */
+  geliefert: 313_154,
+  vormonat: 394_200,
+  /** aus der Lieferung davor übernommen */
+  uebernommen: 77_746,
+  /** geliefert + übernommen: die Zahl, die die App als vorläufig zeigt */
+  vorlaeufig: 390_900,
+  zeilen: 345_078,
+  zeilenVormonat: 434_104,
+  /** Veränderung gegenüber dem Vormonat in Prozent, wie im Bericht gerundet */
+  prozent: "20,6",
+} as const;
+
+/** abgabe/protokoll.md: Veröffentlichung von 22 Monaten, 2025-03 und 2025-10 bleiben vorläufig. */
+export const FREIGABE = {
+  name: "Bernhard Götzendorfer",
+  /** Zeitpunkt der ersten Monatsfreigabe, Zeile „Berichtsmonat 2024-08 veröffentlichen“ */
+  zeit: "05.11.2026, 16:13",
+  monate: 22,
+  vorlaeufig: ["2025-03", "2025-10"],
+} as const;
+
+/** abgabe/CHECKLISTE.md und abgabe/ministerium_2026-07.beleg.md */
+export const ABGABE = {
+  qualitaetsberichte: 24,
+  ministeriumPersonen: 32_741,
+  ministeriumMonat: "2026-07",
+} as const;

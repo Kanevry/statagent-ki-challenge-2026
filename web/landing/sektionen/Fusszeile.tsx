@@ -41,7 +41,6 @@ export default function Fusszeile() {
           {FUSSZEILE.hinweise.map((t) => (
             <li key={t}>{t}</li>
           ))}
-          <li>{FUSSZEILE.quelle}</li>
         </ul>
       </div>
     </footer>

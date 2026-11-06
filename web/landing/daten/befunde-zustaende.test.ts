@@ -1,15 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Gemocktes postgres.js: die Abfragen in befunde.ts laufen gegen festen Zustand, ohne Datenbank.
-const zustand: { anzahl: number; zeilen: unknown[] } = { anzahl: 0, zeilen: [] };
+const zustand: { anzahl: number; zeilen: unknown[]; abfragen: { text: string; parameter: unknown[] }[] } = {
+  anzahl: 0,
+  zeilen: [],
+  abfragen: [],
+};
 
 vi.mock("postgres", () => ({
-  default: () => {
-    const sql = (teile: TemplateStringsArray) =>
-      Promise.resolve(teile.join("?").includes("count(*)") ? [{ anzahl: String(zustand.anzahl) }] : zustand.zeilen);
-    sql.end = () => Promise.resolve();
-    return sql;
-  },
+  default: () => ({
+    unsafe: (text: string, parameter: unknown[] = []) => {
+      zustand.abfragen.push({ text, parameter });
+      return Promise.resolve(text.includes("count(*)") ? [{ anzahl: String(zustand.anzahl) }] : zustand.zeilen);
+    },
+    end: () => Promise.resolve(),
+  }),
 }));
 
 const { befundeZwischenspeicherLeeren, ladeBefunde, ZWISCHENSPEICHER_MS } = await import("./befunde");
@@ -17,6 +22,7 @@ const { befundeZwischenspeicherLeeren, ladeBefunde, ZWISCHENSPEICHER_MS } = awai
 const urlVorher = process.env.UC3_DATABASE_URL;
 beforeEach(() => {
   befundeZwischenspeicherLeeren();
+  zustand.abfragen = [];
   process.env.UC3_DATABASE_URL = "postgres://nutzer:pw@db.invalid:5433/statistik";
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -30,14 +36,27 @@ function treffer(i: number) {
     anzahl: String(1000 - i),
     umfang: null,
     einstufung: "erklaert-datenproblem",
-    beleg_sql: null,
     anhalten: false,
-    lauf: { lieferung: "2025-03" },
-    regel: { name: `Regel ${i}` },
+    lieferung: "2025-03",
+    name: `Regel ${i}`,
+    beschreibung: `Regel ${i}.`,
+    satz: null,
   };
 }
 
 describe("ladeBefunde mit erreichbarer Datenbank", () => {
+  it("Zeilen und Gesamtzahl lesen nur den maßgeblichen Lauf je Monat in Regelsatz v1", async () => {
+    zustand.anzahl = 1;
+    zustand.zeilen = [treffer(0)];
+    await ladeBefunde();
+    expect(zustand.abfragen).toHaveLength(2);
+    for (const { text, parameter } of zustand.abfragen) {
+      expect(parameter).toEqual(["v1"]);
+      expect(text).toContain("WHERE regelsatz = $1 AND status IN ('fertig', 'unveraendert')");
+      expect(text).toContain("t.lauf_id = m.quelle_id AND t.anzahl > 0");
+    }
+  });
+
   it("leere Treffertabelle: Gegenrechnung mit Grund keine-treffer, nicht keine-verbindung", async () => {
     zustand.anzahl = 0;
     zustand.zeilen = [];

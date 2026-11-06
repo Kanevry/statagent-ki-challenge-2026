@@ -71,7 +71,7 @@ Alle Werte bleiben leer, bis die Datei fertig ist. Nie schätzen.
 | Ablage (Repo oder lokal außerhalb) | Repo, kleiner als 25 MB |
 | Dauer (Minuten:Sekunden, aus `ffprobe`) | 2:45 |
 | Größe in Byte (> 0) | 4141777 |
-| SHA-256 (`shasum -a 256`) | `8ff01e63913c3854b10e9854e99aff9399f633b595bb93742160e8a6f0faa972` |
+| SHA-256 (`shasum -a 256`) | 8ff01e63913c3854b10e9854e99aff9399f633b595bb93742160e8a6f0faa972 |
 | Auflösung (`ffprobe`, Soll 1920 × 1080) | 1920 × 1080 |
 | Aufgenommen am (Datum, Uhr) | 06.11.2026, 03:21 |
 | Stand (Commit) der aufgenommenen App | `809da6d`, Vorführ-Instanz `93a491d`, gleicher Inhalt laut Lane Vorführung |

@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   anfrageAus,
   auswahlAus,
+  beispieleFuer,
   ebeneWort,
+  nachschlagenKopf,
+  oenace2003Aus,
   oenaceSaetze,
   pfadSatz,
   regionName,
@@ -154,5 +157,45 @@ describe("oenaceSaetze", () => {
   it("nennt eine Teilung, auch wenn ein Ziel den alten Code behält", () => {
     const zeilen = [wechsel({ code_neu: "J 62.01-0", name_neu: "A" }), wechsel({ code_neu: "K 62.10-0", name_neu: "B" })];
     expect(oenaceSaetze("J 62.01-0", "2008", zeilen)).toEqual(["Ab ÖNACE 2025 aufgeteilt auf A (J 62.01-0), B (K 62.10-0)."]);
+  });
+});
+
+describe("Einstieg ins Nachschlagen", () => {
+  const voll = auswahlAus(["2008", "2025"], ["2026-01-01", "2011-01-01", "2015-01-01"]);
+
+  it("nennt in der Überschrift das erste geladene Jahr", () => {
+    expect(nachschlagenKopf(voll)).toBe("Jede Branche und jede Gemeinde nachschlagen: ÖNACE bis zum 5-Steller, alle Gemeinden seit 2011.");
+  });
+
+  // Fehler, den das fängt: Die Überschrift verspricht Gemeinden, die in dieser Datenbank nicht geladen sind.
+  it("verspricht nur, was geladen ist", () => {
+    expect(nachschlagenKopf(auswahlAus(["2025"], []))).toBe("Zum Nachschlagen: ÖNACE bis zum 5-Steller.");
+    expect(nachschlagenKopf(auswahlAus([], ["2015-01-01"]))).toBe("Zum Nachschlagen: alle Gemeinden seit 2015.");
+  });
+
+  // Fehler, den das fängt: Ein Beispiel zum Klicken führt in eine Fassung, die es nicht gibt, und die Suche bleibt leer.
+  it("zeigt nur Beispiele aus geladenen Fassungen", () => {
+    expect(beispieleFuer(voll)).toHaveLength(3);
+    expect(beispieleFuer(auswahlAus(["2025"], [])).map((b) => b.suche)).toEqual(["C 10.13-0"]);
+  });
+});
+
+describe("ÖNACE 2003 nach 2008", () => {
+  const roh = (code_alt: string, code_neu: string, name_neu = "Herstellung von Waren") => ({ code_alt, name_alt: `Name ${code_alt}`, code_neu, name_neu });
+
+  it("fasst je altem Code die Ziele zusammen und nennt, wer sich teilt", () => {
+    const daten = oenace2003Aus([roh("DA", "C"), roh("DE", "C"), roh("DE", "J", "Information und Kommunikation")]);
+    expect(daten?.zeilen).toEqual([
+      { code: "DA", name: "Name DA", ziele: ["C"] },
+      { code: "DE", name: "Name DE", ziele: ["C", "J"] },
+    ]);
+    expect(daten?.satz).toBe(
+      "2 Unterabschnitte aus ÖNACE 2003 gehören ab ÖNACE 2008 mehrheitlich zu C (Herstellung von Waren). Bei DE geht ein Teil nach J (Information und Kommunikation).",
+    );
+  });
+
+  // Fängt: In einer Datenbank ohne diese Übergänge behauptet die Seite einen Übergang, der dort gar nicht liegt.
+  it("zeigt ohne Übergänge nichts", () => {
+    expect(oenace2003Aus([])).toBeNull();
   });
 });

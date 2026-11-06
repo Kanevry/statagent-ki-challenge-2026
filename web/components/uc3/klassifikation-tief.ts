@@ -101,6 +101,33 @@ export function auswahlAus(oenace: readonly string[], staende: readonly string[]
   };
 }
 
+/** Überschrift des Nachschlagens. Nennt nur, was geladen ist: das erste Jahr kommt aus den Ständen der Gemeinden. */
+export function nachschlagenKopf(auswahl: Auswahl): string {
+  const teile: string[] = [];
+  if (auswahl.oenace.length > 0) teile.push("ÖNACE bis zum 5-Steller");
+  const erster = auswahl.region.at(-1)?.wert.slice(0, 4);
+  if (erster) teile.push(`alle Gemeinden seit ${erster}`);
+  return `${teile.length > 1 ? "Jede Branche und jede Gemeinde nachschlagen" : "Zum Nachschlagen"}: ${teile.join(", ")}.`;
+}
+
+export interface Beispiel {
+  text: string;
+  art: Art;
+  fassung: string;
+  suche: string;
+}
+
+/** Drei Suchen, die zeigen, was die Listen können. Ein Beispiel entfällt, wenn seine Fassung nicht geladen ist. */
+const BEISPIELE: readonly Beispiel[] = [
+  { text: "C 10.13-0 Fleischverarbeitung", art: "oenace", fassung: "2025", suche: "C 10.13-0" },
+  { text: "C 16.10-0, ab 2025 aufgeteilt", art: "oenace", fassung: "2008", suche: "C 16.10-0" },
+  { text: "Fürstenfeld, 2025 zusammengelegt", art: "region", fassung: "2026-01-01", suche: "Fürstenfeld" },
+];
+
+export function beispieleFuer(auswahl: Auswahl): Beispiel[] {
+  return BEISPIELE.filter((b) => auswahl[b.art].some((w) => w.wert === b.fassung));
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Anfrage prüfen
 
@@ -456,4 +483,47 @@ export function leseNachschlagen(
       start: { knoten: await alsKnoten(sql, art, auswahl[art][0]!.wert, roh), ueberschrift: ueberschrift(roh) },
     };
   }, optionen);
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// ÖNACE 2003 nach 2008
+
+export const SQL_OENACE_2003 = `SELECT u.code_alt, a.bezeichnung AS name_alt, u.code_neu, n.bezeichnung AS name_neu
+FROM stat.uebergang u
+JOIN stat.klass_oenace a ON a.code = u.code_alt AND a.version = '2003'
+JOIN stat.klass_oenace n ON n.code = u.code_neu AND n.version = '2008'
+WHERE u.klassifikation = 'oenace' AND u.version_alt = '2003' AND u.version_neu = '2008'
+ORDER BY u.code_alt, u.code_neu`;
+
+export type Oenace2003Roh = { code_alt: string; name_alt: string; code_neu: string; name_neu: string };
+
+export interface Oenace2003 {
+  zeilen: { code: string; name: string; ziele: string[] }[];
+  satz: string;
+}
+
+/** Die Übergänge je altem Code, dazu ein Satz: wohin die meisten gehen und wer sich teilt. Ohne Zeilen `null`. */
+export function oenace2003Aus(roh: readonly Oenace2003Roh[]): Oenace2003 | null {
+  if (roh.length === 0) return null;
+  const zeilen = new Map<string, { code: string; name: string; ziele: string[] }>();
+  const jeZiel = new Map<string, number>();
+  for (const z of roh) {
+    const zeile = zeilen.get(z.code_alt) ?? { code: z.code_alt, name: z.name_alt, ziele: [] };
+    zeile.ziele.push(z.code_neu);
+    zeilen.set(z.code_alt, zeile);
+    jeZiel.set(z.code_neu, (jeZiel.get(z.code_neu) ?? 0) + 1);
+  }
+  const haupt = [...jeZiel].sort((a, b) => b[1] - a[1])[0]![0];
+  const name = (code: string) => `${code} (${roh.find((z) => z.code_neu === code)!.name_neu})`;
+  const anzahl = zeilen.size;
+  const saetze = [`${anzahl} ${anzahl === 1 ? "Unterabschnitt" : "Unterabschnitte"} aus ÖNACE 2003 ${anzahl === 1 ? "gehört" : "gehören"} ab ÖNACE 2008 mehrheitlich zu ${name(haupt)}.`];
+  for (const z of zeilen.values()) {
+    const andere = z.ziele.filter((c) => c !== haupt);
+    if (andere.length > 0) saetze.push(`Bei ${z.code} geht ein Teil nach ${andere.map(name).join(" und ")}.`);
+  }
+  return { zeilen: [...zeilen.values()], satz: saetze.join(" ") };
+}
+
+export function leseOenace2003(optionen: { sql?: Sql | null } = {}): Promise<Lesung<Oenace2003 | null>> {
+  return lies(async (sql) => oenace2003Aus(await sql.unsafe<Oenace2003Roh[]>(SQL_OENACE_2003)), optionen);
 }

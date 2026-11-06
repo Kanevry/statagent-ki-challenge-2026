@@ -24,16 +24,27 @@ import {
   sqlKategorieRegel,
   type Klassifikationsdaten,
 } from "@/components/uc3/klassifikation";
-import { leseNachschlagen, SQL_NACHSCHLAGEN } from "@/components/uc3/klassifikation-tief";
+import {
+  beispieleFuer,
+  leseNachschlagen,
+  leseOenace2003,
+  nachschlagenKopf,
+  SQL_NACHSCHLAGEN,
+  SQL_OENACE_2003,
+  type Art,
+  type Auswahl,
+  type Kinder,
+} from "@/components/uc3/klassifikation-tief";
 import { monatName } from "@/components/uc3/monat";
-import { lesePensionen, SQL_PENSIONEN } from "@/components/uc3/pensionen";
 import { regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/navigation";
+import { mitRegeln, regelsatzName } from "@/components/uc3/regelsatz-name";
+import { RegelsatzWahl } from "@/components/uc3/regelsatz-wahl";
 import { alltag } from "@/components/uc3/sprache";
 import { Gegenueberstellung } from "./_teile/gegenueberstellung";
 import { Nachschlagen } from "./_teile/nachschlagen";
 
-// Regeln und Klassifikationen (UI-Regie v1, #18): oben ÖNACE 2008 gegen 2025 als Gegenüberstellung nach Namen,
-// darunter das Nachschlagen bis zur Unterklasse und Gemeinde, die Qualifikationen je Regelsatz, dann alle Regeln nach Art (Anker #regeln, Ziel von
+// Regeln und Klassifikationen (UI-Regie v1, #18): oben das Nachschlagen bis zur Unterklasse und Gemeinde, darunter
+// ÖNACE 2008 gegen 2025 als Gegenüberstellung nach Namen, die Qualifikationen je Regelsatz, dann alle Regeln nach Art (Anker #regeln, Ziel von
 // /uc3/berichte/regeln). Die kleinen Code-Listen liegen hinter „Weitere Listen“. Nur lesend; ohne Datenbank zeigt
 // jeder Teil seinen Leerzustand (HTTP 200).
 export const dynamic = "force-dynamic";
@@ -51,21 +62,27 @@ function pfad(regelsatz: Regelsatz): string {
 // ---------------------------------------------------------------------------------------------------------------
 // ÖNACE 2008 → 2025 und Qualifikationen
 
-function Branchen({ daten }: { daten: Klassifikationsdaten }) {
+function ZuDenRegeln() {
+  return (
+    <a href="#regeln" className={`${textLink} self-start`}>
+      Zu den Regeln
+    </a>
+  );
+}
+
+/** `oben`: Ohne Nachschlagen trägt der Vergleich die Überschrift der Seite. */
+function Branchen({ daten, oben }: { daten: Klassifikationsdaten; oben: boolean }) {
   const zeilen = gegenueberstellung(daten.abschnitte, daten.abschnittUebergaenge);
   const saetze = gegenueberSaetze(zeilen);
+  const Titel = oben ? "h2" : "h3";
   return (
     <>
       <header className="flex max-w-4xl flex-col gap-3">
-        <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
+        <Ueberschrift stufe={oben ? 2 : 3} als={oben ? "h1" : "h2"} className="hyphens-auto break-words">
           {saetze.haupt}
         </Ueberschrift>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="font-sans text-16 text-slate">{saetze.unter}</span>
-          <span className="font-sans text-14 text-slate">
-            Neuen Namen und Teilung ordnet die Seite aus dem Umsteigeschlüssel zu: Nachfolger ist, wer mindestens ein
-            Viertel der Unterklassen bekommt.
-          </span>
           <BelegLink
             quelle="stat.klass_oenace, stat.uebergang"
             verweis="Gezählt je Branchenname; neuer Name und Teilung aus dem Umsteigeschlüssel (Nachfolger mit mindestens 25 % der Unterklassen)"
@@ -74,14 +91,12 @@ function Branchen({ daten }: { daten: Klassifikationsdaten }) {
         </div>
       </header>
 
-      <a href="#regeln" className={`${textLink} self-start`}>
-        Zu den Regeln
-      </a>
+      {oben && <ZuDenRegeln />}
 
       <section aria-labelledby="branchen-titel" className="flex flex-col gap-3">
-        <h2 id="branchen-titel" className={titel}>
+        <Titel id="branchen-titel" className={titel}>
           Branchen 2008 und 2025
-        </h2>
+        </Titel>
         <Gegenueberstellung zeilen={zeilen} />
         <div className="flex max-w-4xl flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="font-sans text-14 text-slate">
@@ -96,23 +111,66 @@ function Branchen({ daten }: { daten: Klassifikationsdaten }) {
   );
 }
 
-async function AlleCodes() {
-  const lesung = await leseNachschlagen();
-  // Wie bei den Pensionen: Sind die tiefen Ebenen nicht geladen, gibt es hier nichts zu zeigen.
-  if (!lesung.ok || !lesung.daten) return null;
-  const { auswahl, start, art } = lesung.daten;
+function AlleCodes({ auswahl, start, art }: { auswahl: Auswahl; start: Kinder; art: Art }) {
   return (
-    <section aria-labelledby="codes-titel" className="flex max-w-4xl flex-col gap-3">
-      <h2 id="codes-titel" className={titel}>
-        Alle Codes bis zur Unterklasse und Gemeinde
+    <>
+      <header className="flex max-w-4xl flex-col gap-3">
+        <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
+          {nachschlagenKopf(auswahl)}
+        </Ueberschrift>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="font-sans text-16 text-slate">
+            Die Statistik zählt nach Abschnitt und Bundesland. Für die Ebenen darunter gibt es hier die Namen, keine Zahlen.
+          </span>
+          <BelegLink quelle="stat.klass_oenace, stat.klass_region, stat.uebergang" sql={SQL_NACHSCHLAGEN} />
+        </div>
+      </header>
+      <section aria-label="Nachschlagen" className="flex max-w-4xl flex-col gap-3">
+        <Nachschlagen auswahl={auswahl} start={start} startArt={art} beispiele={beispieleFuer(auswahl)} />
+      </section>
+      <ZuDenRegeln />
+    </>
+  );
+}
+
+async function Oenace2003Uebergang() {
+  const lesung = await leseOenace2003();
+  // Nur zeigen, was in dieser Datenbank liegt: Ohne Übergänge fällt der Abschnitt weg.
+  if (!lesung.ok || !lesung.daten) return null;
+  const { zeilen, satz } = lesung.daten;
+  return (
+    <section aria-labelledby="oenace-2003-titel" className="flex max-w-4xl flex-col gap-2">
+      <h2 id="oenace-2003-titel" className={titel}>
+        Von ÖNACE 2003 nach 2008
       </h2>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-sans text-14 text-slate">
-          Die Statistik zählt nach Abschnitt und Bundesland. Für die Ebenen darunter gibt es hier die Namen, keine Zahlen.
-        </span>
-        <BelegLink quelle="stat.klass_oenace, stat.klass_region, stat.uebergang" sql={SQL_NACHSCHLAGEN} />
+        <span className="font-sans text-16 text-ink">{satz}</span>
+        <BelegLink
+          quelle="stat.uebergang, stat.klass_oenace"
+          verweis="Aus dem Umsteigeschlüssel von Statistik Austria, je Unterabschnitt nach der Mehrheit seiner Codes"
+          sql={SQL_OENACE_2003}
+        />
       </div>
-      <Nachschlagen auswahl={auswahl} start={start} startArt={art} />
+      <table className="w-full border-collapse font-sans text-14 text-ink">
+        <caption className="sr-only">Unterabschnitte von ÖNACE 2003 und ihr Abschnitt in ÖNACE 2008</caption>
+        <thead>
+          <tr className="border-b border-ink text-left text-slate">
+            <th scope="col" className="py-2 pr-3 font-normal">ÖNACE 2003</th>
+            <th scope="col" className="py-2 pr-3 font-normal">Branche</th>
+            <th scope="col" className="py-2 text-right font-normal">ÖNACE 2008</th>
+          </tr>
+        </thead>
+        <tbody>
+          {zeilen.map((z) => (
+            <tr key={z.code} className="border-b border-line">
+              <th scope="row" className="py-2 pr-3 text-left align-baseline font-normal">{z.code}</th>
+              <td className="py-2 pr-3 align-baseline">{z.name}</td>
+              <td className="py-2 text-right align-baseline">{z.ziele.join(", ")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="font-sans text-14 text-slate">ÖNACE 2003 ist hier nur bis zu den Unterabschnitten geladen.</p>
     </section>
   );
 }
@@ -125,7 +183,7 @@ function Qualifikationen({ daten }: { daten: Klassifikationsdaten }) {
   return (
     <section aria-labelledby="qualifikation-titel" className="flex max-w-4xl flex-col gap-2">
       <h2 id="qualifikation-titel" className={titel}>
-        Qualifikationen je Regelsatz
+        So zählen die Regeln die Qualifikationen
       </h2>
       <ul className="flex flex-col">
         {staende.map((s) => (
@@ -151,7 +209,7 @@ function Qualifikationen({ daten }: { daten: Klassifikationsdaten }) {
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         {staende.length > 1 && (
           <span className="font-sans text-14 text-slate">
-            {`Die Monate sind mit Regelsatz ${stand.regelsatz} gerechnet. Regelsatz ${staende[1]!.regelsatz} zeigen Sie mit dem Umschalter auf der Seite `}
+            {`Die Monate sind ${mitRegeln(stand.regelsatz)} gerechnet. Den anderen Stand zeigen Sie mit dem Umschalter auf der Seite `}
             <Link href={uebersichtPfad(staende[1]!.regelsatz)} className="text-ink underline underline-offset-4 hover:text-gruen">
               Läufe
             </Link>
@@ -220,32 +278,6 @@ function Regelpunkt({ regel }: { regel: Regel }) {
   );
 }
 
-function RegelsatzWahl({ aktiv }: { aktiv: Regelsatz }) {
-  const punkte: Array<[Regelsatz, string]> = [
-    ["v1", "Regelsatz v1: nach der Fachbeschreibung."],
-    ["v2", "Regelsatz v2: mit den freigegebenen Änderungsaufträgen."],
-  ];
-  return (
-    <nav aria-label="Regelsatz" className="flex items-center gap-2 font-sans text-14 text-slate">
-      <span>Regelsatz</span>
-      <ul className="flex overflow-hidden rounded-md border border-line">
-        {punkte.map(([wert, erklaerung]) => (
-          <li key={wert}>
-            <Link
-              href={pfad(wert)}
-              title={erklaerung}
-              aria-current={wert === aktiv ? "page" : undefined}
-              className={`inline-flex min-h-11 min-w-11 items-center justify-center px-3 ${wert === aktiv ? "bg-ink text-white" : "text-ink hover:bg-paper"}`}
-            >
-              {wert}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
-}
-
 async function Regeln({ regelsatz }: { regelsatz: Regelsatz }) {
   const lesung = await leseRegeln(regelsatz);
   const regeln = lesung.ok ? lesung.daten : [];
@@ -259,23 +291,21 @@ async function Regeln({ regelsatz }: { regelsatz: Regelsatz }) {
 
   return (
     <section id="regeln" aria-labelledby="regeln-titel" className="flex max-w-4xl scroll-mt-24 flex-col gap-3">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <Ueberschrift stufe={3} als="h2" id="regeln-titel">
-          Regeln
-        </Ueberschrift>
-        <RegelsatzWahl aktiv={regelsatz} />
-      </div>
+      <Ueberschrift stufe={3} als="h2" id="regeln-titel">
+        Regeln
+      </Ueberschrift>
+      <RegelsatzWahl aktiv={regelsatz} pfad={pfad} />
       {regeln.length === 0 ? (
         <Leerzustand
-          satz={lesung.ok ? `Für den Regelsatz ${regelsatz} ist noch keine Regel angelegt.` : leerSatz(lesung.grund)}
+          satz={lesung.ok ? `Für „${regelsatzName(regelsatz)}“ ist noch keine Regel angelegt.` : leerSatz(lesung.grund)}
         />
       ) : (
         <>
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <Fliesstext className="max-w-3xl">
-              {`${formatZahl(regeln.length)} Regeln bestimmen in Regelsatz ${regelsatz}, wie wir einlesen, zuordnen, zählen und prüfen. ${freigabe} Jede Regel steht in der Datenbank, nicht im Programmcode.`}
+              {`${formatZahl(regeln.length)} Regeln bestimmen hier, wie wir einlesen, zuordnen, zählen und prüfen. ${freigabe} Jede Regel steht in der Datenbank, nicht im Programmcode.`}
             </Fliesstext>
-            <BelegLink quelle="meta.regel" regelstand={`Regelsatz ${regelsatz}`} sql={sqlRegeln(regelsatz)} />
+            <BelegLink quelle="meta.regel" regelstand={regelsatzName(regelsatz)} sql={sqlRegeln(regelsatz)} />
           </div>
           {REGEL_TYPEN.map((typ) => {
             const gruppe = regeln.filter((r) => r.typ === typ);
@@ -377,74 +407,24 @@ function WeitereListen({ daten }: { daten: Klassifikationsdaten }) {
 
 // ---------------------------------------------------------------------------------------------------------------
 
-async function Pensionen() {
-  const lesung = await lesePensionen();
-  // Ohne Datenbank oder vor dem Laden gibt es hier nichts zu zeigen, und online kann niemand laden.
-  if (!lesung.ok || lesung.daten.jahre.length === 0) return null;
-  const { jahre, vorlaeufig } = lesung.daten;
-  return (
-    <details className="group max-w-4xl border-b border-line">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-sans text-16 text-ink underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
-        <span>Pensionen 2018 bis 2025</span>
-        <span aria-hidden="true" className="shrink-0 text-slate transition-transform group-open:rotate-90 motion-reduce:transition-none">
-          ›
-        </span>
-      </summary>
-      <div className="flex flex-col gap-2 pb-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-          <Fliesstext>
-            Durchschnitt je Jahr aus den Meldungen der Träger{vorlaeufig ? ", vorläufig" : ""}. Die vorzeitigen
-            Alterspensionen sind in „Insgesamt“ enthalten. Zum 1. Jänner 2020 wurden Träger zusammengelegt. Die Zahlen davor
-            und danach stehen unverändert nebeneinander.
-          </Fliesstext>
-          <BelegLink quelle="stat.stat_pensionen" sql={SQL_PENSIONEN} />
-        </div>
-        <table className="w-full font-sans text-14 text-ink">
-          <thead>
-            <tr className="border-b border-line text-left text-slate">
-              <th scope="col" className="py-1 pr-2 font-normal">Jahr</th>
-              <th scope="col" className="py-1 pr-2 text-right font-normal">Insgesamt</th>
-              <th scope="col" className="py-1 pr-2 text-right font-normal">{"Un\u00adselbst\u00adändige"}</th>
-              <th scope="col" className="py-1 pr-2 text-right font-normal">{"Selbst\u00adändige"}</th>
-              <th scope="col" className="py-1 text-right font-normal">{"Vor\u00adzeitige"}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jahre.map((j) => (
-              <tr key={j.jahr} className="border-b border-line last:border-b-0">
-                <th scope="row" className="py-1 pr-2 text-left font-normal">{j.jahr}</th>
-                <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.insgesamt)}</td>
-                <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.unselbstaendige)}</td>
-                <td className="py-1 pr-2 text-right tabular-nums">{formatZahl(j.selbstaendige)}</td>
-                <td className="py-1 text-right tabular-nums">{formatZahl(j.vorzeitig)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <Fliesstext>
-          Öffentlich Bedienstete fehlen in allen Jahren, die frühere BVA meldet keine Pensionen. Bei „Vorzeitige“ fehlt 2018 und
-          2019 das Notariat, es meldet diese Art nicht.
-        </Fliesstext>
-      </div>
-    </details>
-  );
-}
-
 export default async function RegelnUndKlassifikationen({ searchParams }: Props) {
   const regelsatz = regelsatzAus((await searchParams).regelsatz);
   // Die Klassifikationen hängen nicht am Regelsatz; der Auftrag für die Qualifikationen geht von v1 aus.
   const lesung = await leseKlassifikationen("v1");
   if (!lesung.ok) return <DatenFehler grund={lesung.grund} />;
   const daten = lesung.daten.abschnitte.length > 0 ? lesung.daten : null;
+  // Sind die tiefen Ebenen nicht geladen, gibt es nichts nachzuschlagen, und der Vergleich steht oben.
+  const codes = await leseNachschlagen();
+  const nachschlagen = codes.ok ? codes.daten : null;
 
   return (
     <>
       {daten ? (
         <>
-          <Branchen daten={daten} />
-          <AlleCodes />
+          {nachschlagen && <AlleCodes {...nachschlagen} />}
+          <Branchen daten={daten} oben={!nachschlagen} />
+          <Oenace2003Uebergang />
           <Qualifikationen daten={daten} />
-          <Pensionen />
         </>
       ) : (
         <header className="flex max-w-4xl flex-col gap-3">

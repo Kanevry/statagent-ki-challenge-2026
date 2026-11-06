@@ -13,6 +13,7 @@ import {
   regelsatzAus,
   revisionSatz,
   sortiereTreffer,
+  titelUndMesswerte,
   trefferTitel,
   ursachenSatz,
   weiterSatz,
@@ -143,6 +144,14 @@ describe("Lauf-Detail: Auffälligkeiten", () => {
   });
 
   // Fehler: Platzhalter der Satzvorlage bleiben roh stehen.
+  it("P17 nennt die Richtung aus dem Umfang, ohne Prozentangabe bleibt der offene Wortlaut", () => {
+    const satz = "Die Lieferung hat deutlich mehr oder weniger Zeilen als die vorige ({umfang}).";
+    const titel = (umfang: string | null) => titelUndMesswerte(treffer({ satz, umfang }), "2025-10").titel;
+    expect(titel("345.078 / 434.104 Zeilen gegen 2025-09 (-20,5 %)")).toBe("Die Lieferung hat deutlich weniger Zeilen als die vorige.");
+    expect(titel("432.086 / 392.284 Zeilen gegen 2024-08 (10,1 %)")).toBe("Die Lieferung hat deutlich mehr Zeilen als die vorige.");
+    expect(titel(null)).toBe("Die Lieferung hat deutlich mehr oder weniger Zeilen als die vorige.");
+  });
+
   it("füllt die Satzvorlage der Regel", () => {
     expect(trefferTitel(treffer({ satz: "In {monat} fehlen {anzahl} ({umfang}).", anzahl: 1234, umfang: "x" }), "2025-10")).toBe(
       "In Oktober 2025 fehlen 1.234 (x).",

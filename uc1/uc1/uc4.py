@@ -17,9 +17,10 @@ Ablauf:
 Aufruf: ``python -m uc1.uc4 --kontext DATEI.json "<frage>"``. In der UC4-Kette findet ``plattform.router``
 den Adapter ``router_adapter`` über den Entry-Point ``kic.uc_antwort`` / ``uc1`` (uc1/pyproject.toml).
 
-In der Kette (``kette_antwort``) schreibt kein Modell (Entscheid Lead 05.11.): Der Text entsteht aus Bedingung
-und Wirkung der Frage, also daraus, was die Zahl von UC3 zählt (Region, Gesundheitswesen oder nicht,
-Fluktuation) und ob UC2 ein Paket durchgerechnet hat. Am Ende steht ein fester Satz mit der Belegzahl von UC3.
+In der Kette (``kette_antwort``) schreibt kein Modell (Entscheid Lead 05.11.): Der Text ist eine Vorlage und
+entsteht daraus, was die Zahl von UC3 zählt (Region, Gesundheitswesen oder nicht, Fluktuation, Monat) und ob
+UC2 ein Paket durchgerechnet hat. Am Anfang steht, wonach gefragt wurde und welche Zahl UC3 nennt (Owner
+06.11.).
 Immer deutsch, Grenzprüfung wie im Kern. Vorher schrieb das Modell Zahlenechos und Sätze mit Lücke (#164),
 etwa „Im Oktober gab es Beschäftigungsverhältnisse.“; nach allen Filtern blieb kaum mehr als ein fester
 Satz übrig.
@@ -202,6 +203,27 @@ _BUNDESLAENDER = frozenset(
         "Wien",
     }
 )
+_KEINE_BRANCHE = frozenset(
+    {
+        "Männer",
+        "Frauen",
+        "Geschlecht unbekannt",
+        "Beamte",
+        "Angestellte",
+        "Arbeiter",
+        "Beschäftigungskategorie unbekannt",
+    }
+)
+"""Geschlecht und Beschäftigungskategorie aus `stat.klass_*`: Sie dürfen nicht „der Branche Frauen“ heißen."""
+_MIT_ARTIKEL = {
+    "Steiermark": ("in der Steiermark", "der Steiermark"),
+    "Burgenland": ("im Burgenland", "dem Burgenland"),
+}
+"""Die beiden Länder mit Artikel: „Arzttermin in Steiermark“ wäre falsch (Bank 06.11.)."""
+_MONAT = (
+    "Jänner", "Februar", "März", "April", "Mai", "Juni",
+    "Juli", "August", "September", "Oktober", "November", "Dezember",
+)  # fmt: skip
 KETTE_GESUNDHEIT = (
     "Wie rasch Sie einen Termin bekommen und wie viel Zeit man für Sie hat, hängt auch davon ab, "
     "wie viele Menschen dort arbeiten."
@@ -214,6 +236,14 @@ KETTE_FLUKTUATION = (
 KETTE_PAKET = (
     "Kommt das durchgerechnete Paket, {wirkung}. Sicher ist das nicht, es hängt von den Annahmen ab."
 )
+
+KETTE_SIMULATOR = {
+    "alle dafür": "Im Simulator sind alle Gruppen für mehr Fachkräfte in der Versorgung.",
+    "Mehrheit dafür": "Im Simulator sind die meisten Gruppen für mehr Fachkräfte in der Versorgung.",
+    "Mehrheit dagegen": "Im Simulator sind die meisten Gruppen gegen mehr Fachkräfte in der Versorgung.",
+    "noch strittig": "Im Simulator ist noch strittig, ob es mehr Fachkräfte in der Versorgung braucht.",
+}
+"""Einordnung aus `uc2.antwort.adapter._KATEGORIE`, für Bürgerinnen und Bürger gesagt."""
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -251,18 +281,57 @@ def _prompt(sprache: Literal["de", "en"], zahlen: int = 1) -> str:
     )
 
 
-def _belegsatz(kontext: Kontext) -> str | None:
-    """Fester Satz mit der Belegzahl von UC3, ohne Gliederung: „7.498 im März 2025“ wäre ohne Wien und Branche
-    falsch, was die Zahl genau zählt, steht bei StatAgent. Mehrere Zahlen ohne Bezeichnung sagten nichts
-    („3.611; 3.887“), dann steht der Verweis. Ohne Zahl von UC3 None."""
+def _bezugssaetze(kontext: Kontext) -> str | None:
+    """Vorlage mit dem, wonach gefragt wurde, und der Zahl von UC3: was die Zahl zählt, kommt aus ihrer
+    Bezeichnung und ihrem Beleg, nicht aus dem Wortlaut der Frage (eine Zahl darin hat keinen Beleg, Review
+    !68). Mehrere Zahlen ohne Bezeichnung sagten nichts („3.611; 3.887“), dann steht der Verweis. Ohne Zahl
+    von UC3 None."""
     uc3 = [z for z in kontext.zahlen if kontext.belege[z.beleg].uc == "uc3"]
     if not uc3:
         return None
+    teile = [_gliederung(z) for z in uc3]
+    gemeinsam = set.intersection(*teile)
+    # Reihenfolge wie in der Bezeichnung; ohne Branche zählt die Zahl alle Branchen.
+    gefragt = [
+        _MIT_ARTIKEL[t.strip()][1] if t.strip() in _MIT_ARTIKEL else t.strip()
+        for t in re.split(r"[(),]", uc3[0].bezeichnung)
+        if t.strip() in gemeinsam
+    ]
+    if gemeinsam <= _BUNDESLAENDER:
+        gefragt.append("allen Branchen")
+    elif not gemeinsam & (_BUNDESLAENDER | _KEINE_BRANCHE) and not re.search(
+        r"zusammen|\d", " ".join(gemeinsam)
+    ):
+        gefragt[0] = f"der Branche {gefragt[0]}"
+    monate = {kontext.belege[z.beleg].monat for z in uc3}
+    monat = monate.pop() if len(monate) == 1 else None
+    wann = f" im {_monat_text(monat)}" if monat else ""
+    frage = f"Sie fragten nach {', '.join(gefragt)}{wann}."
     if len(uc3) > 1:
-        return KETTE_VERWEIS
+        return f"{frage} {KETTE_VERWEIS}"
     zahl = uc3[0]
+    kopf = zahl.bezeichnung.split(" (", 1)[0]
     ohne_einheit = not zahl.einheit or zahl.einheit.casefold() in _EINHEIT_OHNE_WORT
-    return f"Die Zahl von StatAgent: {anzeige(zahl) if ohne_einheit else f'{anzeige(zahl)} {zahl.einheit}'}."
+    was = f"{anzeige(zahl)} {kopf if ohne_einheit else zahl.einheit}"
+    if zahl.einheit == "%":
+        was = f"{kopf} {was}"
+    vorlaeufig = "vorläufig " if kontext.belege[zahl.beleg].stand == "vorlaeufig" else ""
+    return f"{frage} StatAgent nennt dafür {vorlaeufig}{was}."
+
+
+def _simulator_satz(text: str) -> str | None:
+    """Was die Runde von Station 2 zum Personal ergab; `None`, wenn sie nicht abgewogen hat.
+    Aus dem Text, weil die Antwortform dafür kein Feld hat; der Lotse sagt nur, was dort wirklich steht."""
+    treffer = re.search(r"Mehr Personal in der Versorgung: ([^;.]+)", text)
+    return KETTE_SIMULATOR.get(treffer.group(1).strip()) if treffer else None
+
+
+def _monat_text(monat: str) -> str:
+    """`2025-03` → „März 2025“; anderes bleibt, wie es ist."""
+    treffer = re.fullmatch(r"(\d{4})-(\d{2})", monat)
+    if treffer is None or not 1 <= int(treffer.group(2)) <= 12:
+        return monat
+    return f"{_MONAT[int(treffer.group(2)) - 1]} {treffer.group(1)}"
 
 
 def _gliederung(zahl: Zahl) -> set[str]:
@@ -280,8 +349,8 @@ def _paket_wirkung(wert: float) -> str:
 
 
 def kette_text(kontext: Kontext) -> str:
-    """Was die Auskunft für den Arzttermin heißt, aus dem, was alle Zahlen gemeinsam zählen; dazu der
-    Belegsatz.
+    """Wonach gefragt wurde und welche Zahl StatAgent nennt, dann was das für den Arzttermin heißt, aus dem,
+    was alle Zahlen gemeinsam zählen.
 
     „Alle“ zählt: Eine Frage über alle Branchen liefert auch eine Zeile fürs Gesundheitswesen und ist
     trotzdem keine
@@ -290,7 +359,7 @@ def kette_text(kontext: Kontext) -> str:
     teile = [_gliederung(z) for z in uc3]
     gemeinsam = set.intersection(*teile) if teile else set()
     region = next(iter(sorted(gemeinsam & _BUNDESLAENDER)), None)
-    wo = f" in {region}" if region else ""
+    wo = f" {_MIT_ARTIKEL[region][0] if region in _MIT_ARTIKEL else f'in {region}'}" if region else ""
     paket = next(
         (
             z
@@ -311,8 +380,9 @@ def kette_text(kontext: Kontext) -> str:
     else:
         zahl = "sagt diese Zahl" if len(uc3) == 1 else "sagen diese Zahlen"
         satz = f"{zahl} allein wenig. {KETTE_KONKRETER}"
-    belegsatz = _belegsatz(kontext)
-    return " ".join(teil for teil in (f"Für Ihren nächsten Arzttermin{wo} {satz}", belegsatz) if teil)
+    simulator = _simulator_satz(kontext.text) if paket is None else None
+    saetze = (_bezugssaetze(kontext), f"Für Ihren nächsten Arzttermin{wo} {satz}", simulator)
+    return " ".join(teil for teil in saetze if teil)
 
 
 def _nachricht(frage: str, kontext: Kontext) -> str:
@@ -489,7 +559,10 @@ def router_adapter(frage: str, kontext: list[UcAntwort]) -> UcAntwort:
             kennung = (zahl.bezeichnung, zahl.wert, zahl.einheit)
             if kennung not in [(z.bezeichnung, z.wert, z.einheit) for z in zahlen]:
                 zahlen.append(zahl.model_copy(update={"beleg": belege.index(vorher.belege[zahl.beleg])}))
-    return kette_antwort(frage, Kontext(belege=belege, zahlen=zahlen, uc=kontext[-1].uc))
+    # Der Text der letzten Station kommt mit: Station 3 sagt, was die Runde von Station 2 ergab.
+    return kette_antwort(
+        frage, Kontext(text=kontext[-1].text, belege=belege, zahlen=zahlen, uc=kontext[-1].uc)
+    )
 
 
 # --------------------------------------------------------------------------------------------------------

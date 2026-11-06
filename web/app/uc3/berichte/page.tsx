@@ -6,18 +6,21 @@ import {
   leseBerichtsliste,
   rueckfragenInAllenMonaten,
   sqlBerichtsliste,
+  sqlBerichtsstand,
   sqlBerichtsuebersicht,
   sqlOhneRueckfrage,
   type Berichtszeile,
   type OffeneRueckfrage,
 } from "@/components/uc3/bericht";
-import { aufzaehlen, trefferTitel } from "@/components/uc3/lauf-detail";
+import { aufzaehlen, pruefungTitel } from "@/components/uc3/lauf-detail";
 import { DatenFehler } from "@/components/uc3/daten-fehler";
 import { alltag } from "@/components/uc3/sprache";
 import { Begriffsliste } from "@/components/uc3/fachbegriff";
 import { monatName } from "@/components/uc3/monat";
 import { berichtPfad, regelsatzAus } from "@/components/uc3/navigation";
+import { standSumme } from "@/components/uc3/monatsstand";
 import { MonatsStatus } from "../_teile/monatstabelle";
+import { PruefungMalMonatTabelle } from "./_teile/pruefung-mal-monat";
 
 // Qualitätsberichte (#18, Frame fJdk9): ein Bericht je Monat aus dem maßgeblichen Lauf. Ohne Datenbank der
 // Leerzustand mit HTTP 200.
@@ -41,29 +44,21 @@ function monateText(n: number): string {
   return n === 1 ? "einem Monat" : `${formatZahl(n)} Monaten`;
 }
 
-/** Klartext einer Prüfung ohne Punkt am Ende, z. B. „Gruppen haben sich stark gegenüber dem Vormonat verändert“. */
-function pruefungText(name: string): string {
-  return trefferTitel({ name, beschreibung: "", satz: null, anzahl: 0, umfang: null }, "").replace(/\.$/, "");
-}
-
 /**
- * Kopf der Übersicht aus den Daten: Monate, deren Veröffentlichung an einer eigenen Rückfrage hängt, namentlich;
- * Rückfragen, die jeden Monat betreffen, mit ihrem Titel. Etwa: „März 2025 und Oktober 2025 warten auf die
- * Fachabteilung (R4, R3). In jedem Monat offen: Kurze Zweitmeldungen derselben Person (R8).“
+ * Kopf der Übersicht aus den Daten, ohne Nummern: Monate, deren Veröffentlichung an einer eigenen Rückfrage hängt,
+ * namentlich; Rückfragen, die jeden Monat betreffen, mit ihrem Titel. Etwa: „März 2025 und Oktober 2025 warten auf die
+ * Fachabteilung. In jedem Monat offen: Kurze Zweitmeldungen derselben Person.“ Die Nummern stehen in der Monatsliste.
  */
 function kopfSaetze(zeilen: readonly Berichtszeile[], ueberall: readonly OffeneRueckfrage[]): string[] {
   const allgemein = new Set(ueberall.map((q) => q.nr));
-  const halten = zeilen
-    .map((z) => ({ lieferung: z.monat.lieferung, nrn: z.haeltAn.filter((nr) => !allgemein.has(nr)) }))
-    .filter((z) => z.nrn.length > 0);
+  const halten = zeilen.filter((z) => z.haeltAn.some((nr) => !allgemein.has(nr)));
   const saetze: string[] = [];
   if (halten.length > 0) {
-    const nrn = [...new Set(halten.flatMap((z) => z.nrn))];
     saetze.push(
-      `${aufzaehlen(halten.map((z) => monatName(z.lieferung)))} ${halten.length === 1 ? "wartet" : "warten"} auf die Fachabteilung (${nrn.join(", ")}).`,
+      `${aufzaehlen(halten.map((z) => monatName(z.monat.lieferung)))} ${halten.length === 1 ? "wartet" : "warten"} auf die Fachabteilung.`,
     );
   }
-  for (const q of ueberall) saetze.push(`In jedem Monat offen: ${alltag(q.titel).replace(/\.$/, "")} (${q.nr}).`);
+  for (const q of ueberall) saetze.push(`In jedem Monat offen: ${alltag(q.titel).replace(/\.$/, "")}.`);
   return saetze;
 }
 
@@ -82,13 +77,17 @@ export default async function Berichte({ searchParams }: Props) {
         </Ueberschrift>
         <Leerzustand
           satz="Noch kein Monat ist gerechnet, deshalb gibt es noch keinen Qualitätsbericht."
+          aktion={
+            <Link href="/uc3/ergebnisse" className={link}>
+              Excel-Dateien der Abgabe herunterladen
+            </Link>
+          }
         />
       </>
     );
   }
 
-  const { zeilen, offeneRueckfragen } = lesung.daten;
-  const nichtErklaerbar = zeilen.filter((z) => z.monat.nichtErklaerbar > 0).length;
+  const { zeilen, offeneRueckfragen, pruefungen } = lesung.daten;
   const mitRevision = zeilen.filter((z) => z.revisionsbedarf).length;
   const ueberall = rueckfragenInAllenMonaten(zeilen, offeneRueckfragen);
   const saetze = kopfSaetze(zeilen, ueberall);
@@ -98,25 +97,22 @@ export default async function Berichte({ searchParams }: Props) {
     name,
     monate: zeilen.filter((z) => z.ohneRueckfrage.includes(name)).map((z) => z.monat.lieferung),
   }));
-  const n = formatZahl(zeilen.length);
-  const kopfsatz =
-    saetze.length > 0
-      ? saetze.join(" ")
-      : nichtErklaerbar === 0
-        ? `Für alle ${n} Monate liegt ein Qualitätsbericht vor, alle Auffälligkeiten sind erklärt.`
-        : `Für alle ${n} Monate liegt ein Qualitätsbericht vor, kein Monat wartet auf die Fachabteilung.`;
+  const kopfsatz = `Für alle ${formatZahl(zeilen.length)} Monate liegt ein Qualitätsbericht vor. ${standSumme(zeilen.map((z) => z.monat))}.`;
 
   return (
     <>
       <header className="flex max-w-4xl flex-col gap-4">
-        <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
+        <Ueberschrift stufe={2} als="h1" className="break-words">
           {kopfsatz}
         </Ueberschrift>
-        <HerkunftChip quelle="meta.rueckfrage" sql={sqlBerichtsuebersicht(regelsatz)} />
+        <HerkunftChip quelle="meta.lauf" sql={sqlBerichtsstand(regelsatz)} />
         {saetze.length > 0 && (
-          <Fliesstext>
-            {`Für alle ${n} Monate liegt ein Qualitätsbericht vor. Was an einer offenen Rückfrage hängt, bleibt „nicht erklärbar“, bis die Antwort da ist. Das ist so gewollt: Das Programm rät nicht, ein Mensch muss es klären.`}
-          </Fliesstext>
+          <div className="flex flex-col items-start gap-2">
+            <Fliesstext>
+              {`${saetze.join(" ")} Was an einer offenen Rückfrage hängt, bleibt „nicht erklärbar“, bis die Antwort da ist. Das ist so gewollt: Das Programm rät nicht, ein Mensch muss es klären.`}
+            </Fliesstext>
+            <HerkunftChip quelle="meta.rueckfrage" sql={sqlBerichtsuebersicht(regelsatz)} />
+          </div>
         )}
         {weitere > 0 && (
           <div className="flex flex-col items-start gap-2">
@@ -124,7 +120,7 @@ export default async function Berichte({ searchParams }: Props) {
               {`In ${monateText(weitere)} ist eine Auffälligkeit nicht erklärbar, zu der noch keine Rückfrage gestellt ist. ${ohneJePruefung
                 .map(
                   (p) =>
-                    `${p.monate.length === 1 ? `Im ${monatName(p.monate[0])}` : `In ${monateText(p.monate.length)}`}: ${pruefungText(p.name)} (Prüfung ${p.name.split("_")[0]}).`,
+                    `${p.monate.length === 1 ? `Im ${monatName(p.monate[0])}` : `In ${monateText(p.monate.length)}`}: ${pruefungTitel(p.name)} (Prüfung ${p.name.split("_")[0]}).`,
                 )
                 .join(" ")} Der Bericht des Monats nennt die Zahlen.`}
             </Fliesstext>
@@ -141,9 +137,14 @@ export default async function Berichte({ searchParams }: Props) {
             Alle Regeln lesen, nach denen gezählt wird
           </Link>
         </Fliesstext>
+        <Fliesstext groesse={14}>
+          <Link href="/uc3/ergebnisse" className={link}>
+            Excel-Dateien der Abgabe herunterladen
+          </Link>
+        </Fliesstext>
       </header>
 
-      <Begriffsliste worte={["Qualitätsbericht", "Auffälligkeit", "Revisionsbedarf", "Regel"] as const} label="Begriffe auf dieser Seite" className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4" />
+      <PruefungMalMonatTabelle daten={pruefungen} monate={zeilen.map((z) => z.monat.lieferung)} regelsatz={regelsatz} />
 
       <section aria-labelledby="liste-titel" className="flex flex-col gap-4">
         <Ueberschrift stufe={3} als="h2" id="liste-titel">
@@ -152,6 +153,8 @@ export default async function Berichte({ searchParams }: Props) {
         <HerkunftChip quelle="meta.pruefung_treffer" sql={sqlBerichtsliste(regelsatz)} />
         <Liste zeilen={zeilen} regelsatz={regelsatz} />
       </section>
+
+      <Begriffsliste worte={["Qualitätsbericht", "Auffälligkeit", "Revisionsbedarf", "Regel"] as const} label="Begriffe auf dieser Seite" className="grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4" />
     </>
   );
 }
