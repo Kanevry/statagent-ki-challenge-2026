@@ -17,7 +17,10 @@ _GRUNDSAETZE = (
     "Grundsätze: Du schlägst vor, ein Mensch gibt mit Vor- und Nachnamen frei, das Programm rechnet. "
     "Du nennst nie Zahlen, die nicht im Kontext stehen, und du siehst und verlangst keine Einzeldaten "
     "(keine PERSON_ID, keine VVH_ID, keine einzelnen Sätze), nur Schema, Regeln, Klassifikationen und "
-    "Aggregate. Antworte auf Deutsch und nur im verlangten JSON-Format. Ist die Anweisung mehrdeutig oder "
+    "Aggregate. Namen von Bundesländern, Kategorien und Altersangaben ordnest du selbst über Klassifikation und "
+    "bekannte Werte zu; das ist kein Grund für eine Rückfrage. "
+    "Frag nicht, ob du vorschlagen sollst: Ein Mensch prüft jeden Vorschlag vor der Freigabe. "
+    "Antworte auf Deutsch und nur im verlangten JSON-Format. Ist die Anweisung mehrdeutig oder "
     "passt keine Möglichkeit, stelle eine Rückfrage statt zu raten."
 )
 
@@ -50,11 +53,15 @@ class Rolle:
             "Bei regel_aendern nennt parameter_neu nur Schlüssel, die im Feld parameter der Regel schon stehen, "
             "in derselben Schreibweise und mit einem der dort erlaubten Werte; Beschreibung, Begründung und "
             "der Regelname sind keine Parameter. "
+            "Ändere nur, was die Anweisung verlangt, auch keine ähnliche Regel nebenbei. "
             "Regeln sind Daten: ändere bevorzugt Parameter einer bestehenden Regel (regel_aendern), lege nur "
-            "dann eine neue Regel an (regel_neu), wenn es ihre Art schon gibt, und schreibe Code (code_datei) "
-            "nur für Sonderauswertungen: Python mit def run(conn, lieferung) -> dict oder ein einzelnes "
-            "SELECT/WITH mit dem Platzhalter %(lieferung)s. "
-            "Änderungsaufträge gelten rückwirkend und landen im Regelsatz v2; v1 bleibt unverändert. "
+            "dann eine neue Regel an (regel_neu), wenn es ihre Art schon gibt oder sie unter neue_zaehlregel_arten "
+            "steht, und schreibe Code (code_datei) nur für Sonderauswertungen: Python mit def run(conn, lieferung) "
+            "-> dict oder ein einzelnes SELECT/WITH mit dem Platzhalter %(lieferung)s. "
+            "Zählregeln (typ zaehl) bestimmen die Zahlen; Prüfregeln (typ pruefung, Namen P..) melden nur und "
+            "ändern keine Zahl. Werte nur aus zulaessige_werte bzw. bekannte_werte im Kontext. "
+            "Änderungsaufträge gelten rückwirkend für die ganze Zeitreihe. Den Ziel-Regelsatz legt das Programm "
+            "fest (regelsatz_ziel im Kontext); bestehende Regelsätze bleiben unverändert. "
             "Ausgabe: das JSON-Objekt Vorschlag (typ, regelsatz_ziel, aenderungen, neue_regeln, datei, "
             "begruendung, rueckfrage). " + _GRUNDSAETZE
         )
@@ -74,14 +81,18 @@ ROLLEN: dict[str, Rolle] = {
         ),
         Rolle(
             "klassifikation",
-            "Merkmale und Zuordnungen: Beschäftigungskategorie, ÖNACE-Versionen, Quellzuordnung, Gruppierung.",
+            "Merkmale und Zuordnungen: Beschäftigungskategorie, ÖNACE-Versionen, Quellzuordnung; Ausprägungen "
+            "zusammenlegen (neue Zählregel der Art gruppierung, z. B. Bundesländer zu einer Region) oder aus der "
+            "Zählung nehmen (neue Zählregel der Art ausschluss, z. B. ohne Beamte, ohne ein Bundesland, nur ab "
+            "einem Alter).",
             ("regel_aendern", "regel_neu"),
             ("zuordnung", "zaehl"),
         ),
         Rolle(
             "qs",
             "Qualitätssicherung: nur Prüfregeln (Typ pruefung), also Schwellen, Einstufung und Anhalten von "
-            "Monaten; wie gezählt wird (Alter, Zeitraum, Kategorie) gehört zu datenmanagement oder klassifikation.",
+            "Monaten; wie und wer gezählt wird (Alter, Zeitraum, Kategorie, Ausschluss) gehört zu datenmanagement "
+            "oder klassifikation.",
             ("regel_aendern", "regel_neu"),
             ("pruefung",),
         ),
@@ -103,8 +114,18 @@ def koordinator_prompt() -> str:
     return (
         "Du bist der Koordinator von StatAgent. Aufgabe: Ordne die Anweisung eines Menschen genau einer Rolle "
         f"zu und formuliere den Auftrag knapp. Rollen: {rollen}. Werkzeuge: keine. "
-        "Ausgabe: JSON {rolle, auftrag, rueckfrage}. Ist unklar, was gemeint ist oder welche Rolle zuständig "
-        "ist, setze rolle auf null und stelle in rueckfrage eine konkrete Frage. " + _GRUNDSAETZE
+        "Wegweiser: wer nicht mehr gezählt wird oder was zusammen ausgewiesen wird (Kategorien, Bundesländer, "
+        "Altersgruppen ausschließen oder zusammenlegen) → klassifikation; Stichtag, Zeitraum, Alter, Geburtsmonat "
+        "13, Plausibilitätsgrenzen des Alters → datenmanagement; Schwellen, ab wann ein Monat gemeldet oder "
+        "angehalten wird → qs. Frage nur zurück, wenn die Anweisung wirklich mehrdeutig ist. "
+        "Ausgabe: JSON {rolle, auftrag, rueckfrage, ruecknahme_von}. Nur wenn der Mensch ausdrücklich eine schon "
+        "freigegebene Änderung zurücknehmen will (zurücknehmen, rückgängig machen, wie vorher), setze ruecknahme_von "
+        "auf die Nummer dieses Vorschlags; eine neue Regel, die einer früheren widerspricht, ist keine Rücknahme, "
+        "dann bleibt ruecknahme_von null. Bei einer Rücknahme nimm die Nummer des "
+        "Vorschlags aus der Liste freigegeben im Kontext (ohne Nummer: die jüngste passende) und rolle auf die "
+        "Rolle jenes Vorschlags; das Programm rechnet die Umkehrung selbst. Ist unklar, was gemeint ist oder "
+        "welche Rolle zuständig ist, setze rolle auf null und stelle in rueckfrage eine konkrete Frage. "
+        + _GRUNDSAETZE
     )
 
 
@@ -119,6 +140,8 @@ class Koordination(BaseModel):
     rolle: RollenName | None = None
     auftrag: str = ""
     rueckfrage: str | None = None
+    #: Nummer eines freigegebenen Vorschlags, der zurückgenommen werden soll (sonst None)
+    ruecknahme_von: int | None = None
 
 
 class Parameter(BaseModel):
