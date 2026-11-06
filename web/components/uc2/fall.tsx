@@ -12,7 +12,7 @@ import { kuerzel } from "./buehne/takt";
 // /uc2: die Frage, wer am Tisch sitzt, eine Hauptaktion. Die aufgezeichnete Verhandlung ist die Vorführung. Eine
 // neue Verhandlung mit Modell gibt es nur, wenn die Python-API erreichbar ist (lokal); online wird sie nicht angeboten.
 
-export function Fall({ vorbereitung }: { vorbereitung: Vorbereitung }) {
+export function Fall({ vorbereitung, eigeneFrage = false }: { vorbereitung: Vorbereitung; eigeneFrage?: boolean }) {
   const router = useRouter();
   const { fall, akteure, modus } = vorbereitung;
   const amTisch = akteure.filter((a) => a.vorgeschlagen).map((a) => a.akteur);
@@ -71,6 +71,11 @@ export function Fall({ vorbereitung }: { vorbereitung: Vorbereitung }) {
         <Link href={`/uc2/panel?fall=${MOCK_FALL_ID}`} className={knopfKlassen("primaer", "h-14 px-6 text-16")}>
           Verhandlung ansehen
         </Link>
+        {eigeneFrage && (
+          <Link href="/uc2/frage" className="inline-flex min-h-11 items-center font-sans text-14 text-gruen underline underline-offset-4">
+            Eigene Frage ausprobieren
+          </Link>
+        )}
         {modus === "live" && (
           <button type="button" onClick={neuVerhandeln} disabled={laedt} className="min-h-11 font-sans text-14 text-gruen underline underline-offset-4 disabled:opacity-50">
             {laedt ? "Startet …" : "Neu verhandeln lassen, mit Modell"}

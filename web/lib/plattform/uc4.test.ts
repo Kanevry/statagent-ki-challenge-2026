@@ -2,7 +2,10 @@ import fixture from "../../../shared/schema/fixtures/uc-antwort.json";
 import { erstelleRatenlimit, type PruefeRatenlimit } from "./ratenlimit";
 import {
   BUDGET_MELDUNG,
+  DECKEL_MELDUNG,
   erstelleFrageAntwort,
+  STATION_FRAGEN_PRO_TAG,
+  STATION_PRO_MINUTE,
   ROUTER_ARGV,
   standardAusfuehren,
   standardStromStarten,
@@ -570,5 +573,83 @@ describe("standardStromStarten mit echtem Prozess", () => {
     const { value } = await lauf.zeilen[Symbol.asyncIterator]().next();
     expect(await lauf.ende).toBeNull();
     await vi.waitFor(() => expect(lebt(Number(value))).toBe(false), { timeout: 3_000 });
+  });
+});
+
+describe("?station=uc2: Probierseite /uc2/frage mit eigenem Deckel", () => {
+  const OFFEN = { UC4_KETTE: "uc3,uc2,uc1" };
+  const KI = JSON.stringify({ antworten: [{ text: "T", belege: [], zahlen: [], uc: "uc2", modell: "m", protokoll_id: null }], fehlend: [] });
+  const ABSAGE = JSON.stringify({ antworten: [{ text: "T", belege: [], zahlen: [], uc: "uc2", modell: null, protokoll_id: null }], fehlend: [] });
+  const stationAnfrage = (ip = "1.1.1.1", ziel = "http://lokal/api/uc4/frage?station=uc2") =>
+    new Request(ziel, { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": ip }, body: JSON.stringify({ frage: "x" }) });
+
+  it("fragt nur uc2", async () => {
+    const ausfuehren = liefert(KI);
+    const antwort = await frageAntwort(stationAnfrage(), { ausfuehren, umgebung: OFFEN, wurzel: () => "/r" });
+    expect(antwort.status).toBe(200);
+    const argv = ausfuehren.mock.calls[0]![1];
+    expect(argv.slice(argv.indexOf("--kette"), argv.indexOf("--kette") + 2)).toEqual(["--kette", "uc2"]);
+  });
+
+  it("öffnet ohne uc2 in der Kette kein Modell (Online Stufe A)", async () => {
+    const ausfuehren = liefert(KI);
+    const antwort = await frageAntwort(stationAnfrage(), {
+      ausfuehren,
+      umgebung: { KIC_ONLINE: "1", KIC_ONLINE_LESEND: "1", KIC_ONLINE_FRAGEN: "1", UC4_KETTE: "uc3" },
+      wurzel: () => "/r",
+    });
+    expect(antwort.status).toBe(403);
+    expect(ausfuehren).not.toHaveBeenCalled();
+  });
+
+  it("nimmt nur uc2 als Station an", async () => {
+    const ausfuehren = liefert(KI);
+    const antwort = await frageAntwort(stationAnfrage("1.1.1.1", "http://lokal/api/uc4/frage?station=uc1"), { ausfuehren, umgebung: OFFEN, wurzel: () => "/r" });
+    expect(antwort.status).toBe(400);
+    expect(ausfuehren).not.toHaveBeenCalled();
+  });
+
+  it("Limit je Client: fünf je Minute, /uc4 bleibt davon frei", async () => {
+    const handler = erstelleFrageAntwort({ ausfuehren: liefert(KI), umgebung: OFFEN, wurzel: () => "/r" });
+    for (let i = 0; i < STATION_PRO_MINUTE; i += 1) expect((await handler(stationAnfrage())).status).toBe(200);
+    expect((await handler(stationAnfrage())).status).toBe(429);
+    expect((await handler(stationAnfrage("2.2.2.2"))).status).toBe(200);
+    const kette = await handler(new Request("http://lokal/api/uc4/frage", { method: "POST", headers: { "x-forwarded-for": "1.1.1.1" }, body: JSON.stringify({ frage: "x" }) }));
+    expect(kette.status).toBe(200);
+  });
+
+  it("Tagesdeckel: voll ist voll, /uc4 läuft weiter, am nächsten UTC-Tag wieder offen, Absagen zählen nicht", async () => {
+    let zeit = Date.UTC(2026, 10, 6, 8);
+    const ausfuehren = liefert(KI);
+    const handler = erstelleFrageAntwort({ ausfuehren, umgebung: OFFEN, wurzel: () => "/r", stationRatenlimit: offen, ratenlimit: offen, jetzt: () => zeit });
+    for (let i = 0; i < STATION_FRAGEN_PRO_TAG; i += 1) expect((await handler(stationAnfrage())).status).toBe(200);
+    const voll = await handler(stationAnfrage());
+    expect(voll.status).toBe(429);
+    expect(((await voll.json()) as { fehler: string }).fehler).toBe(DECKEL_MELDUNG);
+    const aufrufe = ausfuehren.mock.calls.length;
+    expect(aufrufe).toBe(STATION_FRAGEN_PRO_TAG);
+    const kette = await handler(new Request("http://lokal/api/uc4/frage", { method: "POST", body: JSON.stringify({ frage: "x" }) }));
+    expect(kette.status).toBe(200);
+    zeit = Date.UTC(2026, 10, 7, 0, 0, 1);
+    expect((await handler(stationAnfrage())).status).toBe(200);
+
+    const absagen = erstelleFrageAntwort({ ausfuehren: liefert(ABSAGE), umgebung: OFFEN, wurzel: () => "/r", stationRatenlimit: offen });
+    for (let i = 0; i < STATION_FRAGEN_PRO_TAG + 3; i += 1) expect((await absagen(stationAnfrage())).status).toBe(200);
+  });
+
+  it("ein Lauf zur Zeit, eigener Platz: /uc4 läuft daneben", async () => {
+    let frei: (l: { code: number; stdout: string }) => void = () => {};
+    const ausfuehren = vi.fn<Ausfuehren>(() => new Promise((aufloesen) => (frei = aufloesen)));
+    const handler = erstelleFrageAntwort({ ausfuehren, umgebung: OFFEN, wurzel: () => "/r", stationRatenlimit: offen, ratenlimit: offen });
+    const erste = handler(stationAnfrage());
+    await vi.waitFor(() => expect(ausfuehren).toHaveBeenCalledTimes(1));
+    expect((await handler(stationAnfrage())).status).toBe(429);
+    const erster = frei;
+    const kette = handler(new Request("http://lokal/api/uc4/frage", { method: "POST", body: JSON.stringify({ frage: "x" }) }));
+    await vi.waitFor(() => expect(ausfuehren).toHaveBeenCalledTimes(2));
+    frei({ code: 0, stdout: KI });
+    erster({ code: 0, stdout: KI });
+    expect((await erste).status).toBe(200);
+    expect((await kette).status).toBe(200);
   });
 });

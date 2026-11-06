@@ -1,3 +1,4 @@
+import { formatZeit } from "@kic/ui/bausteine";
 import Link from "next/link";
 import type { Einstufung } from "../daten/fakten";
 import type { BefundTabelle, BefundZeile } from "../daten/typen";
@@ -13,11 +14,9 @@ const ZEICHEN: Record<Einstufung, string> = {
   revision: "Δ",
 };
 
-function standText(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const zwei = (n: number) => String(n).padStart(2, "0");
-  return `${zwei(d.getDate())}.${zwei(d.getMonth() + 1)}.${d.getFullYear()}, ${zwei(d.getHours())}:${zwei(d.getMinutes())}`;
+/** „hält den Monat an“ bleibt zusammen, sonst steht bei 1440 ein einzelnes „an“ in der zweiten Zeile. */
+function keinEinzelnesWort(text: string): string {
+  return text.replace("hält den Monat an", "hält\u00a0den\u00a0Monat\u00a0an");
 }
 
 function Einstufungstext({ zeile }: { zeile: BefundZeile }) {
@@ -28,7 +27,7 @@ function Einstufungstext({ zeile }: { zeile: BefundZeile }) {
       <span className={a.zeichen} aria-hidden="true">
         {zeile.anhalten ? ZEICHEN["nicht-erklaerbar"] : ZEICHEN[zeile.einstufung]}
       </span>
-      <span>{zeile.einstufungText}</span>
+      <span>{keinEinzelnesWort(zeile.einstufungText)}</span>
       {zeile.rueckfrage ? (
         <span>
           {" · "}
@@ -124,7 +123,7 @@ export default function Datenfehler({ tabelle }: { tabelle: BefundTabelle }) {
                 ? tabelle.grund === "keine-treffer"
                   ? DATENFEHLER.keineTreffer
                   : DATENFEHLER.beispieldaten
-                : `${DATENFEHLER.datenbank} ${standText(tabelle.stand)}.`}
+                : `${DATENFEHLER.datenbank} ${formatZeit(tabelle.stand)}.`}
               {tabelle.quelle === "datenbank" && tabelle.anzahl > tabelle.zeilen.length
                 ? ` ${DATENFEHLER.auswahl(tabelle.zeilen.length, tabelle.anzahl)}`
                 : null}

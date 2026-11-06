@@ -547,6 +547,8 @@ def matrix_schreiben(zeilen: list[dict], belege: dict[str, list[dict]], sha: str
             "Nicht von Hand ändern. Belege stehen in `docs/abnahme/belege.jsonl`,",
             "der jüngste Eintrag je Kriterium gilt. Ein Kriterium ist nur `bestanden`,",
             "wenn der Prüfer den Befehl in seiner Session ausgeführt und die Ausgabe gelesen hat.",
+            "Bei Hand-Belegen kann eine andere Session geprüft haben: Wer es war, steht im Beleg, "
+            "der Prüfer hat Ergebnis und Herkunft nachgelesen.",
             "",
             "| Stand | Anzahl |",
             "|---|---:|",

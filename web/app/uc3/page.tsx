@@ -1,53 +1,29 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { knopfKlassen, Leerzustand, Ueberschrift } from "@kic/ui/basis";
-import { formatZahl } from "@kic/ui/bausteine";
-import { bestandBeleg, laufBeleg, literal } from "@/components/uc3/beleg";
+import { laufBeleg, literal } from "@/components/uc3/beleg";
 import { BelegLink } from "@/components/uc3/beleg-link";
 import { DatenFehler } from "@/components/uc3/daten-fehler";
 import { abrechnung, leseMonatsuebersicht, MASSGEBLICH_SQL } from "@/components/uc3/laeufe";
 import { haltKurz, haltTreffer, leseLaufDetail, sqlTreffer } from "@/components/uc3/lauf-detail";
+import { kopfSatz, leseDashboard } from "@/components/uc3/dashboard";
 import { monatName, verschieben } from "@/components/uc3/monat";
-import { laufPfad, regelsatzAus, uebersichtPfad, type Regelsatz } from "@/components/uc3/navigation";
-import { regelsatzSatz } from "./_teile/regelsatz-satz";
+import { laufPfad, regelsatzAus, uebersichtPfad } from "@/components/uc3/navigation";
+import { nurLesend } from "@/components/uc3/cli";
+import { mitRegeln, satzAnfang } from "@/components/uc3/regelsatz-name";
+import { RegelsatzWahl } from "@/components/uc3/regelsatz-wahl";
 import type { Monatslauf } from "@/components/uc3/typen";
+import { Aufteilungen } from "./_teile/aufteilungen";
+import { Kennzahlen } from "./_teile/kennzahlen";
 import { Monatsgrafik } from "./_teile/monatsgrafik";
 import { Monatsliste, type Zeile } from "./_teile/monatsliste";
 
-// Monate (UI-Regie v1): eine Hauptaussage (wie viele Monate gerechnet, wie viele warten), eine Grafik der 24
-// Monate, die angehaltenen Monate als eigener Block mit Grund und Rückfrage, eine Hauptaktion zum Vorführmonat,
-// darunter die Liste. Liest die UC3-Datenbank direkt; ohne Datenbank zeigt die Seite den Leerzustand (HTTP 200).
+// Dashboard (Bereich 4, Optimum): eine Hauptaussage, die Kurve der 24 Monate, vier Kennzahlen, die angehaltenen Monate
+// mit Grund und Rückfrage als Hauptaktion, die Aufteilungen des letzten Monats, darunter die Liste. Liest die
+// UC3-Datenbank direkt; ohne Datenbank zeigt die Seite den Leerzustand (HTTP 200). Antwortet nur der Zusatz nicht,
+// fehlen Kennzahlen und Aufteilungen, der Rest bleibt.
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Monate · StatAgent" };
-
-const ZAHLWORT = ["Kein Monat", "Einer", "Zwei", "Drei", "Vier", "Fünf"];
-
-/** Kleiner Umschalter v1 | v2; erscheint erst, wenn es Läufe mit Regelsatz v2 gibt. */
-function RegelsatzWahl({ aktiv }: { aktiv: Regelsatz }) {
-  const punkte: Array<[Regelsatz, string, string]> = [
-    ["v1", "v1", "Regelsatz v1: gezählt nach der Fachbeschreibung."],
-    ["v2", "v2", "Regelsatz v2: gezählt mit den freigegebenen Änderungsaufträgen."],
-  ];
-  return (
-    <nav aria-label="Regelsatz" className="flex items-center gap-2 font-sans text-14 text-slate">
-      <span>Regelsatz</span>
-      <ul className="flex overflow-hidden rounded-md border border-line">
-        {punkte.map(([wert, text, erklaerung]) => (
-          <li key={wert}>
-            <Link
-              href={uebersichtPfad(wert)}
-              title={erklaerung}
-              aria-current={wert === aktiv ? "page" : undefined}
-              className={`inline-flex min-h-11 min-w-11 items-center justify-center px-3 ${wert === aktiv ? "bg-ink text-white" : "text-ink hover:bg-paper"}`}
-            >
-              {text}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
-}
+export const metadata: Metadata = { title: "Dashboard · StatAgent" };
 
 /** Beleg der ganzen Zeitreihe: maßgeblicher Lauf je Monat mit Bestand und Abrechnung. */
 function sqlZeitreihe(regelsatz: string): string {
@@ -90,7 +66,7 @@ export default async function Monate({ searchParams }: Props) {
     return (
       <>
         <Ueberschrift stufe={2} als="h1">
-          {ohneLauf ? `Mit Regelsatz ${regelsatz} ist noch kein Monat gerechnet.` : "Noch kein Monat ist gerechnet."}
+          {ohneLauf ? `${satzAnfang(mitRegeln(regelsatz))} ist noch kein Monat gerechnet.` : "Noch kein Monat ist gerechnet."}
         </Ueberschrift>
         <Leerzustand
           satz={
@@ -101,7 +77,7 @@ export default async function Monate({ searchParams }: Props) {
           aktion={
             ohneLauf ? (
               <Link href={uebersichtPfad("v1")} className={knopfKlassen("sekundaer")}>
-                Monate mit Regelsatz v1 ansehen
+                Monate nach den alten Regeln ansehen
               </Link>
             ) : undefined
           }
@@ -114,10 +90,11 @@ export default async function Monate({ searchParams }: Props) {
   const letzter = monate.at(-1)!;
   const angehalten = await angehalteneMonate(monate, regelsatz);
   const vorfuehren = angehalten.at(-1)?.monat;
-  const wieViele = angehalten.length;
   const beideRegelsaetze = regelsaetze.includes("v2") || regelsatz !== "v1";
   const andere = beideRegelsaetze ? await leseMonatsuebersicht(regelsatz === "v1" ? "v2" : "v1") : null;
   const andereZahl = andere?.ok ? (andere.daten.monate.find((m) => m.lieferung === letzter.lieferung)?.gezaehlt ?? null) : null;
+  const zusatz = await leseDashboard(letzter, regelsatz);
+  const dashboard = zusatz.ok ? zusatz.daten : null;
   const zeilen: Zeile[] = monate.map((monat) => {
     const davor = monate.find((m) => m.lieferung === verschieben(monat.lieferung, -1));
     return { monat, vormonat: davor ? davor.gezaehlt : null, gehtAuf: abrechnung(monat).gehtAuf };
@@ -126,30 +103,19 @@ export default async function Monate({ searchParams }: Props) {
   return (
     <>
       <header className="flex max-w-4xl flex-col gap-3">
+        <p className="font-sans text-16 font-semibold text-ink">Dashboard der Beschäftigtenstatistik</p>
         <Ueberschrift stufe={2} als="h1" className="hyphens-auto break-words">
-          {`${formatZahl(monate.length)} Monate gerechnet. ${
-            wieViele === 0
-              ? "Keiner wartet auf die Fachabteilung."
-              : `${ZAHLWORT[wieViele] ?? formatZahl(wieViele)} ${wieViele === 1 ? "wartet" : "warten"} auf die Fachabteilung.`
-          }`}
+          {kopfSatz(monate)}
         </Ueberschrift>
-        <div className="flex flex-wrap items-baseline gap-x-3 font-sans text-16 text-slate">
-          <span>
-            {regelsatz !== "v1" ? `${monatName(letzter.lieferung)}: ` : `Ende ${monatName(letzter.lieferung)}: `}
-            <span className="tabular-nums text-ink">{formatZahl(letzter.gezaehlt)}</span>
-            {" Beschäftigungsverhältnisse"}
-          </span>
-          <BelegLink {...bestandBeleg(letzter)} />
-        </div>
-        {beideRegelsaetze && (
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <p className="max-w-2xl font-sans text-16 text-pretty text-slate">{regelsatzSatz(regelsatz, andereZahl)}</p>
-            <RegelsatzWahl aktiv={regelsatz} />
-          </div>
-        )}
+        {beideRegelsaetze && <RegelsatzWahl aktiv={regelsatz} pfad={uebersichtPfad} andereZahl={andereZahl} />}
+        {nurLesend() && <p className="font-sans text-14 text-slate">Hier sehen Sie die Ergebnisse. Gerechnet und freigegeben wird im Programm.</p>}
       </header>
 
-      <Monatsgrafik monate={monate} regelsatz={regelsatz} />
+      <Monatsgrafik key={regelsatz} monate={monate} regelsatz={regelsatz} beleg={<BelegLink quelle="meta.lauf" sql={sqlZeitreihe(regelsatz)} />} />
+
+      {dashboard && (
+        <Kennzahlen monate={monate} vormonat={zeilen.at(-1)?.vormonat ?? null} treffer={dashboard.detail.treffer} einstufungen={dashboard.einstufungen} />
+      )}
 
       {angehalten.length > 0 && (
         <section aria-labelledby="angehalten-titel" className="flex max-w-5xl flex-col gap-2">
@@ -173,11 +139,11 @@ export default async function Monate({ searchParams }: Props) {
                   {a.beleg && <BelegLink {...a.beleg} />}
                   {a.monat.lieferung === vorfuehren?.lieferung ? (
                     <Link href={laufPfad(a.monat.lieferung, regelsatz)} className={knopfKlassen("primaer")}>
-                      {`${monatName(a.monat.lieferung)} prüfen`}
+                      {`Bericht ${monatName(a.monat.lieferung)} ansehen`}
                     </Link>
                   ) : (
                     <Link href={laufPfad(a.monat.lieferung, regelsatz)} className="inline-flex min-h-11 items-center font-medium text-ink underline underline-offset-4">
-                      Prüfen
+                      Bericht ansehen
                     </Link>
                   )}
                 </span>
@@ -186,6 +152,8 @@ export default async function Monate({ searchParams }: Props) {
           </ul>
         </section>
       )}
+
+      {dashboard && <Aufteilungen lauf={dashboard.detail.lauf} regionen={dashboard.detail.regionen} geschlecht={dashboard.geschlecht} />}
 
       <section aria-labelledby="monate-titel" className="flex flex-col gap-2">
         <Monatsliste
@@ -196,7 +164,14 @@ export default async function Monate({ searchParams }: Props) {
               Alle Läufe, je Monat mit Qualitätsbericht
             </h2>
           }
-          rechts={<BelegLink quelle="meta.lauf" sql={sqlZeitreihe(regelsatz)} />}
+          rechts={
+            <>
+              <Link href="/uc3/ergebnisse" className="inline-flex min-h-11 items-center font-sans text-14 font-medium text-ink underline underline-offset-4 hover:text-gruen">
+                Excel-Dateien herunterladen
+              </Link>
+              <BelegLink quelle="meta.lauf" sql={sqlZeitreihe(regelsatz)} />
+            </>
+          }
         />
       </section>
     </>
