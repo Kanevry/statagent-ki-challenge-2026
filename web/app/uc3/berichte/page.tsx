@@ -82,6 +82,11 @@ export default async function Berichte({ searchParams }: Props) {
         </Ueberschrift>
         <Leerzustand
           satz="Noch kein Monat ist gerechnet, deshalb gibt es noch keinen Qualitätsbericht."
+          aktion={
+            <Link href="/uc3/ergebnisse" className={link}>
+              Excel-Dateien der Abgabe herunterladen
+            </Link>
+          }
         />
       </>
     );
@@ -139,6 +144,11 @@ export default async function Berichte({ searchParams }: Props) {
         <Fliesstext groesse={14}>
           <Link href="/uc3/berichte/regeln" className={link}>
             Alle Regeln lesen, nach denen gezählt wird
+          </Link>
+        </Fliesstext>
+        <Fliesstext groesse={14}>
+          <Link href="/uc3/ergebnisse" className={link}>
+            Excel-Dateien der Abgabe herunterladen
           </Link>
         </Fliesstext>
       </header>

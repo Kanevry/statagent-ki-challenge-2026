@@ -9,6 +9,7 @@ import { BelegLink, StandPunkt } from "@/components/uc3/beleg-link";
 import { vorfuehrungOffen } from "@/components/uc3/auftrag";
 import { nurLesend } from "@/components/uc3/cli";
 import { DatenFehler } from "@/components/uc3/daten-fehler";
+import { MinisteriumListe } from "@/components/uc3/ministerium-liste";
 import {
   aenderungKurz,
   auftraggeber,
@@ -184,6 +185,23 @@ export default async function FreigabeSeite({ params }: { params: Promise<{ id: 
           </div>
         )}
       </section>
+
+      {v.regelsatzZiel === "ministerium" && v.status === "freigegeben" && (
+        <section aria-labelledby="liste-titel" className="flex max-w-3xl flex-col gap-3 border-t border-line pt-6">
+          <h2 id="liste-titel" className="font-sans text-16 font-semibold text-ink">
+            Die Liste für das Ministerium
+          </h2>
+          <MinisteriumListe />
+          <div>
+            <Link
+              href="/uc3/ergebnisse"
+              className="inline-flex min-h-11 items-center font-sans text-14 font-medium text-gruen underline underline-offset-4"
+            >
+              Excel-Dateien der Abgabe herunterladen
+            </Link>
+          </div>
+        </section>
+      )}
 
       <details className="max-w-3xl">
         <summary className="inline-flex min-h-11 cursor-pointer items-center font-sans text-14 text-slate underline decoration-line underline-offset-4 hover:text-ink">
