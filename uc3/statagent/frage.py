@@ -867,8 +867,8 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
     if _VERGLEICH_VORMONAT.search(frage) or (_VERAENDERUNG.search(frage) and not _SEIT.search(frage)):
         # Der v2-Weg zeigt einen Monat oder Zeitraum: Der Stand eines Monats wäre hier eine andere Antwort.
         text = (
-            f"Den Vergleich mit einem anderen Monat zeigt StatAgent im Regelsatz {regelsatz} nicht auf einmal. "
-            f"Bitte die Monate einzeln fragen. {beispiel}"
+            f"Einen Vergleich mit dem Vormonat zeigt StatAgent im Regelsatz {regelsatz} nicht. Bitte einen Monat oder "
+            f"Zeitraum nennen, zum Beispiel „Beschäftigte März bis Juni 2025 nach Regelsatz {regelsatz}“."
         )
         return _antwort(typ, text, hinweise=[text])
     if _ZEITREIHE.search(frage.lower()):

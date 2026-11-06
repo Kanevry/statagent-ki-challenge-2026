@@ -441,4 +441,6 @@ def test_v2_gegenprobe_mit_zahl(mit_v2: Verbindung) -> None:
 )
 def test_v2_vergleich_mit_vormonat_ohne_zahl(mit_v2: Verbindung, frage: str) -> None:
     daten = antwort_frage(mit_v2, frage)
-    assert daten["zahlen"] == [] and "einzeln fragen" in daten["text"]
+    assert daten["zahlen"] == [] and daten["text"].startswith(
+        "Einen Vergleich mit dem Vormonat zeigt StatAgent"
+    )
