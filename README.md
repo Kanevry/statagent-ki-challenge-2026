@@ -155,7 +155,7 @@ festes Kontingent an Modellaufrufen.
 | Daten | Startpaket des Veranstalters, synthetisch, nicht im Repo; Ordner `../svbox/uc3` oder `STATAGENT_STARTPAKET` | `uc3/README.md` |
 
 Wichtige Bibliotheken: `openai`, `fastapi`, `psycopg`, `pydantic` (Kern, `shared/py/pyproject.toml`), `typer` und
-`openpyxl` (UC3, `uc3/pyproject.toml`), Next.js 16, React 19, `three` und `@vapi-ai/web` für den
+`openpyxl` (UC3, `uc3/pyproject.toml`), Next.js 16, React 19 und `@vapi-ai/web` für den
 Sprechknopf (App, `web/package.json`; geladen in `web/lib/plattform/voice-lader.ts`). Die genauen
 Versionen stehen in `uv.lock` und `pnpm-lock.yaml`. Für die lokalen Embeddings kommt das Extra
 `plattform[embeddings]` (sentence-transformers) dazu. Es ist nicht in der CI.
@@ -239,7 +239,7 @@ KI Challenge 2026 stehen die Ergebnisse (dieses Repository) neben dem Team auch 
   Veranstalter. Quellen stehen in `docs/landing/logos-quellen.md`.
 
 Fremde Bibliotheken behalten ihre eigenen Lizenzen. Die Schriften Inter, Space Grotesk und JetBrains Mono kommen
-über `@fontsource-variable/*` unter der OFL-1.1, `three` steht unter MIT. Die Messfunktion des Anti-Schablonen-Gates
+über `@fontsource-variable/*` unter der OFL-1.1. `three` steht noch in `web/package.json`, wird nicht mehr importiert und steht unter MIT. Die Messfunktion des Anti-Schablonen-Gates
 (`web/tests/lib/slop-measure.js`) folgt dem impeccable-Katalog von Paul Bakaus und steht unter Apache-2.0
 (Lizenztext `web/tests/lib/LICENSE-impeccable`). Einzelheiten: `docs/abgabe/herkunft.md`.
 
