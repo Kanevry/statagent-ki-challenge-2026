@@ -140,3 +140,112 @@ def test_regelsatz_angabe_ist_kein_unbekanntes_wort() -> None:
 def test_ziffer_am_wort_ist_keine_lose_zahl() -> None:
     assert unbekanntes_wort("Beschäftigte im Regelsatz v1 im März 2025", []) is None
     assert unbekanntes_wort("Beschäftigte ab 50 im März 2025", []) == "50"
+
+
+# Fängt (Prüfung !242): Mit dem erkannten „IT“ wurde aus „arbeiten“ das unbekannte Wort „arbe“.
+def test_ersetzen_nur_mit_wortgrenze() -> None:
+    assert unbekanntes_wort("Wie viele Leute arbeiten in der IT im März 2025?", ["it"]) is None
+    assert unbekanntes_wort("Bitte die Zeitreihe seit März 2025", ["it"]) is None
+
+
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Was haette es gegeben, wuerde man Beschäftigte zählen, im März 2025",
+        "Gib mir die Mitarbeiter im Berichtsmonat März 2025",
+        "Beschaeftigte österreichweit, März 2025",
+    ],
+)
+def test_schreibweisen_und_fuellwoerter(frage: str) -> None:
+    assert unbekanntes_wort(frage, []) is None
+
+
+def _werte(daten: dict[str, object]) -> list[object]:
+    return [z["wert"] for z in daten["zahlen"]]  # type: ignore[attr-defined]
+
+
+@pytest.fixture
+def zwei_monate(conn: Verbindung) -> Verbindung:
+    lauf_ausfuehren(conn, "2024-08", "v1")
+    lauf_ausfuehren(conn, "2024-09", "v1")
+    return conn
+
+
+# Fängt (Prüfung !242): „seit“ mit „verändert“ gab nur den Vormonat und den genannten Monat.
+def test_seit_mit_veraendert_bleibt_zeitraum(zwei_monate: Verbindung) -> None:
+    daten = antwort_frage(zwei_monate, "Wie hat sich die Beschäftigung seit August 2024 verändert?")
+    namen = " ".join(z["bezeichnung"] for z in daten["zahlen"])
+    assert "August 2024" in namen and "September 2024" in namen and "Juli 2024" not in namen
+
+
+# Fängt (Prüfung !242): „Prozent der Männer … im Bau“ nannte den Männeranteil im Bau, die andere Richtung.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Wie viel Prozent der Männer arbeiten im August 2024 im Bau?",
+        "Wie viel Prozent aller Frauen arbeiten im August 2024 in Wien?",
+    ],
+)
+def test_prozent_von_gruppe_sagt_ab(zwei_monate: Verbindung, frage: str) -> None:
+    assert antwort_frage(zwei_monate, frage)["zahlen"] == []
+
+
+def test_prozent_mit_frauen_als_ziel_bleibt_zahl(zwei_monate: Verbindung) -> None:
+    daten = antwort_frage(
+        zwei_monate, "Wie viel Prozent der Beschäftigten in Wien sind Frauen? Stand August 2024"
+    )
+    assert any(z["einheit"] == "Prozent" for z in daten["zahlen"])
+
+
+# Fängt (Prüfung !242): Binnen-I zählte wegen der Regel für „Arbeiterinnen“ nur die Frauen.
+def test_binnen_i_meint_alle(zwei_monate: Verbindung) -> None:
+    alle = _werte(antwort_frage(zwei_monate, "Wie viele Arbeiter gab es im August 2024?"))
+    assert _werte(antwort_frage(zwei_monate, "Wie viele ArbeiterInnen gab es im August 2024?")) == alle
+    frauen = _werte(antwort_frage(zwei_monate, "Wie viele Arbeiterinnen gab es im August 2024?"))
+    assert frauen != alle
+
+
+# Fängt (Prüfung !242): „Bau“ steckte in „Bergbau und Gewinnung“, die Antwort galt still nur dem Bergbau.
+def test_bau_steckt_nicht_im_bergbau(zwei_monate: Verbindung) -> None:
+    assert antwort_frage(zwei_monate, "Beschäftigte im Bergbau und im Bau im August 2024")["zahlen"] == []
+
+
+# Fängt (Prüfung !242): date(0, …) warf; antwort_frage verspricht, nie zu werfen.
+@pytest.mark.parametrize("frage", ["Beschäftigte im März 0000", "Beschäftigte 01/0000"])
+def test_jahr_null_wirft_nicht(zwei_monate: Verbindung, frage: str) -> None:
+    assert antwort_frage(zwei_monate, frage)["zahlen"] == []
+
+
+# Fängt (Prüfung !242): Ein zweistelliges Jahr ergab still einen anderen Zeitraum.
+@pytest.mark.parametrize(
+    "frage",
+    ["Beschäftigte im Winter 24/25", "Beschäftigte Q1/25", "Beschäftigte März/25", "Beschäftigte im 03/25"],
+)
+def test_kurzes_jahr_fragt_zurueck(zwei_monate: Verbindung, frage: str) -> None:
+    daten = antwort_frage(zwei_monate, frage)
+    assert daten["zahlen"] == [] and "vierstellig" in daten["text"]
+
+
+# Fängt (Prüfung !242): Das Wort aus der Bewertung lieferte nur die Gesamtzahl.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte je Wirtschaftsbereich im August 2024",
+        "Beschäftigte aufgeteilt auf die Bundesländer im August 2024",
+    ],
+)
+def test_gliederung_wird_gelesen(zwei_monate: Verbindung, frage: str) -> None:
+    assert len(antwort_frage(zwei_monate, frage)["zahlen"]) > 1
+
+
+# Fängt (Prüfung !242): „im Vormonat“ ohne Monat gab den jüngsten Monat, „vs. Vormonat“ nur den genannten.
+def test_vormonat(zwei_monate: Verbindung) -> None:
+    assert antwort_frage(zwei_monate, "Beschäftigte im Vormonat")["zahlen"] == []
+    daten = antwort_frage(zwei_monate, "Beschäftigte September 2024 vs. Vormonat")
+    assert len(daten["zahlen"]) >= 2
+
+
+def test_nur_ein_job_sagt_ab(zwei_monate: Verbindung) -> None:
+    assert (
+        antwort_frage(zwei_monate, "Wie viele Personen hatten im August 2024 nur einen Job?")["zahlen"] == []
+    )

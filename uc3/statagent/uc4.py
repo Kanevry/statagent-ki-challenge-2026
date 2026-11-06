@@ -86,7 +86,15 @@ MERKMALE: tuple[Merkmal, ...] = (
         "s.oenace",
         "SELECT code, bezeichnung FROM stat.klass_oenace WHERE ebene = 1 AND gueltig_von <= %(bis)s"
         " AND (gueltig_bis IS NULL OR gueltig_bis >= %(von)s)",
-        ("önace", "oenace", "branche", "wirtschaftsabschnitt", "abschnitt"),
+        (
+            "önace",
+            "oenace",
+            "branche",
+            "wirtschaftsabschnitt",
+            "abschnitt",
+            "wirtschaftsbereich",
+            "wirtschaftszweig",
+        ),
     ),
     Merkmal(
         "Beschäftigungskategorie",
@@ -142,7 +150,7 @@ def _auspraegung(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> str | N
 def _gliederung(frage: str) -> Merkmal | None:
     text = frage.lower()
     for merkmal in MERKMALE:
-        if any(re.search(rf"(?<!\w)(?:nach|je|pro)\s+(?:\w+\s+)?{w}", text) for w in merkmal.gliederung):
+        if any(re.search(rf"(?<!\w)(?:nach|je|pro|auf)\s+(?:\w+\s+)?{w}", text) for w in merkmal.gliederung):
             return merkmal
     return None
 
@@ -311,8 +319,10 @@ def _fortgeschrieben(conn: Verbindung, lauf_id: int) -> int:
 
 
 def _mit_notizen(daten: dict[str, Any], notizen: list[str]) -> dict[str, Any]:
+    """Die Sätze zum Verstandenen. Ohne Zahl stehen sie hinten: Die Absage muss der erste Satz der Station sein."""
     if notizen:
-        daten["text"] = " ".join([*notizen, daten["text"]])
+        teile = [*notizen, daten["text"]] if daten["zahlen"] else [daten["text"], *notizen]
+        daten["text"] = " ".join(teile)
     return daten
 
 

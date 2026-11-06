@@ -1,6 +1,6 @@
 """Fährt den Fragen-Katalog über ``uc3 frage`` und /uc4-Station 1 und schreibt die Matrix.
 
-Aufruf auf dem m5, nur gegen die Kopie ``statistik_probe``::
+Aufruf nur gegen eine Kopie der Datenbank (``ERLAUBTE_DB``)::
 
     UC3_DATABASE_URL=… uv run python uc3/tests/fragen_laeufer.py [--aus matrix.md] [--id Z060,Z061]
 """
@@ -22,8 +22,7 @@ from statagent.db import Verbindung, verbinden
 from statagent.frage import als_webantwort, antwort_frage
 from statagent.uc4 import uc4_antwort
 
-#: Nur Kopien: Der Läufer liest zwar nur, aber die Abgabe-Datenbank bleibt unberührt. „kic_vorlage“ ist die Ersatz-DB
-#: auf dem CI-Server (Dump vom 05.11. 22:05, Zugang nur lesend), solange der m5 weg ist.
+#: Nur Kopien: Der Läufer liest zwar nur, aber die Abgabe-Datenbank bleibt unberührt.
 ERLAUBTE_DB = frozenset({"statistik_probe", "kic_vorlage"})
 
 

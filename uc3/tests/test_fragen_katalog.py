@@ -1,4 +1,4 @@
-"""Fragen-Katalog gegen die echten Daten (nur auf dem m5, CI wählt ``daten`` ab).
+"""Fragen-Katalog gegen eine Kopie der echten Daten (CI wählt ``daten`` ab).
 
 Die Datenbank kommt aus ``UC3_DATABASE_URL`` und muss eine Kopie sein (``ERLAUBTE_DB``). Es wird nur gelesen.
 """

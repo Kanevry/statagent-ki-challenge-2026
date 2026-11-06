@@ -90,9 +90,8 @@ NICHT_LESBAR = (
 _STATUS_TEXT = {"vorlaeufig": "vorläufig", "endgueltig": "endgültig", "gesperrt": "gesperrt"}
 
 _JAHR = re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)")
-_VERGLEICH_VORMONAT = re.compile(
-    r"(?:vergleich|gegenüber|gegenueber|veränderung|veraenderung)\b.*\bvormonat", re.IGNORECASE
-)
+_VERGLEICH_VORMONAT = re.compile(r"\bvormonats?\b", re.IGNORECASE)
+_SEIT = re.compile(r"\bseit\b", re.IGNORECASE)
 _DEFINITION = re.compile(
     r"\b(was\s+(ist|sind|bedeutet|heißt|heisst|zählt|zaehlt)|definition|bedeutung|definiert)\b"
 )
@@ -295,7 +294,8 @@ EINWOHNER: dict[str, tuple[str, ...]] = {
     "Salzburg": ("salzburger",),
 }
 _ZEITWORT_OHNE_MONAT = re.compile(
-    r"\b(?:jahr|jahre|jahren|jahres|monat|monate|monaten|monats|zeitraum)\b", re.IGNORECASE
+    r"\b(?:jahr|jahre|jahren|jahres|monat|monate|monaten|monats|zeitraum|vormonats?|vorjahr(?:es)?)\b",
+    re.IGNORECASE,
 )
 #: Fragt nach einer Änderung: Der Stand eines Monats allein wäre eine andere Antwort.
 _VERAENDERUNG = re.compile(
@@ -308,16 +308,28 @@ _ZEITBEZUG = re.compile(
     rf"|(?:{_MONATSWORT})\b)",
     re.IGNORECASE,
 )
+#: „Wie viel Prozent der Männer arbeiten im Bau“ ist der Anteil an den Männern, nicht der Männeranteil im Bau.
+_PROZENT_VON_GRUPPE = re.compile(
+    r"\b(?:prozent|anteil)\s+(?:der|aller)\s+(?:frauen|männer|maenner)\s+(?:arbeite|\w+\s+arbeite|sind\s+(?:in|im|bei))"
+    r"|\bprozent\s+(?:der|aller)\s+(?:frauen|männer|maenner)\b",
+    re.IGNORECASE,
+)
+#: „nur einen Job“, „genau eine Stelle“: Das fragt nach Personen, gezählt werden Verhältnisse.
+_EIN_VERHAELTNIS = re.compile(
+    r"\b(?:nur|genau|mit)\s+ein\w*\s+(?:job|stelle|verhältnis|beschäftigungsverhältnis|arbeitsverhältnis)\b",
+    re.IGNORECASE,
+)
 #: „Wie viele Bundesländer …“ fragt nach etwas anderem als nach Beschäftigungsverhältnissen.
 _ZAEHLT_ANDERES = re.compile(
     r"\bwie\s*viele\s+(?:der\s+|von\s+den\s+)?(?:bundesl\w*|branchen|wirtschaftsbereich\w*|abschnitte|kategorien|monate)\b",
     re.IGNORECASE,
 )
+_KEIN_DATUM = f"Daten gibt es nur für {zeitraum_anzeige(ERSTE_LIEFERUNG, LETZTE_LIEFERUNG)}. Bitte einen Zeitraum darin nennen."
 _VERNEINUNG = frozenset(
     {"außer", "ausser", "ohne", "nicht", "kein", "keine", "keinen", "keiner", "ausgenommen"}
 )
 _FRAU = re.compile(r"\b(frau|frauen|weiblich\w*)\b")
-_MANN = re.compile(r"\b(mann|männer|maenner|männlich\w*|maennlich\w*)\b")
+_MANN = re.compile(r"\b(mann|männer|maenner|männern|maennern|männlich\w*|maennlich\w*)\b")
 #: Wortstämme nach „im/in/Branche“, die kein Merkmal meinen („in den Wirtschaftsbereichen“, „in Prozent“).
 _KEIN_MERKMAL_STAMM = (
     "österreich", "oesterreich", "vergleich", "jahr", "monat", "zeitraum", "schnitt", "gesamt", "summe",
@@ -345,6 +357,10 @@ KATEGORIE = _merkmal("Beschäftigungskategorie")
 
 #: Alltagsform → die Form, die der Rest des Lesens kennt. Nur, was dieselbe Bedeutung hat.
 _ALLTAG: tuple[tuple[re.Pattern[str], str], ...] = (
+    # Binnen-I und Gendersternchen meinen alle. Genau in dieser Schreibweise: „Arbeiterinnen“ bleibt die Frauen.
+    (re.compile(r"\bArbeiter(?:Innen|[*:_]innen)\b"), "Arbeiter"),
+    (re.compile(r"\bBeamt(?:Innen|[*:_]innen)\b"), "Beamte"),
+    (re.compile(r"\bAngestellt(?:eR|e[*:_]r)\b"), "Angestellte"),
     # Die Doppelnennung meint alle, darum vor der Regel, die nur die Frauen zählt.
     (
         re.compile(r"\b(?:arbeiterinnen\s+und\s+arbeiter|arbeiter\s+und\s+arbeiterinnen)\b", re.IGNORECASE),
@@ -393,7 +409,8 @@ def _normalisieren(frage: str, letzter: str) -> tuple[str, list[str], bool]:
     „Jahresdurchschnitt 2025“ wird zu Jänner bis Dezember 2025; eine bloße Jahreszahl bleibt (Rückfrage, #74 AC2).
     """
     frage, notizen, mittel = umschreiben(frage, letzter)
-    vormonat = _VERGLEICH_VORMONAT.search(frage) or _VERAENDERUNG.search(frage)
+    # „seit März 2025 verändert“ ist schon ein Zeitraum bis zum jüngsten Monat.
+    vormonat = _VERGLEICH_VORMONAT.search(frage) or (_VERAENDERUNG.search(frage) and not _SEIT.search(frage))
     genannt = monate_lesen(frage)
     if vormonat and len(set(genannt)) == 1:
         # „März 2025 gegenüber dem Vormonat“ meint zwei Monate, nicht nur den März.
@@ -567,7 +584,13 @@ def _werte(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> tuple[list[st
                 )
             gefunden.setdefault(branche, t.group(0))
     # Ein Name, der in einem längeren genannten Namen steckt, zählt nicht extra.
-    doppelt = {c for c in gefunden for d in gefunden if c != d and codes[c].lower() in codes[d].lower()}
+    # Nur ganze Wörter: „Bau“ steckt in „Bergbau und Gewinnung“, meint aber etwas anderes.
+    doppelt = {
+        c
+        for c in gefunden
+        for d in gefunden
+        if c != d and re.search(rf"(?<!\w){re.escape(codes[c].lower())}(?!\w)", codes[d].lower())
+    }
     werte = [c for c in gefunden if c not in doppelt]
     return werte, [*gefunden.values(), *weitere]
 
@@ -1086,8 +1109,9 @@ def _filter(
             f"einzeln fragen. {KANN}"
         )
     if fremd is not None:
+        wort = "Die Angabe" if fremd.isdigit() else "Das Wort"
         raise _KeineZahl(
-            f"Das Wort „{fremd[:40]}“ kann ich in dieser Frage nicht einordnen, darum keine Zahl. {KANN}"
+            f"{wort} „{fremd[:40]}“ kann ich in dieser Frage nicht einordnen, darum keine Zahl. {KANN}"
         )
     return filter_, etiketten
 
@@ -1410,6 +1434,7 @@ def _bestand_antwort(
                 anteile.append(f"{name} {_komma(wert)} Prozent")
         if anteile:
             text += " Anteil an allen: " + ", ".join(anteile) + "."
+            antwortsatz, ersetzt = f"Anteil an allen{zusatz}: {', '.join(anteile)}.", ""
     if gruppen == (ALTERSGRUPPE,) and von == bis:
         # Summe aller Alter für die letzte Tabellenzeile, als eigene Abfrage mit eigenem Beleg.
         alle_sql = bestand_sql(conn, regelsatz, von, bis, filter_, ())
@@ -1868,6 +1893,15 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     grund = unklar(frage, letzter or LETZTE_LIEFERUNG)
     if grund is not None:
         return _rueckfrage(grund)
+    if _PROZENT_VON_GRUPPE.search(frage):
+        text = (
+            "Einen Anteil an den Frauen oder an den Männern rechnet StatAgent nicht, nur den Frauen- und Männeranteil "
+            "an allen. Zum Beispiel „Wie viel Prozent der Beschäftigten in Wien sind Frauen?“."
+        )
+        return _antwort(fragetyp(frage), text, hinweise=[text])
+    if _EIN_VERHAELTNIS.search(frage):
+        text = f"Wie viele Jobs eine Person hat, wertet StatAgent nicht aus. {KANN}"
+        return _antwort(fragetyp(frage), text, hinweise=[text])
     if _ZEITBEZUG.search(frage):
         return _rueckfrage(
             "Zeitangaben mit Bezug auf einen anderen Zeitpunkt rechnet StatAgent nicht um. "
@@ -1889,6 +1923,8 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         return _antwort(fragetyp(frage), str(fehler), hinweise=[str(fehler)])
     except (psycopg.Error, AbfrageVerweigert, RegelFehler):
         return _antwort(fragetyp(frage), NICHT_LESBAR, hinweise=[NICHT_LESBAR])
+    except ValueError:  # „März 0000“: Dieses Datum gibt es nicht.
+        return _antwort(fragetyp(frage), _KEIN_DATUM, hinweise=[_KEIN_DATUM])
     hinweis_tag = tag_hinweis(frage)
     frage, notizen, mittel = _normalisieren(frage, letzter or LETZTE_LIEFERUNG)
     if hinweis_tag:
@@ -1929,6 +1965,8 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
         return _antwort(typ, str(grund), hinweise=[str(grund)])
     except (psycopg.Error, AbfrageVerweigert):
         return _antwort(typ, NICHT_LESBAR, hinweise=[NICHT_LESBAR])
+    except ValueError:  # „März 0000“: Dieses Datum gibt es nicht.
+        return _antwort(typ, _KEIN_DATUM, hinweise=[_KEIN_DATUM])
     if notizen:
         text = daten["text"]
         # Ohne „Verstanden“ (Rückfrage, Absage) zuerst der Text: Die Kette zeigt nur den ersten Satz.

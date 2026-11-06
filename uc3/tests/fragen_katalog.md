@@ -7,7 +7,7 @@ Spalten:
 
 - `soll`: `zahl`, `rueckfrage`, `absage` oder `definition`.
 - `monate`: die Monate mit Daten, die zur Frage gehören (`von..bis` oder eine Liste). Leer: keine Zahl möglich.
-- Die Zeilen `A…` und `V…` stammen aus der Prüfung von !227 und !230.
+- Die Zeilen `A…`, `V…` und `P…` stammen aus der Prüfung von !227, !230 und !242.
 - `filter`: `region`, `geschlecht`, `kategorie`, `oenace` (Buchstabe), `branche` (Name, `%` als Platzhalter, gilt je
   ÖNACE-Version), `freier_dv`, `alter` (`von-bis`).
 - `optionen`: `mittel` (Durchschnitt muss dabei sein), `muss` (Rückfrage oder Absage reichen nicht), `auch=…` (weitere
@@ -632,3 +632,32 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | V008 | merkmal:regelsatz,merkmal:bundesland | zahl | 2026-07 | region=9 | regelsatz=v2;muss | Beschäftigte in Wien im Juli 2026, gezählt über das ganze Monat |
 | V009 | merkmal:regelsatz,merkmal:bundesland | zahl | 2026-07 | region=9 | regelsatz=v2;muss | Beschäftigte in Wien im Juli 2026 nach den Änderungsaufträgen |
 | V010 | merkmal:regelsatz,zeit:unklar | rueckfrage | - | - | auch=absage | Beschäftigte vor Juni 2026 nach v2 |
+| P001 | form:prüfung,merkmal:branche | zahl | 2025-03 | branche=Telekommunikation% | muss | Wie viele Leute arbeiten in der IT im März 2025? |
+| P002 | form:veraenderung,zeit:seit | zahl | 2025-03..2026-07 | - | muss | Wie hat sich die Beschäftigung seit März 2025 verändert? |
+| P003 | form:anteil | absage | - | - | auch=rueckfrage | Wie viel Prozent der Männer arbeiten im Juli 2026 im Bau? |
+| P004 | form:anteil | absage | - | - | auch=rueckfrage | Wie viel Prozent aller Frauen arbeiten im März 2025 in Wien? |
+| P005 | form:anteil | zahl | 2026-07 | region=9 | art=anteil;anteil=geschlecht:W;muss | Wie viel Prozent der Beschäftigten in Wien sind Frauen? Stand Juli 2026 |
+| P006 | merkmal:kategorie | zahl | 2026-07 | kategorie=Arbeiter | muss | Wie viele ArbeiterInnen gab es im Juli 2026? |
+| P007 | merkmal:kategorie | zahl | 2026-07 | kategorie=Beamte | muss | Wie viele BeamtInnen gab es im Juli 2026? |
+| P008 | merkmal:kategorie,merkmal:geschlecht | zahl | 2026-07 | kategorie=Arbeiter;geschlecht=W | muss | Wie viele Arbeiterinnen gab es im Juli 2026? |
+| P009 | merkmal:branche,form:zwei_werte | absage | - | - | auch=rueckfrage | Beschäftigte im Bergbau und im Bau im Juli 2026 |
+| P010 | merkmal:alter | zahl | 2026-05 | alter=51-130 | muss | Wie viele Beschäftigte waren im Mai 2026 über 50 Jahre alt? |
+| P011 | merkmal:alter | zahl | 2025-12 | alter=30-39 | muss | Wie viele Beschäftigte waren im Dezember 2025 zwischen 30 und 39 Jahre alt? |
+| P012 | merkmal:geschlecht,form:gliederung | zahl | 2025-09 | region=1 | gruppe=geschlecht;muss | Beschäftigte im Burgenland im September 2025, getrennt nach Männern und Frauen |
+| P013 | merkmal:geschlecht | zahl | 2026-02 | geschlecht=W | muss | Wie viele Frauen standen im Februar 2026 in einem Beschäftigungsverhältnis? |
+| P014 | merkmal:regelsatz | absage | - | - | auch=rueckfrage | Beschäftigte nach den neuen Regeln im Juli 2026 |
+| P015 | form:tippfehler | zahl | 2025-03 | - | muss | Beschaeftigte in Oesterreich im Maerz 2025 |
+| P016 | zeit:ungueltig | absage | - | - | auch=rueckfrage | Beschäftigte im März 0000 |
+| P017 | zeit:ungueltig | absage | - | - | auch=rueckfrage | Beschäftigte 01/0000 |
+| P018 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte im Winter 24/25 |
+| P019 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte Q1/25 |
+| P020 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte März/25 |
+| P021 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte im 03/25 |
+| P022 | zeit:winter | zahl | 2024-12..2025-02 | - | mittel;muss | Beschäftigte im Winter 2024/25 |
+| P023 | form:gliederung,merkmal:branche | zahl | 2026-07 | - | gruppe=oenace;muss | Beschäftigte je Wirtschaftsbereich im Juli 2026 |
+| P024 | form:gliederung,merkmal:bundesland | zahl | 2026-07 | - | gruppe=region;muss | Beschäftigte aufgeteilt auf die Bundesländer im Juli 2026 |
+| P025 | zeit:relativ | rueckfrage | - | - | auch=absage | Beschäftigte im Vormonat |
+| P026 | zeit:relativ | rueckfrage | - | - | auch=absage | Beschäftigte im Vorjahr |
+| P027 | form:vergleich | zahl | 2025-02..2025-03 | - | muss | Beschäftigte im März 2025 verglichen mit dem Vormonat |
+| P028 | form:vergleich | zahl | 2025-02..2025-03 | - | muss | Beschäftigte März 2025 vs. Vormonat |
+| P029 | form:einzelperson | absage | - | - | auch=rueckfrage | Wie viele Personen hatten im Juli 2026 nur einen Job? |

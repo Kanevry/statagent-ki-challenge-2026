@@ -183,6 +183,12 @@ KEIN_JAHR = re.compile(
 )
 
 
+#: „Winter 24/25“, „Q1/25“, „März/25“, „03/25“: Ein zweistelliges Jahr wäre sonst still ein anderer Zeitraum.
+_KURZES_JAHR = re.compile(
+    rf"(?<![\w/.-])(?:(?:{_MW}|frühlings?|frühjahrs?|sommers?|herbst(?:es|s)?|winters?|q[1-4])\.?\s*[/ ]\s*\d{{2}}"
+    rf"(?:\s*/\s*\d{{2}})?|\d{{1,2}}/\d{{2}})(?![\w/.]|\s*(?:jahre|jahren)\b)",
+    re.IGNORECASE,
+)
 _MONAT_SCHRAEG = re.compile(rf"(?<!\w)({_MW})\.?\s*/\s*(?=(?:{_MW})(?!\w))", re.IGNORECASE)
 
 
@@ -749,6 +755,12 @@ def unklar(frage: str, letzter: str | None = None) -> str | None:
     „Sommerhalbjahr“ und „Wintersaison“ meinen je nach Fach andere Monate, „Winter 2025/27“ widerspricht sich. Mit
     ``letzter`` (jüngster Monat mit Daten) auch: Monat ohne Jahr neben Jahren, die nicht eindeutig zu ihm gehören.
     """
+    kurz = _KURZES_JAHR.search(frage)
+    if kurz:
+        return (
+            f"Bei „{kurz.group(0).strip()}“ ist das Jahr nicht eindeutig. Bitte das Jahr vierstellig nennen, "
+            "zum Beispiel „Winter 2024/25“ oder „März 2025“."
+        )
     for muster, gruppe in ((ZAHL_MONAT, 1), (ISO, 2)):
         for fund in muster.finditer(frage):
             if not 1 <= int(fund.group(gruppe)) <= 12:

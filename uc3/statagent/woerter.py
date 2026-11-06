@@ -39,12 +39,12 @@ _FUELLWOERTER = _liste(
     viel viele vieler sagen sag zeig zeige zeigen steht stehen stand
     servus grüß gott könnt könntet könntest ihr euch bräuchte bräuchten hätten würde würden nennen nenne nennt
     angeben ausgeben liefern auskunft info information interessiert interessieren eigentlich überhaupt denn wohl
-    also hinweg brauch schnell schreibe artikel recherche gabs gibts betrachtet betrachten soweit wohlgemerkt jeweilig insbesondere bezogen bezug
+    gib will sieht schaut standen stand also hinweg brauch schnell schreibe artikel recherche gabs gibts betrachtet betrachten soweit wohlgemerkt jeweilig insbesondere bezogen bezug
     """
 )
 _SACHE = _liste(
     """
-    anzahl gesamtzahl gesamtanzahl gesamtbestand bestand bestands bestandes bestanden unselbständig unselbständige
+    mitarbeitende mitarbeitern arbeitsverhältnisse arbeitsverhältnissen anzahl gesamtzahl gesamtanzahl gesamtbestand bestand bestands bestandes bestanden unselbständig unselbständige
     unselbständigen unselbstständig unselbstständige unselbstständigen bestehen besteht beschäftigtenstand
     beschäftigtenzahl beschäftigtenzahlen tätig tätige tätigen arbeit arbeite arbeiten arbeitend arbeitende arbeitenden arbeitet arbeitete arbeiteten arbeitnehmer
     arbeitnehmerinnen beschäftigung beschaeftigung beschäftigungen beschäftigt beschaeftigt beschäftigte beschäftigten
@@ -75,7 +75,8 @@ _AUSWERTUNG = _liste(
     zugang zugänge zugängen zugaenge veränderung veraenderung verändert stieg sank gestiegen gesunken gewachsen
     vormonat vormonats vorjahr
     beschäftigungskategorie beschäftigungskategorien über ueber unter alter alters altersgruppe altersgruppen
-    altersverteilung regelsatz v1 eins ganze ganzes gesamtes gezählt gezaehlt zählt zaehlt
+    altersverteilung regelsatz v1 eins ganze ganzes gesamtes gezählt gezaehlt zählt zaehlt alt alten regeln getrennt
+    berichtsmonat österreichweit
     """
 )
 BEKANNT = _FUELLWOERTER | _SACHE | _ZEIT | _AUSWERTUNG | frozenset(MONATSNAMEN)
@@ -88,17 +89,23 @@ def unbekanntes_wort(frage: str, erkannt: list[str]) -> str | None:
     """
     text = frage.lower()
     for stelle in sorted(erkannt, key=len, reverse=True):
-        text = text.replace(stelle.lower(), " ")
+        # Nur ganze Wörter: Sonst würde aus „arbeiten“ mit dem erkannten „IT“ das Wort „arbe“.
+        text = re.sub(rf"(?<!\w){re.escape(stelle.lower())}(?!\w)", " ", text)
     for treffer in _WORT.finditer(text):
         wort = treffer.group(0)
         if (
             len(wort) > 1
-            and wort not in BEKANNT
-            and not all(t in BEKANNT or len(t) < 2 for t in wort.split("-"))
+            and not _bekannt(wort)
+            and not all(_bekannt(t) or len(t) < 2 for t in wort.split("-"))
         ):
             return _wie_getippt(frage, wort)
     zahl = _LOSE_ZAHL.search(text)
     return zahl.group(0) if zahl else None
+
+
+def _bekannt(wort: str) -> bool:
+    """Auch in der Schreibweise ohne Umlaut („haette“, „wuerde“, „koennten“)."""
+    return wort in BEKANNT or wort.replace("ae", "ä").replace("oe", "ö").replace("ue", "ü") in BEKANNT
 
 
 def _wie_getippt(frage: str, wort: str) -> str:
