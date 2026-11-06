@@ -769,7 +769,8 @@ def _gliederung_ohne_nach(conn: Verbindung, frage: str, letzter: str) -> str:
         0
     ]  # „Sommer 2025“ kennt die Wörter-Prüfung in _filter nur als Monate.
     genannt = monate_lesen(gelesen)
-    if _gliederung(frage) is not None or _filter(conn, gelesen, genannt[-1] if genannt else letzter, ())[0]:
+    monat = genannt[-1] if genannt else letzter
+    if _gliederung(frage) is not None or _filter(conn, gelesen, monat, (), woerter=False)[0]:
         return frage
     for merkmal in MERKMALE:
         for wort in merkmal.gliederung:
@@ -816,7 +817,8 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
     # Der Grund aus der Prüfung passt zur Frage („mehrere Bundesländer“), die allgemeine Liste widerspräche ihr.
     frage = _gliederung_ohne_nach(conn, frage, letzter)
     # Übersetzt lesen: „Sommer 2025“ ist hier noch kein Monat, die Wörter-Prüfung in _filter kennt nur Monate.
-    ohne_bezug = _ohne_bezug(conn, _normalisieren(frage, letzter)[0], letzter)
+    gelesen = _normalisieren(frage, letzter)[0]
+    ohne_bezug = _ohne_bezug(conn, gelesen, letzter, woerter=False)
     if ohne_bezug and not genannt and jahr is None:
         if regelsatz != "v2":
             return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
@@ -847,6 +849,10 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
         )
     if ohne_bezug:
         return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
+    # Erst hier die Wörter-Prüfung, sonst verdrängt sie Erklärung und Regelsatz-Sätze. Alle Merkmale ausgenommen:
+    # Zwei Werte eines Merkmals („Wien und Tirol“) darf dieser Weg zeigen. „ohne Kinder“ fiele sonst still weg.
+    monate_v2 = monate_lesen(gelesen)
+    _filter(conn, gelesen, monate_v2[-1] if monate_v2 else letzter, MERKMALE)
     if not _adapter_liest_gleich(conn, frage, regelsatz):
         return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
     daten = antwort_daten(conn, frage, regelsatz)
@@ -862,7 +868,7 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
     return antwort
 
 
-def _ohne_bezug(conn: Verbindung, frage: str, letzter: str) -> bool:
+def _ohne_bezug(conn: Verbindung, frage: str, letzter: str, woerter: bool = True) -> bool:
     """Weder ein Wort zum Bestand noch ein Merkmal, und außer der Zeitangabe stehen andere Wörter da.
 
     „März 2025“ allein bleibt eine Frage nach dem Bestand, „asdf im März 2025“ nicht. ``_filter`` sagt ab, wenn nach
@@ -870,7 +876,7 @@ def _ohne_bezug(conn: Verbindung, frage: str, letzter: str) -> bool:
     """
     text = frage.lower()
     genannt = monate_lesen(frage)
-    if _filter(conn, frage, genannt[-1] if genannt else letzter, ())[0]:
+    if _filter(conn, frage, genannt[-1] if genannt else letzter, (), woerter=woerter)[0]:
         return False
     if _BEZUG.search(text) or _gliederung(frage) is not None or _ALTER_GRUPPEN.search(text):
         return False
@@ -1028,7 +1034,7 @@ def _zwei_merkmale_mit_und(frage: str, je_merkmal: list[tuple[str, str]]) -> Non
 
 
 def _filter(
-    conn: Verbindung, frage: str, monat: str, ohne: tuple[Merkmal, ...]
+    conn: Verbindung, frage: str, monat: str, ohne: tuple[Merkmal, ...], woerter: bool = True
 ) -> tuple[list[tuple[Merkmal, str]], list[str]]:
     """Ausprägungen der Frage (z. B. „Wien“, „ÖNACE F“, „Gastronomie“) als Filter, außer für gegliederte Merkmale.
 
@@ -1069,6 +1075,8 @@ def _filter(
         for wort in re.split(r"\s*(?:,|\bund\b|\boder\b|\bsowie\b)\s*", kette, flags=re.IGNORECASE):
             if not _wort_bekannt(wort, erkannt):
                 raise _KeineZahl(f"Das Wort „{wort}“ kenne ich nicht als Bundesland oder Branche. {KANN}")
+    if not woerter:
+        return filter_, etiketten
     if _FLUKTUATION.search(frage.lower()):
         erkannt += ["höchste", "höchsten", "hoechste", "am höchsten"]
     fremd = unbekanntes_wort(_ohne_altersangabe(frage) if alter is not None else frage, erkannt)
