@@ -81,6 +81,10 @@ EINGEBAUT = {
 }
 #: Bis zu so vielen Monaten nennt der Text jeden Monat einzeln (Jahreszeit, Quartal, Halbjahr).
 MONATE_IM_TEXT = 6
+#: Die Zu- und Abgänge sind eine feste Abfrage und lesen als einzige Antwort die Einzeldaten eines Monats. Liegen
+#: sie nach einem Neustart der Datenbank noch nicht im Arbeitsspeicher, reicht die Zeitgrenze freier Abfragen
+#: (``sql_lesen``, 10 Sekunden) nicht immer. Nur diese Abfrage darf deshalb länger rechnen.
+FLUKTUATION_ZEITLIMIT = "30s"
 #: „Am höchsten“ nennt nur Abschnitte mit mindestens so vielen Beschäftigungsverhältnissen am Stichtag.
 MINDESTBESTAND_HOECHSTE = 1000
 NICHT_LESBAR = (
@@ -1011,8 +1015,8 @@ class _Abgeschnitten(Exception):
     """sql_lesen hat nach HOECHSTENS_ZEILEN abgeschnitten: nie eine Teilsumme ausgeben."""
 
 
-def _lesen(conn: Verbindung, sql_text: str) -> list[dict[str, Any]]:
-    ergebnis = sql_lesen(conn, sql_text)
+def _lesen(conn: Verbindung, sql_text: str, zeitlimit: str | None = None) -> list[dict[str, Any]]:
+    ergebnis = sql_lesen(conn, sql_text) if zeitlimit is None else sql_lesen(conn, sql_text, zeitlimit)
     if ergebnis["abgeschnitten"]:
         raise _Abgeschnitten
     zeilen: list[dict[str, Any]] = ergebnis["zeilen"]
@@ -1760,7 +1764,7 @@ def _fluktuation_antwort(conn: Verbindung, monat: str, regelsatz: str) -> dict[s
     zeilen: list[dict[str, Any]] = []
     if grund is None:
         try:
-            zeilen = _lesen(conn, sql_text)
+            zeilen = _lesen(conn, sql_text, FLUKTUATION_ZEITLIMIT)
         except (psycopg.errors.RaiseException, psycopg.errors.UndefinedFunction) as fehler:
             grund = _bewegung_fehlertext(fehler, monat)
     if grund is not None:
@@ -2031,6 +2035,8 @@ def _mit_vorschlag(conn: Verbindung, frage: str, regelsatz: str, daten: dict[str
         or _regelsatz_der_frage(alltag_lesen(frage))
         or _KEIN_VORSCHLAG.search(daten["text"])
         or _BEISPIEL_DA.search(daten["text"])
+        # Die Datenbank hat gerade nicht geantwortet: Ein Vorschlag würde dieselbe Abfrage noch einmal rechnen.
+        or daten["text"] == NICHT_LESBAR
     ):
         return daten
     try:
