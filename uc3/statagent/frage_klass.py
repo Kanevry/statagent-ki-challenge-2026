@@ -165,6 +165,12 @@ def _fragt_nach_zahl(frage: str, rest: str) -> bool:
 
 def tiefer_code_antwort(conn: Verbindung, frage: str) -> dict[str, Any] | None:
     """Fertige Antwort, wenn die Frage einen tiefen Code nennt; sonst None (bisheriger Weg). Wirft nie."""
+    # „ÖNACE C 2008 vs 2025“ meint Fassungen, keinen Zeitraum. Import hier, weil frage_fassung dieses Modul braucht.
+    from statagent.frage_fassung import fassungsvergleich_antwort
+
+    vergleich = fassungsvergleich_antwort(conn, frage)
+    if vergleich is not None:
+        return vergleich
     if _LISTEN_FRAGE.search(frage):
         try:
             liste = _liste_antwort(conn, frage)
