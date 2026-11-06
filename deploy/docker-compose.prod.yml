@@ -89,6 +89,8 @@ services:
       # Online-Demo ist lesend (#68): Caddy lässt nur GET/HEAD durch (und POST auf die zwei Frage-Wege); das Flag
       # sagt es auch der App. Freigaben, Läufe, UC2-Fälle und Voice bleiben damit immer zu.
       KIC_ONLINE_LESEND: "1"
+      # Knopf im Kopf zur Live-Vorführung (https-Adresse); leer: kein Knopf. Schreibwege bleiben hier gesperrt.
+      KIC_LIVE_ADRESSE: ${KIC_LIVE_ADRESSE:-}
       # Stufe A: "1" öffnet nur die Fragen (/api/uc3/frage, /api/uc4/frage); leer = gesperrt (403)
       KIC_ONLINE_FRAGEN: ${KIC_ONLINE_FRAGEN:-}
       # Stationen auf /uc4: "uc3" = nur die Zahl, ohne Modell (Stufe A, auch wenn leer); Stufe B setzt die Liste

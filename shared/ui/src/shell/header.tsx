@@ -1,6 +1,6 @@
 "use client";
 
-import type { KeyboardEvent, Ref } from "react";
+import type { KeyboardEvent, ReactNode, Ref } from "react";
 import { fokus, klassen } from "../basis/klassen";
 import { Piktogramm } from "../basis/piktogramm";
 import type { UcEintrag } from "../ucs";
@@ -23,6 +23,8 @@ export interface AppHeaderProps {
   pfad: string;
   protokollOffen: boolean;
   onProtokoll: () => void;
+  /** Weiterer Eintrag rechts im Kopf, vor „Protokoll“. */
+  kopfZusatz?: ReactNode;
   /** ID der Schublade für `aria-controls`. */
   schubladeId: string;
   Verweis?: Verweis;
@@ -63,6 +65,7 @@ export function AppHeader({
   seitenModell = null,
   protokollKnopfRef,
   kopfRef,
+  kopfZusatz,
 }: AppHeaderProps) {
   const tabs = appTabs(ucs);
   const kopfMarke = marke(pfad, ucs);
@@ -82,6 +85,7 @@ export function AppHeader({
                 <ModellBadge quelle={modellQuelle} vorgabe={seitenModell} />
               </div>
             )}
+            {kopfZusatz}
             {/* Natives <button>, weil der Fokus per Ref zurückkommen muss (Knopf reicht keinen Ref). */}
             <button
               ref={protokollKnopfRef}
