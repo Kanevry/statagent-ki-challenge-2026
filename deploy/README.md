@@ -146,7 +146,7 @@ Seite vom Netz nehmen: auf dem Server in `<basis>/repo/deploy`
   Healthcheck; app ohne Capabilities als Nutzer `app`, schreibgeschützt (tmpfs nur `/tmp` und `.next/cache`), Code
   gehört root. Basis-Images der Deploy-Teile per Digest gepinnt (Compose, `app.Dockerfile`, CI-Jobs `deploy` und
   `deploy-check`); die übrigen CI-Jobs gehören E0.
-- Build-Kontext per Positivliste (`deploy/app.Dockerfile.dockerignore`): nur Workspace-Dateien, `web/`, `shared/`, `uc*/`.
+- Build-Kontext per Positivliste (`deploy/app.Dockerfile.dockerignore`): nur Workspace-Dateien, `web/`, `shared/`, `uc*/` und aus `abgabe/` die beiden Excel-Dateien und der Beleg der Ministeriums-Lieferung.
 - `deploy-check` prüft Invarianten der Compose-Datei (`deploy/compose-invarianten.jq`): nur caddy mit Ports, Härtung
   vorhanden, App-URLs nur mit `kic_app`.
 - Header auf jeder Antwort, auch auf Fehlerantworten: HSTS (30 Tage), `nosniff`, `X-Frame-Options DENY`, Referrer- und

@@ -3,7 +3,7 @@
 # (plattform, uc1 bis uc3). Die Route-Handler starten die Python-CLIs als Subprozess (`uv run …`, Vertrag H im PRD E0),
 # deshalb laufen Node und uv im selben Image. Gebaut wird auf dem Server (scripts/deploy.sh up), nicht lokal.
 # Kontext: Repo-Wurzel aus git archive von HEAD, also nur committete Dateien; davon nimmt die Positivliste
-# deploy/app.Dockerfile.dockerignore nur, was das Image braucht (nicht docs/, abgabe/, deploy/, Erzeugtes).
+# deploy/app.Dockerfile.dockerignore nur, was das Image braucht (nicht docs/, deploy/, Erzeugtes; aus abgabe/ nur drei Dateien für /uc3/ergebnisse).
 
 # Digests gepinnt (Index für amd64/arm64), Stand 05.11.2026
 ARG NODE_IMAGE=node:24-bookworm-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9
