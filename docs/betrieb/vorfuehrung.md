@@ -15,7 +15,8 @@ Platzhalter: `<vorführ-adresse>` ist die Adresse der Instanz, `<dump>` eine `pg
 | Caddy | der öffentliche Container mit einem zweiten Site-Block aus `<basis>/vorfuehrung/caddy/`, Basic-Auth, alle Methoden |
 | App | eigenes Compose-Projekt `ki-challenge-vorfuehrung`, eigenes Image mit git, ohne `KIC_ONLINE_LESEND`, mit `KIC_VORFUEHRUNG=1` |
 | DB | eigener Container in eigenem Netz, `statistik_vorfuehrung` plus Vorlage. Enthält `roh` und `bereinigt`, die öffentliche App erreicht ihn nicht |
-| UC1, UC2 | UC1 lesend aus der öffentlichen DB (Rolle `kic_app`). Auch UC2 liest die App dort lesend, eine Live-Verhandlung läuft über den Dienst `vorfuehrung-uc2` |
+| UC1 | wie öffentlich nur das aufgezeichnete Gespräch, ohne Eingabefeld. Die Datenbank des Lotsen gibt es online nicht (#143) |
+| UC2 | die App liest lesend aus der öffentlichen DB (Rolle `kic_app`); eine Live-Verhandlung läuft über den Dienst `vorfuehrung-uc2` |
 | UC2 live | Dienst `vorfuehrung-uc2`: dasselbe Image wie die App, `uvicorn uc2.api:app` auf Port 8102, kein Port nach außen, nur im eigenen Netz, schreibgeschütztes Dateisystem, 1 Kern, 768 MB. Eigene Datenbank `healthpolicy_vorfuehrung` im Container `vorfuehrung-db`. Die App erreicht ihn über `UC2_API_URL` |
 | Git | eigener Checkout mit einem Commit „Ausgangsstand“, kein Remote, also kein Push. Die Freigabe committet dorthin |
 | Modell | nur Azure, kein Rückfall auf Mistral: Scheitert Azure, steht das als Fehler auf der Seite. Eigenes Tagesbudget (`VORFUEHRUNG_TAGESBUDGET`, Standard 2000, Grenze je UTC-Tag), eigenes Protokoll-Volume |

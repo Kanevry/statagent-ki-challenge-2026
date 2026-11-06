@@ -6,10 +6,12 @@ Kein echtes Modell: ein Fake liefert die Antworten, die Datenbank ist die Wegwer
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any
 
+import psycopg
 import pytest
 
 from statagent.agenten.koordinator import agent_ausfuehren
@@ -125,6 +127,18 @@ def test_erlaubte_abfrage_auf_stat_liefert_zeilen(agent_conn: Verbindung) -> Non
     assert ergebnis["zeilen"] and not ergebnis["abgeschnitten"]
     unqualifiziert = sql_lesen(agent_conn, "SELECT count(*) AS n FROM regel")  # search_path: meta
     assert int(unqualifiziert["zeilen"][0]["n"]) > 0
+
+
+def test_freie_abfrage_bricht_weiter_nach_zehn_sekunden_ab(agent_conn: Verbindung) -> None:
+    # Fängt: der Parameter zeitlimit (für die feste Fluktuationsabfrage) verschiebt die Grenze freier Abfragen.
+    start = time.monotonic()
+    with pytest.raises(psycopg.errors.QueryCanceled):
+        sql_lesen(agent_conn, "SELECT pg_sleep(20)")
+    assert 9.5 <= time.monotonic() - start < 15
+    # Eine eigene Grenze gilt nur für den Aufruf, der sie nennt; die Verbindung bleibt danach benutzbar.
+    with pytest.raises(psycopg.errors.QueryCanceled):
+        sql_lesen(agent_conn, "SELECT pg_sleep(5)", "300ms")
+    assert sql_lesen(agent_conn, "SELECT 1 AS n")["zeilen"] == [{"n": 1}]
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,6 @@
 # Schlusslauf der Abnahme: Fr 06.11.2026 ab 06:30 (Abgabe-Beleg)
 
-Voller Abnahme-Lauf gegen den eingefrorenen main direkt nach dem Merge-Stopp 06:30, Anweisung Lead 05.11. 21:2x.
+Voller Abnahme-Lauf gegen den eingefrorenen main direkt nach dem Merge-Stopp 06:30, Anweisung des Leads 05.11. 21:2x.
 Wer ihn fährt, braucht nur diese Datei und `PROZESS.md`.
 
 ## Zeitplan (gemessen am 05.11.)
