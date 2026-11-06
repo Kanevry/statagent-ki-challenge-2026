@@ -6,6 +6,7 @@ import { formatZahl } from "@kic/ui/bausteine";
 import { Status } from "@kic/ui/basis";
 import { BelegLink, StandPunkt } from "@/components/uc3/beleg-link";
 import { alsCsv, istRueckfrage } from "@/components/uc3/antwort";
+import { detailsText } from "@/components/uc3/sprache";
 import {
   antwortTabelle,
   ersterSatz,
@@ -357,11 +358,11 @@ function Antwort({
           Details
         </summary>
         <div className="mt-2 flex flex-col gap-4">
-          <p className="font-sans text-16 text-pretty text-ink">{antwort.text}</p>
+          <p className="font-sans text-16 text-pretty text-ink">{detailsText(antwort.text)}</p>
           {definition && (
             <div className="flex flex-col gap-1">
               <h3 className="font-sans text-14 font-semibold text-ink">Was gezählt wird</h3>
-              <p className="font-sans text-14 text-pretty text-ink">{definition}</p>
+              <p className="font-sans text-14 text-pretty text-ink">{detailsText(definition)}</p>
             </div>
           )}
           <div>
