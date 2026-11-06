@@ -1,0 +1,31 @@
+# Wartungsseite für beide Adressen: Startet die App neu (Deploy, Reset), meldet reverse_proxy 502, 503 oder 504. Statt
+# des rohen Browser-Fehlers kommt diese Seite, direkt aus Caddy, ohne die App. Eingebunden im Caddyfile (öffentlich) und
+# im Fragment der Vorführung (deploy/vorfuehrung.caddy.vorlage). Andere Fehler (401, 403, 404) und Antworten der App
+# selbst laufen hier nicht durch: Den Satz der Sperre (403) schreibt respond, kein Fehler; ein 502 der App ist eine
+# Antwort, kein Fehler von reverse_proxy.
+# Ohne geschweifte Klammern im HTML: Caddy liest {…} im Text als Platzhalter. Deshalb nur style-Attribute, kein <style>.
+handle_errors 502 503 504 {
+	header Content-Type "text/html; charset=utf-8"
+	header Retry-After "5"
+	header Cache-Control "no-store"
+	header Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+	respond <<HTML
+		<!doctype html>
+		<html lang="de">
+		<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta http-equiv="refresh" content="5">
+		<meta name="robots" content="noindex, nofollow">
+		<title>StatAgent startet gerade neu</title>
+		</head>
+		<body style="margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f4f7f5; color:#0b1f2a; font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; line-height:1.5">
+		<main style="box-sizing:border-box; max-width:34rem; margin:1.5rem; padding:2rem 1.75rem; background:#ffffff; border:1px solid #dce3df; border-top:4px solid #007a50; border-radius:12px">
+		<h1 style="margin:0 0 0.75rem; font-family:'Space Grotesk', Inter, ui-sans-serif, system-ui, sans-serif; font-size:1.5rem; line-height:1.25">Die Seite startet gerade neu.</h1>
+		<p style="margin:0 0 1.25rem; font-size:1.0625rem; color:#475256">Das dauert etwa eine Minute. Sie lädt von selbst neu.</p>
+		<a href="" style="color:#006643; font-weight:600">Jetzt neu laden</a>
+		</main>
+		</body>
+		</html>
+		HTML 503
+}

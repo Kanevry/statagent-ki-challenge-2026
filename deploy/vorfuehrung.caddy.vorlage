@@ -17,6 +17,10 @@
 		vorfuehrung @@HASH@@
 	}
 
+	# Wartungsseite bei 502, 503, 504 (Datei aus dem Caddyfile-Ordner, erst nach scripts/deploy.sh up vorhanden). Die
+	# Passwort-Abfrage kommt vorher: Ohne Zugang bleibt es bei 401, nach dem Passwort kommt die Seite statt des Fehlers.
+	import /etc/caddy/wartung.caddy
+
 	# Keine Antwort-Grenze: Ein Agentenlauf hält keine Anfrage offen (Start und Abfrage, /api/uc3/auftrag), aber
 	# Freigabe und Fragen dürfen dauern, bis das Programm antwortet.
 	reverse_proxy vorfuehrung-app:3000 {
