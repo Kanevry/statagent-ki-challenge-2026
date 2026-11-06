@@ -20,7 +20,7 @@ Quelle: GitLab-Projekt des Teams, alle Aufgaben, gelesen über die Schnittstelle
 Aus Sicht des Teams, nach der Vorführung vor der Jury am 06.11.2026. Bewertet wird Use Case 3, darum steht er vorne.
 
 1. **UC3, Fragen an die Daten:** Nennt eine Frage eine Einschränkung, die das Programm nicht kennt, soll eine Absage kommen statt einer Zahl ohne diese Einschränkung. Sehr kurze Fragen sollen eine Rückfrage bekommen (#186, #220).
-2. **UC3, Freigabe und Protokoll:** Geänderte Regeln sollen überall mit ihrem Namen in Alltagssprache stehen, nicht mit dem technischen Namen (#211, #212).
+2. **UC3, Freigabe und Protokoll:** Die Seite Freigaben soll Rücknahmen sowie Ausschluss- und Gruppierungsregeln richtig zeigen (#168). Geänderte Regeln sollen mit einem Namen in Alltagssprache stehen (#211).
 3. **UC3, Optimum:** Zahlen bis zur tiefsten Ebene der Wirtschaftsklassen (ÖNACE-5-Steller) und über die Geschichte der Regionen, dazu die Live-Änderung per Stimme (#19, #75, #76, #79).
 4. **UC4:** Die Stationen 2 und 3 sollen zur Zahl von StatAgent mehr beitragen, als sie zu wiederholen (#164).
 5. **UC1 und UC2:** Der Lotse soll Anliegen über mehrere Besuche hinweg aufnehmen (#82). Der Simulator soll historische Pressepositionen und Handlungsempfehlungen liefern (#84, #86).
