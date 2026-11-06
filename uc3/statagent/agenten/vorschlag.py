@@ -18,8 +18,9 @@ from typing import Any
 from statagent import konfig
 from statagent.agenten.plattform_bruecke import VERTRAG_TYP, sha256_datei
 from statagent.agenten.regelaenderung import einspielen
+from statagent.bereinigung import bereinigen
 from statagent.db import Verbindung
-from statagent.ergebnis import monatswerte
+from statagent.ergebnis import monat_verschieben, monatswerte
 from statagent.lauf import lauf_ausfuehren
 from statagent.regeln import eine, regeln_laden
 
@@ -27,7 +28,17 @@ from statagent.regeln import eine, regeln_laden
 ERZEUGT_RELATIV = "uc3/erzeugt"
 DDL = konfig.DB_VERZEICHNIS / "140_vorschlag.sql"
 #: Merkmale, deren Summen die Probe zeigt (Zellen mit vielen Ausprägungen wie Alter bleiben außen vor).
-PROBE_MERKMALE = ("qualifikation", "geschlecht", "region")
+PROBE_MERKMALE = ("qualifikation", "geschlecht", "region", "oenace")
+#: Altersgruppen der Probe: macht Änderungen an R5_alter sichtbar (Geburtsmonat 13, Plausibilitätsgrenzen).
+ALTERSGRUPPEN = ((0, 14), (15, 24), (25, 34), (35, 44), (45, 54), (55, 64), (65, 74), (75, 999))
+
+
+def altersgruppe(alter: int) -> str:
+    """Altersgruppe einer Zelle; -1 (unbekannt oder unplausibel) heißt „unbekannt“."""
+    for von, bis in ALTERSGRUPPEN:
+        if von <= alter <= bis:
+            return f"{von}+" if bis == 999 else f"{von}-{bis}"
+    return "unbekannt"
 
 
 class VorschlagFehler(RuntimeError):
@@ -123,6 +134,9 @@ def wirkung_text(typ: str, aenderungen: list[dict[str, Any]], ziel: str) -> str:
     if typ == "regel_aendern":
         teile = []
         for a in aenderungen:
+            if a.get("aktiv_neu") is False:
+                teile.append(f"{a['regel_name']} wird abgeschaltet")
+                continue
             for k in sorted(set(a["parameter_alt"]) | set(a["parameter_neu"])):
                 alt, neu = a["parameter_alt"].get(k), a["parameter_neu"].get(k)
                 if alt != neu:
@@ -262,6 +276,30 @@ def _wert(w: object) -> str:
     return json.dumps(w, ensure_ascii=False)
 
 
+#: Keine Zahl ändert sich im Probemonat: Das kann richtig sein und heißt nicht, dass die Regel nichts tut.
+KEINE_AENDERUNG_TEXT = (
+    "In diesem Monat ändert sich keine Zahl. Das kann richtig sein: Eine Prüfregel ändert nie eine Zahl, und der "
+    "Ersatztag bei Geburtsmonat 13 wirkt nur in manchen Monaten. Wählen Sie zum Vergleich einen anderen Monat."
+)
+#: So viele geänderte Ausprägungen zeigt die Probe je Merkmal, die größten zuerst (vor der Jury lesbar).
+PROBE_ZEILEN = 8
+
+
+def _geaenderte_codes(vorher: dict[str, int], nachher: dict[str, int]) -> str:
+    """Nur die Ausprägungen, die sich ändern, die größte Änderung zuerst (Review 9b: ganze Verteilungen als JSON
+    waren unlesbar)."""
+    geaendert = [
+        (c, int(vorher.get(c, 0)), int(nachher.get(c, 0)))
+        for c in set(vorher) | set(nachher)
+        if vorher.get(c, 0) != nachher.get(c, 0)
+    ]
+    geaendert.sort(key=lambda t: (-abs(t[2] - t[1]), t[0]))
+    teile = [f"{c} {v} → {n}" for c, v, n in geaendert[:PROBE_ZEILEN]]
+    if len(geaendert) > PROBE_ZEILEN:
+        teile.append(f"und {len(geaendert) - PROBE_ZEILEN} weitere")
+    return ", ".join(teile)
+
+
 def diff_text(vorschlag: Vorschlag) -> str:
     """Die Änderung in zwei Sprachen: Alltagssprache und technisch. Nur geänderte Zeilen."""
     v = vorschlag
@@ -274,6 +312,11 @@ def diff_text(vorschlag: Vorschlag) -> str:
         for a in v.aenderungen:
             alt, neu = dict(a["parameter_alt"]), dict(a["parameter_neu"])
             zeilen.append(f"Regel {a['regel_name']}:")
+            if a.get("aktiv_neu") is False:
+                zeilen.append("  In Worten: die Regel wird abgeschaltet (nicht gelöscht).")
+                zeilen.append(f"  - {a['regel_name']} aktiv = true")
+                zeilen.append(f"  + {a['regel_name']} aktiv = false")
+                continue
             for k in sorted(set(alt) | set(neu)):
                 if alt.get(k) == neu.get(k):
                     continue
@@ -306,14 +349,17 @@ def diff_text(vorschlag: Vorschlag) -> str:
             zeilen.append(f"Probe {monat}: {p.get('hinweis', '')}")
             continue
         vg, ng = int(p["vorher"]["gesamt"]), int(p["nachher"]["gesamt"])
+        keine_aenderung = vg == ng and p["vorher"].get("je_merkmal") == p["nachher"].get("je_merkmal")
         zeilen.append(
             f"Probe {monat}: gesamt {vg} → {ng} ({ng - vg:+d}), Zellen ≠ 0: "
             f"{p['vorher']['zellen']} → {p['nachher']['zellen']}"
         )
-        for merkmal in PROBE_MERKMALE:
+        for merkmal in (*PROBE_MERKMALE, "altersgruppe"):
             vm, nm = p["vorher"]["je_merkmal"].get(merkmal, {}), p["nachher"]["je_merkmal"].get(merkmal, {})
             if vm != nm:
-                zeilen.append(f"  {merkmal}: {_wert(vm)} → {_wert(nm)}")
+                zeilen.append(f"  {merkmal}: {_geaenderte_codes(vm, nm)}")
+        if keine_aenderung:
+            zeilen.append(f"  {KEINE_AENDERUNG_TEXT}")
     return "\n".join(zeilen)
 
 
@@ -324,7 +370,7 @@ class _Zurueckrollen(Exception):
 def _zahlen(conn: Verbindung, lieferung: str, regelsatz: str) -> dict[str, Any]:
     lauf = lauf_ausfuehren(conn, lieferung, regelsatz, reihenfolge_pruefen=False, gestartet_von="probe")
     variable = str(eine(regeln_laden(conn, regelsatz, lieferung), "zaehl", "bestand").parameter["variable"])
-    je_merkmal: dict[str, dict[str, int]] = {m: defaultdict(int) for m in PROBE_MERKMALE}
+    je_merkmal: dict[str, dict[str, int]] = {m: defaultdict(int) for m in (*PROBE_MERKMALE, "altersgruppe")}
     zellen = 0
     zeitraum_art = ""
     for z in monatswerte(conn, lieferung, regelsatz):
@@ -335,6 +381,7 @@ def _zahlen(conn: Verbindung, lieferung: str, regelsatz: str) -> dict[str, Any]:
         zeitraum_art = str(z["zeitraum_art"])
         for m in PROBE_MERKMALE:
             je_merkmal[m][str(z[m])] += wert
+        je_merkmal["altersgruppe"][altersgruppe(int(str(z["alter"])))] += wert
     return {
         "regelsatz": regelsatz,
         "zeitraum_art": zeitraum_art,
@@ -342,6 +389,36 @@ def _zahlen(conn: Verbindung, lieferung: str, regelsatz: str) -> dict[str, Any]:
         "zellen": zellen,
         "je_merkmal": {m: dict(sorted(w.items())) for m, w in je_merkmal.items()},
     }
+
+
+def _vormonat_sicherstellen(conn: Verbindung, lieferung: str, regelsatz: str) -> None:
+    """Bereinigt in der Probe-Transaktion den Vormonat, wenn der Monat Fortschreibungen braucht.
+
+    Regel E07 ergänzt ausgefallene Verhältnisse aus den bereinigten Abschnitten des Vormonats im selben Regelsatz. Ein
+    neuer Regelsatz hat keine, die Fortgeschriebenen fehlten: 2025-03 zeigte −1.470 bei einer reinen Altersänderung.
+    Ob ein Monat das braucht, sagt ein früherer Lauf in irgendeinem Regelsatz. Nur die Bereinigung läuft, kein ganzer
+    Lauf mit Prüfungen (der kostete rund 4 Minuten je Probe). Alles wird mit der Probe zurückgerollt.
+    """
+    vormonat = monat_verschieben(lieferung, -1)
+    z = conn.execute(
+        """SELECT EXISTS (SELECT 1 FROM meta.lauf WHERE lieferung = %s AND fortgeschrieben > 0) AS noetig,
+                  EXISTS (SELECT 1 FROM bereinigt.abschnitt WHERE lieferung = %s AND regelsatz = %s) AS da""",
+        (lieferung, vormonat, regelsatz),
+    ).fetchone()
+    if z is None or not z["noetig"] or z["da"]:
+        return
+    lauf = conn.execute(
+        "INSERT INTO meta.lauf (lieferung, regelsatz, gestartet_von) VALUES (%s, %s, 'probe') RETURNING id",
+        (vormonat, regelsatz),
+    ).fetchone()
+    assert lauf is not None
+    bereinigen(
+        conn,
+        lauf_id=int(str(lauf["id"])),
+        lieferung=vormonat,
+        regelsatz=regelsatz,
+        regeln=regeln_laden(conn, regelsatz, vormonat),
+    )
 
 
 def probe_rechnen(conn: Verbindung, vorschlag_id: int, lieferung: str) -> dict[str, Any]:
@@ -362,6 +439,7 @@ def probe_rechnen(conn: Verbindung, vorschlag_id: int, lieferung: str) -> dict[s
             )
         gerechnet: dict[str, Any] = {}
         with contextlib.suppress(_Zurueckrollen), conn.transaction():
+            _vormonat_sicherstellen(conn, lieferung, v.regelsatz_basis)
             gerechnet["vorher"] = _zahlen(conn, lieferung, v.regelsatz_basis)
             einspielen(
                 conn,
@@ -373,6 +451,7 @@ def probe_rechnen(conn: Verbindung, vorschlag_id: int, lieferung: str) -> dict[s
                 anweisung=v.anweisung,
                 begruendung=v.begruendung,
             )
+            _vormonat_sicherstellen(conn, lieferung, v.regelsatz_ziel)
             gerechnet["nachher"] = _zahlen(conn, lieferung, v.regelsatz_ziel)
             raise _Zurueckrollen
         ergebnis = {

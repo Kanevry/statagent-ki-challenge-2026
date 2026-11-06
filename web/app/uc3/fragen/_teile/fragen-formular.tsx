@@ -123,8 +123,9 @@ export function FragenFormular({
         return;
       }
       const meldung = (daten as { fehler?: unknown } | null)?.fehler;
+      // Bei 429 nennt nur der Server den Grund: zwei offene Fragen oder das Ratenlimit mit der Wartezeit.
       const satz =
-        antwort.status === 400 && typeof meldung === "string"
+        (antwort.status === 400 || antwort.status === 429) && typeof meldung === "string"
           ? meldung
           : (FEHLERSATZ[antwort.status] ?? FEHLERSATZ[502]!);
       setZustand({ art: "fehler", satz });
