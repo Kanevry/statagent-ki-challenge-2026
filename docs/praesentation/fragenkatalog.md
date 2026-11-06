@@ -23,7 +23,7 @@ Nur diese Fragen werden vorgeführt, wörtlich so getippt. Jede Zahl ist gegen e
 | 7 | „Was ist ÖNACE R?“ | ÖNACE 2025: Gesundheits- und Sozialwesen; ÖNACE 2008: Kunst, Unterhaltung und Erholung | F13 |
 | 8 | „Zeitreihe Bau 2025“ | Werte 23.809 bis 24.679 | F25 |
 
-Gegenprobe mit ehrlicher Absage: „Entwicklung im Bau seit August 2024“. Das Programm sagt ab, weil die Branchen ab 2025 nach ÖNACE 2025 gezählt werden (F13).
+Gegenprobe mit ehrlicher Absage: „Wie viele Beschäftigte gab es im Juli 2026 in Wien und Tirol?“ Das Programm gibt keine Zahl und bittet, getrennt zu fragen. „Entwicklung im Bau seit August 2024“ liefert jetzt 28.858 bis 28.548 mit dem Hinweis, dass der Vergleich über den Wechsel nur ungefähr ist (F13).
 
 Freie Fragen, Stand 05.11.2026 (Testserver, `main` `fd936b3`): Zwei Werte eines Merkmals („Wien und Tirol“), „Durchschnittsalter“, Fluktuation mit Filter und Fragen nach einer Person sagt das Programm ehrlich ab.
 

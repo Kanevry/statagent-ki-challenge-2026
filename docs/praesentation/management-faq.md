@@ -64,7 +64,7 @@ Beleg: F1, F15.
 Beleg: `abgabe/modelle.md`; 72 Wiederholungsläufe, 72-mal derselbe Hash (`abgabe/uc3-abnahme.md`, Abschnitt 3; F16).
 
 **11. Wer hat freigegeben, Mensch oder KI?**
-*Wortlaut stimmt Bernhard um 07:00 ab. Bis dahin nicht verwenden.* Der Entwurf folgt dem Protokoll:
+Der Wortlaut folgt dem Protokoll, vom Owner bestätigt am 06.11.2026:
 „Regelsatz v1 und die 22 veröffentlichten Monate habe ich selbst freigegeben. Die Freigaben der Vorschläge 24 bis 26 und des Regelsatzes v2 hat in meinem Auftrag eine KI-Sitzung eingegeben, das habe ich um 18:22 bestätigt, mit meinem Namen. Das steht offen im Protokoll. Die Ministeriums-Lieferung habe ich selbst freigegeben.“
 Beleg: `abgabe/protokoll.md`, Abschnitt „Hinweise zu den Freigaben“ und Abschnitt 1; Commit `2ba95e5`.
 

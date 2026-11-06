@@ -23,7 +23,7 @@ Gefragt ist die echte Live-Demo. Am Anfang keine Folien: Der Laptop steht offen 
 | 5:00–6:00 | Live-Änderung, Vorlauf | Die drei Aufträge der Aufgabe, freigegeben mit Namen | Drehbuch D2 Teil 1 |
 | **6:00–9:30** | **Live-Änderung** | **Bernhard fragt nach einer Regel. Die Jury nennt sie. Satz tippen, Vorschlag, vorher und nachher, Freigabe, Protokoll** | **Drehbuch D2 Teil 2** |
 | 9:30–12:00 | Datenanfragen | Zeitreihe, Männer und Frauen, Fluktuation je Wirtschaftsbereich | Drehbuch D3 |
-| 12:00–13:00 | Zusatz | Eine ehrliche Absage: „Entwicklung im Bau seit August 2024“ | Drehbuch D3 |
+| 12:00–13:00 | Zusatz | Eine ehrliche Absage: „Wie viele Beschäftigte gab es im Juli 2026 in Wien und Tirol?“ | Drehbuch D3 |
 | 13:00–14:00 | Zusatz | Die Wien-Frage durch alle drei Räume. Nur wenn sie um 06:45 echt läuft | Drehbuch D4 |
 | bis 20:00 | Fragen der Jury | Weitere Änderungen und Fragen, Karte und Katalog | `fragenkatalog.md`, Teil B und C |
 
