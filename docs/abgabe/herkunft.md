@@ -1,9 +1,10 @@
 # Herkunft und Rechte
 
-Stand: 05.11.2026, `main` d50990d plus E0-Züge 7 und 8 (Tagesbudget, Sprechknopf, Voice-Folgepunkte). Diese Liste gehört zu Issue #91. Sie nennt jede Komponente, die nicht allein vom
+Stand: 06.11.2026, `main` 14c86cc3. Diese Liste gehört zu Issue #91. Sie nennt jede Komponente, die nicht allein vom
 Team neu geschrieben wurde, oder die das Repo nutzt. Jede Zeile hat einen Rechtebeleg.
 
-**Ergebnis:** Für jede Zeile der Tabelle liegt ein Rechtebeleg vor. Geprüft sind Herkunft und Lizenz der Teile, die im
+**Ergebnis:** Für jede Zeile der Tabelle liegt ein Rechtebeleg vor, mit einer Ausnahme: Für die Formulartexte
+(Zeile „Formulartexte zweier Anträge“) ist die Frage der Veröffentlichung offen. Geprüft sind Herkunft und Lizenz der Teile, die im
 Repo liegen oder ausdrücklich übernommen wurden. **Nicht einzeln geprüft** sind die Lizenzen der übrigen Python- und
 npm-Pakete aus den Lockfiles, und die Abgrenzung zu everlast beruht auf einer Namenssuche (Hinweise unter der
 Tabelle).
@@ -26,6 +27,8 @@ Einordnung: **neu** (hier geschrieben), **vorab entstanden** (aus einem frühere
 | Vapi | Vapi (US-Dienst) | Assistant-Einstellung in `shared/py/plattform/voice/assistant.py` | `shared/py/plattform/voice/` | Dienst, genutzt, nicht verteilt. Datenfluss: `docs/voice.md`, README (Datenfluss Voice). | extern (Dienst) |
 | `@vapi-ai/web` (Browser-SDK für den Sprechknopf) | npm-Paket `@vapi-ai/web` | 3.1.0 (`pnpm-lock.yaml`) | Abhängigkeit in `web/package.json`, geladen erst beim Klick in `web/lib/plattform/voice-lader.ts`; der Knopf `shared/ui/src/voice/` bekommt den Lader herein | Lizenzfeld im installierten Paket: MIT | extern |
 | Claude Code CLI (Claude Opus 5.5) | Anthropic | Modell `claude-opus-5-5` (`docs/models.md`) | Adapter `shared/py/plattform/llm/claude.py` | Dienst im Abo des Teams, genutzt, nicht verteilt. Auch Entwicklungswerkzeug (`abgabe/modelle.md`). | extern (Dienst) |
+| Zweite Prüfer in der Entwicklung: Fable 5.1 und Astra (Codex, `gpt-6-astra`) | Dienste, nur als Prüfer eingesetzt | Stand der Prüfung 05.11.2026 (`docs/abnahme/PROZESS.md`, Zeile 3) | kein Code im Repo; Ergebnis in `docs/abnahme/review-fable-2026-11-05.md` und `docs/abnahme/review-astra-2026-11-05.md` | Dienste, genutzt, nicht verteilt. Im Betrieb der Anwendung kommen sie nicht vor. | extern (Dienst) |
+| Formulartexte zweier Anträge: Pflegegeld (PAL080) und Rehabilitations-, Kur- bzw. Erholungsaufenthalt | PDF-Formulare aus den Daten des Veranstalters zu UC1; Herausgeber laut Formular: PVA (PAL080) und Sozialversicherung (DVSV) | „PAL 080 (01. 2025)“ und „DVSV – KUR1 – R/8.1“ (Feld `formular.version` in den Dateien) | `uc1/formulare/pal080.felder.json`, `pal080.felder.roh.json`, `kur-reha.felder.json`, `kur-reha.felder.roh.json` | Die Dateien enthalten Feldnamen und Wortlaut der Formularfelder, mit `pdftotext` aus den PDFs gelesen. Die PDFs selbst liegen **nicht im Repo**. Die Rechte am Wortlaut liegen bei den Herausgebern; er fällt nicht unter die MIT-Lizenz. Ob der Wortlaut in einem öffentlichen Repo bleiben soll, ist offen. | extern |
 | Daten des Veranstalters | KI Challenge 2026 (Startpaket, SV-Box) | Lieferungen 2024-08 bis 2026-07 | **nicht im Repo**; Pfad `../svbox/uc3` oder `STATAGENT_STARTPAKET` | Synthetische Daten des Veranstalters, bereitgestellt zur Teilnahme. Von der MIT-Lizenz ausgenommen (README, Lizenzen). Ergebnisse daraus (`abgabe/`) sind Zahlen und Berichte, keine Rohdaten. | extern |
 
 ## Hinweise
