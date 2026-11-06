@@ -127,11 +127,13 @@ Zusatz (12:00–13:00), eine ehrliche Absage, nur wenn Zeit bleibt: „Entwicklu
 
 **Nicht vorführen:**
 
-- Fragen nach Bezirken, Gemeinden oder tiefen ÖNACE-Codes: „Welche Bezirke hat Tirol?“ liefert die Zahl für Tirol statt einer Liste, „C 10.11-0“ antwortet nur zu Abschnitt C (#189).
+- Zahlen je Bezirk oder Gemeinde: Die Frage sagt ab, die Lieferungen haben nur das Bundesland.
 - Was eine Zahl liefert, aber nicht gegen das Orakel geprüft ist: Branchen in Umgangssprache („Gastronomie“, „Gesundheitswesen“, „Handel“), „freie Dienstverträge“, Zeiträume („von März bis Juni 2025“).
 
 **Stand der freien Fragen** (online gemessen 06.11.2026 00:46, Stand `main` `2005e01`, um 06:45 neu messen):
 
+- Neu seit #189, Klassifikationen (06.11.2026 01:34, main `275ffb2`): „Was ist ÖNACE C 10.11-0?“, „Was ist die Gemeinde 62280?“, „Welche Bezirke hat Tirol?“ werden erklärt, die Suche steht auf `/uc3/klassifikationen`. Nicht gegen das Orakel, Texte aus den Klassifikationen.
+- Neu seit !230, Regelsatz v2: „Beschäftigte im Juli 2026 nach Regelsatz v2“ 407.604, ohne „v2“ bleibt es 399.027. Fluktuation gibt es unter v2 nicht.
 - Neu seit !227, Alter: „Wie viele Beschäftigte unter 25 Jahren gab es im Juli 2026?“ 41.626, in Wien 8.352. „Wie viele 30-Jährige gab es im August 2024?“ 9.017. „Beschäftigte ab 50 Jahren im Juli 2026“ 124.728. Nicht gegen das Orakel belegt, Entscheid um 06:45. Falle: „über 50“ heißt 51 Jahre und älter (115.451).
 - Sagt ehrlich ab: zwei Werte eines Merkmals („Wien und Tirol“, „Arbeiter und Angestellte“), „Durchschnittsalter“, „ab 50“ ohne „Jahren“, Fluktuation mit Filter („in Wien“) oder für August 2024, Fragen nach einer einzelnen Person. Neu gemessen sind davon „Wien und Tirol“, „Durchschnittsalter“ und „ab 50“, der Rest stammt vom Stand `fd936b3`.
 - Holpert: „Welche Branche hat die höchste Fluktuation“ sagt ab, aber mit „Das Wort ‚hat‘ kenne ich nicht“.
