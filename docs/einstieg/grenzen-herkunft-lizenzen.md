@@ -9,7 +9,8 @@ Zurück zum [README](../../README.md#grenzen-und-offene-punkte).
 
 - **Daten:** Es sind nur die synthetischen Daten des Veranstalters und öffentliche Quellen. Sie liegen nicht im
   Repo. Einzige Ausnahme: Die Rückfragen in `abgabe/rueckfragen/` nennen als Beispiel einige synthetische
-  Kennungen (`VVH_ID`), damit die Fachabteilung den Fall findet. Personenbezogene Daten gibt es keine. An ein Modell
+  Kennungen (`VVH_ID`), damit die Fachabteilung den Fall findet; einzelne Tests unter `uc3/tests/` nennen ebenfalls solche Kennungen.
+  Personenbezogene Daten gibt es keine. An ein Modell
   gehen nie Einzeldaten, nur Schema, Aggregate und Prüfergebnisse.
 - **UC1:** Der Lotse ersetzt keine Beratung. Er gibt keine Diagnose und keine Therapie- oder Medikamentenempfehlung;
   bei solchen Fragen verweist er an Ärztin, Arzt oder die Gesundheitsberatung 1450, im Notfall an 144. Eine
@@ -30,7 +31,7 @@ Zurück zum [README](../../README.md#grenzen-und-offene-punkte).
 
 Das Voice-Konzept (Vapi Custom LLM, Webhook, Text-Fallback) folgt einem früheren eigenen Projekt des Teams,
 einem Sprach-Interview mit Vapi. **Übernommen sind nur Konzept und Schnittstellen. Der Code ist hier neu
-geschrieben.** Das belegt eine Suche im Repo: Der Name des früheren Projekts kommt im Quelltext nicht vor.
+geschrieben.**
 Die Liste aller übernommenen Teile mit Herkunft, Version und Rechtebeleg: `docs/abgabe/herkunft.md`.
 
 ## Lizenzen

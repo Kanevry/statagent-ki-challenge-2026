@@ -71,10 +71,10 @@ Voice geht über Vapi, einen **US-Dienst**. Der Ablauf, belegt in `docs/voice.md
    kein Sprachmodell. **Aus der Datenbank gehen nur Summen mit Beleg hinaus**, keine Einzeldaten, und SQL wird nicht
    gesprochen. Was jemand ins Mikrofon sagt, geht als Ton und Text an Vapi.
 3. Die Aufnahme ist aus: `recordingEnabled` steht im Assistant auf `False`
-   (`shared/py/plattform/voice/assistant.py`, Zeilen 56 und 57). Vapi hält das Transkript nach eigenen Regeln.
+   (`shared/py/plattform/voice/assistant.py`, Zeilen 62 und 65). Vapi hält das Transkript nach eigenen Regeln.
    Dort landen die gesprochene Frage und die Antwort mit Aggregat und Beleg.
 4. Für Transkription und Stimme trägt der Assistant die Dienste Deepgram (`nova-2`) und Azure (`de-AT-IngridNeural`)
-   ein (`assistant.py`, Zeilen 54 und 55). Sie laufen über Vapi.
+   ein (`assistant.py`, Zeilen 54 und 59). Sie laufen über Vapi.
 5. Bei uns bleibt je Anruf eine Protokollzeile: Hash der Anruf-Kennung, Dauer, Endgrund. Kein Transkript, keine
    Antwort.
 

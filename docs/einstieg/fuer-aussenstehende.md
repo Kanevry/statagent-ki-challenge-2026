@@ -45,7 +45,7 @@ fünfte Buchung, schreibt man nicht „das Geld ist weg“, sondern fragt zuerst
 | Es rechnet einen Monat vor und nach der vorgeschlagenen Änderung, damit man die Wirkung sieht. | Der Vorschlag steht im Protokoll, mit dem Modell und der Anweisung. | Erst mit dem Namen wird die Änderung wirksam; dazu entsteht ein Eintrag im Protokoll. |
 | Es beantwortet Fragen an die Daten mit Zahl und Abfrage, ohne Sprachmodell. | | Monate mit unklaren Daten bleiben vorläufig, bis ein Mensch sie veröffentlicht. |
 
-Belege: [README](../../README.md), Abschnitte „Wie UC3 rechnet“ und „Freigabe durch einen Menschen“;
+Belege: [Lösung und Ansatz](loesung-und-ansatz.md), Abschnitte [„Wie UC3 rechnet“](loesung-und-ansatz.md#wie-uc3-rechnet) und [„Freigabe durch einen Menschen“](loesung-und-ansatz.md#freigabe-durch-einen-menschen);
 `uc3/statagent/frage.py` („Beantwortet eine Datenanfrage ohne Sprachmodell“).
 
 Der Grundsatz steht in der [Langfassung zu „Lösung und Ansatz“](loesung-und-ansatz.md) wörtlich so: **„Die KI schreibt Code und Texte, das Programm rechnet.“** In der
@@ -76,7 +76,7 @@ Bereich 5. Diese Änderung läuft nur in der Vorführung, nicht auf der öffentl
 
 Adresse: **https://ki-challenge.gotzendorfer.at**. Die Online-Demo ist lesend: Man kann alles ansehen und Fragen
 stellen, aber keine Änderung freigeben und keinen Lauf starten. Solche Anfragen lehnt der Server ab
-([README](../../README.md), „Online-Demo“). Alle Seiten unten waren am 06.11.2026 um 06:48 Uhr öffentlich
+([Ausführung, Online-Demo](ausfuehrung.md#online-demo)). Alle Seiten unten waren am 06.11.2026 um 06:48 Uhr öffentlich
 erreichbar. Bis zur Abgabe ändern sich noch Kleinigkeiten an der Oberfläche.
 
 | Seite (Pfad) | Was man dort sieht | Worauf man achten kann |
@@ -95,13 +95,13 @@ erreichbar. Bis zur Abgabe ändern sich noch Kleinigkeiten an der Oberfläche.
 | Ablauf `/ablauf` | Wie das Projekt in der Challenge entstanden ist, mit Zeitleiste. | Die Zeitpunkte und die Zahl der Aufgaben und Änderungen, mit Stand. |
 
 Für Fragen gilt online eine Grenze: höchstens 10 Fragen in der Minute je Internetanschluss und ein festes
-Tageskontingent an Modellaufrufen ([README](../../README.md), „Online-Demo“).
+Tageskontingent an Modellaufrufen ([Ausführung, Online-Demo](ausfuehrung.md#online-demo)).
 
 ## Die anderen Use Cases
 
 Neben StatAgent sind drei weitere Bereiche entstanden; sie werden nicht bewertet. Der Stand im Einzelnen steht in
-[use-cases-stand.md](use-cases-stand.md). Alles hier stammt aus dem [README](../../README.md), Tabelle „Was gebaut
-wurde“ und „Grenzen und offene Punkte“.
+[use-cases-stand.md](use-cases-stand.md). Alles hier stammt aus [Lösung und Ansatz](loesung-und-ansatz.md), Tabelle „Was gebaut
+wurde“, und aus dem [README](../../README.md#grenzen-und-offene-punkte), „Grenzen und offene Punkte“.
 
 - **UC1, SV KI-Lotse:** Er hilft bei Fragen zu Gesundheit und Sozialversicherung, fragt bei Bedarf nach und belegt
   jede Aussage mit einem Zitat aus der Quelle. Er ersetzt keine Beratung, gibt keine Diagnose und keine
@@ -141,21 +141,21 @@ Quellen: [`docs/sprache.md`](../sprache.md), [README](../../README.md), Unterlag
 ## Häufige Fragen
 
 **Rechnet die KI die Zahlen?** Nein: Der Monatslauf ruft kein Sprachmodell auf, und zwei Läufe mit denselben Daten
-und Regeln liefern dieselbe Prüfsumme ([README](../../README.md), „Wie UC3 rechnet“). Bei StatAgent schlägt ein
+und Regeln liefern dieselbe Prüfsumme ([Lösung und Ansatz, Wie UC3 rechnet](loesung-und-ansatz.md#wie-uc3-rechnet)). Bei StatAgent schlägt ein
 Modell nur Änderungen vor, und an das Modell gehen nie Einzeldaten ([`docs/models.md`](../models.md)). In UC1 und UC2
 schreibt ein Modell die Antworten; das steht dort auf der Seite dabei.
 
 **Kann die KI allein etwas ändern?** Nein: Jede Änderung an Regeln oder Code braucht eine Freigabe mit Vor- und
 Nachnamen, Rollen wie „Team“ werden abgelehnt. Ein Agenten-Skript startet nur, wenn genau dieser Dateistand
-freigegeben ist ([README](../../README.md), „Freigabe durch einen Menschen“).
+freigegeben ist ([Lösung und Ansatz, Freigabe durch einen Menschen](loesung-und-ansatz.md#freigabe-durch-einen-menschen)).
 
 **Sind das echte Daten?** Nein, es sind erfundene Daten des Veranstalters, in der Größe etwa ein Zehntel Österreichs,
 ohne personenbezogene Daten. Sie liegen nicht im Repo ([README](../../README.md), „Grenzen und offene Punkte“).
 
 **Läuft das nur in der Cloud?** Nein: Das Zählen braucht kein Netz und kein Sprachmodell und läuft auf dem eigenen
-Rechner, wie es die Aufgabe verlangt ([README](../../README.md), „Beispiellauf UC3“). Die Agenten brauchen ein
+Rechner, wie es die Aufgabe verlangt ([Ausführung, Beispiellauf UC3](ausfuehrung.md#beispiellauf-uc3-jury-weg)). Die Agenten brauchen ein
 Sprachmodell, standardmäßig Azure; ein lokales Modell für den Betrieb ohne Netz ist vorgesehen, gelaufen ist es bisher
-nicht ([README](../../README.md), „Modelle“).
+nicht ([Konfiguration, Modelle](konfiguration.md#modelle)).
 
 **Kann ich das selbst ausprobieren?** Ja, auf https://ki-challenge.gotzendorfer.at lesend und mit Fragen an die
 Daten. Wer es auf dem eigenen Rechner starten will, findet die Befehle in [schnellstart.md](schnellstart.md); für

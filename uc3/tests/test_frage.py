@@ -664,7 +664,7 @@ def test_ein_geschlecht_und_anteil(gerechnet: Verbindung) -> None:
     assert prozent["Anteil an allen, Frauen"] == round(100 * frauen_gesamt / gesamt, 2)
 
 
-# --- Review-Bank 69 zu !85 --------------------------------------------------------------------------------------
+# --- Review zu !85 ----------------------------------------------------------------------------------------------
 
 
 # Fängt: „am höchsten“ verschweigt die Schwelle, die Tabelle zeigt einen kleineren Abschnitt mit höherer Rate.

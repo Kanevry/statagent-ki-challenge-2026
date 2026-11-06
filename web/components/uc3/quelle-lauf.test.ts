@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { sqlAuffaelligkeiten, sqlRevision as sqlRevisionBericht } from "./bericht";
 import { sqlRevision as sqlRevisionLauf, sqlTreffer } from "./lauf-detail";
 
-// Veröffentlichter Monat, später nachgerechnet: jüngster Lauf 98, veröffentlicht hat Lauf 49 (Review !51, Bank 69).
+// Veröffentlichter Monat, später nachgerechnet: jüngster Lauf 98, veröffentlicht hat Lauf 49 (Review !51).
 const lauf = { id: 98, quelleId: 49, lieferung: "2024-08" };
 
 describe("Quelle der Zahlen bei einem nachgerechneten veröffentlichten Monat", () => {

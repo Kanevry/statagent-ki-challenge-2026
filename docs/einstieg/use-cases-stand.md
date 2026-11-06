@@ -50,7 +50,7 @@ gemessen am 06.11.2026 auf `main` `5328291`; die Spalte „Nachweis“ zeigt, wo
 | 3 Qualitätssicherung | „erkennt einen Teil der Fehler, Qualitätsbericht je Monat“ | „erkennt alle Fehler, unterscheidet sie von echten Entwicklungen, jede Annahme begründet und dokumentiert“ | Mindest erfüllt, Optimum teilweise | 24 Berichte, 24 Prüfregeln P01 bis P24 (F15); Beispielbericht August 2024: 2.880 von 2.880 Zahlen gleich (F1); Rückfragen in [`abgabe/rueckfragen/`](../../abgabe/rueckfragen/) | „Alle Fehler“ ist nur für August 2024 belegbar, für die übrigen 23 Monate gibt es keinen Vergleichsbericht (F15); ein Teil der Auffälligkeiten bleibt „nicht erklärbar“ |
 | 4 Reporting | „Aggregations-Sheet nach den Regeln der Fachbeschreibung“ | „Datenanfragen … richtig beantwortet, Dashboard“ | Mindest erfüllt, Optimum teilweise | beide Sheets (siehe oben); `uv run uc3 frage`, Seite `/uc3/fragen`; Übersicht `/uc3` | Freie Fragen sind nicht alle geprüft; keine Zahlen je Bezirk oder Gemeinde (Kriterien-Karte, Zeile 21) |
 | 5 Weiterentwicklung und Betrieb | „Produktion läuft deterministisch“ | „alle Änderungsaufträge und Ministeriums-Lieferung umgesetzt, nachvollziehbar protokolliert, Live-Änderung per Sprache gelingt“ | Mindest erfüllt, Optimum teilweise | 72 von 72 Wiederholungsläufen mit gleichem Ergebnis-Hash ([`uc3-abnahme.md`](../../abgabe/uc3-abnahme.md), Zeile 38 bis 40); Wege der drei Aufträge in [`aenderungsauftraege-matrix.md`](../plan/uc3/aenderungsauftraege-matrix.md) | Die Live-Änderung ist ein getippter Satz, keine Stimme; von 14 unbekannten Probeaufträgen gelangen 13 ([`live-ruecknahme.md`](../plan/uc3/live-ruecknahme.md), Zeile 64) |
-| 6 Bedienbarkeit | „alles lässt sich über die Konsole steuern“ | „übersichtliche Weboberfläche für Läufe, Qualitätsberichte und Annahmen, Klassifikationen, Freigaben und Fragen an die Daten“ | Mindest erfüllt, Optimum erfüllt | `uv run uc3 --help` ([`uc3/statagent/cli.py`](../../uc3/statagent/cli.py)); Seiten unter `/uc3` | Aufträge an die Agenten nimmt nur die Vorführ-Instanz an; die öffentliche Demo ist nur lesend ([README](../../README.md), Abschnitt „Online-Demo“) |
+| 6 Bedienbarkeit | „alles lässt sich über die Konsole steuern“ | „übersichtliche Weboberfläche für Läufe, Qualitätsberichte und Annahmen, Klassifikationen, Freigaben und Fragen an die Daten“ | Mindest erfüllt, Optimum erfüllt | `uv run uc3 --help` ([`uc3/statagent/cli.py`](../../uc3/statagent/cli.py)); Seiten unter `/uc3` | Aufträge an die Agenten nimmt nur die Vorführ-Instanz an; die öffentliche Demo ist nur lesend ([Ausführung, Online-Demo](ausfuehrung.md#online-demo)) |
 
 **Ein scheinbarer Widerspruch bei den Pensionen.** [`abgabe/uc3-abnahme.md`](../../abgabe/uc3-abnahme.md) sagt in
 Zeile 68 noch „Pensionen sind nicht importiert“. Die Datei gehört zur eingefrorenen Abgabe: `abgabe/manifest.json`
@@ -64,7 +64,7 @@ und [`docs/uc3/pensionen-pruefbericht.md`](../uc3/pensionen-pruefbericht.md).
 `main` `c16fa881` um 06:07, zählt für UC3: 53 von 76 Kriterien bestanden, 1 nicht bestanden, 5 nicht geprüft, 17 nach
 der Abgabe; der Nachtrag auf dem letzten Code-Stand `14c86cc3` um 07:50 zählt 53, 2, 4 und 17
 ([`schlusslauf-2026-11-06.md`](../abnahme/schlusslauf-2026-11-06.md)). Der Beleg sagt selbst: kein „alles
-bestanden“, das Tor ist offen. Das eine „nicht bestanden“ (13-AC4) ist als Restmangel angenommen:
+bestanden“, das Tor ist offen. Eines der „nicht bestanden“ (13-AC4) ist als Restmangel angenommen:
 `uc3/statagent/pensionen.py` enthält eine eigene Funktion `freigeben`; die Regeln laufen darin über
 `plattform.freigabe` mit Commit und der Zeile `Freigegeben-von`. Offen sind unter anderem zwei Punkte zur Oberfläche
 (18-AC2, 18-AC3) und zwei zu den Klassifikationen (75-AC1, 76-AC1). Der volle Lauf 22-1 (24 Läufe und Sheet nach den
@@ -76,7 +76,7 @@ der Weboberfläche; die Matrix zeigt UC3-Belege danach als veraltet, bis ein Nac
 | Regel (gekürzt) | Wie erfüllt | Nachweis |
 |---|---|---|
 | 1 Die KI schreibt Code, das Programm rechnet | Kein UC3-Befehl für Lauf, Bericht oder Sheet ruft ein Sprachmodell auf; gleiche Daten und Regeln ergeben denselben Hash | [`uc3/README.md`](../../uc3/README.md), Einleitung; `uc3-abnahme.md`, Zeile 38 bis 40 |
-| 2 Lokal und offline | PostgreSQL 16 auf dem eigenen Gerät; der Lauf braucht kein Netz | [README](../../README.md), „Beispiellauf UC3“ |
+| 2 Lokal und offline | PostgreSQL 16 auf dem eigenen Gerät; der Lauf braucht kein Netz | [Ausführung, Beispiellauf UC3](ausfuehrung.md#beispiellauf-uc3-jury-weg) |
 | 3 Regeln als Daten | Regeln und Prüfungen stehen in `meta.regel` mit Gültigkeit, Begründung und Freigabe | `uc3/README.md`, „Wie ein Lauf rechnet“; Abgabeprüfung „keine Regelkonstanten im Code“ (`uc3-abnahme.md`, Zeile 20) |
 | 4 Modelle | Agenten nutzen Azure `gpt-5-4-mini`; austauschbar über `LLM_PROVIDER` | [`abgabe/modelle.md`](../../abgabe/modelle.md) |
 | 5 Eure Agenten setzen um | Die drei Aufträge liefen über die eigenen Agenten mit Rollen; die Anweisung ist ein Satz in natürlicher Sprache, getippt | [`agenten-routing.json`](../plan/uc3/agenten-routing.json); gesprochen geht es für UC3 nicht (`uc3-abnahme.md`, Abschnitt 7) |
@@ -125,7 +125,7 @@ Modus ist optional.
 Debatte, Verhandlung und bis zu zwei Kompromissrunden; jede Zahl wird gegen ihren Beleg oder das Rechenmodell des
 Experten geprüft ([`uc2/README.md`](../../uc2/README.md), „Verhandlung“). Es gibt genau einen Fall,
 [`uc2/faelle/wartezeiten.yaml`](../../uc2/faelle/wartezeiten.yaml). Das Ergebnis heißt „Entwurf“, bis ein Mensch es
-mit Namen freigibt ([README](../../README.md), Tabelle „Was gebaut wurde“).
+mit Namen freigibt ([Lösung und Ansatz](loesung-und-ansatz.md), Tabelle „Was gebaut wurde“).
 
 **Was online läuft.** Zwei Dinge. Erstens eine aufgezeichnete Verhandlung; Starten und Freigeben lehnt der Server ab
 ([`web/app/api/uc2/faelle/route.ts`](../../web/app/api/uc2/faelle/route.ts), Zeile 52). Die Belege der Aufzeichnung
@@ -159,7 +159,7 @@ Koalitionen (85) und Handlungsempfehlungen (86).
 **Die Idee.** Eine Frage läuft durch drei Stationen: zuerst die Zahl aus der Statistik (UC3), dann die Abwägung
 (UC2), zuletzt, was das für die fragende Person heißt (UC1). Reihenfolge und Ablauf:
 [`shared/py/plattform/router.py`](../../shared/py/plattform/router.py), Zeile 1 bis 5 und 53. UC4 ist nicht Teil der
-Bewertung ([README](../../README.md), Tabelle „Was gebaut wurde“).
+Bewertung ([Lösung und Ansatz](loesung-und-ansatz.md), Tabelle „Was gebaut wurde“).
 
 | Station | Was dort entsteht | Echt gerechnet? | Beleg |
 |---|---|---|---|
@@ -176,7 +176,7 @@ Testbetrieb mehr: Ist nur ein Anbieter freigegeben, nennt der Kopf der Seite das
 `a7297f2`). Der Server lässt weiterhin nur die Anbieter zu, die in `UC4_MODELLWAHL` freigegeben sind
 ([`web/lib/plattform/uc4.ts`](../../web/lib/plattform/uc4.ts), Funktion `modellErlaubt`). Laut
 [README](../../README.md) ist das online Azure. Je Internetanschluss gehen standardmäßig höchstens 10 Fragen in der
-Minute, dazu kommt ein Tagesbudget für Modellaufrufe (README, „Online-Demo“).
+Minute, dazu kommt ein Tagesbudget für Modellaufrufe ([Ausführung, Online-Demo](ausfuehrung.md#online-demo)).
 
 ## Für alle, die weiterbauen wollen
 

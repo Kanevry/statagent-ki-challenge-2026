@@ -5,7 +5,7 @@ Sie nennt alle Schlüssel der Einstellungen und welches Modell wofür läuft.
 
 Zurück zum [README](../../README.md#konfiguration).
 
-Alle Einstellungen kommen aus Umgebungsvariablen oder aus `.env.local` an der Repo-Wurzel. Vorlage mit allen
+Alle Einstellungen kommen aus Umgebungsvariablen oder aus `.env.local` an der Repo-Wurzel. Vorlage mit den wichtigsten
 Schlüsselnamen und Erklärungen: `.env.example`. **Werte stehen nie im Repo.** Diese Seite nennt nur Namen.
 
 | Gruppe | Schlüssel |
@@ -22,6 +22,7 @@ Schlüsselnamen und Erklärungen: `.env.example`. **Werte stehen nie im Repo.** 
 | UC4 und Online | `UC4_ADAPTER`, `UC4_KETTE` (welche Bereiche auf `/uc4` antworten), `UC4_MODELLWAHL`, `KIC_ONLINE_LESEND`, `KIC_ONLINE_FRAGEN` (Fragen online erlaubt), `KIC_ONLINE` (setzt nur das Prod-Compose) |
 | Grenzen für Modellaufrufe | `LLM_TAGESBUDGET_AUFRUFE` (Aufrufe je Tag, online Pflicht), `RATENLIMIT_PRO_MINUTE` (Fragen je IP und Minute), `PLATTFORM_PROTOKOLL` (Ort des Modellprotokolls, dort wird gezählt) |
 | Voice | `VAPI_API_KEY`, `VAPI_PUBLIC_KEY`, `VAPI_WEBHOOK_SECRET`, `VAPI_CUSTOM_LLM_KEY`, `VAPI_ASSISTANT_ID`, `PUBLIC_URL`; optional `VOICE_RATENLIMIT_PRO_MINUTE`, `VOICE_ANTWORT_TIMEOUT_S`, `PLATTFORM_VOICE_PROTOKOLL` |
+| Weitere Schalter der Web-App | `UC2_API_URL` (Adresse der UC2-Schnittstelle, ohne Angabe `http://localhost:8102`), `KIC_ONLINE_UC1` (`1` zeigt auf der lesenden Online-Demo das Fragefeld von `/uc1`, die Schnittstelle bleibt dort gesperrt; online nicht gesetzt), `KIC_VORFUEHRUNG` (`1` öffnet `/uc3/auftrag` und `/api/uc3/auftrag` für die Vorführ-Instanz, sonst 404 oder gesperrt; wirkt nicht zusammen mit `KIC_ONLINE_LESEND=1`) |
 
 ## Modelle
 
