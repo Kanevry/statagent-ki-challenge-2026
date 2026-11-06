@@ -41,6 +41,9 @@ WIEN = ZoneInfo("Europe/Vienna")
 NICHT_VOR = "2026-11-06T08:30"
 # Entscheid Lead a7 (#92, 05.11.): Historie bleibt unverändert; bekannte Treffer in Commit-Nachrichten.
 ERLAUBTE_COMMIT_TREFFER = 12
+# Entscheid Lead 3d (#188, 06.11.): Die Rohläufe der Abnahme liegen nicht mehr auf main. Nur dieser Ordner
+# darf auf GitHub verschwinden, jede andere entfernte Datei blockt weiter.
+DARF_AUF_GITHUB_FEHLEN = "docs/abnahme/laeufe/"
 # GitHub lehnt Dateien über 100 MB ab, warnt ab 50 MB.
 GROESSE_GRENZE = 50 * 1024 * 1024
 # Dateien, die GitHub schon hat und die erhalten bleiben müssen (Vorgabe der Veranstalter).
@@ -257,9 +260,14 @@ def pruefe(arbeit: Path, muster: list[re.Pattern[str]], bericht_pfad: Path, erla
         )
     gh_pfade = set(filter(None, git(arbeit, "ls-tree", "-r", "--name-only", "-z", gh).stdout.split("\0")))
     pfade = list(filter(None, git(arbeit, "ls-tree", "-r", "--name-only", "-z", "HEAD").stdout.split("\0")))
-    fehlend = sorted(gh_pfade - set(pfade))
+    entfernt = gh_pfade - set(pfade)
+    fehlend = sorted(p for p in entfernt if not p.startswith(DARF_AUF_GITHUB_FEHLEN))
+    gewollt = len(entfernt) - len(fehlend)
+    zusatz = f", {gewollt} gewollt entfernt unter {DARF_AUF_GITHUB_FEHLEN}" if gewollt else ""
     bericht.add(
-        "github-dateien", not fehlend, "alle GitHub-Dateien bleiben" if not fehlend else f"fehlen: {fehlend}"
+        "github-dateien",
+        not fehlend,
+        f"alle GitHub-Dateien bleiben{zusatz}" if not fehlend else f"fehlen: {fehlend}",
     )
 
     # 3. Dateiliste
