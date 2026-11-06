@@ -780,6 +780,19 @@
   margin-top: 16px;
 }
 
+.berichteWeg {
+  margin: 8px 0 0;
+}
+
+.berichteWeg a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--l-gruen);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .mehr > summary {
   display: inline-flex;
   min-height: 44px;
