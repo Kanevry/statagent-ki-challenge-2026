@@ -20,7 +20,7 @@ Quelle: GitLab-Projekt des Teams, alle Aufgaben, gelesen über die Schnittstelle
 - **Status:** „erledigt“ heißt, die Aufgabe ist im Aufgabensystem geschlossen. „offen“ heißt, sie ist dort nicht geschlossen. Was davon im Code läuft, steht im [README](../../README.md) und unter [Stand der Use Cases](use-cases-stand.md).
 - **Nummern:** `#12` ist eine Aufgabe, `!12` ein Änderungsantrag (Merge Request) im privaten GitLab-Projekt.
 - **Labels:** `uc1` bis `uc4` nennen den Use Case. `epic::…` nennt das große Arbeitspaket. `kern` ist der gemeinsame Kern, `ablauf` der Zeitplan. `status::in-progress` heißt in Arbeit. `prio::nach-abgabe` heißt bewusst auf nach der Abgabe gelegt. `owner` heißt, die Aufgabe braucht eine Entscheidung des Auftraggebers.
-- **Was fehlt:** Beschreibungen und Kommentare stehen hier nicht, nur Titel und Labels. 3 Titel sind leicht geändert (Rechnernamen, ein Anbietername und ein interner Verweis ersetzt), 1 Titel fehlt, weil er einen persönlichen Bezug hat.
+- **Was fehlt:** Beschreibungen und Kommentare stehen hier nicht, nur Titel und Labels. 8 Titel sind leicht geändert (Rechnernamen, ein Anbietername und ein interner Verweis ersetzt, fünf Titel zum Betrieb der Online-Demo allgemeiner gefasst), 1 Titel fehlt, weil er einen persönlichen Bezug hat.
 
 ## Epics (die großen Arbeitspakete)
 
@@ -215,9 +215,9 @@ Quelle: GitLab-Projekt des Teams, alle Aufgaben, gelesen über die Schnittstelle
 | #93 | E0 Kleinpunkte aus Review !4: KIC_ENV_DATEI, install-hooks, mypy in CI, vitest, .gitignore, Gerätenamen | erledigt | `epic::e0-plattform`, `kern` |
 | #94 | E0 plattform.llm: Stream-Abbruch durch Verbraucher als „abgebrochen“ protokollieren, status zeigt zuletzt/Fallback-Stufe | erledigt | `epic::e0-plattform`, `kern` |
 | #99 | E0 Freigabe: objekt_ref muss bei datei gleich ref sein; Commit-Wiederverwendung nur bei gleichem Freigebenden | erledigt | `epic::e0-plattform`, `kern` |
-| #100 | Online-Demo: Ratenlimit und Tagesbudget für Modellaufrufe, bevor Modellschlüssel online gehen | offen | `epic::e0-plattform`, `status::in-progress` |
+| #100 | Online-Demo: Ratenlimit und Tagesbudget für Modellaufrufe | offen | `epic::e0-plattform`, `status::in-progress` |
 | #102 | E0 Gate: ab Feature-Stopp Fr 05:00 ABGABE=1 im CI-Job playwright setzen (NOCH_OFFEN leer, jede Route 200) | erledigt | `epic::e0-plattform`, `kern` |
-| #108 | Deploy-Härtung: Rechteprobe je DB fail-closed, up bricht bei Modellschlüssel ohne Ratenlimit ab | offen | `epic::e0-plattform` |
+| #108 | Deploy-Härtung: Prüfungen beim Ausliefern verschärfen | offen | `epic::e0-plattform` |
 | #109 | Landing-Nacharbeit: UC4-Link aktivieren (#98), Tablet 768–1100 und echtes Handy prüfen | offen | `epic::e0-plattform` |
 | #110 | E0: Schriften und CSS im kritischen Pfad, LCP mobil 2,4 s auf der Landing | offen | `epic::e0-plattform`, `prio::nach-abgabe` |
 | #111 | CI: workflow:rules lässt API-Pipelines (glab ci run) nicht zu, Deploy-Job nur per UI-Klick startbar | erledigt | `epic::e0-plattform` |
@@ -233,8 +233,8 @@ Quelle: GitLab-Projekt des Teams, alle Aufgaben, gelesen über die Schnittstelle
 | #140 | E0 Folge Review !66: UTC-Test schärfen, Rückwärtszählung ohne Sortier-Annahme, Schema-Eigenschaften namens default/enum | erledigt | `epic::e0-plattform` |
 | #143 | Online: Datenbank lotse fehlt auf dem Server, nötig sobald /uc1 (!69) auf main ist | offen | `epic::e0-plattform` |
 | #144 | Online: uc2.api läuft im App-Container nicht, /uc2 zeigt nur aufgezeichnete Fälle | offen | `epic::e0-plattform` |
-| #145 | Stufe A: /api/uc3/frage hat online kein Ratenlimit je IP, nur 2 gleichzeitige Läufe | erledigt | `epic::e0-plattform` |
-| #146 | Betrieb nach der Abgabe: Speicherlimit je Container, App-Image mit Revision taggen, Sicherung vom Server weg | offen | `epic::e0-plattform` |
+| #145 | Stufe A: Ratenlimit je Internetanschluss für /api/uc3/frage | erledigt | `epic::e0-plattform` |
+| #146 | Betrieb nach der Abgabe: Speichergrenzen, Versionskennung und Sicherung | offen | `epic::e0-plattform` |
 | #148 | Live-UI aus Jury-Sicht: fünf Querschnitts-Befunde (KI-Pille, rote Sperren, Freigabe-Weg, Landing-Tabelle, leere Präsentation) | offen | `epic::e0-plattform`, `kern` |
 | #150 | E0 Folge Review !94/!96: deploy-Proben, claude-Sitzung, Abbruch im Ergebnis-Weg, Kernsatz, Exit nach ende | erledigt | `epic::e0-plattform` |
 | #152 | E0 Folge Review !90: Seed-Ziel prüfen, /uc3 gefüllt nachweisen, Lint-Umfang, uv-Installer pinnen | erledigt | `epic::e0-plattform` |
@@ -242,7 +242,7 @@ Quelle: GitLab-Projekt des Teams, alle Aufgaben, gelesen über die Schnittstelle
 | #161 | Landing: / wird beim Image-Build ohne DB mit Beispieldaten vorgerendert, nach jedem Deploy einige Minuten „nicht live“ | erledigt | `epic::e0-plattform` |
 | #167 | UC2 Folge !154: lade_schutz behandelt unlesbare Namensliste wie fehlende (SchutzFehler statt PermissionError) | offen | `epic::e0-plattform` |
 | #170 | README: Satz zu gleichen Zahlen und Hashes auf frischer DB auf Regelsatz v1 einschränken, falls B1-Fix nicht bis 06:30 | offen | `epic::e0-plattform` |
-| #192 | Online: öffentliche db ohne init, Healthcheck-Timeout kann Postgres neu starten | offen | `epic::e0-plattform`, `prio::nach-abgabe` |
+| #192 | Online: Start und Zustandsprüfung der öffentlichen Datenbank härten | offen | `epic::e0-plattform`, `prio::nach-abgabe` |
 | #209 | Online: eine einzige Instanz mit Demo und Live statt zweier Adressen | offen | `epic::e0-plattform`, `prio::nach-abgabe` |
 
 ## Präsentation
