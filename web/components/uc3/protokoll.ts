@@ -124,8 +124,14 @@ function zahlenUndTage(wert: string): string {
 function wirkungText(z: ProtokollZeile, bezeichnungen: Bezeichnungen): string | null {
   const typ = text(z.typ);
   if (typ) {
-    const v = { typ, aenderungen: Array.isArray(z.aenderungen) ? z.aenderungen : [] };
-    const satz = klarerAenderungsSatz(v, bezeichnungen) ?? (klartext(v, bezeichnungen).worte.join(" ") || null);
+    // Je Änderung ein Satz: der klare Satz, sonst die Worte für genau diese Änderung. So fällt bei mehreren Änderungen
+    // keine still weg, nur weil eine andere einen klaren Satz hat.
+    const saetze = (Array.isArray(z.aenderungen) ? z.aenderungen : []).flatMap((aenderung: unknown) => {
+      const einzeln = { typ, aenderungen: [aenderung] };
+      const einer = klarerAenderungsSatz(einzeln, bezeichnungen) ?? klartext(einzeln, bezeichnungen).worte.join(" ");
+      return einer ? [einer] : [];
+    });
+    const satz = saetze.join(" ") || null;
     const ziel = text(z.regelsatz_ziel);
     if (satz) {
       const lesbar = vorherJetzt(ohneRegelsatzCode(satz));

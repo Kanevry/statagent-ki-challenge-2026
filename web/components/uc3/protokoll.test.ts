@@ -157,6 +157,22 @@ describe("eintragAus", () => {
     expect(e.wirkung).toBe("Freigegeben von Petra Probe, 06.11.2026, 00:05");
   });
 
+  it("nennt bei mehreren Änderungen jede, auch wenn nur eine einen klaren Satz hat", () => {
+    const e = eintragAus(
+      {
+        ...vorschlag,
+        aenderungen: [
+          ...(vorschlag.aenderungen as unknown[]),
+          { regel: { name: "P9_neue_pruefung", art: "pruef", beschreibung: "Eine Lieferung mit weniger als 100 Zeilen wird angehalten." } },
+        ],
+      },
+      bezeichnungen,
+    );
+    expect(e.wirkung?.split("\n")[0]).toBe(
+      "Neue Fassung 3: Beschäftigungsverhältnisse mit Kategorie Beamte zählen nicht mehr. Eine Lieferung mit weniger als 100 Zeilen wird angehalten.",
+    );
+  });
+
   it("schreibt eine geänderte Regel als vorher und jetzt", () => {
     const e = eintragAus({
       ...vorschlag,
