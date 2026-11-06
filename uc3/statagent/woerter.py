@@ -22,6 +22,10 @@ _WORT = re.compile(r"[a-zäöüß]+(?:-[a-zäöüß]+)*\d*")
 _LOSE_ZAHL = re.compile(r"(?<![a-zäöüß\d.,/-])\d{1,3}(?![\d.,/-]|\.\d)(?!\.)")
 
 
+#: „alten Regeln“ meint den Regelsatz. „alten“ allein schränkt etwas ein, das wir nicht kennen („die alten Beschäftigten“).
+_ALTE_REGELN = re.compile(r"\balten?\s+regeln?\b")
+
+
 def _liste(text: str) -> frozenset[str]:
     return frozenset(text.split())
 
@@ -71,11 +75,12 @@ _AUSWERTUNG = _liste(
     gegenueber geschlecht geschlechter ganz ganzen gesamt gesamte gesamten hoch insgesamt
     jahresdurchschnitt jahresmittel kategorie kategorien mittel mittelwert monatsdurchschnitt männeranteil oenace
     önace österreich oesterreich prozent regel summe tabelle verglichen vergleich vergleichen verlauf vs
-    wirtschaftsbereich wirtschaftsbereiche wirtschaftsbereichen wirtschaftsabschnitt wirtschaftszweig zeitreihe
+    wirtschaftsbereich wirtschaftsbereiche wirtschaftsbereichen wirtschaftsabschnitt wirtschaftszweig wirtschaftszweige
+    wirtschaftszweigen zeitreihe
     zugang zugänge zugängen zugaenge veränderung veraenderung verändert stieg sank gestiegen gesunken gewachsen
     vormonat vormonats vorjahr
     beschäftigungskategorie beschäftigungskategorien über ueber unter alter alters altersgruppe altersgruppen
-    altersverteilung regelsatz v1 eins ganze ganzes gesamtes gezählt gezaehlt zählt zaehlt zählen zaehlen alt alten regeln getrennt
+    altersverteilung regelsatz v1 eins ganze ganzes gesamtes gezählt gezaehlt zählt zaehlt zählen zaehlen regeln getrennt
     berichtsmonat österreichweit
     """
 )
@@ -87,7 +92,7 @@ def unbekanntes_wort(frage: str, erkannt: list[str]) -> str | None:
 
     ``erkannt`` sind die Textstellen, die ein Merkmal der Frage getroffen haben („Wien“, „Gesundheitswesen“).
     """
-    text = frage.lower()
+    text = _ALTE_REGELN.sub(" ", frage.lower())
     for stelle in sorted(erkannt, key=len, reverse=True):
         # Nur ganze Wörter: Sonst würde aus „arbeiten“ mit dem erkannten „IT“ das Wort „arbe“.
         text = re.sub(rf"(?<!\w){re.escape(stelle.lower())}(?!\w)", " ", text)

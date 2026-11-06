@@ -7,7 +7,7 @@ Spalten:
 
 - `soll`: `zahl`, `rueckfrage`, `absage` oder `definition`.
 - `monate`: die Monate mit Daten, die zur Frage gehören (`von..bis` oder eine Liste). Leer: keine Zahl möglich.
-- Die Zeilen `A…`, `V…` und `P…` stammen aus der Prüfung von !227, !230 und !242.
+- Die Zeilen `A…`, `V…`, `P…` und `R…` stammen aus der Prüfung von !227, !230 und !242.
 - `filter`: `region`, `geschlecht`, `kategorie`, `oenace` (Buchstabe), `branche` (Name, `%` als Platzhalter, gilt je
   ÖNACE-Version), `freier_dv`, `alter` (`von-bis`).
 - `optionen`: `mittel` (Durchschnitt muss dabei sein), `muss` (Rückfrage oder Absage reichen nicht), `auch=…` (weitere
@@ -661,3 +661,34 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | P027 | form:vergleich | zahl | 2025-02..2025-03 | - | muss | Beschäftigte im März 2025 verglichen mit dem Vormonat |
 | P028 | form:vergleich | zahl | 2025-02..2025-03 | - | muss | Beschäftigte März 2025 vs. Vormonat |
 | P029 | form:einzelperson | absage | - | - | auch=rueckfrage | Wie viele Personen hatten im Juli 2026 nur einen Job? |
+| R001 | form:anderes_thema | absage | - | - | auch=rueckfrage | Wie viele Regeln gibt es? |
+| R002 | form:anderes_thema | absage | - | - | auch=rueckfrage | Wie viele Regeln hat der Regelsatz v1? |
+| R003 | form:anteil | absage | - | - | auch=rueckfrage | Wie viel Prozent der Frauen sind Angestellte im Juli 2026? |
+| R004 | form:anteil | absage | - | - | auch=rueckfrage | Wie viel Prozent der Männer waren im Juli 2026 im Bau beschäftigt? |
+| R005 | form:anteil | absage | - | - | auch=rueckfrage | Wie viel Prozent der Frauen in Wien arbeiten im Bau im Juli 2026? |
+| R006 | form:anteil | absage | - | - | auch=rueckfrage | Wie viel Prozent von den Männern arbeiten im Bau im Juli 2026? |
+| R007 | form:anteil | absage | - | - | auch=rueckfrage | Anteil der Männer, die im Bau arbeiten, im Juli 2026 |
+| R008 | form:anteil | zahl | 2026-07 | region=9 | art=anteil;anteil=geschlecht:W;muss | Frauenanteil in Wien im Juli 2026 |
+| R009 | form:anteil | zahl | 2026-07 | branche=Bau | art=anteil;anteil=geschlecht:W;muss | Anteil der Frauen im Bau im Juli 2026 |
+| R010 | form:anteil | zahl | 2026-07 | kategorie=Arbeiter | art=anteil;anteil=geschlecht:W;muss | Anteil der Frauen unter Arbeitern im Juli 2026 |
+| R011 | form:anteil | zahl | 2026-07 | - | art=anteil;anteil=geschlecht:W;auch=rueckfrage,absage | Wie viel Prozent der Frauen im Juli 2026 |
+| R012 | form:vergleich | rueckfrage | - | - | auch=absage | Wie hat sich die Beschäftigung gegenüber dem Vormonat verändert? |
+| R013 | form:vergleich | rueckfrage | - | - | auch=absage | Beschäftigte im Vergleich zum Vormonat |
+| R014 | form:vergleich | rueckfrage | - | - | auch=absage | Beschäftigte gegenüber dem Vorjahr |
+| R015 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte März-25 |
+| R016 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte Q1-25 |
+| R017 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte Mrz-25 |
+| R018 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte 03.25 |
+| R019 | zeit:kurz | rueckfrage | - | - | auch=absage | Beschäftigte am 31.03.25 |
+| R020 | merkmal:alter | zahl | 2026-07 | alter=18-25 | muss | Beschäftigte zwischen 18-25 Jahren im Juli 2026 |
+| R021 | merkmal:bundesland | zahl | 2026-07 | region=9 | muss | Beschäftigte bezogen auf das Bundesland Wien im Juli 2026 |
+| R022 | merkmal:branche | zahl | 2026-07 | branche=Bau | muss | Beschäftigte bezogen auf die Branche Bau im Juli 2026 |
+| R023 | zeit:ungueltig | absage | - | - | auch=rueckfrage | Beschäftigte im Jänner 0000 gegenüber dem Vormonat |
+| R024 | merkmal:alter,form:anderes_thema | absage | - | - | auch=rueckfrage | Wie viele von den alten Menschen arbeiten? |
+| R025 | merkmal:alter,form:anderes_thema | absage | - | - | auch=rueckfrage | Wie viele der alten Beschäftigten gab es im März 2025? |
+| R026 | merkmal:alter,form:anderes_thema | absage | - | - | auch=rueckfrage | Wie viele Beschäftigte sind alt? |
+| R027 | merkmal:regelsatz | zahl | 2026-07 | - | muss | Beschäftigte nach alten Regeln im Juli 2026 |
+| R028 | form:fluktuation,form:rang | zahl | 2025-03 | - | art=fluktuation;muss | Branche mit höchster Fluktuation im März 2025 |
+| R029 | form:vergleich | rueckfrage | - | - | auch=absage | Wie viele Männer waren im Vormonat von Dezember 2025 beschäftigt? |
+| R030 | form:gliederung,merkmal:branche | zahl | 2026-07 | - | gruppe=oenace;muss | Beschäftigte in den Wirtschaftszweigen im Juli 2026 |
+| R031 | form:gliederung,merkmal:bundesland | zahl | 2026-07 | - | gruppe=region;muss | Beschäftigte in den Bundesländern im Juli 2026 |

@@ -147,10 +147,33 @@ def _auspraegung(frage: str, merkmal: Merkmal, codes: dict[str, str]) -> str | N
     return None
 
 
+#: „aufgeteilt auf die Bundesländer“: nur die Mehrzahl. „bezogen auf das Bundesland Wien“ ist ein Filter.
+_GLIEDERUNG_MEHRZAHL = {
+    "Bundesland": "bundesländer|bundeslaender",
+    "Geschlecht": "geschlechter",
+    "ÖNACE-Abschnitt": "branchen|wirtschaftsbereiche|wirtschaftszweige|abschnitte",
+    "Beschäftigungskategorie": "kategorien|beschäftigungskategorien",
+}
+
+
+#: „in den Wirtschaftszweigen“ fragt je Gruppe; die Gesamtzahl wäre eine andere Antwort.
+_GLIEDERUNG_IN_DEN = {
+    "Bundesland": "bundesländern|bundeslaendern",
+    "ÖNACE-Abschnitt": "branchen|wirtschaftsbereichen|wirtschaftszweigen|abschnitten",
+}
+
+
 def _gliederung(frage: str) -> Merkmal | None:
     text = frage.lower()
     for merkmal in MERKMALE:
-        if any(re.search(rf"(?<!\w)(?:nach|je|pro|auf)\s+(?:\w+\s+)?{w}", text) for w in merkmal.gliederung):
+        if any(re.search(rf"(?<!\w)(?:nach|je|pro)\s+(?:\w+\s+)?{w}", text) for w in merkmal.gliederung):
+            return merkmal
+    for merkmal in MERKMALE:
+        mehrzahl = _GLIEDERUNG_MEHRZAHL.get(merkmal.name)
+        if mehrzahl and re.search(rf"(?<!\w)auf\s+(?:die\s+|alle\s+)?(?:{mehrzahl})(?!\w)", text):
+            return merkmal
+        wem = _GLIEDERUNG_IN_DEN.get(merkmal.name)
+        if wem and re.search(rf"(?<!\w)in\s+(?:den|allen)\s+(?:{wem})(?!\w)", text):
             return merkmal
     return None
 
@@ -711,8 +734,9 @@ def uc4_antwort(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[str
     """
     from statagent import frage as weg  # hier, weil statagent.frage aus diesem Modul importiert
 
-    frage = weg.alltag_lesen(frage)
+    # Ungelesen: antwort_frage erkennt „Prozent der Frauen“, bevor daraus „Anteil“ wird.
     daten = weg.antwort_frage(conn, frage, regelsatz)
+    frage = weg.alltag_lesen(frage)
     if (
         daten["typ"] in ("bestand", "geschlecht")
         and daten["text"].startswith(weg.MEHRERE_WERTE)

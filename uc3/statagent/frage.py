@@ -304,14 +304,15 @@ _VERAENDERUNG = re.compile(
 _MONATSWORT = "|".join(sorted(map(re.escape, MONATSNAMEN), key=len, reverse=True))
 #: „im Monat nach Dezember 2025“, „vor Juni“, „nach dem Ende des Winters“: Der Monat in der Frage ist nicht der gemeinte.
 _ZEITBEZUG = re.compile(
-    rf"\b(?:vor|nach)\s+(?:dem\s+|der\s+|den\s+)?(?:ende\b|beginn\b|anfang\b|start\b|sommer|winter|herbst|frühling|frühjahr"
+    rf"\bvormonats?\s+(?:von|zu|des)\b|\b(?:vor|nach)\s+(?:dem\s+|der\s+|den\s+)?(?:ende\b|beginn\b|anfang\b|start\b|sommer|winter|herbst|frühling|frühjahr"
     rf"|(?:{_MONATSWORT})\b)",
     re.IGNORECASE,
 )
 #: „Wie viel Prozent der Männer arbeiten im Bau“ ist der Anteil an den Männern, nicht der Männeranteil im Bau.
+#: Gilt mit einem weiteren Merkmal; „Prozent der Beschäftigten in Wien sind Frauen“ ist der Männer- und Frauenanteil.
 _PROZENT_VON_GRUPPE = re.compile(
-    r"\b(?:prozent|anteil)\s+(?:der|aller)\s+(?:frauen|männer|maenner)\s+(?:arbeite|\w+\s+arbeite|sind\s+(?:in|im|bei))"
-    r"|\bprozent\s+(?:der|aller)\s+(?:frauen|männer|maenner)\b",
+    r"\bprozent\s+(?:der|aller|von\s+den)\s+(?:frauen|männer|männern|maenner|maennern)\b"
+    r"|\banteil\s+(?:der|aller)\s+(?:frauen|männer|maenner)\s*,?\s+die\b",
     re.IGNORECASE,
 )
 #: „nur einen Job“, „genau eine Stelle“: Das fragt nach Personen, gezählt werden Verhältnisse.
@@ -321,10 +322,11 @@ _EIN_VERHAELTNIS = re.compile(
 )
 #: „Wie viele Bundesländer …“ fragt nach etwas anderem als nach Beschäftigungsverhältnissen.
 _ZAEHLT_ANDERES = re.compile(
-    r"\bwie\s*viele\s+(?:der\s+|von\s+den\s+)?(?:bundesl\w*|branchen|wirtschaftsbereich\w*|abschnitte|kategorien|monate)\b",
+    r"\bwie\s*viele\s+(?:der\s+|von\s+den\s+)?(?:bundesl\w*|branchen|wirtschaftsbereich\w*|abschnitte|kategorien|monate|regeln|regelsätze)\b",
     re.IGNORECASE,
 )
 _KEIN_DATUM = f"Daten gibt es nur für {zeitraum_anzeige(ERSTE_LIEFERUNG, LETZTE_LIEFERUNG)}. Bitte einen Zeitraum darin nennen."
+_VOR_ZEIT = re.compile(r"\b(?:vormonats?|vorjahr(?:es)?)\b", re.IGNORECASE)
 _VERNEINUNG = frozenset(
     {"außer", "ausser", "ohne", "nicht", "kein", "keine", "keinen", "keiner", "ausgenommen"}
 )
@@ -501,7 +503,7 @@ def _ohne_altersangabe(frage: str) -> str:
     text = frage.lower()
     for muster, _ in _ALTER_MUSTER:
         text = muster.sub(" ", text)
-    return text
+    return re.sub(r"\b(?:jahre\s+)?alt\b", " ", text)
 
 
 def nicht_auswertbar(frage: str, mittel: bool = False) -> str | None:
@@ -1040,6 +1042,15 @@ def _laufinfo(conn: Verbindung, regelsatz: str, staende: list[dict[str, Any]]) -
     return {int(str(z["id"])): (int(str(z["fortgeschrieben"])), bool(z["stichtag"])) for z in zeilen}
 
 
+def _weiteres_merkmal(conn: Verbindung, frage: str, letzter: str) -> bool:
+    """Nennt die Frage neben dem Geschlecht noch ein Merkmal („im Bau“, „Angestellte“)?"""
+    gelesen = _normalisieren(frage, letzter)[0]
+    genannt = monate_lesen(gelesen)
+    monat = genannt[-1] if genannt else letzter
+    alle = tuple(m for m in MERKMALE if m is not GESCHLECHT)
+    return any(_werte(gelesen, m, _codes(conn, m, monat))[0] for m in alle)
+
+
 def _zwei_merkmale_mit_und(frage: str, je_merkmal: list[tuple[str, str]]) -> None:
     """„Frauen und Beamte“ nennt zwei Merkmale: Beide zugleich oder zwei Zahlen? Das rechnen wir nicht still."""
     text = frage.lower()
@@ -1101,7 +1112,7 @@ def _filter(
     if not woerter:
         return filter_, etiketten
     if _FLUKTUATION.search(frage.lower()):
-        erkannt += ["höchste", "höchsten", "hoechste", "am höchsten"]
+        erkannt += ["höchste", "höchsten", "höchster", "höchstem", "höchstes", "hoechste", "am höchsten"]
     fremd = unbekanntes_wort(_ohne_altersangabe(frage) if alter is not None else frage, erkannt)
     if fremd is not None and fremd.lower() in _VERNEINUNG:
         raise _KeineZahl(
@@ -1434,7 +1445,10 @@ def _bestand_antwort(
                 anteile.append(f"{name} {_komma(wert)} Prozent")
         if anteile:
             text += " Anteil an allen: " + ", ".join(anteile) + "."
-            antwortsatz, ersetzt = f"Anteil an allen{zusatz}: {', '.join(anteile)}.", ""
+            antwortsatz, ersetzt = (
+                f"Anteil an allen{zusatz} im {_monat_anzeige(von)}: {', '.join(anteile)}.",
+                "",
+            )
     if gruppen == (ALTERSGRUPPE,) and von == bis:
         # Summe aller Alter für die letzte Tabellenzeile, als eigene Abfrage mit eigenem Beleg.
         alle_sql = bestand_sql(conn, regelsatz, von, bis, filter_, ())
@@ -1885,6 +1899,7 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     """
     if ist_pensionsfrage(frage) and not _PERSON.search(frage.lower()):
         return _pensionsfrage(conn, frage)
+    prozent_von_gruppe = _PROZENT_VON_GRUPPE.search(frage) is not None
     frage = alltag_lesen(frage)
     try:
         letzter = _letzter_monat(conn, regelsatz)
@@ -1899,12 +1914,6 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     grund = unklar(frage, letzter or LETZTE_LIEFERUNG)
     if grund is not None:
         return _rueckfrage(grund)
-    if _PROZENT_VON_GRUPPE.search(frage):
-        text = (
-            "Einen Anteil an den Frauen oder an den Männern rechnet StatAgent nicht, nur den Frauen- und Männeranteil "
-            "an allen. Zum Beispiel „Wie viel Prozent der Beschäftigten in Wien sind Frauen?“."
-        )
-        return _antwort(fragetyp(frage), text, hinweise=[text])
     if _EIN_VERHAELTNIS.search(frage):
         text = f"Wie viele Jobs eine Person hat, wertet StatAgent nicht aus. {KANN}"
         return _antwort(fragetyp(frage), text, hinweise=[text])
@@ -1916,9 +1925,15 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     if _ZAEHLT_ANDERES.search(frage):
         return _antwort(
             fragetyp(frage),
-            f"StatAgent zählt Beschäftigungsverhältnisse, nicht Bundesländer, Branchen oder Monate. {KANN}",
+            f"StatAgent zählt Beschäftigungsverhältnisse, nicht Bundesländer, Branchen, Monate oder Regeln. {KANN}",
         )
     try:
+        if prozent_von_gruppe and _weiteres_merkmal(conn, frage, letzter or LETZTE_LIEFERUNG):
+            text = (
+                "Einen Anteil an den Frauen oder an den Männern rechnet StatAgent nicht, nur den Frauen- und "
+                "Männeranteil an allen. Zum Beispiel „Wie viel Prozent der Beschäftigten in Wien sind Frauen?“."
+            )
+            return _antwort(fragetyp(frage), text, hinweise=[text])
         if regelsatz == "v1":
             regelsatz = _regelsatz_der_frage(frage) or regelsatz
         if regelsatz != "v1":
@@ -1932,7 +1947,13 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     except ValueError:  # „März 0000“: Dieses Datum gibt es nicht.
         return _antwort(fragetyp(frage), _KEIN_DATUM, hinweise=[_KEIN_DATUM])
     hinweis_tag = tag_hinweis(frage)
-    frage, notizen, mittel = _normalisieren(frage, letzter or LETZTE_LIEFERUNG)
+    try:
+        frage, notizen, mittel = _normalisieren(frage, letzter or LETZTE_LIEFERUNG)
+    except ValueError:  # „Jänner 0000 gegenüber dem Vormonat“: Den Monat davor gibt es nicht.
+        return _antwort(fragetyp(frage), _KEIN_DATUM, hinweise=[_KEIN_DATUM])
+    if _VOR_ZEIT.search(frage) and not monate_lesen(frage) and jahr_ohne_monat(frage) is None:
+        # „gegenüber dem Vormonat“ ohne Monat: Eine ganze Reihe wäre eine andere Antwort.
+        return _rueckfrage_monat("bestand", None)
     if hinweis_tag:
         notizen.insert(0, hinweis_tag)
     typ = fragetyp(frage)

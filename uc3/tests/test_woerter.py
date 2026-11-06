@@ -7,6 +7,7 @@ import pytest
 from statagent.db import Verbindung
 from statagent.frage import antwort_frage
 from statagent.lauf import lauf_ausfuehren
+from statagent.uc4 import uc4_antwort
 from statagent.woerter import unbekanntes_wort
 
 
@@ -255,3 +256,74 @@ def test_nur_ein_job_sagt_ab(zwei_monate: Verbindung) -> None:
 def test_lose_zahl_heisst_angabe(zwei_monate: Verbindung) -> None:
     daten = antwort_frage(zwei_monate, "Beschäftigte mit 25 Jahren im August 2024")
     assert daten["zahlen"] == [] and daten["text"].startswith("Die Angabe „25“")
+
+
+# Fängt (Prüfung !242, Runde 2): Diese Fragen ergaben die Gesamtzahl.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Wie viele Regeln gibt es?",
+        "Wie viele der alten Beschäftigten gab es im August 2024?",
+        "Wie viele Beschäftigte sind alt?",
+        "Wie viel Prozent der Frauen sind Angestellte im August 2024?",
+        "Wie viel Prozent der Männer waren im August 2024 im Bau beschäftigt?",
+        "Wie viel Prozent der Frauen in Wien arbeiten im Bau im August 2024?",
+        "Wie viel Prozent von den Männern arbeiten im Bau im August 2024?",
+        "Anteil der Männer, die im Bau arbeiten, im August 2024",
+        "Wie hat sich die Beschäftigung gegenüber dem Vormonat verändert?",
+        "Beschäftigte im Vergleich zum Vormonat",
+        "Beschäftigte gegenüber dem Vorjahr",
+        "Beschäftigte im Jänner 0000 gegenüber dem Vormonat",
+        "Beschäftigte März-25",
+        "Beschäftigte Q1-25",
+        "Beschäftigte Mrz-25",
+        "Beschäftigte 03.25",
+        "Beschäftigte am 31.03.25",
+        "Wie viele Männer waren im Vormonat von September 2024 beschäftigt?",
+    ],
+)
+def test_runde_zwei_ohne_zahl(zwei_monate: Verbindung, frage: str) -> None:
+    assert antwort_frage(zwei_monate, frage)["zahlen"] == []
+    assert uc4_antwort(zwei_monate, frage)["zahlen"] == []
+
+
+# Gegenfälle: Diese Fragen behalten ihre Zahl.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Wie viel Prozent der Beschäftigten in Wien sind Frauen? Stand August 2024",
+        "Frauenanteil in Wien im August 2024",
+        "Anteil der Frauen im Bau im August 2024",
+        "Anteil der Frauen unter Arbeitern im August 2024",
+        "Wie viel Prozent der Frauen im August 2024",
+        "Beschäftigte zwischen 18-25 Jahren im August 2024",
+        "Gab es im August 2024 über 20.000 Beschäftigte in Wien?",
+        "Wie viele Beschäftigte waren im August 2024 über 50 Jahre alt?",
+        "Beschäftigte nach alten Regeln im August 2024",
+    ],
+)
+def test_runde_zwei_mit_zahl(zwei_monate: Verbindung, frage: str) -> None:
+    assert uc4_antwort(zwei_monate, frage)["zahlen"]
+
+
+# Fängt (Prüfung !242, Runde 2): „auf“ machte aus dem Filter eine Aufteilung.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Beschäftigte bezogen auf das Bundesland Wien im August 2024",
+        "Beschäftigte bezogen auf die Branche Bau im August 2024",
+    ],
+)
+def test_bezogen_auf_bleibt_filter(zwei_monate: Verbindung, frage: str) -> None:
+    assert len(uc4_antwort(zwei_monate, frage)["zahlen"]) == 1
+
+
+def test_anteil_nennt_den_monat_im_ersten_satz(zwei_monate: Verbindung) -> None:
+    daten = uc4_antwort(zwei_monate, "Frauenanteil in Wien im August 2024")
+    assert daten["text"].startswith("Anteil an allen (Wien) im August 2024: ")
+
+
+def test_in_den_wirtschaftszweigen_ist_eine_gliederung(zwei_monate: Verbindung) -> None:
+    assert (
+        len(uc4_antwort(zwei_monate, "Beschäftigte in den Wirtschaftszweigen im August 2024")["zahlen"]) > 1
+    )
