@@ -7,7 +7,7 @@ Spalten:
 
 - `soll`: `zahl`, `rueckfrage`, `absage` oder `definition`.
 - `monate`: die Monate mit Daten, die zur Frage gehören (`von..bis` oder eine Liste). Leer: keine Zahl möglich.
-- Die Zeilen `A…`, `V…`, `P…`, `R…` und `T…` stammen aus der Prüfung von !227, !230 und !242.
+- Die Zeilen `A…`, `V…`, `P…`, `R…` und `T…` stammen aus der Prüfung von !227, !230 und !242, `U…` aus den Resten in #186.
 - `filter`: `region`, `geschlecht`, `kategorie`, `oenace` (Buchstabe), `branche` (Name, `%` als Platzhalter, gilt je
   ÖNACE-Version), `freier_dv`, `alter` (`von-bis`).
 - `optionen`: `mittel` (Durchschnitt muss dabei sein), `muss` (Rückfrage oder Absage reichen nicht), `auch=…` (weitere
@@ -709,3 +709,13 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | T015 | form:gliederung | absage | - | - | auch=rueckfrage | Männer und Frauen je Branche im Juli 2026 |
 | T016 | form:fluktuation | rueckfrage | - | - | auch=absage | Fluktuation gegenüber dem Vormonat |
 | T017 | merkmal:branche,merkmal:kategorie | zahl | 2025-11 | branche=Verkehr und Lagerei;kategorie=Angestellte | muss | Wie viele Angestellte gab es im November 2025 im Verkehr und in der Lagerei? |
+| U001 | form:veraenderung,merkmal:regelsatz | absage | - | - | auch=rueckfrage | Wie hat sich die Zahl der Beschäftigten in Tirol im Juni 2026 gegenüber dem Vormonat verändert, gezählt nach den Änderungsaufträgen? |
+| U002 | zeit:relativ,merkmal:regelsatz | absage | - | - | auch=rueckfrage | Beschäftigte im Vormonat nach Regelsatz v2 |
+| U003 | form:anteil | absage | - | - | auch=rueckfrage | Von allen beschäftigten Männern: Wie viel Prozent arbeiten im März 2026 in der Herstellung von Waren? |
+| U004 | form:anteil | absage | - | - | auch=rueckfrage | Wie viel Prozent von allen Frauen arbeiten im März 2026 in Wien? |
+| U005 | form:anteil | absage | - | - | auch=rueckfrage | Wie viel Prozent der weiblichen Beschäftigten arbeiten im März 2026 im Bau? |
+| U006 | form:anteil | absage | - | - | auch=rueckfrage | Wie groß ist der Anteil Kärntens an allen beschäftigten Männern im Mai 2026? |
+| U007 | form:anteil | absage | - | - | auch=rueckfrage | Wie viele von hundert Frauen arbeiten im Juni 2026 in Erziehung und Unterricht? |
+| U008 | form:anteil,zeit:seit | rueckfrage | - | - | auch=absage | Frauenanteil seit Jänner 2025 |
+| U009 | merkmal:regelsatz,form:gliederung | zahl | 2026-06 | - | regelsatz=v2;gruppe=geschlecht;auch=absage,rueckfrage | Beschäftigte im Juni 2026 aufgeschlüsselt nach Geschlecht, nach den Änderungsaufträgen gerechnet |
+| U010 | merkmal:kategorie,merkmal:bundesland | zahl | 2025-11 | region=5 | werte_je=kategorie:Arbeiter,Angestellte,Beamte;auch=absage,rueckfrage | Beschäftigte in Salzburg im November 2025, unterteilt in Arbeiter, Angestellte und Beamte |

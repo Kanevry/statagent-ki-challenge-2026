@@ -397,3 +397,19 @@ def test_lagerei_gehoert_zum_verkehr(zwei_monate: Verbindung) -> None:
 def test_je_branche_im_satz(zwei_monate: Verbindung) -> None:
     daten = uc4_antwort(zwei_monate, "Männer und Frauen je Branche im August 2024")
     assert daten["text"].startswith("Männer und Frauen je Branche zeigt StatAgent nicht auf einmal.")
+
+
+# Fängt (Blind-Runden, #186): die andere Richtung beim Anteil, in weiteren Formen.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Von allen beschäftigten Männern: Wie viel Prozent arbeiten im August 2024 in der Herstellung von Waren?",
+        "Wie viel Prozent von allen Frauen arbeiten im August 2024 in Wien?",
+        "Wie viel Prozent der weiblichen Beschäftigten arbeiten im August 2024 im Bau?",
+        "Wie groß ist der Anteil Kärntens an allen beschäftigten Männern im August 2024?",
+        "Wie viele von hundert Frauen arbeiten im August 2024 im Bau?",
+        "Frauenanteil seit August 2024",
+    ],
+)
+def test_anteil_andere_richtung_und_zeitraum_ohne_zahl(zwei_monate: Verbindung, frage: str) -> None:
+    assert uc4_antwort(zwei_monate, frage)["zahlen"] == []

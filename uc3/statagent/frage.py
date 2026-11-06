@@ -313,7 +313,12 @@ _ZEITBEZUG = re.compile(
 _PROZENT_VON_GRUPPE = re.compile(
     r"\bprozent\s+(?:der|aller|von\s+den)\s+(?:frauen|männer|männern|maenner|maennern)\b"
     r"|\banteil\s+(?:der|aller)\s+(?:frauen|männer|maenner)\s*,?\s+die\b"
-    r"|\banteil\s+(?:der|aller)\s+(?:frauen|männer|maenner)\s+(?:arbeite\w*|(?:ist|war|sind|waren)\s+(?:in|im|bei)\b)",
+    r"|\banteil\s+(?:der|aller)\s+(?:frauen|männer|maenner)\s+(?:arbeite\w*|(?:ist|war|sind|waren)\s+(?:in|im|bei)\b)"
+    r"|\bvon\s+(?:allen|den)\s+(?:\w+\s+)?(?:frauen|männern|maennern)\b[^?]*\b(?:prozent|anteil)\b"
+    r"|\bprozent\s+von\s+allen\s+(?:\w+\s+)?(?:frauen|männern|maennern)\b"
+    r"|\bprozent\s+(?:der|aller)\s+(?:weiblichen|männlichen|maennlichen)\s+beschäftigten\b"
+    r"|\banteil\b[^?]*\ban\s+(?:allen|den)\s+(?:\w+\s+)?(?:frauen|männern|maennern)\b"
+    r"|\bvon\s+hundert\s+(?:frauen|männern|maennern)\b",
     re.IGNORECASE,
 )
 #: „nur einen Job“, „genau eine Stelle“: Das fragt nach Personen, gezählt werden Verhältnisse.
@@ -858,6 +863,13 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
         return _antwort(typ, text, hinweise=[text])
     if beide:
         text = f"Die Datenanfrage zeigt immer nur einen Regelsatz. Fragen Sie je einmal. {beispiel}"
+        return _antwort(typ, text, hinweise=[text])
+    if _VERGLEICH_VORMONAT.search(frage) or (_VERAENDERUNG.search(frage) and not _SEIT.search(frage)):
+        # Der v2-Weg zeigt einen Monat oder Zeitraum: Der Stand eines Monats wäre hier eine andere Antwort.
+        text = (
+            f"Einen Vergleich mit dem Vormonat zeigt StatAgent im Regelsatz {regelsatz} nicht. Bitte einen Monat oder "
+            f"Zeitraum nennen, zum Beispiel „Beschäftigte März bis Juni 2025 nach Regelsatz {regelsatz}“."
+        )
         return _antwort(typ, text, hinweise=[text])
     if _ZEITREIHE.search(frage.lower()):
         text = (
@@ -2048,10 +2060,11 @@ def _antwort_frage(
                 "Einen Anteil rechnet StatAgent nur für Frauen und Männer. Für alles andere: beide Zahlen einzeln "
                 f"fragen, zum Beispiel „Beschäftigte nach Bundesland im März 2025“. {KANN}"
             )
-        if len(set(monate)) > 1:
+        # Auch „seit Jänner 2025“: Das ist ein Zeitraum, die Antwort wäre sonst die Menge statt des Anteils.
+        if len(set(monate)) > 1 or typ == "zeitreihe":
             return _rueckfrage(
                 "Den Anteil gibt es je Monat. Für welchen Monat möchten Sie ihn, zum Beispiel "
-                f"„Frauenanteil im {_monat_anzeige(monate[-1])}“?"
+                f"„Frauenanteil im {_monat_anzeige(monate[-1] if monate else LETZTE_LIEFERUNG)}“?"
             )
     if typ == "zeitreihe":
         _aufteilung(frage)  # Männer und Frauen je Altersgruppe: Absage
