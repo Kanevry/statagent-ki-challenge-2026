@@ -15,7 +15,7 @@ stehen hier sinngemäß, bei den Bewertungsbereichen wörtlich gekürzt. Kurzfas
 | UC3 StatAgent | Veranstalter | gewählt und bewertet (Commit „Select use case uc3“, 05.11.2026 12:10; [`KI-Challenge_UseCase.yaml`](../../KI-Challenge_UseCase.yaml)) | Alle fünf Abgabeteile liegen vor, die Mindestanforderung ist in allen sechs Bewertungsbereichen erfüllt, das Optimum in zwei ganz und in vier teilweise. |
 | UC1 SV KI-Lotse | Veranstalter | Zusatz, nicht bewertet | Der Lotse antwortet mit einem Zitat an jeder Aussage; online läuft nur ein aufgezeichneter Fall, eigene Fragen gehen nur lokal. |
 | UC2 HealthPolicy Simulator | Veranstalter | Zusatz, nicht bewertet | Institutionen verhandeln mit Moderator über die Wartezeiten auf Facharzttermine; online als Aufzeichnung mit gekennzeichneten erfundenen Beispielbelegen und seit dem 06.11. mit der Seite `/uc2/frage`, auf der ein Modell live auf eine eigene Frage antwortet. |
-| UC4 Gemeinsamer Einstieg | eigene Idee des Teams | Zusatz, nicht bewertet | Eine Frage läuft durch drei Stationen; nur die erste rechnet aus der Datenbank, die beiden anderen sind Modelltext oder Vorlage. |
+| UC4 Gemeinsamer Einstieg | eigene Idee des Teams | Zusatz, nicht bewertet | Eine Frage läuft durch drei Stationen. Die erste holt die Zahl aus der Datenbank. Die zweite rechnet nur, wenn die Frage das Wort „Wartezeit“ enthält, sonst ist sie Modelltext oder feste Sätze. Die dritte ist eine Vorlage. |
 
 ## Use Case 3 StatAgent
 
@@ -138,8 +138,10 @@ als „Quelle: Medium, Monat“, ohne Link auf den Artikel; eine Haltung ohne pa
 Persönliche Angaben und Fragen außerhalb der Gesundheitspolitik bekommen ohne Modellaufruf einen festen Satz. Es ist
 keine echte Verhandlung und keine Aussage dieser Organisationen.
 
-**Was offen ist.** Der Abgleich [`docs/plan/uc2/scope-abgleich.md`](../plan/uc2/scope-abgleich.md) stuft fünf der
-sechs Themen des Spieltheorie-Teils als „teilweise“ ein, die Verhandlungsmacht als „zurückgestellt“. Die
+**Was offen ist.** Den optionalen spieltheoretischen Modus gibt es nicht: Er ist zurückgestellt, dafür gibt es
+weder Code noch Daten noch eine Oberfläche ([`docs/plan/uc2/scope-abgleich.md`](../plan/uc2/scope-abgleich.md),
+„Entscheid zum Spieltheoriemodus“). Derselbe Abgleich stuft fünf von sechs Themen der Aufgabe als „teilweise“ ein,
+die Verhandlungsmacht als „zurückgestellt“. Die
 Rechtstexte (SozDok) sind bereitgestellt, aber nicht indiziert. In [`matrix-uc2.md`](../abnahme/matrix-uc2.md)
 (Stand 06.11.2026 05:03) ist von 14 Kriterien keines bestanden, 5 stehen auf „nicht geprüft“ und 9 auf „nach der
 Abgabe“, darunter historische Presse (84),
@@ -155,7 +157,7 @@ Bewertung ([README](../../README.md), Tabelle „Was gebaut wurde“).
 | Station | Was dort entsteht | Echt gerechnet? | Beleg |
 |---|---|---|---|
 | 1 Zahl | erkennt Monat, Region und Branche ohne Sprachmodell und holt die Zahl per SQL aus `stat.stat_beschaeftigte`, mit Abfrage als Beleg | ja | [`uc3/statagent/uc4.py`](../../uc3/statagent/uc4.py), Zeile 1 bis 11 |
-| 2 Abwägung | kurze Verhandlung über ein Sprachmodell, eine Runde mit höchstens drei Akteuren; liefert das Modell keinen brauchbaren Text, kommen feste Sätze; zählt die Zahl nicht die Versorgung, wägt die Station nicht ab | nein, Modelltext oder feste Sätze | [`uc2/src/uc2/antwort/adapter.py`](../../uc2/src/uc2/antwort/adapter.py), Zeile 1 bis 20 und 503 bis 506; [`allgemein.py`](../../uc2/src/uc2/antwort/allgemein.py), Zeile 97 bis 100 und 246 bis 251 |
+| 2 Abwägung | kurze Verhandlung über ein Sprachmodell, eine Runde mit höchstens drei Akteuren; liefert das Modell keinen brauchbaren Text, kommen feste Sätze. Enthält die Frage „Wartezeit“, rechnet der Code vorher das Maßnahmenpaket des Falls durch, und die Verhandlung nutzt diese Zahlen. Sonst gilt: Zählt die Zahl von Station 1 nicht die Versorgung, wägt die Station nicht ab | nur beim Fall Wartezeiten, und dort nur das Paket; sonst nein, Modelltext oder feste Sätze | [`uc2/src/uc2/antwort/adapter.py`](../../uc2/src/uc2/antwort/adapter.py), Zeile 1 bis 20, 110 bis 119, 553 bis 554 und 567 bis 568; [`allgemein.py`](../../uc2/src/uc2/antwort/allgemein.py), Zeile 99 bis 102 und 268 bis 288 |
 | 3 Was es heißt | in der Kette eine Vorlage ohne Modell, gebaut aus der Zahl und dem Ergebnis von Station 2 | nein, Vorlage | [`uc1/uc1/uc4.py`](../../uc1/uc1/uc4.py), Zeile 20 bis 25 |
 
 Findet Station 1 keine Zahl, hält die Kette an ([`router.py`](../../shared/py/plattform/router.py), Zeile 15 bis 18).
