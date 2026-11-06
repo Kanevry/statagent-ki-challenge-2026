@@ -728,10 +728,10 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 
 Die Zeilen `X…` stammen aus der Blind-Runde zu !328. X002 bekommt heute eine Absage (#207); rechnet das Programm
 später beide Aufteilungen über einen Zeitraum, gilt die Zahl je Monat, Geschlecht und Bundesland. In X036 hat „dort“
-keinen Bezug; das Programm liest es als ganz Österreich und nennt eine Zahl, eine Rückfrage wäre ebenso richtig.
+keinen Bezug: Das Programm fragt nach dem Bundesland, statt eine Zahl für ganz Österreich zu nennen.
 
 | id | achsen | soll | monate | filter | optionen | frage |
 | --- | --- | --- | --- | --- | --- | --- |
 | X001 | zeit:monat,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale,blind | zahl | 2026-07 | - | gruppe=geschlecht+region;summen | Wie viele Männer und Frauen gibt es in jedem Bundesland im Juli 2026? |
 | X002 | zeit:winter,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale,blind | zahl | 2024-12..2025-02 | - | gruppe=geschlecht+region;summen;auch=absage | Beschäftigte im Winter 2025 nach Geschlecht und Bundesland |
-| X036 | zeit:winter,zeit:ohne_jahr,merkmal:geschlecht,merkmal:alter,merkmal:branche,blind | rueckfrage | 2025-12..2026-02 | geschlecht=W;branche=Handel%;alter=0-29 | auch=zahl | Wie viele Frauen unter 30 im Handel gibt es dort im Winter? |
+| X036 | zeit:winter,zeit:ohne_jahr,merkmal:geschlecht,merkmal:alter,merkmal:branche,blind | rueckfrage | - | - | text=dort | Wie viele Frauen unter 30 im Handel gibt es dort im Winter? |

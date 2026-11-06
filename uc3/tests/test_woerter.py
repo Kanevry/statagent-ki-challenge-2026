@@ -412,6 +412,13 @@ def test_je_branche_im_satz(zwei_monate: Verbindung) -> None:
         ),
         ("Beschäftigte im August 2024 nach Geschlecht und Branche", "je Branche zeigt"),
         ("Beschäftigte im August 2024 nach Geschlecht pro Branche", "je Branche zeigt"),
+        (
+            "Beschäftigte von August bis September 2024 nach Geschlechtern und Bundesländern",
+            "je Bundesland zeigt",
+        ),
+        ("Beschäftigte von August bis September 2024 nach Geschlecht / Bundesland", "je Bundesland zeigt"),
+        ("Beschäftigte im August 2024 nach Geschlecht & Branche", "je Branche zeigt"),
+        ("Beschäftigte im August 2024 nach Geschlecht bzw. Branche", "je Branche zeigt"),
     ],
 )
 def test_zweite_aufteilung_faellt_nicht_weg(zwei_monate: Verbindung, frage: str, absage: str) -> None:
@@ -419,20 +426,50 @@ def test_zweite_aufteilung_faellt_nicht_weg(zwei_monate: Verbindung, frage: str,
     assert not daten["zahlen"] and daten["text"].startswith(f"Männer und Frauen {absage} StatAgent")
 
 
-# Fängt (#207): ein genannter Wert nach „Geschlecht,“ ist eine Einschränkung; die Frage bekäme sonst die Absage
-# zur Aufteilung statt ihrer Zahl.
+# Fängt (#207): ein genannter Wert nach „Geschlecht,“ ist eine Einschränkung. Die Frage bekäme sonst die Absage zur
+# Aufteilung, oder für einen einzelnen Monat alle Bundesländer statt des genannten.
 @pytest.mark.parametrize(
-    "frage",
+    ("frage", "gleich_wie"),
     [
-        "Beschäftigte von August bis September 2024 nach Geschlecht, Bundesland Tirol",
-        "Beschäftigte von August bis September 2024 nach Geschlecht und im Bundesland Tirol",
-        "Beschäftigte im August 2024 nach Geschlecht, Branche Bau",
-        "Beschäftigte im August 2024 nach Geschlecht und Bundesland",
+        (
+            "Beschäftigte von August bis September 2024 nach Geschlecht, Bundesland Tirol",
+            "Männer und Frauen in Tirol von August bis September 2024",
+        ),
+        (
+            "Beschäftigte von August bis September 2024 nach Geschlecht und im Bundesland Tirol",
+            "Männer und Frauen in Tirol von August bis September 2024",
+        ),
+        (
+            "Beschäftigte im August 2024 nach Geschlecht, Bundesland Tirol",
+            "Männer und Frauen in Tirol im August 2024",
+        ),
+        ("Männer und Frauen im Bundesland Tirol im August 2024", "Männer und Frauen in Tirol im August 2024"),
+        (
+            "Beschäftigte im August 2024 nach Geschlecht, Branche Bau",
+            "Männer und Frauen im Bau im August 2024",
+        ),
+        (
+            "Beschäftigte im August 2024 nach Geschlecht und Bundesland",
+            "Wie viele Männer und Frauen je Bundesland im August 2024?",
+        ),
     ],
 )
-def test_wert_nach_geschlecht_bleibt_einschraenkung(zwei_monate: Verbindung, frage: str) -> None:
-    daten = uc4_antwort(zwei_monate, frage)
-    assert daten["zahlen"] and "zeigt StatAgent" not in daten["text"]
+def test_wert_nach_geschlecht_bleibt_einschraenkung(
+    zwei_monate: Verbindung, frage: str, gleich_wie: str
+) -> None:
+    soll = [(z["bezeichnung"], z["wert"]) for z in antwort_frage(zwei_monate, gleich_wie)["zahlen"]]
+    ist = [(z["bezeichnung"], z["wert"]) for z in antwort_frage(zwei_monate, frage)["zahlen"]]
+    assert soll and ist == soll
+
+
+# Fängt (Blind-Runde zu !328, X036): „dort“ ohne Ort in der Frage bekam eine Zahl für ganz Österreich.
+def test_dort_ohne_ort_fragt_nach(zwei_monate: Verbindung) -> None:
+    ohne = uc4_antwort(zwei_monate, "Wie viele Frauen im Handel gibt es dort im August 2024?")
+    assert not ohne["zahlen"] and ohne["text"].startswith("Die Frage sagt „dort“, nennt aber keinen Ort.")
+    mit = antwort_frage(
+        zwei_monate, "Beschäftigung in Tirol im August 2024: Wie viele Menschen hatten dort einen Job?"
+    )
+    assert mit["zahlen"] == antwort_frage(zwei_monate, "Beschäftigte in Tirol im August 2024")["zahlen"]
 
 
 # Fängt (Blind-Runden, #186): die andere Richtung beim Anteil, in weiteren Formen.
