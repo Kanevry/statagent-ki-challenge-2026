@@ -625,6 +625,22 @@ def test_prompt_des_kerns_nennt_frage_und_antwort_von_statagent(monkeypatch: pyt
             "mehr": "Mehr Personal heißt die Hälfte der Wartezeit.",
             "weniger": "Weniger Personal heißt länger warten.",
         },
+        *[
+            {
+                "mehr": f"In Wien heißt mehr Personal {menge}.",
+                "weniger": "Weniger Personal heißt länger warten.",
+            }
+            for menge in (
+                "verdoppelte Betreuung",
+                "halbierte Wartezeit",
+                "halb so lange Wartezeit",
+                "ein Fünftel weniger",
+                "ein Zehntel weniger",
+                "zweimal mehr Betreuung",
+                "dreifache Betreuung",
+                "ein Prozent weniger",
+            )
+        ],
         {"mehr": "Mehr Personal heißt kürzer warten.", "weniger": "Weniger Personal heißt länger warten."},
     ],
     ids=[
@@ -639,6 +655,14 @@ def test_prompt_des_kerns_nennt_frage_und_antwort_von_statagent(monkeypatch: pyt
         "zahlwort",
         "zahlwort-hundert",
         "haelfte",
+        "verdoppelt",
+        "halbiert",
+        "halb-so",
+        "fuenftel",
+        "zehntel",
+        "zweimal",
+        "dreifach",
+        "ein-prozent",
         "ohne-bezug-zur-frage",
     ],
 )
@@ -731,6 +755,81 @@ def test_nur_eine_branche_heisst_so(klammer: str, anfang: str) -> None:
     """Fängt „Für Bau im März“ (UI-Regie 06.11.) und „die Branche Frauen“, wenn die Regel zu weit greift."""
     bezug = bezug_aus([_kontextzahl(f"Beschäftigte ({klammer})")])
     assert bezug is not None and bezug.satz.startswith(anfang)
+
+
+@pytest.mark.parametrize(
+    ("bezeichnung", "gesundheit", "anfang"),
+    [
+        (
+            "Fluktuation, ÖNACE R Gesundheits- und Sozialwesen",
+            True,
+            "Für die Branche Gesundheits- und Sozialwesen im Oktober 2025 nennt StatAgent eine Fluktuation "
+            "von 2,09 Prozent.",
+        ),
+        (
+            "Fluktuation, ÖNACE F Bau",
+            False,
+            "Für die Branche Bau im Oktober 2025 nennt StatAgent eine Fluktuation von 2,09 Prozent.",
+        ),
+        (
+            "Fluktuation, alle Wirtschaftsbereiche (Summe der Zeilen)",
+            False,
+            "Für alle Branchen im Oktober 2025 nennt StatAgent eine Fluktuation von 2,09 Prozent.",
+        ),
+    ],
+    ids=["gesundheit", "bau", "gesamt"],
+)
+def test_fluktuation_in_der_form_von_uc3(bezeichnung: str, gesundheit: bool, anfang: str) -> None:
+    """Fängt „Für alle Branchen“ zur Fluktuation im Gesundheitswesen, die weggefallene Abwägung und „die
+    Branche Summe der Zeilen“ (Opus zu !303): UC3 schreibt „Fluktuation, ÖNACE R …“, Einheit „Prozent“."""
+    bezug = bezug_aus([_kontextzahl(bezeichnung, 2.09, "Prozent")])
+    assert bezug is not None and bezug.satz == anfang and bezug.gesundheit is gesundheit
+
+
+@pytest.mark.parametrize(
+    ("klammer", "anfang"),
+    [
+        ("freie Dienstverträge", "Für freie Dienstverträge im"),
+        ("Bundesland unbekannt", "Für Bundesland unbekannt im"),
+        ("unter 25 Jahre", "Für die Altersgruppe unter 25 Jahre im"),
+    ],
+)
+def test_merkmale_sind_keine_branche(klammer: str, anfang: str) -> None:
+    """Fängt „die Branche freie Dienstverträge“ (Opus zu !303)."""
+    bezug = bezug_aus([_kontextzahl(f"Beschäftigte ({klammer})")])
+    assert bezug is not None and bezug.satz.startswith(anfang)
+
+
+def test_altersgrenze_ist_keine_freie_zahl() -> None:
+    """Fängt den gestrichenen Bezugssatz bei Altersfragen: Die „25“ steht nicht in `zahlen` (Opus zu !303).
+    Nur als Teil des Etiketts: Eine andere Zahl mit Jahren bleibt frei."""
+    zahl = Zahl(bezeichnung="Beschäftigte (unter 25 Jahre)", wert=44685, einheit="Anzahl", beleg=0)
+    assert (
+        freie_zahlen("Für die Altersgruppe unter 25 Jahre nennt StatAgent 44.685 Beschäftigte.", [zahl]) == []
+    )
+    assert freie_zahlen("Es dauert unter 30 Jahre.", [zahl]) == ["30"]
+
+
+def test_summenzeile_nennt_was_gefragt_war() -> None:
+    """Fängt „Für alle Branchen“ zu Bau und Handel (Opus zu !303)."""
+    zeilen = [
+        _kontextzahl(f"Beschäftigte ({k})", w)
+        for k, w in (("Bau", 1), ("Handel", 2), ("Bau und Handel zusammen", 3))
+    ]
+    bezug = bezug_aus(zeilen)
+    assert bezug is not None
+    assert bezug.satz == "Für Bau und Handel zusammen im Oktober 2025 nennt StatAgent mehrere Zahlen."
+
+
+def test_kernsatz_bekommt_den_bindestrich() -> None:
+    """Fängt „Gesundheits und Sozialwesen“ aus dem Live-Lauf vom 06.11. in einem unserer zwei Beispiele."""
+    bezug = bezug_aus([_kontextzahl("Beschäftigte (Tirol, Gesundheits- und Sozialwesen)")])
+    kern = {
+        "mehr": "In Tirol heißt mehr Personal kürzer warten.",
+        "weniger": "Im Gesundheits und Sozialwesen heißt weniger Personal länger warten.",
+    }
+    text = kern_text(kern, bezug)
+    assert text is not None and "Im Gesundheits- und Sozialwesen heißt" in text
 
 
 @pytest.mark.parametrize(

@@ -10,6 +10,7 @@ import {
   STROM_TYP,
   stromEreignisSchema,
   type KettenUc,
+  MODELLWAHL,
   type Modellwahl,
   type StromEreignis,
 } from "./uc4-ergebnis";
@@ -200,12 +201,24 @@ export interface Uc4Einstellung {
   fragenOffen: boolean;
   /** Ruft eine Frage ein Modell auf? Nein: Modellwahl ausblenden, sie wirkt dann nicht. */
   mitModell: boolean;
+  /**
+   * Was man wählen darf. Online nur freigegebene Anbieter (sonst Fehler 400) und kein Testbetrieb: Ein Klick zeigte der
+   * Jury eine erfundene Zahl (UI-Regie 06.11.). Der Server nimmt ihn weiter an, die Seite bietet ihn nur nicht an.
+   */
+  modellwahl: readonly Modellwahl[];
 }
 
 /** Für die Seite /uc4 (serverseitig): was die Route mit der aktuellen Umgebung tut. */
 export function uc4Einstellung(umgebung: Umgebung = process.env): Uc4Einstellung {
   const kette = ketteAus(umgebung);
-  return { kette, fragenOffen: fragenOffen(umgebung), mitModell: ketteMitModell(kette) };
+  return {
+    kette,
+    fragenOffen: fragenOffen(umgebung),
+    mitModell: ketteMitModell(kette),
+    modellwahl: MODELLWAHL.filter(
+      (modell) => modellErlaubt(modell, umgebung) && !(umgebung.KIC_ONLINE === "1" && modell === "mock"),
+    ),
+  };
 }
 
 /** Deckel der Probierseite /uc2/frage: rund 100 Modellaufrufe am Tag, eine Frage kostet in der Regel 4 bis 5. */

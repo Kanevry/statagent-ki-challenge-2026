@@ -225,15 +225,19 @@ it("die Zahl steht mit ihren Angaben nur bei Station 1, nicht dreimal (#164)", a
   expect(seite.querySelector('[data-uc-karte="uc3"] [data-zahl]')).not.toBeNull();
 });
 
-it("der Simulator zeigt oben seine Aussage und seine eigenen Quellen, nicht die Zahl von StatAgent", async () => {
+it("der Simulator zeigt oben seine Aussage, den Beleg der Zahl von StatAgent und eine eigene Quelle", async () => {
   const seite = await fragen(strom(UC3, UC2, UC1));
   await screen.findByText(/Fertig in/);
   const karte = seite.querySelector('[data-uc-karte="uc2"]')!;
   const aussage = karte.querySelector("[data-uc4-antwort] p")!.textContent;
   expect(aussage).toBe("Mehr Personal heißt meist kürzere Wartezeiten. Weniger Personal heißt meist längere Wartezeiten.");
-  // Zwei gleiche Quellen zählen einmal, die weitergereichte Zahl fehlt hier.
-  expect(karte.querySelectorAll('[data-baustein="herkunft"]')).toHaveLength(1);
-  expect(karte.querySelector('[data-baustein="herkunft"]')!.textContent).toContain("presse: Kurier");
+  // Zwei gleiche Quellen zählen einmal; oben steht die Zahl von StatAgent, also auch ihr Beleg (Bank 06.11.).
+  const chips = karte.querySelectorAll('[data-baustein="herkunft"]');
+  expect(chips).toHaveLength(2);
+  expect(chips[0]!.textContent).toContain("stat.stat_beschaeftigte");
+  expect(chips[1]!.textContent).toContain("presse: Kurier");
+  // Fängt zwei gleiche „Beleg“ untereinander (UI-Regie 06.11.).
+  expect([...karte.querySelectorAll("[data-beleg-wozu] > span")].map((s) => s.textContent)).toEqual(["zur Zahl", "zur Quelle"]);
 });
 
 it("Karte 2 und 3 nennen dieselbe Herkunft: die Zahl von StatAgent", async () => {
@@ -280,6 +284,27 @@ it("eine vorläufige Zahl heißt auf Karte 1 im Satz so, eine endgültige nicht"
   const zweite = await fragen(strom(endgueltig));
   await waitFor(() => expect(satz(zweite)).toBeTruthy());
   expect(satz(zweite)).not.toContain("vorläufig");
+});
+
+it("es stehen nur die Anbieter zur Wahl, die die Seite bekommt", () => {
+  // Fängt Mistral und Claude online: wählbar, dann Fehler 400 (Prüfer 06.11., online gemessen).
+  render(<Kette kette={["uc3", "uc2", "uc1"]} fragenOffen mitModell modellwahl={["azure", "mock"]} />);
+  const namen = screen.getAllByRole("radio", { hidden: true }).map((r) => r.closest("label")!.textContent);
+  expect(namen).toEqual(["Voreinstellung", "Azure", "Testbetrieb"]);
+});
+
+it("mit nur einem Anbieter entfällt „Modell wählen“", () => {
+  // Fängt die leere Wahl online: „Voreinstellung“ und „Azure“ sind dort dasselbe (UI-Regie 06.11.).
+  render(<Kette kette={["uc3", "uc2", "uc1"]} fragenOffen mitModell modellwahl={["azure"]} />);
+  expect(screen.queryByText("Modell wählen")).toBeNull();
+});
+
+it("ein einzelner Beleg bleibt „Beleg“ ohne Zusatz", async () => {
+  const seite = await fragen(strom(UC3, antwort("uc2", "Über die Versorgung sagt das allein wenig.", [BELEG_UC3], [ZAHL]), UC1));
+  await screen.findByText(/Fertig in/);
+  const karte = seite.querySelector('[data-uc-karte="uc2"]')!;
+  expect(karte.querySelectorAll('[data-baustein="herkunft"]')).toHaveLength(1);
+  expect(karte.querySelector("[data-beleg-wozu]")).toBeNull();
 });
 
 it("der Lotse zeigt den Beleg seiner Zahl", async () => {
@@ -360,6 +385,8 @@ it("nennt die erste Zeile Zahlen des Rechenmodells, steht dessen Beleg sichtbar 
   const seite = await fragen(strom(UC3, fall, UC1));
   await screen.findByText(/Fertig in/);
   const chips = seite.querySelectorAll('[data-uc-karte="uc2"] [data-baustein="herkunft"]');
-  expect(chips).toHaveLength(1);
-  expect(chips[0]!.textContent).toContain("uc2.experte");
+  expect(chips).toHaveLength(2);
+  expect(chips[0]!.textContent).toContain("stat.stat_beschaeftigte");
+  expect(chips[1]!.textContent).toContain("uc2.experte");
+  expect(seite.querySelectorAll('[data-uc-karte="uc2"] [data-beleg-wozu] > span')[1]!.textContent).toBe("zum Rechenmodell");
 });

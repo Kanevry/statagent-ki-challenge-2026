@@ -87,7 +87,9 @@ _MENGE_IN_WORTEN = re.compile(
     r"\b(?:null|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf"
     r"|(?:drei|vier|fünf|sech|sieb|acht|neun)zehn)\b"
     r"|zwanzig|dreißig|dreissig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig"
-    r"|hundert|tausend|million|milliard|\b(?:hälfte|doppelt\w*|drittel|viertel)\b",
+    r"|hundert|tausend|million|milliard"
+    r"|\b(?:hälfte|doppelt\w*|verdopp\w*|halbier\w*|halb\s+so|drittel|viertel|fünftel|zehntel)\b"
+    r"|\b(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn)(?:mal|fach\w*)\b|\bein\s+prozent\b",
     re.IGNORECASE,
 )
 """Mengen in Worten: Der Prompt verbietet sie, die Ziffernprüfung sieht sie nicht („zwanzig Tage weniger
@@ -126,9 +128,14 @@ _KEINE_BRANCHE = frozenset(
         "Angestellte",
         "Arbeiter",
         "Beschäftigungskategorie unbekannt",
+        "freie Dienstverträge",
+        "Bundesland unbekannt",
     }
 )
-"""Geschlecht und Beschäftigungskategorie aus `stat.klass_*`: Sie dürfen nicht „die Branche Frauen“ heißen."""
+"""Merkmale aus `stat.klass_*` und UC3, die keine Branche sind: Nicht „die Branche Frauen“."""
+_FLUKTUATION = "Fluktuation, "
+_OENACE_NAME = re.compile(r"^ÖNACE [A-Z] ")
+_BRANCHE_OHNE_STRICH = re.compile(r"Gesundheits[\s-]*und\s+Sozialwesen")
 _MIT_ARTIKEL = {
     "Steiermark": ("In der Steiermark", "die Steiermark"),
     "Burgenland": ("Im Burgenland", "das Burgenland"),
@@ -174,7 +181,10 @@ class Bezug:
         """Gliederung als Text; ohne Branche zählt die Zahl alle Branchen, das gehört dazu."""
         if self.nur_branche:
             return f"die Branche {', '.join(self.teile)}"
-        teile = [_MIT_ARTIKEL[t][1] if t in _MIT_ARTIKEL else t for t in self.teile]
+        teile = [
+            f"die Altersgruppe {t}" if "Jahre" in t else _MIT_ARTIKEL[t][1] if t in _MIT_ARTIKEL else t
+            for t in self.teile
+        ]
         if set(self.teile) <= _BUNDESLAENDER:
             teile.append("alle Branchen")
         return ", ".join(teile)
@@ -188,7 +198,7 @@ class Bezug:
             bool(self.teile)
             and not set(self.teile) & andere
             and "zusammen" not in text
-            and not re.search(r"\d", text)
+            and "Jahre" not in text
         )
 
     @property
@@ -219,9 +229,11 @@ def bezug_aus(kontext_zahlen: list[dict[str, Any]]) -> Bezug | None:
     uc3 = [z for z in kontext_zahlen if z.get("uc") == "uc3"]
     if not uc3:
         return None
-    klammern = [re.search(r"\((.*)\)", str(z["bezeichnung"])) for z in uc3]
-    teile = [[t.strip() for t in k.group(1).split(",")] if k else [] for k in klammern]
+    teile = [_gliederung(str(z["bezeichnung"])) for z in uc3]
     gemeinsam = [t for t in teile[0] if all(t in andere for andere in teile)]
+    # „Bau und Handel“: Einzelzeilen haben nichts gemeinsam, die Summenzeile nennt, wonach gefragt wurde.
+    summe = [t for z in teile for t in z if t.endswith(" zusammen")]
+    gemeinsam = gemeinsam or summe[:1]
     monate = {z.get("monat") for z in uc3}
     monat = next(iter(monate)) if len(monate) == 1 else None
     return Bezug(
@@ -232,15 +244,25 @@ def bezug_aus(kontext_zahlen: list[dict[str, Any]]) -> Bezug | None:
     )
 
 
+def _gliederung(bezeichnung: str) -> list[str]:
+    """Was die Zahl eingrenzt. Zwei Formen von UC3: „Beschäftigte (Wien, Bau)“, „Fluktuation, ÖNACE R Name“;
+    bei der Fluktuation ist der ganze Rest ein Name, auch mit Komma. Über alle Bereiche grenzt nichts ein."""
+    if bezeichnung.startswith(_FLUKTUATION):
+        rest = bezeichnung.removeprefix(_FLUKTUATION)
+        return [] if rest.startswith("alle Wirtschaftsbereiche") else [_OENACE_NAME.sub("", rest)]
+    klammer = re.search(r"\((.*)\)", bezeichnung)
+    return [t.strip() for t in klammer.group(1).split(",")] if klammer else []
+
+
 def _zahl_mit_wort(zahl: dict[str, Any]) -> str:
-    """„7.498 Beschäftigungsverhältnisse“, „135.790 Personen“, „Fluktuation 6,2 %“."""
+    """„7.498 Beschäftigungsverhältnisse“, „135.790 Personen“, „eine Fluktuation von 6,2 %“."""
     wert = float(zahl["wert"])
     text = zahl_de(wert, 0 if wert.is_integer() else (1 if round(wert, 1) == wert else 2))
-    kopf = str(zahl["bezeichnung"]).split(" (", 1)[0]
+    kopf = re.split(r" \(|, ", str(zahl["bezeichnung"]), maxsplit=1)[0]
     einheit = sichtbare_einheit(zahl.get("einheit"))
     if not einheit:
         return f"{text} {kopf}"
-    return f"{kopf} {text} {einheit}" if einheit == "%" else f"{text} {einheit}"
+    return f"eine {kopf} von {text} {einheit}" if einheit in ("%", "Prozent") else f"{text} {einheit}"
 
 
 def feste_saetze(bezug: Bezug | None) -> dict[str, str]:
@@ -455,7 +477,10 @@ def kern_nachrichten(
 def kern_text(daten: dict[str, Any], bezug: Bezug | None = None) -> str | None:
     """Die zwei Sätze als eine Zeile, oder `None`, wenn einer fehlt, zu lang ist, eine Zahl trägt (auch in
     Worten), nicht vom Personal spricht, über Geld spricht, die Frage nicht aufgreift oder nur abschreibt."""
-    mehr, weniger = (" ".join(str(daten.get(feld) or "").split()) for feld in ("mehr", "weniger"))
+    mehr, weniger = (
+        _BRANCHE_OHNE_STRICH.sub("Gesundheits- und Sozialwesen", " ".join(str(daten.get(feld) or "").split()))
+        for feld in ("mehr", "weniger")
+    )
     saetze = [mehr, weniger]
     if "mehr personal" not in mehr.casefold() or "weniger personal" not in weniger.casefold():
         return None
