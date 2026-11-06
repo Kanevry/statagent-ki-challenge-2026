@@ -129,4 +129,4 @@ Geplant war ein voller Vortrag des Owners samt Demo. Sie fand nicht statt. Die A
 | Probe 2 Ende (Uhr) | nicht gehalten |
 | Probe 2 Dauer Pfad A | nicht gemessen, kein Sprecher, keine Stoppuhr |
 | Probe 2 Dauer Pfad B | nicht gemessen, kein Sprecher, keine Stoppuhr |
-| Probe 2 Befunde | Keine Sprechprobe, Owner-Wort 06.11.2026 08:35 („machs pragmatisch“). Stattdessen die Klickwege D1 bis D4 auf dem Endstand der Vorführ-Adresse nachgemessen, 07:44 bis 07:50, ohne Abweichung von der Klickliste: D1 106 s, D2 Vorschlag 2:42, D3 8 bis 16 s, D4 14 s. 26-1 bleibt damit offen, 90-3 bleibt rot |
+| Probe 2 Befunde | Keine Sprechprobe. Stattdessen die Klickwege D1 bis D4 auf dem Endstand der Vorführ-Adresse nachgemessen, 07:44 bis 07:50, ohne Abweichung von der Klickliste: D1 106 s, D2 Vorschlag 2:42, D3 8 bis 16 s, D4 14 s. 26-1 bleibt damit offen, 90-3 bleibt rot |

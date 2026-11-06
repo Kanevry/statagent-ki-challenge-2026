@@ -15,9 +15,9 @@ https://ki-challenge.gotzendorfer.at/uc3/freigaben/24
 
 ![Freigabe-Seite in StatAgent zum Änderungsauftrag 1 „Dienstvertrag und freier Dienstvertrag zusammen“. Die Testrechnung für August 2024 zeigt die Zahlen vorher und nachher. Aus 235.819 und 1.142 Angestellten werden 236.961. Gesamt bleibt 392.236. Darunter steht, wer freigegeben hat und wann.](docs/praesentation/screens/SC12.png)
 
-Oben steht der Auftrag im Wortlaut. In der Mitte rechnet das Programm die Zahlen vorher und nachher. Unten steht
-die Freigabe mit Vor- und Nachnamen und Uhrzeit. Diese Freigabe ist eine der vier, die eine KI-Sitzung im Auftrag von
-Bernhard Götzendorfer eingegeben hat; er hat sie am selben Abend bestätigt (Commit `2ba95e5`, [Stand zur Abgabe](#stand-zur-abgabe-06112026)).
+Oben der Auftrag, in der Mitte die Zahlen vorher und nachher, unten die Freigabe mit Name und Uhrzeit. Diese
+Freigabe hat eine KI-Sitzung im Auftrag von Bernhard Götzendorfer eingegeben, er hat sie am selben Abend bestätigt
+(Commit `2ba95e5`).
 
 Die öffentliche Demo ist lesend: Man kann alles ansehen und Fragen an die Daten stellen. Aufträge an die Agenten und
 Freigaben mit Namen laufen auf einer eigenen Vorführ-Adresse mit Passwort und lokal.
