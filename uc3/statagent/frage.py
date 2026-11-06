@@ -829,6 +829,11 @@ def _nach_regeln(regelsatz: str) -> str:
     return f"nach der neuen Fassung {nummer.group(1)}" if nummer else f"nach {regelsatz}"
 
 
+def _beispiel_stand(regelsatz: str) -> str:
+    """Für Beispielfragen: Sie sind anklickbar und müssen wieder gelesen werden; „neue Fassung 3“ versteht der Parser nicht."""
+    return "nach den Änderungsaufträgen" if regelsatz == "v2" else f"nach Regelsatz {regelsatz}"
+
+
 def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str, Any]:
     """Antwort in einem Regelsatz, der nicht am Stichtag zählt: über ``statagent.uc4.antwort_daten``, das die Zählweise
     und die Kategorien aus den Regeln liest. Was der Adapter nicht lesen kann, bekommt eine Absage statt einer Zahl.
@@ -836,13 +841,13 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
     typ = fragetyp(frage)
     if _V2_VERNEINT.search(frage) and not _V2_BEIDE.search(frage):
         text = (
-            "Ohne Änderungsaufträge gilt Regelsatz v1. Fragen Sie ohne diese Angabe, "
-            "zum Beispiel „Beschäftigte in Wien im Juli 2026“."
+            "Ohne Änderungsaufträge gelten die alten Regeln. Fragen Sie ohne diese Angabe, "
+            "zum Beispiel „Beschäftigungsverhältnisse in Wien im Juli 2026“."
         )
         return _antwort(typ, text, hinweise=[text])
     if typ == "fluktuation":
         text = (
-            f"Die Fluktuation vergleicht zwei Stichtage. Es gibt sie nur im Regelsatz v1, nicht in {regelsatz}. "
+            f"Die Fluktuation vergleicht zwei Stichtage. Es gibt sie nur nach den alten Regeln, nicht {_nach_regeln(regelsatz)}. "
             "Zum Beispiel „Fluktuation im Oktober 2025“."
         )
         return _antwort(typ, text, hinweise=[text])
@@ -854,9 +859,11 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
     absage = nicht_auswertbar(frage, mittel=len(genannt) > 1 or (not genannt and jahr is not None))
     if absage is not None:
         return _antwort(typ, absage, hinweise=[absage])
-    beispiel = f"Zum Beispiel „Beschäftigte in Wien im Juli 2026 nach Regelsatz {regelsatz}“."
+    stand = _nach_regeln(regelsatz)
+    beispiel_stand = _beispiel_stand(regelsatz)
+    beispiel = f"Zum Beispiel „Beschäftigungsverhältnisse in Wien im Juli 2026 {beispiel_stand}“."
     nicht_lesbar = (
-        f"Im Regelsatz {regelsatz} gibt es nur Zahlen nach Monat, Bundesland, Geschlecht, Branche und "
+        f"{stand[0].upper()}{stand[1:]} gibt es nur Zahlen nach Monat, Bundesland, Geschlecht, Branche und "
         f"Beschäftigungskategorie. {beispiel}"
     )
     if "anteil" in frage.lower():
@@ -873,24 +880,27 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
         if regelsatz != "v2":
             return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
         text = (
-            "Im Regelsatz v2 zählt ein Verhältnis, wenn es irgendwann im Monat bestand. "
-            f"Im Regelsatz v1 zählt der letzte Tag des Monats. {beispiel}"
+            "Nach den Änderungsaufträgen zählt ein Beschäftigungsverhältnis, wenn es irgendwann im Monat bestand. "
+            f"Nach den alten Regeln zählt der letzte Tag des Monats. {beispiel}"
         )
         return _antwort(typ, text, hinweise=[text])
     if beide:
-        text = f"Die Datenanfrage zeigt immer nur einen Regelsatz. Fragen Sie je einmal. {beispiel}"
+        text = (
+            "Die Datenanfrage zeigt immer nur einen Stand: nach den alten Regeln oder nach den Änderungsaufträgen. "
+            f"Fragen Sie je einmal. {beispiel}"
+        )
         return _antwort(typ, text, hinweise=[text])
     if _VERGLEICH_VORMONAT.search(frage) or (_VERAENDERUNG.search(frage) and not _SEIT.search(frage)):
         # Der v2-Weg zeigt einen Monat oder Zeitraum: Der Stand eines Monats wäre hier eine andere Antwort.
         text = (
-            f"Einen Vergleich mit dem Vormonat zeigt StatAgent im Regelsatz {regelsatz} nicht. Bitte einen Monat oder "
-            f"Zeitraum nennen, zum Beispiel „Beschäftigte März bis Juni 2025 nach Regelsatz {regelsatz}“."
+            f"Einen Vergleich mit dem Vormonat zeigt StatAgent {stand} nicht. Bitte einen Monat oder "
+            f"Zeitraum nennen, zum Beispiel „Beschäftigungsverhältnisse März bis Juni 2025 {beispiel_stand}“."
         )
         return _antwort(typ, text, hinweise=[text])
     if _ZEITREIHE.search(frage.lower()):
         text = (
-            f"Fragen Sie im Regelsatz {regelsatz} nach einem Monat oder Zeitraum, "
-            f"zum Beispiel „Beschäftigte März bis Juni 2025 nach Regelsatz {regelsatz}“."
+            "Bitte nennen Sie einen Monat oder Zeitraum, "
+            f"zum Beispiel „Beschäftigungsverhältnisse März bis Juni 2025 {beispiel_stand}“."
         )
         return _antwort(typ, text, hinweise=[text])
     if (
@@ -901,8 +911,8 @@ def _regelsatz_antwort(conn: Verbindung, frage: str, regelsatz: str) -> dict[str
     ):
         monat = min(max(f"{jahr}-03", erster), letzter)
         return _rueckfrage(
-            f"Für welchen Monat {jahr} möchten Sie die Zahl im Regelsatz {regelsatz} wissen? "
-            f"Zum Beispiel „Beschäftigte im {_monat_anzeige(monat)} nach Regelsatz {regelsatz}“."
+            f"Für welchen Monat {jahr} möchten Sie die Zahl {stand} wissen? "
+            f"Zum Beispiel „Beschäftigungsverhältnisse im {_monat_anzeige(monat)} {beispiel_stand}“."
         )
     if ohne_bezug:
         return _antwort(typ, nicht_lesbar, hinweise=[nicht_lesbar])
@@ -1296,7 +1306,7 @@ def _bestand_antwort(
         )
     if any(m is FREIER_DV for m, _ in filter_) and regelsatz != "v1":
         raise _KeineZahl(
-            f"Freie Dienstverträge kann die Datenanfrage nur im Regelsatz v1 trennen, nicht in {regelsatz}. {KANN}"
+            f"Freie Dienstverträge kann die Datenanfrage nur nach den alten Regeln trennen, nicht {_nach_regeln(regelsatz)}. {KANN}"
         )
     abschnitte = [(von, bis, filter_)]
     hinweise: list[str] = []
