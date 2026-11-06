@@ -12,6 +12,7 @@ Zahl. Die Antwort enthält die Felder einer ``UcAntwort`` und dazu Art, Definiti
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
@@ -1964,7 +1965,15 @@ def antwort_frage(conn: Verbindung, frage: str, regelsatz: str = "v1") -> dict[s
     zur_anwendung = app_antwort(conn, frage, regelsatz)
     if zur_anwendung is not None:
         return zur_anwendung
-    daten = _antwort_kern(conn, frage, regelsatz)
+    gelesen = alltag_lesen(frage)
+    rang = _rang_lesen(gelesen) if regelsatz == "v1" and not _regelsatz_der_frage(gelesen) else None
+    if rang is not None and _rang_nennt_gruppe(conn, rang):
+        rang = None  # „… Wien oder Tirol?“ nennt selbst Bundesländer: keine Rangfrage, der alte Weg sagt ehrlich ab.
+    daten = _antwort_kern(conn, rang.frage if rang else frage, regelsatz)
+    if rang:
+        daten = _rang_anwenden(conn, daten, rang)
+        if daten["text"].startswith(_RANG_RUECKFRAGE):
+            return daten  # Der allgemeine Vorschlag wäre keine Rangfrage und passte nicht zur Frage.
     daten["text"] = _UEBERNOMMEN.sub(_UEBERNOMMEN_KLAR, daten["text"])
     daten["hinweise"] = [_UEBERNOMMEN.sub(_UEBERNOMMEN_KLAR, h) for h in daten["hinweise"]]
     return _mit_vorschlag(conn, frage, regelsatz, daten)
@@ -1977,6 +1986,149 @@ _UEBERNOMMEN = re.compile(
 _UEBERNOMMEN_KLAR = (
     r"\1 sind in ganz Österreich \2 Beschäftigungsverhältnisse aus der Lieferung des Vormonats"
 )
+
+
+# --- Rangfrage: „Welches Bundesland hat die meisten …“ ist die Tabelle je Bundesland mit dem Spitzenwert vorne ------
+_RANG_WORT = (
+    r"(?:(?:die|der|den|das|am|mit\s+(?:den|der|dem))\s+)*"
+    r"(?<!\w)(meisten?|wenigsten?|höchste[nrs]?|hoechste[nrs]?|niedrigste[nrs]?|größte[nrs]?|groesste[nrs]?|kleinste[nrs]?)"
+    r"(?:\s+(?:gesamt)?(?:zahl|anzahl)(?:\s+(?:an|von|der))?)?"
+)
+_RANG_GRUPPE = re.compile(
+    r"(?<!\w)(?:in\s+|bei\s+)?welche[mnrs]?\s+"
+    r"(bundesl\w*|branche\w*|wirtschaftsbereich\w*|wirtschaftszweig\w*|sektor\w*|abschnitt\w*"
+    r"|beschäftigungskategorie\w*|kategorie\w*)(?!\w)",
+    re.IGNORECASE,
+)
+_RANG_ZIEL = re.compile(_RANG_WORT, re.IGNORECASE)
+_RANG_KLEIN = re.compile(r"wenigst|niedrigst|kleinst", re.IGNORECASE)
+#: Was gereiht wird, muss in der Frage stehen: „Welches Bundesland hat die höchste Zahl?“ bleibt eine Absage.
+_RANG_WER = re.compile(
+    r"beschäftig|beschaeftig|verhältnis|verhaeltnis|frauen|männer|maenner|arbeiter|angestellte|beamte",
+    re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True)
+class _Rang:
+    frage: str
+    groesste: bool
+    gruppe: str  # „Welches Bundesland“, wie in der Frage
+    rangwort: str
+
+
+def _rang_lesen(frage: str) -> _Rang | None:
+    """Nur mit „welche(s) …“ und einem Rangwort. „die meisten Frauen in Wien“ allein bleibt, wie es ist."""
+    gruppe, ziel = _RANG_GRUPPE.search(frage), _RANG_ZIEL.search(frage)
+    text = frage.lower()
+    # Männer und Frauen oder ein Anteil wären zwei Rangfolgen, die Fluktuation hat ihre eigene.
+    if gruppe is None or ziel is None or _FLUKTUATION.search(text) or _geschlecht_gegliedert(text):
+        return None
+    wort = gruppe.group(1).lower()
+    je = "Bundesland" if wort.startswith("bundesl") else ("Kategorie" if "kategorie" in wort else "Branche")
+    rest = frage
+    for stelle in sorted((gruppe.span(), ziel.span()), reverse=True):
+        rest = f"{rest[: stelle[0]]} {rest[stelle[1] :]}"
+    if _RANG_WER.search(rest) is None or _gliederung(rest) is not None:
+        return (
+            None  # Eine zweite Aufteilung („nach Branche“) gäbe eine Tabelle, die nicht zur Rangfrage passt.
+        )
+    welche = {
+        "Bundesland": "Welches Bundesland",
+        "Kategorie": "Welche Kategorie",
+        "Branche": "Welche Branche",
+    }[je]
+    klein = _RANG_KLEIN.search(ziel.group(0)) is not None
+    return _Rang(
+        f"{' '.join(rest.split()).rstrip(' ?.!')} je {je}",
+        not klein,
+        welche,
+        "wenigsten" if klein else "meisten",
+    )
+
+
+_RANG_RUECKFRAGE = "Die Rangfolge gibt es je Monat. Für welchen Monat möchten Sie sie?"
+_RANG_ZEILE = re.compile(r"^(Beschäftigungsverhältnisse(?: \([^)]*\))?), (.+)$")
+_RANG_FEHLER = (psycopg.Error, ValueError, _KeineZahl, _Abgeschnitten, AbfrageVerweigert, RegelFehler)
+
+
+def _rang_nennt_gruppe(conn: Verbindung, rang: _Rang) -> bool:
+    """Nennt die Frage selbst Werte des Merkmals, nach dem gereiht wird? Bei einem Fehler: ja, keine Rangfrage."""
+    merkmal = {"Welches Bundesland": BUNDESLAND, "Welche Kategorie": KATEGORIE}.get(rang.gruppe, OENACE)
+    text = re.sub(r"\s+je\s+\w+$", "", rang.frage)
+    try:
+        genannt = [m for m in monate_lesen(text) if ERSTE_LIEFERUNG <= m <= LETZTE_LIEFERUNG]
+        monat = genannt[-1] if genannt else _letzter_monat(conn, "v1") or LETZTE_LIEFERUNG
+        return bool(_werte(text, merkmal, _codes(conn, merkmal, monat))[0])
+    except _RANG_FEHLER:
+        return True
+
+
+def _ueber_mehrere_monate(frage: str) -> bool:
+    """Nennt die Frage mehr als einen Monat (Zeitraum, Jahreszeit, Quartal, Jahr ohne Monat, Zeitreihe)?"""
+    zeit = zeitraum_lesen(frage, LETZTE_LIEFERUNG)
+    return (
+        (zeit is not None and zeit.von != zeit.bis)
+        or len(set(monate_lesen(frage))) > 1
+        or jahr_ohne_monat(frage) is not None
+        or fragetyp(frage) == "zeitreihe"
+    )
+
+
+def _rang_anwenden(conn: Verbindung, daten: dict[str, Any], rang: _Rang) -> dict[str, Any]:
+    """Setzt den Spitzenwert vor die Antwort. Rechnet keine neue Zahl, reiht nur die Zeilen der Tabelle.
+
+    Über mehrere Monate gibt es keinen einen Spitzenwert, dann kommt eine Rückfrage nach dem Monat. Ob es
+    mehrere sind, entscheidet die Frage, nicht der Stand der Antwort (ein Zeitraum kann nur einen Monat mit Daten
+    haben); und ohne genau einen Monat im Stand wird nie gereiht.
+    """
+    jahr = jahr_ohne_monat(rang.frage)
+    if jahr is not None and not ERSTE_LIEFERUNG[:4] <= jahr <= LETZTE_LIEFERUNG[:4]:
+        jahr = None  # Ein Jahr ohne Daten behält seine Rückfrage.
+    if not daten["zahlen"] and not (daten["typ"] == "rueckfrage" and jahr):
+        return daten
+    monate = {str(s.get("monat")) for s in daten["stand"]}
+    if len(monate) != 1 or _ueber_mehrere_monate(rang.frage):
+        # Auch „… 2025“. Ohne Beispielfrage: Sie müsste jede Einschränkung der Frage tragen (Alter, freier
+        # Dienstvertrag), sonst führte sie zu einer Zahl für eine andere Gruppe.
+        return _rueckfrage(_RANG_RUECKFRAGE)
+    monat = _monat_anzeige(next(iter(monate)))
+    reihe: list[tuple[str, float, dict[str, Any]]] = []
+    ohne_unbekannt = False
+    was = ""
+    for zahl in daten["zahlen"]:
+        treffer = _RANG_ZEILE.match(str(zahl["bezeichnung"]))
+        if treffer is None:
+            continue
+        name = treffer.group(2)
+        # Summen- und Gesamtzeilen („Männer, Alle Bundesländer“, „Durchschnitt …“) sind keine Gruppe der Rangfolge.
+        if "Alle " in name or name.startswith("Durchschnitt"):
+            continue
+        if "unbekannt" in name.lower():
+            ohne_unbekannt = True
+            continue
+        was = treffer.group(1).replace("verhältnisse", "verhältnissen")
+        reihe.append((name, float(zahl["wert"]), zahl))
+    if not reihe:
+        return daten
+    reihe.sort(key=lambda r: r[1], reverse=rang.groesste)
+    spitze = [r for r in reihe if r[1] == reihe[0][1]]
+    namen = _aufzaehlung([r[0] for r in spitze])
+    satz = (
+        f"{'Am meisten' if rang.groesste else 'Am wenigsten'} im {monat}: {namen} mit "
+        f"{_deutsch(int(reihe[0][1]))} {was}."
+    )
+    if ohne_unbekannt:
+        ohne = {
+            "Welches Bundesland": "bekanntes Bundesland",
+            "Welche Kategorie": "bekannte Beschäftigungskategorie",
+        }
+        satz += f" Beschäftigungsverhältnisse ohne {ohne.get(rang.gruppe, 'bekannte Branche')} zählen hier nicht mit."
+    gereiht = [r[2] for r in reihe]
+    daten["zahlen"] = [*gereiht, *(z for z in daten["zahlen"] if not any(z is g for g in gereiht))]
+    daten["text"] = f"{satz} {daten['text']}"
+    daten["antwortsatz"], daten["ersetzt"] = satz, satz
+    return daten
 
 
 # --- Vorschlag: passt zur Frage und ist vor dem Zeigen gelaufen -----------------------------------------------------

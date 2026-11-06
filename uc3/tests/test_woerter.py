@@ -6,7 +6,7 @@ import pytest
 
 from statagent import frage as frage_modul
 from statagent.db import Verbindung
-from statagent.frage import antwort_frage
+from statagent.frage import _rang_lesen, _rang_nennt_gruppe, alltag_lesen, antwort_frage
 from statagent.lauf import lauf_ausfuehren
 from statagent.uc4 import uc4_antwort
 from statagent.woerter import unbekanntes_wort
@@ -544,6 +544,67 @@ def test_dort_ohne_ort_fragt_nach(zwei_monate: Verbindung) -> None:
 )
 def test_anteil_andere_richtung_und_zeitraum_ohne_zahl(zwei_monate: Verbindung, frage: str) -> None:
     assert uc4_antwort(zwei_monate, frage)["zahlen"] == []
+
+
+# Fängt: an die Rückfrage einer Rangfrage mit Altersangabe hängt sich ein allgemeiner Vorschlag ohne Alter und ohne
+# Rangfolge („Beschäftigungsverhältnisse im …“), der nicht zur Frage passt.
+def test_rang_rueckfrage_ohne_fremden_vorschlag(zwei_monate: Verbindung) -> None:
+    daten = antwort_frage(
+        zwei_monate, "Welches Bundesland hat die meisten Beschäftigten unter 25 im Jahr 2024?"
+    )
+    assert not daten["zahlen"]
+    assert daten["text"] == "Die Rangfolge gibt es je Monat. Für welchen Monat möchten Sie sie?"
+
+
+# Fängt (Bank B1): Nennt die Rangfrage selbst Bundesländer, fielen sie still weg und die Antwort reihte alle neun.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "In welchem Bundesland arbeiten die wenigsten Männer im September 2024, Wien oder Tirol?",
+        "Welches Bundesland hat die meisten Frauen in Tirol und Vorarlberg im September 2024?",
+    ],
+)
+def test_rangfrage_mit_genannten_gruppen_reiht_nicht(zwei_monate: Verbindung, frage: str) -> None:
+    daten = antwort_frage(zwei_monate, frage)
+    assert daten["zahlen"] == []
+    assert not daten["text"].startswith(("Am meisten", "Am wenigsten"))
+
+
+# Gegenprobe zu B1: Ein Filter eines anderen Merkmals (Branche, Bundesland) hebt die Rangfrage nicht auf.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "In welchem Bundesland arbeiten die meisten Frauen im Gesundheitswesen im September 2024?",
+        "Welche Branche hat die meisten Beschäftigten in Wien im September 2024?",
+    ],
+)
+def test_rangfrage_mit_filter_eines_anderen_merkmals_bleibt(zwei_monate: Verbindung, frage: str) -> None:
+    rang = _rang_lesen(alltag_lesen(frage))
+    assert rang is not None and _rang_nennt_gruppe(zwei_monate, rang) is False
+
+
+# Fängt (Bank B2): Ein Zeitraum mit nur einem Monat mit Daten galt als ein Monat und wurde gereiht.
+def test_rangfrage_ueber_zeitraum_mit_einem_datenmonat_fragt_nach(zwei_monate: Verbindung) -> None:
+    daten = antwort_frage(
+        zwei_monate, "Welches Bundesland hat die meisten Beschäftigten von Juli bis August 2024?"
+    )
+    assert daten["typ"] == "rueckfrage" and daten["zahlen"] == []
+    assert daten["text"].startswith("Die Rangfolge gibt es je Monat.")
+
+
+# Fängt (Bank B3): Die Rückfrage trug ein Beispiel ohne die Einschränkungen der Frage (freier Dienstvertrag), das
+# zu einer Zahl für eine andere Gruppe geführt hätte. Die Rückfrage kommt ohne Beispiel.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Welches Bundesland hat die meisten Beschäftigten mit freiem Dienstvertrag 2024?",
+        "Welches Bundesland hat die meisten Beschäftigten von August bis September 2024?",
+    ],
+)
+def test_rang_rueckfrage_ohne_beispiel(zwei_monate: Verbindung, frage: str) -> None:
+    daten = antwort_frage(zwei_monate, frage)
+    assert daten["typ"] == "rueckfrage" and not daten["zahlen"]
+    assert daten["text"] == "Die Rangfolge gibt es je Monat. Für welchen Monat möchten Sie sie?"
 
 
 # Fängt (Review-Bank): genannte Bundesländer im Kreuzungsweg wurden still übergangen, die Antwort zeigte alle neun.
