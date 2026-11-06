@@ -80,8 +80,8 @@ Beleg: `kriterien-karte.md`, Fragenkatalog C14. Vor dem Freeze mit `main` abglei
 
 **14. Muss das nicht lokal und offline laufen?**
 „Es läuft lokal wie gefordert, und zusätzlich auf einem Server, den wir selbst betreiben. Sie können es selbst nachbauen. Die Abgabezahlen sind auf der eigenen Datenbank gerechnet, online läuft nur die Vorführung.“
-Dazu, wenn gefragt: „Der ganze Weg ab einem frischen Klon dauerte 36 Minuten, auf einer frischen Datenbank im vorhandenen Klon 24 Minuten, jeweils mit den Datentests.“
-Beleg: Messung des Jury-Wegs durch die Review-Bank am 05.11.2026, frischer Klon auf main `87de2b0`. Die Läufe liefen ohne Netz, Pakete und Docker-Image lagen vorab da. Hash und Regelstand 24 von 24 je Regelsatz, 2.880 Zellen ohne Abweichung, Ministerium 32.741, `pruefe-abgabe` Exit 0 (F30).
+Dazu, wenn gefragt: „Der ganze Weg ab einem frischen Klon dauerte einmal 36 und einmal 55 Minuten, je nach Rechner und Last, auf einer frischen Datenbank im vorhandenen Klon 24 Minuten, jeweils mit den Datentests.“
+Beleg: Messung des Jury-Wegs durch die Review-Bank, 05.11.2026 auf main `87de2b0` ohne Netz, Pakete und Docker-Image lagen vorab da, 06.11.2026 auf main `809da6d` auf Linux, Netz nicht gesperrt, Datenbank auf 4 Kerne begrenzt, Rechner unter anderer Last. Hash und Regelstand 24 von 24 je Regelsatz, 2.880 Zellen ohne Abweichung, Ministerium 32.741, `pruefe-abgabe` Exit 0 (F30).
 Nur wenn gefragt: Neu erzeugte Sheets und Berichte weichen byteweise ab (Status, Lauf-IDs, Kommentare), die Zellwerte nicht.
 
 **15. Was passiert, wenn das Modell ausfällt?**

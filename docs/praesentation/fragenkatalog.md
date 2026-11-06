@@ -269,7 +269,7 @@ Der Vorschlag kommt vom Modell. Welche Regel und welchen Wert es wählt, zeigt `
 
 ### C4 Läuft das auch lokal und offline?
 
-**Kurzantwort:** Es läuft lokal wie gefordert, und zusätzlich auf einem Server, den wir selbst betreiben. Die Abgabezahlen sind auf der eigenen Datenbank gerechnet, online läuft nur die Vorführung. Kein Befehl von `uc3 lauf` ruft ein Sprachmodell auf (F16). Nur die Agenten brauchen ein Modell. Sie können es selbst nachbauen: ab einem frischen Klon 36 Minuten, auf einer frischen Datenbank im vorhandenen Klon 24 Minuten, jeweils mit den Datentests (F30).
+**Kurzantwort:** Es läuft lokal wie gefordert, und zusätzlich auf einem Server, den wir selbst betreiben. Die Abgabezahlen sind auf der eigenen Datenbank gerechnet, online läuft nur die Vorführung. Kein Befehl von `uc3 lauf` ruft ein Sprachmodell auf (F16). Nur die Agenten brauchen ein Modell. Sie können es selbst nachbauen: ab einem frischen Klon einmal 36 und einmal 55 Minuten, je nach Rechner und Last, auf einer frischen Datenbank im vorhandenen Klon 24 Minuten, jeweils mit den Datentests (F30).
 
 **Antwortweg:** `uv run uc3 lauf --lieferung 2024-08` ohne Netz zeigen.
 
