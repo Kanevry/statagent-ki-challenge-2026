@@ -13,6 +13,7 @@ Sozialversicherungsträger und der WK Wien (05. bis 06.11.2026). Bewertet wird *
 | es lokal starten | [docs/einstieg/schnellstart.md](docs/einstieg/schnellstart.md) |
 | selbst agentisch arbeiten, also mit KI-Agenten, die Code schreiben | [docs/einstieg/arbeitsweise-agentisch.md](docs/einstieg/arbeitsweise-agentisch.md) |
 | die Zahlen nachprüfen | [docs/einstieg/zahlen.md](docs/einstieg/zahlen.md) |
+| sehen, welche Aufgaben erledigt und welche offen sind | [docs/einstieg/aufgaben-stand.md](docs/einstieg/aufgaben-stand.md) |
 | wissen, was am Tag der Abgabe läuft und was offen ist | [Stand zur Abgabe](#stand-zur-abgabe-06112026) |
 | Fachjury | [abgabe/README.md](abgabe/README.md) und [docs/praesentation/kriterien-karte.md](docs/praesentation/kriterien-karte.md) |
 | es ohne Installation ansehen | die öffentliche Demo unter https://ki-challenge.gotzendorfer.at |
