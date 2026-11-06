@@ -18,6 +18,7 @@ Sozialversicherungsträger und der WK Wien (05. bis 06.11.2026). Bewertet wird *
 
 | Ich bin … oder ich will … | Dann lies zuerst |
 |---|---|
+| Fachjury | [abgabe/README.md](abgabe/README.md) und [docs/praesentation/kriterien-karte.md](docs/praesentation/kriterien-karte.md) |
 | neu hier und neugierig | [docs/einstieg/fuer-aussenstehende.md](docs/einstieg/fuer-aussenstehende.md) |
 | Entscheiderin oder Entscheider | [docs/einstieg/fuer-management.md](docs/einstieg/fuer-management.md) |
 | Technikerin oder Techniker | [docs/einstieg/architektur.md](docs/einstieg/architektur.md) |
@@ -26,7 +27,6 @@ Sozialversicherungsträger und der WK Wien (05. bis 06.11.2026). Bewertet wird *
 | die Zahlen nachprüfen | [docs/einstieg/zahlen.md](docs/einstieg/zahlen.md) |
 | sehen, welche Aufgaben erledigt und welche offen sind | [docs/einstieg/aufgaben-stand.md](docs/einstieg/aufgaben-stand.md) |
 | wissen, was am Tag der Abgabe läuft und was offen ist | [Stand zur Abgabe](#stand-zur-abgabe-06112026) |
-| Fachjury | [abgabe/README.md](abgabe/README.md) und [docs/praesentation/kriterien-karte.md](docs/praesentation/kriterien-karte.md) |
 
 Alle Einstiegsseiten im Überblick: [docs/einstieg/README.md](docs/einstieg/README.md).
 
@@ -53,9 +53,8 @@ flowchart LR
 Der Vorschlag zeigt die Zahlen vorher und nachher, Vorschlag und Freigabe stehen im Protokoll. Die KI schreibt Code
 und Regeln, gerechnet wird ohne KI.
 
-Eine Plattform, drei Räume und ein gemeinsamer Einstieg. Der Grundsatz überall: **Die KI schreibt Code und Texte,
-das Programm rechnet.** Jede Zahl kommt aus der Datenbank und trägt ihren Beleg. Jede Änderung an Regeln oder
-Code gibt ein Mensch mit Vor- und Nachnamen frei.
+Eine Plattform, drei Räume und ein gemeinsamer Einstieg. Jede Zahl kommt aus der Datenbank und trägt ihren Beleg.
+Jede Änderung an Regeln oder Code gibt ein Mensch mit Vor- und Nachnamen frei.
 
 UC1 (SV KI-Lotse), UC2 (HealthPolicy Simulator) und UC4 (gemeinsamer Einstieg) sind Zusatz. Was gebaut wurde, wie
 UC3 rechnet, Freigabe, Voice und Qualitätssicherung: [docs/einstieg/loesung-und-ansatz.md](docs/einstieg/loesung-und-ansatz.md).

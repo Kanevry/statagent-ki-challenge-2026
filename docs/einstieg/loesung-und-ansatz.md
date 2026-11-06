@@ -8,6 +8,10 @@ Zurück zum [README](../../README.md#lösung-und-ansatz).
 Das große Bild: Das Programm macht aus jeder Monatslieferung die Statistik, ohne KI. Die KI schlägt nur Änderungen
 an Regeln oder Code vor, und erst die Freigabe eines Menschen mit Namen lässt sie gelten.
 
+Eine Plattform, drei Räume und ein gemeinsamer Einstieg. Der Grundsatz überall: **Die KI schreibt Code und Texte,
+das Programm rechnet.** Jede Zahl kommt aus der Datenbank und trägt ihren Beleg. Jede Änderung an Regeln oder
+Code gibt ein Mensch mit Vor- und Nachnamen frei.
+
 ## Was gebaut wurde (Stand `main`, 05.11.2026)
 
 | Raum | Was er tut | Stand | Details |
