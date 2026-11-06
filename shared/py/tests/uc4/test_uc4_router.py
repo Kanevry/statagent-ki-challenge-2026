@@ -237,7 +237,7 @@ def test_cli_kette_nur_uc3_braucht_kein_budget(protokoll, monkeypatch, capsys):
     assert main(["frage", "--json", "--", "Wie viele?"]) == 3
 
 
-# --- --strom (Seite /uc4 zeigt die Stationen nacheinander, Sichtprüfung) -------------------------------------
+# --- --strom (Seite /uc4 zeigt die Stationen nacheinander, Sichtprüfung) -----------------------------------
 
 
 def _ereignisse(capsys) -> list[dict]:
