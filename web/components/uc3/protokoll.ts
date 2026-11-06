@@ -1,3 +1,4 @@
+import { formatZahl } from "@kic/ui/bausteine";
 import { eintragStatus, type Eintrag } from "@kic/ui/shell";
 import { lies, type Sql } from "./db";
 import { type Bezeichnungen, klarerAenderungsSatz, klartext, ladeBezeichnungen, rollenName } from "./freigabe";
@@ -103,6 +104,22 @@ function entscheidungsZeile(z: ProtokollZeile, status: Eintrag["status"]): strin
   return `${wort} von ${name}, ${datumFormat.format(zeit)}, ${uhrFormat.format(zeit)}`;
 }
 
+/** „In der Regel R wird „k“ von „a“ auf „b“ geändert.“ liest sich im Panel leichter als vorher und jetzt. */
+function vorherJetzt(satz: string): string {
+  return satz.replace(
+    /In der Regel ([^ ]+) wird („[^“]+“) von (.+?) auf (.+?) geändert\./g,
+    (_ganz: string, regel: string, feld: string, alt: string, neu: string) =>
+      `In der Regel ${regel} ändert sich ${feld}: vorher ${alt}, jetzt ${neu}.`,
+  );
+}
+
+/** Zahlen und Tage in festen Sätzen des Programms: „32741 Personen“ wird „32.741 Personen“, 2025-08-01 wird 01.08.2025. */
+function zahlenUndTage(wert: string): string {
+  return wert
+    .replace(/(?<![0-9.])([0-9]{4,}) Personen/g, (_ganz: string, zahl: string) => `${formatZahl(Number(zahl))} Personen`)
+    .replace(/(?<![0-9-])([0-9]{4})-([0-9]{2})-([0-9]{2})(?![0-9-])/g, "$3.$2.$1");
+}
+
 /** Wirkung in den Wörtern der App: bei einem Vorschlag ein Satz aus der Änderung, sonst der Text mit Alltagswörtern. */
 function wirkungText(z: ProtokollZeile, bezeichnungen: Bezeichnungen): string | null {
   const typ = text(z.typ);
@@ -110,10 +127,13 @@ function wirkungText(z: ProtokollZeile, bezeichnungen: Bezeichnungen): string | 
     const v = { typ, aenderungen: Array.isArray(z.aenderungen) ? z.aenderungen : [] };
     const satz = klarerAenderungsSatz(v, bezeichnungen) ?? (klartext(v, bezeichnungen).worte.join(" ") || null);
     const ziel = text(z.regelsatz_ziel);
-    if (satz) return ziel ? `${regelsatzName(ziel)}: ${ohneRegelsatzCode(satz)}` : ohneRegelsatzCode(satz);
+    if (satz) {
+      const lesbar = vorherJetzt(ohneRegelsatzCode(satz));
+      return ziel ? `${regelsatzName(ziel)}: ${lesbar}` : lesbar;
+    }
   }
   const roh = text(z.wirkung);
-  return roh ? alltag(ohneRegelsatzCode(roh)) : null;
+  return roh ? alltag(ohneRegelsatzCode(zahlenUndTage(roh))) : null;
 }
 
 /**

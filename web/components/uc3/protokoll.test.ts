@@ -157,6 +157,35 @@ describe("eintragAus", () => {
     expect(e.wirkung).toBe("Freigegeben von Petra Probe, 06.11.2026, 00:05");
   });
 
+  it("schreibt eine geänderte Regel als vorher und jetzt", () => {
+    const e = eintragAus({
+      ...vorschlag,
+      typ: "regel_aendern",
+      regelsatz_ziel: "v2",
+      aenderungen: [
+        {
+          regel_name: "R2_R4_stichtag_eigene_lieferung",
+          parameter_alt: { von: "monatsletzter", zeitraum_art: "Stichtag" },
+          parameter_neu: { von: "monatserster", zeitraum_art: "Monat" },
+        },
+      ],
+    });
+    expect(e.wirkung?.split("\n")[0]).toBe(
+      "Nach den Änderungsaufträgen: In der Regel R2_R4_stichtag_eigene_lieferung ändert sich „von“: vorher „monatsletzter“, jetzt „monatserster“. " +
+        "In der Regel R2_R4_stichtag_eigene_lieferung ändert sich „zeitraum_art“: vorher „Stichtag“, jetzt „Monat“.",
+    );
+  });
+
+  it("schreibt Zahlen mit Tausenderpunkt und Tage als TT.MM.JJJJ, der Hash bleibt", () => {
+    const e = eintragAus({
+      ...vorschlag,
+      typ: null,
+      status: "offen",
+      wirkung: "32741 Personen, Zeitraum 2025-08-01 bis 2026-07-31, sha256 d8492f46dd5f",
+    });
+    expect(e.wirkung).toBe("32.741 Personen, Zeitraum 01.08.2025 bis 31.07.2026, sha256 d8492f46dd5f");
+  });
+
   it("zeigt ohne sonstige Wirkung nur die Entscheidungszeile", () => {
     const e = eintragAus({ ...vorschlag, typ: null, wirkung: null });
     expect(e.wirkung).toBe("Freigegeben von Petra Probe, 06.11.2026, 07:32");
