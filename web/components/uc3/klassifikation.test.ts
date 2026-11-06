@@ -90,8 +90,8 @@ describe("kategorieSaetze", () => {
   it("sagt bei offenem Auftrag, dass weiter mit Regelsatz v1 gezählt wird", () => {
     const s = kategorieSaetze({ ...stand, auftrag: { ...auftrag, status: "offen", von: null, am: null } }, liste, "v1");
     expect(s.regel).toContain("zählen wir die 5 gelieferten Qualifikationen einzeln");
-    expect(s.auftrag).toContain("Gezählt wird mit Regelsatz v1, bis Auftrag 1 freigegeben ist.");
-    expect(s.zahlen).toBe("Die Zahlen auf dieser Seite sind mit Regelsatz v1 gerechnet.");
+    expect(s.auftrag).toContain("Gezählt wird nach den alten Regeln, bis Auftrag 1 freigegeben ist.");
+    expect(s.zahlen).toBe("Die Zahlen auf dieser Seite sind nach den alten Regeln gerechnet.");
   });
 
   it("nennt bei Freigabe Name und Wiener Zeit und die drei Kategorien", () => {
@@ -224,7 +224,7 @@ describe("qualifikationsStaende", () => {
       liste,
     );
     expect(staende.map((s) => s.regelsatz)).toEqual(["v1", "v2"]);
-    expect(staende[0]?.satz).toBe("Regelsatz v1 zählt die 2 Qualifikationen einzeln, so wie sie geliefert werden.");
+    expect(staende[0]?.satz).toBe("Nach den alten Regeln zählen wir die 2 Qualifikationen einzeln, so wie sie geliefert werden.");
     expect(staende[1]?.freigabe).toBe("freigegeben von Erika Muster am 5. November 2026 um 16:53 Uhr");
     expect(staende[1]?.auftrag).toEqual({ titel: "Auftrag 1", vorschlagId: 24 });
   });

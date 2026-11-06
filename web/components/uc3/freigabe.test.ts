@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { Lauf } from "./typen";
 import { UC3_ARGV, type Ausfuehren, type CliLauf } from "./cli";
 import {
   auftraggeber,
@@ -26,6 +27,10 @@ import {
   waageSatz,
   wirkungJeKategorie,
   aenderungSatz,
+  aendertGesamt,
+  auftragZahlen,
+  auftragZuerst,
+  ohneProbeTitel,
   auftragKopf,
   freigabenKopf,
   kurzZeit,
@@ -359,7 +364,7 @@ describe("Probe für Auftrag 1 (Umverteilung)", () => {
   it("nimmt den Probemonat aus dem Schlüssel", () => {
     const w = waage(probe);
     expect(w?.lieferung).toBe("2024-08");
-    expect(probeTitel(w?.lieferung ?? "")).toBe("Probe für August 2024");
+    expect(probeTitel(w?.lieferung ?? "")).toBe("Testrechnung für August 2024");
   });
 
   // Fehler, den das fängt: groß stand „Δ 0“, die eigentliche Änderung (Zusammenlegung) fehlte.
@@ -458,7 +463,7 @@ describe("Sätze der Freigabe-Seiten (UI-Regie v1)", () => {
   it("nimmt den Titel aus dem Teil vor dem Doppelpunkt", () => {
     expect(auftragKopf("Auftrag 2, ganzes Monat statt Stichtag: Gezählt wird nicht mehr der Monatsletzte.")).toEqual({
       nummer: "2",
-      titel: "Ganzes Monat statt Stichtag",
+      titel: "Ganzer Monat statt Stichtag",
     });
     expect(auftragKopf("Regelsatz v2 freigeben")).toEqual({ nummer: null, titel: "Regelsatz v2 freigeben" });
   });
@@ -485,7 +490,7 @@ describe("Sätze der Freigabe-Seiten (UI-Regie v1)", () => {
   // Fehler, den das fängt: Regelcodes wie R6_… im Fließtext der Zeile.
   it("sagt ohne Regelcode, was sich ändert", () => {
     const satz = aenderungSatz({ typ: "regel_aendern", aenderungen: [{ regel_name: "R6_beschaeftigungskategorie" }], regelsatzZiel: "v2" });
-    expect(satz).toBe("Ändert eine Regel im Regelsatz v2");
+    expect(satz).toBe("Ändert eine Regel im Stand nach den Änderungsaufträgen");
     expect(aenderungSatz({ typ: "regel_neu", aenderungen: [{}], regelsatzZiel: "ministerium" })).toBe(
       "Neue Regel für die Ministeriums-Lieferung",
     );
@@ -509,8 +514,8 @@ describe("Sätze der Freigabe-Seiten (UI-Regie v1)", () => {
 
   // Fehler, den das fängt: Auftrag 3 sagt „Probe noch nicht gerechnet“, obwohl es nie ein vorher und nachher gibt.
   it("begründet eine fehlende Probe", () => {
-    expect(ohneProbeSatz({ typ: "regel_neu", regelsatzZiel: "ministerium" })).toMatch(/Ministeriums-Lieferung/);
-    expect(ohneProbeSatz({ typ: "regel_aendern", regelsatzZiel: "v2" })).toMatch(/noch nicht gerechnet/);
+    expect(ohneProbeSatz({ typ: "regel_neu", regelsatzZiel: "ministerium" })).toMatch(/Liste für das Ministerium/);
+    expect(ohneProbeSatz({ typ: "regel_aendern", regelsatzZiel: "v2" })).toMatch(/fehlt noch/);
   });
 
   // Fehler, den das fängt: 72 Zeilen „Regelstand … für Monat“ derselben Person in derselben Minute.
@@ -522,9 +527,62 @@ describe("Sätze der Freigabe-Seiten (UI-Regie v1)", () => {
       { ...basis, schluessel: "f1", zeit: "2026-11-05T15:53:00Z", anweisung: "Regelsatz v2 freigeben" },
     ];
     expect(protokollZeilen(zeilen).map((z) => z.satz)).toEqual([
-      "Regeln von Regelsatz v2 für 2 Monate festgehalten, August 2024 bis September 2024",
-      "Regelsatz v2 freigeben",
+      "Regeln nach den Änderungsaufträgen für 2 Monate festgehalten, August 2024 bis September 2024",
+      "Stand nach den Änderungsaufträgen freigegeben",
     ]);
+  });
+});
+
+describe("Was ein Auftrag geändert hat", () => {
+  const seite = (regelsatz: string, gesamt: number) => ({ lauf: { regelsatz } as Lauf, je: {}, gesamt });
+  const wirkung = { monat: "2026-07", basis: seite("v1", 399027), ziel: seite("v2", 407604), auchImZiel: [] };
+  const probe = { "2024-08": { vorher: { gesamt: 392236 }, nachher: { gesamt: 392284 } } };
+
+  // Fehler, den das fängt: Auftrag 2 zeigt +48 aus der Testrechnung, obwohl er im jüngsten Monat +8.577 ausmacht.
+  it("nimmt bei geänderter Gesamtzahl den Vergleich der echten Läufe", () => {
+    const z = auftragZahlen({ typ: "regel_aendern", regelsatzZiel: "v2", aenderungen: [], probe }, {}, wirkung);
+    expect(z.zeilen).toEqual([{ wort: "Juli 2026", vorher: "399.027", nachher: "407.604", differenz: "+8.577" }]);
+    expect(z.satz).toBe("Beschäftigungsverhältnisse nach den alten Regeln und nach den Änderungsaufträgen.");
+    expect(aendertGesamt(probe)).toBe(true);
+  });
+
+  it("nimmt ohne echten Lauf die Testrechnung und sagt das", () => {
+    const z = auftragZahlen({ typ: "regel_aendern", regelsatzZiel: "v2", aenderungen: [], probe }, {}, null);
+    expect(z.zeilen[0]?.differenz).toBe("+48");
+    expect(z.satz).toBe("Testrechnung für August 2024.");
+  });
+
+  // Fehler, den das fängt: Auftrag 3 steht mit leerem Platz da, als fehle etwas.
+  it("sagt bei der Ministeriums-Lieferung, dass sich keine Zahl ändert", () => {
+    const z = auftragZahlen({ typ: "regel_neu", regelsatzZiel: "ministerium", aenderungen: [{}], probe: {} }, {}, null);
+    expect(z).toEqual({ zeilen: [], satz: "Die Zahlen ändern sich nicht." });
+    expect(ohneProbeTitel({ typ: "regel_neu", regelsatzZiel: "ministerium" })).toBe("Die Zahlen ändern sich nicht");
+    expect(ohneProbeTitel({ typ: "regel_aendern", regelsatzZiel: "v2" })).toBe("Noch keine Testrechnung");
+  });
+
+  // Fehler, den das fängt: Die Seite beginnt mit Auftrag 3, weil er zuletzt freigegeben wurde.
+  it("ordnet die Aufträge 1, 2, 3 und lässt den Rest danach", () => {
+    const liste = ["Weniger Bau.", "Auftrag 3, Liste: x", "Auftrag 1, Zusammen: x", "Auftrag 2, Monat: x"];
+    expect(auftragZuerst(liste, (t) => t)).toEqual(["Auftrag 1, Zusammen: x", "Auftrag 2, Monat: x", "Auftrag 3, Liste: x", "Weniger Bau."]);
+  });
+
+  it("nennt den Titel von Auftrag 2 mit „Ganzer Monat“", () => {
+    expect(auftragKopf("Auftrag 2, ganzes Monat statt Stichtag: Gezählt wird …").titel).toBe("Ganzer Monat statt Stichtag");
+  });
+
+  it("sagt Änderungsaufträge, wenn nur sie entschieden sind", () => {
+    const frei = { art: "freigegeben" as const };
+    expect(freigabenKopf(0, [frei, frei, frei], true)).toBe("3 Änderungsaufträge, alle mit Namen freigegeben.");
+  });
+
+  // Fehler, den das fängt: 22 Zeilen „Berichtsmonat … (v1) veröffentlichen“ unter den Freigaben, mit v1 im Text.
+  it("fasst Veröffentlichungen je Stand zu einer Zeile zusammen", () => {
+    const basis = { art: "freigegeben" as const, name: "Erika Muster", geaendert: null, begruendung: null, commit: null, vorschlag: null, waage: null };
+    const zeilen: ErledigtZeile[] = [
+      { ...basis, schluessel: "f2", zeit: "2026-11-05T15:14:00Z", anweisung: "Berichtsmonat 2026-07 (v1) veröffentlichen" },
+      { ...basis, schluessel: "f1", zeit: "2026-11-05T15:13:00Z", anweisung: "Berichtsmonat 2024-08 (v1) veröffentlichen" },
+    ];
+    expect(protokollZeilen(zeilen).map((z) => z.satz)).toEqual(["2 Monate nach den alten Regeln veröffentlicht, August 2024 bis Juli 2026"]);
   });
 });
 
@@ -540,14 +598,14 @@ describe("Rücknahme einer Regel (#168)", () => {
     const k = klartext(ruecknahme);
     expect(k.worte).toEqual(["Die Regel X1_probe wird abgeschaltet, sie wird nicht gelöscht."]);
     expect(k.diff).toBe("- X1_probe: aktiv = true\n+ X1_probe: aktiv = false");
-    expect(aenderungKurz(ruecknahme)).toBe("Regel X1_probe abschalten (Regelsatz v2)");
-    expect(aenderungSatz(ruecknahme)).toBe("Schaltet eine Regel ab im Regelsatz v2");
+    expect(aenderungKurz(ruecknahme)).toBe("Regel X1_probe abschalten (Nach den Änderungsaufträgen)");
+    expect(aenderungSatz(ruecknahme)).toBe("Schaltet eine Regel ab im Stand nach den Änderungsaufträgen");
   });
 
   it("lässt eine normale Änderung unverändert", () => {
     const normal = { ...ruecknahme, aenderungen: [{ regel_name: "X1_probe", parameter_alt: { a: 1 }, parameter_neu: { a: 2 } }] };
     expect(klartext(normal).worte).toEqual(["In der Regel X1_probe wird „a“ von 1 auf 2 geändert."]);
-    expect(aenderungSatz(normal)).toBe("Ändert eine Regel im Regelsatz v2");
+    expect(aenderungSatz(normal)).toBe("Ändert eine Regel im Stand nach den Änderungsaufträgen");
   });
 });
 
