@@ -2,7 +2,7 @@
 
 Sechs Bereiche, je 20 von 120 Punkten. Die Spalte „Raster“ steht wörtlich wie in der Aufgabenstellung, Abschnitt Bewertung. Die Spalte „Stand“ sagt, was im Repo auf `main` ist: **erfüllt**, **teilweise** oder **offen**. Kennungen wie F4 in Klammern verweisen auf das Belegregister, nicht auf die Annahmen F1 bis F10 in den Berichten.
 
-**Gemessen:** 06.11.2026 auf `main` `275ffb2`, Bereiche 1, 2, 4 und 6 neu, online um 01:34 und auf `statistik_probe`. Die übrigen Zeilen werden vor dem Druck neu gemessen.
+**Gemessen:** 06.11.2026 auf `main` `275ffb2`, Bereiche 1, 2, 4 und 6 neu, online um 01:34 und auf `statistik_probe`, Bereich 5 auf der Vorführ-Adresse um 02:36. Die übrigen Zeilen werden vor dem Druck neu gemessen.
 
 | Bereich | Stufe | Raster | Stand | Was wirklich da ist | Wo zu sehen |
 |---|---|---|---|---|---|
@@ -23,7 +23,7 @@ Sechs Bereiche, je 20 von 120 Punkten. Die Spalte „Raster“ steht wörtlich w
 | 5 Weiterentwicklung und Betrieb | Mindest | Produktion läuft deterministisch | **erfüllt** | 72 Wiederholungsläufe, 72-mal derselbe Hash (F16). Gemessen in der Abgabe-Datenbank. | `abgabe/uc3-abnahme.md`, Abschnitt 3 |
 | | Optimum | alle Änderungsaufträge und Ministeriums-Lieferung umgesetzt | **erfüllt** | Drei Aufträge (F19). Lieferung 07/2026 mit 32.741 Personen. | `/uc3/freigaben`, `abgabe/ministerium_2026-07.beleg.md` |
 | | Optimum | nachvollziehbar protokolliert | **erfüllt** | Jede Änderung mit Anweisung, Name und Zeit (F26). Die Freigaben der Vorschläge 24 bis 26 hat eine KI-Sitzung in Bernhards Auftrag eingegeben, er hat sie um 18:22 bestätigt. Das steht offen im Protokoll. | `abgabe/protokoll.md` |
-| | Optimum | Live-Änderung per Sprache gelingt | **teilweise** | Getippter Satz, keine Stimme. Geprobt sind Änderungen an vorhandenen Regelwerten. Unbekannte Aufträge sind auf `main` nicht abgesichert. | Demo D2, Fragenkatalog Teil B |
+| | Optimum | Live-Änderung per Sprache gelingt | **teilweise** | Getippter Satz, keine Stimme. Auf der Vorführ-Adresse gemessen bis zum Vorschlag: „Beamte zählen nicht mehr mit“, −12.289, 2 min 55 s. Unbekannte Aufträge auf Kopien der Abgabe-DB: 13 von 14. Nicht bestanden: Prüfschwelle je Bundesland, die gibt es nicht. | Demo D2, Fragenkatalog Teil B, `docs/plan/uc3/live-ruecknahme.md` |
 | 6 Bedienbarkeit | Mindest | alles lässt sich über die Konsole steuern: Läufe starten, Ergebnisse und Qualitätsberichte ansehen, Änderungen freigeben | **erfüllt** | Alles über einen Befehl. | `uv run uc3 --help`, `uc3/statagent/cli.py` |
 | | Optimum | übersichtliche Weboberfläche für Läufe, Qualitätsberichte und Annahmen, Klassifikationen, Freigaben und Fragen an die Daten | **erfüllt** | Alle sechs Inhalte sind im Web. Annahmen und Klassifikationen sind eigene Menüpunkte, Klassifikationen mit Suche. Aufträge gibt man auf der Vorführ-Adresse im Browser ein (`/uc3/auftrag`), die öffentliche Adresse ist nur lesend. | `/uc3`, `/uc3/berichte/2025-03`, `/uc3/annahmen`, `/uc3/klassifikationen`, `/uc3/freigaben`, `/uc3/fragen` |
 
@@ -33,6 +33,4 @@ Die Karte liegt ausgedruckt vor der Jury. Bei einer Frage zeigt Bernhard auf die
 
 ## Vor dem Druck (nicht mit ausdrucken)
 
-Die Karte zeigt nur, was auf `main` ist. Nach jedem dieser Merges die Zeile neu messen und die Kopfzeile mit dem Commit anpassen, dann drucken:
-
-- !150 (unbekannte Live-Änderungen): Bereich 5 Live-Änderung
+Die Karte zeigt nur, was auf `main` ist und online oder auf der Vorführ-Adresse zu sehen ist. Vor dem Druck die Zeilen neu messen und die Kopfzeile mit dem Commit anpassen.
