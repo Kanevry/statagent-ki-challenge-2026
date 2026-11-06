@@ -11,7 +11,8 @@ Spalten:
 - `filter`: `region`, `geschlecht`, `kategorie`, `oenace` (Buchstabe), `branche` (Name, `%` als Platzhalter, gilt je
   ÖNACE-Version), `freier_dv`, `alter` (`von-bis`).
 - `optionen`: `mittel` (Durchschnitt muss dabei sein), `muss` (Rückfrage oder Absage reichen nicht), `auch=…` (weitere
-  erlaubte Ausgänge), `gruppe=…` (eine Zahl je Gruppe), `werte_je=merkmal:a,b`, `art=anteil|fluktuation`,
+  erlaubte Ausgänge), `gruppe=…` (eine Zahl je Gruppe; `geschlecht+region` je Kombination), `summen` (bei
+  `gruppe`: Summenzeilen dürfen dabei sein), `werte_je=merkmal:a,b`, `art=anteil|fluktuation`,
   `anteil=merkmal:code`, `regelsatz=v2` (der Regelsatz des Solls), `aufruf=v2` (Regelsatz beim Aufruf), `text=…`
   (dieser Text muss in der Antwort stehen), `frei` (Tabelle, die der Katalog nicht nachrechnet).
 
@@ -301,7 +302,7 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | M017 | merkmal:bundesland,form:umgangssprache | zahl | 2025-03 | region=7 | auch=rueckfrage,absage | Wie viele Tiroler arbeiteten im März 2025? |
 | F014 | form:zwei_werte,zeit:jahreszeit | zahl | 2025-06..2025-08 | region=9,7 | auch=absage,rueckfrage | Beschäftigte in Wien und Tirol im Sommer 2025 |
 | F034 | form:anteil,zeit:jahreszeit | rueckfrage | - | - | auch=absage | Wie hoch war der Frauenanteil im Sommer 2025? |
-| F132 | form:rang | absage | - | - | auch=rueckfrage | Welches Bundesland hat die höchste Zahl an Beschäftigten im März 2025? |
+| F132 | form:rang | zahl | 2025-03 | - | gruppe=region;text=Am meisten im März 2025: Wien;muss | Welches Bundesland hat die höchste Zahl an Beschäftigten im März 2025? |
 | Z162 | zeit:liste | zahl | 2025-03,2025-07 | region=9 | auch=rueckfrage | Beschäftigte in Wien im März und im Juli 2025 |
 | B001 | zeit:monat,merkmal:bundesland,form:hoeflich,blind | zahl | 2025-09 | region=6 | muss | Servus, könnt ihr mir bitte sagen, wie viele Leute im September 2025 in der Steiermark beschäftigt waren? |
 | B002 | zeit:monat,form:stichwort,blind | zahl | 2026-04 | - | muss | Gesamtzahl der Beschäftigungsverhältnisse im April 2026 |
@@ -719,8 +720,28 @@ Zeitraum, wie alle Angaben ohne Jahr. E045 „Anfang Juli 2026“ bekommt die Za
 | U008 | form:anteil,zeit:seit | rueckfrage | - | - | auch=absage | Frauenanteil seit Jänner 2025 |
 | U009 | merkmal:regelsatz,form:gliederung | zahl | 2026-06 | - | regelsatz=v2;gruppe=geschlecht;auch=absage,rueckfrage | Beschäftigte im Juni 2026 aufgeschlüsselt nach Geschlecht, nach den Änderungsaufträgen gerechnet |
 | U010 | merkmal:kategorie,merkmal:bundesland | zahl | 2025-11 | region=5 | werte_je=kategorie:Arbeiter,Angestellte,Beamte;auch=absage,rueckfrage | Beschäftigte in Salzburg im November 2025, unterteilt in Arbeiter, Angestellte und Beamte |
+| G030 | form:rang,merkmal:region | zahl | 2026-07 | - | gruppe=region;text=Am meisten im Juli 2026: Wien;muss | Welches Bundesland hat die meisten Beschäftigten im Juli 2026? |
+| G031 | form:rang,merkmal:oenace | zahl | 2026-07 | geschlecht=W | gruppe=oenace;text=Am meisten im Juli 2026: P Öffentliche;muss | Welche Branche hat die meisten Frauen im Juli 2026? |
+| G032 | form:rang,merkmal:region | zahl | 2026-07 | geschlecht=M | gruppe=region;text=Am wenigsten im Juli 2026: Burgenland;muss | In welchem Bundesland arbeiten die wenigsten Männer im Juli 2026? |
+| G033 | form:rang,zeit:jahreszeit | rueckfrage | - | - | auch=absage | Welches Bundesland hat die wenigsten Beschäftigten im Sommer 2025? |
+| G034 | form:rang,merkmal:oenace | zahl | 2025-03 | - | gruppe=oenace;text=Am wenigsten im März 2025: V Exterritoriale;muss | Welche Branche hat die wenigsten Beschäftigten im März 2025? |
+| G035 | form:absage,merkmal:region | absage | - | - | auch=rueckfrage | Die meisten Frauen in Wien im Juli 2026 |
 | G050 | form:app | definition | - | - | text=Regeln | Was ist ein Regelsatz? |
 | G051 | form:app | definition | - | - | text=Mensch entscheiden | Was heißt angehalten? |
 | G053 | form:app,zeit:monat | zahl | 2025-10 | - | art=pruefung;muss | Warum ist Oktober 2025 angehalten? |
 | G056 | form:absage | absage | - | - | - | Warum ist der Himmel im Oktober 2025 blau? |
-| G057 | form:absage,zeit:jahreszeit | absage | - | - | auch=rueckfrage | Männer und Frauen im Sommer 2025 je Bundesland |
+| G057 | kreuz:merkmale,zeit:jahreszeit | zahl | 2025-06..2025-08 | - | gruppe=geschlecht+region;summen;muss | Männer und Frauen im Sommer 2025 je Bundesland |
+
+Die Zeilen `X…` stammen aus der Blind-Runde zu !328. X002 bekommt die Zahl je Monat, Geschlecht und Bundesland
+(#207), für höchstens 6 Monate; darüber gibt es eine Absage (X104). In X036 hat „dort“
+keinen Bezug: Das Programm fragt nach dem Bundesland, statt eine Zahl für ganz Österreich zu nennen.
+
+| id | achsen | soll | monate | filter | optionen | frage |
+| --- | --- | --- | --- | --- | --- | --- |
+| X001 | zeit:monat,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale,blind | zahl | 2026-07 | - | gruppe=geschlecht+region;summen | Wie viele Männer und Frauen gibt es in jedem Bundesland im Juli 2026? |
+| X002 | zeit:winter,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale,blind | zahl | 2024-12..2025-02 | - | gruppe=geschlecht+region;summen;muss | Beschäftigte im Winter 2025 nach Geschlecht und Bundesland |
+| X036 | zeit:winter,zeit:ohne_jahr,merkmal:geschlecht,merkmal:alter,merkmal:branche,blind | rueckfrage | - | - | text=dort | Wie viele Frauen unter 30 im Handel gibt es dort im Winter? |
+| X101 | zeit:bereich,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale | zahl | 2025-03..2025-04 | - | gruppe=geschlecht+region;summen;muss | Männer und Frauen je Bundesland von März bis April 2025 |
+| X102 | zeit:quartal,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale | zahl | 2025-01..2025-03 | - | gruppe=geschlecht+region;summen;muss | Beschäftigte im ersten Quartal 2025 nach Geschlecht und Bundesland |
+| X103 | zeit:winter,merkmal:geschlecht,merkmal:bundesland | zahl | 2024-12..2025-02 | region=7 | gruppe=geschlecht;muss | Männer und Frauen in Tirol im Winter 2025 |
+| X104 | zeit:jahr,merkmal:geschlecht,merkmal:bundesland,kreuz:merkmale | absage | - | - | - | Zeitreihe Männer und Frauen je Bundesland 2025 |

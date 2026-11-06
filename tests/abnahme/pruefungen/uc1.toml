@@ -1,7 +1,7 @@
-# Prüfsätze UC1 (inkl. UC4-Adapter #107, #130). Vorschläge von b-abnahme-30/agent-uc1 05.11. 18:0x, gesichtet von
-# b-abnahme-30 (Testzählungen verankert, damit Durchfaller nie passen).
+# Prüfsätze UC1 (inkl. UC4-Adapter #107, #130). Vorschläge von Abnahme-Prüfer/Mess-Agent 05.11. 18:0x, gesichtet vom
+# Abnahme-Prüfer (Testzählungen verankert, damit Durchfaller nie passen).
 
-# Prüfsatz-Vorschläge Bereich uc1 (Abnahme, Jury-Sicht). Erzeugt 05.11. von b-abnahme-30/messer-uc1.
+# Prüfsatz-Vorschläge Bereich uc1 (Abnahme, Jury-Sicht). Erzeugt 05.11. von Abnahme-Prüfer/Mess-Agent.
 # Gemessen auf einem Abzug von origin/main (321a717). Das Kriterium zählt, nicht der offene MR (!68, !69).
 
 [[pruefung]]
@@ -605,7 +605,7 @@ erwartet = ["(^|= )\\d+ passed"]
 deckung = "teil"
 schwer = false
 zeitlimit = 200
-quelle = "Issue #23; Teil „per Stimme“ nach Abgabe (Entscheid Lead a7, 05.11. 20:3x, entscheide.jsonl)"
+quelle = "Issue #23; Teil „per Stimme“ nach Abgabe (Entscheid des Leads, 05.11. 20:3x, entscheide.jsonl)"
 befund = "Der Text-Pfad des Pflege-Szenarios besteht den Test nicht."
 grund = "Text-Pfad des Pflege-Szenarios besteht im Test (die Vorführung selbst misst der Hand-Prüfsatz)."
 
@@ -613,7 +613,7 @@ grund = "Text-Pfad des Pflege-Szenarios besteht im Test (die Vorführung selbst 
 id = "23-1"
 hash = "cc772ba601"
 art = "hand"
-beschreibung = "Ein Mensch führt das Pflege-Szenario Ende zu Ende per Text vor; jede Auskunft nennt die Quelle (Gesetz und Paragraf oder Dokument und Seite). Der Teil „per Stimme“ ist nach Abgabe (Entscheid Lead a7)."
+beschreibung = "Ein Mensch führt das Pflege-Szenario Ende zu Ende per Text vor; jede Auskunft nennt die Quelle (Gesetz und Paragraf oder Dokument und Seite). Der Teil „per Stimme“ ist nach Abgabe (Entscheid des Leads)."
 deckung = "voll"
 schwer = true
 quelle = "Issue #23"
