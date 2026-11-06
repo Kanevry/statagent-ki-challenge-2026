@@ -268,7 +268,7 @@ herkunft = "b-abnahme-30/messer-c 2026-11-05 17:26"
 [[pruefung]]
 id = "18-AC3"
 hash = "297fe2690d"
-befehl = "pnpm test:slop"
+befehl = "pnpm --filter web run test:slop"
 erwartet = ["passed"]
 schwer = true
 deckung = "teil"
