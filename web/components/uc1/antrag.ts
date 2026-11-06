@@ -169,7 +169,7 @@ export type OffeneGruppe = {
 };
 
 /**
- * Offene Punkte nach Formularseite (Urteil ui-regie-32: eine Gruppe je Seite, ein Herkunft-Chip je Gruppe statt je
+ * Offene Punkte nach Formularseite (Urteil der Sichtprüfung: eine Gruppe je Seite, ein Herkunft-Chip je Gruppe statt je
  * Punkt). Seiten aufsteigend, Punkte ohne Beleg zuletzt; innerhalb einer Seite bleibt die Reihenfolge des Kerns.
  */
 export function offenNachSeite(punkte: readonly OffenerPunkt[]): OffeneGruppe[] {

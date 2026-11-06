@@ -255,7 +255,7 @@ def definition_pruefen(conn: Verbindung, regel: Regel, berichtsmonat: str) -> No
 
     Dieselbe Person darf im Sheet nicht zu Abschnitt C zählen und in der Ministeriums-Lieferung aus C fallen:
     ``altcodes_als_abschnitt`` muss genau die Altcodes der freigegebenen Zuordnungsregel nennen. Angehaltene
-    Lieferungen werden übersprungen (Variante S, Entscheid Lead 58). Bei Abweichung: RegelFehler mit Soll und Ist.
+    Lieferungen werden übersprungen (Variante S, Entscheid Lead). Bei Abweichung: RegelFehler mit Soll und Ist.
     """
     modus = str(wert(regel, "angehaltene_lieferungen"))
     if modus != "ueberspringen":
@@ -359,7 +359,7 @@ def beleg_text(regel: Regel, auswertung: Auswertung, dateiname: str, sha256: str
     """Beleg zur Ministeriums-Lieferung für das Repo (die CSV selbst enthält Einzeldaten und bleibt draußen).
 
     Nennt Datei, sha256, Zeilenzahl, Definition mit Parametern, Datenstand je Monat, Erzeugungsbefehl, Freigabe und
-    Abgabeweg (Entscheid Lead 58, #16: Abgabe über den SV-Box-Teamordner). Die Freigabe über Vertrag P committet
+    Abgabeweg (Entscheid Lead, #16: Abgabe über den SV-Box-Teamordner). Die Freigabe über Vertrag P committet
     diesen Beleg; über die sha256 ist sie an den Inhalt der CSV gebunden.
     """
     parameter = json.dumps(regel.parameter, ensure_ascii=False, sort_keys=True)

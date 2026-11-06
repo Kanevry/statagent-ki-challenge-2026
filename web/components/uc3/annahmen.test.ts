@@ -31,7 +31,7 @@ describe("Annahmen als Bereich", () => {
     expect(SQL_ANNAHMEN).toContain("a.begruendung");
   });
 
-  // Fehler, den das fängt: „10 Annahmen sind offen“, obwohl zwei keine Rückfrage haben (Review 9b, F5 und F10).
+  // Fehler, den das fängt: „10 Annahmen sind offen“, obwohl zwei keine Rückfrage haben (Review, F5 und F10).
   it("nennt nur Annahmen mit offener Rückfrage als offen", () => {
     expect(annahmenKopf(10, 8)).toBe("10 Annahmen, jede begründet. Zu 8 sind Rückfragen an die Fachabteilung offen.");
     expect(annahmenKopf(10, 1)).toBe("10 Annahmen, jede begründet. Zu 1 ist eine Rückfrage an die Fachabteilung offen.");

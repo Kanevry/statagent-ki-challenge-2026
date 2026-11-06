@@ -21,7 +21,7 @@ export function leistungName(id: string): string {
 const ZAHLWOERTER = ["", "", "Zwei", "Drei", "Vier", "Fünf", "Sechs", "Sieben", "Acht", "Neun", "Zehn"];
 
 /**
- * Überschrift der Leistungen (Urteil ui-regie-32): bei einer „Pflegegeld kommt für Sie in Frage“, bei mehreren
+ * Überschrift der Leistungen (Urteil der Sichtprüfung): bei einer „Pflegegeld kommt für Sie in Frage“, bei mehreren
  * „Zwei Leistungen kommen für Sie in Frage“; die Namen stehen dann in den Karten. Die Person („für Ihre Mutter“)
  * nennt der Kern nicht sicher, deshalb immer „für Sie“.
  */

@@ -121,7 +121,7 @@ _ZULAESSIG: dict[tuple[str, str], Any] = {
     ("personentage", "angehaltene_lieferungen"): {"ueberspringen", "verwenden"},
 }
 
-#: Lesbare Fassung der Muster für Meldungen in der Konsole (Review 29: keine Regex vor der Jury).
+#: Lesbare Fassung der Muster für Meldungen in der Konsole (Review: keine Regex vor der Jury).
 _ERLAUBT_TEXT = {
     _TAG.pattern: "monatserster, monatsletzter, tag:1 bis tag:31",
     _GEBURTSMONAT_13.pattern: "jahresdifferenz, unbekannt oder ersatz:MM-TT, z. B. ersatz:01-01",
@@ -286,7 +286,7 @@ def produktions_regelsatz(conn: Verbindung) -> str:
 
 def probe_monat(conn: Verbindung, basis: str) -> str | None:
     """Monat für die Probe: der jüngste gerechnete der Basis, sonst der jüngste gerechnete überhaupt. Ein Regelsatz
-    aus einer Freigabe oder Rücknahme hat keine Läufe; die Probe rechnet beide Stände ohnehin selbst (Review 9b)."""
+    aus einer Freigabe oder Rücknahme hat keine Läufe; die Probe rechnet beide Stände ohnehin selbst (Review)."""
     z = conn.execute(
         """SELECT lieferung FROM meta.lauf WHERE status IN ('fertig', 'unveraendert')
            ORDER BY (regelsatz = %s) DESC, lieferung DESC LIMIT 1""",
@@ -332,7 +332,7 @@ def bekannte_werte(conn: Verbindung, basis: str) -> dict[str, list[str]]:
     Grundlage für Ausschluss und Gruppierung: das Modell nennt Werte nur aus dieser Liste (Live-Probe: „Wien“
     statt Code „9“ hätte nichts ausgeschlossen). Quelle ist der jüngste Lauf der Basis mit Zellen, sonst der jüngste
     Lauf mit Zellen überhaupt: ein neuer Regelsatz nach einer Rücknahme hat noch keine Läufe (Probe 19:25 fragte
-    darum zurück), und ein Lauf mit Status „unveraendert“ legt keine Zellen an (Review 9b: Geschlecht und ÖNACE
+    darum zurück), und ein Lauf mit Status „unveraendert“ legt keine Zellen an (Review: Geschlecht und ÖNACE
     waren für v2 leer),
     dazu die Bundesländer aus stat.klass_region. ``qualifikation`` folgt R6 der Basis: Codes oder Kategorien.
     """
@@ -562,7 +562,7 @@ _KENNUNGS_ANKUENDIGUNG = (
 _KENNUNGS_TRENNER = r"[\s:=#/.,\-]*+"
 #: Ende einer Zahl: keine weitere Ziffer, keine Einheit. Nur kurze Zahlen (bis vier Stellen) dürfen als Datum oder
 #: Dezimalzahl weitergehen (``2025-10``, ``3.5``); eine lange Zahl mit ``,`` ``/`` ``-`` dahinter ist eine Liste von
-#: Kennungen („1001049,1001050“, „859975/859976“; Review 5a, 05.11.).
+#: Kennungen („1001049,1001050“, „859975/859976“; Review, 05.11.).
 _KENNUNGS_EINHEIT = r"(?!\s*(?:%|(?:prozent|jahre?n?|tag(?:e|en)?|monate?n?|wochen?)\b))"
 _KENNUNGS_ENDE_LANG = r"(?!\d)" + _KENNUNGS_EINHEIT
 _KENNUNGS_ENDE_KURZ = r"(?!\d)(?![-./,]\d)" + _KENNUNGS_EINHEIT
@@ -1009,7 +1009,7 @@ _WEICHE: tuple[tuple[str, re.Pattern[str]], ...] = (
         "qs",
         re.compile(
             r"anhalt|angehalten|schwelle|prozent|%|warn|melde[nt]?\b|prüfregel|pruefregel|"
-            # „Prüfung“ nur als Anweisung an die Prüfung, nicht „bei der Prüfung der Geburtsdaten“ (Review 29)
+            # „Prüfung“ nur als Anweisung an die Prüfung, nicht „bei der Prüfung der Geburtsdaten“ (Review)
             r"\b(?:prüfung|pruefung)\s+(?:soll|muss|melde|schlägt|schlaegt|greift|ab\b)",
             re.IGNORECASE,
         ),
@@ -1149,7 +1149,7 @@ def agent_ausfuehren(
                 # Zweite Meinung: fragt die Rolle zurück und nennt die Wort-Weiche eine andere, noch nicht gefragte
                 # Rolle, fragt der Code diese einmal (Probe 19:25: qs fragte zu P04, datenmanagement kann R5).
                 if aendert_nichts:
-                    # „Steht schon so“ ist eine ehrliche Antwort; Nachfassen oder Umleiten überstimmte sie (Review 29).
+                    # „Steht schon so“ ist eine ehrliche Antwort; Nachfassen oder Umleiten überstimmte sie (Review).
                     ergebnis.rueckfrage = antwort.rueckfrage
                     return ergebnis
                 if weiche is not None and weiche not in versucht:
@@ -1265,7 +1265,7 @@ def agent_ausfuehren(
             break
     if vor_nachfrage:
         # Was nach der Nachfrage wegfiel, steht offen da: der Mensch prüft vor der Freigabe, ob es gemeint war
-        # (Review 29: „Beamte und Kinder unter 15“ kann so still zu einer Regel schrumpfen).
+        # (Review: „Beamte und Kinder unter 15“ kann so still zu einer Regel schrumpfen).
         weg = [n for n in vor_nachfrage.split(", ") if n not in _aenderungsnamen(g)]
         if weg:
             g = replace(

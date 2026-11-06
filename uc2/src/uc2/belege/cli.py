@@ -217,7 +217,7 @@ MAX_BATCH = 64
 
 
 def _batch(wert: str) -> int:
-    """1 bis 64 (Review-Bank 4f): begrenzt den Speicher je Modellaufruf bei Abschnitten bis 1.024 Token."""
+    """1 bis 64 (Review): begrenzt den Speicher je Modellaufruf bei Abschnitten bis 1.024 Token."""
     zahl = int(wert)
     if not 1 <= zahl <= MAX_BATCH:
         raise argparse.ArgumentTypeError(f"--batch muss zwischen 1 und {MAX_BATCH} liegen, nicht {zahl}")

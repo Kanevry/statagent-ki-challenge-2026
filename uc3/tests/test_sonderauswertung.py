@@ -123,7 +123,7 @@ def _lieferungs_protokoll(conn: Verbindung) -> list[tuple[int, str, str | None]]
 def test_freigabe_committet_den_beleg_mit_sha256_nicht_die_csv(conn: Verbindung, tmp_path: Path) -> None:
     # Fängt: Lieferung nur in meta.ausgabe festgehalten, ohne meta.protokoll/meta.freigabe und ohne Commit mit
     # Trailer (Review !13 Punkt 3, #71 AC2, Regel 7), ein Commit mit fremden Dateien, oder die CSV mit
-    # Einzeldaten im Repo statt des Belegs mit ihrer sha256 (Entscheid Lead 58, #16).
+    # Einzeldaten im Repo statt des Belegs mit ihrer sha256 (Entscheid Lead, #16).
     repo = _repo(tmp_path / "repo")
     (repo / "fremd.txt").write_text("nicht Teil der Lieferung\n", encoding="utf-8")
     git(repo, "add", "fremd.txt")
@@ -203,7 +203,7 @@ def test_gescheitertes_git_lehnt_ab_und_schreibt_keine_ausgabe(conn: Verbindung,
     assert _ausgaben(conn) == []
     assert git(repo, "rev-parse", "HEAD") == kopf
     # Fängt auch: der Beleg bleibt nach dem Git-Fehler gestaged und ginge mit dem nächsten Commit ohne Freigabe
-    # hinaus (Review-Bank 57, Punkt 8).
+    # hinaus (Review, Punkt 8).
     assert git(repo, "status", "--porcelain") == ""
     assert not (tmp_path / "extern" / "ministerium_2024-11.csv").exists()
     assert not (repo / "abgabe" / "ministerium_2024-11.beleg.md").exists()
@@ -265,7 +265,7 @@ def test_grenzfaelle_schwelle_ueberlappung_und_altcodes(conn: Verbindung) -> Non
 
 def test_geburtsmonat_13_ist_unplausibles_geburtsjahr(conn: Verbindung) -> None:
     # Fängt: Datum mit Monat 13 liefert in GEBURTSJAHR ein Jahr; Auftrag 3 verlangt für unplausible Geburtsdaten
-    # „Unbekannt“ (der Ersatztag 1. Juli gilt nur für das Alter in der Statistik, Review 4f / Lead 58).
+    # „Unbekannt“ (der Ersatztag 1. Juli gilt nur für das Alter in der Statistik, Review / Lead).
     with conn.transaction():
         conn.execute(
             f"""INSERT INTO roh.lieferung ({ROH_SPALTEN})
@@ -299,8 +299,8 @@ def test_freigabe_im_protokoll_ohne_ausgabe_verhindert_zweite_freigabe(
 
 
 def test_csv_mit_einzeldaten_darf_nicht_im_repo_liegen(conn: Verbindung, tmp_path: Path) -> None:
-    # Fängt: die Ministeriums-CSV (PERSON_ID) landet im Repo und damit im öffentlichen GitHub-Push (Review 57,
-    # Pflicht B; Entscheid Lead 58: Abgabe über den SV-Box-Teamordner, im Repo nur der Beleg).
+    # Fängt: die Ministeriums-CSV (PERSON_ID) landet im Repo und damit im öffentlichen GitHub-Push (Review,
+    # Pflicht B; Entscheid Lead: Abgabe über den SV-Box-Teamordner, im Repo nur der Beleg).
     repo = _repo(tmp_path / "repo")
     _auswertungsregel(conn)
     regeln_freigeben(conn, "ministerium", NAME)

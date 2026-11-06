@@ -261,7 +261,7 @@ cmd_pruefen() {
     done
   done
 
-  # Voice aus heißt: kein Vapi-Schlüssel im Body (#108 b, Lead a7 05.11.). Mit dem öffentlichen Schlüssel könnte
+  # Voice aus heißt: kein Vapi-Schlüssel im Body (#108 b, Lead 05.11.). Mit dem öffentlichen Schlüssel könnte
   # jeder abgerechnete Anrufe starten, auch wenn der Sprechknopf aus ist.
   local voice
   voice=$(curl -sS --max-time 20 "https://$DOMAIN/api/plattform/voice-config") || voice=""
@@ -290,7 +290,7 @@ EOF
   [[ -n $zustand ]] || { echo "pruefen: keine Container gefunden" >&2; fehler=1; }
   # UC2-Namensliste: Ist UC2_NAMENSLISTE gesetzt, muss am Host-Pfad eine nicht leere Datei liegen und im Container
   # als Datei ankommen. Fehlt sie, legt Docker still ein Verzeichnis an und UC2 zeigt Beispielbelege. Gemessen wird
-  # nur die Zeilenzahl, nie der Inhalt (Lead a7, 05.11.).
+  # nur die Zeilenzahl, nie der Inhalt (Lead, 05.11.).
   local namen
   namen=$(remote bash -s -- "$BASIS" "$ENV_DATEI" <<'EOF'
 pfad=$(sed -nE 's/^[[:space:]]*(export[[:space:]]+)?UC2_NAMENSLISTE=//p' "$2" | tail -n 1 | tr -d "\"'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')

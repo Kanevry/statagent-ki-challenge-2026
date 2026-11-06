@@ -63,7 +63,7 @@ describe("Leistungsnamen", () => {
 });
 
 describe("leistungenTitel", () => {
-  // Fängt: Namensliste in der Überschrift bei mehreren Leistungen (Urteil ui-regie-32) oder falsche Einzahl.
+  // Fängt: Namensliste in der Überschrift bei mehreren Leistungen (Urteil der Sichtprüfung) oder falsche Einzahl.
   it("nennt eine Leistung beim Namen und zählt mehrere als Zahlwort", () => {
     expect(leistungenTitel(["pflegegeld"])).toBe(`${leistungName("pflegegeld")} kommt für Sie in Frage`);
     expect(leistungenTitel(["pflegegeld", "rehabilitation"])).toBe("Zwei Leistungen kommen für Sie in Frage");

@@ -348,7 +348,7 @@ def test_ministerium_csv_muss_zur_sha256_im_beleg_passen(tmp_path: Path) -> None
 
 
 def test_ministerium_csv_im_repo_ist_ein_mangel(tmp_path: Path) -> None:
-    # Fängt: die CSV mit PERSON_ID liegt unter abgabe/ und ginge mit dem öffentlichen Repo hinaus (Review 57, B).
+    # Fängt: die CSV mit PERSON_ID liegt unter abgabe/ und ginge mit dem öffentlichen Repo hinaus (Review, B).
     abgabe = _vollstaendig(tmp_path)
     (abgabe / "ministerium_2026-07.csv").write_text(
         "PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE\n", encoding="utf-8"
@@ -369,7 +369,7 @@ def test_ministerium_sha256_im_beleg_muss_dem_sollwert_entsprechen(tmp_path: Pat
 
 def test_rueckfrage_aus_paragraf_2_muss_in_paragraf_3_stehen() -> None:
     # Fängt: § 2 verweist auf eine Rückfrage (z. B. alte Nummer R2 statt R6), die § 3 nicht nennt; Leser finden
-    # die Frage dann nicht (Review 57, D).
+    # die Frage dann nicht (Review, D).
     text = _bericht().replace(
         "| {e} | – | – |".format(e="erklärt – plausibel"), "| erklärt – plausibel | – | R7 |"
     )
@@ -380,7 +380,7 @@ def test_rueckfrage_aus_paragraf_2_muss_in_paragraf_3_stehen() -> None:
 
 def test_ministerium_zeilenzahl_im_beleg_muss_der_sollzahl_a13_entsprechen(tmp_path: Path) -> None:
     # Fängt: ein freigegebener Beleg mit einer anderen Personenzahl als der Abgabezahl aus Annahme A13 (z. B.
-    # 32.713 ohne Altcodes statt 32.741) gilt als vollständig, oder die Sollzahl fehlt still (Review-Bank 57, 1).
+    # 32.713 ohne Altcodes statt 32.741) gilt als vollständig, oder die Sollzahl fehlt still (Review, 1).
     abgabe = _vollstaendig(tmp_path)
     (tmp_path / "extern" / "ministerium_2026-07.csv").unlink()
     sha = hashlib.sha256(b"PERSON_ID;GESCHLECHT;GEBURTSJAHR;TAGE\n2;W;1980;200\n10;M;1975;365\n").hexdigest()

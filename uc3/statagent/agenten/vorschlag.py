@@ -286,7 +286,7 @@ PROBE_ZEILEN = 8
 
 
 def _geaenderte_codes(vorher: dict[str, int], nachher: dict[str, int]) -> str:
-    """Nur die Ausprägungen, die sich ändern, die größte Änderung zuerst (Review 9b: ganze Verteilungen als JSON
+    """Nur die Ausprägungen, die sich ändern, die größte Änderung zuerst (Review: ganze Verteilungen als JSON
     waren unlesbar)."""
     geaendert = [
         (c, int(vorher.get(c, 0)), int(nachher.get(c, 0)))
