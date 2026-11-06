@@ -162,7 +162,7 @@ function WegWeiter({ detail, angehalten }: { detail: LaufDetail; angehalten: boo
     <p className="font-sans text-16 text-ink">
       {veroeffentlichen.regelnOhneFreigabe > 0
         ? `Bleibt vorläufig, bis ${veroeffentlichen.regelnOhneFreigabe === 1 ? "die letzte Regel" : `${formatZahl(veroeffentlichen.regelnOhneFreigabe)} Regeln`} mit Namen freigegeben ${veroeffentlichen.regelnOhneFreigabe === 1 ? "ist" : "sind"}.`
-        : "Bleibt vorläufig, bis der Regelstand für diesen Monat mit Namen freigegeben ist."}
+        : "Bleibt vorläufig, bis die Regeln für diesen Monat mit Namen freigegeben sind."}
     </p>
   );
 }

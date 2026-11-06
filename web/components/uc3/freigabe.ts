@@ -1395,7 +1395,9 @@ export function protokollZeilen(zeilen: readonly ErledigtZeile[]): ProtokollZeil
       continue;
     }
     const fassung = REGELSATZ_FREIGEBEN.exec(roh);
-    const satz = fassung ? fassungSatz(fassung[1]!, "freigegeben") : z.anweisung ? auftragKopf(z.anweisung).titel : alltag(z.geaendert ?? "Änderung");
+    // Regelnamen in Klammern („Auftrag 3, Regel M01_…“) stehen im Protokoll; hier reicht, was freigegeben wurde.
+    const titel = z.anweisung ? auftragKopf(z.anweisung).titel.replace(/\s*\(Auftrag \d+, Regel [^)]*\)/, "") : alltag(z.geaendert ?? "Änderung");
+    const satz = fassung ? fassungSatz(fassung[1]!, "freigegeben") : titel;
     ergebnis.push({ schluessel: z.schluessel, satz, name: z.name, zeit: z.zeit, art: z.art });
   }
   for (const [schluessel, g] of gruppen) {
