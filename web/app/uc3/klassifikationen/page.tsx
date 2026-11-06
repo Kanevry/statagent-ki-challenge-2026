@@ -27,8 +27,10 @@ import {
 import {
   beispieleFuer,
   leseNachschlagen,
+  leseOenace2003,
   nachschlagenKopf,
   SQL_NACHSCHLAGEN,
+  SQL_OENACE_2003,
   type Art,
   type Auswahl,
   type Kinder,
@@ -127,6 +129,48 @@ function AlleCodes({ auswahl, start, art }: { auswahl: Auswahl; start: Kinder; a
       </section>
       <ZuDenRegeln />
     </>
+  );
+}
+
+async function Oenace2003Uebergang() {
+  const lesung = await leseOenace2003();
+  // Nur zeigen, was in dieser Datenbank liegt: Ohne Übergänge fällt der Abschnitt weg.
+  if (!lesung.ok || !lesung.daten) return null;
+  const { zeilen, satz } = lesung.daten;
+  return (
+    <section aria-labelledby="oenace-2003-titel" className="flex max-w-4xl flex-col gap-2">
+      <h2 id="oenace-2003-titel" className={titel}>
+        Von ÖNACE 2003 nach 2008
+      </h2>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="font-sans text-16 text-ink">{satz}</span>
+        <BelegLink
+          quelle="stat.uebergang, stat.klass_oenace"
+          verweis="Aus dem Umsteigeschlüssel von Statistik Austria, je Unterabschnitt nach der Mehrheit seiner Codes"
+          sql={SQL_OENACE_2003}
+        />
+      </div>
+      <table className="w-full border-collapse font-sans text-14 text-ink">
+        <caption className="sr-only">Unterabschnitte von ÖNACE 2003 und ihr Abschnitt in ÖNACE 2008</caption>
+        <thead>
+          <tr className="border-b border-ink text-left text-slate">
+            <th scope="col" className="py-2 pr-3 font-normal">ÖNACE 2003</th>
+            <th scope="col" className="py-2 pr-3 font-normal">Branche</th>
+            <th scope="col" className="py-2 text-right font-normal">ÖNACE 2008</th>
+          </tr>
+        </thead>
+        <tbody>
+          {zeilen.map((z) => (
+            <tr key={z.code} className="border-b border-line">
+              <th scope="row" className="py-2 pr-3 text-left align-baseline font-normal">{z.code}</th>
+              <td className="py-2 pr-3 align-baseline">{z.name}</td>
+              <td className="py-2 text-right align-baseline">{z.ziele.join(", ")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="font-sans text-14 text-slate">ÖNACE 2003 ist hier nur bis zu den Unterabschnitten geladen.</p>
+    </section>
   );
 }
 
@@ -459,6 +503,7 @@ export default async function RegelnUndKlassifikationen({ searchParams }: Props)
         <>
           {nachschlagen && <AlleCodes {...nachschlagen} />}
           <Branchen daten={daten} oben={!nachschlagen} />
+          <Oenace2003Uebergang />
           <Qualifikationen daten={daten} />
           <Pensionen />
         </>
