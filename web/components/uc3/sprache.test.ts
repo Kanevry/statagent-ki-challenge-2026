@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alltag, alltagOder } from "./sprache";
+import { alltag, alltagOder, detailsText } from "./sprache";
 
 describe("alltag", () => {
   it("lässt Beschäftigungsverhältnis unverändert", () => {
@@ -51,5 +51,43 @@ describe("alltag", () => {
   // Fehler: „zu einem Satz verdichtet“ wurde „zu einem Zeile verdichtet“.
   it("passt den Artikel an: einem Satz wird einer Zeile", () => {
     expect(alltag("zu einem Satz verdichtet, der Satz zählt")).toBe("zu einer Zeile verdichtet, die Zeile zählt");
+  });
+});
+
+describe("detailsText", () => {
+  // Wörtlich aus uc3/db/100_klass_daten.sql (stat.variable, Beschreibung der Beschäftigungsverhältnisse).
+  const definition =
+    "Anzahl der Versicherungsverhältnisse (VVH_ID), die im Berichtszeitraum bestehen. Regelsatz v1: am Stichtag (Monatsletzter) besteht ein Zeitabschnitt mit Beginn ≤ Stichtag und Ende leer oder ≥ Stichtag; Merkmale aus diesem Abschnitt; jedes Verhältnis einmal. Die genaue Zählregel je Regelstand steht in meta.regel (typ zaehl).";
+
+  it("schreibt die Definition aus der Datenbank in den Wörtern der App", () => {
+    for (const roh of ["VVH_ID", "Regelsatz v1", "Monatsletzter", "meta.regel"]) {
+      expect(definition).toContain(roh);
+      expect(detailsText(definition)).not.toContain(roh);
+    }
+    expect(detailsText(definition)).toBe(
+      "Anzahl der Beschäftigungsverhältnisse, die im Berichtszeitraum bestehen. Nach den alten Regeln gilt: Am Stichtag, dem letzten Tag des Monats, besteht ein Zeitabschnitt mit Beginn ≤ Stichtag und Ende leer oder ≥ Stichtag; Merkmale aus diesem Abschnitt; jedes Beschäftigungsverhältnis einmal. Die genaue Zählregel je Regelstand steht in den freigegebenen Regeln.",
+    );
+  });
+
+  it("Monatsletzter am Satzende (frage.py, Ersatztext ohne Datenbank)", () => {
+    const vorher = "Beschäftigungsverhältnisse am Stichtag (Monatsletzter).";
+    expect(vorher).toContain("Monatsletzter");
+    expect(detailsText(vorher)).toBe("Beschäftigungsverhältnisse am Stichtag, dem letzten Tag des Monats.");
+  });
+
+  it("Monatsletzter und stat.-Tabellen in der Fluktuation (frage.py, FLUKTUATION_DEFINITION)", () => {
+    const vorher =
+      "Bestand: Beschäftigungsverhältnisse am Stichtag (Monatsletzter) laut stat.stat_beschaeftigte im Regelstand des maßgeblichen Laufs. Beide Stichtage aus der Lieferung des Berichtsmonats (stat.bewegung_oenace).";
+    const nachher = detailsText(vorher);
+    expect(nachher).toBe(
+      "Bestand: Beschäftigungsverhältnisse am Stichtag, dem letzten Tag des Monats, laut der gerechneten Statistik im Regelstand des maßgeblichen Laufs. Beide Stichtage aus der Lieferung des Berichtsmonats.",
+    );
+    expect(nachher).not.toMatch(/Monatsletzt|stat\./);
+  });
+
+  it("lässt Text ohne Rohwörter und alle Zahlen unverändert", () => {
+    // Wörtlich aus web/components/uc3/fixtures/antwort-wien-2025-03.json.
+    const text = "Am Stichtag 31.03.2025 (März 2025) gab es 91.450 Beschäftigungsverhältnisse (Wien); die Zahl ist vorläufig (Lauf 105).";
+    expect(detailsText(text)).toBe(text);
   });
 });

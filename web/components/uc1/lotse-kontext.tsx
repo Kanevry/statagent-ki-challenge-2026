@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { SeitenModell } from "@kic/ui/shell";
 import { abbildenAntrag, antragEingabeSchema, webAntragSchema, type RohAntrag, type WebAntrag } from "./antrag";
 import { frageSchema, webAntwortSchema, type WebAntwort } from "./antwort";
 import { formatAufnahme, pruefeReplay } from "./replay";
@@ -345,5 +346,11 @@ export function LotseAnbieter({ children }: { children: ReactNode }) {
     [verlauf, lage, aufnahme, aufgezeichnet, aufnahmeModell, spielt, entwurf, antwortEntwurf, einstellungen, fragen, beispielAbspielen, neuBeginnen, antrag, antragVorbereiten, pruefungen, setPruefung],
   );
 
-  return <LotseKontext.Provider value={wert}>{children}</LotseKontext.Provider>;
+  // Solange die Aufnahme läuft oder zu sehen ist, steht „Aufzeichnung“ im Kopf; eine eigene Frage setzt `aufnahme` zurück.
+  return (
+    <LotseKontext.Provider value={wert}>
+      {aufnahme !== null && <SeitenModell aufzeichnung />}
+      {children}
+    </LotseKontext.Provider>
+  );
 }

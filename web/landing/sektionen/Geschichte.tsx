@@ -58,7 +58,11 @@ function Zaehler({ aktiv, wert }: { aktiv: boolean; wert: number }) {
       setAnzeige(Math.round(wert * p));
       if (p < 1) rahmen = requestAnimationFrame(weiter);
     });
-    return () => cancelAnimationFrame(rahmen);
+    // Bricht die Animation ab (schnelles Weiterscrollen), steht danach die Endzahl statt eines Zwischenwerts.
+    return () => {
+      cancelAnimationFrame(rahmen);
+      setAnzeige(wert);
+    };
   }, [aktiv, wert]);
   return <>{zahl(anzeige)}</>;
 }

@@ -10,6 +10,8 @@ Geprüfter Stand: main `b9508d6ac8b298e113ac5d93f2300c1d23a86b8f`, Merge-Stopp-S
 
 Der Zweitrechner fiel in der Nacht aus, deshalb der Ersatz (Entscheid #92). `c16fa881` unterscheidet sich von `b9508d6a` nur in README, `docs/`, `scripts/vorfuehrung.sh` und einer Folie; Rechenpfade und UC3-Web: 0 Änderungen.
 
+Die genannten Laufdateien liegen unverändert im GitLab-Branch `abnahme/laeufe`, siehe `laeufe/README.md`.
+
 ## Zähler
 
 Geurteilt für main `c16fa881`, 06:07. Kein „alles bestanden“: Das Tor ist offen.
@@ -68,7 +70,7 @@ Letzter Stand für App und Code: main `14c86cc3593167e322392cc08a00f02c687532d7`
 
 Geurteilt für `14c86cc3`, 07:50. Das Tor bleibt offen: 10 offen, 1 per Entscheid; mit dem Entscheid zu 74-AC1 und dem Beleg zu 92-2 sind es 8 offen, 2 per Entscheid: 18-AC3, 22-1, 75-AC1, 76-AC1, 91-2, 91-3, 92-3, 92-4.
 
-**74-AC1, Restmangel (Entscheid Lead 3d):** Die Frage nach der Fluktuation je Wirtschaftsbereich läuft unter Last in die Zeitgrenze und antwortet dann mit ‚später noch einmal fragen‘; allein gestellt liefert sie die Zahl (88 von 88, zweimal gemessen). Keine falsche Zahl. Gemessen: im vollen Lauf hinter den anderen Sätzen zweimal 86 von 88 (ceef8b15, 14c86cc3), allein zweimal 88 von 88. Benannt ist die Frage „Wie hoch ist die Fluktuation je Wirtschaftsbereich im Oktober 2024?“; der zweite rote Test ist vermutlich die Sammelprüfung derselben Frage, das ist nicht belegt. Dass es die Zeitgrenze ist, folgt aus dem Antworttext und dem Muster, gemessen ist die Grenze selbst nicht.
+**74-AC1, Restmangel (Entscheid Lead 3d):** Die Frage nach der Fluktuation je Wirtschaftsbereich läuft unter Last oder mit kaltem Cache, nicht getrennt gemessen, in die Zeitgrenze und antwortet dann mit ‚später noch einmal fragen‘; allein gestellt lieferte sie die Zahl (88 von 88, zweimal gemessen, beide Male kurz nach dem roten Lauf). Keine falsche Zahl. Gemessen: im vollen Lauf hinter den anderen Sätzen zweimal 86 von 88 (ceef8b15, 14c86cc3), allein zweimal 88 von 88. Benannt ist die Frage „Wie hoch ist die Fluktuation je Wirtschaftsbereich im Oktober 2024?“; der zweite rote Test ist vermutlich die Sammelprüfung derselben Frage, das ist nicht belegt. Dass es die Zeitgrenze ist, folgt aus dem Antworttext und dem Muster, gemessen ist die Grenze selbst nicht. Die zwei grünen Einzelläufe starteten Minuten nach dem roten Lauf auf derselben Prüf-DB, also mit warmem Cache und ohne die Wegwerf-DBs davor; Last und kalter Cache sind nicht getrennt.
 
 **22-1 voll:** letzte Messung auf `c16fa881` bestanden, auf `14c86cc3` nicht wiederholt (26 min). Rechenpfade seither unverändert.
 
@@ -76,7 +78,11 @@ Geurteilt für `14c86cc3`, 07:50. Das Tor bleibt offen: 10 offen, 1 per Entschei
 
 **92-2:** Dateiliste gelesen von Lead 3d um 07:53, Einträge geprüft von der Assistenz um 07:44, Agent und kein Mensch.
 
-**91-2:** offen, weil sich `docs/abgabe/herkunft.md` nach der Lesung geändert hat (702d479); neue Lesung beauftragt. **91-3:** beim Owner.
+**91-2:** bestanden nach neuer Lesung durch die Assistenz des Leads (Agent, kein Mensch) mit der ergänzten Zeile zu den Formulartexten; die Veröffentlichung dieses Wortlauts entscheidet der Owner und ist nicht Teil des Belegs; Paketlizenzen nicht einzeln geprüft. **91-3:** beim Owner.
+
+**92-3:** bestanden: 67 von 67 Dateien, einschließlich Ministeriums-CSV, sha256 gleich Manifest und Rücklesen, 07:55:36 bis 08:02:09 (Agent, kein Mensch). Danach kam auf Owner-Freigabe `zusatz/stand-uc1-uc2-uc4.md` außerhalb des Manifests dazu.
+
+**92-4:** bestanden: GitHub-`main` gleich main `7dff9bdb`, gepusht 08:30:37, per API nachgesehen vom Prüfer. Das Repo ist privat; ob die Jury Zugriff hat, liegt beim Lead.
 
 **Online gemessen 07:53:** `/api/uc3/ergebnisse/v1` und `v2` antworten 200 mit sha256 wie im Manifest, `ministerium` und `ministerium_2026-07.csv` antworten 404. Welcher Commit online läuft, ist von außen nicht abgelesen.
 
