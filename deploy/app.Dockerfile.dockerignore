@@ -12,6 +12,10 @@
 !uc1
 !uc2
 !uc3
+# Für /uc3/ergebnisse genau diese drei Dateien; die Ministeriums-Lieferung (Einzeldaten) nie
+!abgabe/aggregationen_v1.xlsx
+!abgabe/aggregationen_v2.xlsx
+!abgabe/ministerium_2026-07.beleg.md
 # auch innerhalb der erlaubten Ordner nie: Abhängigkeiten, Build-Reste, Erzeugtes, lokale Zugänge
 **/node_modules
 **/.next
