@@ -41,14 +41,48 @@ WIEN = ZoneInfo("Europe/Vienna")
 NICHT_VOR = "2026-11-06T08:30"
 # Entscheid Lead (#92, 05.11.): Historie bleibt unverändert; bekannte Treffer in Commit-Nachrichten.
 ERLAUBTE_COMMIT_TREFFER = 12
-# Entscheid Lead (#188, 06.11.): Die Rohläufe der Abnahme und die überholten Arbeitsdateien liegen nicht mehr
-# auf main. Nur diese Pfade dürfen auf GitHub verschwinden, jede andere entfernte Datei blockt weiter.
-DARF_AUF_GITHUB_FEHLEN = (
-    "docs/abnahme/laeufe/",
-    "docs/landing/v1/",
-    "docs/landing/v2/",
-    "docs/plan/uc1/messung-dev-ende.md",
-    "docs/plan/uc2/freigabe-bericht.md",
+# Entscheid Lead (#188, 06.11.): Die Rohläufe der Abnahme liegen nicht mehr auf main. Nur dieser Ordner und
+# die Liste darunter dürfen auf GitHub verschwinden, jede andere entfernte Datei blockt weiter.
+DARF_AUF_GITHUB_FEHLEN = "docs/abnahme/laeufe/"
+# Aufräumen vor dem Endstand (!362): genau diese 35 Pfade, bewusst kein Präfix und kein Muster.
+AUFGERAEUMTE_PFADE = frozenset(
+    {
+        ".orchestrator/bootstrap.lock",
+        "docs/landing/v1/abnahme.json",
+        "docs/landing/v1/desktop-ansatz.jpg",
+        "docs/landing/v1/desktop-datenfehler.jpg",
+        "docs/landing/v1/desktop-szene-000.jpg",
+        "docs/landing/v1/desktop-szene-037.jpg",
+        "docs/landing/v1/desktop-szene-063.jpg",
+        "docs/landing/v1/desktop-szene-100.jpg",
+        "docs/landing/v1/desktop-use-cases.jpg",
+        "docs/landing/v1/lighthouse.txt",
+        "docs/landing/v1/mobil-datenfehler.jpg",
+        "docs/landing/v1/mobil-szene-000.jpg",
+        "docs/landing/v1/mobil-szene-037.jpg",
+        "docs/landing/v1/mobil-szene-063.jpg",
+        "docs/landing/v1/mobil-szene-100.jpg",
+        "docs/landing/v2/abnahme.json",
+        "docs/landing/v2/desktop-ansatz.jpg",
+        "docs/landing/v2/desktop-datenfehler.jpg",
+        "docs/landing/v2/desktop-szene-000.jpg",
+        "docs/landing/v2/desktop-szene-037.jpg",
+        "docs/landing/v2/desktop-szene-063.jpg",
+        "docs/landing/v2/desktop-szene-088.jpg",
+        "docs/landing/v2/desktop-team.jpg",
+        "docs/landing/v2/desktop-use-cases.jpg",
+        "docs/landing/v2/lighthouse.txt",
+        "docs/landing/v2/mobil-ansatz.jpg",
+        "docs/landing/v2/mobil-datenfehler.jpg",
+        "docs/landing/v2/mobil-szene-000.jpg",
+        "docs/landing/v2/mobil-szene-037.jpg",
+        "docs/landing/v2/mobil-szene-063.jpg",
+        "docs/landing/v2/mobil-szene-088.jpg",
+        "docs/landing/v2/mobil-team.jpg",
+        "docs/landing/v2/mobil-use-cases.jpg",
+        "docs/plan/uc1/messung-dev-ende.md",
+        "docs/plan/uc2/freigabe-bericht.md",
+    }
 )
 # GitHub lehnt Dateien über 100 MB ab, warnt ab 50 MB.
 GROESSE_GRENZE = 50 * 1024 * 1024
@@ -267,7 +301,9 @@ def pruefe(arbeit: Path, muster: list[re.Pattern[str]], bericht_pfad: Path, erla
     gh_pfade = set(filter(None, git(arbeit, "ls-tree", "-r", "--name-only", "-z", gh).stdout.split("\0")))
     pfade = list(filter(None, git(arbeit, "ls-tree", "-r", "--name-only", "-z", "HEAD").stdout.split("\0")))
     entfernt = gh_pfade - set(pfade)
-    fehlend = sorted(p for p in entfernt if not p.startswith(DARF_AUF_GITHUB_FEHLEN))
+    fehlend = sorted(
+        p for p in entfernt if not p.startswith(DARF_AUF_GITHUB_FEHLEN) and p not in AUFGERAEUMTE_PFADE
+    )
     gewollt = len(entfernt) - len(fehlend)
     zusatz = f", {gewollt} gewollt entfernt" if gewollt else ""
     bericht.add(
