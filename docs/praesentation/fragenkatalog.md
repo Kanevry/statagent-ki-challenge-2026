@@ -380,7 +380,7 @@ Fünftens steht die Altersgrenze 110 ohne amtlichen Standard. Sie ist ein Parame
 
 #### Stand (was vom Zielbild auf main ist)
 
-Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.2026 23:04 bis 23:08 auf der Online-Demo, main `11b5ff5` (POST `/api/uc4/frage`), dazu der Prüfpunkt des Leads um 20:00. Fr 05:00 noch einmal messen. Nicht gemessen heißt: nicht behaupten.
+Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 06.11.2026 05:01 bis 05:03 auf der Online-Demo, Code-Stand main `5328291`, bis `9ad33e9` ohne Änderung am Code (POST `/api/uc4/frage`), dazu der Prüfpunkt des Leads um 20:00. Nicht gemessen heißt: nicht behaupten.
 
 | Teil des Zielbilds | Stand auf main | Beleg |
 |---|---|---|
@@ -391,9 +391,9 @@ Code gemessen am 05.11.2026 18:54 auf main `1a8c645`. Betrieb gemessen am 05.11.
 | UC1-Adapter (Lotse) | registriert | `uc1/pyproject.toml`, `uc1.uc4:router_adapter` |
 | Freigabe mit Namen in UC2 | im Code | `uc2/src/uc2/verhandlung/freigabe.py`, `web/app/api/uc2/faelle/[id]/freigabe/route.ts` |
 | Freigabe mit Namen in UC1 | nicht gefunden | keine Fundstelle auf main |
-| Wien-Frage liefert drei Antworten | online ja: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator mit Modell gpt-5-4-mini, Lotse fester Text, beide mit dem Beleg aus UC3; nichts fehlt; 9 bis 12 s | gemessen 23:04, zweimal |
-| Frage ohne Zahl | „Wie heißt der Hund von Pippi Langstrumpf?“: Die Kette stoppt bei StatAgent, ohne Zahl, 3 s | gemessen 23:06 |
-| Frage mit „Wartezeiten“ | Mit Wien und März 2025: Der Simulator rechnet über das Rechenmodell, Wartezeit −22,2 %, 128,2 Mio. Euro pro Jahr, 22 s. Nicht vorführen. Ohne Monat und Ort: StatAgent fragt zurück, welchen Begriff es erklären soll, die Kette stoppt | gemessen 23:06 und 23:08 |
+| Wien-Frage liefert drei Antworten | online ja: StatAgent 7.498 mit Beleg (Lauf 105, vorläufig), Simulator mit Modell gpt-5-4-mini, Lotse fester Text, beide mit dem Beleg aus UC3; nichts fehlt; 13 s | gemessen 05:01 |
+| Frage ohne Zahl | „Wie heißt der Hund von Pippi Langstrumpf?“: Die Kette stoppt bei StatAgent, ohne Zahl, 3 s. Die Antwort sagt: Das Wort „heißt“ kann ich nicht einordnen | gemessen 05:01 |
+| Frage mit Zusatz zu „Wartezeiten“ | Die Wien-Frage mit „und was heißt das für Wartezeiten beim Arzt?“ oder „was bedeutet das …“: Die Kette stoppt bei StatAgent, ohne Zahl, 3 s. Nicht vorführen | gemessen 05:02 und 05:03 |
 | „Zugänge Oktober 2024“ | Öffentliche Adresse: keine Zahl, Hinweis auf die lokale Auswertung. Vorführ-Instanz: 12.215 Zugänge, 14.557 Abgänge, Fluktuation je Branche, alle drei Stationen, 19 s | gemessen 23:07 und 23:08, Instanz 06.11.2026 02:40 |
 | Live-Änderung per Agent (D2 Teil 2) | auf main seit !150. „Beamte zählen nicht mehr mit“, Juli 2026: 407.604 → 395.315, −12.289, 2 min 55 s bis zum Vorschlag, nicht freigegeben | gemessen 06.11.2026 02:36, Vorführ-Instanz 1a4e0b8. Probe der Lane auf Kopien der Abgabe-DB: 13 von 14, `docs/plan/uc3/live-ruecknahme.md` |
 | Klassifikation bis 5-Steller und Gemeinden | online nachzuschlagen auf `/uc3/klassifikationen` mit Suche, und die Frage erklärt tiefe Codes, Gemeinden und Bezirke. Gezählt wird weiter nach Abschnitt und Bundesland, „Bezirk“ als Filter sagt ab | online gemessen 06.11.2026 01:34, main `275ffb2` |
