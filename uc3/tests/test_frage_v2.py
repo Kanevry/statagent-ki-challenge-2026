@@ -429,3 +429,16 @@ def test_unbekanntes_wort_im_v2_weg(mit_v2: Verbindung, frage: str) -> None:
 
 def test_v2_gegenprobe_mit_zahl(mit_v2: Verbindung) -> None:
     assert antwort_frage(mit_v2, "Frauen im August 2024 nach v2")["zahlen"]
+
+
+# Fängt (Blind-Runde, #186): Der v2-Weg nannte nur den Stand eines Monats, gefragt war die Veränderung.
+@pytest.mark.parametrize(
+    "frage",
+    [
+        "Wie hat sich die Zahl der Beschäftigten im August 2024 gegenüber dem Vormonat verändert, nach v2?",
+        "Beschäftigte im Vormonat nach Regelsatz v2",
+    ],
+)
+def test_v2_vergleich_mit_vormonat_ohne_zahl(mit_v2: Verbindung, frage: str) -> None:
+    daten = antwort_frage(mit_v2, frage)
+    assert daten["zahlen"] == [] and "einzeln fragen" in daten["text"]
