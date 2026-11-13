@@ -154,7 +154,7 @@ wichtigsten Schlüsselnamen und Erklärungen: `.env.example`. Alle Schlüssel st
 - **Embeddings:** `google/embeddinggemma-2`, lokal. Die Gewichte sind nicht im Repo (siehe Lizenzen).
 - **Ohne Schlüssel** läuft alles mit `LLM_PROVIDER=mock`. Der UC3-Monatslauf braucht ohnehin kein Modell.
 
-Alle Schlüssel und die Grenzen der Online-Demo: [docs/einstieg/konfiguration.md](docs/einstieg/konfiguration.md).
+Alle Schlüssel und die Grenzen der früheren Online-Demo: [docs/einstieg/konfiguration.md](docs/einstieg/konfiguration.md).
 
 ## Stand zur Abgabe, 06.11.2026
 
