@@ -74,10 +74,10 @@ Bereich 5. Diese Änderung läuft nur in der Vorführung, nicht auf der öffentl
 
 ## Rundgang durch die öffentliche Demo
 
-Adresse: **https://ki-challenge.gotzendorfer.at**. Die Online-Demo ist lesend: Man kann alles ansehen und Fragen
-stellen, aber keine Änderung freigeben und keinen Lauf starten. Solche Anfragen lehnt der Server ab
+Die Online-Demo ist seit 13.11.2026 abgeschaltet. Sie war lesend: Man konnte alles ansehen und Fragen
+stellen, aber keine Änderung freigeben und keinen Lauf starten. Solche Anfragen lehnte der Server ab
 ([Ausführung, Online-Demo](ausfuehrung.md#online-demo)). Alle Seiten unten waren am 06.11.2026 um 06:48 Uhr öffentlich
-erreichbar. Bis zur Abgabe ändern sich noch Kleinigkeiten an der Oberfläche.
+erreichbar.
 
 | Seite (Pfad) | Was man dort sieht | Worauf man achten kann |
 |---|---|---|
@@ -157,8 +157,8 @@ Rechner, wie es die Aufgabe verlangt ([Ausführung, Beispiellauf UC3](ausfuehrun
 Sprachmodell, standardmäßig Azure; ein lokales Modell für den Betrieb ohne Netz ist vorgesehen, gelaufen ist es bisher
 nicht ([Konfiguration, Modelle](konfiguration.md#modelle)).
 
-**Kann ich das selbst ausprobieren?** Ja, auf https://ki-challenge.gotzendorfer.at lesend und mit Fragen an die
-Daten. Wer es auf dem eigenen Rechner starten will, findet die Befehle in [schnellstart.md](schnellstart.md); für
+**Kann ich das selbst ausprobieren?** Ja, auf dem eigenen Rechner. Die Online-Demo ist seit 13.11.2026 abgeschaltet.
+Wie sie aussah, zeigt das [Video der Vorführung](../praesentation/backup-demo.mp4). Die Befehle stehen in [schnellstart.md](schnellstart.md); für
 StatAgent braucht man dazu das Datenpaket des Veranstalters.
 
 ## Weiter lesen

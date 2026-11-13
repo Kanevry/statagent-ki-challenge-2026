@@ -25,7 +25,7 @@ Technikwissen. Jede Seite ist für eine Lesergruppe geschrieben und verweist fü
 
 | Wer | Reihenfolge |
 |---|---|
-| Außenstehende | [fuer-aussenstehende.md](fuer-aussenstehende.md), dann [use-cases-stand.md](use-cases-stand.md), dann die Demo unter https://ki-challenge.gotzendorfer.at |
+| Außenstehende | [fuer-aussenstehende.md](fuer-aussenstehende.md), dann [use-cases-stand.md](use-cases-stand.md), dann das [Video der Vorführung](../praesentation/backup-demo.mp4) (die Online-Demo ist seit 13.11.2026 abgeschaltet) |
 | Technik | [architektur.md](architektur.md), dann [schnellstart.md](schnellstart.md), dann [arbeitsweise-agentisch.md](arbeitsweise-agentisch.md) und [../../uc3/README.md](../../uc3/README.md) |
 | Management | [fuer-management.md](fuer-management.md), dann [zahlen.md](zahlen.md), dann [use-cases-stand.md](use-cases-stand.md) |
 

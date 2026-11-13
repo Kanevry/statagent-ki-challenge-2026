@@ -111,4 +111,4 @@ Das sind Vorschläge aus den offenen Punkten im Repo, keine Zusagen.
 - [Fragen des Managements mit Belegen](../praesentation/management-faq.md)
 - [Kriterien-Karte: was erfüllt, teilweise oder offen ist](../praesentation/kriterien-karte.md)
 - [Abgabe UC3](../../abgabe/README.md) und [Protokoll aller Freigaben](../../abgabe/protokoll.md)
-- Öffentliche Demo: https://ki-challenge.gotzendorfer.at
+- Video der Vorführung: [backup-demo.mp4](../praesentation/backup-demo.mp4) (die Online-Demo ist seit 13.11.2026 abgeschaltet)

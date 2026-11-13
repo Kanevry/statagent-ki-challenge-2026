@@ -19,7 +19,7 @@ Jetzt live: Ihre Änderung und drei Datenanfragen.
 
 Gezählt wird ohne KI, lokal und offline. Das KI-Modell ist austauschbar.
 
-ki-challenge.gotzendorfer.at
+github.com/Kanevry/statagent-ki-challenge-2026
 
 ## Sprechernotizen
 

@@ -230,7 +230,7 @@ Person selbst bestätigt (`uc3 bestaetigen`, Commit `2ba95e5139`).
 
 ## Online-Demo und Betrieb
 
-Öffentlich läuft die Demo unter https://ki-challenge.gotzendorfer.at, Aufbau in [`deploy/README.md`](../../deploy/README.md):
+Die Online-Demo ist seit 13.11.2026 abgeschaltet. Ihr Aufbau steht in [`deploy/README.md`](../../deploy/README.md):
 ein Caddy vor der App und eine PostgreSQL-Datenbank, alle drei in `deploy/docker-compose.prod.yml`.
 
 | Thema | Umsetzung | Fundstelle |

@@ -17,7 +17,7 @@ Ihre Fragen, bitte.
 
 Gezählt wird ohne KI. Das KI-Modell ist austauschbar.
 
-ki-challenge.gotzendorfer.at
+github.com/Kanevry/statagent-ki-challenge-2026
 
 ## Sprechernotizen
 

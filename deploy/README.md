@@ -1,9 +1,10 @@
-# Online-Deploy: https://ki-challenge.gotzendorfer.at
+# Online-Deploy: ki-challenge.gotzendorfer.at (seit 13.11.2026 abgeschaltet)
 
 Die Domain ist bewusst öffentlich genannt (Lead 05.11.2026); im Code steht sie nicht, dort kommt sie aus `DEPLOY_DOMAIN`
 und `SITE_ADDRESS`.
 
-Die Demo läuft zusätzlich zur lokalen Vorführung online, damit jede und jeder sie selbst ausprobieren kann (#68).
+Die Demo lief zusätzlich zur lokalen Vorführung online, damit jede und jeder sie selbst ausprobieren konnte (#68). Seit
+13.11.2026 sind Server und DNS-Einträge entfernt; dieses Dokument beschreibt den Aufbau, wie er lief.
 Server, Zugänge und Pfade stehen bewusst nicht im Repo; hier heißen sie `<server>` (SSH-Alias) und `<basis>`
 (Basisordner auf dem Server).
 
