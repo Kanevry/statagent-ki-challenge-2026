@@ -4,17 +4,15 @@ StatAgent macht aus den monatlichen Lieferungen der Sozialversicherung die Besch
 Qualitätsbericht. Es ist für Statistikteams, die jeden Monat Zahlen liefern und jede Regeländerung belegen müssen.
 Ein KI-Agent schlägt Änderungen an den Regeln vor, ein Mensch gibt sie mit seinem Namen frei, gerechnet wird ohne KI.
 
-**Ausprobieren ohne Installation:** https://ki-challenge.gotzendorfer.at/
+**Demo offline:** Die Online-Demo ist seit 13.11.2026 abgeschaltet. Das Video der Vorführung und der ganze Code
+liegen hier im Repo. Lokal starten: [docs/einstieg/ausfuehrung.md](docs/einstieg/ausfuehrung.md).
 
-**Direkt zu Use Case 3 StatAgent:** https://ki-challenge.gotzendorfer.at/uc3
-
-**Eine Frage, drei Antworten (UC4, Zusatz):** https://ki-challenge.gotzendorfer.at/uc4. Bei der Wien-Frage zum
+**Eine Frage, drei Antworten (UC4, Zusatz):** Bei der Wien-Frage zum
 März 2025 rechnet StatAgent 7.498 Beschäftigungsverhältnisse, der Simulator wägt ab, der Lotse sagt, was es heißt.
 
-**Keine Zeit?** Aufzeichnung der Vorführung, 2:45 min, ohne Ton:
+**Video der Vorführung**, 2:45 min, ohne Ton:
 [docs/praesentation/backup-demo.mp4](docs/praesentation/backup-demo.mp4).
-So sieht eine Freigabe aus, auch online ohne Passwort:
-https://ki-challenge.gotzendorfer.at/uc3/freigaben/24
+So sieht eine Freigabe aus:
 
 ![Freigabe-Seite in StatAgent zum Änderungsauftrag 1 „Dienstvertrag und freier Dienstvertrag zusammen“. Die Testrechnung für August 2024 zeigt die Zahlen vorher und nachher. Aus 235.819 und 1.142 Angestellten werden 236.961. Gesamt bleibt 392.236. Darunter steht, wer freigegeben hat und wann.](docs/praesentation/screens/SC12.png)
 
@@ -22,8 +20,7 @@ Oben der Auftrag, in der Mitte die Zahlen vorher und nachher, unten die Freigabe
 Freigabe hat eine KI-Sitzung im Auftrag von Bernhard Götzendorfer eingegeben, er hat sie am selben Abend bestätigt
 (Commit `2ba95e5`).
 
-Die öffentliche Demo ist lesend: Man kann alles ansehen und Fragen an die Daten stellen. Aufträge an die Agenten und
-Freigaben mit Namen laufen auf einer eigenen Vorführ-Adresse mit Passwort und lokal.
+Aufträge an die Agenten und Freigaben mit Namen laufen lokal.
 
 Beitrag von Team OneShotAndy zur **KI Challenge 2026** des Dachverbands der österreichischen
 Sozialversicherungsträger und der WK Wien (05. bis 06.11.2026). Bewertet wird **Use Case 3, StatAgent**.
@@ -127,7 +124,8 @@ Tests (ohne die Daten des Veranstalters, so ruft es auch die CI in `.gitlab-ci.y
 - UC3 gegen die echten Daten (Datenbank mit gerechneten Läufen, Golden Set mit 2.880 Zellen):
   `UC3_DATEN_URL=postgresql://statistik:statistik@localhost:5433/statistik uv run pytest -q -m daten uc3/tests`.
 
-Start der Datenbank, Ergebnis des Eichens, Nachweis des Jury-Wegs und die Online-Demo:
+Start der Datenbank, Ergebnis des Eichens, Nachweis des Jury-Wegs und der Betrieb der Online-Demo (seit 13.11.2026
+abgeschaltet):
 [docs/einstieg/ausfuehrung.md](docs/einstieg/ausfuehrung.md).
 
 ## Abhängigkeiten und Voraussetzungen
@@ -156,7 +154,7 @@ wichtigsten Schlüsselnamen und Erklärungen: `.env.example`. Alle Schlüssel st
 - **Embeddings:** `google/embeddinggemma-2`, lokal. Die Gewichte sind nicht im Repo (siehe Lizenzen).
 - **Ohne Schlüssel** läuft alles mit `LLM_PROVIDER=mock`. Der UC3-Monatslauf braucht ohnehin kein Modell.
 
-Alle Schlüssel und die Grenzen der Online-Demo: [docs/einstieg/konfiguration.md](docs/einstieg/konfiguration.md).
+Alle Schlüssel und die Grenzen der früheren Online-Demo: [docs/einstieg/konfiguration.md](docs/einstieg/konfiguration.md).
 
 ## Stand zur Abgabe, 06.11.2026
 

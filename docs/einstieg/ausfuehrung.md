@@ -42,12 +42,10 @@ Namen in unserer Team-Datenbank stehen. Den Nachweis dafür enthält `abgabe/pro
 
 ## Online-Demo
 
-Eine öffentliche Demo läuft unter https://ki-challenge.gotzendorfer.at (Adresse und Aufbau: `deploy/README.md`).
-Man kann dort Fragen stellen: auf `/uc3/fragen` an die Daten (ohne Sprachmodell) und auf `/uc4`, wo UC3, UC2 und UC1
-nacheinander antworten, mit dem Modell Azure `gpt-5.4-mini`. Die Zahl kommt immer aus der Datenbank, mit Beleg.
-Alles andere ist dort nur zum Ansehen: Freigaben, Läufe und neue Verhandlungen nimmt der Server nicht an (403).
-Standardmäßig gehen je Internetanschluss höchstens 10 Fragen in der Minute, und für den ganzen Tag gibt es ein
-festes Kontingent an Modellaufrufen.
+Die Online-Demo ist seit 13.11.2026 abgeschaltet. Ihr Aufbau steht in `deploy/README.md`. Sie lief lesend:
+Fragen an die Daten auf `/uc3/fragen` (ohne Sprachmodell) und auf `/uc4`, wo UC3, UC2 und UC1 nacheinander
+antworteten, mit dem Modell Azure `gpt-5.4-mini`. Die Zahl kam immer aus der Datenbank, mit Beleg. Wie man StatAgent
+lokal startet, steht oben.
 
 ## Abhängigkeiten und Voraussetzungen
 
