@@ -88,7 +88,7 @@ Belege: F18 (7.498, Sollwert laut unabhängigem Orakel).
 
 > Jede Zahl lässt sich nachrechnen. Jetzt live. Nennen Sie mir eine Regel, die ich jetzt ändern soll.
 
-Belege: keine Zahl. Die Schlussfolie nannte ki-challenge.gotzendorfer.at, seit 13.11.2026 (Demo abgeschaltet) das Code-Repo github.com/Kanevry/statagent-ki-challenge-2026.
+Belege: keine Zahl. Die Schlussfolie nannte ki-challenge.gotzendorfer.at. Seit 13.11.2026 (Demo abgeschaltet) nennt sie das Code-Repo github.com/Kanevry/statagent-ki-challenge-2026.
 
 ---
 

@@ -12,7 +12,7 @@ Eine „Szene“ ist eine Seite der Präsentation. Die Dateien liegen unter `web
 
 Drei Menschen brauchen eine Antwort, der sie trauen können. Vertrauen entsteht, wenn jede Zahl einen Beleg hat und jede Änderung einen Namen. Aus diesem Kern für die Statistik (3) wurden Lotse (1) und Simulator (2), und zusammen der gemeinsame Einstieg (4).
 
-Owner-Entscheide: Die Folien zeigen das Zielbild „1 + 2 + 3 = 4“ und wie wir dahin kamen. Der Tagesstand steht nur im Fragenkatalog. Monate stehen im Text ausgeschrieben („Oktober 2025“), auf Achsen in Kurzform („Okt 2025“), nie als Ziffernfolge aus Jahr und Monat. Sichtbar steht nie „Beispiel“, „Platzhalter“ oder „generiert“. Zeitmarken stehen nur in den Notizen. Die Schlussfolie nannte ki-challenge.gotzendorfer.at, seit 13.11.2026 (Demo abgeschaltet) das Code-Repo github.com/Kanevry/statagent-ki-challenge-2026.
+Owner-Entscheide: Die Folien zeigen das Zielbild „1 + 2 + 3 = 4“ und wie wir dahin kamen. Der Tagesstand steht nur im Fragenkatalog. Monate stehen im Text ausgeschrieben („Oktober 2025“), auf Achsen in Kurzform („Okt 2025“), nie als Ziffernfolge aus Jahr und Monat. Sichtbar steht nie „Beispiel“, „Platzhalter“ oder „generiert“. Zeitmarken stehen nur in den Notizen. Die Schlussfolie nannte ki-challenge.gotzendorfer.at. Seit 13.11.2026 (Demo abgeschaltet) nennt sie das Code-Repo github.com/Kanevry/statagent-ki-challenge-2026.
 
 ## Szenen
 
